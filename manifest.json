@@ -1,0 +1,14 @@
+{
+	"name": "WikiTree",
+	"description": "The official WikiTree browser extension.",
+	"version": "0.1.0",
+	"manifest_version": 3,
+	"options_page": "core/options.html",
+	"permissions": [],
+	"content_scripts": [
+		{
+			"matches": [ "https://www.wikitree.com/*" ],
+			"js": [ "thirdparty/jquery-3.6.0.min.js" ]
+		}
+	]
+}
