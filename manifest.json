@@ -4,7 +4,7 @@
 	"version": "0.1.0",
 	"manifest_version": 3,
 	"options_page": "core/options.html",
-	"permissions": [],
+	"permissions": [ "storage" ],
 	"content_scripts": [
 		{
 			"matches": [ "https://www.wikitree.com/*" ],
