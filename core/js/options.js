@@ -1,9 +1,9 @@
 // an array of information about features
 const features = [
 	{
-		name: 'Feature 1',
-		id: 'feature1',
-		description: 'This is a feature',
+		name: 'Source Previews',
+		id: 'sPreviews',
+		description: 'Enable source previews on inline references.',
 		category: 'Main'
 	},
 	{
