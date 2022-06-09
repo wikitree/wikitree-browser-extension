@@ -4,11 +4,19 @@
 	"version": "0.1.0",
 	"manifest_version": 3,
 	"options_page": "core/options.html",
-	"permissions": [ "storage" ],
+	"permissions": [
+		"storage"
+	],
 	"content_scripts": [
 		{
-			"matches": [ "https://www.wikitree.com/*" ],
-			"js": [ "thirdparty/jquery-3.6.0.min.js" ]
+			"matches": [
+				"https://www.wikitree.com/*"
+			],
+			"js": [
+				"thirdparty/jquery-3.6.0.min.js",
+				"core/js/common.js",
+				"features/sourcepreview/sourcepreview.js"
+			]
 		}
 	]
 }
