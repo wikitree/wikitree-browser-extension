@@ -7,16 +7,10 @@ const features = [
 		category: 'Main'
 	},
 	{
-		name: 'Feature 2',
-		id: 'feature2',
-		description: 'This is another feature',
+		name: 'Printer Friendly Bio',
+		id: 'printerFriendly',
+		description: 'Change the page to a printer-friendly one.',
 		category: 'Main'
-	},
-	{
-		name: 'Feature 3',
-		id: 'something',
-		description: 'This feature does more stuff.',
-		category: 'Menu'
 	}
 ];
 
