@@ -6,7 +6,7 @@ Add a new folder with the feature name under the `features` folder to hold the c
 
 Make sure you update `manifest.json` with the javascript files.
 
-In `core/js/options.js`, add information about the feature to the `feature` array. This will setup a basic on/off switch on the Options Page.
+In `core/js/options.js`, add information about the feature to the `features` array. This will setup a basic on/off switch on the Options Page.
 
 ``` js
 const features = [
