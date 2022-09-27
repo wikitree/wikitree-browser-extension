@@ -37,7 +37,9 @@ function createTopMenuItem(options) {
 }
 
 function createTopMenu() {
-	$('.pureCssMenu').append(`<li>
+	newUL = $("<ul class='pureCssMenu' id='wte-topMenuUL'></ul>");
+	$("ul.pureCssMenu").eq(0).after(newUL);
+	newUL.append(`<li>
         <a class="pureCssMenui0">
             <span>App Features</span>
         </a>

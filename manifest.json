@@ -8,6 +8,7 @@
 	"content_scripts": [
 		{
 			"matches": [ "https://www.wikitree.com/*" ],
+			"css": ["core/css/main.css"],
 			"js": [
 				"thirdparty/jquery-3.6.0.min.js",
 				"core/js/common.js",

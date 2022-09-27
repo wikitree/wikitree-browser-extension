@@ -88,3 +88,8 @@ input:checked + .slider:before {
 .slider.round:before {
 	border-radius: 50%;
 }
+
+/* content */
+#wte-topMenuUL {
+	margin-right:1em;
+}
