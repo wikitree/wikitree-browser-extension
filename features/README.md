@@ -25,7 +25,7 @@ chrome.storage.sync.get('featureID', (result) => {
 	if (result.featureID) {
         // additional code
     }
-}
+})
 ```
 
 You may want to include a README file in the folder to explain what the feature does.
