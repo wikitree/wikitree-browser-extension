@@ -11,6 +11,12 @@ const features = [
 		id: 'printerFriendly',
 		description: 'Change the page to a printer-friendly one.',
 		category: 'Main'
+	},
+	{
+		name: 'Apps Menu',
+		id: 'appsMenu',
+		description: 'Adds an apps submenu to the Find menu',
+		category: 'Main'
 	}
 ];
 

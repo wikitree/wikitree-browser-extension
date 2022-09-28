@@ -8,13 +8,18 @@
 	"content_scripts": [
 		{
 			"matches": [ "https://www.wikitree.com/*" ],
-			"css": ["core/css/main.css"],
+			"css": [
+				"core/css/main.css",
+				"features/appsMenu/appsMenu.css"
+			],
 			"js": [
 				"thirdparty/jquery-3.6.0.min.js",
+				"thirdparty/js.cookie.js",
 				"core/js/common.js",
 				"core/js/content.js",
 				"features/sourcepreview/sourcepreview.js",
-				"features/printerfriendly/printerfriendly.js"
+				"features/printerfriendly/printerfriendly.js",
+				"features/appsMenu/appsMenu.js"
 			]
 		}
 	]
