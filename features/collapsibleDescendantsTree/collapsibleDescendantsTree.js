@@ -1,5 +1,5 @@
 chrome.storage.sync.get('collapsibleDescendantsTree', (result) => {
-	if (result.collapsibleDescendantsTree) { 
+	if (result.collapsibleDescendantsTree && pageProfile == true) { 
 
     // Look out for the appearance of new list items in the descendantsContainer
     const descendantsObserver = new MutationObserver(function (mutations_list) {
