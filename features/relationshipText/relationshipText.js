@@ -192,7 +192,6 @@ async function addCousinText(){
     })
     possessiveAdj = "their";
     if (window.CFconnections[window.CFconnections.length-1].gender) {
-        console.log(window.CFconnections);
         var gender = window.CFconnections[window.CFconnections.length-1].gender;
         if (gender == "Male"){
             possessiveAdj = "his";
