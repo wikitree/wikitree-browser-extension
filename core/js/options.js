@@ -16,7 +16,7 @@ const features = [
 		description: 'Adds an apps submenu to the Find menu',
     category: 'Main'
 	},{
-		name: 'WikiTree+ Edit helper',
+		name: 'WikiTree+ Edit Helper',
 		id: 'wtplus',
 		description: 'Adds multiple editing features.',
 		category: 'Main'
