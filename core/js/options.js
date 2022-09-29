@@ -13,7 +13,7 @@ const features = [
 	},{
 		name: 'Apps Menu',
 		id: 'appsMenu',
-		description: 'Adds an apps submenu to the Find menu',
+		description: 'Adds an apps submenu to the Find menu.',
     category: 'Main'
 	},{
 		name: 'WikiTree+ Edit Helper',
@@ -23,12 +23,12 @@ const features = [
 	},{
 		name: 'Collapsible Descendants Tree',
 		id: 'collapsibleDescendantsTree',
-		description: 'Makes the descendants tree on profile pages collapsible',
+		description: 'Makes the descendants tree on profile pages collapsible.',
 		category: 'Main'
 	},{
 		name: 'Distance',
 		id: 'distance',
-		description: 'Shows the distance (degrees) from the user to the profile person',
+		description: 'Shows the distance (degrees) from the user to the profile person.',
 		category: 'Main'
 	},{
 		name: 'Relationship Text',
