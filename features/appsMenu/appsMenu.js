@@ -20,7 +20,7 @@ function attachAppsMenu(menu){
 	mWTID = Cookies.get("wikitree_wtb_UserName");
 	appsList = $("<menu class='subMenu' id='appsSubMenu'></menu>");
 	menu.forEach(function(app){
-		appsLi = $("<a class='pureCssMenui' href='"+app.URL.replace(/mWTID/,window.mWTID)+"'>"+app.title+"</a>");
+		appsLi = $("<a class='pureCssMenui' href='"+app.URL.replace(/mWTID/,mWTID)+"'>"+app.title+"</a>");
 		appsLi.appendTo(appsList);
 	})
 	appsList.appendTo($("ul.pureCssMenu.pureCssMenum a[href='/wiki/Help:Apps']").parent());

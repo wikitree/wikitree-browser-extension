@@ -25,6 +25,16 @@ const features = [
 		id: 'collapsibleDescendantsTree',
 		description: 'Makes the descendants tree on profile pages collapsible',
 		category: 'Main'
+	},{
+		name: 'Distance',
+		id: 'distance',
+		description: 'Shows the distance (degrees) from the user to the profile person',
+		category: 'Main'
+	},{
+		name: 'Relationship Text',
+		id: 'relationshipText',
+		description: 'Adds text explaining the relationship between the user and the profile person if one exists.',
+		category: 'Main'
 	}
 ];
 

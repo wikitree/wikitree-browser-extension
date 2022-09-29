@@ -14,7 +14,9 @@
 			"css": [
 				"core/css/main.css",
 				"features/appsMenu/appsMenu.css",
-				"features/collapsibleDescendantsTree/collapsibleDescendantsTree.css"
+				"features/collapsibleDescendantsTree/collapsibleDescendantsTree.css",
+				"features/distance/distance.css",
+				"features/relationshipText/relationshipText.css"
 			],
 			"js": [
 				"thirdparty/jquery-3.6.0.min.js",
@@ -24,7 +26,9 @@
 				"features/sourcepreview/sourcepreview.js",
 				"features/printerfriendly/printerfriendly.js",
 				"features/appsMenu/appsMenu.js",
-				"features/collapsibleDescendantsTree/collapsibleDescendantsTree.js"
+				"features/collapsibleDescendantsTree/collapsibleDescendantsTree.js",
+				"features/distance/distance.js",
+				"features/relationshipText/relationshipText.js"
 			]
 		},
 		{
