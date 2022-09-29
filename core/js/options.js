@@ -10,8 +10,7 @@ const features = [
 		id: 'printerFriendly',
 		description: 'Change the page to a printer-friendly one.',
 		category: 'Main'
-	},
-	{
+	},{
 		name: 'Apps Menu',
 		id: 'appsMenu',
 		description: 'Adds an apps submenu to the Find menu',
@@ -20,6 +19,11 @@ const features = [
 		name: 'WikiTree+ Edit helper',
 		id: 'wtplus',
 		description: 'Adds multiple editing features.',
+		category: 'Main'
+	},{
+		name: 'Collapsible Descendants Tree',
+		id: 'collapsibleDescendantsTree',
+		description: 'Makes the descendants tree on profile pages collapsible',
 		category: 'Main'
 	}
 ];

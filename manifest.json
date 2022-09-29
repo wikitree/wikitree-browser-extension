@@ -13,7 +13,8 @@
 			"matches": [ "https://www.wikitree.com/*" ],
 			"css": [
 				"core/css/main.css",
-				"features/appsMenu/appsMenu.css"
+				"features/appsMenu/appsMenu.css",
+				"features/collapsibleDescendantsTree/collapsibleDescendantsTree.css"
 			],
 			"js": [
 				"thirdparty/jquery-3.6.0.min.js",
@@ -22,7 +23,8 @@
 				"core/js/content.js",
 				"features/sourcepreview/sourcepreview.js",
 				"features/printerfriendly/printerfriendly.js",
-				"features/appsMenu/appsMenu.js"
+				"features/appsMenu/appsMenu.js",
+				"features/collapsibleDescendantsTree/collapsibleDescendantsTree.js"
 			]
 		},
 		{
