@@ -1,0 +1,187 @@
+
+tr.trSelect:hover { 
+  background: #ffe270;; 
+}
+
+tr.trSelected { 
+  background: #CCCCCC !important; 
+}
+
+::placeholder {
+  color:    #bbb;
+}
+
+#wtPlusDiv {
+  right: 10px;
+/*
+  position: absolute;
+  display: inline-block;
+*/  
+  position: relative;
+  float: right;
+  z-index: 10;
+}
+
+#wtPlusDiv:hover .wtPlusmnu0 {
+  display: block;
+}
+
+#wtPlusButton {
+  cursor: pointer;
+  border: 1px solid #aaa;
+  border-radius: 3px;
+  padding: 2px;
+  margin: 1px;
+  background-color: #eee;
+}
+
+.wtPlusmnu2 {
+  display: none;
+  position: absolute;
+  top: -1px;
+  left: -151px;
+  width: 150px;
+  list-style: none;
+  padding: 1;
+  margin: 0;
+  vertical-align: middle;
+}
+  
+.wtPlusmnu2 > li {
+  position: relative;
+  height: 24px;
+  margin-bottom: 1px;
+  background-color: #fff;
+  border: 1px solid #ccc;
+}
+.wtPlusmnu2 > li:hover { background: #CCCCCC; }
+
+/* second level of menus */
+.wtPlusmnu1 {
+  display: none;
+  position: absolute;
+  top: -1px;
+  left: -151px;
+  width: 150px;     
+  list-style: none;
+  padding: 1;
+  margin: 0;
+  vertical-align: middle;
+}
+  
+.wtPlusmnu1 > li {
+  position: relative;
+  height: 24px;
+  margin-bottom: 1px;
+  background-color: #fff;
+  border: 1px solid #ccc;
+}
+.wtPlusmnu1 > li:hover { background: #CCCCCC; }
+  
+/* first level of menus */
+.wtPlusmnu0 {
+  display: none;
+  position: absolute;
+  right: 0px;
+  list-style: none;
+  padding: 1px;
+  margin: 0;
+  vertical-align: middle;
+  z-index: 10;
+}
+  
+.wtPlusmnu0 > li {
+  position: relative;
+  height: 24px;
+  min-width: 160px;
+  margin-bottom: 1px;
+  float: left;
+  z-index: 11;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.wtPlusmnu0 > li:hover { background: #CCCCCC; }
+  
+/* On hover, display the next level's menu */
+.wtPlusmnu0 li:hover > ul {      
+  display: inline;
+}
+    
+/* Menu Link Styles - Apply to all links inside the multi-level menu */
+.wtPlusmnu0 a {
+  font: normal 11px verdana, arial, sans-serif;
+  color: #000000;
+  text-decoration: none !important;
+  padding: 0px 5px;
+
+  /* Make the link cover the entire list item-container */
+  display: block;
+  line-height: 24px;
+}
+.wtPlusmnu0 a:link { color: #000000; }
+.wtPlusmnu0 a:hover { color: #000000; }
+.wtPlusmnu0 a:visited { color: #000000 !important; }
+
+dialog {
+  max-width: 600px;
+}  
+
+dialog input[type="text"] {
+  min-width: 350px;
+  padding: 4px 4px;
+  margin: 2px;
+}
+dialog button, dialog .button{
+  padding: 8px 20px;
+  margin: 5px;
+}
+td button{
+  padding: 5px 5px;
+  margin: 3px;
+  font-size: 14px;
+}
+dialog select{
+  overflow: auto;
+  background: unset;  
+}
+dialog textarea{
+  width: 100%;
+  margin: 5px;
+}
+
+.wtPlusRequired {
+  background-color: palevioletred;
+}
+.wtPlusPreferred {
+  background-color: palegreen;
+}
+.wtPlusOptional {
+  background-color: palegoldenrod;
+}
+.wtPlusDeprecated{
+  background-color:  lightgrey;
+  text-decoration-line: line-through;
+}
+
+.wtPlusLegend{
+  display: none;
+  background: white;
+  color: black;
+  text-align: left;
+  font-size: 14px;
+  text-transform: none;
+  position: absolute;
+  bottom: 65px;
+  left: 25px;
+  padding: 10px;
+  border: 1px solid black;
+  line-height: 35px;
+}
+
+#wtPlusLegendBtn:hover .wtPlusLegend{
+  display: block;
+}
+

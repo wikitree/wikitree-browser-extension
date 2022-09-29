@@ -1,0 +1,50 @@
+{
+    "manifest_version": 3,
+    "name": "WikiTree+",
+  "short_name": "WT+", 
+    "version": "1.0.4",
+  "version_name": "1.0.4",
+    "description": "Edit addon for www.WikiTree.com website.",  
+  "icons": {"128": "WT+icon.png"},
+
+    "permissions": ["storage"],
+    "host_permissions": [
+      "https://www.wikitree.com/*"
+    ],
+    "content_scripts": [
+    {
+      "matches": [
+        "https://www.wikitree.com/index.php?title=Special:EditPerson&*"],
+      "js":["contentProfileInit.js", "contentEdit.js"],
+      "css":["wtPlus.css"]
+    },
+    {
+      "matches": [
+        "https://www.wikitree.com/index.php?title=Category:*&action=edit*",
+        "https://www.wikitree.com/index.php?title=Category:*&action=submit*"],
+      "js":["contentCategoryInit.js", "contentEdit.js"],
+      "css":["wtPlus.css"]
+    },
+    {
+      "matches": [
+        "https://www.wikitree.com/index.php?title=Template:*&action=edit*",
+        "https://www.wikitree.com/index.php?title=Template:*&action=submit*"],
+      "js":["contentTemplateInit.js", "contentEdit.js"],
+      "css":["wtPlus.css"]
+    },
+    {
+      "matches": [
+        "https://www.wikitree.com/index.php?title=*&action=edit*",
+        "https://www.wikitree.com/index.php?title=*&action=submit*"],
+      "exclude_matches": [
+        "https://www.wikitree.com/*title=Category:*",
+        "https://www.wikitree.com/*title=Template:*"],
+      "js":["contentGenericInit.js", "contentEdit.js"],
+      "css":["wtPlus.css"]
+    }
+  ], 
+  "web_accessible_resources": [{
+      "resources":["templatesExp.json"],
+      "matches": ["https://www.wikitree.com/*"]
+  }]
+}

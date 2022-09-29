@@ -5,8 +5,7 @@ const features = [
 		id: 'sPreviews',
 		description: 'Enable source previews on inline references.',
 		category: 'Main'
-	},
-	{
+	},{
 		name: 'Printer Friendly Bio',
 		id: 'printerFriendly',
 		description: 'Change the page to a printer-friendly one.',
@@ -16,6 +15,11 @@ const features = [
 		name: 'Apps Menu',
 		id: 'appsMenu',
 		description: 'Adds an apps submenu to the Find menu',
+    category: 'Main'
+	},{
+		name: 'WikiTree+ Edit helper',
+		id: 'wtplus',
+		description: 'Adds multiple editing features.',
 		category: 'Main'
 	}
 ];

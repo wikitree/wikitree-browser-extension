@@ -5,6 +5,9 @@
 	"manifest_version": 3,
 	"options_page": "core/options.html",
 	"permissions": [ "storage" ],
+	"host_permissions": [
+		"https://www.wikitree.com/*"
+	],
 	"content_scripts": [
 		{
 			"matches": [ "https://www.wikitree.com/*" ],
@@ -21,6 +24,42 @@
 				"features/printerfriendly/printerfriendly.js",
 				"features/appsMenu/appsMenu.js"
 			]
-		}
-	]
+		},
+		{
+			"matches": [
+			  "https://www.wikitree.com/index.php?title=Special:EditPerson&*"],
+			"js":["features/wt+/contentProfileInit.js", "features/wt+/contentEdit.js"],
+			"css":["features/wt+/wtPlus.css"]
+		},
+		{
+			"matches": [
+			  "https://www.wikitree.com/index.php?title=Category:*&action=edit*",
+			  "https://www.wikitree.com/index.php?title=Category:*&action=submit*"],
+			"js":["features/wt+/contentCategoryInit.js", "features/wt+/contentEdit.js"],
+			"css":["features/wt+/wtPlus.css"]
+		},
+		{
+			"matches": [
+			  "https://www.wikitree.com/index.php?title=Template:*&action=edit*",
+			  "https://www.wikitree.com/index.php?title=Template:*&action=submit*"],
+			"js":["features/wt+/contentTemplateInit.js", "features/wt+/contentEdit.js"],
+			"css":["features/wt+/wtPlus.css"]
+		},
+		{
+			"matches": [
+			  "https://www.wikitree.com/index.php?title=*&action=edit*",
+			  "https://www.wikitree.com/index.php?title=*&action=submit*"],
+			"exclude_matches": [
+			  "https://www.wikitree.com/*title=Category:*",
+			  "https://www.wikitree.com/*title=Template:*"],
+			"js":["features/wt+/contentGenericInit.js", "features/wt+/contentEdit.js"],
+			"css":["features/wt+/wtPlus.css"]
+		  }
+	  
+	],
+	"web_accessible_resources": [{
+		"resources":["features/wt+/templatesExp.json"],
+		"matches": ["https://www.wikitree.com/*"]
+	}]
+  
 }
