@@ -1,4 +1,5 @@
-if (window.location.pathname.match(/(\/wiki\/)\w.*-[0-9]*/g)) {
+if (window.location.pathname.match(/(\/wiki\/)\w.*-[0-9]*/g) 
+	|| window.location.href.match(/\?title\=\w.+\-[0-9]+/g)) {
 	// Is a Profile Page
 	var pageProfile = true;
 } else if (window.location.pathname.match(/(\/wiki\/)Help:*/g)) {
@@ -37,7 +38,9 @@ function createTopMenuItem(options) {
 }
 
 function createTopMenu() {
-	$('.pureCssMenu').append(`<li>
+	newUL = $("<ul class='pureCssMenu' id='wte-topMenuUL'></ul>");
+	$("ul.pureCssMenu").eq(0).after(newUL);
+	newUL.append(`<li>
         <a class="pureCssMenui0">
             <span>App Features</span>
         </a>
