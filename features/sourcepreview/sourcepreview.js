@@ -1,6 +1,9 @@
-chrome.storage.sync.get('sPreviews', function(result) {
-    if (result.sPreviews == true){
-        if (pageProfile == true | pageSpace == true) { // Only enable this function on Profile or Space pages
+chrome.storage.sync.get('sPreviews', function (result) {
+    if (result.sPreviews == true) {
+        var oldPathName = window.location.pathname;
+        sourcePreview();
+
+        function sourcePreview() {
             if ($('.reference').length) { // and only if inline citations are found
                 $('.reference').hover(function (e) { // jquery.hover() handlerIn (show sourcePreview)
                     var sourceID = this.id.replace('ref', 'note').replace(/(_[0-9]+$)/g, '');
@@ -17,6 +20,19 @@ chrome.storage.sync.get('sPreviews', function(result) {
                     }
                 )
             }
+        }
+        const targetNode = document.getElementById('previewbox');
+        const config = { childList: true };
+        const callback = (mutationList, observer) => {
+            for (const mutation of mutationList) {
+                if (mutation.type === 'childList') {
+                    sourcePreview();
+                }
+            }
+        };
+        const observer = new MutationObserver(callback);
+        if ($('#previewbox').length > 0) {
+            observer.observe(targetNode, config);
         }
     }
 })
