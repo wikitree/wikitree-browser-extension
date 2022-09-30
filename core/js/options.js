@@ -1,14 +1,19 @@
 // an array of information about features
 const features = [
 	{
+		name: 'Printer Friendly Bio',
+		id: 'printerFriendly',
+		description: 'Change the page to a printer-friendly one.',
+		category: 'Main'
+	},{
 		name: 'Source Previews',
 		id: 'sPreviews',
 		description: 'Enable source previews on inline references.',
 		category: 'Main'
 	},{
-		name: 'Printer Friendly Bio',
-		id: 'printerFriendly',
-		description: 'Change the page to a printer-friendly one.',
+		name: 'Space Page Previews',
+		id: 'spacePreviews',
+		description: 'Enable previews of Space Pages on hover.',
 		category: 'Main'
 	},{
 		name: 'WikiTree+ Edit helper',
