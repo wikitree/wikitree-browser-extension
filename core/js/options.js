@@ -35,6 +35,11 @@ const features = [
 		id: 'relationshipText',
 		description: 'Adds text explaining the relationship between the user and the profile person if one exists.',
 		category: 'Main'
+	},{
+		name: 'AKA Name Links',
+		id: 'akaNameLinks',
+		description: 'Adds surname page links to the "aka" names on the profile page.',
+		category: 'Main'
 	}
 ];
 

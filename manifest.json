@@ -28,7 +28,8 @@
 				"features/appsMenu/appsMenu.js",
 				"features/collapsibleDescendantsTree/collapsibleDescendantsTree.js",
 				"features/distance/distance.js",
-				"features/relationshipText/relationshipText.js"
+				"features/relationshipText/relationshipText.js",
+				"features/akaNameLinks/akaNameLinks.js"
 			]
 		},
 		{
