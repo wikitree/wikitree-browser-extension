@@ -40,6 +40,11 @@ const features = [
 		id: 'akaNameLinks',
 		description: 'Adds surname page links to the "aka" names on the profile page.',
 		category: 'Main'
+	},{
+		name: 'Family Timeline',
+		id: 'familyTimeline',
+		description: 'Displays a family timeline.',
+		category: 'Main'
 	}
 ];
 

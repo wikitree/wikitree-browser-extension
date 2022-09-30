@@ -16,11 +16,13 @@
 				"features/appsMenu/appsMenu.css",
 				"features/collapsibleDescendantsTree/collapsibleDescendantsTree.css",
 				"features/distance/distance.css",
-				"features/relationshipText/relationshipText.css"
+				"features/relationshipText/relationshipText.css",
+				"features/familyTimeline/familyTimeline.css"
 			],
 			"js": [
 				"thirdparty/jquery-3.6.0.min.js",
 				"thirdparty/js.cookie.js",
+				"thirdparty/jqueryui.js",				
 				"core/js/common.js",
 				"core/js/content.js",
 				"features/sourcepreview/sourcepreview.js",
@@ -29,7 +31,8 @@
 				"features/collapsibleDescendantsTree/collapsibleDescendantsTree.js",
 				"features/distance/distance.js",
 				"features/relationshipText/relationshipText.js",
-				"features/akaNameLinks/akaNameLinks.js"
+				"features/akaNameLinks/akaNameLinks.js",
+				"features/familyTimeline/familyTimeline.js"
 			]
 		},
 		{
