@@ -1,6 +1,5 @@
 chrome.storage.sync.get('sPreviews', function (result) {
     if (result.sPreviews == true) {
-        var oldPathName = window.location.pathname;
         sourcePreview();
 
         function sourcePreview() {
