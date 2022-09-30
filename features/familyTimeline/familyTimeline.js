@@ -1,7 +1,7 @@
 chrome.storage.sync.get('familyTimeline', (result) => {
 	if (result.familyTimeline && pageProfile == true) {
 		// Add a link to the short list of links below the tabs
-        $("ul.views.viewsm").append($("<li><a class='viewsi'  id='familyTimelineButton'>Family Timeline</a></li>"));
+        $("ul.views.viewsm").append($("<li><a class='viewsi' title='Display a family timeline' id='familyTimelineButton'>Family Timeline</a></li>"));
 		let links = $("ul.views.viewsm li");
         // Resort the links into alphabetical order
         links.sort(function(a,b){
