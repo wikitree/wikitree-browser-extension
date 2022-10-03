@@ -1,0 +1,25 @@
+menu#appsSubMenu {
+	display:none;
+	position:absolute;
+	top:0;
+	background-color:white !important;	
+	overflow:visible;
+}
+menu#appsSubMenu a{
+	margin-left:-19.1em;
+	background-color:white !important;
+	border:1px solid #ccc;
+	width:18em;
+	display:block;
+	padding:5px;
+	float:none;
+}
+body.qa-body-js-on menu#appsSubMenu a{
+	margin-left:-22.8em;
+}
+body.qa-body-js-on menu#appsSubMenu {
+	background-color:transparent !important;
+}
+menu#appsSubMenu a:hover{
+	background-color:#ffe270 !important;
+}

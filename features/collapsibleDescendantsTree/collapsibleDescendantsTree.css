@@ -1,0 +1,15 @@
+button.wikitreeturbo {
+    padding: 2px 10px;
+    font-family: monospace;
+    background-color: #eee;
+    color: #333;
+	position:absolute !important;
+	margin-left:-2.85em;
+	margin-top: -0.25em;
+}
+button.wikitreeturbo, button.wikitreeturbo:active {
+	top:auto !important;
+}
+#descendantsContainer li.collapse {
+	position:relative;
+}
