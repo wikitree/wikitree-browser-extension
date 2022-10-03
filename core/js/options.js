@@ -35,6 +35,11 @@ const features = [
 		id: 'familyTimeline',
 		description: 'Displays a family timeline.',
 		category: 'Main'
+	},{
+		name: 'Draft List',
+		id: 'draftList',
+		description: 'Adds a button to the Find menu to show your uncommitted drafts.',
+		category: 'Main'
 	}
 ];
 

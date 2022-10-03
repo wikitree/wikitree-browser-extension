@@ -22,6 +22,9 @@ if (window.location.pathname.match(/(\/wiki\/)\w.*-[0-9]*/g)
 	var pageG2G = true;
 }
 
+// Add wte class to body to let WikiTree BEE know not to add the same functions 
+document.querySelector("body").classList.add("wte");
+
 /**
  * Creates a new menu item in the Apps dropdown menu.
  * 

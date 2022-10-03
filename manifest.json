@@ -15,7 +15,8 @@
 				"core/css/main.css",
 				"features/appsMenu/appsMenu.css",
 				"features/collapsibleDescendantsTree/collapsibleDescendantsTree.css",
-				"features/familyTimeline/familyTimeline.css"
+				"features/familyTimeline/familyTimeline.css",
+				"features/draftList/draftList.css"
 			],
 			"js": [
 				"thirdparty/jquery-3.6.0.min.js",
@@ -28,7 +29,8 @@
 				"features/appsMenu/appsMenu.js",
 				"features/collapsibleDescendantsTree/collapsibleDescendantsTree.js",
 				"features/akaNameLinks/akaNameLinks.js",
-				"features/familyTimeline/familyTimeline.js"
+				"features/familyTimeline/familyTimeline.js",
+				"features/draftList/draftList.js"
 			]
 		},
 		{
