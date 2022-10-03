@@ -30,7 +30,8 @@
 				"features/collapsibleDescendantsTree/collapsibleDescendantsTree.js",
 				"features/akaNameLinks/akaNameLinks.js",
 				"features/familyTimeline/familyTimeline.js",
-				"features/draftList/draftList.js"
+				"features/draftList/draftList.js",
+				"features/randomProfile/randomProfile.js"
 			]
 		},
 		{
