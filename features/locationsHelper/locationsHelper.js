@@ -2,6 +2,18 @@ chrome.storage.sync.get('locationsHelper', (result) => {
 	if (result.locationsHelper && $("body.BEE").length==0 && 
         ($("body.page-Special_EditPerson").length || $("body.page-Special_EditFamily").length)) {
 
+        function addRelArraysToPerson(zPerson) {
+            zSpouses = extractRelatives(zPerson.Spouses, "Spouse"); 
+            zPerson.Spouse = zSpouses;
+            zChildren = extractRelatives(zPerson.Children, "Child"); 
+            zPerson.Child = zChildren;
+            zSiblings = extractRelatives(zPerson.Siblings, "Sibling"); 
+            zPerson.Sibling = zSiblings;
+            zParents = extractRelatives(zPerson.Parents, "Parent"); 
+            zPerson.Parent = zParents;
+            return zPerson;
+        }
+                
         function editDistance(s1, s2) {
             s1 = s1.toLowerCase();
             s2 = s2.toLowerCase();
@@ -47,32 +59,22 @@ chrome.storage.sync.get('locationsHelper', (result) => {
         async function locationsHelper() {
             if ($("body.page-Special_EditFamily").length) {
                 theID = $("a.pureCssMenui0 span.person").text();
-                $.ajax({
-                    url: "https://api.wikitree.com/api.php?action=getRelatives&getSpouses=1&getChildren=1&getParents=1&getSiblings=1&keys=" + theID,
-                    crossDomain: true,
-                    xhrFields: { withCredentials: true },
-                    type: 'POST',
-                    dataType: 'json',
-                    success: function (data) {
-                        window.connectingTo = data[0].items[0].person;
-                        window.connectingTo = addRelArraysToPerson(connectingTo);
+            } else {
+                theID = $("a.pureCssMenui:Contains(Edit)").attr("href").split("u=")[1];
+            }
+            getRelatives(theID).then((result)=>{
+                const thisFamily = familyArray(result);
+                window.bdLocations = [];
+                thisFamily.forEach(function (aPe) {
+                    if (aPe.BirthLocation) {
+                        window.bdLocations.push(aPe.BirthLocation);
+                    }
+                    if (aPe.DeathLocation) {
+                        window.bdLocations.push(aPe.DeathLocation);
                     }
                 })
-            } else {
-                const personID = $("a.pureCssMenui:Contains(Edit)").attr("href").split("u=")[1];
-                getRelatives(personID).then((result)=>{
-                    const thisFamily = familyArray(result);
-                    window.bdLocations = [];
-                    thisFamily.forEach(function (aPe) {
-                        if (aPe.BirthLocation) {
-                            window.bdLocations.push(aPe.BirthLocation);
-                        }
-                        if (aPe.DeathLocation) {
-                            window.bdLocations.push(aPe.DeathLocation);
-                        }
-                    })
-                });
-            }
+            });
+
             const observer2 = new MutationObserver(function (mutations_list) {
                 mutations_list.forEach(function (mutation) {
                     mutation.addedNodes.forEach(function (added_node) {
