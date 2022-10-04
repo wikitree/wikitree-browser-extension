@@ -27,6 +27,7 @@
 				"core/js/content.js",
 				"features/sourcepreview/sourcepreview.js",
 				"features/printerfriendly/printerfriendly.js",
+				"features/spacepreview/spacepreview.js",
 				"features/appsMenu/appsMenu.js",
 				"features/collapsibleDescendantsTree/collapsibleDescendantsTree.js",
 				"features/distance/distance.js",
