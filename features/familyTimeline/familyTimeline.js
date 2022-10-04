@@ -1,13 +1,13 @@
 chrome.storage.sync.get('familyTimeline', (result) => {
 	if (result.familyTimeline && pageProfile == true) {
 		// Add a link to the short list of links below the tabs
-        $("ul.views.viewsm").append($("<li><a class='viewsi' title='Display a family timeline' id='familyTimelineButton'>Family Timeline</a></li>"));
-		let links = $("ul.views.viewsm li");
-        // Resort the links into alphabetical order
+        $("ul.views.viewsm").eq(0).append($("<li class='viewsi'><a title='Display a family timeline' id='familyTimelineButton'>Family Timeline</a></li>"));
+		let links = $("ul.views.viewsm:first li");
+        // Re-sort the links into alphabetical order
         links.sort(function(a,b){
              return $(a).text().localeCompare($(b).text());
-        })
-        $("ul.views.viewsm").append(links);
+        });
+        $("ul.views.viewsm").eq(0).append(links);
         $(`#familyTimelineButton`).on('click', () => {
 			timeline();
 		});
@@ -186,10 +186,10 @@ function timeline(){
     const id = $("a.pureCssMenui0 span.person").text();
     getRelatives(id,fields).then((personData) => {
         var person = personData;
-        const parents = getRels(person.Parents,person,"Parent");
-        const siblings = getRels(person.Siblings,person,"Sibling");
-        const spouses = getRels(person.Spouses,person,"Spouse");          
-        const children = getRels(person.Children,person,"Child");  
+        const parents = extractRelatives(person.Parents,"Parent");
+        const siblings = extractRelatives(person.Siblings,"Sibling");
+        const spouses = extractRelatives(person.Spouses,"Spouse");          
+        const children = extractRelatives(person.Children,"Child");  
         family = [person];
         familyArr = [parents, siblings, spouses, children];
         // Make an array fo family members

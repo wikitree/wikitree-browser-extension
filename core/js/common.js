@@ -50,3 +50,46 @@ function createTopMenu() {
         <ul class="pureCssMenum" id="wte-topMenu"></ul>
     </li>`);
 }
+
+async function getRelatives(id,fields="*"){
+    try{
+        const result = await $.ajax({
+            url: "https://api.wikitree.com/api.php", 
+            crossDomain: true, 
+            xhrFields: { withCredentials: true }, 
+            type: 'POST', 
+            dataType: 'json', 
+            data: { 'action': 'getRelatives', 'keys': id,"fields":fields,"getParents":1,"getSiblings":1,"getSpouses":1,"getChildren":1}
+        })
+        return result[0].items[0].person;
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+// Make the family member arrays easier to handle
+function extractRelatives(rel,theRelation=false) {
+    let people = [];
+    if (typeof rel == undefined || rel ==null) {
+        return false;
+    }
+    pKeys = Object.keys(rel); 
+    pKeys.forEach(function(pKey) {
+        var aPerson = rel[pKey];
+        if (theRelation!=false){
+            aPerson.Relation = theRelation;
+        }
+        people.push(aPerson); 
+    });
+    return people;
+}
+
+function familyArray(person){
+// This is a person from getRelatives
+	const rels = ["Parents","Siblings","Spouses","Children"];
+	let familyArr = [person];
+	rels.forEach(function(rel){
+		familyArr = familyArr.concat(extractRelatives(person[rel]));
+	}) 
+	return familyArr;
+}
