@@ -43,7 +43,7 @@ const features = [
 	},{
 		name: 'Random Profile',
 		id: 'randomProfile',
-		description: 'Adds a Random Profile button to the Find menu.',
+		description: 'Adds a Random Profile link to the Find menu.',
 		category: 'Main'
 	}
 ];
