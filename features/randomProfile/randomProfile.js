@@ -1,5 +1,5 @@
 chrome.storage.sync.get('randomProfile', (result) => {
-	if (result.randomProfile && $(".randomProfile").length==0) {
+	if (result.randomProfile && $("body.BEE").length==0) {
         function getRandomProfile() {
             var randomProfileID = Math.floor(Math.random() * 36065988);
             var link = '';
