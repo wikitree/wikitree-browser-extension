@@ -188,7 +188,7 @@ function timeline(){
         var person = personData;
         const parents = getRels(person.Parents,person,"Parent");
         const siblings = getRels(person.Siblings,person,"Sibling");
-        const spouses = getRels(person.Spouse,person,"Spouse");          
+        const spouses = getRels(person.Spouses,person,"Spouse");          
         const children = getRels(person.Children,person,"Child");  
         family = [person];
         familyArr = [parents, siblings, spouses, children];
