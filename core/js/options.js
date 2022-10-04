@@ -40,7 +40,7 @@ const features = [
 		id: 'draftList',
 		description: 'Adds a button to the Find menu to show your uncommitted drafts.',
 		category: 'Main'
-	}{
+	},{
 		name: 'Random Profile',
 		id: 'randomProfile',
 		description: 'Adds a Random Profile button to the Find menu.',
