@@ -40,6 +40,15 @@ button {
 button:hover{
 	background-color: #8fc641;
 }
+#saved {
+	margin-left:2em;
+	padding:1em;
+	border-radius: 1em;
+	box-shadow: 0.2em 0.2em 0.2em #25422d;
+}
+#saveOptions:active {
+	border:2px solid gold;
+}
 
 /* Feature toggle */
 .switch {

@@ -19,7 +19,7 @@ const features = [
 		name: 'Apps Menu',
 		id: 'appsMenu',
 		description: 'Adds an apps submenu to the Find menu.',
-    category: 'Main'
+   		category: 'Menu'
 	},{
 		name: 'WikiTree+ Edit Helper',
 		id: 'wtplus',
@@ -29,27 +29,33 @@ const features = [
 		name: 'Collapsible Descendants Tree',
 		id: 'collapsibleDescendantsTree',
 		description: 'Makes the descendants tree on profile pages collapsible.',
-		category: 'Main'
-	},{
-		name: 'Distance',
-		id: 'distance',
-		description: 'Shows the distance (degrees) from the user to the profile person.',
-		category: 'Main'
-	},{
-		name: 'Relationship Text',
-		id: 'relationshipText',
-		description: 'Adds text explaining the relationship between the user and the profile person if one exists.',
-		category: 'Main'
+		category: 'Profile'
 	},{
 		name: 'AKA Name Links',
 		id: 'akaNameLinks',
 		description: 'Adds surname page links to the "aka" names on the profile page.',
-		category: 'Main'
+		category: 'Profile'
 	},{
 		name: 'Family Timeline',
 		id: 'familyTimeline',
 		description: 'Displays a family timeline.',
-		category: 'Main'
+		category: 'Profile'
+	},{
+		name: 'Draft List',
+		id: 'draftList',
+		description: 'Adds a button to the Find menu to show your uncommitted drafts.',
+		category: 'Menu'
+	},{
+		name: 'Random Profile',
+		id: 'randomProfile',
+		description: 'Adds a Random Profile link to the Find menu.',
+		category: 'Menu'
+	},{
+		name: 'Locations Helper',
+		id: 'locationsHelper',
+		description: 'Manipulates the suggested locations, highlighting likely correct locations,'
+		+' based on family members\' locations, and demoting likely wrong locations, based on the dates.',
+		category: 'Editing'
 	}
 ];
 
@@ -76,6 +82,11 @@ function restore_options() {
 // save the options when the "Save" button is clicked
 $('#saveOptions').on('click', () => {
 	save_options();
+	$("#saved").remove();
+	$('#saveOptions').after($("<span id='saved'>Saved</span>"));
+	setTimeout(function(){
+		$("#saved").fadeOut();
+	},1500)
 });
 
 // when the options page loads, load status of options from storage

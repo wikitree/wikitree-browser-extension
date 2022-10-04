@@ -1,0 +1,19 @@
+.wrongPeriod {
+	background: #ffe6ea;
+}
+
+.familyLoc.rightPeriod {
+	background: #DAF7A6;
+}
+
+.familyLoc2.rightPeriod {
+	background: lightgreen;
+}
+
+.autocomplete-suggestions div.currentSelectedLocation {
+	background: #DCDCDC !important;
+}
+
+input[name='mMarriageLocation'] {
+	width: 100%;
+}

@@ -15,14 +15,14 @@
 				"core/css/main.css",
 				"features/appsMenu/appsMenu.css",
 				"features/collapsibleDescendantsTree/collapsibleDescendantsTree.css",
-				"features/distance/distance.css",
-				"features/relationshipText/relationshipText.css",
-				"features/familyTimeline/familyTimeline.css"
+				"features/familyTimeline/familyTimeline.css",
+				"features/draftList/draftList.css",
+				"features/locationsHelper/locationsHelper.css"
 			],
 			"js": [
 				"thirdparty/jquery-3.6.0.min.js",
 				"thirdparty/js.cookie.js",
-				"thirdparty/jqueryui.js",				
+				"thirdparty/jqueryui.js",							
 				"core/js/common.js",
 				"core/js/content.js",
 				"features/sourcepreview/sourcepreview.js",
@@ -30,10 +30,11 @@
 				"features/spacepreview/spacepreview.js",
 				"features/appsMenu/appsMenu.js",
 				"features/collapsibleDescendantsTree/collapsibleDescendantsTree.js",
-				"features/distance/distance.js",
-				"features/relationshipText/relationshipText.js",
 				"features/akaNameLinks/akaNameLinks.js",
-				"features/familyTimeline/familyTimeline.js"
+				"features/familyTimeline/familyTimeline.js",
+				"features/draftList/draftList.js",
+				"features/randomProfile/randomProfile.js",
+				"features/locationsHelper/locationsHelper.js"
 			]
 		},
 		{
