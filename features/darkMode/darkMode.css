@@ -1,12 +1,6 @@
 body.darkMode *,
 body.darkMode html body,
 body.darkMode .wrapper,
-body.darkMode h1,
-body.darkMode h2,
-body.darkMode h3,
-body.darkMode h4,
-body.darkMode h5,
-body.darkMode h6,
 body.darkMode a:link,
 body.darkMode a:visited,
 body.darkMode .SMALL,
@@ -38,6 +32,12 @@ body.darkMode div.pad form button,
 input[type="submit"],
 body.darkMode input.button.green.search {
   padding: 12px 12px !important;
+}
+body.darkMode .large,
+body.darkMode ul,
+body.darkMode li
+{
+    background:none !important;
 }
 body.darkMode div.stripes-1,
 body.darkMode div.stripes,
