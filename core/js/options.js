@@ -56,6 +56,11 @@ const features = [
 		description: 'Manipulates the suggested locations, highlighting likely correct locations,'
 		+' based on family members\' locations, and demoting likely wrong locations, based on the dates.',
 		category: 'Editing'
+	},{
+		name: 'Distance and Relationship',
+		id: 'distanceAndRelationship',
+		description: 'Adds the distance (degrees) between you and the profile person and any relationship between you.',
+		category: 'Profile'
 	}
 ];
 
