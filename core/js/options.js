@@ -61,6 +61,11 @@ const features = [
 		id: 'distanceAndRelationship',
 		description: 'Adds the distance (degrees) between you and the profile person and any relationship between you.',
 		category: 'Profile'
+	},{
+		name: 'Dark Mode',
+		id: 'darkMode',
+		description: 'Make WikiTree dark.',
+		category: 'Style'
 	}
 ];
 
