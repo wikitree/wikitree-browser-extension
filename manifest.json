@@ -75,6 +75,9 @@
 	"web_accessible_resources": [{
 		"resources":["features/wt+/templatesExp.json"],
 		"matches": ["https://www.wikitree.com/*"]
-	}]
+	}],
+	"icons": {
+		"128": "core/images/we128.png"
+	}
   
 }
