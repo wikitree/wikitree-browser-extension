@@ -23,7 +23,7 @@ chrome.storage.sync.get("distanceAndRelationship", (result) => {
               profileName = $("h1 span[itemprop='name']").text();
               $("h1").append(
                 $(
-                  `<span id='distanceFromYou' title='${profileName} is ${result.distance} degrees from you. \nRight-click to refresh.'>${result.distance}°</span>`
+                  `<span id='distanceFromYou' title='${profileName} is ${result.distance} degrees from you. \nClick to refresh.'>${result.distance}°</span>`
                 )
               );
 

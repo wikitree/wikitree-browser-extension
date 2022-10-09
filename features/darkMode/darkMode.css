@@ -52,7 +52,6 @@ body.darkMode menu.beeSubMenu#appsSubMenu a:hover,
 body.darkMode menu#appsSubMenu a:hover {
   background: navy !important;
 }
-body.darkMode ul.profile-tabs a:link,
 body.darkMode ul.profile-tabs li,
 body.darkMode {
   font-weight: bold;
@@ -133,3 +132,4 @@ body.darkMode div.qa-nav-sub a:hover {
   color: #36393f !important;
   background: #dcddde !important;
 }
+
