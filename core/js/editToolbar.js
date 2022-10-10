@@ -1,0 +1,80 @@
+
+let editToolbarOptions = []
+
+function editToolbarWiki(params) {
+	window.open('https://www.wikitree.com/wiki/' + params.wiki, '_blank')
+}
+
+function editToolbarApp(params) {
+	let w = document.querySelector('h1 > .copyWidget') 
+	let wikitreeID = w.getAttribute('data-copy-text');
+	window.open('https://apps.wikitree.com/apps/' + params.app + '?wikitreeid=' + wikitreeID, '_blank')
+}
+
+function editToolbarFindItem(items, name) {
+	if (items && items.length) {
+		for (var item of items) {
+			if (item.button) {
+				let result = editToolbarFindItem(item.items, name)
+				if (result) { return result }
+			} else if (name.toUpperCase() === item.title.toUpperCase()) {
+				return item
+			} else {
+				let result = editToolbarFindItem(item.items, name)
+				if (result) { return result }
+			}
+		}
+	}
+}
+
+function editToolbarEvent(event) {
+	let element = event.srcElement
+	const id = element.dataset.id
+	event.preventDefault();
+	let item = editToolbarFindItem(editToolbarOptions, id);
+	if (item) {
+		return item.call(item.params || {}) //item
+	} else {
+		alert("Unknown event " + id)
+	}
+}
+
+function editToolbarCreateHtml(items, featureEnabled, level) {
+	let result = '';
+	if (items && items.length) {
+		for (var item of items) {
+			if ((!item.featureid) || featureEnabled[item.featureid]) {
+				let s = editToolbarCreateHtml(item.items, featureEnabled, level + 1)
+				if (s || item.call) {
+					if (item.button) {
+						result +=
+							'<div id="editToolbarDiv">' +
+							'<p id="editToolbarButton">' + item.button + '</p>' +
+							// '<img src="/photo.php/8/89/WikiTree_Images-22.png" height="22" id="editToolbarButton" />' + 
+							s +
+							'</div>';
+					} else {
+						result += '<li><a '
+						result += (item.hint ? 'title= "' + item.hint + '"' : "");
+						result += 'href="javascript:void(0);" class="editToolbarClick" data-id="' + item.title + '"';
+						result += '>' + item.title + (item.items ? " &gt;&gt;" : "") + "</a>";
+						result += s;
+						result += '</li>';
+					}
+				}
+			}
+		}
+		if ((level >= 0) && (result))
+			result = '<ul class="editToolbarMenu' + level + '">' + result + '</ul>';
+	}
+	return result;
+}
+
+function editToolbarCreate(options) {
+	editToolbarOptions = options
+	chrome.storage.sync.get(null, (featureEnabled) => {
+		var menuHTML = editToolbarCreateHtml(editToolbarOptions, featureEnabled, -1);
+		document.getElementById("toolbar").insertAdjacentHTML('afterend', '<div id="toolbarExt">' + menuHTML + '</div>')
+		document.querySelectorAll('a.editToolbarClick').forEach(i => i.addEventListener('click', event => editToolbarEvent(event)))
+	})
+}

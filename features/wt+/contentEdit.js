@@ -1,48 +1,12 @@
 
-// Menu HTML
-function itemsToHtmlX(items,level) {
-    result = '';
-    if (items && items.length) {
-        result += '<ul class="wtPlusmnu'+level+'">';
-        for (item of items) {
-            result += '<li><a '
-            result += (item.hint ? 'title= "' + item.hint + '"' : "");
-            if (item.help) {
-                result += 'href="https://www.wikitree.com/wiki/' + item.help + '" class="wtPlusLink" target="_blank"'; 
-            } else { if (item.wikitreeapp) {
-                result += 'href="https://apps.wikitree.com/apps/' + item.wikitreeapp + '?wikitreeid=' + tb.wikitreeID + '" class="wtPlusLink" target="_blank"'; 
-            } else {
-                result += 'href="javascript:void(0);" class="wtPlusClick" data-op="wtPlus" data-id="' + item.title + '"'; 
-            }}
-            result += '>' + (item.items ? "&lt;" : "")  + item.title + "</a>";
-            result += itemsToHtmlX(item.items,level+1)
-            result += '</li>';
-        }
-        result += '</ul>';
-    }
-    return result;
-}
-
-function itemsFindByCaption(items,name) {
-    // items.filter(item => item.title == name)
-    if (items && items.length) {
-        for (item of items) {
-            if (name.toUpperCase() === item.title.toUpperCase()) {
-                return item
-            } else {
-                result = itemsFindByCaption(item.items,name)
-                if (result) {return result}
-            }
-        }
-    }
-}
+let tb = {};
 
 function itemsFindByTemplate(name) {
     return tb.templates.filter(item => item.name.toUpperCase() === name.toUpperCase())[0]
 }
 
 function paramsCopy (templateName){
-    tb.template = itemsFindByTemplate(templateName); //menuData, 
+    tb.template = itemsFindByTemplate(templateName); 
     tb.templateitems = tb.template.prop.map(item => {        
         return {
             name: item.name,
@@ -66,7 +30,7 @@ function paramsFromSelection(){
     var params = tb.textSelected.split(/\|\s*([^{}[\]|]*?(?:\[\[[^{}[\]|]*?(?:\|[^{}[\]|]*?)*?[^{}[\]|]*?\]\][^{}[\]|]*?|\{\{[^{}[\]|]*?(?:\|[^{}[\]|]*?)*?[^{}[\]|]*?\}\}[^{}[\]|]*?)*?[^{}[\]|]*?)\s*(?:(?=\|)|}})/g).map(par => par.trim()).filter(par => par != '');
     tb.textSelected = tb.textSelected.replace('{{', '').replace('}}', '');
     params[0] = params[0].replace('{{', '').replace('}}', '').replace('_', ' ')
-    tb.template = itemsFindByTemplate(params[0]); //menuData,
+    tb.template = itemsFindByTemplate(params[0]); 
     if (tb.template) {
         params.splice(0, 1);
         var paramsNumbered = params.filter(par => !(par.includes('=')));
@@ -102,7 +66,7 @@ function paramsFromSelection(){
 
 function paramsInitialValues (){
     if (tb.templateitems && tb.templateitems.length) {
-        for (prop of tb.templateitems) {
+        for (let prop of tb.templateitems) {
             if (prop.value === '' && prop.initial) {
                 if (prop.initial.startsWith("Title:")) {
                     prop.value = document.title.replace(RegExp(prop.initial.substring(6)), '$1');
@@ -124,17 +88,17 @@ function reformatCoortoURL (s) {
 function reformatURLtoCoor (s) {
     if (s.match ( /^ *[\d]* *° *[\d]* *[′'] *([\d.]* *[″”"])? *[NS][, ]*[\d]* *° *[\d]* *[′'] *([\d.]* *[″”"])? *[EW] *$/mgi)) {
         // 32°42'16.02"N, 17°8'0.67"W
-        s1 = s.replace(
+        let s1 = s.replace(
             /^ *([\d]{1,2}) *° *([\d]{1,2}) *[′'] *(([\d.]{1,5}) *[″”"])? *([NS])[, ]*([\d]{1,3}) *° *([\d]{1,2}) *[′'] *(([\d.]{1,5}) *[″”"])? *([EW]) *$/mgi,
             '$1;$2;$4;$5;$6;$7;$9;$10')
-        arr = s1.split(';')
+        let arr = s1.split(';')
         var lon, lat
         lat = (arr[3] == 'S' ? -1 : 1) * (Number(arr[0]) + Number(arr[1]) / 60 + Number(arr[2]) / 3600)
         lon = (arr[7] == 'W' ? -1 : 1) * (Number(arr[4]) + Number(arr[5]) / 60 + Number(arr[6]) / 3600)
         return parseFloat(lat.toFixed(6)) + ', ' + parseFloat(lon.toFixed(6))
     } else if (s.match (/^https:\/\/www\.openstreetmap\.org\/#map=[\d]*\/[\d.-]*\/[\d.-]*$/mgi)) {
         // https://www.openstreetmap.org/#map=15/32.7051/-17.1220
-        s1 = s.replace(
+        let s1 = s.replace(
             /^https:\/\/www\.openstreetmap\.org\/#map=[\d]{1,2}\/([\d.-]*)\/([\d.-]*)$/mgi,
             '$1, $2')
         return s1
@@ -400,7 +364,7 @@ function onDlgEditTemplateBtn(update) {
         var line = '';
         if (tb.templateitems && tb.templateitems.length) {
             var line = '\n';
-            for (prop of tb.templateitems) {
+            for (let prop of tb.templateitems) {
                 if (prop.numbered) {
                     line = '';
                     if (prop.value) {
@@ -451,7 +415,7 @@ function onDlgEditTemplatePaste(i, evt) {
         } 
     } 
     if (evt.type == 'paste') {
-        clipdata = evt.clipboardData || window.clipboardData;
+        let clipdata = evt.clipboardData || window.clipboardData;
         var s = clipdata.getData('text/plain');
         s = decodeURIComponent (s);
         for(const j of urlMappings) {
@@ -531,7 +495,7 @@ function WikiTreeGetCategory (query, fixed){
     .then((resp) => resp.json())
     .then(jsonData => {
         console.log('cat: ' + jsonData);
-        Return (jsonData);
+        return (jsonData);
     })
 };
 
@@ -564,9 +528,9 @@ function selectTemplate (data) {
 };
 
 function onDlgSelectTemplateFlt () {
-    lb = tb.elDlg.querySelector("#tb")
+    let lb = tb.elDlg.querySelector("#tb")
     var s0 = '';
-    for (i=1;i<=4;i++) {
+    for (let i=1;i<=4;i++) {
         if (tb.elDlg.querySelector("#cb"+i).checked)
           s0 += (s0=='' ? '' : '|') + tb.elDlg.querySelector("#cb"+i).value
     }
@@ -613,9 +577,11 @@ function onDlgSelectTemplateBtn(update) {
 /*********************************/
 
 function AutoUpdate () {
-    s2 = ''
+    let s0 = ''
+    let s1 = ''
+    let s2 = ''
     for (var loc=0;loc<3;loc++) {
-        actArr = ''
+        let actArr = ''
         if (loc==0) {
             if (tb.birthLocation) {
                 s0 = 'Birth Location'
@@ -637,21 +603,21 @@ function AutoUpdate () {
         }
         if (actArr) {
             for (var j=0;j<actArr.length;j++) {
-                clean = actArr[j]
-                s3 = ''
+                let clean = actArr[j]
+                let s3 = ''
                 for (var i=0;i<clean.actions.length;i++) {
-                    s = s1
-                    action = clean.actions[i]
+                    let s = s1
+                    let action = clean.actions[i]
                     switch(action.action) {
                         case "replaceRegEx": 
-                        reg = RegExp(action.from, action.flags)
+                        let reg = RegExp(action.from, action.flags)
                         s1 = s1.replace(reg, action.to)
                         break;
                         case "replace": 
                         s1 = s1.replace(action.from, action.to)
                         break;
                             default: 
-                        alert ('Unknown action: ' + action.action + ' defined for source: ' + source.name)
+                        alert ('Unknown action: ' + action.action + ' defined for source: ' + clean.name)
                         s1 = ''
                     }
                     if (s1=='') break
@@ -689,7 +655,10 @@ function onDlgProfileCleanupBtn(update) {
     if (update==='1') {
         //Set updated text
 
-        s2 = ''
+        let s0 = ''
+        let s1 = ''
+        let s2 = ''
+        let actArr = []
         for (var loc=0;loc<3;loc++) {
             if (loc==0) {
                 s0 = 'Birth Location'
@@ -706,17 +675,19 @@ function onDlgProfileCleanupBtn(update) {
             }
             if (actArr) {
                 for (var j=0;j<actArr.length;j++) {
-                    cb = tb.elDlg.querySelectorAll('#cb'+loc+'_'+j)[0]
+                    var cb = tb.elDlg.querySelectorAll('#cb'+loc+'_'+j)[0]
                     if ((cb) && (cb.checked)) {
-                        clean = actArr[j]
+                        let clean = actArr[j]
 
-                        s3 = ''
+                        let s = ''
+                        let s1 = ''
+                        let s3 = ''
                         for (var i=0;i<clean.actions.length;i++) {
                             s = s1
-                            action = clean.actions[i]
+                            let action = clean.actions[i]
                             switch(action.action) {
                                 case "replaceRegEx": 
-                                reg = RegExp(action.from, action.flags)
+                                let reg = RegExp(action.from, action.flags)
                                 s1 = s1.replace(reg, action.to)
                                 break;
                                 case "replace": 
@@ -799,7 +770,7 @@ function onDlgPasteSourceBtn(update) {
 
 function onDlgPasteSourceCB(i, evt) {
     var e = tb.elDlg.querySelectorAll('.resultFld')[0]
-    s = e.value.replace('<ref>', '').replace('</ref>', '').replace('* ', '')
+    let s = e.value.replace('<ref>', '').replace('</ref>', '').replace('* ', '')
     if (tb.elDlg.querySelectorAll('.cbInline')[0].checked) {
         e.value = '<ref>' + s + '</ref>'
     } else {
@@ -816,15 +787,15 @@ function onDlgPasteSourcePaste(i, evt) {
         } 
     } 
     if (evt.type == 'paste') {
-        clipdata = evt.clipboardData || window.clipboardData;
+        var clipdata = evt.clipboardData || window.clipboardData;
         var s = clipdata.getData('text/plain');
         var s1 = '';
         s = decodeURIComponent (s);
 
         if (tb.sources) {
-            for (source of tb.sources) {
+            for (let source of tb.sources) {
                 var b = false
-                for (condition of source.conditions) {
+                for (let condition of source.conditions) {
                     switch(condition.action) {
                         case "startsWith": 
                         b = s.startsWith(condition.find)
@@ -838,10 +809,10 @@ function onDlgPasteSourcePaste(i, evt) {
                 }
                 if (b) {
                     s1 = s
-                    for (action of source.actions) {
+                    for (let action of source.actions) {
                         switch(action.action) {
                             case "replaceRegEx": 
-                            reg = RegExp(action.from, 'mg')
+                            let reg = RegExp(action.from, 'mg')
                             s1 = s1.replace(reg, action.to)
                             break;
                             case "replace": 
@@ -885,15 +856,16 @@ function posToOffset (txt, pos){
   return len+pos.ch ;
 };
 
-function wtPlus (itemTitle){
-    //finds menu item
-    tb.item = itemsFindByCaption(menuData,itemTitle);
-    if (tb.item) {
-        
-        //Sets all edit variables
-        tb.elEnhancedActive = (tb.elText.style.display == "none");
-        if (tb.elEnhancedActive) {
-            tb.elEnhanced.click();
+function wtPlus (params){
+	if (tb.elText.style.display == "none") {
+		alert('Enhanced editor is not supported.\n\nTurning it off to use the extension.');
+		tb.elEnhanced.click();
+	}
+
+    //Sets all edit variables
+    tb.elEnhancedActive = (tb.elText.style.display == "none");
+    if (tb.elEnhancedActive) {
+        tb.elEnhanced.click();
             
             
 //            alert ('Enhanced editor is not supported.<br>Turn it off to use WikiTree+ extension.');
@@ -905,122 +877,123 @@ function wtPlus (itemTitle){
 */
         }
 
-        tb.selStart = tb.elText.selectionStart;
-        tb.selEnd = tb.elText.selectionEnd;
-        tb.textAll = tb.elText.value;
-        if (tb.elBirthLocation) {
-            tb.birthLocation = tb.elBirthLocation.value;
-        }
-        if (tb.elDeathLocation) {
-            tb.deathLocation = tb.elDeathLocation.value;
-        }
-        if (tb.elEnhancedActive) {
-            tb.elEnhanced.click();
-        }
-    
-        tb.textBefore = tb.textAll.substring(0,  tb.selStart);
-        tb.textSelected = tb.selEnd == tb.selStart ? '' : tb.textAll.substring(tb.selStart, tb.selEnd);
-        tb.textAfter = tb.textAll.substring(tb.selEnd);
-        tb.categories = tb.textAll.match(/\[\[Category:.*?\]\]/mgi)
-        if (tb.categories){
-            tb.categories = tb.categories.join('\n').replace(/\[\[Category:\s*(.*?)\s*\]\]/mgi, '$1');
-        }        
-        tb.textResult = tb.textAll; 
- 
-        if (tb.item.template) {
-            //Add template 
-            paramsCopy (tb.item.template)
-            paramsInitialValues ();
-            editTemplate ("Added");
-        } else {
-            switch(tb.item.action) {
-                case "": break;
-                case "EditTemplate": //Edit template
+    tb.selStart = tb.elText.selectionStart;
+    tb.selEnd = tb.elText.selectionEnd;
+    tb.textAll = tb.elText.value;
+    if (tb.elBirthLocation) {
+        tb.birthLocation = tb.elBirthLocation.value;
+    }
+    if (tb.elDeathLocation) {
+        tb.deathLocation = tb.elDeathLocation.value;
+    }
+    if (tb.elEnhancedActive) {
+        tb.elEnhanced.click();
+    }
+
+    tb.textBefore = tb.textAll.substring(0,  tb.selStart);
+    tb.textSelected = tb.selEnd == tb.selStart ? '' : tb.textAll.substring(tb.selStart, tb.selEnd);
+    tb.textAfter = tb.textAll.substring(tb.selEnd);
+    tb.categories = tb.textAll.match(/\[\[Category:.*?\]\]/mgi)
+    if (tb.categories){
+        tb.categories = tb.categories.join('\n').replace(/\[\[Category:\s*(.*?)\s*\]\]/mgi, '$1');
+    }        
+    tb.textResult = tb.textAll; 
+
+    if (params.template) {
+        //Add template 
+        paramsCopy (params.template)
+        paramsInitialValues ();
+        editTemplate ("Added");
+    } else {
+        switch(params.action) {
+            case "": break;
+            case "EditTemplate": //Edit template
 //            var expression = /{{[\s\S]*?}}/g
-            var expression = /\{\{.*?(\[\[[^{}[\]]*?\]\][^{}[\]]*?|\[[^{}[\]]*?\][^{}[\]]*?|\{\{[^{}[\]]*?\}\}[^{}[\]]*?)*?[^{}[\]]*?\}\}/gms
+        var expression = /\{\{.*?(\[\[[^{}[\]]*?\]\][^{}[\]]*?|\[[^{}[\]]*?\][^{}[\]]*?|\{\{[^{}[\]]*?\}\}[^{}[\]]*?)*?[^{}[\]]*?\}\}/gms
 
 
-            if (tb.selStart != tb.selEnd) {
-                tem = tb.textSelected.match(expression);
-                if (tem && (tem.length == 1)) {
-                    var s = tb.textSelected.split(expression);
-                    tb.textBefore += s[0];
+        if (tb.selStart != tb.selEnd) {
+            let tem = tb.textSelected.match(expression);
+            if (tem && (tem.length == 1)) {
+                var s = tb.textSelected.split(expression);
+                tb.textBefore += s[0];
+                tb.textSelected = tem[0];
+                tb.textAfter = s[2] + tb.textAfter;
+                tb.selStart = tb.textBefore.length
+                tb.selEnd = tb.selStart + tb.textSelected.length;
+                paramsFromSelection();
+                editTemplate("Edited");
+            } else {
+                alert ('There is no template in selected text');
+            }    
+        } else {
+            let tem = tb.textAll.match(expression);
+            if (tem) {
+                if (tem.length == 1) {
+                    var s = tb.textAll.split(expression);
+                    tb.textBefore = s[0];
                     tb.textSelected = tem[0];
-                    tb.textAfter = s[2] + tb.textAfter;
+                    tb.textAfter  = s[2];
                     tb.selStart = tb.textBefore.length
                     tb.selEnd = tb.selStart + tb.textSelected.length;
                     paramsFromSelection();
                     editTemplate("Edited");
                 } else {
-                    alert ('There is no template in selected text');
-                }    
-             } else {
-                tem = tb.textAll.match(expression);
-                if (tem) {
-                    if (tem.length == 1) {
-                        var s = tb.textAll.split(expression);
-                        tb.textBefore = s[0];
-                        tb.textSelected = tem[0];
-                        tb.textAfter  = s[2];
-                        tb.selStart = tb.textBefore.length
-                        tb.selEnd = tb.selStart + tb.textSelected.length;
-                        paramsFromSelection();
-                        editTemplate("Edited");
-                    } else {
-                        while (match = expression.exec(tb.textAll)) {
-                            if ((match.index < tb.selStart) && (expression.lastIndex > tb.selStart)) {
-                                tb.textBefore = tb.textAll.substring(0,  match.index);
-                                tb.textSelected = match[0];
-                                tb.textAfter  = tb.textAll.substring(expression.lastIndex);
-                                tb.selStart = tb.textBefore.length
-                                tb.selEnd = tb.selStart + tb.textSelected.length;
-                                paramsFromSelection();
-                                editTemplate("Edited");
-                                return;
-                            };
+                    let match = ''
+                    while (match = expression.exec(tb.textAll)) {
+                        if ((match.index < tb.selStart) && (expression.lastIndex > tb.selStart)) {
+                            tb.textBefore = tb.textAll.substring(0,  match.index);
+                            tb.textSelected = match[0];
+                            tb.textAfter  = tb.textAll.substring(expression.lastIndex);
+                            tb.selStart = tb.textBefore.length
+                            tb.selEnd = tb.selStart + tb.textSelected.length;
+                            paramsFromSelection();
+                            editTemplate("Edited");
+                            return;
                         };
-                        alert ('There is no template at cursor position.')
-                    }
-                } else {
-                    alert ('There is no template on the page.')
+                    };
+                    alert ('There is no template at cursor position.')
                 }
+            } else {
+                alert ('There is no template on the page.')
             }
-            break;
-    
-            case "AutoFormat": //automatic formting
-            tb.textResult = tb.textAll.replace(/^ *\| *([^ =|]*) *= */mg, "|$1= ")
-            tb.birthLocationResult = '';
-            tb.deathLocationResult = '';
-            tb.addToSummary = ''
-            updateEdit ();
-            break;
-    
-            case "AutoUpdate": //automatic corrections
-            AutoUpdate ();
-            break;   
+        }
+        break;
 
-            case "EditBOTConfirm": //EditBOT confirmation
-            tb.textResult = tb.textAll.replace(/\|(Review|Manual)\}\}/mg, "|Confirmed}}")
-            tb.textResult = tb.textResult.replace(/\s\s\}\}/mg, " ")
-            tb.birthLocationResult = '';
-            tb.deathLocationResult = '';
-            tb.addToSummary = "Confirmation for EditBOT"
-            updateEdit ();
-            break;
-            
-            case "AddTemplate": //add any template
-            selectTemplate (tb.item.data);
-            break;
+        case "AutoFormat": //automatic formting
+        tb.textResult = tb.textAll.replace(/^ *\| *([^ =|]*) *= */mg, "|$1= ")
+        tb.birthLocationResult = '';
+        tb.deathLocationResult = '';
+        tb.addToSummary = ''
+        updateEdit ();
+        break;
 
-            case "PasteSource": //paste a source citation
-            pasteSource ();
-            break;
-            
-    
-            default: alert ("Unknown event " + tb.item.action)
-            };
+        case "AutoUpdate": //automatic corrections
+        AutoUpdate ();
+        break;   
+
+        case "EditBOTConfirm": //EditBOT confirmation
+        tb.textResult = tb.textAll.replace(/\|(Review|Manual)\}\}/mg, "|Confirmed}}")
+        tb.textResult = tb.textResult.replace(/\s\s\}\}/mg, " ")
+        tb.birthLocationResult = '';
+        tb.deathLocationResult = '';
+        tb.addToSummary = "Confirmation for EditBOT"
+        updateEdit ();
+        break;
+        
+        case "AddTemplate": //add any template
+        selectTemplate (params.data);
+        break;
+
+        case "PasteSource": //paste a source citation
+        pasteSource ();
+        break;
+        
+
+        default: alert ("Unknown event " + params.action)
         };
-    }
+    };
+    
 };
 
 /* Classes */
@@ -1040,13 +1013,11 @@ const attachEvents = (selector, eventType) => {
 }
 function mainEventLoop (event) {
 
-///* no longer needed
     if (tb.elText.style.display == "none") {
-        alert ('Enhanced editor is not supported.\n\nTurning it off to use WikiTree+ extension.');
+        alert ('Enhanced editor is not supported.\n\nTurning it off to use the extension.');
         tb.elEnhanced.click();
-//        return;
     }   
-//*/
+
     let element = event.srcElement
     if (element.tagName == 'TD') {
         element = element.parentElement
@@ -1080,10 +1051,10 @@ function mainEventLoop (event) {
 /* Initialization */
 chrome.storage.sync.get('wtplus', (result) => {
 	if (result.wtplus) {
-        tb = {};
         tb.nameSpace = (document.title.startsWith('Edit Person ')) ? 'Profile' : ''
-        if (w = document.querySelector('h1 > .copyWidget')) {
-        tb.wikitreeID = w.getAttribute('data-copy-text');
+        let w = document.querySelector('h1 > .copyWidget')
+        if (w) {
+            tb.wikitreeID = w.getAttribute('data-copy-text');
         }
         tb.elText = document.getElementById("wpTextbox1");
         tb.elBirthLocation = document.getElementById("mBirthLocation");
@@ -1092,17 +1063,8 @@ chrome.storage.sync.get('wtplus', (result) => {
         tb.elSummary = document.getElementById("wpSummary");
         tb.elEnhanced = document.getElementById("toggleMarkupColor");
 
-        //Creating menu
-        var test = itemsToHtmlX(menuData,0);
-        var div = 
-            '<div id="wtPlusDiv">' +
-                '<img src="/photo.php/8/89/WikiTree_Images-22.png" height="22" id="wtPlusButton" />' + 
-                test + 
-                '<dialog id="wtPlusDlg"></dialog>' +
-            '</div>';
-        document.getElementById("toolbar").insertAdjacentHTML('beforeend', div)
+        document.getElementById("toolbar").insertAdjacentHTML('beforeend', '<dialog id="wtPlusDlg"></dialog>')
         tb.elDlg = document.getElementById("wtPlusDlg");
-        attachEvents('a.wtPlusClick', 'click')
 
         // Loading of template definition From Storage
         chrome.storage.local.get(['alltemplates'], function(a){
