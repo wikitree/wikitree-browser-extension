@@ -78,10 +78,6 @@ body.darkMode span.showHideTree,
 body.darkMode span#showHideDescendants {
   border: 1px solid white !important;
 }
-body.darkMode span.showHideTree,
-body.darkMode span#showHideDescendants {
-  margin-top: -0.5em;
-}
 body.darkMode button.copyWidget,
 body.darkMode div.comment-actions button.button,
 body.darkMode span.commentContainerToggle button,
