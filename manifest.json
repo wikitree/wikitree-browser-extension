@@ -21,12 +21,15 @@
 				"features/collapsibleDescendantsTree/collapsibleDescendantsTree.css",
 				"features/familyTimeline/familyTimeline.css",
 				"features/draftList/draftList.css",
-				"features/locationsHelper/locationsHelper.css"
+				"features/locationsHelper/locationsHelper.css",
+				"features/distanceAndRelationship/distanceAndRelationship.css",
+				"features/darkMode/darkMode.css"					
 			],
 			"js": [
 				"thirdparty/jquery-3.6.0.min.js",
 				"thirdparty/js.cookie.js",
-				"thirdparty/jqueryui.js",
+				"thirdparty/jqueryui.js",	
+				"thirdparty/dexie.js",											
 				"core/js/common.js",
 				"core/js/content.js",
 				"features/sourcepreview/sourcepreview.js",
@@ -38,7 +41,9 @@
 				"features/familyTimeline/familyTimeline.js",
 				"features/draftList/draftList.js",
 				"features/randomProfile/randomProfile.js",
-				"features/locationsHelper/locationsHelper.js"
+				"features/locationsHelper/locationsHelper.js",
+				"features/distanceAndRelationship/distanceAndRelationship.js",
+				"features/darkMode/darkMode.js"		
 			]
 		},
 		{
@@ -124,11 +129,16 @@
 	"web_accessible_resources": [
 		{
 			"resources": [
-				"features/wt+/templatesExp.json"
+				"features/wt+/templatesExp.json",
+				"images/*",
+				"features/darkMode/darkMode.css"
 			],
 			"matches": [
 				"https://www.wikitree.com/*"
 			]
 		}
-	]
+	],
+	"icons": {
+		"128": "core/images/we128.png"
+	}
 }

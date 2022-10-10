@@ -1,0 +1,51 @@
+#distanceFromYou {
+  font-size: 0.5em;
+  font-weight: bold;
+  padding: 0.2em;
+  border: 2px solid forestgreen;
+  border-radius: 50%;
+  width: 3em;
+  text-align: center;
+  background: white;
+  opacity: 0.8;
+  z-index: 1;
+  cursor:default;
+}
+button.copyWidget {
+  z-index: 10;
+}
+
+#yourRelationshipText {
+  display: inline-block;
+  border: 1px solid green;
+  border-bottom: 2px solid forestgreen;
+  border-right: 2px solid forestgreen;
+  padding: 0.5em;
+  border-radius: 0.5em;
+  margin: 0.1em 1em 1em;
+  font-weight: bold;
+}
+#yourCommonAncestor {
+  margin: auto;
+  padding: 0;
+}
+#yourRelationshipText #yourCommonAncestor > li {
+  display: block;
+  margin: auto;
+  padding: auto;
+  list-style: none;
+}
+#yourRelationshipText #yourCommonAncestor > li:nth-child(n + 3) {
+  display: none;
+}
+#yourRelationshipText {
+  position: relative;
+  background: whitesmoke;
+}
+#showMoreAncestors {
+  position: absolute;
+  font-size: 0.8em;
+  padding: 0.5em;
+  top: -0.5em;
+  right: -0.5em;
+}
