@@ -36,12 +36,13 @@ chrome.storage.sync.get("darkMode", (result) => {
           let theHead = oDocument.getElementsByTagName("head")[0];
           theHead.appendChild(linkEl);
           oDocument.getElementsByTagName("body")[0].classList.add("darkMode");
-          oDocument
-            .querySelector("img[src*='wikitree-small.png']")
-            .setAttribute(
+          let logo = oDocument.querySelector("img[src*='wikitree-small.png']");
+          if (logo) {
+            logo.setAttribute(
               "src",
               chrome.runtime.getURL("images/wikitree-logo-small-white.png")
             );
+          }
         });
       }, 700);
     }

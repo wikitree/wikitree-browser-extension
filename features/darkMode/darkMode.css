@@ -35,6 +35,10 @@ input[type="submit"],
 body.darkMode input.button.green.search {
   padding: 12px 12px !important;
 }
+body.darkMode span.showHideTree,
+body.darkMode span#showHideDescendants {
+  padding: 6px !important;
+}
 body.darkMode .qa-vote-buttons input {
   padding: 0 !important;
 }
@@ -48,11 +52,6 @@ body.darkMode div.stripes,
 body.darkMode div.getstarted {
   background-image: none !important;
 }
-body.darkMode menu.beeSubMenu#appsSubMenu,
-body.darkMode menu.beeSubMenu#appsSubMenu a {
-  background: #36393f !important;
-}
-body.darkMode menu.beeSubMenu#appsSubMenu a:hover,
 body.darkMode menu#appsSubMenu a:hover {
   background: navy !important;
 }
@@ -136,7 +135,8 @@ body.darkMode div.qa-nav-sub a:hover {
   color: #36393f !important;
   background: #dcddde !important;
 }
-body.darkMode a[href*="wiki/Privacy"] img {
+body.darkMode a[href*="wiki/Privacy"] img,
+body.darkMode img[src*="images/icons/privacy"] {
   background-color: #9196a1 !important;
   border-radius: 50%;
 }
