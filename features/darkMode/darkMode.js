@@ -22,5 +22,28 @@ chrome.storage.sync.get("darkMode", (result) => {
       "background-image",
       "url(" + chrome.runtime.getURL("images/tree-white.png") + ")"
     );
+
+    // Add code to iframes on merging comparison page.
+    if (window.location.href.match("Special:MergePerson")) {
+      setTimeout(function () {
+        var iframes = document.querySelectorAll("iframe");
+        iframes.forEach(function (frame) {
+          let linkEl = document.createElement("link");
+          linkEl.rel = "stylesheet";
+          linkEl.href = chrome.runtime.getURL("features/darkMode/darkMode.css");
+          linkEl.type = "text/css";
+          let oDocument = frame.contentWindow.document;
+          let theHead = oDocument.getElementsByTagName("head")[0];
+          theHead.appendChild(linkEl);
+          oDocument.getElementsByTagName("body")[0].classList.add("darkMode");
+          oDocument
+            .querySelector("img[src*='wikitree-small.png']")
+            .setAttribute(
+              "src",
+              chrome.runtime.getURL("images/wikitree-logo-small-white.png")
+            );
+        });
+      }, 700);
+    }
   }
 });

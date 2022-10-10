@@ -75,7 +75,11 @@
 	  
 	],
 	"web_accessible_resources": [{
-		"resources":["features/wt+/templatesExp.json","images/*"],
+		"resources":[
+			"features/wt+/templatesExp.json",
+			"images/*",
+			"features/darkMode/darkMode.css"
+		],
 		"matches": ["https://www.wikitree.com/*"]
 	}],
 	"icons": {

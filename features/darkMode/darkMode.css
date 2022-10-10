@@ -33,11 +33,13 @@ input[type="submit"],
 body.darkMode input.button.green.search {
   padding: 12px 12px !important;
 }
+body.darkMode .qa-vote-buttons input {
+  padding: 0 !important;
+}
 body.darkMode .large,
 body.darkMode ul,
-body.darkMode li
-{
-    background:none !important;
+body.darkMode li {
+  background: none !important;
 }
 body.darkMode div.stripes-1,
 body.darkMode div.stripes,
@@ -132,4 +134,7 @@ body.darkMode div.qa-nav-sub a:hover {
   color: #36393f !important;
   background: #dcddde !important;
 }
-
+body.darkMode a[href*="wiki/Privacy"] img {
+  background-color: #9196a1 !important;
+  border-radius: 50%;
+}
