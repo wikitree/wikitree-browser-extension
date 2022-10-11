@@ -4,6 +4,8 @@ chrome.storage.sync.get("spacePreviews", function (result) {
       delayIn: 1000,
       delayOut: 0,
       handlerIn: function ($element) {
+        $("#spacePreview").remove();
+        $("#spaceHover").attr("id", "");
         console.log($element[0].href);
         $element.attr("id", "spaceHover");
         var sPreview = document.createElement("div");
