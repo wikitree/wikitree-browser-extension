@@ -31,7 +31,7 @@ body.darkMode {
 }
 body.darkMode .button,
 body.darkMode div.pad form button,
-input[type="submit"],
+body.darkMode input[type="submit"],
 body.darkMode input.button.green.search {
   padding: 12px 12px !important;
 }
