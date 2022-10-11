@@ -1,96 +1,78 @@
 // an array of information about features
 const features = [
-  {
-    name: "Printer Friendly Bio",
-    id: "printerFriendly",
-    description: "Change the page to a printer-friendly one.",
-    category: "Main",
-  },
-  {
-    name: "Source Previews",
-    id: "sPreviews",
-    description: "Enable source previews on inline references.",
-    category: "Main",
-  },
-  {
-    name: "Space Page Previews",
-    id: "spacePreviews",
-    description: "Enable previews of Space Pages on hover.",
-    category: "Main",
-  },
-  {
-    name: "Apps Menu",
-    id: "appsMenu",
-    description: "Adds an apps submenu to the Find menu.",
-    category: "Menu",
-  },
-  {
-    name: "WikiTree+ Edit Helper",
-    id: "wtplus",
-    description: "Adds multiple editing features.",
-    category: "Main",
-  },
-  {
-    name: "Collapsible Descendants Tree",
-    id: "collapsibleDescendantsTree",
-    description: "Makes the descendants tree on profile pages collapsible.",
-    category: "Profile",
-  },
-  {
-    name: "AKA Name Links",
-    id: "akaNameLinks",
+	{
+		name: 'Printer Friendly Bio',
+		id: 'printerFriendly',
+		description: 'Change the page to a printer-friendly one.',
+		category: 'Main'
+	},{
+		name: 'Source Previews',
+		id: 'sPreviews',
+		description: 'Enable source previews on inline references.',
+		category: 'Main'
+	},{
+		name: 'Space Page Previews',
+		id: 'spacePreviews',
+		description: 'Enable previews of Space Pages on hover.',
+		category: 'Main'
+	},{
+		name: 'Apps Menu',
+		id: 'appsMenu',
+		description: 'Adds an apps submenu to the Find menu.',
+   		category: 'Menu'
+	},{
+		name: 'WikiTree+ Edit Helper',
+		id: 'wtplus',
+		description: 'Adds multiple editing features.',
+		category: 'Editing'
+	},{
+		name: 'Collapsible Descendants Tree',
+		id: 'collapsibleDescendantsTree',
+		description: 'Makes the descendants tree on profile pages collapsible.',
+		category: 'Profile'
+	},{
+		name: 'AKA Name Links',
+		id: 'akaNameLinks',
+		description: 'Adds surname page links to the "aka" names on the profile page.',
+		category: 'Profile'
+	},{
+		name: 'Family Timeline',
+		id: 'familyTimeline',
+		description: 'Displays a family timeline.',
+		category: 'Profile'
+	},{
+		name: 'Draft List',
+		id: 'draftList',
+		description: 'Adds a button to the Find menu to show your uncommitted drafts.',
+		category: 'Menu'
+	},{
+		name: 'Random Profile',
+		id: 'randomProfile',
+		description: 'Adds a Random Profile link to the Find menu.',
+		category: 'Menu'
+	},{
+		name: 'Locations Helper',
+		id: 'locationsHelper',
+		description: 'Manipulates the suggested locations, highlighting likely correct locations,'
+		+' based on family members\' locations, and demoting likely wrong locations, based on the dates.',
+		category: 'Editing'
+	},{
+		name: 'Distance and Relationship',
+		id: 'distanceAndRelationship',
+		description: 'Adds the distance (degrees) between you and the profile person and any relationship between you.',
+		category: 'Profile'
+	},{
+		name: 'Dark Mode',
+		id: 'darkMode',
+		description: 'Make WikiTree dark.',
+		category: 'Style'
+	},{
+    name: 'Family Group',
+    id: 'familyGroup',
     description:
-      'Adds surname page links to the "aka" names on the profile page.',
-    category: "Profile",
-  },
-  {
-    name: "Family Timeline",
-    id: "familyTimeline",
-    description:
-      "Displays a family timeline. The button is in the profile submenu.",
-    category: "Profile",
-  },
-  {
-    name: "Draft List",
-    id: "draftList",
-    description:
-      "Adds a button to the Find menu to show your uncommitted drafts.",
-    category: "Menu",
-  },
-  {
-    name: "Random Profile",
-    id: "randomProfile",
-    description: "Adds a Random Profile link to the Find menu.",
-    category: "Menu",
-  },
-  {
-    name: "Locations Helper",
-    id: "locationsHelper",
-    description:
-      "Manipulates the suggested locations, highlighting likely correct locations," +
-      " based on family members' locations, and demoting likely wrong locations, based on the dates.",
-    category: "Editing",
-  },
-  {
-    name: "Distance and Relationship",
-    id: "distanceAndRelationship",
-    description:
-      "Adds the distance (degrees) between you and the profile person and any relationship between you.",
-    category: "Profile",
-  },
-  {
-    name: "Dark Mode",
-    id: "darkMode",
-    description: "Make WikiTree dark.",
-    category: "Style",
-  },
-  {
-    name: "Family Group",
-    id: "familyGroup",
-    description:
-      "Display dates and locations of all family members. The button is in the Profile submenu.",
-    category: "Style",
-  },
+      'Display dates and locations of all family members. The button is in the Profile submenu.',
+    category: 'Style',
+  }
 ];
 
 // saves options to chrome.storage

@@ -4,13 +4,17 @@
 	"version": "0.1.0",
 	"manifest_version": 3,
 	"options_page": "core/options.html",
-	"permissions": [ "storage" ],
+	"permissions": [
+		"storage"
+	],
 	"host_permissions": [
 		"https://www.wikitree.com/*"
 	],
 	"content_scripts": [
 		{
-			"matches": [ "https://www.wikitree.com/*" ],
+			"matches": [
+				"https://www.wikitree.com/*"
+			],
 			"css": [
 				"core/css/main.css",
 				"features/appsMenu/appsMenu.css",
@@ -46,46 +50,97 @@
 		},
 		{
 			"matches": [
-			  "https://www.wikitree.com/index.php?title=Special:EditPerson&*"],
-			"js":["features/wt+/contentProfileInit.js", "features/wt+/contentEdit.js"],
-			"css":["features/wt+/wtPlus.css"]
+				"https://www.wikitree.com/index.php?title=Special:EditPerson&*"
+			],
+			"js": [
+				"features/wt+/contentEdit.js",
+				"core/js/editToolbar.js",
+				"core/js/editToolbarProfileOptions.js"
+			],
+			"css": [
+				"core/css/editToolbar.css",
+				"features/wt+/wtPlus.css"
+			]
 		},
 		{
 			"matches": [
-			  "https://www.wikitree.com/index.php?title=Category:*&action=edit*",
-			  "https://www.wikitree.com/index.php?title=Category:*&action=submit*"],
-			"js":["features/wt+/contentCategoryInit.js", "features/wt+/contentEdit.js"],
-			"css":["features/wt+/wtPlus.css"]
+				"https://www.wikitree.com/index.php?title=Category:*&action=edit*",
+				"https://www.wikitree.com/index.php?title=Category:*&action=submit*"
+			],
+			"js": [
+				"features/wt+/contentEdit.js",
+				"core/js/editToolbar.js",
+				"core/js/editToolbarCategoryOptions.js"
+			],
+			"css": [
+				"core/css/editToolbar.css",
+				"features/wt+/wtPlus.css"
+			]
 		},
 		{
 			"matches": [
-			  "https://www.wikitree.com/index.php?title=Template:*&action=edit*",
-			  "https://www.wikitree.com/index.php?title=Template:*&action=submit*"],
-			"js":["features/wt+/contentTemplateInit.js", "features/wt+/contentEdit.js"],
-			"css":["features/wt+/wtPlus.css"]
+				"https://www.wikitree.com/index.php?title=Template:*&action=edit*",
+				"https://www.wikitree.com/index.php?title=Template:*&action=submit*"
+			],
+			"js": [
+				"features/wt+/contentEdit.js",
+				"core/js/editToolbar.js",
+				"core/js/editToolbarTemplateOptions.js"
+			],
+			"css": [
+				"core/css/editToolbar.css",
+				"features/wt+/wtPlus.css"
+			]
 		},
 		{
 			"matches": [
-			  "https://www.wikitree.com/index.php?title=*&action=edit*",
-			  "https://www.wikitree.com/index.php?title=*&action=submit*"],
+				"https://www.wikitree.com/index.php?title=Space:*&action=edit*",
+				"https://www.wikitree.com/index.php?title=Space:*&action=submit*"
+			],
+			"js": [
+				"features/wt+/contentEdit.js",
+				"core/js/editToolbar.js",
+				"core/js/editToolbarSpaceOptions.js"
+			],
+			"css": [
+				"core/css/editToolbar.css",
+				"features/wt+/wtPlus.css"
+			]
+		},
+		{
+			"matches": [
+				"https://www.wikitree.com/index.php?title=*&action=edit*",
+				"https://www.wikitree.com/index.php?title=*&action=submit*"
+			],
 			"exclude_matches": [
-			  "https://www.wikitree.com/*title=Category:*",
-			  "https://www.wikitree.com/*title=Template:*"],
-			"js":["features/wt+/contentGenericInit.js", "features/wt+/contentEdit.js"],
-			"css":["features/wt+/wtPlus.css"]
-		  }
-	  
+				"https://www.wikitree.com/*title=Category:*",
+				"https://www.wikitree.com/*title=Template:*",
+				"https://www.wikitree.com/*title=Space:*"
+			],
+			"js": [
+				"features/wt+/contentEdit.js",
+				"core/js/editToolbar.js",
+				"core/js/editToolbarGenericOptions.js"
+			],
+			"css": [
+				"core/css/editToolbar.css",
+				"features/wt+/wtPlus.css"
+			]
+		}
 	],
-	"web_accessible_resources": [{
-		"resources":[
-			"features/wt+/templatesExp.json",
-			"images/*",
-			"features/darkMode/darkMode.css"
-		],
-		"matches": ["https://www.wikitree.com/*"]
-	}],
+	"web_accessible_resources": [
+		{
+			"resources": [
+				"features/wt+/templatesExp.json",
+				"images/*",
+				"features/darkMode/darkMode.css"
+			],
+			"matches": [
+				"https://www.wikitree.com/*"
+			]
+		}
+	],
 	"icons": {
 		"128": "core/images/we128.png"
 	}
-  
 }
