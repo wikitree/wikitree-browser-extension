@@ -1,6 +1,6 @@
 if (
-  window.location.pathname.match(/(\/wiki\/)\w.*-[0-9]*/g) ||
-  window.location.href.match(/\?title\=\w.+\-[0-9]+/g)
+  window.location.pathname.match(/(\/wiki\/)\w[^:]*-[0-9]*/g) ||
+  window.location.href.match(/\?title\=\w[^:]+-[0-9]+/g)
 ) {
   // Is a Profile Page
   var pageProfile = true;
