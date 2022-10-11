@@ -31,11 +31,11 @@ body.darkMode {
 }
 body.darkMode .button,
 body.darkMode div.pad form button,
-body.darkMode input[type="submit"],
 body.darkMode input.button.green.search {
   padding: 12px 12px !important;
 }
 body.darkMode span.showHideTree,
+body.darkMode input[type="submit"],
 body.darkMode span#showHideDescendants {
   padding: 6px !important;
 }
