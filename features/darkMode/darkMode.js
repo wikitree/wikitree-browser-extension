@@ -11,11 +11,11 @@ chrome.storage.sync.get("darkMode", (result) => {
     );
     $("img[src*='Wiki-Tree.gif']").attr(
       "src",
-      chrome.runtime.getURL("images/WT_White_2.png")
+      chrome.runtime.getURL("images/wikitree-logo-white-G2G.png")
     );
     $("img[src*='G2G.gif']").attr(
       "src",
-      chrome.runtime.getURL("images/G2G_button.png")
+      chrome.runtime.getURL("images/G2G-transparent.png")
     );
     $("h1:contains(Connection Finder)").parent().css("background-image", "");
     $("body.darkMode.page-Main_Page div.sixteen.columns.top").css(
