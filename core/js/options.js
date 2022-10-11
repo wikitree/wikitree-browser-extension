@@ -24,7 +24,7 @@ const features = [
 		name: 'WikiTree+ Edit Helper',
 		id: 'wtplus',
 		description: 'Adds multiple editing features.',
-		category: 'Main'
+		category: 'Editing'
 	},{
 		name: 'Collapsible Descendants Tree',
 		id: 'collapsibleDescendantsTree',
