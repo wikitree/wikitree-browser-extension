@@ -1,4 +1,5 @@
 // an array of information about features
+// If you make a new category, add it to the
 const features = [
   {
     name: "Printer Friendly Bio",
@@ -93,6 +94,9 @@ const features = [
   },
 ];
 
+// Categories
+const categories = ["Main", "Profile", "Editing", "Style"];
+
 // saves options to chrome.storage
 function save_options() {
   // for each feature, save if they are checked or not
@@ -128,15 +132,58 @@ $(document).ready(() => {
   restore_options();
 });
 
+// Sort features alphabetically
+features.sort(function (a, b) {
+  return a.name.localeCompare(b.name);
+});
+
 // add each feature to the options page
-features.forEach((feature) => {
-  addFeatureToOptionsPage(feature);
+categories.forEach(function (category) {
+  $("#features").append(`<h2 data-category="${category}">${category} 
+  <div class="feature-toggle">
+  <label class="switch">
+  <input type="checkbox">
+  <span class="slider round"></span>
+  </label>
+</div></h2>`);
+  features.forEach((feature) => {
+    if (feature.category == category) {
+      addFeatureToOptionsPage(feature);
+    }
+  });
+});
+
+$("h2 input").change(function () {
+  let oSwitch = true;
+  if ($(this).prop("checked") == false) {
+    oSwitch = false;
+  }
+  let oClass = $(this).closest("h2").data("category");
+  $("." + oClass)
+    .find("input")
+    .prop("checked", oSwitch);
+});
+
+$("h1").append(
+  $(`<div class="feature-toggle">
+<label class="switch">
+<input type="checkbox">
+<span class="slider round"></span>
+</label>
+</div>`)
+);
+$("h1 input").change(function () {
+  let oSwitch = true;
+  if ($(this).prop("checked") == false) {
+    oSwitch = false;
+  }
+  $("input[type='checkbox']").prop("checked", oSwitch);
 });
 
 // adds feature HTML to the options page
 function addFeatureToOptionsPage(featureData) {
   const featureHTML = `
-        <div class="feature-information" id="${featureData.id}">
+        <div class="feature-information ${featureData.category}" id="${featureData.id}">
             <div class="feature-header">
                 <div class="feature-toggle">
                     <label class="switch">
