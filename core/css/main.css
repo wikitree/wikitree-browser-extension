@@ -109,6 +109,12 @@ input:checked + .slider:before {
   top: 1em;
   right: 1em;
 }
+#options h2,
+#options h1 {
+  background: forestgreen;
+  color: white;
+  padding: 1em;
+}
 
 /* content */
 #wte-topMenuUL {
