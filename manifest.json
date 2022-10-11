@@ -19,7 +19,8 @@
 				"features/draftList/draftList.css",
 				"features/locationsHelper/locationsHelper.css",
 				"features/distanceAndRelationship/distanceAndRelationship.css",
-				"features/darkMode/darkMode.css"					
+				"features/darkMode/darkMode.css",
+				"features/familyGroup/familyGroup.css"						
 			],
 			"js": [
 				"thirdparty/jquery-3.6.0.min.js",
@@ -39,7 +40,8 @@
 				"features/randomProfile/randomProfile.js",
 				"features/locationsHelper/locationsHelper.js",
 				"features/distanceAndRelationship/distanceAndRelationship.js",
-				"features/darkMode/darkMode.js"		
+				"features/darkMode/darkMode.js",
+				"features/familyGroup/familyGroup.js"		
 			]
 		},
 		{
