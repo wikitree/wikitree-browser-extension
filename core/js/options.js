@@ -1,4 +1,5 @@
 // an array of information about features
+// If you make a new category, add it to the
 const features = [
   {
     name: "Printer Friendly Bio",
@@ -93,6 +94,9 @@ const features = [
   },
 ];
 
+// Categories
+const categories = ["Main", "Profile", "Editing", "Style"];
+
 // saves options to chrome.storage
 function save_options() {
   // for each feature, save if they are checked or not
@@ -128,9 +132,19 @@ $(document).ready(() => {
   restore_options();
 });
 
+// Sort features alphabetically
+features.sort(function (a, b) {
+  return a.name.localeCompare(b.name);
+});
+
 // add each feature to the options page
-features.forEach((feature) => {
-  addFeatureToOptionsPage(feature);
+categories.forEach(function (category) {
+  $("#features").append(`<h2>${category}</h2>`);
+  features.forEach((feature) => {
+    if (feature.category == category) {
+      addFeatureToOptionsPage(feature);
+    }
+  });
 });
 
 // adds feature HTML to the options page
