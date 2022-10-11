@@ -16,6 +16,9 @@ editToolbarCreate([
 	},
 	{
 		button: "CIB", items: [
+			{ featureid: "wtplus", title: "Cemetery", call: wtPlus, params: { template: "CategoryInfoBox Cemetery" } },
+			{ featureid: "wtplus", title: "Location", call: wtPlus, params: { template: "CategoryInfoBox Location" } },
+			{ featureid: "wtplus", title: "Add any CIB", call: wtPlus, params: { action: "AddTemplate", data: "CategoryInfoBox" } },
 			{
 				title: "Cemeteries", items: [
 					{ featureid: "wtplus", title: "Cemetery", call: wtPlus, params: { template: "CategoryInfoBox Cemetery" } },

@@ -1,6 +1,7 @@
 
 let editToolbarOptions = []
 
+/* Common events for links */
 function editToolbarWiki(params) {
 	window.open('https://www.wikitree.com/wiki/' + params.wiki, '_blank')
 }
@@ -11,6 +12,7 @@ function editToolbarApp(params) {
 	window.open('https://apps.wikitree.com/apps/' + params.app + '?wikitreeid=' + wikitreeID, '_blank')
 }
 
+/* Finds the clicked item in editToolbarOptions */
 function editToolbarFindItem(items, name) {
 	if (items && items.length) {
 		for (var item of items) {
@@ -27,18 +29,20 @@ function editToolbarFindItem(items, name) {
 	}
 }
 
+/* main event handler */
 function editToolbarEvent(event) {
 	let element = event.srcElement
 	const id = element.dataset.id
 	event.preventDefault();
 	let item = editToolbarFindItem(editToolbarOptions, id);
 	if (item) {
-		return item.call(item.params || {}) //item
+		return item.call(item.params || {})
 	} else {
 		alert("Unknown event " + id)
 	}
 }
 
+/* creates html of the drop down menu */
 function editToolbarCreateHtml(items, featureEnabled, level) {
 	let result = '';
 	if (items && items.length) {
@@ -70,11 +74,12 @@ function editToolbarCreateHtml(items, featureEnabled, level) {
 	return result;
 }
 
+/* creates menu next to the toolbar  */
 function editToolbarCreate(options) {
 	editToolbarOptions = options
 	chrome.storage.sync.get(null, (featureEnabled) => {
 		var menuHTML = editToolbarCreateHtml(editToolbarOptions, featureEnabled, -1);
-		document.getElementById("toolbar").insertAdjacentHTML('afterend', '<div id="toolbarExt">' + menuHTML + '</div>')
+		document.getElementById("toolbar").insertAdjacentHTML('afterend', '<div id="editToolbarExt">' + menuHTML + '</div>')
 		document.querySelectorAll('a.editToolbarClick').forEach(i => i.addEventListener('click', event => editToolbarEvent(event)))
 	})
 }

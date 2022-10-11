@@ -7,12 +7,12 @@ editToolbarCreate([
 	}, {
 		button: "Templates",
 		items: [
-			{ featureid: "wtplus", title: "Edit Template", call: wtPlus, params: { action: "EditTemplate", "data": "" } },
-			{ featureid: "wtplus", title: "Add any template", call: wtPlus, params: { action: "AddTemplate", "data": "" } },
-			{ featureid: "wtplus", title: "Add Project Box", call: wtPlus, params: { action: "AddTemplate", "data": "Project Box" } },
-			{ featureid: "wtplus", title: "Add Sticker", call: wtPlus, params: { action: "AddTemplate", "data": "Sticker" } },
-			{ featureid: "wtplus", title: "Add Research Note Box", call: wtPlus, params: { action: "AddTemplate", "data": "Research Note" } },
-			{ featureid: "wtplus", title: "Add External links", call: wtPlus, params: { action: "AddTemplate", "data": "External Link" } },
+			{ featureid: "wtplus", title: "Edit Template", call: wtPlus, params: { action: "EditTemplate" } },
+			{ featureid: "wtplus", title: "Add any template", call: wtPlus, params: { action: "AddTemplate" } },
+			{ featureid: "wtplus", title: "Add Project Box", call: wtPlus, params: { action: "AddTemplate", data: "Project Box" } },
+			{ featureid: "wtplus", title: "Add Sticker", call: wtPlus, params: { action: "AddTemplate", data: "Sticker" } },
+			{ featureid: "wtplus", title: "Add Research Note Box", call: wtPlus, params: { action: "AddTemplate", data: "Profile Box" } },
+			{ featureid: "wtplus", title: "Add External links", call: wtPlus, params: { action: "AddTemplate", data: "External Link" } },
 			{ featureid: "wtplus", title: "Format Template Params", call: wtPlus, params: { action: "AutoFormat" } }
 		]
 	}, {
