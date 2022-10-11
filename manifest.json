@@ -29,8 +29,9 @@
 			"js": [
 				"thirdparty/jquery-3.6.0.min.js",
 				"thirdparty/js.cookie.js",
-				"thirdparty/jqueryui.js",	
-				"thirdparty/dexie.js",											
+				"thirdparty/jqueryui.js",
+				"thirdparty/dexie.js",
+				"thirdparty/jquery.hoverDelay.min.js",
 				"core/js/common.js",
 				"core/js/content.js",
 				"features/sourcepreview/sourcepreview.js",
