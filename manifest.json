@@ -1,0 +1,147 @@
+{
+	"name": "WikiTree",
+	"description": "The official WikiTree browser extension.",
+	"version": "0.1.0",
+	"manifest_version": 3,
+	"options_page": "core/options.html",
+	"permissions": [
+		"storage"
+	],
+	"host_permissions": [
+		"https://www.wikitree.com/*"
+	],
+	"content_scripts": [
+		{
+			"matches": [
+				"https://www.wikitree.com/*"
+			],
+			"css": [
+				"core/css/main.css",
+				"features/appsMenu/appsMenu.css",
+				"features/collapsibleDescendantsTree/collapsibleDescendantsTree.css",
+				"features/familyTimeline/familyTimeline.css",
+				"features/draftList/draftList.css",
+				"features/locationsHelper/locationsHelper.css",
+				"features/distanceAndRelationship/distanceAndRelationship.css",
+				"features/darkMode/darkMode.css",
+				"features/familyGroup/familyGroup.css"						
+			],
+			"js": [
+				"thirdparty/jquery-3.6.0.min.js",
+				"thirdparty/js.cookie.js",
+				"thirdparty/jqueryui.js",
+				"thirdparty/dexie.js",
+				"thirdparty/jquery.hoverDelay.min.js",
+				"core/js/common.js",
+				"core/js/content.js",
+				"features/sourcepreview/sourcepreview.js",
+				"features/printerfriendly/printerfriendly.js",
+				"features/spacepreview/spacepreview.js",
+				"features/appsMenu/appsMenu.js",
+				"features/collapsibleDescendantsTree/collapsibleDescendantsTree.js",
+				"features/akaNameLinks/akaNameLinks.js",
+				"features/familyTimeline/familyTimeline.js",
+				"features/draftList/draftList.js",
+				"features/randomProfile/randomProfile.js",
+				"features/locationsHelper/locationsHelper.js",
+				"features/distanceAndRelationship/distanceAndRelationship.js",
+				"features/darkMode/darkMode.js",
+				"features/familyGroup/familyGroup.js"		
+			]
+		},
+		{
+			"matches": [
+				"https://www.wikitree.com/index.php?title=Special:EditPerson&*"
+			],
+			"js": [
+				"features/wt+/contentEdit.js",
+				"core/js/editToolbar.js",
+				"core/js/editToolbarProfileOptions.js"
+			],
+			"css": [
+				"core/css/editToolbar.css",
+				"features/wt+/wtPlus.css"
+			]
+		},
+		{
+			"matches": [
+				"https://www.wikitree.com/index.php?title=Category:*&action=edit*",
+				"https://www.wikitree.com/index.php?title=Category:*&action=submit*"
+			],
+			"js": [
+				"features/wt+/contentEdit.js",
+				"core/js/editToolbar.js",
+				"core/js/editToolbarCategoryOptions.js"
+			],
+			"css": [
+				"core/css/editToolbar.css",
+				"features/wt+/wtPlus.css"
+			]
+		},
+		{
+			"matches": [
+				"https://www.wikitree.com/index.php?title=Template:*&action=edit*",
+				"https://www.wikitree.com/index.php?title=Template:*&action=submit*"
+			],
+			"js": [
+				"features/wt+/contentEdit.js",
+				"core/js/editToolbar.js",
+				"core/js/editToolbarTemplateOptions.js"
+			],
+			"css": [
+				"core/css/editToolbar.css",
+				"features/wt+/wtPlus.css"
+			]
+		},
+		{
+			"matches": [
+				"https://www.wikitree.com/index.php?title=Space:*&action=edit*",
+				"https://www.wikitree.com/index.php?title=Space:*&action=submit*"
+			],
+			"js": [
+				"features/wt+/contentEdit.js",
+				"core/js/editToolbar.js",
+				"core/js/editToolbarSpaceOptions.js"
+			],
+			"css": [
+				"core/css/editToolbar.css",
+				"features/wt+/wtPlus.css"
+			]
+		},
+		{
+			"matches": [
+				"https://www.wikitree.com/index.php?title=*&action=edit*",
+				"https://www.wikitree.com/index.php?title=*&action=submit*"
+			],
+			"exclude_matches": [
+				"https://www.wikitree.com/*title=Category:*",
+				"https://www.wikitree.com/*title=Template:*",
+				"https://www.wikitree.com/*title=Space:*"
+			],
+			"js": [
+				"features/wt+/contentEdit.js",
+				"core/js/editToolbar.js",
+				"core/js/editToolbarGenericOptions.js"
+			],
+			"css": [
+				"core/css/editToolbar.css",
+				"features/wt+/wtPlus.css"
+			]
+		}
+	],
+	"web_accessible_resources": [
+		{
+			"resources": [
+				"features/wt+/templatesExp.json",
+				"images/*",
+				"features/darkMode/darkMode.css"
+			],
+			"matches": [
+				"https://www.wikitree.com/*"
+			]
+		}
+	],
+	"icons": {
+		"128": "core/images/we128.png"
+	}
+}
