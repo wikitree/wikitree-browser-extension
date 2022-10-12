@@ -3,13 +3,13 @@ chrome.storage.sync.get('locationsHelper', (result) => {
         ($("body.page-Special_EditPerson").length || $("body.page-Special_EditFamily").length)) {
 
         function addRelArraysToPerson(zPerson) {
-            zSpouses = extractRelatives(zPerson.Spouses, "Spouse"); 
+            const zSpouses = extractRelatives(zPerson.Spouses, "Spouse"); 
             zPerson.Spouse = zSpouses;
-            zChildren = extractRelatives(zPerson.Children, "Child"); 
+            const zChildren = extractRelatives(zPerson.Children, "Child"); 
             zPerson.Child = zChildren;
-            zSiblings = extractRelatives(zPerson.Siblings, "Sibling"); 
+            const zSiblings = extractRelatives(zPerson.Siblings, "Sibling"); 
             zPerson.Sibling = zSiblings;
-            zParents = extractRelatives(zPerson.Parents, "Parent"); 
+            const zParents = extractRelatives(zPerson.Parents, "Parent"); 
             zPerson.Parent = zParents;
             return zPerson;
         }
@@ -57,6 +57,7 @@ chrome.storage.sync.get('locationsHelper', (result) => {
         }
 
         async function locationsHelper() {
+            let theID;
             if ($("body.page-Special_EditFamily").length) {
                 theID = $("a.pureCssMenui0 span.person").text();
             } else {
@@ -80,7 +81,7 @@ chrome.storage.sync.get('locationsHelper', (result) => {
                     mutation.addedNodes.forEach(function (added_node) {
                         if (added_node.className == "autocomplete-suggestion-container") {
                             let activeEl = document.activeElement;
-                            whichLocation = "";
+                            let whichLocation = "";
                             if (activeEl.id == "mBirthLocation") {
                                 whichLocation = "Birth";
                             }
@@ -103,8 +104,12 @@ chrome.storage.sync.get('locationsHelper', (result) => {
                             if ($("#mMarriageDate").length) {
                                 currentMarriageYearMatch = $("#mMarriageDate").val().match(/[0-9]{3,4}/);
                             }
-                            startYear = ""; endYear = ""; goodDate = false; familyLoc = false; familyLoc2 = false;
-                            yearsMatch = dText.match(/\([^A-z]*[0-9]{3,4}.*\)/g);
+                            let startYear = "";
+                            let endYear = "";
+                            let goodDate = false;
+                            let familyLoc = false;
+                            let familyLoc2 = false;
+                            const yearsMatch = dText.match(/\([^A-z]*[0-9]{3,4}.*\)/g);
                             if (yearsMatch != null) {
                                 years = yearsMatch[0].replaceAll(/[()]/g, "").split("-");
                                 //console.log(years);
@@ -118,7 +123,7 @@ chrome.storage.sync.get('locationsHelper', (result) => {
                             else {
                                 goodDate = true;
                             }
-                            myYear = "";
+                            let myYear = "";
                             if (currentBirthYearMatch != null && whichLocation == "Birth") {
                                 myYear = currentBirthYearMatch[0];
                             }
@@ -145,13 +150,13 @@ chrome.storage.sync.get('locationsHelper', (result) => {
                             window.bdLocations.forEach(function (aLoc) {
                                 dText = dText.split("(")[0].trim();
                                 if (similarity(aLoc, dText) > 0.8) {
-                                    familyLoc1 = true;
+                                    familyLoc = true;
                                 }
                                 if (similarity(aLoc, dText) > 0.95) {
                                     familyLoc2 = true;
                                 }
                             })
-                            theContainer = $(added_node).closest(".autocomplete-suggestion-container");
+                            const theContainer = $(added_node).closest(".autocomplete-suggestion-container");
                             if (goodDate == true) {
                                 theContainer.addClass("rightPeriod");
                                 if (familyLoc2 == true) {
@@ -178,4 +183,4 @@ chrome.storage.sync.get('locationsHelper', (result) => {
         }
         locationsHelper();
     }
-})
+});
