@@ -46,7 +46,13 @@
 				"features/locationsHelper/locationsHelper.js",
 				"features/distanceAndRelationship/distanceAndRelationship.js",
 				"features/darkMode/darkMode.js",
-				"features/familyGroup/familyGroup.js"		
+				"features/familyGroup/familyGroup.js",
+        "features/bioCheck/personDate.js",
+        "features/bioCheck/sourceRules.js",
+        "features/bioCheck/biographyResults.js",
+        "features/bioCheck/biography.js",
+        "features/bioCheck/bioCheck.js"
+
 			]
 		},
 		{

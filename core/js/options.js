@@ -91,6 +91,13 @@ const features = [
       "Display dates and locations of all family members. A button is added to the profile submenu.",
     category: "Profile",
   },
+  {
+    name: 'BioCheck',
+    id: 'bioCheck',
+    description: 'Check biography style and sources.',
+    category: 'Editing',
+  },
+
 ];
 
 // Categories
