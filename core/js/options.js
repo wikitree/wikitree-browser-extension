@@ -1,5 +1,4 @@
 // an array of information about features
-// If you make a new category, add it to the
 const features = [
   {
     name: "Printer Friendly Bio",
@@ -117,16 +116,6 @@ function restore_options() {
   });
 }
 
-// save the options when the "Save" button is clicked
-$("#saveOptions").on("click", () => {
-  save_options();
-  $("#saved").remove();
-  $("#saveOptions").after($("<span id='saved'>Saved</span>"));
-  setTimeout(function () {
-    $("#saved").fadeOut();
-  }, 1500);
-});
-
 // when the options page loads, load status of options from storage
 $(document).ready(() => {
   restore_options();
@@ -153,6 +142,7 @@ categories.forEach(function (category) {
   });
 });
 
+// Category switches
 $("h2 input").change(function () {
   let oSwitch = true;
   if ($(this).prop("checked") == false) {
@@ -164,6 +154,7 @@ $("h2 input").change(function () {
     .prop("checked", oSwitch);
 });
 
+// Switch at the top to toggle every switch
 $("h1").append(
   $(`<div class="feature-toggle">
 <label class="switch">
@@ -172,12 +163,23 @@ $("h1").append(
 </label>
 </div>`)
 );
+
 $("h1 input").change(function () {
   let oSwitch = true;
   if ($(this).prop("checked") == false) {
     oSwitch = false;
   }
   $("input[type='checkbox']").prop("checked", oSwitch);
+});
+
+// Auto save the options on click (on 'change' would create lots of events when a big switch is clicked)
+// The short delay is for the changes to happen after the click
+$("#options .feature-toggle input[type='checkbox']").each(function () {
+  $(this).click(function () {
+    setTimeout(function () {
+      save_options();
+    }, 100);
+  });
 });
 
 // adds feature HTML to the options page
