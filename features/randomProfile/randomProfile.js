@@ -22,8 +22,8 @@ chrome.storage.sync.get('randomProfile', (result) => {
 
         // add random option to 'Find'
         async function addRandomToFindMenu() {
-            relationshipLi = $("li a.pureCssMenui[href='/wiki/Special:Relationship']");
-            newLi = $("<li><a class='pureCssMenui randomProfile' title='Go to a random profile'>Random Profile</li>");
+            const relationshipLi = $("li a.pureCssMenui[href='/wiki/Special:Relationship']");
+            const newLi = $("<li><a class='pureCssMenui randomProfile' title='Go to a random profile'>Random Profile</li>");
             newLi.insertBefore(relationshipLi.parent());
             $(".randomProfile").click(function (e) {
                 e.preventDefault();
