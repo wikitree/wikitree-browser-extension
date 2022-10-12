@@ -1,6 +1,6 @@
 chrome.storage.sync.get("spacePreviews", function (result) {
   if (result.spacePreviews == true) {
-    $('.ten.columns a[href*="/wiki/Space:"]').hoverDelay({
+    $('.ten.columns a[href*="/wiki/Space:"], .sixteen.columns a[href*="/wiki/Space:"]').hoverDelay({
       delayIn: 1000,
       delayOut: 0,
       handlerIn: function ($element) {
