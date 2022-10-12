@@ -15,15 +15,17 @@ chrome.storage.sync.get('bioCheck', (result) => {
         checkBio(theSourceRules);
       })
       // and also once a minute
-      // not working?
-      //setInterval(checkBio(theSourceRules), 60000);
-      //setInterval(checkBio(theSourceRules), 6000);
+      setInterval(checkAtInterval, 60000, theSourceRules);
 
     }
 	} else {
 console.log("bioCheck not on");    
   }
 });
+
+function checkAtInterval(theSourceRules) {
+  checkBio(theSourceRules);
+}
 
 /*
  * Notes about packaging and differences from the BioCheck app
