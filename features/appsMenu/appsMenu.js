@@ -17,14 +17,14 @@ async function getAppsMenu(){
 }
 
 function attachAppsMenu(menu){
-	mWTID = Cookies.get("wikitree_wtb_UserName");
-	appsList = $("<menu class='subMenu' id='appsSubMenu'></menu>");
+	const mWTID = Cookies.get("wikitree_wtb_UserName");
+	const appsList = $("<menu class='subMenu' id='appsSubMenu'></menu>");
 	menu.forEach(function(app){
-		appsLi = $("<a class='pureCssMenui' href='"+app.URL.replace(/mWTID/,mWTID)+"'>"+app.title+"</a>");
+		const appsLi = $("<a class='pureCssMenui' href='"+app.URL.replace(/mWTID/,mWTID)+"'>"+app.title+"</a>");
 		appsLi.appendTo(appsList);
 	})
 	appsList.appendTo($("ul.pureCssMenu.pureCssMenum a[href='/wiki/Help:Apps']").parent());
-	appsLink = $("ul.pureCssMenu.pureCssMenum a[href='/wiki/Help:Apps']").parent();
+	const appsLink = $("ul.pureCssMenu.pureCssMenum a[href='/wiki/Help:Apps']").parent();
 	$("ul.pureCssMenu.pureCssMenum a[href='/wiki/Help:Apps']").text("« Apps");
 	appsLink.hover(function(){appsList.show();},function(){appsList.hide();})
 }
@@ -32,7 +32,7 @@ function attachAppsMenu(menu){
 function addAppsMenu(){	
 	const d = new Date();
 	let day = d.getUTCDate();
-	getMenu = false;
+	let getMenu = false;
 	// Store the date if it hasn't been stored
 	if (!localStorage.appsMenuCheck){
 		localStorage.setItem("appsMenuCheck",day);
