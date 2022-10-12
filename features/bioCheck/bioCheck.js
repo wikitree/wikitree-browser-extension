@@ -18,11 +18,10 @@ chrome.storage.sync.get('bioCheck', (result) => {
       setInterval(checkAtInterval, 60000, theSourceRules);
 
     }
-	} else {
-console.log("bioCheck not on");    
   }
 });
 
+// Check at an interval
 function checkAtInterval(theSourceRules) {
   checkBio(theSourceRules);
 }
@@ -62,9 +61,6 @@ function checkBio(theSourceRules) {
   biography.validate();
 
   // now report from biography.bioResults
-  // these should probably appear after suggestions
-  // as a peer of suggestionContainer
-  // similarly as an ol and a number of li
 
   let profileReportLines = ([]);
   let profileStatus = "Profile appears to have sources.";
@@ -82,64 +78,103 @@ function checkBio(theSourceRules) {
     profileReportLines.push(profileStatus);
   }
   if (biography.bioResults.style.hasEndlessComment) {
-    profileStatus = "Profile has comment with no end.";
+    profileStatus = "Profile has comment with no end";
     profileReportLines.push(profileStatus);
   }
   if (biography.bioResults.style.bioHasRefWithoutEnd) {
-    profileStatus = "Profile has inline <ref> with no ending </ref>.";
+    profileStatus = "Profile has inline <ref> with no ending </ref>";
     profileReportLines.push(profileStatus);
   }
   if (biography.bioResults.style.bioHasSpanWithoutEndingSpan) {
-    profileStatus = "Profile has span with no ending span.";
+    profileStatus = "Profile has span with no ending span";
     profileReportLines.push(profileStatus);
   }
   if (biography.bioResults.style.bioIsMissingBiographyHeading) {
-    profileStatus = "Profile is missing Biography heading.";
+    profileStatus = "Profile is missing Biography heading";
     profileReportLines.push(profileStatus);
   }
   if (biography.bioResults.style.bioHasMultipleBioHeadings) {
-    profileStatus = "Profile has more than one Biography heading.";
+    profileStatus = "Profile has more than one Biography heading";
     profileReportLines.push(profileStatus);
   }
   if (biography.bioResults.style.bioHeadingWithNoLinesFollowing) {
-    profileStatus = "Profile has empty  Biography section.";
+    profileStatus = "Profile has empty  Biography section";
     profileReportLines.push(profileStatus);
   }
   let sourcesHeading = ([]);
   if (biography.bioResults.style.bioIsMissingSourcesHeading) {
-    profileStatus = "Profile is missing Sources heading.";
+    profileStatus = "Profile is missing Sources heading";
     profileReportLines.push(profileStatus);
   }
   if (biography.bioResults.style.bioHasMultipleSourceHeadings) {
-    profileStatus = "Profile has more than one Sources heading.";
+    profileStatus = "Profile has more than one Sources heading";
     profileReportLines.push(profileStatus);
   }
   if (biography.bioResults.style.sourcesHeadingHasExtraEqual) {
-    profileStatus = "Profile Sources heading has extra =.";
+    profileStatus = "Profile Sources heading has extra =";
     profileReportLines.push(profileStatus);
   }
   if (biography.bioResults.style.bioIsMissingReferencesTag) {
-    profileStatus = "Profile is missing <references /> tag.";
+    profileStatus = "Profile is missing <references /> tag";
     profileReportLines.push(profileStatus);
   }
   if (biography.bioResults.style.bioHasMultipleReferencesTags) {
-    profileStatus = "Profile has more than one <references /> tag.";
+    profileStatus = "Profile has more than one <references /> tag";
     profileReportLines.push(profileStatus);
   }
   if (biography.bioResults.style.bioHasRefAfterReferences) {
-    profileStatus = "Profile has inline <ref> tag after <references /> tag.";
+    profileStatus = "Profile has inline <ref> tag after <references /> tag";
     profileReportLines.push(profileStatus);
   }
   let acknowledgements = ([]);
   if (biography.bioResults.style.acknowledgementsHeadingHasExtraEqual) {
-    profileStatus = "Profile Acknowledgements has extra =.";
+    profileStatus = "Profile Acknowledgements has extra =";
     profileReportLines.push(profileStatus);
   }
   if (biography.bioResults.style.bioHasAcknowledgementsBeforeSources) {
-    profileStatus = "Profile has Acknowledgements before Sources heading.";
+    profileStatus = "Profile has Acknowledgements before Sources heading";
     profileReportLines.push(profileStatus);
   }
 
-  console.log(profileReportLines);
+  //console.log(profileReportLines);
+
+  // add a list to the page
+  reportResults(profileReportLines);
   
 }
+
+function reportResults(reportLines) {
+
+  // If you have been here before get and remove the old list of results
+  previousResults = document.getElementById('bioCheckResultsList');
+  let bioCheckResultsContainer = document.getElementById('bioCheckResultsContainer');
+  if (!bioCheckResultsContainer) {
+    bioCheckResultsContainer = document.createElement('div');
+    bioCheckResultsContainer.setAttribute('id', 'biocheckContainer');
+    hadPreviousResults = false;
+  }
+    
+  // need a new set of results
+  let bioResultsList = document.createElement('ul');
+  bioResultsList.setAttribute('id', 'bioCheckResultsList');
+
+  let numLines = reportLines.length;
+  for (let i = 0; i < numLines; ++i) {
+    bioResultItem = document.createElement('li');
+    bioResultItem.innerHTML = reportLines[i];
+    bioResultsList.appendChild(bioResultItem);
+  }
+  // Add or replace the results
+  if (previousResults) {
+    previousResults.replaceWith(bioResultsList);
+  } else {
+    bioCheckResultsContainer.appendChild(bioResultsList);
+
+    let lastContainer = document.getElementById('suggestionContainer');
+    if (!lastContainer) {
+      lastContainer = document.getElementById('validationContainer');
+    }
+    lastContainer.after('BioCheck results', bioCheckResultsContainer);
+  }
+}
+
