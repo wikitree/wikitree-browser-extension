@@ -94,7 +94,7 @@ const features = [
 ];
 
 // Categories
-const categories = ["Global", "Profile", "Editing", "Menu", "Style"];
+const categories = ["Global", "Profile", "Editing", "Style"];
 
 // saves options to chrome.storage
 function save_options() {
