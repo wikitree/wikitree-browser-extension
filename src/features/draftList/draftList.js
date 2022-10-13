@@ -90,7 +90,7 @@ async function showDraftList() {
     window.draftCalls = 0;
     window.tempDraftArr = [];
     window.drafts.forEach(function (draft, index) {
-      theWTID = draft[0];
+      const theWTID = draft[0];
       if (!isOK(theWTID)) {
         delete window.drafts[index];
         window.draftCalls++;
@@ -104,8 +104,8 @@ async function showDraftList() {
           dataType: "html", // added data type
           success: function (res) {
             window.draftCalls++;
-            dummy = $(res);
-            aWTID = dummy
+            const dummy = $(res);
+            const aWTID = dummy
               .find("h1 button[aria-label='Copy ID']")
               .data("copy-text");
             if (
@@ -113,10 +113,10 @@ async function showDraftList() {
                 .length
             ) {
               window.tempDraftArr.push(aWTID);
-              useLink = dummy.find("a:contains(Use the Draft)").attr("href");
+              const useLink = dummy.find("a:contains(Use the Draft)").attr("href");
               if (useLink != undefined) {
-                personID = useLink.match(/&u=[0-9]+/)[0].replace("&u=", "");
-                draftID = useLink.match(/&ud=[0-9]+/)[0].replace("&ud=", "");
+                const personID = useLink.match(/&u=[0-9]+/)[0].replace("&u=", "");
+                const draftID = useLink.match(/&ud=[0-9]+/)[0].replace("&ud=", "");
                 window.drafts.forEach(function (yDraft) {
                   if (yDraft[0] == aWTID) {
                     yDraft[3] = personID;
@@ -137,7 +137,7 @@ async function showDraftList() {
               });
 
               newDraftArr.forEach(function (xDraft) {
-                dButtons = "<td></td><td></td>";
+                let dButtons = "<td></td><td></td>";
                 if (xDraft[3] != undefined) {
                   dButtons =
                     "<td><a href='https://www.wikitree.com/index.php?title=Special:EditPerson&u=" +
@@ -195,8 +195,8 @@ function saveDraftList() {
 }
 
 function addDraftsToFindMenu() {
-  connectionLi = $("li a.pureCssMenui[href='/wiki/Special:Connection']");
-  newLi = $(
+  const connectionLi = $("li a.pureCssMenui[href='/wiki/Special:Connection']");
+  const newLi = $(
     "<li><a class='pureCssMenui drafts' id='draftsLink' title='See your uncommitted drafts'>Drafts</li>"
   );
   newLi.insertAfter(connectionLi.parent());
