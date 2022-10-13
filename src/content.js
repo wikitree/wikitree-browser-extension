@@ -1,4 +1,5 @@
 import {createTopMenu} from './core/common';
+import './core/editToolbar';
 import './features/akaNameLinks/akaNameLinks';
 import './features/appsMenu/appsMenu';
 import './features/collapsibleDescendantsTree/collapsibleDescendantsTree';
