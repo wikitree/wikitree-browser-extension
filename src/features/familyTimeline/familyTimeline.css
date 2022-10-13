@@ -2,7 +2,7 @@
 	width:80%;
 	white-space:normal;
 }
-#timeline {
+#timeline, .familySheet {
 	white-space:nowrap;
 	height:auto;
 	position:absolute;

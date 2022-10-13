@@ -1,6 +1,7 @@
 import $ from 'jquery';
+import 'jquery-ui/ui/widgets/draggable';
 import {createProfileSubmenuLink, familyArray, getRelatives, isOK} from '../../core/common';
-import './familyGroup.css';
+import '../familyTimeline/familyTimeline.css';
 
 chrome.storage.sync.get("familyGroup", (result) => {
   if (
