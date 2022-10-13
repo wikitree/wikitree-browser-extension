@@ -1,6 +1,17 @@
-# WikiTree Browser Extension
+*# WikiTree Browser Extension
 
-## Installation
+## Installation for testers
+
+To test the extension you can:
+* download the [wikitree-browser-extension.zip](https://github.com/wikitree/wikitree-browser-extension/blob/development/wikitree-browser-extension.zip),
+* unpack it somewhere on your computer, 
+* Go to [chrome://extensions](chrome://extensions),
+* Make sure you have _Developer mode_ turned on (top right corner),
+* Click _Load unpacked_,
+* Select the folder where you unpacked the extension.
+* then first thing is to go to the extension Options and select which components you want to use.
+
+## Installation for developers
 
 To use the latest browser extension from source code, you need to perform several steps to get the source code and build the extension.
 
