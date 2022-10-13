@@ -91,7 +91,7 @@ function editToolbarCreate(options) {
 }
 
 if (window.location.href.match(/\/index.php\?title=Special:EditPerson&.*/g)) {
-    editToolbarCreate(editToolbarProfileOptions);
+	editToolbarCreate(editToolbarProfileOptions);
 
 } else if (window.location.href.match(/\/index.php\?title=Category:.*&action=edit.*/g) ||
            window.location.href.match(/\/index.php\?title=Category:.*&action=submit.*/g)) {
