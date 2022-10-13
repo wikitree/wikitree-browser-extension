@@ -1,3 +1,5 @@
+import {wtPlus} from '../features/wt+/contentEdit';
+import {editToolbarApp, editToolbarWiki} from './editToolbar';
 export default [
 	{
 		button: "Templates", items: [

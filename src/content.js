@@ -13,5 +13,6 @@ import './features/randomProfile/randomProfile';
 import './features/sourcepreview/sourcepreview';
 import './features/spacepreview/spacepreview';
 import './features/wt+/contentEdit';
+import './core/editToolbar';
 
 createTopMenu();
