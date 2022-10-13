@@ -39,11 +39,9 @@ To add a new feature, you may want to start with a separate GitHub branch. This 
 
 ### Create some new files for your project
 
-Add a new folder with the feature name under the `features` folder to hold the code.
+Add a new folder with the feature name under the `src/features` folder to hold the code.
 
-Make sure you update `manifest.json` with the javascript files.
-
-In `core/js/options.js`, add information about the feature to the `features` array. This will setup a basic on/off switch on the Options Page.
+In `src/options.js`, add information about the feature to the `features` array. This will setup a basic on/off switch on the Options Page.
 
 ```js
 const features = [
@@ -65,7 +63,22 @@ chrome.storage.sync.get("featureID", (result) => {
 });
 ```
 
+In `src/content.js` import your feature source file:
+```js
+import './features/myFeature/myFeature';
+```
+
 You may want to include a README file in the folder to explain what the feature does.
+
+### See your feature in the browser
+
+See main [[README]] for installation instructions.
+
+You can use the following command during development to keep the `dist` folder up to date with your changes without having to manually build each time:
+```
+npm run watch
+```
+
 
 ## Share your view
 
