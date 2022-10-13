@@ -3,8 +3,7 @@ import {editToolbarApp, editToolbarWiki} from './editToolbar';
 export default [
 	{
 		button: "Templates", items: [
-			{ featureid: "wtplus", 
-			title: "Edit Template", call: wtPlus, params: { action: "EditTemplate" } },
+			{ featureid: "wtplus", title: "Edit Template", call: wtPlus, params: { action: "EditTemplate" } },
 			{ featureid: "wtplus", title: "Add any template", call: wtPlus, params: { action: "AddTemplate" } },
 			{ featureid: "wtplus", title: "Format Template Params", call: wtPlus, params: { action: "AutoFormat" } }
 		]
