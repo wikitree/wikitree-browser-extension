@@ -8,11 +8,11 @@ import './editToolbar.css';
 let editToolbarOptions = []
 
 /* Common events for links */
-function editToolbarWiki(params) {
+export function editToolbarWiki(params) {
 	window.open('https://www.wikitree.com/wiki/' + params.wiki, '_blank')
 }
 
-function editToolbarApp(params) {
+export function editToolbarApp(params) {
 	let w = document.querySelector('h1 > .copyWidget') 
 	let wikitreeID = w.getAttribute('data-copy-text');
 	window.open('https://apps.wikitree.com/apps/' + params.app + '?wikitreeid=' + wikitreeID, '_blank')

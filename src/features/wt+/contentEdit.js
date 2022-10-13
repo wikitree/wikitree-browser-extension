@@ -858,7 +858,7 @@ function posToOffset (txt, pos){
   return len+pos.ch ;
 };
 
-function wtPlus (params){
+export function wtPlus (params){
 	if (tb.elText.style.display == "none") {
 		alert('Enhanced editor is not supported.\n\nTurning it off to use the extension.');
 		tb.elEnhanced.click();
