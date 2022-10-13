@@ -18,7 +18,8 @@ module.exports = {
       chunks(chunk) {
         return true;
       }
-},
+    },
+    minimize: (process.env.NODE_ENV == 'production'),
   },
   resolve: {
     extensions: [".js"],
