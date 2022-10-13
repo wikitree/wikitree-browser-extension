@@ -6,25 +6,25 @@ const features = [
     name: "Printer Friendly Bio",
     id: "printerFriendly",
     description: "Change the page to a printer-friendly one.",
-    category: "Main",
+    category: "Global",
   },
   {
     name: "Source Previews",
     id: "sPreviews",
     description: "Enable source previews on inline references.",
-    category: "Main",
+    category: "Global",
   },
   {
     name: "Space Page Previews",
     id: "spacePreviews",
     description: "Enable previews of Space Pages on hover.",
-    category: "Main",
+    category: "Global",
   },
   {
     name: "Apps Menu",
     id: "appsMenu",
     description: "Adds an apps submenu to the Find menu.",
-    category: "Menu",
+    category: "Global",
   },
   {
     name: "WikiTree+ Edit Helper",
@@ -57,13 +57,13 @@ const features = [
     id: "draftList",
     description:
       "Adds a button to the Find menu to show your uncommitted drafts.",
-    category: "Menu",
+    category: "Global",
   },
   {
     name: "Random Profile",
     id: "randomProfile",
     description: "Adds a Random Profile link to the Find menu.",
-    category: "Menu",
+    category: "Global",
   },
   {
     name: "Locations Helper",
@@ -96,7 +96,7 @@ const features = [
 ];
 
 // Categories
-const categories = ["Main", "Profile", "Editing", "Style"];
+const categories = ["Global", "Profile", "Editing", "Style"];
 
 // saves options to chrome.storage
 function save_options() {
