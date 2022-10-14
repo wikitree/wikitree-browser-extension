@@ -10,6 +10,9 @@
 		"matches": ["https://www.wikitree.com/*"],
 		"js": ["js/vendor.js", "js/content.js"]
 	}],
+	"background": {
+		"service_worker": "background.js"
+	},
 	"web_accessible_resources": [{
 		"matches": ["https://www.wikitree.com/*"],
 		"resources": [
