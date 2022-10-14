@@ -105,9 +105,7 @@ async function showDraftList() {
           success: function (res) {
             window.draftCalls++;
             const dummy = $(res);
-            const aWTID = dummy
-              .find("h1 button[aria-label='Copy ID']")
-              .data("copy-text");
+            const aWTID = dummy.find("a.pureCssMenui0 span.person").text();
             if (
               dummy.find("div.status:contains('You have an uncommitted')")
                 .length
