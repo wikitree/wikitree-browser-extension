@@ -1,7 +1,12 @@
-import $ from 'jquery';
-import 'jquery-ui/ui/widgets/draggable';
-import {createProfileSubmenuLink, familyArray, getRelatives, isOK} from '../../core/common';
-import '../familyTimeline/familyTimeline.css';
+import $ from "jquery";
+import "jquery-ui/ui/widgets/draggable";
+import {
+  createProfileSubmenuLink,
+  familyArray,
+  getRelatives,
+  isOK,
+} from "../../core/common";
+import "../familyTimeline/familyTimeline.css";
 
 chrome.storage.sync.get("familyGroup", (result) => {
   if (
@@ -37,6 +42,7 @@ chrome.storage.sync.get("familyGroup", (result) => {
           familyTable.prependTo("body");
           familyTable.attr("id", profileID.replace(" ", "_") + "_family");
           familyTable.draggable();
+          familyTable.fadeIn();
           familyTable.on("dblclick", function () {
             $(this).fadeOut();
           });
