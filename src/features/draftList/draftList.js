@@ -1,6 +1,6 @@
-import $ from 'jquery';
-import {isOK} from '../../core/common';
-import './draftList.css';
+import $ from "jquery";
+import { isOK } from "../../core/common";
+import "./draftList.css";
 
 chrome.storage.sync.get("draftList", (result) => {
   if (result.draftList) {
@@ -20,16 +20,16 @@ async function updateDraftList() {
   let timeNow = Date.now();
   let lastWeek = timeNow - 604800000;
   let isEditPage = false;
+  let theName = $("h1")
+    .text()
+    .replace("Edit Profile of ", "")
+    .replaceAll(/\//g, "")
+    .replaceAll(/ID|LINK|URL/g, "");
   if (
     $("#draftStatus:contains(saved),#status:contains(Starting with previous)")
       .length
   ) {
     addDraft = true;
-    theName = $("h1")
-      .text()
-      .replace("Edit Profile of ", "")
-      .replaceAll(/\//g, "")
-      .replaceAll(/ID|LINK|URL/g, "");
   } else if ($("body.page-Special_EditPerson").length) {
     isEditPage = true;
   }
@@ -105,18 +105,22 @@ async function showDraftList() {
           success: function (res) {
             window.draftCalls++;
             const dummy = $(res);
-            const aWTID = dummy
-              .find("h1 button[aria-label='Copy ID']")
-              .data("copy-text");
+            const aWTID = dummy.find("a.pureCssMenui0 span.person").text();
             if (
               dummy.find("div.status:contains('You have an uncommitted')")
                 .length
             ) {
               window.tempDraftArr.push(aWTID);
-              const useLink = dummy.find("a:contains(Use the Draft)").attr("href");
+              const useLink = dummy
+                .find("a:contains(Use the Draft)")
+                .attr("href");
               if (useLink != undefined) {
-                const personID = useLink.match(/&u=[0-9]+/)[0].replace("&u=", "");
-                const draftID = useLink.match(/&ud=[0-9]+/)[0].replace("&ud=", "");
+                const personID = useLink
+                  .match(/&u=[0-9]+/)[0]
+                  .replace("&u=", "");
+                const draftID = useLink
+                  .match(/&ud=[0-9]+/)[0]
+                  .replace("&ud=", "");
                 window.drafts.forEach(function (yDraft) {
                   if (yDraft[0] == aWTID) {
                     yDraft[3] = personID;
