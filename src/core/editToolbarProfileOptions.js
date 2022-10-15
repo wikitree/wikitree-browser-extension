@@ -28,19 +28,19 @@ export default [
 			{
 				title: "WikiTree Apps",
 				items: [
-					{ title: "DNA Confirmation", hint: "DNA Confirmation by Greg Clarke", call: editToolbarApp, params: { app: "clarke11007/DNAconf.php" } },
-					{ title: "Ancestry Citation", hint: "Ancestry Citation by Greg Clarke", call: editToolbarApp, params: { app: "clarke11007/ancite.php" } },
-					{ title: "Drouin Citer", hint: "Drouin Citer by Greg Clarke", call: editToolbarApp, params: { app: "clarke11007/drouinCite.php" } },
-					{ title: "Surnames Generator", hint: "Surnames Generator by Greg Clarke", call: editToolbarApp, params: { app: "clarke11007/surnames.php" } },
-					{ title: "Riksarkivet SVAR sources", hint: "Riksarkivet SVAR sources by Maria Lundholm", call: editToolbarApp, params: { app: "lundholm24/ref-making/ra-ref.php" } },
-					{ title: "Arkiv Digital sources", hint: "Arkiv Digital sources by Maria Lundholm", call: editToolbarApp, params: { app: "lundholm24/ref-making/ad-ref.php" } },
-					{ title: "Sveriges Dödbok sources", hint: "Sveriges Dödbok sources by Maria Lundholm", call: editToolbarApp, params: { app: "lundholm24/ref-making/sdb-ref.php" } },
-					{ title: "Biography Generator", hint: "Biography Generator (for Open pr.) by Greg Shipley", call: editToolbarApp, params: { app: "shipley1223/Bio.html" } },
+					{ featureid: "wtplus", title: "DNA Confirmation", hint: "DNA Confirmation by Greg Clarke", call: editToolbarApp, params: { app: "clarke11007/DNAconf.php" } },
+					{ featureid: "wtplus", title: "Ancestry Citation", hint: "Ancestry Citation by Greg Clarke", call: editToolbarApp, params: { app: "clarke11007/ancite.php" } },
+					{ featureid: "wtplus", title: "Drouin Citer", hint: "Drouin Citer by Greg Clarke", call: editToolbarApp, params: { app: "clarke11007/drouinCite.php" } },
+					{ featureid: "wtplus", title: "Surnames Generator", hint: "Surnames Generator by Greg Clarke", call: editToolbarApp, params: { app: "clarke11007/surnames.php" } },
+					{ featureid: "wtplus", title: "Riksarkivet SVAR sources", hint: "Riksarkivet SVAR sources by Maria Lundholm", call: editToolbarApp, params: { app: "lundholm24/ref-making/ra-ref.php" } },
+					{ featureid: "wtplus", title: "Arkiv Digital sources", hint: "Arkiv Digital sources by Maria Lundholm", call: editToolbarApp, params: { app: "lundholm24/ref-making/ad-ref.php" } },
+					{ featureid: "wtplus", title: "Sveriges Dödbok sources", hint: "Sveriges Dödbok sources by Maria Lundholm", call: editToolbarApp, params: { app: "lundholm24/ref-making/sdb-ref.php" } },
+					{ featureid: "wtplus", title: "Biography Generator", hint: "Biography Generator (for Open pr.) by Greg Shipley", call: editToolbarApp, params: { app: "shipley1223/Bio.html" } },
 					{
 						title: "Other Apps",
 						items: [
-							{ title: "Bio Check", hint: "Bio Check by Kay Knight", call: editToolbarApp, params: { app: "sands1865/biocheck/" } },
-							{ title: "Fan Chart", hint: "Fan Chart by Greg Clarke", call: editToolbarApp, params: { app: "clarke11007/fan.php" } }
+							{ featureid: "wtplus", title: "Bio Check", hint: "Bio Check by Kay Knight", call: editToolbarApp, params: { app: "sands1865/biocheck/" } },
+							{ featureid: "wtplus", title: "Fan Chart", hint: "Fan Chart by Greg Clarke", call: editToolbarApp, params: { app: "clarke11007/fan.php" } }
 						]
 					}
 				]

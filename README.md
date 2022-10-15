@@ -1,4 +1,4 @@
-*# WikiTree Browser Extension
+# WikiTree Browser Extension
 
 ## Installation for testers
 

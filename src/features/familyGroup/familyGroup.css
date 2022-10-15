@@ -1,0 +1,48 @@
+.familySheet .aDate {
+  white-space: nowrap;
+}
+.familySheet.wrap {
+  width: 80%;
+  white-space: normal;
+}
+.familySheet x {
+  position: absolute;
+  top: 0;
+  right: 0.5em;
+  font-weight: bold;
+  cursor: pointer;
+}
+.familySheet w {
+  position: absolute;
+  top: 0;
+  left: 0.5em;
+  font-weight: bold;
+  cursor: pointer;
+}
+.familySheet {
+  position: absolute;
+  white-space: nowrap;
+  background: white;
+  z-index: 2000;
+  border: 2px solid forestgreen;
+  border-radius: 1em;
+  box-shadow: 0.8em 0.8em 0.8em #ccc;
+  cursor: move;
+  padding: 1em;
+}
+.familySheet.wrap {
+  white-space: normal;
+}
+
+.familySheet .self {
+  font-weight: bold;
+}
+
+.familySheet td {
+  padding: 0.2em;
+}
+
+.familySheet thead,
+.peopleTable {
+  text-align: left;
+}

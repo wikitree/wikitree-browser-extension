@@ -100,6 +100,12 @@ const features = [
       "Reformats a biography and updates data fields when the profile was created froma GEDCOM.",
     category: "Editing",
   },
+  {
+    name: 'BioCheck',
+    id: 'bioCheck',
+    description: 'Check biography style and sources.',
+    category: 'Editing',
+  },
 ];
 
 // Categories
