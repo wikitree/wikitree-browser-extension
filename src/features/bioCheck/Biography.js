@@ -1059,8 +1059,8 @@ export class Biography extends BiographyResults {
           this.bioResults.style.bioHasStyleIssues = true;
           this.bioResults.style.bioHasRefAfterReferences = true;
         }
-        if ((index < this.referencesIndex) || 
-            (this.referencesIndex < 0)) {
+        // Only count misplaced line if there is a references tag
+        if ((index < this.referencesIndex) && (this.referencesIndex > 0)) {
           this.bioResults.style.misplacedLineCount++;
         }
         let spanTargetStartPos = mixedCaseLine.indexOf(Biography.SPAN_TARGET_START);
