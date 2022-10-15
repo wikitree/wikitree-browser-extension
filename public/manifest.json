@@ -15,8 +15,9 @@
 		"resources": [
 			"images/*",
 			"features/wt+/templatesExp.json",
-			"features/darkMode/darkMode.css"
-	    ]
+			"features/darkMode/darkMode.css",
+      "js/*.js"
+	  ]
 	}],
 	"icons": {
 		"128": "images/we128.png"

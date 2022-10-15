@@ -1,2 +1,8 @@
+# Mac internal files
+.DS_Store
+
+# installed node.js modules
 node_modules
+
+# webpack created build folder
 dist

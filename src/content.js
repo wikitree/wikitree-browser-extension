@@ -1,4 +1,5 @@
 import {createTopMenu} from './core/common';
+import './features/agc/agc_content';
 import './features/akaNameLinks/akaNameLinks';
 import './features/appsMenu/appsMenu';
 import './features/collapsibleDescendantsTree/collapsibleDescendantsTree';

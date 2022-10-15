@@ -93,6 +93,13 @@ const features = [
       "Display dates and locations of all family members. A button is added to the profile submenu.",
     category: "Profile",
   },
+  {
+    name: "Automatic GEDCOM Cleanup (AGC)",
+    id: "agc",
+    description:
+      "Reformats a biography and updates data fields when the profile was created froma GEDCOM.",
+    category: "Editing",
+  },
 ];
 
 // Categories
