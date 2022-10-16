@@ -24,7 +24,6 @@ module.exports = {
         return true;
       },
     },
-    minimize: process.env.NODE_ENV == "production",
   },
   resolve: {
     extensions: [".js"],
