@@ -1,0 +1,20 @@
+== Biography ==
+Emily was born in September 1874 in Ewell, Surrey, England.<ref>'''Birth Registration''': [https://www.freebmd.org.uk/cgi/search.pl?type=Births&given=Emily&surname=Bumstead&start=1874&end=1874 England & Wales, FreeBMD Birth Index, 1837-1915], original data from [https://www.gro.gov.uk/gro/content/certificates/indexes_search.asp?index=EW_Birth&year=1874&forename1=Emily&surname=Bumstead&gender=F General Register Office].<br/>
+{{Ancestry Record|freebmdbirth|35186625}} (accessed 16 July 2020),<br/>
+Birth date: Sep 1874, Birth place: Surrey, United Kingdom.</ref>
+<ref name="1881 census"/>
+
+In the 1881 census Emily (age 6) was living in Battersea, London, England.<ref name="1881 census">'''1881 Census''': [https://www.familysearch.org/search/record/results?q.givenName=Emily&q.surname=Bumstead&q.birthLikeDate.from=1873&q.birthLikeDate.to=1875&q.birthLikePlace=Ewell,%20Surrey,%20England&q.residenceDate.from=1881&q.residenceDate.to=1881&q.residencePlace=Battersea,%20London,%20England&f.collectionId=2562194 1881 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1881&_ed=1881&_hb=tna&_q=Census+Returns+1881+RG11+638 The National Archives], reference: Class: RG11; Piece: 638; Folio: 63; Page: 17; Line: ; GSU roll: 1341147.<br/>
+{{Ancestry Record|uki1881|20900056}} (accessed 16 July 2020),<br/>
+Birth date: abt 1875, Birth place: Ewell, Surrey, England,<br/>Residence date: 1881, Residence place: Battersea, London, England.</ref>
+
+In the 1891 census Emily (age 16) was living in Battersea, London, England.<ref>'''1891 Census''': [https://www.familysearch.org/search/record/results?q.givenName=Emily&q.surname=Bumstead&q.birthLikeDate.from=1873&q.birthLikeDate.to=1875&q.birthLikePlace=Ewell,%20Surrey,%20England&q.residenceDate.from=1891&q.residenceDate.to=1891&q.residencePlace=Battersea,%20London,%20England&f.collectionId=1865747 1891 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1891&_ed=1891&_hb=tna&_q=Census+Returns+1891+RG12+429 The National Archives], reference: Class: RG12; Piece: 429; Folio 66; Page 25; GSU roll: 6095539.<br/>
+{{Ancestry Record|uki1891|10462422}} (accessed 16 July 2020),<br/>
+Birth date: abt 1874, Birth place: Surrey, England,<br/>Residence date: 1891, Residence place: Battersea, London, England.</ref>
+
+In the 1901 census Emily (age 26) was living in Southwell, Nottinghamshire, England.<ref>'''1901 Census''': [https://www.familysearch.org/search/record/results?q.givenName=Emily&q.surname=Bumstead&q.birthLikeDate.from=1873&q.birthLikeDate.to=1875&q.birthLikePlace=Ewell,%20Surrey,%20England&q.residenceDate.from=1901&q.residenceDate.to=1901&q.residencePlace=Southwell,%20Nottinghamshire,%20England&f.collectionId=1888129 1901 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1901&_ed=1901&_hb=tna&_q=Census+Returns+1901+RG13+3192 The National Archives], reference: Class: RG13; Piece: 3192; Folio: 67; Page: 15.<br/>
+{{Ancestry Record|uki1901|18806151}} (accessed 16 July 2020),<br/>
+Birth date: abt 1873, Birth place: Croydon, Surrey, England,<br/>Residence date: 1901, Residence place: Southwell, Nottinghamshire, England.</ref>
+
+== Sources ==
+<references />

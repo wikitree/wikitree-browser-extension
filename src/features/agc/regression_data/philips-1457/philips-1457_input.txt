@@ -1,0 +1,106 @@
+== Biography ==
+'''Name:''' William Henry Philips.
+<ref name="ref_0">
+Source: [[#S-215463703]] Class: RG13; Piece: 447; Folio: 27; Page: 46 {{Ancestry Record|7814|21099086}}
+</ref>
+<ref name="ref_1">
+Source: [[#S-214974479]] Class: RG14; Piece: 10174; Schedule Number: 402 {{Ancestry Record|2352|53365684}}
+</ref>
+<ref name="ref_2">
+Source: [[#S-215504204]] London Metropolitan Archives, Saint Barnabas, North Side, Register of banns of marriage, P70/BAN, Item 030 {{Ancestry Record|1623|3714032}}
+</ref>
+<ref name="ref_3">
+Source: [[#S-215504204]] London Metropolitan Archives, Saint Barnabas, North Side, Register of marriages, P70/BAN, Item 016 {{Ancestry Record|1623|3721702}}
+</ref>
+<ref name="ref_4">
+Source: [[#S813253319]] Reference Number: RG 31; Folder Number: 159; Census Place: Regina (City), Regina, Saskatchewan; Page Number: 9 {{Ancestry Record|8991|7111954}}
+</ref>
+<ref name="ref_5">
+Source: [[#S813253322]] Year: 1916; Census Place: Saskatchewan, Regina, 03I; Roll: T-21943; Page: 2; Family No: 10 {{Ancestry Record|1556|760124963}}
+</ref>
+<ref name="ref_6">
+Source: [[#S813252083]] Library and Archives Canada; Form 30A Ocean Arrivals (Individual Manifests), 1919-1924; Rolls: T-14939 - T-15248 {{Ancestry Record|1588|631155}}
+</ref>
+<ref name="ref_7">
+Source: [[#S813255293]] {{Ancestry Record|60527|1103155}}
+</ref>
+<ref name="ref_8">
+Source: [[#S-215463847]] {{Ancestry Record|8913|22489572}}
+</ref>
+<ref name="ref_9">
+Source: [[#S817323334]] {{Ancestry Record|9209|218049}}
+</ref>
+'''Born'''
+abt 1883.
+Pimlico, London, England.
+<ref name="ref_0"/>
+<ref name="ref_1"/>
+<ref name="ref_3"/>
+<ref name="ref_4"/>
+<ref name="ref_5"/>
+<ref name="ref_6"/>
+<ref name="ref_7"/>
+'''Died'''
+6 December 1946.
+Saskatchewan, Canada.
+<ref name="ref_7"/>
+'''Buried'''
+Regina, Regina Census Division, Saskatchewan, Canada.
+<ref name="ref_7"/>
+'''Departure'''
+1921
+<ref name="ref_6"/>
+'''Arrival'''
+Sep 1921.
+Quebec, Canada.
+<ref name="ref_6"/>
+1911
+<ref name="ref_4"/>
+'''Residence''' Marital Status: MarriedRelation to Head: Self.
+1916
+Regina, Saskatchewan, Canada.
+<ref name="ref_5"/>
+Marital Status: MarriedRelation to Head of House: Head.
+1 Jun 1921.
+Regina, Regina, Saskatchewan, Canada.
+<ref name="ref_4"/>
+Marital Status: MarriedRelation to Head of House: Head.
+02 Apr 1911.
+South Shoebury, Essex, England.
+<ref name="ref_1"/>
+Relation to Head of House: Son.
+1901
+Battersea, London, England.
+<ref name="ref_0"/>
+'''Marriage'''
+Husband William Henry Philips.
+Wife Rose Edith Richardson.
+Child: William Henry Phillips.
+Child: Rose Phillips.
+Marriage
+16 Nov 1907.
+St Barnabas, Clapham Common, England.
+<ref>
+Source: [[#S-214974479]] Class: RG14; Piece: 10174; Schedule Number: 402 {{Ancestry Record|2352|53365684}}
+</ref>
+<ref>
+Source: [[#S-215504204]] London Metropolitan Archives, Saint Barnabas, North Side, Register of banns of marriage, P70/BAN, Item 030 {{Ancestry Record|1623|3714032}}
+</ref>
+<ref>
+Source: [[#S-215504204]] London Metropolitan Archives, Saint Barnabas, North Side, Register of marriages, P70/BAN, Item 016 {{Ancestry Record|1623|3721702}}
+</ref>
+<ref>
+Source: [[#S-215463847]] {{Ancestry Record|8913|22489572}}
+</ref>
+
+== Sources ==
+<references />
+* Source: <span id='S-214974479'>S-214974479</span> 1911 England Census Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|2352|0}}
+* Source: <span id='S-215463703'>S-215463703</span> 1901 England Census Ancestry.com Publication: Ancestry.com Operations Inc {{Ancestry Record|7814|0}}
+* Source: <span id='S-215463847'>S-215463847</span> England & Wales, FreeBMD Marriage Index, 1837-1915 FreeBMD Publication: Ancestry.com Operations Inc {{Ancestry Record|8913|0}}
+* Source: <span id='S-215504204'>S-215504204</span> London, England, Marriages and Banns, 1754-1921 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|1623|0}}
+* Source: <span id='S813252083'>S813252083</span> Canada, Ocean Arrivals (Form 30A), 1919-1924 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|1588|0}}
+* Source: <span id='S813253319'>S813253319</span> 1921 Census of Canada Ancestry.com Publication: Ancestry.com Operations Inc {{Ancestry Record|8991|0}}
+* Source: <span id='S813253322'>S813253322</span> 1916 Canada Census of Manitoba, Saskatchewan, and Alberta Ancestry.com and The Church of Jesus Christ of Latter-day Saints Publication: Ancestry.com Operations Inc {{Ancestry Record|1556|0}}
+* Source: <span id='S813255293'>S813255293</span> Canada, Find A Grave Index, 1600s-Current Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|60527|0}}
+* Source: <span id='S817323334'>S817323334</span> Manitoba, Saskatchewan and Alberta, Canada, Homestead Grant Registers, 1872-1930 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|9209|0}}

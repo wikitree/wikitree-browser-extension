@@ -1,0 +1,94 @@
+This person was created through the import of WikiTree.ged on 20 February 2011.  The following data was included in the gedcom. You may wish to edit it for readability.
+
+=== Name ===
+: Name:  Hugh E /Boyle/
+:: Given Name:  Hugh E
+:: Surname:  Boyle
+: Name:  Red Hughie //
+:: Given Name:  Red Hughie
+:: Surname:  
+Found multiple versions of NAME. Using Hugh E /Boyle/.
+
+=== Death ===
+: Death:  
+:: Date:  22 Jun 1944
+:: Place:  Peaine Township, Beaver Island, Charlevoix Co., Michigan
+:: Cause:  Coronary Thrombosis
+
+
+=== Burial ===
+: Burial:  
+:: Date:  26 Jun 1944
+:: Place:  Holy Cross Cemetery, Beaver Island, Charlevoix Co., Michigan
+
+
+=== Immigration ===
+: Immigration:  
+:: Date:  Bet 1856 and 1859
+
+
+=== Naturalization as a Citizen ===
+: Naturalization as a Citizen:  
+:: Date:  26 Nov 1885
+:: Place:  Manitou Co., Michigan
+
+
+=== Occupation ===
+: Occupation:  Sheriff
+:: Date:  23 Oct 1889
+:: Place:  Manitou Co., Michigan
+: Occupation:  Farmer
+:: Date:  1890
+:: Source: [[#S77]]
+: Occupation:  Farmer
+:: Date:  1900
+:: Place:  Beaver Island, Charlevoix Co., Michigan
+: Occupation:  Farmer
+:: Date:  1910
+:: Place:  Beaver Island, Charlevoix Co., Michigan
+: Occupation:  Farmer
+:: Date:  1920
+:: Place:  Beaver Island, Charlevoix Co., Michigan
+: Occupation:  Farmer
+:: Date:  1930
+:: Place:  Beaver Island, Charlevoix Co., Michigan
+
+
+=== Census ===
+: Census:  
+:: Date:  1900
+:: Place:  Peaine Township, Beaver Island, Charlevoix Co., Michigan
+: Census:  
+:: Date:  1910
+:: Place:  Peaine Township, Beaver Island, Charlevoix Co., Michigan
+: Census:  
+:: Date:  1920
+:: Place:  Peaine Township, Beaver Island, Charlevoix Co., Michigan
+: Census:  
+:: Date:  1930
+:: Place:  Peaine Township, Beaver Island, Charlevoix Co., Michigan
+
+
+=== User ID ===
+: User ID:  C74596B8354548EBB5E155582EF4ECB60E34
+
+
+=== Data Changed ===
+: Data Changed:  
+:: Date:  19 Feb 2011
+::: Time:  06:18
+Prior to import, this record was last changed 06:18 19 Feb 2011.
+
+=== Note ===
+: Note:  @NI149@
+: @NI149@ NOTEBIRTH: October 1, 1856 (ML) 
+: October 29, 1855 per Mary Beth Nelson (ML)
+
+=== Sources ===
+: Source <span id='S77'>S77</span>
+: Abbreviation:  Descendants of Unknown Boyle
+: Title:  Descendants of Unknown Boyle
+: Author:  ML
+
+
+

@@ -1,0 +1,38 @@
+[[Category:Cornwall, Needs Profiles Created]]
+[[Category:Cornwall, Unsourced Profiles]]
+[[Category:Cornwall, Needs Post Merge Clean Up]]
+{{Unsourced}}
+== Biography ==
+{{Died Young}}
+Thomas was baptised on the 27th Dec 1688 to Peter & Thomazine Dunstone in Wendron, Cornwall, England. 
+
+Baptisms;
+Day Month	27-Dec 
+Year            	1688 
+Parish Or Reg District	Wendron 
+Forename	Thomas 
+Surname            	DUNSTONE 
+Sex                   	M 
+Father Forename	Peter 
+Mother Forename	
+Residence	
+Father Rank Profession	
+Notes	
+
+=
+
+{{One Name Study|name=Dunstan}}
+{{England Sticker|Cornwall}}
+
+== Research Notes ==
+=== Sources with no fact or date ===
+
+There are additional sources with no facts or date. Often these are sources for the baptism or marriage of children that mention the parents or father. This section can just be removed if you will be adding those children and using these sources there.<ref>'''Unclassified''': Author: Church of Latter Day Saints. Title: IGI Records. NOTETYPE: Web Site. URL: http://www.familysearch.org. Repository <span id='R00002'>R00002</span>. Name: Family Search - IGI. Address: http://www.familysearch.org/eng/Search/frameset_search.asp. E-Mail Address. Phone Number. (accessed 16 July 2020)</ref>
+
+== Sources ==
+<references />
+See also:
+* https://www.cornwall-opc-database.org
+
+== Acknowledgments ==
+* This person was created through the import of GerwingLoueyFamilyTree2009_2011-04-27.ged on 28 April 2011.

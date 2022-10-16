@@ -1,0 +1,49 @@
+== Biography ==
+Robert was born in about 1833 in Yarcombe, Devon, England.
+<ref name="1851 census"/>
+
+In the 1841 census Robert (age about 8) was living in Yarcombe, Devon, England.
+<ref>
+'''1841 Census''': [https://www.familysearch.org/search/record/results?q.givenName=Robert&q.surname=Pavey&q.birthLikeDate.from=1832&q.birthLikeDate.to=1834&q.birthLikePlace=Yarcombe,%20Devon,%20England&q.residenceDate.from=1841&q.residenceDate.to=1841&q.residencePlace=Yarcombe,%20Devon,%20England&f.collectionId=1493745 1841 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1841&_ed=1841&_hb=tna&_q=Census+Returns+1841+HO107+201 The National Archives], reference: Class: HO107; Piece 201; Book: 23; Civil Parish: Yarcombe; County: Devon; Enumeration District: 6; Folio: 6; Page: 6; Line: 12; GSU roll: 241301.<br/>
+{{Ancestry Record|uki1841|1031512}} (accessed 16 July 2020),<br/>
+Birth date: abt 1833, Birth place: Devon, England,<br/>Residence date: 1841, Residence place: Yarcombe, Devon, England.
+</ref>
+
+In the 1851 census Robert (age about 18) was living in Yarcombe, Devon, England.
+<ref name="1851 census">
+'''1851 Census''': [https://www.familysearch.org/search/record/results?q.givenName=Robert&q.surname=Pavey&q.birthLikeDate.from=1832&q.birthLikeDate.to=1834&q.birthLikePlace=Yarcombe,%20Devon,%20England&q.residenceDate.from=1851&q.residenceDate.to=1851&q.residencePlace=Yarcombe,%20Devon,%20England&f.collectionId=2563939 1851 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1851&_ed=1851&_hb=tna&_q=Census+Returns+1851+HO107+1927 The National Archives], reference: Class: HO107; Piece: 1927; Folio: 389; Page: 24; GSU roll: 221084.<br/>
+{{Ancestry Record|uki1851|7255273}} (accessed 16 July 2020),<br/>
+Birth date: abt 1832, Birth place: Yarcombe, Devon, England,<br/>Residence date: 1851, Residence place: Yarcombe, Devon, England.
+</ref>
+
+In the 1861 census Robert (age about 28) was living in Yarcombe, Devon, England.
+<ref>
+'''1861 Census''': [https://www.familysearch.org/search/record/results?q.givenName=Robert&q.surname=Pavey&q.birthLikeDate.from=1832&q.birthLikeDate.to=1834&q.birthLikePlace=Yarcombe,%20Devon,%20England&q.residenceDate.from=1861&q.residenceDate.to=1861&q.residencePlace=Yarcombe,%20Devon,%20England&f.collectionId=1493747 1861 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1861&_ed=1861&_hb=tna&_q=Census+Returns+1861+RG9+1635 The National Archives], reference: Class: RG9; Piece: 1635; Folio: 80; Page: 18; GSU roll: 542843.<br/>
+{{Ancestry Record|uki1861|19053031}} (accessed 16 July 2020),<br/>
+Birth date: abt 1834, Birth place: Yarcombe, Devon, England,<br/>Residence date: 1861, Residence place: Yarcombe, Devon, England.
+</ref>
+
+In the 1871 census Robert (age about 38) was living in Yarcombe, Devon, England.
+<ref>
+'''1871 Census''': [https://www.familysearch.org/search/record/results?q.givenName=Robert&q.surname=Pavey&q.birthLikeDate.from=1832&q.birthLikeDate.to=1834&q.birthLikePlace=Yarcombe,%20Devon,%20England&q.residenceDate.from=1871&q.residenceDate.to=1871&q.residencePlace=Yarcombe,%20Devon,%20England&f.collectionId=1538354 1871 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1871&_ed=1871&_hb=tna&_q=Census+Returns+1871+RG10+2404 The National Archives], reference: Class: RG10; Piece: 2404; Folio: 19; Page: 9; GSU roll: 835112.<br/>
+{{Ancestry Record|uki1871|14807609}} (accessed 16 July 2020),<br/>
+Birth date: abt 1834, Birth place: Yarcombe,<br/>Residence date: 1871, Residence place: Yarcombe, Devon, England.
+</ref>
+
+In the 1881 census Robert (age about 48) was living in Upottery, Devon, England.
+<ref>
+'''1881 Census''': [https://www.familysearch.org/search/record/results?q.givenName=Robert&q.surname=Pavey&q.birthLikeDate.from=1832&q.birthLikeDate.to=1834&q.birthLikePlace=Yarcombe,%20Devon,%20England&q.residenceDate.from=1881&q.residenceDate.to=1881&q.residencePlace=Upottery,%20Devon,%20England&f.collectionId=2562194 1881 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1881&_ed=1881&_hb=tna&_q=Census+Returns+1881+RG11+2133 The National Archives], reference: Class: RG11; Piece: 2133; Folio: 63; Page: 6; GSU roll: 1341515.<br/>
+{{Ancestry Record|uki1881|3023122}} (accessed 16 July 2020),<br/>
+Birth date: abt 1834, Birth place: Yarcombe, Devon, England,<br/>Residence date: 1881, Residence place: Upottery, Devon, England.
+</ref>
+
+In the 1891 census Robert (age about 58) was living in Sheldon, Devon, England. Age: 58Relation: Head
+<ref>
+'''1891 Census''': [https://www.familysearch.org/search/record/results?q.givenName=Robert&q.surname=Pavey&q.birthLikeDate.from=1832&q.birthLikeDate.to=1834&q.birthLikePlace=Yarcombe,%20Devon,%20England&q.residenceDate.from=1891&q.residenceDate.to=1891&q.residencePlace=Sheldon,%20Devon,%20England&f.collectionId=1865747 1891 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1891&_ed=1891&_hb=tna&_q=Census+Returns+1891+RG12+1671 The National Archives], reference: Class: RG12; Piece: 1671; Folio: 126; Page: 5; GSU roll: 6096781.<br/>
+{{Ancestry Record|6598|2583016}} (accessed 16 July 2020).
+</ref>
+
+== Sources ==
+<references />
+See also:
+* Title: Ancestry Family Trees Publication: Online publication - Provo, UT, USA: Ancestry.com. Original data: Family Tree files submitted by Ancestry members. Note: This information comes from 1 or more individual Ancestry Family Tree files. This source citation points you to a current version of those files. Note: The owners of these tree files may have removed or changed information since this source citation was created. Page: Ancestry Family Trees Data: Text: {{Ancestry Tree|30258375|940}}

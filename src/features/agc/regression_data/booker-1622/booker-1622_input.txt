@@ -1,0 +1,24 @@
+== Biography ==
+'''Name:''' Anna Maria Booker.
+<ref name="ref_0">
+Source: [[#S-214831252]] London Metropolitan Archives, All Saints, Edmonton, Composite register: baptisms Jan 1793 - Dec 1812, burials Jan 1792 - Dec 1812, DRO/040/A/01/005 {{Ancestry Record|1624|117402}}
+</ref>
+<ref name="ref_1">
+Source: [[#S-214831252]] London Metropolitan Archives, All Saints, Edmonton, Composite register: baptisms Jan 1793 - Dec 1812, burials Jan 1792 - Dec 1812, DRO/040/A/01/005 {{Ancestry Record|1624|3262899}}
+</ref>
+'''Died'''
+abt 1807.
+<ref name="ref_1"/>
+'''Buried'''
+6 Dec 1807.
+All Saints, Edmonton, Middlesex, England.
+<ref name="ref_1"/>
+'''Baptism:'''
+15 Aug 1807.
+All Saints, Edmonton, Middlesex, England.
+<ref name="ref_0"/>
+
+== Sources ==
+<references />
+* Source: <span id='S-214831252'>S-214831252</span> London, England, Baptisms, Marriages and Burials, 1538-1812 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|1624|0}}
+

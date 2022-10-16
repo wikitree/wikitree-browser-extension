@@ -1,0 +1,163 @@
+== Biography ==
+This person was created through the import of Austin_Alfred_2011-03-28.ged on 28 March 2011.  The following data was included in the gedcom. You may wish to edit it for readability.
+
+=== Name ===
+: Name:  Catherine M. /O'Keefe/
+:: Source: [[#S13]]
+::: Page:  (http://www.ancestry.com), accessed March 22, 2008, citing Census Place: Manhattan Ward 12, New York, New York; Roll: T624_1018; Page: 3B; Enumeration District: 434; Image: 826
+:: Source: [[#S12]]
+::: Page:  (http://www.ancestry.com), accessed March 22, 2008, citing Census Place: Lowville, Lewis, New York; Roll: T623 1070; Page: 22B; Enumeration District: 63
+:: Source: [[#S15]]
+::: Page:  (http://www.ancestry.com), accessed March 22, 2008, citing Census Place: Bronx, Bronx, New York; Roll: 1488; Page: 21A; Enumeration District: 650; Image: 344.0
+:: Source: [[#S14]]
+::: Page:  (http://www.ancestry.com), accessed March 22, 2008, citing Census Place: Bronx Assembly District 8, Bronx, New York; Roll: T625_1142; Page: 27B; Enumeration District: 431; Image: 545
+:: Source: [[#S9]]
+::: Page:  (http://www.ancestry.com), accessed March 25, 2008, citing Census Place: Lowville, Lewis, New York; Roll: M593_964; Page: 515; Image: 417
+:: Source: [[#S10]]
+::: Page:  (http://www.ancestry.com), accessed March 25, 2008, citing Census Place: Lowville, Lewis, New York; Roll: T9_858; Family History Film: 1254858; Page: 240.1000; Enumeration District: 175; Image: 0261
+
+
+=== Birth ===
+: Birth:  
+:: Date:  30 SEP 1862
+:: Place:  Lowville, Lewis, New York, USA<ref>"United States Census, 1870", database with images, FamilySearch (https://www.familysearch.org/ark:/61903/1:1:M8JQ-GJ4 : 3 January 2021), Katy O Kieffe in entry for Cathrine O Kieffe, 1870.</ref><ref>"New York State Census, 1875," database with images, FamilySearch (https://familysearch.org/ark:/61903/1:1:VT8L-RGN : 18 February 2021), Katie O'Keef in household of Catherin O'Keef, Lowville, Lewis, New York, United States; citing p. 64, line 23, State Library, Albany; FHL microfilm 900,778.</ref><ref>"United States Census, 1880," database with images, FamilySearch (https://familysearch.org/ark:/61903/1:1:MZDC-ZLG : 19 February 2021), Katie O'Kief in household of Catherine O'Kief, Lowville, Lewis, New York, United States; citing enumeration district ED 175, sheet 240A, NARA microfilm publication T9 (Washington, D.C.: National Archives and Records Administration, n.d.), FHL microfilm 1,254,858.</ref>
+:: Source: [[#S17]]
+::: Page:  p. 320
+:: Source: [[#S13]]
+::: Page:  (http://www.ancestry.com), accessed March 22, 2008, citing Census Place: Manhattan Ward 12, New York, New York; Roll: T624_1018; Page: 3B; Enumeration District: 434; Image: 826
+:: Source: [[#S12]]
+::: Page:  (http://www.ancestry.com), accessed March 22, 2008, citing Census Place: Lowville, Lewis, New York; Roll: T623 1070; Page: 22B; Enumeration District: 63
+:: Source: [[#S15]]
+::: Page:  (http://www.ancestry.com), accessed March 22, 2008, citing Census Place: Bronx, Bronx, New York; Roll: 1488; Page: 21A; Enumeration District: 650; Image: 344.0
+:: Source: [[#S14]]
+::: Page:  (http://www.ancestry.com), accessed March 22, 2008, citing Census Place: Bronx Assembly District 8, Bronx, New York; Roll: T625_1142; Page: 27B; Enumeration District: 431; Image: 545
+:: Source: [[#S9]]
+::: Page:  (http://www.ancestry.com), accessed March 25, 2008, citing Census Place: Lowville, Lewis, New York; Roll: M593_964; Page: 515; Image: 417
+:: Source: [[#S10]]
+::: Page:  (http://www.ancestry.com), accessed March 25, 2008, citing Census Place: Lowville, Lewis, New York; Roll: T9_858; Family History Film: 1254858; Page: 240.1000; Enumeration District: 175; Image: 0261
+
+
+=== Death ===
+: Death:  
+:: Date:  08 NOV 1946
+:: Place:  Bronx, Bronx, New York, USA
+:: Source: [[#S101]]
+::: Data:  
+:::: Text:  Bronx Death Certificate #10563
+
+
+=== Occupation ===
+: Occupation:  Tailoress
+:: Date:  1880
+:: Source: [[#S10]]
+::: Page:  Census Place: Lowville, Lewis, New York; Roll: T9_858; Family History Film: 1254858; Page: 240.1000; Enumeration District: 175; Image: 0261
+
+
+=== Note ===
+: Note: [[#N7]]
+
+=== Marriage ===
+
+: Husband:  [[Austin-536|William Dence Austin]]
+: Wife:  [[O'Keefe-42|Catherine M. O'Keefe]]
+: Child:  [[Austin-518|John Ralph Austin]]
+:: Relationship to Father:  Natural
+:: Relationship to Mother:  Natural
+: Marriage:  
+:: Date:  16 MAY 1888
+:: Place:  Lowville, Lewis, New York, USA
+:: Source: [[#S17]]
+::: Page:  p. 320
+
+
+: Husband:  [[O'Keefe-43|David O'Keefe]]
+: Wife:  [[Sullivan-674|Catherine Sullivan]]
+: Child:  [[O'Keefe-42|Catherine M. O'Keefe]]
+:: Relationship to Father:  Natural
+:: Relationship to Mother:  Natural
+: Marriage:  
+:: Date:  ABT 1857
+:: Source: [[#S8]]
+::: Page:  (http://www.ancestry.com), accessed March 25, 2008, citing Census Place: Lowville, Lewis, New York; Roll: M653_777; Page: 37; Image: 38.
+
+
+
+
+== Sources ==
+<references />
+: Source <span id='S10'>S10</span>
+: Title:  1880 US Census
+: Repository: [[#R1]]
+
+
+
+: Repository <span id='R1'>R1</span>
+: Name:  NARA
+: Address:  
+: E-Mail Address:  
+: Phone Number:  
+
+
+: Source <span id='S101'>S101</span>
+: Author:  New York City Health Department
+: Title:  New York City Death Index, 1891-1948
+: Publication:  Name: (Online:  Italian Genealogical Group);
+: NOTESource Medium: Internet
+:: 
+
+: Source <span id='S12'>S12</span>
+: Title:  1900 US Census
+: Repository: [[#R1]]
+: NOTESource Medium: Ancestry.com
+:: 
+
+: Source <span id='S13'>S13</span>
+: Title:  1910 U.S. Census, Population Schedule; Online Images
+: Repository: [[#R1]]
+: NOTE1910 U.S. census.  Population schedule.  Digital images.  Ancestry.  http://www.ancestry.com : 2006.
+
+: Source <span id='S14'>S14</span>
+: Title:  1920 US Census
+: Repository: [[#R1]]
+: NOTESource Medium: Ancestry.com
+:: 
+
+: Source <span id='S15'>S15</span>
+: Title:  1930 US Census
+: Repository: [[#R1]]
+: NOTESource Medium: Ancestry.com
+:: 
+
+: Source <span id='S17'>S17</span>
+: Author:  Moore, Edith Austin
+: Title:  Moore, Edith Austin, A Genealogy of the Descendants of Robert Austin of Kingstown, R.I
+: Publication:  Location: St. Petersburg, Florida; Date: 1951;
+: Repository: [[#R3]]
+: NOTEMoore, Edith Austin.  A Genealogy of the Descendants of Robert Austin of Kingstown, R.I..  St. Petersburg, Florida:  , 1951.
+
+
+
+: Repository <span id='R3'>R3</span>
+: Name:  Austin Family Association of America
+: Address:  
+: E-Mail Address:  
+: Phone Number:  
+
+
+: Source <span id='S8'>S8</span>
+: Title:  1860 US Census
+: Repository: [[#R1]]
+: NOTESource Medium: Ancestry.com
+:: 
+
+: Source <span id='S9'>S9</span>
+: Title:  1870 US Census
+: Repository: [[#R1]]
+: NOTESource Medium: Ancestry.com
+:: 
+
+
+
+
+=== Notes ===
+: Note <span id='N7'>N7</span>Address Source: WWII Draft Card for Maurice Ira Austin

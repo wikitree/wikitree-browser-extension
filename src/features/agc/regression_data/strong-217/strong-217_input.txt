@@ -1,0 +1,38 @@
+This person was created through the import of Family.ged on 28 November 2010.  The following data was included in the gedcom. You may wish to edit it for readability.
+
+=== User ID ===
+: User ID:  D15A94FDE0784E11A80055402AC7EE0E9DF9
+
+----
+
+This person was created through the import of Crocket Family Tree.ged on 09 May 2011.  The following data was included in the gedcom. You may wish to edit it for readability.
+
+=== Source ===
+: Source: [[#S-2104463951]]
+:: Page:  Ancestry Family Trees
+:: Note:  
+:: Data:  
+::: Text:  http://trees.ancestry.com/pt/AMTCitationRedir.aspx?tid=18126954&pid=611475386
+
+=== Sources ===
+: Source <span id='S-2104361908'>S-2104361908</span>
+: Repository: [[#R-2104463952]]
+: Title:  U.S. and International Marriage Records, 1560-1900
+: Author:  Yates Publishing
+: Publication:  Online publication - Provo, UT, USA: Ancestry.com Operations Inc, 2004.Original data - This unique collection of records was extracted from a variety of sources including family group sheets and electronic databases. Originally, the information was derived
+: Note:  
+: APID:  1,7836::0
+
+
+
+: Repository <span id='R-2104463952'>R-2104463952</span>
+: Name:  Ancestry.com
+: Address:  http://www.Ancestry.com
+: Note:  
+
+
+: Source <span id='S-2104463951'>S-2104463951</span>
+: Repository: [[#R-2104463952]]
+: Title:  Ancestry Family Trees
+: Publication:  Online publication - Provo, UT, USA: Ancestry.com.  Original data:  Family Tree files submitted by Ancestry members.
+: Note:  This information comes from 1 or more individual Ancestry Family Tree files. This source citation points you to a current version of those files.  Note:  The owners of these tree files may have removed or changed information since this source citation was created.

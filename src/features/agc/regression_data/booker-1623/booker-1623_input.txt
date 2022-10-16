@@ -1,0 +1,77 @@
+== Biography ==
+'''Name:''' Edward John Booker.
+<ref name="ref_0">
+Source: [[#S-215506456]] Class: HO107; Piece: 1703; Folio: 7; Page: 7; GSU roll: 193611 {{Ancestry Record|8860|3865037}}
+</ref>
+<ref name="ref_1">
+Source: [[#S-215506242]] Class: RG 9; Piece: 796; Folio: 6; Page: 6; GSU roll: 542702 {{Ancestry Record|8767|10978609}}
+</ref>
+<ref name="ref_2">
+Source: [[#S-215504204]] London Metropolitan Archives, All Saints, Edmonton, Register of marriages, DRO/040/A/01, Item 016 {{Ancestry Record|1623|1721795}}
+</ref>
+<ref name="ref_3">
+Source: [[#S-215184702]] {{Ancestry Record|1904|1362094}}
+</ref>
+<ref name="ref_4">
+Source: [[#S-215505781]] London Metropolitan Archives, Edmonton All Saints, Register of Baptism, dro/040/a/01, Item 006 {{Ancestry Record|1558|958887}}
+</ref>
+<ref name="ref_5">
+Source: [[#S-215458923]] Class: RG11; Piece: 1388; Folio: 7; Page: 7; GSU roll: 1341338 {{Ancestry Record|7572|15916092}}
+</ref>
+<ref name="ref_6">
+Source: [[#S-215506285]] Class: RG10; Piece: 1341; Folio: 7; Page: 6; GSU roll: 828283 {{Ancestry Record|7619|1499429}}
+</ref>
+'''Born'''
+abt 1815.
+Edmonton, Middlesex, England.
+<ref name="ref_0"/>
+<ref name="ref_1"/>
+<ref name="ref_5"/>
+<ref name="ref_6"/>
+'''Died'''
+14 Oct 1888.
+Middlesex, England.
+<ref name="ref_3"/>
+'''Residence''' Relationship: Head.
+1871
+Edmonton, Middlesex, England.
+<ref name="ref_6"/>
+Marital Status: WidowerRelationship to Head: Head.
+1881
+Edmonton, Middlesex, England.
+<ref name="ref_5"/>
+Relationship: Head.
+1861
+Edmonton, Middlesex, England.
+<ref name="ref_1"/>
+Relationship: Son.
+1851
+Edmonton, Middlesex, England.
+<ref name="ref_0"/>
+'''Baptism:'''
+27 Dec 1814.
+Edmonton All Saints, England.
+<ref name="ref_4"/>
+'''Marriage'''
+Husband Edward John Booker.
+Wife Ann Pavey.
+Marriage
+9 Aug 1860.
+All Saints, Edmonton, England.
+<ref>
+Source: [[#S-215463847]] {{Ancestry Record|8913|22051372}}
+</ref>
+<ref>
+Source: [[#S-215504204]] London Metropolitan Archives, All Saints, Edmonton, Register of marriages, DRO/040/A/01, Item 016 {{Ancestry Record|1623|5195991}}
+</ref>
+
+== Sources ==
+<references />
+* Source: <span id='S-215184702'>S-215184702</span> England & Wales, National Probate Calendar (Index of Wills and Administrations), 1858-1966 Ancestry.com Publication: Ancestry.com Operations Inc {{Ancestry Record|1904|0}}
+* Source: <span id='S-215458923'>S-215458923</span> 1881 England Census Ancestry.com and The Church of Jesus Christ of Latter-day Saints Publication: Ancestry.com Operations Inc {{Ancestry Record|7572|0}}
+* Source: <span id='S-215504204'>S-215504204</span> London, England, Marriages and Banns, 1754-1921 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|1623|0}}
+* Source: <span id='S-215505781'>S-215505781</span> London, England, Births and Baptisms, 1813-1906 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|1558|0}}
+* Source: <span id='S-215506242'>S-215506242</span> 1861 England Census Ancestry.com Publication: Ancestry.com Operations Inc {{Ancestry Record|8767|0}}
+* Source: <span id='S-215506285'>S-215506285</span> 1871 England Census Ancestry.com Publication: Ancestry.com Operations Inc {{Ancestry Record|7619|0}}
+* Source: <span id='S-215506456'>S-215506456</span> 1851 England Census Ancestry.com Publication: Ancestry.com Operations Inc {{Ancestry Record|8860|0}}
+

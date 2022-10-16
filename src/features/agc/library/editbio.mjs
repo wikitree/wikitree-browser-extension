@@ -7763,7 +7763,7 @@ class Biography {
       else {
         var existingSection = this.factSectionMap.get(section.factType);
         if (existingSection != undefined) {
-          console.log("Found a duplicate section named '" + sectionName + "', appending facts to it");
+          //console.log("Found a duplicate section named '" + sectionName + "', appending facts to it");
           existingSection.facts = existingSection.facts.concat(section.facts);
           existingSection.text = existingSection.text.concat(section.text);   // just store this for debugging
         }
@@ -8938,7 +8938,7 @@ class Biography {
       else {
         var existingSection = this.factSectionMap.get(section.factType);
         if (existingSection != undefined) {
-          console.log("Found a duplicate section named '" + sectionName + "', appending facts to it");
+          //console.log("Found a duplicate section named '" + sectionName + "', appending facts to it");
           existingSection.facts = existingSection.facts.concat(section.facts);
           existingSection.text = existingSection.text.concat(section.text);   // just store this for debugging
         }

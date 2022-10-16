@@ -1,0 +1,67 @@
+== Biography ==
+'''Name:''' Sarah Sophia Katenbeck.
+<ref name="ref_0">
+Source: [[#S-215506456]] Class: HO107; Piece: 1692; Folio: 523; Page: 10; GSU roll: 193600 {{Ancestry Record|8860|3696857}}
+</ref>
+<ref name="ref_1">
+Source: [[#S805222006]] {{Ancestry Record|2056|763656}}
+</ref>
+<ref name="ref_2">
+Source: [[#S-215504204]] London Metropolitan Archives, All Saints, Edmonton, Composite register: marriages, banns, DRO/040/A/01, Item 013 {{Ancestry Record|1623|5199398}}
+</ref>
+<ref name="ref_3">
+Source: [[#S-214831252]] London Metropolitan Archives, All Saints, Edmonton, Composite register: baptisms Jan 1709 - Dec 1792, marriages Jan 1709 - Jun 1755, burials Jan 1709 - Dec 1791, DRO/040/A/01/004 {{Ancestry Record|1624|116434}}
+</ref>
+<ref name="ref_4">
+Source: [[#S805222006]] {{Ancestry Record|2056|836551}}
+</ref>
+<ref name="ref_5">
+Source: [[#S-215459159]] {{Ancestry Record|8914|25909587}}
+</ref>
+'''Born'''
+1792
+Edmonton, Middlesex, England.
+<ref name="ref_0"/>
+<ref name="ref_1"/>
+'''Died'''
+April 1854.
+Reading, Berkshire.
+<ref name="ref_5"/>
+'''Baptism:'''
+21 Oct 1792.
+All Saints, Edmonton, Middlesex, England.
+<ref name="ref_3"/>
+'''Residence'''
+Middlesex
+<ref name="ref_1"/>
+Relationship: Wife.
+1851
+Reading St Giles, Berkshire, England.
+<ref name="ref_0"/>
+'''Marriage'''
+Husband James Pavey.
+Wife Sarah Sophia Katenbeck.
+Child: James Pavey.
+Child: Henry Pavey.
+Child: Ann Pavey.
+Child: Eliza Pavey.
+Child: Charlotte Pavey.
+Child: Mary Pavey.
+Child: Emma Pavey.
+Child: Alfred Pavey.
+Child: Matilda Pavey.
+Child: George Pavey.
+Marriage
+1 Mar 1817.
+All Saints, Edmonton, England.
+<ref>
+Source: [[#S-215504204]] London Metropolitan Archives, All Saints, Edmonton, Composite register: marriages, banns, DRO/040/A/01, Item 013 {{Ancestry Record|1623|1720363}}
+</ref>
+
+== Sources ==
+<references />
+* Source: <span id='S-214831252'>S-214831252</span> London, England, Baptisms, Marriages and Burials, 1538-1812 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|1624|0}}
+* Source: <span id='S-215459159'>S-215459159</span> England & Wales, FreeBMD Death Index, 1837-1915 FreeBMD Publication: Ancestry.com Operations Inc {{Ancestry Record|8914|0}}
+* Source: <span id='S-215504204'>S-215504204</span> London, England, Marriages and Banns, 1754-1921 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|1623|0}}
+* Source: <span id='S-215506456'>S-215506456</span> 1851 England Census Ancestry.com Publication: Ancestry.com Operations Inc {{Ancestry Record|8860|0}}
+* Source: <span id='S805222006'>S805222006</span> London and Surrey, England, Marriage Bonds and Allegations, 1597-1921 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|2056|0}}

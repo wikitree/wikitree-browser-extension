@@ -1,0 +1,35 @@
+This person was created through the import of Barron Family 1st Feb 2011.GED on 02 February 2011.  The following data was included in the gedcom. You may wish to edit it for readability.
+
+=== Birth ===
+: Birth:  
+:: Date:  ABT JUN 1862
+:: Place:  Hollacombe, Devon
+Removed ABT from Birth Date and marked as uncertain.<br>
+
+=== Note ===
+: Note:  @NI16419@
+: @NI16419@ NOTEA Harbour Dredgerman in 1901 living at 23 Tennyson St. Goole.
+
+=== Marriage ===
+
+: Husband:  [[Diamond-49|Henry Diamond]]
+: Wife:  [[Robson-88|Isabella Dawson Robson]]
+: Child:  [[Diamond-55|Mabel Diamond]]
+:: Relationship to Father:  Natural
+:: Relationship to Mother:  Natural
+: Child:  [[Diamond-54|Henry Diamond]]
+:: Relationship to Father:  Natural
+:: Relationship to Mother:  Natural
+: Child:  [[Diamond-56|John Diamond]]
+:: Relationship to Father:  Natural
+:: Relationship to Mother:  Natural
+: Child:  [[Diamond-50|Harold Diamond]]
+:: Relationship to Father:  Natural
+:: Relationship to Mother:  Natural
+: Marriage:  
+:: Date:  ABT JUN 1894
+:: Place:  Goole, Yorks
+Could not parse date out of ABT JUN 1894.
+
+
+

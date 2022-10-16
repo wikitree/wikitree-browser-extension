@@ -1,0 +1,53 @@
+== Biography ==
+'''Born'''
+July 1873.
+Aldgate E.
+<ref name="ref_0">
+Source: [[#S-215504204]] London Metropolitan Archives, Saint George The Martyr, Queen Square, Register of marriages, P82/GEO2, Item 024 {{Ancestry Record|1623|7320163}}
+</ref>
+<ref name="ref_1">
+Source: [[#S-214974479]] Class: RG14; Piece: 9537; Schedule Number: 251 {{Ancestry Record|2352|52586757}}
+</ref>
+July 1873.
+London City, London.
+<ref name="ref_2">
+Source: [[#S807540335]] {{Ancestry Record|8912|45693264}}
+</ref>
+''Found multiple copies of birth date. Using July 1873''
+'''Died'''
+19 Mar 1945.
+Essex, England.
+<ref name="ref_3">
+Source: [[#S-215184702]] {{Ancestry Record|1904|17689218}}
+</ref>
+'''Residence''' Marital Status: MarriedRelation to Head of House: Wife.
+02 Apr 1911.
+East Ham, Essex, England.
+<ref name="ref_1"/>
+'''Marriage'''
+Husband William Henry Pavey.
+Wife Charlotte Ida Barral.
+Child: Ida Annie Pavey.
+Child: Edward Pavey.
+Child: Frederick Pavey.
+Marriage
+12 Feb 1903.
+St George the Martyr, Queen Square, England.
+<ref>
+Source: [[#S-215504204]] London Metropolitan Archives, Saint George The Martyr, Queen Square, Register of marriages, P82/GEO2, Item 024 {{Ancestry Record|1623|7320163}}
+</ref>
+<ref>
+Source: [[#S-214974479]] Class: RG14; Piece: 9537; Schedule Number: 251 {{Ancestry Record|2352|52586757}}
+</ref>
+<ref>
+Source: [[#S-215463847]] {{Ancestry Record|8913|1557480}}
+</ref>
+
+== Sources ==
+<references />
+* Source: <span id='S-214974479'>S-214974479</span> 1911 England Census Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|2352|0}}
+* Source: <span id='S-215184702'>S-215184702</span> England & Wales, National Probate Calendar (Index of Wills and Administrations), 1858-1966 Ancestry.com Publication: Ancestry.com Operations Inc {{Ancestry Record|1904|0}}
+* Source: <span id='S-215463847'>S-215463847</span> England & Wales, FreeBMD Marriage Index, 1837-1915 FreeBMD Publication: Ancestry.com Operations Inc {{Ancestry Record|8913|0}}
+* Source: <span id='S-215504204'>S-215504204</span> London, England, Marriages and Banns, 1754-1921 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|1623|0}}
+* Source: <span id='S807540335'>S807540335</span> England & Wales, Civil Registration Birth Index, 1837-1915 FreeBMD Publication: Ancestry.com Operations Inc Note: General Register Office. <i>England and Wales Civil Registration Indexes</i>. London, England: General Register Office. © Crown copyright. Published by permission of the Controller of HMSO and the Office for National Statistics. You must not copy on, transfer or reproduce records without the prior permission of ONS. Database Copyright © 1998-2003 Graham Hart, Ben Laurie, Camilla von Massenbach and David Mayall. {{Ancestry Record|8912|0}}
+

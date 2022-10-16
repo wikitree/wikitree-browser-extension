@@ -1,0 +1,19 @@
+== Biography ==
+Ref to numerous family trees online including
+http://wc.rootsweb.ancestry.com/cgi-bin/igm.cgi?op=GET&db=:2048075&id=I446
+
+== Sources ==
+<references />
+* Title: Ancestry Family Trees Publication: Online publication - Provo, UT, USA: Ancestry.com. Original data: Family Tree files submitted by Ancestry members. Note: This information comes from 1 or more individual Ancestry Family Tree files. This source citation points you to a current version of those files. Note: The owners of these tree files may have removed or changed information since this source citation was created. Page: Ancestry Family Trees Note: Data: Text: {{Ancestry Tree|225892|4210}}
+* Son John's birth record
+:: Name:	John Denman
+:: Father:	John Denman
+:: Mother:	Judith Stoughton
+:: Birth Date:	16 Jan 1621
+:: City:	Retford
+:: County:	Nottinghamshire
+:: Country:	England
+:: Source Information: Edmund West, comp.. Family Data Collection - Births [database on-line]. Provo, UT, USA: Ancestry.com Operations Inc, 2001
+
+== Acknowledgments ==
+* Profile Denman-54 was created through the import of FISCUS Family Tree.ged on Jun  6, 2011 by [[Fairbanks-92 | Liisa Small]].

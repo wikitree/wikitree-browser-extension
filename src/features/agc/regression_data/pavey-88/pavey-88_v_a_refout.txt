@@ -1,0 +1,88 @@
+== Biography ==
+James was born between May and September 1860 in Yarcombe, Devon, England.
+<ref>
+'''Birth Registration''': [https://www.freebmd.org.uk/cgi/search.pl?type=Births&given=James%20Gill&surname=Pavey&start=1860&end=1860 England & Wales, FreeBMD Birth Index, 1837-1915], original data from [https://www.gro.gov.uk/gro/content/certificates/indexes_search.asp?index=EW_Birth&year=1860&forename1=James&forename2=Gill&surname=Pavey&gender=M General Register Office].<br/>
+{{Ancestry Record|freebmdbirth|26905615}} (accessed 16 July 2020),<br/>
+Birth date: Jul 1860, Birth place: Devon, Dorset, Somerset, United Kingdom.
+</ref>
+<ref name="1861 census"/>
+
+In the 1861 census James (an infant) was living in Yarcombe, Devon.
+<ref name="1861 census">
+'''1861 Census''': [https://www.familysearch.org/search/record/results?q.givenName=James%20Gill&q.surname=Pavey&q.birthLikeDate.from=1859&q.birthLikeDate.to=1861&q.birthLikePlace=Yarcombe,%20Devon,%20England&q.residenceDate.from=1861&q.residenceDate.to=1861&q.residencePlace=Yarcombe,%20Devon,%20England,%20United%20Kingdom&f.collectionId=1493747 1861 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1861&_ed=1861&_hb=tna&_q=Census+Returns+1861+RG9+1635 The National Archives], reference: Class: RG9; Piece: 1635; Folio: 63; Page: 4; GSU roll: 542843.<br/>
+{{Ancestry Record|uki1861|19052351}} (accessed 16 July 2020),<br/>
+Birth date: abt 1860, Birth place: Yarcombe, Devon, England,<br/>Residence date: 1861, Residence place: Yarcombe, Devon, England.
+</ref>
+
+In the 1871 census James (age 10) was living in Yarcombe, Devon. He was employed as a Groom.
+<ref>
+'''1871 Census''': [https://www.familysearch.org/search/record/results?q.givenName=James%20Gill&q.surname=Pavey&q.birthLikeDate.from=1859&q.birthLikeDate.to=1861&q.birthLikePlace=Yarcombe,%20Devon,%20England&q.residenceDate.from=1871&q.residenceDate.to=1871&q.residencePlace=Yarcombe,%20Devon,%20England&f.collectionId=1538354 1871 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1871&_ed=1871&_hb=tna&_q=Census+Returns+1871+RG10+2404 The National Archives], reference: Class: RG10; Piece: 2404; Folio: 25; Page: 21; GSU roll: 835112.<br/>
+{{Ancestry Record|uki1871|14807838}} (accessed 16 July 2020),<br/>
+Birth date: abt 1861, Birth place: Devon, England,<br/>Residence date: 1871, Residence place: Yarcombe, Devon, England.
+</ref>
+
+In 1881 James (age about 20) was living in Upottery, Devon.
+
+In the 1881 census James (age 20) was living in Gittisham, Devon. He was employed as a Groomer.
+<ref>
+'''1881 Census''': [https://www.familysearch.org/search/record/results?q.givenName=James%20Gill&q.surname=Pavey&q.birthLikeDate.from=1859&q.birthLikeDate.to=1861&q.birthLikePlace=Yarcombe,%20Devon,%20England&q.residenceDate.from=1881&q.residenceDate.to=1881&q.residencePlace=Gittisham,%20Devon,%20England&f.collectionId=2562194 1881 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1881&_ed=1881&_hb=tna&_q=Census+Returns+1881+RG11+2132 The National Archives], reference: Class: RG11; Piece: 2132; Folio: 11; Page: 13; GSU roll: 1341514.<br/>
+{{Ancestry Record|uki1881|3017542}} (accessed 16 July 2020),<br/>
+Birth date: abt 1861, Birth place: Yarcombe, Devon, England,<br/>Residence date: 1881, Residence place: Gittisham, Devon, England.
+</ref>
+
+In the 1881 census James (age 20) was living in Yarcombe, Devon.
+<ref>
+'''1881 Census''': [https://www.familysearch.org/search/record/results?q.givenName=James%20Gill&q.surname=Pavey&q.birthLikeDate.from=1859&q.birthLikeDate.to=1861&q.birthLikePlace=Yarcombe,%20Devon,%20England&q.residenceDate.from=1881&q.residenceDate.to=1881&q.residencePlace=Yarcombe,%20Devon,%20England&f.collectionId=2562194 1881 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1881&_ed=1881&_hb=tna&_q=Census+Returns+1881+RG11+2385 The National Archives], reference: Class: RG11; Piece: 2385; Folio: 62; Page: 11; GSU roll: 1341574.<br/>
+{{Ancestry Record|uki1881|3617756}} (accessed 16 July 2020),<br/>
+Birth date: abt 1863, Birth place: Yarcombe, Devon, England,<br/>Residence date: 1881, Residence place: Yarcombe, Devon, England.
+</ref>
+
+In the 1891 census James (age 30) was living in Gittisham, Devon. He was employed as a Gardener Domestic Servent.
+<ref>
+'''1891 Census''': [https://www.familysearch.org/search/record/results?q.givenName=James%20Gill&q.surname=Pavey&q.birthLikeDate.from=1859&q.birthLikeDate.to=1861&q.birthLikePlace=Yarcombe,%20Devon,%20England&q.residenceDate.from=1891&q.residenceDate.to=1891&q.residencePlace=Gittisham,%20Devon,%20England&f.collectionId=1865747 1891 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1891&_ed=1891&_hb=tna&_q=Census+Returns+1891+RG12+1670 The National Archives], reference: Class: RG12; Piece: 1670; Folio 103; Page 11; GSU roll: 6096780.<br/>
+{{Ancestry Record|uki1891|2587949}} (accessed 16 July 2020),<br/>
+Birth date: abt 1861, Birth place: Yarcombe, Devon, England,<br/>Residence date: 1891, Residence place: Gittisham, Devon, England.
+</ref>
+
+In the 1901 census James (age 40) was living in Awre, Gloucestershire. He was employed as a Gardener and Manager.
+<ref>
+'''1901 Census''': [https://www.familysearch.org/search/record/results?q.givenName=James%20Gill&q.surname=Pavey&q.birthLikeDate.from=1859&q.birthLikeDate.to=1861&q.birthLikePlace=Yarcombe,%20Devon,%20England&q.residenceDate.from=1901&q.residenceDate.to=1901&q.residencePlace=Awre,%20Gloucestershire,%20England&f.collectionId=1888129 1901 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1901&_ed=1901&_hb=tna&_q=Census+Returns+1901+RG13+2417 The National Archives], reference: Class: RG13; Piece: 2417; Folio: 107; Page: 11.<br/>
+{{Ancestry Record|uki1901|13115928}} (accessed 16 July 2020),<br/>
+Birth date: abt 1861, Birth place: Yarcombe, Devon, England,<br/>Residence date: 1901, Residence place: Awre, Gloucestershire, England.
+</ref>
+
+In the 1911 census James (age 50) was living in Awre, Gloucestershire.
+<ref>
+'''1911 Census''': [https://www.familysearch.org/search/record/results?q.givenName=James%20Gill&q.surname=Pavey&q.birthLikeDate.from=1859&q.birthLikeDate.to=1861&q.birthLikePlace=Yarcombe,%20Devon,%20England&q.residenceDate.from=1911&q.residenceDate.to=1911&q.residencePlace=Awre,%20Gloucestershire,%20England&f.collectionId=1921547 1911 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1911&_ed=1911&_hb=tna&_q=Census+Returns+1911 The National Archives].<br/>
+{{Ancestry Record|1911england|55985586}} (accessed 16 July 2020),<br/>
+Birth date: abt 1861, Birth place: Yascombe, Devon,<br/>Residence date: 02 Apr 1911, Residence place: Awre, Gloucestershire, England.
+</ref>
+
+James died at the age of 88 on 1 July 1948 in Monmouthshire, Wales.
+<ref>
+'''Death Registration''': England & Wales, Death Index: 1916-2005, original data from [https://www.gro.gov.uk/gro/content/certificates/indexes_search.asp?index=EW_Death&year=1948&forename1=James&forename2=Gill&surname=Pavey&gender=M General Register Office].<br/>
+{{Ancestry Record|onsdeath93|22195584}} (accessed 16 July 2020),<br/>
+Birth date: abt 1861, Death date: Sep 1948, Death place: Newport, Gwent, Wales.
+</ref>
+<ref>
+'''Probate''': [https://www.familysearch.org/search/record/results?q.givenName=James%20Gill&q.surname=Pavey&q.deathLikeDate.from=1948&q.deathLikeDate.to=1948&f.collectionId=2451051 England & Wales, National Probate Calendar (Index of Wills and Administrations), 1858-1966].<br/>
+{{Ancestry Record|1904|13034280}} (accessed 16 July 2020).
+</ref>
+
+== Research Notes ==
+=== Notes from external profile ===
+:   James Gill Pavey
+::  http://trees.ancestry.com/rd?f=document&guid=8c7479f7-7969-45c3-8581-458e5f18694e&tid=30258375&pid=908
+
+=== Issues to be checked ===
+Generated by WikiTree AGC. This section should be removed when all issues have been looked at.
+* Multiple names found in '''Proper First Name''' field. Changed from 'James Gill' to 'James'. Same for '''Preferred Name''' field. Changed '''Middle Name''' field to 'Gill'.
+* Combined two residence/census/occupation facts. First dated '1871' with location Yarcombe, Devon, England and section Occupation. Second dated '2 April 1871' with location Yarcombe, Devon, England and section Residence.
+* Combined two residence/census/occupation facts. First dated '1881' with location Gittisham, Devon, England and section Occupation. Second dated '3 April 1881' with location Gittisham, Devon, England and section Residence.
+* Combined two residence/census/occupation facts. First dated '1891' with location Gittisham, Devon, England and section Occupation. Second dated '5 April 1891' with location Gittisham, Devon, England and section Residence.
+* Combined two residence/census/occupation facts. First dated '1901' with location Gloucestershire, England and section Occupation. Second dated '31 March 1901' with location Awre, Gloucestershire, England and section Residence.
+
+== Sources ==
+<references />
+See also:
+* Title: Ancestry Family Trees Publication: Online publication - Provo, UT, USA: Ancestry.com. Original data: Family Tree files submitted by Ancestry members. Note: This information comes from 1 or more individual Ancestry Family Tree files. This source citation points you to a current version of those files. Note: The owners of these tree files may have removed or changed information since this source citation was created. Page: Ancestry Family Trees Note: Data: Text: {{Ancestry Tree|30258375|908}}

@@ -1,0 +1,73 @@
+[[Category: Needs GEDCOM Cleanup]]
+
+== Biography == 
+
+Clara was born in 1901. She was the daughter of [[Bayley-335|Isaiah Bayley]] and [[Fawdry-10|Clara Fawdry]].  She passed away in 1981.<ref>A source for this information is needed.</ref>
+
+'''Clara''' Edith Bayley. <ref>Source: [[#S1260476422]]  Bexley Local Studies & Archive Centre; Bexleyheath, Kent, England; Bexley Electoral Registers; Reference Num: Dart/1937i  </ref><ref>Source: [[#S1260476369]]  Class: RG14; Piece: 7125; Schedule Number: 10  </ref><ref>Source: [[#S1260476371]]   </ref><ref>Source: [[#S1260476372]]   </ref><ref>Source: [[#S1260476407]]  Year: 1910  </ref><ref>Source: [[#S1260476373]]   </ref><ref>Source: [[#S1260476368]]  Cited in the family tree "Neil Family Tree" created by "emilyneil88" Note: http://trees.ancestry.com/tree/50823925/person/13110814713  https://www.ancestry.com/family-tree/tree/69213545/family</ref><ref>Source: [[#S1260476398]]  Year: 1910; Census Place: Haddon, Camden, New Jersey; Roll: T624_874; Page: 8B; Enumeration District: 0102; FHL microfilm: 1374887  </ref><ref>Source: [[#S1260476392]]  Class: BT26; Piece: 855; Item: 1  </ref><ref>Source: [[#S1260476376]]   </ref>
+
+'''Clare''' Edith Bayley. <ref>Source: [[#S1260476398]]  Year: 1910; Census Place: Haddon, Camden, New Jersey; Roll: T624_874; Page: 8B; Enumeration District: 0102; FHL microfilm: 1374887  </ref>
+''Found multiple versions of name. Using Clara Edith Bayley.'' 
+
+'''Born''' 
+23 Mar 1901. 
+Llanerch, Delaware County, Pennsylvania, USA. <ref>Source: [[#S1260476369]]  Class: RG14; Piece: 7125; Schedule Number: 10  </ref><ref>Source: [[#S1260476371]]   </ref><ref>Source: [[#S1260476407]]  Year: 1910  </ref><ref>Source: [[#S1260476398]]  Year: 1910; Census Place: Haddon, Camden, New Jersey; Roll: T624_874; Page: 8B; Enumeration District: 0102; FHL microfilm: 1374887  </ref><ref>Source: [[#S1260476392]]  Class: BT26; Piece: 855; Item: 1  </ref>
+
+'''Died''' Age at Death: 80. 
+14 Nov 1981. 
+Reading, Berkshire, England. <ref>Source: [[#S1260476371]]   </ref><ref>Source: [[#S1260476368]]  Cited in the family tree "Neil Family Tree" created by "emilyneil88" Note: http://trees.ancestry.com/tree/50823925/person/13110814713  https://www.ancestry.com/family-tree/tree/69213545/family</ref><ref>Source: [[#S1260476376]]   </ref>
+
+'''Residence''' 
+1937
+Dartford, Kent, England. <ref>Source: [[#S1260476422]]  Bexley Local Studies & Archive Centre; Bexleyheath, Kent, England; Bexley Electoral Registers; Reference Num: Dart/1937i  </ref>
+Marital Status: SingleRelation to Head of House: Daughter. 
+1910
+Haddon, Camden, New Jersey, USA. <ref>Source: [[#S1260476398]]  Year: 1910; Census Place: Haddon, Camden, New Jersey; Roll: T624_874; Page: 8B; Enumeration District: 0102; FHL microfilm: 1374887  </ref>
+1938
+Woolwich, England. <ref>Source: [[#S1260476372]]   </ref>
+Relation to Head of House: Daughter. 
+02 Apr 1911. 
+Hendon, Middlesex, England. <ref>Source: [[#S1260476369]]  Class: RG14; Piece: 7125; Schedule Number: 10  </ref>
+
+'''Event:''' 
+Departure
+New York, New York, United States. <ref>Source: [[#S1260476392]]  Class: BT26; Piece: 855; Item: 1  </ref>
+Arrival
+17 May 1927. 
+Southampton, England. <ref>Source: [[#S1260476392]]  Class: BT26; Piece: 855; Item: 1  </ref>
+SS LANCASTRIA. Hotel Brighton Atlantic City New Jersey. 
+Arrival
+18 Oct 1926. 
+New York, USA. <ref>Source: [[#S1260476368]]  Cited in the family tree "Neil Family Tree" created by "emilyneil88" Note: http://trees.ancestry.com/tree/50823925/person/13110814713  https://www.ancestry.com/family-tree/tree/69213545/family</ref>
+SS LANCASTRIA. 
+Departure
+9 Oct 1926. 
+Southampton, Hampshire, England. <ref>Source: [[#S1260476368]]  Cited in the family tree "Neil Family Tree" created by "emilyneil88" Note: http://trees.ancestry.com/tree/50823925/person/13110814713  https://www.ancestry.com/family-tree/tree/69213545/family</ref>
+Departure
+Liverpool, England. <ref>Source: [[#S1260476407]]  Year: 1910  </ref>
+Arrival
+18 Mar 1910. 
+New York, New York. <ref>Source: [[#S1260476407]]  Year: 1910  </ref>
+
+'''Marriage'''
+Husband @P48@. 
+Wife @P46@. 
+Marriage
+Sep 1927. 
+Woolwich, Kent, England. <ref>Source: [[#S1260476373]]   </ref><ref>Source: [[#S1260476368]]  Cited in the family tree "Neil Family Tree" created by "emilyneil88"  http://trees.ancestry.com/pt/AMTCitationRedir.aspx?tid=0&pid=445</ref>
+
+== Sources ==
+<references />
+
+
+* Source: <span id='S1260476368'>S1260476368</span> Repository: [[#R1250594809]] Ancestry Family Trees Publication: Online publication - Provo, UT, USA: Ancestry.com.  Original data:  Family Tree files submitted by Ancestry members.   Ancestry Family Tree  https://www.ancestry.com/family-tree/tree/69213545/family 
+* Repository: <span id='R1250594809'>R1250594809</span> Ancestry.com
+* Source: <span id='S1260476369'>S1260476369</span> Repository: [[#R1250594809]] 1911 England Census Ancestry.com Publication: Ancestry.com Operations, Inc.  
+* Source: <span id='S1260476371'>S1260476371</span> Repository: [[#R1250594809]] England & Wales, Death Index, 1916-2007 Ancestry.com Publication: Ancestry.com Operations Inc  
+* Source: <span id='S1260476372'>S1260476372</span> Repository: [[#R1250594809]] London, England, Electoral Registers, 1832-1965 Ancestry.com Publication: Ancestry.com Operations, Inc.  
+* Source: <span id='S1260476373'>S1260476373</span> Repository: [[#R1250594809]] England & Wales, Marriage Index, 1916-2005 Ancestry.com Publication: Ancestry.com Operations, Inc  
+* Source: <span id='S1260476376'>S1260476376</span> Repository: [[#R1250594809]] England & Wales, National Probate Calendar (Index of Wills and Administrations), 1858-1966 Ancestry.com Publication: Ancestry.com Operations Inc  
+* Source: <span id='S1260476392'>S1260476392</span> Repository: [[#R1250594809]] UK, Incoming Passenger Lists, 1878-1960 Ancestry.com Publication: Ancestry.com Operations Inc  
+* Source: <span id='S1260476398'>S1260476398</span> Repository: [[#R1250594809]] 1910 United States Federal Census Ancestry.com Publication: Ancestry.com Operations Inc  
+* Source: <span id='S1260476407'>S1260476407</span> Repository: [[#R1250594809]] New York, Passenger Lists, 1820-1957 Ancestry.com Publication: Ancestry.com Operations, Inc.  
+* Source: <span id='S1260476422'>S1260476422</span> Repository: [[#R1250594809]] Bexley, Kent, England, Electoral Registers, 1734-1965 Ancestry.com Publication: Ancestry.com Operations, Inc.

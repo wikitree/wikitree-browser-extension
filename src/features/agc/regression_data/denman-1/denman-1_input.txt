@@ -1,0 +1,20 @@
+== Biography ==
+Ref to numerous family trees online including
+http://wc.rootsweb.ancestry.com/cgi-bin/igm.cgi?op=GET&db=:2048075&id=I446
+
+== Sources ==
+<references />
+* WikiTree profile Denman-54 created through the import of FISCUS Family Tree.ged on Jun  6, 2011 by [[Fairbanks-92 | Liisa Small]]. See the [http://www.wikitree.com/index.php?title=Special:NetworkFeed&who=Denman-54 Changes page] for the details of edits by Liisa and others.
+
+* Source: <span id='S572556085'>S572556085</span> Repository: [[#R2190409259]] Title:  Ancestry Family Trees Publication:  Online publication - Provo, UT, USA: Ancestry.com.  Original data:  Family Tree files submitted by Ancestry members. Note:  This information comes from 1 or more individual Ancestry Family Tree files. This source citation points you to a current version of those files.  Note:  The owners of these tree files may have removed or changed information since this source citation was created.   Page:  Ancestry Family Trees Note:   Data:   Text:  http://trees.ancestry.com/pt/AMTCitationRedir.aspx?tid=225892&pid=4210 
+* Repository: <span id='R2190409259'>R2190409259</span> Name:  Ancestry.com Address:  360 West 4800 North, Provo, UT 84604 Note:  
+
+* Son John's birth record:
+:: Name:	John Denman
+:: Father:	John Denman
+:: Mother:	Judith Stoughton
+:: Birth Date:	16 Jan 1621
+:: City:	Retford
+:: County:	Nottinghamshire
+:: Country:	England
+:: Source Information:  Edmund West, comp.. Family Data Collection - Births [database on-line]. Provo, UT, USA: Ancestry.com Operations Inc, 2001.

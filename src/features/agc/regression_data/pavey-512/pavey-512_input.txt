@@ -1,0 +1,64 @@
+== Biography ==
+'''Name:''' George Washington Pavey.
+<ref name="ref_0">
+Source: [[#S813452550]] Year: 1860; Census Place: El Dorado, El Dorado, California; Roll: M653_58; Page: 943; Family History Library Film: 803058 {{Ancestry Record|7667|10119825}}
+</ref>
+<ref name="ref_1">
+Source: [[#S806062026]] {{Ancestry Record|60525|85783519}}
+</ref>
+<ref name="ref_2">
+Source: [[#S813452565]] Year: 1850; Census Place: Coldwater, Branch, Michigan; Roll: M432_347; Page: 358A; Image: 181 {{Ancestry Record|8054|2966999}}
+</ref>
+<ref name="ref_3">
+Source: [[#S813452660]] California State Library, California History Section; Great Registers, 1866-1898; Collection Number: 4 - 2A; CSL Roll Number: 12; FHL Roll Number: 976460 {{Ancestry Record|2221|6442799}}
+</ref>
+<ref name="ref_4">
+Source: [[#S813452660]] California State Library, California History Section; Great Registers, 1866-1898; Collection Number: 4 - 2A; CSL Roll Number: 12; FHL Roll Number: 976460 {{Ancestry Record|2221|6438102}}
+</ref>
+<ref name="ref_5">
+Source: [[#S813452948]] {{Ancestry Record|70016|1110763}}
+</ref>
+'''Born'''
+Dec 1840.
+Coldwater, Branch, Michigan, USA.
+<ref name="ref_0"/>
+<ref name="ref_1"/>
+<ref name="ref_2"/>
+<ref name="ref_3"/>
+<ref name="ref_4"/>
+'''Died'''
+16 Jan 1869.
+El Dorado, El Dorado County, California, United States of America.
+<ref name="ref_1"/>
+'''Residence'''
+1867
+El Dorado, California, United States.
+<ref name="ref_3"/>
+<ref name="ref_4"/>
+1850
+Coldwater, Branch, Michigan, USA.
+<ref name="ref_2"/>
+1860
+El Dorado, El Dorado, California.
+<ref name="ref_0"/>
+'''Buried'''
+El Dorado, El Dorado County, California, United States of America.
+<ref name="ref_1"/>
+'''Marriage'''
+Husband George Washington Pavey.
+Wife Margaret McCaffrey.
+Marriage
+1866
+Placer, California.
+<ref>
+Source: [[#S813452948]] {{Ancestry Record|70016|1110763}}
+</ref>
+
+== Sources ==
+<references />
+* Source: <span id='S806062026'>S806062026</span> U.S., Find A Grave Index, 1600s-Current Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|60525|0}}
+* Source: <span id='S813452550'>S813452550</span> 1860 United States Federal Census Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|7667|0}}
+* Source: <span id='S813452565'>S813452565</span> 1850 United States Federal Census Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|8054|0}}
+* Source: <span id='S813452660'>S813452660</span> California, Voter Registers, 1866-1898 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|2221|0}}
+* Source: <span id='S813452948'>S813452948</span> Web: Western States Marriage Index, 1809-2011 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|70016|0}}
+

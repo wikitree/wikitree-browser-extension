@@ -1,0 +1,57 @@
+----
+== Biography ==
+'''Born''' 
+4 Aug 1860. 
+Ont Canada. 
+<ref name="ref_0" />
+
+'''Name:''' Sarah Elizabeth King. 
+<ref name="ref_0">Source: S1205933530  Michigan Department of Community Health, Division for Vital Records and Health Statistics; Lansing, Michigan; Death Records {{Ancestry Record|60872|752311349}} </ref>
+
+'''Immigration'''  
+According to what Census ennumerators were told, there are three possible years of immigration1872 <ref name="ref_1"> Source: S1205908343  Year: 1920; Census Place: Bad Axe, Huron, Michigan; Roll: T625_770; Page: 20B; Enumeration District: 1 {{Ancestry Record|6061|17750583}} </ref>
+1875 <ref name="ref_2"> Source: S1205908156  Year: 1900; Census Place: Hume, Huron, Michigan; Page: 2; Enumeration District: 0009; FHL microfilm: 1240715 {{Ancestry Record|7602|53397384}} </ref>
+1878 <ref name="ref_3"> Source: S1205908277  Year: 1910; Census Place: Bad Axe Ward 3, Huron, Michigan; Roll: T624_649; Page: 16B; Enumeration District: 0001; FHL microfilm: 1374662 {{Ancestry Record|7884|197365788}} </ref>
+
+'''Residence''' 
+1880 Huron, Huron, Michigan, USA. <ref name="ref_4">
+Source: S1205910378  {{Ancestry Record|6742|31612399}} </ref>
+1900 Hume, Huron, Michigan, USA. <ref name="ref_2" />
+1910 Bad Axe Ward 3, Huron, Michigan, USA. <ref name="ref_3" />
+1920 Bad Axe, Huron, Michigan, USA. <ref name="ref_1" />
+Huron City, Michigan. <ref name="ref_5"> Source: S1205916719  Michigan Department of Community Health, Division of Vital Records and Health Statistics; Lansing, MI, USA; Michigan, Marriage Records, 1867-1952; Film: 16; Film Description: 1878 Hillsdale-1878 Van Buren {{Ancestry Record|9093|3606941}} </ref>
+
+'''Buried''' 
+Bad Axe, Huron County, Michigan, United States of America. 
+<ref name="ref_6"> Source: S1211154298   Note: https://www.findagrave.com/memorial/11038320/sarah-elizabeth-wressell {{Ancestry Record|60525|102537225}} </ref>
+
+'''File''' @M8@. 
+
+=== External Files ===
+* File <span id='M8'>M8</span> File: Format: jpg.  photo STYPE jpeg.  SIZE 2615956.  WDTH 3916.  HGHT 3756.  1900 United States Federal Census.  RIN 05f936d3-7e41-4156-a763-8ddf8c3bd363 Physical Description: Year: 1900; Census Place: Hume, Huron, Michigan; Roll: T623_715; Page:2A; Enumeration District: 9. CLON TID 67982877.  PID 44176124495.  OID 7f22d0b5-b44d-47dc-bc9e-8ac56a53f0d0.  Origin: u
+
+== Sources ==
+<references />
+
+See also:
+
+* ''Add [[sources]] here.''
+* Source: S1205906841 Ancestry Family Trees Publication: Online publication - Provo, UT, USA: Ancestry.com.  Original data:  Family Tree files submitted by Ancestry members. {{Ancestry Record|1030|0}}Ancestry Family Tree
+
+* Source: S1205908156 1900 United States Federal Census Ancestry.com Publication: Ancestry.com Operations Inc 2004 Provo, UT, USA {{Ancestry Record|7602|0}}
+
+* Source: S1205908277 1910 United States Federal Census Ancestry.com Publication: Ancestry.com Operations Inc 2006 Lehi, UT, USA {{Ancestry Record|7884|0}}
+
+* Source: S1205908343 1920 United States Federal Census Ancestry.com Publication: Ancestry.com Operations, Inc. 2010 Provo, UT, USA {{Ancestry Record|6061|0}}
+
+* Source: S1205910378 1880 United States Federal Census Ancestry.com and The Church of Jesus Christ of Latter-day Saints Publication: Ancestry.com Operations Inc 2010 Lehi, UT, USA {{Ancestry Record|6742|0}}
+
+* Source: S1205915292 Michigan, U.S., County Marriage Records, 1822-1940 Ancestry.com Publication: Ancestry.com Operations, Inc. 2016 Lehi, UT, USA {{Ancestry Record|61374|0}}{{Ancestry Record|61374|900623262}}
+
+* Source: S1205916719 Michigan, U.S., Marriage Records, 1867-1952 Ancestry.com Publication: Ancestry.com Operations, Inc. 2015 Provo, UT, USA {{Ancestry Record|9093|0}}{{Ancestry Record|9093|1503239292}}
+
+* Source: S1205933530 Michigan, U.S., Death Records, 1867-1952 Ancestry.com Publication: Ancestry.com Operations, Inc. 2015 Provo, UT, USA {{Ancestry Record|60872|0}}{{Ancestry Record|60872|2355078}}
+
+* Source: S1211150950 U.S., Social Security Applications and Claims Index, 1936-2007 Ancestry.com Publication: Ancestry.com Operations, Inc. 2015 Provo, UT, USA {{Ancestry Record|60901|0}}  Note: Social Security Applications and Claims, 1936-2007.{{Ancestry Record|60901|759083686}}
+
+* Source: S1211154298 U.S., Find a Grave Index, 1600s-Current Ancestry.com Publication: Ancestry.com Operations, Inc. 2012 Provo, UT, USA {{Ancestry Record|60525|0}}  Note: &lt;i&gt;Find a Grave&lt;/i&gt;. Find a Grave. http://www.findagrave.com/cgi-bin/fg.cgi.
