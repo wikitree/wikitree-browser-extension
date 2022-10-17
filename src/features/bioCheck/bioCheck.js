@@ -5,13 +5,18 @@ import { Biography } from "./Biography.js"
 chrome.storage.sync.get('bioCheck', (result) => {
 	if (result.bioCheck) {
 
+
+    // TODO figure out how to validate on AddPerson
+    // which is probably Special_EditFamily
+
     // want to check on start, on draft save, and
     // on a scheduled interval
 
     // Only do this if on the edit page for a person
-    // And ASSUME that if there is a mBirthDate it's a person edit page
+    // Look for the class page-Special_EditPerson
     // previous code tried if ($("body.page-Special_EditPerson").length) {
-    if (document.getElementById("mBirthDate")) {
+
+    if (document.body.classList.contains("page-Special_EditPerson")) {
       let theSourceRules = new SourceRules();
       checkBio(theSourceRules);
 
