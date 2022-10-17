@@ -1,6 +1,7 @@
 const webpack = require("webpack");
 const path = require("path");
 const CopyPlugin = require("copy-webpack-plugin");
+const WebExtension = require("webpack-target-webextension");
 const srcDir = path.join(__dirname, "..", "src");
 
 module.exports = {
@@ -10,16 +11,19 @@ module.exports = {
   },
   output: {
     path: path.join(__dirname, "../dist/js"),
+    publicPath: "js/",
     filename: "[name].js",
+    environment: {
+      dynamicImport: true,
+    },
   },
   optimization: {
     splitChunks: {
       name: "vendor",
       chunks(chunk) {
         return true;
-      }
+      },
     },
-    minimize: (process.env.NODE_ENV == 'production'),
   },
   resolve: {
     extensions: [".js"],
@@ -29,6 +33,7 @@ module.exports = {
       patterns: [{ from: ".", to: "../", context: "public" }],
       options: {},
     }),
+    new WebExtension(),
   ],
   module: {
     rules: [
