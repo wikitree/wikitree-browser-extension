@@ -12,7 +12,6 @@
     "url": "https://github.com/wikitree/wikitree-browser-extension.git"
   },
   "dependencies": {
-    "dexie": "^3.2.2",
     "jquery": "^3.6.1",
     "jquery-ui": "^1.13.2",
     "js-cookie": "^3.0.1"
