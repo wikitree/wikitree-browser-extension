@@ -1,8 +1,6 @@
-import $ from 'jquery';
-import Cookies from 'js-cookie';
-import Dexie from 'dexie';
-import './distanceAndRelationship.css';
-
+import $ from "jquery";
+import Cookies from "js-cookie";
+import "./distanceAndRelationship.css";
 chrome.storage.sync.get("distanceAndRelationship", (result) => {
   if (
     result.distanceAndRelationship &&
@@ -10,66 +8,115 @@ chrome.storage.sync.get("distanceAndRelationship", (result) => {
     $("body.profile").length &&
     window.location.href.match("Space:") == null
   ) {
+    // define user and profile IDs
     const profileID = $("a.pureCssMenui0 span.person").text();
     const userID = Cookies.get("wikitree_wtb_UserName");
-    var db = new Dexie("ConnectionFinderResults");
-    db.version(1).stores({
-      distance: "[userId+id]",
-      connection: "[userId+id]",
-    });
-    db.open().then(function (db) {
-      db.distance
-        .get({ userId: userID, id: profileID })
-        .then(function (result) {
-          if (result == undefined) {
-            initDistanceAndRelationship(userID, profileID);
-          } else {
-            if ($("#distanceFromYou").length == 0) {
-              const profileName = $("h1 span[itemprop='name']").text();
-              $("h1").append(
-                $(
-                  `<span id='distanceFromYou' title='${profileName} is ${result.distance} degrees from you. \nClick to refresh.'>${result.distance}°</span>`
-                )
-              );
-
-              $("#distanceFromYou").click(function (e) {
-                e.preventDefault();
-                $(this).fadeOut("slow").remove();
-                $("#yourRelationshipText").fadeOut("slow").remove();
-                initDistanceAndRelationship(userID, profileID);
-              });
-
-              var rdb = new Dexie("RelationshipFinderResults");
-              rdb.version(1).stores({
-                relationship: "[userId+id]",
-              });
-              rdb.open().then(function (rdb) {
-                rdb.relationship
-                  .get({ userId: userID, id: profileID })
-                  .then(function (result) {
-                    if (result != undefined) {
-                      if (result.relationship != "") {
-                        if (
-                          $("#yourRelationshipText").length == 0 &&
-                          $(".ancestorTextText").length == 0 &&
-                          $("#ancestorListBox").length == 0
-                        ) {
-                          $("#yourRelationshipText").remove();
-                          addRelationshipText(
-                            result.relationship,
-                            result.commonAncestors
-                          );
-                        }
-                      }
-                    } else {
-                      doRelationshipText(userID, profileID);
-                    }
-                  });
-              });
-            }
-          }
+    // set up databases
+    window.connectionFinderDBVersion = 1;
+    window.relationshipFinderDBVersion = 1;
+    const connectionFinderResultsDBReq = window.indexedDB.open(
+      "ConnectionFinderWTE",
+      window.connectionFinderDBVersion
+    );
+    connectionFinderResultsDBReq.addEventListener("upgradeneeded", (event) => {
+      var request = event.target;
+      // @type IDBDatabase
+      var db = request.result;
+      // @type IDBTransaction
+      var txn = request.transaction;
+      if (event.oldVersion < 1) {
+        const objectStore = db.createObjectStore("distance", {
+          keyPath: "id",
         });
+      } else {
+        // @type IDBObjectStore
+        var store = txn.objectStore("distance");
+        store.createIndex("id");
+      }
     });
+
+    const relationshipFinderResultsDBReq = window.indexedDB.open(
+      "RelationshipFinderWTE",
+      window.relationshipFinderDBVersion
+    );
+    relationshipFinderResultsDBReq.addEventListener(
+      "upgradeneeded",
+      (event) => {
+        var request = event.target;
+        // @type IDBDatabase
+        var db = request.result;
+        // @type IDBTransaction
+        var txn = request.transaction;
+        if (event.oldVersion < 1) {
+          const objectStore = db.createObjectStore("relationship", {
+            keyPath: "id",
+          });
+        } else {
+          // @type IDBObjectStore
+          var store = txn.objectStore("relationship");
+          store.createIndex("id");
+        }
+      }
+    );
+
+    // Do it
+    connectionFinderResultsDBReq.onsuccess = function (event) {
+      const connectionFinderResultsDB = event.target.result;
+      const aRequest = connectionFinderResultsDB
+        .transaction(["distance"], "readonly")
+        .objectStore("distance")
+        .get(profileID);
+      aRequest.onsuccess = function () {
+        if (aRequest.result == undefined) {
+          initDistanceAndRelationship(userID, profileID);
+        } else {
+          if ($("#distanceFromYou").length == 0) {
+            const profileName = $("h1 span[itemprop='name']").text();
+            $("h1").append(
+              $(
+                `<span id='distanceFromYou' title='${profileName} is ${aRequest.result.distance} degrees from you. \nClick to refresh.'>${aRequest.result.distance}°</span>`
+              )
+            );
+            $("#distanceFromYou").click(function (e) {
+              e.preventDefault();
+              $(this).fadeOut("slow").remove();
+              $("#yourRelationshipText").fadeOut("slow").remove();
+              initDistanceAndRelationship(userID, profileID);
+            });
+
+            relationshipFinderResultsDBReq.onsuccess = function (event) {
+              const relationshipFinderResultsDB = event.target.result;
+              let aRequest2 = relationshipFinderResultsDB
+                .transaction(["relationship"], "readonly")
+                .objectStore("relationship")
+                .get(profileID);
+              aRequest2.onsuccess = function () {
+                if (aRequest2.result != undefined) {
+                  if (aRequest2.result.relationship != "") {
+                    if (
+                      $("#yourRelationshipText").length == 0 &&
+                      $(".ancestorTextText").length == 0 &&
+                      $("#ancestorListBox").length == 0
+                    ) {
+                      $("#yourRelationshipText").remove();
+                      addRelationshipText(
+                        aRequest2.result.relationship,
+                        aRequest2.result.commonAncestors
+                      );
+                    }
+                  }
+                } else {
+                  doRelationshipText(userID, profileID);
+                }
+              };
+            };
+          }
+        }
+      };
+      aRequest.onerror = (error) => {
+        console.log(error);
+      };
+    };
   }
 });
 
@@ -254,24 +301,26 @@ function doRelationshipText(userID, profileID) {
         }
       }
 
-      var rdb = new Dexie("RelationshipFinderResults");
-      rdb.version(1).stores({
-        relationship: "[userId+id]",
-      });
-      rdb
-        .open()
-        .then(function (rdb) {
-          rdb.relationship.put({
-            userId: userID,
-            id: profileID,
-            relationship: out,
-            commonAncestors: data.commonAncestors,
-          });
-          // Database opened successfully
-        })
-        .catch(function (err) {
-          // Error occurred
-        });
+      const relationshipFinderResultsDBReq = window.indexedDB.open(
+        "RelationshipFinderWTE",
+        window.relationshipFinderDBVersion
+      );
+      relationshipFinderResultsDBReq.onsuccess = function (event) {
+        var relationshipFinderResultsDB = event.target.result;
+        const obj = {
+          userId: userID,
+          id: profileID,
+          distance: window.distance,
+          relationship: out,
+          commonAncestors: data.commonAncestors,
+        };
+        addToDB(
+          "RelationshipFinderWTE",
+          window.relationshipFinderDBVersion,
+          "relationship",
+          obj
+        );
+      };
     }
   });
 }
@@ -285,23 +334,29 @@ async function addDistance(data) {
         `<span id='distanceFromYou' title='${profileName} is ${window.distance} degrees from you.'>${window.distance}°</span>`
       )
     );
-    var db = new Dexie("ConnectionFinderResults");
-    db.version(1).stores({
-      distance: "[userId+id]",
-      connection: "[userId+id]",
-    });
-    db.open()
-      .then(function (db) {
-        db.distance.put({
-          userId: Cookies.get("wikitree_wtb_UserName"),
-          id: $("a.pureCssMenui0 span.person").text(),
-          distance: window.distance,
-        });
-        // Database opened successfully
-      })
-      .catch(function (err) {
-        // Error occurred
-      });
+    const connectionFinderResultsDBReq = window.indexedDB.open(
+      "ConnectionFinder",
+      window.connectionFinderDBVersion
+    );
+    connectionFinderResultsDBReq.onsuccess = function (event) {
+      var connectionFinderResultsDB = event.target.result;
+      const profileID = $("a.pureCssMenui0 span.person").text();
+      const userID = Cookies.get("wikitree_wtb_UserName");
+      const obj = {
+        userId: userID,
+        id: profileID,
+        distance: window.distance,
+      };
+      addToDB(
+        "ConnectionFinderWTE",
+        window.connectionFinderDBVersion,
+        "distance",
+        obj
+      );
+    };
+    connectionFinderResultsDBReq.onerror = function (error) {
+      console.log(error);
+    };
   }
 }
 
@@ -406,4 +461,15 @@ function initDistanceAndRelationship(userID, profileID) {
       doRelationshipText(userID, profileID);
     }
   });
+}
+
+function addToDB(db, dbv, os, obj) {
+  var aDB = window.indexedDB.open(db, dbv);
+  aDB.onsuccess = function (event) {
+    const xdb = aDB.result;
+    const transaction = xdb.transaction([os], "readwrite");
+    transaction.oncomplete = function (event) {
+      var insert = xdb.transaction([os], "readwrite").objectStore(os).put(obj);
+    };
+  };
 }
