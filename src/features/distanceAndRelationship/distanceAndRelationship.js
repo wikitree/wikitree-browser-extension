@@ -81,7 +81,7 @@ chrome.storage.sync.get("distanceAndRelationship", (result) => {
               e.preventDefault();
               $(this).fadeOut("slow").remove();
               $("#yourRelationshipText").fadeOut("slow").remove();
-              initDistanceAndRelationship(userID, profileID);
+              initDistanceAndRelationship(userID, profileID, true);
             });
           }
         }
@@ -97,7 +97,6 @@ chrome.storage.sync.get("distanceAndRelationship", (result) => {
         .objectStore("relationship")
         .get(profileID);
       aRequest2.onsuccess = function () {
-        console.log(aRequest2.result);
         if (aRequest2.result != undefined) {
           if (aRequest2.result.relationship != "") {
             if (
@@ -206,7 +205,7 @@ function addRelationshipText(oText, commonAncestors) {
     e.stopPropagation();
     let id1 = Cookies.get("wikitree_wtb_UserName");
     let id2 = $("a.pureCssMenui0 span.person").text();
-    initDistanceAndRelationship(id1, id2);
+    initDistanceAndRelationship(id1, id2, true);
   });
   if (commonAncestorTextResult.count > 2) {
     $("#yourRelationshipText").append(
@@ -281,6 +280,13 @@ function doRelationshipText(userID, profileID) {
           .replaceAll(/[\t\n]/g, "");
         if (data.commonAncestors.length == 0) {
           out = dummy.find("b").text();
+          let secondName = dummy.find("b").parent().text().split(out)[1];
+          const profileFirstName = $("h1 span[itemprop='name']")
+            .text()
+            .split(" ")[0];
+          if (secondName.match(profileFirstName)) {
+            out = dummy.find("h2").text().replace("(DNA Confirmed)", "").trim();
+          }
         } else {
           const profileGender = $("body")
             .find("meta[itemprop='gender']")
@@ -453,28 +459,33 @@ function ordinalWordToNumberAndSuffix(word) {
   return word;
 }
 
-function initDistanceAndRelationship(userID, profileID) {
+function initDistanceAndRelationship(userID, profileID, clicked = false) {
   $("#distanceFromYou").fadeOut().remove();
   $("#yourRelationshipText").fadeOut().remove();
-  getProfile(profileID).then((person) => {
-    const nowTime = Date.parse(Date());
-    let timeDifference = 0;
-    if (person.Created) {
-      const created = Date.parse(
-        person.Created.substr(0, 8).replace(/(....)(..)(..)/, "$1-$2-$3")
-      );
-      timeDifference = nowTime - created;
-    }
-    const nineDays = 777600000;
-    if (
-      person.Privacy > 29 &&
-      person.Connected == 1 &&
-      timeDifference > nineDays
-    ) {
-      getDistance();
-      doRelationshipText(userID, profileID);
-    }
-  });
+  if (clicked == true) {
+    getDistance();
+    doRelationshipText(userID, profileID);
+  } else {
+    getProfile(profileID).then((person) => {
+      const nowTime = Date.parse(Date());
+      let timeDifference = 0;
+      if (person.Created) {
+        const created = Date.parse(
+          person.Created.substr(0, 8).replace(/(....)(..)(..)/, "$1-$2-$3")
+        );
+        timeDifference = nowTime - created;
+      }
+      const nineDays = 777600000;
+      if (
+        person.Privacy > 29 &&
+        person.Connected == 1 &&
+        timeDifference > nineDays
+      ) {
+        getDistance();
+        doRelationshipText(userID, profileID);
+      }
+    });
+  }
 }
 
 function addToDB(db, dbv, os, obj) {
