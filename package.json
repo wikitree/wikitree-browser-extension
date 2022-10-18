@@ -2,9 +2,12 @@
   "name": "wikitree-browser-extension",
   "version": "0.1.0",
   "scripts": {
-    "watch": "webpack --config webpack/webpack.dev.js --watch",
-    "build": "webpack --config webpack/webpack.prod.js",
-    "build-dev": "webpack --config webpack/webpack.dev.js",
+    "watch": "webpack --config webpack/webpack.dev.js  --env browser=chrome --watch",
+    "build": "webpack --config webpack/webpack.prod.js --env browser=chrome",
+    "build-dev": "webpack --config webpack/webpack.dev.js --env browser=chrome",
+    "watch-firefox": "webpack --config webpack/webpack.dev.js  --env browser=firefox --watch",
+    "build-firefox": "webpack --config webpack/webpack.prod.js --env browser=firefox",
+    "build-firefox-dev": "webpack --config webpack/webpack.dev.js --env browser=firefox",
     "clean": "rimraf dist",
     "zip": "npm run clean && npm run build && cd dist && bestzip ../wikitree-browser-extension.zip *"
   },
