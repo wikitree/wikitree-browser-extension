@@ -463,7 +463,7 @@ function initDistanceAndRelationship(userID, profileID) {
       const created = Date.parse(
         person.Created.substr(0, 8).replace(/(....)(..)(..)/, "$1-$2-$3")
       );
-      const timeDifference = nowTime - created;
+      timeDifference = nowTime - created;
     }
     const nineDays = 777600000;
     if (
