@@ -3662,10 +3662,11 @@ function runTests(editBioModule) {
       }
       console.log("ERROR: Profile failed : " + profileName + " (" + optionsDesc + "). Cause: "+ testProfile.causeOfFailure);
     }
+    return false;
   }
-  else {
-    console.log("SUCCESS: All tests passed");
-  }
+
+  console.log("SUCCESS: All tests passed");
+  return true;
 }
 
 function asyncLoadScriptAndCallEditBio() {
@@ -3673,7 +3674,8 @@ function asyncLoadScriptAndCallEditBio() {
   (async () => {
     const src = "./library/editbio.mjs";
     const editBioModule = await import(src);
-    runTests(editBioModule);
+    const success = runTests(editBioModule);
+    process.exit(success ? 0 : 1);
   })();
 }
 
