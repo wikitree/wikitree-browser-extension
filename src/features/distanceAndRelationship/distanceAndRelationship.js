@@ -327,7 +327,7 @@ function doRelationshipText(userID, profileID) {
 
 async function addDistance(data) {
   if ($("#degreesFromYou").length == 0) {
-    window.distance = data.path.length;
+    window.distance = data.path.length - 1;
     const profileName = $("h1 span[itemprop='name']").text();
     $("h1").append(
       $(
