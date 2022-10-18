@@ -5,7 +5,8 @@
     "watch": "webpack --config webpack/webpack.dev.js --watch",
     "build": "webpack --config webpack/webpack.prod.js",
     "build-dev": "webpack --config webpack/webpack.dev.js",
-    "clean": "rimraf dist"
+    "clean": "rimraf dist",
+    "zip": "npm run clean && npm run build && cd dist && bestzip ../wikitree-browser-extension.zip *"
   },
   "repository": {
     "type": "git",
@@ -17,6 +18,7 @@
     "js-cookie": "^3.0.1"
   },
   "devDependencies": {
+    "bestzip": "^2.2.1",
     "copy-webpack-plugin": "^9.0.1",
     "css-loader": "^6.7.1",
     "rimraf": "^3.0.2 ",
