@@ -219,7 +219,7 @@ export class Biography extends BiographyResults {
        * validated to add those to the list of valid/invalid sources
        */
       if (!isValid) {
-        isValid = this.validateReferenceStrings();
+        isValid = this.validateReferenceStrings(true);
         if (this.validateRefStrings(this.refStringList)) {
           if (!isValid) {
             isValid = true;
@@ -239,6 +239,25 @@ export class Biography extends BiographyResults {
     if (isValid) {
       this.bioResults.sources.sourcesFound = true;
     }
+    return isValid;
+  }
+
+  /**
+   * Validate contents Sources for adding a new profile
+   * @param sourcesStr string containing sources
+   * @param isPre1500 true if profile is treated as Pre1500
+   * @param isPre1700 true if profile is treated as Pre1700
+   * @param mustBeOpen true if profile is treated as too old to remember
+   * @return true if probably valid sources, else false
+   */
+  validateSourcesStr(sourcesStr, isPre1500, isPre1700, mustBeOpen) {
+
+    // build bioLines from the input sources string then validate
+    this.getLines(sourcesStr);
+    this.isPre1500 = isPre1500;
+    this.isPre1700 = isPre1700;
+    this.tooOldToRemember = mustBeOpen;
+    let isValid = this.validateReferenceStrings(false);
     return isValid;
   }
 
@@ -775,7 +794,6 @@ export class Biography extends BiographyResults {
    * @return true if valid else false
    */
   isValidSource(mixedCaseLine) {
-
     let isValid = false;                          // assume guilty 
 
     // just ignore starting *
@@ -996,19 +1014,23 @@ export class Biography extends BiographyResults {
   /* 
    * Validate all the strings after the == Sources heading
    * but before Acknowledgements or the end of the biography
+   * @param isFullBio true if checking full bio else just a
+   * string of sources
    * @return true if at lease one valid else false
    */
-  validateReferenceStrings() {
+  validateReferenceStrings(isFullBio) {
     let isValid = false;
-
-    // start at the first of Sources or <references /> if neither, nothing to do
-    // assume it is so messed up nothing to process
-    let index = this.sourcesIndex + 1;
-    if (index <= 0) {
-      index = this.referencesIndex + 1;
-    }
-    if (index <= 0) {
-      index = this.bioLines.length;
+    let index = 0;
+    if (isFullBio) {
+      // start at the first of Sources or <references /> if neither, nothing to do
+      // assume it is so messed up nothing to process
+      index = this.sourcesIndex + 1;
+      if (index <= 0) {
+        index = this.referencesIndex + 1;
+      }
+      if (index <= 0) {
+        index = this.bioLines.length;
+      }
     }
     let lastIndex = this.bioLines.length;
     let line = "";
@@ -1052,7 +1074,6 @@ export class Biography extends BiographyResults {
           }
         }
         mixedCaseLine = combinedLine;
-
         // At this point, the line should not contain an inline <ref
         // Unless all the ref are between Sources and references
         if ((line.indexOf("<ref") >= 0) && (index > this.referencesIndex)) {
