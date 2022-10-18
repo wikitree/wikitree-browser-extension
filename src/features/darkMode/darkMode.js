@@ -1,5 +1,8 @@
-import $ from 'jquery';
-import './darkMode.css';
+import $ from "jquery";
+import "./darkMode.css";
+
+const useDark = window.matchMedia("(prefers-color-scheme: dark)");
+console.log(useDark);
 
 chrome.storage.sync.get("darkMode", (result) => {
   if (result.darkMode) {
