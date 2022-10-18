@@ -458,7 +458,7 @@ function initDistanceAndRelationship(userID, profileID) {
   $("#yourRelationshipText").fadeOut().remove();
   getProfile(profileID).then((person) => {
     const nowTime = Date.parse(Date());
-    timeDifference = 0;
+    let timeDifference = 0;
     if (person.Created) {
       const created = Date.parse(
         person.Created.substr(0, 8).replace(/(....)(..)(..)/, "$1-$2-$3")
