@@ -1,0 +1,65 @@
+== Biography ==
+'''Born'''
+28 JUN 1891.
+Long Creek, Grant, Oregon, USA.
+Map:
+Latitude: N44.714.
+Longitude: W119.1041.
+<ref name="ref_0">
+Source: [[#S335]] Record for Elbert "Elba" L Davis Link: http://search.ancestry.com/cgi-bin/sse.dll?db=1030&h=381002770023&indiv=try
+</ref>
+1878
+Long Creek, Grant, Oregon, USA.
+Map:
+Latitude: N44.714.
+Longitude: W119.1041.
+<ref name="ref_0"/>
+''Found multiple copies of birth date. Using 28 JUN 1891''
+'''Died'''
+20 DEC 1969.
+Portland, Multnomah, Oregon, USA.
+Map:
+Latitude: N45.5234.
+Longitude: W122.6762.
+<ref name="ref_0"/>
+'''Buried'''
+20 DEC 1969.
+Portland, Multnomah, Oregon, USA.
+Map:
+Latitude: N45.5234.
+Longitude: W122.6762.
+<ref name="ref_0"/>
+'''Residence'''
+1930
+Kendall, Multnomah, Oregon, USA.
+Map:
+Latitude: N45.4637.
+Longitude: W122.578.
+<ref name="ref_0"/>
+1900
+Long Creek, Grant, Oregon, USA.
+Map:
+Latitude: N44.714.
+Longitude: W119.1041.
+<ref name="ref_0"/>
+1920
+Long Creek, Grant, Oregon, USA.
+Map:
+Latitude: N44.714.
+Longitude: W119.1041.
+<ref name="ref_0"/>
+1940
+Kendall, Multnomah, Oregon, USA.
+Map:
+Latitude: N45.4637.
+Longitude: W122.578.
+<ref name="ref_0"/>
+1910
+Long Creek, Grant, Oregon, USA.
+Map:
+Latitude: N44.714.
+Longitude: W119.1041.
+<ref name="ref_0"/>
+== Sources ==
+<references />
+* Source: <span id='S335'>S335</span> Ancestry Family Trees Publication: Name: Online publication - Provo, UT, USA: Ancestry.com. Original data: Family Tree files submitted by Ancestry members.;

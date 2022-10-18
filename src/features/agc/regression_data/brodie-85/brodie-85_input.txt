@@ -1,0 +1,36 @@
+[[Category:Needs GEDCOM Cleanup]]
+[[category: Scotland, Brodie Name Study ]]
+[[Category: John Brodie circa 1700]]
+==Biography==
+{{User Scottish Clan
+|tartan =  Scotland_-_Clan_Tartans-231.jpg
+|clan = Clan Brodie
+}}
+
+This person was created through the import of Jim Walker gedcom 4 Wikitree may 22 2011.ged on 24 May 2011.  The following data was included in the gedcom. You may wish to edit it for readability.
+
+=== Name ===
+: Name:  Elizabeth /BRODIE/
+:: Source: [[#S200]]
+
+
+=== Birth ===
+: Birth:  
+:: Date:  1771
+:: Place:  Garvald , East Lothian, Scotland
+:: Source: [[#S200]]
+
+
+=== User ID ===
+: User ID:  1781BF429A284E028968948EFB13AC54CC08
+
+
+=== Data Changed ===
+: Data Changed:  
+:: Date:  24 NOV 2006
+Prior to import, this record was last changed  24 NOV 2006.
+
+=== Sources ===
+: Source <span id='S200'>S200</span>
+: Type:  Gedcom File
+: Title:  Gedcom - Lesley Abernethy - Kelso, Scotland - Lesleyabernethy@aol.com

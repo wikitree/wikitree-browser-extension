@@ -1,0 +1,70 @@
+[[Category:Scotland, Needs Merge Review]]
+ 
+== Biography ==
+James was born in 1802. James Barr ... He passed away in 1860.
+
+=== Name ===
+
+: Name: James Augustus /Barr/<ref>Source: [[#S73]] Page: Year: 1850; Census Place: Gibson, Elk, Pennsylvania; Roll: M432_776; Page: 329A; Image: . Data: Text: Birth date: abt 1802Birth place: PennsylvaniaResidence date: 1850Residence place: Gibson, Elk, Pennsylvania Note: @N266@</ref><ref>Source: [[#S129]] Data: Text: Birth date: abt 1802Birth place: PennsylvaniaDeath date: Feb 1860Death place: Elk, Pennsylvania Note: @N267@</ref><ref>Source: [[#S128]] Data: Text: Birth date: abt 1802Birth place: PADeath date: Feb 1860Death place: Elk CO., PA Note: @N268@</ref><ref>Source: [[#S125]] Data: Text: Birth date: abt 1805Birth place: Kirkintilloch, DumbartonshireResidence date: 1861Residence place: Kirkintilloch, Dumbartonshire, Scotland Note: @N269@</ref><ref>Source: [[#S2]] Page: Ancestry Family Trees Data: Text: http://trees.ancestry.com/pt/AMTCitationRedir.aspx?tid=25352682&pid=92 Note: @N270@</ref>
+: Name: James /Barr/<ref>Source: [[#S73]] Page: Year: 1850; Census Place: South Bloomfield, Morrow, Ohio; Roll: M432_716; Page: 523B; Image: . Data: Text: Birth date: abt 1801Birth place: PennsylvaniaResidence date: 1850Residence place: South Bloomfield, Morrow, Ohio Note: @N1079@</ref><ref>Source: [[#S136]] Page: Year: 1870; Census Place: Buffalo, Washington, Pennsylvania; Roll: M593_; Page: ; Image: . Data: Text: Birth date: abt 1801Birth place: PennsylvaniaResidence date: 1870Residence place: Buffalo, Washington, Pennsylvania, United States Note: @N1080@</ref><ref>Source: [[#S75]] Page: Year: 1880; Census Place: Greeley, Shelby, Iowa; Roll: 364; Family History Film: 1254364; Page: 25A; Enumeration District: 204; Image: 0299. Data: Text: Birth date: abt 1830Birth place: PennsylvaniaResidence date: 1880Residence place: Greeley, Shelby, Iowa, United States Note: @N1081@</ref><ref>Source: [[#S129]] Data: Text: Birth date: abt 1802Birth place: PennsylvaniaDeath date: Feb 1860Death place: Elk, Pennsylvania Note: @N267@</ref><ref>Source: [[#S2]] Page: Ancestry Family Trees Data: Text: http://trees.ancestry.com/pt/AMTCitationRedir.aspx?tid=25352682&pid=574 Note: @N1082@</ref>
+=== Birth ===
+: Birth:
+:: Date: 24 MAR 1802
+:: Place: Kirkintilloch, Dunbartonshire, Scotland<ref>Source: [[#S73]] Page: Year: 1850; Census Place: Gibson, Elk, Pennsylvania; Roll: M432_776; Page: 329A; Image: . Data: Text: Birth date: abt 1802Birth place: PennsylvaniaResidence date: 1850Residence place: Gibson, Elk, Pennsylvania Note: @N266@</ref><ref>Source: [[#S129]] Data: Text: Birth date: abt 1802Birth place: PennsylvaniaDeath date: Feb 1860Death place: Elk, Pennsylvania Note: @N267@</ref><ref>Source: [[#S128]] Data: Text: Birth date: abt 1802Birth place: PADeath date: Feb 1860Death place: Elk CO., PA Note: @N268@</ref><ref>Source: [[#S125]] Data: Text: Birth date: abt 1805Birth place: Kirkintilloch, DumbartonshireResidence date: 1861Residence place: Kirkintilloch, Dumbartonshire, Scotland Note: @N269@</ref>
+: Birth:
+:: Date: 24 MAR 1802
+:: Place: Centre, Pennsylvania, USA<ref>Source: [[#S73]] Page: Year: 1850; Census Place: South Bloomfield, Morrow, Ohio; Roll: M432_716; Page: 523B; Image: . Data: Text: Birth date: abt 1801Birth place: PennsylvaniaResidence date: 1850Residence place: South Bloomfield, Morrow, Ohio Note: @N1079@</ref><ref>Source: [[#S136]] Page: Year: 1870; Census Place: Buffalo, Washington, Pennsylvania; Roll: M593_; Page: ; Image: . Data: Text: Birth date: abt 1801Birth place: PennsylvaniaResidence date: 1870Residence place: Buffalo, Washington, Pennsylvania, United States Note: @N1080@</ref><ref>Source: [[#S75]] Page: Year: 1880; Census Place: Greeley, Shelby, Iowa; Roll: 364; Family History Film: 1254364; Page: 25A; Enumeration District: 204; Image: 0299. Data: Text: Birth date: abt 1830Birth place: PennsylvaniaResidence date: 1880Residence place: Greeley, Shelby, Iowa, United States Note: @N1081@</ref><ref>Source: [[#S129]] Data: Text: Birth date: abt 1802Birth place: PennsylvaniaDeath date: Feb 1860Death place: Elk, Pennsylvania Note: @N267@</ref>
+=== Death ===
+: Death:
+:: Date: 14 FEB 1860
+:: Place: Gibson, Cameron, Pennsylvania, USA<ref>Source: [[#S129]] Data: Text: Birth date: abt 1802Birth place: PennsylvaniaDeath date: Feb 1860Death place: Elk, Pennsylvania Note: @N267@</ref><ref>Source: [[#S128]] Data: Text: Birth date: abt 1802Birth place: PADeath date: Feb 1860Death place: Elk CO., PA Note: @N268@</ref>
+=== Residence ===
+: Residence:
+:: Date: 1861
+:: Place: Kirkintilloch, Dunbartonshire, Scotland<ref>Source: [[#S125]] Data: Text: Birth date: abt 1805Birth place: Kirkintilloch, DumbartonshireResidence date: 1861Residence place: Kirkintilloch, Dumbartonshire, Scotland Note: @N269@</ref>
+: Residence:
+:: Date: 1850
+:: Place: Gibson, Cameron, Pennsylvania, USA<ref>Source: [[#S73]] Page: Year: 1850; Census Place: Gibson, Elk, Pennsylvania; Roll: M432_776; Page: 329A; Image: . Data: Text: Birth date: abt 1802Birth place: PennsylvaniaResidence date: 1850Residence place: Gibson, Elk, Pennsylvania Note: @N266@</ref>
+ 
+: Residence:
+:: Date: 1880
+:: Place: Greeley, Shelby, Iowa, USA<ref>Source: [[#S75]] Page: Year: 1880; Census Place: Greeley, Shelby, Iowa; Roll: 364; Family History Film: 1254364; Page: 25A; Enumeration District: 204; Image: 0299. Data: Text: Birth date: abt 1830Birth place: PennsylvaniaResidence date: 1880Residence place: Greeley, Shelby, Iowa, United States Note: @N1081@</ref>
+: Residence:
+:: Date: 1870
+:: Place: Buffalo, Washington, Pennsylvania, USA<ref>Source: [[#S136]] Page: Year: 1870; Census Place: Buffalo, Washington, Pennsylvania; Roll: M593_; Page: ; Image: . Data: Text: Birth date: abt 1801Birth place: PennsylvaniaResidence date: 1870Residence place: Buffalo, Washington, Pennsylvania, United States Note: @N1080@</ref>
+: Residence:
+:: Date: 1850
+:: Place: South Bloomfield, Morrow, Ohio, USA<ref>Source: [[#S73]] Page: Year: 1850; Census Place: South Bloomfield, Morrow, Ohio; Roll: M432_716; Page: 523B; Image: . Data: Text: Birth date: abt 1801Birth place: PennsylvaniaResidence date: 1850Residence place: South Bloomfield, Morrow, Ohio Note: @N1079@</ref>
+== Sources ==
+<references />
+* Source: <span id='S129'>S129</span> Author: Ancestry.com Title: U.S. Federal Census Mortality Schedules, 1850-1885 Publication: Name: Online publication - Provo, UT, USA: Ancestry.com Operations, Inc., 2010. A portion of this collection was indexed by Ancestry World Archives Project contributors.Original data - State CitationUnited States. Federal Mortality Census Schedules, 1850-1880 (f; Repository: [[#R1]]
+* Repository: <span id='R1'>R1</span> Name: Ancestry.com Address: http://www.Ancestry.com E-Mail Address: Phone Number:
+* Source: <span id='S136'>S136</span> Author: Ancestry.com Title: 1870 United States Federal Census Publication: Name: Online publication - Provo, UT, USA: Ancestry.com Operations, Inc., 2009. Images reproduced by FamilySearch.Original data - 1870 U.S. census, population schedules. NARA microfilm publication M593, 1,761 rolls. Washington, D.C.: National Archives and Record; Repository: [[#R1]]
+* Source: <span id='S2'>S2</span> Title: Ancestry Family Trees Publication: Name: Online publication - Provo, UT, USA: Ancestry.com. Original data: Family Tree files submitted by Ancestry members.; Repository: [[#R1]] NOTEThis information comes from 1 or more individual Ancestry Family Tree files. This source citation points you to a current version of those files. Note: The owners of these tree files may have removed or changed information since this source citation was created.
+* Source: <span id='S73'>S73</span> Author: Ancestry.com Title: 1850 United States Federal Census Publication: Name: Online publication - Provo, UT, USA: Ancestry.com Operations, Inc., 2009. Images reproduced by FamilySearch.Original data - Seventh Census of the United States, 1850; (National Archives Microfilm Publication M432, 1009 rolls); Records of the Bureau of the; Repository: [[#R1]]
+* Source: <span id='S75'>S75</span> Author: Ancestry.com and The Church of Jesus Christ of Latter-day Saints Title: 1880 United States Federal Census Publication: Name: Online publication - Provo, UT, USA: Ancestry.com Operations Inc, 2010. 1880 U.S. Census Index provided by The Church of Jesus Christ of Latter-day Saints © Copyright 1999 Intellectual Reserve, Inc. All rights reserved. All use is subject to the limited; Repository: [[#R1]]
+* Source: <span id='S125'>S125</span> Author: Ancestry.com Title: 1861 Scotland Census Publication: Name: Online publication - Provo, UT, USA: Ancestry.com Operations Inc, 2006.Original data - Scotland. 1861 Scotland Census. Reels 1-150. General Register Office for Scotland, Edinburgh, Scotland.Original data: Scotland. 1861 Scotland Census. Reels 1-150. Genera; Repository: [[#R1]]
+* Repository: <span id='R1'>R1</span> Name: Ancestry.com Address: http://www.Ancestry.com E-Mail Address: Phone Number:
+* Source: <span id='S128'>S128</span> Author: Jackson, Ron V., Accelerated Indexing Systems, comp. Title: U.S. Federal Census Mortality Schedules Index Publication: Name: Online publication - Provo, UT, USA: Ancestry.com Operations Inc, 1999.Original data - Compiled and digitized by Mr. Jackson and AIS from microfilmed schedules of the U.S. Federal Decennial Census, territorial/state censuses, and/or census substitutes.Orig; Repository: [[#R1]]
+* Source: <span id='S129'>S129</span> Author: Ancestry.com Title: U.S. Federal Census Mortality Schedules, 1850-1885 Publication: Name: Online publication - Provo, UT, USA: Ancestry.com Operations, Inc., 2010. A portion of this collection was indexed by Ancestry World Archives Project contributors.Original data - State CitationUnited States. Federal Mortality Census Schedules, 1850-1880 (f; Repository: [[#R1]]
+* Source: <span id='S2'>S2</span> Title: Ancestry Family Trees Publication: Name: Online publication - Provo, UT, USA: Ancestry.com. Original data: Family Tree files submitted by Ancestry members.; Repository: [[#R1]] NOTEThis information comes from 1 or more individual Ancestry Family Tree files. This source citation points you to a current version of those files. Note: The owners of these tree files may have removed or changed information since this source citation was created.
+* Source: <span id='S73'>S73</span> Author: Ancestry.com Title: 1850 United States Federal Census Publication: Name: Online publication - Provo, UT, USA: Ancestry.com Operations, Inc., 2009. Images reproduced by FamilySearch.Original data - Seventh Census of the United States, 1850; (National Archives Microfilm Publication M432, 1009 rolls); Records of the Bureau of the; Repository: [[#R1]]
+* WikiTree profile Barr-256 created through the import of Andy Askey Family Sandbox_2011-08-20_01_01.ged on Aug 20, 2011 by [[Askey-1 | Andy Askey]]. See the [http://www.wikitree.com/index.php?title=Special:NetworkFeed&who=Barr-256 Changes page] for the details of edits by Andy and others.
+* WikiTree profile Barr-327 created through the import of Andy Askey Family Sandbox_2011-08-20_01_01.ged on Aug 20, 2011 by [[Askey-1 | Andy Askey]]. See the [http://www.wikitree.com/index.php?title=Special:NetworkFeed&who=Barr-327 Changes page] for the details of edits by Andy and others.
+=== Notes ===
+: Note <span id='N1079'>N1079</span>http://trees.ancestry.com/rd?f=sse&db=1850usfedcenancestry&h=14309382&ti=0&indiv=try&gss=pt
+:
+: Note <span id='N1080'>N1080</span>http://trees.ancestry.com/rd?f=sse&db=1870usfedcen&h=3791002&ti=0&indiv=try&gss=pt
+:
+: Note <span id='N1081'>N1081</span>http://trees.ancestry.com/rd?f=sse&db=1880usfedcen&h=32867089&ti=0&indiv=try&gss=pt
+:
+: Note <span id='N1082'>N1082</span>
+: Note <span id='N266'>N266</span>http://trees.ancestry.com/rd?f=sse&db=1850usfedcenancestry&h=250752&ti=0&indiv=try&gss=pt
+:
+: Note <span id='N267'>N267</span>http://trees.ancestry.com/rd?f=sse&db=usmortality&h=2385302&ti=0&indiv=try&gss=pt
+:
+: Note <span id='N268'>N268</span>http://trees.ancestry.com/rd?f=sse&db=mortalitycen&h=184775&ti=0&indiv=try&gss=pt
+:
+: Note <span id='N269'>N269</span>http://trees.ancestry.com/rd?f=sse&db=1861scotland&h=2526128&ti=0&indiv=try&gss=pt
+:
+: Note <span id='N270'>N270</span>

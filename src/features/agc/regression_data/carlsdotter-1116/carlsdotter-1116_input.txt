@@ -1,0 +1,71 @@
+== Biography ==
+
+
+'''Name:''' Hedda (Gustafva) Carlsdotter. 
+Given Name: Hedda (Gustafva). 
+Surname: Carlsdotter. 
+Hedda (Gustafva) Törnqvist. 
+married
+Given Name: Hedda (Gustafva). 
+Surname: Törnqvist. 
+''Found multiple versions of name. Using Hedda (Gustafva) Carlsdotter.
+A Given name was found in addition to a first name in the NAME tag.'' 
+
+'''Born''' 
+Hedda Gustafva Carlsdotters födelse. 
+7 SEP 1855. 
+Stenhagsbacken, Hed, Västmanlands län, Sverige. 
+Map:
+Latitude: N59.690303. 
+Longitude: E15.742783. 
+<ref name="ref_0">
+Source: [[#S0090]]  Bild 24, s. 19, bild 29 i Riksarkivet; N:o 32  9 SEP 1855 Note: [[#N0499]] Note: [[#N0500]]
+</ref>
+
+'''Died''' 
+Hedda Gustafva Carlsdotters död. 
+1915
+Roseau, Minnesota, USA. 
+Map:
+Latitude: N48.845967. 
+Longitude: W95.762848. 
+<ref name="ref_1">
+Source: [[#S0093]]  s. 87  2 APR 1991
+</ref>
+
+'''Buried''' 
+Hope Cemetery, Roseau, Minnesota, USA. 
+Map:
+Latitude: N48.837933. 
+Longitude: W95.76162. 
+
+'''MH:I500058''' 
+RIN
+
+'''Marriage'''
+Wife @I500058@. 
+Marriage
+Vigsel mellan Erik Törnqvist och Hedda Gustafva Carlsdotter. 
+5 NOV 1876. 
+Hed, Västmanlands län, Sverige. 
+Map:
+Latitude: N59.681361. 
+Longitude: E15.765306. 
+<ref>
+Source: [[#S0092]]  Bild 38 i Arkiv Digital, bild 41 i Riksarkivet; Lysning N:o 20  5 NOV 1876 Note: [[#N0501]] Note: [[#N0502]]
+</ref>
+MH:F500038
+RIN
+
+=== Notes ===
+Note <span id='N0499'>N0499<span> https://app.arkivdigital.se/volumev72425?image=24
+
+Note <span id='N0500'>N0500<span> https://sok.riksarkivet.se/bildvisningC0009225_00029#?c=&m=&s=&cv=28&xywh=-325%2C872%2C5970%2C3925
+
+== Sources ==
+<references />
+
+* Source: <span id='S0090'>S0090</span> Hed(U) C:8 Födelse- och dopbok 1852-1861   22 MAR 2020 Time: 13:45:14
+
+Note <span id='N0068'>N0068<span> SE/ULA10382. 
+* Source: <span id='S0093'>S0093</span> the Tornquist family Stephen Lindquist   22 MAR 2020 Time: 14:48:39

@@ -1,0 +1,78 @@
+[[Category:Pleasant View_Cemetery,_Kewanee,_Illinois]]
+[[Category:Kewanee, Illinois]]
+[[Category:Niagara, New_York]]
+[[Category:Rotherfield Greys,_Oxfordshire]]
+[[Category:Needs GEDCOM_Cleanup]]
+== Biography ==
+Sophia was born on 25 April 1837 in Grays Oxon, Oxfordshire, England.<ref>'''1860 Census''': 1860 United States Federal Census. Original data - United States of America, Bureau of the Census. Eighth Census of the United States, 1860. Washington, D.C.: National Archives and Records Administration, 1860. M653, 1,438 rolls,<br/>
+Year: 1860; Census Place: Greenville, Bureau, Illinois; Roll: M653_158; Page: 0; Image: 474. Birth date: abt 1838 Birth place: England Residence date: 1860 Residence place: Greenville, Bureau, Illinois.<br/>
+{{Ancestry Record|1860usfedcenancestry|37656410}} (accessed 16 July 2020).</ref>
+<ref>'''1841 Census''': [https://www.familysearch.org/search/record/results?q.givenName=Sophia&q.surname=Bowler&q.birthLikeDate.from=1836&q.birthLikeDate.to=1838&q.birthLikePlace=Grays%20Oxon,%20Oxfordshire,%20England.%20&q.residenceDate.from=1841&q.residenceDate.to=1841&q.residencePlace=Grays%20Oxon,%20Oxfordshire,%20England.%20&f.collectionId=1493745 1841 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1841&_ed=1841&_hb=tna&_q=Census+Returns+1841 The National Archives], Class: HO107; Civil Parish: Grays Rotherfield; County: Oxfordshire; Enumeration District: 8; Page: 7; Line: 19; GSU roll: 474572. Name: Sophia Bowler Birth Date: abt 1837 Birth Place: Oxfordshire, England Residence Date: 1841 Residence Place: Grays Rotherfield, Oxfordshire, England.<br/>
+{{Ancestry Record|uki1841|9349416}} (accessed 16 July 2020).</ref>
+<ref>'''1850 Census''': 1850 United States Federal Census. Original data - United States of America, Bureau of the Census. Seventh Census of the United States, 1850. Washington, D.C.: National Archives and Records Administration, 1850. M432, 1,009 rolls,<br/>
+Year: 1850; Census Place: Lockport, Niagara, New York; Roll: M432_560; Page: 105; Image: 215. Birth date: abt 1837 Birth place: England Residence date: 1850 Residence place: Lockport, Niagara, New York.<br/>
+{{Ancestry Record|1850usfedcenancestry|7651285}} (accessed 16 July 2020).</ref>
+
+Sophia was baptised on 28 May 1837 in [https://www.openstreetmap.org/?mlat=51.5462&mlon=-1.0394 Checkendon, Oxfordshire, England].<ref>'''Baptism''': Oxfordshire, England, Church of England Births and Baptisms, 1813-1915,<br/>
+Oxfordshire Family History Society; Oxford, Oxfordshire, England; Anglican Parish Registers; Reference Number: BOD61_b_2.</ref>
+
+In the 1841 census Sophia (age 4) was living in [https://www.openstreetmap.org/?mlat=43.1706&mlon=-78.6903 Grays Rotherfield, Oxfordshire, England].<ref>'''1841 Census''': [https://www.familysearch.org/search/record/results?q.givenName=Sophia&q.surname=Bowler&q.birthLikeDate.from=1836&q.birthLikeDate.to=1838&q.birthLikePlace=Grays%20Oxon,%20Oxfordshire,%20England.%20&q.residenceDate.from=1841&q.residenceDate.to=1841&q.residencePlace=Grays%20Rotherfield,%20Oxfordshire,%20England.%20&f.collectionId=1493745 1841 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1841&_ed=1841&_hb=tna&_q=Census+Returns+1841 The National Archives], Class: HO107; Civil Parish: Grays Rotherfield; County: Oxfordshire; Enumeration District: 8; Page: 7; Line: 19; GSU roll: 474572. Name: Sophia Bowler Birth Date: abt 1837 Birth Place: Oxfordshire, England Residence Date: 1841 Residence Place: Grays Rotherfield, Oxfordshire, England.<br/>
+{{Ancestry Record|uki1841|9349416}} (accessed 16 July 2020).</ref>
+
+Sophia arrived in 1848.<ref>'''Arrival''': 1900 United States Federal Census. Original data - United States of America, Bureau of the Census. Twelfth Census of the United States, 1900. Washington, D.C.: National Archives and Records Administration, 1900. T623, 1854 rolls,<br/>
+Year: 1900; Census Place: Kewanne, Henry, Illinois; Roll: ; Page: ; Enumeration District: . Birth date: Apr 1837 Birth place: England Marriage date: 1856 Marriage place: Residence date: 1900 Residence place: Kewanee Township (Excl. Kewanee City), Henry, Illinois Arrival date: 1848 Arrival place:.<br/>
+{{Ancestry Record|1900usfedcen|12177616}} (accessed 16 July 2020).</ref>
+
+Sophia departed [https://www.openstreetmap.org/?mlat=51.4611&mlon=-0.0667 London, England] on 29 May 1848.<ref>'''Departure''': New York Passenger Lists, 1820-1957. Original data - Passenger Lists of Vessels Arriving at New York, New York, 1820-1897; (National Archives Microfilm Publication M237, 675 rolls); Records of the U.S. Customs Service, R,<br/>
+Year: 1848; Arrival: , ; Microfilm serial: M237; Microfilm roll: M237_72; Line: ; List number: . Birth date: abt 1838 Birth place: Arrival date: 29 May 1848 Arrival place: New York, New York Departure date: Departure place: London, England.<br/>
+{{Ancestry Record|nypl|1023305297}} (accessed 16 July 2020).</ref>
+
+Sophia arrived in New York, New York on 29 May 1848.<ref>'''Arrival''': New York Passenger Lists, 1820-1957. Original data - Passenger Lists of Vessels Arriving at New York, New York, 1820-1897; (National Archives Microfilm Publication M237, 675 rolls); Records of the U.S. Customs Service, R,<br/>
+Year: 1848; Arrival: , ; Microfilm serial: M237; Microfilm roll: M237_72; Line: ; List number: . Birth date: abt 1838 Birth place: Arrival date: 29 May 1848 Arrival place: New York, New York Departure date: Departure place: London, England.<br/>
+{{Ancestry Record|nypl|1023305297}} (accessed 16 July 2020).</ref>
+
+Sophia departed London and arrived in New York on 29 May 1848.<ref>'''Arrival''': New York, 1820-1850 Passenger and Immigration Lists. Original data - New York. Registers of Vessels Arriving at the Port of New York from Foreign Ports, 1789-1919. Washington, D.C.: National Archives and Records Administration. Micropub,<br/>
+Birth date: abt 1838 Birth place: Origin date: Origin place: England Arrival date: May 29, 1848 Arrival place: New York Departure date: Departure place: London.<br/>
+{{Ancestry Record|newyork273|141470}} (accessed 16 July 2020).</ref>
+
+In the 1850 census Sophia (age 13) was living in [https://www.openstreetmap.org/?mlat=43.1706&mlon=-78.6903 Lockport, Niagara, New York].<ref>'''1850 Census''': 1850 United States Federal Census. Original data - United States of America, Bureau of the Census. Seventh Census of the United States, 1850. Washington, D.C.: National Archives and Records Administration, 1850. M432, 1,009 rolls,<br/>
+Year: 1850; Census Place: Lockport, Niagara, New York; Roll: M432_560; Page: 105; Image: 215. Birth date: abt 1837 Birth place: England Residence date: 1850 Residence place: Lockport, Niagara, New York.<br/>
+{{Ancestry Record|1850usfedcenancestry|7651285}} (accessed 16 July 2020).</ref>
+
+In 1855 Sophia (age about 17) was living in [https://www.openstreetmap.org/?mlat=43.1706&mlon=-78.6903 Lockport, Niagara, New York, USA]. Relation to Head of House: Daughter.<ref>'''Residence''': New York, State Census, 1855.</ref>
+
+When Sophia was about 18 she married Elijah Plumbtree in 1856 in Lockport, Niagara, New York, United States. The couple had 10 children: Elijah Plumbtree, Guy Nelson Plumbtree, Ida Mae May Plumbtree, John A Plumbtree, Phebe Plumtree, Vincent Plumbtree, Rose I Plumbtree, Lulu Plumbtree, George Henry Plumbtree and Priscilla Plumbtree.<ref>'''Marriage''': 1900 United States Federal Census. Original data - United States of America, Bureau of the Census. Twelfth Census of the United States, 1900. Washington, D.C.: National Archives and Records Administration, 1900. T623, 1854 rolls,<br/>
+Year: 1900; Census Place: Kewanne, Henry, Illinois; Roll: ; Page: ; Enumeration District: . Birth date: Aug 1832 Birth place: England Marriage date: 1856 Marriage place: Residence date: 1900 Residence place: Kewanee Township (Excl. Kewanee City), Henry, Illinois Arrival date: 1849 Arrival place:.<br/>
+{{Ancestry Record|1900usfedcen|12177615}} (accessed 16 July 2020).</ref>
+
+In the 1860 census Sophia (age 23) was living in [https://www.openstreetmap.org/?mlat=43.1706&mlon=-78.6903 Greenville, Bureau, Illinois].<ref>'''1860 Census''': 1860 United States Federal Census. Original data - United States of America, Bureau of the Census. Eighth Census of the United States, 1860. Washington, D.C.: National Archives and Records Administration, 1860. M653, 1,438 rolls,<br/>
+Year: 1860; Census Place: Greenville, Bureau, Illinois; Roll: M653_158; Page: 0; Image: 474. Birth date: abt 1838 Birth place: England Residence date: 1860 Residence place: Greenville, Bureau, Illinois.<br/>
+{{Ancestry Record|1860usfedcenancestry|37656410}} (accessed 16 July 2020).</ref>
+
+In the 1870 census Sophia (age 33) was living in [https://www.openstreetmap.org/?mlat=41.2456&mlon=-89.9248 Kewanee, Henry, Illinois, USA].<ref>'''1870 Census''': 1870 United States Federal Census. Original data - United States. Ninth Census of the United States, 1870. Washington, D.C. National Archives and Records Administration. M593, RG29, 1,761 rolls. Minnesota. Minnesota Census Schedu,<br/>
+Year: 1870; Census Place: Kewanee, Henry, Illinois; Roll: M593_230; Page: 1A; Family History Library Film: 545729.</ref>
+
+In the 1880 census Sophia (age 43) was living in [https://www.openstreetmap.org/?mlat=43.1706&mlon=-78.6903 Kewanee, Henry, Illinois, United States].<ref>'''1880 Census''': 1880 United States Federal Census. 1880 U.S. Census Index provided by The Church of Jesus Christ of Latter-day Saints © Copyright 1999 Intellectual Reserve, Inc. All rights reserved. All use is subject to the limited use licen,<br/>
+Year: 1880; Census Place: Kewanee, Henry, Illinois; Roll: 213; Family History Film: 1254213; Page: 358C; Enumeration District: 113; Image: 0276. Birth date: abt 1837 Birth place: England Residence date: 1880 Residence place: Kewanee, Henry, Illinois, United States.<br/>
+{{Ancestry Record|1880usfedcen|21164614}} (accessed 16 July 2020).</ref>
+
+In the 1900 census Sophia (age 63) was living in [https://www.openstreetmap.org/?mlat=43.1706&mlon=-78.6903 Kewanee Township (Excl. Kewanee City), Henry, Illinois].<ref>'''1900 Census''': 1900 United States Federal Census. Original data - United States of America, Bureau of the Census. Twelfth Census of the United States, 1900. Washington, D.C.: National Archives and Records Administration, 1900. T623, 1854 rolls,<br/>
+Year: 1900; Census Place: Kewanne, Henry, Illinois; Roll: ; Page: ; Enumeration District: . Birth date: Apr 1837 Birth place: England Marriage date: 1856 Marriage place: Residence date: 1900 Residence place: Kewanee Township (Excl. Kewanee City), Henry, Illinois Arrival date: 1848 Arrival place:.<br/>
+{{Ancestry Record|1900usfedcen|12177616}} (accessed 16 July 2020).</ref>
+
+== Research Notes ==
+=== Issues to be checked ===
+Generated by WikiTree AGC. This section should be removed when all issues have been looked at.
+* A fact of type 'Departure' had no date but shared a record ID with a 'Arrival' fact with the date '29 May 1848'. So the fact with no date had its date set to that.
+* Changed '''Current Last Name''' from LNAB of 'Bowler' to the last name 'Plumbtree' of the last husband 'Elijah Plumbtree'.
+
+== Sources ==
+<references />
+See also:
+* "New York Passenger Lists, 1820-1891," database with images, FamilySearch (https://familysearch.org/ark:/61903/1:1:27GY-M2S : 11 March 2018), Sophia Bowler, 1848; citing NARA microfilm publication M237 (Washington, D.C.: National Archives and Records Administration, n.d.); FHL microfilm
+* Find A Grave, database and images (https://www.findagrave.com : accessed 31 December 2018), memorial page for Sophia Plumfree (unknown–1908), Find A Grave Memorial no. 112445723, citing Pleasant View Cemetery, Kewanee, Henry County, Illinois, USA ; Maintained by K. Roberts (contributor 46807847)
+* "England and Wales Census, 1841," database with images, FamilySearch (https://familysearch.org/ark:/61903/1:1:M7QD-4XY : 13 December 2017), Sophia Bowler in household of Vincent Bowler, Rotherfield Greys, Oxfordshire, England; from "1841 England, Scotland and Wales census," database and images, findmypast (http://www.findmypast.com : n.d.); citing PRO HO 107, The National Archives, Kew, Surrey
+* "United States Census, 1850," database with images, FamilySearch (https://familysearch.org/ark:/61903/1:1:MCBJ-TZX : 12 April 2016), Sophia Bowler in household of Thomas Owen, Lockport, Niagara, New York, United States; citing family 1632, NARA microfilm publication M432 (Washington, D.C.: National Archives and Records Administration, n.d.)
+* "United States Census, 1860", database with images, FamilySearch (https://familysearch.org/ark:/61903/1:1:MXHQ-SLC : 13 December 2017), Sophia Plumtree in entry for Elijah Plumtree, 1860
+* "United States Census, 1880," database with images, FamilySearch (https://familysearch.org/ark:/61903/1:1:MXJ5-CWN : 22 August 2017), Sophia Plumbtree in household of Elijah Plumbtree, Kewanee, Henry, Illinois, United States; citing enumeration district ED 113, sheet 358C, NARA microfilm publication T9 (Washington D.C.: National Archives and Records Administration, n.d.), roll 0213; FHL microfilm 1,254,213
+* "United States Census, 1900," database with images, FamilySearch (https://familysearch.org/ark:/61903/1:1:MSWC-6PV : accessed 31 December 2018), Sophia Plumtree in household of Elijah Plumtree, Kewanee Township (excl. Kewanee city), Henry, Illinois, United States; citing enumeration district (ED) 15, sheet 1A, family 6, NARA microfilm publication T623 (Washington, D.C.: National Archives and Records Administration, 1972.); FHL microfilm 1,240,306

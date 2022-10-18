@@ -1,0 +1,11 @@
+This person was created through the import of mccordfam (1).ged on 15 April 2011.  The following data was included in the gedcom. You may wish to edit it for readability.
+
+=== User ID ===
+: User ID:  89533CAC8EC18743AA70B6488579B28A2F7E
+
+
+=== Data Changed ===
+: Data Changed:  
+:: Date:  15 Jul 2005
+::: Time:  23:52:21
+Prior to import, this record was last changed 23:52:21 15 Jul 2005.

@@ -1,0 +1,66 @@
+== Biography ==
+
+
+
+=== Name ===
+: Name:  Sarah Jane /Chafin/
+:: Given Name:  Sarah Jane
+:: Surname:  Chafin<ref>Source: [[#S94]] </ref><ref>Source: [[#S101]]  Page:  (http://www.findagrave.com/cgi-bin/fg.cgi?page=gr&GRid=18832238). Quality or Certainty of Data:  3</ref><ref>Source: [[#S101]] </ref>
+
+=== Birth ===
+: Birth:  
+:: Date:  10 Jan 1832<ref>Source: [[#S94]] </ref><ref>Source: [[#S101]] </ref>
+
+=== Death ===
+: Death:  
+:: Date:  22 Aug 1868<ref>Source: [[#S94]] </ref><ref>Source: [[#S101]] </ref>
+
+=== Burial ===
+: Burial:  <ref>Source: [[#S94]] </ref>
+:: Note: [[#XI3562]]
+
+=== User ID ===
+: User ID:  31DE923682E2492E946B7B703AE682337182
+
+=== Data Changed ===
+: Data Changed:  
+:: Date:  14 May 2011
+::: Time:  15:30
+Prior to import, this record was last changed 15:30 14 May 2011.
+
+=== Note ===
+: Note: [[#NI3562]]
+
+=== Marriage ===
+
+: Husband:  [[Almand-29|Joseph Hamilton Almand]]
+: Wife:  [[Chafin-11|Sarah Jane Chafin]]
+: Marriage:  
+:: Date:  25 Sep 1856
+:: Place:  , Newton, Georgia, USA<ref>Source: [[#S101]] </ref>
+: Child:  [[Almand-116|Mary Magdalene Almand]]
+: Child:  [[Almand-70|Alpharetta Ophelia Almand]]
+: Child:  [[Almand-117|Austavus A. Almand]]
+: Child:  [[Almand-71|Luther J. Almand]]
+: Child:  [[Almand-72|Arthur J. Almand]]
+: Data Changed:  
+:: Date:  14 May 2011
+::: Time:  15:29
+
+== Sources ==
+
+* WikiTree profile Chafin-11 created through the import of Godfrey non-living.ged on Jun 14, 2011 by [[Godfrey-417 | Jim Godfrey]]. See the [http://www.wikitree.com/index.php?title=Special:NetworkFeed&who=Chafin-11 Changes page] for the details of edits by Jim and others.
+
+* Source: <span id='S101'>S101</span> Abbreviation:  Almand, Sarah Jane Chafin findagrave website Title:  Database and images. Publication:  http://www.findagrave.com/cgi-bin/fg.cgi?page=gr&GRid=18832238.  
+* Source: <span id='S94'>S94</span> Abbreviation:  Almand, Joseph Hamilton findagrave website Title:  Database and images. Publication:  http://www.findagrave.com/cgi-bin/fg.cgi?page=gr&GRid=18827945.  
+
+=== Notes ===
+: Note <span id='NI3562'>NI3562</span>Sarah Jane Chafin is the THIRD WIFE to Joseph Hamilton Almand. They were married in Newton County on the 25th of September, 1856.
+: 
+: Together, Sara Jane and Joseph had FIVE (5) Children; Mary Magdalene Almand TUCKER, Alpharetta O. Almand BUICE, Gustavus A. Almand, Luther J. Almand and Arthur J. Almand.
+
+: Note <span id='XI3562'>XI3562</span>Findagrave # 18832238
+
+<references />
+
+<!-- Please edit, add, or delete anything in this text, including this note. Be bold and experiment! If you make a mistake you can always see the previous version of the text on the Changes page. -->

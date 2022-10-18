@@ -1,0 +1,57 @@
+[[Category:Scotland, Needs Merge Review]]
+== Biography ==
+James was born in 1802. James Barr ... He passed away in 1860.
+
+James was born on 24 March 1802 in Kirkintilloch, Dunbartonshire, Scotland.
+
+In the 1850 census James was living in Gibson, Cameron, Pennsylvania, USA.<ref>'''1850 Census''': Author: Ancestry.com Title: 1850 United States Federal Census Publication: Name: Online publication - Provo, UT, USA: Ancestry.com Operations, Inc., 2009. Images reproduced by FamilySearch. Original data - Seventh Census of the United States, 1850; (National Archives Microfilm Publication M432, 1009 rolls); Records of the Bureau of the,<br/>
+Page: Year: 1850; Census Place: Gibson, Elk, Pennsylvania; Roll: M432_776; Page: 329A; Image:.<br/>
+{{Ancestry Record|1850usfedcenancestry|250752}} (accessed 16 July 2020),<br/>
+Birth date: abt 1802; Birth place: Pennsylvania; Residence date: 1850; Residence place: Gibson, Elk, Pennsylvania.</ref>
+
+In the 1850 census James was living in South Bloomfield, Morrow, Ohio, USA.<ref>'''1850 Census''': Author: Ancestry.com Title: 1850 United States Federal Census Publication: Name: Online publication - Provo, UT, USA: Ancestry.com Operations, Inc., 2009. Images reproduced by FamilySearch. Original data - Seventh Census of the United States, 1850; (National Archives Microfilm Publication M432, 1009 rolls); Records of the Bureau of the,<br/>
+Page: Year: 1850; Census Place: South Bloomfield, Morrow, Ohio; Roll: M432_716; Page: 523B; Image:.<br/>
+{{Ancestry Record|1850usfedcenancestry|14309382}} (accessed 16 July 2020),<br/>
+Birth date: abt 1801; Birth place: Pennsylvania; Residence date: 1850; Residence place: South Bloomfield, Morrow, Ohio.</ref>
+
+James died on 14 February 1860 in Gibson, Cameron, Pennsylvania, USA.<ref>'''Death''': Author: Ancestry.com Title: U.S. Federal Census Mortality Schedules, 1850-1885 Publication: Name: Online publication - Provo, UT, USA: Ancestry.com Operations, Inc., 2010. A portion of this collection was indexed by Ancestry World Archives Project contributors. Original data - State CitationUnited States. Federal Mortality Census Schedules, 1850-1880 (f.<br/>
+{{Ancestry Record|usmortality|2385302}} (accessed 16 July 2020),<br/>
+Birth date: abt 1802; Birth place: PennsylvaniaDeath date: Feb 1860; Death place: Elk, Pennsylvania.</ref>
+<ref>'''Death''': Author: Jackson, Ron V., Accelerated Indexing Systems, comp. Title: U.S. Federal Census Mortality Schedules Index Publication: Name: Online publication - Provo, UT, USA: Ancestry.com Operations Inc, 1999. Original data - Compiled and digitized by Mr. Jackson and AIS from microfilmed schedules of the U.S. Federal Decennial Census, territorial/state censuses, and/or census substitutes.Orig.<br/>
+{{Ancestry Record|mortalitycen|184775}} (accessed 16 July 2020),<br/>
+Birth date: abt 1802; Birth place: PADeath date: Feb 1860; Death place: Elk CO., PA.</ref>
+
+In 1861 James was living in Kirkintilloch, Dunbartonshire, Scotland.<ref>'''Residence''': Author: Ancestry.com Title: 1861 Scotland Census Publication: Name: Online publication - Provo, UT, USA: Ancestry.com Operations Inc, 2006. Original data - Scotland. 1861 Scotland Census. Reels 1-150. General Register Office for Scotland, Edinburgh, Scotland.Original data: Scotland. 1861 Scotland Census. Reels 1-150. Genera.<br/>
+{{Ancestry Record|1861scotland|2526128}} (accessed 16 July 2020),<br/>
+Birth date: abt 1805; Birth place: Kirkintilloch, Dumbartonshire; Residence date: 1861; Residence place: Kirkintilloch, Dumbartonshire, Scotland.</ref>
+
+In the 1870 census James was living in Buffalo, Washington, Pennsylvania, USA.<ref>'''1870 Census''': Author: Ancestry.com Title: 1870 United States Federal Census Publication: Name: Online publication - Provo, UT, USA: Ancestry.com Operations, Inc., 2009. Images reproduced by FamilySearch. Original data - 1870 U.S. census, population schedules. NARA microfilm publication M593, 1,761 rolls. Washington, D.C.: National Archives and Record,<br/>
+Page: Year: 1870; Census Place: Buffalo, Washington, Pennsylvania; Roll: M593_; Page: ; Image:.<br/>
+{{Ancestry Record|1870usfedcen|3791002}} (accessed 16 July 2020),<br/>
+Birth date: abt 1801; Birth place: Pennsylvania; Residence date: 1870; Residence place: Buffalo, Washington, Pennsylvania, United States.</ref>
+
+In the 1880 census James was living in Greeley, Shelby, Iowa, USA.<ref>'''1880 Census''': Author: Ancestry.com and The Church of Jesus Christ of Latter-day Saints Title: 1880 United States Federal Census Publication: Name: Online publication - Provo, UT, USA: Ancestry.com Operations Inc, 2010. 1880 U.S. Census Index provided by The Church of Jesus Christ of Latter-day Saints © Copyright 1999 Intellectual Reserve, Inc. All rights reserved. All use is subject to the limited,<br/>
+Page: Year: 1880; Census Place: Greeley, Shelby, Iowa; Roll: 364; Family History Film: 1254364; Page: 25A; Enumeration District: 204; Image: 0299.<br/>
+{{Ancestry Record|1880usfedcen|32867089}} (accessed 16 July 2020),<br/>
+Birth date: abt 1830; Birth place: Pennsylvania; Residence date: 1880; Residence place: Greeley, Shelby, Iowa, United States.</ref>
+
+== Research Notes ==
+=== Sources with no fact or date ===
+
+There are additional sources with no facts or date. Often these are sources for the baptism or marriage of children that mention the parents or father. This section can just be removed if you will be adding those children and using these sources there.<ref>'''Unclassified''': Ancestry Member Family Tree,<br/>
+{{Ancestry Tree|25352682|92}}.</ref>
+
+=== Alternate Names ===
+
+There are alternate names for this person:
+* James Barr
+* James Augustus Barr
+
+=== Issues to be checked ===
+Generated by WikiTree AGC. This section should be removed when all issues have been looked at.
+* There is more than one birth fact. They have different locations. Using birth date of 24 March 1802 and location of Kirkintilloch, Dunbartonshire, Scotland
+** Date: 24 March 1802, Location: Kirkintilloch, Dunbartonshire, Scotland
+** Date: 24 March 1802, Location: Centre, Pennsylvania, USA
+
+== Sources ==
+<references />

@@ -1,0 +1,46 @@
+== Biography ==
+'''Name:''' Leonard Pavey IV.
+<ref name="ref_0">
+Source: [[#S-215451279]] {{Ancestry Record|9841|173229490}}
+</ref>
+<ref name="ref_1">
+Source: [[#S-215451279]] {{Ancestry Record|9841|173229450}}
+</ref>
+<ref name="ref_2">
+Source: [[#S-207291071]] {{Ancestry Record|2448|111093}}
+</ref>
+<ref name="ref_3">
+Source: [[#S-207291071]] {{Ancestry Record|2448|111133}}
+</ref>
+<ref name="ref_4">
+Source: [[#S-207291071]] {{Ancestry Record|2448|111209}}
+</ref>
+<ref name="ref_5">
+Source: [[#S-207291071]] {{Ancestry Record|2448|111241}}
+</ref>
+<ref name="ref_6">
+Source: [[#S-207291071]] {{Ancestry Record|2448|111399}}
+</ref>
+'''Buried''' "Leonard Pavey of Stockland" http:/search.findmypast.co.ukrecord?id=gbprs%2fdev%2f007341977%2f00289&parentid=gbprs%2fdev%2fbur%2f819827&highlights=%22%22.
+30 Sep 1783.
+Yarcombe, Devon, England.
+<ref name="ref_7">
+Source: [[#S804210530]] 1150A/PR/1/1 Note: http://search.findmypast.co.uk/record?id=gbprs%2fdev%2fbur%2f819827
+</ref>
+'''Baptism:''' http:/search.findmypast.co.ukrecord?id=gbprs%2fdev%2fbap%2f1040102.
+23 Jun 1700.
+Yarcombe,Devon,England
+<ref name="ref_1"/>
+'''Residence''' Mentioned in Dorset Quarter Sessions. Also mentions his wife Ann. Occupation: Carpenter.
+1735
+Membury, Devon, England.
+From son John's baptism.
+01 Oct 1738.
+Membury, Devon, England.
+
+== Sources ==
+<references />
+* Source: <span id='S-207291071'>S-207291071</span> Dorset, England, Quarter Sessions Order Books, 1625-1905 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|2448|0}}
+* Source: <span id='S-215451279'>S-215451279</span> England, Select Births and Christenings, 1538-1975 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|9841|0}}
+* Source: <span id='S804210530'>S804210530</span> Devon Burials Note:
+

@@ -1,0 +1,58 @@
+== Biography ==
+'''Born'''
+abt 1876.
+Westminster, London, England.
+<ref name="ref_0">
+Source: [[#S-215463703]] Class: RG13; Piece: 134; Folio: 121; Page: 11 {{Ancestry Record|7814|2033094}}
+</ref>
+<ref name="ref_1">
+Source: [[#S807540334]] {{Ancestry Record|8914|5978796}}
+</ref>
+<ref name="ref_2">
+Source: [[#S-215458923]] Class: RG11; Piece: 10; Folio: 8; Page: 10; GSU roll: 1341002 {{Ancestry Record|7572|13047752}}
+</ref>
+1877
+1877
+Soho, London, England.
+''Found multiple copies of birth date. Using abt 1876''
+'''Died'''
+January 1905.
+Paddington, London.
+<ref name="ref_1"/>
+'''Residence''' Relationship to Head: Granddaughter.
+1881
+Paddington, London, England.
+<ref name="ref_2"/>
+Relation to Head: Daughter.
+1891
+Streatham, London, England.
+Relation to Head: Wife.
+1901
+St Pancras, London, England.
+<ref name="ref_0"/>
+'''Baptism:'''
+1 Sep 1878.
+Paddington Holy Trinity, England.
+<ref name="ref_3">
+Source: [[#S-215505781]] London Metropolitan Archives, Paddington Holy Trinity, Register of Baptism, p87/tri, Item 004 {{Ancestry Record|1558|4594599}}
+</ref>
+'''Marriage'''
+April 1893.
+Rochford, Essex.
+<ref name="ref_4">
+Source: [[#S-215463847]] {{Ancestry Record|8913|5105174}}
+</ref>
+'''Note:''' Kate may have been born before her mother Alice met John Chantler. Kate may have been christened as a child of Alice's parents.
+'''File'''
+File: {{Ancestry Tree Media|86808578|4baf75f8-1784-467e-8e97-09085bb0d623}}
+Format: jpg.
+HattAsplandWhitingAlice&Kids
+
+== Sources ==
+<references />
+* Source: <span id='S-215458923'>S-215458923</span> 1881 England Census Ancestry.com and The Church of Jesus Christ of Latter-day Saints Publication: Ancestry.com Operations Inc {{Ancestry Record|7572|0}}
+* Source: <span id='S-215463703'>S-215463703</span> 1901 England Census Ancestry.com Publication: Ancestry.com Operations Inc {{Ancestry Record|7814|0}}
+* Source: <span id='S-215463847'>S-215463847</span> England & Wales, FreeBMD Marriage Index, 1837-1915 FreeBMD Publication: Ancestry.com Operations Inc {{Ancestry Record|8913|0}}
+* Source: <span id='S-215505781'>S-215505781</span> London, England, Births and Baptisms, 1813-1906 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|1558|0}}
+* Source: <span id='S807540334'>S807540334</span> England & Wales, Civil Registration Death Index, 1837-1915 FreeBMD Publication: Ancestry.com Operations Inc Note: General Register Office. <i>England and Wales Civil Registration Indexes</i>. London, England: General Register Office. © Crown copyright. Published by permission of the Controller of HMSO and the Office for National Statistics. You must not copy on, transfer or reproduce records without the prior permission of ONS. Database Copyright © 1998-2003 Graham Hart, Ben Laurie, Camilla von Massenbach and David Mayall. {{Ancestry Record|8914|0}}
+

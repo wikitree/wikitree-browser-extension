@@ -1,0 +1,49 @@
+== Biography ==
+William was born in about 1883 in Pimlico, London, England.
+
+In the 1901 census William was living in Battersea, London, England. Relation to Head of House: Son.<ref>'''1901 Census''': [https://www.familysearch.org/search/record/results?q.givenName=William&q.surname=Philips&q.birthLikeDate.from=1882&q.birthLikeDate.to=1884&q.birthLikePlace=Pimlico,%20London,%20England.&q.residenceDate.from=1901&q.residenceDate.to=1901&q.residencePlace=Battersea,%20London,%20England.&f.collectionId=1888129 1901 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?_dss=range&_sd=1901&_ed=1901&_hb=tna&_q=Census+Returns+1901+RG13+447 The National Archives], reference: Class: RG13; Piece: 447; Folio: 27; Page: 46.<br/>
+{{Ancestry Record|7814|21099086}} (accessed 16 July 2020).</ref>
+
+William married Rose Edith Richardson on 16 November 1907 in St Barnabas, Clapham Common, England. The couple had 2 children: William Henry Phillips and Rose Phillips.<ref>'''Marriage''': London, England, Marriages and Banns, 1754-1921,<br/>
+London Metropolitan Archives, Saint Barnabas, North Side, Register of banns of marriage, P70/BAN, Item 030.<br/>
+{{Ancestry Record|1623|3714032}} (accessed 16 July 2020).</ref>
+<ref>'''Marriage''': [https://www.freebmd.org.uk/cgi/search.pl?type=Marriages&given=William%20Henry&surname=Philips&start=1907&end=1907 FreeBMD Marriage Index].<br/>
+{{Ancestry Record|8913|22489572}} (accessed 16 July 2020).</ref>
+<ref>'''Marriage''': London, England, Marriages and Banns, 1754-1921,<br/>
+London Metropolitan Archives, Saint Barnabas, North Side, Register of marriages, P70/BAN, Item 016.<br/>
+{{Ancestry Record|1623|3721702}} (accessed 16 July 2020).</ref>
+<ref>'''Marriage''': [https://www.familysearch.org/search/record/results?q.givenName=William&q.surname=Philips&q.birthLikeDate.from=1882&q.birthLikeDate.to=1884&q.birthLikePlace=Pimlico,%20London,%20England.&q.residenceDate.from=1911&q.residenceDate.to=1911&q.residencePlace=St%20Barnabas,%20Clapham%20Common,%20England.&f.collectionId=1921547 1911 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?id=C13339&_q=RG14+10174 The National Archives], reference: Class: RG14; Piece: 10174; Schedule Number: 402.<br/>
+{{Ancestry Record|2352|53365684}} (accessed 16 July 2020).</ref>
+
+William arrived in 1911.
+
+In the 1911 census William was living in South Shoebury, Essex, England. Marital Status: Married. Relation to Head of House: Head.<ref>'''1911 Census''': [https://www.familysearch.org/search/record/results?q.givenName=William&q.surname=Philips&q.birthLikeDate.from=1882&q.birthLikeDate.to=1884&q.birthLikePlace=Pimlico,%20London,%20England.&q.residenceDate.from=1911&q.residenceDate.to=1911&q.residencePlace=South%20Shoebury,%20Essex,%20England.&f.collectionId=1921547 1911 Census Returns of England and Wales], original data from [https://discovery.nationalarchives.gov.uk/results/r?id=C13339&_q=RG14+10174 The National Archives], reference: Class: RG14; Piece: 10174; Schedule Number: 402.<br/>
+{{Ancestry Record|2352|53365684}} (accessed 16 July 2020).</ref>
+
+In the 1916 census William was living in Regina, Saskatchewan, Canada. Marital Status: Married. Relation to Head: Self.<ref>'''1916 Census''': 1916 Canada Census of Manitoba, Saskatchewan, and Alberta,<br/>
+Year: 1916; Census Place: Saskatchewan, Regina, 03I; Roll: T-21943; Page: 2; Family No: 10.<br/>
+{{Ancestry Record|1556|760124963}} (accessed 16 July 2020).</ref>
+
+In the 1921 census William was living in Regina, Regina, Saskatchewan, Canada. Marital Status: Married. Relation to Head of House: Head.<ref>'''1921 Census''': 1921 Census of Canada,<br/>
+Reference Number: RG 31; Folder Number: 159; Census Place: Regina (City), Regina, Saskatchewan; Page Number: 9.<br/>
+{{Ancestry Record|8991|7111954}} (accessed 16 July 2020).</ref>
+
+William departed  in 1921 and arrived in Quebec, Canada in September 1921.<ref>'''Arrival''': Canada, Ocean Arrivals (Form 30A), 1919-1924,<br/>
+Library and Archives Canada; Form 30A Ocean Arrivals (Individual Manifests), 1919-1924; Rolls: T-14939 - T-15248.<br/>
+{{Ancestry Record|1588|631155}} (accessed 16 July 2020).</ref>
+
+William died on 6 December 1946 and was buried in Regina, Regina Census Division, Saskatchewan, Canada.<ref>'''Burial''': Canada, Find A Grave Index, 1600s-Current.<br/>
+{{Ancestry Record|60527|1103155}} (accessed 16 July 2020).</ref>
+
+== Research Notes ==
+=== Sources with no fact or date ===
+
+There are additional sources with no facts or date. Often these are sources for the baptism or marriage of children that mention the parents or father. This section can just be removed if you will be adding those children and using these sources there.<ref>'''Unclassified''': Manitoba, Saskatchewan and Alberta, Canada, Homestead Grant Registers, 1872-1930.<br/>
+{{Ancestry Record|9209|218049}} (accessed 16 July 2020).</ref>
+
+=== Issues to be checked ===
+Generated by WikiTree AGC. This section should be removed when all issues have been looked at.
+* A burial fact had no date. Changed its date to be after the death date.
+
+== Sources ==
+<references />

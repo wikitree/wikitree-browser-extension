@@ -1,0 +1,56 @@
+== Biography ==
+'''Name:''' August Katenbeck.
+<ref name="ref_0">
+Source: [[#S-215504204]] Guildhall, St Leonard Shoreditch, Register of marriages, May 1781 - Jul 1783, P91/LEN/A/01/Ms 7498/12 {{Ancestry Record|1623|989383}}
+</ref>
+<ref name="ref_1">
+Source: [[#S-215451279]] {{Ancestry Record|9841|1452927}}
+</ref>
+<ref name="ref_2">
+Source: [[#S-214831252]] London Metropolitan Archives, All Saints, Edmonton, Composite register: baptisms Jan 1793 - Dec 1812, burials Jan 1792 - Dec 1812, DRO/040/A/01/005 {{Ancestry Record|1624|121938}}
+</ref>
+<ref name="ref_3">
+Source: [[#S807086700]] {{Ancestry Record|1768|8202}}
+</ref>
+<ref name="ref_4">
+Source: [[#S-215426204]] {{Ancestry Record|9852|2049655}}
+</ref>
+'''Died'''
+abt 1803.
+<ref name="ref_2"/>
+'''Residence'''
+Saint Leonard, Shoreditch, Middlesex.
+<ref name="ref_3"/>
+'''Buried'''
+10 Nov 1803.
+All Saints, Edmonton, Middlesex, England.
+<ref name="ref_2"/>
+'''Marriage'''
+Husband August Katenbeck.
+Wife Ann Priestley.
+Child: Anna Maria Katenbeck.
+Child: Augustus Katenbeck.
+Child: Anna Elizabeth Katenbeck.
+Child: Sarah Sophia Katenbeck.
+Child: Mary Alice Katenbeck.
+Marriage
+20 Apr 1783.
+St Leonard, Shoreditch, England.
+<ref>
+Source: [[#S-215504204]] Guildhall, St Leonard Shoreditch, Register of marriages, May 1781 - Jul 1783, P91/LEN/A/01/Ms 7498/12 {{Ancestry Record|1623|989383}}
+</ref>
+<ref>
+Source: [[#S807086700]] {{Ancestry Record|1768|8202}}
+</ref>
+<ref>
+Source: [[#S-215426204]] {{Ancestry Record|9852|2049655}}
+</ref>
+
+== Sources ==
+<references />
+* Source: <span id='S-214831252'>S-214831252</span> London, England, Baptisms, Marriages and Burials, 1538-1812 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|1624|0}}
+* Source: <span id='S-215426204'>S-215426204</span> England, Select Marriages, 1538–1973 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|9852|0}}
+* Source: <span id='S-215451279'>S-215451279</span> England, Select Births and Christenings, 1538-1975 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|9841|0}}
+* Source: <span id='S-215504204'>S-215504204</span> London, England, Marriages and Banns, 1754-1921 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|1623|0}}
+* Source: <span id='S807086700'>S807086700</span> London, England, Crisp's Marriage Licence Index, 1713-1892 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|1768|0}}
+

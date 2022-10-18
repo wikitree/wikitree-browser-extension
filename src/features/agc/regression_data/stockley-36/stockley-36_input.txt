@@ -1,0 +1,94 @@
+
+[[Category:Accomack County, Virginia]]
+==Biography==
+
+=== Birth ===
+:: Date:  1658
+:: Place:  Assawomen, Accomack, VA<ref>Source: [[#S1]]  Data:   Text:  Date of Import: Jun 3, 2003</ref>
+===Marriage===
+: MARR 
+: DATE 1648
+: PLAC Accomac, Accomack, Virginia, United States
+: PAGE Source number: 15199.000; Source type: Electronic Database; Number of Pages: 1; Submitter Code: WAY.
+: NOTE http://trees.ancestry.com/rd?f=sse&db=worldmarr_ga&h=1356369&ti=0&indiv=try&gss=pt
+: Birth date:  1630Birth place:  VAMarriage date:  1645Marriage place:  VA
+=== Death ===
+:: Date:  BEF 03 MAY 1737
+:: Place:  Assawomen, Accomack, VA<ref>Source: [[#S1]]  Data:   Text:  Date of Import: Jun 3, 2003</ref>
+
+== Sources ==
+<references />
+* Source: <span id='S1'>S1</span> Title:  2079173.ged NOTE Source Medium: Other 
+* Source S-2118543885:  Ancestry Family Trees, Online publication - Provo, UT, USA: Ancestry.com:  Family Tree files submitted by Ancestry members.
+* Source: <span id='S-2098469091'>S-2098469091</span> Repository: [[#R-214262141]] Title:  Ancestry Family Trees Publication:  Online publication - Provo, UT, USA: Ancestry.com.  Original data:  Family Tree files submitted by Ancestry members. http://trees.ancestry.com/pt/AMTCitationRedir.aspx?tid=12471094&pid=390 
+
+* Repository: <span id='R-2142962141'>R-2142962141</span> Name:  Ancestry.com Address:  http://www.Ancestry.com Note:  
+* Source: <span id='S-2099802430'>S-2099802430</span> Repository: [[#R-2142962141]] Title:  U.S. and International Marriage Records, 1560-1900 Author:  Yates Publishing Publication:  Online publication - Provo, UT, USA: The Generations Network, Inc., 2004.
+
+: Source S-2118543885
+: TITL Ancestry Family Trees
+: PUBL Online publication - Provo, UT, USA: Ancestry.com.  Original data:  Family Tree files submitted by Ancestry members.
+
+: Repository R-2118543887
+: NAME Ancestry.com
+: ADDR http://www.Ancestry.com
+
+: Repository R-2118543887
+: NAME Ancestry.com
+: ADDR http://www.Ancestry.com
+=== Notes ===
+: Note <span id='N185'>N185</span>[2079173.ged]
+: 
+: !HISTORY: DONELSON, TENNESSE Its History and Landmarks, by Leona Taylor Aiken,
+: Page 310: RACHEL STOCKLY DONESLON.
+: The ancestral line of Rachel Stockly in america began with John Stockly,
+: gentleman, (who) resided in the Colony of Virginia, from 1637 until his death
+: in 1673.  His plantation was at Assawoman, Accomack County, Virginia, in
+: which county he received patents for some 3,600 acres of land.  He was a
+: Burgess for the county in 1672, his activities extending over a period from
+: 1640 until his death.  He was the great-grantdfather of Rachel Stockly who
+: married Colonel John Donelson II.  Her Parents were Alexander and Jane
+: Mathews Stockly. (note Burke, Emily Donelson, Book I, p. 3) and Chatp. I,
+: note 11, Book II p. 163, & W. W. Clayton, History of Davidson County, 1880,
+: pg. 137)
+: The name Stockly is spelled several different ways.  The family considers
+: Stockley to be correct.  Mrs. Pauline Wilcox Burke in EMILY DONELSON OF
+: TENNESSE sticks to the Stockly spelling.  In her notes she also states that
+: "The name Donelson is seen in the records as Donelson, Donnelson, Donaldson,
+: Donalson, Donnoldson, Donnaldson.  Colonel John Donelson was very particular
+: as to the spelling of his name and had his silver marked: 'J. D.'"
+: Their children were: Alexander who never married; Mary who married Capt.
+: John Caffry of Louisiana; Catherine married Col. Thomas Hutchings; Stockly
+: married Mrs. Elizabeth Martin and had no children; Jane married Col. Robert
+: Hays and left a large family; John married Mary Purnell of Snow Hill, Md.;
+: William married Charity Dickerson and had a large family; Samuel married Mary
+: "Polly" Smith and had John, Andrew Jackson Donelson and Gen. Daniel S.
+: Donelson; Severn married Elizabeth Rucker and had sons, A. J., Thomas, John,
+: Samuel and Alexander; Rachel married first, Robards, and second, Gen. Andrew
+: Jackson; Leven Donelson never married.
+: HISTORY: THE ANCESTORS AND DESCENDANTS OF CHARLES CARY CLIFT, FHL 929.273 C613p
+: or 1,035,536, pg52:
+: "Jospeh Stockley...His father: John Stockley born 1621, died prior Aug. 18
+: 1674.  His mother: Elizabeth (?) Woodman (?) died prior Aug. 6, 1707.
+: Married Mary____.
+: Children:
+: 1. Jospeh Stockley, Married Naomi ____.  They had Nehemiah who heired in
+: 1760.
+: 2. Elias Stockley, died after 1752 intestate.  He married and had a son
+: George Stockley.
+: 3. Alexander Stockley, died after 1752.  He married Ann Stockley, a daughter
+: of Charles Stockley.  In land transactions, he became owner of both his and
+: Elias share of inherited land of A140B.  This couple had (probably among
+: others) Rachel Stockley who married Colonel John Donelson.  The Donelson's
+: had 11 children, the youngest of whom, Rachel Donelson, was to becaome the
+: wife of Andrew Jackson.
+: pg. 50:
+: ...John Stockley
+
+=== Acknowledgments ===
+
+Thank you to [[Burton-2487 | Merilee Burton]] for creating WikiTree profile Stockley-122 through the import of burton[1].ged_2013-12-25.ged on Dec 26, 2013. Click to the Changes page for the details of edits by Merilee and others.
+
+WikiTree profile Stockley-122 created through the import of Coley Wolford Stayton McCarroll Bond.ged on Aug 7, 2011 by Tom Coley. See the Changes page for the details of edits by Tom and others.
+
+<!-- Please edit, add, or delete anything in this text. Thank you! -->

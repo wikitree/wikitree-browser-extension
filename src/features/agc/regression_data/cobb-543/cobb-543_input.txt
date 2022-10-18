@@ -1,0 +1,25 @@
+This person was created through the import of Grant R. Phillips, Jr..ged on 08 April 2011.  The following data was included in the gedcom. You may wish to edit it for readability.
+
+=== Source ===
+: Source: [[#S759220130]]
+:: Page:  Ancestry Family Trees
+:: Note:  
+:: Data:  
+::: Text:  http://trees.ancestry.com/pt/AMTCitationRedir.aspx?tid=172521&pid=129533170
+
+=== Sources ===
+: Source <span id='S759220130'>S759220130</span>
+: Repository: [[#R-2113280662]]
+: Title:  Ancestry Family Trees
+: Publication:  Online publication - Provo, UT, USA: Ancestry.com.  Original data:  Family Tree files submitted by Ancestry members.
+: Note:  This information comes from 1 or more individual Ancestry Family Tree files. This source citation points you to a current version of those files.  Note:  The owners of these tree files may have removed or changed information since this source citation was created.
+
+
+
+: Repository <span id='R-2113280662'>R-2113280662</span>
+: Name:  Ancestry.com
+: Address:  360 West 4800 North, Provo, UT 84604
+: Note:  
+
+
+

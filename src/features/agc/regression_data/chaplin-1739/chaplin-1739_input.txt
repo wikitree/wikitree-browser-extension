@@ -1,0 +1,34 @@
+== Biography ==
+'''Name:''' Albert David Chaplin.
+<ref name="ref_0">
+Source: [[#S-215458923]] Class: RG11; Piece: 212; Folio: 12; Page: 7; GSU roll: 1341046 {{Ancestry Record|7572|14049644}}
+</ref>
+<ref name="ref_1">
+Source: [[#S-215506285]] Class: RG10; Piece: 237; Folio: 60; Page: 37; GSU roll: 824905 {{Ancestry Record|7619|9318371}}
+</ref>
+<ref name="ref_2">
+Source: [[#S807540335]] {{Ancestry Record|8912|37046616}}
+</ref>
+'''Born'''
+October 1865.
+Kentish Town, Middlesex, England.
+<ref name="ref_0"/>
+<ref name="ref_1"/>
+<ref name="ref_2"/>
+'''Residence''' Relationship: Son.
+1871
+St Pancras, London, England.
+<ref name="ref_1"/>
+Relationship to Head: Son.
+1881
+St Pancras, London, England.
+<ref name="ref_0"/>
+'''Note:''' Possibly emigrated to Canada:
+https:/search.findmypast.co.ukrecord?id=can%2fcensus%2f1891%2f00130975
+
+== Sources ==
+<references />
+* Source: <span id='S-215458923'>S-215458923</span> 1881 England Census Ancestry.com and The Church of Jesus Christ of Latter-day Saints Publication: Ancestry.com Operations Inc {{Ancestry Record|7572|0}}
+* Source: <span id='S-215506285'>S-215506285</span> 1871 England Census Ancestry.com Publication: Ancestry.com Operations Inc {{Ancestry Record|7619|0}}
+* Source: <span id='S807540335'>S807540335</span> England & Wales, Civil Registration Birth Index, 1837-1915 FreeBMD Publication: Ancestry.com Operations Inc Note: General Register Office. <i>England and Wales Civil Registration Indexes</i>. London, England: General Register Office. © Crown copyright. Published by permission of the Controller of HMSO and the Office for National Statistics. You must not copy on, transfer or reproduce records without the prior permission of ONS. Database Copyright © 1998-2003 Graham Hart, Ben Laurie, Camilla von Massenbach and David Mayall. {{Ancestry Record|8912|0}}
+

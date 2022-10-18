@@ -1,0 +1,56 @@
+== Biography ==
+'''Name:''' Joseph Deane Pavey.
+<ref name="ref_0">
+Source: [[#S-215451279]] {{Ancestry Record|9841|122214002}}
+</ref>
+<ref name="ref_1">
+Source: [[#S805044708]] Somerset Heritage Service; Taunton, Somerset, England; Somerset Parish Records, 1538-1914; Reference Number: D\P\CUR.N/2/1/4 {{Ancestry Record|60858|4326366}}
+</ref>
+<ref name="ref_2">
+Source: [[#S804538023]] Somerset Heritage Service; Taunton, Somerset, England; Somerset Parish Records, 1538-1914; Reference Number: D\P\CUR.N/2/1/6 {{Ancestry Record|60856|154436488}}
+</ref>
+<ref name="ref_3">
+Source: [[#S-214975443]] {{Ancestry Record|5967|1168535}}
+</ref>
+<ref name="ref_4">
+Source: [[#S805044708]] Somerset Heritage Service; Taunton, Somerset, England; Somerset Parish Records, 1538-1914; Reference Number: D\P\CUR.N/2/1/4 {{Ancestry Record|60858|4326605}}
+</ref>
+<ref name="ref_5">
+Source: [[#S804538023]] Somerset Heritage Service; Taunton, Somerset, England; Somerset Parish Records, 1538-1914; Reference Number: D\P\CUR.N/2/1/6 {{Ancestry Record|60856|154436613}}
+</ref>
+Joseph Pavey.
+''Found multiple versions of name. Using Joseph Deane Pavey.''
+'''Baptism:'''
+24 Jan 1779.
+Widworthy, Devon, England.
+<ref name="ref_0"/>
+'''Marriage'''
+Husband Joseph Deane Pavey.
+Wife Betty Waggett.
+Child: Charles Pavey.
+Child: Eliza Pavey.
+Marriage
+9 Apr 1807.
+North Curry, Somerset, England.
+<ref>
+Source: [[#S805044708]] Somerset Heritage Service; Taunton, Somerset, England; Somerset Parish Records, 1538-1914; Reference Number: D\P\CUR.N/2/1/4 {{Ancestry Record|60858|4326366}}
+</ref>
+<ref>
+Source: [[#S-214975443]] {{Ancestry Record|5967|1168535}}
+</ref>
+<ref>
+Source: [[#S805044708]] Somerset Heritage Service; Taunton, Somerset, England; Somerset Parish Records, 1538-1914; Reference Number: D\P\CUR.N/2/1/4 {{Ancestry Record|60858|4326605}}
+</ref>
+
+== Research Notes ==
+
+PLEASE DO NOT EDIT THIS PROFILE!
+
+It is being used as a test case for a Chrome Extension that is in development that cleans up gedcom generated profiles.
+
+== Sources ==
+<references />
+* Source: <span id='S-214975443'>S-214975443</span> England, Pallot's Marriage Index, 1780 - 1837 Ancestry.com Publication: Ancestry.com Operations Inc {{Ancestry Record|5967|0}}
+* Source: <span id='S-215451279'>S-215451279</span> England, Select Births and Christenings, 1538-1975 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|9841|0}}
+* Source: <span id='S804538023'>S804538023</span> Somerset, England, Church of England Baptisms, Marriages, and Burials, 1531-1812 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|60856|0}}
+* Source: <span id='S805044708'>S805044708</span> Somerset, England, Marriage Registers, Bonds and Allegations, 1754-1914 Ancestry.com Publication: Ancestry.com Operations, Inc. {{Ancestry Record|60858|0}}

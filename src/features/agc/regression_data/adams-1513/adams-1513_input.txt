@@ -1,0 +1,48 @@
+This person was created through the import of Ahn.GED on 06 February 2011.  The following data was included in the gedcom. You may wish to edit it for readability.
+
+=== Residence ===
+: Residence:  
+:: Date:  1880
+:: Place:  2003 Belgrade Street, Philadelphia, PA
+
+=== Marriage ===
+
+: Husband:  [[Adams-1513|Nathan G. Adams]]
+: Wife:  [[Peak-23|Amanda Peak]]
+: Child:  [[Adams-1514|Nathan G. Adams]]
+:: Relationship to Father:  Natural
+:: Relationship to Mother:  Natural
+: Child:  [[Adams-1515|Sylvester B.P. Adams]]
+:: Relationship to Father:  Natural
+:: Relationship to Mother:  Natural
+: Child:  [[Adams-1516|Peter K. Adams]]
+:: Relationship to Father:  Natural
+:: Relationship to Mother:  Natural
+: Child:  [[Adams-1517|James Adams]]
+:: Relationship to Father:  Natural
+:: Relationship to Mother:  Natural
+: Child:  [[Adams-1518|Emma B. Adams]]
+:: Relationship to Father:  Natural
+:: Relationship to Mother:  Natural
+: Child:  [[Adams-1519|<--?--> Adams]]
+:: Relationship to Father:  Natural
+:: Relationship to Mother:  Natural
+: Child:  [[Adams-1520|<--?--> Adams]]
+:: Relationship to Father:  Natural
+:: Relationship to Mother:  Natural
+: Child:  [[Adams-1521|<--?--> Adams]]
+:: Relationship to Father:  Natural
+:: Relationship to Mother:  Natural
+: Child:  [[Adams-1522|<--?--> Adams]]
+:: Relationship to Father:  Natural
+:: Relationship to Mother:  Natural
+: Child:  [[Adams-1523|<--?--> Adams]]
+:: Relationship to Father:  Natural
+:: Relationship to Mother:  Natural
+: Marriage:  
+:: Date:  ABT 1865
+
+
+
+==Sources==
+* United States Census, 1900," database with images, FamilySearch (https://familysearch.org/ark:/61903/1:1:M3WH-VSN : accessed 3 October 2015), Nathan J Adams Sr., Philadelphia city Ward 25, Philadelphia, Pennsylvania, United States; citing sheet 10B, family 207, NARA microfilm publication T623 (Washington, D.C.: National Archives and Records Administration, n.d.); FHL microfilm 1,241,466
