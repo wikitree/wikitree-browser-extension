@@ -83,37 +83,40 @@ chrome.storage.sync.get("distanceAndRelationship", (result) => {
               $("#yourRelationshipText").fadeOut("slow").remove();
               initDistanceAndRelationship(userID, profileID);
             });
-
-            relationshipFinderResultsDBReq.onsuccess = function (event) {
-              const relationshipFinderResultsDB = event.target.result;
-              let aRequest2 = relationshipFinderResultsDB
-                .transaction(["relationship"], "readonly")
-                .objectStore("relationship")
-                .get(profileID);
-              aRequest2.onsuccess = function () {
-                if (aRequest2.result != undefined) {
-                  if (aRequest2.result.relationship != "") {
-                    if (
-                      $("#yourRelationshipText").length == 0 &&
-                      $(".ancestorTextText").length == 0 &&
-                      $("#ancestorListBox").length == 0
-                    ) {
-                      $("#yourRelationshipText").remove();
-                      addRelationshipText(
-                        aRequest2.result.relationship,
-                        aRequest2.result.commonAncestors
-                      );
-                    }
-                  }
-                } else {
-                  doRelationshipText(userID, profileID);
-                }
-              };
-            };
           }
         }
       };
       aRequest.onerror = (error) => {
+        console.log(error);
+      };
+    };
+    relationshipFinderResultsDBReq.onsuccess = function (event) {
+      const relationshipFinderResultsDB = event.target.result;
+      let aRequest2 = relationshipFinderResultsDB
+        .transaction(["relationship"], "readonly")
+        .objectStore("relationship")
+        .get(profileID);
+      aRequest2.onsuccess = function () {
+        console.log(aRequest2.result);
+        if (aRequest2.result != undefined) {
+          if (aRequest2.result.relationship != "") {
+            if (
+              $("#yourRelationshipText").length == 0 &&
+              $(".ancestorTextText").length == 0 &&
+              $("#ancestorListBox").length == 0
+            ) {
+              $("#yourRelationshipText").remove();
+              addRelationshipText(
+                aRequest2.result.relationship,
+                aRequest2.result.commonAncestors
+              );
+            }
+          }
+        } else {
+          doRelationshipText(userID, profileID);
+        }
+      };
+      aRequest2.onerror = (error) => {
         console.log(error);
       };
     };
@@ -189,7 +192,8 @@ async function getRelationshipFinderResult(id1, id2) {
 }
 
 function addRelationshipText(oText, commonAncestors) {
-  const commonAncestorTextOut = commonAncestorText(commonAncestors);
+  const commonAncestorTextResult = commonAncestorText(commonAncestors);
+  let commonAncestorTextOut = commonAncestorTextResult.text;
   const cousinText = $(
     "<div id='yourRelationshipText' title='Click to refresh' class='relationshipFinder'>Your " +
       oText +
@@ -204,7 +208,7 @@ function addRelationshipText(oText, commonAncestors) {
     let id2 = $("a.pureCssMenui0 span.person").text();
     initDistanceAndRelationship(id1, id2);
   });
-  if (commonAncestors.length > 2) {
+  if (commonAncestorTextResult.count > 2) {
     $("#yourRelationshipText").append(
       $("<button class='small' id='showMoreAncestors'>More</button>")
     );
@@ -217,6 +221,7 @@ function addRelationshipText(oText, commonAncestors) {
 }
 
 function commonAncestorText(commonAncestors) {
+  let result = {};
   let ancestorTextOut = "";
   const profileGender = $("body")
     .find("meta[itemprop='gender']")
@@ -228,23 +233,29 @@ function commonAncestorText(commonAncestors) {
   if (profileGender == "female") {
     possessiveAdj = "her";
   }
+  let ancestorsAdded = [];
   commonAncestors.forEach(function (commonAncestor) {
     const thisAncestorType = ancestorType(
       commonAncestor.path2Length - 1,
       commonAncestor.ancestor.mGender
     ).toLowerCase();
-    ancestorTextOut +=
-      '<li>Your common ancestor, <a href="https://www.wikitree.com/wiki/' +
-      commonAncestor.ancestor.mName +
-      '">' +
-      commonAncestor.ancestor.mDerived.LongNameWithDates +
-      "</a>, is " +
-      possessiveAdj +
-      " " +
-      thisAncestorType +
-      ".</li>";
+    if (!ancestorsAdded.includes(commonAncestor.ancestor.mName)) {
+      ancestorTextOut +=
+        '<li>Your common ancestor, <a href="https://www.wikitree.com/wiki/' +
+        commonAncestor.ancestor.mName +
+        '">' +
+        commonAncestor.ancestor.mDerived.LongNameWithDates +
+        "</a>, is " +
+        possessiveAdj +
+        " " +
+        thisAncestorType +
+        ".</li>";
+      ancestorsAdded.push(commonAncestor.ancestor.mName);
+    }
   });
-  return ancestorTextOut;
+  result.text = ancestorTextOut;
+  result.count = ancestorsAdded.length;
+  return result;
 }
 
 function doRelationshipText(userID, profileID) {
