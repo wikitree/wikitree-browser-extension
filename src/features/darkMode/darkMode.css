@@ -1,10 +1,9 @@
-body.darkMode *,
+body.darkMode * :not(div.small_0, div.small_1, div.small_2),
 body.darkMode html body,
 body.darkMode .wrapper,
 body.darkMode a,
 body.darkMode a:link,
 body.darkMode a:visited,
-body.darkMode .SMALL,
 body.darkMode .small,
 body.darkMode .pureCssMenum,
 body.darkMode .home,
@@ -26,7 +25,7 @@ body.darkMode menu#appsSubMenu a,
 body.darkMode div.stripes-1,
 body.darkMode {
   font-weight: 400;
-  background-color: #36393f !important;
+  background-color: #36393f;
   color: #dcddde !important;
 }
 body.darkMode .button,
@@ -137,4 +136,28 @@ body.darkMode img[src*="images/icons/privacy"] {
   border-radius: 50%;
 }
 
-
+body.profile.darkMode div.small_0 a:link,
+body.profile.darkMode div.small_0 a:visited,
+body.profile.darkMode div.small_0 span,
+body.profile.darkMode div.small_1 a:link,
+body.profile.darkMode div.small_1 a:visited,
+body.profile.darkMode div.small_1 span,
+body.profile.darkMode div.small_2 a:link,
+body.profile.darkMode div.small_2 a:visited,
+body.profile.darkMode div.small_2 span {
+  color: #36393f !important;
+  background: none !important;
+}
+body.profile.darkMode div.small_1,
+body.profile.darkMode div.small_2 {
+  color: #36393f !important;
+}
+body.darkMode h2,
+body.darkMode h1,
+body.darkMode h3,
+body.darkMode h2 span,
+body.darkMode h1 span {
+  background-color: #292b2f !important;
+  border-radius: 5px;
+  padding: 3px;
+}
