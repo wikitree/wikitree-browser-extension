@@ -1,1 +1,29 @@
-// Placeholder for Firefox manifest
+{
+	"name": "WikiTree Browser Extension",
+	"description": "The official WikiTree browser extension.",
+	"version": "0.1.0.2",
+	"manifest_version": 2,
+	"options_ui": {
+		"page": "options.html",
+		"open_in_tab": true
+	},
+	"permissions": [ "https://www.wikitree.com/*", "storage" ],
+	"content_scripts": [
+		{
+			"matches": [ "https://www.wikitree.com/*" ],
+			"js": [ "js/vendor.js", "js/content.js" ]
+		}
+	],
+	"background": {
+		"scripts": [ "background.js" ]
+	},
+	"web_accessible_resources": [
+		"images/*",
+		"features/wt+/templatesExp.json",
+		"features/darkMode/darkMode.css",
+		"js/*.js"
+	],
+	"icons": {
+		"128": "images/we128.png"
+	}
+}
