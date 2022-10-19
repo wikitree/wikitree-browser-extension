@@ -1,13 +1,9 @@
 import $ from 'jquery';
+import { CATEGORIES, getFeatures } from './core/features';
+import './features/features';
 
 // an array of information about features
-const features = [
-  {
-    name: "Printer Friendly Bio",
-    id: "printerFriendly",
-    description: "Change the page to a printer-friendly one.",
-    category: "Global",
-  },
+const features = getFeatures().concat([
   {
     name: "Source Previews",
     id: "sPreviews",
@@ -43,13 +39,6 @@ const features = [
     id: "akaNameLinks",
     description:
       'Adds surname page links to the "aka" names on the profile page.',
-    category: "Profile",
-  },
-  {
-    name: "Family Timeline",
-    id: "familyTimeline",
-    description:
-      "Displays a family timeline. A button is added to the profile submenu.",
     category: "Profile",
   },
   {
@@ -106,10 +95,7 @@ const features = [
     description: 'Check biography style and sources.',
     category: 'Editing',
   },
-];
-
-// Categories
-const categories = ["Global", "Profile", "Editing", "Style"];
+]);
 
 // saves options to chrome.storage
 function save_options() {
@@ -142,7 +128,7 @@ features.sort(function (a, b) {
 });
 
 // add each feature to the options page
-categories.forEach(function (category) {
+CATEGORIES.forEach(function (category) {
   $("#features").append(`<h2 data-category="${category}">${category} 
   <div class="feature-toggle">
   <label class="switch">
