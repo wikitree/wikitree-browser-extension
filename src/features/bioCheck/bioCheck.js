@@ -5,7 +5,6 @@ import { Biography } from "./Biography.js"
 chrome.storage.sync.get('bioCheck', (result) => {
 	if (result.bioCheck) {
 
-
     // want to check on start, on save, and
     // on a scheduled interval
 
@@ -26,10 +25,13 @@ chrome.storage.sync.get('bioCheck', (result) => {
     } else {
       // Check if you are on the Add Person page
       if (document.getElementById('sourceOptionContainer') != null) {
-        // In this case we don't need to check until something happens
-        let saveButton = document.getElementById("wpSave");
+
+        // Find the save button. For Add Person there is just one
+        // For adding a relative there are two, and you want the second
+        let buttonElements = document.querySelectorAll("[id='wpSave']");
+        let saveButton = buttonElements[buttonElements.length-1];
+        // check on save or if or something might be about to happen
         saveButton.onclick = function(){checkSources(theSourceRules)};
-        // or something might be about to happen
         saveButton.addEventListener("mouseover", checkSourcesAtInterval);
 
         setInterval(checkSourcesAtInterval, 30000, theSourceRules);
@@ -220,7 +222,6 @@ function checkSources(theSourceRules) {
   let biography = new Biography(theSourceRules);
   let isValid = biography.validateSourcesStr(sourcesStr, thePerson.isPersonPre1500(),
       isPre1700, thePerson.isUndated());
-
   // now report from biography.bioResults
   reportSources(biography.bioResults.sources.invalidSource, isPre1700);
 
@@ -269,10 +270,11 @@ function reportSources(invalidSourceLines, isPre1700) {
       previousSources.replaceWith(bioSourcesList);
     } else {
       bioCheckSourcesContainer.appendChild(bioSourcesList);
-      let lastContainer = document.getElementById('sourceOptionContainer');
-        let saveButton = document.getElementById("wpSave");
-        let saveParent = saveButton.parentElement;
-        saveParent.insertBefore(bioCheckSourcesContainer, saveButton);
+      // Add the message before the save button
+      let buttonElements = document.querySelectorAll("[id='wpSave']");
+      let saveButton = buttonElements[buttonElements.length-1];
+      let saveParent = saveButton.parentElement;
+      saveParent.insertBefore(bioCheckSourcesContainer, saveButton);
     }
   } else {
     if (previousSources != null) {
