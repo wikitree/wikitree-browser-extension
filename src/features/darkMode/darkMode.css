@@ -1,10 +1,8 @@
-body.darkMode *,
 body.darkMode html body,
 body.darkMode .wrapper,
-body.darkMode a,
-body.darkMode a:link,
-body.darkMode a:visited,
-body.darkMode .SMALL,
+body.darkMode div:not(.cke_inner.cke_reset, .cke_a_content),
+body.darkMode a:link:not(.cke_button, .cke_combo_button),
+body.darkMode a:visited:not(.cke_button, .cke_combo_button),
 body.darkMode .small,
 body.darkMode .pureCssMenum,
 body.darkMode .home,
@@ -13,22 +11,62 @@ body.darkMode .add,
 body.darkMode .find,
 body.darkMode .help,
 body.darkMode strong,
+body.darkMode .strong,
+body.darkMode b,
+body.darkMode input,
 body.darkMode a.viewsi,
 body.darkMode ul.views a,
-body.darkMode ul.pure-css-menu,
+body.darkMode ul.pureCssMenu,
+body.darkMode ul.pureCssMenu a,
 body.darkMode a:link.activeProfile,
 body.darkMode a:hover.activeProfile,
 body.darkMode a:visited.activeProfile a:active.activeProfile,
-body.darkMode iframe.cke_wysiwyg_frame,
 body.darkMode #cke_61_contents,
 body.darkMode body.blackLinks strong,
 body.darkMode menu#appsSubMenu a,
 body.darkMode div.stripes-1,
-body.darkMode {
+body.darkMode div.box.rounded,
+body.darkMode,
+body.darkMode span.qa-a-count,
+body.darkMode #appsSubMenu,
+body.darkMode a.pureCssMenui,
+body.darkMode table,
+body.darkMode.page-Special_FamilyTree table,
+body.darkMode.page-Special_FamilyTree table td,
+body.darkMode table.wt th,
+body.darkMode table.wt td {
   font-weight: 400;
   background-color: #36393f !important;
   color: #dcddde !important;
 }
+body.darkMode .pureCssMenum,
+body.darkMode #yourRelationshipText,
+body.darkMode div.qa-body-wrapper {
+  background-color: #36393f !important;
+}
+
+body.profile.darkMode div.small_0 a:link,
+body.profile.darkMode div.small_0 a:visited,
+body.profile.darkMode div.small_0 span,
+body.profile.darkMode div.small_1 a:link,
+body.profile.darkMode div.small_1 a:visited,
+body.profile.darkMode div.small_1 span,
+body.profile.darkMode div.small_2 a:link,
+body.profile.darkMode div.small_2 a:visited,
+body.profile.darkMode div.small_2 span {
+  color: #36393f !important;
+  background: none !important;
+}
+body.profile.darkMode div.small_1,
+body.profile.darkMode div.small_2,
+body.darkMode .qa-form-tall-label {
+  color: #36393f !important;
+}
+
+body.darkMode h1 span {
+  color: white;
+}
+
 body.darkMode .button,
 body.darkMode div.pad form button,
 body.darkMode input.button.green.search {
@@ -55,8 +93,7 @@ body.darkMode div.getstarted {
 body.darkMode menu#appsSubMenu a:hover {
   background: navy !important;
 }
-body.darkMode ul.profile-tabs li,
-body.darkMode {
+body.darkMode ul.profile-tabs li {
   font-weight: bold;
   border: 1px solid white;
 }
@@ -67,6 +104,7 @@ body.darkMode .yourConnection,
 body.darkMode #yourConnection {
   background: white !important;
 }
+
 body.darkMode #yourConnection {
   margin-right: 4px;
 }
@@ -135,4 +173,30 @@ body.darkMode a[href*="wiki/Privacy"] img,
 body.darkMode img[src*="images/icons/privacy"] {
   background-color: #9196a1 !important;
   border-radius: 50%;
+}
+
+body.darkMode h2,
+body.darkMode h1,
+body.darkMode h3,
+body.darkMode h2 span,
+body.darkMode h1 span {
+  background-color: forestgreen !important;
+  border-radius: 5px;
+  padding: 3px;
+  color: #dcddde;
+}
+
+body.darkMode div.qa-main,
+body.darkMode div.qa-main {
+  background-color: #42454d !important;
+}
+
+body.darkMode .qa-c-item-meta,
+body.darkMode .qa-a-item-meta,
+body.darkMode .qa-q-item-meta {
+  color: cyan;
+}
+
+body.darkMode .dtcAddTest {
+  color: aquamarine;
 }
