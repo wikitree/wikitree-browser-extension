@@ -4,7 +4,7 @@ const CopyPlugin = require("copy-webpack-plugin");
 const WebExtension = require("webpack-target-webextension");
 const srcDir = path.join(__dirname, "..", "src");
 
-module.exports = {
+module.exports = (env) => ({
   entry: {
     options: path.join(srcDir, "options.js"),
     content: path.join(srcDir, "content.js"),
@@ -33,6 +33,12 @@ module.exports = {
       patterns: [{ from: ".", to: "../", context: "public" }],
       options: {},
     }),
+    new CopyPlugin({
+      patterns: [{
+        from: `manifest/manifest-${env.browser}.json`,
+        to: "../manifest.json",
+        context: "src" }],
+    }),
     new WebExtension(),
   ],
   module: {
@@ -43,4 +49,4 @@ module.exports = {
       },
     ],
   },
-};
+});
