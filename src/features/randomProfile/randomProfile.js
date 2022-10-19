@@ -1,23 +1,23 @@
 import $ from 'jquery';
-import {getPerson} from 'wikitree-js';
 
 chrome.storage.sync.get('randomProfile', (result) => {
-	if (result.randomProfile && $("body.BEE").length == 0) {
+	if (result.randomProfile && $("body.BEE").length==0) {
         function getRandomProfile() {
-            const randomProfileID = Math.floor(Math.random() * 36065988);
+            var randomProfileID = Math.floor(Math.random() * 36065988);
+            var link = '';
             // check if exists
-            getPerson(randomProfileID)
-                .then((person) => {
+            $.getJSON('https://api.wikitree.com/api.php?action=getPerson&key=' + randomProfileID)
+                .done(function (json) {
                     // check to see if the profile is Open
-                    if (person.Privacy_IsOpen) {
-                        const link = `https://www.wikitree.com/wiki/${randomProfileID}`;
+                    if (json[0]['status'] == 0 && 'Privacy_IsOpen' in json[0]['person'] && json[0]['person']['Privacy_IsOpen']) {
+                        link = 'https://www.wikitree.com/wiki/' + randomProfileID;
                         window.location = link;
                     } else { // If it isn't open, find a new profile
                         getRandomProfile();
                     }
                 })
-                .catch((reason) => {
-                    console.log(`getJSON request failed! ${reason}`);
+                .fail(function (jqXHR, textStatus, errorThrown) {
+                    console.log('getJSON request failed! ' + textStatus + ' ' + errorThrown);
                     getRandomProfile();
                 });
         }
@@ -32,6 +32,6 @@ chrome.storage.sync.get('randomProfile', (result) => {
                 getRandomProfile()
             });
         }
-        addRandomToFindMenu();
+    addRandomToFindMenu();
     }
-});
+})
