@@ -1,0 +1,27 @@
+name: "latest-release"
+
+on:
+  push:
+    branches:
+      - development
+
+jobs:
+  latest-release:
+    name: "Latest Release"
+    runs-on: "ubuntu-latest"
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: 16.x
+        cache: 'npm'
+    - run: npm ci
+    - run: npm run zip
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        prerelease: true
+        files: wikitree-browser-extension.zip
+        automatic_release_tag: "latest"
