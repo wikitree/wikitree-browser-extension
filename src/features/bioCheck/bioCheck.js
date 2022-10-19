@@ -8,6 +8,11 @@ chrome.storage.sync.get('bioCheck', (result) => {
     // want to check on start, on save, and
     // on a scheduled interval
 
+    // Ideally would have an immutable singleton for SourceRules
+    // But one of the extensions seems to be running something on
+    // an interval that is causing it to get set null.
+    // Keep the code to use the singleton, just in case
+
     let theSourceRules = new SourceRules();
     // Only do this if on the edit page for a person
     // Look for the class page-Special_EditPerson
@@ -18,6 +23,9 @@ chrome.storage.sync.get('bioCheck', (result) => {
 
       let saveDraftButton = document.getElementById("wpSaveDraft");
       saveDraftButton.onclick = function(){checkBio(theSourceRules)};
+      saveDraftButton.addEventListener("mouseover", checkBioAtInterval);
+      let saveButton = document.getElementById("wpSave");
+      saveButton.addEventListener("mouseover", checkBioAtInterval);
 
       // and also once a minute
       setInterval(checkBioAtInterval, 60000, theSourceRules);
@@ -63,15 +71,15 @@ function checkSourcesAtInterval(theSourceRules) {
  */
 
 function checkBio(theSourceRules) {
+  let mySourceRules = new SourceRules();
   let thePerson = new PersonDate();
-
   // get the bio text and person dates to check
   let bioString = document.getElementById("wpTextbox1").value;
   let birthDate = document.getElementById("mBirthDate").value;
   let deathDate = document.getElementById("mDeathDate").value;
 
   thePerson.initWithDates(birthDate, deathDate);
-  let biography = new Biography(theSourceRules);
+  let biography = new Biography(mySourceRules);
   biography.parse(bioString, thePerson.isPersonPre1500(), thePerson.isPersonPre1700(), thePerson.mustBeOpen(), thePerson.isUndated(), false);
   biography.validate();
 
@@ -212,6 +220,7 @@ function reportResults(reportLines) {
 }
 
 function checkSources(theSourceRules) {
+  let mySourceRules = new SourceRules();
   let thePerson = new PersonDate();
   // get the bio text and person dates to check
   let sourcesStr = document.getElementById("mSources").value;
@@ -219,7 +228,7 @@ function checkSources(theSourceRules) {
   let deathDate = document.getElementById("mDeathDate").value;
   thePerson.initWithDates(birthDate, deathDate);
   let isPre1700 = thePerson.isPersonPre1700();
-  let biography = new Biography(theSourceRules);
+  let biography = new Biography(mySourceRules);
   let isValid = biography.validateSourcesStr(sourcesStr, thePerson.isPersonPre1500(),
       isPre1700, thePerson.isUndated());
   // now report from biography.bioResults
