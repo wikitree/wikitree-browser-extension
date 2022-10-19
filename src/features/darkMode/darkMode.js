@@ -1,10 +1,12 @@
 import $ from "jquery";
 import "./darkMode.css";
 
+// Need to add a listener for change in preference
+// Need options to be always on or to follow the OS preferred style
 const useDark = window.matchMedia("(prefers-color-scheme: dark)");
 console.log(useDark);
 if (useDark.matches == true) {
-  doDarkMode();
+  //doDarkMode();
 }
 
 function doDarkMode() {
@@ -33,6 +35,11 @@ function doDarkMode() {
     "background-image",
     "url(" + chrome.runtime.getURL("images/tree-white.png") + ")"
   );
+
+  $("body.page-Special_Relationship")
+    .find("h1")
+    .parent()
+    .css("background-image", "");
 
   // Add code to iframes on merging comparison page.
   if (window.location.href.match("Special:MergePerson")) {
