@@ -107,27 +107,7 @@ body.darkMode span.showHideTree,
 body.darkMode span#showHideDescendants {
   border: 1px solid white !important;
 }
-body.darkMode button.copyWidget,
-body.darkMode div.comment-actions button.button,
-body.darkMode span.commentContainerToggle button,
-body.darkMode div.qa-vote-buttons input,
-body.darkMode input.qa-favorite-button,
-body.darkMode #wtIDgo_go,
-body.darkMode input.qa-form-light-button-reshow,
-body.darkMode input.qa-form-light-button-hide,
-body.darkMode input.qa-form-light-button-edit,
-body.darkMode.profile input[name="wpSearch"] {
-  border: 0 !important;
-}
-body.profile.darkMode input[name="wpSearch"] {
-  background: url("https://www.wikitree.com/images/icons/search-submit-icon.png")
-    white !important;
-  font-size: 0;
-  top: -5px !important;
-}
-body.darkMode.page-Main_Page input[name="wpSearch"] {
-  border: 2px solid white;
-}
+
 body.darkMode input.qa-a-select-button {
   background-image: url("https://www.wikitree.com/g2g/qa-theme/WikiTree/select-star.png")
     no-repeat !important;
@@ -215,4 +195,31 @@ body.darkMode .find,
 body.darkMode .help,
 body.darkMode a.pureCssMenui {
   background-color: #2f3137 !important;
+}
+
+body.darkMode button.copyWidget,
+body.darkMode div.comment-actions button.button,
+body.darkMode span.commentContainerToggle button,
+body.darkMode div.qa-vote-buttons input,
+body.darkMode input.qa-favorite-button,
+body.darkMode #wtIDgo_go,
+body.darkMode input.qa-form-light-button-reshow,
+body.darkMode input.qa-form-light-button-hide,
+body.darkMode input.qa-form-light-button-edit,
+body.darkMode.profile input[name="wpSearch"] {
+  border: 0 !important;
+}
+body.darkMode input[name="wpSearch"] {
+  background: url("https://www.wikitree.com/images/icons/search-submit-icon.png")
+    white !important;
+  font-size: 0;
+  top: -5px !important;
+  color: transparent !important;
+}
+body.darkMode.page-Main_Page input[name="wpSearch"] {
+  border: 2px solid white;
+  background-image: none !important;
+  background-color: transparent !important;
+  font-size: large;
+  color: white !important;
 }
