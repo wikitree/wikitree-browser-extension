@@ -66,6 +66,13 @@ const features = [
     category: "Global",
   },
   {
+    name: "Distance and Relationship",
+    id: "distanceAndRelationship",
+    description:
+      "Adds the distance (degrees) between you and the profile person and any relationship between you.",
+    category: "Profile",
+  },
+  {
     name: "Locations Helper",
     id: "locationsHelper",
     description:
@@ -73,13 +80,7 @@ const features = [
       " based on family members' locations, and demoting likely wrong locations, based on the dates.",
     category: "Editing",
   },
-  {
-    name: "Distance and Relationship",
-    id: "distanceAndRelationship",
-    description:
-      "Adds the distance (degrees) between you and the profile person and any relationship between you.",
-    category: "Profile",
-  },
+
   {
     name: "Dark Mode",
     id: "darkMode",
@@ -106,10 +107,23 @@ const features = [
     description: "Check biography style and sources.",
     category: "Editing",
   },
+  {
+    name: "Category Finder Pins",
+    id: "categoryFinderPins",
+    description:
+      "Adds pins to Category Finder results (on the edit page), similar to the pins in the location dropdown.  These pins link to the category page for you to check that you have the right category.",
+    category: "Editing",
+  },
 ];
 
 // Categories
 const categories = ["Global", "Profile", "Editing", "Style"];
+// If a new feature is added with a new category, add the category to the list
+features.forEach(function (feature) {
+  if (!categories.includes(feature.category)) {
+    categories.push(feature.category);
+  }
+});
 
 // saves options to chrome.storage
 function save_options() {
