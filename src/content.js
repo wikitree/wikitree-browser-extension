@@ -1,4 +1,4 @@
-import { createTopMenu } from "./core/common";
+//import { createTopMenu } from "./core/common";
 import "./features/agc/agc_content";
 import "./features/akaNameLinks/akaNameLinks";
 import "./features/appsMenu/appsMenu";
@@ -17,4 +17,4 @@ import "./features/wt+/contentEdit";
 import "./features/bioCheck/bioCheck";
 import "./core/editToolbar";
 
-createTopMenu();
+//createTopMenu();
