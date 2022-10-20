@@ -22,6 +22,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+import { getDefaultOptionValuesForFeature } from "../../core/options/options_registry.mjs"
+
+const defaultUserOptions = getDefaultOptionValuesForFeature("agc", true);
+
+/*
 const defaultUserOptions = {
   spelling: 'en_uk',
   include_age: 'none',
@@ -55,6 +60,7 @@ const defaultUserOptions = {
   otherFields_useBurialForDeathDate: true,
   otherFields_useLastHusbandNameForCurrentLastName: true,
 };
+*/
 
 const testProfiles = [
   {
