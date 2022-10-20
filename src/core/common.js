@@ -174,3 +174,81 @@ export function isOK(thing) {
     return false;
   }
 }
+
+ // Find good names to display (as the API doesn't return the same fields all profiles)
+export  function displayName(fPerson) {
+  if (fPerson != undefined) {
+    let fName1 = "";
+    if (typeof fPerson["LongName"] != "undefined") {
+      if (fPerson["LongName"] != "") {
+        fName1 = fPerson["LongName"].replace(/\s\s/, " ");
+      }
+    }
+    let fName2 = "";
+    let fName4 = "";
+    if (typeof fPerson["MiddleName"] != "undefined") {
+      if (
+        fPerson["MiddleName"] == "" &&
+        typeof fPerson["LongNamePrivate"] != "undefined"
+      ) {
+        if (fPerson["LongNamePrivate"] != "") {
+          fName2 = fPerson["LongNamePrivate"].replace(/\s\s/, " ");
+        }
+      }
+    } else {
+      if (typeof fPerson["LongNamePrivate"] != "undefined") {
+        if (fPerson["LongNamePrivate"] != "") {
+          fName4 = fPerson["LongNamePrivate"].replace(/\s\s/, " ");
+        }
+      }
+    }
+
+    let fName3 = "";
+    const checks = [
+      "Prefix",
+      "FirstName",
+      "RealName",
+      "MiddleName",
+      "LastNameAtBirth",
+      "LastNameCurrent",
+      "Suffix",
+    ];
+    checks.forEach(function (dCheck) {
+      if (typeof fPerson["" + dCheck + ""] != "undefined") {
+        if (
+          fPerson["" + dCheck + ""] != "" &&
+          fPerson["" + dCheck + ""] != null
+        ) {
+          if (dCheck == "LastNameAtBirth") {
+            if (fPerson["LastNameAtBirth"] != fPerson.LastNameCurrent) {
+              fName3 += "(" + fPerson["LastNameAtBirth"] + ") ";
+            }
+          } else if (dCheck == "RealName") {
+            if (typeof fPerson["FirstName"] != "undefined") {
+            } else {
+              fName3 += fPerson["RealName"] + " ";
+            }
+          } else {
+            fName3 += fPerson["" + dCheck + ""] + " ";
+          }
+        }
+      }
+    });
+
+    const arr = [fName1, fName2, fName3, fName4];
+    var longest = arr.reduce(function (a, b) {
+      return a.length > b.length ? a : b;
+    });
+
+    const fName = longest;
+
+    let sName;
+    if (fPerson["ShortName"]) {
+      sName = fPerson["ShortName"];
+    } else {
+      sName = fName;
+    }
+    // fName = full name; sName = short name
+    return [fName.trim(), sName.trim()];
+  }
+}
