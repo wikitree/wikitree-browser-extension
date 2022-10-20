@@ -1,4 +1,4 @@
-import $ from 'jquery';
+import $ from "jquery";
 
 // an array of information about features
 const features = [
@@ -97,14 +97,14 @@ const features = [
     name: "Automatic GEDCOM Cleanup (AGC)",
     id: "agc",
     description:
-      "Reformats a biography and updates data fields when the profile was created froma GEDCOM.",
+      "Reformats a biography and updates data fields when the profile was created from a GEDCOM.",
     category: "Editing",
   },
   {
-    name: 'BioCheck',
-    id: 'bioCheck',
-    description: 'Check biography style and sources.',
-    category: 'Editing',
+    name: "BioCheck",
+    id: "bioCheck",
+    description: "Check biography style and sources.",
+    category: "Editing",
   },
 ];
 
