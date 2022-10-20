@@ -1,9 +1,15 @@
-import $ from 'jquery';
+import $ from "jquery";
 
 import { features } from "./core/options/options_registry.mjs";
 
 // Categories
 const categories = ["Global", "Profile", "Editing", "Style"];
+// If a new feature is added with a new category, add the category to the list
+features.forEach(function (feature) {
+  if (!categories.includes(feature.category)) {
+    categories.push(feature.category);
+  }
+});
 
 function fillOptionsDataFromUiElements(feature, options, optionsData) {
 

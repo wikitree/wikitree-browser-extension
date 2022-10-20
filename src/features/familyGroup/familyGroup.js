@@ -80,96 +80,101 @@ chrome.storage.sync.get("familyGroup", (result) => {
         "<div class='familySheet'><w>↔</w><x>x</x><table><caption></caption><thead><tr><th>Relation</th><th>Name</th><th>Birth Date</th><th>Birth Place</th><th>Death Date</th><th>Death Place</th></tr></thead><tbody></tbody></table></div>"
       );
       kPeople.forEach(function (kPers) {
-        let rClass = "";
-        let isDecades = false;
-        kPers.RelationShow = kPers.Relation;
-        if (kPers.Relation == undefined || kPers.Active) {
-          kPers.Relation = "Sibling";
-          kPers.RelationShow = "";
-          rClass = "self";
-        }
+        if (kPers) {
+          let rClass = "";
+          let isDecades = false;
+          kPers.RelationShow = kPers.Relation;
+          if (kPers.Relation == undefined || kPers.Active) {
+            kPers.Relation = "Sibling";
+            kPers.RelationShow = "";
+            rClass = "self";
+          }
 
-        let bDate;
-        if (kPers.BirthDate) {
-          bDate = kPers.BirthDate;
-        } else if (kPers.BirthDateDecade) {
-          bDate = kPers.BirthDateDecade.slice(0, -1) + "-00-00";
-          isDecades = true;
-        } else {
-          bDate = "0000-00-00";
-        }
-
-        let dDate;
-        if (kPers.DeathDate) {
-          dDate = kPers.DeathDate;
-        } else if (kPers.DeathDateDecade) {
-          if (kPers.DeathDateDecade == "unknown") {
-            dDate = "0000-00-00";
+          let bDate;
+          if (kPers.BirthDate) {
+            bDate = kPers.BirthDate;
+          } else if (kPers.BirthDateDecade) {
+            bDate = kPers.BirthDateDecade.slice(0, -1) + "-00-00";
+            isDecades = true;
           } else {
-            dDate = kPers.DeathDateDecade.slice(0, -1) + "-00-00";
+            bDate = "0000-00-00";
           }
-        } else {
-          dDate = "0000-00-00";
-        }
 
-        if (kPers.BirthLocation == null || kPers.BirthLocation == undefined) {
-          kPers.BirthLocation = "";
-        }
-
-        if (kPers.DeathLocation == null || kPers.DeathLocation == undefined) {
-          kPers.DeathLocation = "";
-        }
-
-        if (kPers.MiddleName == null) {
-          kPers.MiddleName = "";
-        }
-        const oName = displayName(kPers)[0];
-
-        if (kPers.Relation) {
-          // The relation is stored as "Parents", "Spouses", etc., so...
-          kPers.Relation = kPers.Relation.replace(/s$/, "").replace(/ren$/, "");
-          if (rClass != "self") {
-            kPers.RelationShow = kPers.Relation;
+          let dDate;
+          if (kPers.DeathDate) {
+            dDate = kPers.DeathDate;
+          } else if (kPers.DeathDateDecade) {
+            if (kPers.DeathDateDecade == "unknown") {
+              dDate = "0000-00-00";
+            } else {
+              dDate = kPers.DeathDateDecade.slice(0, -1) + "-00-00";
+            }
+          } else {
+            dDate = "0000-00-00";
           }
-        }
-        if (oName) {
-          let oBDate = ymdFix(bDate);
-          let oDDate = ymdFix(dDate);
-          if (isDecades == true) {
-            oBDate = kPers.BirthDateDecade;
-            if (oDDate != "") {
-              oDDate = kPers.DeathDateDecade;
+
+          if (kPers.BirthLocation == null || kPers.BirthLocation == undefined) {
+            kPers.BirthLocation = "";
+          }
+
+          if (kPers.DeathLocation == null || kPers.DeathLocation == undefined) {
+            kPers.DeathLocation = "";
+          }
+
+          if (kPers.MiddleName == null) {
+            kPers.MiddleName = "";
+          }
+          const oName = displayName(kPers)[0];
+
+          if (kPers.Relation) {
+            // The relation is stored as "Parents", "Spouses", etc., so...
+            kPers.Relation = kPers.Relation.replace(/s$/, "").replace(
+              /ren$/,
+              ""
+            );
+            if (rClass != "self") {
+              kPers.RelationShow = kPers.Relation;
             }
           }
-          const aLine = $(
-            "<tr data-name='" +
-              kPers.Name +
-              "' data-birthdate='" +
-              bDate.replaceAll(/\-/g, "") +
-              "' data-relation='" +
-              kPers.Relation +
-              "' class='" +
-              rClass +
-              " " +
-              kPers.Gender +
-              "'><td>" +
-              kPers.RelationShow +
-              "</td><td><a href='https://www.wikitree.com/wiki/" +
-              htmlEntities(kPers.Name) +
-              "'>" +
-              oName +
-              "</td><td class='aDate'>" +
-              oBDate +
-              "</td><td>" +
-              kPers.BirthLocation +
-              "</td><td class='aDate'>" +
-              oDDate +
-              "</td><td>" +
-              kPers.DeathLocation +
-              "</td></tr>"
-          );
+          if (oName) {
+            let oBDate = ymdFix(bDate);
+            let oDDate = ymdFix(dDate);
+            if (isDecades == true) {
+              oBDate = kPers.BirthDateDecade;
+              if (oDDate != "") {
+                oDDate = kPers.DeathDateDecade;
+              }
+            }
+            const aLine = $(
+              "<tr data-name='" +
+                kPers.Name +
+                "' data-birthdate='" +
+                bDate.replaceAll(/\-/g, "") +
+                "' data-relation='" +
+                kPers.Relation +
+                "' class='" +
+                rClass +
+                " " +
+                kPers.Gender +
+                "'><td>" +
+                kPers.RelationShow +
+                "</td><td><a href='https://www.wikitree.com/wiki/" +
+                htmlEntities(kPers.Name) +
+                "'>" +
+                oName +
+                "</td><td class='aDate'>" +
+                oBDate +
+                "</td><td>" +
+                kPers.BirthLocation +
+                "</td><td class='aDate'>" +
+                oDDate +
+                "</td><td>" +
+                kPers.DeathLocation +
+                "</td></tr>"
+            );
 
-          kTable.find("tbody").append(aLine);
+            kTable.find("tbody").append(aLine);
+          }
         }
 
         if (kPers.Relation == "Spouse") {

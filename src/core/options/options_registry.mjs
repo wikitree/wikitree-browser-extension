@@ -64,19 +64,19 @@ const features = [
     category: "Global",
   },
   {
+    name: "Distance and Relationship",
+    id: "distanceAndRelationship",
+    description:
+      "Adds the distance (degrees) between you and the profile person and any relationship between you.",
+    category: "Profile",
+  },
+  {
     name: "Locations Helper",
     id: "locationsHelper",
     description:
       "Manipulates the suggested locations, highlighting likely correct locations," +
       " based on family members' locations, and demoting likely wrong locations, based on the dates.",
     category: "Editing",
-  },
-  {
-    name: "Distance and Relationship",
-    id: "distanceAndRelationship",
-    description:
-      "Adds the distance (degrees) between you and the profile person and any relationship between you.",
-    category: "Profile",
   },
   {
     name: "Dark Mode",
@@ -434,6 +434,13 @@ const features = [
     id: 'bioCheck',
     description: 'Check biography style and sources.',
     category: 'Editing',
+  },
+  {
+    name: "Category Finder Pins",
+    id: "categoryFinderPins",
+    description:
+      "Adds pins to Category Finder results (on the edit page), similar to the pins in the location dropdown.  These pins link to the category page for you to check that you have the right category.",
+    category: "Editing",
   },
 ];
 

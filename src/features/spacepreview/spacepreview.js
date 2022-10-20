@@ -16,7 +16,7 @@ chrome.storage.sync.get("spacePreviews", function (result) {
         sPreview.setAttribute("class", "box rounded");
         sPreview.setAttribute(
           "style",
-          `z-index:9999; max-height:450px; overflow: scroll; position:absolute; padding: 10px; margin-top:-20px;`
+          `z-index:9999; max-height:450px; overflow: scroll; position:absolute; padding: 10px;`
         );
         document.getElementById("spaceHover").parentElement.appendChild(sPreview);
         $.ajax({

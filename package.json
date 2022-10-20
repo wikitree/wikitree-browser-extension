@@ -2,22 +2,28 @@
   "name": "wikitree-browser-extension",
   "version": "0.1.0",
   "scripts": {
-    "watch": "webpack --config webpack/webpack.dev.js --watch",
-    "build": "webpack --config webpack/webpack.prod.js",
-    "build-dev": "webpack --config webpack/webpack.dev.js",
-    "clean": "rimraf dist"
+    "watch": "webpack --config webpack/webpack.dev.js  --env browser=chrome --watch",
+    "build": "webpack --config webpack/webpack.prod.js --env browser=chrome",
+    "build-dev": "webpack --config webpack/webpack.dev.js --env browser=chrome",
+    "watch-firefox": "webpack --config webpack/webpack.dev.js  --env browser=firefox --watch",
+    "build-firefox": "webpack --config webpack/webpack.prod.js --env browser=firefox",
+    "build-firefox-dev": "webpack --config webpack/webpack.dev.js --env browser=firefox",
+    "test": "node src/features/agc/run_tests.mjs",
+    "clean": "rimraf dist",
+    "zip": "npm run clean && npm run build && cd dist && bestzip ../wikitree-browser-extension.zip *"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/wikitree/wikitree-browser-extension.git"
   },
   "dependencies": {
-    "dexie": "^3.2.2",
     "jquery": "^3.6.1",
     "jquery-ui": "^1.13.2",
-    "js-cookie": "^3.0.1"
+    "js-cookie": "^3.0.1",
+    "wikitree-js": "^0.3.1"
   },
   "devDependencies": {
+    "bestzip": "^2.2.1",
     "copy-webpack-plugin": "^9.0.1",
     "css-loader": "^6.7.1",
     "rimraf": "^3.0.2 ",
