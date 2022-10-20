@@ -29,26 +29,52 @@ h6 {
   padding: 10px 0 0 70px;
   font-size: medium;
 }
-button {
-  background-color: #25422d;
-  color: white;
-  padding: 7px 15px;
-  border: none;
-  border-radius: 5px;
-  margin-top: 10px;
+.feature-options {
+  padding: 10px 0 0 70px;
+  font-size: medium;
 }
-button:hover {
+.feature-options-button {
+  border-radius: 34px;
   background-color: #8fc641;
+  font-size: medium;
+  width: 120px;
+  border: 0px;
+  margin-left: 20px;
 }
-#saved {
-  margin-left: 2em;
-  padding: 1em;
-  border-radius: 1em;
-  box-shadow: 0.2em 0.2em 0.2em #25422d;
+
+/* Option elements */
+.option-subheading {
+  font-size: medium;
+  font-weight: bold;
+  margin-top: 10px;
+  margin-bottom: 2px;
 }
-#saveOptions:active {
-  border: 2px solid gold;
+.option-subcontainer {
+  margin-left: 20px;
+  margin-top: 10px;
+  margin-bottom: 10px;
 }
+.option-text-line {
+  font-size: medium;
+  font-style: italic;
+  margin: 2px 2px;
+}
+.option-checkbox {
+  margin: 4px 0px;
+}
+.option-select {
+  margin: 2px 2px;
+}
+.option-number {
+  margin: 2px 0px;
+  width: 40px;
+}
+.option-comment {
+  font-style: italic;
+  padding-left: 20px;
+  display: inline-block;
+}
+
 
 /* Feature toggle */
 .switch {
