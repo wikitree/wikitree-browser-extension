@@ -3,7 +3,7 @@
 ## Installation for testers
 
 To test the extension you can:
-* download the [wikitree-browser-extension.zip](https://github.com/wikitree/wikitree-browser-extension/blob/development/wikitree-browser-extension.zip),
+* download the latest [wikitree-browser-extension.zip](https://github.com/wikitree/wikitree-browser-extension/releases/download/latest/wikitree-browser-extension.zip),
 * unpack it somewhere on your computer, 
 * Go to [chrome://extensions](chrome://extensions),
 * Make sure you have _Developer mode_ turned on (top right corner),
