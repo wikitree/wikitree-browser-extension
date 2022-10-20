@@ -1,120 +1,6 @@
 import $ from "jquery";
 
-// an array of information about features
-const features = [
-  {
-    name: "Printer Friendly Bio",
-    id: "printerFriendly",
-    description: "Change the page to a printer-friendly one.",
-    category: "Global",
-  },
-  {
-    name: "Source Previews",
-    id: "sPreviews",
-    description: "Enable source previews on inline references.",
-    category: "Global",
-  },
-  {
-    name: "Space Page Previews",
-    id: "spacePreviews",
-    description: "Enable previews of Space Pages on hover.",
-    category: "Global",
-  },
-  {
-    name: "Apps Menu",
-    id: "appsMenu",
-    description: "Adds an apps submenu to the Find menu.",
-    category: "Global",
-  },
-  {
-    name: "WikiTree+ Edit Helper",
-    id: "wtplus",
-    description: "Adds multiple editing features.",
-    category: "Editing",
-  },
-  {
-    name: "Collapsible Descendants Tree",
-    id: "collapsibleDescendantsTree",
-    description: "Makes the descendants tree on profile pages collapsible.",
-    category: "Profile",
-  },
-  {
-    name: "AKA Name Links",
-    id: "akaNameLinks",
-    description:
-      'Adds surname page links to the "aka" names on the profile page.',
-    category: "Profile",
-  },
-  {
-    name: "Family Timeline",
-    id: "familyTimeline",
-    description:
-      "Displays a family timeline. A button is added to the profile submenu.",
-    category: "Profile",
-  },
-  {
-    name: "Draft List",
-    id: "draftList",
-    description:
-      "Adds a button to the Find menu to show your uncommitted drafts.",
-    category: "Global",
-  },
-  {
-    name: "Random Profile",
-    id: "randomProfile",
-    description: "Adds a Random Profile link to the Find menu.",
-    category: "Global",
-  },
-  {
-    name: "Distance and Relationship",
-    id: "distanceAndRelationship",
-    description:
-      "Adds the distance (degrees) between you and the profile person and any relationship between you.",
-    category: "Profile",
-  },
-  {
-    name: "Locations Helper",
-    id: "locationsHelper",
-    description:
-      "Manipulates the suggested locations, highlighting likely correct locations," +
-      " based on family members' locations, and demoting likely wrong locations, based on the dates.",
-    category: "Editing",
-  },
-
-  {
-    name: "Dark Mode",
-    id: "darkMode",
-    description: "Make WikiTree dark.",
-    category: "Style",
-  },
-  {
-    name: "Family Group",
-    id: "familyGroup",
-    description:
-      "Display dates and locations of all family members. A button is added to the profile submenu.",
-    category: "Profile",
-  },
-  {
-    name: "Automatic GEDCOM Cleanup (AGC)",
-    id: "agc",
-    description:
-      "Reformats a biography and updates data fields when the profile was created from a GEDCOM.",
-    category: "Editing",
-  },
-  {
-    name: "BioCheck",
-    id: "bioCheck",
-    description: "Check biography style and sources.",
-    category: "Editing",
-  },
-  {
-    name: "Category Finder Pins",
-    id: "categoryFinderPins",
-    description:
-      "Adds pins to Category Finder results (on the edit page), similar to the pins in the location dropdown.  These pins link to the category page for you to check that you have the right category.",
-    category: "Editing",
-  },
-];
+import { features } from "./core/options/options_registry.mjs";
 
 // Categories
 const categories = ["Global", "Profile", "Editing", "Style"];
@@ -125,6 +11,114 @@ features.forEach(function (feature) {
   }
 });
 
+function fillOptionsDataFromUiElements(feature, options, optionsData) {
+
+  const optionElementIdPrefix = feature.id + "_";
+
+  for (let option of options) {
+    let fullOptionElementId = optionElementIdPrefix + option.id;
+
+    if (option.type == "group") {
+      if (option.options) {
+        fillOptionsDataFromUiElements(feature, option.options, optionsData);
+      }
+    } else {
+      optionsData[option.id] = option.defautValue;
+
+      let element = document.getElementById(fullOptionElementId);
+      if (!element) {
+        console.log("fillOptionsDataFromUiElements: no element found with id: " + fullOptionElementId);
+        continue;
+      }
+
+      console.log("fillOptionsDataFromUiElements: option.id = " + option.id + " optionsData[option.id] = " + optionsData[option.id]);
+      console.log("option.defaultValue = " + option.defaultValue);
+
+      if (option.type == "checkbox") {
+        optionsData[option.id] = element.checked;
+      } else {
+        optionsData[option.id] = element.value;
+      }
+    }
+  }
+
+  console.log("fillOptionsDataFromUiElements: optionsData is:");
+  console.log(optionsData);
+}
+
+function setUiElementsFromOptionsData(feature, options, optionsData) {
+  console.log("setUiElementsFromOptionsData: optionsData is:");
+  console.log(optionsData);
+
+
+  const optionElementIdPrefix = feature.id + "_";
+
+  for (let option of options) {
+    let fullOptionElementId = optionElementIdPrefix + option.id;
+
+    if (option.type == "group") {
+      if (option.options) {
+        setUiElementsFromOptionsData(feature, option.options, optionsData);
+      }
+    } else {
+      let element = document.getElementById(fullOptionElementId);
+      if (!element) {
+        console.log("setUiElementsFromOptionsData: no element found with id: " + fullOptionElementId);
+        console.log("option.type is : " + option.type);
+        continue;
+      }
+
+      console.log("setUiElementsFromOptionsData: option.id = " + option.id + " optionsData[option.id] = " + optionsData[option.id]);
+
+      console.log("setUiElementsFromOptionsData: optionsData.spelling = " + optionsData.spelling);
+      console.log(optionsData);
+
+      if (!optionsData.hasOwnProperty(option.id)) {
+        optionsData[option.id] = option.defaultValue;
+        console.log("setUiElementsFromOptionsData: option.defaultValue = " + option.defaultValue);
+      }
+
+      if (option.type == "checkbox") {
+        element.checked = optionsData[option.id];
+      } else {
+        element.value = optionsData[option.id];
+      }
+    }
+  }
+
+  console.log("setUiElementsFromOptionsData (at end): optionsData is:");
+  console.log(optionsData);
+}
+
+function saveFeatureOptions(feature) {
+  console.log("saveFeatureOptions: feature.id is: " + feature.id);
+
+  // gather all the UI values into an object called options
+  let optionsData = {};
+  fillOptionsDataFromUiElements(feature, feature.options, optionsData);
+
+  console.log("saveFeatureOptions: optionsData is: ");
+  console.log(optionsData);
+
+  const storageName = feature.id + "_options";
+  chrome.storage.sync.set({
+    [storageName]: optionsData,
+  });
+}
+
+function restoreFeatureOptions(feature, storageItems) {
+  console.log("restoreFeatureOptions: feature.id is: " + feature.id);
+
+  const storageName = feature.id + "_options";
+
+  let optionsData = {};
+  if (storageItems.hasOwnProperty(storageName)) {
+    optionsData = storageItems[storageName];
+  }
+
+  setUiElementsFromOptionsData(feature, feature.options, optionsData);
+}
+
 // saves options to chrome.storage
 function save_options() {
   // for each feature, save if they are checked or not
@@ -133,6 +127,10 @@ function save_options() {
     chrome.storage.sync.set({
       [feature.id]: checked,
     });
+
+    if (feature.options) {
+      saveFeatureOptions(feature);
+    }
   });
 }
 
@@ -141,8 +139,147 @@ function restore_options() {
   chrome.storage.sync.get(null, (items) => {
     features.forEach((feature) => {
       $(`#${feature.id} input`).prop("checked", items[`${feature.id}`]);
+
+      if (feature.options) {
+        restoreFeatureOptions(feature, items);
+      }
     });
   });
+}
+
+function addOptionsForFeature(featureData, optionsContainerElement, options) {
+
+  const featureId = featureData.id;
+
+  function onChange(event) {
+    saveFeatureOptions(featureData);
+  };
+
+  function createTextElementForLabel(option, addSpaceBefore, addColonAfter) {
+
+    let text = option.label;
+    if (addSpaceBefore) {
+      text = " " + text;
+    }
+    if (addColonAfter) {
+      text = text + ": ";
+    }
+    if (option.isHtmlInLabel) {
+      let labelHtmlNode = document.createElement("label");
+      labelHtmlNode.innerHTML = text;
+      return labelHtmlNode;
+    }
+    else {
+      let labelTextNode = document.createTextNode(text);
+      return labelTextNode;
+    }
+  }
+
+  let optionElementIdPrefix = featureId + "_";
+
+  for (let option of options) {
+    let fullOptionElementId = optionElementIdPrefix + option.id;
+
+    let optionDivElement = document.createElement("div");
+
+    let optionElement = undefined;
+    if (option.type == "group") {
+      if (option.label) {
+        let subheadingElement = document.createElement("div");
+        subheadingElement.innerText = option.label + ":";
+        subheadingElement.className = "option-subheading";
+        optionDivElement.appendChild(subheadingElement);
+      }
+      if (option.options) {
+        let subContainerElement = document.createElement("div");
+        subContainerElement.className = "option-subcontainer";
+        addOptionsForFeature(featureData, subContainerElement, option.options)
+        optionDivElement.appendChild(subContainerElement);
+      }
+    } else if (option.type == "textLine") {
+      let textLineElement = document.createElement("label");
+      textLineElement.innerText = option.label;
+      textLineElement.className = "option-text-line";
+      optionDivElement.appendChild(textLineElement);
+    } else if (option.type == "checkbox") {
+      optionElement = document.createElement("input");
+      optionElement.type = "checkbox";
+      optionElement.className = "option-checkbox";
+
+      let labelElement = document.createElement("label");
+      labelElement.appendChild(optionElement);
+
+      const textElement = createTextElementForLabel(option, true, false);
+      labelElement.appendChild(textElement);
+
+      optionDivElement.appendChild(labelElement);
+    } else if (option.type == "select") {
+      optionElement = document.createElement("select");
+      optionElement.className = "option-select";
+
+      for (let value of option.values) {
+        let selectOptionElement = document.createElement("option");
+        selectOptionElement.value = value.value;
+        selectOptionElement.innerText = value.text;
+        optionElement.appendChild(selectOptionElement);
+      }
+
+      let labelElement = document.createElement("label");
+
+      const textElement = createTextElementForLabel(option, false, true);
+      labelElement.appendChild(textElement);
+
+      labelElement.appendChild(optionElement);
+      optionDivElement.appendChild(labelElement);
+    } else if (option.type == "number") {
+      optionElement = document.createElement("input");
+      optionElement.type = "number";
+      optionElement.className = "option-number";
+
+      let labelElement = document.createElement("label");
+
+      const textElement = createTextElementForLabel(option, false, true);
+      labelElement.appendChild(textElement);
+
+      labelElement.appendChild(optionElement);
+      optionDivElement.appendChild(labelElement);
+    } else if (option.type == "color") {
+      optionElement = document.createElement("input");
+      optionElement.type = "color";
+      optionElement.className = "optionNumber";
+
+      let labelElement = document.createElement("label");
+
+      const textElement = createTextElementForLabel(option, false, true);
+      labelElement.appendChild(textElement);
+
+      labelElement.appendChild(optionElement);
+      optionDivElement.appendChild(labelElement);
+    }
+
+    if (optionElement) {
+      optionElement.id = fullOptionElementId;
+      optionElement.addEventListener("change", onChange);
+    }
+
+    if (option.comment) {
+      let breakElement = document.createElement("br");
+      optionDivElement.appendChild(breakElement);
+
+      let commentElement = document.createElement("label");
+      commentElement.innerText = option.comment;
+      commentElement.className = "option-comment";
+      optionDivElement.appendChild(commentElement);
+    }
+
+    if (option.type != "group") {
+      let breakElement = document.createElement("br");
+      optionDivElement.appendChild(breakElement);
+    }
+
+    optionsContainerElement.appendChild(optionDivElement);
+  }
+
 }
 
 // when the options page loads, load status of options from storage
@@ -211,6 +348,23 @@ $("#options .feature-toggle input[type='checkbox']").each(function () {
   });
 });
 
+// Hide/show options
+$(".feature-options-button").on("click", function () {
+  let id = $(this).attr('id');
+  if (id.endsWith("_options_button")) {
+    let index = id.indexOf("_options_button");
+    let featureId = id.substring(0, index);
+    let optionsElementId = `${featureId}_options`;
+    if ($(`#${optionsElementId}`).is(":hidden")) {
+      $(`#${optionsElementId}`).show();
+      $(this).text("Hide Options");
+    } else {
+      $(`#${optionsElementId}`).hide();
+      $(this).text("Show Options");
+    }
+  }
+});
+
 // adds feature HTML to the options page
 function addFeatureToOptionsPage(featureData) {
   const featureHTML = `
@@ -223,14 +377,34 @@ function addFeatureToOptionsPage(featureData) {
                     </label>
                 </div>
                 <div class="feature-name">
-                ${featureData.name}
+                  ${featureData.name}
                 </div>
+                <button type="button" class="feature-options-button" id="${featureData.id}_options_button" hidden>
+                  Show options
+                </button>
             </div>
-            <div class="feature-description">
+            <div class="feature-content">
+              <div class="feature-description">
                 ${featureData.description}
+              </div>
             </div>
         </div>
     `;
 
   $("#features").append(featureHTML);
+
+  if (featureData.options) {
+    const featureOptionsHTML = `
+          <div id="${featureData.id}_options" class="feature-options" hidden>
+          </div>
+      `;
+
+    $("#" + featureData.id + " .feature-content").append(featureOptionsHTML);
+
+    $("#" + featureData.id + "_options_button").show();
+
+    const optionsElement = document.getElementById(`${featureData.id}_options`);
+
+    addOptionsForFeature(featureData, optionsElement, featureData.options);
+  }
 }
