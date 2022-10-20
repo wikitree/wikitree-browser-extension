@@ -1,5 +1,6 @@
 import * as $ from 'jquery';
 import 'jquery-ui/ui/widgets/draggable';
+import {getRelatives} from 'wikitree-js';
 import {createProfileSubmenuLink, extractRelatives, isOK} from '../../core/common';
 import './familyTimeline.css';
 
@@ -25,47 +26,6 @@ chrome.storage.sync.get("familyTimeline", (result) => {
     }
   }
 });
-
-async function getRelatives(id, fields = "*") {
-  try {
-    const result = await $.ajax({
-      url: "https://api.wikitree.com/api.php",
-      crossDomain: true,
-      xhrFields: { withCredentials: true },
-      type: "POST",
-      dataType: "json",
-      data: {
-        action: "getRelatives",
-        keys: id,
-        fields: fields,
-        getParents: 1,
-        getSiblings: 1,
-        getSpouses: 1,
-        getChildren: 1,
-      },
-    });
-    return result[0].items[0].person;
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Make the family member arrays easier to handle
-function getRels(rel, person, theRelation = false) {
-  let people = [];
-  if (typeof rel == undefined || rel == null) {
-    return false;
-  }
-  const pKeys = Object.keys(rel);
-  pKeys.forEach(function (pKey) {
-    var aPerson = rel[pKey];
-    if (theRelation != false) {
-      aPerson.Relation = theRelation;
-    }
-    people.push(aPerson);
-  });
-  return people;
-}
 
 // Get a year from the person's data
 function getTheYear(theDate, ev, person) {
@@ -192,11 +152,47 @@ function capitalizeFirstLetter(string) {
 
 function timeline() {
   $("#timeline").remove();
-  const fields =
-    "BirthDate,BirthLocation,BirthName,BirthDateDecade,DeathDate,DeathDateDecade,DeathLocation,IsLiving,Father,FirstName,Gender,Id,LastNameAtBirth,LastNameCurrent,Prefix,Suffix,LastNameOther,Derived.LongName,Derived.LongNamePrivate,Manager,MiddleName,Mother,Name,Photo,RealName,ShortName,Touched,DataStatus,Derived.BirthName,Bio";
+  const fields = [
+    "BirthDate",
+    "BirthLocation",
+    "BirthName",
+    "BirthDateDecade",
+    "DeathDate",
+    "DeathDateDecade",
+    "DeathLocation",
+    "IsLiving",
+    "Father",
+    "FirstName",
+    "Gender",
+    "Id",
+    "LastNameAtBirth",
+    "LastNameCurrent",
+    "Prefix",
+    "Suffix",
+    "LastNameOther",
+    "Derived.LongName",
+    "Derived.LongNamePrivate",
+    "Manager",
+    "MiddleName",
+    "Mother",
+    "Name",
+    "Photo",
+    "RealName",
+    "ShortName",
+    "Touched",
+    "DataStatus",
+    "Derived.BirthName",
+    "Bio",
+  ];
   const id = $("a.pureCssMenui0 span.person").text();
-  getRelatives(id, fields).then((personData) => {
-    var person = personData;
+  getRelatives([id], {
+    getParents: true,
+    getSiblings: true,
+    getSpouses: true,
+    getChildren: true,
+    fields,
+  }).then((personData) => {
+    const person = personData[0];
     const parents = extractRelatives(person.Parents, "Parent");
     const siblings = extractRelatives(person.Siblings, "Sibling");
     const spouses = extractRelatives(person.Spouses, "Spouse");

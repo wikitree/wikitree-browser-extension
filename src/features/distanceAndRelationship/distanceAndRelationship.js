@@ -1,5 +1,6 @@
 import $ from "jquery";
 import Cookies from "js-cookie";
+import {getPerson} from 'wikitree-js';
 import "./distanceAndRelationship.css";
 chrome.storage.sync.get("distanceAndRelationship", (result) => {
   // define user and profile IDs
@@ -114,22 +115,6 @@ chrome.storage.sync.get("distanceAndRelationship", (result) => {
     };
   }
 });
-
-async function getProfile(id, fields = "*") {
-  try {
-    const result = await $.ajax({
-      url: "https://api.wikitree.com/api.php",
-      crossDomain: true,
-      xhrFields: { withCredentials: true },
-      type: "POST",
-      dataType: "json",
-      data: { action: "getProfile", key: id, fields: fields },
-    });
-    return result[0].profile;
-  } catch (error) {
-    console.error(error);
-  }
-}
 
 async function getConnectionFinderResult(id1, id2, relatives = 0) {
   try {
@@ -460,7 +445,7 @@ function initDistanceAndRelationship(userID, profileID, clicked = false) {
     getDistance();
     doRelationshipText(userID, profileID);
   } else {
-    getProfile(profileID).then((person) => {
+    getPerson(profileID).then((person) => {
       const nowTime = Date.parse(Date());
       let timeDifference = 0;
       if (person.Created) {

@@ -1,9 +1,9 @@
 import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
+import {getRelatives} from 'wikitree-js';
 import {
   createProfileSubmenuLink,
   familyArray,
-  getRelatives,
   isOK,
   htmlEntities
 } from "../../core/common";
@@ -35,8 +35,13 @@ chrome.storage.sync.get("familyGroup", (result) => {
         $("#" + profileID.replace(" ", "_") + "_family").fadeToggle();
       } else {
         // Make the table and do other things
-        getRelatives(profileID).then((person) => {
-          const uPeople = familyArray(person);
+        getRelatives([profileID], {
+          getParents: true,
+          getSiblings: true,
+          getSpouses: true,
+          getChildren: true,
+        }).then((person) => {
+          const uPeople = familyArray(person[0]);
           // Make the table
           const familyTable = peopleToTable(uPeople);
           // Attach the table to the body, position it and make it draggable and toggleable
