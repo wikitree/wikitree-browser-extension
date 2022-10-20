@@ -30,17 +30,32 @@ See [npm official documentation](https://docs.npmjs.com/downloading-and-installi
 npm install
 ```
 
-4. Bulid the extension
+4. Build the extension
+
+For Chrome:
 ```
 npm run build
 ```
+For Firefox:
+```
+npm run build-firefox
+```
 
-5. Load the extension in Chrome
+5. Load the extension
+
+For Chrome:
 
 - Go to [chrome://extensions](chrome://extensions)
 - Make sure you have _Developer mode_ turned on (top right corner)
 - Click _Load unpacked_
 - Select the `wikitree-browser-extension/dist` folder
+
+For Firefox:
+
+- Go to [about:debugging](about:debugging)
+- Click "This Firefox" on the left-hand side
+- Click the "Load Temporary Add-on..." button
+- Choose a file in the `wikitree-browser-extension/dist` folder
 
 
 ## Features
