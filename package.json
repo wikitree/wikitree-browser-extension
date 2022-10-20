@@ -8,6 +8,7 @@
     "watch-firefox": "webpack --config webpack/webpack.dev.js  --env browser=firefox --watch",
     "build-firefox": "webpack --config webpack/webpack.prod.js --env browser=firefox",
     "build-firefox-dev": "webpack --config webpack/webpack.dev.js --env browser=firefox",
+    "test": "node src/features/agc/run_tests.mjs",
     "clean": "rimraf dist",
     "zip": "npm run clean && npm run build && cd dist && bestzip ../wikitree-browser-extension.zip *"
   },
