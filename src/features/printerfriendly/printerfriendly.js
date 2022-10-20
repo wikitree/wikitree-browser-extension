@@ -2,11 +2,13 @@ import $ from "jquery";
 
 chrome.storage.sync.get("printerFriendly", (result) => {
   if (result.printerFriendly) {
-    $("body.profile a:contains(Printable Tree)")
+    $("body.profile a.pureCssMenui0 span.person")
+      .closest("li")
+      .find("a:contains(Printable Tree)")
       .parent()
       .after(
         $(
-          "<li><a id='wte-tm-printer-friendly' title='Changes the format to a printer-friendly one'>Printer Friendly</a></li>"
+          "<li><a id='wte-tm-printer-friendly' title='Changes the format to a printer-friendly one'>Printer Friendly Bio</a></li>"
         )
       );
 
