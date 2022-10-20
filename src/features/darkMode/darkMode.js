@@ -4,7 +4,7 @@ import "./darkMode.css";
 // Need to add a listener for change in preference
 // Need options to be always on or to follow the OS preferred style
 const useDark = window.matchMedia("(prefers-color-scheme: dark)");
-console.log(useDark);
+//console.log(useDark);
 if (useDark.matches == true) {
   //doDarkMode();
 }
