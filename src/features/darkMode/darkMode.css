@@ -25,7 +25,9 @@ body.darkMode table,
 body.darkMode.page-Special_FamilyTree table,
 body.darkMode.page-Special_FamilyTree table td,
 body.darkMode table.wt th,
-body.darkMode table.wt td {
+body.darkMode table.wt td,
+body.darkMode ul.pureCssMenum li,
+body.darkMode ul.pureCssMenum li a {
   font-weight: 400;
   background-color: #36393f !important;
   color: #dcddde !important;
