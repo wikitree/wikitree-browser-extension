@@ -14,9 +14,8 @@ chrome.storage.sync.get('bioCheck', (result) => {
     // Keep the code to use the singleton, just in case
 
     let theSourceRules = new SourceRules();
-    // Only do this if on the edit page for a person
-    // Look for the class page-Special_EditPerson
-    // previous code tried if ($("body.page-Special_EditPerson").length) {
+
+    // Look at the type of page and take appropriate action
 
     if (document.body.classList.contains("page-Special_EditPerson")) {
       checkBio(theSourceRules);
@@ -33,8 +32,9 @@ chrome.storage.sync.get('bioCheck', (result) => {
       setInterval(checkBioAtInterval, 60000, theSourceRules);
 
     } else {
+      if (document.body.classList.contains("page-Special_EditFamily")) {
       // Check if you are on the Add Person page
-      if (document.getElementById('sourceOptionContainer') != null) {
+      //if (document.getElementById('sourceOptionContainer') != null) {
 
         // Find the save button. For Add Person there is just one
         // For adding a relative there are two, and you want the second
@@ -46,6 +46,10 @@ chrome.storage.sync.get('bioCheck', (result) => {
         saveButton.addEventListener("touchstart", checkSourcesAtInterval);
 
         setInterval(checkSourcesAtInterval, 30000, theSourceRules);
+      } else {
+        if (document.body.classList.contains("page-Special_WatchedList")) {
+          checkWatchlist();
+        }
       }
     }
   }
@@ -63,10 +67,10 @@ function checkSourcesAtInterval(theSourceRules) {
  * Notes about packaging and differences from the BioCheck app
  *
  * Copied the following files into features/bioCheck:
- *   biography.js
- *   biographyResults.js
- *   personDate.js
- *   sourceRules.js
+ *   Biography.js
+ *   BiographyResults.js
+ *   PersonDate.js
+ *   SourceRules.js
  * 
  * When checking a biography there is no check for privacy
  * to assume an undated profile is unsourced and
@@ -328,4 +332,23 @@ function setHelp(parentContainer) {
   bioCheckHelpImage.setAttribute('title', 'BioCheck Help');
 
   parentContainer.appendChild(bioCheckHelpAnchor);
+}
+
+/**
+ * Add a button for BioCheck to the Watchlist page
+ */
+function checkWatchlist() {
+
+  let buttonList = document.getElementById('views-inner').firstElementChild;
+  let bioCheckItem = document.createElement('li');
+  bioCheckItem.innerHTML='<a class-"views" href="https://apps.wikitree.com/apps/sands1865/biocheck/?action=checkWatchlist&checkStart=auto" title="BioCheck profiles on your watchlist" </a> BioCheck';
+
+  let myPosition = 0;
+  while ((myPosition < buttonList.childElementCount) && 
+         (buttonList.children[myPosition].textContent < 'BioCheck')) {
+    myPosition++;
+  }
+
+  // Insert in alpha order, use appendChild to add at end
+  buttonList.insertBefore(bioCheckItem, buttonList.children[myPosition]);
 }
