@@ -1,5 +1,6 @@
 import $ from "jquery";
-import "./checkAttachPersonID.css";
+import "jquery-ui/ui/widgets/draggable";
+import "./verifyID.css";
 import { extractRelatives, displayName } from "../../core/common";
 
 if ($("body.page-Special_EditFamily").length) {
@@ -152,6 +153,7 @@ async function checkAttachPersonID() {
               let person = data[0].items[0].person;
               person = addRelativeArraysToPerson(person);
               $("#mName").after($("<div id='verification'><x>x</x></div>"));
+              $("#verification").draggable();
               if (person.Created) {
                 console.log(displayName(person)[0], displayDates(person, true));
                 ah2 = $(

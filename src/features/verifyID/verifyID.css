@@ -5,9 +5,10 @@
   padding: 1em;
   border-radius: 1em;
   display: inline-block;
-  margin-left: -25em;
+  left: 30%;
   margin-top: 3em;
   white-space: nowrap;
+  cursor: move;
 }
 
 #verification ul {
