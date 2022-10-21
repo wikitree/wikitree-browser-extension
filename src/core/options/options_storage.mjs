@@ -1,5 +1,26 @@
 import { getDefaultOptionValuesForFeature } from "../../core/options/options_registry.mjs"
 
+async function checkIfFeatureEnabled(featureId) {
+  return new Promise((resolve, reject) => {
+    try {
+      if (!featureId) {
+        reject(new Error("No featureId provided"));
+      }
+
+      const itemKey = featureId;
+      chrome.storage.sync.get(itemKey,
+        function (items) {
+          const result = items[itemKey];
+
+          resolve(result);
+        }
+      );
+    } catch (ex) {
+      reject(ex);
+    }
+  });
+}
+
 async function getFeatureOptions(featureId) {
   return new Promise((resolve, reject) => {
     try {
@@ -15,9 +36,6 @@ async function getFeatureOptions(featureId) {
 
       chrome.storage.sync.get(itemKey,
         function (items) {
-          console.log("getFeatureOptions, items:");
-          console.log(items);
-
           let loadedOptions = items[itemKey];
 
           let optionsToReturn = loadedOptions;
@@ -32,11 +50,6 @@ async function getFeatureOptions(featureId) {
             }
           }
 
-          console.log("getFeatureOptions, featureId is: " + featureId + ", loadedOptions:");
-          console.log(loadedOptions);
-          console.log("getFeatureOptions, optionsToReturn:");
-          console.log(optionsToReturn);
-
           resolve(optionsToReturn);
         }
       );
@@ -46,4 +59,4 @@ async function getFeatureOptions(featureId) {
   });
 }
 
-export { getFeatureOptions };
+export { checkIfFeatureEnabled, getFeatureOptions };

@@ -1,6 +1,7 @@
 import $ from "jquery";
 
 import { features } from "./core/options/options_registry.mjs";
+import "./core/options/options_init.mjs";
 
 // Categories
 const categories = ["Global", "Profile", "Editing", "Style"];
@@ -31,9 +32,6 @@ function fillOptionsDataFromUiElements(feature, options, optionsData) {
         continue;
       }
 
-      console.log("fillOptionsDataFromUiElements: option.id = " + option.id + " optionsData[option.id] = " + optionsData[option.id]);
-      console.log("option.defaultValue = " + option.defaultValue);
-
       if (option.type == "checkbox") {
         optionsData[option.id] = element.checked;
       } else {
@@ -41,16 +39,9 @@ function fillOptionsDataFromUiElements(feature, options, optionsData) {
       }
     }
   }
-
-  console.log("fillOptionsDataFromUiElements: optionsData is:");
-  console.log(optionsData);
 }
 
 function setUiElementsFromOptionsData(feature, options, optionsData) {
-  console.log("setUiElementsFromOptionsData: optionsData is:");
-  console.log(optionsData);
-
-
   const optionElementIdPrefix = feature.id + "_";
 
   for (let option of options) {
@@ -68,14 +59,8 @@ function setUiElementsFromOptionsData(feature, options, optionsData) {
         continue;
       }
 
-      console.log("setUiElementsFromOptionsData: option.id = " + option.id + " optionsData[option.id] = " + optionsData[option.id]);
-
-      console.log("setUiElementsFromOptionsData: optionsData.spelling = " + optionsData.spelling);
-      console.log(optionsData);
-
       if (!optionsData.hasOwnProperty(option.id)) {
         optionsData[option.id] = option.defaultValue;
-        console.log("setUiElementsFromOptionsData: option.defaultValue = " + option.defaultValue);
       }
 
       if (option.type == "checkbox") {
@@ -85,20 +70,13 @@ function setUiElementsFromOptionsData(feature, options, optionsData) {
       }
     }
   }
-
-  console.log("setUiElementsFromOptionsData (at end): optionsData is:");
-  console.log(optionsData);
 }
 
 function saveFeatureOptions(feature) {
-  console.log("saveFeatureOptions: feature.id is: " + feature.id);
 
   // gather all the UI values into an object called options
   let optionsData = {};
   fillOptionsDataFromUiElements(feature, feature.options, optionsData);
-
-  console.log("saveFeatureOptions: optionsData is: ");
-  console.log(optionsData);
 
   const storageName = feature.id + "_options";
   chrome.storage.sync.set({
@@ -107,8 +85,6 @@ function saveFeatureOptions(feature) {
 }
 
 function restoreFeatureOptions(feature, storageItems) {
-  console.log("restoreFeatureOptions: feature.id is: " + feature.id);
-
   const storageName = feature.id + "_options";
 
   let optionsData = {};

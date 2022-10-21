@@ -22,6 +22,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+// need to include this to register the feature so that we can get the default options
+import "../../core/options/options_init.mjs";
+
 import { getDefaultOptionValuesForFeature } from "../../core/options/options_registry.mjs"
 
 const defaultUserOptions = getDefaultOptionValuesForFeature("agc", true);

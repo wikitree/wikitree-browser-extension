@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-import { getFeatureOptions } from "../../core/options/options_storage.mjs"
+import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage.mjs"
 
 // file level variables
 var agcButton = undefined;
@@ -527,8 +527,16 @@ function initAgc() {
   }
 }
 
+/*
 chrome.storage.sync.get("agc", (result) => {
   if (result.agc) {
+    initAgc();
+  }
+});
+*/
+
+checkIfFeatureEnabled("agc").then((result) => {
+  if (result) {
     initAgc();
   }
 });
