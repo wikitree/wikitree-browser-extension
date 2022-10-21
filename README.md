@@ -1,5 +1,8 @@
 # WikiTree Browser Extension
 
+[![Build and test](https://github.com/wikitree/wikitree-browser-extension/actions/workflows/test.yml/badge.svg)](https://github.com/wikitree/wikitree-browser-extension/actions/workflows/test.yml)
+[![Build and test](https://img.shields.io/chrome-web-store/v/ijipjpbjobecdgkkjdfpemcidfdmnkid?logo=Google%20Chrome&logoColor=%23aaa)](https://chrome.google.com/webstore/detail/wikitree-browser-extensio/ijipjpbjobecdgkkjdfpemcidfdmnkid)
+
 ## Installation for testers
 
 To test the extension you can:
