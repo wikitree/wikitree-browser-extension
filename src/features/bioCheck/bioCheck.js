@@ -24,8 +24,10 @@ chrome.storage.sync.get('bioCheck', (result) => {
       let saveDraftButton = document.getElementById("wpSaveDraft");
       saveDraftButton.onclick = function(){checkBio(theSourceRules)};
       saveDraftButton.addEventListener("mouseover", checkBioAtInterval);
+      saveDraftButton.addEventListener("touchstart", checkBioAtInterval);
       let saveButton = document.getElementById("wpSave");
       saveButton.addEventListener("mouseover", checkBioAtInterval);
+      saveButton.addEventListener("touchstart", checkBioAtInterval);
 
       // and also once a minute
       setInterval(checkBioAtInterval, 60000, theSourceRules);
@@ -41,6 +43,7 @@ chrome.storage.sync.get('bioCheck', (result) => {
         // check on save or if or something might be about to happen
         saveButton.onclick = function(){checkSources(theSourceRules)};
         saveButton.addEventListener("mouseover", checkSourcesAtInterval);
+        saveButton.addEventListener("touchstart", checkSourcesAtInterval);
 
         setInterval(checkSourcesAtInterval, 30000, theSourceRules);
       }
@@ -191,8 +194,9 @@ function reportResults(reportLines) {
     bioCheckResultsContainer.setAttribute('id', 'biocheckContainer');
 
     let bioCheckTitle = document.createElement('b');
-    bioCheckTitle.innerText = "BioCheck results";
+    bioCheckTitle.innerText = 'BioCheck results\u00A0\u00A0';   // TODO use style?
     bioCheckResultsContainer.appendChild(bioCheckTitle);
+    setHelp(bioCheckResultsContainer);
   }
     
   // need a new set of results
@@ -249,20 +253,20 @@ function reportSources(invalidSourceLines, isPre1700) {
   let numLines = invalidSourceLines.length;
   let previousSources = document.getElementById('bioCheckSourcesList');
   let bioCheckSourcesContainer = document.getElementById('bioCheckSourcesContainer');
+  let bioCheckTitle = document.getElementById('bioCheckTitle');
   // If you have been here before get and remove the old list of results
   if ((!bioCheckSourcesContainer) && (numLines > 0)) {
     bioCheckSourcesContainer = document.createElement('div');
     bioCheckSourcesContainer.setAttribute('id', 'bioCheckSourcesContainer');
     // status class is too much, a big yellow box 
     // bioCheckSourcesContainer.setAttribute('class', 'status');
-    let bioCheckTitle = document.createElement('b');
-    let msg = 'BioCheck found sources that are not ';
-    if (isPre1700) {
-      msg += 'reliable or ';
-    }
-    msg += 'clearly identified:';
-    bioCheckTitle.innerText = msg;
+    bioCheckTitle = document.createElement('b');
+    bioCheckTitle.setAttribute('id', 'bioCheckTitle');
+    // fill contents of the title each time you are here in case date changes
+    bioCheckTitle.innerText = sourcesTitle(isPre1700);
     bioCheckSourcesContainer.appendChild(bioCheckTitle);
+
+    setHelp(bioCheckSourcesContainer);
   }
     
   // need a new set of results
@@ -275,6 +279,7 @@ function reportSources(invalidSourceLines, isPre1700) {
   }
   // Add or replace the results
   if (numLines > 0) {
+    bioCheckTitle.innerText = sourcesTitle(isPre1700);
     if (previousSources != null) {
       previousSources.replaceWith(bioSourcesList);
     } else {
@@ -290,4 +295,37 @@ function reportSources(invalidSourceLines, isPre1700) {
       bioCheckSourcesContainer.remove();
     }
   }
+}
+/**
+ * Build title for sources message
+ * @param isPre1700 true to build Pre-1700 profile message
+ * @return sources title message
+ */
+function sourcesTitle(isPre1700) {
+  let msg = 'BioCheck found sources that are not ';
+  if (isPre1700) {
+    msg += 'reliable or ';
+  }
+  msg += 'clearly identified: \u00A0\u00A0';   // TODO use style?
+  return msg;
+}
+/**
+ * Build a link for help
+ * parentContainer help will be added at the end of the parent
+ */
+function setHelp(parentContainer) {
+  let bioCheckHelpAnchor = document.createElement('a');
+  let bioCheckHelpImage = document.createElement('img');
+
+  bioCheckHelpAnchor.appendChild(bioCheckHelpImage);
+  bioCheckHelpAnchor.setAttribute('id', 'bioCheckHelpAnchor');
+  bioCheckHelpAnchor.setAttribute('href', 'https://www.wikitree.com/wiki/Space:BioCheckHelp#Sourced.3F');
+  bioCheckHelpAnchor.setAttribute('target', '_Help');
+
+  bioCheckHelpImage.setAttribute('id', 'bioCheckHelpImage');
+  bioCheckHelpImage.setAttribute('src', '/images/icons/help.gif');
+  bioCheckHelpImage.setAttribute('alt', 'Help');
+  bioCheckHelpImage.setAttribute('title', 'BioCheck Help');
+
+  parentContainer.appendChild(bioCheckHelpAnchor);
 }
