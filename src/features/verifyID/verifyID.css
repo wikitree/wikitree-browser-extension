@@ -9,6 +9,7 @@
   margin-top: 3em;
   white-space: nowrap;
   cursor: move;
+  box-shadow: 0.2em 0.2em 0.2em #f8a01f;
 }
 
 #verification ul {
