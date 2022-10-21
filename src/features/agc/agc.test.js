@@ -22,6 +22,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+import {editBio} from './library/editbio';
+import fs from 'fs'
+import {fail} from 'assert';
+
+
 const defaultUserOptions = {
   spelling: 'en_uk',
   include_age: 'none',
@@ -3470,10 +3475,6 @@ const testProfiles = [
   },
 ];
 
-// We are using ES6 import/export everywhere rather than require because the module we are using (editbio.mjs) is used in a context script
-// as well as from this node.js test harness
-import fs from 'fs'
-
 function getUserOptions(testData) {
   const specifiedOptions = testData.options;
 
@@ -3481,7 +3482,7 @@ function getUserOptions(testData) {
   return { ...defaultUserOptions, ...specifiedOptions }; 
 }
 
-function doEditBio(editBioModule, testData) {
+function doEditBio(testData) {
 
   let inputBioText = "";
   let referenceOutputBioText = "";
@@ -3491,192 +3492,87 @@ function doEditBio(editBioModule, testData) {
   const regressionDataPath = "./src/features/agc/regression_data/" + profileName + "/";
   const inBioFile = regressionDataPath + profileName + "_input.txt";
   const refBioFile = regressionDataPath + profileName + profileVariant + "_refout.txt";
-  const outBioFile = regressionDataPath + profileName + profileVariant + "_testout.txt";
-
-  console.log(" === doEditBio on " + profileName + profileVariant + " ===");
 
   try {
     inputBioText = fs.readFileSync(inBioFile, 'utf8');
   } catch (e) {
     console.log('Error:', e.stack);
-    testData.causeOfFailure = "Failed to read input file";
-    return false;
+    fail("Failed to read input file");
   }
 
   try {
     referenceOutputBioText = fs.readFileSync(refBioFile, 'utf8');
   } catch (e) {
     console.log('Error:', e.stack);
-    testData.causeOfFailure = "Failed to read reference file";
-    return false;
+    fail("Failed to read reference file");
   }
 
-  if (inputBioText != "" && referenceOutputBioText != "") {
 
-    // Get Date object for fixed date (has to be fixed so comparisons with ref output work)
-    const runDateObject = new Date("16 July 2020");
-    
-    const editBioInput = {
-      'wikiId' : testData.profileName,
-      'birthDate': testData.inBirthDate,
-      'birthDateIsBefore': testData.inBirthDateIsBefore,
-      'birthLocation': testData.inBirthLocation,
-      'deathDate': testData.inDeathDate,
-      'deathDateIsBefore': testData.inDeathDateIsBefore,
-      'deathLocation': testData.inDeathLocation,
-      'personGender': testData.inPersonGender,
-      'firstName': (testData.inFirstName == undefined) ? testData.inPrefName : testData.inFirstName,
-      'prefName': testData.inPrefName,
-      'middleName': (testData.inMiddleName == undefined) ? "" : testData.inMiddleName,
-      'currentLastName': testData.currentLastName,
-      'parents': testData.inParents,
-      'bioText': inputBioText,
-      'runDate' : runDateObject,
-      'options' : getUserOptions(testData),
-    };
-
-
-    const editBioOutput = editBioModule.editBio(editBioInput);
-
-    if (editBioOutput.succeeded != testData.refSucceeded) {
-      console.log("ERROR: Bio succeeded differs. Ref is " + testData.refSucceeded + ", actual is " + editBioOutput.succeeded);
-      console.log("Error message = " + editBioOutput.errorMessage);
-      testData.causeOfFailure = "editBio return value differs from expected";
-      return false;
-    }
-
-    if (editBioOutput.succeeded) {
-
-      if (editBioOutput.bioText != referenceOutputBioText) {
-
-        console.log("ERROR: Bios differ. Length of ref is " + referenceOutputBioText.length + ", length of output is " + editBioOutput.bioText.length);
-        testData.causeOfFailure = "Output bio differs from reference";
-
-        // Write the output out to a file so we can diff it
-        try {
-          fs.writeFileSync(outBioFile, editBioOutput.bioText, { mode: 0o755 });
-        } catch(err) {
-          // An error occurred
-          console.error(err);
-        }
-
-        return false;
-      }
-
-      if (editBioOutput.birthDate != testData.refBirthDate) {
-        console.log("ERROR: Birth dates differ. Ref is " + testData.refBirthDate + ", actual is " + editBioOutput.birthDate);
-        testData.causeOfFailure = "Birth dates differ";
-        return false;
-      }
-      if (editBioOutput.birthDateIsBefore != testData.refBirthDateIsBefore) {
-        console.log("ERROR: Birth is before differs. Ref is " + testData.refBirthDateIsBefore + ", actual is " + editBioOutput.birthDateIsBefore);
-        testData.causeOfFailure = "Birth is before differs";
-        return false;
-      }
+  // Get Date object for fixed date (has to be fixed so comparisons with ref output work)
+  const runDateObject = new Date("16 July 2020");
   
-      if (editBioOutput.deathDate != testData.refDeathDate) {
-        console.log("ERROR: Death dates differ. Ref is " + testData.refDeathDate + ", actual is " + editBioOutput.deathDate);
-        testData.causeOfFailure = "Death dates differ";
-        return false;
-      }
-      if (editBioOutput.deathDateIsBefore != testData.refDeathDateIsBefore) {
-        console.log("ERROR: Death is before differs. Ref is " + testData.refDeathDateIsBefore + ", actual is " + editBioOutput.deathDateIsBefore);
-        testData.causeOfFailure = "Death is before differs";
-        return false;
-      }
+  const editBioInput = {
+    'wikiId' : testData.profileName,
+    'birthDate': testData.inBirthDate,
+    'birthDateIsBefore': testData.inBirthDateIsBefore,
+    'birthLocation': testData.inBirthLocation,
+    'deathDate': testData.inDeathDate,
+    'deathDateIsBefore': testData.inDeathDateIsBefore,
+    'deathLocation': testData.inDeathLocation,
+    'personGender': testData.inPersonGender,
+    'firstName': (testData.inFirstName == undefined) ? testData.inPrefName : testData.inFirstName,
+    'prefName': testData.inPrefName,
+    'middleName': (testData.inMiddleName == undefined) ? "" : testData.inMiddleName,
+    'currentLastName': testData.currentLastName,
+    'parents': testData.inParents,
+    'bioText': inputBioText,
+    'runDate' : runDateObject,
+    'options' : getUserOptions(testData),
+  };
 
-      if (testData.refFirstName != undefined && editBioOutput.firstName != testData.refFirstName) {
-        console.log("ERROR: First names differ. Ref is " + testData.refFirstName + ", actual is " + editBioOutput.firstName);
-        testData.causeOfFailure = "First names differ";
-        return false;
-      }
 
-      if (testData.refPrefName != undefined && editBioOutput.prefName != testData.refPrefName) {
-        console.log("ERROR: Prefered names differ. Ref is " + testData.refPrefName + ", actual is " + editBioOutput.prefName);
-        testData.causeOfFailure = "Preferred names differ";
-        return false;
-      }
+  const editBioOutput = editBio(editBioInput);
 
-      if (testData.refMiddleName != undefined && editBioOutput.middleName != testData.refMiddleName) {
-        console.log("ERROR: Middle names differ. Ref is " + testData.refMiddleName + ", actual is " + editBioOutput.middleName);
-        testData.causeOfFailure = "Middle names differ";
-        return false;
-      }
+  expect(editBioOutput.succeeded).toBe(testData.refSucceeded);
 
-      if (editBioOutput.currentLastName != testData.refCurrentLastName) {
-        console.log("ERROR: Current last names differ. Ref is " + testData.refCurrentLastName + ", actual is " + editBioOutput.currentLastName);
-        testData.causeOfFailure = "Current last names differ";
-        return false;
-      }
+  if (editBioOutput.succeeded) {
+    expect(editBioOutput.bioText).toBe(referenceOutputBioText);
+    expect(editBioOutput.birthDate).toBe(testData.refBirthDate);
+    expect(editBioOutput.birthDateIsBefore).toBe(testData.refBirthDateIsBefore);
+    expect(editBioOutput.deathDate).toBe(testData.refDeathDate);
+    expect(editBioOutput.deathDateIsBefore).toBe(testData.refDeathDateIsBefore);
+    if (testData.refFirstName != undefined) {
+      expect(editBioOutput.firstName).toBe(testData.refFirstName);
     }
-    else {
-      // suceeded was false, check that the error message is the expected one
-      if (editBioOutput.errorMessage != testData.refErrorMessage) {
-        console.log("ERROR: Error messages differ. Ref is:\n" + testData.refErrorMessage + "\nactual is:\n" + editBioOutput.errorMessage);
-        testData.causeOfFailure = "Error messages differ";
-        return false;
-      }
+    if (testData.refPrefName != undefined) {
+      expect(editBioOutput.prefName).toBe(testData.refPrefName);
     }
-  }
-
-  return true;
-}
-
-function runTests(editBioModule) {
-
-  let testsFailed = [];
-
-  if (process.argv.length > 2) {
-    const testName = process.argv[2];
-    const profileVariant = process.argv[3];
-
-    for (const testProfile of testProfiles) {
-
-      if (testName == testProfile.profileName && profileVariant == testProfile.profileVariant) {
-        if (!doEditBio(editBioModule, testProfile)) {
-          console.log("ERROR: Profile failed");
-          testsFailed.push(testProfile)
-        }
-      }
+    if (testData.refMiddleName != undefined) {
+      expect(editBioOutput.middleName).toBe(testData.refMiddleName);
     }
+    expect(editBioOutput.currentLastName).toBe(testData.refCurrentLastName);
   }
   else {
-    for (const testProfile of testProfiles) {
-
-      if (!doEditBio(editBioModule, testProfile)) {
-        console.log("ERROR: Profile failed");
-        testsFailed.push(testProfile);
-      }
-    }
+    // suceeded was false, check that the error message is the expected one
+    expect(editBioOutput.errorMessage).toBe(testData.refErrorMessage);
   }
-
-  if (testsFailed.length > 0) {
-    for (const testProfile of testsFailed) {
-      let optionsDesc = "default options";
-      if (testProfile.options != undefined && testProfile.options != defaultUserOptions) {
-        optionsDesc = "custom options"
-      }
-      let profileName = testProfile.profileName;
-      if (testProfile.profileVariant != undefined) {
-        profileName += "_" + testProfile.profileVariant;
-      }
-      console.log("ERROR: Profile failed : " + profileName + " (" + optionsDesc + "). Cause: "+ testProfile.causeOfFailure);
-    }
-    return false;
-  }
-
-  console.log("SUCCESS: All tests passed");
-  return true;
 }
 
-function asyncLoadScriptAndCallEditBio() {
-  // This asyncronously loads the editbio.mjs module and, once it loads it calls runtests
-  (async () => {
-    const src = "./library/editbio.mjs";
-    const editBioModule = await import(src);
-    const success = runTests(editBioModule);
-    process.exit(success ? 0 : 1);
-  })();
-}
+describe("AGC", () => {
+  for (const testProfile of testProfiles) {
+    const hasDefaultOptions =
+      testProfile.options === undefined ||
+      testProfile.options === defaultUserOptions;
+    const optionsDesc = hasDefaultOptions
+      ? "default options"
+      : "custom options";
+    const profileVariant = testProfile.profileVariant
+      ? `_${testProfile.profileVariant}`
+      : "";
+    const profileName = `${testProfile.profileName}${profileVariant}`;
 
-asyncLoadScriptAndCallEditBio();
+    it(`Profile "${profileName}" passes tests (${optionsDesc})`, () => {
+      doEditBio(testProfile);
+    });
+  }
+});

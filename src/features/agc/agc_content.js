@@ -52,7 +52,7 @@ function callModuleEditBio(editBioInput, sendResponse) {
 }
 
 async function doImportAndEditBio(editBioInput, sendResponse) {
-  loadedEditBioModule = await import("./library/editbio.mjs");
+  loadedEditBioModule = await import("./library/editbio");
   isEditBioModuleLoaded = true;
   callModuleEditBio(editBioInput, sendResponse);
 }
