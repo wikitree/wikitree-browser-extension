@@ -2,15 +2,16 @@ import $ from "jquery";
 import Cookies from "js-cookie";
 import "./distanceAndRelationship.css";
 chrome.storage.sync.get("distanceAndRelationship", (result) => {
+  // define user and profile IDs
+  const profileID = $("a.pureCssMenui0 span.person").text();
+  const userID = Cookies.get("wikitree_wtb_UserName");
   if (
     result.distanceAndRelationship &&
     $("body.BEE").length == 0 &&
     $("body.profile").length &&
-    window.location.href.match("Space:") == null
+    window.location.href.match("Space:") == null &&
+    profileID != userID
   ) {
-    // define user and profile IDs
-    const profileID = $("a.pureCssMenui0 span.person").text();
-    const userID = Cookies.get("wikitree_wtb_UserName");
     // set up databases
     window.connectionFinderDBVersion = 1;
     window.relationshipFinderDBVersion = 1;

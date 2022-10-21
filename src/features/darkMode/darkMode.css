@@ -1,23 +1,15 @@
 body.darkMode html body,
 body.darkMode .wrapper,
-body.darkMode div:not(.cke_inner.cke_reset, .cke_a_content),
+body.darkMode div:not(.cke_inner.cke_reset, .cke_a_content, .large),
 body.darkMode a:link:not(.cke_button, .cke_combo_button),
 body.darkMode a:visited:not(.cke_button, .cke_combo_button),
 body.darkMode .small,
-body.darkMode .pureCssMenum,
-body.darkMode .home,
-body.darkMode .person,
-body.darkMode .add,
-body.darkMode .find,
-body.darkMode .help,
 body.darkMode strong,
 body.darkMode .strong,
 body.darkMode b,
 body.darkMode input,
 body.darkMode a.viewsi,
 body.darkMode ul.views a,
-body.darkMode ul.pureCssMenu,
-body.darkMode ul.pureCssMenu a,
 body.darkMode a:link.activeProfile,
 body.darkMode a:hover.activeProfile,
 body.darkMode a:visited.activeProfile a:active.activeProfile,
@@ -29,17 +21,18 @@ body.darkMode div.box.rounded,
 body.darkMode,
 body.darkMode span.qa-a-count,
 body.darkMode #appsSubMenu,
-body.darkMode a.pureCssMenui,
 body.darkMode table,
 body.darkMode.page-Special_FamilyTree table,
 body.darkMode.page-Special_FamilyTree table td,
 body.darkMode table.wt th,
-body.darkMode table.wt td {
+body.darkMode table.wt td,
+body.darkMode ul.pureCssMenum li,
+body.darkMode ul.pureCssMenum li a {
   font-weight: 400;
   background-color: #36393f !important;
   color: #dcddde !important;
 }
-body.darkMode .pureCssMenum,
+
 body.darkMode #yourRelationshipText,
 body.darkMode div.qa-body-wrapper {
   background-color: #36393f !important;
@@ -63,8 +56,9 @@ body.darkMode .qa-form-tall-label {
   color: #36393f !important;
 }
 
-body.darkMode h1 span {
-  color: white;
+body.darkMode h1 span,
+body.darkMode button.copyWidget {
+  color: white !important;
 }
 
 body.darkMode .button,
@@ -73,15 +67,14 @@ body.darkMode input.button.green.search {
   padding: 12px 12px !important;
 }
 body.darkMode span.showHideTree,
-body.darkMode input[type="submit"],
+body.darkMode input[type="submit"] :not([name="wpSearch"]),
 body.darkMode span#showHideDescendants {
   padding: 6px !important;
 }
 body.darkMode .qa-vote-buttons input {
   padding: 0 !important;
 }
-body.darkMode .large,
-body.darkMode ul,
+
 body.darkMode li {
   background: none !important;
 }
@@ -116,24 +109,7 @@ body.darkMode span.showHideTree,
 body.darkMode span#showHideDescendants {
   border: 1px solid white !important;
 }
-body.darkMode button.copyWidget,
-body.darkMode div.comment-actions button.button,
-body.darkMode span.commentContainerToggle button,
-body.darkMode div.qa-vote-buttons input,
-body.darkMode input.qa-favorite-button,
-body.darkMode #wtIDgo_go,
-body.darkMode input.qa-form-light-button-reshow,
-body.darkMode input.qa-form-light-button-hide,
-body.darkMode input.qa-form-light-button-edit,
-body.darkMode input[name="wpSearch"] {
-  border: 0 !important;
-}
-body.darkMode input[name="wpSearch"] {
-  background: url("https://www.wikitree.com/images/icons/search-submit-icon.png")
-    white !important;
-  font-size: 0;
-  top: -5px !important;
-}
+
 body.darkMode input.qa-a-select-button {
   background-image: url("https://www.wikitree.com/g2g/qa-theme/WikiTree/select-star.png")
     no-repeat !important;
@@ -199,4 +175,53 @@ body.darkMode .qa-q-item-meta {
 
 body.darkMode .dtcAddTest {
   color: aquamarine;
+}
+
+body.darkMode.page-Main_Page #wpSearch {
+  padding: 13px 30px 14px;
+}
+body.darkMode.page-Main_Page #wpSearch:hover {
+  color: gold;
+}
+body.darkMode #header,
+body.darkMode div.logo,
+body.darkMode div.logo *,
+body.darkMode ul.pureCssMenu,
+body.darkMode ul.pureCssMenu a,
+body.darkMode .pureCssMenum,
+body.darkMode .pureCssMenum,
+body.darkMode .home,
+body.darkMode .person,
+body.darkMode .add,
+body.darkMode .find,
+body.darkMode .help,
+body.darkMode a.pureCssMenui {
+  background-color: #2f3137 !important;
+}
+
+body.darkMode button.copyWidget,
+body.darkMode div.comment-actions button.button,
+body.darkMode span.commentContainerToggle button,
+body.darkMode div.qa-vote-buttons input,
+body.darkMode input.qa-favorite-button,
+body.darkMode #wtIDgo_go,
+body.darkMode input.qa-form-light-button-reshow,
+body.darkMode input.qa-form-light-button-hide,
+body.darkMode input.qa-form-light-button-edit,
+body.darkMode.profile input[name="wpSearch"] {
+  border: 0 !important;
+}
+body.darkMode input[name="wpSearch"] {
+  background: url("https://www.wikitree.com/images/icons/search-submit-icon.png")
+    white !important;
+  font-size: 0;
+  top: -5px !important;
+  color: transparent !important;
+}
+body.darkMode.page-Main_Page input[name="wpSearch"] {
+  border: 2px solid white;
+  background-image: none !important;
+  background-color: transparent !important;
+  font-size: large;
+  color: white !important;
 }

@@ -25,5 +25,10 @@
 	],
 	"icons": {
 		"128": "images/we128.png"
+	},
+	"browser_specific_settings": {
+		"gecko": {
+			"id": "info@wikitree.com"
+		}
 	}
 }
