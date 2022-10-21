@@ -1,11 +1,12 @@
 import $ from "jquery";
 import "./checkAttachPersonID.css";
-import { extractRelatives, displayName, isOK } from "../../core/common";
+import { extractRelatives, displayName } from "../../core/common";
 
 if ($("body.page-Special_EditFamily").length) {
   checkAttachPersonID();
 }
 
+// Get birth and death dates status as symbols: < ~ >
 function bdDatesStatus(person) {
   var bdStatus = "";
   var ddStatus = "";
@@ -44,6 +45,7 @@ function bdDatesStatus(person) {
   }
 }
 
+// Make dates to display e.g. 1990s -> ~1995
 function displayDates(fPerson) {
   if (fPerson != undefined) {
     const mbdDatesStatus = bdDatesStatus(fPerson);
@@ -101,7 +103,8 @@ function displayDates(fPerson) {
   }
 }
 
-function addRelArraysToPerson(zPerson) {
+// Make relatives easier to handle as arrays
+function addRelativeArraysToPerson(zPerson) {
   const zSpouses = extractRelatives(zPerson.Spouses, zPerson, "Spouse");
   zPerson.Spouse = zSpouses;
   const zChildren = extractRelatives(zPerson.Children, zPerson, "Child");
@@ -113,6 +116,7 @@ function addRelArraysToPerson(zPerson) {
   return zPerson;
 }
 
+// Show some details of the profile entered in the "Add parent/etc." box
 async function checkAttachPersonID() {
   $("body.page-Special_EditFamily #mName").keyup(function () {
     $("#verification").remove();
@@ -142,12 +146,12 @@ async function checkAttachPersonID() {
             fields: "*",
           },
           success: function (data) {
+            let ah2 = $("<h3>?</h3>");
+            let aUL = $("<ul></ul>");
             if (data[0]?.items) {
               let person = data[0].items[0].person;
-              person = addRelArraysToPerson(person);
+              person = addRelativeArraysToPerson(person);
               $("#mName").after($("<div id='verification'><x>x</x></div>"));
-              let ah2 = $("<h3>?</h3>");
-              let aUL = $("<ul></ul>");
               if (person.Created) {
                 console.log(displayName(person)[0], displayDates(person, true));
                 ah2 = $(
@@ -159,9 +163,6 @@ async function checkAttachPersonID() {
                     displayDates(person, true) +
                     "</a></h3>"
                 );
-                console.log(ah2);
-                aUL = $("<ul></ul>");
-
                 if (person.BirthLocation && person.BirthLocation != null) {
                   aUL.append($("<li>b. " + person.BirthLocation + "</li>"));
                 }
@@ -171,7 +172,6 @@ async function checkAttachPersonID() {
                 const oRels = ["Parent"];
                 oRels.forEach(function (aR) {
                   let psWord = aR + "s";
-
                   if (person[aR].length == 1) {
                     psWord = aR;
                   }
@@ -182,7 +182,6 @@ async function checkAttachPersonID() {
                     const newSection = $(
                       "<section><h4>" + psWord + "</h4><ul></ul></section>"
                     );
-
                     person[aR].forEach(function (aP) {
                       newSection
                         .find("ul")
@@ -199,7 +198,6 @@ async function checkAttachPersonID() {
               ah2 = $("<h3>?</h3>");
               aUL = $("<ul></ul>");
             }
-            // if (isOK(ah2)) {
             $("#verification").prepend(aUL).prepend(ah2);
             $("#verification").dblclick(function () {
               $(this).fadeOut();
@@ -207,7 +205,6 @@ async function checkAttachPersonID() {
             $("#verification x").click(function () {
               $("#verification").fadeOut();
             });
-            // }
           },
         });
       }, 500);

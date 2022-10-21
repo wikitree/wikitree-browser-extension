@@ -106,6 +106,13 @@ const features = [
     description: "Check biography style and sources.",
     category: "Editing",
   },
+  {
+    name: "Verify ID",
+    id: "verifyID",
+    description:
+      "When attaching a person by ID, you can see some details of the person and check that you've entered the correct ID.",
+    category: "Editing",
+  },
 ];
 
 // Categories
