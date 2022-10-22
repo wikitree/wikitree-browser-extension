@@ -1,31 +1,23 @@
 import $ from "jquery";
-import { createTopMenuItem } from "../../core/common";
-import { registerFeature, GLOBAL } from "../../core/features";
 
-registerFeature({
-  name: "Printer Friendly Bio",
-  id: "printerFriendly",
-  description: "Change the page to a printer-friendly one.",
-  category: GLOBAL,
-  init,
+chrome.storage.sync.get("printerFriendly", (result) => {
+  if (result.printerFriendly) {
+    // Add link to WT ID menu
+    $("body.profile a.pureCssMenui0 span.person")
+      .closest("li")
+      .find("a:contains(Printable Tree)")
+      .parent()
+      .after(
+        $(
+          "<li><a id='wte-tm-printer-friendly' title='Changes the format to a printer-friendly one'>Printer Friendly Bio</a></li>"
+        )
+      );
+
+    $(`#wte-tm-printer-friendly`).on("click", () => {
+      printBio();
+    });
+  }
 });
-
-function init() {
-  // Add link to WT ID menu
-  $("body.profile a.pureCssMenui0 span.person")
-    .closest("li")
-    .find("a:contains(Printable Tree)")
-    .parent()
-    .after(
-      $(
-        "<li><a id='wte-tm-printer-friendly' title='Changes the format to a printer-friendly one'>Printer Friendly Bio</a></li>"
-      )
-    );
-
-  $(`#wte-tm-printer-friendly`).on("click", () => {
-    printBio();
-  });
-}
 
 // modified code from Steven's WikiTree Toolkit
 function printBio() {
