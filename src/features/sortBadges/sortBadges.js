@@ -46,8 +46,27 @@ chrome.storage.sync.get("sortBadges", (result) => {
           )
         );
     }
+    if (
+      $("body.profile").length &&
+      window.location.href.match("Space:") == null &&
+      $("a.pureCssMenui0 span.person").text() ==
+        Cookies.get("wikitree_wtb_UserName")
+    ) {
+      $("a:contains('view/edit')")
+        .parent()
+        .after(
+          $(
+            '<span class="SMALL" style="background: none;" id="hideClubBadgesLink">[<a href="/index.php?title=Special:Badges&amp;u=' +
+              Cookies.get("wikitree_wtb_UserID") +
+              '&action=hideClubBadges">hide Club badges</a>] </span><span class="SMALL" style="background: none;"  id="moveClubBadgesDownLink">[<a href="/index.php?title=Special:Badges&amp;u=' +
+              Cookies.get("wikitree_wtb_UserID") +
+              '&action=moveClubBadgesDown">move Club badges down</a>]</span>'
+          )
+        );
+    }
   }
 });
+
 
 function saveBadgeChanges() {
   $("input[value='Save Display Changes']").trigger("click");
