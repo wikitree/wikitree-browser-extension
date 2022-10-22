@@ -1,13 +1,13 @@
 import * as $ from "jquery";
-import { registerFeature, PROFILE } from "../../core/features";
+import { registerFeature, OTHER } from "../../core/features";
 import "./sortBadges.css";
 import Cookies from "js-cookie";
 
 registerFeature({
   name: "Sort Badges",
   id: "sortBadges",
-  description: "Move or hide your Club 100/1000 badges.",
-  category: PROFILE,
+  description: "Buttons to move or hide your Club 100/1000 badges.",
+  category: OTHER,
   init,
 });
 
@@ -50,7 +50,7 @@ function init() {
       .parent()
       .after(
         $(
-          '<span class="SMALL" style="background: none;" id="hideClubBadgesLink">[<a href="/index.php?title=Special:Badges&amp;u=19076274&action=hideClubBadges">hide Club 100/1000 badges</a>] </span><span class="SMALL" style="background: none;"  id="moveClubBadgesDownLink">[<a href="/index.php?title=Special:Badges&amp;u=19076274&action=moveClubBadgesDown">move Club 100/1000 badges down</a>]</span>'
+          '<span class="SMALL" style="background: none;" id="hideClubBadgesLink">[<a href="/index.php?title=Special:Badges&amp;u=19076274&action=hideClubBadges">hide Club badges</a>] </span><span class="SMALL" style="background: none;"  id="moveClubBadgesDownLink">[<a href="/index.php?title=Special:Badges&amp;u=19076274&action=moveClubBadgesDown">move Club badges down</a>]</span>'
         )
       );
   }
@@ -62,9 +62,7 @@ function saveBadgeChanges() {
 
 function hideClubBadges() {
   const clubBadgeLinks = $("a[href$='club100'],a[href$='club1000']");
-  console.log(clubBadgeLinks);
   clubBadgeLinks.each(function () {
-    console.log($(this).text());
     $(this).closest("li").find("input[name^='hide']").prop("checked", "true");
   });
   saveBadgeChanges();
@@ -72,7 +70,6 @@ function hideClubBadges() {
 
 function moveClubBadgesDown() {
   const clubBadgeLinks = $("a[href$='club100'],a[href$='club1000']");
-  console.log(clubBadgeLinks);
   clubBadgeLinks.each(function () {
     $(this).closest("li").appendTo($(this).closest("ul"));
   });

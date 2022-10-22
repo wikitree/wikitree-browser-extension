@@ -103,12 +103,6 @@ const features = getFeatures().concat([
       "Adds pins to Category Finder results (on the edit page), similar to the pins in the location dropdown.  These pins link to the category page for you to check that you have the right category.",
     category: "Editing",
   },
-  {
-    name: "Sort Badges",
-    id: "sortBadges",
-    description: "Move or hide your Club 100/1000 badges.",
-    category: "Profile",
-  },
 ]);
 
 // saves options to chrome.storage
