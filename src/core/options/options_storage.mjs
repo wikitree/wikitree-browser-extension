@@ -1,5 +1,23 @@
 import { getDefaultOptionValuesForFeature } from "../../core/options/options_registry.mjs"
 
+/*
+This function returns a Promise so it can be used in a couple of different ways:
+
+1. Using then:
+
+  checkIfFeatureEnabled("agc").then((result) => {
+    if (result) {
+      initAgc();
+    }
+  });
+
+2. Using await:
+
+  if (await checkIfFeatureEnabled("agc") {
+    initAgc();
+  });
+*/
+
 async function checkIfFeatureEnabled(featureId) {
   return new Promise((resolve, reject) => {
     try {
@@ -21,6 +39,22 @@ async function checkIfFeatureEnabled(featureId) {
   });
 }
 
+/*
+  const options = await getFeatureOptions("agc");
+
+  This function returns a Promise so it can be used in a couple of different ways:
+
+1. Using then:
+
+  getFeatureOptions("agc").then((result) => {
+    const options = result;
+    ...
+  });
+
+2. Using await:
+
+  const options = await getFeatureOptions("agc");
+*/
 async function getFeatureOptions(featureId) {
   return new Promise((resolve, reject) => {
     try {

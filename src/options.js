@@ -13,6 +13,7 @@ features.forEach(function (feature) {
   }
 });
 
+// NOTE: This is called recursively
 function fillOptionsDataFromUiElements(feature, options, optionsData) {
 
   const optionElementIdPrefix = feature.id + "_";
@@ -43,6 +44,7 @@ function fillOptionsDataFromUiElements(feature, options, optionsData) {
   }
 }
 
+// NOTE: This is called recursively
 function setUiElementsFromOptionsData(feature, options, optionsData) {
   const optionElementIdPrefix = feature.id + "_";
 
@@ -76,7 +78,12 @@ function setUiElementsFromOptionsData(feature, options, optionsData) {
   }
 }
 
+// If a feature has options this function will save them from the UI elements to storage
 function saveFeatureOptions(feature) {
+
+  if (!feature.options) {
+    return;
+  }
 
   // gather all the UI values into an object called options
   let optionsData = {};
@@ -88,7 +95,12 @@ function saveFeatureOptions(feature) {
   });
 }
 
+// If a feature has options this function will set the UI state to match the state in storage
 function restoreFeatureOptions(feature, storageItems) {
+  if (!feature.options) {
+    return;
+  }
+
   const storageName = feature.id + "_options";
 
   let optionsData = {};
@@ -99,34 +111,38 @@ function restoreFeatureOptions(feature, storageItems) {
   setUiElementsFromOptionsData(feature, feature.options, optionsData);
 }
 
-// saves options to chrome.storage
-function save_options() {
+// saves all the on/off feature flags to storage
+// This is currently done whenever any feature flag is changed
+// It saves them all in one call to chrome.storage.sync.set
+// otherwise it is easy to get the error:
+//  "Error: This request exceeds the MAX_WRITE_OPERATIONS_PER_MINUTE quota.""
+function saveFeatureOnOffOptions() {
   // for each feature, save if they are checked or not
+  const itemsToSave = {};
   features.forEach((feature) => {
     const checked = $(`#${feature.id} input`).prop("checked");
-    chrome.storage.sync.set({
-      [feature.id]: checked,
-    });
+    console.log("Saving feature " + feature.id + ", checked is: " + checked);
 
-    if (feature.options) {
-      saveFeatureOptions(feature);
-    }
+    itemsToSave[feature.id] = checked;
   });
+
+  chrome.storage.sync.set(itemsToSave);
 }
 
-// restores state of options page
+// reads all options from storage and restores state of options page
 function restore_options() {
   chrome.storage.sync.get(null, (items) => {
     features.forEach((feature) => {
+      console.log("Restoring feature " + feature.id + ", value is: " +  items[`${feature.id}`]);
+
       $(`#${feature.id} input`).prop("checked", items[`${feature.id}`]);
 
-      if (feature.options) {
-        restoreFeatureOptions(feature, items);
-      }
+      restoreFeatureOptions(feature, items);
     });
   });
 }
 
+// This is called recursively to build the elements of the options page
 function addOptionsForFeature(featureData, optionsContainerElement, options) {
 
   const featureId = featureData.id;
@@ -282,7 +298,7 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
 
 }
 
-// when the options page loads, load status of options from storage
+// when the options page loads, load status of options from storage into the UI elements
 $(document).ready(() => {
   restore_options();
 });
@@ -292,7 +308,7 @@ features.sort(function (a, b) {
   return a.name.localeCompare(b.name);
 });
 
-// add each feature to the options page
+// adds HTML elements for each feature to the options page
 categories.forEach(function (category) {
   $("#features").append(`<h2 data-category="${category}">${category} 
   <div class="feature-toggle">
@@ -343,7 +359,7 @@ $("h1 input").change(function () {
 $("#options .feature-toggle input[type='checkbox']").each(function () {
   $(this).click(function () {
     setTimeout(function () {
-      save_options();
+      saveFeatureOnOffOptions();
     }, 100);
   });
 });
