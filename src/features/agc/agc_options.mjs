@@ -341,13 +341,5 @@ const agcFeature = {
   ],
 };
 
-function getFeatureData(featureId) {
-  for (let feature of features) {
-    if (feature.id == featureId) {
-      return feature;
-    }
-  }
-}
-
 // Just importing this file will register all the features
 registerFeature(agcFeature);
