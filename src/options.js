@@ -1,6 +1,6 @@
 import $ from "jquery";
 
-import { features } from "./core/options/options_registry.mjs";
+import { features, OptionType } from "./core/options/options_registry.mjs";
 import "./core/options/options_init.mjs";
 
 // Categories
@@ -17,7 +17,7 @@ function fillOptionsDataFromUiElements(feature, options, optionsData) {
   const optionElementIdPrefix = feature.id + "_";
 
   for (let option of options) {
-    if (option.type == "group") {
+    if (option.type == OptionType.GROUP) {
       if (option.options) {
         fillOptionsDataFromUiElements(feature, option.options, optionsData);
       }
@@ -31,9 +31,9 @@ function fillOptionsDataFromUiElements(feature, options, optionsData) {
         continue;
       }
 
-      if (option.type == "checkbox") {
+      if (option.type == OptionType.CHECKBOX) {
         optionsData[option.id] = element.checked;
-      } else if (option.type == "radio") {
+      } else if (option.type == OptionType.RADIO) {
         optionsData[option.id] = element.querySelector(`input[name="${fullOptionElementId}"]:checked`).value;
       } else {
         optionsData[option.id] = element.value;
@@ -47,7 +47,7 @@ function setUiElementsFromOptionsData(feature, options, optionsData) {
 
   for (let option of options) {
 
-    if (option.type == "group") {
+    if (option.type == OptionType.GROUP) {
       if (option.options) {
         setUiElementsFromOptionsData(feature, option.options, optionsData);
       }
@@ -64,9 +64,9 @@ function setUiElementsFromOptionsData(feature, options, optionsData) {
         optionsData[option.id] = option.defaultValue;
       }
 
-      if (option.type == "checkbox") {
+      if (option.type == OptionType.CHECKBOX) {
         element.checked = optionsData[option.id];
-      } else if (option.type == "radio") {
+      } else if (option.type == OptionType.RADIO) {
         element.querySelector(`input[value="${optionsData[option.id]}"]`).checked = true;
       } else {
         element.value = optionsData[option.id];
@@ -162,7 +162,7 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
     let optionDivElement = document.createElement("div");
 
     let optionElement = undefined;
-    if (option.type == "group") {
+    if (option.type == OptionType.GROUP) {
       if (option.label) {
         let subheadingElement = document.createElement("div");
         subheadingElement.innerText = option.label + ":";
@@ -175,12 +175,12 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
         addOptionsForFeature(featureData, subContainerElement, option.options)
         optionDivElement.appendChild(subContainerElement);
       }
-    } else if (option.type == "textLine") {
+    } else if (option.type == OptionType.TEXT_LINE) {
       let textLineElement = document.createElement("label");
       textLineElement.innerText = option.label;
       textLineElement.className = "option-text-line";
       optionDivElement.appendChild(textLineElement);
-    } else if (option.type == "checkbox") {
+    } else if (option.type == OptionType.CHECKBOX) {
       optionElement = document.createElement("input");
       optionElement.type = "checkbox";
       optionElement.className = "option-checkbox";
@@ -192,7 +192,7 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
       labelElement.appendChild(textElement);
 
       optionDivElement.appendChild(labelElement);
-    } else if (option.type == "radio") {
+    } else if (option.type == OptionType.RADIO) {
       optionElement = document.createElement("label");
       const textElement = createTextElementForLabel(option, false, true);
       optionElement.appendChild(textElement);
@@ -212,7 +212,7 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
       }
 
       optionDivElement.appendChild(optionElement);
-    } else if (option.type == "select") {
+    } else if (option.type == OptionType.SELECT) {
       optionElement = document.createElement("select");
       optionElement.className = "option-select";
 
@@ -230,7 +230,7 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
 
       labelElement.appendChild(optionElement);
       optionDivElement.appendChild(labelElement);
-    } else if (option.type == "number") {
+    } else if (option.type == OptionType.NUMBER) {
       optionElement = document.createElement("input");
       optionElement.type = "number";
       optionElement.className = "option-number";
@@ -242,7 +242,7 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
 
       labelElement.appendChild(optionElement);
       optionDivElement.appendChild(labelElement);
-    } else if (option.type == "color") {
+    } else if (option.type == OptionType.COLOR) {
       optionElement = document.createElement("input");
       optionElement.type = "color";
       optionElement.className = "optionNumber";
@@ -271,7 +271,7 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
       optionDivElement.appendChild(commentElement);
     }
 
-    if (option.type != "group") {
+    if (option.type != OptionType.GROUP) {
       let breakElement = document.createElement("br");
       optionDivElement.appendChild(breakElement);
     }

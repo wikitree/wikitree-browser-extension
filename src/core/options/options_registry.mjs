@@ -15,15 +15,25 @@ function getFeatureData(featureId) {
   }
 }
 
+const OptionType = {
+  GROUP: "group",
+  TEXT_LINE: "textLine",
+  CHECKBOX: "checkbox",
+  RADIO: "radio",
+  SELECT: "select",
+  NUMBER: "number",
+  COLOR: "color",
+}
+
 function fillDefaultValuesForOptions(defaultValues, options, useTestDefaults) {
 
   for (let option of options) {
 
-    if (option.type == "group") {
+    if (option.type == OptionType.GROUP) {
       if (option.options) {
         fillDefaultValuesForOptions(defaultValues, option.options, useTestDefaults);
       }
-    } else if (option.type == "comment" || option.type == "textLine") {
+    } else if (option.type == OptionType.TEXT_LINE) {
       // no defaultValues property wanted for these
     } else {
 
@@ -56,4 +66,4 @@ function getDefaultOptionValuesForFeature(featureId, useTestDefaults = false) {
   return defaultValues;
 }
 
-export { registerFeature, features, getDefaultOptionValuesForFeature };
+export { registerFeature, features, getDefaultOptionValuesForFeature, OptionType };
