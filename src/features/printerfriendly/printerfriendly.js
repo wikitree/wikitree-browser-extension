@@ -2,6 +2,7 @@ import $ from "jquery";
 
 chrome.storage.sync.get("printerFriendly", (result) => {
   if (result.printerFriendly) {
+    // Add link to WT ID menu
     $("body.profile a.pureCssMenui0 span.person")
       .closest("li")
       .find("a:contains(Printable Tree)")

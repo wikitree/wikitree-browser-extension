@@ -4,23 +4,25 @@ import {createProfileSubmenuLink, extractRelatives, isOK} from '../../core/commo
 import './familyTimeline.css';
 
 chrome.storage.sync.get("familyTimeline", (result) => {
-  if (
-    result.familyTimeline &&
-    $("body.profile").length &&
-    window.location.href.match("Space:") == null
-  ) {
-    // Add a link to the short list of links below the tabs
-    const options = {
-      title: "Display a family timeline",
-      id: "familyTimeLineButton",
-      text: "Family Timeline",
-      url: "#n",
-    };
-    createProfileSubmenuLink(options);
-    $("#" + options.id).click(function (e) {
-      e.preventDefault();
-      timeline();
-    });
+  if (result.familyTimeline) {
+    if (
+      result.familyTimeline &&
+      $("body.profile").length &&
+      window.location.href.match("Space:") == null
+    ) {
+      // Add a link to the short list of links below the tabs
+      const options = {
+        title: "Display a family timeline",
+        id: "familyTimeLineButton",
+        text: "Family Timeline",
+        url: "#n",
+      };
+      createProfileSubmenuLink(options);
+      $("#" + options.id).click(function (e) {
+        e.preventDefault();
+        timeline();
+      });
+    }
   }
 });
 

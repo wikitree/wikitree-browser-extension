@@ -19,6 +19,9 @@ import "./features/spacepreview/spacepreview";
 import "./features/wt+/contentEdit";
 import "./features/bioCheck/bioCheck";
 import "./features/categoryFinderPins/categoryFinderPins";
+import "./features/sortBadges/sortBadges";
+import "./features/verifyID/verifyID";
+
 import "./core/editToolbar";
 
 //createTopMenu();

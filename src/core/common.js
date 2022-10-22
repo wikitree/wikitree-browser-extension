@@ -1,4 +1,4 @@
-import $ from 'jquery';
+import $ from "jquery";
 
 export let pageProfile = false;
 export let pageHelp = false;
@@ -9,29 +9,29 @@ export let pageSpace = false;
 export let pageG2G = false;
 
 if (
-    window.location.pathname.match(/(\/wiki\/)\w[^:]*-[0-9]*/g) ||
-    window.location.href.match(/\?title\=\w[^:]+-[0-9]+/g)
-  ) {
-      // Is a Profile Page
-	pageProfile = true;
+  window.location.pathname.match(/(\/wiki\/)\w[^:]*-[0-9]*/g) ||
+  window.location.href.match(/\?title\=\w[^:]+-[0-9]+/g)
+) {
+  // Is a Profile Page
+  pageProfile = true;
 } else if (window.location.pathname.match(/(\/wiki\/)Help:*/g)) {
-	// Is a Help Page
-	pageHelp = true;
+  // Is a Help Page
+  pageHelp = true;
 } else if (window.location.pathname.match(/(\/wiki\/)Special:*/g)) {
-	// Is a Special Page
-	pageSpecial = true;
+  // Is a Special Page
+  pageSpecial = true;
 } else if (window.location.pathname.match(/(\/wiki\/)Category:*/g)) {
-	// Is a Category Page
-	pageCategory = true;
+  // Is a Category Page
+  pageCategory = true;
 } else if (window.location.pathname.match(/(\/wiki\/)Template:*/g)) {
-	// Is a Template Page
-	pageTemplate = true;
+  // Is a Template Page
+  pageTemplate = true;
 } else if (window.location.pathname.match(/(\/wiki\/)Space:*/g)) {
-	// Is a Space Page
-	pageSpace = true;
+  // Is a Space Page
+  pageSpace = true;
 } else if (window.location.pathname.match(/\/g2g\//g)) {
-	// Is a G2G page
-	pageG2G = true;
+  // Is a G2G page
+  pageG2G = true;
 }
 
 // Add wte class to body to let WikiTree BEE know not to add the same functions
@@ -172,5 +172,83 @@ export function isOK(thing) {
     }
   } else {
     return false;
+  }
+}
+
+// Find good names to display (as the API doesn't return the same fields all profiles)
+export function displayName(fPerson) {
+  if (fPerson != undefined) {
+    let fName1 = "";
+    if (typeof fPerson["LongName"] != "undefined") {
+      if (fPerson["LongName"] != "") {
+        fName1 = fPerson["LongName"].replace(/\s\s/, " ");
+      }
+    }
+    let fName2 = "";
+    let fName4 = "";
+    if (typeof fPerson["MiddleName"] != "undefined") {
+      if (
+        fPerson["MiddleName"] == "" &&
+        typeof fPerson["LongNamePrivate"] != "undefined"
+      ) {
+        if (fPerson["LongNamePrivate"] != "") {
+          fName2 = fPerson["LongNamePrivate"].replace(/\s\s/, " ");
+        }
+      }
+    } else {
+      if (typeof fPerson["LongNamePrivate"] != "undefined") {
+        if (fPerson["LongNamePrivate"] != "") {
+          fName4 = fPerson["LongNamePrivate"].replace(/\s\s/, " ");
+        }
+      }
+    }
+
+    let fName3 = "";
+    const checks = [
+      "Prefix",
+      "FirstName",
+      "RealName",
+      "MiddleName",
+      "LastNameAtBirth",
+      "LastNameCurrent",
+      "Suffix",
+    ];
+    checks.forEach(function (dCheck) {
+      if (typeof fPerson["" + dCheck + ""] != "undefined") {
+        if (
+          fPerson["" + dCheck + ""] != "" &&
+          fPerson["" + dCheck + ""] != null
+        ) {
+          if (dCheck == "LastNameAtBirth") {
+            if (fPerson["LastNameAtBirth"] != fPerson.LastNameCurrent) {
+              fName3 += "(" + fPerson["LastNameAtBirth"] + ") ";
+            }
+          } else if (dCheck == "RealName") {
+            if (typeof fPerson["FirstName"] != "undefined") {
+            } else {
+              fName3 += fPerson["RealName"] + " ";
+            }
+          } else {
+            fName3 += fPerson["" + dCheck + ""] + " ";
+          }
+        }
+      }
+    });
+
+    const arr = [fName1, fName2, fName3, fName4];
+    var longest = arr.reduce(function (a, b) {
+      return a.length > b.length ? a : b;
+    });
+
+    const fName = longest;
+
+    let sName;
+    if (fPerson["ShortName"]) {
+      sName = fPerson["ShortName"];
+    } else {
+      sName = fName;
+    }
+    // fName = full name; sName = short name
+    return [fName.trim(), sName.trim()];
   }
 }

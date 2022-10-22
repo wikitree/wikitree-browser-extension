@@ -1,0 +1,36 @@
+#verification {
+  position: absolute;
+  background: white;
+  border: 2px solid forestgreen;
+  padding: 1em;
+  border-radius: 1em;
+  display: inline-block;
+  left: 30%;
+  margin-top: 3em;
+  white-space: nowrap;
+  cursor: move;
+  box-shadow: 0.2em 0.2em 0.2em #f8a01f;
+}
+
+#verification ul {
+  list-style: none;
+  padding: 0;
+  margin-left: auto;
+}
+
+#verification ul li {
+  margin: 0.2em;
+}
+
+#verification x {
+  position: absolute;
+  top: 0em;
+  right: 0.4em;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+#verification h3,
+#verification h4 {
+  margin: 0.2em;
+}
