@@ -15,3 +15,4 @@ import "./spacepreview/spacepreview";
 import "./wt+/contentEdit";
 import "./bioCheck/bioCheck";
 import "./categoryFinderPins/categoryFinderPins";
+import "./sortBadges/sortBadges";

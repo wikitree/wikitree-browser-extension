@@ -1,6 +1,6 @@
-import $ from 'jquery';
-import { CATEGORIES, getFeatures } from './core/features';
-import './features/features';
+import $ from "jquery";
+import { CATEGORIES, getFeatures } from "./core/features";
+import "./features/features";
 
 // an array of information about features
 const features = getFeatures().concat([
@@ -102,6 +102,12 @@ const features = getFeatures().concat([
     description:
       "Adds pins to Category Finder results (on the edit page), similar to the pins in the location dropdown.  These pins link to the category page for you to check that you have the right category.",
     category: "Editing",
+  },
+  {
+    name: "Sort Badges",
+    id: "sortBadges",
+    description: "Move or hide your Club 100/1000 badges.",
+    category: "Profile",
   },
 ]);
 
