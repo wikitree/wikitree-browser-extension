@@ -1,13 +1,9 @@
 import $ from "jquery";
-import { createTopMenuItem } from "../../core/common";
-import { registerFeature, GLOBAL } from "../../core/features";
 
-registerFeature({
-  name: "Printer Friendly Bio",
-  id: "printerFriendly",
-  description: "Change the page to a printer-friendly one.",
-  category: GLOBAL,
-  init,
+chrome.storage.sync.get('printerFriendly', (result) => {
+  if (result.printerFriendly) {
+    init();
+  }
 });
 
 function init() {

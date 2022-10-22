@@ -1,16 +1,12 @@
 import * as $ from 'jquery';
 import 'jquery-ui/ui/widgets/draggable';
 import {createProfileSubmenuLink, extractRelatives, isOK} from '../../core/common';
-import {registerFeature, PROFILE} from '../../core/features';
 import './familyTimeline.css';
 
-registerFeature({
-  name: "Family Timeline",
-  id: "familyTimeline",
-  description:
-    "Displays a family timeline. A button is added to the profile submenu.",
-  category: PROFILE,
-  init,
+chrome.storage.sync.get("familyTimeline", (result) => {
+  if (result.familyTimeline) {
+    init();
+  }
 });
 
 function init() {
