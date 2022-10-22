@@ -17,15 +17,14 @@ function fillOptionsDataFromUiElements(feature, options, optionsData) {
   const optionElementIdPrefix = feature.id + "_";
 
   for (let option of options) {
-    let fullOptionElementId = optionElementIdPrefix + option.id;
-
     if (option.type == "group") {
       if (option.options) {
         fillOptionsDataFromUiElements(feature, option.options, optionsData);
       }
-    } else {
+    } else if (option.id) {
       optionsData[option.id] = option.defautValue;
 
+      const fullOptionElementId = optionElementIdPrefix + option.id;
       let element = document.getElementById(fullOptionElementId);
       if (!element) {
         console.log("fillOptionsDataFromUiElements: no element found with id: " + fullOptionElementId);
@@ -34,6 +33,8 @@ function fillOptionsDataFromUiElements(feature, options, optionsData) {
 
       if (option.type == "checkbox") {
         optionsData[option.id] = element.checked;
+      } else if (option.type == "radio") {
+        optionsData[option.id] = element.querySelector(`input[name="${fullOptionElementId}"]:checked`).value;
       } else {
         optionsData[option.id] = element.value;
       }
@@ -45,13 +46,13 @@ function setUiElementsFromOptionsData(feature, options, optionsData) {
   const optionElementIdPrefix = feature.id + "_";
 
   for (let option of options) {
-    let fullOptionElementId = optionElementIdPrefix + option.id;
 
     if (option.type == "group") {
       if (option.options) {
         setUiElementsFromOptionsData(feature, option.options, optionsData);
       }
-    } else {
+    } else if (option.id) {
+      const fullOptionElementId = optionElementIdPrefix + option.id;
       let element = document.getElementById(fullOptionElementId);
       if (!element) {
         console.log("setUiElementsFromOptionsData: no element found with id: " + fullOptionElementId);
@@ -65,6 +66,8 @@ function setUiElementsFromOptionsData(feature, options, optionsData) {
 
       if (option.type == "checkbox") {
         element.checked = optionsData[option.id];
+      } else if (option.type == "radio") {
+        element.querySelector(`input[value="${optionsData[option.id]}"]`).checked = true;
       } else {
         element.value = optionsData[option.id];
       }
@@ -189,6 +192,26 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
       labelElement.appendChild(textElement);
 
       optionDivElement.appendChild(labelElement);
+    } else if (option.type == "radio") {
+      optionElement = document.createElement("label");
+      const textElement = createTextElementForLabel(option, false, true);
+      optionElement.appendChild(textElement);
+
+      for (let value of option.values) {
+        let radioElement = document.createElement("input");
+        radioElement.type = "radio";
+        radioElement.name = fullOptionElementId;
+        radioElement.className = "option-radio-button";
+        radioElement.value = value.value;
+
+        let labelElement = document.createElement("label");
+        labelElement.innerText = value.text;
+
+        optionElement.appendChild(radioElement);
+        optionElement.appendChild(labelElement);
+      }
+
+      optionDivElement.appendChild(optionElement);
     } else if (option.type == "select") {
       optionElement = document.createElement("select");
       optionElement.className = "option-select";

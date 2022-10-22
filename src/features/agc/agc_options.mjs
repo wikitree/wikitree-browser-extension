@@ -15,7 +15,7 @@ const agcFeature = {
       options: [
         {
           id: "spelling",
-          type: "select",
+          type: "radio",
           label: "Spelling",
           values: [
             {
