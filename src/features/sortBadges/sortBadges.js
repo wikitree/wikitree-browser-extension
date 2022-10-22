@@ -1,14 +1,11 @@
 import * as $ from "jquery";
-import { registerFeature, OTHER } from "../../core/features";
 import "./sortBadges.css";
 import Cookies from "js-cookie";
 
-registerFeature({
-  name: "Sort Badges",
-  id: "sortBadges",
-  description: "Buttons to move or hide your Club 100/1000 badges.",
-  category: OTHER,
-  init,
+chrome.storage.sync.get("sortBadges", (result) => {
+  if (result.sortBadges) {
+    init();
+  }
 });
 
 function init() {
@@ -50,7 +47,11 @@ function init() {
       .parent()
       .after(
         $(
-          '<span class="SMALL" style="background: none;" id="hideClubBadgesLink">[<a href="/index.php?title=Special:Badges&amp;u=19076274&action=hideClubBadges">hide Club badges</a>] </span><span class="SMALL" style="background: none;"  id="moveClubBadgesDownLink">[<a href="/index.php?title=Special:Badges&amp;u=19076274&action=moveClubBadgesDown">move Club badges down</a>]</span>'
+          '<span class="SMALL" style="background: none;" id="hideClubBadgesLink">[<a href="/index.php?title=Special:Badges&amp;u=' +
+            Cookies.get("wikitree_wtb_UserID") +
+            '&action=hideClubBadges">hide Club badges</a>] </span><span class="SMALL" style="background: none;"  id="moveClubBadgesDownLink">[<a href="/index.php?title=Special:Badges&amp;u=' +
+            Cookies.get("wikitree_wtb_UserID") +
+            '&action=moveClubBadgesDown">move Club badges down</a>]</span>'
         )
       );
   }

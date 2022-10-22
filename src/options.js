@@ -114,6 +114,19 @@ const features = [
       "Adds pins to Category Finder results (on the edit page), similar to the pins in the location dropdown.  These pins link to the category page for you to check that you have the right category.",
     category: "Editing",
   },
+  {
+    name: "Verify ID",
+    id: "verifyID",
+    description:
+      "When attaching a person by ID, you can see some details of the person and check that you've entered the correct ID.",
+    category: "Editing",
+  },
+  {
+    name: "Sort Badges",
+    id: "sortBadges",
+    description: "Buttons to move or hide your Club 100/1000 badges.",
+    category: "Other",
+  },
 ];
 
 // Categories

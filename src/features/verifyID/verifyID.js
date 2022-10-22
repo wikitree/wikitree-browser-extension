@@ -2,15 +2,11 @@ import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import "./verifyID.css";
 import { extractRelatives, displayName } from "../../core/common";
-import { registerFeature, EDITING } from "../../core/features";
 
-registerFeature({
-  name: "Verify ID",
-  id: "verifyID",
-  description:
-    "When attaching a person by ID, you can see some details of the person and check that you've entered the correct ID.",
-  category: EDITING,
-  init,
+chrome.storage.sync.get("verifyID", (result) => {
+  if (result.verifyID) {
+    init();
+  }
 });
 
 function init() {
