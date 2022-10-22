@@ -50,7 +50,11 @@ function init() {
       .parent()
       .after(
         $(
-          '<span class="SMALL" style="background: none;" id="hideClubBadgesLink">[<a href="/index.php?title=Special:Badges&amp;u=19076274&action=hideClubBadges">hide Club badges</a>] </span><span class="SMALL" style="background: none;"  id="moveClubBadgesDownLink">[<a href="/index.php?title=Special:Badges&amp;u=19076274&action=moveClubBadgesDown">move Club badges down</a>]</span>'
+          '<span class="SMALL" style="background: none;" id="hideClubBadgesLink">[<a href="/index.php?title=Special:Badges&amp;u=' +
+            Cookies.get("wikitree_wtb_UserID") +
+            '&action=hideClubBadges">hide Club badges</a>] </span><span class="SMALL" style="background: none;"  id="moveClubBadgesDownLink">[<a href="/index.php?title=Special:Badges&amp;u=' +
+            Cookies.get("wikitree_wtb_UserID") +
+            '&action=moveClubBadgesDown">move Club badges down</a>]</span>'
         )
       );
   }
