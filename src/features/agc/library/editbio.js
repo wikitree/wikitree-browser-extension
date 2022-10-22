@@ -11825,7 +11825,7 @@ class Biography {
   }
 }
 
-function editBio(editBioInput) {
+export function editBio(editBioInput) {
 
   //console.log("editBioInput:");
   //console.log(editBioInput);
@@ -11966,5 +11966,3 @@ function editBio(editBioInput) {
 
   return result;
 }
-
-export { editBio };
