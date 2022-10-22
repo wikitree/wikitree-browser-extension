@@ -1,5 +1,6 @@
 // an array of information about features and there options
-// This is constructed by the features registering in options_init.mjs
+// This is constructed by the features registering their options in register_feature_options.mjs
+
 const features = [
 ];
 

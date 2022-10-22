@@ -23,7 +23,8 @@ SOFTWARE.
 */
 
 // need to include this to register the feature so that we can get the default options
-import "../../core/options/options_init.mjs";
+import "../../features/register_feature_options.mjs";
+
 
 import { getDefaultOptionValuesForFeature } from "../../core/options/options_registry.mjs"
 

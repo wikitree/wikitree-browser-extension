@@ -1,7 +1,8 @@
 import $ from "jquery";
 
 import { features, OptionType } from "./core/options/options_registry.mjs";
-import "./core/options/options_init.mjs";
+import "./features/register_feature_options.mjs";
+
 
 // Categories
 const categories = ["Global", "Profile", "Editing", "Style"];
