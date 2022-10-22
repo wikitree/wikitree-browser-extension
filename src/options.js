@@ -1,6 +1,6 @@
-import $ from 'jquery';
-import { CATEGORIES, getFeatures } from './core/features';
-import './features/features';
+import $ from "jquery";
+import { CATEGORIES, getFeatures } from "./core/features";
+import "./features/features";
 
 // an array of information about features
 const features = getFeatures().concat([
