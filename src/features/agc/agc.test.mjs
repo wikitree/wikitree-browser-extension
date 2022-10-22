@@ -22,8 +22,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+import {editBio} from './library/editbio';
+import fs from 'fs'
+import {fail} from 'assert';
+
 // need to include this to register the feature so that we can get the default options
-import "../../features/register_feature_options.mjs";
+import "../register_feature_options.mjs";
 
 
 import { getDefaultOptionValuesForFeature } from "../../core/options/options_registry.mjs"

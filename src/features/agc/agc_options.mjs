@@ -116,6 +116,7 @@ const agcFeature = {
           type: OptionType.CHECKBOX,
           label: 'Remove the GEDCOM import text that states which gedcom the profile was created from (only do this if the profile will be fully cleaned up and sourced)',
           defaultValue: false,   
+          defaultTestValue: true,
         },
       ],
     },
