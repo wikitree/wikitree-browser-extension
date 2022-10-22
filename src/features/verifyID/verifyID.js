@@ -14,7 +14,8 @@ registerFeature({
 });
 
 function init() {
-  if ($("body.page-Special_EditFamily").length) {
+  // Try not to clash with BEE
+  if ($("body.page-Special_EditFamily").length && $("body.BEE").length == 0) {
     checkAttachPersonID();
   }
 }
