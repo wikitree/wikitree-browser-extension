@@ -14,9 +14,8 @@ chrome.storage.sync.get('bioCheck', (result) => {
     // Keep the code to use the singleton, just in case
 
     let theSourceRules = new SourceRules();
-    // Only do this if on the edit page for a person
-    // Look for the class page-Special_EditPerson
-    // previous code tried if ($("body.page-Special_EditPerson").length) {
+
+    // Look at the type of page and take appropriate action
 
     if (document.body.classList.contains("page-Special_EditPerson")) {
       checkBio(theSourceRules);
@@ -24,15 +23,18 @@ chrome.storage.sync.get('bioCheck', (result) => {
       let saveDraftButton = document.getElementById("wpSaveDraft");
       saveDraftButton.onclick = function(){checkBio(theSourceRules)};
       saveDraftButton.addEventListener("mouseover", checkBioAtInterval);
+      saveDraftButton.addEventListener("touchstart", checkBioAtInterval);
       let saveButton = document.getElementById("wpSave");
       saveButton.addEventListener("mouseover", checkBioAtInterval);
+      saveButton.addEventListener("touchstart", checkBioAtInterval);
 
       // and also once a minute
       setInterval(checkBioAtInterval, 60000, theSourceRules);
 
     } else {
+      if (document.body.classList.contains("page-Special_EditFamily")) {
       // Check if you are on the Add Person page
-      if (document.getElementById('sourceOptionContainer') != null) {
+      //if (document.getElementById('sourceOptionContainer') != null) {
 
         // Find the save button. For Add Person there is just one
         // For adding a relative there are two, and you want the second
@@ -41,8 +43,13 @@ chrome.storage.sync.get('bioCheck', (result) => {
         // check on save or if or something might be about to happen
         saveButton.onclick = function(){checkSources(theSourceRules)};
         saveButton.addEventListener("mouseover", checkSourcesAtInterval);
+        saveButton.addEventListener("touchstart", checkSourcesAtInterval);
 
         setInterval(checkSourcesAtInterval, 30000, theSourceRules);
+      } else {
+        if (document.body.classList.contains("page-Special_WatchedList")) {
+          checkWatchlist();
+        }
       }
     }
   }
@@ -60,10 +67,10 @@ function checkSourcesAtInterval(theSourceRules) {
  * Notes about packaging and differences from the BioCheck app
  *
  * Copied the following files into features/bioCheck:
- *   biography.js
- *   biographyResults.js
- *   personDate.js
- *   sourceRules.js
+ *   Biography.js
+ *   BiographyResults.js
+ *   PersonDate.js
+ *   SourceRules.js
  * 
  * When checking a biography there is no check for privacy
  * to assume an undated profile is unsourced and
@@ -191,8 +198,9 @@ function reportResults(reportLines) {
     bioCheckResultsContainer.setAttribute('id', 'biocheckContainer');
 
     let bioCheckTitle = document.createElement('b');
-    bioCheckTitle.innerText = "BioCheck results";
+    bioCheckTitle.innerText = 'BioCheck results\u00A0\u00A0';   // TODO use style?
     bioCheckResultsContainer.appendChild(bioCheckTitle);
+    setHelp(bioCheckResultsContainer);
   }
     
   // need a new set of results
@@ -249,20 +257,20 @@ function reportSources(invalidSourceLines, isPre1700) {
   let numLines = invalidSourceLines.length;
   let previousSources = document.getElementById('bioCheckSourcesList');
   let bioCheckSourcesContainer = document.getElementById('bioCheckSourcesContainer');
+  let bioCheckTitle = document.getElementById('bioCheckTitle');
   // If you have been here before get and remove the old list of results
   if ((!bioCheckSourcesContainer) && (numLines > 0)) {
     bioCheckSourcesContainer = document.createElement('div');
     bioCheckSourcesContainer.setAttribute('id', 'bioCheckSourcesContainer');
     // status class is too much, a big yellow box 
     // bioCheckSourcesContainer.setAttribute('class', 'status');
-    let bioCheckTitle = document.createElement('b');
-    let msg = 'BioCheck found sources that are not ';
-    if (isPre1700) {
-      msg += 'reliable or ';
-    }
-    msg += 'clearly identified:';
-    bioCheckTitle.innerText = msg;
+    bioCheckTitle = document.createElement('b');
+    bioCheckTitle.setAttribute('id', 'bioCheckTitle');
+    // fill contents of the title each time you are here in case date changes
+    bioCheckTitle.innerText = sourcesTitle(isPre1700);
     bioCheckSourcesContainer.appendChild(bioCheckTitle);
+
+    setHelp(bioCheckSourcesContainer);
   }
     
   // need a new set of results
@@ -275,6 +283,7 @@ function reportSources(invalidSourceLines, isPre1700) {
   }
   // Add or replace the results
   if (numLines > 0) {
+    bioCheckTitle.innerText = sourcesTitle(isPre1700);
     if (previousSources != null) {
       previousSources.replaceWith(bioSourcesList);
     } else {
@@ -290,4 +299,56 @@ function reportSources(invalidSourceLines, isPre1700) {
       bioCheckSourcesContainer.remove();
     }
   }
+}
+/**
+ * Build title for sources message
+ * @param isPre1700 true to build Pre-1700 profile message
+ * @return sources title message
+ */
+function sourcesTitle(isPre1700) {
+  let msg = 'BioCheck found sources that are not ';
+  if (isPre1700) {
+    msg += 'reliable or ';
+  }
+  msg += 'clearly identified: \u00A0\u00A0';   // TODO use style?
+  return msg;
+}
+/**
+ * Build a link for help
+ * parentContainer help will be added at the end of the parent
+ */
+function setHelp(parentContainer) {
+  let bioCheckHelpAnchor = document.createElement('a');
+  let bioCheckHelpImage = document.createElement('img');
+
+  bioCheckHelpAnchor.appendChild(bioCheckHelpImage);
+  bioCheckHelpAnchor.setAttribute('id', 'bioCheckHelpAnchor');
+  bioCheckHelpAnchor.setAttribute('href', 'https://www.wikitree.com/wiki/Space:BioCheckHelp#Sourced.3F');
+  bioCheckHelpAnchor.setAttribute('target', '_Help');
+
+  bioCheckHelpImage.setAttribute('id', 'bioCheckHelpImage');
+  bioCheckHelpImage.setAttribute('src', '/images/icons/help.gif');
+  bioCheckHelpImage.setAttribute('alt', 'Help');
+  bioCheckHelpImage.setAttribute('title', 'BioCheck Help');
+
+  parentContainer.appendChild(bioCheckHelpAnchor);
+}
+
+/**
+ * Add a button for BioCheck to the Watchlist page
+ */
+function checkWatchlist() {
+
+  let buttonList = document.getElementById('views-inner').firstElementChild;
+  let bioCheckItem = document.createElement('li');
+  bioCheckItem.innerHTML='<a class-"views" href="https://apps.wikitree.com/apps/sands1865/biocheck/?action=checkWatchlist&checkStart=auto" title="BioCheck profiles on your watchlist" </a> BioCheck';
+
+  let myPosition = 0;
+  while ((myPosition < buttonList.childElementCount) && 
+         (buttonList.children[myPosition].textContent < 'BioCheck')) {
+    myPosition++;
+  }
+
+  // Insert in alpha order, use appendChild to add at end
+  buttonList.insertBefore(bioCheckItem, buttonList.children[myPosition]);
 }
