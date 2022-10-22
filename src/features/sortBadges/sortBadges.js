@@ -24,11 +24,13 @@ chrome.storage.sync.get("sortBadges", (result) => {
       const urlParams = new URLSearchParams(queryString);
       if (localStorage.savedBadges) {
         localStorage.removeItem("savedBadges");
-        window.location = $("a.pureCssMenui0 span.person").parent().attr("href");
+        window.location = $("a.pureCssMenui0 span.person")
+          .parent()
+          .attr("href");
       }
-      if (urlParams.get("action")) {
+      if (urlParams.get("badgeAction")) {
         localStorage.setItem("savedBadges", 1);
-        $("#" + urlParams.get("action")).trigger("click");
+        $("#" + urlParams.get("badgeAction")).trigger("click");
         localStorage.removeItem("sortBadges");
       }
     }
@@ -42,31 +44,16 @@ chrome.storage.sync.get("sortBadges", (result) => {
         .parent()
         .after(
           $(
-            '<span class="SMALL" style="background: none;" id="hideClubBadgesLink">[<a href="/index.php?title=Special:Badges&amp;u=19076274&action=hideClubBadges">hide Club badges</a>] </span><span class="SMALL" style="background: none;"  id="moveClubBadgesDownLink">[<a href="/index.php?title=Special:Badges&amp;u=19076274&action=moveClubBadgesDown">move Club badges down</a>]</span>'
-          )
-        );
-    }
-    if (
-      $("body.profile").length &&
-      window.location.href.match("Space:") == null &&
-      $("a.pureCssMenui0 span.person").text() ==
-        Cookies.get("wikitree_wtb_UserName")
-    ) {
-      $("a:contains('view/edit')")
-        .parent()
-        .after(
-          $(
             '<span class="SMALL" style="background: none;" id="hideClubBadgesLink">[<a href="/index.php?title=Special:Badges&amp;u=' +
               Cookies.get("wikitree_wtb_UserID") +
-              '&action=hideClubBadges">hide Club badges</a>] </span><span class="SMALL" style="background: none;"  id="moveClubBadgesDownLink">[<a href="/index.php?title=Special:Badges&amp;u=' +
+              '&badgeAction=hideClubBadges">hide Club badges</a>] </span><span class="SMALL" style="background: none;"  id="moveClubBadgesDownLink">[<a href="/index.php?title=Special:Badges&amp;u=' +
               Cookies.get("wikitree_wtb_UserID") +
-              '&action=moveClubBadgesDown">move Club badges down</a>]</span>'
+              '&badgeAction=moveClubBadgesDown">move Club badges down</a>]</span>'
           )
         );
     }
   }
 });
-
 
 function saveBadgeChanges() {
   $("input[value='Save Display Changes']").trigger("click");
