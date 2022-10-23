@@ -1,7 +1,7 @@
 import $ from "jquery";
 
-import { features, OptionType } from "./core/options/options_registry.mjs";
-import "./features/register_feature_options.mjs";
+import { features, OptionType } from "./core/options/options_registry";
+import "./features/register_feature_options";
 
 
 // Categories

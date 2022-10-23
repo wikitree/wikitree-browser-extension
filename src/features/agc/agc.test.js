@@ -27,10 +27,10 @@ import fs from 'fs'
 import {fail} from 'assert';
 
 // need to include this to register the feature so that we can get the default options
-import "../register_feature_options.mjs";
+import "../register_feature_options";
 
 
-import { getDefaultOptionValuesForFeature } from "../../core/options/options_registry.mjs"
+import { getDefaultOptionValuesForFeature } from "../../core/options/options_registry"
 
 const defaultUserOptions = getDefaultOptionValuesForFeature("agc", true);
 

@@ -1,4 +1,4 @@
-import { registerFeature } from "../core/options/options_registry.mjs"
+import { registerFeature } from "../core/options/options_registry"
 
 // Just importing this file will register all the features
 
@@ -7,7 +7,7 @@ import { registerFeature } from "../core/options/options_registry.mjs"
 // the feature and options
 ////////////////////////////////////////////////////////////////////////////////
 
-import "./agc/agc_options.mjs";
+import "./agc/agc_options.js";
 
 ////////////////////////////////////////////////////////////////////////////////
 // Simple features with no options can be registered here
