@@ -5,9 +5,10 @@ import { extractRelatives, displayName } from "../../core/common";
 
 chrome.storage.sync.get("verifyID", (result) => {
   if (result.verifyID) {
-    // Try not to clash with BEE
-    if ($("body.page-Special_EditFamily").length && $("body.BEE").length == 0) {
+    if ($("body.page-Special_EditFamily").length) {
       checkAttachPersonID();
+      // Try not to clash with BEE
+      $("body").addClass("verifyID");
     }
   }
 });
