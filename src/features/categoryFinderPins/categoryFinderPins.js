@@ -21,11 +21,7 @@ async function addCategoryLinksToDropdown() {
 }
 
 chrome.storage.sync.get("categoryFinderPins", (result) => {
-  if (
-    result.categoryFinderPins &&
-    $("body.page-Special_EditPerson").length &&
-    $("body.BEE").length == 0
-  ) {
+  if (result.categoryFinderPins && $("body.BEE").length == 0) {
     setTimeout(function () {
       addCategoryLinksToDropdown();
     }, 1000);
