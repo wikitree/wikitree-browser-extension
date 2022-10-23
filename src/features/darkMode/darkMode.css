@@ -38,24 +38,6 @@ body.darkMode div.qa-body-wrapper {
   background-color: #36393f !important;
 }
 
-body.profile.darkMode div.small_0 a:link,
-body.profile.darkMode div.small_0 a:visited,
-body.profile.darkMode div.small_0 span,
-body.profile.darkMode div.small_1 a:link,
-body.profile.darkMode div.small_1 a:visited,
-body.profile.darkMode div.small_1 span,
-body.profile.darkMode div.small_2 a:link,
-body.profile.darkMode div.small_2 a:visited,
-body.profile.darkMode div.small_2 span {
-  color: #36393f !important;
-  background: none !important;
-}
-body.profile.darkMode div.small_1,
-body.profile.darkMode div.small_2,
-body.darkMode .qa-form-tall-label {
-  color: #36393f !important;
-}
-
 body.darkMode h1 span,
 body.darkMode button.copyWidget {
   color: white !important;
@@ -224,4 +206,31 @@ body.darkMode.page-Main_Page input[name="wpSearch"] {
   background-color: transparent !important;
   font-size: large;
   color: white !important;
+}
+
+body.profile.darkMode div.small_0 a:link,
+body.profile.darkMode div.small_0 a:visited,
+body.profile.darkMode div.small_0 span,
+body.profile.darkMode div.small_1 a:link,
+body.profile.darkMode div.small_1 a:visited,
+body.profile.darkMode div.small_1 span,
+body.profile.darkMode div.small_2 a:link,
+body.profile.darkMode div.small_2 a:visited,
+body.profile.darkMode div.small_2 span {
+  color: #36393f !important;
+  background: none !important;
+}
+body.profile.darkMode div.small_1,
+body.profile.darkMode div.small_2,
+body.darkMode .qa-form-tall-label {
+  color: #36393f !important;
+}
+body.profile.darkMode div.small_0 {
+  background-color: #ffe183 !important;
+}
+body.profile.darkMode div.small_1 {
+  background-color: #e1efbb !important;
+}
+body.profile.darkMode div.small_2 {
+  background-color: #eee !important;
 }
