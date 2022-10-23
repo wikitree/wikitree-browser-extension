@@ -46,9 +46,7 @@ chrome.storage.sync.get("sortBadges", (result) => {
           $(
             '<span class="SMALL" style="background: none;" id="hideClubBadgesLink">[<a href="/index.php?title=Special:Badges&amp;u=' +
               Cookies.get("wikitree_wtb_UserID") +
-              '&badgeAction=hideClubBadges">hide Club badges</a>] </span><span class="SMALL" style="background: none;"  id="moveClubBadgesDownLink">[<a href="/index.php?title=Special:Badges&amp;u=' +
-              Cookies.get("wikitree_wtb_UserID") +
-              '&badgeAction=moveClubBadgesDown">move Club badges down</a>]</span>'
+              '&badgeAction=hideClubBadges">hide Club badges</a>] </span>'
           )
         );
     }

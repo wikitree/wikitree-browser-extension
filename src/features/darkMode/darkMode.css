@@ -222,6 +222,7 @@ body.profile.darkMode div.small_2 span {
   color: #36393f !important;
   background: none !important;
 }
+body.profile.darkMode div.small_0,
 body.profile.darkMode div.small_1,
 body.profile.darkMode div.small_2,
 body.darkMode .qa-form-tall-label {
