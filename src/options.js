@@ -102,7 +102,7 @@ const features = [
     category: "Editing",
   },
   {
-    name: "BioCheck",
+    name: "Bio Check",
     id: "bioCheck",
     description: "Check biography style and sources.",
     category: "Editing",

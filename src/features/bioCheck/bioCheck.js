@@ -198,7 +198,7 @@ function reportResults(reportLines) {
     bioCheckResultsContainer.setAttribute('id', 'biocheckContainer');
 
     let bioCheckTitle = document.createElement('b');
-    bioCheckTitle.innerText = 'BioCheck results\u00A0\u00A0';   // TODO use style?
+    bioCheckTitle.innerText = 'Bio Check results\u00A0\u00A0';   // TODO use style?
     bioCheckResultsContainer.appendChild(bioCheckTitle);
     setHelp(bioCheckResultsContainer);
   }
@@ -306,7 +306,7 @@ function reportSources(invalidSourceLines, isPre1700) {
  * @return sources title message
  */
 function sourcesTitle(isPre1700) {
-  let msg = 'BioCheck found sources that are not ';
+  let msg = 'Bio Check found sources that are not ';
   if (isPre1700) {
     msg += 'reliable or ';
   }
@@ -329,7 +329,7 @@ function setHelp(parentContainer) {
   bioCheckHelpImage.setAttribute('id', 'bioCheckHelpImage');
   bioCheckHelpImage.setAttribute('src', '/images/icons/help.gif');
   bioCheckHelpImage.setAttribute('alt', 'Help');
-  bioCheckHelpImage.setAttribute('title', 'BioCheck Help');
+  bioCheckHelpImage.setAttribute('title', 'Bio Check Help');
 
   parentContainer.appendChild(bioCheckHelpAnchor);
 }
@@ -341,11 +341,11 @@ function checkWatchlist() {
 
   let buttonList = document.getElementById('views-inner').firstElementChild;
   let bioCheckItem = document.createElement('li');
-  bioCheckItem.innerHTML='<a class-"views" href="https://apps.wikitree.com/apps/sands1865/biocheck/?action=checkWatchlist&checkStart=auto" title="BioCheck profiles on your watchlist" </a> BioCheck';
+  bioCheckItem.innerHTML='<a class-"views" href="https://apps.wikitree.com/apps/sands1865/biocheck/?action=checkWatchlist&checkStart=auto" title="Bio Check profiles on your watchlist" </a> Bio Check';
 
   let myPosition = 0;
   while ((myPosition < buttonList.childElementCount) && 
-         (buttonList.children[myPosition].textContent < 'BioCheck')) {
+         (buttonList.children[myPosition].textContent < 'Bio Check')) {
     myPosition++;
   }
 
