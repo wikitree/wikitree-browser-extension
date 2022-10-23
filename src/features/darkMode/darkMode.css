@@ -136,6 +136,8 @@ body.darkMode img[src*="images/icons/privacy"] {
 body.darkMode h2,
 body.darkMode h1,
 body.darkMode h3,
+body.darkMode h4,
+body.darkMode h5,
 body.darkMode h2 span,
 body.darkMode h1 span {
   background-color: forestgreen !important;
