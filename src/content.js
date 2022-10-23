@@ -1,4 +1,7 @@
 //import { createTopMenu } from "./core/common";
+
+import "./features/register_feature_options.mjs";
+
 import "./features/agc/agc_content";
 import "./features/akaNameLinks/akaNameLinks";
 import "./features/appsMenu/appsMenu";

@@ -22,6 +22,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage.mjs"
+
 // file level variables
 var agcButton = undefined;
 var isBioEdited = false;
@@ -30,6 +32,11 @@ var origBirthDate = "";
 var origBirthDateIsBefore = false;
 var origDeathDate = "";
 var origDeathDateIsBefore = false;
+
+var origFirstName = "";
+var origPrefName = "";
+var origMiddleName = "";
+var origCurrentLastName = "";
 
 var lastReformattedBioText = ""; // used to check if edited when we do undo
 var bioTextWhenUndoWarningDisplayed = "";
@@ -223,52 +230,6 @@ function getParentsFromDocument(document, parents) {
   }
 }
 
-async function getOptions() {
-  return new Promise((resolve, reject) => {
-    try {
-      chrome.storage.sync.get(
-        {
-          spelling: "en_uk",
-          include_age: "most",
-          dataFields_moveNamesFromFirstToMiddle: "someCountries",
-          narrative_includeCountry: "always",
-          narrative_useResidenceData: true,
-          narrative_useFullCensusDate: true,
-          include_externalMedia: true,
-          include_mapLinks: true,
-          removeGedcomVerbiage: true,
-
-          references_named: "selective",
-          references_accessedDate: "before",
-          references_addNewlineBeforeFirst: false,
-          references_addNewline: false,
-          references_addNewlineWithin: true,
-          references_meaningfulNames: true,
-
-          sources_addFreeLinksForSubscriptionSources: true,
-          sources_supressChildBaptisms: false,
-          sources_supressChildMarriages: false,
-
-          researchNotes_alternateNames: true,
-          researchNotes_includeIssuesToBeChecked: true,
-          researchNotes_issueForClnToLastHusband: true,
-          researchNotes_issueForBirthToBeforeBaptism: true,
-          researchNotes_issueForDeathToBeforeBurial: true,
-
-          otherFields_useBaptismForBirthDate: true,
-          otherFields_useBurialForDeathDate: true,
-          otherFields_useLastHusbandNameForCurrentLastName: true,
-        },
-        function (value) {
-          resolve(value);
-        }
-      );
-    } catch (ex) {
-      reject(ex);
-    }
-  });
-}
-
 async function updateButton() {
   if (agcButton != undefined) {
     if (isBioEdited) {
@@ -385,7 +346,7 @@ async function doEditBio() {
   const runDateObject = new Date();
 
   // get the options from user storage
-  const options = await getOptions();
+  const options = await getFeatureOptions("agc");
 
   const editBioInput = {
     wikiId: profileWikiId,
@@ -566,8 +527,16 @@ function initAgc() {
   }
 }
 
+/*
 chrome.storage.sync.get("agc", (result) => {
   if (result.agc) {
+    initAgc();
+  }
+});
+*/
+
+checkIfFeatureEnabled("agc").then((result) => {
+  if (result) {
     initAgc();
   }
 });

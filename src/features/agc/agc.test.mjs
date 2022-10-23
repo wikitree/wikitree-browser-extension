@@ -26,7 +26,15 @@ import {editBio} from './library/editbio';
 import fs from 'fs'
 import {fail} from 'assert';
 
+// need to include this to register the feature so that we can get the default options
+import "../register_feature_options.mjs";
 
+
+import { getDefaultOptionValuesForFeature } from "../../core/options/options_registry.mjs"
+
+const defaultUserOptions = getDefaultOptionValuesForFeature("agc", true);
+
+/*
 const defaultUserOptions = {
   spelling: 'en_uk',
   include_age: 'none',
@@ -60,6 +68,7 @@ const defaultUserOptions = {
   otherFields_useBurialForDeathDate: true,
   otherFields_useLastHusbandNameForCurrentLastName: true,
 };
+*/
 
 const testProfiles = [
   {
