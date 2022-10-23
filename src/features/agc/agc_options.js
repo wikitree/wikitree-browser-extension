@@ -1,4 +1,4 @@
-import { registerFeature, OptionType } from "../../core/options/options_registry.mjs"
+import { registerFeature, OptionType } from "../../core/options/options_registry"
 
 // The feature data for the AGC feature
 const agcFeature = {

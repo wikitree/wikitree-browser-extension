@@ -1,4 +1,4 @@
-import { getDefaultOptionValuesForFeature } from "../../core/options/options_registry.mjs"
+import { getDefaultOptionValuesForFeature } from "./options_registry"
 
 /*
 This function returns a Promise so it can be used in a couple of different ways:
