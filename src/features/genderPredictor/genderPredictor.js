@@ -4,10 +4,7 @@ import {
   checkIfFeatureEnabled,
   getFeatureOptions,
 } from "../../core/options/options_storage.js";
-import {
-  registerFeature,
-  OptionType,
-} from "../../core/options/options_registry.js";
+
 import "./genderPredictor.css";
 
 checkIfFeatureEnabled("darkMode").then((result) => {
@@ -16,15 +13,8 @@ checkIfFeatureEnabled("darkMode").then((result) => {
   }
 });
 
-const predictGenderFeature = {
-  name: "Gender Predictor",
-  id: "genderpredictor",
-  description:
-    "Sets the gender on a new profile page based on the name and the gender frequency of it in the WikiTree database.",
-  category: "Editing",
-};
 
-registerFeature(predictGenderFeature);
+
 
 async function predictGender() {
   let dFirstName = document.querySelector("#mFirstName");
