@@ -7,7 +7,7 @@ import {
 
 import "./genderPredictor.css";
 
-checkIfFeatureEnabled("darkMode").then((result) => {
+checkIfFeatureEnabled("genderPredictor").then((result) => {
   if (result) {
     predictGender();
   }
