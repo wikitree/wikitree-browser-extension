@@ -41,27 +41,63 @@ To add a new feature, you may want to start with a separate GitHub branch. This 
 
 Add a new folder with the feature name under the `src/features` folder to hold the code.
 
-In `src/options.js`, add information about the feature to the `features` array. This will setup a basic on/off switch on the Options Page.
+In `src/features/register_feature_options.js`, register the deature with the options registry using the `registerFeature` function. This will setup a basic on/off switch on the Options Page.
 
 ```js
-const features = [
-  {
-    name: "My Feature",
-    id: "featureID",
-    description: "This feature does stuff.",
-  },
-];
+registerFeature({
+  name: "My Feature",
+  id: "myExample",
+  description: "This feature does stuff.",
+  category: "Global",
+});
+```
+
+If you want additional options for your feature (not just turning it on and off) then, instead, create a new file to put your call to `registerFeature` in (to keep `register_feature_options.js` from getting large and hard to read). The options are registered as part of the `registerFeature` call. Name your file `<feature name>_options.js` (e.g. `agc_options.js`). Here is an example file:
+
+```js
+import { registerFeature, OptionType } from "../../core/options/options_registry"
+
+// The feature data for the myExample feature
+const myExampleFeature = {
+  name: "My Feature",
+  id: "myExample",
+  description: "This feature does stuff.",
+  category: "Global",
+  options: [
+    {
+      id: "myFirstOption",
+      type: OptionType.CHECKBOX,
+      label: 'Enables my first option',
+      defaultValue: true,   
+    },
+  ],
+};
+
+// Just importing this file will register all the features
+registerFeature(agcFeature);
 ```
 
 In the feature's javascript files, you should check if a user has it turned on or off using the following code:
 
 ```js
-chrome.storage.sync.get("featureID", (result) => {
-  if (result.featureID) {
+checkIfFeatureEnabled("myExample").then((result) => {
+  if (result) {
     // additional code
   }
 });
 ```
+
+Also in the feature's javascript files, if you have additional feature options, you can get the values that the user has set for the options like this:
+
+```js
+  const options = await getFeatureOptions("agc");
+  
+  if (options.myFirstOption) {
+    // additional code
+  }
+```
+
+NOTE: getFeatureOptions returns a Promise so you can call it using await as above if you are in an async function. Otherwise you can the `then` syntax as shown above for `checkIfFeatureEnabled`.
 
 In `src/content.js` import your feature source file:
 ```js
