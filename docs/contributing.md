@@ -41,26 +41,26 @@ To add a new feature, you may want to start with a separate GitHub branch. This 
 
 Add a new folder with the feature name under the `src/features` folder to hold the code.
 
-In `src/features/register_feature_options.js`, register the deature with the options registry using the `registerFeature` function. This will setup a basic on/off switch on the Options Page.
+In `src/features/register_feature_options.js`, register the feature with the options registry using the `registerFeature` function. This will setup a basic on/off switch on the Options Page.
 
 ```js
 registerFeature({
   name: "My Feature",
-  id: "myExample",
+  id: "myFeature",
   description: "This feature does stuff.",
   category: "Global",
 });
 ```
 
-If you want additional options for your feature (not just turning it on and off) then, instead, create a new file to put your call to `registerFeature` in (to keep `register_feature_options.js` from getting large and hard to read). The options are registered as part of the `registerFeature` call. Name your file `<feature name>_options.js` (e.g. `agc_options.js`). Here is an example file:
+If you want additional options for your feature (not just turning it on and off) then, instead of puting the call to `registerFeature` in `register_feature_options.js`, create a new file to put your call to `registerFeature` in (to keep `register_feature_options.js` from getting large and hard to read). The options are registered as part of the `registerFeature` call. Name your file `<feature name>_options.js` (e.g. `my_feature_options.js`). Here is an example file:
 
 ```js
 import { registerFeature, OptionType } from "../../core/options/options_registry"
 
-// The feature data for the myExample feature
+// The feature data for the myFeature feature
 const myExampleFeature = {
   name: "My Feature",
-  id: "myExample",
+  id: "myFeature",
   description: "This feature does stuff.",
   category: "Global",
   options: [
@@ -74,13 +74,13 @@ const myExampleFeature = {
 };
 
 // Just importing this file will register all the features
-registerFeature(agcFeature);
+registerFeature(myFeature);
 ```
 
 In the feature's javascript files, you should check if a user has it turned on or off using the following code:
 
 ```js
-checkIfFeatureEnabled("myExample").then((result) => {
+checkIfFeatureEnabled("myFeature").then((result) => {
   if (result) {
     // additional code
   }
@@ -90,7 +90,7 @@ checkIfFeatureEnabled("myExample").then((result) => {
 Also in the feature's javascript files, if you have additional feature options, you can get the values that the user has set for the options like this:
 
 ```js
-  const options = await getFeatureOptions("agc");
+  const options = await getFeatureOptions("myFeature");
   
   if (options.myFirstOption) {
     // additional code
