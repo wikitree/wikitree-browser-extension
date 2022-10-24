@@ -9,6 +9,7 @@ import { registerFeature } from "../core/options/options_registry";
 
 import "./agc/agc_options.js";
 import "./darkMode/darkMode_options.js";
+import "./genderPredictor/gender_predictor_options.js";
 ////////////////////////////////////////////////////////////////////////////////
 // Simple features with no options can be registered here
 ////////////////////////////////////////////////////////////////////////////////

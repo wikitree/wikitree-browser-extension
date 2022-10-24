@@ -21,6 +21,7 @@ import "./features/bioCheck/bioCheck";
 import "./features/categoryFinderPins/categoryFinderPins";
 import "./features/sortBadges/sortBadges";
 import "./features/verifyID/verifyID";
+import "./features/genderPredictor/genderPredictor";
 
 import "./core/editToolbar";
 

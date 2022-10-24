@@ -1,0 +1,25 @@
+#mGender.Male,
+#mGender option[value="Male"],
+select[name="mGender"].Male,
+select[name="mGender"] option[value="Male"] {
+  background-color: #aed6f1;
+}
+
+#mGender.Female,
+#mGender option[value="Female"],
+select[name="mGender"].Female,
+select[name="mGender"] option[value="Female"] {
+  background-color: #fadbd8;
+}
+
+#mGenderHelpInfo {
+  display: none;
+  position: absolute;
+  top: 2em;
+  left: 0;
+  width: 20em;
+  border: 1px solid gray;
+  padding: 1em;
+  background: white;
+  border-radius: 30%;
+}
