@@ -79,6 +79,12 @@ registerFeature(myFeature);
 
 In the feature's javascript files, you should check if a user has it turned on or off using the following code:
 
+At the top of the file:
+```js
+import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage"
+```
+
+To check if it is enabled:
 ```js
 checkIfFeatureEnabled("myFeature").then((result) => {
   if (result) {
