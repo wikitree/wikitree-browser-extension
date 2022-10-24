@@ -1,4 +1,4 @@
-import { registerFeature } from "../core/options/options_registry"
+import { registerFeature } from "../core/options/options_registry";
 
 // Just importing this file will register all the features
 
@@ -8,7 +8,7 @@ import { registerFeature } from "../core/options/options_registry"
 ////////////////////////////////////////////////////////////////////////////////
 
 import "./agc/agc_options.js";
-
+import "./darkMode/darkMode_options.js";
 ////////////////////////////////////////////////////////////////////////////////
 // Simple features with no options can be registered here
 ////////////////////////////////////////////////////////////////////////////////
@@ -104,13 +104,6 @@ registerFeature({
 });
 
 registerFeature({
-  name: "Dark Mode",
-  id: "darkMode",
-  description: "Make WikiTree dark.",
-  category: "Style",
-});
-
-registerFeature({
   name: "Family Group",
   id: "familyGroup",
   description:
@@ -119,10 +112,10 @@ registerFeature({
 });
 
 registerFeature({
-  name: 'Bio Check',
-  id: 'bioCheck',
-  description: 'Check biography style and sources.',
-  category: 'Editing',
+  name: "Bio Check",
+  id: "bioCheck",
+  description: "Check biography style and sources.",
+  category: "Editing",
 });
 
 registerFeature({
