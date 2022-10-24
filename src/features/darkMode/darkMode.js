@@ -105,13 +105,11 @@ function doDarkMode() {
 
 async function initDarkMode() {
   const options = await getFeatureOptions("darkMode");
-  console.log(options);
   if (options.mode == "system") {
     const darkModePreference = window.matchMedia(
       "(prefers-color-scheme: dark)"
     );
     darkModePreference.addEventListener("change", (e) => {
-      console.log("changed");
       if (e.matches) {
         doDarkMode();
       } else {
