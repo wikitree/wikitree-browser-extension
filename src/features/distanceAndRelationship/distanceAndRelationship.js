@@ -279,12 +279,18 @@ function doRelationshipText(userID, profileID) {
           .eq(0)
           .text()
           .replaceAll(/[\t\n]/g, "");
+        let secondName = dummy.find("b").parent().text().split(out)[1];
+        const userFirstName = dummy
+          .find(`p a[href\$='${userID}']`)
+          .eq(0)
+          .text()
+          .split(" ")[0];
+        const profileFirstName = $("h1 span[itemprop='name']")
+          .text()
+          .split(" ")[0];
         if (data.commonAncestors.length == 0) {
           out = dummy.find("b").text();
-          let secondName = dummy.find("b").parent().text().split(out)[1];
-          const profileFirstName = $("h1 span[itemprop='name']")
-            .text()
-            .split(" ")[0];
+
           if (secondName.match(profileFirstName)) {
             out = dummy.find("h2").text().replace("(DNA Confirmed)", "").trim();
           }
@@ -295,7 +301,10 @@ function doRelationshipText(userID, profileID) {
           if (oh2.match("is the")) {
             out = oh2.split("is the ")[1].split(" of")[0];
           } else if (oh2.match(" are ")) {
-            out = oh2.split("are ")[1].replace(/cousins/, "cousin");
+            out = oh2
+              .split("are ")[1]
+              .replace(/cousins/, "cousin")
+              .replace(/siblings/, "sibling");
           }
           if (out.match(/nephew|niece/)) {
             if (profileGender == "male") {
@@ -304,6 +313,20 @@ function doRelationshipText(userID, profileID) {
             if (profileGender == "female") {
               out = out.replace(/nephew|niece/, "aunt");
             }
+          }
+          if (
+            dummy
+              .find("h2")
+              .eq(0)
+              .text()
+              .match(userFirstName + "'s")
+          ) {
+            out = dummy
+              .find("h2")
+              .eq(0)
+              .text()
+              .split(userFirstName + "'s")[1]
+              .trim();
           }
         }
         let outSplit = out.split(" ");
