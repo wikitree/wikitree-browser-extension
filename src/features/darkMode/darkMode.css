@@ -1,7 +1,6 @@
 body.darkMode html body,
 body.darkMode .wrapper,
-body.darkMode
-  div:not(.cke_inner.cke_reset, .cke_a_content, .large, .CodeMirror-code),
+body.darkMode div:not(.cke_inner.cke_reset, .cke_a_content, .large),
 body.darkMode a:link:not(.cke_button, .cke_combo_button),
 body.darkMode a:visited:not(.cke_button, .cke_combo_button),
 body.darkMode .small,
@@ -23,12 +22,15 @@ body.darkMode,
 body.darkMode span.qa-a-count,
 body.darkMode #appsSubMenu,
 body.darkMode table,
+body.darkMode table td,
 body.darkMode.page-Special_FamilyTree table,
 body.darkMode.page-Special_FamilyTree table td,
 body.darkMode table.wt th,
 body.darkMode table.wt td,
 body.darkMode ul.pureCssMenum li,
-body.darkMode ul.pureCssMenum li a {
+body.darkMode ul.pureCssMenum li a,
+body.darkMode div.CodeMirror pre,
+body.darkMode div.CodeMirror span {
   font-weight: 400;
   background-color: #36393f !important;
   color: #dcddde !important;
@@ -40,7 +42,8 @@ body.darkMode div.qa-body-wrapper {
 }
 
 body.darkMode h1 span,
-body.darkMode button.copyWidget {
+body.darkMode button.copyWidget,
+body.darkMode .qa-form-tall-label label {
   color: white !important;
 }
 
@@ -226,7 +229,8 @@ body.profile.darkMode div.small_2 span {
 body.profile.darkMode div.small_0,
 body.profile.darkMode div.small_1,
 body.profile.darkMode div.small_2,
-body.darkMode .qa-form-tall-label {
+body.darkMode .qa-form-tall-label,
+body.darkMode #editToolbarButton {
   color: #36393f !important;
 }
 body.profile.darkMode div.small_0 {
