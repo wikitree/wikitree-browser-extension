@@ -152,9 +152,9 @@ body.darkMode h1 span {
   padding: 3px;
   color: #dcddde;
 }
-body.darkMode h2 a:link,
-body.darkMode h2 a:visited {
-  background: none !important;
+body.darkMode h2 a#wt-id-link:link,
+body.darkMode h2 a#wt-id-link:visited {
+  background-color: transparent !important;
 }
 
 body.darkMode div.qa-main,
