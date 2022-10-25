@@ -1,131 +1,130 @@
-
 #editToolbarExt {
-	display: inline-block;
+  display: inline-block;
 }
 
-#editToolbarDiv {
-	position: relative;
-	float: left;
-	z-index: 10;
+.editToolbarDiv {
+  position: relative;
+  float: left;
+  z-index: 10;
 }
 
-#editToolbarDiv:hover .editToolbarMenu0 {
-	display: block;
+.editToolbarDiv:hover .editToolbarMenu0 {
+  display: block;
 }
 
-#editToolbarButton {
-	cursor: pointer;
-	border: 1px solid #aaa;
-	border-radius: 3px;
-	padding: 2px;
-	margin: 1px;
-	background-color: #eee;
+.editToolbarButton {
+  cursor: pointer;
+  border: 1px solid #aaa;
+  border-radius: 3px;
+  padding: 2px;
+  margin: 1px;
+  background-color: #eee;
 }
 
 .editToolbarMenu2 {
-	display: none;
-	position: absolute;
-	top: -1px;
-	left: 161px;
-	width: 160px;
-	list-style: none;
-	padding: 1;
-	margin: 0;
-	vertical-align: middle;
+  display: none;
+  position: absolute;
+  top: -1px;
+  left: 161px;
+  width: 160px;
+  list-style: none;
+  padding: 1;
+  margin: 0;
+  vertical-align: middle;
 }
 
-.editToolbarMenu2>li {
-	position: relative;
-	height: 24px;
-	margin-bottom: 1px;
-	background-color: #fff;
-	border: 1px solid #ccc;
+.editToolbarMenu2 > li {
+  position: relative;
+  height: 24px;
+  margin-bottom: 1px;
+  background-color: #fff;
+  border: 1px solid #ccc;
 }
 
-.editToolbarMenu2>li:hover {
-	background: #CCCCCC;
+.editToolbarMenu2 > li:hover {
+  background: #cccccc;
 }
 
 /* second level of menus */
 .editToolbarMenu1 {
-	display: none;
-	position: absolute;
-	top: -1px;
-	left: 161px;
-	width: 160px;
-	list-style: none;
-	padding: 1;
-	margin: 0;
-	vertical-align: middle;
+  display: none;
+  position: absolute;
+  top: -1px;
+  left: 161px;
+  width: 160px;
+  list-style: none;
+  padding: 1;
+  margin: 0;
+  vertical-align: middle;
 }
 
-.editToolbarMenu1>li {
-	position: relative;
-	height: 24px;
-	margin-bottom: 1px;
-	background-color: #fff;
-	border: 1px solid #ccc;
+.editToolbarMenu1 > li {
+  position: relative;
+  height: 24px;
+  margin-bottom: 1px;
+  background-color: #fff;
+  border: 1px solid #ccc;
 }
 
-.editToolbarMenu1>li:hover {
-	background: #CCCCCC;
+.editToolbarMenu1 > li:hover {
+  background: #cccccc;
 }
 
 /* first level of menus */
 .editToolbarMenu0 {
-	display: none;
-	position: absolute;
-	left: 0px;
-	list-style: none;
-	padding: 1px;
-	margin: 0;
-	vertical-align: middle;
-	z-index: 10;
+  display: none;
+  position: absolute;
+  left: 0px;
+  list-style: none;
+  padding: 1px;
+  margin: 0;
+  vertical-align: middle;
+  z-index: 10;
 }
 
-.editToolbarMenu0>li {
-	position: relative;
-	height: 24px;
-	min-width: 160px;
-	margin-bottom: 1px;
-	float: left;
-	z-index: 11;
-	background-color: #fff;
-	border: 1px solid #ccc;
-	text-align: left;
-	text-decoration: none;
-	cursor: pointer;
+.editToolbarMenu0 > li {
+  position: relative;
+  height: 24px;
+  min-width: 160px;
+  margin-bottom: 1px;
+  float: left;
+  z-index: 11;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
 }
 
-.editToolbarMenu0>li:hover {
-	background: #CCCCCC;
+.editToolbarMenu0 > li:hover {
+  background: #cccccc;
 }
 
 /* On hover, display the next level's menu */
-.editToolbarMenu0 li:hover>ul {
-	display: inline;
+.editToolbarMenu0 li:hover > ul {
+  display: inline;
 }
 
 /* Menu Link Styles - Apply to all links inside the multi-level menu */
 .editToolbarMenu0 a {
-	font: normal 11px verdana, arial, sans-serif;
-	color: #000000;
-	text-decoration: none !important;
-	padding: 0px 5px;
+  font: normal 11px verdana, arial, sans-serif;
+  color: #000000;
+  text-decoration: none !important;
+  padding: 0px 5px;
 
-	/* Make the link cover the entire list item-container */
-	display: block;
-	line-height: 24px;
+  /* Make the link cover the entire list item-container */
+  display: block;
+  line-height: 24px;
 }
 
 .editToolbarMenu0 a:link {
-	color: #000000;
+  color: #000000;
 }
 
 .editToolbarMenu0 a:hover {
-	color: #000000;
+  color: #000000;
 }
 
 .editToolbarMenu0 a:visited {
-	color: #000000 !important;
+  color: #000000 !important;
 }
