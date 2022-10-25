@@ -15,13 +15,7 @@ export function editToolbarWiki(params) {
 export function editToolbarApp(params) {
   let w = document.querySelector("h1 > .copyWidget");
   let wikitreeID = w.getAttribute("data-copy-text");
-  window.open(
-    "https://apps.wikitree.com/apps/" +
-      params.app +
-      "?wikitreeid=" +
-      wikitreeID,
-    "_blank"
-  );
+  window.open("https://apps.wikitree.com/apps/" + params.app + "?wikitreeid=" + wikitreeID, "_blank");
 }
 
 /* Finds the clicked item in editToolbarOptions */
@@ -78,20 +72,15 @@ function editToolbarCreateHtml(items, featureEnabled, level) {
           } else {
             result += "<li><a ";
             result += item.hint ? 'title= "' + item.hint + '"' : "";
-            result +=
-              'href="javascript:void(0);" class="editToolbarClick" data-id="' +
-              item.title +
-              '"';
-            result +=
-              ">" + item.title + (item.items ? " &gt;&gt;" : "") + "</a>";
+            result += 'href="javascript:void(0);" class="editToolbarClick" data-id="' + item.title + '"';
+            result += ">" + item.title + (item.items ? " &gt;&gt;" : "") + "</a>";
             result += s;
             result += "</li>";
           }
         }
       }
     }
-    if (level >= 0 && result)
-      result = '<ul class="editToolbarMenu' + level + '">' + result + "</ul>";
+    if (level >= 0 && result) result = '<ul class="editToolbarMenu' + level + '">' + result + "</ul>";
   }
   return result;
 }
@@ -100,22 +89,13 @@ function editToolbarCreateHtml(items, featureEnabled, level) {
 function editToolbarCreate(options) {
   editToolbarOptions = options;
   chrome.storage.sync.get(null, (featureEnabled) => {
-    var menuHTML = editToolbarCreateHtml(
-      editToolbarOptions,
-      featureEnabled,
-      -1
-    );
+    var menuHTML = editToolbarCreateHtml(editToolbarOptions, featureEnabled, -1);
     document
       .getElementById("toolbar")
-      .insertAdjacentHTML(
-        "afterend",
-        '<div id="editToolbarExt">' + menuHTML + "</div>"
-      );
+      .insertAdjacentHTML("afterend", '<div id="editToolbarExt">' + menuHTML + "</div>");
     document
       .querySelectorAll("a.editToolbarClick")
-      .forEach((i) =>
-        i.addEventListener("click", (event) => editToolbarEvent(event))
-      );
+      .forEach((i) => i.addEventListener("click", (event) => editToolbarEvent(event)));
   });
 }
 
