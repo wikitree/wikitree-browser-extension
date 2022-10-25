@@ -816,6 +816,11 @@ export class Biography extends BiographyResults {
         line = line.substring(7);
         line = line.trim();
     }
+    // ignore trailing .
+    if (line.endsWith('.')) {
+      line = line.slice(0, -1);
+      line = line.trim();
+    }
     // It takes a minimum number of characters to be valid
     if (line.length >= Biography.MIN_SOURCE_LEN) {
 
