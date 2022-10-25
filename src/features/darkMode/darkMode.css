@@ -239,6 +239,7 @@ body.profile.darkMode div.small_0 {
 body.profile.darkMode div.small_1 {
   background-color: #e1efbb !important;
 }
-body.profile.darkMode div.small_2 {
+body.profile.darkMode div.small_2,
+body.profile.darkMode span.HISTORY-DATE + div {
   background-color: #eee !important;
 }
