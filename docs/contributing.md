@@ -74,7 +74,7 @@ const myExampleFeature = {
 };
 
 // Just importing this file will register all the features
-registerFeature(myFeature);
+registerFeature(myExampleFeature);
 ```
 
 In the feature's javascript files, you should check if a user has it turned on or off using the following code:
