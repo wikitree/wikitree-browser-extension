@@ -1,6 +1,7 @@
 body.darkMode html body,
 body.darkMode .wrapper,
-body.darkMode div:not(.cke_inner.cke_reset, .cke_a_content, .large),
+body.darkMode
+  div:not(.cke_inner.cke_reset, .cke_a_content, .large, .CodeMirror-code),
 body.darkMode a:link:not(.cke_button, .cke_combo_button),
 body.darkMode a:visited:not(.cke_button, .cke_combo_button),
 body.darkMode .small,
