@@ -1,9 +1,10 @@
 import { SourceRules } from "./SourceRules.js"
 import { PersonDate } from "./PersonDate.js"
 import { Biography } from "./Biography.js"
+import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage"
 
-chrome.storage.sync.get('bioCheck', (result) => {
-	if (result.bioCheck) {
+checkIfFeatureEnabled("bioCheck").then((result) => { 
+  if (result) {
 
     // want to check on start, on save, and
     // on a scheduled interval
