@@ -243,3 +243,21 @@ body.profile.darkMode div.small_2,
 body.profile.darkMode span.HISTORY-DATE + div {
   background-color: #eee !important;
 }
+
+/* Code Mirror */
+body.darkMode div.CodeMirror span.cm-mw-section-header {
+  background-color: #607d8b !important;
+}
+body.darkMode div.CodeMirror span.cm-mw-ext-ref,
+body.darkMode div.CodeMirror span.cm-mw-tag-ref,
+body.darkMode div.CodeMirror pre.cm-mw-tag-ref,
+body.darkMode div.CodeMirror pre.cm-mw-tag-ref span {
+  background-color: #607d8b !important;
+}
+body.darkMode div.CodeMirror span.cm-mw-template-bracket,
+body.darkMode div.CodeMirror span.cm-mw-link-bracket,
+body.darkMode div.CodeMirror span.cm-mw-link-delimiter,
+body.darkMode div.CodeMirror span.cm-mw-link-ground {
+  color: #fff !important;
+  background-color: #607d8b !important;
+}
