@@ -55,7 +55,7 @@ registerFeature({
 If you want additional options for your feature (not just turning it on and off) then, instead of puting the call to `registerFeature` in `register_feature_options.js`, create a new file to put your call to `registerFeature` in (to keep `register_feature_options.js` from getting large and hard to read). The options are registered as part of the `registerFeature` call. Name your file `<feature name>_options.js` (e.g. `my_feature_options.js`). Here is an example file:
 
 ```js
-import { registerFeature, OptionType } from "../../core/options/options_registry"
+import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 // The feature data for the myFeature feature
 const myExampleFeature = {
@@ -67,8 +67,8 @@ const myExampleFeature = {
     {
       id: "myFirstOption",
       type: OptionType.CHECKBOX,
-      label: 'Enables my first option',
-      defaultValue: true,   
+      label: "Enables my first option",
+      defaultValue: true,
     },
   ],
 };
@@ -80,11 +80,13 @@ registerFeature(myExampleFeature);
 In the feature's javascript files, you should check if a user has it turned on or off using the following code:
 
 At the top of the file:
+
 ```js
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage"
+import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 ```
 
 To check if it is enabled:
+
 ```js
 checkIfFeatureEnabled("myFeature").then((result) => {
   if (result) {
@@ -96,18 +98,19 @@ checkIfFeatureEnabled("myFeature").then((result) => {
 Also in the feature's javascript files, if you have additional feature options, you can get the values that the user has set for the options like this:
 
 ```js
-  const options = await getFeatureOptions("myFeature");
-  
-  if (options.myFirstOption) {
-    // additional code
-  }
+const options = await getFeatureOptions("myFeature");
+
+if (options.myFirstOption) {
+  // additional code
+}
 ```
 
 NOTE: getFeatureOptions returns a Promise so you can call it using await as above if you are in an async function. Otherwise you can the `then` syntax as shown above for `checkIfFeatureEnabled`.
 
 In `src/content.js` import your feature source file:
+
 ```js
-import './features/myFeature/myFeature';
+import "./features/myFeature/myFeature";
 ```
 
 You may want to include a README file in the folder to explain what the feature does.
@@ -117,14 +120,56 @@ You may want to include a README file in the folder to explain what the feature 
 See main [[README]] for installation instructions.
 
 You can use the following command during development to keep the `dist` folder up to date with your changes without having to manually build each time:
+
 ```
 npm run watch
 ```
 
-
 ## Share your view
 
 When your new feature is ready to share, you can announce it on G2G, Discord, or the Apps email group. And you can submit a pull request from your fork into the main project to get it incorporated into code for everyone to share.
+
+## Prettier
+
+The project uses [Prettier](https://prettier.io/) to format the code.
+
+The settings the project uses are stored in the [.prettierrc](../.prettierrc) file.
+
+### Installing Prettier
+
+The general installation instructions can be viewed at the [Prettier Docs](https://prettier.io/docs/en/install.html).
+
+#### Visual Studio Code
+
+To install Prettier in [Visual Studio Code](https://code.visualstudio.com/):
+
+- Go to `View > Extensions`
+- Search for "Prettier - Code formatter"
+- Select the "Install" button
+
+To set it up so it formats on save:
+
+- Go to `File > Preferences > Settings`
+- Search for "Default Formatter" and select "Prettier - Code formatter" in the dropdown
+- Search for "Format On Save" and make sure the checkbox is checked
+
+It will use the settings in the `.prettierrc` file in the repository.
+
+### Using Prettier
+
+If you've set it up so it formats on save, you don't have to do anything else.
+
+You can have prettier format all the files in the project from the command line with:
+
+```
+npx prettier --write
+```
+
+To format a single file, you can use:
+
+```
+npx prettier --write your_file_name
+```
 
 ## Other potentially useful tools
 
