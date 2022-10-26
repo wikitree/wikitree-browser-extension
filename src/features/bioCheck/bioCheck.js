@@ -1,4 +1,4 @@
-import { SourceRules } from "./SourceRules.js"
+import { theSourceRules } from "./SourceRules.js"
 import { PersonDate } from "./PersonDate.js"
 import { Biography } from "./Biography.js"
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage"
@@ -6,23 +6,27 @@ import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/opt
 checkIfFeatureEnabled("bioCheck").then((result) => { 
   if (result) {
 
-    // want to check on start, on save, and
-    // on a scheduled interval
+    /* TODO in the future possibly add options
+     * options might move the results report above the Preview button
+     * options might treat all profiles as Pre1700 if the Require Reliable
+     *   Sources option is selected
+     * To add options 
+     * - move the registerFeature call out of src/features/register_feature_options.js 
+     *   into a separate file named src/features/bioCheck/bio_check_options.js
+     * - include the new file in register_feature_options.js (like agc_options)
+     * - in the registerFeature call add an "options" member to the object passed in 
+     *   (see agc or darkMode for examples)
+     */
 
-    // Ideally would have an immutable singleton for SourceRules
-    // But one of the extensions seems to be running something on
-    // an interval that is causing it to get set null.
-    // Keep the code to use the singleton, just in case
-
-    let theSourceRules = new SourceRules();
+    // theSourceRules are an immutable singleton
 
     // Look at the type of page and take appropriate action
 
     if (document.body.classList.contains("page-Special_EditPerson")) {
-      checkBio(theSourceRules);
+      checkBio();
 
       let saveDraftButton = document.getElementById("wpSaveDraft");
-      saveDraftButton.onclick = function(){checkBio(theSourceRules)};
+      saveDraftButton.onclick = function(){checkBio()};
       saveDraftButton.addEventListener("mouseover", checkBioAtInterval);
       saveDraftButton.addEventListener("touchstart", checkBioAtInterval);
       let saveButton = document.getElementById("wpSave");
@@ -30,23 +34,21 @@ checkIfFeatureEnabled("bioCheck").then((result) => {
       saveButton.addEventListener("touchstart", checkBioAtInterval);
 
       // and also once a minute
-      setInterval(checkBioAtInterval, 60000, theSourceRules);
+      setInterval(checkBioAtInterval, 60000);
 
     } else {
       if (document.body.classList.contains("page-Special_EditFamily")) {
-      // Check if you are on the Add Person page
-      //if (document.getElementById('sourceOptionContainer') != null) {
 
         // Find the save button. For Add Person there is just one
         // For adding a relative there are two, and you want the second
         let buttonElements = document.querySelectorAll("[id='wpSave']");
         let saveButton = buttonElements[buttonElements.length-1];
         // check on save or if or something might be about to happen
-        saveButton.onclick = function(){checkSources(theSourceRules)};
+        saveButton.onclick = function(){checkSources()};
         saveButton.addEventListener("mouseover", checkSourcesAtInterval);
         saveButton.addEventListener("touchstart", checkSourcesAtInterval);
 
-        setInterval(checkSourcesAtInterval, 30000, theSourceRules);
+        setInterval(checkSourcesAtInterval, 30000);
       } else {
         if (document.body.classList.contains("page-Special_WatchedList")) {
           checkWatchlist();
@@ -57,11 +59,11 @@ checkIfFeatureEnabled("bioCheck").then((result) => {
 });
 
 // Check at an interval
-function checkBioAtInterval(theSourceRules) {
-  checkBio(theSourceRules);
+function checkBioAtInterval() {
+  checkBio();
 }
-function checkSourcesAtInterval(theSourceRules) {
-  checkSources(theSourceRules);
+function checkSourcesAtInterval() {
+  checkSources();
 }
 
 /*
@@ -78,24 +80,20 @@ function checkSourcesAtInterval(theSourceRules) {
  * never check for the biography is auto-generated string
  */
 
-function checkBio(theSourceRules) {
-  let mySourceRules = new SourceRules();
+function checkBio() {
+
   let thePerson = new PersonDate();
   // get the bio text and person dates to check
   let bioString = document.getElementById("wpTextbox1").value;
   let birthDate = document.getElementById("mBirthDate").value;
   let deathDate = document.getElementById("mDeathDate").value;
-
   thePerson.initWithDates(birthDate, deathDate);
-  let biography = new Biography(mySourceRules);
-  biography.parse(bioString, thePerson.isPersonPre1500(), thePerson.isPersonPre1700(), thePerson.mustBeOpen(), thePerson.isUndated(), false);
-  biography.validate();
-
+  let biography = new Biography(theSourceRules);
+  biography.parse(bioString, thePerson.isPersonPre1500(), thePerson.isPersonPre1700(), 
+      thePerson.mustBeOpen(), thePerson.isUndated(), false);
+  // status true if appears sourced and no style issues, else false
+  let bioStatus = biography.validate();
   // now report from biography.bioResults
-  // use HTML escape codes for special characters
-  let ref = "&#60ref&#62";
-  let refEnd = "&#60&#47ref&#62";
-  let referencesTag = "&#60references &#47&#62";
 
   let profileReportLines = ([]);
   let profileStatus = "Profile appears to have sources.";
@@ -119,7 +117,7 @@ function checkBio(theSourceRules) {
     } else {
       profileStatus += " lines";
     }
-    profileStatus += " between Sources and " + referencesTag;
+    profileStatus += " between Sources and <references />";
     profileReportLines.push(profileStatus);
   }
   if (biography.bioResults.style.hasEndlessComment) {
@@ -127,7 +125,7 @@ function checkBio(theSourceRules) {
     profileReportLines.push(profileStatus);
   }
   if (biography.bioResults.style.bioHasRefWithoutEnd) {
-    profileStatus = "Profile has inline " + ref + " with no ending " + refEnd;
+    profileStatus = "Profile has inline <ref> with no ending </ref>";
     profileReportLines.push(profileStatus);
   }
   if (biography.bioResults.style.bioHasSpanWithoutEndingSpan) {
@@ -160,16 +158,15 @@ function checkBio(theSourceRules) {
     profileReportLines.push(profileStatus);
   }
   if (biography.bioResults.style.bioIsMissingReferencesTag) {
-    profileStatus = "Profile is missing " + referencesTag;
+    profileStatus = "Profile is missing <references />";
     profileReportLines.push(profileStatus);
   }
   if (biography.bioResults.style.bioHasMultipleReferencesTags) {
-    profileStatus = "Profile has more than one " + referencesTag;
+    profileStatus = "Profile has more than one <references />";
     profileReportLines.push(profileStatus);
   }
   if (biography.bioResults.style.bioHasRefAfterReferences) {
-    profileStatus = "Profile has inline " + ref + " tag after " +
-        referencesTag;
+    profileStatus = "Profile has inline <ref> tag after <references >";
     profileReportLines.push(profileStatus);
   }
   let acknowledgements = ([]);
@@ -211,7 +208,7 @@ function reportResults(reportLines) {
   let numLines = reportLines.length;
   for (let i = 0; i < numLines; ++i) {
     let bioResultItem = document.createElement('li');
-    bioResultItem.innerHTML = reportLines[i];
+    bioResultItem.appendChild(document.createTextNode(reportLines[i]));
     bioResultsList.appendChild(bioResultItem);
   }
   // Add or replace the results
@@ -228,8 +225,7 @@ function reportResults(reportLines) {
   }
 }
 
-function checkSources(theSourceRules) {
-  let mySourceRules = new SourceRules();
+function checkSources() {
   let thePerson = new PersonDate();
   // get the bio text and person dates to check
   let sourcesStr = document.getElementById("mSources").value;
@@ -237,9 +233,9 @@ function checkSources(theSourceRules) {
   let deathDate = document.getElementById("mDeathDate").value;
   thePerson.initWithDates(birthDate, deathDate);
   let isPre1700 = thePerson.isPersonPre1700();
-  let biography = new Biography(mySourceRules);
+  let biography = new Biography(theSourceRules);
   let isValid = biography.validateSourcesStr(sourcesStr, thePerson.isPersonPre1500(),
-      isPre1700, thePerson.isUndated());
+      isPre1700, thePerson.mustBeOpen());
   // now report from biography.bioResults
   reportSources(biography.bioResults.sources.invalidSource, isPre1700);
 
@@ -250,6 +246,8 @@ function checkSources(theSourceRules) {
   // Personal recollection of events witnessed by [[Sands-1865|Kay (Sands)Knight]] as remembered 18 Oct 2022.
   // Unsourced family tree handed down to [[Sands-1865|Kay (Sands)Knight]].
   // Source will be added by [[Sands-1865|Kay (Sands)Knight]] by 19 Oct 2022.
+  // To do this the sources are not in the Sources box so you need to pick them
+  // up and validate based on the button click
 
 }
 
@@ -279,7 +277,7 @@ function reportSources(invalidSourceLines, isPre1700) {
   bioSourcesList.setAttribute('id', 'bioCheckSourcesList');
   for (let i = 0; i < numLines; ++i) {
     let bioSourceItem = document.createElement('li');
-    bioSourceItem.innerHTML = invalidSourceLines[i];
+    bioSourceItem.appendChild(document.createTextNode(invalidSourceLines[i]));
     bioSourcesList.appendChild(bioSourceItem);
   }
   // Add or replace the results
@@ -342,7 +340,13 @@ function checkWatchlist() {
 
   let buttonList = document.getElementById('views-inner').firstElementChild;
   let bioCheckItem = document.createElement('li');
-  bioCheckItem.innerHTML='<a class-"views" href="https://apps.wikitree.com/apps/sands1865/biocheck/?action=checkWatchlist&checkStart=auto" title="Bio Check profiles on your watchlist" </a> Bio Check';
+  bioCheckItem.setAttribute('class', 'viewsi');
+  let anchor = document.createElement('a');
+  anchor.setAttribute('class', 'viewsi');
+  anchor.setAttribute('href', 'https://apps.wikitree.com/apps/sands1865/biocheck/?action=checkWatchlist&checkStart=auto');
+  anchor.setAttribute('title', 'Bio Check profiles on your watchlist');
+  bioCheckItem.appendChild(anchor);
+  anchor.textContent = 'Bio Check';
 
   let myPosition = 0;
   while ((myPosition < buttonList.childElementCount) && 
