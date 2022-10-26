@@ -77,17 +77,17 @@ h6 {
 
 #options h1,
 #options h2 {
-  background: #f7f6f0;
+  background: url("https://www.wikitree.com/images/header-bg-sm.gif") bottom repeat-x #f7f6f0;
   height: 47px;
   padding: 0.5em;
   position: relative;
   font-size: 2em;
-  border-bottom: 5px solid #25422d;
-  border-top: 1px solid #25422d;
 }
 #options h2 {
   height: auto;
   padding-bottom: 1em;
+  background-color: #e1f0b4;
+  background-image: none;
 }
 #options #h1Text {
   margin-left: 1em;
