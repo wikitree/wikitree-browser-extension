@@ -75,6 +75,26 @@ h6 {
   display: inline-block;
 }
 
+#options h1,
+#options h2 {
+  background: url("https://www.wikitree.com/images/header-bg-sm.gif") bottom repeat-x #f7f6f0;
+  height: 47px;
+  padding: 0.5em;
+  position: relative;
+  font-size: 2em;
+}
+#options h2 {
+  height: auto;
+  padding-bottom: 1em;
+  background-color: #e1f0b4;
+  background-image: none;
+}
+#options #h1Text {
+  margin-left: 1em;
+  display: inline-block;
+  top: -0.5em;
+  position: relative;
+}
 
 /* Feature toggle */
 .switch {
@@ -128,18 +148,11 @@ input:checked + .slider:before {
 }
 #options h1 div.feature-toggle {
   float: right;
-  margin-right: 45%;
 }
 #options #saveOptions {
   position: fixed;
   top: 1em;
   right: 1em;
-}
-#options h2,
-#options h1 {
-  background: forestgreen;
-  color: white;
-  padding: 1em;
 }
 
 /* content */
