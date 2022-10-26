@@ -3,7 +3,7 @@ import "./sortBadges.css";
 import Cookies from "js-cookie";
 
 chrome.storage.sync.get("sortBadges", (result) => {
-  if (result.sortBadges) {
+  if (result.sortBadges && $("a.pureCssMenui0 span.person").text() == Cookies.get("wikitree_wtb_UserName")) {
     if ($("body.page-Special_Badges").length) {
       $("div.sixteen.columns p")
         .eq(0)
@@ -24,9 +24,7 @@ chrome.storage.sync.get("sortBadges", (result) => {
       const urlParams = new URLSearchParams(queryString);
       if (localStorage.savedBadges) {
         localStorage.removeItem("savedBadges");
-        window.location = $("a.pureCssMenui0 span.person")
-          .parent()
-          .attr("href");
+        window.location = $("a.pureCssMenui0 span.person").parent().attr("href");
       }
       if (urlParams.get("badgeAction")) {
         localStorage.setItem("savedBadges", 1);
@@ -37,8 +35,7 @@ chrome.storage.sync.get("sortBadges", (result) => {
     if (
       $("body.profile").length &&
       window.location.href.match("Space:") == null &&
-      $("a.pureCssMenui0 span.person").text() ==
-        Cookies.get("wikitree_wtb_UserName")
+      $("a.pureCssMenui0 span.person").text() == Cookies.get("wikitree_wtb_UserName")
     ) {
       $("a:contains('view/edit')")
         .parent()

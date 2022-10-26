@@ -1,41 +1,41 @@
-
-tr.trSelect:hover { 
-  background: #ffe270;; 
+tr.trSelect:hover {
+  background: #ffe270;
 }
 
-tr.trSelected { 
-  background: #CCCCCC !important; 
+tr.trSelected {
+  background: #cccccc !important;
 }
 
 ::placeholder {
-  color:    #bbb;
+  color: #bbb;
 }
 
 /* dialog formatting  */
 
 dialog {
   max-width: 600px;
-}  
+}
 
 dialog input[type="text"] {
   min-width: 350px;
   padding: 4px 4px;
   margin: 2px;
 }
-dialog button, dialog .button{
+dialog button,
+dialog .button {
   padding: 8px 20px;
   margin: 5px;
 }
-td button{
+td button {
   padding: 5px 5px;
   margin: 3px;
   font-size: 14px;
 }
-dialog select{
+dialog select {
   overflow: auto;
-  background: unset;  
+  background: unset;
 }
-dialog textarea{
+dialog textarea {
   width: 100%;
   margin: 5px;
 }
@@ -49,12 +49,12 @@ dialog textarea{
 .wtPlusOptional {
   background-color: palegoldenrod;
 }
-.wtPlusDeprecated{
-  background-color:  lightgrey;
+.wtPlusDeprecated {
+  background-color: lightgrey;
   text-decoration-line: line-through;
 }
 
-.wtPlusLegend{
+.wtPlusLegend {
   display: none;
   background: white;
   color: black;
@@ -69,7 +69,6 @@ dialog textarea{
   line-height: 35px;
 }
 
-#wtPlusLegendBtn:hover .wtPlusLegend{
+#wtPlusLegendBtn:hover .wtPlusLegend {
   display: block;
 }
-
