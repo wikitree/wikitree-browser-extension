@@ -159,17 +159,13 @@ It will use the settings in the `.prettierrc` file in the repository.
 
 If you've set it up so it formats on save, you don't have to do anything else.
 
-You can have prettier format all the files in the project from the command line with:
-
-```
-npx prettier --write
-```
-
-To format a single file, you can use:
+You can have prettier format a single file by using:
 
 ```
 npx prettier --write your_file_name
 ```
+
+If you haven't installed prettier or are using the VS Code extension, you may be asked to install it when using the above command.
 
 ## Other potentially useful tools
 
