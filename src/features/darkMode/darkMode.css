@@ -22,12 +22,19 @@ body.darkMode,
 body.darkMode span.qa-a-count,
 body.darkMode #appsSubMenu,
 body.darkMode table,
+body.darkMode table td,
 body.darkMode.page-Special_FamilyTree table,
 body.darkMode.page-Special_FamilyTree table td,
 body.darkMode table.wt th,
 body.darkMode table.wt td,
 body.darkMode ul.pureCssMenum li,
-body.darkMode ul.pureCssMenum li a {
+body.darkMode ul.pureCssMenum li a,
+body.darkMode div.CodeMirror pre,
+body.darkMode div.CodeMirror span,
+body.darkMode div.qa-ask-box td.qa-form-tall-label,
+body.darkMode #awtSearch,
+body.darkMode #content header,
+body.darkMode #content main {
   font-weight: 400;
   background-color: #36393f !important;
   color: #dcddde !important;
@@ -39,7 +46,8 @@ body.darkMode div.qa-body-wrapper {
 }
 
 body.darkMode h1 span,
-body.darkMode button.copyWidget {
+body.darkMode button.copyWidget,
+body.darkMode .qa-form-tall-label label {
   color: white !important;
 }
 
@@ -93,8 +101,7 @@ body.darkMode span#showHideDescendants {
 }
 
 body.darkMode input.qa-a-select-button {
-  background-image: url("https://www.wikitree.com/g2g/qa-theme/WikiTree/select-star.png")
-    no-repeat !important;
+  background-image: url("https://www.wikitree.com/g2g/qa-theme/WikiTree/select-star.png") no-repeat !important;
   border: 0 !important;
   background-color: white !important;
 }
@@ -144,6 +151,10 @@ body.darkMode h1 span {
   border-radius: 5px;
   padding: 3px;
   color: #dcddde;
+}
+body.darkMode h2 a#wt-id-link:link,
+body.darkMode h2 a#wt-id-link:visited {
+  background-color: transparent !important;
 }
 
 body.darkMode div.qa-main,
@@ -195,9 +206,19 @@ body.darkMode input.qa-form-light-button-edit,
 body.darkMode.profile input[name="wpSearch"] {
   border: 0 !important;
 }
-body.darkMode input[name="wpSearch"] {
-  background: url("https://www.wikitree.com/images/icons/search-submit-icon.png")
-    white !important;
+
+body.darkMode form div.qa-q-list-item.qa-q-list-item-featured,
+body.darkMode form div.qa-q-list-item.qa-q-list-item-featured * {
+  background-color: #42454d !important;
+}
+body.darkMode form div.qa-q-list-item.qa-q-list-item-featured,
+body.darkMode #header {
+  border: 2px solid #ffe183;
+  padding: 2px;
+}
+
+body.darkMode #header input[name="wpSearch"] {
+  background: url("https://www.wikitree.com/images/icons/search-submit-icon.png") white !important;
   font-size: 0;
   top: -5px !important;
   color: transparent !important;
@@ -225,7 +246,25 @@ body.profile.darkMode div.small_2 span {
 body.profile.darkMode div.small_0,
 body.profile.darkMode div.small_1,
 body.profile.darkMode div.small_2,
-body.darkMode .qa-form-tall-label {
+body.darkMode .qa-form-tall-label,
+body.darkMode #editToolbarButton,
+body.darkMode .familyCount1,
+body.darkMode .familyCount2,
+body.darkMode .familyCount3,
+body.darkMode .familyCount4,
+body.darkMode .familyCount5,
+body.darkMode .familyCount6,
+body.darkMode .familyCount7,
+body.darkMode .familyCount8,
+body.darkMode .familyCount9,
+body.darkMode .familyCount10,
+body.darkMode .familyCount11,
+body.darkMode .familyCount12,
+body.darkMode .familyCount13,
+body.darkMode .familyCount14,
+body.darkMode .familyCount15,
+body.darkMode span.HISTORY-DATE,
+body.darkMode span.THANKYOU-DATE {
   color: #36393f !important;
 }
 body.profile.darkMode div.small_0 {
@@ -234,6 +273,47 @@ body.profile.darkMode div.small_0 {
 body.profile.darkMode div.small_1 {
   background-color: #e1efbb !important;
 }
-body.profile.darkMode div.small_2 {
+body.profile.darkMode div.small_2,
+body.profile.darkMode span.HISTORY-DATE + div {
   background-color: #eee !important;
+}
+
+body.darkMode div#footer {
+  background-color: #37474f !important;
+}
+
+/* Code Mirror and edit page*/
+body.darkMode div.CodeMirror span.cm-mw-section-header {
+  background-color: #607d8b !important;
+}
+body.darkMode div.CodeMirror span.cm-mw-ext-ref,
+body.darkMode div.CodeMirror span.cm-mw-tag-ref,
+body.darkMode div.CodeMirror pre.cm-mw-tag-ref,
+body.darkMode div.CodeMirror pre.cm-mw-tag-ref span,
+body.darkMode div.six div.EXAMPLE {
+  background-color: #607d8b !important;
+}
+body.darkMode div.CodeMirror span.cm-mw-template-bracket,
+body.darkMode div.CodeMirror span.cm-mw-link-bracket,
+body.darkMode div.CodeMirror span.cm-mw-link-delimiter,
+body.darkMode div.CodeMirror span.cm-mw-link-ground {
+  color: #fff !important;
+  background-color: #607d8b !important;
+}
+
+body.darkMode.page-Special_EditPerson div.five table tr:nth-child(1) div,
+body.darkMode.page-Special_EditPerson div.five table tr:nth-child(1) div a:link,
+body.darkMode.page-Special_EditPerson div.five table tr:nth-child(1) div a:visited,
+body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#eef;"],
+body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#eef;"] a:link,
+body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#eef;"] a:visited {
+  background-color: #1a237e !important;
+}
+body.darkMode.page-Special_EditPerson div.five table tr:nth-child(2) div,
+body.darkMode.page-Special_EditPerson div.five table tr:nth-child(2) div a:link,
+body.darkMode.page-Special_EditPerson div.five table tr:nth-child(2) div a:visited,
+body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#fee;"],
+body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#fee;"] a:link,
+body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#fee;"] a:visited {
+  background-color: #7d1b7e !important;
 }

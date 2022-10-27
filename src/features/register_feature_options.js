@@ -15,6 +15,12 @@ import "./redir_ext_links/redir_ext_links_options.js";
 ////////////////////////////////////////////////////////////////////////////////
 // Simple features with no options can be registered here
 ////////////////////////////////////////////////////////////////////////////////
+registerFeature({
+  name: "My Menu",
+  id: "myMenu",
+  description: "Add your own custom menu for easy access to your most commonly used links.",
+  category: "Global",
+});
 
 registerFeature({
   name: "Printer Friendly Bio",

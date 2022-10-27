@@ -3,6 +3,10 @@ import $ from "jquery";
 import { features, OptionType } from "./core/options/options_registry";
 import "./features/register_feature_options";
 
+$("h1").prepend(
+  $("<img src='" + chrome.runtime.getURL("images/wikitree-small.png") + "'>")
+);
+
 // Categories
 const categories = ["Global", "Profile", "Editing", "Style"];
 // If a new feature is added with a new category, add the category to the list
@@ -27,14 +31,19 @@ function fillOptionsDataFromUiElements(feature, options, optionsData) {
       const fullOptionElementId = optionElementIdPrefix + option.id;
       let element = document.getElementById(fullOptionElementId);
       if (!element) {
-        console.log("fillOptionsDataFromUiElements: no element found with id: " + fullOptionElementId);
+        console.log(
+          "fillOptionsDataFromUiElements: no element found with id: " +
+            fullOptionElementId
+        );
         continue;
       }
 
       if (option.type == OptionType.CHECKBOX) {
         optionsData[option.id] = element.checked;
       } else if (option.type == OptionType.RADIO) {
-        optionsData[option.id] = element.querySelector(`input[name="${fullOptionElementId}"]:checked`).value;
+        optionsData[option.id] = element.querySelector(
+          `input[name="${fullOptionElementId}"]:checked`
+        ).value;
       } else {
         optionsData[option.id] = element.value;
       }
@@ -55,7 +64,10 @@ function setUiElementsFromOptionsData(feature, options, optionsData) {
       const fullOptionElementId = optionElementIdPrefix + option.id;
       let element = document.getElementById(fullOptionElementId);
       if (!element) {
-        console.log("setUiElementsFromOptionsData: no element found with id: " + fullOptionElementId);
+        console.log(
+          "setUiElementsFromOptionsData: no element found with id: " +
+            fullOptionElementId
+        );
         console.log("option.type is : " + option.type);
         continue;
       }
@@ -67,7 +79,9 @@ function setUiElementsFromOptionsData(feature, options, optionsData) {
       if (option.type == OptionType.CHECKBOX) {
         element.checked = optionsData[option.id];
       } else if (option.type == OptionType.RADIO) {
-        element.querySelector(`input[value="${optionsData[option.id]}"]`).checked = true;
+        element.querySelector(
+          `input[value="${optionsData[option.id]}"]`
+        ).checked = true;
       } else {
         element.value = optionsData[option.id];
       }
@@ -135,10 +149,7 @@ function saveFeatureOnOffOptions() {
 function restore_options() {
   chrome.storage.sync.get(null, (items) => {
     features.forEach((feature) => {
-      //console.log("Restoring feature " + feature.id + ", value is: " +  items[`${feature.id}`]);
-
       $(`#${feature.id} input`).prop("checked", items[`${feature.id}`]);
-
       restoreFeatureOptions(feature, items);
     });
   });

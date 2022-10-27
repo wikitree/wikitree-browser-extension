@@ -75,6 +75,7 @@ export class Biography extends BiographyResults {
   static SPAN_REFERENCE_END = "]]";
   static MIN_SOURCE_LEN = 15;       // minimum length for valid source
   static SOURCE_START = "source:";
+  static SEE_ALSO = "see also";
 
   /**
    * Constructor
@@ -203,9 +204,8 @@ export class Biography extends BiographyResults {
         !this.bioResults.stats.bioIsMarkedUnsourced &&
         !this.bioResults.stats.bioIsUncertainExistance &&
         !this.bioResults.stats.bioIsUndated) {
-
       // Look for a partial string that makes it valid
-      isValid = this.containsValidPartialSource(this.bioInputString.toLowerCase());
+      isValid = this.sourceRules.containsValidPartialSource(this.bioInputString.toLowerCase());
 
       /*
        * First validate strings after references. This will build a side effect of
@@ -431,8 +431,8 @@ export class Biography extends BiographyResults {
         }
       }
     } else {
-      if (this.isResearchNotesHeading(headingText)) {
-            this.researchNotesIndex = currentIndex;
+      if (this.sourceRules.isResearchNotesHeading(headingText)) {
+        this.researchNotesIndex = currentIndex;
       } else {
         if (this.isSourcesHeading(headingText)) {
           if (headingLevel > 2) {
@@ -452,7 +452,7 @@ export class Biography extends BiographyResults {
               //this.bioResults.style.bioHasStyleIssues = true;
           }
         } else {
-          if (this.isAckHeading(headingText)) {
+          if (this.sourceRules.isAckHeading(headingText)) {
             if (headingLevel > 2) {
               this.bioResults.style.acknowledgementsHeadingHasExtraEqual = true;
               this.bioResults.style.bioHasStyleIssues = true;
@@ -663,38 +663,16 @@ export class Biography extends BiographyResults {
    * @return true if biography heading else false
    */
   isBiographyHeading(line) {
-    let isBioHeading = false;
-    let i = 0;
-    while ((!isBioHeading) && (i < this.sourceRules.biographyHeadings.length)) {
-      if (line === this.sourceRules.biographyHeadings[i]) {
-        isBioHeading = true;
-        if (this.bioHeadingsFound.includes(line)) {
-          this.bioResults.style.bioHasStyleIssues = true;
-          this.bioResults.style.bioHasMultipleBioHeadings = true;
-        } else {
-          this.bioHeadingsFound.push(line);
-        }
+    let isBioHeading = this.sourceRules.isBiographyHeading(line);
+    if (isBioHeading) {
+      if (this.bioHeadingsFound.includes(line)) {
+        this.bioResults.style.bioHasStyleIssues = true;
+        this.bioResults.style.bioHasMultipleBioHeadings = true;
+      } else {
+        this.bioHeadingsFound.push(line);
       }
-      i++;
     }
     return isBioHeading;
-  }
-  /*
-   * Determine if Research Notes heading
-   * Uses rules to check for multiple languages
-   * @param line to test
-   * @return true if research notes heading else false
-   */
-  isResearchNotesHeading(line) {
-    let isResearchNotesHeading = false;
-    let i = 0;
-    while ((!isResearchNotesHeading) && (i < this.sourceRules.researchNotesHeadings.length)) {
-      if (line === this.sourceRules.researchNotesHeadings[i]) {
-        isResearchNotesHeading = true;
-      }
-      i++;
-    }
-    return isResearchNotesHeading;
   }
 
   /*
@@ -705,39 +683,17 @@ export class Biography extends BiographyResults {
    * @return true if sources heading else false
    */
   isSourcesHeading(line) {
-    let isSourcesHeading = false;
-    let i = 0;
-    while ((!isSourcesHeading) && (i < this.sourceRules.sourcesHeadings.length)) {
-      if (line === this.sourceRules.sourcesHeadings[i]) {
-        isSourcesHeading = true;
-        if (this.sourcesHeadingsFound.includes(line)) {
-          this.bioResults.style.bioHasStyleIssues = true;
-          this.bioResults.style.bioHasMultipleSourceHeadings = true;
-        } else {
-          this.sourcesHeadingsFound.push(line);
-        }
+    
+    let isSourcesHeading = this.sourceRules.isSourcesHeading(line);
+    if (isSourcesHeading) {
+      if (this.sourcesHeadingsFound.includes(line)) {
+        this.bioResults.style.bioHasStyleIssues = true;
+        this.bioResults.style.bioHasMultipleSourceHeadings = true;
+      } else {
+        this.sourcesHeadingsFound.push(line);
       }
-      i++;
     }
     return isSourcesHeading;
-  }
-
-  /*
-   * Determine if Acknowledgements heading
-   * Uses rules to check for multiple languages
-   * @param line to test
-   * @return true if acknowledgements heading else false
-   */
-  isAckHeading(line) {
-    let isAckHeading = false;
-    let i = 0;
-    while ((!isAckHeading) && (i < this.sourceRules.acknowledgmentsHeadings.length)) {
-      if (line === this.sourceRules.acknowledgmentsHeadings[i]) {
-        isAckHeading = true;
-      }
-      i++;
-    }
-    return isAckHeading;
   }
 
   /*
@@ -816,6 +772,11 @@ export class Biography extends BiographyResults {
         line = line.substring(7);
         line = line.trim();
     }
+    // ignore trailing .
+    if (line.endsWith('.')) {
+      line = line.slice(0, -1);
+      line = line.trim();
+    }
     // It takes a minimum number of characters to be valid
     if (line.length >= Biography.MIN_SOURCE_LEN) {
 
@@ -828,23 +789,11 @@ export class Biography extends BiographyResults {
         } else {
 
           // Does line contain a phrase on the invalid partial source list?
-          let invalidSourceString = this.onPartialSourceList(line);
-          if (invalidSourceString.length > 0) {
+          if (this.onAnyPartialSourceList(line)) {
             isValid = false;
           } else {
             // Check for line that starts with something on the invalid start partial list
-            let partialSourceLine = "";
-            let found = false;
-            let max = this.sourceRules.invalidStartPartialSourceList.length;
-            let i = 0;
-            while (!found && (i < max)) {
-              partialSourceLine = this.sourceRules.invalidStartPartialSourceList[i];
-              if (line.startsWith(partialSourceLine)) {
-                found = true;
-              }
-              i++;
-            }
-            if (found) {
+            if (this.sourceRules.isInvalidStartPartialSource(line)) {
               isValid = false;
             } else {
 
@@ -885,22 +834,12 @@ export class Biography extends BiographyResults {
    */
   isInvalidStandAloneSource(line) {
 
-// TODO reverse this backward logic to check isValidStandAloneSource
+    let isInvalidStandAloneSource = this.sourceRules.isInvalidSource(line);
+    if (!isInvalidStandAloneSource && this.tooOldToRemember) {
+        isInvalidStandAloneSource = this.sourceRules.isInvalidSourceTooOld(line);
 
-    let isInvalidStandAloneSource = false;
-    if (this.sourceRules.invalidSourceList.includes(line)) {
-      isInvalidStandAloneSource = true;
-    } else {
-      if (this.tooOldToRemember && !isInvalidStandAloneSource) {
-        if (this.sourceRules.tooOldToRememberSourceList.includes(line)) {
-          isInvalidStandAloneSource = true;
-        }
-      }
-      if ((this.isPre1700 || this.treatAsPre1700)
-           && !isInvalidStandAloneSource) {
-        if (this.sourceRules.invalidSourceListPre1700.includes(line)) {
-          isInvalidStandAloneSource = true;
-        }
+      if ((this.isPre1700 || this.treatAsPre1700) && !isInvalidStandAloneSource) {
+        isInvalidStandAloneSource = this.sourceRules.isInvalidSourcePre1700(line);
       }
       if (this.bioResults.isPre1500 && !isInvalidStandAloneSource) {
         // TODO add more pre1500 validation
@@ -912,67 +851,18 @@ export class Biography extends BiographyResults {
   /*
    * Determine if found on partial source list
    * @param line input source string
-   * @return string if on the partial source list
+   * @return true if on a list of invalid partial sources else false
    */
-  onPartialSourceList(line) {
+  onAnyPartialSourceList(line) {
 
-    let foundOnPartialSourceList = false;
-    let invalidSourceString = "";
-    let partialSourceLine = "";
-    let i = 0;
-    while (!foundOnPartialSourceList && (i < this.sourceRules.invalidPartialSourceList.length)) {
-      partialSourceLine = this.sourceRules.invalidPartialSourceList[i];
-      if (line.includes(partialSourceLine)) {
-        foundOnPartialSourceList = true;
-        invalidSourceString = partialSourceLine;
-      }
-      i++;
-    }
-    if (this.tooOldToRemember && !foundOnPartialSourceList) {
-      i = 0;
-      while (!foundOnPartialSourceList && (i < this.sourceRules.invalidPartialSourceListTooOld.length)) {
-        partialSourceLine = this.sourceRules.invalidPartialSourceListTooOld[i];
-        if (line.includes(partialSourceLine)) {
-          foundOnPartialSourceList = true;
-          invalidSourceString = partialSourceLine;
-        }
-        i++;
+    let foundInvalidPartialSource = this.sourceRules.isInvalidPartialSource(line);
+    if (this.tooOldToRemember && (!foundInvalidPartialSource)) {
+      foundInvalidPartialSource = this.sourceRules.isInvalidPartialSourceTooOld(line);
+      if ((this.isPre1700 || this.treatAsPre1700) && (!foundInvalidPartialSource)) {
+        foundInvalidPartialSource = this.sourceRules.isInvalidPartialSourcePre1700(line);
       }
     }
-    if ((this.isPre1700 || this.treatAsPre1700)
-         && !foundOnPartialSourceList) {
-      i = 0;
-      while (!foundOnPartialSourceList && (i < this.sourceRules.invalidPartialSourceListPre1700.length)) {
-        partialSourceLine = this.sourceRules.invalidPartialSourceListPre1700[i];
-        if (line.includes(partialSourceLine)) {
-          foundOnPartialSourceList = true;
-          invalidSourceString = partialSourceLine;
-        }
-        i++;
-      }
-    }
-    return invalidSourceString;
-  }
-
-  /*
-   * Does string contain a phrase on the valid partial source list
-   * This is a test case for strings that if found mean the profile is sourced
-   * (thanks to David S for the test case)
-   * @param str string to evaluate
-   * @return true if string found, else false
-   */
-  containsValidPartialSource(str) {
-    let found = false;
-    let partialSourceLine = "";
-    let i = 0;
-    while (!found && (i < this.sourceRules.validPartialSourceList.length)) {
-      partialSourceLine = this.sourceRules.validPartialSourceList[i];
-      if (str.includes(partialSourceLine)) {
-        found = true;
-      }
-      i++;
-    }
-    return found;
+    return foundInvalidPartialSource;
   }
 
   /* 
@@ -1052,8 +942,10 @@ export class Biography extends BiographyResults {
       }
       nextIndex = index + 1;
       // Skip the <references line and any heading line or empty line
+      // or the See Also line
       if ((!line.startsWith(Biography.REFERENCES_TAG)) &&
           (!line.startsWith(Biography.HEADING_START)) &&
+          (!line.includes(Biography.SEE_ALSO)) &&
           (line.length > 0)) {
 
         // Now gather all lines from this line until an empty line
@@ -1157,15 +1049,14 @@ export class Biography extends BiographyResults {
    * @return true if just a census line else false
    */
   isJustCensus(line) {
-
     let isCensus = false;
     line = line.replace(/[^a-z ]/g, "");
     line = line.trim();
-    if (this.sourceRules.censusStrings.includes(line)) {
+    if (this.sourceRules.isCensus(line)) {
       isCensus = true;
     } else {
       // get the census string portion of the line
-      let theStr = this.hasCensusString(line);
+      let theStr = this.sourceRules.hasCensusString(line);
       if (theStr.length > 0) {
         // lose census, at, on and everything not an alpha char
         line = line.replace(theStr, "");
@@ -1177,7 +1068,7 @@ export class Biography extends BiographyResults {
           isCensus = true;
         } else {
           // lose things like ancestry, familysearch by themselves
-          if (this.sourceRules.invalidSourceList.includes(line)) {
+          if (this.sourceRules.isInvalidSource(line)) {
             isCensus = true;
           }
         }
@@ -1189,25 +1080,6 @@ export class Biography extends BiographyResults {
       return false;
     }
   }
-  /*
-  * Does line contain a census
-  * @param line line to test
-  * @return census string if line contains census string
-  */
-  hasCensusString(line) {
-    let theStr = "";
-    let isCensusString = false;
-    let i = 0;
-    while ((!isCensusString) && (i < this.sourceRules.censusStrings.length)) {
-      if (line.includes(this.sourceRules.censusStrings[i])) {
-        isCensusString = true;
-        theStr = this.sourceRules.censusStrings[i];
-      }
-      i++;
-    }
-    return theStr;
-  }
-
   /*
    * Check for a line that contains both findagrave and created by
    * created by is an invalid partial source string UNLESS part of a findagrave

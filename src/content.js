@@ -15,6 +15,7 @@ import "./features/familyGroup/familyGroup";
 import "./features/familyTimeline/familyTimeline";
 import "./features/genderPredictor/genderPredictor";
 import "./features/locationsHelper/locationsHelper";
+import "./features/my_menu/my_menu";
 import "./features/printerfriendly/printerfriendly";
 import "./features/randomProfile/randomProfile";
 import "./features/redir_ext_links/redir_ext_links";

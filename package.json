@@ -10,7 +10,8 @@
     "build-firefox-dev": "webpack --config webpack/webpack.dev.js --env browser=firefox",
     "test": "jest",
     "clean": "rimraf dist",
-    "zip": "npm run clean && npm run build && cd dist && bestzip ../wikitree-browser-extension.zip *"
+    "zip": "npm run clean && npm run build && cd dist && bestzip ../wikitree-browser-extension.zip *",
+    "zip-firefox": "npm run clean && npm run build-firefox && cd dist && bestzip ../wikitree-firefox-extension.zip *"
   },
   "repository": {
     "type": "git",
@@ -18,7 +19,7 @@
   },
   "dependencies": {
     "jquery": "^3.6.1",
-    "jquery-ui": "^1.13.2",
+    "jquery-ui": "^1.13.2",    
     "js-cookie": "^3.0.1",
     "wikitree-js": "^0.3.1"
   },
@@ -29,6 +30,7 @@
     "css-loader": "^6.7.1",
     "jest": "^29.2.1",
     "jest-environment-jsdom": "^29.2.1",
+    "prettier": "2.7.1",
     "rimraf": "^3.0.2 ",
     "sinon-chrome": "^3.0.1",
     "style-loader": "^3.3.1",

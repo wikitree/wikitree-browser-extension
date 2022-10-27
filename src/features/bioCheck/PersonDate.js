@@ -56,21 +56,22 @@ export class PersonDate {
    * @param dDay death date
    */
   initWithDates(bDay, dDay) {
-    if (bDay != null) {
+    this.personDate.birthDate = null;
+    this.personDate.deathDate = null;
+    if ((bDay != null) && (bDay.length > 0)) {
       this.personDate.birthDateString = bDay;
       this.personDate.birthDate = this.getDate(this.personDate.birthDateString);
     }
-    if (this.lastDateCheckedEmpty) {
+    if (this.personDate.lastDateCheckedEmpty) {
       this.personDate.hasBirthDate = false;
     }
-    if (dDay != null) {
+    if ((dDay != null) && (dDay.length > 0)) {
       this.personDate.deathDateString = dDay;
       this.personDate.deathDate = this.getDate(this.personDate.deathDateString);
     }
-    if (this.lastDateCheckedEmpty) {
+    if (this.personDate.lastDateCheckedEmpty) {
       this.personDate.hasDeathDate = false;
     }
-
     // Go ahead and see if pre1500, pre1700 or too old
     this.isPersonPre1500();
     this.isPersonPre1700();
@@ -92,7 +93,7 @@ export class PersonDate {
         this.personDate.birthDate = this.getDate(this.personDate.birthDateString);
       }
     }
-    if (this.lastDateCheckedEmpty) {
+    if (this.personDate.lastDateCheckedEmpty) {
       this.personDate.hasBirthDate = false;
     }
     if (profileObj.DeathDate != null) {
@@ -104,7 +105,7 @@ export class PersonDate {
         this.personDate.deathDate = this.getDate(this.personDate.deathDateString);
       }
     }
-    if (this.lastDateCheckedEmpty) {
+    if (this.personDate.lastDateCheckedEmpty) {
       this.personDate.hasDeathDate = false;
     }
 
@@ -126,7 +127,7 @@ export class PersonDate {
     let year = 0;             // default in case of 0 values
     let month = 0;
     let day = 0;
-    this.lastDateCheckedEmpty = false;    // hack hack
+    this.personDate.lastDateCheckedEmpty = false;    // hack hack
     let splitString = dateString.split("-");
     let len = splitString.length;
     if (len > 0) {
@@ -139,7 +140,7 @@ export class PersonDate {
       day = splitString[2];
     }
     if ((year + month + day) === 0) {
-      this.lastDateCheckedEmpty = true;
+      this.personDate.lastDateCheckedEmpty = true;
     }
     if (year === 0) {
       year = 1;
@@ -161,20 +162,19 @@ export class PersonDate {
     let theYear1500 = new Date("1500-01-01");
     if (this.personDate.birthDate != null) {
       if (this.personDate.birthDate < theYear1500) {
-        this.isPre1500 = true;
+        this.personDate.isPre1500 = true;
       }
     }
     if (this.personDate.deathDate != null) {
       if (this.personDate.deathDate < theYear1500) {
-        this.isPre1500 = true;
+        this.personDate.isPre1500 = true;
       }
     }
-    if (this.isPre1500) {
-      this.isPre1500 = true;
-      this.isPre1700 = true;
-      this.tooOldToRemember = true;
+    if (this.personDate.isPre1500) {
+      this.personDate.isPre1700 = true;
+      this.personDate.tooOldToRemember = true;
     }
-    return this.isPre1500;
+    return this.personDate.isPre1500;
   }
 
   /**
@@ -185,18 +185,18 @@ export class PersonDate {
     let theYear1700 = new Date("1700-01-01");
     if (this.personDate.birthDate != null) {
       if (this.personDate.birthDate < theYear1700) {
-        this.isPre1700 = true;
+        this.personDate.isPre1700 = true;
       }
     }
     if (this.personDate.deathDate != null) {
       if (this.personDate.deathDate < theYear1700) {
-        this.isPre1700 = true;
+        this.personDate.isPre1700 = true;
       }
     }
     if (this.isPre1700) {
-      this.tooOldToRemember = true;
+      this.personDate.tooOldToRemember = true;
     }
-    return this.isPre1700;
+    return this.personDate.isPre1700;
   }
   /**
    * Is the person born > 150 years ago or died > 100 years ago
@@ -207,25 +207,24 @@ export class PersonDate {
     let year = today.getFullYear();
     let month = today.getMonth();
     let day = today.getDate();
-    let earliestMemoryBeforeDeath = new Date(year - this.TOO_OLD_TO_REMEMBER_DEATH, month, day);
-    let earliestMemoryBeforeBirth = new Date(year - this.TOO_OLD_TO_REMEMBER_BIRTH, month, day);
+    let earliestMemoryBeforeDeath = new Date(year - PersonDate.TOO_OLD_TO_REMEMBER_DEATH, month, day);
+    let earliestMemoryBeforeBirth = new Date(year - PersonDate.TOO_OLD_TO_REMEMBER_BIRTH, month, day);
     if (this.personDate.birthDate != null) {
       if (this.personDate.birthDate < earliestMemoryBeforeBirth) {
-        this.tooOldToRemember = true;
+        this.personDate.tooOldToRemember = true;
       }
     }
     if (this.personDate.deathDate != null) {
       if (this.personDate.deathDate < earliestMemoryBeforeDeath) {
-        this.tooOldToRemember = true;
+        this.personDate.tooOldToRemember = true;
       }
     }
     /*
      * Since you already have today, pick up the date to use for
      * a source will be entered by xxxx tests
     */
-    this.personDate.oneYearAgo = new Date(year - 1, month, day);
-    
-    return this.tooOldToRemember;
+    this.oneYearAgo = new Date(year - 1, month, day);
+    return this.personDate.tooOldToRemember;
   }
 
   /**
@@ -234,9 +233,9 @@ export class PersonDate {
    */
   isUndated() {
     if (!this.personDate.hasBirthDate && !this.personDate.hasDeathDate) {
-      this.isPre1500 = true;
-      this.isPre1700 = true;
-      this.tooOldToRemember = true;
+      this.personDate.isPre1500 = true;
+      this.personDate.isPre1700 = true;
+      this.personDate.tooOldToRemember = true;
       return true;
     } else {
       return false;

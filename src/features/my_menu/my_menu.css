@@ -1,0 +1,195 @@
+#customMenuOptions {
+  max-width: 768px;
+  position: fixed;
+  top: 90px;
+  left: 10%;
+  right: 10%;
+  border: 3px solid forestgreen;
+  border-radius: 1em;
+  padding: 1em;
+  background: white;
+  z-index: 11000;
+  font-size: 0.8em;
+  height: 80%;
+  overflow: auto;
+  display: none;
+  text-align: left;
+}
+
+#customMenuOptions x {
+  position: absolute;
+  top: 0;
+  right: 1em;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 1.5em;
+  background: white;
+}
+
+#customMenuContainer {
+  float: right;
+  width: 10em;
+  margin-right: 2.5em;
+}
+
+#customMenuOptions #customMenu {
+  border: 2px solid gray;
+  padding: 1em;
+  min-height: 7em;
+  width: 10em;
+  display: inline-block;
+  border-radius: 1em;
+}
+
+#customMenu li,
+#customMenu a {
+  cursor: move;
+}
+
+#customMenuOptions ul {
+  display: block;
+  list-style: none;
+  margin: 0;
+}
+
+#menuClone,
+#menuClone a,
+#menuClone li,
+#menuClone ul {
+  padding-left: 0.5em !important;
+  margin-left: 0.5em !important;
+  padding-inline-start: 0 !important;
+  text-align: left;
+}
+
+#menuClone > li {
+  float: left;
+  margin-left: 1em;
+}
+
+#menuClone {
+  float: none;
+  border: none;
+}
+
+#menuClone ul li,
+#customMenu li {
+  border: 1px solid grey;
+  padding: 0.2em;
+  background: white;
+  margin-bottom: 0.2em;
+  line-height: 2em;
+}
+
+#menuClone a,
+#customMenu a {
+  text-decoration: none;
+  display: block;
+}
+
+#myCustomMenuContainer {
+  z-index: 19;
+}
+
+#myCustomMenuContainer,
+#myCustomMenuContainer ul.pureCssMenu {
+  display: block;
+  clear: none;
+  width: 5em;
+  margin-right: 5em;
+}
+
+body.home #myCustomMenuContainer,
+body.home #myCustomMenuContainer ul.pureCssMenu {
+  float: right;
+  margin-right: 1em;
+}
+
+#myCustomMenuContainer ul.pureCssMenu > li {
+  display: block;
+  width: 100%;
+  float: none;
+}
+
+#myCustomMenuContainer > li:hover ul {
+  display: block;
+}
+
+#customMenuOptions #customMenuInfo {
+  max-width: 40em;
+  text-align: left;
+  float: right;
+  padding: 1em;
+  border: 1px solid gray;
+  border-radius: 1em;
+  background: white;
+  margin-right: 2em;
+}
+
+#customMenuInfo li {
+  margin-bottom: 0.5em;
+}
+
+.checkAnyLink {
+  display: block;
+  margin: 0.5em;
+  padding: 0.2em;
+  border: 2px solid purple;
+  border-radius: 1em;
+}
+
+#addLinkForm input {
+  width: 90%;
+  padding: 0.2em;
+}
+
+#addLinkFormButton {
+  width: 80%;
+  margin: 0.5em auto;
+  display: block;
+}
+
+#myCustomMenuContainer.pureCssMenu li a,
+ul#customMenu li a {
+  background-position: right !important;
+  background-repeat: no-repeat !important;
+}
+
+#myCustomMenuContainer.pureCssMenu li[data-menu="Profile"] a,
+ul#customMenu li[data-menu="Profile"] a {
+  background-image: url(https://www.wikitree.com/images/icons/person-nav.gif) !important;
+}
+
+#myCustomMenuContainer.pureCssMenu li[data-menu="My_WikiTree"] a,
+ul#customMenu li[data-menu="My_WikiTree"] a {
+  background-image: url(https://www.wikitree.com/images/icons/home-nav.gif) !important;
+}
+
+#myCustomMenuContainer.pureCssMenu li[data-menu="Add"] a,
+ul#customMenu li[data-menu="Add"] a {
+  background-image: url(https://www.wikitree.com/images/icons/add-nav.gif) !important;
+}
+
+#myCustomMenuContainer.pureCssMenu li[data-menu="Find"] a,
+ul#customMenu li[data-menu="Find"] a,
+#myCustomMenuContainer.pureCssMenu li[data-menu="Apps"] a,
+ul#customMenu li[data-menu="Apps"] a {
+  background-image: url(https://www.wikitree.com/images/icons/find-nav.gif) !important;
+}
+
+#myCustomMenuContainer.pureCssMenu li[data-menu="Help"] a,
+ul#customMenu li[data-menu="Help"] a {
+  background-image: url(https://www.wikitree.com/images/icons/help-nav.gif) !important;
+}
+
+added.addedText {
+  float: right;
+}
+
+#addLinkForm {
+  border: 2px solid forestgreen;
+  padding: 0.5em;
+  border-radius: 1em;
+  width: 90%;
+  margin: 1em auto;
+}

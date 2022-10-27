@@ -25,10 +25,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * Intended to be a singleton and immutable
 * and look like what could be read from database tables
 */
-export class SourceRules {
 
-  // Valid text for biography heading
-  biographyHeadings = [
+class SourceRules {
+
+  // all sorts of rules to parse biography and check sources
+  #biographyHeadings = [
     "biography",
     "biographie",
     "biografia",
@@ -40,24 +41,7 @@ export class SourceRules {
     "biografijo",
     "biografía",
   ];
-  // Valid text for sources heading
-  sourcesHeadings = [
-    "sources",
-    "quellen",
-    "bronnen",
-    "fuentes",
-    "lähteet",
-    "fonti",
-    "kallor",
-    "heimildir",
-    "källor",
-    "fontes",
-    "kilder",
-    "źródła",
-    "izvor",
-  ];
-  // Valid text for research notes heading
-  researchNotesHeadings = [
+  #researchNotesHeadings = [
     "research notes",
     "notes de recherche",
     "onderzoeksnotities",
@@ -76,8 +60,22 @@ export class SourceRules {
     "viittaukset",
     "rannsóknarnótur",
   ];
-  // Valid text for acknowledgements heading
-  acknowledgmentsHeadings = [
+  #sourcesHeadings = [
+    "sources",
+    "quellen",
+    "bronnen",
+    "fuentes",
+    "lähteet",
+    "fonti",
+    "kallor",
+    "heimildir",
+    "källor",
+    "fontes",
+    "kilder",
+    "źródła",
+    "izvor",
+  ];
+  #acknowledgmentsHeadings = [
     "acknowledgements",
     "acknowledgments",
     "acknowledgement",
@@ -99,10 +97,11 @@ export class SourceRules {
     "podziękowanie",
     "priznanja",
   ];
+
   // strings that identify a census source
   // when used by itself or with nothing other than
   // date are not a valid source
-  censusStrings = [
+  #censusStrings = [
     "census",
     "recensement",
     "bevolkingsregister",
@@ -148,7 +147,7 @@ export class SourceRules {
    * this is too aggressive
    * invalidSourceList are strings on a line by themselves
    */
-  invalidSourceList = [
+  #invalidSourceList = [
   /*
     ".",
     "*",
@@ -216,6 +215,7 @@ export class SourceRules {
     "census records.",
     "familysearchorg",
     "family accounts",
+    "familie dossier",
     "family research",
     "online research",
     "own family tree",
@@ -238,6 +238,7 @@ export class SourceRules {
     "family collection",
     "family tree files",
     "fellow researcher",
+    "my family records",
     "scotland's people",
     "wiki, family tree",
     ":'''footnotes:'''",
@@ -259,18 +260,20 @@ export class SourceRules {
     "{{citation needed}}",
     "citing this record:",
     "familysearch search",
+    "from family records",
     "my heritage records",
     "my tree on ancestry",
     ":'''source list:'''",
     "real estate records",
+    "ancestry family site",
     "ancestry family tree",
-    "from family records.",
+    "family bible records",
     "personal family tree",
     "personal information",
+    "research on ancestry",
     "uk census; bmd index", 
     "www.familysearch.org",
     "ancestry family trees",
-    "ancestry family site.",
     "family search records",
     "mormon church records",
     "replace this citation",
@@ -282,29 +285,42 @@ export class SourceRules {
     "no sources at this time",
     "family search family tree",
     "scotland's people website",
+    "us census, public records",
     "ancestry and family search",
+    "new york census, 1790-1890",
     "www.scotlandspeople.gov.uk",
-    "us census, public records.",
     "family tree on familysearch",
     "social security death index",
+    "torrey's marriages database",
     "sources are on my family tree",
     "familysearch.org ancestry.com",
     "ancestry.com familysearch.org",
+    "online trees. will add sources",
     "'''footnotes and citations:'''",
     ":'''footnotes and citations:'''",
     "family search files on internet",
-    "online trees. will add sources.",
+    "victorian death index 1921-1985",
+    "iowa, select marriages, 1809-1992",
+    "research on ancestry and wikiTree",
     "personal knowledge , census reports",
-    "a source is still needed for this data.",
+    "a source is still needed for this data",
     "social security applications and claims",
     "a source for this information is needed",
-    "a source for this information is needed.",
+    "family records, census, and death records",
+    "research on ancestry and burial card info",
+    "research on ancestry and marriage records",
+    "marriage records and ancestry.com research",
+    "passenger and immigration lists index, 1500s-1900s",
     "replace this citation if there is another source",
+    "research on ancestry and a variety of other places",
+    "search at https://www.freereg.org.uk with appropriate parameters",
     "personal recollection, as told to me by their relative. notes and sources in their possession.",
     "michael lechner,",
     "virginia hanks",
     "teresa a. theodore",
     "michael eneriis",
+    "personal knowledge, newspaper and bible records",
+
     /*
     "spis",
     "censo",
@@ -407,7 +423,7 @@ export class SourceRules {
   ];
 
   // anywhere in a line not a valid source
-  invalidPartialSourceList = [
+  #invalidPartialSourceList = [
     "through the import of",
     "add sources here",
     "add [[sources]] here",
@@ -418,14 +434,14 @@ export class SourceRules {
   ];
 
   // anywhere on a line is a valid source
-  validPartialSourceList = [
+  #validPartialSourceList = [
     "sources are hidden to protect",
     "sources hidden to protect",
     "source hidden to protect"
   ];
 
   // on the start of a line not a valid source
-  invalidStartPartialSourceList = [
+  #invalidStartPartialSourceList = [
     "entered by",
     "no sources.",
     "no repo record found",
@@ -437,7 +453,7 @@ export class SourceRules {
   // on a line by itself
   // not a valid source for
   // profile born > 150 or died > 100
-  tooOldToRememberSourceList = [
+  #tooOldToRememberSourceList = [
     "personal recollection of events witnessed by",
     "personal recollection of",
     "personal knowledge",
@@ -476,7 +492,7 @@ export class SourceRules {
   // anywhere in a line
   // not a valid source for
   // profile born > 150 or died > 100
-  invalidPartialSourceListTooOld = [
+  #invalidPartialSourceListTooOld = [
     "first hand knowledge",
     "firsthand knowledge",
     "personal recollection",
@@ -508,7 +524,7 @@ export class SourceRules {
 
   // line by itself
   // not a valid source for Pre1700
-  invalidSourceListPre1700 = [
+  #invalidSourceListPre1700 = [
     "birth certificate",
     "birth record",
     "marriage certificate",
@@ -613,7 +629,7 @@ export class SourceRules {
 
   // anywhere on a line
   // not a valid source for Pre1700
-  invalidPartialSourceListPre1700 = [
+  #invalidPartialSourceListPre1700 = [
     "ancestry tree",
     "public member tree",
     "family tree",
@@ -682,22 +698,154 @@ export class SourceRules {
     "www.gencircles.com",
   ];
 
-  sourceRulesList = [
-    this.biographyHeadings,
-    this.sourcesHeadings,
-    this.researchNotesHeadings,
-    this.acknowledgmentsHeadings,
-    this.censusStrings,
-    this.invalidSourceList,
-    this.invalidPartialSourceList,
-    this.validPartialSourceList,
-    this.invalidStartPartialSourceList,
-    this.tooOldToRememberSourceList,
-    this.invalidPartialSourceListTooOld,
-    this.invalidSourceListPre1700,
-    this.invalidPartialSourceListPre1700
-  ];
-
+  // make this a singleton
   constructor() {
+    if (!SourceRules.theSourceRules) {
+      SourceRules.theSourceRules = this;
+    }
+    return SourceRules.theSourceRules;
+  }
+
+  /** 
+   * Determine if a line is a valid biography heading
+   * @param line to test
+   * @return true if bio heading else false
+   */
+  isBiographyHeading(line) {
+    return this.#biographyHeadings.includes(line);
+  }
+  /** 
+   * Determine if a line is a valid research notes heading
+   * @param line to test
+   * @return true if research notes heading else false
+   */
+  isResearchNotesHeading(line) {
+    return this.#researchNotesHeadings.includes(line);
+  }
+  /** 
+   * Determine if a line is a valid sources heading
+   * @param line to test
+   * @return true if sources heading else false
+   */
+  isSourcesHeading(line) {
+    return this.#sourcesHeadings.includes(line);
+  }
+  /** 
+   * Determine if a line is a valid acknowledgements heading
+   * @param line to test
+   * @return true if acknowledgements heading else false
+   */
+  isAckHeading(line) {
+    return this.#acknowledgmentsHeadings.includes(line);
+  }
+  /** 
+   * Determine if a line is a census line
+   * @param line to test
+   * @return true if census line else false
+   */
+  isCensus(line) {
+    return this.#censusStrings.includes(line);
+  }
+  /**
+   * Determine if a line contains a census string
+   * @param line the line
+   * @return census string if line contains census string
+   */
+  hasCensusString(line) {
+    return this.lineContainsListEntry(line, this.#censusStrings);
+  }
+  /**
+   * Determine if line by itself is an invalid source
+   * @param line input source string
+   * @return true if invalid source else false
+   */
+  isInvalidSource(line) {
+    return this.#invalidSourceList.includes(line);
+  }
+
+  /*
+   * Does string include the text for any of the string in array
+   * @param the line to test
+   * @param the array of string to test
+   * @return true if the line includes text from the list of strings else false
+   */
+  lineContainsListEntry(line, stringList) {
+    let hasText = false;
+    stringList.find(element => {
+      if (line.includes(element)) {
+        hasText = true;
+      }
+    });
+    return hasText;
+  }
+  /*
+   * Does line contain a phrase on the valid partial source list
+   * This is a test case for strings that if found mean the profile is sourced
+   * (thanks to David S for the test case)
+   * @param line string to evaluate
+   * @return true if line found, else false
+   */
+  containsValidPartialSource(line) {
+    return this.lineContainsListEntry(line, this.#validPartialSourceList);
+  }
+  /**
+   * Determine if found on partial source list
+   * @param line input source string
+   * @return true if found on partial source list, else false
+   */
+  isInvalidPartialSource(line) {
+    return this.lineContainsListEntry(line, this.#invalidPartialSourceList);
+  }
+  /**
+   * Determine if found on partial source list too old to remember
+   * @param line input source string
+   * @return true if found on too old partial source list, else false
+   */
+  isInvalidPartialSourceTooOld(line) {
+    return this.lineContainsListEntry(line, this.#invalidPartialSourceListTooOld);
+  }
+  /**
+   * Determine if found on partial source list for pre1700
+   * @param line input source string
+   * @return true if found on pre1700 partial source list, else false
+   */
+  isInvalidPartialSourcePre1700(line) {
+    return this.lineContainsListEntry(line, this.#invalidPartialSourceListPre1700);
+  }
+  /**
+   * Determine if starts with something on the invalid partial source list
+   * @param line input source string
+   * @return true if starts with invalid source, else false
+   */
+  isInvalidStartPartialSource(line) {
+    let isFound = false;
+    this.#invalidStartPartialSourceList.find(element => {
+      if (line.startsWith(element)) {
+        isFound = true;
+      }
+    });
+    return isFound;
+  }
+  /**
+   * Determine if line by itself is an invalid source for profile too old to
+   * remember
+   * @param line input source string
+   * @return true if invalid source else false
+   */
+  isInvalidSourceTooOld(line) {
+    return this.#tooOldToRememberSourceList.includes(line);
+  }
+  /**
+   * Determine if line by itself is an invalid source for Pre1700
+   * @param line input source string
+   * @return true if invalid source else false
+   */
+  isInvalidSourcePre1700(line) {
+    return this.#invalidSourceListPre1700.includes(line);
   }
 }
+
+const theSourceRules = new SourceRules();
+Object.freeze(theSourceRules);
+export { theSourceRules };
+
