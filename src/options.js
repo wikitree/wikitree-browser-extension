@@ -99,9 +99,6 @@ function saveFeatureOptions(feature) {
   let optionsData = {};
   fillOptionsDataFromUiElements(feature, feature.options, optionsData);
 
-  console.log("Saving feature options for " + feature.id + ", optionsData is: ");
-  console.log(optionsData);
-
   const storageName = feature.id + "_options";
   chrome.storage.sync.set({
     [storageName]: optionsData,
@@ -120,9 +117,6 @@ function restoreFeatureOptions(feature, storageItems) {
   if (storageItems.hasOwnProperty(storageName)) {
     optionsData = storageItems[storageName];
   }
-
-  console.log("Restoring feature options for " + feature.id + ", optionsData is: ");
-  console.log(optionsData);
 
   setUiElementsFromOptionsData(feature, feature.options, optionsData);
 }
