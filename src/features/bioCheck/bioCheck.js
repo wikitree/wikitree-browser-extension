@@ -338,22 +338,26 @@ function setHelp(parentContainer) {
  */
 function checkWatchlist() {
 
-  let buttonList = document.getElementById('views-inner').firstElementChild;
-  let bioCheckItem = document.createElement('li');
-  bioCheckItem.setAttribute('class', 'viewsi');
-  let anchor = document.createElement('a');
-  anchor.setAttribute('class', 'viewsi');
-  anchor.setAttribute('href', 'https://apps.wikitree.com/apps/sands1865/biocheck/?action=checkWatchlist&checkStart=auto');
-  anchor.setAttribute('title', 'Bio Check profiles on your watchlist');
-  bioCheckItem.appendChild(anchor);
-  anchor.textContent = 'Bio Check';
+  // Test for Person Profiles and not Free Space Profiles
+  let container = document.getElementById('views-outer');
+  if (container !== null) {
+    let buttonList = document.getElementById('views-inner').firstElementChild;
+    let bioCheckItem = document.createElement('li');
+    bioCheckItem.setAttribute('class', 'viewsi');
+    let anchor = document.createElement('a');
+    anchor.setAttribute('class', 'viewsi');
+    anchor.setAttribute('href', 'https://apps.wikitree.com/apps/sands1865/biocheck/?action=checkWatchlist&checkStart=auto');
+    anchor.setAttribute('title', 'Bio Check profiles on your watchlist');
+    bioCheckItem.appendChild(anchor);
+    anchor.textContent = 'Bio Check';
 
-  let myPosition = 0;
-  while ((myPosition < buttonList.childElementCount) && 
+    let myPosition = 0;
+    while ((myPosition < buttonList.childElementCount) && 
          (buttonList.children[myPosition].textContent < 'Bio Check')) {
-    myPosition++;
-  }
+      myPosition++;
+    }
 
-  // Insert in alpha order, use appendChild to add at end
-  buttonList.insertBefore(bioCheckItem, buttonList.children[myPosition]);
+    // Insert in alpha order, use appendChild to add at end
+    buttonList.insertBefore(bioCheckItem, buttonList.children[myPosition]);
+  }
 }
