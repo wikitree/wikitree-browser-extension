@@ -7,6 +7,12 @@ const redirExtLinksFeature = {
   category: "Profile",
   options: [
     {
+      id: "ancestryOldLinks",
+      type: OptionType.CHECKBOX,
+      label: "If there are old Ancestry link formats that no longer work, redirect to the new format",
+      defaultValue: false,
+    },
+    {
       id: "ancestryDomain",
       type: OptionType.SELECT,
       label: "Locally change Ancestry links to use this domain",
