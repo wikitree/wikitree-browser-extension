@@ -330,10 +330,11 @@ function sortMenu(dMenu) {
 }
 
 function returnToMenu(jq) {
+  let dMenu = "";
   if ($("#" + jq.data("menu") + "_Menu").length) {
-    let dMenu = $("#" + jq.data("menu") + "_Menu");
+    dMenu = $("#" + jq.data("menu") + "_Menu");
   } else {
-    let dMenu = $("#My_WikiTree_Menu");
+    dMenu = $("#My_WikiTree_Menu");
   }
 
   if (jq.text() == "Logout") {
