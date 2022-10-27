@@ -266,8 +266,10 @@ class SourceRules {
     "real estate records",
     "ancestry family site",
     "ancestry family tree",
+    "family bible records",
     "personal family tree",
     "personal information",
+    "research on ancestry",
     "uk census; bmd index", 
     "www.familysearch.org",
     "ancestry family trees",
@@ -284,6 +286,7 @@ class SourceRules {
     "scotland's people website",
     "us census, public records",
     "ancestry and family search",
+    "new york census, 1790-1890",
     "www.scotlandspeople.gov.uk",
     "family tree on familysearch",
     "social security death index",
@@ -294,11 +297,17 @@ class SourceRules {
     "'''footnotes and citations:'''",
     ":'''footnotes and citations:'''",
     "family search files on internet",
+    "research on ancestry and wikiTree",
     "personal knowledge , census reports",
     "a source is still needed for this data",
     "social security applications and claims",
     "a source for this information is needed",
+    "family records, census, and death records",
+    "research on ancestry and burial card info",
+    "research on ancestry and marriage records",
+    "marriage records and ancestry.com research",
     "replace this citation if there is another source",
+    "research on ancestry and a variety of other places",
     "personal recollection, as told to me by their relative. notes and sources in their possession.",
     "michael lechner,",
     "virginia hanks",
@@ -756,7 +765,7 @@ class SourceRules {
    */
   lineContainsListEntry(line, stringList) {
     let hasText = false;
-    const match = stringList.find(element => {
+    stringList.find(element => {
       if (line.includes(element)) {
         hasText = true;
       }
@@ -804,7 +813,7 @@ class SourceRules {
    */
   isInvalidStartPartialSource(line) {
     let isFound = false;
-    const match = this.#invalidStartPartialSourceList.find(element => {
+    this.#invalidStartPartialSourceList.find(element => {
       if (line.startsWith(element)) {
         isFound = true;
       }
