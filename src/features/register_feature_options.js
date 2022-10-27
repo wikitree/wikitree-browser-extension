@@ -10,6 +10,8 @@ import { registerFeature } from "../core/options/options_registry";
 import "./agc/agc_options.js";
 import "./darkMode/darkMode_options.js";
 import "./genderPredictor/gender_predictor_options.js";
+import "./redir_ext_links/redir_ext_links_options.js";
+
 ////////////////////////////////////////////////////////////////////////////////
 // Simple features with no options can be registered here
 ////////////////////////////////////////////////////////////////////////////////
@@ -59,24 +61,21 @@ registerFeature({
 registerFeature({
   name: "AKA Name Links",
   id: "akaNameLinks",
-  description:
-    'Adds surname page links to the "aka" names on the profile page.',
+  description: 'Adds surname page links to the "aka" names on the profile page.',
   category: "Profile",
 });
 
 registerFeature({
   name: "Family Timeline",
   id: "familyTimeline",
-  description:
-    "Displays a family timeline. A button is added to the profile submenu.",
+  description: "Displays a family timeline. A button is added to the profile submenu.",
   category: "Profile",
 });
 
 registerFeature({
   name: "Draft List",
   id: "draftList",
-  description:
-    "Adds a button to the Find menu to show your uncommitted drafts.",
+  description: "Adds a button to the Find menu to show your uncommitted drafts.",
   category: "Global",
 });
 
@@ -90,8 +89,7 @@ registerFeature({
 registerFeature({
   name: "Distance and Relationship",
   id: "distanceAndRelationship",
-  description:
-    "Adds the distance (degrees) between you and the profile person and any relationship between you.",
+  description: "Adds the distance (degrees) between you and the profile person and any relationship between you.",
   category: "Profile",
 });
 
@@ -107,8 +105,7 @@ registerFeature({
 registerFeature({
   name: "Family Group",
   id: "familyGroup",
-  description:
-    "Display dates and locations of all family members. A button is added to the profile submenu.",
+  description: "Display dates and locations of all family members. A button is added to the profile submenu.",
   category: "Profile",
 });
 
