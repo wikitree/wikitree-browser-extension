@@ -162,12 +162,12 @@ export class PersonDate {
     let theYear1500 = new Date("1500-01-01");
     if (this.personDate.birthDate != null) {
       if (this.personDate.birthDate < theYear1500) {
-        this.isPre1500 = true;
+        this.personDate.isPre1500 = true;
       }
     }
     if (this.personDate.deathDate != null) {
       if (this.personDate.deathDate < theYear1500) {
-        this.isPre1500 = true;
+        this.personDate.isPre1500 = true;
       }
     }
     if (this.personDate.isPre1500) {
