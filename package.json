@@ -10,7 +10,8 @@
     "build-firefox-dev": "webpack --config webpack/webpack.dev.js --env browser=firefox",
     "test": "jest",
     "clean": "rimraf dist",
-    "zip": "npm run clean && npm run build && cd dist && bestzip ../wikitree-browser-extension.zip *"
+    "zip": "npm run clean && npm run build && cd dist && bestzip ../wikitree-browser-extension.zip *",
+    "zip-firefox": "npm run clean && npm run build-firefox && cd dist && bestzip ../wikitree-firefox-extension.zip *"
   },
   "repository": {
     "type": "git",
