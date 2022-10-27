@@ -5,6 +5,7 @@ import {
   familyArray,
   getRelatives,
   isOK,
+  htmlEntities
 } from "../../core/common";
 import "../familyTimeline/familyTimeline.css";
 
@@ -374,15 +375,7 @@ chrome.storage.sync.get("familyGroup", (result) => {
       return outDate;
     }
 
-    // Replace certain characters with HTML entities
-    function htmlEntities(str) {
-      return String(str)
-        .replaceAll(/&/g, "&amp;")
-        .replaceAll(/</g, "&lt;")
-        .replaceAll(/>/g, "&gt;")
-        .replaceAll(/"/g, "&quot;")
-        .replaceAll(/'/g, "&apos;");
-    }
+   
 
     // Get the position of an element
     function getOffset(el) {

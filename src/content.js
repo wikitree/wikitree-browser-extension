@@ -22,6 +22,7 @@ import "./features/categoryFinderPins/categoryFinderPins";
 import "./features/sortBadges/sortBadges";
 import "./features/verifyID/verifyID";
 import "./features/genderPredictor/genderPredictor";
+import "./features/my_menu/my_menu";
 
 import "./core/editToolbar";
 
