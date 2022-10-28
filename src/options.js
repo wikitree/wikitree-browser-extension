@@ -143,15 +143,7 @@ function saveFeatureOnOffOptions() {
 function restore_options() {
   chrome.storage.sync.get(null, (items) => {
     features.forEach((feature) => {
-      console.log(
-        "Restoring feature " +
-          feature.id +
-          ", value is: " +
-          items[`${feature.id}`]
-      );
-
       $(`#${feature.id} input`).prop("checked", items[`${feature.id}`]);
-
       restoreFeatureOptions(feature, items);
     });
   });
