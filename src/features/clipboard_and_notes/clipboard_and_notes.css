@@ -1,0 +1,198 @@
+#clipboard {
+  position: absolute;
+  width: auto;
+  /*max-width:60em;
+      min-width:30em;*/
+  width: 70%;
+  left: 15%;
+  right: 15%;
+  padding: 1em;
+  border: 2px solid forestgreen;
+  border-radius: 1em;
+  max-height: 40em;
+  overflow: auto;
+  position: absolute;
+  z-index: 11000;
+  box-shadow: 0.1em 0.1em 0.1em 0.1em lightgreen;
+  background: white;
+  display: none;
+  resize: both;
+}
+
+#clipboard.label {
+  display: block;
+}
+
+#clipboard textarea {
+  width: 90%;
+  display: block;
+  margin: 1em auto;
+  height: 10em;
+}
+
+#clipboard button {
+  margin: auto;
+  display: block;
+  width: 12em;
+}
+
+#clipboard h1 {
+  display: block;
+  font-size: 1.2em;
+  width: auto;
+  text-align: center;
+  position: relative;
+  cursor: move;
+}
+
+#clipboard p {
+  text-align: center;
+}
+
+#clipboard table td {
+  padding: 0.5em;
+}
+
+#clipboard .clipping {
+  cursor: default;
+}
+
+#clipboard .clipping:hover {
+  background: rgb(221, 250, 218);
+}
+
+#clipboard[data-type="clipboard"] .clipping:active {
+  font-weight: bold;
+}
+
+#clipboard h1 x {
+  position: absolute;
+  top: 0.1em;
+  right: 0.2em;
+  cursor: pointer;
+}
+
+#clipboard h1 x:active {
+  font-weight: normal;
+}
+
+.clipboardButtons {
+  position: relative;
+  top: 0.5em;
+  display: inline-block;
+}
+
+form[name="a_form"] {
+  position: relative;
+}
+
+.qa-a-form .clipboardButtons {
+  position: absolute;
+  top: -1em;
+  display: inline-block;
+  margin-top: 0;
+}
+
+.clipboardButtons img.clipboardButton.button.small,
+.clipboardButtons img.notesButton.button.small {
+  height: 1em;
+  width: 1.2em;
+  display: inline-block;
+  margin-right: 0.1em;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+}
+
+#clipboard .deleteClipping,
+#clipboard .editClipping {
+  cursor: pointer;
+}
+
+#clipboard .deleteClippingButton {
+  padding: 5px 15px;
+}
+
+#clipboard .deleteClipping:active,
+#clipboard .editClipping:active {
+  font-weight: bold;
+}
+
+#clipboard .editing {
+  background: rgb(221, 250, 218);
+}
+
+#clipboard tr {
+  background: white;
+}
+
+#clipboard tr img.button.small {
+  margin: 0;
+}
+
+#clipboard {
+  max-width: 80em;
+}
+
+#clipboard tr {
+  vertical-align: top;
+}
+
+#clipboard .index {
+  cursor: move;
+}
+
+.editClippingButton {
+  height: 1em;
+  width: 1em;
+}
+
+button.addToMyPlaces {
+  margin: 0.3em;
+}
+
+#header .clipboardButtons {
+  top: 0;
+  left: 0.2em;
+}
+
+.qa-header {
+  position: relative;
+}
+
+.qa-header .clipboardButtons {
+  z-index: 1000;
+  position: absolute;
+  top: 1em;
+  right: 1em;
+}
+
+body.qa-body-js-on .button.small {
+  padding: 7px 15px;
+  background: #25422d;
+  border: 0;
+  outline: none;
+  cursor: pointer;
+  text-align: center;
+  text-transform: uppercase;
+  border-radius: 5px;
+  color: #fff;
+  font-weight: normal;
+  text-decoration: none !important;
+  cursor: pointer;
+  line-height: normal;
+}
+
+body.qa-body-js-on .deleteClippingButton {
+  position: relative;
+  top: 0.5em;
+}
+
+pre {
+  overflow-x: auto;
+  white-space: pre-wrap;
+  white-space: -moz-pre-wrap;
+  white-space: -pre-wrap;
+  white-space: -o-pre-wrap;
+  word-wrap: break-word;
+  font: inherit;
+}

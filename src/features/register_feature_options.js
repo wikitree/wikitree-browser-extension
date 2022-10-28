@@ -131,6 +131,13 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Clipboard and Notes",
+  id: "clipboardAndNotes",
+  description: "Keep useful things for pasting in the clipboard and useful notes in the notes.",
+  category: "Global",
+});
+
+registerFeature({
   name: "Sort Badges",
   id: "sortBadges",
   description: "Buttons to move or hide your Club 100/1000 badges.",
