@@ -119,6 +119,7 @@ function copyClippingToClipboard(element) {
     $("body.qa-body-js-on").length
   ) {
     let box = window.activeTextarea;
+    console.log(window);
     let el = $();
     if ($("#photo_upload").length) {
       el = $("#wpUploadDescription");
@@ -131,7 +132,7 @@ function copyClippingToClipboard(element) {
       const conDoc = oIframe[0].contentDocument;
       const lastPara = conDoc.querySelector(".cke_editable");
 
-      constdTextBox = $(lastPara);
+      const dTextBox = $(lastPara);
       dTextBox.append(decodeHTMLEntities(theText));
       return;
     } else {
@@ -327,7 +328,7 @@ async function clipboard(type, action = false) {
               e.preventDefault();
               editClipping(key, type);
 
-              let word = "clipping";
+              var word = "clipping";
               if (type == "notes") {
                 word = "note";
               }
@@ -348,8 +349,11 @@ async function clipboard(type, action = false) {
 
       if ($("#clipboard table tbody tr").length == 0) {
         $("#clipboard p").remove();
-
-        $("#clipboard table").after($("<p>You have no " + word + "s.  You can add one below.</p>"));
+        let word = "clippings";
+        if ($("#clipboard").data("type") == "notes") {
+          word = "notes";
+        }
+        $("#clipboard table").after($("<p>You have no " + word + ".  You can add one below.</p>"));
       }
       $("#clipboard tbody").sortable({
         containment: $("#clipboard"),

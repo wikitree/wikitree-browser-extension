@@ -187,7 +187,7 @@ body.qa-body-js-on .deleteClippingButton {
   top: 0.5em;
 }
 
-pre {
+#clipboard pre {
   overflow-x: auto;
   white-space: pre-wrap;
   white-space: -moz-pre-wrap;
@@ -195,4 +195,8 @@ pre {
   white-space: -o-pre-wrap;
   word-wrap: break-word;
   font: inherit;
+}
+
+#toolbar .clipboardButtons {
+  top: auto;
 }

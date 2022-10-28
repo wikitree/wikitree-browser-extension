@@ -1,4 +1,5 @@
 import $ from "jquery";
+import { getPerson } from "wikitree-js";
 
 export let pageProfile = false;
 export let pageHelp = false;

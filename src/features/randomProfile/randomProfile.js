@@ -1,6 +1,5 @@
 import $ from "jquery";
 import { getRandomProfile } from "../../core/common";
-import { getPerson } from "wikitree-js";
 
 chrome.storage.sync.get("randomProfile", (result) => {
   if (result.randomProfile && $("body.BEE").length == 0) {
