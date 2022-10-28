@@ -4,7 +4,7 @@ import editToolbarProfileOptions from "./editToolbarProfileOptions";
 import editToolbarTemplateOptions from "./editToolbarTemplateOptions";
 import editToolbarSpaceOptions from "./editToolbarSpaceOptions";
 import "./editToolbar.css";
-import { checkIfFeatureEnabled } from "../options/options_storage"
+import { checkIfFeatureEnabled } from "./options/options_storage"
 
 let editToolbarOptions = [];
 
