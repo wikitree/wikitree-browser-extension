@@ -21,13 +21,12 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 /**
-* Rules for identifying sources in a biography that are not valid
-* Intended to be a singleton and immutable
-* and look like what could be read from database tables
-*/
+ * Rules for identifying sources in a biography that are not valid
+ * Intended to be a singleton and immutable
+ * and look like what could be read from database tables
+ */
 
 class SourceRules {
-
   // all sorts of rules to parse biography and check sources
   #biographyHeadings = [
     "biography",
@@ -143,12 +142,12 @@ class SourceRules {
   /* order by length then alpha, but for efficiency
    * since most profiles are English, that is first
    * Note: logic checks for at least 15 characters so
-   * shorter are commented out, but kept in case 
+   * shorter are commented out, but kept in case
    * this is too aggressive
    * invalidSourceList are strings on a line by themselves
    */
   #invalidSourceList = [
-  /*
+    /*
     ".",
     "*",
     "bmd",
@@ -271,7 +270,7 @@ class SourceRules {
     "personal family tree",
     "personal information",
     "research on ancestry",
-    "uk census; bmd index", 
+    "uk census; bmd index",
     "www.familysearch.org",
     "ancestry family trees",
     "family search records",
@@ -434,11 +433,7 @@ class SourceRules {
   ];
 
   // anywhere on a line is a valid source
-  #validPartialSourceList = [
-    "sources are hidden to protect",
-    "sources hidden to protect",
-    "source hidden to protect"
-  ];
+  #validPartialSourceList = ["sources are hidden to protect", "sources hidden to protect", "source hidden to protect"];
 
   // on the start of a line not a valid source
   #invalidStartPartialSourceList = [
@@ -706,7 +701,7 @@ class SourceRules {
     return SourceRules.theSourceRules;
   }
 
-  /** 
+  /**
    * Determine if a line is a valid biography heading
    * @param line to test
    * @return true if bio heading else false
@@ -714,7 +709,7 @@ class SourceRules {
   isBiographyHeading(line) {
     return this.#biographyHeadings.includes(line);
   }
-  /** 
+  /**
    * Determine if a line is a valid research notes heading
    * @param line to test
    * @return true if research notes heading else false
@@ -722,7 +717,7 @@ class SourceRules {
   isResearchNotesHeading(line) {
     return this.#researchNotesHeadings.includes(line);
   }
-  /** 
+  /**
    * Determine if a line is a valid sources heading
    * @param line to test
    * @return true if sources heading else false
@@ -730,7 +725,7 @@ class SourceRules {
   isSourcesHeading(line) {
     return this.#sourcesHeadings.includes(line);
   }
-  /** 
+  /**
    * Determine if a line is a valid acknowledgements heading
    * @param line to test
    * @return true if acknowledgements heading else false
@@ -738,7 +733,7 @@ class SourceRules {
   isAckHeading(line) {
     return this.#acknowledgmentsHeadings.includes(line);
   }
-  /** 
+  /**
    * Determine if a line is a census line
    * @param line to test
    * @return true if census line else false
@@ -771,7 +766,7 @@ class SourceRules {
    */
   lineContainsListEntry(line, stringList) {
     let hasText = false;
-    stringList.find(element => {
+    stringList.find((element) => {
       if (line.includes(element)) {
         hasText = true;
       }
@@ -819,7 +814,7 @@ class SourceRules {
    */
   isInvalidStartPartialSource(line) {
     let isFound = false;
-    this.#invalidStartPartialSourceList.find(element => {
+    this.#invalidStartPartialSourceList.find((element) => {
       if (line.startsWith(element)) {
         isFound = true;
       }
@@ -848,4 +843,3 @@ class SourceRules {
 const theSourceRules = new SourceRules();
 Object.freeze(theSourceRules);
 export { theSourceRules };
-
