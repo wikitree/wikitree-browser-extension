@@ -1,9 +1,10 @@
 import $ from "jquery";
 import { pageProfile } from "../../core/common";
 import "./collapsibleDescendantsTree.css";
+import { checkIfFeatureEnabled } from "../../core/options/options_storage"
 
-chrome.storage.sync.get("collapsibleDescendantsTree", (result) => {
-  if (result.collapsibleDescendantsTree && pageProfile == true) {
+checkIfFeatureEnabled("collapsibleDescendantsTree").then((result) => {
+  if (result && pageProfile == true) {
     // Look out for the appearance of new list items in the descendantsContainer
     const descendantsObserver = new MutationObserver(function (mutations_list) {
       mutations_list.forEach(function (mutation) {

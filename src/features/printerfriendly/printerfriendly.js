@@ -1,7 +1,8 @@
 import $ from "jquery";
+import { checkIfFeatureEnabled } from "../../core/options/options_storage"
 
-chrome.storage.sync.get("printerFriendly", (result) => {
-  if (result.printerFriendly) {
+checkIfFeatureEnabled("printerFriendly").then((result) => {
+  if (result) {
     // Add link to WT ID menu
     $("body.profile a.pureCssMenui0 span.person")
       .closest("li")

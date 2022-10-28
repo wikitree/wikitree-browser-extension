@@ -2,9 +2,10 @@ import * as $ from 'jquery';
 import 'jquery-ui/ui/widgets/draggable';
 import {createProfileSubmenuLink, extractRelatives, isOK} from '../../core/common';
 import './familyTimeline.css';
+import { checkIfFeatureEnabled } from "../../core/options/options_storage"
 
-chrome.storage.sync.get("familyTimeline", (result) => {
-  if (result.familyTimeline) {
+checkIfFeatureEnabled("familyTimeline").then((result) => {
+  if (result) {
     if (
       result.familyTimeline &&
       $("body.profile").length &&

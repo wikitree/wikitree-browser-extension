@@ -2,9 +2,10 @@ import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import "./verifyID.css";
 import { extractRelatives, displayName } from "../../core/common";
+import { checkIfFeatureEnabled } from "../../core/options/options_storage"
 
-chrome.storage.sync.get("verifyID", (result) => {
-  if (result.verifyID) {
+checkIfFeatureEnabled("verifyID").then((result) => {
+  if (result) {
     if ($("body.page-Special_EditFamily").length) {
       checkAttachPersonID();
       // Try not to clash with BEE

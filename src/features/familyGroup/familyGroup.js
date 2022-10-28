@@ -8,10 +8,11 @@ import {
   htmlEntities
 } from "../../core/common";
 import "../familyTimeline/familyTimeline.css";
+import { checkIfFeatureEnabled } from "../../core/options/options_storage"
 
-chrome.storage.sync.get("familyGroup", (result) => {
+checkIfFeatureEnabled("familyGroup").then((result) => {
   if (
-    result.familyGroup &&
+    result &&
     $("body.profile").length &&
     window.location.href.match("Space:") == null
   ) {

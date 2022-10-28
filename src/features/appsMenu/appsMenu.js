@@ -1,9 +1,10 @@
 import $ from "jquery";
 import Cookies from "js-cookie";
 import "./appsMenu.css";
+import { checkIfFeatureEnabled } from "../../core/options/options_storage"
 
-chrome.storage.sync.get("appsMenu", (result) => {
-  if (result.appsMenu) {
+checkIfFeatureEnabled("appsMenu").then((result) => {
+  if (result) {
     // Add a menu if WikiTree BEE hasn't already done so.
     if ($("#appsSubMenu").length == 0) {
       addAppsMenu();

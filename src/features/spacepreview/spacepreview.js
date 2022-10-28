@@ -1,8 +1,9 @@
 import $ from 'jquery';
 import '../../thirdparty/jquery.hoverDelay'
+import { checkIfFeatureEnabled } from "../../core/options/options_storage"
 
-chrome.storage.sync.get("spacePreviews", function (result) {
-  if (result.spacePreviews == true) {
+checkIfFeatureEnabled("spacePreviews").then((result) => {
+  if (result) {
     $('.ten.columns a[href*="/wiki/Space:"], .sixteen.columns a[href*="/wiki/Space:"]').hoverDelay({
       delayIn: 1000,
       delayOut: 0,

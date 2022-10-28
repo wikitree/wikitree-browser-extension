@@ -1,7 +1,8 @@
 import $ from 'jquery';
+import { checkIfFeatureEnabled } from "../../core/options/options_storage"
 
-chrome.storage.sync.get('sPreviews', function (result) {
-    if (result.sPreviews == true) {
+checkIfFeatureEnabled("sPreviews").then((result) => {
+  if (result) {
         sourcePreview();
 
         function sourcePreview() {

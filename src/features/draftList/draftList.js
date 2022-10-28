@@ -1,9 +1,10 @@
 import $ from "jquery";
 import { isOK, showDraftList, updateDraftList } from "../../core/common";
 import "./draftList.css";
+import { checkIfFeatureEnabled } from "../../core/options/options_storage"
 
-chrome.storage.sync.get("draftList", (result) => {
-  if (result.draftList) {
+checkIfFeatureEnabled("draftList").then((result) => {
+  if (result) {
     // Check that WikiTree BEE hasn't added this already
     if ($("a.drafts").length == 0) {
       addDraftsToFindMenu();

@@ -1,9 +1,10 @@
 import * as $ from "jquery";
 import "./sortBadges.css";
 import Cookies from "js-cookie";
+import { checkIfFeatureEnabled } from "../../core/options/options_storage"
 
-chrome.storage.sync.get("sortBadges", (result) => {
-  if (result.sortBadges && $("a.pureCssMenui0 span.person").text() == Cookies.get("wikitree_wtb_UserName")) {
+checkIfFeatureEnabled("sortBadges").then((result) => {
+  if (result && $("a.pureCssMenui0 span.person").text() == Cookies.get("wikitree_wtb_UserName")) {
     if ($("body.page-Special_Badges").length) {
       $("div.sixteen.columns p")
         .eq(0)

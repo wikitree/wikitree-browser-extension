@@ -1,5 +1,6 @@
 import $ from 'jquery';
 import {pageProfile} from '../../core/common';
+import { checkIfFeatureEnabled } from "../../core/options/options_storage"
 
 async function akaNames(){
 // Make AKA last names clickable
@@ -22,8 +23,8 @@ async function akaNames(){
     }
 }
 
-chrome.storage.sync.get('akaNameLinks', (result) => {
-	if (result.akaNameLinks && pageProfile == true) { 
-        akaNames();
-    }
+checkIfFeatureEnabled("akaNameLinks").then((result) => {
+  if (result && pageProfile == true) { 
+    akaNames();
+  }
 })

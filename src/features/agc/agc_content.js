@@ -527,14 +527,6 @@ function initAgc() {
   }
 }
 
-/*
-chrome.storage.sync.get("agc", (result) => {
-  if (result.agc) {
-    initAgc();
-  }
-});
-*/
-
 checkIfFeatureEnabled("agc").then((result) => {
   if (result) {
     initAgc();

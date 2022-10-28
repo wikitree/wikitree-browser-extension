@@ -1,4 +1,5 @@
 import $ from "jquery";
+import { checkIfFeatureEnabled } from "../../core/options/options_storage"
 
 async function addCategoryLinksToDropdown() {
   $("#addCategoryInput").keyup(function () {
@@ -22,8 +23,8 @@ async function addCategoryLinksToDropdown() {
   });
 }
 
-chrome.storage.sync.get("categoryFinderPins", (result) => {
-  if (result.categoryFinderPins && $("body.BEE").length == 0) {
+checkIfFeatureEnabled("categoryFinderPins").then((result) => {
+  if (result && $("body.BEE").length == 0) {
     setTimeout(function () {
       addCategoryLinksToDropdown();
     }, 1000);

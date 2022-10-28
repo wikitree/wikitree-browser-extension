@@ -1,12 +1,14 @@
 import $ from "jquery";
 import Cookies from "js-cookie";
 import "./distanceAndRelationship.css";
-chrome.storage.sync.get("distanceAndRelationship", (result) => {
+import { checkIfFeatureEnabled } from "../../core/options/options_storage"
+
+checkIfFeatureEnabled("distanceAndRelationship").then((result) => {
   // define user and profile IDs
   const profileID = $("a.pureCssMenui0 span.person").text();
   const userID = Cookies.get("wikitree_wtb_UserName");
   if (
-    result.distanceAndRelationship &&
+    result &&
     $("body.BEE").length == 0 &&
     $("body.profile").length &&
     window.location.href.match("Space:") == null &&

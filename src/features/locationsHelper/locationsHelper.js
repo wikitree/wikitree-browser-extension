@@ -1,10 +1,11 @@
 import $ from "jquery";
 import { extractRelatives, familyArray, getRelatives } from "../../core/common";
 import "./locationsHelper.css";
+import { checkIfFeatureEnabled } from "../../core/options/options_storage"
 
-chrome.storage.sync.get("locationsHelper", (result) => {
+checkIfFeatureEnabled("locationsHelper").then((result) => {
   if (
-    result.locationsHelper &&
+    result &&
     $("body.BEE").length == 0 &&
     ($("body.page-Special_EditPerson").length ||
       $("body.page-Special_EditFamily").length)

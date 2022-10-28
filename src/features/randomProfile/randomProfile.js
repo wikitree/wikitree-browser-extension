@@ -1,9 +1,10 @@
 import $ from "jquery";
 import { getRandomProfile } from "../../core/common";
 import { getPerson } from "wikitree-js";
+import { checkIfFeatureEnabled } from "../../core/options/options_storage"
 
-chrome.storage.sync.get("randomProfile", (result) => {
-  if (result.randomProfile && $("body.BEE").length == 0) {
+checkIfFeatureEnabled("randomProfile").then((result) => {
+  if (result && $("body.BEE").length == 0) {
     // add random option to 'Find'
     async function addRandomToFindMenu() {
       const relationshipLi = $("li a.pureCssMenui[href='/wiki/Special:Relationship']");
