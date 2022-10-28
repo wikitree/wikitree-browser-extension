@@ -7,6 +7,7 @@ const features = [
 
 function registerFeature(featureData) {
   features.push(featureData);
+  console.log("registerFeature. featureId is:" + featureData.id);
 }
 
 function getFeatureData(featureId) {
@@ -15,6 +16,9 @@ function getFeatureData(featureId) {
       return feature;
     }
   }
+
+  console.log("getFeatureData failed for id: " + featureId + ". features is:");
+  console.log(features);
 }
 
 const OptionType = {
@@ -68,4 +72,4 @@ function getDefaultOptionValuesForFeature(featureId, useTestDefaults = false) {
   return defaultValues;
 }
 
-export { registerFeature, features, getDefaultOptionValuesForFeature, OptionType };
+export { registerFeature, features, getDefaultOptionValuesForFeature, OptionType, getFeatureData };

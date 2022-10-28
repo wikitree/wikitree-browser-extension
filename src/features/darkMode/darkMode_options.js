@@ -8,6 +8,7 @@ import {
     id: "darkMode",
     description: "Make WikiTree dark.",
     category: "Style",
+    defaultValue: false,
     options: [
       {
         id: "mode",

@@ -1,4 +1,4 @@
-import { getDefaultOptionValuesForFeature } from "./options_registry"
+import { getDefaultOptionValuesForFeature, getFeatureData } from "./options_registry"
 
 /*
 This function returns a Promise so it can be used in a couple of different ways:
@@ -25,10 +25,22 @@ async function checkIfFeatureEnabled(featureId) {
         reject(new Error("No featureId provided"));
       }
 
+      console.log("checkIfFeatureEnabled calling getFeatureData with id: " + featureId);
+
+      const featureData = getFeatureData(featureId);
+      if (featureData) {
+        reject(new Error(`Invalid featureId: ${featureId}`));
+      }
+
       const itemKey = featureId;
       chrome.storage.sync.get(itemKey,
         function (items) {
           const result = items[itemKey];
+
+          if (result === undefined) {
+            // no saved value for enabled yet. Use default.
+            result = (featureData.defaultValue) ? true : false;
+          }
 
           resolve(result);
         }

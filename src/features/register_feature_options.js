@@ -20,6 +20,7 @@ registerFeature({
   id: "myMenu",
   description: "Add your own custom menu for easy access to your most commonly used links.",
   category: "Global",
+  defaultValue: false,
 });
 
 registerFeature({
@@ -27,6 +28,7 @@ registerFeature({
   id: "printerFriendly",
   description: "Change the page to a printer-friendly one.",
   category: "Global",
+  defaultValue: true,
 });
 
 registerFeature({
@@ -34,6 +36,7 @@ registerFeature({
   id: "sPreviews",
   description: "Enable source previews on inline references.",
   category: "Global",
+  defaultValue: false,
 });
 
 registerFeature({
@@ -41,6 +44,7 @@ registerFeature({
   id: "spacePreviews",
   description: "Enable previews of Space Pages on hover.",
   category: "Global",
+  defaultValue: false,
 });
 
 registerFeature({
@@ -48,6 +52,7 @@ registerFeature({
   id: "appsMenu",
   description: "Adds an apps submenu to the Find menu.",
   category: "Global",
+  defaultValue: true,
 });
 
 registerFeature({
@@ -55,6 +60,7 @@ registerFeature({
   id: "wtplus",
   description: "Adds multiple editing features.",
   category: "Editing",
+  defaultValue: true,
 });
 
 registerFeature({
@@ -62,6 +68,7 @@ registerFeature({
   id: "collapsibleDescendantsTree",
   description: "Makes the descendants tree on profile pages collapsible.",
   category: "Profile",
+  defaultValue: true,
 });
 
 registerFeature({
@@ -69,6 +76,7 @@ registerFeature({
   id: "akaNameLinks",
   description: 'Adds surname page links to the "aka" names on the profile page.',
   category: "Profile",
+  defaultValue: true,
 });
 
 registerFeature({
@@ -76,6 +84,7 @@ registerFeature({
   id: "familyTimeline",
   description: "Displays a family timeline. A button is added to the profile submenu.",
   category: "Profile",
+  defaultValue: true,
 });
 
 registerFeature({
@@ -83,6 +92,7 @@ registerFeature({
   id: "draftList",
   description: "Adds a button to the Find menu to show your uncommitted drafts.",
   category: "Global",
+  defaultValue: true,
 });
 
 registerFeature({
@@ -90,6 +100,7 @@ registerFeature({
   id: "randomProfile",
   description: "Adds a Random Profile link to the Find menu.",
   category: "Global",
+  defaultValue: true,
 });
 
 registerFeature({
@@ -97,6 +108,7 @@ registerFeature({
   id: "distanceAndRelationship",
   description: "Adds the distance (degrees) between you and the profile person and any relationship between you.",
   category: "Profile",
+  defaultValue: true,
 });
 
 registerFeature({
@@ -106,6 +118,7 @@ registerFeature({
     "Manipulates the suggested locations, highlighting likely correct locations," +
     " based on family members' locations, and demoting likely wrong locations, based on the dates.",
   category: "Editing",
+  defaultValue: true,
 });
 
 registerFeature({
@@ -113,6 +126,7 @@ registerFeature({
   id: "familyGroup",
   description: "Display dates and locations of all family members. A button is added to the profile submenu.",
   category: "Profile",
+  defaultValue: true,
 });
 
 registerFeature({
@@ -120,6 +134,7 @@ registerFeature({
   id: "bioCheck",
   description: "Check biography style and sources.",
   category: "Editing",
+  defaultValue: true,
 });
 
 registerFeature({
@@ -128,6 +143,7 @@ registerFeature({
   description:
     "Adds pins to Category Finder results (on the edit page), similar to the pins in the location dropdown.  These pins link to the category page for you to check that you have the right category.",
   category: "Editing",
+  defaultValue: true,
 });
 
 registerFeature({
@@ -135,6 +151,7 @@ registerFeature({
   id: "sortBadges",
   description: "Buttons to move or hide your Club 100/1000 badges.",
   category: "Other",
+  defaultValue: true,
 });
 
 registerFeature({
@@ -143,4 +160,5 @@ registerFeature({
   description:
     "When attaching a person by ID, you can see some details of the person and check that you've entered the correct ID.",
   category: "Editing",
+  defaultValue: true,
 });
