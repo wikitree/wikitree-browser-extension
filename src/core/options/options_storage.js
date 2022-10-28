@@ -1,4 +1,4 @@
-import { getDefaultOptionValuesForFeature, getFeatureData } from "./options_registry"
+import { getDefaultOptionValuesForFeature, getFeatureData, features } from "./options_registry"
 
 /*
 This function returns a Promise so it can be used in a couple of different ways:
@@ -25,17 +25,15 @@ async function checkIfFeatureEnabled(featureId) {
         reject(new Error("No featureId provided"));
       }
 
-      console.log("checkIfFeatureEnabled calling getFeatureData with id: " + featureId);
-
       const featureData = getFeatureData(featureId);
-      if (featureData) {
+      if (!featureData) {
         reject(new Error(`Invalid featureId: ${featureId}`));
       }
 
       const itemKey = featureId;
       chrome.storage.sync.get(itemKey,
         function (items) {
-          const result = items[itemKey];
+          let result = items[itemKey];
 
           if (result === undefined) {
             // no saved value for enabled yet. Use default.
@@ -43,6 +41,44 @@ async function checkIfFeatureEnabled(featureId) {
           }
 
           resolve(result);
+        }
+      );
+    } catch (ex) {
+      reject(ex);
+    }
+  });
+}
+
+/*
+This function returns a Promise so it can be used in a couple of different ways:
+
+1. Using then:
+
+  checkIfFeatureEnabled("agc").then((result) => {
+    if (result) {
+      initAgc();
+    }
+  });
+
+2. Using await:
+
+  if (await checkIfFeatureEnabled("agc") {
+    initAgc();
+  });
+*/
+
+async function getEnabledStateForAllFeatures() {
+  return new Promise((resolve, reject) => {
+    try {
+      let keysWithDefaults = {};
+
+      for (let feature of features) {
+        keysWithDefaults[feature.id] = (feature.defaultValue) ? true : false;
+      }
+
+      chrome.storage.sync.get(keysWithDefaults,
+        function (items) {
+          resolve(items);
         }
       );
     } catch (ex) {
@@ -105,4 +141,4 @@ async function getFeatureOptions(featureId) {
   });
 }
 
-export { checkIfFeatureEnabled, getFeatureOptions };
+export { checkIfFeatureEnabled, getFeatureOptions, getEnabledStateForAllFeatures };

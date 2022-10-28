@@ -4,7 +4,7 @@ import editToolbarProfileOptions from "./editToolbarProfileOptions";
 import editToolbarTemplateOptions from "./editToolbarTemplateOptions";
 import editToolbarSpaceOptions from "./editToolbarSpaceOptions";
 import "./editToolbar.css";
-import { checkIfFeatureEnabled } from "./options/options_storage"
+import { getEnabledStateForAllFeatures } from "./options/options_storage"
 
 let editToolbarOptions = [];
 
@@ -95,15 +95,7 @@ function editToolbarCreateHtml(items, featureEnabled, level) {
 async function editToolbarCreate(options) {
   editToolbarOptions = options;
 
-  // check which of the features used by the toolbar are enabled
-  let featureEnabled = [];
-  for (let item of editToolbarOptions) {
-    if (item.featureid) {
-      if (await checkIfFeatureEnabled(item.featureid)) {
-        featureEnabled[item.featureid] = true;
-      }
-    }
-  }
+  const featureEnabled = await getEnabledStateForAllFeatures();
 
   var menuHTML = editToolbarCreateHtml(editToolbarOptions, featureEnabled, -1);
   document
