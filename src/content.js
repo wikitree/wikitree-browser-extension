@@ -23,7 +23,7 @@ import "./features/sortBadges/sortBadges";
 import "./features/sourcepreview/sourcepreview";
 import "./features/spacepreview/spacepreview";
 import "./features/verifyID/verifyID";
-import "./features/wt+/contentEdit";
+import "./features/wtPlus/wtPlus";
 
 import "./core/editToolbar";
 

@@ -58,8 +58,8 @@ function editToolbarCreateHtml(items, featureEnabled, level) {
   if (items && items.length) {
     for (var item of items) {
       if (!item.featureid || featureEnabled[item.featureid]) {
-        let s = editToolbarCreateHtml(item.items, featureEnabled, level + 1);
-        if (s || item.call) {
+        let btnText = editToolbarCreateHtml(item.items, featureEnabled, level + 1);
+        if (btnText || item.call) {
           if (item.button) {
             result +=
               '<div class="editToolbarDiv">' +
@@ -67,15 +67,20 @@ function editToolbarCreateHtml(items, featureEnabled, level) {
               item.button +
               "</p>" +
               // '<img src="/photo.php/8/89/WikiTree_Images-22.png" height="22" id="editToolbarButton" />' +
-              s +
+              btnText +
               "</div>";
           } else {
-            result += "<li><a ";
-            result += item.hint ? 'title= "' + item.hint + '"' : "";
-            result += 'href="javascript:void(0);" class="editToolbarClick" data-id="' + item.title + '"';
-            result += ">" + item.title + (item.items ? " &gt;&gt;" : "") + "</a>";
-            result += s;
-            result += "</li>";
+            result +=
+              "<li><a " +
+              (item.hint ? 'title= "' + item.hint + '"' : "") +
+              'href="javascript:void(0);" class="editToolbarClick" data-id="' +
+              item.title +
+              '">' +
+              item.title +
+              (item.items ? " »" : "") +
+              "</a>" +
+              btnText +
+              "</li>";
           }
         }
       }

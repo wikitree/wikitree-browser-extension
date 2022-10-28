@@ -1,4 +1,4 @@
-import { wtPlus } from "../features/wt+/contentEdit";
+import { wtPlus } from "../features/wtPlus/wtPlus";
 import { editToolbarApp, editToolbarWiki } from "./editToolbar";
 export default [
   {

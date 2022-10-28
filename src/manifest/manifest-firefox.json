@@ -19,7 +19,7 @@
 	},
 	"web_accessible_resources": [
 		"images/*",
-		"features/wt+/templatesExp.json",
+		"features/wtPlus/templatesExp.json",
 		"features/darkMode/darkMode.css",
 		"js/*.js"
 	],

@@ -1,6 +1,14 @@
 import "./wtPlus.css";
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { isEditPage } from "../../core/common";
 
 let tb = {};
+
+checkIfFeatureEnabled("wtplus").then((result) => {
+  if (result && isEditPage) {
+    initWTPlus();
+  }
+});
 
 function itemsFindByTemplate(name) {
   return tb.templates.filter((item) => item.name.toUpperCase() === name.toUpperCase())[0];
@@ -68,11 +76,9 @@ function paramsFromSelection() {
       };
     });
     var unknownNamed = paramsNamed.filter(
-      (par) => !Boolean(tb.templateitems.find((ti) => ti.name.toUpperCase() === par[0].toUpperCase()))
+      (par) => !tb.templateitems.find((ti) => ti.name.toUpperCase() === par[0].toUpperCase())
     );
-    var unknownNumbered = paramsNumbered.filter(
-      (par, i) => !Boolean(tb.templateitems.find((ti) => ti.numbered === i + 1))
-    );
+    var unknownNumbered = paramsNumbered.filter((par, i) => !tb.templateitems.find((ti) => ti.numbered === i + 1));
     tb.unknownParams = unknownNamed
       .map((i) => "|" + i[0] + "= " + i[1])
       .concat(unknownNumbered.map((i) => "|" + i))
@@ -561,7 +567,7 @@ function onDlgEditTemplateBtn(update) {
     tb.inserttext = "";
     var line = "";
     if (tb.templateitems && tb.templateitems.length) {
-      var line = "\n";
+      line = "\n";
       for (let prop of tb.templateitems) {
         if (prop.numbered) {
           line = "";
@@ -678,20 +684,22 @@ function onDlgEditTemplateRestore(i) {
 function onDlgEditTemplateExpCol(gName) {
   var e = tb.elDlg.getElementsByClassName("group" + gName);
   var b = document.getElementById("groupBtn" + gName);
+  var ei;
   if (b.innerHTML == "Expand") {
     b.innerHTML = "Collapse";
-    for (var ei of e) {
+    for (ei of e) {
       ei.style.visibility = "visible";
     }
   } else {
     b.innerHTML = "Expand";
-    for (var ei of e) {
+    for (ei of e) {
       ei.style.visibility = "collapse";
     }
   }
   return false;
 }
 
+/* to add autocomplete on category parameter
 function WikiTreeGetCategory(query, fixed) {
   fetch("https://www.wikitree.com/index.php?action=ajax&rs=Title::ajaxCategorySearch&rsargs[]=" + query + "&rsargs[]=1")
     .then((resp) => resp.json())
@@ -700,6 +708,7 @@ function WikiTreeGetCategory(query, fixed) {
       return jsonData;
     });
 }
+*/
 
 /**************************/
 /* Select template to add */
@@ -846,10 +855,11 @@ function AutoUpdate() {
           let s = s1;
           let action = clean.actions[i];
           switch (action.action) {
-            case "replaceRegEx":
+            case "replaceRegEx": {
               let reg = RegExp(action.from, action.flags);
               s1 = s1.replace(reg, action.to);
               break;
+            }
             case "replace":
               s1 = s1.replace(action.from, action.to);
               break;
@@ -951,10 +961,11 @@ function onDlgProfileCleanupBtn(update) {
               s = s1;
               let action = clean.actions[i];
               switch (action.action) {
-                case "replaceRegEx":
+                case "replaceRegEx": {
                   let reg = RegExp(action.from, action.flags);
                   s1 = s1.replace(reg, action.to);
                   break;
+                }
                 case "replace":
                   s1 = s1.replace(action.from, action.to);
                   break;
@@ -1032,6 +1043,7 @@ function onDlgPasteSourceBtn(update) {
   return false;
 }
 
+// eslint-disable-next-line no-unused-vars
 function onDlgPasteSourceCB(i, evt) {
   var e = tb.elDlg.querySelectorAll(".resultFld")[0];
   let s = e.value.replace("<ref>", "").replace("</ref>", "").replace("* ", "");
@@ -1076,10 +1088,11 @@ function onDlgPasteSourcePaste(i, evt) {
           s1 = s;
           for (let action of source.actions) {
             switch (action.action) {
-              case "replaceRegEx":
+              case "replaceRegEx": {
                 let reg = RegExp(action.from, "mg");
                 s1 = s1.replace(reg, action.to);
                 break;
+              }
               case "replace":
                 s1 = s1.replace(action.from, action.to);
                 break;
@@ -1113,13 +1126,14 @@ function onDlgPasteSourcePaste(i, evt) {
 /* Menu events            */
 /**************************/
 
+/* for coloredEditor
 function posToOffset(txt, pos) {
   const arr = txt.split("\n");
   var len = 0;
   for (var i = 0; i < pos.line; i++) len += length(arr[i]) + 1;
   return len + pos.ch;
 }
-
+*/
 export function wtPlus(params) {
   if (tb.elText.style.display == "none") {
     alert("Enhanced editor is not supported.\n\nTurning it off to use the extension.");
@@ -1175,11 +1189,11 @@ export function wtPlus(params) {
         //            var expression = /{{[\s\S]*?}}/g
         var expression =
           /\{\{.*?(\[\[[^{}[\]]*?\]\][^{}[\]]*?|\[[^{}[\]]*?\][^{}[\]]*?|\{\{[^{}[\]]*?\}\}[^{}[\]]*?)*?[^{}[\]]*?\}\}/gms;
-
+        var s;
         if (tb.selStart != tb.selEnd) {
           let tem = tb.textSelected.match(expression);
           if (tem && tem.length == 1) {
-            var s = tb.textSelected.split(expression);
+            s = tb.textSelected.split(expression);
             tb.textBefore += s[0];
             tb.textSelected = tem[0];
             tb.textAfter = s[2] + tb.textAfter;
@@ -1194,7 +1208,7 @@ export function wtPlus(params) {
           let tem = tb.textAll.match(expression);
           if (tem) {
             if (tem.length == 1) {
-              var s = tb.textAll.split(expression);
+              s = tb.textAll.split(expression);
               tb.textBefore = s[0];
               tb.textSelected = tem[0];
               tb.textAfter = s[2];
@@ -1261,6 +1275,7 @@ export function wtPlus(params) {
 
 /* Classes */
 
+// eslint-disable-next-line no-unused-vars
 const attachClass = (selector, className) => {
   document.querySelectorAll(selector).forEach((i) => i.classList.add(className));
 };
@@ -1340,162 +1355,142 @@ function mainEventLoop(event) {
   console.error("Missing data-op on ", element);
 }
 
-function isEditPage() {
-  return (
-    window.location.href.match(/\/index.php\?title=Special:EditPerson&.*/g) ||
-    window.location.href.match(/\/index.php\?title=.*&action=edit.*/g) ||
-    window.location.href.match(/\/index.php\?title=.*&action=submit.*/g)
-  );
-}
-
-/* Initialization */
-chrome.storage.sync.get("wtplus", (result) => {
-  if (result.wtplus && isEditPage()) {
-    tb.nameSpace = document.title.startsWith("Edit Person ") ? "Profile" : "";
-    let w = document.querySelector("h1 > .copyWidget");
-    if (w) {
-      tb.wikitreeID = w.getAttribute("data-copy-text");
-    }
-    tb.elText = document.getElementById("wpTextbox1");
-    tb.elBirthLocation = document.getElementById("mBirthLocation");
-    tb.elDeathLocation = document.getElementById("mDeathLocation");
-
-    tb.elSummary = document.getElementById("wpSummary");
-    tb.elEnhanced = document.getElementById("toggleMarkupColor");
-
-    document.getElementById("toolbar").insertAdjacentHTML("beforeend", '<dialog id="wtPlusDlg"></dialog>');
-    tb.elDlg = document.getElementById("wtPlusDlg");
-
-    // Loading of template definition From Storage
-    chrome.storage.local.get(["alltemplates"], function (a) {
-      if (a.alltemplates && a.alltemplates.version) {
-        // Is in storage
-        tb.templates = a.alltemplates.templates;
-        tb.cleanup = a.alltemplates.cleanup;
-        if (!tb.cleanup) {
-          tb.cleanup = [];
-        }
-        tb.locations = a.alltemplates.locations;
-        if (!tb.locations) {
-          tb.locations = [];
-        }
-        tb.sources = a.alltemplates.sources;
-        if (!tb.sources) {
-          tb.sources = [];
-        }
-        tb.dataVersion = new Date(a.alltemplates.version);
-        console.log(
-          "Storage: " +
-            tb.dataVersion +
-            ", " +
-            tb.templates.length +
-            " templates" +
-            ", " +
-            tb.cleanup.length +
-            " cleanup" +
-            ", " +
-            tb.locations.length +
-            " locations" +
-            ", " +
-            tb.sources.length +
-            " sources."
-        );
-      } else {
-        // Not in storage
-        tb.dataVersion = new Date("2000-01-01T00:00:00+01:00");
-      }
-      // Loading of template definition From Extension
-      fetch(chrome.runtime.getURL("features/wt+/templatesExp.json"))
-        .then((resp) => resp.json())
-        .then((jsonData) => {
-          const d = new Date(jsonData.version);
-          if (d.getTime() > tb.dataVersion.getTime()) {
-            // Extension definition is newer
-            tb.templates = jsonData.templates;
-            tb.cleanup = jsonData.cleanup;
-            if (!tb.cleanup) {
-              tb.cleanup = [];
-            }
-            tb.locations = jsonData.locations;
-            if (!tb.locations) {
-              tb.locations = [];
-            }
-            tb.sources = jsonData.sources;
-            if (!tb.sources) {
-              tb.sources = [];
-            }
-            tb.dataVersion = d;
-            console.log(
-              "Extension: " +
-                tb.dataVersion +
-                ", " +
-                tb.templates.length +
-                " templates." +
-                ", " +
-                tb.cleanup.length +
-                " cleanup." +
-                ", " +
-                tb.locations.length +
-                " locations" +
-                ", " +
-                tb.sources.length +
-                " sources."
-            );
-            chrome.storage.local.set({ alltemplates: jsonData });
-          }
-          if (tb.dataVersion.getTime() < new Date().getTime() - 6 * 3600 * 1000) {
-            // Loading of template definition From Web
-            fetch("https://wikitree.sdms.si/chrome/templatesExp.json")
-              .then((resp) => resp.json())
-              .then((jsonData) => {
-                const d = new Date(jsonData.version);
-                if (d.getTime() > tb.dataVersion.getTime()) {
-                  // Web definition is newer
-                  tb.templates = jsonData.templates;
-                  tb.cleanup = jsonData.cleanup;
-                  if (!tb.cleanup) {
-                    tb.cleanup = [];
-                  }
-                  tb.locations = jsonData.locations;
-                  if (!tb.locations) {
-                    tb.locations = [];
-                  }
-                  tb.sources = jsonData.sources;
-                  if (!tb.sources) {
-                    tb.sources = [];
-                  }
-                  tb.dataVersion = d;
-                  console.log(
-                    "Web: " +
-                      tb.dataVersion +
-                      ", " +
-                      tb.templates.length +
-                      " templates." +
-                      ", " +
-                      tb.cleanup.length +
-                      " cleanup." +
-                      ", " +
-                      tb.locations.length +
-                      " locations" +
-                      ", " +
-                      tb.sources.length +
-                      " sources."
-                  );
-                  chrome.storage.local.set({ alltemplates: jsonData });
-                }
-              });
-          }
-        });
-    });
+function initWTPlus() {
+  /* Initialization */
+  tb.nameSpace = document.title.startsWith("Edit Person ") ? "Profile" : "";
+  let w = document.querySelector("h1 > .copyWidget");
+  if (w) {
+    tb.wikitreeID = w.getAttribute("data-copy-text");
   }
-});
+  tb.elText = document.getElementById("wpTextbox1");
+  tb.elBirthLocation = document.getElementById("mBirthLocation");
+  tb.elDeathLocation = document.getElementById("mDeathLocation");
 
-/*
-Todo. Add spaces on edit comment.
-1.0.4
-  * Condensed template info in the dialog to occupy less space.
-  * After switching off the enhanced editor the selected function is executed if possible.
-  * AutoCorrection of location fields.
-  * Added AutoCorrection to categories
-  * Implemented case insensitive in template parameter names recognition
-*/
+  tb.elSummary = document.getElementById("wpSummary");
+  tb.elEnhanced = document.getElementById("toggleMarkupColor");
+
+  document.getElementById("toolbar").insertAdjacentHTML("beforeend", '<dialog id="wtPlusDlg"></dialog>');
+  tb.elDlg = document.getElementById("wtPlusDlg");
+
+  // Loading of template definition From Storage
+  chrome.storage.local.get(["alltemplates"], function (a) {
+    if (a.alltemplates && a.alltemplates.version) {
+      // Is in storage
+      tb.templates = a.alltemplates.templates;
+      tb.cleanup = a.alltemplates.cleanup;
+      if (!tb.cleanup) {
+        tb.cleanup = [];
+      }
+      tb.locations = a.alltemplates.locations;
+      if (!tb.locations) {
+        tb.locations = [];
+      }
+      tb.sources = a.alltemplates.sources;
+      if (!tb.sources) {
+        tb.sources = [];
+      }
+      tb.dataVersion = new Date(a.alltemplates.version);
+      console.log(
+        "Storage: " +
+          tb.dataVersion +
+          ", " +
+          tb.templates.length +
+          " templates" +
+          ", " +
+          tb.cleanup.length +
+          " cleanup" +
+          ", " +
+          tb.locations.length +
+          " locations" +
+          ", " +
+          tb.sources.length +
+          " sources."
+      );
+    } else {
+      // Not in storage
+      tb.dataVersion = new Date("2000-01-01T00:00:00+01:00");
+    }
+    // Loading of template definition From Extension
+    fetch(chrome.runtime.getURL("features/wtPlus/templatesExp.json"))
+      .then((resp) => resp.json())
+      .then((jsonData) => {
+        const d = new Date(jsonData.version);
+        if (d.getTime() > tb.dataVersion.getTime()) {
+          // Extension definition is newer
+          tb.templates = jsonData.templates;
+          tb.cleanup = jsonData.cleanup;
+          if (!tb.cleanup) {
+            tb.cleanup = [];
+          }
+          tb.locations = jsonData.locations;
+          if (!tb.locations) {
+            tb.locations = [];
+          }
+          tb.sources = jsonData.sources;
+          if (!tb.sources) {
+            tb.sources = [];
+          }
+          tb.dataVersion = d;
+          console.log(
+            "Extension: " +
+              tb.dataVersion +
+              ", " +
+              tb.templates.length +
+              " templates." +
+              ", " +
+              tb.cleanup.length +
+              " cleanup." +
+              ", " +
+              tb.locations.length +
+              " locations" +
+              ", " +
+              tb.sources.length +
+              " sources."
+          );
+          chrome.storage.local.set({ alltemplates: jsonData });
+        }
+        if (tb.dataVersion.getTime() < new Date().getTime() - 6 * 3600 * 1000) {
+          // Loading of template definition From Web
+          fetch("https://wikitree.sdms.si/chrome/templatesExp.json")
+            .then((resp) => resp.json())
+            .then((jsonData) => {
+              const d = new Date(jsonData.version);
+              if (d.getTime() > tb.dataVersion.getTime()) {
+                // Web definition is newer
+                tb.templates = jsonData.templates;
+                tb.cleanup = jsonData.cleanup;
+                if (!tb.cleanup) {
+                  tb.cleanup = [];
+                }
+                tb.locations = jsonData.locations;
+                if (!tb.locations) {
+                  tb.locations = [];
+                }
+                tb.sources = jsonData.sources;
+                if (!tb.sources) {
+                  tb.sources = [];
+                }
+                tb.dataVersion = d;
+                console.log(
+                  "Web: " +
+                    tb.dataVersion +
+                    ", " +
+                    tb.templates.length +
+                    " templates." +
+                    ", " +
+                    tb.cleanup.length +
+                    " cleanup." +
+                    ", " +
+                    tb.locations.length +
+                    " locations" +
+                    ", " +
+                    tb.sources.length +
+                    " sources."
+                );
+                chrome.storage.local.set({ alltemplates: jsonData });
+              }
+            });
+        }
+      });
+  });
+}

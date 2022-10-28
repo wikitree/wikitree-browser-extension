@@ -17,7 +17,7 @@
     "matches": ["https://www.wikitree.com/*"],
     "resources": [
       "images/*",
-      "features/wt+/templatesExp.json",
+      "features/wtPlus/templatesExp.json",
       "features/darkMode/darkMode.css",
       "js/*.js"
     ]

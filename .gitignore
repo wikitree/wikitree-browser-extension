@@ -9,3 +9,5 @@ dist
 
 # test output files (used to compare to reference output files)
 *_testout.txt
+.eslintrc.js
+.vscode/settings.json

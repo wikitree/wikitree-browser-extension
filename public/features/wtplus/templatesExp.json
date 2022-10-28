@@ -1,5 +1,5 @@
 {
-	"version": "2022-09-28T15:49:22Z",
+	"version": "2022-10-27T16:16:20Z",
 "cleanup": [{
 	"description": "prettifying inline citation tags",
 	"actions": [{
@@ -1312,8 +1312,8 @@
 		"subgroup": "Ancestry",
 		"help": "To link to a shared document on Ancestry.",
 		"prop": [
-			{"name": "", "type": "typeNumber", "usage": "Required", "numbered": 1, "help": "The first number in the URL of the link, e.g.: <nowiki>https://www.ancestry.com/sharing/25304603?h=8b8bd6</nowiki>.", "example": "25304603", "validation": "num:7-8"},
-			{"name": "", "type": "typetext", "usage": "Required", "numbered": 2, "help": "The string after \"h=\" in the URL of the link, e.g.: <nowiki>https://www.ancestry.com/sharing/25304603?h=8b8bd6</nowiki>.", "example": "8b8bd6", "validation": "hex:5-6"}
+			{"name": "", "type": "typeNumber", "usage": "Required", "numbered": 1, "help": "The first number in the URL of the link, e.g.: <nowiki>https://www.ancestry.com/sharing/</nowiki>'''25304603'''?h=8b8bd6or or <nowiki>https://www.ancestry.com/sharing/</nowiki>'''130047'''?token=fueo0lzU7uYSbCYEezUKuLpE313y4cK2VdcT3PD9vG0%3D.", "example": "25304603", "validation": "num:5-8"},
+			{"name": "", "type": "typetext", "usage": "Required", "numbered": 2, "help": "The string after \"h=\" or \"?token=\" in the URL of the link, e.g.: <nowiki>https://www.ancestry.com/sharing/</nowiki>25304603?h='''8b8bd6''' or <nowiki>https://www.ancestry.com/sharing/</nowiki>130047?token='''fueo0lzU7uYSbCYEezUKuLpE313y4cK2VdcT3PD9vG0%3D'''.", "example": "8b8bd6", "validation": "hex:5-46"}
 		]
 	},{
 		"name": "Ancestry Tree",
@@ -1390,9 +1390,7 @@
 		"help": "Provides a link to Find A Grave, and helps define the correct memorial page for usage in WikiTree+ hints.",
 		"prop": [
 			{"name": "Memorial", "type": "typeFAGID", "usage": "Required", "numbered": 1, "help": "Defines a memorial number on FindAGrave of the person on the profile.", "validation": "num:1-9"},
-			{"name": "sameas", "type": "typeText", "usage": "Preferred", "values": ["yes", "no"], "help": "Defines if this is a memorial of the person on the profile.", "example": "no", "validation": "list"},
-			{"name": "date", "type": "typeText", "usage": "Deprecated", "numbered": 2, "help": "No longer used."},
-			{"name": "name", "type": "typeText", "usage": "Deprecated", "numbered": 3, "help": "No longer used."}
+			{"name": "sameas", "type": "typeText", "usage": "Optional", "values": ["yes", "no"], "help": "Defines if this is a memorial of the person on the profile.", "example": "no", "validation": "list"}
 		]
 	},{
 		"name": "Mendenhall",
@@ -2471,7 +2469,6 @@
 		"subgroup": "",
 		"help": "This template is to be used on profiles that are categorized for the Unknowns Project. It needs identification and improvement by YOU ! Thank you for improving the profile [[Project:Unknowns|The Unknowns Project]].",
 		"prop": [
-			{"name": "group", "type": "typeText", "usage": "Optional", "numbered": 1, "values": ["slave"], "help": "Used to document a special situation or group of people where a LNAB may be unknown.", "example": "slave", "validation": "list"}
 		]
 	},{
 		"name": "Conflated",
@@ -3351,9 +3348,9 @@
 			{"name": "Notable", "type": "typeText", "usage": "Optional", "numbered": 1, "values": ["Notable"], "help": "Changes text and tag.", "example": "Notable", "validation": "list"},
 			{"name": "lang", "type": "typeText", "usage": "Optional", "values": ["it"], "help": "Changes language of text (from English to Italian).", "example": "it", "validation": "list"},
 			{"name": "female", "type": "typeYes", "usage": "Optional", "values": ["yes"], "help": "Use to change gender-specific foreign language text to be appropriate for a female (needed for the Italian of \"notable Italian\").", "example": "yes", "validation": "list"},
-			{"name": "needs", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["Biography", "Birth Record", "Church Records", "Cleanup", "LNAB", "Sources"], "help": "Sets Italy Project Needs ... category on the profile.", "example": "Birth Record"},
-			{"name": "needs1", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["Biography", "Birth Record", "Church Records", "Cleanup", "LNAB", "Sources"], "help": "Sets Italy Project Needs ... category on the profile.", "example": "Church Records"},
-			{"name": "needs2", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["Biography", "Birth Record", "Church Records", "Cleanup", "LNAB", "Sources"], "help": "Sets Italy Project Needs ... category on the profile.", "example": "LNAB"}
+			{"name": "needs", "type": "typeProjectNeedsCategory", "usage": "Optional", "help": "Not currently used by the project."},
+			{"name": "needs1", "type": "typeProjectNeedsCategory", "usage": "Optional", "help": "Not currently used by the project."},
+			{"name": "needs2", "type": "typeProjectNeedsCategory", "usage": "Optional", "help": "Not currently used by the project."}
 		]
 	},{
 		"name": "Jewish Roots",
@@ -6730,7 +6727,7 @@
 		"subgroup": "UK",
 		"help": "This \"born in Wales\" sticker can be used on any profile of a person born in Wales.",
 		"prop": [
-			{"name": "county", "type": "typeText", "usage": "Optional", "numbered": 1, "values": ["Anglesey", "Brecknockshire", "Caernarfonshire", "Cardiganshire", "Carmarthenshire", "Denbighshire", "Flintshire", "Glamorganshire", "Merionethshire", "Monmouthshire", "Montgomeryshire", "Pembrokeshire", "Radnorshire"], "help": "One of the 13 historic counties of Wales.", "example": "Anglesey", "validation": "list"},
+			{"name": "county", "type": "typeText", "usage": "Optional", "numbered": 1, "values": ["Anglesey", "Brecknockshire", "Caernarfonshire", "Cardiganshire", "Carmarthenshire", "Denbighshire", "Flintshire", "Glamorgan", "Glamorganshire", "Merionethshire", "Monmouthshire", "Montgomeryshire", "Pembrokeshire", "Radnorshire"], "help": "One of the 13 historic counties of Wales.", "example": "Anglesey", "validation": "list"},
 			{"name": "location", "type": "typeText", "usage": "Optional", "numbered": 2, "help": "Can only be used after one of the 13 historic counties of Wales.", "example": "Torfaen"}
 		]
 	},{
@@ -6844,9 +6841,9 @@
 			{"name": "state", "type": "typeText", "usage": "Optional", "values": ["VA-WV", "VA-KY", "Alabama", "Georgia", "Kentucky", "Maryland", "Mississippi", "New York", "North Carolina", "Ohio", "Pennsylvania", "South Carolina", "Tennessee", "Virginia", "West Virginia"], "help": "Adds the state to the text with born and lived options. To add \"(now xx)\" text, use VA-WV or VA-KY. The state parameter also adds the corresponding Appalachians category (VA-WV & VA-KY add Virginia Appalachians).", "example": "Alabama", "validation": "list"},
 			{"name": "living", "type": "typeText", "usage": "Optional", "values": ["yes"], "help": "Changes default verb tense in text for \"... was an Appalachian\" (from \"was\" to \"is\") and for \"... lived in Appalachia\" (from \"lived\" to \"lives\"). Do not use this parameter if the verb tense does not need to be changed.", "example": "yes", "validation": "list"},
 			{"name": "project", "type": "typeText", "usage": "Optional", "values": ["yes"], "help": "Adds a link to the project.", "example": "yes", "validation": "list"},
-			{"name": "needs", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["Biography", "Research", "Sources"], "help": "Sets Appalachia Project Needs ... category on the profile.", "example": "Biography", "validation": "list"},
-			{"name": "needs1", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["Biography", "Research", "Sources"], "help": "Sets Appalachia Project Needs ... category on the profile.", "example": "Research", "validation": "list"},
-			{"name": "needs2", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["Biography", "Research", "Sources"], "help": "Sets Appalachia Project Needs ... category on the profile.", "example": "Sources", "validation": "list"}
+			{"name": "needs", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["Biography", "GEDCOM Cleanup", "Research", "Sources"], "help": "Sets Appalachia Project Needs ... category on the profile.", "example": "Biography", "validation": "list"},
+			{"name": "needs1", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["Biography", "GEDCOM Cleanup", "Research", "Sources"], "help": "Sets Appalachia Project Needs ... category on the profile.", "example": "Research", "validation": "list"},
+			{"name": "needs2", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["Biography", "GEDCOM Cleanup", "Research", "Sources"], "help": "Sets Appalachia Project Needs ... category on the profile.", "example": "Sources", "validation": "list"}
 		]
 	},{
 		"name": "Appalachian Roots",
@@ -6855,7 +6852,7 @@
 		"subgroup": "Appalachia",
 		"help": "This sticker may be used for any non-resident of Appalachia who has been identified as having Appalachian ancestry, including active WikiTree members. Use the [[Template:Appalachia Sticker|Appalachia Sticker]] for Appalachians.",
 		"prop": [
-			{"name": "state", "type": "typeText", "usage": "Optional", "values": ["VA-WV", "VA-KY", "KY-WV", "Alabama", "Georgia", "Kentucky", "Maryland", "Mississippi", "New York", "North Carolina", "Ohio", "Pennsylvania", "South Carolina", "Tennessee", "Virginia", "West Virginia"], "help": "Adds the state to the text. The combinations can be used as needed (e.g., VA-WV if your roots pre-date West Virginia's statehood, in 1863).", "example": "Virginia", "validation": "list"}
+			{"name": "state", "type": "typeText", "usage": "Optional", "values": ["VA-WV", "VA-KY", "Alabama", "Georgia", "Kentucky", "Maryland", "Mississippi", "New York", "North Carolina", "Ohio", "Pennsylvania", "South Carolina", "Tennessee", "Virginia", "West Virginia"], "help": "Adds the state to the text. The combinations can be used as needed (e.g., VA-WV if your roots pre-date West Virginia's statehood, in 1863).", "example": "Virginia", "validation": "list"}
 		]
 	},{
 		"name": "Austria Sticker",
@@ -7335,7 +7332,7 @@
 		"subgroup": "US",
 		"help": "This [[Help:Sticker|sticker]] identifies and recognizes profiles of people who were involved with the westward expansion of the United States. See the [[Project: Westward Ho|Westward Ho]] project page for more information and a list of sub-projects (which can also be seen in the Examples below).",
 		"prop": [
-			{"name": "sub-project", "type": "typeText", "usage": "Recommended", "values": ["Cowboys and Cowgirls", "Donner Party", "Homesteaders", "Immigrant Pioneers", "Lewis and Clark", "Lewis and Clark Expedition", "Pony Express", "Trails and Wagon Trains", "The Way West", "Wild Wild West"], "help": "Changes default image and text to be the sub-project, and adds the sub-project's category.", "example": "Homesteaders"},
+			{"name": "sub-project", "type": "typeText", "usage": "Preferred", "values": ["Cowboys and Cowgirls", "Donner Party", "Homesteaders", "Immigrant Pioneers", "Lewis and Clark", "Lewis and Clark Expedition", "Pony Express", "Trails and Wagon Trains", "The Way West", "Wild Wild West"], "help": "Changes default image and text to be the sub-project, and adds the sub-project's category.", "example": "Homesteaders"},
 			{"name": "name", "type": "typeText", "usage": "Optional", "help": "Can be added to override the default name (which pulls information from the profile's name fields).", "example": "Jersey Pete"},
 			{"name": "location", "type": "typeText", "usage": "Optional", "help": "Use this parameter with sub-project=Homesteaders to change the default text and category to a specific location. Be sure to check the profile after adding this parameter to ensure the category exists (if the category name is in red, it does not exist). All relevant county and state categories already exist (see [https://wikitree.sdms.si/function/WTCatNavigate/Category.htm?Category=Homesteaders&Levels=3 this list]).", "example": "Frontier County, Nebraska"},
 			{"name": "trail", "type": "typeText", "usage": "Optional", "help": "Can be used with the sub-project=Trails and Wagon Trains to add the trail.", "example": "Oregon Trail"},
