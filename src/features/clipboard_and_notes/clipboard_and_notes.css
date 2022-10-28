@@ -198,5 +198,18 @@ body.qa-body-js-on .deleteClippingButton {
 }
 
 #toolbar .clipboardButtons {
-  top: auto;
+  top: auto !important;
+}
+
+#clipboardInfo {
+  display: block;
+  margin: 1.5em auto;
+  width: 37em;
+}
+#clipboardInfo b {
+  cursor: pointer;
+}
+#clipboardInfo a {
+  padding: 0.2em;
+  margin: 0;
 }
