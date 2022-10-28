@@ -15,10 +15,7 @@ chrome.storage.sync.get("distanceAndRelationship", (result) => {
     // set up databases
     window.connectionFinderDBVersion = 1;
     window.relationshipFinderDBVersion = 1;
-    const connectionFinderResultsDBReq = window.indexedDB.open(
-      "ConnectionFinderWTE",
-      window.connectionFinderDBVersion
-    );
+    const connectionFinderResultsDBReq = window.indexedDB.open("ConnectionFinderWTE", window.connectionFinderDBVersion);
     connectionFinderResultsDBReq.addEventListener("upgradeneeded", (event) => {
       var request = event.target;
       // @type IDBDatabase
@@ -40,25 +37,22 @@ chrome.storage.sync.get("distanceAndRelationship", (result) => {
       "RelationshipFinderWTE",
       window.relationshipFinderDBVersion
     );
-    relationshipFinderResultsDBReq.addEventListener(
-      "upgradeneeded",
-      (event) => {
-        var request = event.target;
-        // @type IDBDatabase
-        var db = request.result;
-        // @type IDBTransaction
-        var txn = request.transaction;
-        if (event.oldVersion < 1) {
-          const objectStore = db.createObjectStore("relationship", {
-            keyPath: "id",
-          });
-        } else {
-          // @type IDBObjectStore
-          var store = txn.objectStore("relationship");
-          store.createIndex("id");
-        }
+    relationshipFinderResultsDBReq.addEventListener("upgradeneeded", (event) => {
+      var request = event.target;
+      // @type IDBDatabase
+      var db = request.result;
+      // @type IDBTransaction
+      var txn = request.transaction;
+      if (event.oldVersion < 1) {
+        const objectStore = db.createObjectStore("relationship", {
+          keyPath: "id",
+        });
+      } else {
+        // @type IDBObjectStore
+        var store = txn.objectStore("relationship");
+        store.createIndex("id");
       }
-    );
+    });
 
     // Do it
     connectionFinderResultsDBReq.onsuccess = function (event) {
@@ -71,14 +65,15 @@ chrome.storage.sync.get("distanceAndRelationship", (result) => {
         if (aRequest.result == undefined) {
           initDistanceAndRelationship(userID, profileID);
         } else {
-          if ($("#distanceFromYou").length == 0) {
+          if ($("#distanceFromYou").length == 0 && $("#degreesFromYou").length == 0 && aRequest.result.distance > 0) {
+            // #degreesFromYou is in WT BEE.  If this is showing, don't show this (for now)
             const profileName = $("h1 span[itemprop='name']").text();
             $("h1").append(
               $(
                 `<span id='distanceFromYou' title='${profileName} is ${aRequest.result.distance} degrees from you. \nClick to refresh.'>${aRequest.result.distance}°</span>`
               )
             );
-            $("#distanceFromYou").click(function (e) {
+            $("#distanceFromYou").on("click", function (e) {
               e.preventDefault();
               $(this).fadeOut("slow").remove();
               $("#yourRelationshipText").fadeOut("slow").remove();
@@ -106,10 +101,7 @@ chrome.storage.sync.get("distanceAndRelationship", (result) => {
               $("#ancestorListBox").length == 0
             ) {
               $("#yourRelationshipText").remove();
-              addRelationshipText(
-                aRequest2.result.relationship,
-                aRequest2.result.commonAncestors
-              );
+              addRelationshipText(aRequest2.result.relationship, aRequest2.result.commonAncestors);
             }
           }
         } else {
@@ -209,9 +201,7 @@ function addRelationshipText(oText, commonAncestors) {
     initDistanceAndRelationship(id1, id2, true);
   });
   if (commonAncestorTextResult.count > 2) {
-    $("#yourRelationshipText").append(
-      $("<button class='small' id='showMoreAncestors'>More</button>")
-    );
+    $("#yourRelationshipText").append($("<button class='small' id='showMoreAncestors'>More</button>"));
     $("#showMoreAncestors").click(function (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -223,9 +213,7 @@ function addRelationshipText(oText, commonAncestors) {
 function commonAncestorText(commonAncestors) {
   let result = {};
   let ancestorTextOut = "";
-  const profileGender = $("body")
-    .find("meta[itemprop='gender']")
-    .attr("content");
+  const profileGender = $("body").find("meta[itemprop='gender']").attr("content");
   let possessiveAdj = "their";
   if (profileGender == "male") {
     possessiveAdj = "his";
@@ -280,14 +268,8 @@ function doRelationshipText(userID, profileID) {
           .text()
           .replaceAll(/[\t\n]/g, "");
         let secondName = dummy.find("b").parent().text().split(out)[1];
-        const userFirstName = dummy
-          .find(`p a[href\$='${userID}']`)
-          .eq(0)
-          .text()
-          .split(" ")[0];
-        const profileFirstName = $("h1 span[itemprop='name']")
-          .text()
-          .split(" ")[0];
+        const userFirstName = dummy.find(`p a[href\$='${userID}']`).eq(0).text().split(" ")[0];
+        const profileFirstName = $("h1 span[itemprop='name']").text().split(" ")[0];
         if (data.commonAncestors.length == 0) {
           out = dummy.find("b").text();
 
@@ -295,9 +277,7 @@ function doRelationshipText(userID, profileID) {
             out = dummy.find("h2").text().replace("(DNA Confirmed)", "").trim();
           }
         } else {
-          const profileGender = $("body")
-            .find("meta[itemprop='gender']")
-            .attr("content");
+          const profileGender = $("body").find("meta[itemprop='gender']").attr("content");
           if (oh2.match("is the")) {
             out = oh2.split("is the ")[1].split(" of")[0];
           } else if (oh2.match(" are ")) {
@@ -355,12 +335,7 @@ function doRelationshipText(userID, profileID) {
           relationship: out,
           commonAncestors: data.commonAncestors,
         };
-        addToDB(
-          "RelationshipFinderWTE",
-          window.relationshipFinderDBVersion,
-          "relationship",
-          obj
-        );
+        addToDB("RelationshipFinderWTE", window.relationshipFinderDBVersion, "relationship", obj);
       };
     }
   });
@@ -370,15 +345,15 @@ async function addDistance(data) {
   if ($("#degreesFromYou").length == 0) {
     window.distance = data.path.length - 1;
     const profileName = $("h1 span[itemprop='name']").text();
-    $("h1").append(
-      $(
-        `<span id='distanceFromYou' title='${profileName} is ${window.distance} degrees from you.'>${window.distance}°</span>`
-      )
-    );
-    const connectionFinderResultsDBReq = window.indexedDB.open(
-      "ConnectionFinder",
-      window.connectionFinderDBVersion
-    );
+    if (window.distance > 0 && $("#degreesFromYou").length == 0) {
+      // #degreesFromYou is in WT BEE.  If this is showing, don't show this (for now)
+      $("h1").append(
+        $(
+          `<span id='distanceFromYou' title='${profileName} is ${window.distance} degrees from you.'>${window.distance}°</span>`
+        )
+      );
+    }
+    const connectionFinderResultsDBReq = window.indexedDB.open("ConnectionFinder", window.connectionFinderDBVersion);
     connectionFinderResultsDBReq.onsuccess = function (event) {
       var connectionFinderResultsDB = event.target.result;
       const profileID = $("a.pureCssMenui0 span.person").text();
@@ -388,12 +363,7 @@ async function addDistance(data) {
         id: profileID,
         distance: window.distance,
       };
-      addToDB(
-        "ConnectionFinderWTE",
-        window.connectionFinderDBVersion,
-        "distance",
-        obj
-      );
+      addToDB("ConnectionFinderWTE", window.connectionFinderDBVersion, "distance", obj);
     };
     connectionFinderResultsDBReq.onerror = function (error) {
       console.log(error);
@@ -494,17 +464,11 @@ function initDistanceAndRelationship(userID, profileID, clicked = false) {
       const nowTime = Date.parse(Date());
       let timeDifference = 0;
       if (person.Created) {
-        const created = Date.parse(
-          person.Created.substr(0, 8).replace(/(....)(..)(..)/, "$1-$2-$3")
-        );
+        const created = Date.parse(person.Created.substr(0, 8).replace(/(....)(..)(..)/, "$1-$2-$3"));
         timeDifference = nowTime - created;
       }
       const nineDays = 777600000;
-      if (
-        person.Privacy > 29 &&
-        person.Connected == 1 &&
-        timeDifference > nineDays
-      ) {
+      if (person.Privacy > 29 && person.Connected == 1 && timeDifference > nineDays) {
         getDistance();
         doRelationshipText(userID, profileID);
       }
