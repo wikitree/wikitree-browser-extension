@@ -54,17 +54,13 @@ This function returns a Promise so it can be used in a couple of different ways:
 
 1. Using then:
 
-  checkIfFeatureEnabled("agc").then((result) => {
-    if (result) {
-      initAgc();
-    }
+  getEnabledStateForAllFeatures().then((featuresEnabled) => {
+    ...
   });
 
 2. Using await:
 
-  if (await checkIfFeatureEnabled("agc") {
-    initAgc();
-  });
+  const featuresEnabled = await getEnabledStateForAllFeatures();
 */
 
 async function getEnabledStateForAllFeatures() {
