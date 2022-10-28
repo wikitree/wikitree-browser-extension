@@ -25,30 +25,28 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * only contains a subset of the complete set of data available
  */
 export class PersonDate {
-
   static TOO_OLD_TO_REMEMBER_DEATH = 100;
   static TOO_OLD_TO_REMEMBER_BIRTH = 150;
 
   personDate = {
-    birthDate: null,                // birth date as Date
-    deathDate: null,                // death date as Date
-    birthDateString: "",            // birth date string as from server
-    deathDateString: "",            // death date string as from server
+    birthDate: null, // birth date as Date
+    deathDate: null, // death date as Date
+    birthDateString: "", // birth date string as from server
+    deathDateString: "", // death date string as from server
     hasBirthDate: true,
     hasDeathDate: true,
-    lastDateCheckedEmpty: false,   // HACK
+    lastDateCheckedEmpty: false, // HACK
     oneYearAgo: null,
     isPre1700: false,
     isPre1500: false,
     tooOldToRemember: false,
     personUndated: false,
-  }
+  };
 
   /**
    * constructor
    */
-  constructor() {
-  }
+  constructor() {}
 
   /**
    * Initialize person dates from null, 0000 or various forms
@@ -58,14 +56,14 @@ export class PersonDate {
   initWithDates(bDay, dDay) {
     this.personDate.birthDate = null;
     this.personDate.deathDate = null;
-    if ((bDay != null) && (bDay.length > 0)) {
+    if (bDay != null && bDay.length > 0) {
       this.personDate.birthDateString = bDay;
       this.personDate.birthDate = this.getDate(this.personDate.birthDateString);
     }
     if (this.personDate.lastDateCheckedEmpty) {
       this.personDate.hasBirthDate = false;
     }
-    if ((dDay != null) && (dDay.length > 0)) {
+    if (dDay != null && dDay.length > 0) {
       this.personDate.deathDateString = dDay;
       this.personDate.deathDate = this.getDate(this.personDate.deathDateString);
     }
@@ -83,7 +81,6 @@ export class PersonDate {
    * @param profileObj containing the profile
    */
   init(profileObj) {
-
     if (profileObj.BirthDate != null) {
       this.personDate.birthDateString = profileObj.BirthDate;
       this.personDate.birthDate = this.getDate(this.personDate.birthDateString);
@@ -113,7 +110,6 @@ export class PersonDate {
     this.isPersonPre1500();
     this.isPersonPre1700();
     this.mustBeOpen();
-
   }
 
   /**
@@ -124,10 +120,10 @@ export class PersonDate {
    * @return Date for the input string
    */
   getDate(dateString) {
-    let year = 0;             // default in case of 0 values
+    let year = 0; // default in case of 0 values
     let month = 0;
     let day = 0;
-    this.personDate.lastDateCheckedEmpty = false;    // hack hack
+    this.personDate.lastDateCheckedEmpty = false; // hack hack
     let splitString = dateString.split("-");
     let len = splitString.length;
     if (len > 0) {
@@ -139,7 +135,7 @@ export class PersonDate {
     if (len >= 2) {
       day = splitString[2];
     }
-    if ((year + month + day) === 0) {
+    if (year + month + day === 0) {
       this.personDate.lastDateCheckedEmpty = true;
     }
     if (year === 0) {
@@ -151,7 +147,7 @@ export class PersonDate {
     if (day === 0) {
       day = 1;
     }
-    return (new Date(year, month, day));
+    return new Date(year, month, day);
   }
 
   /**
@@ -222,7 +218,7 @@ export class PersonDate {
     /*
      * Since you already have today, pick up the date to use for
      * a source will be entered by xxxx tests
-    */
+     */
     this.oneYearAgo = new Date(year - 1, month, day);
     return this.personDate.tooOldToRemember;
   }
@@ -245,14 +241,14 @@ export class PersonDate {
   /**
    * Get birth date
    * @return birth date as Date
-  */
+   */
   getBirthDate() {
     return this.personDate.birthDate;
   }
   /**
    * Get death date
    * @return death date as Date
-  */
+   */
   getDeathDate() {
     return this.personDate.deathDate;
   }
@@ -263,7 +259,6 @@ export class PersonDate {
    * @return string in the form yyyy mon dd
    */
   getReportDate(isBirth) {
-
     // handle cases without any date. sigh.
     let dateString = "";
     let hasDate = this.personDate.hasDeathDate;
@@ -279,7 +274,7 @@ export class PersonDate {
     }
     let displayDate = "";
     if (hasDate) {
-      let year = 0;             // default in case of 0 values
+      let year = 0; // default in case of 0 values
       let month = 0;
       let day = 0;
       let splitString = dateString.split("-");
@@ -297,9 +292,9 @@ export class PersonDate {
         displayDate = day + " ";
       }
       if (month > 0) {
-        let months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         let monthNumber = parseInt(month);
-        let monthName = months[monthNumber-1];
+        let monthName = months[monthNumber - 1];
         displayDate += monthName + " ";
       }
       if (year > 0) {
@@ -308,5 +303,4 @@ export class PersonDate {
     }
     return displayDate;
   }
-
 }
