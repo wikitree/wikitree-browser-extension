@@ -1,9 +1,18 @@
 chrome.runtime.onInstalled.addListener(function (details) {
   if (details.reason == "install") {
     chrome.runtime.openOptionsPage();
-    window.open("https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension");
+    chrome.tabs.create({
+      url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension",
+      active: true,
+    });
+    window.open();
   } else if (details.reason == "update") {
-    // Remove the slashes below after a significant update (e.g. a new feature).
-    window.open("https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension_Update");
+    // Use this to load the extension update page on update
+    /*
+    chrome.tabs.create({
+      url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension_Update",
+      active: true,
+    });
+    */
   }
 });
