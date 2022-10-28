@@ -5,7 +5,6 @@ chrome.runtime.onInstalled.addListener(function (details) {
       url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension",
       active: true,
     });
-    window.open();
   } else if (details.reason == "update") {
     // Use this to open the extension update page on update
 
