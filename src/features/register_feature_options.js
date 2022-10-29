@@ -151,6 +151,7 @@ registerFeature({
   id: "clipboardAndNotes",
   description: "Keep useful things for pasting in the clipboard and useful notes in the notes.",
   category: "Global",
+  defaultValue: false,
 });
 
 registerFeature({
