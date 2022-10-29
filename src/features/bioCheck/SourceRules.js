@@ -514,7 +514,6 @@ class SourceRules {
     "husket av",
     "first-hand information",
     "eigen kennis",
-    "unsourced family tree handed down",
   ];
 
   // line by itself
@@ -691,6 +690,7 @@ class SourceRules {
     "world family tree",
     "derbund wft",
     "www.gencircles.com",
+    "unsourced family tree handed down",
   ];
 
   // make this a singleton
