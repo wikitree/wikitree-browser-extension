@@ -1,7 +1,6 @@
 import $ from "jquery";
 import { getRandomProfile } from "../../core/common";
-import { getPerson } from "wikitree-js";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage"
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("randomProfile").then((result) => {
   if (result && $("body.BEE").length == 0) {
