@@ -49,6 +49,7 @@ registerFeature({
   id: "myFeature",
   description: "This feature does stuff.",
   category: "Global",
+  defaultValue: true,
 });
 ```
 
@@ -63,6 +64,7 @@ const myExampleFeature = {
   id: "myFeature",
   description: "This feature does stuff.",
   category: "Global",
+  defaultValue: true,
   options: [
     {
       id: "myFirstOption",

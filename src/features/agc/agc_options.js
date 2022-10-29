@@ -7,6 +7,7 @@ const agcFeature = {
   description:
     "Reformats a biography and updates data fields when the profile was created from a GEDCOM.",
   category: "Editing",
+  defaultValue: true,
   options: [
     {
       id: "bioMainText",

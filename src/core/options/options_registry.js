@@ -68,4 +68,4 @@ function getDefaultOptionValuesForFeature(featureId, useTestDefaults = false) {
   return defaultValues;
 }
 
-export { registerFeature, features, getDefaultOptionValuesForFeature, OptionType };
+export { registerFeature, features, getDefaultOptionValuesForFeature, OptionType, getFeatureData };

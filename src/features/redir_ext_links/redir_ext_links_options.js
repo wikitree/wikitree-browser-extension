@@ -5,6 +5,7 @@ const redirExtLinksFeature = {
   id: "redirExtLinks",
   description: "Updates links to external sites to point to user desired domains.",
   category: "Profile",
+  defaultValue: false,
   options: [
     {
       id: "ancestryOldLinks",

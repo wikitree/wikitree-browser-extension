@@ -4,6 +4,7 @@ import editToolbarProfileOptions from "./editToolbarProfileOptions";
 import editToolbarTemplateOptions from "./editToolbarTemplateOptions";
 import editToolbarSpaceOptions from "./editToolbarSpaceOptions";
 import "./editToolbar.css";
+import { getEnabledStateForAllFeatures } from "./options/options_storage"
 
 let editToolbarOptions = [];
 
@@ -91,17 +92,18 @@ function editToolbarCreateHtml(items, featureEnabled, level) {
 }
 
 /* creates menu next to the toolbar  */
-function editToolbarCreate(options) {
+async function editToolbarCreate(options) {
   editToolbarOptions = options;
-  chrome.storage.sync.get(null, (featureEnabled) => {
-    var menuHTML = editToolbarCreateHtml(editToolbarOptions, featureEnabled, -1);
-    document
-      .getElementById("toolbar")
-      .insertAdjacentHTML("afterend", '<div id="editToolbarExt">' + menuHTML + "</div>");
-    document
-      .querySelectorAll("a.editToolbarClick")
-      .forEach((i) => i.addEventListener("click", (event) => editToolbarEvent(event)));
-  });
+
+  const featureEnabled = await getEnabledStateForAllFeatures();
+
+  var menuHTML = editToolbarCreateHtml(editToolbarOptions, featureEnabled, -1);
+  document
+    .getElementById("toolbar")
+    .insertAdjacentHTML("afterend", '<div id="editToolbarExt">' + menuHTML + "</div>");
+  document
+    .querySelectorAll("a.editToolbarClick")
+    .forEach((i) => i.addEventListener("click", (event) => editToolbarEvent(event)));
 }
 
 if (window.location.href.match(/\/index.php\?title=Special:EditPerson&.*/g)) {
