@@ -7,7 +7,7 @@ import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/opt
 
 checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
   if (result && $(".clipboardButtons").length == 0) {
-    // additional code
+    // BEE class
     window.clipboardClicker = $();
     window.lastClipboardClicker = $();
 
@@ -189,9 +189,9 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
         aClipboard.insertAfter($("#toolbar,#mEmail"));
       } else if (window.clipboardClicker != undefined) {
         if (window.clipboardClicker.parent().hasClass("answerForm")) {
-          aClipboard.insertAfter($("form[name='a_form'] .clipboardButtons"));
+          aClipboard.insertAfter($("form[name='a_form'] .theClipboardButtons"));
         } else if (window.clipboardClicker.parent().hasClass("commentForm")) {
-          aClipboard.insertAfter($(".qa-c-form .clipboardButtons"));
+          aClipboard.insertAfter($(".qa-c-form .theClipboardButtons"));
         } else {
           aClipboard.insertAfter($("#header,.qa-header"));
         }
@@ -425,14 +425,14 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
       clipboardReq.onsuccess = function (event) {
         let clipboardDB = event.target.result;
         const clipboardButtons = $(
-          "<span class='clipboardButtons'><img class='button small clipboardButton'  src='" +
+          "<span class='theClipboardButtons'><img class='button small aClipboardButton'  src='" +
             chrome.runtime.getURL("images/clipboard.png") +
-            "'><img class='button small notesButton'  src='" +
+            "'><img class='button small aNotesButton'  src='" +
             chrome.runtime.getURL("images/notes.png") +
             "'></span>"
         );
 
-        if ($("body.page-Special_EditPerson").length && $(".clipboardButtons").length == 0) {
+        if ($("body.page-Special_EditPerson").length && $(".theClipboardButtons").length == 0) {
           $("#toolbar").append(clipboardButtons);
         } else if ($("body.page-Special_EditFamily").length) {
           $("#mEmail").after(clipboardButtons);
@@ -440,20 +440,18 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
           $("#header,#HEADER").append(clipboardButtons);
         }
 
-        let clipboardButtons2 = $(".clipboardButtons").clone(true);
+        let clipboardButtons2 = $(".theClipboardButtons").clone(true);
         $(".qa-a-form .qa-form-tall-table,.qa-c-form .qa-form-tall-table").before(clipboardButtons2);
-        $("form[name='a_form'] .clipboardButtons").addClass("answerForm");
-        $(".qa-c-form .clipboardButtons").addClass("commentForm");
+        $("form[name='a_form'] .theClipboardButtons").addClass("answerForm");
+        $(".qa-c-form .theClipboardButtons").addClass("commentForm");
 
         $("#toolbar + br").remove();
-        $(".clipboardButton").each(function () {
-          $(this).click(function (e) {
+        $(".aClipboardButton").each(function () {
+          $(this).on("click", function (e) {
             e.preventDefault();
-
             window.clipboardClicker = $(this);
             let ccpc = window.clipboardClicker.parent().attr("class");
             let lccpc = window.lastClipboardClicker.parent().attr("class");
-
             if ($("#clipboard").data("type") == "notes") {
               $("#clipboard").remove();
               clipboard("clipboard");
@@ -468,7 +466,7 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
             window.lastClipboardClicker = window.clipboardClicker;
           });
         });
-        $(".notesButton").each(function () {
+        $(".aNotesButton").each(function () {
           $(this).on("click", function (e) {
             e.preventDefault();
             window.clipboardClicker = $(this);

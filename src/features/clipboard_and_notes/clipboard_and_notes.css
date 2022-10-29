@@ -76,7 +76,7 @@
   font-weight: normal;
 }
 
-.clipboardButtons {
+.theClipboardButtons {
   position: relative;
   top: 0.5em;
   display: inline-block;
@@ -86,15 +86,15 @@ form[name="a_form"] {
   position: relative;
 }
 
-.qa-a-form .clipboardButtons {
+.qa-a-form .theClipboardButtons {
   position: absolute;
   top: -1em;
   display: inline-block;
   margin-top: 0;
 }
 
-.clipboardButtons img.clipboardButton.button.small,
-.clipboardButtons img.notesButton.button.small {
+.theClipboardButtons img.aClipboardButton.button.small,
+.theClipboardButtons img.aNotesButton.button.small {
   height: 1em;
   width: 1.2em;
   display: inline-block;
@@ -150,7 +150,7 @@ button.addToMyPlaces {
   margin: 0.3em;
 }
 
-#header .clipboardButtons {
+#header .theClipboardButtons {
   top: 0;
   left: 0.2em;
 }
@@ -159,7 +159,7 @@ button.addToMyPlaces {
   position: relative;
 }
 
-.qa-header .clipboardButtons {
+.qa-header .theClipboardButtons {
   z-index: 1000;
   position: absolute;
   top: 1em;
@@ -197,7 +197,7 @@ body.qa-body-js-on .deleteClippingButton {
   font: inherit;
 }
 
-#toolbar .clipboardButtons {
+#toolbar .theClipboardButtons {
   top: auto !important;
 }
 
