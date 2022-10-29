@@ -1,5 +1,6 @@
 import $ from "jquery";
 import { getRandomProfile } from "../../core/common";
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 chrome.storage.sync.get("randomProfile", (result) => {
   if (result.randomProfile && $("body.BEE").length == 0) {
