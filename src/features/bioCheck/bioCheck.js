@@ -25,31 +25,36 @@ checkIfFeatureEnabled("bioCheck").then((result) => {
       checkBio();
 
       let saveDraftButton = document.getElementById("wpSaveDraft");
-      saveDraftButton.onclick = function () {
+      if (saveDraftButton) {
+        saveDraftButton.onclick = function () {
         checkBio();
-      };
-      saveDraftButton.addEventListener("mouseover", checkBioAtInterval);
-      saveDraftButton.addEventListener("touchstart", checkBioAtInterval);
-      let saveButton = document.getElementById("wpSave");
-      saveButton.addEventListener("mouseover", checkBioAtInterval);
-      saveButton.addEventListener("touchstart", checkBioAtInterval);
+        };
+        saveDraftButton.addEventListener("mouseover", checkBioAtInterval);
+        saveDraftButton.addEventListener("touchstart", checkBioAtInterval);
+        let saveButton = document.getElementById("wpSave");
+        saveButton.addEventListener("mouseover", checkBioAtInterval);
+        saveButton.addEventListener("touchstart", checkBioAtInterval);
 
-      // and also once a minute
-      setInterval(checkBioAtInterval, 60000);
+        // and also once a minute
+        setInterval(checkBioAtInterval, 60000);
+      }
     } else {
       if (document.body.classList.contains("page-Special_EditFamily")) {
-        // Find the save button. For Add Person there is just one
-        // For adding a relative there are two, and you want the second
-        let buttonElements = document.querySelectorAll("[id='wpSave']");
-        let saveButton = buttonElements[buttonElements.length - 1];
-        // check on save or if or something might be about to happen
-        saveButton.onclick = function () {
-          checkSources();
-        };
-        saveButton.addEventListener("mouseover", checkSourcesAtInterval);
-        saveButton.addEventListener("touchstart", checkSourcesAtInterval);
+        
+        if(document.getElementById('mSources')) {
+          // Find the save button. For Add Person there is just one
+          // For adding a relative there are two, and you want the second
+          let buttonElements = document.querySelectorAll("[id='wpSave']");
+          let saveButton = buttonElements[buttonElements.length - 1];
+          // check on save or if or something might be about to happen
+          saveButton.onclick = function () {
+            checkSources();
+          };
+          saveButton.addEventListener("mouseover", checkSourcesAtInterval);
+          saveButton.addEventListener("touchstart", checkSourcesAtInterval);
 
-        setInterval(checkSourcesAtInterval, 30000);
+          setInterval(checkSourcesAtInterval, 30000);
+        }
       } else {
         if (document.body.classList.contains("page-Special_WatchedList")) {
           checkWatchlist();
