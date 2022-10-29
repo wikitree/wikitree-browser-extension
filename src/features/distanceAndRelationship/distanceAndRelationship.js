@@ -1,7 +1,7 @@
 import $ from "jquery";
 import Cookies from "js-cookie";
 import "./distanceAndRelationship.css";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage"
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("distanceAndRelationship").then((result) => {
   // define user and profile IDs
@@ -269,9 +269,12 @@ function doRelationshipText(userID, profileID) {
           .eq(0)
           .text()
           .replaceAll(/[\t\n]/g, "");
+        let out = dummy.find("b").text();
         let secondName = dummy.find("b").parent().text().split(out)[1];
         const userFirstName = dummy.find(`p a[href\$='${userID}']`).eq(0).text().split(" ")[0];
         const profileFirstName = $("h1 span[itemprop='name']").text().split(" ")[0];
+
+        console.log(secondName, userFirstName, profileFirstName, dummy);
         if (data.commonAncestors.length == 0) {
           out = dummy.find("b").text();
 
