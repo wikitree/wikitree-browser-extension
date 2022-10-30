@@ -460,6 +460,8 @@ function initDistanceAndRelationship(userID, profileID, clicked = false) {
         getDistance();
         doRelationshipText(userID, profileID);
       }
+    }).catch((error) => {
+      console.log(error);
     });
   }
 }
