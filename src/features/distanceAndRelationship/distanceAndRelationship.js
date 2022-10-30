@@ -1,6 +1,6 @@
 import $ from "jquery";
 import Cookies from "js-cookie";
-import {getPerson} from 'wikitree-js';
+import { getPerson } from "wikitree-js";
 import "./distanceAndRelationship.css";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
@@ -13,7 +13,8 @@ checkIfFeatureEnabled("distanceAndRelationship").then((result) => {
     $("body.BEE").length == 0 &&
     $("body.profile").length &&
     window.location.href.match("Space:") == null &&
-    profileID != userID
+    profileID != userID &&
+    profileID != ""
   ) {
     // set up databases
     window.connectionFinderDBVersion = 1;
@@ -448,21 +449,23 @@ function initDistanceAndRelationship(userID, profileID, clicked = false) {
     getDistance();
     doRelationshipText(userID, profileID);
   } else {
-    getPerson(profileID).then((person) => {
-      const nowTime = Date.parse(Date());
-      let timeDifference = 0;
-      if (person.Created) {
-        const created = Date.parse(person.Created.substr(0, 8).replace(/(....)(..)(..)/, "$1-$2-$3"));
-        timeDifference = nowTime - created;
-      }
-      const nineDays = 777600000;
-      if (person.Privacy > 29 && person.Connected == 1 && timeDifference > nineDays) {
-        getDistance();
-        doRelationshipText(userID, profileID);
-      }
-    }).catch((error) => {
-      console.log(error);
-    });
+    getPerson(profileID)
+      .then((person) => {
+        const nowTime = Date.parse(Date());
+        let timeDifference = 0;
+        if (person.Created) {
+          const created = Date.parse(person.Created.substr(0, 8).replace(/(....)(..)(..)/, "$1-$2-$3"));
+          timeDifference = nowTime - created;
+        }
+        const nineDays = 777600000;
+        if (person.Privacy > 29 && person.Connected == 1 && timeDifference > nineDays) {
+          getDistance();
+          doRelationshipText(userID, profileID);
+        }
+      })
+      .catch((error) => {
+        console.log(error);
+      });
   }
 }
 
