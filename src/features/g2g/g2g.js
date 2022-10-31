@@ -16,26 +16,21 @@ function escapeRegExp(str) {
 }
 
 function g2gCats() {
-  getSync([
-    "w_houseCheck",
-    "w_appreciationCheck",
-    "w_genealogyCheck",
-    "w_photosCheck",
-    "w_projectsCheck",
-    "w_volunteersCheck",
-    "w_helpCheck",
-    "w_techCheck",
-  ]).then((sync) => {
-    catLinks = $(".qa-q-item-where-data a");
-    catLinks.each(function () {
-      oCatBits = $(this).attr("href").split("/");
-      oCat = oCatBits[oCatBits.length - 1];
-      qBox = $(this).closest("div[id]");
+  catLinks = $(".qa-q-item-where-data a");
+  catLinks.each(function () {
+    oCatBits = $(this).attr("href").split("/");
+    oCat = oCatBits[oCatBits.length - 1];
+    qBox = $(this).closest("div[id]");
+    /*
       if (sync["w_" + oCat + "Check"] == 0) {
         qBox.hide();
       } else {
         qBox.show();
       }
-    });
+*/
   });
+}
+
+function g2gCheckmarks() {
+  $("div.qa-q-item-title a,span.qa-q-item-meta a.qa-q-item-what").prepend("<span class='checkmark'>&#10003;</span>");
 }
