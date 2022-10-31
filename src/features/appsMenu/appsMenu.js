@@ -1,36 +1,62 @@
 import $ from "jquery";
 import Cookies from "js-cookie";
 import "./appsMenu.css";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage"
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("appsMenu").then((result) => {
   if (result) {
     // Add a menu if WikiTree BEE hasn't already done so.
     if ($("#appsSubMenu").length == 0) {
-      addAppsMenu();
+      attachAppsMenu();
     }
   }
 });
 
-async function getAppsMenu() {
-  try {
-    const result = await $.ajax({
-      url: "https://wikitreebee.com/BEE.php?q=apps_menu",
-      crossDomain: true,
-      type: "POST",
-      dataType: "json",
-    });
-    return result.apps_menu;
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-function attachAppsMenu(menu) {
+function attachAppsMenu() {
   const mWTID = Cookies.get("wikitree_wtb_UserName");
   const profileID = $("a.pureCssMenui0 span.person").text();
   const appsList = $("<menu class='subMenu' id='appsSubMenu'></menu>");
-  menu.forEach(function (app) {
+  const theMenu = [
+    { title: "Ancestor Explorer", URL: "https://apps.wikitree.com/apps/ashley1950/ancestorexplorer" },
+    { title: "Ancestor Statistics", URL: "https://apps.wikitree.com/apps/nelson3486/stats/" },
+    { title: "Ancestry Citation Builder", URL: "https://apps.wikitree.com/apps/clarke11007/ancite.php" },
+    { title: "Antenati Citation Builder", URL: "https://apps.wikitree.com/apps/clarke11007/antenati.php" },
+    {
+      title: "Bio Check",
+      URL: "https://apps.wikitree.com/apps/sands1865/biocheck/?action=checkProfile&profileId=profileID",
+    },
+    { title: "Brick Walls", URL: "https://apps.wikitree.com/apps/nelson3486/brickwalls/" },
+    { title: "Check Stickers", URL: "https://apps.wikitree.com/apps/anderson23510/stickers/" },
+    { title: "Cemetery Mapping", URL: "https://apps.wikitree.com/apps/harris5439/cemeteries/" },
+    { title: "CC7 Table", URL: "https://apps.wikitree.com/apps/beacall6/cc7_table.php?id=mWTID" },
+    { title: "DNA Confirmation Citation Maker", URL: "https://apps.wikitree.com/apps/clarke11007/DNAconf.php" },
+    { title: "Family Group App", URL: "https://apps.wikitree.com/apps/beacall6/familySheet.php" },
+    { title: "FamilySearch Matches", URL: "https://apps.wikitree.com/apps/york1423/fs-match" },
+    { title: "Fan Chart", URL: "https://apps.wikitree.com/apps/clarke11007/fan.php" },
+    { title: "Feeds -> Excel", URL: "https://apps.wikitree.com/apps/beacall6/contributions.php" },
+    {
+      title: "Genealogietools.nl",
+      URL: "https://www.wikitree.com/wiki/Space:Genealogietools.nl_-_WieWasWie_formatter",
+    },
+    { title: "Missing Links", URL: "https://apps.wikitree.com/apps/nelson3486/connections/" },
+    { title: "Profile Overview", URL: "https://apps.wikitree.com/apps/beacall6/templates.php" },
+    { title: "Relative SpiderWebs", URL: "https://apps.wikitree.com/apps/clarke11007/webs.php" },
+    { title: "RootsSearch", URL: "https://apps.wikitree.com/apps/york1423/rootssearch/" },
+    { title: "RSS Feed Maker", URL: "https://apps.wikitree.com/apps/beacall6/rss_feed_maker.html" },
+    { title: "SixDegrees", URL: "https://apps.wikitree.com/apps/clarke11007/SixDegrees.php?id=mWTID" },
+    { title: "Surnames Generator", URL: "https://apps.wikitree.com/apps/clarke11007/surnames.php" },
+    { title: "Swedish Reference Creation Tools", URL: "https://apps.wikitree.com/apps/lundholm24/ref-making" },
+    { title: "Topola Genealogy Viewer", URL: "https://apps.wikitree.com/apps/wiech13/topola-viewer/" },
+    { title: "WikiTree+", URL: "https://wikitree.sdms.si/default.htm" },
+    { title: "WikiTree BEE", URL: "https://www.wikitree.com/index.php?title=Space:WikiTree_BEE" },
+    {
+      title: "WikiTree Browser Extension",
+      URL: "https://www.wikitree.com/index.php?title=Space:WikiTree_Browser_Extension",
+    },
+    { title: "WikiTree Sourcer", URL: "https://www.wikitree.com/wiki/Space:WikiTree_Sourcer" },
+    { title: "WikiTree X", URL: "https://www.wikitree.com/wiki/Help:WikiTree_X" },
+  ];
+  theMenu.forEach(function (app) {
     const appsLi = $(
       "<a class='pureCssMenui' href='" +
         app.URL.replace(/mWTID/, mWTID).replace(/=profileID/, "=" + profileID) +
@@ -40,12 +66,8 @@ function attachAppsMenu(menu) {
     );
     appsLi.appendTo(appsList);
   });
-  appsList.appendTo(
-    $("ul.pureCssMenu.pureCssMenum a[href='/wiki/Help:Apps']").parent()
-  );
-  const appsLink = $(
-    "ul.pureCssMenu.pureCssMenum a[href='/wiki/Help:Apps']"
-  ).parent();
+  appsList.appendTo($("ul.pureCssMenu.pureCssMenum a[href='/wiki/Help:Apps']").parent());
+  const appsLink = $("ul.pureCssMenu.pureCssMenum a[href='/wiki/Help:Apps']").parent();
   $("ul.pureCssMenu.pureCssMenum a[href='/wiki/Help:Apps']").text("« Apps");
   appsLink.hover(
     function () {
@@ -55,29 +77,4 @@ function attachAppsMenu(menu) {
       appsList.hide();
     }
   );
-}
-
-function addAppsMenu() {
-  const d = new Date();
-  let day = d.getUTCDate();
-  let getMenu = false;
-  // Store the date if it hasn't been stored
-  if (!localStorage.appsMenuCheck) {
-    localStorage.setItem("appsMenuCheck", day);
-  }
-  // Store the date and update the menu if it's a new day.
-  else if (day != localStorage.appsMenuCheck) {
-    localStorage.setItem("appsMenuCheck", day);
-    getMenu = true;
-  }
-  if (!localStorage.appsMenu || getMenu == true) {
-    getAppsMenu().then((menu) => {
-      attachAppsMenu(menu);
-      // Store the menu.
-      localStorage.setItem("appsMenu", JSON.stringify(menu));
-    });
-  } else {
-    // Or use the stored menu.
-    attachAppsMenu(JSON.parse(localStorage.appsMenu));
-  }
 }
