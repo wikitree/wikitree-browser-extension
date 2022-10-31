@@ -1,14 +1,13 @@
 import $ from "jquery";
 import { extractRelatives, familyArray, getRelatives } from "../../core/common";
 import "./locationsHelper.css";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage"
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("locationsHelper").then((result) => {
   if (
     result &&
     $("body.BEE").length == 0 &&
-    ($("body.page-Special_EditPerson").length ||
-      $("body.page-Special_EditFamily").length)
+    ($("body.page-Special_EditPerson").length || $("body.page-Special_EditFamily").length)
   ) {
     function addRelArraysToPerson(zPerson) {
       const zSpouses = extractRelatives(zPerson.Spouses, "Spouse");
@@ -34,8 +33,7 @@ checkIfFeatureEnabled("locationsHelper").then((result) => {
             if (j > 0) {
               var newValue = costs[j - 1];
               if (s1.charAt(i - 1) != s2.charAt(j - 1))
-                newValue =
-                  Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+                newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
               costs[j - 1] = lastValue;
               lastValue = newValue;
             }
@@ -59,10 +57,7 @@ checkIfFeatureEnabled("locationsHelper").then((result) => {
       if (longerLength == 0) {
         return 1.0;
       }
-      return (
-        (longerLength - editDistance(longer, shorter)) /
-        parseFloat(longerLength)
-      );
+      return (longerLength - editDistance(longer, shorter)) / parseFloat(longerLength);
     }
 
     async function locationsHelper() {
@@ -126,7 +121,7 @@ checkIfFeatureEnabled("locationsHelper").then((result) => {
               let familyLoc2 = false;
               const yearsMatch = dText.match(/\([^A-z]*[0-9]{3,4}.*\)/g);
               if (yearsMatch != null) {
-                years = yearsMatch[0].replaceAll(/[()]/g, "").split("-");
+                const years = yearsMatch[0].replaceAll(/[()]/g, "").split("-");
                 //console.log(years);
                 if (years[0].trim() != "") {
                   startYear = years[0].trim();
@@ -140,29 +135,17 @@ checkIfFeatureEnabled("locationsHelper").then((result) => {
               let myYear = "";
               if (currentBirthYearMatch != null && whichLocation == "Birth") {
                 myYear = currentBirthYearMatch[0];
-              } else if (
-                currentDeathYearMatch != null &&
-                whichLocation == "Death"
-              ) {
+              } else if (currentDeathYearMatch != null && whichLocation == "Death") {
                 myYear = currentDeathYearMatch[0];
-              } else if (
-                currentMarriageYearMatch != null &&
-                whichLocation == "Marriage"
-              ) {
+              } else if (currentMarriageYearMatch != null && whichLocation == "Marriage") {
                 myYear = currentMarriageYearMatch[0];
               }
               if (myYear != "") {
                 if (startYear == "" && parseInt(myYear) < parseInt(endYear)) {
                   goodDate = true;
-                } else if (
-                  endYear == "" &&
-                  parseInt(myYear) > parseInt(startYear)
-                ) {
+                } else if (endYear == "" && parseInt(myYear) > parseInt(startYear)) {
                   goodDate = true;
-                } else if (
-                  parseInt(myYear) > parseInt(startYear) &&
-                  parseInt(myYear) < parseInt(endYear)
-                ) {
+                } else if (parseInt(myYear) > parseInt(startYear) && parseInt(myYear) < parseInt(endYear)) {
                   goodDate = true;
                 }
               } else {
@@ -177,24 +160,16 @@ checkIfFeatureEnabled("locationsHelper").then((result) => {
                   familyLoc2 = true;
                 }
               });
-              const theContainer = $(added_node).closest(
-                ".autocomplete-suggestion-container"
-              );
+              const theContainer = $(added_node).closest(".autocomplete-suggestion-container");
               if (goodDate == true) {
                 theContainer.addClass("rightPeriod");
                 if (familyLoc2 == true) {
-                  theContainer
-                    .addClass("familyLoc2")
-                    .prependTo($(".autocomplete-suggestions"));
+                  theContainer.addClass("familyLoc2").prependTo($(".autocomplete-suggestions"));
                 } else if (familyLoc == true) {
-                  theContainer
-                    .addClass("familyLoc1")
-                    .prependTo($(".autocomplete-suggestions"));
+                  theContainer.addClass("familyLoc1").prependTo($(".autocomplete-suggestions"));
                 }
               } else {
-                theContainer
-                  .addClass("wrongPeriod")
-                  .appendTo($(".autocomplete-suggestions"));
+                theContainer.addClass("wrongPeriod").appendTo($(".autocomplete-suggestions"));
               }
             }
           });
