@@ -140,3 +140,8 @@ ul.qa-nav-cat-list a {
 ul.qa-nav-cat-list li {
   position: relative;
 }
+
+.backToTop {
+  float: right;
+  cursor: pointer;
+}
