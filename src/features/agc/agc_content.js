@@ -520,8 +520,8 @@ function initAgc() {
     agcButton.title = "Ancestry GEDCOM Cleanup";
     agcButton.style = "cursor: pointer;";
 
-    // This adds it on the left side of the toolbar, I would prefer the right but can't get that to happen
-    toolbar.appendChild(agcButton);
+    // This adds it on the left side of the toolbar
+    toolbar.insertBefore(agcButton, toolbar.firstChild);
 
     agcButton.addEventListener("click", onButtonClicked, false);
   }
