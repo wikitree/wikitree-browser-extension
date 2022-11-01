@@ -8,6 +8,7 @@ checkIfFeatureEnabled("g2g").then((result) => {
   if (result) {
     // additional code
     g2gCats();
+    g2gCheckmarks();
   }
 });
 
