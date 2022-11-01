@@ -101,6 +101,7 @@ registerFeature({
   id: "googleSearchBox",
   description: "Adds a Google Search Box to the bottom of every page.",
   category: "Global",
+  defaultValue: false,
 });
 
 registerFeature({
