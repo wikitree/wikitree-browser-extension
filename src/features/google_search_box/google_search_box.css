@@ -1,0 +1,19 @@
+.googleSearch {
+  background: white;
+  border: 3px solid #e1f0b4;
+  border-radius: 20px;
+  padding: 0 1em;
+  height: 10em;
+  width: 50em;
+  margin: auto;
+}
+
+.googleSearch .row:after {
+  clear: both;
+  content: "\0020";
+  display: block;
+  overflow: hidden;
+  visibility: hidden;
+  width: 0;
+  height: 0;
+}
