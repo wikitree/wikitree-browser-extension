@@ -1,5 +1,6 @@
 import $ from "jquery";
 import "./g2g.css";
+import { isOK } from "../../core/common";
 import Cookies from "js-cookie";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
@@ -14,7 +15,7 @@ checkIfFeatureEnabled("g2g").then((result) => {
     g2gScissors();
     g2gBackToTop();
     g2gFavorited();
-
+    addG2GCategoryCheckboxes();
     $(".qa-body-wrapper input[name$='_docomment'").addClass("bigButton");
 
     if ($(".qa-page-links").length) {
@@ -156,19 +157,89 @@ function g2gBackToTop() {
   }
 }
 
+async function getSync(key) {
+  try {
+    const result = await chrome.storage.sync.get(key);
+    return result;
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function setSync(thing) {
+  // object
+  chrome.storage.sync.set(thing, function () {});
+}
+
+function addG2GCategoryCheckboxes() {
+  getSync(["g2gCategories"]).then((sync) => {
+    const sidePanelA = $(".qa-sidepanel a");
+    if (sidePanelA.length) {
+      sidePanelA.each(function () {
+        let dHref = $(this).attr("href");
+        if (dHref) {
+          let dCatBits = dHref.split("/");
+          let dCat = dCatBits[dCatBits.length - 1];
+          let dChecked = "";
+          if (isOK(dCat) && dCat.match(/\.rss/) == null) {
+            if (sync.g2gCategories) {
+              if (sync.g2gCategories[dCat] == false) {
+                dChecked = "";
+              } else {
+                dChecked = "checked='checked'";
+              }
+            } else {
+              dChecked = "checked='checked'";
+            }
+
+            let aCheckbox = $(
+              "<input class='catCheck' type='checkbox' id='" +
+                dCat +
+                "Check' value='1' data-category='" +
+                dCat +
+                "' " +
+                dChecked +
+                ">"
+            );
+            aCheckbox.insertAfter($(this));
+          }
+        }
+      });
+      $(".catCheck").change(function () {
+        g2gCookies();
+      });
+      g2gCats();
+    }
+  });
+}
+
+function g2gCookies() {
+  const g2gCategories = { g2gCategories: {} };
+  const checks = $(".catCheck");
+  checks.each(function () {
+    g2gCategories.g2gCategories[$(this).data("category")] = $(this).prop("checked");
+  });
+  setSync(g2gCategories);
+  setTimeout(function () {
+    g2gCats();
+  }, 1000);
+}
+
 function g2gCats() {
   const catLinks = $(".qa-q-item-where-data a");
-  catLinks.each(function () {
-    let oCatBits = $(this).attr("href").split("/");
-    let oCat = oCatBits[oCatBits.length - 1];
-    let qBox = $(this).closest("div[id]");
-    /*
-      if (sync["w_" + oCat + "Check"] == 0) {
-        qBox.hide();
-      } else {
-        qBox.show();
+  getSync(["g2gCategories"]).then((sync) => {
+    catLinks.each(function () {
+      let oCatBits = $(this).attr("href").split("/");
+      let oCat = oCatBits[oCatBits.length - 1];
+      let qBox = $(this).closest("div[id]");
+      if (sync.g2gCategories) {
+        if (sync.g2gCategories[oCat] == false) {
+          qBox.hide();
+        } else {
+          qBox.show();
+        }
       }
-*/
+    });
   });
 }
 
