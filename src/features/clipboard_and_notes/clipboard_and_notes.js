@@ -266,6 +266,8 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
         }
         $("#clipboard").draggable({
           handle: "h1",
+          scroll: true,
+          scrollSensitivity: 100,
         });
       }
 
