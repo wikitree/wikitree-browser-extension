@@ -251,7 +251,7 @@ export function htmlEntities(str) {
 
 // Used in Random Profile and My Menu
 export function getRandomProfile() {
-  const randomProfileID = Math.floor(Math.random() * 36065988);
+  const randomProfileID = Math.floor(Math.random() * 36360449);
   // check if exists
   getPerson(randomProfileID)
     .then((person) => {

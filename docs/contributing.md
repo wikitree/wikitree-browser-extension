@@ -53,7 +53,7 @@ registerFeature({
 });
 ```
 
-If you want additional options for your feature (not just turning it on and off) then, instead of puting the call to `registerFeature` in `register_feature_options.js`, create a new file to put your call to `registerFeature` in (to keep `register_feature_options.js` from getting large and hard to read). The options are registered as part of the `registerFeature` call. Name your file `<feature name>_options.js` (e.g. `my_feature_options.js`). Here is an example file:
+If you want additional options for your feature (not just turning it on and off) then, instead of putting the call to `registerFeature` in `register_feature_options.js`, create a new file to put your call to `registerFeature` in (to keep `register_feature_options.js` from getting large and hard to read). The options are registered as part of the `registerFeature` call. Name your file `<feature name>_options.js` (e.g. `my_feature_options.js`). Here is an example file:
 
 ```js
 import { registerFeature, OptionType } from "../../core/options/options_registry";
