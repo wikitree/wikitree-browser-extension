@@ -818,6 +818,97 @@ function onDlgSelectTemplateBtn(update) {
   return false;
 }
 
+/**************************/
+/* Select category to add */
+/**************************/
+
+function selectCIB(data) {
+  tb.elDlg.innerHTML =
+    "<h3>Select " + data + " Category</h3>" +
+    '<input type="checkbox" class="cbFilter" id="cb1" name="cb1" data-op="onDlgSelectCIBFlt" data-id="' + data + '" value="' + data + '" checked>' +
+    '<label for="cb1"> ' + data + '</label><br>' +
+    '<label for="flt1">Filter: </label><input type="text" class="cbFilter" id="flt1" name="flt1" data-op="onDlgSelectCIBFlt" data-id="9"><br>' +
+    '<div style="min-width: 600px;overflow-y:auto;height: 400px;"><table style="width: 100%;" id="tb">' +
+    "</table></div>" +
+    '<div style="text-align:right">' +
+    '<a class="button" href="https://www.wikitree.com/wiki/Space:WikiTree_Plus_Chrome_Extension#Add_Template" target="_blank">Help</a>' +
+    //OK, Cancel
+    '<button style="text-align:right" class="dlgClick" data-op="onDlgSelectCIBBtn" data-id="0">Close</button>' +
+    '<button style="text-align:right" class="dlgClick" data-op="onDlgSelectCIBBtn" data-id="1" value="default">Select</button>' +
+    "</div>";
+  attachEvents("button.dlgClick", "click");
+  attachEvents("input.cbFilter", "input");
+  attachEvents("tr.trSelect", "click");
+  onDlgSelectCIBFlt();
+  tb.elDlg.showModal();
+}
+
+function onDlgSelectCIBFlt() {
+  let lb = tb.elDlg.querySelector("#tb");
+  var s0 = tb.elDlg.querySelector("#cb1").value;
+  var s1 = tb.elDlg.querySelector("#flt1").value;
+  
+  // Retrieve categories
+  fetch("https://wikitree.sdms.si/function/WTCatCIBSearch/Category.json?Query=" + s1 + "&cib=" + s0 + "&Format=json")
+    .then((resp) => resp.json())
+    .then((jsonData) => {
+        let c = jsonData.response.categories;
+        if (!c) {
+          c = [];
+        }
+        lb.innerHTML = 
+        c.map(
+          (item) =>
+            '<tr class="trSelect" data-op="onDlgSelectCIBTrSel"><td title="Name: ' + 
+            item.name + 
+            "&#10;AKA: " +
+            item.aka +
+            "&#10;Parent: " +
+            item.parent +
+            "&#10;Location: " +
+            item.location + 
+            '">' +
+            item.displayname +
+            "</td></tr>"
+        )
+        .join("\n");
+      attachEvents("tr.trSelect", "click");
+
+    });
+
+
+}
+
+function onDlgSelectCIBTrSel(tr) {
+  removeClass("tr.trSelect", "trSelected");
+  tr.classList.add("trSelected");
+}
+
+function onDlgSelectCIBBtn(update) {
+  if (update === "1") {
+    if (tb.elDlg.querySelectorAll(".trSelected>td").length === 0) {
+      alert("No category selected: Select a category before closing the dialog");
+      return false;
+    }
+    tb.elDlg.close();
+    //Add template
+
+    tb.inserttext = '[[Category:' + tb.elDlg.querySelectorAll(".trSelected>td")[0].innerText + ']]\n';
+    tb.textResult = tb.inserttext + tb.textAll;
+    tb.selStart = tb.textBefore.length;
+    tb.selEnd = tb.selStart + tb.inserttext.length;
+    tb.birthLocationResult = "";
+    tb.deathLocationResult = "";
+    updateEdit();
+
+  } else {
+    tb.elDlg.close();
+    tb.elDlg.innerHTML = "";
+    tb.addToSummary = "";
+  }
+  return false;
+}
+
 /*********************************/
 /* Automatic update like EditBOT */
 /*********************************/
@@ -1263,6 +1354,10 @@ export function wtPlus(params) {
         selectTemplate(params.data);
         break;
 
+      case "AddCIBCategory": //add any category
+        selectCIB(params.data);
+        break;
+
       case "PasteSource": //paste a source citation
         pasteSource();
         break;
@@ -1345,6 +1440,13 @@ function mainEventLoop(event) {
   if (op === "onDlgSelectTemplateBtn") {
     event.preventDefault();
     return onDlgSelectTemplateBtn(id);
+  }
+
+  if (op === "onDlgSelectCIBFlt") return onDlgSelectCIBFlt();
+  if (op === "onDlgSelectCIBTrSel") return onDlgSelectCIBTrSel(element);
+  if (op === "onDlgSelectCIBBtn") {
+    event.preventDefault();
+    return onDlgSelectCIBBtn(id);
   }
 
   if (op === "onDlgNone") {
