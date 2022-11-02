@@ -145,3 +145,30 @@ ul.qa-nav-cat-list li {
   float: right;
   cursor: pointer;
 }
+
+input[name$="_docomment"].bigButton {
+  display: inline-block;
+  color: rgb(255, 255, 255);
+  font-weight: bold;
+  border-width: 1px;
+  border-style: solid;
+  border-color: rgb(0, 0, 0);
+  border-image: initial;
+  padding: 5px;
+  margin: 15px 1em;
+  background: rgb(37, 59, 47);
+  text-decoration: none;
+}
+
+input[name$="_docomment"][value="reply"].bigButton {
+  float: right;
+  margin: 0 0 0 1em;
+}
+
+html input[name="q_docomment"].bigButton {
+  float: left;
+}
+
+input[name$="_docomment"].bigButton:hover {
+  color: white;
+}

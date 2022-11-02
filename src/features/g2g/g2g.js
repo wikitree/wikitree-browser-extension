@@ -4,32 +4,59 @@ import { isOK } from "../../core/common";
 import Cookies from "js-cookie";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
+async function initG2G() {
+  const options = await getFeatureOptions("g2g");
+  if (options.checkMarks) {
+    g2gCheckmarks();
+  }
+  if (options.favorited) {
+    g2gFavorited();
+  }
+  if (options.wikiIDgo) {
+    addWikiIDGoBox();
+  }
+  if (options.moreTabs) {
+    addG2GButtons();
+  }
+  if (options.scissors) {
+    g2gScissors();
+  }
+  if (options.backToTop) {
+    g2gBackToTop();
+  }
+  if (options.filter) {
+    addG2GCategoryCheckboxes();
+    doG2GCategories();
+  }
+  if (options.bigButtons) {
+    bigG2GButtons();
+  }
+  if (options.pageLinks) {
+    g2gPageLinksAtTop();
+  }
+}
+
 checkIfFeatureEnabled("g2g").then((result) => {
   if (result) {
-    // additional code
-    console.log("oy");
-    g2gCats();
-    g2gCheckmarks();
-    addWikiIDGoBox();
-    addG2GButtons();
-    g2gScissors();
-    g2gBackToTop();
-    g2gFavorited();
-    addG2GCategoryCheckboxes();
-    $(".qa-body-wrapper input[name$='_docomment'").addClass("bigButton");
-
-    if ($(".qa-page-links").length) {
-      const links2 = $(".qa-page-links").clone();
-      $(".qa-main-heading").append(links2);
-    }
+    initG2G();
   }
 });
+
+function bigG2GButtons() {
+  $(".qa-body-wrapper input[name$='_docomment'").addClass("bigButton");
+}
+
+function g2gPageLinksAtTop() {
+  if ($(".qa-page-links").length && $(".qa-main-heading").find(".qa-page-links").length == 0) {
+    const links2 = $(".qa-page-links").clone();
+    $(".qa-main-heading").append(links2);
+  }
+}
 
 function g2gScissors() {
   if ($("body.qa-template-question.qa-body-js-on").length && $("#g2gScissors").length == 0) {
     const url = window.location.href.replaceAll(/%2C/g, ",");
     const g2gIDmatch = url.match(/\/([0-9]{1,8})\//);
-
     if (g2gIDmatch != null) {
       window.g2gID = g2gIDmatch[1];
       const g2gURL = "https://www.wikitree.com/g2g/" + g2gID;
@@ -115,7 +142,7 @@ function addWikiIDGoBox() {
     dHeader.append(
       '<fieldset class="' +
         dClass +
-        '" id="wtIDgo_label">WikiTree ID: <input type="text" id="wtIDgo_id"><input type="submit" id="wtIDgo_go" value="GO"></fieldset>'
+        '" id="wtIDgo_label">WikiTree ID: <input type="text" id="wtIDgo_id"><input type="submit" class="button small" id="wtIDgo_go" value="GO"></fieldset>'
     );
 
     $("#wtIDgo_id").on("keyup", function (up) {
@@ -135,9 +162,11 @@ function addWikiIDGoBox() {
 function g2gFavorited() {
   // Favourited
   if ($(".qa-q-list-item.qa-q-favorited").length) {
-    $(".qa-q-list-item.qa-q-favorited div.qa-q-item-title a")
-      .css("position", "relative")
-      .prepend("<span class='g2gPlus' title='Favorited'>+</span>");
+    $(".qa-q-list-item.qa-q-favorited div.qa-q-item-title a").each(function () {
+      if ($(this).find(".g2gPlus").length == 0) {
+        $(this).css("position", "relative").prepend("<span class='g2gPlus' title='Favorited'>+</span>");
+      }
+    });
   }
 }
 
@@ -206,14 +235,14 @@ function addG2GCategoryCheckboxes() {
         }
       });
       $(".catCheck").change(function () {
-        g2gCookies();
+        g2gCategoriesSync();
       });
-      g2gCats();
+      doG2GCategories();
     }
   });
 }
 
-function g2gCookies() {
+function g2gCategoriesSync() {
   const g2gCategories = { g2gCategories: {} };
   const checks = $(".catCheck");
   checks.each(function () {
@@ -221,11 +250,11 @@ function g2gCookies() {
   });
   setSync(g2gCategories);
   setTimeout(function () {
-    g2gCats();
+    doG2GCategories();
   }, 1000);
 }
 
-function g2gCats() {
+function doG2GCategories() {
   const catLinks = $(".qa-q-item-where-data a");
   getSync(["g2gCategories"]).then((sync) => {
     catLinks.each(function () {
@@ -244,5 +273,9 @@ function g2gCats() {
 }
 
 function g2gCheckmarks() {
-  $("div.qa-q-item-title a,span.qa-q-item-meta a.qa-q-item-what").prepend("<span class='checkmark'>&#10003;</span>");
+  $("div.qa-q-item-title a,span.qa-q-item-meta a.qa-q-item-what").each(function () {
+    if ($(this).find(".checkmark").length == 0) {
+      $(this).prepend("<span class='checkmark'>&#10003;</span>");
+    }
+  });
 }
