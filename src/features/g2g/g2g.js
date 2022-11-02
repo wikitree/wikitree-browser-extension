@@ -142,9 +142,9 @@ function g2gFavorited() {
 }
 
 function g2gBackToTop() {
-  if ($(".qa-suggest-next").length) {
+  if ($(".qa-q-list-form").length && $(".backToTop").length == 0) {
     const backToTop = $("<a class='backToTop'>&uarr; Back to top</a>");
-    $(".qa-suggest-next").append(backToTop);
+    $(".qa-q-list-form").before(backToTop);
     $(document).on("click", ".backToTop", function (event) {
       event.preventDefault();
       $([document.documentElement, document.body]).animate(
@@ -234,9 +234,9 @@ function g2gCats() {
       let qBox = $(this).closest("div[id]");
       if (sync.g2gCategories) {
         if (sync.g2gCategories[oCat] == false) {
-          qBox.hide();
+          qBox.slideUp("swing");
         } else {
-          qBox.show();
+          qBox.slideDown("swing");
         }
       }
     });
