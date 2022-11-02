@@ -14,6 +14,7 @@ import "./features/distanceAndRelationship/distanceAndRelationship";
 import "./features/draftList/draftList";
 import "./features/familyGroup/familyGroup";
 import "./features/familyTimeline/familyTimeline";
+import "./features/g2g/g2g";
 import "./features/genderPredictor/genderPredictor";
 import "./features/locationsHelper/locationsHelper";
 import "./features/my_menu/my_menu";
