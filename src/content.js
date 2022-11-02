@@ -16,6 +16,7 @@ import "./features/familyGroup/familyGroup";
 import "./features/familyTimeline/familyTimeline";
 import "./features/g2g/g2g";
 import "./features/genderPredictor/genderPredictor";
+import "./features/google_search_box/google_search_box";
 import "./features/locationsHelper/locationsHelper";
 import "./features/my_menu/my_menu";
 import "./features/printerfriendly/printerfriendly";
