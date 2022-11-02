@@ -824,9 +824,17 @@ function onDlgSelectTemplateBtn(update) {
 
 function selectCIB(data) {
   tb.elDlg.innerHTML =
-    "<h3>Select " + data + " Category</h3>" +
-    '<input type="checkbox" class="cbFilter" id="cb1" name="cb1" data-op="onDlgSelectCIBFlt" data-id="' + data + '" value="' + data + '" checked>' +
-    '<label for="cb1"> ' + data + '</label><br>' +
+    "<h3>Select " +
+    data +
+    " Category</h3>" +
+    '<input type="checkbox" class="cbFilter" id="cb1" name="cb1" data-op="onDlgSelectCIBFlt" data-id="' +
+    data +
+    '" value="' +
+    data +
+    '" checked>' +
+    '<label for="cb1"> ' +
+    data +
+    "</label><br>" +
     '<label for="flt1">Filter: </label><input type="text" class="cbFilter" id="flt1" name="flt1" data-op="onDlgSelectCIBFlt" data-id="9"><br>' +
     '<div style="min-width: 600px;overflow-y:auto;height: 400px;"><table style="width: 100%;" id="tb">' +
     "</table></div>" +
@@ -847,36 +855,37 @@ function onDlgSelectCIBFlt() {
   let lb = tb.elDlg.querySelector("#tb");
   var s0 = tb.elDlg.querySelector("#cb1").value;
   var s1 = tb.elDlg.querySelector("#flt1").value;
-  
+
   // Retrieve categories
   fetch("https://wikitree.sdms.si/function/WTCatCIBSearch/Category.json?Query=" + s1 + "&cib=" + s0 + "&Format=json")
     .then((resp) => resp.json())
     .then((jsonData) => {
-        let c = jsonData.response.categories;
-        if (!c) {
-          c = [];
-        }
-        lb.innerHTML = 
-        c.map(
+      let c = jsonData.response.categories;
+      if (!c) {
+        c = [];
+      }
+      lb.innerHTML = c
+        .map(
           (item) =>
-            '<tr class="trSelect" data-op="onDlgSelectCIBTrSel"><td title="Name: ' + 
-            item.name + 
-            "&#10;AKA: " +
-            item.aka +
-            "&#10;Parent: " +
-            item.parent +
-            "&#10;Location: " +
-            item.location + 
+            '<tr class="trSelect" data-op="onDlgSelectCIBTrSel"><td title="' +
+            (item.name ? "&#10;Name: " + item.name : "") +
+            (item.aka ? "&#10;aka: " + item.aka.replaceAll(";", "&#10;&nbsp;&nbsp;") : "") +
+            (item.parent ? "&#10;Parent: " + item.parent : "") +
+            (item.gParent ? "&#10;&nbsp;&nbsp;" + item.gParent : "") +
+            (item.ggParent ? "&#10;&nbsp;&nbsp;&nbsp;&nbsp;" + item.ggParent : "") +
+            (item.parent1 ? "&#10;Parent 1: " + item.parent1 : "") +
+            (item.gParent1 ? "&#10;&nbsp;&nbsp;:" + item.gParent1 : "") +
+            (item.location ? "&#10;Location: " + item.location : "") +
+            (item.locationParent ? "&#10;&nbsp;&nbsp;" + item.locationParent : "") +
+            (item.location1 ? "&#10;Location 1: " + item.location1 : "") +
+            (item.location1Parent ? "&#10;&nbsp;&nbsp;" + item.location1Parent : "") +
             '">' +
-            item.displayname +
+            item.category +
             "</td></tr>"
         )
         .join("\n");
       attachEvents("tr.trSelect", "click");
-
     });
-
-
 }
 
 function onDlgSelectCIBTrSel(tr) {
@@ -893,14 +902,13 @@ function onDlgSelectCIBBtn(update) {
     tb.elDlg.close();
     //Add template
 
-    tb.inserttext = '[[Category:' + tb.elDlg.querySelectorAll(".trSelected>td")[0].innerText + ']]\n';
+    tb.inserttext = "[[Category:" + tb.elDlg.querySelectorAll(".trSelected>td")[0].innerText + "]]\n";
     tb.textResult = tb.inserttext + tb.textAll;
     tb.selStart = tb.textBefore.length;
     tb.selEnd = tb.selStart + tb.inserttext.length;
     tb.birthLocationResult = "";
     tb.deathLocationResult = "";
     updateEdit();
-
   } else {
     tb.elDlg.close();
     tb.elDlg.innerHTML = "";
