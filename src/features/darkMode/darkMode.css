@@ -34,10 +34,35 @@ body.darkMode div.CodeMirror span,
 body.darkMode div.qa-ask-box td.qa-form-tall-label,
 body.darkMode #awtSearch,
 body.darkMode #content header,
-body.darkMode #content main {
-  font-weight: 400;
+body.darkMode #content main,
+body.darkMode .googleSearch,
+html body.darkMode .qa-main .qa-q-item-title a:link,
+html body.darkMode .qa-main .qa-q-item-title a:visited,
+html body.darkMode .qa-main .qa-q-item-tags a:link,
+html body.darkMode .qa-main .qa-q-item-tags a:visited,
+html body.darkMode ul.pureCssMenu a:link,
+html body.darkMode ul.pureCssMenu a:visited,
+html body.darkMode ul.profile-tabs a:link,
+html body.darkMode ul.profile-tabs a:visited,
+html body.darkMode div#views-wrap a:link,
+html body.darkMode div#views-wrap a:visited {
   background-color: #36393f !important;
   color: #dcddde !important;
+}
+
+html body.darkMode .ten a:link,
+html body.darkMode .six a:link,
+html body.darkMode .sixteen a:link,
+html body.darkMode .five a:link,
+html body.darkMode .qa-main a:link {
+  color: #98fb98 !important;
+}
+html body.darkMode .ten a:visited,
+html body.darkMode .six a:visited,
+html body.darkMode .sixteen a:visited,
+html body.darkMode .five a:visited,
+html body.darkMode .qa-main a:visited {
+  color: #50c878 !important;
 }
 
 body.darkMode #yourRelationshipText,
@@ -84,7 +109,8 @@ body.darkMode ul.pureCssMenu ul li a:hover {
   background-color: navy !important;
 }
 body.darkMode .yourConnection,
-body.darkMode #yourConnection {
+body.darkMode #yourConnection,
+body.darkMode #familyGroupAppLink img.awtButton.appsButton {
   background: white !important;
 }
 
@@ -122,7 +148,9 @@ body.darkMode li.GREEN-ARROW {
   background-blend-mode: color;
 }
 body.darkMode div.qa-q-item-title a:link .checkmark,
-body.darkMode span.qa-q-item-meta a.qa-q-item-what:link .checkmark {
+body.darkMode span.qa-q-item-meta a.qa-q-item-what:link .checkmark,
+html body.darkMode a.yourConnection.relationshipButton:link,
+html body.darkMode a.yourConnection.relationshipButton:visited {
   color: #36393f !important;
 }
 body.darkMode div.qa-nav-main a:hover,
