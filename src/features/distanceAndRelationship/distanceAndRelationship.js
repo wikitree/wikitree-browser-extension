@@ -119,6 +119,22 @@ checkIfFeatureEnabled("distanceAndRelationship").then((result) => {
   }
 });
 
+async function getProfile(id, fields = "*") {
+  try {
+    const result = await $.ajax({
+      url: "https://api.wikitree.com/api.php",
+      crossDomain: true,
+      xhrFields: { withCredentials: true },
+      type: "POST",
+      dataType: "json",
+      data: { action: "getProfile", key: id, fields: fields },
+    });
+    return result[0].profile;
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 async function getConnectionFinderResult(id1, id2, relatives = 0) {
   try {
     const result = await $.ajax({
@@ -237,7 +253,7 @@ function commonAncestorText(commonAncestors) {
 function doRelationshipText(userID, profileID) {
   getRelationshipFinderResult(userID, profileID).then(function (data) {
     if (data) {
-      let out = "";
+      var out = "";
       var aRelationship = true;
       const commonAncestors = [];
       let realOut = "";
@@ -255,13 +271,12 @@ function doRelationshipText(userID, profileID) {
           .eq(0)
           .text()
           .replaceAll(/[\t\n]/g, "");
-        let out = dummy.find("b").text();
+        out = dummy.find("b").text();
         let secondName = dummy.find("b").parent().text().split(out)[1];
         const userFirstName = dummy.find(`p a[href\$='${userID}']`).eq(0).text().split(" ")[0];
         const profileFirstName = $("h1 span[itemprop='name']").text().split(" ")[0];
         if (data.commonAncestors.length == 0) {
           out = dummy.find("b").text();
-
           if (secondName.match(profileFirstName)) {
             out = dummy.find("h2").text().replace("(DNA Confirmed)", "").trim();
           }
@@ -301,6 +316,7 @@ function doRelationshipText(userID, profileID) {
         let outSplit = out.split(" ");
         outSplit[0] = ordinalWordToNumberAndSuffix(outSplit[0]);
         out = outSplit.join(" ");
+        //window.thisRelationship = out;
         if (
           $("#yourRelationshipText").length == 0 &&
           $(".ancestorTextText").length == 0 &&
@@ -449,7 +465,7 @@ function initDistanceAndRelationship(userID, profileID, clicked = false) {
     getDistance();
     doRelationshipText(userID, profileID);
   } else {
-    getPerson(profileID)
+    getProfile(profileID)
       .then((person) => {
         const nowTime = Date.parse(Date());
         let timeDifference = 0;
