@@ -1,44 +1,32 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry.js";
 
 const categoryDisplay = {
-  name: "Category Display",
-  id: "categoryDisplay",
-  description: "Allows you to move the location of categories to the top of the profile, or sidebar.",
-  category: "Profile",
-  defaultValue: false,
-  options: [
-    {
-        id: "categoryPosition",
-        type: OptionType.GROUP,
-        label: "Select the location to display categories",
-        options: [
-            {
-                id: "categoryLocation",
-                type: OptionType.SELECT,
-                label: "Category Location",
-                values: [
-                  {
+    name: "Category Display",
+    id: "categoryDisplay",
+    description: "Allows you to move the location of categories to the top of the profile, or sidebar.",
+    category: "Profile",
+    defaultValue: false,
+    options: [
+        {
+            id: "categoryLocation",
+            type: OptionType.SELECT,
+            label: "Category Location",
+            values: [
+                {
                     value: "sidebar",
-                    text: "Sidebar",
-                  },
-                  {
+                    text: "Side Column",
+                },
+                {
                     value: "top",
                     text: "Above Biography",
-                  },
-                  {
+                },
+                {
                     value: "default",
                     text: "Below Biography",
-                  },
-                ],
-                defaultValue: "default",   
-              },
-        ]
-    },
-    {
-      id: "categoryBorder",
-      type: OptionType.GROUP,
-      label: "Control the border on categories",
-      options: [
+                },
+            ],
+            defaultValue: "default",   
+        },
         {
             id: "borderColor",
             type: OptionType.SELECT,
@@ -63,9 +51,24 @@ const categoryDisplay = {
             ],
             defaultValue: "default",   
         },
-      ]
-    },
-  ],
+        {
+            id: "displayType",
+            type: OptionType.SELECT,
+            label: "Display Type",
+            values: [
+                {
+                    value: "default",
+                    text: "Default",
+                },
+                {
+                    value: "list",
+                    text: "List",
+                },
+            ],
+            defaultValue: "default",   
+        },
+        
+    ],
 };
 
 registerFeature(categoryDisplay);
