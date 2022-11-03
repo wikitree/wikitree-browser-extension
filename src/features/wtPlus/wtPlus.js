@@ -858,7 +858,13 @@ function onDlgSelectCIBFlt() {
 
   // Retrieve categories
   fetch("https://wikitree.sdms.si/function/WTCatCIBSearch/Category.json?Query=" + s1 + "&cib=" + s0 + "&Format=json")
-    .then((resp) => resp.json())
+    .then((response) => {
+      if (response.ok) {
+        return response.json()
+      } else {
+        throw response.statusText
+      }
+    })      
     .then((jsonData) => {
       let c = jsonData.response.categories;
       if (!c) {
@@ -885,6 +891,9 @@ function onDlgSelectCIBFlt() {
         )
         .join("\n");
       attachEvents("tr.trSelect", "click");
+    })
+    .catch((error) => {
+      lb.innerHTML = '<tr><td style="color:red">Error in WikiTree+ server</td></tr>'
     });
 }
 
