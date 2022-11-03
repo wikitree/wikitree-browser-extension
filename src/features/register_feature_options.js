@@ -41,6 +41,15 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Category Display",
+  id: "categoryDisplay",
+  description:
+    "Changes the location of Categories to the top of the Bio.",
+  category: "Profile",
+  defaultValue: false,
+});
+
+registerFeature({
   name: "Category Finder Pins",
   id: "categoryFinderPins",
   description:

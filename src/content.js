@@ -6,6 +6,7 @@ import "./features/agc/agc_content";
 import "./features/akaNameLinks/akaNameLinks";
 import "./features/appsMenu/appsMenu";
 import "./features/bioCheck/bioCheck";
+import "./features/categoryDisplay/categoryDisplay";
 import "./features/categoryFinderPins/categoryFinderPins";
 import "./features/clipboard_and_notes/clipboard_and_notes";
 import "./features/collapsibleDescendantsTree/collapsibleDescendantsTree";
