@@ -30,7 +30,7 @@ const g2g = {
     {
       id: "moreTabs",
       type: OptionType.CHECKBOX,
-      label: "More tabs buttons: Recent Activity, My Activity, + (Favorited)",
+      label: "More tab buttons: Recent Activity, My Activity, + (Favorited)",
       defaultValue: true,
     },
     {
