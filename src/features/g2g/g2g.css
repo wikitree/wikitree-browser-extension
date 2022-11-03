@@ -27,7 +27,9 @@
   float: right;
   border: 0;
 }
-
+#wtIDgo_label {
+  padding: 0;
+}
 .g2g input#wtIDgo_go,
 .g2g #wtIDgo_label input {
   font-size: 1.3em;
