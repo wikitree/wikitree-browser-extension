@@ -45,9 +45,17 @@ html body.darkMode ul.pureCssMenu a:visited,
 html body.darkMode ul.profile-tabs a:link,
 html body.darkMode ul.profile-tabs a:visited,
 html body.darkMode div#views-wrap a:link,
-html body.darkMode div#views-wrap a:visited {
+html body.darkMode div#views-wrap a:visited,
+body.darkMode span[style^="color:#000000"],
+body.darkMode a[style*="color: rgb(0, 102, 0)"],
+body.darkMode ol[style*="color:#000000"],
+body.darkMode ul[style*="color:#000000"] {
   background-color: #36393f !important;
   color: #dcddde !important;
+}
+
+body.darkMode .qa-a-item-selected {
+  border-color: gold;
 }
 
 html body.darkMode .ten a:link,
