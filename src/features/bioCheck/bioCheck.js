@@ -46,10 +46,8 @@ checkIfFeatureEnabled("bioCheck").then((result) => {
           // For adding a relative there are two, and you want the second
           let buttonElements = document.querySelectorAll("[id='wpSave']");
           let saveButton = buttonElements[buttonElements.length - 1];
-          // check on save or if or something might be about to happen
-          saveButton.onclick = function () {
-            checkSources();
-          };
+          // listening to the save button click seemed to interfere with 
+          // the actual save, so it was removed
           saveButton.addEventListener("mouseover", checkSourcesAtInterval);
           saveButton.addEventListener("touchstart", checkSourcesAtInterval);
 
