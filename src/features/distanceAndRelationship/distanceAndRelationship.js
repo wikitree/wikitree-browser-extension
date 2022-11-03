@@ -272,37 +272,30 @@ function doRelationshipText(userID, profileID) {
           .text()
           .replaceAll(/[\t\n]/g, "");
         out = dummy.find("b").text();
-        console.log(out);
         let secondName = dummy.find("b").parent().text().split(out)[1];
         const userFirstName = dummy.find(`p a[href\$='${userID}']`).eq(0).text().split(" ")[0];
         const profileFirstName = $("h1 span[itemprop='name']").text().split(" ")[0];
         if (data.commonAncestors.length == 0) {
           out = dummy.find("b").text();
-          console.log(out);
           if (secondName.match(profileFirstName)) {
             out = dummy.find("h2").text().replace("(DNA Confirmed)", "").trim();
-            console.log(out);
           }
         } else {
           const profileGender = $("body").find("meta[itemprop='gender']").attr("content");
           if (oh2.match("is the")) {
             out = oh2.split("is the ")[1].split(" of")[0];
-            console.log(out);
           } else if (oh2.match(" are ")) {
             out = oh2
               .split("are ")[1]
               .replace(/cousins/, "cousin")
               .replace(/siblings/, "sibling");
-            console.log(out);
           }
           if (out.match(/nephew|niece/)) {
             if (profileGender == "male") {
               out = out.replace(/nephew|niece/, "uncle");
-              console.log(out);
             }
             if (profileGender == "female") {
               out = out.replace(/nephew|niece/, "aunt");
-              console.log(out);
             }
           }
           if (
@@ -318,7 +311,6 @@ function doRelationshipText(userID, profileID) {
               .text()
               .split(userFirstName + "'s")[1]
               .trim();
-            console.log(out);
           }
         }
         let outSplit = out.split(" ");
@@ -348,7 +340,6 @@ function doRelationshipText(userID, profileID) {
           relationship: out,
           commonAncestors: data.commonAncestors,
         };
-        console.log(obj);
         addToDB("RelationshipFinderWTE", window.relationshipFinderDBVersion, "relationship", obj);
       };
     }
@@ -389,7 +380,6 @@ async function getDistance() {
   const id1 = Cookies.get("wikitree_wtb_UserName");
   const id2 = $("a.pureCssMenui0 span.person").text();
   const data = await getConnectionFinderResult(id1, id2);
-  console.log(data);
   addDistance(data);
 }
 
@@ -488,7 +478,6 @@ function initDistanceAndRelationship(userID, profileID, clicked = false) {
           getDistance();
           doRelationshipText(userID, profileID);
         }
-        console.log(person);
       })
       .catch((error) => {
         console.log(error);
