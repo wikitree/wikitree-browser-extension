@@ -335,7 +335,7 @@ body.darkMode.page-Special_EditPerson div.five table tr:nth-child(1) div a:visit
 body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#eef;"],
 body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#eef;"] a:link,
 body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#eef;"] a:visited {
-  background-color: #1a237e !important;
+  background-color: #191970 !important;
 }
 body.darkMode.page-Special_EditPerson div.five table tr:nth-child(2) div,
 body.darkMode.page-Special_EditPerson div.five table tr:nth-child(2) div a:link,
@@ -343,5 +343,5 @@ body.darkMode.page-Special_EditPerson div.five table tr:nth-child(2) div a:visit
 body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#fee;"],
 body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#fee;"] a:link,
 body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#fee;"] a:visited {
-  background-color: #7d1b7e !important;
+  background-color: #5f0126 !important;
 }
