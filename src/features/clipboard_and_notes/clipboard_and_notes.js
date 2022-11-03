@@ -1,7 +1,7 @@
 import $ from "jquery";
-import "jquery-ui/ui/widgets/sortable"; // whatever we need
-import "jquery-ui/ui/widgets/draggable"; // whatever we need
-import { isOK, htmlEntities, getRandomProfile, showDraftList } from "../../core/common"; // again... What do we need?
+import "jquery-ui/ui/widgets/sortable";
+import "jquery-ui/ui/widgets/draggable";
+import { htmlEntities } from "../../core/common";
 import "./clipboard_and_notes.css";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
@@ -16,7 +16,7 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
         if ($(".clipboardButtons").length == 0) {
           initClipboard();
         }
-      }, 4000);
+      }, 6000);
     } else {
       if ($(".clipboardButtons").length == 0) {
         initClipboard();
