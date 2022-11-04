@@ -54,7 +54,7 @@ const g2g = {
     {
       id: "bigButtons",
       type: OptionType.CHECKBOX,
-      label: "Big Comment, and Reply buttons",
+      label: "Big Comment and Reply buttons",
       defaultValue: true,
     },
     {
