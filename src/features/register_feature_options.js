@@ -8,6 +8,7 @@ import { registerFeature } from "../core/options/options_registry";
 ////////////////////////////////////////////////////////////////////////////////
 
 import "./agc/agc_options.js";
+import "./categoryDisplay/categoryDisplay_options.js";
 import "./darkMode/darkMode_options.js";
 import "./g2g/g2g_options.js";
 import "./genderPredictor/gender_predictor_options.js";
@@ -38,15 +39,6 @@ registerFeature({
   description: "Check biography style and sources.",
   category: "Editing",
   defaultValue: true,
-});
-
-registerFeature({
-  name: "Category Display",
-  id: "categoryDisplay",
-  description:
-    "Changes the location of Categories to the top of the Bio.",
-  category: "Profile",
-  defaultValue: false,
 });
 
 registerFeature({
