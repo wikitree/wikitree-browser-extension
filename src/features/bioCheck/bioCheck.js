@@ -27,7 +27,7 @@ checkIfFeatureEnabled("bioCheck").then((result) => {
       let saveDraftButton = document.getElementById("wpSaveDraft");
       if (saveDraftButton) {
         saveDraftButton.onclick = function () {
-        checkBio();
+          checkBio();
         };
         saveDraftButton.addEventListener("mouseover", checkBioAtInterval);
         saveDraftButton.addEventListener("touchstart", checkBioAtInterval);
@@ -40,13 +40,12 @@ checkIfFeatureEnabled("bioCheck").then((result) => {
       }
     } else {
       if (document.body.classList.contains("page-Special_EditFamily")) {
-        
-        if(document.getElementById('mSources')) {
+        if (document.getElementById("mSources")) {
           // Find the save button. For Add Person there is just one
           // For adding a relative there are two, and you want the second
           let buttonElements = document.querySelectorAll("[id='wpSave']");
           let saveButton = buttonElements[buttonElements.length - 1];
-          // listening to the save button click seemed to interfere with 
+          // listening to the save button click seemed to interfere with
           // the actual save, so it was removed
           saveButton.addEventListener("mouseover", checkSourcesAtInterval);
           saveButton.addEventListener("touchstart", checkSourcesAtInterval);
