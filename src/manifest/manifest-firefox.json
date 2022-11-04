@@ -33,7 +33,7 @@
 	},
 	"browser_action": {
 		"default_icon": {	
-		"128": "images/we128.png"
+			"128": "images/we128.png"
 		},
 		"default_title": "WikiTree Browser Extension"
 	}
