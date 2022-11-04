@@ -1,13 +1,13 @@
 {
 	"name": "WikiTree Browser Extension",
 	"description": "The official WikiTree browser extension.",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"manifest_version": 2,
 	"options_ui": {
 		"page": "options.html",
 		"open_in_tab": true
 	},
-	"permissions": [ "https://www.wikitree.com/*", "storage" ],
+	"permissions": [ "https://www.wikitree.com/*",  "https://api.wikitree.com/*", "storage" ],
 	"content_scripts": [
 		{
 			"matches": [ "https://www.wikitree.com/*" ],
