@@ -1,21 +1,12 @@
 import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
-import {getRelatives} from 'wikitree-js';
-import {
-  createProfileSubmenuLink,
-  familyArray,
-  isOK,
-  htmlEntities
-} from "../../core/common";
+import { getRelatives } from "wikitree-js";
+import { createProfileSubmenuLink, familyArray, isOK, htmlEntities } from "../../core/common";
 import "../familyTimeline/familyTimeline.css";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage"
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("familyGroup").then((result) => {
-  if (
-    result &&
-    $("body.profile").length &&
-    window.location.href.match("Space:") == null
-  ) {
+  if (result && $("body.profile").length && window.location.href.match("Space:") == null) {
     // Add a link to the short list of links below the tabs
     const options = {
       title: "Display family group dates and locations",
@@ -36,6 +27,7 @@ checkIfFeatureEnabled("familyGroup").then((result) => {
         $("#" + profileID.replace(" ", "_") + "_family").fadeToggle();
       } else {
         // Make the table and do other things
+
         getRelatives([profileID], {
           getParents: true,
           getSiblings: true,
@@ -135,10 +127,7 @@ checkIfFeatureEnabled("familyGroup").then((result) => {
 
           if (kPers.Relation) {
             // The relation is stored as "Parents", "Spouses", etc., so...
-            kPers.Relation = kPers.Relation.replace(/s$/, "").replace(
-              /ren$/,
-              ""
-            );
+            kPers.Relation = kPers.Relation.replace(/s$/, "").replace(/ren$/, "");
             if (rClass != "self") {
               kPers.RelationShow = kPers.Relation;
             }
@@ -214,9 +203,7 @@ checkIfFeatureEnabled("familyGroup").then((result) => {
         }
       });
       const rows = kTable.find("tbody tr");
-      rows.sort((a, b) =>
-        $(b).data("birthdate") < $(a).data("birthdate") ? 1 : -1
-      );
+      rows.sort((a, b) => ($(b).data("birthdate") < $(a).data("birthdate") ? 1 : -1));
       kTable.find("tbody").append(rows);
 
       const familyOrder = ["Parent", "Sibling", "Spouse", "Child"];
@@ -227,9 +214,7 @@ checkIfFeatureEnabled("familyGroup").then((result) => {
       });
 
       kTable.find(".marriageRow").each(function () {
-        $(this).insertAfter(
-          kTable.find("tr[data-name='" + $(this).data("spouse") + "']")
-        );
+        $(this).insertAfter(kTable.find("tr[data-name='" + $(this).data("spouse") + "']"));
       });
 
       return kTable;
@@ -247,10 +232,7 @@ checkIfFeatureEnabled("familyGroup").then((result) => {
         let fName2 = "";
         let fName4 = "";
         if (typeof fPerson["MiddleName"] != "undefined") {
-          if (
-            fPerson["MiddleName"] == "" &&
-            typeof fPerson["LongNamePrivate"] != "undefined"
-          ) {
+          if (fPerson["MiddleName"] == "" && typeof fPerson["LongNamePrivate"] != "undefined") {
             if (fPerson["LongNamePrivate"] != "") {
               fName2 = fPerson["LongNamePrivate"].replace(/\s\s/, " ");
             }
@@ -275,10 +257,7 @@ checkIfFeatureEnabled("familyGroup").then((result) => {
         ];
         checks.forEach(function (dCheck) {
           if (typeof fPerson["" + dCheck + ""] != "undefined") {
-            if (
-              fPerson["" + dCheck + ""] != "" &&
-              fPerson["" + dCheck + ""] != null
-            ) {
+            if (fPerson["" + dCheck + ""] != "" && fPerson["" + dCheck + ""] != null) {
               if (dCheck == "LastNameAtBirth") {
                 if (fPerson["LastNameAtBirth"] != fPerson.LastNameCurrent) {
                   fName3 += "(" + fPerson["LastNameAtBirth"] + ") ";
@@ -321,20 +300,7 @@ checkIfFeatureEnabled("familyGroup").then((result) => {
       } else {
         const dateBits1 = date.split(" ");
         if (dateBits1[2]) {
-          const sMonths = [
-            "Jan",
-            "Feb",
-            "Mar",
-            "Apr",
-            "May",
-            "Jun",
-            "Jul",
-            "Aug",
-            "Sep",
-            "Oct",
-            "Nov",
-            "Dec",
-          ];
+          const sMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
           const lMonths = [
             "January",
             "February",
@@ -353,10 +319,7 @@ checkIfFeatureEnabled("familyGroup").then((result) => {
           let dMonthNum;
           if (dMonth != null) {
             sMonths.forEach(function (aSM, i) {
-              if (
-                dMonth[0].toLowerCase() == aSM.toLowerCase() ||
-                dMonth[0].toLowerCase() == aSM + ".".toLowerCase()
-              ) {
+              if (dMonth[0].toLowerCase() == aSM.toLowerCase() || dMonth[0].toLowerCase() == aSM + ".".toLowerCase()) {
                 dMonthNum = (i + 1).toString().padStart(2, "0");
               }
             });
@@ -380,8 +343,6 @@ checkIfFeatureEnabled("familyGroup").then((result) => {
       }
       return outDate;
     }
-
-   
 
     // Get the position of an element
     function getOffset(el) {
