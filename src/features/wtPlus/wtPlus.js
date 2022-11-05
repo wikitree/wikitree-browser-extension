@@ -934,6 +934,7 @@ function AutoUpdate() {
   let s0 = "";
   let s1 = "";
   let s2 = "";
+  let s3 = "";
   for (var loc = 0; loc < 3; loc++) {
     let actArr = "";
     if (loc == 0) {
@@ -958,7 +959,7 @@ function AutoUpdate() {
     if (actArr) {
       for (var j = 0; j < actArr.length; j++) {
         let clean = actArr[j];
-        let s3 = "";
+        s3 = "";
         for (var i = 0; i < clean.actions.length; i++) {
           let s = s1;
           let action = clean.actions[i];
@@ -1038,9 +1039,11 @@ function onDlgProfileCleanupBtn(update) {
   if (update === "1") {
     //Set updated text
 
+    let s = "";
     let s0 = "";
     let s1 = "";
     let s2 = "";
+    let s3 = "";
     let actArr = [];
     for (var loc = 0; loc < 3; loc++) {
       if (loc == 0) {
@@ -1051,20 +1054,19 @@ function onDlgProfileCleanupBtn(update) {
         s0 = "Death Location";
         s1 = tb.deathLocation;
         actArr = tb.locations;
-      } else if (loc == 2) {
+      } else if (loc == 2) { 
         s0 = "Bio";
         s1 = tb.textAll;
-        actArr = tb.cleanup;
+        actArr = tb.cleanup; 
       }
-      if (actArr) {
+      if (actArr) {  
         for (var j = 0; j < actArr.length; j++) {
           var cb = tb.elDlg.querySelectorAll("#cb" + loc + "_" + j)[0];
           if (cb && cb.checked) {
-            let clean = actArr[j];
+            let clean = actArr[j]; 
 
-            let s = "";
-            let s1 = "";
-            let s3 = "";
+            s = "";
+            s3 = "";
             for (var i = 0; i < clean.actions.length; i++) {
               s = s1;
               let action = clean.actions[i];
