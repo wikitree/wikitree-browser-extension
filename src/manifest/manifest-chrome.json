@@ -24,5 +24,8 @@
   }],
   "icons": {
     "128": "images/we128.png"
+  },
+  "action": {
+    "default_popup": "options.html"   
   }
 }

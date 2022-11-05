@@ -7,6 +7,15 @@ h6 {
   color: #333333;
 }
 
+html,
+body,
+h1 {
+  margin: 0;
+}
+html {
+  min-width: 780px;
+}
+
 /* Options page */
 .feature-information {
   display: flex;
