@@ -162,7 +162,7 @@ async function getConnectionFinderResult(id1, id2, relatives = 0) {
   }
 }
 
-async function getRelationshipFinderResult(id1, id2) {
+export async function getRelationshipFinderResult(id1, id2) {
   try {
     const result = await $.ajax({
       url: "https://www.wikitree.com/index.php",
@@ -421,7 +421,7 @@ function ancestorType(generation, gender) {
   return relType;
 }
 
-function ordinalWordToNumberAndSuffix(word) {
+export function ordinalWordToNumberAndSuffix(word) {
   const ordinalsArray = [
     ["first", "1st"],
     ["second", "2nd"],

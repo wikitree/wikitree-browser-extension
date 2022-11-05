@@ -149,6 +149,14 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Sort Theme People",
+  id: "sortThemePeople",
+  description: "Adds a button to sort the 'Theme of the Week' people on profile pages.",
+  category: "Profile",
+  defaultValue: true,
+});
+
+registerFeature({
   name: "Source Previews",
   id: "sPreviews",
   description: "Enable source previews on inline references.",

@@ -1,0 +1,12 @@
+#themeTable {
+  margin: auto;
+}
+#themeTable caption {
+  background: forestgreen;
+  border-radius: 1em;
+  font-weight: bold;
+  color: white;
+}
+#themeTable td {
+  padding: 0.2em;
+}
