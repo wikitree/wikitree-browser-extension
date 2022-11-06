@@ -467,14 +467,7 @@ function initDistanceAndRelationship(userID, profileID, clicked = false) {
   } else {
     getProfile(profileID)
       .then((person) => {
-        const nowTime = Date.parse(Date());
-        let timeDifference = 0;
-        if (person.Created) {
-          const created = Date.parse(person.Created.substr(0, 8).replace(/(....)(..)(..)/, "$1-$2-$3"));
-          timeDifference = nowTime - created;
-        }
-        const nineDays = 777600000;
-        if (person.Privacy > 29 && person.Connected == 1 && timeDifference > nineDays) {
+        if (person.Privacy > 29 && person.Connected == 1) {
           getDistance();
           doRelationshipText(userID, profileID);
         }
