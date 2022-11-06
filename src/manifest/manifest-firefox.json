@@ -7,7 +7,7 @@
 		"page": "options.html",
 		"open_in_tab": true
 	},
-	"permissions": [ "https://www.wikitree.com/*", "https://api.wikitree.com/*", "storage" ],
+	"permissions": [ "https://www.wikitree.com/*", "https://api.wikitree.com/*", "https://wikitreebee.com/*", "storage" ],
 	"content_scripts": [
 		{
 			"matches": [ "https://www.wikitree.com/*" ],

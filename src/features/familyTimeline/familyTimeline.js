@@ -133,7 +133,7 @@ function getAge(birth, death) {
   return age;
 }
 
-function capitalizeFirstLetter(string) {
+export function capitalizeFirstLetter(string) {
   string = string.toLowerCase();
   const bits = string.split(" ");
   let out = "";

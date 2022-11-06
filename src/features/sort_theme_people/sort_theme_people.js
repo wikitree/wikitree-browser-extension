@@ -4,6 +4,8 @@ import {
   getRelationshipFinderResult,
   ordinalWordToNumberAndSuffix,
 } from "../distanceAndRelationship/distanceAndRelationship";
+import { capitalizeFirstLetter } from "../familyTimeline/familyTimeline";
+import { isOK } from "../../core/common.js";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("sortThemePeople").then((result) => {
@@ -12,61 +14,232 @@ checkIfFeatureEnabled("sortThemePeople").then((result) => {
     $("body.profile").length &&
     $(".sixteen p a:contains(degrees from),.sixteen div.box.rounded.row a:contains(degrees from)").length
   ) {
-    themePeopleTable();
+    if ($("h2.thisWeeksTheme").length == 0) {
+      connectionsBanner();
+    }
+    $(".sixteen p a:contains(degrees from),.sixteen div.box.rounded.row a:contains(degrees from)")
+      .closest("div")
+      .before($("<button id='themeTableButton' class='small button'>Theme list</button>"));
+    $("#themeTableButton").on("click", function (e) {
+      e.preventDefault();
+      themePeopleTable();
+    });
+    // themePeopleTable();
   }
 });
 
 function themePeopleTable() {
-  const linksArray = [];
-  const themeLinks = $(".sixteen p a:contains(degrees from),.sixteen div.box.rounded.row a:contains(degrees from)");
-  themeLinks.each(function () {
-    let aThemePerson = {};
-    aThemePerson.connectionURL = $(this).attr("href");
-    let urlParams = new URLSearchParams(aThemePerson.connectionURL);
-    aThemePerson.WTID = urlParams.get("person1Name");
-    let textSplit = $(this).text().split(" degrees from ");
-    aThemePerson.degrees = textSplit[0];
-    aThemePerson.name = textSplit[1];
-    linksArray.push(aThemePerson);
-  });
-  const profileName = $("h1 span[itemprop='name']").text();
-  const themeTable = $(`<table id='themeTable'>
-  <caption>Degrees from ${profileName}</caption>
+  if ($("#themeTable").length) {
+    $("#themeTable").toggle();
+    $("h2.thisWeeksTheme").toggle();
+    $("p.cfParagraph").toggle();
+    $(".sixteen a:contains(degrees from)").closest("div.box.rounded.row").toggle();
+  } else {
+    const linksArray = [];
+    const themeLinks = $(".sixteen p a:contains(degrees from),.sixteen div.box.rounded.row a:contains(degrees from)");
+    themeLinks.each(function () {
+      let aThemePerson = {};
+      aThemePerson.connectionURL = $(this).attr("href");
+      let urlParams = new URLSearchParams(aThemePerson.connectionURL);
+      aThemePerson.WTID = urlParams.get("person1Name");
+      let textSplit = $(this).text().split(" degrees from ");
+      aThemePerson.degrees = textSplit[0];
+      aThemePerson.name = textSplit[1];
+      linksArray.push(aThemePerson);
+    });
+
+    const profileName = $("h1 span[itemprop='name']").text();
+    const themeTable = $(`<table id='themeTable'>
+  <caption>Featured Connections</caption>
   <thead></thead>
   <tbody></tbody>
   </table>`);
-  themeLinks.parent().slideUp();
-  themeLinks.parent().after(themeTable);
-  linksArray.sort(function (a, b) {
-    return parseInt(a.degrees) > parseInt(b.degrees) ? 1 : -1;
-  });
-  linksArray.forEach(function (aPerson) {
-    let aRow = $(
-      `<tr><td><a href='/wiki/${aPerson.WTID}'>${aPerson.name}</a></td><td><a href='${aPerson.connectionURL}'>${aPerson.degrees} degrees</a></td></tr>`
-    );
-    themeTable.find("tbody").append(aRow);
-    const profileID = $("a.pureCssMenui0 span.person").text();
-    getRelationshipFinderResult(profileID, aPerson.WTID).then((data) => {
-      if (data) {
-        var out = "";
-        var aRelationship = true;
-        const commonAncestors = [];
-        let realOut = "";
-        let dummy = $("<html></html>");
-        dummy.append($(data.html));
-        if (dummy.find("h1").length) {
-          if (dummy.find("h1").eq(0).text() == "No Relationship Found") {
-            aRelationship = false;
-            console.log("No Relationship Found");
+    const themeTitle = $("h2.thisWeeksTheme");
+    themeTitle.hide();
+    themeTable.find("caption").html(themeTitle.text().replace(":", ":<br>"));
+
+    themeLinks.parent().slideUp();
+    themeLinks.parent().after(themeTable);
+    linksArray.sort(function (a, b) {
+      return parseInt(a.degrees) > parseInt(b.degrees) ? 1 : -1;
+    });
+    linksArray.forEach(function (aPerson) {
+      let aRow = $(
+        `<tr><td><a href='/wiki/${aPerson.WTID}'>${aPerson.name}</a></td><td><a href='${aPerson.connectionURL}'>${aPerson.degrees} degrees</a></td><td></td></tr>`
+      );
+      themeTable.find("tbody").append(aRow);
+      const profileID = $("a.pureCssMenui0 span.person").text();
+      getRelationshipFinderResult(profileID, aPerson.WTID).then((data) => {
+        if (data) {
+          var out = "";
+          var aRelationship = true;
+          const commonAncestors = [];
+          let realOut = "";
+          let dummy = $("<html></html>");
+          dummy.append($(data.html));
+          if (dummy.find("h1").length) {
+            if (dummy.find("h1").eq(0).text() == "No Relationship Found") {
+              aRelationship = false;
+              console.log("No Relationship Found");
+            }
+          }
+          if (dummy.find("h2").length && aRelationship == true) {
+            let out = dummy.find("h2").eq(0).text().trim();
+            $("#themeTable a[href$='" + aPerson.WTID + "']")
+              .closest("tr")
+              .find("td:last")
+              .append(
+                $(
+                  `<a href='https://www.wikitree.com/index.php?title=Special:Relationship&action=calculate&person1_name=${profileID}&person2_name=${aPerson.WTID}'>${out}</a>`
+                )
+              );
           }
         }
-        if (dummy.find("h2").length && aRelationship == true) {
-          let out = dummy.find("h2").eq(0).text().trim();
-          $("#themeTable a[href$='" + aPerson.WTID + "']")
-            .closest("tr")
-            .append($(`<td>${out}</td>`));
+      });
+    });
+  }
+}
+
+async function setConnectionsBanner() {
+  let theP = $("body.profile div.sixteen.columns p a[href*='Special:Connection']").closest("p");
+  if (theP.length) {
+    theP.addClass("cfParagraph");
+  } else {
+    theP = $("body.profile div.sixteen.columns div.box.rounded a[href*='Special:Connection']").closest("div");
+  }
+  const theDiv = theP.closest("div");
+  if (!window.noHeading && localStorage.cfTitle != "") {
+    let dTitle = "";
+    if (localStorage.cfTitle.match(/\bUS\b/) == null) {
+      dTitle = capitalizeFirstLetter(localStorage.cfTitle);
+    } else {
+      dTitle = localStorage.cfTitle;
+    }
+    const ourTitle = "This week's theme: " + dTitle;
+    const ourTableTitle = "This week's theme:<br> " + dTitle;
+    theDiv.prepend("<h2 class='thisWeeksTheme'>" + ourTitle + "</h2>");
+    if ($("#themeTable").length) {
+      $("#themeTable").find("caption").html(ourTableTitle);
+      $("h2.thisWeeksTheme").hide();
+    }
+  }
+  const motwLink = theP.find("a:contains(" + localStorage.motw + ")");
+  motwLink.text(motwLink.text().replace(/\bfrom\b/, "from our Member of the Week,"));
+  const mSplits = motwLink.text().split("our Member of the Week");
+  const boldText = document.createElement("b");
+  boldText.append(document.createTextNode("our Member of the Week"));
+  motwLink.text("");
+  motwLink.append(document.createTextNode(mSplits[0]), boldText, document.createTextNode(mSplits[1]));
+}
+
+async function connectionsBanner() {
+  getThemeData().then((response) => {
+    if ($("h2.thisWeeksTheme").length == 0) {
+      if (
+        $(
+          "div.sixteen.columns p a[href*='Special:Connection'],div.sixteen.columns div.box.rounded.row a[href*='Special:Connection']"
+        ).length
+      ) {
+        const firstConnection = $(
+          "div.sixteen.columns p a[href*='Special:Connection'],div.sixteen.columns div.box.rounded.row a[href*='Special:Connection']"
+        )
+          .eq(0)
+          .text()
+          .replace(/[0-9]+ degrees? from /, "");
+
+        const firstConnectionHREF = $(
+          "div.sixteen.columns p a[href*='Special:Connection'],div.sixteen.columns div.box.rounded.row a[href*='Special:Connection']"
+        )
+          .eq(0)
+          .attr("href");
+
+        if (isOK(firstConnectionHREF)) {
+          const urlParams = new URLSearchParams(firstConnectionHREF);
+          console.log(firstConnectionHREF);
+          const firstConnectionWTID = urlParams.get("person1Name");
+          localStorage.setItem("firstConnectionWTID", firstConnectionWTID);
+          const homePageURL = "https://www.wikitree.com";
+          $.ajax({
+            url: homePageURL,
+            success: function (data) {
+              if ($("h2.thisWeeksTheme").length == 0) {
+                const hpHTML = $(data);
+                let linkText = "";
+                if (isOK(localStorage.shogenCFTitleData)) {
+                  linkText = JSON.parse(localStorage.shogenCFTitleData)["linkText"];
+                } else {
+                  linkText = "closely-connected";
+                }
+                let cfTitle = hpHTML
+                  .find("a[href*='" + linkText + "'][title*='G2G post']")
+                  .eq(0)
+                  .text();
+
+                let gotFromShogen = false;
+                let cfTitleOverride = false;
+                if (isOK(cfTitle) && isOK(localStorage.shogenCFTitleData)) {
+                  const themeData = JSON.parse(localStorage.shogenCFTitleData);
+                  if (themeData.theme == "null") {
+                    cfTitle = "";
+                  } else if (themeData.theme != "") {
+                    //cfTitle = themeData.theme;
+                    localStorage.shogenCFTitle = themeData.theme;
+                    let cfTitleOverride = true;
+                  } else {
+                    themeData.themes.forEach(function (aTheme) {
+                      const cfRegExp = new RegExp(aTheme[0], "i");
+                      if (cfTitle.match(cfRegExp) != null) {
+                        cfTitle = aTheme[1];
+                        localStorage.shogenCFTitle = cfTitle;
+                        gotFromShogen = true;
+                      }
+                    });
+                  }
+                }
+                if (gotFromShogen == false) {
+                  if (isOK(localStorage.shogenCFTitle)) {
+                    cfTitle = localStorage.shogenCFTitle;
+                  }
+                  if (localStorage.shogenCFTitle == "null") {
+                    cfTitle = "";
+                  }
+                }
+                localStorage.setItem("cfTitle", cfTitle);
+                localStorage.setItem("firstConnection", firstConnection);
+                const mow = hpHTML.find("span.large:contains(Member of the Week)");
+                if (mow.length) {
+                  localStorage.motw = mow.parent().find("img").attr("alt");
+                }
+                setConnectionsBanner();
+              }
+            },
+          });
         }
       }
-    });
+    }
   });
+}
+
+async function getThemeData() {
+  // get theme data
+  const beeURL = "https://wikitreebee.com/BEE.php?q=BEE";
+  const result = await $.ajax({
+    url: beeURL,
+    crossDomain: true,
+    xhrFields: { withCredentials: false },
+    type: "POST",
+    dataType: "text",
+    success: function (data) {
+      const mData = JSON.parse(data);
+      localStorage.shogenCFTitle = mData.theme;
+      localStorage.shogenCFTitleData = data;
+    },
+    error: function (jqXHR, textStatus, error) {
+      console.log("error in AJAX call...");
+      console.log("jqXHR:", jqXHR);
+      console.log("textStatus:", textStatus);
+      console.log("error:", error);
+    },
+  });
+  return result;
 }
