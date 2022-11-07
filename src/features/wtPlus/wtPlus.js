@@ -860,11 +860,11 @@ function onDlgSelectCIBFlt() {
   fetch("https://wikitree.sdms.si/function/WTCatCIBSearch/Category.json?Query=" + s1 + "&cib=" + s0 + "&Format=json")
     .then((response) => {
       if (response.ok) {
-        return response.json()
+        return response.json();
       } else {
-        throw response.statusText
+        throw response.statusText;
       }
-    })      
+    })
     .then((jsonData) => {
       let c = jsonData.response.categories;
       if (!c) {
@@ -893,7 +893,7 @@ function onDlgSelectCIBFlt() {
       attachEvents("tr.trSelect", "click");
     })
     .catch((error) => {
-      lb.innerHTML = '<tr><td style="color:red">Error in WikiTree+ server</td></tr>'
+      lb.innerHTML = '<tr><td style="color:red">Error in WikiTree+ server</td></tr>';
     });
 }
 
@@ -1054,19 +1054,19 @@ function onDlgProfileCleanupBtn(update) {
         s0 = "Death Location";
         s1 = tb.deathLocation;
         actArr = tb.locations;
-      } else if (loc == 2) { 
+      } else if (loc == 2) {
         s0 = "Bio";
         s1 = tb.textAll;
-        actArr = tb.cleanup; 
+        actArr = tb.cleanup;
       }
-      if (actArr) {  
+      if (actArr) {
         for (var j = 0; j < actArr.length; j++) {
           var cb = tb.elDlg.querySelectorAll("#cb" + loc + "_" + j)[0];
           if (cb && cb.checked) {
-            let clean = actArr[j]; 
+            let clean = actArr[j];
 
-            s = "";
-            s3 = "";
+            let s = "";
+            let s3 = "";
             for (var i = 0; i < clean.actions.length; i++) {
               s = s1;
               let action = clean.actions[i];
