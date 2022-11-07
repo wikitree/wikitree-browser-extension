@@ -6,10 +6,69 @@ import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 checkIfFeatureEnabled("soundexEnc").then((result) => {
     if (result) {
         if (pageProfile) {
-            var lnBirth = $('a[title^="Last Name at Birth"]').text();
-            var lnCurrent = $('a[title^="Current Last Name"]').text();
-            $('a[title^="Last Name at Birth"]').after(`<span id="soundex-lnBirth" class="small"> [${soundex(lnBirth)}]</span>`);
-            $('a[title^="Current Last Name"]').after(`<span id="soundex-lnCurrent" class="small"> [${soundex(lnCurrent)}]</span>`);
+            var lnBirth = $('a[title^="Last Name at Birth"]').text(),
+                lnCurrent = $('a[title^="Current Last Name"]').text(),
+                unknowns = [
+                    '-',
+                    '--',
+                    '---',
+                    '----',
+                    '-----',
+                    '------',
+                    '....',
+                    '…',
+                    'DK',
+                    'DO NOT KNOW',
+                    'DONT KNOW',
+                    'Inconnu',
+                    'last name',
+                    'LNU',
+                    'MNU',
+                    'N.N.',
+                    'NK',
+                    'NN',
+                    'None',
+                    'Not Known',
+                    'Not Sure',
+                    'notknown',
+                    'NotKnown',
+                    'Okänd',
+                    'Onbekend',
+                    'Somebody',
+                    'Someone',
+                    'Something',
+                    'Ukn',
+                    'Uknown',
+                    'Unbekannt',
+                    'Uncertain',
+                    'UNDISCOVERED',
+                    'Unk',
+                    'Unkn',
+                    'Unknow',
+                    'Unknowen',
+                    '-UNKNOWN-',
+                    'Unknownsurname',
+                    'Unkown',
+                    'Unnamed',
+                    'Unsure',
+                    'Wife',
+                    'X',
+                    'XX',
+                    'XXX',
+                    'XXXX',
+                    'XXXXX',
+                    'XXXXXX',
+                    'XXXXXXX',
+                ],
+                birthUnknown = unknowns.some(e => e.toLowerCase() === lnBirth.toLowerCase()),
+                currentUnknown = unknowns.some(e => e.toLowerCase() === lnCurrent.toLowerCase());
+
+            if (birthUnknown == false) {
+                $('a[title^="Last Name at Birth"]').after(`<span id="soundex-lnBirth" class="small"> [${soundex(lnBirth)}]</span>`);
+            }
+            if (currentUnknown == false) {
+                $('a[title^="Current Last Name"]').after(`<span id="soundex-lnCurrent" class="small"> [${soundex(lnCurrent)}]</span>`);
+            }
         };
     }
 
