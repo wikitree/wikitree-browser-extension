@@ -2,6 +2,7 @@ import $ from "jquery";
 import { getPerson } from "wikitree-js";
 
 export let pageProfile = false;
+export let pageSurnameIndex = false;
 export let pageHelp = false;
 export let pageSpecial = false;
 export let pageCategory = false;
@@ -16,6 +17,9 @@ if (
 ) {
   // Is a Profile Page
   pageProfile = true;
+} else if (window.location.pathname.match(/(\/genealogy\/)*/g)){
+  // Is a Surname Index Page
+  pageSurnameIndex = true
 } else if (window.location.pathname.match(/(\/wiki\/)Help:*/g)) {
   // Is a Help Page
   pageHelp = true;
