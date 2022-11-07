@@ -955,7 +955,6 @@ function onDlgProfileCleanupBtn(update) {
             let clean = actArr[j];
 
             let s = "";
-            let s1 = "";
             let s3 = "";
             for (var i = 0; i < clean.actions.length; i++) {
               s = s1;
