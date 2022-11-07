@@ -149,6 +149,14 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Soundex Variants",
+  id: "soundexEnc",
+  description: "Soundex Encoding and Name Variants.",
+  category: "Profile",
+  defaultValue: false,
+});
+
+registerFeature({
   name: "Source Previews",
   id: "sPreviews",
   description: "Enable source previews on inline references.",
