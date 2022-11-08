@@ -1,7 +1,8 @@
 import $ from "jquery";
 import "jquery-ui/ui/widgets/sortable";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
-import { isOK, htmlEntities, getRandomProfile, showDraftList } from "../../core/common";
+import { isOK, htmlEntities, showDraftList } from "../../core/common";
+import { getRandomProfile } from "../randomProfile/randomProfile";
 import { getPerson } from "wikitree-js";
 import "./my_menu.css";
 

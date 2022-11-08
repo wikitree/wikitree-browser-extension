@@ -1,5 +1,4 @@
 import $ from "jquery";
-import { getPerson } from "wikitree-js";
 
 export let pageProfile = false;
 export let pageHelp = false;
@@ -247,68 +246,6 @@ export function htmlEntities(str) {
     .replaceAll(/>/g, "&gt;")
     .replaceAll(/"/g, "&quot;")
     .replaceAll(/'/g, "&apos;");
-}
-
-// Used in Random Profile and My Menu
-export function getRandomProfile() {
-  if (!window.searchedForRandomProfile) {
-    window.searchedForRandomProfile = 1;
-    const working = $("<img id='working' src='" + chrome.runtime.getURL("images/tree.gif") + "'>");
-    working.css({
-      "z-index": "100000",
-      height: "50px",
-      "border-radius": "50%",
-      position: "fixed",
-      top: "1em",
-      right: "1em",
-    });
-    working.appendTo($("body"));
-  } else {
-    window.searchedForRandomProfile++;
-    console.log(window.searchedForRandomProfile);
-  }
-  const randomProfileID = Math.floor(Math.random() * 36360449);
-  // check if exists
-  getPerson(randomProfileID)
-    .then((person) => {
-      // check to see if the profile is Open
-      if (person.Privacy_IsOpen) {
-        const link = `https://www.wikitree.com/wiki/${randomProfileID}`;
-        let inOurArea = false;
-        let ourArea = "France";
-        const locationFields = ["BirthLocation", "DeathLocation"];
-        locationFields.forEach((field) => {
-          if (person[field]) {
-            if (person[field].match(ourArea)) {
-              inOurArea = true;
-            }
-          }
-        });
-        if (inOurArea == true) {
-          window.location = link;
-        } else if (parseInt(window.searchedForRandomProfile) < 1000) {
-          // If it isn't open, find a new profile
-          console.log(window.searchedForRandomProfile);
-          getRandomProfile();
-        } else {
-          $("#working")
-            .replaceWith($("<div>Searched 1000 random people.   None of them were in " + ourArea + ".</div>"))
-            .css("background", "white");
-        }
-      } else if (parseInt(window.searchedForRandomProfile) < 1000) {
-        // If it isn't open, find a new profile
-        console.log(window.searchedForRandomProfile);
-        getRandomProfile();
-      } else {
-        $("#working")
-          .replaceWith($("<div>Searched 1000 random people.   None of them were in " + ourArea + ".</div>"))
-          .css("background", "white");
-      }
-    })
-    .catch((reason) => {
-      console.log(`getJSON request failed! ${reason}`);
-      getRandomProfile();
-    });
 }
 
 // Used in Draft List and My Menu
