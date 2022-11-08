@@ -418,9 +418,9 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
       clipboardReq.onsuccess = function (event) {
         let clipboardDB = event.target.result;
         const clipboardButtons = $(
-          "<span class='theClipboardButtons'><img class='button small aClipboardButton'  src='" +
+          "<span class='theClipboardButtons'><img title='Clipboard' class='button small aClipboardButton'  src='" +
             chrome.runtime.getURL("images/clipboard.png") +
-            "'><img class='button small aNotesButton'  src='" +
+            "'><img  title='Notes' class='button small aNotesButton'  src='" +
             chrome.runtime.getURL("images/notes.png") +
             "'></span>"
         );
