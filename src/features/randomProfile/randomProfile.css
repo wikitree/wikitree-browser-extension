@@ -1,0 +1,35 @@
+#locationInputLabel {
+  position: absolute;
+  box-shadow: 0.3em 0.3em 0.3em 0.3em darkgreen;
+  padding: 1em;
+  background: white;
+  cursor: move;
+  border: 2px solid forestgreen;
+  z-index: 1000000;
+}
+
+#working,
+#searchedRandomProfiles {
+  z-index: 100000;
+  height: 50px;
+  border-radius: 50%;
+  position: fixed;
+  top: 1em;
+  right: 1em;
+  border: 2px solid forestgreen;
+}
+
+#searchedRandomProfiles {
+  padding: 1em;
+  height: auto;
+  width: auto;
+  background: white;
+  border-radius: 1em;
+  box-shadow: 0.1em 0.1em 0.1em 0.1em darkgreen;
+}
+#searchedRandomProfiles x {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  cursor: pointer;
+}
