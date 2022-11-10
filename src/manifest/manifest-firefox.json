@@ -35,6 +35,7 @@
 		"default_icon": {	
 			"128": "images/we128.png"
 		},
-		"default_title": "WikiTree Browser Extension (Preview)"
+		"default_title": "WikiTree Browser Extension (Preview)",
+		"default_popup": "options.html" 
 	}
 }
