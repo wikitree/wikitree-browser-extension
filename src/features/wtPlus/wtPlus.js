@@ -887,7 +887,7 @@ function onDlgSelectCIBFlt() {
       attachEvents("tr.trSelect", "click");
     })
     .catch((error) => {
-      lb.innerHTML = '<tr><td style="color:red">Error in WikiTree+ server</td></tr>';
+      lb.innerHTML = '<tr><td style="color:red">Error in WikiTree+ server' + error + "</td></tr>";
     });
 }
 
@@ -1033,11 +1033,9 @@ function onDlgProfileCleanupBtn(update) {
   if (update === "1") {
     //Set updated text
 
-    let s = "";
     let s0 = "";
     let s1 = "";
     let s2 = "";
-    let s3 = "";
     let actArr = [];
     for (var loc = 0; loc < 3; loc++) {
       if (loc == 0) {
