@@ -1,6 +1,7 @@
 import "./wtPlus.css";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { isEditPage } from "../../core/common";
+import { wtAPICatCIBSearch } from "./wtPlusAPI";
 
 let tb = {};
 
@@ -857,14 +858,7 @@ function onDlgSelectCIBFlt() {
   var s1 = tb.elDlg.querySelector("#flt1").value;
 
   // Retrieve categories
-  fetch("https://wikitree.sdms.si/function/WTCatCIBSearch/Category.json?Query=" + s1 + "&cib=" + s0 + "&Format=json")
-    .then((response) => {
-      if (response.ok) {
-        return response.json();
-      } else {
-        throw response.statusText;
-      }
-    })
+  wtAPICatCIBSearch("CIBPicker", s0, s1)
     .then((jsonData) => {
       let c = jsonData.response.categories;
       if (!c) {
