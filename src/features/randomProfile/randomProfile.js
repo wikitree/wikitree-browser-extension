@@ -42,7 +42,7 @@ export async function getRandomProfile(ourCountry = false) {
   } else if (ourCountry == "") {
     ourCountry = "any";
   }
-  if (ourCountry == "") {
+  if (!ourCountry) {
     ourCountry = "any";
   }
 
