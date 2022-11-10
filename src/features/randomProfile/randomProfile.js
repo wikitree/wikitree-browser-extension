@@ -118,6 +118,54 @@ export async function getRandomProfile(ourCountry = false) {
   }
 }
 
+export function addRandomProfileLocationBox(e) {
+  const locationInput = $(
+    "<label id='locationInputLabel'>Random Profile Location: <input type='textbox' id='randomProfileLocation'><button id='randomProfileLocationButton' class='small'>Go</button><x>x</x><q>?</q><div class='help'>Use double quotation marks around a place with spaces.</div></label>"
+  );
+  // Add the input field to the page near the pointer.
+  locationInput.appendTo("body").css({
+    position: "absolute",
+    left: `${e.pageX - 250}px`,
+    top: e.pageY + "px",
+  });
+  locationInput.draggable();
+  $("#locationInputLabel x").on("click", function () {
+    $("#locationInputLabel").fadeOut();
+    setTimeout(function () {
+      $("#locationInputLabel").remove();
+    }, 2000);
+  });
+  $("#locationInputLabel q").on("click", function () {
+    $("#locationInputLabel div.help").slideToggle();
+  });
+  // Store the chosen location to use in future.
+  if (localStorage.randomProfileLocation) {
+    $("#randomProfileLocation").val(localStorage.randomProfileLocation);
+  }
+
+  function submitThisThing() {
+    localStorage.setItem("randomProfileLocation", $("#randomProfileLocation").val());
+    setTimeout(function () {
+      getRandomProfile(document.querySelector("#randomProfileLocation").value);
+      $("#locationInputLabel").empty().css("text-align", "center");
+      setTimeout(function () {
+        const working = $("<img id='working' src='" + chrome.runtime.getURL("images/tree.gif") + "'>");
+        working.appendTo($("#locationInputLabel"));
+      }, 100);
+    }, 500);
+  }
+
+  $("#randomProfileLocation").on("keyup", function (e) {
+    if (e.key === "Enter") {
+      submitThisThing();
+    }
+  });
+
+  $("#randomProfileLocationButton").on("click", function () {
+    submitThisThing();
+  });
+}
+
 // add random option to 'Find'
 export async function addRandomToFindMenu() {
   const relationshipLi = $("li a.pureCssMenui[href='/wiki/Special:Relationship']");
@@ -127,55 +175,10 @@ export async function addRandomToFindMenu() {
   newLi.insertBefore(relationshipLi.parent());
   $(".randomProfile").on("click", function (e) {
     e.preventDefault();
-    window.e = e;
     getRandomProfile();
   });
   $(".randomProfile").on("contextmenu", function (e) {
     e.preventDefault();
-    const locationInput = $(
-      "<label id='locationInputLabel'>Random Profile Location: <input type='textbox' id='randomProfileLocation'><button id='randomProfileLocationButton' class='small'>Go</button><x>x</x><q>?</q><div class='help'>Use double quotation marks around a place with spaces.</div></label>"
-    );
-    // Add the input field to the page near the pointer.
-    locationInput.appendTo("body").css({
-      position: "absolute",
-      left: `${e.pageX - 250}px`,
-      top: e.pageY + "px",
-    });
-    locationInput.draggable();
-    $("#locationInputLabel x").on("click", function () {
-      $("#locationInputLabel").fadeOut();
-      setTimeout(function () {
-        $("#locationInputLabel").remove();
-      }, 2000);
-    });
-    $("#locationInputLabel q").on("click", function () {
-      $("#locationInputLabel div.help").slideToggle();
-    });
-    // Store the chosen location to use in future.
-    if (localStorage.randomProfileLocation) {
-      $("#randomProfileLocation").val(localStorage.randomProfileLocation);
-    }
-
-    function submitThisThing() {
-      localStorage.setItem("randomProfileLocation", $("#randomProfileLocation").val());
-      setTimeout(function () {
-        getRandomProfile(document.querySelector("#randomProfileLocation").value);
-        $("#locationInputLabel").empty().css("text-align", "center");
-        setTimeout(function () {
-          const working = $("<img id='working' src='" + chrome.runtime.getURL("images/tree.gif") + "'>");
-          working.appendTo($("#locationInputLabel"));
-        }, 100);
-      }, 500);
-    }
-
-    $("#randomProfileLocation").on("keyup", function (e) {
-      if (e.key === "Enter") {
-        submitThisThing();
-      }
-    });
-
-    $("#randomProfileLocationButton").on("click", function () {
-      submitThisThing();
-    });
+    addRandomProfileLocationBox(e);
   });
 }
