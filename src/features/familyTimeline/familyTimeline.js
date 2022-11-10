@@ -148,334 +148,342 @@ function capitalizeFirstLetter(string) {
 }
 
 function timeline() {
-  $("#timeline").remove();
-  const fields = [
-    "BirthDate",
-    "BirthLocation",
-    "BirthName",
-    "BirthDateDecade",
-    "DeathDate",
-    "DeathDateDecade",
-    "DeathLocation",
-    "IsLiving",
-    "Father",
-    "FirstName",
-    "Gender",
-    "Id",
-    "LastNameAtBirth",
-    "LastNameCurrent",
-    "Prefix",
-    "Suffix",
-    "LastNameOther",
-    "Derived.LongName",
-    "Derived.LongNamePrivate",
-    "Manager",
-    "MiddleName",
-    "Mother",
-    "Name",
-    "Photo",
-    "RealName",
-    "ShortName",
-    "Touched",
-    "DataStatus",
-    "Derived.BirthName",
-    "Bio",
-  ];
-  const id = $("a.pureCssMenui0 span.person").text();
-  getRelatives([id], {
-    getParents: true,
-    getSiblings: true,
-    getSpouses: true,
-    getChildren: true,
-    fields,
-  }).then((personData) => {
-    const person = personData[0];
-    const parents = extractRelatives(person.Parents, "Parent");
-    const siblings = extractRelatives(person.Siblings, "Sibling");
-    const spouses = extractRelatives(person.Spouses, "Spouse");
-    const children = extractRelatives(person.Children, "Child");
-    const family = [person];
-    const familyArr = [parents, siblings, spouses, children];
-    // Make an array of family members
-    familyArr.forEach(function (anArr) {
-      if (anArr) {
-        if (anArr.length > 0) {
-          family.push(...anArr);
-        }
-      }
-    });
-    let familyFacts = [];
-    const startDate = getTheYear(person.BirthDate, "Birth", person);
-    // Get all BMD events for each family member
-    family.forEach(function (aPerson) {
-      const events = ["Birth", "Death", "marriage"];
-      events.forEach(function (ev) {
-        let evDate = "";
-        let evLocation;
-        if (aPerson[ev + "Date"]) {
-          evDate = aPerson[ev + "Date"];
-          evLocation = aPerson[ev + "Location"];
-        } else if (aPerson[ev + "DateDecade"]) {
-          evDate = aPerson[ev + "DateDecade"];
-          evLocation = aPerson[ev + "Location"];
-        }
-        if (ev == "marriage") {
-          if (aPerson[ev + "_date"]) {
-            evDate = aPerson[ev + "_date"];
-            evLocation = aPerson[ev + "_location"];
+  if ($("#timeline").length) {
+    $("#timeline").slideToggle();
+  } else {
+    const fields = [
+      "BirthDate",
+      "BirthLocation",
+      "BirthName",
+      "BirthDateDecade",
+      "DeathDate",
+      "DeathDateDecade",
+      "DeathLocation",
+      "IsLiving",
+      "Father",
+      "FirstName",
+      "Gender",
+      "Id",
+      "LastNameAtBirth",
+      "LastNameCurrent",
+      "Prefix",
+      "Suffix",
+      "LastNameOther",
+      "Derived.LongName",
+      "Derived.LongNamePrivate",
+      "Manager",
+      "MiddleName",
+      "Mother",
+      "Name",
+      "Photo",
+      "RealName",
+      "ShortName",
+      "Touched",
+      "DataStatus",
+      "Derived.BirthName",
+      "Bio",
+    ];
+    const id = $("a.pureCssMenui0 span.person").text();
+    getRelatives([id], {
+      getParents: true,
+      getSiblings: true,
+      getSpouses: true,
+      getChildren: true,
+      fields,
+    }).then((personData) => {
+      const person = personData[0];
+      const parents = extractRelatives(person.Parents, "Parent");
+      const siblings = extractRelatives(person.Siblings, "Sibling");
+      const spouses = extractRelatives(person.Spouses, "Spouse");
+      const children = extractRelatives(person.Children, "Child");
+      const family = [person];
+      const familyArr = [parents, siblings, spouses, children];
+      // Make an array of family members
+      familyArr.forEach(function (anArr) {
+        if (anArr) {
+          if (anArr.length > 0) {
+            family.push(...anArr);
           }
-        }
-        if (aPerson.Relation) {
-          aPerson.Relation = aPerson.Relation.replace(/s$/, "").replace(/ren$/, "");
-        }
-        if (evDate != "" && evDate != "0000" && isOK(evDate)) {
-          let fName = aPerson.FirstName;
-          if (!aPerson.FirstName) {
-            fName = aPerson.RealName;
-          }
-          let bDate = aPerson.BirthDate;
-          if (!aPerson.BirthDate) {
-            bDate = aPerson.BirthDateDecade;
-          }
-          let mBio = aPerson.bio;
-          if (!aPerson.bio) {
-            mBio = "";
-          }
-          if (evLocation == undefined) {
-            evLocation = "";
-          }
-          familyFacts.push([
-            evDate,
-            evLocation,
-            fName,
-            aPerson.LastNameAtBirth,
-            aPerson.LastNameCurrent,
-            bDate,
-            aPerson.Relation,
-            mBio,
-            ev,
-            aPerson.Name,
-          ]);
         }
       });
-      // Look for military events in bios
-      if (aPerson.bio) {
-        const tlTemplates = aPerson.bio.match(/\{\{[^]*?\}\}/gm);
-        if (tlTemplates != null) {
-          const warTemplates = [
-            "The Great War",
-            "Korean War",
-            "Vietnam War",
-            "World War II",
-            "US Civil War",
-            "War of 1812",
-            "Mexican-American War",
-            "French and Indian War",
-            "Spanish-American War",
-          ];
-          tlTemplates.forEach(function (aTemp) {
-            let evDate = "";
-            let evLocation = "";
-            let ev = "";
-            let evDateStart = "";
-            let evDateEnd = "";
-            let evStart;
-            let evEnd;
-            aTemp = aTemp.replaceAll(/[{}]/g, "");
-            const bits = aTemp.split("|");
-            const templateTitle = bits[0].replaceAll(/\n/g, "").trim();
-            bits.forEach(function (aBit) {
-              const aBitBits = aBit.split("=");
-              const aBitField = aBitBits[0].trim();
-              if (aBitBits[1]) {
-                const aBitFact = aBitBits[1].trim().replaceAll(/\n/g, "");
-                if (warTemplates.includes(templateTitle) && isOK(aBitFact)) {
-                  if (aBitField == "startdate") {
-                    evDateStart = dateToYMD(aBitFact);
-                    evStart = "Joined " + templateTitle;
-                  }
-                  if (aBitField == "enddate") {
-                    evDateEnd = dateToYMD(aBitFact);
-                    evEnd = "Left " + templateTitle;
-                  }
-                  if (aBitField == "enlisted") {
-                    evDateStart = dateToYMD(aBitFact);
-                    evStart = "Enlisted for " + templateTitle.replace("american", "American");
-                  }
-                  if (aBitField == "discharged") {
-                    evDateEnd = dateToYMD(aBitFact);
-                    evEnd = "Discharged from " + templateTitle.replace("american", "American");
-                  }
-                  if (aBitField == "branch") {
-                    evLocation = aBitFact;
+      let familyFacts = [];
+      const startDate = getTheYear(person.BirthDate, "Birth", person);
+      // Get all BMD events for each family member
+      family.forEach(function (aPerson) {
+        const events = ["Birth", "Death", "marriage"];
+        events.forEach(function (ev) {
+          let evDate = "";
+          let evLocation;
+          if (aPerson[ev + "Date"]) {
+            evDate = aPerson[ev + "Date"];
+            evLocation = aPerson[ev + "Location"];
+          } else if (aPerson[ev + "DateDecade"]) {
+            evDate = aPerson[ev + "DateDecade"];
+            evLocation = aPerson[ev + "Location"];
+          }
+          if (ev == "marriage") {
+            if (aPerson[ev + "_date"]) {
+              evDate = aPerson[ev + "_date"];
+              evLocation = aPerson[ev + "_location"];
+            }
+          }
+          if (aPerson.Relation) {
+            aPerson.Relation = aPerson.Relation.replace(/s$/, "").replace(/ren$/, "");
+          }
+          if (evDate != "" && evDate != "0000" && isOK(evDate)) {
+            let fName = aPerson.FirstName;
+            if (!aPerson.FirstName) {
+              fName = aPerson.RealName;
+            }
+            let bDate = aPerson.BirthDate;
+            if (!aPerson.BirthDate) {
+              bDate = aPerson.BirthDateDecade;
+            }
+            let mBio = aPerson.bio;
+            if (!aPerson.bio) {
+              mBio = "";
+            }
+            if (evLocation == undefined) {
+              evLocation = "";
+            }
+            familyFacts.push([
+              evDate,
+              evLocation,
+              fName,
+              aPerson.LastNameAtBirth,
+              aPerson.LastNameCurrent,
+              bDate,
+              aPerson.Relation,
+              mBio,
+              ev,
+              aPerson.Name,
+            ]);
+          }
+        });
+        // Look for military events in bios
+        if (aPerson.bio) {
+          const tlTemplates = aPerson.bio.match(/\{\{[^]*?\}\}/gm);
+          if (tlTemplates != null) {
+            const warTemplates = [
+              "The Great War",
+              "Korean War",
+              "Vietnam War",
+              "World War II",
+              "US Civil War",
+              "War of 1812",
+              "Mexican-American War",
+              "French and Indian War",
+              "Spanish-American War",
+            ];
+            tlTemplates.forEach(function (aTemp) {
+              let evDate = "";
+              let evLocation = "";
+              let ev = "";
+              let evDateStart = "";
+              let evDateEnd = "";
+              let evStart;
+              let evEnd;
+              aTemp = aTemp.replaceAll(/[{}]/g, "");
+              const bits = aTemp.split("|");
+              const templateTitle = bits[0].replaceAll(/\n/g, "").trim();
+              bits.forEach(function (aBit) {
+                const aBitBits = aBit.split("=");
+                const aBitField = aBitBits[0].trim();
+                if (aBitBits[1]) {
+                  const aBitFact = aBitBits[1].trim().replaceAll(/\n/g, "");
+                  if (warTemplates.includes(templateTitle) && isOK(aBitFact)) {
+                    if (aBitField == "startdate") {
+                      evDateStart = dateToYMD(aBitFact);
+                      evStart = "Joined " + templateTitle;
+                    }
+                    if (aBitField == "enddate") {
+                      evDateEnd = dateToYMD(aBitFact);
+                      evEnd = "Left " + templateTitle;
+                    }
+                    if (aBitField == "enlisted") {
+                      evDateStart = dateToYMD(aBitFact);
+                      evStart = "Enlisted for " + templateTitle.replace("american", "American");
+                    }
+                    if (aBitField == "discharged") {
+                      evDateEnd = dateToYMD(aBitFact);
+                      evEnd = "Discharged from " + templateTitle.replace("american", "American");
+                    }
+                    if (aBitField == "branch") {
+                      evLocation = aBitFact;
+                    }
                   }
                 }
+              });
+              if (isOK(evDateStart)) {
+                evDate = evDateStart;
+                ev = evStart;
+                familyFacts.push([
+                  evDate,
+                  evLocation,
+                  aPerson.FirstName,
+                  aPerson.LastNameAtBirth,
+                  aPerson.LastNameCurrent,
+                  aPerson.BirthDate,
+                  aPerson.Relation,
+                  aPerson.bio,
+                  ev,
+                  aPerson.Name,
+                ]);
+              }
+              if (isOK(evDateEnd)) {
+                evDate = evDateEnd;
+                ev = evEnd;
+                familyFacts.push([
+                  evDate,
+                  evLocation,
+                  aPerson.FirstName,
+                  aPerson.LastNameAtBirth,
+                  aPerson.LastNameCurrent,
+                  aPerson.BirthDate,
+                  aPerson.Relation,
+                  aPerson.bio,
+                  ev,
+                  aPerson.Name,
+                ]);
               }
             });
-            if (isOK(evDateStart)) {
-              evDate = evDateStart;
-              ev = evStart;
-              familyFacts.push([
-                evDate,
-                evLocation,
-                aPerson.FirstName,
-                aPerson.LastNameAtBirth,
-                aPerson.LastNameCurrent,
-                aPerson.BirthDate,
-                aPerson.Relation,
-                aPerson.bio,
-                ev,
-                aPerson.Name,
-              ]);
-            }
-            if (isOK(evDateEnd)) {
-              evDate = evDateEnd;
-              ev = evEnd;
-              familyFacts.push([
-                evDate,
-                evLocation,
-                aPerson.FirstName,
-                aPerson.LastNameAtBirth,
-                aPerson.LastNameCurrent,
-                aPerson.BirthDate,
-                aPerson.Relation,
-                aPerson.bio,
-                ev,
-                aPerson.Name,
-              ]);
-            }
-          });
+          }
         }
+      });
+      // Sort the events
+      familyFacts.sort();
+      if (!person.FirstName) {
+        person.FirstName = person.RealName;
       }
-    });
-    // Sort the events
-    familyFacts.sort();
-    if (!person.FirstName) {
-      person.FirstName = person.RealName;
-    }
-    // Make a table
-    const timelineTable = $(
-      `<div class='wrap' id='timeline' data-wtid='${person.Name}'><w>↔</w><x>x</x><table id='timelineTable'>` +
-        `<caption>Events in the life of ${person.FirstName}'s family</caption><thead><th class='tlDate'>Date</th><th class='tlBioAge'>Age (${person.FirstName})</th>` +
-        `<th class='tlRelation'>Relation</th><th class='tlName'>Name</th><th class='tlAge'>Age</th><th class='tlEventName'>Event</th><th class='tlEventLocation'>Location</th>` +
-        `</thead></table></div>`
-    );
-    // Attach the table to the container div
-    timelineTable.prependTo($("div.container.full-width"));
-    if ($("#connectionList").length) {
-      timelineTable.prependTo($("#content"));
-      timelineTable.css({ top: window.pointerY - 30, left: 10 });
-    }
-    let bpDead = false;
-    let bpDeadAge;
-
-    familyFacts.forEach(function (aFact) {
-      // Add events to the table
-      const showDate = aFact[0].replace("-00-00", "").replace("-00", "");
-      const tlDate = "<td class='tlDate'>" + showDate + "</td>";
-      let aboutAge = "";
-      let bpBdate = person.BirthDate;
-      if (!person.BirthDate) {
-        bpBdate = person.BirthDateDecade.replace(/0s/, "5");
-      }
-      let hasBdate = true;
-      if (bpBdate == "0000-00-00") {
-        hasBdate = false;
-      }
-      const bpBD = getApproxDate(bpBdate);
-      const evDate = getApproxDate(aFact[0]);
-      const aPersonBD = getApproxDate(aFact[5]);
-      if (bpBD.Approx == true) {
-        aboutAge = "~";
-      }
-      if (evDate.Approx == true) {
-        aboutAge = "~";
-      }
-      let bpAge = getAge(new Date(bpBD.Date), new Date(evDate.Date));
-      if (bpAge == 0) {
-        bpAge = "";
-      }
-      if (bpDead == true) {
-        const theDiff = parseInt(bpAge - bpDeadAge);
-        bpAge = bpAge + " (" + bpDeadAge + " + " + theDiff + ")";
-      }
-      let theBPAge;
-      if (aboutAge != "" && bpAge != "") {
-        theBPAge = "(" + bpAge + ")";
-      } else {
-        theBPAge = bpAge;
-      }
-      if (hasBdate == false) {
-        theBPAge = "";
-      }
-      const tlBioAge = "<td class='tlBioAge'>" + theBPAge + "</td>";
-      if (aFact[6] == undefined || aFact[9] == person.Name) {
-        aFact[6] = "";
-      }
-      const tlRelation = "<td class='tlRelation'>" + aFact[6].replace(/s$/, "") + "</td>";
-      let fNames = aFact[2];
-      if (aFact[8] == "marriage") {
-        fNames = person.FirstName + " and " + aFact[2];
-      }
-      const tlFirstName =
-        "<td class='tlFirstName'><a href='https://www.wikitree.com/wiki/" + aFact[9] + "'>" + fNames + "</a></td>";
-      const tlEventName =
-        "<td class='tlEventName'>" +
-        capitalizeFirstLetter(aFact[8]).replaceAll(/Us\b/g, "US").replaceAll(/Ii\b/g, "II") +
-        "</td>";
-      const tlEventLocation = "<td class='tlEventLocation'>" + aFact[1] + "</td>";
-
-      if (aPersonBD.Approx == true) {
-        aboutAge = "~";
-      }
-      let aPersonAge = getAge(new Date(aPersonBD.Date), new Date(evDate.Date));
-      if (aPersonAge == 0 || aPersonBD.Date.match(/0000/) != null) {
-        aPersonAge = "";
-        aboutAge = "";
-      }
-      let theAge;
-      if (aboutAge != "" && aPersonAge != "") {
-        theAge = "(" + aPersonAge + ")";
-      } else {
-        theAge = aPersonAge;
-      }
-      const tlAge = "<td class='tlAge'>" + theAge + "</td>";
-      let classText = "";
-      if (aFact[9] == person.Name) {
-        classText += "BioPerson ";
-      }
-      classText += aFact[8] + " ";
-      const tlTR = $(
-        "<tr class='" +
-          classText +
-          "'>" +
-          tlDate +
-          tlBioAge +
-          tlRelation +
-          tlFirstName +
-          tlAge +
-          tlEventName +
-          tlEventLocation +
-          "</tr>"
+      // Make a table
+      const timelineTable = $(
+        `<div class='wrap' id='timeline' data-wtid='${person.Name}'><w>↔</w><x>x</x><table id='timelineTable'>` +
+          `<caption>Events in the life of ${person.FirstName}'s family</caption><thead><th class='tlDate'>Date</th><th class='tlBioAge'>Age (${person.FirstName})</th>` +
+          `<th class='tlRelation'>Relation</th><th class='tlName'>Name</th><th class='tlAge'>Age</th><th class='tlEventName'>Event</th><th class='tlEventLocation'>Location</th>` +
+          `</thead></table></div>`
       );
-      $("#timelineTable").append(tlTR);
-      if (aFact[8] == "Death" && aFact[9] == person.Name) {
-        bpDead = true;
-        bpDeadAge = bpAge;
+      // Attach the table to the container div
+      let theContainer = $("div.container.full-width");
+      if (theContainer.prop("id") == "memberSection") {
+        $("#views-wrap").after(timelineTable);
+      } else {
+        timelineTable.prependTo(theContainer);
       }
-    });
+      if ($("#connectionList").length) {
+        timelineTable.prependTo($("#content"));
+        timelineTable.css({ top: window.pointerY - 30, left: 10 });
+      }
+      let bpDead = false;
+      let bpDeadAge;
 
-    $("#timeline").slideDown("slow");
-    $("#timeline x").click(function () {
-      $("#timeline").slideUp();
+      familyFacts.forEach(function (aFact) {
+        // Add events to the table
+        const showDate = aFact[0].replace("-00-00", "").replace("-00", "");
+        const tlDate = "<td class='tlDate'>" + showDate + "</td>";
+        let aboutAge = "";
+        let bpBdate = person.BirthDate;
+        if (!person.BirthDate) {
+          bpBdate = person.BirthDateDecade.replace(/0s/, "5");
+        }
+        let hasBdate = true;
+        if (bpBdate == "0000-00-00") {
+          hasBdate = false;
+        }
+        const bpBD = getApproxDate(bpBdate);
+        const evDate = getApproxDate(aFact[0]);
+        const aPersonBD = getApproxDate(aFact[5]);
+        if (bpBD.Approx == true) {
+          aboutAge = "~";
+        }
+        if (evDate.Approx == true) {
+          aboutAge = "~";
+        }
+        let bpAge = getAge(new Date(bpBD.Date), new Date(evDate.Date));
+        if (bpAge == 0) {
+          bpAge = "";
+        }
+        if (bpDead == true) {
+          const theDiff = parseInt(bpAge - bpDeadAge);
+          bpAge = bpAge + " (" + bpDeadAge + " + " + theDiff + ")";
+        }
+        let theBPAge;
+        if (aboutAge != "" && bpAge != "") {
+          theBPAge = "(" + bpAge + ")";
+        } else {
+          theBPAge = bpAge;
+        }
+        if (hasBdate == false) {
+          theBPAge = "";
+        }
+        const tlBioAge = "<td class='tlBioAge'>" + theBPAge + "</td>";
+        if (aFact[6] == undefined || aFact[9] == person.Name) {
+          aFact[6] = "";
+        }
+        const tlRelation = "<td class='tlRelation'>" + aFact[6].replace(/s$/, "") + "</td>";
+        let fNames = aFact[2];
+        if (aFact[8] == "marriage") {
+          fNames = person.FirstName + " and " + aFact[2];
+        }
+        const tlFirstName =
+          "<td class='tlFirstName'><a href='https://www.wikitree.com/wiki/" + aFact[9] + "'>" + fNames + "</a></td>";
+        const tlEventName =
+          "<td class='tlEventName'>" +
+          capitalizeFirstLetter(aFact[8]).replaceAll(/Us\b/g, "US").replaceAll(/Ii\b/g, "II") +
+          "</td>";
+        const tlEventLocation = "<td class='tlEventLocation'>" + aFact[1] + "</td>";
+
+        if (aPersonBD.Approx == true) {
+          aboutAge = "~";
+        }
+        let aPersonAge = getAge(new Date(aPersonBD.Date), new Date(evDate.Date));
+        if (aPersonAge == 0 || aPersonBD.Date.match(/0000/) != null) {
+          aPersonAge = "";
+          aboutAge = "";
+        }
+        let theAge;
+        if (aboutAge != "" && aPersonAge != "") {
+          theAge = "(" + aPersonAge + ")";
+        } else {
+          theAge = aPersonAge;
+        }
+        const tlAge = "<td class='tlAge'>" + theAge + "</td>";
+        let classText = "";
+        if (aFact[9] == person.Name) {
+          classText += "BioPerson ";
+        }
+        classText += aFact[8] + " ";
+        const tlTR = $(
+          "<tr class='" +
+            classText +
+            "'>" +
+            tlDate +
+            tlBioAge +
+            tlRelation +
+            tlFirstName +
+            tlAge +
+            tlEventName +
+            tlEventLocation +
+            "</tr>"
+        );
+        $("#timelineTable").append(tlTR);
+        if (aFact[8] == "Death" && aFact[9] == person.Name) {
+          bpDead = true;
+          bpDeadAge = bpAge;
+        }
+      });
+
+      $("#timeline").slideDown("slow");
+      $("#timeline x").click(function () {
+        $("#timeline").slideUp();
+      });
+      $("#timeline w").click(function () {
+        $("#timeline").toggleClass("wrap");
+      });
+      // Use jquery-ui to make the table draggable
+      $("#timeline").draggable();
+      $("#timeline").dblclick(function () {
+        $(this).slideUp("swing");
+      });
     });
-    $("#timeline w").click(function () {
-      $("#timeline").toggleClass("wrap");
-    });
-    // Use jquery-ui to make the table draggable
-    $("#timeline").draggable();
-    $("#timeline").dblclick(function () {
-      $(this).slideUp("swing");
-    });
-  });
+  }
 }
