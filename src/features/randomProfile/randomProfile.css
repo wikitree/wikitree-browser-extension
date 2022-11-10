@@ -1,6 +1,6 @@
 #locationInputLabel {
   position: absolute;
-  box-shadow: 0.3em 0.3em 0.3em 0.3em darkgreen;
+  box-shadow: 0.3em 0.3em 0.3em 0.3em 0.3em darkgreen;
   padding: 1em;
   background: white;
   cursor: move;
@@ -32,4 +32,7 @@
   top: 3px;
   right: 3px;
   cursor: pointer;
+}
+#randomProfileLocationButton {
+  padding: 0.2em;
 }

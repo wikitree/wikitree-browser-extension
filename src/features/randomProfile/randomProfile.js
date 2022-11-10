@@ -32,13 +32,16 @@ export async function getWTPlusJSON(call) {
 
 // Used in Random Profile and My Menu
 export async function getRandomProfile(ourCountry = false) {
-  const options = await getFeatureOptions("randomProfile");
-  console.log(ourCountry);
-  if (ourCountry == false || ourCountry == "") {
-    ourCountry = options.country;
-    console.log(ourCountry);
+  if (ourCountry == false || localStorage.randomProfileLocation) {
+    ourCountry = localStorage.randomProfileLocation;
+  } else if (ourCountry == "") {
+    ourCountry = "any";
   }
-  const ourCountryArray = ourCountry.split(", ");
+  if (ourCountry == "") {
+    ourCountry = "any";
+  }
+
+  // const ourCountryArray = ourCountry.split(", ");
   if (!window.searchedForRandomProfile) {
     window.searchedForRandomProfile = 1;
     const working = $("<img id='working' src='" + chrome.runtime.getURL("images/tree.gif") + "'>");
@@ -63,33 +66,9 @@ export async function getRandomProfile(ourCountry = false) {
           } else {
             locationFields.forEach((field) => {
               if (person[field]) {
-                ourCountryArray.forEach((country) => {
-                  if (person[field].match(country)) {
-                    if (country == "Wales") {
-                      if (person[field].match("New South Wales") == null) {
-                        inOurCountry = true;
-                      }
-                    } else if (country == "Virginia") {
-                      if (person[field].match("West Virginia") == null) {
-                        inOurCountry = true;
-                      }
-                    } else if (country == "Washington") {
-                      if (person[field].match("Washington DC") == null) {
-                        inOurCountry = true;
-                      }
-                    } else if (country == "Mexico") {
-                      if (person[field].match("New Mexico") == null) {
-                        inOurCountry = true;
-                      }
-                    } else if (country == "England") {
-                      if (person[field].match("New England") == null) {
-                        inOurCountry = true;
-                      }
-                    } else {
-                      inOurCountry = true;
-                    }
-                  }
-                });
+                if (person[field].match(ourCountry)) {
+                  inOurCountry = true;
+                }
               }
             });
           }
@@ -136,15 +115,15 @@ export async function getRandomProfile(ourCountry = false) {
         getRandomProfile(ourCountry);
       });
   } else {
-    getWTPlusJSON("WTWebProfileSearch/Profiles.json?Query=" + ourCountry + "&MaxProfiles=10000&Format=JSON").then(
-      (response) => {
-        console.log(response);
-        const randomNumber = Math.floor(Math.random() * response.response.found);
-        let randomProfileID = response.response.profiles[randomNumber];
-        let aLink = `https://www.wikitree.com/wiki/${randomProfileID}`;
-        window.location = aLink;
-      }
-    );
+    getWTPlusJSON(
+      "WTWebProfileSearch/extRandomProfile.json?Query=" + ourCountry + "&MaxProfiles=100000&Format=JSON"
+    ).then((response) => {
+      console.log(response);
+      const randomNumber = Math.floor(Math.random() * response.response.found);
+      let randomProfileID = response.response.profiles[randomNumber];
+      let aLink = `https://www.wikitree.com/wiki/${randomProfileID}`;
+      window.location = aLink;
+    });
   }
 }
 
@@ -160,7 +139,7 @@ export async function addRandomToFindMenu() {
   $(".randomProfile").on("contextmenu", function (e) {
     e.preventDefault();
     const locationInput = $(
-      "<label id='locationInputLabel'>Random Profile Location: <input placeholder='Hit Enter to go' title='Hit Enter to go' type='textbox' id='randomProfileLocation'></label>"
+      "<label id='locationInputLabel'>Random Profile Location: <input type='textbox' id='randomProfileLocation'><button id='randomProfileLocationButton' class='small'>Go</button></label>"
     );
 
     locationInput.prependTo($("div.six").eq(0));
@@ -171,18 +150,29 @@ export async function addRandomToFindMenu() {
         $(this).remove();
       }, 2000);
     });
-    if (localStorage.getRandomProfileLocation) {
-      $("#randomProfileLocation").val(localStorage.getRandomProfileLocation);
+    if (localStorage.randomProfileLocation) {
+      $("#randomProfileLocation").val(localStorage.randomProfileLocation);
     }
-    $("#randomProfileLocation").on("keyup", function (e) {
-      if (e.key === "Enter") {
-        getRandomProfile($(this).val());
-        localStorage.setItem("randomProfileLocation", $(this).val());
-        $(this).fadeOut();
+
+    function submitThisThing() {
+      localStorage.setItem("randomProfileLocation", $("#randomProfileLocation").val());
+      setTimeout(function () {
+        getRandomProfile(document.querySelector("#randomProfileLocation").value);
+        $("#locationInputLabel").fadeOut();
         setTimeout(function () {
           $("#locationInputLabel").remove();
         }, 2000);
+      }, 500);
+    }
+
+    $("#randomProfileLocation").on("keyup", function (e) {
+      if (e.key === "Enter") {
+        submitThisThing();
       }
+    });
+
+    $("#randomProfileLocationButton").on("click", function () {
+      submitThisThing();
     });
   });
 }
