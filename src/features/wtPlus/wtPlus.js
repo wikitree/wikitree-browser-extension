@@ -1,7 +1,7 @@
 import "./wtPlus.css";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { isEditPage } from "../../core/common";
-import { wtAPICatCIBSearch } from "./wtPlusAPI";
+import { wtAPICatCIBSearch } from "../../core/wtPlusAPI/wtPlusAPI";
 
 let tb = {};
 
