@@ -1,5 +1,4 @@
 import $ from "jquery";
-import { getPerson } from "wikitree-js";
 
 export let pageProfile = false;
 export let pageHelp = false;
@@ -247,27 +246,6 @@ export function htmlEntities(str) {
     .replaceAll(/>/g, "&gt;")
     .replaceAll(/"/g, "&quot;")
     .replaceAll(/'/g, "&apos;");
-}
-
-// Used in Random Profile and My Menu
-export function getRandomProfile() {
-  const randomProfileID = Math.floor(Math.random() * 36360449);
-  // check if exists
-  getPerson(randomProfileID)
-    .then((person) => {
-      // check to see if the profile is Open
-      if (person.Privacy_IsOpen) {
-        const link = `https://www.wikitree.com/wiki/${randomProfileID}`;
-        window.location = link;
-      } else {
-        // If it isn't open, find a new profile
-        getRandomProfile();
-      }
-    })
-    .catch((reason) => {
-      console.log(`getJSON request failed! ${reason}`);
-      getRandomProfile();
-    });
 }
 
 // Used in Draft List and My Menu

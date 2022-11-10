@@ -1,0 +1,58 @@
+#locationInputLabel {
+  position: absolute;
+  box-shadow: 0.2em 0.2em 0.2em 0.2em darkgreen;
+  padding: 1em;
+  background: white;
+  cursor: move;
+  border: 2px solid forestgreen;
+  z-index: 1000000;
+  width: 19em;
+  text-align: left;
+}
+
+#working,
+#searchedRandomProfiles {
+  z-index: 1000000;
+  height: 50px;
+  border-radius: 50%;
+  border: 2px solid forestgreen;
+}
+
+#searchedRandomProfiles {
+  padding: 1em;
+  height: auto;
+  width: auto;
+  background: white;
+  border-radius: 1em;
+  box-shadow: 0.1em 0.1em 0.1em 0.1em darkgreen;
+}
+#searchedRandomProfiles x,
+#locationInputLabel x {
+  position: absolute;
+  top: 3px;
+  right: 5px;
+  cursor: pointer;
+}
+
+#locationInputLabel q {
+  position: absolute;
+  bottom: 3px;
+  right: 5px;
+  cursor: pointer;
+}
+#locationInputLabel div.help {
+  margin: 0.5em;
+  display: none;
+  border: 1px solid gray;
+}
+#randomProfileLocationButton {
+  padding: 0.4em;
+  margin-left: 1em;
+  margin-right: 0;
+  width: 4em;
+  font-size: 0.9em;
+  background: #25422d;
+  color: white;
+  display: inline-block;
+  line-height: normal;
+}

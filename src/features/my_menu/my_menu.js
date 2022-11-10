@@ -1,7 +1,8 @@
 import $ from "jquery";
 import "jquery-ui/ui/widgets/sortable";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
-import { isOK, htmlEntities, getRandomProfile, showDraftList } from "../../core/common";
+import { isOK, htmlEntities, showDraftList } from "../../core/common";
+import { getRandomProfile, addRandomProfileLocationBox } from "../randomProfile/randomProfile";
 import { getPerson } from "wikitree-js";
 import "./my_menu.css";
 
@@ -284,6 +285,10 @@ function addCustomMenu() {
   $("#myCustomMenu li a:contains(Random Profile)").on("click", function (e) {
     e.preventDefault();
     getRandomProfile();
+  });
+  $("#myCustomMenu li a:contains(Random Profile)").on("contextmenu", function (e) {
+    e.preventDefault();
+    addRandomProfileLocationBox(e);
   });
 
   $("#myCustomMenu li a:contains(Drafts)").on("click", function (e) {

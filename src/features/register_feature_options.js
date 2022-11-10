@@ -12,6 +12,7 @@ import "./categoryDisplay/categoryDisplay_options.js";
 import "./darkMode/darkMode_options.js";
 import "./g2g/g2g_options.js";
 import "./genderPredictor/gender_predictor_options.js";
+import "./randomProfile/randomProfile_options.js";
 import "./redir_ext_links/redir_ext_links_options.js";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -128,14 +129,6 @@ registerFeature({
   name: "Printer Friendly Bio",
   id: "printerFriendly",
   description: "Change the page to a printer-friendly one.",
-  category: "Global",
-  defaultValue: true,
-});
-
-registerFeature({
-  name: "Random Profile",
-  id: "randomProfile",
-  description: "Adds a Random Profile link to the Find menu.",
   category: "Global",
   defaultValue: true,
 });
