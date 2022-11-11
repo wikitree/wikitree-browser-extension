@@ -151,9 +151,10 @@ registerFeature({
 registerFeature({
   name: "Sort Theme People",
   id: "sortThemePeople",
-  description: "Adds a button to sort the 'Theme of the Week' people on profile pages.",
+  description:
+    "Replaces the Connection Finder (theme of the week) section on Profile pages with a table sorted by degree of closeness to the profile person.",
   category: "Profile",
-  defaultValue: true,
+  defaultValue: false,
 });
 
 registerFeature({

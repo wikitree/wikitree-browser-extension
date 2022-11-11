@@ -1,12 +1,8 @@
 import $ from "jquery";
 import "./sort_theme_people.css";
-import {
-  getRelationshipFinderResult,
-  ordinalWordToNumberAndSuffix,
-} from "../distanceAndRelationship/distanceAndRelationship";
 import { capitalizeFirstLetter } from "../familyTimeline/familyTimeline";
 import { isOK } from "../../core/common.js";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("sortThemePeople").then((result) => {
   if (
@@ -17,14 +13,7 @@ checkIfFeatureEnabled("sortThemePeople").then((result) => {
     if ($("h2.thisWeeksTheme").length == 0) {
       connectionsBanner();
     }
-    $(".sixteen p a:contains(degrees from),.sixteen div.box.rounded.row a:contains(degrees from)")
-      .closest("div")
-      .before($("<button id='themeTableButton' class='small button'>Theme list</button>"));
-    $("#themeTableButton").on("click", function (e) {
-      e.preventDefault();
-      themePeopleTable();
-    });
-    // themePeopleTable();
+    themePeopleTable();
   }
 });
 
@@ -69,33 +58,6 @@ function themePeopleTable() {
       );
       themeTable.find("tbody").append(aRow);
       const profileID = $("a.pureCssMenui0 span.person").text();
-      getRelationshipFinderResult(profileID, aPerson.WTID).then((data) => {
-        if (data) {
-          var out = "";
-          var aRelationship = true;
-          const commonAncestors = [];
-          let realOut = "";
-          let dummy = $("<html></html>");
-          dummy.append($(data.html));
-          if (dummy.find("h1").length) {
-            if (dummy.find("h1").eq(0).text() == "No Relationship Found") {
-              aRelationship = false;
-              console.log("No Relationship Found");
-            }
-          }
-          if (dummy.find("h2").length && aRelationship == true) {
-            let out = dummy.find("h2").eq(0).text().trim();
-            $("#themeTable a[href$='" + aPerson.WTID + "']")
-              .closest("tr")
-              .find("td:last")
-              .append(
-                $(
-                  `<a href='https://www.wikitree.com/index.php?title=Special:Relationship&action=calculate&person1_name=${profileID}&person2_name=${aPerson.WTID}'>${out}</a>`
-                )
-              );
-          }
-        }
-      });
     });
   }
 }
@@ -116,7 +78,7 @@ async function setConnectionsBanner() {
       dTitle = localStorage.cfTitle;
     }
     const ourTitle = "This week's theme: " + dTitle;
-    const ourTableTitle = "This week's theme:<br> " + dTitle;
+    const ourTableTitle = dTitle + ":<br>Connections to " + $("span[itemprop='givenName']").text();
     theDiv.prepend("<h2 class='thisWeeksTheme'>" + ourTitle + "</h2>");
     if ($("#themeTable").length) {
       $("#themeTable").find("caption").html(ourTableTitle);
@@ -155,7 +117,6 @@ async function connectionsBanner() {
 
         if (isOK(firstConnectionHREF)) {
           const urlParams = new URLSearchParams(firstConnectionHREF);
-          console.log(firstConnectionHREF);
           const firstConnectionWTID = urlParams.get("person1Name");
           localStorage.setItem("firstConnectionWTID", firstConnectionWTID);
           const homePageURL = "https://www.wikitree.com";
