@@ -19,6 +19,7 @@ import "./features/g2g/g2g";
 import "./features/genderPredictor/genderPredictor";
 import "./features/google_search_box/google_search_box";
 import "./features/locationsHelper/locationsHelper";
+import "./features/move_family_lists/move_family_lists";
 import "./features/my_menu/my_menu";
 import "./features/printerfriendly/printerfriendly";
 import "./features/randomProfile/randomProfile";

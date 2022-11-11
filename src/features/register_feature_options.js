@@ -118,6 +118,14 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Move Family Lists",
+  id: "moveFamilyLists",
+  description: "Move family lists to the right-hand column",
+  category: "Profile",
+  defaultValue: true,
+});
+
+registerFeature({
   name: "My Menu",
   id: "myMenu",
   description: "Add your own custom menu for easy access to your most commonly used links.",
