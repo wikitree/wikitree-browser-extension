@@ -762,7 +762,7 @@ function selectTemplate(data) {
 }
 
 function onDlgSelectTemplateFlt() {
-  let lb = tb.elDlg.querySelector("#tb");
+  var lb = tb.elDlg.querySelector("#tb");
   var s0 = "";
   for (let i = 1; i <= 5; i++) {
     if (tb.elDlg.querySelector("#cb" + i).checked)
@@ -836,7 +836,8 @@ function selectCIB(data) {
     '<label for="cb1"> ' +
     data +
     "</label><br>" +
-    '<label for="flt1">Filter: </label><input type="text" class="cbFilter" id="flt1" name="flt1" data-op="onDlgSelectCIBFlt" data-id="9"><br>' +
+    '<label for="flt1">Filter: </label><input type="text" class="cbFilter" id="flt1" name="flt1" data-op="onDlgSelectCIBFlt" data-id="9">' +
+    '<label id="cntr">no matches</label><br>' +
     '<div style="min-width: 600px;overflow-y:auto;height: 400px;"><table style="width: 100%;" id="tb">' +
     "</table></div>" +
     '<div style="text-align:right">' +
@@ -847,13 +848,14 @@ function selectCIB(data) {
     "</div>";
   attachEvents("button.dlgClick", "click");
   attachEvents("input.cbFilter", "input");
-  attachEvents("tr.trSelect", "click");
+//  attachEvents("td.tdSelect", "click");
   onDlgSelectCIBFlt();
   tb.elDlg.showModal();
 }
 
 function onDlgSelectCIBFlt() {
   let lb = tb.elDlg.querySelector("#tb");
+  let cntr = tb.elDlg.querySelector("#cntr");
   var s0 = tb.elDlg.querySelector("#cb1").value;
   var s1 = tb.elDlg.querySelector("#flt1").value;
 
@@ -864,48 +866,79 @@ function onDlgSelectCIBFlt() {
       if (!c) {
         c = [];
       }
+      switch (c.length) {
+        case 0:
+          cntr.innerHTML = "no matches";
+          break;
+        case 1:
+          cntr.innerHTML = c.length + " match";
+          break;
+        case 100:
+          cntr.innerHTML = "more than 100 matches";
+          break;
+        default:
+          cntr.innerHTML = c.length + " matches";
+      }
       lb.innerHTML = c
         .map(
           (item) =>
-            '<tr class="trSelect" data-op="onDlgSelectCIBTrSel"><td title="' +
+            "<tr>" +
+            `<td><a target="_blank" href="https://www.wikitree.com/wiki/Category:${
+              item.category
+            }"><img src="${chrome.runtime.getURL("images/newTab.png")}"'></a></td>` +
+            '<td class="tdSelect" data-op="onDlgSelectCIBTrSel" title="' +
             (item.name ? "&#10;Name: " + item.name : "") +
             (item.aka ? "&#10;aka: " + item.aka.replaceAll(";", "&#10;&nbsp;&nbsp;") : "") +
             (item.parent ? "&#10;Parent: " + item.parent : "") +
             (item.gParent ? "&#10;&nbsp;&nbsp;" + item.gParent : "") +
             (item.ggParent ? "&#10;&nbsp;&nbsp;&nbsp;&nbsp;" + item.ggParent : "") +
+            (item.gggParent ? "&#10;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + item.gggParent : "") +
             (item.parent1 ? "&#10;Parent 1: " + item.parent1 : "") +
             (item.gParent1 ? "&#10;&nbsp;&nbsp;:" + item.gParent1 : "") +
+            (item.parent2 ? "&#10;Parent 2: " + item.parent2 : "") +
+            (item.gParent2 ? "&#10;&nbsp;&nbsp;:" + item.gParent2 : "") +
             (item.location ? "&#10;Location: " + item.location : "") +
             (item.locationParent ? "&#10;&nbsp;&nbsp;" + item.locationParent : "") +
             (item.location1 ? "&#10;Location 1: " + item.location1 : "") +
             (item.location1Parent ? "&#10;&nbsp;&nbsp;" + item.location1Parent : "") +
+            (item.succ1prev ? "&#10;Succession: " + item.succ1prev : "") +
+            (item.succ1next ? "&#10;&nbsp;" + item.succ1next : "") +
+            (item.succ1prev1 ? "&#10;Succession: " + item.succ1prev1 : "") +
+            (item.succ1next1 ? "&#10;&nbsp;" + item.succ1next1 : "") +
+            (item.succ1prev2 ? "&#10;Succession: " + item.succ1prev2 : "") +
+            (item.succ1next2 ? "&#10;&nbsp;" + item.succ1next2 : "") +
+            (item.succ1prev3 ? "&#10;Succession: " + item.succ1prev3 : "") +
+            (item.succ1next3 ? "&#10;&nbsp;" + item.succ1next3 : "") +
+            (item.succ2prev ? "&#10;Succession: " + item.succ2prev : "") +
+            (item.succ2next ? "&#10;&nbsp;" + item.succ2next : "") +
             '">' +
             item.category +
-            "</td></tr>"
+            "</td>" +
+            "</tr>"
         )
         .join("\n");
-      attachEvents("tr.trSelect", "click");
+      attachEvents("td.tdSelect", "click");
     })
     .catch((error) => {
       lb.innerHTML = '<tr><td style="color:red">Error in WikiTree+ server' + error + "</td></tr>";
     });
 }
 
-function onDlgSelectCIBTrSel(tr) {
-  removeClass("tr.trSelect", "trSelected");
-  tr.classList.add("trSelected");
+function onDlgSelectCIBTrSel(td) {
+  removeClass("td.tdSelect", "tdSelected");
+  td.classList.add("tdSelected");
 }
 
 function onDlgSelectCIBBtn(update) {
   if (update === "1") {
-    if (tb.elDlg.querySelectorAll(".trSelected>td").length === 0) {
+    if (tb.elDlg.querySelectorAll("td.tdSelected").length === 0) {
       alert("No category selected: Select a category before closing the dialog");
       return false;
     }
     tb.elDlg.close();
     //Add template
 
-    tb.inserttext = "[[Category:" + tb.elDlg.querySelectorAll(".trSelected>td")[0].innerText + "]]\n";
+    tb.inserttext = "[[Category:" + tb.elDlg.querySelectorAll("td.tdSelected")[0].innerText + "]]\n";
     tb.textResult = tb.inserttext + tb.textAll;
     tb.selStart = tb.textBefore.length;
     tb.selEnd = tb.selStart + tb.inserttext.length;
@@ -1403,7 +1436,8 @@ function mainEventLoop(event) {
 
   let element = event.srcElement;
   if (element.tagName == "TD") {
-    element = element.parentElement;
+    if (!element.dataset.op)
+      element = element.parentElement;
   }
   const op = element.dataset.op;
   const id = element.dataset.id;
