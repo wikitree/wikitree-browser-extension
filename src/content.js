@@ -24,6 +24,7 @@ import "./features/printerfriendly/printerfriendly";
 import "./features/randomProfile/randomProfile";
 import "./features/redir_ext_links/redir_ext_links";
 import "./features/sortBadges/sortBadges";
+import "./features/sort_theme_people/sort_theme_people";
 import "./features/sourcepreview/sourcepreview";
 import "./features/spacepreview/spacepreview";
 import "./features/verifyID/verifyID";

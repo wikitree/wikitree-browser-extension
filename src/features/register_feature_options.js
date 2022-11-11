@@ -142,6 +142,15 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Sort Theme People",
+  id: "sortThemePeople",
+  description:
+    "Replaces the Connection Finder (theme of the week) section on Profile pages with a table sorted by degree of closeness to the profile person.",
+  category: "Profile",
+  defaultValue: false,
+});
+
+registerFeature({
   name: "Source Previews",
   id: "sPreviews",
   description: "Enable source previews on inline references.",
