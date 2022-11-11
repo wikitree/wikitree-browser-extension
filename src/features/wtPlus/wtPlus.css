@@ -1,8 +1,10 @@
-tr.trSelect:hover {
+tr.trSelect:hover,
+td.tdSelect:hover {
   background: #ffe270;
 }
 
-tr.trSelected {
+tr.trSelected,
+td.tdSelected {
   background: #cccccc !important;
 }
 

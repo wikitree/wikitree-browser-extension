@@ -34,7 +34,20 @@ export default [
   },
   {
     button: "Categories",
-    items: [{ featureid: "wtplus", title: "Add cemetery category", call: wtPlus, params: { action: "AddCIBCategory", data: "Cemetery" } }],
+    items: [
+      {
+        featureid: "wtplus",
+        title: "Add location category",
+        call: wtPlus,
+        params: { action: "AddCIBCategory", data: "Location" },
+      },
+      {
+        featureid: "wtplus",
+        title: "Add cemetery category",
+        call: wtPlus,
+        params: { action: "AddCIBCategory", data: "Cemetery" },
+      },
+    ],
   },
   {
     button: "Biography",
