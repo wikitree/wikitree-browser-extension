@@ -114,7 +114,7 @@ export default [
       },
       {
         featureid: "wtplus",
-        title: "Add cemetery group category",
+        title: "Add cemetery group",
         call: wtPlus,
         params: { action: "AddCIBCategory", data: "CemeteryGroup" },
       },
