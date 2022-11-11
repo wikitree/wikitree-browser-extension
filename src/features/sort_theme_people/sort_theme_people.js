@@ -10,9 +10,7 @@ checkIfFeatureEnabled("sortThemePeople").then((result) => {
     $("body.profile").length &&
     $(".sixteen p a:contains(degrees from),.sixteen div.box.rounded.row a:contains(degrees from)").length
   ) {
-    if ($("h2.thisWeeksTheme").length == 0) {
-      connectionsBanner();
-    }
+    connectionsBanner();
     themePeopleTable();
   }
 });
