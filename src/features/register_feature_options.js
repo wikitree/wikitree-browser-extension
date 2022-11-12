@@ -12,6 +12,7 @@ import "./categoryDisplay/categoryDisplay_options.js";
 import "./darkMode/darkMode_options.js";
 import "./g2g/g2g_options.js";
 import "./genderPredictor/gender_predictor_options.js";
+import "./change_family_lists/change_family_lists_options.js";
 import "./randomProfile/randomProfile_options.js";
 import "./redir_ext_links/redir_ext_links_options.js";
 
@@ -114,14 +115,6 @@ registerFeature({
     "Manipulates the suggested locations, highlighting likely correct locations," +
     " based on family members' locations, and demoting likely wrong locations, based on the dates.",
   category: "Editing",
-  defaultValue: true,
-});
-
-registerFeature({
-  name: "Move Family Lists",
-  id: "moveFamilyLists",
-  description: "Move family lists to the right-hand column",
-  category: "Profile",
   defaultValue: true,
 });
 

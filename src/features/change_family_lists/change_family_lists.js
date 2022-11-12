@@ -1,8 +1,8 @@
 import $ from "jquery";
-import "./move_family_lists.css";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import "./change_family_lists.css";
+import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
-checkIfFeatureEnabled("moveFamilyLists").then((result) => {
+checkIfFeatureEnabled("changeFamilyLists").then((result) => {
   if (result) {
     prepareFamilyLists().then(() => {
       moveFamilyLists(true);
@@ -16,6 +16,11 @@ checkIfFeatureEnabled("moveFamilyLists").then((result) => {
 });
 
 async function prepareFamilyLists() {
+  const featureId = "changeFamilyLists";
+  const optionsData = getFeatureOptions(featureId).then((options) => {
+    console.log(options);
+  });
+
   if ($("body.profile").length && window.location.href.match("Space:") == null) {
     const ourVitals = $("div.ten div.VITALS");
     const familyLists = $("<div id='familyLists'></div>");
@@ -59,6 +64,9 @@ async function prepareFamilyLists() {
         $(this).appendTo(familyLists);
       }
     });
+    familyLists.on("dblclick", function () {
+      moveFamilyLists();
+    });
   }
 }
 
@@ -70,17 +78,31 @@ async function moveFamilyLists(firstTime = false) {
   const familyLists = $("#familyLists");
 
   if (firstTime == false) {
-    if (window.innerWidth < 768) {
+    let right;
+    if (window.innerWidth < 768 || rightHandColumn.find(familyLists).length) {
       familyLists.fadeOut("slow", function () {
         familyLists.insertAfter($("#birthDetails"));
         familyLists.fadeIn("slow");
       });
+      right = false;
     } else {
       familyLists.fadeOut("slow", function () {
         familyLists.insertBefore($("#geneticfamily"));
         familyLists.fadeIn("slow");
       });
+      right = true;
     }
+    const optionsData = { moveToRight: right };
+    console.log(optionsData);
+    const storageName = "changeFamilyLists_options";
+    chrome.storage.sync.set(
+      {
+        [storageName]: optionsData,
+      },
+      function () {
+        chrome.runtime.sendMessage({ message: "restore_options" });
+      }
+    );
   } else {
     if (window.innerWidth < 768) {
       familyLists.insertAfter($("#birthDetails"));
