@@ -1,10 +1,17 @@
 import $ from "jquery";
 import fs from "fs";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
-import { getRandomProfile } from "../../core/common";
+import chrome from "sinon-chrome";
+import { getPerson } from "wikitree-js";
 
-jest.mock("../../core/common");
+jest.mock("wikitree-js");
 jest.mock("../../core/options/options_storage");
+
+// Mock out draggable because it misbehaves in tests.
+jest.mock("jquery-ui/ui/widgets/draggable", () => ({}));
+
+// Add chrome to window because jsdom doesn't provide it.
+window.chrome = chrome;
 
 describe("randomProfile", () => {
   let addRandomToFindMenu;
@@ -31,10 +38,20 @@ describe("randomProfile", () => {
   });
 
   test("calls getRandomProfile() when clicked", async () => {
+    // Make random deterministic.
+    global.Math.random = jest.fn().mockReturnValue(1);
+    getPerson.mockResolvedValue({ Privacy_IsOpen: true });
+    // Replace winodw.location with a simple string to check its value later.
+    delete window.location;
+    window.location = "";
+
     await addRandomToFindMenu();
 
     $(".randomProfile").trigger("click");
 
-    expect(getRandomProfile).toHaveBeenCalled();
+    // Wait for event to propagate.
+    await new Promise(process.nextTick);
+
+    expect(window.location).toBe("https://www.wikitree.com/wiki/36360449");
   });
 });

@@ -1,6 +1,7 @@
 #clipboard {
   position: absolute;
   width: auto;
+  z-index: 100000000;
   width: 70%;
   left: 15%;
   right: 15%;
@@ -9,7 +10,7 @@
   border-radius: 1em;
   max-height: 40em;
   overflow: auto;
-  z-index: 11000;
+  position: absolute;
   box-shadow: 0.1em 0.1em 0.1em 0.1em lightgreen;
   background: white;
   display: none;

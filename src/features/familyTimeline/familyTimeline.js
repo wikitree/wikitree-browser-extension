@@ -1,17 +1,13 @@
-import * as $ from 'jquery';
-import 'jquery-ui/ui/widgets/draggable';
-import {getRelatives} from 'wikitree-js';
-import {createProfileSubmenuLink, extractRelatives, isOK} from '../../core/common';
-import './familyTimeline.css';
-import { checkIfFeatureEnabled } from "../../core/options/options_storage"
+import * as $ from "jquery";
+import "jquery-ui/ui/widgets/draggable";
+import { getRelatives } from "wikitree-js";
+import { createProfileSubmenuLink, extractRelatives, isOK } from "../../core/common";
+import "./familyTimeline.css";
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("familyTimeline").then((result) => {
   if (result) {
-    if (
-      result.familyTimeline &&
-      $("body.profile").length &&
-      window.location.href.match("Space:") == null
-    ) {
+    if (result && $("body.profile").length && window.location.href.match("Space:") == null) {
       // Add a link to the short list of links below the tabs
       const options = {
         title: "Display a family timeline",
@@ -137,7 +133,7 @@ function getAge(birth, death) {
   return age;
 }
 
-function capitalizeFirstLetter(string) {
+export function capitalizeFirstLetter(string) {
   string = string.toLowerCase();
   const bits = string.split(" ");
   let out = "";
@@ -230,10 +226,7 @@ function timeline() {
           }
         }
         if (aPerson.Relation) {
-          aPerson.Relation = aPerson.Relation.replace(/s$/, "").replace(
-            /ren$/,
-            ""
-          );
+          aPerson.Relation = aPerson.Relation.replace(/s$/, "").replace(/ren$/, "");
         }
         if (evDate != "" && evDate != "0000" && isOK(evDate)) {
           let fName = aPerson.FirstName;
@@ -307,15 +300,11 @@ function timeline() {
                   }
                   if (aBitField == "enlisted") {
                     evDateStart = dateToYMD(aBitFact);
-                    evStart =
-                      "Enlisted for " +
-                      templateTitle.replace("american", "American");
+                    evStart = "Enlisted for " + templateTitle.replace("american", "American");
                   }
                   if (aBitField == "discharged") {
                     evDateEnd = dateToYMD(aBitFact);
-                    evEnd =
-                      "Discharged from " +
-                      templateTitle.replace("american", "American");
+                    evEnd = "Discharged from " + templateTitle.replace("american", "American");
                   }
                   if (aBitField == "branch") {
                     evLocation = aBitFact;
@@ -423,23 +412,16 @@ function timeline() {
       if (aFact[6] == undefined || aFact[9] == person.Name) {
         aFact[6] = "";
       }
-      const tlRelation =
-        "<td class='tlRelation'>" + aFact[6].replace(/s$/, "") + "</td>";
+      const tlRelation = "<td class='tlRelation'>" + aFact[6].replace(/s$/, "") + "</td>";
       let fNames = aFact[2];
       if (aFact[8] == "marriage") {
         fNames = person.FirstName + " and " + aFact[2];
       }
       const tlFirstName =
-        "<td class='tlFirstName'><a href='https://www.wikitree.com/wiki/" +
-        aFact[9] +
-        "'>" +
-        fNames +
-        "</a></td>";
+        "<td class='tlFirstName'><a href='https://www.wikitree.com/wiki/" + aFact[9] + "'>" + fNames + "</a></td>";
       const tlEventName =
         "<td class='tlEventName'>" +
-        capitalizeFirstLetter(aFact[8])
-          .replaceAll(/Us\b/g, "US")
-          .replaceAll(/Ii\b/g, "II") +
+        capitalizeFirstLetter(aFact[8]).replaceAll(/Us\b/g, "US").replaceAll(/Ii\b/g, "II") +
         "</td>";
       const tlEventLocation = "<td class='tlEventLocation'>" + aFact[1] + "</td>";
 

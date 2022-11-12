@@ -8,9 +8,11 @@ import { registerFeature } from "../core/options/options_registry";
 ////////////////////////////////////////////////////////////////////////////////
 
 import "./agc/agc_options.js";
+import "./categoryDisplay/categoryDisplay_options.js";
 import "./darkMode/darkMode_options.js";
 import "./g2g/g2g_options.js";
 import "./genderPredictor/gender_predictor_options.js";
+import "./randomProfile/randomProfile_options.js";
 import "./redir_ext_links/redir_ext_links_options.js";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -38,15 +40,6 @@ registerFeature({
   description: "Check biography style and sources.",
   category: "Editing",
   defaultValue: true,
-});
-
-registerFeature({
-  name: "Category Display",
-  id: "categoryDisplay",
-  description:
-    "Changes the location of Categories to the top of the Bio.",
-  category: "Profile",
-  defaultValue: false,
 });
 
 registerFeature({
@@ -141,19 +134,20 @@ registerFeature({
 });
 
 registerFeature({
-  name: "Random Profile",
-  id: "randomProfile",
-  description: "Adds a Random Profile link to the Find menu.",
-  category: "Global",
-  defaultValue: true,
-});
-
-registerFeature({
   name: "Sort Badges",
   id: "sortBadges",
   description: "Buttons to move or hide your Club 100/1000 badges.",
   category: "Other",
   defaultValue: true,
+});
+
+registerFeature({
+  name: "Sort Theme People",
+  id: "sortThemePeople",
+  description:
+    "Replaces the Connection Finder (theme of the week) section on Profile pages with a table sorted by degree of closeness to the profile person.",
+  category: "Profile",
+  defaultValue: false,
 });
 
 registerFeature({
