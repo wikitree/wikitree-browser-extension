@@ -4,23 +4,29 @@ import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("moveFamilyLists").then((result) => {
   if (result) {
-    moveFamilyLists();
+    prepareFamilyLists().then(() => {
+      moveFamilyLists(true);
+    });
+    window.onresize = function () {
+      if ($("body.profile").length && window.location.href.match("Space:") == null) {
+        moveFamilyLists(true);
+      }
+    };
   }
 });
 
-async function moveFamilyLists() {
+async function prepareFamilyLists() {
   if ($("body.profile").length && window.location.href.match("Space:") == null) {
     const ourVitals = $("div.ten div.VITALS");
     const familyLists = $("<div id='familyLists'></div>");
     ourVitals.each(function () {
-      console.log($(this).text());
       if ($(this).find("span[itemprop='givenName']").length) {
         $(this).prop("id", "profileName");
       } else if ($(this).text().match(/^Born/)) {
         $(this).prop("id", "birthDetails");
         $(this).after(familyLists);
       } else if ($(this).text().match(/^Died/)) {
-        $(this).prop("id", "birthDetails");
+        $(this).prop("id", "deathDetails");
       } else {
         if (
           $(this)
@@ -48,17 +54,23 @@ async function moveFamilyLists() {
             .text()
             .match(/^Father|^Mother|^Parent/)
         ) {
-          $(this).prop("id", "childDetails");
+          $(this).prop("id", "childrenDetails");
         }
         $(this).appendTo(familyLists);
       }
     });
-    $("#parentDetails").prepend($("span.showHideTree"));
-    $("#childDetails").prepend($("span#showHideDescendants"));
-    const leftHandColumn = $("div.ten").eq(0).prop("id", "leftColumn");
-    const rightHandColumn = $("div.six").eq(0).prop("id", "rightColumn");
+  }
+}
 
-    if (window.innerWidth < 750 || rightHandColumn.find("#familyLists").length) {
+async function moveFamilyLists(firstTime = false) {
+  $("#parentDetails").prepend($("span.showHideTree"));
+  $("#childDetails").prepend($("span#showHideDescendants"));
+  const leftHandColumn = $("div.ten").eq(0).prop("id", "leftColumn");
+  const rightHandColumn = $("div.six").eq(0).prop("id", "rightColumn");
+  const familyLists = $("#familyLists");
+
+  if (firstTime == false) {
+    if (window.innerWidth < 768) {
       familyLists.fadeOut("slow", function () {
         familyLists.insertAfter($("#birthDetails"));
         familyLists.fadeIn("slow");
@@ -69,7 +81,14 @@ async function moveFamilyLists() {
         familyLists.fadeIn("slow");
       });
     }
-    /*
+  } else {
+    if (window.innerWidth < 768) {
+      familyLists.insertAfter($("#birthDetails"));
+    } else {
+      familyLists.insertBefore($("#geneticfamily"));
+    }
+  }
+  /*
         else if (sync.w_dataRight == 1) {
       if (window.sc) {
         pppA = window.sc.querySelector("a[href='/wiki/Project_protection']");
@@ -98,5 +117,4 @@ async function moveFamilyLists() {
       }
     }
     */
-  }
 }
