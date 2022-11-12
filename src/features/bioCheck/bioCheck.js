@@ -75,7 +75,6 @@ function checkSourcesAtInterval() {
  *
  * Copied the following files into features/bioCheck:
  *   Biography.js
- *   BiographyResults.js
  *   PersonDate.js
  *   SourceRules.js
  *
@@ -102,26 +101,26 @@ function checkBio() {
   );
   // status true if appears sourced and no style issues, else false
   let bioStatus = biography.validate();
-  // now report from biography.bioResults
+  // now report from biography results
 
   let profileReportLines = [];
   let profileStatus = "Profile appears to have sources.";
-  if (biography.bioResults.stats.bioIsMarkedUnsourced) {
+  if (biography.isMarkedUnsourced()) {
     profileStatus = "Profile is marked unsourced.";
   } else {
-    if (!biography.bioResults.sources.sourcesFound) {
+    if (!biography.hasSources()) {
       profileStatus = "Profile may be unsourced.";
     }
   }
   profileReportLines.push(profileStatus);
 
-  if (biography.bioResults.stats.bioIsEmpty) {
+  if (biography.isEmpty()) {
     profileStatus = "Profile is empty";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.misplacedLineCount > 0) {
-    profileStatus = "Profile has " + biography.bioResults.style.misplacedLineCount;
-    if (biography.bioResults.style.misplacedLineCount === 1) {
+  if (biography.getMisplacedLineCount() > 0) {
+    profileStatus = "Profile has " + biography.getMisplacedLineCount();
+    if (biography.getMisplacedLineCount() === 1) {
       profileStatus += " line";
     } else {
       profileStatus += " lines";
@@ -129,61 +128,61 @@ function checkBio() {
     profileStatus += " between Sources and <references />";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.hasEndlessComment) {
+  if (biography.hasEndlessComment()) {
     profileStatus = "Profile has comment with no end";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioHasRefWithoutEnd) {
+  if (biography.hasRefWithoutEnd()) {
     profileStatus = "Profile has inline <ref> with no ending </ref>";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioHasSpanWithoutEndingSpan) {
+  if (biography.hasSpanWithoutEndingSpan()) {
     profileStatus = "Profile has span with no ending span";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioIsMissingBiographyHeading) {
+  if (biography.isMissingBiographyHeading()) {
     profileStatus = "Profile is missing Biography heading";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioHasMultipleBioHeadings) {
+  if (biography.hasMultipleBioHeadings()) {
     profileStatus = "Profile has more than one Biography heading";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioHeadingWithNoLinesFollowing) {
+  if (biography.hasHeadingWithNoLinesFollowing()) {
     profileStatus = "Profile has empty  Biography section";
     profileReportLines.push(profileStatus);
   }
   let sourcesHeading = [];
-  if (biography.bioResults.style.bioIsMissingSourcesHeading) {
+  if (biography.isMissingSourcesHeading()) {
     profileStatus = "Profile is missing Sources heading";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioHasMultipleSourceHeadings) {
+  if (biography.hasMultipleSourceHeadings()) {
     profileStatus = "Profile has more than one Sources heading";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.sourcesHeadingHasExtraEqual) {
+  if (biography.sourcesHeadingHasExtraEqual()) {
     profileStatus = "Profile Sources heading has extra =";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioIsMissingReferencesTag) {
+  if (biography.isMissingReferencesTag()) {
     profileStatus = "Profile is missing <references />";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioHasMultipleReferencesTags) {
+  if (biography.hasMultipleReferencesTags()) {
     profileStatus = "Profile has more than one <references />";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioHasRefAfterReferences) {
+  if (biography.hasRefAfterReferences()) {
     profileStatus = "Profile has inline <ref> tag after <references >";
     profileReportLines.push(profileStatus);
   }
   let acknowledgements = [];
-  if (biography.bioResults.style.acknowledgementsHeadingHasExtraEqual) {
+  if (biography.acknowledgementsHeadingHasExtraEqual()) {
     profileStatus = "Profile Acknowledgements has extra =";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioHasAcknowledgementsBeforeSources) {
+  if (biography.hasAcknowledgementsBeforeSources()) {
     profileStatus = "Profile has Acknowledgements before Sources heading";
     profileReportLines.push(profileStatus);
   }
@@ -247,8 +246,8 @@ function checkSources() {
     isPre1700,
     thePerson.mustBeOpen()
   );
-  // now report from biography.bioResults
-  reportSources(biography.bioResults.sources.invalidSource, isPre1700);
+  // now report from biography results
+  reportSources(biography.getInvalidSources(), isPre1700);
 
   // TODO
   // Figure out what to do when the user has a profile with no sources

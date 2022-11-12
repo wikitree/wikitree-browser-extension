@@ -21,8 +21,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 /**
- * Contains information about a WikiTree Profile
- * only contains a subset of the complete set of data available
+ * Contains information about a WikiTree Profile date
  */
 export class PersonDate {
   static TOO_OLD_TO_REMEMBER_DEATH = 100;
@@ -31,8 +30,8 @@ export class PersonDate {
   personDate = {
     birthDate: null, // birth date as Date
     deathDate: null, // death date as Date
-    birthDateString: "", // birth date string as from server
-    deathDateString: "", // death date string as from server
+    birthDateString: "", // birth date string as from WikiTree API
+    deathDateString: "", // death date string as from WikiTree API
     hasBirthDate: true,
     hasDeathDate: true,
     lastDateCheckedEmpty: false, // HACK
@@ -50,8 +49,8 @@ export class PersonDate {
 
   /**
    * Initialize person dates from null, 0000 or various forms
-   * @param bDay birth date
-   * @param dDay death date
+   * @param {String} bDay birth date 
+   * @param {String} dDay death date
    */
   initWithDates(bDay, dDay) {
     this.personDate.birthDate = null;
@@ -78,7 +77,8 @@ export class PersonDate {
 
   /**
    * Initialize person dates
-   * @param profileObj containing the profile
+   * @param {Object} profileObj containing the profile
+   * as returned by the WikiTree API
    */
   init(profileObj) {
     if (profileObj.BirthDate != null) {
@@ -113,11 +113,11 @@ export class PersonDate {
   }
 
   /**
-   * Convert date from form returned by server to a Date
-   * The server may have 00 for any year, month, day
+   * Convert date from form returned by WikiTree API to a Date
+   * The WikiTree API may have 00 for any year, month, day
    * In that case, the value 1 is used
-   * @param dateString as input from server in the form 0000-00-00
-   * @return Date for the input string
+   * @param {String} dateString as input from WikiTree API in the form 0000-00-00
+   * @returns {Date} Date for the input string
    */
   getDate(dateString) {
     let year = 0; // default in case of 0 values
@@ -152,7 +152,7 @@ export class PersonDate {
 
   /**
    * Is the person before 1500
-   * @return true if either birth or death date before 1500
+   * @returns {Boolean} true if either birth or death date before 1500
    */
   isPersonPre1500() {
     let theYear1500 = new Date("1500-01-01");
@@ -175,7 +175,7 @@ export class PersonDate {
 
   /**
    * Is the person before 1700
-   * @return true if either birth or death date before 1700
+   * @returns {Boolean}  true if either birth or death date before 1700
    */
   isPersonPre1700() {
     let theYear1700 = new Date("1700-01-01");
@@ -196,7 +196,7 @@ export class PersonDate {
   }
   /**
    * Is the person born > 150 years ago or died > 100 years ago
-   * @return true if born > 150 years ago or died > 100 years ago
+   * @returns {Boolean} true if born > 150 years ago or died > 100 years ago
    */
   mustBeOpen() {
     let today = new Date();
@@ -225,7 +225,7 @@ export class PersonDate {
 
   /**
    * Does the profile lack dates
-   * @return true if profile has neither birth nor death date
+   * @returns {Boolean}  true if profile has neither birth nor death date
    */
   isUndated() {
     if (!this.personDate.hasBirthDate && !this.personDate.hasDeathDate) {
@@ -240,14 +240,14 @@ export class PersonDate {
 
   /**
    * Get birth date
-   * @return birth date as Date
+   * @returns {Date} birth date 
    */
   getBirthDate() {
     return this.personDate.birthDate;
   }
   /**
    * Get death date
-   * @return death date as Date
+   * @return {Date} death date 
    */
   getDeathDate() {
     return this.personDate.deathDate;
@@ -255,8 +255,8 @@ export class PersonDate {
 
   /**
    * Convert date to a display format
-   * @param true to get birth date, else death date
-   * @return string in the form yyyy mon dd
+   * @param {Boolean} true to get birth date, else death date
+   * @returns {String} string in the form yyyy mon dd
    */
   getReportDate(isBirth) {
     // handle cases without any date. sigh.
