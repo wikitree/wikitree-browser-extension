@@ -10,6 +10,7 @@ import "./features/categoryDisplay/categoryDisplay";
 import "./features/categoryFinderPins/categoryFinderPins";
 import "./features/clipboard_and_notes/clipboard_and_notes";
 import "./features/collapsibleDescendantsTree/collapsibleDescendantsTree";
+import "./features/collapsible_sources/collapsible_sources";
 import "./features/darkMode/darkMode";
 import "./features/distanceAndRelationship/distanceAndRelationship";
 import "./features/draftList/draftList";

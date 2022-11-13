@@ -68,6 +68,17 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Collapsible Sources",
+  id: "collapsibleSources",
+  description:
+    "Makes the page shorter by hiding the inline citations on load.  " +
+    "To see the inline citations, click the ▶ button next to the Sources heading, click the superscript number of the citation, " +
+    "or use the Source Preview feature of this extension.",
+  category: "Profile",
+  defaultValue: false,
+});
+
+registerFeature({
   name: "Distance and Relationship",
   id: "distanceAndRelationship",
   description: "Adds the distance (degrees) between you and the profile person and any relationship between you.",
