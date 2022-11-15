@@ -1,11 +1,13 @@
 import * as $ from "jquery";
 import "./sortBadges.css";
 import Cookies from "js-cookie";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage"
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("sortBadges").then((result) => {
   if (result && $("a.pureCssMenui0 span.person").text() == Cookies.get("wikitree_wtb_UserName")) {
-    if ($("body.page-Special_Badges").length) {
+    const queryString = window.location.search;
+    const urlParams = new URLSearchParams(queryString);
+    if ($("body.page-Special_Badges").length && (urlParams.has("u") || localStorage.savedBadges)) {
       $("div.sixteen.columns p")
         .eq(0)
         .append(
@@ -21,13 +23,12 @@ checkIfFeatureEnabled("sortBadges").then((result) => {
         e.preventDefault();
         moveClubBadgesDown();
       });
-      const queryString = window.location.search;
-      const urlParams = new URLSearchParams(queryString);
+
       if (localStorage.savedBadges) {
         localStorage.removeItem("savedBadges");
         window.location = $("a.pureCssMenui0 span.person").parent().attr("href");
       }
-      if (urlParams.get("badgeAction")) {
+      if (urlParams.has("badgeAction")) {
         localStorage.setItem("savedBadges", 1);
         $("#" + urlParams.get("badgeAction")).trigger("click");
         localStorage.removeItem("sortBadges");
