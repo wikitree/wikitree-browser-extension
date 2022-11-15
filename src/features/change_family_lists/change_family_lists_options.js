@@ -26,6 +26,12 @@ const changeFamilyLists = {
         "Parents:, Spouses:, Siblings:, and Children: instead of Son/Daughter of, Brother/Sister of, Husband/Wife of, and Father/Mother of",
       defaultValue: false,
     },
+    {
+      id: "agesAtMarriages",
+      type: OptionType.CHECKBOX,
+      label: "Add ages at marriage",
+      defaultValue: true,
+    },
   ],
 };
 

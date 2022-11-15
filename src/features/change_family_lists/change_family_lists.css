@@ -304,6 +304,9 @@
   grid-template-columns: "";
 }
 
+.marriageAges {
+  display: block;
+}
 .vertical .marriageDetails,
 .vertical .marriageAges {
   margin-left: 2.9em;
@@ -338,22 +341,13 @@
 
 .vertical #addChild,
 .vertical #addSibling,
-.vertical .aSpouse a,
 .vertical .addSpouse {
   list-style: none;
   margin-left: 0.5em;
 }
 
-.vertical .aSpouse a {
-  margin-left: 0.4em;
-}
-
 .vertical .addSpouse {
   margin-left: 3.5em;
-}
-
-.vertical .isVanilla .addSpouse {
-  margin-left: 0;
 }
 
 .vertical #childrenUnknown a {
@@ -467,12 +461,17 @@ span[data-gender="Male"] {
   margin-bottom: 10px;
 }
 
-.vertical .nameList li,
 .vertical div.spouseDetails span {
   margin-top: 4px;
   margin-bottom: 4px;
   position: relative;
   padding-left: 5px;
+}
+.vertical div.familyList li span,
+.vertical div.spouseDetails span,
+.vertical span#childrenUnknown {
+  padding-left: 3px;
+  display: inline-block;
 }
 
 .vertical .nameList li span[itemprop="sibling"],
@@ -510,8 +509,12 @@ span[data-gender="Male"] {
 }
 
 .vertical #showHideDescendants.button.small {
-  margin-top: -2px;
+  margin-top: -4px;
 }
 .vertical .showHideTree {
   margin-top: -2px;
+  float: right;
+}
+.vertical a.spouseText:nth-child(2) {
+  display: none;
 }
