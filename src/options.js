@@ -420,10 +420,6 @@ function addFeatureToOptionsPage(featureData) {
   }
 }
 
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-  if (request.message === "restore_options") {
-    location.reload();
-    console.log(request, sender, sendResponse);
-    sendResponse({ farewell: "Refreshed Options" });
-  }
+chrome.storage.onChanged.addListener(function () {
+  restore_options();
 });

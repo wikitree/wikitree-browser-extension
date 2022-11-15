@@ -13,6 +13,19 @@ const changeFamilyLists = {
       label: "Move to the right-hand column",
       defaultValue: true,
     },
+    {
+      id: "verticalLists",
+      type: OptionType.CHECKBOX,
+      label: "Vertical family lists with dates",
+      defaultValue: false,
+    },
+    {
+      id: "changeHeaders",
+      type: OptionType.CHECKBOX,
+      label:
+        "Parents:, Spouses:, Siblings:, and Children: instead of Son/Daughter of, Brother/Sister of, Husband/Wife of, and Father/Mother of",
+      defaultValue: false,
+    },
   ],
 };
 
