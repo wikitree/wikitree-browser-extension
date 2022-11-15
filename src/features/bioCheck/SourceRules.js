@@ -21,8 +21,8 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 /**
- * Rules for identifying sources in a biography that are not valid
- * Intended to be a singleton and immutable
+ * Rules for identifying sources in a biography that are not valid.
+ * This class is intended to be a singleton and immutable
  * and look like what could be read from database tables
  */
 
@@ -703,56 +703,56 @@ class SourceRules {
 
   /**
    * Determine if a line is a valid biography heading
-   * @param line to test
-   * @return true if bio heading else false
+   * @param {String} line to test
+   * @returns {Boolean} true if bio heading else false
    */
   isBiographyHeading(line) {
     return this.#biographyHeadings.includes(line);
   }
   /**
    * Determine if a line is a valid research notes heading
-   * @param line to test
-   * @return true if research notes heading else false
+   * @param {String} line to test
+   * @returns {Boolean} true if research notes heading else false
    */
   isResearchNotesHeading(line) {
     return this.#researchNotesHeadings.includes(line);
   }
   /**
    * Determine if a line is a valid sources heading
-   * @param line to test
-   * @return true if sources heading else false
+   * @param {String} line to test
+   * @returns {Boolean} true if sources heading else false
    */
   isSourcesHeading(line) {
     return this.#sourcesHeadings.includes(line);
   }
   /**
    * Determine if a line is a valid acknowledgements heading
-   * @param line to test
-   * @return true if acknowledgements heading else false
+   * @param {String} line to test
+   * @returns {Boolean} true if acknowledgements heading else false
    */
   isAckHeading(line) {
     return this.#acknowledgmentsHeadings.includes(line);
   }
   /**
    * Determine if a line is a census line
-   * @param line to test
-   * @return true if census line else false
+   * @param {String} line to test
+   * @returns {Boolean} true if census line else false
    */
   isCensus(line) {
     return this.#censusStrings.includes(line);
   }
   /**
    * Determine if a line contains a census string
-   * @param line the line
-   * @return census string if line contains census string
+   * @param {String} line the line
+   * @returns census string if line contains census string
    */
   hasCensusString(line) {
     return this.lineContainsListEntry(line, this.#censusStrings);
   }
   /**
    * Determine if line by itself is an invalid source
-   * @param line input source string
-   * @return true if invalid source else false
+   * @param {String} line input source string
+   * @returns {Boolean} true if invalid source else false
    */
   isInvalidSource(line) {
     return this.#invalidSourceList.includes(line);
@@ -760,9 +760,9 @@ class SourceRules {
 
   /*
    * Does string include the text for any of the string in array
-   * @param the line to test
-   * @param the array of string to test
-   * @return true if the line includes text from the list of strings else false
+   * @param {String} the line to test
+   * @param {Array} the array of string to test
+   * @returns {Boolean} true if the line includes text from the list of strings else false
    */
   lineContainsListEntry(line, stringList) {
     let hasText = false;
@@ -777,40 +777,40 @@ class SourceRules {
    * Does line contain a phrase on the valid partial source list
    * This is a test case for strings that if found mean the profile is sourced
    * (thanks to David S for the test case)
-   * @param line string to evaluate
-   * @return true if line found, else false
+   * @param {String} line string to evaluate
+   * @returns {Boolean} true if line found, else false
    */
   containsValidPartialSource(line) {
     return this.lineContainsListEntry(line, this.#validPartialSourceList);
   }
   /**
    * Determine if found on partial source list
-   * @param line input source string
-   * @return true if found on partial source list, else false
+   * @param {String} line input source string
+   * @returns {Boolean} true if found on partial source list, else false
    */
   isInvalidPartialSource(line) {
     return this.lineContainsListEntry(line, this.#invalidPartialSourceList);
   }
   /**
    * Determine if found on partial source list too old to remember
-   * @param line input source string
-   * @return true if found on too old partial source list, else false
+   * @param {String} line input source string
+   * @returns {Boolean} true if found on too old partial source list, else false
    */
   isInvalidPartialSourceTooOld(line) {
     return this.lineContainsListEntry(line, this.#invalidPartialSourceListTooOld);
   }
   /**
    * Determine if found on partial source list for pre1700
-   * @param line input source string
-   * @return true if found on pre1700 partial source list, else false
+   * @param {String} line input source string
+   * @returns {Boolean} true if found on pre1700 partial source list, else false
    */
   isInvalidPartialSourcePre1700(line) {
     return this.lineContainsListEntry(line, this.#invalidPartialSourceListPre1700);
   }
   /**
    * Determine if starts with something on the invalid partial source list
-   * @param line input source string
-   * @return true if starts with invalid source, else false
+   * @param {String} line input source string
+   * @returns {Boolean} true if starts with invalid source, else false
    */
   isInvalidStartPartialSource(line) {
     let isFound = false;
@@ -824,16 +824,16 @@ class SourceRules {
   /**
    * Determine if line by itself is an invalid source for profile too old to
    * remember
-   * @param line input source string
-   * @return true if invalid source else false
+   * @param {String} line input source string
+   * @returns {Boolean} true if invalid source else false
    */
   isInvalidSourceTooOld(line) {
     return this.#tooOldToRememberSourceList.includes(line);
   }
   /**
    * Determine if line by itself is an invalid source for Pre1700
-   * @param line input source string
-   * @return true if invalid source else false
+   * @param {String} line input source string
+   * @returns {Boolean} true if invalid source else false
    */
   isInvalidSourcePre1700(line) {
     return this.#invalidSourceListPre1700.includes(line);

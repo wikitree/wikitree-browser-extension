@@ -7,7 +7,7 @@
 		"page": "options.html",
 		"open_in_tab": true
 	},
-	"permissions": [ "https://www.wikitree.com/*", "https://api.wikitree.com/*", "storage" ],
+	"permissions": [ "https://www.wikitree.com/*", "https://api.wikitree.com/*", "https://wikitree.sdms.si/*","https://wikitreebee.com/*", "storage" ],
 	"content_scripts": [
 		{
 			"matches": [ "https://www.wikitree.com/*" ],
@@ -35,6 +35,7 @@
 		"default_icon": {	
 			"128": "images/we128.png"
 		},
-		"default_title": "WikiTree Browser Extension (Preview)"
+		"default_title": "WikiTree Browser Extension (Preview)",
+		"default_popup": "options.html" 
 	}
 }

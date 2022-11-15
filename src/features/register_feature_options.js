@@ -12,6 +12,7 @@ import "./categoryDisplay/categoryDisplay_options.js";
 import "./darkMode/darkMode_options.js";
 import "./g2g/g2g_options.js";
 import "./genderPredictor/gender_predictor_options.js";
+import "./randomProfile/randomProfile_options.js";
 import "./redir_ext_links/redir_ext_links_options.js";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -64,6 +65,17 @@ registerFeature({
   description: "Makes the descendants tree on profile pages collapsible.",
   category: "Profile",
   defaultValue: true,
+});
+
+registerFeature({
+  name: "Collapsible Sources",
+  id: "collapsibleSources",
+  description:
+    "Makes the page shorter by hiding the inline citations on load.  " +
+    "To see the inline citations, click the ▶ button next to the Sources heading, click the superscript number of the citation, " +
+    "or use the Source Preview feature of this extension.",
+  category: "Profile",
+  defaultValue: false,
 });
 
 registerFeature({
@@ -133,19 +145,20 @@ registerFeature({
 });
 
 registerFeature({
-  name: "Random Profile",
-  id: "randomProfile",
-  description: "Adds a Random Profile link to the Find menu.",
-  category: "Global",
-  defaultValue: true,
-});
-
-registerFeature({
   name: "Sort Badges",
   id: "sortBadges",
   description: "Buttons to move or hide your Club 100/1000 badges.",
   category: "Other",
   defaultValue: true,
+});
+
+registerFeature({
+  name: "Sort Theme People",
+  id: "sortThemePeople",
+  description:
+    "Replaces the Connection Finder (theme of the week) section on Profile pages with a table sorted by degree of closeness to the profile person.",
+  category: "Profile",
+  defaultValue: false,
 });
 
 registerFeature({
