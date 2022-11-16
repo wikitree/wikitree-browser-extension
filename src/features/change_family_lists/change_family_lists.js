@@ -255,7 +255,7 @@ function reallyMakeFamLists() {
               if (
                 $(this)
                   .text()
-                  .match(/^,|^Sister|^Brother/)
+                  .match(/^,|^Sister|^Brother|^\sand\s/)
               ) {
                 $(this).remove();
               }
@@ -391,6 +391,8 @@ function fixNakedPrivates() {
   const rgx2 = /(sister)|(brother)/g;
   const rgx3 = /(((Brother)|(Sister))\sof)\s(\[private.*)/g;
   const rgx4 = /((Brother)|(Sister))\sof/g;
+  const rgx5 = /(((Husband)|(Wife))\sof)\s(\[private.*)/gm;
+  const rgx6 = /((Husband)|(Wife))\sof/g;
   for (let n = 0; n < tNodes.length; n++) {
     let firstMatch = tNodes[n].textContent.match(rgx3);
     let ip;
@@ -421,6 +423,37 @@ function fixNakedPrivates() {
       ip = "sibling";
       let nSpan = createPrivateAndDates(tNodes[n], tNodes[n].nextSibling, ip);
       tNodes[n].parentNode.insertBefore(nSpan, tNodes[n]);
+    }
+    let firstMatch2 = tNodes[n].textContent.match(rgx5);
+
+    if (firstMatch2 != null) {
+      let husbandOrWife = firstMatch2[0].match(rgx5);
+      let husbandOrWifeOf = firstMatch2[0].match(rgx6);
+      let privateText = firstMatch2[0].match(/private wife|husband/);
+      let fullPrivateText = "[" + privateText[0] + "]";
+
+      const spouseText = $(
+        '<a class="spouseText clickable" data-alt-text="Spouses: " data-original-text="' +
+          husbandOrWifeOf[0] +
+          ' " data-this-text="' +
+          husbandOrWifeOf[0] +
+          ' " data-replace-text="Spouses: ">' +
+          husbandOrWifeOf[0] +
+          '" </a>"'
+      );
+
+      if (tNodes[n].nextSibling.nextSibling.textContent.match(/^\]/)) {
+        tNodes[n].parentNode.removeChild(tNodes[n].nextSibling.nextSibling);
+      }
+
+      const privateBit = $(
+        '<span itemprop="spouse" itemtype="https://schema.org/Person" data-gender="Female"><a title="" class="spouseLink"><span itemprop="name"><strong>' +
+          fullPrivateText +
+          '</strong></span></a></span>"'
+      );
+      privateBit.append($(tNodes[n].nextSibling));
+
+      $(tNodes[n].parentNode).append(spouseText, privateBit);
     }
     if (tNodes[n].textContent.match(/^\]?((,)|(\sand)).*\[pr/)) {
       let pMatch = tNodes[n].textContent.match(rgx1);
@@ -481,7 +514,7 @@ function makeFamLists() {
           $("#parentList")[0].previousSibling.remove();
         }
       }
-
+      let pWord;
       if (ofNode2.length) {
         ofNode2.each(function (n2) {
           if ($(this).text().match("mother")) {
@@ -489,7 +522,7 @@ function makeFamLists() {
           } else {
             pWord = "father";
           }
-          fUnknown = $("<li>[" + pWord + " unknown]</li>");
+          const fUnknown = $("<li>[" + pWord + " unknown]</li>");
           if (pWord == "father") {
             fUnknown.prependTo($("#parentList"));
           } else {
@@ -970,7 +1003,7 @@ function insertInSibList() {
             if (sibDate.length > 1) {
               sibBY = sibDate[0];
               if (sibBY.match(/s/) != null) {
-                let sibBY = parseInt(sibBY.replace(/[s(~<>]/g, "").trim());
+                sibBY = parseInt(sibBY.replace(/[s(~<>]/g, "").trim());
               } else {
                 sibBY = parseInt(sibBY.replace(/[s(~<>]/g, "").trim());
               }

@@ -62,6 +62,7 @@ export function displayDates(fPerson) {
 
     let fbd = "";
     let fdd = "";
+    let decadeMidpoint;
 
     if (
       fPerson["BirthDate"] != "" &&
