@@ -469,9 +469,12 @@ span[data-gender="Male"] {
 }
 .vertical div.familyList li span,
 .vertical div.spouseDetails span,
-.vertical span#childrenUnknown {
+.vertical span#childrenUnknown,
+.vertical li#siblingsUnknown,
+.vertical li#fatherUnknown,
+.vertical li#motherUnknown {
   padding-left: 3px;
-  display: inline-block;
+  display: block;
 }
 
 .vertical .nameList li span[itemprop="sibling"],

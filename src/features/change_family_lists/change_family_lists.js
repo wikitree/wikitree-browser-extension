@@ -250,7 +250,11 @@ function reallyMakeFamLists() {
           if ($("span.large:contains(Family Member)").length == 0) {
             makeFamLists();
             $(".familyList li").each(function () {
-              if ($(this).text().match(/^,/)) {
+              if (
+                $(this)
+                  .text()
+                  .match(/^,|^Sister|^Brother/)
+              ) {
                 $(this).remove();
               }
             });
@@ -1494,7 +1498,7 @@ function getAge(start, end) {
   }
   let lastYearDaysTotal = 0;
   lastYearDaysTotal = end_day + lastYearMonthDays;
-  const totalExtraDays = lastYearDaysTotal + firstYearDays;
+  let totalExtraDays = lastYearDaysTotal + firstYearDays;
   let andDays;
   if (totalExtraDays > 364) {
     fullYears++;
