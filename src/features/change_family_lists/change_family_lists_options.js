@@ -11,7 +11,7 @@ const changeFamilyLists = {
       id: "moveToRight",
       type: OptionType.CHECKBOX,
       label: "Move to the right-hand column",
-      defaultValue: true,
+      defaultValue: false,
     },
     {
       id: "verticalLists",
@@ -23,7 +23,8 @@ const changeFamilyLists = {
       id: "changeHeaders",
       type: OptionType.CHECKBOX,
       label:
-        "Parents:, Spouses:, Siblings:, and Children: instead of Son/Daughter of, Brother/Sister of, Husband/Wife of, and Father/Mother of",
+        "'Parents:', 'Siblings:', 'Spouses:', and 'Children:' instead of " +
+        "'Son/Daughter of', 'Brother/Sister of', 'Husband/Wife of', and 'Father/Mother of'",
       defaultValue: false,
     },
     {

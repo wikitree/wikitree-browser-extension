@@ -1,3 +1,6 @@
+#nVitals {
+  margin-top: 0.2em;
+}
 #nVitals.vertical #childrenUnknown.vanilla,
 #nVitals.vertical #spousesUnknown.vanilla,
 .aSpouse.vanilla a {
@@ -312,12 +315,10 @@
   margin-left: 2.9em;
 }
 
-.vertical #childrenUnknown {
-  margin-left: 2.3em;
-}
-
 .vertical #spousesUnknown,
-.vertical #siblingsUnknown {
+.vertical #siblingsUnknown,
+.vertical span#childrenUnknownQ,
+.vertical span#childrenUnknown {
   margin-left: 2.3em;
 }
 
@@ -325,7 +326,6 @@
   margin-left: 0em;
 }
 
-.vertical #childrenUnknown a.BLANK,
 .vertical #siblingsUnknown a.BLANK,
 .vertical #spousesUnknown a.BLANK {
   margin-left: 0.7em;
@@ -394,8 +394,10 @@
 .vertical #siblingDetails.block {
   display: block;
 }
-
-.vertical #nVitals .nameList li span.half {
+.vertical #siblingList li {
+  position: relative;
+}
+#nVitals.vertical .nameList li span.half {
   /*left:-5em;*/
   position: absolute;
   font-size: 0.8em;
@@ -469,12 +471,18 @@ span[data-gender="Male"] {
 }
 .vertical div.familyList li span,
 .vertical div.spouseDetails span,
-.vertical span#childrenUnknown,
 .vertical li#siblingsUnknown,
 .vertical li#fatherUnknown,
+.vertical span#childrenUnknown,
 .vertical li#motherUnknown {
   padding-left: 3px;
   display: block;
+}
+.vertical span#childrenUnknownQ a,
+.vertical a.BLANK.addSpouse,
+.vertical #spousesUnknown a.BLANK {
+  padding-left: 3px;
+  margin-left: 0;
 }
 
 .vertical .nameList li span[itemprop="sibling"],
@@ -515,7 +523,7 @@ span[data-gender="Male"] {
   margin-top: -4px;
 }
 .vertical .showHideTree {
-  margin-top: -2px;
+  margin-top: -4px;
   float: right;
 }
 .vertical a.spouseText:nth-child(2) {

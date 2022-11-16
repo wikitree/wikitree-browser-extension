@@ -1,7 +1,7 @@
 import $ from "jquery";
 import "./change_family_lists.css";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
-import { isOK, htmlEntities } from "../../core/common";
+import { isOK, htmlEntities, displayName } from "../../core/common";
 import { displayDates } from "../verifyID/verifyID";
 import { getRelatives } from "wikitree-js";
 
@@ -9,20 +9,21 @@ checkIfFeatureEnabled("changeFamilyLists").then((result) => {
   if (result) {
     window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
     prepareFamilyLists().then(() => {
-      moveFamilyLists(true).then(function () {
-        getFeatureOptions("changeFamilyLists").then((options) => {
-          if (options.verticalLists) {
-            $("#nVitals").addClass("vertical");
-            reallyMakeFamLists();
-          } else if (options.agesAtMarriages) {
-            onlyAgesAtMarriages();
-          }
-          if (options.changeHeaders) {
-            setTimeout(function () {
-              siblingsHeader(true);
-            }, 2000);
-          }
-        });
+      getFeatureOptions("changeFamilyLists").then((options) => {
+        if (options.moveToRight) {
+          moveFamilyLists(true);
+        }
+        if (options.verticalLists) {
+          $("#nVitals").addClass("vertical");
+          reallyMakeFamLists();
+        } else if (options.agesAtMarriages) {
+          onlyAgesAtMarriages();
+        }
+        if (options.changeHeaders) {
+          setTimeout(function () {
+            siblingsHeader(true);
+          }, 1500);
+        }
       });
     });
     window.onresize = function () {
@@ -79,7 +80,7 @@ async function prepareFamilyLists() {
     });
 
     familyLists.on("dblclick", function () {
-      moveFamilyLists();
+      moveFamilyLists(false, true);
     });
   }
 }
@@ -95,7 +96,7 @@ async function onlyAgesAtMarriages() {
   });
 }
 
-async function moveFamilyLists(firstTime = false) {
+async function moveFamilyLists(firstTime = false, wasClicked = false) {
   $("#parentDetails").prepend($("span.showHideTree").eq(0));
   $("#childrenDetails").prepend($("span#showHideDescendants"));
   const leftHandColumn = $("div.ten").eq(0).prop("id", "leftColumn");
@@ -121,17 +122,18 @@ async function moveFamilyLists(firstTime = false) {
       });
       right = true;
     }
-    const optionsData = { moveToRight: right };
-    console.log(optionsData);
-    const storageName = "changeFamilyLists_options";
-    chrome.storage.sync.set({
-      [storageName]: optionsData,
+    getFeatureOptions("changeFamilyLists").then((optionsData) => {
+      optionsData.moveToRight = right;
+      const storageName = "changeFamilyLists_options";
+      chrome.storage.sync.set({
+        [storageName]: optionsData,
+      });
     });
   } else {
     if (window.innerWidth < 768) {
       familyLists.insertAfter($("#birthDetails"));
-    } else if ($("a[href='/wiki/Project_protection']").length) {
-      familyLists.insertBefore($("a[href='/wiki/Project_protection']").closest("div"));
+    } else if ($("div.six a[href='/wiki/Project_protection']").length) {
+      familyLists.insertAfter($("div.six a[href='/wiki/Project_protection']").closest("div"));
     } else {
       familyLists.insertBefore($("#geneticfamily"));
     }
@@ -238,7 +240,7 @@ function reallyMakeFamLists() {
 
             setTimeout(function () {
               addHalfsStyle();
-            }, 800);
+            }, 1000);
 
             window.intervalID = setInterval(addUncertain, 500);
             window.triedUncertain = 0;
@@ -272,7 +274,6 @@ async function addHalfsStyle() {
   //console.log($("#nVitals span.half").length, $(".parent_1,.parent_2").length);
   if ($("#nVitals span.half").length && $(".parent_1,.parent_2").length == 0) {
     $("#parentList li").each(function (index) {
-      console.log($(this));
       let p1id = "dummy";
       let p2id = "dummy";
       if (index == 0 && $(this).data("id") != undefined) {
@@ -320,15 +321,6 @@ function addDataToPerson(el, pData) {
 }
 
 function siblingsHeader(first = false) {
-  /*
-  if ($("a.SpouseText").length > 1) {
-    $("a.SpouseText").each(function (index) {
-      if (index > 1) {
-        $(this).remove();
-      }
-    });
-  }
-  */
   const els = [".spouseText", "#siblingsHeader", "#parentsHeader", "#childrenHeader"];
   els.forEach(function (elo) {
     let el = $(elo);
@@ -339,6 +331,19 @@ function siblingsHeader(first = false) {
     el.attr("data-replace-text", tDataText);
     el.addClass("clickable");
   });
+  let isOn = false;
+  if ($("#siblingsHeader").text().match("iblings")) {
+    isOn = true;
+  }
+  if (first == false) {
+    getFeatureOptions("changeFamilyLists").then((optionsData) => {
+      optionsData.changeHeaders = isOn;
+      const storageName = "changeFamilyLists_options";
+      chrome.storage.sync.set({
+        [storageName]: optionsData,
+      });
+    });
+  }
 }
 
 async function spouseToSpouses() {
@@ -445,10 +450,10 @@ function makeFamLists() {
   const childrenQ = $("a:contains('[children?]')");
   const spouseQ = $("a:contains('[add spouse?]'),a:contains('[spouse?]')");
 
-  const childrenQSpan = $("<span id='childrenUnknown'></span>");
+  const childrenQSpan = $("<span id='childrenUnknownQ'></span>");
   if (childrenQ.length) {
     childrenQ.after(childrenQSpan);
-    $("#childrenUnknown").append(childrenQ);
+    $("#childrenUnknownQ").append(childrenQ);
   }
 
   dparents.forEach(function (aParent) {
@@ -512,7 +517,9 @@ function makeFamLists() {
     parentsNodes.forEach(function (aNode) {
       if (aNode.textContent == noParentsPublic) {
         aNode.remove();
-        $("<li>[father unknown]</li><li>[mother unknown]</li>").appendTo($("#parentList"));
+        $("<li id='fatherUnknown'>[father unknown]</li><li id='fatherUnknown'>[mother unknown]</li>").appendTo(
+          $("#parentList")
+        );
       }
     });
   }
@@ -547,13 +554,18 @@ function makeFamLists() {
         }
         if ($("#siblingsHeader").length == 0) {
           let sibHeader = $(
-            '<span id="siblingsHeader" class="clickable" data-replace-text="' +
+            '<span id="siblingsHeader" class="clickable" data-replace-text="Siblings: " data-this-text="' +
               sibWord +
-              ' of " data-this-text="Siblings: " data-alt-text="Siblings: " data-original-text="' +
+              ' of " data-alt-text="Siblings: " data-original-text="' +
               sibWord +
-              ' of">Siblings: </span>'
+              ' of ">' +
+              sibWord +
+              " of </span>"
           );
           $(sibHeader).prependTo($("#siblingDetails"));
+          $("#siblingsHeader").on("click", function () {
+            siblingsHeader();
+          });
         }
       }
     });
@@ -718,7 +730,7 @@ function list2ol(items, olid) {
   }
 
   window.inserted = false;
-  window.insertInterval = setInterval(insertInSibList2, 500);
+  window.insertInterval = setInterval(insertInSibList, 500);
   window.triedInsertSib = 0;
 }
 
@@ -918,141 +930,12 @@ function gender(drel) {
   return null;
 }
 
-function insertInSibList(sibs) {
-  if ($("#siblingList li").length) {
-    sibs.forEach(function (aSib) {
-      const sDates = $(aSib).find(".bdDates").text().split("-");
-
-      if (sDates.length > 0) {
-        let sBY = sDates[0];
-        if (sBY.match(/s/) != null) {
-          let datasBY = sDates[0].replace(/[(s]/, "").trim();
-          $(aSib)
-            .parent()
-            .attr("data-birth-year", parseInt(datasBY) + 5);
-        }
-      }
-    });
-
-    const dh1 = document.querySelector("h1").textContent;
-    let oh1 = dh1.replace(/abt\.\s/g, "");
-    oh1 = oh1.replace(/bef\.\s/g, "");
-    oh1 = oh1.replace(/aft\.\s/g, "");
-
-    const pdobyStatus = dh1.match(/\([a-z]*(?=\.)/g);
-    if (pdobyStatus == null) {
-      let pdobSt = "";
-    } else {
-      let pdobSt = status2symbol(pdobyStatus[0].substring(1));
-    }
-
-    const pdodyStatus = dh1.match(/\-\s[a-z]*(?=\.)/g);
-    if (pdodyStatus == null) {
-      let pdodSt = "";
-    } else {
-      let pdodSt = status2symbol(pdodyStatus[0].substring(2));
-    }
-
-    pdoby = oh1.match(/\([0-9]{4}/g);
-    if (pdoby != null) {
-      pdoby[0] = pdoby[0].substring(1);
-    }
-    pdody = oh1.match(/\-\s[0-9]{4}(?=\))/g);
-    if (pdody != null) {
-      pdody[0] = pdody[0].substring(2);
-    }
-
-    if (pdody == null) {
-      pdody = "   ";
-    }
-
-    const pName = document.querySelector("[itemprop='name']").textContent;
-
-    if (pdoby == null) {
-      if (document.querySelector("[itemprop='birthDate']")) {
-        const obdate = document.querySelector("[itemprop='birthDate']").getAttribute("datetime");
-        if (obdate.split("-")[0] != "0000") {
-          pdoby = obdate.split("-")[0];
-        } else {
-        }
-      }
-    }
-    if (pdoby != null) {
-      for (i = 0; i < sibs.length; i++) {
-        const soddit = sibs[i].querySelector(".bdDates");
-
-        if (soddit) {
-          let dobby = soddit.getAttribute("data-birth-year");
-          dobby = dobby.replace(/[~<>]/, "");
-        } else {
-          let dobby = "";
-        }
-
-        const mcln = sibs[i].cloneNode(true);
-        if ($(mcln).data("private") == 1) {
-          console.log("It's private!");
-          $(mcln).data("private", "0");
-          mcln = $("<span  itemprop='sibling'></span>");
-          $(mcln).prepend(
-            $(
-              "<a href='#n' itemprop='url' class='activeProfile'></a><span class='bdDates' data-birth-year='' data-death-year=''></span>"
-            )
-          );
-          mcln = mcln[0];
-        }
-
-        mcln.setAttribute("data-private", "0");
-        mcln.children[0].href = "#n";
-        mcln.children[0].className = "activeProfile";
-        mcln.children[0].textContent = pName;
-        if (mcln.children[1]) {
-          mcln.children[1].setAttribute("data-birth-year", pdoby);
-          mcln.children[1].setAttribute("data-death-year", pdody);
-          mcln.children[1].textContent = " (" + pdobSt + pdoby + " - " + pdodSt + pdody + ")";
-        }
-
-        const sibsLi = sibs[i].parentNode;
-        const newLi = document.createElement("li");
-        newLi.id = "profilePerson";
-
-        if (
-          typeof dstop == "undefined" &&
-          (parseInt(pdoby[0]) < parseInt(dobby) || (i + 1 == sibs.length && typeof dstop == "undefined"))
-        ) {
-          newLi.appendChild(mcln);
-          if (i + 1 == sibs.length && pdoby > dobby) {
-            sibsLi.parentNode.appendChild(newLi);
-            let dstop = true;
-          } else {
-            sibsLi.parentNode.insertBefore(newLi, sibsLi);
-          }
-
-          let dstop = true;
-        } else if (
-          typeof dstop == "undefined" &&
-          parseInt(pdoby[0]) > parseInt(dobby) &&
-          i == sibs.length - 1 &&
-          typeof dEnd == "undefined"
-        ) {
-          newLi.appendChild(mcln);
-          sibsLi.parentNode.appendChild(newLi);
-          let dEnd = true;
-        }
-      }
-    }
-
-    if ($("#addSibling").length) {
-      $("#siblingList").append($("#addSibling"));
-    }
-  }
-}
-
-function insertInSibList2() {
+function insertInSibList() {
   window.triedInsertSib++;
-  if (window.BioPerson) {
+  if (window.people) {
+    const pPerson = window.people[0];
     if (window.inserted == false) {
-      if ($("#profilePerson").length == 0 && window.BioPerson) {
-        let pPerson = window.BioPerson;
+      if ($("#profilePerson").length == 0 && window.people) {
         pPerson.bYear = "";
         if (pPerson.BirthDate) {
           pPerson.bYear = pPerson.BirthDate.split("-")[0];
@@ -1080,12 +963,12 @@ function insertInSibList2() {
           );
         }
 
-        let theSib = "";
+        let theSib, sibDate, sibBY;
         sibDates.each(function (index) {
-          if (theSib == "") {
+          if (!theSib) {
             sibDate = $(this).text().split("-");
             if (sibDate.length > 1) {
-              let sibBY = sibDate[0];
+              sibBY = sibDate[0];
               if (sibBY.match(/s/) != null) {
                 let sibBY = parseInt(sibBY.replace(/[s(~<>]/g, "").trim());
               } else {
@@ -1099,7 +982,7 @@ function insertInSibList2() {
           }
         });
         if ($("#siblingsUnknown").length == 0 && inserter != "") {
-          if (theSib == "") {
+          if (!theSib) {
             $("#siblingList").append(inserter);
           } else {
             inserter.insertBefore(theSib.parent().parent());
@@ -1114,13 +997,13 @@ function insertInSibList2() {
       $("#profilePerson").addClass("parent_2");
     }
     try {
-      if (window.BioPerson.Gender) {
-        if (window.BioPerson.Gender == "Male") {
+      if (pPerson.Gender) {
+        if (pPerson.Gender == "Male") {
           $("#profilePerson").attr("data-gender", "male");
-        } else if (window.BioPerson.Gender == "Female") {
+        } else if (pPerson.Gender == "Female") {
           $("#profilePerson").attr("data-gender", "female");
         }
-        if (window.BioPerson.DataStatus.Gender == "blank" || window.BioPerson.Gender == "") {
+        if (pPerson.DataStatus.Gender == "blank" || pPerson.Gender == "") {
           $("#profilePerson").attr("data-gender", "");
         }
       }
