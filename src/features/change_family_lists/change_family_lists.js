@@ -82,6 +82,8 @@ async function prepareFamilyLists() {
     familyLists.on("dblclick", function () {
       moveFamilyLists(false, true);
     });
+    $("#parentDetails").prepend($("span.showHideTree").eq(0));
+    $("#childrenDetails").prepend($("span#showHideDescendants"));
   }
 }
 
@@ -97,8 +99,6 @@ async function onlyAgesAtMarriages() {
 }
 
 async function moveFamilyLists(firstTime = false, wasClicked = false) {
-  $("#parentDetails").prepend($("span.showHideTree").eq(0));
-  $("#childrenDetails").prepend($("span#showHideDescendants"));
   const leftHandColumn = $("div.ten").eq(0).prop("id", "leftColumn");
   const rightHandColumn = $("div.six").eq(0).prop("id", "rightColumn");
   const familyLists = $("#nVitals");
