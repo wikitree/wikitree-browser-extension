@@ -28,13 +28,15 @@ export async function getWTPlusJSON(call) {
 
 // Used in Random Profile and My Menu
 export async function getRandomProfile(ourCountry = false) {
-  const working = $("<img id='working' src='" + chrome.runtime.getURL("images/tree.gif") + "'>");
-  if ($("#working").length == 0 && $("#locationInputLabel").length == 0) {
-    working.appendTo("body").css({
-      position: "absolute",
-      right: "100px",
-      top: "300px",
-    });
+  if ($("#working").length == 0) {
+    const working = $("<img id='working' src='" + chrome.runtime.getURL("images/tree.gif") + "'>");
+    if ($("#working").length == 0 && $("#locationInputLabel").length == 0) {
+      working.appendTo("body").css({
+        position: "absolute",
+        right: "100px",
+        top: "300px",
+      });
+    }
   }
 
   if (ourCountry == false || localStorage.randomProfileLocation) {
@@ -175,6 +177,12 @@ export async function addRandomToFindMenu() {
   newLi.insertBefore(relationshipLi.parent());
   $(".randomProfile").on("click", function (e) {
     e.preventDefault();
+    const working = $("<img id='working' src='" + chrome.runtime.getURL("images/tree.gif") + "'>");
+    working.appendTo("body").css({
+      position: "absolute",
+      left: `${e.pageX - 50}px`,
+      top: e.pageY + "px",
+    });
     getRandomProfile();
   });
   $(".randomProfile").on("contextmenu", function (e) {
