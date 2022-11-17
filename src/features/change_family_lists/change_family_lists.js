@@ -283,7 +283,6 @@ function reallyMakeFamLists() {
 }
 
 async function addHalfsStyle() {
-  //console.log($("#nVitals span.half").length, $(".parent_1,.parent_2").length);
   if ($("#nVitals span.half").length && $(".parent_1,.parent_2").length == 0) {
     $("#parentList li").each(function (index) {
       let p1id = "dummy";
@@ -767,7 +766,6 @@ function list2ol(items, olid) {
       for (let w = 0; w < pLen; w++) {
         if (did == peeps[w].Name.replace(/_/g, " ")) {
           dPeep = peeps[w];
-          console.log(did, peeps[w].Name, dPeep);
         }
       }
       addDataToPerson($(dLink).closest("li"), dPeep);
@@ -786,7 +784,6 @@ function list2ol(items, olid) {
 
 function list2ol2(person) {
   let pdata = person;
-  // console.log(person);
   let dob, dod, doby, dody;
   let dobStatus = "";
   let dodStatus = "";
