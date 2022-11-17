@@ -95,6 +95,15 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Dates/Locations on New Profile Page",
+  id: "editFamilyData",
+  description:
+    "Adds the dates and locations of the profile person to a new profile page (for a parents, sibling, etc.).",
+  category: "Editing",
+  defaultValue: true,
+});
+
+registerFeature({
   name: "Family Group",
   id: "familyGroup",
   description: "Display dates and locations of all family members. A button is added to the profile submenu.",
