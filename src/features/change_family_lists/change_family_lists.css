@@ -7,10 +7,6 @@
   margin: auto;
 }
 
-#nVitals.vertical {
-  overflow: hidden;
-}
-
 .vertical .aSpouse {
   padding-right: 3px;
   margin-bottom: 3px;
@@ -272,7 +268,6 @@
 }
 
 .vertical span[itemprop="spouse"] {
-  max-width: 25em;
   margin-left: 60px;
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -302,9 +297,6 @@
 .vertical #spousesUnknown,
 .vertical #childrenUnknown {
   margin-left: 2em;
-  max-width: 27em;
-  grid-template-areas: "";
-  grid-template-columns: "";
 }
 
 .marriageAges {
@@ -316,7 +308,6 @@
 }
 
 .vertical #spousesUnknown,
-.vertical #siblingsUnknown,
 .vertical span#childrenUnknownQ,
 .vertical span#childrenUnknown {
   margin-left: 2.3em;
@@ -398,7 +389,6 @@
   position: relative;
 }
 #nVitals.vertical .nameList li span.half {
-  /*left:-5em;*/
   position: absolute;
   font-size: 0.8em;
   visibility: hidden;
@@ -408,7 +398,6 @@
   padding: 2px;
   border-radius: 1em;
   z-index: 9000;
-
   right: 3px;
   top: 0;
 }
@@ -449,7 +438,7 @@ span[data-gender="Male"] {
   border-left: 5px blue solid;
 }
 
-.vertical .clickable {
+.clickable {
   cursor: pointer;
 }
 
@@ -459,7 +448,6 @@ span[data-gender="Male"] {
 
 .vertical ol.nameList,
 .vertical ul.nameList {
-  max-width: 25em;
   margin-bottom: 10px;
 }
 
@@ -469,6 +457,7 @@ span[data-gender="Male"] {
   position: relative;
   padding-left: 5px;
 }
+.vertical #profilePerson a.activeProfile,
 .vertical div.familyList li span,
 .vertical div.spouseDetails span,
 .vertical li#siblingsUnknown,
@@ -483,6 +472,12 @@ span[data-gender="Male"] {
 .vertical #spousesUnknown a.BLANK {
   padding-left: 3px;
   margin-left: 0;
+}
+
+.vertical li#siblingsUnknown,
+.vertical li#fatherUnknown,
+.vertical li#motherUnknown {
+  padding-left: 7px;
 }
 
 .vertical .nameList li span[itemprop="sibling"],
@@ -519,13 +514,21 @@ span[data-gender="Male"] {
   cursor: default;
 }
 
+.vertical .showHideTree,
 .vertical #showHideDescendants.button.small {
-  margin-top: -4px;
-}
-.vertical .showHideTree {
-  margin-top: -4px;
+  margin-top: -5px;
   float: right;
 }
 .vertical a.spouseText:nth-child(2) {
   display: none;
+}
+
+.vertical {
+  display: inline-grid;
+  grid-template-columns: 1fr;
+}
+
+#siblingCount,
+#childrenCount {
+  margin-left: 1em;
 }

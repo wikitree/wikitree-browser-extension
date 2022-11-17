@@ -33,6 +33,12 @@ const changeFamilyLists = {
       label: "Add ages at marriage",
       defaultValue: true,
     },
+    {
+      id: "siblingAndChildCount",
+      type: OptionType.CHECKBOX,
+      label: "Add sibling and child counts",
+      defaultValue: true,
+    },
   ],
 };
 
