@@ -43,8 +43,9 @@ function themePeopleTable() {
   </table>`);
     const themeTitle = $("h2.thisWeeksTheme");
     themeTitle.hide();
-    themeTable.find("caption").html(themeTitle.text().replace(":", ":<br>"));
-
+    if (themeTitle.length) {
+      themeTable.find("caption").html(themeTitle.text().replace(":", ":<br>"));
+    }
     themeLinks.parent().slideUp();
     themeLinks.parent().after(themeTable);
     linksArray.sort(function (a, b) {
@@ -68,21 +69,30 @@ async function setConnectionsBanner() {
     theP = $("body.profile div.sixteen.columns div.box.rounded a[href*='Special:Connection']").closest("div");
   }
   const theDiv = theP.closest("div");
+  let dTitle = "";
   if (!window.noHeading && localStorage.cfTitle != "") {
-    let dTitle = "";
     if (localStorage.cfTitle.match(/\bUS\b/) == null) {
       dTitle = capitalizeFirstLetter(localStorage.cfTitle);
-    } else {
+    } else if (localStorage.cfTitle) {
       dTitle = localStorage.cfTitle;
     }
-    const ourTitle = "This week's theme: " + dTitle;
-    const ourTableTitle = dTitle + ":<br>Connections to " + $("span[itemprop='givenName']").text();
-    theDiv.prepend("<h2 class='thisWeeksTheme'>" + ourTitle + "</h2>");
-    if ($("#themeTable").length) {
-      $("#themeTable").find("caption").html(ourTableTitle);
-      $("h2.thisWeeksTheme").hide();
+    if (!dTitle && $("h2.thisWeeksTheme").length) {
+      dTitle = $("h2.thisWeeksTheme").text().replace("This week's theme: ", "");
     }
+    if (!dTitle) {
+      dTitle = "Featured Connections";
+    }
+  } else {
+    dTitle = "Featured Connections";
   }
+  const ourTitle = "This week's theme: " + dTitle;
+  const ourTableTitle = dTitle + ":<br>Connections to " + $("span[itemprop='givenName']").text();
+  theDiv.prepend("<h2 class='thisWeeksTheme'>" + ourTitle + "</h2>");
+  if ($("#themeTable").length) {
+    $("#themeTable").find("caption").html(ourTableTitle);
+    $("h2.thisWeeksTheme").hide();
+  }
+
   const motwLink = theP.find("a:contains(" + localStorage.motw + ")");
   motwLink.text(motwLink.text().replace(/\bfrom\b/, "from our Member of the Week,"));
   const mSplits = motwLink.text().split("our Member of the Week");
@@ -170,11 +180,15 @@ async function connectionsBanner() {
                   localStorage.motw = mow.parent().find("img").attr("alt");
                 }
                 setConnectionsBanner();
+              } else {
+                //console.log("here");
               }
             },
           });
         }
       }
+    } else {
+      setConnectionsBanner();
     }
   });
 }
