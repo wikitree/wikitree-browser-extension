@@ -141,7 +141,7 @@ registerFeature({
 registerFeature({
   name: "Make Radio Buttons De-selectable",
   id: "makeRadioButtonsDeselectable",
-  description: "Makes radio buttons de-selectable.",
+  description: "Makes radio buttons de-selectable.  Click on a previously selected status value to clear it.",
   category: "Editing",
   defaultValue: true,
 });
