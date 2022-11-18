@@ -139,6 +139,14 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Make Radio Buttons De-selectable",
+  id: "makeRadioButtonsDeselectable",
+  description: "Makes radio buttons de-selectable.",
+  category: "Editing",
+  defaultValue: true,
+});
+
+registerFeature({
   name: "My Menu",
   id: "myMenu",
   description: "Add your own custom menu for easy access to your most commonly used links.",
