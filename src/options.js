@@ -419,3 +419,7 @@ function addFeatureToOptionsPage(featureData) {
     addOptionsForFeature(featureData, optionsElement, featureData.options);
   }
 }
+
+chrome.storage.onChanged.addListener(function () {
+  restore_options();
+});

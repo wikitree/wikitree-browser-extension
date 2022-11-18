@@ -8,6 +8,7 @@ import "./features/appsMenu/appsMenu";
 import "./features/bioCheck/bioCheck";
 import "./features/categoryDisplay/categoryDisplay";
 import "./features/categoryFinderPins/categoryFinderPins";
+import "./features/change_family_lists/change_family_lists";
 import "./features/clipboard_and_notes/clipboard_and_notes";
 import "./features/collapsibleDescendantsTree/collapsibleDescendantsTree";
 import "./features/collapsible_sources/collapsible_sources";
