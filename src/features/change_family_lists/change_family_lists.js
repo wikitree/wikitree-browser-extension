@@ -273,6 +273,12 @@ function reallyMakeFamLists() {
               }
             });
           }
+
+          $("span#spousesUnknown").each(function () {
+            if ($(this).text() == "") {
+              $(this).remove();
+            }
+          });
         },
         error: function (xhr, status) {
           $("#output").append("<br>There was an error getting the person:" + data[0].status);
