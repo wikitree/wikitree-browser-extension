@@ -507,6 +507,7 @@ function onButtonClicked() {
   }
 }
 
+
 function initAgc() {
   // We only create the toolbar button if this looks like a profile gerenated by GEDCOMpare.
   if (checkForGedcomCreatedProfile()) {

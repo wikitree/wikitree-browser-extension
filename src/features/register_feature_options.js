@@ -12,6 +12,7 @@ import "./categoryDisplay/categoryDisplay_options.js";
 import "./darkMode/darkMode_options.js";
 import "./g2g/g2g_options.js";
 import "./genderPredictor/gender_predictor_options.js";
+import "./change_family_lists/change_family_lists_options.js";
 import "./randomProfile/randomProfile_options.js";
 import "./redir_ext_links/redir_ext_links_options.js";
 
@@ -68,6 +69,17 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Collapsible Sources",
+  id: "collapsibleSources",
+  description:
+    "Makes the page shorter by hiding the inline citations on load.  " +
+    "To see the inline citations, click the black triangle button next to the Sources heading, click the superscript number of the citation, " +
+    "or use the Source Preview feature of this extension.",
+  category: "Profile",
+  defaultValue: false,
+});
+
+registerFeature({
   name: "Distance and Relationship",
   id: "distanceAndRelationship",
   description: "Adds the distance (degrees) between you and the profile person and any relationship between you.",
@@ -80,6 +92,15 @@ registerFeature({
   id: "draftList",
   description: "Adds a button to the Find menu to show your uncommitted drafts.",
   category: "Global",
+  defaultValue: true,
+});
+
+registerFeature({
+  name: "Dates/Locations on New Profile Page",
+  id: "editFamilyData",
+  description:
+    "Adds the dates and locations of the profile person to a new profile page (for a parents, sibling, etc.).",
+  category: "Editing",
   defaultValue: true,
 });
 
@@ -113,6 +134,14 @@ registerFeature({
   description:
     "Manipulates the suggested locations, highlighting likely correct locations," +
     " based on family members' locations, and demoting likely wrong locations, based on the dates.",
+  category: "Editing",
+  defaultValue: true,
+});
+
+registerFeature({
+  name: "Make Radio Buttons De-selectable",
+  id: "makeRadioButtonsDeselectable",
+  description: "Makes radio buttons de-selectable.  Click on a previously selected status value to clear it.",
   category: "Editing",
   defaultValue: true,
 });

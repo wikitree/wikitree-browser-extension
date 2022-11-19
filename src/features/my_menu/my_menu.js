@@ -284,6 +284,12 @@ function addCustomMenu() {
 
   $("#myCustomMenu li a:contains(Random Profile)").on("click", function (e) {
     e.preventDefault();
+    const working = $("<img id='working' src='" + chrome.runtime.getURL("images/tree.gif") + "'>");
+    working.appendTo("body").css({
+      position: "absolute",
+      left: `${e.pageX - 50}px`,
+      top: e.pageY + "px",
+    });
     getRandomProfile();
   });
   $("#myCustomMenu li a:contains(Random Profile)").on("contextmenu", function (e) {
