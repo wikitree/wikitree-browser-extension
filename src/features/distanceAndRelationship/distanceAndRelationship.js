@@ -316,7 +316,6 @@ function doRelationshipText(userID, profileID) {
         let outSplit = out.split(" ");
         outSplit[0] = ordinalWordToNumberAndSuffix(outSplit[0]);
         out = outSplit.join(" ");
-        //window.thisRelationship = out;
         if (
           $("#yourRelationshipText").length == 0 &&
           $(".ancestorTextText").length == 0 &&
@@ -469,7 +468,9 @@ function initDistanceAndRelationship(userID, profileID, clicked = false) {
       .then((person) => {
         if (person.Privacy > 29 && person.Connected == 1) {
           getDistance();
-          doRelationshipText(userID, profileID);
+          if ($("#yourRelationshipText").length == 0) {
+            doRelationshipText(userID, profileID);
+          }
         }
       })
       .catch((error) => {

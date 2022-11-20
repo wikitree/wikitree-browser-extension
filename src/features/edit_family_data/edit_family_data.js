@@ -5,7 +5,7 @@ import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { isOK } from "../../core/common";
 
 checkIfFeatureEnabled("editFamilyData").then((result) => {
-  if (result && $("body.page-Special_EditFamily").length && $("#awtEFdates").length == 0) {
+  if (result && $("body.page-Special_EditFamily").length && $("#EFdates").length == 0) {
     addInfoAboutOtherPerson();
   }
 });
