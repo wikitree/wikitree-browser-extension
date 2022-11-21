@@ -1,7 +1,7 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 const customChangeSummaryOptions = {
-  name: "Custom Change Summary Options",
+  name: "Change Summary Options",
   id: "customChangeSummaryOptions",
   description: "Add your own options to the change summary options on edit pages.",
   category: "Editing",
