@@ -837,7 +837,7 @@ export class Biography {
       }
       // save just the part of the line after the name
       let line = bioLineString.substring(startOfRef, end);
-      let refStart = line.indexOf(Biography.END_BRACKET);
+      let refStart = line.indexOf(Biography.#END_BRACKET);
       if (refStart > 0) {
         refStart++;
         this.#namedRefStringList.push(line.substring(refStart));
