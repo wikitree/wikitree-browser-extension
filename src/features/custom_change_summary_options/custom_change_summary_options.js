@@ -2,13 +2,14 @@ import $ from "jquery";
 import "./custom_change_summary_options.css";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
-checkIfFeatureEnabled("customChangeSummaryOptions").then((result) => {
-  if (result) {
+checkIfFeatureEnabled("changeSummaryOptions").then((result) => {
+  if (result && $("#saveStuff").length == 0) {
     addMovingSaveBox();
   }
 });
 
 function addMovingSaveBox() {
+  const sco = $(".six.columns.omega").eq(0);
   if ($("#saveStuff").length == 0 && $("body.page-Special_EditPerson").length && $("#removeSpouse").length == 0) {
     const saveStuff = $("<div id='saveStuff'></div>");
     saveStuff.append($("#wpSummary").parent());
@@ -17,7 +18,7 @@ function addMovingSaveBox() {
     const suggestionItems = $("li.suggestion-item");
 
     const changeSummaryGears =
-      "<img id='changeSummaryGears' title='Add more phrases (BEE)' src='" +
+      "<img id='changeSummaryGears' title='Add more phrases' src='" +
       chrome.runtime.getURL("images/settings30.png") +
       "'>";
     saveStuff.prepend(changeSummaryGears);
@@ -26,32 +27,32 @@ function addMovingSaveBox() {
       "<div id='changeSummaryOptions'><x>x</x><label>Add option: <input type='text' id='newOption'><button id='addOptionButton' class='small'>Add</button></label><ul id='currentOptions'></ul></div>"
     );
     saveStuff.prepend(changeSummaryOptions);
-
-    $("#changeSummaryOptions x").on("click", function () {
-      $("#changeSummaryOptions").hide();
-    });
-
-    $("#addOptionButton").on("click", function (event) {
-      event.preventDefault();
-      const currentLS = localStorage.getItem("LSchangeSummaryOptions");
-      if (currentLS == null) {
-        currentLS = "";
-        if (currentLS.match(/@@/) == null) {
+    setTimeout(() => {
+      $("#changeSummaryGears").on("click", function (event) {
+        $("#changeSummaryOptions").toggle();
+        console.log("here");
+      });
+      $("#changeSummaryOptions x").on("click", function () {
+        $("#changeSummaryOptions").hide();
+      });
+      $("#addOptionButton").on("click", function (event) {
+        event.preventDefault();
+        let currentLS = localStorage.getItem("LSchangeSummaryOptions");
+        if (currentLS == null) {
+          currentLS = "";
+          if (currentLS.match(/@@/) == null) {
+          }
         }
-      }
 
-      localStorage.setItem("LSchangeSummaryOptions", currentLS + $("#newOption").val() + "@@");
+        localStorage.setItem("LSchangeSummaryOptions", currentLS + $("#newOption").val() + "@@");
 
-      setTimeout(function () {
-        setChangeSummaryOptions(1);
-      }, 1000);
+        setTimeout(function () {
+          setChangeSummaryOptions(1);
+        }, 1000);
 
-      $("#newOption").val("");
-    });
-
-    $("#changeSummaryGears").on("click", function (event) {
-      $("#changeSummaryOptions").toggle();
-    });
+        $("#newOption").val("");
+      });
+    }, 500);
 
     let suggestionLinkText;
     if (suggestionItems.length == 1) {
@@ -86,9 +87,9 @@ function addMovingSaveBox() {
         }, 2000);
       });
     }
-    saveStuff.attr("title", "Moving Save Buttons (BEE)");
+    saveStuff.attr("title", "Moving Save Buttons");
     const tca = $(".ten.columns.alpha").eq(0);
-    const sco = $(".six.columns.omega").eq(0);
+
     saveStuff.prependTo(sco);
     saveStuff.css({ border: "1px forestgreen solid", padding: "1em" });
     const dRadios = $("#saveStuff label input[type='radio']");
@@ -149,7 +150,7 @@ function setChangeSummaryOptions(adding = 0) {
 
   $(".addedOption").remove();
   $("#currentOptions").html("");
-  const extraOptions = localStorage.getItem("LSchangeSummaryOptions");
+  let extraOptions = localStorage.getItem("LSchangeSummaryOptions");
   if (extraOptions != "" && extraOptions != null) {
     let extras;
     if (extraOptions.match(/@@/) == null) {
@@ -209,7 +210,7 @@ function setChangeSummaryOptions(adding = 0) {
           );
         }
         $("#added_" + addedNum).on("click", $("#added_" + addedNum), function (e) {
-          thisThing = e.data;
+          const thisThing = e.data;
           $("#wpSave").prop("disabled", false);
           var v = thisThing.val();
           var summary = $("#wpSummary").val();
