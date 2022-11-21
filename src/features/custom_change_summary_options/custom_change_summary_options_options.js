@@ -9,14 +9,3 @@ const customChangeSummaryOptions = {
 };
 
 registerFeature(customChangeSummaryOptions);
-
-/*
-  options: [
-    {
-      id: "myFirstOption",
-      type: OptionType.CHECKBOX,
-      label: "Enables my first option",
-      defaultValue: true,
-    },
-  ],
-*/
