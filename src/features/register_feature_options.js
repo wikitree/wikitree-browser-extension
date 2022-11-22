@@ -105,6 +105,14 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Extar Watchlist",
+  id: "extraWatchlist",
+  description: "Gives you an extra watchlist.  You can use it by looking for the + button pn profiles.",
+  category: "Profile",
+  defaultValue: true,
+});
+
+registerFeature({
   name: "Family Group",
   id: "familyGroup",
   description: "Display dates and locations of all family members. A button is added to the profile submenu.",
