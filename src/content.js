@@ -33,6 +33,7 @@ import "./features/sort_theme_people/sort_theme_people";
 import "./features/sourcepreview/sourcepreview";
 import "./features/spacepreview/spacepreview";
 import "./features/verifyID/verifyID";
+import "./features/what_links_here/what_links_here";
 import "./features/wtPlus/wtPlus";
 
 import "./core/editToolbar";

@@ -119,7 +119,7 @@ checkIfFeatureEnabled("distanceAndRelationship").then((result) => {
   }
 });
 
-async function getProfile(id, fields = "*") {
+export async function getProfile(id, fields = "*") {
   try {
     const result = await $.ajax({
       url: "https://api.wikitree.com/api.php",
