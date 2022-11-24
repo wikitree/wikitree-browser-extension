@@ -7,9 +7,9 @@ chrome.runtime.onInstalled.addListener(function (details) {
     chrome.runtime.openOptionsPage();
   } else if (details.reason == "update") {
     // Use this to open the extension update page on update
-    chrome.tabs.create({
-      url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension_Update",
-      active: true,
-    });
+    // chrome.tabs.create({
+    //   url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension_Update",
+    //   active: true,
+    // });
   }
 });
