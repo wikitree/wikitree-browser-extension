@@ -53,6 +53,14 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Change Summary Options",
+  id: "changeSummaryOptions",
+  description: "Add your own change summary options",
+  category: "Editing",
+  defaultValue: true,
+});
+
+registerFeature({
   name: "Clipboard and Notes",
   id: "clipboardAndNotes",
   description: "Keep useful things for pasting in the clipboard and useful notes in the notes.",
