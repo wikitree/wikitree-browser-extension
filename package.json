@@ -1,6 +1,6 @@
 {
   "name": "wikitree-browser-extension",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "scripts": {
     "watch": "webpack --config webpack/webpack.dev.js  --env browser=chrome --watch",
     "build": "webpack --config webpack/webpack.prod.js --env browser=chrome",
