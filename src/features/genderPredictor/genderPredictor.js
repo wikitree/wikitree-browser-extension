@@ -5,7 +5,7 @@ import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/opt
 import "./genderPredictor.css";
 
 checkIfFeatureEnabled("genderPredictor").then((result) => {
-  if (result) {
+  if (result && $("body.page-Special_EditFamily").length) {
     predictGender();
   }
 });
