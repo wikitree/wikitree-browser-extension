@@ -9,6 +9,7 @@ import { registerFeature } from "../core/options/options_registry";
 
 import "./agc/agc_options.js";
 import "./categoryDisplay/categoryDisplay_options.js";
+import "./custom_change_summary_options/custom_change_summary_options_options";
 import "./darkMode/darkMode_options.js";
 import "./g2g/g2g_options.js";
 import "./genderPredictor/gender_predictor_options.js";
@@ -49,14 +50,6 @@ registerFeature({
   id: "categoryFinderPins",
   description:
     "Adds pins to Category Finder results (on the edit page), similar to the pins in the location dropdown.  These pins link to the category page for you to check that you have the right category.",
-  category: "Editing",
-  defaultValue: true,
-});
-
-registerFeature({
-  name: "Change Summary Options",
-  id: "changeSummaryOptions",
-  description: "Add your own change summary options",
   category: "Editing",
   defaultValue: true,
 });

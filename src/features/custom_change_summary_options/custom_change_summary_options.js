@@ -2,7 +2,7 @@ import $ from "jquery";
 import "./custom_change_summary_options.css";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
-checkIfFeatureEnabled("changeSummaryOptions").then((result) => {
+checkIfFeatureEnabled("customChangeSummaryOptions").then((result) => {
   if (result && $("#saveStuff").length == 0) {
     addMovingSaveBox();
   }
