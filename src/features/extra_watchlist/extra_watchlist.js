@@ -2,13 +2,13 @@ import $ from "jquery";
 import "./extra_watchlist.css";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
-checkIfFeatureEnabled("extraWatchList").then((result) => {
+checkIfFeatureEnabled("extraWatchlist").then((result) => {
   if (result) {
-    extraWatchlist();
+    addExtraWatchlist();
   }
 });
 
-async function extraWatchlist() {
+async function addExtraWatchlist() {
   const plusImage = $(
     "<span class='awtButton' id='addToExtraWatchlistSpan'><img id='addToExtraWatchlist' title='Add to your Extra Watchlist; Right-click to see your Extra Watchlist' src='https://www.wikitree.com/g2g/qa-theme/WikiTree/favorite-plus.gif'></span>"
   );

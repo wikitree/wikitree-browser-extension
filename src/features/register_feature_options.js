@@ -105,7 +105,7 @@ registerFeature({
 });
 
 registerFeature({
-  name: "Extar Watchlist",
+  name: "Extra Watchlist",
   id: "extraWatchlist",
   description: "Gives you an extra watchlist.  You can use it by looking for the + button pn profiles.",
   category: "Profile",
