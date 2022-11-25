@@ -423,3 +423,81 @@ function addFeatureToOptionsPage(featureData) {
 chrome.storage.onChanged.addListener(function () {
   restore_options();
 });
+
+function backup() {
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    chrome.tabs.sendMessage(tabs[0].id, { greeting: "hello" }, function (response) {
+      // console.log(response.farewell);
+    });
+  });
+}
+$("#backupButton").on("click", function () {
+  backup();
+});
+
+function restoreBackup(){
+  e.preventDefault();
+      var fileChooser = document.createElement("input");
+      fileChooser.type = "file";
+      fileChooser.addEventListener("change", function () {
+        var file = fileChooser.files[0];
+        var reader = new FileReader();
+        reader.onload = function () {
+          var data = reader.result;
+          fields = data;
+        };
+        reader.readAsText(file);
+        setTimeout(function () {
+          data = reader.result;
+          dataLines = data.split(/\n/);
+          group = "";
+          dataLines.forEach(function (dLine) {
+            groupMatch = dLine.match(/\/\*(.+)\*\//);
+            if (groupMatch != null) {
+              group = groupMatch[1].trim();
+            } else {
+              if (dLine != "") {
+                dLineSplit = dLine.split("🢡");
+                dField = dLineSplit[0].trim();
+                dContent = dLineSplit[1].trim();
+                syncs = {};
+                window.theSettings.forEach(function (aGroup) {
+                  if (aGroup.Name == group) {
+                    aGroup.Items.forEach(function (anItem) {
+                      theThing = "";
+                      if (anItem.field == dField) {
+                        theThing = dField;
+                      } else if (anItem.field == "w_" + dField) {
+                        theThing = "w_" + dField;
+                      }
+                      if (theThing != "") {
+                        if (dContent == "undefined") {
+                          if (
+                            dField == "LSchangeSummaryOptions" ||
+                            dField == "customMenu" ||
+                            dField == "extraWatchlist"
+                          ) {
+                            dContent = "";
+                          } else {
+                            dContent = "0";
+                          }
+                        }
+                        if (anItem.type) {
+                          if (anItem.type == "localStorage") {
+                            localStorage.setItem(theThing, dContent);
+                          }
+                        } else {
+                          syncs[theThing] = dContent;
+                        }
+                      }
+                    });
+                  }
+                });
+                setSync(syncs);
+              }
+            }
+          });
+        }, 1000);
+        form.reset();
+      });
+}

@@ -42,7 +42,8 @@ html {
   padding: 10px 0 0 70px;
   font-size: medium;
 }
-.feature-options-button {
+.feature-options-button,
+#options #backup button {
   border-radius: 34px;
   background-color: #8fc641;
   font-size: medium;
@@ -162,6 +163,24 @@ input:checked + .slider:before {
   position: fixed;
   top: 1em;
   right: 1em;
+}
+
+#options #backup {
+  font-size: medium;
+  margin-bottom: 1em;
+}
+#options #backup h2 {
+  font-size: 1.5em;
+}
+#options #backup button {
+  display: inline-block;
+}
+#options #backupButtons {
+  display: block;
+  margin: 1em auto;
+}
+#options #backup button:active {
+  border: 2px solid gray;
 }
 
 /* content */
