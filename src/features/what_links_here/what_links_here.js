@@ -59,9 +59,9 @@ async function whatLinksHereSection() {
                 $("#whatLinksHereMore").on("click", function () {
                   $("#whatLinksHereLinks").toggleClass("showAll");
                   if ($("#whatLinksHereLinks").hasClass("showAll")) {
-                    $(this).text("⯆");
+                    $(this).text("⇩");
                   } else {
-                    $(this).text("⯈");
+                    $(this).text("⇨");
                   }
                 });
               }
