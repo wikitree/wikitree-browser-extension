@@ -424,80 +424,65 @@ chrome.storage.onChanged.addListener(function () {
   restore_options();
 });
 
+function addBackupButtons() {
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    if (tabs[0].url) {
+      if (tabs[0].url.match("wikitree.com")) {
+        $("body").append(
+          $(`<div id="backup"><h2>Back up</h2>
+    <div class="feature-information">
+    Back up	"My Menu", "Change Summary Options", and "Clipboard and Notes"
+      <div id="backupButtons">
+        <button id="backupButton">Back up</button>
+        <button id="restoreBackupButton">Restore</button>
+      </div>
+    </div>
+  </div>`)
+        );
+        $("#backupButton").on("click", function () {
+          backup();
+        });
+        $("#restoreBackupButton").on("click", function () {
+          restoreBackup();
+        });
+      }
+    }
+  });
+}
+addBackupButtons();
+
 function backup() {
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-    chrome.tabs.sendMessage(tabs[0].id, { greeting: "hello" }, function (response) {
-      // console.log(response.farewell);
+    chrome.tabs.sendMessage(tabs[0].id, { greeting: "backup" }, function (response) {
+      console.log(response.farewell);
     });
   });
 }
-$("#backupButton").on("click", function () {
-  backup();
-});
 
-function restoreBackup(){
-  e.preventDefault();
-      var fileChooser = document.createElement("input");
-      fileChooser.type = "file";
-      fileChooser.addEventListener("change", function () {
-        var file = fileChooser.files[0];
-        var reader = new FileReader();
-        reader.onload = function () {
-          var data = reader.result;
-          fields = data;
-        };
-        reader.readAsText(file);
-        setTimeout(function () {
-          data = reader.result;
-          dataLines = data.split(/\n/);
-          group = "";
-          dataLines.forEach(function (dLine) {
-            groupMatch = dLine.match(/\/\*(.+)\*\//);
-            if (groupMatch != null) {
-              group = groupMatch[1].trim();
-            } else {
-              if (dLine != "") {
-                dLineSplit = dLine.split("🢡");
-                dField = dLineSplit[0].trim();
-                dContent = dLineSplit[1].trim();
-                syncs = {};
-                window.theSettings.forEach(function (aGroup) {
-                  if (aGroup.Name == group) {
-                    aGroup.Items.forEach(function (anItem) {
-                      theThing = "";
-                      if (anItem.field == dField) {
-                        theThing = dField;
-                      } else if (anItem.field == "w_" + dField) {
-                        theThing = "w_" + dField;
-                      }
-                      if (theThing != "") {
-                        if (dContent == "undefined") {
-                          if (
-                            dField == "LSchangeSummaryOptions" ||
-                            dField == "customMenu" ||
-                            dField == "extraWatchlist"
-                          ) {
-                            dContent = "";
-                          } else {
-                            dContent = "0";
-                          }
-                        }
-                        if (anItem.type) {
-                          if (anItem.type == "localStorage") {
-                            localStorage.setItem(theThing, dContent);
-                          }
-                        } else {
-                          syncs[theThing] = dContent;
-                        }
-                      }
-                    });
-                  }
-                });
-                setSync(syncs);
-              }
-            }
-          });
-        }, 1000);
-        form.reset();
+function restoreBackup() {
+  var fileChooser = document.createElement("input");
+  fileChooser.type = "file";
+  fileChooser.addEventListener("change", function () {
+    var file = fileChooser.files[0];
+    var reader = new FileReader();
+    let data;
+    reader.onload = function () {
+      let data = reader.result;
+    };
+    reader.readAsText(file);
+    setTimeout(function () {
+      data = JSON.parse(reader.result);
+      console.log(data);
+      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, { greeting: "restoreBackup", data: data }, function (response) {
+          console.log(response.farewell);
+        });
       });
+    }, 1000);
+    form.reset();
+  });
+  /* Wrap it in a form for resetting */
+  var form = document.createElement("form");
+  form.appendChild(fileChooser);
+  fileChooser.click();
 }

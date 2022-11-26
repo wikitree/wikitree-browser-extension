@@ -1,4 +1,4 @@
-import $ from "jquery";
+import $, { data } from "jquery";
 
 export let pageProfile = false;
 export let pageHelp = false;
@@ -408,8 +408,8 @@ function strDate() {
 }
 
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-  console.log(sender.tab ? "from a content script:" + sender.tab.url : "from the extension");
-  if (request.greeting == "hello") {
+  sendResponse({ farewell: "goodbye" });
+  if (request.greeting == "backup") {
     const backupObject = {};
     backupObject.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
     backupObject.myMenu = localStorage.customMenu;
@@ -428,5 +428,28 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
         URL.revokeObjectURL(link.href);
       };
     };
+  }
+  if (request.greeting == "restoreBackup") {
+    const data = request.data;
+    if (data.changeSummaryOptions) {
+      localStorage.setItem("LSchangeSummaryOptions", data.changeSummaryOptions);
+    }
+    if (data.myMenu) {
+      localStorage.setItem("customMenu", data.myMenu);
+    }
+    if (data.clipboard) {
+      function addToDB(db, dbv, os, obj) {
+        const aDB = window.indexedDB.open(db, dbv);
+        aDB.onsuccess = function (event) {
+          let xdb = aDB.result;
+          let insert = xdb.transaction([os], "readwrite").objectStore(os).put(obj);
+        };
+      }
+      const clipboard = JSON.parse(data.clipboard);
+      clipboard.forEach(function (aClipping) {
+        addToDB("Clipboard", 1, "Clipboard", aClipping);
+      });
+    }
+    sendResponse("Thank you!");
   }
 });
