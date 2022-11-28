@@ -333,7 +333,7 @@ async function extraWatchlist() {
       const eww = $("<div id='extraWatchlistWindow' class='ui-widget-content'></div>");
       eww.insertAfter($("#views-wrap"));
       if ($("body.profile").length == 0) {
-        eww.insertAfter($("#header"));
+        eww.insertAfter($("#header,.qa-header"));
       }
       $("#extraWatchlistWindow").append(
         '<h2>Extra Watchlist</h2><p id=\'ewlEmpty\'>Empty?</p><table id="touchedList"  class="all"></table>'
