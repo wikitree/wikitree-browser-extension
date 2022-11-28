@@ -413,6 +413,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     const backupObject = {};
     backupObject.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
     backupObject.myMenu = localStorage.customMenu;
+    backupObject.extraWatchlist = localStorage.extraWatchlist;
     const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
     clipboardDB.onsuccess = function (event) {
       let cdb = clipboardDB.result;
@@ -431,11 +432,15 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
   }
   if (request.greeting == "restoreBackup") {
     const data = request.data;
+    console.log(data);
     if (data.changeSummaryOptions) {
       localStorage.setItem("LSchangeSummaryOptions", data.changeSummaryOptions);
     }
     if (data.myMenu) {
       localStorage.setItem("customMenu", data.myMenu);
+    }
+    if (data.extraWatchlist) {
+      localStorage.setItem("extraWatchlist", data.extraWatchlist);
     }
     if (data.clipboard) {
       function addToDB(db, dbv, os, obj) {

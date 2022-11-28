@@ -472,7 +472,6 @@ function restoreBackup() {
     reader.readAsText(file);
     setTimeout(function () {
       data = JSON.parse(reader.result);
-      console.log(data);
       chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         chrome.tabs.sendMessage(tabs[0].id, { greeting: "restoreBackup", data: data }, function (response) {
           console.log(response.farewell);
