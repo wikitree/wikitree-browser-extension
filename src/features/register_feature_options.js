@@ -10,6 +10,7 @@ import { registerFeature } from "../core/options/options_registry";
 import "./agc/agc_options.js";
 import "./categoryDisplay/categoryDisplay_options.js";
 import "./darkMode/darkMode_options.js";
+import "./extra_watchlist/extra_watchlist_options.js";
 import "./g2g/g2g_options.js";
 import "./genderPredictor/gender_predictor_options.js";
 import "./change_family_lists/change_family_lists_options.js";
@@ -101,14 +102,6 @@ registerFeature({
   description:
     "Adds the dates and locations of the profile person to a new profile page (for a parents, sibling, etc.).",
   category: "Editing",
-  defaultValue: true,
-});
-
-registerFeature({
-  name: "Extra Watchlist",
-  id: "extraWatchlist",
-  description: "Gives you an extra watchlist.  You can use it by looking for the + button pn profiles.",
-  category: "Profile",
   defaultValue: true,
 });
 

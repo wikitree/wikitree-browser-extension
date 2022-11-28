@@ -8,29 +8,13 @@
   width: 26px;
 }
 
-#addToExtraWatchlist {
-  position: absolute;
-  clip-path: inset(26px 0px 26px 0px);
-  top: -26px;
-}
-
-#addToExtraWatchlist:hover {
-  position: absolute;
-  clip-path: inset(0px 0px 52px 0px);
-  top: 0;
-}
-
-#addToExtraWatchlist:active,
-#addToExtraWatchlist.onList {
-  position: absolute;
-  clip-path: inset(52px 0px 0px 0px);
-  top: -52px;
-}
-
-#addToExtraWatchlist.onList:active {
-  position: absolute;
-  clip-path: inset(26px 0px 26px 0px);
-  top: -26px;
+.theClipboardButtons img.extraWatchlistButton.button.small {
+  height: 1em;
+  width: 1.2em;
+  display: inline-block;
+  margin-right: 0.1em;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
 }
 
 #extraWatchlistWindow {
@@ -49,6 +33,11 @@
 
 #extraWatchlistWindow td.wtIDcol {
   width: 10em;
+}
+
+#touchedList a,
+#touchedList {
+  color: black;
 }
 
 #extraWatchlistWindow caption {
@@ -104,6 +93,16 @@ body.profile #extraWatchlistWindow td.xCol {
   margin-right: 2em;
 }
 
+#touchedList thead th[id],
+#extraWatchlistWindow thead th[id] {
+  cursor: pointer;
+}
+
+#touchedList thead,
+#extraWatchlistWindow thead {
+  text-align: left;
+}
+
 div.eight.columns.alpha .nameCol,
 #extraWatchlistWindow .nameCol {
   width: 60%;
@@ -137,6 +136,18 @@ div.eight.columns.alpha .xCol,
 
 #closeWatchlistWindow {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: 0.3em;
+  right: 0.3em;
+  cursor: pointer;
+  display: inline-block;
+  font-weight: bold;
+  background: #25422d;
+  color: white;
+  padding: 0.5em;
+  border-radius: 0.5em;
+  box-shadow: 0.1em 0.1em 0.1em 0.1em gray;
+}
+#closeWatchlistWindow:active {
+  box-shadow: 0;
+  padding: 0.4em;
 }
