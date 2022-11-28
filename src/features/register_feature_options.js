@@ -11,6 +11,7 @@ import "./agc/agc_options.js";
 import "./categoryDisplay/categoryDisplay_options.js";
 import "./custom_change_summary_options/custom_change_summary_options_options";
 import "./darkMode/darkMode_options.js";
+import "./extra_watchlist/extra_watchlist_options.js";
 import "./g2g/g2g_options.js";
 import "./genderPredictor/gender_predictor_options.js";
 import "./change_family_lists/change_family_lists_options.js";

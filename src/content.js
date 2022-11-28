@@ -17,6 +17,7 @@ import "./features/darkMode/darkMode";
 import "./features/distanceAndRelationship/distanceAndRelationship";
 import "./features/draftList/draftList";
 import "./features/edit_family_data/edit_family_data";
+import "./features/extra_watchlist/extra_watchlist";
 import "./features/familyGroup/familyGroup";
 import "./features/familyTimeline/familyTimeline";
 import "./features/g2g/g2g";

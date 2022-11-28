@@ -1,0 +1,153 @@
+#addToExtraWatchlistSpan {
+  display: inline-block;
+
+  bottom: 0;
+  right: 0;
+  z-index: 10000;
+  height: 26px;
+  width: 26px;
+}
+
+.theClipboardButtons img.extraWatchlistButton.button.small {
+  height: 1em;
+  width: 1.2em;
+  display: inline-block;
+  margin-right: 0.1em;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+}
+
+#extraWatchlistWindow {
+  width: auto;
+  max-width: 60em;
+  padding: 1em;
+  border: 2px solid forestgreen;
+  border-radius: 1em;
+  max-height: 40em;
+  overflow: auto;
+  position: absolute;
+  z-index: 9000;
+  box-shadow: 0.1em 0.1em 0.1em 0.1em lightgreen;
+  background: white;
+}
+
+#extraWatchlistWindow td.wtIDcol {
+  width: 10em;
+}
+
+#touchedList a,
+#touchedList {
+  color: black;
+}
+
+#extraWatchlistWindow caption {
+  display: none;
+  font-variant: small-caps;
+  font-weight: bold;
+  color: black;
+}
+
+#extraWatchlistWindow {
+  display: none;
+}
+
+#extraWatchlistWindow h2 {
+  margin-bottom: 0.2em;
+}
+
+#extraWatchlistWindow .touchedCol {
+  width: 10em;
+  color: black !important;
+}
+
+#extraWatchlistWindow .changesCol {
+  width: 7em;
+}
+
+#extraWatchlistWindow .changesCol a {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+body.profile #extraWatchlistWindow td.xCol {
+  width: 1em;
+}
+
+#ewlEmpty {
+  display: none;
+  color: black;
+}
+
+.removeFromExtraWatchlist {
+  width: 2em;
+  cursor: pointer;
+}
+
+#importExtraWatchlist,
+#exportExtraWatchlist {
+  float: right;
+  margin: 0.3em;
+}
+
+#importExtraWatchlist {
+  margin-right: 2em;
+}
+
+#touchedList thead th[id],
+#extraWatchlistWindow thead th[id] {
+  cursor: pointer;
+}
+
+#touchedList thead,
+#extraWatchlistWindow thead {
+  text-align: left;
+}
+
+div.eight.columns.alpha .nameCol,
+#extraWatchlistWindow .nameCol {
+  width: 60%;
+}
+
+div.eight.columns.alpha .touchedCol,
+#extraWatchlistWindow .touchedCol {
+  width: 15%;
+}
+
+div.eight.columns.alpha .changesCol,
+#extraWatchlistWindow .changesCol {
+  width: 15%;
+  min-width: 4em;
+}
+
+div.eight.columns.alpha .xCol,
+#extraWatchlistWindow .xCol {
+  width: 1em;
+  color: black !important;
+  font-weight: bold;
+}
+
+#views-wrap {
+  position: relative;
+}
+
+#extraWatchlistWindow {
+  position: absolute;
+}
+
+#closeWatchlistWindow {
+  position: absolute;
+  top: 0.3em;
+  right: 0.3em;
+  cursor: pointer;
+  display: inline-block;
+  font-weight: bold;
+  background: #25422d;
+  color: white;
+  padding: 0.5em;
+  border-radius: 0.5em;
+  box-shadow: 0.1em 0.1em 0.1em 0.1em gray;
+}
+#closeWatchlistWindow:active {
+  box-shadow: 0;
+  padding: 0.4em;
+}
