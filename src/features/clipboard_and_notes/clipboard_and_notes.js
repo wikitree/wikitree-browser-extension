@@ -74,14 +74,6 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
       };
     }
 
-    function addToDB(db, dbv, os, obj) {
-      const aDB = window.indexedDB.open(db, dbv);
-      aDB.onsuccess = function (event) {
-        let xdb = aDB.result;
-        let insert = xdb.transaction([os], "readwrite").objectStore(os).put(obj);
-      };
-    }
-
     function deleteClipping(key, type) {
       const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
       clipboardDB.onsuccess = function (event) {
