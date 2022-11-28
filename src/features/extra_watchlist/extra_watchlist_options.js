@@ -3,8 +3,8 @@ import { registerFeature, OptionType } from "../../core/options/options_registry
 registerFeature({
   name: "Extra Watchlist",
   id: "extraWatchlist",
-  description: "Gives you an extra watchlist. Add to it by clicking the + button. View it with the bionculars button.",
-  category: "Profile",
+  description: "Gives you an extra watchlist. Add to it by clicking the + button. View it with the binoculars button.",
+  category: "Global",
   defaultValue: true,
   options: [
     {
