@@ -431,7 +431,7 @@ function addBackupButtons() {
         $("body").append(
           $(`<div id="backup"><h2>Back up</h2>
     <div class="feature-information">
-    Back up	"My Menu", "Change Summary Options", and "Clipboard and Notes"
+    Back up	"My Menu", "Change Summary Options", "Clipboard and Notes", and "Extra Watchlist"
       <div id="backupButtons">
         <button id="backupButton">Back up</button>
         <button id="restoreBackupButton">Restore</button>
