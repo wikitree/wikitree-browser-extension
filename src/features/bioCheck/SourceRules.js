@@ -281,6 +281,7 @@ class SourceRules {
     "ancestry tree & sources",
     "family tree on ancestry",
     "personal family records",
+    "thanks to family search",
     "no sources at this time",
     "family search family tree",
     "scotland's people website",
