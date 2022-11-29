@@ -8,12 +8,8 @@ import { appendClipboardButtons } from "../clipboard_and_notes/clipboard_and_not
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("extraWatchlist").then((result) => {
-  if (result) {
+  if (result && $("body.page-Special_EditFamily").length == 0) {
     extraWatchlist();
-  }
-
-  if (result && $("body.page-Special_Home").length) {
-    //  addExtraWatchlistToNavHome();
   }
 });
 
@@ -52,7 +48,6 @@ const makeTextFile = function (text) {
   return textFile;
 };
 
-// for Extra watchlist
 function sortTouched(order = "touched") {
   const items = $("#touchedList > tr");
   if (order == "touched") {
