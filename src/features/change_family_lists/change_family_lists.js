@@ -1610,12 +1610,6 @@ function siblingOf() {
 
             nSpan.append(node.textContent);
             node.replaceWith(nSpan);
-
-            if ($(nSpan).siblings().length == 1) {
-              cWord = "Child: ";
-            } else {
-              cWord = "Children: ";
-            }
             nSpan.setAttribute("data-replace-text", cWord);
             nSpan.setAttribute("data-alt-text", cWord);
             nSpan.setAttribute("data-original-text", node.textContent);
