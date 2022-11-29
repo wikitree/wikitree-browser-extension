@@ -10,11 +10,11 @@ checkIfFeatureEnabled("collapsibleSources").then((result) => {
 
 function toggleSources() {
   return function () {
-    if ($(this).text() == "▶") {
-      $(this).text("▼");
+    if ($(this).text() == "⇨") {
+      $(this).text("⇩");
       $("ol.references").slideDown();
     } else {
-      $(this).text("▶");
+      $(this).text("⇨");
       $("ol.references").slideUp();
     }
   };
@@ -24,7 +24,7 @@ async function collapsibleSources() {
   if ($("body.profile").length && window.location.href.match("Space:") == null && $("ol.references li").length) {
     $("ol.references").hide();
     $("h2 span.mw-headline:contains(Sources)").append(
-      $("<button id='toggleSources' title='Toggle inline sources' class='small'>▶</button>")
+      $("<button id='toggleSources' title='Toggle inline sources' class='small'>⇨</button>")
     );
     $("#toggleSources").on("click", toggleSources());
 
@@ -32,7 +32,7 @@ async function collapsibleSources() {
       e.preventDefault();
       let theNote = $(this).attr("href");
       $("ol.references").slideDown();
-      $("#toggleSources").text("▼");
+      $("#toggleSources").text("⇩");
       setTimeout(function () {
         window.location = theNote;
       }, 500);
