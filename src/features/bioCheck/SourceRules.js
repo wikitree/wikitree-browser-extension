@@ -233,6 +233,7 @@ class SourceRules {
     "www.ancestry.com",
     "acknowledgements:",
     "ancestry research",
+    "familysearch data",
     "familysearch tree",
     "family collection",
     "family tree files",
