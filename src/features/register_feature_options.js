@@ -54,6 +54,7 @@ import "./auto_categories/auto_categories_options";
 import "./categoryDisplay/categoryDisplay_options";
 import "./change_family_lists/change_family_lists_options";
 import "./custom_change_summary_options/custom_change_summary_options_options";
+import "./custom_style/custom_style_options";
 import "./darkMode/darkMode_options";
 import "./date_fixer/date_fixer_options";
 import "./edit_family_data/edit_family_data_options";
@@ -384,7 +385,7 @@ registerFeature({
   creators: [{ name: "Aleš Trtnik", wikitreeid: "Trtnik-2" }],
   contributors: [],
   defaultValue: false,
-  pages: [true],  
+  pages: [true],
 });
 
 /*

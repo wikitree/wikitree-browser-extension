@@ -9,7 +9,7 @@ import "./features/visitedLinks/visitedLinks";
 import "./features/darkMode/darkMode";
 import "./features/readability/readability";
 
-// followed by the rest 
+// followed by the rest
 import "./features/access_keys/access_keys";
 import "./features/akaNameLinks/akaNameLinks";
 import "./features/categoryDisplay/categoryDisplay";
@@ -18,6 +18,7 @@ import "./features/change_family_lists/change_family_lists";
 import "./features/clipboard_and_notes/clipboard_and_notes";
 import "./features/collapsibleDescendantsTree/collapsibleDescendantsTree";
 import "./features/confirm_thank_yous/confirm_thank_yous";
+import "./features/custom_style/custom_style";
 import "./features/distanceAndRelationship/distanceAndRelationship";
 import "./features/dna_table/dna_table";
 import "./features/extra_watchlist/extra_watchlist";
@@ -59,14 +60,12 @@ import "./features/genderPredictor/genderPredictor";
 import "./features/suggested_matches_filters/suggested_matches_filters";
 import "./features/verifyID/verifyID";
 
-// At the end are the features, that add items into menu structure. 
+// At the end are the features, that add items into menu structure.
 import "./features/appsMenu/appsMenu";
 import "./features/edit_family_data/edit_family_data";
 import "./features/draftList/draftList";
 import "./features/randomProfile/randomProfile";
 import "./features/what_links_here/what_links_here";
-
-
 
 /*
  * debugging features for development only
