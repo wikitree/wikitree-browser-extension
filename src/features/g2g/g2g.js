@@ -1,5 +1,5 @@
 import $ from "jquery";
-import "./g2g.css";
+
 import { isOK } from "../../core/common";
 import Cookies from "js-cookie";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
@@ -37,7 +37,8 @@ async function initG2G() {
 }
 
 checkIfFeatureEnabled("g2g").then((result) => {
-  if (result) {
+  if (result && $(".qa-body-wrapper").length) {
+    import("./g2g.css");
     initG2G();
   }
 });

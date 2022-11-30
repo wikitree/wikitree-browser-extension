@@ -1,4 +1,3 @@
-import "./wtPlus.css";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { isEditPage } from "../../core/common";
 import { wtAPICatCIBSearch } from "../../core/wtPlusAPI/wtPlusAPI";
@@ -7,6 +6,7 @@ let tb = {};
 
 checkIfFeatureEnabled("wtplus").then((result) => {
   if (result && isEditPage) {
+    import("./wtPlus.css");
     initWTPlus();
   }
 });
@@ -848,7 +848,7 @@ function selectCIB(data) {
     "</div>";
   attachEvents("button.dlgClick", "click");
   attachEvents("input.cbFilter", "input");
-//  attachEvents("td.tdSelect", "click");
+  //  attachEvents("td.tdSelect", "click");
   onDlgSelectCIBFlt();
   tb.elDlg.showModal();
 }
@@ -1436,8 +1436,7 @@ function mainEventLoop(event) {
 
   let element = event.srcElement;
   if (element.tagName == "TD") {
-    if (!element.dataset.op)
-      element = element.parentElement;
+    if (!element.dataset.op) element = element.parentElement;
   }
   const op = element.dataset.op;
   const id = element.dataset.id;

@@ -1,10 +1,10 @@
 import $ from "jquery";
 import { pageProfile } from "../../core/common";
-import "./collapsibleDescendantsTree.css";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage"
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("collapsibleDescendantsTree").then((result) => {
   if (result && pageProfile == true) {
+    import("./collapsibleDescendantsTree.css");
     // Look out for the appearance of new list items in the descendantsContainer
     const descendantsObserver = new MutationObserver(function (mutations_list) {
       mutations_list.forEach(function (mutation) {
@@ -22,10 +22,7 @@ checkIfFeatureEnabled("collapsibleDescendantsTree").then((result) => {
     });
 
     if ($("#descendantsContainer").length) {
-      descendantsObserver.observe(
-        document.querySelector("#descendantsContainer"),
-        { subtree: true, childList: true }
-      );
+      descendantsObserver.observe(document.querySelector("#descendantsContainer"), { subtree: true, childList: true });
     }
 
     // Add buttons

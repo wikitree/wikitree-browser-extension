@@ -1,11 +1,11 @@
 import * as $ from "jquery";
-import "./edit_family_data.css";
 import { getPerson } from "wikitree-js";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { isOK } from "../../core/common";
 
 checkIfFeatureEnabled("editFamilyData").then((result) => {
   if (result && $("body.page-Special_EditFamily").length && $("#EFdates").length == 0) {
+    import("./edit_family_data.css");
     addInfoAboutOtherPerson();
   }
 });

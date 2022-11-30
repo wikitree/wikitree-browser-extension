@@ -4,10 +4,10 @@ import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/opt
 import { isOK, htmlEntities, showDraftList } from "../../core/common";
 import { getRandomProfile, addRandomProfileLocationBox } from "../randomProfile/randomProfile";
 import { getPerson } from "wikitree-js";
-import "./my_menu.css";
 
 checkIfFeatureEnabled("myMenu").then((result) => {
-  if (result && $("body.BEE").length == 0) {
+  if (result) {
+    import("./my_menu.css");
     addCustomMenu();
   }
 });

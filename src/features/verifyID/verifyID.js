@@ -1,12 +1,12 @@
 import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
-import "./verifyID.css";
 import { extractRelatives, displayName } from "../../core/common";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("verifyID").then((result) => {
   if (result) {
     if ($("body.page-Special_EditFamily").length) {
+      import("./verifyID.css");
       checkAttachPersonID();
       // Try not to clash with BEE
       $("body").addClass("verifyID");
