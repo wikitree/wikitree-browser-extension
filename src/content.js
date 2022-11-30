@@ -20,6 +20,7 @@ import "./features/edit_family_data/edit_family_data";
 import "./features/extra_watchlist/extra_watchlist";
 import "./features/familyGroup/familyGroup";
 import "./features/familyTimeline/familyTimeline";
+import "./features/format_source_reference_numbers/format_source_reference_numbers";
 import "./features/g2g/g2g";
 import "./features/genderPredictor/genderPredictor";
 import "./features/google_search_box/google_search_box";
