@@ -1,5 +1,4 @@
 import $ from "jquery";
-//import "./format_source_reference_numbers.css";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("formatSourceReferenceNumbers").then((result) => {
