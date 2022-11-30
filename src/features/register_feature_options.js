@@ -9,12 +9,13 @@ import { registerFeature } from "../core/options/options_registry";
 
 import "./agc/agc_options.js";
 import "./categoryDisplay/categoryDisplay_options.js";
+import "./change_family_lists/change_family_lists_options.js";
 import "./custom_change_summary_options/custom_change_summary_options_options";
 import "./darkMode/darkMode_options.js";
 import "./extra_watchlist/extra_watchlist_options.js";
+import "./format_source_reference_numbers/format_source_reference_numbers_options.js";
 import "./g2g/g2g_options.js";
 import "./genderPredictor/gender_predictor_options.js";
-import "./change_family_lists/change_family_lists_options.js";
 import "./randomProfile/randomProfile_options.js";
 import "./redir_ext_links/redir_ext_links_options.js";
 import "./what_links_here/what_links_here_options.js";
