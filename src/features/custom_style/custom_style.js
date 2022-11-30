@@ -11,13 +11,12 @@ checkIfFeatureEnabled("customStyle").then((result) => {
 async function initCustomStyle() {
   let rules = "";
   const options = await getFeatureOptions("customStyle");
-  console.log(options);
   const keys = Object.keys(options);
   keys.forEach(function (key) {
     if (options[key]) {
       let bits = key.split("_");
       if (bits[0] == "hide") {
-        if (["DNA", "Collaboration", "Research"].includes(bits[1])) {
+        if (["DNA", "Collaboration", "Research", "Images"].includes(bits[1])) {
           $(".six.columns span.large:contains('" + bits[1] + "')")
             .closest("div")
             .hide();
@@ -29,6 +28,8 @@ async function initCustomStyle() {
           )
             .closest("div")
             .hide();
+        } else if (bits[1] == "more-genealogy-tools-button") {
+          $("a.button.small:contains(More Genealogy Tools)").closest("p").hide();
         }
       } else {
         if (bits[0] == "headings") {
@@ -58,10 +59,10 @@ async function initCustomStyle() {
             "ul.profile-tabs li.current,\n" +
             "div.SMALL[style='background-color:#ffe183;'],\n" +
             "span.qa-q-item-who-title,\n" +
-            ".qa-nav-main-link:hover";
+            ".qa-nav-main-link:hover,\n" +
+            ".qa-nav-sub-link:hover";
         }
         if (bits[0] == "color3") {
-          // bits[0] = ".qa-nav-main-link, .qa-nav-main-link:link, .qa-nav-main-link:visited";
           bits[0] = "span.qa-q-item-who-title";
         }
 

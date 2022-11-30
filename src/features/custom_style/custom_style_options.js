@@ -88,7 +88,7 @@ const myCustomStyle = {
           defaultValue: false,
         },
         {
-          id: "hide_images",
+          id: "hide_Images",
           type: OptionType.CHECKBOX,
           label: "Images",
           defaultValue: false,
@@ -112,15 +112,21 @@ const myCustomStyle = {
           defaultValue: false,
         },
         {
+          id: "hide_comments",
+          type: OptionType.CHECKBOX,
+          label: "Comments",
+          defaultValue: false,
+        },
+        {
           id: "hide_footer",
           type: OptionType.CHECKBOX,
           label: "Footer",
           defaultValue: false,
         },
         {
-          id: "hide_comments",
+          id: "hide_more-genealogy-tools-button",
           type: OptionType.CHECKBOX,
-          label: "Comments",
+          label: "More Genealogy Tools button",
           defaultValue: false,
         },
       ],
