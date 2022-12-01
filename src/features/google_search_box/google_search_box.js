@@ -1,9 +1,9 @@
 import $ from "jquery";
-import "./google_search_box.css";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("googleSearchBox").then((result) => {
   if (result) {
+    import("./google_search_box.css");
     addGoogleSearchBox();
   }
 });

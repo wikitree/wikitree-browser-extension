@@ -2,12 +2,12 @@ import * as $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import { getRelatives } from "wikitree-js";
 import { createProfileSubmenuLink, extractRelatives, isOK } from "../../core/common";
-import "./familyTimeline.css";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("familyTimeline").then((result) => {
   if (result) {
     if (result && $("body.profile").length && window.location.href.match("Space:") == null) {
+      import("./familyTimeline.css");
       // Add a link to the short list of links below the tabs
       const options = {
         title: "Display a family timeline",

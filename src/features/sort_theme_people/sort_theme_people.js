@@ -1,5 +1,4 @@
 import $ from "jquery";
-import "./sort_theme_people.css";
 import { capitalizeFirstLetter } from "../familyTimeline/familyTimeline";
 import { isOK } from "../../core/common.js";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
@@ -10,6 +9,7 @@ checkIfFeatureEnabled("sortThemePeople").then((result) => {
     $("body.profile").length &&
     $(".sixteen p a:contains(degrees from),.sixteen div.box.rounded.row a:contains(degrees from)").length
   ) {
+    import("./sort_theme_people.css");
     connectionsBanner();
     themePeopleTable();
   }

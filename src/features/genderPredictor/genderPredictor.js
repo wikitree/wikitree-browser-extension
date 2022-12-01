@@ -2,10 +2,9 @@ import $ from "jquery";
 import { fNames, mNames } from "./names.js";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage.js";
 
-import "./genderPredictor.css";
-
 checkIfFeatureEnabled("genderPredictor").then((result) => {
   if (result && $("body.page-Special_EditFamily").length) {
+    import("./genderPredictor.css");
     predictGender();
   }
 });

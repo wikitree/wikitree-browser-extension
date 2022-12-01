@@ -1,12 +1,12 @@
 import $ from "jquery";
 import Cookies from "js-cookie";
-import "./appsMenu.css";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("appsMenu").then((result) => {
   if (result) {
     if ($("#appsSubMenu").length == 0) {
       attachAppsMenu();
+      import("./appsMenu.css");
     }
   }
 });

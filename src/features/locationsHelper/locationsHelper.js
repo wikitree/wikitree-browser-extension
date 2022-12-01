@@ -1,10 +1,15 @@
 import $ from "jquery";
 import { extractRelatives, familyArray, getRelatives } from "../../core/common";
-import "./locationsHelper.css";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("locationsHelper").then((result) => {
-  if (result && ($("body.page-Special_EditPerson").length || $("body.page-Special_EditFamily").length)) {
+  if (
+    result &&
+    $("body.BEE").length == 0 &&
+    ($("body.page-Special_EditPerson").length || $("body.page-Special_EditFamily").length)
+  ) {
+    import("./locationsHelper.css");
+
     function addRelArraysToPerson(zPerson) {
       const zSpouses = extractRelatives(zPerson.Spouses, "Spouse");
       zPerson.Spouse = zSpouses;

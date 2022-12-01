@@ -1,12 +1,12 @@
 import $ from "jquery";
-import "./change_family_lists.css";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 import { isOK, htmlEntities, displayName } from "../../core/common";
 import { displayDates } from "../verifyID/verifyID";
 import { getRelatives } from "wikitree-js";
 
 checkIfFeatureEnabled("changeFamilyLists").then((result) => {
-  if (result) {
+  if (result && $("body.profile".length)) {
+    import("./change_family_lists.css");
     window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
     prepareFamilyLists().then(() => {
       getFeatureOptions("changeFamilyLists").then((options) => {

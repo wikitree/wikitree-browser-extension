@@ -3,8 +3,7 @@ import editToolbarGenericOptions from "./editToolbarGenericOptions";
 import editToolbarProfileOptions from "./editToolbarProfileOptions";
 import editToolbarTemplateOptions from "./editToolbarTemplateOptions";
 import editToolbarSpaceOptions from "./editToolbarSpaceOptions";
-import "./editToolbar.css";
-import { getEnabledStateForAllFeatures } from "./options/options_storage"
+import { getEnabledStateForAllFeatures } from "./options/options_storage";
 
 let editToolbarOptions = [];
 
@@ -96,11 +95,12 @@ async function editToolbarCreate(options) {
   editToolbarOptions = options;
 
   const featureEnabled = await getEnabledStateForAllFeatures();
+  if (featureEnabled["wtplus"]) {
+    import("./editToolbar.css");
+  }
 
   var menuHTML = editToolbarCreateHtml(editToolbarOptions, featureEnabled, -1);
-  document
-    .getElementById("toolbar")
-    .insertAdjacentHTML("afterend", '<div id="editToolbarExt">' + menuHTML + "</div>");
+  document.getElementById("toolbar").insertAdjacentHTML("afterend", '<div id="editToolbarExt">' + menuHTML + "</div>");
   document
     .querySelectorAll("a.editToolbarClick")
     .forEach((i) => i.addEventListener("click", (event) => editToolbarEvent(event)));

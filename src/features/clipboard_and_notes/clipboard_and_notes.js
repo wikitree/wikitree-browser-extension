@@ -2,7 +2,6 @@ import $ from "jquery";
 import "jquery-ui/ui/widgets/sortable";
 import "jquery-ui/ui/widgets/draggable";
 import { htmlEntities } from "../../core/common";
-import "./clipboard_and_notes.css";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 export function appendClipboardButtons(clipboardButtons = $()) {
@@ -23,6 +22,7 @@ export function appendClipboardButtons(clipboardButtons = $()) {
 
 checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
   if (result && $(".clipboardButtons").length == 0) {
+    import("./clipboard_and_notes.css");
     // BEE class
     window.clipboardClicker = $();
     window.lastClipboardClicker = $();
