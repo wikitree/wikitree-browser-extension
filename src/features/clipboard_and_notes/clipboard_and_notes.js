@@ -9,7 +9,9 @@ export function appendClipboardButtons(clipboardButtons = $()) {
   if ($("h1:contains('Edit Marriage Information')").length) {
     $("#header").append(clipboardButtons, $("span.theClipboardButtons"));
   } else if ($("body.page-Special_EditPerson").length) {
-    $("#toolbar").append(clipboardButtons, $("span.theClipboardButtons"));
+    setTimeout(function () {
+      $("#toolbar").append(clipboardButtons, $("span.theClipboardButtons"));
+    }, 3000);
   } else if ($("body.page-Special_EditFamily").length) {
     $("#mEmail").after(clipboardButtons, $("span.theClipboardButtons"));
   } else {

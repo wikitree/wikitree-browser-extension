@@ -1,5 +1,5 @@
 {
-	"version": "2022-10-27T16:16:20Z",
+	"version": "2022-11-29T01:41:18Z",
 "cleanup": [{
 	"description": "prettifying inline citation tags",
 	"actions": [{
@@ -1313,7 +1313,7 @@
 		"help": "To link to a shared document on Ancestry.",
 		"prop": [
 			{"name": "", "type": "typeNumber", "usage": "Required", "numbered": 1, "help": "The first number in the URL of the link, e.g.: <nowiki>https://www.ancestry.com/sharing/</nowiki>'''25304603'''?h=8b8bd6or or <nowiki>https://www.ancestry.com/sharing/</nowiki>'''130047'''?token=fueo0lzU7uYSbCYEezUKuLpE313y4cK2VdcT3PD9vG0%3D.", "example": "25304603", "validation": "num:5-8"},
-			{"name": "", "type": "typetext", "usage": "Required", "numbered": 2, "help": "The string after \"h=\" or \"?token=\" in the URL of the link, e.g.: <nowiki>https://www.ancestry.com/sharing/</nowiki>25304603?h='''8b8bd6''' or <nowiki>https://www.ancestry.com/sharing/</nowiki>130047?token='''fueo0lzU7uYSbCYEezUKuLpE313y4cK2VdcT3PD9vG0%3D'''.", "example": "8b8bd6", "validation": "hex:5-46"}
+			{"name": "", "type": "typetext", "usage": "Required", "numbered": 2, "help": "The string after \"h=\" or \"?token=\" in the URL of the link, e.g.: <nowiki>https://www.ancestry.com/sharing/</nowiki>25304603?h='''8b8bd6''' or <nowiki>https://www.ancestry.com/sharing/</nowiki>130047?token='''fueo0lzU7uYSbCYEezUKuLpE313y4cK2VdcT3PD9vG0%3D'''.", "example": "8b8bd6", "validation": "hex:5-64"}
 		]
 	},{
 		"name": "Ancestry Tree",
@@ -1478,7 +1478,7 @@
 			{"name": "video code", "type": "typeYouTube", "usage": "Required", "numbered": 1, "help": "Video code of the video.  usually v parameter in URL '?v=1lgIQmGPAd4'", "example": "1lgIQmGPAd4"},
 			{"name": "link name", "type": "typeText", "usage": "Preferred", "numbered": 2, "help": "Text to display on link", "example": "Check this video"},
 			{"name": "start", "type": "typeNumber", "usage": "Optional", "numbered": 3, "help": "Time of where to start the video. It is in seconds from the beginning of the video.", "example": "97"},
-			{"name": "playlist", "type": "typeText", "usage": "Optional", "values": ["DD"], "help": "Name of the playlist to display", "example": "DD", "validation": "list"}
+			{"name": "playlist", "type": "typeText", "usage": "Optional", "values": ["DD", "USBH"], "help": "Name of the playlist to display", "example": "DD", "validation": "list"}
 		]
 	},{
 		"name": "ODMP",
@@ -2283,7 +2283,8 @@
 			{"name": "example", "type": "typeText", "usage": "Optional", "help": "Example of the parameter.", "group": "parameter"},
 			{"name": "values", "type": "typeText", "usage": "Optional", "help": "predefined values of the parameter.", "group": "parameter"},
 			{"name": "group", "type": "typeText", "usage": "Optional", "help": "Name of the parameter group", "group": "parameter"},
-			{"name": "initial", "type": "typeText", "usage": "Optional", "help": "RegEx expression defining initial value of the parameter.", "group": "parameter"}
+			{"name": "initial", "type": "typeText", "usage": "Optional", "help": "RegEx expression defining initial value of the parameter.", "group": "parameter"},
+			{"name": "validation", "type": "typeText", "usage": "Optional", "values": ["list", "num:4", "num:3-5", "hex:1-4", "hex:hh-hhh", "regex:^.*$"], "help": "Validation directive for suggestions.", "group": "parameter"}
 		]
 	},{
 		"name": "Documentation",
@@ -4773,8 +4774,8 @@
 			{"name": "name", "type": "typeText", "usage": "Optional", "help": "Surname for the One Name Study Project", "example": "Peyton"},
 			{"name": "place", "type": "typeText", "usage": "Optional", "help": "Place name for the One Place Study Project", "example": "Peyton"},
 			{"name": "clan", "type": "typeSpace", "usage": "Optional", "help": "Clan space page for Scotland projects.", "example": "Clan Crawford"},
-			{"name": "team", "type": "typeTeam", "usage": "Optional", "help": "Adds a Team for members of projects coded to accept the parameter (currently Appalachia, US Southern Colonies Project, Wales Project, and Westward Ho Project).", "example": "Colony of Virginia Team"},
-			{"name": "lang", "type": "typeText", "usage": "Optional", "help": "Language to use for the sticker (if applicable)", "example": "de"}
+			{"name": "team", "type": "typeTeam", "usage": "Optional", "help": "Adds a Team for members of projects coded to accept the parameter (currently Appalachia, Poland, US Southern Colonies Project, Wales Project, and Westward Ho Project).", "example": "Colony of Virginia Team"},
+			{"name": "lang", "type": "typeText", "usage": "Optional", "values": ["de", "pl"], "help": "Language ([http://en.wikipedia.org/wiki/List_of_ISO_639-1_codes code]) to use for the sticker, if applicable.", "example": "de", "validation": "list"}
 		]
 	},{
 		"name": "Membre Portail Francophone",
@@ -5738,10 +5739,10 @@
 		"type": "Sticker",
 		"group": "National",
 		"subgroup": "UK",
-		"help": "This template is for all persons born in England. The sticker will automatically add the person's name. You can expand the sticker's usage by using the county parameter (see the table following the examples for values accepted for the county parameter). You can also add a second parameter, a more specific location, with one of those values (excluding the City of London). <br><br>Note that the England Sticker was reformatted in July 2020 from using the [[Template: UK Flag |UK Flag template]]. For someone born in the United Kingdom, Ireland, Scotland, or Wales (locations previously supported by this sticker), please see the stickers for [[Template:United Kingdom Sticker|United Kingdom]], [[Template: Ireland Native|Ireland Native]], [[Template: Scotland Sticker|Scotland]], and [[Template: Wales Sticker|Wales]] (respectively). For more UK flags, see the [[Space:UK Flags|UK Flags]] space page.",
+		"help": "This sticker is for all persons born in England. Use the parameters to specify where in England.",
 		"prop": [
-			{"name": "county", "type": "typeText", "usage": "Preferred", "numbered": 1, "values": ["City of London", "Bedfordshire", "Berkshire", "Buckinghamshire", "Cambridgeshire", "Cheshire", "Cornwall", "Cumberland", "Derbyshire", "Devon", "Dorset", "County Durham", "Essex", "Gloucestershire", "Hampshire", "Herefordshire", "Hertfordshire", "Huntingdonshire", "Kent", "Lancashire", "Leicestershire", "Lincolnshire", "Middlesex", "Norfolk", "Northamptonshire", "Northumberland", "Nottinghamshire", "Oxfordshire", "Rutland", "Shropshire", "Somerset", "Staffordshire", "Suffolk", "Surrey", "Sussex", "Warwickshire", "Westmorland", "Wiltshire", "Worcestershire", "Yorkshire"], "help": "Entering one of the values listed for the counties of England, and the City of London, will switch the text and image of the sticker.", "example": "City of London"},
-			{"name": "location", "type": "typeText", "usage": "Optional", "numbered": 2, "help": "Can only be used after one of the values listed for parameter 1 (excluding \"City of London\").", "example": "Essex{{!"}
+			{"name": "county", "type": "typeText", "usage": "Preferred", "numbered": 1, "values": ["Bristol", "City of London", "Bedfordshire", "Berkshire", "Buckinghamshire", "Cambridgeshire", "Cheshire", "Cornwall", "Cumberland", "Derbyshire", "Devon", "Dorset", "County Durham", "Essex", "Gloucestershire", "Hampshire", "Herefordshire", "Hertfordshire", "Huntingdonshire", "Kent", "Lancashire", "Leicestershire", "Lincolnshire", "Middlesex", "Norfolk", "Northamptonshire", "Northumberland", "Nottinghamshire", "Oxfordshire", "Rutland", "Shropshire", "Somerset", "Staffordshire", "Suffolk", "Surrey", "Sussex", "Warwickshire", "Westmorland", "Wiltshire", "Worcestershire", "Yorkshire"], "help": "Entering one of the values listed for the counties of England, Bristol, and the City of London will switch the text and image of the sticker.", "example": "City of London"},
+			{"name": "location", "type": "typeText", "usage": "Optional", "numbered": 2, "help": "Can only be used after one of the values listed for parameter 1 (excluding \"Bristol\" and \"City of London\").", "example": "Essex{{!"}
 		]
 	},{
 		"name": "English Ancestor Sticker",
@@ -6104,6 +6105,16 @@
 		"subgroup": "",
 		"help": "This template is for all persons born in Malta.",
 		"prop": [
+		]
+	},{
+		"name": "Maori Sticker",
+		"type": "Sticker",
+		"group": "National",
+		"subgroup": "New Zealand",
+		"help": "This Sticker is for identifying or recognizing individuals who were or are Maori.",
+		"prop": [
+			{"name": "living", "type": "typeYes", "usage": "Optional", "values": ["yes"], "help": "changes text (to \"is\")", "example": "yes", "validation": "list"},
+			{"name": "iwi", "type": "typetext", "usage": "Optional", "help": "Name of the Iwi", "example": "Ngapuhi"}
 		]
 	},{
 		"name": "Maryland Sticker",
@@ -6823,7 +6834,7 @@
 		"type": "Sticker",
 		"group": "Project",
 		"subgroup": "Appalachia",
-		"help": "This sticker can be placed on a profile that the [[Project:Appalachia|Appalachia Project]] watches over or which needs the project's help (use the appropriate \"needs\" parameter).<br><br>The [[Template:Appalachian Roots|Appalachian Roots]] sticker has \"born in\" and \"lived in\" (and \"lives in\") options.",
+		"help": "This sticker can be placed on a profile that the [[Project:Appalachia|Appalachia Project]] watches over or which needs the project's help (use the appropriate \"needs\" parameter). The [[Template:Appalachia Sticker|Appalachia Sticker]] sticker has \"born in\" and \"lived in\" (and \"lives in\") options. The [[Template: Appalachian Roots|Appalachian Roots]] sticker is for non-Appalachians.",
 		"prop": [
 			{"name": "living", "type": "typeText", "usage": "Optional", "values": ["yes"], "help": "Changes default verb tense in text (from \"was\" to \"is\"). Do not use this parameter if the verb tense does not need to be changed.", "example": "yes", "validation": "list"},
 			{"name": "needs", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["Biography", "Research", "Sources"], "help": "Sets Appalachia Project Needs ... category on the profile.", "example": "Biography", "validation": "list"},
