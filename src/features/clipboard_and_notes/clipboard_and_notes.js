@@ -9,9 +9,11 @@ export function appendClipboardButtons(clipboardButtons = $()) {
   if ($("h1:contains('Edit Marriage Information')").length) {
     $("#header").append(clipboardButtons, $("span.theClipboardButtons"));
   } else if ($("body.page-Special_EditPerson").length) {
-    setTimeout(function () {
+    if ($("#editToolbarExt").length) {
+      $("#editToolbarExt").append(clipboardButtons, $("span.theClipboardButtons"));
+    } else {
       $("#toolbar").append(clipboardButtons, $("span.theClipboardButtons"));
-    }, 3000);
+    }
   } else if ($("body.page-Special_EditFamily").length) {
     $("#mEmail").after(clipboardButtons, $("span.theClipboardButtons"));
   } else {
@@ -30,7 +32,7 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
         if ($(".clipboardButtons").length == 0) {
           initClipboard();
         }
-      }, 6000);
+      }, 1000);
     } else {
       if ($(".clipboardButtons").length == 0) {
         initClipboard();
@@ -460,6 +462,7 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
           $(this).on("click", function (e) {
             e.preventDefault();
             window.clipboardClicker = $(this);
+            console.log("here");
             let ccpc = window.clipboardClicker.parent().attr("class");
             let lccpc = window.lastClipboardClicker.parent().attr("class");
             if ($("#clipboard").data("type") == "notes") {
@@ -509,7 +512,7 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
           $("#privatemessage-modal-close").on("click", function () {
             $(".theClipboardButtons").appendTo($("#header"));
           });
-        }, 3000);
+        }, 1000);
       });
     }
   }
