@@ -182,7 +182,6 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
     }
 
     function placeClipboard(aClipboard) {
-      console.log("clicked");
       if ($("#privatemessage-modal").css("display") == "block") {
         aClipboard.insertAfter($(".theClipboardButtons"));
       } else if ($("h1:contains('Edit Marriage Information')").length) {
