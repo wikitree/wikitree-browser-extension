@@ -2,13 +2,13 @@
   position: absolute;
   width: auto;
   z-index: 100000000;
-  width: 70%;
-  left: 15%;
-  right: 15%;
+  left: 5%;
+  right: 5%;
   padding: 1em;
   border: 2px solid forestgreen;
   border-radius: 1em;
   max-height: 40em;
+  max-width: 70em;
   overflow: auto;
   position: absolute;
   box-shadow: 0.1em 0.1em 0.1em 0.1em lightgreen;
@@ -125,10 +125,6 @@ form[name="a_form"] {
 
 #clipboard tr img.button.small {
   margin: 0;
-}
-
-#clipboard {
-  max-width: 80em;
 }
 
 #clipboard tr {
