@@ -1,10 +1,18 @@
 import $ from "jquery";
 //import "./my_feature.css";
+import { createProfileSubmenuLink } from "../../core/common";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("customStyle").then((result) => {
   if (result) {
     initCustomStyle();
+    const options = {
+      title: "Add or/remove sections for a minimal view",
+      id: "minimalButton",
+      text: "Minimal View",
+      url: "#n",
+    };
+    createProfileSubmenuLink(options);
   }
 });
 
@@ -21,7 +29,7 @@ async function initCustomStyle() {
             .closest("div")
             .hide();
         } else if (["comments", "footer"].includes(bits[1])) {
-          $("#" + bits[1]).hide();
+          rules += "#" + bits[1] + "{display:none;}\n";
         } else if (bits[1] == "Matches") {
           $(
             ".sixteen.columns span.large:contains('Matches and Merges'),.five.columns span.large:contains('Pending Merges'),.five.columns span.large:contains('Unmerged Matches'),.five.columns span.large:contains('Rejected Matches')"
@@ -30,6 +38,12 @@ async function initCustomStyle() {
             .hide();
         } else if (bits[1] == "more-genealogy-tools-button") {
           $("a.button.small:contains(More Genealogy Tools)").closest("p").hide();
+        } else if (bits[1] == "profiles-of-the-week") {
+          rules +=
+            "body.profile div.sixteen.columns div.box.rounded.row:contains('degrees from'),#themeTable {display:none}\n";
+          $("body.profile div.sixteen.columns p:contains('degrees from')").closest("div.sixteen.columns").hide();
+        } else if (bits[1] == "what-links-here") {
+          rules += "#whatLinksHereSection {display:none;}\n";
         }
       } else {
         if (bits[0] == "headings") {
@@ -44,6 +58,13 @@ async function initCustomStyle() {
         if (bits[1] == "border-radius") {
           options[key] += "px";
         }
+        if (bits[1] == "box-shadow") {
+          options[key] = options[key] += "px " + options[key] + "px " + options[key] + "px " + options[key] + "px gray";
+          //          options[key] += "px";
+        }
+        if (bits[0] == "date-headings") {
+          bits[0] = "span.HISTORY-DATE,span.THANKYOU-DATE";
+        }
         if (bits[0] == "color1") {
           bits[0] =
             "ul.profile-tabs li,.ten.columns div.SMALL[style='background-color:#e1efbb;']," +
@@ -52,7 +73,6 @@ async function initCustomStyle() {
             "a.qa-nav-main-link.qa-nav-main-selected:link,\n" +
             ".qa-form-tall-data";
         }
-
         if (bits[0] == "color2") {
           bits[0] =
             "span.qa-a-count,\n" +

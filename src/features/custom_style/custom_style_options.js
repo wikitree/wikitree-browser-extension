@@ -34,8 +34,33 @@ const myCustomStyle = {
         {
           id: "headings_border-radius",
           type: "number",
-          label: "Border-radius",
+          label: "Border radius",
           defaultValue: "0",
+        },
+        {
+          id: "headings_box-shadow",
+          type: "number",
+          label: "Shadow",
+          defaultValue: "0",
+        },
+      ],
+    },
+    {
+      id: "dateHeadings",
+      type: OptionType.GROUP,
+      label: "Date Headings",
+      options: [
+        {
+          id: "date-headings_background-color",
+          type: "color",
+          label: "Background color",
+          defaultValue: "#8fc641",
+        },
+        {
+          id: "date-headings_color",
+          type: "color",
+          label: "Text color",
+          defaultValue: "#ffffff",
         },
       ],
     },
@@ -127,6 +152,18 @@ const myCustomStyle = {
           id: "hide_more-genealogy-tools-button",
           type: OptionType.CHECKBOX,
           label: "More Genealogy Tools button",
+          defaultValue: false,
+        },
+        {
+          id: "hide_profiles-of-the-week",
+          type: OptionType.CHECKBOX,
+          label: "Profiles of the week",
+          defaultValue: false,
+        },
+        {
+          id: "hide_what-links-here",
+          type: OptionType.CHECKBOX,
+          label: "What Links Here",
           defaultValue: false,
         },
       ],
