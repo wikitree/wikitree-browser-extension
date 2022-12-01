@@ -210,6 +210,14 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Sticky Toolbar",
+  id: "stickyToolbar",
+  description: "Makes the toolbar on the editor on edit pages stick to the top of the screen and not scroll out of sight.",
+  category: "Editing",
+  defaultValue: true,
+});
+
+registerFeature({
   name: "Verify ID",
   id: "verifyID",
   description:
