@@ -19,9 +19,8 @@ checkIfFeatureEnabled("changeFamilyLists").then((result) => {
         } else if (options.agesAtMarriages) {
           onlyAgesAtMarriages();
         }
-        if (!options.verticalLists && $("body.BEE").length == 0) {
+        if (!options.verticalLists) {
           $("body").addClass("WTEsibHeaders");
-          // 2nd bit is to prevent a clash with BEE
           prepareHeadings();
           if (options.siblingAndChildCount) {
             addChildrenCount();

@@ -10,7 +10,6 @@ checkIfFeatureEnabled("distanceAndRelationship").then((result) => {
   const userID = Cookies.get("wikitree_wtb_UserName");
   if (
     result &&
-    $("body.BEE").length == 0 &&
     $("body.profile").length &&
     window.location.href.match("Space:") == null &&
     profileID != userID &&
