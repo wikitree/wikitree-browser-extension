@@ -10,7 +10,6 @@ checkIfFeatureEnabled("distanceAndRelationship").then((result) => {
   const userID = Cookies.get("wikitree_wtb_UserName");
   if (
     result &&
-    $("body.BEE").length == 0 &&
     $("body.profile").length &&
     window.location.href.match("Space:") == null &&
     profileID != userID &&
@@ -66,10 +65,10 @@ checkIfFeatureEnabled("distanceAndRelationship").then((result) => {
         .objectStore("distance")
         .get(profileID);
       aRequest.onsuccess = function () {
-        if (aRequest.result == undefined) {
+        if (aRequest.result == undefined || aRequest.result?.distance < 0) {
           initDistanceAndRelationship(userID, profileID);
         } else {
-          if ($("#distanceFromYou").length == 0 && $("#degreesFromYou").length == 0 && aRequest.result.distance > 0) {
+          if ($("#distanceFromYou").length == 0 && $("#degreesFromYou").length == 0) {
             // #degreesFromYou is in WT BEE.  If this is showing, don't show this (for now)
             const profileName = $("h1 span[itemprop='name']").text();
             $("h1").append(
