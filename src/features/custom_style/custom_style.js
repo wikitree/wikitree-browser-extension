@@ -40,7 +40,7 @@ async function initCustomStyle() {
           $("a.button.small:contains(More Genealogy Tools)").closest("p").hide();
         } else if (bits[1] == "profiles-of-the-week") {
           rules +=
-            "body.profile div.sixteen.columns div.box.rounded.row:contains('degrees from'),#themeTable {display:none}\n";
+            "body.profile div.sixteen.columns div.box.rounded.row:contains('degrees from'),\n#themeTable {display:none !important;}\n";
           $("body.profile div.sixteen.columns p:contains('degrees from')").closest("div.sixteen.columns").hide();
         } else if (bits[1] == "what-links-here") {
           rules += "#whatLinksHereSection {display:none;}\n";
