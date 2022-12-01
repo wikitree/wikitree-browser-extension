@@ -5,7 +5,7 @@ import "./randomProfile.css";
 import "jquery-ui/ui/widgets/draggable";
 
 checkIfFeatureEnabled("randomProfile").then((result) => {
-  if (result && $("body.BEE").length == 0) {
+  if (result) {
     addRandomToFindMenu();
   }
 });

@@ -7,7 +7,7 @@ import { getPerson } from "wikitree-js";
 import "./my_menu.css";
 
 checkIfFeatureEnabled("myMenu").then((result) => {
-  if (result && $("body.BEE").length == 0) {
+  if (result) {
     addCustomMenu();
   }
 });
