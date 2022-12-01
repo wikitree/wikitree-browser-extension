@@ -2,6 +2,7 @@
 
 import "./features/register_feature_options";
 
+import "./features/access_keys/access_keys";
 import "./features/agc/agc_content";
 import "./features/akaNameLinks/akaNameLinks";
 import "./features/appsMenu/appsMenu";

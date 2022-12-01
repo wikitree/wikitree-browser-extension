@@ -24,6 +24,16 @@ import "./what_links_here/what_links_here_options.js";
 // Simple features with no options can be registered here
 ////////////////////////////////////////////////////////////////////////////////
 registerFeature({
+  name: "Access Keys",
+  id: "accessKeys",
+  description:
+    "Adds access keys. g: G2G Recent Activity; r: Random Profile, n: Nav Home Page;" +
+    " h: Help Search; s: Save; e: Edit; k: Category; p: Preview. (<a href='https://en.wikipedia.org/wiki/Access_key'>More details</a>)",
+  category: "Global",
+  defaultValue: true,
+});
+
+registerFeature({
   name: "AKA Name Links",
   id: "akaNameLinks",
   description: 'Adds surname page links to the "aka" names on the profile page.',
