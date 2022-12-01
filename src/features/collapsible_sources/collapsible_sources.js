@@ -1,9 +1,9 @@
 import $ from "jquery";
-import "./collapsible_sources.css";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("collapsibleSources").then((result) => {
   if (result && $("#toggleSources").length == 0) {
+    import("./collapsible_sources.css");
     collapsibleSources();
   }
 });

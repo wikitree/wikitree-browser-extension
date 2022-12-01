@@ -1,10 +1,10 @@
 import * as $ from "jquery";
-import "./sortBadges.css";
 import Cookies from "js-cookie";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("sortBadges").then((result) => {
   if (result && $("a.pureCssMenui0 span.person").text() == Cookies.get("wikitree_wtb_UserName")) {
+    import("./sortBadges.css");
     const queryString = window.location.search;
     const urlParams = new URLSearchParams(queryString);
     if ($("body.page-Special_Badges").length && (urlParams.has("u") || localStorage.savedBadges)) {

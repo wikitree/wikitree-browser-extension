@@ -1,11 +1,11 @@
 import $ from "jquery";
-import "./what_links_here.css";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
 import { displayName } from "../../core/common";
 
 checkIfFeatureEnabled("whatLinksHere").then((result) => {
   if (result && $("a.whatLinksHere").length == 0) {
+    import("./what_links_here.css");
     whatLinksHereLink();
   }
 });

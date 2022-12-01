@@ -1,9 +1,9 @@
 import $ from "jquery";
-import "./custom_change_summary_options.css";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("customChangeSummaryOptions").then((result) => {
   if (result && $("#saveStuff").length == 0) {
+    import("./custom_change_summary_options.css");
     addMovingSaveBox();
   }
 });
