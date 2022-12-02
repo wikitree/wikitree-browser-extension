@@ -102,6 +102,14 @@ registerFeature({
 });
 
 registerFeature({
+  name: "DNA Connections Table",
+  id: "dnaTable",
+  description: "Adds birthplaces to DNA Connections table.",
+  category: "Other",
+  defaultValue: true,
+});
+
+registerFeature({
   name: "Draft List",
   id: "draftList",
   description: "Adds a button to the Find menu to show your uncommitted drafts.",
@@ -212,7 +220,8 @@ registerFeature({
 registerFeature({
   name: "Sticky Toolbar",
   id: "stickyToolbar",
-  description: "Makes the toolbar on the editor on edit pages stick to the top of the screen and not scroll out of sight.",
+  description:
+    "Makes the toolbar on the editor on edit pages stick to the top of the screen and not scroll out of sight.",
   category: "Editing",
   defaultValue: true,
 });

@@ -1,0 +1,8 @@
+body.page-Special_DNATests thead th,
+body.page-Special_DNATests table.wt.names {
+  width: auto !important;
+  background-color: #fff;
+}
+body.page-Special_DNATests td {
+  white-space: nowrap;
+}
