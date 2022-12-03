@@ -1,4 +1,5 @@
 import $ from "jquery";
+import { isOK } from "../../core/common";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("dnaTable").then((result) => {
@@ -14,10 +15,11 @@ checkIfFeatureEnabled("dnaTable").then((result) => {
     });
     setTimeout(function () {
       const theTable = $("table.wt.names");
+      theTable.addClass("wbe");
       let rows = theTable.find("tr");
       const tHead = $("<thead></thead>");
       tHead.prependTo(theTable);
-      rows.eq(0).appendTo(tHead).find("th").eq(0).after($("<th id='birthplace'>Birthplace</th>"));
+      rows.eq(0).appendTo(tHead).find("th").eq(0).after($("<th id='birthplace' data-order=''>Birthplace</th>"));
       rows = theTable.find("tbody tr");
       rows.each(function () {
         let id = $(this).find("span.SMALL").text();
@@ -25,6 +27,7 @@ checkIfFeatureEnabled("dnaTable").then((result) => {
           .find("td")
           .eq(0)
           .after($("<td class='birthplace' data-id='" + id + "'></td>"));
+        $(this).attr("data-birth-location", "").attr("data-birth-location-reversed", "");
       });
       while (ids.length) {
         let chunk = ids.splice(0, 100).join(",");
@@ -32,16 +35,54 @@ checkIfFeatureEnabled("dnaTable").then((result) => {
           let theKeys = Object.keys(data[0].people);
           theKeys.forEach(function (aKey) {
             let person = data[0].people[aKey];
-            $(`td[data-id='${person.Name}']`).text(person.BirthLocation).data("birth-location", person.BirthLocation);
+            let reversedBirthPlace = "";
+            if (person.BirthLocation) {
+              let bpSplit = person.BirthLocation.split(", ");
+              reversedBirthPlace = bpSplit.reverse().join(", ");
+            }
+            $(this).find(".birthplace").text(reversedBirthPlace);
+            $(`td[data-id='${person.Name}']`)
+              .text(person.BirthLocation)
+              .closest("tr")
+              .attr("data-birth-location", person.BirthLocation)
+              .attr("data-birth-location-reversed", reversedBirthPlace);
           });
         });
       }
       $("#birthplace").on("click", function () {
         rows = $("table.wt.names tbody tr");
-        rows.sort(function (a, b) {
-          return $(a).data("birth-location").localeCompare($(b).data("birth-location"));
-        });
-        $("table.wt.names tbody").append($rows);
+        let theOrder = $("#birthplace").data("order");
+        let theSorter;
+        if (theOrder == "smallFirst") {
+          $("#birthplace").data("order", "bigFirst");
+          theSorter = "birth-location-reversed";
+          rows.each(function () {
+            $(this).find(".birthplace").text($(this).data("birth-location-reversed"));
+          });
+        } else {
+          $("#birthplace").data("order", "smallFirst");
+          theSorter = "birth-location";
+          rows.each(function () {
+            $(this).find(".birthplace").text($(this).data("birth-location"));
+          });
+        }
+        for (let i = 0; i < 2; i++) {
+          rows.sort(function (a, b) {
+            if ($(a).data(theSorter) == undefined) {
+              $(a).data(theSorter, " ");
+            }
+            if ($(b).data(theSorter) == undefined) {
+              $(b).data(theSorter, " ");
+            }
+            return $(a).data(theSorter).localeCompare($(b).data(theSorter));
+          });
+          $("table.wt.names tbody").append(rows);
+          rows.each(function () {
+            if (["", " "].includes($(this).data("birth-location"))) {
+              theTable.find("tbody").append($(this));
+            }
+          });
+        }
       });
     }, 3000);
   }
