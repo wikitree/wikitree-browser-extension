@@ -255,7 +255,7 @@ function reallyMakeFamLists() {
 
             window.intervalID = setInterval(addUncertain, 500);
             window.triedUncertain = 0;
-          } // end success?
+          }
 
           fixAllPrivates();
 
@@ -568,7 +568,7 @@ function makeFamLists() {
     parentsNodes.forEach(function (aNode) {
       if (aNode.textContent == noParentsPublic) {
         aNode.remove();
-        $("<li id='fatherUnknown'>[father unknown]</li><li id='fatherUnknown'>[mother unknown]</li>").appendTo(
+        $("<li id='fatherUnknown'>[father unknown]</li><li id='motherUnknown'>[mother unknown]</li>").appendTo(
           $("#parentList")
         );
       } else if (aNode.textContent.match(noFatherPublic)) {
@@ -943,13 +943,17 @@ async function prepareHeadings() {
       let n1 = aNode;
       let n2 = textNodes[index + 1];
       let pNode = n1.parentNode;
-      const regex = /Son|Daughter|Brother|Sister|Husband|Wife|Father|Mother(\sof\s)?/;
+      const regex = /(Son|Daughter|Brother|Sister|Husband|Wife|Father|Mother)(\sof\s)?/;
       let regexMatch = n1.textContent.match(regex);
       if (regexMatch) {
-        $(pNode).prepend($("<span class='clickable familyListHeading'>" + regexMatch[0] + " of </span>"));
         pNode.removeChild(n1);
+        $(pNode).prepend(
+          $("<span class='clickable familyListHeading'>" + regexMatch[0].replace(" of", "") + " of </span>")
+        );
         if (n2.textContent == " of ") {
           pNode.removeChild(n2);
+        } else if (n2.textContent.match(" of ")) {
+          n2.textContent = n2.textContent.replace(" of ", " ");
         }
       }
     });
@@ -1269,13 +1273,8 @@ function extraBitsForFamilyLists() {
     let sNodes = $("#siblingDetails")[0].childNodes;
     sNodes.forEach(function (aNode) {
       if (aNode.textContent == noSiblingsPublic && aNode.nodeType == 3) {
-        //if (privateSibsUnknown.length==0){
         aNode.remove();
-        //}
-
         let sibsUnknown = $("<li id='siblingsUnknown'>[sibling(s) unknown]</li>");
-
-        //sibsUnknown.appendTo($("#siblingList"));
         if ($("#siblingList").length == 0) {
           sibsUnknown = $("<span id='siblingsUnknown'> [sibling(s) unknown]</span>");
           $("#siblingDetails").append(sibsUnknown);
@@ -1301,7 +1300,6 @@ function extraBitsForFamilyLists() {
           );
           $(sibHeader).prependTo($("#siblingDetails"));
         }
-        //sibHeader.prependTo($("#siblingDetails"));
       }
     });
   }
@@ -1409,7 +1407,6 @@ async function addMarriageAges() {
             if (!excludeValues.includes(window.people[0].BirthDate)) {
               bioPersonMarriageAge = getMarriageAge(window.people[0].BirthDate, aSp.marriage_date, window.people[0]);
             }
-
             let aSpMarriageAge = getMarriageAge(aSp.BirthDate, aSp.marriage_date, aSp);
             let spBit = "";
             let bpBit = "";
@@ -1422,8 +1419,7 @@ async function addMarriageAges() {
                 spBit = "; " + spBit;
               }
             }
-
-            $(".spouseDetails a[href$='" + aSp.Name + "']")
+            $(".spouseDetails a[href$='" + aSp.Name.replaceAll(/\s/g, "_") + "']")
               .closest("div")
               .append($("<span class='marriageAges'>" + bpBit + spBit + "</span>"));
           }
