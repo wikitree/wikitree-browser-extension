@@ -87,16 +87,15 @@ async function addMovingSaveBox() {
         }, 2000);
       });
     }
-    saveStuff.attr("title", "Moving Save Buttons");
-    const tca = $(".ten.columns.alpha").eq(0);
 
+    saveStuff.insertAfter(validationContainer);
+    const tca = $(".ten.columns.alpha").eq(0);
     saveStuff.css({ border: "1px forestgreen solid", padding: "1em" });
     const dRadios = $("#saveStuff label input[type='radio']");
     dRadios.attr("type", "checkbox");
     dRadios.on("change", function () {
       summaryBox($(this));
     });
-    saveStuff.insertAfter(validationContainer);
     setChangeSummaryOptions();
   }
 
