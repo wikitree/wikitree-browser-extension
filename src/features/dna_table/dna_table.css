@@ -1,0 +1,23 @@
+body.page-Special_DNATests table.wt.names.wbe thead th,
+body.page-Special_DNATests table.wt.names.wbe {
+  width: auto !important;
+  background-color: #fff;
+}
+body.page-Special_DNATests table.wt.names.wbe th.selected {
+  background-color: #25422d;
+}
+body.page-Special_DNATests table.wt.names.wbe td {
+  white-space: nowrap;
+}
+body.page-Special_DNATests #birthplace {
+  cursor: pointer;
+  text-decoration: underline;
+}
+body.page-Special_DNATests #birthplace:hover {
+  text-decoration: none;
+}
+#showBirthplacesButton[disabled],
+#showBirthplacesButton[disabled]:hover,
+#showBirthplacesButton[disabled]:active {
+  background-color: gray;
+}

@@ -16,6 +16,7 @@ import "./features/collapsible_sources/collapsible_sources";
 import "./features/custom_change_summary_options/custom_change_summary_options";
 import "./features/darkMode/darkMode";
 import "./features/distanceAndRelationship/distanceAndRelationship";
+import "./features/dna_table/dna_table";
 import "./features/draftList/draftList";
 import "./features/edit_family_data/edit_family_data";
 import "./features/extra_watchlist/extra_watchlist";
