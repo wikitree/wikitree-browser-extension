@@ -5,7 +5,9 @@ import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/opt
 checkIfFeatureEnabled("scissors").then((result) => {
   if (result) {
     import("./scissors.css");
-    helpScissors();
+    if ($("#helpScissors").length == 0) {
+      helpScissors();
+    }
   }
 });
 
