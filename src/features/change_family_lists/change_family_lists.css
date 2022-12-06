@@ -513,7 +513,10 @@ span[data-gender="Male"] {
   background: none;
   cursor: default;
 }
-
+.showHideTree,
+#showHideDescendants {
+  float: right;
+}
 .vertical .showHideTree,
 .vertical #showHideDescendants.button.small {
   margin-top: -5px;
