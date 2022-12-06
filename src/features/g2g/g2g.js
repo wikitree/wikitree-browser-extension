@@ -147,7 +147,7 @@ function addWikiIDGoBox() {
     );
 
     $("#wtIDgo_id").on("keyup", function (up) {
-      if (up.keyCode == 13) {
+      if (up.key == "Enter") {
         $("#wtIDgo_go").trigger("click");
       }
     });
@@ -155,7 +155,12 @@ function addWikiIDGoBox() {
     $("#wtIDgo_go").on("click", function (ev) {
       ev.preventDefault();
       const wtID = $("#wtIDgo_id");
-      window.location = "https://wikitree.com/wiki/" + $("#wtIDgo_id").val().trim();
+      const thisValue = $("#wtIDgo_id").val().trim();
+      if (thisValue.match(/[0-9]/) == null) {
+        window.location = "https://www.wikitree.com/genealogy/" + thisValue;
+      } else {
+        window.location = "https://wikitree.com/wiki/" + thisValue;
+      }
     });
   }
 }
