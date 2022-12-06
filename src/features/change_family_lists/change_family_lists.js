@@ -3,10 +3,14 @@ import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/opt
 import { isOK, htmlEntities, displayName } from "../../core/common";
 import { displayDates } from "../verifyID/verifyID";
 import { getRelatives } from "wikitree-js";
+import "./change_family_lists.css";
 
 checkIfFeatureEnabled("changeFamilyLists").then((result) => {
+  const ancestorsButton = $("span.showHideTree").eq(0);
+  const descendantsButton = $("span#showHideDescendants");
+  // ancestorsButton.hide();
+  // descendantsButton.hide();
   if (result && $("body.profile".length)) {
-    import("./change_family_lists.css");
     window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
     prepareFamilyLists().then(() => {
       getFeatureOptions("changeFamilyLists").then((options) => {
@@ -31,6 +35,17 @@ checkIfFeatureEnabled("changeFamilyLists").then((result) => {
             siblingsHeader(true);
           }, 1500);
         }
+
+        if (!options.verticalLists) {
+          $("#parentDetails").before(ancestorsButton);
+          $("#childrenDetails").before(descendantsButton);
+        } else {
+          $("#parentDetails").prepend(ancestorsButton);
+          $("#childrenDetails").prepend(descendantsButton);
+        }
+        $("span.showHideTree").eq(1).remove();
+        //ancestorsButton.show();
+        //descendantsButton.show();
       });
     });
     window.onresize = function () {
@@ -89,6 +104,7 @@ async function prepareFamilyLists() {
     familyLists.on("dblclick", function () {
       moveFamilyLists(false, true);
     });
+
     $("#parentDetails").prepend($("span.showHideTree").eq(0));
     $("#childrenDetails").prepend($("span#showHideDescendants"));
   }
@@ -448,15 +464,14 @@ function fixNakedPrivates() {
       let husbandOrWifeOf = firstMatch2[0].match(rgx6);
       let privateText = firstMatch2[0].match(/private wife|husband/);
       let fullPrivateText = "[" + privateText[0] + "]";
-
       const spouseText = $(
-        '<a class="spouseText clickable" data-alt-text="Spouses: " data-original-text="' +
+        '<a class="spouseText clickable" data-alt-text="Spouse: " data-original-text="' +
           husbandOrWifeOf[0] +
           ' " data-this-text="' +
           husbandOrWifeOf[0] +
-          ' " data-replace-text="Spouses: ">' +
+          ' " data-replace-text="Spouse: ">' +
           husbandOrWifeOf[0] +
-          '" </a>"'
+          " </a>"
       );
 
       if (tNodes[n].nextSibling.nextSibling.textContent.match(/^\]/)) {
@@ -950,7 +965,7 @@ async function prepareHeadings() {
         $(pNode).prepend(
           $("<span class='clickable familyListHeading'>" + regexMatch[0].replace(" of", "") + " of </span>")
         );
-        if (n2.textContent == " of ") {
+        if ([" of ", " of\n"].includes(n2.textContent)) {
           pNode.removeChild(n2);
         } else if (n2.textContent.match(" of ")) {
           n2.textContent = n2.textContent.replace(" of ", " ");
@@ -1387,6 +1402,12 @@ function extraBitsForFamilyLists() {
     //$("a:contains([spouse?])").appendTo(noSpouseSpan);
   }
   $("#childrenDetails").insertAfter($("#spouseDetails"));
+  $("span:contains(private son),span:contains(private father),span:contains(private brother)")
+    .closest("li")
+    .attr("data-gender", "male");
+  $("span:contains(private daughter),span:contains(private sister),span:contains(private mother)")
+    .closest("li")
+    .attr("data-gender", "female");
 }
 
 async function addMarriageAges() {
@@ -1583,7 +1604,6 @@ function siblingOf() {
               .filter(function () {
                 return this.textContent == " of " || this.textContent == " of\n";
               });
-
             ofNode.remove();
           }
 
