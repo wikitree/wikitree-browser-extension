@@ -8,7 +8,7 @@ checkIfFeatureEnabled("customChangeSummaryOptions").then((result) => {
   }
 });
 
-function addMovingSaveBox() {
+async function addMovingSaveBox() {
   const sco = $(".six.columns.omega").eq(0);
   if ($("#saveStuff").length == 0 && $("body.page-Special_EditPerson").length && $("#removeSpouse").length == 0) {
     const saveStuff = $("<div id='saveStuff'></div>");
@@ -87,10 +87,9 @@ function addMovingSaveBox() {
         }, 2000);
       });
     }
-    saveStuff.attr("title", "Moving Save Buttons");
-    const tca = $(".ten.columns.alpha").eq(0);
 
-    saveStuff.prependTo(sco);
+    saveStuff.insertAfter(validationContainer);
+    const tca = $(".ten.columns.alpha").eq(0);
     saveStuff.css({ border: "1px forestgreen solid", padding: "1em" });
     const dRadios = $("#saveStuff label input[type='radio']");
     dRadios.attr("type", "checkbox");
@@ -103,7 +102,6 @@ function addMovingSaveBox() {
   if ($("#removeSpouse").length) {
     $("#wpSave").addClass("marriage");
   }
-
   const wpTextArea = $("<textarea cols='20' rows='5' disabled id='wpSummaryTextArea'></textarea>");
   wpTextArea.prependTo($("#saveStuff"));
 
@@ -117,24 +115,28 @@ function addMovingSaveBox() {
   });
   window.timer = null;
 
-  $(window).on("scroll", function () {
-    let scroll = $(window).scrollTop();
-    const previewBox = $("#previewbox");
-    const validationContainer = $("#validationContainer");
+  const options = await getFeatureOptions("customChangeSummaryOptions");
+  if (options.movingSaveBox) {
+    $("#saveStuff").prependTo(sco);
+    $(window).on("scroll", function () {
+      let scroll = $(window).scrollTop();
+      const previewBox = $("#previewbox");
+      const validationContainer = $("#validationContainer");
 
-    if (
-      isScrolledIntoView($("#previewButton")) ||
-      isScrolledPast($("#previewButton")) ||
-      isScrolledIntoView($("#footer")) ||
-      isScrolledIntoView($("a[name='save']"))
-    ) {
-      $("#saveStuff").insertAfter(validationContainer);
-      $("#suggestionLinkSpan").hide();
-    } else {
-      $("#saveStuff").prependTo(sco);
-      $("#suggestionLinkSpan").show();
-    }
-  });
+      if (
+        isScrolledIntoView($("#previewButton")) ||
+        isScrolledPast($("#previewButton")) ||
+        isScrolledIntoView($("#footer")) ||
+        isScrolledIntoView($("a[name='save']"))
+      ) {
+        $("#saveStuff").insertAfter(validationContainer);
+        $("#suggestionLinkSpan").hide();
+      } else {
+        $("#saveStuff").prependTo(sco);
+        $("#suggestionLinkSpan").show();
+      }
+    });
+  }
 }
 
 function setChangeSummaryOptions(adding = 0) {

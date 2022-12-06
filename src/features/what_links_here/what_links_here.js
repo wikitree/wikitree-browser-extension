@@ -23,12 +23,11 @@ async function whatLinksHereSection() {
         if (
           $(this)
             .attr("href")
-            .match(/Help:|Docs:|Space:|Category:|Project:|Special:/) == null
+            .match(/Help:|Docs:|Space:|Category:|Project:|Special:|Template:/) == null
         ) {
           window.whatLinksHereSRequests++;
           getProfile($(this).text()).then((person) => {
             window.whatLinksHereSReponses++;
-
             if (person?.Name) {
               let thisWikiLink = $(
                 "<a href='http://www.wikitree.com/wiki/" + person.Name + "'>" + displayName(person)[0] + "</a>"
@@ -127,17 +126,17 @@ async function whatLinksHereLink() {
         const dLinks = $(data).find("#content ul a[href*='/wiki/']");
         window.whatLinksHere = "";
         window.whatLinksHereRequests = 0;
-        window.whatLinksHereReponses = 0;
+        window.whatLinksHereResponses = 0;
         dLinks.each(function () {
           let colon;
           if (
             $(this)
               .attr("href")
-              .match(/Help:|Docs:|Space:|Category:|Project:|Special:/) == null
+              .match(/Help:|Docs:|Space:|Category:|Project:|Special:|Template:/) == null
           ) {
             window.whatLinksHereRequests++;
             getProfile($(this).text()).then((person) => {
-              window.whatLinksHereReponses++;
+              window.whatLinksHereResponses++;
               if (person.Name) {
                 let thisWikiLink = "[[" + person.Name + "|" + displayName(person)[0] + "]]<br>";
                 window.whatLinksHere += thisWikiLink;
