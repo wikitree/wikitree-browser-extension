@@ -10,39 +10,12 @@
 
 .g2gPlus {
   position: absolute;
-  /*
-      bottom:0.5em;
-      right:0.5em;
-      */
   margin-top: 1.1em;
   margin-left: -0.7em;
   font-weight: bold;
-  /*border:1px solid forestgreen; */
   border-radius: 50%;
   line-height: 0.7em;
   color: forestgreen;
-}
-
-.g2g {
-  float: right;
-  border: 0;
-}
-#wtIDgo_label {
-  padding: 0;
-}
-.g2g input#wtIDgo_go,
-.g2g #wtIDgo_label input {
-  font-size: 1.3em;
-}
-
-.g2g input#wtIDgo_go {
-  height: 70%;
-  margin-top: 5%;
-  padding: 2px;
-}
-
-.g2g #wtIDgo_id {
-  height: 1em;
 }
 
 ul.qa-nav-cat-list a {
