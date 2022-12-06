@@ -81,10 +81,10 @@ async function addCommasToSups() {
         .text()
         .replaceAll(/[\[\]]/g, "")
     );
-    let nextTagName = $(this)[0].parentNode.nextSibling.tagName;
+    let nextTagName = $(this)[0].parentNode.nextSibling?.tagName;
     if (nextTagName == undefined) {
       let nextSib = $(this)[0].parentNode.nextSibling;
-      if (nextSib.tagName == undefined && nextSib.textContent.match(/^\s$/) == null) {
+      if (nextSib?.tagName == undefined && nextSib?.textContent.match(/^\s$/) == null) {
         nextTagName = "text";
       }
       while (nextTagName == undefined && nextSib.nextSibling != undefined) {
