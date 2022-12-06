@@ -67,5 +67,3 @@ function helpScissors() {
     });
   }
 }
-
-// [https://www.wikitree.com/index.php?title=Badenhorst-1834&diff=150484891&oldid=150484325 Added] by [[Smit-641|Riël Smit]] on 24 May 2022.
