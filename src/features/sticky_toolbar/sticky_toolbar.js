@@ -8,9 +8,13 @@ checkIfFeatureEnabled("stickyToolbar").then((result) => {
     ($("body.page-Special_EditPerson").length ||
       (window.location.href.match(/Project:|Category:|Space:/) && $("#toolbar").length))
   ) {
+    $("body").addClass("stickyToolbar");
     setTimeout(function () {
       $("#editToolbarExt").appendTo($("#toolbar"));
-    }, 5000);
+      if (window.location.href.match("Space:")) {
+        $("#wpSave.small").css("margin-top", "-2em");
+      }
+    }, 4000);
     $("#toolbar").addClass("sticky");
   }
 });
