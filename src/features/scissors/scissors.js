@@ -39,17 +39,23 @@ function helpScissors() {
       });
     }
   }
-  if ($("h1:contains('Change Details')").length) {
+  if ($("td.diff-lineno:contains('Bio Changes')").length) {
     const historyItem = $("span.HISTORY-ITEM");
-    let adderA = $("td:contains(Changes made by)").find("a");
+    let change = "Added";
+    if (historyItem.find("a:contains(created),a:contains(imported the data)").length) {
+      change = "Created";
+    }
+    const changesMadeBy = $("td:contains(Changes made by)");
+    const theDate = changesMadeBy.text().match(/[0-9]+ [A-Z][a-z]+ [0-9]{4}/);
+    let adderA = changesMadeBy.find("a").eq(0);
     let adderID = adderA.attr("href").split("wiki/")[1];
     let adderName = adderA.text();
-    let reference = "[" + url + " Added] by [[" + adderID + "|" + adderName + "]]";
+    let reference = "[" + url + " " + change + "] by [[" + adderID + "|" + adderName + "]] on " + theDate + ".";
     adderA
       .parent()
       .append(
         $(
-          '<span id="helpScissors"><button aria-label="Copy ID" title="Copy ID" data-copy-label="Copy ID" class="copyWidget" data-copy-text="' +
+          '<span id="helpScissors"><button aria-label="Copy Reference" title="Copy reference to your clipboard" data-copy-label="Copy Reference" class="copyWidget" data-copy-text="' +
             reference +
             '" style="color:#8fc641;"><img src="/images/icons/scissors.png">Reference</button></span>'
         )
