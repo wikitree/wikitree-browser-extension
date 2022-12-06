@@ -11,9 +11,6 @@ checkIfFeatureEnabled("stickyToolbar").then((result) => {
     $("body").addClass("stickyToolbar");
     setTimeout(function () {
       $("#editToolbarExt").appendTo($("#toolbar"));
-      if (window.location.href.match("Space:")) {
-        $("#wpSave.small").css("margin-top", "-2em");
-      }
     }, 4000);
     $("#toolbar").addClass("sticky");
   }
