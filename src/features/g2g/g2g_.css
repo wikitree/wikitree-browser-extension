@@ -20,3 +20,28 @@
 .g2g #wtIDgo_id {
   height: 1em;
 }
+
+div.qa-q-item-title a:link .checkmark,
+span.qa-q-item-meta a.qa-q-item-what:link .checkmark {
+  color: white;
+}
+
+div.qa-q-list-item.qa-q-list-item-featured div.qa-q-item-title a:link .checkmark,
+span.qa-q-item-meta a.qa-q-item-what:link .checkmark {
+  color: #ffc;
+}
+
+div.qa-q-item-title a:visited .checkmark,
+div.qa-q-list-item.qa-q-list-item-featured div.qa-q-item-title a:visited .checkmark,
+span.qa-q-item-meta a.qa-q-item-what:visited .checkmark {
+  color: forestgreen;
+}
+
+.checkmark {
+  position: absolute;
+  margin-left: -0.75em;
+}
+
+span.qa-q-item-meta a.qa-q-item-what:visited .checkmark {
+  margin-left: -1em;
+}
