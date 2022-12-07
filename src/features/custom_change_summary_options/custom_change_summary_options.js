@@ -7,7 +7,7 @@ checkIfFeatureEnabled("customChangeSummaryOptions").then((result) => {
     addMovingSaveBox();
   }
 });
-
+const validationContainer = $("#validationContainer");
 async function addMovingSaveBox() {
   const sco = $(".six.columns.omega").eq(0);
   if ($("#saveStuff").length == 0 && $("body.page-Special_EditPerson").length && $("#removeSpouse").length == 0) {
@@ -121,7 +121,6 @@ async function addMovingSaveBox() {
     $(window).on("scroll", function () {
       let scroll = $(window).scrollTop();
       const previewBox = $("#previewbox");
-      const validationContainer = $("#validationContainer");
 
       if (
         isScrolledIntoView($("#previewButton")) ||
