@@ -1493,16 +1493,27 @@ function getApproxDate(theDate) {
   return { Date: aDate, Approx: approx };
 }
 
-function getAge(start, end) {
-  const startSplit = start.split("-");
-  const start_day = parseInt(startSplit[2]);
-  const start_month = parseInt(startSplit[1]);
-  const start_year = parseInt(startSplit[0]);
+export function getAge(start, end = false) {
+  let start_day, start_month, start_year, end_day, end_month, end_year;
+  if (typeof start === "object") {
+    start_day = parseInt(start.start.date);
+    start_month = parseInt(start.start.month);
+    start_year = parseInt(start.start.year);
+    end_day = parseInt(start.end.date);
+    end_month = parseInt(start.end.month);
+    end_year = parseInt(start.end.year);
+    console.log();
+  } else {
+    const startSplit = start.split("-");
+    start_day = parseInt(startSplit[2]);
+    start_month = parseInt(startSplit[1]);
+    start_year = parseInt(startSplit[0]);
 
-  const endSplit = end.split("-");
-  const end_day = parseInt(endSplit[2]);
-  const end_month = parseInt(endSplit[1]);
-  const end_year = parseInt(endSplit[0]);
+    const endSplit = end.split("-");
+    end_day = parseInt(endSplit[2]);
+    end_month = parseInt(endSplit[1]);
+    end_year = parseInt(endSplit[0]);
+  }
 
   const month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 

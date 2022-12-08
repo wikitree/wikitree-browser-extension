@@ -28,6 +28,7 @@ import "./features/genderPredictor/genderPredictor";
 import "./features/google_search_box/google_search_box";
 import "./features/locationsHelper/locationsHelper";
 import "./features/make_radio_buttons_deselectable/make_radio_buttons_deselectable";
+import "./features/my_connections/my_connections";
 import "./features/my_menu/my_menu";
 import "./features/printerfriendly/printerfriendly";
 import "./features/randomProfile/randomProfile";

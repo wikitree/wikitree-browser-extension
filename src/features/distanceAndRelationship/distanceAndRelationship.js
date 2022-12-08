@@ -398,7 +398,7 @@ function ordinal(i) {
   return i + "th";
 }
 
-function ancestorType(generation, gender) {
+export function ancestorType(generation, gender) {
   let relType;
   if (generation > 0 || generation == 0) {
     if (gender == "Female") {
