@@ -112,22 +112,35 @@ export async function showFamilySheet(theClicked, profileID) {
       let theLeft;
       if ($("div.ten.columns").length) {
         theLeft = getOffset($("div.ten.columns")[0]).left;
+        familyTable.css({
+          top: getOffset(theClicked).top + 50,
+          left: theLeft,
+        });
       } else {
-        theLeft = getOffset(theClicked).left + 50;
+        theLeft = getOffset(theClicked[0]).left + 50;
+        familyTable.css({
+          top: getOffset(theClicked[0]).top + 50,
+          left: theLeft,
+        });
       }
-      familyTable.css({
-        top: getOffset(theClicked).top + 50,
-        left: theLeft,
-      });
 
       // Adjust the position of the table on window resize
       $(window).on("resize", function () {
         if (familyTable.length) {
-          theLeft = getOffset($("div.ten.columns")[0]).left;
-          familyTable.css({
-            top: getOffset(theClicked).top + 50,
-            left: theLeft,
-          });
+          let theLeft;
+          if ($("div.ten.columns").length) {
+            theLeft = getOffset($("div.ten.columns")[0]).left;
+            familyTable.css({
+              top: getOffset(theClicked).top + 50,
+              left: theLeft,
+            });
+          } else {
+            theLeft = getOffset(theClicked[0]).left + 50;
+            familyTable.css({
+              top: getOffset(theClicked[0]).top + 50,
+              left: theLeft,
+            });
+          }
         }
       });
 

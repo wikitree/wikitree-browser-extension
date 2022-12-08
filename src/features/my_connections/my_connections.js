@@ -1,5 +1,4 @@
 import $ from "jquery";
-import Cookies from "js-cookie";
 import "./my_connections.css";
 import "jquery-ui/ui/widgets/draggable";
 import { getAge } from "../change_family_lists/change_family_lists";
@@ -69,7 +68,15 @@ const USstatesObjArray = [
   { name: "Wyoming", abbreviation: "WY" },
 ];
 checkIfFeatureEnabled("myConnections").then((result) => {
-  if (result && $("body.page-Special_MyConnections").length && $("#gen0").length) {
+  if (
+    result &&
+    $("body.page-Special_MyConnections").length &&
+    $("#gen0").length &&
+    window.doingMyConnections == undefined &&
+    $("body.beeMyConnections").length == 0
+  ) {
+    $("body").addClass("wbeMyConnections");
+    window.doingMyConnections = true;
     myConnections();
   }
 });
@@ -276,28 +283,28 @@ async function myConnectionsMore() {
       disabled = "disabled";
     }
     if ($(this).attr("id") != "gen0" && $(this).find(".myConnectionsMoreButton").length == 0) {
-      $(this).append(
-        $(
-          "<button " +
-            disabled +
-            " class='myConnectionsMoreButton " +
-            classy +
-            " " +
-            visibility +
-            " small'>Missing Connections" +
-            completedText +
-            "</button>"
-        )
+      let myConnectionsMoreButton = $(
+        "<button " +
+          disabled +
+          " class='myConnectionsMoreButton " +
+          classy +
+          " " +
+          visibility +
+          " small'>Missing Connections" +
+          completedText +
+          "</button>"
       );
+      $(this).append(myConnectionsMoreButton);
     }
     if ($(this).attr("id") != "gen0" && dOL.find("li").length < 701) {
       if ($(this).find(".myConnectionsTableButton").length == 0) {
-        $(this).append($("<button class='myConnectionsTableButton small " + visibility + "'>Table</button>"));
+        let myConnectionsTableButton = $(
+          "<button class='myConnectionsTableButton small " + visibility + "'>Table</button>"
+        );
+        if (dOL.find("li").length < 700) {
+          $(this).append(myConnectionsTableButton);
+        }
       }
-    }
-
-    if (dOL.find("li").length > 700) {
-      $(this).find(".moreConnectionsTableButton").remove();
     }
   });
   $("button.myConnectionsMoreButton").on("click", function () {
@@ -1935,7 +1942,7 @@ async function myConnections() {
   $("input[name='w']").attr("size", "25");
 
   // Get the next degree
-  $("#loadNextGenerationButton").click(function () {
+  $("#loadNextGenerationButton").on("click", function () {
     setTimeout(function () {
       $(".myConnectionsMoreButton,.myConnectionsTableButton").remove();
       myConnectionsMore();
@@ -2157,8 +2164,8 @@ async function addWideTableButton() {
         }
 
         if (window.setWideTable != 1) {
-          //  syncSettings("w_wideTable", 0);
           window.setWideTable = 1;
+          dTable.attr("title", "");
           setTimeout(function () {
             dTable.removeClass("wide");
             if (dTable.draggable()) {
@@ -2184,7 +2191,6 @@ async function addWideTableButton() {
 
             $("#buttonBox").hide();
             $(".wideTableButton").text("Wide table");
-
             if ($("body.page-Space_Largest_Unconnected_Branches").length) {
               $("#lubRule").remove();
             }
@@ -2208,7 +2214,7 @@ async function addWideTableButton() {
                   aContainer = $("<div class='tableContainer'></div>");
                   aContainer.insertBefore($(this));
                   aContainer.append($(this));
-                  $(this).addClass("wide");
+                  $(this).addClass("wide").attr("title", "Grab the table to slide it left or right.");
                 }
               });
             } else {
@@ -2260,7 +2266,7 @@ async function addWideTableButton() {
                 }
               });
 
-              $("#leftButton").click(function (event) {
+              $("#leftButton").on("click", function (event) {
                 event.preventDefault();
                 container.animate(
                   {
@@ -2282,8 +2288,6 @@ async function addWideTableButton() {
             }
           }, 100);
         }
-
-        //window.setWideTable = 0;
       });
     }
 

@@ -86,7 +86,6 @@ body.page-Special_MyConnections .peopleTable tbody .privacyImage {
   line-height: 1.5em;
   font-weight: bold;
   text-align: center;
-  vertical-align: middle;
 }
 
 body.page-Special_MyConnections .peopleTable tbody .privacyImage {
@@ -253,4 +252,44 @@ body.page-Special_MyConnections .familySheet td {
 body.page-Special_MyConnections .familySheet thead,
 body.page-Special_MyConnections .peopleTable thead {
   text-align: left;
+}
+
+body.page-Special_MyConnections #buttonBox {
+  position: fixed;
+  z-index: 5000;
+  top: 45%;
+  right: -0.5em;
+}
+
+body.page-Special_MyConnections #leftButton,
+body.page-Special_MyConnections #rightButton {
+  width: 30px;
+  padding: 0;
+  background: forestgreen;
+  border: 2px solid green;
+  box-shadow: 2px 2px 2px navy;
+  height: 50px;
+  display: block;
+  margin-top: 0.2em;
+}
+
+body.page-Special_MyConnections .familySheet x {
+  position: absolute;
+  top: 0;
+  right: 0.5em;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+body.page-Special_MyConnections td.connectionsName .privacyImage {
+  position: absolute;
+  left: -2em;
+}
+
+body.page-Special_MyConnections .peopleTable .privacyImage {
+  margin-top: 0.5em;
+}
+
+body.page-Special_MyConnections .tableContainer {
+  overflow-x: auto;
 }
