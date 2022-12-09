@@ -839,7 +839,7 @@ function list2ol2(person) {
 
           const regex1 = /(Daughter)|(Sister)|(Mother)|(Wife)/g;
           const female = disTitle.match(regex1);
-          const regex2 = /(Son)|(Brother)|(Father)|(Husband)/g;
+          const regex2 = /(\bSon\b)|(\bBrother\b)|(\bFather\b)|(\bHusband\b)/g;
           const male = disTitle.match(regex2);
           if (female == null && male != null) {
             disGender = "male";
@@ -958,7 +958,7 @@ async function prepareHeadings() {
       let n1 = aNode;
       let n2 = textNodes[index + 1];
       let pNode = n1.parentNode;
-      const regex = /(Son|Daughter|Brother|Sister|Husband|Wife|Father|Mother)(\sof\s)?/;
+      const regex = /(\bSon\b|\bDaughter\b|\bBrother\b|\bSister\b|\bHusband\b|\bWife\b|\bFather\b|\bMother\b)(\sof\s)?/;
       let regexMatch = n1.textContent.match(regex);
       if (regexMatch) {
         pNode.removeChild(n1);
@@ -981,7 +981,7 @@ async function prepareHeadings() {
     if (
       $(this)
         .text()
-        .match(/Son|Daughter/)
+        .match(/\bSon\b|Daughter/)
     ) {
       altText = "Parents: ";
       thisID = "parentsHeader";
@@ -989,7 +989,7 @@ async function prepareHeadings() {
     if (
       $(this)
         .text()
-        .match(/Brother|Sister/)
+        .match(/\bBrother\b|Sister/)
     ) {
       altText = "Siblings: ";
       thisID = "siblingsHeader";
@@ -997,7 +997,7 @@ async function prepareHeadings() {
     if (
       $(this)
         .text()
-        .match(/Husband|Wife/)
+        .match(/\bHusband\b|Wife/)
     ) {
       altText = "Spouse: ";
       thisClass = "spouseText";
