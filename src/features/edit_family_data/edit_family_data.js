@@ -4,7 +4,12 @@ import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { isOK } from "../../core/common";
 
 checkIfFeatureEnabled("editFamilyData").then((result) => {
-  if (result && $("body.page-Special_EditFamily").length && $("#EFdates").length == 0) {
+  if (
+    result &&
+    $("body.page-Special_EditFamily").length &&
+    $("#EFdates").length == 0 &&
+    $("h1:contains(Edit Marriage)").length == 0
+  ) {
     import("./edit_family_data.css");
     addInfoAboutOtherPerson();
   }
