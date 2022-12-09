@@ -121,7 +121,6 @@ async function addMovingSaveBox() {
     $(window).on("scroll", function () {
       let scroll = $(window).scrollTop();
       const previewBox = $("#previewbox");
-
       if (
         isScrolledIntoView($("#previewButton")) ||
         isScrolledPast($("#previewButton")) ||
