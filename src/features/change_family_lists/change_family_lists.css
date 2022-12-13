@@ -467,6 +467,9 @@ span[data-gender="Male"] {
   padding-left: 3px;
   display: block;
 }
+.vertical div.spouseDetails span {
+  display: grid;
+}
 .vertical span#childrenUnknownQ a,
 .vertical a.BLANK.addSpouse,
 .vertical #spousesUnknown a.BLANK {
