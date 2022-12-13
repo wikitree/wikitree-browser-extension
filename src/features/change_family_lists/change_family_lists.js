@@ -138,8 +138,10 @@ async function moveFamilyLists(firstTime = false, wasClicked = false) {
       familyLists.fadeOut("slow", function () {
         if ($("a[href='/wiki/Project_protection']").length) {
           familyLists.insertBefore($("a[href='/wiki/Project_protection']").closest("div"));
-        } else {
+        } else if ($("#geneticfamily").length) {
           familyLists.insertBefore($("#geneticfamily"));
+        } else {
+          rightHandColumn.prepend(familyLists);
         }
         familyLists.fadeIn("slow");
       });
@@ -159,8 +161,10 @@ async function moveFamilyLists(firstTime = false, wasClicked = false) {
       } else if (optionsData.moveToRight) {
         if ($("div.six a[href='/wiki/Project_protection']").length) {
           familyLists.insertAfter($("div.six a[href='/wiki/Project_protection']").closest("div"));
-        } else {
+        } else if ($("#geneticfamily").length) {
           familyLists.insertBefore($("#geneticfamily"));
+        } else {
+          rightHandColumn.prepend(familyLists);
         }
       }
     });
