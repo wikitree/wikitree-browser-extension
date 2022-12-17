@@ -382,19 +382,65 @@ async function myConnectionsMore() {
     });
   });
 
-  $("button.myConnectionsTableButton").on("click", function () {
-    $(this).addClass("clicked");
-    $(this).prop("disabled", "true");
-    const theList = $(this).parent().next();
-    const theLinks = theList.find("a");
-    const theIDs = [];
-    theLinks.each(function () {
-      let ID = $(this).attr("href").split("/wiki/")[1];
-      theIDs.push(ID);
+  $("button.myConnectionsTableButton").each(function () {
+    $(this).on("click", function () {
+      let aList = $(this).parent().attr("id");
+      if ($(this).hasClass("beenClicked")) {
+        //$(this).parent().next().fadeOut();
+        $("#" + aList + "_table").fadeOut();
+        $("#" + aList + "_list").fadeIn();
+        let wTableButton;
+        if (
+          $("#" + aList + "_table")
+            .parent()
+            .hasClass("tableContainer")
+        ) {
+          wTableButton = $("#" + aList + "_table")
+            .parent()
+            .prev();
+        } else {
+          wTableButton = $("#" + aList + "_table").prev();
+        }
+        wTableButton.fadeOut();
+
+        $(this).removeClass("beenClicked").text("Table");
+      } else if ($("#" + $(this).parent().attr("id") + "_table").length) {
+        $("#" + aList + "_table").fadeIn();
+        $("#" + aList + "_list").fadeOut();
+        let wTableButton;
+        if (
+          $("#" + aList + "_table")
+            .parent()
+            .hasClass("tableContainer")
+        ) {
+          wTableButton = $("#" + aList + "_table")
+            .parent()
+            .prev();
+        } else {
+          wTableButton = $("#" + aList + "_table").prev();
+        }
+        wTableButton.fadeIn();
+        $(this).addClass("beenClicked").text("Hide Table");
+      } else {
+        const theList = $(this).parent().next();
+        const theLinks = theList.find("a");
+        const theIDs = [];
+        theLinks.each(function () {
+          let ID = $(this).attr("href").split("/wiki/")[1];
+          theIDs.push(ID);
+        });
+        let IDstring = theIDs.join(",");
+        let tableClass = "";
+        let thisButton = $(this);
+        thisButton.addClass("clicked");
+        $("#" + thisButton.parent().attr("id") + "_list").addClass("toHide");
+        addPeopleTable(IDstring, $(this).parent().attr("id") + "_table", $(this).parent(), tableClass).then(
+          function () {
+            thisButton.text("Hide Table").addClass("beenClicked");
+          }
+        );
+      }
     });
-    let IDstring = theIDs.join(",");
-    let tableClass = "";
-    addPeopleTable(IDstring, $(this).parent().attr("id") + "_table", $(this).parent(), tableClass);
   });
 
   if ($("#loadNextGenerationButton").text().match("Maximum")) {
@@ -1917,7 +1963,8 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
         }
 
         $("#tree").fadeOut();
-        $("button.myConnectionsTableButton.clicked").removeClass("clicked");
+        $(".myConnectionsTableButton").removeClass("clicked");
+        $(".toHide").fadeOut().removeClass("toHide");
         setTimeout(function () {
           $("#tree").remove();
           $("#ahnen").click();
