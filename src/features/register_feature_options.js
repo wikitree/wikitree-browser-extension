@@ -185,6 +185,15 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Scissors",
+  id: "scissors",
+  description:
+    "Adds scissors (like on profile pages) to Category, Help, and Change Details pages to copy various things.",
+  category: "Other",
+  defaultValue: true,
+});
+
+registerFeature({
   name: "Sort Badges",
   id: "sortBadges",
   description: "Buttons to move or hide your Club 100/1000 badges.",

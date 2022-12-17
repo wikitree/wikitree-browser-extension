@@ -32,6 +32,7 @@ import "./features/my_menu/my_menu";
 import "./features/printerfriendly/printerfriendly";
 import "./features/randomProfile/randomProfile";
 import "./features/redir_ext_links/redir_ext_links";
+import "./features/scissors/scissors";
 import "./features/sortBadges/sortBadges";
 import "./features/sort_theme_people/sort_theme_people";
 import "./features/sourcepreview/sourcepreview";

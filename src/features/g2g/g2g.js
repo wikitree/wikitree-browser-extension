@@ -82,7 +82,7 @@ function g2gScissors() {
   }
 }
 
-function copyThingToClipboard(thing) {
+export function copyThingToClipboard(thing) {
   const $temp = $("<input>");
   $("body").prepend($temp);
   $temp.val(thing).select();
