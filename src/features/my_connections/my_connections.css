@@ -293,3 +293,8 @@ body.page-Special_MyConnections .peopleTable .privacyImage {
 body.page-Special_MyConnections .tableContainer {
   overflow-x: auto;
 }
+
+body.page-Special_MyConnections .familyTH,
+body.page-Special_MyConnections .familyTD {
+  display: none;
+}
