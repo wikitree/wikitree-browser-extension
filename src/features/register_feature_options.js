@@ -169,6 +169,14 @@ registerFeature({
 });
 
 registerFeature({
+  name: "My Connections",
+  id: "myConnections",
+  description: "Adds various features to the My Connections page.",
+  category: "Other",
+  defaultValue: true,
+});
+
+registerFeature({
   name: "My Menu",
   id: "myMenu",
   description: "Add your own custom menu for easy access to your most commonly used links.",
