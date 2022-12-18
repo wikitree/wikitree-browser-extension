@@ -298,3 +298,10 @@ body.page-Special_MyConnections .familyTH,
 body.page-Special_MyConnections .familyTD {
   display: none;
 }
+body.page-Special_MyConnections .missingPersonCell {
+  width: 0.5em;
+}
+body.page-Special_MyConnections .missingPersonZero {
+  background-color: white;
+  border: 1px solid forestgreen;
+}

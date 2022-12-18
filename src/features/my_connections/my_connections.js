@@ -129,49 +129,7 @@ function myConnectionsCountPt2(lastH3, ols, degreeCountTable) {
   if (window.maxedOut != 100 && ols.length == window.maxedOut && window.CC7 != false) {
     window.CC7Diff = parseInt(window.CC7) - parseInt(count);
   }
-  /*
-  const mWTID = Cookies.get("wikitree_wtb_UserName");
-  if (mWTID) {
-    const firstLink = $("#gen0_list a").attr("href").split("/wiki/");
-    if (firstLink[1]) {
-      const thisPerson = firstLink[1];
-      if (ols.length == 8 && thisPerson == mWTID) {
-        $.ajax({
-          url: "https://api.wikitree.com/api.php",
-          crossDomain: true,
-          xhrFields: { withCredentials: true },
-          data: { action: "getPerson", key: mWTID, resolveRedirect: "1" },
-          type: "POST",
-          dataType: "json",
-          success: function (data) {
-            let person = data[0].person;
-            let outText =
-              "| " +
-              person.LongNamePrivate +
-              " || [[" +
-              person.Name +
-              "]] ||" +
-              outTexty +
-              " " +
-              count +
-              maxPlus +
-              " || " +
-              new Date().toISOString().split("T")[0] +
-              "\n|-";
 
-            let cc7 = $(
-              "<div class='myConnectionsCC7'><label>WikiTree BEE suggestion: Copy this text and add it to <a href='https://www.wikitree.com/index.php?title=Space:Connection_Count_at_7_Degrees_(CC7)&action=edit'>the CC7 table</a>.</label><textarea style='display:block;'>" +
-                outText +
-                "</textarea></div>"
-            );
-            cc7.insertAfter($(".degreeCount"));
-          },
-        });
-      }
-    }
-  
-  }
-  */
   degreeCountTable.insertBefore($("#gen0"));
   degreeCountTable.clone().insertBefore($("div.container").eq(1));
 }
@@ -282,6 +240,7 @@ async function myConnectionsMore() {
       completedText = " Completed";
       disabled = "disabled";
     }
+    /*
     if ($(this).attr("id") != "gen0" && $(this).find(".myConnectionsMoreButton").length == 0) {
       let myConnectionsMoreButton = $(
         "<button " +
@@ -295,11 +254,11 @@ async function myConnectionsMore() {
           "</button>"
       );
       $(this).append(myConnectionsMoreButton);
-    }
+    }*/
     if ($(this).attr("id") != "gen0" && dOL.find("li").length < 701) {
       if ($(this).find(".myConnectionsTableButton").length == 0) {
         let myConnectionsTableButton = $(
-          "<button class='myConnectionsTableButton small " + visibility + "'>Table</button>"
+          "<button class='myConnectionsTableButton small " + visibility + "'>Missing Connections Table</button>"
         );
         if (dOL.find("li").length < 700) {
           $(this).append(myConnectionsTableButton);
@@ -307,86 +266,12 @@ async function myConnectionsMore() {
       }
     }
   });
-  $("button.myConnectionsMoreButton").on("click", function () {
-    $(this).prop("disabled", true);
-    $(this).addClass("clicked");
-    const theList = $(this).parent().nextAll("ol:first");
-    const theLinks = theList.find("a");
-    window.myConnectionsOut = 0;
-    window.myConnectionsIn = 0;
-    const linksArr = [];
-    let count = 0;
-    const tempArr = [];
-    theLinks.each(function () {
-      window.myConnectionsOut++;
-      const ID = $(this).attr("href").split("/wiki/")[1];
-      $.ajax({
-        url: "https://api.wikitree.com/api.php",
-        crossDomain: true,
-        xhrFields: { withCredentials: true },
-        type: "POST",
-        data: {
-          action: "getProfile",
-          key: ID,
-          fields: "*",
-          resolveRedirect: "1",
-        },
-        dataType: "json",
-        success: function (data) {
-          window.myConnectionsIn++;
-          let person = data[0].profile;
-          let deathAge = ageAtDeath(person, false);
-          if (person?.Name) {
-            let thisLink = $("ol[id*='gen'] a[href='/wiki/" + htmlEntities(person.Name) + "']");
-
-            if (person.Father == 0) {
-              $(
-                "<img title='Missing father' class='myConnectionsNoFather missingPerson' src='" +
-                  chrome.runtime.getURL("images/blue_bricks.jpg") +
-                  "'>"
-              ).insertBefore(thisLink);
-            }
-            if (person.Mother == 0) {
-              $(
-                "<img  title='Missing mother' class='myConnectionsNoMother missingPerson' src='" +
-                  chrome.runtime.getURL("images/pink_bricks.jpg") +
-                  "'>"
-              ).insertBefore(thisLink);
-            }
-            if (
-              (deathAge === false || deathAge > 15) &&
-              person?.Spouses?.length == 0 &&
-              person.DataStatus?.Spouse != "blank"
-            ) {
-              $(
-                "<img  title='Missing spouse?' class='myConnectionsNoSpouse missingPerson' src='" +
-                  chrome.runtime.getURL("images/Q.jpg") +
-                  "'>"
-              ).insertBefore(thisLink);
-            }
-          }
-
-          if (window.myConnectionsIn == window.myConnectionsOut) {
-            $("button.myConnectionsMoreButton.clicked").addClass("completed");
-            $("button.myConnectionsMoreButton").each(function (index) {
-              if ($(this).hasClass("completed")) {
-                window.myConnectionsCompletedMore.push(index);
-              }
-            });
-            $("button.myConnectionsMoreButton.clicked")
-              .text($("button.myConnectionsMoreButton.clicked").text() + " completed")
-              .removeClass("clicked");
-          }
-        },
-      });
-    });
-  });
 
   $("button.myConnectionsTableButton").each(function () {
     $(this).on("click", function () {
       let aList = $(this).parent().attr("id");
       if ($(this).hasClass("beenClicked")) {
-        //$(this).parent().next().fadeOut();
+        $(this).prop("disabled", false);
         $("#" + aList + "_table").fadeOut();
         $("#" + aList + "_list").fadeIn();
         let wTableButton;
@@ -403,7 +288,7 @@ async function myConnectionsMore() {
         }
         wTableButton.fadeOut();
 
-        $(this).removeClass("beenClicked").text("Table");
+        $(this).removeClass("beenClicked").text("Show Missing Connections Table");
       } else if ($("#" + $(this).parent().attr("id") + "_table").length) {
         $("#" + aList + "_table").fadeIn();
         $("#" + aList + "_list").fadeOut();
@@ -426,19 +311,22 @@ async function myConnectionsMore() {
         const theLinks = theList.find("a");
         const theIDs = [];
         theLinks.each(function () {
-          let ID = $(this).attr("href").split("/wiki/")[1];
-          theIDs.push(ID);
+          let IDsplit = $(this).attr("href").split("/wiki/");
+          if (IDsplit[1]) {
+            theIDs.push(IDsplit[1]);
+          }
         });
         let IDstring = theIDs.join(",");
         let tableClass = "";
         let thisButton = $(this);
         thisButton.addClass("clicked");
         $("#" + thisButton.parent().attr("id") + "_list").addClass("toHide");
-        addPeopleTable(IDstring, $(this).parent().attr("id") + "_table", $(this).parent(), tableClass).then(
-          function () {
-            thisButton.text("Hide Table").addClass("beenClicked");
-          }
-        );
+        if ($(this).hasClass("beenClicked") == false) {
+          $(this).prop("disabled", true);
+        } else {
+          $(this).prop("disabled", false);
+        }
+        addPeopleTable(IDstring, $(this).parent().attr("id") + "_table", $(this).parent(), tableClass);
       }
     });
   });
@@ -500,8 +388,8 @@ async function getMoreConnections() {
       let oLinkSplit = oLinkHREF.split("/wiki/");
       if (typeof oLinkSplit[1] === "string") {
         oLinkSplit[1] = oLinkSplit[1].replaceAll(/\s/g, "_");
+        window.allLinkIDs.push(oLinkSplit[1]);
       }
-      window.allLinkIDs.push(oLinkSplit[1]);
     }
   });
 
@@ -531,6 +419,7 @@ async function getMoreConnections() {
       }
     });
   linksArr.push(tempArr);
+  //console.log(linksArr);
   linksArr.forEach(function (anArr) {
     const keys = anArr.join(",");
     window.nextGenOut++;
@@ -838,6 +727,17 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
           emptyTD = "<td></td>";
         }
 
+        let missingFather = "";
+        let missingMother = "";
+        let missingSpouse = "";
+        let missingChildren = "";
+        if ($("body.page-Special_MyConnections").length) {
+          missingFather = "<th id='missing-father'>F</th>";
+          missingMother = "<th id='missing-mother'>M</th>";
+          missingSpouse = "<th id='missing-spouse'>Sp</th>";
+          missingChildren = "<th id='missing-children'>Ch</th>";
+        }
+
         aTable = $(
           "<table class='peopleTable " +
             tableClass +
@@ -846,6 +746,10 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
             "'>" +
             aCaption +
             "<thead><tr>" +
+            missingFather +
+            missingMother +
+            missingSpouse +
+            missingChildren +
             ahnenHeader +
             relTH +
             "<th id='firstname' data-order=''>Given name(s)</th><th id='lnab'>LNAB</th><th id='lnc' data-order=''>CLN</th><th id='birthdate' data-order=''>Birth date</th><th data-order='' id='birthlocation'>Birth place</th><th data-order='' id='deathdate'>Death date</th><th data-order='' id='deathlocation'>Death place</th>" +
@@ -874,8 +778,79 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
         }
 
         //aTable
+        const missingFatherSrc = chrome.runtime.getURL("images/blue_bricks.jpg");
+        const missingMotherSrc = chrome.runtime.getURL("images/pink_bricks.jpg");
+        const missingSpouseSrc = chrome.runtime.getURL("images/Q.jpg");
         thePeople.forEach(function (aPerson, index) {
           let mPerson = aPerson.person;
+
+          let missingFatherCell = "";
+          let missingMotherCell = "";
+          let missingSpouseCell = "";
+          let missingChildrenCell = "";
+          if ($("body.page-Special_MyConnections").length) {
+            missingFatherCell = "<td class='missingPersonCell'></td>";
+            missingMotherCell = "<td class='missingPersonCell'></td>";
+            missingSpouseCell = "<td class='missingPersonCell'></td>";
+            missingChildrenCell = "<td class='missingPersonCell'></td>";
+            let deathAge = ageAtDeath(mPerson, false);
+            if (mPerson?.Name) {
+              let thisLink = $("ol[id*='gen'] a[href='/wiki/" + htmlEntities(mPerson.Name) + "']");
+              if (mPerson.Father == 0) {
+                missingFatherCell = "<td style='background-image:url(" + missingFatherSrc + ")'></td>";
+
+                $(
+                  "<img title='Missing father' class='myConnectionsNoFather missingPerson' src='" +
+                    missingFatherSrc +
+                    "'>"
+                ).insertBefore(thisLink);
+              }
+              if (mPerson.Mother == 0) {
+                missingMotherCell = "<td style='background-image:url(" + missingMotherSrc + ")'></td>";
+                $(
+                  "<img  title='Missing mother' class='myConnectionsNoMother missingPerson' src='" +
+                    missingMotherSrc +
+                    "'>"
+                ).insertBefore(thisLink);
+              }
+              if (
+                (deathAge === false || deathAge > 15) &&
+                mPerson?.Spouses?.length == 0 &&
+                mPerson.DataStatus?.Spouse != "blank"
+              ) {
+                missingSpouseCell = "<td class='missingPersonCell missingPersonZero' title='Missing spouse'>?</td>";
+                $(
+                  "<img  title='Missing spouse?' class='myConnectionsNoSpouse missingPerson' src='" +
+                    missingSpouseSrc +
+                    "'>"
+                ).insertBefore(thisLink);
+              } else {
+                let oSpouses = Object.keys(mPerson.Spouses);
+                if (oSpouses) {
+                  missingSpouseCell = "<td class='missingPersonCell'>" + oSpouses.length + "</td>";
+                }
+              }
+              let oChildren, oChildrenNumber;
+              if (mPerson.Children) {
+                oChildren = Object.keys(mPerson.Children);
+                if (oChildren.length > 0) {
+                  oChildrenNumber = oChildren.length;
+                  missingChildrenCell = "<td class='missingPersonCell'>" + oChildrenNumber + "</td>";
+                } else if (
+                  deathAge[0] > 12 &&
+                  mPerson.DataStatus.Spouse != "Null" &&
+                  mPerson.DataStatus.Spouse != "Blank"
+                ) {
+                  missingChildrenCell = "<td class='missingPersonCell missingPersonZero'></td>";
+                } else {
+                  missingChildrenCell = "<td class='missingPersonCell'></td>";
+                }
+              }
+              if (mPerson.Name == "Roberts-26056") {
+                console.log(mPerson.Children, oChildren, oChildrenNumber, deathAge, mPerson.DataStatus.Spouse);
+              }
+            }
+          }
 
           if (mPerson.Name == "Bascome-5") {
             mPerson.Name = "Private-1";
@@ -1437,8 +1412,27 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
             editedText = dataEdited.replace(/^([0-9]{4})([0-9]{2})([0-9]{2})/, "$1-$2-$3");
           }
 
+          let deathAge = ageAtDeath(mPerson)[0];
+          let dataMissingFatherNumber = mPerson.Father == 0 ? 0 : 1;
+          let dataMissingFather = "data-missing-father='" + dataMissingFatherNumber + "' ";
+          let dataMissingMotherNumber = mPerson.Father == 0 ? 0 : 1;
+          let dataMissingMother = "data-missing-mother='" + dataMissingMotherNumber + "' ";
+          let dataMissingSpouseNumber =
+            mPerson.Spouses.length == 0 && mPerson.DataStatus.Spouse != "Blank" && deathAge > 12
+              ? 100
+              : Object.keys(mPerson.Spouses).length;
+          console.log(mPerson.Spouses, mPerson.Spouses.length, mPerson.Name);
+          let dataMissingSpouse = "data-missing-spouse='" + dataMissingSpouseNumber + "' ";
+          let dataMissingChildrenNumber =
+            mPerson.Children.length == 0 && deathAge > 12 ? 100 : Object.keys(mPerson.Children).length;
+          let dataMissingChildren = "data-missing-children='" + dataMissingChildrenNumber + "' ";
+
           let aLine = $(
             "<tr " +
+              dataMissingFather +
+              dataMissingMother +
+              dataMissingSpouse +
+              dataMissingChildren +
               ancestorData +
               " data-created='" +
               dataCreated +
@@ -1473,6 +1467,10 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
               " " +
               mPerson.Gender +
               "'>" +
+              missingFatherCell +
+              missingMotherCell +
+              missingSpouseCell +
+              missingChildrenCell +
               ahnenCell +
               relCell +
               "<td class='connectionsName'  title='" +
@@ -1963,7 +1961,11 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
         }
 
         $("#tree").fadeOut();
-        $(".myConnectionsTableButton").removeClass("clicked");
+        $(".myConnectionsTableButton.clicked")
+          .text("Hide Table")
+          .addClass("beenClicked")
+          .removeClass("clicked")
+          .prop("disabled", false);
         $(".toHide").fadeOut().removeClass("toHide");
         setTimeout(function () {
           $("#tree").remove();
@@ -2426,4 +2428,42 @@ function getAge2(start, end) {
   }
   let totalDays = Math.round(fullYears * 365.25) + andDays;
   return [fullYears, andDays, totalDays];
+}
+
+async function getPeople(
+  keys,
+  siblings,
+  ancestorGenerations,
+  descendantGenerations,
+  nuclear,
+  minGeneration,
+  bioFormat,
+  fields
+) {
+  try {
+    const result = await $.ajax({
+      url: "https://api.wikitree.com/api.php",
+      crossDomain: true,
+      xhrFields: {
+        withCredentials: true,
+      },
+      type: "POST",
+      dataType: "json",
+      data: {
+        action: "getPeople",
+        keys: keys,
+        siblings: siblings,
+        ancestors: ancestorGenerations,
+        descendants: descendantGenerations,
+        nuclear: nuclear,
+        minGeneration: minGeneration,
+        bioFormat: bioFormat,
+        fields: fields,
+        resolveRedirect: 1,
+      },
+    });
+    return result;
+  } catch (error) {
+    console.error(error);
+  }
 }
