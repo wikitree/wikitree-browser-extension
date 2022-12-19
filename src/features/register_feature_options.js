@@ -171,7 +171,9 @@ registerFeature({
 registerFeature({
   name: "My Connections",
   id: "myConnections",
-  description: "Adds various features to the My Connections page.",
+  description:
+    "Adds buttons to the My Connections page to create tables of the people in each degree," +
+    " showing missing parents, possible missing spouses, and the number of children. Also, continues finding more connections in a degree after the maximum 1000 has been reached.",
   category: "Other",
   defaultValue: true,
 });
@@ -196,7 +198,7 @@ registerFeature({
   name: "Scissors",
   id: "scissors",
   description:
-    "Adds scissors (like on profile pages) to Category, Help, and Change Details pages to copy various things.",
+    "Adds scissors (like on profile pages) to Category, Help, Project, Template, and Change Details pages to copy various things.",
   category: "Other",
   defaultValue: true,
 });
