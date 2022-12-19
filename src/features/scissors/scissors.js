@@ -40,7 +40,7 @@ function helpScissors() {
       });
     }
   }
-  if ($("td.diff-lineno:contains('Bio Changes')").length) {
+  if ($("h1:contains('Change Details')").length) {
     const historyItem = $("span.HISTORY-ITEM");
     let change = "Added";
     if (historyItem.find("a:contains(created),a:contains(imported the data)").length) {
