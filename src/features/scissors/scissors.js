@@ -13,8 +13,8 @@ checkIfFeatureEnabled("scissors").then((result) => {
 
 function helpScissors() {
   const url = decodeURIComponent(window.location.href);
-  if (window.location.href.match(/\wiki\/Help|Category:/)) {
-    const helpIDmatch = url.match(/Help|Category.*/);
+  if (window.location.href.match(/\wiki\/Help:|Category:|Project:|Template:/)) {
+    const helpIDmatch = url.match(/(Help|Category|Project|Template).*/)[0];
     let helpLink = "[" + url + " " + helpIDmatch + "]";
     const categoryIDmatch = url.match(/Category.*/);
     if (categoryIDmatch != null) {
@@ -22,7 +22,6 @@ function helpScissors() {
     }
     if (helpIDmatch != null) {
       window.helpID = helpIDmatch[0];
-      const helpQuestion = $("h1").text();
       $("h1").append(
         $(
           '<span id="helpScissors"><button aria-label="Copy ID" title="Copy ID" data-copy-label="Copy ID" class="copyWidget" data-copy-text="' +
