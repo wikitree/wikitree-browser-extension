@@ -228,55 +228,116 @@ async function get_Profile(id) {
   }
 }
 
-window.extraWatchlistTouched = [];
-async function addExtraWatchlist(key) {
-  const options = await getFeatureOptions("extraWatchlist");
-  get_Profile(key).then((response) => {
-    let thead = $(
-      "<thead><tr><th id='wtIDcol' class='wtIDcol'>ID</th><th id='nameCol'>Name</th><th id='recentChangeCol'>Changed</th><th></th><th></th></tr></thead>"
-    );
-
-    if ($("#touchedList thead").length == 0) {
-      $("#touchedList").prepend(thead);
-      $("#touchedList").on("click", "#wtIDcol", function () {
-        sortTouched("id");
-      });
-      $("#touchedList").on("click", "#nameCol", function () {
-        sortTouched("name");
-      });
-      $("#touchedList").on("click", "#recentChangeCol", function () {
-        sortTouched();
-      });
-    }
-    if (response[0].profile) {
-      const person = response[0].profile;
-      if (response[0].page_name.match(/^Space:/) != null) {
-        person.Type = "Space";
-        person.Id = person.PageId;
-      } else {
-        person.Type = "Person";
-      }
-      window.extraWatchlistTouched.push(person.Id);
-      recentChange(person);
-    }
-    if (options.sortBy == "Changed") {
-      sortTouched();
-    } else if (options.sortBy == "ID") {
-      sortTouched("id");
-    } else if (options.sortBy == "Name") {
-      sortTouched("name");
-    }
-  });
+async function getPeople(
+  keys,
+  siblings,
+  ancestorGenerations,
+  descendantGenerations,
+  nuclear,
+  minGeneration,
+  bioFormat,
+  fields
+) {
+  try {
+    const result = await $.ajax({
+      url: "https://api.wikitree.com/api.php",
+      crossDomain: true,
+      xhrFields: {
+        withCredentials: true,
+      },
+      type: "POST",
+      dataType: "json",
+      data: {
+        action: "getPeople",
+        keys: keys,
+        siblings: siblings,
+        ancestors: ancestorGenerations,
+        descendants: descendantGenerations,
+        nuclear: nuclear,
+        minGeneration: minGeneration,
+        bioFormat: bioFormat,
+        fields: fields,
+        resolveRedirect: 1,
+      },
+    });
+    return result;
+  } catch (error) {
+    console.error(error);
+  }
 }
 
+async function sortExtraWatchlist() {
+  const options = await getFeatureOptions("extraWatchlist");
+  if (options.sortBy == "Changed") {
+    sortTouched();
+  } else if (options.sortBy == "ID") {
+    sortTouched("id");
+  } else if (options.sortBy == "Name") {
+    sortTouched("name");
+  }
+}
+
+function addToExtraWatchlist(person) {
+  let thead = $(
+    "<thead><tr><th id='wtIDcol' class='wtIDcol'>ID</th><th id='nameCol'>Name</th><th id='recentChangeCol'>Changed</th><th></th><th></th></tr></thead>"
+  );
+  if ($("#touchedList thead").length == 0) {
+    $("#touchedList").prepend(thead);
+    $("#touchedList").on("click", "#wtIDcol", function () {
+      sortTouched("id");
+    });
+    $("#touchedList").on("click", "#nameCol", function () {
+      sortTouched("name");
+    });
+    $("#touchedList").on("click", "#recentChangeCol", function () {
+      sortTouched();
+    });
+  }
+  if (person.page_name) {
+    if (person?.page_name.match(/^Space:/) != null) {
+      person = person.profile;
+      person.Type = "Space";
+      person.Id = person.PageId;
+    }
+  } else {
+    person.Type = "Person";
+  }
+  window.extraWatchlistTouched.push(person.Id);
+  recentChange(person);
+}
+
+window.extraWatchlistTouched = [];
+window.addedToExtraWatchlist = [];
 function doExtraWatchlist() {
   if (Cookies.get("wikitree_wtb_UserName")) {
     window.userName = Cookies.get("wikitree_wtb_UserName");
     window.userID = Cookies.get("wikitree_wtb_UserID");
     if (localStorage.extraWatchlist != null) {
       let bits = localStorage.extraWatchlist.split("@");
-      bits.forEach(function (p) {
-        addExtraWatchlist(p);
+      let filteredArray = bits.filter((x) => !window.addedToExtraWatchlist.includes(x));
+      let keys;
+      if (filteredArray.length > 0) {
+        while (filteredArray.length) {
+          let splicedArray = filteredArray.splice(0, 1000);
+          keys = splicedArray.join(",");
+          window.addedToExtraWatchlist = window.addedToExtraWatchlist.concat(splicedArray);
+          getPeople(keys, 0, 0, 0, 0, 0, 0, "*").then((data) => {
+            let people = data[0].people;
+            let peopleKeys = Object.keys(people);
+            peopleKeys.forEach(function (aKey) {
+              addToExtraWatchlist(people[aKey]);
+            });
+            sortExtraWatchlist();
+          });
+        }
+      }
+
+      bits.forEach(function (aKey) {
+        if (aKey.match("Space:")) {
+          get_Profile(aKey).then((person) => {
+            addToExtraWatchlist(person[0]);
+          });
+        }
       });
     }
   }
@@ -447,7 +508,9 @@ async function extraWatchlist() {
       $("#addToExtraWatchlistButton").prop("src", chrome.runtime.getURL("images/favorite-plus-on.png"));
     }
     if ($("#extraWatchlistWindow").is(":visible") && theChange == "add") {
-      addExtraWatchlist(thisID);
+      get_Profile(thisID).then((response) => {
+        addToExtraWatchlist(response[0].profile);
+      });
     }
   });
 }
