@@ -103,7 +103,6 @@ function myConnectionsCountPt2(lastH3, ols, degreeCountTable) {
         } else {
           count = beeCount;
         }
-        console.log(count, beeCount);
       }
 
       let maxPlus = "";
@@ -419,7 +418,6 @@ async function getMoreConnections() {
       }
     });
   linksArr.push(tempArr);
-  //console.log(linksArr);
   linksArr.forEach(function (anArr) {
     const keys = anArr.join(",");
     window.nextGenOut++;
@@ -498,7 +496,6 @@ async function getMoreConnections() {
               if (deathDate == "" || deathDate == undefined) {
                 if (aConnection?.DeathDateDecade != "unknown" && aConnection?.DeathDateDecade != undefined) {
                   deathDate = aConnection?.DeathDateDecade;
-                  console.log(deathDate);
                 }
               }
               if (deathDate == undefined) {
@@ -548,7 +545,6 @@ async function getMoreConnections() {
                   .find(".degreeCountNumber")
                   .each(function () {
                     totalCount = totalCount + parseInt($(this).text());
-                    //console.log(totalCount);
                   });
                 if ($("table.degreeCount").eq(0).find(".degreeCountNumber").length == 7 && window.CC7 != false) {
                   $(this)
@@ -845,9 +841,6 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
                 } else {
                   missingChildrenCell = "<td class='missingPersonCell'></td>";
                 }
-              }
-              if (mPerson.Name == "Roberts-26056") {
-                console.log(mPerson.Children, oChildren, oChildrenNumber, deathAge, mPerson.DataStatus.Spouse);
               }
             }
           }
@@ -1421,7 +1414,6 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
             mPerson.Spouses.length == 0 && mPerson.DataStatus.Spouse != "Blank" && deathAge > 12
               ? 100
               : Object.keys(mPerson.Spouses).length;
-          console.log(mPerson.Spouses, mPerson.Spouses.length, mPerson.Name);
           let dataMissingSpouse = "data-missing-spouse='" + dataMissingSpouseNumber + "' ";
           let dataMissingChildrenNumber =
             mPerson.Children.length == 0 && deathAge > 12 ? 100 : Object.keys(mPerson.Children).length;
