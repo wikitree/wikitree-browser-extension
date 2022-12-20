@@ -5,7 +5,7 @@ import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("verifyID").then((result) => {
   if (result) {
-    if ($("body.page-Special_EditFamily").length) {
+    if ($("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
       import("./verifyID.css");
       checkAttachPersonID();
       // Try not to clash with BEE
@@ -121,7 +121,7 @@ function addRelativeArraysToPerson(zPerson) {
 
 // Show some details of the profile entered in the "Add parent/etc." box
 async function checkAttachPersonID() {
-  $("body.page-Special_EditFamily #mName").keyup(function () {
+  $("body.page-Special_EditFamily #mName,body.page-Special_EditFamilySteps #mName").on("keyup", function () {
     $("#verification").remove();
     if (window.timeoutId) {
       clearTimeout(timeoutId);
@@ -157,7 +157,6 @@ async function checkAttachPersonID() {
               $("#mName").after($("<div id='verification'><x>x</x></div>"));
               $("#verification").draggable();
               if (person.Created) {
-                console.log(displayName(person)[0], displayDates(person, true));
                 ah2 = $(
                   "<h3><a href='https://www.wikitree.com/wiki/" +
                     person.Name +
