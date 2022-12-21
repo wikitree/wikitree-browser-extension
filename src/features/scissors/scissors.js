@@ -3,7 +3,10 @@ import { copyThingToClipboard } from "../g2g/g2g";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("scissors").then((result) => {
-  if (result) {
+  if (
+    result &&
+    $("body.page-Special_EditFamilySteps,body.page-Special_EditFamily,body.page-Special_EditPerson").length == 0
+  ) {
     import("./scissors.css");
     if ($("#helpScissors").length == 0) {
       helpScissors();
