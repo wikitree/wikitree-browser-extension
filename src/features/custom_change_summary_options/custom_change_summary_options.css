@@ -6,7 +6,8 @@
 }
 
 #wpSave.marriage,
-body.page-Special_EditFamily #wpSave {
+body.page-Special_EditFamily #wpSave,
+body.page-Special_EditFamilySteps #wpSave {
   padding: 13px 30px 14px;
   font-size: 20px;
 }

@@ -8,7 +8,10 @@ import { appendClipboardButtons } from "../clipboard_and_notes/clipboard_and_not
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("extraWatchlist").then((result) => {
-  if (result && $("body.page-Special_EditFamily,body.page-Special_EditPerson").length == 0) {
+  if (
+    result &&
+    $("body.page-Special_EditFamily,body.page-Special_EditPerson,body.page-Special_EditFamilySteps").length == 0
+  ) {
     extraWatchlist();
   }
 });

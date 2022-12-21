@@ -3,7 +3,7 @@ import { fNames, mNames } from "./names.js";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage.js";
 
 checkIfFeatureEnabled("genderPredictor").then((result) => {
-  if (result && $("body.page-Special_EditFamily").length) {
+  if (result && $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
     import("./genderPredictor.css");
     predictGender();
   }

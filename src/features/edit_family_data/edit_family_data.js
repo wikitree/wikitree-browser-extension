@@ -6,9 +6,9 @@ import { isOK } from "../../core/common";
 checkIfFeatureEnabled("editFamilyData").then((result) => {
   if (
     result &&
-    $("body.page-Special_EditFamily").length &&
+    $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length &&
     $("#EFdates").length == 0 &&
-    $("h1:contains(Edit Marriage)").length == 0
+    $("h1:contains(Edit Marriage),h1:contains(Add an Unrelated Person)").length == 0
   ) {
     import("./edit_family_data.css");
     addInfoAboutOtherPerson();

@@ -612,7 +612,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
   if ($(".searchResultsButton").length) {
     $(".searchResultsButton").show();
   }
-  if ($("body.page-Special_EditFamily").length) {
+  if ($("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
     $("#suggestedMatches").prepend($("<img id='tree' src='" + chrome.runtime.getURL("images/tree.gif") + "'>"));
     tableClass = "suggestedMatches";
   }
@@ -659,7 +659,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
     } else if ($(".unconnectedButton.clicked").length) {
       thisP = $(".unconnectedButton.clicked").data("wtid");
     } else if (
-      $("body.page-Special_EditFamily h1")
+      $("body.page-Special_EditFamily h1,body.page-Special_EditFamilySteps")
         .text()
         .match(/Unrelated/) != null
     ) {
@@ -1270,7 +1270,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
             isUnconnecteds == true &&
             index == 0 &&
             isMyUnconnecteds == false &&
-            $("body.page-Special_EditFamily").length == 0
+            $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length == 0
           ) {
             aClass = "notable";
           }
@@ -1668,7 +1668,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
           "<button class='button small searchResultsButton' id='locationFilter'>Filter by location</button>"
         );
 
-        if ($("body.page-Special_EditFamily").length) {
+        if ($("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
           if ($("#locationFilter").length) {
             firstTime = false;
             $("#locationFilter").show();
@@ -1807,7 +1807,10 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
       const nameFilterButton = $(
         "<button class='button small searchResultsButton' id='nameFilter'>Filter by name</button>"
       );
-      if ($("body.page-Special_EditFamily").length || $("body.page-Special_SearchPerson").length) {
+      if (
+        $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length ||
+        $("body.page-Special_SearchPerson").length
+      ) {
         if ($("#nameFilter").length) {
           $("#nameFilter").show();
         } else {

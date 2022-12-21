@@ -3,7 +3,10 @@ import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("makeRadioButtonsDeselectable").then((result) => {
   if (result) {
-    if ($("body.page-Special_EditPerson").length || $("body.page-Special_EditFamily").length) {
+    if (
+      $("body.page-Special_EditPerson").length ||
+      $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length
+    ) {
       $("input[type='radio']").on("mouseenter", function () {
         if ($(this).prop("checked") == true) {
           $(this).on("click", function () {
