@@ -14,7 +14,7 @@ export function appendClipboardButtons(clipboardButtons = $()) {
     } else {
       $("#toolbar").append(clipboardButtons, $("span.theClipboardButtons"));
     }
-  } else if ($("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
+  } else if ($("body.page-Special_EditFamily").length) {
     $("#mEmail").after(clipboardButtons, $("span.theClipboardButtons"));
   } else {
     $("#header,#HEADER").append(clipboardButtons, $("span.theClipboardButtons"));
@@ -186,9 +186,7 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
         aClipboard.insertAfter($(".theClipboardButtons"));
       } else if ($("h1:contains('Edit Marriage Information')").length) {
         aClipboard.insertAfter($("#header"));
-      } else if (
-        $("body.page-Special_EditPerson,body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length
-      ) {
+      } else if ($("body.page-Special_EditPerson,body.page-Special_EditFamily").length) {
         aClipboard.insertAfter($("#toolbar,#mEmail"));
       } else if (window.clipboardClicker != undefined) {
         if (window.clipboardClicker.parent().hasClass("answerForm")) {
