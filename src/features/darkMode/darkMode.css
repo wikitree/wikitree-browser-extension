@@ -251,6 +251,7 @@ body.darkMode form div.qa-q-list-item.qa-q-list-item-featured,
 body.darkMode #header {
   border: 2px solid #ffe183;
   padding: 2px;
+  padding-bottom: 14px;
 }
 
 body.darkMode #header input[name="wpSearch"] {
@@ -352,4 +353,7 @@ body.darkMode.page-Special_EditPerson div.five table ol li[style="background-col
 body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#fee;"] a:link,
 body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#fee;"] a:visited {
   background-color: #5f0126 !important;
+}
+body.darkMode .qa-nav-sub {
+  margin-top: 4px;
 }
