@@ -72,28 +72,28 @@ async function prepareFamilyLists() {
         if (
           $(this)
             .text()
-            .match(/^Son|^Daughter|^\[?Child\b/i)
+            .match(/(^Son|^Daughter|^\[?Child\b)\sof/i)
         ) {
           $(this).prop("id", "parentDetails").addClass("familyList");
         }
         if (
           $(this)
             .text()
-            .match(/^Sister|^Brother|^\[?Sibling/i)
+            .match(/(^Sister|^Brother|^\[?Sibling)\sof/i)
         ) {
           $(this).prop("id", "siblingDetails").addClass("familyList");
         }
         if (
           $(this)
             .text()
-            .match(/^Wife|^Husband|^\[?Spouse/i)
+            .match(/(^Wife|^Husband|^\[?Spouse)\sof/i)
         ) {
           $(this).addClass("spouseDetails").addClass("familyList");
         }
         if (
           $(this)
             .text()
-            .match(/^\[?Father|^\[?Mother|^\[?Parent|^\[Children/i)
+            .match(/(^\[?Father|^\[?Mother|^\[?Parent|^\[Children)\sof/i)
         ) {
           $(this).prop("id", "childrenDetails").addClass("familyList");
         }
@@ -599,7 +599,7 @@ function makeFamLists() {
     sibs = document.querySelectorAll('span[itemprop="sibling"]');
   } else {
     let siblingVITALS = $(
-      ".VITALS:contains(siblings),.VITALS:contains(Siblings),.VITALS:contains(brothers),.VITALS:contains(brother),.VITALS:contains(sister)"
+      ".VITALS:contains(sibling),.VITALS:contains(Sibling),.VITALS:contains(brothers),.VITALS:contains(brother),.VITALS:contains(sister)"
     );
     siblingVITALS.attr("id", "siblingDetails");
     $("<ol id='siblingList' class='nameList'></ol>").appendTo($("#siblingDetails"));
@@ -958,9 +958,14 @@ async function prepareHeadings() {
       let n1 = aNode;
       let n2 = textNodes[index + 1];
       let pNode = n1.parentNode;
-      const regex = /(\bSon\b|\bDaughter\b|\bBrother\b|\bSister\b|\bHusband\b|\bWife\b|\bFather\b|\bMother\b)(\sof\s)?/;
+      const regex = /(\bSon\b|\bDaughter\b|\bBrother\b|\bSister\b|\bHusband\b|\bWife\b|\bFather\b|\bMother\b)(\sof)?/;
+      let ofMatch = n1.textContent.match("of");
       let regexMatch = n1.textContent.match(regex);
-      if (regexMatch) {
+      let wrongMatch = false;
+      if (regexMatch && ofMatch == null && n2.textContent.match(" of ") == null) {
+        wrongMatch = true;
+      }
+      if (regexMatch && wrongMatch != true) {
         pNode.removeChild(n1);
         $(pNode).prepend(
           $("<span class='clickable familyListHeading'>" + regexMatch[0].replace(" of", "") + " of </span>")
