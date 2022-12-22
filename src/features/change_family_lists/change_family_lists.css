@@ -538,3 +538,12 @@ span[data-gender="Male"] {
 #childrenCount {
   margin-left: 1em;
 }
+
+.vertical .nameList li {
+  position: relative;
+}
+.vertical img.dnaConfirmed {
+  position: absolute;
+  left: -2.1em;
+  top: 0.3em;
+}
