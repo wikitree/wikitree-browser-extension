@@ -448,21 +448,17 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
           );
         }
 
-        //if ($(".aClipboardButton").length == 0) {
         appendClipboardButtons(clipboardButtons);
-        //}
 
         let clipboardButtons2 = $(".theClipboardButtons").clone(true);
         $(".qa-a-form .qa-form-tall-table,.qa-c-form .qa-form-tall-table").before(clipboardButtons2);
         $("form[name='a_form'] .theClipboardButtons").addClass("answerForm");
         $(".qa-c-form .theClipboardButtons").addClass("commentForm");
-
         $("#toolbar + br").remove();
         $(".aClipboardButton").each(function () {
           $(this).on("click", function (e) {
             e.preventDefault();
             window.clipboardClicker = $(this);
-            console.log("here");
             let ccpc = window.clipboardClicker.parent().attr("class");
             let lccpc = window.lastClipboardClicker.parent().attr("class");
             if ($("#clipboard").data("type") == "notes") {
