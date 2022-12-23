@@ -733,7 +733,7 @@ function selectTemplate(data) {
     '<input type="checkbox" class="cbFilter" id="cb5" name="cb5" data-op="onDlgSelectTemplateFlt" data-id="5" value="CategoryInfoBox"' +
     (data == "CategoryInfoBox" ? " checked" : "") +
     '><label for="cb5"> CategoryInfoBox</label><br>' +
-    '<label for="flt1">Filter: </label><input type="text" class="cbFilter" id="flt1" name="flt1" data-op="onDlgSelectTemplateFlt" data-id="9"><br>' +
+    '<label for="flt1">Filter: </label><input type="text" class="cbFilter" id="flt1" name="flt1" data-op="onDlgSelectTemplateFlt" data-id="9" autofocus><br>' +
     '<div style="min-width: 600px;overflow-y:auto;height: 400px;"><table style="width: 100%;" id="tb">' +
     tb.templates
       .map(
@@ -836,7 +836,7 @@ function selectCIB(data) {
     '<label for="cb1"> ' +
     data +
     "</label><br>" +
-    '<label for="flt1">Filter: </label><input type="text" class="cbFilter" id="flt1" name="flt1" data-op="onDlgSelectCIBFlt" data-id="9">' +
+    '<label for="flt1">Filter: </label><input type="text" class="cbFilter" id="flt1" name="flt1" data-op="onDlgSelectCIBFlt" data-id="9" autofocus>' +
     '<label id="cntr">no matches</label><br>' +
     '<div style="min-width: 600px;overflow-y:auto;height: 400px;"><table style="width: 100%;" id="tb">' +
     "</table></div>" +
@@ -944,6 +944,7 @@ function onDlgSelectCIBBtn(update) {
     tb.selEnd = tb.selStart + tb.inserttext.length;
     tb.birthLocationResult = "";
     tb.deathLocationResult = "";
+    tb.addToSummary = "Added " + tb.elDlg.querySelector("#cb1").value + " Category";;
     updateEdit();
   } else {
     tb.elDlg.close();
