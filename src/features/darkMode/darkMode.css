@@ -188,6 +188,16 @@ body.darkMode h1 span {
   padding: 3px;
   color: #dcddde;
 }
+
+/* Template:Green */
+body.darkMode span[style="color:#006800"] {
+  color: #98fb98 !important;
+}
+/* Template:Red */
+body.darkMode span[style="color:#b60000"] {
+  color: #ff7a7a !important;
+}
+
 body.darkMode h2 a#wt-id-link:link,
 body.darkMode h2 a#wt-id-link:visited {
   background-color: transparent !important;
