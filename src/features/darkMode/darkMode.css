@@ -375,3 +375,8 @@ body.darkMode .vertical .nameList li[data-gender="female"],
 body.darkMode span[data-gender="Female"] {
   background-color: transparent;
 }
+
+/* Theme of the Week */
+body.darkMode #themeTable caption {
+  background: transparent !important;
+}
