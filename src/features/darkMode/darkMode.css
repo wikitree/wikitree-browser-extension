@@ -367,3 +367,11 @@ body.darkMode.page-Special_EditPerson div.five table ol li[style="background-col
 body.darkMode .qa-nav-sub {
   margin-top: 4px;
 }
+
+/* Family lists */
+body.darkMode .vertical .nameList li[data-gender="male"],
+body.darkMode span[data-gender="Male"],
+body.darkMode .vertical .nameList li[data-gender="female"],
+body.darkMode span[data-gender="Female"] {
+  background-color: transparent;
+}

@@ -427,13 +427,13 @@ body.darkMode .vertical .nameList li {
 }
 
 .vertical .nameList li[data-gender="female"],
-span[data-gender="Female"] {
+.vertical .nameList span[data-gender="Female"] {
   background-color: #fff8f7;
   border-left: 5px pink solid;
 }
 
 .vertical .nameList li[data-gender="male"],
-span[data-gender="Male"] {
+.vertical .nameList span[data-gender="Male"] {
   background-color: #f4fefe;
   border-left: 5px blue solid;
 }
