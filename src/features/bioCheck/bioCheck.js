@@ -312,6 +312,9 @@ function reportSources(invalidSourceLines, isPre1700) {
         saveParent.insertBefore(bioCheckSourcesContainer, saveButton);
       }
       let lastContainer = document.getElementById("sourcesTable");
+      if (!lastContainer) {
+        lastContainer = document.getElementById('mSources');
+      }
       lastContainer.after(bioCheckSourcesContainer);
     }
   } else {
