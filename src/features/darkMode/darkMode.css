@@ -368,15 +368,12 @@ body.darkMode .qa-nav-sub {
   margin-top: 4px;
 }
 
-/* Family lists */
+/* Family lists, Theme of the Week, EditToolbar  */
 body.darkMode .vertical .nameList li[data-gender="male"],
 body.darkMode span[data-gender="Male"],
 body.darkMode .vertical .nameList li[data-gender="female"],
-body.darkMode span[data-gender="Female"] {
-  background-color: transparent;
-}
-
-/* Theme of the Week */
-body.darkMode #themeTable caption {
-  background: transparent !important;
+body.darkMode span[data-gender="Female"],
+body.darkMode #themeTable caption,
+body.darkMode .editToolbarButton {
+  background-color: transparent !important;
 }
