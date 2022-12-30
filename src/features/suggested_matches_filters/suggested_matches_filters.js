@@ -21,7 +21,133 @@ function checkReady() {
     }, 1000);
   }
 }
+async function getLocations(WTID) {
+  const relatives = await getRelatives([WTID], {
+    getSpouses: true,
+    getChildren: true,
+    getParents: true,
+    getSiblings: true,
+    fields: ["BirthLocation,DeathLocation"],
+  });
+  const locations = [relatives[0]?.BirthLocation, relatives[0]?.DeathLocation];
+  const relativeTypes = ["Parents", "Siblings", "Spouses", "Children"];
+  let keys, aPerson;
+  relativeTypes.forEach(function (relativeType) {
+    if (relatives[0]) {
+      if (relatives[0][relativeType]) {
+        keys = Object.keys(relatives[0][relativeType]);
+        keys.forEach(function (aKey) {
+          aPerson = relatives[0][relativeType][aKey];
+          locations.push(aPerson.BirthLocation, aPerson.DeathLocation);
+        });
+      }
+    }
+  });
+  const filteredLocations = [];
+  let trimmedBit, aLocationBits;
+  locations.forEach(function (aLocation) {
+    if (isOK(aLocation)) {
+      aLocationBits = aLocation.split(",");
+      aLocationBits.forEach(function (aBit) {
+        trimmedBit = aBit.trim();
+        if (!filteredLocations.includes(trimmedBit) && isOK(trimmedBit)) filteredLocations.push(trimmedBit);
+      });
+    }
+  });
+  return filteredLocations;
+}
 
+function addUSVariants(person) {
+  const USVariants = ["United States", "USA", "US", "United States of America"];
+  USVariants.forEach(function (variantA) {
+    if (person.locations.includes(variantA)) {
+      USVariants.forEach(function (variantB) {
+        if (!person.locations.includes(variantB)) {
+          person.locations.push(variantB);
+        }
+      });
+    }
+  });
+  return person;
+}
+
+function locationFilter(person, filteredLocations, newPerson) {
+  let thisTR = $("a[href$='" + person.WTID + "']").closest("tr");
+  let matchCount = 0;
+  person.locations.forEach(function (aLocation) {
+    if (filteredLocations.includes(aLocation)) {
+      if (!countries.includes(aLocation)) {
+        matchCount++;
+      }
+      if ($("#locationFilterButton").attr("data-level") != "2") {
+        matchCount++;
+      }
+    }
+  });
+  if (matchCount == 0) {
+    thisTR.addClass("locationFiltered");
+  }
+  if (matchCount > 2) {
+    thisTR.prependTo(thisTR.parent());
+  }
+  if (newPerson.locations.length) {
+    if (person.locations.includes(newPerson.locations[0])) {
+      thisTR.prependTo(thisTR.parent());
+    }
+  }
+  suggestedMatches.forEach(function (aMatch) {
+    if (aMatch.WTID == person.WTID) {
+      aMatch = person;
+    }
+  });
+}
+
+function nameFilter(level) {
+  suggestedMatches.forEach(function (person) {
+    let thisTR = $("a[href$='" + person.WTID + "']").closest("tr");
+    if ($("#mStatus_MiddleName_blank").prop("checked") == true) {
+      if (person.MiddleName) {
+        thisTR.addClass("nameFiltered");
+      }
+    } else if (isOK(person.MiddleName) && person.MiddleName != $("#mMiddleName").val().trim()) {
+      thisTR.addClass("nameFiltered");
+    }
+    if (level == 2) {
+      if (person.FirstName != $("#mFirstName").val().trim()) {
+        thisTR.addClass("nameFiltered");
+      }
+      if (person.LastName != $("#mLastNameAtBirth").val().trim()) {
+        thisTR.addClass("nameFiltered");
+      }
+    }
+  });
+}
+
+function dateFilter(level, newPerson) {
+  let personYear3, newPersonYear3, filterOut;
+  suggestedMatches.forEach(function (person) {
+    filterOut = false;
+    let thisTR = $("a[href$='" + person.WTID + "']").closest("tr");
+    if (person.BirthYear.match("s")) {
+      personYear3 = person.BirthYear.substring(0, 3);
+      newPersonYear3 = newPerson.BirthYear.substring(0, 3);
+      if (
+        parseInt(newPersonYear3 - 1) > parseInt(personYear3) ||
+        parseInt(newPersonYear3 + 1) < parseInt(personYear3)
+      ) {
+      } else {
+        filterOut = true;
+      }
+    } else if (parseInt(person.BirthYear) != parseInt(newPerson.BirthYear)) {
+      filterOut = true;
+    }
+    if (filterOut == true) {
+      thisTR.addClass("dateFiltered");
+    }
+  });
+}
+
+const suggestedMatches = [];
 async function initSuggestedMatchesFilters() {
   const WTID = $("h1 button[aria-label='Copy ID']").data("copy-text");
   const relatives = await getRelatives([WTID], {
@@ -40,6 +166,11 @@ async function initSuggestedMatchesFilters() {
   const newPerson = {};
   newPerson.locations = [];
   newPerson.FirstName = $("#mFirstName").val().trim();
+  newPerson.BirthDate = $("#mBirthDate").val().trim();
+  newPerson.BirthYear = newPerson.BirthDate.match(/[0-9]{4}/);
+  if (newPerson.BirthYear) {
+    newPerson.BirthYear = newPerson.BirthYear[0];
+  }
   let birthDeath = ["Birth", "Death"];
   birthDeath.forEach(function (bd) {
     $("#m" + bd + "Location")
@@ -70,41 +201,104 @@ async function initSuggestedMatchesFilters() {
       });
     }
   });
-  const suggestedMatches = [];
-  let aMatch, aLink, aText, aLocation, aLocations, dateMatch;
+  let aMatch, aLink, aText, aLocation, aLocations, dateMatch, trimmedLocation;
   $("tr[id^=potentialMatch] td:first-child").each(function () {
     aMatch = {};
     aLink = $(this).find("a").eq(0);
     aMatch.WTID = aLink.attr("href").split("wiki/")[1];
     aMatch.name = aLink.text();
+    let aMatchNames = aMatch.name.split(" ");
+    aMatch.FirstName = aMatchNames[0];
+    aMatch.LastName = aMatchNames[aMatchNames.length - 1];
+    if (aMatchNames.length > 2) {
+      let middleNames = [];
+      aMatchNames.forEach(function (name, index) {
+        if (index != 0 && index != [aMatchNames.length - 1]) {
+          middleNames.push(name);
+        }
+      });
+      aMatch.MiddleName = middleNames.join(" ");
+    }
     aMatch.locations = [];
     aText = $(this).text().split(" - ");
     if (aText[1]) {
       dateMatch = aText[1].match(/.*\s[0-9]{4}s?/);
       if (dateMatch) {
-        aMatch.DeathDate = dateMatch[0].trim();
+        aMatch.DeathYear = dateMatch[0].trim();
       }
     }
     aLocation = aText[0].split(/[0-9]{4}s?/)[1].trim();
-    dateMatch = aText[0].match(/.*[0-9]{4}s?/);
+    dateMatch = aText[0].match(/.*([0-9]{4})s?/);
     if (dateMatch) {
       aMatch.BirthDate = dateMatch[0];
+      aMatch.BirthYear = dateMatch[1];
     }
     aLocations = aLocation.split(",");
     aLocations.forEach(function (aLocation) {
-      aMatch.locations.push(aLocation.trim());
+      trimmedLocation = aLocation.trim();
+      if (trimmedLocation != "") {
+        aMatch.locations.push(aLocation.trim());
+      }
     });
     suggestedMatches.push(aMatch);
   });
-  console.log(filteredLocations);
-  console.log(suggestedMatches);
-
   const filterButtons = $(
-    "<div id='filterButtons'><label>Filters: </label><button class='small button' id='locationFilterButton'>Location</button></div>"
+    "<div id='filterButtons'><label>Filters: </label>" +
+      "<button class='small button' id='locationFilterButton'>Location</button>" +
+      "<button class='small button' id='nameFilterButton'>Name</button>" +
+      "<button class='small button' id='dateFilterButton'>Date</button></div>"
   );
   if ($("#filterButtons").length == 0) {
     filterButtons.appendTo($("#matchesStatusBox p.large"));
   }
+  $("#nameFilterButton").on("click", function (e) {
+    e.preventDefault();
+    if ($(this).attr("data-level") == "2") {
+      $(".nameFiltered").removeClass("nameFiltered");
+      $(this).attr("data-level", "0");
+      $(this).text("name");
+    } else {
+      if ($(this).attr("data-level") == "1") {
+        $(this).attr("data-level", "2");
+        $(this).text("name 2");
+        nameFilter(2);
+      } else {
+        $(this).attr("data-level", "1");
+        $(this).text("name 1");
+        nameFilter(1);
+      }
+    }
+  });
+
+  $("#dateFilterButton").on("click", function (e) {
+    e.preventDefault();
+    if ($(this).attr("data-level") == "1") {
+      $(".dateFiltered").removeClass("dateFiltered");
+      $(this).attr("data-level", "0");
+      $(this).text("date");
+    } else {
+      $(this).attr("data-level", "1");
+      $(this).text("date ✓");
+      dateFilter(1, newPerson);
+    }
+  });
+
+  suggestedMatches.forEach(function (person) {
+    if (person.locations.length == 0) {
+      getLocations(person.WTID).then((oLocations) => {
+        person.locations = oLocations;
+
+        let thisTD = $("a[href$='" + person.WTID + "']").closest("td");
+        let locationWords = person.locations.join(", ");
+        if (person.locations.length) {
+          thisTD.append("<div>Family location words: " + locationWords + "</div>");
+        }
+
+        person = addUSVariants(person);
+      });
+    }
+  });
+
   $("#locationFilterButton").on("click", function (e) {
     e.preventDefault();
     if ($(this).attr("data-level") == "2") {
@@ -121,29 +315,7 @@ async function initSuggestedMatchesFilters() {
       }
 
       suggestedMatches.forEach(function (person) {
-        let thisTR = $("a[href$='" + person.WTID + "']").closest("tr");
-        let matchCount = 0;
-        person.locations.forEach(function (aLocation) {
-          if (filteredLocations.includes(aLocation)) {
-            if (!countries.includes(aLocation)) {
-              matchCount++;
-            }
-            if ($("#locationFilterButton").attr("data-level") != "2") {
-              matchCount++;
-            }
-          }
-        });
-        if (matchCount == 0) {
-          thisTR.addClass("locationFiltered");
-        }
-        if (matchCount > 2) {
-          thisTR.prependTo(thisTR.parent());
-        }
-        if (newPerson.locations.length) {
-          if (person.locations.includes(newPerson.locations[0])) {
-            thisTR.prependTo(thisTR.parent());
-          }
-        }
+        locationFilter(person, filteredLocations, newPerson);
       });
     }
   });
