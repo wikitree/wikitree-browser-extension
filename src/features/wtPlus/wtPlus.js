@@ -895,9 +895,9 @@ function onDlgSelectCIBFlt() {
             (item.ggParent ? "&#10;&nbsp;&nbsp;&nbsp;&nbsp;" + item.ggParent : "") +
             (item.gggParent ? "&#10;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + item.gggParent : "") +
             (item.parent1 ? "&#10;Parent 1: " + item.parent1 : "") +
-            (item.gParent1 ? "&#10;&nbsp;&nbsp;:" + item.gParent1 : "") +
+            (item.gParent1 ? "&#10;&nbsp;&nbsp;" + item.gParent1 : "") +
             (item.parent2 ? "&#10;Parent 2: " + item.parent2 : "") +
-            (item.gParent2 ? "&#10;&nbsp;&nbsp;:" + item.gParent2 : "") +
+            (item.gParent2 ? "&#10;&nbsp;&nbsp;" + item.gParent2 : "") +
             (item.location ? "&#10;Location: " + item.location : "") +
             (item.locationParent ? "&#10;&nbsp;&nbsp;" + item.locationParent : "") +
             (item.location1 ? "&#10;Location 1: " + item.location1 : "") +
@@ -946,7 +946,7 @@ function onDlgSelectCIBBtn(update) {
     tb.selEnd = tb.selStart + tb.inserttext.length;
     tb.birthLocationResult = "";
     tb.deathLocationResult = "";
-    tb.addToSummary = "Added " + tb.elDlg.querySelector("#cb1").value + " Category";;
+    tb.addToSummary = "Added " + tb.elDlg.querySelector("#cb1").value + " Category";
     updateEdit();
   } else {
     tb.elDlg.close();
