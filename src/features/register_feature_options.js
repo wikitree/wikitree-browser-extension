@@ -246,6 +246,14 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Suggested Matches Filters",
+  id: "suggestedMatchesFilters",
+  description: "Lets you filter out suggested matches for new profiles by name and/or location.",
+  category: "Editing",
+  defaultValue: true,
+});
+
+registerFeature({
   name: "Verify ID",
   id: "verifyID",
   description:

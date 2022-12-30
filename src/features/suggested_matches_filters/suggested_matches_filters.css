@@ -1,0 +1,6 @@
+#potentialMatchesSection tr.locationFiltered {
+  display: none;
+}
+#filterButtons {
+  float: right;
+}
