@@ -20,7 +20,6 @@ checkIfFeatureEnabled("bioCheck").then((result) => {
     // theSourceRules are an immutable singleton
 
     // Look at the type of page and take appropriate action
-
     if (document.body.classList.contains("page-Special_EditPerson")) {
       checkBio();
 
@@ -39,17 +38,24 @@ checkIfFeatureEnabled("bioCheck").then((result) => {
         setInterval(checkBioAtInterval, 60000);
       }
     } else {
-      if (document.body.classList.contains("page-Special_EditFamily")) {
-        if (document.getElementById("mSources")) {
+      
+      let saveButton = null;
+      if (document.getElementById("mSources")) {
+        if (document.body.classList.contains("page-Special_EditFamily")) {
           // Find the save button. For Add Person there is just one
           // For adding a relative there are two, and you want the second
           let buttonElements = document.querySelectorAll("[id='wpSave']");
-          let saveButton = buttonElements[buttonElements.length - 1];
+          saveButton = buttonElements[buttonElements.length - 1];
+        } else {  // look for BETA add page
+          if (document.body.classList.contains("page-Special_EditFamilySteps")) {
+            saveButton = document.getElementById('addNewPersonButton');
+          }
+        }
+        if (saveButton) {
           // listening to the save button click seemed to interfere with
           // the actual save, so it was removed
           saveButton.addEventListener("mouseover", checkSourcesAtInterval);
           saveButton.addEventListener("touchstart", checkSourcesAtInterval);
-
           setInterval(checkSourcesAtInterval, 30000);
         }
       } else {
@@ -268,6 +274,8 @@ function reportSources(invalidSourceLines, isPre1700) {
   if (!bioCheckSourcesContainer && numLines > 0) {
     bioCheckSourcesContainer = document.createElement("div");
     bioCheckSourcesContainer.setAttribute("id", "bioCheckSourcesContainer");
+    let br = document.createElement('br');
+    bioCheckSourcesContainer.appendChild(br);
     // status class is too much, a big yellow box
     // bioCheckSourcesContainer.setAttribute('class', 'status');
     bioCheckTitle = document.createElement("b");
@@ -295,10 +303,19 @@ function reportSources(invalidSourceLines, isPre1700) {
     } else {
       bioCheckSourcesContainer.appendChild(bioSourcesList);
       // Add the message before the save button
-      let buttonElements = document.querySelectorAll("[id='wpSave']");
-      let saveButton = buttonElements[buttonElements.length - 1];
-      let saveParent = saveButton.parentElement;
-      saveParent.insertBefore(bioCheckSourcesContainer, saveButton);
+      // or after the Sources table in the BETA version
+      let saveButton = document.getElementById('addNewPersonButton');
+      if (!saveButton) {
+        let buttonElements = document.querySelectorAll("[id='wpSave']");
+        saveButton = buttonElements[buttonElements.length - 1];
+        let saveParent = saveButton.parentElement;
+        saveParent.insertBefore(bioCheckSourcesContainer, saveButton);
+      }
+      let lastContainer = document.getElementById("sourcesTable");
+      if (!lastContainer) {
+        lastContainer = document.getElementById('mSources');
+      }
+      lastContainer.after(bioCheckSourcesContainer);
     }
   } else {
     if (previousSources != null) {
