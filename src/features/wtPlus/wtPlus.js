@@ -860,6 +860,7 @@ function onDlgSelectCIBFlt() {
   var s1 = tb.elDlg.querySelector("#flt1").value;
 
   // Retrieve categories
+  cntr.innerHTML = "Retrieving...";
   wtAPICatCIBSearch("CIBPicker", s0, s1)
     .then((jsonData) => {
       let c = jsonData.response.categories;
@@ -888,7 +889,7 @@ function onDlgSelectCIBFlt() {
             }"><img src="${chrome.runtime.getURL("images/newTab.png")}"'></a></td>` +
             '<td class="tdSelect" data-op="onDlgSelectCIBTrSel" title="' +
             (item.name ? "&#10;Name: " + item.name : "") +
-            (item.aka ? "&#10;aka: " + item.aka.replaceAll(";", "&#10;&nbsp;&nbsp;") : "") +
+            (item.aka ? "&#10;aka:&#10;&nbsp;&nbsp;" + item.aka.replaceAll(";", "&#10;&nbsp;&nbsp;") : "") +
             (item.parent ? "&#10;Parent: " + item.parent : "") +
             (item.gParent ? "&#10;&nbsp;&nbsp;" + item.gParent : "") +
             (item.ggParent ? "&#10;&nbsp;&nbsp;&nbsp;&nbsp;" + item.ggParent : "") +
@@ -911,6 +912,7 @@ function onDlgSelectCIBFlt() {
             (item.succ1next3 ? "&#10;&nbsp;" + item.succ1next3 : "") +
             (item.succ2prev ? "&#10;Succession: " + item.succ2prev : "") +
             (item.succ2next ? "&#10;&nbsp;" + item.succ2next : "") +
+            (item.other ? "&#10;Other:&#10;&nbsp;&nbsp;" + item.other.replaceAll(";", "&#10;&nbsp;&nbsp;") : "") +
             '">' +
             item.category +
             "</td>" +
