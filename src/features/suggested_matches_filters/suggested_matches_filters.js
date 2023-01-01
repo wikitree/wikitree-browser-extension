@@ -223,13 +223,17 @@ async function initSuggestedMatchesFilters() {
   });
   const relativeTypes = ["Parents", "Siblings", "Spouses", "Children"];
   let keys, aPerson;
-  relativeTypes.forEach(function (relativeType) {
-    keys = Object.keys(relatives[0][relativeType]);
-    keys.forEach(function (aKey) {
-      aPerson = relatives[0][relativeType][aKey];
-      locations.push(aPerson.BirthLocation, aPerson.DeathLocation);
+  if (relatives[0]) {
+    relativeTypes.forEach(function (relativeType) {
+      if (relatives[0][relativeType]) {
+        keys = Object.keys(relatives[0][relativeType]);
+        keys.forEach(function (aKey) {
+          aPerson = relatives[0][relativeType][aKey];
+          locations.push(aPerson.BirthLocation, aPerson.DeathLocation);
+        });
+      }
     });
-  });
+  }
 
   const filteredLocations = [];
   let trimmedBit, aLocationBits;
