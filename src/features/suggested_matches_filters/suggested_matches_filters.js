@@ -4,10 +4,55 @@ import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { getRelatives } from "wikitree-js";
 import { isOK } from "../../core/common";
 
+const newPerson = {};
+
+function addNewPersonToH1() {
+  newPerson.locations = [];
+  newPerson.FirstName = ($("#mFirstName").val() + " ").trim();
+  newPerson.BirthDate = ($("#mBirthDate").val() + " ").trim();
+  newPerson.MiddleName = ($("#mMiddleName").val() + " ").trim();
+  newPerson.LastNameAtBirth = ($("#mLastNameAtBirth").val() + " ").trim();
+  newPerson.LastNameCurrent = ($("#mLastNameCurrent").val() + " ").trim();
+  newPerson.DeathDate = ($("#mDeathDate").val() + " ").trim();
+
+  newPerson.BirthYear = newPerson.BirthDate.match(/[0-9]{4}/);
+  newPerson.DeathYear = newPerson.DeathDate.match(/[0-9]{4}/);
+
+  if (newPerson.BirthYear) {
+    newPerson.BirthYear = newPerson.BirthYear[0];
+  } else {
+    newPerson.BirthYear = "";
+  }
+  if (newPerson.DeathYear) {
+    newPerson.DeathYear = newPerson.DeathYear[0];
+  } else {
+    newPerson.DeathYear = "";
+  }
+
+  newPerson.summary =
+    newPerson.FirstName +
+    " " +
+    (newPerson.MiddleName ? newPerson.MiddleName + " " : "") +
+    (newPerson.LastNameCurrent && newPerson.LastNameCurrent != newPerson.LastNameAtBirth
+      ? "(" + newPerson.LastNameAtBirth + ") " + ""
+      : "") +
+    newPerson.LastNameCurrent +
+    " " +
+    "(" +
+    newPerson.BirthYear +
+    " - " +
+    newPerson.DeathYear +
+    ")";
+  console.log(newPerson);
+  $("#newPersonSummary").remove();
+  $("h1").append($("<span id='newPersonSummary'>&rarr; " + newPerson.summary + "</span>"));
+}
+
 checkIfFeatureEnabled("suggestedMatchesFilters").then((result) => {
   if (result && $("body.page-Special_EditFamilySteps")) {
     $("#enterBasicDataButton").on("click", function () {
       checkReady();
+      addNewPersonToH1();
     });
   }
 });
@@ -128,20 +173,25 @@ function dateFilter(level, newPerson) {
   suggestedMatches.forEach(function (person) {
     filterOut = false;
     let thisTR = $("a[href$='" + person.WTID + "']").closest("tr");
-    if (person.BirthYear.match("s")) {
-      personYear3 = person.BirthYear.substring(0, 3);
-      newPersonYear3 = newPerson.BirthYear.substring(0, 3);
-      if (
-        parseInt(newPersonYear3 - 1) > parseInt(personYear3) ||
-        parseInt(newPersonYear3 + 1) < parseInt(personYear3)
-      ) {
-      } else {
+    console.log(person.BirthYear);
+    if (person.BirthYear) {
+      if (person.BirthYear.match("s")) {
+        personYear3 = person.BirthYear.substring(0, 3);
+        newPersonYear3 = newPerson.BirthYear.substring(0, 3);
+        if (
+          parseInt(newPersonYear3 - 1) > parseInt(personYear3) ||
+          parseInt(newPersonYear3 + 1) < parseInt(personYear3)
+        ) {
+        } else {
+          filterOut = true;
+        }
+      } else if (parseInt(person.BirthYear) != parseInt(newPerson.BirthYear)) {
         filterOut = true;
       }
-    } else if (parseInt(person.BirthYear) != parseInt(newPerson.BirthYear)) {
-      filterOut = true;
-    }
-    if (filterOut == true) {
+      if (filterOut == true) {
+        thisTR.addClass("dateFiltered");
+      }
+    } else {
       thisTR.addClass("dateFiltered");
     }
   });
@@ -161,16 +211,9 @@ async function initSuggestedMatchesFilters() {
     relatives[0]?.BirthLocation,
     relatives[0]?.DeathLocation,
     $("#mBirthLocation").val(),
-    $("#mDeatthLocation").val(),
+    $("#mDeathLocation").val(),
   ];
-  const newPerson = {};
-  newPerson.locations = [];
-  newPerson.FirstName = $("#mFirstName").val().trim();
-  newPerson.BirthDate = $("#mBirthDate").val().trim();
-  newPerson.BirthYear = newPerson.BirthDate.match(/[0-9]{4}/);
-  if (newPerson.BirthYear) {
-    newPerson.BirthYear = newPerson.BirthYear[0];
-  }
+
   let birthDeath = ["Birth", "Death"];
   birthDeath.forEach(function (bd) {
     $("#m" + bd + "Location")
@@ -227,7 +270,15 @@ async function initSuggestedMatchesFilters() {
         aMatch.DeathYear = dateMatch[0].trim();
       }
     }
-    aLocation = aText[0].split(/[0-9]{4}s?/)[1].trim();
+    let aLocation = "";
+    let aLocationSplit;
+    if (aText[0]) {
+      aLocationSplit = aText[0].split(/[0-9]{4}s?/);
+      if (aLocationSplit[1]) {
+        aLocation = aLocationSplit[1].trim();
+      }
+    }
+
     dateMatch = aText[0].match(/.*([0-9]{4})s?/);
     if (dateMatch) {
       aMatch.BirthDate = dateMatch[0];
