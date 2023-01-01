@@ -43,7 +43,6 @@ function addNewPersonToH1() {
     " - " +
     newPerson.DeathYear +
     ")";
-  console.log(newPerson);
   $("#newPersonSummary").remove();
   $("h1").append($("<span id='newPersonSummary'>&rarr; " + newPerson.summary + "</span>"));
 }
@@ -173,7 +172,6 @@ function dateFilter(level, newPerson) {
   suggestedMatches.forEach(function (person) {
     filterOut = false;
     let thisTR = $("a[href$='" + person.WTID + "']").closest("tr");
-    console.log(person.BirthYear);
     if (person.BirthYear) {
       if (person.BirthYear.match("s")) {
         personYear3 = person.BirthYear.substring(0, 3);
