@@ -33,10 +33,10 @@ function addNewPersonToH1() {
     newPerson.FirstName +
     " " +
     (newPerson.MiddleName ? newPerson.MiddleName + " " : "") +
-    (newPerson.LastNameCurrent && newPerson.LastNameCurrent != newPerson.LastNameAtBirth
+    (isOK(newPerson.LastNameCurrent) && newPerson.LastNameCurrent != newPerson.LastNameAtBirth
       ? "(" + newPerson.LastNameAtBirth + ") " + ""
       : "") +
-    newPerson.LastNameCurrent +
+    (isOK(newPerson.LastNameCurrent) ? newPerson.LastNameCurrent : newPerson.LastNameAtBirth) +
     " " +
     "(" +
     newPerson.BirthYear +
