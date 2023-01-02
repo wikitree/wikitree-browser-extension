@@ -98,7 +98,7 @@ checkIfFeatureEnabled("dnaTable").then((result) => {
   }
 });
 
-async function getPeople(keys, siblings, ancestors, descendants, nuclear, minGeneration, fields) {
+export async function getPeople(keys, siblings, ancestors, descendants, nuclear, minGeneration, fields) {
   try {
     const result = await $.ajax({
       url: "https://api.wikitree.com/api.php",

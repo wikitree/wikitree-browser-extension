@@ -3,6 +3,7 @@ import "./suggested_matches_filters.css";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { getRelatives } from "wikitree-js";
 import { isOK } from "../../core/common";
+import { getPeople } from "../dna_table/dna_table";
 
 const newPerson = {};
 
@@ -145,9 +146,28 @@ function locationFilter(person, filteredLocations, newPerson) {
     }
   });
 }
-
-function nameFilter(level) {
+const peopleIDs = [];
+async function nameFilter(level) {
+  let peopleData;
+  if (peopleIDs.length == 0) {
+    suggestedMatches.forEach(function (person) {
+      if (person.WTID) {
+        peopleIDs.push(person.WTID);
+      }
+    });
+    const keys = peopleIDs.join(",");
+    peopleData = await getPeople(keys, 0, 0, 0, 0, 0, "LastNameAtBirth,LastNameCurrent,FirstName,MiddleName");
+  }
   suggestedMatches.forEach(function (person) {
+    let thisPerson, thisPersonID;
+    if (peopleData) {
+      thisPersonID = peopleData[0].resultByKey[person.WTID.replaceAll(/_/g, " ")].Id;
+      thisPerson = peopleData[0].people[thisPersonID];
+      person.LastNameAtBirth = thisPerson.LastNameAtBirth;
+      person.LastNameCurrent = thisPerson.LastNameCurrent;
+      person.FirstName = thisPerson.FirstName;
+      person.MiddleName = thisPerson.MiddleName;
+    }
     let thisTR = $("a[href$='" + person.WTID + "']").closest("tr");
     if ($("#mStatus_MiddleName_blank").prop("checked") == true) {
       if (person.MiddleName) {
@@ -160,7 +180,10 @@ function nameFilter(level) {
       if (person.FirstName != $("#mFirstName").val().trim()) {
         thisTR.addClass("nameFiltered");
       }
-      if (person.LastName != $("#mLastNameAtBirth").val().trim()) {
+      if (person.LastNameAtBirth != $("#mLastNameAtBirth").val().trim()) {
+        thisTR.addClass("nameFiltered");
+      }
+      if (isOK($("#mLastNameCurrent").val()) && person.LastNameCurrent != $("#mLastNameCurrent").val()) {
         thisTR.addClass("nameFiltered");
       }
     }
@@ -168,14 +191,26 @@ function nameFilter(level) {
 }
 
 function dateFilter(level, newPerson) {
+  let yearsOut;
+  if (level == 1) {
+    yearsOut = 2;
+  }
+  if (level == 2) {
+    yearsOut = 1;
+  }
+  if (level == 3) {
+    yearsOut = 0;
+  }
   let personYear3, newPersonYear3, filterOut;
   suggestedMatches.forEach(function (person) {
     filterOut = false;
     let thisTR = $("a[href$='" + person.WTID + "']").closest("tr");
     if (person.BirthYear) {
+      console.log(person, newPerson);
       if (person.BirthYear.match("s")) {
         personYear3 = person.BirthYear.substring(0, 3);
         newPersonYear3 = newPerson.BirthYear.substring(0, 3);
+
         if (
           parseInt(newPersonYear3 - 1) > parseInt(personYear3) ||
           parseInt(newPersonYear3 + 1) < parseInt(personYear3)
@@ -183,9 +218,13 @@ function dateFilter(level, newPerson) {
         } else {
           filterOut = true;
         }
-      } else if (parseInt(person.BirthYear) != parseInt(newPerson.BirthYear)) {
+      } else if (
+        parseInt(person.BirthYear) > parseInt(newPerson.BirthYear) + yearsOut ||
+        parseInt(person.BirthYear) < parseInt(newPerson.BirthYear) - yearsOut
+      ) {
         filterOut = true;
       }
+      console.log(yearsOut, person.BirthYear, newPerson.BirthYear);
       if (filterOut == true) {
         thisTR.addClass("dateFiltered");
       }
@@ -325,14 +364,20 @@ async function initSuggestedMatchesFilters() {
 
   $("#dateFilterButton").on("click", function (e) {
     e.preventDefault();
-    if ($(this).attr("data-level") == "1") {
+    if ($(this).attr("data-level") == "3") {
       $(".dateFiltered").removeClass("dateFiltered");
       $(this).attr("data-level", "0");
       $(this).text("date");
     } else {
-      $(this).attr("data-level", "1");
-      $(this).text("date ✓");
-      dateFilter(1, newPerson);
+      let nextLevel;
+      if ($(this).attr("data-level") == undefined) {
+        nextLevel = 1;
+      } else {
+        nextLevel = parseInt($(this).attr("data-level")) + 1;
+      }
+      $(this).attr("data-level", nextLevel);
+      $(this).text("date " + nextLevel);
+      dateFilter(nextLevel, newPerson);
     }
   });
 
@@ -340,7 +385,6 @@ async function initSuggestedMatchesFilters() {
     if (person.locations.length == 0) {
       getLocations(person.WTID).then((oLocations) => {
         person.locations = oLocations;
-
         let thisTD = $("a[href$='" + person.WTID + "']").closest("td");
         let locationWords = person.locations.join(", ");
         if (person.locations.length) {
