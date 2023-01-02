@@ -168,7 +168,7 @@ async function nameFilter(level) {
       person.FirstName = thisPerson.FirstName;
       person.MiddleName = thisPerson.MiddleName;
     }
-    let thisTR = $("a[href$='" + person.WTID + "']").closest("tr");
+    let thisTR = $(`a[href\$="${person.WTID}"]`).closest("tr");
     if ($("#mStatus_MiddleName_blank").prop("checked") == true) {
       if (person.MiddleName) {
         thisTR.addClass("nameFiltered");
