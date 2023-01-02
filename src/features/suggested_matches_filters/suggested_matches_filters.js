@@ -117,7 +117,7 @@ function addUSVariants(person) {
 }
 
 function locationFilter(person, filteredLocations, newPerson) {
-  let thisTR = $("a[href$='" + person.WTID + "']").closest("tr");
+  let thisTR = $(`a[href\$="${person.WTID}"]`).closest("tr");
   let matchCount = 0;
   person.locations.forEach(function (aLocation) {
     if (filteredLocations.includes(aLocation)) {
@@ -204,7 +204,7 @@ function dateFilter(level, newPerson) {
   let personYear3, newPersonYear3, filterOut;
   suggestedMatches.forEach(function (person) {
     filterOut = false;
-    let thisTR = $("a[href$='" + person.WTID + "']").closest("tr");
+    let thisTR = $(`a[href\$="${person.WTID}"]`).closest("tr");
     if (person.BirthYear) {
       if (person.BirthYear.match("s")) {
         personYear3 = person.BirthYear.substring(0, 3);
@@ -383,7 +383,7 @@ async function initSuggestedMatchesFilters() {
     if (person.locations.length == 0) {
       getLocations(person.WTID).then((oLocations) => {
         person.locations = oLocations;
-        let thisTD = $("a[href$='" + person.WTID + "']").closest("td");
+        let thisTD = $(`a[href\$="${person.WTID}"]`).closest("td");
         let locationWords = person.locations.join(", ");
         if (person.locations.length) {
           thisTD.append("<div>Family location words: " + locationWords + "</div>");
