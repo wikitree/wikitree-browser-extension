@@ -51,17 +51,20 @@ function addNewPersonToH1() {
 checkIfFeatureEnabled("suggestedMatchesFilters").then((result) => {
   if (result && $("body.page-Special_EditFamilySteps")) {
     $("#enterBasicDataButton").on("click", function () {
-      checkReady();
+      setTimeout(function () {
+        checkReady();
+      }, 1000);
       addNewPersonToH1();
     });
   }
 });
-
+var checked = 0;
 function checkReady() {
   if ($("#potentialMatchesSection table").length) {
     initSuggestedMatchesFilters();
-  } else {
+  } else if (checked < 10) {
     setTimeout(function () {
+      checked++;
       checkReady();
     }, 1000);
   }
