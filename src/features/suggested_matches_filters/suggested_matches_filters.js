@@ -206,7 +206,6 @@ function dateFilter(level, newPerson) {
     filterOut = false;
     let thisTR = $("a[href$='" + person.WTID + "']").closest("tr");
     if (person.BirthYear) {
-      console.log(person, newPerson);
       if (person.BirthYear.match("s")) {
         personYear3 = person.BirthYear.substring(0, 3);
         newPersonYear3 = newPerson.BirthYear.substring(0, 3);
@@ -224,7 +223,6 @@ function dateFilter(level, newPerson) {
       ) {
         filterOut = true;
       }
-      console.log(yearsOut, person.BirthYear, newPerson.BirthYear);
       if (filterOut == true) {
         thisTR.addClass("dateFiltered");
       }
