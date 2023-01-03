@@ -837,7 +837,7 @@ function selectCIB(data) {
     data +
     "</label><br>" +
     '<label for="flt1">Filter: </label><input type="text" class="cbFilter" id="flt1" name="flt1" data-op="onDlgSelectCIBFlt" data-id="9" autofocus>' +
-    '<label id="cntr">no matches</label><br>' +
+    '<label id="cntr">enter word(s) to find</label><br>' +
     '<div style="min-width: 600px;overflow-y:auto;height: 400px;"><table style="width: 100%;" id="tb">' +
     "</table></div>" +
     '<div style="text-align:right">' +
@@ -859,71 +859,75 @@ function onDlgSelectCIBFlt() {
   var s0 = tb.elDlg.querySelector("#cb1").value;
   var s1 = tb.elDlg.querySelector("#flt1").value;
 
-  // Retrieve categories
-  cntr.innerHTML = "Retrieving...";
-  wtAPICatCIBSearch("CIBPicker", s0, s1)
-    .then((jsonData) => {
-      let c = jsonData.response.categories;
-      if (!c) {
-        c = [];
-      }
-      switch (c.length) {
-        case 0:
-          cntr.innerHTML = "no matches";
-          break;
-        case 1:
-          cntr.innerHTML = c.length + " match";
-          break;
-        case 100:
-          cntr.innerHTML = "more than 100 matches";
-          break;
-        default:
-          cntr.innerHTML = c.length + " matches";
-      }
-      lb.innerHTML = c
-        .map(
-          (item) =>
-            "<tr>" +
-            `<td><a target="_blank" href="https://www.wikitree.com/wiki/Category:${
-              item.category
-            }"><img src="${chrome.runtime.getURL("images/newTab.png")}"'></a></td>` +
-            '<td class="tdSelect" data-op="onDlgSelectCIBTrSel" title="' +
-            (item.name ? "&#10;Name: " + item.name : "") +
-            (item.aka ? "&#10;aka:&#10;&nbsp;&nbsp;" + item.aka.replaceAll(";", "&#10;&nbsp;&nbsp;") : "") +
-            (item.parent ? "&#10;Parent: " + item.parent : "") +
-            (item.gParent ? "&#10;&nbsp;&nbsp;" + item.gParent : "") +
-            (item.ggParent ? "&#10;&nbsp;&nbsp;&nbsp;&nbsp;" + item.ggParent : "") +
-            (item.gggParent ? "&#10;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + item.gggParent : "") +
-            (item.parent1 ? "&#10;Parent 1: " + item.parent1 : "") +
-            (item.gParent1 ? "&#10;&nbsp;&nbsp;" + item.gParent1 : "") +
-            (item.parent2 ? "&#10;Parent 2: " + item.parent2 : "") +
-            (item.gParent2 ? "&#10;&nbsp;&nbsp;" + item.gParent2 : "") +
-            (item.location ? "&#10;Location: " + item.location : "") +
-            (item.locationParent ? "&#10;&nbsp;&nbsp;" + item.locationParent : "") +
-            (item.location1 ? "&#10;Location 1: " + item.location1 : "") +
-            (item.location1Parent ? "&#10;&nbsp;&nbsp;" + item.location1Parent : "") +
-            (item.succ1prev ? "&#10;Succession: " + item.succ1prev : "") +
-            (item.succ1next ? "&#10;&nbsp;" + item.succ1next : "") +
-            (item.succ1prev1 ? "&#10;Succession: " + item.succ1prev1 : "") +
-            (item.succ1next1 ? "&#10;&nbsp;" + item.succ1next1 : "") +
-            (item.succ1prev2 ? "&#10;Succession: " + item.succ1prev2 : "") +
-            (item.succ1next2 ? "&#10;&nbsp;" + item.succ1next2 : "") +
-            (item.succ1prev3 ? "&#10;Succession: " + item.succ1prev3 : "") +
-            (item.succ1next3 ? "&#10;&nbsp;" + item.succ1next3 : "") +
-            (item.succ2prev ? "&#10;Succession: " + item.succ2prev : "") +
-            (item.succ2next ? "&#10;&nbsp;" + item.succ2next : "") +
-            (item.other ? "&#10;Other:&#10;&nbsp;&nbsp;" + item.other.replaceAll(";", "&#10;&nbsp;&nbsp;") : "") +
-            '">' +
-            item.category +
-            "</td>" +
-            "</tr>"
-        )
-        .join("\n");
-      attachEvents("td.tdSelect", "click");
-    })
-    .catch((error) => {
-      lb.innerHTML = '<tr><td style="color:red">Error in WikiTree+ server' + error + "</td></tr>";
-    });
+  if (s1.length < 3) {
+    cntr.innerHTML = "enter word(s) to find"
+  } else {
+    // Retrieve categories
+    cntr.innerHTML = "Retrieving...";
+    wtAPICatCIBSearch("CIBPicker", s0, s1)
+      .then((jsonData) => {
+        let c = jsonData.response.categories;
+        if (!c) {
+          c = [];
+        }
+        switch (c.length) {
+          case 0:
+            cntr.innerHTML = "no matches";
+            break;
+          case 1:
+            cntr.innerHTML = c.length + " match";
+            break;
+          case 100:
+            cntr.innerHTML = "more than 100 matches";
+            break;
+          default:
+            cntr.innerHTML = c.length + " matches";
+        }
+        lb.innerHTML = c
+          .map(
+            (item) =>
+              "<tr>" +
+              `<td><a target="_blank" href="https://www.wikitree.com/wiki/Category:${
+                item.category
+              }"><img src="${chrome.runtime.getURL("images/newTab.png")}"'></a></td>` +
+              '<td class="tdSelect" data-op="onDlgSelectCIBTrSel" title="' +
+              (item.name ? "&#10;Name: " + item.name : "") +
+              (item.aka ? "&#10;aka:&#10;&nbsp;&nbsp;" + item.aka.replaceAll(";", "&#10;&nbsp;&nbsp;") : "") +
+              (item.parent ? "&#10;Parent: " + item.parent : "") +
+              (item.gParent ? "&#10;&nbsp;&nbsp;" + item.gParent : "") +
+              (item.ggParent ? "&#10;&nbsp;&nbsp;&nbsp;&nbsp;" + item.ggParent : "") +
+              (item.gggParent ? "&#10;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + item.gggParent : "") +
+              (item.parent1 ? "&#10;Parent 1: " + item.parent1 : "") +
+              (item.gParent1 ? "&#10;&nbsp;&nbsp;" + item.gParent1 : "") +
+              (item.parent2 ? "&#10;Parent 2: " + item.parent2 : "") +
+              (item.gParent2 ? "&#10;&nbsp;&nbsp;" + item.gParent2 : "") +
+              (item.location ? "&#10;Location: " + item.location : "") +
+              (item.locationParent ? "&#10;&nbsp;&nbsp;" + item.locationParent : "") +
+              (item.location1 ? "&#10;Location 1: " + item.location1 : "") +
+              (item.location1Parent ? "&#10;&nbsp;&nbsp;" + item.location1Parent : "") +
+              (item.succ1prev ? "&#10;Succession: " + item.succ1prev : "") +
+              (item.succ1next ? "&#10;&nbsp;" + item.succ1next : "") +
+              (item.succ1prev1 ? "&#10;Succession: " + item.succ1prev1 : "") +
+              (item.succ1next1 ? "&#10;&nbsp;" + item.succ1next1 : "") +
+              (item.succ1prev2 ? "&#10;Succession: " + item.succ1prev2 : "") +
+              (item.succ1next2 ? "&#10;&nbsp;" + item.succ1next2 : "") +
+              (item.succ1prev3 ? "&#10;Succession: " + item.succ1prev3 : "") +
+              (item.succ1next3 ? "&#10;&nbsp;" + item.succ1next3 : "") +
+              (item.succ2prev ? "&#10;Succession: " + item.succ2prev : "") +
+              (item.succ2next ? "&#10;&nbsp;" + item.succ2next : "") +
+              (item.other ? "&#10;Other:&#10;&nbsp;&nbsp;" + item.other.replaceAll(";", "&#10;&nbsp;&nbsp;") : "") +
+              '">' +
+              item.category +
+              "</td>" +
+              "</tr>"
+          )
+          .join("\n");
+        attachEvents("td.tdSelect", "click");
+      })
+      .catch((error) => {
+        lb.innerHTML = '<tr><td style="color:red">Error in WikiTree+ server' + error + "</td></tr>";
+      });
+  }
 }
 
 function onDlgSelectCIBTrSel(td) {
