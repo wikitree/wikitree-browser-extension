@@ -1,41 +1,47 @@
 {
-	"name": "WikiTree Browser Extension (Preview)",
-	"description": "The official WikiTree browser extension.",
-	"version": "1.1.8.2",
-	"manifest_version": 2,
-	"options_ui": {
-		"page": "options.html",
-		"open_in_tab": true
-	},
-	"permissions": [ "https://www.wikitree.com/*", "https://api.wikitree.com/*", "https://wikitree.sdms.si/*","https://wikitreebee.com/*", "storage" ],
-	"content_scripts": [
-		{
-			"matches": [ "https://www.wikitree.com/*" ],
-			"js": [ "js/vendor.js", "js/content.js" ]
-		}
-	],
-	"background": {
-		"scripts": [ "background.js" ]
-	},
-	"web_accessible_resources": [
-		"images/*",
-		"features/wtPlus/templatesExp.json",
-		"features/darkMode/darkMode.css",
-		"js/*.js"
-	],
-	"icons": {
-		"128": "images/we128.png"
-	},
-	"browser_specific_settings": {
-		"gecko": {
-			"id": "info@wikitree.com"
-		}
-	},
-	"browser_action": {
-		"default_icon": {	
-			"128": "images/we128.png"
-		},
-		"default_title": "WikiTree Browser Extension",
-		"default_popup": "options.html" 
-	}
+  "name": "WikiTree Browser Extension (Preview)",
+  "description": "The official WikiTree browser extension.",
+  "version": "1.2.0.0",
+  "manifest_version": 2,
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "permissions": [
+    "https://www.wikitree.com/*",
+    "https://api.wikitree.com/*",
+    "https://wikitree.sdms.si/*",
+    "https://wikitreebee.com/*",
+    "storage"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://www.wikitree.com/*"],
+      "js": ["js/vendor.js", "js/content.js"]
+    }
+  ],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "web_accessible_resources": [
+    "images/*",
+    "features/wtPlus/templatesExp.json",
+    "features/darkMode/darkMode.css",
+    "js/*.js"
+  ],
+  "icons": {
+    "128": "images/we128.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "info@wikitree.com"
+    }
+  },
+  "browser_action": {
+    "default_icon": {
+      "128": "images/we128.png"
+    },
+    "default_title": "WikiTree Browser Extension",
+    "default_popup": "options.html"
+  }
 }
