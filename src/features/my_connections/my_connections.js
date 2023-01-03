@@ -821,8 +821,8 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
                     "'>"
                 ).insertBefore(thisLink);
               } else {
-                let oSpouses = Object.keys(mPerson.Spouses);
-                if (oSpouses) {
+                if (mPerson.Spouses) {
+                  let oSpouses = Object.keys(mPerson.Spouses);
                   missingSpouseCell = "<td class='missingPersonCell'>" + oSpouses.length + "</td>";
                 }
               }
@@ -1410,10 +1410,13 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
           let dataMissingFather = "data-missing-father='" + dataMissingFatherNumber + "' ";
           let dataMissingMotherNumber = mPerson.Father == 0 ? 0 : 1;
           let dataMissingMother = "data-missing-mother='" + dataMissingMotherNumber + "' ";
-          let dataMissingSpouseNumber =
-            mPerson.Spouses.length == 0 && mPerson.DataStatus.Spouse != "Blank" && deathAge > 12
-              ? 100
-              : Object.keys(mPerson.Spouses).length;
+          let dataMissingSpouseNumber;
+          if (mPerson.Spouses) {
+            dataMissingSpouseNumber =
+              mPerson.Spouses.length == 0 && mPerson.DataStatus.Spouse != "Blank" && deathAge > 12
+                ? 100
+                : Object.keys(mPerson.Spouses).length;
+          }
           let dataMissingSpouse = "data-missing-spouse='" + dataMissingSpouseNumber + "' ";
           let dataMissingChildrenNumber =
             mPerson.Children.length == 0 && deathAge > 12 ? 100 : Object.keys(mPerson.Children).length;
