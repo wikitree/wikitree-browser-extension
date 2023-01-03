@@ -39,6 +39,7 @@ import "./features/sort_theme_people/sort_theme_people";
 import "./features/sourcepreview/sourcepreview";
 import "./features/spacepreview/spacepreview";
 import "./features/sticky_toolbar/sticky_toolbar";
+import "./features/suggested_matches_filters/suggested_matches_filters";
 import "./features/verifyID/verifyID";
 import "./features/what_links_here/what_links_here";
 import "./features/wtPlus/wtPlus";

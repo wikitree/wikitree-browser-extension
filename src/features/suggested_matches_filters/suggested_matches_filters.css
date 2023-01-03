@@ -1,0 +1,8 @@
+#potentialMatchesSection tr.locationFiltered,
+#potentialMatchesSection tr.nameFiltered,
+#potentialMatchesSection tr.dateFiltered {
+  display: none;
+}
+#filterButtons {
+  float: right;
+}
