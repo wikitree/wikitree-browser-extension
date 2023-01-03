@@ -196,12 +196,9 @@ async function nameFilter(level) {
 function dateFilter(level, newPerson) {
   let yearsOut;
   if (level == 1) {
-    yearsOut = 2;
-  }
-  if (level == 2) {
     yearsOut = 1;
   }
-  if (level == 3) {
+  if (level == 2) {
     yearsOut = 0;
   }
   let personYear3, newPersonYear3, filterOut;
@@ -365,7 +362,7 @@ async function initSuggestedMatchesFilters() {
 
   $("#dateFilterButton").on("click", function (e) {
     e.preventDefault();
-    if ($(this).attr("data-level") == "3") {
+    if ($(this).attr("data-level") == "2") {
       $(".dateFiltered").removeClass("dateFiltered");
       $(this).attr("data-level", "0");
       $(this).text("date");
