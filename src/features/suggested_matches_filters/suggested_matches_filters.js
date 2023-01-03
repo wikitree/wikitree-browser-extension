@@ -368,10 +368,10 @@ async function initSuggestedMatchesFilters() {
       $(this).text("date");
     } else {
       let nextLevel;
-      if ($(this).attr("data-level") == undefined) {
-        nextLevel = 1;
+      if ($(this).attr("data-level") == "1") {
+        nextLevel = 2;
       } else {
-        nextLevel = parseInt($(this).attr("data-level")) + 1;
+        nextLevel = 1;
       }
       $(this).attr("data-level", nextLevel);
       $(this).text("date " + nextLevel);
