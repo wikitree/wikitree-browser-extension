@@ -79,9 +79,7 @@ function addLoginButton() {
     dataType: "JSON",
     success: function (data) {
       if (data) {
-        console.log(data);
         if (data?.clientLogin?.result == "error") {
-          console.log("Not logged in");
           let loginButton = $(
             "<button title='Log in to the apps server for better Missing Connections results' class='small button' id='myConnectionsLoginButton'>Apps Login</button>"
           );
