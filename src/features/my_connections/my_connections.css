@@ -26,10 +26,16 @@ body.page-Special_MyConnections .degreeCount td {
 }
 
 button.myConnectionsMoreButton.small,
-button.myConnectionsTableButton.small {
+button.myConnectionsTableButton.small,
+button#myConnectionsLoginButton {
   margin-left: 2em;
   padding: 0.5em;
   font-size: 0.5em;
+}
+button#myConnectionsLoginButton {
+  margin: 0 0 0.5em 0.5em;
+  position: relative;
+  top: -0.3em;
 }
 
 button.myConnectionsMoreButton.small.hidden,
