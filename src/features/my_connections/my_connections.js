@@ -3,6 +3,7 @@ import "./my_connections.css";
 import "jquery-ui/ui/widgets/draggable";
 import { getAge } from "../change_family_lists/change_family_lists";
 import { isOK, htmlEntities, extractRelatives } from "../../core/common";
+import Cookies from "js-cookie";
 import { ymdFix, showFamilySheet, getOffset, peopleToTable, displayName } from "../familyGroup/familyGroup";
 import { ancestorType } from "../distanceAndRelationship/distanceAndRelationship";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
@@ -67,14 +68,41 @@ const USstatesObjArray = [
   { name: "Wisconsin", abbreviation: "WI" },
   { name: "Wyoming", abbreviation: "WY" },
 ];
+
+function addLoginButton() {
+  let userID = Cookies.get("wikitree_wtb_UserID");
+  $.ajax({
+    url: "https://api.wikitree.com/api.php?action=clientLogin&checkLogin=" + userID,
+    crossDomain: true,
+    xhrFields: { withCredentials: true },
+    type: "POST",
+    dataType: "JSON",
+    success: function (data) {
+      if (data) {
+        if (data?.clientLogin?.result == "error") {
+          let loginButton = $(
+            "<button title='Log in to the apps server for better Missing Connections results' class='small button' id='myConnectionsLoginButton'>Apps Login</button>"
+          );
+          loginButton.appendTo($("span[title^='This is your Connection Count']"));
+          loginButton.on("click", function (e) {
+            e.preventDefault();
+            window.location =
+              "https://api.wikitree.com/api.php?action=clientLogin&returnURL=" + encodeURI(window.location.href);
+          });
+        }
+      }
+    },
+  });
+}
+
 checkIfFeatureEnabled("myConnections").then((result) => {
   if (
     result &&
     $("body.page-Special_MyConnections").length &&
     $("#gen0").length &&
-    window.doingMyConnections == undefined &&
-    $("body.beeMyConnections").length == 0
+    window.doingMyConnections == undefined
   ) {
+    addLoginButton();
     $("body").addClass("wbeMyConnections");
     window.doingMyConnections = true;
     myConnections();
@@ -239,21 +267,7 @@ async function myConnectionsMore() {
       completedText = " Completed";
       disabled = "disabled";
     }
-    /*
-    if ($(this).attr("id") != "gen0" && $(this).find(".myConnectionsMoreButton").length == 0) {
-      let myConnectionsMoreButton = $(
-        "<button " +
-          disabled +
-          " class='myConnectionsMoreButton " +
-          classy +
-          " " +
-          visibility +
-          " small'>Missing Connections" +
-          completedText +
-          "</button>"
-      );
-      $(this).append(myConnectionsMoreButton);
-    }*/
+
     if ($(this).attr("id") != "gen0" && dOL.find("li").length < 701) {
       if ($(this).find(".myConnectionsTableButton").length == 0) {
         let myConnectionsTableButton = $(
@@ -1418,8 +1432,11 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
                 : Object.keys(mPerson.Spouses).length;
           }
           let dataMissingSpouse = "data-missing-spouse='" + dataMissingSpouseNumber + "' ";
-          let dataMissingChildrenNumber =
-            mPerson.Children.length == 0 && deathAge > 12 ? 100 : Object.keys(mPerson.Children).length;
+          let dataMissingChildrenNumber;
+          if (mPerson.Children) {
+            dataMissingChildrenNumber =
+              mPerson.Children.length == 0 && deathAge > 12 ? 100 : Object.keys(mPerson.Children).length;
+          }
           let dataMissingChildren = "data-missing-children='" + dataMissingChildrenNumber + "' ";
 
           let aLine = $(
