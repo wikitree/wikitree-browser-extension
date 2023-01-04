@@ -269,21 +269,7 @@ async function myConnectionsMore() {
       completedText = " Completed";
       disabled = "disabled";
     }
-    /*
-    if ($(this).attr("id") != "gen0" && $(this).find(".myConnectionsMoreButton").length == 0) {
-      let myConnectionsMoreButton = $(
-        "<button " +
-          disabled +
-          " class='myConnectionsMoreButton " +
-          classy +
-          " " +
-          visibility +
-          " small'>Missing Connections" +
-          completedText +
-          "</button>"
-      );
-      $(this).append(myConnectionsMoreButton);
-    }*/
+
     if ($(this).attr("id") != "gen0" && dOL.find("li").length < 701) {
       if ($(this).find(".myConnectionsTableButton").length == 0) {
         let myConnectionsTableButton = $(
