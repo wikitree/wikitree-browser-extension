@@ -1180,31 +1180,31 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
           let privacyLevel = mPerson.Privacy;
           let privacy = "";
           let privacyTitle = "";
-          if (privacyLevel == "60") {
+          if (privacyLevel == 60) {
             privacy = chrome.runtime.getURL("images/privacy_open.png");
             privacyTitle = "Open";
           }
-          if ((privacyLevel = "50")) {
+          if (privacyLevel == 50) {
             privacy = chrome.runtime.getURL("images/privacy_public.png");
             privacyTitle = "Public";
           }
-          if (privacyLevel == "40") {
+          if (privacyLevel == 40) {
             privacy = chrome.runtime.getURL("images/privacy_public-tree.png");
             privacyTitle = "Private with Public Bio and Tree";
           }
-          if (privacyLevel == "35") {
+          if (privacyLevel == 35) {
             privacy = chrome.runtime.getURL("images/privacy_privacy35.png");
             privacyTitle = "Private with Public Tree";
           }
-          if (privacyLevel == "30") {
+          if (privacyLevel == 30) {
             privacy = chrome.runtime.getURL("images/privacy_public-bio.png");
             privacyTitle = "Public Bio";
           }
-          if (privacyLevel == "20") {
+          if (privacyLevel == 20) {
             privacy = chrome.runtime.getURL("images/privacy_private.png");
             privacyTitle = "Private";
           }
-          if (privacyLevel == "10" || privacyLevel == undefined) {
+          if (privacyLevel == 10 || privacyLevel == undefined) {
             privacy = chrome.runtime.getURL("images/unlisted.png");
             privacyTitle = "Unlisted";
           }
