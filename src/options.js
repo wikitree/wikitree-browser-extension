@@ -332,6 +332,8 @@ $("h2 input").change(function () {
 });
 
 // Switch at the top to toggle every switch
+
+/*
 $("h1").append(
   $(`<div class="feature-toggle">
 <label class="switch">
@@ -348,6 +350,7 @@ $("h1 input").change(function () {
   }
   $("input[type='checkbox']").prop("checked", oSwitch);
 });
+*/
 
 // Auto save the options on click (on 'change' would create lots of events when a big switch is clicked)
 // The short delay is for the changes to happen after the click
