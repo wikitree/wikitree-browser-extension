@@ -70,6 +70,29 @@ const USstatesObjArray = [
 ];
 
 function addLoginButton() {
+  let x = window.location.href.split("?");
+  if (x[1]) {
+    let queryParams = new URLSearchParams(x[1]);
+    if (queryParams.get("authcode")) {
+      let authcode = queryParams.get("authcode");
+      $.ajax({
+        url: "https://api.wikitree.com/api.php",
+        crossDomain: true,
+        xhrFields: { withCredentials: true },
+        type: "POST",
+        dataType: "JSON",
+        data: { action: "clientLogin", authcode: authcode },
+        success: function (data) {
+          if (data) {
+            if (data.clientLogin.result == "Success") {
+              $("#myConnectionsLoginButton").hide();
+            }
+          }
+        },
+      });
+    }
+  }
+
   let userID = Cookies.get("wikitree_wtb_UserID");
   $.ajax({
     url: "https://api.wikitree.com/api.php?action=clientLogin&checkLogin=" + userID,
@@ -87,7 +110,8 @@ function addLoginButton() {
           loginButton.on("click", function (e) {
             e.preventDefault();
             window.location =
-              "https://api.wikitree.com/api.php?action=clientLogin&returnURL=" + encodeURI(window.location.href);
+              "https://api.wikitree.com/api.php?action=clientLogin&returnURL=" +
+              encodeURI(window.location.href.split("?")[0]);
           });
         }
       }
@@ -299,7 +323,9 @@ async function myConnectionsMore() {
         } else {
           wTableButton = $("#" + aList + "_table").prev();
         }
-        wTableButton.fadeOut();
+        if (wTableButton[0].tagName == "BUTTON") {
+          wTableButton.fadeOut();
+        }
 
         $(this).removeClass("beenClicked").text("Show Missing Connections Table");
       } else if ($("#" + $(this).parent().attr("id") + "_table").length) {
@@ -974,15 +1000,18 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
             if (mLiClass == "BULLET50") {
               mPerson.Privacy = 50;
             }
-            mPerson.LongName = theLink.text();
+            mPerson.LongName = theLink
+              .text()
+              .replace(/\bJr.?\b|\bSr.?\b|\bPhD\b|\b[A-Z]{2,}\b$/, "")
+              .trim();
             let nameSplit = mPerson.LongName.split(" ");
-            mPerson.LastNameAtBirth = nameSplit.at(-1);
+            mPerson.LastNameCurrent = nameSplit.at(-1);
             if (mPerson.LongName.match(/\(.*?\)/) != null) {
-              mPerson.LastNameCurrent = mPerson.LongName.match(/\(.*?\)/)[0].replaceAll(/[()]/g, "");
+              mPerson.LastNameAtBirth = mPerson.LongName.match(/\(.*?\)/)[0].replaceAll(/[()]/g, "");
             } else {
-              mPerson.LastNameCurrent = mPerson.LastNameAtBirth;
+              mPerson.LastNameAtBirth = mPerson.LastNameCurrent;
             }
-            mPerson.FirstName = mPerson.LongName.replace(mPerson.LastNameAtBirth, "")
+            mPerson.FirstName = mPerson.LongName.replace(mPerson.LastNameCurrent, "")
               .replace(/\(.*?\) /, "")
               .trim();
           }
@@ -1151,15 +1180,15 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
           let privacyLevel = mPerson.Privacy;
           let privacy = "";
           let privacyTitle = "";
-          if (mPerson.Privacy_IsOpen == true || privacyLevel == "60") {
+          if (privacyLevel == "60") {
             privacy = chrome.runtime.getURL("images/privacy_open.png");
             privacyTitle = "Open";
           }
-          if (mPerson.Privacy_IsPublic == true) {
+          if ((privacyLevel = "50")) {
             privacy = chrome.runtime.getURL("images/privacy_public.png");
             privacyTitle = "Public";
           }
-          if (mPerson.Privacy_IsSemiPrivate == true || privacyLevel == "40") {
+          if (privacyLevel == "40") {
             privacy = chrome.runtime.getURL("images/privacy_public-tree.png");
             privacyTitle = "Private with Public Bio and Tree";
           }
@@ -1167,7 +1196,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
             privacy = chrome.runtime.getURL("images/privacy_privacy35.png");
             privacyTitle = "Private with Public Tree";
           }
-          if (mPerson.Privacy_IsSemiPrivateBio == true || privacyLevel == "30") {
+          if (privacyLevel == "30") {
             privacy = chrome.runtime.getURL("images/privacy_public-bio.png");
             privacyTitle = "Public Bio";
           }
@@ -1999,7 +2028,7 @@ async function myConnections() {
   setTimeout(function () {
     myConnectionsCount();
   }, 1000);
-  $(".wrapper h3 + ol").each(function (index) {
+  $(".wrapper ol").each(function (index) {
     $(this).attr("id", "gen" + index + "_list");
   });
   myConnectionsMore();

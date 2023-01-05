@@ -1449,7 +1449,7 @@ async function addMarriageAges() {
                 spBit = "; " + spBit;
               }
             }
-            $(".spouseDetails a[href$='" + aSp.Name.replaceAll(/\s/g, "_") + "']")
+            $(`.spouseDetails a[href\$="${aSp.Name.replaceAll(/\s/g, "_")}"]`)
               .closest("div")
               .append($("<span class='marriageAges'>" + bpBit + spBit + "</span>"));
           }
