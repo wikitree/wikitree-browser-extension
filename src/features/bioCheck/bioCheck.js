@@ -20,14 +20,13 @@ checkIfFeatureEnabled("bioCheck").then((result) => {
     // theSourceRules are an immutable singleton
 
     // Look at the type of page and take appropriate action
-
     if (document.body.classList.contains("page-Special_EditPerson")) {
       checkBio();
 
       let saveDraftButton = document.getElementById("wpSaveDraft");
       if (saveDraftButton) {
         saveDraftButton.onclick = function () {
-        checkBio();
+          checkBio();
         };
         saveDraftButton.addEventListener("mouseover", checkBioAtInterval);
         saveDraftButton.addEventListener("touchstart", checkBioAtInterval);
@@ -39,20 +38,24 @@ checkIfFeatureEnabled("bioCheck").then((result) => {
         setInterval(checkBioAtInterval, 60000);
       }
     } else {
-      if (document.body.classList.contains("page-Special_EditFamily")) {
-        
-        if(document.getElementById('mSources')) {
+      
+      let saveButton = null;
+      if (document.getElementById("mSources")) {
+        if (document.body.classList.contains("page-Special_EditFamily")) {
           // Find the save button. For Add Person there is just one
           // For adding a relative there are two, and you want the second
           let buttonElements = document.querySelectorAll("[id='wpSave']");
-          let saveButton = buttonElements[buttonElements.length - 1];
-          // check on save or if or something might be about to happen
-          saveButton.onclick = function () {
-            checkSources();
-          };
+          saveButton = buttonElements[buttonElements.length - 1];
+        } else {  // look for BETA add page
+          if (document.body.classList.contains("page-Special_EditFamilySteps")) {
+            saveButton = document.getElementById('addNewPersonButton');
+          }
+        }
+        if (saveButton) {
+          // listening to the save button click seemed to interfere with
+          // the actual save, so it was removed
           saveButton.addEventListener("mouseover", checkSourcesAtInterval);
           saveButton.addEventListener("touchstart", checkSourcesAtInterval);
-
           setInterval(checkSourcesAtInterval, 30000);
         }
       } else {
@@ -77,7 +80,6 @@ function checkSourcesAtInterval() {
  *
  * Copied the following files into features/bioCheck:
  *   Biography.js
- *   BiographyResults.js
  *   PersonDate.js
  *   SourceRules.js
  *
@@ -104,26 +106,26 @@ function checkBio() {
   );
   // status true if appears sourced and no style issues, else false
   let bioStatus = biography.validate();
-  // now report from biography.bioResults
+  // now report from biography results
 
   let profileReportLines = [];
   let profileStatus = "Profile appears to have sources.";
-  if (biography.bioResults.stats.bioIsMarkedUnsourced) {
+  if (biography.isMarkedUnsourced()) {
     profileStatus = "Profile is marked unsourced.";
   } else {
-    if (!biography.bioResults.sources.sourcesFound) {
+    if (!biography.hasSources()) {
       profileStatus = "Profile may be unsourced.";
     }
   }
   profileReportLines.push(profileStatus);
 
-  if (biography.bioResults.stats.bioIsEmpty) {
+  if (biography.isEmpty()) {
     profileStatus = "Profile is empty";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.misplacedLineCount > 0) {
-    profileStatus = "Profile has " + biography.bioResults.style.misplacedLineCount;
-    if (biography.bioResults.style.misplacedLineCount === 1) {
+  if (biography.getMisplacedLineCount() > 0) {
+    profileStatus = "Profile has " + biography.getMisplacedLineCount();
+    if (biography.getMisplacedLineCount() === 1) {
       profileStatus += " line";
     } else {
       profileStatus += " lines";
@@ -131,61 +133,61 @@ function checkBio() {
     profileStatus += " between Sources and <references />";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.hasEndlessComment) {
+  if (biography.hasEndlessComment()) {
     profileStatus = "Profile has comment with no end";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioHasRefWithoutEnd) {
+  if (biography.hasRefWithoutEnd()) {
     profileStatus = "Profile has inline <ref> with no ending </ref>";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioHasSpanWithoutEndingSpan) {
+  if (biography.hasSpanWithoutEndingSpan()) {
     profileStatus = "Profile has span with no ending span";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioIsMissingBiographyHeading) {
+  if (biography.isMissingBiographyHeading()) {
     profileStatus = "Profile is missing Biography heading";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioHasMultipleBioHeadings) {
+  if (biography.hasMultipleBioHeadings()) {
     profileStatus = "Profile has more than one Biography heading";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioHeadingWithNoLinesFollowing) {
+  if (biography.hasHeadingWithNoLinesFollowing()) {
     profileStatus = "Profile has empty  Biography section";
     profileReportLines.push(profileStatus);
   }
   let sourcesHeading = [];
-  if (biography.bioResults.style.bioIsMissingSourcesHeading) {
+  if (biography.isMissingSourcesHeading()) {
     profileStatus = "Profile is missing Sources heading";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioHasMultipleSourceHeadings) {
+  if (biography.hasMultipleSourceHeadings()) {
     profileStatus = "Profile has more than one Sources heading";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.sourcesHeadingHasExtraEqual) {
+  if (biography.sourcesHeadingHasExtraEqual()) {
     profileStatus = "Profile Sources heading has extra =";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioIsMissingReferencesTag) {
+  if (biography.isMissingReferencesTag()) {
     profileStatus = "Profile is missing <references />";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioHasMultipleReferencesTags) {
+  if (biography.hasMultipleReferencesTags()) {
     profileStatus = "Profile has more than one <references />";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioHasRefAfterReferences) {
+  if (biography.hasRefAfterReferences()) {
     profileStatus = "Profile has inline <ref> tag after <references >";
     profileReportLines.push(profileStatus);
   }
   let acknowledgements = [];
-  if (biography.bioResults.style.acknowledgementsHeadingHasExtraEqual) {
+  if (biography.acknowledgementsHeadingHasExtraEqual()) {
     profileStatus = "Profile Acknowledgements has extra =";
     profileReportLines.push(profileStatus);
   }
-  if (biography.bioResults.style.bioHasAcknowledgementsBeforeSources) {
+  if (biography.hasAcknowledgementsBeforeSources()) {
     profileStatus = "Profile has Acknowledgements before Sources heading";
     profileReportLines.push(profileStatus);
   }
@@ -249,8 +251,8 @@ function checkSources() {
     isPre1700,
     thePerson.mustBeOpen()
   );
-  // now report from biography.bioResults
-  reportSources(biography.bioResults.sources.invalidSource, isPre1700);
+  // now report from biography results
+  reportSources(biography.getInvalidSources(), isPre1700);
 
   // TODO
   // Figure out what to do when the user has a profile with no sources
@@ -272,6 +274,8 @@ function reportSources(invalidSourceLines, isPre1700) {
   if (!bioCheckSourcesContainer && numLines > 0) {
     bioCheckSourcesContainer = document.createElement("div");
     bioCheckSourcesContainer.setAttribute("id", "bioCheckSourcesContainer");
+    let br = document.createElement('br');
+    bioCheckSourcesContainer.appendChild(br);
     // status class is too much, a big yellow box
     // bioCheckSourcesContainer.setAttribute('class', 'status');
     bioCheckTitle = document.createElement("b");
@@ -299,10 +303,19 @@ function reportSources(invalidSourceLines, isPre1700) {
     } else {
       bioCheckSourcesContainer.appendChild(bioSourcesList);
       // Add the message before the save button
-      let buttonElements = document.querySelectorAll("[id='wpSave']");
-      let saveButton = buttonElements[buttonElements.length - 1];
-      let saveParent = saveButton.parentElement;
-      saveParent.insertBefore(bioCheckSourcesContainer, saveButton);
+      // or after the Sources table in the BETA version
+      let saveButton = document.getElementById('addNewPersonButton');
+      if (!saveButton) {
+        let buttonElements = document.querySelectorAll("[id='wpSave']");
+        saveButton = buttonElements[buttonElements.length - 1];
+        let saveParent = saveButton.parentElement;
+        saveParent.insertBefore(bioCheckSourcesContainer, saveButton);
+      }
+      let lastContainer = document.getElementById("sourcesTable");
+      if (!lastContainer) {
+        lastContainer = document.getElementById('mSources');
+      }
+      lastContainer.after(bioCheckSourcesContainer);
     }
   } else {
     if (previousSources != null) {

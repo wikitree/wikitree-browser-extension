@@ -1,5 +1,5 @@
 {
-	"version": "2022-10-27T16:16:20Z",
+	"version": "2022-12-30T12:39:43Z",
 "cleanup": [{
 	"description": "prettifying inline citation tags",
 	"actions": [{
@@ -607,7 +607,7 @@
 		"type": "Category Templates",
 		"group": "Categories",
 		"subgroup": "Categories Maintenance",
-		"help": "This template is used pm categories to indicate that profiles should not be attached to it. Usage of this template also drives suggestion reports for categories.",
+		"help": "This template is used on categories to indicate that profiles should not be attached to it. Usage of this template also drives suggestion reports for categories.",
 		"prop": [
 			{"name": "lang", "type": "typeText", "usage": "Optional", "values": ["af", "cs", "da", "de", "fr"], "help": "Language to display the template in", "example": "fr"}
 		]
@@ -1313,7 +1313,7 @@
 		"help": "To link to a shared document on Ancestry.",
 		"prop": [
 			{"name": "", "type": "typeNumber", "usage": "Required", "numbered": 1, "help": "The first number in the URL of the link, e.g.: <nowiki>https://www.ancestry.com/sharing/</nowiki>'''25304603'''?h=8b8bd6or or <nowiki>https://www.ancestry.com/sharing/</nowiki>'''130047'''?token=fueo0lzU7uYSbCYEezUKuLpE313y4cK2VdcT3PD9vG0%3D.", "example": "25304603", "validation": "num:5-8"},
-			{"name": "", "type": "typetext", "usage": "Required", "numbered": 2, "help": "The string after \"h=\" or \"?token=\" in the URL of the link, e.g.: <nowiki>https://www.ancestry.com/sharing/</nowiki>25304603?h='''8b8bd6''' or <nowiki>https://www.ancestry.com/sharing/</nowiki>130047?token='''fueo0lzU7uYSbCYEezUKuLpE313y4cK2VdcT3PD9vG0%3D'''.", "example": "8b8bd6", "validation": "hex:5-46"}
+			{"name": "", "type": "typetext", "usage": "Required", "numbered": 2, "help": "The string after \"h=\" or \"?token=\" in the URL of the link, e.g.: <nowiki>https://www.ancestry.com/sharing/</nowiki>25304603?h='''8b8bd6''' or <nowiki>https://www.ancestry.com/sharing/</nowiki>130047?token='''fueo0lzU7uYSbCYEezUKuLpE313y4cK2VdcT3PD9vG0%3D'''.", "example": "8b8bd6", "validation": "hex:5-64"}
 		]
 	},{
 		"name": "Ancestry Tree",
@@ -1478,7 +1478,7 @@
 			{"name": "video code", "type": "typeYouTube", "usage": "Required", "numbered": 1, "help": "Video code of the video.  usually v parameter in URL '?v=1lgIQmGPAd4'", "example": "1lgIQmGPAd4"},
 			{"name": "link name", "type": "typeText", "usage": "Preferred", "numbered": 2, "help": "Text to display on link", "example": "Check this video"},
 			{"name": "start", "type": "typeNumber", "usage": "Optional", "numbered": 3, "help": "Time of where to start the video. It is in seconds from the beginning of the video.", "example": "97"},
-			{"name": "playlist", "type": "typeText", "usage": "Optional", "values": ["DD"], "help": "Name of the playlist to display", "example": "DD", "validation": "list"}
+			{"name": "playlist", "type": "typeText", "usage": "Optional", "values": ["DD", "USBH"], "help": "Name of the playlist to display", "example": "DD", "validation": "list"}
 		]
 	},{
 		"name": "ODMP",
@@ -2283,7 +2283,8 @@
 			{"name": "example", "type": "typeText", "usage": "Optional", "help": "Example of the parameter.", "group": "parameter"},
 			{"name": "values", "type": "typeText", "usage": "Optional", "help": "predefined values of the parameter.", "group": "parameter"},
 			{"name": "group", "type": "typeText", "usage": "Optional", "help": "Name of the parameter group", "group": "parameter"},
-			{"name": "initial", "type": "typeText", "usage": "Optional", "help": "RegEx expression defining initial value of the parameter.", "group": "parameter"}
+			{"name": "initial", "type": "typeText", "usage": "Optional", "help": "RegEx expression defining initial value of the parameter.", "group": "parameter"},
+			{"name": "validation", "type": "typeText", "usage": "Optional", "values": ["list", "num:4", "num:3-5", "hex:1-4", "hex:hh-hhh", "regex:^.*$"], "help": "Validation directive for suggestions.", "group": "parameter"}
 		]
 	},{
 		"name": "Documentation",
@@ -2515,6 +2516,23 @@
 		"prop": [
 		]
 	},{
+		"name": "Disputed Parents",
+		"type": "Profile Box",
+		"group": "Research note box",
+		"subgroup": "",
+		"help": "<nowiki>{{Disputed Parents}}</nowiki> is a Research Note Box for when there are disproven, disputed, or competing theories about a mother, father, or both parents that are common enough to warrant drawing the attention of anyone viewing the profile. When used, at least one disputed theory should be explained in or linked from a [[Help:Research Notes|Research Notes]] section.\nThe disputed parent(s) may or may not be connected. If they are connected, also use <nowiki>{{</nowiki>[[Template:Uncertain Family|Uncertain Family]]<nowiki>}}</nowiki>.\n'''See [[Help:Uncertain_Parents]] for more usage instructions.'''",
+		"prop": [
+			{"name": "1", "type": "typeText", "usage": "Optional", "numbered": 1, "values": ["father", "mother"], "help": "The disputed parent", "example": "father"}
+		]
+	},{
+		"name": "Disputed Spouse",
+		"type": "Profile Box",
+		"group": "Research note box",
+		"subgroup": "",
+		"help": "<nowiki>{{Disputed Spouse}}</nowiki> is a Research Note Box for when there are disproven, disputed, or competing theories about spouses that are common enough to warrant drawing the attention of anyone viewing the profile. When used, at least one disputed theory should be explained in or linked from a Research Notes section.\nThe disputed spouse may or may not be connected. If they are connected, also use <nowiki>{{</nowiki>[[Template:Uncertain Spouse|Uncertain Spouse]]<nowiki>}}</nowiki>.",
+		"prop": [
+		]
+	},{
 		"name": "Estimated Date",
 		"type": "Profile Box",
 		"group": "Research note box",
@@ -2570,7 +2588,7 @@
 		"type": "Profile Box",
 		"group": "Research note box",
 		"subgroup": "",
-		"help": "For use when a person's position in a family group is highly uncertain.",
+		"help": "For use when a person's current position in a family group is highly uncertain. If there are competing or disproven theories about the parents or spouse, also use <nowiki>{{</nowiki>[[Template:Disputed Parents|Disputed Parents]]<nowiki>}}</nowiki> or <nowiki>{{</nowiki>[[Template:Disputed Spouse|Disputed Spouse]]<nowiki>}}</nowiki>. '''See [[Help:Uncertain_Parents]] for more usage instructions.'''",
 		"prop": [
 			{"name": "1", "type": "typeText", "usage": "Optional", "numbered": 1, "help": "AutoGenerated", "example": "New York"},
 			{"name": "2", "type": "typeText", "usage": "Optional", "numbered": 2, "help": "AutoGenerated"}
@@ -2580,7 +2598,7 @@
 		"type": "Profile Box",
 		"group": "Research note box",
 		"subgroup": "",
-		"help": "For use on a profile of a person when a person's marriage to someone else is highly uncertain.",
+		"help": "For use when a connected spouse is highly uncertain. If there are competing or disproven theories about the spouse, also use <nowiki>{{</nowiki>[[Template:Disputed Spouse|Disputed Spouse]]<nowiki>}}</nowiki>.",
 		"prop": [
 			{"name": "1", "type": "typeText", "usage": "Optional", "numbered": 1, "help": "AutoGenerated", "example": "New York"},
 			{"name": "2", "type": "typeText", "usage": "Optional", "numbered": 2, "help": "AutoGenerated"}
@@ -2590,7 +2608,7 @@
 		"type": "Profile Box",
 		"group": "Research note box",
 		"subgroup": "",
-		"help": "for use on profiles without sources.",
+		"help": "<nowiki>{{Unsourced}}</nowiki> is a [[Research Note Boxes|Research Note Box]] for use on any profile with no [[Help:Sources|source citations]], or no source citations that clearly identify the source. See [[Help:Sources FAQ]] for more information on exactly when it should be used.",
 		"prop": [
 			{"name": "1", "type": "typeText", "usage": "Optional", "numbered": 1, "help": "AutoGenerated"},
 			{"name": "2", "type": "typeText", "usage": "Optional", "numbered": 2, "help": "AutoGenerated"}
@@ -2924,6 +2942,20 @@
 		"help": "This project box is used for profiles that are managed by the [[Project:Nantucket Founders and Descendants|Nantucket Founders and Descendants]] Subproject.",
 		"prop": [
 			{"name": "descendant", "type": "typeText", "usage": "Optional", "numbered": 1, "values": ["descendant"], "help": "Used when the profile represents a descendant of a founder", "example": "descendant", "validation": "list"}
+		]
+	},{
+		"name": "Religion Project",
+		"type": "Project Box",
+		"group": "Project",
+		"subgroup": "",
+		"help": "This template is used on profiles that are managed by the [[Project:Religion|Religion Project]], and should only be applied by members of the project. For a listing of religions images, see: [[Space:Religion_Images|Religion Images]].\nFor the general use religious sticker, see [[Template:Religion|Religion Sticker]].",
+		"prop": [
+			{"name": "religion", "type": "typeText", "usage": "Optional", "help": "Sets the religious affiliation for the Project Box.", "example": "Methodist"},
+			{"name": "image", "type": "typetext", "usage": "Optional", "help": "Sets the image for the Project Box.", "example": "Christian_Symbols-10.jpg"},
+			{"name": "category", "type": "typeCategory", "usage": "Optional", "help": "Name of the category you want profiles using this project box to go in.", "example": "Methodist Ministers"},
+			{"name": "needs", "type": "typeProjectNeedsCategory", "usage": "Optional", "help": "Sets [[Help:Project Needs", "example": "Research"},
+			{"name": "needs1", "type": "typeProjectNeedsCategory", "usage": "Optional", "help": "Sets [[Help:Project Needs", "example": "Biography"},
+			{"name": "needs2", "type": "typeProjectNeedsCategory", "usage": "Optional", "help": "Sets [[Help:Project Needs", "example": "PPP"}
 		]
 	},{
 		"name": "Remember the Children",
@@ -3476,17 +3508,6 @@
 			{"name": "needs", "type": "typeProjectNeedsCategory", "usage": "Optional", "help": "Not currently used by the project."},
 			{"name": "needs1", "type": "typeProjectNeedsCategory", "usage": "Optional", "help": "Not currently used by the project."},
 			{"name": "needs2", "type": "typeProjectNeedsCategory", "usage": "Optional", "help": "Not currently used by the project."}
-		]
-	},{
-		"name": "Mexican Roots",
-		"type": "Project Box",
-		"group": "Projects",
-		"subgroup": "",
-		"help": "",
-		"prop": [
-			{"name": "needs", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["PPP"], "help": "Sets Mexican Roots Project Needs ... category on the profile.", "example": "PPP"},
-			{"name": "needs1", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["PPP"], "help": "Sets Mexican Roots Project Needs ... category on the profile."},
-			{"name": "needs2", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["PPP"], "help": "Sets Mexican Roots Project Needs ... category on the profile."}
 		]
 	},{
 		"name": "Mexican-American War Project",
@@ -4063,10 +4084,21 @@
 		"subgroup": "",
 		"help": "This template is for use on profiles managed by the [[Project:US Southern Colonies|US Southern Colonies]] project. If it is displayed on a profile, the project account, [[WikiTree-24]], should be a manager or co-manager of the profile. If the profile does not need to be managed by the project, you can use the [[Template:US Southern Colonist Sticker|<nowiki>{{US Southern Colonist Sticker}}</nowiki>]].",
 		"prop": [
-			{"name": "1", "type": "typeText", "usage": "Preferred", "numbered": 1, "help": "AutoGenerated"},
-			{"name": "needs", "type": "typeProjectNeedsCategory", "usage": "Optional", "help": "Sets US Southern Colonist Project Needs ... category on the profile."},
-			{"name": "needs1", "type": "typeProjectNeedsCategory", "usage": "Optional", "help": "Sets US Southern Colonist Project Needs ... category on the profile."},
-			{"name": "needs2", "type": "typeProjectNeedsCategory", "usage": "Optional", "help": "Sets US Southern Colonist Project Needs ... category on the profile."}
+			{"name": "colony", "type": "typeText", "usage": "Required", "numbered": 1, "values": ["Carolina", "Georgia", "Maryland", "North Carolina", "South Carolina", "Virginia", "Jamestown"], "help": "Replaces [[:Category:US Southern Colonists]] with colony-specific category.", "example": "Maryland"},
+			{"name": "needs", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["Biography", "Extensive Work", "Location Research", "Merge Attention", "Project Attention", "Ref Tags", "Relationship Review", "Research", "Sources", "Style Review"], "help": "Adds \"US Southern Colonies Project Needs...\" category on the profile.", "example": "Biography"},
+			{"name": "needs1", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["Biography", "Extensive Work", "Location Research", "Merge Attention", "Project Attention", "Ref Tags", "Relationship Review", "Research", "Sources", "Style Review"], "help": "Adds \"US Southern Colonies Project Needs...\" category on the profile.", "example": "Relationship Review"},
+			{"name": "needs2", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["Biography", "Extensive Work", "Location Research", "Merge Attention", "Project Attention", "Ref Tags", "Relationship Review", "Research", "Sources", "Style Review"], "help": "Adds \"US Southern Colonies Project Needs...\" category on the profile.", "example": "Research"}
+		]
+	},{
+		"name": "US Southern Colonist Adjunct",
+		"type": "Project Box",
+		"group": "Projects",
+		"subgroup": "",
+		"help": "Adjunct: something joined or added to another thing but not essentially a part of it. [https://www.merriam-webster.com/dictionary/adjunct Merriam-Webster]<br><br>The US Southern Colonies Project has a particular interest in persons born or settled in the colonies of Maryland, Virginia, the Carolinas, and Georgia prior to 4 July 1776—referred to as US Southern Colonists by the project. Because of the large number of false, fraudulent, disproven and speculative origin theories found on the internet and in various published works, the US Southern Colonies Project may also project manage and protect profiles which do not strictly fall in the project scope. This is done to improve the accuracy and reliability of WikiTree. These profiles might include:\n*People who never immigrated to the US Southern Colonies but are commonly confused with someone who did.\n*People claimed as US Southern Colonists who have false, fraudulent, disproven and speculative origin theories.\n*People who are commonly associated with US Southern Colonists in error. For example, people disproved as parents of a US Southern Colonist.\n*People with speculative connections to US Southern Colonists where the evidence is not strong enough to attach them to the US Southern Colonist.",
+		"prop": [
+			{"name": "needs", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["Biography", "Extensive Work", "Location Research", "Merge Attention", "Project Attention", "Ref Tags", "Relationship Review", "Research", "Sources", "Style Review"], "help": "Adds \"US Southern Colonies Project Needs...\" category on the profile.", "example": "Biography"},
+			{"name": "needs1", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["Biography", "Extensive Work", "Location Research", "Merge Attention", "Project Attention", "Ref Tags", "Relationship Review", "Research", "Sources", "Style Review"], "help": "Adds \"US Southern Colonies Project Needs...\" category on the profile.", "example": "Relationship Review"},
+			{"name": "needs2", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["Biography", "Extensive Work", "Location Research", "Merge Attention", "Project Attention", "Ref Tags", "Relationship Review", "Research", "Sources", "Style Review"], "help": "Adds \"US Southern Colonies Project Needs...\" category on the profile.", "example": "Research"}
 		]
 	},{
 		"name": "US Vice President",
@@ -4586,6 +4618,18 @@
 		"prop": [
 		]
 	},{
+		"name": "Community Event",
+		"type": "Sticker",
+		"group": "Members",
+		"subgroup": "Internal",
+		"help": "This Sticker is used to display participation in various community events.",
+		"prop": [
+			{"name": "text", "type": "typeText", "usage": "Required", "help": "Custom wording to replace 'participated'", "example": "visited 2 nations"},
+			{"name": "event", "type": "typeText", "usage": "Required", "help": "Name of the Community Event", "example": "15 Nations Tour"},
+			{"name": "image", "type": "typeImage", "usage": "Optional", "help": "image to replace the default WikiTree logo", "example": "Flags-5.jpg"},
+			{"name": "imagetext", "type": "typeText", "usage": "Optional", "help": "wording shown when hovering over the image"}
+		]
+	},{
 		"name": "Connect-a-Thon",
 		"type": "Sticker",
 		"group": "Members",
@@ -4773,8 +4817,8 @@
 			{"name": "name", "type": "typeText", "usage": "Optional", "help": "Surname for the One Name Study Project", "example": "Peyton"},
 			{"name": "place", "type": "typeText", "usage": "Optional", "help": "Place name for the One Place Study Project", "example": "Peyton"},
 			{"name": "clan", "type": "typeSpace", "usage": "Optional", "help": "Clan space page for Scotland projects.", "example": "Clan Crawford"},
-			{"name": "team", "type": "typeTeam", "usage": "Optional", "help": "Adds a Team for members of projects coded to accept the parameter (currently Appalachia, US Southern Colonies Project, Wales Project, and Westward Ho Project).", "example": "Colony of Virginia Team"},
-			{"name": "lang", "type": "typeText", "usage": "Optional", "help": "Language to use for the sticker (if applicable)", "example": "de"}
+			{"name": "team", "type": "typeTeam", "usage": "Optional", "help": "Adds a Team for members of projects coded to accept the parameter (currently Appalachia, Poland, US Southern Colonies Project, Wales Project, and Westward Ho Project).", "example": "Colony of Virginia Team"},
+			{"name": "lang", "type": "typeText", "usage": "Optional", "values": ["de", "pl"], "help": "Language ([http://en.wikipedia.org/wiki/List_of_ISO_639-1_codes code]) to use for the sticker, if applicable.", "example": "de", "validation": "list"}
 		]
 	},{
 		"name": "Membre Portail Francophone",
@@ -5738,10 +5782,10 @@
 		"type": "Sticker",
 		"group": "National",
 		"subgroup": "UK",
-		"help": "This template is for all persons born in England. The sticker will automatically add the person's name. You can expand the sticker's usage by using the county parameter (see the table following the examples for values accepted for the county parameter). You can also add a second parameter, a more specific location, with one of those values (excluding the City of London). <br><br>Note that the England Sticker was reformatted in July 2020 from using the [[Template: UK Flag |UK Flag template]]. For someone born in the United Kingdom, Ireland, Scotland, or Wales (locations previously supported by this sticker), please see the stickers for [[Template:United Kingdom Sticker|United Kingdom]], [[Template: Ireland Native|Ireland Native]], [[Template: Scotland Sticker|Scotland]], and [[Template: Wales Sticker|Wales]] (respectively). For more UK flags, see the [[Space:UK Flags|UK Flags]] space page.",
+		"help": "This sticker is for all persons born in England. Use the parameters to specify where in England.",
 		"prop": [
-			{"name": "county", "type": "typeText", "usage": "Preferred", "numbered": 1, "values": ["City of London", "Bedfordshire", "Berkshire", "Buckinghamshire", "Cambridgeshire", "Cheshire", "Cornwall", "Cumberland", "Derbyshire", "Devon", "Dorset", "County Durham", "Essex", "Gloucestershire", "Hampshire", "Herefordshire", "Hertfordshire", "Huntingdonshire", "Kent", "Lancashire", "Leicestershire", "Lincolnshire", "Middlesex", "Norfolk", "Northamptonshire", "Northumberland", "Nottinghamshire", "Oxfordshire", "Rutland", "Shropshire", "Somerset", "Staffordshire", "Suffolk", "Surrey", "Sussex", "Warwickshire", "Westmorland", "Wiltshire", "Worcestershire", "Yorkshire"], "help": "Entering one of the values listed for the counties of England, and the City of London, will switch the text and image of the sticker.", "example": "City of London"},
-			{"name": "location", "type": "typeText", "usage": "Optional", "numbered": 2, "help": "Can only be used after one of the values listed for parameter 1 (excluding \"City of London\").", "example": "Essex{{!"}
+			{"name": "county", "type": "typeText", "usage": "Preferred", "numbered": 1, "values": ["Bristol", "City of London", "Bedfordshire", "Berkshire", "Buckinghamshire", "Cambridgeshire", "Cheshire", "Cornwall", "Cumberland", "Derbyshire", "Devon", "Dorset", "County Durham", "Essex", "Gloucestershire", "Hampshire", "Herefordshire", "Hertfordshire", "Huntingdonshire", "Kent", "Lancashire", "Leicestershire", "Lincolnshire", "Middlesex", "Norfolk", "Northamptonshire", "Northumberland", "Nottinghamshire", "Oxfordshire", "Rutland", "Shropshire", "Somerset", "Staffordshire", "Suffolk", "Surrey", "Sussex", "Warwickshire", "Westmorland", "Wiltshire", "Worcestershire", "Yorkshire"], "help": "Entering one of the values listed for the counties of England, Bristol, and the City of London will switch the text and image of the sticker.", "example": "City of London"},
+			{"name": "location", "type": "typeText", "usage": "Optional", "numbered": 2, "help": "Can only be used after one of the values listed for parameter 1 (excluding \"Bristol\" and \"City of London\").", "example": "Essex{{!"}
 		]
 	},{
 		"name": "English Ancestor Sticker",
@@ -6104,6 +6148,16 @@
 		"subgroup": "",
 		"help": "This template is for all persons born in Malta.",
 		"prop": [
+		]
+	},{
+		"name": "Maori Sticker",
+		"type": "Sticker",
+		"group": "National",
+		"subgroup": "New Zealand",
+		"help": "This Sticker is for identifying or recognizing individuals who were or are Maori.",
+		"prop": [
+			{"name": "living", "type": "typeYes", "usage": "Optional", "values": ["yes"], "help": "changes text (to \"is\")", "example": "yes", "validation": "list"},
+			{"name": "iwi", "type": "typetext", "usage": "Optional", "help": "Name of the Iwi", "example": "Ngapuhi"}
 		]
 	},{
 		"name": "Maryland Sticker",
@@ -6823,7 +6877,7 @@
 		"type": "Sticker",
 		"group": "Project",
 		"subgroup": "Appalachia",
-		"help": "This sticker can be placed on a profile that the [[Project:Appalachia|Appalachia Project]] watches over or which needs the project's help (use the appropriate \"needs\" parameter).<br><br>The [[Template:Appalachian Roots|Appalachian Roots]] sticker has \"born in\" and \"lived in\" (and \"lives in\") options.",
+		"help": "This sticker can be placed on a profile that the [[Project:Appalachia|Appalachia Project]] watches over or which needs the project's help (use the appropriate \"needs\" parameter). The [[Template:Appalachia Sticker|Appalachia Sticker]] sticker has \"born in\" and \"lived in\" (and \"lives in\") options. The [[Template: Appalachian Roots|Appalachian Roots]] sticker is for non-Appalachians.",
 		"prop": [
 			{"name": "living", "type": "typeText", "usage": "Optional", "values": ["yes"], "help": "Changes default verb tense in text (from \"was\" to \"is\"). Do not use this parameter if the verb tense does not need to be changed.", "example": "yes", "validation": "list"},
 			{"name": "needs", "type": "typeProjectNeedsCategory", "usage": "Optional", "values": ["Biography", "Research", "Sources"], "help": "Sets Appalachia Project Needs ... category on the profile.", "example": "Biography", "validation": "list"},
@@ -7255,8 +7309,8 @@
 		"subgroup": "Quakers",
 		"help": "Quakers Recognition Sticker managed by the Quakers Project",
 		"prop": [
-			{"name": "addinfo", "type": "typeText", "usage": "Optional", "values": ["researcher"], "help": "AutoGenerated", "example": "researcher"},
-			{"name": "living", "type": "typeText", "usage": "Optional", "values": ["y"], "help": "AutoGenerated", "example": "y", "validation": "list"},
+			{"name": "addinfo", "type": "typeText", "usage": "Optional", "help": "AutoGenerated", "example": "researcher"},
+			{"name": "living", "type": "typeText", "usage": "Optional", "values": ["y", "n"], "help": "AutoGenerated", "example": "y", "validation": "list"},
 			{"name": "location", "type": "typeText", "usage": "Deprecated", "help": "Parameter is no longer needed"}
 		]
 	},{

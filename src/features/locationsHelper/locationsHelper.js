@@ -1,14 +1,16 @@
 import $ from "jquery";
 import { extractRelatives, familyArray, getRelatives } from "../../core/common";
-import "./locationsHelper.css";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("locationsHelper").then((result) => {
   if (
     result &&
     $("body.BEE").length == 0 &&
-    ($("body.page-Special_EditPerson").length || $("body.page-Special_EditFamily").length)
+    ($("body.page-Special_EditPerson").length ||
+      $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length)
   ) {
+    import("./locationsHelper.css");
+
     function addRelArraysToPerson(zPerson) {
       const zSpouses = extractRelatives(zPerson.Spouses, "Spouse");
       zPerson.Spouse = zSpouses;
@@ -62,7 +64,7 @@ checkIfFeatureEnabled("locationsHelper").then((result) => {
 
     async function locationsHelper() {
       let theID;
-      if ($("body.page-Special_EditFamily").length) {
+      if ($("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
         theID = $("a.pureCssMenui0 span.person").text();
       } else {
         theID = $("a.pureCssMenui:Contains(Edit)").attr("href").split("u=")[1];

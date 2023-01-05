@@ -1,0 +1,9 @@
+#toolbar.sticky {
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 19;
+}
+body[class*="page-Space_"].stickyToolbar #wpSave.small {
+  margin-top: -2em !important;
+}

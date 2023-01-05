@@ -1,0 +1,17 @@
+#whatLinksHereLinks {
+  list-style: none;
+}
+#whatLinksHereLinks li:nth-child(n + 11) {
+  display: none;
+}
+#whatLinksHereLinks.showAll li:nth-child(n + 11) {
+  display: block;
+}
+#whatLinksHereMore {
+  display: none;
+  font-size: 0.5em;
+  margin-top: 0.5em;
+}
+#whatLinksHereMore {
+  float: right;
+}

@@ -6,7 +6,7 @@ checkIfFeatureEnabled("sPreviews").then((result) => {
         sourcePreview();
 
         function sourcePreview() {
-            if ($('.reference').length) { // and only if inline citations are found
+            if ($('.reference').length && $('.references').length) {
                 $('.reference').hover(function (e) { // jquery.hover() handlerIn (show sourcePreview)
                     var sourceID = this.id.replace('ref', 'note').replace(/(_[0-9]+$)/g, '');
                     var sPreview = document.createElement('div');
@@ -16,12 +16,11 @@ checkIfFeatureEnabled("sPreviews").then((result) => {
                     document.getElementById(this.id).appendChild(sPreview);
                     document.getElementById('sourcePreview').innerHTML = document.getElementById(sourceID).innerHTML;
                 },
-                    // jqeury.hover() handlerOut (remove sourcePreview)
-                    function () {
+                    function () { // jqeury.hover() handlerOut (remove sourcePreview)
                         $('#sourcePreview').remove();
                     }
                 )
-            }
+            } else {}
         }
         const targetNode = document.getElementById('previewbox');
         const config = { childList: true };

@@ -1,0 +1,313 @@
+body.page-Special_Connection .wideTableButton {
+  float: left;
+}
+
+body.page-Special_MyConnections #tree.waiting {
+  position: absolute;
+  height: 50px;
+  border-radius: 50%;
+  border: 2px solid forestgreen;
+}
+
+body.page-Special_MyConnections .degreeCount {
+  border-collapse: collapse;
+  border: 1px solid forestgreen;
+  margin: 1em;
+}
+
+body.page-Special_MyConnections .degreeCount th {
+  text-align: left;
+  padding: 0.5em 1em;
+}
+
+body.page-Special_MyConnections .degreeCount td {
+  padding: 0.5em 1em;
+  text-align: center;
+}
+
+button.myConnectionsMoreButton.small,
+button.myConnectionsTableButton.small,
+button#myConnectionsLoginButton {
+  margin-left: 2em;
+  padding: 0.5em;
+  font-size: 0.5em;
+}
+button#myConnectionsLoginButton {
+  margin: 0 0 0.5em 0.5em;
+  position: relative;
+  top: -0.3em;
+}
+
+button.myConnectionsMoreButton.small.hidden,
+button.myConnectionsTableButton.small.hidden {
+  visibility: hidden;
+}
+
+body.page-Special_Connection .tableContainer {
+  float: left;
+  width: 100%;
+}
+
+body.page-Special_MyConnections .tableContainer {
+  padding-left: 4em;
+}
+
+body.page-Special_MyConnections table.wt.names.compact.wide,
+body.page-Special_MyConnections .tableContainer table.wide {
+  white-space: nowrap;
+  table-layout: auto;
+}
+
+body.page-Special_MyConnections .peopleTable {
+  clear: both;
+}
+
+body.page-Special_MyConnections .peopleTable tr {
+  border: 1px solid gray;
+  border-radius: 0.5em;
+}
+
+body.page-Special_MyConnections .peopleTable td {
+  padding: 5px;
+}
+
+body.page-Special_MyConnections .peopleTable .aDate,
+body.page-Special_MyConnections .familySheet .aDate {
+  white-space: nowrap;
+}
+
+body.page-Special_MyConnections .peopleTable .aDate {
+  border-right: 2px solid white;
+  border-left: 2px solid white;
+}
+
+body.page-Special_MyConnections .peopleTable tbody .privacyImage {
+  float: right;
+  background-color: white;
+  border-radius: 1em;
+  border: 1px forestgreen solid;
+  display: block;
+  width: 1.5em;
+  height: 1.5em;
+  line-height: 1.5em;
+  font-weight: bold;
+  text-align: center;
+}
+
+body.page-Special_MyConnections .peopleTable tbody .privacyImage {
+  border: none;
+  position: relative;
+  float: right;
+}
+
+body.page-Special_MyConnections .peopleTable a:link,
+body.page-Special_MyConnections .peopleTable a:visited {
+  text-decoration: none;
+}
+
+button.myConnectionsMoreButton.small,
+button.myConnectionsTableButton.small {
+  margin-left: 2em;
+  padding: 0.5em;
+  font-size: 0.5em;
+}
+
+button.myConnectionsMoreButton.small.hidden,
+button.myConnectionsTableButton.small.hidden {
+  visibility: hidden;
+}
+
+body.page-Special_MyConnections img.missingPerson {
+  height: 15px;
+  width: 15px;
+  position: absolute;
+}
+
+body.page-Special_MyConnections img.myConnectionsNoFather {
+  left: -0.5em;
+  border-radius: 50%;
+  border: 2px solid blue;
+}
+
+body.page-Special_MyConnections img.myConnectionsNoMother {
+  left: 0.5em;
+  border-radius: 50%;
+  border: 2px solid pink;
+}
+
+body.page-Special_MyConnections img.myConnectionsNoSpouse {
+  left: 1.5em;
+}
+
+body.page-Special_MyConnections .peopleTable #created,
+body.page-Special_MyConnections .peopleTable #edited,
+body.page-Special_MyConnections .peopleTable td.created,
+body.page-Special_MyConnections .peopleTable td.edited {
+  display: none;
+}
+
+body.page-Special_MyConnections .peopleTable.wide #created,
+body.page-Special_MyConnections .peopleTable.wide #edited,
+body.page-Special_MyConnections .peopleTable.wide td.created,
+body.page-Special_MyConnections .peopleTable.wide td.edited {
+  display: table-cell;
+}
+
+body.page-Special_MyConnections .peopleTable tr.notable {
+  font-weight: bold;
+  border-top: 2px solid forestgreen;
+  border-bottom: 2px solid forestgreen;
+  border-right: 2px solid forestgreen;
+}
+
+body.page-Special_MyConnections .peopleTable caption {
+  font-weight: bold;
+  text-align: left;
+  font-size: 1.3em;
+}
+
+body.page-Special_MyConnections .peopleTable .Female,
+body.page-Special_MyConnections .Female {
+  background-color: #fff8f7;
+  border-left: 5px pink solid;
+}
+
+body.page-Special_MyConnections .peopleTable .Male,
+body.page-Special_MyConnections .Male {
+  background-color: #f4fefe;
+  border-left: 5px blue solid;
+}
+
+body.page-Special_MyConnections .peopleTable {
+  clear: both;
+}
+
+.peopleTable .aDate {
+  border-right: 2px solid white;
+  border-left: 2px solid white;
+}
+
+body.page-Special_MyConnections .peopleTable .aRelation {
+  display: none;
+  margin-bottom: 0.5em;
+}
+
+body.page-Special_MyConnections .peopleTable .gotRels {
+  background: #ffffe0;
+  cursor: pointer;
+}
+
+body.page-Special_MyConnections .peopleTable .gotRels.show .aRelation {
+  display: block;
+}
+
+body.page-Special_MyConnections .peopleTable th[id] {
+  cursor: pointer;
+}
+
+body.page-Special_MyConnections .peopleTable tr.main {
+  border: 5px solid forestgreen;
+  margin-bottom: 1em;
+  border-radius: 1em;
+}
+
+body.page-Special_MyConnections .peopleTable .familyHome {
+  height: 20px;
+  position: absolute;
+  left: -2em;
+  margin-top: -0.5em;
+  z-index: 500;
+  cursor: pointer;
+}
+
+body.page-Special_MyConnections .peopleTable .familyHome:hover {
+  background: gold;
+  border-radius: 50%;
+  box-shadow: 0.3em 0.3em 0.3em #ccc;
+}
+
+body.page-Special_MyConnections .peopleTable .familyHome:active {
+  box-shadow: 0.1em 0.1em 0.1em #ccc;
+  background: forestgreen;
+}
+
+body.page-Special_MyConnections .familySheet {
+  position: absolute;
+  white-space: nowrap;
+  background: white;
+  z-index: 2000;
+  border: 2px solid forestgreen;
+  border-radius: 1em;
+  box-shadow: 0.8em 0.8em 0.8em #ccc;
+  cursor: move;
+  padding: 1em;
+}
+
+body.page-Special_MyConnections .familySheet.wrap {
+  white-space: normal;
+}
+
+body.page-Special_MyConnections .familySheet .self {
+  font-weight: bold;
+}
+
+body.page-Special_MyConnections .familySheet td {
+  padding: 0.2em;
+}
+
+body.page-Special_MyConnections .familySheet thead,
+body.page-Special_MyConnections .peopleTable thead {
+  text-align: left;
+}
+
+body.page-Special_MyConnections #buttonBox {
+  position: fixed;
+  z-index: 5000;
+  top: 45%;
+  right: -0.5em;
+}
+
+body.page-Special_MyConnections #leftButton,
+body.page-Special_MyConnections #rightButton {
+  width: 30px;
+  padding: 0;
+  background: forestgreen;
+  border: 2px solid green;
+  box-shadow: 2px 2px 2px navy;
+  height: 50px;
+  display: block;
+  margin-top: 0.2em;
+}
+
+body.page-Special_MyConnections .familySheet x {
+  position: absolute;
+  top: 0;
+  right: 0.5em;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+body.page-Special_MyConnections td.connectionsName .privacyImage {
+  position: absolute;
+  left: -2em;
+}
+
+body.page-Special_MyConnections .peopleTable .privacyImage {
+  margin-top: 0.5em;
+}
+
+body.page-Special_MyConnections .tableContainer {
+  overflow-x: auto;
+}
+
+body.page-Special_MyConnections .familyTH,
+body.page-Special_MyConnections .familyTD {
+  display: none;
+}
+body.page-Special_MyConnections .missingPersonCell {
+  width: 0.5em;
+}
+body.page-Special_MyConnections .missingPersonZero {
+  background-color: white;
+  border: 1px solid forestgreen;
+}

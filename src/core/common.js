@@ -1,5 +1,4 @@
-import $ from "jquery";
-import { getPerson } from "wikitree-js";
+import $, { data } from "jquery";
 
 export let pageProfile = false;
 export let pageHelp = false;
@@ -249,27 +248,6 @@ export function htmlEntities(str) {
     .replaceAll(/'/g, "&apos;");
 }
 
-// Used in Random Profile and My Menu
-export function getRandomProfile() {
-  const randomProfileID = Math.floor(Math.random() * 36360449);
-  // check if exists
-  getPerson(randomProfileID)
-    .then((person) => {
-      // check to see if the profile is Open
-      if (person.Privacy_IsOpen) {
-        const link = `https://www.wikitree.com/wiki/${randomProfileID}`;
-        window.location = link;
-      } else {
-        // If it isn't open, find a new profile
-        getRandomProfile();
-      }
-    })
-    .catch((reason) => {
-      console.log(`getJSON request failed! ${reason}`);
-      getRandomProfile();
-    });
-}
-
 // Used in Draft List and My Menu
 export async function showDraftList() {
   if (localStorage.drafts) {
@@ -414,3 +392,69 @@ export async function updateDraftList() {
   }
   return true;
 }
+
+function strDate() {
+  var d = new Date();
+  var strD =
+    d.getFullYear() +
+    "-" +
+    ("0" + (d.getMonth() + 1)).slice(-2) +
+    "-" +
+    ("0" + d.getDate()).slice(-2) +
+    "_" +
+    ("0" + d.getHours()).slice(-2) +
+    ("0" + d.getMinutes()).slice(-2);
+  return strD;
+}
+
+chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+  sendResponse({ farewell: "goodbye" });
+  if (request.greeting == "backup") {
+    const backupObject = {};
+    backupObject.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
+    backupObject.myMenu = localStorage.customMenu;
+    backupObject.extraWatchlist = localStorage.extraWatchlist;
+    const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
+    clipboardDB.onsuccess = function (event) {
+      let cdb = clipboardDB.result;
+      let transaction = cdb.transaction(["Clipboard"]);
+      let req = transaction.objectStore("Clipboard").getAll();
+      req.onsuccess = function (event) {
+        backupObject.clipboard = JSON.stringify(req.result);
+        let link = document.createElement("a");
+        link.download = strDate() + "_WBE_backup.txt";
+        let blob = new Blob([JSON.stringify(backupObject)], { type: "text/plain" });
+        link.href = URL.createObjectURL(blob);
+        link.click();
+        URL.revokeObjectURL(link.href);
+      };
+    };
+  }
+  if (request.greeting == "restoreBackup") {
+    const data = request.data;
+    console.log(data);
+    if (data.changeSummaryOptions) {
+      localStorage.setItem("LSchangeSummaryOptions", data.changeSummaryOptions);
+    }
+    if (data.myMenu) {
+      localStorage.setItem("customMenu", data.myMenu);
+    }
+    if (data.extraWatchlist) {
+      localStorage.setItem("extraWatchlist", data.extraWatchlist);
+    }
+    if (data.clipboard) {
+      function addToDB(db, dbv, os, obj) {
+        const aDB = window.indexedDB.open(db, dbv);
+        aDB.onsuccess = function (event) {
+          let xdb = aDB.result;
+          let insert = xdb.transaction([os], "readwrite").objectStore(os).put(obj);
+        };
+      }
+      const clipboard = JSON.parse(data.clipboard);
+      clipboard.forEach(function (aClipping) {
+        addToDB("Clipboard", 1, "Clipboard", aClipping);
+      });
+    }
+    sendResponse("Thank you!");
+  }
+});

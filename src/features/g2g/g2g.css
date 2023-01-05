@@ -1,0 +1,124 @@
+/* G2G scissors */
+.qa-sidepanel {
+  position: relative;
+}
+
+#g2gScissors {
+  position: absolute;
+  top: 0;
+}
+
+.g2gPlus {
+  position: absolute;
+  margin-top: 1.1em;
+  margin-left: -0.7em;
+  font-weight: bold;
+  border-radius: 50%;
+  line-height: 0.7em;
+  color: forestgreen;
+}
+
+ul.qa-nav-cat-list a {
+  display: block;
+}
+
+ul.qa-nav-cat-list li {
+  position: relative;
+}
+
+body.qa-body-js-on menu.beeSubMenu#appsSubMenu {
+  background-color: transparent !important;
+}
+
+menu.beeSubMenu#appsSubMenu a:hover {
+  background-color: #ffe270 !important;
+}
+
+.qa-a-form .clipboardButtons {
+  position: absolute;
+  top: -1em;
+  display: inline-block;
+  margin-top: 0;
+}
+
+.clipboardButtons img.clipboardButton.button.small,
+.clipboardButtons img.notesButton.button.small {
+  height: 1em;
+  width: 1.2em;
+  display: inline-block;
+  margin-right: 0.1em;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+}
+
+.qa-header {
+  position: relative;
+}
+
+.qa-header .clipboardButtons {
+  z-index: 1000;
+  position: absolute;
+  top: 1em;
+  right: 1em;
+}
+
+body.qa-body-js-on .button.small {
+  padding: 7px 15px;
+  background: #25422d;
+  border: 0;
+  outline: none;
+  cursor: pointer;
+  text-align: center;
+  text-transform: uppercase;
+  border-radius: 5px;
+  color: #fff;
+  font-weight: normal;
+  text-decoration: none !important;
+  cursor: pointer;
+  line-height: normal;
+}
+
+body.qa-body-js-on .deleteClippingButton {
+  position: relative;
+  top: 0.5em;
+}
+
+ul.qa-nav-cat-list a {
+  display: block;
+}
+
+ul.qa-nav-cat-list li {
+  position: relative;
+}
+
+.backToTop {
+  float: right;
+  cursor: pointer;
+}
+
+input[name$="_docomment"].bigButton {
+  display: inline-block;
+  color: rgb(255, 255, 255);
+  font-weight: bold;
+  border-width: 1px;
+  border-style: solid;
+  border-color: rgb(0, 0, 0);
+  border-image: initial;
+  padding: 5px;
+  margin: 15px 1em;
+  background: rgb(37, 59, 47);
+  text-decoration: none;
+}
+
+input[name$="_docomment"][value="reply"].bigButton {
+  float: right;
+  margin: 0 0 0 1em;
+}
+
+html input[name="q_docomment"].bigButton {
+  float: left;
+}
+
+input[name$="_docomment"].bigButton:hover {
+  color: white;
+}

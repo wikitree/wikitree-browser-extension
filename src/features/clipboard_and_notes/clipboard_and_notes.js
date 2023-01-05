@@ -1,9 +1,25 @@
 import $ from "jquery";
-import "jquery-ui/ui/widgets/sortable"; // whatever we need
-import "jquery-ui/ui/widgets/draggable"; // whatever we need
-import { isOK, htmlEntities, getRandomProfile, showDraftList } from "../../core/common"; // again... What do we need?
+import "jquery-ui/ui/widgets/sortable";
+import "jquery-ui/ui/widgets/draggable";
 import "./clipboard_and_notes.css";
+import { htmlEntities } from "../../core/common";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+
+export function appendClipboardButtons(clipboardButtons = $()) {
+  if ($("h1:contains('Edit Marriage Information')").length) {
+    $("#header").append(clipboardButtons, $("span.theClipboardButtons"));
+  } else if ($("body.page-Special_EditPerson").length) {
+    if ($("#editToolbarExt").length) {
+      $("#editToolbarExt").append(clipboardButtons, $("span.theClipboardButtons"));
+    } else {
+      $("#toolbar").append(clipboardButtons, $("span.theClipboardButtons"));
+    }
+  } else if ($("body.page-Special_EditFamily").length) {
+    $("#mEmail").after(clipboardButtons, $("span.theClipboardButtons"));
+  } else {
+    $("#header,#HEADER").append(clipboardButtons, $("span.theClipboardButtons"));
+  }
+}
 
 checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
   if (result && $(".clipboardButtons").length == 0) {
@@ -16,14 +32,14 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
         if ($(".clipboardButtons").length == 0) {
           initClipboard();
         }
-      }, 4000);
+      }, 1000);
     } else {
       if ($(".clipboardButtons").length == 0) {
         initClipboard();
       }
     }
 
-    $("#mBioWithoutSources,#mSources,#wpTextbox1").on("mouseup", function () {
+    $("#mBioWithoutSources,#mSources,#wpTextbox1,#wpSummary,#privateMessage-comments").on("mouseup", function () {
       window.activeTextarea = document.activeElement.id;
     });
 
@@ -31,18 +47,6 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
       var textArea = document.createElement("textarea");
       textArea.innerHTML = text;
       return textArea.value;
-    }
-
-    function nl2br(str, replaceMode, isXhtml) {
-      var breakTag = isXhtml ? "<br />" : "<br>";
-      var replaceStr = replaceMode ? "$1" + breakTag : "$1" + breakTag + "$2";
-      return (str + "").replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, replaceStr);
-    }
-
-    function br2nl(str, replaceMode) {
-      var replaceStr = replaceMode ? "\n" : "";
-      // Includes <br>, <BR>, <br />, </br>
-      return str.replace(/<\s*\/?br\s*[\/]?>/gi, replaceStr).replaceAll(/&nbsp;&nbsp;&nbsp;/g, "\t");
     }
 
     function htmlEntitiesReverse(str) {
@@ -55,12 +59,10 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
     }
 
     function display2real(element) {
-      const brRegex = /<br\s*[\/]?>/gi;
-      return br2nl(htmlEntitiesReverse($(element).html().replace(brRegex, "\r")));
+      return htmlEntitiesReverse($(element).html());
     }
     function original2real(val) {
-      const brRegex = /<br\s*[\/]?>/gi;
-      return br2nl(htmlEntitiesReverse(val.replace(brRegex, "\n")));
+      return htmlEntitiesReverse(val);
     }
 
     function addClipping(type) {
@@ -73,14 +75,6 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
           .put({ type: type, text: $("#clippingBox").val() });
         clipboard(type, "add");
         $("#clippingBox").val("");
-      };
-    }
-
-    function addToDB(db, dbv, os, obj) {
-      const aDB = window.indexedDB.open(db, dbv);
-      aDB.onsuccess = function (event) {
-        let xdb = aDB.result;
-        let insert = xdb.transaction([os], "readwrite").objectStore(os).put(obj);
       };
     }
 
@@ -109,7 +103,6 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
 
     function copyClippingToClipboard(element) {
       const $temp = $("<textarea>");
-      const brRegex = /<br\s*[\/]?>/gi;
       $("body").append($temp);
       let theText = "";
       if (typeof element == "string") {
@@ -128,13 +121,15 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
         $("#mBioWithoutSources").length ||
         $("#photo_upload").length ||
         $("body.profile").length ||
-        $("body.qa-body-js-on").length
+        $("body.qa-body-js-on").length ||
+        $("h1:contains('Edit Marriage Information')").length
       ) {
         let box = window.activeTextarea;
-        console.log(window);
         let el = $();
         if ($("#photo_upload").length) {
           el = $("#wpUploadDescription");
+        } else if ($("h1:contains('Edit Marriage Information')").length) {
+          el = $("#wpSummary");
         } else if ($("#postNewCommentButton").css("display") == "none") {
           el = $("#commentPostText");
         } else if ($(".memoriesFormToggle").css("display") == "block") {
@@ -147,16 +142,18 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
           const dTextBox = $(lastPara);
           dTextBox.append(decodeHTMLEntities(theText));
           return;
+        } else if ($("#privateMessage-comments").length) {
+          el = $("#privateMessage-comments");
         } else {
           el = $("#" + box);
         }
+        if (el[0]) {
+          const selStart = el[0].selectionStart;
+          const partA = el.val().substr(0, selStart);
+          const partB = el.val().substr(selStart);
 
-        const selStart = el[0].selectionStart;
-        const partA = el.val().substr(0, selStart);
-        const partB = el.val().substr(selStart);
-
-        el.val(partA + decodeHTMLEntities(theText) + partB);
-        console.log("inserted");
+          el.val(partA + decodeHTMLEntities(theText) + partB);
+        }
       }
     }
 
@@ -185,7 +182,11 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
     }
 
     function placeClipboard(aClipboard) {
-      if ($("body.page-Special_EditPerson,body.page-Special_EditFamily").length) {
+      if ($("#privatemessage-modal").css("display") == "block") {
+        aClipboard.insertAfter($(".theClipboardButtons"));
+      } else if ($("h1:contains('Edit Marriage Information')").length) {
+        aClipboard.insertAfter($("#header"));
+      } else if ($("body.page-Special_EditPerson,body.page-Special_EditFamily").length) {
         aClipboard.insertAfter($("#toolbar,#mEmail"));
       } else if (window.clipboardClicker != undefined) {
         if (window.clipboardClicker.parent().hasClass("answerForm")) {
@@ -307,7 +308,6 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
                 $("#clipboard p").remove();
                 let index = $("#clipboard table tbody tr").length + 1;
                 let thisText = "";
-                thisText = nl2br(htmlEntities(value.text));
                 thisText = htmlEntities(value.text);
                 let oText = thisText;
                 if (type == "notes") {
@@ -409,7 +409,6 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
           });
         };
       };
-      //}
     }
 
     async function initClipboard() {
@@ -426,27 +425,35 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
       };
       clipboardReq.onsuccess = function (event) {
         let clipboardDB = event.target.result;
-        const clipboardButtons = $(
-          "<span class='theClipboardButtons'><img class='button small aClipboardButton'  src='" +
+        let clipboardButtons = $();
+        const clipboardButton = $(
+          "<img title='Clipboard' class='button small aClipboardButton'  src='" +
             chrome.runtime.getURL("images/clipboard.png") +
-            "'><img class='button small aNotesButton'  src='" +
-            chrome.runtime.getURL("images/notes.png") +
-            "'></span>"
+            "'>"
         );
-
-        if ($("body.page-Special_EditPerson").length && $(".theClipboardButtons").length == 0) {
-          $("#toolbar").append(clipboardButtons);
-        } else if ($("body.page-Special_EditFamily").length) {
-          $("#mEmail").after(clipboardButtons);
+        const notesButton = $(
+          "<img  title='Notes' class='button small aNotesButton'  src='" +
+            chrome.runtime.getURL("images/notes.png") +
+            "'>"
+        );
+        if ($("span.theClipboardButtons").length && $(".aClipboardButton").length == 0) {
+          $("span.theClipboardButtons").prepend(clipboardButton, notesButton);
         } else {
-          $("#header,#HEADER").append(clipboardButtons);
+          clipboardButtons = $(
+            "<span class='theClipboardButtons'><img title='Clipboard' class='button small aClipboardButton'  src='" +
+              chrome.runtime.getURL("images/clipboard.png") +
+              "'><img  title='Notes' class='button small aNotesButton'  src='" +
+              chrome.runtime.getURL("images/notes.png") +
+              "'></span>"
+          );
         }
+
+        appendClipboardButtons(clipboardButtons);
 
         let clipboardButtons2 = $(".theClipboardButtons").clone(true);
         $(".qa-a-form .qa-form-tall-table,.qa-c-form .qa-form-tall-table").before(clipboardButtons2);
         $("form[name='a_form'] .theClipboardButtons").addClass("answerForm");
         $(".qa-c-form .theClipboardButtons").addClass("commentForm");
-
         $("#toolbar + br").remove();
         $(".aClipboardButton").each(function () {
           $(this).on("click", function (e) {
@@ -494,6 +501,15 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
       clipboardReq.onerror = function (event) {
         console.log("error opening database " + event.target.errorCode);
       };
+
+      $(".privateMessageLink").on("click", function () {
+        setTimeout(function () {
+          $(".theClipboardButtons").insertAfter("#privateMessage-subject").css("float", "right");
+          $("#privatemessage-modal-close").on("click", function () {
+            $(".theClipboardButtons").appendTo($("#header"));
+          });
+        }, 1000);
+      });
     }
   }
 });

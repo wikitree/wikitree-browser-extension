@@ -34,10 +34,43 @@ body.darkMode div.CodeMirror span,
 body.darkMode div.qa-ask-box td.qa-form-tall-label,
 body.darkMode #awtSearch,
 body.darkMode #content header,
-body.darkMode #content main {
-  font-weight: 400;
+body.darkMode #content main,
+body.darkMode .googleSearch,
+html body.darkMode .qa-main .qa-q-item-title a:link,
+html body.darkMode .qa-main .qa-q-item-title a:visited,
+html body.darkMode .qa-main .qa-q-item-tags a:link,
+html body.darkMode .qa-main .qa-q-item-tags a:visited,
+html body.darkMode ul.pureCssMenu a:link,
+html body.darkMode ul.pureCssMenu a:visited,
+html body.darkMode ul.profile-tabs a:link,
+html body.darkMode ul.profile-tabs a:visited,
+html body.darkMode div#views-wrap a:link,
+html body.darkMode div#views-wrap a:visited,
+body.darkMode span[style^="color:#000000"],
+body.darkMode a[style*="color: rgb(0, 102, 0)"],
+body.darkMode ol[style*="color:#000000"],
+body.darkMode ul[style*="color:#000000"] {
   background-color: #36393f !important;
   color: #dcddde !important;
+}
+
+body.darkMode .qa-a-item-selected {
+  border-color: gold;
+}
+
+html body.darkMode .ten a:link,
+html body.darkMode .six a:link,
+html body.darkMode .sixteen a:link,
+html body.darkMode .five a:link,
+html body.darkMode .qa-main a:link {
+  color: #98fb98 !important;
+}
+html body.darkMode .ten a:visited,
+html body.darkMode .six a:visited,
+html body.darkMode .sixteen a:visited,
+html body.darkMode .five a:visited,
+html body.darkMode .qa-main a:visited {
+  color: #50c878 !important;
 }
 
 body.darkMode #yourRelationshipText,
@@ -84,7 +117,8 @@ body.darkMode ul.pureCssMenu ul li a:hover {
   background-color: navy !important;
 }
 body.darkMode .yourConnection,
-body.darkMode #yourConnection {
+body.darkMode #yourConnection,
+body.darkMode #familyGroupAppLink img.awtButton.appsButton {
   background: white !important;
 }
 
@@ -122,7 +156,9 @@ body.darkMode li.GREEN-ARROW {
   background-blend-mode: color;
 }
 body.darkMode div.qa-q-item-title a:link .checkmark,
-body.darkMode span.qa-q-item-meta a.qa-q-item-what:link .checkmark {
+body.darkMode span.qa-q-item-meta a.qa-q-item-what:link .checkmark,
+html body.darkMode a.yourConnection.relationshipButton:link,
+html body.darkMode a.yourConnection.relationshipButton:visited {
   color: #36393f !important;
 }
 body.darkMode div.qa-nav-main a:hover,
@@ -152,6 +188,16 @@ body.darkMode h1 span {
   padding: 3px;
   color: #dcddde;
 }
+
+/* Template:Green */
+body.darkMode span[style="color:#006800"] {
+  color: #98fb98 !important;
+}
+/* Template:Red */
+body.darkMode span[style="color:#b60000"] {
+  color: #ff7a7a !important;
+}
+
 body.darkMode h2 a#wt-id-link:link,
 body.darkMode h2 a#wt-id-link:visited {
   background-color: transparent !important;
@@ -215,6 +261,7 @@ body.darkMode form div.qa-q-list-item.qa-q-list-item-featured,
 body.darkMode #header {
   border: 2px solid #ffe183;
   padding: 2px;
+  padding-bottom: 14px;
 }
 
 body.darkMode #header input[name="wpSearch"] {
@@ -307,7 +354,7 @@ body.darkMode.page-Special_EditPerson div.five table tr:nth-child(1) div a:visit
 body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#eef;"],
 body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#eef;"] a:link,
 body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#eef;"] a:visited {
-  background-color: #1a237e !important;
+  background-color: #191970 !important;
 }
 body.darkMode.page-Special_EditPerson div.five table tr:nth-child(2) div,
 body.darkMode.page-Special_EditPerson div.five table tr:nth-child(2) div a:link,
@@ -315,5 +362,18 @@ body.darkMode.page-Special_EditPerson div.five table tr:nth-child(2) div a:visit
 body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#fee;"],
 body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#fee;"] a:link,
 body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#fee;"] a:visited {
-  background-color: #7d1b7e !important;
+  background-color: #5f0126 !important;
+}
+body.darkMode .qa-nav-sub {
+  margin-top: 4px;
+}
+
+/* Family lists, Theme of the Week, EditToolbar  */
+body.darkMode .vertical .nameList li[data-gender="male"],
+body.darkMode span[data-gender="Male"],
+body.darkMode .vertical .nameList li[data-gender="female"],
+body.darkMode span[data-gender="Female"],
+body.darkMode #themeTable caption,
+body.darkMode .editToolbarButton {
+  background-color: transparent !important;
 }

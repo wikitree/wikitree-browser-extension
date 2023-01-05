@@ -1,21 +1,22 @@
 import $ from "jquery";
 import Cookies from "js-cookie";
 import { getPerson } from "wikitree-js";
-import "./distanceAndRelationship.css";
+
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("distanceAndRelationship").then((result) => {
   // define user and profile IDs
+
   const profileID = $("a.pureCssMenui0 span.person").text();
   const userID = Cookies.get("wikitree_wtb_UserName");
   if (
     result &&
-    $("body.BEE").length == 0 &&
     $("body.profile").length &&
     window.location.href.match("Space:") == null &&
     profileID != userID &&
     profileID != ""
   ) {
+    import("./distanceAndRelationship.css");
     // set up databases
     window.connectionFinderDBVersion = 1;
     window.relationshipFinderDBVersion = 1;
@@ -66,10 +67,10 @@ checkIfFeatureEnabled("distanceAndRelationship").then((result) => {
         .objectStore("distance")
         .get(profileID);
       aRequest.onsuccess = function () {
-        if (aRequest.result == undefined) {
+        if (aRequest.result == undefined || aRequest.result?.distance < 0) {
           initDistanceAndRelationship(userID, profileID);
         } else {
-          if ($("#distanceFromYou").length == 0 && $("#degreesFromYou").length == 0 && aRequest.result.distance > 0) {
+          if ($("#distanceFromYou").length == 0 && $("#degreesFromYou").length == 0) {
             // #degreesFromYou is in WT BEE.  If this is showing, don't show this (for now)
             const profileName = $("h1 span[itemprop='name']").text();
             $("h1").append(
@@ -119,6 +120,22 @@ checkIfFeatureEnabled("distanceAndRelationship").then((result) => {
   }
 });
 
+export async function getProfile(id, fields = "*") {
+  try {
+    const result = await $.ajax({
+      url: "https://api.wikitree.com/api.php",
+      crossDomain: true,
+      xhrFields: { withCredentials: true },
+      type: "POST",
+      dataType: "json",
+      data: { action: "getProfile", key: id, fields: fields },
+    });
+    return result[0].profile;
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 async function getConnectionFinderResult(id1, id2, relatives = 0) {
   try {
     const result = await $.ajax({
@@ -146,7 +163,7 @@ async function getConnectionFinderResult(id1, id2, relatives = 0) {
   }
 }
 
-async function getRelationshipFinderResult(id1, id2) {
+export async function getRelationshipFinderResult(id1, id2) {
   try {
     const result = await $.ajax({
       url: "https://www.wikitree.com/index.php",
@@ -237,7 +254,7 @@ function commonAncestorText(commonAncestors) {
 function doRelationshipText(userID, profileID) {
   getRelationshipFinderResult(userID, profileID).then(function (data) {
     if (data) {
-      let out = "";
+      var out = "";
       var aRelationship = true;
       const commonAncestors = [];
       let realOut = "";
@@ -255,13 +272,12 @@ function doRelationshipText(userID, profileID) {
           .eq(0)
           .text()
           .replaceAll(/[\t\n]/g, "");
-        let out = dummy.find("b").text();
+        out = dummy.find("b").text();
         let secondName = dummy.find("b").parent().text().split(out)[1];
         const userFirstName = dummy.find(`p a[href\$='${userID}']`).eq(0).text().split(" ")[0];
         const profileFirstName = $("h1 span[itemprop='name']").text().split(" ")[0];
         if (data.commonAncestors.length == 0) {
           out = dummy.find("b").text();
-
           if (secondName.match(profileFirstName)) {
             out = dummy.find("h2").text().replace("(DNA Confirmed)", "").trim();
           }
@@ -382,7 +398,7 @@ function ordinal(i) {
   return i + "th";
 }
 
-function ancestorType(generation, gender) {
+export function ancestorType(generation, gender) {
   let relType;
   if (generation > 0 || generation == 0) {
     if (gender == "Female") {
@@ -405,7 +421,7 @@ function ancestorType(generation, gender) {
   return relType;
 }
 
-function ordinalWordToNumberAndSuffix(word) {
+export function ordinalWordToNumberAndSuffix(word) {
   const ordinalsArray = [
     ["first", "1st"],
     ["second", "2nd"],
@@ -449,18 +465,13 @@ function initDistanceAndRelationship(userID, profileID, clicked = false) {
     getDistance();
     doRelationshipText(userID, profileID);
   } else {
-    getPerson(profileID)
+    getProfile(profileID)
       .then((person) => {
-        const nowTime = Date.parse(Date());
-        let timeDifference = 0;
-        if (person.Created) {
-          const created = Date.parse(person.Created.substr(0, 8).replace(/(....)(..)(..)/, "$1-$2-$3"));
-          timeDifference = nowTime - created;
-        }
-        const nineDays = 777600000;
-        if (person.Privacy > 29 && person.Connected == 1 && timeDifference > nineDays) {
+        if (person.Privacy > 29 && person.Connected == 1) {
           getDistance();
-          doRelationshipText(userID, profileID);
+          if ($("#yourRelationshipText").length == 0) {
+            doRelationshipText(userID, profileID);
+          }
         }
       })
       .catch((error) => {

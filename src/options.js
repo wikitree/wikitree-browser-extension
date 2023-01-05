@@ -3,9 +3,7 @@ import $ from "jquery";
 import { features, OptionType } from "./core/options/options_registry";
 import "./features/register_feature_options";
 
-$("h1").prepend(
-  $("<img src='" + chrome.runtime.getURL("images/wikitree-small.png") + "'>")
-);
+$("h1").prepend($("<img src='" + chrome.runtime.getURL("images/wikitree-small.png") + "'>"));
 
 // Categories
 const categories = ["Global", "Profile", "Editing", "Style"];
@@ -31,19 +29,14 @@ function fillOptionsDataFromUiElements(feature, options, optionsData) {
       const fullOptionElementId = optionElementIdPrefix + option.id;
       let element = document.getElementById(fullOptionElementId);
       if (!element) {
-        console.log(
-          "fillOptionsDataFromUiElements: no element found with id: " +
-            fullOptionElementId
-        );
+        console.log("fillOptionsDataFromUiElements: no element found with id: " + fullOptionElementId);
         continue;
       }
 
       if (option.type == OptionType.CHECKBOX) {
         optionsData[option.id] = element.checked;
       } else if (option.type == OptionType.RADIO) {
-        optionsData[option.id] = element.querySelector(
-          `input[name="${fullOptionElementId}"]:checked`
-        ).value;
+        optionsData[option.id] = element.querySelector(`input[name="${fullOptionElementId}"]:checked`).value;
       } else {
         optionsData[option.id] = element.value;
       }
@@ -64,10 +57,7 @@ function setUiElementsFromOptionsData(feature, options, optionsData) {
       const fullOptionElementId = optionElementIdPrefix + option.id;
       let element = document.getElementById(fullOptionElementId);
       if (!element) {
-        console.log(
-          "setUiElementsFromOptionsData: no element found with id: " +
-            fullOptionElementId
-        );
+        console.log("setUiElementsFromOptionsData: no element found with id: " + fullOptionElementId);
         console.log("option.type is : " + option.type);
         continue;
       }
@@ -79,9 +69,7 @@ function setUiElementsFromOptionsData(feature, options, optionsData) {
       if (option.type == OptionType.CHECKBOX) {
         element.checked = optionsData[option.id];
       } else if (option.type == OptionType.RADIO) {
-        element.querySelector(
-          `input[value="${optionsData[option.id]}"]`
-        ).checked = true;
+        element.querySelector(`input[value="${optionsData[option.id]}"]`).checked = true;
       } else {
         element.value = optionsData[option.id];
       }
@@ -145,7 +133,7 @@ function restore_options() {
     features.forEach((feature) => {
       let featureEnabled = items[feature.id];
       if (featureEnabled === undefined) {
-        featureEnabled = (feature.defaultValue) ? true : false;
+        featureEnabled = feature.defaultValue ? true : false;
       }
       $(`#${feature.id} input`).prop("checked", featureEnabled);
       restoreFeatureOptions(feature, items);
@@ -344,6 +332,8 @@ $("h2 input").change(function () {
 });
 
 // Switch at the top to toggle every switch
+
+/*
 $("h1").append(
   $(`<div class="feature-toggle">
 <label class="switch">
@@ -360,11 +350,12 @@ $("h1 input").change(function () {
   }
   $("input[type='checkbox']").prop("checked", oSwitch);
 });
+*/
 
 // Auto save the options on click (on 'change' would create lots of events when a big switch is clicked)
 // The short delay is for the changes to happen after the click
 $("#options .feature-toggle input[type='checkbox']").each(function () {
-  $(this).click(function () {
+  $(this).on("click", function () {
     setTimeout(function () {
       saveFeatureOnOffOptions();
     }, 100);
@@ -379,10 +370,10 @@ $(".feature-options-button").on("click", function () {
     let featureId = id.substring(0, index);
     let optionsElementId = `${featureId}_options`;
     if ($(`#${optionsElementId}`).is(":hidden")) {
-      $(`#${optionsElementId}`).show();
+      $(`#${optionsElementId}`).slideDown();
       $(this).text("Hide Options");
     } else {
-      $(`#${optionsElementId}`).hide();
+      $(`#${optionsElementId}`).slideUp();
       $(this).text("Show Options");
     }
   }
@@ -430,4 +421,70 @@ function addFeatureToOptionsPage(featureData) {
 
     addOptionsForFeature(featureData, optionsElement, featureData.options);
   }
+}
+
+chrome.storage.onChanged.addListener(function () {
+  restore_options();
+});
+
+function addBackupButtons() {
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    if (tabs[0].url) {
+      if (tabs[0].url.match("wikitree.com")) {
+        $("body").append(
+          $(`<div id="backup"><h2>Back up</h2>
+    <div class="feature-information">
+    Back up	"My Menu", "Change Summary Options", "Clipboard and Notes", and "Extra Watchlist".
+      <div id="backupButtons">
+        <button id="backupButton">Back up</button>
+        <button id="restoreBackupButton">Restore</button>
+      </div>
+    </div>
+  </div>`)
+        );
+        $("#backupButton").on("click", function () {
+          backup();
+        });
+        $("#restoreBackupButton").on("click", function () {
+          restoreBackup();
+        });
+      }
+    }
+  });
+}
+addBackupButtons();
+
+function backup() {
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    chrome.tabs.sendMessage(tabs[0].id, { greeting: "backup" }, function (response) {
+      console.log(response.farewell);
+    });
+  });
+}
+
+function restoreBackup() {
+  var fileChooser = document.createElement("input");
+  fileChooser.type = "file";
+  fileChooser.addEventListener("change", function () {
+    var file = fileChooser.files[0];
+    var reader = new FileReader();
+    let data;
+    reader.onload = function () {
+      let data = reader.result;
+    };
+    reader.readAsText(file);
+    setTimeout(function () {
+      data = JSON.parse(reader.result);
+      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, { greeting: "restoreBackup", data: data }, function (response) {
+          console.log(response.farewell);
+        });
+      });
+    }, 1000);
+    form.reset();
+  });
+  /* Wrap it in a form for resetting */
+  var form = document.createElement("form");
+  form.appendChild(fileChooser);
+  fileChooser.click();
 }

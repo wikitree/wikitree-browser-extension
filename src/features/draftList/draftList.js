@@ -1,10 +1,10 @@
 import $ from "jquery";
 import { isOK, showDraftList, updateDraftList } from "../../core/common";
-import "./draftList.css";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage"
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("draftList").then((result) => {
   if (result) {
+    import("./draftList.css");
     // Check that WikiTree BEE hasn't added this already
     if ($("a.drafts").length == 0) {
       addDraftsToFindMenu();
@@ -15,16 +15,15 @@ checkIfFeatureEnabled("draftList").then((result) => {
   }
 });
 
-
 function saveDraftList() {
   window.fullSave = false;
-  $("#wpSave").click(function () {
+  $("#wpSave").on("click", function () {
     window.fullSave = true;
   });
   window.addEventListener("beforeunload", (event) => {
     updateDraftList();
   });
-  $("#wpSaveDraft").click(function () {
+  $("#wpSaveDraft").on("click", function () {
     updateDraftList();
   });
   setInterval(updateDraftList, 60000);

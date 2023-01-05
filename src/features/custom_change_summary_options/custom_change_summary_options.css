@@ -1,0 +1,84 @@
+#saveStuff {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  border-radius: 1em;
+  position: relative;
+}
+
+#wpSave.marriage,
+body.page-Special_EditFamily #wpSave,
+body.page-Special_EditFamilySteps #wpSave {
+  padding: 13px 30px 14px;
+  font-size: 20px;
+}
+
+#dummyDiv {
+  display: none;
+}
+
+#saveStuff label {
+  display: inline-block;
+}
+
+#wpSummaryTextArea {
+  display: none;
+  width: 90%;
+  top: -7em;
+  height: 7em;
+  position: absolute;
+  right: 1em;
+}
+
+#changeSummaryGears {
+  position: absolute;
+  top: 1em;
+  right: 1em;
+  height: 1em;
+}
+
+#changeSummaryOptions {
+  display: none;
+  border: 2px solid forestgreen;
+  padding: 1em;
+  border-radius: 1em;
+  margin: 2em auto;
+  position: absolute;
+  background: white;
+  z-index: 1000;
+  right: 1em;
+}
+
+#changeSummaryOptions li {
+  display: inline-block;
+  padding: 0.2em;
+}
+
+#changeSummaryOptions x {
+  position: absolute;
+  top: 0.5em;
+  right: 0.5em;
+  cursor: pointer;
+}
+
+#currentOptions {
+  background: white;
+  cursor: pointer;
+  margin: 1em;
+}
+
+#newOption {
+  padding: 3px;
+  width: 9em;
+}
+
+#addOptionButton {
+  padding: 0.2em;
+  font-size: 1em;
+}
+
+.deleteOption {
+  padding: 0.2em;
+  border: 1px solid forestgreen;
+  border-radius: 1em;
+  margin: 0.2em;
+}

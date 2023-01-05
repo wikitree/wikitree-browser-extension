@@ -1,20 +1,13 @@
 import $ from "jquery";
 import { fNames, mNames } from "./names.js";
-import {
-  checkIfFeatureEnabled,
-  getFeatureOptions,
-} from "../../core/options/options_storage.js";
-
-import "./genderPredictor.css";
+import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage.js";
 
 checkIfFeatureEnabled("genderPredictor").then((result) => {
-  if (result) {
+  if (result && $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
+    import("./genderPredictor.css");
     predictGender();
   }
 });
-
-
-
 
 async function predictGender() {
   let dFirstName = document.querySelector("#mFirstName");
@@ -25,7 +18,7 @@ async function predictGender() {
     $("#mGenderHelpInfo").remove();
   });
 
-  $("#mFirstName").on("keyup", function () {
+  $("#mFirstName").on("keyup blur", function () {
     let trimd = $(this).val().trim();
     let oFirst = trimd.split(" ")[0].split("-")[0];
     let oGender = "";

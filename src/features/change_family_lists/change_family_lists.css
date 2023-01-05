@@ -1,0 +1,549 @@
+#nVitals {
+  margin-top: 0.2em;
+}
+#nVitals.vertical #childrenUnknown.vanilla,
+#nVitals.vertical #spousesUnknown.vanilla,
+.aSpouse.vanilla a {
+  margin: auto;
+}
+
+.vertical .aSpouse {
+  padding-right: 3px;
+  margin-bottom: 3px;
+}
+
+.vertical .familyList .spouse_1,
+.vertical .familyList.spouse_1 {
+  border-right: 3px solid red;
+}
+
+.vertical .familyList .spouse_2,
+.vertical .familyList.spouse_2 {
+  border-right: 3px solid forestgreen;
+}
+
+.vertical .familyList .spouse_3,
+.vertical .familyList.spouse_3 {
+  border-right: 3px solid gold;
+}
+
+.vertical .familyList .spouse_4,
+.familyList.spouse_4 {
+  border-right: 3px solid #f5a9a9;
+}
+
+.vertical .familyList .spouse_5,
+.familyList.spouse_5 {
+  border-right: 3px solid #d0f5a9;
+}
+
+.vertical .familyList .spouse_6,
+.familyList.spouse_6 {
+  border-right: 3px solid #a9f5f2;
+}
+
+.vertical .familyList .spouse_7,
+.familyList.spouse_7 {
+  border-right: 3px solid #e6e6e6;
+}
+
+.vertical .familyList .spouse_8,
+.familyList.spouse_8 {
+  border-right: 3px solid #d0a9f5;
+}
+
+.vertical .familyList .spouse_9,
+.familyList.spouse_9 {
+  border-right: 3px solid #f2f5a9;
+}
+
+.vertical .familyList .spouse_10,
+.familyList.spouse_10 {
+  border-right: 3px solid #f78181;
+}
+
+.vertical .familyList .spouse_11,
+.familyList.spouse_11 {
+  border-right: 3px solid #bef781;
+}
+
+.vertical .familyList .spouse_12,
+.familyList.spouse_12 {
+  border-right: 3px solid #81f7f3;
+}
+
+.vertical .familyList .spouse_13,
+.familyList.spouse_13 {
+  border-right: 3px solid #d8d8d8;
+}
+
+.vertical .familyList .spouse_14,
+.familyList.spouse_14 {
+  border-right: 3px solid #be81f7;
+}
+
+.vertical .familyList .spouse_15,
+.familyList.spouse_15 {
+  border-right: 3px solid #f3f781;
+}
+
+.vertical .familyList .spouse_16,
+.familyList.spouse_16 {
+  border-right: 3px solid #fa5858;
+}
+
+.vertical .familyList .spouse_17,
+.familyList.spouse_17 {
+  border-right: 3px solid #acfa58;
+}
+
+.vertical .familyList .spouse_18,
+.familyList.spouse_18 {
+  border-right: 3px solid #58faf4;
+}
+
+.vertical .familyList .spouse_19,
+.familyList.spouse_19 {
+  border-right: 3px solid #bdbdbd;
+}
+
+.vertical .familyList .spouse_20,
+.familyList.spouse_20 {
+  border-right: 3px solid #ac58fa;
+}
+
+.vertical .familyList .spouse_21,
+.familyList.spouse_21 {
+  border-right: 3px solid #f4fa58;
+}
+
+.vertical .familyList .spouse_22,
+.familyList.spouse_22 {
+  border-right: 3px solid #fe2e2e;
+}
+
+.vertical .familyList .spouse_23,
+.familyList.spouse_23 {
+  border-right: 3px solid #9afe2e;
+}
+
+.vertical .familyList .spouse_24,
+.familyList.spouse_24 {
+  border-right: 3px solid #2efef7;
+}
+
+.vertical .familyList .spouse_25,
+.familyList.spouse_25 {
+  border-right: 3px solid #a4a4a4;
+}
+
+.vertical .familyList .spouse_26,
+.familyList.spouse_26 {
+  border-right: 3px solid #9a2efe;
+}
+
+.vertical .familyList .spouse_27,
+.familyList.spouse_27 {
+  border-right: 3px solid #f7fe2e;
+}
+
+.vertical .familyList .spouse_28,
+.familyList.spouse_28 {
+  border-right: 3px solid #ff0000;
+}
+
+.vertical .familyList .spouse_29,
+.familyList.spouse_29 {
+  border-right: 3px solid #00ffff;
+}
+
+.vertical .familyList .spouse_30,
+.familyList.spouse_30 {
+  border-right: 3px solid #80ff00;
+}
+
+.vertical .familyList .spouse_31,
+.familyList.spouse_31 {
+  border-right: 3px solid #848484;
+}
+
+.vertical .familyList .spouse_32,
+.familyList.spouse_32 {
+  border-right: 3px solid #8000ff;
+}
+
+.vertical .familyList .spouse_33,
+.familyList.spouse_33 {
+  border-right: 3px solid #ffff00;
+}
+
+.vertical .familyList .spouse_34,
+.familyList.spouse_34 {
+  border-right: 3px solid #df0101;
+}
+
+.vertical .familyList .spouse_35,
+.familyList.spouse_35 {
+  border-right: 3px solid #74df00;
+}
+
+.vertical .familyList .spouse_36,
+.familyList.spouse_36 {
+  border-right: 3px solid #01dfd7;
+}
+
+.vertical .familyList .spouse_37,
+.familyList.spouse_37 {
+  border-right: 3px solid #6e6e6e;
+}
+
+.vertical .familyList .spouse_38,
+.familyList.spouse_38 {
+  border-right: 3px solid #7401df;
+}
+
+.vertical .familyList .spouse_39,
+.familyList.spouse_39 {
+  border-right: 3px solid #d7df01;
+}
+
+.vertical .familyList .spouse_40,
+.familyList.spouse_40 {
+  border-right: 3px solid #b40404;
+}
+
+.vertical .familyList .spouse_41,
+.familyList.spouse_41 {
+  border-right: 3px solid #5fb404;
+}
+
+.vertical .familyList .spouse_42,
+.familyList.spouse_42 {
+  border-right: 3px solid #04b4ae;
+}
+
+.vertical .familyList .spouse_43,
+.familyList.spouse_43 {
+  border-right: 3px solid #585858;
+}
+
+.vertical .familyList .spouse_44,
+.familyList.spouse_44 {
+  border-right: 3px solid #5f04b4;
+}
+
+.vertical .familyList .spouse_45,
+.familyList.spouse_45 {
+  border-right: 3px solid #aeb404;
+}
+
+.vertical .familyList .spouse_46,
+.familyList.spouse_46 {
+  border-right: 3px solid #8a0808;
+}
+
+.vertical .familyList .spouse_47,
+.familyList.spouse_47 {
+  border-right: 3px solid #243b0b;
+}
+
+.vertical .familyList .spouse_48,
+.familyList.spouse_48 {
+  border-right: 3px solid #088a85;
+}
+
+.vertical .familyList .spouse_49,
+.familyList.spouse_49 {
+  border-right: 3px solid #424242;
+}
+
+.vertical .familyList .spouse_50,
+.familyList.spouse_50 {
+  border-right: 3px solid #4b088a;
+}
+
+.vertical .familyList .spouse_51,
+.familyList.spouse_51 {
+  border-right: 3px solid #868a08;
+}
+
+.vertical span[itemprop="spouse"] {
+  margin-left: 60px;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  grid-template-areas: "name dates";
+}
+
+.vertical span[itemprop="spouse"].vanilla {
+  display: inline;
+  margin: auto;
+}
+
+.vertical .spouseLink {
+  grid-area: name;
+}
+
+.vertical .spouseDates {
+  grid-area: dates;
+}
+
+.vertical .marriageDetails {
+  display: block;
+}
+
+#nVitals.vertical ol.nameList,
+.vertical .marriageDetails,
+.vertical span[itemprop="spouse"],
+.vertical #spousesUnknown,
+.vertical #childrenUnknown {
+  margin-left: 2em;
+}
+
+.marriageAges {
+  display: block;
+}
+.vertical .marriageDetails,
+.vertical .marriageAges {
+  margin-left: 2.9em;
+}
+
+.vertical #spousesUnknown,
+.vertical span#childrenUnknownQ,
+.vertical span#childrenUnknown {
+  margin-left: 2.3em;
+}
+
+.vertical #siblingsUnknown {
+  margin-left: 0em;
+}
+
+.vertical #siblingsUnknown a.BLANK,
+.vertical #spousesUnknown a.BLANK {
+  margin-left: 0.7em;
+}
+
+.vertical #siblingsUnknown a.BLANK {
+  margin-left: 3.6em;
+}
+
+.vertical .aSpouse > a.BLANK {
+  margin-left: 3.6em;
+}
+
+.vertical #addChild,
+.vertical #addSibling,
+.vertical .addSpouse {
+  list-style: none;
+  margin-left: 0.5em;
+}
+
+.vertical .addSpouse {
+  margin-left: 3.5em;
+}
+
+.vertical #childrenUnknown a {
+  margin-left: 0.2em;
+}
+
+.vertical #childrenUnknown,
+.vertical #spousesUnknown,
+.vertical #siblingsUnknown {
+  white-space: nowrap;
+}
+
+.vertical .aSpouse strong {
+  color: #060;
+}
+
+#nVitals.vertical span[itemprop] a:link,
+#nVitals.vertical span[itemprop] a:visited {
+  text-decoration: none;
+}
+
+.vertical #spouseDetails.vanilla {
+  display: block !important;
+}
+
+.vertical .marriageDetails.vanilla,
+.vertical .marriageAges.vanilla,
+.vertical .aSpouse > a.BLANK.vanilla,
+.vertical .aSpouse > a,
+.vertical #childrenUnknown.BLANK {
+  display: inline;
+  margin: 0;
+  margin-left: 0;
+}
+
+.vertical #spouseDetails.inline,
+.vertical #childrenDetails.inline,
+.vertical #siblingDetails.inline {
+  display: inline;
+}
+
+.vertical #spouseDetails.block,
+.vertical #childrenDetails.block,
+.vertical #siblingDetails.block {
+  display: block;
+}
+.vertical #siblingList li {
+  position: relative;
+}
+#nVitals.vertical .nameList li span.half {
+  position: absolute;
+  font-size: 0.8em;
+  visibility: hidden;
+  display: block;
+  background-color: white !important;
+  border: 1px solid forestgreen;
+  padding: 2px;
+  border-radius: 1em;
+  z-index: 9000;
+  right: 3px;
+  top: 0;
+}
+
+#nVitals.vertical .nameList li:hover span.half {
+  visibility: visible;
+}
+
+.vertical .nameList li {
+  border-right: 3px solid white;
+}
+body.darkMode .vertical .nameList li {
+  border-right-color: #36393f;
+}
+
+.vertical .nameList li.parent_1,
+.vertical .nameList li span.bdDates.parent_1 {
+  border-right: 3px solid indigo;
+}
+
+.vertical .nameList li.parent_2 {
+  border-right: 3px solid orange;
+}
+
+.vertical a.privateSpouse:hover {
+  background: none;
+}
+
+.vertical .nameList li[data-gender="female"],
+.vertical .nameList span[data-gender="Female"] {
+  background-color: #fff8f7;
+  border-left: 5px pink solid;
+}
+
+.vertical .nameList li[data-gender="male"],
+.vertical .nameList span[data-gender="Male"] {
+  background-color: #f4fefe;
+  border-left: 5px blue solid;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.vertical div.VITALS {
+  padding-bottom: 4px;
+}
+
+.vertical ol.nameList,
+.vertical ul.nameList {
+  margin-bottom: 10px;
+}
+
+.vertical div.spouseDetails span {
+  margin-top: 4px;
+  margin-bottom: 4px;
+  position: relative;
+  padding-left: 5px;
+}
+.vertical #profilePerson a.activeProfile,
+.vertical div.familyList li span,
+.vertical div.spouseDetails span,
+.vertical li#siblingsUnknown,
+.vertical li#fatherUnknown,
+.vertical span#childrenUnknown,
+.vertical li#motherUnknown {
+  padding-left: 3px;
+  display: block;
+}
+.vertical div.spouseDetails span {
+  display: grid;
+}
+.vertical span#childrenUnknownQ a,
+.vertical a.BLANK.addSpouse,
+.vertical #spousesUnknown a.BLANK {
+  padding-left: 3px;
+  margin-left: 0;
+}
+
+.vertical li#siblingsUnknown,
+.vertical li#fatherUnknown,
+.vertical li#motherUnknown {
+  padding-left: 7px;
+}
+
+.vertical .nameList li span[itemprop="sibling"],
+.vertical .nameList li span[itemprop="children"],
+.vertical .nameList li span[itemprop="parent"] {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  grid-template-areas: "name dates";
+}
+
+.vertical #parentList,
+.vertical #siblingsUnknown {
+  list-style: none;
+  clear: both;
+}
+
+.vertical .nameList li a {
+  grid-area: name;
+}
+
+.vertical .bdDates {
+  grid-area: dates;
+  font-size: smaller;
+}
+
+.vertical a:link.activeProfile,
+.vertical a:hover.activeProfile,
+.vertical a.activeProfile:hover,
+.vertical a:visited.activeProfile a:active.activeProfile {
+  text-decoration: none;
+  color: black;
+  font-weight: bold;
+  background: none;
+  cursor: default;
+}
+.showHideTree,
+#showHideDescendants {
+  float: right;
+}
+.vertical .showHideTree,
+.vertical #showHideDescendants.button.small {
+  margin-top: -5px;
+  float: right;
+}
+.vertical a.spouseText:nth-child(2) {
+  display: none;
+}
+
+.vertical {
+  display: inline-grid;
+  grid-template-columns: 1fr;
+}
+
+#siblingCount,
+#childrenCount {
+  margin-left: 1em;
+}
+
+.vertical .nameList li {
+  position: relative;
+}
+.vertical img.dnaConfirmed {
+  position: absolute;
+  left: -2.1em;
+  top: 0.3em;
+}

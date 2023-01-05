@@ -1,0 +1,24 @@
+#themeTable {
+  margin: auto;
+}
+#themeTable caption {
+  background: #e1f0b4;
+  box-shadow: green 0px 2px 2px 0px;
+  border-radius: 1em;
+  font-weight: bold;
+  font-size: 1.2em;
+  padding: 0.2em;
+  margin-bottom: 0.7em;
+}
+#themeTable td {
+  padding: 0.2em;
+}
+#themeTableButton {
+  margin: 1em auto;
+  width: 10em;
+  display: block;
+  clear: both;
+}
+h2.thisWeeksTheme {
+  display: none;
+}

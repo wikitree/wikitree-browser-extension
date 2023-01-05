@@ -78,6 +78,11 @@ const myExampleFeature = {
 // Just importing this file will register all the features
 registerFeature(myExampleFeature);
 ```
+In `register_feature_options.js`, you can then import the options page:
+
+```js
+import "./myExampleFeature/myExampleFeature_options.js";
+```
 
 In the feature's javascript files, you should check if a user has it turned on or off using the following code:
 

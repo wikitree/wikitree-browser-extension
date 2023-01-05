@@ -1,12 +1,13 @@
 import $ from "jquery";
 import "jquery-ui/ui/widgets/sortable";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
-import { isOK, htmlEntities, getRandomProfile, showDraftList } from "../../core/common";
+import { isOK, htmlEntities, showDraftList } from "../../core/common";
+import { getRandomProfile, addRandomProfileLocationBox } from "../randomProfile/randomProfile";
 import { getPerson } from "wikitree-js";
-import "./my_menu.css";
 
 checkIfFeatureEnabled("myMenu").then((result) => {
-  if (result && $("body.BEE").length == 0) {
+  if (result) {
+    import("./my_menu.css");
     addCustomMenu();
   }
 });
@@ -283,7 +284,17 @@ function addCustomMenu() {
 
   $("#myCustomMenu li a:contains(Random Profile)").on("click", function (e) {
     e.preventDefault();
+    const working = $("<img id='working' src='" + chrome.runtime.getURL("images/tree.gif") + "'>");
+    working.appendTo("body").css({
+      position: "absolute",
+      left: `${e.pageX - 50}px`,
+      top: e.pageY + "px",
+    });
     getRandomProfile();
+  });
+  $("#myCustomMenu li a:contains(Random Profile)").on("contextmenu", function (e) {
+    e.preventDefault();
+    addRandomProfileLocationBox(e);
   });
 
   $("#myCustomMenu li a:contains(Drafts)").on("click", function (e) {

@@ -1,12 +1,12 @@
 import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
-import "./verifyID.css";
 import { extractRelatives, displayName } from "../../core/common";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage"
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("verifyID").then((result) => {
   if (result) {
-    if ($("body.page-Special_EditFamily").length) {
+    if ($("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
+      import("./verifyID.css");
       checkAttachPersonID();
       // Try not to clash with BEE
       $("body").addClass("verifyID");
@@ -54,7 +54,7 @@ function bdDatesStatus(person) {
 }
 
 // Make dates to display e.g. 1990s -> ~1995
-function displayDates(fPerson) {
+export function displayDates(fPerson) {
   if (fPerson != undefined) {
     const mbdDatesStatus = bdDatesStatus(fPerson);
     const bdStatus = mbdDatesStatus[0];
@@ -62,6 +62,7 @@ function displayDates(fPerson) {
 
     let fbd = "";
     let fdd = "";
+    let decadeMidpoint;
 
     if (
       fPerson["BirthDate"] != "" &&
@@ -70,10 +71,7 @@ function displayDates(fPerson) {
       fPerson["BirthDate"] != "unknown"
     ) {
       fbd = fPerson["BirthDate"].split("-")[0];
-    } else if (
-      typeof fPerson["BirthDateDecade"] != "undefined" &&
-      fPerson["BirthDateDecade"] != "unknown"
-    ) {
+    } else if (typeof fPerson["BirthDateDecade"] != "undefined" && fPerson["BirthDateDecade"] != "unknown") {
       fbd = fPerson["BirthDateDecade"];
       decadeMidpoint = fPerson["BirthDateDecade"].slice(0, -2) + 5;
     } else {
@@ -92,10 +90,7 @@ function displayDates(fPerson) {
         typeof fPerson["DeathDate"] != "undefined"
       ) {
         fdd = fPerson["DeathDate"].split("-")[0];
-      } else if (
-        typeof fPerson["DeathDateDecade"] != "undefined" &&
-        fPerson["DeathDateDecade"] != "unknown"
-      ) {
+      } else if (typeof fPerson["DeathDateDecade"] != "undefined" && fPerson["DeathDateDecade"] != "unknown") {
         fdd = fPerson["DeathDateDecade"];
         decadeMidpoint = fPerson["DeathDateDecade"].slice(0, -2) + 5;
       } else {
@@ -126,7 +121,7 @@ function addRelativeArraysToPerson(zPerson) {
 
 // Show some details of the profile entered in the "Add parent/etc." box
 async function checkAttachPersonID() {
-  $("body.page-Special_EditFamily #mName").keyup(function () {
+  $("body.page-Special_EditFamily #mName,body.page-Special_EditFamilySteps #mName").on("keyup", function () {
     $("#verification").remove();
     if (window.timeoutId) {
       clearTimeout(timeoutId);
@@ -162,7 +157,6 @@ async function checkAttachPersonID() {
               $("#mName").after($("<div id='verification'><x>x</x></div>"));
               $("#verification").draggable();
               if (person.Created) {
-                console.log(displayName(person)[0], displayDates(person, true));
                 ah2 = $(
                   "<h3><a href='https://www.wikitree.com/wiki/" +
                     person.Name +
@@ -188,13 +182,9 @@ async function checkAttachPersonID() {
                     psWord = "Children";
                   }
                   if (person[aR].length > 0) {
-                    const newSection = $(
-                      "<section><h4>" + psWord + "</h4><ul></ul></section>"
-                    );
+                    const newSection = $("<section><h4>" + psWord + "</h4><ul></ul></section>");
                     person[aR].forEach(function (aP) {
-                      newSection
-                        .find("ul")
-                        .append($("<li>" + displayName(aP)[0] + "</li>"));
+                      newSection.find("ul").append($("<li>" + displayName(aP)[0] + "</li>"));
                     });
                     $("#verification").append(newSection);
                   }
