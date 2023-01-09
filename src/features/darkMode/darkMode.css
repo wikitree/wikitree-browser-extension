@@ -377,3 +377,25 @@ body.darkMode #themeTable caption,
 body.darkMode .editToolbarButton {
   background-color: transparent !important;
 }
+
+/* GEDCOMpare */
+body.darkMode .gender_Male  {
+  color: #dcddde !important;
+  background-color: #333777 !important;
+}
+body.darkMode .gender_Female  {
+  color: #dcddde !important;
+  background-color: #773333 !important;
+}
+body.darkMode .profile_matched  {
+  color: #dcddde !important;
+  background-color: #337733 !important;
+}
+body.darkMode p.HIGHLIGHT {
+  color: #dcddde !important;
+  background-color: #aaaa00 !important;
+}
+body.darkMode div.comparePendingPersonContainer span.large {
+  color: #dcddde !important;
+  background-color: #777788 !important;
+}
