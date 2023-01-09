@@ -395,7 +395,7 @@ body.darkMode p.HIGHLIGHT {
   color: #dcddde !important;
   background-color: #aaaa00 !important;
 }
-body.darkMode span.large {
+body.darkMode div.comparePendingPersonContainer span.large {
   color: #dcddde !important;
   background-color: #777788 !important;
 }
