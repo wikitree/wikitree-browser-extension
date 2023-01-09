@@ -16,6 +16,7 @@ checkIfFeatureEnabled("scissors").then((result) => {
 
 function helpScissors() {
   const url = decodeURIComponent(window.location.href);
+  const pageTitle = $("h1").text().trim();
   if (window.location.href.match(/\wiki\/Help:|Category:|Project:|Template:/)) {
     const helpIDmatch = url.match(/(Help|Category|Project|Template).*/)[0];
     let helpLink = "[" + url + " " + helpIDmatch + "]";
@@ -23,6 +24,7 @@ function helpScissors() {
     if (categoryIDmatch != null) {
       helpLink = "[[:" + helpIDmatch + "]]";
     }
+
     if (helpIDmatch != null) {
       window.helpID = helpIDmatch[0];
       $("h1").append(
@@ -33,7 +35,9 @@ function helpScissors() {
             helpLink +
             '" style="color:#8fc641;">/Link</button><button aria-label="Copy URL" title="Copy URL" data-copy-label="Copy URL" class="copyWidget" data-copy-text="' +
             url +
-            '" style="color:#8fc641;">/URL</button></span>'
+            '" style="color:#8fc641;">/URL</button></span><button aria-label="Copy Title" id="copyTitle" title="Copy Title" data-copy-label="Copy Title" class="copyWidget" data-copy-text="' +
+            pageTitle +
+            '" style="color:#8fc641;">/Title</button></span>'
         )
       );
 
@@ -42,6 +46,17 @@ function helpScissors() {
         copyThingToClipboard($(this).attr("data-copy-text"));
       });
     }
+  }
+  if (url.match("Space:")) {
+    $("h1").append(
+      '<button aria-label="Copy Title" id="copyTitle" title="Copy Title" data-copy-label="Copy Title" class="copyWidget" data-copy-text="' +
+        pageTitle.replace("ID/Link/URL", "").trim() +
+        '" style="color:#8fc641;">/Title</button></span>'
+    );
+    $("#copyName").on("click", function (e) {
+      e.preventDefault();
+      copyThingToClipboard($(this).attr("data-copy-text"));
+    });
   }
   if ($("h1:contains('Change Details')").length) {
     const historyItem = $("span.HISTORY-ITEM");
