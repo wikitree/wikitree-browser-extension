@@ -8,9 +8,7 @@ import "./change_family_lists.css";
 checkIfFeatureEnabled("changeFamilyLists").then((result) => {
   const ancestorsButton = $("span.showHideTree").eq(0);
   const descendantsButton = $("span#showHideDescendants");
-  // ancestorsButton.hide();
-  // descendantsButton.hide();
-  if (result && $("body.profile".length)) {
+  if (result && $("body.profile").length) {
     window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
     prepareFamilyLists().then(() => {
       getFeatureOptions("changeFamilyLists").then((options) => {
@@ -44,8 +42,12 @@ checkIfFeatureEnabled("changeFamilyLists").then((result) => {
           $("#childrenDetails").prepend(descendantsButton);
         }
         $("span.showHideTree").eq(1).remove();
-        //ancestorsButton.show();
-        //descendantsButton.show();
+        setTimeout(function () {
+          const openPadlock = $("img[title='Privacy Level: Open']");
+          if (openPadlock.length) {
+            addAddLinksToHeadings();
+          }
+        }, 3000);
       });
     });
     window.onresize = function () {
@@ -55,6 +57,46 @@ checkIfFeatureEnabled("changeFamilyLists").then((result) => {
     };
   }
 });
+
+async function addAddLinksToHeadings() {
+  $("div.VITALS:contains([children unknown])").attr("id", "childrenUnknown");
+  $("div.VITALS:contains([sibling(s) unknown])").attr("id", "siblingsUnknown");
+  $("div.VITALS:contains([spouse(s) unknown])").attr("id", "spousesUnknown");
+
+  const linkBase = $("a.pureCssMenui:contains(Edit)").attr("href").replace("Person", "Family");
+  const headings = [
+    ["#siblingsHeader", "sibling"],
+    ["#siblingsUnknown", "sibling"],
+    [".spouseText:first-of-type", "spouse"],
+    ["#spousesUnknown", "spouse"],
+    ["#childrenHeader", "child"],
+    ["#childrenUnknown", "child"],
+    ["#parentsHeader", "father"],
+    ["#fatherUnknown", "father"],
+    ["#motherUnknown", "mother"],
+  ];
+  let whichParent;
+  if (window.people) {
+    if (!window.people[0] && window.people[0].Father) {
+      whichParent = "mother";
+    }
+  }
+  headings.forEach(function (aHeading) {
+    if (aHeading[0] == "#siblingsUnknown" && window.people[0].Mother == 0 && window.people[0].Father == 0) {
+    } else {
+      $(aHeading[0])
+        .attr("title", "Right click to add a " + aHeading[1])
+        .css("cursor", "pointer");
+      $(aHeading[0]).on("contextmenu", function (e) {
+        e.preventDefault();
+        if (!aHeading[1]) {
+          aHeading[1] = whichParent;
+        }
+        window.location = linkBase + "&who=" + aHeading[1];
+      });
+    }
+  });
+}
 
 async function prepareFamilyLists() {
   if ($("body.profile").length && window.location.href.match("Space:") == null && $("#nVitals").length == 0) {

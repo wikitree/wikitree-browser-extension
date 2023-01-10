@@ -11,6 +11,9 @@
   padding-right: 3px;
   margin-bottom: 3px;
 }
+.vertical .aSpouse a.spouseText:hover {
+  background: transparent;
+}
 
 .vertical .familyList .spouse_1,
 .vertical .familyList.spouse_1 {
@@ -427,13 +430,15 @@ body.darkMode .vertical .nameList li {
 }
 
 .vertical .nameList li[data-gender="female"],
-.vertical .nameList span[data-gender="Female"] {
+.vertical .nameList span[data-gender="Female"],
+.vertical .spouseDetails span[data-gender="Female"] {
   background-color: #fff8f7;
   border-left: 5px pink solid;
 }
 
 .vertical .nameList li[data-gender="male"],
-.vertical .nameList span[data-gender="Male"] {
+.vertical .nameList span[data-gender="Male"],
+.vertical .spouseDetails span[data-gender="Male"] {
   background-color: #f4fefe;
   border-left: 5px blue solid;
 }
