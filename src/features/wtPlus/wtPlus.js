@@ -1,4 +1,4 @@
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 import { isEditPage } from "../../core/common";
 import { wtAPICatCIBSearch } from "../../core/wtPlusAPI/wtPlusAPI";
 
@@ -1151,7 +1151,9 @@ function pasteSource() {
     "<h3>Paste source</h3>" +
     '<label for="srcPaste">Clipboard:</label><br>' +
     '<textarea class="srcPaste" data-op="onDlgPasteSourcePaste" data-id="1" placeholder="Paste a source or URL here." rows="5" cols="80"></textarea><br>' +
-    '<input type="checkbox" class="cbInline" id="cb1" name="cb1" data-op="onDlgPasteSourceCB" data-id="1" value="Inline" checked><label for="cb1"> Inline citation</label><br>' +
+    '<input type="checkbox" class="cbInline" id="cb1" name="cb1" data-op="onDlgPasteSourceCB" data-id="1" value="Inline"' +
+    (tb.options.wtplusSourceInline ? " checked" : "") +
+    '><label for="cb1"> Inline citation</label><br>' +
     '<label for="resultFld">Citation to add:</label><br>' +
     '<textarea class="resultFld" rows="5" cols="80"></textarea>' +
     '<div style="text-align:right">' +
@@ -1510,6 +1512,10 @@ function mainEventLoop(event) {
 
 function initWTPlus() {
   /* Initialization */
+  getFeatureOptions("wtplus").then((result) => {
+    tb.options = result;
+    console.log(tb.options);
+  });
   tb.nameSpace = document.title.startsWith("Edit Person ") ? "Profile" : "";
   let w = document.querySelector("h1 > .copyWidget");
   if (w) {

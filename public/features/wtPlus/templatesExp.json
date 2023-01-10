@@ -1,5 +1,5 @@
 {
-	"version": "2022-12-30T12:39:43Z",
+	"version": "2023-01-10T18:08:46Z",
 "cleanup": [{
 	"description": "prettifying inline citation tags",
 	"actions": [{
@@ -307,15 +307,14 @@
 	}]
 },{
 	"description": "FindAGrave citation",
-	"example": "Find a Grave, database and images (www.findagrave.com/memorial/1234/iris-m.-robbins : accessed 25 April 2021), memorial page for Iris M. Robbins (1916–1994), Find a Grave Memorial ID 99837394, citing Chase Cemetery, Windham Center, Cumberland County, Maine, USA ; Maintained by gbodge (contributor ) .",
-
+	"example": "Find a Grave, database and images (www.findagrave.com/memorial/1234/iris-m.-robbins: accessed 25 April 2021), memorial page for Iris M. Robbins (1916–1994), Find a Grave Memorial ID 99837394, citing Chase Cemetery, Windham Center, Cumberland County, Maine, USA ; Maintained by gbodge (contributor 4567).",
 	"conditions": [{
 		"action": "startsWith",
 		"find": "Find a Grave, database and images "
 	}],
 	"actions": [{
 		"action": "replaceRegEx",
-		"from": "(https://)?www.findagrave.com/memorial/\\d*/.*? : ",
+		"from": "https://",
 		"to": ""
 	},{
 		"action": "replaceRegEx",
@@ -650,6 +649,7 @@
 		"subgroup": "Cemeteries",
 		"help": "Template that should be used on all cemetery group categories. It automatically adds categories for '''parent''' and '''location''' parameters to the cemetery category.",
 		"prop": [
+			{"name": "lang", "type": "typeText", "usage": "Optional", "values": ["fr"], "help": "Name of the group of cemeteries without \", Cemeteries\". If omitted, name is taken from category name.", "example": "fr"},
 			{"name": "name", "type": "typeText", "usage": "Optional", "help": "Name of the group of cemeteries without \", Cemeteries\". If omitted, name is taken from category name.", "example": "India"},
 			{"name": "parent", "type": "typeCategory", "usage": "Required", "values": ["main"], "help": "Name of the lowest parent category that groups the groups of cemeteries without the (, Cemeteries) text. Or main for the top and 1st level categories.", "example": "Asia"},
 			{"name": "location", "type": "typeCategory", "usage": "Required", "values": ["page", "name"], "help": "Name of the associated Location Category. Or name if it is the same as name parameter.", "example": "Slovenija"},
@@ -4496,10 +4496,10 @@
 		"type": "Sticker",
 		"group": "Members",
 		"subgroup": "Challenge templates",
-		"help": "This is a profile sticker to commemorate and track your participation in the 52 Weeks of Photos Challenge.",
+		"help": "This is a profile sticker to commemorate and track your participation in the (52 Weeks/12 Months) of Photos Challenge.",
 		"prop": [
-			{"name": "year", "type": "typeYear", "usage": "Required", "values": ["2019", "2020", "2021"], "help": "The year participated in", "example": "2019", "validation": "num:4"},
-			{"name": "number", "type": "typeNumber", "usage": "Preferred", "values": ["1 through 52"], "help": "The number of weeks participated", "example": "12", "validation": "num:1-2"}
+			{"name": "year", "type": "typeYear", "usage": "Required", "values": ["2019", "2020", "2021", "2022", "2023"], "help": "The year participated in", "example": "2023", "validation": "num:4"},
+			{"name": "number", "type": "typeNumber", "usage": "Preferred", "help": "The number of weeks/months participated", "example": "12", "validation": "num:1-2"}
 		]
 	},{
 		"name": "52 Weeks of Accuracy",
