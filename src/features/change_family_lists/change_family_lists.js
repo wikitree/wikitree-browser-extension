@@ -82,7 +82,11 @@ async function addAddLinksToHeadings() {
     }
   }
   headings.forEach(function (aHeading) {
-    if (aHeading[0] == "#siblingsUnknown" && window.people[0].Mother == 0 && window.people[0].Father == 0) {
+    if (
+      ["#siblingsUnknown", "#siblingsHeader"].includes(aHeading[0]) &&
+      window.people[0].Mother == 0 &&
+      window.people[0].Father == 0
+    ) {
     } else {
       $(aHeading[0])
         .attr("title", "Right click to add a " + aHeading[1])
