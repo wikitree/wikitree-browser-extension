@@ -1228,6 +1228,17 @@ function insertInSibList() {
   if (window.triedInsertSib > 9) {
     clearInterval(window.insertInterval);
   }
+
+  // temporary fix
+  $("#siblingList li").each(function () {
+    if (
+      $(this)
+        .text()
+        .match(/\] and	\[private/)
+    ) {
+      $(this).remove();
+    }
+  });
 }
 
 function setUpMarriedOrSpouse() {
