@@ -379,15 +379,15 @@ body.darkMode .editToolbarButton {
 }
 
 /* GEDCOMpare */
-body.darkMode .gender_Male  {
+body.darkMode .gender_Male {
   color: #dcddde !important;
   background-color: #333777 !important;
 }
-body.darkMode .gender_Female  {
+body.darkMode .gender_Female {
   color: #dcddde !important;
   background-color: #773333 !important;
 }
-body.darkMode .profile_matched  {
+body.darkMode .profile_matched {
   color: #dcddde !important;
   background-color: #337733 !important;
 }
@@ -399,7 +399,6 @@ body.darkMode div.comparePendingPersonContainer span.large {
   color: #dcddde !important;
   background-color: #777788 !important;
 }
-
 
 /* Add Profile */
 body.darkMode p#progressBar {
@@ -423,4 +422,17 @@ body.darkMode span#sourcesTab {
 }
 body.darkMode .newPersonData {
   color: #50c878 !important;
+}
+
+html body.darkMode .sixteen h1 a,
+html body.darkMode .sixteen h1 a:link {
+  background-color: inherit !important;
+}
+html body.darkMode .sixteen h1 a:visited {
+  color: antiquewhite !important;
+  background-color: inherit !important;
+}
+
+body.darkMode span.HIGHLIGHT {
+  color: black;
 }

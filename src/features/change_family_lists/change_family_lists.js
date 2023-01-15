@@ -59,7 +59,7 @@ checkIfFeatureEnabled("changeFamilyLists").then((result) => {
 });
 
 async function addAddLinksToHeadings() {
-  $("div.VITALS:contains([children unknown])").attr("id", "childrenUnknown");
+  $("div.VITALS:contains([children unknown])").attr("id", "childrenUnknownHeading");
   $("div.VITALS:contains([sibling(s) unknown])").attr("id", "siblingsUnknown");
   $("div.VITALS:contains([spouse(s) unknown])").attr("id", "spousesUnknown");
 
@@ -70,7 +70,7 @@ async function addAddLinksToHeadings() {
     [".spouseText:first-of-type", "spouse"],
     ["#spousesUnknown", "spouse"],
     ["#childrenHeader", "child"],
-    ["#childrenUnknown", "child"],
+    ["#childrenUnknownHeading", "child"],
     ["#parentsHeader", "father"],
     ["#fatherUnknown", "father"],
     ["#motherUnknown", "mother"],
@@ -513,7 +513,12 @@ function fixNakedPrivates() {
       let husbandOrWife = firstMatch2[0].match(rgx5);
       let husbandOrWifeOf = firstMatch2[0].match(rgx6);
       let privateText = firstMatch2[0].match(/private wife|husband/);
-      let fullPrivateText = "[" + privateText[0] + "]";
+      let fullPrivateText;
+      if (privateText) {
+        fullPrivateText = "[" + privateText[0] + "]";
+      } else {
+        fullPrivateText = "[private spouse]";
+      }
       const spouseText = $(
         '<a class="spouseText clickable" data-alt-text="Spouse: " data-original-text="' +
           husbandOrWifeOf[0] +

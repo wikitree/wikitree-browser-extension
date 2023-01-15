@@ -6,3 +6,6 @@
 #filterButtons {
   float: right;
 }
+body.page-Special_EditFamilySteps table {
+  clear: both;
+}
