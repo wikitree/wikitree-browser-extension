@@ -399,6 +399,9 @@ body.darkMode div.comparePendingPersonContainer span.large {
   color: #dcddde !important;
   background-color: #777788 !important;
 }
+
+
+/* Add Profile */
 body.darkMode p#progressBar {
   color: #50c878 !important;
 }
