@@ -147,10 +147,6 @@ async function prepareFamilyLists() {
       }
     });
 
-    familyLists.on("dblclick", function () {
-      moveFamilyLists(false, true);
-    });
-
     $("#parentDetails").prepend($("span.showHideTree").eq(0));
     $("#childrenDetails").prepend($("span#showHideDescendants"));
   }
