@@ -60,15 +60,15 @@ checkIfFeatureEnabled("changeFamilyLists").then((result) => {
 
 async function addAddLinksToHeadings() {
   $("div.VITALS:contains([children unknown])").attr("id", "childrenUnknownHeading");
-  $("div.VITALS:contains([sibling(s) unknown])").attr("id", "siblingsUnknown");
-  $("div.VITALS:contains([spouse(s) unknown])").attr("id", "spousesUnknown");
+  $("div.VITALS:contains([sibling(s) unknown])").attr("id", "siblingsUnknownHeading");
+  $("div.VITALS:contains([spouse(s) unknown])").attr("id", "spousesUnknownHeading");
 
   const linkBase = $("a.pureCssMenui:contains(Edit)").attr("href").replace("Person", "Family");
   const headings = [
     ["#siblingsHeader", "sibling"],
-    ["#siblingsUnknown", "sibling"],
+    ["#siblingsUnknownHeading", "sibling"],
     [".spouseText:first-of-type", "spouse"],
-    ["#spousesUnknown", "spouse"],
+    ["#spousesUnknownHeading", "spouse"],
     ["#childrenHeader", "child"],
     ["#childrenUnknownHeading", "child"],
     ["#parentsHeader", "father"],

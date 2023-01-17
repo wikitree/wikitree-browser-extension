@@ -468,6 +468,7 @@ body.darkMode .vertical .nameList li {
 .vertical li#siblingsUnknown,
 .vertical li#fatherUnknown,
 .vertical span#childrenUnknown,
+.vertical span#spousesUnknown,
 .vertical li#motherUnknown {
   padding-left: 3px;
   display: block;
