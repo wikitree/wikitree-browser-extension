@@ -566,6 +566,13 @@ function makeFamLists() {
   const childrenQ = $("a:contains('[children?]')");
   const spouseQ = $("a:contains('[add spouse?]'),a:contains('[spouse?]')");
 
+  const noParentsPublic = " of [father unknown] and [mother unknown]";
+  const noFatherPublic = / of \[father unknown\] and $/;
+  const noMotherPublic = /and \[mother unknown\]/;
+
+  if (dparents) {
+    var dparentsText = $(dparents[0]).parent().text();
+  }
   const childrenQSpan = $("<span id='childrenUnknownQ'></span>");
   if (childrenQ.length) {
     childrenQ.after(childrenQSpan);
@@ -627,8 +634,6 @@ function makeFamLists() {
     }
   }
 
-  const noParentsPublic = " of [father unknown] and [mother unknown]";
-  const noFatherPublic = / of \[father unknown\] and $/;
   if ($("#parentDetails").length) {
     const parentsNodes = $("#parentDetails")[0].childNodes;
     parentsNodes.forEach(function (aNode) {
@@ -642,6 +647,9 @@ function makeFamLists() {
         $("<li id='fatherUnknown'>[father unknown]</li>").prependTo($("#parentList"));
       }
     });
+    if (dparentsText.match(noMotherPublic)) {
+      $("<li id='motherUnknown'>[mother unknown]</li>").appendTo($("#parentList"));
+    }
   }
 
   let sibs = document.querySelectorAll('span[itemprop="sibling"]');
