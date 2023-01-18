@@ -1,8 +1,10 @@
 import $ from "jquery";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import "./category_finder_pins.css";
 
 async function addCategoryLinksToDropdown() {
-  $("#addCategoryInput").keyup(function () {
+  $("body").addClass("categoryFinderPins");
+  $("#addCategoryInput").on("keyup", function () {
     setTimeout(function () {
       $(".autocomplete-suggestions:visible .autocomplete-suggestion").each(function () {
         const term = $(this).text();
@@ -17,14 +19,16 @@ async function addCategoryLinksToDropdown() {
           pin.insertBefore($(this));
         }
       });
-    }, 1000);
+    }, 1500);
   });
 }
 
 checkIfFeatureEnabled("categoryFinderPins").then((result) => {
   if (result) {
     setTimeout(function () {
-      addCategoryLinksToDropdown();
-    }, 1000);
+      if ($("#toolbar").length) {
+        addCategoryLinksToDropdown();
+      }
+    }, 2000);
   }
 });
