@@ -285,15 +285,18 @@ function timeline() {
           const tlTemplates = aPerson.bio.match(/\{\{[^]*?\}\}/gm);
           if (tlTemplates != null) {
             const warTemplates = [
-              "The Great War",
-              "Korean War",
-              "Vietnam War",
-              "World War II",
-              "US Civil War",
-              "War of 1812",
-              "Mexican-American War",
+              "Creek War",
               "French and Indian War",
+              "Iraq War",
+              "Korean War",
+              "Mexican-American War",
               "Spanish-American War",
+              "The Great War",
+              "US Civil War",
+              "Vietnam War",
+              "War in Afghanistan",
+              "War of 1812",
+              "World War II",
             ];
             tlTemplates.forEach(function (aTemp) {
               let evDate = "";
