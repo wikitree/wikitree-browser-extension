@@ -1,5 +1,5 @@
 import $ from "jquery";
-import { capitalizeFirstLetter } from "../familyTimeline/familyTimeline";
+import { titleCase } from "../familyTimeline/familyTimeline";
 import { isOK } from "../../core/common.js";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
@@ -72,7 +72,7 @@ async function setConnectionsBanner() {
   let dTitle = "";
   if (!window.noHeading && localStorage.cfTitle != "") {
     if (localStorage.cfTitle.match(/\bUS\b/) == null) {
-      dTitle = capitalizeFirstLetter(localStorage.cfTitle);
+      dTitle = titleCase(localStorage.cfTitle);
     } else if (localStorage.cfTitle) {
       dTitle = localStorage.cfTitle;
     }
