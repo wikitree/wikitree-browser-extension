@@ -58,7 +58,7 @@ function helpScissors() {
       copyThingToClipboard($(this).attr("data-copy-text"));
     });
   }
-  if ($("h1:contains('Change Details')").length) {
+  if ($("h1:contains('Change Details')").length || $("h1:contains('Creation of Profile')").length) {
     const historyItem = $("span.HISTORY-ITEM");
     let change = "Added";
     if (historyItem.find("a:contains(created),a:contains(imported the data)").length) {
