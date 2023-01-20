@@ -133,7 +133,7 @@ function getAge(birth, death) {
   return age;
 }
 
-export function capitalizeFirstLetter(string) {
+export function titleCase(string) {
   string = string.toLowerCase();
   const bits = string.split(" ");
   let out = "";
@@ -149,6 +149,10 @@ export function capitalizeFirstLetter(string) {
 
 function mapGender(gender, maleName, femaleName, neutralName) {
   return gender == "Male" ? maleName : gender == "Female" ? femaleName : neutralName;
+}
+
+function capitalizeFirstLetter(string) {
+  return string.substring(0, 1).toUpperCase() + string.substring(1);
 }
 
 function timeline() {
@@ -310,19 +314,19 @@ function timeline() {
                   if (warTemplates.includes(templateTitle) && isOK(aBitFact)) {
                     if (aBitField == "startdate") {
                       evDateStart = dateToYMD(aBitFact);
-                      evStart = "Joined " + templateTitle;
+                      evStart = "joined " + templateTitle;
                     }
                     if (aBitField == "enddate") {
                       evDateEnd = dateToYMD(aBitFact);
-                      evEnd = "Left " + templateTitle;
+                      evEnd = "left " + templateTitle;
                     }
                     if (aBitField == "enlisted") {
                       evDateStart = dateToYMD(aBitFact);
-                      evStart = "Enlisted for " + templateTitle.replace("american", "American");
+                      evStart = "enlisted for " + templateTitle.replace("american", "American");
                     }
                     if (aBitField == "discharged") {
                       evDateEnd = dateToYMD(aBitFact);
-                      evEnd = "Discharged from " + templateTitle.replace("american", "American");
+                      evEnd = "discharged from " + templateTitle.replace("american", "American");
                     }
                     if (aBitField == "branch") {
                       evLocation = aBitFact;
@@ -376,8 +380,8 @@ function timeline() {
       // Make a table
       const timelineTable = $(
         `<div class='wrap' id='timeline' data-wtid='${person.Name}'><w>↔</w><x>x</x><table id='timelineTable'>` +
-          `<caption>Events in the life of ${person.FirstName}'s family</caption><thead><th class='tlDate'>Date</th><th class='tlBioAge'>Age (${person.FirstName})</th>` +
-          `<th class='tlEventDescription'>Event</th><th class='tlEventLocation'>Location</th>` +
+          `<caption>Events in the life of ${person.FirstName}'s family</caption><thead><th class='tlDate'>Date</th>` +
+          `<th class='tlBioAge'>Age</th><th class='tlEventDescription'>Event</th><th class='tlEventLocation'>Location</th>` +
           `</thead></table></div>`
       );
       // Attach the table to the container div
@@ -439,13 +443,17 @@ function timeline() {
         if (hasBdate == false) {
           theBPAge = "";
         }
-        const tlBioAge = "<td class='tlBioAge'>" + theBPAge + "</td>";
+        const tlBioAge =
+          "<td class='tlBioAge'>" +
+          (aFact.evnt == "Death" && aFact.wtId == person.Name ? "&#x1F397; " : "") +
+          theBPAge +
+          "</td>";
         if (aFact.relation == undefined || isEventForBioPerson) {
           aFact.relation = "";
         }
 
         let relation = aFact.relation.replace(/s$/, "");
-        const eventName = capitalizeFirstLetter(aFact.evnt).replaceAll(/Us\b/g, "US").replaceAll(/Ii\b/g, "II");
+        const eventName = aFact.evnt.replaceAll(/Us\b/g, "US").replaceAll(/Ii\b/g, "II");
 
         let fNames = aFact.firstName;
         if (aFact.evnt == "marriage") {
@@ -473,7 +481,7 @@ function timeline() {
         let descr;
         if (bmdEvents.includes(aFact.evnt)) {
           descr =
-            eventName +
+            capitalizeFirstLetter(eventName) +
             " of " +
             (relation == "" ? relation : relation + ", ") +
             tlFirstName +
