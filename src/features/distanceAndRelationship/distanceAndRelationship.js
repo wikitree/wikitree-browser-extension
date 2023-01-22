@@ -228,13 +228,14 @@ function commonAncestorText(commonAncestors) {
   }
   let ancestorsAdded = [];
   commonAncestors.forEach(function (commonAncestor) {
+    const myAncestorType = ancestorType(commonAncestor.path1Length - 1, commonAncestor.ancestor.mGender).toLowerCase();
     const thisAncestorType = ancestorType(
       commonAncestor.path2Length - 1,
       commonAncestor.ancestor.mGender
     ).toLowerCase();
     if (!ancestorsAdded.includes(commonAncestor.ancestor.mName)) {
       ancestorTextOut +=
-        '<li>Your common ancestor, <a href="https://www.wikitree.com/wiki/' +
+        `<li>Your ${myAncestorType}, <a href="https://www.wikitree.com/wiki/` +
         commonAncestor.ancestor.mName +
         '">' +
         commonAncestor.ancestor.mDerived.LongNameWithDates +
