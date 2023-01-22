@@ -122,6 +122,12 @@ function saveFeatureOnOffOptions() {
     console.log("Saving feature " + feature.id + ", checked is: " + checked);
 
     itemsToSave[feature.id] = checked;
+
+    console.log(window.categorySwitchClicked);
+
+    if (window.categorySwitchClicked == false || !window.categorySwitchClicked) {
+      setCategorySwitches();
+    }
   });
 
   chrome.storage.sync.set(itemsToSave);
@@ -135,6 +141,18 @@ function restore_options() {
       if (featureEnabled === undefined) {
         featureEnabled = feature.defaultValue ? true : false;
       }
+      $(`#${feature.id} input`).prop("checked", featureEnabled);
+      restoreFeatureOptions(feature, items);
+    });
+  });
+}
+
+// reads all options from storage and restores state of options page
+function restore_defaults() {
+  chrome.storage.sync.get(null, (items) => {
+    features.forEach((feature) => {
+      let featureEnabled = items[feature.id];
+      featureEnabled = feature.defaultValue ? true : false;
       $(`#${feature.id} input`).prop("checked", featureEnabled);
       restoreFeatureOptions(feature, items);
     });
@@ -296,6 +314,9 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
 // when the options page loads, load status of options from storage into the UI elements
 $(document).ready(() => {
   restore_options();
+  setTimeout(function () {
+    setCategorySwitches();
+  }, 2000);
 });
 
 // Sort features alphabetically
@@ -319,38 +340,66 @@ categories.forEach(function (category) {
   });
 });
 
+function setCategorySwitches() {
+  let allTheseSwitches;
+  categories.forEach(function (category) {
+    allTheseSwitches = $(".feature-information." + category + " .switch input");
+    let categorySwitchState = true;
+    allTheseSwitches.each(function () {
+      if ($(this).prop("checked") == false) {
+        categorySwitchState = false;
+      }
+    });
+    window.setCategorySwitches = true;
+    $("h2[data-category=" + category + "] input").prop("checked", categorySwitchState);
+    window.setCategorySwitches = false;
+  });
+}
 // Category switches
-$("h2 input").change(function () {
-  let oSwitch = true;
-  if ($(this).prop("checked") == false) {
-    oSwitch = false;
+$("h2 input").on("change", function () {
+  if (window.setCategorySwitches == false || !window.setCategorySwitches) {
+    window.categorySwitchClicked = true;
+    console.log(window.categorySwitchClicked);
+    let oSwitch = true;
+    if ($(this).prop("checked") == false) {
+      oSwitch = false;
+    }
+    let oClass = $(this).closest("h2").data("category");
+    $("." + oClass)
+      .find("input")
+      .prop("checked", oSwitch);
   }
-  let oClass = $(this).closest("h2").data("category");
-  $("." + oClass)
-    .find("input")
-    .prop("checked", oSwitch);
+  window.setCategorySwitches = false;
+  setTimeout(function () {
+    window.categorySwitchClicked = false;
+  }, 3000);
 });
 
 // Switch at the top to toggle every switch
 
-/*
 $("h1").append(
   $(`<div class="feature-toggle">
-<label class="switch">
-<input type="checkbox">
+  All <label class="switch">
+<input type="checkbox" id="toggleAll">
 <span class="slider round"></span>
-</label>
-</div>`)
+</label></div><button id="default">Default</button>`)
 );
 
-$("h1 input").change(function () {
+$("#toggleAll").on("change", function () {
+  let darkModeState = $("#darkMode .switch input").prop("checked");
   let oSwitch = true;
   if ($(this).prop("checked") == false) {
     oSwitch = false;
   }
   $("input[type='checkbox']").prop("checked", oSwitch);
+  if (darkModeState == false) {
+    $("#darkMode .switch input").prop("checked", false);
+  }
 });
-*/
+
+$("#default").on("click", function () {
+  restore_defaults();
+});
 
 // Auto save the options on click (on 'change' would create lots of events when a big switch is clicked)
 // The short delay is for the changes to happen after the click

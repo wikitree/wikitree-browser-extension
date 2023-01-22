@@ -183,6 +183,23 @@ input:checked + .slider:before {
   border: 2px solid gray;
 }
 
+h1 .feature-toggle {
+  margin-left: 0.5em;
+}
+h1 #default {
+  float: right;
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+  border-radius: 34px;
+  border: 0;
+  font-weight: bold;
+}
+h1 #default:active {
+  box-shadow: 0;
+}
+
 /* content */
 #wte-topMenuUL {
   margin-right: 1em;
