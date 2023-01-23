@@ -553,3 +553,6 @@ body.darkMode .vertical .nameList li {
   left: -2.1em;
   top: 0.3em;
 }
+.vertical ol {
+  clear: both;
+}

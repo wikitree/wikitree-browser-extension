@@ -84,7 +84,6 @@ body.darkMode .qa-form-tall-label label {
   color: white !important;
 }
 
-body.darkMode .button,
 body.darkMode div.pad form button,
 body.darkMode input.button.green.search {
   padding: 12px 12px !important;
