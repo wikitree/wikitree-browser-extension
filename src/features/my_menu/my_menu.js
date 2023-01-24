@@ -296,6 +296,10 @@ function addCustomMenu() {
     e.preventDefault();
     addRandomProfileLocationBox(e);
   });
+  $("#myCustomMenu li a:contains(Printer Friendly Bio)").on("click", function (e) {
+    e.preventDefault();
+    $("#wte-tm-printer-friendly").trigger("click");
+  });
 
   $("#myCustomMenu li a:contains(Drafts)").on("click", function (e) {
     e.preventDefault();
