@@ -1,20 +1,9 @@
 import $ from "jquery";
 import * as cheerio from "cheerio";
 //import "./my_feature.css";
+import { getPeople } from "../dna_table/dna_table";
+import { PersonName } from "./person_name.js";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
-
-// Function to get the person's data from the WikiTree API
-function getPersonData(userId) {
-  return $.ajax({
-    url: "https://api.wikitree.com/api.php",
-    data: {
-      action: "getPerson",
-      user_id: userId,
-      format: "json",
-    },
-    dataType: "json",
-  });
-}
 
 // Function to parse the wikitables
 function parseWikiTable(table) {
@@ -52,12 +41,6 @@ function getPronouns(gender) {
   }
 }
 
-// Function to build each part of the bio
-function buildName(person) {
-  let text = person.Name + " (" + person.FirstName + " " + person.LastNameCurrent + ")";
-  return text;
-}
-
 function buildBirth(person, pronouns) {
   let text = "";
   if (person.BirthLocation) {
@@ -75,9 +58,14 @@ function buildParents(person, pronouns) {
   let parents = person.Parents;
   if (parents) {
     if (pronouns === "he") {
-      text += "He was the son of " + parents.father.Name + " and " + parents.mother.Name + ".";
+      let wanted = ["PedigreeName"];
+      let aName = new PersonName(person.Parents[person.Father]);
+      let fatherName = aName.withParts(wanted);
+      aName = new PersonName(person.Parents[person.Mother]);
+      let motherName = aName.withParts(wanted);
+      text += "He was the son of " + fatherName + " and " + motherName + ".";
     } else if (pronouns === "she") {
-      text += "She was the daughter of " + parents.father.Name + " and " + parents.mother.Name + ".";
+      text += "She was the daughter of " + fatherName + " and " + motherName + ".";
     }
   }
   return text;
@@ -116,7 +104,17 @@ function buildSpouses(person, pronouns) {
   return text;
 }
 
-const cheerio = require("cheerio");
+function buildCensuses(text) {
+  let $ = cheerio.load(text);
+  let censusNarratives = "";
+  $("table").each(function (i, table) {
+    let census = parseCensusTable(table);
+    if (census.data.year) {
+      censusNarratives += buildCensusNarrative(census);
+    }
+  });
+  return text + censusNarratives;
+}
 
 function parseCensusTable(table) {
   let censusData = {};
@@ -302,30 +300,42 @@ function parseDeathTable(table, person) {
 function addCitations(text) {
   let citations = text.match(/(?<={{)[^}]+(?=}})/g);
   let refs = "";
-  for (let i = 0; i < citations.length; i++) {
-    refs += "<ref>" + citations[i] + "</ref>\n";
+  if (citations) {
+    for (let i = 0; i < citations.length; i++) {
+      refs += "<ref>" + citations[i] + "</ref>\n";
+    }
   }
   text = text.replace(/({{)[^}]+(}})/g, "");
   text += "\n==References==\n" + refs;
   return text;
 }
 
-function generate() {
-  let person = getPersonData();
+async function generate() {
+  let spouseLinks = $("span[itemprop='spouse'] a");
+  let profileID = $("a.pureCssMenui0 span.person").text();
+  let keys = profileID;
+  spouseLinks.each(function () {
+    if ($(this).attr("href").split("/wiki/")[1]) {
+      keys += "," + $(this).attr("href").split("/wiki/")[1];
+      console.log(keys);
+    }
+  });
+  console.log(keys);
+  let people = await getPeople(keys, 0, 0, 0, 1, 1, "*");
+  console.log(people);
+  let person = people[0].people[people[0].resultByKey[profileID].Id];
   let pronouns = getPronouns(person);
-  let text =
-    "==Biography==\n" +
-    buildName(person, pronouns) +
-    buildParents(person, pronouns) +
-    buildSpouses(person, pronouns) +
-    buildCensuses(text);
-  text = buildCensuses(text);
-  text = buildBirths(text);
-  text = buildMarriages(text);
-  text = buildDeaths(text);
+  let text = "==Biography==\n";
+  let wanted = ["PedigreeName"];
+  let aName = new PersonName(person);
+  let theName = aName.withParts(wanted);
+  text += theName + buildParents(person, pronouns) + buildSpouses(person, pronouns);
   text = addCitations(text);
+  /*
   let bioTextArea = document.getElementById("biotext");
   bioTextArea.value = text + bioTextArea.value;
+  */
+  console.log(text);
 }
 
 $(document).ready(function () {
