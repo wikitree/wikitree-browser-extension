@@ -10,7 +10,7 @@
   "permissions": [
     "https://www.wikitree.com/*",
     "https://api.wikitree.com/*",
-    "https://wikitree.sdms.si/*",
+    "https://plus.wikitree.com/*",
     "https://wikitreebee.com/*",
     "storage"
   ],

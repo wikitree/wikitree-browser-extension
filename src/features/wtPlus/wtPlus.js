@@ -1610,7 +1610,7 @@ function initWTPlus() {
         }
         if (tb.dataVersion.getTime() < new Date().getTime() - 6 * 3600 * 1000) {
           // Loading of template definition From Web
-          fetch("https://wikitree.sdms.si/chrome/templatesExp.json")
+          fetch("https://plus.wikitree.com/chrome/templatesExp.json")
             .then((resp) => resp.json())
             .then((jsonData) => {
               const d = new Date(jsonData.version);

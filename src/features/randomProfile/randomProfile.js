@@ -1,6 +1,7 @@
 import $ from "jquery";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { getPerson } from "wikitree-js";
+import { wtAPIProfileSearch } from "../../core/wtPlusAPI/wtPlusAPI";
 import "jquery-ui/ui/widgets/draggable";
 
 checkIfFeatureEnabled("randomProfile").then((result) => {
@@ -10,10 +11,11 @@ checkIfFeatureEnabled("randomProfile").then((result) => {
   }
 });
 
+/* use wtAPIProfileSearch instead
 export async function getWTPlusJSON(call) {
   try {
     const result = await $.ajax({
-      url: "https://wikitree.sdms.si/function/" + call,
+      url: "https://plus.wikitree.com/function/" + call,
       crossDomain: true,
       xhrFields: { withCredentials: false },
       type: "POST",
@@ -25,6 +27,7 @@ export async function getWTPlusJSON(call) {
     console.error(error);
   }
 }
+*/
 
 // Used in Random Profile and My Menu
 export async function getRandomProfile(ourCountry = false) {
@@ -108,9 +111,9 @@ export async function getRandomProfile(ourCountry = false) {
   } else {
     // If the location is not in okLocations or we've tried 50 random profiles from the database,
     // get 100,000 results from WT+ and choose a random one from there.
-    getWTPlusJSON(
-      "WTWebProfileSearch/extRandomProfile.json?Query=" + ourCountry + "&MaxProfiles=100000&Format=JSON"
-    ).then((response) => {
+    // before change to API getWTPlusJSON("WTWebProfileSearch/extRandomProfile.json?Query=" + ourCountry + "&MaxProfiles=100000&Format=JSON")
+    wtAPIProfileSearch("RandomProfile", ourCountry, {maxProfiles: 100000})
+    .then((response) => {
       console.log(response);
       const randomNumber = Math.floor(Math.random() * response.response.found);
       let randomProfileID = response.response.profiles[randomNumber];
