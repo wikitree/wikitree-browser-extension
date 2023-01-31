@@ -339,5 +339,5 @@ async function generate() {
 }
 
 $(document).ready(function () {
-  generate();
+  // generate();
 });
