@@ -137,6 +137,31 @@ function nameLink(person) {
   return "[[" + person.Name + "|" + person.FullName + "]]";
 }
 
+function childList(person, spouse) {
+  let text = "";
+  let ourChildren = [];
+  let childrenKeys = Object.keys(person.Children);
+  childrenKeys.forEach(function (key) {
+    if (person.Children[key]?.Father == spouse.Id || person.Children[key]?.Mother == spouse.Id) {
+      ourChildren.push(person.Children[key]);
+    }
+  });
+  if (ourChildren.length == 0) {
+    return false;
+  } else if (ourChildren.length == 1) {
+    text += "Their child was:\n";
+  } else {
+    text += "Their children were:\n";
+  }
+  ourChildren.forEach(function (child) {
+    text += "#";
+    let aName = new PersonName(child);
+    child.FullName = aName.withParts(["FullName"]);
+    text += nameLink(child) + " " + formatDates(child) + "\n";
+  });
+  return text;
+}
+
 function buildBirth(person) {
   let text = "'''" + person.FullName + "'''" + " was born";
   if (person.BirthLocation) {
@@ -278,6 +303,7 @@ function buildSpouses(person) {
         text += " in " + place;
       }
       text += ".";
+      text += " " + childList(person, spouse);
       marriages.push(text);
     });
   }
@@ -490,7 +516,52 @@ function addCitations(text) {
   return text;
 }
 
+function sourcesArray(bio) {
+  let dummy = $(document.createElement("html"));
+  dummy.append(bio);
+  let refArr = [];
+  let refs = dummy.find("ref");
+  refs.each(function () {
+    let theRef = $(this)[0].outerText;
+    if (isFirefox == true) {
+      theRef = $(this)[0].innerText;
+    }
+    if (theRef != "" && theRef != "\n" && theRef != "\n\n" && theRef.match(window.sourceExclude) == null) {
+      refArr.push({ text: theRef.trim(), name: $(this).attr("name") });
+    }
+  });
+  let bioBits = bio.split(/==.*Sources.*==/);
+  if (bioBits[1]) {
+    let bioBits2 = bioBits[1].split(/==.*==/);
+    let sourcesSection = bioBits2[0];
+    sourcesSection = sourcesSection.replace(/\n<references\s?\/>/, "");
+    let sourcesBits = sourcesSection.split(/^\*/gm);
+    let notShow = /^[\n\s]*$/;
+    sourcesBits.forEach(function (aSource) {
+      if (aSource.match(notShow) == null && aSource.match(window.sourceExclude) == null) {
+        refArr.push({ text: aSource.trim(), name: "" });
+      }
+    });
+  }
+  return refArr;
+}
+
+window.sourceExclude =
+  /^\n*?\s*?((^Also:$)|(^See also:$)|(Unsourced)|(Personal (recollection)|(information))|(Firsthand knowledge)|(Sources will be added)|(Add\s\[\[sources\]\]\shere$)|(Created.*?through\sthe\simport\sof\s.*?\.ged)|(FamilySearch(\.com)?$)|(ancestry\.com$)|(family records$)|(Ancestry family trees$))/im;
+
 async function generate() {
+  let enhanced = false;
+  let enhancedEditorButton = $("#toggleMarkupColor");
+  if (enhancedEditorButton.attr("value") == "Turn Off Enhanced Editor") {
+    enhancedEditorButton.trigger("click");
+    enhanced = true;
+  }
+
+  let currentBio = $("#wpTextbox1").val();
+  localStorage.setItem("previousBio", currentBio);
+  let references = sourcesArray(currentBio);
+  console.log(references);
+
   window.usedPlaces = [];
   let spouseLinks = $("span[itemprop='spouse'] a");
   let profileID = $("a.pureCssMenui0 span.person").text();
@@ -544,5 +615,17 @@ async function generate() {
 }
 
 $(document).ready(function () {
+  // check for Firefox
+  window.isFirefox = false;
+  window.addEventListener("load", () => {
+    let prefix = Array.prototype.slice
+      .call(window.getComputedStyle(document.documentElement, ""))
+      .join("")
+      .match(/-(moz|webkit|ms)-/)[1];
+    if (prefix == "moz") {
+      window.isFirefox == true;
+    }
+  });
+
   generate();
 });
