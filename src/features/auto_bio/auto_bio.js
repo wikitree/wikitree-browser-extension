@@ -20,68 +20,119 @@ function parseWikiTable(table) {
 // Function to get the person's data from the form fields
 function getFormData() {
   let formData = {};
-  $("#formId input").each(function () {
-    formData[$(this).attr("id").substring(1)] = $(this).val();
+  $("#editform table input[id]").each(function () {
+    if ($(this).attr("type") === "radio") {
+      if ($(this).is(":checked")) {
+        formData[$(this).attr("name")] = $(this).val();
+      }
+    } else {
+      formData[$(this).attr("id").substring(1)] = $(this).val();
+    }
   });
   return formData;
 }
 
 // Function to use the appropriate pronouns and possessive adjectives
-function getPronouns(gender) {
+function getPronouns(person) {
+  let gender = person.Gender;
   if (gender === "Female") {
     return {
-      pronoun: "she",
+      subject: "she",
       possessiveAdjective: "her",
     };
   } else {
     return {
-      pronoun: "he",
+      subject: "he",
       possessiveAdjective: "his",
     };
   }
 }
 
-function buildBirth(person, pronouns) {
-  let text = "";
-  if (person.BirthLocation) {
-    text += pronouns.pronoun + " was born in " + person.BirthLocation;
-    if (person.BirthDate) {
-      text += " on " + person.BirthDate;
-    }
-    text += ".";
+function formatDates(person) {
+  let birthDate = person.BirthDate || "";
+  let deathDate = person.DeathDate || "";
+
+  if (birthDate === "0000-00-00") birthDate = "";
+  if (deathDate === "0000-00-00") deathDate = "";
+
+  if (birthDate === "" && deathDate === "") return "";
+
+  if (birthDate === "") {
+    if (person.DataStatus.BirthDate === "guess") return `> ${deathDate.substring(0, 4)}`;
+    if (person.DataStatus.BirthDate === "before") return `< ${deathDate.substring(0, 4)}`;
   }
+
+  if (deathDate === "") {
+    if (person.DataStatus.DeathDate === "guess") return `~ ${birthDate.substring(0, 4)}`;
+    if (person.DataStatus.DeathDate === "before") return `> ${birthDate.substring(0, 4)}`;
+    if (person.DataStatus.DeathDate === "after") return `< ${birthDate.substring(0, 4)}`;
+  }
+
+  return `(${birthDate.substring(0, 4)}–${deathDate.substring(0, 4)})`;
+}
+
+function formatDate(dateStr) {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    return "";
+  }
+  const options = { year: "numeric", month: "long", day: "numeric" };
+  return date.toLocaleDateString("en-US", options);
+}
+
+function buildBirth(person) {
+  let text = person.FullName + " was born";
+  if (person.BirthLocation) {
+    text += " in " + person.BirthLocation;
+  }
+  if (person.BirthDate) {
+    text += " on " + formatDate(person.BirthDate);
+  }
+  if (person.Parents) {
+    text += buildParents(person);
+  }
+  text += ".";
   return text;
 }
 
-function buildParents(person, pronouns) {
+function buildParents(person) {
   let text = "";
+  if (person.Gender == "Male") {
+    text += ", son of ";
+  } else if (person.Gender == "Female") {
+    text += ", daughter of ";
+  }
   let parents = person.Parents;
   if (parents) {
-    if (pronouns === "he") {
-      let wanted = ["PedigreeName"];
-      let aName = new PersonName(person.Parents[person.Father]);
+    let wanted = ["FullName"];
+    if (person.Father) {
+      let father = person.Parents[person.Father];
+      let aName = new PersonName(father);
       let fatherName = aName.withParts(wanted);
-      aName = new PersonName(person.Parents[person.Mother]);
+      text += fatherName;
+      text += " " + formatDates(father);
+    }
+    if (person.Father && person.Mother) {
+      text += " and ";
+    }
+    if (person.Mother) {
+      let mother = person.Parents[person.Mother];
+      let aName = new PersonName(mother);
       let motherName = aName.withParts(wanted);
-      text += "He was the son of " + fatherName + " and " + motherName + ".";
-    } else if (pronouns === "she") {
-      text += "She was the daughter of " + fatherName + " and " + motherName + ".";
+      text += motherName;
+      text += " " + formatDates(mother);
     }
   }
   return text;
 }
 
-function buildSpouses(person, pronouns) {
+function buildSpouses(person) {
   let text = "";
-  let spouses = person.Spouses;
-  if (spouses) {
-    for (let i in spouses) {
-      let spouse = spouses[i];
-      if (pronouns === "he") {
-        text += " He married " + spouse.Name;
-      } else if (pronouns === "she") {
-        text += " She married " + spouse.Name;
-      }
+  let spouseKeys = Object.keys(person.Spouses);
+  if (person.Spouses) {
+    spouseKeys.forEach(function (aSpouse) {
+      text += person.FirstName + " married " + spouse.Name;
+
       if (spouse.BirthDate) {
         text += " (born " + spouse.BirthDate + ")";
       }
@@ -99,7 +150,7 @@ function buildSpouses(person, pronouns) {
           spouse.Parents.mother.Name +
           ".";
       }
-    }
+    });
   }
   return text;
 }
@@ -324,20 +375,29 @@ async function generate() {
   let people = await getPeople(keys, 0, 0, 0, 1, 1, "*");
   console.log(people);
   let person = people[0].people[people[0].resultByKey[profileID].Id];
-  let pronouns = getPronouns(person);
+  console.log(person);
+  let profilePerson = getFormData();
+  let personKeys = Object.keys(profilePerson);
+  personKeys.forEach(function (aKey) {
+    person[aKey] = profilePerson[aKey];
+  });
+  console.log(person);
   let text = "==Biography==\n";
-  let wanted = ["PedigreeName"];
+  let wanted = ["FullName"];
   let aName = new PersonName(person);
-  let theName = aName.withParts(wanted);
-  text += theName + buildParents(person, pronouns) + buildSpouses(person, pronouns);
+  person.FullName = aName.withParts(wanted);
+  person.Pronouns = getPronouns(person);
+  text += buildBirth(person) + buildSpouses(person);
   text = addCitations(text);
   /*
   let bioTextArea = document.getElementById("biotext");
   bioTextArea.value = text + bioTextArea.value;
   */
+
+  console.log(profilePerson);
   console.log(text);
 }
 
 $(document).ready(function () {
-  // generate();
+  generate();
 });
