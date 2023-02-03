@@ -196,13 +196,13 @@ export class PersonName {
 
   /**
    * Construct a name with the given composition for this person.
-   * @param {*} wantedParts The parts of the name to be used in the construction of the name.
+   * @param {*} wantedParts An array listing the parts of the name to be used in the construction of the name.
    *    Possible part values are below. Note that the part value names do not always correspond with the API
    *    field name. Only the parts marked with (*) map directly to a single API field and will be used unadultered.
    *    If a part is part of other parts specified in wantedParts, it will be ignored.
    *    If a part is a combination of other parts in wantedParts, those other parts will be ignored.
    *    The order of the parts in the list is not important since their order in the name construction
-   *    is predetermined (for now - this might have to change).
+   *    is predetermined (as per the order of the pars in PedigreeName).
    *       * PedigreeName - 'Prefix FirstName MiddleNames (PreferredName) "Nicknames" (LastNameAtBirth) LastNameCurrent Suffix aka LastNameOther'.
    *       * FullName - 'Prefix FirstName MiddleNames (LastNameAtBirth) LastNameCurrent Suffix'.
    *       * LastName - LastNameCurrent if it exists, else LastNameAtBirth;
@@ -220,7 +220,7 @@ export class PersonName {
    *       * Nicknames(*) - the Nicknames API field
    *       * Prefix(*) - the Prefix API field
    *       * Suffix(*) - the Suffix API field
-   * @returns a name constructed as requested. If a part is specified, but it, or its constituent parts are not
+   * @returns a name constructed as requested. If a part is specified, but it or its constituent parts are not
    * present in the profile, it will be ignored.
    */
   withParts(wantedParts) {
@@ -229,6 +229,33 @@ export class PersonName {
       return `Invalid name part(s) ${invalidParts} requested`;
     }
     const [partsWanted, fieldsNeeded] = PersonName.#getWantsAndNeeds(wantedParts, true);
+
+    // Ensure PreferredName is in brackets if first name is present
+    const firstNameIsPresent =
+      (fieldsNeeded.has("firstName") && this.firstName) ||
+      (fieldsNeeded.has("firstNames") && this.firstNames) ||
+      (fieldsNeeded.has("fullFirstName") && this.fullFirstName);
+    let preferredName = this.preferredName;
+    if (
+      firstNameIsPresent &&
+      fieldsNeeded.has("preferredName") &&
+      !fieldsNeeded.has("bracketedPreferredName") &&
+      this.bracketedPreferredName &&
+      this.firstNames.includes(this.preferredName)
+    ) {
+      preferredName = this.bracketedPreferredName;
+    }
+
+    // Ensure Nicknames is in brackets if first name is present
+    let nicknames = this.nicknames;
+    if (
+      (firstNameIsPresent || (fieldsNeeded.has("preferredName") && preferredName)) &&
+      nicknames &&
+      fieldsNeeded.has("nicknames") &&
+      !fieldsNeeded.has("quotedNicknames")
+    ) {
+      nicknames = `"${nicknames}"`;
+    }
 
     const parts = [
       fieldsNeeded.has("prefix") ? this.prefix || null : null,
@@ -239,12 +266,10 @@ export class PersonName {
       fieldsNeeded.has("middleInitials") ? this.middleInitials || null : null,
       fieldsNeeded.has("middleName") ? this.middleName || null : null,
       fieldsNeeded.has("middleNames") ? this.middleNames || null : null,
-      fieldsNeeded.has("preferredName") ? this.preferredName || null : null,
+      fieldsNeeded.has("preferredName") ? preferredName || null : null,
       fieldsNeeded.has("bracketedPreferredName") ? this.bracketedPreferredName || null : null,
-      fieldsNeeded.has("nicknames") && this.nicknames ? `<span class="nickname">${this.nicknames}</span>` : null,
-      fieldsNeeded.has("quotedNicknames") && this.nicknames
-        ? `<span class="nickname">"${this.nicknames}"</span>`
-        : null,
+      fieldsNeeded.has("nicknames") && nicknames ? `<span class="nickname">${nicknames}</span>` : null,
+      fieldsNeeded.has("quotedNicknames") && nicknames ? `<span class="nickname">"${nicknames}"</span>` : null,
       this.#formSurname(partsWanted),
       fieldsNeeded.has("suffix") ? this.suffix || null : null,
       fieldsNeeded.has("otherLastNames") ? this.otherLastNames || null : null,
@@ -346,10 +371,10 @@ export class PersonName {
 
   /**
    * The best results will be obtained if the following set of fields are requested in the API call
-   * when obtaining the profile data (personData). These are the requested fields, not all these fields
-   * will necessarily be in the data returned from the API, but that should be OK.
-   *   Id, Name, FirstName, LastNameCurrent, LastNameAtBirth, LastNameOther, Suffix, Prefix, Derived.BirthName,
-   *   Derived.BirthNamePrivate, MiddleName, MiddleInitial, RealName, Nicknames
+   * when obtaining the profile data (personData). Not all these fields will necessarily be in the data
+   * returned from the API, but that should be OK.
+   *   FirstName, LastNameAtBirth, LastNameCurrent, LastNameOther, MiddleName, Nicknames, Prefix, RealName,
+   *   Suffix, Derived.BirthName, Derived.BirthNamePrivate
    * @param {*} personData The JSON data obtained for a profile via the WikiTree API
    */
   constructor(personData) {
@@ -388,7 +413,7 @@ export class PersonName {
       );
       nameToSplit = (personData.FirstName || "") + " " + (personData.MiddleName || "");
       if (nameToSplit == " ") {
-        nameToSplit = personData.preferredName || personData.RealName || "";
+        nameToSplit = personData.RealName || "";
       }
     }
 
