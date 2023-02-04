@@ -6,18 +6,6 @@ import { PersonName } from "./person_name.js";
 import { isOK } from "../../core/common";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
-// Function to parse the wikitables
-function parseWikiTable(table) {
-  const $ = cheerio.load(table);
-  let result = {};
-  $("tr").each(function () {
-    let key = $(this).find("th").text().trim();
-    let value = $(this).find("td").text().trim();
-    result[key] = value;
-  });
-  return result;
-}
-
 // Function to get the person's data from the form fields
 function getFormData() {
   let formData = {};
@@ -365,144 +353,6 @@ function buildCensusNarrative(census) {
   return narrative;
 }
 
-function parseBirthTable(table) {
-  let birthData = {};
-  $(table)
-    .find("tr")
-    .each(function (j, row) {
-      let cells = $(row).find("td");
-      if (cells.length === 2) {
-        let key = $(cells[0]).text().trim();
-        let value = $(cells[1]).text().trim();
-        if (key === "Name") {
-          birthData.name = value;
-        } else if (key === "Registration Date") {
-          birthData.registrationDate = value;
-        } else if (key === "Registration Quarter") {
-          birthData.registrationQuarter = value;
-        } else if (key === "Registration District") {
-          birthData.registrationDistrict = value;
-        } else if (key === "Inferred County") {
-          birthData.inferredCounty = value;
-        } else if (key === "Mother's Maiden Name") {
-          birthData.mothersMaidenName = value;
-        } else if (key === "Volume Number") {
-          birthData.volumeNumber = value;
-        } else if (key === "Page Number") {
-          birthData.pageNumber = value;
-        }
-      }
-    });
-  if (Object.keys(birthData).length > 0) {
-    let text =
-      birthData.name +
-      " was born on " +
-      birthData.registrationDate +
-      " in " +
-      birthData.registrationDistrict +
-      ", " +
-      birthData.inferredCounty +
-      ", England. ";
-    text += "Mother's maiden name was " + birthData.mothersMaidenName + ".";
-    return text;
-  }
-  return "";
-}
-
-function buildMarriages(text) {
-  let $ = cheerio.load(text);
-  let marriageNarratives = "";
-  $("table").each(function (i, table) {
-    let marriageData = {};
-    let isMarriage = false;
-    let person = "";
-    $(table)
-      .find("tr")
-      .each(function (j, row) {
-        let cells = $(row).find("td");
-        if (cells.length === 2) {
-          let key = $(cells[0]).text().trim();
-          let value = $(cells[1]).text().trim();
-          if (key === "Name") {
-            person = value;
-          }
-          if (key === "Marriage Date") {
-            marriageData.date = value;
-          } else if (key === "Marriage Place") {
-            marriageData.place = value;
-          } else if (key === "Spouse") {
-            marriageData.spouse = value;
-          } else if (key === "Registration District") {
-            marriageData.registrationDistrict = value;
-          } else if (key === "Inferred County") {
-            marriageData.inferredCounty = value;
-          } else if (key === "Volume Number") {
-            marriageData.volumeNumber = value;
-          } else if (key === "Page Number") {
-            marriageData.pageNumber = value;
-          }
-        }
-      });
-    if (Object.keys(marriageData).length > 0) {
-      marriageNarratives +=
-        person +
-        " was married on " +
-        marriageData.date +
-        " in " +
-        marriageData.place +
-        ", " +
-        marriageData.inferredCounty +
-        ", England. ";
-      marriageNarratives += "Spouse's name was " + marriageData.spouse + ".";
-    }
-  });
-  return text + marriageNarratives;
-}
-
-function parseDeathTable(table, person) {
-  let deathData = {};
-  let text = "";
-  $(table)
-    .find("tr")
-    .each(function (j, row) {
-      let cells = $(row).find("td");
-      if (cells.length === 2) {
-        let key = $(cells[0]).text().trim();
-        let value = $(cells[1]).text().trim();
-        if (key === "Name") {
-          deathData.name = value;
-        } else if (key === "Death Date") {
-          deathData.date = value;
-        } else if (key === "Death Place") {
-          deathData.place = value;
-        } else if (key === "Registration District") {
-          deathData.registrationDistrict = value;
-        } else if (key === "Inferred County") {
-          deathData.inferredCounty = value;
-        } else if (key === "Volume Number") {
-          deathData.volumeNumber = value;
-        } else if (key === "Page Number") {
-          deathData.pageNumber = value;
-        }
-      }
-    });
-  if (Object.keys(deathData).length > 0) {
-    let pronouns = getPronouns(person);
-    text +=
-      pronouns.possessive +
-      " " +
-      deathData.name +
-      " died on " +
-      deathData.date +
-      " in " +
-      deathData.place +
-      ", " +
-      deathData.inferredCounty +
-      ", England.";
-  }
-  return text;
-}
-
 function addCitations(text) {
   let citations = text.match(/(?<={{)[^}]+(?=}})/g);
   let refs = "";
@@ -516,6 +366,48 @@ function addCitations(text) {
   return text;
 }
 
+// Function to parse the wikitables
+/*
+function parseWikiTable(table) {
+  const $ = cheerio.load(table);
+  let result = {};
+  $("tr").each(function () {
+    let key = $(this).find("th").text().trim();
+    let value = $(this).find("td").text().trim();
+    result[key] = value;
+  });
+  return result;
+}
+
+function findWikiTables(text) {
+  let $ = cheerio.load(text);
+  let tables = [];
+  $("table").each(function (i, table) {
+    tables.push(parseWikiTable(table));
+  });
+  return tables;
+}
+*/
+
+function parseWikiTable(text) {
+  const rows = text.split("\n");
+  const data = {};
+  for (const row of rows) {
+    if (!row.includes("|")) continue;
+    if (row.match(/\|\|/)) {
+      const cells = row.split("||");
+      const key = cells[0].trim().replace("|", "").replace(/:$/, "");
+      const value = cells[1].trim();
+      if (data[key]) {
+        data[key] = data[key] + ", " + value;
+      } else {
+        data[key] = value;
+      }
+    }
+  }
+  return data;
+}
+
 function sourcesArray(bio) {
   let dummy = $(document.createElement("html"));
   dummy.append(bio);
@@ -527,7 +419,7 @@ function sourcesArray(bio) {
       theRef = $(this)[0].innerText;
     }
     if (theRef != "" && theRef != "\n" && theRef != "\n\n" && theRef.match(window.sourceExclude) == null) {
-      refArr.push({ text: theRef.trim(), name: $(this).attr("name") });
+      refArr.push({ Text: theRef.trim(), RefName: $(this).attr("name") });
     }
   });
   let bioBits = bio.split(/==.*Sources.*==/);
@@ -539,10 +431,14 @@ function sourcesArray(bio) {
     let notShow = /^[\n\s]*$/;
     sourcesBits.forEach(function (aSource) {
       if (aSource.match(notShow) == null && aSource.match(window.sourceExclude) == null) {
-        refArr.push({ text: aSource.trim(), name: "" });
+        refArr.push({ Text: aSource.trim(), RefName: "" });
       }
     });
   }
+  refArr.forEach(function (aRef) {
+    let table = parseWikiTable(aRef.Text);
+    Object.assign(aRef, table);
+  });
   return refArr;
 }
 
