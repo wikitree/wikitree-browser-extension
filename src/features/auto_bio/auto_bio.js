@@ -77,19 +77,13 @@ function formatDate(date, status = "on") {
   ];
 
   if (!date) return "";
-
-  let [year, month, day] = date.split("-");
-  year = parseInt(year);
-  month = parseInt(month);
-  day = parseInt(day);
-
-  if (month === 0 && day === 0) {
-    return status === "before" ? `before ${year}` : `about ${year}`;
-  }
-  if (day === 0) {
-    return status === "before" ? `before ${months[month - 1]} ${year}` : `about ${months[month - 1]} ${year}`;
-  }
-  if (isNaN(day)) {
+  let year, month, day;
+  if (date.match("-")) {
+    [year, month, day] = date.split("-");
+    year = parseInt(year);
+    month = parseInt(month);
+    day = parseInt(day);
+  } else {
     const split = date.split(" ");
     split.forEach(function (bit) {
       if (bit.match(/[0-9]{4}/)) {
@@ -104,19 +98,20 @@ function formatDate(date, status = "on") {
       }
     });
   }
+
   let dateString = `${
-    status === "before"
+    status == "before"
       ? "before"
-      : status === "after"
+      : status == "after"
       ? "after"
-      : status === "guess"
+      : status == "guess"
       ? "about"
-      : !status
-      ? day
-        ? "on"
-        : "in"
-      : ""
-  } ${day ? `${months[month - 1]} ${day},` : months[month - 1]} ${year}`;
+      : status == "certain"
+      ? "!!!"
+      : day
+      ? "on"
+      : "in"
+  } ${day ? `${months[month - 1]} ${day}, ` : month ? `${months[month - 1]}, ` : ``}${year}`;
 
   return dateString.trim();
 }
@@ -353,42 +348,6 @@ function buildCensusNarrative(census) {
   return narrative;
 }
 
-function addCitations(text) {
-  let citations = text.match(/(?<={{)[^}]+(?=}})/g);
-  let refs = "";
-  if (citations) {
-    for (let i = 0; i < citations.length; i++) {
-      refs += "<ref>" + citations[i] + "</ref>\n";
-    }
-  }
-  text = text.replace(/({{)[^}]+(}})/g, "");
-  text += "\n==References==\n" + refs;
-  return text;
-}
-
-// Function to parse the wikitables
-/*
-function parseWikiTable(table) {
-  const $ = cheerio.load(table);
-  let result = {};
-  $("tr").each(function () {
-    let key = $(this).find("th").text().trim();
-    let value = $(this).find("td").text().trim();
-    result[key] = value;
-  });
-  return result;
-}
-
-function findWikiTables(text) {
-  let $ = cheerio.load(text);
-  let tables = [];
-  $("table").each(function (i, table) {
-    tables.push(parseWikiTable(table));
-  });
-  return tables;
-}
-*/
-
 function parseWikiTable(text) {
   const rows = text.split("\n");
   const data = {};
@@ -508,6 +467,9 @@ async function generate() {
 
   console.log(profilePerson);
   console.log(text);
+  if (enhanced == true) {
+    enhancedEditorButton.trigger("click");
+  }
 }
 
 $(document).ready(function () {
