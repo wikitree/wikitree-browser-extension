@@ -4,6 +4,7 @@ import * as cheerio from "cheerio";
 import { getPeople } from "../dna_table/dna_table";
 import { PersonName } from "./person_name.js";
 import { isOK } from "../../core/common";
+import { getAge } from "../change_family_lists/change_family_lists";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 // Function to get the person's data from the form fields
@@ -60,7 +61,7 @@ function formatDates(person) {
   return `(${birthDate.substring(0, 4)}–${deathDate.substring(0, 4)})`;
 }
 
-function formatDate(date, status = "on") {
+function formatDate(date, status = "on", format = "text") {
   const months = [
     "January",
     "February",
@@ -90,30 +91,34 @@ function formatDate(date, status = "on") {
         year = bit;
       } else if (bit.match(/[a-z]/i)) {
         months.forEach(function (aMonth, index) {
-          if (aMonth.match(bit));
-          month = index - 1;
+          if (aMonth.match(bit)) {
+            month = index + 1;
+          }
         });
       } else {
         day = bit;
       }
     });
   }
+  if (format === 8) {
+    return `${year}${month ? `0${month}`.slice(-2) : "00"}${day ? `0${day}`.slice(-2) : "00"}`;
+  } else {
+    let dateString = `${
+      status == "before"
+        ? "before"
+        : status == "after"
+        ? "after"
+        : status == "guess"
+        ? "about"
+        : status == "certain" || status == "on" || status == undefined || status == ""
+        ? day
+          ? "on"
+          : "in"
+        : ""
+    } ${day ? `${months[month - 1]} ${day}, ` : month ? `${months[month - 1]}, ` : ``}${year}`;
 
-  let dateString = `${
-    status == "before"
-      ? "before"
-      : status == "after"
-      ? "after"
-      : status == "guess"
-      ? "about"
-      : status == "certain"
-      ? "!!!"
-      : day
-      ? "on"
-      : "in"
-  } ${day ? `${months[month - 1]} ${day}, ` : month ? `${months[month - 1]}, ` : ``}${year}`;
-
-  return dateString.trim();
+    return dateString.trim();
+  }
 }
 
 function nameLink(person) {
@@ -145,6 +150,26 @@ function childList(person, spouse) {
   return text;
 }
 
+function addReferences(event) {
+  let refCount = 0;
+  let text = "";
+  window.references.forEach(function (reference) {
+    if (reference["Record Type"].includes(event)) {
+      refCount++;
+      if (reference.Used) {
+        text += "<ref name='" + reference.RefName + "' /> ";
+      } else {
+        if (!reference.RefName) {
+          reference.RefName = event + "_" + refCount;
+        }
+        reference.Used = true;
+        text += "<ref name='" + reference.RefName + "'>" + reference.Text + "</ref> ";
+      }
+    }
+  });
+  return text;
+}
+
 function buildBirth(person) {
   let text = "'''" + person.FullName + "'''" + " was born";
   if (person.BirthLocation) {
@@ -161,6 +186,20 @@ function buildBirth(person) {
     text += buildParents(person);
   }
   text += ".";
+  text += addReferences("Birth");
+  if (person["Baptism Date"] || person["Baptism Place"]) {
+    text += " " + capitalizeFirstLetter(person.Pronouns.subject) + " was baptized";
+  }
+  if (person["Baptism Date"]) {
+    text += " " + formatDate(person["Baptism Date"] || "");
+  }
+  if (person["Baptism Place"]) {
+    text += " in " + minimalPlace(person["Baptism Place"]);
+  }
+  if (person["Baptism Date"] || person["Baptism Place"]) {
+    text += ".";
+  }
+  text += addReferences("Baptism");
   return text;
 }
 
@@ -174,6 +213,7 @@ function buildDeath(person) {
     text += " in " + place;
   }
   text += ".";
+  text += addReferences("Death");
   return text;
 }
 
@@ -287,84 +327,271 @@ function buildSpouses(person) {
       }
       text += ".";
       text += " " + childList(person, spouse);
-      marriages.push(text);
+      marriages.push({ Spouse: spouse, Narrative: text, OrderDate: formatDate(spouse.marriage_date, 0, 8) });
     });
   }
   return marriages;
 }
 
-function buildCensuses(text) {
-  let $ = cheerio.load(text);
-  let censusNarratives = "";
-  $("table").each(function (i, table) {
-    let census = parseCensusTable(table);
-    if (census.data.year) {
-      censusNarratives += buildCensusNarrative(census);
+function getAgeAtCensus(person, censusYear) {
+  let day, month, year;
+  if (person["BirthDate"].match("-")) {
+    [day, month, year] = person["BirthDate"].split("-");
+  } else {
+    [day, month, year] = person["BirthDate"].split(" ");
+  }
+  console.log(day, month, year, censusYear);
+  let age = getAge({
+    start: { year: year, month: isNaN(month) ? abbrevToNum(month) : month, date: day },
+    end: { year: censusYear, month: 7, date: 2 },
+  });
+  console.log(age);
+  if (age[0]) {
+    return age[0];
+  } else {
+    return false;
+  }
+}
+
+function isWithinTwo(num1, num2) {
+  return Math.abs(num1 - num2) <= 2;
+}
+
+function abbrevToNum(abbrev) {
+  const monthMap = {
+    Jan: 1,
+    Feb: 2,
+    Mar: 3,
+    Apr: 4,
+    May: 5,
+    Jun: 6,
+    Jul: 7,
+    Aug: 8,
+    Sep: 9,
+    Oct: 10,
+    Nov: 11,
+    Dec: 12,
+  };
+
+  return monthMap[abbrev];
+}
+
+function buildCensusNarratives(references) {
+  const yearRegex = /\b(\d{4})\b/;
+  references.forEach(function (reference) {
+    if (reference.Text.match(/census/i)) {
+      reference["Record Type"] = "Census";
+      let text = "";
+      let match = reference.Text.match(yearRegex);
+      if (match) {
+        reference["Census Year"] = match[1];
+      }
+      let residenceBits = [];
+      if (reference["Street Address"]) {
+        residenceBits.push(reference["Street Address"]);
+      }
+      if (reference["Civil Parish"]) {
+        residenceBits.push(reference["Civil Parish"]);
+      }
+      if (reference["County/Island"]) {
+        residenceBits.push(reference["County/Island"]);
+      }
+      reference.Residence = residenceBits.join(", ");
+      text += "In " + reference["Census Year"] + ", " + window.profilePerson.FirstName;
+      if (reference.Occupation) {
+        text += "'s occupation was '" + reference.Occupation.toLowerCase() + "'.";
+      }
+      if (reference.Occupation) {
+        text += " " + capitalizeFirstLetter(window.profilePerson.Pronouns.subject) + " was living ";
+      } else {
+        text += " was living ";
+      }
+      if (reference.Residence) {
+        text += (reference["Street Address"] ? "at " : "in ") + minimalPlace(reference["Residence"]);
+      }
+      if (reference.Household) {
+        text += " with ";
+      }
+      if (reference.Household) {
+        let day, month, year;
+        if (window.profilePerson["BirthDate"].match("-")) {
+          [day, month, year] = window.profilePerson["BirthDate"].split("-");
+        } else {
+          [day, month, year] = window.profilePerson["BirthDate"].split(" ");
+        }
+        console.log(day, month, year);
+        let profilePersonAge = getAge({
+          start: { year: year, month: isNaN(month) ? abbrevToNum(month) : month, date: day },
+          end: { year: reference["Census Year"], month: 7, date: 2 },
+        });
+        console.log(profilePersonAge);
+        let formattedArray = reference.Household.filter((member) => {
+          return !(
+            isSameName(member.Name, window.profilePerson.NameVariants) && isWithinTwo(member.Age, profilePersonAge[0])
+          );
+        }).map((member, index) => {
+          return index === reference.Household.length - 1
+            ? `and ${member.Name} (${member.Age})`
+            : `${member.Name} (${member.Age})`;
+        });
+
+        text += formattedArray.join(", ");
+        text += ".";
+      }
+      reference.Narrative = text;
+      reference.OrderDate = formatDate(reference["Census Year"], 0, 8);
     }
   });
-  return text + censusNarratives;
-}
-
-function parseCensusTable(table) {
-  let censusData = {};
-  let isCensus = false;
-  let person = "";
-  $(table)
-    .find("tr")
-    .each(function (j, row) {
-      let cells = $(row).find("td");
-      if (cells.length === 2) {
-        let key = $(cells[0]).text().trim();
-        let value = $(cells[1]).text().trim();
-        if (key === "Name") {
-          person = value;
-        }
-        if (key === "Birth Year") {
-          censusData.year = value;
-        } else if (key === "Birth Place") {
-          censusData.birthPlace = value;
-        } else if (key === "Residence Place") {
-          censusData.residencePlace = value;
-        } else if (key === "Household Members") {
-          isCensus = true;
-        } else if (isCensus) {
-          censusData[key] = value;
-        }
-      }
-    });
-  return { person: person, data: censusData };
-}
-
-function buildCensusNarrative(census) {
-  let narrative =
-    "In " + census.data.year + ", " + census.person + " was living in " + census.data.residencePlace + " with ";
-  let members = "";
-  for (let member in census.data) {
-    if (member !== "year" && member !== "birth place") {
-      members += census.data[member] + ", ";
-    }
-  }
-  narrative += members.slice(0, -2) + ".";
-  return narrative;
+  return references;
 }
 
 function parseWikiTable(text) {
   const rows = text.split("\n");
   const data = {};
+
+  const yearRegex = /\b(\d{4})\b/;
+  let match = text.match(yearRegex);
+  if (match) {
+    data["Year"] = match[1];
+  }
+
   for (const row of rows) {
+    if (row.match("Household Members")) {
+      data.Household = [];
+    }
     if (!row.includes("|")) continue;
     if (row.match(/\|\|/)) {
       const cells = row.split("||");
       const key = cells[0].trim().replace("|", "").replace(/:$/, "");
       const value = cells[1].trim();
-      if (data[key]) {
-        data[key] = data[key] + ", " + value;
+      if (data.Household) {
+        let aMember = { Name: key, Age: value };
+        ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
+          let oKeys = Object.keys(window.profilePerson[relation]);
+          oKeys.forEach(function (aKey) {
+            let aPerson = window.profilePerson[relation][aKey];
+            console.log(aPerson);
+            console.log(key);
+            console.log(isSameName(key, getNameVariants(aPerson)));
+            console.log(getAgeAtCensus(aPerson, data["Year"]));
+            console.log(isWithinTwo(getAgeAtCensus(aPerson, data["Year"]), value));
+            if (
+              isSameName(key, getNameVariants(aPerson)) &&
+              isWithinTwo(getAgeAtCensus(aPerson, data["Year"]), value)
+            ) {
+              aMember.Relation = relation;
+            }
+          });
+        });
+        data.Household.push(aMember);
       } else {
-        data[key] = value;
+        if (data[key]) {
+          data[key] = data[key] + ", " + value;
+        } else {
+          data[key] = value;
+        }
       }
     }
   }
   return data;
+}
+
+function getEditDistance(string1, string2) {
+  string1 = string1.toLowerCase();
+  string2 = string2.toLowerCase();
+
+  const costs = [];
+  for (let i = 0; i <= string1.length; i++) {
+    let lastValue = i;
+    for (let j = 0; j <= string2.length; j++) {
+      if (i === 0) costs[j] = j;
+      else {
+        if (j > 0) {
+          let newValue = costs[j - 1];
+          if (string1[i - 1] !== string2[j - 1]) {
+            newValue = Math.min(newValue, lastValue, costs[j]) + 1;
+          }
+          costs[j - 1] = lastValue;
+          lastValue = newValue;
+        }
+      }
+    }
+    if (i > 0) costs[string2.length] = lastValue;
+  }
+  return costs[string2.length];
+}
+
+function getSimilarity(string1, string2) {
+  string1 = string1.toLowerCase();
+  string2 = string2.toLowerCase();
+  const longer = Math.max(string1.length, string2.length);
+  if (longer === 0) return 1;
+  return (longer - getEditDistance(string1, string2)) / longer;
+}
+
+function isSameName(name, nameVariants) {
+  let sameName = false;
+  nameVariants.forEach(function (nv) {
+    if (getSimilarity(nv.toLowerCase(), name.toLowerCase()) > 0.9) {
+      sameName = true;
+    }
+  });
+  return sameName;
+}
+
+function getNameVariants(person) {
+  let nameVariants = [];
+  let middleInitial;
+  if (person.MiddleName) {
+    middleInitial = person.MiddleName.charAt(0);
+  } else {
+    middleInitial = "";
+  }
+
+  if (person.LongName) {
+    nameVariants.push(person.LongName.replace(/\s\s/, " "));
+  }
+
+  if (person.BirthName) {
+    nameVariants.push(person.BirthName);
+  }
+  if (person.LongNamePrivate) {
+    nameVariants.push(person.LongNamePrivate.replace(/\s\s/, " "));
+    nameVariants.push(person.LongNamePrivate.split(" ")[0] + " " + person.LastNameAtBirth);
+    nameVariants.push(person.LongNamePrivate.split(" ")[0] + " " + person.LastNameCurrent);
+  }
+  if (person.ShortName) {
+    nameVariants.push(person.ShortName);
+  }
+  if (person.ShortNamePrivate) {
+    nameVariants.push(person.ShortNamePrivate);
+  }
+  if (person.MiddleName && person.FirstName && person.LastNameAtBirth) {
+    nameVariants.push(person.FirstName + " " + person.MiddleName + " " + person.LastNameAtBirth);
+  }
+  if (person.MiddleName && person.FirstName && person.LastNameCurrent) {
+    nameVariants.push(person.FirstName + " " + person.MiddleName + " " + person.LastNameCurrent);
+  }
+  if (person.FirstName && person.LastNameAtBirth) {
+    nameVariants.push(person.FirstName + " " + person.LastNameAtBirth);
+    if (middleInitial) {
+      nameVariants.push(person.FirstName + " " + middleInitial + " " + person.LastNameAtBirth);
+      nameVariants.push(person.FirstName + " " + middleInitial + ". " + person.LastNameAtBirth);
+    }
+  }
+  if (person.FirstName && person.LastNameCurrent) {
+    nameVariants.push(person.FirstName + " " + person.LastNameCurrent);
+    if (middleInitial) {
+      nameVariants.push(person.FirstName + " " + middleInitial + " " + person.LastNameCurrent);
+      nameVariants.push(person.FirstName + " " + middleInitial + ". " + person.LastNameCurrent);
+    }
+  }
+  const uniqueArray = [...new Set(nameVariants)];
+  return uniqueArray;
+}
+
+function capitalizeFirstLetter(string) {
+  return `${string.charAt(0).toUpperCase()}${string.slice(1)}`;
 }
 
 function sourcesArray(bio) {
@@ -397,25 +624,63 @@ function sourcesArray(bio) {
   refArr.forEach(function (aRef) {
     let table = parseWikiTable(aRef.Text);
     Object.assign(aRef, table);
+    if (aRef["Record Type"]) {
+      aRef["Record Type"] = [aRef["Record Type"]];
+    } else {
+      aRef["Record Type"] = [];
+    }
+
+    if (aRef.Text.match(/Birth Index|Births and Christenings/) || aRef["Birth Date"]) {
+      aRef["Record Type"].push("Birth");
+      aRef.OrderDate = formatDate(aRef["Birth Date"], 0, 8);
+      console.log(aRef.OrderDate);
+    }
+    if (aRef["Baptism Date"] || aRef["Christening Date"] || aRef["Baptism date"] || aRef["Christening date"]) {
+      aRef["Record Type"].push("Baptism");
+      console.log(
+        aRef?.Name,
+        window.profilePerson?.NameVariants,
+        isSameName(aRef?.Name, window.profilePerson?.NameVariants)
+      );
+      if (isSameName(aRef?.Name, window.profilePerson?.NameVariants)) {
+        window.profilePerson["Baptism Date"] =
+          aRef["Baptism Date"] || aRef["Christening Date"] || aRef["Baptism Date"] || aRef["Christening Date"];
+        window.profilePerson["Baptism Place"] =
+          aRef["Baptism Place"] ||
+          aRef["Christening Place"] ||
+          aRef["Baptism place"] ||
+          aRef["Christening place"] ||
+          "";
+        if (!aRef.OrderDate) {
+          aRef.OrderDate = formatDate(window.profilePerson["Baptism Date"], 0, 8);
+        }
+      }
+    }
+    if (aRef.Text.match("Marriage Index") || aRef["Marriage Date"]) {
+      aRef["Record Type"].push("Marriage");
+      aRef.OrderDate = formatDate(aRef["Marriage Date"], 0, 8);
+    }
+    if (aRef.Text.match("Death Index") || aRef["Death Date"]) {
+      aRef["Record Type"].push("Death");
+      aRef.OrderDate = formatDate(aRef["Death Date"], 0, 8);
+    }
   });
+  refArr = buildCensusNarratives(refArr);
   return refArr;
 }
 
 window.sourceExclude =
   /^\n*?\s*?((^Also:$)|(^See also:$)|(Unsourced)|(Personal (recollection)|(information))|(Firsthand knowledge)|(Sources will be added)|(Add\s\[\[sources\]\]\shere$)|(Created.*?through\sthe\simport\sof\s.*?\.ged)|(FamilySearch(\.com)?$)|(ancestry\.com$)|(family records$)|(Ancestry family trees$))/im;
 
-async function generate() {
+async function generateBio() {
   let enhanced = false;
   let enhancedEditorButton = $("#toggleMarkupColor");
   if (enhancedEditorButton.attr("value") == "Turn Off Enhanced Editor") {
     enhancedEditorButton.trigger("click");
     enhanced = true;
   }
-
   let currentBio = $("#wpTextbox1").val();
   localStorage.setItem("previousBio", currentBio);
-  let references = sourcesArray(currentBio);
-  console.log(references);
 
   window.usedPlaces = [];
   let spouseLinks = $("span[itemprop='spouse'] a");
@@ -430,34 +695,46 @@ async function generate() {
   console.log(keys);
   window.biographyPeople = await getPeople(keys, 0, 0, 0, 1, 1, "*");
   console.log(window.biographyPeople);
-  let person = window.biographyPeople[0].people[window.biographyPeople[0].resultByKey[profileID].Id];
-  if (person.Spouses) {
-    let spouseKeys = Object.keys(person.Spouses);
+  window.profilePerson = window.biographyPeople[0].people[window.biographyPeople[0].resultByKey[profileID].Id];
+  if (window.profilePerson.Spouses) {
+    let spouseKeys = Object.keys(window.profilePerson.Spouses);
     window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 0, 0, "*");
   }
   console.log(window.biographySpouseParents);
-  console.log(person);
-  let profilePerson = getFormData();
-  let personKeys = Object.keys(profilePerson);
+  let formData = getFormData();
+  let personKeys = Object.keys(formData);
   personKeys.forEach(function (aKey) {
-    person[aKey] = profilePerson[aKey];
+    window.profilePerson[aKey] = formData[aKey];
   });
-  console.log(person);
+  console.log(window.profilePerson);
 
   let wanted = ["FullName"];
-  let aName = new PersonName(person);
-  person.FullName = aName.withParts(wanted);
-  person.FirstName = aName.withParts(["FirstName"]);
-  person.Pronouns = getPronouns(person);
+  let aName = new PersonName(window.profilePerson);
+  window.profilePerson.FullName = aName.withParts(wanted);
+  window.profilePerson.FirstName = aName.withParts(["FirstName"]);
+  window.profilePerson.Pronouns = getPronouns(window.profilePerson);
+  window.profilePerson.NameVariants = getNameVariants(window.profilePerson);
+  window.references = sourcesArray(currentBio);
+  console.log(window.references);
+  console.log(window.profilePerson);
 
   // Output
   let text = "==Biography==\n";
-  text += buildBirth(person) + "\n\n";
-  let marriages = buildSpouses(person);
-  marriages.forEach(function (aMarriage) {
-    text += aMarriage + "\n\n";
+  text += buildBirth(window.profilePerson) + "\n\n";
+
+  let marriages = buildSpouses(window.profilePerson);
+  let marriagesAndCensuses = [...marriages];
+  window.references.forEach(function (aRef) {
+    if (aRef["Record Type"].includes("Census")) {
+      marriagesAndCensuses.push(aRef);
+    }
   });
-  text += buildDeath(person) + "\n\n";
+  marriagesAndCensuses.sort((a, b) => a.OrderDate - b.OrderDate);
+  marriagesAndCensuses.forEach(function (anEvent) {
+    text += anEvent.Narrative + "\n\n";
+  });
+
+  text += buildDeath(window.profilePerson) + "\n\n";
 
   //text = addCitations(text);
   /*
@@ -465,7 +742,7 @@ async function generate() {
   bioTextArea.value = text + bioTextArea.value;
   */
 
-  console.log(profilePerson);
+  console.log(window.profilePerson);
   console.log(text);
   if (enhanced == true) {
     enhancedEditorButton.trigger("click");
@@ -484,6 +761,9 @@ $(document).ready(function () {
       window.isFirefox == true;
     }
   });
-
-  generate();
+  $("#toolbar").append($('<button id="generateBio" class="button small">Bio</button>'));
+  $("#generateBio").on("click", function (e) {
+    e.preventDefault();
+    generateBio();
+  });
 });
