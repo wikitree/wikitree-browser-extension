@@ -475,11 +475,14 @@ function parseWikiTable(text) {
             console.log(isSameName(key, getNameVariants(aPerson)));
             console.log(getAgeAtCensus(aPerson, data["Year"]));
             console.log(isWithinTwo(getAgeAtCensus(aPerson, data["Year"]), value));
-            if (
-              isSameName(key, getNameVariants(aPerson)) &&
-              isWithinTwo(getAgeAtCensus(aPerson, data["Year"]), value)
-            ) {
-              aMember.Relation = relation;
+            if (isSameName(key, getNameVariants(aPerson))) {
+              if (isOK(aPerson.BirthDate)) {
+                if (isWithinTwo(getAgeAtCensus(aPerson, data["Year"]), value)) {
+                  aMember.Relation = relation;
+                }
+              } else {
+                aMember.Relation = relation;
+              }
             }
           });
         });
