@@ -914,9 +914,30 @@ function getSourcerCensuses() {
 
   let match;
   while ((match = regex.exec(text)) !== null) {
-    let census = match[0];
-    console.log(census);
+    censuses.push(match[0]);
   }
+  censuses.forEach(function (text) {
+    let regex = /\{.*?\|\}/gms;
+    const table = regex.exec(text)[0];
+    var rows = table.split("\n");
+    var headers = rows[2].split("||");
+    headers = headers.map((header) => header.trim());
+
+    var data = [];
+    for (var i = 3; i < rows.length - 1; i++) {
+      var cells = rows[i].split("||");
+      cells = cells.map((cell) => cell.trim());
+
+      var obj = {};
+      for (var j = 0; j < headers.length; j++) {
+        obj[headers[j]] = cells[j];
+      }
+
+      data.push(obj);
+    }
+
+    console.log(data);
+  });
 
   console.log($(dummy).html());
 }
