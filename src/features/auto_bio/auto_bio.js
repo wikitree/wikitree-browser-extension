@@ -920,12 +920,13 @@ function getSourcerCensuses() {
     let regex = /\{.*?\|\}/gms;
     const table = regex.exec(text)[0];
     var rows = table.split("\n");
-    var headers = rows[2].split("||");
+    var headers = rows[2].replace(/^.{2}/, "").split("||");
     headers = headers.map((header) => header.trim());
 
     var data = [];
     for (var i = 3; i < rows.length - 1; i++) {
-      var cells = rows[i].split("||");
+      if (rows[i].match(/^\|\-/) == null) continue;
+      var cells = rows[i].replace(/^.{2}/, "").split("||");
       cells = cells.map((cell) => cell.trim());
 
       var obj = {};
