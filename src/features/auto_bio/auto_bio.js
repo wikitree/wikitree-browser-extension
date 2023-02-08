@@ -902,7 +902,27 @@ function sourcesArray(bio) {
 window.sourceExclude =
   /^\n*?\s*?((^Also:$)|(^See also:$)|(Unsourced)|(Personal (recollection)|(information))|(Firsthand knowledge)|(Sources will be added)|(Add\s\[\[sources\]\]\shere$)|(Created.*?through\sthe\simport\sof\s.*?\.ged)|(FamilySearch(\.com)?$)|(ancestry\.com$)|(family records$)|(Ancestry family trees$))/im;
 
+function getSourcerCensuses() {
+  let censuses = [];
+  let thisBio = $("#wpTextbox1").val();
+  let dummy = document.createElement("div");
+  $(dummy).append(thisBio);
+  $(dummy).find("ref").remove();
+
+  let text = $(dummy).text();
+  let regex = /In the \d{4} census.*?\{.*?\|\}/gms;
+
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    let census = match[0];
+    console.log(census);
+  }
+
+  console.log($(dummy).html());
+}
+
 async function generateBio() {
+  getSourcerCensuses();
   let enhanced = false;
   let enhancedEditorButton = $("#toggleMarkupColor");
   if (enhancedEditorButton.attr("value") == "Turn Off Enhanced Editor") {
