@@ -3,15 +3,10 @@ import * as cheerio from "cheerio";
 //import "./my_feature.css";
 import { getPeople } from "../dna_table/dna_table";
 import { PersonName } from "./person_name.js";
+import { firstNameVariants } from "./first_name_variants.js";
 import { isOK } from "../../core/common";
 import { getAge } from "../change_family_lists/change_family_lists";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
-
-const firstNameVariants = {
-  Robert: ["Robert", "Rob", "Robt"],
-  Elizabeth: ["Elizabeth", "Liz", "Eliza", "Lizzie"],
-  Emily: ["Emily", "Emmy", "Emma"],
-};
 
 // Function to get the person's data from the form fields
 function getFormData() {
@@ -164,21 +159,23 @@ function childList(person, spouse) {
   return text;
 }
 
-function addReferences(event) {
+function addReferences(event, spouse = false) {
   let refCount = 0;
   let text = "";
   window.references.forEach(function (reference) {
-    if (reference["Record Type"].includes(event)) {
-      refCount++;
-      console.log(reference.Used, reference, event);
-      if (reference.Used) {
-        text += "<ref name='" + reference.RefName + "' /> ";
-      } else {
-        if (!reference.RefName) {
-          reference.RefName = event + "_" + refCount;
+    if (!(event == "Marriage" && reference.Text.match(spouse.FirstName) == null)) {
+      if (reference["Record Type"].includes(event)) {
+        refCount++;
+        console.log(reference.Used, reference, event);
+        if (reference.Used) {
+          text += "<ref name='" + reference.RefName + "' /> ";
+        } else {
+          if (!reference.RefName) {
+            reference.RefName = event + "_" + refCount;
+          }
+          reference.Used = true;
+          text += "<ref name='" + reference.RefName + "'>" + reference.Text + "</ref> ";
         }
-        reference.Used = true;
-        text += "<ref name='" + reference.RefName + "'>" + reference.Text + "</ref> ";
       }
     }
   });
@@ -364,6 +361,7 @@ function buildSpouses(person) {
         text += " in " + place;
       }
       text += ".";
+      text += addReferences("Marriage", spouse);
       text += " " + childList(person, spouse);
       marriages.push({ Spouse: spouse, Narrative: text, OrderDate: formatDate(spouse.marriage_date, 0, 8) });
     });
@@ -487,6 +485,56 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus) {
   return [text, reference];
 }
 
+function getHouseholdOfRelationAndName(text) {
+  let householdHeadMatch = text.match(/(?<=household\sof\s)(.+?)((\s[a-z])|\.|,)/);
+  if (householdHeadMatch) {
+    ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
+      if (window.profilePerson[relation]) {
+        let relationSingular = relation.slice(0, -1);
+        if (relationSingular == "Childre") {
+          relationSingular = "Child";
+        }
+        let keys = Object.keys(window.profilePerson[relation]);
+        keys.forEach(function (key) {
+          let oNameVariants = getNameVariants(window.profilePerson[relation][key]);
+          if (isSameName(householdHeadMatch[1], oNameVariants)) {
+            if (window.profilePerson[relation][key].Gender) {
+              let oGender = window.profilePerson[relation][key].Gender;
+              var relationWord =
+                relationSingular == "Child"
+                  ? oGender == "Male"
+                    ? "son"
+                    : (oGender = "Female" ? "daughter" : "child")
+                  : relationSingular == "Parent"
+                  ? oGender == "Male"
+                    ? "father"
+                    : (oGender = "Female" ? "mother" : "parent")
+                  : relationSingular == "Sibling"
+                  ? oGender == "Male"
+                    ? "brother"
+                    : (oGender = "Female" ? "sister" : "sibling")
+                  : relationSingular == "Spouse"
+                  ? oGender == "Male"
+                    ? "husband"
+                    : (oGender = "Female" ? "wife" : "spouse")
+                  : relationSingular;
+            }
+            text = text.replace(
+              householdHeadMatch[1],
+              window.profilePerson.Pronouns.possessiveAdjective +
+                " " +
+                relationWord +
+                ", " +
+                window.profilePerson[relation][key].FirstName
+            );
+          }
+        });
+      }
+    });
+  }
+  return text;
+}
+
 function buildCensusNarratives(references) {
   const yearRegex = /\b(\d{4})\b/;
   references.forEach(function (reference) {
@@ -544,6 +592,9 @@ function buildCensusNarratives(references) {
           reference = fsCensus[1];
           text += fsCensus[0];
         }
+
+        // Switch "in the household of NAME" to "in the household of her father, Frederick" (for example)
+        text = getHouseholdOfRelationAndName(text);
       } else {
         // With a table
         text +=
@@ -880,7 +931,7 @@ function isSameName(name, nameVariants) {
 function getNameVariantsB(person, firstNameVariant) {
   let nameVariants = [];
   let middleInitial = person.MiddleName ? person.MiddleName.charAt(0) : "";
-
+  let firstInitial = firstNameVariant ? firstNameVariant.charAt(0) : "";
   if (person.MiddleName && person.LastNameAtBirth) {
     nameVariants.push(`${firstNameVariant} ${person.MiddleName} ${person.LastNameAtBirth}`);
   }
@@ -894,6 +945,7 @@ function getNameVariantsB(person, firstNameVariant) {
     if (middleInitial) {
       nameVariants.push(`${firstNameVariant} ${middleInitial} ${person.LastNameAtBirth}`);
       nameVariants.push(`${firstNameVariant} ${middleInitial}. ${person.LastNameAtBirth}`);
+      nameVariants.push(`${firstInitial} ${middleInitial} ${person.LastNameAtBirth}`);
     }
   }
   if (person.LastNameCurrent) {
@@ -901,6 +953,7 @@ function getNameVariantsB(person, firstNameVariant) {
     if (middleInitial) {
       nameVariants.push(`${firstNameVariant} ${middleInitial} ${person.LastNameCurrent}`);
       nameVariants.push(`${firstNameVariant} ${middleInitial}. ${person.LastNameCurrent}`);
+      nameVariants.push(`${firstInitial} ${middleInitial} ${person.LastNameCurrent}`);
     }
   }
   if (person.LastNameOther) {
@@ -910,6 +963,7 @@ function getNameVariantsB(person, firstNameVariant) {
       nameVariants.push(`${firstNameVariant} ${middleInitial} ${person.LastNameOther}`);
       nameVariants.push(`${firstNameVariant} ${middleInitial}. ${person.LastNameOther}`);
       nameVariants.push(`${person.MiddleName} ${person.LastNameOther}`);
+      nameVariants.push(`${firstInitial} ${middleInitial} ${person.LastNameOther}`);
     }
   }
   return nameVariants;
@@ -1013,7 +1067,7 @@ function sourcesArray(bio) {
         }
       }
     }
-    if (aRef.Text.match("Marriage Index") || aRef["Marriage Date"]) {
+    if (aRef.Text.match("Marriage Index|Actes de mariage") || aRef["Marriage Date"]) {
       aRef["Record Type"].push("Marriage");
       aRef.OrderDate = formatDate(aRef["Marriage Date"], 0, 8);
     }
@@ -1372,6 +1426,8 @@ async function generateBio() {
       text += "* " + aRef.Text + "\n\n";
     }
   });
+
+  // Add Acknowledgments
   if (sectionsObject["Acknowledgments"] || sectionsObject["Acknowledgements"]) {
     text += "== Acknowledgments ==";
     text += sectionsObject["Acknowledgments"] || sectionsObject["Acknowledgements"];
