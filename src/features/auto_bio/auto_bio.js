@@ -1300,7 +1300,7 @@ async function generateBio() {
   if (sectionsObject["StuffBeforeTheBio"]) {
     text += sectionsObject["StuffBeforeTheBio"];
   }
-  text += "==Biography==\n";
+  text += "== Biography ==\n";
   // Stickers and boxes
   text += await getStickersAndBoxes();
 
@@ -1372,11 +1372,10 @@ async function generateBio() {
       text += "* " + aRef.Text + "\n\n";
     }
   });
-
-  // Add acknowledgements
-  if (sectionsObject["Acknowledgements"]) {
-    text += "== Acknowledgements ==\n";
-    text += sectionsObject["Acknowledgements"];
+  if (sectionsObject["Acknowledgments"] || sectionsObject["Acknowledgements"]) {
+    text += "== Acknowledgments ==";
+    text += sectionsObject["Acknowledgments"] || sectionsObject["Acknowledgements"];
+    text = text.replace(/<!-- Please edit[\s\S]*?Changes page. -->/, "").replace(/Click to[\s\S]*?and others./, "");
   }
   text += "\n----\n\n";
 
