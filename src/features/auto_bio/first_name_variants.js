@@ -427,6 +427,7 @@ export const firstNameVariants = {
   Leo: ["Leo", "Leon"],
   Leopold: ["Leopold", "Leo"],
   Liliane: ["Liliane", "Lilian"],
+  Lillian: ["Lillian", "Lily", "Lilly", "Lillie"],
   Lorenzo: ["Lorenzo", "Renzo"],
   Louis: ["Louis", "Lewis"],
   Luc: ["Luc", "Luke"],
