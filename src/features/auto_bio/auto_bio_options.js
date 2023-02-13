@@ -3,7 +3,7 @@ import { registerFeature, OptionType } from "../../core/options/options_registry
 const autoBio = {
   name: "Auto Bio",
   id: "autoBio",
-  description: "Generates and automated biography from available data.",
+  description: "Generates an automated biography from available data.",
   category: "Editing",
   defaultValue: true,
   /*
