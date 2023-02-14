@@ -3,7 +3,7 @@ import $ from "jquery";
 import { getPeople } from "../dna_table/dna_table";
 import { PersonName } from "./person_name.js";
 import { firstNameVariants } from "./first_name_variants.js";
-import { isOK } from "../../core/common";
+import { isOK, htmlEntities } from "../../core/common";
 import { getAge } from "../change_family_lists/change_family_lists";
 import { wtAPICatCIBSearch } from "../../core/wtPlusAPI/wtPlusAPI";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
@@ -1166,7 +1166,10 @@ function sourcesArray(bio) {
         }
       }
     }
-    if (aRef.Text.match("Marriage Index|Actes de mariage|Marriage Records|County Marriages") || aRef["Marriage Date"]) {
+    if (
+      aRef.Text.match("Marriage Index|Actes de mariage|Marriage Records|County Marriages|shire Marriages:") ||
+      aRef["Marriage Date"]
+    ) {
       aRef["Record Type"].push("Marriage");
       let detailsMatch = aRef.Text.match(/\),\s(.*?);/);
       if (detailsMatch) {
@@ -1197,7 +1200,7 @@ function sourcesArray(bio) {
       }
       aRef.OrderDate = formatDate(aRef["Marriage Date"], 0, 8);
     }
-    if (aRef.Text.match("Death Index|findagrave|memorial|death registration") || aRef["Death Date"]) {
+    if (aRef.Text.match(/Death Index|findagrave|memorial|death registration/i) || aRef["Death Date"]) {
       aRef["Record Type"].push("Death");
       aRef.OrderDate = formatDate(aRef["Death Date"], 0, 8);
     }
@@ -1457,8 +1460,8 @@ export async function generateBio() {
 
   window.usedPlaces = [];
   let spouseLinks = $("span[itemprop='spouse'] a");
-  let profileID = $("a.pureCssMenui0 span.person").text();
-  let keys = profileID;
+  let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
+  let keys = htmlEntities(profileID);
   spouseLinks.each(function () {
     if ($(this).attr("href").split("/wiki/")[1]) {
       keys += "," + $(this).attr("href").split("/wiki/")[1];
