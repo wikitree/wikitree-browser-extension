@@ -292,9 +292,10 @@ function reallyMakeFamLists() {
                 if (aPerson.Name.match(/[']/) != null) {
                   aPerson.Name = aPerson.Name.replace("'", "");
                 }
-                if ($("#" + aPerson.Name + "-bdDates").length == 0) {
+                const idName = aPerson.Name.replace(".", "");
+                if ($("#" + idName + "-bdDates").length == 0) {
                   theSpouse.append(
-                    " <span class='spouseDates bdDates' id='" + aPerson.Name + "-bdDates'>" + spouseDates + "</span>"
+                    " <span class='spouseDates bdDates' id='" + idName + "-bdDates'>" + spouseDates + "</span>"
                   );
                 }
                 addDataToPerson(theSpouse.closest("div"), aPerson);
