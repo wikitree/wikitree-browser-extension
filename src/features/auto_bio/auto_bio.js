@@ -178,7 +178,7 @@ function addReferences(event, spouse = false) {
   window.references.forEach(function (reference) {
     let spousePattern = new RegExp(spouse.FirstName + "|" + spouse.Nickname);
     let spouseMatch = spousePattern.test(reference.Text);
-    if (!(event == "Marriage" && spouseMatch == false)) {
+    if (!(event == "Marriage" && spouseMatch == false && reference.Year != spouse.marriage_date.substring(0, 4))) {
       if (reference["Record Type"].includes(event)) {
         refCount++;
         if (reference.Used) {
@@ -1440,18 +1440,20 @@ export async function generateBio() {
   localStorage.setItem("previousBio", currentBio);
 
   // Split the current bio into sections
-  const sections = currentBio.split("\n== ");
+  const sections = currentBio.split(/\n={2}\s?/);
   const sectionsObject = {};
   sectionsObject.StuffBeforeTheBio = "";
   sectionsObject["Research Notes"] = "";
   sectionsObject.Acknowledgements = "";
   for (let i = 0; i < sections.length; i++) {
     let section = sections[i];
-    let headingMatch = section.match(/^(.+?) ==\n/);
+    let headingMatch = section.match(/^(.+?)\s?={2}\n/);
     if (headingMatch) {
       let heading = headingMatch[1].replaceAll(/=/g, "").trim();
       let content = section.slice(headingMatch[0].length);
       sectionsObject[heading] = content;
+      if (heading == "Biography") {
+      }
     } else {
       sectionsObject["StuffBeforeTheBio"] = section;
     }
@@ -1707,7 +1709,7 @@ export async function generateBio() {
 }
 
 async function getLocationCategory(type, location = null) {
-  // type = birth, death, , marriage, other
+  // type = birth, death, marriage, other
   // For birth and death, we can use the location from the profile
   let categoryType = "location";
   if (["Birth", "Death"].includes(type)) {
