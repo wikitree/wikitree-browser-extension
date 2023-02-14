@@ -426,6 +426,22 @@ function getAgeAtCensus(person, censusYear) {
   }
 }
 
+function getYYYYMMDD(dateString) {
+  let date = new Date(dateString);
+  if (!isNaN(date.getTime())) {
+    const year = date.getUTCFullYear();
+    const month = `0${date.getUTCMonth() + 1}`.slice(-2);
+    const day = `0${date.getUTCDate()}`.slice(-2);
+    return `${year}-${month}-${day}`;
+  } else {
+    date = new Date(`02 Jul ${dateString} UTC`);
+    const year = date.getUTCFullYear();
+    const month = `0${date.getUTCMonth() + 1}`.slice(-2);
+    const day = `0${date.getUTCDate()}`.slice(-2);
+    return `${year}-${month}-${day}`;
+  }
+}
+
 function isWithinX(num1, num2, within) {
   return Math.abs(num1 - num2) <= within;
 }
@@ -1070,21 +1086,6 @@ function getNameVariants(person) {
 function capitalizeFirstLetter(string) {
   return `${string.charAt(0).toUpperCase()}${string.slice(1)}`;
 }
-/*
-function getFindAGraveCitation(link) {
-  if (link.match("cgi-bin/fg.cgi")) {
-    let memorial = link.split("id=")[1];
-    link = "https://www.findagrave.com/memorial/" + memorial;
-  }
-  return $.ajax({
-    url: "https://wikitreebee.com/citation.php?link=" + link,
-    type: "GET",
-    dataType: "text",
-  }).then(function (citation) {
-    return citation;
-  });
-}
-*/
 
 async function getFindAGraveCitation(link) {
   if (link.match("cgi-bin/fg.cgi")) {
@@ -1418,21 +1419,117 @@ function getFamilySearchFacts() {
   for (var match of factsMatch) {
     const aFact = { Fact: match[0] };
     aFact["Record Type"] = "Fact";
-    if (aFact.Fact.match("Fact: Residence")) {
+    if (
+      aFact.Fact.match(/Fact: (Residence|Military Service|Military Draft Registration|Burial|WWI Draft Registration)/i)
+    ) {
       const dateMatch = aFact.Fact.match(/\(.*?\d{4}\)/);
       if (dateMatch) {
         aFact.Date = dateMatch[0].replaceAll(/[()]/g, "");
         aFact.Year = dateMatch[0].match(/\d{4}/)[0];
         aFact.OrderDate = formatDate(aFact.Date, 0, 8);
-        aFact.Residence = aFact.Fact.split(dateMatch[0])[1].trim();
-        aFact.Narrative =
-          "In " + aFact.Year + ", " + window.profilePerson.FirstName + " was living in " + aFact.Residence + ".";
+        const ageBit = " (" + getAgeFromISODates(window.profilePerson.BirthDate, getYYYYMMDD(aFact.Date)) + ")";
+        aFact.Info = aFact.Fact.split(dateMatch[0])[1].trim();
+        if (aFact.Fact.match(/Fact: Residence/i)) {
+          aFact.Residence = aFact.Info;
+          aFact.FactType = "Residence";
+          aFact.Narrative =
+            "In " +
+            aFact.Year +
+            ", " +
+            window.profilePerson.FirstName +
+            ageBit +
+            " was living in " +
+            aFact.Residence +
+            ".";
+        } else if (aFact.Fact.match(/Fact: Military Service/i)) {
+          aFact.Narrative =
+            "In " + aFact.Year + ", " + window.profilePerson.FirstName + ageBit + " was in the military.";
+          aFact.FactType = "Military Service";
+        } else if (aFact.Fact.match(/Fact: Military Draft Registration/i)) {
+          aFact.Narrative =
+            "In " + aFact.Year + ", " + window.profilePerson.FirstName + ageBit + " registered for the military draft.";
+          aFact.FactType = "Military Draft";
+        } else if (aFact.Fact.match(/Fact: WWI Draft Registration/i)) {
+          aFact.Narrative =
+            "In " +
+            aFact.Year +
+            ", " +
+            window.profilePerson.FirstName +
+            ageBit +
+            " registered for the WWI military draft.";
+          aFact.FactType = "Military Draft";
+        } else if (aFact.Fact.match(/Fact: Burial/i)) {
+          aFact.Cemetery = aFact.Info;
+          aFact.Narrative =
+            capitalizeFirstLetter(window.profilePerson.Pronouns.subject) + " was buried in " + aFact.Cemetery;
+          aFact.FactType = "Burial";
+        }
       }
     }
-    facts.push(aFact);
+    if (aFact.Year) {
+      facts.push(aFact);
+    }
   }
-  window.familySearchFacts = facts;
+  const filteredData = facts.filter((item, index, arr) => {
+    // check if the item has a non-empty narrative
+    if (!item.Narrative.trim()) {
+      return false;
+    }
+
+    // check if any of the previous items in the array has the same narrative
+    return !arr.slice(0, index).some((prevItem) => prevItem.Narrative === item.Narrative);
+  });
+  window.familySearchFacts = filteredData;
   console.log(window.familySearchFacts);
+}
+
+function splitBioIntoSections() {
+  const wikiText = $("#wpTextbox1").val();
+  let lines = wikiText.split("\n");
+  let currentSection = null;
+  let currentSubsection = null;
+  let sections = {
+    StuffBeforeTheBio: {
+      title: "StuffBeforeTheBio",
+      text: [],
+      subsections: {},
+    },
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].trim();
+    let sectionMatch = line.match(/^={2}([^=]+)={2}$/);
+    let subsectionMatch = line.match(/^={3}([^=]+)={3}$/);
+    if (sectionMatch) {
+      let newSectionTitle = sectionMatch[1].trim();
+      sections[newSectionTitle] = {
+        title: newSectionTitle,
+        text: [],
+        subsections: {},
+      };
+      currentSection = sections[newSectionTitle];
+      currentSubsection = null;
+    } else if (subsectionMatch) {
+      let newSubsectionTitle = subsectionMatch[1].trim();
+      currentSection.subsections[newSubsectionTitle] = {
+        title: newSubsectionTitle,
+        text: [],
+        subsections: {},
+      };
+      currentSubsection = currentSection.subsections[newSubsectionTitle];
+    } else {
+      if (currentSubsection) {
+        currentSubsection.text.push(line);
+      } else if (currentSection) {
+        currentSection.text.push(line);
+      } else {
+        sections.StuffBeforeTheBio.text.push(line);
+      }
+    }
+  }
+
+  console.log(sections);
+  return sections;
 }
 
 export async function generateBio() {
@@ -1440,25 +1537,7 @@ export async function generateBio() {
   localStorage.setItem("previousBio", currentBio);
 
   // Split the current bio into sections
-  const sections = currentBio.split(/\n={2}\s?/);
-  const sectionsObject = {};
-  sectionsObject.StuffBeforeTheBio = "";
-  sectionsObject["Research Notes"] = "";
-  sectionsObject.Acknowledgements = "";
-  for (let i = 0; i < sections.length; i++) {
-    let section = sections[i];
-    let headingMatch = section.match(/^(.+?)\s?={2}\n/);
-    if (headingMatch) {
-      let heading = headingMatch[1].replaceAll(/=/g, "").trim();
-      let content = section.slice(headingMatch[0].length);
-      sectionsObject[heading] = content;
-      if (heading == "Biography") {
-      }
-    } else {
-      sectionsObject["StuffBeforeTheBio"] = section;
-    }
-  }
-  console.log(sectionsObject);
+  const sectionsObject = splitBioIntoSections();
 
   window.usedPlaces = [];
   let spouseLinks = $("span[itemprop='spouse'] a");
@@ -1538,10 +1617,9 @@ export async function generateBio() {
 
   // Add Unsourced template if there are no good sources
   if (window.references.length == window.NonSourceCount) {
-    if (sectionsObject["StuffBeforeTheBio"]) {
-      sectionsObject["StuffBeforeTheBio"] += "{{Unsourced}}\n";
-    } else {
-      sectionsObject["StuffBeforeTheBio"] = "{{Unsourced}}\n";
+    const unsourcedTemplate = "{{Unsourced}}";
+    if (!sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
+      sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
     }
   }
 
@@ -1569,6 +1647,34 @@ export async function generateBio() {
     }
   });
 
+  function minimalPlace2(narrativeBits) {
+    let used = 0;
+    let out = "";
+    let toSplice = [];
+    narrativeBits.forEach(function (aBit, index) {
+      let trimmed = aBit.replace(/\.$/, "").trim();
+      if (trimmed.match(/[A-Z][a-z]+\s?[A-Za-z]+$/)) {
+        trimmed = trimmed.match(/[A-Za-z]+\s?[A-Za-z]+$/)[0];
+      }
+      if (window.usedPlaces.includes(trimmed)) {
+        used++;
+        if (used > 1) {
+          toSplice.push(index);
+        }
+      } else if (trimmed.match(/^[A-Z]/)) {
+        window.usedPlaces.push(trimmed);
+      }
+    });
+    if (toSplice.length) {
+      narrativeBits.splice(toSplice[0], toSplice.length);
+    }
+    out += narrativeBits.join(",");
+    if (out.match(/\.$/) == null) {
+      out += ".";
+    }
+    return out;
+  }
+
   console.log(marriagesAndCensuses);
 
   marriagesAndCensuses.sort((a, b) => a.OrderDate - b.OrderDate);
@@ -1576,25 +1682,8 @@ export async function generateBio() {
     if (anEvent["Record Type"]) {
       if (anEvent["Record Type"].includes("Census")) {
         let narrativeBits = anEvent.Narrative.split(",");
-
         // Minimal places again
-        let used = 0;
-        let toSplice = [];
-        narrativeBits.forEach(function (aBit, index) {
-          if (window.usedPlaces.includes(aBit.replace(/\.$/, "").trim())) {
-            used++;
-            if (used > 1) {
-              toSplice.push(index);
-            }
-          }
-        });
-        if (toSplice.length) {
-          narrativeBits.splice(toSplice[0], toSplice.length);
-        }
-        text += narrativeBits.join(",");
-        if (text.match(/\.$/) == null) {
-          text += ".";
-        }
+        text += minimalPlace2(narrativeBits);
 
         // Add the reference
         let refNameBit = anEvent.RefName ? " name='" + anEvent.RefName + "'" : "";
@@ -1602,7 +1691,28 @@ export async function generateBio() {
         text += "\n\n";
         anEvent.Used = true;
       } else {
-        text += anEvent.Narrative + "\n\n";
+        let thisRef = "";
+        window.references.forEach(function (aRef) {
+          if (
+            anEvent["Record Type"].includes(aRef["Record Type"]) &&
+            aRef.Text.match("contributed by various users") &&
+            aRef.Text.match(window.profilePerson.FirstName)
+          ) {
+            if (aRef.RefName) {
+              thisRef = "<ref name='FamilySearchProfile' />";
+            } else {
+              thisRef = " <ref name='FamilySearchProfile'>" + aRef.Text + "</ref>";
+              aRef.RefName = "FamilySearchProfile";
+              aRef.Used = true;
+            }
+          }
+        });
+        let narrativeBits = anEvent.Narrative.split(",");
+        if (anEvent.FactType == "Burial") {
+          window.profilePerson.BurialFact = minimalPlace2(narrativeBits) + thisRef + "\n\n";
+        } else {
+          text += minimalPlace2(narrativeBits) + thisRef + "\n\n";
+        }
       }
     } else {
       text += anEvent.Narrative + "\n\n";
@@ -1612,24 +1722,30 @@ export async function generateBio() {
   // Add death
   let deathBit = buildDeath(window.profilePerson);
   if (deathBit) {
-    text += deathBit + "\n\n";
+    text += deathBit + " " + (window.profilePerson.BurialFact || "") + "\n\n";
   }
 
-  // Add stuff currently before the bio heading
-  if (sectionsObject["StuffBeforeTheBio"]) {
-    text = sectionsObject["StuffBeforeTheBio"] + "\n" + text;
+  // Add obituary
+  if (sectionsObject["Obituary"]) {
+    text += "=== Obituary ===\n";
+    text += sectionsObject["Obituary"].text.join("\n");
+    text += "\n\n";
+  } else if (sectionsObject["Biography"].subsections.Obituary) {
+    text += "=== Obituary ===\n";
+    text += sectionsObject["Biography"].subsections.Obituary.text.join("\n");
+    text += "\n\n";
   }
+
   // Add location category
   async function getLocationCategories() {
-    let types = ["Cemetery", "Death", "Marriage", "Birth"];
+    let types = ["Birth", "Marriage", "Death", "Cemetery"];
     for (let i = 0; i < types.length; i++) {
       const location = await getLocationCategory(types[i]);
       if (location) {
         console.log(location);
         const theCategory = "[[Category: " + location + "]]";
-        const checkCategory = location.replace(" ", "_");
-        if (!window.profilePerson.Categories.includes(checkCategory)) {
-          text = theCategory + "\n" + text;
+        if (!sectionsObject["StuffBeforeTheBio"].text.includes(theCategory)) {
+          sectionsObject["StuffBeforeTheBio"].text.push(theCategory);
         }
       }
     }
@@ -1690,6 +1806,11 @@ export async function generateBio() {
     "1. Edit the new biography (above).\n" +
     "2. Delete this message and the old biography (below).\n" +
     "Thanks. \n-->\n";
+
+  // Add stuff before the bio
+  if (sectionsObject["StuffBeforeTheBio"]) {
+    text = sectionsObject["StuffBeforeTheBio"].text.join("\n") + "\n" + text;
+  }
 
   // Switch off the enhanced editor if it's on
   let enhanced = false;
