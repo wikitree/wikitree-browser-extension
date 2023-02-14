@@ -1422,6 +1422,8 @@ function getFamilySearchFacts() {
         aFact.Year = dateMatch[0].match(/\d{4}/)[0];
         aFact.OrderDate = formatDate(aFact.Date, 0, 8);
         aFact.Residence = aFact.Fact.split(dateMatch[0])[1].trim();
+        aFact.Narrative =
+          "In " + aFact.Year + ", " + window.profilePerson.FirstName + " was living in " + aFact.Residence + ".";
       }
     }
     facts.push(aFact);
@@ -1433,7 +1435,6 @@ function getFamilySearchFacts() {
 export async function generateBio() {
   const currentBio = $("#wpTextbox1").val();
   localStorage.setItem("previousBio", currentBio);
-  getFamilySearchFacts();
 
   // Split the current bio into sections
   const sections = currentBio.split("\n== ");
@@ -1551,8 +1552,12 @@ export async function generateBio() {
 
   // Get marriages and censuses, order them by date
   // and add them to the text
+  getFamilySearchFacts();
   let marriages = buildSpouses(window.profilePerson);
   let marriagesAndCensuses = [...marriages];
+  if (window.familySearchFacts) {
+    marriagesAndCensuses = marriagesAndCensuses.concat(window.familySearchFacts);
+  }
   window.references.forEach(function (aRef) {
     if (aRef["Record Type"].includes("Census")) {
       marriagesAndCensuses.push(aRef);
