@@ -6,16 +6,14 @@ const autoBio = {
   description: "Generates an automated biography from available data.",
   category: "Editing",
   defaultValue: true,
-  /*
   options: [
     {
-      id: "myFirstOption",
+      id: "inlineCitations",
       type: OptionType.CHECKBOX,
-      label: "Enables my first option",
+      label: "Inline Citations",
       defaultValue: true,
     },
   ],
-  */
 };
 
 registerFeature(autoBio);
