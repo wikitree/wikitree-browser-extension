@@ -149,16 +149,38 @@ function childList(person, spouse) {
   let ourChildren = [];
   let childrenKeys = Object.keys(person.Children);
   childrenKeys.forEach(function (key) {
-    if (person.Children[key]?.Father == spouse.Id || person.Children[key]?.Mother == spouse.Id) {
+    if (spouse == false) {
       ourChildren.push(person.Children[key]);
+    } else if (person.Children[key]?.Father == spouse.Id || person.Children[key]?.Mother == spouse.Id) {
+      ourChildren.push(person.Children[key]);
+      person.Children[key].Displayed = true;
+    } else if (
+      (spouse == "other" && person.Children[key]?.Father == person.Id && !person.Children[key]?.Mother) ||
+      (person.Children[key]?.Mother == person.Id && !person.Children[key]?.Father)
+    ) {
+      ourChildren.push(person.Children[key]);
+      person.Children[key].Displayed = true;
     }
   });
+  let possessive;
+  if (spouse == false || spouse == "other") {
+    possessive = capitalizeFirstLetter(person.Pronouns.possessiveAdjective);
+  }
+  let other = "";
+  if (spouse == "other") {
+    other = "other ";
+  }
   if (ourChildren.length == 0) {
     return "";
   } else if (ourChildren.length == 1) {
-    text += "Their child was:\n";
+    let childWord = "child";
+    if (ourChildren[0].Gender) {
+      if (ourChildren[0].Gender == "Male") childWord = "son";
+      else if (ourChildren[0].Gender == "Female") childWord = "daughter";
+    }
+    text += (possessive || "Their") + " " + other + childWord + " was:\n";
   } else {
-    text += "Their children were:\n";
+    text += (possessive || "Their") + " " + other + "children were:\n";
   }
   let childListText = "";
   ourChildren.forEach(function (child) {
@@ -254,7 +276,7 @@ function buildDeath(person) {
       let cemeteryMatch = source.Text.match(
         /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Grave)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)).*?),?.*?(?=[,;])/im
       );
-      if (cemeteryMatch) {
+      if (cemeteryMatch && source.Text.match(/Acadian|Wall of Names/) == null) {
         let cemetery = cemeteryMatch[0].replace("citing ", "");
         window.profilePerson.Cemetery = cemetery;
         text += " " + capitalizeFirstLetter(person.Pronouns.subject) + " was buried in " + cemetery + ".";
@@ -383,8 +405,18 @@ function buildSpouses(person) {
       }
       text += ".";
       text += addReferences("Marriage", spouse);
-      text += " " + childList(person, spouse);
-      marriages.push({ Spouse: spouse, Narrative: text, OrderDate: formatDate(spouse.marriage_date, 0, 8) });
+      const aChildList = childList(person, spouse);
+      text += " " + aChildList;
+      let spouseChildren = false;
+      if (aChildList) {
+        spouseChildren = true;
+      }
+      marriages.push({
+        Spouse: spouse,
+        SpouseChildren: spouseChildren,
+        Narrative: text,
+        OrderDate: formatDate(spouse.marriage_date, 0, 8),
+      });
     });
   }
   return marriages;
@@ -607,9 +639,10 @@ function getHouseholdOfRelationAndName(text) {
 function buildCensusNarratives(references) {
   const yearRegex = /\b(\d{4})\b/;
   references.forEach(function (reference) {
+    console.log(JSON.parse(JSON.stringify(reference)));
+    let text = "";
     if (reference.Text.match(/census/i)) {
       reference["Record Type"] = "Census";
-      let text = "";
       let match = reference.Text.match(yearRegex);
       if (match) {
         reference["Census Year"] = match[1];
@@ -1106,7 +1139,12 @@ function sourcesArray(bio) {
   let refArr = [];
   let refs = dummy.find("ref");
   refs.each(function () {
-    let theRef = $(this)[0].outerText;
+    let theRef = $(this)
+      .html()
+      .match(/^(.*?)(?=<\/?ref|$)/s)[1]
+      .trim();
+
+    //let theRef = $(this)[0].outerText;
     if (isFirefox == true) {
       theRef = $(this)[0].innerText;
     }
@@ -1135,9 +1173,14 @@ function sourcesArray(bio) {
       }
     });
   }
+
+  console.log(JSON.parse(JSON.stringify(refArr)));
+
   refArr.forEach(function (aRef) {
     let table = parseWikiTable(aRef.Text);
+    console.log(JSON.parse(JSON.stringify(aRef)));
     Object.assign(aRef, table);
+    console.log(JSON.parse(JSON.stringify(aRef)));
     if (aRef["Record Type"]) {
       aRef["Record Type"] = [aRef["Record Type"]];
     } else {
@@ -1172,7 +1215,9 @@ function sourcesArray(bio) {
       aRef["Marriage Date"]
     ) {
       aRef["Record Type"].push("Marriage");
+      console.log(JSON.parse(JSON.stringify(aRef)));
       let detailsMatch = aRef.Text.match(/\),\s(.*?);/);
+      console.log(detailsMatch);
       if (detailsMatch) {
         const details = detailsMatch[1];
         const detailsSplit = details.split(",");
@@ -1638,6 +1683,39 @@ export async function generateBio() {
   getFamilySearchFacts();
   let marriages = buildSpouses(window.profilePerson);
   let marriagesAndCensuses = [...marriages];
+
+  // Get children who were not from one of the spouses
+  if (!Array.isArray(window.profilePerson.Children)) {
+    const childrenKeys = Object.keys(window.profilePerson.Children);
+    let aChildList;
+    if (Array.isArray(window.profilePerson.Spouses)) {
+      aChildList = childList(window.profilePerson, false);
+    } else {
+      aChildList = childList(window.profilePerson, "other");
+    }
+    console.log(aChildList);
+    const eventDateMatch = aChildList.match(/(\d{4})\–/);
+    console.log(eventDateMatch);
+    const firstBirth = window.profilePerson.Children[childrenKeys[0]].BirthDate;
+    let eventDate;
+    if (firstBirth) {
+      eventDate = firstBirth;
+    }
+    if (eventDateMatch) {
+      eventDate = eventDateMatch[1] + "-00-00";
+    }
+    const orderDate = eventDate.replaceAll(/\-/g, "");
+    const newEvent = {
+      "Record Type": ["ChildList"],
+      "Event Type": "Children",
+      "Event Date": eventDate,
+      Narrative: aChildList,
+      Source: "",
+      OrderDate: orderDate,
+    };
+    marriagesAndCensuses.push(newEvent);
+  }
+
   if (window.familySearchFacts) {
     marriagesAndCensuses = marriagesAndCensuses.concat(window.familySearchFacts);
   }
@@ -1691,7 +1769,13 @@ export async function generateBio() {
         text += "\n\n";
         anEvent.Used = true;
       } else {
+        if (anEvent.SpouseChildren) {
+          window.childrenShown = true;
+        }
         let thisRef = "";
+        if (anEvent["Record Type"].includes("ChildList") && !window.childrenShown) {
+          anEvent.Narrative = anEvent.Narrative.replace("other child", "child");
+        }
         window.references.forEach(function (aRef) {
           if (
             anEvent["Record Type"].includes(aRef["Record Type"]) &&
@@ -1762,8 +1846,8 @@ export async function generateBio() {
       newNote = currentBio.match(/daughter of.*\.?/i)[0];
     }
 
-    if (sectionsObject["Research Notes"].match(newNote) == null) {
-      sectionsObject["Research Notes"] += newNote + "\n";
+    if (sectionsObject["Research Notes"].text.match(newNote) == null) {
+      sectionsObject["Research Notes"].text.push(newNote);
     }
 
     let needsProfilesCategory = secondToLastPlaceName + ", Needs Profiles Created";
@@ -1777,8 +1861,10 @@ export async function generateBio() {
 
   // Add Research Notes
   if (sectionsObject["Research Notes"]) {
-    text += "\n== Research Notes ==\n";
-    text += sectionsObject["Research Notes"] || "";
+    text += "== Research Notes ==\n";
+    if (sectionsObject["Research Notes"].text) {
+      text += sectionsObject["Research Notes"].text.join("\n");
+    }
     text += "\n\n";
   }
 
@@ -1885,12 +1971,19 @@ async function getLocationCategory(type, location = null) {
         foundCategory = category;
       } else if (locationSplit[0] + ", " + locationSplit[2] == category) {
         foundCategory = category;
+      } else if (locationSplit[0] == category) {
+        foundCategory = category;
+      } else if (locationSplit[1] == category) {
+        foundCategory = category;
+      } else if (locationSplit[2] == category) {
+        foundCategory = category;
       }
     });
     if (foundCategory) {
       return foundCategory;
     } else {
-      return api?.response?.categories[0].category;
+      return;
+      // return api?.response?.categories[0].category;
     }
   }
   return;
