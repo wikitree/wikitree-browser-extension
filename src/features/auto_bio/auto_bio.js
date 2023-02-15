@@ -3,7 +3,7 @@ import $ from "jquery";
 import { getPeople } from "../dna_table/dna_table";
 import { PersonName } from "./person_name.js";
 import { firstNameVariants } from "./first_name_variants.js";
-import { isOK, htmlEntities } from "../../core/common";
+import { isOK, htmlEntities, isEditPage } from "../../core/common";
 import { getAge } from "../change_family_lists/change_family_lists";
 import { wtAPICatCIBSearch } from "../../core/wtPlusAPI/wtPlusAPI";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
@@ -341,6 +341,7 @@ function minimalPlace(place) {
 function buildSpouses(person) {
   let spouseKeys = Object.keys(person.Spouses);
   let marriages = [];
+  let firstNameAndYear = [];
   if (person.Spouses) {
     spouseKeys.forEach(function (key) {
       let text = "";
@@ -348,6 +349,8 @@ function buildSpouses(person) {
       let spouseName = new PersonName(spouse);
       spouse.FullName = spouseName.withParts(["FirstNames", "LastNameAtBirth"]);
       let marriageAge = "";
+      let aFirstName = spouseName.withParts(["FirstName"]);
+      firstNameAndYear.push({ FirstName: aFirstName, Year: spouse.marriage_date.substring(4) });
       let spouseMarriageAge = "";
       if (window.profilePerson.BirthDate && spouse.marriage_date) {
         marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, spouse.marriage_date)})`;
@@ -419,6 +422,35 @@ function buildSpouses(person) {
       });
     });
   }
+  window.references.forEach(function (reference) {
+    if (reference["Record Type"].includes("Marriage")) {
+      let foundSpouse = false;
+      firstNameAndYear.forEach(function (obj) {
+        if (obj.Year == reference.Year) {
+          foundSpouse = true;
+        } else if (reference["Spouse Name"].split(" ")[0] == obj.FirstName) {
+          foundSpouse = true;
+        }
+      });
+      if (foundSpouse == false) {
+        let text = "";
+        const marriageDate = getYYYYMMDD(reference["Marriage Date"]);
+        console.log(getAgeFromISODates(window.profilePerson.BirthDate, marriageDate));
+        let marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, marriageDate)})`;
+        text += person.FirstName + marriageAge + " married " + reference["Spouse Name"];
+        text += " in " + reference["Marriage Place"] + " on " + reference["Marriage Date"] + ".";
+        marriages.push({
+          Spouse: { FullName: reference["Spouse Name"], marriage_date: marriageDate },
+          SpouseChildren: "",
+          Narrative: text + "<ref>" + reference.Text + "</ref>",
+          OrderDate: formatDate(marriageDate, 0, 8),
+          "Marriage Date": reference["Marriage Date"],
+          Year: reference.Year,
+        });
+        reference.Used = true;
+      }
+    }
+  });
   return marriages;
 }
 
@@ -1188,7 +1220,9 @@ function sourcesArray(bio) {
     }
 
     if (
-      aRef.Text.match(/Birth Index|Births and Christenings|Births and Baptisms|City Births|GRO Online Index - Birth/) ||
+      aRef.Text.match(
+        /Birth Certificate|Birth Index|Births and Christenings|Births and Baptisms|City Births|GRO Online Index - Birth/
+      ) ||
       aRef["Birth Date"]
     ) {
       aRef["Record Type"].push("Birth");
@@ -1211,7 +1245,9 @@ function sourcesArray(bio) {
       }
     }
     if (
-      aRef.Text.match("Marriage Index|Actes de mariage|Marriage Records|County Marriages|shire Marriages:") ||
+      aRef.Text.match(
+        "Marriage Certificate|Marriage Index|Actes de mariage|Marriage Records|County Marriages|shire Marriages:"
+      ) ||
       aRef["Marriage Date"]
     ) {
       aRef["Record Type"].push("Marriage");
@@ -1243,16 +1279,30 @@ function sourcesArray(bio) {
           aRef["Spouse Name"] = aRef["Couple"][1];
         }
         aRef.Year = aRef["Marriage Date"].match(/\d{4}/)[0];
+        const weddingLocationMatch = aRef.Text.match(/citing Marriage,?(.*?), United States/);
+        if (weddingLocationMatch) {
+          aRef["Marriage Place"] = weddingLocationMatch[1].trim();
+        }
       }
       aRef.OrderDate = formatDate(aRef["Marriage Date"], 0, 8);
     }
-    if (aRef.Text.match(/Death Index|findagrave|memorial|death registration/i) || aRef["Death Date"]) {
+    if (
+      aRef.Text.match(/Death Index|findagrave|memorial|death registration|Cemetery Registers|Death Cetificate/i) ||
+      aRef["Death Date"]
+    ) {
       aRef["Record Type"].push("Death");
       aRef.OrderDate = formatDate(aRef["Death Date"], 0, 8);
     }
     if (aRef.Text.match(/created through the import of.*GED/i)) {
       aRef["Record Type"].push("GEDCOM");
       aRef.Text.replace(/See the .*for the details.*$/, "");
+    }
+    if (aRef.Text.match(/Census/)) {
+      aRef["Record Type"].push("Census");
+      const placeMatch = aRef.Text.match(/([^,]+?, [^,]+?), United States;/);
+      if (placeMatch) {
+        aRef.Residence = placeMatch[1].trim();
+      }
     }
   });
   refArr = buildCensusNarratives(refArr);
@@ -1331,13 +1381,14 @@ function getSourcerCensuses() {
   let dummy = document.createElement("div");
   $(dummy).append(thisBio);
   $(dummy).find("ref").remove();
-  let text = $(dummy).text();
+  let text = $(dummy).html();
   let regex = /In the (\d{4}) census.*?\{.*?\|\}/gms;
   let match;
   while ((match = regex.exec(text)) !== null) {
     censuses.push({ "Census Year": match[1], Text: match[0] });
   }
   censuses.forEach(function (census) {
+    console.log(census);
     let text = census.Text;
     let residenceMatch = text.match(/(in|at)\s([A-Za-z\s]+.*?)(?=,|\.)/);
     if (residenceMatch) {
@@ -1539,6 +1590,16 @@ function splitBioIntoSections() {
       text: [],
       subsections: {},
     },
+    "Research Notes": {
+      title: "ResearchNotes",
+      text: [],
+      subsections: {},
+    },
+    Acknowledgements: {
+      title: "Acknowledgements",
+      text: [],
+      subsections: {},
+    },
   };
 
   for (let i = 0; i < lines.length; i++) {
@@ -1578,9 +1639,15 @@ function splitBioIntoSections() {
 }
 
 export async function generateBio() {
+  const working = $(
+    "<img id='working' style='position:absolute; margin-top:3em; margin-left: 300px' src='" +
+      chrome.runtime.getURL("images/tree.gif") +
+      "'>"
+  );
+  $("#wpTextbox1").before(working);
   const currentBio = $("#wpTextbox1").val();
   localStorage.setItem("previousBio", currentBio);
-
+  const bioTimeline = [];
   // Split the current bio into sections
   const sectionsObject = splitBioIntoSections();
 
@@ -1637,10 +1704,14 @@ export async function generateBio() {
       let findAGraveLink;
       const match1 = /^https?:\/\/www\.findagrave.com[^\s]+$/;
       const match2 = /\[(https?:\/\/www\.findagrave.com[^\s]+)\s([^\]]+)\]/;
+      const match3 = /\{\{FindAGrave\|(\d+)?\}\}/;
+      const match4 = /database and images/;
       if (aRef.Text.match(match1)) {
         findAGraveLink = aRef.Text;
       } else if (aRef.Text.match(match2)) {
         findAGraveLink = aRef.Text.match(match2)[1];
+      } else if (aRef.Text.match(match3) && aRef.Text.match(match4) == null) {
+        findAGraveLink = "https://www.findagrave.com/memorial/" + aRef.Text.match(match3)[1];
       }
       if (findAGraveLink) {
         let citation = await getFindAGraveCitation(findAGraveLink.replace("http:", "https:"));
@@ -1769,33 +1840,35 @@ export async function generateBio() {
         text += "\n\n";
         anEvent.Used = true;
       } else {
-        if (anEvent.SpouseChildren) {
-          window.childrenShown = true;
-        }
-        let thisRef = "";
-        if (anEvent["Record Type"].includes("ChildList") && !window.childrenShown) {
-          anEvent.Narrative = anEvent.Narrative.replace("other child", "child");
-        }
-        window.references.forEach(function (aRef) {
-          if (
-            anEvent["Record Type"].includes(aRef["Record Type"]) &&
-            aRef.Text.match("contributed by various users") &&
-            aRef.Text.match(window.profilePerson.FirstName)
-          ) {
-            if (aRef.RefName) {
-              thisRef = "<ref name='FamilySearchProfile' />";
-            } else {
-              thisRef = " <ref name='FamilySearchProfile'>" + aRef.Text + "</ref>";
-              aRef.RefName = "FamilySearchProfile";
-              aRef.Used = true;
-            }
+        if (anEvent.Narrative) {
+          if (anEvent.SpouseChildren) {
+            window.childrenShown = true;
           }
-        });
-        let narrativeBits = anEvent.Narrative.split(",");
-        if (anEvent.FactType == "Burial") {
-          window.profilePerson.BurialFact = minimalPlace2(narrativeBits) + thisRef + "\n\n";
-        } else {
-          text += minimalPlace2(narrativeBits) + thisRef + "\n\n";
+          let thisRef = "";
+          if (anEvent["Record Type"].includes("ChildList") && !window.childrenShown) {
+            anEvent.Narrative = anEvent.Narrative.replace("other child", "child");
+          }
+          window.references.forEach(function (aRef) {
+            if (
+              anEvent["Record Type"].includes(aRef["Record Type"]) &&
+              aRef.Text.match("contributed by various users") &&
+              aRef.Text.match(window.profilePerson.FirstName)
+            ) {
+              if (aRef.RefName) {
+                thisRef = "<ref name='FamilySearchProfile' />";
+              } else {
+                thisRef = " <ref name='FamilySearchProfile'>" + aRef.Text + "</ref>";
+                aRef.RefName = "FamilySearchProfile";
+                aRef.Used = true;
+              }
+            }
+          });
+          let narrativeBits = anEvent.Narrative.split(",");
+          if (anEvent.FactType == "Burial") {
+            window.profilePerson.BurialFact = minimalPlace2(narrativeBits) + thisRef + "\n\n";
+          } else {
+            text += minimalPlace2(narrativeBits) + thisRef + "\n\n";
+          }
         }
       }
     } else {
@@ -1846,7 +1919,7 @@ export async function generateBio() {
       newNote = currentBio.match(/daughter of.*\.?/i)[0];
     }
 
-    if (sectionsObject["Research Notes"].text.match(newNote) == null) {
+    if (sectionsObject["Research Notes"].text.includes(newNote) == null) {
       sectionsObject["Research Notes"].text.push(newNote);
     }
 
@@ -1860,7 +1933,7 @@ export async function generateBio() {
   }
 
   // Add Research Notes
-  if (sectionsObject["Research Notes"]) {
+  if (sectionsObject["Research Notes"].text.length > 0) {
     text += "== Research Notes ==\n";
     if (sectionsObject["Research Notes"].text) {
       text += sectionsObject["Research Notes"].text.join("\n");
@@ -1870,21 +1943,20 @@ export async function generateBio() {
 
   text += "== Sources ==\n<references />\n";
   window.references.forEach(function (aRef) {
-    if (aRef.Used == undefined && aRef["Record Type"] != "GEDCOM") {
-      text += "* " + aRef.Text + "\n";
+    if ((aRef.Used == undefined || window.autoBioOptions.inlineCitations == false) && aRef["Record Type"] != "GEDCOM") {
+      text += "* " + aRef.Text + "\n\n";
     }
-    if (aRef["Record Type"] == "GEDCOM") {
-      if (sectionsObject["Acknowledgements"].match(/\n$/) == null && sectionsObject["Acknowledgements"].length) {
-        sectionsObject["Acknowledgements"] += "\n";
-      }
-      sectionsObject["Acknowledgements"] += aRef.Text + "\n";
+    if (aRef["Record Type"].includes("GEDCOM")) {
+      sectionsObject["Acknowledgements"].text.push("*" + aRef.Text);
     }
   });
 
+  console.log(sectionsObject);
+  console.log(window.references);
   // Add Acknowledgments
-  if (sectionsObject["Acknowledgments"] || sectionsObject["Acknowledgements"]) {
+  if (sectionsObject["Acknowledgements"]) {
     text += "== Acknowledgements ==\n";
-    text += sectionsObject["Acknowledgments"] || sectionsObject["Acknowledgements"];
+    text += sectionsObject["Acknowledgements"].text.join("\n") + "\n";
     text = text.replace(/<!-- Please edit[\s\S]*?Changes page. -->/, "").replace(/Click to[\s\S]*?and others./, "");
   }
   text +=
@@ -1895,7 +1967,16 @@ export async function generateBio() {
 
   // Add stuff before the bio
   if (sectionsObject["StuffBeforeTheBio"]) {
-    text = sectionsObject["StuffBeforeTheBio"].text.join("\n") + "\n" + text;
+    const stuff = sectionsObject["StuffBeforeTheBio"].text.join("\n");
+    if (stuff) {
+      text = stuff + "\n" + text;
+    }
+  }
+
+  // Remove inline citations
+  if (window.autoBioOptions.inlineCitations == false) {
+    text = text.replace(/<ref[^>]*>(.*?)<\/ref>/gi, "");
+    text = text.replace(/<ref\s*\/>/gi, "");
   }
 
   // Switch off the enhanced editor if it's on
@@ -1913,6 +1994,7 @@ export async function generateBio() {
   if (enhanced == true) {
     enhancedEditorButton.trigger("click");
   }
+  working.remove();
 }
 
 async function getLocationCategory(type, location = null) {
@@ -1989,21 +2071,22 @@ async function getLocationCategory(type, location = null) {
   return;
 }
 
-$(document).ready(function () {
-  // check for Firefox
-  window.isFirefox = false;
-  window.addEventListener("load", () => {
-    let prefix = Array.prototype.slice
-      .call(window.getComputedStyle(document.documentElement, ""))
-      .join("")
-      .match(/-(moz|webkit|ms)-/)[1];
-    if (prefix == "moz") {
-      window.isFirefox == true;
-    }
-  });
-  $("#toolbar").append($('<button id="generateBio" class="button small">Bio</button>'));
-  $("#generateBio").on("click", function (e) {
-    e.preventDefault();
-    generateBio();
-  });
+checkIfFeatureEnabled("categoryFinderPins").then((result) => {
+  if (result && isEditPage) {
+    getFeatureOptions("autoBio").then((options) => {
+      window.autoBioOptions = options;
+      console.log(window.autoBioOptions);
+    });
+    // check for Firefox
+    window.isFirefox = false;
+    window.addEventListener("load", () => {
+      let prefix = Array.prototype.slice
+        .call(window.getComputedStyle(document.documentElement, ""))
+        .join("")
+        .match(/-(moz|webkit|ms)-/)[1];
+      if (prefix == "moz") {
+        window.isFirefox == true;
+      }
+    });
+  }
 });
