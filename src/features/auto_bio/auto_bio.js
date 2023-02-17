@@ -958,8 +958,7 @@ function parseWikiTable(text) {
 
   // HERE IS WHERE I NEED TO GET THE NAME OF THE PERSON IN THE TABLE
   data.Household = [];
-  let gotSelf = false;
-  //while (gotSelf == false) {
+
   for (const row of rows) {
     if (row.match(/\|\|/) && !row.match("Household Members")) {
       const cells = row.split("||");
@@ -972,7 +971,12 @@ function parseWikiTable(text) {
       data.Household.push(aMember);
     }
   }
-  //}
+  /*
+  let gotSelf = false;
+  while (gotSelf == false) {
+    // data.Household
+  }
+  */
   console.log(JSON.parse(JSON.stringify(data.Household)));
 
   for (const row of rows) {
