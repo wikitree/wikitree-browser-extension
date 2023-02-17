@@ -1195,17 +1195,18 @@ function sourcesArray(bio) {
     }
   });
 
-  window.sourcesSection.text = window.sourcesSection.text.map(function (aSource) {
+  window.sourcesSection.text = window.sourcesSection.text.map(function (aSource, i) {
     if (aSource.match(/database( with images)?, FamilySearch|^http/) && aSource.match(/^\*/) == null) {
       return "* " + aSource;
     } else {
-      if (aSource.match("<references/>") == null) {
+      if (aSource.match(/<references(\s|$)/) == null) {
         return aSource;
       } else {
         return;
       }
     }
   });
+
   console.log(JSON.parse(JSON.stringify(window.sourcesSection)));
 
   let sourcesSection = window.sourcesSection.text.join("\n");
