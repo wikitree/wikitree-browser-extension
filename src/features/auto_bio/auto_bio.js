@@ -119,6 +119,7 @@ function formatDate(date, status = "on", format = "text") {
       }
     });
   }
+  console.log(year, month, day);
   if (format === 8) {
     return `${year}${month ? `0${month}`.slice(-2) : "00"}${day ? `0${day}`.slice(-2) : "00"}`;
   } else {
@@ -268,7 +269,6 @@ function buildDeath(person) {
     text += ", aged " + age;
   }
   text += ".";
-
   // Get cemetery from FS citation
   console.log(window.references);
   window.references.forEach(function (source) {
@@ -288,6 +288,15 @@ function buildDeath(person) {
     }
   });
   text += addReferences("Death");
+  if (window.profilePerson["Burial Place"]) {
+    text +=
+      " " +
+      capitalizeFirstLetter(person.Pronouns.subject) +
+      " was buried in " +
+      minimalPlace(window.profilePerson["Burial Place"]) +
+      ".";
+    text += addReferences("Burial");
+  }
   return text;
 }
 
@@ -423,6 +432,7 @@ function buildSpouses(person) {
         SpouseChildren: spouseChildren,
         Narrative: text,
         OrderDate: formatDate(spouse.marriage_date, 0, 8),
+        "Event Date": spouse.marriage_date,
       });
     });
   }
@@ -957,27 +967,44 @@ function parseWikiTable(text) {
   }
 
   // HERE IS WHERE I NEED TO GET THE NAME OF THE PERSON IN THE TABLE
-  data.Household = [];
-
+  /*
   for (const row of rows) {
+    if (row.match("Household Members")) {
+      data.Household = [];
+    }
     if (row.match(/\|\|/) && !row.match("Household Members")) {
       const cells = row.split("||");
       const key = cells[0].trim().replace("|", "").replace(/:$/, "");
-      const value = cells[1].trim();
-      const aMember = { Name: key, Age: value };
-      if (isSameName(key, window.profilePerson.NameVariants)) {
+      const aMember = { Name: key };
+      for (let i = 1; i < cells.length; i++) {
+        if (cells[i].match(/father|mother|brother|sister|wife|husband|head|son|daughter|child/i)) {
+          aMember.Relation = cells[i].trim();
+        } else if (cells[i].match(/^\s?\d{1,2}/)) {
+          aMember.Age = cells[i].trim();
+        } else if (cells[i].match(/^M$/)) {
+          aMember.Gender = "Male";
+        } else if (cells[i].match(/^F$/)) {
+          aMember.Gender = "Female";
+        } else if (cells[i].match(/[A-Z][a-z]+/)) {
+          aMember["Birth Place"] = cells[i].trim();
+        }
+      }
+      if (
+        isSameName(key, window.profilePerson.NameVariants) &&
+        isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), aMember.Age, 5)
+      ) {
         aMember.Relation = "Self";
       }
-      data.Household.push(aMember);
+      if (data.Household) {
+        data.Household.push(aMember);
+      }
     }
   }
-  /*
-  let gotSelf = false;
-  while (gotSelf == false) {
-    // data.Household
+ 
+  if (data.Household) {
+    console.log(JSON.parse(JSON.stringify(data.Household)));
   }
   */
-  console.log(JSON.parse(JSON.stringify(data.Household)));
 
   for (const row of rows) {
     if (row.match("Household Members")) {
@@ -987,10 +1014,27 @@ function parseWikiTable(text) {
     if (row.match(/\|\|/)) {
       const cells = row.split("||");
       const key = cells[0].trim().replace("|", "").replace(/:$/, "");
-      const value = cells[1].trim();
+      const value = cells[1].trim().replace("|", "");
       if (data.Household) {
-        let aMember = { Name: key, Age: value };
-        if (isSameName(key, window.profilePerson.NameVariants)) {
+        // let aMember = { Name: key, Age: value };
+        const aMember = { Name: key };
+        for (let i = 1; i < cells.length; i++) {
+          if (cells[i].match(/father|mother|brother|sister|wife|husband|head|son|daughter|child/i)) {
+            aMember.Relation = cells[i].trim();
+          } else if (cells[i].match(/^\s?\d{1,2}/)) {
+            aMember.Age = cells[i].trim();
+          } else if (cells[i].match(/^M$/)) {
+            aMember.Gender = "Male";
+          } else if (cells[i].match(/^F$/)) {
+            aMember.Gender = "Female";
+          } else if (cells[i].match(/[A-Z][a-z]+/)) {
+            aMember["Birth Place"] = cells[i].trim();
+          }
+        }
+        if (
+          isSameName(key, window.profilePerson.NameVariants) &&
+          isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), aMember.Age, 5)
+        ) {
           aMember.Relation = "Self";
         }
         ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
@@ -1076,6 +1120,27 @@ function parseWikiTable(text) {
         });
       }
     }
+  }
+  if (data.Household) {
+    let hasSelf = data.Household.some((person) => person.Relation === "Self");
+    if (!hasSelf) {
+      let strength = 0.9;
+      while (!hasSelf && strength > 0) {
+        for (const member of data.Household) {
+          if (
+            isSameName(member.Name, window.profilePerson.NameVariants, strength) &&
+            isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), member.Age, 5)
+          ) {
+            member.Relation = "Self";
+            hasSelf = true;
+          }
+          strength -= 0.1;
+        }
+      }
+    }
+  }
+  if (data.Household) {
+    console.log(JSON.parse(JSON.stringify(data.Household)));
   }
   return data;
 }
@@ -1365,7 +1430,26 @@ function sourcesArray(bio) {
         aRef.Residence = placeMatch[1].trim();
       }
     }
+    if (aRef.Text.match(/citing Burial/)) {
+      const burialPersonRegex = new RegExp("Entry for (.*?),", "i");
+      const burialPersonMatch = aRef.Text.match(burialPersonRegex);
+      if (burialPersonMatch) {
+        window.profilePerson["Burial Date"] = aRef["Death or Burial Date"];
+        window.profilePerson["Burial Place"] = aRef["Death or Burial Place"];
+      }
+      aRef["Record Type"].push("Burial");
+      if (aRef["Death or Burial Date"]) {
+        aRef["Burial Date"] = aRef["Death or Burial Date"];
+        aRef.OrderDate = formatDate(aRef["Death or Burial Date"], 0, 8);
+        aRef["Event Date"] = aRef["Death or Burial Date"];
+      }
+      if (aRef["Death or Burial Place"]) {
+        aRef["Burial Place"] = aRef["Death or Burial Place"];
+        aRef["Event Place"] = aRef["Death or Burial Place"];
+      }
+    }
   });
+  console.log(JSON.parse(JSON.stringify(aRef)));
   refArr = buildCensusNarratives(refArr);
   return refArr;
 }
