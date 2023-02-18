@@ -1448,8 +1448,9 @@ function sourcesArray(bio) {
         aRef["Event Place"] = aRef["Death or Burial Place"];
       }
     }
+    console.log(JSON.parse(JSON.stringify(aRef)));
   });
-  console.log(JSON.parse(JSON.stringify(aRef)));
+
   refArr = buildCensusNarratives(refArr);
   return refArr;
 }
@@ -1920,7 +1921,7 @@ export async function generateBio() {
   // and add them to the text
   getFamilySearchFacts();
   let marriages = buildSpouses(window.profilePerson);
-  let marriagesAndCensuses = [...marriages];
+  const marriagesAndCensuses = [...marriages];
 
   // Get children who were not from one of the spouses
   if (!Array.isArray(window.profilePerson.Children)) {
@@ -1955,7 +1956,7 @@ export async function generateBio() {
   }
 
   if (window.familySearchFacts) {
-    marriagesAndCensuses = marriagesAndCensuses.concat(window.familySearchFacts);
+    marriagesAndCensuses.push(...window.familySearchFacts);
   }
   window.references.forEach(function (aRef) {
     if (aRef["Record Type"].includes("Census")) {
@@ -2102,6 +2103,11 @@ export async function generateBio() {
   */
   }
 
+  if (window.autoBioOptions.timeline == "table") {
+    const bioTimeline = bioTimelineFacts(marriagesAndCensuses);
+    text += "\n" + buildTimelineTable(bioTimeline) + "\n";
+  }
+
   // Add Research Notes
   if (sectionsObject["Research Notes"].text.length > 0) {
     text += "== Research Notes ==\n";
@@ -2158,44 +2164,6 @@ export async function generateBio() {
     text = text.replace(/<ref[^>]*>(.*?)<\/ref>/gi, "");
     text = text.replace(/<ref\s*\/>/gi, "");
   }
-
-  // Make Timeline
-  const bioTimeline = [];
-  bioTimeline.push(...marriagesAndCensuses);
-
-  bioTimeline.push({
-    "Event Date": window.profilePerson.BirthDate,
-    "Event Type": "Birth",
-    "Event Location": window.profilePerson.BirthLocation,
-    OrderDate: window.profilePerson.BirthDate.replace("-", ""),
-  });
-
-  if (window.profilePerson["Baptism Date"]) {
-    bioTimeline.push({
-      "Event Date": window.profilePerson["Baptism Date"],
-      "Event Type": "Baptism",
-      "Event Location": window.profilePerson["Baptism Place"],
-      OrderDate: window.profilePerson["Baptism Date"].replace("-", ""),
-    });
-  }
-
-  bioTimeline.push({
-    "Event Date": window.profilePerson.DeathDate,
-    "Event Type": "Death",
-    "Event Location": window.profilePerson.DeathLocation,
-    OrderDate: window.profilePerson.DeathLocation.replace("-", ""),
-  });
-
-  if (window.profilePerson["Burial Date"]) {
-    bioTimeline.push({
-      "Event Date": window.profilePerson["Burial Date"],
-      "Event Type": "Burial",
-      "Event Location": window.profilePerson["Burial Place"],
-      OrderDate: window.profilePerson["Burial Date"].replace("-", ""),
-    });
-  }
-
-  console.log(bioTimeline);
 
   // Switch off the enhanced editor if it's on
   let enhanced = false;
@@ -2287,6 +2255,148 @@ async function getLocationCategory(type, location = null) {
     }
   }
   return;
+}
+
+// Timeline functions
+function bioTimelineFacts(marriagesAndCensuses) {
+  const bioTimeline = [];
+  bioTimeline.push(...marriagesAndCensuses);
+
+  bioTimeline.push({
+    "Event Date": window.profilePerson.BirthDate,
+    "Event Type": "Birth",
+    "Event Location": window.profilePerson.BirthLocation,
+    OrderDate: window.profilePerson.BirthDate.replaceAll(/\-/g, ""),
+  });
+
+  if (window.profilePerson["Baptism Date"]) {
+    bioTimeline.push({
+      "Event Date": window.profilePerson["Baptism Date"],
+      "Event Type": "Baptism",
+      "Event Location": window.profilePerson["Baptism Place"],
+      OrderDate: window.profilePerson["Baptism Date"].replaceAll(/\-/g, ""),
+    });
+  }
+
+  bioTimeline.push({
+    "Event Date": window.profilePerson.DeathDate,
+    "Event Type": "Death",
+    "Event Location": window.profilePerson.DeathLocation,
+    OrderDate: window.profilePerson.DeathDate.replaceAll(/\-/g, ""),
+  });
+
+  if (window.profilePerson["Burial Date"]) {
+    if (window.profilePerson["Burial Date"].match(/[a-z]/i)) {
+      window.profilePerson["Burial Date"] = getYYYYMMDD(window.profilePerson["Burial Date"]);
+    }
+    bioTimeline.push({
+      "Event Date": window.profilePerson["Burial Date"],
+      "Event Type": "Burial",
+      "Event Location": window.profilePerson["Burial Place"],
+      OrderDate: window.profilePerson["Burial Date"].replaceAll(/\-/g, ""),
+    });
+  }
+
+  ["Parents", "Siblings", "Spouses", "Children"].forEach(function (aRel) {
+    if (!Array.isArray(window.profilePerson[aRel])) {
+      const personKeys = Object.keys(window.profilePerson[aRel]);
+      personKeys.forEach(function (aKey) {
+        const aPerson = window.profilePerson[aRel][aKey];
+        aPerson.Relationship = aRel;
+        bioTimeline.push({
+          "Event Date": aPerson.BirthDate,
+          "Event Type": "Birth of " + aRel.replace(/(ren$|s$)/, ""),
+          "Event Location": aPerson.BirthLocation,
+          OrderDate: aPerson.BirthDate.replaceAll(/\-/g, ""),
+          person: aPerson,
+        });
+        bioTimeline.push({
+          "Event Date": aPerson.DeathDate,
+          "Event Type": "Death of " + aRel.slice(0, -1).replace(/re$/, ""),
+          "Event Location": aPerson.DeathLocation,
+          OrderDate: aPerson.DeathDate.replaceAll(/\-/g, ""),
+          person: aPerson,
+        });
+        if (aRel == "Spouses") {
+          bioTimeline.push({
+            "Event Date": aPerson.marriage_date,
+            "Event Type": "Marriage",
+            "Event Location": aPerson.marriage_location,
+            OrderDate: aPerson["marriage_date"].replaceAll(/\-/g, ""),
+            person: aPerson,
+          });
+        }
+      });
+    }
+  });
+
+  bioTimeline.sort(function (a, b) {
+    return a.OrderDate - b.OrderDate;
+  });
+  console.log(bioTimeline);
+  return bioTimeline;
+}
+
+function personRelation(person, relation) {
+  if (person.Relationship) {
+    relation = person.Relationship;
+  }
+  if (person.Gender == "Male") {
+    if (relation == "Parents") {
+      relation = "Father";
+    } else if (relation == "Siblings") {
+      relation = "Brother";
+    } else if (relation == "Spouses") {
+      relation = "Husband";
+    } else if (relation == "Children") {
+      relation = "Son";
+    }
+  } else if (person.Gender == "Female") {
+    if (relation == "Parents") {
+      relation = "Mother";
+    } else if (relation == "Siblings") {
+      relation = "Sister";
+    } else if (relation == "Spouses") {
+      relation = "Wife";
+    } else if (relation == "Children") {
+      relation = "Daughter";
+    }
+  }
+  return relation;
+}
+
+function buildTimelineTable(bioTimeline) {
+  let timelineTable = '{| class="wikitable WBE" border="1" cellpadding="1"\n|+ Timeline\n|-\n';
+  timelineTable += "!Date!!Event!!Location!!Sources\n|+\n";
+  bioTimeline.forEach(function (aEvent) {
+    if (isOK(aEvent["Event Date"]) && aEvent["Event Type"] && aEvent["Event Type"] != "Children") {
+      let relation = "";
+      if (aEvent.person?.Relationship) {
+        relation = personRelation(aEvent.person);
+        const aName = new PersonName(aEvent.person);
+        const firstNames = aName.withParts(["FirstNames"]);
+        aEvent["Event Type"] =
+          aEvent["Event Type"].replace(/Parent|Sibling|Spouse|Child/, relation) +
+          ", [[" +
+          aEvent.person.Name +
+          "|" +
+          firstNames +
+          "]]";
+      }
+      let sources = "";
+      let eventType = aEvent["Event Type"];
+      let eventDate = aEvent["Event Date"];
+      let eventLocation = aEvent["Event Location"] ? minimalPlace(aEvent["Event Location"]) : "";
+      if (["Birth", "Marriage", "Death"].includes(aEvent["Event Type"]) || aEvent["Event Type"].match(/Marriage/)) {
+        eventType = "'''" + eventType + "'''";
+        eventDate = "'''" + eventDate + "'''";
+        eventLocation = eventLocation ? "'''" + minimalPlace(eventLocation) + "'''" : "";
+      }
+      timelineTable += "|" + eventDate + "||" + eventType + "||" + eventLocation + "||" + sources + "\n|+\n";
+    }
+  });
+  timelineTable += "|}\n";
+  return timelineTable;
 }
 
 checkIfFeatureEnabled("categoryFinderPins").then((result) => {
