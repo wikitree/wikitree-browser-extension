@@ -13,6 +13,22 @@ const autoBio = {
       label: "Inline Citations",
       defaultValue: true,
     },
+    {
+      id: "timeline",
+      type: OptionType.RADIO,
+      label: "Timeline",
+      values: [
+        {
+          value: "table",
+          text: "Table",
+        },
+        {
+          value: "list",
+          text: "List",
+        },
+      ],
+      defaultValue: "table",
+    },
   ],
 };
 
