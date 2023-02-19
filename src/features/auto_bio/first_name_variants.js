@@ -269,6 +269,7 @@ export const firstNameVariants = {
   Frans: ["Frans", "Francis", "Frank"],
   Fred: ["Fred", "Freddy"],
   Frederick: ["Frederick", "Fred"],
+  Friedrich: ["Friedrich", "Fred"],
   Gabriel: ["Gabriel", "Gabe", "Gabby"],
   Gabriela: ["Gabriela", "Gabi"],
   Gabriella: ["Gabriella", "Gabi"],
