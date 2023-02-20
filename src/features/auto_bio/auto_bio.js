@@ -273,19 +273,29 @@ function addReferences(event, spouse = false) {
 }
 
 function buildBirth(person) {
-  let text = "'''" + person.FullName + "'''" + " was born";
-  if (person.BirthLocation) {
-    text += " in " + person.BirthLocation;
-    let birthPlaces = person.BirthLocation.split(",");
-    birthPlaces.forEach(function (place) {
-      window.usedPlaces.push(place.trim());
-    });
-  }
-  if (person.BirthDate) {
-    console.log(person.BirthDate);
-    text += " " + formatDate(person.BirthDate, person.mStatus_BirthDate || "");
+  let text = "'''" + person.FullName + "'''" + " was";
+
+  if (person.BirthDate || person.BirthLocation) {
+    text += " born";
+
+    if (person.BirthLocation) {
+      text += " in " + person.BirthLocation;
+      let birthPlaces = person.BirthLocation.split(",");
+      birthPlaces.forEach(function (place) {
+        window.usedPlaces.push(place.trim());
+      });
+    }
+    if (person.BirthDate) {
+      console.log(person.BirthDate);
+      text += " " + formatDate(person.BirthDate, person.mStatus_BirthDate || "");
+    }
   }
   if (person.Father || person.Mother) {
+    if (person.BirthDate || person.BirthLocation) {
+      text += ", ";
+    } else {
+      text += " the ";
+    }
     text += buildParents(person);
   }
   text += ".";
@@ -357,9 +367,9 @@ function buildDeath(person) {
 function buildParents(person) {
   let text = "";
   if (person.Gender == "Male") {
-    text += ", son of ";
+    text += " son of ";
   } else if (person.Gender == "Female") {
-    text += ", daughter of ";
+    text += " daughter of ";
   }
   let parents = person.Parents;
   if (parents) {
@@ -2280,7 +2290,7 @@ export async function generateBio() {
   text += "== Sources ==\n<references />\n";
   window.references.forEach(function (aRef) {
     if ((aRef.Used == undefined || window.autoBioOptions.inlineCitations == false) && aRef["Record Type"] != "GEDCOM") {
-      text += "* " + aRef.Text + "\n";
+      text += "* " + aRef.Text.replace(/Click the Changes tab.*/, "") + "\n";
     }
     if (aRef["Record Type"].includes("GEDCOM")) {
       sectionsObject["Acknowledgements"].text.push("*" + aRef.Text);
