@@ -49,13 +49,13 @@ export function bioTimelineFacts(marriagesAndCensuses) {
         aPerson.Relationship = aRel;
         let birthDate = "0000-00-00";
         if (aPerson.BirthDate) {
-          birthDate = aPerson.BirthDate.replaceAll(/\-/g, "");
+          birthDate = aPerson.BirthDate.replaceAll(/\-00/g, "");
         } else if (aPerson.BirthDecade) {
           birthDate = aPerson.BirthDecade.substring(3) + "5" + "00-00";
         }
         let deathDate = "0000-00-00";
         if (aPerson.DeathDate) {
-          deathDate = aPerson.DeathDate.replaceAll(/\-/g, "");
+          deathDate = aPerson.DeathDate.replaceAll(/\-00/g, "");
         } else if (aPerson.DeathDecade) {
           deathDate = aPerson.DeathDecade.substring(3) + "5" + "00-00";
         }
@@ -190,9 +190,15 @@ export function buildTimelineTable(bioTimeline) {
           }
         }
       });
+      /*
       let formattedEventDate = "";
       if (isOK(eventDate)) {
-        formattedEventDate = formatDate(eventDate.replaceAll(/\-00/g, "")).replace(/in\s|on\s/, "");
+        formattedEventDate = formatDate(eventDate).replace(/in\s|on\s/, "");
+      }
+      */
+      let formattedEventDate = eventDate.replaceAll(/\-00/g, "");
+      if (eventDate.match(/[a-z]/)) {
+        formattedEventDate = getYYYYMMDD(eventDate).replaceAll(/\-00/g, "");
       }
       timelineTable += "|" + formattedEventDate + "||" + eventType + "||" + eventLocation + "||" + sources + "\n|-\n";
     }
