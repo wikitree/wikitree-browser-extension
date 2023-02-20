@@ -208,18 +208,6 @@ export function buildTimelineSA(bioTimeline) {
       let placeSources = "";
       if (aEvent["Event Type"] == head) {
         let relation = "";
-        if (aEvent.person?.Relationship && head == "Marriage") {
-          relation = personRelation(aEvent.person);
-          const aName = new PersonName(aEvent.person);
-          const firstNames = aName.withParts(["FirstNames"]);
-          aEvent["Event Type"] =
-            aEvent["Event Type"].replace(/Parent|Sibling|Spouse|Child/, relation) +
-            ", [[" +
-            aEvent.person.Name +
-            "|" +
-            firstNames +
-            "]]";
-        }
         let sources = "";
         let eventType = aEvent["Event Type"];
         let eventDate = aEvent["Event Date"] || aEvent.Year;
@@ -236,7 +224,7 @@ export function buildTimelineSA(bioTimeline) {
             }
           }
           let isRightMarriage = false;
-          //if (aRef["Event Type"]) {
+
           if (
             aRef["Record Type"].includes("Marriage") &&
             aEvent["Event Type"].match("Marriage") &&
@@ -244,7 +232,7 @@ export function buildTimelineSA(bioTimeline) {
           ) {
             isRightMarriage = true;
           }
-          //}
+
           if (
             ((aEvent["Event Type"] == aRef["Event Type"] || aRef["Record Type"].includes(aEvent["Event Type"])) &&
               eventType != "Census") ||
