@@ -37,8 +37,7 @@ function autoBioCheck(sourcesStr) {
   );
   //  let isValid = biography.validate();
   const hasSources = biography.hasSources();
-  console.log(hasSources);
-  console.log(isValid);
+  return hasSources;
 }
 const unsourced =
   /^\n*?\s*?((^Also:$)|(^See also:$)|(Unsourced)|(Personal (recollection)|(information))|(Firsthand knowledge)|(Sources will be added)|(Add\s\[\[sources\]\]\shere$)|(created.*?through\sthe\simport\sof\s.*?\.ged)|(FamilySearch(\.com)?$)|(ancestry\.com$)|(family records$)|(Ancestry family trees$))/im;
@@ -659,9 +658,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus) {
     console.log(beforeFirstCommaPattern);
     const beforeFirstCommaMatch = beforeFirstCommaPattern.exec(matchedText);
     console.log(beforeFirstCommaMatch);
-    //if (beforeFirstCommaMatch) {
     const ourText = beforeFirstCommaMatch[0].replace(lastNamePattern, "");
-    //}
     console.log(ourText);
     let locationPattern = /\),[^,]+(.*?)(;|\.)/;
     let locationMatch = locationPattern.exec(reference.Text);
@@ -2059,14 +2056,6 @@ export async function generateBio() {
   }
   await updateReferences();
 
-  // Add Unsourced template if there are no good sources
-  if (window.references.length == window.NonSourceCount) {
-    const unsourcedTemplate = "{{Unsourced}}";
-    if (!sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
-      sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
-    }
-  }
-
   // Start Output
   let text = "";
 
@@ -2291,7 +2280,7 @@ export async function generateBio() {
   text += "== Sources ==\n<references />\n";
   window.references.forEach(function (aRef) {
     if ((aRef.Used == undefined || window.autoBioOptions.inlineCitations == false) && aRef["Record Type"] != "GEDCOM") {
-      text += "* " + aRef.Text + "\n\n";
+      text += "* " + aRef.Text + "\n";
     }
     if (aRef["Record Type"].includes("GEDCOM")) {
       sectionsObject["Acknowledgements"].text.push("*" + aRef.Text);
@@ -2304,7 +2293,7 @@ export async function generateBio() {
       sectionsObject["See Also"].text.forEach(function (anAlso) {
         text += "* " + anAlso.replace(/^\*\s?/, "") + "\n";
       });
-      text += "\n\n";
+      text += "\n";
     }
   }
 
@@ -2316,14 +2305,14 @@ export async function generateBio() {
         sectionsObject["Acknowledgements"].text.splice(i, 1);
       }
     });
-    let ackTitle = "== Acknowledgements ==\n";
+    let ackTitle = "\n== Acknowledgements ==\n";
     if (sectionsObject["Acknowledgements"].originalTitle) {
       ackTitle = "== " + sectionsObject["Acknowledgements"].originalTitle + " ==\n";
     } else if (
       window.profilePerson.BirthLocation.match(/United States|USA/) ||
       window.profilePerson.DeathLocation.match(/United States|USA/)
     ) {
-      ackTitle = "== Acknowledgments ==\n";
+      ackTitle = "\n== Acknowledgments ==\n";
     }
     text += ackTitle;
     text += sectionsObject["Acknowledgements"].text.join("\n") + "\n";
@@ -2335,6 +2324,13 @@ export async function generateBio() {
     "2. Delete this message and the old biography (below).\n" +
     "Thank you. \n-->\n";
 
+  // Add Unsourced template if there are no good sources
+  if (autoBioCheck(window.references.join("\n")) == false) {
+    const unsourcedTemplate = "{{Unsourced}}";
+    if (!sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
+      sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
+    }
+  }
   // Add stuff before the bio
   if (sectionsObject["StuffBeforeTheBio"]) {
     const stuff = sectionsObject["StuffBeforeTheBio"].text.join("\n");
@@ -2348,8 +2344,6 @@ export async function generateBio() {
     text = text.replace(/<ref[^>]*>(.*?)<\/ref>/gi, "");
     text = text.replace(/<ref\s*\/>/gi, "");
   }
-
-  autoBioCheck(window.references.join("\n"));
 
   // Switch off the enhanced editor if it's on
   let enhanced = false;
