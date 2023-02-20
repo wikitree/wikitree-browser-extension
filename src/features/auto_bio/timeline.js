@@ -190,8 +190,11 @@ export function buildTimelineTable(bioTimeline) {
           }
         }
       });
-      timelineTable +=
-        "|" + eventDate.replaceAll(/\-00/g, "") + "||" + eventType + "||" + eventLocation + "||" + sources + "\n|-\n";
+      let formattedEventDate = "";
+      if (isOK(eventDate)) {
+        formattedEventDate = formatDate(eventDate.replaceAll(/\-00/g, "")).replace(/in\s|on\s/, "");
+      }
+      timelineTable += "|" + formattedEventDate + "||" + eventType + "||" + eventLocation + "||" + sources + "\n|-\n";
     }
   });
   timelineTable += "|}\n\n";
@@ -264,7 +267,11 @@ export function buildTimelineSA(bioTimeline) {
             });
           }
         });
-        text += "Date: " + formatDate(eventDate.replaceAll(/\-00/g, "")).replace(/in\s|on\s/, "") + dateSources + "\n";
+        let formattedEventDate = "";
+        if (isOK(eventDate)) {
+          formattedEventDate = formatDate(eventDate.replaceAll(/\-00/g, "")).replace(/in\s|on\s/, "");
+        }
+        text += "Date: " + formattedEventDate + dateSources + "\n";
         text += "Place: " + eventLocation + " " + placeSources + "\n";
       }
     });

@@ -633,7 +633,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus) {
   if (ageAtCensus) {
     ageBit = " (" + ageAtCensus + ")";
   }
-
+  console.log(firstName);
   const lastNamePattern = new RegExp(
     "(" + window.profilePerson.LastNameAtBirth + "|" + window.profilePerson.LastNameCurrent + ") ?"
   );
@@ -643,7 +643,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus) {
     "(?<=, )((['a-zA-Z .-]+, )?['a-zA-Z .-]+,['a-zA-Z ().-]+), (United States|England|Scotland|Canada);"
   );
   const USmatch = USpattern.exec(reference.Text);
-  const firstNameMatch = new RegExp(firstName);
+  const firstNameMatch = new RegExp(firstName.replace(".", "\\.").replace(/([A-Z])\|/, "$1\b|"));
 
   console.log(firstNameMatch);
   const theFirstNameMatch = firstNameMatch.exec(reference.Text);
@@ -659,7 +659,9 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus) {
     console.log(beforeFirstCommaPattern);
     const beforeFirstCommaMatch = beforeFirstCommaPattern.exec(matchedText);
     console.log(beforeFirstCommaMatch);
+    //if (beforeFirstCommaMatch) {
     const ourText = beforeFirstCommaMatch[0].replace(lastNamePattern, "");
+    //}
     console.log(ourText);
     let locationPattern = /\),[^,]+(.*?)(;|\.)/;
     let locationMatch = locationPattern.exec(reference.Text);

@@ -152,7 +152,20 @@ function isNumeric(n) {
 // Check that a value is OK
 // Used in familyTimeline and familyGroup
 export function isOK(thing) {
-  const excludeValues = ["", null, "null", "0000-00-00", "unknown", "Unknown", "undefined", undefined, "0000", "0", 0];
+  const excludeValues = [
+    "",
+    null,
+    "null",
+    "0000-00-00",
+    "00000000",
+    "unknown",
+    "Unknown",
+    "undefined",
+    undefined,
+    "0000",
+    "0",
+    0,
+  ];
   if (!excludeValues.includes(thing)) {
     if (isNumeric(thing)) {
       return true;
