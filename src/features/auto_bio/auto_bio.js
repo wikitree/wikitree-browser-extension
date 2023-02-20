@@ -35,9 +35,10 @@ function autoBioCheck(sourcesStr) {
     isPre1700,
     thePerson.mustBeOpen()
   );
-  //  let isValid = biography.validate();
   const hasSources = biography.hasSources();
-  return hasSources;
+  console.log(biography);
+  console.log(hasSources);
+  return isValid;
 }
 const unsourced =
   /^\n*?\s*?((^Also:$)|(^See also:$)|(Unsourced)|(Personal (recollection)|(information))|(Firsthand knowledge)|(Sources will be added)|(Add\s\[\[sources\]\]\shere$)|(created.*?through\sthe\simport\sof\s.*?\.ged)|(FamilySearch(\.com)?$)|(ancestry\.com$)|(family records$)|(Ancestry family trees$))/im;
@@ -1484,7 +1485,7 @@ function sourcesArray(bio) {
 
     if (
       aRef.Text.match(
-        /Birth (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|City Births|GRO Online Index \- Birth/
+        /'''Birth'''|Birth (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|City Births|GRO Online Index \- Birth/
       ) ||
       aRef["Birth Date"]
     ) {
@@ -1509,7 +1510,7 @@ function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        "Marriage Notice|Marriage Certificate|Marriage Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages"
+        "'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages"
       ) ||
       aRef["Marriage Date"]
     ) {
@@ -1551,7 +1552,7 @@ function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        /[A-Z][a-z]+ Deaths|Death Index|findagrave|memorial|death registration|Cemetery Registers|Death Cetificate/i
+        /[A-Z][a-z]+ Deaths|'''Death'''|Death Index|findagrave|memorial|death registration|Cemetery Registers|Death Cetificate/i
       ) ||
       aRef["Death Date"]
     ) {
@@ -2209,7 +2210,7 @@ export async function generateBio() {
       text += anEvent.Narrative + "\n\n";
     }
   });
-  console.log('marriagesAndCensuses', marriagesAndCensuses);
+  console.log("marriagesAndCensuses", marriagesAndCensuses);
 
   // Add death
   let deathBit = buildDeath(window.profilePerson);
@@ -2339,7 +2340,7 @@ export async function generateBio() {
     "Thank you. \n-->\n";
 
   // Add Unsourced template if there are no good sources
-  if (autoBioCheck(window.references.join("\n")) == false) {
+  if (autoBioCheck(text) == false) {
     const unsourcedTemplate = "{{Unsourced}}";
     if (!sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
       sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
