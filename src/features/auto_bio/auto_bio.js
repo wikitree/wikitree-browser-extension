@@ -35,9 +35,6 @@ function autoBioCheck(sourcesStr) {
     isPre1700,
     thePerson.mustBeOpen()
   );
-  const hasSources = biography.hasSources();
-  console.log(biography);
-  console.log(hasSources);
   return isValid;
 }
 const unsourced =
@@ -55,7 +52,6 @@ function getFormData() {
       if (["mBirthDate", "mMarriageDate", "mDeathDate"].includes($(this).attr("id"))) {
         if ($(this).val().length > 4) {
           const date = new Date($(this).val());
-          console.log(`${$(this).attr("id")} date:`, date);
           date.setUTCHours(0, 0, 0, 0); // set hours, minutes, seconds, and milliseconds to zero
           const isoDate = date.toISOString().split("T")[0]; // extract the date part only
           formData[$(this).attr("id").substring(1)] = isoDate;
@@ -141,17 +137,14 @@ export function formatDate(date, status = "on", format = "text") {
   ];
 
   if (!date) return "";
-  console.log("formatDate");
   let year, month, day;
   if (date.match("-")) {
     [year, month, day] = date.split("-");
     year = parseInt(year);
     month = parseInt(month);
     day = parseInt(day);
-    console.log(year, month, day);
   } else {
     const split = date.split(" ");
-    console.log(date, split);
     split.forEach(function (bit) {
       if (bit.match(/[0-9]{4}/)) {
         year = bit;
@@ -166,7 +159,6 @@ export function formatDate(date, status = "on", format = "text") {
       }
     });
   }
-  console.log(year, month, day);
   if (format === 8) {
     return `${year}${month ? `0${month}`.slice(-2) : "00"}${day ? `0${day}`.slice(-2) : "00"}`;
   } else {
@@ -183,7 +175,6 @@ export function formatDate(date, status = "on", format = "text") {
           : "in"
         : ""
     } ${day ? `${months[month - 1]} ${day}, ` : month ? `${months[month - 1]}, ` : ``}${year}`;
-    console.log(dateString);
     return dateString.trim();
   }
 }
@@ -247,6 +238,19 @@ function childList(person, spouse) {
   childListText = childListText.trim();
 
   text += childListText;
+  return text;
+}
+
+function siblingList() {
+  let text = "";
+  if (!Array.isArray(window.profilePerson.Siblings)) {
+    text += capitalizeFirstLetter(window.profilePerson.Pronouns.possessiveAdjective) + " siblings were:\n";
+    let siblingsKeys = Object.keys(window.profilePerson.Siblings);
+    siblingsKeys.forEach(function (key) {
+      const sibling = window.profilePerson.Siblings[key];
+      text += nameLink(sibling) + " " + formatDates(sibling) + "\n";
+    });
+  }
   return text;
 }
 
@@ -644,7 +648,6 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus) {
   if (ageAtCensus) {
     ageBit = " (" + ageAtCensus + ")";
   }
-  console.log(firstName);
   const lastNamePattern = new RegExp(
     "(" + window.profilePerson.LastNameAtBirth + "|" + window.profilePerson.LastNameCurrent + ") ?"
   );
@@ -655,12 +658,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus) {
   );
   const USmatch = USpattern.exec(reference.Text);
   const firstNameMatch = new RegExp(firstName.replace(".", "\\.").replace(/([A-Z])\|/, "$1\b|"));
-
-  console.log("familySearchCensusWithNoTable");
-  console.log(firstNameMatch);
   const theFirstNameMatch = firstNameMatch.exec(reference.Text);
-  console.log(theFirstNameMatch);
-  console.log(match);
   if (theFirstNameMatch) {
     firstName = theFirstNameMatch[0];
   }
@@ -668,14 +666,11 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus) {
   if (match) {
     let matchedText = match[0];
     const beforeFirstCommaPattern = new RegExp(firstName.trim() + "\\s[^,]+");
-    console.log(beforeFirstCommaPattern);
     const beforeFirstCommaMatch = beforeFirstCommaPattern.exec(matchedText);
-    console.log(beforeFirstCommaMatch);
     const ourText = beforeFirstCommaMatch[0].replace(lastNamePattern, "");
     console.log(ourText);
     let locationPattern = /\),[^,]+(.*?)(;|\.)/;
     let locationMatch = locationPattern.exec(reference.Text);
-    console.log(locationMatch);
     if (locationMatch) {
       reference.Residence = locationMatch[1]
         .replace(",", "")
@@ -705,7 +700,6 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus) {
     }
   } else if (USmatch) {
     //if we have a match on the US pattern
-    console.log(USmatch);
     text += window.profilePerson.theFirstName + ageBit + " was living in " + USmatch[1] + ".";
   }
   text = getHouseholdOfRelationAndName(text);
@@ -726,14 +720,11 @@ function getHouseholdOfRelationAndName(text) {
         let keys = Object.keys(window.profilePerson[relation]);
         keys.forEach(function (key) {
           let oNameVariants = getNameVariants(window.profilePerson[relation][key]);
-
           oNameVariants = [householdHeadFirstName];
           if (firstNameVariants[householdHeadFirstName]) {
             oNameVariants = firstNameVariants[householdHeadFirstName];
           }
-
           if (isSameName(window.profilePerson[relation][key].FirstName, oNameVariants)) {
-            console.log(123);
             if (window.profilePerson[relation][key].Gender) {
               let oGender = window.profilePerson[relation][key].Gender;
               var relationWord =
@@ -773,8 +764,7 @@ function getHouseholdOfRelationAndName(text) {
 }
 
 function buildCensusNarratives(references) {
-  console.log("references", references);
-
+  console.log("references", JSON.parse(JSON.stringify(references)));
   const yearRegex = /\b(\d{4})\b/;
   references.forEach(function (reference) {
     console.log(JSON.parse(JSON.stringify(reference)));
@@ -860,6 +850,18 @@ function buildCensusNarratives(references) {
         // Switch "in the household of NAME" to "in the household of her father, Frederick" (for example)
         text = getHouseholdOfRelationAndName(text);
       } else {
+        // If there's a spouse in the table, but there's no profile for the spouse
+        if (reference["Spouse's Name"] && Array.isArray(window.profilePerson.Spouses)) {
+          reference.Household.forEach(function (householdMember) {
+            if (householdMember.Name == reference["Spouse's Name"]) {
+              if (reference.Gender == "Male") {
+                householdMember.Relation = "Wife";
+              } else {
+                householdMember.Relation = "Husband";
+              }
+            }
+          });
+        }
         // With a table
         text +=
           "In " +
@@ -894,9 +896,17 @@ function buildCensusNarratives(references) {
           });
 
           function createFamilyNarrative(familyMembers) {
-            console.log("familyMembers", familyMembers);
+            console.log("familyMembers", familyMembers, JSON.parse(JSON.stringify(familyMembers)));
             const mainPerson = familyMembers.find((member) => member.Relation === "Self");
-            mainPerson.LastName = mainPerson.Name.split(" ").slice(-1)[0];
+            const lastNameMatchRegex = new RegExp(
+              window.profilePerson.LastNameAtBirth + "|" + window.profilePerson.LastNameAtBirth
+            );
+            const lastNameMatch = mainPerson.Name.match(lastNameMatchRegex);
+            if (lastNameMatch) {
+              mainPerson.LastName = lastNameMatch[0];
+            } else {
+              mainPerson.LastName = mainPerson.Name.split(" ").slice(-1)[0];
+            }
             let narrative = "";
 
             const spouse = familyMembers.find((member) => member.Relation === "Wife");
@@ -1048,46 +1058,6 @@ function parseWikiTable(text) {
     data["Year"] = match[1];
   }
 
-  // HERE IS WHERE I NEED TO GET THE NAME OF THE PERSON IN THE TABLE
-  /*
-  for (const row of rows) {
-    if (row.match("Household Members")) {
-      data.Household = [];
-    }
-    if (row.match(/\|\|/) && !row.match("Household Members")) {
-      const cells = row.split("||");
-      const key = cells[0].trim().replace("|", "").replace(/:$/, "");
-      const aMember = { Name: key };
-      for (let i = 1; i < cells.length; i++) {
-        if (cells[i].match(/father|mother|brother|sister|wife|husband|head|son|daughter|child/i)) {
-          aMember.Relation = cells[i].trim();
-        } else if (cells[i].match(/^\s?\d{1,2}/)) {
-          aMember.Age = cells[i].trim();
-        } else if (cells[i].match(/^M$/)) {
-          aMember.Gender = "Male";
-        } else if (cells[i].match(/^F$/)) {
-          aMember.Gender = "Female";
-        } else if (cells[i].match(/[A-Z][a-z]+/)) {
-          aMember["Birth Place"] = cells[i].trim();
-        }
-      }
-      if (
-        isSameName(key, window.profilePerson.NameVariants) &&
-        isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), aMember.Age, 5)
-      ) {
-        aMember.Relation = "Self";
-      }
-      if (data.Household) {
-        data.Household.push(aMember);
-      }
-    }
-  }
-
-  if (data.Household) {
-    console.log(JSON.parse(JSON.stringify(data.Household)));
-  }
-  */
-
   for (const row of rows) {
     if (row.match("Household Members")) {
       data.Household = [];
@@ -1124,6 +1094,7 @@ function parseWikiTable(text) {
           oKeys.forEach(function (aKey) {
             let aPerson = window.profilePerson[relation][aKey];
             let theRelation;
+            console.log(aPerson, theRelation, isSameName(key, getNameVariants(aPerson)));
             if (isSameName(key, getNameVariants(aPerson))) {
               if (aPerson.Gender) {
                 aMember.Gender = aPerson.Gender;
@@ -1153,7 +1124,7 @@ function parseWikiTable(text) {
                 }
               }
               if (isOK(aPerson.BirthDate)) {
-                if (isWithinX(getAgeAtCensus(aPerson, data["Year"]), value, 2)) {
+                if (isWithinX(getAgeAtCensus(aPerson, data["Year"]), value, 4)) {
                   aMember.Relation = theRelation;
                   aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
                 }
@@ -1416,7 +1387,7 @@ function sourcesArray(bio) {
 
   refArr.forEach(function (aRef) {
     let table = parseWikiTable(aRef.Text);
-    //console.log(JSON.parse(JSON.stringify(aRef)));
+    console.log("table", JSON.parse(JSON.stringify(table)));
     Object.assign(aRef, table);
     //console.log(JSON.parse(JSON.stringify(aRef)));
 
@@ -1592,7 +1563,6 @@ function sourcesArray(bio) {
         aRef["Event Place"] = aRef["Death or Burial Place"];
       }
     }
-    console.log(JSON.parse(JSON.stringify(aRef)));
   });
 
   refArr = buildCensusNarratives(refArr);
@@ -2059,7 +2029,6 @@ export async function generateBio() {
         const today = new Date();
         const options = { day: "numeric", month: "long", year: "numeric" };
         const dateString = today.toLocaleDateString("en-US", options);
-        console.log(dateString);
         citation = citation
           .replace("accessed", "accessed " + dateString)
           .replaceAll(/\s+/g, " ")
@@ -2080,6 +2049,9 @@ export async function generateBio() {
 
   //Add birth
   text += buildBirth(window.profilePerson) + "\n\n";
+
+  // Add siblings
+  //text += siblingList();
 
   // Get marriages and censuses, order them by date
   // and add them to the text
@@ -2235,7 +2207,6 @@ export async function generateBio() {
     for (let i = 0; i < types.length; i++) {
       const location = await getLocationCategory(types[i]);
       if (location) {
-        console.log(location);
         const theCategory = "[[Category: " + location + "]]";
         if (!sectionsObject["StuffBeforeTheBio"].text.includes(theCategory)) {
           sectionsObject["StuffBeforeTheBio"].text.push(theCategory);
@@ -2244,7 +2215,6 @@ export async function generateBio() {
     }
   }
   await getLocationCategories();
-  console.log(window.references);
 
   // Make research notes
   if (!window.profilePerson.Father && !window.profilePerson.Mother && currentBio.match(/(son|daughter) of.*\.?/i)) {
@@ -2415,17 +2385,13 @@ async function getLocationCategory(type, location = null) {
   if (locationSplit[3]) {
     locationSplit.splice(3, 3);
   }
-  console.log(locationSplit);
   let api = await wtAPICatCIBSearch("WBE", categoryType, locationSplit.join(", "));
-  console.log(api);
   if (api?.response?.categories?.length == 1) {
     return api?.response?.categories[0].category;
   } else if (api?.response?.categories?.length > 1) {
     let foundCategory = null;
     api.response.categories.forEach(function (aCat) {
       let category = aCat.category;
-      console.log(category);
-      console.log(locationSplit[0] + ", " + locationSplit[2]);
       if (locationSplit[0] + ", " + locationSplit[1] == category) {
         foundCategory = category;
       } else if (locationSplit[0] + ", " + locationSplit[1] + ", " + locationSplit[2] == category) {
