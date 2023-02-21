@@ -8,6 +8,28 @@ const autoBio = {
   defaultValue: true,
   options: [
     {
+      id: "startWithName",
+      type: OptionType.RADIO,
+      label: "Start with",
+      values: [
+        {
+          value: "FullName",
+          text: "Full name",
+        },
+        {
+          value: "BirthName",
+          text: "Birth Name",
+        },
+      ],
+      defaultValue: "BirthName",
+    },
+    {
+      id: "deathPosition",
+      type: OptionType.CHECKBOX,
+      label: "Death immediately after birth",
+      defaultValue: false,
+    },
+    {
       id: "inlineCitations",
       type: OptionType.CHECKBOX,
       label: "Inline Citations",
@@ -15,19 +37,9 @@ const autoBio = {
     },
     {
       id: "timeline",
-      type: OptionType.RADIO,
+      type: OptionType.CHECKBOX,
       label: "Timeline",
-      values: [
-        {
-          value: "table",
-          text: "Table",
-        },
-        {
-          value: "list",
-          text: "List",
-        },
-      ],
-      defaultValue: "table",
+      defaultValue: false,
     },
   ],
 };
