@@ -2273,13 +2273,13 @@ export async function generateBio() {
   // Add Timeline Table
   if (window.autoBioOptions.timeline == "table") {
     const bioTimeline = bioTimelineFacts(marriagesAndCensuses);
-    text += "\n" + buildTimelineTable(bioTimeline) + "\n";
+    text += buildTimelineTable(bioTimeline) + "\n";
   }
 
   // Add SA format
   //if (window.autoBioOptions.timeline == "SA") {
   const bioTimeline = bioTimelineFacts(marriagesAndCensuses);
-  text += "\n" + buildTimelineSA(bioTimeline) + "\n";
+  text += buildTimelineSA(bioTimeline) + "\n";
   //}
 
   // Add Research Notes
