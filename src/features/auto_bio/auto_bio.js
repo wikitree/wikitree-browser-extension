@@ -217,6 +217,12 @@ function childList(person, spouse) {
   if (spouse == "other") {
     other = "other ";
   }
+
+  let known = "";
+  if (!window.profilePerson.NoChildren && window.autoBioOptions.addKnown) {
+    known = "known ";
+  }
+
   if (ourChildren.length == 0) {
     return "";
   } else if (ourChildren.length == 1) {
@@ -225,9 +231,9 @@ function childList(person, spouse) {
       if (ourChildren[0].Gender == "Male") childWord = "son";
       else if (ourChildren[0].Gender == "Female") childWord = "daughter";
     }
-    text += (possessive || "Their") + " " + other + childWord + " was ";
+    text += (possessive || "Their") + " " + other + known + childWord + " was ";
   } else {
-    text += (possessive || "Their") + " " + other + "children were:\n";
+    text += (possessive || "Their") + " " + other + known + "children were:\n";
   }
   let childListText = "";
 
@@ -242,7 +248,11 @@ function childList(person, spouse) {
   } else {
     let gotChild = false;
     ourChildren.forEach(function (child) {
-      childListText += "#";
+      if (window.autoBioOptions.familyListStyle == "bullets") {
+        childListText += "* ";
+      } else {
+        childListText += "#";
+      }
       let aName = new PersonName(child);
       child.FullName = aName.withParts(["FullName"]);
       childListText += nameLink(child) + " " + formatDates(child) + "\n";
@@ -272,7 +282,11 @@ function siblingList() {
   if (siblings.length > 0) {
     siblings.sort((a, b) => a.BirthDate.replaceAll(/\-/g, "") - b.BirthDate.replaceAll(/\-/g, ""));
     siblings.forEach(function (sibling) {
-      text += "#";
+      if (window.autoBioOptions.familyListStyle == "bullets") {
+        text += "* ";
+      } else {
+        text += "#";
+      }
       let aName = new PersonName(sibling);
       sibling.FullName = aName.withParts(["FullName"]);
       text += nameLink(sibling) + " " + formatDates(sibling) + "\n";
@@ -357,7 +371,7 @@ function buildBirth(person) {
 }
 
 function buildDeath(person) {
-  if (!isOK(person.DeathDate) && !isOK(person.DeathDecade)) {
+  if (!isOK(person.DeathDate) && !isOK(person.DeathDecade) && !isOK(person.DeathLocation)) {
     return false;
   }
   let text = person.theFirstName + " died";
@@ -476,44 +490,53 @@ function buildSpouses(person) {
         spouseMarriageAge = ` (${getAgeFromISODates(spouse.BirthDate, spouse.marriage_date)})`;
       }
       text += person.theFirstName + marriageAge + " married " + nameLink(spouse) + spouseMarriageAge;
-      if (isOK(spouse.BirthDate) || spouse.BirthLocation) {
-        text += " (born";
-      }
-      if (isOK(spouse.BirthDate)) {
-        text += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate);
-      }
-      if (spouse.BirthLocation) {
-        let place = minimalPlace(spouse.BirthLocation);
-        text += " in " + place;
-      }
-      if (spouse.Father || spouse.Mother) {
-        text += "; ";
-        text += spouse.Gender == "Male" ? "son" : spouse.Gender == "Female" ? "daughter" : "child";
-        text += " of ";
-        if (spouse.Father) {
-          let spouseFather = window.biographySpouseParents[0].people[spouse.Id].Parents[spouse.Father];
-          let spouseFatherName = new PersonName(spouseFather);
-          spouseFather.FullName = spouseFatherName.withParts(["FullName"]);
-          text += "[[" + spouseFather.Name + "|" + spouseFather.FullName + "]]";
-          if (spouseFather.BirthDate) {
-            text += " " + formatDates(spouseFather);
+
+      //Spouse details
+      if (window.autoBioOptions.spouseDetails) {
+        if (isOK(spouse.BirthDate) || spouse.BirthLocation) {
+          text += " (born";
+        }
+        if (isOK(spouse.BirthDate)) {
+          text += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate);
+        }
+        if (spouse.BirthLocation) {
+          let place = minimalPlace(spouse.BirthLocation);
+          text += " in " + place;
+        }
+
+        //Spouse parent details
+        if (window.autoBioOptions.spouseParentDetails) {
+          if (spouse.Father || spouse.Mother) {
+            text += "; ";
+            text += spouse.Gender == "Male" ? "son" : spouse.Gender == "Female" ? "daughter" : "child";
+            text += " of ";
+            if (spouse.Father) {
+              let spouseFather = window.biographySpouseParents[0].people[spouse.Id].Parents[spouse.Father];
+              let spouseFatherName = new PersonName(spouseFather);
+              spouseFather.FullName = spouseFatherName.withParts(["FullName"]);
+              text += "[[" + spouseFather.Name + "|" + spouseFather.FullName + "]]";
+              if (spouseFather.BirthDate) {
+                text += " " + formatDates(spouseFather);
+              }
+            }
+            if (spouse.Father && spouse.Mother) {
+              text += " and ";
+            }
+            if (spouse.Mother) {
+              let spouseMother = window.biographySpouseParents[0].people[spouse.Id].Parents[spouse.Mother];
+              let spouseMotherName = new PersonName(spouseMother);
+              spouseMother.FullName = spouseMotherName.withParts(["FirstNames", "LastNameAtBirth"]);
+              text += "[[" + spouseMother.Name + "|" + spouseMother.FullName + "]]";
+              if (spouseMother.BirthDate) {
+                text += " " + formatDates(spouseMother);
+              }
+            }
           }
         }
-        if (spouse.Father && spouse.Mother) {
-          text += " and ";
+
+        if (spouse.BirthDate || spouse.BirthLocation) {
+          text += ")";
         }
-        if (spouse.Mother) {
-          let spouseMother = window.biographySpouseParents[0].people[spouse.Id].Parents[spouse.Mother];
-          let spouseMotherName = new PersonName(spouseMother);
-          spouseMother.FullName = spouseMotherName.withParts(["FirstNames", "LastNameAtBirth"]);
-          text += "[[" + spouseMother.Name + "|" + spouseMother.FullName + "]]";
-          if (spouseMother.BirthDate) {
-            text += " " + formatDates(spouseMother);
-          }
-        }
-      }
-      if (spouse.BirthDate || spouse.BirthLocation) {
-        text += ")";
       }
       if (isOK(spouse.marriage_date)) {
         let dateStatus = spouse.data_status.marriage_date;
@@ -526,12 +549,14 @@ function buildSpouses(person) {
       }
       text += ".";
       text += addReferences("Marriage", spouse);
-      const aChildList = childList(person, spouse);
-      text += " " + aChildList;
       let spouseChildren = false;
-      if (aChildList) {
-        spouseChildren = true;
-        window.listedSomeChildren = true;
+      if (window.autoBioOptions.childList) {
+        const aChildList = childList(person, spouse);
+        text += " " + aChildList;
+        if (aChildList) {
+          spouseChildren = true;
+          window.listedSomeChildren = true;
+        }
       }
       marriages.push({
         Spouse: spouse,
@@ -566,7 +591,7 @@ function buildSpouses(person) {
         if (reference["Marriage Date"]) {
           const showMarriageDate = formatDate(reference["Marriage Date"]).replace(/\s0/, " ");
           console.log("showMarriageDate", showMarriageDate);
-          text += showMarriageDate;
+          text += " " + showMarriageDate;
         }
         text += ".";
         marriages.push({
