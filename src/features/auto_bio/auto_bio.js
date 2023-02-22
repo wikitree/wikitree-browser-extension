@@ -2291,7 +2291,7 @@ export async function generateBio() {
   }
 
   // Add Timeline Table
-  if (window.autoBioOptions.timeline == "table") {
+  if (window.autoBioOptions.timeline == true) {
     const bioTimeline = bioTimelineFacts(marriagesAndCensuses);
     text += buildTimelineTable(bioTimeline) + "\n";
   }
