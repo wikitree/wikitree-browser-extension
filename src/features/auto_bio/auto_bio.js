@@ -35,6 +35,8 @@ function autoBioCheck(sourcesStr) {
     isPre1700,
     thePerson.mustBeOpen()
   );
+  //isValid = biography.validate();
+  console.log(isValid);
   return isValid;
 }
 const unsourced =
@@ -1876,8 +1878,18 @@ function splitBioIntoSections() {
       text: [],
       subsections: {},
     },
+    Biography: {
+      title: "Biography",
+      text: [],
+      subsections: {},
+    },
     "Research Notes": {
       title: "ResearchNotes",
+      text: [],
+      subsections: {},
+    },
+    Sources: {
+      title: "Sources",
       text: [],
       subsections: {},
     },
@@ -1935,7 +1947,11 @@ function splitBioIntoSections() {
         currentSection.text.push(line);
       } else {
         if (line) {
-          sections.StuffBeforeTheBio.text.push(line);
+          if (line.match(/This person was created on.*/)) {
+            sections.Acknowledgements.text.push(line);
+          } else {
+            sections.StuffBeforeTheBio.text.push(line);
+          }
         }
       }
     }
@@ -2344,12 +2360,22 @@ export async function generateBio() {
     "Thank you. \n-->\n";
 
   // Add Unsourced template if there are no good sources
-  if (autoBioCheck(text) == false) {
-    const unsourcedTemplate = "{{Unsourced}}";
-    if (!sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
-      sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
+  let doCheck = true;
+  // Don't add Unsourced template if there is a Find A Grave source (maybe added by the code above)
+  window.references.forEach(function (aRef) {
+    if (aRef.Text.match(/findagrave.com.*Maintained by/i)) {
+      doCheck = false;
+    }
+  });
+  if (doCheck == true) {
+    if (autoBioCheck(currentBio) == false) {
+      const unsourcedTemplate = "{{Unsourced}}";
+      if (!sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
+        sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
+      }
     }
   }
+
   // Add stuff before the bio
   if (sectionsObject["StuffBeforeTheBio"]) {
     const stuff = sectionsObject["StuffBeforeTheBio"].text.join("\n");
