@@ -29,15 +29,18 @@ function autoBioCheck(sourcesStr) {
     thePerson.isUndated(),
     false
   );
+  /*
   let isValid = biography.validateSourcesStr(
     sourcesStr,
     thePerson.isPersonPre1500(),
     isPre1700,
     thePerson.mustBeOpen()
   );
-  //isValid = biography.validate();
+  */
+  const isValid = biography.validate();
+  const hasSources = biography.hasSources();
   console.log(isValid);
-  return isValid;
+  return hasSources;
 }
 const unsourced =
   /^\n*?\s*?((^Also:$)|(^See also:$)|(Unsourced)|(Personal (recollection)|(information))|(Firsthand knowledge)|(Sources will be added)|(Add\s\[\[sources\]\]\shere$)|(created.*?through\sthe\simport\sof\s.*?\.ged)|(FamilySearch(\.com)?$)|(ancestry\.com$)|(family records$)|(Ancestry family trees$))/im;
