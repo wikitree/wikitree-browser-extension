@@ -18,7 +18,7 @@ const autoBio = {
         },
         {
           value: "BirthName",
-          text: "Birth Name",
+          text: "Birth name",
         },
       ],
       defaultValue: "BirthName",
@@ -26,13 +26,13 @@ const autoBio = {
     {
       id: "deathPosition",
       type: OptionType.CHECKBOX,
-      label: "Death immediately after birth",
+      label: "Death details immediately after birth details",
       defaultValue: false,
     },
     {
       id: "inlineCitations",
       type: OptionType.CHECKBOX,
-      label: "Inline Citations",
+      label: "Inline citations",
       defaultValue: true,
     },
     {
@@ -40,6 +40,67 @@ const autoBio = {
       type: OptionType.CHECKBOX,
       label: "Timeline",
       defaultValue: false,
+    },
+    {
+      id: "spouseDetailsGroup",
+      type: OptionType.GROUP,
+      label: "Spouse",
+      options: [
+        {
+          id: "spouseDetails",
+          type: OptionType.CHECKBOX,
+          label: "Include spouse details",
+          defaultValue: true,
+        },
+        {
+          id: "spouseParentDetails",
+          type: OptionType.CHECKBOX,
+          label: "Also include spouse parent details",
+          defaultValue: true,
+        },
+      ],
+    },
+
+    {
+      id: "familyLists",
+      type: OptionType.GROUP,
+      label: "Family lists",
+      options: [
+        {
+          id: "siblingList",
+          type: OptionType.CHECKBOX,
+          label: "Sibling list",
+          defaultValue: false,
+        },
+        {
+          id: "childList",
+          type: OptionType.CHECKBOX,
+          label: "Child list",
+          defaultValue: true,
+        },
+        {
+          id: "familyListStyle",
+          type: OptionType.RADIO,
+          label: "Style",
+          values: [
+            {
+              value: "bullets",
+              text: "Bullets",
+            },
+            {
+              value: "numbers",
+              text: "Numbers",
+            },
+          ],
+          defaultValue: "bullets",
+        },
+        {
+          id: "addKnown",
+          type: OptionType.CHECKBOX,
+          label: "Add 'known' when the 'No more children' box is not checked",
+          defaultValue: false,
+        },
+      ],
     },
   ],
 };
