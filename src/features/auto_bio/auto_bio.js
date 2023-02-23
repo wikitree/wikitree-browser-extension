@@ -56,10 +56,8 @@ function getFormData() {
     } else {
       if (["mBirthDate", "mMarriageDate", "mDeathDate"].includes($(this).attr("id"))) {
         if ($(this).val().length > 4) {
-          const date = new Date($(this).val());
-          date.setUTCHours(0, 0, 0, 0); // set hours, minutes, seconds, and milliseconds to zero
-          const isoDate = date.toISOString().split("T")[0]; // extract the date part only
-          formData[$(this).attr("id").substring(1)] = isoDate;
+          const date = convertDate($(this).val(), "YMD");
+          formData[$(this).attr("id").substring(1)] = date;
         } else {
           formData[$(this).attr("id").substring(1)] = $(this).val();
         }
@@ -69,6 +67,109 @@ function getFormData() {
     }
   });
   return formData;
+}
+
+function convertDate(dateString, outputFormat) {
+  // Split the input date string into components
+  var components = dateString.split(/[\s,-]+/);
+
+  // Determine the format of the input date string
+  var inputFormat;
+  if (components.length == 1 && /^\d{4}$/.test(components[0])) {
+    // Year-only format (e.g. "2023")
+    inputFormat = "Y";
+  } else if (components.length == 2 && /^[A-Za-z]{3}$/.test(components[0])) {
+    // Short month and year format (e.g. "Jul 2023")
+    inputFormat = "MY";
+  } else if (components.length == 2 && /^[A-Za-z]+/.test(components[0])) {
+    // Long month and year format (e.g. "July 2023")
+    inputFormat = "MDY";
+  } else if (components.length == 3 && /^[A-Za-z]{3}$/.test(components[1])) {
+    // Short month, day, and year format (e.g. "23 Jul 2023")
+    inputFormat = "DMY";
+  } else if (components.length == 3 && /^[A-Za-z]+/.test(components[0])) {
+    // Long month, day, and year format (e.g. "July 23, 2023")
+    inputFormat = "MDY";
+  } else if (components.length == 2 && /^\d{4}$/.test(components[1])) {
+    // Short month and year format with no day (e.g. "Jul 2023")
+    inputFormat = "MY";
+    components.unshift("01");
+  } else if (components.length == 2 && /^[A-Za-z]+/.test(components[0])) {
+    // Long month and year format with no day (e.g. "July 2023")
+    inputFormat = "MDY";
+    components.splice(1, 0, "01");
+  } else {
+    // Invalid input format
+    return null;
+  }
+
+  // Convert the input date components to a standard format (YYYY-MM-DD)
+  var year, month, day;
+  if (inputFormat == "Y") {
+    year = parseInt(components[0]);
+    month = 1;
+    day = 1;
+  } else if (inputFormat == "MY") {
+    year = parseInt(components[1]);
+    month = convertMonth(components[0]);
+    day = 1;
+  } else if (inputFormat == "MDY") {
+    year = parseInt(components[components.length - 1]);
+    month = convertMonth(components[0]);
+    day = parseInt(components[1]);
+  } else if (inputFormat == "DMY") {
+    year = parseInt(components[2]);
+    month = convertMonth(components[1]);
+    day = parseInt(components[0]);
+  }
+
+  // Convert the date components to the output format
+  var outputDate;
+  if (outputFormat == "Y") {
+    outputDate = year.toString();
+  } else if (outputFormat == "MY") {
+    outputDate = convertMonth(month) + " " + year.toString();
+  } else if (outputFormat == "MDY") {
+    outputDate = convertMonth(month) + " " + padNumberStart(day) + ", " + year.toString();
+  } else if (outputFormat == "DMY") {
+    outputDate = padNumberStart(day) + " " + convertMonth(month) + " " + year.toString();
+  } else if (outputFormat == "YMD") {
+    outputDate = year.toString() + "-" + padNumberStart(month) + "-" + padNumberStart(day);
+  } else {
+    // Invalid output format
+    return null;
+  }
+
+  return outputDate;
+}
+
+function convertMonth(monthString) {
+  // Convert a month string to a numeric month value
+  var shortNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  var longNames = [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+  ];
+  var index = shortNames.indexOf(monthString.toLowerCase());
+  if (index == -1) {
+    index = longNames.indexOf(monthString.toLowerCase());
+  }
+  return index + 1;
+}
+
+function padNumberStart(number) {
+  // Add leading zeros to a single-digit number
+  return (number < 10 ? "0" : "") + number.toString();
 }
 
 // Function to use the appropriate pronouns and possessive adjectives
