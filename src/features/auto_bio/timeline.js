@@ -24,7 +24,7 @@ export function bioTimelineFacts(marriagesAndCensuses) {
       OrderDate: padNumber(window.profilePerson["Baptism Date"].replaceAll(/\-/g, "")),
     });
   }
-
+  console.log(JSON.parse(JSON.stringify(window.profilePerson)));
   bioTimeline.push({
     "Event Date": window.profilePerson.DeathDate,
     "Event Type": "Death",
