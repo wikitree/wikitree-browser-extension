@@ -6,22 +6,27 @@ export class PersonName {
   // the various API fields.
   static #fieldMap = new Map([
     [
-      "PedigreeName", // 'Prefix FirstName MiddleNames "Nicknames" (LastNameAtBirth) LastNameCurrent Suffix aka LastNameOther'
+      "PedigreeName", // 'Prefix FirstName MiddleNames (PreferredName) "Nicknames" (LastNameAtBirth) LastNameCurrent Suffix aka LastNameOther'
       {
         needs: new Set([
           "prefix",
           "firstName",
           "middleNames",
-          "bracketedPreferredName",
-          "quotedNicknames",
+          "preferredName",
+          "nicknames",
           "surname",
           "suffix",
-          "otherLastNames",
+          "lastNameOther",
         ]),
         supercedes: new Set([
           "FullName",
+          "ShortName",
+          "QolloquialName",
           "Prefix",
           "FirstName",
+          "FirstNames",
+          "FullFirstName",
+          "MiddleName",
           "MiddleNames",
           "PreferredName",
           "Nicknames",
@@ -29,7 +34,6 @@ export class PersonName {
           "LastNameAtBirth",
           "LastNameCurrent",
           "Suffix",
-          "LastNameOther",
         ]),
       },
     ],
@@ -38,14 +42,55 @@ export class PersonName {
       {
         needs: new Set(["prefix", "firstName", "middleNames", "surname", "suffix"]),
         supercedes: new Set([
+          "ShortName",
+          "ColloquialName",
           "Prefix",
           "FirstName",
+          "FirstNames",
+          "FullFirstName",
+          "MiddleName",
           "MiddleNames",
-          "PreferredName",
           "LastName",
           "LastNameAtBirth",
           "LastNameCurrent",
           "Suffix",
+        ]),
+      },
+    ],
+    [
+      "ShortName", //'PreferredName LastName'
+      {
+        needs: new Set(["preferredName", "lastName"]),
+        supercedes: new Set([
+          "ColloquialName",
+          "FirstName",
+          "FirstNames",
+          "FullFirstName",
+          "MiddleName",
+          "MiddleNames",
+          "PreferredName",
+          "Nicknames",
+          "LastName",
+          "LastNameAtBirth",
+          "LastNameCurrent",
+        ]),
+      },
+    ],
+    [
+      "ColloquialName", //'Niknames (if exists, else PreferredName) LastName'
+      {
+        needs: new Set(["nickOrPreferredName", "lastName"]),
+        supercedes: new Set([
+          "FirstName",
+          "FirstNames",
+          "FullFirstName",
+          "MiddleName",
+          "MiddleNames",
+          "PreferredName",
+          "Nicknames",
+          "LastName",
+          "LastNameAtBirth",
+          "LastNameCurrent",
         ]),
       },
     ],
@@ -156,21 +201,19 @@ export class PersonName {
     ],
   ]);
 
-  static #getWantsAndNeeds(wantedParts, forSingleName) {
+  static #getWantsAndNeeds(wantedParts) {
     const partsWanted = new Set(wantedParts);
     const fieldsNeeded = new Set();
 
-    // Remove superfluous parts if the result is only going to be used for a singe name
-    if (forSingleName) {
-      PersonName.#fieldMap.forEach((value, key) => {
-        if (partsWanted.has(key)) {
-          // if we have to use 'key', we don't have to also use its 'supercedes'
-          for (const elem of value.supercedes) {
-            partsWanted.delete(elem);
-          }
+    // Remove superfluous parts
+    PersonName.#fieldMap.forEach((value, key) => {
+      if (partsWanted.has(key)) {
+        // if we have to use 'key', we don't have to also use its 'supercedes'
+        for (const elem of value.supercedes) {
+          partsWanted.delete(elem);
         }
-      });
-    }
+      }
+    });
 
     // Map the wants parts to a standardised set of needed components
     partsWanted.forEach((w) => {
@@ -205,6 +248,8 @@ export class PersonName {
    *    is predetermined (as per the order of the pars in PedigreeName).
    *       * PedigreeName - 'Prefix FirstName MiddleNames (PreferredName) "Nicknames" (LastNameAtBirth) LastNameCurrent Suffix aka LastNameOther'.
    *       * FullName - 'Prefix FirstName MiddleNames (LastNameAtBirth) LastNameCurrent Suffix'.
+   *       * ShortName - 'PreferredName LastName'
+   *       * ColloquialName - 'NickNames LastName' if Nicknames is present, else ShortName
    *       * LastName - LastNameCurrent if it exists, else LastNameAtBirth;
    *       * LastNameCurrent(*) - the LastNameCurrent API field
    *       * LastNameAtBirth(*) - the LastNameAtBirth API field
@@ -228,54 +273,7 @@ export class PersonName {
     if (invalidParts.length > 0) {
       return `Invalid name part(s) ${invalidParts} requested`;
     }
-    const [partsWanted, fieldsNeeded] = PersonName.#getWantsAndNeeds(wantedParts, true);
-
-    // Ensure PreferredName is in brackets if first name is present
-    const firstNameIsPresent =
-      (fieldsNeeded.has("firstName") && this.firstName) ||
-      (fieldsNeeded.has("firstNames") && this.firstNames) ||
-      (fieldsNeeded.has("fullFirstName") && this.fullFirstName);
-    let preferredName = this.preferredName;
-    if (
-      firstNameIsPresent &&
-      fieldsNeeded.has("preferredName") &&
-      !fieldsNeeded.has("bracketedPreferredName") &&
-      this.bracketedPreferredName &&
-      this.firstNames.includes(this.preferredName)
-    ) {
-      preferredName = this.bracketedPreferredName;
-    }
-
-    // Ensure Nicknames is in brackets if first name is present
-    let nicknames = this.nicknames;
-    if (
-      (firstNameIsPresent || (fieldsNeeded.has("preferredName") && preferredName)) &&
-      nicknames &&
-      fieldsNeeded.has("nicknames") &&
-      !fieldsNeeded.has("quotedNicknames")
-    ) {
-      nicknames = `"${nicknames}"`;
-    }
-
-    const parts = [
-      fieldsNeeded.has("prefix") ? this.prefix || null : null,
-      fieldsNeeded.has("firstInitial") ? this.firstInitial || null : null,
-      fieldsNeeded.has("firstName") ? this.firstName || null : null,
-      fieldsNeeded.has("firstNames") ? this.firstNames || null : null,
-      fieldsNeeded.has("fullFirstName") ? this.fullFirstName || null : null,
-      fieldsNeeded.has("middleInitials") ? this.middleInitials || null : null,
-      fieldsNeeded.has("middleName") ? this.middleName || null : null,
-      fieldsNeeded.has("middleNames") ? this.middleNames || null : null,
-      fieldsNeeded.has("preferredName") ? preferredName || null : null,
-      fieldsNeeded.has("bracketedPreferredName") ? this.bracketedPreferredName || null : null,
-      fieldsNeeded.has("nicknames") && nicknames ? `<span class="nickname">${nicknames}</span>` : null,
-      fieldsNeeded.has("quotedNicknames") && nicknames ? `<span class="nickname">"${nicknames}"</span>` : null,
-      this.#formSurname(partsWanted),
-      fieldsNeeded.has("suffix") ? this.suffix || null : null,
-      fieldsNeeded.has("otherLastNames") ? this.otherLastNames || null : null,
-      fieldsNeeded.has("lastNameOther") ? this.lastNameOther || null : null,
-    ];
-    return parts.filter((part) => part !== null).join(" ");
+    return this.#getName(wantedParts);
   }
 
   /**
@@ -313,58 +311,103 @@ export class PersonName {
     if (invalidParts.length > 0) {
       return `Invalid name part(s) ${invalidParts} requested`;
     }
-    const [partsWanted, fieldsNeeded] = PersonName.#getWantsAndNeeds(wantedParts, false);
 
     const self = this;
     const result = new Map();
-    for (const want of partsWanted) {
-      result.set(want, getNamePart(PersonName.#fieldMap.get(want).needs));
+    for (const want of wantedParts) {
+      result.set(want, this.#getName([want]));
     }
-
     return result;
-
-    function getNamePart(theNeed) {
-      const parts = [
-        theNeed.has("prefix") ? self.prefix || null : null,
-        theNeed.has("firstInitial") ? self.firstInitial || null : null,
-        theNeed.has("firstName") ? self.firstName || null : null,
-        theNeed.has("firstNames") ? self.firstNames || null : null,
-        theNeed.has("fullFirstName") ? self.fullFirstName || null : null,
-        theNeed.has("middleInitials") ? self.middleInitials || null : null,
-        theNeed.has("middleName") ? self.middleName || null : null,
-        theNeed.has("middleNames") ? self.middleNames || null : null,
-        theNeed.has("preferredName") ? self.preferredName || null : null,
-        theNeed.has("bracketedPreferredName") ? self.bracketedPreferredName || null : null,
-        theNeed.has("nicknames") ? self.nicknames || null : null,
-        theNeed.has("quotedNicknames") && self.nicknames ? `"${self.nicknames}"` : null,
-        theNeed.has("surname") ? self.#formSurname(partsWanted) || null : null,
-        theNeed.has("lastName") ? self.lastName || null : null,
-        theNeed.has("lastNameAtBirth") ? self.lastNameAtBirth || null : null,
-        theNeed.has("lastNameCurrent") ? self.lastNameCurrent || null : null,
-        theNeed.has("suffix") ? self.suffix || null : null,
-        theNeed.has("otherLastNames") ? self.otherLastNames || null : null,
-        theNeed.has("lastNameOther") ? self.lastNameOther || null : null,
-      ];
-      return parts.filter((part) => part !== null).join(" ");
-    }
   }
 
-  #formSurname(wanted) {
+  #getName(wantedParts) {
+    const [partsWanted, fieldsNeeded] = PersonName.#getWantsAndNeeds(wantedParts);
+    const [preferredName, nicknames, surname, lastNameOther] = this.#constructNames(partsWanted, fieldsNeeded);
+    const parts = [
+      fieldsNeeded.has("prefix") ? this.prefix || null : null,
+      fieldsNeeded.has("firstInitial") ? this.firstInitial || null : null,
+      fieldsNeeded.has("firstName") ? this.firstName || null : null,
+      fieldsNeeded.has("firstNames") ? this.firstNames || null : null,
+      fieldsNeeded.has("fullFirstName") ? this.fullFirstName || null : null,
+      fieldsNeeded.has("middleInitials") ? this.middleInitials || null : null,
+      fieldsNeeded.has("middleName") ? this.middleName || null : null,
+      fieldsNeeded.has("middleNames") ? this.middleNames || null : null,
+      fieldsNeeded.has("preferredName") ? preferredName || null : null,
+      fieldsNeeded.has("nicknames") ? nicknames || null : null,
+      fieldsNeeded.has("nickOrPreferredName") ? this.nickOrPreferredName || null : null,
+      fieldsNeeded.has("surname") ? surname || null : null,
+      fieldsNeeded.has("lastName") ? this.lastName || null : null,
+      fieldsNeeded.has("lastNameAtBirth") ? this.lastNameAtBirth || null : null,
+      fieldsNeeded.has("lastNameCurrent") ? this.lastNameCurrent || null : null,
+      fieldsNeeded.has("suffix") ? this.suffix || null : null,
+      fieldsNeeded.has("lastNameOther") ? lastNameOther || null : null,
+    ];
+    return parts.filter((part) => part !== null).join(" ");
+  }
+
+  // Constructs and returns preferredName, nicknames, surname, lastNameOther as required
+  #constructNames(partsWanted, fieldsNeeded) {
+    const theFirstName = [
+      fieldsNeeded.has("firstName") ? this.firstName || null : null,
+      fieldsNeeded.has("firstNames") ? this.firstNames || null : null,
+      fieldsNeeded.has("fullFirstName") ? this.fullFirstName || null : null,
+      fieldsNeeded.has("middleName") ? this.middleName || null : null,
+      fieldsNeeded.has("middleNames") ? this.middleNames || null : null,
+    ]
+      .filter((part) => part !== null)
+      .join(" ")
+      .toLowerCase();
+
+    // Ensure PreferredName is present and in parethesis only if not present as part of the other requested name parts
+    let preferredName = this.preferredName;
+    if (preferredName && theFirstName && fieldsNeeded.has("preferredName")) {
+      if (theFirstName.match(new RegExp(`\\b${preferredName.toLowerCase()}\\b`))) {
+        preferredName = null;
+      } else {
+        preferredName = `(${preferredName})`;
+      }
+    }
+
+    // Ensure Nicknames is in quotes if first name is present
+    let nicknames = null;
+    if (fieldsNeeded.has("nicknames") && this.nicknames) {
+      nicknames = this.nicknames;
+      if (theFirstName || (fieldsNeeded.has("preferredName") && preferredName)) {
+        nicknames = `"${nicknames}"`;
+      }
+    }
+
+    // Use 'aka lasNameOther' if lasNameOther is not the only last name(s) present
+    const surname = this.#formSurname(partsWanted, fieldsNeeded);
+    let lastNameOther = this.lastNameOther;
+    if (
+      lastNameOther &&
+      ((fieldsNeeded.has("surname") && surname) ||
+        (fieldsNeeded.has("lastName") && this.lastName) ||
+        (fieldsNeeded.has("lastNameAtBirth") && this.lastNameAtBirth) ||
+        (fieldsNeeded.has("lastNameCurrent") && this.lastNameCurrent))
+    ) {
+      lastNameOther = this.akaLastNames;
+    }
+
+    return [preferredName, nicknames, surname, lastNameOther];
+  }
+
+  #formSurname(wanted, fieldsNeeded) {
     let surname = null;
     if (
       wanted.has("FullName") ||
       wanted.has("PedigreeName") ||
       (wanted.has("LastNameAtBirth") && wanted.has("LastNameCurrent"))
     ) {
-      let lnc = this.lastNameCurrent || null;
-      let lnb = this.lastNameAtBirth || null;
+      const lnc = this.lastNameCurrent || null;
+      const lnb = this.lastNameAtBirth || null;
       surname = lnc == lnb ? lnb || null : (lnb ? `(${lnb}) ` : null) + lnc;
-    } else if (wanted.has("LastNameAtBirth")) {
-      surname = this.lastNameAtBirth || null;
-    } else if (wanted.has("LastNameCurrent")) {
-      surname = this.lastNameCurrent || null;
-    } else if (wanted.has("LastName")) {
-      surname = this.lastName;
+      if (wanted.has("LastNameAtBirth") && wanted.has("LastNameCurrent")) {
+        fieldsNeeded.delete("lastNameAtBirth");
+        fieldsNeeded.delete("lastNameCurrent");
+        fieldsNeeded.add("surname");
+      }
     }
     return surname;
   }
@@ -427,9 +470,6 @@ export class PersonName {
     if (personData.RealName) {
       this.preferredName = personData.RealName.split(" ")[0];
     }
-    if (this.preferredName && this.preferredName != nameToSplit) {
-      this.bracketedPreferredName = `(${this.preferredName})`;
-    }
 
     this.middleName = personData.MiddleName;
     this.middleNames = firstNamesParts.slice(1).join(" ");
@@ -439,10 +479,11 @@ export class PersonName {
       .join(" ");
 
     this.nicknames = personData.Nicknames;
+    this.nickOrPreferredName = this.nicknames ? this.nicknames : this.preferredName;
 
     this.lastNameOther = personData.LastNameOther;
     if (this.lastNameOther) {
-      this.otherLastNames = `aka ${this.lastNameOther.split(",").join(" or ")}`;
+      this.akaLastNames = `aka ${this.lastNameOther.split(",").join(" or ")}`;
     }
     this.prefix = personData.Prefix;
     this.suffix = personData.Suffix;

@@ -24,7 +24,7 @@ export function bioTimelineFacts(marriagesAndCensuses) {
       OrderDate: padNumber(window.profilePerson["Baptism Date"].replaceAll(/\-/g, "")),
     });
   }
-  console.log(JSON.parse(JSON.stringify(window.profilePerson)));
+
   bioTimeline.push({
     "Event Date": window.profilePerson.DeathDate,
     "Event Type": "Death",
@@ -93,7 +93,7 @@ export function bioTimelineFacts(marriagesAndCensuses) {
   bioTimeline.sort(function (a, b) {
     return a.OrderDate - b.OrderDate;
   });
-  console.log(bioTimeline);
+  console.log("bioTimeline", bioTimeline);
   return bioTimeline;
 }
 
@@ -224,7 +224,7 @@ export function buildTimelineTable(bioTimeline) {
 }
 
 export function buildTimelineSA(bioTimeline) {
-  const headings = ["Birth", "Baptism", "Marriage", "Children", "Death"];
+  const headings = ["Birth", "Baptism", "Marriage", "Death"];
   let text = "";
   headings.forEach(function (head) {
     text += "=== " + head + " ===\n";
@@ -232,12 +232,10 @@ export function buildTimelineSA(bioTimeline) {
       let dateSources = "";
       let placeSources = "";
       if (aEvent["Event Type"] == head) {
-        let relation = "";
-        let sources = "";
         let eventType = aEvent["Event Type"];
         let eventDate = aEvent["Event Date"] || aEvent.Year;
         let eventLocation = aEvent["Event Place"] || aEvent.Residence || "";
-        eventLocation = eventLocation ? minimalPlace(eventLocation) : "";
+        //eventLocation = eventLocation ? minimalPlace(eventLocation) : "";
         window.references.forEach(function (aRef, i) {
           let isRightCensus = false;
           if (
@@ -248,8 +246,8 @@ export function buildTimelineSA(bioTimeline) {
               isRightCensus = true;
             }
           }
-          let isRightMarriage = false;
 
+          let isRightMarriage = false;
           if (
             aRef["Record Type"].includes("Marriage") &&
             aEvent["Event Type"].match("Marriage") &&
@@ -293,8 +291,12 @@ export function buildTimelineSA(bioTimeline) {
         if (isOK(eventDate)) {
           formattedEventDate = formatDate(eventDate.replaceAll(/\-00/g, "")).replace(/in\s|on\s/, "");
         }
-        text += "Date: " + formattedEventDate + dateSources + "\n";
-        text += "Place: " + eventLocation + " " + placeSources + "\n";
+        text += ":Date: " + formattedEventDate + dateSources + "\n";
+        text += ":Place: " + eventLocation + " " + placeSources + "\n";
+        if (head == "Marriage") {
+          text += "::Groom: " + window.profilePerson.BirthName + dateSources + "\n";
+          text += "::Bride: " + aEvent.person.BirthName + dateSources + "\n";
+        }
       }
     });
   });
