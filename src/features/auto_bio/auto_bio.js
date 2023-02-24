@@ -1020,6 +1020,7 @@ function buildCensusNarratives(references) {
             }
           });
         }
+
         // With a table
         text +=
           "In " +
@@ -1253,6 +1254,13 @@ function parseWikiTable(text) {
           oKeys.forEach(function (aKey) {
             let aPerson = window.profilePerson[relation][aKey];
             let theRelation;
+
+            // NEED TO IMPROVE THIS
+            console.log(key);
+            console.log(aPerson.FirstName);
+            console.log(getNameVariants(aPerson));
+            console.log(isSameName(key, getNameVariants(aPerson)));
+
             if (isSameName(key, getNameVariants(aPerson))) {
               if (aPerson.Gender) {
                 aMember.Gender = aPerson.Gender;
@@ -1286,6 +1294,7 @@ function parseWikiTable(text) {
                   aMember.Relation = theRelation;
                   aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
                 }
+                console.log(aMember.Relation);
               } else {
                 aMember.Relation = theRelation;
                 aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
