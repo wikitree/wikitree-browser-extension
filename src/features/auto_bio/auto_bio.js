@@ -1248,6 +1248,44 @@ function parseWikiTable(text) {
           isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), aMember.Age, 5)
         ) {
           aMember.Relation = "Self";
+        } else if (data["Relation to Head"] && aMember.Relation) {
+          if (["Son", "Daughter"].includes(data["Relation to Head"])) {
+            if (aMember.Relation == "Son") {
+              aMember.Relation = "Brother";
+            } else if (aMember.Relation == "Daughter") {
+              aMember.Relation = "Sister";
+            } else if (aMember.Relation == "Wife") {
+              aMember.Relation = "Mother";
+            } else if (aMember.Relation == "Husband") {
+              aMember.Relation = "Father";
+            } else if (aMember.Relation == "Child") {
+              aMember.Relation = "Sibling";
+            }
+          } else if (["Brother", "Sister"].includes(data["Relation to Head"])) {
+            if (aMember.Relation == "Son") {
+              aMember.Relation = "Nephew";
+            } else if (aMember.Relation == "Daughter") {
+              aMember.Relation = "Niece";
+            } else if (aMember.Relation == "Wife") {
+              aMember.Relation = "Sister-in-law";
+            } else if (aMember.Relation == "Husband") {
+              aMember.Relation = "Brother-in-law";
+            } else if (aMember.Relation == "Child") {
+              aMember.Relation = "Nephew/Niece";
+            }
+          } else if (["Father", "Mother"].includes(data["Relation to Head"])) {
+            if (aMember.Relation == "Son") {
+              aMember.Relation = "Grandson";
+            } else if (aMember.Relation == "Daughter") {
+              aMember.Relation = "Granddaughter";
+            } else if (aMember.Relation == "Wife") {
+              aMember.Relation = "Daughter-in-law";
+            } else if (aMember.Relation == "Husband") {
+              aMember.Relation = "Son-in-law";
+            } else if (aMember.Relation == "Child") {
+              aMember.Relation = "Grandson/Granddaughter";
+            }
+          }
         }
         ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
           let oKeys = Object.keys(window.profilePerson[relation]);
@@ -1262,6 +1300,7 @@ function parseWikiTable(text) {
             console.log(isSameName(key, getNameVariants(aPerson)));
 
             if (isSameName(key, getNameVariants(aPerson))) {
+              aMember.HasProfile = true;
               if (aPerson.Gender) {
                 aMember.Gender = aPerson.Gender;
                 if (aMember.Gender == "Male") {
@@ -1299,6 +1338,10 @@ function parseWikiTable(text) {
                 aMember.Relation = theRelation;
                 aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
               }
+            } else if (data.Father == key) {
+              aMember.Relation = "Father";
+            } else if (data.Mother == key) {
+              aMember.Relation = "Mother";
             }
           });
         });
@@ -1310,37 +1353,9 @@ function parseWikiTable(text) {
           data[key] = value;
         }
       }
-
-      // Add relations for unknown members
-      if (data.Household) {
-        data.Household.forEach(function (aMember) {
-          if (!aMember.Relation && aMember.Age) {
-            if (!aMember.LastNameAtBirth) {
-              aMember.LastNameAtBirth = aMember.Name.split(" ").slice(-1)[0];
-            }
-            data.Household.forEach(function (aMember2) {
-              if (aMember2 !== aMember) {
-                if (aMember2.LastNameAtBirth == aMember.LastNameAtBirth) {
-                  if (isWithinX(aMember.Age, aMember2.Age, 5) && !aMember.Relation) {
-                    aMember.Relation =
-                      aMember2.Relation == "Father"
-                        ? "Mother"
-                        : aMember2.Relation == "Mother"
-                        ? "Father"
-                        : ["Brother", "Sister", "Sibling"].includes(aMember2.Relation)
-                        ? "Sibling"
-                        : ["Son", "Daughter", "Child"].includes(aMember2.Relation)
-                        ? "Child"
-                        : "";
-                  }
-                }
-              }
-            });
-          }
-        });
-      }
     }
   }
+
   if (data.Household) {
     let hasSelf = data.Household.some((person) => person.Relation === "Self");
     if (!hasSelf) {
@@ -1353,12 +1368,66 @@ function parseWikiTable(text) {
           ) {
             member.Relation = "Self";
             hasSelf = true;
+            console.log(member, strength);
           }
-          strength -= 0.1;
         }
+        strength -= 0.1;
       }
     }
   }
+
+  // Add relations for unknown members
+  if (data.Household) {
+    const needsProfiles = [];
+    data.Household.forEach(function (aMember) {
+      if (!aMember.Relation && aMember.Age) {
+        if (!aMember.LastNameAtBirth) {
+          aMember.LastNameAtBirth = aMember.Name.split(" ").slice(-1)[0];
+        }
+        data.Household.forEach(function (aMember2) {
+          if (aMember2 !== aMember) {
+            if (aMember2.LastNameAtBirth == aMember.LastNameAtBirth) {
+              if (isWithinX(aMember.Age, aMember2.Age, 5) && !aMember.Relation) {
+                aMember.Relation =
+                  aMember2.Relation == "Father"
+                    ? "Mother"
+                    : aMember2.Relation == "Mother"
+                    ? "Father"
+                    : ["Brother", "Sister", "Sibling"].includes(aMember2.Relation)
+                    ? "Sibling"
+                    : ["Son", "Daughter", "Child"].includes(aMember2.Relation)
+                    ? "Child"
+                    : "";
+              }
+            }
+          }
+        });
+      }
+
+      // Add to Research Notes
+      if (!aMember.HasProfile) {
+        needsProfiles.push(aMember);
+      }
+    });
+    console.log(needsProfiles);
+    let researchNotes = "";
+    if (needsProfiles.length == 1) {
+      researchNotes =
+        needsProfiles[0].Name + needsProfiles[0]?.Relation
+          ? " (" + needsProfiles[0].Relation + ")"
+          : "" + " needs a profile.";
+    } else if (needsProfiles.length > 1) {
+      researchNotes = "The following people need profiles:\n";
+      needsProfiles.forEach(function (aMember) {
+        researchNotes += "* " + aMember.Name + " ";
+        researchNotes += aMember.Relation ? "(" + aMember.Relation + ")\n" : "\n";
+      });
+    }
+    if (researchNotes) {
+      window.sectionsObject["Research Notes"].text.push(researchNotes + "\n");
+    }
+  }
+
   if (data.Household) {
     console.log("Household", JSON.parse(JSON.stringify(data.Household)));
   }
@@ -2128,7 +2197,7 @@ export async function generateBio() {
   const currentBio = $("#wpTextbox1").val();
   localStorage.setItem("previousBio", currentBio);
   // Split the current bio into sections
-  const sectionsObject = splitBioIntoSections();
+  window.sectionsObject = splitBioIntoSections();
 
   window.usedPlaces = [];
   let spouseLinks = $("span[itemprop='spouse'] a");
@@ -2173,8 +2242,8 @@ export async function generateBio() {
   console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
 
   // Create the references array
-  if (sectionsObject.Sources) {
-    window.sourcesSection = sectionsObject.Sources;
+  if (window.sectionsObject.Sources) {
+    window.sourcesSection = window.sectionsObject.Sources;
   }
   window.references = sourcesArray(currentBio);
   console.log("references", JSON.parse(JSON.stringify(window.references)));
@@ -2379,13 +2448,13 @@ export async function generateBio() {
   }
 
   // Add obituary
-  if (sectionsObject["Obituary"]) {
+  if (window.sectionsObject["Obituary"]) {
     text += "=== Obituary ===\n";
-    text += sectionsObject["Obituary"].text.join("\n");
+    text += window.sectionsObject["Obituary"].text.join("\n");
     text += "\n\n";
-  } else if (sectionsObject["Biography"].subsections.Obituary) {
+  } else if (window.sectionsObject["Biography"].subsections.Obituary) {
     text += "=== Obituary ===\n";
-    text += sectionsObject["Biography"].subsections.Obituary.text.join("\n");
+    text += window.sectionsObject["Biography"].subsections.Obituary.text.join("\n");
     text += "\n\n";
   }
 
@@ -2396,8 +2465,8 @@ export async function generateBio() {
       const location = await getLocationCategory(types[i]);
       if (location) {
         const theCategory = "[[Category: " + location + "]]";
-        if (!sectionsObject["StuffBeforeTheBio"].text.includes(theCategory)) {
-          sectionsObject["StuffBeforeTheBio"].text.push(theCategory);
+        if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(theCategory)) {
+          window.sectionsObject["StuffBeforeTheBio"].text.push(theCategory);
         }
       }
     }
@@ -2413,8 +2482,8 @@ export async function generateBio() {
       newNote = currentBio.match(/daughter of.*\.?/i)[0];
     }
 
-    if (sectionsObject["Research Notes"].text.includes(newNote) == null) {
-      sectionsObject["Research Notes"].text.push(newNote);
+    if (window.sectionsObject["Research Notes"].text.includes(newNote) == null) {
+      window.sectionsObject["Research Notes"].text.push(newNote);
     }
 
     /*
@@ -2441,10 +2510,10 @@ export async function generateBio() {
   //}
 
   // Add Research Notes
-  if (sectionsObject["Research Notes"].text.length > 0) {
+  if (window.sectionsObject["Research Notes"].text.length > 0) {
     text += "== Research Notes ==\n";
-    if (sectionsObject["Research Notes"].text) {
-      text += sectionsObject["Research Notes"].text.join("\n");
+    if (window.sectionsObject["Research Notes"].text) {
+      text += window.sectionsObject["Research Notes"].text.join("\n");
     }
     text += "\n\n";
   }
@@ -2456,31 +2525,31 @@ export async function generateBio() {
       text += "* " + aRef.Text.replace(/Click the Changes tab.*/, "") + "\n";
     }
     if (aRef["Record Type"].includes("GEDCOM")) {
-      sectionsObject["Acknowledgements"].text.push("*" + aRef.Text);
+      window.sectionsObject["Acknowledgements"].text.push("*" + aRef.Text);
     }
   });
   // Add See also
-  if (sectionsObject["See Also"]) {
-    if (sectionsObject["See Also"].text.length > 0) {
+  if (window.sectionsObject["See Also"]) {
+    if (window.sectionsObject["See Also"].text.length > 0) {
       text += "See also:\n";
-      sectionsObject["See Also"].text.forEach(function (anAlso) {
+      window.sectionsObject["See Also"].text.forEach(function (anAlso) {
         text += "* " + anAlso.replace(/^\*\s?/, "") + "\n";
       });
       text += "\n";
     }
   }
 
-  console.log("sectionsObject", sectionsObject);
+  console.log("sectionsObject", window.sectionsObject);
   // Add Acknowledgments
-  if (sectionsObject["Acknowledgements"].text.length > 0) {
-    sectionsObject["Acknowledgements"].text.forEach(function (txt, i) {
+  if (window.sectionsObject["Acknowledgements"].text.length > 0) {
+    window.sectionsObject["Acknowledgements"].text.forEach(function (txt, i) {
       if (txt.match(/Click the Changes tab for the details|<\!\-\- Please feel free to/)) {
-        sectionsObject["Acknowledgements"].text.splice(i, 1);
+        window.sectionsObject["Acknowledgements"].text.splice(i, 1);
       }
     });
     let ackTitle = "\n== Acknowledgements ==\n";
-    if (sectionsObject["Acknowledgements"].originalTitle) {
-      ackTitle = "== " + sectionsObject["Acknowledgements"].originalTitle + " ==\n";
+    if (window.sectionsObject["Acknowledgements"].originalTitle) {
+      ackTitle = "== " + window.sectionsObject["Acknowledgements"].originalTitle + " ==\n";
     } else if (
       window.profilePerson.BirthLocation.match(/United States|USA/) ||
       window.profilePerson.DeathLocation.match(/United States|USA/)
@@ -2488,7 +2557,7 @@ export async function generateBio() {
       ackTitle = "\n== Acknowledgments ==\n";
     }
     text += ackTitle;
-    text += sectionsObject["Acknowledgements"].text.join("\n") + "\n";
+    text += window.sectionsObject["Acknowledgements"].text.join("\n") + "\n";
     text = text.replace(/<!-- Please edit[\s\S]*?Changes page. -->/, "").replace(/Click to[\s\S]*?and others./, "");
   }
   text +=
@@ -2508,15 +2577,15 @@ export async function generateBio() {
   if (doCheck == true) {
     if (autoBioCheck(currentBio) == false) {
       const unsourcedTemplate = "{{Unsourced}}";
-      if (!sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
-        sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
+      if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
+        window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
       }
     }
   }
 
   // Add stuff before the bio
-  if (sectionsObject["StuffBeforeTheBio"]) {
-    const stuff = sectionsObject["StuffBeforeTheBio"].text.join("\n");
+  if (window.sectionsObject["StuffBeforeTheBio"]) {
+    const stuff = window.sectionsObject["StuffBeforeTheBio"].text.join("\n");
     if (stuff) {
       text = stuff + "\n" + text;
     }
