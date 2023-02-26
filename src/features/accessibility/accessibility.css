@@ -16,3 +16,7 @@
   margin-top: var(--a11y-spacing);
   margin-bottom: var(--a11y-spacing);
 }
+
+.a11y-src-bold .a11y-src-first {
+  font-weight: bold;
+}

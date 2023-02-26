@@ -10,7 +10,7 @@ const accessibilityFeature = {
     {
       id: "listItemSpacing",
       type: OptionType.SELECT,
-      label: "The amount of spacing to add between list items.",
+      label: "The amount of spacing to add between list items",
       values: [
         {
           value: 0,
@@ -48,10 +48,34 @@ const accessibilityFeature = {
       defaultValue: 100,
     },
     {
+      id: "mergeAdjacentLists",
+      type: OptionType.CHECKBOX,
+      label: "Remove extra line spacing (added by profile editors) from between adjacent bullet list items.",
+      defaultValue: false,
+    },
+    {
       id: "spaceSourceItemsOnly",
       type: OptionType.CHECKBOX,
-      label: "Limit additional spacing to only lists under the Sources section.",
+      label: "Limit spacing rules to only lists under the Sources section.",
       defaultValue: true,
+    },
+    {
+      id: "boldSources",
+      type: OptionType.CHECKBOX,
+      label: "Bold the first segment of each source citation for readability.",
+      defaultValue: true,
+    },
+    {
+      id: "removeSourceBreaks",
+      type: OptionType.CHECKBOX,
+      label: "Remove extra line breaks (added by profile editors) from the middle of source citations.",
+      defaultValue: false,
+    },
+    {
+      id: "removeSourceLabels",
+      type: OptionType.CHECKBOX,
+      label: "Remove extra source labels (added by profile editors) from the beginning of source citations.",
+      defaultValue: false,
     },
   ],
 };
