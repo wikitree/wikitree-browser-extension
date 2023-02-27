@@ -225,9 +225,9 @@ export function buildTimelineTable(bioTimeline) {
 
 export function buildTimelineSA(bioTimeline) {
   const headings = ["Birth", "Baptism", "Marriage", "Death"];
-  let text = "";
+  let outText = "";
   headings.forEach(function (head) {
-    text += "=== " + head + " ===\n";
+    let text = "";
     bioTimeline.forEach(function (aEvent) {
       let dateSources = "";
       let placeSources = "";
@@ -299,6 +299,9 @@ export function buildTimelineSA(bioTimeline) {
         }
       }
     });
+    if (text) {
+      outText += "===" + head + "===\n" + text + "\n";
+    }
   });
-  return text;
+  return outText;
 }

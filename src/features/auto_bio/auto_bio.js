@@ -349,6 +349,7 @@ function childList(person, spouse) {
   } else {
     let gotChild = false;
     ourChildren.forEach(function (child) {
+      console.log(child);
       if (window.autoBioOptions.familyListStyle == "bullets") {
         childListText += "* ";
       } else {
@@ -356,7 +357,25 @@ function childList(person, spouse) {
       }
       let aName = new PersonName(child);
       child.FullName = aName.withParts(["FullName"]);
-      childListText += nameLink(child) + " " + formatDates(child) + "\n";
+      let status = "";
+      if (window.profilePerson.Gender == "Male") {
+        if (child?.DataStatus?.Father == "10") {
+          status = " [uncertain]";
+        }
+        if (child?.DataStatus?.Father == "5") {
+          status = " [non-biological]";
+        }
+      }
+      if (window.profilePerson.Gender == "Female") {
+        if (child?.DataStatus?.Mother == "10") {
+          status = " [uncertain]";
+        }
+        if (child?.DataStatus?.Mother == "5") {
+          status = " [non-biological]";
+        }
+      }
+
+      childListText += nameLink(child) + " " + formatDates(child) + status + "\n";
       gotChild = true;
     });
     if (gotChild == false) {
@@ -2498,16 +2517,16 @@ export async function generateBio() {
   }
 
   // Add Timeline Table
-  if (window.autoBioOptions.timeline == true) {
+  if (window.autoBioOptions.timeline == "table") {
     const bioTimeline = bioTimelineFacts(marriagesAndCensuses);
     text += buildTimelineTable(bioTimeline) + "\n";
   }
 
   // Add SA format
-  //if (window.autoBioOptions.timeline == "SA") {
-  const bioTimeline = bioTimelineFacts(marriagesAndCensuses);
-  text += buildTimelineSA(bioTimeline) + "\n";
-  //}
+  if (window.autoBioOptions.timeline == "SA") {
+    const bioTimeline = bioTimelineFacts(marriagesAndCensuses);
+    text += buildTimelineSA(bioTimeline) + "\n";
+  }
 
   // Add Research Notes
   if (window.sectionsObject["Research Notes"].text.length > 0) {

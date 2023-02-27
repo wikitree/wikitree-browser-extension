@@ -37,9 +37,23 @@ const autoBio = {
     },
     {
       id: "timeline",
-      type: OptionType.CHECKBOX,
+      type: OptionType.RADIO,
       label: "Timeline",
-      defaultValue: false,
+      values: [
+        {
+          value: "table",
+          text: "Table",
+        },
+        {
+          value: "SA",
+          text: "South Africa Project style",
+        },
+        {
+          value: "none",
+          text: "None",
+        },
+      ],
+      defaultValue: "none",
     },
     {
       id: "spouseDetailsGroup",
