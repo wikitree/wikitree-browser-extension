@@ -48,6 +48,8 @@ checkIfFeatureEnabled("changeFamilyLists").then((result) => {
             addAddLinksToHeadings();
           }
         }, 3000);
+
+        addParentStatus();
       });
     });
     window.onresize = function () {
@@ -304,21 +306,21 @@ function reallyMakeFamLists() {
             });
           });
 
-          if (typeof window.profileWTID != "undefined" && !$_GET["diff"] && $("#yourConnection").length == 0) {
-            const mID = profileWTID;
+          //if (typeof profileWTID != "undefined" && !diff && $("#yourConnection").length == 0) {
+          const mID = profileWTID;
 
-            $("#siblingsHeader").off("click");
-            $("body").on("click", "#siblingsHeader", function () {
-              siblingsHeader();
-            });
+          $("#siblingsHeader").off("click");
+          $("body").on("click", "#siblingsHeader", function () {
+            siblingsHeader();
+          });
 
-            setTimeout(function () {
-              addHalfsStyle();
-            }, 1000);
-
+          setTimeout(function () {
+            addHalfsStyle();
+          }, 1000);
+          /*
             window.intervalID = setInterval(addUncertain, 500);
             window.triedUncertain = 0;
-          }
+            */
 
           fixAllPrivates();
 
@@ -1752,4 +1754,24 @@ function status2symbol(ostatus) {
     default:
       return "";
   }
+}
+
+function addParentStatus() {
+  setTimeout(function () {
+    if (window.people) {
+      const profileP = window.people[0];
+      if (profileP.DataStatus?.Father == "10") {
+        $("#parentList li[data-gender='male'] a").append($("<span class='uncertain'>[uncertain]</span>"));
+      }
+      if (profileP.DataStatus?.Father == "5") {
+        $("#parentList li[data-gender='male'] a").append($("<span class='non-biological'>[non-biological]</span>"));
+      }
+      if (profileP.DataStatus?.Mother == "10") {
+        $("#parentList li[data-gender='female'] a").append($("<span class='uncertain'>[uncertain]</span>"));
+      }
+      if (profileP.DataStatus?.Mother == "5") {
+        $("#parentList li[data-gender='female'] a").append($("<span class='non-biological'>[non-biological]</span>"));
+      }
+    }
+  }, 3000);
 }
