@@ -480,17 +480,22 @@ body.darkMode .vertical .nameList span.bdDates.parent_2 {
   background: none;
 }
 
+.vertical .nameList li[data-father] {
+  background-color: #efe;
+  border-left: 5px green solid;
+}
+
 .vertical .nameList li[data-gender="female"],
 .vertical .nameList span[data-gender="Female"],
 .vertical .spouseDetails span[data-gender="Female"] {
-  background-color: #fff8f7;
+  background-color: #fee;
   border-left: 5px pink solid;
 }
 
 .vertical .nameList li[data-gender="male"],
 .vertical .nameList span[data-gender="Male"],
 .vertical .spouseDetails span[data-gender="Male"] {
-  background-color: #f4fefe;
+  background-color: #eef;
   border-left: 5px blue solid;
 }
 
