@@ -60,10 +60,13 @@ body.darkMode .qa-a-item-selected {
 
 html body.darkMode .ten a:link,
 html body.darkMode .six a:link,
-html body.darkMode .sixteen a:link,
+html body.darkMode .sixteen a:link:not(.new),
 html body.darkMode .five a:link,
 html body.darkMode .qa-main a:link {
   color: #98fb98 !important;
+}
+html body.darkMode .sixteen a:link.new {
+  color: red !important;
 }
 html body.darkMode .ten a:visited,
 html body.darkMode .six a:visited,
