@@ -82,26 +82,27 @@ async function addAddLinksToHeadings() {
     if (!window.people[0] && window.people[0].Father) {
       whichParent = "mother";
     }
+
+    headings.forEach(function (aHeading) {
+      if (
+        ["#siblingsUnknown", "#siblingsHeader"].includes(aHeading[0]) &&
+        window.people[0]?.Mother == 0 &&
+        window.people[0]?.Father == 0
+      ) {
+      } else {
+        $(aHeading[0])
+          .attr("title", "Right click to add a " + aHeading[1])
+          .css("cursor", "pointer");
+        $(aHeading[0]).on("contextmenu", function (e) {
+          e.preventDefault();
+          if (!aHeading[1]) {
+            aHeading[1] = whichParent;
+          }
+          window.location = linkBase + "&who=" + aHeading[1];
+        });
+      }
+    });
   }
-  headings.forEach(function (aHeading) {
-    if (
-      ["#siblingsUnknown", "#siblingsHeader"].includes(aHeading[0]) &&
-      window.people[0].Mother == 0 &&
-      window.people[0].Father == 0
-    ) {
-    } else {
-      $(aHeading[0])
-        .attr("title", "Right click to add a " + aHeading[1])
-        .css("cursor", "pointer");
-      $(aHeading[0]).on("contextmenu", function (e) {
-        e.preventDefault();
-        if (!aHeading[1]) {
-          aHeading[1] = whichParent;
-        }
-        window.location = linkBase + "&who=" + aHeading[1];
-      });
-    }
-  });
 }
 
 async function prepareFamilyLists() {
@@ -762,18 +763,35 @@ function makeFamLists() {
     }
   }
 
-  if ($(".aSpouse").length > 1 && $("#childrenList li").length) {
-    $(".aSpouse").each(function (index) {
-      let spouseID = $(this).data("id");
+  // $(".aSpouse").length > 1 &&
 
-      let aSpouse = $(this);
-      $("#childrenList li").each(function () {
-        if ($(this).data("mother") == spouseID || $(this).data("father") == spouseID) {
-          $(this).addClass("spouse_" + (parseInt(index) + 1));
-          aSpouse.addClass("spouse_" + (parseInt(index) + 1));
-        }
-      });
+  if ($("#childrenList li").length) {
+    let sameParent = true;
+    let checkParent = "mother";
+    const parentIDs = [];
+    if ($(".aSpouse").length) {
+      if ($(".aSpouse").data("gender") == "male") {
+        checkParent = "father";
+      }
+    }
+    $("#childrenList li").each(function () {
+      const parentID = $(this).data(checkParent);
+      if (!parentIDs.includes(parentID)) {
+        parentIDs.push(parentID);
+      }
     });
+    if (parentIDs.length > 1) {
+      $(".aSpouse").each(function (index) {
+        let spouseID = $(this).data("id");
+        let aSpouse = $(this);
+        $("#childrenList li").each(function () {
+          if ($(this).data("mother") == spouseID || $(this).data("father") == spouseID) {
+            $(this).addClass("spouse_" + (parseInt(index) + 1));
+            aSpouse.addClass("spouse_" + (parseInt(index) + 1));
+          }
+        });
+      });
+    }
   }
 }
 
