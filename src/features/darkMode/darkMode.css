@@ -72,6 +72,12 @@ html body.darkMode .five a:visited,
 html body.darkMode .qa-main a:visited {
   color: #50c878 !important;
 }
+html body.darkMode .sixteen h1 a:link {
+  color: #f3b51b !important;
+}
+html body.darkMode .sixteen h1 a:visited {
+  color: #ffffa0 !important;
+}
 
 body.darkMode #yourRelationshipText,
 body.darkMode div.qa-body-wrapper {
@@ -434,4 +440,19 @@ html body.darkMode .sixteen h1 a:visited {
 
 body.darkMode span.HIGHLIGHT {
   color: black;
+}
+
+/* Coloured tables */
+body.darkMode table th[style="background:#B5B5B5;"],
+body.darkMode table th[style="background:#B5B5B5;"] b {
+  background-color: #000 !important;
+}
+body.darkMode table th[style="background:#C4A6C4;"],
+body.darkMode table td[style="background:#C4A6C4;"] {
+  color: #000 !important;
+}
+
+body.darkMode table th[style="background:#EADBEA;"],
+body.darkMode table td[style="background:#EADBEA;"] {
+  background-color: #36393f !important;
 }
