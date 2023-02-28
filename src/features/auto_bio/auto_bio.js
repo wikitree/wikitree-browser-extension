@@ -69,7 +69,7 @@ function getFormData() {
   return formData;
 }
 
-function convertDate(dateString, outputFormat) {
+function convertDate(dateString, outputFormat, status = "") {
   // Split the input date string into components
   var components = dateString.split(/[\s,-]+/);
 
@@ -125,6 +125,7 @@ function convertDate(dateString, outputFormat) {
 
   // Convert the date components to the output format
   var outputDate;
+  console.log(outputFormat);
   if (outputFormat == "Y") {
     outputDate = year.toString();
   } else if (outputFormat == "MY") {
@@ -133,11 +134,31 @@ function convertDate(dateString, outputFormat) {
     outputDate = convertMonth(month) + " " + padNumberStart(day) + ", " + year.toString();
   } else if (outputFormat == "DMY") {
     outputDate = padNumberStart(day) + " " + convertMonth(month) + " " + year.toString();
+  } else if (outputFormat == "sMDY") {
+    outputDate = convertMonth(month).slice(3) + " " + padNumberStart(day) + ", " + year.toString();
+  } else if (outputFormat == "DsMY") {
+    outputDate = padNumberStart(day) + " " + convertMonth(month).slice(3) + " " + year.toString();
   } else if (outputFormat == "YMD") {
     outputDate = year.toString() + "-" + padNumberStart(month) + "-" + padNumberStart(day);
   } else {
     // Invalid output format
     return null;
+  }
+
+  if (status) {
+    const statusOut =
+      status == "before"
+        ? "before"
+        : status == "after"
+        ? "after"
+        : status == "guess"
+        ? "about"
+        : status == "certain" || status == "on" || status == undefined || status == ""
+        ? day
+          ? "on"
+          : "in"
+        : "";
+    outputDate = statusOut + " " + outputDate;
   }
 
   return outputDate;
@@ -171,6 +192,132 @@ function padNumberStart(number) {
   // Add leading zeros to a single-digit number
   return (number < 10 ? "0" : "") + number.toString();
 }
+
+/*
+// Parses the input date string and determines the format
+function parseDate(dateString) {
+  var components = dateString.split(/[\s,-]+/);
+
+  if (components.length == 1 && /^\d{4}$/.test(components[0])) {
+    return { format: "Y", year: parseInt(components[0]), month: 1, day: 1 };
+  } else if (components.length == 2 && /^[A-Za-z]+$/.test(components[0])) {
+    var month = convertMonth(components[0]);
+    var year = parseInt(components[1]);
+    return { format: components[0].length == 3 ? "MY" : "MDY", year: year, month: month, day: 1 };
+  } else if (components.length == 3 && /^[A-Za-z]+$/.test(components[1])) {
+    var month = convertMonth(components[1]);
+    var day = parseInt(components[0]);
+    var year = parseInt(components[2]);
+    return { format: components[1].length == 3 ? "DMY" : "MDY", year: year, month: month, day: day };
+  } else if (components.length == 2 && /^\d{4}$/.test(components[1])) {
+    var month = convertMonth(components[0]);
+    var year = parseInt(components[1]);
+    return { format: "MY", year: year, month: month, day: 1 };
+  } else {
+    return null;
+  }
+}
+
+// Converts the month component of a date string to a number (1-12)
+function convertMonth(monthString) {
+  var shortMonthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  var longMonthNames = [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+  ];
+
+  var monthIndex = shortMonthNames.indexOf(monthString.toLowerCase());
+  if (monthIndex == -1) {
+    monthIndex = longMonthNames.indexOf(monthString.toLowerCase());
+  }
+  if (monthIndex == -1) {
+    return null;
+  }
+  return monthIndex + 1;
+}
+
+// Formats a month number (1-12) as a month string (either short or long)
+function formatMonth(month, useLongName, capitalize) {
+  var monthNames = useLongName
+    ? [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ]
+    : ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  var monthName = monthNames[month - 1];
+  if (capitalize) {
+    monthName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+  }
+  return monthName;
+}
+
+// Pads a number with a leading zero if necessary (for example, 5 -> "05")
+function padNumberStart(number) {
+  return number < 10 ? "0" + number.toString() : number.toString();
+}
+
+// Converts a date string to the specified output format
+function convertDate(dateString, outputFormat) {
+  var dateObj = parseDate(dateString);
+  if (!dateObj) {
+    return null;
+  }
+
+  var year = dateObj.year;
+  var month = dateObj.month;
+  var day = dateObj.day;
+  var outputDate;
+
+  switch (outputFormat) {
+    case "Y":
+      outputDate = year.toString();
+      break;
+    case "MY":
+      outputDate = formatMonth(month, outputFormat == "FullMonth", true) + " " + year.toString();
+      break;
+    case "MDY":
+      outputDate =
+        formatMonth(month, outputFormat == "FullMonth", true) + " " + padNumberStart(day) + ", " + year.toString();
+      break;
+    case "DMY":
+      outputDate =
+        padNumberStart(day) + " " + formatMonth(month, outputFormat == "FullMonth", true) + " " + year.toString();
+      break;
+    case "FullMonth DD, YYYY":
+      outputDate = formatMonth(month, true, true) + " " + padNumberStart(day) + ", " + year.toString();
+      break;
+    case "DD FullMonth YYYY":
+      outputDate =
+        padNumberStart(day) + " " + formatMonth(month, outputFormat == "FullMonth", true) + " " + year.toString();
+      break;
+    default:
+      return null;
+  }
+
+  return outputDate;
+}
+*/
 
 // Function to use the appropriate pronouns and possessive adjectives
 function getPronouns(person) {
@@ -226,7 +373,10 @@ export function formatDates(person) {
   return `(${birthDate}–${deathDate})`;
 }
 
-export function formatDate(date, status = "on", format = "text") {
+export function formatDate(date, status = "on", format = "MDY") {
+  if (window.autoBioOptions && window.autoBioOptions.dateFormat && format != 8) {
+    format = window.autoBioOptions.dateFormat;
+  }
   const months = [
     "January",
     "February",
@@ -268,7 +418,8 @@ export function formatDate(date, status = "on", format = "text") {
   if (format === 8) {
     return `${year}${month ? `0${month}`.slice(-2) : "00"}${day ? `0${day}`.slice(-2) : "00"}`;
   } else {
-    let dateString = `${
+    let dateString;
+    const statusOut = `${
       status == "before"
         ? "before"
         : status == "after"
@@ -280,7 +431,26 @@ export function formatDate(date, status = "on", format = "text") {
           ? "on"
           : "in"
         : ""
-    } ${day ? `${months[month - 1]} ${day}, ` : month ? `${months[month - 1]}, ` : ``}${year}`;
+    }`;
+    if (format == "sMDY") {
+      dateString =
+        statusOut +
+        " " +
+        `${
+          day ? `${months[month - 1].slice(0, 3)} ${day}, ` : month ? `${months[month - 1].slice(0, 3)}, ` : ``
+        }${year}`;
+    } else if (format == "DsMY") {
+      dateString =
+        statusOut +
+        " " +
+        `${day ? `${day} ${months[month - 1].slice(0, 3)} ` : month ? `${months[month - 1].slice(0, 3)} ` : ``}${year}`;
+    } else if (format == "DMY") {
+      dateString =
+        statusOut + " " + `${day ? `${day} ${months[month - 1]} ` : month ? `${months[month - 1]} ` : ``}${year}`;
+    } else {
+      dateString =
+        statusOut + " " + `${day ? `${months[month - 1]} ${day}, ` : month ? `${months[month - 1]}, ` : ``}${year}`;
+    }
     return dateString.trim();
   }
 }
@@ -461,7 +631,7 @@ function buildBirth(person) {
       });
     }
     if (person.BirthDate) {
-      text += " " + formatDate(person.BirthDate, person.mStatus_BirthDate || "");
+      text += " " + formatDate(person.BirthDate, person.mStatus_BirthDate || "", "sMDY");
     }
   }
   if (person.Father || person.Mother) {
@@ -822,7 +992,7 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
   return text;
 }
 
-function familySearchCensusWithNoTable(reference, firstName, ageAtCensus) {
+function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMatchPattern) {
   let text = "";
   let ageBit = "";
   if (ageAtCensus) {
@@ -838,9 +1008,13 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus) {
   );
   const USmatch = USpattern.exec(reference.Text);
   const firstNameMatch = new RegExp(firstName.replace(".", "\\.").replace(/([A-Z])\|/, "$1\b|"));
-  const theFirstNameMatch = firstNameMatch.exec(reference.Text);
+
+  const theFirstNameMatch = nameMatchPattern.exec(reference.Text);
+  //console.log(aFirstNameMatch);
+
+  //const theFirstNameMatch = firstNameMatch.exec(reference.Text);
   if (theFirstNameMatch) {
-    firstName = theFirstNameMatch[0];
+    firstName = theFirstNameMatch[0].trim();
   }
 
   if (match) {
@@ -874,6 +1048,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus) {
     ) {
       text = text.replace("in the household", "was in the household");
     }
+    console.log("matched first name", firstName);
     if (text.match(firstName) && ageAtCensus) {
       text = text.replace(firstName, firstName + ageBit + " ").replaceAll(/'''/g, "");
     }
@@ -1019,7 +1194,7 @@ function buildCensusNarratives(references) {
           text += sourcerCensusWithNoTable(reference, nameMatchPattern);
         } else if (reference.Text.match(/database( with images)?, (<i>|''')?FamilySearch/)) {
           console.log("Is FS census");
-          let fsCensus = familySearchCensusWithNoTable(reference, firstName, ageAtCensus);
+          let fsCensus = familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMatchPattern);
           reference = fsCensus[1];
           text += fsCensus[0];
         }

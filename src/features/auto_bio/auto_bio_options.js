@@ -24,6 +24,30 @@ const autoBio = {
       defaultValue: "BirthName",
     },
     {
+      id: "dateFormat",
+      type: OptionType.SELECT,
+      label: "Date format",
+      values: [
+        {
+          value: "MDY",
+          text: "November 24, 1859",
+        },
+        {
+          value: "DMY",
+          text: "24 November 1859",
+        },
+        {
+          value: "sMDY",
+          text: "Nov 24, 1859",
+        },
+        {
+          value: "DsMY",
+          text: "24 Nov 1859",
+        },
+      ],
+      defaultValue: "FullMonthDDYYYY",
+    },
+    {
       id: "deathPosition",
       type: OptionType.CHECKBOX,
       label: "Death details immediately after birth details",
