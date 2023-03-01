@@ -1137,6 +1137,51 @@ function buildCensusNarratives(references) {
       let match = reference.Text.match(yearRegex);
       if (match) {
         reference["Census Year"] = match[1];
+
+        const ancestryPattern = /.*?Ancestry.*?accessed.*?\),\s([^;]*)([^:]*)(:{2}[^$]+)?/m;
+        //
+        const ancestryPatternMatch = reference.Text.match(ancestryPattern);
+        if (ancestryPatternMatch) {
+          console.log(ancestryPatternMatch);
+          const splitMatch = ancestryPatternMatch[1].split(" at ");
+          if (splitMatch[1]) {
+            reference.Residence = splitMatch[1].replace(/\..*/, "");
+          }
+          if (ancestryPatternMatch[3]) {
+            reference.Household = [];
+            ancestryPatternMatch[3].split("::").forEach(function (bit) {
+              const person = {};
+              const splitBit = bit.split("    ");
+              if (splitBit[0]) {
+                person.Name = splitBit[0].trim();
+              }
+              if (splitBit[1]) {
+                person.Gender = splitBit[1].trim() == "M" ? "Male" : splitBit[1] == "F" ? "Female" : "";
+              }
+              if (splitBit[2]) {
+                person.Age = splitBit[2].trim();
+              }
+              if (splitBit[3]) {
+                person.Relation = splitBit[3].trim();
+              }
+              if (splitBit[4]) {
+                person.MaritalStatus = splitBit[4].trim();
+              }
+              if (splitBit[5]) {
+                person.Birthplace = splitBit[5].trim();
+              }
+              if (splitBit[6]) {
+                person.Occupation = splitBit[6].trim();
+              }
+              if (person.Name) {
+                reference.Household.push(person);
+              }
+            });
+          }
+          console.log(reference);
+          reference = assignSelf(reference);
+        }
+
         if (window.sourcerCensuses) {
           window.sourcerCensuses.forEach(function (sourcerReference) {
             if (sourcerReference["Census Year"] == reference["Census Year"]) {
@@ -1167,7 +1212,7 @@ function buildCensusNarratives(references) {
       const ageAtCensus = getAgeAtCensus(window.profilePerson, reference["Census Year"]);
       console.log("ageAtCensus", ageAtCensus);
 
-      if (!reference.Household && !reference.Occupation) {
+      if (!reference.Household) {
         // No table, probably
         let nameMatchPattern = window.profilePerson.FirstName;
         let firstName = window.profilePerson.FirstName;
@@ -1265,6 +1310,7 @@ function buildCensusNarratives(references) {
             const lastNameMatchRegex = new RegExp(
               window.profilePerson.LastNameAtBirth + "|" + window.profilePerson.LastNameAtBirth
             );
+
             const lastNameMatch = mainPerson.Name.match(lastNameMatchRegex);
             if (lastNameMatch) {
               mainPerson.LastName = lastNameMatch[0];
@@ -1416,7 +1462,7 @@ function buildCensusNarratives(references) {
 
 function parseWikiTable(text) {
   const rows = text.split("\n");
-  const data = {};
+  let data = {};
 
   const yearRegex = /\b(\d{4})\b/;
   let match = text.match(yearRegex);
@@ -1562,25 +1608,7 @@ function parseWikiTable(text) {
     }
   }
 
-  if (data.Household) {
-    let hasSelf = data.Household.some((person) => person.Relation === "Self");
-    if (!hasSelf) {
-      let strength = 0.9;
-      while (!hasSelf && strength > 0) {
-        for (const member of data.Household) {
-          if (
-            isSameName(member.Name, window.profilePerson.NameVariants, strength) &&
-            isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), member.Age, 5)
-          ) {
-            member.Relation = "Self";
-            hasSelf = true;
-            console.log(member, strength);
-          }
-        }
-        strength -= 0.1;
-      }
-    }
-  }
+  data = assignSelf(data);
 
   // Add relations for unknown members
   if (data.Household) {
@@ -1636,6 +1664,32 @@ function parseWikiTable(text) {
 
   if (data.Household) {
     console.log("Household", JSON.parse(JSON.stringify(data.Household)));
+  }
+  return data;
+}
+
+function assignSelf(data) {
+  if (data.Household) {
+    let hasSelf = data.Household.some((person) => person.Relation === "Self");
+    if (!hasSelf) {
+      let strength = 0.9;
+      while (!hasSelf && strength > 0) {
+        for (const member of data.Household) {
+          if (
+            isSameName(member.Name, window.profilePerson.NameVariants, strength) &&
+            isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), member.Age, 5)
+          ) {
+            member.Relation = "Self";
+            hasSelf = true;
+            console.log(member, strength);
+            if (member.Occupation) {
+              data.Occupation = member.Occupation;
+            }
+          }
+        }
+        strength -= 0.1;
+      }
+    }
   }
   return data;
 }
