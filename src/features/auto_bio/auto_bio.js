@@ -1121,7 +1121,7 @@ function buildCensusNarratives(references) {
   const yearRegex = /\b(\d{4})\b/;
   references.forEach(function (reference) {
     let text = "";
-    if (reference.Text.match(/census/i)) {
+    if (reference.Text.match(/census|1939 England and Wales Register/i)) {
       reference["Record Type"] = "Census";
       reference["Event Type"] = "Census";
       let match = reference.Text.match(yearRegex);
@@ -1599,7 +1599,7 @@ function parseWikiTable(text) {
       }
 
       // Add to Research Notes
-      if (!aMember.HasProfile) {
+      if (!aMember.HasProfile && aMember.Relation != "Self") {
         needsProfiles.push(aMember);
       }
     });
@@ -1607,11 +1607,11 @@ function parseWikiTable(text) {
     let researchNotes = "";
     if (needsProfiles.length == 1) {
       researchNotes =
-        needsProfiles[0].Name + needsProfiles[0]?.Relation
-          ? " (" + needsProfiles[0].Relation + ")"
-          : "" + " needs a profile.";
+        needsProfiles[0].Name +
+        (needsProfiles[0]?.Relation ? " (" + needsProfiles[0].Relation + ")" : "") +
+        " may need a profile.";
     } else if (needsProfiles.length > 1) {
-      researchNotes = "The following people need profiles:\n";
+      researchNotes = "The following people may need profiles:\n";
       needsProfiles.forEach(function (aMember) {
         researchNotes += "* " + aMember.Name + " ";
         researchNotes += aMember.Relation ? "(" + aMember.Relation + ")\n" : "\n";
@@ -1772,11 +1772,10 @@ function sourcesArray(bio) {
       .match(/^(.*?)(?=<\/?ref|$)/s)[1]
       .trim();
 
-    //let theRef = $(this)[0].outerText;
     if (isFirefox == true) {
       theRef = $(this)[0].innerText;
     }
-    if (theRef != "" && theRef != "\n" && theRef != "\n\n") {
+    if (theRef != "" && theRef != "\n" && theRef != "\n\n" && theRef.match(/==\s?Sources\s?==/) == null) {
       let NonSource = false;
       if (theRef.match(unsourced)) {
         NonSource = true;
@@ -1962,7 +1961,7 @@ function sourcesArray(bio) {
         ""
       );
     }
-    if (aRef.Text.match(/Census/)) {
+    if (aRef.Text.match(/Census|1939 England and Wales Register/)) {
       aRef["Record Type"].push("Census");
       const placeMatch = aRef.Text.match(/household.*, ([^,]+?, [^,]+?), United States;/);
       if (placeMatch) {
@@ -2873,7 +2872,6 @@ async function getLocationCategory(type, location = null) {
       return foundCategory;
     } else {
       return;
-      // return api?.response?.categories[0].category;
     }
   }
   return;
