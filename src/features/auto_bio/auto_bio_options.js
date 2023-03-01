@@ -24,6 +24,18 @@ const autoBio = {
       defaultValue: "BirthName",
     },
     {
+      id: "boldNames",
+      type: OptionType.CHECKBOX,
+      label: "Bold names for profile person and spouse(s)",
+      defaultValue: true,
+    },
+    {
+      id: "diedYoung",
+      type: OptionType.CHECKBOX,
+      label: "Add Died Young sticker for people who died aged 16 or younger",
+      defaultValue: true,
+    },
+    {
       id: "dateFormat",
       type: OptionType.SELECT,
       label: "Date format",
