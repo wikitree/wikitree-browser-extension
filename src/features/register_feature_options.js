@@ -17,6 +17,7 @@ import "./format_source_reference_numbers/format_source_reference_numbers_option
 import "./g2g/g2g_options.js";
 import "./genderPredictor/gender_predictor_options.js";
 import "./randomProfile/randomProfile_options.js";
+import "./readingMode/readingMode_options.js";
 import "./redir_ext_links/redir_ext_links_options.js";
 import "./what_links_here/what_links_here_options.js";
 import "./wtPlus/wtPlus_options.js";

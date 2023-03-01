@@ -1,0 +1,56 @@
+.x-rm-side .x-is-sidebar {
+  display: none;
+}
+
+.x-rm-tbl .x-is-content table:not(#toc) {
+  display: none;
+}
+
+.x-rm-src ol.references,
+.x-rm-src .x-is-source,
+.x-rm-src sup.reference {
+  display: none;
+}
+
+.x-rm-tabs .profile-tabs {
+  display: none;
+}
+
+.x-rm-btn #views-wrap {
+  display: none;
+}
+
+.x-rm-mgr .x-is-content > div.SMALL {
+  display: none;
+}
+
+.x-rm-img .x-is-inline-img {
+  display: none;
+}
+
+.x-rm-com .x-is-memories,
+.x-rm-com #comments,
+.x-rm-com .comment-form-container,
+.x-rm-com .x-is-merges {
+  display: none;
+}
+
+.x-rm-hdx .x-is-header > span,
+.x-rm-hdx .x-is-header > h1 > *:not(:first-child) {
+  display: none;
+}
+
+.x-rm-edit .x-is-content div.EDIT,
+.x-rm-edit .x-is-content a.BLANK,
+.x-rm-edit .x-is-content a[href$='#additions'] {
+  display: none;
+}
+
+.x-rm-conn .x-is-connections {
+  display: none;
+}
+
+.x-rm-cat #categories,
+.x-rm-cat .x-is-categories {
+  display: none;
+}
