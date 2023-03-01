@@ -215,11 +215,32 @@ async function myConnectionsCount() {
   }, 300);
 }
 
-function ageAtDeath(person, showStatus = true) {
+/**
+ * Calculates the age at death for a given person.
+ *
+ * @param {Object} person - The person to calculate the age at death for.
+ * @param {boolean} [showStatus=true] - Determines whether to show the status indicator. Defaults to `true`.
+ * @returns {(false|string[])} Returns `false` if the age could not be calculated or an array containing the full years, and days, and total days between the birth and death dates.
+ *
+ * @example
+ * const person = {
+ *   BirthDate: '1960-01-01',
+ *   DeathDate: '2021-03-01',
+ *   DataStatus: { DeathDate: 'exact' }
+ * };
+ * ageAtDeath(person); // Returns ['61', '0', '22245']
+ */
+export function ageAtDeath(person, showStatus = true) {
   // ages
   let about = "";
   let diedAged = "";
   if (person?.BirthDate != undefined) {
+    if (person?.BirthDate.length == 4) {
+      person.BirthDate = person.BirthDate + "-00-00";
+    }
+    if (person?.DeathDate.length == 4) {
+      person.DeathDate = person.DeathDate + "-00-00";
+    }
     if (
       person["BirthDate"].length == 10 &&
       person["BirthDate"] != "0000-00-00" &&

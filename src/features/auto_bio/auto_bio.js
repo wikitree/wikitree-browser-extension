@@ -10,6 +10,7 @@ import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/opt
 import { theSourceRules } from "../bioCheck/SourceRules.js";
 import { PersonDate } from "../bioCheck/PersonDate.js";
 import { Biography } from "../bioCheck/Biography.js";
+import { ageAtDeath } from "../my_connections/my_connections";
 import { bioTimelineFacts, personRelation, buildTimelineTable, buildTimelineSA } from "./timeline";
 
 function autoBioCheck(sourcesStr) {
@@ -618,7 +619,8 @@ function buildBirth(person) {
   if (window.autoBioOptions.startWithName == "FullName") {
     startWith = person.FullName;
   }
-  text += "'''" + startWith + "'''" + " was";
+
+  text += window.boldBit + startWith + window.boldBit + " was";
 
   if (person.BirthDate || person.BirthLocation) {
     text += " born";
@@ -779,7 +781,15 @@ function buildSpouses(person) {
       if (spouse.BirthDate && isOK(spouse.marriage_date)) {
         spouseMarriageAge = ` (${getAgeFromISODates(spouse.BirthDate, spouse.marriage_date)})`;
       }
-      text += person.theFirstName + marriageAge + " married " + nameLink(spouse) + spouseMarriageAge;
+
+      text +=
+        person.theFirstName +
+        marriageAge +
+        " married " +
+        window.boldBit +
+        nameLink(spouse) +
+        window.boldBit +
+        spouseMarriageAge;
 
       //Spouse details
       if (window.autoBioOptions.spouseDetails) {
@@ -1141,6 +1151,8 @@ function buildCensusNarratives(references) {
       let residenceBits = [];
       if (reference["Street Address"]) {
         residenceBits.push(reference["Street Address"]);
+      } else if (reference["Address"]) {
+        residenceBits.push(reference["Address"]);
       }
       if (reference["Civil Parish"]) {
         residenceBits.push(reference["Civil Parish"]);
@@ -1884,7 +1896,7 @@ function sourcesArray(bio) {
 
     if (
       aRef.Text.match(
-        /'''Birth'''|Birth (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|City Births|GRO Online Index \- Birth/
+        /'''Birth'''|Birth (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|[A-Z][a-z]+ Births,|GRO Online Index \- Birth/
       ) ||
       aRef["Birth Date"]
     ) {
@@ -2184,6 +2196,15 @@ async function getStickersAndBoxes() {
         }
       });
 
+      if (window.autoBioOptions.diedYoung) {
+        const deathAge = ageAtDeath(window.profilePerson, false);
+        if (deathAge[0]) {
+          if (deathAge[0] < 17 && !thingsToAdd.includes("{{Died Young}}")) {
+            thingsToAdd.push("{{Died Young}}");
+          }
+        }
+      }
+
       thingsToAdd.forEach(function (thing) {
         afterBioHeading += thing + "\n";
       });
@@ -2454,7 +2475,7 @@ export async function generateBio() {
       const match2 = /\[(https?:\/\/www\.findagrave.com[^\s]+)(\s([^\]]+))?\]/;
       const match3 = /\{\{FindAGrave\|(\d+)?\}\}/;
       const match4 = /database and images/;
-      const match5 = /^Find a Grave #(\d+)$/;
+      const match5 = /^\s?Find a Grave( memorial)? #(\d+)$/i;
       if (aRef.Text.match(match1)) {
         findAGraveLink = aRef.Text;
       } else if (aRef.Text.match(match2)) {
@@ -2462,7 +2483,7 @@ export async function generateBio() {
       } else if (aRef.Text.match(match3) && aRef.Text.match(match4) == null) {
         findAGraveLink = "https://www.findagrave.com/memorial/" + aRef.Text.match(match3)[1];
       } else if (aRef.Text.match(match5)) {
-        findAGraveLink = "https://www.findagrave.com/memorial/" + aRef.Text.match(match5)[1];
+        findAGraveLink = "https://www.findagrave.com/memorial/" + aRef.Text.match(match5)[2];
       }
       if (findAGraveLink) {
         let citation = await getFindAGraveCitation(findAGraveLink.replace("http:", "https:"));
@@ -2877,11 +2898,15 @@ async function getLocationCategory(type, location = null) {
   return;
 }
 
-checkIfFeatureEnabled("categoryFinderPins").then((result) => {
+checkIfFeatureEnabled("autoBio").then((result) => {
   if (result && isEditPage) {
     getFeatureOptions("autoBio").then((options) => {
       window.autoBioOptions = options;
       console.log(window.autoBioOptions);
+      window.boldBit = "";
+      if (window.autoBioOptions.boldNames) {
+        window.boldBit = "'''";
+      }
     });
     // check for Firefox
     window.isFirefox = false;
