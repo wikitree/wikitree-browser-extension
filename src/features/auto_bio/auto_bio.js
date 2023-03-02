@@ -457,7 +457,7 @@ export function formatDate(date, status = "on", format = "MDY") {
 }
 
 function nameLink(person) {
-  return "[[" + person.Name + "|" + person.FullName + "]]";
+  return "[[" + person.Name + "|" + (person.PersonName.FullName || person.FullName) + "]]";
 }
 
 function childList(person, spouse) {
@@ -510,8 +510,11 @@ function childList(person, spouse) {
   let childListText = "";
 
   if (ourChildren.length == 1) {
+    /*
     let aName = new PersonName(ourChildren[0]);
-    ourChildren[0].FullName = aName.withParts(["FullName"]);
+    ourChildren[0].PersonName = {};
+    ourChildren[0].PersonName.FullName = aName.withParts(["FullName"]);
+    */
     if (ourChildren[0].Father == spouse.Id || ourChildren[0].Mother == spouse.Id) {
       childListText += nameLink(ourChildren[0]) + " " + formatDates(ourChildren[0]) + ".\n";
     } else {
@@ -526,8 +529,11 @@ function childList(person, spouse) {
       } else {
         childListText += "#";
       }
+      /*
+      child.PersonName = {};
       let aName = new PersonName(child);
-      child.FullName = aName.withParts(["FullName"]);
+      child.PersonName.FullName = aName.withParts(["FullName"]);
+      */
       let status = "";
       if (window.profilePerson.Gender == "Male") {
         if (child?.DataStatus?.Father == "10") {
@@ -578,8 +584,11 @@ function siblingList() {
       } else {
         text += "#";
       }
+      //sibling.PersonName = {};
+      /*
       let aName = new PersonName(sibling);
-      sibling.FullName = aName.withParts(["FullName"]);
+      sibling.PersonName.FullName = aName.withParts(["FullName"]);
+      */
       text += nameLink(sibling) + " " + formatDates(sibling) + "\n";
     });
   }
@@ -615,12 +624,12 @@ function addReferences(event, spouse = false) {
 
 function buildBirth(person) {
   let text = "";
-  let startWith = person.BirthName;
-  if (window.autoBioOptions.startWithName == "FullName") {
-    startWith = person.FullName;
+  let theName = person.PersonName.BirthName;
+  if (window.autoBioOptions.fullNameOrBirthName == "FullName") {
+    theName = person.PersonName.FullName;
   }
 
-  text += window.boldBit + startWith + window.boldBit + " was";
+  text += window.boldBit + theName + window.boldBit + " was";
 
   if (person.BirthDate || person.BirthLocation) {
     text += " born";
@@ -666,7 +675,7 @@ function buildDeath(person) {
   if (!isOK(person.DeathDate) && !isOK(person.DeathDecade) && !isOK(person.DeathLocation)) {
     return false;
   }
-  let text = person.theFirstName + " died";
+  let text = person.PersonName.FirstName + " died";
   if (person.DeathDate) {
     text += " " + formatDate(person.DeathDate, person.mStatus_DeathDate || "");
   }
@@ -721,8 +730,10 @@ function buildParents(person) {
   if (parents) {
     if (person.Father) {
       let father = person.Parents[person.Father];
+      /*
       let aName = new PersonName(father);
       father.FullName = aName.withParts(["FullName"]);
+      */
       text += nameLink(father);
       text += " " + formatDates(father);
     }
@@ -731,8 +742,10 @@ function buildParents(person) {
     }
     if (person.Mother) {
       let mother = person.Parents[person.Mother];
+      /*
       let aName = new PersonName(mother);
       mother.FullName = aName.withParts(["FullName"]);
+      */
       text += nameLink(mother);
       text += " " + formatDates(mother);
     }
@@ -769,11 +782,13 @@ function buildSpouses(person) {
     spouseKeys.forEach(function (key) {
       let text = "";
       let spouse = person.Spouses[key];
+      /*
       let spouseName = new PersonName(spouse);
       spouse.FullName = spouseName.withParts(["FirstNames", "LastNameAtBirth"]);
+      */
       let marriageAge = "";
-      let aFirstName = spouseName.withParts(["FirstName"]);
-      firstNameAndYear.push({ FirstName: aFirstName, Year: spouse.marriage_date.substring(4) });
+      //let aFirstName = spouseName.withParts(["FirstName"]);
+      firstNameAndYear.push({ FirstName: spouse.PersonName.FirstName, Year: spouse.marriage_date.substring(4) });
       let spouseMarriageAge = "";
       if (window.profilePerson.BirthDate && isOK(spouse.marriage_date)) {
         marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, spouse.marriage_date)})`;
@@ -783,7 +798,7 @@ function buildSpouses(person) {
       }
 
       text +=
-        person.theFirstName +
+        person.PersonName.FirstName +
         marriageAge +
         " married " +
         window.boldBit +
@@ -812,9 +827,11 @@ function buildSpouses(person) {
             text += " of ";
             if (spouse.Father) {
               let spouseFather = window.biographySpouseParents[0].people[spouse.Id].Parents[spouse.Father];
+              /*
               let spouseFatherName = new PersonName(spouseFather);
               spouseFather.FullName = spouseFatherName.withParts(["FullName"]);
-              text += "[[" + spouseFather.Name + "|" + spouseFather.FullName + "]]";
+              */
+              text += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
               if (spouseFather.BirthDate) {
                 text += " " + formatDates(spouseFather);
               }
@@ -824,9 +841,11 @@ function buildSpouses(person) {
             }
             if (spouse.Mother) {
               let spouseMother = window.biographySpouseParents[0].people[spouse.Id].Parents[spouse.Mother];
+              /*
               let spouseMotherName = new PersonName(spouseMother);
               spouseMother.FullName = spouseMotherName.withParts(["FirstNames", "LastNameAtBirth"]);
-              text += "[[" + spouseMother.Name + "|" + spouseMother.FullName + "]]";
+              */
+              text += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
               if (spouseMother.BirthDate) {
                 text += " " + formatDates(spouseMother);
               }
@@ -884,7 +903,7 @@ function buildSpouses(person) {
         const marriageDate = getYYYYMMDD(reference["Marriage Date"]);
         console.log("ageFromISODates", getAgeFromISODates(window.profilePerson.BirthDate, marriageDate));
         let marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, marriageDate)})`;
-        text += person.theFirstName + marriageAge + " married " + reference["Spouse Name"];
+        text += person.PersonName.FirstName + marriageAge + " married " + reference["Spouse Name"];
         if (reference["Marriage Place"]) {
           text += " in " + reference["Marriage Place"];
         }
@@ -1064,7 +1083,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
     }
   } else if (USmatch) {
     //if we have a match on the US pattern
-    text += window.profilePerson.theFirstName + ageBit + " was living in " + USmatch[1] + ".";
+    text += window.profilePerson.PersonName.FirstName + ageBit + " was living in " + USmatch[1] + ".";
   }
   text = getHouseholdOfRelationAndName(text);
   return [text, reference];
@@ -1126,20 +1145,134 @@ function getHouseholdOfRelationAndName(text) {
   return text;
 }
 
-function buildCensusNarratives(references) {
-  console.log("references", JSON.parse(JSON.stringify(references)));
+function getCensusesFromCensusSection() {
+  if (window.sectionsObject?.Biography?.subsections?.Census) {
+    const censusSection = window.sectionsObject.Biography.subsections.Census;
+    let newPerson = {};
+    window.references.forEach(function (ref) {
+      if (ref.Text.match(/census|1939( England and Wales)? Register/i)) {
+        ref["Record Type"] = "Census";
+        ref["Event Type"] = "Census";
+      }
+      if (ref["Record Type"].includes("Census")) {
+        const ukCensusOnlineMatch = ref.Text.match(/\b(\d{4})\b.*ukcensusonline/);
+        console.log(ref);
+        console.log(ukCensusOnlineMatch);
+        if (ukCensusOnlineMatch) {
+          let thisCensus = false;
+          if (!ref.Household) {
+            ref.Household = [];
+          }
+          censusSection.text.forEach(function (line) {
+            const yearMatch = line.match(ukCensusOnlineMatch[1]);
+            const aYearMatch = line.match(/\b\d{4}\b/);
+            console.log(line);
+            console.log(yearMatch);
+            console.log(aYearMatch);
+            if (thisCensus) {
+              if (aYearMatch) {
+                if (aYearMatch[0] != ukCensusOnlineMatch[1] && line.match(/\b\d{1,2}\b/) == null) {
+                  thisCensus = false;
+                  ref.Household.push(JSON.parse(JSON.stringify(newPerson)));
+                  newPerson = {};
+                }
+              }
+              if (thisCensus && yearMatch?.[0] == "1939") {
+                const lineBits = line.split("\t");
+                console.log(lineBits);
+                lineBits.forEach(function (aBit, index) {
+                  if (index == 0) {
+                    newPerson["FirstName"] = aBit;
+                  }
+                  if (index == 1) {
+                    newPerson["LastName"] = aBit;
+                    newPerson.Name = newPerson.FirstName + " " + newPerson.LastName;
+                  }
+                  if (index == 2) {
+                    newPerson["BirthDate"] = aBit;
+                  }
+                  if (index == 3) {
+                    newPerson["Gender"] = aBit;
+                  }
+                  if (index == 4) {
+                    newPerson["Occupation"] = aBit;
+                  }
+                  if (index == 5) {
+                    newPerson["MaritalStatus"] = aBit;
+                  }
+                  if (index == 6) {
+                    newPerson["Age"] = aBit;
+                  }
+                });
+              } else if (thisCensus) {
+                // Edith M 	Vamplew 	11 	1900 	Female 	Daughter 		0 	Felkirk, Yorkshire 	School
+                const lineBits = line.split("\t");
+                console.log(lineBits);
+                lineBits.forEach(function (aBit, index) {
+                  aBit = aBit.replace(/^\:/, "").trim();
+                  if (index == 0) {
+                    newPerson["FirstName"] = aBit;
+                  }
+                  if (index == 1) {
+                    newPerson["LastName"] = aBit;
+                    newPerson.Name = newPerson.FirstName + " " + newPerson.LastName;
+                  }
+                  if (index == 2) {
+                    newPerson["Age"] = aBit;
+                  }
+                  if (index == 3) {
+                    newPerson["BirthDate"] = aBit;
+                  }
+                  if (index == 4) {
+                    newPerson.Gender = aBit;
+                  }
+                  if (index == 5) {
+                    newPerson["Relation"] = aBit;
+                  }
+                  if (index == 6) {
+                    newPerson["MaritalStatus"] = aBit;
+                  }
+                  if (index == 7) {
+                    newPerson["BirthLocation"] = aBit;
+                  }
+                  if (index == 8) {
+                    newPerson["Occupation"] = aBit;
+                  }
+                });
+              }
+              //CONTINUE FROM HERE
+            }
+            if (yearMatch) {
+              thisCensus = true;
+              //thisYear = yearMatch[1];
+            }
+          });
+          if (newPerson.Name) {
+            ref.Household.push(newPerson);
+            ref = assignSelf(ref);
+          }
+        }
+      }
+    });
+  }
+}
+
+function buildCensusNarratives() {
   const yearRegex = /\b(\d{4})\b/;
-  references.forEach(function (reference) {
+  // ENABLE THIS TO GET CENSUS FROM CENSUS SECTION
+  // test: Vamplew-7
+  // getCensusesFromCensusSection();
+  window.references.forEach(function (reference) {
     let text = "";
-    if (reference.Text.match(/census|1939 England and Wales Register/i)) {
+    if (reference.Text.match(/census|1939( England and Wales)? Register/i)) {
       reference["Record Type"] = "Census";
       reference["Event Type"] = "Census";
       let match = reference.Text.match(yearRegex);
       if (match) {
         reference["Census Year"] = match[1];
 
+        // Ancestry list style (from Sourcer?)
         const ancestryPattern = /.*?Ancestry.*?accessed.*?\),\s([^;]*)([^:]*)(:{2}[^$]+)?/m;
-        //
         const ancestryPatternMatch = reference.Text.match(ancestryPattern);
         if (ancestryPatternMatch) {
           console.log(ancestryPatternMatch);
@@ -1217,7 +1350,7 @@ function buildCensusNarratives(references) {
         let nameMatchPattern = window.profilePerson.FirstName;
         let firstName = window.profilePerson.FirstName;
 
-        let nameVariants = [window.profilePerson.FirstNames];
+        let nameVariants = [window.profilePerson.PersonName.FirstNames];
 
         if (window.profilePerson.MiddleInitial) {
           nameVariants.push(window.profilePerson.FirstName + " " + window.profilePerson.MiddleInitial);
@@ -1278,7 +1411,7 @@ function buildCensusNarratives(references) {
           reference["Census Year"] +
           (ageAtCensus != false ? " (age " + ageAtCensus + ")" : "") +
           ", " +
-          window.profilePerson.theFirstName;
+          window.profilePerson.PersonName.FirstName;
         if (reference.Occupation) {
           text += "'s occupation was '" + reference.Occupation.toLowerCase() + "'.";
         }
@@ -1310,7 +1443,7 @@ function buildCensusNarratives(references) {
             const lastNameMatchRegex = new RegExp(
               window.profilePerson.LastNameAtBirth + "|" + window.profilePerson.LastNameAtBirth
             );
-
+            console.log("familyMembers", familyMembers);
             const lastNameMatch = mainPerson.Name.match(lastNameMatchRegex);
             if (lastNameMatch) {
               mainPerson.LastName = lastNameMatch[0];
@@ -1457,7 +1590,7 @@ function buildCensusNarratives(references) {
       reference.OrderDate = formatDate(reference["Census Year"], 0, 8);
     }
   });
-  return references;
+  // return references;
 }
 
 function parseWikiTable(text) {
@@ -1783,8 +1916,8 @@ function getNameVariants(person) {
   if (person.LongName) {
     nameVariants.push(person.LongName.replace(/\s\s/, " "));
   }
-  if (person.BirthName) {
-    nameVariants.push(person.BirthName);
+  if (person.PersonName.BirthName) {
+    nameVariants.push(person.PersonName.BirthName);
   }
   if (person.LongNamePrivate) {
     nameVariants.push(person.LongNamePrivate.replace(/\s\s/, " "));
@@ -2053,9 +2186,8 @@ function sourcesArray(bio) {
       }
     }
   });
-
-  refArr = buildCensusNarratives(refArr);
-  return refArr;
+  window.references = refArr;
+  buildCensusNarratives();
 }
 
 function addRelationsToSourcerCensuses(censuses) {
@@ -2290,21 +2422,21 @@ function getFamilySearchFacts() {
             "In " +
             aFact.Year +
             ", " +
-            window.profilePerson.theFirstName +
+            window.profilePerson.PersonName.FirstName +
             ageBit +
             " was living in " +
             aFact.Residence +
             ".";
         } else if (aFact.Fact.match(/Fact: Military Service/i)) {
           aFact.Narrative =
-            "In " + aFact.Year + ", " + window.profilePerson.theFirstName + ageBit + " was in the military.";
+            "In " + aFact.Year + ", " + window.profilePerson.PersonName.FirstName + ageBit + " was in the military.";
           aFact.FactType = "Military Service";
         } else if (aFact.Fact.match(/Fact: Military Draft Registration/i)) {
           aFact.Narrative =
             "In " +
             aFact.Year +
             ", " +
-            window.profilePerson.theFirstName +
+            window.profilePerson.PersonName.FirstName +
             ageBit +
             " registered for the military draft.";
           aFact.FactType = "Military Draft";
@@ -2313,7 +2445,7 @@ function getFamilySearchFacts() {
             "In " +
             aFact.Year +
             ", " +
-            window.profilePerson.theFirstName +
+            window.profilePerson.PersonName.FirstName +
             ageBit +
             " registered for the WWI military draft.";
           aFact.FactType = "Military Draft";
@@ -2455,6 +2587,27 @@ function splitBioIntoSections() {
   return sections;
 }
 
+function assignPersonNames(person) {
+  // Add personName to person
+  function assignPersonNamesB(personB) {
+    const aName = new PersonName(personB);
+    personB.PersonName = {};
+    personB.PersonName.FullName = aName.withParts(["FullName"]); // FullName
+    personB.PersonName.FirstName = aName.withParts(["PreferredName"]); // theFirstName
+    personB.PersonName.FirstNames = aName.withParts(["FirstNames"]); // FirstNames
+    personB.PersonName.BirthName = aName.withParts(["FirstNames", "MiddleNames", "LastNameAtBirth"]); // BirthName
+  }
+  assignPersonNamesB(person);
+  ["Parents", "Spouses", "Children", "Siblings"].forEach(function (rel) {
+    if (person[rel] && !Array.isArray(person[rel])) {
+      const keys = Object.keys(person[rel]);
+      keys.forEach(function (key) {
+        assignPersonNamesB(person[rel][key]);
+      });
+    }
+  });
+}
+
 export async function generateBio() {
   const working = $(
     "<img id='working' style='position:absolute; margin-top:3em; margin-left: 300px' src='" +
@@ -2478,15 +2631,24 @@ export async function generateBio() {
   });
   window.biographyPeople = await getPeople(keys, 0, 0, 0, 1, 1, "*");
   console.log("biographyPeople", window.biographyPeople);
+  const biographyPeopleKeys = Object.keys(window.biographyPeople[0].people);
+  biographyPeopleKeys.forEach(function (key) {
+    const person = window.biographyPeople[0].people[key];
+    assignPersonNames(person);
+  });
+
   window.profilePerson = window.biographyPeople[0].people[window.biographyPeople[0].resultByKey[profileID].Id];
 
   // Add name variants and pronouns to profilePerson
+  /*
   let wanted = ["FullName"];
   let aName = new PersonName(window.profilePerson);
-  window.profilePerson.FullName = aName.withParts(wanted);
-  window.profilePerson.theFirstName = aName.withParts(["PreferredName"]);
-  window.profilePerson.FirstNames = aName.withParts(["FirstNames"]);
-  window.profilePerson.BirthName = aName.withParts(["FirstNames", "MiddleNames", "LastNameAtBirth"]);
+  window.profilePerson.PersonName = {};
+  window.profilePerson.PersonName.FullName = aName.withParts(wanted); // FullName
+  window.profilePerson.PersonName.FirstName = aName.withParts(["PreferredName"]); // theFirstName
+  window.profilePerson.PersonName.FirstNames = aName.withParts(["FirstNames"]); // FirstNames
+  window.profilePerson.PersonName.BirthName = aName.withParts(["FirstNames", "MiddleNames", "LastNameAtBirth"]); // BirthName
+  */
   window.profilePerson.Pronouns = getPronouns(window.profilePerson);
   window.profilePerson.NameVariants = getNameVariants(window.profilePerson);
 
@@ -2497,6 +2659,11 @@ export async function generateBio() {
   if (window.profilePerson.Spouses) {
     let spouseKeys = Object.keys(window.profilePerson.Spouses);
     window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 0, 0, "*");
+    const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
+    biographySpouseParentsKeys.forEach(function (key) {
+      const person = window.biographySpouseParents[0].people[key];
+      assignPersonNames(person);
+    });
   }
   console.log("biographySpouseParents", window.biographySpouseParents);
 
@@ -2513,7 +2680,7 @@ export async function generateBio() {
   if (window.sectionsObject.Sources) {
     window.sourcesSection = window.sectionsObject.Sources;
   }
-  window.references = sourcesArray(currentBio);
+  sourcesArray(currentBio);
   console.log("references", JSON.parse(JSON.stringify(window.references)));
 
   // Update references with Find A Grave citations
