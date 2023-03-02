@@ -262,3 +262,17 @@ registerFeature({
   category: "Editing",
   defaultValue: true,
 });
+
+/*
+ * debugging features for development only
+ *
+registerFeature({
+  name: "Debug Profile Classes",
+  id: "debugProfileClasses",
+  description:
+    "Highlights various sections of page profiles (for testing the core profileClasses code).",
+  category: "Debug",
+  defaultValue: true,
+});
+*/
+

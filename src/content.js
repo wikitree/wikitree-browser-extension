@@ -44,6 +44,8 @@ import "./features/verifyID/verifyID";
 import "./features/what_links_here/what_links_here";
 import "./features/wtPlus/wtPlus";
 
+//import "./features/debugProfileClasses/debugProfileClasses";
+
 import "./core/editToolbar";
 
 //createTopMenu();
