@@ -8,9 +8,9 @@ const autoBio = {
   defaultValue: true,
   options: [
     {
-      id: "startWithName",
+      id: "fullNameOrBirthName",
       type: OptionType.RADIO,
-      label: "Start with",
+      label: "Display full name or birth name",
       values: [
         {
           value: "FullName",
