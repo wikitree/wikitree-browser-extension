@@ -12,6 +12,11 @@
   opacity: 0.5;
 }
 
+/* profile-status (ie. research box) */
+.x-content > .status {
+  opacity: 0.5;
+}
+
 /* toc */
 #toc {
   background: rgba(240,255,240,0.5) !important;

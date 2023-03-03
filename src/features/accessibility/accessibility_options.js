@@ -1,9 +1,9 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 const accessibilityFeature = {
-  name: "Accessibility Mode",
+  name: "Accessibility Options",
   id: "accessibility",
-  description: "Style options to make profiles more readable.",
+  description: "Display options to make profiles more readable for those with impaired vision.",
   category: "Style",
   defaultValue: false,
   options: [
@@ -26,7 +26,7 @@ const accessibilityFeature = {
         },
         {
           value: 100,
-          text: "100% (standard)",
+          text: "100% (single)",
         },
         {
           value: 150,

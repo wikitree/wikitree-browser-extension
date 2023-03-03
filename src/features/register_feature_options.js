@@ -273,7 +273,6 @@ registerFeature({
   description:
     "Highlights various sections of page profiles (for testing the core profileClasses code).",
   category: "Debug",
-  defaultValue: true,
+  defaultValue: false,
 });
-*/
-
+// end debugging section */

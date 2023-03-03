@@ -45,7 +45,11 @@ import "./features/verifyID/verifyID";
 import "./features/what_links_here/what_links_here";
 import "./features/wtPlus/wtPlus";
 
-//import "./features/debugProfileClasses/debugProfileClasses";
+/*
+ * debugging features for development only
+ *
+import "./features/debugProfileClasses/debugProfileClasses";
+// end debugging section */
 
 import "./core/editToolbar";
 

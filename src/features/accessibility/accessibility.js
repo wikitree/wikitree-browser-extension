@@ -1,7 +1,9 @@
 import $ from "jquery";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage.js";
+import { ensureProfileClasses, canTweakProfile } from "../../core/profileClasses";
 
 async function initAccessibility() {
+  ensureProfileClasses();
   const options = await getFeatureOptions("accessibility");
   if (options.listItemSpacing && options.listItemSpacing > 0) {
     document.documentElement.style.setProperty("--a11y-spacing", 1.5 * options.listItemSpacing / 100 + "em"); // this is based on the normal paragraph margin being 1.5em
@@ -14,11 +16,9 @@ async function initAccessibility() {
   if (options.mergeAdjacentLists) {
     let qy;
     if (options.spaceSourceItemsOnly) {
-      //$("html").addClass("a11y-adj-src-merge");
-      qy = $("ol.references, a[name='Sources']").first().nextUntil("a[name^='Acknowledgement']"); // only look at elements between "Sources" and "Acknowledgements" (or the <references /> list, if there is no section header)
+      qy = $(".x-content > .x-sources"); // only look at elements in the Sources section
     } else {
-      //$("html").addClass("a11y-adj-ul-merge");
-      qy = $("#toc, a[name='Biography']").first().nextAll(); // look at all elements after either the TOC or Biography header
+      qy = $(".x-content > *:not(#toc)").first().nextAll(); // look at all elements at the root of the content section (except for the TOC)
     }
     let ul;
     qy.each(function(index) {
@@ -36,7 +36,7 @@ async function initAccessibility() {
     });
   }
   if (options.removeSourceBreaks || options.removeSourceLabels || options.boldSources) {
-    let qy = $("ol.references, a[name='Sources']").first().nextUntil("a[name^='Acknowledgement']").addBack().filter("ol, ul").children("li");
+    let qy = $(".x-src");
     if (options.removeSourceBreaks) {
       qy.each(function (index) {
         let li = $(this);
@@ -68,7 +68,6 @@ async function initAccessibility() {
     }
     if (options.boldSources) {
       $("html").addClass("a11y-src-bold");
-      let qy = $("ol.references, a[name='Sources']").first().nextUntil("a[name^='Acknowledgement']").addBack().filter("ol, ul").children("li");
       qy.each(function (index) {
         let li = $(this);
         li.contents().filter(function() {
@@ -87,7 +86,7 @@ async function initAccessibility() {
 }
 
 checkIfFeatureEnabled("accessibility").then((result) => {
-  if (result) {
+  if (result && canTweakProfile()) {
     import("./accessibility.css");
     initAccessibility();
   }
