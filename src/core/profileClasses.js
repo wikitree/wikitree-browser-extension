@@ -23,10 +23,12 @@ export function ensureProfileClasses() {
 
       // mark the widgets (including the scissors container) inside the h1 tag
       $(".x-heading button").addClass("x-heading-widget");
-      // some extensions add these differently based on the type of profile, so we need to reapply these after the page is loaded
       $(function () {
-        // .copyWidget seems mostly standard, but other extensions put their widgets in identified span tags (helpScissors, distanceFromYou, etc.)
-        $(".x-heading button, .x-heading .copyWidget, .x-heading span[id]").addClass("x-heading-widget");
+        // some extensions add these differently based on the type of profile, so we need to reapply these after the page is loaded and other extensions have made their updates
+        window.setTimeout(function () {
+          // .copyWidget seems mostly standard, but other extensions put their widgets in identified span tags (helpScissors, distanceFromYou, yourRelationshipText, etc.)
+          $(".x-heading button, .x-heading .copyWidget, .x-heading span[id], .x-heading ~ *[id]").addClass("x-heading-widget");
+        }, 500);
       });
 
       // mark the privacy status container based on the heading *** varies by profile type

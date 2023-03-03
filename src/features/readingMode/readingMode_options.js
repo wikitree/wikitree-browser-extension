@@ -3,18 +3,10 @@ import { registerFeature, OptionType } from "../../core/options/options_registry
 const readingModeFeature = {
   name: "Reading Mode",
   id: "readingMode",
-  description: "Toggle the WikiTree interface on/off to easily browse profiles.",
+  description: "Toggle the WikiTree interface on/off for readability while browsing profiles.",
   category: "Style",
   defaultValue: false,
   options: [
-    // The right hand column. This would hide the "six columns" div and expand the left column t be the full 16 columns.
-    // All tables in the bio
-    // The Sources section and all inline ref links (e.g. [1])
-    // The 3 lines that name the profile manager and last edited etc.
-    // Possibly the tabs (Edit, Images etc)
-    // All inline images in the bio along with their captions
-    // The memories, comments and matches/merges sections
-    // The line of buttons under the tabs ([Comments ][Family Group][Matches ][Sources])
     {
       id: "hideSideBar",
       type: OptionType.CHECKBOX,
@@ -22,7 +14,7 @@ const readingModeFeature = {
       defaultValue: true,
     },
     {
-      id: "hideTables",
+      id: "hideInlineTables",
       type: OptionType.CHECKBOX,
       label: "Hide all tables in the bio.",
       defaultValue: true,
@@ -34,19 +26,19 @@ const readingModeFeature = {
       defaultValue: true,
     },
     {
-      id: "hideTabs",
+      id: "hidePageTabs",
       type: OptionType.CHECKBOX,
       label: "Hide the tabs at the top of the profile.",
       defaultValue: true,
     },
     {
-      id: "hideButtons",
+      id: "hideViewTabs",
       type: OptionType.CHECKBOX,
       label: "Hide the navigation buttons under the tabs section.",
       defaultValue: true,
     },
     {
-      id: "hideProfileStatus",
+      id: "hideAuditData",
       type: OptionType.CHECKBOX,
       label: "Hide the profile manager, last modified/accessed, etc.",
       defaultValue: true,
@@ -64,9 +56,9 @@ const readingModeFeature = {
       defaultValue: true,
     },
     {
-      id: "hideHeaderExtras",
+      id: "hideHeadingExtras",
       type: OptionType.CHECKBOX,
-      label: "Hide extra options (copy) and icons (privacy) in the profile header.",
+      label: "Hide extra widgets (copy) and icons (privacy) in the profile heading.",
       defaultValue: true,
     },
     {

@@ -1,57 +1,51 @@
 import $ from "jquery";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage.js";
+import { ensureProfileClasses, canTweakProfile } from "../../core/profileClasses";
 
 async function initReadingMode() {
+  ensureProfileClasses();
   const options = await getFeatureOptions("readingMode");
-  $("#content .ten.columns").addClass("x-is-content");
-  $("#content .six.columns").addClass("x-is-sidebar");
-  $("#content .fourteen.omega").first().addClass("x-is-header");
-  $("a[name='Memories']").prev().addClass("x-is-memories").nextAll().addClass("x-is-memories");
-  $("a[name='Sources']").first().addClass("x-is-source").nextUntil("a, .x-is-memories").addClass("x-is-source");
-  $("a[name='matches']").parent().addClass("x-is-merges").nextAll(".five").addClass("x-is-merges");
-  $("#content > div:last-child").filter(function() { return $(this).text().indexOf('degrees from') > -1 && $(this).has("a[href~='Special:Connect']"); }).last().addClass("x-is-connections");
-  $("#footer").prev().addClass("x-is-categories");
   if (options.hideSideBar) {
-    $("html").addClass("x-rm-side");
-    $(".x-is-content").toggleClass("ten").toggleClass("sixteen");
+    $("html").addClass("hide-sidebar");
+    $(".x-sidebar").prev().toggleClass("ten").toggleClass("sixteen");
   }
-  if (options.hideTables) {
-    $("html").addClass("x-rm-tbl");
+  if (options.hideInlineTables) {
+    $("html").addClass("hide-inline-tables");
   }
   if (options.hideSources) {
-    $("html").addClass("x-rm-src");
+    $("html").addClass("hide-sources");
   }
-  if (options.hideTabs) {
-    $("html").addClass("x-rm-tabs");
+  if (options.hidePageTabs) {
+    $("html").addClass("hide-page-tabs");
   }
-  if (options.hideButtons) {
-    $("html").addClass("x-rm-btn");
+  if (options.hideViewTabs) {
+    $("html").addClass("hide-view-tabs");
   }
-  if (options.hideProfileStatus) {
-    $("html").addClass("x-rm-mgr");
+  if (options.hideAuditData) {
+    $("html").addClass("hide-audit-data");
   }
   if (options.hideInlineImages) {
-    $("html").addClass("x-rm-img");
+    $("html").addClass("hide-inline-images");
   }
   if (options.hideComments) {
-    $("html").addClass("x-rm-com");
+    $("html").addClass("hide-comments");
   }
-  if (options.hideHeaderExtras) {
-    $("html").addClass("x-rm-hdx");
+  if (options.hideHeadingExtras) {
+    $("html").addClass("hide-heading-extras");
   }
   if (options.hideEdits) {
-    $("html").addClass("x-rm-edit");
+    $("html").addClass("hide-edits");
   }
   if (options.hideConnections) {
-    $("html").addClass("x-rm-conn");
+    $("html").addClass("hide-connections");
   }
   if (options.hideCategories) {
-    $("html").addClass("x-rm-cat");
+    $("html").addClass("hide-categories");
   }
 }
 
 checkIfFeatureEnabled("readingMode").then((result) => {
-  if (result) {
+  if (result && canTweakProfile()) {
     import("./readingMode.css");
     initReadingMode();
   }

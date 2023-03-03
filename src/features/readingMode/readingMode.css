@@ -1,56 +1,51 @@
-.x-rm-side .x-is-sidebar {
-  display: none;
+.hide-sidebar .x-sidebar {
+  display: none !important;
 }
 
-.x-rm-tbl .x-is-content table:not(#toc) {
-  display: none;
+.hide-inline-tables .x-inline-table {
+  display: none !important;
 }
 
-.x-rm-src ol.references,
-.x-rm-src .x-is-source,
-.x-rm-src sup.reference {
-  display: none;
+.hide-sources .x-sources,
+.hide-sources sup.reference {
+  display: none !important;
 }
 
-.x-rm-tabs .profile-tabs {
-  display: none;
+.hide-page-tabs .x-tabs-page {
+  display: none !important;
 }
 
-.x-rm-btn #views-wrap {
-  display: none;
+.hide-view-tabs .x-tabs-view{
+  display: none !important;
 }
 
-.x-rm-mgr .x-is-content > div.SMALL {
-  display: none;
+.hide-audit-data .x-audit {
+  display: none !important;
 }
 
-.x-rm-img .x-is-inline-img {
-  display: none;
+.hide-inline-images .x-inline-img {
+  display: none !important;
 }
 
-.x-rm-com .x-is-memories,
-.x-rm-com #comments,
-.x-rm-com .comment-form-container,
-.x-rm-com .x-is-merges {
-  display: none;
+.hide-comments .x-memories,
+.hide-comments .x-comments,
+.hide-comments .x-merges {
+  display: none !important;
 }
 
-.x-rm-hdx .x-is-header > span,
-.x-rm-hdx .x-is-header > h1 > *:not(:first-child) {
-  display: none;
+.hide-heading-extras .x-heading-widget,
+.hide-heading-extras .x-privacy {
+  display: none !important;
 }
 
-.x-rm-edit .x-is-content div.EDIT,
-.x-rm-edit .x-is-content a.BLANK,
-.x-rm-edit .x-is-content a[href$='#additions'] {
-  display: none;
+.hide-edits .x-edit {
+  display: none !important;
 }
 
-.x-rm-conn .x-is-connections {
-  display: none;
+.hide-connections .x-connections {
+  display: none !important;
 }
 
-.x-rm-cat #categories,
-.x-rm-cat .x-is-categories {
-  display: none;
+.hide-categories .x-categories {
+  display: none !important;
 }
