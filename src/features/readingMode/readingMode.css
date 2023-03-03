@@ -1,14 +1,29 @@
+.toggle.reading-mode {
+  position: absolute;
+  right: 3px;
+  bottom: 12px;
+}
+
+.toggle.show-sources {
+  position: relative;
+  top: -2px;
+  margin-left: 8px;
+  visibility: hidden;
+}
+
+.collapse-sources .toggle.show-sources {
+  visibility: visible;
+}
+
 .hide-sidebar .x-sidebar {
   display: none !important;
 }
 
-.hide-inline-tables .x-inline-table {
+.collapse-sources:not(.expand-sources) .x-sources:not(h2):not(a[name]) {
   display: none !important;
 }
 
-.hide-sources .x-sources,
-.hide-sources .x-citation,
-.hide-sources #toc .x-toc-sources {
+.hide-citations .x-citation {
   display: none !important;
 }
 
@@ -25,6 +40,10 @@
 }
 
 .hide-inline-images .x-inline-img {
+  display: none !important;
+}
+
+.hide-inline-tables .x-inline-table {
   display: none !important;
 }
 

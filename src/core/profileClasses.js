@@ -12,30 +12,33 @@ export function ensureProfileClasses() {
   if (!hasProfileClasses) {
     // only apply to person, category, and space profiles in read mode
     if (canTweakProfile()) {
-      // at the moment, WikiTree puts two different elements with id="content" on person and space pages (the header with the profile thumbnail and the section below the tabs)
+      // at the moment, WikiTree puts two different elements with id="content" on person pages (the heading and tabs are separate from the rest of the profile)
       $("div[id='content']").addClass("x-profile").addClass(pageProfile ? "x-profile-person" : pageCategory ? "x-profile-category" : pageSpace ? "x-profile-space" : "");
 
       // mark the heading content (the h1 beside the thumbnail image and the privacy status, which includes the scissors inside) *** varies by profile type
-      $(".x-profile-person > .row h1, .x-profile-category > .sixteen.columns h1, .x-profile-space > .row h1").first().addClass("x-heading");
+      $(".x-profile-person > .row h1, .x-profile-space > .row h1").first().addClass("x-heading-title");
+      $(".x-heading-title").closest(".row").addClass("x-heading");
+      $(".x-profile-category > .sixteen.columns h1").first().addClass("x-heading x-heading-title");
 
-      // mark the thumbnail image container based on the heading *** varies by profile type
-      $(".x-profile-person .x-heading, .x-profile-space .x-heading").closest(".row").children(".alpha").first().addClass("x-thumbnail");
+      // mark the thumbnail image container based on the heading
+      $(".x-heading > .alpha").first().addClass("x-thumbnail");
 
       // mark the widgets (including the scissors container) inside the h1 tag
-      $(".x-heading button").addClass("x-heading-widget");
+      $(".x-heading-title button").addClass("x-heading-widget");
+      $(".x-profile-category .x-heading").prevAll().filter(function () { return $(this).css("float") == "right" && $(this).has("a, button"); }).addClass("x-heading-widget");
       $(function () {
         // some extensions add these differently based on the type of profile, so we need to reapply these after the page is loaded and other extensions have made their updates
         window.setTimeout(function () {
           // .copyWidget seems mostly standard, but other extensions put their widgets in identified span tags (helpScissors, distanceFromYou, yourRelationshipText, etc.)
-          $(".x-heading button, .x-heading .copyWidget, .x-heading span[id], .x-heading ~ *[id]").addClass("x-heading-widget");
+          $(".x-heading-title button, .copyWidget, .x-heading-title span[id], .x-heading-title:not(.x-heading) ~ *[id]").addClass("x-heading-widget");
         }, 500);
       });
 
-      // mark the privacy status container based on the heading *** varies by profile type
-      $(".x-profile-person .x-heading, .x-profile-space .x-heading").closest(".row").find("a.nohover").parent().addClass("x-privacy");
+      // mark the privacy status container at the right of the heading
+      $(".x-heading a.nohover").parent().addClass("x-privacy");
 
       // mark the content section (on the left of the sidebar) which contains the biography, sources, etc. up to where the comments section starts; for categories, the content is all in the root section
-      $(".x-profile > .ten.columns, .x-profile-category").first().addClass("x-content");
+      $(".x-profile > .ten.columns, .x-profile-category > .columns").first().addClass("x-content");
 
       // mark alert boxes (like research notes, orphaned profile, etc.)
       $("x-content > .status, .x-content > a[name]:last-of-type ~ .box.orange, .x-content:not(* > a[name]) > .box.orange").addClass("x-alert");
@@ -71,7 +74,7 @@ export function ensureProfileClasses() {
       $(".x-content table:not(#toc):not(.x-inline-img)").addClass("x-inline-table");
 
       // mark root sections in content (h2 only)
-      $(".x-content a[name] + h2").prev().addClass("x-root-section x-section");
+      $(".x-content a[name] + h1, .x-content a[name] + h2").prev().addClass("x-root-section x-section");
 
       // mark subdivided sections (h3, etc.)
       $(".x-content a[name] + h3, .x-content a[name] + h4, .x-content a[name] + h5, .x-content a[name] + h6").prev().addClass("x-section");
@@ -81,7 +84,7 @@ export function ensureProfileClasses() {
       $(".x-memories, .x-content > br:last-child").addClass("x-memories").prevUntil("*:not(br)").addClass("x-memories"); // memories are usually preceded by a couple of line breaks, sometimes present at the end of content even if the memories block is missing
 
       // mark elements related to the sources section (including header, lists, and any other root elements) up until the next section *** dependent on x-memories being set
-      $(".x-content a[name='Sources']").first().addClass("x-sources").nextUntil(".x-root-section, div.EDIT, .x-memories").addClass("x-sources");
+      $(".x-content a[name='Sources']").first().addClass("x-sources").nextUntil(".x-root-section, div.EDIT, .x-memories, br[clear] + div.SMALL").addClass("x-sources");
       $(".x-content ol.references").addClass("x-sources");
       // mark source list items separately
       $("ul.x-sources > li, ol.x-sources > li").addClass("x-src");
@@ -95,7 +98,8 @@ export function ensureProfileClasses() {
       // mark connections to famous people
       $(".x-profile-person > div:last-child").filter(function () { return $(this).text().indexOf('degrees from') > -1 && $(this).has("a[href~='Special:Connect']"); }).last().addClass("x-connections");
 
-      // mark the container for the categories box, including the breadcrumbs at the bottom of profiles (ie. S > Smith > John Smith)
+      // mark the container for the categories box, including the breadcrumbs at the bottom of profiles (ie. S > Smith > John Smith) and the top of the category profile
+      $(".x-profile-category .x-content > p > a:first-of-type[href$='/Category:Categories']").parent().addClass("x-categories");
       $("#categories").closest(".container").addClass("x-categories");
       $("#footer").prev().addClass("x-categories");
 

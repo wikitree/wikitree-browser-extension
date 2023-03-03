@@ -14,15 +14,9 @@ const readingModeFeature = {
       defaultValue: true,
     },
     {
-      id: "hideInlineTables",
+      id: "hideHeadingExtras",
       type: OptionType.CHECKBOX,
-      label: "Hide all tables in the bio.",
-      defaultValue: true,
-    },
-    {
-      id: "hideSources",
-      type: OptionType.CHECKBOX,
-      label: "Hide the Sources section and all inline references.",
+      label: "Hide extra widgets (copy) and icons (privacy) in the profile heading.",
       defaultValue: true,
     },
     {
@@ -44,27 +38,39 @@ const readingModeFeature = {
       defaultValue: true,
     },
     {
+      id: "hideEdits",
+      type: OptionType.CHECKBOX,
+      label: "Hide edit links on the vitals and in the bio.",
+      defaultValue: true,
+    },
+    {
+      id: "hideInlineTables",
+      type: OptionType.CHECKBOX,
+      label: "Hide all tables in the bio.",
+      defaultValue: false,
+    },
+    {
       id: "hideInlineImages",
       type: OptionType.CHECKBOX,
       label: "Hide inline images and captions in the bio.",
+      defaultValue: false,
+    },
+    {
+      id: "hideCitations",
+      type: OptionType.CHECKBOX,
+      label: "Hide citation superscripts within the biography.",
+      defaultValue: false,
+    },
+    {
+      id: "collapseSources",
+      type: OptionType.CHECKBOX,
+      label: "Collapse the entire Sources section (the header can still be expanded).",
       defaultValue: true,
     },
     {
       id: "hideComments",
       type: OptionType.CHECKBOX,
       label: "Hide comments, memories, and merges.",
-      defaultValue: true,
-    },
-    {
-      id: "hideHeadingExtras",
-      type: OptionType.CHECKBOX,
-      label: "Hide extra widgets (copy) and icons (privacy) in the profile heading.",
-      defaultValue: true,
-    },
-    {
-      id: "hideEdits",
-      type: OptionType.CHECKBOX,
-      label: "Hide edit links on the vitals and in the bio.",
       defaultValue: true,
     },
     {
