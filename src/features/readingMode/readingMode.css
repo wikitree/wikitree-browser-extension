@@ -7,7 +7,8 @@
 }
 
 .hide-sources .x-sources,
-.hide-sources sup.reference {
+.hide-sources .x-citation,
+.hide-sources #toc .x-toc-sources {
   display: none !important;
 }
 
@@ -15,7 +16,7 @@
   display: none !important;
 }
 
-.hide-view-tabs .x-tabs-view{
+.hide-view-tabs .x-tabs-view {
   display: none !important;
 }
 
@@ -38,7 +39,8 @@
   display: none !important;
 }
 
-.hide-edits .x-edit {
+.hide-edits .x-edit,
+.hide-edits .x-alert:not(.status) {
   display: none !important;
 }
 

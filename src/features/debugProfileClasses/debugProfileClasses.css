@@ -12,19 +12,9 @@
   opacity: 0.5;
 }
 
-/* profile-status (ie. research box) */
-.x-content > .status {
-  opacity: 0.5;
-}
-
 /* toc */
 #toc {
   background: rgba(240,255,240,0.5) !important;
-}
-
-/* inline-reference */
-sup.reference {
-  background: #ff0 !important;
 }
 
 /* elements that need to be identified manually */
@@ -85,8 +75,17 @@ sup.reference {
   background: #cf9 !important;
 }
 
+.x-alert {
+  border: 6px dotted #c00 !important;
+  opacity: 0.5;
+}
+
 .x-sticker {
   background: #bcb !important;
+}
+
+.x-citation {
+  background: #ff0 !important;
 }
 
 .x-inline-img {
