@@ -1,0 +1,22 @@
+:root {
+  --a11y-spacing: 1em;
+}
+
+.a11y-list-spacing #toc ~ ol > li,
+.a11y-list-spacing #toc ~ ul > li,
+.a11y-list-spacing a[name='Biography'] ~ ol > li,
+.a11y-list-spacing a[name='Biography'] ~ ul > li {
+  margin-top: var(--a11y-spacing);
+  margin-bottom: var(--a11y-spacing);
+}
+
+.a11y-src-spacing ol.references > li,
+.a11y-src-spacing a[name='Sources'] ~ ol:not(a[name^='Acknowledgement'] ~ ol) > li,
+.a11y-src-spacing a[name='Sources'] ~ ul:not(a[name^='Acknowledgement'] ~ ul) > li {
+  margin-top: var(--a11y-spacing);
+  margin-bottom: var(--a11y-spacing);
+}
+
+.a11y-src-bold .a11y-src-first {
+  font-weight: bold;
+}

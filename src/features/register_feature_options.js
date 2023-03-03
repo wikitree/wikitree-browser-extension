@@ -7,6 +7,7 @@ import { registerFeature } from "../core/options/options_registry";
 // the feature and options
 ////////////////////////////////////////////////////////////////////////////////
 
+import "./accessibility/accessibility_options.js";
 import "./agc/agc_options.js";
 import "./categoryDisplay/categoryDisplay_options.js";
 import "./change_family_lists/change_family_lists_options.js";
