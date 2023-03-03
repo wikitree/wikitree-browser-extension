@@ -33,6 +33,7 @@ import "./features/my_connections/my_connections";
 import "./features/my_menu/my_menu";
 import "./features/printerfriendly/printerfriendly";
 import "./features/randomProfile/randomProfile";
+import "./features/readingMode/readingMode";
 import "./features/redir_ext_links/redir_ext_links";
 import "./features/scissors/scissors";
 import "./features/sortBadges/sortBadges";
