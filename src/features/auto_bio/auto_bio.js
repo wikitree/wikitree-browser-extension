@@ -523,7 +523,6 @@ function childList(person, spouse) {
   } else {
     let gotChild = false;
     ourChildren.forEach(function (child) {
-      console.log(child);
       if (window.autoBioOptions.familyListStyle == "bullets") {
         childListText += "* ";
       } else {
@@ -1144,6 +1143,348 @@ function getHouseholdOfRelationAndName(text) {
   }
   return text;
 }
+function updateRelations(data) {
+  // Find self
+  const selfIndex = data.findIndex((person) => person.Relation === "Self");
+
+  if (selfIndex < 0) {
+    console.log("No self", selfIndex, JSON.parse(JSON.stringify(data)));
+    // Self is not in the household, return the original data
+    return data;
+  }
+  const self = data[selfIndex];
+  self.Gender = window.profilePerson.Gender;
+
+  if (self.originalRelation != "Head") {
+    data.forEach(function (person) {
+      if (person.Relation != "Self") {
+        console.log(person);
+        person.originalRelation = person.Relation;
+        if (person != self) {
+          switch (person.originalRelation) {
+            case "Head":
+              switch (self.originalRelation) {
+                case "Son":
+                case "Daughter":
+                  person.Relation = person.Gender == "Female" ? "Mother" : "Father";
+                  break;
+                case "Brother":
+                case "Sister":
+                  person.Relation = person.Gender == "Female" ? "Sister-in-law" : "Brother-in-law";
+                  break;
+                case "Father":
+                case "Mother":
+                  person.Relation = person.Gender == "Female" ? "Daughter" : "Son";
+                  break;
+                case "Wife":
+                  person.Relation = "Husband";
+                  break;
+              }
+              break;
+            case "Wife":
+              switch (self.originalRelation) {
+                case "Son":
+                case "Daughter":
+                  person.Relation = "Mother";
+                  break;
+                case "Brother":
+                case "Sister":
+                  person.Relation = "Sister-in-law";
+                  break;
+                case "Father":
+                case "Mother":
+                  person.Relation = "Daughter-in-law";
+                  break;
+              }
+              break;
+            case "Son":
+              switch (self.originalRelation) {
+                case "Son":
+                case "Daughter":
+                  person.Relation = "Brother";
+                  console.log(person);
+                  break;
+                case "Brother":
+                case "Sister":
+                  person.Relation = "Nephew";
+                  break;
+                case "Father":
+                case "Mother":
+                  person.Relation = "Grandson";
+                  break;
+                case "Wife":
+                  person.Relation = "Son";
+                  break;
+              }
+              break;
+            case "Daughter":
+              switch (self.originalRelation) {
+                case "Son":
+                case "Daughter":
+                  person.Relation = "Sister";
+                  break;
+                case "Brother":
+                case "Sister":
+                  person.Relation = "Niece";
+                  break;
+                case "Father":
+                case "Mother":
+                  person.Relation = "Granddaughter";
+                  break;
+                case "Wife":
+                  person.Relation = "Daughter";
+                  break;
+              }
+              break;
+            case "Mother":
+              switch (self.originalRelation) {
+                case "Son":
+                case "Daughter":
+                  person.Relation = "Grandmother";
+                  break;
+                case "Brother":
+                case "Sister":
+                  person.Relation = "Mother";
+                  break;
+                case "Father":
+                  person.Relation = "Wife";
+                  break;
+                case "Wife":
+                  person.Relation = "Mother-in-law";
+                  break;
+              }
+              break;
+            case "Father":
+              switch (self.originalRelation) {
+                case "Son":
+                case "Daughter":
+                  person.Relation = "Grandfather";
+                  break;
+                case "Brother":
+                case "Sister":
+                  person.Relation = "Father";
+                  break;
+                case "Mother":
+                  person.Relation = "Husband";
+                  break;
+                case "Wife":
+                  person.Relation = "Father-in-law";
+                  break;
+              }
+              break;
+            case "Brother":
+              switch (self.originalRelation) {
+                case "Son":
+                case "Daughter":
+                  person.Relation = "Uncle";
+                  break;
+                case "Brother":
+                case "Sister":
+                  person.Relation = "Brother";
+                  break;
+                case "Father":
+                case "Mother":
+                  person.Relation = "Son";
+                  break;
+                case "Wife":
+                  person.Relation = "Brother-in-law";
+                  break;
+              }
+              break;
+            case "Sister":
+              switch (self.originalRelation) {
+                case "Son":
+                case "Daughter":
+                  person.Relation = "Aunt";
+                  break;
+                case "Brother":
+                case "Sister":
+                  person.Relation = "Sister";
+                  break;
+                case "Father":
+                case "Mother":
+                  person.Relation = "Daughter";
+                  break;
+                case "Wife":
+                  person.Relation = "Sister-in-law";
+                  break;
+              }
+              break;
+            case "Grandson":
+              switch (self.originalRelation) {
+                case ("Son", "Daughter"):
+                  person.Relation = "Nephew";
+                  break;
+                case "Brother":
+                case "Sister":
+                  person.Relation = "Grand-nephew";
+                  break;
+                case "Father":
+                case "Mother":
+                  person.Relation = "Great-grandson";
+                  break;
+                case "Wife":
+                  person.Relation = "Grandson";
+                  break;
+              }
+              break;
+            case "Granddaughter":
+              switch (self.originalRelation) {
+                case "Son":
+                case "Daughter":
+                  person.Relation = "Niece";
+                  break;
+                case "Brother":
+                case "Sister":
+                  person.Relation = "Grand-niece";
+                  break;
+                case "Father":
+                case "Mother":
+                  person.Relation = "Great-granddaughter";
+                  break;
+                case "Wife":
+                  person.Relation = "Granddaughter";
+                  break;
+              }
+              break;
+            default:
+              person.Relation = "";
+          }
+        }
+      }
+      if (!person.Relation) {
+        person.Relation = findRelation(person);
+      }
+    });
+  }
+  return data;
+}
+
+function findRelation(person) {
+  let relationWord;
+  ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
+    if (window.profilePerson[relation]) {
+      let relationSingular = relation.slice(0, -1);
+      if (relationSingular == "Childre") {
+        relationSingular = "Child";
+      }
+      let keys = Object.keys(window.profilePerson[relation]);
+      keys.forEach(function (key) {
+        let oNameVariants = [person.FirstName];
+        if (firstNameVariants[person.FirstName]) {
+          oNameVariants = firstNameVariants[person.FirstName];
+        }
+        if (isSameName(window.profilePerson[relation][key].FirstName, oNameVariants)) {
+          if (window.profilePerson[relation][key].Gender) {
+            let oGender = window.profilePerson[relation][key].Gender;
+            relationWord =
+              relationSingular == "Child"
+                ? oGender == "Male"
+                  ? "Son"
+                  : (oGender = "Female" ? "Daughter" : "Child")
+                : relationSingular == "Parent"
+                ? oGender == "Male"
+                  ? "Father"
+                  : (oGender = "Female" ? "Mother" : "Parent")
+                : relationSingular == "Sibling"
+                ? oGender == "Male"
+                  ? "Brother"
+                  : (oGender = "Female" ? "Sister" : "Sibling")
+                : relationSingular == "Spouse"
+                ? oGender == "Male"
+                  ? "Husband"
+                  : (oGender = "Female" ? "Wife" : "Spouse")
+                : relationSingular;
+          }
+        }
+      });
+    }
+  });
+  return relationWord;
+}
+
+/*
+
+function reAssignRelations(household) {
+  const self = household.some((person) => person.Relation === "Self");
+  if (self.originalRelation){
+    household.forEach(function(member){
+      member.originalRelation = member.Relation;
+      if (["Son","Daughter"].includes(self.originalRelation)){
+
+      member.Relation = member.originalRelation == "Head"? "Father" : 
+                relationSingular == "Child"
+                  ? oGender == "Male"
+                    ? "son"
+                    : (oGender = "Female" ? "daughter" : "child")
+                  : relationSingular == "Parent"
+                  ? oGender == "Male"
+                    ? "father"
+                    : (oGender = "Female" ? "mother" : "parent")
+                  : relationSingular == "Sibling"
+                  ? oGender == "Male"
+                    ? "brother"
+                    : (oGender = "Female" ? "sister" : "sibling")
+                  : relationSingular == "Spouse"
+                  ? oGender == "Male"
+                    ? "husband"
+                    : (oGender = "Female" ? "wife" : "spouse")
+                  : relationSingular;
+    })
+  }
+}
+
+/////////
+
+["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
+      if (window.profilePerson[relation]) {
+        let relationSingular = relation.slice(0, -1);
+        if (relationSingular == "Childre") {
+          relationSingular = "Child";
+        }
+        let keys = Object.keys(window.profilePerson[relation]);
+        keys.forEach(function (key) {
+          let oNameVariants = getNameVariants(window.profilePerson[relation][key]);
+          oNameVariants = [householdHeadFirstName];
+          if (firstNameVariants[householdHeadFirstName]) {
+            oNameVariants = firstNameVariants[householdHeadFirstName];
+          }
+          if (isSameName(window.profilePerson[relation][key].FirstName, oNameVariants)) {
+            if (window.profilePerson[relation][key].Gender) {
+              let oGender = window.profilePerson[relation][key].Gender;
+              var relationWord =
+                relationSingular == "Child"
+                  ? oGender == "Male"
+                    ? "son"
+                    : (oGender = "Female" ? "daughter" : "child")
+                  : relationSingular == "Parent"
+                  ? oGender == "Male"
+                    ? "father"
+                    : (oGender = "Female" ? "mother" : "parent")
+                  : relationSingular == "Sibling"
+                  ? oGender == "Male"
+                    ? "brother"
+                    : (oGender = "Female" ? "sister" : "sibling")
+                  : relationSingular == "Spouse"
+                  ? oGender == "Male"
+                    ? "husband"
+                    : (oGender = "Female" ? "wife" : "spouse")
+                  : relationSingular;
+            }
+            text = text.replace(
+              householdHeadMatch[1],
+              window.profilePerson.Pronouns.possessiveAdjective +
+                " " +
+                relationWord +
+                ", " +
+                window.profilePerson[relation][key].FirstName
+            );
+          }
+        });
+      }
+    });
+
+*/
 
 function getCensusesFromCensusSection() {
   if (window.sectionsObject?.Biography?.subsections?.Census) {
@@ -1155,32 +1496,45 @@ function getCensusesFromCensusSection() {
         ref["Event Type"] = "Census";
       }
       if (ref["Record Type"].includes("Census")) {
-        const ukCensusOnlineMatch = ref.Text.match(/\b(\d{4})\b.*ukcensusonline/);
+        const censusTypeMatch = ref.Text.match(/\b(\d{4})\b.*(ukcensusonline|findmypast|familysearch|ancestry)/);
         console.log(ref);
-        console.log(ukCensusOnlineMatch);
-        if (ukCensusOnlineMatch) {
+        console.log(censusTypeMatch);
+        if (censusTypeMatch) {
+          ref.CensusType = censusTypeMatch[2];
           let thisCensus = false;
           if (!ref.Household) {
             ref.Household = [];
           }
+          ref.ListText = [];
           censusSection.text.forEach(function (line) {
-            const yearMatch = line.match(ukCensusOnlineMatch[1]);
+            const yearMatch = line.match(censusTypeMatch[1]);
             const aYearMatch = line.match(/\b\d{4}\b/);
-            console.log(line);
-            console.log(yearMatch);
-            console.log(aYearMatch);
+            // console.log(line);
+            // console.log(yearMatch);
+            // console.log(aYearMatch);
             if (thisCensus) {
               if (aYearMatch) {
-                if (aYearMatch[0] != ukCensusOnlineMatch[1] && line.match(/\b\d{1,2}\b/) == null) {
+                // console.log(aYearMatch[0]);
+                // console.log(censusTypeMatch[1]);
+                // console.log(line.match(/^\:/));
+                // console.log(ref.CensusType);
+                if (aYearMatch[0] != censusTypeMatch[1] && line.match(/^\:/) == null) {
                   thisCensus = false;
-                  ref.Household.push(JSON.parse(JSON.stringify(newPerson)));
-                  newPerson = {};
+                  if (newPerson.Name) {
+                    ref.Household.push(newPerson);
+                    newPerson = {};
+                  }
                 }
               }
-              if (thisCensus && yearMatch?.[0] == "1939") {
+              if (thisCensus && ref.Year == 1939 && ref.CensusType == "findmypast") {
+                // ref.Text += "\n" + line;
+                if (line.match("findmypast") == null) {
+                  ref.ListText.push(line);
+                }
                 const lineBits = line.split("\t");
-                console.log(lineBits);
+                // console.log(lineBits);
                 lineBits.forEach(function (aBit, index) {
+                  aBit = aBit.replace(/^\:/, "").trim();
                   if (index == 0) {
                     newPerson["FirstName"] = aBit;
                   }
@@ -1204,7 +1558,82 @@ function getCensusesFromCensusSection() {
                     newPerson["Age"] = aBit;
                   }
                 });
-              } else if (thisCensus) {
+                if (newPerson.Name) {
+                  ref.Household.push(newPerson);
+                  newPerson = {};
+                }
+                newPerson = {};
+              } else if (thisCensus && ref.CensusType == "ukcensusonline") {
+                if (line.match("ukcensusonline") == null) {
+                  ref.ListText.push(line);
+                } // ref.Text += "\n" + line;
+                // Edith M 	Vamplew 	11 	1900 	Female 	Daughter 		0 	Felkirk, Yorkshire 	School
+                const lineBits = line.split("\t");
+                //console.log(lineBits);
+                lineBits.forEach(function (aBit, index) {
+                  aBit = aBit.replace(/^\:/, "").trim();
+                  if (index == 0) {
+                    newPerson["FirstName"] = aBit;
+                  }
+                  if (index == 1) {
+                    newPerson["LastName"] = aBit;
+                    newPerson.Name = newPerson.FirstName + " " + newPerson.LastName;
+                  }
+
+                  if (["1881", "1901"].includes(ref.Year)) {
+                    if (index == 2) {
+                      newPerson["Age"] = aBit;
+                    }
+                    if (index == 3) {
+                      newPerson["BirthDate"] = aBit;
+                    }
+                    if (index == 4) {
+                      newPerson["Relation"] = aBit;
+                    }
+                    if (index == 5) {
+                      newPerson["BirthLocation"] = aBit;
+                    }
+                    if (index == 6) {
+                      newPerson["Occupation"] = aBit;
+                    }
+                  } else {
+                    if (index == 2) {
+                      newPerson["Age"] = aBit;
+                    }
+                    if (index == 3) {
+                      newPerson["BirthDate"] = aBit;
+                    }
+                    if (index == 4) {
+                      newPerson["Gender"] = aBit;
+                    }
+                    if (index == 5) {
+                      newPerson["Relation"] = aBit;
+                    }
+                    if (index == 6) {
+                      newPerson["MaritalStatus"] = aBit;
+                    }
+                    if (index == 7) {
+                      newPerson["YearsMarried"] = aBit;
+                    }
+                    if (index == 8) {
+                      newPerson["BirthLocation"] = aBit;
+                    }
+                    if (index == 9) {
+                      newPerson["Occupation"] = aBit;
+                    }
+                  }
+                });
+                console.log(newPerson);
+                if (newPerson.Name) {
+                  ref.Household.push(newPerson);
+                  newPerson = {};
+                }
+                newPerson = {};
+              } else if (thisCensus && ref.CensusType == "findmypast") {
+                if (!ref.ListText.includes(line) && line.match("findmypast") == null) {
+                  ref.ListText.push(line);
+                }
+                //  ref.Text += "\n" + line;
                 // Edith M 	Vamplew 	11 	1900 	Female 	Daughter 		0 	Felkirk, Yorkshire 	School
                 const lineBits = line.split("\t");
                 console.log(lineBits);
@@ -1218,27 +1647,33 @@ function getCensusesFromCensusSection() {
                     newPerson.Name = newPerson.FirstName + " " + newPerson.LastName;
                   }
                   if (index == 2) {
-                    newPerson["Age"] = aBit;
+                    newPerson["Relation"] = aBit;
                   }
                   if (index == 3) {
-                    newPerson["BirthDate"] = aBit;
+                    newPerson["MaritalStatus"] = aBit;
                   }
                   if (index == 4) {
                     newPerson.Gender = aBit;
                   }
                   if (index == 5) {
-                    newPerson["Relation"] = aBit;
+                    newPerson["Age"] = aBit;
                   }
                   if (index == 6) {
-                    newPerson["MaritalStatus"] = aBit;
+                    newPerson["BirthDate"] = aBit;
                   }
                   if (index == 7) {
-                    newPerson["BirthLocation"] = aBit;
-                  }
-                  if (index == 8) {
                     newPerson["Occupation"] = aBit;
                   }
+                  if (index == 8) {
+                    newPerson["BirthLocation"] = aBit;
+                  }
                 });
+                console.log(newPerson);
+                if (newPerson.Name) {
+                  ref.Household.push(newPerson);
+                  newPerson = {};
+                }
+                newPerson = {};
               }
               //CONTINUE FROM HERE
             }
@@ -1249,8 +1684,9 @@ function getCensusesFromCensusSection() {
           });
           if (newPerson.Name) {
             ref.Household.push(newPerson);
-            ref = assignSelf(ref);
           }
+          ref = assignSelf(ref);
+          console.log(ref);
         }
       }
     });
@@ -1260,8 +1696,8 @@ function getCensusesFromCensusSection() {
 function buildCensusNarratives() {
   const yearRegex = /\b(\d{4})\b/;
   // ENABLE THIS TO GET CENSUS FROM CENSUS SECTION
-  // test: Vamplew-7
-  // getCensusesFromCensusSection();
+  // test: Vamplew-7: Problem: Getting his son instead of him
+  getCensusesFromCensusSection();
   window.references.forEach(function (reference) {
     let text = "";
     if (reference.Text.match(/census|1939( England and Wales)? Register/i)) {
@@ -1802,27 +2238,47 @@ function parseWikiTable(text) {
 }
 
 function assignSelf(data) {
+  function findSelf(data, hasSelf, checkAge = true) {
+    let isWithinRange = 5;
+    if (checkAge == false) {
+      isWithinRange = 100;
+    }
+    let strength = 0.9;
+    while (!hasSelf && strength > 0) {
+      for (const member of data.Household) {
+        console.log(isSameName(member.Name, window.profilePerson.NameVariants, strength));
+        console.log(getAgeAtCensus(window.profilePerson, data["Year"]));
+        console.log(isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), member.Age, 5));
+        if (
+          isSameName(member.Name, window.profilePerson.NameVariants, strength) &&
+          isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), member.Age, isWithinRange)
+        ) {
+          member.originalRelation = member.Relation;
+          member.Relation = "Self";
+          hasSelf = true;
+          console.log(member, strength);
+          if (member.Occupation) {
+            data.Occupation = member.Occupation;
+          }
+        }
+      }
+      strength -= 0.1;
+    }
+    return data;
+  }
   if (data.Household) {
     let hasSelf = data.Household.some((person) => person.Relation === "Self");
     if (!hasSelf) {
-      let strength = 0.9;
-      while (!hasSelf && strength > 0) {
-        for (const member of data.Household) {
-          if (
-            isSameName(member.Name, window.profilePerson.NameVariants, strength) &&
-            isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), member.Age, 5)
-          ) {
-            member.Relation = "Self";
-            hasSelf = true;
-            console.log(member, strength);
-            if (member.Occupation) {
-              data.Occupation = member.Occupation;
-            }
-          }
-        }
-        strength -= 0.1;
-      }
+      data = findSelf(data, hasSelf);
     }
+    hasSelf = data.Household.some((person) => person.Relation === "Self");
+    console.log(hasSelf);
+    if (!hasSelf) {
+      data = findSelf(data, hasSelf, false);
+    }
+  }
+  if (data.Household) {
+    data.Household = updateRelations(data.Household);
   }
   return data;
 }
@@ -1862,6 +2318,7 @@ function getSimilarity(string1, string2) {
 
 function isSameName(name, nameVariants, strength = 0.9) {
   let sameName = false;
+  //console.log(name, nameVariants, strength);
   nameVariants.forEach(function (nv) {
     if (getSimilarity(nv.toLowerCase(), name.toLowerCase()) > strength) {
       sameName = true;
@@ -2268,6 +2725,33 @@ function getSourcerCensuses() {
   while ((match = regex.exec(text)) !== null) {
     censuses.push({ "Census Year": match[1], Text: match[0] });
   }
+
+  // CONTINUE FROM HERE
+  // Vamplew-18
+  if (window.sectionsObject?.Biography?.subsections?.Census) {
+    let aCensus = { "Census Year": "", Text: "" };
+    let tableStarted = false;
+    window.sectionsObject.Biography.subsections.Census.text.forEach(function (line) {
+      if (line.match(/^;(\d{4})/)) {
+        if (aCensus["Census Year"]) {
+          censuses.push(aCensus);
+          aCensus = { "Census Year": "", Text: "" };
+          tableStarted = false;
+        }
+        aCensus["Census Year"] = line.match(/^;(\d{4})/)[1];
+      } else if (line.match(/^\{\|/)) {
+        tableStarted = true;
+        aCensus.Text += line + "\n";
+      } else if (tableStarted) {
+        if (line.match(/^\|\}/)) {
+          tableStarted = false;
+        } else {
+          aCensus.Text += line + "\n";
+        }
+      }
+    });
+  }
+
   censuses.forEach(function (census) {
     console.log("Census", census);
     let text = census.Text;
@@ -2832,8 +3316,13 @@ export async function generateBio() {
         text += minimalPlace2(narrativeBits);
 
         // Add the reference
+        let listText = "";
+        if (Array.isArray(anEvent.ListText)) {
+          listText = "\n" + anEvent.ListText.join("\n");
+        }
+
         let refNameBit = anEvent.RefName ? " name='" + anEvent.RefName + "'" : " name='ref_" + i + "'";
-        text += " <ref" + refNameBit + ">" + anEvent.Text + "</ref>";
+        text += " <ref" + refNameBit + ">" + anEvent.Text + listText + "</ref>";
         text += "\n\n";
         anEvent.Used = true;
         anEvent.RefName = anEvent.RefName ? anEvent.RefName : "ref_" + i;
