@@ -178,15 +178,15 @@ export function buildTimelineTable(bioTimeline) {
           }
         }
         let isRightMarriage = false;
-        //if (aRef["Event Type"]) {
+
         if (
           aRef["Record Type"].includes("Marriage") &&
           aEvent["Event Type"].match("Marriage") &&
-          aEvent.Year == aRef.Year
+          (aEvent.Year == aRef.Year || aEvent.OrderDate.substring(0, 4) == aRef.Year)
         ) {
           isRightMarriage = true;
         }
-        //}
+
         if (
           ((aEvent["Event Type"] == aRef["Event Type"] || aRef["Record Type"].includes(aEvent["Event Type"])) &&
             eventType != "Census") ||
