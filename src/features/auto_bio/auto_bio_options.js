@@ -92,6 +92,22 @@ const autoBio = {
       defaultValue: "none",
     },
     {
+      id: "diedWord",
+      type: OptionType.RADIO,
+      label: "'Died' or 'passed away'",
+      values: [
+        {
+          value: "died",
+          text: "died",
+        },
+        {
+          value: "passed away",
+          text: "passed away",
+        },
+      ],
+      defaultValue: "died",
+    },
+    {
       id: "spouseDetailsGroup",
       type: OptionType.GROUP,
       label: "Spouse",
