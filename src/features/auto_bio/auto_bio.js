@@ -2,6 +2,7 @@ import $ from "jquery";
 //import "./my_feature.css";
 import { getPeople } from "../dna_table/dna_table";
 import { PersonName } from "./person_name.js";
+import { countries } from "./countries.js";
 import { firstNameVariants } from "./first_name_variants.js";
 import { isOK, htmlEntities, isEditPage } from "../../core/common";
 import { getAge } from "../change_family_lists/change_family_lists";
@@ -10,7 +11,7 @@ import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/opt
 import { theSourceRules } from "../bioCheck/SourceRules.js";
 import { PersonDate } from "../bioCheck/PersonDate.js";
 import { Biography } from "../bioCheck/Biography.js";
-import { ageAtDeath } from "../my_connections/my_connections";
+import { ageAtDeath, USstatesObjArray } from "../my_connections/my_connections";
 import { bioTimelineFacts, personRelation, buildTimelineTable, buildTimelineSA } from "./timeline";
 
 function autoBioCheck(sourcesStr) {
@@ -61,6 +62,144 @@ function getFormData() {
   return formData;
 }
 
+function isSameDateOrAfter(dateStr1, dateStr2) {
+  const date1 = new Date(dateStr1);
+  const date2 = new Date(dateStr2);
+  return date1 >= date2;
+}
+
+function fixUSLocation(event) {
+  let locationBits = event.Location.split(",");
+  locationBits = locationBits.map((str) => str.trim());
+  const lastLocationBit = locationBits[locationBits.length - 1];
+  if (locationBits.length == 1) {
+    if (["US", "USA", "United States of America", "United States", "U.S.A."].includes(lastLocationBit)) {
+      if (window.autoBioOptions.changeUS) {
+        event.Location = "United States";
+      }
+    }
+  } else {
+    USstatesObjArray.forEach(function (state) {
+      if (state.abbreviation == lastLocationBit) {
+        event.Location = locationBits.slice(0, locationBits.length - 1).join(", ") + ", " + state.name;
+        if (isSameDateOrAfter(event.Date, state.admissionDate)) {
+          event.Location += ", " + "United States";
+        }
+      } else if (["US", "USA", "United States of America", "United States", "U.S.A."].includes(lastLocationBit)) {
+        const theState = locationBits[locationBits.length - 2];
+        if (state.abbreviation == theState || state.name == theState) {
+          if (window.autoBioOptions.expandStates) {
+            event.Location = locationBits.slice(0, locationBits.length - 2).join(", ") + ", " + state.name;
+          } else {
+            event.Location = locationBits.slice(0, locationBits.length - 2).join(", ") + ", " + theState;
+          }
+          if (isSameDateOrAfter(event.Date, state.admissionDate)) {
+            if (window.autoBioOptions.changeUS) {
+              event.Location += ", " + "United States";
+            } else {
+              event.Location += ", " + lastLocationBit;
+            }
+          }
+        }
+      }
+    });
+  }
+  return event;
+}
+
+function fixLocations() {
+  if (!window.autoBioNotes) {
+    window.autoBioNotes = [];
+  }
+  const birth = {
+    Date: document.getElementById("mBirthDate").value,
+    Location: document.getElementById("mBirthLocation").value,
+    ID: "mBirthLocation",
+    Event: "birth",
+  };
+  const death = {
+    Date: document.getElementById("mDeathDate").value,
+    Location: document.getElementById("mDeathLocation").value,
+    ID: "mDeathLocation",
+    Event: "death",
+  };
+  [birth, death].forEach(function (event) {
+    let locationBits = event.Location.split(",");
+    locationBits = locationBits.map((str) => str.trim());
+    const lastLocationBit = locationBits[locationBits.length - 1];
+    if (window.autoBioOptions.checkUS) {
+      event = fixUSLocation(event);
+    }
+
+    if (window.autoBioOptions.checkUK) {
+      if (["England", "Scotland", "Wales"].includes(lastLocationBit) && isSameDateOrAfter(event.Date, "1801-01-01")) {
+        event.Location += ", United Kingdom";
+      } else if (["United Kingdom", "UK"].includes(lastLocationBit) && !isSameDateOrAfter(event.Date, "1801-01-01")) {
+        event.Location = locationBits.slice(0, locationBits.length - 1).join(", ");
+      } else if (lastLocationBit == "UK" && isSameDateOrAfter(event.Date, "1801-01-01")) {
+        event.Location = locationBits.slice(0, locationBits.length - 1).join(", ") + ", United Kingdom";
+      }
+    }
+    if (
+      !["United States", "United Kingdom"].includes(lastLocationBit) &&
+      (window.autoBioOptions.checkOtherCountries || window.autoBioOptions.nativeNames)
+    ) {
+      countries.forEach(function (country) {
+        if (country.name == lastLocationBit) {
+          let aNote;
+          if (window.autoBioOptions.nativeNames) {
+            if (country.name != country.nativeName) {
+              if (locationBits.length == 1) {
+                event.Location = country.nativeName;
+              } else {
+                event.Location = locationBits.slice(0, locationBits.length - 1).join(", ") + ", " + country.nativeName;
+              }
+            }
+          } else {
+            if (country.name != country.nativeName) {
+              aNote =
+                "The native name for the country of " +
+                event.Event +
+                ", " +
+                country.name +
+                ", is " +
+                country.nativeName +
+                ".";
+              window.sectionsObject["Research Notes"].text.push(aNote);
+            }
+          }
+          if (!isSameDateOrAfter(event.Date, country.admissionDate)) {
+            aNote =
+              "The country of " +
+              event.Event +
+              ", " +
+              country.name +
+              ", was not yet a country (in its present form) at the time of " +
+              window.profilePerson.PersonName.FirstName +
+              "'s " +
+              event.Event +
+              ".";
+            window.sectionsObject["Research Notes"].text.push(aNote);
+          }
+        }
+      });
+    }
+    event.Location = event.Location.replace(/^, /g, "");
+    if (document.getElementById(event.ID).value != event.Location) {
+      const changeNote =
+        "Changed " +
+        event.Event +
+        " location from '" +
+        document.getElementById(event.ID).value +
+        "' to '" +
+        event.Location +
+        "'.";
+      window.autoBioNotes.push(changeNote);
+    }
+    document.getElementById(event.ID).value = event.Location;
+  });
+}
+
 function convertDate(dateString, outputFormat, status = "") {
   // Split the input date string into components
   var components = dateString.split(/[\s,-]+/);
@@ -90,6 +229,9 @@ function convertDate(dateString, outputFormat, status = "") {
     // Long month and year format with no day (e.g. "July 2023")
     inputFormat = "MDY";
     components.splice(1, 0, "01");
+  } else if (components.length == 3 && /^\d{2}$/.test(components[1]) && /^\d{2}$/.test(components[2])) {
+    // ISO format with no day (e.g. "2023-07-23")
+    inputFormat = "ISO";
   } else {
     // Invalid input format
     return null;
@@ -113,6 +255,10 @@ function convertDate(dateString, outputFormat, status = "") {
     year = parseInt(components[2]);
     month = convertMonth(components[1]);
     day = parseInt(components[0]);
+  } else if (inputFormat == "ISO") {
+    year = parseInt(components[0]);
+    month = parseInt(components[1]);
+    day = parseInt(components[2]);
   }
 
   // Convert the date components to the output format
@@ -122,14 +268,14 @@ function convertDate(dateString, outputFormat, status = "") {
   } else if (outputFormat == "MY") {
     outputDate = convertMonth(month) + " " + year.toString();
   } else if (outputFormat == "MDY") {
-    outputDate = convertMonth(month) + " " + padNumberStart(day) + ", " + year.toString();
+    outputDate = convertMonth(month, "long") + " " + padNumberStart(day) + ", " + year.toString();
   } else if (outputFormat == "DMY") {
-    outputDate = padNumberStart(day) + " " + convertMonth(month) + " " + year.toString();
+    outputDate = padNumberStart(day) + " " + convertMonth(month, "long") + " " + year.toString();
   } else if (outputFormat == "sMDY") {
     outputDate = convertMonth(month).slice(3) + " " + padNumberStart(day) + ", " + year.toString();
   } else if (outputFormat == "DsMY") {
     outputDate = padNumberStart(day) + " " + convertMonth(month).slice(3) + " " + year.toString();
-  } else if (outputFormat == "YMD") {
+  } else if (outputFormat == "YMD" || outputFormat == "ISO") {
     outputDate = year.toString() + "-" + padNumberStart(month) + "-" + padNumberStart(day);
   } else {
     // Invalid output format
@@ -155,7 +301,7 @@ function convertDate(dateString, outputFormat, status = "") {
   return outputDate;
 }
 
-function convertMonth(monthString) {
+function convertMonth(monthString, outputFormat = "short") {
   // Convert a month string to a numeric month value
   var shortNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
   var longNames = [
@@ -172,143 +318,28 @@ function convertMonth(monthString) {
     "november",
     "december",
   ];
-  var index = shortNames.indexOf(monthString.toLowerCase());
-  if (index == -1) {
-    index = longNames.indexOf(monthString.toLowerCase());
+  let index;
+  console.log(monthString);
+  if (!isNaN(monthString)) {
+    index = monthString - 1;
+    let month = shortNames[index];
+    if (outputFormat == "long") {
+      month = longNames[index];
+    }
+    return capitalizeFirstLetter(month);
+  } else {
+    index = shortNames.indexOf(monthString.toLowerCase());
+    if (index == -1) {
+      index = longNames.indexOf(monthString.toLowerCase());
+    }
+    return index + 1;
   }
-  return index + 1;
 }
 
 function padNumberStart(number) {
   // Add leading zeros to a single-digit number
   return (number < 10 ? "0" : "") + number.toString();
 }
-
-/*
-// Parses the input date string and determines the format
-function parseDate(dateString) {
-  var components = dateString.split(/[\s,-]+/);
-
-  if (components.length == 1 && /^\d{4}$/.test(components[0])) {
-    return { format: "Y", year: parseInt(components[0]), month: 1, day: 1 };
-  } else if (components.length == 2 && /^[A-Za-z]+$/.test(components[0])) {
-    var month = convertMonth(components[0]);
-    var year = parseInt(components[1]);
-    return { format: components[0].length == 3 ? "MY" : "MDY", year: year, month: month, day: 1 };
-  } else if (components.length == 3 && /^[A-Za-z]+$/.test(components[1])) {
-    var month = convertMonth(components[1]);
-    var day = parseInt(components[0]);
-    var year = parseInt(components[2]);
-    return { format: components[1].length == 3 ? "DMY" : "MDY", year: year, month: month, day: day };
-  } else if (components.length == 2 && /^\d{4}$/.test(components[1])) {
-    var month = convertMonth(components[0]);
-    var year = parseInt(components[1]);
-    return { format: "MY", year: year, month: month, day: 1 };
-  } else {
-    return null;
-  }
-}
-
-// Converts the month component of a date string to a number (1-12)
-function convertMonth(monthString) {
-  var shortMonthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
-  var longMonthNames = [
-    "january",
-    "february",
-    "march",
-    "april",
-    "may",
-    "june",
-    "july",
-    "august",
-    "september",
-    "october",
-    "november",
-    "december",
-  ];
-
-  var monthIndex = shortMonthNames.indexOf(monthString.toLowerCase());
-  if (monthIndex == -1) {
-    monthIndex = longMonthNames.indexOf(monthString.toLowerCase());
-  }
-  if (monthIndex == -1) {
-    return null;
-  }
-  return monthIndex + 1;
-}
-
-// Formats a month number (1-12) as a month string (either short or long)
-function formatMonth(month, useLongName, capitalize) {
-  var monthNames = useLongName
-    ? [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-      ]
-    : ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-  var monthName = monthNames[month - 1];
-  if (capitalize) {
-    monthName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-  }
-  return monthName;
-}
-
-// Pads a number with a leading zero if necessary (for example, 5 -> "05")
-function padNumberStart(number) {
-  return number < 10 ? "0" + number.toString() : number.toString();
-}
-
-// Converts a date string to the specified output format
-function convertDate(dateString, outputFormat) {
-  var dateObj = parseDate(dateString);
-  if (!dateObj) {
-    return null;
-  }
-
-  var year = dateObj.year;
-  var month = dateObj.month;
-  var day = dateObj.day;
-  var outputDate;
-
-  switch (outputFormat) {
-    case "Y":
-      outputDate = year.toString();
-      break;
-    case "MY":
-      outputDate = formatMonth(month, outputFormat == "FullMonth", true) + " " + year.toString();
-      break;
-    case "MDY":
-      outputDate =
-        formatMonth(month, outputFormat == "FullMonth", true) + " " + padNumberStart(day) + ", " + year.toString();
-      break;
-    case "DMY":
-      outputDate =
-        padNumberStart(day) + " " + formatMonth(month, outputFormat == "FullMonth", true) + " " + year.toString();
-      break;
-    case "FullMonth DD, YYYY":
-      outputDate = formatMonth(month, true, true) + " " + padNumberStart(day) + ", " + year.toString();
-      break;
-    case "DD FullMonth YYYY":
-      outputDate =
-        padNumberStart(day) + " " + formatMonth(month, outputFormat == "FullMonth", true) + " " + year.toString();
-      break;
-    default:
-      return null;
-  }
-
-  return outputDate;
-}
-*/
 
 // Function to use the appropriate pronouns and possessive adjectives
 function getPronouns(person) {
@@ -454,6 +485,37 @@ function nameLink(person) {
   return "[[" + person.Name + "|" + (theName || person.FullName) + "]]";
 }
 
+function personDates(person) {
+  let theDates = formatDates(person);
+  if (window.autoBioOptions.longDates) {
+    let birthDate = person.BirthDate;
+    if (!isOK(person.BirthDate)) {
+      birthDate = person.BirthDecade;
+    }
+    let deathDate = person.DeathDate;
+    if (!isOK(person.DeathDate)) {
+      deathDate = person.DeathDecade;
+    }
+
+    theDates =
+      "(" +
+      (!isOK(person.BirthDate) ? birthDate || "" : convertDate(birthDate, window.autoBioOptions.dateFormat)) +
+      " – " +
+      (!isOK(person.DeathDate) ? deathDate || "" : convertDate(deathDate, window.autoBioOptions.dateFormat)) +
+      ")";
+    if (window.autoBioOptions.notDeathDate) {
+      if (birthDate) {
+        if (!isOK(person.BirthDate)) {
+          theDates = "(born " + birthDate + ")";
+        } else {
+          theDates = "(born " + convertDate(person.BirthDate, window.autoBioOptions.dateFormat) + ")";
+        }
+      }
+    }
+  }
+  return theDates;
+}
+
 function childList(person, spouse) {
   let text = "";
   let ourChildren = [];
@@ -503,7 +565,24 @@ function childList(person, spouse) {
 
   if (ourChildren.length == 1) {
     if (ourChildren[0].Father == spouse.Id || ourChildren[0].Mother == spouse.Id) {
-      childListText += nameLink(ourChildren[0]) + " " + formatDates(ourChildren[0]) + ".\n";
+      /*
+      let theDates = formatDates(ourChildren[0]);
+      if (window.autoBioOptions.longDates) {
+        console.log(ourChildren[0].BirthDate);
+        console.log(window.autoBioOptions.dateFormat);
+        theDates =
+          "(" +
+          convertDate(ourChildren[0].BirthDate, window.autoBioOptions.dateFormat) +
+          " – " +
+          convertDate(ourChildren[0].DeathDate, window.autoBioOptions.dateFormat) +
+          ")";
+        if (window.autoBioOptions.notDeathDate) {
+          theDates = "(born " + convertDate(ourChildren[0].BirthDate, window.autoBioOptions.dateFormat) + ")";
+        }
+      }
+      */
+      const theDates = personDates(ourChildren[0]);
+      childListText += nameLink(ourChildren[0]) + " " + theDates + ".\n";
     } else {
       text = "";
     }
@@ -570,7 +649,7 @@ function siblingList() {
         ", " +
         nameLink(siblings[0]) +
         " " +
-        formatDates(siblings[0]) +
+        personDates(siblings[0]) +
         ".\n";
     } else if (siblings.length > 1) {
       text += capitalizeFirstLetter(window.profilePerson.Pronouns.possessiveAdjective) + " siblings were:\n";
@@ -581,7 +660,7 @@ function siblingList() {
         } else {
           text += "#";
         }
-        text += nameLink(sibling) + " " + formatDates(sibling) + "\n";
+        text += nameLink(sibling) + " " + personDates(sibling) + "\n";
       });
     }
   }
@@ -1381,50 +1460,61 @@ function findRelation(person) {
 }
 
 function getCensusesFromCensusSection() {
+  let censusSection;
   if (window.sectionsObject?.Biography?.subsections?.Census) {
-    const censusSection = window.sectionsObject.Biography.subsections.Census;
-    let newPerson = {};
-    window.references.forEach(function (ref) {
-      if (ref.Text.match(/census|1939( England and Wales)? Register/i)) {
-        ref["Record Type"] = "Census";
-        ref["Event Type"] = "Census";
-        if (!ref["Residence"]) {
-          const residenceMatch = ref.Text.match(/in\s([A-Z].*?)(\sin\s)([A-Z].*?)(\s[a-z])/);
-          if (residenceMatch) {
-            ref["Residence"] = residenceMatch[1];
-            if (residenceMatch[3]) {
-              ref["Residence"] += ", " + residenceMatch[3];
-            }
-          } else {
-            const residenceMatch2 = ref.Text.match(/,\sat\s([A-Z].*?)R.D./);
-            if (residenceMatch2) {
-              ref["Residence"] = residenceMatch2[1];
-            }
+    censusSection = window.sectionsObject.Biography.subsections.Census;
+  } else if (window.sectionsObject?.Census) {
+    censusSection = window.sectionsObject.Census;
+  } else {
+    return;
+  }
+  let newPerson = {};
+  console.log(1);
+  window.references.forEach(function (ref) {
+    if (ref.Text.match(/census|1939( England and Wales)? Register/i)) {
+      ref["Record Type"] = "Census";
+      ref["Event Type"] = "Census";
+      if (!ref["Residence"]) {
+        const residenceMatch = ref.Text.match(/in\s([A-Z].*?)(\sin\s)([A-Z].*?)(\s[a-z])/);
+        if (residenceMatch) {
+          ref["Residence"] = residenceMatch[1];
+          if (residenceMatch[3]) {
+            ref["Residence"] += ", " + residenceMatch[3];
+          }
+        } else {
+          const residenceMatch2 = ref.Text.match(/,\sat\s([A-Z].*?)R.D./);
+          if (residenceMatch2) {
+            ref["Residence"] = residenceMatch2[1];
           }
         }
       }
-      if (ref["Record Type"].includes("Census")) {
-        const censusTypeMatch = ref.Text.match(/\b(\d{4})\b.*(ukcensusonline|findmypast|familysearch|ancestry)/);
-        if (censusTypeMatch) {
-          ref.CensusType = censusTypeMatch[2];
-          let thisCensus = false;
-          if (!ref.Household) {
-            ref.Household = [];
-          }
-          ref.ListText = [];
-          censusSection.text.forEach(function (line) {
-            const yearMatch = line.match(censusTypeMatch[1]);
-            const aYearMatch = line.match(/\b\d{4}\b/);
-            if (thisCensus) {
-              if (aYearMatch) {
-                if (aYearMatch[0] != censusTypeMatch[1] && line.match(/^\:/) == null) {
-                  thisCensus = false;
-                  if (newPerson.Name) {
-                    ref.Household.push(newPerson);
-                    newPerson = {};
-                  }
+    }
+    if (ref["Record Type"].includes("Census") || ref["Event Type"] == "Census") {
+      console.log(2);
+      const censusTypeMatch = ref.Text.match(/\b(\d{4})\b.*(ukcensusonline|findmypast|familysearch|ancestry|freecen)/s);
+      console.log(censusTypeMatch);
+      if (censusTypeMatch) {
+        ref.CensusType = censusTypeMatch[2];
+        let thisCensus = false;
+        if (!ref.Household) {
+          ref.Household = [];
+        }
+        ref.ListText = [];
+        console.log(3);
+        censusSection.text.forEach(function (line) {
+          const yearMatch = line.match(censusTypeMatch[1]);
+          const aYearMatch = line.match(/\b1[789]\d{2}\b/);
+          if (thisCensus) {
+            if (aYearMatch) {
+              if (aYearMatch[0] != censusTypeMatch[1] && line.match(/^\:/) == null) {
+                thisCensus = false;
+                if (newPerson.Name) {
+                  ref.Household.push(newPerson);
+                  newPerson = {};
                 }
               }
+            }
+            if (line.match(/^\:/)) {
               if (thisCensus && ref.Year == 1939 && ref.CensusType == "findmypast") {
                 if (line.match("findmypast") == null) {
                   ref.ListText.push(line);
@@ -1527,35 +1617,123 @@ function getCensusesFromCensusSection() {
                 if (!ref.ListText.includes(line) && line.match("findmypast") == null) {
                   ref.ListText.push(line);
                 }
-                const lineBits = line.split("\t");
+                if (line.match(/\s{4}/)) {
+                  //                 : George Fisher    Head    Married    M    38    Coal Miner    Longton, Staffordshire, England
+                  const lineBits = line.split(/\s{4}/);
+                  console.log(lineBits);
+                  lineBits.forEach(function (aBit, index) {
+                    aBit = aBit.replace(/^\:/, "").trim();
+                    if (index == 0) {
+                      let nameBits = aBit.split(" ");
+                      newPerson["FirstName"] = nameBits[0];
+                      newPerson["LastName"] = nameBits[nameBits.length - 1];
+                      newPerson.Name = aBit;
+                    }
+                    if (index == 1) {
+                      newPerson["Relation"] = aBit;
+                    }
+                    if (index == 2) {
+                      newPerson["MaritalStatus"] = aBit;
+                    }
+                    if (index == 3) {
+                      if (aBit == "M") {
+                        newPerson.Gender = "Male";
+                      } else if (aBit == "F") {
+                        newPerson.Gender = "Female";
+                      } else {
+                        newPerson.Gender = "";
+                      }
+                    }
+                    if (index == 4) {
+                      newPerson["Age"] = aBit;
+                    }
+                    if (index == 5) {
+                      newPerson["Occupation"] = aBit;
+                    }
+                    if (index == 6) {
+                      newPerson["BirthLocation"] = aBit;
+                    }
+                  });
+                } else {
+                  const lineBits = line.split(/\t/);
+                  console.log(lineBits);
+                  lineBits.forEach(function (aBit, index) {
+                    aBit = aBit.replace(/^\:/, "").trim();
+                    if (index == 0) {
+                      newPerson["FirstName"] = aBit;
+                    }
+                    if (index == 1) {
+                      newPerson["LastName"] = aBit;
+                      newPerson.Name = newPerson.FirstName + " " + newPerson.LastName;
+                    }
+                    if (index == 2) {
+                      newPerson["Relation"] = aBit;
+                    }
+                    if (index == 3) {
+                      newPerson["MaritalStatus"] = aBit;
+                    }
+                    if (index == 4) {
+                      newPerson.Gender = aBit;
+                    }
+                    if (index == 5) {
+                      newPerson["Age"] = aBit;
+                    }
+                    if (index == 6) {
+                      newPerson["BirthDate"] = aBit;
+                    }
+                    if (index == 7) {
+                      newPerson["Occupation"] = aBit;
+                    }
+                    if (index == 8) {
+                      newPerson["BirthLocation"] = aBit;
+                    }
+                  });
+                }
+
+                if (newPerson.Name) {
+                  ref.Household.push(newPerson);
+                  newPerson = {};
+                }
+                newPerson = {};
+              } else if (thisCensus && ref.CensusType == "freecen") {
+                console.log("freecen");
+                console.log(line);
+                console.log(ref.ListText);
+                //- Fisher Head Married M 48 Coal Miner (employee) Langton, Staffordshire
+                if (!ref.ListText.includes(line) && line.match("freecen") == null) {
+                  ref.ListText.push(line);
+                }
+                const lineBits = line.split(/\t|\s{4}/);
                 lineBits.forEach(function (aBit, index) {
                   aBit = aBit.replace(/^\:/, "").trim();
                   if (index == 0) {
-                    newPerson["FirstName"] = aBit;
+                    let nameBits = aBit.split(" ");
+                    newPerson["FirstName"] = nameBits[0];
+                    newPerson["LastName"] = nameBits[nameBits.length - 1];
+                    newPerson.Name = aBit;
                   }
                   if (index == 1) {
-                    newPerson["LastName"] = aBit;
-                    newPerson.Name = newPerson.FirstName + " " + newPerson.LastName;
-                  }
-                  if (index == 2) {
                     newPerson["Relation"] = aBit;
                   }
-                  if (index == 3) {
+                  if (index == 2) {
                     newPerson["MaritalStatus"] = aBit;
                   }
-                  if (index == 4) {
-                    newPerson.Gender = aBit;
+                  if (index == 3) {
+                    if (aBit == "M") {
+                      newPerson.Gender = "Male";
+                    } else if (aBit == "F") {
+                      newPerson.Gender = "Female";
+                    } else {
+                      newPerson.Gender = "";
+                    }
                   }
-                  if (index == 5) {
+                  if (index == 4) {
                     newPerson["Age"] = aBit;
                   }
-                  if (index == 6) {
-                    newPerson["BirthDate"] = aBit;
-                  }
-                  if (index == 7) {
+                  if (index == 5) {
                     newPerson["Occupation"] = aBit;
                   }
-                  if (index == 8) {
+                  if (index == 6) {
                     newPerson["BirthLocation"] = aBit;
                   }
                 });
@@ -1566,18 +1744,18 @@ function getCensusesFromCensusSection() {
                 newPerson = {};
               }
             }
-            if (yearMatch) {
-              thisCensus = true;
-            }
-          });
-          if (newPerson.Name) {
-            ref.Household.push(newPerson);
           }
-          ref = assignSelf(ref);
+          if (yearMatch) {
+            thisCensus = true;
+          }
+        });
+        if (newPerson.Name) {
+          ref.Household.push(newPerson);
         }
+        ref = assignSelf(ref);
       }
-    });
-  }
+    }
+  });
 }
 
 function addAges() {
@@ -1748,9 +1926,9 @@ function buildCensusNarratives() {
         text +=
           "In " +
           reference["Census Year"] +
-          (ageAtCensus != false ? " (age " + ageAtCensus + ")" : "") +
           ", " +
-          window.profilePerson.PersonName.FirstName;
+          window.profilePerson.PersonName.FirstName +
+          (ageAtCensus != false ? " (" + ageAtCensus + ")" : "");
         let occupation = reference.Occupation ? reference.Occupation.toLowerCase() : "";
         if (!occupation) {
           let selfObj = reference.Household.find((obj) => obj.Relation === "Self");
@@ -2140,13 +2318,19 @@ function parseWikiTable(text) {
 
 function assignSelf(data) {
   function findSelf(data, hasSelf, checkAge = true) {
-    let isWithinRange = 5;
+    let isWithinRange = 10;
     if (checkAge == false) {
       isWithinRange = 100;
     }
     let strength = 0.9;
     while (!hasSelf && strength > 0) {
       for (const member of data.Household) {
+        console.log(member.Name);
+        console.log(member.Age);
+        console.log(isSameName(member.Name, window.profilePerson.NameVariants, strength));
+        console.log(getAgeAtCensus(window.profilePerson, data["Year"]));
+        console.log(isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), member.Age, isWithinRange));
+        console.log("----------------");
         if (
           isSameName(member.Name, window.profilePerson.NameVariants, strength) &&
           isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), member.Age, isWithinRange)
@@ -2912,6 +3096,9 @@ function splitBioIntoSections() {
         originalTitle: originalTitle,
       };
       currentSection = sections[newSectionTitle];
+      if (currentSection.title == "Research Notes") {
+        currentSection.subsections["NeedsProfiles"] = [];
+      }
       currentSubsection = null;
     } else if (subsectionMatch) {
       let newSubsectionTitle = subsectionMatch[1].trim();
@@ -2927,6 +3114,7 @@ function splitBioIntoSections() {
         subsections: {},
         originalTitle: originalTitle,
       };
+
       currentSubsection = currentSection.subsections[newSubsectionTitle];
     } else {
       if (currentSubsection && line) {
@@ -3037,6 +3225,8 @@ export async function generateBio() {
   }
   console.log("biographySpouseParents", window.biographySpouseParents);
 
+  const originalFormData = getFormData();
+  fixLocations();
   // Get the form data and add it to the profilePerson
   const formData = getFormData();
   console.log("formData", formData);
@@ -3286,14 +3476,17 @@ export async function generateBio() {
     for (let i = 0; i < types.length; i++) {
       const location = await getLocationCategory(types[i]);
       if (location) {
-        const theCategory = "[[Category: " + location + "]]";
+        const theCategory = "[[Category:" + location + "]]";
         if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(theCategory)) {
           window.sectionsObject["StuffBeforeTheBio"].text.push(theCategory);
         }
       }
     }
   }
-  await getLocationCategories();
+  if (window.autoBioOptions.locationCategories == true) {
+    await getLocationCategories();
+  }
+  //  await getLocationCategories();
 
   // Make research notes
   if (!window.profilePerson.Father && !window.profilePerson.Mother && currentBio.match(/(son|daughter) of.*\.?/i)) {
@@ -3403,10 +3596,18 @@ export async function generateBio() {
     text = text.replace(/<!-- Please edit[\s\S]*?Changes page. -->/, "").replace(/Click to[\s\S]*?and others./, "");
   }
   text +=
-    "\n<!-- \nWikiTree Browser Extension Auto Bio - NEXT: \n" +
+    "\n<!-- \n --- WikiTree Browser Extension Auto Bio --- " +
+    "\nNEXT: \n" +
     "1. Edit the new biography (above).\n" +
     "2. Delete this message and the old biography (below).\n" +
-    "Thank you. \n-->\n";
+    "Thank you.\n";
+  if (window.autoBioNotes) {
+    text += "\nNotes:\n";
+    window.autoBioNotes.forEach(function (aNote) {
+      text += "* " + aNote + "\n";
+    });
+  }
+  text += "\n-->\n";
 
   // Add Unsourced template if there are no good sources
   let doCheck = true;
@@ -3455,6 +3656,47 @@ export async function generateBio() {
     enhancedEditorButton.trigger("click");
   }
   working.remove();
+
+  // Add buttons to 1) remove the Auto Bio and 2) delete the old bio.
+  if ($("#deleteOldBio").length == 0) {
+    let removeAutoBioButton = $("<button id='deleteOldBio' class='small'>");
+    removeAutoBioButton.text("Undo Auto Bio");
+    removeAutoBioButton.on("click", function (e) {
+      e.preventDefault();
+      if (enhanced == true) {
+        enhancedEditorButton.trigger("click");
+      }
+      $("#wpTextbox1").val(currentBio);
+      if (enhanced == true) {
+        enhancedEditorButton.trigger("click");
+      }
+      const formDataKeys = Object.keys(originalFormData);
+      formDataKeys.forEach(function (key) {
+        console.log(key);
+        console.log(originalFormData[key]);
+        $("#m" + key).val(originalFormData[key]);
+      });
+
+      $("#deleteOldBio,#removeAutoBio").remove();
+    });
+    let deleteOldBioButton = $("<button id='deleteOldBio' class='small'>");
+    deleteOldBioButton.text("Delete Old Bio");
+    deleteOldBioButton.on("click", function (e) {
+      e.preventDefault();
+      if (enhanced == true) {
+        enhancedEditorButton.trigger("click");
+      }
+      let bioNow = $("#wpTextbox1").val();
+      let newBio = bioNow.split("<!-- \n --- WikiTree Browser Extension Auto Bio --- ")[0];
+      $("#wpTextbox1").val(newBio);
+      if (enhanced == true) {
+        enhancedEditorButton.trigger("click");
+      }
+      $("#deleteOldBio").remove();
+    });
+    $("#toolbar").append(removeAutoBioButton);
+    $("#toolbar").append(deleteOldBioButton);
+  }
 }
 
 async function getLocationCategory(type, location = null) {
