@@ -8,6 +8,12 @@ const autoBio = {
   defaultValue: true,
   options: [
     {
+      id: "locationCategories",
+      type: OptionType.CHECKBOX,
+      label: "Add location categories",
+      defaultValue: true,
+    },
+    {
       id: "fullNameOrBirthName",
       type: OptionType.RADIO,
       label: "Display full name or birth name",
@@ -166,7 +172,64 @@ const autoBio = {
           label: "Add 'known' when the 'No more children' box is not checked",
           defaultValue: false,
         },
+        {
+          id: "longDates",
+          type: OptionType.CHECKBOX,
+          label: "Use long dates (e.g. 24 November 1859)",
+          defaultValue: false,
+        },
+        {
+          id: "notDeathDate",
+          type: OptionType.CHECKBOX,
+          label: "Do not show death dates",
+          defaultValue: false,
+        },
       ],
+    },
+    {
+      id: "fixLocations",
+      type: OptionType.GROUP,
+      label: "Fix locations",
+      options: [
+        {
+          id: "checkUS",
+          type: OptionType.CHECKBOX,
+          label: "Remove 'United States' before the state joined the Union. Add 'United States' if it's missing.",
+          defaultValue: true,
+        },
+        {
+          id: "changeUS",
+          type: OptionType.CHECKBOX,
+          label: "Change 'United States' variants (e.g. 'USA') to 'United States'.",
+          defaultValue: true,
+        },
+        {
+          id: "expandStates",
+          type: OptionType.CHECKBOX,
+          label: "Expand US state names (e.g. 'OK' --> 'Oklahoma').",
+          defaultValue: true,
+        },
+        {
+          id: "checkUK",
+          type: OptionType.CHECKBOX,
+          label: "Add or remove 'United Kingdom' depending on the date.",
+          defaultValue: true,
+        },
+        {
+          id: "nativeNames",
+          type: OptionType.CHECKBOX,
+          label: "Change country names from English to their native name.",
+          defaultValue: true,
+        },
+        {
+          id: "checkOtherCountries",
+          type: OptionType.CHECKBOX,
+          label:
+            "Check other countries for their native name and creation date of the state. (Information given in Notes.)",
+          defaultValue: true,
+        },
+      ],
+      defaultValue: true,
     },
   ],
 };
