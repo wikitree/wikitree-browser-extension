@@ -14,6 +14,12 @@ const autoBio = {
       defaultValue: true,
     },
     {
+      id: "unsourced",
+      type: OptionType.CHECKBOX,
+      label: "Add Unsourced template to unsourced profiles",
+      defaultValue: true,
+    },
+    {
       id: "fullNameOrBirthName",
       type: OptionType.RADIO,
       label: "Display full name or birth name",
@@ -96,6 +102,12 @@ const autoBio = {
         },
       ],
       defaultValue: "none",
+    },
+    {
+      id: "SouthAfricaProject",
+      type: OptionType.CHECKBOX,
+      label: "Only the South Africa Project style",
+      defaultValue: false,
     },
     {
       id: "diedWord",

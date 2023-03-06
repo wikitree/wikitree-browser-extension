@@ -319,7 +319,6 @@ function convertMonth(monthString, outputFormat = "short") {
     "december",
   ];
   let index;
-  console.log(monthString);
   if (!isNaN(monthString)) {
     index = monthString - 1;
     let month = shortNames[index];
@@ -565,22 +564,6 @@ function childList(person, spouse) {
 
   if (ourChildren.length == 1) {
     if (ourChildren[0].Father == spouse.Id || ourChildren[0].Mother == spouse.Id) {
-      /*
-      let theDates = formatDates(ourChildren[0]);
-      if (window.autoBioOptions.longDates) {
-        console.log(ourChildren[0].BirthDate);
-        console.log(window.autoBioOptions.dateFormat);
-        theDates =
-          "(" +
-          convertDate(ourChildren[0].BirthDate, window.autoBioOptions.dateFormat) +
-          " – " +
-          convertDate(ourChildren[0].DeathDate, window.autoBioOptions.dateFormat) +
-          ")";
-        if (window.autoBioOptions.notDeathDate) {
-          theDates = "(born " + convertDate(ourChildren[0].BirthDate, window.autoBioOptions.dateFormat) + ")";
-        }
-      }
-      */
       const theDates = personDates(ourChildren[0]);
       childListText += nameLink(ourChildren[0]) + " " + theDates + ".\n";
     } else {
@@ -594,11 +577,6 @@ function childList(person, spouse) {
       } else {
         childListText += "#";
       }
-      /*
-      child.PersonName = {};
-      let aName = new PersonName(child);
-      child.PersonName.FullName = aName.withParts(["FullName"]);
-      */
       let status = "";
       if (window.profilePerson.Gender == "Male") {
         if (child?.DataStatus?.Father == "10") {
@@ -1101,7 +1079,6 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
   if (theFirstNameMatch) {
     firstName = theFirstNameMatch[0].trim();
   }
-
   if (match) {
     let matchedText = match[0];
     const beforeFirstCommaPattern = new RegExp(firstName.trim() + "\\s[^,]+");
@@ -1132,7 +1109,6 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
     ) {
       text = text.replace("in the household", "was in the household");
     }
-    console.log("matched first name", firstName);
     if (text.match(firstName) && ageAtCensus) {
       text = text.replace(firstName, firstName + ageBit + " ").replaceAll(/'''/g, "");
     }
@@ -1469,7 +1445,6 @@ function getCensusesFromCensusSection() {
     return;
   }
   let newPerson = {};
-  console.log(1);
   window.references.forEach(function (ref) {
     if (ref.Text.match(/census|1939( England and Wales)? Register/i)) {
       ref["Record Type"] = "Census";
@@ -1490,9 +1465,7 @@ function getCensusesFromCensusSection() {
       }
     }
     if (ref["Record Type"].includes("Census") || ref["Event Type"] == "Census") {
-      console.log(2);
       const censusTypeMatch = ref.Text.match(/\b(\d{4})\b.*(ukcensusonline|findmypast|familysearch|ancestry|freecen)/s);
-      console.log(censusTypeMatch);
       if (censusTypeMatch) {
         ref.CensusType = censusTypeMatch[2];
         let thisCensus = false;
@@ -1500,7 +1473,6 @@ function getCensusesFromCensusSection() {
           ref.Household = [];
         }
         ref.ListText = [];
-        console.log(3);
         censusSection.text.forEach(function (line) {
           const yearMatch = line.match(censusTypeMatch[1]);
           const aYearMatch = line.match(/\b1[789]\d{2}\b/);
@@ -1618,9 +1590,7 @@ function getCensusesFromCensusSection() {
                   ref.ListText.push(line);
                 }
                 if (line.match(/\s{4}/)) {
-                  //                 : George Fisher    Head    Married    M    38    Coal Miner    Longton, Staffordshire, England
                   const lineBits = line.split(/\s{4}/);
-                  console.log(lineBits);
                   lineBits.forEach(function (aBit, index) {
                     aBit = aBit.replace(/^\:/, "").trim();
                     if (index == 0) {
@@ -1656,7 +1626,6 @@ function getCensusesFromCensusSection() {
                   });
                 } else {
                   const lineBits = line.split(/\t/);
-                  console.log(lineBits);
                   lineBits.forEach(function (aBit, index) {
                     aBit = aBit.replace(/^\:/, "").trim();
                     if (index == 0) {
@@ -1696,10 +1665,6 @@ function getCensusesFromCensusSection() {
                 }
                 newPerson = {};
               } else if (thisCensus && ref.CensusType == "freecen") {
-                console.log("freecen");
-                console.log(line);
-                console.log(ref.ListText);
-                //- Fisher Head Married M 48 Coal Miner (employee) Langton, Staffordshire
                 if (!ref.ListText.includes(line) && line.match("freecen") == null) {
                   ref.ListText.push(line);
                 }
@@ -2325,12 +2290,6 @@ function assignSelf(data) {
     let strength = 0.9;
     while (!hasSelf && strength > 0) {
       for (const member of data.Household) {
-        console.log(member.Name);
-        console.log(member.Age);
-        console.log(isSameName(member.Name, window.profilePerson.NameVariants, strength));
-        console.log(getAgeAtCensus(window.profilePerson, data["Year"]));
-        console.log(isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), member.Age, isWithinRange));
-        console.log("----------------");
         if (
           isSameName(member.Name, window.profilePerson.NameVariants, strength) &&
           isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), member.Age, isWithinRange)
@@ -2498,6 +2457,7 @@ async function getFindAGraveCitation(link) {
 
 function sourcesArray(bio) {
   let dummy = $(document.createElement("html"));
+  bio = bio.replace(/\{\|.*?\+\sTimeline\n.*?\|\}/s, "");
   dummy.append(bio);
   let refArr = [];
   let refs = dummy.find("ref");
@@ -2958,6 +2918,15 @@ async function getStickersAndBoxes() {
 
       thingsToAdd.forEach(function (thing) {
         afterBioHeading += thing + "\n";
+        // If a sticker is before the bio heading, remove it.
+        window.sectionsObject.StuffBeforeTheBio.text.forEach(function (beforeBio) {
+          if (thing == beforeBio) {
+            window.sectionsObject.StuffBeforeTheBio.text.splice(
+              window.sectionsObject.StuffBeforeTheBio.text.indexOf(beforeBio),
+              1
+            );
+          }
+        });
       });
     });
   return afterBioHeading;
@@ -3178,6 +3147,13 @@ function assignPersonNames(person) {
 }
 
 export async function generateBio() {
+  // Sort First Name Variants by length
+  for (let key in firstNameVariants) {
+    firstNameVariants[key].sort(function (a, b) {
+      return b.length - a.length;
+    });
+  }
+
   const working = $(
     "<img id='working' style='position:absolute; margin-top:3em; margin-left: 300px' src='" +
       chrome.runtime.getURL("images/tree.gif") +
@@ -3283,12 +3259,14 @@ export async function generateBio() {
   }
   await getFindAGraveCitations();
 
-  // Start Output
+  // Start OUTPUT
   let text = "";
 
   text += "== Biography ==\n";
   // Stickers and boxes
   text += await getStickersAndBoxes();
+
+  const bioHeaderAndStickers = text;
 
   //Add birth
   text += buildBirth(window.profilePerson) + "\n\n";
@@ -3476,8 +3454,12 @@ export async function generateBio() {
     for (let i = 0; i < types.length; i++) {
       const location = await getLocationCategory(types[i]);
       if (location) {
-        const theCategory = "[[Category:" + location + "]]";
-        if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(theCategory)) {
+        const theCategory = "[[Category: " + location + "]]";
+        const theCategoryWithoutSpace = "[[Category:" + location + "]]";
+        if (
+          !window.sectionsObject["StuffBeforeTheBio"].text.includes(theCategory) &&
+          !window.sectionsObject["StuffBeforeTheBio"].text.includes(theCategoryWithoutSpace)
+        ) {
           window.sectionsObject["StuffBeforeTheBio"].text.push(theCategory);
         }
       }
@@ -3486,7 +3468,6 @@ export async function generateBio() {
   if (window.autoBioOptions.locationCategories == true) {
     await getLocationCategories();
   }
-  //  await getLocationCategories();
 
   // Make research notes
   if (!window.profilePerson.Father && !window.profilePerson.Mother && currentBio.match(/(son|daughter) of.*\.?/i)) {
@@ -3519,7 +3500,14 @@ export async function generateBio() {
   }
 
   // Add SA format
-  if (window.autoBioOptions.timeline == "SA") {
+  if (window.autoBioOptions.SouthAfricaProject) {
+    const bioTimeline = bioTimelineFacts(marriagesAndCensuses);
+    text = bioHeaderAndStickers;
+    for (let i = 0; i < window.references.length; i++) {
+      window.references[i].Used = false;
+    }
+    text += buildTimelineSA(bioTimeline) + "\n";
+  } else if (window.autoBioOptions.timeline == "SA") {
     const bioTimeline = bioTimelineFacts(marriagesAndCensuses);
     text += buildTimelineSA(bioTimeline) + "\n";
   }
@@ -3599,7 +3587,7 @@ export async function generateBio() {
     "\n<!-- \n --- WikiTree Browser Extension Auto Bio --- " +
     "\nNEXT: \n" +
     "1. Edit the new biography (above).\n" +
-    "2. Delete this message and the old biography (below).\n" +
+    "2. Delete this message and the old biography (below). (You can just click the 'Delete Old Bio' button.)\n" +
     "Thank you.\n";
   if (window.autoBioNotes) {
     text += "\nNotes:\n";
@@ -3610,18 +3598,20 @@ export async function generateBio() {
   text += "\n-->\n";
 
   // Add Unsourced template if there are no good sources
-  let doCheck = true;
-  // Don't add Unsourced template if there is a Find A Grave source (maybe added by the code above)
-  window.references.forEach(function (aRef) {
-    if (aRef.Text.match(/findagrave.com.*Maintained by/i)) {
-      doCheck = false;
-    }
-  });
-  if (doCheck == true) {
-    if (autoBioCheck(currentBio) == false) {
-      const unsourcedTemplate = "{{Unsourced}}";
-      if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
-        window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
+  if (window.autoBioOptions.unsourced == true) {
+    let doCheck = true;
+    // Don't add Unsourced template if there is a Find A Grave source (maybe added by the code above)
+    window.references.forEach(function (aRef) {
+      if (aRef.Text.match(/findagrave.com.*Maintained by/i)) {
+        doCheck = false;
+      }
+    });
+    if (doCheck == true) {
+      if (autoBioCheck(currentBio) == false) {
+        const unsourcedTemplate = "{{Unsourced}}";
+        if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
+          window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
+        }
       }
     }
   }
@@ -3659,7 +3649,7 @@ export async function generateBio() {
 
   // Add buttons to 1) remove the Auto Bio and 2) delete the old bio.
   if ($("#deleteOldBio").length == 0) {
-    let removeAutoBioButton = $("<button id='deleteOldBio' class='small'>");
+    let removeAutoBioButton = $("<button id='removeAutoBio' class='small'>");
     removeAutoBioButton.text("Undo Auto Bio");
     removeAutoBioButton.on("click", function (e) {
       e.preventDefault();
@@ -3672,8 +3662,6 @@ export async function generateBio() {
       }
       const formDataKeys = Object.keys(originalFormData);
       formDataKeys.forEach(function (key) {
-        console.log(key);
-        console.log(originalFormData[key]);
         $("#m" + key).val(originalFormData[key]);
       });
 
@@ -3772,13 +3760,14 @@ checkIfFeatureEnabled("autoBio").then((result) => {
   if (result && isEditPage) {
     getFeatureOptions("autoBio").then((options) => {
       window.autoBioOptions = options;
-      console.log(window.autoBioOptions);
+      console.log("window.autoBioOptions", window.autoBioOptions);
       window.boldBit = "";
       if (window.autoBioOptions.boldNames) {
         window.boldBit = "'''";
       }
     });
-    // check for Firefox
+
+    // check for Firefox (I don't remember why we need this...)
     window.isFirefox = false;
     window.addEventListener("load", () => {
       let prefix = Array.prototype.slice
