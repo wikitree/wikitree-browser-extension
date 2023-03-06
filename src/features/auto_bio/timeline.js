@@ -237,16 +237,6 @@ export function buildTimelineSA(bioTimeline) {
         let eventLocation = aEvent["Event Place"] || aEvent.Residence || "";
         //eventLocation = eventLocation ? minimalPlace(eventLocation) : "";
         window.references.forEach(function (aRef, i) {
-          let isRightCensus = false;
-          if (
-            (aRef["Record Type"]?.includes("Census") || aRef["Record Type"] == "Census") &&
-            eventType.match(/Census/)
-          ) {
-            if (aRef["Census Year"] == aEvent.Year) {
-              isRightCensus = true;
-            }
-          }
-
           let isRightMarriage = false;
           if (
             aRef["Record Type"].includes("Marriage") &&
@@ -257,9 +247,9 @@ export function buildTimelineSA(bioTimeline) {
           }
 
           if (
-            ((aEvent["Event Type"] == aRef["Event Type"] || aRef["Record Type"].includes(aEvent["Event Type"])) &&
-              eventType != "Census") ||
-            isRightCensus ||
+            aEvent["Event Type"] == aRef["Event Type"] ||
+            aRef["Record Type"].includes(aEvent["Event Type"]) ||
+            (aRef["Event Type"] == "Census" && aEvent["Event Type"] == "Birth") ||
             isRightMarriage
           ) {
             [dateSources, placeSources].forEach(function (aType, index) {
@@ -281,7 +271,14 @@ export function buildTimelineSA(bioTimeline) {
                 ) {
                   dateSources += theRef;
                 }
-              } else {
+              } else if (
+                aRef["Event Place"] ||
+                aRef["Birth Place"] ||
+                aRef["Death Place"] ||
+                aRef["Birth Location"] ||
+                aRef["Death Location"] ||
+                aRef["Census Year"]
+              ) {
                 placeSources += theRef;
               }
             });
