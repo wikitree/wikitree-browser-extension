@@ -1129,7 +1129,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
     "(?<=, )((['a-zA-Z .-]+, )?['a-zA-Z .-]+,['a-zA-Z ().-]+), (United States|England|Scotland|Canada|Wales|Australia);"
   );
   const countryPatternMatch = countryPattern.exec(reference.Text);
-  const firstNameMatch = new RegExp(firstName.replace(".", "\\.").replace(/([A-Z])\|/, "$1\b|"));
+  const firstNameMatch = new RegExp(firstName.replace(".", "\\.").replace(/([A-Z])\|/, "$1\b|") + "\\b");
   console.log(firstNameMatch);
   const theFirstNameMatch = nameMatchPattern.exec(reference.Text);
   console.log(theFirstNameMatch);
@@ -1139,7 +1139,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
   if (match) {
     let matchedText = match[0];
     console.log(match);
-    const beforeFirstCommaPattern = new RegExp(firstName.trim() + "\\s[^,]+");
+    const beforeFirstCommaPattern = new RegExp(firstName.trim() + "\\.?\\s[^,]+");
     console.log(beforeFirstCommaPattern);
     const beforeFirstCommaMatch = beforeFirstCommaPattern.exec(matchedText);
     console.log(beforeFirstCommaMatch);
@@ -1912,7 +1912,7 @@ function buildCensusNarratives() {
           nameVariants.push(...firstNameVariants[window.profilePerson.FirstName]);
           if (window.profilePerson.MiddleInitial != ".") {
             firstNameVariants[window.profilePerson.FirstName].forEach(function (name) {
-              nameVariants.push(name + " " + window.profilePerson.MiddleInitial);
+              nameVariants.push(name + " " + window.profilePerson.MiddleInitial.replace(".", ""));
             });
           }
           if (window.profilePerson.MiddleName) {
@@ -1938,7 +1938,7 @@ function buildCensusNarratives() {
         }
 
         if (nameVariants) {
-          firstName = "(" + nameVariants.join("|") + ")";
+          firstName = ("(" + nameVariants.join("\\b|") + ")").replace(".", "") + "(\\b|$)";
           nameMatchPattern = new RegExp(firstName);
           console.log(nameMatchPattern);
         }
