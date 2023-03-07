@@ -10,6 +10,7 @@ const whatLinksHere = {
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: ["AllWikiPages", "AllEditPages"],
   options: [
     {
       id: "whatLinksHereSection",

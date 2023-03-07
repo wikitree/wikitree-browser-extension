@@ -8,9 +8,7 @@ registerFeature({
   creators: [{name:"Aleš Trtnik", wikitreeid:"Trtnik-2"},{name:"1 Aleš Trtnik", wikitreeid:"Trtnik-2"}],
   contributors: [{name:"2 Aleš Trtnik", wikitreeid:"Trtnik-2"},{name:"3 Aleš Trtnik", wikitreeid:"Trtnik-2"}],
   defaultValue: true,
-  pages: [
-    "AllEditPages"
-  ],
+  pages: ["AllEditPages"],
   options: [
     {
       id: "wtplusSourceInline",

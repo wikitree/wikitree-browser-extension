@@ -1,48 +1,129 @@
 import $, { data } from "jquery";
 
-export let pageProfile = false;
-export let pageHelp = false;
-export let pageSpecial = false;
-export let pageCategory = false;
-export let pageTemplate = false;
-export let pageSpace = false;
+// Any wiki page with pageID
+export let isWikiPage = false;
+// Profile page
+export let isProfilePage = false;
+// Space page
+export let isSpacePage = false;
+// Category page
+export let isCategoryPage = false;
+// Template page
+export let isTemplatePage = false;
+// Help page
+export let isHelpPage = false;
+// Other wiki page (Project:, Docs:, Automated:, ...)
+export let isOtherPage = false;
+
+// Special: page
+export let isSpecialPage = false;
+
+// Any Edit page with pageID
+export let isWikiEdit = false;
+// Profile edit page
+export let isProfileEdit = false;
+// Space edit page
+export let isSpaceEdit = false;
+// Category edit page
+export let isCategoryEdit = false;
+// Template edit page
+export let isTemplateEdit = false;
+// Help edit page
+export let isHelpEdit = false;
+// Other wiki edit page (Project:, Docs:, Automated:, ...)
+export let isOtherEdit = false;
+
 export let pageG2G = false;
-export let isEditPage = false;
 
 if (
-  window.location.pathname.match(/(\/wiki\/)\w[^:]*-[0-9]*/g) ||
-  window.location.href.match(/\?title\=\w[^:]+-[0-9]+/g)
+  // Profile Edit Page
+  window.location.href.match(/\/index.php\?title=Special:EditPerson&.*/g)
 ) {
-  // Is a Profile Page
-  pageProfile = true;
-} else if (window.location.pathname.match(/(\/wiki\/)Help:*/g)) {
-  // Is a Help Page
-  pageHelp = true;
-} else if (window.location.pathname.match(/(\/wiki\/)Special:*/g)) {
-  // Is a Special Page
-  pageSpecial = true;
-} else if (window.location.pathname.match(/(\/wiki\/)Category:*/g)) {
-  // Is a Category Page
-  pageCategory = true;
-} else if (window.location.pathname.match(/(\/wiki\/)Template:*/g)) {
-  // Is a Template Page
-  pageTemplate = true;
-} else if (window.location.pathname.match(/(\/wiki\/)Space:*/g)) {
-  // Is a Space Page
-  pageSpace = true;
+  isProfileEdit = true;
+} else if (
+  // Profile Page
+  window.location.pathname.match(/(\/wiki\/)\w[^:]*-[0-9]*/g) ||
+  window.location.href.match(/\/index.php\?title\=\w[^:]+-[0-9]+/g)
+) {
+  isProfilePage = true;
+} else if (
+  // Space Edit Page
+  window.location.href.match(/\/index.php\?title=Space:.*&action=edit.*/g) ||
+  window.location.href.match(/\/index.php\?title=Space:.*&action=submit.*/g)
+) {
+  isSpaceEdit = true;
+} else if (
+  // Space Page
+  window.location.pathname.match(/\/wiki\/Space:.*/g) ||
+  window.location.href.match(/\/index.php\?title=Space:.*/g)
+) {
+  isSpacePage = true;
+} else if (
+  // Category Edit Page
+  window.location.href.match(/\/index.php\?title=Category:.*&action=edit.*/g) ||
+  window.location.href.match(/\/index.php\?title=Category:.*&action=submit.*/g)
+) {
+  isCategoryEdit = true;
+} else if (
+  // Category Page
+  window.location.pathname.match(/\/wiki\/Category:.*/g) ||
+  window.location.href.match(/\/index.php\?title=Category:.*/g)
+) {
+  isCategoryPage = true;
+} else if (
+  // Template Edit Page
+  window.location.href.match(/\/index.php\?title=Template:.*&action=edit.*/g) ||
+  window.location.href.match(/\/index.php\?title=Template:.*&action=submit.*/g)
+) {
+  isTemplateEdit = true;
+} else if (
+  // Template Page
+  window.location.pathname.match(/\/wiki\/Template:.*/g) ||
+  window.location.href.match(/\/index.php\?title=Template:.*/g)
+) {
+  isTemplatePage = true;
+} else if (
+  // Help Edit Page
+  window.location.href.match(/\/index.php\?title=Help:.*&action=edit.*/g) ||
+  window.location.href.match(/\/index.php\?title=Help:.*&action=submit.*/g)
+) {
+  isHelpEdit = true;
+} else if (
+  // Help Page
+  window.location.pathname.match(/\/wiki\/Help:.*/g) ||
+  window.location.href.match(/\/index.php\?title=Help:.*/g)
+) {
+  isHelpPage = true;
+} else if (
+  // Special Page
+  window.location.pathname.match(/(\/wiki\/)Special:*/g) ||
+  window.location.href.match(/\/index.php\?title=Special:.*/g)
+) {
+  isSpecialPage = true;
+} else if (
+  // Other Edit Page
+  window.location.href.match(/\/index.php\?title=.*:.*&action=edit.*/g) ||
+  window.location.href.match(/\/index.php\?title=.*:.*&action=submit.*/g)
+) {
+  isOtherEdit = true;
+} else if (
+  // Other Page
+  window.location.pathname.match(/(\/wiki\/).*:*/g) ||
+  window.location.href.match(/\/index.php\?title=.*:.*/g)
+) {
+  isOtherPage = true;
 } else if (window.location.pathname.match(/\/g2g\//g)) {
   // Is a G2G page
   pageG2G = true;
+  isProfileEdit = isProfilePage = true;
+} else {
+  // Unknown page
+  console.log(window.location.href);
 }
 
-if (
-  // Is edit page
-  window.location.href.match(/\/index.php\?title=Special:EditPerson&.*/g) ||
-  window.location.href.match(/\/index.php\?title=.*&action=edit.*/g) ||
-  window.location.href.match(/\/index.php\?title=.*&action=submit.*/g)
-) {
-  isEditPage = true;
-}
+isWikiPage = isProfilePage || isSpacePage || isCategoryPage || isTemplatePage || isHelpPage || isOtherPage;
+isWikiEdit = isProfileEdit || isSpaceEdit || isCategoryEdit || isTemplateEdit || isHelpEdit || isOtherEdit;
+
 
 // Add wte class to body to let WikiTree BEE know not to add the same functions
 document.querySelector("body").classList.add("wte");

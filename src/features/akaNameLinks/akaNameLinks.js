@@ -1,5 +1,5 @@
 import $ from 'jquery';
-import {pageProfile} from '../../core/common';
+import {isProfilePage} from '../../core/common';
 import { checkIfFeatureEnabled } from "../../core/options/options_storage"
 
 async function akaNames(){
@@ -24,7 +24,7 @@ async function akaNames(){
 }
 
 checkIfFeatureEnabled("akaNameLinks").then((result) => {
-  if (result && pageProfile == true) { 
+  if (result && isProfilePage == true) { 
     akaNames();
   }
 })
