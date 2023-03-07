@@ -303,7 +303,9 @@ function convertDate(dateString, outputFormat, status = "") {
   } else if (inputFormat == "MY") {
     year = parseInt(components[1]);
     month = convertMonth(components[0]);
-    outputFormat = "MY";
+    if (!outputFormat) {
+      outputFormat = "MY";
+    }
   } else if (inputFormat == "MDY") {
     year = parseInt(components[components.length - 1]);
     month = convertMonth(components[0]);
@@ -791,7 +793,9 @@ function buildDeath(person) {
     text += " in " + place;
   }
   if (person.BirthDate && person.DeathDate) {
-    let age = getAgeFromISODates(person.BirthDate, person.DeathDate);
+    const birthDate = person.BirthDate.match("-") ? person.BirthDate : getYYYYMMDD(person.BirthDate);
+    const deathDate = person.DeathDate.match("-") ? person.DeathDate : getYYYYMMDD(person.DeathDate);
+    let age = getAgeFromISODates(birthDate, deathDate);
     text += ", aged " + age;
   }
   text += ".";
@@ -801,15 +805,33 @@ function buildDeath(person) {
   window.references.forEach(function (source) {
     if (source["Record Type"].includes("Death")) {
       let cemeteryMatch = source.Text.match(
-        /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Grave)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)).*?),?.*?(?=[,;])/im
+        /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Graveyard)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)).*?),?.*?(?=[,;])/im
+      );
+      let cemeteryMatch2 = source.Text.match(
+        /,\s([^,]*?Cemetery|Memorial|Cimetière|kyrkogård|temető|Grave|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard).*?;/
       );
       if (cemeteryMatch && source.Text.match(/Acadian|Wall of Names/) == null) {
         let cemetery = cemeteryMatch[0].replace("citing ", "").replace("Burial, ", "").trim();
         window.profilePerson.Cemetery = cemetery;
-        if (cemetery.match("Memorial")) {
-          text += " " + capitalizeFirstLetter(person.Pronouns.subject) + " is commemorated at " + cemetery + ".";
+      } else if (cemeteryMatch2 && source.Text.match(/Acadian|Wall of Names/) == null) {
+        let cemetery = cemeteryMatch2[1].trim();
+        window.profilePerson.Cemetery = cemetery;
+      }
+      if (window.profilePerson.Cemetery) {
+        if (window.profilePerson.Cemetery.match("Memorial")) {
+          text +=
+            " " +
+            capitalizeFirstLetter(person.Pronouns.subject) +
+            " is commemorated at " +
+            window.profilePerson.Cemetery +
+            ".";
         } else {
-          text += " " + capitalizeFirstLetter(person.Pronouns.subject) + " was buried in " + cemetery + ".";
+          text +=
+            " " +
+            capitalizeFirstLetter(person.Pronouns.subject) +
+            " was buried in " +
+            window.profilePerson.Cemetery +
+            ".";
         }
         burialAdded = true;
       }
@@ -1052,6 +1074,7 @@ function getAgeFromISODates(birth, date) {
     start: { year: year1, month: month1, date: day1 },
     end: { year: year2, month: month2, date: day2 },
   });
+  console.log(birth, date, age);
   return age[0];
 }
 
@@ -2646,7 +2669,8 @@ function sourcesArray(bio) {
             window.profilePerson["Burial Place"] = location.join(", ");
           }
         }
-        const dateMatch = theBits[1].match(/\d.*/);
+        // CHECK THIS  Perrett-412
+        const dateMatch = theBits[1].match(/(?<!\d)(?:18[1-9]|[1-9]\d{2})(?!\d|-)/);
         if (dateMatch) {
           aRef["Event Date"] = dateMatch[0];
           aRef.OrderDate = formatDate(dateMatch[0], 0, 8);
@@ -3365,6 +3389,12 @@ export async function generateBio() {
   personKeys.forEach(function (aKey) {
     window.profilePerson[aKey] = formData[aKey];
   });
+  if (isOK(window.profilePerson.BirthDate) && window.profilePerson.BirthDate.match("-") == null) {
+    window.profilePerson.BirthDate = convertDate(window.profilePerson.BirthDate, "ISO");
+  }
+  if (isOK(window.profilePerson.DeathDate) && window.profilePerson.DeathDate.match("-") == null) {
+    window.profilePerson.DeathDate = convertDate(window.profilePerson.DeathDate, "ISO");
+  }
   console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
 
   // Create the references array
@@ -3385,7 +3415,7 @@ export async function generateBio() {
       let findAGraveLink;
       const match1 = /^https?:\/\/www\.findagrave.com[^\s]+$/;
       const match2 = /\[(https?:\/\/www\.findagrave.com[^\s]+)(\s([^\]]+))?\]/;
-      const match3 = /\{\{FindAGrave\|(\d+)(\|.*?)\}\}/;
+      const match3 = /\{\{FindAGrave\|(\d+)(\|.*?)?\}\}/;
       const match4 = /database and images/;
       const match5 = /^\s?Find a Grave( memorial)? #(\d+)$/i;
       if (aRef.Text.match(match1)) {
