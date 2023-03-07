@@ -5,6 +5,8 @@ const categoryDisplay = {
     id: "categoryDisplay",
     description: "Allows you to move the location of categories to the top of the profile, or sidebar.",
     category: "Profile",
+    creators: [{name:"Steve Harris", wikitreeid:"Harris-5439"}],
+    contributors: [],
     defaultValue: false,
     options: [
         {

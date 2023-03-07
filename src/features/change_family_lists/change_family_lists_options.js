@@ -5,6 +5,8 @@ const changeFamilyLists = {
   id: "changeFamilyLists",
   description: "Change the position and/or appearance of family lists (parents, siblings, spouses, and children)",
   category: "Profile",
+  creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
+  contributors: [],
   defaultValue: false,
   options: [
     {

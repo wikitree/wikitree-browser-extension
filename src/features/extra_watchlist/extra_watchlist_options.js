@@ -5,6 +5,8 @@ registerFeature({
   id: "extraWatchlist",
   description: "Gives you an extra watchlist. Add to it by clicking the + button. View it with the binoculars button.",
   category: "Global",
+  creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
+  contributors: [],
   defaultValue: true,
   options: [
     {

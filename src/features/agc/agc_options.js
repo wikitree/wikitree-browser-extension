@@ -7,6 +7,8 @@ const agcFeature = {
   description:
     "Reformats a biography and updates data fields when the profile was created from a GEDCOM.",
   category: "Editing",
+  creators: [{name:"Rob Pavey", wikitreeid:"Pavey-429"}],
+  contributors: [],
   defaultValue: true,
   options: [
     {

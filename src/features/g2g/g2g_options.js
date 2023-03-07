@@ -6,6 +6,8 @@ const g2g = {
   id: "g2g",
   description: "Add various things to G2G.",
   category: "Other",
+  creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
+  contributors: [],
   defaultValue: false,
 
   options: [

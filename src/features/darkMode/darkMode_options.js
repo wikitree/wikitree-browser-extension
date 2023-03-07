@@ -8,6 +8,8 @@ import {
     id: "darkMode",
     description: "Make WikiTree dark.",
     category: "Style",
+    creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
+    contributors: [],
     defaultValue: false,
     options: [
       {

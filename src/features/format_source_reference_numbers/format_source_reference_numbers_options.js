@@ -5,6 +5,8 @@ const formatSourceReferenceNumbersObject = {
   id: "formatSourceReferenceNumbers",
   description: "Hide source reference numbers or make them smaller.",
   category: "Profile",
+  creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
+  contributors: [],
   defaultValue: false,
   options: [
     {

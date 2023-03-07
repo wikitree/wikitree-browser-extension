@@ -9,6 +9,8 @@ const genderPredictorFeature = {
   description:
     "Sets the gender on a new profile page based on the name and the gender frequency of it in the WikiTree database.",
   category: "Editing",
+  creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
+  contributors: [],
   defaultValue: true,
 };
 

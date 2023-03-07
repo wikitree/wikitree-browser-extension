@@ -5,6 +5,8 @@ const redirExtLinksFeature = {
   id: "redirExtLinks",
   description: "Updates links to external sites to point to user desired domains.",
   category: "Profile",
+  creators: [{name:"Rob Pavey", wikitreeid:"Pavey-429"}],
+  contributors: [],
   defaultValue: false,
   options: [
     {

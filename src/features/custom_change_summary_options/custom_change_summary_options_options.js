@@ -5,6 +5,8 @@ const customChangeSummaryOptions = {
   id: "customChangeSummaryOptions",
   description: "Add your own phrases to the change summary phrases on edit pages.",
   category: "Editing",
+  creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
+  contributors: [],
   defaultValue: true,
   options: [
     {
