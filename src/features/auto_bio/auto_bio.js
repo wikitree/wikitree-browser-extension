@@ -14,6 +14,43 @@ import { Biography } from "../bioCheck/Biography.js";
 import { ageAtDeath, USstatesObjArray } from "../my_connections/my_connections";
 import { bioTimelineFacts, personRelation, buildTimelineTable, buildTimelineSA } from "./timeline";
 
+/**
+Returns a status word based on the input status and optional needOnIn parameter, with an optional ISO date string parameter.
+@function
+@param {string} status - The status of the data. Possible values are "before", "after", "guess", "certain", "on", "", and undefined.
+@param {string} [ISOdate] - Parameter to specify the date string in ISO format (yyyy-mm-dd).
+@param {boolean} [needOnIn=false] - Optional parameter to specify whether the output should include "on" or "in" for certain status values. Default is false.
+@returns {string} - The status word based on the input status and optional needOnIn parameter. Possible values include "before", "aft.", "about", "on", "in", and "".
+*/
+function dataStatusWord(status, ISOdate, needOnIn = false) {
+  let day = ISOdate.slice(8, 10);
+  if (day == "00") {
+    day = "";
+  }
+  let statusOut =
+    status == "before"
+      ? "before"
+      : status == "after"
+      ? "after"
+      : status == "guess"
+      ? "about"
+      : status == "certain" || status == "on" || status == undefined || status == ""
+      ? day
+        ? "on"
+        : "in"
+      : "";
+  if (window.autoBioOptions.dateStatusFormat == "abbreviations") {
+    statusOut = statusOut.replace("before", "bef.").replace("after", "aft.").replace("about", "abt.");
+  } else if (window.autoBioOptions.dateStatusFormat == "symbols") {
+    statusOut = statusOut.replace("before", "<").replace("after", ">").replace("about", "~");
+  }
+  if (needOnIn == false && ["on", "in"].includes(statusOut)) {
+    return "";
+  } else {
+    return statusOut;
+  }
+}
+
 function autoBioCheck(sourcesStr) {
   let thePerson = new PersonDate();
   // get the bio text and person dates to check
@@ -137,7 +174,7 @@ function fixLocations() {
       countryArray.push(country.name);
     });
     countryArray.forEach(function (country) {
-      const spaceCountryPattern = new RegExp(`\\s${country}$`);
+      const spaceCountryPattern = new RegExp(`[a-z]\\s${country}$`);
       if (event.Location.match(spaceCountryPattern)) {
         event.Location = event.Location.replace(spaceCountryPattern, `, ${country}`);
       }
@@ -161,7 +198,7 @@ function fixLocations() {
       }
     }
     if (
-      !["United States", "United Kingdom"].includes(lastLocationBit) &&
+      !["United States", "United Kingdom", "New Zealand"].includes(lastLocationBit) &&
       (window.autoBioOptions.checkOtherCountries || window.autoBioOptions.nativeNames)
     ) {
       countries.forEach(function (country) {
@@ -283,6 +320,7 @@ function convertDate(dateString, outputFormat, status = "") {
 
   // Convert the date components to the output format
   var outputDate;
+  const ISOdate = year.toString() + "-" + padNumberStart(month) + "-" + padNumberStart(day);
   if (outputFormat == "Y") {
     outputDate = year.toString();
   } else if (outputFormat == "MY") {
@@ -296,25 +334,14 @@ function convertDate(dateString, outputFormat, status = "") {
   } else if (outputFormat == "DsMY") {
     outputDate = padNumberStart(day) + " " + convertMonth(month).slice(3) + " " + year.toString();
   } else if (outputFormat == "YMD" || outputFormat == "ISO") {
-    outputDate = year.toString() + "-" + padNumberStart(month) + "-" + padNumberStart(day);
+    outputDate = ISOdate;
   } else {
     // Invalid output format
     return null;
   }
 
   if (status) {
-    const statusOut =
-      status == "before"
-        ? "before"
-        : status == "after"
-        ? "after"
-        : status == "guess"
-        ? "about"
-        : status == "certain" || status == "on" || status == undefined || status == ""
-        ? day
-          ? "on"
-          : "in"
-        : "";
+    const statusOut = dataStatusWord(status, ISOdate, true);
     outputDate = statusOut + " " + outputDate;
   }
 
@@ -400,15 +427,17 @@ export function formatDates(person) {
   if (birthDate === " " && deathDate === " ") return "";
 
   if (birthDate !== " ") {
-    if (person.DataStatus.BirthDate === "guess") birthDate = `about ${birthDate}`;
-    if (person.DataStatus.BirthDate === "before") birthDate = `before ${birthDate}`;
-    if (person.DataStatus.BirthDate === "after") birthDate = `after ${birthDate}`;
+    const status = dataStatusWord(person.DataStatus.BirthDate, person.BirthDate, false);
+    if (status) {
+      birthDate = status + " " + birthDate;
+    }
   }
 
   if (deathDate !== " ") {
-    if (person.DataStatus.DeathDate === "guess") deathDate = `about ${deathDate}`;
-    if (person.DataStatus.DeathDate === "before") deathDate = `before ${deathDate}`;
-    if (person.DataStatus.DeathDate === "after") deathDate = `after ${deathDate}`;
+    const status = dataStatusWord(person.DataStatus.DeathDate, person.DeathDate, false);
+    if (status) {
+      deathDate = status + " " + deathDate;
+    }
   }
 
   return `(${birthDate}–${deathDate})`;
@@ -771,7 +800,7 @@ function buildDeath(person) {
         /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Grave)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)).*?),?.*?(?=[,;])/im
       );
       if (cemeteryMatch && source.Text.match(/Acadian|Wall of Names/) == null) {
-        let cemetery = cemeteryMatch[0].replace("citing ", "");
+        let cemetery = cemeteryMatch[0].replace("citing ", "").replace("Burial, ", "").trim();
         window.profilePerson.Cemetery = cemetery;
         if (cemetery.match("Memorial")) {
           text += " " + capitalizeFirstLetter(person.Pronouns.subject) + " is commemorated at " + cemetery + ".";
@@ -1204,7 +1233,8 @@ function getHouseholdOfRelationAndName(text) {
                 " " +
                 relationWord +
                 ", " +
-                window.profilePerson[relation][key].FirstName
+                window.profilePerson[relation][key].FirstName +
+                ","
             );
           }
         });
@@ -2631,7 +2661,7 @@ function sourcesArray(bio) {
 
     if (
       aRef.Text.match(
-        /'''Birth'''|Birth (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|[A-Z][a-z]+ Births,|GRO Online Index \- Birth|^Birth \-|births,\s\d/i
+        /'''Birth'''|Birth (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|[A-Z][a-z]+ Births,|GRO Online Index \- Birth|^Birth \-|births,\s\d|citing Birth/i
       ) ||
       aRef["Birth Date"]
     ) {
@@ -2656,7 +2686,7 @@ function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        /'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage \-/
+        /'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage \-|citing Marriage/
       ) ||
       aRef["Marriage Date"]
     ) {
@@ -2696,7 +2726,7 @@ function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        /[A-Z][a-z]+ Deaths|'''Death'''|Death Index|findagrave|Find a Grave|memorial|death registration|Cemetery Registers|Death Certificate|^Death \-/i
+        /[A-Z][a-z]+ Deaths|'''Death'''|Death Index|findagrave|Find a Grave|memorial|death registration|Cemetery Registers|Death Certificate|^Death \-|citing Death|citing Burial/i
       ) ||
       aRef["Death Date"]
     ) {
