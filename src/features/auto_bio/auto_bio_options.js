@@ -8,18 +8,6 @@ const autoBio = {
   defaultValue: true,
   options: [
     {
-      id: "locationCategories",
-      type: OptionType.CHECKBOX,
-      label: "Add location categories",
-      defaultValue: true,
-    },
-    {
-      id: "unsourced",
-      type: OptionType.CHECKBOX,
-      label: "Add Unsourced template to unsourced profiles",
-      defaultValue: true,
-    },
-    {
       id: "fullNameOrBirthName",
       type: OptionType.RADIO,
       label: "Display full name or birth name",
@@ -41,36 +29,7 @@ const autoBio = {
       label: "Bold names for profile person and spouse(s)",
       defaultValue: true,
     },
-    {
-      id: "diedYoung",
-      type: OptionType.CHECKBOX,
-      label: "Add Died Young sticker for people who died aged 16 or younger",
-      defaultValue: true,
-    },
-    {
-      id: "dateFormat",
-      type: OptionType.SELECT,
-      label: "Date format",
-      values: [
-        {
-          value: "MDY",
-          text: "November 24, 1859",
-        },
-        {
-          value: "DMY",
-          text: "24 November 1859",
-        },
-        {
-          value: "sMDY",
-          text: "Nov 24, 1859",
-        },
-        {
-          value: "DsMY",
-          text: "24 Nov 1859",
-        },
-      ],
-      defaultValue: "FullMonthDDYYYY",
-    },
+
     {
       id: "deathPosition",
       type: OptionType.CHECKBOX,
@@ -124,6 +83,83 @@ const autoBio = {
         },
       ],
       defaultValue: "died",
+    },
+    {
+      id: "datesGroup",
+      type: OptionType.GROUP,
+      label: "Dates",
+      options: [
+        {
+          id: "dateFormat",
+          type: OptionType.SELECT,
+          label: "Date format",
+          values: [
+            {
+              value: "MDY",
+              text: "November 24, 1859",
+            },
+            {
+              value: "DMY",
+              text: "24 November 1859",
+            },
+            {
+              value: "sMDY",
+              text: "Nov 24, 1859",
+            },
+            {
+              value: "DsMY",
+              text: "24 Nov 1859",
+            },
+          ],
+          defaultValue: "FullMonthDDYYYY",
+        },
+        {
+          id: "dateStatusFormat",
+          type: OptionType.RADIO,
+          label: "Date status format",
+          values: [
+            {
+              value: "words",
+              text: "Words (before, after, about)",
+            },
+            {
+              value: "abbreviations",
+              text: "Abbreviations (bef., aft., abt.)",
+            },
+            {
+              value: "symbols",
+              text: "Symbols (<, >, ~)",
+            },
+          ],
+          defaultValue: "abbreviations",
+        },
+      ],
+    },
+
+    {
+      id: "categoriesAndStickersGroup",
+      type: OptionType.GROUP,
+      label: "Categories and stickers",
+      options: [
+        {
+          id: "locationCategories",
+          type: OptionType.CHECKBOX,
+          label: "Add location categories",
+          defaultValue: true,
+        },
+        {
+          id: "unsourced",
+          type: OptionType.CHECKBOX,
+          label: "Add Unsourced template to unsourced profiles",
+          defaultValue: true,
+        },
+        {
+          id: "diedYoung",
+          type: OptionType.CHECKBOX,
+          label: "Add Died Young sticker for people who died aged 16 or younger",
+          defaultValue: true,
+        },
+      ],
     },
     {
       id: "spouseDetailsGroup",
