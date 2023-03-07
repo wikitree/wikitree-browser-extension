@@ -1527,12 +1527,12 @@ async function addMarriageAges() {
             let aSpMarriageAge = getMarriageAge(aSp.BirthDate, aSp.marriage_date, aSp);
             let spBit = "";
             let bpBit = "";
-            if (bioPersonMarriageAge != "") {
+            if (bioPersonMarriageAge) {
               bpBit = window.people[0].FirstName + " (" + bioPersonMarriageAge + ")";
             }
             if (isOK(aSp.BirthDate)) {
               spBit = aSp.FirstName + " (" + aSpMarriageAge + ")";
-              if (bioPersonMarriageAge != "") {
+              if (bioPersonMarriageAge) {
                 spBit = "; " + spBit;
               }
             }
