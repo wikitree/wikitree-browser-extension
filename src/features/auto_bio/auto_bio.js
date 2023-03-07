@@ -626,6 +626,7 @@ function childList(person, spouse) {
     }
   } else {
     let gotChild = false;
+    ourChildren.sort((a, b) => a.BirthDate.replaceAll(/\-/g, "") - b.BirthDate.replaceAll(/\-/g, ""));
     ourChildren.forEach(function (child) {
       if (window.autoBioOptions.familyListStyle == "bullets") {
         childListText += "* ";
@@ -796,6 +797,7 @@ function buildDeath(person) {
   text += ".";
   // Get cemetery from FS citation
   console.log("window.references", window.references);
+  let burialAdded = false;
   window.references.forEach(function (source) {
     if (source["Record Type"].includes("Death")) {
       let cemeteryMatch = source.Text.match(
@@ -804,17 +806,35 @@ function buildDeath(person) {
       if (cemeteryMatch && source.Text.match(/Acadian|Wall of Names/) == null) {
         let cemetery = cemeteryMatch[0].replace("citing ", "").replace("Burial, ", "").trim();
         window.profilePerson.Cemetery = cemetery;
-        //window.sectionsObject.StuffBeforeTheBio.text
         if (cemetery.match("Memorial")) {
           text += " " + capitalizeFirstLetter(person.Pronouns.subject) + " is commemorated at " + cemetery + ".";
         } else {
           text += " " + capitalizeFirstLetter(person.Pronouns.subject) + " was buried in " + cemetery + ".";
         }
+        burialAdded = true;
+      }
+    }
+  });
+  window.sectionsObject.StuffBeforeTheBio.text.forEach(function (thing) {
+    const cemeteryCategoryMatch = thing.match(
+      /Category:\s?((.*Cemetery|Memorial|Cimetière|kyrkogård|temető|Grave|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard).*?)\]\]/
+    );
+    if (cemeteryCategoryMatch) {
+      window.profilePerson.Cemetery = cemeteryCategoryMatch[1].trim();
+      if (cemeteryCategoryMatch[1].match("Memorial") && burialAdded == false) {
+        text +=
+          " " +
+          capitalizeFirstLetter(person.Pronouns.subject) +
+          " is commemorated at " +
+          cemeteryCategoryMatch[1].trim() +
+          ".";
+      } else {
+        window.profilePerson["Burial Place"] = cemeteryCategoryMatch[1].trim();
       }
     }
   });
   text += addReferences("Death");
-  if (window.profilePerson["Burial Place"]) {
+  if (window.profilePerson["Burial Place"] && !burialAdded) {
     text +=
       " " +
       capitalizeFirstLetter(person.Pronouns.subject) +
@@ -3011,6 +3031,8 @@ async function getStickersAndBoxes() {
         // If a sticker is before the bio heading, remove it.
         window.sectionsObject.StuffBeforeTheBio.text.forEach(function (beforeBio) {
           if (thing == beforeBio) {
+            console.log(thing);
+            console.log(beforeBio);
             window.sectionsObject.StuffBeforeTheBio.text.splice(
               window.sectionsObject.StuffBeforeTheBio.text.indexOf(beforeBio),
               1
@@ -3142,7 +3164,6 @@ function splitBioIntoSections() {
     let subsectionMatch = line.match(/^={3}([^=]+)={3}$/);
     if (sectionMatch) {
       let newSectionTitle = sectionMatch[1].trim();
-
       let originalTitle = newSectionTitle;
       if (newSectionTitle == "Acknowledgments") {
         newSectionTitle = "Acknowledgements";
@@ -3180,19 +3201,28 @@ function splitBioIntoSections() {
         currentSubsection.text.push(line);
       } else if (currentSection && line) {
         currentSection.text.push(line);
-      } else {
+        if (!currentSection.title) {
+          sections.StuffBeforeTheBio.text.push(line);
+        }
+      } /* 
+      else {
+        console.log(line);
         if (line) {
-          if (line.match(/This person was created on.*/)) {
+          console.log(line);
+          if (line.match(/This person was created on.* /)) {
             sections.Acknowledgements.text.push(line);
           } else {
             sections.StuffBeforeTheBio.text.push(line);
+            console.log(line);
           }
         }
       }
+      */
     }
   }
 
   console.log("Bio sections", sections);
+  console.log("Bio sections", JSON.parse(JSON.stringify(sections)));
   if (sections.Sources) {
     sections.Sources.text.forEach(function (line, i) {
       if (line.match(/See also:/i)) {
@@ -3209,6 +3239,11 @@ function splitBioIntoSections() {
           });
         }
         sections.Sources.text.splice(i, 10);
+      } else {
+        if (line.match(/This person was created on.* /)) {
+          sections.Acknowledgements.text.push(line);
+          sections.Sources.text.splice(i, 1);
+        }
       }
     });
     if (sections.Sources.subsections?.Acknowledgements) {
@@ -3575,7 +3610,7 @@ export async function generateBio() {
     let types = ["Birth", "Marriage", "Death", "Cemetery"];
     for (let i = 0; i < types.length; i++) {
       const location = await getLocationCategory(types[i]);
-      if (location) {
+      if (location && location.match(",")) {
         const theCategory = "[[Category: " + location + "]]";
         const theCategoryWithoutSpace = "[[Category:" + location + "]]";
         if (
