@@ -320,7 +320,9 @@ function convertDate(dateString, outputFormat, status = "") {
 
   // Convert the date components to the output format
   var outputDate;
-  const ISOdate = year.toString() + "-" + padNumberStart(month) + "-" + padNumberStart(day);
+
+  const ISOdate = year.toString() + "-" + padNumberStart(month || 0) + "-" + padNumberStart(day || 0);
+
   if (outputFormat == "Y") {
     outputDate = year.toString();
   } else if (outputFormat == "MY") {
@@ -802,6 +804,7 @@ function buildDeath(person) {
       if (cemeteryMatch && source.Text.match(/Acadian|Wall of Names/) == null) {
         let cemetery = cemeteryMatch[0].replace("citing ", "").replace("Burial, ", "").trim();
         window.profilePerson.Cemetery = cemetery;
+        //window.sectionsObject.StuffBeforeTheBio.text
         if (cemetery.match("Memorial")) {
           text += " " + capitalizeFirstLetter(person.Pronouns.subject) + " is commemorated at " + cemetery + ".";
         } else {
@@ -1240,7 +1243,7 @@ function getHouseholdOfRelationAndName(text) {
         });
       }
     });
-    text = text.replace(/in the household of her husband/, "living with her husband");
+    text = text.replace(/in the household of her husband/, "living with her husband").replace(",.", ".");
   }
   return text;
 }
@@ -2731,6 +2734,7 @@ function sourcesArray(bio) {
       aRef["Death Date"]
     ) {
       aRef["Record Type"].push("Death");
+
       aRef.OrderDate = formatDate(aRef["Death Date"], 0, 8);
     }
     if (aRef.Text.match(/created .*? the import of.*\.GED/i)) {
