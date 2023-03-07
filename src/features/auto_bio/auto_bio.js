@@ -1096,10 +1096,10 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
   const pattern = new RegExp(firstName + "[^;.]+");
   console.log(pattern);
   const match = pattern.exec(reference.Text);
-  const USpattern = new RegExp(
+  const countryPattern = new RegExp(
     "(?<=, )((['a-zA-Z .-]+, )?['a-zA-Z .-]+,['a-zA-Z ().-]+), (United States|England|Scotland|Canada|Wales|Australia);"
   );
-  const USmatch = USpattern.exec(reference.Text);
+  const countryPatternMatch = countryPattern.exec(reference.Text);
   const firstNameMatch = new RegExp(firstName.replace(".", "\\.").replace(/([A-Z])\|/, "$1\b|"));
   console.log(firstNameMatch);
   const theFirstNameMatch = nameMatchPattern.exec(reference.Text);
@@ -1130,7 +1130,9 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
       if (text.match(/in the household of/) == null) {
         text += " was living";
       }
-      text += " in " + minimalPlace(reference.Residence);
+      /* Remove country name */
+      const residenceOut = reference.Residence.replace(/, (United States|England|Scotland|Canada|Wales|Australia)/, "");
+      text += " in " + minimalPlace(residenceOut);
     }
     text += ".";
     if (
@@ -1143,9 +1145,14 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
     if (text.match(firstName) && ageAtCensus) {
       text = text.replace(firstName, firstName + ageBit + " ").replaceAll(/'''/g, "");
     }
-  } else if (USmatch) {
+  } else if (countryPatternMatch) {
     //if we have a match on the US pattern
-    text += window.profilePerson.PersonName.FirstName + ageBit + " was living in " + USmatch[1] + ".";
+    text +=
+      window.profilePerson.PersonName.FirstName +
+      ageBit +
+      " was living in " +
+      minimalPlace(countryPatternMatch[1]) +
+      ".";
   }
   text = getHouseholdOfRelationAndName(text);
   return [text, reference];
@@ -1168,6 +1175,7 @@ function getHouseholdOfRelationAndName(text) {
           if (firstNameVariants[householdHeadFirstName]) {
             oNameVariants = firstNameVariants[householdHeadFirstName];
           }
+
           if (isSameName(window.profilePerson[relation][key].FirstName, oNameVariants)) {
             if (window.profilePerson[relation][key].Gender) {
               let oGender = window.profilePerson[relation][key].Gender;
@@ -2623,7 +2631,7 @@ function sourcesArray(bio) {
 
     if (
       aRef.Text.match(
-        /'''Birth'''|Birth (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|[A-Z][a-z]+ Births,|GRO Online Index \- Birth|^Birth \-/i
+        /'''Birth'''|Birth (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|[A-Z][a-z]+ Births,|GRO Online Index \- Birth|^Birth \-|births,\s\d/i
       ) ||
       aRef["Birth Date"]
     ) {
@@ -3308,7 +3316,7 @@ export async function generateBio() {
       let findAGraveLink;
       const match1 = /^https?:\/\/www\.findagrave.com[^\s]+$/;
       const match2 = /\[(https?:\/\/www\.findagrave.com[^\s]+)(\s([^\]]+))?\]/;
-      const match3 = /\{\{FindAGrave\|(\d+)?\}\}/;
+      const match3 = /\{\{FindAGrave\|(\d+)(\|.*?)\}\}/;
       const match4 = /database and images/;
       const match5 = /^\s?Find a Grave( memorial)? #(\d+)$/i;
       if (aRef.Text.match(match1)) {
