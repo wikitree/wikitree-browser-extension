@@ -1,4 +1,5 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
+import { isWikiEdit } from "../../core/common";
 
 registerFeature({
   name: "WikiTree+ Edit Helper",
@@ -8,7 +9,7 @@ registerFeature({
   creators: [{name:"Aleš Trtnik", wikitreeid:"Trtnik-2"},{name:"1 Aleš Trtnik", wikitreeid:"Trtnik-2"}],
   contributors: [{name:"2 Aleš Trtnik", wikitreeid:"Trtnik-2"},{name:"3 Aleš Trtnik", wikitreeid:"Trtnik-2"}],
   defaultValue: true,
-  pages: ["AllEditPages"],
+  pages: [isWikiEdit],
   options: [
     {
       id: "wtplusSourceInline",

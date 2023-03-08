@@ -1,4 +1,27 @@
 import { registerFeature } from "../core/options/options_registry";
+import {
+  isWikiPage,
+  isWikiEdit,
+  isProfilePage,
+  isProfileUserPage,
+  isProfileLoggedInUserPage,
+  isProfileEdit,
+  isProfileAddRelative,
+  isSpacePage,
+  isSpaceEdit,
+  isCategoryPage,
+  isCategoryEdit,
+  isTemplatePage,
+  isTemplateEdit,
+  isHelpPage,
+  isHelpEdit,
+  isOtherPage,
+  isOtherEdit,
+  isSpecialPage,
+  isSpecialBadges,
+  isSpecialMyConnections,
+  pageG2G,
+} from "../core/common";
 
 // Just importing this file will register all the features
 
@@ -179,6 +202,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: false,
+  pages: [true],
 });
 
 registerFeature({
@@ -191,6 +215,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [isProfileEdit,isProfileAddRelative],
 });
 
 registerFeature({
@@ -201,6 +226,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [isProfileEdit,isProfileAddRelative],
 });
 
 registerFeature({
@@ -213,6 +239,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [isSpecialMyConnections],
 });
 
 registerFeature({
@@ -223,6 +250,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: false,
+  pages: [true],
 });
 
 registerFeature({
@@ -233,6 +261,7 @@ registerFeature({
   creators: [{name:"Jamie Nelson", wikitreeid:"Nelson-3486"}],
   contributors: [],
   defaultValue: true,
+  pages: [isProfilePage],
 });
 
 registerFeature({
@@ -244,6 +273,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [isCategoryPage, isTemplatePage, isHelpPage, isOtherPage, isCategoryEdit, isTemplateEdit, isHelpEdit, isOtherEdit],  
 });
 
 registerFeature({
@@ -254,6 +284,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [isProfileLoggedInUserPage, isSpecialBadges],  
 });
 
 registerFeature({
@@ -265,6 +296,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [{name:"Riël Smit", wikitreeid:"Smit-641"}],  
   defaultValue: false,
+  pages: [isProfilePage],  
 });
 
 registerFeature({
@@ -275,6 +307,7 @@ registerFeature({
   creators: [{name:"Steve Harris", wikitreeid:"Harris-5439"}],
   contributors: [],
   defaultValue: false,
+  pages: [isProfilePage],  
 });
 
 registerFeature({
@@ -285,6 +318,7 @@ registerFeature({
   creators: [{name:"Steve Harris", wikitreeid:"Harris-5439"}],
   contributors: [],
   defaultValue: false,
+  pages: [true],  
 });
 
 registerFeature({
@@ -296,6 +330,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [isWikiEdit],  
 });
 
 registerFeature({
@@ -306,6 +341,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [isProfileAddRelative],
 });
 
 registerFeature({
@@ -317,4 +353,5 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [isProfileAddRelative],
 });

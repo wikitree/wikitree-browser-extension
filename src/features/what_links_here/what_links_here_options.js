@@ -1,4 +1,5 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
+import { isWikiPage, isWikiEdit } from "../../core/common";
 
 const whatLinksHere = {
   name: "What Links Here",
@@ -10,7 +11,7 @@ const whatLinksHere = {
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
-  pages: ["AllWikiPages", "AllEditPages"],
+  pages: [isWikiPage, isWikiEdit],  
   options: [
     {
       id: "whatLinksHereSection",

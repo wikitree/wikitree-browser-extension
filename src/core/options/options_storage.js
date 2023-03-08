@@ -1,23 +1,4 @@
 import { getDefaultOptionValuesForFeature, getFeatureData, features } from "./options_registry";
-import {
-  isWikiPage,
-  isWikiEdit,
-  isProfilePage,
-  isProfileEdit,
-  isSpacePage,
-  isSpaceEdit,
-  isCategoryPage,
-  isCategoryEdit,
-  isTemplatePage,
-  isTemplateEdit,
-  isHelpPage,
-  isHelpEdit,
-  isOtherPage,
-  isOtherEdit,
-  isSpecialPage,
-  pageG2G,
-} from "../common";
-
 /*
 This function returns a Promise so it can be used in a couple of different ways:
 
@@ -57,83 +38,15 @@ async function checkIfFeatureEnabled(featureId) {
           result = featureData.defaultValue ? true : false;
         }
 
+        // checks for correct page type
         if (result && featureData.pages) {
           result = false;
           // feature is enabled, check if aplicable to the page URL.
           featureData.pages.forEach((element) => {
             if (!result) {
-              switch (element) {
-                case "AllPages": // all pages on wikitree
-                  result = true;
-                  break;
-                case "AllWikiPages":
-                  result = isWikiPage;
-                  break;
-                case "AllEditPages":
-                  result = isWikiEdit;
-                  break;
-                case "ProfilePage":
-                  result = isProfilePage;
-                  break;
-                /*
-                  case "ProfileUser":
-                    result = true;
-                    break
-                  case "ProfileMember":
-                    result = true;
-                    break
-*/
-                case "ProfileEdit":
-                  result = isProfileEdit;
-                  break;
-                case "SpacePage":
-                  result = isSpacePage;
-                  break;
-                case "SpaceEdit":
-                  result = isSpaceEdit;
-                  break;
-                case "Category":
-                  result = isCategoryPage;
-                  break;
-                case "CategoryEdit":
-                  result = isCategoryEdit;
-                  break;
-                case "Template":
-                  result = isTemplatePage;
-                  break;
-                case "TemplateEdit":
-                  result = isTemplateEdit;
-                  break;
-                case "Help":
-                  result = isHelpPage;
-                  break;
-                case "HelpEdit":
-                  result = isHelpEdit;
-                  break;
-                case "OtherWiki":
-                  result = isOtherPage;
-                  break;
-                case "OtherEdit":
-                  result = isOtherEdit;
-                  break;
-                case "G2G":
-                  result = pageG2G;
-                  break;
-                case "WatchList":
-                  result = true;
-                  break;
-                case "BadgeHoldes":
-                  result = true;
-                  break;
-                case "BadgeUser":
-                  result = true;
-                  break;
-                case "BadgeUserEdit":
-                  result = true;
-                  break;
-              }
-            }
-          });
+              result = element;
+            }  
+          })
         }
 
         resolve(result);

@@ -9,6 +9,7 @@ const randomProfileFeature = {
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [true],  
 };
 
 registerFeature(randomProfileFeature);

@@ -1,4 +1,5 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
+import { isG2G } from "../../core/common";
 
 // The feature data for the myFeature feature
 const g2g = {
@@ -9,7 +10,7 @@ const g2g = {
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: false,
-
+  pages: [isG2G],
   options: [
     {
       id: "checkMarks",

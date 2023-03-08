@@ -2,6 +2,7 @@ import {
   registerFeature,
   OptionType,
 } from "../../core/options/options_registry.js";
+import { isProfileEdit,isProfileAddRelative } from "../../core/common";
 
 const genderPredictorFeature = {
   name: "Gender Predictor",
@@ -12,6 +13,7 @@ const genderPredictorFeature = {
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [isProfileEdit,isProfileAddRelative],
 };
 
 registerFeature(genderPredictorFeature);

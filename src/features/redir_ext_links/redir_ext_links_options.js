@@ -1,4 +1,5 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry.js";
+import { isWikiPage } from "../../core/common";
 
 const redirExtLinksFeature = {
   name: "Redirect External Links",
@@ -8,6 +9,7 @@ const redirExtLinksFeature = {
   creators: [{name:"Rob Pavey", wikitreeid:"Pavey-429"}],
   contributors: [],
   defaultValue: false,
+  pages: [isWikiPage],  
   options: [
     {
       id: "ancestryOldLinks",
