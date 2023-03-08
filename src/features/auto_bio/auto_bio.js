@@ -1074,7 +1074,6 @@ function getAgeFromISODates(birth, date) {
     start: { year: year1, month: month1, date: day1 },
     end: { year: year2, month: month2, date: day2 },
   });
-  console.log(birth, date, age);
   return age[0];
 }
 
@@ -1300,15 +1299,17 @@ function updateRelations(data) {
   }
   const self = data[selfIndex];
   self.Gender = window.profilePerson.Gender;
+  console.log(JSON.parse(JSON.stringify(self)));
 
   if (self.originalRelation != "Head") {
     data.forEach(function (person) {
+      console.log(JSON.parse(JSON.stringify(person)));
+      person.originalRelation = person.Relation;
       if (person.Relation != "Self") {
-        person.originalRelation = person.Relation;
         if (person != self) {
-          switch (person.originalRelation) {
+          switch (person.censusRelation || person.originalRelation) {
             case "Head":
-              switch (self.originalRelation) {
+              switch (self.censusRelation || self.originalRelation) {
                 case "Son":
                 case "Daughter":
                   person.Relation = person.Gender == "Female" ? "Mother" : "Father";
@@ -1327,7 +1328,7 @@ function updateRelations(data) {
               }
               break;
             case "Wife":
-              switch (self.originalRelation) {
+              switch (self.censusRelation || self.originalRelation) {
                 case "Son":
                 case "Daughter":
                   person.Relation = "Mother";
@@ -1343,7 +1344,7 @@ function updateRelations(data) {
               }
               break;
             case "Son":
-              switch (self.originalRelation) {
+              switch (self.censusRelation || self.originalRelation) {
                 case "Son":
                 case "Daughter":
                   person.Relation = "Brother";
@@ -1362,7 +1363,7 @@ function updateRelations(data) {
               }
               break;
             case "Daughter":
-              switch (self.originalRelation) {
+              switch (self.censusRelation || self.originalRelation) {
                 case "Son":
                 case "Daughter":
                   person.Relation = "Sister";
@@ -1381,7 +1382,7 @@ function updateRelations(data) {
               }
               break;
             case "Mother":
-              switch (self.originalRelation) {
+              switch (self.censusRelation || self.originalRelation) {
                 case "Son":
                 case "Daughter":
                   person.Relation = "Grandmother";
@@ -1399,7 +1400,7 @@ function updateRelations(data) {
               }
               break;
             case "Father":
-              switch (self.originalRelation) {
+              switch (self.censusRelation || self.originalRelation) {
                 case "Son":
                 case "Daughter":
                   person.Relation = "Grandfather";
@@ -1417,7 +1418,7 @@ function updateRelations(data) {
               }
               break;
             case "Brother":
-              switch (self.originalRelation) {
+              switch (self.censusRelation || self.originalRelation) {
                 case "Son":
                 case "Daughter":
                   person.Relation = "Uncle";
@@ -1436,7 +1437,7 @@ function updateRelations(data) {
               }
               break;
             case "Sister":
-              switch (self.originalRelation) {
+              switch (self.censusRelation || self.originalRelation) {
                 case "Son":
                 case "Daughter":
                   person.Relation = "Aunt";
@@ -1455,8 +1456,9 @@ function updateRelations(data) {
               }
               break;
             case "Grandson":
-              switch (self.originalRelation) {
-                case ("Son", "Daughter"):
+              switch (self.censusRelation || self.originalRelation) {
+                case "Son":
+                case "Daughter":
                   person.Relation = "Nephew";
                   break;
                 case "Brother":
@@ -1473,7 +1475,7 @@ function updateRelations(data) {
               }
               break;
             case "Granddaughter":
-              switch (self.originalRelation) {
+              switch (self.censusRelation || self.originalRelation) {
                 case "Son":
                 case "Daughter":
                   person.Relation = "Niece";
@@ -1492,12 +1494,16 @@ function updateRelations(data) {
               }
               break;
             default:
-              person.Relation = "";
+              person.Relation = person.Relation;
           }
         }
+        console.log(JSON.parse(JSON.stringify(person)));
       }
       if (!person.Relation) {
+        console.log(JSON.parse(JSON.stringify(person)));
+
         person.Relation = findRelation(person);
+        console.log(JSON.parse(JSON.stringify(person)));
       }
     });
   }
@@ -2102,7 +2108,14 @@ function buildCensusNarratives() {
             const parents = familyMembers.filter(
               (member) => member.Relation === "Father" || member.Relation === "Mother"
             );
-            const others = familyMembers.filter((member) => member.Relation === "" || member.Relation == undefined);
+            // const others = familyMembers.filter((member) => member.Relation === "" || member.Relation == undefined);
+
+            const others = familyMembers.filter(
+              (member) =>
+                !["Self", "Wife", "Husband", "Daughter", "Son", "Brother", "Sister", "Father", "Mother"].includes(
+                  member.Relation
+                )
+            );
 
             const removeMainPersonLastName = (name) => {
               const names = name.split(" ");
@@ -2193,12 +2206,18 @@ function buildCensusNarratives() {
             let othersBit = "";
             if (others.length > 0) {
               othersBit += "; and ";
+              let oRelation;
+              let oRelationStr;
               others.forEach((other, index) => {
-                othersBit += `${other.Name} (${other.Age})`;
+                oRelation = other.Relation;
+                console.log(`Relation for ${other.Name}: ${oRelation}`);
+                oRelationStr = oRelation ? ", " + oRelation.toLowerCase() : "";
+                othersBit += other.Name + " (" + other.Age + oRelationStr + ")";
+
                 if (index === others.length - 2) {
-                  othersBit += `, and `;
+                  othersBit += ", and ";
                 } else if (index !== others.length - 1) {
-                  othersBit += `, `;
+                  othersBit += ", ";
                 }
               });
             }
@@ -2256,8 +2275,13 @@ function parseWikiTable(text) {
       if (data.Household) {
         const aMember = { Name: key };
         for (let i = 1; i < cells.length; i++) {
-          if (cells[i].match(/father|mother|brother|sister|wife|husband|head|son|daughter|child/i)) {
+          if (
+            cells[i].match(
+              /father|mother|brother|sister|wife|husband|head|son|daughter|child|boarder|visitor|aunt|uncle|grandmother|grandfather|grandson|granddaughter|niece|nephew|cousin|teacher/i
+            )
+          ) {
             aMember.Relation = cells[i].trim();
+            aMember.censusRelation = aMember.Relation;
           } else if (cells[i].match(/^\s?\d{1,2}/)) {
             aMember.Age = cells[i].trim();
           } else if (cells[i].match(/^M$/)) {
@@ -2274,6 +2298,7 @@ function parseWikiTable(text) {
         ) {
           aMember.Relation = "Self";
         } else if (data["Relation to Head"] && aMember.Relation) {
+          console.log(JSON.parse(JSON.stringify(aMember)));
           if (["Son", "Daughter"].includes(data["Relation to Head"])) {
             if (aMember.Relation == "Son") {
               aMember.Relation = "Brother";
@@ -2426,6 +2451,7 @@ function assignSelf(data) {
           isSameName(member.Name, window.profilePerson.NameVariants, strength) &&
           isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), member.Age, isWithinRange)
         ) {
+          console.log(JSON.parse(JSON.stringify(member)));
           member.originalRelation = member.Relation;
           member.Relation = "Self";
           hasSelf = true;
@@ -2440,6 +2466,8 @@ function assignSelf(data) {
   }
   if (data.Household) {
     let hasSelf = data.Household.some((person) => person.Relation === "Self");
+    console.log(JSON.parse(JSON.stringify(hasSelf)));
+
     if (!hasSelf) {
       data = findSelf(data, hasSelf);
     }
@@ -3228,24 +3256,10 @@ function splitBioIntoSections() {
         if (!currentSection.title) {
           sections.StuffBeforeTheBio.text.push(line);
         }
-      } /* 
-      else {
-        console.log(line);
-        if (line) {
-          console.log(line);
-          if (line.match(/This person was created on.* /)) {
-            sections.Acknowledgements.text.push(line);
-          } else {
-            sections.StuffBeforeTheBio.text.push(line);
-            console.log(line);
-          }
-        }
       }
-      */
     }
   }
 
-  console.log("Bio sections", sections);
   console.log("Bio sections", JSON.parse(JSON.stringify(sections)));
   if (sections.Sources) {
     sections.Sources.text.forEach(function (line, i) {
@@ -3548,8 +3562,6 @@ export async function generateBio() {
     }
     return out;
   }
-
-  console.log("marriagesAndCensuses", marriagesAndCensuses);
 
   marriagesAndCensuses.sort((a, b) => a.OrderDate - b.OrderDate);
   marriagesAndCensuses.forEach(function (anEvent, i) {
