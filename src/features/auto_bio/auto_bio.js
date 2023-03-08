@@ -3459,32 +3459,18 @@ export async function generateBio() {
   await getFindAGraveCitations();
 
   // Start OUTPUT
-  let text = "";
-
   const bioHeader = "== Biography ==\n";
-  text += bioHeader;
 
   // Stickers and boxes
   const stickersAndBoxes = await getStickersAndBoxes();
-  text += stickersAndBoxes;
-
   const bioHeaderAndStickers = bioHeader + stickersAndBoxes;
 
   //Add birth
   const birthText = buildBirth(window.profilePerson) + "\n\n";
-  text += birthText;
-
   const deathText = buildDeath(window.profilePerson) + (window.profilePerson.BurialFact || "") + "\n\n" || "";
-  // Add death
-  if (window.autoBioOptions.deathPosition == true) {
-    if (deathText) {
-      text += deathText;
-    }
-  }
 
   // Add siblings
   const siblingListText = siblingList() || "";
-  text += siblingListText;
 
   // Get marriages and censuses, order them by date
   // and add them to the text
@@ -3584,9 +3570,6 @@ export async function generateBio() {
           // Minimal places again
           let aBit = minimalPlace2(narrativeBits);
           marriagesAndCensusesText += aBit;
-          text += aBit;
-
-          console.log(marriagesAndCensusesText);
           // Add the reference
           let listText = "";
           if (Array.isArray(anEvent.ListText)) {
@@ -3596,9 +3579,7 @@ export async function generateBio() {
           }
 
           let refNameBit = anEvent.RefName ? " name='" + anEvent.RefName + "'" : " name='ref_" + i + "'";
-          text += " <ref" + refNameBit + ">" + anEvent.Text + listText + "</ref>";
           marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + listText + "</ref>";
-          text += "\n\n";
           marriagesAndCensusesText += "\n\n";
           anEvent.Used = true;
           anEvent.RefName = anEvent.RefName ? anEvent.RefName : "ref_" + i;
@@ -3633,39 +3614,24 @@ export async function generateBio() {
           } else {
             let thisBit = minimalPlace2(narrativeBits) + thisRef + "\n\n";
             marriagesAndCensusesText += thisBit;
-            text += thisBit;
           }
         }
       }
     } else {
       marriagesAndCensusesText += anEvent.Narrative + "\n\n";
-      text += anEvent.Narrative + "\n\n";
     }
   });
   console.log("marriagesAndCensuses", marriagesAndCensuses);
 
-  // Add death
-  if (window.autoBioOptions.deathPosition == false) {
-    if (deathText) {
-      text += deathText;
-    }
-  }
-
   // Add obituary
   let obituaryText = "";
   if (window.sectionsObject["Obituary"]) {
-    text += "=== Obituary ===\n";
     obituaryText += "=== Obituary ===\n";
-    text += window.sectionsObject["Obituary"].text.join("\n");
     obituaryText += window.sectionsObject["Obituary"].text.join("\n");
-    text += "\n\n";
     obituaryText += "\n\n";
   } else if (window.sectionsObject["Biography"].subsections.Obituary) {
-    text += "=== Obituary ===\n";
     obituaryText += "=== Obituary ===\n";
-    text += window.sectionsObject["Biography"].subsections.Obituary.text.join("\n");
     obituaryText += window.sectionsObject["Biography"].subsections.Obituary.text.join("\n");
-    text += "\n\n";
     obituaryText += "\n\n";
   }
 
@@ -3719,7 +3685,6 @@ export async function generateBio() {
   if (window.autoBioOptions.timeline == "table") {
     const bioTimeline = bioTimelineFacts(marriagesAndCensuses);
     bioTimelineText += buildTimelineTable(bioTimeline) + "\n";
-    text += bioTimelineText;
   }
 
   // Add SA format
@@ -3728,18 +3693,15 @@ export async function generateBio() {
   if (window.autoBioOptions.SouthAfricaProject) {
     const bioTimeline = bioTimelineFacts(marriagesAndCensuses);
     southAfricaFormatText += bioHeaderAndStickers;
-    text = southAfricaFormatText;
     for (let i = 0; i < window.references.length; i++) {
       window.references[i].Used = false;
     }
     let buildTimelineSAText = buildTimelineSA(bioTimeline) + "\n";
-    text += buildTimelineSAText;
     southAfricaFormatText += buildTimelineSAText;
     southAfricaTimelineText += buildTimelineSAText;
   } else if (window.autoBioOptions.timeline == "SA") {
     const bioTimeline = bioTimelineFacts(marriagesAndCensuses);
     let buildTimelineSAText = buildTimelineSA(bioTimeline) + "\n";
-    text += buildTimelineSAText;
     southAfricaFormatText += buildTimelineSAText;
     southAfricaTimelineText += buildTimelineSAText;
   }
@@ -3751,12 +3713,9 @@ export async function generateBio() {
     window.sectionsObject["Research Notes"].subsections["NeedsProfiles"].length > 0
   ) {
     let researchNotesHeader = "=== Research Notes ===\n";
-    text += researchNotesHeader;
     researchNotesText += researchNotesHeader;
     if (window.sectionsObject["Research Notes"].text.length > 0) {
-      text += window.sectionsObject["Research Notes"].text.join("\n");
       researchNotesText += window.sectionsObject["Research Notes"].text.join("\n");
-      text += "\n\n";
       researchNotesText += "\n\n";
     }
     let needsProfileText = "";
@@ -3774,7 +3733,6 @@ export async function generateBio() {
           needsProfileText += aMember.Relation ? "(" + aMember.Relation + ")\n" : "\n";
         });
       }
-      text += needsProfileText + "\n\n";
       researchNotesText += needsProfileText + "\n\n";
     }
   }
@@ -3782,11 +3740,9 @@ export async function generateBio() {
   // Add Sources section
   let sourcesText = "";
   let sourcesHeader = "=== Sources ===\n<references />\n";
-  text += sourcesHeader;
   sourcesText += sourcesHeader;
   window.references.forEach(function (aRef) {
     if ((aRef.Used == undefined || window.autoBioOptions.inlineCitations == false) && aRef["Record Type"] != "GEDCOM") {
-      text += "* " + aRef.Text.replace(/Click the Changes tab.*/, "") + "\n";
       sourcesText += "* " + aRef.Text.replace(/Click the Changes tab.*/, "") + "\n";
     }
     if (aRef["Record Type"].includes("GEDCOM")) {
@@ -3796,13 +3752,10 @@ export async function generateBio() {
   // Add See also
   if (window.sectionsObject["See Also"]) {
     if (window.sectionsObject["See Also"].text.length > 0) {
-      text += "See also:\n";
       sourcesText += "See also:\n";
       window.sectionsObject["See Also"].text.forEach(function (anAlso) {
-        text += "* " + anAlso.replace(/^\*\s?/, "") + "\n";
         sourcesText += "* " + anAlso.replace(/^\*\s?/, "") + "\n";
       });
-      text += "\n";
       sourcesText += "\n";
     }
   }
@@ -3829,11 +3782,8 @@ export async function generateBio() {
       ackTitle = "\n== Acknowledgments ==\n";
       acknowledgementsHeader = "\n== Acknowledgments ==\n";
     }
-    text += ackTitle;
     acknowledgementsText += acknowledgementsHeader;
-    text += window.sectionsObject["Acknowledgements"].text.join("\n") + "\n";
     acknowledgementsText += window.sectionsObject["Acknowledgements"].text.join("\n") + "\n";
-    text = text.replace(/<!-- Please edit[\s\S]*?Changes page. -->/, "").replace(/Click to[\s\S]*?and others./, "");
     acknowledgementsText = acknowledgementsText
       .replace(/<!-- Please edit[\s\S]*?Changes page. -->/, "")
       .replace(/Click to[\s\S]*?and others./, "");
@@ -3845,20 +3795,16 @@ export async function generateBio() {
     "1. Edit the new biography (above).\n" +
     "2. Delete this message and the old biography (below). (You can just click the 'Delete Old Bio' button.)\n" +
     "Thank you.\n";
-  text += extensionNotes;
 
   if (window.autoBioNotes) {
     if (window.autoBioNotes.length > 0) {
-      text += "\nNotes:\n";
       extensionNotes += "\nNotes:\n";
       window.autoBioNotes.forEach(function (aNote) {
         extensionNotes += "* " + aNote + "\n";
-        text += "* " + aNote + "\n";
       });
     }
   }
   extensionNotes += "\n-->\n";
-  text += "\n-->\n";
 
   // Add Unsourced template if there are no good sources
   if (window.autoBioOptions.unsourced == true) {
@@ -3884,7 +3830,6 @@ export async function generateBio() {
   if (window.sectionsObject["StuffBeforeTheBio"]) {
     const stuff = window.sectionsObject["StuffBeforeTheBio"].text.join("\n");
     if (stuff) {
-      text = stuff + "\n" + text;
       stuffBeforeTheBioText = stuff + "\n";
     }
   }
@@ -3913,6 +3858,7 @@ export async function generateBio() {
       siblingListText +
       deathText +
       marriagesAndCensusesText +
+      obituaryText +
       timelineText +
       researchNotesText +
       sourcesText +
@@ -3926,6 +3872,7 @@ export async function generateBio() {
       siblingListText +
       marriagesAndCensusesText +
       deathText +
+      obituaryText +
       timelineText +
       researchNotesText +
       sourcesText +
@@ -3935,9 +3882,7 @@ export async function generateBio() {
 
   // Remove inline citations if not wanted
   if (window.autoBioOptions.inlineCitations == false) {
-    text = text.replace(/<ref[^>]*>(.*?)<\/ref>/gi, "");
     outputText = outputText.replace(/<ref[^>]*>(.*?)<\/ref>/gi, "");
-    text = text.replace(/<ref\s*\/>/gi, "");
     outputText = outputText.replace(/<ref\s*\/>/gi, "");
   }
 
@@ -3954,7 +3899,7 @@ export async function generateBio() {
   console.log("profilePerson", window.profilePerson);
 
   // Add the text to the textarea and switch back to the enhanced editor if it was on
-  $("#wpTextbox1").val(text + $("#wpTextbox1").val());
+  $("#wpTextbox1").val(outputText + $("#wpTextbox1").val());
   if (enhanced == true) {
     enhancedEditorButton.trigger("click");
   }
