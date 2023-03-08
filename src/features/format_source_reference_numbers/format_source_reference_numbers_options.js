@@ -1,4 +1,5 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
+import { isProfilePage } from "../../core/common";
 
 const formatSourceReferenceNumbersObject = {
   name: "Format Source Reference Numbers",
@@ -8,6 +9,7 @@ const formatSourceReferenceNumbersObject = {
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: false,
+  pages: [isProfilePage],
   options: [
     {
       id: "mode",

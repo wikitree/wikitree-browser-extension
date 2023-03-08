@@ -19,8 +19,10 @@ import {
   isOtherEdit,
   isSpecialPage,
   isSpecialBadges,
+  isSpecialDNATests,
   isSpecialMyConnections,
-  pageG2G,
+  isSpecialWatchedList,
+  isG2G,
 } from "../core/common";
 
 // Just importing this file will register all the features
@@ -57,6 +59,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [true],
 });
 
 registerFeature({
@@ -67,6 +70,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [isProfilePage],
 });
 
 registerFeature({
@@ -77,6 +81,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [true],
 });
 
 registerFeature({
@@ -87,6 +92,7 @@ registerFeature({
   creators: [{name:"Kay Knight", wikitreeid:"Sands-1865"}],
   contributors: [],  
   defaultValue: true,
+  pages: [isProfileEdit, isSpecialWatchedList],
 });
 
 registerFeature({
@@ -98,6 +104,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [isWikiEdit],  
 });
 
 registerFeature({
@@ -108,6 +115,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: false,
+  pages: [true],
 });
 
 registerFeature({
@@ -118,6 +126,7 @@ registerFeature({
   contributors: [],
   category: "Profile",
   defaultValue: true,
+  pages: [isProfilePage],
 });
 
 registerFeature({
@@ -131,6 +140,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: false,
+  pages: [isProfilePage],
 });
 
 registerFeature({
@@ -141,6 +151,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [isProfilePage],
 });
 
 registerFeature({
@@ -151,6 +162,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [isSpecialDNATests],
 });
 
 registerFeature({
@@ -161,6 +173,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [true],
 });
 
 registerFeature({
@@ -172,6 +185,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [isProfileEdit],
 });
 
 registerFeature({
@@ -182,6 +196,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [isProfilePage],
 });
 
 registerFeature({
@@ -192,6 +207,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [isProfilePage],
 });
 
 registerFeature({

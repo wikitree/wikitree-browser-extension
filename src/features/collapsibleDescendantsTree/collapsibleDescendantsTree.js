@@ -1,9 +1,8 @@
 import $ from "jquery";
-import { isProfilePage } from "../../core/common";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("collapsibleDescendantsTree").then((result) => {
-  if (result && isProfilePage == true) {
+  if (result) {
     import("./collapsibleDescendantsTree.css");
     // Look out for the appearance of new list items in the descendantsContainer
     const descendantsObserver = new MutationObserver(function (mutations_list) {

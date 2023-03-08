@@ -11,6 +11,7 @@ import {
     creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
     contributors: [],
     defaultValue: false,
+    pages: [true],
     options: [
       {
         id: "mode",

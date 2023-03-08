@@ -1,4 +1,5 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
+import { isWikiPage } from "../../core/common";
 
 registerFeature({
   name: "Extra Watchlist",
@@ -8,6 +9,7 @@ registerFeature({
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: true,
+  pages: [isWikiPage],  
   options: [
     {
       id: "sortBy",

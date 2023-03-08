@@ -1,9 +1,8 @@
 import $ from 'jquery';
-import { isProfilePage } from '../../core/common';
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("categoryDisplay").then((result) => {
-    if (result && isProfilePage == true) {
+    if (result) {
         moveCategories();
     }
 })

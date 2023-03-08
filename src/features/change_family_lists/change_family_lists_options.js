@@ -1,3 +1,4 @@
+import { isProfilePage } from "../../core/common";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 const changeFamilyLists = {
@@ -8,6 +9,8 @@ const changeFamilyLists = {
   creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
   contributors: [],
   defaultValue: false,
+  pages: [isProfilePage],  
+
   options: [
     {
       id: "moveToRight",

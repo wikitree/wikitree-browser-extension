@@ -1,3 +1,4 @@
+import { isProfilePage } from "../../core/common.js";
 import { registerFeature, OptionType } from "../../core/options/options_registry.js";
 
 const categoryDisplay = {
@@ -8,6 +9,7 @@ const categoryDisplay = {
     creators: [{name:"Steve Harris", wikitreeid:"Harris-5439"}],
     contributors: [],
     defaultValue: false,
+    pages: [isProfilePage],  
     options: [
         {
             id: "categoryLocation",

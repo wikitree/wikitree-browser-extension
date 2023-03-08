@@ -6,7 +6,7 @@ import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("familyTimeline").then((result) => {
   if (result) {
-    if (result && $("body.profile").length && window.location.href.match("Space:") == null) {
+    if (result && $("body.profile").length) {
       import("./familyTimeline.css");
       // Add a link to the short list of links below the tabs
       const options = {

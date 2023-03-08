@@ -1,3 +1,4 @@
+import { isProfileEdit } from "../../core/common";
 import { registerFeature, OptionType } from "../../core/options/options_registry"
 
 // The feature data for the AGC feature
@@ -10,6 +11,7 @@ const agcFeature = {
   creators: [{name:"Rob Pavey", wikitreeid:"Pavey-429"}],
   contributors: [],
   defaultValue: true,
+  pages: [isProfileEdit],
   options: [
     {
       id: "bioMainText",

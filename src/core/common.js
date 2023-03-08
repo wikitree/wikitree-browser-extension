@@ -25,6 +25,10 @@ export let isSpecialPage = false;
 export let isSpecialBadges = false;
 // Special: MyConnections page
 export let isSpecialMyConnections = false;
+// Special: DNATests page
+export let isSpecialDNATests = false;
+// Special: WatchedList page
+export let isSpecialWatchedList = false;
 
 // Any Edit page with pageID
 export let isWikiEdit = false;
@@ -43,7 +47,7 @@ export let isHelpEdit = false;
 // Other wiki edit page (Project:, Docs:, Automated:, ...)
 export let isOtherEdit = false;
 
-export let pageG2G = false;
+export let isG2G = false;
 
 if (
   // Profile Edit Page
@@ -136,7 +140,19 @@ if (
     window.location.href.match(/\/index.php\?title=Special:MyConnections.*/g)
   ) {
     isSpecialMyConnections = true;
-  }  
+  } else if (
+    // Special Badges Page
+    window.location.pathname.match(/(\/wiki\/)Special:DNATests*/g) ||
+    window.location.href.match(/\/index.php\?title=Special:DNATests.*/g)
+  ) {
+    isSpecialDNATests = true;
+  } else if (
+    // Special Badges Page
+    window.location.pathname.match(/(\/wiki\/)Special:WatchedList*/g) ||
+    window.location.href.match(/\/index.php\?title=Special:WatchedList.*/g)
+  ) {
+    isSpecialWatchedList = true;    
+  }
 } else if (
   // Other Edit Page
   window.location.href.match(/\/index.php\?title=.*:.*&action=edit.*/g) ||
@@ -151,8 +167,7 @@ if (
   isOtherPage = true;
 } else if (window.location.pathname.match(/\/g2g\//g)) {
   // Is a G2G page
-  pageG2G = true;
-  isProfileEdit = isProfilePage = true;
+  isG2G = true;
 } else {
   // Unknown page
   console.log(window.location.href);

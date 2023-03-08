@@ -12,7 +12,6 @@ checkIfFeatureEnabled("distanceAndRelationship").then((result) => {
   if (
     result &&
     $("body.profile").length &&
-    window.location.href.match("Space:") == null &&
     profileID != userID &&
     profileID != ""
   ) {
