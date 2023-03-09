@@ -2,7 +2,7 @@
 Created By: Ian Beacall (Beacall-6)
 */
 
-import { isProfileEdit } from "../../core/common";
+import { isProfileEdit } from "../../core/pageType";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 const customChangeSummaryOptions = {

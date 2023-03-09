@@ -2,7 +2,7 @@
 Created By: Steve Harris (Harris-5439)
 */
 
-import { isProfilePage } from "../../core/common.js";
+import { isProfilePage } from "../../core/pageType";
 import { registerFeature, OptionType } from "../../core/options/options_registry.js";
 
 const categoryDisplay = {

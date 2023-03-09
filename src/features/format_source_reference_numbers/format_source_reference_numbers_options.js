@@ -2,8 +2,8 @@
 Created By: Ian Beacall (Beacall-6)
 */
 
+import { isProfilePage } from "../../core/pageType";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
-import { isProfilePage } from "../../core/common";
 
 const formatSourceReferenceNumbersObject = {
   name: "Format Source Reference Numbers",

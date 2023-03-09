@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import { registerFeature, OptionType } from "../../core/options/options_registry";
-import { isG2G } from "../../core/common";
+import { isG2G } from "../../core/pageType";
 
 // The feature data for the myFeature feature
 const g2g = {

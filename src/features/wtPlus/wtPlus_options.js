@@ -2,8 +2,8 @@
 Created By: Aleš Trtnik (Trtnik-2)
 */
 
+import { isWikiEdit } from "../../core/pageType";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
-import { isWikiEdit } from "../../core/common";
 
 registerFeature({
   name: "WikiTree+ Edit Helper",

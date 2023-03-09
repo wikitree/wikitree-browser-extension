@@ -2,8 +2,8 @@
 Created By: Ian Beacall (Beacall-6)
 */
 
+import { isWikiPage, isWikiEdit } from "../../core/pageType";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
-import { isWikiPage, isWikiEdit } from "../../core/common";
 
 const whatLinksHere = {
   name: "What Links Here",

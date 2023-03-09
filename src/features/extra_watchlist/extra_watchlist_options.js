@@ -2,8 +2,8 @@
 Created By: Ian Beacall (Beacall-6)
 */
 
+import { isWikiPage } from "../../core/pageType";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
-import { isWikiPage } from "../../core/common";
 
 registerFeature({
   name: "Extra Watchlist",

@@ -2,8 +2,8 @@
 Created By: Ian Beacall (Beacall-6)
 */
 
-import { registerFeature, OptionType } from "../../core/options/options_registry.js";
-import { isProfileEdit, isProfileAddRelative } from "../../core/common";
+import { isProfileEdit, isProfileAddRelative } from "../../core/pageType";
+import { registerFeature } from "../../core/options/options_registry.js";
 
 const genderPredictorFeature = {
   name: "Gender Predictor",

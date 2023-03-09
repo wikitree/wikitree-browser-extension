@@ -1054,7 +1054,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
               noBorDdate = true;
             } else {
               let yearDayText = "";
-              if (birthDate.match(/\-/) == null && deathDate.match(/\-/) == null) {
+              if (birthDate.match(/-/) == null && deathDate.match(/-/) == null) {
                 yearDayText = livedTo[0] + " years";
               } else {
                 yearDayText = livedTo[0] + " years, " + livedTo[1] + " day" + daysS;

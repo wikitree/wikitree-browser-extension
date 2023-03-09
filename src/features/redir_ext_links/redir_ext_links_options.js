@@ -2,8 +2,8 @@
 Created By: Rob Pavey (Pavey-429)
 */
 
+import { isWikiPage } from "../../core/pageType";
 import { registerFeature, OptionType } from "../../core/options/options_registry.js";
-import { isWikiPage } from "../../core/common";
 
 const redirExtLinksFeature = {
   name: "Redirect External Links",

@@ -23,7 +23,7 @@ import {
   isSpecialMyConnections,
   isSpecialWatchedList,
   isG2G,
-} from "../core/common";
+} from "../core/pageType";
 
 // Just importing this file will register all the features
 

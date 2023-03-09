@@ -2,7 +2,7 @@
 Created By: Rob Pavey (Pavey-429)
 */
 
-import { isProfileEdit } from "../../core/common";
+import { isProfileEdit } from "../../core/pageType";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 // The feature data for the AGC feature
