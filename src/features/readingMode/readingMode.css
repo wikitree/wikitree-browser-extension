@@ -1,0 +1,72 @@
+.toggle.reading-mode {
+  position: absolute;
+  right: 3px;
+  bottom: 12px;
+}
+
+.toggle.show-sources {
+  position: relative;
+  top: -2px;
+  margin-left: 8px;
+  visibility: hidden;
+}
+
+.collapse-sources .toggle.show-sources {
+  visibility: visible;
+}
+
+.hide-sidebar .x-sidebar {
+  display: none !important;
+}
+
+.collapse-sources:not(.expand-sources) .x-sources:not(h2):not(a[name]) {
+  display: none !important;
+}
+
+.hide-citations .x-citation {
+  display: none !important;
+}
+
+.hide-page-tabs .x-tabs-page {
+  display: none !important;
+}
+
+.hide-view-tabs .x-tabs-view {
+  display: none !important;
+}
+
+.hide-audit-data .x-audit {
+  display: none !important;
+}
+
+.hide-inline-images .x-inline-img {
+  display: none !important;
+}
+
+.hide-inline-tables .x-inline-table {
+  display: none !important;
+}
+
+.hide-comments .x-memories,
+.hide-comments .x-comments,
+.hide-comments .x-merges {
+  display: none !important;
+}
+
+.hide-heading-extras .x-heading-widget,
+.hide-heading-extras .x-privacy {
+  display: none !important;
+}
+
+.hide-edits .x-edit,
+.hide-edits .x-alert:not(.status) {
+  display: none !important;
+}
+
+.hide-connections .x-connections {
+  display: none !important;
+}
+
+.hide-categories .x-categories {
+  display: none !important;
+}

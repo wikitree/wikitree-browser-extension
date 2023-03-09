@@ -7,6 +7,7 @@ import { registerFeature } from "../core/options/options_registry";
 // the feature and options
 ////////////////////////////////////////////////////////////////////////////////
 
+import "./accessibility/accessibility_options.js";
 import "./agc/agc_options.js";
 import "./categoryDisplay/categoryDisplay_options.js";
 import "./change_family_lists/change_family_lists_options.js";
@@ -17,6 +18,7 @@ import "./format_source_reference_numbers/format_source_reference_numbers_option
 import "./g2g/g2g_options.js";
 import "./genderPredictor/gender_predictor_options.js";
 import "./randomProfile/randomProfile_options.js";
+import "./readingMode/readingMode_options.js";
 import "./redir_ext_links/redir_ext_links_options.js";
 import "./what_links_here/what_links_here_options.js";
 import "./wtPlus/wtPlus_options.js";
@@ -262,3 +264,16 @@ registerFeature({
   category: "Editing",
   defaultValue: true,
 });
+
+/*
+ * debugging features for development only
+ *
+registerFeature({
+  name: "Debug Profile Classes",
+  id: "debugProfileClasses",
+  description:
+    "Highlights various sections of page profiles (for testing the core profileClasses code).",
+  category: "Debug",
+  defaultValue: false,
+});
+// end debugging section */
