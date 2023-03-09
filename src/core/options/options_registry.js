@@ -1,4 +1,6 @@
-
+/*
+Created By: Rob Pavey (Pavey-429)
+*/
 
 // an array of information about features and their options
 // This is constructed by the features registering their options in register_feature_options.js

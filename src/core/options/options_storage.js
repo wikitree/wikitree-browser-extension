@@ -1,3 +1,7 @@
+/*
+Created By: Rob Pavey (Pavey-429)
+*/
+
 import { getDefaultOptionValuesForFeature, getFeatureData, features } from "./options_registry";
 /*
 This function returns a Promise so it can be used in a couple of different ways:
