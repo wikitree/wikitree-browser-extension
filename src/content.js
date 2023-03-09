@@ -3,6 +3,7 @@
 import "./features/register_feature_options";
 
 import "./features/access_keys/access_keys";
+import "./features/accessibility/accessibility";
 import "./features/agc/agc_content";
 import "./features/akaNameLinks/akaNameLinks";
 import "./features/appsMenu/appsMenu";
@@ -32,6 +33,7 @@ import "./features/my_connections/my_connections";
 import "./features/my_menu/my_menu";
 import "./features/printerfriendly/printerfriendly";
 import "./features/randomProfile/randomProfile";
+import "./features/readingMode/readingMode";
 import "./features/redir_ext_links/redir_ext_links";
 import "./features/scissors/scissors";
 import "./features/sortBadges/sortBadges";
@@ -43,6 +45,12 @@ import "./features/suggested_matches_filters/suggested_matches_filters";
 import "./features/verifyID/verifyID";
 import "./features/what_links_here/what_links_here";
 import "./features/wtPlus/wtPlus";
+
+/*
+ * debugging features for development only
+ *
+import "./features/debugProfileClasses/debugProfileClasses";
+// end debugging section */
 
 import "./core/editToolbar";
 
