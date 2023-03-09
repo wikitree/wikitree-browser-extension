@@ -1,11 +1,20 @@
+/*
+Created By: Jonathan Duke (Duke-5773)
+*/
+
 import { registerFeature, OptionType } from "../../core/options/options_registry";
+import { isCategoryPage, isProfilePage, isSpacePage } from "../../core/pageType";
 
 const accessibilityFeature = {
   name: "Accessibility Options",
   id: "accessibility",
   description: "Display options to make profiles more readable for those with impaired vision.",
   category: "Style",
+  creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
+  contributors: [],
   defaultValue: false,
+  pages: [isProfilePage, isSpacePage, isCategoryPage],
+
   options: [
     {
       id: "listItemSpacing",

@@ -392,6 +392,9 @@ registerFeature({
   description:
     "Highlights various sections of page profiles (for testing the core profileClasses code).",
   category: "Debug",
+  creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
+  contributors: [],
   defaultValue: false,
+  pages: [isProfilePage, isSpacePage, isCategoryPage],
 });
 // end debugging section */

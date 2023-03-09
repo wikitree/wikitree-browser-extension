@@ -1,17 +1,19 @@
 import $ from "jquery";
-import { pageProfile, pageCategory, pageSpace, isEditPage } from './common';
+//import { isProfilePage, isSpacePage, isCategoryPage } from './pageType';
 
 export let hasProfileClasses = false;
 
+/*
 export function canTweakProfile() {
-  return (!isEditPage && (pageProfile || pageCategory || pageSpace));
+  return ((isProfilePage || isSpacePage || isCategoryPage));
 }
+*/
 
 export function ensureProfileClasses() {
   // only apply once per load by tracking the status in hasProfileClasses
   if (!hasProfileClasses) {
     // only apply to person, category, and space profiles in read mode
-    if (canTweakProfile()) {
+    // if (canTweakProfile()) {
       // at the moment, WikiTree puts two different elements with id="content" on person pages (the heading and tabs are separate from the rest of the profile)
       $("div[id='content']").addClass("x-profile").addClass(pageProfile ? "x-profile-person" : pageCategory ? "x-profile-category" : pageSpace ? "x-profile-space" : "");
 
@@ -105,6 +107,6 @@ export function ensureProfileClasses() {
 
       // prevent this from running more than once per page
       hasProfileClasses = true;
-    }
+    //}
   }
 }
