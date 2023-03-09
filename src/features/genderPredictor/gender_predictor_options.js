@@ -1,8 +1,9 @@
-import {
-  registerFeature,
-  OptionType,
-} from "../../core/options/options_registry.js";
-import { isProfileEdit,isProfileAddRelative } from "../../core/common";
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
+import { registerFeature, OptionType } from "../../core/options/options_registry.js";
+import { isProfileEdit, isProfileAddRelative } from "../../core/common";
 
 const genderPredictorFeature = {
   name: "Gender Predictor",
@@ -10,10 +11,10 @@ const genderPredictorFeature = {
   description:
     "Sets the gender on a new profile page based on the name and the gender frequency of it in the WikiTree database.",
   category: "Editing",
-  creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
-  pages: [isProfileEdit,isProfileAddRelative],
+  pages: [isProfileEdit, isProfileAddRelative],
 };
 
 registerFeature(genderPredictorFeature);

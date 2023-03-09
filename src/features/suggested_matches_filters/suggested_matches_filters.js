@@ -1,3 +1,7 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import $ from "jquery";
 import "./suggested_matches_filters.css";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";

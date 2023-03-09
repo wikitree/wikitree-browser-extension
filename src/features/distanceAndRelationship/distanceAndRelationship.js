@@ -1,3 +1,7 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import $ from "jquery";
 import Cookies from "js-cookie";
 import { getPerson } from "wikitree-js";

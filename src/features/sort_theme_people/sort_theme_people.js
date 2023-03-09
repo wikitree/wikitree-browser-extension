@@ -1,3 +1,7 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import $ from "jquery";
 import { titleCase } from "../familyTimeline/familyTimeline";
 import { isOK } from "../../core/common.js";

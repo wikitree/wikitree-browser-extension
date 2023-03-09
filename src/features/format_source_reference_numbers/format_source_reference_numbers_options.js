@@ -1,3 +1,7 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 import { isProfilePage } from "../../core/common";
 
@@ -6,7 +10,7 @@ const formatSourceReferenceNumbersObject = {
   id: "formatSourceReferenceNumbers",
   description: "Hide source reference numbers or make them smaller.",
   category: "Profile",
-  creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
   pages: [isProfilePage],

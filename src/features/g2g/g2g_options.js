@@ -1,3 +1,7 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 import { isG2G } from "../../core/common";
 
@@ -7,7 +11,7 @@ const g2g = {
   id: "g2g",
   description: "Add various things to G2G.",
   category: "Other",
-  creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
   pages: [isG2G],

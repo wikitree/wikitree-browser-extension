@@ -1,3 +1,7 @@
+/*
+Created By: Aleš Trtnik (Trtnik-2)
+*/
+
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 import { isWikiEdit } from "../../core/common";
 import { wtAPICatCIBSearch } from "../../core/wtPlusAPI/wtPlusAPI";

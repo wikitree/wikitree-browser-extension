@@ -1,3 +1,7 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import { isProfilePage } from "../../core/common";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
@@ -6,10 +10,10 @@ const changeFamilyLists = {
   id: "changeFamilyLists",
   description: "Change the position and/or appearance of family lists (parents, siblings, spouses, and children)",
   category: "Profile",
-  creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
-  pages: [isProfilePage],  
+  pages: [isProfilePage],
 
   options: [
     {

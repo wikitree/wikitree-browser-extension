@@ -1,3 +1,7 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import * as $ from "jquery";
 import { getPerson } from "wikitree-js";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";

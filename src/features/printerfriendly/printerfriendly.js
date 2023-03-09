@@ -1,3 +1,7 @@
+/*
+Created By: Jamie Nelson (Nelson-3486)
+*/
+
 import $ from "jquery";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage"
 

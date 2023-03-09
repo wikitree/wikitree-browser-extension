@@ -1,6 +1,6 @@
 import $ from "jquery";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
-import { isOK, htmlEntities, displayName, isProfilePage } from "../../core/common";
+import { isOK, htmlEntities, displayName } from "../../core/common";
 import { displayDates } from "../verifyID/verifyID";
 import { getRelatives } from "wikitree-js";
 import "./change_family_lists.css";
@@ -8,7 +8,7 @@ import "./change_family_lists.css";
 checkIfFeatureEnabled("changeFamilyLists").then((result) => {
   const ancestorsButton = $("span.showHideTree").eq(0);
   const descendantsButton = $("span#showHideDescendants");
-  if (result && isProfilePage) {
+  if (result) {
     window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
     prepareFamilyLists().then(() => {
       getFeatureOptions("changeFamilyLists").then((options) => {

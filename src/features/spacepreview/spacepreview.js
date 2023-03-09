@@ -1,3 +1,7 @@
+/*
+Created By: Steve Harris (Harris-5439)
+*/
+
 import $ from 'jquery';
 import '../../thirdparty/jquery.hoverDelay'
 import { checkIfFeatureEnabled } from "../../core/options/options_storage"

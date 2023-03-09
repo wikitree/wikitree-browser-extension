@@ -1,3 +1,7 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import { isProfileEdit } from "../../core/common";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
@@ -6,11 +10,11 @@ const customChangeSummaryOptions = {
   id: "customChangeSummaryOptions",
   description: "Add your own phrases to the change summary phrases on edit pages.",
   category: "Editing",
-  creators: [{name:"Ian Beacall", wikitreeid:"Beacall-6"}],
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
-  pages: [isProfileEdit],  
-  
+  pages: [isProfileEdit],
+
   options: [
     {
       id: "movingSaveBox",
