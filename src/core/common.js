@@ -165,6 +165,8 @@ export function isOK(thing) {
     "0000",
     "0",
     0,
+    false,
+    "false",
   ];
   if (!excludeValues.includes(thing)) {
     if (isNumeric(thing)) {
