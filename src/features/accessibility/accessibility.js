@@ -21,7 +21,7 @@ async function initAccessibility() {
       qy = $(".x-content > *:not(#toc)").first().nextAll(); // look at all elements at the root of the content section (except for the TOC)
     }
     let ul;
-    qy.each(function(index) {
+    qy.each(function (index) {
       let el = $(this);
       if (el.is("ul")) {
         if (ul) {
@@ -48,7 +48,7 @@ async function initAccessibility() {
       qy.each(function (index) {
         let li = $(this);
         let isFirst = true;
-        li.contents().each(function() {
+        li.contents().each(function () {
           let el = $(this);
           if (el.is("sup, a[href^='#'], span:empty")) {
             return true; // skip over back-reference links
@@ -58,7 +58,7 @@ async function initAccessibility() {
           }
           if (el.is("b")) {
             if (this.nextSibling && this.nextSibling.nodeType && this.nextSibling.nodeType === 3) {
-              this.nextSibling.nodeValue = this.nextSibling.nodeValue.replace(/^\s*:\s*/, "");
+              this.nextSibling.nodeValue = this.nextSibling.nodeValue.replace(/^[\s:;,.-]+/, "");
             }
             el.remove();
           }
@@ -70,16 +70,65 @@ async function initAccessibility() {
       $("html").addClass("a11y-src-bold");
       qy.each(function (index) {
         let li = $(this);
-        li.contents().filter(function() {
+        let state = 1;
+        li.contents().filter(function () {
           let el = $(this);
-          if (!el.is("sup, a[href^='#'], span:empty")) {
-            if (this.nodeValue && /^\u2191?\s*$/.test(this.nodeValue)) {
-              return false; // weed out whitespace and the up arrow (sometimes a link, sometimes text, depending on whether there are multiple references)
+          if (state > 3) {
+            return false;
+          } else if (state == 1) {
+            // skip back-references, anchors, whitespace, and the up arrow (sometimes a link, sometimes text, depending on whether there are multiple references) at the beginning
+            if (el.is("sup, a[href^='#'], span:empty") || (this.nodeValue && /^\u2191?\s*$/.test(this.nodeValue))) {
+              return false;
             }
-            return (this.nodeType && (this.nodeType == 1 || this.nodeType == 3));
+            state++;
+          }
+          if (this.nodeType) {
+            if (state == 2 && this.nodeType == 1 && $(this).is("i, b, a")) {
+              state++;
+              return true;
+            } else if (this.nodeType == 3 && state <= 3) {
+              if (/\S/.test(this.textContent)) {
+                state = 4;
+                return true;
+              }
+            }
           }
           return false;
-        }).first().wrap('<span class="a11y-src-first"></span>');
+        }).each(function () {
+          if (this.nodeType == 3) {
+            let match;
+            if (state < 5) {
+              let first, rest;
+              if (match = (this.textContent.match(/^(\s*["\u201c-\u201d].{6,100}?["\u201c-\u201d]+)(.*)/))) {
+                // for sources that start with something enclosed in quotes
+                rest = match[2];
+                first = match[1];
+              } else if (match = (this.textContent.match(/^((\s*[^"\u2018-\u201d,]{4,20}\w*,){1,2}[^"\u2018-\u201d,.]{4,20}\w*[,.]\s*)(.*)/))) {
+                // for sources with comma separators such as Last, First Middle, Jr.
+                rest = match[3];
+                first = match[1];
+              } else if (match = (this.textContent.match(/^(\s*[^"\u201c-\u201d]{3,20}\w*\b[^"\u201c-\u201d,.(]{0,20}\w*[,.)]*)(.*)/))) {
+                // for sources that start with some other non-quoted phrase that terminates with a separator
+                rest = match[2];
+                first = match[1];
+                if (match = (first.match(/(.*(\w{1,4}\.\s*){2,}\s+\b(\w+\.)?)(.*)/))) {
+                  // special case for Smith, John, Ph.D. or Smith, Lt. Col. Samuel.
+                  first = match[1];
+                  rest = match[4] + rest;
+                }
+              }
+              // only update if there would be some content after the bold text
+              if (/\S/.test(rest || "") || $(this).nextAll().length > 0) {
+                this.textContent = rest;
+                let segment = $('<span class="a11y-src-first"></span>');
+                segment.text(first).insertBefore(this);
+              }
+            }
+          } else if (state > 3) { // if it's only a standalone link, don't bold the whole thing
+            $(this).wrap('<span class="a11y-src-first"></span>');
+            state = 5;
+          }
+        });
       });
     }
   }
