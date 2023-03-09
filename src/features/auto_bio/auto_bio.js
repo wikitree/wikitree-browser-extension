@@ -3869,8 +3869,8 @@ export async function generateBio() {
       stuffBeforeTheBioText +
       bioHeaderAndStickers +
       birthText +
-      (window.autoBioOptions.siblingList ? siblingListText : "");
-    marriagesAndCensusesText +
+      (window.autoBioOptions.siblingList ? siblingListText : "") +
+      marriagesAndCensusesText +
       deathText +
       obituaryText +
       timelineText +
