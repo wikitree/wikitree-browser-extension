@@ -92,7 +92,7 @@ registerFeature({
   creators: [{ name: "Kay Knight", wikitreeid: "Sands-1865" }],
   contributors: [],
   defaultValue: true,
-  pages: [isProfileEdit, isSpecialWatchedList],
+  pages: [isProfileEdit, isProfileAddRelative, isSpecialWatchedList],
 });
 
 registerFeature({
