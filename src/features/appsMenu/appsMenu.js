@@ -46,7 +46,7 @@ function attachAppsMenu() {
     { title: "Surnames Generator", URL: "https://apps.wikitree.com/apps/clarke11007/surnames.php" },
     { title: "Swedish Reference Creation Tools", URL: "https://apps.wikitree.com/apps/lundholm24/ref-making" },
     { title: "Topola Genealogy Viewer", URL: "https://apps.wikitree.com/apps/wiech13/topola-viewer/" },
-    { title: "WikiTree+", URL: "https://wikitree.sdms.si/default.htm" },
+    { title: "WikiTree+", URL: "https://plus.wikitree.com/default.htm" },
     { title: "WikiTree BEE", URL: "https://www.wikitree.com/index.php?title=Space:WikiTree_BEE" },
     {
       title: "WikiTree Browser Extension",

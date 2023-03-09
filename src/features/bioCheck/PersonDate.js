@@ -135,7 +135,9 @@ export class PersonDate {
     if (len >= 2) {
       day = splitString[2];
     }
-    if (year + month + day === 0) {
+    // very important the test below should be == and not ===
+    // because you want to test for all dates of 0
+    if (year + month + day == 0) {
       this.personDate.lastDateCheckedEmpty = true;
     }
     if (year === 0) {

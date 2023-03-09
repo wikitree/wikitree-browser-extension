@@ -198,13 +198,6 @@ async function centreNumbersInTable(jqTable) {
   });
 }
 
-async function connectionsPage() {
-  const cTables = $("table.sortable");
-  cTables.each(function () {
-    centreNumbersInTable($(this));
-  });
-}
-
 async function myConnectionsCount() {
   setTimeout(function () {
     $(".degreeCount").remove();
@@ -369,14 +362,13 @@ async function myConnectionsMore() {
       }
     });
   });
-
-  if ($("#loadNextGenerationButton").text().match("Maximum")) {
+  $("#loadNextGenerationButton").text($("#loadNextGenerationButton").text().replace("generation", "degree"));
+  if ($("#loadNextGenerationButton").text().match("Maximum") || $(".maxed").length) {
     if (window.maxedOut == 100) {
       window.maxedOut = window.degreeNum;
     }
+    $(".maxed").removeClass("maxed");
     getMoreConnections();
-  } else {
-    $("#loadNextGenerationButton").text($("#loadNextGenerationButton").text().replace("generation", "degree"));
   }
 }
 
@@ -2034,7 +2026,25 @@ async function myConnections() {
   myConnectionsMore();
   $("input[name='w']").attr("size", "25");
 
+  let maxedOutAlready = false;
+
+  if ($("p:contains(Maximum of 1000 connections reached.)").length) {
+    maxedOutAlready = true;
+    window.maxedOut = 100;
+    let thisIDSplit = $("a.pureCssMenui:contains(Edit)").eq(0).attr("href").split("&u=");
+    if (thisIDSplit[1]) {
+      $("p:contains(Maximum of 1000 connections reached.)").replaceWith(
+        $(
+          "<a href='#next' data-user-id='" +
+            thisIDSplit[1] +
+            "' id='loadNextGenerationButton' class='button small maxed'>Looking for more <img src='https://www.wikitree.com/images/icons/ajax-loader-snake-333-trans.gif'></a>"
+        )
+      );
+    }
+  }
+
   // Get the next degree
+  $("#loadNextGenerationButton").unbind();
   $("#loadNextGenerationButton").on("click", function () {
     setTimeout(function () {
       $(".myConnectionsMoreButton,.myConnectionsTableButton").remove();
@@ -2043,8 +2053,13 @@ async function myConnections() {
       $(".wrapper h3 + ol, .wrapper .peopleTable + ol").each(function (index) {
         $(this).attr("id", "gen" + index + "_list");
       });
-    }, 4000);
+    }, 1000);
   });
+
+  if (maxedOutAlready) {
+    window.currentDegreeNum = 4;
+    $("#loadNextGenerationButton").trigger("click");
+  }
 }
 
 function getApproxDate2(theDate) {

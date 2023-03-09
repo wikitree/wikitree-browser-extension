@@ -26,15 +26,16 @@
   font-size: 1.5em;
   font-weight: bold;
 }
-.tlAge,
 .tlBioAge {
   text-align: center;
 }
 th.tlBioAge {
   text-align: center;
 }
-.tlEventName {
-  text-align: center;
+th.tlDate,
+th.tlEventDescription,
+th.tlEventLocation {
+  text-align: left;
 }
 .tlDate {
   white-space: nowrap;

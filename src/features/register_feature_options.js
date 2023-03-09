@@ -19,6 +19,7 @@ import "./genderPredictor/gender_predictor_options.js";
 import "./randomProfile/randomProfile_options.js";
 import "./redir_ext_links/redir_ext_links_options.js";
 import "./what_links_here/what_links_here_options.js";
+import "./wtPlus/wtPlus_options.js";
 
 ////////////////////////////////////////////////////////////////////////////////
 // Simple features with no options can be registered here
@@ -258,14 +259,6 @@ registerFeature({
   id: "verifyID",
   description:
     "When attaching a person by ID, you can see some details of the person and check that you've entered the correct ID.",
-  category: "Editing",
-  defaultValue: true,
-});
-
-registerFeature({
-  name: "WikiTree+ Edit Helper",
-  id: "wtplus",
-  description: "Adds multiple editing features.",
   category: "Editing",
   defaultValue: true,
 });

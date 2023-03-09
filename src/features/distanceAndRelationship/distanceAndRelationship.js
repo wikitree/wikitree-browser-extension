@@ -199,7 +199,7 @@ function addRelationshipText(oText, commonAncestors) {
       "</ul></div>"
   );
   $("h1").after(cousinText);
-  $("#yourRelationshipText").click(function (e) {
+  $("#yourRelationshipText").on("click", function (e) {
     e.stopPropagation();
     let id1 = Cookies.get("wikitree_wtb_UserName");
     let id2 = $("a.pureCssMenui0 span.person").text();
@@ -207,7 +207,7 @@ function addRelationshipText(oText, commonAncestors) {
   });
   if (commonAncestorTextResult.count > 2) {
     $("#yourRelationshipText").append($("<button class='small' id='showMoreAncestors'>More</button>"));
-    $("#showMoreAncestors").click(function (e) {
+    $("#showMoreAncestors").on("click", function (e) {
       e.preventDefault();
       e.stopPropagation();
       $("#yourCommonAncestor li:nth-child(n+3)").toggle();
@@ -228,13 +228,14 @@ function commonAncestorText(commonAncestors) {
   }
   let ancestorsAdded = [];
   commonAncestors.forEach(function (commonAncestor) {
+    const myAncestorType = ancestorType(commonAncestor.path1Length - 1, commonAncestor.ancestor.mGender).toLowerCase();
     const thisAncestorType = ancestorType(
       commonAncestor.path2Length - 1,
       commonAncestor.ancestor.mGender
     ).toLowerCase();
     if (!ancestorsAdded.includes(commonAncestor.ancestor.mName)) {
       ancestorTextOut +=
-        '<li>Your common ancestor, <a href="https://www.wikitree.com/wiki/' +
+        `<li>Your ${myAncestorType}, <a href="https://www.wikitree.com/wiki/` +
         commonAncestor.ancestor.mName +
         '">' +
         commonAncestor.ancestor.mDerived.LongNameWithDates +
@@ -274,11 +275,12 @@ function doRelationshipText(userID, profileID) {
           .replaceAll(/[\t\n]/g, "");
         out = dummy.find("b").text();
         let secondName = dummy.find("b").parent().text().split(out)[1];
+        let lastLink = dummy.find("#imageContainer > p > span:last-of-type a").attr("href");
         const userFirstName = dummy.find(`p a[href\$='${userID}']`).eq(0).text().split(" ")[0];
         const profileFirstName = $("h1 span[itemprop='name']").text().split(" ")[0];
         if (data.commonAncestors.length == 0) {
           out = dummy.find("b").text();
-          if (secondName.match(profileFirstName)) {
+          if (secondName.match(profileFirstName) && lastLink.match(profileID) == null) {
             out = dummy.find("h2").text().replace("(DNA Confirmed)", "").trim();
           }
         } else {
@@ -351,7 +353,6 @@ async function addDistance(data) {
     window.distance = data.path.length - 1;
     const profileName = $("h1 span[itemprop='name']").text();
     if (window.distance > 0 && $("#degreesFromYou").length == 0) {
-      // #degreesFromYou is in WT BEE.  If this is showing, don't show this (for now)
       $("h1").append(
         $(
           `<span id='distanceFromYou' title='${profileName} is ${window.distance} degrees from you.'>${window.distance}°</span>`

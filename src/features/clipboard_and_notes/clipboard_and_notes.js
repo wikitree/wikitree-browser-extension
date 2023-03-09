@@ -16,6 +16,8 @@ export function appendClipboardButtons(clipboardButtons = $()) {
     }
   } else if ($("body.page-Special_EditFamily").length) {
     $("#mEmail").after(clipboardButtons, $("span.theClipboardButtons"));
+  } else if ($("body.page-Special_EditFamilySteps").length) {
+    $("p.sourcesContent").append(clipboardButtons, $("span.theClipboardButtons"));
   } else {
     $("#header,#HEADER").append(clipboardButtons, $("span.theClipboardButtons"));
   }
@@ -122,7 +124,8 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
         $("#photo_upload").length ||
         $("body.profile").length ||
         $("body.qa-body-js-on").length ||
-        $("h1:contains('Edit Marriage Information')").length
+        $("h1:contains('Edit Marriage Information')").length ||
+        $("#mSources").length
       ) {
         let box = window.activeTextarea;
         let el = $();

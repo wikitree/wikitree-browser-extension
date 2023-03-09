@@ -305,15 +305,14 @@
 	}]
 },{
 	"description": "FindAGrave citation",
-	"example": "Find a Grave, database and images (www.findagrave.com/memorial/1234/iris-m.-robbins : accessed 25 April 2021), memorial page for Iris M. Robbins (1916–1994), Find a Grave Memorial ID 99837394, citing Chase Cemetery, Windham Center, Cumberland County, Maine, USA ; Maintained by gbodge (contributor ) .",
-
+	"example": "Find a Grave, database and images (www.findagrave.com/memorial/1234/iris-m.-robbins: accessed 25 April 2021), memorial page for Iris M. Robbins (1916–1994), Find a Grave Memorial ID 99837394, citing Chase Cemetery, Windham Center, Cumberland County, Maine, USA ; Maintained by gbodge (contributor 4567).",
 	"conditions": [{
 		"action": "startsWith",
 		"find": "Find a Grave, database and images "
 	}],
 	"actions": [{
 		"action": "replaceRegEx",
-		"from": "(https://)?www.findagrave.com/memorial/\\d*/.*? : ",
+		"from": "https://",
 		"to": ""
 	},{
 		"action": "replaceRegEx",

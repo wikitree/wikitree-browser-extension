@@ -1,6 +1,6 @@
 import $ from "jquery";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
-import { isOK, htmlEntities, displayName } from "../../core/common";
+import { isOK, htmlEntities, displayName, pageProfile } from "../../core/common";
 import { displayDates } from "../verifyID/verifyID";
 import { getRelatives } from "wikitree-js";
 import "./change_family_lists.css";
@@ -8,9 +8,7 @@ import "./change_family_lists.css";
 checkIfFeatureEnabled("changeFamilyLists").then((result) => {
   const ancestorsButton = $("span.showHideTree").eq(0);
   const descendantsButton = $("span#showHideDescendants");
-  // ancestorsButton.hide();
-  // descendantsButton.hide();
-  if (result && $("body.profile".length)) {
+  if (result && pageProfile) {
     window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
     prepareFamilyLists().then(() => {
       getFeatureOptions("changeFamilyLists").then((options) => {
@@ -44,8 +42,14 @@ checkIfFeatureEnabled("changeFamilyLists").then((result) => {
           $("#childrenDetails").prepend(descendantsButton);
         }
         $("span.showHideTree").eq(1).remove();
-        //ancestorsButton.show();
-        //descendantsButton.show();
+        setTimeout(function () {
+          const openPadlock = $("img[title='Privacy Level: Open']");
+          if (openPadlock.length) {
+            addAddLinksToHeadings();
+          }
+        }, 3000);
+
+        addParentStatus();
       });
     });
     window.onresize = function () {
@@ -55,6 +59,51 @@ checkIfFeatureEnabled("changeFamilyLists").then((result) => {
     };
   }
 });
+
+async function addAddLinksToHeadings() {
+  $("div.VITALS:contains([children unknown])").attr("id", "childrenUnknownHeading");
+  $("div.VITALS:contains([sibling(s) unknown])").attr("id", "siblingsUnknownHeading");
+  $("div.VITALS:contains([spouse(s) unknown])").attr("id", "spousesUnknownHeading");
+
+  const linkBase = $("a.pureCssMenui:contains(Edit)").attr("href").replace("Person", "Family");
+  const headings = [
+    ["#siblingsHeader", "sibling"],
+    ["#siblingsUnknownHeading", "sibling"],
+    [".spouseText:first-of-type", "spouse"],
+    ["#spousesUnknownHeading", "spouse"],
+    ["#childrenHeader", "child"],
+    ["#childrenUnknownHeading", "child"],
+    ["#parentsHeader", "father"],
+    ["#fatherUnknown", "father"],
+    ["#motherUnknown", "mother"],
+  ];
+  let whichParent;
+  if (window.people) {
+    if (!window.people[0] && window.people[0].Father) {
+      whichParent = "mother";
+    }
+
+    headings.forEach(function (aHeading) {
+      if (
+        ["#siblingsUnknown", "#siblingsHeader"].includes(aHeading[0]) &&
+        window.people[0]?.Mother == 0 &&
+        window.people[0]?.Father == 0
+      ) {
+      } else {
+        $(aHeading[0])
+          .attr("title", "Right click to add a " + aHeading[1])
+          .css("cursor", "pointer");
+        $(aHeading[0]).on("contextmenu", function (e) {
+          e.preventDefault();
+          if (!aHeading[1]) {
+            aHeading[1] = whichParent;
+          }
+          window.location = linkBase + "&who=" + aHeading[1];
+        });
+      }
+    });
+  }
+}
 
 async function prepareFamilyLists() {
   if ($("body.profile").length && window.location.href.match("Space:") == null && $("#nVitals").length == 0) {
@@ -99,10 +148,6 @@ async function prepareFamilyLists() {
         }
         $(this).appendTo(familyLists);
       }
-    });
-
-    familyLists.on("dblclick", function () {
-      moveFamilyLists(false, true);
     });
 
     $("#parentDetails").prepend($("span.showHideTree").eq(0));
@@ -250,9 +295,10 @@ function reallyMakeFamLists() {
                 if (aPerson.Name.match(/[']/) != null) {
                   aPerson.Name = aPerson.Name.replace("'", "");
                 }
-                if ($("#" + aPerson.Name + "-bdDates").length == 0) {
+                const idName = aPerson.Name.replace(".", "");
+                if ($("#" + idName + "-bdDates").length == 0) {
                   theSpouse.append(
-                    " <span class='spouseDates bdDates' id='" + aPerson.Name + "-bdDates'>" + spouseDates + "</span>"
+                    " <span class='spouseDates bdDates' id='" + idName + "-bdDates'>" + spouseDates + "</span>"
                   );
                 }
                 addDataToPerson(theSpouse.closest("div"), aPerson);
@@ -261,21 +307,21 @@ function reallyMakeFamLists() {
             });
           });
 
-          if (typeof window.profileWTID != "undefined" && !$_GET["diff"] && $("#yourConnection").length == 0) {
-            const mID = profileWTID;
+          //if (typeof profileWTID != "undefined" && !diff && $("#yourConnection").length == 0) {
+          const mID = profileWTID;
 
-            $("#siblingsHeader").off("click");
-            $("body").on("click", "#siblingsHeader", function () {
-              siblingsHeader();
-            });
+          $("#siblingsHeader").off("click");
+          $("body").on("click", "#siblingsHeader", function () {
+            siblingsHeader();
+          });
 
-            setTimeout(function () {
-              addHalfsStyle();
-            }, 1000);
-
+          setTimeout(function () {
+            addHalfsStyle();
+          }, 1000);
+          /*
             window.intervalID = setInterval(addUncertain, 500);
             window.triedUncertain = 0;
-          }
+            */
 
           fixAllPrivates();
 
@@ -467,7 +513,12 @@ function fixNakedPrivates() {
       let husbandOrWife = firstMatch2[0].match(rgx5);
       let husbandOrWifeOf = firstMatch2[0].match(rgx6);
       let privateText = firstMatch2[0].match(/private wife|husband/);
-      let fullPrivateText = "[" + privateText[0] + "]";
+      let fullPrivateText;
+      if (privateText) {
+        fullPrivateText = "[" + privateText[0] + "]";
+      } else {
+        fullPrivateText = "[private spouse]";
+      }
       const spouseText = $(
         '<a class="spouseText clickable" data-alt-text="Spouse: " data-original-text="' +
           husbandOrWifeOf[0] +
@@ -519,6 +570,13 @@ function makeFamLists() {
   const childrenQ = $("a:contains('[children?]')");
   const spouseQ = $("a:contains('[add spouse?]'),a:contains('[spouse?]')");
 
+  const noParentsPublic = " of [father unknown] and [mother unknown]";
+  const noFatherPublic = / of \[father unknown\] and $/;
+  const noMotherPublic = /and \[mother unknown\]/;
+
+  if (dparents) {
+    var dparentsText = $(dparents[0]).parent().text();
+  }
   const childrenQSpan = $("<span id='childrenUnknownQ'></span>");
   if (childrenQ.length) {
     childrenQ.after(childrenQSpan);
@@ -580,8 +638,6 @@ function makeFamLists() {
     }
   }
 
-  const noParentsPublic = " of [father unknown] and [mother unknown]";
-  const noFatherPublic = / of \[father unknown\] and $/;
   if ($("#parentDetails").length) {
     const parentsNodes = $("#parentDetails")[0].childNodes;
     parentsNodes.forEach(function (aNode) {
@@ -595,6 +651,9 @@ function makeFamLists() {
         $("<li id='fatherUnknown'>[father unknown]</li>").prependTo($("#parentList"));
       }
     });
+    if (dparentsText.match(noMotherPublic)) {
+      $("<li id='motherUnknown'>[mother unknown]</li>").appendTo($("#parentList"));
+    }
   }
 
   let sibs = document.querySelectorAll('span[itemprop="sibling"]');
@@ -704,18 +763,35 @@ function makeFamLists() {
     }
   }
 
-  if ($(".aSpouse").length > 1 && $("#childrenList li").length) {
-    $(".aSpouse").each(function (index) {
-      let spouseID = $(this).data("id");
+  // $(".aSpouse").length > 1 &&
 
-      let aSpouse = $(this);
-      $("#childrenList li").each(function () {
-        if ($(this).data("mother") == spouseID || $(this).data("father") == spouseID) {
-          $(this).addClass("spouse_" + (parseInt(index) + 1));
-          aSpouse.addClass("spouse_" + (parseInt(index) + 1));
-        }
-      });
+  if ($("#childrenList li").length) {
+    let sameParent = true;
+    let checkParent = "mother";
+    const parentIDs = [];
+    if ($(".aSpouse").length) {
+      if ($(".aSpouse").data("gender") == "male") {
+        checkParent = "father";
+      }
+    }
+    $("#childrenList li").each(function () {
+      const parentID = $(this).data(checkParent);
+      if (!parentIDs.includes(parentID)) {
+        parentIDs.push(parentID);
+      }
     });
+    if (parentIDs.length > 1) {
+      $(".aSpouse").each(function (index) {
+        let spouseID = $(this).data("id");
+        let aSpouse = $(this);
+        $("#childrenList li").each(function () {
+          if ($(this).data("mother") == spouseID || $(this).data("father") == spouseID) {
+            $(this).addClass("spouse_" + (parseInt(index) + 1));
+            aSpouse.addClass("spouse_" + (parseInt(index) + 1));
+          }
+        });
+      });
+    }
   }
 }
 
@@ -1182,6 +1258,17 @@ function insertInSibList() {
   if (window.triedInsertSib > 9) {
     clearInterval(window.insertInterval);
   }
+
+  // temporary fix
+  $("#siblingList li").each(function () {
+    if (
+      $(this)
+        .text()
+        .match(/\] and	\[private/)
+    ) {
+      $(this).remove();
+    }
+  });
 }
 
 function setUpMarriedOrSpouse() {
@@ -1440,12 +1527,12 @@ async function addMarriageAges() {
             let aSpMarriageAge = getMarriageAge(aSp.BirthDate, aSp.marriage_date, aSp);
             let spBit = "";
             let bpBit = "";
-            if (bioPersonMarriageAge != "") {
+            if (bioPersonMarriageAge) {
               bpBit = window.people[0].FirstName + " (" + bioPersonMarriageAge + ")";
             }
             if (isOK(aSp.BirthDate)) {
               spBit = aSp.FirstName + " (" + aSpMarriageAge + ")";
-              if (bioPersonMarriageAge != "") {
+              if (bioPersonMarriageAge) {
                 spBit = "; " + spBit;
               }
             }
@@ -1685,4 +1772,24 @@ function status2symbol(ostatus) {
     default:
       return "";
   }
+}
+
+function addParentStatus() {
+  setTimeout(function () {
+    if (window.people) {
+      const profileP = window.people[0];
+      if (profileP.DataStatus?.Father == "10") {
+        $("#parentList li[data-gender='male'] a").append($("<span class='uncertain'>[uncertain]</span>"));
+      }
+      if (profileP.DataStatus?.Father == "5") {
+        $("#parentList li[data-gender='male'] a").append($("<span class='non-biological'>[non-biological]</span>"));
+      }
+      if (profileP.DataStatus?.Mother == "10") {
+        $("#parentList li[data-gender='female'] a").append($("<span class='uncertain'>[uncertain]</span>"));
+      }
+      if (profileP.DataStatus?.Mother == "5") {
+        $("#parentList li[data-gender='female'] a").append($("<span class='non-biological'>[non-biological]</span>"));
+      }
+    }
+  }, 3000);
 }

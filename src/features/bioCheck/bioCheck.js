@@ -97,12 +97,8 @@ function checkBio() {
   thePerson.initWithDates(birthDate, deathDate);
   let biography = new Biography(theSourceRules);
   biography.parse(
-    bioString,
-    thePerson.isPersonPre1500(),
-    thePerson.isPersonPre1700(),
-    thePerson.mustBeOpen(),
-    thePerson.isUndated(),
-    false
+    bioString, thePerson.isPersonPre1500(), thePerson.isPersonPre1700(),
+    thePerson.mustBeOpen(), thePerson.isUndated(), false
   );
   // status true if appears sourced and no style issues, else false
   let bioStatus = biography.validate();
@@ -245,14 +241,26 @@ function checkSources() {
   thePerson.initWithDates(birthDate, deathDate);
   let isPre1700 = thePerson.isPersonPre1700();
   let biography = new Biography(theSourceRules);
-  let isValid = biography.validateSourcesStr(
-    sourcesStr,
-    thePerson.isPersonPre1500(),
-    isPre1700,
-    thePerson.mustBeOpen()
-  );
+  let useAdvanced = false;
+  if (document.getElementById('useAdvancedSources') != null) {
+    useAdvanced = document.getElementById('useAdvancedSources').value;
+  }
+  // Either check the sources box or advanced sourcing like a bio
+  let hasSources = true;
+  let hasStyleIssues = false;
+  if (useAdvanced != 0) {
+    biography.parse(
+      sourcesStr, thePerson.isPersonPre1500(), thePerson.isPersonPre1700(),
+      thePerson.mustBeOpen(), thePerson.isUndated(), false);
+      let isValid = biography.validate();
+      hasSources = biography.hasSources();
+      hasStyleIssues = biography.hasStyleIssues();
+   } else {
+      let isValid = biography.validateSourcesStr(
+        sourcesStr, thePerson.isPersonPre1500(), isPre1700, thePerson.mustBeOpen());
+   }
   // now report from biography results
-  reportSources(biography.getInvalidSources(), isPre1700);
+  reportSources(biography.getInvalidSources(), isPre1700, hasSources, hasStyleIssues);
 
   // TODO
   // Figure out what to do when the user has a profile with no sources
@@ -265,26 +273,28 @@ function checkSources() {
   // up and validate based on the button click
 }
 
-function reportSources(invalidSourceLines, isPre1700) {
+function reportSources(invalidSourceLines, isPre1700, hasSources, hasStyleIssues) {
   let numLines = invalidSourceLines.length;
   let previousSources = document.getElementById("bioCheckSourcesList");
   let bioCheckSourcesContainer = document.getElementById("bioCheckSourcesContainer");
   let bioCheckTitle = document.getElementById("bioCheckTitle");
   // If you have been here before get and remove the old list of results
-  if (!bioCheckSourcesContainer && numLines > 0) {
-    bioCheckSourcesContainer = document.createElement("div");
-    bioCheckSourcesContainer.setAttribute("id", "bioCheckSourcesContainer");
-    let br = document.createElement('br');
-    bioCheckSourcesContainer.appendChild(br);
-    // status class is too much, a big yellow box
-    // bioCheckSourcesContainer.setAttribute('class', 'status');
-    bioCheckTitle = document.createElement("b");
-    bioCheckTitle.setAttribute("id", "bioCheckTitle");
-    // fill contents of the title each time you are here in case date changes
-    bioCheckTitle.innerText = sourcesTitle(isPre1700);
-    bioCheckSourcesContainer.appendChild(bioCheckTitle);
+  if (!bioCheckSourcesContainer) {
+    if (!hasSources || hasStyleIssues || numLines > 0) {
+      bioCheckSourcesContainer = document.createElement("div");
+      bioCheckSourcesContainer.setAttribute("id", "bioCheckSourcesContainer");
+      let br = document.createElement('br');
+      bioCheckSourcesContainer.appendChild(br);
+      // status class is too much, a big yellow box
+      // bioCheckSourcesContainer.setAttribute('class', 'status');
+      bioCheckTitle = document.createElement("b");
+      bioCheckTitle.setAttribute("id", "bioCheckTitle");
+      // fill contents of the title each time you are here in case date changes
+      bioCheckTitle.innerText = sourcesTitle(isPre1700, hasSources, hasStyleIssues, numLines);
+      bioCheckSourcesContainer.appendChild(bioCheckTitle);
 
-    setHelp(bioCheckSourcesContainer);
+      setHelp(bioCheckSourcesContainer);
+    }
   }
 
   // need a new set of results
@@ -295,9 +305,10 @@ function reportSources(invalidSourceLines, isPre1700) {
     bioSourceItem.appendChild(document.createTextNode(invalidSourceLines[i]));
     bioSourcesList.appendChild(bioSourceItem);
   }
+
   // Add or replace the results
-  if (numLines > 0) {
-    bioCheckTitle.innerText = sourcesTitle(isPre1700);
+  if ((numLines > 0) || !hasSources || hasStyleIssues) {
+    bioCheckTitle.innerText = sourcesTitle(isPre1700, hasSources, hasStyleIssues, numLines);
     if (previousSources != null) {
       previousSources.replaceWith(bioSourcesList);
     } else {
@@ -305,17 +316,14 @@ function reportSources(invalidSourceLines, isPre1700) {
       // Add the message before the save button
       // or after the Sources table in the BETA version
       let saveButton = document.getElementById('addNewPersonButton');
-      if (!saveButton) {
+      if (!saveButton) {         // this should be the OLD add person
         let buttonElements = document.querySelectorAll("[id='wpSave']");
         saveButton = buttonElements[buttonElements.length - 1];
         let saveParent = saveButton.parentElement;
         saveParent.insertBefore(bioCheckSourcesContainer, saveButton);
+      } else {
+        document.querySelector("table.sourcesContent").after(bioCheckSourcesContainer);
       }
-      let lastContainer = document.getElementById("sourcesTable");
-      if (!lastContainer) {
-        lastContainer = document.getElementById('mSources');
-      }
-      lastContainer.after(bioCheckSourcesContainer);
     }
   } else {
     if (previousSources != null) {
@@ -328,12 +336,26 @@ function reportSources(invalidSourceLines, isPre1700) {
  * @param isPre1700 true to build Pre-1700 profile message
  * @return sources title message
  */
-function sourcesTitle(isPre1700) {
-  let msg = "Bio Check found sources that are not ";
-  if (isPre1700) {
-    msg += "reliable or ";
+function sourcesTitle(isPre1700, hasSources, hasStyleIssues, numLines) {
+  let msg = '';
+  if (numLines > 0) { 
+    msg = "Bio Check found sources that are not ";
+    if (isPre1700) {
+      msg += "reliable or ";
+    }
+    msg += "clearly identified: \u00A0\u00A0"; // TODO use style?
+  } else {
+    if (!hasSources) {
+      msg = 'BioCheck results: Profile lacks sources  ';
+      if (hasStyleIssues) {
+        msg += 'and has style issues  ';
+      }
+    } else {
+      if (hasStyleIssues) {
+        msg = 'BioCheck results: Profile has style issues  ';
+      }
+    }
   }
-  msg += "clearly identified: \u00A0\u00A0"; // TODO use style?
   return msg;
 }
 /**

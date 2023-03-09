@@ -1,4 +1,4 @@
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 import { isEditPage } from "../../core/common";
 import { wtAPICatCIBSearch } from "../../core/wtPlusAPI/wtPlusAPI";
 
@@ -824,7 +824,7 @@ function onDlgSelectTemplateBtn(update) {
 /**************************/
 
 function selectCIB(data) {
-  tb.elDlg.innerHTML =
+  tb.elDlgCIB.innerHTML =
     "<h3>Select " +
     data +
     " Category</h3>" +
@@ -850,14 +850,14 @@ function selectCIB(data) {
   attachEvents("input.cbFilter", "input");
   //  attachEvents("td.tdSelect", "click");
   onDlgSelectCIBFlt();
-  tb.elDlg.showModal();
+  tb.elDlgCIB.showModal();
 }
 
 function onDlgSelectCIBFlt() {
-  let lb = tb.elDlg.querySelector("#tb");
-  let cntr = tb.elDlg.querySelector("#cntr");
-  var s0 = tb.elDlg.querySelector("#cb1").value;
-  var s1 = tb.elDlg.querySelector("#flt1").value;
+  let lb = tb.elDlgCIB.querySelector("#tb");
+  let cntr = tb.elDlgCIB.querySelector("#cntr");
+  var s0 = tb.elDlgCIB.querySelector("#cb1").value;
+  var s1 = tb.elDlgCIB.querySelector("#flt1").value;
 
   if (s1.length < 3) {
     cntr.innerHTML = "enter word(s) to find"
@@ -937,26 +937,26 @@ function onDlgSelectCIBTrSel(td) {
 
 function onDlgSelectCIBBtn(update) {
   if (update === "1") {
-    if (tb.elDlg.querySelectorAll("td.tdSelected").length === 0) {
+    if (tb.elDlgCIB.querySelectorAll("td.tdSelected").length === 0) {
       alert("No category selected: Select a category before closing the dialog");
       return false;
     }
-    tb.elDlg.close();
+    tb.elDlgCIB.close();
     //Add template
 
-    tb.inserttext = "[[Category:" + tb.elDlg.querySelectorAll("td.tdSelected")[0].innerText + "]]\n";
+    tb.inserttext = "[[Category:" + tb.elDlgCIB.querySelectorAll("td.tdSelected")[0].innerText + "]]\n";
     tb.textResult = tb.inserttext + tb.textAll;
     tb.selStart = tb.textBefore.length;
     tb.selEnd = tb.selStart + tb.inserttext.length;
     tb.birthLocationResult = "";
     tb.deathLocationResult = "";
-    tb.addToSummary = "Added " + tb.elDlg.querySelector("#cb1").value + " Category";
+    tb.addToSummary = "Added " + tb.elDlgCIB.querySelector("#cb1").value + " Category";
     updateEdit();
   } else {
-    tb.elDlg.close();
-    tb.elDlg.innerHTML = "";
+    tb.elDlgCIB.close();
     tb.addToSummary = "";
   }
+  tb.elDlgCIB.innerHTML = "";
   return false;
 }
 
@@ -1151,7 +1151,9 @@ function pasteSource() {
     "<h3>Paste source</h3>" +
     '<label for="srcPaste">Clipboard:</label><br>' +
     '<textarea class="srcPaste" data-op="onDlgPasteSourcePaste" data-id="1" placeholder="Paste a source or URL here." rows="5" cols="80"></textarea><br>' +
-    '<input type="checkbox" class="cbInline" id="cb1" name="cb1" data-op="onDlgPasteSourceCB" data-id="1" value="Inline" checked><label for="cb1"> Inline citation</label><br>' +
+    '<input type="checkbox" class="cbInline" id="cb1" name="cb1" data-op="onDlgPasteSourceCB" data-id="1" value="Inline"' +
+    (tb.options.wtplusSourceInline ? " checked" : "") +
+    '><label for="cb1"> Inline citation</label><br>' +
     '<label for="resultFld">Citation to add:</label><br>' +
     '<textarea class="resultFld" rows="5" cols="80"></textarea>' +
     '<div style="text-align:right">' +
@@ -1277,14 +1279,18 @@ function posToOffset(txt, pos) {
 }
 */
 export function wtPlus(params) {
-  if (tb.elText.style.display == "none") {
-    alert("Enhanced editor is not supported.\n\nTurning it off to use the extension.");
-    tb.elEnhanced.click();
+  if (params.action !== 'AddCIBCategory') {
+    if (tb.elText.style.display == "none") {
+      alert("Enhanced editor is not supported.\n\nTurning it off to use the extension.");
+      tb.elEnhanced.click();
+      console.log( 'wt+')    
+    }
   }
 
   //Sets all edit variables
   tb.elEnhancedActive = tb.elText.style.display == "none";
   if (tb.elEnhancedActive) {
+    console.log( 'wt+ temp Off')    
     tb.elEnhanced.click();
 
     //            alert ('Enhanced editor is not supported.<br>Turn it off to use WikiTree+ extension.');
@@ -1307,6 +1313,7 @@ export function wtPlus(params) {
   }
   if (tb.elEnhancedActive) {
     tb.elEnhanced.click();
+    console.log( 'wt+ temp On')    
   }
 
   tb.textBefore = tb.textAll.substring(0, tb.selStart);
@@ -1436,22 +1443,24 @@ const attachEvents = (selector, eventType) => {
   document.querySelectorAll(selector).forEach((i) => i.addEventListener(eventType, (event) => mainEventLoop(event)));
 };
 function mainEventLoop(event) {
-  if (tb.elText.style.display == "none") {
-    alert("Enhanced editor is not supported.\n\nTurning it off to use the extension.");
-    tb.elEnhanced.click();
-  }
-
   let element = event.srcElement;
   if (element.tagName == "TD") {
     if (!element.dataset.op) element = element.parentElement;
   }
   const op = element.dataset.op;
   const id = element.dataset.id;
+  if (!op.startsWith('onDlgSelectCIB')) {
+    if (tb.elText.style.display == "none") {
+      alert("Enhanced editor is not supported.\n\nTurning it off to use the extension.");
+      console.log( 'Main')    
+      tb.elEnhanced.click();
+    }
+  }
+
   if (op === "wtPlus") {
     event.preventDefault();
     return wtPlus(id);
   }
-
   if (op === "onDlgEditTemplateExpCol") {
     event.preventDefault();
     return onDlgEditTemplateExpCol(id);
@@ -1510,6 +1519,10 @@ function mainEventLoop(event) {
 
 function initWTPlus() {
   /* Initialization */
+  getFeatureOptions("wtplus").then((result) => {
+    tb.options = result;
+    console.log(tb.options);
+  });
   tb.nameSpace = document.title.startsWith("Edit Person ") ? "Profile" : "";
   let w = document.querySelector("h1 > .copyWidget");
   if (w) {
@@ -1522,8 +1535,10 @@ function initWTPlus() {
   tb.elSummary = document.getElementById("wpSummary");
   tb.elEnhanced = document.getElementById("toggleMarkupColor");
 
-  document.getElementById("toolbar").insertAdjacentHTML("beforeend", '<dialog id="wtPlusDlg"></dialog>');
+  document.getElementById("toolbar").insertAdjacentHTML("beforeend", '<dialog id="wtPlusDlg"></dialog><dialog id="wtPlusDlgCIB"></dialog>');
   tb.elDlg = document.getElementById("wtPlusDlg");
+  tb.elDlgCIB = document.getElementById("wtPlusDlgCIB");
+  
 
   // Loading of template definition From Storage
   chrome.storage.local.get(["alltemplates"], function (a) {
@@ -1604,7 +1619,7 @@ function initWTPlus() {
         }
         if (tb.dataVersion.getTime() < new Date().getTime() - 6 * 3600 * 1000) {
           // Loading of template definition From Web
-          fetch("https://wikitree.sdms.si/chrome/templatesExp.json")
+          fetch("https://plus.wikitree.com/chrome/templatesExp.json")
             .then((resp) => resp.json())
             .then((jsonData) => {
               const d = new Date(jsonData.version);

@@ -60,10 +60,13 @@ body.darkMode .qa-a-item-selected {
 
 html body.darkMode .ten a:link,
 html body.darkMode .six a:link,
-html body.darkMode .sixteen a:link,
+html body.darkMode .sixteen a:link:not(.new),
 html body.darkMode .five a:link,
 html body.darkMode .qa-main a:link {
   color: #98fb98 !important;
+}
+html body.darkMode .sixteen a:link.new {
+  color: red !important;
 }
 html body.darkMode .ten a:visited,
 html body.darkMode .six a:visited,
@@ -71,6 +74,12 @@ html body.darkMode .sixteen a:visited,
 html body.darkMode .five a:visited,
 html body.darkMode .qa-main a:visited {
   color: #50c878 !important;
+}
+html body.darkMode .sixteen h1 a:link {
+  color: #f3b51b !important;
+}
+html body.darkMode .sixteen h1 a:visited {
+  color: #ffffa0 !important;
 }
 
 body.darkMode #yourRelationshipText,
@@ -84,7 +93,6 @@ body.darkMode .qa-form-tall-label label {
   color: white !important;
 }
 
-body.darkMode .button,
 body.darkMode div.pad form button,
 body.darkMode input.button.green.search {
   padding: 12px 12px !important;
@@ -376,4 +384,102 @@ body.darkMode span[data-gender="Female"],
 body.darkMode #themeTable caption,
 body.darkMode .editToolbarButton {
   background-color: transparent !important;
+}
+
+/* GEDCOMpare */
+body.darkMode .gender_Male {
+  color: #dcddde !important;
+  background-color: #333777 !important;
+}
+body.darkMode .gender_Female {
+  color: #dcddde !important;
+  background-color: #773333 !important;
+}
+body.darkMode .profile_matched {
+  color: #dcddde !important;
+  background-color: #337733 !important;
+}
+body.darkMode p.HIGHLIGHT {
+  color: #dcddde !important;
+  background-color: #aaaa00 !important;
+}
+body.darkMode div.comparePendingPersonContainer span.large {
+  color: #dcddde !important;
+  background-color: #777788 !important;
+}
+
+/* Add Profile */
+body.darkMode p#progressBar {
+  color: #50c878 !important;
+}
+body.darkMode .efmButton2 {
+  color: #50c878 !important;
+}
+body.darkMode span#potentialMatchesTab {
+  color: #50c878 !important;
+}
+body.darkMode span#basicDataTab {
+  color: #50c878 !important;
+}
+
+body.darkMode span#connectionsTab {
+  color: #50c878 !important;
+}
+body.darkMode span#sourcesTab {
+  color: #50c878 !important;
+}
+body.darkMode .newPersonData {
+  color: #50c878 !important;
+}
+
+html body.darkMode .sixteen h1 a,
+html body.darkMode .sixteen h1 a:link {
+  background-color: inherit !important;
+}
+html body.darkMode .sixteen h1 a:visited {
+  color: antiquewhite !important;
+  background-color: inherit !important;
+}
+
+body.darkMode span.HIGHLIGHT {
+  color: black;
+}
+
+/* Coloured tables */
+body.darkMode table th[style="background:#B5B5B5;"],
+body.darkMode table th[style="background: #B5B5B5;"],
+body.darkMode table th[style="background:#B5B5B5;"] b,
+body.darkMode table th[style="background: #B5B5B5;"] b {
+  background-color: #000 !important;
+}
+body.darkMode table th[style="background:#C4A6C4;"],
+body.darkMode table th[style="background: #C4A6C4;"],
+body.darkMode table td[style="background:#C4A6C4;"],
+body.darkMode table td[style="background: #C4A6C4;"],
+body.darkMode table th[style="background: #66FF66;"],
+body.darkMode table th[style="background:#66FF66;"] {
+  color: #000 !important;
+}
+body.darkMode table th[style="background:#EADBEA;"],
+body.darkMode table td[style="background:#EADBEA;"],
+body.darkMode table th[style="background: #EADBEA;"],
+body.darkMode table td[style="background: #EADBEA;"],
+body.darkMode table th[style="background:#EADBEA;"] b,
+body.darkMode table td[style="background:#EADBEA;"] b,
+body.darkMode table th[style="background: #EADBEA;"] b,
+body.darkMode table td[style="background: #EADBEA;"] b {
+  background-color: #36393f !important;
+}
+
+body.darkMode table tr[style="background-color: #B5B5B5; height: 20px;"],
+body.darkMode table tr[style="background-color: #B5B5B5; height: 20px;"] th,
+body.darkMode table tr[style="background-color: #B5B5B5; height: 20px;"] b {
+  background-color: #000 !important;
+}
+
+body.darkMode table tr[style="background-color: #B5B5B5; height: 20px;"] th[style="background:#66FF66;"],
+body.darkMode table th[style="background: #66FF66;"] b,
+body.darkMode table th[style="background:#66FF66;"] b {
+  background-color: #66ff66 !important;
+  color: #000 !important;
 }

@@ -79,6 +79,7 @@ function sortTouched(order = "touched") {
 }
 
 function recentChange(person) {
+  console.log(person);
   $("#ewlEmpty").hide();
   let pt = false;
   let ptOut = "";
@@ -186,7 +187,7 @@ function recentChange(person) {
       "\"><td class='wtIDcol'>" +
       person.Name +
       "</td><td class='personCol'><a href=\"https://www.wikitree.com/wiki/" +
-      htmlEntities(person.Id) +
+      (person.IsSpace ? htmlEntities(person.Name) : htmlEntities(person.Id)) +
       '">' +
       person.LongName +
       " " +
