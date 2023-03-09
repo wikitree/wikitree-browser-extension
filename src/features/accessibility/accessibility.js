@@ -99,19 +99,19 @@ async function initAccessibility() {
             let match;
             if (state < 5) {
               let first, rest;
-              if (match = (this.textContent.match(/^(\s*["\u201c-\u201d].{6,100}?["\u201c-\u201d]+)(.*)/))) {
+              if (match = (this.textContent.match(/^(\s*["\u201c-\u201d].{6,100}?["\u201c-\u201d]+)(.*)/s))) {
                 // for sources that start with something enclosed in quotes
                 rest = match[2];
                 first = match[1];
-              } else if (match = (this.textContent.match(/^((\s*[^"\u2018-\u201d,]{4,20}\w*,){1,2}[^"\u2018-\u201d,.]{4,20}\w*[,.]\s*)(.*)/))) {
+              } else if (match = (this.textContent.match(/^((\s*[^"\u2018-\u201d,]{4,20}\w*,){1,2}[^"\u2018-\u201d,.]{4,20}\w*[,.]\s*)(.*)/s))) {
                 // for sources with comma separators such as Last, First Middle, Jr.
                 rest = match[3];
                 first = match[1];
-              } else if (match = (this.textContent.match(/^(\s*[^"\u201c-\u201d]{3,20}\w*\b[^"\u201c-\u201d,.(]{0,20}\w*[,.)]*)(.*)/))) {
+              } else if (match = (this.textContent.match(/^(\s*[^"\u201c-\u201d]{3,20}\w*\b[^"\u201c-\u201d,.(]{0,20}\w*[,.)]*)(.*)/s))) {
                 // for sources that start with some other non-quoted phrase that terminates with a separator
                 rest = match[2];
                 first = match[1];
-                if (match = (first.match(/(.*(\w{1,4}\.\s*){2,}\s+\b(\w+\.)?)(.*)/))) {
+                if (match = (first.match(/(.*(\w{1,4}\.\s*){2,}\s+\b(\w+\.)?)(.*)/s))) {
                   // special case for Smith, John, Ph.D. or Smith, Lt. Col. Samuel.
                   first = match[1];
                   rest = match[4] + rest;
