@@ -2071,6 +2071,7 @@ function buildCensusNarratives() {
           if (window.profilePerson["BirthDate"].match("-")) {
             [day, month, year] = window.profilePerson["BirthDate"].split("-");
           } else {
+            // eslint-disable-next-line no-unused-vars
             [day, month, year] = window.profilePerson["BirthDate"].split(" ");
           }
           /*
@@ -3056,6 +3057,7 @@ function getSourcerCensuses() {
 
 async function getStickersAndBoxes() {
   let afterBioHeading = "";
+  // eslint-disable-next-line no-undef
   await fetch(chrome.runtime.getURL("features/wtPlus/templatesExp.json"))
     .then((resp) => resp.json())
     .then((jsonData) => {
@@ -3352,6 +3354,7 @@ export async function generateBio() {
 
   const working = $(
     "<img id='working' style='position:absolute; margin-top:3em; margin-left: 300px' src='" +
+      // eslint-disable-next-line no-undef
       chrome.runtime.getURL("images/tree.gif") +
       "'>"
   );
