@@ -2074,7 +2074,7 @@ async function myConnections() {
       $(".wrapper h3 + ol, .wrapper .peopleTable + ol").each(function (index) {
         $(this).attr("id", "gen" + index + "_list");
       });
-    });
+    }, 1000);
   });
 
   if (maxedOutAlready) {

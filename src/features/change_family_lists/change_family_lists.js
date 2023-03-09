@@ -1,6 +1,6 @@
 import $ from "jquery";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
-import { isOK, htmlEntities, displayName } from "../../core/common";
+import { isOK, htmlEntities, displayName, pageProfile } from "../../core/common";
 import { displayDates } from "../verifyID/verifyID";
 import { getRelatives } from "wikitree-js";
 import "./change_family_lists.css";
@@ -8,7 +8,7 @@ import "./change_family_lists.css";
 checkIfFeatureEnabled("changeFamilyLists").then((result) => {
   const ancestorsButton = $("span.showHideTree").eq(0);
   const descendantsButton = $("span#showHideDescendants");
-  if (result && $("body.profile").length) {
+  if (result && pageProfile) {
     window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
     prepareFamilyLists().then(() => {
       getFeatureOptions("changeFamilyLists").then((options) => {
@@ -48,6 +48,8 @@ checkIfFeatureEnabled("changeFamilyLists").then((result) => {
             addAddLinksToHeadings();
           }
         }, 3000);
+
+        addParentStatus();
       });
     });
     window.onresize = function () {
@@ -80,26 +82,27 @@ async function addAddLinksToHeadings() {
     if (!window.people[0] && window.people[0].Father) {
       whichParent = "mother";
     }
+
+    headings.forEach(function (aHeading) {
+      if (
+        ["#siblingsUnknown", "#siblingsHeader"].includes(aHeading[0]) &&
+        window.people[0]?.Mother == 0 &&
+        window.people[0]?.Father == 0
+      ) {
+      } else {
+        $(aHeading[0])
+          .attr("title", "Right click to add a " + aHeading[1])
+          .css("cursor", "pointer");
+        $(aHeading[0]).on("contextmenu", function (e) {
+          e.preventDefault();
+          if (!aHeading[1]) {
+            aHeading[1] = whichParent;
+          }
+          window.location = linkBase + "&who=" + aHeading[1];
+        });
+      }
+    });
   }
-  headings.forEach(function (aHeading) {
-    if (
-      ["#siblingsUnknown", "#siblingsHeader"].includes(aHeading[0]) &&
-      window.people[0].Mother == 0 &&
-      window.people[0].Father == 0
-    ) {
-    } else {
-      $(aHeading[0])
-        .attr("title", "Right click to add a " + aHeading[1])
-        .css("cursor", "pointer");
-      $(aHeading[0]).on("contextmenu", function (e) {
-        e.preventDefault();
-        if (!aHeading[1]) {
-          aHeading[1] = whichParent;
-        }
-        window.location = linkBase + "&who=" + aHeading[1];
-      });
-    }
-  });
 }
 
 async function prepareFamilyLists() {
@@ -292,9 +295,10 @@ function reallyMakeFamLists() {
                 if (aPerson.Name.match(/[']/) != null) {
                   aPerson.Name = aPerson.Name.replace("'", "");
                 }
-                if ($("#" + aPerson.Name + "-bdDates").length == 0) {
+                const idName = aPerson.Name.replace(".", "");
+                if ($("#" + idName + "-bdDates").length == 0) {
                   theSpouse.append(
-                    " <span class='spouseDates bdDates' id='" + aPerson.Name + "-bdDates'>" + spouseDates + "</span>"
+                    " <span class='spouseDates bdDates' id='" + idName + "-bdDates'>" + spouseDates + "</span>"
                   );
                 }
                 addDataToPerson(theSpouse.closest("div"), aPerson);
@@ -303,21 +307,21 @@ function reallyMakeFamLists() {
             });
           });
 
-          if (typeof window.profileWTID != "undefined" && !$_GET["diff"] && $("#yourConnection").length == 0) {
-            const mID = profileWTID;
+          //if (typeof profileWTID != "undefined" && !diff && $("#yourConnection").length == 0) {
+          const mID = profileWTID;
 
-            $("#siblingsHeader").off("click");
-            $("body").on("click", "#siblingsHeader", function () {
-              siblingsHeader();
-            });
+          $("#siblingsHeader").off("click");
+          $("body").on("click", "#siblingsHeader", function () {
+            siblingsHeader();
+          });
 
-            setTimeout(function () {
-              addHalfsStyle();
-            }, 1000);
-
+          setTimeout(function () {
+            addHalfsStyle();
+          }, 1000);
+          /*
             window.intervalID = setInterval(addUncertain, 500);
             window.triedUncertain = 0;
-          }
+            */
 
           fixAllPrivates();
 
@@ -759,18 +763,35 @@ function makeFamLists() {
     }
   }
 
-  if ($(".aSpouse").length > 1 && $("#childrenList li").length) {
-    $(".aSpouse").each(function (index) {
-      let spouseID = $(this).data("id");
+  // $(".aSpouse").length > 1 &&
 
-      let aSpouse = $(this);
-      $("#childrenList li").each(function () {
-        if ($(this).data("mother") == spouseID || $(this).data("father") == spouseID) {
-          $(this).addClass("spouse_" + (parseInt(index) + 1));
-          aSpouse.addClass("spouse_" + (parseInt(index) + 1));
-        }
-      });
+  if ($("#childrenList li").length) {
+    let sameParent = true;
+    let checkParent = "mother";
+    const parentIDs = [];
+    if ($(".aSpouse").length) {
+      if ($(".aSpouse").data("gender") == "male") {
+        checkParent = "father";
+      }
+    }
+    $("#childrenList li").each(function () {
+      const parentID = $(this).data(checkParent);
+      if (!parentIDs.includes(parentID)) {
+        parentIDs.push(parentID);
+      }
     });
+    if (parentIDs.length > 1) {
+      $(".aSpouse").each(function (index) {
+        let spouseID = $(this).data("id");
+        let aSpouse = $(this);
+        $("#childrenList li").each(function () {
+          if ($(this).data("mother") == spouseID || $(this).data("father") == spouseID) {
+            $(this).addClass("spouse_" + (parseInt(index) + 1));
+            aSpouse.addClass("spouse_" + (parseInt(index) + 1));
+          }
+        });
+      });
+    }
   }
 }
 
@@ -1506,12 +1527,12 @@ async function addMarriageAges() {
             let aSpMarriageAge = getMarriageAge(aSp.BirthDate, aSp.marriage_date, aSp);
             let spBit = "";
             let bpBit = "";
-            if (bioPersonMarriageAge != "") {
+            if (bioPersonMarriageAge) {
               bpBit = window.people[0].FirstName + " (" + bioPersonMarriageAge + ")";
             }
             if (isOK(aSp.BirthDate)) {
               spBit = aSp.FirstName + " (" + aSpMarriageAge + ")";
-              if (bioPersonMarriageAge != "") {
+              if (bioPersonMarriageAge) {
                 spBit = "; " + spBit;
               }
             }
@@ -1757,4 +1778,24 @@ function status2symbol(ostatus) {
     default:
       return "";
   }
+}
+
+function addParentStatus() {
+  setTimeout(function () {
+    if (window.people) {
+      const profileP = window.people[0];
+      if (profileP.DataStatus?.Father == "10") {
+        $("#parentList li[data-gender='male'] a").append($("<span class='uncertain'>[uncertain]</span>"));
+      }
+      if (profileP.DataStatus?.Father == "5") {
+        $("#parentList li[data-gender='male'] a").append($("<span class='non-biological'>[non-biological]</span>"));
+      }
+      if (profileP.DataStatus?.Mother == "10") {
+        $("#parentList li[data-gender='female'] a").append($("<span class='uncertain'>[uncertain]</span>"));
+      }
+      if (profileP.DataStatus?.Mother == "5") {
+        $("#parentList li[data-gender='female'] a").append($("<span class='non-biological'>[non-biological]</span>"));
+      }
+    }
+  }, 3000);
 }

@@ -28,7 +28,7 @@
       }
 *******************************************************************/
 
-// https://wikitree.sdms.si/function/WTWebProfileSearch/apiExtRandomProfile.json?Query=Oak%20Hill%20Alabama&MaxProfiles=&Format=json
+// https://plus.wikitree.com/function/WTWebProfileSearch/apiExtRandomProfile.json?Query=Oak%20Hill%20Alabama&MaxProfiles=&Format=json
 export const wtAPIProfileSearch = (callerID, query, params) => {
   let s = "";
   if (params) {
@@ -72,16 +72,17 @@ export const wtAPIProfileSearch = (callerID, query, params) => {
       }
 *******************************************************************/
 
-// https://wikitree.sdms.si/function/wtCatCIBSearch/apiExtCategoryPicker.json?Query=Oak%20Hill%20Alabama&cib=Cemetery&Format=json
+// https://plus.wikitree.com/function/wtCatCIBSearch/apiExtCategoryPicker.json?Query=Oak%20Hill%20Alabama&cib=Cemetery&Format=json
 export const wtAPICatCIBSearch = (callerID, cibType, query) =>
   wtAPICall(`wtCatCIBSearch/apiExt${callerID}.json?Query=${query}&cib=${cibType}`);
+
 
 // *******************************************************************
 // Base call to WikiTree+
 // *******************************************************************
 
 const wtAPICall = (url) => {
-  return fetch(`https://wikitree.sdms.si/function/${url}&format=json`).then((response) => {
+  return fetch(`https://plus.wikitree.com/function/${url}&format=json`).then((response) => {
     if (response.ok) {
       return response.json();
     } else {
