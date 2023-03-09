@@ -1,0 +1,169 @@
+/* already easily-identifiable elements */
+
+/* page-header */
+#header {
+  border-bottom: 5px solid #000 !important;
+  opacity: 0.5;
+}
+
+/* page-footer */
+#footer {
+  border-top: 5px solid #000 !important;
+  opacity: 0.5;
+}
+
+/* toc */
+#toc {
+  background: rgba(240,255,240,0.5) !important;
+}
+
+/* elements that need to be identified manually */
+
+.x-profile {
+  border: 3px dashed #999;
+}
+
+.x-content {
+  background: #ff9 !important;
+}
+
+.x-sidebar {
+  background: #9ab !important;
+}
+
+.x-heading {
+  background: #f98 !important;
+}
+
+.x-heading-title {
+  background: #fa9 !important;
+}
+
+.x-heading-widget {
+  background: #fcc !important;
+}
+
+.x-thumbnail {
+  background: #c99 !important;
+}
+
+.x-thumbnail img {
+  opacity: 0.5;
+}
+
+.x-privacy {
+  background: #e88 !important;
+}
+
+.x-privacy img {
+  opacity: 0.5;
+}
+
+.x-tabs {
+  background: #fec !important;
+}
+
+.x-tabs-page {
+  background: #fdc !important;
+}
+
+.x-tabs-view {
+  background: #ffc !important;
+}
+
+.x-edit {
+  background: #cb6 !important;
+}
+
+.x-audit {
+  background: #cf9 !important;
+}
+
+.x-alert {
+  border: 6px dotted #c00 !important;
+  opacity: 0.5;
+}
+
+.x-sticker {
+  background: #bcb !important;
+}
+
+.x-citation {
+  background: #ff0 !important;
+}
+
+.x-inline-img {
+  background: #444 !important;
+  opacity: 0.5;
+}
+
+.x-inline-img tr:last-child {
+  background: #cdc !important;
+}
+
+.x-inline-table {
+  background: #999 !important;
+  opacity: 0.5;
+}
+
+.x-section + h1, .x-section + h2, .x-section + h3, .x-section + h4, .x-section + h5, .x-section + h6 {
+  border-top: 1px dotted #876;
+}
+
+.x-root-section + h1 {
+  border-top: 5px solid #f00;
+}
+
+.x-root-section + h2 {
+  border-top-width: 5px;
+  border-top-style: solid;
+}
+
+.x-sources {
+  background: #8f9 !important;
+}
+
+.x-src {
+  background: #cfe !important;
+}
+
+.x-memories {
+  background: #9fc !important;
+}
+
+br.x-memories {
+  content: " ";
+  display: block;
+  background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAEqSURBVDhP7ZM9TsMwGIbtUBOgIBYGkJgRIxMbd+AKTJyBC3AAxIgQaqfOHAIYOAEHYGZgQiU8b/w5TSoVxbQjr/To+3Hy2o4dtyIdgo/pH+W9LyweQUV6qXoZ1Ybo1AxfVKTmMppalOlKDDv6N6yl+7RmMVvzhjLRaenkFLNN24bKZRLgAvaszjJNhorfMXUjuIfzunJuADKdJ72rfCZuebsxAa1Kpn11Yn/KUyxnSmaPUMIm7MLOAjSmwzszw1eIojEmqPkFn5b3xgwfIO6fxlVVVdfKkX5yoRWk7/qbpryv3dzi8RxbaKMs7wia6Q0O1MsVxr5zKCGEEaVMP4j7sVtfI32rhfDsoO3j1kNo7mNRFDeMvcOxamIzlqXtrWEzA6ZDxc6sveTcD8GLO8c4hnhTAAAAAElFTkSuQmCC) !important;
+  width: 1.5em;
+  height: 1.5em;
+  border: 1px dashed #000;
+}
+
+.x-comments {
+  background: #9ff !important;
+}
+
+.x-comments .box {
+  background: #def !important;
+}
+
+.x-merges {
+  background: #9cf !important;
+}
+
+.x-connections {
+  background: #89f !important;
+}
+
+.x-connections > .box {
+  background: #acf !important;
+}
+
+.x-categories {
+  background: #c9f !important;
+}
+
+.x-categories #categories {
+  background: #ecf !important;
+}
