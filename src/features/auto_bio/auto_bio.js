@@ -12,7 +12,7 @@ import { theSourceRules } from "../bioCheck/SourceRules.js";
 import { PersonDate } from "../bioCheck/PersonDate.js";
 import { Biography } from "../bioCheck/Biography.js";
 import { ageAtDeath, USstatesObjArray } from "../my_connections/my_connections";
-import { bioTimelineFacts, personRelation, buildTimelineTable, buildTimelineSA } from "./timeline";
+import { bioTimelineFacts, buildTimelineTable, buildTimelineSA } from "./timeline";
 
 /**
 Returns a status word based on the input status and optional needOnIn parameter, with an optional ISO date string parameter.
@@ -58,7 +58,6 @@ function autoBioCheck(sourcesStr) {
   let birthDate = document.getElementById("mBirthDate").value;
   let deathDate = document.getElementById("mDeathDate").value;
   thePerson.initWithDates(birthDate, deathDate);
-  let isPre1700 = thePerson.isPersonPre1700();
   let biography = new Biography(theSourceRules);
   biography.parse(
     sourcesStr,
@@ -68,7 +67,6 @@ function autoBioCheck(sourcesStr) {
     thePerson.isUndated(),
     false
   );
-  const isValid = biography.validate();
   const hasSources = biography.hasSources();
   return hasSources;
 }
@@ -258,7 +256,7 @@ function fixLocations() {
 }
 
 function convertDate(dateString, outputFormat, status = "") {
-  dateString = dateString.replaceAll(/\-00/g, "");
+  dateString = dateString.replaceAll(/-00/g, "");
   // Split the input date string into components
   var components = dateString.split(/[\s,-]+/);
 
@@ -283,10 +281,6 @@ function convertDate(dateString, outputFormat, status = "") {
     // Short month and year format with no day (e.g. "Jul 2023")
     inputFormat = "MY";
     components.unshift("01");
-  } else if (components.length == 2 && /^[A-Za-z]+/.test(components[0])) {
-    // Long month and year format with no day (e.g. "July 2023")
-    inputFormat = "MDY";
-    components.splice(1, 0, "01");
   } else if (components.length == 3 && /^\d{2}$/.test(components[1]) && /^\d{2}$/.test(components[2])) {
     // ISO format with no day (e.g. "2023-07-23")
     inputFormat = "ISO";
@@ -628,7 +622,7 @@ function childList(person, spouse) {
     }
   } else {
     let gotChild = false;
-    ourChildren.sort((a, b) => a.BirthDate.replaceAll(/\-/g, "") - b.BirthDate.replaceAll(/\-/g, ""));
+    ourChildren.sort((a, b) => a.BirthDate.replaceAll(/-/g, "") - b.BirthDate.replaceAll(/-/g, ""));
     ourChildren.forEach(function (child) {
       if (window.autoBioOptions.familyListStyle == "bullets") {
         childListText += "* ";
@@ -689,7 +683,7 @@ function siblingList() {
         ".\n";
     } else if (siblings.length > 1) {
       text += capitalizeFirstLetter(window.profilePerson.Pronouns.possessiveAdjective) + " siblings were:\n";
-      siblings.sort((a, b) => a.BirthDate.replaceAll(/\-/g, "") - b.BirthDate.replaceAll(/\-/g, ""));
+      siblings.sort((a, b) => a.BirthDate.replaceAll(/-/g, "") - b.BirthDate.replaceAll(/-/g, ""));
       siblings.forEach(function (sibling) {
         if (window.autoBioOptions.familyListStyle == "bullets") {
           text += "* ";
@@ -1171,7 +1165,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
     "(?<=, )((['a-zA-Z .-]+, )?['a-zA-Z .-]+,['a-zA-Z ().-]+), (United States|England|Scotland|Canada|Wales|Australia);"
   );
   const countryPatternMatch = countryPattern.exec(reference.Text);
-  const firstNameMatch = new RegExp(firstName.replace(".", "\\.").replace(/([A-Z])\|/, "$1\b|") + "\\b");
+  //const firstNameMatch = new RegExp(firstName.replace(".", "\\.").replace(/([A-Z])\|/, "$1\b|") + "\\b");
   const theFirstNameMatch = nameMatchPattern.exec(reference.Text);
   if (theFirstNameMatch) {
     firstName = theFirstNameMatch[0].trim();
@@ -1249,19 +1243,27 @@ function getHouseholdOfRelationAndName(text) {
                 relationSingular == "Child"
                   ? oGender == "Male"
                     ? "son"
-                    : (oGender = "Female" ? "daughter" : "child")
+                    : oGender == "Female"
+                    ? "daughter"
+                    : "child"
                   : relationSingular == "Parent"
                   ? oGender == "Male"
                     ? "father"
-                    : (oGender = "Female" ? "mother" : "parent")
+                    : oGender == "Female"
+                    ? "mother"
+                    : "parent"
                   : relationSingular == "Sibling"
                   ? oGender == "Male"
                     ? "brother"
-                    : (oGender = "Female" ? "sister" : "sibling")
+                    : oGender == "Female"
+                    ? "sister"
+                    : "sibling"
                   : relationSingular == "Spouse"
                   ? oGender == "Male"
                     ? "husband"
-                    : (oGender = "Female" ? "wife" : "spouse")
+                    : oGender == "Female"
+                    ? "wife"
+                    : "spouse"
                   : relationSingular;
             }
             text = text.replace(
@@ -1482,8 +1484,6 @@ function updateRelations(data) {
                   break;
               }
               break;
-            default:
-              person.Relation = person.Relation;
           }
         }
       }
@@ -1519,19 +1519,27 @@ function findRelation(person) {
               relationSingular == "Child"
                 ? oGender == "Male"
                   ? "Son"
-                  : (oGender = "Female" ? "Daughter" : "Child")
+                  : oGender == "Female"
+                  ? "Daughter"
+                  : "Child"
                 : relationSingular == "Parent"
                 ? oGender == "Male"
                   ? "Father"
-                  : (oGender = "Female" ? "Mother" : "Parent")
+                  : oGender == "Female"
+                  ? "Mother"
+                  : "Parent"
                 : relationSingular == "Sibling"
                 ? oGender == "Male"
                   ? "Brother"
-                  : (oGender = "Female" ? "Sister" : "Sibling")
+                  : oGender == "Female"
+                  ? "Sister"
+                  : "Sibling"
                 : relationSingular == "Spouse"
                 ? oGender == "Male"
                   ? "Husband"
-                  : (oGender = "Female" ? "Wife" : "Spouse")
+                  : oGender == "Female"
+                  ? "Wife"
+                  : "Spouse"
                 : relationSingular;
           }
         }
@@ -1584,7 +1592,7 @@ function getCensusesFromCensusSection() {
           const aYearMatch = line.match(/\b1[789]\d{2}\b/);
           if (thisCensus) {
             if (aYearMatch) {
-              if (aYearMatch[0] != censusTypeMatch[1] && line.match(/^\:/) == null) {
+              if (aYearMatch[0] != censusTypeMatch[1] && line.match(/^:/) == null) {
                 thisCensus = false;
                 if (newPerson.Name) {
                   ref.Household.push(newPerson);
@@ -1592,14 +1600,14 @@ function getCensusesFromCensusSection() {
                 }
               }
             }
-            if (line.match(/^\:/)) {
+            if (line.match(/^:/)) {
               if (thisCensus && ref.Year == 1939 && ref.CensusType == "findmypast") {
                 if (line.match("findmypast") == null) {
                   ref.ListText.push(line);
                 }
                 const lineBits = line.split("\t");
                 lineBits.forEach(function (aBit, index) {
-                  aBit = aBit.replace(/^\:/, "").trim();
+                  aBit = aBit.replace(/^:/, "").trim();
                   if (index == 0) {
                     newPerson["FirstName"] = aBit;
                   }
@@ -1634,7 +1642,7 @@ function getCensusesFromCensusSection() {
                 }
                 const lineBits = line.split("\t");
                 lineBits.forEach(function (aBit, index) {
-                  aBit = aBit.replace(/^\:/, "").trim();
+                  aBit = aBit.replace(/^:/, "").trim();
                   if (index == 0) {
                     newPerson["FirstName"] = aBit;
                   }
@@ -1698,7 +1706,7 @@ function getCensusesFromCensusSection() {
                 if (line.match(/\s{4}/)) {
                   const lineBits = line.split(/\s{4}/);
                   lineBits.forEach(function (aBit, index) {
-                    aBit = aBit.replace(/^\:/, "").trim();
+                    aBit = aBit.replace(/^:/, "").trim();
                     if (index == 0) {
                       let nameBits = aBit.split(" ");
                       newPerson["FirstName"] = nameBits[0];
@@ -1733,7 +1741,7 @@ function getCensusesFromCensusSection() {
                 } else {
                   const lineBits = line.split(/\t/);
                   lineBits.forEach(function (aBit, index) {
-                    aBit = aBit.replace(/^\:/, "").trim();
+                    aBit = aBit.replace(/^:/, "").trim();
                     if (index == 0) {
                       newPerson["FirstName"] = aBit;
                     }
@@ -1776,7 +1784,7 @@ function getCensusesFromCensusSection() {
                 }
                 const lineBits = line.split(/\t|\s{4}/);
                 lineBits.forEach(function (aBit, index) {
-                  aBit = aBit.replace(/^\:/, "").trim();
+                  aBit = aBit.replace(/^:/, "").trim();
                   if (index == 0) {
                     let nameBits = aBit.split(" ");
                     newPerson["FirstName"] = nameBits[0];
@@ -2065,171 +2073,13 @@ function buildCensusNarratives() {
           } else {
             [day, month, year] = window.profilePerson["BirthDate"].split(" ");
           }
+          /*
           let profilePersonAge = getAge({
             start: { year: year, month: isNaN(month) ? abbrevToNum(month) : month, date: day },
             end: { year: reference["Census Year"], month: 7, date: 2 },
           });
+*/
 
-          function createFamilyNarrative(familyMembers) {
-            const mainPerson = familyMembers.find((member) => member.Relation === "Self");
-            const lastNameMatchRegex = new RegExp(
-              window.profilePerson.LastNameAtBirth + "|" + window.profilePerson.LastNameAtBirth
-            );
-            if (mainPerson) {
-              const lastNameMatch = mainPerson.Name.match(lastNameMatchRegex);
-              if (lastNameMatch) {
-                mainPerson.LastName = lastNameMatch[0];
-              } else {
-                mainPerson.LastName = mainPerson.Name.split(" ").slice(-1)[0];
-              }
-            }
-            let narrative = "";
-
-            const spouse = familyMembers.find((member) => member.Relation === "Wife" || member.Relation === "Husband");
-            const children = familyMembers.filter(
-              (member) => member.Relation === "Daughter" || member.Relation === "Son"
-            );
-            const siblings = familyMembers.filter(
-              (member) => member.Relation === "Brother" || member.Relation === "Sister"
-            );
-            const parents = familyMembers.filter(
-              (member) => member.Relation === "Father" || member.Relation === "Mother"
-            );
-            // const others = familyMembers.filter((member) => member.Relation === "" || member.Relation == undefined);
-
-            const others = familyMembers.filter(
-              (member) =>
-                !["Self", "Wife", "Husband", "Daughter", "Son", "Brother", "Sister", "Father", "Mother"].includes(
-                  member.Relation
-                )
-            );
-
-            const removeMainPersonLastName = (name) => {
-              const names = name.split(" ");
-              let nameToMatch = window.profilePerson.LastNameAtBirth;
-              if (mainPerson) {
-                nameToMatch = mainPerson.LastName;
-              }
-              if (names[names.length - 1] === nameToMatch) {
-                names.pop();
-              }
-              return names.join(" ");
-            };
-            let spouseBit = "";
-            if (spouse) {
-              spouseBit = `${
-                window.profilePerson.Pronouns.possessiveAdjective
-              } ${spouse.Relation.toLowerCase()}, ${removeMainPersonLastName(spouse.Name)} (${spouse.Age})`;
-            }
-
-            let childrenBit = "";
-            if (children.length > 0) {
-              if (spouse) {
-                childrenBit += ` their `;
-              } else {
-                if (window.profilePerson.Gender == "Male") {
-                  childrenBit += ` his `;
-                } else if (window.profilePerson.Gender == "Female") {
-                  childrenBit += ` her `;
-                } else {
-                  childrenBit += ` their `;
-                }
-              }
-              if (children.length === 1) {
-                childrenBit += `${children[0].Relation.toLowerCase()}, `;
-              } else {
-                childrenBit += `children, `;
-              }
-              children.forEach((child, index) => {
-                childrenBit += `${removeMainPersonLastName(child.Name)} (${child.Age})`;
-                if (index === children.length - 2) {
-                  childrenBit += `, and `;
-                } else if (index !== children.length - 1) {
-                  childrenBit += `, `;
-                }
-              });
-            }
-
-            let siblingsBit = "";
-            if (siblings.length > 0) {
-              if (siblings.length === 1) {
-                if (siblings[0].Relation === "Brother") {
-                  siblingsBit += `${window.profilePerson.Pronouns.possessiveAdjective} brother, `;
-                } else {
-                  siblingsBit += `${window.profilePerson.Pronouns.possessiveAdjective} sister, `;
-                }
-              } else {
-                siblingsBit += `${window.profilePerson.Pronouns.possessiveAdjective} siblings, `;
-              }
-              siblings.forEach((sibling, index) => {
-                siblingsBit += `${removeMainPersonLastName(sibling.Name)} (${sibling.Age})`;
-                if (index === siblings.length - 2) {
-                  siblingsBit += `, and `;
-                } else if (index !== siblings.length - 1) {
-                  siblingsBit += `, `;
-                }
-              });
-            }
-
-            let parentsBit = "";
-            if (parents.length > 0) {
-              if (parents.length === 1) {
-                if (parents[0].Relation === "Father") {
-                  parentsBit += `${window.profilePerson.Pronouns.possessiveAdjective} father, `;
-                } else {
-                  parentsBit += `${window.profilePerson.Pronouns.possessiveAdjective} mother, `;
-                }
-              } else {
-                parentsBit += `${window.profilePerson.Pronouns.possessiveAdjective} parents, `;
-              }
-              parents.forEach((parent, index) => {
-                parentsBit += `${removeMainPersonLastName(parent.Name)} (${parent.Age})`;
-                if (index === parents.length - 2) {
-                  parentsBit += ` and `;
-                }
-              });
-            }
-
-            let othersBit = "";
-            if (others.length > 0) {
-              othersBit += "; and ";
-              let oRelation;
-              let oRelationStr;
-              others.forEach((other, index) => {
-                oRelation = other.Relation;
-                oRelationStr = oRelation ? ", " + oRelation.toLowerCase() : "";
-                othersBit += other.Name + " (" + other.Age + oRelationStr + ")";
-
-                if (index === others.length - 2) {
-                  othersBit += ", and ";
-                } else if (index !== others.length - 1) {
-                  othersBit += ", ";
-                }
-              });
-            }
-            if (spouse) {
-              narrative +=
-                spouseBit +
-                (childrenBit ? (!othersBit && !siblingsBit && !parentsBit ? "; and " : "; ") : "") +
-                childrenBit +
-                (parentsBit ? (!othersBit && !siblingsBit ? "; and " : "; ") : "") +
-                parentsBit +
-                (siblingsBit ? (!othersBit ? "; and " : "; ") : "") +
-                siblingsBit +
-                othersBit;
-            } else {
-              narrative +=
-                parentsBit +
-                (childrenBit ? (!othersBit && !siblingsBit ? "; and " : "; ") : "") +
-                childrenBit +
-                (siblingsBit ? (!othersBit ? "; and " : "; ") : "") +
-                siblingsBit +
-                othersBit;
-            }
-            narrative += ".";
-
-            return narrative;
-          }
           text += createFamilyNarrative(reference.Household);
         }
       }
@@ -2237,6 +2087,159 @@ function buildCensusNarratives() {
       reference.OrderDate = formatDate(reference["Census Year"], 0, 8);
     }
   });
+}
+
+function createFamilyNarrative(familyMembers) {
+  const mainPerson = familyMembers.find((member) => member.Relation === "Self");
+  const lastNameMatchRegex = new RegExp(
+    window.profilePerson.LastNameAtBirth + "|" + window.profilePerson.LastNameAtBirth
+  );
+  if (mainPerson) {
+    const lastNameMatch = mainPerson.Name.match(lastNameMatchRegex);
+    if (lastNameMatch) {
+      mainPerson.LastName = lastNameMatch[0];
+    } else {
+      mainPerson.LastName = mainPerson.Name.split(" ").slice(-1)[0];
+    }
+  }
+  let narrative = "";
+
+  const spouse = familyMembers.find((member) => member.Relation === "Wife" || member.Relation === "Husband");
+  const children = familyMembers.filter((member) => member.Relation === "Daughter" || member.Relation === "Son");
+  const siblings = familyMembers.filter((member) => member.Relation === "Brother" || member.Relation === "Sister");
+  const parents = familyMembers.filter((member) => member.Relation === "Father" || member.Relation === "Mother");
+  // const others = familyMembers.filter((member) => member.Relation === "" || member.Relation == undefined);
+
+  const others = familyMembers.filter(
+    (member) =>
+      !["Self", "Wife", "Husband", "Daughter", "Son", "Brother", "Sister", "Father", "Mother"].includes(member.Relation)
+  );
+
+  const removeMainPersonLastName = (name) => {
+    const names = name.split(" ");
+    let nameToMatch = window.profilePerson.LastNameAtBirth;
+    if (mainPerson) {
+      nameToMatch = mainPerson.LastName;
+    }
+    if (names[names.length - 1] === nameToMatch) {
+      names.pop();
+    }
+    return names.join(" ");
+  };
+  let spouseBit = "";
+  if (spouse) {
+    spouseBit = `${
+      window.profilePerson.Pronouns.possessiveAdjective
+    } ${spouse.Relation.toLowerCase()}, ${removeMainPersonLastName(spouse.Name)} (${spouse.Age})`;
+  }
+
+  let childrenBit = "";
+  if (children.length > 0) {
+    if (spouse) {
+      childrenBit += ` their `;
+    } else {
+      if (window.profilePerson.Gender == "Male") {
+        childrenBit += ` his `;
+      } else if (window.profilePerson.Gender == "Female") {
+        childrenBit += ` her `;
+      } else {
+        childrenBit += ` their `;
+      }
+    }
+    if (children.length === 1) {
+      childrenBit += `${children[0].Relation.toLowerCase()}, `;
+    } else {
+      childrenBit += `children, `;
+    }
+    children.forEach((child, index) => {
+      childrenBit += `${removeMainPersonLastName(child.Name)} (${child.Age})`;
+      if (index === children.length - 2) {
+        childrenBit += `, and `;
+      } else if (index !== children.length - 1) {
+        childrenBit += `, `;
+      }
+    });
+  }
+
+  let siblingsBit = "";
+  if (siblings.length > 0) {
+    if (siblings.length === 1) {
+      if (siblings[0].Relation === "Brother") {
+        siblingsBit += `${window.profilePerson.Pronouns.possessiveAdjective} brother, `;
+      } else {
+        siblingsBit += `${window.profilePerson.Pronouns.possessiveAdjective} sister, `;
+      }
+    } else {
+      siblingsBit += `${window.profilePerson.Pronouns.possessiveAdjective} siblings, `;
+    }
+    siblings.forEach((sibling, index) => {
+      siblingsBit += `${removeMainPersonLastName(sibling.Name)} (${sibling.Age})`;
+      if (index === siblings.length - 2) {
+        siblingsBit += `, and `;
+      } else if (index !== siblings.length - 1) {
+        siblingsBit += `, `;
+      }
+    });
+  }
+
+  let parentsBit = "";
+  if (parents.length > 0) {
+    if (parents.length === 1) {
+      if (parents[0].Relation === "Father") {
+        parentsBit += `${window.profilePerson.Pronouns.possessiveAdjective} father, `;
+      } else {
+        parentsBit += `${window.profilePerson.Pronouns.possessiveAdjective} mother, `;
+      }
+    } else {
+      parentsBit += `${window.profilePerson.Pronouns.possessiveAdjective} parents, `;
+    }
+    parents.forEach((parent, index) => {
+      parentsBit += `${removeMainPersonLastName(parent.Name)} (${parent.Age})`;
+      if (index === parents.length - 2) {
+        parentsBit += ` and `;
+      }
+    });
+  }
+
+  let othersBit = "";
+  if (others.length > 0) {
+    othersBit += "; and ";
+    let oRelation;
+    let oRelationStr;
+    others.forEach((other, index) => {
+      oRelation = other.Relation;
+      oRelationStr = oRelation ? ", " + oRelation.toLowerCase() : "";
+      othersBit += other.Name + " (" + other.Age + oRelationStr + ")";
+
+      if (index === others.length - 2) {
+        othersBit += ", and ";
+      } else if (index !== others.length - 1) {
+        othersBit += ", ";
+      }
+    });
+  }
+  if (spouse) {
+    narrative +=
+      spouseBit +
+      (childrenBit ? (!othersBit && !siblingsBit && !parentsBit ? "; and " : "; ") : "") +
+      childrenBit +
+      (parentsBit ? (!othersBit && !siblingsBit ? "; and " : "; ") : "") +
+      parentsBit +
+      (siblingsBit ? (!othersBit ? "; and " : "; ") : "") +
+      siblingsBit +
+      othersBit;
+  } else {
+    narrative +=
+      parentsBit +
+      (childrenBit ? (!othersBit && !siblingsBit ? "; and " : "; ") : "") +
+      childrenBit +
+      (siblingsBit ? (!othersBit ? "; and " : "; ") : "") +
+      siblingsBit +
+      othersBit;
+  }
+  narrative += ".";
+
+  return narrative;
 }
 
 function parseWikiTable(text) {
@@ -2388,7 +2391,6 @@ function parseWikiTable(text) {
 
   // Add relations for unknown members
   if (data.Household) {
-    const needsProfiles = [];
     data.Household.forEach(function (aMember) {
       if (!aMember.Relation && aMember.Age) {
         if (!aMember.LastNameAtBirth) {
@@ -2610,7 +2612,7 @@ function sourcesArray(bio) {
       .html()
       .match(/^(.*?)(?=<\/?ref|$)/s)[1]
       .trim();
-    if (isFirefox == true) {
+    if (window.isFirefox == true) {
       theRef = $(this)[0].innerText;
     }
     if (theRef != "" && theRef != "\n" && theRef != "\n\n" && theRef.match(/==\s?Sources\s?==/) == null) {
@@ -2622,7 +2624,7 @@ function sourcesArray(bio) {
     }
   });
 
-  window.sourcesSection.text = window.sourcesSection.text.map(function (aSource, i) {
+  window.sourcesSection.text = window.sourcesSection.text.map(function (aSource) {
     if (aSource.match(/database( with images)?, FamilySearch|^http/) && aSource.match(/^\*/) == null) {
       return "* " + aSource;
     } else {
@@ -2722,7 +2724,7 @@ function sourcesArray(bio) {
 
     if (
       aRef.Text.match(
-        /'''Birth'''|Birth (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|[A-Z][a-z]+ Births,|GRO Online Index \- Birth|^Birth \-|births,\s\d|citing Birth/i
+        /'''Birth'''|Birth (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|[A-Z][a-z]+ Births,|GRO Online Index - Birth|^Birth -|births,\s\d|citing Birth/i
       ) ||
       aRef["Birth Date"]
     ) {
@@ -2759,7 +2761,7 @@ function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        /'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage \-|citing Marriage/
+        /'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage -|citing Marriage/
       ) ||
       aRef["Marriage Date"]
     ) {
@@ -2805,7 +2807,7 @@ function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        /[A-Z][a-z]+ Deaths|'''Death'''|Death Index|findagrave|Find a Grave|memorial|death registration|Cemetery Registers|Death Certificate|^Death \-|citing Death|citing Burial/i
+        /[A-Z][a-z]+ Deaths|'''Death'''|Death Index|findagrave|Find a Grave|memorial|death registration|Cemetery Registers|Death Certificate|^Death -|citing Death|citing Burial/i
       ) ||
       aRef["Death Date"]
     ) {
@@ -3205,7 +3207,7 @@ function splitBioIntoSections() {
       subsections: {},
     },
   };
-  const exclude = [/<\!\-\- Please edit, add, or delete anything in this text.*\->/];
+  const exclude = [/<!-- Please edit, add, or delete anything in this text.*->/];
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i].trim();
     exclude.forEach(function (ex) {
@@ -3494,7 +3496,7 @@ export async function generateBio() {
       aChildList = childList(window.profilePerson, "other");
     }
     console.log("aChildList", aChildList);
-    const eventDateMatch = aChildList.match(/(\d{4})\–/);
+    const eventDateMatch = aChildList.match(/(\d{4})–/);
     const firstBirth = window.profilePerson.Children[childrenKeys[0]].BirthDate;
     let eventDate;
     if (firstBirth) {
@@ -3505,7 +3507,7 @@ export async function generateBio() {
     } else {
       eventDate = "0000-00-00";
     }
-    const orderDate = eventDate.replaceAll(/\-/g, "");
+    const orderDate = eventDate.replaceAll(/-/g, "");
     const newEvent = {
       "Record Type": ["ChildList"],
       "Event Type": "Children",
@@ -3697,7 +3699,6 @@ export async function generateBio() {
   let southAfricaTimelineText = "";
   if (window.autoBioOptions.SouthAfricaProject) {
     const bioTimeline = bioTimelineFacts(marriagesAndCensuses);
-    southAfricaFormatText += bioHeaderAndStickers;
     for (let i = 0; i < window.references.length; i++) {
       window.references[i].Used = false;
     }
@@ -3770,7 +3771,7 @@ export async function generateBio() {
   let acknowledgementsText = "";
   if (window.sectionsObject["Acknowledgements"].text.length > 0) {
     window.sectionsObject["Acknowledgements"].text.forEach(function (txt, i) {
-      if (txt.match(/Click the Changes tab for the details|<\!\-\- Please feel free to/)) {
+      if (txt.match(/Click the Changes tab for the details|<!-- Please feel free to/)) {
         window.sectionsObject["Acknowledgements"].text.splice(i, 1);
       }
     });
