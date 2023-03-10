@@ -17,7 +17,10 @@
 
 .vertical .familyList .spouse_1,
 .vertical .familyList.spouse_1,
-body.darkMode .vertical .nameList li.spouse_1,
+body.darkMode .vertical .nameList li.spouse_1 {
+  border-right: 3px solid green;
+}
+
 .vertical .familyList .spouse_2,
 .vertical .familyList.spouse_2,
 body.darkMode .vertical .nameList li.spouse_2 {
