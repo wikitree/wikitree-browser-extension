@@ -3799,10 +3799,9 @@ export async function generateBio() {
     }
   }
 
-  console.log(JSON.parse(JSON.stringify(window.references)));
   // Add Sources section
   let sourcesText = "";
-  let sourcesHeader = "=== Sources ===\n<references />\n";
+  let sourcesHeader = "== Sources ==\n<references />\n";
   sourcesText += sourcesHeader;
   window.references.forEach(function (aRef) {
     if (

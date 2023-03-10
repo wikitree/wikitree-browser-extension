@@ -190,7 +190,7 @@ export function buildTimelineTable(bioTimeline) {
         if (
           ((aEvent["Event Type"] == aRef["Event Type"] || aRef["Record Type"].includes(aEvent["Event Type"])) &&
             eventType != "Census") ||
-          (aEvent["Event Type"] == "Birth" && aRef["Census Year"]) ||
+          (aEvent["Event Type"] == "Birth" && (aRef["Census Year"] || aRef["Record Type"].includes("Baptism"))) ||
           isRightCensus ||
           isRightMarriage
         ) {
