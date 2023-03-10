@@ -225,6 +225,19 @@ export function buildTimelineTable(bioTimeline) {
 }
 
 export function buildTimelineSA(bioTimeline) {
+  bioTimeline = Object.values(
+    bioTimeline.reduce((acc, obj) => {
+      const { "Event Type": eventType, "Event Date": eventDate, ...rest } = obj;
+      const existing = acc[`${eventType}-${eventDate}`];
+      if (existing) {
+        acc[`${eventType}-${eventDate}`] = { ...existing, ...rest };
+      } else {
+        acc[`${eventType}-${eventDate}`] = { "Event Type": eventType, "Event Date": eventDate, ...rest };
+      }
+      return acc;
+    }, {})
+  );
+
   const headings = ["Birth", "Baptism", "Marriage", "Burial", "Death"];
   let outText = "";
   let refCount = 0;
@@ -243,7 +256,7 @@ export function buildTimelineSA(bioTimeline) {
           if (
             aRef["Record Type"].includes("Marriage") &&
             aEvent["Event Type"].match("Marriage") &&
-            aEvent.Year == aRef.Year
+            aEvent["Event Year"] == aRef.Year
           ) {
             isRightMarriage = true;
           }
@@ -254,46 +267,50 @@ export function buildTimelineSA(bioTimeline) {
             (aRef["Event Type"] == "Census" && aEvent["Event Type"] == "Birth") ||
             isRightMarriage
           ) {
-            let theRef;
-            for (let i = 0; i < 2; i++) {
-              if (aRef.Used) {
-                theRef = "<ref name='" + aRef["RefName"] + "' />";
-              } else {
-                theRef = "<ref name='ref_" + refCount + "'>" + aRef.Text + "</ref>";
-                aRef.Used = true;
-                aRef.RefName = "ref_" + refCount;
-                refCount++;
-              }
-              if (i == 0) {
-                if (
-                  aRef.Year ||
-                  aRef["Census Year"] ||
-                  aRef["Event Date"] ||
-                  aRef["Birth Date"] ||
-                  aRef["Death Date"] ||
-                  aRef["Record Type"].includes("Burial") ||
-                  aRef["Record Type"].includes("Death")
-                ) {
-                  dateSources += theRef;
+            if (!(aEvent["Event Type"] == "Marriage" && !isRightMarriage)) {
+              let theRef;
+              for (let i = 0; i < 2; i++) {
+                if (aRef.Used) {
+                  theRef = "<ref name='" + aRef["RefName"] + "' />";
+                } else {
+                  theRef = "<ref name='ref_" + refCount + "'>" + aRef.Text + "</ref>";
+                  aRef.Used = true;
+                  aRef.RefName = "ref_" + refCount;
+                  refCount++;
                 }
-              } else if (
-                aRef["Event Place"] ||
-                aRef["Birth Place"] ||
-                aRef["Baptism Place"] ||
-                aRef["Death Place"] ||
-                aRef["Birth Location"] ||
-                aRef["Death Location"] ||
-                aRef["Census Year"] ||
-                aRef["Record Type"].includes("Burial") ||
-                aRef["Record Type"].includes("Death")
-              ) {
-                placeSources += theRef;
-              }
-              /*
+                if (i == 0) {
+                  if (
+                    aRef.Year ||
+                    aRef["Census Year"] ||
+                    aRef["Event Date"] ||
+                    aRef["Birth Date"] ||
+                    aRef["Death Date"] ||
+                    aRef["Record Type"].includes("Burial") ||
+                    aRef["Record Type"].includes("Death") ||
+                    aRef["Record Type"].includes("Marriage")
+                  ) {
+                    dateSources += theRef;
+                  }
+                } else if (
+                  aRef["Event Place"] ||
+                  aRef["Birth Place"] ||
+                  aRef["Baptism Place"] ||
+                  aRef["Death Place"] ||
+                  aRef["Birth Location"] ||
+                  aRef["Death Location"] ||
+                  aRef["Census Year"] ||
+                  aRef["Record Type"].includes("Burial") ||
+                  aRef["Record Type"].includes("Death") ||
+                  aRef["Record Type"].includes("Marriage")
+                ) {
+                  placeSources += theRef;
+                }
+                /*
               console.log(JSON.parse(JSON.stringify(dateSources)));
               console.log(JSON.parse(JSON.stringify(placeSources)));
               console.log(JSON.parse(JSON.stringify(aRef)));
               */
+              }
             }
           }
         });
@@ -304,8 +321,23 @@ export function buildTimelineSA(bioTimeline) {
         text += ":Date: " + formattedEventDate + dateSources + "\n";
         text += ":Place: " + eventLocation + " " + placeSources + "\n";
         if (head == "Marriage") {
-          text += "::Groom: " + window.profilePerson.BirthName + dateSources + "\n";
-          text += "::Bride: " + aEvent.person.BirthName + dateSources + "\n";
+          const regex = /<ref\s+name='(\w+)'>[^<]*<\/ref>/g;
+          dateSources = dateSources.replace(regex, function (match, refName) {
+            return `<ref name='${refName}' />`;
+          });
+          placeSources = placeSources.replace(regex, function (match, refName) {
+            return `<ref name='${refName}' />`;
+          });
+          console.log(aEvent);
+          if (window.profilePerson.Gender == "Male") {
+            text += "::Groom: " + window.profilePerson.BirthName + dateSources + "\n";
+            text +=
+              "::Bride: " + (aEvent.Spouse ? aEvent.Spouse.BirthName : aEvent.person?.BirthName) + dateSources + "\n";
+          } else {
+            text +=
+              "::Groom: " + (aEvent.Spouse ? aEvent.Spouse.BirthName : aEvent.person?.BirthName) + dateSources + "\n";
+            text += "::Bride: " + window.profilePerson.BirthName + dateSources + "\n";
+          }
         }
       }
     });

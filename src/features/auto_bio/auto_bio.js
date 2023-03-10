@@ -1012,7 +1012,8 @@ function buildSpouses(person) {
         Narrative: text,
         OrderDate: formatDate(spouse.marriage_date, 0, 8),
         "Event Date": spouse.marriage_date,
-        "Event Year": spouse.marriage_date.substring(4),
+        "Event Year": spouse.marriage_date.substring(0, 4),
+        "Event Type": "Marriage",
       });
     });
   }
@@ -2791,7 +2792,14 @@ function sourcesArray(bio) {
       ) ||
       aRef["Marriage Date"]
     ) {
+      const dateMatch = aRef.Text.match(/\b\d{1,2}\s\w{3}\s1[89]\d{2}\b/);
+      console.log(dateMatch);
       aRef["Record Type"].push("Marriage");
+      if (dateMatch) {
+        aRef["Marriage Date"] = dateMatch[0];
+        aRef.Year = dateMatch[0].match(/\d{4}/)[0];
+      }
+
       let detailsMatch = aRef.Text.match(/\),\s(.*?and.*?);/);
       let detailsMatch2 = aRef.Text.match(/\(http.*?\)(.*?image.*?;\s)(.*?)\./);
       console.log(detailsMatch2);
