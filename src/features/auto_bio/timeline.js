@@ -251,7 +251,7 @@ export function buildTimelineSA(bioTimeline) {
         let eventDate = aEvent["Event Date"] || aEvent.Year;
         let eventLocation = aEvent["Event Place"] || aEvent.Residence || "";
         //eventLocation = eventLocation ? minimalPlace(eventLocation) : "";
-        window.references.forEach(function (aRef, i) {
+        window.references.forEach(function (aRef) {
           let isRightMarriage = false;
           if (
             aRef["Record Type"].includes("Marriage") &&
@@ -321,14 +321,9 @@ export function buildTimelineSA(bioTimeline) {
         text += ":Date: " + formattedEventDate + dateSources + "\n";
         text += ":Place: " + eventLocation + " " + placeSources + "\n";
         if (head == "Marriage") {
-          const regex = /<ref\s+name='(\w+)'>[^<]*<\/ref>/g;
-          dateSources = dateSources.replace(regex, function (match, refName) {
-            return `<ref name='${refName}' />`;
-          });
-          placeSources = placeSources.replace(regex, function (match, refName) {
-            return `<ref name='${refName}' />`;
-          });
-          console.log(aEvent);
+          dateSources = replaceTags(dateSources);
+          placeSources = replaceTags(placeSources);
+
           if (window.profilePerson.Gender == "Male") {
             text += "::Groom: " + window.profilePerson.BirthName + dateSources + "\n";
             text +=
@@ -341,9 +336,14 @@ export function buildTimelineSA(bioTimeline) {
         }
       }
     });
-    if (text) {
+    if (text?.length > 18) {
       outText += "===" + head + "===\n" + text + "\n";
     }
   });
   return outText;
+}
+
+function replaceTags(text) {
+  text = text.replaceAll(/<ref\s+name='(\w+)'>.*?<\/ref>/gs, "<ref name='$1' />");
+  return text;
 }

@@ -71,7 +71,7 @@ function autoBioCheck(sourcesStr) {
   return hasSources;
 }
 const unsourced =
-  /^\n*?\s*?((^Also:$)|(^See also:$)|(Unsourced)|(Personal (recollection)|(information))|(Firsthand knowledge)|(Sources will be added)|(Add\s\[\[sources\]\]\shere$)|(created.*?through\sthe\simport\sof\s.*?\.ged)|(FamilySearch(\.com)?$)|(ancestry\.com$)|(family records$)|(Ancestry family trees$))/im;
+  /^\n*?\s*?((^Also:$)|(^See also:$)|(Unsourced)|(Personal (recollection)|(information))|(Firsthand knowledge)|(Sources? will be added)|(Add\s\[\[sources\]\]\shere$)|(created.*?through\sthe\simport\sof\s.*?\.ged)|(FamilySearch(\.com)?$)|(ancestry\.com$)|(family records$)|(Ancestry family trees$))/im;
 
 // Function to get the person's data from the form fields
 function getFormData() {
@@ -1562,7 +1562,7 @@ function getCensusesFromCensusSection() {
   let newPerson = {};
   window.references.forEach(function (ref) {
     if (ref.Text.match(/census|1939( England and Wales)? Register/i)) {
-      ref["Record Type"] = "Census";
+      ref["Record Type"] = ["Census", "Birth"];
       ref["Event Type"] = "Census";
       if (!ref["Residence"]) {
         const residenceMatch = ref.Text.match(/in\s([A-Z].*?)(\sin\s)([A-Z].*?)(\s[a-z])/);
@@ -1861,7 +1861,7 @@ function buildCensusNarratives() {
   window.references.forEach(function (reference) {
     let text = "";
     if (reference.Text.match(/census|1939( England and Wales)? Register/i)) {
-      reference["Record Type"] = "Census";
+      reference["Record Type"] = ["Census", "Birth"];
       reference["Event Type"] = "Census";
       let match = reference.Text.match(yearRegex);
       if (match) {
@@ -2248,7 +2248,7 @@ function parseWikiTable(text) {
   const rows = text.split("\n");
   let data = {};
 
-  const yearRegex = /\b(\d{4})\b/;
+  const yearRegex = /\s\b(1[89]\d{2})\b(?!-)/;
   let match = text.match(yearRegex);
   if (match) {
     data["Year"] = match[1];
@@ -2504,7 +2504,6 @@ function getSimilarity(string1, string2) {
 
 function isSameName(name, nameVariants, strength = 0.9) {
   let sameName = false;
-  console.log(name, nameVariants);
   nameVariants.forEach(function (nv) {
     if (getSimilarity(nv.toLowerCase(), name.toLowerCase()) > strength) {
       sameName = true;
@@ -2674,9 +2673,10 @@ function sourcesArray(bio) {
       });
       let type;
       if (theBits[1]) {
-        const typeMatch = theBits[1].match(/(Birth|Marriage|Death|Burial|Baptism)/i);
+        const typeMatch = theBits[1].match(/(Birth|Marriage|Death|Burial|Baptism|Probate)/i);
         if (typeMatch[0]) {
           type = capitalizeFirstLetter(typeMatch[0]);
+          if (type == "Probate") type = "Death";
           if (!aRef["Record Type"]) aRef["Record Type"] = [];
           aRef["Record Type"].push(type);
           aRef["Event Type"] = type;
@@ -2730,7 +2730,7 @@ function sourcesArray(bio) {
 
     if (
       aRef.Text.match(
-        /'''Birth'''|Birth (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|[A-Z][a-z]+ Births,|GRO Online Index - Birth|^Birth -|births,\s\d|citing Birth/i
+        /'''Birth'''|Birth (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|[A-Z][a-z]+ Births, (?!Marriages|Deaths)|GRO Online Index - Birth|^Birth -|births,\s\d|citing Birth/i
       ) ||
       aRef["Birth Date"]
     ) {
@@ -2788,21 +2788,27 @@ function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        /'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage -|citing Marriage/
+        /'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage -|citing.*Marriage|> Marriages/
       ) ||
       aRef["Marriage Date"]
     ) {
       const dateMatch = aRef.Text.match(/\b\d{1,2}\s\w{3}\s1[89]\d{2}\b/);
+      const dateMatch2 = aRef.Text.match(/\s(1[89]\d{2})\b(?!-)/);
       console.log(dateMatch);
       aRef["Record Type"].push("Marriage");
       if (dateMatch) {
         aRef["Marriage Date"] = dateMatch[0];
+        console.log(JSON.parse(JSON.stringify(aRef)));
         aRef.Year = dateMatch[0].match(/\d{4}/)[0];
+      } else if (dateMatch2) {
+        aRef["Marriage Date"] = dateMatch2[1];
+        console.log(JSON.parse(JSON.stringify(aRef)));
+        aRef.Year = dateMatch2[1];
       }
+      console.log(JSON.parse(JSON.stringify(aRef)));
 
       let detailsMatch = aRef.Text.match(/\),\s(.*?and.*?);/);
       let detailsMatch2 = aRef.Text.match(/\(http.*?\)(.*?image.*?;\s)(.*?)\./);
-      console.log(detailsMatch2);
       if (detailsMatch2) {
         if (detailsMatch2) {
           aRef["Marriage Place"] = detailsMatch2[2].replace("Archives", "");
@@ -2841,7 +2847,7 @@ function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        /[A-Z][a-z]+ Deaths|'''Death'''|Death Index|findagrave|Find a Grave|memorial|death registration|Cemetery Registers|Death Certificate|^Death -|citing Death|citing Burial/i
+        /[A-Z][a-z]+ Deaths|'''Death'''|Death Index|findagrave|Find a Grave|memorial|death registration|Cemetery Registers|Death Certificate|^Death -|citing Death|citing Burial|Probate/i
       ) ||
       aRef["Death Date"]
     ) {
@@ -2857,7 +2863,7 @@ function sourcesArray(bio) {
       );
     }
     if (aRef.Text.match(/Census|1939 England and Wales Register/)) {
-      aRef["Record Type"].push("Census");
+      aRef["Record Type"].push("Census", "Birth");
       const placeMatch = aRef.Text.match(/household.*, ([^,]+?, [^,]+?), United States;/);
       if (placeMatch) {
         aRef.Residence = placeMatch[1].trim();
@@ -3320,11 +3326,23 @@ function splitBioIntoSections() {
           sections.Acknowledgements.text.push(line);
           sections.Sources.text.splice(i, 1);
         }
+        if (line.match(/Sources? will be added/gs)) {
+          sections.Sources.text.splice(i, 1);
+        }
       }
     });
     if (sections.Sources.subsections?.Acknowledgements) {
       sections.Acknowledgements.text = sections.Sources.subsections.Acknowledgements.text;
     }
+    if (
+      ["Birth", "Baptism", "Marriage", "Burial", "Death"].forEach(function (fact) {
+        if (sections.Sources.subsections[fact]) {
+          sections.Sources.subsections[fact].text.forEach(function (line) {
+            sections.Sources.text.push(line);
+          });
+        }
+      })
+    );
   }
 
   // Split the things before the bio up into separate items
@@ -3619,9 +3637,12 @@ export async function generateBio() {
           } else if (anEvent.sourcerText) {
             listText = "\n" + anEvent.sourcerText;
           }
-
           let refNameBit = anEvent.RefName ? " name='" + anEvent.RefName + "'" : " name='ref_" + i + "'";
-          marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + listText + "</ref>";
+          if (anEvent.Used == true) {
+            marriagesAndCensusesText += " <ref" + refNameBit + " />";
+          } else {
+            marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + listText + "</ref>";
+          }
           marriagesAndCensusesText += "\n\n";
           anEvent.Used = true;
           anEvent.RefName = anEvent.RefName ? anEvent.RefName : "ref_" + i;
@@ -3786,7 +3807,8 @@ export async function generateBio() {
   window.references.forEach(function (aRef) {
     if (
       ([false, undefined].includes(aRef.Used) || window.autoBioOptions.inlineCitations == false) &&
-      aRef["Record Type"] != "GEDCOM"
+      aRef["Record Type"] != "GEDCOM" &&
+      aRef.Text.match(/Sources? will be added/) == null
     ) {
       sourcesText += "* " + aRef.Text.replace(/Click the Changes tab.*/, "") + "\n";
     }
@@ -3852,7 +3874,11 @@ export async function generateBio() {
     let doCheck = true;
     // Don't add Unsourced template if there is a Find A Grave source (maybe added by the code above) or an Ancestry/FS template
     window.references.forEach(function (aRef) {
-      if (aRef.Text.match(/(findagrave.com.*Maintained by)|(\{\{FamilySearch|Ancestry Record|Image\|[A-z0-9]+\}\})/i)) {
+      if (
+        aRef.Text.match(
+          /(findagrave.com.*Maintained by)|(\{\{FamilySearch|Ancestry Record|Image\|[A-z0-9]+\}\})|(https:\/\/familysearch.org\/ark:\/\w+)/i
+        )
+      ) {
         doCheck = false;
       }
     });
