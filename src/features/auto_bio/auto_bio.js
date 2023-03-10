@@ -220,7 +220,7 @@ function fixLocations() {
                 ", is " +
                 country.nativeName +
                 ".";
-              window.sectionsObject["Research Notes"].text.push(aNote);
+              window.autoBioNotes.push(aNote);
             }
           }
           if (!isSameDateOrAfter(event.Date, country.date)) {
@@ -234,7 +234,7 @@ function fixLocations() {
               "'s " +
               event.Event +
               ".";
-            window.sectionsObject["Research Notes"].text.push(aNote);
+            window.autoBioNotes.push(aNote);
           }
         }
       });
@@ -2676,22 +2676,26 @@ function sourcesArray(bio) {
         const typeMatch = theBits[1].match(/(Birth|Marriage|Death|Burial|Baptism)/i);
         if (typeMatch[0]) {
           type = capitalizeFirstLetter(typeMatch[0]);
-          aRef["Record Type"] = type;
+          if (!aRef["Record Type"]) aRef["Record Type"] = [];
+          aRef["Record Type"].push(type);
           aRef["Event Type"] = type;
           aRef["Event Place"] = location.join(", ");
           if (type == "Baptism") {
+            aRef["Record Type"].push("Birth");
             window.profilePerson["Baptism Place"] = location.join(", ");
           }
           if (type == "Burial") {
+            aRef["Record Type"].push("Death");
             window.profilePerson["Burial Place"] = location.join(", ");
           }
         }
         // CHECK THIS  Perrett-412
-        const dateMatch = theBits[1].match(/(?<!\d)(?:18[1-9]|[1-9]\d{2})(?!\d|-)/);
+        const dateMatch = theBits[1].match(/\b\d{2}\s\w{3}\s\d{4}\b/);
         if (dateMatch) {
           aRef["Event Date"] = dateMatch[0];
           aRef.OrderDate = formatDate(dateMatch[0], 0, 8);
           aRef["Event Year"] = aRef.OrderDate.substring(0, 4);
+          aRef.Year = aRef["Event Year"];
           if (type == "Baptism") {
             window.profilePerson["Baptism Date"] = dateMatch[0];
           }
@@ -2741,9 +2745,30 @@ function sourcesArray(bio) {
     ) {
       aRef["Record Type"].push("Baptism");
       const nameMatch = aRef.Text.match(/familysearch.*, ([A-Z].*?) baptism/i);
+      const baptismDateMatch = aRef.Text.match(/familysearch.*,.*?\bon\b (.*?\d{4}\b)/i);
+      const birthDateMatch = aRef.Text.match(/familysearch.*,.*?\bborn\b (.*?\d{4}\b)/i);
+      const baptismLocationMatch = aRef.Text.match(/familysearch.*,.*?\bin\b (.*?)\./i);
+
       if (nameMatch) {
-        aRef.Name == nameMatch[1];
+        aRef.Name = nameMatch[1];
       }
+      if (baptismDateMatch) {
+        aRef["Baptism Date"] = baptismDateMatch[1];
+        aRef["Year"] = baptismDateMatch[1].match(/\d{4}/)[0];
+      }
+      if (birthDateMatch) {
+        aRef["Birth Date"] = birthDateMatch[1];
+        aRef["Record Type"].push("Birth");
+      }
+      if (baptismLocationMatch) {
+        aRef["Baptism Place"] = baptismLocationMatch[1];
+      }
+      /*
+      console.log(nameMatch);
+      console.log(baptismDateMatch);
+      console.log(birthDateMatch);
+      console.log(baptismLocationMatch);
+      */
       if (aRef.Name) {
         if (isSameName(aRef?.Name, window.profilePerson?.NameVariants)) {
           window.profilePerson["Baptism Date"] =
@@ -3474,7 +3499,6 @@ export async function generateBio() {
   //Add birth
   const birthText = buildBirth(window.profilePerson) + "\n\n";
   let deathText = buildDeath(window.profilePerson) + (window.profilePerson.BurialFact || "");
-  console.log(deathText);
   if (isOK(deathText)) {
     deathText += "\n\n";
   } else {
@@ -3746,12 +3770,16 @@ export async function generateBio() {
     }
   }
 
+  console.log(JSON.parse(JSON.stringify(window.references)));
   // Add Sources section
   let sourcesText = "";
   let sourcesHeader = "=== Sources ===\n<references />\n";
   sourcesText += sourcesHeader;
   window.references.forEach(function (aRef) {
-    if ((aRef.Used == undefined || window.autoBioOptions.inlineCitations == false) && aRef["Record Type"] != "GEDCOM") {
+    if (
+      ([false, undefined].includes(aRef.Used) || window.autoBioOptions.inlineCitations == false) &&
+      aRef["Record Type"] != "GEDCOM"
+    ) {
       sourcesText += "* " + aRef.Text.replace(/Click the Changes tab.*/, "") + "\n";
     }
     if (aRef["Record Type"].includes("GEDCOM")) {
@@ -3814,9 +3842,9 @@ export async function generateBio() {
   // Add Unsourced template if there are no good sources
   if (window.autoBioOptions.unsourced == true) {
     let doCheck = true;
-    // Don't add Unsourced template if there is a Find A Grave source (maybe added by the code above)
+    // Don't add Unsourced template if there is a Find A Grave source (maybe added by the code above) or an Ancestry/FS template
     window.references.forEach(function (aRef) {
-      if (aRef.Text.match(/findagrave.com.*Maintained by/i)) {
+      if (aRef.Text.match(/(findagrave.com.*Maintained by)|(\{\{FamilySearch|Ancestry Record|Image\|[A-z0-9]+\}\})/i)) {
         doCheck = false;
       }
     });

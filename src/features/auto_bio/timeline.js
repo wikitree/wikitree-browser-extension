@@ -225,8 +225,9 @@ export function buildTimelineTable(bioTimeline) {
 }
 
 export function buildTimelineSA(bioTimeline) {
-  const headings = ["Birth", "Baptism", "Marriage", "Death"];
+  const headings = ["Birth", "Baptism", "Marriage", "Burial", "Death"];
   let outText = "";
+  let refCount = 0;
   headings.forEach(function (head) {
     let text = "";
     bioTimeline.forEach(function (aEvent) {
@@ -253,36 +254,47 @@ export function buildTimelineSA(bioTimeline) {
             (aRef["Event Type"] == "Census" && aEvent["Event Type"] == "Birth") ||
             isRightMarriage
           ) {
-            [dateSources, placeSources].forEach(function (aType, index) {
-              let theRef;
+            let theRef;
+            for (let i = 0; i < 2; i++) {
               if (aRef.Used) {
                 theRef = "<ref name='" + aRef["RefName"] + "' />";
               } else {
-                theRef = "<ref name='ref_" + i + "'>" + aRef.Text + "</ref>";
+                theRef = "<ref name='ref_" + refCount + "'>" + aRef.Text + "</ref>";
                 aRef.Used = true;
-                aRef.RefName = "ref_" + i;
+                aRef.RefName = "ref_" + refCount;
+                refCount++;
               }
-              if (index == 0) {
+              if (i == 0) {
                 if (
                   aRef.Year ||
                   aRef["Census Year"] ||
                   aRef["Event Date"] ||
                   aRef["Birth Date"] ||
-                  aRef["Death Date"]
+                  aRef["Death Date"] ||
+                  aRef["Record Type"].includes("Burial") ||
+                  aRef["Record Type"].includes("Death")
                 ) {
                   dateSources += theRef;
                 }
               } else if (
                 aRef["Event Place"] ||
                 aRef["Birth Place"] ||
+                aRef["Baptism Place"] ||
                 aRef["Death Place"] ||
                 aRef["Birth Location"] ||
                 aRef["Death Location"] ||
-                aRef["Census Year"]
+                aRef["Census Year"] ||
+                aRef["Record Type"].includes("Burial") ||
+                aRef["Record Type"].includes("Death")
               ) {
                 placeSources += theRef;
               }
-            });
+              /*
+              console.log(JSON.parse(JSON.stringify(dateSources)));
+              console.log(JSON.parse(JSON.stringify(placeSources)));
+              console.log(JSON.parse(JSON.stringify(aRef)));
+              */
+            }
           }
         });
         let formattedEventDate = "";
