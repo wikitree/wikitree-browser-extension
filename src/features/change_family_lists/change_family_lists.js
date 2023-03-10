@@ -781,19 +781,19 @@ function makeFamLists() {
       }
     });
     console.log(parentIDs);
-    //if (parentIDs.length > 1) {
-    $(".aSpouse").each(function (index) {
-      console.log(parentIDs);
-      let spouseID = $(this).data("id");
-      let aSpouse = $(this);
-      $("#childrenList li").each(function () {
-        if ($(this).data("mother") == spouseID || $(this).data("father") == spouseID) {
-          $(this).addClass("spouse_" + (parseInt(index) + 1));
-          aSpouse.addClass("spouse_" + (parseInt(index) + 1));
-        }
+    if (parentIDs.length > 1 || $(".aSpouse").length > 1) {
+      $(".aSpouse").each(function (index) {
+        console.log(parentIDs);
+        let spouseID = $(this).data("id");
+        let aSpouse = $(this);
+        $("#childrenList li").each(function () {
+          if ($(this).data("mother") == spouseID || $(this).data("father") == spouseID) {
+            $(this).addClass("spouse_" + (parseInt(index) + 1));
+            aSpouse.addClass("spouse_" + (parseInt(index) + 1));
+          }
+        });
       });
-    });
-    //}
+    }
   }
 }
 
