@@ -85,6 +85,12 @@ const readingModeFeature = {
       label: "Hide categories.",
       defaultValue: true,
     },
+    {
+      id: "hideBackground",
+      type: OptionType.CHECKBOX,
+      label: "Hide custom background images.",
+      defaultValue: false,
+    },
   ],
 };
 
