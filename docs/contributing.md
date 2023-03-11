@@ -49,7 +49,10 @@ registerFeature({
   id: "myFeature",
   description: "This feature does stuff.",
   category: "Global",
-  defaultValue: true,
+  creators: [{ name: "your name", wikitreeid: "your WikiTreeID" }],
+  contributors: [],
+  defaultValue: false,
+  pages: [is...],
 });
 ```
 
@@ -64,7 +67,10 @@ const myExampleFeature = {
   id: "myFeature",
   description: "This feature does stuff.",
   category: "Global",
-  defaultValue: true,
+  creators: [{ name: "your name", wikitreeid: "your WikiTreeID" }],
+  contributors: [],
+  defaultValue: false,
+  pages: [is...],
   options: [
     {
       id: "myFirstOption",
