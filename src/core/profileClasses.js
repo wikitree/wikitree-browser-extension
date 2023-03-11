@@ -1,3 +1,8 @@
+/*
+Created By: Jonathan Duke (Duke-5773)
+Used By: accessibility, readingMode (for debugging, see debugProfileClasses)
+*/
+
 import $ from "jquery";
 import { isProfilePage, isSpacePage, isCategoryPage } from './pageType';
 
@@ -8,6 +13,9 @@ export function ensureProfileClasses() {
   if (!hasProfileClasses) {
     // at the moment, WikiTree puts two different elements with id="content" on person pages (the heading and tabs are separate from the rest of the profile)
     $("div[id='content']").addClass("x-profile").addClass(isProfilePage ? "x-profile-person" : isCategoryPage ? "x-profile-category" : isSpacePage ? "x-profile-space" : "");
+
+    // mark the CSS element to apply a custom background image
+    $("style").filter(function () { let css = $(this).text(); let i1 = css.indexOf("BODY"); return (i1 >= 0 && css.indexOf("background-image:") > i1); }).addClass("x-style-bg");
 
     // mark the heading content (the h1 beside the thumbnail image and the privacy status, which includes the scissors inside) *** varies by profile type
     $(".x-profile-person > .row h1, .x-profile-space > .row h1").first().addClass("x-heading-title");
