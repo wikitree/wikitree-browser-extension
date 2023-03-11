@@ -17,3 +17,7 @@
 .a11y-src-bold .a11y-src-first {
   font-weight: bold;
 }
+
+.a11y-ref-clean sup.reference a {
+  text-decoration: none;
+}

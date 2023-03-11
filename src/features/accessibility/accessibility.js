@@ -25,7 +25,7 @@ async function initAccessibility() {
       qy = $(".x-content > *:not(#toc)").first().nextAll(); // look at all elements at the root of the content section (except for the TOC)
     }
     let ul;
-    qy.each(function (index) {
+    qy.each(function () {
       let el = $(this);
       if (el.is("ul")) {
         if (ul) {
@@ -39,19 +39,37 @@ async function initAccessibility() {
       }
     });
   }
+  if (options.removeBackReferences) {
+    // if enabled, remove back references first so we don't have to skip over them later
+    $(".x-src").each(function () {
+      let li = $(this);
+      li.contents().each(function () {
+        let el = $(this);
+        if (el.is("sup, a[href^='#'], span:empty")) {
+          if (this.tagName !== "SPAN") {
+            $(this).remove();
+          }
+          return true; // remove back-reference links
+        }
+        if (this.nodeValue && /^\u2191?\s*$/.test(this.nodeValue)) {
+          $(this).remove();
+          return true; // remove whitespace and the up arrow
+        }
+        return false;
+      });
+    });
+  }
   if (options.removeSourceBreaks || options.removeSourceLabels || options.boldSources) {
     let qy = $(".x-src");
     if (options.removeSourceBreaks) {
-      qy.each(function (index) {
+      qy.each(function () {
         let li = $(this);
-        let isFirst = true;
         li.find("br").replaceWith(" ");
       });
     }
     if (options.removeSourceLabels) {
-      qy.each(function (index) {
+      qy.each(function () {
         let li = $(this);
-        let isFirst = true;
         li.contents().each(function () {
           let el = $(this);
           if (el.is("sup, a[href^='#'], span:empty")) {
@@ -133,6 +151,46 @@ async function initAccessibility() {
             state = 5;
           }
         });
+      });
+    }
+    if (options.cleanCitations) {
+      $("html").addClass("a11y-ref-clean");
+      $(".x-content sup.reference").filter(function () {
+        return !(this.previousSibling && this.previousSibling.nodeType === 1 && $(this.previousSibling).is("sup.reference"));
+      }).each(function () {
+        let group = [$(this.cloneNode(true))];
+        let node = this.nextSibling;
+        while (node && $(node).is("sup.reference")) {
+          let item = $(node);
+          node = node.nextSibling;
+          group.push(item.remove());
+        }
+        if (group.length > 1) {
+          group.sort(function (a, b) {
+            let c = parseInt(a.text().replace(/\D/g, ""), 10);
+            let d = parseInt(b.text().replace(/\D/g, ""), 10);
+            return c > d ? 1 : c < d ? -1 : 0;
+          });
+          // add the sorted citations, including the clone, after the first node and then remove the duplicate
+          $(this).after(group).remove();
+        }
+        group[0].find("a").first().before("[");
+        group[group.length - 1].find("a").last().after("]");
+        for (let i = 0; i < group.length; i++) {
+          let el = group[i].get(0);
+          if (i == 0) {
+            if (el.previousSibling && el.previousSibling.nodeType === 3 && el.previousSibling.nodeValue) {
+              // trim whitespace between the previous text and the citation
+              el.previousSibling.nodeValue = el.previousSibling.nodeValue.replace(/\s+$/, "");
+            }
+          } else {
+            group[i].prepend(",<wbr />");
+          }
+          group[i].find("a").each(function () {
+            // remove the brackets from the individual citation links
+            this.innerText = this.innerText.replace("[", "").replace("]", "");
+          });
+        }
       });
     }
   }

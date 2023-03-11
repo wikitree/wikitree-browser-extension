@@ -52,7 +52,11 @@ async function initReadingMode() {
     if (options.hideCategories) {
       $("html").toggleClass("hide-categories");
     }
+    if (options.hideBackground) {
+      $("html").toggleClass("hide-background");
+    }
   };
+
   if (options.collapseSources) {
     let toggleSourcesSection = function () {
       $("html").toggleClass("expand-sources");
@@ -62,6 +66,11 @@ async function initReadingMode() {
       toggleSourcesSection();
     });
     $("h2.x-sources").first().append(toggleElement);
+  }
+
+  if (options.hideBackground) {
+    let bgStyle = $(".x-style-bg");
+    bgStyle.text(bgStyle.text().replace(/\b(BODY\s*{)/si, "html:not(.hide-background) $1"));
   }
 
   // preserve the state from the previous page, we'll start in reading mode on this page (defaults to true if the feature has never been used before)
