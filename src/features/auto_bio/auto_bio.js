@@ -3416,15 +3416,17 @@ export async function generateBio() {
   window.sectionsObject = splitBioIntoSections();
 
   window.usedPlaces = [];
-  let spouseLinks = $("span[itemprop='spouse'] a");
+  //let spouseLinks = $("span[itemprop='spouse'] a");
   let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
   let keys = htmlEntities(profileID);
+  /*
   spouseLinks.each(function () {
     if ($(this).attr("href").split("/wiki/")[1]) {
       keys += "," + $(this).attr("href").split("/wiki/")[1];
     }
   });
-  window.biographyPeople = await getPeople(keys, 0, 0, 0, 1, 1, "*");
+  */
+  window.biographyPeople = await getPeople(keys, 0, 0, 0, 0, 1, "*");
   console.log("biographyPeople", window.biographyPeople);
   const biographyPeopleKeys = Object.keys(window.biographyPeople[0].people);
   biographyPeopleKeys.forEach(function (key) {

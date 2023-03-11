@@ -3,7 +3,7 @@ import { PersonName } from "./person_name.js";
 import { minimalPlace, formatDate, getYYYYMMDD } from "./auto_bio";
 // Timeline functions
 export function bioTimelineFacts(marriagesAndCensuses) {
-  const bioTimeline = [];
+  let bioTimeline = [];
   bioTimeline.push(...marriagesAndCensuses);
 
   bioTimeline.push({
@@ -94,6 +94,20 @@ export function bioTimelineFacts(marriagesAndCensuses) {
     return a.OrderDate - b.OrderDate;
   });
   console.log("bioTimeline", bioTimeline);
+
+  bioTimeline = Object.values(
+    bioTimeline.reduce((acc, obj) => {
+      const { "Event Type": eventType, "Event Date": eventDate, ...rest } = obj;
+      const existing = acc[`${eventType}-${eventDate}`];
+      if (existing) {
+        acc[`${eventType}-${eventDate}`] = { ...existing, ...rest };
+      } else {
+        acc[`${eventType}-${eventDate}`] = { "Event Type": eventType, "Event Date": eventDate, ...rest };
+      }
+      return acc;
+    }, {})
+  );
+
   return bioTimeline;
 }
 
@@ -225,19 +239,6 @@ export function buildTimelineTable(bioTimeline) {
 }
 
 export function buildTimelineSA(bioTimeline) {
-  bioTimeline = Object.values(
-    bioTimeline.reduce((acc, obj) => {
-      const { "Event Type": eventType, "Event Date": eventDate, ...rest } = obj;
-      const existing = acc[`${eventType}-${eventDate}`];
-      if (existing) {
-        acc[`${eventType}-${eventDate}`] = { ...existing, ...rest };
-      } else {
-        acc[`${eventType}-${eventDate}`] = { "Event Type": eventType, "Event Date": eventDate, ...rest };
-      }
-      return acc;
-    }, {})
-  );
-
   const headings = ["Birth", "Baptism", "Marriage", "Burial", "Death"];
   let outText = "";
   let refCount = 0;
