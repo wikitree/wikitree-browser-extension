@@ -1,6 +1,10 @@
+/*
+Created By: Jonathan Duke (Duke-5773)
+*/
+
 import $ from "jquery";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage.js";
-import { ensureProfileClasses, canTweakProfile } from "../../core/profileClasses";
+import { ensureProfileClasses } from "../../core/profileClasses";
 
 export let toggleReadingMode;
 
@@ -77,7 +81,7 @@ async function initReadingMode() {
 }
 
 checkIfFeatureEnabled("readingMode").then((result) => {
-  if (result && canTweakProfile()) {
+  if (result) {
     import("../../core/toggleCheckbox.css");
     import("./readingMode.css");
     initReadingMode();

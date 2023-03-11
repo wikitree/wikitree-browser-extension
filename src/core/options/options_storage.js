@@ -1,5 +1,8 @@
-import { getDefaultOptionValuesForFeature, getFeatureData, features } from "./options_registry"
+/*
+Created By: Rob Pavey (Pavey-429)
+*/
 
+import { getDefaultOptionValuesForFeature, getFeatureData, features } from "./options_registry";
 /*
 This function returns a Promise so it can be used in a couple of different ways:
 
@@ -31,18 +34,27 @@ async function checkIfFeatureEnabled(featureId) {
       }
 
       const itemKey = featureId;
-      chrome.storage.sync.get(itemKey,
-        function (items) {
-          let result = items[itemKey];
+      chrome.storage.sync.get(itemKey, function (items) {
+        let result = items[itemKey];
 
-          if (result === undefined) {
-            // no saved value for enabled yet. Use default.
-            result = (featureData.defaultValue) ? true : false;
-          }
-
-          resolve(result);
+        if (result === undefined) {
+          // no saved value for enabled yet. Use default.
+          result = featureData.defaultValue ? true : false;
         }
-      );
+
+        // checks for correct page type
+        if (result && featureData.pages) {
+          result = false;
+          // feature is enabled, check if aplicable to the page URL.
+          featureData.pages.forEach((element) => {
+            if (!result) {
+              result = element;
+            }  
+          })
+        }
+
+        resolve(result);
+      });
     } catch (ex) {
       reject(ex);
     }
@@ -69,14 +81,12 @@ async function getEnabledStateForAllFeatures() {
       let keysWithDefaults = {};
 
       for (let feature of features) {
-        keysWithDefaults[feature.id] = (feature.defaultValue) ? true : false;
+        keysWithDefaults[feature.id] = feature.defaultValue ? true : false;
       }
 
-      chrome.storage.sync.get(keysWithDefaults,
-        function (items) {
-          resolve(items);
-        }
-      );
+      chrome.storage.sync.get(keysWithDefaults, function (items) {
+        resolve(items);
+      });
     } catch (ex) {
       reject(ex);
     }
@@ -112,25 +122,22 @@ async function getFeatureOptions(featureId) {
 
       let defaultValues = getDefaultOptionValuesForFeature(featureId);
 
-      chrome.storage.sync.get(itemKey,
-        function (items) {
-          let loadedOptions = items[itemKey];
+      chrome.storage.sync.get(itemKey, function (items) {
+        let loadedOptions = items[itemKey];
 
-          let optionsToReturn = loadedOptions;
+        let optionsToReturn = loadedOptions;
 
-          if (defaultValues) {
-            if (loadedOptions) {
-              // use the spread operator to combine the default options and the loaded ones
-              optionsToReturn = { ...defaultValues, ...loadedOptions }; 
-            }
-            else {
-              optionsToReturn = defaultValues;
-            }
+        if (defaultValues) {
+          if (loadedOptions) {
+            // use the spread operator to combine the default options and the loaded ones
+            optionsToReturn = { ...defaultValues, ...loadedOptions };
+          } else {
+            optionsToReturn = defaultValues;
           }
-
-          resolve(optionsToReturn);
         }
-      );
+
+        resolve(optionsToReturn);
+      });
     } catch (ex) {
       reject(ex);
     }

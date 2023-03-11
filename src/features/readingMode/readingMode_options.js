@@ -1,11 +1,20 @@
+/*
+Created By: Jonathan Duke (Duke-5773)
+*/
+
 import { registerFeature, OptionType } from "../../core/options/options_registry";
+import { isCategoryPage, isProfilePage, isSpacePage } from "../../core/pageType";
 
 const readingModeFeature = {
   name: "Reading Mode",
   id: "readingMode",
   description: "Toggle the WikiTree interface on/off for readability while browsing profiles.",
   category: "Style",
+  creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
+  contributors: [],
   defaultValue: false,
+  pages: [isProfilePage, isSpacePage, isCategoryPage],
+
   options: [
     {
       id: "hideSideBar",

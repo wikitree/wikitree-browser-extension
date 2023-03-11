@@ -1,4 +1,8 @@
 /*
+Created By: Kay Knight (Sands-1865)
+*/
+
+/*
 The MIT License (MIT)
 
 Copyright (c) 2022 Kathryn J Knight

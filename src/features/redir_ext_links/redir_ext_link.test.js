@@ -1,3 +1,7 @@
+/*
+Created By: Rob Pavey (Pavey-429)
+*/
+
 import "./redir_ext_links_options";
 import { getDefaultOptionValuesForFeature } from "../../core/options/options_registry";
 import { updateLink } from "./redir_ext_link";

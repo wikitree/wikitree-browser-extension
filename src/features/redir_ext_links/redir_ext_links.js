@@ -1,3 +1,7 @@
+/*
+Created By: Rob Pavey (Pavey-429)
+*/
+
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage.js";
 import { updateLink } from "./redir_ext_link.js";
 

@@ -1,13 +1,20 @@
-import { registerFeature, OptionType } from "../../core/options/options_registry"
+/*
+Created By: Rob Pavey (Pavey-429)
+*/
+
+import { isProfileEdit } from "../../core/pageType";
+import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 // The feature data for the AGC feature
 const agcFeature = {
   name: "Automatic GEDCOM Cleanup (AGC)",
   id: "agc",
-  description:
-    "Reformats a biography and updates data fields when the profile was created from a GEDCOM.",
+  description: "Reformats a biography and updates data fields when the profile was created from a GEDCOM.",
   category: "Editing",
+  creators: [{ name: "Rob Pavey", wikitreeid: "Pavey-429" }],
+  contributors: [],
   defaultValue: true,
+  pages: [isProfileEdit],
   options: [
     {
       id: "bioMainText",
@@ -28,7 +35,7 @@ const agcFeature = {
               text: "US English",
             },
           ],
-          defaultValue: "en_uk",   
+          defaultValue: "en_uk",
         },
         {
           id: "include_age",
@@ -52,8 +59,8 @@ const agcFeature = {
               text: "On most events",
             },
           ],
-          defaultValue: "most",   
-          defaultTestValue: "none",   
+          defaultValue: "most",
+          defaultTestValue: "none",
         },
         {
           id: "narrative_includeCountry",
@@ -73,12 +80,13 @@ const agcFeature = {
               text: "Never include country",
             },
           ],
-          defaultValue: "always",   
+          defaultValue: "always",
         },
         {
           id: "narrative_standardizeCountry",
           type: OptionType.CHECKBOX,
-          label: 'In narrative text use a standard/abbreviated name for the country (e.g. "England" rather than "England, United Kingdom")',
+          label:
+            'In narrative text use a standard/abbreviated name for the country (e.g. "England" rather than "England, United Kingdom")',
           defaultValue: false,
         },
         {
@@ -91,32 +99,35 @@ const agcFeature = {
         {
           id: "narrative_useResidenceData",
           type: OptionType.CHECKBOX,
-          label: 'If an employment, residence or census fact has a known record type start the narrative event with that',
-          defaultValue: true,   
+          label:
+            "If an employment, residence or census fact has a known record type start the narrative event with that",
+          defaultValue: true,
         },
         {
           id: "narrative_useFullCensusDate",
           type: OptionType.CHECKBOX,
-          label: 'If a census style narrative event starts with just the date then use the full date if known. E.g. "On 2 April 1911 John was living in ..."',
-          defaultValue: true,   
+          label:
+            'If a census style narrative event starts with just the date then use the full date if known. E.g. "On 2 April 1911 John was living in ..."',
+          defaultValue: true,
         },
         {
           id: "include_externalMedia",
           type: OptionType.CHECKBOX,
-          label: 'Add an External Media section to biography if there are files referenced',
-          defaultValue: true,   
+          label: "Add an External Media section to biography if there are files referenced",
+          defaultValue: true,
         },
         {
           id: "include_mapLinks",
           type: OptionType.CHECKBOX,
-          label: 'Add a link to OpenStreetMap if a fact location includes latitude and longitude',
-          defaultValue: true,   
+          label: "Add a link to OpenStreetMap if a fact location includes latitude and longitude",
+          defaultValue: true,
         },
         {
           id: "removeGedcomVerbiage",
           type: OptionType.CHECKBOX,
-          label: 'Remove the GEDCOM import text that states which gedcom the profile was created from (only do this if the profile will be fully cleaned up and sourced)',
-          defaultValue: false,   
+          label:
+            "Remove the GEDCOM import text that states which gedcom the profile was created from (only do this if the profile will be fully cleaned up and sourced)",
+          defaultValue: false,
           defaultTestValue: true,
         },
       ],
@@ -178,39 +189,40 @@ const agcFeature = {
             },
           ],
           defaultValue: "before",
-          defaultTestValue: "today",   
+          defaultTestValue: "today",
         },
         {
           id: "references_addNewlineBeforeFirst",
           type: OptionType.CHECKBOX,
-          label: 'Add a newline before the first reference on a narrative event',
-          defaultValue: false,   
+          label: "Add a newline before the first reference on a narrative event",
+          defaultValue: false,
         },
         {
           id: "references_addNewline",
           type: OptionType.CHECKBOX,
-          label: 'Add a newline between each reference on a narrative event',
+          label: "Add a newline between each reference on a narrative event",
           defaultValue: false,
-          defaultTestValue: true,   
+          defaultTestValue: true,
         },
         {
           id: "references_addNewlineWithin",
           type: OptionType.CHECKBOX,
-          label: 'Add newlines within each reference on a narrative event (after the <ref> and before the </ref>)',
+          label: "Add newlines within each reference on a narrative event (after the <ref> and before the </ref>)",
           defaultValue: true,
-          defaultTestValue: false,   
+          defaultTestValue: false,
         },
         {
           id: "references_meaningfulNames",
           type: OptionType.CHECKBOX,
           label: 'Add a meaningful name at the start of each reference (this shows up in the "Sources" section)',
-          defaultValue: true,   
+          defaultValue: true,
         },
         {
           id: "sources_addFreeLinksForSubscriptionSources",
           type: OptionType.CHECKBOX,
-          label: 'For subscription sources, attempt to add links to free sources as well (usually links that do a search)',
-          defaultValue: true,   
+          label:
+            "For subscription sources, attempt to add links to free sources as well (usually links that do a search)",
+          defaultValue: true,
         },
         {
           id: "sourcesWithNoDate",
@@ -219,19 +231,19 @@ const agcFeature = {
           options: [
             {
               type: OptionType.TEXT_LINE,
-              label: 'Some of these are common and can be suppressed from being output if not desired in the bio:',
+              label: "Some of these are common and can be suppressed from being output if not desired in the bio:",
             },
             {
               id: "sources_supressChildBaptisms",
               type: OptionType.CHECKBOX,
-              label: 'Ignore child baptism sources',
-              defaultValue: false,   
+              label: "Ignore child baptism sources",
+              defaultValue: false,
             },
             {
               id: "sources_supressChildMarriages",
               type: OptionType.CHECKBOX,
-              label: 'Ignore child marriage sources',
-              defaultValue: false,   
+              label: "Ignore child marriage sources",
+              defaultValue: false,
             },
           ],
         },
@@ -245,8 +257,8 @@ const agcFeature = {
         {
           id: "researchNotes_alternateNames",
           type: OptionType.CHECKBOX,
-          label: 'Add an Alternate Names section to Research Notes if there are multiple names',
-          defaultValue: true,   
+          label: "Add an Alternate Names section to Research Notes if there are multiple names",
+          defaultValue: true,
         },
         {
           id: "issuesToBeChecked",
@@ -257,7 +269,7 @@ const agcFeature = {
               id: "researchNotes_includeIssuesToBeChecked",
               type: OptionType.CHECKBOX,
               label: 'If issues are found report them in the "Issues to be checked" section under Research Notes',
-              defaultValue: true,   
+              defaultValue: true,
             },
             {
               id: "suppressedIssues",
@@ -266,28 +278,29 @@ const agcFeature = {
               options: [
                 {
                   type: OptionType.TEXT_LINE,
-                  label: 'If issues are being reported the following common and harmless ones can be suppressed by unchecking the box:',
+                  label:
+                    "If issues are being reported the following common and harmless ones can be suppressed by unchecking the box:",
                 },
                 {
                   id: "researchNotes_issueForClnToLastHusband",
                   type: OptionType.CHECKBOX,
-                  label: 'Report if changing <b>Current Last Name</b> to last name of last husband',
+                  label: "Report if changing <b>Current Last Name</b> to last name of last husband",
                   isHtmlInLabel: true,
-                  defaultValue: true,   
+                  defaultValue: true,
                 },
                 {
                   id: "researchNotes_issueForBirthToBeforeBaptism",
                   type: OptionType.CHECKBOX,
-                  label: 'Report if changing <b>Birth Date</b> to <i>before</i> the baptism date',
+                  label: "Report if changing <b>Birth Date</b> to <i>before</i> the baptism date",
                   isHtmlInLabel: true,
-                  defaultValue: true,   
+                  defaultValue: true,
                 },
                 {
                   id: "researchNotes_issueForDeathToBeforeBurial",
                   type: OptionType.CHECKBOX,
-                  label: 'Report if changing <b>Death Date</b> to <i>before</i> the burial date',
+                  label: "Report if changing <b>Death Date</b> to <i>before</i> the burial date",
                   isHtmlInLabel: true,
-                  defaultValue: true,   
+                  defaultValue: true,
                 },
               ],
             },
@@ -303,28 +316,32 @@ const agcFeature = {
         {
           id: "otherFields_useBaptismForBirthDate",
           type: OptionType.CHECKBOX,
-          label: 'If there is an exact baptism date in the same year as a year-only birth date then change the <b>Birth Date</b> field of the profile to be <i>before</i> the baptism date',
+          label:
+            "If there is an exact baptism date in the same year as a year-only birth date then change the <b>Birth Date</b> field of the profile to be <i>before</i> the baptism date",
           isHtmlInLabel: true,
-          defaultValue: true,   
+          defaultValue: true,
         },
         {
           id: "otherFields_useBurialForDeathDate",
           type: OptionType.CHECKBOX,
-          label: 'If there is an exact burial date in the same year as a year-only death date then change the <b>Death Date</b> field of the profile to be <i>before</i> the burial date',
+          label:
+            "If there is an exact burial date in the same year as a year-only death date then change the <b>Death Date</b> field of the profile to be <i>before</i> the burial date",
           isHtmlInLabel: true,
-          defaultValue: true,   
+          defaultValue: true,
         },
         {
           id: "otherFields_useLastHusbandNameForCurrentLastName",
           type: OptionType.CHECKBOX,
-          label: 'For female profiles, if the <b>Current Last Name</b> is the <b>LNAB</b> but there are marriages and the last husband\'s name is known then change the <b>CLN</b> to that',
+          label:
+            "For female profiles, if the <b>Current Last Name</b> is the <b>LNAB</b> but there are marriages and the last husband's name is known then change the <b>CLN</b> to that",
           isHtmlInLabel: true,
-          defaultValue: true,   
+          defaultValue: true,
         },
         {
           id: "dataFields_moveNamesFromFirstToMiddle",
           type: OptionType.SELECT,
-          label: "For old GEDCOM imports move additional names from the Proper First Name field to the Middle Name field",
+          label:
+            "For old GEDCOM imports move additional names from the Proper First Name field to the Middle Name field",
           values: [
             {
               value: "someCountries",
@@ -335,7 +352,7 @@ const agcFeature = {
               text: "Never do this",
             },
           ],
-          defaultValue: "someCountries",   
+          defaultValue: "someCountries",
         },
       ],
     },

@@ -1,3 +1,7 @@
+/*
+Created By: Rob Pavey (Pavey-429)
+*/
+
 function updateAncestryOldFormatLink(linkText, options) {
   if (!options.ancestryOldLinks) {
     return linkText;

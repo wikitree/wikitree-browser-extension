@@ -430,29 +430,40 @@ $(".feature-options-button").on("click", function () {
 
 // adds feature HTML to the options page
 function addFeatureToOptionsPage(featureData) {
-  const featureHTML = `
-        <div class="feature-information ${featureData.category}" id="${featureData.id}">
-            <div class="feature-header">
-                <div class="feature-toggle">
-                    <label class="switch">
-                    <input type="checkbox">
-                    <span class="slider round"></span>
-                    </label>
-                </div>
-                <div class="feature-name">
-                  ${featureData.name}
-                </div>
-                <button type="button" class="feature-options-button" id="${featureData.id}_options_button" hidden>
-                  Show options
-                </button>
-            </div>
-            <div class="feature-content">
-              <div class="feature-description">
-                ${featureData.description}
-              </div>
-            </div>
+  let featureHTML = `
+    <div class="feature-information ${featureData.category}" id="${featureData.id}">
+      <div class="feature-header">
+        <div class="feature-header-left">
+          <div class="feature-toggle">
+            <label class="switch">
+              <input type="checkbox">
+              <span class="slider round"></span>
+            </label>
+          </div>
+          <div class="feature-name">
+            ${featureData.name}
+          </div>
+          <button type="button" class="feature-options-button" id="${featureData.id}_options_button" hidden>
+            Show options
+          </button>
         </div>
-    `;
+        <div class="feature-author">`;
+          if (featureData.creators && featureData.creators.length) {
+            featureHTML += `Created by: ` + featureData.creators.map((person) => `<a href="https://www.wikitree.com/wiki/${person.wikitreeid}" target="_blank">${person.name}</a>`).join(", ") + `.`;
+          }
+          if (featureData.contributors && featureData.contributors.length) {
+            featureHTML += `<br>Contributors: ` + featureData.contributors.map((person) => `<a href="https://www.wikitree.com/wiki/${person.wikitreeid}" target="_blank">${person.name}</a>`).join(", ") + `.`;
+          }
+          featureHTML += `
+        </div>
+      </div>
+      <div class="feature-content">
+        <div class="feature-description">
+          ${featureData.description}
+        </div>
+      </div>
+    </div>
+  `;
 
   $("#features").append(featureHTML);
 

@@ -1,6 +1,10 @@
+/*
+Created By: Jonathan Duke (Duke-5773)
+*/
+
 import $ from "jquery";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage.js";
-import { ensureProfileClasses, canTweakProfile } from "../../core/profileClasses";
+import { ensureProfileClasses } from "../../core/profileClasses";
 
 async function initAccessibility() {
   ensureProfileClasses();
@@ -135,7 +139,7 @@ async function initAccessibility() {
 }
 
 checkIfFeatureEnabled("accessibility").then((result) => {
-  if (result && canTweakProfile()) {
+  if (result) {
     import("./accessibility.css");
     initAccessibility();
   }

@@ -1,11 +1,15 @@
+/*
+Created By: Aleš Trtnik (Trtnik-2)
+*/
+
+import { isWikiEdit } from "../../core/pageType";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
-import { isEditPage } from "../../core/common";
 import { wtAPICatCIBSearch } from "../../core/wtPlusAPI/wtPlusAPI";
 
 let tb = {};
 
 checkIfFeatureEnabled("wtplus").then((result) => {
-  if (result && isEditPage) {
+  if (result && isWikiEdit) {
     import("./wtPlus.css");
     initWTPlus();
   }

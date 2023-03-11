@@ -1,3 +1,7 @@
+/*
+Created By: Aleš Trtnik (Trtnik-2)
+*/
+
 import editToolbarCategoryOptions from "./editToolbarCategoryOptions";
 import editToolbarGenericOptions from "./editToolbarGenericOptions";
 import editToolbarProfileOptions from "./editToolbarProfileOptions";

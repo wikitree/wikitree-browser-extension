@@ -1,3 +1,7 @@
+/*
+Created By: Kay Knight (Sands-1865)
+*/
+
 import { theSourceRules } from "./SourceRules.js";
 import { PersonDate } from "./PersonDate.js";
 import { Biography } from "./Biography.js";

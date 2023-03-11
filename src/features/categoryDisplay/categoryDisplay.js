@@ -1,9 +1,12 @@
+/*
+Created By: Steve Harris (Harris-5439)
+*/
+
 import $ from 'jquery';
-import { pageProfile } from '../../core/common';
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("categoryDisplay").then((result) => {
-    if (result && pageProfile == true) {
+    if (result) {
         moveCategories();
     }
 })

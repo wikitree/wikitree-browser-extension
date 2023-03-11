@@ -1,3 +1,7 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import $ from "jquery";
 import { copyThingToClipboard } from "../g2g/g2g";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";

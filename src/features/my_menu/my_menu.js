@@ -1,3 +1,7 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import $ from "jquery";
 import "jquery-ui/ui/widgets/sortable";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";

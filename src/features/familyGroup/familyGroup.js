@@ -1,3 +1,7 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import { getRelatives } from "wikitree-js";
@@ -6,7 +10,7 @@ import { createProfileSubmenuLink, familyArray, isOK, htmlEntities } from "../..
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("familyGroup").then((result) => {
-  if (result && $("body.profile").length && window.location.href.match("Space:") == null) {
+  if (result && $("body.profile").length) {
     import("../familyTimeline/familyTimeline.css");
     // Add a link to the short list of links below the tabs
     const options = {
