@@ -86,6 +86,18 @@ const accessibilityFeature = {
       label: "Remove extra source labels (added by profile editors) from the beginning of source citations.",
       defaultValue: false,
     },
+    {
+      id: "cleanCitations",
+      type: OptionType.CHECKBOX,
+      label: "Clean up citations by merging adjacent numbers into one list that is sorted and easier to read.",
+      defaultValue: true,
+    },
+    {
+      id: "removeBackReferences",
+      type: OptionType.CHECKBOX,
+      label: "Remove back-references from the beginning of source citations.",
+      defaultValue: false,
+    },
   ],
 };
 
