@@ -39,6 +39,18 @@
   display: none !important;
 }
 
+.hide-status .x-content .status {
+  display: none !important;
+}
+
+.hide-stickers .x-sticker {
+  display: none !important;
+}
+
+.hide-toc .x-content .toc {
+  display: none !important;
+}
+
 .hide-inline-images .x-inline-img {
   display: none !important;
 }
@@ -53,7 +65,7 @@
   display: none !important;
 }
 
-.hide-heading-extras .x-heading-widget,
+.hide-heading-extras .x-widget,
 .hide-heading-extras .x-privacy {
   display: none !important;
 }

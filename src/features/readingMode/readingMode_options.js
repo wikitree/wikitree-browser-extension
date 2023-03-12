@@ -53,6 +53,24 @@ const readingModeFeature = {
       defaultValue: true,
     },
     {
+      id: "hideStatus",
+      type: OptionType.CHECKBOX,
+      label: "Hide project or research boxes.",
+      defaultValue: false,
+    },
+    {
+      id: "hideStickers",
+      type: OptionType.CHECKBOX,
+      label: "Hide stickers at the top of the bio.",
+      defaultValue: false,
+    },
+    {
+      id: "hideTableOfContents",
+      type: OptionType.CHECKBOX,
+      label: "Hide the table of contents.",
+      defaultValue: false,
+    },
+    {
       id: "hideInlineTables",
       type: OptionType.CHECKBOX,
       label: "Hide all tables in the bio.",

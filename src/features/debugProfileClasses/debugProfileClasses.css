@@ -13,8 +13,14 @@
 }
 
 /* toc */
-#toc {
+.x-content .toc {
   background: rgba(240,255,240,0.5) !important;
+}
+
+/* status box */
+.x-content .status {
+  border: 5px dashed #c30 !important;
+  opacity: 0.5;
 }
 
 /* elements that need to be identified manually */
@@ -39,7 +45,7 @@
   background: #fa9 !important;
 }
 
-.x-heading-widget {
+.x-widget {
   background: #fcc !important;
 }
 

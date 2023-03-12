@@ -34,6 +34,15 @@ async function initReadingMode() {
     if (options.hideAuditData) {
       $("html").toggleClass("hide-audit-data");
     }
+    if (options.hideStatus) {
+      $("html").toggleClass("hide-status");
+    }
+    if (options.hideStickers) {
+      $("html").toggleClass("hide-stickers");
+    }
+    if (options.hideTableOfContents) {
+      $("html").toggleClass("hide-toc");
+    }
     if (options.hideInlineImages) {
       $("html").toggleClass("hide-inline-images");
     }
@@ -80,7 +89,7 @@ async function initReadingMode() {
       toggleReadingMode();
     }
     // add the toggle to turn reading mode on/off while viewing the page instead of having to go into the extension for it
-    let toggleElement = $('<div class="toggle reading-mode .x-heading-widget"><input type="checkbox" id="reading_mode"' + (isToggledOn ? " checked" : "") + '><label for="reading_mode">Reading Mode</label>');
+    let toggleElement = $('<div class="toggle reading-mode .x-widget"><input type="checkbox" id="reading_mode"' + (isToggledOn ? " checked" : "") + '><label for="reading_mode">Reading Mode</label>');
     toggleElement.find("input").change(function () {
       toggleReadingMode();
       chrome.storage.sync.set({ "readingMode_toggle": this.checked });
