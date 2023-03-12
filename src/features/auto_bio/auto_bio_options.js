@@ -8,22 +8,6 @@ const autoBio = {
   defaultValue: true,
   options: [
     {
-      id: "fullNameOrBirthName",
-      type: OptionType.RADIO,
-      label: "Display full name or birth name",
-      values: [
-        {
-          value: "FullName",
-          text: "Full name",
-        },
-        {
-          value: "BirthName",
-          text: "Birth name",
-        },
-      ],
-      defaultValue: "BirthName",
-    },
-    {
       id: "boldNames",
       type: OptionType.CHECKBOX,
       label: "Bold names for profile person and spouse(s)",
@@ -47,6 +31,22 @@ const autoBio = {
       type: OptionType.CHECKBOX,
       label: "Only the South Africa Project style",
       defaultValue: false,
+    },
+    {
+      id: "fullNameOrBirthName",
+      type: OptionType.RADIO,
+      label: "Name format",
+      values: [
+        {
+          value: "FullName",
+          text: "Include last current last name (if different from last name at birth) (e.g. Mary (Jones) Smith)",
+        },
+        {
+          value: "BirthName",
+          text: "Birth name (e.g. Mary Jones)",
+        },
+      ],
+      defaultValue: "BirthName",
     },
     {
       id: "diedWord",
