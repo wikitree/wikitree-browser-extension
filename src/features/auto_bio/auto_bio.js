@@ -700,6 +700,24 @@ function siblingList() {
   return text;
 }
 
+function firstAndMiddleNameVariantsRegex(person) {
+  const variants = [];
+  if (person.FirstName) {
+    variants.push(person.FirstName);
+    if (firstNameVariants[person.FirstName]) {
+      variants.push(...firstNameVariants[person.FirstName]);
+    }
+    if (person.MiddleName) {
+      if (person.MiddleName.length > 1) {
+        if (firstNameVariants[person.MiddleName]) {
+          variants.push(...firstNameVariants[person.MiddleName]);
+        }
+      }
+    }
+  }
+  return new RegExp(variants.join("\b|\b"));
+}
+
 function addReferences(event, spouse = false) {
   let refCount = 0;
   let text = "";
@@ -2067,7 +2085,13 @@ function buildCensusNarratives() {
               householdMember.Relation = findRelation(householdMember);
             }
             if (!householdMember.Relation && !isSameName(householdMember.Name, window.profilePerson.NameVariants)) {
-              if (!window.sectionsObject["Research Notes"].subsections.NeedsProfiles.includes(householdMember)) {
+              let inNeedsProfiles = false;
+              window.sectionsObject["Research Notes"].subsections.NeedsProfiles.forEach(function (person) {
+                if (person.Name == householdMember.Name) {
+                  inNeedsProfiles = true;
+                }
+              });
+              if (inNeedsProfiles == false) {
                 window.sectionsObject["Research Notes"].subsections.NeedsProfiles.push(householdMember);
               }
             }
@@ -2821,21 +2845,18 @@ function sourcesArray(bio) {
     ) {
       const dateMatch = aRef.Text.match(/\b\d{1,2}\s\w{3}\s1[89]\d{2}\b/);
       const dateMatch2 = aRef.Text.match(/\s(1[89]\d{2})\b(?!-)/);
-      console.log(dateMatch);
       aRef["Record Type"].push("Marriage");
       if (dateMatch) {
         aRef["Marriage Date"] = dateMatch[0];
-        console.log(JSON.parse(JSON.stringify(aRef)));
         aRef.Year = dateMatch[0].match(/\d{4}/)[0];
       } else if (dateMatch2) {
         aRef["Marriage Date"] = dateMatch2[1];
-        console.log(JSON.parse(JSON.stringify(aRef)));
         aRef.Year = dateMatch2[1];
       }
-      console.log(JSON.parse(JSON.stringify(aRef)));
 
       let detailsMatch = aRef.Text.match(/\),\s(.*?and.*?);/);
       let detailsMatch2 = aRef.Text.match(/\(http.*?\)(.*?image.*?;\s)(.*?)\./);
+      let entryForMatch = aRef.Text.match(/in entry for/);
       if (detailsMatch2) {
         if (detailsMatch2) {
           aRef["Marriage Place"] = detailsMatch2[2].replace("Archives", "");
@@ -2843,27 +2864,29 @@ function sourcesArray(bio) {
       } else if (detailsMatch) {
         const details = detailsMatch[1];
         const detailsSplit = details.split(",");
-        aRef["Marriage Date"] = detailsSplit[1].trim();
-        const couple = detailsSplit[0].split(/\band\b/);
-        aRef["Couple"] = couple.map((item) => item.trim());
+        if (entryForMatch == null) {
+          aRef["Marriage Date"] = detailsSplit[1].trim();
+          const couple = detailsSplit[0].split(/\band\b/);
+          aRef["Couple"] = couple.map((item) => item.trim());
 
-        let person1 = [couple[0].trim().split(" ")[0]];
-        if (firstNameVariants[person1]) {
-          person1 = firstNameVariants[person1[0]];
-        }
-        let person2 = [couple[1].trim().split(" ")[0]];
-        if (firstNameVariants[person2]) {
-          person2 = firstNameVariants[person2[0]];
-        }
-        if (!isSameName(window.profilePerson.FirstName, person1)) {
-          aRef["Spouse Name"] = aRef["Couple"][0];
-        } else {
-          aRef["Spouse Name"] = aRef["Couple"][1];
-        }
-        aRef.Year = aRef["Marriage Date"].match(/\d{4}/)[0];
-        const weddingLocationMatch = aRef.Text.match(/citing Marriage,?(.*?), United States/);
-        if (weddingLocationMatch) {
-          aRef["Marriage Place"] = weddingLocationMatch[1].trim();
+          let person1 = [couple[0].trim().split(" ")[0]];
+          if (firstNameVariants[person1]) {
+            person1 = firstNameVariants[person1[0]];
+          }
+          let person2 = [couple[1].trim().split(" ")[0]];
+          if (firstNameVariants[person2]) {
+            person2 = firstNameVariants[person2[0]];
+          }
+          if (!isSameName(window.profilePerson.FirstName, person1)) {
+            aRef["Spouse Name"] = aRef["Couple"][0];
+          } else {
+            aRef["Spouse Name"] = aRef["Couple"][1];
+          }
+          aRef.Year = aRef["Marriage Date"].match(/\d{4}/)[0];
+          const weddingLocationMatch = aRef.Text.match(/citing Marriage,?(.*?), United States/);
+          if (weddingLocationMatch) {
+            aRef["Marriage Place"] = weddingLocationMatch[1].trim();
+          }
         }
       } else if (aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/)) {
         const details = aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/);
@@ -2874,7 +2897,7 @@ function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        /[A-Z][a-z]+ Deaths|'''Death'''|Death Index|findagrave|Find a Grave|memorial|death registration|Cemetery Registers|Death Certificate|^Death -|citing Death|citing Burial|Probate/i
+        /[A-Z][a-z]+ Deaths|'''Death'''|Death (Index|Record|Registration)|findagrave|Find a Grave|memorial|Cemetery Registers|Death Certificate|^Death -|citing Death|citing Burial|Probate/i
       ) ||
       aRef["Death Date"]
     ) {
@@ -3677,7 +3700,6 @@ export async function generateBio() {
   var marriagesAndCensusesText = "";
   marriagesAndCensusesEtc.sort((a, b) => a.OrderDate - b.OrderDate);
   marriagesAndCensusesEtc.forEach(function (anEvent, i) {
-    console.log(anEvent);
     if (anEvent["Record Type"]) {
       if (anEvent["Record Type"].includes("Marriage")) {
         anEvent["Event Type"] = "Marriage";
@@ -3906,20 +3928,22 @@ export async function generateBio() {
         window.sectionsObject["Acknowledgements"].text.splice(i, 1);
       }
     });
-    let acknowledgementsHeader = "== Acknowledgements ==\n";
-    if (window.sectionsObject["Acknowledgements"].originalTitle) {
-      acknowledgementsHeader = "== " + window.sectionsObject["Acknowledgements"].originalTitle + " ==\n";
-    } else if (
-      window.profilePerson.BirthLocation.match(/United States|USA/) ||
-      window.profilePerson.DeathLocation.match(/United States|USA/)
-    ) {
-      acknowledgementsHeader = "\n== Acknowledgments ==\n";
+    if (window.sectionsObject["Acknowledgements"].text.length > 0) {
+      let acknowledgementsHeader = "== Acknowledgements ==\n";
+      if (window.sectionsObject["Acknowledgements"].originalTitle) {
+        acknowledgementsHeader = "== " + window.sectionsObject["Acknowledgements"].originalTitle + " ==\n";
+      } else if (
+        window.profilePerson.BirthLocation.match(/United States|USA/) ||
+        window.profilePerson.DeathLocation.match(/United States|USA/)
+      ) {
+        acknowledgementsHeader = "\n== Acknowledgments ==\n";
+      }
+      acknowledgementsText += acknowledgementsHeader;
+      acknowledgementsText += window.sectionsObject["Acknowledgements"].text.join("\n") + "\n";
+      acknowledgementsText = acknowledgementsText
+        .replace(/<!-- Please edit[\s\S]*?Changes page. -->/, "")
+        .replace(/Click to[\s\S]*?and others./, "");
     }
-    acknowledgementsText += acknowledgementsHeader;
-    acknowledgementsText += window.sectionsObject["Acknowledgements"].text.join("\n") + "\n";
-    acknowledgementsText = acknowledgementsText
-      .replace(/<!-- Please edit[\s\S]*?Changes page. -->/, "")
-      .replace(/Click to[\s\S]*?and others./, "");
   }
 
   let extensionNotes =

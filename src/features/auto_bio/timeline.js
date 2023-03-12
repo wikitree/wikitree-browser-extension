@@ -157,8 +157,6 @@ export function buildTimelineTable(bioTimeline) {
   let timelineTable = '{| class="wikitable" border="1" cellpadding="2"\n|+ Timeline\n|-\n';
   timelineTable += "!Date!!Event!!Location!![1]\n|+\n";
   bioTimeline.forEach(function (aEvent) {
-    console.log(aEvent);
-
     if (
       (isOK(aEvent["Event Date"]) || isOK(aEvent.Year)) &&
       aEvent["Event Type"] &&
@@ -228,13 +226,6 @@ export function buildTimelineTable(bioTimeline) {
           }
         }
       });
-      /*
-      let formattedEventDate = "";
-      if (isOK(eventDate)) {
-        formattedEventDate = formatDate(eventDate).replace(/in\s|on\s/, "");
-      }
-      */
-      console.log(eventDate);
       let formattedEventDate = eventDate.replaceAll(/-00/g, "");
       if (eventDate.match(/[a-z]/)) {
         formattedEventDate = getYYYYMMDD(eventDate).replaceAll(/-00/g, "");
@@ -314,11 +305,6 @@ export function buildTimelineSA(bioTimeline) {
                 ) {
                   placeSources += theRef;
                 }
-                /*
-              console.log(JSON.parse(JSON.stringify(dateSources)));
-              console.log(JSON.parse(JSON.stringify(placeSources)));
-              console.log(JSON.parse(JSON.stringify(aRef)));
-              */
               }
             }
           }

@@ -43,6 +43,28 @@ const autoBio = {
       defaultValue: true,
     },
     {
+      id: "SouthAfricaProject",
+      type: OptionType.CHECKBOX,
+      label: "Only the South Africa Project style",
+      defaultValue: false,
+    },
+    {
+      id: "diedWord",
+      type: OptionType.RADIO,
+      label: "'Died' or 'passed away'",
+      values: [
+        {
+          value: "died",
+          text: "died",
+        },
+        {
+          value: "passed away",
+          text: "passed away",
+        },
+      ],
+      defaultValue: "died",
+    },
+    {
       id: "timelineGroup",
       type: OptionType.GROUP,
       label: "Timeline",
@@ -85,28 +107,7 @@ const autoBio = {
         },
       ],
     },
-    {
-      id: "SouthAfricaProject",
-      type: OptionType.CHECKBOX,
-      label: "Only the South Africa Project style",
-      defaultValue: false,
-    },
-    {
-      id: "diedWord",
-      type: OptionType.RADIO,
-      label: "'Died' or 'passed away'",
-      values: [
-        {
-          value: "died",
-          text: "died",
-        },
-        {
-          value: "passed away",
-          text: "passed away",
-        },
-      ],
-      defaultValue: "died",
-    },
+
     {
       id: "datesGroup",
       type: OptionType.GROUP,
