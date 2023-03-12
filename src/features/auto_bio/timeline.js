@@ -2,9 +2,9 @@ import { isOK } from "../../core/common";
 import { PersonName } from "./person_name.js";
 import { minimalPlace, formatDate, getYYYYMMDD } from "./auto_bio";
 // Timeline functions
-export function bioTimelineFacts(marriagesAndCensuses) {
+export function bioTimelineFacts(marriagesAndCensusesEtc) {
   let bioTimeline = [];
-  bioTimeline.push(...marriagesAndCensuses);
+  bioTimeline.push(...marriagesAndCensusesEtc);
 
   bioTimeline.push({
     "Event Date": window.profilePerson.BirthDate,
@@ -90,9 +90,6 @@ export function bioTimelineFacts(marriagesAndCensuses) {
     }
   });
 
-  bioTimeline.sort(function (a, b) {
-    return a.OrderDate - b.OrderDate;
-  });
   console.log("bioTimeline", bioTimeline);
 
   bioTimeline = Object.values(
@@ -107,6 +104,10 @@ export function bioTimelineFacts(marriagesAndCensuses) {
       return acc;
     }, {})
   );
+
+  bioTimeline.sort(function (a, b) {
+    return a.OrderDate - b.OrderDate;
+  });
 
   return bioTimeline;
 }
@@ -156,6 +157,8 @@ export function buildTimelineTable(bioTimeline) {
   let timelineTable = '{| class="wikitable" border="1" cellpadding="2"\n|+ Timeline\n|-\n';
   timelineTable += "!Date!!Event!!Location!![1]\n|+\n";
   bioTimeline.forEach(function (aEvent) {
+    console.log(aEvent);
+
     if (
       (isOK(aEvent["Event Date"]) || isOK(aEvent.Year)) &&
       aEvent["Event Type"] &&
@@ -177,8 +180,12 @@ export function buildTimelineTable(bioTimeline) {
       let sources = "";
       let eventType = aEvent["Event Type"];
       let eventDate = aEvent["Event Date"] || aEvent.Year;
-      let eventLocation = aEvent["Event Place"] || aEvent.Residence || "";
-      eventLocation = eventLocation ? minimalPlace(eventLocation) : "";
+      let eventLocation = aEvent["Event Place"] || aEvent.Residence || aEvent.War || "";
+      eventLocation = eventLocation
+        ? window.autoBioOptions.timelineLocations == "minimal"
+          ? minimalPlace(eventLocation)
+          : eventLocation
+        : "";
       if (["Birth", "Marriage", "Death"].includes(aEvent["Event Type"]) || aEvent["Event Type"].match(/Marriage/)) {
         eventType = "'''" + eventType + "'''";
         eventDate = "'''" + eventDate + "'''";
@@ -227,6 +234,7 @@ export function buildTimelineTable(bioTimeline) {
         formattedEventDate = formatDate(eventDate).replace(/in\s|on\s/, "");
       }
       */
+      console.log(eventDate);
       let formattedEventDate = eventDate.replaceAll(/-00/g, "");
       if (eventDate.match(/[a-z]/)) {
         formattedEventDate = getYYYYMMDD(eventDate).replaceAll(/-00/g, "");

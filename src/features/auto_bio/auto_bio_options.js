@@ -43,24 +43,47 @@ const autoBio = {
       defaultValue: true,
     },
     {
-      id: "timeline",
-      type: OptionType.RADIO,
+      id: "timelineGroup",
+      type: OptionType.GROUP,
       label: "Timeline",
-      values: [
+      options: [
         {
-          value: "table",
-          text: "Table",
+          id: "timeline",
+          type: OptionType.RADIO,
+          label: "Type of timeline",
+          values: [
+            {
+              value: "table",
+              text: "Table",
+            },
+            {
+              value: "SA",
+              text: "South Africa Project style",
+            },
+            {
+              value: "none",
+              text: "None",
+            },
+          ],
+          defaultValue: "none",
         },
         {
-          value: "SA",
-          text: "South Africa Project style",
-        },
-        {
-          value: "none",
-          text: "None",
+          id: "timelineLocations",
+          type: OptionType.RADIO,
+          label: "Locations",
+          values: [
+            {
+              value: "full",
+              text: "Full",
+            },
+            {
+              value: "minimal",
+              text: "Minimal",
+            },
+          ],
+          defaultValue: "minimal",
         },
       ],
-      defaultValue: "none",
     },
     {
       id: "SouthAfricaProject",

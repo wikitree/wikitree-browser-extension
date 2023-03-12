@@ -1926,7 +1926,12 @@ function buildCensusNarratives() {
       if (reference["Street Address"]) {
         residenceBits.push(reference["Street Address"]);
       } else if (reference["Address"]) {
-        residenceBits.push(reference["Address"]);
+        if (reference["Address"].length > 10) {
+          residenceBits.push(reference["Address"]);
+        }
+      }
+      if (reference["Residence Place"]) {
+        residenceBits.push(reference["Residence Place"]);
       }
       if (reference["Civil Parish"]) {
         residenceBits.push(reference["Civil Parish"]);
@@ -2061,7 +2066,7 @@ function buildCensusNarratives() {
             if (!householdMember.Relation) {
               householdMember.Relation = findRelation(householdMember);
             }
-            if (!householdMember.Relation) {
+            if (!householdMember.Relation && !isSameName(householdMember.Name, window.profilePerson.NameVariants)) {
               if (!window.sectionsObject["Research Notes"].subsections.NeedsProfiles.includes(householdMember)) {
                 window.sectionsObject["Research Notes"].subsections.NeedsProfiles.push(householdMember);
               }
@@ -2075,13 +2080,6 @@ function buildCensusNarratives() {
             // eslint-disable-next-line no-unused-vars
             [day, month, year] = window.profilePerson["BirthDate"].split(" ");
           }
-          /*
-          let profilePersonAge = getAge({
-            start: { year: year, month: isNaN(month) ? abbrevToNum(month) : month, date: day },
-            end: { year: reference["Census Year"], month: 7, date: 2 },
-          });
-*/
-
           text += createFamilyNarrative(reference.Household);
         }
       }
@@ -2110,7 +2108,6 @@ function createFamilyNarrative(familyMembers) {
   const children = familyMembers.filter((member) => member.Relation === "Daughter" || member.Relation === "Son");
   const siblings = familyMembers.filter((member) => member.Relation === "Brother" || member.Relation === "Sister");
   const parents = familyMembers.filter((member) => member.Relation === "Father" || member.Relation === "Mother");
-  // const others = familyMembers.filter((member) => member.Relation === "" || member.Relation == undefined);
 
   const others = familyMembers.filter(
     (member) =>
@@ -2205,7 +2202,9 @@ function createFamilyNarrative(familyMembers) {
 
   let othersBit = "";
   if (others.length > 0) {
-    othersBit += "; and ";
+    if (parentsBit || siblingsBit || childrenBit || spouseBit) {
+      othersBit += "; and ";
+    }
     let oRelation;
     let oRelationStr;
     others.forEach((other, index) => {
@@ -2673,7 +2672,9 @@ function sourcesArray(bio) {
       });
       let type;
       if (theBits[1]) {
-        const typeMatch = theBits[1].match(/(Birth|Marriage|Death|Burial|Baptism|Probate)/i);
+        const typeMatch = theBits[1].match(
+          /(Birth|Marriage|Death|Burial|Baptism|Probate|World War I|World War II|Vietnam War|Korean War)/i
+        );
         if (typeMatch[0]) {
           type = capitalizeFirstLetter(typeMatch[0]);
           if (type == "Probate") type = "Death";
@@ -2689,21 +2690,52 @@ function sourcesArray(bio) {
             aRef["Record Type"].push("Death");
             window.profilePerson["Burial Place"] = location.join(", ");
           }
-        }
-        // CHECK THIS  Perrett-412
-        const dateMatch = theBits[1].match(/\b\d{2}\s\w{3}\s\d{4}\b/);
-        if (dateMatch) {
-          aRef["Event Date"] = dateMatch[0];
-          aRef.OrderDate = formatDate(dateMatch[0], 0, 8);
-          aRef["Event Year"] = aRef.OrderDate.substring(0, 4);
-          aRef.Year = aRef["Event Year"];
-          if (type == "Baptism") {
-            window.profilePerson["Baptism Date"] = dateMatch[0];
+
+          // CHECK THIS  Perrett-412
+          const dateMatch = theBits[1].match(/\b\d{2}\s\w{3}\s\d{4}\b/);
+          if (dateMatch) {
+            aRef["Event Date"] = dateMatch[0];
+            aRef.OrderDate = formatDate(dateMatch[0], 0, 8);
+            aRef["Event Year"] = aRef.OrderDate.substring(0, 4);
+            aRef.Year = aRef["Event Year"];
+            if (type == "Baptism") {
+              window.profilePerson["Baptism Date"] = dateMatch[0];
+            }
+            if (type == "Burial") {
+              window.profilePerson["Burial Date"] = dateMatch[0];
+            }
           }
-          if (type == "Burial") {
-            window.profilePerson["Burial Date"] = dateMatch[0];
+
+          // Add military service records
+          if (type == "World War I") {
+            aRef["Record Type"].push("Military");
+            window.profilePerson["Military Service"] = ["World War I"];
+            aRef.Year = "1914";
+            aRef["Event Year"] = "1914";
+            if (!aRef["Event Date"]) {
+              aRef["Event Date"] = "1914";
+            }
+            aRef.War = "World War I";
+            const regiment = aRef["Regiment Name"] ? " in the " + aRef["Regiment Name"] : "";
+            aRef.Narrative = window.profilePerson.PersonName.FirstName + " served" + regiment + " in World War I.";
+          }
+          if (type == "World War II") {
+            aRef["Record Type"].push("Military");
+            window.profilePerson["Military Service"] = ["World War II"];
+            aRef.War = "World War II";
+          }
+          if (type == "Vietnam War") {
+            aRef["Record Type"].push("Military");
+            window.profilePerson["Military Service"] = ["Vietnam War"];
+            aRef.War = "Vietnam War";
+          }
+          if (type == "Korean War") {
+            aRef["Record Type"].push("Military");
+            window.profilePerson["Military Service"] = ["Korean War"];
+            aRef.War = "Korean War";
           }
         }
+
         if (type == "Marriage") {
           const coupleMatch = theBits[1].match(/([A-Z].*?\bto\b\s.*?\s)\d/);
           if (coupleMatch) {
@@ -2764,12 +2796,7 @@ function sourcesArray(bio) {
       if (baptismLocationMatch) {
         aRef["Baptism Place"] = baptismLocationMatch[1];
       }
-      /*
-      console.log(nameMatch);
-      console.log(baptismDateMatch);
-      console.log(birthDateMatch);
-      console.log(baptismLocationMatch);
-      */
+
       if (aRef.Name) {
         if (isSameName(aRef?.Name, window.profilePerson?.NameVariants)) {
           window.profilePerson["Baptism Date"] =
@@ -2885,6 +2912,36 @@ function sourcesArray(bio) {
       if (aRef["Death or Burial Place"]) {
         aRef["Burial Place"] = aRef["Death or Burial Place"];
         aRef["Event Place"] = aRef["Death or Burial Place"];
+      }
+    }
+    // Add military service records
+    const militaryMatch = aRef.Text.match(/World War I\b|World War II|Korean War|Vietnam War/);
+    if (militaryMatch) {
+      if (militaryMatch[0] == "World War I") {
+        aRef["Record Type"].push("Military");
+        window.profilePerson["Military Service"] = ["World War I"];
+        aRef.Year = "1914";
+        aRef["Event Year"] = "1914";
+        if (!aRef["Event Date"]) {
+          aRef["Event Date"] = "1914";
+          aRef.OrderDate = "19140901";
+        }
+        if (aRef["Regiment Name"]) {
+          aRef.Narrative =
+            window.profilePerson.PersonName.FirstName + " served in the " + aRef["Regiment Name"] + " in World War I.";
+        }
+      }
+      if (militaryMatch[0] == "World War II") {
+        aRef["Record Type"].push("Military");
+        window.profilePerson["Military Service"] = ["World War II"];
+      }
+      if (militaryMatch[0] == "Vietnam War") {
+        aRef["Record Type"].push("Military");
+        window.profilePerson["Military Service"] = ["Vietnam War"];
+      }
+      if (militaryMatch[0] == "Korean War") {
+        aRef["Record Type"].push("Military");
+        window.profilePerson["Military Service"] = ["Korean War"];
       }
     }
   });
@@ -3539,7 +3596,7 @@ export async function generateBio() {
   // and add them to the text
   getFamilySearchFacts();
   let marriages = buildSpouses(window.profilePerson);
-  const marriagesAndCensuses = [...marriages];
+  const marriagesAndCensusesEtc = [...marriages];
 
   // Get children who were not from one of the spouses
   if (!Array.isArray(window.profilePerson.Children)) {
@@ -3571,15 +3628,15 @@ export async function generateBio() {
       Source: "",
       OrderDate: orderDate,
     };
-    marriagesAndCensuses.push(newEvent);
+    marriagesAndCensusesEtc.push(newEvent);
   }
 
   if (window.familySearchFacts) {
-    marriagesAndCensuses.push(...window.familySearchFacts);
+    marriagesAndCensusesEtc.push(...window.familySearchFacts);
   }
   window.references.forEach(function (aRef) {
-    if (aRef["Record Type"].includes("Census")) {
-      marriagesAndCensuses.push(aRef);
+    if (aRef["Record Type"].includes("Census") || aRef["Record Type"].includes("Military")) {
+      marriagesAndCensusesEtc.push(aRef);
     }
   });
 
@@ -3618,11 +3675,15 @@ export async function generateBio() {
   }
 
   var marriagesAndCensusesText = "";
-  marriagesAndCensuses.sort((a, b) => a.OrderDate - b.OrderDate);
-  marriagesAndCensuses.forEach(function (anEvent, i) {
+  marriagesAndCensusesEtc.sort((a, b) => a.OrderDate - b.OrderDate);
+  marriagesAndCensusesEtc.forEach(function (anEvent, i) {
+    console.log(anEvent);
     if (anEvent["Record Type"]) {
       if (anEvent["Record Type"].includes("Marriage")) {
         anEvent["Event Type"] = "Marriage";
+      }
+      if (anEvent["Record Type"].includes("Military")) {
+        anEvent["Event Type"] = "Military";
       }
 
       if (anEvent["Record Type"].includes("Census")) {
@@ -3658,7 +3719,7 @@ export async function generateBio() {
           if (anEvent["Record Type"].includes("ChildList") && !window.childrenShown && !window.listedSomeChildren) {
             anEvent.Narrative = anEvent.Narrative.replace("other child", "child");
           }
-          window.references.forEach(function (aRef) {
+          window.references.forEach(function (aRef, i) {
             if (
               anEvent["Record Type"].includes(aRef["Record Type"]) &&
               aRef.Text.match("contributed by various users") &&
@@ -3669,6 +3730,14 @@ export async function generateBio() {
               } else {
                 thisRef = " <ref name='FamilySearchProfile'>" + aRef.Text + "</ref>";
                 aRef.RefName = "FamilySearchProfile";
+                aRef.Used = true;
+              }
+            } else if (anEvent["Record Type"] == "Military") {
+              if (aRef.RefName) {
+                thisRef = "<ref name='" + thisRef + "' />";
+              } else {
+                thisRef = " <ref name='military_" + i + "'>" + aRef.Text + "</ref>";
+                aRef.RefName = "military_" + i;
                 aRef.Used = true;
               }
             }
@@ -3686,7 +3755,7 @@ export async function generateBio() {
       marriagesAndCensusesText += anEvent.Narrative + "\n\n";
     }
   });
-  console.log("marriagesAndCensuses", marriagesAndCensuses);
+  console.log("marriagesAndCensuses", marriagesAndCensusesEtc);
 
   // Add obituary
   let obituaryText = "";
@@ -3748,7 +3817,7 @@ export async function generateBio() {
   // Add Timeline Table
   let bioTimelineText = "";
   if (window.autoBioOptions.timeline == "table") {
-    const bioTimeline = bioTimelineFacts(marriagesAndCensuses);
+    const bioTimeline = bioTimelineFacts(marriagesAndCensusesEtc);
     bioTimelineText += buildTimelineTable(bioTimeline) + "\n";
   }
 
@@ -3756,7 +3825,7 @@ export async function generateBio() {
   let southAfricaFormatText = "";
   let southAfricaTimelineText = "";
   if (window.autoBioOptions.SouthAfricaProject) {
-    const bioTimeline = bioTimelineFacts(marriagesAndCensuses);
+    const bioTimeline = bioTimelineFacts(marriagesAndCensusesEtc);
     for (let i = 0; i < window.references.length; i++) {
       window.references[i].Used = false;
     }
@@ -3764,7 +3833,7 @@ export async function generateBio() {
     southAfricaFormatText += buildTimelineSAText;
     southAfricaTimelineText += buildTimelineSAText;
   } else if (window.autoBioOptions.timeline == "SA") {
-    const bioTimeline = bioTimelineFacts(marriagesAndCensuses);
+    const bioTimeline = bioTimelineFacts(marriagesAndCensusesEtc);
     let buildTimelineSAText = buildTimelineSA(bioTimeline) + "\n";
     southAfricaFormatText += buildTimelineSAText;
     southAfricaTimelineText += buildTimelineSAText;
