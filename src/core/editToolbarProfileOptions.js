@@ -55,7 +55,16 @@ export default [
   },
   {
     button: "Biography",
-    items: [{ featureid: "wtplus", title: "Automated corrections", call: wtPlus, params: { action: "AutoUpdate" } }],
+    items: [
+      {
+        featureid: "autoBio",
+        hint: "Generate a biography from the profile data and current biography",
+        title: "Auto Bio",
+        call: generateBio,
+        params: {},
+      },
+      { featureid: "wtplus", title: "Automated corrections", call: wtPlus, params: { action: "AutoUpdate" } },
+    ],
   },
   {
     button: "Misc",

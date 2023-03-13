@@ -1579,7 +1579,13 @@ function getApproxDate(theDate) {
   }
   return { Date: aDate, Approx: approx };
 }
-
+/**
+ * Calculates the number of full years and days between two dates.
+ *
+ * @param {(string|Object)} start - The start date as a string in the format "YYYY-MM-DD" or an object with `year`, `month`, and `date` properties.
+ * @param {string} [end=false] - The end date as a string in the format "YYYY-MM-DD". Defaults to `false` (i.e., the current date).
+ * @returns {([number,number,number]|undefined)} An array of [fullYears,andDays,totalDays] or `undefined` if the input is invalid.
+ */
 export function getAge(start, end = false) {
   let start_day, start_month, start_year, end_day, end_month, end_year;
   if (typeof start === "object") {

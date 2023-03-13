@@ -7,6 +7,7 @@ import "./features/accessibility/accessibility";
 import "./features/agc/agc_content";
 import "./features/akaNameLinks/akaNameLinks";
 import "./features/appsMenu/appsMenu";
+import "./features/auto_bio/auto_bio";
 import "./features/bioCheck/bioCheck";
 import "./features/categoryDisplay/categoryDisplay";
 import "./features/categoryFinderPins/categoryFinderPins";

@@ -34,6 +34,7 @@ import {
 
 import "./accessibility/accessibility_options.js";
 import "./agc/agc_options.js";
+import "./auto_bio/auto_bio_options.js";
 import "./categoryDisplay/categoryDisplay_options.js";
 import "./change_family_lists/change_family_lists_options.js";
 import "./custom_change_summary_options/custom_change_summary_options_options";
