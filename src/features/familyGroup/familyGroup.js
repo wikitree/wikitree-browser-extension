@@ -232,7 +232,7 @@ export function peopleToTable(kPeople) {
           "<tr data-name='" +
             kPers.Name +
             "' data-birthdate='" +
-            bDate.replaceAll(/\-/g, "") +
+            bDate.replaceAll(/-/g, "") +
             "' data-relation='" +
             kPers.Relation +
             "' class='" +
@@ -342,8 +342,7 @@ export function displayName(fPerson) {
               fName3 += "(" + fPerson["LastNameAtBirth"] + ") ";
             }
           } else if (dCheck == "RealName") {
-            if (typeof fPerson["FirstName"] != "undefined") {
-            } else {
+            if (!(typeof fPerson["FirstName"] != "undefined")) {
               fName3 += fPerson["RealName"] + " ";
             }
           } else {

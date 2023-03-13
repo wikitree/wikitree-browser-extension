@@ -175,7 +175,7 @@ async function whatLinksHereLink() {
 
 function copyToClipboard3(element, refs = 1) {
   var $temp = $("<textarea>");
-  var brRegex = /<br\s*[\/]?>/gi;
+  var brRegex = /<br\s*[/]?>/gi;
   $("body").append($temp);
   let ref1 = "";
   let ref2 = "";

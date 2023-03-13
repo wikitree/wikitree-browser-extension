@@ -44,8 +44,6 @@ async function addMovingSaveBox() {
         let currentLS = localStorage.getItem("LSchangeSummaryOptions");
         if (currentLS == null) {
           currentLS = "";
-          if (currentLS.match(/@@/) == null) {
-          }
         }
 
         localStorage.setItem("LSchangeSummaryOptions", currentLS + $("#newOption").val() + "@@");
@@ -93,7 +91,7 @@ async function addMovingSaveBox() {
     }
 
     saveStuff.insertAfter(validationContainer);
-    const tca = $(".ten.columns.alpha").eq(0);
+    //const tca = $(".ten.columns.alpha").eq(0);
     saveStuff.css({ border: "1px forestgreen solid", padding: "1em" });
     const dRadios = $("#saveStuff label input[type='radio']");
     dRadios.attr("type", "checkbox");
@@ -123,8 +121,8 @@ async function addMovingSaveBox() {
   if (options.movingSaveBox) {
     $("#saveStuff").prependTo(sco);
     $(window).on("scroll", function () {
-      let scroll = $(window).scrollTop();
-      const previewBox = $("#previewbox");
+      //let scroll = $(window).scrollTop();
+      //const previewBox = $("#previewbox");
       if (
         isScrolledIntoView($("#previewButton")) ||
         isScrolledPast($("#previewButton")) ||
@@ -266,13 +264,8 @@ function summaryBox(el, added = false) {
     $("#wpSummary").val($("#wpSummary").val().replace(thisText, ""));
     $("#wpSummary").val($("#wpSummary").val().replace(/\s\s/, " "));
   } else {
-    const aRegex = new RegExp("[^s]" + thisText);
-    const matching = $("#wpSummary").val().match(aRegex);
-    if (matching != null) {
-    }
-  }
-
-  if ($("#wpSummaryTextArea").length == 0) {
+    //const aRegex = new RegExp("[^s]" + thisText);
+    //const matching = $("#wpSummary").val().match(aRegex);
   }
   $("#wpSummaryTextArea").text($("#wpSummary").val());
 
@@ -305,7 +298,7 @@ function isScrolledIntoView(elem) {
 function isScrolledPast(elem) {
   if (elem.length) {
     var docViewTop = $(window).scrollTop();
-    var docViewBottom = docViewTop + $(window).height();
+    // var docViewBottom = docViewTop + $(window).height();
     var elemTop = $(elem).offset().top;
     var elemBottom = elemTop + $(elem).height();
     if (elemBottom < docViewTop) {
