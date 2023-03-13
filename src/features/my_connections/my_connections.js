@@ -11,10 +11,10 @@ import { isOK, htmlEntities, extractRelatives } from "../../core/common";
 import Cookies from "js-cookie";
 import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup";
 import { ancestorType } from "../distanceAndRelationship/distanceAndRelationship";
-import { checkIfFeatureEnabled, } from "../../core/options/options_storage";
-const USstatesObjArray = [
-  { name: "Alabama", abbreviation: "AL" },
-  { name: "Alaska", abbreviation: "AK" },
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+export const USstatesObjArray = [
+  { name: "Alabama", abbreviation: "AL", admissionDate: "1819-12-14" },
+  { name: "Alaska", abbreviation: "AK", admissionDate: "1959-01-03" },
   { name: "American Samoa", abbreviation: "AS" },
   { name: "Arizona", abbreviation: "AZ" },
   { name: "Arkansas", abbreviation: "AR" },
@@ -474,7 +474,6 @@ async function getMoreConnections() {
       type: "POST",
       dataType: "json",
       success: function (data) {
-
         data[0]?.items?.forEach(function (anItem) {
           const mPerson = anItem.person;
           let connections = [];
@@ -982,7 +981,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
               mPerson.Name = idArr[index];
             } else {
               let dCheckbox = $("input[type='checkbox'][value='" + idArr[index] + "']");
-             theLink = dCheckbox.next();
+              theLink = dCheckbox.next();
             }
 
             let mLiClass = theLink.parent().attr("class");
@@ -1050,7 +1049,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
             //let noBorDdate = false;
             if (!isOK(birthDate) || !isOK(deathDate)) {
               livedToCell = "<td></td>";
-             // noBorDdate = true;
+              // noBorDdate = true;
             } else {
               let yearDayText = "";
               if (birthDate.match(/-/) == null && deathDate.match(/-/) == null) {
@@ -1325,9 +1324,9 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
           let ancestorData = "";
           let ahnenCell = "";
           let unknownText = "";
-         // let mfmf = "";
+          // let mfmf = "";
           let relCell = "";
-         // let mRelType = "";
+          // let mRelType = "";
           if (tableID == "profileAncestors") {
             let ahnen1 = "";
             if (index == 0) {
@@ -1819,7 +1818,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
             let rows = $(".peopleTable tbody tr");
             let locations = $("#spLocationFilter").val().split(",");
             const locationsT = locations.map((string) => string.trim());
-           // const oLocations = [];
+            // const oLocations = [];
 
             rows.each(function () {
               keepIt = false;
