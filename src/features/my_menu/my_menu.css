@@ -112,6 +112,11 @@ body.home #myCustomMenuContainer ul.pureCssMenu {
   bottom: 0.8em;
   right: 7em;
 }
+body.qa-body-js-on #myCustomMenuContainer {
+  float: right;
+  z-index: 19;
+  position: relative;
+}
 
 #myCustomMenuContainer ul.pureCssMenu > li {
   display: block;
