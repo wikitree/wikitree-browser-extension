@@ -6,7 +6,7 @@ import { isOK, htmlEntities, extractRelatives } from "../../core/common";
 import Cookies from "js-cookie";
 import { ymdFix, showFamilySheet, getOffset, peopleToTable, displayName } from "../familyGroup/familyGroup";
 import { ancestorType } from "../distanceAndRelationship/distanceAndRelationship";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 export const USstatesObjArray = [
   { name: "Alabama", abbreviation: "AL", admissionDate: "1819-12-14" },
   { name: "Alaska", abbreviation: "AK", admissionDate: "1959-01-03" },
