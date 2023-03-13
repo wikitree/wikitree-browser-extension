@@ -25,14 +25,14 @@ export function ensureProfileClasses() {
     // mark the thumbnail image container based on the heading
     $(".x-heading > .alpha").first().addClass("x-thumbnail");
 
-    // mark the widgets (including the scissors container) inside the h1 tag
-    $(".x-heading-title button").addClass("x-heading-widget");
-    $(".x-profile-category .x-heading").prevAll().filter(function () { return $(this).css("float") == "right" && $(this).has("a, button"); }).addClass("x-heading-widget");
+    // mark the widgets (including the scissors container) inside the h1 tag, plus the green buttons like showHideTree
+    $(".x-heading-title button, .showHideTree, #showHideDescendants").addClass("x-widget");
+    $(".x-profile-category .x-heading").prevAll().filter(function () { return $(this).css("float") == "right" && $(this).has("a, button"); }).addClass("x-widget");
     $(function () {
       // some extensions add these differently based on the type of profile, so we need to reapply these after the page is loaded and other extensions have made their updates
       window.setTimeout(function () {
         // .copyWidget seems mostly standard, but other extensions put their widgets in identified span tags (helpScissors, distanceFromYou, yourRelationshipText, etc.)
-        $(".x-heading-title button, .copyWidget, .x-heading-title span[id], .x-heading-title:not(.x-heading) ~ *[id]").addClass("x-heading-widget");
+        $(".x-heading-title button, .copyWidget, .x-heading-title span[id], .x-heading-title:not(.x-heading) ~ *[id]").addClass("x-widget");
       }, 500);
     });
 
@@ -61,7 +61,7 @@ export function ensureProfileClasses() {
     $(".x-content p.SMALL").filter(function () { var txt = $(this).text(); return (txt.indexOf('last modified') > -1 && txt.indexOf('been accessed') > -1); }).addClass("x-audit"); // category pages are displayed this way
 
     // mark the sources link in the table of contents
-    $("#toc a[href='#Sources']").closest("li").addClass("x-toc-sources");
+    $(".x-content .toc a[href='#Sources']").closest("li").addClass("x-toc-sources");
 
     // mark stickers inside the content
     $(".x-content > div").filter(function () { return $(this).css("float") == "right" && $(this).css("display") == "flex"; }).addClass("x-sticker");
@@ -73,7 +73,7 @@ export function ensureProfileClasses() {
     $(".x-content table").has("a.image > img").addClass("x-inline-img");
 
     // mark inline tables (inline images must be marked first so that they will be excluded, along with the table of contents)
-    $(".x-content table:not(#toc):not(.x-inline-img)").addClass("x-inline-table");
+    $(".x-content table:not(.toc):not(.x-inline-img)").addClass("x-inline-table");
 
     // mark root sections in content (h2 only)
     $(".x-content a[name] + h1, .x-content a[name] + h2").prev().addClass("x-root-section x-section");
