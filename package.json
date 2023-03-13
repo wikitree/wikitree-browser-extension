@@ -19,7 +19,6 @@
     "url": "https://github.com/wikitree/wikitree-browser-extension.git"
   },
   "dependencies": {
-    "cheerio": "^1.0.0-rc.12",
     "jquery": "^3.6.1",
     "jquery-ui": "^1.13.2",
     "js-cookie": "^3.0.1",
