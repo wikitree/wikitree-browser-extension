@@ -4173,7 +4173,7 @@ async function getLocationCategory(type, location = null) {
 }
 
 checkIfFeatureEnabled("autoBio").then((result) => {
-  if (result && isEditPage) {
+  if (result) {
     getFeatureOptions("autoBio").then((options) => {
       window.autoBioOptions = options;
       console.log("window.autoBioOptions", window.autoBioOptions);
