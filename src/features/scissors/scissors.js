@@ -4,7 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { copyThingToClipboard } from "../g2g/g2g";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { checkIfFeatureEnabled} from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("scissors").then((result) => {
   if (
@@ -34,7 +34,7 @@ function helpScissors() {
       $("h1").append(
         $(
           '<span id="helpScissors"><button aria-label="Copy ID" title="Copy ID" data-copy-label="Copy ID" class="copyWidget" data-copy-text="' +
-            helpID +
+            window.helpID +
             '" style="color:#8fc641;"><img src="/images/icons/scissors.png">ID</button><button aria-label="Copy Link" title="Copy Link" data-copy-label="Copy Link" class="copyWidget" data-copy-text="' +
             helpLink +
             '" style="color:#8fc641;">/Link</button><button aria-label="Copy URL" title="Copy URL" data-copy-label="Copy URL" class="copyWidget" data-copy-text="' +

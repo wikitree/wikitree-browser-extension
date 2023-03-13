@@ -64,12 +64,12 @@ function g2gScissors() {
     const g2gIDmatch = url.match(/\/([0-9]{1,8})\//);
     if (g2gIDmatch != null) {
       window.g2gID = g2gIDmatch[1];
-      const g2gURL = "https://www.wikitree.com/g2g/" + g2gID;
+      const g2gURL = "https://www.wikitree.com/g2g/" + window.g2gID;
       const g2gQuestion = $(".qa-main-heading h1").text();
       $(".qa-sidepanel").prepend(
         $(
           '<span id="g2gScissors"><button aria-label="Copy ID" title="Copy ID" data-copy-label="Copy ID" class="copyWidget" data-copy-text="' +
-            g2gID +
+            window.g2gID +
             '" style="color:#8fc641;"><img src="/images/icons/scissors.png">ID</button><button aria-label="Copy URL" title="Copy URL" data-copy-label="Copy URL" class="copyWidget" data-copy-text="' +
             g2gURL +
             '" style="color:#8fc641;">/URL</button><button aria-label="Copy Question" title="Copy Question" data-copy-label="Copy Question" class="copyWidget" data-copy-text="' +
@@ -158,7 +158,6 @@ function addWikiIDGoBox() {
 
     $("#wtIDgo_go").on("click", function (ev) {
       ev.preventDefault();
-      const wtID = $("#wtIDgo_id");
       const thisValue = $("#wtIDgo_id").val().trim();
       if (thisValue.match(/[0-9]/) == null) {
         window.location = "https://www.wikitree.com/genealogy/" + thisValue;

@@ -172,7 +172,6 @@ async function onlyAgesAtMarriages() {
 }
 
 async function moveFamilyLists(firstTime = false, wasClicked = false) {
-  const leftHandColumn = $("div.ten").eq(0).prop("id", "leftColumn");
   const rightHandColumn = $("div.six").eq(0).prop("id", "rightColumn");
   const familyLists = $("#nVitals");
 
@@ -225,10 +224,12 @@ function reallyMakeFamLists() {
   if ($("body.profile").length && $("body[class*=page-Space_]").length == 0) {
     const profileWTID = $("a.pureCssMenui0 span.person").text();
     if ($("ul.pureCssMenu.pureCssMenum li:nth-child(2) li:contains('Edit')").length) {
+      /*
       const profileID = $("ul.pureCssMenu.pureCssMenum li:nth-child(2) li:contains('Edit')")
         .find("a")
         .attr("href")
         .split("&u=")[1];
+        */
     }
     if (profileWTID) {
       $.ajax({
@@ -312,9 +313,6 @@ function reallyMakeFamLists() {
             });
           });
 
-          //if (typeof profileWTID != "undefined" && !diff && $("#yourConnection").length == 0) {
-          const mID = profileWTID;
-
           $("#siblingsHeader").off("click");
           $("body").on("click", "#siblingsHeader", function () {
             siblingsHeader();
@@ -323,10 +321,6 @@ function reallyMakeFamLists() {
           setTimeout(function () {
             addHalfsStyle();
           }, 1000);
-          /*
-            window.intervalID = setInterval(addUncertain, 500);
-            window.triedUncertain = 0;
-            */
 
           fixAllPrivates();
 
@@ -351,7 +345,7 @@ function reallyMakeFamLists() {
           });
         },
         error: function (xhr, status) {
-          $("#output").append("<br>There was an error getting the person:" + data[0].status);
+          $("#output").append("<br>There was an error getting the person:" + status);
         },
       });
     }
@@ -376,10 +370,10 @@ async function addHalfsStyle() {
         let mother = $(this).data("mother");
         let thisID = $(this).data("id");
         let thisLi = $(this);
-        if ((father == p1id && p1id != undefined) || (thisLi.attr("id") == "profilePerson" && BioPerson.Father != 0)) {
+        if ((father == p1id && p1id != undefined) || (thisLi.attr("id") == "profilePerson" && window.BioPerson.Father != 0)) {
           $(this).find(".bdDates").addClass("parent_1");
         }
-        if ((mother == p2id && p2id != undefined) || (thisLi.attr("id") == "profilePerson" && BioPerson.Mother != 0)) {
+        if ((mother == p2id && p2id != undefined) || (thisLi.attr("id") == "profilePerson" && window.BioPerson.Mother != 0)) {
           $(this).addClass("parent_2");
         }
       });
@@ -390,8 +384,7 @@ async function addHalfsStyle() {
 function addDataToPerson(el, pData) {
   if (pData) {
     let oGender = "";
-    if (pData.DataStatus.Gender == "blank" || pData.Gender == "") {
-    } else {
+    if (!(pData.DataStatus.Gender == "blank" || pData.Gender == "")) {
       oGender = pData.Gender;
     }
     el.attr("data-gender", oGender);
@@ -484,7 +477,6 @@ function fixNakedPrivates() {
     let firstMatch = tNodes[n].textContent.match(rgx3);
     let ip;
     if (firstMatch != null) {
-      let bors = firstMatch[0].match(rgx2);
       let borsof = firstMatch[0].match(rgx4);
       if (borsof != null) {
         let borsofText = document.createTextNode(borsof);
@@ -515,7 +507,6 @@ function fixNakedPrivates() {
     }
     let firstMatch2 = tNodes[n].textContent.match(rgx5);
     if (firstMatch2 != null) {
-      let husbandOrWife = firstMatch2[0].match(rgx5);
       let husbandOrWifeOf = firstMatch2[0].match(rgx6);
       let privateText = firstMatch2[0].match(/private wife|husband/);
       let fullPrivateText;
@@ -596,8 +587,6 @@ function makeFamLists() {
     }
   });
 
-  dchildren = document.querySelectorAll('span[itemprop="children"]');
-
   if (dparents.length > 0) {
     const ofNode2 = $("#parentsHeader")
       .parent()
@@ -607,7 +596,6 @@ function makeFamLists() {
       });
     list2ol(dparents, "parentList");
     if ($("#parentList li").length) {
-      dchildren = document.querySelectorAll('span[itemprop="children"]');
       if ($("#parentList")[0].previousSibling) {
         if ($("#parentList")[0].previousSibling.textContent == "\nand\n") {
           $("#parentList")[0].previousSibling.remove();
@@ -771,7 +759,6 @@ function makeFamLists() {
   // $(".aSpouse").length > 1 &&
 
   if ($("#childrenList li").length) {
-    let sameParent = true;
     let checkParent = "mother";
     const parentIDs = [];
     if ($(".aSpouse").length) {
@@ -813,7 +800,7 @@ function list2ol(items, olid) {
   );
 
   items.forEach(function (item) {
-    var dob, dobStatus, dod, dodStatus, ddates, doby, dody, dobyStatus, dodyStatus, dHalf;
+    var dHalf;
     let nLi = document.createElement("li");
     let dNext = item.nextSibling;
     if (dNext) {
@@ -915,7 +902,7 @@ function list2ol2(person) {
       }
     } else {
       doby = " ";
-      var disGender, male, female;
+      var disGender;
       let disID = htmlEntities(pdata["Name"]);
 
       if (disID) {
@@ -1124,7 +1111,6 @@ function createPrivateAndDates(aNode, nextSib, ip) {
   nSpan.setAttribute("itemprop", ip);
   nSpan.setAttribute("data-private", "1");
   $(nSpan).addClass(ip);
-  let nComma = document.createTextNode(",");
   let nText = aNode.textContent.replace(/.*\[/, "[");
   nText = nText.replace(/((Brother)|(Sister))\sof\s/, "");
   nText = nText + "]";
@@ -1333,7 +1319,7 @@ function setUpMarriedOrSpouse() {
 
     let spouseVITALS = $(".VITALS.spouseDetails");
     spouseVITALS.addClass("aSpouse");
-    $("div.aSpouse").each(function (index, el) {
+    $("div.aSpouse").each(function () {
       const marriageSpan = $("<span class='marriageDetails'></span>");
       const spouseName = $(this).find("span[itemprop='spouse']");
       marriageSpan.insertAfter(spouseName);
@@ -1438,7 +1424,6 @@ function extraBitsForFamilyLists() {
   let noSpousePublic = "[spouse(s) unknown]";
   let noSpousePrivate = "[spouse?]";
   let spouseVITALS = $(".VITALS.spouseDetails");
-  let noSpouseVITALS = $(".VITALS:contains('[spouse(s) unknown]')");
   spouseVITALS.addClass("aSpouse");
   if ($(".aSpouse").length) {
     $(".aSpouse").each(function () {
@@ -1513,53 +1498,52 @@ function extraBitsForFamilyLists() {
     .attr("data-gender", "female");
 }
 
+function amaTimer() {
+  window.runningAMA++;
+  if (window.people[0]?.Spouses != undefined) {
+    window.doneMarriageAges = true;
+    let oSpouses = Object.entries(window.people[0]?.Spouses);
+    oSpouses.forEach(function (aSpouse) {
+      let aSp = aSpouse[1];
+      if (isOK(aSp.marriage_date)) {
+        let bioPersonMarriageAge;
+        if (!window.excludeValues.includes(window.people[0].BirthDate)) {
+          bioPersonMarriageAge = getMarriageAge(window.people[0].BirthDate, aSp.marriage_date, window.people[0]);
+        }
+        let aSpMarriageAge = getMarriageAge(aSp.BirthDate, aSp.marriage_date, aSp);
+        let spBit = "";
+        let bpBit = "";
+        if (bioPersonMarriageAge) {
+          bpBit = window.people[0].FirstName + " (" + bioPersonMarriageAge + ")";
+        }
+        if (isOK(aSp.BirthDate)) {
+          spBit = aSp.FirstName + " (" + aSpMarriageAge + ")";
+          if (bioPersonMarriageAge) {
+            spBit = "; " + spBit;
+          }
+        }
+        $(`.spouseDetails a[href$="${aSp.Name.replaceAll(/\s/g, "_")}"]`)
+          .closest("div")
+          .append($("<span class='marriageAges'>" + bpBit + spBit + "</span>"));
+      }
+    });
+  }
+  if (window.runningAMA > 10 || window.doneMarriageAges == true) {
+    clearInterval(window.ama);
+  }
+}
+
 async function addMarriageAges() {
   window.runningAMA = 0;
   if (window.doneMarriageAges == undefined) {
     window.ama = setInterval(amaTimer, 2000);
     window.doneMarriageAges = false;
-
-    function amaTimer() {
-      window.runningAMA++;
-      if (window.people[0]?.Spouses != undefined) {
-        window.doneMarriageAges = true;
-        let oSpouses = Object.entries(window.people[0]?.Spouses);
-        oSpouses.forEach(function (aSpouse) {
-          let aSp = aSpouse[1];
-          if (isOK(aSp.marriage_date)) {
-            let bioPersonMarriageAge;
-            if (!excludeValues.includes(window.people[0].BirthDate)) {
-              bioPersonMarriageAge = getMarriageAge(window.people[0].BirthDate, aSp.marriage_date, window.people[0]);
-            }
-            let aSpMarriageAge = getMarriageAge(aSp.BirthDate, aSp.marriage_date, aSp);
-            let spBit = "";
-            let bpBit = "";
-            if (bioPersonMarriageAge) {
-              bpBit = window.people[0].FirstName + " (" + bioPersonMarriageAge + ")";
-            }
-            if (isOK(aSp.BirthDate)) {
-              spBit = aSp.FirstName + " (" + aSpMarriageAge + ")";
-              if (bioPersonMarriageAge) {
-                spBit = "; " + spBit;
-              }
-            }
-            $(`.spouseDetails a[href\$="${aSp.Name.replaceAll(/\s/g, "_")}"]`)
-              .closest("div")
-              .append($("<span class='marriageAges'>" + bpBit + spBit + "</span>"));
-          }
-        });
-      }
-      if (window.runningAMA > 10 || window.doneMarriageAges == true) {
-        clearInterval(window.ama);
-      }
-    }
   }
 }
 
 function getMarriageAge(d1, d2, mPerson) {
   const bDate = getApproxDate(d1);
   const mDate = getApproxDate(d2);
-
   let approx = "";
 
   if (
@@ -1583,7 +1567,7 @@ function getApproxDate(theDate) {
     approx = true;
   } else {
     const bits = theDate.split("-");
-    if (theDate.match(/00\-00$/) != null || !bits[1]) {
+    if (theDate.match(/00-00$/) != null || !bits[1]) {
       aDate = bits[0] + "-07-02";
       approx = true;
     } else if (theDate.match(/-00$/) != null) {
@@ -1757,25 +1741,18 @@ function status2symbol(ostatus) {
   switch (ostatus) {
     case "guess":
       return "~";
-      break;
     case "abt":
       return "~";
-      break;
     case "before":
       return "<";
-      break;
     case "bef":
       return "<";
-      break;
     case "after":
       return ">";
-      break;
     case "aft":
       return ">";
-      break;
     case "certain":
       return "";
-      break;
     default:
       return "";
   }

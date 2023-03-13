@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 /*
 Created By: Ian Beacall (Beacall-6)
 */
@@ -8,9 +9,9 @@ import "jquery-ui/ui/widgets/draggable";
 import { getAge } from "../change_family_lists/change_family_lists";
 import { isOK, htmlEntities, extractRelatives } from "../../core/common";
 import Cookies from "js-cookie";
-import { ymdFix, showFamilySheet, getOffset, peopleToTable, displayName } from "../familyGroup/familyGroup";
+import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup";
 import { ancestorType } from "../distanceAndRelationship/distanceAndRelationship";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { checkIfFeatureEnabled, } from "../../core/options/options_storage";
 const USstatesObjArray = [
   { name: "Alabama", abbreviation: "AL" },
   { name: "Alaska", abbreviation: "AK" },
@@ -140,7 +141,6 @@ checkIfFeatureEnabled("myConnections").then((result) => {
 function myConnectionsCountPt2(lastH3, ols, degreeCountTable) {
   window.degreeNum = parseInt(lastH3) + 1;
   let count = 0;
-  let outTexty = "";
   let beeCount = 0;
   ols.forEach(function (anOl, index) {
     if (index > 0 && index < parseInt(lastH3) + 1) {
@@ -170,7 +170,6 @@ function myConnectionsCountPt2(lastH3, ols, degreeCountTable) {
           maxPlusPlus = "+";
         }
       }
-      outTexty += " " + liNum + maxPlus + " ||";
       degreeCountTable.find("thead tr").append($("<th>" + index + "</th>"));
       degreeCountTable
         .find("tbody tr.countRow")
@@ -195,7 +194,7 @@ async function centreNumbersInTable(jqTable) {
       isNaN($(this).text().trim()) == false ||
       $(this)
         .text()
-        .match(/[0-9]\-/)
+        .match(/[0-9]-/)
     ) {
       $(this).addClass("number");
     }
@@ -475,9 +474,6 @@ async function getMoreConnections() {
       type: "POST",
       dataType: "json",
       success: function (data) {
-        if (data[0].items == undefined) {
-        } else {
-        }
 
         data[0]?.items?.forEach(function (anItem) {
           const mPerson = anItem.person;
@@ -564,7 +560,7 @@ async function getMoreConnections() {
               let maxPlus = "";
               if (window.maxedOut != 100 || window.degreeNum > 10) {
                 maxPlus = "+";
-                if (window.degreeNum == 7 && maxedOut != 100 && window.CC7 != false) {
+                if (window.degreeNum == 7 && window.maxedOut != 100 && window.CC7 != false) {
                   maxPlus = "";
                   maxPlusPlus = "+";
                 }
@@ -669,6 +665,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
       window.isMyUnconnecteds = true;
     }
   } else if (tableID == "profileAncestors") {
+    // later?
   } else if (tableClass == "category") {
     $(".moreDetailsButton").replaceWith(
       $("<img id='tree' class='waiting category' src='" + chrome.runtime.getURL("images/tree.gif") + "'>")
@@ -686,6 +683,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
     let theHREF = thisPLink.attr("href");
     if (theHREF) {
       let thisPLinkSplit = theHREF.split("/wiki/");
+      // eslint-disable-next-line no-unused-vars
       let thisP = thisPLinkSplit[1];
     }
   } else {
@@ -793,6 +791,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
             "<th id='created' data-order='' >Created</th><th id='edited' data-order='' >Edited</th></tr></thead><tbody></tbody></table>"
         );
 
+        // eslint-disable-next-line no-undef
         if (isMyUnconnecteds == true) {
           insAfter = $("h2").eq(0);
         }
@@ -930,7 +929,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
                 if ($("h2").text().match(/child/) != null) {
                   mSiblings = mChildren;
                   mParents = mSpouses;
-                  mParents.push(clonePerson);
+                  mParents.push(window.clonePerson);
                   mChildren = "";
                   mSpouses = "";
                 }
@@ -940,7 +939,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
                     .match(/(father)|(mother)/) != null
                 ) {
                   mChildren = mSiblings;
-                  mChildren.push(clonePerson);
+                  mChildren.push(window.clonePerson);
                   let mSpouses = mParents;
                   mParents = "";
                   mSiblings = "";
@@ -951,7 +950,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
                     .match(/sibling/) != null
                 ) {
                   mChildren = "";
-                  mSiblings.push(clonePerson);
+                  mSiblings.push(window.clonePerson);
                   mSpouses = "";
                 }
                 if (
@@ -960,7 +959,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
                     .match(/spouse/) != null
                 ) {
                   mSiblings = "";
-                  mSpouses = [clonePerson];
+                  mSpouses = [window.clonePerson];
                   mParents = "";
                 }
                 if (thisP == "McMurdo-150" || mPerson.Name == "Bascome-5" || mPerson.Name == "Bascome-16") {
@@ -983,7 +982,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
               mPerson.Name = idArr[index];
             } else {
               let dCheckbox = $("input[type='checkbox'][value='" + idArr[index] + "']");
-              let theLink = dCheckbox.next();
+             theLink = dCheckbox.next();
             }
 
             let mLiClass = theLink.parent().attr("class");
@@ -1025,7 +1024,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
             }
           }
 
-          let bYear = parseInt(birthDate.substring(0, 4));
+          //let bYear = parseInt(birthDate.substring(0, 4));
 
           let livedToCell = "";
           if (tableID == "superCentenarians" || tableID == "centenarians") {
@@ -1048,10 +1047,10 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
               daysS = "s";
             }
 
-            let noBorDdate = false;
+            //let noBorDdate = false;
             if (!isOK(birthDate) || !isOK(deathDate)) {
               livedToCell = "<td></td>";
-              noBorDdate = true;
+             // noBorDdate = true;
             } else {
               let yearDayText = "";
               if (birthDate.match(/-/) == null && deathDate.match(/-/) == null) {
@@ -1306,6 +1305,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
           }
 
           if (
+            // eslint-disable-next-line no-undef
             isUnconnecteds == true &&
             index == 0 &&
             isMyUnconnecteds == false &&
@@ -1325,9 +1325,9 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
           let ancestorData = "";
           let ahnenCell = "";
           let unknownText = "";
-          let mfmf = "";
+         // let mfmf = "";
           let relCell = "";
-          let mRelType = "";
+         // let mRelType = "";
           if (tableID == "profileAncestors") {
             let ahnen1 = "";
             if (index == 0) {
@@ -1819,7 +1819,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
             let rows = $(".peopleTable tbody tr");
             let locations = $("#spLocationFilter").val().split(",");
             const locationsT = locations.map((string) => string.trim());
-            const oLocations = [];
+           // const oLocations = [];
 
             rows.each(function () {
               keepIt = false;
@@ -2074,7 +2074,7 @@ function getApproxDate2(theDate) {
     approx = true;
   } else {
     let bits = theDate.split("-");
-    if (theDate.match(/00\-00$/) != null || !bits[1]) {
+    if (theDate.match(/00-00$/) != null || !bits[1]) {
       aDate = bits[0] + "-07-02";
       approx = true;
     } else if (theDate.match(/-00$/) != null) {
@@ -2098,8 +2098,7 @@ function location2ways(locationText) {
 function decimalToBinary(x) {
   let bin = 0;
   let rem,
-    i = 1,
-    step = 1;
+    i = 1;
   while (x != 0) {
     rem = x % 2;
     x = parseInt(x / 2);
@@ -2223,7 +2222,7 @@ function hsDetails(person, includeLink = 0) {
   outText = outText
     .replaceAll(/certain /g, "")
     .replace(/guess/g, "abt.")
-    .replaceAll(/0000\-00\-00 /g, "")
+    .replaceAll(/0000-00-00 /g, "")
     .replaceAll(/\bafter\b/g, "aft.")
     .replaceAll(/\bbefore\b/g, "bef.")
     .replaceAll(/\(\)/g, "")

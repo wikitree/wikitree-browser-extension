@@ -128,12 +128,12 @@ async function checkAttachPersonID() {
   $("body.page-Special_EditFamily #mName,body.page-Special_EditFamilySteps #mName").on("keyup", function () {
     $("#verification").remove();
     if (window.timeoutId) {
-      clearTimeout(timeoutId);
+      clearTimeout(window.timeoutId);
     }
     if (
       $(this)
         .val()
-        .match(/.+\-.+/)
+        .match(/.+-.+/)
     ) {
       const theKey = $(this).val();
       window.timeoutId = setTimeout(function () {

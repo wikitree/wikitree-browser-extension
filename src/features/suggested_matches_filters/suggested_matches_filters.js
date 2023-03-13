@@ -387,7 +387,7 @@ async function initSuggestedMatchesFilters() {
     if (person.locations.length == 0) {
       getLocations(person.WTID).then((oLocations) => {
         person.locations = oLocations;
-        let thisTD = $(`a[href\$="${person.WTID}"]`).closest("td");
+        let thisTD = $(`a[href$="${person.WTID}"]`).closest("td");
         let locationWords = person.locations.join(", ");
         if (person.locations.length) {
           thisTD.append("<div>Family location words: " + locationWords + "</div>");
