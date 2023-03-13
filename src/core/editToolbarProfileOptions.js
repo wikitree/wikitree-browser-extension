@@ -1,6 +1,7 @@
 /*
 Created By: Aleš Trtnik (Trtnik-2)
 */
+
 import { generateBio } from "../features/auto_bio/auto_bio";
 import { wtPlus } from "../features/wtPlus/wtPlus";
 import { editToolbarApp, editToolbarWiki } from "./editToolbar";
