@@ -1166,10 +1166,26 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
       .replace("in household of", "in the household of");
     text += info;
   }
+
+  if (reference.Text.match(/<br.?\/>/)) {
+    const textSplit = reference.Text.split(/<br.?\/>/);
+    text = textSplit[textSplit.length - 1]
+      .replace(window.profilePerson.LastNameAtBirth + " ", "")
+      .replace(/(single\s)?(daughter|son|wife|mother|husband|sister|brother)/, "was a $1$2")
+      .replace("in household of", "in the household of")
+      .replace("Born in", "According to the census, " + window.profilePerson.Pronouns.subject + " was born in");
+  }
+
+  if (text.match(/in the household/) && !text.match(/^[^.]*?\bwas\b[^.\n]*\./)) {
+    text = text.replace(/in the household/, "was in the household");
+  }
+
   return text;
 }
 
 function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMatchPattern) {
+  console.log(reference, firstName, ageAtCensus, nameMatchPattern);
+
   let text = "";
   let ageBit = "";
   if (ageAtCensus) {
@@ -2014,7 +2030,10 @@ function buildCensusNarratives() {
         let censusRest = "";
         if (reference.Text.match(/^'''\d{4} Census/)) {
           censusRest += sourcerCensusWithNoTable(reference, nameMatchPattern);
-        } else if (reference.Text.match(/database( with images)?, (<i>|''')?FamilySearch/)) {
+        } else if (
+          reference.Text.match(/database( with images)?, (<i>|''')?FamilySearch/) ||
+          reference.Text.match(/\{\{FamilySearch Record\|.*?\}\}/)
+        ) {
           console.log("Is FS census");
           let fsCensus = familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMatchPattern);
           reference = fsCensus[1];
@@ -2626,7 +2645,7 @@ async function getFindAGraveCitation(link) {
 }
 
 function addMilitaryRecord(aRef, type) {
-  console.log(aRef, type);
+  //console.log(aRef, type);
   // Add military service records
   if (["World War I", "World War II", "Vietnam War", "Korean War"].includes(type)) {
     aRef["Record Type"].push("Military");
@@ -2848,9 +2867,10 @@ function sourcesArray(bio) {
         aRef.Year = dateMatch2[1];
       }
 
-      let detailsMatch = aRef.Text.match(/\),\s(.*?and.*?);/);
-      let detailsMatch2 = aRef.Text.match(/\(http.*?\)(.*?image.*?;\s)(.*?)\./);
-      let entryForMatch = aRef.Text.match(/in entry for/);
+      const detailsMatch = aRef.Text.match(/\),\s(.*?and.*?);/);
+      const detailsMatch2 = aRef.Text.match(/\(http.*?\)(.*?image.*?;\s)(.*?)\./);
+      const detailsMatch3 = aRef.Text.match(/(.*) marriage to\s(.*?)\s\bon\b\s(.*?)\s\bin\b\s(.*)\./);
+      const entryForMatch = aRef.Text.match(/in entry for/);
       if (detailsMatch2) {
         if (detailsMatch2) {
           aRef["Marriage Place"] = detailsMatch2[2].replace("Archives", "");
@@ -2882,6 +2902,21 @@ function sourcesArray(bio) {
             aRef["Marriage Place"] = weddingLocationMatch[1].trim();
           }
         }
+      } else if (detailsMatch3) {
+        console.log(detailsMatch3);
+        aRef.Couple = [];
+        aRef.Couple.push(detailsMatch3[1].replace(/\(.*?\)/, "").trim());
+        aRef.Couple.push(detailsMatch3[2].replace(/\(.*?\)/, "").trim());
+        aRef["Marriage Date"] = detailsMatch3[3];
+        aRef.Year = detailsMatch3[3].match(/\d{4}/)[0];
+        aRef["Marriage Place"] = detailsMatch3[4].trim();
+        window.profilePerson.NameVariants.forEach((name) => {
+          if (name == aRef.Couple[0]) {
+            aRef["Spouse Name"] = aRef.Couple[1];
+          } else if (name == aRef.Couple[1]) {
+            aRef["Spouse Name"] = aRef.Couple[0];
+          }
+        });
       } else if (aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/)) {
         const details = aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/);
         aRef.Year = details[1];
@@ -2934,7 +2969,7 @@ function sourcesArray(bio) {
     // Add military service records
     const militaryMatch = aRef.Text.match(/World War I\b|World War II|Korean War|Vietnam War/);
     if (militaryMatch) {
-      console.log(militaryMatch);
+      //console.log(militaryMatch);
       aRef = addMilitaryRecord(aRef, militaryMatch[0]);
     }
   });
@@ -3753,16 +3788,17 @@ export async function generateBio() {
   });
   console.log("marriagesAndCensuses", marriagesAndCensusesEtc);
 
-  // Add obituary
-  let obituaryText = "";
-  if (window.sectionsObject["Obituary"]) {
-    obituaryText += "=== Obituary ===\n";
-    obituaryText += window.sectionsObject["Obituary"].text.join("\n");
-    obituaryText += "\n\n";
-  } else if (window.sectionsObject["Biography"].subsections.Obituary) {
-    obituaryText += "=== Obituary ===\n";
-    obituaryText += window.sectionsObject["Biography"].subsections.Obituary.text.join("\n");
-    obituaryText += "\n\n";
+  // Add Military and Obituary subsections
+  const subsections = [];
+  ["Military", "Obituary"].forEach(function (aSection) {
+    const subsection = addSubsection(aSection);
+    if (subsection) {
+      subsections.push(subsection);
+    }
+  });
+  let subsectionsText = "";
+  if (subsections.length > 0) {
+    subsectionsText = subsections.join("\n");
   }
 
   // Add location category
@@ -3992,7 +4028,7 @@ export async function generateBio() {
       (window.autoBioOptions.siblingList ? siblingListText : "") +
       deathText +
       marriagesAndCensusesText +
-      obituaryText +
+      subsectionsText +
       timelineText +
       researchNotesText +
       sourcesText +
@@ -4006,7 +4042,7 @@ export async function generateBio() {
       (window.autoBioOptions.siblingList ? siblingListText : "") +
       marriagesAndCensusesText +
       deathText +
-      obituaryText +
+      subsectionsText +
       timelineText +
       researchNotesText +
       sourcesText +
@@ -4075,6 +4111,47 @@ export async function generateBio() {
     $("#toolbar").append(removeAutoBioButton);
     $("#toolbar").append(deleteOldBioButton);
   }
+}
+
+function addSubsection(title) {
+  // Add title subsection
+  let subsectionText = "";
+  if (window.sectionsObject[title]) {
+    subsectionText += "=== " + title + " ===\n";
+    subsectionText += window.sectionsObject[title].text.join("\n");
+    subsectionText += "\n\n";
+  } else if (window.sectionsObject["Biography"].subsections[title]) {
+    subsectionText += "=== " + title + " ===\n";
+    subsectionText += window.sectionsObject["Biography"].subsections[title].text.join("\n");
+    subsectionText += "\n\n";
+  }
+
+  // Find ref tags in these subsections and match them to ones in the references array
+  const dummy = document.createElement("div");
+  dummy.innerHTML = subsectionText;
+  if ($(dummy).find("ref")) {
+    $(dummy)
+      .find("ref")
+      .each(function (i) {
+        console.log($(this));
+
+        subsectionText = subsectionText.replace(
+          "<ref>" + $(this).text() + "</ref>",
+          '<ref name="' + title + "_" + (i + 1) + '">' + $(this).text() + "</ref>"
+        );
+        let html = $(this).html(); // save the html value
+        window.references.forEach((ref) => {
+          if (ref.Text == html || getSimilarity(ref.Text, html) > 0.99) {
+            console.log(123);
+            ref.Used = true;
+            ref.RefName = title + "_" + (i + 1);
+            ref["Record Type"].push(title);
+          }
+        });
+      });
+  }
+  console.log(JSON.parse(JSON.stringify(window.references)));
+  return subsectionText;
 }
 
 async function getLocationCategory(type, location = null) {
