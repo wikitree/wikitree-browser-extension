@@ -3043,6 +3043,198 @@ function addRelationsToSourcerCensuses(censuses) {
 }
 
 function getSourcerCensuses() {
+  const censuses = [];
+  const thisBio = document.getElementById("wpTextbox1").value;
+  const dummy = document.createElement("div");
+  dummy.innerHTML = thisBio;
+  const refs = dummy.querySelectorAll("ref");
+  refs.forEach((ref) => ref.remove());
+  const text = dummy.innerHTML;
+  const regex = /In the (\d{4}) census.*?\{.*?\|\}/gms;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    censuses.push({ "Census Year": match[1], Text: match[0] });
+  }
+
+  if (window.sectionsObject?.Biography?.subsections?.Census) {
+    processCensusSubsections(censuses);
+  }
+
+  censuses.forEach(processCensus);
+
+  console.log("Censuses", censuses);
+  return addRelationsToSourcerCensuses(censuses);
+}
+
+function processCensusSubsections(censuses) {
+  let currentCensus = { "Census Year": "", Text: "" };
+  let tableStarted = false;
+
+  window.sectionsObject.Biography.subsections.Census.text.forEach((line) => {
+    const yearMatch = line.match(/^;(\d{4})/);
+
+    if (yearMatch) {
+      if (currentCensus["Census Year"]) {
+        currentCensus = { "Census Year": "", Text: "" };
+        tableStarted = false;
+      }
+      currentCensus["Census Year"] = yearMatch[1];
+    } else if (line.match(/^\{\|/)) {
+      tableStarted = true;
+      currentCensus.Text += line + "\n";
+    } else if (tableStarted) {
+      if (line.match(/^\|\}/)) {
+        tableStarted = false;
+        censuses.push(currentCensus);
+      }
+      currentCensus.Text += line + "\n";
+    }
+  });
+}
+
+function processCensus(census) {
+  const text = census.Text;
+  const residenceMatch = text.match(/(in|at)\s([A-Za-z\s]+.*?)(?=,|\.)/);
+
+  if (residenceMatch) {
+    census["Residence"] = residenceMatch[2];
+    census["Residence Type"] = residenceMatch[1];
+  }
+
+  const tableMatch = text.match(/\{.*?\|\}/gms);
+
+  if (tableMatch) {
+    const table = tableMatch[0];
+    processTable(table, census);
+  }
+}
+
+function processTable(table, census) {
+  const rows = table.split("\n");
+  const headers = rows[2]
+    .replace(/^.{2}/, "")
+    .split("||")
+    .map((header) => header.trim());
+  census.Household = [];
+
+  for (let i = 3; i < rows.length - 1; i++) {
+    if (rows[i].startsWith("|-")) continue;
+
+    const cells = rows[i]
+      .replace(/^.{2}/, "")
+      .split("||")
+      .map((cell) => cell.trim());
+    const obj = {};
+
+    if (cells[0].match("'''")) {
+      obj.Relation = "Self";
+      obj.isMain = true;
+    }
+
+    for (let j = 0; j < headers.length; j++) {
+      obj[headers[j]] = cells[j].replaceAll("'''", "").replace(/(\d+)(weeks|months)/, "$1}$/ $2");
+    }
+
+    if (obj.Relation === "Self" && obj.Occupation) {
+      census.Occupation = obj.Occupation;
+    }
+
+    census.Household.push(obj);
+  }
+
+  processHouseholdMembers(census);
+}
+
+function processHouseholdMembers(census) {
+  census.Household.forEach((person) => {
+    if (person.Sex) {
+      if (person.Sex === "M") {
+        person.Gender = "Male";
+      }
+      if (person.Sex === "F") {
+        person.Gender = "Female";
+      }
+    }
+
+    if (person.isMain) {
+      processMainHouseholdMember(person, census);
+    }
+  });
+}
+
+function processMainHouseholdMember(mainPerson, census) {
+  if (mainPerson.Relation) {
+    census.Household.forEach((otherPerson) => {
+      if (otherPerson !== mainPerson) {
+        updateRelation(mainPerson, otherPerson);
+      }
+    });
+  }
+
+  mainPerson.Relation = "Self";
+
+  if (mainPerson.Occupation) {
+    census.Occupation = mainPerson.Occupation;
+  }
+}
+
+function updateRelation(mainPerson, otherPerson) {
+  if (["Son", "Daughter"].includes(mainPerson.Relation)) {
+    updateRelationForChild(otherPerson);
+  } else if (["Wife"].includes(mainPerson.Relation)) {
+    updateRelationForWife(otherPerson);
+  } else if (["Husband"].includes(mainPerson.Relation)) {
+    updateRelationForHusband(otherPerson);
+  } else if (["Brother", "Sister"].includes(mainPerson.Relation)) {
+    updateRelationForSibling(otherPerson);
+  }
+}
+
+function updateRelationForChild(otherPerson) {
+  if (["Son"].includes(otherPerson.Relation)) {
+    otherPerson.Relation = "Brother";
+  }
+  if (["Daughter"].includes(otherPerson.Relation)) {
+    otherPerson.Relation = "Sister";
+  }
+  if (["Head"].includes(otherPerson.Relation)) {
+    if (otherPerson.Sex) {
+      if (otherPerson.Sex === "M") {
+        otherPerson.Relation = "Father";
+      } else if (otherPerson.Sex === "F") {
+        otherPerson.Relation = "Mother";
+      }
+    } else {
+      otherPerson.Relation = "Parent";
+    }
+  } else if (["Wife"].includes(otherPerson.Relation)) {
+    otherPerson.Relation = "Mother";
+  } else if (["Husband"].includes(otherPerson.Relation)) {
+    otherPerson.Relation = "Father";
+  }
+}
+
+function updateRelationForWife(otherPerson) {
+  if (["Head"].includes(otherPerson.Relation)) {
+    otherPerson.Relation = "Husband";
+  }
+}
+
+function updateRelationForHusband(otherPerson) {
+  if (["Head"].includes(otherPerson.Relation)) {
+    otherPerson.Relation = "Wife";
+  }
+}
+
+function updateRelationForSibling(otherPerson) {
+  if (otherPerson.Relation === "Head") {
+    otherPerson.Relation = "Sibling";
+  }
+}
+
+/*
+function getSourcerCensuses() {
   let censuses = [];
   let thisBio = $("#wpTextbox1").val();
   let dummy = document.createElement("div");
@@ -3175,6 +3367,7 @@ function getSourcerCensuses() {
   censuses = addRelationsToSourcerCensuses(censuses);
   return censuses;
 }
+*/
 
 async function getStickersAndBoxes() {
   let afterBioHeading = "";
