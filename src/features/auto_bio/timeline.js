@@ -104,7 +104,9 @@ export function bioTimelineFacts(marriagesAndCensusesEtc) {
           theYear = theYear + "00";
         }
       }
-      aFact.OrderDate = padNumber(theYear.replaceAll(/-/g, ""));
+      if (theYear) {
+        aFact.OrderDate = padNumber(theYear.replaceAll(/-/g, ""));
+      }
     }
   });
 

@@ -1528,8 +1528,11 @@ function updateRelations(data) {
 
 function findRelation(person) {
   let relationWord;
+  console.log(person);
   if (!person.FirstName) {
-    person.FirstName = person.Name.split(" ")[0];
+    if (person.Name) {
+      person.FirstName = person.Name.split(" ")[0];
+    }
   }
   ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
     if (window.profilePerson[relation]) {
@@ -2542,8 +2545,10 @@ function getSimilarity(string1, string2) {
 function isSameName(name, nameVariants, strength = 0.9) {
   let sameName = false;
   nameVariants.forEach(function (nv) {
-    if (getSimilarity(nv.toLowerCase(), name.toLowerCase()) > strength) {
-      sameName = true;
+    if (nv && name) {
+      if (getSimilarity(nv.toLowerCase(), name.toLowerCase()) > strength) {
+        sameName = true;
+      }
     }
   });
   return sameName;
