@@ -90,7 +90,23 @@ export function bioTimelineFacts(marriagesAndCensusesEtc) {
     }
   });
 
-  console.log("bioTimeline", bioTimeline);
+  /* If no orderDate, use the event date: must be an 8 figure string */
+  bioTimeline.forEach(function (aFact) {
+    if (!aFact.OrderDate) {
+      let theYear = aFact["Event Date"] || aFact.Year;
+      if (theYear) {
+        if (theYear.match(/[a-z]/i)) {
+          theYear = getYYYYMMDD(theYear);
+        }
+        if (theYear.length === 4) {
+          theYear = theYear + "0000";
+        } else if (theYear.length === 6) {
+          theYear = theYear + "00";
+        }
+      }
+      aFact.OrderDate = padNumber(theYear.replaceAll(/-/g, ""));
+    }
+  });
 
   bioTimeline = Object.values(
     bioTimeline.reduce((acc, obj) => {
@@ -106,8 +122,10 @@ export function bioTimelineFacts(marriagesAndCensusesEtc) {
   );
 
   bioTimeline.sort(function (a, b) {
-    return a.OrderDate - b.OrderDate;
+    return parseInt(a.OrderDate) - parseInt(b.OrderDate);
   });
+
+  console.log("bioTimeline", bioTimeline);
 
   return bioTimeline;
 }
@@ -213,16 +231,19 @@ export function buildTimelineTable(bioTimeline) {
           isRightCensus ||
           isRightMarriage
         ) {
-          let theRef;
-          if (aRef.Used) {
-            theRef = "<ref name='" + aRef["RefName"] + "' />";
-          } else {
-            theRef = "<ref name='ref_" + i + "'>" + aRef.Text + "</ref>";
-            aRef.Used = true;
-            aRef.RefName = "ref_" + i;
-          }
-          if (theRef) {
-            sources += theRef;
+          console.log(aEvent, aRef);
+          if (!(aEvent["Event Type"] == "Military" && aEvent.Year != aRef.Year)) {
+            let theRef;
+            if (aRef.Used) {
+              theRef = "<ref name='" + aRef["RefName"] + "' />";
+            } else {
+              theRef = "<ref name='ref_" + i + "'>" + aRef.Text + "</ref>";
+              aRef.Used = true;
+              aRef.RefName = "ref_" + i;
+            }
+            if (theRef) {
+              sources += theRef;
+            }
           }
         }
       });

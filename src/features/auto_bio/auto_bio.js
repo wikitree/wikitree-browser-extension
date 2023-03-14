@@ -4,7 +4,7 @@ import { getPeople } from "../dna_table/dna_table";
 import { PersonName } from "./person_name.js";
 import { countries } from "./countries.js";
 import { firstNameVariants } from "./first_name_variants.js";
-import { isOK, htmlEntities, isEditPage } from "../../core/common";
+import { isOK, htmlEntities } from "../../core/common";
 import { getAge } from "../change_family_lists/change_family_lists";
 import { wtAPICatCIBSearch } from "../../core/wtPlusAPI/wtPlusAPI";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
@@ -2625,6 +2625,28 @@ async function getFindAGraveCitation(link) {
   return result;
 }
 
+function addMilitaryRecord(aRef, type) {
+  console.log(aRef, type);
+  // Add military service records
+  if (["World War I", "World War II", "Vietnam War", "Korean War"].includes(type)) {
+    aRef["Record Type"].push("Military");
+    window.profilePerson["Military Service"] = [type];
+    aRef.War = type;
+  }
+  if (type == "World War I") {
+    aRef.Year = "1914";
+    aRef["Event Year"] = "1914";
+    if (!aRef["Event Date"]) {
+      aRef["Event Date"] = "1914";
+    }
+  }
+  if (aRef["Record Type"].includes("Military")) {
+    const regiment = aRef["Regiment Name"] ? " in the " + aRef["Regiment Name"] : "";
+    aRef.Narrative = window.profilePerson.PersonName.FirstName + " served" + regiment + " in " + aRef.War;
+  }
+  return aRef;
+}
+
 function sourcesArray(bio) {
   let dummy = $(document.createElement("html"));
   bio = bio.replace(/\{\|\s*class="wikitable".*?\|\+ Timeline.*?\|\}/gs, "");
@@ -2697,7 +2719,7 @@ function sourcesArray(bio) {
       let type;
       if (theBits[1]) {
         const typeMatch = theBits[1].match(
-          /(Birth|Marriage|Death|Burial|Baptism|Probate|World War I|World War II|Vietnam War|Korean War)/i
+          /(Birth|Marriage|Death|Burial|Baptism|Probate|World War I\b|World War II|Vietnam War|Korean War)/i
         );
         if (typeMatch[0]) {
           type = capitalizeFirstLetter(typeMatch[0]);
@@ -2729,35 +2751,7 @@ function sourcesArray(bio) {
               window.profilePerson["Burial Date"] = dateMatch[0];
             }
           }
-
-          // Add military service records
-          if (type == "World War I") {
-            aRef["Record Type"].push("Military");
-            window.profilePerson["Military Service"] = ["World War I"];
-            aRef.Year = "1914";
-            aRef["Event Year"] = "1914";
-            if (!aRef["Event Date"]) {
-              aRef["Event Date"] = "1914";
-            }
-            aRef.War = "World War I";
-            const regiment = aRef["Regiment Name"] ? " in the " + aRef["Regiment Name"] : "";
-            aRef.Narrative = window.profilePerson.PersonName.FirstName + " served" + regiment + " in World War I.";
-          }
-          if (type == "World War II") {
-            aRef["Record Type"].push("Military");
-            window.profilePerson["Military Service"] = ["World War II"];
-            aRef.War = "World War II";
-          }
-          if (type == "Vietnam War") {
-            aRef["Record Type"].push("Military");
-            window.profilePerson["Military Service"] = ["Vietnam War"];
-            aRef.War = "Vietnam War";
-          }
-          if (type == "Korean War") {
-            aRef["Record Type"].push("Military");
-            window.profilePerson["Military Service"] = ["Korean War"];
-            aRef.War = "Korean War";
-          }
+          aRef = addMilitaryRecord(aRef, type);
         }
 
         if (type == "Marriage") {
@@ -2940,32 +2934,8 @@ function sourcesArray(bio) {
     // Add military service records
     const militaryMatch = aRef.Text.match(/World War I\b|World War II|Korean War|Vietnam War/);
     if (militaryMatch) {
-      if (militaryMatch[0] == "World War I") {
-        aRef["Record Type"].push("Military");
-        window.profilePerson["Military Service"] = ["World War I"];
-        aRef.Year = "1914";
-        aRef["Event Year"] = "1914";
-        if (!aRef["Event Date"]) {
-          aRef["Event Date"] = "1914";
-          aRef.OrderDate = "19140901";
-        }
-        if (aRef["Regiment Name"]) {
-          aRef.Narrative =
-            window.profilePerson.PersonName.FirstName + " served in the " + aRef["Regiment Name"] + " in World War I.";
-        }
-      }
-      if (militaryMatch[0] == "World War II") {
-        aRef["Record Type"].push("Military");
-        window.profilePerson["Military Service"] = ["World War II"];
-      }
-      if (militaryMatch[0] == "Vietnam War") {
-        aRef["Record Type"].push("Military");
-        window.profilePerson["Military Service"] = ["Vietnam War"];
-      }
-      if (militaryMatch[0] == "Korean War") {
-        aRef["Record Type"].push("Military");
-        window.profilePerson["Military Service"] = ["Korean War"];
-      }
+      console.log(militaryMatch);
+      aRef = addMilitaryRecord(aRef, militaryMatch[0]);
     }
   });
   window.references = refArr;
@@ -3754,9 +3724,13 @@ export async function generateBio() {
                 aRef.RefName = "FamilySearchProfile";
                 aRef.Used = true;
               }
-            } else if (anEvent["Record Type"] == "Military") {
+            } else if (
+              anEvent["Event Type"] == "Military" &&
+              aRef["Record Type"].includes("Military") &&
+              anEvent.Year == aRef.Year
+            ) {
               if (aRef.RefName) {
-                thisRef = "<ref name='" + thisRef + "' />";
+                thisRef = "<ref name='" + aRef.RefName + "' />";
               } else {
                 thisRef = " <ref name='military_" + i + "'>" + aRef.Text + "</ref>";
                 aRef.RefName = "military_" + i;
