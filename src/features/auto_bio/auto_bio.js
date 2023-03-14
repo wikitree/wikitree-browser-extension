@@ -122,8 +122,6 @@ function fixUSLocation(event) {
     USstatesObjArray.forEach(function (state) {
       if (state.abbreviation == lastLocationBit || state.name == lastLocationBit) {
         event.Location = locationBits.slice(0, locationBits.length - 1).join(", ") + ", " + state.name;
-        console.log(event);
-        console.log(state);
         if (isSameDateOrAfter(event.Date, state.admissionDate)) {
           event.Location += ", " + "United States";
         }
@@ -1184,8 +1182,6 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
 }
 
 function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMatchPattern) {
-  console.log(reference, firstName, ageAtCensus, nameMatchPattern);
-
   let text = "";
   let ageBit = "";
   if (ageAtCensus) {
@@ -2034,7 +2030,6 @@ function buildCensusNarratives() {
           reference.Text.match(/database( with images)?, (<i>|''')?FamilySearch/) ||
           reference.Text.match(/\{\{FamilySearch Record\|.*?\}\}/)
         ) {
-          console.log("Is FS census");
           let fsCensus = familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMatchPattern);
           reference = fsCensus[1];
           censusRest += fsCensus[0];
@@ -2645,7 +2640,6 @@ async function getFindAGraveCitation(link) {
 }
 
 function addMilitaryRecord(aRef, type) {
-  //console.log(aRef, type);
   // Add military service records
   if (["World War I", "World War II", "Vietnam War", "Korean War"].includes(type)) {
     aRef["Record Type"].push("Military");
@@ -2903,7 +2897,6 @@ function sourcesArray(bio) {
           }
         }
       } else if (detailsMatch3) {
-        console.log(detailsMatch3);
         aRef.Couple = [];
         aRef.Couple.push(detailsMatch3[1].replace(/\(.*?\)/, "").trim());
         aRef.Couple.push(detailsMatch3[2].replace(/\(.*?\)/, "").trim());
@@ -2969,7 +2962,6 @@ function sourcesArray(bio) {
     // Add military service records
     const militaryMatch = aRef.Text.match(/World War I\b|World War II|Korean War|Vietnam War/);
     if (militaryMatch) {
-      //console.log(militaryMatch);
       aRef = addMilitaryRecord(aRef, militaryMatch[0]);
     }
   });
@@ -4133,8 +4125,6 @@ function addSubsection(title) {
     $(dummy)
       .find("ref")
       .each(function (i) {
-        console.log($(this));
-
         subsectionText = subsectionText.replace(
           "<ref>" + $(this).text() + "</ref>",
           '<ref name="' + title + "_" + (i + 1) + '">' + $(this).text() + "</ref>"
@@ -4142,7 +4132,6 @@ function addSubsection(title) {
         let html = $(this).html(); // save the html value
         window.references.forEach((ref) => {
           if (ref.Text == html || getSimilarity(ref.Text, html) > 0.99) {
-            console.log(123);
             ref.Used = true;
             ref.RefName = title + "_" + (i + 1);
             ref["Record Type"].push(title);
@@ -4150,7 +4139,6 @@ function addSubsection(title) {
         });
       });
   }
-  console.log(JSON.parse(JSON.stringify(window.references)));
   return subsectionText;
 }
 
