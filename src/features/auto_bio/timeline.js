@@ -45,7 +45,7 @@ export function bioTimelineFacts(marriagesAndCensusesEtc) {
   }
 
   ["Parents", "Siblings", "Spouses", "Children"].forEach(function (aRel) {
-    if (!Array.isArray(window.profilePerson[aRel])) {
+    if (!Array.isArray(window.profilePerson[aRel]) && window.profilePerson[aRel]) {
       const personKeys = Object.keys(window.profilePerson[aRel]);
       personKeys.forEach(function (aKey) {
         const aPerson = window.profilePerson[aRel][aKey];

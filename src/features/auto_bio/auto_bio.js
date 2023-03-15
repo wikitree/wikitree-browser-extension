@@ -13,6 +13,7 @@ import { PersonDate } from "../bioCheck/PersonDate.js";
 import { Biography } from "../bioCheck/Biography.js";
 import { ageAtDeath, USstatesObjArray } from "../my_connections/my_connections";
 import { bioTimelineFacts, buildTimelineTable, buildTimelineSA } from "./timeline";
+import Cookies from "js-cookie";
 
 /**
 Returns a status word based on the input status and optional needOnIn parameter, with an optional ISO date string parameter.
@@ -148,9 +149,6 @@ function fixUSLocation(event) {
 }
 
 function fixLocations() {
-  if (!window.autoBioNotes) {
-    window.autoBioNotes = [];
-  }
   const birth = {
     Date: document.getElementById("mBirthDate").value,
     Location: document.getElementById("mBirthLocation").value,
@@ -439,6 +437,7 @@ export function formatDates(person) {
   return `(${birthDate}–${deathDate})`;
 }
 
+/*
 export function formatDate(date, status = "on", format = "MDY") {
   if (window.autoBioOptions && window.autoBioOptions.dateFormat && format != 8) {
     format = window.autoBioOptions.dateFormat;
@@ -517,6 +516,117 @@ export function formatDate(date, status = "on", format = "MDY") {
       dateString =
         statusOut + " " + `${day ? `${months[month - 1]} ${day}, ` : month ? `${months[month - 1]}, ` : ``}${year}`;
     }
+    return dateString.trim();
+  }
+}
+*/
+
+/**
+ * Formats a date based on the given format.
+ * @param {string} date - The date to be formatted.
+ * @param {string} [status="on"] - The status of the date (before, after, guess, certain, on).
+ * @param {string} [format="MDY"] - The desired date format (MDY, sMDY, DsMY, DMY, 8).
+ * @returns {string} - The formatted date.
+ */
+export function formatDate(date, status = "on", format = "MDY") {
+  // Ensure that the 'date' parameter is a string
+  if (typeof date !== "string") return "";
+
+  // Use the global date format if available and format is not 8
+  if (window.autoBioOptions && window.autoBioOptions.dateFormat && format !== 8) {
+    format = window.autoBioOptions.dateFormat;
+  }
+
+  const months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
+  if (!date) return "";
+  let year;
+  let month;
+  let day;
+
+  // Check if date uses hyphen format
+  if (date.match("-")) {
+    [year, month, day] = date.split("-");
+    year = parseInt(year);
+    month = parseInt(month);
+    day = parseInt(day);
+  } else {
+    const split = date.split(" ");
+    split.forEach(function (bit) {
+      if (/\d{4}/.test(bit)) {
+        year = bit;
+      } else if (/[a-z]/i.test(bit)) {
+        months.forEach(function (aMonth, index) {
+          if (aMonth.match(bit)) {
+            month = index + 1;
+          }
+        });
+      } else {
+        day = bit;
+      }
+    });
+  }
+
+  function getStatusOut(status, day) {
+    switch (status) {
+      case "before":
+        return "before";
+      case "after":
+        return "after";
+      case "guess":
+        return "about";
+      case "certain":
+      case "on":
+      case undefined:
+      case "":
+        if (status == "on") {
+          if (day) return "on";
+          else return "in";
+        } else return "";
+      default:
+        return "";
+    }
+  }
+
+  const statusOut = getStatusOut(status, day);
+
+  if (format === 8) {
+    return `${year}${month ? `0${month}`.slice(-2) : "00"}${day ? `0${day}`.slice(-2) : "00"}`;
+  } else {
+    let dateString;
+    if (format == "sMDY") {
+      dateString =
+        statusOut +
+        " " +
+        `${
+          day ? `${months[month - 1].slice(0, 3)} ${day}, ` : month ? `${months[month - 1].slice(0, 3)}, ` : ``
+        }${year}`;
+    } else if (format == "DsMY") {
+      dateString =
+        statusOut +
+        " " +
+        `${day ? `${day} ${months[month - 1].slice(0, 3)} ` : month ? `${months[month - 1].slice(0, 3)} ` : ``}${year}`;
+    } else if (format == "DMY") {
+      dateString =
+        statusOut + " " + `${day ? `${day} ${months[month - 1]} ` : month ? `${months[month - 1]} ` : ``}${year}`;
+    } else {
+      dateString =
+        statusOut + " " + `${day ? `${months[month - 1]} ${day}, ` : month ? `${months[month - 1]}, ` : ``}${year}`;
+    }
+    console.log(dateString.trim());
     return dateString.trim();
   }
 }
@@ -661,7 +771,7 @@ function childList(person, spouse) {
 function siblingList() {
   let text = "";
   const siblings = [];
-  if (!Array.isArray(window.profilePerson.Siblings)) {
+  if (!Array.isArray(window.profilePerson.Siblings) && window.profilePerson.Siblings) {
     let siblingsKeys = Object.keys(window.profilePerson.Siblings);
     siblingsKeys.forEach(function (key) {
       const sibling = window.profilePerson.Siblings[key];
@@ -742,9 +852,9 @@ function addReferences(event, spouse = false) {
 
 function buildBirth(person) {
   let text = "";
-  let theName = person.PersonName.BirthName;
+  let theName = person.PersonName.BirthName || person.RealName;
   if (window.autoBioOptions.fullNameOrBirthName == "FullName") {
-    theName = person.PersonName.FullName;
+    theName = person.PersonName.FullName || person.RealName;
   }
 
   text += window.boldBit + theName + window.boldBit + " was";
@@ -1114,6 +1224,7 @@ function getAgeAtCensus(person, censusYear) {
   }
 }
 
+/*
 export function getYYYYMMDD(dateString) {
   let date = new Date(dateString);
   if (!isNaN(date.getTime())) {
@@ -1127,6 +1238,57 @@ export function getYYYYMMDD(dateString) {
     const month = `0${date.getUTCMonth() + 1}`.slice(-2);
     const day = `0${date.getUTCDate()}`.slice(-2);
     return `${year}-${month}-${day}`;
+  }
+}
+*/
+
+export function getYYYYMMDD(dateString) {
+  const months = {
+    Jan: "01",
+    Feb: "02",
+    Mar: "03",
+    Apr: "04",
+    May: "05",
+    Jun: "06",
+    Jul: "07",
+    Aug: "08",
+    Sep: "09",
+    Oct: "10",
+    Nov: "11",
+    Dec: "12",
+    January: "01",
+    February: "02",
+    March: "03",
+    April: "04",
+    June: "06",
+    July: "07",
+    August: "08",
+    September: "09",
+    October: "10",
+    November: "11",
+    December: "12",
+  };
+
+  function parseDate(dateStr) {
+    const dateParts = dateStr.split(" ");
+
+    if (dateParts.length === 3) {
+      const year = dateParts[2];
+      const month = months[dateParts[1]];
+      const day = `0${dateParts[0]}`.slice(-2);
+      return `${year}-${month}-${day}`;
+    } else {
+      return null;
+    }
+  }
+
+  let parsedDate = parseDate(dateString);
+
+  if (parsedDate) {
+    return parsedDate;
+  } else {
+    const fallbackDateStr = `02 July ${dateString} UTC`;
+    return parseDate(fallbackDateStr);
   }
 }
 
@@ -3670,6 +3832,59 @@ function assignPersonNames(person) {
   });
 }
 
+function addLoginButton() {
+  let x = window.location.href.split("?");
+  if (x[1]) {
+    let queryParams = new URLSearchParams(x[1]);
+    if (queryParams.get("authcode")) {
+      let authcode = queryParams.get("authcode");
+      $.ajax({
+        url: "https://api.wikitree.com/api.php",
+        crossDomain: true,
+        xhrFields: { withCredentials: true },
+        type: "POST",
+        dataType: "JSON",
+        data: { action: "clientLogin", authcode: authcode },
+        success: function (data) {
+          if (data) {
+            if (data.clientLogin.result == "Success") {
+              $("#appsLoginButton").hide();
+            }
+          }
+        },
+      });
+    }
+  }
+
+  let userID = Cookies.get("wikitree_wtb_UserID");
+  $.ajax({
+    url: "https://api.wikitree.com/api.php?action=clientLogin&checkLogin=" + userID,
+    crossDomain: true,
+    xhrFields: { withCredentials: true },
+    type: "POST",
+    dataType: "JSON",
+    success: function (data) {
+      if (data) {
+        if (data?.clientLogin?.result == "error") {
+          let loginButton = $(
+            "<button title='Log in to the apps server for better Auto Bio results' class='small button' id='appsLoginButton'>Apps Login</button>"
+          );
+          if ($("#appsLoginButton").length == 0) {
+            $("#toolbar").append(loginButton);
+          }
+          loginButton.on("click", function (e) {
+            e.preventDefault();
+            //console.log(encodeURI(window.location.href));
+            window.location =
+              "https://api.wikitree.com/api.php?action=clientLogin&returnURL=" +
+              encodeURI("https://www.wikitree.com/wiki/" + $("a.pureCssMenui0 span.person").text());
+          });
+        }
+      }
+    },
+  });
+}
+
 export async function generateBio() {
   // Sort First Name Variants by length
   for (let key in firstNameVariants) {
@@ -3709,9 +3924,17 @@ export async function generateBio() {
     assignPersonNames(person);
   });
 
+  if (!window.autoBioNotes) {
+    window.autoBioNotes = [];
+  }
+
   window.profilePerson = window.biographyPeople[0].people[window.biographyPeople[0].resultByKey[profileID].Id];
   window.profilePerson.Pronouns = getPronouns(window.profilePerson);
   window.profilePerson.NameVariants = getNameVariants(window.profilePerson);
+  if (!window.profilePerson.Parents) {
+    window.autoBioNotes.push("You may get better results by logging in to the apps server (click the button above).");
+    addLoginButton();
+  }
 
   // Handle census data created with Sourcer
   window.sourcerCensuses = getSourcerCensuses();
@@ -3813,11 +4036,14 @@ export async function generateBio() {
   // Get marriages and censuses, order them by date
   // and add them to the text
   getFamilySearchFacts();
-  let marriages = buildSpouses(window.profilePerson);
+  let marriages = [];
+  if (window.profilePerson.Spouses) {
+    marriages = buildSpouses(window.profilePerson);
+  }
   const marriagesAndCensusesEtc = [...marriages];
 
   // Get children who were not from one of the spouses
-  if (!Array.isArray(window.profilePerson.Children)) {
+  if (!Array.isArray(window.profilePerson.Children) && window.profilePerson.Children) {
     const childrenKeys = Object.keys(window.profilePerson.Children);
     let aChildList;
     if (Array.isArray(window.profilePerson.Spouses)) {
@@ -4352,7 +4578,7 @@ async function getLocationCategory(type, location = null) {
     }
   }
   if ("Marriage" == type) {
-    if (!Array.isArray(window.profilePerson.Spouses)) {
+    if (!Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses) {
       let keys = Object.keys(window.profilePerson.Spouses);
       let spouse = window.profilePerson.Spouses[keys[0]];
       if (spouse.marriage_location) {
