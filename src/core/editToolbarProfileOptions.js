@@ -63,7 +63,13 @@ export default [
         call: generateBio,
         params: {},
       },
-      { featureid: "wtplus", title: "Automated corrections", call: wtPlus, params: { action: "AutoUpdate" } },
+      {
+        featureid: "wtplus",
+        hint: "Performs automated corrections that EditBOT does on the page",
+        title: "Automated corrections",
+        call: wtPlus,
+        params: { action: "AutoUpdate" },
+      },
     ],
   },
   {
