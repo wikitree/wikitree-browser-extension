@@ -90,13 +90,13 @@ if (
   window.location.href.match(/\/index.php\?title=Special:NetworkFeed&who=.*/g)
 ) {
   isProfileHistory = true;
-
 } else if (
   // Profile History Detail Page https://www.wikitree.com/index.php?title=Morgan-14024&diff=53223025&oldid=53223019
-  window.location.href.match(/\/index.php\?title=\w[^:]+-[0-9]+&diff=\d*&oldid=\d*/g)
+  // or https://www.wikitree.com/index.php?title=Morgan-14024&diff=next&oldid=53223019
+  // or Page https://www.wikitree.com/index.php?title=Morgan-14024&diff=prev&oldid=53223019
+  window.location.href.match(/\/index.php\?title=\w[^:]+-[0-9]+&diff=(\d*|next|prev)&oldid=\d*/g)
 ) {
   isProfileHistoryDetail = true;
-  
 } else if (
   // Profile Page
   window.location.pathname.match(/(\/wiki\/)\w[^:]*-[0-9]*/g) ||
@@ -141,7 +141,7 @@ if (
 ) {
   isCategoryPage = true;
 } else if (
-  // Category History Page https://www.wikitree.com/index.php?title=Project:Data%20Doctors&action=history  
+  // Category History Page https://www.wikitree.com/index.php?title=Project:Data%20Doctors&action=history
   window.location.href.match(/\/index.php\?title=Category:.*&action=history/g)
 ) {
   isCategoryHistory = true;
@@ -158,7 +158,7 @@ if (
 ) {
   isTemplatePage = true;
 } else if (
-  // Template History Page https://www.wikitree.com/index.php?title=Template:Data%20Doctors&action=history  
+  // Template History Page https://www.wikitree.com/index.php?title=Template:Data%20Doctors&action=history
   window.location.href.match(/\/index.php\?title=Template:.*&action=history/g)
 ) {
   isTemplateHistory = true;
@@ -175,7 +175,7 @@ if (
 ) {
   isHelpPage = true;
 } else if (
-  // Help History Page https://www.wikitree.com/index.php?title=Help:Data%20Doctors&action=history  
+  // Help History Page https://www.wikitree.com/index.php?title=Help:Data%20Doctors&action=history
   window.location.href.match(/\/index.php\?title=Help:.*&action=history/g)
 ) {
   isHelpHistory = true;
@@ -217,7 +217,7 @@ if (
 ) {
   isOtherEdit = true;
 } else if (
-  // Other History Page https://www.wikitree.com/index.php?title=...:Data%20Doctors&action=history  
+  // Other History Page https://www.wikitree.com/index.php?title=...:Data%20Doctors&action=history
   window.location.href.match(/\/index.php\?title=.*:.*&action=history/g)
 ) {
   isOtherHistory = true;
@@ -237,4 +237,5 @@ if (
 
 isWikiPage = isProfilePage || isSpacePage || isCategoryPage || isTemplatePage || isHelpPage || isOtherPage;
 isWikiEdit = isProfileEdit || isSpaceEdit || isCategoryEdit || isTemplateEdit || isHelpEdit || isOtherEdit;
-isWikiHistory = isProfileHistory || isSpaceHistory || isCategoryHistory || isTemplateHistory || isHelpHistory || isOtherHistory;
+isWikiHistory =
+  isProfileHistory || isSpaceHistory || isCategoryHistory || isTemplateHistory || isHelpHistory || isOtherHistory;
