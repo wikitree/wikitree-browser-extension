@@ -6,11 +6,13 @@ export function bioTimelineFacts(marriagesAndCensusesEtc) {
   let bioTimeline = [];
   bioTimeline.push(...marriagesAndCensusesEtc);
 
+  const birthDate = window.profilePerson.BirthDate || "";
+  const birthLocation = window.profilePerson.BirthLocation || "";
   bioTimeline.push({
-    "Event Date": window.profilePerson.BirthDate,
+    "Event Date": birthDate,
     "Event Type": "Birth",
-    "Event Place": window.profilePerson.BirthLocation,
-    OrderDate: padNumber(window.profilePerson.BirthDate.replaceAll(/-/g, "")),
+    "Event Place": birthLocation,
+    OrderDate: padNumber(birthDate),
   });
 
   if (window.profilePerson["Baptism Date"]) {

@@ -961,7 +961,7 @@ function buildDeath(person) {
       }
     }
   });
-  window.sectionsObject.StuffBeforeTheBio.text.forEach(function (thing) {
+  window.sectionsObject.StuffBeforeTheBio.text.forEach(function (thing, i) {
     const cemeteryCategoryMatch = thing.match(
       /Category:\s?((.*Cemetery|Memorial|Cimetière|kyrkogård|temető|Grave|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard).*?)\]\]/
     );
@@ -1161,7 +1161,7 @@ function buildSpouses(person) {
       });
       if (foundSpouse == false && reference["Spouse Name"]) {
         let text = "";
-        const marriageDate = getYYYYMMDD(reference["Marriage Date"]);
+        const marriageDate = getYYYYMMDD(reference["Marriage Date"]) || "";
         let marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, marriageDate)})`;
         text += person.PersonName.FirstName + marriageAge + " married " + reference["Spouse Name"];
         if (reference["Marriage Place"]) {
@@ -4007,6 +4007,14 @@ function splitBioIntoSections() {
           const additionalMatches = matches.slice(1);
           sections.StuffBeforeTheBio.text.splice(i + 1, 0, ...additionalMatches);
         }
+      }
+      const gedcomMatch = sections.StuffBeforeTheBio.text[i].match(/\.ged\s/);
+      if (gedcomMatch) {
+        const thisThing = sections.StuffBeforeTheBio.text[i]
+          .replace(/The following data[^.]+\./, "")
+          .replace(/You may wish[^.]+\./, "");
+        sections.Acknowledgements.text.push(thisThing);
+        sections.StuffBeforeTheBio.text.splice(i, 1);
       }
     }
   }
