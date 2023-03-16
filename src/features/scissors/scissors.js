@@ -30,18 +30,22 @@ function helpScissors() {
     }
 
     if (helpIDmatch != null) {
-      window.helpID = helpIDmatch[0];
+      window.helpID = helpIDmatch;
       $("h1").append(
         $(
-          '<span id="helpScissors"><button aria-label="Copy ID" title="Copy ID" data-copy-label="Copy ID" class="copyWidget" data-copy-text="' +
+          '<span id="helpScissors"><button aria-label="Copy ID" title="' +
             window.helpID +
-            '" style="color:#8fc641;"><img src="/images/icons/scissors.png">ID</button><button aria-label="Copy Link" title="Copy Link" data-copy-label="Copy Link" class="copyWidget" data-copy-text="' +
+            '" data-copy-label="Copy ID" class="copyWidget" data-copy-text="' +
+            window.helpID +
+            '" style="color:#8fc641;"><img src="/images/icons/scissors.png">ID</button><button aria-label="Copy Link" title="' +
             helpLink +
-            '" style="color:#8fc641;">/Link</button><button aria-label="Copy URL" title="Copy URL" data-copy-label="Copy URL" class="copyWidget" data-copy-text="' +
+            '" data-copy-label="Copy Link" class="copyWidget" data-copy-text="' +
+            helpLink +
+            '" style="color:#8fc641;">/Link</button><button aria-label="Copy URL" title="' +
             url +
-            '" style="color:#8fc641;">/URL</button></span><button aria-label="Copy Title" id="copyTitle" title="Copy Title" data-copy-label="Copy Title" class="copyWidget" data-copy-text="' +
-            pageTitle +
-            '" style="color:#8fc641;">/Title</button></span>'
+            '" data-copy-label="Copy URL" class="copyWidget" data-copy-text="' +
+            url +
+            '" style="color:#8fc641;">/URL</button></span>'
         )
       );
 
@@ -53,7 +57,9 @@ function helpScissors() {
   }
   if (url.match("Space:")) {
     $("h1").append(
-      '<button aria-label="Copy Title" id="copyTitle" title="Copy Title" data-copy-label="Copy Title" class="copyWidget" data-copy-text="' +
+      '<button aria-label="Copy Title" id="copyTitle" title="' +
+        pageTitle.replace("ID/Link/URL", "").trim() +
+        '" data-copy-label="Copy Title" class="copyWidget" data-copy-text="' +
         pageTitle.replace("ID/Link/URL", "").trim() +
         '" style="color:#8fc641;">/Title</button></span>'
     );
@@ -79,7 +85,9 @@ function helpScissors() {
       .parent()
       .append(
         $(
-          '<span id="helpScissors"><button aria-label="Copy Reference" title="Copy reference to your clipboard" data-copy-label="Copy Reference" class="copyWidget" data-copy-text="' +
+          '<span id="helpScissors"><button aria-label="Copy Reference" title="' +
+            reference +
+            '" data-copy-label="Copy Reference" class="copyWidget" data-copy-text="' +
             reference +
             '" style="color:#8fc641;"><img src="/images/icons/scissors.png">Reference</button></span>'
         )
