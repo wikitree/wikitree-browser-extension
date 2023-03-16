@@ -4,7 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { copyThingToClipboard } from "../g2g/g2g";
-import { checkIfFeatureEnabled} from "../../core/options/options_storage";
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("scissors").then((result) => {
   if (
@@ -65,8 +65,9 @@ function helpScissors() {
   if ($("h1:contains('Change Details')").length || $("h1:contains('Creation of Profile')").length) {
     const historyItem = $("span.HISTORY-ITEM");
     let change = "Added";
-    if (historyItem.find("a:contains(created),a:contains(imported the data)").length) {
-      change = "Created";
+    const theAct = historyItem.find("a:contains(created),a:contains(imported the data)");
+    if (theAct.length) {
+      change = `Creation of WikiTree profile ${theAct[0].title}`;
     }
     const changesMadeBy = $("td:contains(Changes made by)");
     const theDate = changesMadeBy.text().match(/[0-9]+ [A-Z][a-z]+ [0-9]{4}/);
