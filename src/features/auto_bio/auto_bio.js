@@ -826,8 +826,13 @@ function firstAndMiddleNameVariantsRegex(person) {
   return new RegExp(variants.join("\b|\b"));
 }
 
+window.marriageCitations = 1;
 function addReferences(event, spouse = false) {
   let refCount = 0;
+  if (event == "Marriage") {
+    refCount = window.marriageCitations;
+    window.marriageCitations++;
+  }
   let text = "";
   window.references.forEach(function (reference) {
     let spousePattern = new RegExp(spouse.FirstName + "|" + spouse.Nickname);
@@ -1324,16 +1329,36 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
       .replace(window.profilePerson.LastNameAtBirth + " ", "")
       .replace(/(daughter|son|wife|mother|husband|sister|brother)/, "was a $1")
       .replace("in household of", "in the household of");
-    text += info;
+    text = info;
   }
 
+  let gotIt = false;
   if (reference.Text.match(/<br.?\/>/)) {
     const textSplit = reference.Text.split(/<br.?\/>/);
+    if (textSplit[textSplit.length - 1].match(nameMatchPattern)) {
+      const nameMatch = textSplit[textSplit.length - 1].match(nameMatchPattern)[0];
+      const startMatch = textSplit[textSplit.length - 1].indexOf(nameMatch);
+      if (startMatch < 5) {
+        text = textSplit[textSplit.length - 1]
+          .replace(window.profilePerson.LastNameAtBirth + " ", "")
+          .replace(/(daughter|son|wife|mother|husband|sister|brother)/, "was a $1")
+          .replace("in household of", "in the household of");
+      }
+      gotIt = true;
+    }
+    if (!gotIt && textSplit[textSplit.length - 2].match(nameMatchPattern)) {
+      text = textSplit[textSplit.length - 2]
+        .replace(window.profilePerson.LastNameAtBirth + " ", "")
+        .replace(/(daughter|son|wife|mother|husband|sister|brother)/, "was a $1")
+        .replace("in household of", "in the household of");
+    }
+    /*
     text = textSplit[textSplit.length - 1]
       .replace(window.profilePerson.LastNameAtBirth + " ", "")
       .replace(/(single\s)?(daughter|son|wife|mother|husband|sister|brother)/, "was a $1$2")
       .replace("in household of", "in the household of")
       .replace("Born in", "According to the census, " + window.profilePerson.Pronouns.subject + " was born in");
+      */
   }
 
   if (text.match(/in the household/) && !text.match(/^[^.]*?\bwas\b[^.\n]*\./)) {
