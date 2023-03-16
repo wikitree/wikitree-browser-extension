@@ -626,7 +626,6 @@ export function formatDate(date, status = "on", format = "MDY") {
       dateString =
         statusOut + " " + `${day ? `${months[month - 1]} ${day}, ` : month ? `${months[month - 1]}, ` : ``}${year}`;
     }
-    console.log(dateString.trim());
     return dateString.trim();
   }
 }
@@ -2981,7 +2980,7 @@ function addMilitaryRecord(aRef, type) {
   }
   if (aRef["Record Type"].includes("Military")) {
     const regiment = aRef["Regiment Name"] ? " in the " + aRef["Regiment Name"] : "";
-    aRef.Narrative = window.profilePerson.PersonName.FirstName + " served" + regiment + " in " + aRef.War;
+    aRef.Narrative = window.profilePerson.PersonName.FirstName + " served" + regiment + " in " + aRef.War + ".";
   }
   return aRef;
 }
@@ -3242,6 +3241,57 @@ function sourcesArray(bio) {
         aRef["Marriage Place"] = details[2].trim();
       }
       aRef.OrderDate = formatDate(aRef["Marriage Date"], 0, 8);
+    }
+    if (aRef.Text.match(/Divorce Records/)) {
+      aRef["Record Type"].push("Divorce");
+      const divorceDetails = aRef.Text.match(/([^>;,]+?)\sdivorce from\s(.*?)\son\s(\d{1,2}\s[A-z]{3}\s\d{4})/);
+      const divorceCouple = [divorceDetails[1], divorceDetails[2]];
+      aRef.Couple = divorceCouple;
+      aRef["Divorce Date"] = divorceDetails[3];
+      aRef["Event Date"] = divorceDetails[3];
+      aRef["Event Type"] = "Divorce";
+      aRef.Year = divorceDetails[3].match(/\d{4}/)[0];
+      aRef.Location = aRef.Text.match(/in\s(.*?)(,\sUnited States)?/)[1];
+      aRef.OrderDate = formatDate(aRef["Divorce Date"], 0, 8);
+      aRef.Narrative = "";
+      let thisSpouse = "";
+      if (aRef.Couple) {
+        if (aRef.Couple[0].match(window.profilePerson.PersonName.FirstName)) {
+          thisSpouse = aRef.Couple[1];
+        } else {
+          thisSpouse = aRef.Couple[0];
+        }
+      }
+      aRef.Narrative =
+        capitalizeFirstLetter(formatDate(aRef["Divorce Date"])) +
+        ", " +
+        window.profilePerson.PersonName.FirstName +
+        " divorced " +
+        thisSpouse.replace(window.profilePerson.LastNameAtBirth, "").replace(/\s$/, "") +
+        (aRef["Divorce Place"] ? " in " + aRef["Divorce Place"] : "");
+    }
+    if (aRef.Text.match(/Prison Records/)) {
+      aRef["Record Type"].push("Prison");
+      aRef["Event Type"] = "Prison";
+      const admissionDateMatch = aRef.Text.match(/Admission Date:\s(.*?);/);
+      if (admissionDateMatch[1]) {
+        aRef["Event Date"] = admissionDateMatch[1];
+        aRef.Year = aRef["Event Date"].match(/\d{4}/)[0];
+        aRef.OrderDate = formatDate(aRef["Event Date"], 0, 8);
+      }
+      const locationMatch = aRef.Text.match(/Prison:\s([^;.]+)/);
+      if (locationMatch) {
+        if (locationMatch[1]) {
+          aRef.Location = locationMatch[1];
+        }
+      }
+      aRef.Narrative = "";
+      aRef.Narrative =
+        capitalizeFirstLetter(formatDate(aRef["Event Date"])) +
+        ", " +
+        window.profilePerson.PersonName.FirstName +
+        " entered prison in " +
+        aRef.Location;
     }
     if (
       aRef.Text.match(
@@ -4159,7 +4209,10 @@ export async function generateBio() {
       }
       if (findAGraveLink) {
         let citation = await getFindAGraveCitation(findAGraveLink.replace("http:", "https:"));
-        console.log("findAGraveCitation", citation);
+        const boldHeadingMatch = aRef.Text.match(/'''(Memorial|Death|Burial)'''/);
+        if (boldHeadingMatch) {
+          citation = boldHeadingMatch[0] + ": " + citation;
+        }
         const today = new Date();
         const options = { day: "numeric", month: "long", year: "numeric" };
         const dateString = today.toLocaleDateString("en-US", options);
@@ -4237,18 +4290,36 @@ export async function generateBio() {
   if (window.familySearchFacts) {
     marriagesAndCensusesEtc.push(...window.familySearchFacts);
   }
+  const wars = [];
+  const warRefs = [];
   window.references.forEach(function (aRef) {
-    if (aRef["Record Type"].includes("Census")) {
+    if (
+      aRef["Record Type"].includes("Census") ||
+      aRef["Record Type"].includes("Divorce") ||
+      aRef["Record Type"].includes("Prison")
+    ) {
       marriagesAndCensusesEtc.push(aRef);
     }
-    const wars = [];
     if (aRef["Record Type"].includes("Military")) {
       if (!wars.includes(aRef.War)) {
         wars.push(aRef.War);
-        marriagesAndCensusesEtc.push(aRef);
+        warRefs.push(aRef);
       }
     }
   });
+  if (wars.length) {
+    warRefs.forEach(function (aWar) {
+      marriagesAndCensusesEtc.push({
+        Narrative: aWar.Narrative,
+        OrderDate: formatDate(aWar["Event Date"], 0, 8),
+        "Record Type": ["Military"],
+        "Event Date": aWar["Event Date"],
+        "Event Year": aWar["Event Year"],
+        "Event Type": "Military",
+        War: aWar.War,
+      });
+    });
+  }
 
   function minimalPlace2(narrativeBits) {
     let used = 0;
@@ -4284,15 +4355,14 @@ export async function generateBio() {
     return out;
   }
 
+  // Output marriages, censuses, military things, etc. in order
   var marriagesAndCensusesText = "";
-  marriagesAndCensusesEtc.sort((a, b) => a.OrderDate - b.OrderDate);
+  marriagesAndCensusesEtc.sort((a, b) => parseInt(a.OrderDate) - parseInt(b.OrderDate));
+  console.log(JSON.parse(JSON.stringify(marriagesAndCensusesEtc)));
   marriagesAndCensusesEtc.forEach(function (anEvent, i) {
     if (anEvent["Record Type"]) {
       if (anEvent["Record Type"].includes("Marriage")) {
         anEvent["Event Type"] = "Marriage";
-      }
-      if (anEvent["Record Type"].includes("Military")) {
-        anEvent["Event Type"] = "Military";
       }
 
       if (anEvent["Record Type"].includes("Census")) {
@@ -4328,6 +4398,7 @@ export async function generateBio() {
           if (anEvent["Record Type"].includes("ChildList") && !window.childrenShown && !window.listedSomeChildren) {
             anEvent.Narrative = anEvent.Narrative.replace("other child", "child");
           }
+          const theseRefs = [];
           window.references.forEach(function (aRef, i) {
             if (
               anEvent["Record Type"].includes(aRef["Record Type"]) &&
@@ -4344,7 +4415,7 @@ export async function generateBio() {
             } else if (
               anEvent["Event Type"] == "Military" &&
               aRef["Record Type"].includes("Military") &&
-              anEvent.Year == aRef.Year
+              anEvent.War == aRef.War
             ) {
               if (aRef.RefName) {
                 thisRef = "<ref name='" + aRef.RefName + "' />";
@@ -4353,13 +4424,54 @@ export async function generateBio() {
                 aRef.RefName = "military_" + i;
                 aRef.Used = true;
               }
+              if (!theseRefs.includes(thisRef)) {
+                theseRefs.push(thisRef);
+              }
+            } else if (
+              aRef["Record Type"].includes(anEvent["Event Type"]) &&
+              anEvent["Divorce Date"] &&
+              aRef.Year == anEvent.Year
+            ) {
+              let thisSpouse = "";
+              if (anEvent.Couple) {
+                if (anEvent.Couple[0].match(window.profilePerson.PersonName.FirstName)) {
+                  thisSpouse = anEvent.Couple[1];
+                } else {
+                  thisSpouse = anEvent.Couple[0];
+                }
+              }
+              formatDate(anEvent["Divorce Date"]) +
+                " " +
+                window.profilePerson.PersonName.FirstName +
+                " divorced " +
+                thisSpouse +
+                (anEvent["Divorce Place"] ? " in " + anEvent["Divorce Place"] : "");
+              if (aRef.RefName) {
+                thisRef = "<ref name='" + aRef.RefName + "' />";
+              } else {
+                thisRef = " <ref name='divorce_" + i + "'>" + aRef.Text + "</ref>";
+                aRef.RefName = "divorce_" + i;
+                aRef.Used = true;
+              }
+            } else if (
+              anEvent["Event Type"] == "Prison" &&
+              aRef["Record Type"].includes("Prison") &&
+              anEvent.Year == aRef.Year
+            ) {
+              if (aRef.RefName) {
+                thisRef = "<ref name='" + aRef.RefName + "' />";
+              } else {
+                thisRef = " <ref name='prison_" + i + "'>" + aRef.Text + "</ref>";
+                aRef.RefName = "prison_" + i;
+                aRef.Used = true;
+              }
             }
           });
           let narrativeBits = anEvent.Narrative.split(",");
           if (anEvent.FactType == "Burial") {
             window.profilePerson.BurialFact = minimalPlace2(narrativeBits) + thisRef + "\n\n";
           } else {
-            let thisBit = minimalPlace2(narrativeBits) + thisRef + "\n\n";
+            let thisBit = minimalPlace2(narrativeBits) + (theseRefs.length == 0 ? thisRef : theseRefs.join()) + "\n\n";
             marriagesAndCensusesText += thisBit;
           }
         }
@@ -4635,7 +4747,7 @@ export async function generateBio() {
   // Remove inline citations if not wanted
   if (window.autoBioOptions.inlineCitations == false) {
     outputText = outputText.replace(/<ref[^>]*>(.*?)<\/ref>/gi, "");
-    outputText = outputText.replace(/<ref\s*\/>/gi, "");
+    outputText = outputText.replace(/<ref\s*\/>/gi, "").replace(/(\s\.)(?=\s|$)/g, "");
   }
 
   // Switch off the enhanced editor if it's on
@@ -4649,7 +4761,7 @@ export async function generateBio() {
   console.log("profilePerson", window.profilePerson);
 
   // Add the text to the textarea and switch back to the enhanced editor if it was on
-  $("#wpTextbox1").val(outputText + $("#wpTextbox1").val());
+  $("#wpTextbox1").val(outputText.replace(/(\s\.)(?=\s|$)/g, "") + $("#wpTextbox1").val());
   if (enhanced == true) {
     enhancedEditorButton.trigger("click");
   }

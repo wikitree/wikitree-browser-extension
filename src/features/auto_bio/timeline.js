@@ -198,7 +198,7 @@ export function buildTimelineTable(bioTimeline) {
       let sources = "";
       let eventType = aEvent["Event Type"];
       let eventDate = aEvent["Event Date"] || aEvent.Year;
-      let eventLocation = aEvent["Event Place"] || aEvent.Residence || aEvent.War || "";
+      let eventLocation = aEvent["Event Place"] || aEvent.Residence || aEvent.War || aEvent.Location || "";
       eventLocation = eventLocation
         ? window.autoBioOptions.timelineLocations == "minimal"
           ? minimalPlace(eventLocation)
@@ -234,7 +234,10 @@ export function buildTimelineTable(bioTimeline) {
           isRightMarriage
         ) {
           //console.log(aEvent, aRef);
-          if (!(aEvent["Event Type"] == "Military" && aEvent.Year != aRef.Year)) {
+          if (
+            !(aEvent["Event Type"] == "Military" && aEvent.War != aRef.War) &&
+            !(aEvent["Event Type"] == "Prison" && aEvent.Year != aRef.Year)
+          ) {
             let theRef;
             if (aRef.Used) {
               theRef = "<ref name='" + aRef["RefName"] + "' />";

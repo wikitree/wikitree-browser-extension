@@ -370,10 +370,16 @@ async function addHalfsStyle() {
         let mother = $(this).data("mother");
         let thisID = $(this).data("id");
         let thisLi = $(this);
-        if ((father == p1id && p1id != undefined) || (thisLi.attr("id") == "profilePerson" && window.BioPerson.Father != 0)) {
+        if (
+          (father == p1id && p1id != undefined) ||
+          (thisLi.attr("id") == "profilePerson" && window.BioPerson.Father != 0)
+        ) {
           $(this).find(".bdDates").addClass("parent_1");
         }
-        if ((mother == p2id && p2id != undefined) || (thisLi.attr("id") == "profilePerson" && window.BioPerson.Mother != 0)) {
+        if (
+          (mother == p2id && p2id != undefined) ||
+          (thisLi.attr("id") == "profilePerson" && window.BioPerson.Mother != 0)
+        ) {
           $(this).addClass("parent_2");
         }
       });
@@ -772,10 +778,8 @@ function makeFamLists() {
         parentIDs.push(parentID);
       }
     });
-    console.log(parentIDs);
     if (parentIDs.length > 1 || $(".aSpouse").length > 1) {
       $(".aSpouse").each(function (index) {
-        console.log(parentIDs);
         let spouseID = $(this).data("id");
         let aSpouse = $(this);
         $("#childrenList li").each(function () {
