@@ -160,7 +160,7 @@ registerFeature({
   description: "Adds the distance (degrees) between you and the profile person and any relationship between you.",
   category: "Profile",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
+  contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: true,
   pages: [isProfilePage],
 });
@@ -216,7 +216,7 @@ registerFeature({
   description: "Displays a family timeline. A button is added to the profile submenu.",
   category: "Profile",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
+  contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: true,
   pages: [isProfilePage],
 });
@@ -298,7 +298,7 @@ registerFeature({
     "Adds scissors (like on profile pages) to Category, Help, Project, Template, and Change Details pages to copy various things.",
   category: "Other",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
+  contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: true,
   pages: [
     isProfileHistoryDetail,
@@ -331,7 +331,7 @@ registerFeature({
     "Replaces the Connection Finder (theme of the week) section on Profile pages with a table sorted by degree of closeness to the profile person.",
   category: "Profile",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
+  contributors: [],
   defaultValue: false,
   pages: [isProfilePage],
 });

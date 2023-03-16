@@ -126,7 +126,15 @@ export default [
   },
   {
     button: "Content",
-    items: [{ featureid: "wtplus", title: "Automated corrections", call: wtPlus, params: { action: "AutoUpdate" } }],
+    items: [
+      {
+        featureid: "wtplus",
+        hint: "Performs automated corrections that EditBOT does on the page",
+        title: "Automated corrections",
+        call: wtPlus,
+        params: { action: "AutoUpdate" },
+      },
+    ],
   },
   {
     button: "EditBOT",
