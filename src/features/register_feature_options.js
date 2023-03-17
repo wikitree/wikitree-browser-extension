@@ -1,5 +1,6 @@
 import { registerFeature } from "../core/options/options_registry";
 import {
+  /* eslint-disable no-unused-vars */
   isWikiPage,
   isWikiEdit,
   isWikiHistory,
@@ -13,6 +14,9 @@ import {
   isSpacePage,
   isSpaceEdit,
   isSpaceHistory,
+  isMediaWikiPage,
+  isMediaWikiEdit,
+  isMediaWikiHistory,
   isCategoryPage,
   isCategoryEdit,
   isCategoryHistory,
@@ -31,6 +35,7 @@ import {
   isSpecialMyConnections,
   isSpecialWatchedList,
   isG2G,
+  /* eslint-enable no-unused-vars */
 } from "../core/pageType";
 
 // Just importing this file will register all the features
@@ -298,19 +303,12 @@ registerFeature({
     "Adds scissors (like on profile pages) to Category, Help, Project, Template, and Change Details pages to copy various things.",
   category: "Other",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
-  defaultValue: true,
-  pages: [
-    isProfileHistoryDetail,
-    isCategoryPage,
-    isTemplatePage,
-    isHelpPage,
-    isOtherPage,
-    isCategoryEdit,
-    isTemplateEdit,
-    isHelpEdit,
-    isOtherEdit,
+  contributors: [
+    { name: "Riël Smit", wikitreeid: "Smit-641" },
+    { name: "Aleš Trtnik", wikitreeid: "Trtnik-2" },
   ],
+  defaultValue: true,
+  pages: [isWikiPage, isProfileEdit, isSpaceEdit, isProfileHistoryDetail],
 });
 
 registerFeature({

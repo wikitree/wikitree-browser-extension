@@ -15,10 +15,14 @@ export let isProfileUserPage = false;
 export let isProfileLoggedInUserPage = false;
 // Space page
 export let isSpacePage = false;
+// MediaWiki page
+export let isMediaWikiPage = false;
 // Category page
 export let isCategoryPage = false;
 // Template page
 export let isTemplatePage = false;
+// Project page
+export let isProjectPage = false;
 // Help page
 export let isHelpPage = false;
 // Other wiki page (Project:, Docs:, Automated:, ...)
@@ -33,10 +37,14 @@ export let isProfileEdit = false;
 export let isProfileAddRelative = false;
 // Space edit page
 export let isSpaceEdit = false;
+// MediaWiki edit page
+export let isMediaWikiEdit = false;
 // Category edit page
 export let isCategoryEdit = false;
 // Template edit page
 export let isTemplateEdit = false;
+// Project edit page
+export let isProjectEdit = false;
 // Help edit page
 export let isHelpEdit = false;
 // Other wiki edit page (Project:, Docs:, Automated:, ...)
@@ -49,13 +57,16 @@ export let isWikiHistory = false;
 export let isProfileHistory = false;
 // Profile History Detail page
 export let isProfileHistoryDetail = false;
-
 // Space History page
 export let isSpaceHistory = false;
+// MediaWiki History page
+export let isMediaWikiHistory = false;
 // Category History page
 export let isCategoryHistory = false;
 // Template History page
 export let isTemplateHistory = false;
+// Project History page
+export let isProjectHistory = false;
 // Help History page
 export let isHelpHistory = false;
 // Other wiki History page (Project:, Docs:, Automated:, ...)
@@ -163,6 +174,23 @@ if (
 ) {
   isTemplateHistory = true;
 } else if (
+  // Project Edit Page
+  window.location.href.match(/\/index.php\?title=Project:.*&action=edit.*/g) ||
+  window.location.href.match(/\/index.php\?title=Project:.*&action=submit.*/g)
+) {
+  isProjectEdit = true;
+} else if (
+  // Project Page
+  window.location.pathname.match(/\/wiki\/Project:.*/g) ||
+  window.location.href.match(/\/index.php\?title=Project:.*/g)
+) {
+  isProjectPage = true;
+} else if (
+  // Project History Page https://www.wikitree.com/index.php?title=Project:Data%20Doctors&action=history
+  window.location.href.match(/\/index.php\?title=Project:.*&action=history/g)
+) {
+  isProjectHistory = true;
+} else if (
   // Help Edit Page
   window.location.href.match(/\/index.php\?title=Help:.*&action=edit.*/g) ||
   window.location.href.match(/\/index.php\?title=Help:.*&action=submit.*/g)
@@ -235,7 +263,9 @@ if (
   console.log(window.location.href);
 }
 
-isWikiPage = isProfilePage || isSpacePage || isCategoryPage || isTemplatePage || isHelpPage || isOtherPage;
-isWikiEdit = isProfileEdit || isSpaceEdit || isCategoryEdit || isTemplateEdit || isHelpEdit || isOtherEdit;
-isWikiHistory =
-  isProfileHistory || isSpaceHistory || isCategoryHistory || isTemplateHistory || isHelpHistory || isOtherHistory;
+isMediaWikiPage = isCategoryPage || isTemplatePage || isProjectPage || isHelpPage || isOtherPage;
+isWikiPage = isProfilePage || isSpacePage || isMediaWikiPage;
+isMediaWikiEdit = isCategoryEdit || isTemplateEdit || isProjectEdit || isHelpEdit || isOtherEdit;
+isWikiEdit = isProfileEdit || isSpaceEdit || isMediaWikiEdit;
+isMediaWikiHistory = isCategoryHistory || isTemplateHistory || isProjectHistory || isHelpHistory || isOtherHistory;
+isWikiHistory = isProfileHistory || isSpaceHistory || isMediaWikiHistory;
