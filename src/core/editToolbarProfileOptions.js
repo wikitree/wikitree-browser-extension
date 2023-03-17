@@ -7,33 +7,68 @@ import { editToolbarApp, editToolbarWiki } from "./editToolbar";
 export default [
   {
     button: "Sources",
-    items: [{ featureid: "wtplus", title: "Paste sources", call: wtPlus, params: { action: "PasteSource" } }],
+    items: [
+      {
+        featureid: "wtplus",
+        title: "Paste sources",
+        hint: "Opens Paste dialog where sources can be pasted and reformated for some standard sites (FindaGrave, FamillySearch,...).",
+        call: wtPlus,
+        params: { action: "PasteSource" },
+      },
+    ],
   },
   {
     button: "Templates",
     items: [
-      { featureid: "wtplus", title: "Edit Template", call: wtPlus, params: { action: "EditTemplate" } },
-      { featureid: "wtplus", title: "Add any template", call: wtPlus, params: { action: "AddTemplate" } },
+      {
+        featureid: "wtplus",
+        title: "Edit Template",
+        hint: "Edit template fields for template under cursor.",
+        call: wtPlus,
+        params: { action: "EditTemplate" },
+      },
+      {
+        featureid: "wtplus",
+        title: "Add any template",
+        hint: "Adds any template using search and also edit all template fields.",
+        call: wtPlus,
+        params: { action: "AddTemplate" },
+      },
       {
         featureid: "wtplus",
         title: "Add Project Box",
+        hint: "Adds Project Box template using search and also edit all template fields.",
         call: wtPlus,
         params: { action: "AddTemplate", data: "Project Box" },
       },
-      { featureid: "wtplus", title: "Add Sticker", call: wtPlus, params: { action: "AddTemplate", data: "Sticker" } },
+      {
+        featureid: "wtplus",
+        title: "Add Sticker",
+        hint: "Adds Sticker template using search and also edit all template fields.",
+        call: wtPlus,
+        params: { action: "AddTemplate", data: "Sticker" },
+      },
       {
         featureid: "wtplus",
         title: "Add Research Note Box",
+        hint: "Adds Research Note Box template using search and also edit all template fields.",
         call: wtPlus,
         params: { action: "AddTemplate", data: "Profile Box" },
       },
       {
         featureid: "wtplus",
         title: "Add External links",
+        hint: "Adds External links template using search and also edit all template fields.",
         call: wtPlus,
         params: { action: "AddTemplate", data: "External Link" },
       },
-      { featureid: "wtplus", title: "Format Template Params", call: wtPlus, params: { action: "AutoFormat" } },
+      {
+        featureid: "wtplus",
+        title: "Format Template Params",
+        hint: "Reformats template parameters with just the necessary spaces.",
+        call: wtPlus,
+        params: { action: "AutoFormat" },
+      },
     ],
   },
   {
@@ -42,14 +77,23 @@ export default [
       {
         featureid: "wtplus",
         title: "Add location category",
+        hint: "Add location category using search for words in name and parent categories.",
         call: wtPlus,
         params: { action: "AddCIBCategory", data: "Location" },
       },
       {
         featureid: "wtplus",
         title: "Add cemetery category",
+        hint: "Add Cemetery category using search for words in name, parent, location and aka names.",
         call: wtPlus,
         params: { action: "AddCIBCategory", data: "Cemetery" },
+      },
+      {
+        featureid: "wtplus",
+        title: "Add any category",
+        hint: "Add any category using search for words in name and parent categories.",
+        call: wtPlus,
+        params: { action: "AddCIBCategory", data: "Category" },
       },
     ],
   },
@@ -158,6 +202,7 @@ export default [
       {
         featureid: "wtplus",
         title: "Help",
+        hint: "Opens WikiTree+ help page",
         call: editToolbarWiki,
         params: { wiki: "Space:WikiTree_Plus_Chrome_Extension#On_Profile_pages" },
       },
