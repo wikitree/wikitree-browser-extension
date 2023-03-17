@@ -1,6 +1,6 @@
 import { isOK } from "../../core/common";
 import { PersonName } from "./person_name.js";
-import { minimalPlace, formatDate, getYYYYMMDD } from "./auto_bio";
+import { minimalPlace, formatDate, getYYYYMMDD, isWithinX } from "./auto_bio";
 // Timeline functions
 export function bioTimelineFacts(marriagesAndCensusesEtc) {
   let bioTimeline = [];
@@ -13,6 +13,7 @@ export function bioTimelineFacts(marriagesAndCensusesEtc) {
     "Event Type": "Birth",
     "Event Place": birthLocation,
     OrderDate: padNumber(birthDate),
+    Year: birthDate.slice(0, 4),
   });
 
   if (window.profilePerson["Baptism Date"]) {
@@ -24,6 +25,7 @@ export function bioTimelineFacts(marriagesAndCensusesEtc) {
       "Event Type": "Baptism",
       "Event Place": window.profilePerson["Baptism Place"],
       OrderDate: padNumber(window.profilePerson["Baptism Date"].replaceAll(/-/g, "")),
+      Year: window.profilePerson["Baptism Date"].slice(0, 4),
     });
   }
 
@@ -32,6 +34,7 @@ export function bioTimelineFacts(marriagesAndCensusesEtc) {
     "Event Type": "Death",
     "Event Place": window.profilePerson.DeathLocation,
     OrderDate: padNumber(window.profilePerson.DeathDate.replaceAll(/-/g, "")),
+    Year: window.profilePerson.DeathDate.slice(0, 4),
   });
 
   if (window.profilePerson["Burial Date"]) {
@@ -43,6 +46,7 @@ export function bioTimelineFacts(marriagesAndCensusesEtc) {
       "Event Type": "Burial",
       "Event Place": window.profilePerson["Burial Place"],
       OrderDate: padNumber(window.profilePerson["Burial Date"].replaceAll(/-/g, "")),
+      Year: window.profilePerson["Burial Date"].slice(0, 4),
     });
   }
 
@@ -71,6 +75,7 @@ export function bioTimelineFacts(marriagesAndCensusesEtc) {
           "Event Place": aPerson.BirthLocation,
           OrderDate: padNumber(birthDate.replaceAll(/-/g, "")),
           person: aPerson,
+          Year: birthDate.slice(0, 4),
         });
         bioTimeline.push({
           "Event Date": deathDate,
@@ -78,6 +83,7 @@ export function bioTimelineFacts(marriagesAndCensusesEtc) {
           "Event Place": aPerson.DeathLocation,
           OrderDate: padNumber(deathDate.replaceAll(/-/g, "")),
           person: aPerson,
+          Year: deathDate.slice(0, 4),
         });
         if (aRel == "Spouses") {
           bioTimeline.push({
@@ -86,6 +92,7 @@ export function bioTimelineFacts(marriagesAndCensusesEtc) {
             "Event Place": aPerson.marriage_location,
             OrderDate: padNumber(aPerson["marriage_date"].replaceAll(/-/g, "")),
             person: aPerson,
+            Year: aPerson.marriage_date.slice(0, 4),
           });
         }
       });
@@ -238,7 +245,11 @@ export function buildTimelineTable(bioTimeline) {
           //console.log(aEvent, aRef);
           if (
             !(aEvent["Event Type"] == "Military" && aEvent.War != aRef.War) &&
-            !(aEvent["Event Type"] == "Prison" && aEvent.Year != aRef.Year)
+            !(aEvent["Event Type"] == "Prison" && aEvent.Year != aRef.Year) &&
+            !(
+              (aEvent["Event Type"] == "Baptism" || aEvent["Event Type"] == "Birth") &&
+              !isWithinX(window.profilePerson.BirthYear, aRef.Year, 10)
+            )
           ) {
             let theRef;
             if (aRef.Used) {
