@@ -45,7 +45,7 @@ async function initAccessibility() {
       let li = $(this);
       li.contents().each(function () {
         let el = $(this);
-        if (el.is("sup, a[href^='#'], span:empty")) {
+        if (el.is("sup, a[href^='#_ref']:first-of-type, span:empty")) {
           if (this.tagName !== "SPAN") {
             $(this).remove();
           }
@@ -72,7 +72,7 @@ async function initAccessibility() {
         let li = $(this);
         li.contents().each(function () {
           let el = $(this);
-          if (el.is("sup, a[href^='#'], span:empty")) {
+          if (el.is("sup, a[href^='#_ref']:first-of-type, span:empty")) {
             return true; // skip over back-reference links
           }
           if (this.nodeValue && /^\u2191?\s*$/.test(this.nodeValue)) {
@@ -99,7 +99,7 @@ async function initAccessibility() {
             return false;
           } else if (state == 1) {
             // skip back-references, anchors, whitespace, and the up arrow (sometimes a link, sometimes text, depending on whether there are multiple references) at the beginning
-            if (el.is("sup, a[href^='#'], span:empty") || (this.nodeValue && /^\u2191?\s*$/.test(this.nodeValue))) {
+            if (el.is("sup, a[href^='#_ref']:first-of-type, span:empty") || (this.nodeValue && /^\u2191?\s*$/.test(this.nodeValue))) {
               return false;
             }
             state++;
