@@ -45,7 +45,6 @@ import {
 // the feature and options
 ////////////////////////////////////////////////////////////////////////////////
 
-import "./accessibility/accessibility_options.js";
 import "./agc/agc_options.js";
 import "./auto_bio/auto_bio_options.js";
 import "./categoryDisplay/categoryDisplay_options.js";
@@ -53,11 +52,10 @@ import "./change_family_lists/change_family_lists_options.js";
 import "./custom_change_summary_options/custom_change_summary_options_options";
 import "./darkMode/darkMode_options.js";
 import "./extra_watchlist/extra_watchlist_options.js";
-import "./format_source_reference_numbers/format_source_reference_numbers_options.js";
 import "./g2g/g2g_options.js";
 import "./genderPredictor/gender_predictor_options.js";
 import "./randomProfile/randomProfile_options.js";
-import "./readingMode/readingMode_options.js";
+import "./readability/readability_options.js";
 import "./redir_ext_links/redir_ext_links_options.js";
 import "./what_links_here/what_links_here_options.js";
 import "./wtPlus/wtPlus_options.js";
@@ -142,20 +140,6 @@ registerFeature({
   contributors: [],
   category: "Profile",
   defaultValue: true,
-  pages: [isProfilePage],
-});
-
-registerFeature({
-  name: "Collapsible Sources",
-  id: "collapsibleSources",
-  description:
-    "Makes the page shorter by hiding the inline citations on load.  " +
-    "To see the inline citations, click the black triangle button next to the Sources heading, click the superscript number of the citation, " +
-    "or use the Source Preview feature of this extension.",
-  category: "Profile",
-  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
-  defaultValue: false,
   pages: [isProfilePage],
 });
 

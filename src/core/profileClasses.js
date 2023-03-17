@@ -1,7 +1,7 @@
 /*
-Created By: Jonathan Duke (Duke-5773)
-Used By: accessibility, readingMode (for debugging, see debugProfileClasses)
-*/
+ * Created By: Jonathan Duke (Duke-5773)
+ * Used By: readability (for debugging, see debugProfileClasses)
+ */
 
 import $ from "jquery";
 import { isProfilePage, isSpacePage, isCategoryPage } from './pageType';

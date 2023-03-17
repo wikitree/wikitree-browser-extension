@@ -1,14 +1,21 @@
 /*
-Created By: Jonathan Duke (Duke-5773)
-*/
+ * Created By: Jonathan Duke (Duke-5773)
+ * Original Features:
+ *   Accessibility Options (Duke-5773)
+ *   Reading Mode (Duke-5773)
+ *   Collapsible Sources (Beacall-6)
+ *   Format Source Reference Numbers (Beacall-6)
+ */
 
 import $ from "jquery";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage.js";
 import { ensureProfileClasses } from "../../core/profileClasses";
 
+export let toggleReadingMode;
+
 async function initAccessibility() {
   ensureProfileClasses();
-  const options = await getFeatureOptions("accessibility");
+  const options = await getFeatureOptions("readability");
   if (options.listItemSpacing && options.listItemSpacing > 0) {
     document.documentElement.style.setProperty("--a11y-spacing", 1.5 * options.listItemSpacing / 100 + "em"); // this is based on the normal paragraph margin being 1.5em
     if (options.spaceSourceItemsOnly) {
@@ -109,7 +116,7 @@ async function initAccessibility() {
               state++;
               return true;
             } else if (this.nodeType == 3 && state <= 3) {
-              if (/\S/.test(this.textContent)) {
+              if (/[^\s:;,.-]/.test(this.textContent)) {
                 state = 4;
                 return true;
               }
@@ -176,8 +183,8 @@ async function initAccessibility() {
         // add the sorted citations, including the clone, after the first node and then remove the duplicate
         $(this).after(group).remove();
       }
-      group[0].find("a").first().before("[");
-      group[group.length - 1].find("a").last().after("]");
+      group[0].find("a").first().before('<span class="x-ref-bracket">[</span>');
+      group[group.length - 1].find("a").last().after('<span class="x-ref-bracket">]</span>');
       for (let i = 0; i < group.length; i++) {
         let el = group[i].get(0);
         if (i == 0) {
@@ -186,7 +193,7 @@ async function initAccessibility() {
             el.previousSibling.nodeValue = el.previousSibling.nodeValue.replace(/\s+$/, "");
           }
         } else {
-          group[i].prepend(",<wbr />");
+          group[i].prepend('<span class="x-ref-separator">,</span><wbr />');
         }
         group[i].find("a").each(function () {
           // remove the brackets from the individual citation links
@@ -197,9 +204,113 @@ async function initAccessibility() {
   }
 }
 
-checkIfFeatureEnabled("accessibility").then((result) => {
+async function initReadingMode() {
+  ensureProfileClasses();
+  const options = await getFeatureOptions("readability");
+  toggleReadingMode = function () {
+    if (options.hideSideBar) {
+      $("html").toggleClass("hide-sidebar");
+      $(".x-sidebar").prev().toggleClass("ten").toggleClass("sixteen");
+    }
+    if (options.hideInlineTables) {
+      $("html").toggleClass("hide-inline-tables");
+    }
+    if (options.collapseSources) {
+      $("html").toggleClass("collapse-sources");
+    }
+    if (options.hideCitations) {
+      $("html").toggleClass("hide-citations");
+    }
+    if (options.hidePageTabs) {
+      $("html").toggleClass("hide-page-tabs");
+    }
+    if (options.hideViewTabs) {
+      $("html").toggleClass("hide-view-tabs");
+    }
+    if (options.hideAuditData) {
+      $("html").toggleClass("hide-audit-data");
+    }
+    if (options.hideStatus) {
+      $("html").toggleClass("hide-status");
+    }
+    if (options.hideStickers) {
+      $("html").toggleClass("hide-stickers");
+    }
+    if (options.hideTableOfContents) {
+      $("html").toggleClass("hide-toc");
+    }
+    if (options.hideInlineImages) {
+      $("html").toggleClass("hide-inline-images");
+    }
+    if (options.hideComments) {
+      $("html").toggleClass("hide-comments");
+    }
+    if (options.hideHeadingExtras) {
+      $("html").toggleClass("hide-heading-extras");
+    }
+    if (options.hideEdits) {
+      $("html").toggleClass("hide-edits");
+    }
+    if (options.hideConnections) {
+      $("html").toggleClass("hide-connections");
+    }
+    if (options.hideCategories) {
+      $("html").toggleClass("hide-categories");
+    }
+    if (options.hideBackground) {
+      $("html").toggleClass("hide-background");
+    }
+  };
+
+  if (options.collapseSources) {
+    let toggleSourcesSection = function () {
+      $("html").toggleClass("expand-sources");
+    };
+    let toggleElement = $('<span class="toggle show-sources"><input type="checkbox" id="show_sources"><label for="show_sources"></label></span>');
+    toggleElement.find("input").change(function () {
+      toggleSourcesSection();
+    });
+    $("h2.x-sources").first().append(toggleElement);
+  }
+
+  if (options.hideBackground) {
+    let bgStyle = $(".x-style-bg");
+    bgStyle.text(bgStyle.text().replace(/\b(BODY\s*{)/si, "html:not(.hide-background) $1"));
+  }
+
+  if (options.readingMode) {
+    // preserve the state from the previous page, we'll start in reading mode on this page (defaults to true if the feature has never been used before)
+    await chrome.storage.sync.get("readability_options").then((result) => {
+      let isToggledOn = !result || !result.readability_options || false !== result.readability_options.readingMode_toggle;
+      if (isToggledOn) {
+        toggleReadingMode();
+      }
+      // this function will toggle reading mode in the feature options
+      let setToggleValue = async function (value) {
+        await chrome.storage.sync.get("readability_options").then(async (result) => {
+          if (result) {
+            let options = (result.readability_options = result.readability_options || {});
+            options.readingMode_toggle = value;
+            await chrome.storage.sync.set(result);
+          }
+        });
+      };
+      // add the toggle to turn reading mode on/off while viewing the page instead of having to go into the extension for it
+      let toggleElement = $('<div class="toggle reading-mode .x-widget"><input type="checkbox" id="reading_mode"' + (isToggledOn ? " checked" : "") + '><label for="reading_mode">Reading Mode</label>');
+      toggleElement.find("input").change(function () {
+        toggleReadingMode();
+        setToggleValue(this.checked);
+      });
+      $("#header").prepend(toggleElement);
+    });
+  }
+}
+
+checkIfFeatureEnabled("readability").then((result) => {
   if (result) {
-    import("./accessibility.css");
+    import("../../core/toggleCheckbox.css");
+    import("./readability.css");
     initAccessibility();
+    initReadingMode();
   }
 });
