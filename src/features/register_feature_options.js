@@ -70,7 +70,7 @@ registerFeature({
   id: "accessKeys",
   description:
     "Adds access keys. g: G2G Recent Activity; r: Random Profile, n: Nav Home Page;" +
-    " h: Help Search; s: Save; e: Edit; k: Category; p: Preview. (<a href='https://en.wikipedia.org/wiki/Access_key'>More details</a>)",
+    " h: Help Search; s: Save; e: Edit; k: Category; p: Preview. (<a href='https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#Access_Keys' target='_blank'>More details</a>)",
   category: "Global",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
