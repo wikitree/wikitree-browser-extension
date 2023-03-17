@@ -836,7 +836,10 @@ function addReferences(event, spouse = false) {
   window.references.forEach(function (reference) {
     let spousePattern = new RegExp(spouse.FirstName + "|" + spouse.Nickname);
     let spouseMatch = spousePattern.test(reference.Text);
-    if (!(event == "Marriage" && spouseMatch == false && reference.Year != spouse.marriage_date.substring(0, 4))) {
+    if (
+      !(event == "Marriage" && spouseMatch == false && reference.Year != spouse.marriage_date.substring(0, 4)) &&
+      !(event == "Baptism" && !isWithinX(reference.Year, parseInt(window.profilePerson.BirthDate.slice(0, 4)), 10))
+    ) {
       if (reference["Record Type"].includes(event)) {
         refCount++;
         if (reference.Used) {
@@ -1296,7 +1299,7 @@ export function getYYYYMMDD(dateString) {
   }
 }
 
-function isWithinX(num1, num2, within) {
+export function isWithinX(num1, num2, within) {
   return Math.abs(num1 - num2) <= within;
 }
 
@@ -1332,9 +1335,9 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
   }
   console.log(text);
 
-  if (reference.Text.match(/<br\/>/)) {
+  if (reference.Text.match(/<br(\/)?>/)) {
     console.log(1);
-    const textSplit = reference.Text.split(/<br\/>/);
+    const textSplit = reference.Text.split(/<br(\/)?>/);
     if (textSplit[textSplit.length - 1].match(nameMatchPattern)) {
       console.log(textSplit);
       const nameMatch = textSplit[textSplit.length - 1].match(nameMatchPattern)[0];
@@ -1856,12 +1859,18 @@ function findRelation(person) {
       }
       let keys = Object.keys(window.profilePerson[relation]);
       keys.forEach(function (key) {
+        let skip = false;
         let oNameVariants = [person.FirstName];
         if (firstNameVariants[person.FirstName]) {
           oNameVariants = firstNameVariants[person.FirstName];
         }
         if (isSameName(window.profilePerson[relation][key].FirstName, oNameVariants)) {
-          if (window.profilePerson[relation][key].Gender) {
+          if (person.BirthYear) {
+            if (!isWithinX(person.BirthYear, window.profilePerson[relation][key].BirthDate.slice(0, 4), 5)) {
+              skip = true;
+            }
+          }
+          if (window.profilePerson[relation][key].Gender && skip == false) {
             let oGender = window.profilePerson[relation][key].Gender;
             relationWord =
               relationSingular == "Child"
@@ -2126,7 +2135,9 @@ function getCensusesFromCensusSection() {
                   newPerson = {};
                 }
                 newPerson = {};
-              } else if (thisCensus && ref.CensusType == "freecen") {
+              }
+              /*
+              else if (thisCensus && ref.CensusType == "freecen") {
                 if (!ref.ListText.includes(line) && line.match("freecen") == null) {
                   ref.ListText.push(line);
                 }
@@ -2170,6 +2181,7 @@ function getCensusesFromCensusSection() {
                 }
                 newPerson = {};
               }
+              */
             }
           }
           if (yearMatch) {
@@ -2438,7 +2450,7 @@ function buildCensusNarratives() {
           text += createFamilyNarrative(reference.Household);
         }
       }
-      reference.Narrative = text;
+      reference.Narrative = text.replace(" ;", "");
       reference.OrderDate = formatDate(reference["Census Year"], 0, 8);
     }
   });
@@ -2577,7 +2589,7 @@ function createFamilyNarrative(familyMembers) {
   if (spouse) {
     narrative +=
       spouseBit +
-      (childrenBit ? (!othersBit && !siblingsBit && !parentsBit ? "; and " : "; ") : "") +
+      (childrenBit ? (!othersBit && !siblingsBit && !parentsBit ? "; and " : spouseBit ? "; " : "") : "") +
       childrenBit +
       (parentsBit ? (!othersBit && !siblingsBit ? "; and " : "; ") : "") +
       parentsBit +
@@ -2595,7 +2607,7 @@ function createFamilyNarrative(familyMembers) {
   }
   narrative += ".";
 
-  return narrative;
+  return narrative.replaceAll(/\s;/g, "");
 }
 
 function parseWikiTable(text) {
@@ -2790,6 +2802,14 @@ function assignSelf(data) {
     let strength = 0.9;
     while (!hasSelf && strength > 0) {
       for (const member of data.Household) {
+        console.log(member.Name);
+        console.log(window.profilePerson.NameVariants);
+        console.log(strength);
+        console.log(data["Year"]);
+        console.log(getAgeAtCensus(window.profilePerson, data["Year"]));
+        console.log(member.Age);
+        console.log(isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), member.Age, isWithinRange));
+
         if (
           isSameName(member.Name, window.profilePerson.NameVariants, strength) &&
           isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), member.Age, isWithinRange)
@@ -2985,6 +3005,146 @@ function addMilitaryRecord(aRef, type) {
   return aRef;
 }
 
+function profilePersonMatch(text) {
+  let result = false;
+  const nameMatchPattern = new RegExp(window.profilePerson.NameVariants.join("\\b|\\b"));
+  const match = text.match(nameMatchPattern);
+  if (match) {
+    result = match;
+  }
+  return result;
+}
+
+function parseFreeReg(aRef) {
+  if (aRef.Text.match(/\(.+freereg.org.uk.+\)/)) {
+    const theBits = aRef.Text.split(/\(.*?\)/);
+    const locationBits = theBits[0].split(/ : /);
+    let location = [];
+    let enough = false;
+    locationBits.forEach(function (aBit) {
+      if (aBit.match(/register/i) == null && enough == false) {
+        location.unshift(aBit);
+      } else {
+        enough = true;
+      }
+    });
+    let type;
+    const dateMatch = theBits[1].match(/\b\d{1,2}\s\w{3}\s\d{4}(\/\d)?\b/);
+    console.log(theBits[1]);
+    console.log(dateMatch);
+    if (dateMatch) {
+      aRef.Year = dateMatch[0].split(" ")[2];
+    }
+    let isProfilePerson = profilePersonMatch(aRef.Text) || false;
+
+    if (theBits[1]) {
+      const typeMatch = theBits[1].match(
+        /(Birth|Marriage|Death|Burial|Baptism|Probate|World War I\b|World War II|Vietnam War|Korean War)/i
+      );
+      if (typeMatch[0] && isProfilePerson) {
+        type = capitalizeFirstLetter(typeMatch[0]);
+        if (type == "Probate") type = "Death";
+        if (!aRef["Record Type"]) aRef["Record Type"] = [];
+        aRef["Record Type"].push(type);
+        aRef["Event Type"] = type;
+        aRef["Event Place"] = location.join(", ");
+        if (type == "Baptism" && isWithinX(parseInt(window.profilePerson["BirthDate"].slice(0, 4)), aRef.Year, 10)) {
+          aRef["Record Type"].push("Birth");
+          aRef.Person = isProfilePerson[0];
+          window.profilePerson["Baptism Place"] = location.join(", ");
+        }
+        if (type == "Burial") {
+          aRef["Record Type"].push("Death");
+          window.profilePerson["Burial Place"] = location.join(", ");
+        }
+
+        // CHECK THIS  Perrett-412
+
+        if (dateMatch) {
+          aRef["Event Date"] = dateMatch[0];
+          aRef.OrderDate = formatDate(dateMatch[0], 0, 8);
+          aRef["Event Year"] = aRef.OrderDate.substring(0, 4);
+          aRef.Year = aRef["Event Year"];
+          if (type == "Baptism" && isWithinX(parseInt(window.profilePerson["BirthDate"].slice(0, 4)), aRef.Year, 10)) {
+            window.profilePerson["Baptism Date"] = dateMatch[0];
+          }
+          if (type == "Burial") {
+            window.profilePerson["Burial Date"] = dateMatch[0];
+          }
+        }
+        aRef = addMilitaryRecord(aRef, type);
+      }
+
+      if (type == "Marriage") {
+        const coupleMatch = theBits[1].match(/([A-Z].*?\bto\b\s.*?\s)\d/);
+        if (coupleMatch) {
+          const couple = coupleMatch[1].split("to");
+          aRef["Husband Name"] = couple[0].trim();
+          aRef["Wife Name"] = couple[1].trim();
+          aRef["Marriage Date"] = dateMatch[0];
+          aRef["Marriage Place"] = location.join(", ");
+          if (isSameName(aRef["Husband Name"], window.profilePerson.NameVariants)) {
+            aRef["Spouse Name"] = aRef["Wife Name"];
+          } else {
+            aRef["Spouse Name"] = aRef["Husband Name"];
+          }
+        }
+      }
+    }
+  }
+  return aRef;
+}
+
+function parseFreeCen(aRef) {
+  if (aRef.Text.match(/FreeCen Transcription/i)) {
+    if (!aRef.Year) {
+      aRef.Year = aRef.Text.match(/\b\d{4}\b/)[0] || "";
+    }
+    const bits = aRef.Text.split(/<br(\/)?>/i);
+    const bitsBits = bits[bits.length - 1].split("\n");
+    const household = [];
+    bitsBits.forEach(function (aBit, i) {
+      if (i == 0 && aBit.match(/^:/) == null) {
+        aRef.PersonDetails = aBit;
+      }
+      if (aBit.match(/^:/)) {
+        const aPerson = {};
+        const personBits = aBit.split(/\t|\s{4}/);
+        personBits.forEach(function (aPersonBit, j) {
+          if (j == 0) {
+            aPerson["Name"] = aPersonBit.replace(/^:/, "").trim();
+          }
+          if (j == 1) {
+            aPerson["Gender"] = aPersonBit.replace(/^:/, "").trim();
+            if (aPerson.Gender == "M") {
+              aPerson.Gender = "Male";
+            } else if (aPerson.Gender == "F") {
+              aPerson.Gender = "Female";
+            }
+          }
+          if (j == 2) {
+            aPerson["Age"] = aPersonBit.replace(/^:/, "").replaceAll(/[a-z]/g, "").trim();
+            aPerson.BirthYear = parseInt(aRef.Year) - parseInt(aPerson.Age);
+          }
+          if (j == 3) {
+            aPerson.Occupation = aPersonBit.replace(/^:/, "").trim();
+          }
+          if (j == 4) {
+            aPerson["Birth Place"] = aPersonBit.replace(/^:/, "").trim();
+          }
+        });
+        household.push(aPerson);
+      }
+    });
+    if (household.length > 0) {
+      aRef.Household = household;
+      aRef = assignSelf(aRef);
+      console.log(JSON.parse(JSON.stringify(aRef.Household)));
+    }
+  }
+  return aRef;
+}
+
 function sourcesArray(bio) {
   let dummy = $(document.createElement("html"));
   bio = bio.replace(/\{\|\s*class="wikitable".*?\|\+ Timeline.*?\|\}/gs, "");
@@ -3043,75 +3203,20 @@ function sourcesArray(bio) {
 
     // Parse FreeREG
     if (aRef.Text.match(/freereg.org.uk/)) {
-      const theBits = aRef.Text.split(/\(.*?\)/);
-      const locationBits = theBits[0].split(/ : /);
-      let location = [];
-      let enough = false;
-      locationBits.forEach(function (aBit) {
-        if (aBit.match(/register/i) == null && enough == false) {
-          location.unshift(aBit);
-        } else {
-          enough = true;
-        }
-      });
-      let type;
-      if (theBits[1]) {
-        const typeMatch = theBits[1].match(
-          /(Birth|Marriage|Death|Burial|Baptism|Probate|World War I\b|World War II|Vietnam War|Korean War)/i
-        );
-        if (typeMatch[0]) {
-          type = capitalizeFirstLetter(typeMatch[0]);
-          if (type == "Probate") type = "Death";
-          if (!aRef["Record Type"]) aRef["Record Type"] = [];
-          aRef["Record Type"].push(type);
-          aRef["Event Type"] = type;
-          aRef["Event Place"] = location.join(", ");
-          if (type == "Baptism") {
-            aRef["Record Type"].push("Birth");
-            window.profilePerson["Baptism Place"] = location.join(", ");
-          }
-          if (type == "Burial") {
-            aRef["Record Type"].push("Death");
-            window.profilePerson["Burial Place"] = location.join(", ");
-          }
+      aRef = parseFreeReg(aRef);
+    }
 
-          // CHECK THIS  Perrett-412
-          const dateMatch = theBits[1].match(/\b\d{2}\s\w{3}\s\d{4}\b/);
-          if (dateMatch) {
-            aRef["Event Date"] = dateMatch[0];
-            aRef.OrderDate = formatDate(dateMatch[0], 0, 8);
-            aRef["Event Year"] = aRef.OrderDate.substring(0, 4);
-            aRef.Year = aRef["Event Year"];
-            if (type == "Baptism") {
-              window.profilePerson["Baptism Date"] = dateMatch[0];
-            }
-            if (type == "Burial") {
-              window.profilePerson["Burial Date"] = dateMatch[0];
-            }
-          }
-          aRef = addMilitaryRecord(aRef, type);
-        }
-
-        if (type == "Marriage") {
-          const coupleMatch = theBits[1].match(/([A-Z].*?\bto\b\s.*?\s)\d/);
-          if (coupleMatch) {
-            const couple = coupleMatch[1].split("to");
-            aRef["Husband Name"] = couple[0].trim();
-            aRef["Wife Name"] = couple[1].trim();
-            aRef["Marriage Date"] = dateMatch[0];
-            aRef["Marriage Place"] = location.join(", ");
-            if (isSameName(aRef["Husband Name"], window.profilePerson.NameVariants)) {
-              aRef["Spouse Name"] = aRef["Wife Name"];
-            } else {
-              aRef["Spouse Name"] = aRef["Husband Name"];
-            }
-          }
-        }
-      }
+    // Parse FreeCen
+    console.log(aRef);
+    if (aRef.Text.match(/FreeCen Transcription/i)) {
+      aRef = parseFreeCen(aRef);
+      console.log(aRef);
     }
 
     if (aRef["Record Type"]) {
-      aRef["Record Type"] = [aRef["Record Type"]];
+      if (!Array.isArray(aRef["Record Type"])) {
+        aRef["Record Type"] = [aRef["Record Type"]];
+      }
     } else {
       aRef["Record Type"] = [];
     }
@@ -3425,7 +3530,7 @@ function getSourcerCensuses() {
   let match;
 
   while ((match = regex.exec(text)) !== null) {
-    censuses.push({ "Census Year": match[1], Text: match[0] });
+    censuses.push({ "Census Year": match[1], Text: match[0], Year: match[1] });
   }
 
   if (window.sectionsObject?.Biography?.subsections?.Census) {
@@ -4148,9 +4253,12 @@ export async function generateBio() {
   window.profilePerson = window.biographyPeople[0].people[window.biographyPeople[0].resultByKey[profileID].Id];
   window.profilePerson.Pronouns = getPronouns(window.profilePerson);
   window.profilePerson.NameVariants = getNameVariants(window.profilePerson);
+
   if (!window.profilePerson.Parents) {
     window.autoBioNotes.push("You may get better results by logging in to the apps server (click the button above).");
     addLoginButton();
+  } else {
+    window.profilePerson.BirthYear = window.profilePerson.BirthDate?.split("-")[0];
   }
 
   // Handle census data created with Sourcer
