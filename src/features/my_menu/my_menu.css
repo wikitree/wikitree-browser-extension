@@ -105,19 +105,6 @@ body.home #myCustomMenuContainer ul.pureCssMenu {
   margin-right: 1em;
 }
 
-#myCustomMenuContainer {
-  float: none;
-  z-index: 19;
-  position: absolute;
-  bottom: 0.8em;
-  right: 7em;
-}
-body.qa-body-js-on #myCustomMenuContainer {
-  float: right;
-  z-index: 19;
-  position: relative;
-}
-
 #myCustomMenuContainer ul.pureCssMenu > li {
   display: block;
   width: 100%;

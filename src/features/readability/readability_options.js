@@ -37,14 +37,19 @@ import { isCategoryPage, isProfilePage, isSpacePage } from "../../core/pageType"
               }
             };
             let options = settings.readability_options;
+            if (options.listItemSpacing === "0") {
+              options.listItemSpacing = "default"; // the old "none" was like the new "default" but the new one removes all spacing
+            }
             options.readingMode = !!values[2].readingMode;
             options.hideCitations = options.mode === "hide" ? "255" : options.hideCitations ? "1" : "0";
             if (!!values[6].formatSourceReferenceNumbers) {
               options.citationSize = "80";
               if (options.mode !== "hide") options.citationFormat = "2";
             }
-            options.mode = null;
-            options.cleanCitations = options.cleanCitations || !!values[6].formatSourceReferenceNumbers ? "255" : "0";
+            options.mode = null; // no longer used
+            options.citationFormat = options.citationFormat ? options.citationFormat : options.cleanCitations ? "3" : "0";
+            options.sortCitations = !!options.cleanCitations;
+            options.cleanCitations = citationFormat !== "0"; // clean now only means removing whitespace and underlines
             options.collapseSources = !!values[5].collapsibleSources ? "255" : options.collapseSources ? "1" : "0";
             options.boldSources = options.boldSources ? "255" : "0";
             options.removeSourceBreaks = options.removeSourceBreaks ? "255" : "0";
@@ -92,17 +97,17 @@ const readabilityFeature = {
       label: "Reading Mode",
       options: [
         {
+          id: "readingMode_toggle",
+          type: OptionType.CHECKBOX,
+          label: "Enable reading mode",
+          defaultValue: false,
+        },
+        {
           id: "readingMode",
           type: OptionType.CHECKBOX,
           label: "Show the reading mode toggle switch",
           defaultValue: true,
         },
-        {
-          id: "readingMode_toggle",
-          type: OptionType.CHECKBOX,
-          label: "Enable reading mode",
-          defaultValue: false,
-        }
       ]
     },
     {
@@ -112,11 +117,15 @@ const readabilityFeature = {
         {
           id: "listItemSpacing",
           type: OptionType.SELECT,
-          label: "Add spacing between list items",
+          label: "Adjust spacing between list items",
           values: [
             {
               value: 0,
               text: "none",
+            },
+            {
+              value: "default",
+              text: "WikiTree default",
             },
             {
               value: 50,
@@ -147,7 +156,7 @@ const readabilityFeature = {
               text: "400% (extra wide)",
             },
           ],
-          defaultValue: 100,
+          defaultValue: "default",
         },
         {
           id: "mergeAdjacentLists",
@@ -178,7 +187,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -198,7 +207,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -218,7 +227,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -230,7 +239,7 @@ const readabilityFeature = {
         {
           id: "removeSourceLabels",
           type: OptionType.SELECT,
-          label: "Remove extra source labels from the beginning of sources",
+          label: "Remove bold labels from the beginning of sources",
           values: [
             {
               value: 0,
@@ -238,7 +247,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -258,7 +267,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -284,84 +293,12 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
               text: "always",
             }
-          ],
-          defaultValue: 0
-        },
-        {
-          id: "cleanCitations",
-          type: OptionType.SELECT,
-          label: "Merge and sort adjacent citations together",
-          values: [
-            {
-              value: 0,
-              text: "never",
-            },
-            {
-              value: 1,
-              text: "reading mode",
-            },
-            {
-              value: 255,
-              text: "always",
-            }
-          ],
-          defaultValue: 255
-        },
-        {
-          id: "citationSize",
-          type: OptionType.SELECT,
-          label: "Adjust citation size",
-          values: [
-            {
-              value: 60,
-              text: "tiny",
-            },
-            {
-              value: 80,
-              text: "smaller",
-            },
-            {
-              value: 100,
-              text: "normal",
-            },
-            {
-              value: 125,
-              text: "larger",
-            },
-          ],
-          defaultValue: 100
-        },
-        {
-          id: "citationSpacing",
-          type: OptionType.SELECT,
-          label: "Spacing between citation numbers",
-          values: [
-            {
-              value: -10,
-              text: "condensed",
-            },
-            {
-              value: 0,
-              text: "none",
-            },
-            {
-              value: 10,
-              text: "slight",
-            },
-            {
-              value: 20,
-              text: "extra",
-            },
-            {
-              value: 40,
-              text: "wide",
-            },
           ],
           defaultValue: 0
         },
@@ -389,6 +326,70 @@ const readabilityFeature = {
           ],
           defaultValue: 0
         },
+        {
+          id: "citationSize",
+          type: OptionType.SELECT,
+          label: "Citation size",
+          values: [
+            {
+              value: 60,
+              text: "tiny",
+            },
+            {
+              value: 80,
+              text: "smaller",
+            },
+            {
+              value: 100,
+              text: "normal",
+            },
+            {
+              value: 125,
+              text: "larger",
+            },
+          ],
+          defaultValue: 100
+        },
+        {
+          id: "citationSpacing",
+          type: OptionType.SELECT,
+          label: "Additional spacing between citation numbers",
+          values: [
+            {
+              value: -10,
+              text: "condensed",
+            },
+            {
+              value: 0,
+              text: "none",
+            },
+            {
+              value: 10,
+              text: "slight",
+            },
+            {
+              value: 20,
+              text: "extra",
+            },
+            {
+              value: 40,
+              text: "wide",
+            },
+          ],
+          defaultValue: 0
+        },
+        {
+          id: "cleanCitations",
+          type: OptionType.CHECKBOX,
+          label: "Clean up citations (remove extra whitespace and underline)",
+          defaultValue: false
+        },
+        {
+          id: "sortCitations",
+          type: OptionType.CHECKBOX,
+          label: "Sort adjacent citations by number",
+          defaultValue: false
+        }
       ]
     },
     {
@@ -406,7 +407,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -426,7 +427,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -446,7 +447,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -466,7 +467,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -486,7 +487,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -506,7 +507,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -526,7 +527,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -546,7 +547,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -566,7 +567,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -586,7 +587,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -606,7 +607,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -626,7 +627,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -646,7 +647,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -666,7 +667,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,
@@ -686,7 +687,7 @@ const readabilityFeature = {
             },
             {
               value: 1,
-              text: "reading mode",
+              text: "in reading mode",
             },
             {
               value: 255,

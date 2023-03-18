@@ -1,35 +1,44 @@
 :root {
-  --a11y-spacing: 1em;
-  --a11y-citation-size: 80%;
-  --a11y-citation-spacing: 0.1em;
+  --a11y-li-spacing: 1em;
+  --a11y-citation-size: 100%;
+  --a11y-citation-spacing: 0em;
 }
 
 .a11y-list-spacing .x-content > ol > li,
 .a11y-list-spacing .x-content > ul > li {
-  margin-top: var(--a11y-spacing);
-  margin-bottom: var(--a11y-spacing);
+  margin-top: var(--a11y-li-spacing);
+  margin-bottom: var(--a11y-li-spacing);
 }
 
 .a11y-src-spacing ol.x-sources > li,
 .a11y-src-spacing ul.x-sources > li {
-  margin-top: var(--a11y-spacing);
-  margin-bottom: var(--a11y-spacing);
+  margin-top: var(--a11y-li-spacing);
+  margin-bottom: var(--a11y-li-spacing);
 }
 
 .a11y-src-bold .a11y-src-first {
   font-weight: bold;
 }
 
-.a11y-ref-clean sup.reference {
+.hide-src-br .a11y-src-br {
+  display: none;
+}
+
+.hide-src-label .a11y-src-label {
+  display: none;
+}
+
+.hide-src-back .a11y-back-ref {
+  display: none;
+}
+
+sup.reference {
   font-size: var(--a11y-citation-size);
+  line-height: normal;
   white-space: nowrap;
 }
 
-.a11y-ref-clean .x-ref-bracket, .a11y-ref-clean .x-ref-separator, .a11y-ref-clean sup.reference a {
-  display: inline-block;
-}
-
-.a11y-ref-clean .x-ref-separator, .a11y-ref-clean .x-ref-bracket:first-child {
+.x-ref-separator, .x-ref-bracket:first-child {
   margin-right: var(--a11y-citation-spacing);
 }
 
@@ -42,9 +51,10 @@
 }
 
 .toggle.reading-mode {
-  position: absolute;
-  right: 3px;
-  bottom: 12px;
+  position: relative;
+  float: right;
+  clear: right;
+  padding: 4px 0;
 }
 
 .toggle.show-sources {
