@@ -113,14 +113,23 @@ export default [
       {
         featureid: "wtplus",
         title: "Add location category",
+        hint: "Add location category using search for words in name and parent categories.",
         call: wtPlus,
         params: { action: "AddCIBCategory", data: "Location" },
       },
       {
         featureid: "wtplus",
         title: "Add cemetery group",
+        hint: "Add Cemetery group category using search for words in name, parent and location.",
         call: wtPlus,
         params: { action: "AddCIBCategory", data: "CemeteryGroup" },
+      },
+      {
+        featureid: "wtplus",
+        title: "Add any category",
+        hint: "Add any category using search for words in name and parent categories.",
+        call: wtPlus,
+        params: { action: "AddCIBCategory", data: "Category" },
       },
     ],
   },

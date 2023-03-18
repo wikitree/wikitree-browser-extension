@@ -836,9 +836,20 @@ function addReferences(event, spouse = false) {
   window.references.forEach(function (reference) {
     let spousePattern = new RegExp(spouse.FirstName + "|" + spouse.Nickname);
     let spouseMatch = spousePattern.test(reference.Text);
+    let sameName = true;
+    if (reference.Person) {
+      let oNameVariants = [window.profilePerson.PersonName.FirstName];
+      if (firstNameVariants[window.profilePerson.PersonName.FirstName]) {
+        oNameVariants = firstNameVariants[window.profilePerson.PersonName.FirstName];
+      }
+      if (!isSameName(reference.Person.split(" ")[0], oNameVariants)) {
+        sameName = false;
+      }
+    }
     if (
       !(event == "Marriage" && spouseMatch == false && reference.Year != spouse.marriage_date.substring(0, 4)) &&
-      !(event == "Baptism" && !isWithinX(reference.Year, parseInt(window.profilePerson.BirthDate.slice(0, 4)), 10))
+      !(event == "Baptism" && !isWithinX(reference.Year, parseInt(window.profilePerson.BirthDate.slice(0, 4)), 10)) &&
+      !sameName == false
     ) {
       if (reference["Record Type"].includes(event)) {
         refCount++;
@@ -3145,6 +3156,26 @@ function parseFreeCen(aRef) {
   return aRef;
 }
 
+function parseNZBDM(aRef) {
+  const yearAndNumber = aRef.Text.match(/(1[89]\d{2})\/\d{3,}/);
+  if (yearAndNumber[0]) {
+    aRef.Year = yearAndNumber[1];
+    aRef["Record Number"] = yearAndNumber[0];
+  }
+  const typeMatch = aRef.Text.match(
+    /(Birth|Death|Marriage|Divorce|Civil Union|Name Change|Adoption|Census) Record: (.*?)\./i
+  );
+  if (typeMatch[1]) {
+    aRef["Record Type"] = typeMatch[1];
+  }
+  if (typeMatch[2]) {
+    if (typeMatch[2].match(/[A-Z'-]['a-z-]+\s[A-Z'-][a-z'-]+/)) {
+      aRef.Person = typeMatch[2];
+    }
+  }
+  return aRef;
+}
+
 function sourcesArray(bio) {
   let dummy = $(document.createElement("html"));
   bio = bio.replace(/\{\|\s*class="wikitable".*?\|\+ Timeline.*?\|\}/gs, "");
@@ -3211,6 +3242,11 @@ function sourcesArray(bio) {
     if (aRef.Text.match(/FreeCen Transcription/i)) {
       aRef = parseFreeCen(aRef);
       console.log(aRef);
+    }
+
+    // Parse NZ BDM
+    if (aRef.Text.match(/\bNZ\b/) && aRef.Text.match(/\bBDM\b/)) {
+      aRef = parseNZBDM(aRef);
     }
 
     if (aRef["Record Type"]) {
@@ -4230,7 +4266,8 @@ export async function generateBio() {
   window.usedPlaces = [];
   //let spouseLinks = $("span[itemprop='spouse'] a");
   let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
-  let keys = htmlEntities(profileID);
+  //let keys = $("#pageData").attr("data-mid") || htmlEntities(profileID);
+  let keys = encodeURIComponent(profileID);
   /*
   spouseLinks.each(function () {
     if ($(this).attr("href").split("/wiki/")[1]) {
