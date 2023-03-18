@@ -278,31 +278,29 @@ async function initReadingMode() {
     bgStyle.text(bgStyle.text().replace(/\b(BODY\s*{)/si, "html:not(.hide-background) $1"));
   }
 
+  if (options.readingMode_toggle) {
+    toggleReadingMode();
+  }
+
   if (options.readingMode) {
-    // preserve the state from the previous page, we'll start in reading mode on this page (defaults to true if the feature has never been used before)
-    await chrome.storage.sync.get("readability_options").then((result) => {
-      let isToggledOn = !result || !result.readability_options || false !== result.readability_options.readingMode_toggle;
-      if (isToggledOn) {
-        toggleReadingMode();
-      }
-      // this function will toggle reading mode in the feature options
-      let setToggleValue = async function (value) {
-        await chrome.storage.sync.get("readability_options").then(async (result) => {
-          if (result) {
-            let options = (result.readability_options = result.readability_options || {});
-            options.readingMode_toggle = value;
-            await chrome.storage.sync.set(result);
-          }
-        });
-      };
-      // add the toggle to turn reading mode on/off while viewing the page instead of having to go into the extension for it
-      let toggleElement = $('<div class="toggle reading-mode .x-widget"><input type="checkbox" id="reading_mode"' + (isToggledOn ? " checked" : "") + '><label for="reading_mode">Reading Mode</label>');
-      toggleElement.find("input").change(function () {
-        toggleReadingMode();
-        setToggleValue(this.checked);
+    // this function will toggle reading mode in the feature options
+    let setToggleValue = async function (value) {
+      await chrome.storage.sync.get("readability_options").then(async (result) => {
+        if (result) {
+          let options = (result.readability_options = result.readability_options || {});
+          options.readingMode_toggle = value;
+          await chrome.storage.sync.set(result);
+        }
       });
-      $("#header").prepend(toggleElement);
+    };
+
+    // add the toggle to turn reading mode on/off while viewing the page instead of having to go into the extension for it
+    let toggleElement = $('<div class="toggle reading-mode .x-widget"><input type="checkbox" id="reading_mode"' + (options.readingMode_toggle ? " checked" : "") + '><label for="reading_mode">Reading Mode</label>');
+    toggleElement.find("input").change(function () {
+      toggleReadingMode();
+      setToggleValue(this.checked);
     });
+    $("#header").prepend(toggleElement);
   }
 }
 
