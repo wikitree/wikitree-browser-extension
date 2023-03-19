@@ -181,6 +181,13 @@ async function initReadability() {
       $("html").addClass("a11y-ref-clean");
     }
     if (options.citationFormat / 1 > 0 || options.citationSpacing / 1 !== 0 || options.cleanCitations || options.sortCitations) {
+      // remove whitespace from between adjacent citations to prevent 1234 instead of 1,2,3,4
+      $(".x-content sup.reference + sup.reference").each(function () {
+        let prev = this.previousSibling;
+        if (prev && prev.nodeType === 3 && (!prev.nodeValue || prev.nodeValue.replace(/\s+$/, "").length === 0)) {
+          prev.remove();
+        }
+      });
       $(".x-content sup.reference").filter(function () {
         return !(this.previousSibling && this.previousSibling.nodeType === 1 && $(this.previousSibling).is("sup.reference"));
       }).each(function () {
