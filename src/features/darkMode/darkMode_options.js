@@ -10,7 +10,7 @@ const darkModeFeature = {
   description: "Make WikiTree dark.",
   category: "Style",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
+  contributors: [{ name: "Coen Dijkgraaf", wikitreeid: "Dijkgraaf-24" }],
   defaultValue: false,
   pages: [true],
   options: [
