@@ -3385,7 +3385,7 @@ function sourcesArray(bio) {
     }
     if (aRef.Text.match(/Divorce Records/)) {
       aRef["Record Type"].push("Divorce");
-      const divorceDetails = aRef.Text.match(/([^>;,]+?)\sdivorce from\s(.*?)\son\s(\d{1,2}\s[A-z]{3}\s\d{4})/);
+      const divorceDetails = aRef.Text.match(
         /([^>;,]+?)\sdivorce from\s(.*?)\son\s(\d{1,2}\s[A-z]{3}\s\d{4})(\s\bin\b\s(.*))?\./
       );
       const divorceCouple = [divorceDetails[1], divorceDetails[2]];
