@@ -955,7 +955,7 @@ function buildDeath(person) {
         let cemetery = cemeteryMatch2[1].trim();
         window.profilePerson.Cemetery = cemetery;
       }
-      if (window.profilePerson.Cemetery) {
+      if (window.profilePerson.Cemetery && !burialAdded) {
         if (window.profilePerson.Cemetery.match("Memorial")) {
           text +=
             " " +
@@ -1353,7 +1353,10 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
       console.log(textSplit);
       const nameMatch = textSplit[textSplit.length - 1].match(nameMatchPattern)[0];
       for (let i = 0; i < textSplit.length; i++) {
-        const startMatch = textSplit[i].indexOf(nameMatch);
+        let startMatch;
+        if (nameMatch && textSplit[i]) {
+          startMatch = textSplit[i].indexOf(nameMatch);
+        }
         if (startMatch > -1 && startMatch < 5) {
           text = textSplit[i]
             .replace(window.profilePerson.LastNameAtBirth + " ", "")
@@ -2364,7 +2367,7 @@ function buildCensusNarratives() {
         }
         let censusIntro = "In " + reference["Census Year"] + ", ";
         let censusRest = "";
-        if (reference.Text.match(/^'''\d{4} Census/)) {
+        if (reference.Text.match(/.{0,5}'''\d{4} Census'''/)) {
           censusRest += sourcerCensusWithNoTable(reference, nameMatchPattern);
         } else if (
           reference.Text.match(/database( with images)?, (<i>|''')?FamilySearch/) ||
