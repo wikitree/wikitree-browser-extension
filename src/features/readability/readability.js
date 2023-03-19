@@ -59,7 +59,7 @@ async function initReadability() {
           }
           return true; // flag back-reference links
         }
-        if (this.nodeValue && /^\u2191?\s*$/.test(this.nodeValue)) {
+        if (this.nodeValue && /^[*\s*\u2191]*$/.test(this.nodeValue)) {
           $(this).wrap('<span class="a11y-back-ref"></span>');
           return true; // flag whitespace and the up arrow
         }
@@ -80,10 +80,10 @@ async function initReadability() {
         let li = $(this);
         li.contents().each(function () {
           let el = $(this);
-          if (el.is("sup, a[href^='#_ref']:first-of-type, span:empty, .a11y-back-ref, .a11y-back-br")) {
+          if (el.is("sup, a[href^='#_ref']:first-of-type, span:empty, .a11y-back-ref, .a11y-back-br, .a11y-src-label")) {
             return true; // skip over back-reference links
           }
-          if (this.nodeValue && /^\u2191?\s*$/.test(this.nodeValue)) {
+          if (this.nodeValue && /^[*\s*\u2191]*$/.test(this.nodeValue)) {
             return true; // skip over whitespace and the up arrow (sometimes a link, sometimes text, depending on whether there are multiple references)
           }
           if (el.is("b")) {
@@ -114,7 +114,7 @@ async function initReadability() {
             return false;
           } else if (state == 1) {
             // skip back-references, anchors, whitespace, and the up arrow (sometimes a link, sometimes text, depending on whether there are multiple references) at the beginning
-            if (el.is("sup, a[href^='#_ref']:first-of-type, span:empty, .a11y-back-ref, .a11y-src-br, .a11y-src-label") || (this.nodeValue && /^\u2191?\s*$/.test(this.nodeValue))) {
+            if (el.is("sup, a[href^='#_ref']:first-of-type, span:empty, .a11y-back-ref, .a11y-src-br, .a11y-src-label") || (this.nodeValue && /^[*\s*\u2191]*$/.test(this.nodeValue))) {
               return false;
             }
             state++;
@@ -136,19 +136,26 @@ async function initReadability() {
             let match;
             if (state < 5) {
               let first, rest;
-              if (match = (this.textContent.match(/^(\s*["\u201c-\u201d].{6,100}?["\u201c-\u201d]+)(.*)/s))) {
+              // split off leading asterisks and whitespace as part of the label
+              if (match = this.textContent.match(/^([*\s]*\*)(.*)/)) {
+                let segment = $('<span class="a11y-src-label"></span>');
+                segment.text(match[1]).insertBefore(this);
+                this.textContent = match[2];
+              }
+              // detect the first significant segment of the source
+              if (match = this.textContent.match(/^(\s*["\u201c-\u201d].{6,100}?["\u201c-\u201d]+)(.*)/s)) {
                 // for sources that start with something enclosed in quotes
                 rest = match[2];
                 first = match[1];
-              } else if (match = (this.textContent.match(/^((\s*[^"\u2018-\u201d,]{4,20}\w*,){1,2}[^"\u2018-\u201d,.]{4,20}\w*[,.]\s*)(.*)/s))) {
+              } else if (match = this.textContent.match(/^((\s*[^"\u2018-\u201d,]{4,20}\w*,){1,2}[^"\u2018-\u201d,.]{4,20}\w*[,.]\s*)(.*)/s)) {
                 // for sources with comma separators such as Last, First Middle, Jr.
                 rest = match[3];
                 first = match[1];
-              } else if (match = (this.textContent.match(/^(\s*[^"\u201c-\u201d]{3,20}\w*\b[^"\u201c-\u201d,.(]{0,20}\w*[,.)]*)(.*)/s))) {
+              } else if (match = this.textContent.match(/^(\s*[^"\u201c-\u201d]{3,20}\w*\b[^"\u201c-\u201d,.(]{0,20}\w*[,.)]*)(.*)/s)) {
                 // for sources that start with some other non-quoted phrase that terminates with a separator
                 rest = match[2];
                 first = match[1];
-                if (match = (first.match(/(.*(\w{1,4}\.\s*){2,}\s+\b(\w+\.)?)(.*)/s))) {
+                if (match = first.match(/(.*(\w{1,4}\.\s*){2,}\s+\b(\w+\.)?)(.*)/s)) {
                   // special case for Smith, John, Ph.D. or Smith, Lt. Col. Samuel.
                   first = match[1];
                   rest = match[4] + rest;

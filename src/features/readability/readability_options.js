@@ -79,7 +79,7 @@ import { isCategoryPage, isProfilePage, isSpacePage } from "../../core/pageType"
             options.hideConnections = options.hideConnections ? "1" : "0";
             options.hideCategories = options.hideCategories ? "1" : "0";
             options.hideBackground = options.hideBackground ? "1" : "0";
-            await Promise.all([store.set(settings)]);
+            await store.set(settings);
           }
         });
       }
@@ -247,7 +247,7 @@ const readabilityFeature = {
         {
           id: "removeSourceLabels",
           type: OptionType.SELECT,
-          label: "Remove bold labels from the beginning of sources",
+          label: "Remove bold labels (and leading asterisks) from the beginning of sources",
           values: [
             {
               value: 0,
