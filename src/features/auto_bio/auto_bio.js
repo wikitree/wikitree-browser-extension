@@ -5050,7 +5050,13 @@ async function getLocationCategory(type, location = null) {
   if (locationSplit[3]) {
     locationSplit.splice(3, 3);
   }
-  let api = await wtAPICatCIBSearch("WBE", categoryType, locationSplit.join(", "));
+  let api;
+  try {
+    api = await wtAPICatCIBSearch("WBE", categoryType, locationSplit.join(", "));
+  } catch (error) {
+    console.log("Error getting location category", error);
+    api = null;
+  }
   if (api?.response?.categories?.length == 1) {
     return api?.response?.categories[0].category;
   } else if (api?.response?.categories?.length > 1) {
