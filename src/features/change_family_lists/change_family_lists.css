@@ -607,7 +607,8 @@ body.darkMode .vertical .nameList span.bdDates.parent_2 {
 .vertical .nameList li {
   position: relative;
 }
-.vertical img.dnaConfirmed {
+.vertical img[src*="DNA-confirmed"],
+.vertical a[href*="Confirmed_with_DNA"] {
   position: absolute;
   left: -2.1em;
   top: 0.3em;

@@ -171,7 +171,7 @@ async function onlyAgesAtMarriages() {
   });
 }
 
-async function moveFamilyLists(firstTime = false, wasClicked = false) {
+async function moveFamilyLists(firstTime = false) {
   const rightHandColumn = $("div.six").eq(0).prop("id", "rightColumn");
   const familyLists = $("#nVitals");
 
@@ -368,7 +368,6 @@ async function addHalfsStyle() {
       $("#siblingList li").each(function () {
         let father = $(this).data("father");
         let mother = $(this).data("mother");
-        let thisID = $(this).data("id");
         let thisLi = $(this);
         if (
           (father == p1id && p1id != undefined) ||
@@ -564,7 +563,6 @@ function fixNakedPrivates() {
 
 function makeFamLists() {
   const dparents = document.querySelectorAll('[itemprop="parent"]');
-  let dchildren = document.querySelectorAll('span[itemprop="children"]');
   const addSibling = $("a:contains('[add sibling]')");
   const addChild = $("a:contains('[add child]')");
   const motherQ = $("a:contains('[mother?]')");
@@ -587,8 +585,26 @@ function makeFamLists() {
 
   dparents.forEach(function (aParent) {
     if (aParent.nextElementSibling) {
+      let anIMG;
       if (aParent.nextElementSibling.tagName == "IMG") {
-        aParent.setAttribute("data-dna", aParent.nextElementSibling.getAttribute("title"));
+        anIMG = $(aParent.nextElementSibling);
+      } else if ($(aParent.nextElementSibling).find("img")) {
+        anIMG = $(aParent.nextElementSibling).find("img");
+      }
+      if (anIMG.attr("src")) {
+        if (anIMG.attr("src").match("dna/DNA")) {
+          console.log("dna found");
+          console.log(window.parentDNA);
+          if (!window.parentDNA) {
+            window.parentDNA = [];
+          }
+          window.parentDNA.push({
+            Name: $(aParent).find("span[itemprop='name']").text(),
+            IMG: $(aParent.nextElementSibling),
+          });
+          console.log(window.parentDNA);
+          aParent.setAttribute("data-dna", $(aParent).find("span[itemprop='name']").text());
+        }
       }
     }
   });
@@ -609,7 +625,7 @@ function makeFamLists() {
       }
       let pWord;
       if (ofNode2.length) {
-        ofNode2.each(function (n2) {
+        ofNode2.each(function () {
           if ($(this).text().match("mother")) {
             pWord = "mother";
           } else {
@@ -799,10 +815,6 @@ function list2ol(items, olid) {
   nList.className = "nameList";
   items[0].parentNode.insertBefore(nList, items[0]);
 
-  const dnaImg = $(
-    "<img src='https://www.wikitree.com/images/icons/dna/DNA-confirmed.gif' height='12' width='38' alt='DNA confirmed' class='dnaConfirmed' title='DNA confirmed'>"
-  );
-
   items.forEach(function (item) {
     var dHalf;
     let nLi = document.createElement("li");
@@ -846,8 +858,13 @@ function list2ol(items, olid) {
     }
 
     if (item.getAttribute("data-dna")) {
-      let anImg = dnaImg.clone();
-      nLi.append(anImg[0]);
+      window.parentDNA.forEach(function (anIMG) {
+        if (anIMG.Name == item.textContent) {
+          nLi.append(anIMG.IMG[0]);
+        }
+      });
+      //      let anImg = dnaImg.clone();
+      //      nLi.append(anImg[0]);
     }
     nList.appendChild(nLi);
 
@@ -868,7 +885,6 @@ function list2ol(items, olid) {
       }
       addDataToPerson($(dLink).closest("li"), dPeep);
       list2ol2(dPeep);
-      let dchildren = document.querySelectorAll('span[itemprop="children"]');
     }
   });
   while (nList.nextSibling) {
@@ -987,7 +1003,6 @@ function list2ol2(person) {
     let done = false;
     let checkit = encodeURIComponent(pdata["Name"]).replaceAll(/%2C/g, ",");
     das.forEach(function (ana) {
-      var re = new RegExp(checkit + "$");
       if (ana.href == "https://www.wikitree.com/wiki/" + checkit && done == false) {
         ana.parentNode.appendChild(datesSpan);
         done = true;
@@ -1203,7 +1218,7 @@ function insertInSibList() {
         }
 
         let theSib, sibDate, sibBY;
-        sibDates.each(function (index) {
+        sibDates.each(function () {
           if (!theSib) {
             sibDate = $(this).text().split("-");
             if (sibDate.length > 1) {
@@ -1261,6 +1276,7 @@ function insertInSibList() {
     if (
       $(this)
         .text()
+        // eslint-disable-next-line no-control-regex
         .match(/\] and	\[private/)
     ) {
       $(this).remove();

@@ -975,7 +975,7 @@ function buildDeath(person) {
       }
     }
   });
-  window.sectionsObject.StuffBeforeTheBio.text.forEach(function (thing, i) {
+  window.sectionsObject.StuffBeforeTheBio.text.forEach(function (thing) {
     const cemeteryCategoryMatch = thing.match(
       /Category:\s?((.*Cemetery|Memorial|Cimetière|kyrkogård|temető|Grave|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard).*?)\]\]/
     );
