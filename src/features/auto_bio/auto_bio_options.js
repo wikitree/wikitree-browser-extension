@@ -5,6 +5,8 @@ const autoBio = {
   id: "autoBio",
   description: "Generates an automated biography from available data.",
   category: "Editing",
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
+  contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: true,
   options: [
     {
