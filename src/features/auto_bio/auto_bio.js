@@ -4,7 +4,7 @@ import { getPeople } from "../dna_table/dna_table";
 import { PersonName } from "./person_name.js";
 import { countries } from "./countries.js";
 import { firstNameVariants } from "./first_name_variants.js";
-import { isOK, htmlEntities } from "../../core/common";
+import { isOK } from "../../core/common";
 import { getAge } from "../change_family_lists/change_family_lists";
 import { wtAPICatCIBSearch } from "../../core/wtPlusAPI/wtPlusAPI";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
@@ -3386,10 +3386,15 @@ function sourcesArray(bio) {
     if (aRef.Text.match(/Divorce Records/)) {
       aRef["Record Type"].push("Divorce");
       const divorceDetails = aRef.Text.match(/([^>;,]+?)\sdivorce from\s(.*?)\son\s(\d{1,2}\s[A-z]{3}\s\d{4})/);
+        /([^>;,]+?)\sdivorce from\s(.*?)\son\s(\d{1,2}\s[A-z]{3}\s\d{4})(\s\bin\b\s(.*))?\./
+      );
       const divorceCouple = [divorceDetails[1], divorceDetails[2]];
       aRef.Couple = divorceCouple;
       aRef["Divorce Date"] = divorceDetails[3];
       aRef["Event Date"] = divorceDetails[3];
+      if (divorceDetails[5]) {
+        aRef["Divorce Place"] = divorceDetails[5];
+      }
       aRef["Event Type"] = "Divorce";
       aRef.Year = divorceDetails[3].match(/\d{4}/)[0];
       aRef.Location = aRef.Text.match(/in\s(.*?)(,\sUnited States)?/)[1];
@@ -3407,9 +3412,11 @@ function sourcesArray(bio) {
         capitalizeFirstLetter(formatDate(aRef["Divorce Date"])) +
         ", " +
         window.profilePerson.PersonName.FirstName +
-        " divorced " +
+        " and " +
         thisSpouse.replace(window.profilePerson.LastNameAtBirth, "").replace(/\s$/, "") +
-        (aRef["Divorce Place"] ? " in " + aRef["Divorce Place"] : "");
+        " divorced" +
+        (aRef["Divorce Place"] ? " in " + aRef["Divorce Place"] : "") +
+        ".";
     }
     if (aRef.Text.match(/Prison Records/)) {
       aRef["Record Type"].push("Prison");
@@ -4593,18 +4600,24 @@ export async function generateBio() {
                   thisSpouse = anEvent.Couple[0];
                 }
               }
-              formatDate(anEvent["Divorce Date"]) +
+              /*
+              anEvent.Narrative =
+                formatDate(anEvent["Divorce Date"]) +
                 " " +
                 window.profilePerson.PersonName.FirstName +
-                " divorced " +
+                " and " +
                 thisSpouse +
+                " divorced" +
                 (anEvent["Divorce Place"] ? " in " + anEvent["Divorce Place"] : "");
-              if (aRef.RefName) {
-                thisRef = "<ref name='" + aRef.RefName + "' />";
-              } else {
-                thisRef = " <ref name='divorce_" + i + "'>" + aRef.Text + "</ref>";
-                aRef.RefName = "divorce_" + i;
-                aRef.Used = true;
+                */
+              if (aRef.Text.match(thisSpouse)) {
+                if (aRef.RefName) {
+                  thisRef = "<ref name='" + aRef.RefName + "' />";
+                } else {
+                  thisRef = " <ref name='divorce_" + i + "'>" + aRef.Text + "</ref>";
+                  aRef.RefName = "divorce_" + i;
+                  aRef.Used = true;
+                }
               }
             } else if (
               anEvent["Event Type"] == "Prison" &&
