@@ -826,6 +826,7 @@ function firstAndMiddleNameVariantsRegex(person) {
 }
 
 window.marriageCitations = 1;
+window.refNames = [];
 function addReferences(event, spouse = false) {
   let refCount = 0;
   if (event == "Marriage") {
@@ -853,7 +854,7 @@ function addReferences(event, spouse = false) {
     ) {
       if (reference["Record Type"].includes(event)) {
         refCount++;
-        if (reference.Used) {
+        if (reference.Used || window.refNames.includes(reference.RefName)) {
           text += "<ref name='" + reference.RefName + "' /> ";
         } else {
           if (!reference.RefName) {
@@ -861,6 +862,7 @@ function addReferences(event, spouse = false) {
           }
           reference.Used = true;
           text += "<ref name='" + reference.RefName + "'>" + reference.Text + "</ref> ";
+          window.refNames.push(reference.RefName);
         }
       }
     }
@@ -1344,13 +1346,10 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
       .replace("in household of", "in the household of");
     text = info;
   }
-  console.log(text);
 
   if (reference.Text.match(/<br(\/)?>/)) {
-    console.log(1);
     const textSplit = reference.Text.split(/<br(\/)?>/);
     if (textSplit[textSplit.length - 1].match(nameMatchPattern)) {
-      console.log(textSplit);
       const nameMatch = textSplit[textSplit.length - 1].match(nameMatchPattern)[0];
       for (let i = 0; i < textSplit.length; i++) {
         let startMatch;
@@ -1363,11 +1362,8 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
             .replace(/\b(single\s)?\b(daughter|son|wife|mother|husband|sister|brother)\b/, "was a $1$2")
             .replace("in household of", "in the household of")
             .replace(/Born in .+/, "");
-          console.log(text);
-          if (i < textSplit.length - 1) {
-            console.log(textSplit[i + 1]);
+          if (i < textSplit.length - 1 && textSplit[i + 1]) {
             const familyMembers = [];
-            // Riley C Tunison 37, wife Rockey M Tunison 34, daughter Pheobe M Tunison 16, son Riley W Tunison 13, son David J Tunison 8, son George C Tunison 6.
             const maybeFamily = textSplit[i + 1].split(",");
             for (let j = 0; j < maybeFamily.length; j++) {
               const aMember = {};
@@ -1507,7 +1503,6 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
   if (text.match(/in the household/) && !text.match(/^[^.]*?\bwas\b[^.\n]*\./)) {
     text = text.replace(/in the household/, "was in the household");
   }
-  console.log(text);
 
   return text.replace(/\s\./, "");
 }
@@ -1568,7 +1563,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
       text = text.replace(firstName, firstName + ageBit + " ").replaceAll(/'''/g, "");
     }
   } else if (countryPatternMatch) {
-    //if we have a match on the US pattern
+    //if we have a match on the country pattern
     text +=
       window.profilePerson.PersonName.FirstName +
       ageBit +
@@ -1598,7 +1593,11 @@ function getHouseholdOfRelationAndName(text) {
             oNameVariants = firstNameVariants[householdHeadFirstName];
           }
 
-          if (isSameName(window.profilePerson[relation][key].FirstName, oNameVariants)) {
+          if (
+            isSameName(window.profilePerson[relation][key].FirstName, oNameVariants) &&
+            (text.match(window.profilePerson[relation][key].LastNameAtBirth) ||
+              text.match(window.profilePerson[relation][key].LastNameCurrent))
+          ) {
             if (window.profilePerson[relation][key].Gender) {
               let oGender = window.profilePerson[relation][key].Gender;
               var relationWord =
@@ -2994,9 +2993,13 @@ async function getFindAGraveCitation(link) {
 
 function addMilitaryRecord(aRef, type) {
   // Add military service records
+  console.log(JSON.parse(JSON.stringify(aRef)));
   if (["World War I", "World War II", "Vietnam War", "Korean War"].includes(type)) {
     aRef["Record Type"].push("Military");
-    window.profilePerson["Military Service"] = [type];
+    if (!window.profilePerson["Military Service"]) {
+      window.profilePerson["Military Service"] = [];
+    }
+    window.profilePerson["Military Service"].push(type);
     aRef.War = type;
   }
   if (type == "World War I") {
@@ -3013,9 +3016,21 @@ function addMilitaryRecord(aRef, type) {
     }
   }
   if (aRef["Record Type"].includes("Military")) {
-    const regiment = aRef["Regiment Name"] ? " in the " + aRef["Regiment Name"] : "";
-    aRef.Narrative = window.profilePerson.PersonName.FirstName + " served" + regiment + " in " + aRef.War + ".";
+    if (aRef.Text.match("Draft Registration")) {
+      console.log("Draft");
+      aRef["Record Type"].push("Draft Registration");
+      aRef.Narrative =
+        window.profilePerson.PersonName.FirstName +
+        " registered for the draft for " +
+        (["Vietnam War", "Korean War"].includes(aRef.War) ? "the " : "") +
+        aRef.War +
+        ".";
+    } else {
+      const regiment = aRef["Regiment Name"] ? " in the " + aRef["Regiment Name"] : "";
+      aRef.Narrative = window.profilePerson.PersonName.FirstName + " served" + regiment + " in " + aRef.War + ".";
+    }
   }
+  console.log(JSON.parse(JSON.stringify(aRef)));
   return aRef;
 }
 
@@ -3185,11 +3200,53 @@ function sourcesArray(bio) {
   dummy.append(bio);
   let refArr = [];
   let refs = dummy.find("ref");
+  let refNamesAdded = new Set(); // Keep track of added reference names
+
   refs.each(function () {
+    let refElement = $(this);
+    let refName = refElement.attr("name");
+    if (refName && refNamesAdded.has(refName)) return; // Skip if the reference with this name has already been added
+
+    let innerHTML = refElement.html().trim();
+    if (innerHTML.length === 0) return; // Skip if the reference has no content
+
+    let theRef = innerHTML.match(/^(.*?)(?=<\/?ref|$)/s)[1].trim();
+
+    if (window.isFirefox == true) {
+      theRef = $(this)[0].innerText;
+    }
+    if (theRef != "" && theRef != "\n" && theRef != "\n\n" && theRef.match(/==\s?Sources\s?==/) == null) {
+      let NonSource = false;
+      if (theRef.match(unsourced)) {
+        NonSource = true;
+      }
+      refArr.push({ Text: theRef.trim(), RefName: refName, NonSource: NonSource });
+      console.log(JSON.parse(JSON.stringify(refArr)));
+
+      if (refName) {
+        refNamesAdded.add(refName); // Mark this reference name as added
+      }
+    }
+  });
+
+  /*
+  let dummy = $(document.createElement("html"));
+  bio = bio.replace(/\{\|\s*class="wikitable".*?\|\+ Timeline.*?\|\}/gs, "");
+  dummy.append(bio);
+  let refArr = [];
+  let refs = dummy.find("ref");
+  refs.each(function () {
+   
     let theRef = $(this)
       .html()
       .match(/^(.*?)(?=<\/?ref|$)/s)[1]
       .trim();
+     
+    let refElement = $(this);
+    let innerHTML = refElement.html().trim();
+    if (innerHTML.length === 0) return; // Skip if the reference has no content
+
+    let theRef = innerHTML.match(/^(.*?)(?=<\/?ref|$)/s)[1].trim();
     if (window.isFirefox == true) {
       theRef = $(this)[0].innerText;
     }
@@ -3199,8 +3256,11 @@ function sourcesArray(bio) {
         NonSource = true;
       }
       refArr.push({ Text: theRef.trim(), RefName: $(this).attr("name"), NonSource: NonSource });
+      console.log(JSON.parse(JSON.stringify(refArr)));
     }
   });
+  */
+  console.log(JSON.parse(JSON.stringify(refArr)));
 
   window.sourcesSection.text = window.sourcesSection.text.map(function (aSource) {
     if (aSource.match(/database( with images)?, FamilySearch|^http/) && aSource.match(/^\*/) == null) {
@@ -3241,10 +3301,8 @@ function sourcesArray(bio) {
     }
 
     // Parse FreeCen
-    console.log(aRef);
     if (aRef.Text.match(/FreeCen Transcription/i)) {
       aRef = parseFreeCen(aRef);
-      console.log(aRef);
     }
 
     // Parse NZ BDM
@@ -3488,11 +3546,14 @@ function sourcesArray(bio) {
     }
     // Add military service records
     const militaryMatch = aRef.Text.match(/World War I\b|World War II|Korean War|Vietnam War/);
+    console.log(JSON.parse(JSON.stringify(aRef)));
     if (militaryMatch) {
       aRef = addMilitaryRecord(aRef, militaryMatch[0]);
+      console.log(JSON.parse(JSON.stringify(aRef)));
     }
   });
   window.references = refArr;
+  JSON.parse(JSON.stringify(window.references));
   buildCensusNarratives();
 }
 
@@ -4522,6 +4583,7 @@ export async function generateBio() {
   var marriagesAndCensusesText = "";
   marriagesAndCensusesEtc.sort((a, b) => parseInt(a.OrderDate) - parseInt(b.OrderDate));
   console.log(JSON.parse(JSON.stringify(marriagesAndCensusesEtc)));
+  console.log(JSON.parse(JSON.stringify(window.references)));
   marriagesAndCensusesEtc.forEach(function (anEvent, i) {
     if (anEvent["Record Type"]) {
       if (anEvent["Record Type"].includes("Marriage")) {
@@ -4562,7 +4624,14 @@ export async function generateBio() {
             anEvent.Narrative = anEvent.Narrative.replace("other child", "child");
           }
           const theseRefs = [];
+          console.log(anEvent["Event Type"]);
+          console.log(anEvent.War);
+          console.log(anEvent);
           window.references.forEach(function (aRef, i) {
+            console.log(aRef);
+            console.log(aRef["Record Type"]);
+            console.log(aRef.War);
+            console.log(aRef.RefName);
             if (
               anEvent["Record Type"].includes(aRef["Record Type"]) &&
               aRef.Text.match("contributed by various users") &&
@@ -4580,12 +4649,13 @@ export async function generateBio() {
               aRef["Record Type"].includes("Military") &&
               anEvent.War == aRef.War
             ) {
-              if (aRef.RefName) {
+              if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
                 thisRef = "<ref name='" + aRef.RefName + "' />";
               } else {
                 thisRef = " <ref name='military_" + i + "'>" + aRef.Text + "</ref>";
                 aRef.RefName = "military_" + i;
                 aRef.Used = true;
+                window.refNames.push(aRef.RefName);
               }
               if (!theseRefs.includes(thisRef)) {
                 theseRefs.push(thisRef);
@@ -4614,12 +4684,13 @@ export async function generateBio() {
                 (anEvent["Divorce Place"] ? " in " + anEvent["Divorce Place"] : "");
                 */
               if (aRef.Text.match(thisSpouse)) {
-                if (aRef.RefName) {
+                if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
                   thisRef = "<ref name='" + aRef.RefName + "' />";
                 } else {
                   thisRef = " <ref name='divorce_" + i + "'>" + aRef.Text + "</ref>";
                   aRef.RefName = "divorce_" + i;
                   aRef.Used = true;
+                  window.refNames.push(aRef.RefName);
                 }
               }
             } else if (
@@ -4627,12 +4698,13 @@ export async function generateBio() {
               aRef["Record Type"].includes("Prison") &&
               anEvent.Year == aRef.Year
             ) {
-              if (aRef.RefName) {
+              if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
                 thisRef = "<ref name='" + aRef.RefName + "' />";
               } else {
                 thisRef = " <ref name='prison_" + i + "'>" + aRef.Text + "</ref>";
                 aRef.RefName = "prison_" + i;
                 aRef.Used = true;
+                window.refNames.push(aRef.RefName);
               }
             }
           });
