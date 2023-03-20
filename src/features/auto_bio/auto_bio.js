@@ -3,6 +3,7 @@ import $ from "jquery";
 import { getPeople } from "../dna_table/dna_table";
 import { PersonName } from "./person_name.js";
 import { countries } from "./countries.js";
+import { needsCategories } from "./needs.js";
 import { firstNameVariants } from "./first_name_variants.js";
 import { isOK } from "../../core/common";
 import { getAge } from "../change_family_lists/change_family_lists";
@@ -1858,7 +1859,6 @@ function updateRelations(data) {
 
 function findRelation(person) {
   let relationWord;
-  console.log(person);
   if (!person.FirstName) {
     if (person.Name) {
       person.FirstName = person.Name.split(" ")[0];
@@ -1879,6 +1879,7 @@ function findRelation(person) {
         }
         if (isSameName(window.profilePerson[relation][key].FirstName, oNameVariants)) {
           if (person.BirthYear) {
+            //console.log(person.BirthYear,);
             if (!isWithinX(person.BirthYear, window.profilePerson[relation][key].BirthDate.slice(0, 4), 5)) {
               skip = true;
             }
@@ -1916,6 +1917,16 @@ function findRelation(person) {
       });
     }
   });
+  if (!relationWord) {
+    const needsProfilesList = window.sectionsObject["Research Notes"].subsections.NeedsProfiles;
+    if (needsProfilesList) {
+      needsProfilesList.forEach(function (needed) {
+        if (getSimilarity(needed.Name, person.Name) > 0.9 && !relationWord) {
+          relationWord = needed.Relation;
+        }
+      });
+    }
+  }
   return relationWord;
 }
 
@@ -2260,6 +2271,7 @@ function buildCensusNarratives() {
               }
               if (splitBit[2]) {
                 person.Age = splitBit[2].trim();
+                person.BirthYear = parseInt(reference["Census Year"]) - parseInt(person.Age);
               }
               if (splitBit[3]) {
                 person.Relation = splitBit[3].trim();
@@ -2493,7 +2505,7 @@ function createFamilyNarrative(familyMembers) {
     (member) =>
       !["Self", "Wife", "Husband", "Daughter", "Son", "Brother", "Sister", "Father", "Mother"].includes(member.Relation)
   );
-
+  /*
   const removeMainPersonLastName = (name) => {
     const names = name.split(" ");
     let nameToMatch = window.profilePerson.LastNameAtBirth;
@@ -2505,6 +2517,22 @@ function createFamilyNarrative(familyMembers) {
     }
     return names.join(" ");
   };
+  */
+
+  const removeMainPersonLastName = (name) => {
+    const names = name.split(" ");
+    let lastNameAtBirth = window.profilePerson.LastNameAtBirth;
+    let lastNameCurrent = window.profilePerson.LastNameCurrent;
+    let mainPersonLastName = mainPerson ? mainPerson.LastName : lastNameAtBirth;
+
+    // Check if the last name in the 'names' array matches either the main person's last name or the current last name, and remove it if it does
+    if (names[names.length - 1] === mainPersonLastName || names[names.length - 1] === lastNameCurrent) {
+      names.pop();
+    }
+
+    return names.join(" ");
+  };
+
   let spouseBit = "";
   if (spouse) {
     spouseBit = `${
@@ -2600,9 +2628,16 @@ function createFamilyNarrative(familyMembers) {
     });
   }
   if (spouse) {
+    console.log(spouseBit);
     narrative +=
       spouseBit +
-      (childrenBit ? (!othersBit && !siblingsBit && !parentsBit ? "; and " : spouseBit ? "; " : "") : "") +
+      (childrenBit
+        ? !othersBit && !siblingsBit && !parentsBit && spouseBit != ""
+          ? "; and "
+          : spouseBit
+          ? "; "
+          : ""
+        : "") +
       childrenBit +
       (parentsBit ? (!othersBit && !siblingsBit ? "; and " : "; ") : "") +
       parentsBit +
@@ -2612,7 +2647,7 @@ function createFamilyNarrative(familyMembers) {
   } else {
     narrative +=
       parentsBit +
-      (childrenBit ? (!othersBit && !siblingsBit ? "; and " : "; ") : "") +
+      (childrenBit ? (!othersBit && !siblingsBit && parentsBit ? "; and " : "; ") : "") +
       childrenBit +
       (siblingsBit ? (!othersBit ? "; and " : "; ") : "") +
       siblingsBit +
@@ -2620,7 +2655,10 @@ function createFamilyNarrative(familyMembers) {
   }
   narrative += ".";
 
-  return narrative.replaceAll(/\s;/g, "");
+  return narrative
+    .replaceAll(/\s;/g, "")
+    .replace(/with\sand/g, "with")
+    .replace(/\s{2,}/, " ");
 }
 
 function parseWikiTable(text) {
@@ -2643,7 +2681,7 @@ function parseWikiTable(text) {
       const key = cells[0].trim().replace("|", "").replace(/:$/, "");
       const value = cells[1].trim().replace("|", "");
       if (data.Household) {
-        const aMember = { Name: key };
+        const aMember = { Name: key, Census: data["Year"] };
         for (let i = 1; i < cells.length; i++) {
           if (
             cells[i].match(
@@ -2654,6 +2692,7 @@ function parseWikiTable(text) {
             aMember.censusRelation = aMember.Relation;
           } else if (cells[i].match(/^\s?\d{1,2}/)) {
             aMember.Age = cells[i].trim();
+            aMember.BirthYear = data["Year"] - aMember.Age;
           } else if (cells[i].match(/^M$/)) {
             aMember.Gender = "Male";
           } else if (cells[i].match(/^F$/)) {
@@ -2662,6 +2701,7 @@ function parseWikiTable(text) {
             aMember["Birth Place"] = cells[i].trim();
           }
         }
+
         if (
           isSameName(key, window.profilePerson.NameVariants) &&
           isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), aMember.Age, 5)
@@ -2799,7 +2839,9 @@ function parseWikiTable(text) {
 
       // Add to Research Notes
       if (!aMember.HasProfile && aMember.Relation != "Self") {
-        window.sectionsObject["Research Notes"].subsections.NeedsProfiles.push(aMember);
+        if (!window.sectionsObject["Research Notes"].subsections.NeedsProfiles.includes(aMember)) {
+          window.sectionsObject["Research Notes"].subsections.NeedsProfiles.push(aMember);
+        }
       }
     });
   }
@@ -3221,7 +3263,6 @@ function sourcesArray(bio) {
         NonSource = true;
       }
       refArr.push({ Text: theRef.trim(), RefName: refName, NonSource: NonSource });
-      console.log(JSON.parse(JSON.stringify(refArr)));
 
       if (refName) {
         refNamesAdded.add(refName); // Mark this reference name as added
@@ -3546,10 +3587,8 @@ function sourcesArray(bio) {
     }
     // Add military service records
     const militaryMatch = aRef.Text.match(/World War I\b|World War II|Korean War|Vietnam War/);
-    console.log(JSON.parse(JSON.stringify(aRef)));
     if (militaryMatch) {
       aRef = addMilitaryRecord(aRef, militaryMatch[0]);
-      console.log(JSON.parse(JSON.stringify(aRef)));
     }
   });
   window.references = refArr;
@@ -4769,16 +4808,6 @@ export async function generateBio() {
     if (window.sectionsObject["Research Notes"].text.includes(newNote) == null) {
       window.sectionsObject["Research Notes"].text.push(newNote);
     }
-
-    /*
-    let needsProfilesCategory = secondToLastPlaceName + ", Needs Profiles Created";
-    let checkCategory = needsProfilesCategory.replaceAll(/\s/g, "_");
-    console.log(checkCategory);
-    console.log(window.profilePerson.Categories);
-    if (!window.profilePerson.Categories.includes(checkCategory)) {
-      text = "[[Category:" + needsProfilesCategory + "]]\n" + text;
-    }
-  */
   }
 
   // Add Timeline Table
@@ -4818,6 +4847,8 @@ export async function generateBio() {
       researchNotesText += window.sectionsObject["Research Notes"].text.join("\n");
       researchNotesText += "\n\n";
     }
+
+    const needsDone = [];
     let needsProfileText = "";
     const needsProfiles = window.sectionsObject["Research Notes"].subsections["NeedsProfiles"];
     if (needsProfiles.length > 0) {
@@ -4829,11 +4860,33 @@ export async function generateBio() {
       } else if (needsProfiles.length > 1) {
         needsProfileText = "The following people may need profiles:\n";
         needsProfiles.forEach(function (aMember) {
-          needsProfileText += "* " + aMember.Name + " ";
-          needsProfileText += aMember.Relation ? "(" + aMember.Relation + ")\n" : "\n";
+          if (!needsDone.includes(aMember.Name)) {
+            needsProfileText += "* " + aMember.Name + " ";
+            needsProfileText += aMember.Relation ? "(" + aMember.Relation + ")\n" : "\n";
+            needsDone.push(aMember.Name);
+          }
         });
       }
       researchNotesText += needsProfileText + "\n\n";
+
+      // Add Needs Profiles Created category
+      if (window.profilePerson.BirthLocation && window.autoBioOptions.needsProfilesCreatedCategory) {
+        const birthPlaces = window.profilePerson.BirthLocation?.split(", ");
+        let needsCategory;
+        birthPlaces.forEach(function (aPlace) {
+          const needsProfilesCreated = needsCategories.Profiles_Created;
+          for (const aNeed of needsProfilesCreated) {
+            const placeMatch = new RegExp(aPlace + ",?", "i");
+            if (aNeed.PlaceOrProject.match(placeMatch) && !needsCategory) {
+              needsCategory = "[[Category: " + aNeed.PlaceOrProject + " Needs Profiles Created]]";
+              break;
+            }
+          }
+        });
+        if (needsCategory) {
+          window.sectionsObject["StuffBeforeTheBio"].text.push(needsCategory + "\n");
+        }
+      }
     }
   }
 

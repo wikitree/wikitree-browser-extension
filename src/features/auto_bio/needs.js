@@ -1,2977 +1,2977 @@
-export const needs = {
+export const needsCategories = {
   Family_Added: [
     {
-      Country: "Latin American Roots",
+      PlaceOrProject: "Latin American Roots",
       Priority: 1,
     },
     {
-      Country: "Portugal Project",
+      PlaceOrProject: "Portugal Project",
       Priority: 2,
     },
     {
-      Country: "Spain Project",
+      PlaceOrProject: "Spain Project",
       Priority: 1,
     },
     {
-      Country: "Galicia Spain",
+      PlaceOrProject: "Galicia Spain",
       Priority: 1,
     },
     {
-      Country: "Mexico Project",
+      PlaceOrProject: "Mexico Project",
       Priority: 1,
     },
   ],
   LNAB: [
     {
-      Country: "Australia,",
+      PlaceOrProject: "Australia,",
       Priority: 2,
     },
     {
-      Country: "British Isles Royals and Aristocrats Project",
+      PlaceOrProject: "British Isles Royals and Aristocrats Project",
       Priority: 2,
     },
     {
-      Country: "England",
+      PlaceOrProject: "England",
       Priority: 2,
     },
     {
-      Country: "European Royals and Aristocrats Project",
+      PlaceOrProject: "European Royals and Aristocrats Project",
       Priority: 3,
     },
     {
-      Country: "Finland Project",
+      PlaceOrProject: "Finland Project",
       Priority: 2,
     },
     {
-      Country: "France,",
+      PlaceOrProject: "France,",
       Priority: 2,
     },
     {
-      Country: "Indonesia Project",
+      PlaceOrProject: "Indonesia Project",
       Priority: 2,
     },
     {
-      Country: "LDS Project",
+      PlaceOrProject: "LDS Project",
       Priority: 2,
     },
     {
-      Country: "Netherlands Project",
+      PlaceOrProject: "Netherlands Project",
       Priority: 2,
     },
     {
-      Country: "New Netherland Settlers Project",
+      PlaceOrProject: "New Netherland Settlers Project",
       Priority: 2,
     },
     {
-      Country: "Norway Project",
+      PlaceOrProject: "Norway Project",
       Priority: 2,
     },
     {
-      Country: "Portugal Project",
+      PlaceOrProject: "Portugal Project",
       Priority: 2,
     },
     {
-      Country: "South African Roots Project",
+      PlaceOrProject: "South African Roots Project",
       Priority: 2,
     },
     {
-      Country: "US Black Heritage Project,",
+      PlaceOrProject: "US Black Heritage Project,",
       Priority: 2,
     },
     {
-      Country: "Wales,",
+      PlaceOrProject: "Wales,",
       Priority: 2,
     },
     {
-      Country: "Denmark,",
+      PlaceOrProject: "Denmark,",
       Priority: 1,
     },
     {
-      Country: "Finland,",
+      PlaceOrProject: "Finland,",
       Priority: 1,
     },
     {
-      Country: "Iceland,",
+      PlaceOrProject: "Iceland,",
       Priority: 1,
     },
     {
-      Country: "Norway,",
+      PlaceOrProject: "Norway,",
       Priority: 1,
     },
     {
-      Country: "Sweden,",
+      PlaceOrProject: "Sweden,",
       Priority: 1,
     },
     {
-      Country: "Bedfordshire",
+      PlaceOrProject: "Bedfordshire",
       Priority: 2,
     },
     {
-      Country: "Berkshire,",
+      PlaceOrProject: "Berkshire,",
       Priority: 2,
     },
     {
-      Country: "Bristol,",
+      PlaceOrProject: "Bristol,",
       Priority: 2,
     },
     {
-      Country: "Buckinghamshire,",
+      PlaceOrProject: "Buckinghamshire,",
       Priority: 2,
     },
     {
-      Country: "Cambridgeshire,",
+      PlaceOrProject: "Cambridgeshire,",
       Priority: 2,
     },
     {
-      Country: "Cheshire,",
+      PlaceOrProject: "Cheshire,",
       Priority: 2,
     },
     {
-      Country: "Cornwall,",
+      PlaceOrProject: "Cornwall,",
       Priority: 2,
     },
     {
-      Country: "County Durham,",
+      PlaceOrProject: "County Durham,",
       Priority: 2,
     },
     {
-      Country: "Cumberland,",
+      PlaceOrProject: "Cumberland,",
       Priority: 2,
     },
     {
-      Country: "Derbyshire,",
+      PlaceOrProject: "Derbyshire,",
       Priority: 2,
     },
     {
-      Country: "Devon,",
+      PlaceOrProject: "Devon,",
       Priority: 2,
     },
     {
-      Country: "Dorset,",
+      PlaceOrProject: "Dorset,",
       Priority: 2,
     },
     {
-      Country: "Essex,",
+      PlaceOrProject: "Essex,",
       Priority: 2,
     },
     {
-      Country: "Hampshire,",
+      PlaceOrProject: "Hampshire,",
       Priority: 2,
     },
     {
-      Country: "Herefordshire,",
+      PlaceOrProject: "Herefordshire,",
       Priority: 2,
     },
     {
-      Country: "Hertfordshire,",
+      PlaceOrProject: "Hertfordshire,",
       Priority: 2,
     },
     {
-      Country: "Huntingdonshire,",
+      PlaceOrProject: "Huntingdonshire,",
       Priority: 2,
     },
     {
-      Country: "Isle of Wight,",
+      PlaceOrProject: "Isle of Wight,",
       Priority: 2,
     },
     {
-      Country: "Kent,",
+      PlaceOrProject: "Kent,",
       Priority: 2,
     },
     {
-      Country: "Lancashire,",
+      PlaceOrProject: "Lancashire,",
       Priority: 2,
     },
     {
-      Country: "Leicestershire,",
+      PlaceOrProject: "Leicestershire,",
       Priority: 2,
     },
     {
-      Country: "Lincolnshire,",
+      PlaceOrProject: "Lincolnshire,",
       Priority: 2,
     },
     {
-      Country: "Middlesex,",
+      PlaceOrProject: "Middlesex,",
       Priority: 2,
     },
     {
-      Country: "Norfolk,",
+      PlaceOrProject: "Norfolk,",
       Priority: 2,
     },
     {
-      Country: "Northamptonshire,",
+      PlaceOrProject: "Northamptonshire,",
       Priority: 2,
     },
     {
-      Country: "Northumberland,",
+      PlaceOrProject: "Northumberland,",
       Priority: 2,
     },
     {
-      Country: "Nottinghamshire,",
+      PlaceOrProject: "Nottinghamshire,",
       Priority: 2,
     },
     {
-      Country: "Rutland,",
+      PlaceOrProject: "Rutland,",
       Priority: 2,
     },
     {
-      Country: "Shropshire,",
+      PlaceOrProject: "Shropshire,",
       Priority: 2,
     },
     {
-      Country: "Somerset,",
+      PlaceOrProject: "Somerset,",
       Priority: 2,
     },
     {
-      Country: "Staffordshire,",
+      PlaceOrProject: "Staffordshire,",
       Priority: 2,
     },
     {
-      Country: "Suffolk,",
+      PlaceOrProject: "Suffolk,",
       Priority: 2,
     },
     {
-      Country: "Surrey,",
+      PlaceOrProject: "Surrey,",
       Priority: 2,
     },
     {
-      Country: "Sussex,",
+      PlaceOrProject: "Sussex,",
       Priority: 2,
     },
     {
-      Country: "Warwickshire,",
+      PlaceOrProject: "Warwickshire,",
       Priority: 2,
     },
     {
-      Country: "Westmorland,",
+      PlaceOrProject: "Westmorland,",
       Priority: 2,
     },
     {
-      Country: "Wiltshire,",
+      PlaceOrProject: "Wiltshire,",
       Priority: 2,
     },
     {
-      Country: "Worcestershire,",
+      PlaceOrProject: "Worcestershire,",
       Priority: 2,
     },
     {
-      Country: "Yorkshire,",
+      PlaceOrProject: "Yorkshire,",
       Priority: 2,
     },
     {
-      Country: "Anglesey,",
+      PlaceOrProject: "Anglesey,",
       Priority: 2,
     },
     {
-      Country: "Caernarfonshire,",
+      PlaceOrProject: "Caernarfonshire,",
       Priority: 2,
     },
     {
-      Country: "Cardiganshire,",
+      PlaceOrProject: "Cardiganshire,",
       Priority: 2,
     },
     {
-      Country: "Carmarthenshire,",
+      PlaceOrProject: "Carmarthenshire,",
       Priority: 2,
     },
     {
-      Country: "Denbighshire,",
+      PlaceOrProject: "Denbighshire,",
       Priority: 2,
     },
     {
-      Country: "Flintshire,",
+      PlaceOrProject: "Flintshire,",
       Priority: 2,
     },
     {
-      Country: "Glamorgan,",
+      PlaceOrProject: "Glamorgan,",
       Priority: 2,
     },
     {
-      Country: "Merionethshire,",
+      PlaceOrProject: "Merionethshire,",
       Priority: 2,
     },
     {
-      Country: "Monmouthshire,",
+      PlaceOrProject: "Monmouthshire,",
       Priority: 2,
     },
     {
-      Country: "Montgomeryshire,",
+      PlaceOrProject: "Montgomeryshire,",
       Priority: 2,
     },
     {
-      Country: "Pembrokeshire,",
+      PlaceOrProject: "Pembrokeshire,",
       Priority: 2,
     },
     {
-      Country: "Radnorshire,",
+      PlaceOrProject: "Radnorshire,",
       Priority: 2,
     },
     {
-      Country: "Johnson-66920",
+      PlaceOrProject: "Johnson-66920",
       Priority: 1,
     },
     {
-      Country: "MacLeod-1797",
+      PlaceOrProject: "MacLeod-1797",
       Priority: 1,
     },
     {
-      Country: "Rogers-15338",
+      PlaceOrProject: "Rogers-15338",
       Priority: 1,
     },
     {
-      Country: "Argentina Project,",
+      PlaceOrProject: "Argentina Project,",
       Priority: 1,
     },
     {
-      Country: "Cape of Good Hope Project",
+      PlaceOrProject: "Cape of Good Hope Project",
       Priority: 1,
     },
     {
-      Country: "Filles du Roi Project",
+      PlaceOrProject: "Filles du Roi Project",
       Priority: 1,
     },
     {
-      Country: "Latin American Roots",
+      PlaceOrProject: "Latin American Roots",
       Priority: 1,
     },
     {
-      Country: "Palatine Migration Project",
+      PlaceOrProject: "Palatine Migration Project",
       Priority: 1,
     },
     {
-      Country: "Spain Project",
+      PlaceOrProject: "Spain Project",
       Priority: 1,
     },
     {
-      Country: "Galicia Spain",
+      PlaceOrProject: "Galicia Spain",
       Priority: 1,
     },
     {
-      Country: "Inverness-shire,",
+      PlaceOrProject: "Inverness-shire,",
       Priority: 2,
     },
     {
-      Country: "Tennessee Project",
+      PlaceOrProject: "Tennessee Project",
       Priority: 1,
     },
     {
-      Country: "Latin America Project",
+      PlaceOrProject: "Latin America Project",
       Priority: 1,
     },
     {
-      Country: "USBH Heritage Exchange,",
+      PlaceOrProject: "USBH Heritage Exchange,",
       Priority: 1,
     },
     {
-      Country: "Green Garden Township, Illinois One Place Study,",
+      PlaceOrProject: "Green Garden Township, Illinois One Place Study,",
       Priority: 1,
     },
     {
-      Country: "Mexico Project",
+      PlaceOrProject: "Mexico Project",
       Priority: 1,
     },
     {
-      Country: "Voortrekkers",
+      PlaceOrProject: "Voortrekkers",
       Priority: 1,
     },
   ],
   Death_Record: [
     {
-      Country: "Germany,",
+      PlaceOrProject: "Germany,",
       Priority: 4,
     },
     {
-      Country: "Italy,",
+      PlaceOrProject: "Italy,",
       Priority: 3,
     },
     {
-      Country: "New Zealand,",
+      PlaceOrProject: "New Zealand,",
       Priority: 3,
     },
     {
-      Country: "United States,",
+      PlaceOrProject: "United States,",
       Priority: 2,
     },
     {
-      Country: "Ireland,",
+      PlaceOrProject: "Ireland,",
       Priority: 2,
     },
     {
-      Country: "WikiTree Challenge,",
+      PlaceOrProject: "WikiTree Challenge,",
       Priority: 1,
     },
     {
-      Country: "Canada,",
+      PlaceOrProject: "Canada,",
       Priority: 1,
     },
     {
-      Country: "England",
+      PlaceOrProject: "England",
       Priority: 1,
     },
     {
-      Country: "Wales,",
+      PlaceOrProject: "Wales,",
       Priority: 1,
     },
     {
-      Country: "Bavaria,",
+      PlaceOrProject: "Bavaria,",
       Priority: 1,
     },
     {
-      Country: "Volga Germans,",
+      PlaceOrProject: "Volga Germans,",
       Priority: 4,
     },
     {
-      Country: "Abruzzo,",
+      PlaceOrProject: "Abruzzo,",
       Priority: 1,
     },
     {
-      Country: "Aosta Valley,",
+      PlaceOrProject: "Aosta Valley,",
       Priority: 1,
     },
     {
-      Country: "Apulia,",
+      PlaceOrProject: "Apulia,",
       Priority: 1,
     },
     {
-      Country: "Basilicata,",
+      PlaceOrProject: "Basilicata,",
       Priority: 1,
     },
     {
-      Country: "Calabria,",
+      PlaceOrProject: "Calabria,",
       Priority: 1,
     },
     {
-      Country: "Campania,",
+      PlaceOrProject: "Campania,",
       Priority: 1,
     },
     {
-      Country: "Emilia-Romagna,",
+      PlaceOrProject: "Emilia-Romagna,",
       Priority: 1,
     },
     {
-      Country: "Friuli Venezia Giulia,",
+      PlaceOrProject: "Friuli Venezia Giulia,",
       Priority: 1,
     },
     {
-      Country: "Lazio,",
+      PlaceOrProject: "Lazio,",
       Priority: 1,
     },
     {
-      Country: "Liguria,",
+      PlaceOrProject: "Liguria,",
       Priority: 1,
     },
     {
-      Country: "Lombardy,",
+      PlaceOrProject: "Lombardy,",
       Priority: 1,
     },
     {
-      Country: "Marche, Italy,",
+      PlaceOrProject: "Marche, Italy,",
       Priority: 1,
     },
     {
-      Country: "Molise,",
+      PlaceOrProject: "Molise,",
       Priority: 1,
     },
     {
-      Country: "Piedmont,",
+      PlaceOrProject: "Piedmont,",
       Priority: 1,
     },
     {
-      Country: "Sardinia,",
+      PlaceOrProject: "Sardinia,",
       Priority: 1,
     },
     {
-      Country: "Sicily,",
+      PlaceOrProject: "Sicily,",
       Priority: 1,
     },
     {
-      Country: "Trentino-South Tyrol,",
+      PlaceOrProject: "Trentino-South Tyrol,",
       Priority: 1,
     },
     {
-      Country: "Tuscany,",
+      PlaceOrProject: "Tuscany,",
       Priority: 1,
     },
     {
-      Country: "Umbria,",
+      PlaceOrProject: "Umbria,",
       Priority: 1,
     },
     {
-      Country: "Veneto,",
+      PlaceOrProject: "Veneto,",
       Priority: 1,
     },
     {
-      Country: "Alaska,",
+      PlaceOrProject: "Alaska,",
       Priority: 2,
     },
     {
-      Country: "Arizona",
+      PlaceOrProject: "Arizona",
       Priority: 2,
     },
     {
-      Country: "Arkansas,",
+      PlaceOrProject: "Arkansas,",
       Priority: 1,
     },
     {
-      Country: "California,",
+      PlaceOrProject: "California,",
       Priority: 1,
     },
     {
-      Country: "Colorado,",
+      PlaceOrProject: "Colorado,",
       Priority: 1,
     },
     {
-      Country: "Connecticut,",
+      PlaceOrProject: "Connecticut,",
       Priority: 2,
     },
     {
-      Country: "Florida,",
+      PlaceOrProject: "Florida,",
       Priority: 2,
     },
     {
-      Country: "Hawaii,",
+      PlaceOrProject: "Hawaii,",
       Priority: 2,
     },
     {
-      Country: "Idaho,",
+      PlaceOrProject: "Idaho,",
       Priority: 2,
     },
     {
-      Country: "Illinois",
+      PlaceOrProject: "Illinois",
       Priority: 1,
     },
     {
-      Country: "Indiana,",
+      PlaceOrProject: "Indiana,",
       Priority: 1,
     },
     {
-      Country: "Iowa",
+      PlaceOrProject: "Iowa",
       Priority: 2,
     },
     {
-      Country: "Kentucky,",
+      PlaceOrProject: "Kentucky,",
       Priority: 2,
     },
     {
-      Country: "Louisiana,",
+      PlaceOrProject: "Louisiana,",
       Priority: 2,
     },
     {
-      Country: "Massachusetts",
+      PlaceOrProject: "Massachusetts",
       Priority: 2,
     },
     {
-      Country: "Michigan",
+      PlaceOrProject: "Michigan",
       Priority: 1,
     },
     {
-      Country: "Minnesota",
+      PlaceOrProject: "Minnesota",
       Priority: 1,
     },
     {
-      Country: "Missouri",
+      PlaceOrProject: "Missouri",
       Priority: 1,
     },
     {
-      Country: "Montana,",
+      PlaceOrProject: "Montana,",
       Priority: 2,
     },
     {
-      Country: "Nebraska,",
+      PlaceOrProject: "Nebraska,",
       Priority: 2,
     },
     {
-      Country: "New Hampshire,",
+      PlaceOrProject: "New Hampshire,",
       Priority: 2,
     },
     {
-      Country: "New Jersey",
+      PlaceOrProject: "New Jersey",
       Priority: 1,
     },
     {
-      Country: "New Mexico,",
+      PlaceOrProject: "New Mexico,",
       Priority: 1,
     },
     {
-      Country: "New York",
+      PlaceOrProject: "New York",
       Priority: 1,
     },
     {
-      Country: "North Dakota,",
+      PlaceOrProject: "North Dakota,",
       Priority: 1,
     },
     {
-      Country: "Ohio",
+      PlaceOrProject: "Ohio",
       Priority: 2,
     },
     {
-      Country: "Oklahoma,",
+      PlaceOrProject: "Oklahoma,",
       Priority: 1,
     },
     {
-      Country: "Oregon,",
+      PlaceOrProject: "Oregon,",
       Priority: 2,
     },
     {
-      Country: "Pennsylvania,",
+      PlaceOrProject: "Pennsylvania,",
       Priority: 2,
     },
     {
-      Country: "Rhode Island",
+      PlaceOrProject: "Rhode Island",
       Priority: 1,
     },
     {
-      Country: "Tennessee",
+      PlaceOrProject: "Tennessee",
       Priority: 2,
     },
     {
-      Country: "Texas",
+      PlaceOrProject: "Texas",
       Priority: 2,
     },
     {
-      Country: "Vermont",
+      PlaceOrProject: "Vermont",
       Priority: 1,
     },
     {
-      Country: "Virginia",
+      PlaceOrProject: "Virginia",
       Priority: 2,
     },
     {
-      Country: "Washington,",
+      PlaceOrProject: "Washington,",
       Priority: 2,
     },
     {
-      Country: "West Virginia",
+      PlaceOrProject: "West Virginia",
       Priority: 2,
     },
     {
-      Country: "Wisconsin,",
+      PlaceOrProject: "Wisconsin,",
       Priority: 1,
     },
     {
-      Country: "Wyoming,",
+      PlaceOrProject: "Wyoming,",
       Priority: 2,
     },
     {
-      Country: "Antrim,",
+      PlaceOrProject: "Antrim,",
       Priority: 1,
     },
     {
-      Country: "Armagh,",
+      PlaceOrProject: "Armagh,",
       Priority: 1,
     },
     {
-      Country: "Carlow,",
+      PlaceOrProject: "Carlow,",
       Priority: 1,
     },
     {
-      Country: "Cavan,",
+      PlaceOrProject: "Cavan,",
       Priority: 1,
     },
     {
-      Country: "Clare,",
+      PlaceOrProject: "Clare,",
       Priority: 1,
     },
     {
-      Country: "Cork,",
+      PlaceOrProject: "Cork,",
       Priority: 1,
     },
     {
-      Country: "Donegal,",
+      PlaceOrProject: "Donegal,",
       Priority: 1,
     },
     {
-      Country: "Down,",
+      PlaceOrProject: "Down,",
       Priority: 1,
     },
     {
-      Country: "Dublin,",
+      PlaceOrProject: "Dublin,",
       Priority: 1,
     },
     {
-      Country: "Fermanagh,",
+      PlaceOrProject: "Fermanagh,",
       Priority: 1,
     },
     {
-      Country: "Galway,",
+      PlaceOrProject: "Galway,",
       Priority: 1,
     },
     {
-      Country: "Kerry,",
+      PlaceOrProject: "Kerry,",
       Priority: 1,
     },
     {
-      Country: "Kildare,",
+      PlaceOrProject: "Kildare,",
       Priority: 1,
     },
     {
-      Country: "Kilkenny,",
+      PlaceOrProject: "Kilkenny,",
       Priority: 1,
     },
     {
-      Country: "Laois,",
+      PlaceOrProject: "Laois,",
       Priority: 1,
     },
     {
-      Country: "Leitrim,",
+      PlaceOrProject: "Leitrim,",
       Priority: 1,
     },
     {
-      Country: "Limerick,",
+      PlaceOrProject: "Limerick,",
       Priority: 1,
     },
     {
-      Country: "Londonderry,",
+      PlaceOrProject: "Londonderry,",
       Priority: 1,
     },
     {
-      Country: "Longford,",
+      PlaceOrProject: "Longford,",
       Priority: 1,
     },
     {
-      Country: "Louth,",
+      PlaceOrProject: "Louth,",
       Priority: 1,
     },
     {
-      Country: "Mayo,",
+      PlaceOrProject: "Mayo,",
       Priority: 1,
     },
     {
-      Country: "Meath,",
+      PlaceOrProject: "Meath,",
       Priority: 1,
     },
     {
-      Country: "Monaghan,",
+      PlaceOrProject: "Monaghan,",
       Priority: 1,
     },
     {
-      Country: "Offaly,",
+      PlaceOrProject: "Offaly,",
       Priority: 1,
     },
     {
-      Country: "Roscommon,",
+      PlaceOrProject: "Roscommon,",
       Priority: 1,
     },
     {
-      Country: "Sligo,",
+      PlaceOrProject: "Sligo,",
       Priority: 1,
     },
     {
-      Country: "Tipperary,",
+      PlaceOrProject: "Tipperary,",
       Priority: 1,
     },
     {
-      Country: "Tyrone,",
+      PlaceOrProject: "Tyrone,",
       Priority: 1,
     },
     {
-      Country: "Waterford,",
+      PlaceOrProject: "Waterford,",
       Priority: 1,
     },
     {
-      Country: "Westmeath,",
+      PlaceOrProject: "Westmeath,",
       Priority: 1,
     },
     {
-      Country: "Wexford,",
+      PlaceOrProject: "Wexford,",
       Priority: 1,
     },
     {
-      Country: "Wicklow,",
+      PlaceOrProject: "Wicklow,",
       Priority: 1,
     },
     {
-      Country: "Rabenstein-9",
+      PlaceOrProject: "Rabenstein-9",
       Priority: 1,
     },
     {
-      Country: "Wendell-374 Namibia,",
+      PlaceOrProject: "Wendell-374 Namibia,",
       Priority: 1,
     },
     {
-      Country: "Wendell-374,",
+      PlaceOrProject: "Wendell-374,",
       Priority: 1,
     },
     {
-      Country: "Zina-3",
+      PlaceOrProject: "Zina-3",
       Priority: 1,
     },
     {
-      Country: "LDS Project",
+      PlaceOrProject: "LDS Project",
       Priority: 1,
     },
     {
-      Country: "One Name Studies Project,",
+      PlaceOrProject: "One Name Studies Project,",
       Priority: 1,
     },
     {
-      Country: "One Place Studies Project,",
+      PlaceOrProject: "One Place Studies Project,",
       Priority: 1,
     },
     {
-      Country: "Scotland,",
+      PlaceOrProject: "Scotland,",
       Priority: 1,
     },
     {
-      Country: "South African Roots Project",
+      PlaceOrProject: "South African Roots Project",
       Priority: 1,
     },
     {
-      Country: "Raton, New Mexico One Place Study,",
+      PlaceOrProject: "Raton, New Mexico One Place Study,",
       Priority: 3,
     },
     {
-      Country: "Alberta,",
+      PlaceOrProject: "Alberta,",
       Priority: 1,
     },
     {
-      Country: "British Columbia,",
+      PlaceOrProject: "British Columbia,",
       Priority: 1,
     },
     {
-      Country: "Manitoba,",
+      PlaceOrProject: "Manitoba,",
       Priority: 1,
     },
     {
-      Country: "New Brunswick,",
+      PlaceOrProject: "New Brunswick,",
       Priority: 1,
     },
     {
-      Country: "Newfoundland and Labrador,",
+      PlaceOrProject: "Newfoundland and Labrador,",
       Priority: 1,
     },
     {
-      Country: "Nova Scotia,",
+      PlaceOrProject: "Nova Scotia,",
       Priority: 1,
     },
     {
-      Country: "Ontario,",
+      PlaceOrProject: "Ontario,",
       Priority: 1,
     },
     {
-      Country: "Prince Edward Island,",
+      PlaceOrProject: "Prince Edward Island,",
       Priority: 1,
     },
     {
-      Country: "Quebec,",
+      PlaceOrProject: "Quebec,",
       Priority: 1,
     },
     {
-      Country: "Saskatchewan,",
+      PlaceOrProject: "Saskatchewan,",
       Priority: 1,
     },
     {
-      Country: "Cheshire,",
+      PlaceOrProject: "Cheshire,",
       Priority: 2,
     },
     {
-      Country: "Derbyshire,",
+      PlaceOrProject: "Derbyshire,",
       Priority: 2,
     },
     {
-      Country: "Devon,",
+      PlaceOrProject: "Devon,",
       Priority: 2,
     },
     {
-      Country: "Dorset,",
+      PlaceOrProject: "Dorset,",
       Priority: 2,
     },
     {
-      Country: "Bedfordshire",
+      PlaceOrProject: "Bedfordshire",
       Priority: 2,
     },
     {
-      Country: "Berkshire,",
+      PlaceOrProject: "Berkshire,",
       Priority: 2,
     },
     {
-      Country: "Bristol,",
+      PlaceOrProject: "Bristol,",
       Priority: 2,
     },
     {
-      Country: "Buckinghamshire,",
+      PlaceOrProject: "Buckinghamshire,",
       Priority: 2,
     },
     {
-      Country: "Cambridgeshire,",
+      PlaceOrProject: "Cambridgeshire,",
       Priority: 2,
     },
     {
-      Country: "Cornwall,",
+      PlaceOrProject: "Cornwall,",
       Priority: 2,
     },
     {
-      Country: "County Durham,",
+      PlaceOrProject: "County Durham,",
       Priority: 2,
     },
     {
-      Country: "Cumberland,",
+      PlaceOrProject: "Cumberland,",
       Priority: 2,
     },
     {
-      Country: "Essex,",
+      PlaceOrProject: "Essex,",
       Priority: 2,
     },
     {
-      Country: "Gloucestershire,",
+      PlaceOrProject: "Gloucestershire,",
       Priority: 2,
     },
     {
-      Country: "Hampshire,",
+      PlaceOrProject: "Hampshire,",
       Priority: 2,
     },
     {
-      Country: "Herefordshire,",
+      PlaceOrProject: "Herefordshire,",
       Priority: 2,
     },
     {
-      Country: "Hertfordshire,",
+      PlaceOrProject: "Hertfordshire,",
       Priority: 2,
     },
     {
-      Country: "Huntingdonshire,",
+      PlaceOrProject: "Huntingdonshire,",
       Priority: 2,
     },
     {
-      Country: "Isle of Wight,",
+      PlaceOrProject: "Isle of Wight,",
       Priority: 2,
     },
     {
-      Country: "Kent,",
+      PlaceOrProject: "Kent,",
       Priority: 2,
     },
     {
-      Country: "Lancashire,",
+      PlaceOrProject: "Lancashire,",
       Priority: 2,
     },
     {
-      Country: "Leicestershire,",
+      PlaceOrProject: "Leicestershire,",
       Priority: 2,
     },
     {
-      Country: "Lincolnshire,",
+      PlaceOrProject: "Lincolnshire,",
       Priority: 2,
     },
     {
-      Country: "Middlesex,",
+      PlaceOrProject: "Middlesex,",
       Priority: 2,
     },
     {
-      Country: "Norfolk,",
+      PlaceOrProject: "Norfolk,",
       Priority: 2,
     },
     {
-      Country: "Northamptonshire,",
+      PlaceOrProject: "Northamptonshire,",
       Priority: 2,
     },
     {
-      Country: "Northumberland,",
+      PlaceOrProject: "Northumberland,",
       Priority: 2,
     },
     {
-      Country: "Nottinghamshire,",
+      PlaceOrProject: "Nottinghamshire,",
       Priority: 2,
     },
     {
-      Country: "Oxfordshire,",
+      PlaceOrProject: "Oxfordshire,",
       Priority: 2,
     },
     {
-      Country: "Rutland,",
+      PlaceOrProject: "Rutland,",
       Priority: 2,
     },
     {
-      Country: "Shropshire,",
+      PlaceOrProject: "Shropshire,",
       Priority: 2,
     },
     {
-      Country: "Somerset,",
+      PlaceOrProject: "Somerset,",
       Priority: 2,
     },
     {
-      Country: "Staffordshire,",
+      PlaceOrProject: "Staffordshire,",
       Priority: 2,
     },
     {
-      Country: "Suffolk,",
+      PlaceOrProject: "Suffolk,",
       Priority: 2,
     },
     {
-      Country: "Surrey,",
+      PlaceOrProject: "Surrey,",
       Priority: 2,
     },
     {
-      Country: "Sussex,",
+      PlaceOrProject: "Sussex,",
       Priority: 2,
     },
     {
-      Country: "Warwickshire,",
+      PlaceOrProject: "Warwickshire,",
       Priority: 2,
     },
     {
-      Country: "Westmorland,",
+      PlaceOrProject: "Westmorland,",
       Priority: 2,
     },
     {
-      Country: "Wiltshire,",
+      PlaceOrProject: "Wiltshire,",
       Priority: 2,
     },
     {
-      Country: "Worcestershire,",
+      PlaceOrProject: "Worcestershire,",
       Priority: 2,
     },
     {
-      Country: "Yorkshire,",
+      PlaceOrProject: "Yorkshire,",
       Priority: 2,
     },
     {
-      Country: "Anglesey,",
+      PlaceOrProject: "Anglesey,",
       Priority: 2,
     },
     {
-      Country: "Brecknockshire,",
+      PlaceOrProject: "Brecknockshire,",
       Priority: 2,
     },
     {
-      Country: "Caernarfonshire,",
+      PlaceOrProject: "Caernarfonshire,",
       Priority: 2,
     },
     {
-      Country: "Cardiganshire,",
+      PlaceOrProject: "Cardiganshire,",
       Priority: 2,
     },
     {
-      Country: "Carmarthenshire,",
+      PlaceOrProject: "Carmarthenshire,",
       Priority: 2,
     },
     {
-      Country: "Denbighshire,",
+      PlaceOrProject: "Denbighshire,",
       Priority: 2,
     },
     {
-      Country: "Flintshire,",
+      PlaceOrProject: "Flintshire,",
       Priority: 2,
     },
     {
-      Country: "Glamorgan,",
+      PlaceOrProject: "Glamorgan,",
       Priority: 2,
     },
     {
-      Country: "Merionethshire,",
+      PlaceOrProject: "Merionethshire,",
       Priority: 2,
     },
     {
-      Country: "Monmouthshire,",
+      PlaceOrProject: "Monmouthshire,",
       Priority: 2,
     },
     {
-      Country: "Montgomeryshire,",
+      PlaceOrProject: "Montgomeryshire,",
       Priority: 2,
     },
     {
-      Country: "Pembrokeshire,",
+      PlaceOrProject: "Pembrokeshire,",
       Priority: 2,
     },
     {
-      Country: "Radnorshire,",
+      PlaceOrProject: "Radnorshire,",
       Priority: 2,
     },
     {
-      Country: "Greenwood-3667,",
+      PlaceOrProject: "Greenwood-3667,",
       Priority: 1,
     },
     {
-      Country: "Georgia,",
+      PlaceOrProject: "Georgia,",
       Priority: 1,
     },
     {
-      Country: "Maryland",
+      PlaceOrProject: "Maryland",
       Priority: 1,
     },
     {
-      Country: "Maine",
+      PlaceOrProject: "Maine",
       Priority: 1,
     },
     {
-      Country: "Green Garden Township, Illinois One Place Study,",
+      PlaceOrProject: "Green Garden Township, Illinois One Place Study,",
       Priority: 1,
     },
     {
-      Country: "Isle of Man,",
+      PlaceOrProject: "Isle of Man,",
       Priority: 1,
     },
     {
-      Country: "Jehovah\u0027s Witnesses,",
+      PlaceOrProject: "Jehovah\u0027s Witnesses,",
       Priority: 1,
     },
   ],
   Last_Name_at_Birth: [
     {
-      Country: "Gloucestershire,",
+      PlaceOrProject: "Gloucestershire,",
       Priority: 2,
     },
     {
-      Country: "Oxfordshire,",
+      PlaceOrProject: "Oxfordshire,",
       Priority: 2,
     },
   ],
   Marriage_Record: [
     {
-      Country: "Canada",
+      PlaceOrProject: "Canada",
       Priority: 1,
     },
     {
-      Country: "Ireland,",
+      PlaceOrProject: "Ireland,",
       Priority: 2,
     },
     {
-      Country: "Italy,",
+      PlaceOrProject: "Italy,",
       Priority: 2,
     },
     {
-      Country: "LDS Project",
+      PlaceOrProject: "LDS Project",
       Priority: 2,
     },
     {
-      Country: "New Zealand,",
+      PlaceOrProject: "New Zealand,",
       Priority: 2,
     },
     {
-      Country: "Portugal Project",
+      PlaceOrProject: "Portugal Project",
       Priority: 2,
     },
     {
-      Country: "Scotland,",
+      PlaceOrProject: "Scotland,",
       Priority: 2,
     },
     {
-      Country: "United States",
+      PlaceOrProject: "United States",
       Priority: 1,
     },
     {
-      Country: "Wales,",
+      PlaceOrProject: "Wales,",
       Priority: 2,
     },
     {
-      Country: "WikiTree Challenge,",
+      PlaceOrProject: "WikiTree Challenge,",
       Priority: 1,
     },
     {
-      Country: "England",
+      PlaceOrProject: "England",
       Priority: 1,
     },
     {
-      Country: "Germany,",
+      PlaceOrProject: "Germany,",
       Priority: 2,
     },
     {
-      Country: "Antrim,",
+      PlaceOrProject: "Antrim,",
       Priority: 2,
     },
     {
-      Country: "Armagh,",
+      PlaceOrProject: "Armagh,",
       Priority: 2,
     },
     {
-      Country: "Carlow,",
+      PlaceOrProject: "Carlow,",
       Priority: 2,
     },
     {
-      Country: "Cavan,",
+      PlaceOrProject: "Cavan,",
       Priority: 2,
     },
     {
-      Country: "Clare,",
+      PlaceOrProject: "Clare,",
       Priority: 2,
     },
     {
-      Country: "Cork,",
+      PlaceOrProject: "Cork,",
       Priority: 2,
     },
     {
-      Country: "Donegal,",
+      PlaceOrProject: "Donegal,",
       Priority: 2,
     },
     {
-      Country: "Down,",
+      PlaceOrProject: "Down,",
       Priority: 2,
     },
     {
-      Country: "Dublin,",
+      PlaceOrProject: "Dublin,",
       Priority: 2,
     },
     {
-      Country: "Fermanagh,",
+      PlaceOrProject: "Fermanagh,",
       Priority: 2,
     },
     {
-      Country: "Galway,",
+      PlaceOrProject: "Galway,",
       Priority: 2,
     },
     {
-      Country: "Kerry,",
+      PlaceOrProject: "Kerry,",
       Priority: 2,
     },
     {
-      Country: "Kildare,",
+      PlaceOrProject: "Kildare,",
       Priority: 2,
     },
     {
-      Country: "Kilkenny,",
+      PlaceOrProject: "Kilkenny,",
       Priority: 2,
     },
     {
-      Country: "Laois,",
+      PlaceOrProject: "Laois,",
       Priority: 2,
     },
     {
-      Country: "Leitrim,",
+      PlaceOrProject: "Leitrim,",
       Priority: 2,
     },
     {
-      Country: "Limerick,",
+      PlaceOrProject: "Limerick,",
       Priority: 2,
     },
     {
-      Country: "Londonderry,",
+      PlaceOrProject: "Londonderry,",
       Priority: 2,
     },
     {
-      Country: "Longford,",
+      PlaceOrProject: "Longford,",
       Priority: 2,
     },
     {
-      Country: "Louth,",
+      PlaceOrProject: "Louth,",
       Priority: 2,
     },
     {
-      Country: "Mayo,",
+      PlaceOrProject: "Mayo,",
       Priority: 1,
     },
     {
-      Country: "Meath,",
+      PlaceOrProject: "Meath,",
       Priority: 1,
     },
     {
-      Country: "Monaghan,",
+      PlaceOrProject: "Monaghan,",
       Priority: 1,
     },
     {
-      Country: "Offaly,",
+      PlaceOrProject: "Offaly,",
       Priority: 1,
     },
     {
-      Country: "Roscommon,",
+      PlaceOrProject: "Roscommon,",
       Priority: 1,
     },
     {
-      Country: "Sligo,",
+      PlaceOrProject: "Sligo,",
       Priority: 1,
     },
     {
-      Country: "Tipperary,",
+      PlaceOrProject: "Tipperary,",
       Priority: 1,
     },
     {
-      Country: "Tyrone,",
+      PlaceOrProject: "Tyrone,",
       Priority: 1,
     },
     {
-      Country: "Waterford,",
+      PlaceOrProject: "Waterford,",
       Priority: 1,
     },
     {
-      Country: "Westmeath,",
+      PlaceOrProject: "Westmeath,",
       Priority: 1,
     },
     {
-      Country: "Wexford,",
+      PlaceOrProject: "Wexford,",
       Priority: 1,
     },
     {
-      Country: "Wicklow,",
+      PlaceOrProject: "Wicklow,",
       Priority: 1,
     },
     {
-      Country: "Abruzzo,",
+      PlaceOrProject: "Abruzzo,",
       Priority: 1,
     },
     {
-      Country: "Aosta Valley,",
+      PlaceOrProject: "Aosta Valley,",
       Priority: 1,
     },
     {
-      Country: "Apulia,",
+      PlaceOrProject: "Apulia,",
       Priority: 1,
     },
     {
-      Country: "Basilicata,",
+      PlaceOrProject: "Basilicata,",
       Priority: 1,
     },
     {
-      Country: "Calabria,",
+      PlaceOrProject: "Calabria,",
       Priority: 1,
     },
     {
-      Country: "Campania,",
+      PlaceOrProject: "Campania,",
       Priority: 1,
     },
     {
-      Country: "Emilia-Romagna,",
+      PlaceOrProject: "Emilia-Romagna,",
       Priority: 1,
     },
     {
-      Country: "Friuli Venezia Giulia,",
+      PlaceOrProject: "Friuli Venezia Giulia,",
       Priority: 1,
     },
     {
-      Country: "Lazio,",
+      PlaceOrProject: "Lazio,",
       Priority: 1,
     },
     {
-      Country: "Liguria,",
+      PlaceOrProject: "Liguria,",
       Priority: 1,
     },
     {
-      Country: "Lombardy,",
+      PlaceOrProject: "Lombardy,",
       Priority: 1,
     },
     {
-      Country: "Marche, Italy,",
+      PlaceOrProject: "Marche, Italy,",
       Priority: 1,
     },
     {
-      Country: "Molise,",
+      PlaceOrProject: "Molise,",
       Priority: 1,
     },
     {
-      Country: "Piedmont,",
+      PlaceOrProject: "Piedmont,",
       Priority: 1,
     },
     {
-      Country: "Sardinia,",
+      PlaceOrProject: "Sardinia,",
       Priority: 1,
     },
     {
-      Country: "Sicily,",
+      PlaceOrProject: "Sicily,",
       Priority: 1,
     },
     {
-      Country: "Trentino-South Tyrol,",
+      PlaceOrProject: "Trentino-South Tyrol,",
       Priority: 1,
     },
     {
-      Country: "Tuscany,",
+      PlaceOrProject: "Tuscany,",
       Priority: 1,
     },
     {
-      Country: "Umbria,",
+      PlaceOrProject: "Umbria,",
       Priority: 1,
     },
     {
-      Country: "Veneto,",
+      PlaceOrProject: "Veneto,",
       Priority: 1,
     },
     {
-      Country: "Alaska,",
+      PlaceOrProject: "Alaska,",
       Priority: 2,
     },
     {
-      Country: "Arkansas,",
+      PlaceOrProject: "Arkansas,",
       Priority: 1,
     },
     {
-      Country: "Colorado,",
+      PlaceOrProject: "Colorado,",
       Priority: 1,
     },
     {
-      Country: "Hawaii,",
+      PlaceOrProject: "Hawaii,",
       Priority: 2,
     },
     {
-      Country: "Idaho,",
+      PlaceOrProject: "Idaho,",
       Priority: 2,
     },
     {
-      Country: "Illinois",
+      PlaceOrProject: "Illinois",
       Priority: 1,
     },
     {
-      Country: "Kansas,",
+      PlaceOrProject: "Kansas,",
       Priority: 2,
     },
     {
-      Country: "Kentucky",
+      PlaceOrProject: "Kentucky",
       Priority: 2,
     },
     {
-      Country: "Massachusetts",
+      PlaceOrProject: "Massachusetts",
       Priority: 2,
     },
     {
-      Country: "Michigan",
+      PlaceOrProject: "Michigan",
       Priority: 1,
     },
     {
-      Country: "Minnesota",
+      PlaceOrProject: "Minnesota",
       Priority: 2,
     },
     {
-      Country: "Missouri",
+      PlaceOrProject: "Missouri",
       Priority: 1,
     },
     {
-      Country: "Montana,",
+      PlaceOrProject: "Montana,",
       Priority: 2,
     },
     {
-      Country: "Nebraska,",
+      PlaceOrProject: "Nebraska,",
       Priority: 2,
     },
     {
-      Country: "Nevada",
+      PlaceOrProject: "Nevada",
       Priority: 1,
     },
     {
-      Country: "New Hampshire,",
+      PlaceOrProject: "New Hampshire,",
       Priority: 2,
     },
     {
-      Country: "New Jersey",
+      PlaceOrProject: "New Jersey",
       Priority: 1,
     },
     {
-      Country: "New Mexico,",
+      PlaceOrProject: "New Mexico,",
       Priority: 1,
     },
     {
-      Country: "New York",
+      PlaceOrProject: "New York",
       Priority: 1,
     },
     {
-      Country: "Ohio",
+      PlaceOrProject: "Ohio",
       Priority: 2,
     },
     {
-      Country: "Oklahoma,",
+      PlaceOrProject: "Oklahoma,",
       Priority: 1,
     },
     {
-      Country: "Oregon,",
+      PlaceOrProject: "Oregon,",
       Priority: 2,
     },
     {
-      Country: "Pennsylvania",
+      PlaceOrProject: "Pennsylvania",
       Priority: 2,
     },
     {
-      Country: "South Dakota,",
+      PlaceOrProject: "South Dakota,",
       Priority: 1,
     },
     {
-      Country: "Texas",
+      PlaceOrProject: "Texas",
       Priority: 2,
     },
     {
-      Country: "Vermont",
+      PlaceOrProject: "Vermont",
       Priority: 1,
     },
     {
-      Country: "Virginia",
+      PlaceOrProject: "Virginia",
       Priority: 2,
     },
     {
-      Country: "Washington,",
+      PlaceOrProject: "Washington,",
       Priority: 2,
     },
     {
-      Country: "Wisconsin,",
+      PlaceOrProject: "Wisconsin,",
       Priority: 1,
     },
     {
-      Country: "Wyoming,",
+      PlaceOrProject: "Wyoming,",
       Priority: 2,
     },
     {
-      Country: "Anglesey,",
+      PlaceOrProject: "Anglesey,",
       Priority: 2,
     },
     {
-      Country: "Brecknockshire,",
+      PlaceOrProject: "Brecknockshire,",
       Priority: 2,
     },
     {
-      Country: "Caernarfonshire,",
+      PlaceOrProject: "Caernarfonshire,",
       Priority: 2,
     },
     {
-      Country: "Cardiganshire,",
+      PlaceOrProject: "Cardiganshire,",
       Priority: 2,
     },
     {
-      Country: "Carmarthenshire,",
+      PlaceOrProject: "Carmarthenshire,",
       Priority: 2,
     },
     {
-      Country: "Denbighshire,",
+      PlaceOrProject: "Denbighshire,",
       Priority: 2,
     },
     {
-      Country: "Flintshire,",
+      PlaceOrProject: "Flintshire,",
       Priority: 2,
     },
     {
-      Country: "Glamorgan,",
+      PlaceOrProject: "Glamorgan,",
       Priority: 2,
     },
     {
-      Country: "Merionethshire,",
+      PlaceOrProject: "Merionethshire,",
       Priority: 2,
     },
     {
-      Country: "Monmouthshire,",
+      PlaceOrProject: "Monmouthshire,",
       Priority: 2,
     },
     {
-      Country: "Montgomeryshire,",
+      PlaceOrProject: "Montgomeryshire,",
       Priority: 2,
     },
     {
-      Country: "Pembrokeshire,",
+      PlaceOrProject: "Pembrokeshire,",
       Priority: 2,
     },
     {
-      Country: "Radnorshire,",
+      PlaceOrProject: "Radnorshire,",
       Priority: 2,
     },
     {
-      Country: "Joyner-762 New South Wales",
+      PlaceOrProject: "Joyner-762 New South Wales",
       Priority: 1,
     },
     {
-      Country: "Rabenstein-9",
+      PlaceOrProject: "Rabenstein-9",
       Priority: 1,
     },
     {
-      Country: "Rowe-6599",
+      PlaceOrProject: "Rowe-6599",
       Priority: 1,
     },
     {
-      Country: "Wendell-374 Austria,",
+      PlaceOrProject: "Wendell-374 Austria,",
       Priority: 1,
     },
     {
-      Country: "Wendell-374,",
+      PlaceOrProject: "Wendell-374,",
       Priority: 1,
     },
     {
-      Country: "Cape of Good Hope Project",
+      PlaceOrProject: "Cape of Good Hope Project",
       Priority: 1,
     },
     {
-      Country: "Latin American Roots",
+      PlaceOrProject: "Latin American Roots",
       Priority: 1,
     },
     {
-      Country: "One Name Studies Project,",
+      PlaceOrProject: "One Name Studies Project,",
       Priority: 1,
     },
     {
-      Country: "One Place Studies Project,",
+      PlaceOrProject: "One Place Studies Project,",
       Priority: 1,
     },
     {
-      Country: "South African Roots Project",
+      PlaceOrProject: "South African Roots Project",
       Priority: 1,
     },
     {
-      Country: "Raton, New Mexico One Place Study,",
+      PlaceOrProject: "Raton, New Mexico One Place Study,",
       Priority: 3,
     },
     {
-      Country: "Acadia,",
+      PlaceOrProject: "Acadia,",
       Priority: 1,
     },
     {
-      Country: "Alberta,",
+      PlaceOrProject: "Alberta,",
       Priority: 1,
     },
     {
-      Country: "British Columbia,",
+      PlaceOrProject: "British Columbia,",
       Priority: 1,
     },
     {
-      Country: "Manitoba,",
+      PlaceOrProject: "Manitoba,",
       Priority: 1,
     },
     {
-      Country: "New Brunswick,",
+      PlaceOrProject: "New Brunswick,",
       Priority: 1,
     },
     {
-      Country: "Newfoundland and Labrador,",
+      PlaceOrProject: "Newfoundland and Labrador,",
       Priority: 1,
     },
     {
-      Country: "Nova Scotia,",
+      PlaceOrProject: "Nova Scotia,",
       Priority: 1,
     },
     {
-      Country: "Ontario,",
+      PlaceOrProject: "Ontario,",
       Priority: 1,
     },
     {
-      Country: "Prince Edward Island,",
+      PlaceOrProject: "Prince Edward Island,",
       Priority: 1,
     },
     {
-      Country: "Quebec,",
+      PlaceOrProject: "Quebec,",
       Priority: 1,
     },
     {
-      Country: "Saskatchewan,",
+      PlaceOrProject: "Saskatchewan,",
       Priority: 1,
     },
     {
-      Country: "Cheshire,",
+      PlaceOrProject: "Cheshire,",
       Priority: 2,
     },
     {
-      Country: "Derbyshire,",
+      PlaceOrProject: "Derbyshire,",
       Priority: 2,
     },
     {
-      Country: "Devon,",
+      PlaceOrProject: "Devon,",
       Priority: 2,
     },
     {
-      Country: "Dorset,",
+      PlaceOrProject: "Dorset,",
       Priority: 2,
     },
     {
-      Country: "Bedfordshire",
+      PlaceOrProject: "Bedfordshire",
       Priority: 2,
     },
     {
-      Country: "Berkshire,",
+      PlaceOrProject: "Berkshire,",
       Priority: 2,
     },
     {
-      Country: "Bristol,",
+      PlaceOrProject: "Bristol,",
       Priority: 2,
     },
     {
-      Country: "Buckinghamshire,",
+      PlaceOrProject: "Buckinghamshire,",
       Priority: 2,
     },
     {
-      Country: "Cambridgeshire,",
+      PlaceOrProject: "Cambridgeshire,",
       Priority: 2,
     },
     {
-      Country: "Cornwall,",
+      PlaceOrProject: "Cornwall,",
       Priority: 2,
     },
     {
-      Country: "County Durham,",
+      PlaceOrProject: "County Durham,",
       Priority: 2,
     },
     {
-      Country: "Cumberland,",
+      PlaceOrProject: "Cumberland,",
       Priority: 2,
     },
     {
-      Country: "Essex,",
+      PlaceOrProject: "Essex,",
       Priority: 2,
     },
     {
-      Country: "Gloucestershire,",
+      PlaceOrProject: "Gloucestershire,",
       Priority: 2,
     },
     {
-      Country: "Hampshire,",
+      PlaceOrProject: "Hampshire,",
       Priority: 2,
     },
     {
-      Country: "Herefordshire,",
+      PlaceOrProject: "Herefordshire,",
       Priority: 2,
     },
     {
-      Country: "Hertfordshire,",
+      PlaceOrProject: "Hertfordshire,",
       Priority: 2,
     },
     {
-      Country: "Huntingdonshire,",
+      PlaceOrProject: "Huntingdonshire,",
       Priority: 2,
     },
     {
-      Country: "Isle of Wight,",
+      PlaceOrProject: "Isle of Wight,",
       Priority: 2,
     },
     {
-      Country: "Kent,",
+      PlaceOrProject: "Kent,",
       Priority: 2,
     },
     {
-      Country: "Lancashire,",
+      PlaceOrProject: "Lancashire,",
       Priority: 2,
     },
     {
-      Country: "Leicestershire,",
+      PlaceOrProject: "Leicestershire,",
       Priority: 2,
     },
     {
-      Country: "Lincolnshire,",
+      PlaceOrProject: "Lincolnshire,",
       Priority: 2,
     },
     {
-      Country: "Middlesex,",
+      PlaceOrProject: "Middlesex,",
       Priority: 2,
     },
     {
-      Country: "Norfolk,",
+      PlaceOrProject: "Norfolk,",
       Priority: 2,
     },
     {
-      Country: "Northamptonshire,",
+      PlaceOrProject: "Northamptonshire,",
       Priority: 2,
     },
     {
-      Country: "Northumberland,",
+      PlaceOrProject: "Northumberland,",
       Priority: 2,
     },
     {
-      Country: "Nottinghamshire,",
+      PlaceOrProject: "Nottinghamshire,",
       Priority: 2,
     },
     {
-      Country: "Oxfordshire,",
+      PlaceOrProject: "Oxfordshire,",
       Priority: 2,
     },
     {
-      Country: "Rutland,",
+      PlaceOrProject: "Rutland,",
       Priority: 2,
     },
     {
-      Country: "Shropshire,",
+      PlaceOrProject: "Shropshire,",
       Priority: 2,
     },
     {
-      Country: "Somerset,",
+      PlaceOrProject: "Somerset,",
       Priority: 2,
     },
     {
-      Country: "Staffordshire,",
+      PlaceOrProject: "Staffordshire,",
       Priority: 2,
     },
     {
-      Country: "Suffolk,",
+      PlaceOrProject: "Suffolk,",
       Priority: 2,
     },
     {
-      Country: "Surrey,",
+      PlaceOrProject: "Surrey,",
       Priority: 2,
     },
     {
-      Country: "Sussex,",
+      PlaceOrProject: "Sussex,",
       Priority: 2,
     },
     {
-      Country: "Warwickshire,",
+      PlaceOrProject: "Warwickshire,",
       Priority: 2,
     },
     {
-      Country: "Westmorland,",
+      PlaceOrProject: "Westmorland,",
       Priority: 2,
     },
     {
-      Country: "Wiltshire,",
+      PlaceOrProject: "Wiltshire,",
       Priority: 2,
     },
     {
-      Country: "Worcestershire,",
+      PlaceOrProject: "Worcestershire,",
       Priority: 2,
     },
     {
-      Country: "Yorkshire,",
+      PlaceOrProject: "Yorkshire,",
       Priority: 2,
     },
     {
-      Country: "Bavaria,",
+      PlaceOrProject: "Bavaria,",
       Priority: 1,
     },
     {
-      Country: "Greenwood-3667,",
+      PlaceOrProject: "Greenwood-3667,",
       Priority: 1,
     },
     {
-      Country: "Connecticut,",
+      PlaceOrProject: "Connecticut,",
       Priority: 1,
     },
     {
-      Country: "Louisiana,",
+      PlaceOrProject: "Louisiana,",
       Priority: 1,
     },
     {
-      Country: "Maryland",
+      PlaceOrProject: "Maryland",
       Priority: 1,
     },
     {
-      Country: "Green Garden Township, Illinois One Place Study,",
+      PlaceOrProject: "Green Garden Township, Illinois One Place Study,",
       Priority: 1,
     },
     {
-      Country: "Mexico Project",
+      PlaceOrProject: "Mexico Project",
       Priority: 1,
     },
     {
-      Country: "Jehovah\u0027s Witnesses,",
+      PlaceOrProject: "Jehovah\u0027s Witnesses,",
       Priority: 1,
     },
   ],
   Birth: [
     {
-      Country: "Belgium,",
+      PlaceOrProject: "Belgium,",
       Priority: 2,
     },
     {
-      Country: "Netherlands Project",
+      PlaceOrProject: "Netherlands Project",
       Priority: 2,
     },
     {
-      Country: "Portugal Project",
+      PlaceOrProject: "Portugal Project",
       Priority: 2,
     },
     {
-      Country: "Spain Project",
+      PlaceOrProject: "Spain Project",
       Priority: 2,
     },
     {
-      Country: "France,",
+      PlaceOrProject: "France,",
       Priority: 1,
     },
     {
-      Country: "Mackinnon-507",
+      PlaceOrProject: "Mackinnon-507",
       Priority: 1,
     },
     {
-      Country: "Rassinot-1",
+      PlaceOrProject: "Rassinot-1",
       Priority: 1,
     },
     {
-      Country: "Cape of Good Hope Project",
+      PlaceOrProject: "Cape of Good Hope Project",
       Priority: 1,
     },
     {
-      Country: "Galicia Spain",
+      PlaceOrProject: "Galicia Spain",
       Priority: 1,
     },
     {
-      Country: "Tennessee Project",
+      PlaceOrProject: "Tennessee Project",
       Priority: 1,
     },
     {
-      Country: "Russian Roots Project",
+      PlaceOrProject: "Russian Roots Project",
       Priority: 1,
     },
     {
-      Country: "Mexico Project",
+      PlaceOrProject: "Mexico Project",
       Priority: 1,
     },
     {
-      Country: "Voortrekkers",
+      PlaceOrProject: "Voortrekkers",
       Priority: 1,
     },
   ],
   Marriage: [
     {
-      Country: "Belgium,",
+      PlaceOrProject: "Belgium,",
       Priority: 2,
     },
     {
-      Country: "Ko-31",
+      PlaceOrProject: "Ko-31",
       Priority: 1,
     },
     {
-      Country: "Lemen-157",
+      PlaceOrProject: "Lemen-157",
       Priority: 1,
     },
     {
-      Country: "Mackinnon-507",
+      PlaceOrProject: "Mackinnon-507",
       Priority: 1,
     },
     {
-      Country: "Netherlands Project",
+      PlaceOrProject: "Netherlands Project",
       Priority: 1,
     },
     {
-      Country: "Spain Project",
+      PlaceOrProject: "Spain Project",
       Priority: 1,
     },
     {
-      Country: "Galicia Spain",
+      PlaceOrProject: "Galicia Spain",
       Priority: 1,
     },
     {
-      Country: "Voortrekkers",
+      PlaceOrProject: "Voortrekkers",
       Priority: 1,
     },
   ],
   Profiles_Created: [
     {
-      Country: "Africa,",
+      PlaceOrProject: "Africa,",
       Priority: 1,
     },
     {
-      Country: "Appalachia,",
+      PlaceOrProject: "Appalachia,",
       Priority: 2,
     },
     {
-      Country: "Australia,",
+      PlaceOrProject: "Australia,",
       Priority: 2,
     },
     {
-      Country: "Europe,",
+      PlaceOrProject: "Europe,",
       Priority: 1,
     },
     {
-      Country: "LDS Project",
+      PlaceOrProject: "LDS Project",
       Priority: 2,
     },
     {
-      Country: "New Zealand,",
+      PlaceOrProject: "New Zealand,",
       Priority: 2,
     },
     {
-      Country: "North America,",
+      PlaceOrProject: "North America,",
       Priority: 1,
     },
     {
-      Country: "Quakers Project",
+      PlaceOrProject: "Quakers Project",
       Priority: 2,
     },
     {
-      Country: "US Black Heritage Project,",
+      PlaceOrProject: "US Black Heritage Project,",
       Priority: 2,
     },
     {
-      Country: "US Civil War",
+      PlaceOrProject: "US Civil War",
       Priority: 2,
     },
     {
-      Country: "US Civil War Project",
+      PlaceOrProject: "US Civil War Project",
       Priority: 2,
     },
     {
-      Country: "WikiTree Challenge,",
+      PlaceOrProject: "WikiTree Challenge,",
       Priority: 1,
     },
     {
-      Country: "Canada,",
+      PlaceOrProject: "Canada,",
       Priority: 2,
     },
     {
-      Country: "Denmark,",
+      PlaceOrProject: "Denmark,",
       Priority: 2,
     },
     {
-      Country: "England,",
+      PlaceOrProject: "England,",
       Priority: 2,
     },
     {
-      Country: "Finland,",
+      PlaceOrProject: "Finland,",
       Priority: 1,
     },
     {
-      Country: "France,",
+      PlaceOrProject: "France,",
       Priority: 2,
     },
     {
-      Country: "Germany,",
+      PlaceOrProject: "Germany,",
       Priority: 2,
     },
     {
-      Country: "Hungary,",
+      PlaceOrProject: "Hungary,",
       Priority: 2,
     },
     {
-      Country: "Iceland,",
+      PlaceOrProject: "Iceland,",
       Priority: 2,
     },
     {
-      Country: "Ireland,",
+      PlaceOrProject: "Ireland,",
       Priority: 2,
     },
     {
-      Country: "Italy,",
+      PlaceOrProject: "Italy,",
       Priority: 2,
     },
     {
-      Country: "Norway,",
+      PlaceOrProject: "Norway,",
       Priority: 2,
     },
     {
-      Country: "Sweden,",
+      PlaceOrProject: "Sweden,",
       Priority: 2,
     },
     {
-      Country: "Wales,",
+      PlaceOrProject: "Wales,",
       Priority: 2,
     },
     {
-      Country: "South Africa,",
+      PlaceOrProject: "South Africa,",
       Priority: 1,
     },
     {
-      Country: "Tasmania,",
+      PlaceOrProject: "Tasmania,",
       Priority: 2,
     },
     {
-      Country: "Austria,",
+      PlaceOrProject: "Austria,",
       Priority: 2,
     },
     {
-      Country: "Finland Project",
+      PlaceOrProject: "Finland Project",
       Priority: 2,
     },
     {
-      Country: "Netherlands Project",
+      PlaceOrProject: "Netherlands Project",
       Priority: 2,
     },
     {
-      Country: "Poland,",
+      PlaceOrProject: "Poland,",
       Priority: 1,
     },
     {
-      Country: "Prussia,",
+      PlaceOrProject: "Prussia,",
       Priority: 2,
     },
     {
-      Country: "Scotland,",
+      PlaceOrProject: "Scotland,",
       Priority: 2,
     },
     {
-      Country: "United States,",
+      PlaceOrProject: "United States,",
       Priority: 1,
     },
     {
-      Country: "Berntson-18",
+      PlaceOrProject: "Berntson-18",
       Priority: 1,
     },
     {
-      Country: "Bizony-2",
+      PlaceOrProject: "Bizony-2",
       Priority: 1,
     },
     {
-      Country: "Cairns-253",
+      PlaceOrProject: "Cairns-253",
       Priority: 1,
     },
     {
-      Country: "Carruth-363 Mormons",
+      PlaceOrProject: "Carruth-363 Mormons",
       Priority: 1,
     },
     {
-      Country: "Carruth-363",
+      PlaceOrProject: "Carruth-363",
       Priority: 1,
     },
     {
-      Country: "Cormac-6,",
+      PlaceOrProject: "Cormac-6,",
       Priority: 1,
     },
     {
-      Country: "Davies-5942,",
+      PlaceOrProject: "Davies-5942,",
       Priority: 1,
     },
     {
-      Country: "Durbin-702",
+      PlaceOrProject: "Durbin-702",
       Priority: 1,
     },
     {
-      Country: "Eckstädt-2",
+      PlaceOrProject: "Eckstädt-2",
       Priority: 1,
     },
     {
-      Country: "Evans-33937",
+      PlaceOrProject: "Evans-33937",
       Priority: 1,
     },
     {
-      Country: "Gale-2455",
+      PlaceOrProject: "Gale-2455",
       Priority: 1,
     },
     {
-      Country: "Greenwood-3667,",
+      PlaceOrProject: "Greenwood-3667,",
       Priority: 1,
     },
     {
-      Country: "Greet-49",
+      PlaceOrProject: "Greet-49",
       Priority: 1,
     },
     {
-      Country: "Hill-53077",
+      PlaceOrProject: "Hill-53077",
       Priority: 1,
     },
     {
-      Country: "Hurcombe-13,",
+      PlaceOrProject: "Hurcombe-13,",
       Priority: 1,
     },
     {
-      Country: "Kane-1210,",
+      PlaceOrProject: "Kane-1210,",
       Priority: 1,
     },
     {
-      Country: "Kirch-132",
+      PlaceOrProject: "Kirch-132",
       Priority: 1,
     },
     {
-      Country: "Ko-31",
+      PlaceOrProject: "Ko-31",
       Priority: 1,
     },
     {
-      Country: "Kushion-1",
+      PlaceOrProject: "Kushion-1",
       Priority: 1,
     },
     {
-      Country: "Langridge-71,",
+      PlaceOrProject: "Langridge-71,",
       Priority: 1,
     },
     {
-      Country: "Ling-1181",
+      PlaceOrProject: "Ling-1181",
       Priority: 1,
     },
     {
-      Country: "Luker-573",
+      PlaceOrProject: "Luker-573",
       Priority: 1,
     },
     {
-      Country: "Macklem-13",
+      PlaceOrProject: "Macklem-13",
       Priority: 1,
     },
     {
-      Country: "Martin-58790",
+      PlaceOrProject: "Martin-58790",
       Priority: 1,
     },
     {
-      Country: "McGee-1611",
+      PlaceOrProject: "McGee-1611",
       Priority: 1,
     },
     {
-      Country: "McMichael-211",
+      PlaceOrProject: "McMichael-211",
       Priority: 1,
     },
     {
-      Country: "Rassinot-1",
+      PlaceOrProject: "Rassinot-1",
       Priority: 1,
     },
     {
-      Country: "Robinson-27225,",
+      PlaceOrProject: "Robinson-27225,",
       Priority: 1,
     },
     {
-      Country: "Rollet-41",
+      PlaceOrProject: "Rollet-41",
       Priority: 1,
     },
     {
-      Country: "Rowe-6599",
+      PlaceOrProject: "Rowe-6599",
       Priority: 1,
     },
     {
-      Country: "Soltysiak-9",
+      PlaceOrProject: "Soltysiak-9",
       Priority: 1,
     },
     {
-      Country: "Stephens-7069",
+      PlaceOrProject: "Stephens-7069",
       Priority: 1,
     },
     {
-      Country: "Trapp-533",
+      PlaceOrProject: "Trapp-533",
       Priority: 1,
     },
     {
-      Country: "Urbach-13, Mormons",
+      PlaceOrProject: "Urbach-13, Mormons",
       Priority: 1,
     },
     {
-      Country: "Urbach-13",
+      PlaceOrProject: "Urbach-13",
       Priority: 1,
     },
     {
-      Country: "Whale-463,",
+      PlaceOrProject: "Whale-463,",
       Priority: 1,
     },
     {
-      Country: "Williams-47589",
+      PlaceOrProject: "Williams-47589",
       Priority: 1,
     },
     {
-      Country: "Argentina Project,",
+      PlaceOrProject: "Argentina Project,",
       Priority: 1,
     },
     {
-      Country: "Jewish Roots Project,",
+      PlaceOrProject: "Jewish Roots Project,",
       Priority: 1,
     },
     {
-      Country: "Military and War Project,",
+      PlaceOrProject: "Military and War Project,",
       Priority: 1,
     },
     {
-      Country: "New Netherland Settlers Project",
+      PlaceOrProject: "New Netherland Settlers Project",
       Priority: 1,
     },
     {
-      Country: "Notables Project,",
+      PlaceOrProject: "Notables Project,",
       Priority: 1,
     },
     {
-      Country: "One Name Studies Project,",
+      PlaceOrProject: "One Name Studies Project,",
       Priority: 1,
     },
     {
-      Country: "One Place Studies Project,",
+      PlaceOrProject: "One Place Studies Project,",
       Priority: 1,
     },
     {
-      Country: "Quebecois Project,",
+      PlaceOrProject: "Quebecois Project,",
       Priority: 1,
     },
     {
-      Country: "Switzerland Project",
+      PlaceOrProject: "Switzerland Project",
       Priority: 1,
     },
     {
-      Country: "Raton, New Mexico One Place Study,",
+      PlaceOrProject: "Raton, New Mexico One Place Study,",
       Priority: 3,
     },
     {
-      Country: "Acadia,",
+      PlaceOrProject: "Acadia,",
       Priority: 1,
     },
     {
-      Country: "Alberta,",
+      PlaceOrProject: "Alberta,",
       Priority: 2,
     },
     {
-      Country: "British Columbia,",
+      PlaceOrProject: "British Columbia,",
       Priority: 2,
     },
     {
-      Country: "Manitoba,",
+      PlaceOrProject: "Manitoba,",
       Priority: 2,
     },
     {
-      Country: "New Brunswick,",
+      PlaceOrProject: "New Brunswick,",
       Priority: 2,
     },
     {
-      Country: "Newfoundland and Labrador,",
+      PlaceOrProject: "Newfoundland and Labrador,",
       Priority: 2,
     },
     {
-      Country: "Nova Scotia,",
+      PlaceOrProject: "Nova Scotia,",
       Priority: 2,
     },
     {
-      Country: "Ontario,",
+      PlaceOrProject: "Ontario,",
       Priority: 2,
     },
     {
-      Country: "Prince Edward Island,",
+      PlaceOrProject: "Prince Edward Island,",
       Priority: 2,
     },
     {
-      Country: "Quebec,",
+      PlaceOrProject: "Quebec,",
       Priority: 2,
     },
     {
-      Country: "Saskatchewan,",
+      PlaceOrProject: "Saskatchewan,",
       Priority: 2,
     },
     {
-      Country: "Cheshire,",
+      PlaceOrProject: "Cheshire,",
       Priority: 2,
     },
     {
-      Country: "Derbyshire,",
+      PlaceOrProject: "Derbyshire,",
       Priority: 2,
     },
     {
-      Country: "Devon,",
+      PlaceOrProject: "Devon,",
       Priority: 2,
     },
     {
-      Country: "Dorset,",
+      PlaceOrProject: "Dorset,",
       Priority: 2,
     },
     {
-      Country: "Bedfordshire,",
+      PlaceOrProject: "Bedfordshire,",
       Priority: 2,
     },
     {
-      Country: "Berkshire,",
+      PlaceOrProject: "Berkshire,",
       Priority: 2,
     },
     {
-      Country: "Bristol,",
+      PlaceOrProject: "Bristol,",
       Priority: 2,
     },
     {
-      Country: "Buckinghamshire,",
+      PlaceOrProject: "Buckinghamshire,",
       Priority: 2,
     },
     {
-      Country: "Cambridgeshire,",
+      PlaceOrProject: "Cambridgeshire,",
       Priority: 2,
     },
     {
-      Country: "Cornwall,",
+      PlaceOrProject: "Cornwall,",
       Priority: 2,
     },
     {
-      Country: "County Durham,",
+      PlaceOrProject: "County Durham,",
       Priority: 2,
     },
     {
-      Country: "Cumberland,",
+      PlaceOrProject: "Cumberland,",
       Priority: 2,
     },
     {
-      Country: "Essex,",
+      PlaceOrProject: "Essex,",
       Priority: 2,
     },
     {
-      Country: "Gloucestershire,",
+      PlaceOrProject: "Gloucestershire,",
       Priority: 2,
     },
     {
-      Country: "Hampshire,",
+      PlaceOrProject: "Hampshire,",
       Priority: 2,
     },
     {
-      Country: "Herefordshire,",
+      PlaceOrProject: "Herefordshire,",
       Priority: 2,
     },
     {
-      Country: "Hertfordshire,",
+      PlaceOrProject: "Hertfordshire,",
       Priority: 2,
     },
     {
-      Country: "Huntingdonshire,",
+      PlaceOrProject: "Huntingdonshire,",
       Priority: 2,
     },
     {
-      Country: "Isle of Wight,",
+      PlaceOrProject: "Isle of Wight,",
       Priority: 2,
     },
     {
-      Country: "Kent,",
+      PlaceOrProject: "Kent,",
       Priority: 2,
     },
     {
-      Country: "Lancashire,",
+      PlaceOrProject: "Lancashire,",
       Priority: 2,
     },
     {
-      Country: "Leicestershire,",
+      PlaceOrProject: "Leicestershire,",
       Priority: 2,
     },
     {
-      Country: "Lincolnshire,",
+      PlaceOrProject: "Lincolnshire,",
       Priority: 2,
     },
     {
-      Country: "Middlesex,",
+      PlaceOrProject: "Middlesex,",
       Priority: 2,
     },
     {
-      Country: "Norfolk,",
+      PlaceOrProject: "Norfolk,",
       Priority: 2,
     },
     {
-      Country: "Northamptonshire,",
+      PlaceOrProject: "Northamptonshire,",
       Priority: 2,
     },
     {
-      Country: "Northumberland,",
+      PlaceOrProject: "Northumberland,",
       Priority: 2,
     },
     {
-      Country: "Nottinghamshire,",
+      PlaceOrProject: "Nottinghamshire,",
       Priority: 2,
     },
     {
-      Country: "Oxfordshire,",
+      PlaceOrProject: "Oxfordshire,",
       Priority: 2,
     },
     {
-      Country: "Rutland,",
+      PlaceOrProject: "Rutland,",
       Priority: 2,
     },
     {
-      Country: "Shropshire,",
+      PlaceOrProject: "Shropshire,",
       Priority: 2,
     },
     {
-      Country: "Somerset,",
+      PlaceOrProject: "Somerset,",
       Priority: 2,
     },
     {
-      Country: "Staffordshire,",
+      PlaceOrProject: "Staffordshire,",
       Priority: 2,
     },
     {
-      Country: "Suffolk,",
+      PlaceOrProject: "Suffolk,",
       Priority: 2,
     },
     {
-      Country: "Surrey,",
+      PlaceOrProject: "Surrey,",
       Priority: 2,
     },
     {
-      Country: "Sussex,",
+      PlaceOrProject: "Sussex,",
       Priority: 2,
     },
     {
-      Country: "Warwickshire,",
+      PlaceOrProject: "Warwickshire,",
       Priority: 2,
     },
     {
-      Country: "Westmorland,",
+      PlaceOrProject: "Westmorland,",
       Priority: 2,
     },
     {
-      Country: "Wiltshire,",
+      PlaceOrProject: "Wiltshire,",
       Priority: 2,
     },
     {
-      Country: "Worcestershire,",
+      PlaceOrProject: "Worcestershire,",
       Priority: 2,
     },
     {
-      Country: "Yorkshire,",
+      PlaceOrProject: "Yorkshire,",
       Priority: 2,
     },
     {
-      Country: "Guadeloupe,",
+      PlaceOrProject: "Guadeloupe,",
       Priority: 2,
     },
     {
-      Country: "Martinique,",
+      PlaceOrProject: "Martinique,",
       Priority: 2,
     },
     {
-      Country: "Baden-Württemberg,",
+      PlaceOrProject: "Baden-Württemberg,",
       Priority: 1,
     },
     {
-      Country: "Bavaria,",
+      PlaceOrProject: "Bavaria,",
       Priority: 1,
     },
     {
-      Country: "Hamburg,",
+      PlaceOrProject: "Hamburg,",
       Priority: 2,
     },
     {
-      Country: "Hesse,",
+      PlaceOrProject: "Hesse,",
       Priority: 2,
     },
     {
-      Country: "Lower Saxony,",
+      PlaceOrProject: "Lower Saxony,",
       Priority: 1,
     },
     {
-      Country: "Mecklenburg-Western Pomerania,",
+      PlaceOrProject: "Mecklenburg-Western Pomerania,",
       Priority: 3,
     },
     {
-      Country: "North Rhine-Westphalia,",
+      PlaceOrProject: "North Rhine-Westphalia,",
       Priority: 2,
     },
     {
-      Country: "Rhineland-Palatinate,",
+      PlaceOrProject: "Rhineland-Palatinate,",
       Priority: 1,
     },
     {
-      Country: "Saarland,",
+      PlaceOrProject: "Saarland,",
       Priority: 1,
     },
     {
-      Country: "Saxony,",
+      PlaceOrProject: "Saxony,",
       Priority: 2,
     },
     {
-      Country: "Schleswig-Holstein,",
+      PlaceOrProject: "Schleswig-Holstein,",
       Priority: 1,
     },
     {
-      Country: "Thuringia,",
+      PlaceOrProject: "Thuringia,",
       Priority: 1,
     },
     {
-      Country: "Antrim,",
+      PlaceOrProject: "Antrim,",
       Priority: 2,
     },
     {
-      Country: "Armagh,",
+      PlaceOrProject: "Armagh,",
       Priority: 1,
     },
     {
-      Country: "Carlow,",
+      PlaceOrProject: "Carlow,",
       Priority: 2,
     },
     {
-      Country: "Cavan,",
+      PlaceOrProject: "Cavan,",
       Priority: 2,
     },
     {
-      Country: "Clare,",
+      PlaceOrProject: "Clare,",
       Priority: 2,
     },
     {
-      Country: "Cork,",
+      PlaceOrProject: "Cork,",
       Priority: 2,
     },
     {
-      Country: "Donegal,",
+      PlaceOrProject: "Donegal,",
       Priority: 2,
     },
     {
-      Country: "Down,",
+      PlaceOrProject: "Down,",
       Priority: 2,
     },
     {
-      Country: "Dublin,",
+      PlaceOrProject: "Dublin,",
       Priority: 2,
     },
     {
-      Country: "Fermanagh,",
+      PlaceOrProject: "Fermanagh,",
       Priority: 2,
     },
     {
-      Country: "Galway,",
+      PlaceOrProject: "Galway,",
       Priority: 2,
     },
     {
-      Country: "Kerry,",
+      PlaceOrProject: "Kerry,",
       Priority: 2,
     },
     {
-      Country: "Kildare,",
+      PlaceOrProject: "Kildare,",
       Priority: 2,
     },
     {
-      Country: "Kilkenny,",
+      PlaceOrProject: "Kilkenny,",
       Priority: 2,
     },
     {
-      Country: "Laois,",
+      PlaceOrProject: "Laois,",
       Priority: 2,
     },
     {
-      Country: "Leitrim,",
+      PlaceOrProject: "Leitrim,",
       Priority: 2,
     },
     {
-      Country: "Limerick,",
+      PlaceOrProject: "Limerick,",
       Priority: 2,
     },
     {
-      Country: "Londonderry,",
+      PlaceOrProject: "Londonderry,",
       Priority: 2,
     },
     {
-      Country: "Longford,",
+      PlaceOrProject: "Longford,",
       Priority: 2,
     },
     {
-      Country: "Louth,",
+      PlaceOrProject: "Louth,",
       Priority: 2,
     },
     {
-      Country: "Mayo,",
+      PlaceOrProject: "Mayo,",
       Priority: 2,
     },
     {
-      Country: "Meath,",
+      PlaceOrProject: "Meath,",
       Priority: 2,
     },
     {
-      Country: "Monaghan,",
+      PlaceOrProject: "Monaghan,",
       Priority: 2,
     },
     {
-      Country: "Offaly,",
+      PlaceOrProject: "Offaly,",
       Priority: 2,
     },
     {
-      Country: "Roscommon,",
+      PlaceOrProject: "Roscommon,",
       Priority: 2,
     },
     {
-      Country: "Sligo,",
+      PlaceOrProject: "Sligo,",
       Priority: 2,
     },
     {
-      Country: "Tipperary,",
+      PlaceOrProject: "Tipperary,",
       Priority: 2,
     },
     {
-      Country: "Tyrone,",
+      PlaceOrProject: "Tyrone,",
       Priority: 2,
     },
     {
-      Country: "Waterford,",
+      PlaceOrProject: "Waterford,",
       Priority: 2,
     },
     {
-      Country: "Westmeath,",
+      PlaceOrProject: "Westmeath,",
       Priority: 2,
     },
     {
-      Country: "Wexford,",
+      PlaceOrProject: "Wexford,",
       Priority: 2,
     },
     {
-      Country: "Wicklow,",
+      PlaceOrProject: "Wicklow,",
       Priority: 2,
     },
     {
-      Country: "Anglesey,",
+      PlaceOrProject: "Anglesey,",
       Priority: 2,
     },
     {
-      Country: "Brecknockshire,",
+      PlaceOrProject: "Brecknockshire,",
       Priority: 2,
     },
     {
-      Country: "Caernarfonshire,",
+      PlaceOrProject: "Caernarfonshire,",
       Priority: 2,
     },
     {
-      Country: "Cardiganshire,",
+      PlaceOrProject: "Cardiganshire,",
       Priority: 2,
     },
     {
-      Country: "Carmarthenshire,",
+      PlaceOrProject: "Carmarthenshire,",
       Priority: 2,
     },
     {
-      Country: "Denbighshire,",
+      PlaceOrProject: "Denbighshire,",
       Priority: 2,
     },
     {
-      Country: "Flintshire,",
+      PlaceOrProject: "Flintshire,",
       Priority: 2,
     },
     {
-      Country: "Glamorgan,",
+      PlaceOrProject: "Glamorgan,",
       Priority: 2,
     },
     {
-      Country: "Merionethshire,",
+      PlaceOrProject: "Merionethshire,",
       Priority: 2,
     },
     {
-      Country: "Monmouthshire,",
+      PlaceOrProject: "Monmouthshire,",
       Priority: 2,
     },
     {
-      Country: "Montgomeryshire,",
+      PlaceOrProject: "Montgomeryshire,",
       Priority: 2,
     },
     {
-      Country: "Pembrokeshire,",
+      PlaceOrProject: "Pembrokeshire,",
       Priority: 2,
     },
     {
-      Country: "Radnorshire,",
+      PlaceOrProject: "Radnorshire,",
       Priority: 2,
     },
     {
-      Country: "Pomerania,",
+      PlaceOrProject: "Pomerania,",
       Priority: 1,
     },
     {
-      Country: "Angus,",
+      PlaceOrProject: "Angus,",
       Priority: 1,
     },
     {
-      Country: "Shetland,",
+      PlaceOrProject: "Shetland,",
       Priority: 1,
     },
     {
-      Country: "Alabama,",
+      PlaceOrProject: "Alabama,",
       Priority: 1,
     },
     {
-      Country: "Alaska,",
+      PlaceOrProject: "Alaska,",
       Priority: 1,
     },
     {
-      Country: "Arizona,",
+      PlaceOrProject: "Arizona,",
       Priority: 1,
     },
     {
-      Country: "Arkansas,",
+      PlaceOrProject: "Arkansas,",
       Priority: 1,
     },
     {
-      Country: "California,",
+      PlaceOrProject: "California,",
       Priority: 1,
     },
     {
-      Country: "Colorado,",
+      PlaceOrProject: "Colorado,",
       Priority: 1,
     },
     {
-      Country: "Connecticut,",
+      PlaceOrProject: "Connecticut,",
       Priority: 1,
     },
     {
-      Country: "Delaware,",
+      PlaceOrProject: "Delaware,",
       Priority: 1,
     },
     {
-      Country: "District of Columbia,",
+      PlaceOrProject: "District of Columbia,",
       Priority: 2,
     },
     {
-      Country: "Florida,",
+      PlaceOrProject: "Florida,",
       Priority: 1,
     },
     {
-      Country: "Georgia,",
+      PlaceOrProject: "Georgia,",
       Priority: 1,
     },
     {
-      Country: "Hawaii,",
+      PlaceOrProject: "Hawaii,",
       Priority: 2,
     },
     {
-      Country: "Idaho,",
+      PlaceOrProject: "Idaho,",
       Priority: 2,
     },
     {
-      Country: "Illinois,",
+      PlaceOrProject: "Illinois,",
       Priority: 1,
     },
     {
-      Country: "Indiana,",
+      PlaceOrProject: "Indiana,",
       Priority: 1,
     },
     {
-      Country: "Iowa,",
+      PlaceOrProject: "Iowa,",
       Priority: 2,
     },
     {
-      Country: "Kansas,",
+      PlaceOrProject: "Kansas,",
       Priority: 2,
     },
     {
-      Country: "Kentucky,",
+      PlaceOrProject: "Kentucky,",
       Priority: 2,
     },
     {
-      Country: "Louisiana,",
+      PlaceOrProject: "Louisiana,",
       Priority: 2,
     },
     {
-      Country: "Maine,",
+      PlaceOrProject: "Maine,",
       Priority: 1,
     },
     {
-      Country: "Maryland,",
+      PlaceOrProject: "Maryland,",
       Priority: 2,
     },
     {
-      Country: "Massachusetts,",
+      PlaceOrProject: "Massachusetts,",
       Priority: 2,
     },
     {
-      Country: "Michigan,",
+      PlaceOrProject: "Michigan,",
       Priority: 1,
     },
     {
-      Country: "Minnesota,",
+      PlaceOrProject: "Minnesota,",
       Priority: 1,
     },
     {
-      Country: "Mississippi,",
+      PlaceOrProject: "Mississippi,",
       Priority: 1,
     },
     {
-      Country: "Missouri,",
+      PlaceOrProject: "Missouri,",
       Priority: 1,
     },
     {
-      Country: "Montana,",
+      PlaceOrProject: "Montana,",
       Priority: 2,
     },
     {
-      Country: "Nebraska,",
+      PlaceOrProject: "Nebraska,",
       Priority: 2,
     },
     {
-      Country: "Nevada,",
+      PlaceOrProject: "Nevada,",
       Priority: 1,
     },
     {
-      Country: "New Hampshire,",
+      PlaceOrProject: "New Hampshire,",
       Priority: 2,
     },
     {
-      Country: "New Jersey,",
+      PlaceOrProject: "New Jersey,",
       Priority: 1,
     },
     {
-      Country: "New Mexico,",
+      PlaceOrProject: "New Mexico,",
       Priority: 1,
     },
     {
-      Country: "New York,",
+      PlaceOrProject: "New York,",
       Priority: 1,
     },
     {
-      Country: "North Carolina,",
+      PlaceOrProject: "North Carolina,",
       Priority: 1,
     },
     {
-      Country: "North Dakota,",
+      PlaceOrProject: "North Dakota,",
       Priority: 1,
     },
     {
-      Country: "Ohio,",
+      PlaceOrProject: "Ohio,",
       Priority: 2,
     },
     {
-      Country: "Oklahoma,",
+      PlaceOrProject: "Oklahoma,",
       Priority: 1,
     },
     {
-      Country: "Oregon,",
+      PlaceOrProject: "Oregon,",
       Priority: 2,
     },
     {
-      Country: "Pennsylvania,",
+      PlaceOrProject: "Pennsylvania,",
       Priority: 2,
     },
     {
-      Country: "Rhode Island,",
+      PlaceOrProject: "Rhode Island,",
       Priority: 1,
     },
     {
-      Country: "South Carolina,",
+      PlaceOrProject: "South Carolina,",
       Priority: 2,
     },
     {
-      Country: "South Dakota,",
+      PlaceOrProject: "South Dakota,",
       Priority: 1,
     },
     {
-      Country: "Tennessee,",
+      PlaceOrProject: "Tennessee,",
       Priority: 2,
     },
     {
-      Country: "Texas,",
+      PlaceOrProject: "Texas,",
       Priority: 2,
     },
     {
-      Country: "Utah,",
+      PlaceOrProject: "Utah,",
       Priority: 1,
     },
     {
-      Country: "Vermont,",
+      PlaceOrProject: "Vermont,",
       Priority: 1,
     },
     {
-      Country: "Virginia,",
+      PlaceOrProject: "Virginia,",
       Priority: 2,
     },
     {
-      Country: "Washington,",
+      PlaceOrProject: "Washington,",
       Priority: 2,
     },
     {
-      Country: "West Virginia,",
+      PlaceOrProject: "West Virginia,",
       Priority: 2,
     },
     {
-      Country: "Wisconsin,",
+      PlaceOrProject: "Wisconsin,",
       Priority: 1,
     },
     {
-      Country: "Wyoming,",
+      PlaceOrProject: "Wyoming,",
       Priority: 2,
     },
     {
-      Country: "Boyer-5431 Perseides",
+      PlaceOrProject: "Boyer-5431 Perseides",
       Priority: 1,
     },
     {
-      Country: "Ivey-594, Pitts Family,",
+      PlaceOrProject: "Ivey-594, Pitts Family,",
       Priority: 1,
     },
     {
-      Country: "Ivey-594, Spires Family,",
+      PlaceOrProject: "Ivey-594, Spires Family,",
       Priority: 1,
     },
     {
-      Country: "Ivey-594, Towns Family,",
+      PlaceOrProject: "Ivey-594, Towns Family,",
       Priority: 1,
     },
     {
-      Country: "Kushion-1 C4",
+      PlaceOrProject: "Kushion-1 C4",
       Priority: 2,
     },
     {
-      Country: "Kushion-1 C5",
+      PlaceOrProject: "Kushion-1 C5",
       Priority: 2,
     },
     {
-      Country: "Kushion-1 C6",
+      PlaceOrProject: "Kushion-1 C6",
       Priority: 2,
     },
     {
-      Country: "Waite-3237 Hoopeston",
+      PlaceOrProject: "Waite-3237 Hoopeston",
       Priority: 1,
     },
     {
-      Country: "Waite-3237",
+      PlaceOrProject: "Waite-3237",
       Priority: 1,
     },
     {
-      Country: "Denmark Project",
+      PlaceOrProject: "Denmark Project",
       Priority: 1,
     },
     {
-      Country: "Norway Project",
+      PlaceOrProject: "Norway Project",
       Priority: 1,
     },
     {
-      Country: "Sweden Project",
+      PlaceOrProject: "Sweden Project",
       Priority: 1,
     },
     {
-      Country: "Medieval Project, Ireland,",
+      PlaceOrProject: "Medieval Project, Ireland,",
       Priority: 1,
     },
     {
-      Country: "Ivey-594, Herndon Family,",
+      PlaceOrProject: "Ivey-594, Herndon Family,",
       Priority: 1,
     },
     {
-      Country: "Ivey-594, Ivey Family,",
+      PlaceOrProject: "Ivey-594, Ivey Family,",
       Priority: 1,
     },
     {
-      Country: "Waite-3237 Malcom",
+      PlaceOrProject: "Waite-3237 Malcom",
       Priority: 1,
     },
     {
-      Country: "Waite-3237 Vittitoe",
+      PlaceOrProject: "Waite-3237 Vittitoe",
       Priority: 1,
     },
     {
-      Country: "Jehovah\u0027s Witnesses,",
+      PlaceOrProject: "Jehovah\u0027s Witnesses,",
       Priority: 1,
     },
   ],

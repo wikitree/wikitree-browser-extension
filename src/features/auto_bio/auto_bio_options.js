@@ -174,6 +174,12 @@ const autoBio = {
           defaultValue: true,
         },
         {
+          id: "needsProfilesCreatedCategory",
+          type: OptionType.CHECKBOX,
+          label: "Add Needs Profiles Created category",
+          defaultValue: true,
+        },
+        {
           id: "unsourced",
           type: OptionType.CHECKBOX,
           label: "Add Unsourced template to unsourced profiles",
