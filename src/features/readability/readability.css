@@ -38,7 +38,8 @@ sup.reference {
   white-space: nowrap;
 }
 
-.x-ref-separator, .x-ref-bracket:first-child {
+.x-ref-separator,
+.x-ref-bracket:first-child {
   margin-right: var(--a11y-citation-spacing);
 }
 
