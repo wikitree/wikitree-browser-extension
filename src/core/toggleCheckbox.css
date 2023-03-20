@@ -4,24 +4,24 @@
   --relative-adjustment: calc(var(--font-px) / 15);
 }
 
-.toggle input[type='checkbox'] {
+.toggle input[type="checkbox"] {
   display: none;
 }
 
-.toggle input[type='checkbox'] + label {
+.toggle input[type="checkbox"] + label {
   position: relative;
   margin-left: calc(var(--relative-adjustment) * 55px);
   line-height: calc(var(--relative-adjustment) * 24px);
   font-size: calc(var(--relative-adjustment) * 15px);
 }
 
-.toggle.label-left input[type='checkbox'] + label {
+.toggle.label-left input[type="checkbox"] + label {
   margin-left: unset;
   margin-right: calc(var(--relative-adjustment) * 55px);
 }
 
-.toggle input[type='checkbox'] + label::before {
-  content: ' ';
+.toggle input[type="checkbox"] + label::before {
+  content: " ";
   display: block;
   position: absolute;
   top: calc(var(--relative-adjustment) * -3px);
@@ -35,13 +35,18 @@
   transition: background-color 0.4s ease;
 }
 
-.toggle.label-left input[type='checkbox'] + label::before {
+.toggle.label-left input[type="checkbox"] + label::before {
   left: unset;
   right: calc(var(--relative-adjustment) * -55px);
 }
 
-.toggle input[type='checkbox'] + label::after {
-  content: ' ';
+.darkMode .toggle input[type="checkbox"] + label::before {
+  background-color: #222;
+  border: 1px solid #666;
+}
+
+.toggle input[type="checkbox"] + label::after {
+  content: " ";
   display: block;
   position: absolute;
   top: calc(var(--relative-adjustment) * -1px);
@@ -55,21 +60,36 @@
   transition: left 0.4s ease;
 }
 
-.toggle.label-left input[type='checkbox'] + label::after {
+.toggle.label-left input[type="checkbox"] + label::after {
   left: unset;
   right: calc(var(--relative-adjustment) * -32px);
   transition-property: right;
 }
 
-.toggle input[type='checkbox']:checked + label::before {
+.darkMode .toggle input[type="checkbox"] + label::after {
+  background-color: #888;
+  border: 1px solid #666;
+}
+
+.toggle input[type="checkbox"]:checked + label::before {
   background-color: #8fc641;
 }
 
-.toggle input[type='checkbox']:checked + label::after {
+.darkMode .toggle input[type="checkbox"]:checked + label::before {
+  background-color: #222;
+}
+
+.toggle input[type="checkbox"]:checked + label::after {
   left: calc(var(--relative-adjustment) * -32px);
 }
 
-.toggle.label-left input[type='checkbox']:checked + label::after {
+.toggle.label-left input[type="checkbox"]:checked + label::after {
   left: unset;
   right: calc(var(--relative-adjustment) * -53px);
+}
+
+.darkMode .toggle input[type="checkbox"]:checked + label::after {
+  background-color: #8fc641;
+  border-color: #689130;
+  transition-property: left, right, background-color, border-color;
 }

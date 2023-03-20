@@ -381,8 +381,7 @@ registerFeature({
 registerFeature({
   name: "Debug Profile Classes",
   id: "debugProfileClasses",
-  description:
-    "Highlights various sections of page profiles (for testing the core profileClasses code).",
+  description: "Highlights various sections of page profiles (for testing the core profileClasses code).",
   category: "Debug",
   creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   contributors: [],
