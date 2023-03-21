@@ -852,10 +852,15 @@ function addReferences(event, spouse = false) {
     }
     if (
       !(event == "Marriage" && spouseMatch == false && reference.Year != spouse.marriage_date.substring(0, 4)) &&
-      !(event == "Baptism" && !isWithinX(reference.Year, parseInt(window.profilePerson.BirthDate.slice(0, 4)), 10)) &&
+      !(event == "Baptism" && !isWithinX(reference.Year, parseInt(window.profilePerson.BirthYear), 10)) &&
       !sameName == false
     ) {
-      if (reference["Record Type"].includes(event)) {
+      if (
+        reference["Record Type"].includes(event) ||
+        (reference.Source == "NZBDM" && event == "Birth" && reference.Year == window.profilePerson.BirthYear) ||
+        (event == "Death" && reference.Year == window.profilePerson.DeathYear) ||
+        (event == "Marriage" && reference.Year == spouse.marriage_date.substring(0, 4))
+      ) {
         refCount++;
         if (reference.Used || window.refNames.includes(reference.RefName)) {
           text += "<ref name='" + reference.RefName + "' /> ";
@@ -2838,14 +2843,13 @@ function parseWikiTable(text) {
                 aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
               }
               */
-            } else if (data.Father == key) {
+            } else if (data.Father == key && data.Age < aMember.Age) {
               aMember.Relation = "Father";
-            } else if (data.Mother == key) {
+            } else if (data.Mother == key && data.Age < aMember.Age) {
               aMember.Relation = "Mother";
             }
           });
         });
-        console.log(JSON.parse(JSON.stringify(aMember)));
         data.Household.push(aMember);
       } else {
         if (data[key]) {
@@ -3274,14 +3278,18 @@ function parseNZBDM(aRef) {
   const typeMatch = aRef.Text.match(
     /(Birth|Death|Marriage|Divorce|Civil Union|Name Change|Adoption|Census) Record: (.*?)\./i
   );
-  if (typeMatch[1]) {
-    aRef["Record Type"] = typeMatch[1];
-  }
-  if (typeMatch[2]) {
-    if (typeMatch[2].match(/[A-Z'-]['a-z-]+\s[A-Z'-][a-z'-]+/)) {
-      aRef.Person = typeMatch[2];
+  if (typeMatch) {
+    if (typeMatch[1]) {
+      aRef["Record Type"] = typeMatch[1];
+    }
+    if (typeMatch[2]) {
+      if (typeMatch[2].match(/[A-Z'-]['a-z-]+\s[A-Z'-][a-z'-]+/)) {
+        aRef.Person = typeMatch[2];
+      }
     }
   }
+  aRef.Source = "NZBDM";
+  console.log(aRef);
   return aRef;
 }
 
@@ -4455,6 +4463,7 @@ export async function generateBio() {
     addLoginButton();
   } else {
     window.profilePerson.BirthYear = window.profilePerson.BirthDate?.split("-")[0];
+    window.profilePerson.DeathYear = window.profilePerson.DeathDate?.split("-")[0];
   }
 
   // Handle census data created with Sourcer
@@ -4925,7 +4934,7 @@ export async function generateBio() {
             }
           }
         });
-        if (needsCategory) {
+        if (needsCategory && !window.sectionsObject["StuffBeforeTheBio"].text.includes(needsCategory)) {
           window.sectionsObject["StuffBeforeTheBio"].text.push(needsCategory + "\n");
         }
       }
