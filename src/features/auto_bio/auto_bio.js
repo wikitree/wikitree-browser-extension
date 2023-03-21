@@ -4,9 +4,11 @@ import { getPeople } from "../dna_table/dna_table";
 import { PersonName } from "./person_name.js";
 import { countries } from "./countries.js";
 import { needsCategories } from "./needs.js";
+import { occupationCategories } from "./occupations.js";
 import { firstNameVariants } from "./first_name_variants.js";
 import { isOK } from "../../core/common";
 import { getAge } from "../change_family_lists/change_family_lists";
+import { titleCase } from "../familyTimeline/familyTimeline";
 import { wtAPICatCIBSearch } from "../../core/wtPlusAPI/wtPlusAPI";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 import { theSourceRules } from "../bioCheck/SourceRules.js";
@@ -1858,6 +1860,7 @@ function updateRelations(data) {
 }
 
 function findRelation(person) {
+  console.log(person);
   let relationWord;
   if (!person.FirstName) {
     if (person.Name) {
@@ -2431,6 +2434,38 @@ function buildCensusNarratives() {
 
         if (occupation) {
           text += "'s occupation was '" + occupation + "'.";
+
+          // Add occupation Category
+          if (window.autoBioOptions.occupationCategory) {
+            const occupationTitleCase = titleCase(occupation);
+            let occupationCategory;
+            if (occupationCategories[occupationTitleCase]) {
+              const places = [];
+              if (window.profilePerson.BirthLocation) {
+                places.push(window.profilePerson.BirthLocation.split(", "));
+              }
+              if (window.profilePerson.DeathLocation) {
+                places.push(window.profilePerson.DeathLocation.split(", "));
+              }
+              if (occupationCategories[occupationTitleCase]["Places"]) {
+                occupationCategories[occupationTitleCase]["Places"].forEach(function (place) {
+                  console.log(occupationCategories[occupationTitleCase]["Places"]);
+                  console.log(places);
+                  if (places.some((arr) => arr.includes(place))) {
+                    occupationCategory = `[[Category: ${place}, ${occupationCategories[occupationTitleCase]["PluralForm"]}]]`;
+                  }
+                });
+                if (!occupationCategory) {
+                  if (occupationCategories[occupationTitleCase].Standalone) {
+                    occupationCategory = `[[Category: ${occupationCategories[occupationTitleCase]["PluralForm"]}]]`;
+                  }
+                }
+              }
+            }
+            if (occupationCategory) {
+              window.sectionsObject["StuffBeforeTheBio"].text.push(occupationCategory);
+            }
+          }
         }
         if (occupation) {
           text += " " + capitalizeFirstLetter(window.profilePerson.Pronouns.subject) + " was living ";
@@ -2752,7 +2787,15 @@ function parseWikiTable(text) {
             let aPerson = window.profilePerson[relation][aKey];
             let theRelation;
 
-            if (isSameName(key, getNameVariants(aPerson))) {
+            if (
+              isSameName(key, getNameVariants(aPerson)) &&
+              isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5)
+            ) {
+              console.log(JSON.parse(JSON.stringify(aMember)));
+              console.log(aPerson);
+              console.log(relation);
+              console.log(isSameName(key, getNameVariants(aPerson)));
+              console.log(isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5));
               aMember.HasProfile = true;
               if (aPerson.Gender) {
                 aMember.Gender = aPerson.Gender;
@@ -2767,6 +2810,7 @@ function parseWikiTable(text) {
                       : relation == "Children"
                       ? "Son"
                       : "";
+                  console.log(relation, theRelation);
                 }
                 if (aMember.Gender == "Female") {
                   theRelation =
@@ -2781,6 +2825,9 @@ function parseWikiTable(text) {
                       : "";
                 }
               }
+              aMember.Relation = theRelation;
+              aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
+              /*
               if (isOK(aPerson.BirthDate)) {
                 if (isWithinX(getAgeAtCensus(aPerson, data["Year"]), value, 4)) {
                   aMember.Relation = theRelation;
@@ -2790,6 +2837,7 @@ function parseWikiTable(text) {
                 aMember.Relation = theRelation;
                 aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
               }
+              */
             } else if (data.Father == key) {
               aMember.Relation = "Father";
             } else if (data.Mother == key) {
@@ -2797,6 +2845,7 @@ function parseWikiTable(text) {
             }
           });
         });
+        console.log(JSON.parse(JSON.stringify(aMember)));
         data.Household.push(aMember);
       } else {
         if (data[key]) {
@@ -4663,14 +4712,7 @@ export async function generateBio() {
             anEvent.Narrative = anEvent.Narrative.replace("other child", "child");
           }
           const theseRefs = [];
-          console.log(anEvent["Event Type"]);
-          console.log(anEvent.War);
-          console.log(anEvent);
           window.references.forEach(function (aRef, i) {
-            console.log(aRef);
-            console.log(aRef["Record Type"]);
-            console.log(aRef.War);
-            console.log(aRef.RefName);
             if (
               anEvent["Record Type"].includes(aRef["Record Type"]) &&
               aRef.Text.match("contributed by various users") &&

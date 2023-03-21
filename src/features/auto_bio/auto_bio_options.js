@@ -180,6 +180,12 @@ const autoBio = {
           defaultValue: true,
         },
         {
+          id: "occupationCategory",
+          type: OptionType.CHECKBOX,
+          label: "Add occupation category",
+          defaultValue: true,
+        },
+        {
           id: "unsourced",
           type: OptionType.CHECKBOX,
           label: "Add Unsourced template to unsourced profiles",
