@@ -5,6 +5,7 @@ import { PersonName } from "./person_name.js";
 import { countries } from "./countries.js";
 import { needsCategories } from "./needs.js";
 import { occupationCategories } from "./occupations.js";
+import { unsourcedCategories } from "./unsourced_categories.js";
 import { firstNameVariants } from "./first_name_variants.js";
 import { isOK } from "../../core/common";
 import { getAge } from "../change_family_lists/change_family_lists";
@@ -5027,9 +5028,25 @@ export async function generateBio() {
     });
     if (doCheck == true) {
       if (autoBioCheck(currentBio) == false) {
-        const unsourcedTemplate = "{{Unsourced}}";
-        if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
-          window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
+        let unsourcedTemplate;
+
+        // Check each part of the birth and death locations for unsourced categories
+        const birthPlaces = window.profilePerson.BirthLocation?.split(", ");
+        const deathPlaces = window.profilePerson.DeathLocation?.split(", ");
+        const places = birthPlaces.concat(deathPlaces);
+        places.forEach(function (aPlace) {
+          if (unsourcedCategories[aPlace]) {
+            unsourcedTemplate = `[[Category: ${unsourcedCategories[aPlace]}]]`;
+            if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
+              window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
+            }
+          }
+        });
+        if (!unsourcedTemplate) {
+          unsourcedTemplate = "{{Unsourced}}";
+          if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
+            window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
+          }
         }
       }
     }
