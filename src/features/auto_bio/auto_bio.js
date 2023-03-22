@@ -4346,6 +4346,9 @@ function assignPersonNames(person) {
     personB.PersonName.FirstName = aName.withParts(["PreferredName"]); // theFirstName
     personB.PersonName.FirstNames = aName.withParts(["FirstNames"]); // FirstNames
     personB.PersonName.BirthName = aName.withParts(["FirstNames", "MiddleNames", "LastNameAtBirth"]); // BirthName
+    personB.PersonName.LastNameAtBirth = aName.withParts(["LastNameAtBirth"]); // LastNameAtBirth
+    // LastNameCurrent
+    personB.PersonName.LastNameCurrent = aName.withParts(["LastNameCurrent"]);
   }
   assignPersonNamesB(person);
   ["Parents", "Spouses", "Children", "Siblings"].forEach(function (rel) {
@@ -4491,6 +4494,7 @@ export async function generateBio() {
   personKeys.forEach(function (aKey) {
     window.profilePerson[aKey] = formData[aKey];
   });
+  assignPersonNames(window.profilePerson);
   if (isOK(window.profilePerson.BirthDate) && window.profilePerson.BirthDate.match("-") == null) {
     window.profilePerson.BirthDate = convertDate(window.profilePerson.BirthDate, "ISO");
   }
@@ -5037,6 +5041,18 @@ export async function generateBio() {
         places.forEach(function (aPlace) {
           if (unsourcedCategories[aPlace]) {
             unsourcedTemplate = `[[Category: ${unsourcedCategories[aPlace]}]]`;
+            if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
+              window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
+            }
+          }
+        });
+        const surnames = [
+          window.profilePerson.PersonName.LastNameAtBirth,
+          window.profilePerson.PersonName.LastNameCurrent,
+        ];
+        surnames.forEach(function (aSurname) {
+          if (unsourcedCategories[aSurname + " Name Study"]) {
+            unsourcedTemplate = `[[Category: ${unsourcedCategories[aSurname + " Name Study"]}]]`;
             if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
               window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
             }
