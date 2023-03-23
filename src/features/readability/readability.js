@@ -53,13 +53,13 @@ async function initReadability() {
       let li = $(this);
       li.contents().each(function () {
         let el = $(this);
-        if (el.is("sup, a[href^='#_ref']:first-of-type, span:empty")) {
-          if (this.tagName !== "SPAN") {
+        if (el.is("sup, a[href^='#_ref']:first-of-type, span:empty, a[name]:empty")) {
+          if (!$(this).is(":empty")) {
             $(this).addClass("a11y-back-ref");
           }
           return true; // flag back-reference links
         }
-        if (this.nodeValue && /^[*\s*\u2191]*$/.test(this.nodeValue)) {
+        if (this.nodeValue && /^[*\s\u2191]*$/.test(this.nodeValue)) {
           $(this).wrap('<span class="a11y-back-ref"></span>');
           return true; // flag whitespace and the up arrow
         }
@@ -81,11 +81,13 @@ async function initReadability() {
         li.contents().each(function () {
           let el = $(this);
           if (
-            el.is("sup, a[href^='#_ref']:first-of-type, span:empty, .a11y-back-ref, .a11y-back-br, .a11y-src-label")
+            el.is(
+              "sup, a[href^='#_ref']:first-of-type, span:empty, a[name]:empty, .a11y-back-ref, .a11y-back-br, .a11y-src-label"
+            )
           ) {
             return true; // skip over back-reference links
           }
-          if (this.nodeValue && /^[*\s*\u2191]*$/.test(this.nodeValue)) {
+          if (this.nodeValue && /^[*\s\u2191]*$/.test(this.nodeValue)) {
             return true; // skip over whitespace and the up arrow (sometimes a link, sometimes text, depending on whether there are multiple references)
           }
           if (el.is("b")) {
@@ -102,6 +104,30 @@ async function initReadability() {
           }
           return false;
         });
+        $(".a11y-back-ref")
+          .filter(function () {
+            // any node with only whitespace and asterisks that got flagged as a back-ref should be switched to a label
+            return /^\s*(\*\s*)+$/.test($(this).text());
+          })
+          .removeClass("a11y-back-ref")
+          .addClass("a11y-src-label")
+          .each(function () {
+            let el = $(this),
+              match,
+              trim = false;
+            // trim whitespace and move it outside of the tag
+            if ((match = el.text().match(/^\s+/))) {
+              trim = true;
+              el.before(match[0]);
+            }
+            if ((match = el.text().match(/\s+$/))) {
+              trim = true;
+              el.after(match[0]);
+            }
+            if (trim) {
+              el.text(el.text().replace(/(^\s+)|(\s+$)/g, ""));
+            }
+          });
         // if the label is actually a subheading before a list, remove the flag
         li.contents(".a11y-src-label + ul, .a11y-src-label + ol, .a11y-src-label + dl")
           .prevAll()
@@ -121,9 +147,9 @@ async function initReadability() {
               // skip back-references, anchors, whitespace, and the up arrow (sometimes a link, sometimes text, depending on whether there are multiple references) at the beginning
               if (
                 el.is(
-                  "sup, a[href^='#_ref']:first-of-type, span:empty, .a11y-back-ref, .a11y-src-br, .a11y-src-label"
+                  "sup, a[href^='#_ref']:first-of-type, span:empty, a[name]:empty, .a11y-back-ref, .a11y-src-br, .a11y-src-label"
                 ) ||
-                (this.nodeValue && /^[*\s*\u2191]*$/.test(this.nodeValue))
+                (this.nodeValue && /^[*\s\u2191]*$/.test(this.nodeValue))
               ) {
                 return false;
               }
@@ -278,14 +304,31 @@ async function initReadability() {
     }
     if (options.collapseSources && options.collapseSources / 1 > 0) {
       // when clicking on a citation, make sure that the sources are not collapsed
-      $(".x-content sup.reference a").on("click", function () {
-        let $chk = $(".collapse-sources input#sources_checkbox");
-        let chk = $chk.get(0);
-        if (chk && !chk.checked) {
-          chk.checked = true;
-          $chk.trigger("change");
-        }
-      });
+      $(".x-content sup.reference a, .x-content a[href^='#']")
+        .filter(function () {
+          if (!$(this).parent().is("sup.reference")) {
+            let el = document.getElementById(this.getAttribute("href").substring(1));
+            if (!el) {
+              el = document.getElementsByName(this.getAttribute("href").substring(1));
+              if (el.length > 0) {
+                el = el[0];
+              }
+            }
+            if (el && $(el).closest(".x-sources").length > 0) {
+              return true; // any links to elements under the sources section should also trigger this
+            }
+            return false; // any other links should not expand the sources
+          }
+          return true; // any citations by <ref> tags are automatically covered
+        })
+        .on("click", function () {
+          let $chk = $(".collapse-sources input#sources_checkbox");
+          let chk = $chk.get(0);
+          if (chk && !chk.checked) {
+            chk.checked = true;
+            $chk.trigger("change");
+          }
+        });
     }
   }
   // toggle hidden elements (either always or in reading mode only)

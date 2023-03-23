@@ -105,8 +105,26 @@ export function ensureProfileClasses() {
     // mark inline citations (both <ref> tags and "citation needed")
     $(".x-content sup.reference, .x-content sup > i > a[href$='/Help:Sources']").closest("sup").addClass("x-citation");
 
-    // mark inline images
-    $(".x-content table").has("a.image > img").addClass("x-inline-img");
+    // mark inline images (and the containing link)
+    $(".x-content a.image > img").addClass("x-inline-img").parent().addClass("x-inline-img");
+
+    // mark tables (and the row and cell) that only wrap a single inline image
+    $("tr:first-child > td > .x-inline-img")
+      .filter(function () {
+        var el = $(this);
+        if (el.siblings().length > 0) return false; // this should be the only element in the cell
+        el = el.parent();
+        if (el.siblings().length > 0) return false; // this should be the only cell in the row
+        el = el.parent();
+        if (el.siblings().length > 1) return false; // allow one additional row for the caption
+        return true;
+      })
+      .parent()
+      .addClass("x-inline-img")
+      .parent()
+      .addClass("x-inline-img")
+      .closest("table")
+      .addClass("x-inline-img");
 
     // mark inline tables (inline images must be marked first so that they will be excluded, along with the table of contents)
     $(".x-content table:not(.toc):not(.x-inline-img)").addClass("x-inline-table");
@@ -128,7 +146,13 @@ export function ensureProfileClasses() {
       .first()
       .addClass("x-sources")
       .nextUntil(".x-root-section, div.EDIT, .x-memories, br[clear] + div.SMALL")
-      .addClass("x-sources");
+      .addClass("x-sources")
+      .each(function () {
+        // sometimes text can be put in the sources section, such as "See also:" (only happens with leading whitespace)
+        if (this.previousSibling.nodeType == 3 && /\S/.test(this.previousSibling.nodeValue)) {
+          $(this.previousSibling).wrap('<span class="x-sources"></span>');
+        }
+      });
     $(".x-content ol.references").addClass("x-sources");
     // mark source list items separately
     $("ul.x-sources > li, ol.x-sources > li").addClass("x-src");
