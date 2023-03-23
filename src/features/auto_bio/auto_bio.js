@@ -534,13 +534,21 @@ export function formatDate(date, status = "on", format = "MDY") {
  * @param {string} [format="MDY"] - The desired date format (MDY, sMDY, DsMY, DMY, 8).
  * @returns {string} - The formatted date.
  */
-export function formatDate(date, status = "on", format = "MDY") {
+export function formatDate(date, status, options = { format: "MDY", needOn: false }) {
   // Ensure that the 'date' parameter is a string
   if (typeof date !== "string") return "";
-
-  // Use the global date format if available and format is not 8
-  if (window.autoBioOptions && window.autoBioOptions.dateFormat && format !== 8) {
+  let format;
+  if (options.format) {
+    format = options.format;
+  } else if (window.autoBioOptions && window.autoBioOptions.dateFormat && format !== 8) {
+    // Use the global date format if available and format is not 8
     format = window.autoBioOptions.dateFormat;
+  } else {
+    format = "MDY";
+  }
+  let needOn = false;
+  if (options.needOn) {
+    needOn = true;
   }
 
   const months = [
@@ -598,7 +606,7 @@ export function formatDate(date, status = "on", format = "MDY") {
       case "on":
       case undefined:
       case "":
-        if (status == "on") {
+        if (needOn == true) {
           if (day) return "on";
           else return "in";
         } else return "";
@@ -893,15 +901,24 @@ function buildBirth(person) {
   if (person.BirthDate || person.BirthLocation) {
     text += " born";
 
+    let birthLocationBit = "";
+    let birthDateBit = "";
+
     if (person.BirthLocation) {
-      text += " in " + person.BirthLocation;
+      birthLocationBit = " in " + person.BirthLocation;
       let birthPlaces = person.BirthLocation.split(",");
       birthPlaces.forEach(function (place) {
         window.usedPlaces.push(place.trim());
       });
     }
     if (person.BirthDate) {
-      text += " " + formatDate(person.BirthDate, person.mStatus_BirthDate || "", "sMDY");
+      birthDateBit = " " + formatDate(person.BirthDate, person.mStatus_BirthDate || "", { needOn: true });
+    }
+
+    if (window.autoBioOptions.birthOrder == "datePlace") {
+      text += birthDateBit + birthLocationBit;
+    } else {
+      text += birthLocationBit + birthDateBit;
     }
   }
   if (person.Father || person.Mother) {
@@ -937,7 +954,7 @@ function buildDeath(person) {
   const diedWord = window.autoBioOptions.diedWord;
   let text = person.PersonName.FirstName + " " + diedWord;
   if (person.DeathDate) {
-    text += " " + formatDate(person.DeathDate, person.mStatus_DeathDate || "");
+    text += " " + formatDate(person.DeathDate, person.mStatus_DeathDate || "", { needOn: true });
   }
   if (person.DeathLocation) {
     let place = minimalPlace(person.DeathLocation);
@@ -1092,68 +1109,107 @@ function buildSpouses(person) {
         spouseMarriageAge = ` (${getAgeFromISODates(spouse.BirthDate, spouse.marriage_date)})`;
       }
 
-      text +=
-        person.PersonName.FirstName +
-        marriageAge +
-        " married " +
-        window.boldBit +
-        nameLink(spouse) +
-        window.boldBit +
-        spouseMarriageAge;
-
+      let spouseDetailsA = "";
+      let spouseDetailsB = "";
       //Spouse details
+      const spousePronoun = spouse.Gender == "Male" ? "He" : spouse.Gender == "Female" ? "She" : "";
       if (window.autoBioOptions.spouseDetails) {
         if (isOK(spouse.BirthDate) || spouse.BirthLocation) {
-          text += " (born";
+          spouseDetailsA += " (born";
+          spouseDetailsB += " " + spouse.PersonName.FirstName + " was born";
         }
         if (isOK(spouse.BirthDate)) {
-          text += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate);
+          spouseDetailsA += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate);
+          spouseDetailsB += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate);
         }
         if (spouse.BirthLocation) {
           let place = minimalPlace(spouse.BirthLocation);
-          text += " in " + place;
+          spouseDetailsA += " in " + place;
+          spouseDetailsB += " in " + place;
         }
 
         //Spouse parent details
         if (window.autoBioOptions.spouseParentDetails) {
           if (spouse.Father || spouse.Mother) {
-            text += "; ";
-            text += spouse.Gender == "Male" ? "son" : spouse.Gender == "Female" ? "daughter" : "child";
-            text += " of ";
+            spouseDetailsA += "; ";
+            spouseDetailsB += ". " + (spousePronoun || spouse.PersonName.FirstName) + " was the ";
+            spouseDetailsA += spouse.Gender == "Male" ? "son" : spouse.Gender == "Female" ? "daughter" : "child";
+            spouseDetailsA += " of ";
+            spouseDetailsB += spouse.Gender == "Male" ? "son" : spouse.Gender == "Female" ? "daughter" : "child";
+            spouseDetailsB += " of ";
+
             if (spouse.Father) {
               let spouseFather = window.biographySpouseParents[0].people[spouse.Id].Parents[spouse.Father];
-              text += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
+              spouseDetailsA += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
+              spouseDetailsB += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
+
               if (spouseFather.BirthDate) {
-                text += " " + formatDates(spouseFather);
+                spouseDetailsA += " " + formatDates(spouseFather);
+                spouseDetailsB += " " + formatDates(spouseFather);
               }
             }
             if (spouse.Father && spouse.Mother) {
-              text += " and ";
+              spouseDetailsA += " and ";
+              spouseDetailsB += " and ";
             }
             if (spouse.Mother) {
               let spouseMother = window.biographySpouseParents[0].people[spouse.Id].Parents[spouse.Mother];
-              text += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
+              spouseDetailsA += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
+              spouseDetailsB += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
               if (spouseMother.BirthDate) {
-                text += " " + formatDates(spouseMother);
+                spouseDetailsA += " " + formatDates(spouseMother);
+                spouseDetailsB += " " + formatDates(spouseMother);
               }
             }
           }
         }
 
         if (spouse.BirthDate || spouse.BirthLocation) {
-          text += ")";
+          spouseDetailsA += ")";
+          spouseDetailsB += ".";
         }
       }
+      let marriageDatePlace = "";
       if (isOK(spouse.marriage_date)) {
         let dateStatus = spouse.data_status.marriage_date;
-        text += " " + formatDate(spouse.marriage_date, dateStatus);
+        marriageDatePlace += " " + formatDate(spouse.marriage_date, dateStatus);
       }
       if (spouse.marriage_location) {
         let place = minimalPlace(spouse.marriage_location);
-        text += " in " + place;
+        marriageDatePlace += " in " + place;
       }
-      text += ".";
-      text += addReferences("Marriage", spouse);
+      marriageDatePlace += ".";
+      marriageDatePlace += addReferences("Marriage", spouse);
+
+      const marriageFormatA =
+        person.PersonName.FirstName +
+        marriageAge +
+        " married " +
+        window.boldBit +
+        nameLink(spouse) +
+        window.boldBit +
+        spouseMarriageAge +
+        spouseDetailsA +
+        marriageDatePlace;
+
+      const marriageFormatB =
+        person.PersonName.FirstName +
+        marriageAge +
+        " and " +
+        window.boldBit +
+        nameLink(spouse) +
+        window.boldBit +
+        spouseMarriageAge +
+        " were married" +
+        marriageDatePlace +
+        spouseDetailsB;
+
+      if (window.autoBioOptions.marriageFormat == "formatA") {
+        text += marriageFormatA;
+      } else if (window.autoBioOptions.marriageFormat == "formatB") {
+        text += marriageFormatB;
+      }
+
       let spouseChildren = false;
       if (window.autoBioOptions.childList) {
         const aChildList = childList(person, spouse);
@@ -3327,10 +3383,10 @@ function sourcesArray(bio) {
 
   window.sourcesSection.text = window.sourcesSection.text.map(function (aSource) {
     if (aSource.match(/database( with images)?, FamilySearch|^http/) && aSource.match(/^\*/) == null) {
-      return "* " + aSource;
+      return "* " + aSource.replace(/''Replace this citation if there is another source.''/, "");
     } else {
       if (aSource.match(/<references \/>/) == null) {
-        return aSource;
+        return aSource.replace(/''Replace this citation if there is another source.''/, "");
       } else {
         return;
       }
@@ -4129,7 +4185,7 @@ function splitBioIntoSections() {
           sections.Acknowledgements.text.push(line);
           sections.Sources.text.splice(i, 1);
         }
-        if (line.match(/Sources? will be added/gs)) {
+        if (line.match(/Sources? will be added/gs) || line.match("''Add [[sources]] here.''")) {
           sections.Sources.text.splice(i, 1);
         }
       }
@@ -4828,17 +4884,29 @@ export async function generateBio() {
       aRef["Record Type"] != "GEDCOM" &&
       aRef.Text.match(/Sources? will be added/) == null
     ) {
-      sourcesText += "* " + aRef.Text.replace(/Click the Changes tab.*/, "") + "\n";
+      sourcesText +=
+        "* " +
+        aRef.Text.replace(/Click the Changes tab.*/, "").replace(
+          "''Replace this citation if there is another source.''",
+          ""
+        ) +
+        "\n";
     }
     if (aRef["Record Type"].includes("GEDCOM")) {
       window.sectionsObject["Acknowledgements"].text.push("*" + aRef.Text);
     }
   });
+
   // Add See also
   if (window.sectionsObject["See Also"]) {
-    if (window.sectionsObject["See Also"].text.length > 0) {
+    // Filter out the unwanted text
+    const filteredText = window.sectionsObject["See Also"].text.filter(
+      (anAlso) => !anAlso.match("''Add \\[\\[sources\\]\\] here.''")
+    );
+
+    if (filteredText.length > 0) {
       sourcesText += "See also:\n";
-      window.sectionsObject["See Also"].text.forEach(function (anAlso) {
+      filteredText.forEach(function (anAlso) {
         sourcesText += "* " + anAlso.replace(/^\*\s?/, "") + "\n";
       });
       sourcesText += "\n";

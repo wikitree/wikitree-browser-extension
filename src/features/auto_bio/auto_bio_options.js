@@ -35,6 +35,22 @@ const autoBio = {
       defaultValue: false,
     },
     {
+      id: "birthOrder",
+      type: OptionType.RADIO,
+      label: "Birth details order",
+      values: [
+        {
+          value: "datePlace",
+          text: "Date + Place",
+        },
+        {
+          value: "placeDate",
+          text: "Place + Date",
+        },
+      ],
+      defaultValue: "placeDate",
+    },
+    {
       id: "fullNameOrBirthName",
       type: OptionType.RADIO,
       label: "Name format",
@@ -49,6 +65,22 @@ const autoBio = {
         },
       ],
       defaultValue: "BirthName",
+    },
+    {
+      id: "marriageFormat",
+      type: OptionType.RADIO,
+      label: "Marriage Format",
+      values: [
+        {
+          value: "formatA",
+          text: "X married Y (born ...; child of ...) on ... in ...",
+        },
+        {
+          value: "formatB",
+          text: "X and Y were married on ... in ... Y was born .... He/She was the child of ...",
+        },
+      ],
+      defaultValue: "formatA",
     },
     {
       id: "diedWord",
