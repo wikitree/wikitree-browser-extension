@@ -72,7 +72,7 @@ export function ensureProfileClasses() {
 
     // mark alert boxes (like research notes, orphaned profile, etc.)
     $(
-      "x-content > .status, .x-content > a[name]:last-of-type ~ .box.orange, .x-content:not(* > a[name]) > .box.orange"
+      ".x-content > .status, .x-content > .projectbox, .x-content > a[name]:last-of-type ~ .box.orange, .x-content:not(* > a[name]) > .box.orange"
     ).addClass("x-alert");
 
     // mark the sidebar to the right (with DNA connections, images, collaboration, etc.)
@@ -179,6 +179,12 @@ export function ensureProfileClasses() {
 
     // mark inline tables (inline images must be marked first so that they will be excluded, along with the table of contents)
     $(".x-content table:not(.toc):not(.x-inline-img)").addClass("x-inline-table");
+
+    // unmark inline images that are inside stickers, project boxes, or inline tables
+    $(".x-inline-table .x-inline-img, .x-sticker .x-inline-img, .x-alert .x-inline-img").removeClass("x-inline-img");
+
+    // unmark inline tables that are inside stickers, project boxes, etc.
+    $(".x-sticker .x-inline-table, .x-alert .x-inline-table").removeClass("x-inline-table");
 
     // mark root sections in content (h2 only)
     $(".x-content a[name] + h1, .x-content a[name] + h2").prev().addClass("x-root-section x-section");
