@@ -57,7 +57,7 @@ const autoBio = {
       values: [
         {
           value: "FullName",
-          text: "Include last current last name (if different from last name at birth) (e.g. Mary (Jones) Smith)",
+          text: "Include current last name (if different from last name at birth) (e.g. Mary (Jones) Smith)",
         },
         {
           value: "BirthName",
