@@ -334,12 +334,14 @@ async function initReadability() {
   // toggle hidden elements (either always or in reading mode only)
   let initToggleOptions = true;
   toggleReadingMode = function () {
-    let isToggled = function (option) {
+    let isToggled = function (option, flags) {
+      let alwaysFlag = ((flags || 0) ^ 0x7e) | 0x81; // negate the flag bits and set the always and reading bits
+      let readingFlag = (flags || 0) | 1; // set the reading bit
       if (option) {
         if (initToggleOptions) {
-          return option % 4 > 2 || (options.readingMode_toggle && option % 2 > 0);
+          return option % 256 === alwaysFlag || (options.readingMode_toggle && option % 128 === readingFlag);
         } else {
-          return option % 4 === 1;
+          return option % 256 === readingFlag;
         }
       }
       return 0;
@@ -366,7 +368,9 @@ async function initReadability() {
     if (isToggled(options.hideForumPosts)) {
       $("html").toggleClass("hide-sidebar-posts");
     }
-    if (isToggled(options.hideDNAConnections)) {
+    if (isToggled(options.hideDNAConnections, 2)) {
+      $("html").toggleClass("hide-dna-no-carriers");
+    } else if (isToggled(options.hideDNAConnections)) {
       $("html").toggleClass("hide-sidebar-dna");
     }
     if (isToggled(options.hideSidebarImages)) {
@@ -414,14 +418,10 @@ async function initReadability() {
     if (isToggled(options.hideHeadingExtras)) {
       $("html").toggleClass("hide-heading-extras");
     }
-    if (options.hideThumbnail / 1 > 0) {
-      if (options.hideThumbnail % 256 === 253) {
-        if (initToggleOptions) {
-          $("html").toggleClass("hide-default-thumbnail");
-        }
-      } else if (isToggled(options.hideThumbnail)) {
-        $("html").toggleClass("hide-thumbnail");
-      }
+    if (isToggled(options.hideThumbnail, 2)) {
+      $("html").toggleClass("hide-default-thumbnail");
+    } else if (isToggled(options.hideThumbnail)) {
+      $("html").toggleClass("hide-thumbnail");
     }
     if (isToggled(options.hideEdits)) {
       $("html").toggleClass("hide-edits");

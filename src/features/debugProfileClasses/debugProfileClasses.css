@@ -53,6 +53,12 @@
   border-color: #ff0 !important;
 }
 
+.x-sidebar-dna.x-dna-no-carriers strong,
+.x-sidebar-dna.x-dna-no-carriers a,
+.x-sidebar-dna.x-dna-no-carriers {
+  color: #ffc !important;
+}
+
 .x-sidebar-images {
   border-color: #090 !important;
 }

@@ -85,7 +85,8 @@ sup.reference {
   display: none !important;
 }
 
-.hide-sidebar-dna .x-sidebar-dna {
+.hide-sidebar-dna .x-sidebar-dna,
+.hide-dna-no-carriers .x-dna-no-carriers {
   display: none !important;
 }
 
@@ -147,10 +148,7 @@ sup.reference {
   display: none !important;
 }
 
-.hide-default-thumbnail .x-thumbnail-default {
-  display: none !important;
-}
-
+.hide-default-thumbnail .x-thumbnail-default,
 .hide-thumbnail .x-thumbnail {
   display: none !important;
 }
