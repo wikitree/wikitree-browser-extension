@@ -7,8 +7,6 @@ import { getPerson } from "wikitree-js";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 import { isOK } from "../../core/common";
 
-const editFamilyDataOptions = getFeatureOptions("autoBio");
-
 checkIfFeatureEnabled("editFamilyData").then((result) => {
   if (
     result &&
@@ -51,20 +49,32 @@ async function addInfoAboutOtherPerson() {
         $("h1").append(efHTML);
       }
     }
-    if (editFamilyDataOptions.patronymic) {
-      if ($("#mLastNameAtBirth").val()) {
-        if (
-          $("#mLastNameAtBirth")
-            .val()
-            .match(/^ap\s[a-z]/i) &&
-          efProfile.FirstName &&
-          $("h1")
-            .text()
-            .match(/Edit|Add child of/i)
-        ) {
-          $("#mLastNameAtBirth").val("ap " + efProfile.FirstName);
+    getFeatureOptions("editFamilyData").then((options) => {
+      if (options.patronymic) {
+        if ($("#mLastNameAtBirth").val()) {
+          if (
+            $("#mLastNameAtBirth")
+              .val()
+              .match(/^ap\s[a-z]/i) &&
+            efProfile.FirstName &&
+            $("h1")
+              .text()
+              .match(/Edit|Add child of/i)
+          ) {
+            $("#mLastNameAtBirth").val("ap " + efProfile.FirstName);
+            $("#mGender").on("change", function () {
+              if ($("#mGender").val() == "Male" && $("#mLastNameAtBirth").val() == "ferch " + efProfile.FirstName) {
+                $("#mLastNameAtBirth").val("ap " + efProfile.FirstName);
+              } else if (
+                $("#mGender").val() == "Female" &&
+                $("#mLastNameAtBirth").val() == "ap " + efProfile.FirstName
+              ) {
+                $("#mLastNameAtBirth").val("ferch " + efProfile.FirstName);
+              }
+            });
+          }
         }
       }
-    }
+    });
   });
 }
