@@ -77,6 +77,30 @@ sup.reference {
   display: none !important;
 }
 
+.hide-sidebar-status .x-sidebar-status {
+  display: none !important;
+}
+
+.hide-sidebar-posts .x-sidebar-posts {
+  display: none !important;
+}
+
+.hide-sidebar-dna .x-sidebar-dna {
+  display: none !important;
+}
+
+.hide-sidebar-images .x-sidebar-images {
+  display: none !important;
+}
+
+.hide-sidebar-collaboration .x-sidebar-collaboration {
+  display: none !important;
+}
+
+.hide-sidebar-research .x-sidebar-research {
+  display: none !important;
+}
+
 .collapse-sources:not(.expand-sources) .x-sources:not(h2):not(a[name]) {
   display: none !important;
 }
@@ -120,6 +144,14 @@ sup.reference {
 .hide-comments .x-memories,
 .hide-comments .x-comments,
 .hide-comments .x-merges {
+  display: none !important;
+}
+
+.hide-default-thumbnail .x-thumbnail-default {
+  display: none !important;
+}
+
+.hide-thumbnail .x-thumbnail {
   display: none !important;
 }
 

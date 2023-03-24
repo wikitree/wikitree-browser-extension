@@ -64,7 +64,7 @@ import { isCategoryPage, isProfilePage, isSpacePage } from "../../core/pageType"
             options.removeSourceBreaks = options.removeSourceBreaks ? "255" : "0";
             options.removeSourceLabels = options.removeSourceLabels ? "255" : "0";
             options.removeBackReferences = options.removeBackReferences ? "1" : "0";
-            options.hideSideBar = options.hideSideBar ? "1" : "0";
+            options.hideSidebar = options.hideSideBar ? "1" : "0";
             options.hideHeadingExtras = options.hideHeadingExtras ? "1" : "0";
             options.hidePageTabs = options.hidePageTabs ? "1" : "0";
             options.hideViewTabs = options.hideViewTabs ? "1" : "0";
@@ -405,304 +405,472 @@ const readabilityFeature = {
       label: "Hide Profile Elements",
       options: [
         {
-          id: "hideSideBar",
-          type: OptionType.SELECT,
-          label: "Hide the sidebar on the right",
-          values: [
+          type: OptionType.GROUP,
+          label: "Right Section",
+          options: [
             {
-              value: 0,
-              text: "never",
+              id: "hideSidebar",
+              type: OptionType.SELECT,
+              label: "Collapse the entire sidebar (and extend the content to full-width)",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 1,
             },
             {
-              value: 1,
-              text: "in reading mode",
+              id: "hideSidebarStatus",
+              type: OptionType.SELECT,
+              label: "Hide status blocks (like project protected) from the sidebar",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 0,
             },
             {
-              value: 255,
-              text: "always",
+              id: "hideForumPosts",
+              type: OptionType.SELECT,
+              label: "Hide G2G forum posts in the sidebar",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 0,
+            },
+            {
+              id: "hideDNAConnections",
+              type: OptionType.SELECT,
+              label: "Hide DNA connections in the sidebar",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 0,
+            },
+            {
+              id: "hideSidebarImages",
+              type: OptionType.SELECT,
+              label: "Hide popular images in the sidebar",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 0,
+            },
+            {
+              id: "hideCollaborationLinks",
+              type: OptionType.SELECT,
+              label: "Hide collaboration links in the sidebar",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 0,
+            },
+            {
+              id: "hideResearch",
+              type: OptionType.SELECT,
+              label: "Hide the research section in the sidebar",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 0,
             },
           ],
-          defaultValue: 1,
         },
         {
-          id: "hideHeadingExtras",
-          type: OptionType.SELECT,
-          label: "Hide extra widgets and icons in the profile heading",
-          values: [
+          type: OptionType.GROUP,
+          label: "Top Section",
+          options: [
             {
-              value: 0,
-              text: "never",
+              id: "hideHeadingExtras",
+              type: OptionType.SELECT,
+              label: "Hide extra widgets and icons in the profile heading",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 1,
             },
             {
-              value: 1,
-              text: "in reading mode",
+              id: "hideThumbnail",
+              type: OptionType.SELECT,
+              label: "Hide the top-left thumbnail image",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 253,
+                  text: "only if default",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 0,
             },
             {
-              value: 255,
-              text: "always",
+              id: "hidePageTabs",
+              type: OptionType.SELECT,
+              label: "Hide the tabs at the top of the profile",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 1,
+            },
+            {
+              id: "hideViewTabs",
+              type: OptionType.SELECT,
+              label: "Hide the navigation buttons under the tabs",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 1,
+            },
+            {
+              id: "hideAuditData",
+              type: OptionType.SELECT,
+              label: "Hide the profile manager and last modified section",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 1,
             },
           ],
-          defaultValue: 1,
         },
         {
-          id: "hidePageTabs",
-          type: OptionType.SELECT,
-          label: "Hide the tabs at the top of the profile",
-          values: [
+          type: OptionType.GROUP,
+          label: "Biography Section",
+          options: [
             {
-              value: 0,
-              text: "never",
+              id: "hideEdits",
+              type: OptionType.SELECT,
+              label: "Hide edit links on the vitals and in the bio",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 1,
             },
             {
-              value: 1,
-              text: "in reading mode",
+              id: "hideStatus",
+              type: OptionType.SELECT,
+              label: "Hide project or research boxes",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 0,
             },
             {
-              value: 255,
-              text: "always",
+              id: "hideStickers",
+              type: OptionType.SELECT,
+              label: "Hide stickers at the top of the bio",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 0,
+            },
+            {
+              id: "hideTableOfContents",
+              type: OptionType.SELECT,
+              label: "Hide the table of contents",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 1,
+            },
+            {
+              id: "hideInlineTables",
+              type: OptionType.SELECT,
+              label: "Hide all tables in the bio",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 0,
+            },
+            {
+              id: "hideInlineImages",
+              type: OptionType.SELECT,
+              label: "Hide inline images and captions in the bio",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 0,
             },
           ],
-          defaultValue: 1,
         },
         {
-          id: "hideViewTabs",
-          type: OptionType.SELECT,
-          label: "Hide the navigation buttons under the tabs",
-          values: [
+          type: OptionType.GROUP,
+          label: "Bottom Section",
+          options: [
             {
-              value: 0,
-              text: "never",
+              id: "hideComments",
+              type: OptionType.SELECT,
+              label: "Hide comments, memories, and merges",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 1,
             },
             {
-              value: 1,
-              text: "in reading mode",
+              id: "hideConnections",
+              type: OptionType.SELECT,
+              label: "Hide connections to famous people at the bottom",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 1,
             },
             {
-              value: 255,
-              text: "always",
-            },
-          ],
-          defaultValue: 1,
-        },
-        {
-          id: "hideAuditData",
-          type: OptionType.SELECT,
-          label: "Hide the profile manager and last modified section",
-          values: [
-            {
-              value: 0,
-              text: "never",
-            },
-            {
-              value: 1,
-              text: "in reading mode",
-            },
-            {
-              value: 255,
-              text: "always",
-            },
-          ],
-          defaultValue: 1,
-        },
-        {
-          id: "hideEdits",
-          type: OptionType.SELECT,
-          label: "Hide edit links on the vitals and in the bio",
-          values: [
-            {
-              value: 0,
-              text: "never",
+              id: "hideCategories",
+              type: OptionType.SELECT,
+              label: "Hide categories",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 1,
             },
             {
-              value: 1,
-              text: "in reading mode",
-            },
-            {
-              value: 255,
-              text: "always",
-            },
-          ],
-          defaultValue: 1,
-        },
-        {
-          id: "hideStatus",
-          type: OptionType.SELECT,
-          label: "Hide project or research boxes",
-          values: [
-            {
-              value: 0,
-              text: "never",
-            },
-            {
-              value: 1,
-              text: "in reading mode",
-            },
-            {
-              value: 255,
-              text: "always",
-            },
-          ],
-          defaultValue: 0,
-        },
-        {
-          id: "hideStickers",
-          type: OptionType.SELECT,
-          label: "Hide stickers at the top of the bio",
-          values: [
-            {
-              value: 0,
-              text: "never",
-            },
-            {
-              value: 1,
-              text: "in reading mode",
-            },
-            {
-              value: 255,
-              text: "always",
+              id: "hideBackground",
+              type: OptionType.SELECT,
+              label: "Hide custom background images",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 0,
             },
           ],
-          defaultValue: 0,
-        },
-        {
-          id: "hideTableOfContents",
-          type: OptionType.SELECT,
-          label: "Hide the table of contents",
-          values: [
-            {
-              value: 0,
-              text: "never",
-            },
-            {
-              value: 1,
-              text: "in reading mode",
-            },
-            {
-              value: 255,
-              text: "always",
-            },
-          ],
-          defaultValue: 1,
-        },
-        {
-          id: "hideInlineTables",
-          type: OptionType.SELECT,
-          label: "Hide all tables in the bio",
-          values: [
-            {
-              value: 0,
-              text: "never",
-            },
-            {
-              value: 1,
-              text: "in reading mode",
-            },
-            {
-              value: 255,
-              text: "always",
-            },
-          ],
-          defaultValue: 0,
-        },
-        {
-          id: "hideInlineImages",
-          type: OptionType.SELECT,
-          label: "Hide inline images and captions in the bio",
-          values: [
-            {
-              value: 0,
-              text: "never",
-            },
-            {
-              value: 1,
-              text: "in reading mode",
-            },
-            {
-              value: 255,
-              text: "always",
-            },
-          ],
-          defaultValue: 0,
-        },
-        {
-          id: "hideComments",
-          type: OptionType.SELECT,
-          label: "Hide comments, memories, and merges",
-          values: [
-            {
-              value: 0,
-              text: "never",
-            },
-            {
-              value: 1,
-              text: "in reading mode",
-            },
-            {
-              value: 255,
-              text: "always",
-            },
-          ],
-          defaultValue: 1,
-        },
-        {
-          id: "hideConnections",
-          type: OptionType.SELECT,
-          label: "Hide connections to famous people at the bottom",
-          values: [
-            {
-              value: 0,
-              text: "never",
-            },
-            {
-              value: 1,
-              text: "in reading mode",
-            },
-            {
-              value: 255,
-              text: "always",
-            },
-          ],
-          defaultValue: 1,
-        },
-        {
-          id: "hideCategories",
-          type: OptionType.SELECT,
-          label: "Hide categories",
-          values: [
-            {
-              value: 0,
-              text: "never",
-            },
-            {
-              value: 1,
-              text: "in reading mode",
-            },
-            {
-              value: 255,
-              text: "always",
-            },
-          ],
-          defaultValue: 1,
-        },
-        {
-          id: "hideBackground",
-          type: OptionType.SELECT,
-          label: "Hide custom background images",
-          values: [
-            {
-              value: 0,
-              text: "never",
-            },
-            {
-              value: 1,
-              text: "in reading mode",
-            },
-            {
-              value: 255,
-              text: "always",
-            },
-          ],
-          defaultValue: 0,
         },
       ],
     },
