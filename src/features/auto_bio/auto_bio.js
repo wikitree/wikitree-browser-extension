@@ -315,7 +315,7 @@ function convertDate(dateString, outputFormat, status = "") {
   }
 
   // Convert the date components to the output format
-  var outputDate;
+  let outputDate;
 
   const ISOdate = year.toString() + "-" + padNumberStart(month || 0) + "-" + padNumberStart(day || 0);
 
@@ -330,7 +330,7 @@ function convertDate(dateString, outputFormat, status = "") {
   } else if (outputFormat == "sMDY") {
     outputDate = convertMonth(month).slice(3) + " " + padNumberStart(day) + ", " + year.toString();
   } else if (outputFormat == "DsMY") {
-    outputDate = padNumberStart(day) + " " + convertMonth(month).slice(3) + " " + year.toString();
+    outputDate = padNumberStart(day) + " " + convertMonth(month).slice(0, 3) + " " + year.toString();
   } else if (outputFormat == "YMD" || outputFormat == "ISO") {
     outputDate = ISOdate;
   } else {
@@ -667,6 +667,7 @@ function personDates(person) {
         ? deathDate || ""
         : convertDate(deathDate, window.autoBioOptions.dateFormat, person.DataStatus.DeathDate)) +
       ")";
+
     if (window.autoBioOptions.notDeathDate) {
       if (birthDate) {
         if (!isOK(person.BirthDate)) {
@@ -678,6 +679,27 @@ function personDates(person) {
     }
   }
   return theDates;
+}
+
+function getStatus(child) {
+  let status = "";
+  if (window.profilePerson.Gender == "Male") {
+    if (child?.DataStatus?.Father == "10") {
+      status = " [uncertain]";
+    }
+    if (child?.DataStatus?.Father == "5") {
+      status = " [non-biological]";
+    }
+  }
+  if (window.profilePerson.Gender == "Female") {
+    if (child?.DataStatus?.Mother == "10") {
+      status = " [uncertain]";
+    }
+    if (child?.DataStatus?.Mother == "5") {
+      status = " [non-biological]";
+    }
+  }
+  return status;
 }
 
 function childList(person, spouse) {
@@ -730,7 +752,8 @@ function childList(person, spouse) {
   if (ourChildren.length == 1) {
     if (ourChildren[0].Father == spouse.Id || ourChildren[0].Mother == spouse.Id) {
       const theDates = personDates(ourChildren[0]).replace(/(in|on)\s/, "");
-      childListText += nameLink(ourChildren[0]) + " " + theDates + ".\n";
+      const status = getStatus(ourChildren[0]);
+      childListText += nameLink(ourChildren[0]) + " " + theDates + " " + status + ".\n";
     } else {
       text = "";
     }
@@ -743,6 +766,9 @@ function childList(person, spouse) {
       } else {
         childListText += "#";
       }
+
+      const status = getStatus(child);
+      /*
       let status = "";
       if (window.profilePerson.Gender == "Male") {
         if (child?.DataStatus?.Father == "10") {
@@ -760,8 +786,10 @@ function childList(person, spouse) {
           status = " [non-biological]";
         }
       }
-
-      childListText += nameLink(child) + " " + formatDates(child) + status + "\n";
+      */
+      const theDates = personDates(child).replace(/(in|on)\s/, "");
+      childListText += nameLink(child) + " " + theDates + " " + status + ".\n";
+      //childListText += nameLink(child) + " " + formatDates(child) + status + "\n";
       gotChild = true;
     });
     if (gotChild == false) {
@@ -4678,7 +4706,7 @@ export async function generateBio() {
         anEvent["Event Type"] = "Marriage";
       }
 
-      if (anEvent["Record Type"].includes("Census")) {
+      if (anEvent["Record Type"].includes("Census") && anEvent.Narrative) {
         if (anEvent.Narrative.length > 10) {
           let narrativeBits = anEvent.Narrative.split(/,/);
 
