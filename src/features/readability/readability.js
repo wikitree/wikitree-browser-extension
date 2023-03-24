@@ -47,7 +47,7 @@ async function initReadability() {
       }
     });
   }
-  if (options.removeBackReferences && options.removeBackReferences % 4 > 0) {
+  if (options.removeBackReferences % 4 > 0) {
     // if enabled, remove back references first so we don't have to skip over them later
     $(".x-src").each(function () {
       let li = $(this);
@@ -69,13 +69,13 @@ async function initReadability() {
   }
   if (options.removeSourceBreaks / 1 || options.removeSourceLabels || options.boldSources) {
     let qy = $(".x-src");
-    if (options.removeSourceBreaks && options.removeSourceBreaks % 4 > 0) {
+    if (options.removeSourceBreaks % 4 > 0) {
       qy.each(function () {
         let li = $(this);
         li.find("br").addClass("a11y-src-br").after(" ");
       });
     }
-    if (options.removeSourceLabels && options.removeSourceLabels % 4 > 0) {
+    if (options.removeSourceLabels % 4 > 0) {
       qy.each(function () {
         let li = $(this);
         li.contents().each(function () {
@@ -134,7 +134,7 @@ async function initReadability() {
           .removeClass("a11y-src-label");
       });
     }
-    if (options.boldSources && options.boldSources % 4 > 0) {
+    if (options.boldSources % 4 > 0) {
       qy.each(function (index) {
         let li = $(this);
         let state = 1;
@@ -222,7 +222,7 @@ async function initReadability() {
       });
     }
   }
-  if (options.hideCitations && options.hideCitations % 4 !== 3) {
+  if (options.hideCitations % 256 !== 255) {
     // no reason to modify citations if they are always hidden
     if (options.citationSize / 1 !== 100) {
       document.documentElement.style.setProperty("--a11y-citation-size", options.citationSize / 1 + "%");
@@ -302,7 +302,7 @@ async function initReadability() {
           }
         });
     }
-    if (options.collapseSources && options.collapseSources / 1 > 0) {
+    if (options.collapseSources / 1 > 0) {
       // when clicking on a citation, make sure that the sources are not collapsed
       $(".x-content sup.reference a, .x-content a[href^='#']")
         .filter(function () {
