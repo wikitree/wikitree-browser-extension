@@ -51,6 +51,7 @@ import "./categoryDisplay/categoryDisplay_options.js";
 import "./change_family_lists/change_family_lists_options.js";
 import "./custom_change_summary_options/custom_change_summary_options_options";
 import "./darkMode/darkMode_options.js";
+import "./edit_family_data/edit_family_data_options.js";
 import "./extra_watchlist/extra_watchlist_options.js";
 import "./g2g/g2g_options.js";
 import "./genderPredictor/gender_predictor_options.js";
@@ -174,18 +175,6 @@ registerFeature({
   contributors: [],
   defaultValue: true,
   pages: [true],
-});
-
-registerFeature({
-  name: "Dates/Locations on New Profile Page",
-  id: "editFamilyData",
-  description:
-    "Adds the dates and locations of the profile person to a new profile page (for a parent, sibling, etc.).",
-  category: "Editing",
-  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
-  defaultValue: true,
-  pages: [isProfileAddRelative],
 });
 
 registerFeature({

@@ -4,8 +4,10 @@ Created By: Ian Beacall (Beacall-6)
 
 import * as $ from "jquery";
 import { getPerson } from "wikitree-js";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 import { isOK } from "../../core/common";
+
+const editFamilyDataOptions = getFeatureOptions("autoBio");
 
 checkIfFeatureEnabled("editFamilyData").then((result) => {
   if (
@@ -47,6 +49,21 @@ async function addInfoAboutOtherPerson() {
           (efDdate != "" || efDlocation != "" ? "<li>d." + " " + efDdate + " " + efDlocation + "</li>" : "") +
           "</ul>";
         $("h1").append(efHTML);
+      }
+    }
+    if (editFamilyDataOptions.patronymic) {
+      if ($("#mLastNameAtBirth").val()) {
+        if (
+          $("#mLastNameAtBirth")
+            .val()
+            .match(/^ap\s[a-z]/i) &&
+          efProfile.FirstName &&
+          $("h1")
+            .text()
+            .match(/Edit|Add child of/i)
+        ) {
+          $("#mLastNameAtBirth").val("ap " + efProfile.FirstName);
+        }
       }
     }
   });
