@@ -40,7 +40,9 @@ export function ensureProfileClasses() {
 
     // mark the thumbnail image container based on the heading
     $(".x-heading > .alpha").first().addClass("x-thumbnail");
-    $(".x-thumbnail img[alt*='upload photo'], .x-thumbnail img[alt*='upload image'], .x-thumbnail img[alt*='no photo'], .x-thumbnail img[alt*='no image']")
+    $(
+      ".x-thumbnail img[alt*='upload photo'], .x-thumbnail img[alt*='upload image'], .x-thumbnail img[alt*='no photo'], .x-thumbnail img[alt*='no image']"
+    )
       .closest(".x-thumbnail")
       .addClass("x-thumbnail-default");
 
@@ -110,6 +112,9 @@ export function ensureProfileClasses() {
         }).length > 0
       ) {
         el.addClass("x-sidebar-dna");
+        if (!el.find("ul").length > 0) {
+          el.addClass("x-dna-no-carriers");
+        }
       } else if (el.find("a[href^='/g2g/']").length > 0) {
         // G2G posts
         el.addClass("x-sidebar-posts");

@@ -482,6 +482,14 @@ const readabilityFeature = {
                   text: "in reading mode",
                 },
                 {
+                  value: 3,
+                  text: "in reading mode when empty",
+                },
+                {
+                  value: 253,
+                  text: "always when empty",
+                },
+                {
                   value: 255,
                   text: "always",
                 },
@@ -588,8 +596,12 @@ const readabilityFeature = {
                   text: "in reading mode",
                 },
                 {
+                  value: 3,
+                  text: "in reading mode when default",
+                },
+                {
                   value: 253,
-                  text: "only if default",
+                  text: "always when default",
                 },
                 {
                   value: 255,
