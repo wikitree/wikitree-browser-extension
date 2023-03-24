@@ -37,6 +37,34 @@
   background: #9ab !important;
 }
 
+.x-sidebar > div[class*="x-sidebar-"] {
+  border: 2px dashed #666;
+}
+
+.x-sidebar-status {
+  border-color: #f00 !important;
+}
+
+.x-sidebar-posts {
+  border-color: #f60 !important;
+}
+
+.x-sidebar-dna {
+  border-color: #ff0 !important;
+}
+
+.x-sidebar-images {
+  border-color: #090 !important;
+}
+
+.x-sidebar-collaboration {
+  border-color: #09f !important;
+}
+
+.x-sidebar-research {
+  border-color: #c0f !important;
+}
+
 .x-heading {
   background: #f98 !important;
 }
@@ -55,6 +83,10 @@
 
 .x-thumbnail img {
   opacity: 0.5;
+}
+
+.x-thumbnail-default img {
+  border: #c00 dashed 2px !important;
 }
 
 .x-privacy {

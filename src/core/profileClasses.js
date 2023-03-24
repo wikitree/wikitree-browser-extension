@@ -40,6 +40,9 @@ export function ensureProfileClasses() {
 
     // mark the thumbnail image container based on the heading
     $(".x-heading > .alpha").first().addClass("x-thumbnail");
+    $(".x-thumbnail img[alt*='upload photo'], .x-thumbnail img[alt*='upload image'], .x-thumbnail img[alt*='no photo'], .x-thumbnail img[alt*='no image']")
+      .closest(".x-thumbnail")
+      .addClass("x-thumbnail-default");
 
     // mark the widgets (including the scissors container) inside the h1 tag, plus the green buttons like showHideTree
     $(".x-heading-title button, .showHideTree, #showHideDescendants").addClass("x-widget");
@@ -73,6 +76,49 @@ export function ensureProfileClasses() {
     // mark the sidebar to the right (with DNA connections, images, collaboration, etc.)
     $(".x-profile > .six.columns").first().addClass("x-sidebar");
 
+    // mark the individual sections of the sidebar (based on content)
+    $(".x-sidebar div.row").each(function () {
+      let el = $(this);
+      if (el.attr("align") === "center" && el.has("a[href^='/wiki/']")) {
+        // status (like project protected)
+        el.addClass("x-sidebar-status");
+      } else if (
+        // Research
+        el.find(".large strong").filter(function () {
+          return $(this).text().replace(/\s/g, "") === "Research";
+        }).length > 0
+      ) {
+        el.addClass("x-sidebar-research");
+      } else if (
+        // Collaboration
+        el.find(".large strong").filter(function () {
+          return $(this).text().replace(/\s/g, "") === "Collaboration";
+        }).length > 0
+      ) {
+        el.addClass("x-sidebar-collaboration");
+      } else if (
+        // Images
+        el.find(".large strong").filter(function () {
+          return $(this).text().replace(/\s/g, "").indexOf("Images") === 0;
+        }).length > 0
+      ) {
+        el.addClass("x-sidebar-images");
+      } else if (
+        // DNA connections
+        el.find(".large strong").filter(function () {
+          return $(this).text().replace(/\s/g, "").indexOf("DNA") === 0;
+        }).length > 0
+      ) {
+        el.addClass("x-sidebar-dna");
+      } else if (el.find("a[href^='/g2g/']").length > 0) {
+        // G2G posts
+        el.addClass("x-sidebar-posts");
+      } else {
+        // flag other sections even if not recognized
+        el.addClass("x-sidebar-unknown");
+      }
+    });
+
     // mark the tabs, including the main tabs at the top (which link to different pages) and the buttons below them (which jump to different views)
     $(".x-profile .profile-tabs").addClass("x-tabs-page");
     $(".x-profile #views-wrap").addClass("x-tabs-view");
@@ -87,7 +133,7 @@ export function ensureProfileClasses() {
     $(".x-content > div.SMALL").addClass("x-audit");
     $(".x-content p.SMALL")
       .filter(function () {
-        var txt = $(this).text();
+        let txt = $(this).text();
         return txt.indexOf("last modified") > -1 && txt.indexOf("been accessed") > -1;
       })
       .addClass("x-audit"); // category pages are displayed this way
@@ -111,7 +157,7 @@ export function ensureProfileClasses() {
     // mark tables (and the row and cell) that only wrap a single inline image
     $("tr:first-child > td > .x-inline-img")
       .filter(function () {
-        var el = $(this);
+        let el = $(this);
         if (el.siblings().length > 0) return false; // this should be the only element in the cell
         el = el.parent();
         if (el.siblings().length > 0) return false; // this should be the only cell in the row
@@ -166,7 +212,7 @@ export function ensureProfileClasses() {
     // mark connections to famous people
     $(".x-profile-person > div:last-child")
       .filter(function () {
-        return $(this).text().indexOf("degrees from") > -1 && $(this).has("a[href~='Special:Connect']");
+        return $(this).text().indexOf("degrees from") > -1 && $(this).has("a[href*='Special:Connect']");
       })
       .last()
       .addClass("x-connections");

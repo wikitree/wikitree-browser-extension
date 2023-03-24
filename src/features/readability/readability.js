@@ -356,9 +356,27 @@ async function initReadability() {
     if (isToggled(options.removeBackReferences)) {
       $("html").toggleClass("hide-src-back");
     }
-    if (isToggled(options.hideSideBar)) {
+    if (isToggled(options.hideSidebar)) {
       $("html").toggleClass("hide-sidebar");
       $(".x-sidebar").prev().toggleClass("ten").toggleClass("sixteen");
+    }
+    if (isToggled(options.hideSidebarStatus)) {
+      $("html").toggleClass("hide-sidebar-status");
+    }
+    if (isToggled(options.hideForumPosts)) {
+      $("html").toggleClass("hide-sidebar-posts");
+    }
+    if (isToggled(options.hideDNAConnections)) {
+      $("html").toggleClass("hide-sidebar-dna");
+    }
+    if (isToggled(options.hideSidebarImages)) {
+      $("html").toggleClass("hide-sidebar-images");
+    }
+    if (isToggled(options.hideCollaborationLinks)) {
+      $("html").toggleClass("hide-sidebar-collaboration");
+    }
+    if (isToggled(options.hideResearch)) {
+      $("html").toggleClass("hide-sidebar-research");
     }
     if (isToggled(options.hideInlineTables)) {
       $("html").toggleClass("hide-inline-tables");
@@ -395,6 +413,15 @@ async function initReadability() {
     }
     if (isToggled(options.hideHeadingExtras)) {
       $("html").toggleClass("hide-heading-extras");
+    }
+    if (options.hideThumbnail / 1 > 0) {
+      if (options.hideThumbnail % 256 === 253) {
+        if (initToggleOptions) {
+          $("html").toggleClass("hide-default-thumbnail");
+        }
+      } else if (isToggled(options.hideThumbnail)) {
+        $("html").toggleClass("hide-thumbnail");
+      }
     }
     if (isToggled(options.hideEdits)) {
       $("html").toggleClass("hide-edits");
