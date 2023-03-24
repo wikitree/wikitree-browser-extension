@@ -20,6 +20,10 @@
   font-weight: bold;
 }
 
+:root:not(.hide-src-label) .a11y-src-label + .a11y-src-first {
+  font-weight: unset;
+}
+
 .hide-src-br .a11y-src-br {
   display: none;
 }

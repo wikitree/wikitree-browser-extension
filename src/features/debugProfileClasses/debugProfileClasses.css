@@ -14,7 +14,7 @@
 
 /* toc */
 .x-content .toc {
-  background: rgba(240,255,240,0.5) !important;
+  background: rgba(240, 255, 240, 0.5) !important;
 }
 
 /* status box */
@@ -98,7 +98,11 @@
   background: #ff0 !important;
 }
 
-.x-inline-img {
+table.x-inline-img {
+  border: 2px dashed #c60 !important;
+}
+
+img.x-inline-img {
   background: #444 !important;
   opacity: 0.5;
 }
@@ -108,11 +112,17 @@
 }
 
 .x-inline-table {
+  border: 2px dashed #066 !important;
   background: #999 !important;
   opacity: 0.5;
 }
 
-.x-section + h1, .x-section + h2, .x-section + h3, .x-section + h4, .x-section + h5, .x-section + h6 {
+.x-section + h1,
+.x-section + h2,
+.x-section + h3,
+.x-section + h4,
+.x-section + h5,
+.x-section + h6 {
   border-top: 1px dotted #876;
 }
 

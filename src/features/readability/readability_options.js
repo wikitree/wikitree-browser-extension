@@ -91,7 +91,7 @@ const readabilityFeature = {
   name: "Readability Options",
   id: "readability",
   description:
-    "Enable reading mode to toggle the WikiTree interface on and off when browsing profiles. Configure additional styling options to make profiles more readable. (<a href='https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#Readability_Options' target='_blank'>More details</a>)",
+    "Enable reading mode to toggle the WikiTree interface on and off when browsing profiles. Configure additional styling options to make profiles more readable. (<a href='https://www.wikitree.com/wiki/Space:WikiTree_Readability_Options#Options' target='_blank'>More details</a>)",
   category: "Style",
   creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   contributors: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
@@ -222,12 +222,12 @@ const readabilityFeature = {
               text: "always",
             },
           ],
-          defaultValue: 255,
+          defaultValue: 0,
         },
         {
-          id: "removeSourceBreaks",
+          id: "removeSourceLabels",
           type: OptionType.SELECT,
-          label: "Remove explicit line breaks (<br> tags) from sources",
+          label: "Remove bold labels (and leading asterisks) from the beginning of sources",
           values: [
             {
               value: 0,
@@ -245,9 +245,9 @@ const readabilityFeature = {
           defaultValue: 0,
         },
         {
-          id: "removeSourceLabels",
+          id: "removeSourceBreaks",
           type: OptionType.SELECT,
-          label: "Remove bold labels (and leading asterisks) from the beginning of sources",
+          label: "Remove explicit line breaks (<br> tags) from sources",
           values: [
             {
               value: 0,
@@ -422,7 +422,7 @@ const readabilityFeature = {
               text: "always",
             },
           ],
-          defaultValue: 0,
+          defaultValue: 1,
         },
         {
           id: "hideHeadingExtras",
@@ -582,7 +582,7 @@ const readabilityFeature = {
               text: "always",
             },
           ],
-          defaultValue: 0,
+          defaultValue: 1,
         },
         {
           id: "hideInlineTables",
