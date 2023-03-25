@@ -33,11 +33,10 @@ function addNewPersonToH1() {
   } else {
     newPerson.DeathYear = "";
   }
-
   newPerson.summary =
     newPerson.FirstName +
     " " +
-    (newPerson.MiddleName ? newPerson.MiddleName + " " : "") +
+    (isOK(newPerson.MiddleName) ? newPerson.MiddleName + " " : "") +
     (isOK(newPerson.LastNameCurrent) && newPerson.LastNameCurrent != newPerson.LastNameAtBirth
       ? "(" + newPerson.LastNameAtBirth + ") " + ""
       : "") +
@@ -53,7 +52,7 @@ function addNewPersonToH1() {
 }
 
 checkIfFeatureEnabled("suggestedMatchesFilters").then((result) => {
-  if (result && $("body.page-Special_EditFamilySteps")) {
+  if (result && $("body.page-Special_EditFamily").length) {
     $("#enterBasicDataButton").on("click", function () {
       setTimeout(function () {
         checkReady();

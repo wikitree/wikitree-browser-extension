@@ -20,7 +20,7 @@ checkIfFeatureEnabled("locationsHelper").then((result) => {
   }
 });
 
-
+/*
 function addRelArraysToPerson(zPerson) {
   const zSpouses = extractRelatives(zPerson.Spouses, "Spouse");
   zPerson.Spouse = zSpouses;
@@ -32,6 +32,7 @@ function addRelArraysToPerson(zPerson) {
   zPerson.Parent = zParents;
   return zPerson;
 }
+*/
 
 function editDistance(s1, s2) {
   s1 = s1.toLowerCase();

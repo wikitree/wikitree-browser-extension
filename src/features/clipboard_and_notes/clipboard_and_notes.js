@@ -18,11 +18,13 @@ export function appendClipboardButtons(clipboardButtons = $()) {
     } else {
       $("#toolbar").append(clipboardButtons, $("span.theClipboardButtons"));
     }
-  } else if ($("body.page-Special_EditFamily").length) {
-    $("#mEmail").after(clipboardButtons, $("span.theClipboardButtons"));
+  } else {
+    /*else if ($("body.page-Special_EditFamily").length) {
+    $("p.sourcesContent").append(clipboardButtons, $("span.theClipboardButtons"));
+    //$("#mEmail").after(clipboardButtons, $("span.theClipboardButtons"));
   } else if ($("body.page-Special_EditFamilySteps").length) {
     $("p.sourcesContent").append(clipboardButtons, $("span.theClipboardButtons"));
-  } else {
+  }*/
     $("#header,#HEADER").append(clipboardButtons, $("span.theClipboardButtons"));
   }
 }
@@ -48,8 +50,6 @@ checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
     $("#mBioWithoutSources,#mSources,#wpTextbox1,#wpSummary,#privateMessage-comments").on("mouseup", function () {
       window.activeTextarea = document.activeElement.id;
     });
-
-    
   }
 });
 
@@ -196,9 +196,10 @@ function placeClipboard(aClipboard) {
     aClipboard.insertAfter($(".theClipboardButtons"));
   } else if ($("h1:contains('Edit Marriage Information')").length) {
     aClipboard.insertAfter($("#header"));
-  } else if ($("body.page-Special_EditPerson,body.page-Special_EditFamily").length) {
+  } /* 
+  else if ($("body.page-Special_EditPerson,body.page-Special_EditFamily").length) {
     aClipboard.insertAfter($("#toolbar,#mEmail"));
-  } else if (window.clipboardClicker != undefined) {
+  }*/ else if (window.clipboardClicker != undefined) {
     if (window.clipboardClicker.parent().hasClass("answerForm")) {
       aClipboard.insertAfter($("form[name='a_form'] .theClipboardButtons"));
     } else if (window.clipboardClicker.parent().hasClass("commentForm")) {
@@ -242,7 +243,6 @@ async function clipboard(type, action = false) {
     placeClipboard(aClipboard);
     if ($("body.page-Special_EditPerson").length && thisWord == "clipping") {
       if ($("#clipboardInfo").length == 0) {
-
         setClipboardText();
       }
     }
@@ -424,9 +424,7 @@ async function initClipboard() {
         "'>"
     );
     const notesButton = $(
-      "<img  title='Notes' class='button small aNotesButton'  src='" +
-        chrome.runtime.getURL("images/notes.png") +
-        "'>"
+      "<img  title='Notes' class='button small aNotesButton'  src='" + chrome.runtime.getURL("images/notes.png") + "'>"
     );
     if ($("span.theClipboardButtons").length && $(".aClipboardButton").length == 0) {
       $("span.theClipboardButtons").prepend(clipboardButton, notesButton);
@@ -508,8 +506,7 @@ function setClipboardText() {
   $("#clipboardInfo").remove();
   let clipboardInfoText = "";
   if ($("#toggleMarkupColor").val().match("Turn Off")) {
-    clipboardInfoText =
-      "<a class='button small'>ON</a>: Click a clipping to copy it to your system's clipboard.";
+    clipboardInfoText = "<a class='button small'>ON</a>: Click a clipping to copy it to your system's clipboard.";
   } else {
     clipboardInfoText = "<a class='button small'>OFF</a>: Click a clipping to paste it into the textbox.";
   }
