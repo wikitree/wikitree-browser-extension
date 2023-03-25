@@ -5160,7 +5160,7 @@ export async function generateBio() {
   // Remove inline citations if not wanted
   if (window.autoBioOptions.inlineCitations == false) {
     outputText = outputText.replace(/<ref[^>]*>(.*?)<\/ref>/gi, "");
-    outputText = outputText.replace(/<ref\s*\/>/gi, "").replace(/(\s\.)(?=\s|$)/g, "");
+    outputText = outputText.replace(/<ref\s.*\/>/gi, "").replace(/(\s\.)(?=\s|$)/g, "");
   }
 
   // Switch off the enhanced editor if it's on
