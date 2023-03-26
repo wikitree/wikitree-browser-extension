@@ -42,15 +42,17 @@ checkIfFeatureEnabled("bioCheck").then((result) => {
         setInterval(checkBioAtInterval, 60000);
       }
     } else {
-      
       let saveButton = null;
       if (document.getElementById("mSources")) {
         if (document.body.classList.contains("page-Special_EditFamily")) {
           // Find the save button. For Add Person there is just one
           // For adding a relative there are two, and you want the second
+          /* this was from the previous add person, keep it just in case
           let buttonElements = document.querySelectorAll("[id='wpSave']");
           saveButton = buttonElements[buttonElements.length - 1];
-        } else {  // look for BETA add page
+          */
+          saveButton = document.getElementById('addNewPersonButton');
+        } else {  // look for BETA add page or keep this logic in case page name changes again
           if (document.body.classList.contains("page-Special_EditFamilySteps")) {
             saveButton = document.getElementById('addNewPersonButton');
           }
@@ -321,6 +323,7 @@ function reportSources(invalidSourceLines, isPre1700, hasSources, hasStyleIssues
       // or after the Sources table in the BETA version
       let saveButton = document.getElementById('addNewPersonButton');
       if (!saveButton) {         // this should be the OLD add person
+        // we probably don't need the old add person, but asve it just in case
         let buttonElements = document.querySelectorAll("[id='wpSave']");
         saveButton = buttonElements[buttonElements.length - 1];
         let saveParent = saveButton.parentElement;
