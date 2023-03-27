@@ -1385,6 +1385,9 @@ export function getYYYYMMDD(dateString) {
       const month = months[dateParts[1]];
       const day = `0${dateParts[0]}`.slice(-2);
       return `${year}-${month}-${day}`;
+    } else if (dateParts.length === 1 && dateParts[0].length === 4) {
+      const year = dateParts[0];
+      return `${year}-07-02`;
     } else {
       return null;
     }
@@ -4036,7 +4039,12 @@ function getFamilySearchFacts() {
         aFact.Date = dateMatch[0].replaceAll(/[()]/g, "");
         aFact.Year = dateMatch[0].match(/\d{4}/)[0];
         aFact.OrderDate = formatDate(aFact.Date, 0, { format: 8 });
-        const ageBit = " (" + getAgeFromISODates(window.profilePerson.BirthDate, getYYYYMMDD(aFact.Date)) + ")";
+        let ageBit = "";
+        if (aFact.Date) {
+          console.log(aFact.Date);
+          console.log(getYYYYMMDD(aFact.Date));
+          ageBit = " (" + getAgeFromISODates(window.profilePerson.BirthDate, getYYYYMMDD(aFact.Date)) + ")";
+        }
         aFact.Info = aFact.Fact.split(dateMatch[0])[1].trim();
         if (aFact.Fact.match(/Fact: Residence/i)) {
           aFact.Residence = aFact.Info;

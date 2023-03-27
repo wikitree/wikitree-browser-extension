@@ -2,7 +2,7 @@
 Created By: Ian Beacall (Beacall-6)
 */
 
-import { isProfileEdit, isProfileAddRelative } from "../../core/pageType";
+import { isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType";
 import { registerFeature } from "../../core/options/options_registry.js";
 
 const genderPredictorFeature = {
@@ -14,7 +14,7 @@ const genderPredictorFeature = {
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
-  pages: [isProfileEdit, isProfileAddRelative],
+  pages: [isProfileAddRelative, isAddUnrelatedPerson],
 };
 
 registerFeature(genderPredictorFeature);

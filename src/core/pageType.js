@@ -35,6 +35,8 @@ export let isWikiEdit = false;
 export let isProfileEdit = false;
 // Profile add relative
 export let isProfileAddRelative = false;
+// Add unrelated person
+export let isAddUnrelatedPerson = false;
 // Space edit page
 export let isSpaceEdit = false;
 // MediaWiki edit page
@@ -96,6 +98,11 @@ if (
   window.location.href.match(/\/index.php\?title=Special:EditFamily&.*/g)
 ) {
   isProfileAddRelative = true;
+} else if (
+  // Add Unrelated Person
+  window.location.href.match(/\/wiki\/Special:EditFamily/g)
+) {
+  isAddUnrelatedPerson = true;
 } else if (
   // Profile History Page https://www.wikitree.com/index.php?title=Special:NetworkFeed&who=Trtnik-2
   window.location.href.match(/\/index.php\?title=Special:NetworkFeed&who=.*/g)
