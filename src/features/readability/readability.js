@@ -494,7 +494,7 @@ async function initReadability() {
         (options.readingMode_toggle ? " checked" : "") +
         '><label for="reading_mode_checkbox">Reading Mode</label>'
     );
-    toggleElement.find("input").on("change", (function () {
+    toggleElement.find("input").on("change", function () {
       toggleReadingMode();
       setToggleValue(this.checked);
     });
