@@ -47,12 +47,14 @@ checkIfFeatureEnabled("bioCheck").then((result) => {
         if (document.body.classList.contains("page-Special_EditFamily")) {
           // Find the save button. For Add Person there is just one
           // For adding a relative there are two, and you want the second
+          /* this was from the previous add person, keep it just in case
           let buttonElements = document.querySelectorAll("[id='wpSave']");
           saveButton = buttonElements[buttonElements.length - 1];
-        } else {
-          // look for BETA add page
+          */
+          saveButton = document.getElementById('addNewPersonButton');
+        } else {  // look for BETA add page or keep this logic in case page name changes again
           if (document.body.classList.contains("page-Special_EditFamilySteps")) {
-            saveButton = document.getElementById("addNewPersonButton");
+            saveButton = document.getElementById('addNewPersonButton');
           }
         }
         if (saveButton) {
@@ -101,12 +103,8 @@ function checkBio() {
   thePerson.initWithDates(birthDate, deathDate);
   let biography = new Biography(theSourceRules);
   biography.parse(
-    bioString,
-    thePerson.isPersonPre1500(),
-    thePerson.isPersonPre1700(),
-    thePerson.mustBeOpen(),
-    thePerson.isUndated(),
-    false
+    bioString, thePerson.isPersonPre1500(), thePerson.isPersonPre1700(),
+    thePerson.mustBeOpen(), thePerson.isUndated(), false
   );
   // status true if appears sourced and no style issues, else false
   let bioStatus = biography.validate();
@@ -250,32 +248,23 @@ function checkSources() {
   let isPre1700 = thePerson.isPersonPre1700();
   let biography = new Biography(theSourceRules);
   let useAdvanced = false;
-  if (document.getElementById("useAdvancedSources") != null) {
-    useAdvanced = document.getElementById("useAdvancedSources").value;
+  if (document.getElementById('useAdvancedSources') != null) {
+    useAdvanced = document.getElementById('useAdvancedSources').value;
   }
   // Either check the sources box or advanced sourcing like a bio
   let hasSources = true;
   let hasStyleIssues = false;
   if (useAdvanced != 0) {
     biography.parse(
-      sourcesStr,
-      thePerson.isPersonPre1500(),
-      thePerson.isPersonPre1700(),
-      thePerson.mustBeOpen(),
-      thePerson.isUndated(),
-      false
-    );
-    let isValid = biography.validate();
-    hasSources = biography.hasSources();
-    hasStyleIssues = biography.hasStyleIssues();
-  } else {
-    let isValid = biography.validateSourcesStr(
-      sourcesStr,
-      thePerson.isPersonPre1500(),
-      isPre1700,
-      thePerson.mustBeOpen()
-    );
-  }
+      sourcesStr, thePerson.isPersonPre1500(), thePerson.isPersonPre1700(),
+      thePerson.mustBeOpen(), thePerson.isUndated(), false);
+      let isValid = biography.validate();
+      hasSources = biography.hasSources();
+      hasStyleIssues = biography.hasStyleIssues();
+   } else {
+      let isValid = biography.validateSourcesStr(
+        sourcesStr, thePerson.isPersonPre1500(), isPre1700, thePerson.mustBeOpen());
+   }
   // now report from biography results
   reportSources(biography.getInvalidSources(), isPre1700, hasSources, hasStyleIssues);
 
@@ -300,7 +289,7 @@ function reportSources(invalidSourceLines, isPre1700, hasSources, hasStyleIssues
     if (!hasSources || hasStyleIssues || numLines > 0) {
       bioCheckSourcesContainer = document.createElement("div");
       bioCheckSourcesContainer.setAttribute("id", "bioCheckSourcesContainer");
-      let br = document.createElement("br");
+      let br = document.createElement('br');
       bioCheckSourcesContainer.appendChild(br);
       // status class is too much, a big yellow box
       // bioCheckSourcesContainer.setAttribute('class', 'status');
@@ -324,7 +313,7 @@ function reportSources(invalidSourceLines, isPre1700, hasSources, hasStyleIssues
   }
 
   // Add or replace the results
-  if (numLines > 0 || !hasSources || hasStyleIssues) {
+  if ((numLines > 0) || !hasSources || hasStyleIssues) {
     bioCheckTitle.innerText = sourcesTitle(isPre1700, hasSources, hasStyleIssues, numLines);
     if (previousSources != null) {
       previousSources.replaceWith(bioSourcesList);
@@ -332,9 +321,9 @@ function reportSources(invalidSourceLines, isPre1700, hasSources, hasStyleIssues
       bioCheckSourcesContainer.appendChild(bioSourcesList);
       // Add the message before the save button
       // or after the Sources table in the BETA version
-      let saveButton = document.getElementById("addNewPersonButton");
-      if (!saveButton) {
-        // this should be the OLD add person
+      let saveButton = document.getElementById('addNewPersonButton');
+      if (!saveButton) {         // this should be the OLD add person
+        // we probably don't need the old add person, but asve it just in case
         let buttonElements = document.querySelectorAll("[id='wpSave']");
         saveButton = buttonElements[buttonElements.length - 1];
         let saveParent = saveButton.parentElement;
@@ -355,8 +344,8 @@ function reportSources(invalidSourceLines, isPre1700, hasSources, hasStyleIssues
  * @return sources title message
  */
 function sourcesTitle(isPre1700, hasSources, hasStyleIssues, numLines) {
-  let msg = "";
-  if (numLines > 0) {
+  let msg = '';
+  if (numLines > 0) { 
     msg = "Bio Check found sources that are not ";
     if (isPre1700) {
       msg += "reliable or ";
@@ -364,13 +353,13 @@ function sourcesTitle(isPre1700, hasSources, hasStyleIssues, numLines) {
     msg += "clearly identified: \u00A0\u00A0"; // TODO use style?
   } else {
     if (!hasSources) {
-      msg = "BioCheck results: Profile lacks sources  ";
+      msg = 'BioCheck results: Profile lacks sources  ';
       if (hasStyleIssues) {
-        msg += "and has style issues  ";
+        msg += 'and has style issues  ';
       }
     } else {
       if (hasStyleIssues) {
-        msg = "BioCheck results: Profile has style issues  ";
+        msg = 'BioCheck results: Profile has style issues  ';
       }
     }
   }
