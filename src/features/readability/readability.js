@@ -442,10 +442,27 @@ async function initReadability() {
     let toggleSourcesSection = function () {
       $("html").toggleClass("expand-sources");
     };
+    let startExpanded = false; // by default we start collapsed, but in some cases we may need to start expanded
+    if (!!window.location.hash) {
+      let target = document.getElementById(window.location.hash.substring(1));
+      if (!target) {
+        target = document.getElementsByName(window.location.hash.substring(1));
+        if (target.length > 0) {
+          target = target[0];
+        }
+      }
+      if (target && $(target).closest(".x-sources").length > 0) {
+        // only expand if the target is part of the Sources section
+        toggleSourcesSection();
+        startExpanded = true;
+      }
+    }
     let toggleElement = $(
-      '<span class="toggle show-sources"><input type="checkbox" id="sources_checkbox"><label for="sources_checkbox"></label></span>'
+      '<span class="toggle show-sources"><input type="checkbox" id="sources_checkbox"' +
+        (startExpanded ? ' checked="checked"' : "") +
+        '><label for="sources_checkbox"></label></span>'
     );
-    toggleElement.find("input").change(function () {
+    toggleElement.find("input").on("change", function () {
       toggleSourcesSection();
     });
     $("h2.x-sources").first().append(toggleElement);
@@ -477,7 +494,7 @@ async function initReadability() {
         (options.readingMode_toggle ? " checked" : "") +
         '><label for="reading_mode_checkbox">Reading Mode</label>'
     );
-    toggleElement.find("input").change(function () {
+    toggleElement.find("input").on("change", function () {
       toggleReadingMode();
       setToggleValue(this.checked);
     });
