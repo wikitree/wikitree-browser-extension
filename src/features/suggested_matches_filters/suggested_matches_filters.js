@@ -33,7 +33,7 @@ function addNewPersonToH1() {
   newPerson.summary =
     newPerson.FirstName +
     " " +
-    (newPerson.MiddleName ? newPerson.MiddleName + " " : "") +
+    (isOK(newPerson.MiddleName) ? newPerson.MiddleName + " " : "") +
     (isOK(newPerson.LastNameCurrent) && newPerson.LastNameCurrent != newPerson.LastNameAtBirth
       ? "(" + newPerson.LastNameAtBirth + ") " + ""
       : "") +
@@ -49,7 +49,7 @@ function addNewPersonToH1() {
 }
 
 checkIfFeatureEnabled("suggestedMatchesFilters").then((result) => {
-  if (result && $("body.page-Special_EditFamilySteps")) {
+  if (result && $("body.page-Special_EditFamily").length) {
     $("#enterBasicDataButton").on("click", function () {
       setTimeout(function () {
         checkReady();
@@ -120,7 +120,7 @@ function addUSVariants(person) {
 }
 
 function locationFilter(person, filteredLocations, newPerson) {
-  let thisTR = $(`a[href\$="${person.WTID}"]`).closest("tr");
+  let thisTR = $(`a[href$="${person.WTID}"]`).closest("tr");
   let matchCount = 0;
   person.locations.forEach(function (aLocation) {
     if (filteredLocations.includes(aLocation)) {
@@ -171,7 +171,7 @@ async function nameFilter(level) {
       person.FirstName = thisPerson.FirstName;
       person.MiddleName = thisPerson.MiddleName;
     }
-    let thisTR = $(`a[href\$="${person.WTID}"]`).closest("tr");
+    let thisTR = $(`a[href$="${person.WTID}"]`).closest("tr");
     if ($("#mStatus_MiddleName_blank").prop("checked") == true) {
       if (person.MiddleName) {
         thisTR.addClass("nameFiltered");
@@ -204,17 +204,17 @@ function dateFilter(level, newPerson) {
   let personYear3, newPersonYear3, filterOut;
   suggestedMatches.forEach(function (person) {
     filterOut = false;
-    let thisTR = $(`a[href\$="${person.WTID}"]`).closest("tr");
+    let thisTR = $(`a[href$="${person.WTID}"]`).closest("tr");
     if (person.BirthYear) {
       if (person.BirthYear.match("s")) {
         personYear3 = person.BirthYear.substring(0, 3);
         newPersonYear3 = newPerson.BirthYear.substring(0, 3);
 
         if (
-          parseInt(newPersonYear3 - 1) > parseInt(personYear3) ||
-          parseInt(newPersonYear3 + 1) < parseInt(personYear3)
+          !(
+            parseInt(newPersonYear3 - 1) > parseInt(personYear3) || parseInt(newPersonYear3 + 1) < parseInt(personYear3)
+          )
         ) {
-        } else {
           filterOut = true;
         }
       } else if (
@@ -283,7 +283,7 @@ async function initSuggestedMatchesFilters() {
       });
     }
   });
-  let aMatch, aLink, aText, aLocation, aLocations, dateMatch, trimmedLocation;
+  let aMatch, aLink, aText, aLocations, dateMatch, trimmedLocation;
   $("tr[id^=potentialMatch] td:first-child").each(function () {
     aMatch = {};
     aLink = $(this).find("a").eq(0);
@@ -383,7 +383,7 @@ async function initSuggestedMatchesFilters() {
     if (person.locations.length == 0) {
       getLocations(person.WTID).then((oLocations) => {
         person.locations = oLocations;
-        let thisTD = $(`a[href\$="${person.WTID}"]`).closest("td");
+        let thisTD = $(`a[href$="${person.WTID}"]`).closest("td");
         let locationWords = person.locations.join(", ");
         if (person.locations.length) {
           thisTD.append("<div>Family location words: " + locationWords + "</div>");
