@@ -4658,14 +4658,14 @@ export async function generateBio() {
   // Note that if the input is in format 3, it will not parse if the link contains the text "database and images" (the link will be ignored).
   function getFindAGraveLink(text) {
     // Define the regexes to be used to find the link
-    const match1 = /^https?:\/\/www\.findagrave.com[^\s]+$/;
+    const match1 = /^[^\w]*(https?:\/\/www\.findagrave.com[^\s]+)$/;
     const match2 = /\[(https?:\/\/www\.findagrave.com[^\s]+)(\s([^\]]+))?\]/;
     const match3 = /\{\{FindAGrave\|(\d+)(\|.*?)?\}\}/;
     const match4 = /database and images/;
     const match5 = /^\s?Find a Grave( memorial)? #?(\d+)$/i;
-    // If the input is in format 1, return the input
+    // If the input is in format 1, return the link
     if (text.match(match1)) {
-      return text;
+      return text.match(match1)[1];
       // If the input is in format 2, return the link
     } else if (text.match(match2)) {
       return text.match(match2)[1];
