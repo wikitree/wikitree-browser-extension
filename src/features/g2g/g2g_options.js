@@ -1,4 +1,9 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import { registerFeature, OptionType } from "../../core/options/options_registry";
+import { isG2G } from "../../core/pageType";
 
 // The feature data for the myFeature feature
 const g2g = {
@@ -6,8 +11,10 @@ const g2g = {
   id: "g2g",
   description: "Add various things to G2G.",
   category: "Other",
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
+  contributors: [],
   defaultValue: false,
-
+  pages: [isG2G],
   options: [
     {
       id: "checkMarks",

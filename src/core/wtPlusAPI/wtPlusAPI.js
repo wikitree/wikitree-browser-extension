@@ -1,3 +1,7 @@
+/*
+Created By: Aleš Trtnik (Trtnik-2)
+*/
+
 /********************************************************************
   wtAPIProfileSearch    Retrieve profile IDs based on the query.
     Parameters:

@@ -1,3 +1,8 @@
+/*
+Created By: Aleš Trtnik (Trtnik-2)
+*/
+
+import { isWikiEdit } from "../../core/pageType";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 registerFeature({
@@ -5,7 +10,10 @@ registerFeature({
   id: "wtplus",
   description: "Adds multiple editing features.",
   category: "Editing",
+  creators: [{ name: "Aleš Trtnik", wikitreeid: "Trtnik-2" }],
+  contributors: [],
   defaultValue: true,
+  pages: [isWikiEdit],
   options: [
     {
       id: "wtplusSourceInline",

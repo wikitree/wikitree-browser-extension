@@ -1,48 +1,8 @@
-import $, { data } from "jquery";
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
 
-export let pageProfile = false;
-export let pageHelp = false;
-export let pageSpecial = false;
-export let pageCategory = false;
-export let pageTemplate = false;
-export let pageSpace = false;
-export let pageG2G = false;
-export let isEditPage = false;
-
-if (
-  window.location.pathname.match(/(\/wiki\/)\w[^:]*-[0-9]*/g) ||
-  window.location.href.match(/\?title\=\w[^:]+-[0-9]+/g)
-) {
-  // Is a Profile Page
-  pageProfile = true;
-} else if (window.location.pathname.match(/(\/wiki\/)Help:*/g)) {
-  // Is a Help Page
-  pageHelp = true;
-} else if (window.location.pathname.match(/(\/wiki\/)Special:*/g)) {
-  // Is a Special Page
-  pageSpecial = true;
-} else if (window.location.pathname.match(/(\/wiki\/)Category:*/g)) {
-  // Is a Category Page
-  pageCategory = true;
-} else if (window.location.pathname.match(/(\/wiki\/)Template:*/g)) {
-  // Is a Template Page
-  pageTemplate = true;
-} else if (window.location.pathname.match(/(\/wiki\/)Space:*/g)) {
-  // Is a Space Page
-  pageSpace = true;
-} else if (window.location.pathname.match(/\/g2g\//g)) {
-  // Is a G2G page
-  pageG2G = true;
-}
-
-if (
-  // Is edit page
-  window.location.href.match(/\/index.php\?title=Special:EditPerson&.*/g) ||
-  window.location.href.match(/\/index.php\?title=.*&action=edit.*/g) ||
-  window.location.href.match(/\/index.php\?title=.*&action=submit.*/g)
-) {
-  isEditPage = true;
-}
+import $ from "jquery";
 
 // Add wte class to body to let WikiTree BEE know not to add the same functions
 document.querySelector("body").classList.add("wte");
@@ -152,7 +112,22 @@ function isNumeric(n) {
 // Check that a value is OK
 // Used in familyTimeline and familyGroup
 export function isOK(thing) {
-  const excludeValues = ["", null, "null", "0000-00-00", "unknown", "Unknown", "undefined", undefined, "0000", "0", 0];
+  const excludeValues = [
+    "",
+    null,
+    "null",
+    "0000-00-00",
+    "00000000",
+    "unknown",
+    "Unknown",
+    "undefined",
+    undefined,
+    "0000",
+    "0",
+    0,
+    false,
+    "false",
+  ];
   if (!excludeValues.includes(thing)) {
     if (isNumeric(thing)) {
       return true;

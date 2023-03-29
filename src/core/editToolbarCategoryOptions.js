@@ -1,3 +1,7 @@
+/*
+Created By: Aleš Trtnik (Trtnik-2)
+*/
+
 import { wtPlus } from "../features/wtPlus/wtPlus";
 import { editToolbarApp, editToolbarWiki } from "./editToolbar";
 export default [
@@ -109,20 +113,37 @@ export default [
       {
         featureid: "wtplus",
         title: "Add location category",
+        hint: "Add location category using search for words in name and parent categories.",
         call: wtPlus,
         params: { action: "AddCIBCategory", data: "Location" },
       },
       {
         featureid: "wtplus",
         title: "Add cemetery group",
+        hint: "Add Cemetery group category using search for words in name, parent and location.",
         call: wtPlus,
         params: { action: "AddCIBCategory", data: "CemeteryGroup" },
+      },
+      {
+        featureid: "wtplus",
+        title: "Add any category",
+        hint: "Add any category using search for words in name and parent categories.",
+        call: wtPlus,
+        params: { action: "AddCIBCategory", data: "Category" },
       },
     ],
   },
   {
     button: "Content",
-    items: [{ featureid: "wtplus", title: "Automated corrections", call: wtPlus, params: { action: "AutoUpdate" } }],
+    items: [
+      {
+        featureid: "wtplus",
+        hint: "Performs automated corrections that EditBOT does on the page",
+        title: "Automated corrections",
+        call: wtPlus,
+        params: { action: "AutoUpdate" },
+      },
+    ],
   },
   {
     button: "EditBOT",

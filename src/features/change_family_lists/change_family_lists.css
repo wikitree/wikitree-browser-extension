@@ -17,7 +17,10 @@
 
 .vertical .familyList .spouse_1,
 .vertical .familyList.spouse_1,
-body.darkMode .vertical .nameList li.spouse_1,
+body.darkMode .vertical .nameList li.spouse_1 {
+  border-right: 3px solid green;
+}
+
 .vertical .familyList .spouse_2,
 .vertical .familyList.spouse_2,
 body.darkMode .vertical .nameList li.spouse_2 {
@@ -604,7 +607,8 @@ body.darkMode .vertical .nameList span.bdDates.parent_2 {
 .vertical .nameList li {
   position: relative;
 }
-.vertical img.dnaConfirmed {
+.vertical img[src*="DNA-confirmed"],
+.vertical a[href*="Confirmed_with_DNA"] {
   position: absolute;
   left: -2.1em;
   top: 0.3em;

@@ -22,6 +22,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+Created By: Rob Pavey (Pavey-429)
+*/
+
+/*
+Created By: Rob Pavey (Pavey-429)
+*/
+
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 // file level variables
@@ -506,7 +514,6 @@ function onButtonClicked() {
     doEditBio();
   }
 }
-
 
 function initAgc() {
   // We only create the toolbar button if this looks like a profile gerenated by GEDCOMpare.

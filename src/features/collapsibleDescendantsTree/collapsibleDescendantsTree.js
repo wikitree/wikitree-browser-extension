@@ -1,9 +1,12 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import $ from "jquery";
-import { pageProfile } from "../../core/common";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("collapsibleDescendantsTree").then((result) => {
-  if (result && pageProfile == true) {
+  if (result) {
     import("./collapsibleDescendantsTree.css");
     // Look out for the appearance of new list items in the descendantsContainer
     const descendantsObserver = new MutationObserver(function (mutations_list) {

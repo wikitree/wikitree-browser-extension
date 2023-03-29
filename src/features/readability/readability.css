@@ -1,0 +1,172 @@
+:root {
+  --a11y-li-spacing: 1em;
+  --a11y-citation-size: 100%;
+  --a11y-citation-spacing: 0em;
+}
+
+.a11y-list-spacing .x-content > ol > li,
+.a11y-list-spacing .x-content > ul > li {
+  margin-top: var(--a11y-li-spacing);
+  margin-bottom: var(--a11y-li-spacing);
+}
+
+.a11y-src-spacing ol.x-sources > li,
+.a11y-src-spacing ul.x-sources > li {
+  margin-top: var(--a11y-li-spacing);
+  margin-bottom: var(--a11y-li-spacing);
+}
+
+.a11y-src-bold .a11y-src-first {
+  font-weight: bold;
+}
+
+:root:not(.hide-src-label) .a11y-src-label + .a11y-src-first {
+  font-weight: unset;
+}
+
+.hide-src-br .a11y-src-br {
+  display: none;
+}
+
+.hide-src-label .a11y-src-label {
+  display: none;
+}
+
+.hide-src-back .a11y-back-ref {
+  display: none;
+}
+
+sup.reference {
+  font-size: var(--a11y-citation-size);
+  line-height: normal;
+  white-space: nowrap;
+}
+
+.x-ref-separator,
+.x-ref-bracket:first-child {
+  margin-right: var(--a11y-citation-spacing);
+}
+
+.x-ref-bracket:last-child {
+  margin-left: var(--a11y-citation-spacing);
+}
+
+.a11y-ref-clean sup.reference a {
+  text-decoration: none;
+}
+
+.toggle.reading-mode {
+  position: relative;
+  float: right;
+  clear: right;
+  padding: 4px 0;
+}
+
+.toggle.show-sources {
+  position: relative;
+  top: -2px;
+  margin-left: 8px;
+  visibility: hidden;
+}
+
+.collapse-sources .toggle.show-sources {
+  visibility: visible;
+}
+
+.hide-sidebar .x-sidebar {
+  display: none !important;
+}
+
+.hide-sidebar-status .x-sidebar-status {
+  display: none !important;
+}
+
+.hide-sidebar-posts .x-sidebar-posts {
+  display: none !important;
+}
+
+.hide-sidebar-dna .x-sidebar-dna,
+.hide-dna-no-carriers .x-dna-no-carriers {
+  display: none !important;
+}
+
+.hide-sidebar-images .x-sidebar-images {
+  display: none !important;
+}
+
+.hide-sidebar-collaboration .x-sidebar-collaboration {
+  display: none !important;
+}
+
+.hide-sidebar-research .x-sidebar-research {
+  display: none !important;
+}
+
+.collapse-sources:not(.expand-sources) .x-sources:not(h2):not(a[name]) {
+  display: none !important;
+}
+
+.hide-citations .x-citation {
+  display: none !important;
+}
+
+.hide-page-tabs .x-tabs-page {
+  display: none !important;
+}
+
+.hide-view-tabs .x-tabs-view {
+  display: none !important;
+}
+
+.hide-audit-data .x-audit {
+  display: none !important;
+}
+
+.hide-status .x-content .status {
+  display: none !important;
+}
+
+.hide-stickers .x-sticker {
+  display: none !important;
+}
+
+.hide-toc .x-content .toc {
+  display: none !important;
+}
+
+.hide-inline-images .x-inline-img {
+  display: none !important;
+}
+
+.hide-inline-tables .x-inline-table {
+  display: none !important;
+}
+
+.hide-comments .x-memories,
+.hide-comments .x-comments,
+.hide-comments .x-merges {
+  display: none !important;
+}
+
+.hide-default-thumbnail .x-thumbnail-default,
+.hide-thumbnail .x-thumbnail {
+  display: none !important;
+}
+
+.hide-heading-extras .x-widget,
+.hide-heading-extras .x-privacy {
+  display: none !important;
+}
+
+.hide-edits .x-edit,
+.hide-edits .x-alert:not(.status) {
+  display: none !important;
+}
+
+.hide-connections .x-connections {
+  display: none !important;
+}
+
+.hide-categories .x-categories {
+  display: none !important;
+}

@@ -1,72 +1,77 @@
+/* eslint-disable no-undef */
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import $ from "jquery";
 import "./my_connections.css";
 import "jquery-ui/ui/widgets/draggable";
 import { getAge } from "../change_family_lists/change_family_lists";
 import { isOK, htmlEntities, extractRelatives } from "../../core/common";
 import Cookies from "js-cookie";
-import { ymdFix, showFamilySheet, getOffset, peopleToTable, displayName } from "../familyGroup/familyGroup";
+import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup";
 import { ancestorType } from "../distanceAndRelationship/distanceAndRelationship";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
-const USstatesObjArray = [
-  { name: "Alabama", abbreviation: "AL" },
-  { name: "Alaska", abbreviation: "AK" },
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+export const USstatesObjArray = [
+  { name: "Alabama", abbreviation: "AL", admissionDate: "1819-12-14" },
+  { name: "Alaska", abbreviation: "AK", admissionDate: "1959-01-03" },
   { name: "American Samoa", abbreviation: "AS" },
-  { name: "Arizona", abbreviation: "AZ" },
-  { name: "Arkansas", abbreviation: "AR" },
-  { name: "California", abbreviation: "CA" },
-  { name: "Colorado", abbreviation: "CO" },
-  { name: "Connecticut", abbreviation: "CT" },
-  { name: "Delaware", abbreviation: "DE" },
+  { name: "Arizona", abbreviation: "AZ", admissionDate: "1912-02-14" },
+  { name: "Arkansas", abbreviation: "AR", admissionDate: "1836-06-15" },
+  { name: "California", abbreviation: "CA", admissionDate: "1850-09-09" },
+  { name: "Colorado", abbreviation: "CO", admissionDate: "1876-08-01" },
+  { name: "Connecticut", abbreviation: "CT", admissionDate: "1788-01-09" },
+  { name: "Delaware", abbreviation: "DE", admissionDate: "1787-12-07" },
   { name: "District Of Columbia", abbreviation: "DC" },
   { name: "Federated States Of Micronesia", abbreviation: "FM" },
-  { name: "Florida", abbreviation: "FL" },
-  { name: "Georgia", abbreviation: "GA" },
+  { name: "Florida", abbreviation: "FL", admissionDate: "1845-03-03" },
+  { name: "Georgia", abbreviation: "GA", admissionDate: "1788-01-02" },
   { name: "Guam", abbreviation: "GU" },
-  { name: "Hawaii", abbreviation: "HI" },
-  { name: "Idaho", abbreviation: "ID" },
-  { name: "Illinois", abbreviation: "IL" },
-  { name: "Indiana", abbreviation: "IN" },
-  { name: "Iowa", abbreviation: "IA" },
-  { name: "Kansas", abbreviation: "KS" },
-  { name: "Kentucky", abbreviation: "KY" },
-  { name: "Louisiana", abbreviation: "LA" },
-  { name: "Maine", abbreviation: "ME" },
+  { name: "Hawaii", abbreviation: "HI", admissionDate: "1959-08-21" },
+  { name: "Idaho", abbreviation: "ID", admissionDate: "1890-07-03" },
+  { name: "Illinois", abbreviation: "IL", admissionDate: "1818-12-03" },
+  { name: "Indiana", abbreviation: "IN", admissionDate: "1816-12-11" },
+  { name: "Iowa", abbreviation: "IA", admissionDate: "1846-12-28" },
+  { name: "Kansas", abbreviation: "KS", admissionDate: "1861-01-29" },
+  { name: "Kentucky", abbreviation: "KY", admissionDate: "1792-06-01" },
+  { name: "Louisiana", abbreviation: "LA", admissionDate: "1812-04-30" },
+  { name: "Maine", abbreviation: "ME", admissionDate: "1820-03-15" },
   { name: "Marshall Islands", abbreviation: "MH" },
-  { name: "Maryland", abbreviation: "MD" },
-  { name: "Massachusetts", abbreviation: "MA" },
-  { name: "Michigan", abbreviation: "MI" },
-  { name: "Minnesota", abbreviation: "MN" },
-  { name: "Mississippi", abbreviation: "MS" },
-  { name: "Missouri", abbreviation: "MO" },
-  { name: "Montana", abbreviation: "MT" },
-  { name: "Nebraska", abbreviation: "NE" },
-  { name: "Nevada", abbreviation: "NV" },
-  { name: "New Hampshire", abbreviation: "NH" },
-  { name: "New Jersey", abbreviation: "NJ" },
-  { name: "New Mexico", abbreviation: "NM" },
-  { name: "New York", abbreviation: "NY" },
-  { name: "North Carolina", abbreviation: "NC" },
-  { name: "North Dakota", abbreviation: "ND" },
+  { name: "Maryland", abbreviation: "MD", admissionDate: "1788-04-28" },
+  { name: "Massachusetts", abbreviation: "MA", admissionDate: "1788-02-06" },
+  { name: "Michigan", abbreviation: "MI", admissionDate: "1837-01-26" },
+  { name: "Minnesota", abbreviation: "MN", admissionDate: "1858-05-11" },
+  { name: "Mississippi", abbreviation: "MS", admissionDate: "1817-12-10" },
+  { name: "Missouri", abbreviation: "MO", admissionDate: "1821-08-10" },
+  { name: "Montana", abbreviation: "MT", admissionDate: "1889-11-08" },
+  { name: "Nebraska", abbreviation: "NE", admissionDate: "1867-03-01" },
+  { name: "Nevada", abbreviation: "NV", admissionDate: "1864-10-31" },
+  { name: "New Hampshire", abbreviation: "NH", admissionDate: "1788-06-21" },
+  { name: "New Jersey", abbreviation: "NJ", admissionDate: "1787-12-12" },
+  { name: "New Mexico", abbreviation: "NM", admissionDate: "1912-01-06" },
+  { name: "New York", abbreviation: "NY", admissionDate: "1788-07-26" },
+  { name: "North Carolina", abbreviation: "NC", admissionDate: "1789-11-21" },
+  { name: "North Dakota", abbreviation: "ND", admissionDate: "1889-11-02" },
   { name: "Northern Mariana Islands", abbreviation: "MP" },
-  { name: "Ohio", abbreviation: "OH" },
-  { name: "Oklahoma", abbreviation: "OK" },
-  { name: "Oregon", abbreviation: "OR" },
+  { name: "Ohio", abbreviation: "OH", admissionDate: "1803-03-01" },
+  { name: "Oklahoma", abbreviation: "OK", admissionDate: "1907-11-16" },
+  { name: "Oregon", abbreviation: "OR", admissionDate: "1859-02-14" },
   { name: "Palau", abbreviation: "PW" },
-  { name: "Pennsylvania", abbreviation: "PA" },
+  { name: "Pennsylvania", abbreviation: "PA", admissionDate: "1787-12-12" },
   { name: "Puerto Rico", abbreviation: "PR" },
-  { name: "Rhode Island", abbreviation: "RI" },
-  { name: "South Carolina", abbreviation: "SC" },
-  { name: "South Dakota", abbreviation: "SD" },
-  { name: "Tennessee", abbreviation: "TN" },
-  { name: "Texas", abbreviation: "TX" },
-  { name: "Utah", abbreviation: "UT" },
-  { name: "Vermont", abbreviation: "VT" },
+  { name: "Rhode Island", abbreviation: "RI", admissionDate: "1790-05-29" },
+  { name: "South Carolina", abbreviation: "SC", admissionDate: "1788-05-23" },
+  { name: "South Dakota", abbreviation: "SD", admissionDate: "1889-11-02" },
+  { name: "Tennessee", abbreviation: "TN", admissionDate: "1796-06-01" },
+  { name: "Texas", abbreviation: "TX", admissionDate: "1845-12-29" },
+  { name: "Utah", abbreviation: "UT", admissionDate: "1896-01-04" },
+  { name: "Vermont", abbreviation: "VT", admissionDate: "1791-03-04" },
   { name: "Virgin Islands", abbreviation: "VI" },
-  { name: "Virginia", abbreviation: "VA" },
-  { name: "Washington", abbreviation: "WA" },
-  { name: "West Virginia", abbreviation: "WV" },
-  { name: "Wisconsin", abbreviation: "WI" },
-  { name: "Wyoming", abbreviation: "WY" },
+  { name: "Virginia", abbreviation: "VA", admissionDate: "1788-06-25" },
+  { name: "Washington", abbreviation: "WA", admissionDate: "1889-11-11" },
+  { name: "West Virginia", abbreviation: "WV", admissionDate: "1863-06-20" },
+  { name: "Wisconsin", abbreviation: "WI", admissionDate: "1848-05-29" },
+  { name: "Wyoming", abbreviation: "WY", admissionDate: "1890-07-10" },
 ];
 
 function addLoginButton() {
@@ -136,7 +141,6 @@ checkIfFeatureEnabled("myConnections").then((result) => {
 function myConnectionsCountPt2(lastH3, ols, degreeCountTable) {
   window.degreeNum = parseInt(lastH3) + 1;
   let count = 0;
-  let outTexty = "";
   let beeCount = 0;
   ols.forEach(function (anOl, index) {
     if (index > 0 && index < parseInt(lastH3) + 1) {
@@ -166,7 +170,6 @@ function myConnectionsCountPt2(lastH3, ols, degreeCountTable) {
           maxPlusPlus = "+";
         }
       }
-      outTexty += " " + liNum + maxPlus + " ||";
       degreeCountTable.find("thead tr").append($("<th>" + index + "</th>"));
       degreeCountTable
         .find("tbody tr.countRow")
@@ -191,7 +194,7 @@ async function centreNumbersInTable(jqTable) {
       isNaN($(this).text().trim()) == false ||
       $(this)
         .text()
-        .match(/[0-9]\-/)
+        .match(/[0-9]-/)
     ) {
       $(this).addClass("number");
     }
@@ -215,11 +218,32 @@ async function myConnectionsCount() {
   }, 300);
 }
 
-function ageAtDeath(person, showStatus = true) {
+/**
+ * Calculates the age at death for a given person.
+ *
+ * @param {Object} person - The person to calculate the age at death for.
+ * @param {boolean} [showStatus=true] - Determines whether to show the status indicator. Defaults to `true`.
+ * @returns {(false|string[])} Returns `false` if the age could not be calculated or an array containing the full years, and days, and total days between the birth and death dates.
+ *
+ * @example
+ * const person = {
+ *   BirthDate: '1960-01-01',
+ *   DeathDate: '2021-03-01',
+ *   DataStatus: { DeathDate: 'exact' }
+ * };
+ * ageAtDeath(person); // Returns ['61', '0', '22245']
+ */
+export function ageAtDeath(person, showStatus = true) {
   // ages
   let about = "";
   let diedAged = "";
   if (person?.BirthDate != undefined) {
+    if (person?.BirthDate.length == 4) {
+      person.BirthDate = person.BirthDate + "-00-00";
+    }
+    if (person?.DeathDate.length == 4) {
+      person.DeathDate = person.DeathDate + "-00-00";
+    }
     if (
       person["BirthDate"].length == 10 &&
       person["BirthDate"] != "0000-00-00" &&
@@ -471,10 +495,6 @@ async function getMoreConnections() {
       type: "POST",
       dataType: "json",
       success: function (data) {
-        if (data[0].items == undefined) {
-        } else {
-        }
-
         data[0]?.items?.forEach(function (anItem) {
           const mPerson = anItem.person;
           let connections = [];
@@ -560,7 +580,7 @@ async function getMoreConnections() {
               let maxPlus = "";
               if (window.maxedOut != 100 || window.degreeNum > 10) {
                 maxPlus = "+";
-                if (window.degreeNum == 7 && maxedOut != 100 && window.CC7 != false) {
+                if (window.degreeNum == 7 && window.maxedOut != 100 && window.CC7 != false) {
                   maxPlus = "";
                   maxPlusPlus = "+";
                 }
@@ -665,6 +685,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
       window.isMyUnconnecteds = true;
     }
   } else if (tableID == "profileAncestors") {
+    // later?
   } else if (tableClass == "category") {
     $(".moreDetailsButton").replaceWith(
       $("<img id='tree' class='waiting category' src='" + chrome.runtime.getURL("images/tree.gif") + "'>")
@@ -682,6 +703,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
     let theHREF = thisPLink.attr("href");
     if (theHREF) {
       let thisPLinkSplit = theHREF.split("/wiki/");
+      // eslint-disable-next-line no-unused-vars
       let thisP = thisPLinkSplit[1];
     }
   } else {
@@ -789,6 +811,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
             "<th id='created' data-order='' >Created</th><th id='edited' data-order='' >Edited</th></tr></thead><tbody></tbody></table>"
         );
 
+        // eslint-disable-next-line no-undef
         if (isMyUnconnecteds == true) {
           insAfter = $("h2").eq(0);
         }
@@ -926,7 +949,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
                 if ($("h2").text().match(/child/) != null) {
                   mSiblings = mChildren;
                   mParents = mSpouses;
-                  mParents.push(clonePerson);
+                  mParents.push(window.clonePerson);
                   mChildren = "";
                   mSpouses = "";
                 }
@@ -936,7 +959,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
                     .match(/(father)|(mother)/) != null
                 ) {
                   mChildren = mSiblings;
-                  mChildren.push(clonePerson);
+                  mChildren.push(window.clonePerson);
                   let mSpouses = mParents;
                   mParents = "";
                   mSiblings = "";
@@ -947,7 +970,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
                     .match(/sibling/) != null
                 ) {
                   mChildren = "";
-                  mSiblings.push(clonePerson);
+                  mSiblings.push(window.clonePerson);
                   mSpouses = "";
                 }
                 if (
@@ -956,7 +979,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
                     .match(/spouse/) != null
                 ) {
                   mSiblings = "";
-                  mSpouses = [clonePerson];
+                  mSpouses = [window.clonePerson];
                   mParents = "";
                 }
                 if (thisP == "McMurdo-150" || mPerson.Name == "Bascome-5" || mPerson.Name == "Bascome-16") {
@@ -979,7 +1002,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
               mPerson.Name = idArr[index];
             } else {
               let dCheckbox = $("input[type='checkbox'][value='" + idArr[index] + "']");
-              let theLink = dCheckbox.next();
+              theLink = dCheckbox.next();
             }
 
             let mLiClass = theLink.parent().attr("class");
@@ -1021,7 +1044,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
             }
           }
 
-          let bYear = parseInt(birthDate.substring(0, 4));
+          //let bYear = parseInt(birthDate.substring(0, 4));
 
           let livedToCell = "";
           if (tableID == "superCentenarians" || tableID == "centenarians") {
@@ -1044,13 +1067,13 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
               daysS = "s";
             }
 
-            let noBorDdate = false;
+            //let noBorDdate = false;
             if (!isOK(birthDate) || !isOK(deathDate)) {
               livedToCell = "<td></td>";
-              noBorDdate = true;
+              // noBorDdate = true;
             } else {
               let yearDayText = "";
-              if (birthDate.match(/\-/) == null && deathDate.match(/\-/) == null) {
+              if (birthDate.match(/-/) == null && deathDate.match(/-/) == null) {
                 yearDayText = livedTo[0] + " years";
               } else {
                 yearDayText = livedTo[0] + " years, " + livedTo[1] + " day" + daysS;
@@ -1302,6 +1325,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
           }
 
           if (
+            // eslint-disable-next-line no-undef
             isUnconnecteds == true &&
             index == 0 &&
             isMyUnconnecteds == false &&
@@ -1321,9 +1345,9 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
           let ancestorData = "";
           let ahnenCell = "";
           let unknownText = "";
-          let mfmf = "";
+          // let mfmf = "";
           let relCell = "";
-          let mRelType = "";
+          // let mRelType = "";
           if (tableID == "profileAncestors") {
             let ahnen1 = "";
             if (index == 0) {
@@ -1815,7 +1839,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
             let rows = $(".peopleTable tbody tr");
             let locations = $("#spLocationFilter").val().split(",");
             const locationsT = locations.map((string) => string.trim());
-            const oLocations = [];
+            // const oLocations = [];
 
             rows.each(function () {
               keepIt = false;
@@ -2070,7 +2094,7 @@ function getApproxDate2(theDate) {
     approx = true;
   } else {
     let bits = theDate.split("-");
-    if (theDate.match(/00\-00$/) != null || !bits[1]) {
+    if (theDate.match(/00-00$/) != null || !bits[1]) {
       aDate = bits[0] + "-07-02";
       approx = true;
     } else if (theDate.match(/-00$/) != null) {
@@ -2094,8 +2118,7 @@ function location2ways(locationText) {
 function decimalToBinary(x) {
   let bin = 0;
   let rem,
-    i = 1,
-    step = 1;
+    i = 1;
   while (x != 0) {
     rem = x % 2;
     x = parseInt(x / 2);
@@ -2219,7 +2242,7 @@ function hsDetails(person, includeLink = 0) {
   outText = outText
     .replaceAll(/certain /g, "")
     .replace(/guess/g, "abt.")
-    .replaceAll(/0000\-00\-00 /g, "")
+    .replaceAll(/0000-00-00 /g, "")
     .replaceAll(/\bafter\b/g, "aft.")
     .replaceAll(/\bbefore\b/g, "bef.")
     .replaceAll(/\(\)/g, "")

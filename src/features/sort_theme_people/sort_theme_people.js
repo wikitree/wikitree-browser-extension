@@ -1,3 +1,7 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import $ from "jquery";
 import { titleCase } from "../familyTimeline/familyTimeline";
 import { isOK } from "../../core/common.js";
@@ -35,7 +39,7 @@ function themePeopleTable() {
       linksArray.push(aThemePerson);
     });
 
-    const profileName = $("h1 span[itemprop='name']").text();
+    //const profileName = $("h1 span[itemprop='name']").text();
     const themeTable = $(`<table id='themeTable'>
   <caption>Featured Connections</caption>
   <thead></thead>
@@ -145,7 +149,7 @@ async function connectionsBanner() {
                   .text();
 
                 let gotFromShogen = false;
-                let cfTitleOverride = false;
+                //let cfTitleOverride = false;
                 if (isOK(cfTitle) && isOK(localStorage.shogenCFTitleData)) {
                   const themeData = JSON.parse(localStorage.shogenCFTitleData);
                   if (themeData.theme == "null") {
@@ -153,7 +157,7 @@ async function connectionsBanner() {
                   } else if (themeData.theme != "") {
                     //cfTitle = themeData.theme;
                     localStorage.shogenCFTitle = themeData.theme;
-                    let cfTitleOverride = true;
+                   // let cfTitleOverride = true;
                   } else {
                     themeData.themes.forEach(function (aTheme) {
                       const cfRegExp = new RegExp(aTheme[0], "i");

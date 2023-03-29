@@ -1,3 +1,7 @@
+/*
+Created By: Aleš Trtnik (Trtnik-2)
+*/
+
 import { wtPlus } from "../features/wtPlus/wtPlus";
 import { editToolbarApp, editToolbarWiki } from "./editToolbar";
 export default [
@@ -11,7 +15,15 @@ export default [
   },
   {
     button: "Content",
-    items: [{ featureid: "wtplus", title: "Automated corrections", call: wtPlus, params: { action: "AutoUpdate" } }],
+    items: [
+      {
+        featureid: "wtplus",
+        hint: "Performs automated corrections that EditBOT does on the page",
+        title: "Automated corrections",
+        call: wtPlus,
+        params: { action: "AutoUpdate" },
+      },
+    ],
   },
   {
     button: "Misc",

@@ -1,3 +1,7 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import * as $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import { getRelatives } from "wikitree-js";
@@ -6,7 +10,7 @@ import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("familyTimeline").then((result) => {
   if (result) {
-    if (result && $("body.profile").length && window.location.href.match("Space:") == null) {
+    if (result && $("body.profile").length) {
       import("./familyTimeline.css");
       // Add a link to the short list of links below the tabs
       const options = {
@@ -42,7 +46,7 @@ function getTheYear(theDate, ev, person) {
 // Convert a date to YYYY-MM-DD
 function dateToYMD(enteredDate) {
   let enteredD;
-  if (enteredDate.match(/[0-9]{3,4}\-[0-9]{2}\-[0-9]{2}/)) {
+  if (enteredDate.match(/[0-9]{3,4}-[0-9]{2}-[0-9]{2}/)) {
     enteredD = enteredDate;
   } else {
     let eDMonth = "00";
@@ -109,7 +113,7 @@ function getApproxDate(theDate) {
   } else {
     // If we only have the year, assume the date to be July 2 (the midway date)
     const bits = theDate.split("-");
-    if (theDate.match(/00\-00$/) != null) {
+    if (theDate.match(/00-00$/) != null) {
       aDate = bits[0] + "-07-02";
       approx = true;
     } else if (theDate.match(/-00$/) != null) {
@@ -143,7 +147,7 @@ export function titleCase(string) {
   function replacer(match, p1) {
     return "-" + p1.toUpperCase();
   }
-  out = out.replace(/\-([a-z])/, replacer);
+  out = out.replace(/-([a-z])/, replacer);
   return out.trim();
 }
 
@@ -215,7 +219,7 @@ function timeline() {
         }
       });
       let familyFacts = [];
-      const startDate = getTheYear(person.BirthDate, "Birth", person);
+      //const startDate = getTheYear(person.BirthDate, "Birth", person);
       // Get all BMD events for each family member
       const bmdEvents = ["Birth", "Death", "marriage"];
       family.forEach(function (aPerson) {

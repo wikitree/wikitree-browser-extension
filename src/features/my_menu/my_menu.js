@@ -1,9 +1,12 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import $ from "jquery";
 import "jquery-ui/ui/widgets/sortable";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { isOK, htmlEntities, showDraftList } from "../../core/common";
 import { getRandomProfile, addRandomProfileLocationBox } from "../randomProfile/randomProfile";
-import { getPerson } from "wikitree-js";
 
 checkIfFeatureEnabled("myMenu").then((result) => {
   if (result) {
@@ -13,21 +16,6 @@ checkIfFeatureEnabled("myMenu").then((result) => {
 });
 
 // My Menu functions
-
-function addTypeOfSuggestion() {
-  setTimeout(function () {
-    $("#customMenu li[data-menu='My_WikiTree'] a:contains(Suggestions)").each(function () {
-      if ($(this).find(".addedText").length == 0) {
-        $(this).append($("<added class='addedText'>WL</added>"));
-      }
-    });
-    $("#customMenu li[data-menu!='My_WikiTree'] a:contains(Suggestions)").each(function () {
-      if ($(this).find(".addedText").length == 0) {
-        $(this).append($("<added class='addedText'>A</added>"));
-      }
-    });
-  }, 200);
-}
 
 function addCustomMenuOptions() {
   $("#customMenuOptions").remove();
@@ -59,7 +47,7 @@ function addCustomMenuOptions() {
   menuClone.find("> li > ul").each(function (index) {
     $(this).attr("id", $(this).closest("li").find(">a").text().replace(" ", "_") + "_Menu");
     let menuName = $(this).closest("li").find(">a").text().replace(" ", "_");
-    if (menuName.match(/\-[0-9]+$/) != null) {
+    if (menuName.match(/-[0-9]+$/) != null) {
       menuName = "Profile";
       $(this).closest("li").find(">a").text("Profile");
     }
@@ -108,7 +96,7 @@ function addCustomMenuOptions() {
   });
 
   $("#customMenu").sortable({
-    update: function (event, ui) {
+    update: function () {
       storeCustomMenu();
     },
   });
@@ -119,10 +107,10 @@ function addCustomMenuOptions() {
   $("#customMenuContainer").append(addLinkForm);
   $("#addLinkFormButton").on("click", function (e) {
     e.preventDefault();
-    const regex = /[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/;
+    const regex = /[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/;
 
     if ($("#anyLinkLink").val().match(regex) != null && $("#anyLinkText").val() != "") {
-      const theLink = $("#anyLinkLink").val();
+      let theLink = $("#anyLinkLink").val();
       if (
         $("#anyLinkLink")
           .val()
@@ -137,7 +125,7 @@ function addCustomMenuOptions() {
       );
       anyLi.on("click", function (e) {
         e.preventDefault();
-        remove($(this));
+        $(this).remove();
       });
       $("#anyLinkLink").val("");
       $("#anyLinkText").val("");
@@ -174,7 +162,7 @@ function addCustomMenuOptions() {
 function addCustomMenu() {
   $(".pureCssMenu ul").each(function () {
     let menuTitle = $(this).prev().text().replace(" ", "_");
-    if (menuTitle.match(/\-[0-9]+$/) != null) {
+    if (menuTitle.match(/-[0-9]+$/) != null) {
       menuTitle = "Profile";
     }
     $(this).attr("data-menu", menuTitle);
@@ -201,7 +189,7 @@ function addCustomMenu() {
       let newLinkHREF = "";
       let newLinkText = "";
       if (isOK(aLink.Menu)) {
-        if (aLink.Menu.match(/\-[0-9]+$/) != null || aLink.Menu == "Profile") {
+        if (aLink.Menu.match(/-[0-9]+$/) != null || aLink.Menu == "Profile") {
           const sameOne = $(".pureCssMenum[data-menu='Profile']")
             .contents()
             .filter(function () {
@@ -266,7 +254,6 @@ function addCustomMenu() {
     });
   }
   $("#myMenuLink").on("click", function () {
-    let toggleIt = true;
     if ($("#customMenuOptions").css("display") == "block") {
       $("#customMenuOptions").slideToggle();
     } else {
@@ -310,8 +297,8 @@ function addCustomMenu() {
 async function storeCustomMenu() {
   const arr = [];
   $("#customMenu a").each(function () {
-    const menuName = $(this).parent().data("menu");
-    if (menuName.match(/\-[0-9]+$/) != null) {
+    let menuName = $(this).parent().data("menu");
+    if (menuName.match(/-[0-9]+$/) != null) {
       menuName = "Profile";
     }
     const theText = $(this)
@@ -319,13 +306,12 @@ async function storeCustomMenu() {
       .replace(/Suggestions.*?\b/, "Suggestions")
       .replace(/^Contributions.*?\b/, "Contributions")
       .replace(/Badges.*?\b/, "Badges")
-      .replace(/Thank\-Yous.*?/, "Thank-Yous");
+      .replace(/Thank-Yous.*?/, "Thank-Yous");
     arr.push({ Link: $(this).attr("href"), LinkText: theText, Menu: menuName });
   });
   const myCustomMenu = { arr };
   const toStore = JSON.stringify(myCustomMenu);
   localStorage.setItem("customMenu", toStore);
-  const storedCustomMenu = JSON.parse(localStorage.customMenu);
 
   $("#customMenu li a").on("click", function () {
     $(this)

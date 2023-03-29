@@ -1,3 +1,7 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import $ from "jquery";
 import "./sticky_toolbar.css";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";

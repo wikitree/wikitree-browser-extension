@@ -1,6 +1,10 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import $ from "jquery";
 import Cookies from "js-cookie";
-import { getPerson } from "wikitree-js";
+//import { getPerson } from "wikitree-js";
 
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
@@ -12,7 +16,6 @@ checkIfFeatureEnabled("distanceAndRelationship").then((result) => {
   if (
     result &&
     $("body.profile").length &&
-    window.location.href.match("Space:") == null &&
     profileID != userID &&
     profileID != ""
   ) {
@@ -257,8 +260,8 @@ function doRelationshipText(userID, profileID) {
     if (data) {
       var out = "";
       var aRelationship = true;
-      const commonAncestors = [];
-      let realOut = "";
+      //const commonAncestors = [];
+      //let realOut = "";
       let dummy = $("<html></html>");
       dummy.append($(data.html));
       if (dummy.find("h1").length) {
@@ -276,7 +279,7 @@ function doRelationshipText(userID, profileID) {
         out = dummy.find("b").text();
         let secondName = dummy.find("b").parent().text().split(out)[1];
         let lastLink = dummy.find("#imageContainer > p > span:last-of-type a").attr("href");
-        const userFirstName = dummy.find(`p a[href\$='${userID}']`).eq(0).text().split(" ")[0];
+        const userFirstName = dummy.find(`p a[href$='${userID}']`).eq(0).text().split(" ")[0];
         const profileFirstName = $("h1 span[itemprop='name']").text().split(" ")[0];
         if (data.commonAncestors.length == 0) {
           out = dummy.find("b").text();

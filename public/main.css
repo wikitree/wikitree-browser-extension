@@ -26,6 +26,10 @@ html {
 .feature-header {
   display: flex;
   flex-direction: row;
+  justify-content: space-between;
+}
+.feature-header-left{
+  display: flex;
 }
 .feature-name {
   color: #333;
@@ -33,6 +37,9 @@ html {
   display: flex;
   align-items: center;
   padding-left: 10px;
+}
+.feature-author {
+  align-items: right;
 }
 .feature-description {
   padding: 10px 0 0 70px;

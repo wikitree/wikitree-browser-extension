@@ -1,6 +1,10 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import $ from "jquery";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
-import { isOK, htmlEntities, displayName, pageProfile } from "../../core/common";
+import { isOK, htmlEntities, displayName } from "../../core/common";
 import { displayDates } from "../verifyID/verifyID";
 import { getRelatives } from "wikitree-js";
 import "./change_family_lists.css";
@@ -8,7 +12,7 @@ import "./change_family_lists.css";
 checkIfFeatureEnabled("changeFamilyLists").then((result) => {
   const ancestorsButton = $("span.showHideTree").eq(0);
   const descendantsButton = $("span#showHideDescendants");
-  if (result && pageProfile) {
+  if (result) {
     window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
     prepareFamilyLists().then(() => {
       getFeatureOptions("changeFamilyLists").then((options) => {
@@ -85,11 +89,12 @@ async function addAddLinksToHeadings() {
 
     headings.forEach(function (aHeading) {
       if (
-        ["#siblingsUnknown", "#siblingsHeader"].includes(aHeading[0]) &&
-        window.people[0]?.Mother == 0 &&
-        window.people[0]?.Father == 0
+        !(
+          ["#siblingsUnknown", "#siblingsHeader"].includes(aHeading[0]) &&
+          window.people[0]?.Mother == 0 &&
+          window.people[0]?.Father == 0
+        )
       ) {
-      } else {
         $(aHeading[0])
           .attr("title", "Right click to add a " + aHeading[1])
           .css("cursor", "pointer");
@@ -166,8 +171,7 @@ async function onlyAgesAtMarriages() {
   });
 }
 
-async function moveFamilyLists(firstTime = false, wasClicked = false) {
-  const leftHandColumn = $("div.ten").eq(0).prop("id", "leftColumn");
+async function moveFamilyLists(firstTime = false) {
   const rightHandColumn = $("div.six").eq(0).prop("id", "rightColumn");
   const familyLists = $("#nVitals");
 
@@ -220,10 +224,12 @@ function reallyMakeFamLists() {
   if ($("body.profile").length && $("body[class*=page-Space_]").length == 0) {
     const profileWTID = $("a.pureCssMenui0 span.person").text();
     if ($("ul.pureCssMenu.pureCssMenum li:nth-child(2) li:contains('Edit')").length) {
+      /*
       const profileID = $("ul.pureCssMenu.pureCssMenum li:nth-child(2) li:contains('Edit')")
         .find("a")
         .attr("href")
         .split("&u=")[1];
+        */
     }
     if (profileWTID) {
       $.ajax({
@@ -307,9 +313,6 @@ function reallyMakeFamLists() {
             });
           });
 
-          //if (typeof profileWTID != "undefined" && !diff && $("#yourConnection").length == 0) {
-          const mID = profileWTID;
-
           $("#siblingsHeader").off("click");
           $("body").on("click", "#siblingsHeader", function () {
             siblingsHeader();
@@ -318,10 +321,6 @@ function reallyMakeFamLists() {
           setTimeout(function () {
             addHalfsStyle();
           }, 1000);
-          /*
-            window.intervalID = setInterval(addUncertain, 500);
-            window.triedUncertain = 0;
-            */
 
           fixAllPrivates();
 
@@ -346,7 +345,7 @@ function reallyMakeFamLists() {
           });
         },
         error: function (xhr, status) {
-          $("#output").append("<br>There was an error getting the person:" + data[0].status);
+          $("#output").append("<br>There was an error getting the person:" + status);
         },
       });
     }
@@ -369,12 +368,17 @@ async function addHalfsStyle() {
       $("#siblingList li").each(function () {
         let father = $(this).data("father");
         let mother = $(this).data("mother");
-        let thisID = $(this).data("id");
         let thisLi = $(this);
-        if ((father == p1id && p1id != undefined) || (thisLi.attr("id") == "profilePerson" && BioPerson.Father != 0)) {
+        if (
+          (father == p1id && p1id != undefined) ||
+          (thisLi.attr("id") == "profilePerson" && window.BioPerson.Father != 0)
+        ) {
           $(this).find(".bdDates").addClass("parent_1");
         }
-        if ((mother == p2id && p2id != undefined) || (thisLi.attr("id") == "profilePerson" && BioPerson.Mother != 0)) {
+        if (
+          (mother == p2id && p2id != undefined) ||
+          (thisLi.attr("id") == "profilePerson" && window.BioPerson.Mother != 0)
+        ) {
           $(this).addClass("parent_2");
         }
       });
@@ -385,8 +389,7 @@ async function addHalfsStyle() {
 function addDataToPerson(el, pData) {
   if (pData) {
     let oGender = "";
-    if (pData.DataStatus.Gender == "blank" || pData.Gender == "") {
-    } else {
+    if (!(pData.DataStatus.Gender == "blank" || pData.Gender == "")) {
       oGender = pData.Gender;
     }
     el.attr("data-gender", oGender);
@@ -479,7 +482,6 @@ function fixNakedPrivates() {
     let firstMatch = tNodes[n].textContent.match(rgx3);
     let ip;
     if (firstMatch != null) {
-      let bors = firstMatch[0].match(rgx2);
       let borsof = firstMatch[0].match(rgx4);
       if (borsof != null) {
         let borsofText = document.createTextNode(borsof);
@@ -510,7 +512,6 @@ function fixNakedPrivates() {
     }
     let firstMatch2 = tNodes[n].textContent.match(rgx5);
     if (firstMatch2 != null) {
-      let husbandOrWife = firstMatch2[0].match(rgx5);
       let husbandOrWifeOf = firstMatch2[0].match(rgx6);
       let privateText = firstMatch2[0].match(/private wife|husband/);
       let fullPrivateText;
@@ -562,7 +563,6 @@ function fixNakedPrivates() {
 
 function makeFamLists() {
   const dparents = document.querySelectorAll('[itemprop="parent"]');
-  let dchildren = document.querySelectorAll('span[itemprop="children"]');
   const addSibling = $("a:contains('[add sibling]')");
   const addChild = $("a:contains('[add child]')");
   const motherQ = $("a:contains('[mother?]')");
@@ -585,13 +585,29 @@ function makeFamLists() {
 
   dparents.forEach(function (aParent) {
     if (aParent.nextElementSibling) {
+      let anIMG;
       if (aParent.nextElementSibling.tagName == "IMG") {
-        aParent.setAttribute("data-dna", aParent.nextElementSibling.getAttribute("title"));
+        anIMG = $(aParent.nextElementSibling);
+      } else if ($(aParent.nextElementSibling).find("img")) {
+        anIMG = $(aParent.nextElementSibling).find("img");
+      }
+      if (anIMG.attr("src")) {
+        if (anIMG.attr("src").match("dna/DNA")) {
+          console.log("dna found");
+          console.log(window.parentDNA);
+          if (!window.parentDNA) {
+            window.parentDNA = [];
+          }
+          window.parentDNA.push({
+            Name: $(aParent).find("span[itemprop='name']").text(),
+            IMG: $(aParent.nextElementSibling),
+          });
+          console.log(window.parentDNA);
+          aParent.setAttribute("data-dna", $(aParent).find("span[itemprop='name']").text());
+        }
       }
     }
   });
-
-  dchildren = document.querySelectorAll('span[itemprop="children"]');
 
   if (dparents.length > 0) {
     const ofNode2 = $("#parentsHeader")
@@ -602,7 +618,6 @@ function makeFamLists() {
       });
     list2ol(dparents, "parentList");
     if ($("#parentList li").length) {
-      dchildren = document.querySelectorAll('span[itemprop="children"]');
       if ($("#parentList")[0].previousSibling) {
         if ($("#parentList")[0].previousSibling.textContent == "\nand\n") {
           $("#parentList")[0].previousSibling.remove();
@@ -610,7 +625,7 @@ function makeFamLists() {
       }
       let pWord;
       if (ofNode2.length) {
-        ofNode2.each(function (n2) {
+        ofNode2.each(function () {
           if ($(this).text().match("mother")) {
             pWord = "mother";
           } else {
@@ -766,7 +781,6 @@ function makeFamLists() {
   // $(".aSpouse").length > 1 &&
 
   if ($("#childrenList li").length) {
-    let sameParent = true;
     let checkParent = "mother";
     const parentIDs = [];
     if ($(".aSpouse").length) {
@@ -780,7 +794,7 @@ function makeFamLists() {
         parentIDs.push(parentID);
       }
     });
-    if (parentIDs.length > 1) {
+    if (parentIDs.length > 1 || $(".aSpouse").length > 1) {
       $(".aSpouse").each(function (index) {
         let spouseID = $(this).data("id");
         let aSpouse = $(this);
@@ -801,12 +815,8 @@ function list2ol(items, olid) {
   nList.className = "nameList";
   items[0].parentNode.insertBefore(nList, items[0]);
 
-  const dnaImg = $(
-    "<img src='https://www.wikitree.com/images/icons/dna/DNA-confirmed.gif' height='12' width='38' alt='DNA confirmed' class='dnaConfirmed' title='DNA confirmed'>"
-  );
-
   items.forEach(function (item) {
-    var dob, dobStatus, dod, dodStatus, ddates, doby, dody, dobyStatus, dodyStatus, dHalf;
+    var dHalf;
     let nLi = document.createElement("li");
     let dNext = item.nextSibling;
     if (dNext) {
@@ -848,8 +858,13 @@ function list2ol(items, olid) {
     }
 
     if (item.getAttribute("data-dna")) {
-      let anImg = dnaImg.clone();
-      nLi.append(anImg[0]);
+      window.parentDNA.forEach(function (anIMG) {
+        if (anIMG.Name == item.textContent) {
+          nLi.append(anIMG.IMG[0]);
+        }
+      });
+      //      let anImg = dnaImg.clone();
+      //      nLi.append(anImg[0]);
     }
     nList.appendChild(nLi);
 
@@ -870,7 +885,6 @@ function list2ol(items, olid) {
       }
       addDataToPerson($(dLink).closest("li"), dPeep);
       list2ol2(dPeep);
-      let dchildren = document.querySelectorAll('span[itemprop="children"]');
     }
   });
   while (nList.nextSibling) {
@@ -908,7 +922,7 @@ function list2ol2(person) {
       }
     } else {
       doby = " ";
-      var disGender, male, female;
+      var disGender;
       let disID = htmlEntities(pdata["Name"]);
 
       if (disID) {
@@ -989,7 +1003,6 @@ function list2ol2(person) {
     let done = false;
     let checkit = encodeURIComponent(pdata["Name"]).replaceAll(/%2C/g, ",");
     das.forEach(function (ana) {
-      var re = new RegExp(checkit + "$");
       if (ana.href == "https://www.wikitree.com/wiki/" + checkit && done == false) {
         ana.parentNode.appendChild(datesSpan);
         done = true;
@@ -1117,7 +1130,6 @@ function createPrivateAndDates(aNode, nextSib, ip) {
   nSpan.setAttribute("itemprop", ip);
   nSpan.setAttribute("data-private", "1");
   $(nSpan).addClass(ip);
-  let nComma = document.createTextNode(",");
   let nText = aNode.textContent.replace(/.*\[/, "[");
   nText = nText.replace(/((Brother)|(Sister))\sof\s/, "");
   nText = nText + "]";
@@ -1206,7 +1218,7 @@ function insertInSibList() {
         }
 
         let theSib, sibDate, sibBY;
-        sibDates.each(function (index) {
+        sibDates.each(function () {
           if (!theSib) {
             sibDate = $(this).text().split("-");
             if (sibDate.length > 1) {
@@ -1264,6 +1276,7 @@ function insertInSibList() {
     if (
       $(this)
         .text()
+        // eslint-disable-next-line no-control-regex
         .match(/\] and	\[private/)
     ) {
       $(this).remove();
@@ -1326,7 +1339,7 @@ function setUpMarriedOrSpouse() {
 
     let spouseVITALS = $(".VITALS.spouseDetails");
     spouseVITALS.addClass("aSpouse");
-    $("div.aSpouse").each(function (index, el) {
+    $("div.aSpouse").each(function () {
       const marriageSpan = $("<span class='marriageDetails'></span>");
       const spouseName = $(this).find("span[itemprop='spouse']");
       marriageSpan.insertAfter(spouseName);
@@ -1431,7 +1444,6 @@ function extraBitsForFamilyLists() {
   let noSpousePublic = "[spouse(s) unknown]";
   let noSpousePrivate = "[spouse?]";
   let spouseVITALS = $(".VITALS.spouseDetails");
-  let noSpouseVITALS = $(".VITALS:contains('[spouse(s) unknown]')");
   spouseVITALS.addClass("aSpouse");
   if ($(".aSpouse").length) {
     $(".aSpouse").each(function () {
@@ -1506,53 +1518,52 @@ function extraBitsForFamilyLists() {
     .attr("data-gender", "female");
 }
 
+function amaTimer() {
+  window.runningAMA++;
+  if (window.people[0]?.Spouses != undefined) {
+    window.doneMarriageAges = true;
+    let oSpouses = Object.entries(window.people[0]?.Spouses);
+    oSpouses.forEach(function (aSpouse) {
+      let aSp = aSpouse[1];
+      if (isOK(aSp.marriage_date)) {
+        let bioPersonMarriageAge;
+        if (!window.excludeValues.includes(window.people[0].BirthDate)) {
+          bioPersonMarriageAge = getMarriageAge(window.people[0].BirthDate, aSp.marriage_date, window.people[0]);
+        }
+        let aSpMarriageAge = getMarriageAge(aSp.BirthDate, aSp.marriage_date, aSp);
+        let spBit = "";
+        let bpBit = "";
+        if (bioPersonMarriageAge) {
+          bpBit = window.people[0].FirstName + " (" + bioPersonMarriageAge + ")";
+        }
+        if (isOK(aSp.BirthDate)) {
+          spBit = aSp.FirstName + " (" + aSpMarriageAge + ")";
+          if (bioPersonMarriageAge) {
+            spBit = "; " + spBit;
+          }
+        }
+        $(`.spouseDetails a[href$="${aSp.Name.replaceAll(/\s/g, "_")}"]`)
+          .closest("div")
+          .append($("<span class='marriageAges'>" + bpBit + spBit + "</span>"));
+      }
+    });
+  }
+  if (window.runningAMA > 10 || window.doneMarriageAges == true) {
+    clearInterval(window.ama);
+  }
+}
+
 async function addMarriageAges() {
   window.runningAMA = 0;
   if (window.doneMarriageAges == undefined) {
     window.ama = setInterval(amaTimer, 2000);
     window.doneMarriageAges = false;
-
-    function amaTimer() {
-      window.runningAMA++;
-      if (window.people[0]?.Spouses != undefined) {
-        window.doneMarriageAges = true;
-        let oSpouses = Object.entries(window.people[0]?.Spouses);
-        oSpouses.forEach(function (aSpouse) {
-          let aSp = aSpouse[1];
-          if (isOK(aSp.marriage_date)) {
-            let bioPersonMarriageAge;
-            if (!excludeValues.includes(window.people[0].BirthDate)) {
-              bioPersonMarriageAge = getMarriageAge(window.people[0].BirthDate, aSp.marriage_date, window.people[0]);
-            }
-            let aSpMarriageAge = getMarriageAge(aSp.BirthDate, aSp.marriage_date, aSp);
-            let spBit = "";
-            let bpBit = "";
-            if (bioPersonMarriageAge) {
-              bpBit = window.people[0].FirstName + " (" + bioPersonMarriageAge + ")";
-            }
-            if (isOK(aSp.BirthDate)) {
-              spBit = aSp.FirstName + " (" + aSpMarriageAge + ")";
-              if (bioPersonMarriageAge) {
-                spBit = "; " + spBit;
-              }
-            }
-            $(`.spouseDetails a[href\$="${aSp.Name.replaceAll(/\s/g, "_")}"]`)
-              .closest("div")
-              .append($("<span class='marriageAges'>" + bpBit + spBit + "</span>"));
-          }
-        });
-      }
-      if (window.runningAMA > 10 || window.doneMarriageAges == true) {
-        clearInterval(window.ama);
-      }
-    }
   }
 }
 
 function getMarriageAge(d1, d2, mPerson) {
   const bDate = getApproxDate(d1);
   const mDate = getApproxDate(d2);
-
   let approx = "";
 
   if (
@@ -1576,7 +1587,7 @@ function getApproxDate(theDate) {
     approx = true;
   } else {
     const bits = theDate.split("-");
-    if (theDate.match(/00\-00$/) != null || !bits[1]) {
+    if (theDate.match(/00-00$/) != null || !bits[1]) {
       aDate = bits[0] + "-07-02";
       approx = true;
     } else if (theDate.match(/-00$/) != null) {
@@ -1588,7 +1599,13 @@ function getApproxDate(theDate) {
   }
   return { Date: aDate, Approx: approx };
 }
-
+/**
+ * Calculates the number of full years and days between two dates.
+ *
+ * @param {(string|Object)} start - The start date as a string in the format "YYYY-MM-DD" or an object with `year`, `month`, and `date` properties.
+ * @param {string} [end=false] - The end date as a string in the format "YYYY-MM-DD". Defaults to `false` (i.e., the current date).
+ * @returns {([number,number,number]|undefined)} An array of [fullYears,andDays,totalDays] or `undefined` if the input is invalid.
+ */
 export function getAge(start, end = false) {
   let start_day, start_month, start_year, end_day, end_month, end_year;
   if (typeof start === "object") {
@@ -1750,25 +1767,18 @@ function status2symbol(ostatus) {
   switch (ostatus) {
     case "guess":
       return "~";
-      break;
     case "abt":
       return "~";
-      break;
     case "before":
       return "<";
-      break;
     case "bef":
       return "<";
-      break;
     case "after":
       return ">";
-      break;
     case "aft":
       return ">";
-      break;
     case "certain":
       return "";
-      break;
     default:
       return "";
   }

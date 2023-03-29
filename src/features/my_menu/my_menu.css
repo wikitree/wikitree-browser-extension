@@ -87,8 +87,8 @@
   display: block;
 }
 
-#myCustomMenuContainer {
-  z-index: 19;
+#myCustomMenuContainer.pureCssMenu.pureCssMenum {
+  z-index: auto !important;
 }
 
 #myCustomMenuContainer,

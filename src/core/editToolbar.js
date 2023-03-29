@@ -1,8 +1,14 @@
-import editToolbarCategoryOptions from "./editToolbarCategoryOptions";
-import editToolbarGenericOptions from "./editToolbarGenericOptions";
+/*
+Created By: Aleš Trtnik (Trtnik-2)
+*/
+
 import editToolbarProfileOptions from "./editToolbarProfileOptions";
-import editToolbarTemplateOptions from "./editToolbarTemplateOptions";
 import editToolbarSpaceOptions from "./editToolbarSpaceOptions";
+import editToolbarCategoryOptions from "./editToolbarCategoryOptions";
+import editToolbarTemplateOptions from "./editToolbarTemplateOptions";
+import editToolbarGenericOptions from "./editToolbarGenericOptions";
+
+import { isCategoryEdit, isProfileEdit, isSpaceEdit, isTemplateEdit, isWikiEdit } from "./pageType";
 import { getEnabledStateForAllFeatures } from "./options/options_storage";
 
 let editToolbarOptions = [];
@@ -93,39 +99,27 @@ function editToolbarCreateHtml(items, featureEnabled, level) {
 /* creates menu next to the toolbar  */
 async function editToolbarCreate(options) {
   editToolbarOptions = options;
-
   const featureEnabled = await getEnabledStateForAllFeatures();
-  if (featureEnabled["wtplus"]) {
-    import("./editToolbar.css");
-  }
-
   var menuHTML = editToolbarCreateHtml(editToolbarOptions, featureEnabled, -1);
-  document.getElementById("toolbar").insertAdjacentHTML("afterend", '<div id="editToolbarExt">' + menuHTML + "</div>");
-  document
-    .querySelectorAll("a.editToolbarClick")
-    .forEach((i) => i.addEventListener("click", (event) => editToolbarEvent(event)));
+  if (menuHTML != "") {
+    import("./editToolbar.css");
+    document
+      .getElementById("toolbar")
+      .insertAdjacentHTML("afterend", '<div id="editToolbarExt">' + menuHTML + "</div>");
+    document
+      .querySelectorAll("a.editToolbarClick")
+      .forEach((i) => i.addEventListener("click", (event) => editToolbarEvent(event)));
+  }
 }
 
-if (window.location.href.match(/\/index.php\?title=Special:EditPerson&.*/g)) {
+if (isProfileEdit) {
   editToolbarCreate(editToolbarProfileOptions);
-} else if (
-  window.location.href.match(/\/index.php\?title=Category:.*&action=edit.*/g) ||
-  window.location.href.match(/\/index.php\?title=Category:.*&action=submit.*/g)
-) {
-  editToolbarCreate(editToolbarCategoryOptions);
-} else if (
-  window.location.href.match(/\/index.php\?title=Template:.*&action=edit.*/g) ||
-  window.location.href.match(/\/index.php\?title=Template:.*&action=submit.*/g)
-) {
-  editToolbarCreate(editToolbarTemplateOptions);
-} else if (
-  window.location.href.match(/\/index.php\?title=Space:.*&action=edit.*/g) ||
-  window.location.href.match(/\/index.php\?title=Space:.*&action=submit.*/g)
-) {
+} else if (isSpaceEdit) {
   editToolbarCreate(editToolbarSpaceOptions);
-} else if (
-  window.location.href.match(/\/index.php\?title=.*&action=edit.*/g) ||
-  window.location.href.match(/\/index.php\?title=.*&action=submit.*/g)
-) {
+} else if (isCategoryEdit) {
+  editToolbarCreate(editToolbarCategoryOptions);
+} else if (isTemplateEdit) {
+  editToolbarCreate(editToolbarTemplateOptions);
+} else if (isWikiEdit) {
   editToolbarCreate(editToolbarGenericOptions);
 }

@@ -1,3 +1,8 @@
+/*
+Created By: Rob Pavey (Pavey-429)
+*/
+
+import { isWikiPage } from "../../core/pageType";
 import { registerFeature, OptionType } from "../../core/options/options_registry.js";
 
 const redirExtLinksFeature = {
@@ -5,7 +10,10 @@ const redirExtLinksFeature = {
   id: "redirExtLinks",
   description: "Updates links to external sites to point to user desired domains.",
   category: "Profile",
+  creators: [{ name: "Rob Pavey", wikitreeid: "Pavey-429" }],
+  contributors: [],
   defaultValue: false,
+  pages: [isWikiPage],
   options: [
     {
       id: "ancestryOldLinks",

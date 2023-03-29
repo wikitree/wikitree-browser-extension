@@ -1,3 +1,7 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
 import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import { getRelatives } from "wikitree-js";
@@ -6,7 +10,7 @@ import { createProfileSubmenuLink, familyArray, isOK, htmlEntities } from "../..
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("familyGroup").then((result) => {
-  if (result && $("body.profile").length && window.location.href.match("Space:") == null) {
+  if (result && $("body.profile").length) {
     import("../familyTimeline/familyTimeline.css");
     // Add a link to the short list of links below the tabs
     const options = {
@@ -228,7 +232,7 @@ export function peopleToTable(kPeople) {
           "<tr data-name='" +
             kPers.Name +
             "' data-birthdate='" +
-            bDate.replaceAll(/\-/g, "") +
+            bDate.replaceAll(/-/g, "") +
             "' data-relation='" +
             kPers.Relation +
             "' class='" +
@@ -338,8 +342,7 @@ export function displayName(fPerson) {
               fName3 += "(" + fPerson["LastNameAtBirth"] + ") ";
             }
           } else if (dCheck == "RealName") {
-            if (typeof fPerson["FirstName"] != "undefined") {
-            } else {
+            if (!(typeof fPerson["FirstName"] != "undefined")) {
               fName3 += fPerson["RealName"] + " ";
             }
           } else {
