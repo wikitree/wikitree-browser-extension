@@ -95,7 +95,7 @@ if (
 } else if (
   // Profile Add relative
   window.location.href.match(/\/index.php\?title=Special:EditFamilySteps&.*/g) ||
-  window.location.href.match(/\/index.php\?title=Special:EditFamily&.*/g)
+  window.location.href.match(/\/index.php\?.*title=Special(:|%3A)EditFamily&.*/g)
 ) {
   isProfileAddRelative = true;
 } else if (
