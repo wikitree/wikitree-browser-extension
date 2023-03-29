@@ -258,10 +258,9 @@ function fixLocations() {
 function convertDate(dateString, outputFormat, status = "") {
   dateString = dateString.replaceAll(/-00/g, "");
   // Split the input date string into components
-  var components = dateString.split(/[\s,-]+/);
-
+  let components = dateString.split(/[\s,-]+/);
   // Determine the format of the input date string
-  var inputFormat;
+  let inputFormat;
   if (components.length == 1 && /^\d{4}$/.test(components[0])) {
     // Year-only format (e.g. "2023")
     inputFormat = "Y";
@@ -286,100 +285,8 @@ function convertDate(dateString, outputFormat, status = "") {
     inputFormat = "ISO";
   } else if (components.length == 2 && /^\d{4}$/.test(components[0]) && /^\d{2}$/.test(components[1])) {
     // NEW: Year and month format with no day (e.g. "1910-10")
-    inputFormat = "YM";
-    components.push("01");
-  } else {
-    // Invalid input format
-    return null;
-  }
-
-  // Convert the input date components to a standard format (YYYY-MM-DD)
-  var year, month, day;
-  if (inputFormat == "Y") {
-    year = parseInt(components[0]);
-    outputFormat = "Y";
-  } else if (inputFormat == "MY") {
-    year = parseInt(components[1]);
-    month = convertMonth(components[0]);
-    if (!outputFormat) {
-      outputFormat = "MY";
-    }
-  } else if (inputFormat == "MDY") {
-    year = parseInt(components[components.length - 1]);
-    month = convertMonth(components[0]);
-    day = parseInt(components[1]);
-  } else if (inputFormat == "DMY") {
-    year = parseInt(components[2]);
-    month = convertMonth(components[1]);
-    day = parseInt(components[0]);
-  } else if (inputFormat == "ISO") {
-    year = parseInt(components[0]);
-    month = parseInt(components[1]);
-    day = parseInt(components[2]);
-  }
-
-  // Convert the date components to the output format
-  let outputDate;
-
-  const ISOdate = year.toString() + "-" + padNumberStart(month || 0) + "-" + padNumberStart(day || 0);
-
-  if (outputFormat == "Y") {
-    outputDate = year.toString();
-  } else if (outputFormat == "MY") {
-    outputDate = convertMonth(month) + " " + year.toString();
-  } else if (outputFormat == "MDY") {
-    outputDate = convertMonth(month, "long") + " " + padNumberStart(day) + ", " + year.toString();
-  } else if (outputFormat == "DMY") {
-    outputDate = padNumberStart(day) + " " + convertMonth(month, "long") + " " + year.toString();
-  } else if (outputFormat == "sMDY") {
-    outputDate = convertMonth(month).slice(3) + " " + padNumberStart(day) + ", " + year.toString();
-  } else if (outputFormat == "DsMY") {
-    outputDate = padNumberStart(day) + " " + convertMonth(month).slice(0, 3) + " " + year.toString();
-  } else if (outputFormat == "YMD" || outputFormat == "ISO") {
-    outputDate = ISOdate;
-  } else {
-    // Invalid output format
-    return null;
-  }
-
-  if (status) {
-    const statusOut = dataStatusWord(status, ISOdate, true);
-    outputDate = statusOut + " " + outputDate;
-  }
-
-  return outputDate;
-}
-
-/*
-function convertDate(dateString, outputFormat, status = "") {
-  dateString = dateString.replaceAll(/-00/g, "");
-  // Split the input date string into components
-  var components = dateString.split(/[\s,-]+/);
-
-  // Determine the format of the input date string
-  var inputFormat;
-  if (components.length == 1 && /^\d{4}$/.test(components[0])) {
-    // Year-only format (e.g. "2023")
-    inputFormat = "Y";
-  } else if (components.length == 2 && /^[A-Za-z]{3}$/.test(components[0])) {
-    // Short month and year format (e.g. "Jul 2023")
-    inputFormat = "MY";
-  } else if (components.length == 2 && /^[A-Za-z]+/.test(components[0])) {
-    // Long month and year format (e.g. "July 2023")
-    inputFormat = "MDY";
-  } else if (components.length == 3 && /^[A-Za-z]{3}$/.test(components[1])) {
-    // Short month, day, and year format (e.g. "23 Jul 2023")
-    inputFormat = "DMY";
-  } else if (components.length == 3 && /^[A-Za-z]+/.test(components[0])) {
-    // Long month, day, and year format (e.g. "July 23, 2023")
-    inputFormat = "MDY";
-  } else if (components.length == 2 && /^\d{4}$/.test(components[1])) {
-    // Short month and year format with no day (e.g. "Jul 2023")
-    inputFormat = "MY";
-    components.unshift("01");
-  } else if (components.length == 3 && /^\d{2}$/.test(components[1]) && /^\d{2}$/.test(components[2])) {
-    // ISO format with no day (e.g. "2023-07-23")
     inputFormat = "ISO";
+    components.push("15");
   } else {
     // Invalid input format
     return null;
@@ -441,7 +348,6 @@ function convertDate(dateString, outputFormat, status = "") {
 
   return outputDate;
 }
-*/
 
 function convertMonth(monthString, outputFormat = "short") {
   // Convert a month string to a numeric month value
@@ -539,90 +445,6 @@ export function formatDates(person) {
 
   return `(${birthDate}–${deathDate})`;
 }
-
-/*
-export function formatDate(date, status = "on", format = "MDY") {
-  if (window.autoBioOptions && window.autoBioOptions.dateFormat && format != 8) {
-    format = window.autoBioOptions.dateFormat;
-  }
-  const months = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-
-  if (!date) return "";
-  let year, month, day;
-  if (date.match("-")) {
-    [year, month, day] = date.split("-");
-    year = parseInt(year);
-    month = parseInt(month);
-    day = parseInt(day);
-  } else {
-    const split = date.split(" ");
-    split.forEach(function (bit) {
-      if (bit.match(/[0-9]{4}/)) {
-        year = bit;
-      } else if (bit.match(/[a-z]/i)) {
-        months.forEach(function (aMonth, index) {
-          if (aMonth.match(bit)) {
-            month = index + 1;
-          }
-        });
-      } else {
-        day = bit;
-      }
-    });
-  }
-  if (format === 8) {
-    return `${year}${month ? `0${month}`.slice(-2) : "00"}${day ? `0${day}`.slice(-2) : "00"}`;
-  } else {
-    let dateString;
-    const statusOut = `${
-      status == "before"
-        ? "before"
-        : status == "after"
-        ? "after"
-        : status == "guess"
-        ? "about"
-        : status == "certain" || status == "on" || status == undefined || status == ""
-        ? day
-          ? "on"
-          : "in"
-        : ""
-    }`;
-    if (format == "sMDY") {
-      dateString =
-        statusOut +
-        " " +
-        `${
-          day ? `${months[month - 1].slice(0, 3)} ${day}, ` : month ? `${months[month - 1].slice(0, 3)}, ` : ``
-        }${year}`;
-    } else if (format == "DsMY") {
-      dateString =
-        statusOut +
-        " " +
-        `${day ? `${day} ${months[month - 1].slice(0, 3)} ` : month ? `${months[month - 1].slice(0, 3)} ` : ``}${year}`;
-    } else if (format == "DMY") {
-      dateString =
-        statusOut + " " + `${day ? `${day} ${months[month - 1]} ` : month ? `${months[month - 1]} ` : ``}${year}`;
-    } else {
-      dateString =
-        statusOut + " " + `${day ? `${months[month - 1]} ${day}, ` : month ? `${months[month - 1]}, ` : ``}${year}`;
-    }
-    return dateString.trim();
-  }
-}
-*/
 
 export function formatDate(date, status, options = { format: "MDY", needOn: false }) {
   // Ensure that the 'date' parameter is a string
@@ -1729,7 +1551,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
   const pattern = new RegExp(firstName + "[^;.]+");
   const match = pattern.exec(reference.Text);
   const countryPattern = new RegExp(
-    "(?<=, )((['a-zA-Z .-]+, )?['a-zA-Z .-]+,['a-zA-Z ().-]+), (United States|England|Scotland|Canada|Wales|Australia);"
+    "(.*?, )((['a-zA-Z .-]+, )?['a-zA-Z .-]+,['a-zA-Z ().-]+), (United States|England|Scotland|Canada|Wales|Australia);"
   );
   const countryPatternMatch = countryPattern.exec(reference.Text);
   //const firstNameMatch = new RegExp(firstName.replace(".", "\\.").replace(/([A-Z])\|/, "$1\b|") + "\\b");
@@ -1786,7 +1608,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
 }
 
 function getHouseholdOfRelationAndName(text) {
-  let householdHeadMatch = text.match(/(?<=household\sof\s)(.+?)((\s[a-z])|\.|,)/);
+  let householdHeadMatch = text.match(/household\sof\s(.+?)((\s[a-z])|\.|,)/);
   if (householdHeadMatch) {
     let householdHeadFirstName = householdHeadMatch[1].split(" ")[0];
     ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
@@ -2368,52 +2190,6 @@ function getCensusesFromCensusSection() {
                 }
                 newPerson = {};
               }
-              /*
-              else if (thisCensus && ref.CensusType == "freecen") {
-                if (!ref.ListText.includes(line) && line.match("freecen") == null) {
-                  ref.ListText.push(line);
-                }
-                const lineBits = line.split(/\t|\s{4}/);
-                lineBits.forEach(function (aBit, index) {
-                  aBit = aBit.replace(/^:/, "").trim();
-                  if (index == 0) {
-                    let nameBits = aBit.split(" ");
-                    newPerson["FirstName"] = nameBits[0];
-                    newPerson["LastName"] = nameBits[nameBits.length - 1];
-                    newPerson.Name = aBit;
-                  }
-                  if (index == 1) {
-                    newPerson["Relation"] = aBit;
-                  }
-                  if (index == 2) {
-                    newPerson["MaritalStatus"] = aBit;
-                  }
-                  if (index == 3) {
-                    if (aBit == "M") {
-                      newPerson.Gender = "Male";
-                    } else if (aBit == "F") {
-                      newPerson.Gender = "Female";
-                    } else {
-                      newPerson.Gender = "";
-                    }
-                  }
-                  if (index == 4) {
-                    newPerson["Age"] = aBit;
-                  }
-                  if (index == 5) {
-                    newPerson["Occupation"] = aBit;
-                  }
-                  if (index == 6) {
-                    newPerson["BirthLocation"] = aBit;
-                  }
-                });
-                if (newPerson.Name) {
-                  ref.Household.push(newPerson);
-                  newPerson = {};
-                }
-                newPerson = {};
-              }
-              */
             }
           }
           if (yearMatch) {
@@ -2746,19 +2522,6 @@ function createFamilyNarrative(familyMembers) {
     (member) =>
       !["Self", "Wife", "Husband", "Daughter", "Son", "Brother", "Sister", "Father", "Mother"].includes(member.Relation)
   );
-  /*
-  const removeMainPersonLastName = (name) => {
-    const names = name.split(" ");
-    let nameToMatch = window.profilePerson.LastNameAtBirth;
-    if (mainPerson) {
-      nameToMatch = mainPerson.LastName;
-    }
-    if (names[names.length - 1] === nameToMatch) {
-      names.pop();
-    }
-    return names.join(" ");
-  };
-  */
 
   const removeMainPersonLastName = (name) => {
     const names = name.split(" ");
