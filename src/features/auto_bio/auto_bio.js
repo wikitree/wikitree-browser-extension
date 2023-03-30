@@ -3295,7 +3295,7 @@ function sourcesArray(bio) {
     if (aSource.match(/database( with images)?, FamilySearch|^http/) && aSource.match(/^\*/) == null) {
       return "* " + aSource.replace(/''Replace this citation if there is another source.''/, "");
     } else {
-      if (aSource.match(/<references \/>/) == null) {
+      if (aSource.match(/<references\s?\/>/) == null) {
         return aSource.replace(/''Replace this citation if there is another source.''/, "");
       } else {
         return;
@@ -3417,7 +3417,7 @@ function sourcesArray(bio) {
         aRef.Year = dateMatch2[1];
       }
 
-      const detailsMatch = aRef.Text.match(/\),\s(.*?and.*?);/);
+      const detailsMatch = aRef.Text.match(/(\d{4}\),\s)(.+?),\s(\d+\s\w+\s\d+)/);
       const detailsMatch2 = aRef.Text.match(/\(http.*?\)(.*?image.*?;\s)(.*?)\./);
       const detailsMatch3 = aRef.Text.match(/(.*) marriage to\s(.*?)\s\bon\b\s(.*?)\s\bin\b\s(.*)\./);
       const entryForMatch = aRef.Text.match(/in entry for/);
@@ -3426,20 +3426,20 @@ function sourcesArray(bio) {
           aRef["Marriage Place"] = detailsMatch2[2].replace("Archives", "");
         }
       } else if (detailsMatch) {
-        const details = detailsMatch[1];
-        const detailsSplit = details.split(",");
         if (entryForMatch == null) {
-          aRef["Marriage Date"] = detailsSplit[1].trim();
-          const couple = detailsSplit[0].split(/\band\b/);
+          aRef["Marriage Date"] = detailsMatch[3].trim();
+          const couple = detailsMatch[2].split(/\band\b/);
           aRef["Couple"] = couple.map((item) => item.trim());
 
           let person1 = [couple[0].trim().split(" ")[0]];
           if (firstNameVariants[person1]) {
             person1 = firstNameVariants[person1[0]];
           }
-          let person2 = [couple[1].trim().split(" ")[0]];
-          if (firstNameVariants[person2]) {
-            person2 = firstNameVariants[person2[0]];
+          if (couple[1]) {
+            let person2 = [couple[1].trim().split(" ")[0]];
+            if (firstNameVariants[person2]) {
+              person2 = firstNameVariants[person2[0]];
+            }
           }
           if (!isSameName(window.profilePerson.FirstName, person1)) {
             aRef["Spouse Name"] = aRef["Couple"][0];
