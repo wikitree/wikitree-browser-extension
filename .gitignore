@@ -11,3 +11,4 @@ dist
 *_testout.txt
 .eslintrc.js
 .vscode/settings.json
+*.zip

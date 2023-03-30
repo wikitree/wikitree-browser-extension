@@ -192,9 +192,9 @@ function placeClipboard(aClipboard) {
     aClipboard.insertAfter($(".theClipboardButtons"));
   } else if ($("h1:contains('Edit Marriage Information')").length) {
     aClipboard.insertAfter($("#header"));
-  } /* else if ($("body.page-Special_EditPerson,body.page-Special_EditFamily").length) {
+  } else if ($("body.page-Special_EditPerson").length) {
     aClipboard.insertAfter($("#toolbar,#mEmail"));
-  } */ else if (window.clipboardClicker != undefined) {
+  } else if (window.clipboardClicker != undefined) {
     if (window.clipboardClicker.parent().hasClass("answerForm")) {
       aClipboard.insertAfter($("form[name='a_form'] .theClipboardButtons"));
     } else if (window.clipboardClicker.parent().hasClass("commentForm")) {
