@@ -527,7 +527,13 @@ export function formatDate(date, status, options = { format: "MDY", needOn: fals
   const statusOut = getStatusOut(status, day);
 
   if (format === 8) {
-    return `${year}${month ? `0${month}`.slice(-2) : "00"}${day ? `0${day}`.slice(-2) : "00"}`;
+    /*
+    console.log(year, month, day);
+    console.log(`0${month}`.slice(-2));
+    */
+    const outDate = `${year}${month ? `0${month}`.slice(-2) : "00"}${day ? `0${day}`.slice(-2) : "00"}`;
+    // console.log(outDate);
+    return outDate;
   } else {
     let dateString;
     if (day) {
@@ -808,7 +814,6 @@ function addReferences(event, spouse = false) {
   return text;
 }
 function isReferenceRelevant(reference, event, spouse) {
-  console.log(event, spouse, reference);
   let spousePattern = new RegExp(spouse.FirstName + "|" + spouse.Nickname);
   let spouseMatch = spousePattern.test(reference.Text);
   let sameName = true;
@@ -1262,24 +1267,6 @@ function getAgeAtCensus(person, censusYear) {
   }
 }
 
-/*
-export function getYYYYMMDD(dateString) {
-  let date = new Date(dateString);
-  if (!isNaN(date.getTime())) {
-    const year = date.getUTCFullYear();
-    const month = `0${date.getUTCMonth() + 1}`.slice(-2);
-    const day = `0${date.getUTCDate()}`.slice(-2);
-    return `${year}-${month}-${day}`;
-  } else {
-    date = new Date(`02 Jul ${dateString} UTC`);
-    const year = date.getUTCFullYear();
-    const month = `0${date.getUTCMonth() + 1}`.slice(-2);
-    const day = `0${date.getUTCDate()}`.slice(-2);
-    return `${year}-${month}-${day}`;
-  }
-}
-*/
-
 function getMonthNumber(month) {
   const regex = /^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)/i;
   const match = month.match(regex);
@@ -1292,23 +1279,23 @@ function getMonthNumber(month) {
 
   switch (monthAbbreviation) {
     case "JAN":
-      return 1;
+      return "01";
     case "FEB":
-      return 2;
+      return "02";
     case "MAR":
-      return 3;
+      return "03";
     case "APR":
-      return 4;
+      return "04";
     case "MAY":
-      return 5;
+      return "05";
     case "JUN":
-      return 6;
+      return "06";
     case "JUL":
-      return 7;
+      return "07";
     case "AUG":
-      return 8;
+      return "08";
     case "SEP":
-      return 9;
+      return "09";
     case "OCT":
       return 10;
     case "NOV":
@@ -1397,6 +1384,11 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
             .replace(/\b(single\s)?\b(daughter|son|wife|mother|husband|sister|brother)\b/, "was a $1$2")
             .replace("in household of", "in the household of")
             .replace(/Born in .+/, "");
+
+          if (text.match(/married,/) && text.match(/head of household/)) {
+            text = text.replace(/married(,.*?)head of household/, "was a married head of household$1");
+          }
+
           if (i < textSplit.length - 1 && textSplit[i + 1]) {
             const familyMembers = [];
             const maybeFamily = textSplit[i + 1].split(",");
@@ -2493,7 +2485,6 @@ function buildCensusNarratives() {
         reference.Narrative = text.replace(" ;", "");
       }
       reference.OrderDate = formatDate(reference["Census Year"], 0, { format: 8 });
-      //console.log(JSON.parse(JSON.stringify(reference)));
     }
   });
 }
@@ -3054,7 +3045,6 @@ async function getFindAGraveCitation(link) {
 
 function addMilitaryRecord(aRef, type) {
   // Add military service records
-  console.log(JSON.parse(JSON.stringify(aRef)));
   if (["World War I", "World War II", "Vietnam War", "Korean War"].includes(type)) {
     aRef["Record Type"].push("Military");
     if (!window.profilePerson["Military Service"]) {
@@ -3562,14 +3552,25 @@ function sourcesArray(bio) {
         aRef.Residence = placeMatch[1].trim();
       }
       const placeMatch2 = aRef.Text.match(/Residence place:\s([^.{]*)/);
-      if (placeMatch2) {
-        aRef.Residence = placeMatch2[1].trim();
+      const placeMatch3 = aRef.Text.match(/(Home in \d{4})|(Census Place):(.+?);/);
+      const thePlace = placeMatch2 ? placeMatch2[1] : placeMatch3 ? placeMatch3[3] : "";
+      if (thePlace) {
+        aRef.Residence = thePlace.trim();
         /* Search bio for "In the [year] census, [person] was living in [place]." */
         const censusBioRegex = new RegExp("In the " + aRef.Year + " census .*? was living in ([^.]+)", "i");
         const censusBioMatch = localStorage.previousBio.match(censusBioRegex);
         if (censusBioMatch) {
           aRef.Residence = censusBioMatch[1];
           aRef.Narrative = censusBioMatch[0].replace(/In the/, "In").replace(/\scensus/i, ",");
+        } else if (aRef.Residence) {
+          aRef.Narrative =
+            "In " +
+            aRef.Year +
+            ", " +
+            window.profilePerson.PersonName.FirstName +
+            " was living in " +
+            aRef.Residence +
+            ".";
         }
       }
     }
@@ -4145,7 +4146,6 @@ function splitBioIntoSections() {
           let j = i + 1;
           while (sections["Research Notes"].text[j] && sections["Research Notes"].text[j].match(namePattern)) {
             const nameMatch = sections["Research Notes"].text[j].match(namePattern);
-            console.log(nameMatch);
             sections["Research Notes"].subsections["NeedsProfiles"].push({
               Name: nameMatch[1],
               Relation: nameMatch[2],
