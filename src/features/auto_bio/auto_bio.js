@@ -463,8 +463,6 @@ export function formatDate(date, status, options = { format: "MDY", needOn: fals
     needOn = true;
   }
 
-  console.log(date, format, needOn);
-
   const months = [
     "January",
     "February",
@@ -492,16 +490,16 @@ export function formatDate(date, status, options = { format: "MDY", needOn: fals
     year = parseInt(year);
     month = parseInt(month);
     day = parseInt(day);
-    console.log(year, month, day);
+    // console.log(year, month, day);
   } else {
     const split = date.split(" ");
     split.forEach(function (bit) {
       if (/\d{4}/.test(bit)) {
         year = bit;
       } else if (/[A-z]/i.test(bit)) {
-        console.log(bit);
+        // console.log(bit);
         month = getMonthNumber(bit);
-        console.log(month);
+        // console.log(month);
       } else {
         day = bit;
       }
@@ -544,7 +542,7 @@ export function formatDate(date, status, options = { format: "MDY", needOn: fals
   } else {
     let dateString;
     if (day) {
-      console.log(day);
+      //  console.log(day);
       day = day.toString().replace(/^0/, "");
     }
     if (format == "sMDY") {
@@ -563,11 +561,12 @@ export function formatDate(date, status, options = { format: "MDY", needOn: fals
       dateString =
         statusOut + " " + `${day ? `${day} ${months[month - 1]} ` : month ? `${months[month - 1]} ` : ``}${year}`;
     } else {
+      /*
       console.log(date);
       console.log(year, month, day);
       console.log(needOn);
       console.log(statusOut);
-
+*/
       dateString =
         statusOut + " " + `${day ? `${months[month - 1]} ${day}, ` : month ? `${months[month - 1]}, ` : ``}${year}`;
     }
@@ -896,9 +895,9 @@ function buildBirth(person) {
 function buildBirthDate(person) {
   let birthDateBit = "";
   if (person.BirthDate) {
-    console.log(person.BirthDate);
+    // console.log(person.BirthDate);
     birthDateBit = " " + formatDate(person.BirthDate, person.mStatus_BirthDate || "", { needOn: true });
-    console.log(birthDateBit);
+    // console.log(birthDateBit);
   }
   return birthDateBit;
 }
@@ -1140,7 +1139,7 @@ function buildSpouses(person) {
       let marriageDatePlace = "";
       if (isOK(spouse.marriage_date)) {
         let dateStatus = spouse.data_status.marriage_date;
-        console.log(dateStatus);
+        //  console.log(dateStatus);
         marriageDatePlace += " " + formatDate(spouse.marriage_date, dateStatus, { needOn: true });
       }
       if (spouse.marriage_location) {
@@ -1239,6 +1238,8 @@ function buildSpouses(person) {
         });
         reference.Used = true;
         reference.RefName = "ref_" + i;
+
+        addToNeedsProfilesCreated({ Name: thisSpouse, MarriageDate: marriageDate, Relation: "Spouse" });
       }
     }
   });
@@ -2230,6 +2231,18 @@ function addAges() {
   });
 }
 
+function addToNeedsProfilesCreated(householdMember) {
+  let inNeedsProfiles = false;
+  window.sectionsObject["Research Notes"].subsections.NeedsProfiles.forEach(function (person) {
+    if (person.Name == householdMember.Name) {
+      inNeedsProfiles = true;
+    }
+  });
+  if (inNeedsProfiles == false) {
+    window.sectionsObject["Research Notes"].subsections.NeedsProfiles.push(householdMember);
+  }
+}
+
 function buildCensusNarratives() {
   const yearRegex = /\b(\d{4})\b/;
   getCensusesFromCensusSection();
@@ -2476,15 +2489,7 @@ function buildCensusNarratives() {
               householdMember.Relation = findRelation(householdMember);
             }
             if (!householdMember.Relation && !isSameName(householdMember.Name, window.profilePerson.NameVariants)) {
-              let inNeedsProfiles = false;
-              window.sectionsObject["Research Notes"].subsections.NeedsProfiles.forEach(function (person) {
-                if (person.Name == householdMember.Name) {
-                  inNeedsProfiles = true;
-                }
-              });
-              if (inNeedsProfiles == false) {
-                window.sectionsObject["Research Notes"].subsections.NeedsProfiles.push(householdMember);
-              }
+              addToNeedsProfilesCreated(householdMember);
             }
           });
 
@@ -2763,13 +2768,14 @@ function parseWikiTable(text) {
             let aPerson = window.profilePerson[relation][aKey];
             let theRelation;
 
+            /*
             console.log(key);
             console.log(JSON.parse(JSON.stringify(aMember)));
             console.log(aPerson);
             console.log(relation);
             console.log(isSameName(key, getNameVariants(aPerson)));
             console.log(isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5));
-
+*/
             if (
               isSameName(key, getNameVariants(aPerson)) &&
               isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5)
@@ -3540,7 +3546,7 @@ function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        /[A-Z][a-z]+ Deaths|'''Death'''|Death (Index|Record|Registration)|findagrave|Find a Grave|memorial|Cemetery Registers|Death Certificate|^Death -|citing Death|citing Burial|Probate/i
+        /[A-Z][a-z]+ Deaths|'''Death'''|Death (Index|Record|Reg)|findagrave|Find a Grave|memorial|Cemetery Registers|Death Certificate|^Death -|citing Death|citing Burial|Probate/i
       ) ||
       aRef["Death Date"]
     ) {
@@ -4869,7 +4875,7 @@ export async function generateBio() {
         birthPlaces.forEach(function (aPlace) {
           const needsProfilesCreated = needsCategories.Profiles_Created;
           for (const aNeed of needsProfilesCreated) {
-            const placeMatch = new RegExp(aPlace + "[,\\s]?", "i");
+            const placeMatch = new RegExp("\\b" + aPlace + "\\b", "i");
             if (aNeed.PlaceOrProject.match(placeMatch) && !needsCategory) {
               needsCategory = "[[Category: " + aNeed.PlaceOrProject + " Needs Profiles Created]]";
               break;
