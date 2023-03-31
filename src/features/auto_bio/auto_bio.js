@@ -452,7 +452,7 @@ export function formatDate(date, status, options = { format: "MDY", needOn: fals
   let format;
   if (options.format) {
     format = options.format;
-  } else if (window.autoBioOptions && window.autoBioOptions.dateFormat && format !== 8) {
+  } else if (window.autoBioOptions.dateFormat && format !== 8) {
     // Use the global date format if available and format is not 8
     format = window.autoBioOptions.dateFormat;
   } else {
@@ -462,6 +462,8 @@ export function formatDate(date, status, options = { format: "MDY", needOn: fals
   if (options.needOn) {
     needOn = true;
   }
+
+  console.log(date, format, needOn);
 
   const months = [
     "January",
@@ -485,18 +487,21 @@ export function formatDate(date, status, options = { format: "MDY", needOn: fals
 
   // Check if date uses hyphens, slashes, or dots
   date = date.replace(/\./g, "-");
-  if (date.match(/[-/.]/)) {
-    [year, month, day] = date.split(/-\//);
+  if (date.match(/[-/]/)) {
+    [year, month, day] = date.split(/[-/]/);
     year = parseInt(year);
     month = parseInt(month);
     day = parseInt(day);
+    console.log(year, month, day);
   } else {
     const split = date.split(" ");
     split.forEach(function (bit) {
       if (/\d{4}/.test(bit)) {
         year = bit;
       } else if (/[A-z]/i.test(bit)) {
+        console.log(bit);
         month = getMonthNumber(bit);
+        console.log(month);
       } else {
         day = bit;
       }
@@ -515,6 +520,8 @@ export function formatDate(date, status, options = { format: "MDY", needOn: fals
       case "on":
       case undefined:
       case "":
+      case "null":
+      case null:
         if (needOn == true) {
           if (day) return "on";
           else return "in";
@@ -537,7 +544,8 @@ export function formatDate(date, status, options = { format: "MDY", needOn: fals
   } else {
     let dateString;
     if (day) {
-      day = day.replace(/^0/, "");
+      console.log(day);
+      day = day.toString().replace(/^0/, "");
     }
     if (format == "sMDY") {
       dateString =
@@ -555,6 +563,11 @@ export function formatDate(date, status, options = { format: "MDY", needOn: fals
       dateString =
         statusOut + " " + `${day ? `${day} ${months[month - 1]} ` : month ? `${months[month - 1]} ` : ``}${year}`;
     } else {
+      console.log(date);
+      console.log(year, month, day);
+      console.log(needOn);
+      console.log(statusOut);
+
       dateString =
         statusOut + " " + `${day ? `${months[month - 1]} ${day}, ` : month ? `${months[month - 1]}, ` : ``}${year}`;
     }
@@ -868,7 +881,7 @@ function buildBirth(person) {
     text += " " + capitalizeFirstLetter(person.Pronouns.subject) + " was baptized";
   }
   if (person["Baptism Date"]) {
-    text += " " + formatDate(person["Baptism Date"] || "");
+    text += " " + formatDate(person["Baptism Date"] || "", "", { needOn: true });
   }
   if (person["Baptism Place"]) {
     text += " in " + minimalPlace(person["Baptism Place"]);
@@ -883,7 +896,9 @@ function buildBirth(person) {
 function buildBirthDate(person) {
   let birthDateBit = "";
   if (person.BirthDate) {
+    console.log(person.BirthDate);
     birthDateBit = " " + formatDate(person.BirthDate, person.mStatus_BirthDate || "", { needOn: true });
+    console.log(birthDateBit);
   }
   return birthDateBit;
 }
@@ -1125,6 +1140,7 @@ function buildSpouses(person) {
       let marriageDatePlace = "";
       if (isOK(spouse.marriage_date)) {
         let dateStatus = spouse.data_status.marriage_date;
+        console.log(dateStatus);
         marriageDatePlace += " " + formatDate(spouse.marriage_date, dateStatus, { needOn: true });
       }
       if (spouse.marriage_location) {
@@ -1186,35 +1202,36 @@ function buildSpouses(person) {
   window.references.forEach(function (reference, i) {
     if (reference["Record Type"].includes("Marriage")) {
       let foundSpouse = false;
+      const thisSpouse = reference["Spouse Name"] || reference.Spouse || "";
       firstNameAndYear.forEach(function (obj) {
         if (obj.Year == reference.Year) {
           foundSpouse = true;
-        } else if (reference["Spouse Name"]) {
-          if (reference["Spouse Name"].split(" ")[0] == obj.FirstName) {
+        } else if (thisSpouse) {
+          if (thisSpouse.split(" ")[0] == obj.FirstName) {
             foundSpouse = true;
           }
         }
       });
-      if (foundSpouse == false && reference["Spouse Name"]) {
+      if (foundSpouse == false && thisSpouse) {
         let text = "";
         const marriageDate = getYYYYMMDD(reference["Marriage Date"]) || "";
         let marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, marriageDate)})`;
-        text += person.PersonName.FirstName + marriageAge + " married " + reference["Spouse Name"];
+        text += person.PersonName.FirstName + marriageAge + " married " + thisSpouse;
         if (reference["Marriage Place"]) {
           text += " in " + reference["Marriage Place"];
         }
         if (reference["Marriage Date"]) {
-          const showMarriageDate = formatDate(reference["Marriage Date"]).replace(/\s0/, " ");
+          const showMarriageDate = formatDate(reference["Marriage Date"], "", { needOn: true }).replace(/\s0/, " ");
           text += " " + showMarriageDate;
         }
         text += ".";
         marriages.push({
-          Spouse: { FullName: reference["Spouse Name"], marriage_date: marriageDate },
+          Spouse: { FullName: thisSpouse, marriage_date: marriageDate },
           SpouseChildren: "",
           Narrative: text + "<ref name='ref_" + i + "'>" + reference.Text + "</ref>",
           OrderDate: formatDate(marriageDate, 0, { format: 8 }),
           "Marriage Date": reference["Marriage Date"],
-          "Event Type": "Marriage, " + reference["Spouse Name"],
+          "Event Type": "Marriage, " + thisSpouse,
           "Marriage Place": reference["Marriage Place"],
           "Event Place": reference["Marriage Place"],
           "Event Year": reference.Year,
@@ -2746,17 +2763,17 @@ function parseWikiTable(text) {
             let aPerson = window.profilePerson[relation][aKey];
             let theRelation;
 
+            console.log(key);
+            console.log(JSON.parse(JSON.stringify(aMember)));
+            console.log(aPerson);
+            console.log(relation);
+            console.log(isSameName(key, getNameVariants(aPerson)));
+            console.log(isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5));
+
             if (
               isSameName(key, getNameVariants(aPerson)) &&
               isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5)
             ) {
-              /*
-              console.log(JSON.parse(JSON.stringify(aMember)));
-              console.log(aPerson);
-              console.log(relation);
-              console.log(isSameName(key, getNameVariants(aPerson)));
-              console.log(isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5));
-              */
               aMember.HasProfile = true;
               if (aPerson.Gender) {
                 aMember.Gender = aPerson.Gender;
@@ -3951,7 +3968,7 @@ function getFamilySearchFacts() {
             ageBit +
             " was baptized" +
             " " +
-            formatDate(aFact.Date, 0, { needOn: true }) +
+            formatDate(aFact.Date, "", { needOn: true }) +
             (aFact.Info ? " in " + minimalPlace(aFact.Info.replace(/,([A-z])/g, ", $1")) : "") +
             ".";
         } else if (aFact.Fact.match(/Fact: Military Service/i)) {
@@ -4421,7 +4438,7 @@ export async function generateBio() {
   // Note that if the input is in format 3, it will not parse if the link contains the text "database and images" (the link will be ignored).
   function getFindAGraveLink(text) {
     // Define the regexes to be used to find the link
-    const match1 = /^[^\w]*(https?:\/\/www\.findagrave.com[^\s]+)$/;
+    const match1 = /(https?:\/\/www\.findagrave.com[^\s]+)$/;
     const match2 = /\[(https?:\/\/www\.findagrave.com[^\s]+)(\s([^\]]+))?\]/;
     const match3 = /\{\{FindAGrave\|(\d+)(\|.*?)?\}\}/;
     const match4 = /database and images/;
@@ -4852,7 +4869,7 @@ export async function generateBio() {
         birthPlaces.forEach(function (aPlace) {
           const needsProfilesCreated = needsCategories.Profiles_Created;
           for (const aNeed of needsProfilesCreated) {
-            const placeMatch = new RegExp(aPlace + ",?", "i");
+            const placeMatch = new RegExp(aPlace + "[,\\s]?", "i");
             if (aNeed.PlaceOrProject.match(placeMatch) && !needsCategory) {
               needsCategory = "[[Category: " + aNeed.PlaceOrProject + " Needs Profiles Created]]";
               break;
