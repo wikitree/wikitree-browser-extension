@@ -7,7 +7,7 @@ import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 function moveSourcesParts() {
   /*
-From #sourcesSection, take p.sourcesContent, table.sourcesContent, 
+Take p.sourcesContent, table.sourcesContent, 
 div.refsBox, and table#summaryTable and put them in a new div named '#sourceBits'.  
 Place #sourceBits before #backToActionButton.
 */
@@ -16,8 +16,18 @@ Place #sourceBits before #backToActionButton.
   $("p.sourcesContent, table.sourcesContent, div.refsBox, table#summaryTable").appendTo(sourceBits);
 }
 
+/* 
+When #enterBasicDataButton is clicked, make sure the #basicDataSection remains visible. 
+*/
+function keepBasicDataSectionVisible() {
+  $("#enterBasicDataButton").click(() => {
+    $("#basicDataSection").show();
+  });
+}
+
 checkIfFeatureEnabled("addPersonRedesign").then((result) => {
   if (result) {
     moveSourcesParts();
+    keepBasicDataSectionVisible();
   }
 });
