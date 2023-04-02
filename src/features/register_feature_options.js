@@ -45,6 +45,7 @@ import {
 // the feature and options
 ////////////////////////////////////////////////////////////////////////////////
 
+import "./add_person/add_person_options.js";
 import "./agc/agc_options.js";
 import "./auto_bio/auto_bio_options.js";
 import "./categoryDisplay/categoryDisplay_options.js";
