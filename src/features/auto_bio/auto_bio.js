@@ -762,7 +762,7 @@ function siblingList() {
         ".\n";
     } else if (siblings.length > 1) {
       text += capitalizeFirstLetter(window.profilePerson.Pronouns.possessiveAdjective) + " siblings were:\n";
-      siblings.sort((a, b) => a.BirthDate.replaceAll(/-/g, "") - b.BirthDate.replaceAll(/-/g, ""));
+      siblings.sort((a, b) => a.OrderBirthDate.replaceAll(/-/g, "") - b.OrderBirthDate.replaceAll(/-/g, ""));
       siblings.forEach(function (sibling) {
         if (window.autoBioOptions.familyListStyle == "bullets") {
           text += "* ";
