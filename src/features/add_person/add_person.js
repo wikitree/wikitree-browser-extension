@@ -88,10 +88,12 @@ function keepBasicDataSectionVisible() {
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       if (mutation.addedNodes && mutation.addedNodes.length > 0) {
-        const matchesContainer = document.getElementById("matchesContainer");
-        if (matchesContainer) {
-          showBasicData();
-          observer.disconnect();
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE && node.id === "matchesContainer") {
+            showBasicData();
+            observer.disconnect();
+            break;
+          }
         }
       }
     });
