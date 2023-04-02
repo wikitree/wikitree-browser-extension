@@ -1,5 +1,4 @@
 import $ from "jquery";
-//import "./my_feature.css";
 import { getPeople } from "../dna_table/dna_table";
 import { PersonName } from "./person_name.js";
 import { countries } from "./countries.js";
@@ -3058,12 +3057,17 @@ async function getFindAGraveCitation(link) {
     let memorial = link.split("id=")[1];
     link = "https://www.findagrave.com/memorial/" + memorial;
   }
-  let result = await $.ajax({
-    url: "https://wikitreebee.com/citation.php?link=" + link,
-    type: "GET",
-    dataType: "text",
-  });
-  return result;
+  try {
+    let result = await $.ajax({
+      url: "https://wikitreebee.com/citation.php?link=" + link,
+      type: "GET",
+      dataType: "text",
+    });
+    return result;
+  } catch (error) {
+    console.error("Error fetching citation:", error);
+    return null;
+  }
 }
 
 function addMilitaryRecord(aRef, type) {
@@ -4424,12 +4428,20 @@ export async function generateBio() {
       }
       let findAGraveLink = getFindAGraveLink(aRef.Text);
       if (findAGraveLink) {
-        let citation = await getFindAGraveCitation(findAGraveLink.replace("http:", "https:"));
-        citation = addHeading(citation, aRef.Text);
-        citation = fixDate(citation);
-        citation = fixDashes(citation);
-        citation = fixSpaces(citation);
-        aRef.Text = citation;
+        try {
+          let citation = await getFindAGraveCitation(findAGraveLink.replace("http:", "https:"));
+          if (citation) {
+            citation = addHeading(citation, aRef.Text);
+            citation = fixDate(citation);
+            citation = fixDashes(citation);
+            citation = fixSpaces(citation);
+            aRef.Text = citation.trim();
+          } else {
+            console.error("Error fetching citation for link:", findAGraveLink);
+          }
+        } catch (error) {
+          console.error("Error fetching citation:", error);
+        }
       }
     }
   }
