@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import { isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType";
-import { registerFeature, OptionType } from "../../core/options/options_registry.js";
+import { registerFeature } from "../../core/options/options_registry.js";
 
 const addPersonRedesign = {
   name: "Add Person",
