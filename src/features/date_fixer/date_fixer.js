@@ -1,4 +1,5 @@
 import $ from "jquery";
+import Fuse from "fuse.js";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 /*
 function fixDates() {
@@ -58,6 +59,30 @@ function fixDates() {
 
   function parseDate(input) {
     input = sanitizeInput(input);
+
+    // Fix typos in month names
+    const monthTypoPattern = /^(\d{1,2})?\s*([a-zA-Z]+)\s*(\d{1,2})?,?\s*(\d{4})$/;
+    if (monthTypoPattern.test(input)) {
+      const fuseMonthFull = new Fuse(monthNames, {
+        includeScore: true,
+        threshold: 0.4, // Adjust the threshold to control the similarity
+      });
+      const fuseMonthShort = new Fuse(monthShortNames, {
+        includeScore: true,
+        threshold: 0.4, // Adjust the threshold to control the similarity
+      });
+      const [, day, month, year] = monthTypoPattern.exec(input);
+
+      let correctedMonth;
+      if (month.length <= 3) {
+        correctedMonth = fuseMonthShort.search(month)[0]?.item || month;
+      } else {
+        const correctedMonthFull = fuseMonthFull.search(month)[0]?.item;
+        correctedMonth = correctedMonthFull || month;
+      }
+
+      input = input.replace(month, correctedMonth);
+    }
 
     const validPatterns = [
       new RegExp(`^(${monthNames.join("|")}) (\\d{1,2}), (\\d{4})$`, "i"), // Month DD, YYYY
