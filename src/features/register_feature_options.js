@@ -9,6 +9,7 @@ import {
   isProfileLoggedInUserPage,
   isProfileEdit,
   isProfileAddRelative,
+  isAddUnrelatedPerson,
   isProfileHistory,
   isProfileHistoryDetail,
   isSpacePage,
@@ -143,6 +144,18 @@ registerFeature({
   category: "Profile",
   defaultValue: true,
   pages: [isProfilePage],
+});
+
+registerFeature({
+  name: "Date Convertor",
+  id: "dateConvertor",
+  description:
+    "Enter a date in the format DD/MM/YYY, DD-MM-YYYY, or DD.MM.YYYY and it will be converted to YYYY-MM-DD.",
+  category: "Editing",
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
+  contributors: [],
+  defaultValue: false,
+  pages: [isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson],
 });
 
 registerFeature({
