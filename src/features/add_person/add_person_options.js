@@ -6,7 +6,7 @@ import { isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType"
 import { registerFeature } from "../../core/options/options_registry.js";
 
 const addPersonRedesign = {
-  name: "Add Person",
+  name: "Add Person Redesign",
   id: "addPersonRedesign",
   description: "Redesigns the Add Person page for the convenience of advanced members.",
   category: "Editing",
