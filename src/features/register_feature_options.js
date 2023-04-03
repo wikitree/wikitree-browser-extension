@@ -149,8 +149,7 @@ registerFeature({
 registerFeature({
   name: "Date Fixer",
   id: "dateFixer",
-  description:
-    "Converts DD/MM/YYY, DD-MM-YYYY, or DD.MM.YYYY to YYYY-MM-DD; Fixes typos in the date fields (two spaces -> one space, etc.)",
+  description: "Converts DD/MM/YYY, DD-MM-YYYY, or DD.MM.YYYY to YYYY-MM-DD; Fixes typos in the date fields",
   category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
