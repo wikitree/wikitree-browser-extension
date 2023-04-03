@@ -7,7 +7,7 @@ import Cookies from "js-cookie";
 import "jquery-ui/ui/widgets/draggable";
 import "../../thirdparty/date.format.js";
 import "./extra_watchlist.css";
-import { isOK, htmlEntities, displayName } from "../../core/common";
+import { isOK, htmlEntities } from "../../core/common";
 import { appendClipboardButtons } from "../clipboard_and_notes/clipboard_and_notes";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
@@ -48,11 +48,11 @@ function strDate() {
 window.textFile = null;
 const makeTextFile = function (text) {
   var data = new Blob([text], { type: "text/plain" });
-  if (textFile !== null) {
-    window.URL.revokeObjectURL(textFile);
+  if (window.textFile !== null) {
+    window.URL.revokeObjectURL(window.textFile);
   }
-  textFile = window.URL.createObjectURL(data);
-  return textFile;
+  window.textFile = window.URL.createObjectURL(data);
+  return window.textFile;
 };
 
 function sortTouched(order = "touched") {
@@ -79,7 +79,6 @@ function sortTouched(order = "touched") {
   if (order == "name") {
     secondarySort(items, "lnab", "firstname", 1);
   }
-  const myDate = new Date();
 }
 
 function recentChange(person) {
@@ -342,7 +341,10 @@ function doExtraWatchlist() {
 
       bits.forEach(function (aKey) {
         if (aKey.match("Space:")) {
+          console.log(aKey);
           get_Profile(aKey).then((person) => {
+            console.log(person);
+            console.log(person[0]);
             addToExtraWatchlist(person[0]);
           });
         }
@@ -380,8 +382,7 @@ async function extraWatchlist() {
       chrome.runtime.getURL("images/binoculars.png") +
       "'>"
   );
-  if ($("span.theClipboardButtons").length) {
-  } else {
+  if ($("span.theClipboardButtons").length == 0) {
     const clipboardButtons = $("<span class='theClipboardButtons'></span>");
     appendClipboardButtons(clipboardButtons);
   }
