@@ -147,10 +147,10 @@ registerFeature({
 });
 
 registerFeature({
-  name: "Date Convertor",
-  id: "dateConvertor",
+  name: "Date Fixer",
+  id: "dateFixer",
   description:
-    "Enter a date in the format DD/MM/YYY, DD-MM-YYYY, or DD.MM.YYYY and it will be converted to YYYY-MM-DD.",
+    "Converts DD/MM/YYY, DD-MM-YYYY, or DD.MM.YYYY to YYYY-MM-DD; Fixes typos in the date fields (two spaces -> one space, etc.)",
   category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
