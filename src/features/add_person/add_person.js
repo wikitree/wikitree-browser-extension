@@ -150,6 +150,7 @@ checkIfFeatureEnabled("addPersonRedesign").then((result) => {
         $("#mLastNameCurrent").closest("tr").after(otherLastNamesRow, suffixRow);
 
         // Change the text
+        const lastNameCurrent = document.querySelector("#mLastNameCurrent").value;
         const targetElement = document.querySelector('td > a[href="/wiki/Help:Name_Fields#Current_Last_Name"]');
         if (targetElement) {
           const newText = "All other info can be entered later.";
@@ -158,6 +159,7 @@ checkIfFeatureEnabled("addPersonRedesign").then((result) => {
             newText
           );
         }
+        document.querySelector("#mLastNameCurrent").value = lastNameCurrent;
       }
     });
   }
