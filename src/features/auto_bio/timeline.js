@@ -242,7 +242,6 @@ export function buildTimelineTable(bioTimeline) {
           isRightCensus ||
           isRightMarriage
         ) {
-          //console.log(aEvent, aRef);
           if (
             !(aEvent["Event Type"] == "Military" && aEvent.War != aRef.War) &&
             !(aEvent["Event Type"] == "Prison" && aEvent.Year != aRef.Year) &&

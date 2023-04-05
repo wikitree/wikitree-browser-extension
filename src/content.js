@@ -3,6 +3,7 @@
 import "./features/register_feature_options";
 
 import "./features/access_keys/access_keys";
+import "./features/add_person/add_person";
 import "./features/agc/agc_content";
 import "./features/akaNameLinks/akaNameLinks";
 import "./features/appsMenu/appsMenu";
@@ -15,6 +16,7 @@ import "./features/clipboard_and_notes/clipboard_and_notes";
 import "./features/collapsibleDescendantsTree/collapsibleDescendantsTree";
 import "./features/custom_change_summary_options/custom_change_summary_options";
 import "./features/darkMode/darkMode";
+import "./features/date_fixer/date_fixer";
 import "./features/distanceAndRelationship/distanceAndRelationship";
 import "./features/dna_table/dna_table";
 import "./features/draftList/draftList";

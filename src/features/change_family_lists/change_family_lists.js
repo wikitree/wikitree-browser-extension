@@ -1788,17 +1788,27 @@ function addParentStatus() {
   setTimeout(function () {
     if (window.people) {
       const profileP = window.people[0];
-      if (profileP.DataStatus?.Father == "10") {
-        $("#parentList li[data-gender='male'] a").append($("<span class='uncertain'>[uncertain]</span>"));
+      if ($("#parentList li[data-gender='male'] a span:contains([uncertain])").length == 0) {
+        if (profileP.DataStatus?.Father == "10") {
+          $("#parentList li[data-gender='male'] a").append($("<span class='uncertain dataStatus'>[uncertain]</span>"));
+        }
+        if (profileP.DataStatus?.Father == "5") {
+          $("#parentList li[data-gender='male'] a").append(
+            $("<span class='non-biological dataStatus'>[non-biological]</span>")
+          );
+        }
       }
-      if (profileP.DataStatus?.Father == "5") {
-        $("#parentList li[data-gender='male'] a").append($("<span class='non-biological'>[non-biological]</span>"));
-      }
-      if (profileP.DataStatus?.Mother == "10") {
-        $("#parentList li[data-gender='female'] a").append($("<span class='uncertain'>[uncertain]</span>"));
-      }
-      if (profileP.DataStatus?.Mother == "5") {
-        $("#parentList li[data-gender='female'] a").append($("<span class='non-biological'>[non-biological]</span>"));
+      if ($("#parentList li[data-gender='female'] a span:contains([uncertain])").length == 0) {
+        if (profileP.DataStatus?.Mother == "10") {
+          $("#parentList li[data-gender='female'] a").append(
+            $("<span class='uncertain  dataStatus'>[uncertain]</span>")
+          );
+        }
+        if (profileP.DataStatus?.Mother == "5") {
+          $("#parentList li[data-gender='female'] a").append(
+            $("<span class='non-biological  dataStatus'>[non-biological]</span>")
+          );
+        }
       }
     }
   }, 3000);

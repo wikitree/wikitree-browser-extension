@@ -1,0 +1,11 @@
+#connectionsSection {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+#connectionsSection button {
+  display: none;
+}
+#sourcesTab,
+#connectionsTab {
+  display: none;
+}

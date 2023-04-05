@@ -9,6 +9,7 @@ import {
   isProfileLoggedInUserPage,
   isProfileEdit,
   isProfileAddRelative,
+  isAddUnrelatedPerson,
   isProfileHistory,
   isProfileHistoryDetail,
   isSpacePage,
@@ -45,6 +46,7 @@ import {
 // the feature and options
 ////////////////////////////////////////////////////////////////////////////////
 
+import "./add_person/add_person_options.js";
 import "./agc/agc_options.js";
 import "./auto_bio/auto_bio_options.js";
 import "./categoryDisplay/categoryDisplay_options.js";
@@ -142,6 +144,17 @@ registerFeature({
   category: "Profile",
   defaultValue: true,
   pages: [isProfilePage],
+});
+
+registerFeature({
+  name: "Date Fixer",
+  id: "dateFixer",
+  description: "Converts DD/MM/YYY, DD-MM-YYYY, or DD.MM.YYYY to YYYY-MM-DD; Fixes typos in the date fields.",
+  category: "Editing",
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
+  contributors: [],
+  defaultValue: false,
+  pages: [isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson],
 });
 
 registerFeature({
@@ -349,7 +362,7 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
-  pages: [isProfileAddRelative],
+  pages: [isProfileAddRelative, isAddUnrelatedPerson],
 });
 
 registerFeature({
