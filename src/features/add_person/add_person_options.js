@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import { isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType";
-import { registerFeature } from "../../core/options/options_registry.js";
+import { registerFeature, OptionType } from "../../core/options/options_registry.js";
 
 const addPersonRedesign = {
   name: "Add Person Redesign",
@@ -14,7 +14,14 @@ const addPersonRedesign = {
   contributors: [],
   defaultValue: false,
   pages: [isProfileAddRelative, isAddUnrelatedPerson],
-  // options: [],
+  options: [
+    {
+      id: "additionalFields",
+      type: OptionType.CHECKBOX,
+      label: "Add additional fields (Prefix, Nicknames, Other Last Names, and Suffix)",
+      defaultValue: false,
+    },
+  ],
 };
 
 registerFeature(addPersonRedesign);

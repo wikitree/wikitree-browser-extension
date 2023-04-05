@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 function moveSourcesParts() {
   /*
@@ -78,7 +78,7 @@ function keepBasicDataSectionVisible() {
     }
   );
 
-  $("#actionButton").on("click", function (e) {
+  $("#actionButton").on("click", function () {
     $("#enterBasicDataButton").show();
     $("#backToActionButton").text("Back");
     $("#backToActionButton").insertBefore($("#enterBasicDataButton"));
@@ -107,5 +107,58 @@ checkIfFeatureEnabled("addPersonRedesign").then((result) => {
     moveSourcesParts();
     keepBasicDataSectionVisible();
     $("#continueToSourcesButton").text("Create New Profile");
+    getFeatureOptions("addPersonRedesign").then((options) => {
+      if (options.additionalFields) {
+        // Add fields
+        const prefixRow = $(`<tr>
+        <td valign="top" align="right" width="25%">Prefix:</td>
+        <td width="50%">
+        <input class="small" type="text" id="mPrefix" name="mPrefix" value="" size="10" maxlength="60"><a href="/wiki/Help:Name_Fields#Prefix" target="_Help"><img src="/images/icons/help.gif.pagespeed.ce.1TvA_97yy8.gif" border="0" width="11" height="11" alt="Help" title="E.g. Mr., Sir, Sgt. Click here for explanation of Prefix"></a>
+        <span class="small">
+        <label><input type="radio" name="mStatus_Prefix" value="guess">uncertain</label>
+        <label><input type="radio" name="mStatus_Prefix" value="certain">certain</label></span>
+        </td>
+        </tr>`);
+        const nicknamesRow = $(`<tr>
+<td align="right" valign="top">Other Nicknames:</td>
+<td>
+<input class="small" type="text" id="mNicknames" name="mNicknames" value="" size="20"><a href="/wiki/Help:Name_Fields#Other_Nicknames" target="_Help"><img src="/images/icons/help.gif.pagespeed.ce.1TvA_97yy8.gif" border="0" width="11" height="11" alt="Help" title="Explanation of Other Nicknames"></a>
+<span class="SMALL">
+<label><input type="radio" name="mStatus_Nicknames" value="guess">uncertain</label>
+<label><input type="radio" name="mStatus_Nicknames" value="certain">certain</label></span>
+</td>
+</tr>`);
+        const otherLastNamesRow = $(`<tr>
+<td valign="top" align="right">Other Last Name(s):</td>
+<td><input class="small" type="text" id="mLastNameOther" name="mLastNameOther" value="" size="20"><a href="/wiki/Help:Name_Fields#Other_Last_Names" target="_Help"><img src="/images/icons/help.gif.pagespeed.ce.1TvA_97yy8.gif" border="0" width="11" height="11" alt="Help" title="Explanation of Other Last Names"></a>
+<span class="SMALL">
+<label><input type="radio" name="mStatus_LastNameOther" value="guess">uncertain</label>
+<label><input type="radio" name="mStatus_LastNameOther" value="certain">certain</label></span>
+</td>
+</tr>`);
+        const suffixRow = $(`<tr>
+<td valign="top" align="right">Suffix:</td>
+<td>
+<input class="small" type="text" id="mSuffix" name="mSuffix" value="" size="10" maxlength="60"><a href="/wiki/Help:Name_Fields#Suffix" target="_Help"><img src="/images/icons/help.gif.pagespeed.ce.1TvA_97yy8.gif" border="0" width="11" height="11" alt="Help" title="E.g. Jr., III, M.D. Click here for explanation of Suffix"></a>
+<span class="SMALL">
+<label><input type="radio" name="mStatus_Suffix" value="guess">uncertain</label>
+<label><input type="radio" name="mStatus_Suffix" value="certain">certain</label></span>
+</td>
+</tr>`);
+        $("#mFirstName").closest("tr").before(prefixRow);
+        $("#mRealName").closest("tr").after(nicknamesRow);
+        $("#mLastNameCurrent").closest("tr").after(otherLastNamesRow, suffixRow);
+
+        // Change the text
+        const targetElement = document.querySelector('td > a[href="/wiki/Help:Name_Fields#Current_Last_Name"]');
+        if (targetElement) {
+          const newText = "All other info can be entered later.";
+          targetElement.parentNode.innerHTML = targetElement.parentNode.innerHTML.replace(
+            "Name prefix, suffix, and all other info can be entered later.",
+            newText
+          );
+        }
+      }
+    });
   }
 });
