@@ -362,7 +362,7 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
-  pages: [isProfileAddRelative],
+  pages: [isProfileAddRelative, isAddUnrelatedPerson],
 });
 
 registerFeature({
