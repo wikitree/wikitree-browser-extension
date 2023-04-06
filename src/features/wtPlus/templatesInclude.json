@@ -129,15 +129,15 @@
 	},{
 		"description": "URL to Internal Link",
 		"action": "replaceRegEx",
-		"from": "(?<=[\\s(>])https?://www.wikitree.com/wiki/(Category:[^?&=\\]]*?)(?=[,.]?[\\s)<])(?![^<]*?</nowiki>)",
-		"to": "[[:$1|$1]]",
+		"from": "([\\s(>]|^)https?://www.wikitree.com/wiki/(Category:[^?&=\\]]*?)(?=[,.]?[\\s)<])(?![^<]*?</nowiki>)",
+		"to": "$1[[:$2|$2]]",
 		"flags": "mg"
 	},{
 		"description": "URL to Internal Link",
 		"comment": "URL in [] with anchor text",
 		"action": "replaceRegEx",
-		"from": "(?<=[\\s(>])https?://www.wikitree.com/wiki/((Automated:|Space:|Template:|Project:|Help:|Special:|)[^?&=\\]]*?)(?=[,.]?[\\s)<])(?![^<]*?</nowiki>)(?![^{]*?\\}\\})",
-		"to": "[[$1|$3]]",
+		"from": "([\\s(>])https?://www\\.wikitree\\.com/wiki/((Automated:|Space:|Template:|Project:|Help:|Special:|(?!Category:))[^?&=\\]]*?)(?=[,.]?[\\s)<])(?![^<]*?</nowiki>)(?![^{]*?\\}\\})",
+		"to": "$1[[:$2|$2]]",
 		"flags": "mg"
 	},{
 		"description": "http WikiTree to https",

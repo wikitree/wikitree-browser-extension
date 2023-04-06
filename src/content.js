@@ -27,6 +27,7 @@ import "./features/familyTimeline/familyTimeline";
 import "./features/g2g/g2g";
 import "./features/genderPredictor/genderPredictor";
 import "./features/google_search_box/google_search_box";
+import "./features/language_setting/language_setting";
 import "./features/locationsHelper/locationsHelper";
 import "./features/make_radio_buttons_deselectable/make_radio_buttons_deselectable";
 import "./features/my_connections/my_connections";

@@ -12,7 +12,7 @@ div.refsBox, and table#summaryTable and put them in a new div named '#sourceBits
 Place #sourceBits before #backToActionButton.
 */
   const sourceBits = $("<div id='sourceBits'></div>");
-  sourceBits.insertBefore($("#backToActionButton"));
+  sourceBits.insertAfter($("#basicDataSection table"));
   $("p.sourcesContent, table.sourcesContent, div.refsBox, table#summaryTable").appendTo(sourceBits);
 }
 
@@ -20,11 +20,6 @@ function showBasicData() {
   if ($("#mBirthDate").val() || $("#mDeathDate").val()) {
     // if matches container is visible, scroll to it
     if ($("#matchesContainer").is(":visible")) {
-      $("#basicDataSection").show();
-      $("#backToActionButton").text("Back to Action");
-      $("#backToActionButton").insertBefore($("#dismissMatchesButton"));
-      $("#enterBasicDataButton").hide();
-      $("#potentialMatchesSection .returnToBasicButton").hide();
       $("html, body").animate(
         {
           scrollTop: $("#matchesContainer").offset().top,
@@ -32,6 +27,11 @@ function showBasicData() {
         100
       );
     }
+    $("#basicDataSection").show();
+    $("#backToActionButton").text("Back to Action");
+    $("#backToActionButton").insertBefore($("#dismissMatchesButton"));
+    $("#enterBasicDataButton").hide();
+    $("#potentialMatchesSection .returnToBasicButton").hide();
   }
 }
 
@@ -42,8 +42,6 @@ function keepBasicDataSectionVisible() {
   $("#enterBasicDataButton").on("click", function () {
     setTimeout(() => {
       showBasicData();
-      $("#connectionsSection .newPersonData").text($("#mFirstName").val());
-      $("#connectionsSection").show();
     }, 2000);
   });
   $("#dismissMatchesButton").text("None of these is a match: Create Profile");
@@ -91,6 +89,11 @@ function keepBasicDataSectionVisible() {
         for (const node of mutation.addedNodes) {
           if (node.nodeType === Node.ELEMENT_NODE && node.id === "matchesContainer") {
             showBasicData();
+            $("#connectionsSection")
+              .insertAfter($("#potentialMatchesInner"))
+              .show()
+              .css({ border: "1px solid forestgreen", "padding-top": "10px", "border-radius": "5px" });
+            $("#connectionsSection .newPersonData").text($("#mFirstName").val());
             observer.disconnect();
             break;
           }
@@ -162,5 +165,7 @@ checkIfFeatureEnabled("addPersonRedesign").then((result) => {
         document.querySelector("#mLastNameCurrent").value = lastNameCurrent;
       }
     });
+
+    $("#enterBasicDataButton").on("click", function () {});
   }
 });
