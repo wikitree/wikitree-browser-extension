@@ -285,6 +285,12 @@ registerFeature({
       ],
       defaultValue: "",
     },
+    {
+      id: "changeDefaultFromSelect",
+      type: OptionType.CHECKBOX,
+      label: "Change the default each time you choose a different language on an Add Person page.",
+      defaultValue: true,
+    },
   ],
 });
 

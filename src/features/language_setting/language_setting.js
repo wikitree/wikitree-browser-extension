@@ -18,14 +18,16 @@ function setLanguage() {
         $("#languageToggleRow").hide();
         $("#languageRow").show();
       }
-      $("#mOptions_person_language").on("change", function () {
-        const language = $(this).val();
-        window.languageSettingOptions.language = language;
-        const storageName = "languageSetting_options";
-        chrome.storage.sync.set({
-          [storageName]: window.languageSettingOptions,
+      if (window.languageSettingOptions.changeDefaultFromSelect) {
+        $("#mOptions_person_language").on("change", function () {
+          const language = $(this).val();
+          window.languageSettingOptions.language = language;
+          const storageName = "languageSetting_options";
+          chrome.storage.sync.set({
+            [storageName]: window.languageSettingOptions,
+          });
         });
-      });
+      }
     }, 1000);
   });
 }
