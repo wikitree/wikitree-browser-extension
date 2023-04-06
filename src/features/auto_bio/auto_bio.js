@@ -5277,7 +5277,7 @@ checkIfFeatureEnabled("autoBio").then((result) => {
   if (result) {
     getFeatureOptions("autoBio").then((options) => {
       window.autoBioOptions = options;
-      console.log("window.autoBioOptions", window.autoBioOptions);
+      // console.log("window.autoBioOptions", window.autoBioOptions);
       window.boldBit = "";
       if (window.autoBioOptions.boldNames) {
         window.boldBit = "'''";
