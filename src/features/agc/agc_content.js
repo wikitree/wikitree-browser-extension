@@ -26,10 +26,13 @@ SOFTWARE.
 Created By: Rob Pavey (Pavey-429)
 */
 
+<<<<<<< HEAD
 /*
 Created By: Rob Pavey (Pavey-429)
 */
 
+=======
+>>>>>>> e8f615c4f2f1119464034619121d52d602d1d4e2
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 // file level variables
@@ -83,23 +86,7 @@ function asyncLoadScriptAndCallEditBio(editBioInput, sendResponse) {
 }
 
 async function useModuleToEditBio(editBioInput, callback) {
-  // This is a bit kludgy, in Chrome MV3 there is no background script so the sendMessage
-  // will always set lastError.
-  try {
-    chrome.runtime.sendMessage({ type: "doEditBio", editBioInput: editBioInput }, function (response) {
-      if (chrome.runtime.lastError) {
-        // possibly there is no content script loaded, bring up default menu for unknown pages
-        //console.log("No response from doEditBioMessage in useModuleToEditBio");
-        asyncLoadScriptAndCallEditBio(editBioInput, callback);
-      } else {
-        // This must be Firefox or Safari since the sendMessage succeeded.
-        callback(response);
-      }
-    });
-  } catch (error) {
-    //console.log("useModuleToEditBio caught error");
-    asyncLoadScriptAndCallEditBio(editBioInput, callback);
-  }
+  asyncLoadScriptAndCallEditBio(editBioInput, callback);
 }
 
 function checkForGedcomCreatedProfile() {

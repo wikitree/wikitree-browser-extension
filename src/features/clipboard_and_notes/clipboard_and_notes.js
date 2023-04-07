@@ -19,12 +19,6 @@ export function appendClipboardButtons(clipboardButtons = $()) {
       $("#toolbar").append(clipboardButtons, $("span.theClipboardButtons"));
     }
   } else {
-    /*else if ($("body.page-Special_EditFamily").length) {
-    $("p.sourcesContent").append(clipboardButtons, $("span.theClipboardButtons"));
-    //$("#mEmail").after(clipboardButtons, $("span.theClipboardButtons"));
-  } else if ($("body.page-Special_EditFamilySteps").length) {
-    $("p.sourcesContent").append(clipboardButtons, $("span.theClipboardButtons"));
-  }*/
     $("#header,#HEADER").append(clipboardButtons, $("span.theClipboardButtons"));
   }
 }
@@ -284,13 +278,12 @@ async function clipboard(type, action = false) {
   $("#clipboard tbody").html("");
 
   const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
-  clipboardDB.onsuccess = function (event) {
+  clipboardDB.onsuccess = function () {
     let cdb = clipboardDB.result;
     let transaction = cdb.transaction(["Clipboard"]);
     let req = transaction.objectStore("Clipboard").openCursor();
     req.onsuccess = function (event) {
       let res = req.result;
-      res = [];
       let cursor = event.target.result;
 
       if (cursor) {
@@ -500,7 +493,7 @@ async function initClipboard() {
       $("#privatemessage-modal-close").on("click", function () {
         $(".theClipboardButtons").appendTo($("#header"));
       });
-    }, 1000);
+    }, 2500);
   });
 }
 
