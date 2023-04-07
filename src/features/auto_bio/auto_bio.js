@@ -3571,8 +3571,6 @@ function sourcesArray(bio) {
       aRef["Record Type"].push("Census", "Birth");
       const yearMatch = aRef.Text.match(/(1[89]\d{2}) .*?Census/);
       const yearMatch2 = aRef.Text.match(/(1[89]\d{2}) England and Wales/);
-      console.log(yearMatch);
-      console.log(yearMatch2);
       if (yearMatch) {
         aRef.Year = yearMatch[1];
         aRef["Census Year"] = yearMatch[1];
