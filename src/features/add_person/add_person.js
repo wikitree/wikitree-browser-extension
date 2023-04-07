@@ -175,5 +175,15 @@ checkIfFeatureEnabled("addPersonRedesign").then((result) => {
         }
       }, 2000);
     });
+
+    $("#actionButton").on("click", function () {
+      setTimeout(() => {
+        if ($("#editAction_connectExisting").prop("checked") == true) {
+          $("#sourcesSection").show();
+        }
+      }, 1500);
+    });
+
+    //  ||$("#editAction_connectExisting").prop("checked") == true
   }
 });
