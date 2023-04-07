@@ -2243,7 +2243,7 @@ function addToNeedsProfilesCreated(householdMember) {
 }
 
 function buildCensusNarratives() {
-  const yearRegex = /\b(\d{4})\b/;
+  const yearRegex = /\b(1[89]\d{2})\b/;
   getCensusesFromCensusSection();
 
   window.references.forEach(function (reference) {
@@ -2253,7 +2253,9 @@ function buildCensusNarratives() {
       reference["Event Type"] = "Census";
       let match = reference.Text.match(yearRegex);
       if (match) {
-        reference["Census Year"] = match[1];
+        if (!reference["Census Year"]) {
+          reference["Census Year"] = match[1];
+        }
 
         // Ancestry list style (from Sourcer?)
         const ancestryPattern = /.*?Ancestry.*?accessed.*?\),\s([^;]*)([^:]*)(:{2}[^$]+)?/m;
@@ -3567,12 +3569,14 @@ function sourcesArray(bio) {
     }
     if (aRef.Text.match(/Census|1939 England and Wales Register/)) {
       aRef["Record Type"].push("Census", "Birth");
-      const yearMatch = aRef.Text.match(/(\d{4}) Census/);
-      const yearMatch2 = aRef.Text.match(/(\d{4}) England and Wales/);
+      const yearMatch = aRef.Text.match(/(1[89]\d{2}) .*?Census/);
+      const yearMatch2 = aRef.Text.match(/(1[89]\d{2}) England and Wales/);
       if (yearMatch) {
         aRef.Year = yearMatch[1];
+        aRef["Census Year"] = yearMatch[1];
       } else if (yearMatch2) {
         aRef.Year = yearMatch2[1];
+        aRef["Census Year"] = yearMatch2[1];
       }
       const placeMatch = aRef.Text.match(/household.*, ([^,]+?, [^,]+?), United States;/);
       if (placeMatch) {
