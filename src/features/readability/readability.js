@@ -67,6 +67,9 @@ async function initReadability() {
       });
     });
   }
+  if (options.indentSrcPlainText) {
+    $(".x-sources.x-text-only").wrapInner('<dl class="x-sources x-text-only"><dd></dd></dl>').children().unwrap();
+  }
   if (options.removeSourceBreaks / 1 || options.removeSourceLabels || options.boldSources) {
     let qy = $(".x-src");
     if (options.removeSourceBreaks % 4 > 0) {

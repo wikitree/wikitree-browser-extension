@@ -207,10 +207,18 @@ export function ensureProfileClasses() {
       .each(function () {
         // sometimes text can be put in the sources section, such as "See also:" (only happens with leading whitespace)
         if (this.previousSibling.nodeType == 3 && /\S/.test(this.previousSibling.nodeValue)) {
-          $(this.previousSibling).wrap('<span class="x-sources"></span>');
+          $(this.previousSibling).wrap('<p class="x-sources"></p>');
         }
       });
     $(".x-content ol.references").addClass("x-sources");
+
+    // mark plain-text elements at the root of the sources section
+    $(".x-content > p.x-sources")
+      .filter(function () {
+        return this.childNodes.length === 1 && this.childNodes[0].nodeType === 3;
+      })
+      .addClass("x-text-only");
+
     // mark source list items separately
     $("ul.x-sources > li, ol.x-sources > li").addClass("x-src");
 
