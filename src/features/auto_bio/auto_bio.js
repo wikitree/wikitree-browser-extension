@@ -4043,6 +4043,7 @@ function getFamilySearchFacts() {
 }
 
 function splitBioIntoSections() {
+  let shouldStartWithAsterisk = true;
   const wikiText = $("#wpTextbox1").val();
   let lines = wikiText.split("\n");
   let currentSection = { subsections: {}, text: [] };
@@ -4082,6 +4083,12 @@ function splitBioIntoSections() {
       if (m) console.log(`exclude match: ${m}`);
       line = line.replace(ex, "").trim();
     });
+
+    // If the line is empty and the previous section is "Sources", keep the line as-is without trimming
+    if (currentSection.title === "Sources" && line === "") {
+      line = lines[i];
+    }
+
     let sectionMatch = line.match(/^={2}([^=]+)={2}$/);
     let subsectionMatch = line.match(/^={3}([^=]+)={3}$/);
     if (sectionMatch) {
@@ -4121,7 +4128,10 @@ function splitBioIntoSections() {
     } else {
       if (currentSubsection && line) {
         currentSubsection.text.push(line);
-      } else if (currentSection && line) {
+      } else if (currentSection) {
+        if (currentSection.title === "Sources" && line === "") {
+          shouldStartWithAsterisk = true;
+        }
         currentSection.text.push(line);
         if (!currentSection.title) {
           sections.StuffBeforeTheBio.text.push(line);
