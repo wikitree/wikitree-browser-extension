@@ -215,7 +215,13 @@ export function ensureProfileClasses() {
     // mark plain-text elements at the root of the sources section
     $(".x-content > p.x-sources")
       .filter(function () {
-        return this.childNodes.length === 1 && this.childNodes[0].nodeType === 3;
+        return (
+          $(this)
+            .children()
+            .filter(function () {
+              return !(this.nodeType === 3 || $(this).is("a[name]:empty, a[id]:empty, span[id]:empty"));
+            }).length === 0
+        );
       })
       .addClass("x-text-only");
 
