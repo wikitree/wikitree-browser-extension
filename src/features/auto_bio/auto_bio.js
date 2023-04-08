@@ -3335,7 +3335,16 @@ function sourcesArray(bio) {
       if (aSource.match(unsourced)) {
         NonSource = true;
       }
-      refArr.push({ Text: aSource.trim(), RefName: "", NonSource: NonSource });
+      if (aSource.match(/\n\n/)) {
+        const aSourceBits = aSource.split(/\n\n/);
+        aSourceBits.forEach(function (aSourceBit) {
+          if (aSourceBit.match(notShow) == null) {
+            refArr.push({ Text: aSourceBit.trim(), RefName: "", NonSource: NonSource });
+          }
+        });
+      } else {
+        refArr.push({ Text: aSource.trim(), RefName: "", NonSource: NonSource });
+      }
     }
   });
 
@@ -4123,7 +4132,14 @@ function splitBioIntoSections() {
 
   console.log("Bio sections", JSON.parse(JSON.stringify(sections)));
   if (sections.Sources) {
+    let shouldStartWithAsterisk = true;
+    let previousLineEmpty = true;
     sections.Sources.text.forEach(function (line, i) {
+      if (shouldStartWithAsterisk && line.trim() !== "" && !line.trim().startsWith("*")) {
+        sections.Sources.text[i] = "*" + line.trim();
+      }
+      shouldStartWithAsterisk = line.trim() === "";
+      previousLineEmpty = line.trim() === "";
       if (line.match(/See also:/i)) {
         if (!sections["See Also"]) {
           sections["See Also"] = { originalTitle: "See Also", title: "See Also", text: [], subsections: {} };
