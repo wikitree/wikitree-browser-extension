@@ -3335,7 +3335,16 @@ function sourcesArray(bio) {
       if (aSource.match(unsourced)) {
         NonSource = true;
       }
-      refArr.push({ Text: aSource.trim(), RefName: "", NonSource: NonSource });
+      if (aSource.match(/\n\n/)) {
+        const aSourceBits = aSource.split(/\n\n/);
+        aSourceBits.forEach(function (aSourceBit) {
+          if (aSourceBit.match(notShow) == null) {
+            refArr.push({ Text: aSourceBit.trim(), RefName: "", NonSource: NonSource });
+          }
+        });
+      } else {
+        refArr.push({ Text: aSource.trim(), RefName: "", NonSource: NonSource });
+      }
     }
   });
 
@@ -4034,6 +4043,7 @@ function getFamilySearchFacts() {
 }
 
 function splitBioIntoSections() {
+  let shouldStartWithAsterisk = true;
   const wikiText = $("#wpTextbox1").val();
   let lines = wikiText.split("\n");
   let currentSection = { subsections: {}, text: [] };
@@ -4073,6 +4083,12 @@ function splitBioIntoSections() {
       if (m) console.log(`exclude match: ${m}`);
       line = line.replace(ex, "").trim();
     });
+
+    // If the line is empty and the previous section is "Sources", keep the line as-is without trimming
+    if (currentSection.title === "Sources" && line === "") {
+      line = lines[i];
+    }
+
     let sectionMatch = line.match(/^={2}([^=]+)={2}$/);
     let subsectionMatch = line.match(/^={3}([^=]+)={3}$/);
     if (sectionMatch) {
@@ -4112,7 +4128,10 @@ function splitBioIntoSections() {
     } else {
       if (currentSubsection && line) {
         currentSubsection.text.push(line);
-      } else if (currentSection && line) {
+      } else if (currentSection) {
+        if (currentSection.title === "Sources" && line === "") {
+          shouldStartWithAsterisk = true;
+        }
         currentSection.text.push(line);
         if (!currentSection.title) {
           sections.StuffBeforeTheBio.text.push(line);
@@ -4123,7 +4142,14 @@ function splitBioIntoSections() {
 
   console.log("Bio sections", JSON.parse(JSON.stringify(sections)));
   if (sections.Sources) {
+    let shouldStartWithAsterisk = true;
+    let previousLineEmpty = true;
     sections.Sources.text.forEach(function (line, i) {
+      if (shouldStartWithAsterisk && line.trim() !== "" && !line.trim().startsWith("*")) {
+        sections.Sources.text[i] = "*" + line.trim();
+      }
+      shouldStartWithAsterisk = line.trim() === "";
+      previousLineEmpty = line.trim() === "";
       if (line.match(/See also:/i)) {
         if (!sections["See Also"]) {
           sections["See Also"] = { originalTitle: "See Also", title: "See Also", text: [], subsections: {} };
