@@ -57,8 +57,6 @@ function dataStatusWord(status, ISOdate, needOnIn = false) {
 
 function autoBioCheck(sourcesStr) {
   let thePerson = new PersonDate();
-  // get the bio text and person dates to check
-  // let sourcesStr = document.getElementById("mSources").value;
   let birthDate = document.getElementById("mBirthDate").value;
   let deathDate = document.getElementById("mDeathDate").value;
   thePerson.initWithDates(birthDate, deathDate);
@@ -72,6 +70,7 @@ function autoBioCheck(sourcesStr) {
     false
   );
   const hasSources = biography.hasSources();
+  console.log(hasSources);
   return hasSources;
 }
 const unsourced =
@@ -639,6 +638,16 @@ function getStatus(child) {
 }
 
 function childList(person, spouse) {
+  /*
+  const spouseKeys = [];
+  if (!Array.isArray(person.Spouses)) {
+    Object.keys(person.Spouses).forEach(function (key) {
+      spouseKeys.push(key);
+    });
+  }
+  */
+
+  console.log("here");
   let text = "";
   let ourChildren = [];
   let childrenKeys = Object.keys(person.Children);
@@ -674,6 +683,7 @@ function childList(person, spouse) {
   if (ourChildren.length == 0) {
     return "";
   } else if (ourChildren.length == 1) {
+    console.log(5);
     let childWord = "child";
     if (ourChildren[0].Gender) {
       if (ourChildren[0].Gender == "Male") childWord = "son";
@@ -684,7 +694,7 @@ function childList(person, spouse) {
     text += (possessive || "Their") + " " + other + known + "children were:\n";
   }
   let childListText = "";
-
+  //  || spouse == false
   if (ourChildren.length == 1) {
     if (ourChildren[0].Father == spouse.Id || ourChildren[0].Mother == spouse.Id) {
       const theDates = personDates(ourChildren[0]).replace(/(in|on)\s/, "");
@@ -734,7 +744,8 @@ function childList(person, spouse) {
   }
   childListText = childListText.trim();
 
-  text += childListText;
+  text += childListText.replace(/\s\.$/, ".");
+  console.log(text);
   return text;
 }
 
@@ -853,6 +864,7 @@ function isReferenceRelevant(reference, event, spouse) {
 
 function buildBirth(person) {
   let text = "";
+  console.log(person);
   let theName = person.PersonName.BirthName || person.RealName;
   if (window.autoBioOptions.fullNameOrBirthName == "FullName") {
     theName = person.PersonName.FullName || person.RealName;
@@ -971,6 +983,7 @@ function buildDeath(person) {
       }
     }
   });
+
   window.sectionsObject.StuffBeforeTheBio.text.forEach(function (thing) {
     const cemeteryCategoryMatch = thing.match(
       /Category:\s?((.*Cemetery|Memorial|Cimetière|kyrkogård|temető|Grave|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard).*?)\]\]/
@@ -1592,6 +1605,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
       const residenceOut = reference.Residence.replace(/, (United States|England|Scotland|Canada|Wales|Australia)/, "");
       text += " in " + minimalPlace(residenceOut);
     }
+
     text += ".";
     if (
       text.match(/\b(daughter|son|wife|mother|husband|sister|brother)\b/) == null &&
@@ -2242,6 +2256,108 @@ function addToNeedsProfilesCreated(householdMember) {
   }
 }
 
+function parseSourcerCensusWithCSVList(reference) {
+  const referenceBits = reference.Text.split(/<br\s?>/);
+  const lastBit = referenceBits[referenceBits.length - 1];
+  if (
+    lastBit.match(window.profilePerson.PersonName.FirstName) &&
+    lastBit.match(/wife|husband|son|daughter|father|mother/)
+  ) {
+    /* Parse a family in this format: Gerritt Bleeker Jr. 42, 
+    wife Minnie Bleeker 42, son Garry P Bleeker 19, 
+    son George H Bleeker 17, daughter Minnie H Bleeker 16, 
+    daughter Grace F Bleeker 14, son Roy W Bleeker 5, 
+    son Floyd M Bleeker 4.
+    */
+    const familyBits = lastBit.split(/, /);
+    if (familyBits.length) {
+      reference.Household = [];
+    }
+    familyBits.forEach(function (familyBit) {
+      const person = {};
+      const nameMatch = familyBit.match(/[A-Z][^\d,]+/);
+      if (nameMatch) {
+        person["Name"] = nameMatch[0].trim();
+
+        const relationMatch = familyBit.match(
+          /father|mother|brother|sister|son|daughter|grandfather|grandmother|aunt|uncle/
+        );
+        if (relationMatch) {
+          person["OriginalRelation"] = relationMatch[0];
+        }
+        const ageMatch = familyBit.match(/\d+(\s(mo.|months))?/);
+        if (ageMatch) {
+          person["Age"] = ageMatch[0];
+        }
+        reference.Household.push(person);
+      }
+    });
+    /* Get the residence from the second to last bit, 
+    which may look like this: 
+    George H Bleeker (17), single son, in household of Gerritt Bleeker Jr. (42)
+     in Thull, Golden Valley, Montana, United States. Born in Montana.
+    */
+    const residenceBits = referenceBits[referenceBits.length - 2].split(/, /);
+    const residence = residenceBits[0];
+    const residenceLocation = residenceBits[1];
+    const residenceState = residenceBits[2];
+    reference.residence = residence + ", " + residenceLocation + ", " + residenceState;
+    reference = assignSelf(reference);
+  }
+  return reference;
+}
+
+function parseSourcerCensusWithColons(reference) {
+  // Similar to the previous function, but with colons instead of commas
+  /*
+  Like this:
+  :: Henry Thomas    M    55        Pennsylvania
+:: Catharine Thomas    F    45        Pennsylvania
+:: John Thomas    M    24        Pennsylvania
+:: Christopher Thomas    M    22        Pennsylvania
+:: William Thomas    M    20        Pennsylvania
+:: Charlotte Thomas    F    12        Pennsylvania
+ */
+  const referenceBits = reference.Text.split(/<br\s?>/);
+  const lastBit = referenceBits[referenceBits.length - 1];
+  console.log(lastBit.match(/::\s?[A-Z][^\d]\d{1,2}/));
+  if (lastBit.match(/::\s?[A-Z][^\d]+\d/)) {
+    reference.Household = [];
+    const lines = lastBit.split(/[\n\r]/);
+    lines.forEach(function (line) {
+      console.log(line);
+      if (line.match(/^::/)) {
+        const person = {};
+        const nameMatch = line.match(/[A-Z][^\d,(\s\s)]+/);
+        if (nameMatch) {
+          person["Name"] = nameMatch[0].trim();
+          const ageMatch = line.match(/\d+(\s(mo.|months))?/);
+          if (ageMatch) {
+            person["Age"] = ageMatch[0];
+          }
+          const relationMatch = line.match(
+            /father|mother|brother|sister|son|daughter|grandfather|grandmother|aunt|uncle/
+          );
+          if (relationMatch) {
+            person["OriginalRelation"] = relationMatch[0];
+          }
+          const genderMatch = line.match(/\s([MF])\s/);
+          if (genderMatch) {
+            if (genderMatch[0] == "M") {
+              person.Gender = "Male";
+            } else if (genderMatch[0] == "F") {
+              person.Gender = "Female";
+            }
+          }
+          reference.Household.push(person);
+        }
+      }
+    });
+    reference = assignSelf(reference);
+  }
+  return reference;
+}
+
 function buildCensusNarratives() {
   const yearRegex = /\b(1[89]\d{2})\b/;
   getCensusesFromCensusSection();
@@ -2335,6 +2451,14 @@ function buildCensusNarratives() {
       }
 
       const ageAtCensus = getAgeAtCensus(window.profilePerson, reference["Census Year"]);
+
+      if (!reference.Household) {
+        reference = parseSourcerCensusWithCSVList(reference);
+      }
+
+      if (!reference.Household) {
+        reference = parseSourcerCensusWithColons(reference);
+      }
 
       if (!reference.Household) {
         // No table, probably
@@ -3311,13 +3435,15 @@ function sourcesArray(bio) {
   });
 
   window.sourcesSection.text = window.sourcesSection.text.map(function (aSource) {
-    if (aSource.match(/database( with images)?, FamilySearch|^http/) && aSource.match(/^\*/) == null) {
-      return "* " + aSource.replace(/''Replace this citation if there is another source.''/, "");
-    } else {
-      if (aSource.match(/<references\s?\/>/) == null) {
-        return aSource.replace(/''Replace this citation if there is another source.''/, "");
+    if (aSource) {
+      if (aSource.match(/database( with images)?, FamilySearch|^http/) && aSource.match(/^\*/) == null) {
+        return "* " + aSource.replace(/''Replace this citation if there is another source.''/, "");
       } else {
-        return;
+        if (aSource.match(/<references\s?\/>/) == null) {
+          return aSource.replace(/''Replace this citation if there is another source.''/, "");
+        } else {
+          return;
+        }
       }
     }
   });
@@ -3905,21 +4031,28 @@ function updateRelationForSibling(otherPerson) {
 }
 
 async function getStickersAndBoxes() {
+  console.log(1);
   let afterBioHeading = "";
   // eslint-disable-next-line no-undef
   await fetch(chrome.runtime.getURL("features/wtPlus/templatesExp.json"))
     .then((resp) => resp.json())
     .then((jsonData) => {
-      const templatesAfterBioHeading = ["Sticker", "Navigation Profile Box"];
-      let thingsToAdd = [];
+      const templatesToAdd = ["Sticker", "Navigation Profile Box", "Project Box", "Profile Box"];
+      const beforeHeadingThings = ["Project Box", "Research note box"];
+      let thingsToAddAfterBioHeading = [];
+      let thingsToAddBeforeBioHeading = [];
       const currentBio = $("#wpTextbox1").val();
       jsonData.templates.forEach(function (aTemplate) {
-        if (templatesAfterBioHeading.includes(aTemplate.type) && aTemplate.group != "Project") {
-          var newTemplateMatch = currentBio.matchAll(/\{\{.*?\}\}/gs);
+        if (templatesToAdd.includes(aTemplate.type)) {
+          var newTemplateMatch = currentBio.matchAll(/\{\{[^}]*?\}\}/gs);
           for (var match of newTemplateMatch) {
             var re = new RegExp(aTemplate.name, "gs");
-            if (match[0].match(re) && !thingsToAdd.includes(match[0])) {
-              thingsToAdd.push(match[0]);
+            if (match[0].match(re) && !thingsToAddAfterBioHeading.includes(match[0])) {
+              if (beforeHeadingThings.includes(aTemplate.type) || beforeHeadingThings.includes(aTemplate.group)) {
+                thingsToAddBeforeBioHeading.push(match[0]);
+              } else {
+                thingsToAddAfterBioHeading.push(match[0]);
+              }
             }
           }
         }
@@ -3928,13 +4061,19 @@ async function getStickersAndBoxes() {
       if (window.autoBioOptions.diedYoung) {
         const deathAge = ageAtDeath(window.profilePerson, false);
         if (deathAge[0]) {
-          if (deathAge[0] < 17 && !thingsToAdd.includes("{{Died Young}}")) {
-            thingsToAdd.push("{{Died Young}}");
+          if (deathAge[0] < 17 && !thingsToAddAfterBioHeading.includes("{{Died Young}}")) {
+            thingsToAddAfterBioHeading.push("{{Died Young}}");
           }
         }
       }
 
-      thingsToAdd.forEach(function (thing) {
+      thingsToAddBeforeBioHeading.forEach(function (box) {
+        if (!window.sectionsObject.StuffBeforeTheBio.text.includes(box)) {
+          window.sectionsObject.StuffBeforeTheBio.text.push(box);
+        }
+      });
+
+      thingsToAddAfterBioHeading.forEach(function (thing) {
         afterBioHeading += thing + "\n";
         // If a sticker is before the bio heading, remove it.
         window.sectionsObject.StuffBeforeTheBio.text.forEach(function (beforeBio) {
@@ -4143,13 +4282,11 @@ function splitBioIntoSections() {
   console.log("Bio sections", JSON.parse(JSON.stringify(sections)));
   if (sections.Sources) {
     let shouldStartWithAsterisk = true;
-    let previousLineEmpty = true;
     sections.Sources.text.forEach(function (line, i) {
       if (shouldStartWithAsterisk && line.trim() !== "" && !line.trim().startsWith("*")) {
         sections.Sources.text[i] = "*" + line.trim();
       }
       shouldStartWithAsterisk = line.trim() === "";
-      previousLineEmpty = line.trim() === "";
       if (line.match(/See also:/i)) {
         if (!sections["See Also"]) {
           sections["See Also"] = { originalTitle: "See Also", title: "See Also", text: [], subsections: {} };
@@ -4423,6 +4560,7 @@ export async function generateBio() {
 
   const originalFormData = getFormData();
   fixLocations();
+  const originalFirstName = window.profilePerson.FirstName;
   // Get the form data and add it to the profilePerson
   const formData = getFormData();
   console.log("formData", formData);
@@ -4432,6 +4570,24 @@ export async function generateBio() {
       window.profilePerson[aKey] = formData[aKey];
     }
   });
+  // window.profilePerson.BirthName is their FirstName + MiddleName if they have a MiddleName
+  if (isOK(window.profilePerson.MiddleName)) {
+    window.profilePerson.BirthName = window.profilePerson.FirstName + " " + window.profilePerson.MiddleName;
+  } else {
+    window.profilePerson.BirthName = window.profilePerson.FirstName;
+  }
+
+  if (window.profilePerson.RealName == originalFirstName) {
+    window.profilePerson.RealName = window.profilePerson.FirstName;
+  }
+  // window.profilePerson.BirthNamePrivate is RealName LastNameAtBirth Suffix
+  if (isOK(window.profilePerson.Suffix)) {
+    window.profilePerson.BirthNamePrivate =
+      window.profilePerson.RealName + " " + window.profilePerson.LastNameAtBirth + " " + window.profilePerson.Suffix;
+  } else {
+    window.profilePerson.BirthNamePrivate = window.profilePerson.RealName + " " + window.profilePerson.LastNameAtBirth;
+  }
+
   assignPersonNames(window.profilePerson);
   if (isOK(window.profilePerson.BirthDate) && window.profilePerson.BirthDate.match("-") == null) {
     window.profilePerson.BirthDate = convertDate(window.profilePerson.BirthDate, "ISO");
@@ -5074,9 +5230,24 @@ export async function generateBio() {
     }
   }
 
+  function categoriesBeforeProjects(textArray) {
+    return textArray.sort((a, b) => {
+      if (a.startsWith("{{") && b.startsWith("[[")) {
+        return 1;
+      } else if (a.startsWith("[[") && b.startsWith("{{")) {
+        return -1;
+      } else {
+        return 0;
+      }
+    });
+  }
+
   // Add stuff before the bio
   let stuffBeforeTheBioText = "";
   if (window.sectionsObject["StuffBeforeTheBio"]) {
+    window.sectionsObject.StuffBeforeTheBio.text = categoriesBeforeProjects(
+      window.sectionsObject.StuffBeforeTheBio.text
+    );
     const stuff = window.sectionsObject["StuffBeforeTheBio"].text.join("\n");
     if (stuff) {
       stuffBeforeTheBioText = stuff + "\n";

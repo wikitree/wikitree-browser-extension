@@ -1277,7 +1277,7 @@ function insertInSibList() {
       $(this)
         .text()
         // eslint-disable-next-line no-control-regex
-        .match(/\] and	\[private/)
+        .match(/\] and	\[private|\], \[private/)
     ) {
       $(this).remove();
     }
