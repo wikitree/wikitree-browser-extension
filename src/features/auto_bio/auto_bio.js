@@ -2262,7 +2262,8 @@ function parseSourcerCensusWithCSVList(reference) {
   const lastBit = referenceBits[referenceBits.length - 1];
   if (
     lastBit.match(window.profilePerson.PersonName.FirstName) &&
-    lastBit.match(/wife|husband|son|daughter|father|mother/)
+    lastBit.match(/\b(wife|husband|son|daughter|father|mother)\b/) &&
+    referenceBits.length > 0
   ) {
     /* Parse a family in this format: Gerritt Bleeker Jr. 42, 
     wife Minnie Bleeker 42, son Garry P Bleeker 19, 
@@ -2298,11 +2299,14 @@ function parseSourcerCensusWithCSVList(reference) {
     George H Bleeker (17), single son, in household of Gerritt Bleeker Jr. (42)
      in Thull, Golden Valley, Montana, United States. Born in Montana.
     */
-    const residenceBits = referenceBits[referenceBits.length - 2].split(/, /);
-    const residence = residenceBits[0];
-    const residenceLocation = residenceBits[1];
-    const residenceState = residenceBits[2];
-    reference.residence = residence + ", " + residenceLocation + ", " + residenceState;
+    if (referenceBits.length > 1) {
+      const residenceBits = referenceBits[referenceBits.length - 2].split(/, /);
+
+      const residence = residenceBits[0];
+      const residenceLocation = residenceBits[1];
+      const residenceState = residenceBits[2];
+      reference.residence = residence + ", " + residenceLocation + ", " + residenceState;
+    }
     reference = assignSelf(reference);
   }
   return reference;
