@@ -69,6 +69,7 @@ function autoBioCheck(sourcesStr) {
     thePerson.isUndated(),
     false
   );
+  biography.validate();
   const hasSources = biography.hasSources();
   console.log(hasSources);
   return hasSources;
