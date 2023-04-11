@@ -117,3 +117,8 @@
     right: 130px;
   }
 }
+
+.sticky-header a[name],
+.sticky-header *[id] {
+  scroll-margin-top: calc(20px + var(--header-height));
+}
