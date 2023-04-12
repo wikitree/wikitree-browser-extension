@@ -14,6 +14,7 @@ import "./features/categoryFinderPins/categoryFinderPins";
 import "./features/change_family_lists/change_family_lists";
 import "./features/clipboard_and_notes/clipboard_and_notes";
 import "./features/collapsibleDescendantsTree/collapsibleDescendantsTree";
+import "./features/confirm_thank_yous/confirm_thank_yous";
 import "./features/custom_change_summary_options/custom_change_summary_options";
 import "./features/darkMode/darkMode";
 import "./features/date_fixer/date_fixer";
