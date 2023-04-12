@@ -167,13 +167,25 @@ function fixLocations() {
   [birth, death].forEach(function (event) {
     // Look for space before country name and add a comma if found
     const countryArray = ["US", "USA", "U.S.A.", "UK", "U.K.", "United States of America"];
+    // Countries that may have a north, south, etc.
+    const excludeCountries = [
+      "Australia",
+      "Solomon Islands",
+      "Seychelles",
+      "Trinidad and Tobago",
+      "Papua New Guinea",
+      "Bosnia and Herzegovina",
+    ];
     countries.forEach(function (country) {
-      countryArray.push(country.name);
+      if (!excludeCountries.includes(country.name)) {
+        countryArray.push(country.name);
+      }
     });
     countryArray.forEach(function (country) {
-      const spaceCountryPattern = new RegExp(`[a-z]\\s${country}$`);
-      if (event.Location.match(spaceCountryPattern)) {
-        event.Location = event.Location.replace(spaceCountryPattern, `, ${country}`);
+      const spaceCountryPattern = new RegExp(`([a-z])\\s${country}$`);
+      const thisMatch = event.Location.match(spaceCountryPattern);
+      if (thisMatch) {
+        event.Location = event.Location.replace(thisMatch[0], thisMatch[1] + ", " + country);
       }
     });
 
