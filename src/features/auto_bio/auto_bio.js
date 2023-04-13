@@ -660,7 +660,6 @@ function childList(person, spouse) {
   }
   */
 
-  console.log("here");
   let text = "";
   let ourChildren = [];
   let childrenKeys = Object.keys(person.Children);
@@ -696,7 +695,6 @@ function childList(person, spouse) {
   if (ourChildren.length == 0) {
     return "";
   } else if (ourChildren.length == 1) {
-    console.log(5);
     let childWord = "child";
     if (ourChildren[0].Gender) {
       if (ourChildren[0].Gender == "Male") childWord = "son";
@@ -710,7 +708,7 @@ function childList(person, spouse) {
   //  || spouse == false
   if (ourChildren.length == 1) {
     if (ourChildren[0].Father == spouse.Id || ourChildren[0].Mother == spouse.Id) {
-      const theDates = personDates(ourChildren[0]).replace(/(in|on)\s/, "");
+      const theDates = personDates(ourChildren[0]).replace(/(in|on)\s/g, "");
       const status = getStatus(ourChildren[0]);
       childListText += nameLink(ourChildren[0]) + " " + theDates + " " + status + ".\n";
     } else {
@@ -746,7 +744,7 @@ function childList(person, spouse) {
         }
       }
       */
-      const theDates = personDates(child).replace(/(in|on)\s/, "");
+      const theDates = personDates(child).replace(/(in|on)\s/g, "");
       childListText += nameLink(child) + " " + theDates + " " + status + ".\n";
       //childListText += nameLink(child) + " " + formatDates(child) + status + "\n";
       gotChild = true;
@@ -757,8 +755,7 @@ function childList(person, spouse) {
   }
   childListText = childListText.trim();
 
-  text += childListText.replace(/\s\.$/, ".");
-  console.log(text);
+  text += childListText.replace(/\s\.$/, "");
   return text;
 }
 
@@ -781,7 +778,7 @@ function siblingList() {
         ", " +
         nameLink(siblings[0]) +
         " " +
-        personDates(siblings[0]).replace(/(in|on)\s/, "") +
+        personDates(siblings[0]).replace(/(in|on)\s/g, "") +
         ".\n";
     } else if (siblings.length > 1) {
       text += capitalizeFirstLetter(window.profilePerson.Pronouns.possessiveAdjective) + " siblings were:\n";
@@ -792,7 +789,7 @@ function siblingList() {
         } else {
           text += "#";
         }
-        text += nameLink(sibling) + " " + personDates(sibling).replace(/(in|on)\s/, "") + "\n";
+        text += nameLink(sibling) + " " + personDates(sibling).replace(/(in|on)\s/g, "") + "\n";
       });
     }
   }
@@ -1111,8 +1108,8 @@ function buildSpouses(person) {
           spouseDetailsB += " " + spouse.PersonName.FirstName + " was born";
         }
         if (isOK(spouse.BirthDate)) {
-          spouseDetailsA += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate);
-          spouseDetailsB += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate);
+          spouseDetailsA += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate, { needOn: true });
+          spouseDetailsB += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate, { needOn: true });
         }
         if (spouse.BirthLocation) {
           let place = minimalPlace(spouse.BirthLocation);
@@ -4745,7 +4742,7 @@ export async function generateBio() {
     } else {
       aChildList = childList(window.profilePerson, "other");
     }
-    console.log("aChildList", aChildList);
+    // console.log("aChildList", aChildList);
     const eventDateMatch = aChildList.match(/(\d{4})–/);
     const firstBirth = window.profilePerson.Children[childrenKeys[0]].BirthDate;
     let eventDate;
