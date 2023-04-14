@@ -120,7 +120,8 @@ if (
 } else if (
   // Profile Page
   window.location.pathname.match(/(\/wiki\/)\w[^:]*-[0-9]*/g) ||
-  window.location.href.match(/\/index.php\?title=\w[^:]+-[0-9]+/g)
+  (window.location.href.match(/\/index.php\?title=\w[^:]+-[0-9]+/g) &&
+    !window.location.href.match(/\/index.php\?title=(Special|Space|Category|Template|Help|Project)/g))
 ) {
   isProfilePage = true;
   if ($(".toggleMemberSection").length) {
@@ -219,7 +220,7 @@ if (
 } else if (
   // Special Page
   window.location.pathname.match(/(\/wiki\/)Special:*/g) ||
-  window.location.href.match(/\/index.php\?title=Special:.*/g)
+  window.location.href.match(/\/index.php\?title=Special.*/g)
 ) {
   isSpecialPage = true;
   if (
@@ -229,19 +230,19 @@ if (
   ) {
     isSpecialBadges = true;
   } else if (
-    // Special Badges Page
+    // Special My Connections
     window.location.pathname.match(/(\/wiki\/)Special:MyConnections*/g) ||
-    window.location.href.match(/\/index.php\?title=Special:MyConnections.*/g)
+    window.location.href.match(/\/index.php\?title=Special.*?MyConnections.*/g)
   ) {
     isSpecialMyConnections = true;
   } else if (
-    // Special Badges Page
+    // Special DNA Tests
     window.location.pathname.match(/(\/wiki\/)Special:DNATests*/g) ||
     window.location.href.match(/\/index.php\?title=Special:DNATests.*/g)
   ) {
     isSpecialDNATests = true;
   } else if (
-    // Special Badges Page
+    // Special Watched List
     window.location.pathname.match(/(\/wiki\/)Special:WatchedList*/g) ||
     window.location.href.match(/\/index.php\?title=Special:WatchedList.*/g)
   ) {
