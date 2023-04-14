@@ -35,68 +35,93 @@ const autoBio = {
       defaultValue: false,
     },
     {
-      id: "birthOrder",
-      type: OptionType.RADIO,
-      label: "Birth details order",
-      values: [
-        {
-          value: "datePlace",
-          text: "Date + Place",
-        },
-        {
-          value: "placeDate",
-          text: "Place + Date",
-        },
-      ],
-      defaultValue: "placeDate",
+      id: "censusFamilyNarrative",
+      type: OptionType.CHECKBOX,
+      label: "Family narrative from census records when possible",
+      defaultValue: true,
     },
     {
-      id: "fullNameOrBirthName",
-      type: OptionType.RADIO,
-      label: "Name format",
-      values: [
-        {
-          value: "FullName",
-          text: "Include current last name (if different from last name at birth) (e.g. Mary (Jones) Smith)",
-        },
-        {
-          value: "BirthName",
-          text: "Birth name (e.g. Mary Jones)",
-        },
-      ],
-      defaultValue: "BirthName",
+      id: "includeAgesAtMarriage",
+      type: OptionType.CHECKBOX,
+      label: "Include ages at marriage",
+      defaultValue: true,
     },
     {
-      id: "marriageFormat",
-      type: OptionType.RADIO,
-      label: "Marriage Format",
-      values: [
-        {
-          value: "formatA",
-          text: "X married Y (born ...; child of ...) on ... in ...",
-        },
-        {
-          value: "formatB",
-          text: "X and Y were married on ... in ... Y was born .... He/She was the child of ...",
-        },
-      ],
-      defaultValue: "formatA",
+      id: "includeAgeAtDeath",
+      type: OptionType.CHECKBOX,
+      label: "Include age at death",
+      defaultValue: true,
     },
     {
-      id: "diedWord",
-      type: OptionType.RADIO,
-      label: "'Died' or 'passed away'",
-      values: [
+      id: "wordingGroup",
+      type: OptionType.GROUP,
+      label: "Wording",
+      options: [
         {
-          value: "died",
-          text: "died",
+          id: "birthOrder",
+          type: OptionType.RADIO,
+          label: "Birth details order",
+          values: [
+            {
+              value: "datePlace",
+              text: "Date + Place",
+            },
+            {
+              value: "placeDate",
+              text: "Place + Date",
+            },
+          ],
+          defaultValue: "placeDate",
         },
         {
-          value: "passed away",
-          text: "passed away",
+          id: "fullNameOrBirthName",
+          type: OptionType.RADIO,
+          label: "Name format",
+          values: [
+            {
+              value: "FullName",
+              text: "Include current last name (if different from last name at birth) (e.g. Mary (Jones) Smith)",
+            },
+            {
+              value: "BirthName",
+              text: "Birth name (e.g. Mary Jones)",
+            },
+          ],
+          defaultValue: "BirthName",
+        },
+        {
+          id: "marriageFormat",
+          type: OptionType.RADIO,
+          label: "Marriage Format",
+          values: [
+            {
+              value: "formatA",
+              text: "X married Y (born ...; child of ...) on ... in ...",
+            },
+            {
+              value: "formatB",
+              text: "X and Y were married on ... in ... Y was born .... He/She was the child of ...",
+            },
+          ],
+          defaultValue: "formatA",
+        },
+        {
+          id: "diedWord",
+          type: OptionType.RADIO,
+          label: "'Died' or 'passed away'",
+          values: [
+            {
+              value: "died",
+              text: "died",
+            },
+            {
+              value: "passed away",
+              text: "passed away",
+            },
+          ],
+          defaultValue: "died",
         },
       ],
-      defaultValue: "died",
     },
     {
       id: "timelineGroup",
@@ -174,7 +199,7 @@ const autoBio = {
         {
           id: "dateStatusFormat",
           type: OptionType.RADIO,
-          label: "Date status format",
+          label: "Full date status format",
           values: [
             {
               value: "words",
@@ -191,9 +216,28 @@ const autoBio = {
           ],
           defaultValue: "abbreviations",
         },
+        {
+          id: "yearsDateStatusFormat",
+          type: OptionType.RADIO,
+          label: "Only years date status format (e.g. (1823–1889))",
+          values: [
+            {
+              value: "words",
+              text: "Words (before, after, about)",
+            },
+            {
+              value: "abbreviations",
+              text: "Abbreviations (bef., aft., abt.)",
+            },
+            {
+              value: "symbols",
+              text: "Symbols (<, >, ~)",
+            },
+          ],
+          defaultValue: "symbols",
+        },
       ],
     },
-
     {
       id: "categoriesAndStickersGroup",
       type: OptionType.GROUP,
@@ -248,6 +292,18 @@ const autoBio = {
           label: "Also include spouse parent details",
           defaultValue: true,
         },
+        {
+          id: "includeSpouseDates",
+          type: OptionType.CHECKBOX,
+          label: "Include spouse's dates",
+          defaultValue: true,
+        },
+        {
+          id: "includeSpousesParentsDates",
+          type: OptionType.CHECKBOX,
+          label: "Include spouse's parents' dates",
+          defaultValue: true,
+        },
       ],
     },
 
@@ -256,6 +312,12 @@ const autoBio = {
       type: OptionType.GROUP,
       label: "Family lists",
       options: [
+        {
+          id: "includeParentsDates",
+          type: OptionType.CHECKBOX,
+          label: "Include parents' dates",
+          defaultValue: true,
+        },
         {
           id: "siblingList",
           type: OptionType.CHECKBOX,

@@ -36,6 +36,7 @@ import {
   isSpecialMyConnections,
   isSpecialWatchedList,
   isG2G,
+  isDNADescendants,
   /* eslint-enable no-unused-vars */
 } from "../core/pageType";
 
@@ -143,7 +144,18 @@ registerFeature({
   contributors: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   category: "Profile",
   defaultValue: true,
-  pages: [isProfilePage],
+  pages: [isProfilePage, isDNADescendants],
+});
+
+registerFeature({
+  name: "Confirm Thank Yous",
+  id: "confirmThankYous",
+  description: "Adds a confirmation to 'Thank you' links.",
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
+  contributors: [],
+  category: "Global",
+  defaultValue: false,
+  pages: [true],
 });
 
 registerFeature({
