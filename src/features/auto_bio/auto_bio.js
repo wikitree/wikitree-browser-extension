@@ -26,7 +26,9 @@ Returns a status word based on the input status and optional needOnIn parameter,
 @param {boolean} [needOnIn=false] - Optional parameter to specify whether the output should include "on" or "in" for certain status values. Default is false.
 @returns {string} - The status word based on the input status and optional needOnIn parameter. Possible values include "before", "aft.", "about", "on", "in", and "".
 */
-function dataStatusWord(status, ISOdate, needOnIn = false) {
+function dataStatusWord(status, ISOdate, options = { needOnIn: false, onlyYears: false }) {
+  const needOnIn = options.needOnIn;
+  const onlyYears = options.onlyYears;
   let day = ISOdate.slice(8, 10);
   if (day == "00") {
     day = "";
@@ -43,9 +45,14 @@ function dataStatusWord(status, ISOdate, needOnIn = false) {
         ? "on"
         : "in"
       : "";
-  if (window.autoBioOptions.dateStatusFormat == "abbreviations") {
+
+  const thisStatusFormat = onlyYears
+    ? window.autoBioOptions.yearsDateStatusFormat
+    : window.autoBioOptions.dateStatusFormat;
+
+  if (thisStatusFormat == "abbreviations") {
     statusOut = statusOut.replace("before", "bef.").replace("after", "aft.").replace("about", "abt.");
-  } else if (window.autoBioOptions.dateStatusFormat == "symbols") {
+  } else if (thisStatusFormat == "symbols") {
     statusOut = statusOut.replace("before", "<").replace("after", ">").replace("about", "~");
   }
   if (needOnIn == false && ["on", "in"].includes(statusOut)) {
@@ -297,7 +304,7 @@ function convertDate(dateString, outputFormat, status = "") {
   } else if (components.length == 2 && /^\d{4}$/.test(components[0]) && /^\d{2}$/.test(components[1])) {
     // NEW: Year and month format with no day (e.g. "1910-10")
     inputFormat = "ISO";
-    components.push("15");
+    components.push("00");
   } else {
     // Invalid input format
     return null;
@@ -353,7 +360,11 @@ function convertDate(dateString, outputFormat, status = "") {
   }
 
   if (status) {
-    const statusOut = dataStatusWord(status, ISOdate, true);
+    let onlyYears = false;
+    if (outputFormat == "Y") {
+      onlyYears = true;
+    }
+    const statusOut = dataStatusWord(status, ISOdate, { needInOn: true, onlyYears: onlyYears });
     outputDate = statusOut + " " + outputDate;
   }
 
@@ -440,17 +451,23 @@ export function formatDates(person) {
 
   if (birthDate !== " ") {
     const birthStatus = !person.BirthDate ? "guess" : person.DataStatus.BirthDate;
-    const status = dataStatusWord(birthStatus, birthDate, false);
+    const status = dataStatusWord(birthStatus, birthDate, { needOnIn: false, onlyYears: true });
     if (status) {
       birthDate = status + " " + birthDate;
+      if (window.autoBioOptions.yearsDateStatusFormat == "symbols") {
+        birthDate = birthDate.replace(/\s/g, "");
+      }
     }
   }
 
   if (deathDate !== " ") {
     const deathStatus = !person.DeathDate ? "guess" : person.DataStatus.DeathDate;
-    const status = dataStatusWord(deathStatus, birthDate, false);
+    const status = dataStatusWord(deathStatus, birthDate, { needOnIn: false, onlyYears: true });
     if (status) {
       deathDate = status + " " + deathDate;
+      if (window.autoBioOptions.yearsDateStatusFormat == "symbols") {
+        deathDate = deathDate.replace(/\s/g, "");
+      }
     }
   }
 
@@ -948,7 +965,7 @@ function buildDeath(person) {
     let place = minimalPlace(person.DeathLocation);
     text += " in " + place;
   }
-  if (person.BirthDate && person.DeathDate) {
+  if (person.BirthDate && person.DeathDate && window.autoBioOptions.includeAgeAtDeath) {
     const birthDate = person.BirthDate.match("-") ? person.BirthDate : getYYYYMMDD(person.BirthDate);
     const deathDate = person.DeathDate.match("-") ? person.DeathDate : getYYYYMMDD(person.DeathDate);
     let age = getAgeFromISODates(birthDate, deathDate);
@@ -1041,7 +1058,9 @@ function buildParents(person) {
       father.FullName = aName.withParts(["FullName"]);
       */
       text += nameLink(father);
-      text += " " + formatDates(father);
+      if (window.autoBioOptions.includeParentsDates) {
+        text += " " + formatDates(father);
+      }
     }
     if (person.Father && person.Mother) {
       text += " and ";
@@ -1053,7 +1072,9 @@ function buildParents(person) {
       mother.FullName = aName.withParts(["FullName"]);
       */
       text += nameLink(mother);
-      text += " " + formatDates(mother);
+      if (window.autoBioOptions.includeParentsDates) {
+        text += " " + formatDates(mother);
+      }
     }
   }
   return text;
@@ -1091,10 +1112,10 @@ function buildSpouses(person) {
       let marriageAge = "";
       firstNameAndYear.push({ FirstName: spouse.PersonName.FirstName, Year: spouse.marriage_date.substring(4) });
       let spouseMarriageAge = "";
-      if (window.profilePerson.BirthDate && isOK(spouse.marriage_date)) {
+      if (window.profilePerson.BirthDate && isOK(spouse.marriage_date) && window.autoBioOptions.includeAgesAtMarriage) {
         marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, spouse.marriage_date)})`;
       }
-      if (spouse.BirthDate && isOK(spouse.marriage_date)) {
+      if (spouse.BirthDate && isOK(spouse.marriage_date) && window.autoBioOptions.includeAgesAtMarriage) {
         spouseMarriageAge = ` (${getAgeFromISODates(spouse.BirthDate, spouse.marriage_date)})`;
       }
 
@@ -1107,7 +1128,7 @@ function buildSpouses(person) {
           spouseDetailsA += " (born";
           spouseDetailsB += " " + spouse.PersonName.FirstName + " was born";
         }
-        if (isOK(spouse.BirthDate)) {
+        if (isOK(spouse.BirthDate) && window.autoBioOptions.includeSpouseDates) {
           spouseDetailsA += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate, { needOn: true });
           spouseDetailsB += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate, { needOn: true });
         }
@@ -1132,7 +1153,7 @@ function buildSpouses(person) {
               spouseDetailsA += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
               spouseDetailsB += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
 
-              if (spouseFather.BirthDate) {
+              if (spouseFather.BirthDate && window.autoBioOptions.includeSpouseParentsDates) {
                 spouseDetailsA += " " + formatDates(spouseFather);
                 spouseDetailsB += " " + formatDates(spouseFather);
               }
@@ -1145,7 +1166,7 @@ function buildSpouses(person) {
               let spouseMother = window.biographySpouseParents[0].people[spouse.Id].Parents[spouse.Mother];
               spouseDetailsA += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
               spouseDetailsB += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
-              if (spouseMother.BirthDate) {
+              if (spouseMother.BirthDate && window.autoBioOptions.includeSpouseParentsDates) {
                 spouseDetailsA += " " + formatDates(spouseMother);
                 spouseDetailsB += " " + formatDates(spouseMother);
               }
@@ -4061,7 +4082,6 @@ function updateRelationForSibling(otherPerson) {
 }
 
 async function getStickersAndBoxes() {
-  console.log(1);
   let afterBioHeading = "";
   // eslint-disable-next-line no-undef
   await fetch(chrome.runtime.getURL("features/wtPlus/templatesExp.json"))
