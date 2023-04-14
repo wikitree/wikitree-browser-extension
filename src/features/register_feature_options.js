@@ -148,6 +148,17 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Confirm Thank Yous",
+  id: "confirmThankYous",
+  description: "Adds a confirmation to 'Thank you' links.",
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
+  contributors: [],
+  category: "Global",
+  defaultValue: false,
+  pages: [true],
+});
+
+registerFeature({
   name: "Date Fixer",
   id: "dateFixer",
   description: "Converts DD/MM/YYY, DD-MM-YYYY, or DD.MM.YYYY to YYYY-MM-DD; Fixes typos in the date fields.",
