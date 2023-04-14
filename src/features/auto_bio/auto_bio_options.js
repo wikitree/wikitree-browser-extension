@@ -35,6 +35,12 @@ const autoBio = {
       defaultValue: false,
     },
     {
+      id: "censusFamilyNarrative",
+      type: OptionType.CHECKBOX,
+      label: "Family narrative from census records when possible",
+      defaultValue: true,
+    },
+    {
       id: "birthOrder",
       type: OptionType.RADIO,
       label: "Birth details order",

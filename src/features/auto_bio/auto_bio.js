@@ -2612,11 +2612,6 @@ function buildCensusNarratives() {
         }
 
         if (reference.Household) {
-          if (reference.Household.length > 0) {
-            text += " with ";
-          }
-        }
-        if (reference.Household) {
           // Add relationships if they're not already there
           reference.Household.forEach(function (householdMember) {
             if (!householdMember.Relation) {
@@ -2634,7 +2629,12 @@ function buildCensusNarratives() {
             // eslint-disable-next-line no-unused-vars
             [day, month, year] = window.profilePerson["BirthDate"].split(" ");
           }
-          text += createFamilyNarrative(reference.Household);
+          if (window.autoBioOptions.censusFamilyNarrative) {
+            if (reference.Household.length > 0) {
+              text += " with ";
+            }
+            text += createFamilyNarrative(reference.Household);
+          }
         }
       }
       if (text) {
