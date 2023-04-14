@@ -42,6 +42,7 @@ import "./features/sortBadges/sortBadges";
 import "./features/sort_theme_people/sort_theme_people";
 import "./features/sourcepreview/sourcepreview";
 import "./features/spacepreview/spacepreview";
+import "./features/sticky_header/sticky_header";
 import "./features/sticky_toolbar/sticky_toolbar";
 import "./features/suggested_matches_filters/suggested_matches_filters";
 import "./features/verifyID/verifyID";

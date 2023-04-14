@@ -426,6 +426,17 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Sticky Header",
+  id: "stickyHeader",
+  description: "Makes the WikiTree header stick to the top and more compact on narrow screens.",
+  category: "Style",
+  creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
+  contributors: [],
+  defaultValue: false,
+  pages: [true],
+});
+
+registerFeature({
   name: "Sticky Toolbar",
   id: "stickyToolbar",
   description:
