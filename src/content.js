@@ -38,6 +38,7 @@ import "./features/randomProfile/randomProfile";
 import "./features/readability/readability";
 import "./features/redir_ext_links/redir_ext_links";
 import "./features/scissors/scissors";
+import "./features/smooth_scrolling/smooth_scrolling";
 import "./features/sortBadges/sortBadges";
 import "./features/sort_theme_people/sort_theme_people";
 import "./features/sourcepreview/sourcepreview";
