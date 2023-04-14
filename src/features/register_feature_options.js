@@ -36,6 +36,7 @@ import {
   isSpecialMyConnections,
   isSpecialWatchedList,
   isG2G,
+  isDNADescendants,
   /* eslint-enable no-unused-vars */
 } from "../core/pageType";
 
@@ -143,7 +144,7 @@ registerFeature({
   contributors: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   category: "Profile",
   defaultValue: true,
-  pages: [isProfilePage],
+  pages: [isProfilePage, isDNADescendants],
 });
 
 registerFeature({

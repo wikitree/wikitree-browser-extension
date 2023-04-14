@@ -1583,7 +1583,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
   const pattern = new RegExp(firstName + "[^;.]+");
   const match = pattern.exec(reference.Text);
   const countryPattern = new RegExp(
-    "(.*?, )((['a-zA-Z .-]+, )?['a-zA-Z .-]+,['a-zA-Z ().-]+), (United States|England|Scotland|Canada|Wales|Australia);"
+    "familysearch.+?(.*?, )((['a-zA-Z .-]+, )?['a-zA-Z .-]+,['a-zA-Z ().-]+), (United States|England|Scotland|Canada|Wales|Australia);"
   );
   const countryPatternMatch = countryPattern.exec(reference.Text);
   //const firstNameMatch = new RegExp(firstName.replace(".", "\\.").replace(/([A-Z])\|/, "$1\b|") + "\\b");
@@ -1596,8 +1596,9 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
     const beforeFirstCommaPattern = new RegExp(firstName.trim() + "\\.?\\s[^,]+");
     const beforeFirstCommaMatch = beforeFirstCommaPattern.exec(matchedText);
     const ourText = beforeFirstCommaMatch[0].replace(lastNamePattern, "");
-    let locationPattern = /\),[^,]+(.*?)(;|\.)/;
-    let locationMatch = locationPattern.exec(reference.Text);
+    let locationPattern = /\),[^,]+(.*?)(;|\.$)/;
+    const referenceTempText = reference.Text.replace(/, Jr\.?/, "");
+    let locationMatch = locationPattern.exec(referenceTempText);
     if (locationMatch) {
       reference.Residence = locationMatch[1]
         .replace(",", "")
@@ -1629,12 +1630,10 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
     }
   } else if (countryPatternMatch) {
     //if we have a match on the country pattern
-    text +=
-      window.profilePerson.PersonName.FirstName +
-      ageBit +
-      " was living in " +
-      minimalPlace(countryPatternMatch[1]) +
-      ".";
+    if (countryPatternMatch[2]) {
+      const thisLocation = countryPatternMatch[2].replace(/.*household of.*,\s/, "");
+      text += window.profilePerson.PersonName.FirstName + ageBit + " was living in " + minimalPlace(thisLocation) + ".";
+    }
   }
   text = getHouseholdOfRelationAndName(text);
   return [text, reference];
@@ -2005,7 +2004,7 @@ function getCensusesFromCensusSection() {
   let newPerson = {};
   window.references.forEach(function (ref) {
     if (ref.Text.match(/census|1939( England and Wales)? Register/i)) {
-      ref["Record Type"] = ["Census", "Birth"];
+      ref["Record Type"] = ["Census"];
       ref["Event Type"] = "Census";
       if (!ref["Residence"]) {
         const residenceMatch = ref.Text.match(/in\s([A-Z].*?)(\sin\s)([A-Z].*?)(\s[a-z])/);
@@ -2334,12 +2333,10 @@ function parseSourcerCensusWithColons(reference) {
  */
   const referenceBits = reference.Text.split(/<br\s?>/);
   const lastBit = referenceBits[referenceBits.length - 1];
-  console.log(lastBit.match(/::\s?[A-Z][^\d]\d{1,2}/));
   if (lastBit.match(/::\s?[A-Z][^\d]+\d/)) {
     reference.Household = [];
     const lines = lastBit.split(/[\n\r]/);
     lines.forEach(function (line) {
-      console.log(line);
       if (line.match(/^::/)) {
         const person = {};
         const nameMatch = line.match(/[A-Z][^\d,(\s\s)]+/);
@@ -2379,7 +2376,6 @@ function buildCensusNarratives() {
   window.references.forEach(function (reference) {
     let text = "";
     if (reference.Text.match(/census|1939( England and Wales)? Register/i)) {
-      reference["Record Type"] = ["Census", "Birth"];
       reference["Event Type"] = "Census";
       let match = reference.Text.match(yearRegex);
       if (match) {
@@ -2536,7 +2532,6 @@ function buildCensusNarratives() {
         if (censusRest) {
           text += censusIntro + censusRest;
         }
-
         // Switch "in the household of NAME" to "in the household of her father, Frederick" (for example)
         text = getHouseholdOfRelationAndName(text);
       } else {
@@ -3475,8 +3470,8 @@ function sourcesArray(bio) {
       if (aSource.match(unsourced)) {
         NonSource = true;
       }
-      if (aSource.match(/\n\n/)) {
-        const aSourceBits = aSource.split(/\n\n/);
+      if (aSource.match(/\n\n(!\{\|)/)) {
+        const aSourceBits = aSource.split(/\n\n(!\{\|)/);
         aSourceBits.forEach(function (aSourceBit) {
           if (aSourceBit.match(notShow) == null) {
             refArr.push({ Text: aSourceBit.trim(), RefName: "", NonSource: NonSource });
@@ -3717,7 +3712,7 @@ function sourcesArray(bio) {
       );
     }
     if (aRef.Text.match(/Census|1939 England and Wales Register/)) {
-      aRef["Record Type"].push("Census", "Birth");
+      aRef["Record Type"].push("Census");
       const yearMatch = aRef.Text.match(/(1[89]\d{2}) .*?Census/);
       const yearMatch2 = aRef.Text.match(/(1[89]\d{2}) England and Wales/);
       if (yearMatch) {
@@ -3778,8 +3773,29 @@ function sourcesArray(bio) {
       aRef = addMilitaryRecord(aRef, militaryMatch[0]);
     }
   });
+  let birthCitation = false;
+  let censusCitation = false;
+  let findAGraveCitation = false;
+  refArr.forEach(function (aRef) {
+    if (aRef["Record Type"].includes("Birth")) {
+      birthCitation = true;
+    }
+    if (aRef["Record Type"].includes("Census") && !censusCitation) {
+      censusCitation = aRef;
+    }
+    if (aRef.Text.match(/findagrave|Find a Grave/i)) {
+      findAGraveCitation = aRef;
+    }
+  });
+  if (!birthCitation) {
+    if (findAGraveCitation) {
+      findAGraveCitation["Record Type"].push("Birth");
+    } else if (censusCitation) {
+      censusCitation["Record Type"].push("Birth");
+    }
+  }
   window.references = refArr;
-  JSON.parse(JSON.stringify(window.references));
+  console.log(JSON.parse(JSON.stringify(window.references)));
   buildCensusNarratives();
 }
 
@@ -4196,7 +4212,6 @@ function getFamilySearchFacts() {
 }
 
 function splitBioIntoSections() {
-  let shouldStartWithAsterisk = true;
   const wikiText = $("#wpTextbox1").val();
   let lines = wikiText.split("\n");
   let currentSection = { subsections: {}, text: [] };
@@ -4282,9 +4297,6 @@ function splitBioIntoSections() {
       if (currentSubsection && line) {
         currentSubsection.text.push(line);
       } else if (currentSection) {
-        if (currentSection.title === "Sources" && line === "") {
-          shouldStartWithAsterisk = true;
-        }
         currentSection.text.push(line);
         if (!currentSection.title) {
           sections.StuffBeforeTheBio.text.push(line);
@@ -4297,7 +4309,11 @@ function splitBioIntoSections() {
   if (sections.Sources) {
     let shouldStartWithAsterisk = true;
     sections.Sources.text.forEach(function (line, i) {
-      if (shouldStartWithAsterisk && line.trim() !== "" && !line.trim().startsWith("*")) {
+      const matchOldBEETableHeading = line.match(/.*:$/);
+      const matchPreviousBlankLine = !sections.Sources.text[i - 1];
+      const matchTable = line.match(/^\{\|/);
+      const isBEECitation = (matchOldBEETableHeading || matchTable) && matchPreviousBlankLine;
+      if (shouldStartWithAsterisk && line.trim() !== "" && !line.trim().startsWith("*") && !isBEECitation) {
         sections.Sources.text[i] = "*" + line.trim();
       }
       shouldStartWithAsterisk = line.trim() === "";

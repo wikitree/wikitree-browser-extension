@@ -82,6 +82,8 @@ export let isSpecialBadges = false;
 export let isSpecialMyConnections = false;
 // Special: DNATests page
 export let isSpecialDNATests = false;
+// DNADescendants page
+export let isDNADescendants = false;
 // Special: WatchedList page
 export let isSpecialWatchedList = false;
 
@@ -265,6 +267,9 @@ if (
 } else if (window.location.pathname.match(/\/g2g\//g)) {
   // Is a G2G page
   isG2G = true;
+} else if (window.location.href.match(/\/treewidget\/.*?\/890/g)) {
+  // DNADescendantsPage
+  isDNADescendants = true;
 } else {
   // Unknown page
   console.log(window.location.href);
