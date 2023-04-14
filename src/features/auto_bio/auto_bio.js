@@ -26,7 +26,9 @@ Returns a status word based on the input status and optional needOnIn parameter,
 @param {boolean} [needOnIn=false] - Optional parameter to specify whether the output should include "on" or "in" for certain status values. Default is false.
 @returns {string} - The status word based on the input status and optional needOnIn parameter. Possible values include "before", "aft.", "about", "on", "in", and "".
 */
-function dataStatusWord(status, ISOdate, needOnIn = false) {
+function dataStatusWord(status, ISOdate, options = { needOnIn: false, onlyYears: false }) {
+  const needOnIn = options.needOnIn;
+  const onlyYears = options.onlyYears;
   let day = ISOdate.slice(8, 10);
   if (day == "00") {
     day = "";
@@ -43,9 +45,14 @@ function dataStatusWord(status, ISOdate, needOnIn = false) {
         ? "on"
         : "in"
       : "";
-  if (window.autoBioOptions.dateStatusFormat == "abbreviations") {
+
+  const thisStatusFormat = onlyYears
+    ? window.autoBioOptions.yearsDateStatusFormat
+    : window.autoBioOptions.dateStatusFormat;
+
+  if (thisStatusFormat == "abbreviations") {
     statusOut = statusOut.replace("before", "bef.").replace("after", "aft.").replace("about", "abt.");
-  } else if (window.autoBioOptions.dateStatusFormat == "symbols") {
+  } else if (thisStatusFormat == "symbols") {
     statusOut = statusOut.replace("before", "<").replace("after", ">").replace("about", "~");
   }
   if (needOnIn == false && ["on", "in"].includes(statusOut)) {
@@ -297,7 +304,7 @@ function convertDate(dateString, outputFormat, status = "") {
   } else if (components.length == 2 && /^\d{4}$/.test(components[0]) && /^\d{2}$/.test(components[1])) {
     // NEW: Year and month format with no day (e.g. "1910-10")
     inputFormat = "ISO";
-    components.push("15");
+    components.push("00");
   } else {
     // Invalid input format
     return null;
@@ -353,7 +360,11 @@ function convertDate(dateString, outputFormat, status = "") {
   }
 
   if (status) {
-    const statusOut = dataStatusWord(status, ISOdate, true);
+    let onlyYears = false;
+    if (outputFormat == "Y") {
+      onlyYears = true;
+    }
+    const statusOut = dataStatusWord(status, ISOdate, { needInOn: true, onlyYears: onlyYears });
     outputDate = statusOut + " " + outputDate;
   }
 
@@ -440,17 +451,23 @@ export function formatDates(person) {
 
   if (birthDate !== " ") {
     const birthStatus = !person.BirthDate ? "guess" : person.DataStatus.BirthDate;
-    const status = dataStatusWord(birthStatus, birthDate, false);
+    const status = dataStatusWord(birthStatus, birthDate, { needOnIn: false, onlyYears: true });
     if (status) {
       birthDate = status + " " + birthDate;
+      if (window.autoBioOptions.yearsDateStatusFormat == "symbols") {
+        birthDate = birthDate.replace(/\s/g, "");
+      }
     }
   }
 
   if (deathDate !== " ") {
     const deathStatus = !person.DeathDate ? "guess" : person.DataStatus.DeathDate;
-    const status = dataStatusWord(deathStatus, birthDate, false);
+    const status = dataStatusWord(deathStatus, birthDate, { needOnIn: false, onlyYears: true });
     if (status) {
       deathDate = status + " " + deathDate;
+      if (window.autoBioOptions.yearsDateStatusFormat == "symbols") {
+        deathDate = deathDate.replace(/\s/g, "");
+      }
     }
   }
 
@@ -660,7 +677,6 @@ function childList(person, spouse) {
   }
   */
 
-  console.log("here");
   let text = "";
   let ourChildren = [];
   let childrenKeys = Object.keys(person.Children);
@@ -696,7 +712,6 @@ function childList(person, spouse) {
   if (ourChildren.length == 0) {
     return "";
   } else if (ourChildren.length == 1) {
-    console.log(5);
     let childWord = "child";
     if (ourChildren[0].Gender) {
       if (ourChildren[0].Gender == "Male") childWord = "son";
@@ -710,7 +725,7 @@ function childList(person, spouse) {
   //  || spouse == false
   if (ourChildren.length == 1) {
     if (ourChildren[0].Father == spouse.Id || ourChildren[0].Mother == spouse.Id) {
-      const theDates = personDates(ourChildren[0]).replace(/(in|on)\s/, "");
+      const theDates = personDates(ourChildren[0]).replace(/(in|on)\s/g, "");
       const status = getStatus(ourChildren[0]);
       childListText += nameLink(ourChildren[0]) + " " + theDates + " " + status + ".\n";
     } else {
@@ -746,7 +761,7 @@ function childList(person, spouse) {
         }
       }
       */
-      const theDates = personDates(child).replace(/(in|on)\s/, "");
+      const theDates = personDates(child).replace(/(in|on)\s/g, "");
       childListText += nameLink(child) + " " + theDates + " " + status + ".\n";
       //childListText += nameLink(child) + " " + formatDates(child) + status + "\n";
       gotChild = true;
@@ -757,8 +772,7 @@ function childList(person, spouse) {
   }
   childListText = childListText.trim();
 
-  text += childListText.replace(/\s\.$/, ".");
-  console.log(text);
+  text += childListText.replace(/\s\.$/, "");
   return text;
 }
 
@@ -781,7 +795,7 @@ function siblingList() {
         ", " +
         nameLink(siblings[0]) +
         " " +
-        personDates(siblings[0]).replace(/(in|on)\s/, "") +
+        personDates(siblings[0]).replace(/(in|on)\s/g, "") +
         ".\n";
     } else if (siblings.length > 1) {
       text += capitalizeFirstLetter(window.profilePerson.Pronouns.possessiveAdjective) + " siblings were:\n";
@@ -792,7 +806,7 @@ function siblingList() {
         } else {
           text += "#";
         }
-        text += nameLink(sibling) + " " + personDates(sibling).replace(/(in|on)\s/, "") + "\n";
+        text += nameLink(sibling) + " " + personDates(sibling).replace(/(in|on)\s/g, "") + "\n";
       });
     }
   }
@@ -951,7 +965,7 @@ function buildDeath(person) {
     let place = minimalPlace(person.DeathLocation);
     text += " in " + place;
   }
-  if (person.BirthDate && person.DeathDate) {
+  if (person.BirthDate && person.DeathDate && window.autoBioOptions.includeAgeAtDeath) {
     const birthDate = person.BirthDate.match("-") ? person.BirthDate : getYYYYMMDD(person.BirthDate);
     const deathDate = person.DeathDate.match("-") ? person.DeathDate : getYYYYMMDD(person.DeathDate);
     let age = getAgeFromISODates(birthDate, deathDate);
@@ -1044,7 +1058,9 @@ function buildParents(person) {
       father.FullName = aName.withParts(["FullName"]);
       */
       text += nameLink(father);
-      text += " " + formatDates(father);
+      if (window.autoBioOptions.includeParentsDates) {
+        text += " " + formatDates(father);
+      }
     }
     if (person.Father && person.Mother) {
       text += " and ";
@@ -1056,7 +1072,9 @@ function buildParents(person) {
       mother.FullName = aName.withParts(["FullName"]);
       */
       text += nameLink(mother);
-      text += " " + formatDates(mother);
+      if (window.autoBioOptions.includeParentsDates) {
+        text += " " + formatDates(mother);
+      }
     }
   }
   return text;
@@ -1094,10 +1112,10 @@ function buildSpouses(person) {
       let marriageAge = "";
       firstNameAndYear.push({ FirstName: spouse.PersonName.FirstName, Year: spouse.marriage_date.substring(4) });
       let spouseMarriageAge = "";
-      if (window.profilePerson.BirthDate && isOK(spouse.marriage_date)) {
+      if (window.profilePerson.BirthDate && isOK(spouse.marriage_date) && window.autoBioOptions.includeAgesAtMarriage) {
         marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, spouse.marriage_date)})`;
       }
-      if (spouse.BirthDate && isOK(spouse.marriage_date)) {
+      if (spouse.BirthDate && isOK(spouse.marriage_date) && window.autoBioOptions.includeAgesAtMarriage) {
         spouseMarriageAge = ` (${getAgeFromISODates(spouse.BirthDate, spouse.marriage_date)})`;
       }
 
@@ -1110,9 +1128,9 @@ function buildSpouses(person) {
           spouseDetailsA += " (born";
           spouseDetailsB += " " + spouse.PersonName.FirstName + " was born";
         }
-        if (isOK(spouse.BirthDate)) {
-          spouseDetailsA += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate);
-          spouseDetailsB += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate);
+        if (isOK(spouse.BirthDate) && window.autoBioOptions.includeSpouseDates) {
+          spouseDetailsA += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate, { needOn: true });
+          spouseDetailsB += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate, { needOn: true });
         }
         if (spouse.BirthLocation) {
           let place = minimalPlace(spouse.BirthLocation);
@@ -1135,7 +1153,7 @@ function buildSpouses(person) {
               spouseDetailsA += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
               spouseDetailsB += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
 
-              if (spouseFather.BirthDate) {
+              if (spouseFather.BirthDate && window.autoBioOptions.includeSpouseParentsDates) {
                 spouseDetailsA += " " + formatDates(spouseFather);
                 spouseDetailsB += " " + formatDates(spouseFather);
               }
@@ -1148,7 +1166,7 @@ function buildSpouses(person) {
               let spouseMother = window.biographySpouseParents[0].people[spouse.Id].Parents[spouse.Mother];
               spouseDetailsA += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
               spouseDetailsB += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
-              if (spouseMother.BirthDate) {
+              if (spouseMother.BirthDate && window.autoBioOptions.includeSpouseParentsDates) {
                 spouseDetailsA += " " + formatDates(spouseMother);
                 spouseDetailsB += " " + formatDates(spouseMother);
               }
@@ -1586,7 +1604,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
   const pattern = new RegExp(firstName + "[^;.]+");
   const match = pattern.exec(reference.Text);
   const countryPattern = new RegExp(
-    "(.*?, )((['a-zA-Z .-]+, )?['a-zA-Z .-]+,['a-zA-Z ().-]+), (United States|England|Scotland|Canada|Wales|Australia);"
+    "familysearch.+?(.*?, )((['a-zA-Z .-]+, )?['a-zA-Z .-]+,['a-zA-Z ().-]+), (United States|England|Scotland|Canada|Wales|Australia);"
   );
   const countryPatternMatch = countryPattern.exec(reference.Text);
   //const firstNameMatch = new RegExp(firstName.replace(".", "\\.").replace(/([A-Z])\|/, "$1\b|") + "\\b");
@@ -1599,8 +1617,9 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
     const beforeFirstCommaPattern = new RegExp(firstName.trim() + "\\.?\\s[^,]+");
     const beforeFirstCommaMatch = beforeFirstCommaPattern.exec(matchedText);
     const ourText = beforeFirstCommaMatch[0].replace(lastNamePattern, "");
-    let locationPattern = /\),[^,]+(.*?)(;|\.)/;
-    let locationMatch = locationPattern.exec(reference.Text);
+    let locationPattern = /\),[^,]+(.*?)(;|\.$)/;
+    const referenceTempText = reference.Text.replace(/, Jr\.?/, "");
+    let locationMatch = locationPattern.exec(referenceTempText);
     if (locationMatch) {
       reference.Residence = locationMatch[1]
         .replace(",", "")
@@ -1632,12 +1651,10 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
     }
   } else if (countryPatternMatch) {
     //if we have a match on the country pattern
-    text +=
-      window.profilePerson.PersonName.FirstName +
-      ageBit +
-      " was living in " +
-      minimalPlace(countryPatternMatch[1]) +
-      ".";
+    if (countryPatternMatch[2]) {
+      const thisLocation = countryPatternMatch[2].replace(/.*household of.*,\s/, "");
+      text += window.profilePerson.PersonName.FirstName + ageBit + " was living in " + minimalPlace(thisLocation) + ".";
+    }
   }
   text = getHouseholdOfRelationAndName(text);
   return [text, reference];
@@ -2008,7 +2025,7 @@ function getCensusesFromCensusSection() {
   let newPerson = {};
   window.references.forEach(function (ref) {
     if (ref.Text.match(/census|1939( England and Wales)? Register/i)) {
-      ref["Record Type"] = ["Census", "Birth"];
+      ref["Record Type"] = ["Census"];
       ref["Event Type"] = "Census";
       if (!ref["Residence"]) {
         const residenceMatch = ref.Text.match(/in\s([A-Z].*?)(\sin\s)([A-Z].*?)(\s[a-z])/);
@@ -2337,12 +2354,10 @@ function parseSourcerCensusWithColons(reference) {
  */
   const referenceBits = reference.Text.split(/<br\s?>/);
   const lastBit = referenceBits[referenceBits.length - 1];
-  console.log(lastBit.match(/::\s?[A-Z][^\d]\d{1,2}/));
   if (lastBit.match(/::\s?[A-Z][^\d]+\d/)) {
     reference.Household = [];
     const lines = lastBit.split(/[\n\r]/);
     lines.forEach(function (line) {
-      console.log(line);
       if (line.match(/^::/)) {
         const person = {};
         const nameMatch = line.match(/[A-Z][^\d,(\s\s)]+/);
@@ -2382,7 +2397,6 @@ function buildCensusNarratives() {
   window.references.forEach(function (reference) {
     let text = "";
     if (reference.Text.match(/census|1939( England and Wales)? Register/i)) {
-      reference["Record Type"] = ["Census", "Birth"];
       reference["Event Type"] = "Census";
       let match = reference.Text.match(yearRegex);
       if (match) {
@@ -2539,7 +2553,6 @@ function buildCensusNarratives() {
         if (censusRest) {
           text += censusIntro + censusRest;
         }
-
         // Switch "in the household of NAME" to "in the household of her father, Frederick" (for example)
         text = getHouseholdOfRelationAndName(text);
       } else {
@@ -2620,11 +2633,6 @@ function buildCensusNarratives() {
         }
 
         if (reference.Household) {
-          if (reference.Household.length > 0) {
-            text += " with ";
-          }
-        }
-        if (reference.Household) {
           // Add relationships if they're not already there
           reference.Household.forEach(function (householdMember) {
             if (!householdMember.Relation) {
@@ -2642,7 +2650,12 @@ function buildCensusNarratives() {
             // eslint-disable-next-line no-unused-vars
             [day, month, year] = window.profilePerson["BirthDate"].split(" ");
           }
-          text += createFamilyNarrative(reference.Household);
+          if (window.autoBioOptions.censusFamilyNarrative) {
+            if (reference.Household.length > 0) {
+              text += " with ";
+            }
+            text += createFamilyNarrative(reference.Household);
+          }
         }
       }
       if (text) {
@@ -3478,8 +3491,8 @@ function sourcesArray(bio) {
       if (aSource.match(unsourced)) {
         NonSource = true;
       }
-      if (aSource.match(/\n\n/)) {
-        const aSourceBits = aSource.split(/\n\n/);
+      if (aSource.match(/\n\n(!\{\|)/)) {
+        const aSourceBits = aSource.split(/\n\n(!\{\|)/);
         aSourceBits.forEach(function (aSourceBit) {
           if (aSourceBit.match(notShow) == null) {
             refArr.push({ Text: aSourceBit.trim(), RefName: "", NonSource: NonSource });
@@ -3720,7 +3733,7 @@ function sourcesArray(bio) {
       );
     }
     if (aRef.Text.match(/Census|1939 England and Wales Register/)) {
-      aRef["Record Type"].push("Census", "Birth");
+      aRef["Record Type"].push("Census");
       const yearMatch = aRef.Text.match(/(1[89]\d{2}) .*?Census/);
       const yearMatch2 = aRef.Text.match(/(1[89]\d{2}) England and Wales/);
       if (yearMatch) {
@@ -3781,8 +3794,29 @@ function sourcesArray(bio) {
       aRef = addMilitaryRecord(aRef, militaryMatch[0]);
     }
   });
+  let birthCitation = false;
+  let censusCitation = false;
+  let findAGraveCitation = false;
+  refArr.forEach(function (aRef) {
+    if (aRef["Record Type"].includes("Birth")) {
+      birthCitation = true;
+    }
+    if (aRef["Record Type"].includes("Census") && !censusCitation) {
+      censusCitation = aRef;
+    }
+    if (aRef.Text.match(/findagrave|Find a Grave/i)) {
+      findAGraveCitation = aRef;
+    }
+  });
+  if (!birthCitation) {
+    if (findAGraveCitation) {
+      findAGraveCitation["Record Type"].push("Birth");
+    } else if (censusCitation) {
+      censusCitation["Record Type"].push("Birth");
+    }
+  }
   window.references = refArr;
-  JSON.parse(JSON.stringify(window.references));
+  console.log(JSON.parse(JSON.stringify(window.references)));
   buildCensusNarratives();
 }
 
@@ -4048,7 +4082,6 @@ function updateRelationForSibling(otherPerson) {
 }
 
 async function getStickersAndBoxes() {
-  console.log(1);
   let afterBioHeading = "";
   // eslint-disable-next-line no-undef
   await fetch(chrome.runtime.getURL("features/wtPlus/templatesExp.json"))
@@ -4199,7 +4232,6 @@ function getFamilySearchFacts() {
 }
 
 function splitBioIntoSections() {
-  let shouldStartWithAsterisk = true;
   const wikiText = $("#wpTextbox1").val();
   let lines = wikiText.split("\n");
   let currentSection = { subsections: {}, text: [] };
@@ -4285,9 +4317,6 @@ function splitBioIntoSections() {
       if (currentSubsection && line) {
         currentSubsection.text.push(line);
       } else if (currentSection) {
-        if (currentSection.title === "Sources" && line === "") {
-          shouldStartWithAsterisk = true;
-        }
         currentSection.text.push(line);
         if (!currentSection.title) {
           sections.StuffBeforeTheBio.text.push(line);
@@ -4300,7 +4329,11 @@ function splitBioIntoSections() {
   if (sections.Sources) {
     let shouldStartWithAsterisk = true;
     sections.Sources.text.forEach(function (line, i) {
-      if (shouldStartWithAsterisk && line.trim() !== "" && !line.trim().startsWith("*")) {
+      const matchOldBEETableHeading = line.match(/.*:$/);
+      const matchPreviousBlankLine = !sections.Sources.text[i - 1];
+      const matchTable = line.match(/^\{\|/);
+      const isBEECitation = (matchOldBEETableHeading || matchTable) && matchPreviousBlankLine;
+      if (shouldStartWithAsterisk && line.trim() !== "" && !line.trim().startsWith("*") && !isBEECitation) {
         sections.Sources.text[i] = "*" + line.trim();
       }
       shouldStartWithAsterisk = line.trim() === "";
@@ -4745,7 +4778,7 @@ export async function generateBio() {
     } else {
       aChildList = childList(window.profilePerson, "other");
     }
-    console.log("aChildList", aChildList);
+    // console.log("aChildList", aChildList);
     const eventDateMatch = aChildList.match(/(\d{4})–/);
     const firstBirth = window.profilePerson.Children[childrenKeys[0]].BirthDate;
     let eventDate;

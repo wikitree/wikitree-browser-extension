@@ -82,6 +82,8 @@ export let isSpecialBadges = false;
 export let isSpecialMyConnections = false;
 // Special: DNATests page
 export let isSpecialDNATests = false;
+// DNADescendants page
+export let isDNADescendants = false;
 // Special: WatchedList page
 export let isSpecialWatchedList = false;
 
@@ -118,7 +120,8 @@ if (
 } else if (
   // Profile Page
   window.location.pathname.match(/(\/wiki\/)\w[^:]*-[0-9]*/g) ||
-  window.location.href.match(/\/index.php\?title=\w[^:]+-[0-9]+/g)
+  (window.location.href.match(/\/index.php\?title=\w[^:]+-[0-9]+/g) &&
+    !window.location.href.match(/\/index.php\?title=(Special|Space|Category|Template|Help|Project)/g))
 ) {
   isProfilePage = true;
   if ($(".toggleMemberSection").length) {
@@ -217,7 +220,7 @@ if (
 } else if (
   // Special Page
   window.location.pathname.match(/(\/wiki\/)Special:*/g) ||
-  window.location.href.match(/\/index.php\?title=Special:.*/g)
+  window.location.href.match(/\/index.php\?title=Special.*/g)
 ) {
   isSpecialPage = true;
   if (
@@ -227,19 +230,19 @@ if (
   ) {
     isSpecialBadges = true;
   } else if (
-    // Special Badges Page
+    // Special My Connections
     window.location.pathname.match(/(\/wiki\/)Special:MyConnections*/g) ||
-    window.location.href.match(/\/index.php\?title=Special:MyConnections.*/g)
+    window.location.href.match(/\/index.php\?title=Special.*?MyConnections.*/g)
   ) {
     isSpecialMyConnections = true;
   } else if (
-    // Special Badges Page
+    // Special DNA Tests
     window.location.pathname.match(/(\/wiki\/)Special:DNATests*/g) ||
     window.location.href.match(/\/index.php\?title=Special:DNATests.*/g)
   ) {
     isSpecialDNATests = true;
   } else if (
-    // Special Badges Page
+    // Special Watched List
     window.location.pathname.match(/(\/wiki\/)Special:WatchedList*/g) ||
     window.location.href.match(/\/index.php\?title=Special:WatchedList.*/g)
   ) {
@@ -265,6 +268,9 @@ if (
 } else if (window.location.pathname.match(/\/g2g\//g)) {
   // Is a G2G page
   isG2G = true;
+} else if (window.location.href.match(/\/treewidget\/.*?\/890/g)) {
+  // DNADescendantsPage
+  isDNADescendants = true;
 } else {
   // Unknown page
   console.log(window.location.href);
