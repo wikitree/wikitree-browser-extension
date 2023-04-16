@@ -345,13 +345,17 @@ function convertDate(dateString, outputFormat, status = "") {
   } else if (outputFormat == "MY") {
     outputDate = convertMonth(month) + " " + year.toString();
   } else if (outputFormat == "MDY") {
-    outputDate = convertMonth(month, "long") + " " + padNumberStart(day) + ", " + year.toString();
+    outputDate = convertMonth(month, "long") + " " + day + ", " + year.toString();
   } else if (outputFormat == "DMY") {
-    outputDate = padNumberStart(day) + " " + convertMonth(month, "long") + " " + year.toString();
+    outputDate = day + " " + convertMonth(month, "long") + " " + year.toString();
   } else if (outputFormat == "sMDY") {
-    outputDate = convertMonth(month).slice(3) + " " + padNumberStart(day) + ", " + year.toString();
+    outputDate = convertMonth(month, "short");
+    if (day !== 0) {
+      outputDate += " " + day + ",";
+    }
+    outputDate += " " + year.toString();
   } else if (outputFormat == "DsMY") {
-    outputDate = padNumberStart(day) + " " + convertMonth(month).slice(0, 3) + " " + year.toString();
+    outputDate = day + " " + convertMonth(month).slice(0, 3) + " " + year.toString();
   } else if (outputFormat == "YMD" || outputFormat == "ISO") {
     outputDate = ISOdate;
   } else {
@@ -365,8 +369,17 @@ function convertDate(dateString, outputFormat, status = "") {
       onlyYears = true;
     }
     const statusOut = dataStatusWord(status, ISOdate, { needInOn: true, onlyYears: onlyYears });
-    outputDate = statusOut + " " + outputDate;
+    // Check if the statusOut is a symbol, and if so, don't add space
+    if (["<", ">", "~"].includes(statusOut.trim())) {
+      outputDate = statusOut + outputDate.trim();
+    } else {
+      outputDate = statusOut + " " + outputDate;
+    }
   }
+
+  outputDate = outputDate.replace(/\s?\b00/, ""); // Remove 00 as a day or month
+  outputDate = outputDate.replace(/(\w+),/, "$1"); // Remove comma if there's a month but no day
+  //outputDate = outputDate.replace(/^,/, ""); // Remove random comma at the beginning
 
   return outputDate;
 }
@@ -740,30 +753,9 @@ function childList(person, spouse) {
       } else {
         childListText += "#";
       }
-
       const status = getStatus(child);
-      /*
-      let status = "";
-      if (window.profilePerson.Gender == "Male") {
-        if (child?.DataStatus?.Father == "10") {
-          status = " [uncertain]";
-        }
-        if (child?.DataStatus?.Father == "5") {
-          status = " [non-biological]";
-        }
-      }
-      if (window.profilePerson.Gender == "Female") {
-        if (child?.DataStatus?.Mother == "10") {
-          status = " [uncertain]";
-        }
-        if (child?.DataStatus?.Mother == "5") {
-          status = " [non-biological]";
-        }
-      }
-      */
       const theDates = personDates(child).replace(/(in|on)\s/g, "");
       childListText += nameLink(child) + " " + theDates + " " + status + ".\n";
-      //childListText += nameLink(child) + " " + formatDates(child) + status + "\n";
       gotChild = true;
     });
     if (gotChild == false) {
@@ -772,7 +764,13 @@ function childList(person, spouse) {
   }
   childListText = childListText.trim();
 
-  text += childListText.replace(/\s\.$/, "");
+  text += childListText;
+  console.log(ourChildren.length);
+  if (ourChildren.length != 1) {
+    text = text.replace(/\s\.$/, "");
+  } else {
+    text = text.replace(/\s\.$/, ".\n");
+  }
   return text;
 }
 
@@ -1216,9 +1214,9 @@ function buildSpouses(person) {
         spouseDetailsB;
 
       if (window.autoBioOptions.marriageFormat == "formatA") {
-        text += marriageFormatA;
+        text += marriageFormatA.replace(/\.\.$/, ".");
       } else if (window.autoBioOptions.marriageFormat == "formatB") {
-        text += marriageFormatB;
+        text += marriageFormatB.replace(/\.\.$/, ".");
       }
 
       let spouseChildren = false;
