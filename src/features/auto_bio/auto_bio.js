@@ -4726,20 +4726,6 @@ export async function generateBio() {
     }
   }
 
-  /*
-  function getMatriculaLink(text) {
-    // Define the regex to match Matricula links
-    const matriculaMatch = /(https?:\/\/data\.matricula-online\.eu[^\s]+)/;
-
-    if (text.match(matriculaMatch)) {
-      return text.match(matriculaMatch)[1];
-    } else {
-      return null;
-    }
-  }
-
-  */
-
   function addHeading(citation, text) {
     const boldHeadingMatch = text.match(/'''(Memorial|Death|Burial)'''/);
     if (boldHeadingMatch) {
