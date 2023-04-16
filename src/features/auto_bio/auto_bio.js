@@ -4669,8 +4669,6 @@ export async function generateBio() {
   }
   await getCitations();
 
-  await getCitations();
-
   async function getCitation(link) {
     if (link.match("cgi-bin/fg.cgi")) {
       let memorial = link.split("id=")[1];
