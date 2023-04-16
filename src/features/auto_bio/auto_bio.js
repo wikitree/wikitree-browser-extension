@@ -4697,19 +4697,26 @@ export async function generateBio() {
     const match3 = /\{\{FindAGrave\|(\d+)(\|.*?)?\}\}/;
     const match4 = /database and images/;
     const match5 = /^\s?Find a Grave( memorial)? #?(\d+)$/i;
-    // If the input is in format 1, return the link
-    if (text.match(match1)) {
-      return text.match(match1)[1];
-      // If the input is in format 2, return the link
-    } else if (text.match(match2)) {
-      return text.match(match2)[1];
-      // If the input is in format 3, return the link if it doesn't contain "database and images"
-    } else if (text.match(match3) && text.match(match4) == null) {
-      return "https://www.findagrave.com/memorial/" + text.match(match3)[1];
-      // If the input is in format 4 or 5, return the link
-    } else if (text.match(match5)) {
-      return "https://www.findagrave.com/memorial/" + text.match(match5)[2];
-      // If the input is in none of the above formats, return null
+    const sourcerMatch = /'''.+<br(.*)?>.+<br(.*)?>/;
+
+    // If not sourcerMatch
+    if (!text.match(sourcerMatch)) {
+      // If the input is in format 1, return the link
+      if (text.match(match1)) {
+        return text.match(match1)[1];
+        // If the input is in format 2, return the link
+      } else if (text.match(match2)) {
+        return text.match(match2)[1];
+        // If the input is in format 3, return the link if it doesn't contain "database and images"
+      } else if (text.match(match3) && text.match(match4) == null) {
+        return "https://www.findagrave.com/memorial/" + text.match(match3)[1];
+        // If the input is in format 4 or 5, return the link
+      } else if (text.match(match5)) {
+        return "https://www.findagrave.com/memorial/" + text.match(match5)[2];
+        // If the input is in none of the above formats, return null
+      } else {
+        return null;
+      }
     } else {
       return null;
     }
