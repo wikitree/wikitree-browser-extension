@@ -345,13 +345,17 @@ function convertDate(dateString, outputFormat, status = "") {
   } else if (outputFormat == "MY") {
     outputDate = convertMonth(month) + " " + year.toString();
   } else if (outputFormat == "MDY") {
-    outputDate = convertMonth(month, "long") + " " + padNumberStart(day) + ", " + year.toString();
+    outputDate = convertMonth(month, "long") + " " + day + ", " + year.toString();
   } else if (outputFormat == "DMY") {
-    outputDate = padNumberStart(day) + " " + convertMonth(month, "long") + " " + year.toString();
+    outputDate = day + " " + convertMonth(month, "long") + " " + year.toString();
   } else if (outputFormat == "sMDY") {
-    outputDate = convertMonth(month).slice(3) + " " + padNumberStart(day) + ", " + year.toString();
+    outputDate = convertMonth(month, "short");
+    if (day !== 0) {
+      outputDate += " " + day + ",";
+    }
+    outputDate += " " + year.toString();
   } else if (outputFormat == "DsMY") {
-    outputDate = padNumberStart(day) + " " + convertMonth(month).slice(0, 3) + " " + year.toString();
+    outputDate = day + " " + convertMonth(month).slice(0, 3) + " " + year.toString();
   } else if (outputFormat == "YMD" || outputFormat == "ISO") {
     outputDate = ISOdate;
   } else {
@@ -365,8 +369,17 @@ function convertDate(dateString, outputFormat, status = "") {
       onlyYears = true;
     }
     const statusOut = dataStatusWord(status, ISOdate, { needInOn: true, onlyYears: onlyYears });
-    outputDate = statusOut + " " + outputDate;
+    // Check if the statusOut is a symbol, and if so, don't add space
+    if (["<", ">", "~"].includes(statusOut.trim())) {
+      outputDate = statusOut + outputDate.trim();
+    } else {
+      outputDate = statusOut + " " + outputDate;
+    }
   }
+
+  outputDate = outputDate.replace(/\s?\b00/, ""); // Remove 00 as a day or month
+  outputDate = outputDate.replace(/(\w+),/, "$1"); // Remove comma if there's a month but no day
+  //outputDate = outputDate.replace(/^,/, ""); // Remove random comma at the beginning
 
   return outputDate;
 }
@@ -740,30 +753,9 @@ function childList(person, spouse) {
       } else {
         childListText += "#";
       }
-
       const status = getStatus(child);
-      /*
-      let status = "";
-      if (window.profilePerson.Gender == "Male") {
-        if (child?.DataStatus?.Father == "10") {
-          status = " [uncertain]";
-        }
-        if (child?.DataStatus?.Father == "5") {
-          status = " [non-biological]";
-        }
-      }
-      if (window.profilePerson.Gender == "Female") {
-        if (child?.DataStatus?.Mother == "10") {
-          status = " [uncertain]";
-        }
-        if (child?.DataStatus?.Mother == "5") {
-          status = " [non-biological]";
-        }
-      }
-      */
       const theDates = personDates(child).replace(/(in|on)\s/g, "");
       childListText += nameLink(child) + " " + theDates + " " + status + ".\n";
-      //childListText += nameLink(child) + " " + formatDates(child) + status + "\n";
       gotChild = true;
     });
     if (gotChild == false) {
@@ -772,7 +764,13 @@ function childList(person, spouse) {
   }
   childListText = childListText.trim();
 
-  text += childListText.replace(/\s\.$/, "");
+  text += childListText;
+  console.log(ourChildren.length);
+  if (ourChildren.length != 1) {
+    text = text.replace(/\s\.$/, "");
+  } else {
+    text = text.replace(/\s\.$/, ".\n");
+  }
   return text;
 }
 
@@ -1216,9 +1214,9 @@ function buildSpouses(person) {
         spouseDetailsB;
 
       if (window.autoBioOptions.marriageFormat == "formatA") {
-        text += marriageFormatA;
+        text += marriageFormatA.replace(/\.\.$/, ".");
       } else if (window.autoBioOptions.marriageFormat == "formatB") {
-        text += marriageFormatB;
+        text += marriageFormatB.replace(/\.\.$/, ".");
       }
 
       let spouseChildren = false;
@@ -1290,6 +1288,7 @@ function buildSpouses(person) {
 }
 
 function getAgeFromISODates(birth, date) {
+  console.log(birth, date);
   let [year1, month1, day1] = birth.split("-");
   let [year2, month2, day2] = date.split("-");
   let age = getAge({
@@ -3208,24 +3207,6 @@ function capitalizeFirstLetter(string) {
   return `${string.charAt(0).toUpperCase()}${string.slice(1)}`;
 }
 
-async function getFindAGraveCitation(link) {
-  if (link.match("cgi-bin/fg.cgi")) {
-    let memorial = link.split("id=")[1];
-    link = "https://www.findagrave.com/memorial/" + memorial;
-  }
-  try {
-    let result = await $.ajax({
-      url: "https://wikitreebee.com/citation.php?link=" + link,
-      type: "GET",
-      dataType: "text",
-    });
-    return result;
-  } catch (error) {
-    console.error("Error fetching citation:", error);
-    return null;
-  }
-}
-
 function addMilitaryRecord(aRef, type) {
   // Add military service records
   if (["World War I", "World War II", "Vietnam War", "Korean War"].includes(type)) {
@@ -4152,11 +4133,13 @@ function getFamilySearchFacts() {
       )
     ) {
       const dateMatch = aFact.Fact.match(/\(.*?\d{4}\)/);
-      if (dateMatch) {
-        aFact.Date = dateMatch[0].replaceAll(/[()]/g, "");
+      const dateMatch2 = aFact.Fact.match(/\(\d{4}-\d{4}\)/);
+      if (!dateMatch2) {
+        aFact.Date = dateMatch[0];
         aFact.Year = dateMatch[0].match(/\d{4}/)[0];
         aFact.OrderDate = formatDate(aFact.Date, 0, { format: 8 });
         let ageBit = "";
+        console.log(aFact.Date);
         if (aFact.Date) {
           ageBit = " (" + getAgeFromISODates(window.profilePerson.BirthDate, getYYYYMMDD(aFact.Date)) + ")";
         }
@@ -4655,7 +4638,7 @@ export async function generateBio() {
   console.log("references", JSON.parse(JSON.stringify(window.references)));
 
   // Update references with Find A Grave citations
-  async function getFindAGraveCitations() {
+  async function getCitations() {
     window.NonSourceCount = 0;
     for (let i = 0; i < window.references.length; i++) {
       let aRef = window.references[i];
@@ -4663,9 +4646,12 @@ export async function generateBio() {
         window.NonSourceCount++;
       }
       let findAGraveLink = getFindAGraveLink(aRef.Text);
-      if (findAGraveLink) {
+      //let matriculaLink = getMatriculaLink(aRef.Text);
+      // let citationLink = findAGraveLink || matriculaLink;
+      let citationLink = findAGraveLink;
+      if (citationLink) {
         try {
-          let citation = await getFindAGraveCitation(findAGraveLink.replace("http:", "https:"));
+          let citation = await getCitation(citationLink);
           if (citation) {
             citation = addHeading(citation, aRef.Text);
             citation = fixDate(citation);
@@ -4673,7 +4659,7 @@ export async function generateBio() {
             citation = fixSpaces(citation);
             aRef.Text = citation.trim();
           } else {
-            console.error("Error fetching citation for link:", findAGraveLink);
+            console.error("Error fetching citation for link:", citationLink);
           }
         } catch (error) {
           console.error("Error fetching citation:", error);
@@ -4681,7 +4667,25 @@ export async function generateBio() {
       }
     }
   }
-  await getFindAGraveCitations();
+  await getCitations();
+
+  async function getCitation(link) {
+    if (link.match("cgi-bin/fg.cgi")) {
+      let memorial = link.split("id=")[1];
+      link = "https://www.findagrave.com/memorial/" + memorial;
+    }
+    try {
+      let result = await $.ajax({
+        url: "https://wikitreebee.com/citation.php?link=" + link,
+        type: "GET",
+        dataType: "text",
+      });
+      return result;
+    } catch (error) {
+      console.error("Error fetching citation:", error);
+      return null;
+    }
+  }
 
   // This function is used to find a link to a find a grave page. It can parse input from the following formats:
   // 1. https://www.findagrave.com/memorial/123456789
@@ -4697,19 +4701,26 @@ export async function generateBio() {
     const match3 = /\{\{FindAGrave\|(\d+)(\|.*?)?\}\}/;
     const match4 = /database and images/;
     const match5 = /^\s?Find a Grave( memorial)? #?(\d+)$/i;
-    // If the input is in format 1, return the link
-    if (text.match(match1)) {
-      return text.match(match1)[1];
-      // If the input is in format 2, return the link
-    } else if (text.match(match2)) {
-      return text.match(match2)[1];
-      // If the input is in format 3, return the link if it doesn't contain "database and images"
-    } else if (text.match(match3) && text.match(match4) == null) {
-      return "https://www.findagrave.com/memorial/" + text.match(match3)[1];
-      // If the input is in format 4 or 5, return the link
-    } else if (text.match(match5)) {
-      return "https://www.findagrave.com/memorial/" + text.match(match5)[2];
-      // If the input is in none of the above formats, return null
+    const sourcerMatch = /'''.+<br(.*)?>.+<br(.*)?>/;
+
+    // If not sourcerMatch
+    if (!text.match(sourcerMatch)) {
+      // If the input is in format 1, return the link
+      if (text.match(match1)) {
+        return text.match(match1)[1];
+        // If the input is in format 2, return the link
+      } else if (text.match(match2)) {
+        return text.match(match2)[1];
+        // If the input is in format 3, return the link if it doesn't contain "database and images"
+      } else if (text.match(match3) && text.match(match4) == null) {
+        return "https://www.findagrave.com/memorial/" + text.match(match3)[1];
+        // If the input is in format 4 or 5, return the link
+      } else if (text.match(match5)) {
+        return "https://www.findagrave.com/memorial/" + text.match(match5)[2];
+        // If the input is in none of the above formats, return null
+      } else {
+        return null;
+      }
     } else {
       return null;
     }
