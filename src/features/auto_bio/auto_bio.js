@@ -4646,17 +4646,20 @@ export async function generateBio() {
         window.NonSourceCount++;
       }
       let findAGraveLink = getFindAGraveLink(aRef.Text);
-      //let matriculaLink = getMatriculaLink(aRef.Text);
-      // let citationLink = findAGraveLink || matriculaLink;
-      let citationLink = findAGraveLink;
+      let matriculaLink = getMatriculaLink(aRef.Text);
+      //let newBrunswickLink = getNewBrunswickLink(aRef.Text);
+      let citationLink = findAGraveLink || matriculaLink; //|| newBrunswickLink;
+
       if (citationLink) {
         try {
           let citation = await getCitation(citationLink);
           if (citation) {
-            citation = addHeading(citation, aRef.Text);
-            citation = fixDate(citation);
-            citation = fixDashes(citation);
-            citation = fixSpaces(citation);
+            if (findAGraveLink) {
+              citation = addHeading(citation, aRef.Text);
+              //citation = fixDate(citation);
+              citation = fixDashes(citation);
+              citation = fixSpaces(citation);
+            }
             aRef.Text = citation.trim();
           } else {
             console.error("Error fetching citation for link:", citationLink);
@@ -4667,25 +4670,8 @@ export async function generateBio() {
       }
     }
   }
-  await getCitations();
 
-  async function getCitation(link) {
-    if (link.match("cgi-bin/fg.cgi")) {
-      let memorial = link.split("id=")[1];
-      link = "https://www.findagrave.com/memorial/" + memorial;
-    }
-    try {
-      let result = await $.ajax({
-        url: "https://wikitreebee.com/citation.php?link=" + link,
-        type: "GET",
-        dataType: "text",
-      });
-      return result;
-    } catch (error) {
-      console.error("Error fetching citation:", error);
-      return null;
-    }
-  }
+  await getCitations();
 
   // This function is used to find a link to a find a grave page. It can parse input from the following formats:
   // 1. https://www.findagrave.com/memorial/123456789
@@ -4726,7 +4712,63 @@ export async function generateBio() {
     }
   }
 
+  async function getCitation(link) {
+    if (link.match("cgi-bin/fg.cgi")) {
+      let memorial = link.split("id=")[1];
+      link = "https://www.findagrave.com/memorial/" + memorial;
+    }
+
+    try {
+      let result = await $.ajax({
+        url: "https://wikitreebee.com:3000/citation",
+        type: "GET",
+        data: { link: link },
+        dataType: "text",
+      });
+      return result;
+    } catch (error) {
+      console.error("Error fetching citation:", error);
+      return null;
+    }
+  }
+  /*
+  async function getMatriculaCitation(url) {
+    try {
+      let result = await $.ajax({
+        url: "https://wikitreebee.com:3000/matricula",
+        method: "GET",
+        data: { url: url },
+        dataType: "text",
+      });
+      return result;
+    } catch (error) {
+      console.error("Error fetching citation:", error);
+      return null;
+    }
+  }
+*/
+  function getMatriculaLink(text) {
+    // Define the regex to match Matricula links
+    const matriculaMatch = /[^[]*(https?:\/\/data\.matricula-online\.eu[^\s]+)/;
+    if (text.match(matriculaMatch)) {
+      return text.match(matriculaMatch)[1];
+    } else {
+      return null;
+    }
+  }
+
+  function getNewBrunswickLink(text) {
+    // https://archives.gnb.ca/Search/VISSE/141C5.aspx?culture=en-CA&guid=17D55021-5247-4E59-82B6-CE431742F0FC
+    const newBrunswickMatch = /[^[]*(https?:\/\/archives\.gnb\.ca[^\s]+)/;
+    if (text.match(newBrunswickMatch)) {
+      return text.match(newBrunswickMatch)[1];
+    } else {
+      return null;
+    }
+  }
+
   function addHeading(citation, text) {
+    citation = citation.replace(/Find a Grave/, "''Find a Grave''");
     const boldHeadingMatch = text.match(/'''(Memorial|Death|Burial)'''/);
     if (boldHeadingMatch) {
       citation = boldHeadingMatch[0] + ": " + citation;
