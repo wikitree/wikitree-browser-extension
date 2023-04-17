@@ -1525,7 +1525,7 @@ function initWTPlus() {
   /* Initialization */
   getFeatureOptions("wtplus").then((result) => {
     tb.options = result;
-    console.log(tb.options);
+//    console.log(tb.options);
   });
   tb.nameSpace = document.title.startsWith("Edit Person ") ? "Profile" : "";
   let w = document.querySelector("h1 > .copyWidget");
