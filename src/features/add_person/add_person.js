@@ -30,7 +30,9 @@ function showBasicData() {
     $("#basicDataSection").show();
     $("#backToActionButton").text("Back to Action");
     $("#backToActionButton").insertBefore($("#dismissMatchesButton"));
-    $("#enterBasicDataButton").hide();
+    if ($("#validationContainer").length == 0) {
+      $("#enterBasicDataButton").hide();
+    }
     $("#potentialMatchesSection .returnToBasicButton").hide();
   }
 }
@@ -166,6 +168,22 @@ checkIfFeatureEnabled("addPersonRedesign").then((result) => {
       }
     });
 
-    $("#enterBasicDataButton").on("click", function () {});
+    $("#enterBasicDataButton").on("click", function () {
+      setTimeout(() => {
+        if ($("#matchesContainer").length == 0 && $("#validationContainer").length == 0) {
+          $("#sourcesSection").show();
+        }
+      }, 2000);
+    });
+
+    $("#actionButton").on("click", function () {
+      setTimeout(() => {
+        if ($("#editAction_connectExisting").prop("checked") == true) {
+          $("#sourcesSection").show();
+        }
+      }, 1500);
+    });
+
+    //  ||$("#editAction_connectExisting").prop("checked") == true
   }
 });

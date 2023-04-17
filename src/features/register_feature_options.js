@@ -36,6 +36,7 @@ import {
   isSpecialMyConnections,
   isSpecialWatchedList,
   isG2G,
+  isDNADescendants,
   /* eslint-enable no-unused-vars */
 } from "../core/pageType";
 
@@ -143,7 +144,18 @@ registerFeature({
   contributors: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   category: "Profile",
   defaultValue: true,
-  pages: [isProfilePage],
+  pages: [isProfilePage, isDNADescendants],
+});
+
+registerFeature({
+  name: "Confirm Thank Yous",
+  id: "confirmThankYous",
+  description: "Adds a confirmation to 'Thank you' links.",
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
+  contributors: [],
+  category: "Global",
+  defaultValue: false,
+  pages: [true],
 });
 
 registerFeature({
@@ -369,6 +381,17 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Smooth Scrolling",
+  id: "smoothScrolling",
+  description: "Scroll the window smoothly when linking to specific sections of the page.",
+  category: "Style",
+  creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
+  contributors: [],
+  defaultValue: false,
+  pages: [true],
+});
+
+registerFeature({
   name: "Sort Badges",
   id: "sortBadges",
   description: "Buttons to move or hide your Club 100/1000 badges.",
@@ -408,6 +431,17 @@ registerFeature({
   description: "Enable previews of Space Pages on hover.",
   category: "Global",
   creators: [{ name: "Steve Harris", wikitreeid: "Harris-5439" }],
+  contributors: [],
+  defaultValue: false,
+  pages: [true],
+});
+
+registerFeature({
+  name: "Sticky Header",
+  id: "stickyHeader",
+  description: "Makes the WikiTree header stick to the top and more compact on narrow screens.",
+  category: "Style",
+  creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   contributors: [],
   defaultValue: false,
   pages: [true],
