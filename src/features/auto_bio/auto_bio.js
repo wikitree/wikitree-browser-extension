@@ -765,7 +765,6 @@ function childList(person, spouse) {
   childListText = childListText.trim();
 
   text += childListText;
-  console.log(ourChildren.length);
   if (ourChildren.length != 1) {
     text = text.replace(/\s\.$/, "");
   } else {
@@ -889,14 +888,11 @@ function isReferenceRelevant(reference, event, spouse) {
 
 function buildBirth(person) {
   let text = "";
-  console.log(person);
   let theName = person.PersonName.BirthName || person.RealName;
   if (window.autoBioOptions.fullNameOrBirthName == "FullName") {
     theName = person.PersonName.FullName || person.RealName;
   }
-
   text += window.boldBit + theName + window.boldBit + " was";
-
   if (person.BirthDate || person.BirthLocation) {
     text += " born";
     text += buildBirthDate(person);
@@ -1288,7 +1284,6 @@ function buildSpouses(person) {
 }
 
 function getAgeFromISODates(birth, date) {
-  console.log(birth, date);
   let [year1, month1, day1] = birth.split("-");
   let [year2, month2, day2] = date.split("-");
   let age = getAge({
@@ -1664,9 +1659,6 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
 
 function getHouseholdOfRelationAndName(text) {
   let householdHeadMatch = text.match(/household\sof\s(.+?)((\s[a-z])|\.|,)/);
-
-  console.log(text);
-
   if (householdHeadMatch) {
     let householdHeadFirstName = householdHeadMatch[1].split(" ")[0];
     ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
@@ -2397,16 +2389,11 @@ function parseSourcerCensusWithColons(reference) {
 
 function parseSourcerFamilyListWithBRs(reference) {
   // | Household Members (Name)<br/>Age<br/>Relationship || Alfred L Forrest 58 Head<br/>Ada Forrest 48 Wife<br/>Irene Forrest 30 Daughter<br/>May Forrest 20 Daughter<br/>Alfred Forrest 18 Son
-  console.log(2400);
-  console.log(reference.Text.match(/\|\sHousehold\sMembers\s(\(Name\))?<br/));
   if (reference.Text.match(/\|\sHousehold\sMembers\s(\(Name\))?<br/)) {
-    console.log(2403);
     const familyPart = reference.Text.split(/\|\sHousehold\sMembers\s.*?<br.*?\|\|/)[1];
     reference.Household = [];
-    console.log(familyPart);
     const lines = familyPart.split(/<br\/?>/);
     lines.forEach(function (line) {
-      console.log(line);
       const person = {};
       const nameMatch = line.match(/[A-Z][^\d,(\s\s)]+/);
       if (nameMatch) {
@@ -2432,7 +2419,6 @@ function parseSourcerFamilyListWithBRs(reference) {
         }
         reference.Household.push(person);
       }
-      console.log(JSON.parse(JSON.stringify(reference)));
     });
     reference = assignSelf(reference);
   }
@@ -2452,8 +2438,6 @@ function buildCensusNarratives() {
         if (!reference["Census Year"]) {
           reference["Census Year"] = match[1];
         }
-
-        console.log(JSON.parse(JSON.stringify(reference)));
         if (!reference.Household) {
           reference = parseSourcerFamilyListWithBRs(reference);
         }
@@ -2539,16 +2523,13 @@ function buildCensusNarratives() {
 
       const ageAtCensus = getAgeAtCensus(window.profilePerson, reference["Census Year"]);
 
-      console.log(JSON.parse(JSON.stringify(reference)));
       if (!reference.Household) {
         reference = parseSourcerCensusWithCSVList(reference);
       }
-      console.log(JSON.parse(JSON.stringify(reference)));
 
       if (!reference.Household) {
         reference = parseSourcerCensusWithColons(reference);
       }
-      console.log(JSON.parse(JSON.stringify(reference)));
 
       let householdLength = true;
       if (Array.isArray(reference.Household)) {
@@ -2699,8 +2680,6 @@ function buildCensusNarratives() {
         }
 
         if (reference.Household) {
-          console.log(JSON.parse(JSON.stringify(reference)));
-
           // Add relationships if they're not already there
           reference.Household.forEach(function (householdMember) {
             if (!householdMember.Relation) {
@@ -5379,7 +5358,9 @@ export async function generateBio() {
     if (filteredText.length > 0) {
       sourcesText += "See also:\n";
       filteredText.forEach(function (anAlso) {
-        sourcesText += "* " + anAlso.replace(/^\*\s?/, "") + "\n";
+        if (anAlso) {
+          sourcesText += "* " + anAlso.replace(/^\*\s?/, "") + "\n";
+        }
       });
       sourcesText += "\n";
     }
