@@ -4823,17 +4823,20 @@ export async function generateBio() {
         window.NonSourceCount++;
       }
       let findAGraveLink = getFindAGraveLink(aRef.Text);
-      //let matriculaLink = getMatriculaLink(aRef.Text);
-      // let citationLink = findAGraveLink || matriculaLink;
-      let citationLink = findAGraveLink;
+      let matriculaLink = getMatriculaLink(aRef.Text);
+      let newBrunswickLink = getNewBrunswickLink(aRef.Text);
+      let citationLink = findAGraveLink || matriculaLink || newBrunswickLink;
+
       if (citationLink) {
         try {
           let citation = await getCitation(citationLink);
           if (citation) {
-            citation = addHeading(citation, aRef.Text);
-            citation = fixDate(citation);
-            citation = fixDashes(citation);
-            citation = fixSpaces(citation);
+            if (findAGraveLink) {
+              citation = addHeading(citation, aRef.Text);
+              //citation = fixDate(citation);
+              citation = fixDashes(citation);
+              citation = fixSpaces(citation);
+            }
             aRef.Text = citation.trim();
           } else {
             console.error("Error fetching citation for link:", citationLink);
@@ -4844,25 +4847,8 @@ export async function generateBio() {
       }
     }
   }
-  await getCitations();
 
-  async function getCitation(link) {
-    if (link.match("cgi-bin/fg.cgi")) {
-      let memorial = link.split("id=")[1];
-      link = "https://www.findagrave.com/memorial/" + memorial;
-    }
-    try {
-      let result = await $.ajax({
-        url: "https://wikitreebee.com/citation.php?link=" + link,
-        type: "GET",
-        dataType: "text",
-      });
-      return result;
-    } catch (error) {
-      console.error("Error fetching citation:", error);
-      return null;
-    }
-  }
+  await getCitations();
 
   // This function is used to find a link to a find a grave page. It can parse input from the following formats:
   // 1. https://www.findagrave.com/memorial/123456789
@@ -4903,14 +4889,70 @@ export async function generateBio() {
     }
   }
 
+  async function getCitation(link) {
+    if (link.match("cgi-bin/fg.cgi")) {
+      let memorial = link.split("id=")[1];
+      link = "https://www.findagrave.com/memorial/" + memorial;
+    }
+    const encodedLink = encodeGuid(link);
+    try {
+      let result = await $.ajax({
+        url: "https://wikitreebee.com:3000/citation",
+        type: "GET",
+        data: { link: encodedLink },
+        dataType: "text",
+      });
+      return result;
+    } catch (error) {
+      console.error("Error fetching citation:", error);
+      return null;
+    }
+  }
+
+  function getMatriculaLink(text) {
+    // Define the regex to match Matricula links
+    const matriculaMatch = /(?:\* ?|\r ? )?(?:\[[^\]]* ?)?(https?:\/\/data\.matricula-online\.eu[^\s]+)(?:[^\]]* ?\])?/;
+    if (text.match(matriculaMatch)) {
+      return text.match(matriculaMatch)[1];
+    } else {
+      return null;
+    }
+  }
+
+  function getNewBrunswickLink(text) {
+    // https://archives.gnb.ca/Search/VISSE/141C5.aspx?culture=en-CA&guid=17D55021-5247-4E59-82B6-CE431742F0FC
+    /* Match the link to the New Brunswick Archives alone, preceded by an asterisk (+optional space) or a newline or
+     the within a link (preceded by a square bracket and optional space and followed by link text and optional space and square bracket) 
+    + not very much else. */
+    const newBrunswickMatch = /(?:\* ?|\r ? )?(?:\[[^\]]* ?)?(https?:\/\/archives\.gnb\.ca[^\s]+)(?:[^\]]* ?\])?/;
+    if (text.match(newBrunswickMatch)) {
+      return text.match(newBrunswickMatch)[1];
+    } else {
+      return null;
+    }
+  }
+
+  function encodeGuid(url) {
+    const urlObj = new URL(url);
+    if (urlObj.hostname === "archives.gnb.ca") {
+      const guid = urlObj.searchParams.get("guid");
+      if (guid) {
+        urlObj.searchParams.set("guid", encodeURIComponent(guid));
+        return urlObj.href;
+      }
+    }
+    return url;
+  }
+
   function addHeading(citation, text) {
+    citation = citation.replace(/Find a Grave/, "''Find a Grave''");
     const boldHeadingMatch = text.match(/'''(Memorial|Death|Burial)'''/);
     if (boldHeadingMatch) {
       citation = boldHeadingMatch[0] + ": " + citation;
     }
     return citation;
   }
-
+  /*
   function fixDate(citation) {
     const today = new Date();
     const options = { day: "numeric", month: "long", year: "numeric" };
@@ -4918,7 +4960,7 @@ export async function generateBio() {
     citation = citation.replace("accessed", "accessed " + dateString);
     return citation;
   }
-
+*/
   function fixDashes(citation) {
     citation = citation.replace("&ndash;", "–");
     return citation;
