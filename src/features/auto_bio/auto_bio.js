@@ -4647,8 +4647,8 @@ export async function generateBio() {
       }
       let findAGraveLink = getFindAGraveLink(aRef.Text);
       let matriculaLink = getMatriculaLink(aRef.Text);
-      //let newBrunswickLink = getNewBrunswickLink(aRef.Text);
-      let citationLink = findAGraveLink || matriculaLink; //|| newBrunswickLink;
+      let newBrunswickLink = getNewBrunswickLink(aRef.Text);
+      let citationLink = findAGraveLink || matriculaLink || newBrunswickLink;
 
       if (citationLink) {
         try {
@@ -4717,12 +4717,12 @@ export async function generateBio() {
       let memorial = link.split("id=")[1];
       link = "https://www.findagrave.com/memorial/" + memorial;
     }
-
+    const encodedLink = encodeGuid(link);
     try {
       let result = await $.ajax({
         url: "https://wikitreebee.com:3000/citation",
         type: "GET",
-        data: { link: link },
+        data: { link: encodedLink },
         dataType: "text",
       });
       return result;
@@ -4731,22 +4731,7 @@ export async function generateBio() {
       return null;
     }
   }
-  /*
-  async function getMatriculaCitation(url) {
-    try {
-      let result = await $.ajax({
-        url: "https://wikitreebee.com:3000/matricula",
-        method: "GET",
-        data: { url: url },
-        dataType: "text",
-      });
-      return result;
-    } catch (error) {
-      console.error("Error fetching citation:", error);
-      return null;
-    }
-  }
-*/
+
   function getMatriculaLink(text) {
     // Define the regex to match Matricula links
     const matriculaMatch = /[^[]*(https?:\/\/data\.matricula-online\.eu[^\s]+)/;
@@ -4765,6 +4750,18 @@ export async function generateBio() {
     } else {
       return null;
     }
+  }
+
+  function encodeGuid(url) {
+    const urlObj = new URL(url);
+    if (urlObj.hostname === "archives.gnb.ca") {
+      const guid = urlObj.searchParams.get("guid");
+      if (guid) {
+        urlObj.searchParams.set("guid", encodeURIComponent(guid));
+        return urlObj.href;
+      }
+    }
+    return url;
   }
 
   function addHeading(citation, text) {
