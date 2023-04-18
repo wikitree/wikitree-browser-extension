@@ -1288,7 +1288,6 @@ function buildSpouses(person) {
 }
 
 function getAgeFromISODates(birth, date) {
-  console.log(birth, date);
   let [year1, month1, day1] = birth.split("-");
   let [year2, month2, day2] = date.split("-");
   let age = getAge({
@@ -4132,18 +4131,18 @@ function getFamilySearchFacts() {
         /Fact: (Christening|Residence|Military Service|Military Draft Registration|Burial|WWI Draft Registration)/i
       )
     ) {
-      const dateMatch = aFact.Fact.match(/\(.*?\d{4}\)/);
+      const dateMatch = aFact.Fact.match(/\((.*?\d{4})\)/);
       const dateMatch2 = aFact.Fact.match(/\(\d{4}-\d{4}\)/);
-      if (!dateMatch2) {
-        aFact.Date = dateMatch[0];
+      if (!dateMatch2 && dateMatch) {
+        aFact.Date = dateMatch[1];
         aFact.Year = dateMatch[0].match(/\d{4}/)[0];
         aFact.OrderDate = formatDate(aFact.Date, 0, { format: 8 });
         let ageBit = "";
-        console.log(aFact.Date);
         if (aFact.Date) {
           ageBit = " (" + getAgeFromISODates(window.profilePerson.BirthDate, getYYYYMMDD(aFact.Date)) + ")";
         }
         aFact.Info = aFact.Fact.split(dateMatch[0])[1].trim();
+
         if (aFact.Fact.match(/Fact: Residence/i)) {
           aFact.Residence = aFact.Info;
           aFact.FactType = "Residence";
