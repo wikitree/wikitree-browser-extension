@@ -7,6 +7,8 @@ import { PersonDate } from "./PersonDate.js";
 import { Biography } from "./Biography.js";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
+var checkSaveIntervalId = 0;
+
 checkIfFeatureEnabled("bioCheck").then((result) => {
   if (result) {
     /* TODO in the future possibly add options
@@ -23,39 +25,46 @@ checkIfFeatureEnabled("bioCheck").then((result) => {
 
     // theSourceRules are an immutable singleton
 
+/*
+The 'added' save button is not actually added.  The whole box moves up and down the page as you scroll.  You (or I) would just need to place the Bio Check section within that box. The box is named #saveStuff and it's created by the Change Summary Options feature.  So... It may depend on the timing of the features loading. If the Bio Check box has loaded when the Change Summary Options code runs (to create the box and set up the moving) I could add it to the #saveStuff box. If it's the other way around, you could add it to the box (if that makes sense).  In jQuery, I would add this line to both features:
+if ($("#bioCheckContainer").closest("#saveStuff").length==0){
+$("#bioCheckContainer").appendTo($("#saveStuff"))
+} .
+I think that would do it.  (I'm sure you'd know what that would be in vanilla javascript.)
+*/
+
     // Look at the type of page and take appropriate action
     if (document.body.classList.contains("page-Special_EditPerson")) {
-      checkBio();
+      // If custom change summary options enabled, wait for the saveStuff to be created
+      // It seems that the check is long enough to wait but just in case there are slower machines
+      checkIfFeatureEnabled("customChangeSummaryOptions").then((result) => {
+        if (result) {
+          checkSaveIntervalId = setInterval(checkSaveStuff, 8);
+        }
 
-      let saveDraftButton = document.getElementById("wpSaveDraft");
-      if (saveDraftButton) {
-        saveDraftButton.onclick = function () {
-          checkBio();
-        };
-        saveDraftButton.addEventListener("mouseover", checkBioAtInterval);
-        saveDraftButton.addEventListener("touchstart", checkBioAtInterval);
-        let saveButton = document.getElementById("wpSave");
-        saveButton.addEventListener("mouseover", checkBioAtInterval);
-        saveButton.addEventListener("touchstart", checkBioAtInterval);
+        let saveDraftButton = document.getElementById("wpSaveDraft");
+        if (saveDraftButton) {
+          saveDraftButton.onclick = function () {
+            checkBio();
+          };
+          saveDraftButton.addEventListener("mouseover", checkBioAtInterval);
+          saveDraftButton.addEventListener("touchstart", checkBioAtInterval);
+          let saveButton = document.getElementById("wpSave");
+          saveButton.addEventListener("mouseover", checkBioAtInterval);
+          saveButton.addEventListener("touchstart", checkBioAtInterval);
 
-        // and also once a minute
-        setInterval(checkBioAtInterval, 60000);
-      }
+          // and also once a minute
+          setInterval(checkBioAtInterval, 60000);
+        }
+        checkBio();
+      });
+
     } else {
+
       let saveButton = null;
       if (document.getElementById("mSources")) {
         if (document.body.classList.contains("page-Special_EditFamily")) {
-          // Find the save button. For Add Person there is just one
-          // For adding a relative there are two, and you want the second
-          /* this was from the previous add person, keep it just in case
-          let buttonElements = document.querySelectorAll("[id='wpSave']");
-          saveButton = buttonElements[buttonElements.length - 1];
-          */
           saveButton = document.getElementById('addNewPersonButton');
-        } else {  // look for BETA add page or keep this logic in case page name changes again
-          if (document.body.classList.contains("page-Special_EditFamilySteps")) {
-            saveButton = document.getElementById('addNewPersonButton');
-          }
         }
         if (saveButton) {
           // listening to the save button click seemed to interfere with
@@ -80,6 +89,15 @@ function checkBioAtInterval() {
 function checkSourcesAtInterval() {
   checkSources();
 }
+
+// Wait for the save stuff container
+// May not need this, might need in future
+function checkSaveStuff() {
+  if (document.getElementById("saveStuff")) {
+    clearInterval(checkSaveIntervalId);
+  }
+}
+
 
 /*
  * Notes about packaging and differences from the BioCheck app
@@ -109,8 +127,11 @@ function checkBio() {
   // status true if appears sourced and no style issues, else false
   let bioStatus = biography.validate();
   // now report from biography results
-
   let profileReportLines = [];
+  if (!bioStatus) {
+    let bioMsg = "Profile has source or style issues.";
+    profileReportLines.push(bioMsg);
+  }
   let profileStatus = "Profile appears to have sources.";
   if (biography.isMarkedUnsourced()) {
     profileStatus = "Profile is marked unsourced.";
@@ -123,6 +144,10 @@ function checkBio() {
 
   if (biography.isEmpty()) {
     profileStatus = "Profile is empty";
+    profileReportLines.push(profileStatus);
+  }
+  if (biography.isUndated()) {
+    profileStatus = "Profile has no dates";
     profileReportLines.push(profileStatus);
   }
   if (biography.getMisplacedLineCount() > 0) {
@@ -201,6 +226,7 @@ function checkBio() {
 }
 
 function reportResults(reportLines) {
+  
   // If you have been here before get and remove the old list of results
   let previousResults = document.getElementById("bioCheckResultsList");
   let bioCheckResultsContainer = document.getElementById("bioCheckResultsContainer");
@@ -230,53 +256,64 @@ function reportResults(reportLines) {
   } else {
     bioCheckResultsContainer.appendChild(bioResultsList);
 
-    let lastContainer = document.getElementById("suggestionContainer");
-    if (!lastContainer) {
-      lastContainer = document.getElementById("validationContainer");
+    // Attach to the saveStuff container, if present
+    // But if the the feature is not enabled, the container is null
+    let saveStuffContainer = document.getElementById("saveStuff");
+    if (saveStuffContainer) {
+      saveStuffContainer.appendChild(bioCheckResultsContainer);
+    } else {
+      let lastContainer = document.getElementById("suggestionContainer");
+      if (!lastContainer) {
+        lastContainer = document.getElementById("validationContainer");
+      }
+      lastContainer.after(bioCheckResultsContainer);
     }
-    lastContainer.after(bioCheckResultsContainer);
   }
 }
 
 function checkSources() {
-  let thePerson = new PersonDate();
-  // get the bio text and person dates to check
-  let sourcesStr = document.getElementById("mSources").value;
-  let birthDate = document.getElementById("mBirthDate").value;
-  let deathDate = document.getElementById("mDeathDate").value;
-  thePerson.initWithDates(birthDate, deathDate);
-  let isPre1700 = thePerson.isPersonPre1700();
-  let biography = new Biography(theSourceRules);
-  let useAdvanced = false;
-  if (document.getElementById('useAdvancedSources') != null) {
-    useAdvanced = document.getElementById('useAdvancedSources').value;
-  }
-  // Either check the sources box or advanced sourcing like a bio
-  let hasSources = true;
-  let hasStyleIssues = false;
-  if (useAdvanced != 0) {
-    biography.parse(
-      sourcesStr, thePerson.isPersonPre1500(), thePerson.isPersonPre1700(),
-      thePerson.mustBeOpen(), thePerson.isUndated(), false);
-      let isValid = biography.validate();
-      hasSources = biography.hasSources();
-      hasStyleIssues = biography.hasStyleIssues();
-   } else {
-      let isValid = biography.validateSourcesStr(
-        sourcesStr, thePerson.isPersonPre1500(), isPre1700, thePerson.mustBeOpen());
-   }
-  // now report from biography results
-  reportSources(biography.getInvalidSources(), isPre1700, hasSources, hasStyleIssues);
 
-  // TODO
-  // Figure out what to do when the user has a profile with no sources
-  // and clicks one of the options BioCheck says is invalid
-  // these options are:
-  // Personal recollection of events witnessed by [[Sands-1865|Kay (Sands)Knight]] as remembered 18 Oct 2022.
-  // Unsourced family tree handed down to [[Sands-1865|Kay (Sands)Knight]].
-  // Source will be added by [[Sands-1865|Kay (Sands)Knight]] by 19 Oct 2022.
-  // To do this the sources are not in the Sources box so you need to pick them
-  // up and validate based on the button click
+  // Don't check if just connecting existing profile
+  if (!document.getElementById('editAction_connectExisting').checked) {
+    let thePerson = new PersonDate();
+    // get the bio text and person dates to check
+    let sourcesStr = document.getElementById("mSources").value;
+    let birthDate = document.getElementById("mBirthDate").value;
+    let deathDate = document.getElementById("mDeathDate").value;
+    thePerson.initWithDates(birthDate, deathDate);
+    let isPre1700 = thePerson.isPersonPre1700();
+    let biography = new Biography(theSourceRules);
+    let useAdvanced = false;
+    if (document.getElementById('useAdvancedSources') != null) {
+      useAdvanced = document.getElementById('useAdvancedSources').value;
+    }
+    // Either check the sources box or advanced sourcing like a bio
+    let hasSources = true;
+    let hasStyleIssues = false;
+    if (useAdvanced != 0) {
+      biography.parse(
+        sourcesStr, thePerson.isPersonPre1500(), thePerson.isPersonPre1700(),
+        thePerson.mustBeOpen(), thePerson.isUndated(), false);
+        let isValid = biography.validate();
+        hasSources = biography.hasSources();
+        hasStyleIssues = biography.hasStyleIssues();
+     } else {
+        let isValid = biography.validateSourcesStr(
+          sourcesStr, thePerson.isPersonPre1500(), isPre1700, thePerson.mustBeOpen());
+     }
+    // now report from biography results
+    reportSources(biography.getInvalidSources(), isPre1700, hasSources, hasStyleIssues);
+  
+    // TODO
+    // Figure out what to do when the user has a profile with no sources
+    // and clicks one of the options BioCheck says is invalid
+    // these options are:
+    // Personal recollection of events witnessed by [[Sands-1865|Kay (Sands)Knight]] as remembered 18 Oct 2022.
+    // Unsourced family tree handed down to [[Sands-1865|Kay (Sands)Knight]].
+    // Source will be added by [[Sands-1865|Kay (Sands)Knight]] by 19 Oct 2022.
+    // To do this the sources are not in the Sources box so you need to pick them
+    // up and validate based on the button click
+  }
 }
 
 function reportSources(invalidSourceLines, isPre1700, hasSources, hasStyleIssues) {
@@ -322,13 +359,7 @@ function reportSources(invalidSourceLines, isPre1700, hasSources, hasStyleIssues
       // Add the message before the save button
       // or after the Sources table in the BETA version
       let saveButton = document.getElementById('addNewPersonButton');
-      if (!saveButton) {         // this should be the OLD add person
-        // we probably don't need the old add person, but asve it just in case
-        let buttonElements = document.querySelectorAll("[id='wpSave']");
-        saveButton = buttonElements[buttonElements.length - 1];
-        let saveParent = saveButton.parentElement;
-        saveParent.insertBefore(bioCheckSourcesContainer, saveButton);
-      } else {
+      if (saveButton) {
         document.querySelector("table.sourcesContent").after(bioCheckSourcesContainer);
       }
     }
@@ -414,4 +445,6 @@ function checkWatchlist() {
     // Insert in alpha order, use appendChild to add at end
     buttonList.insertBefore(bioCheckItem, buttonList.children[myPosition]);
   }
+
+
 }
