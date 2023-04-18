@@ -4132,14 +4132,13 @@ function getFamilySearchFacts() {
         /Fact: (Christening|Residence|Military Service|Military Draft Registration|Burial|WWI Draft Registration)/i
       )
     ) {
-      const dateMatch = aFact.Fact.match(/\(.*?\d{4}\)/);
+      const dateMatch = aFact.Fact.match(/\((.*?\d{4})\)/);
       const dateMatch2 = aFact.Fact.match(/\(\d{4}-\d{4}\)/);
-      if (!dateMatch2) {
-        aFact.Date = dateMatch[0];
+      if (!dateMatch2 && dateMatch) {
+        aFact.Date = dateMatch[1];
         aFact.Year = dateMatch[0].match(/\d{4}/)[0];
         aFact.OrderDate = formatDate(aFact.Date, 0, { format: 8 });
         let ageBit = "";
-        console.log(aFact.Date);
         if (aFact.Date) {
           ageBit = " (" + getAgeFromISODates(window.profilePerson.BirthDate, getYYYYMMDD(aFact.Date)) + ")";
         }
@@ -4734,7 +4733,7 @@ export async function generateBio() {
 
   function getMatriculaLink(text) {
     // Define the regex to match Matricula links
-    const matriculaMatch = /[^[]*(https?:\/\/data\.matricula-online\.eu[^\s]+)/;
+    const matriculaMatch = /(?:\* ?|\r ? )?(?:\[[^\]]* ?)?(https?:\/\/data\.matricula-online\.eu[^\s]+)(?:[^\]]* ?\])?/;
     if (text.match(matriculaMatch)) {
       return text.match(matriculaMatch)[1];
     } else {
@@ -4744,7 +4743,10 @@ export async function generateBio() {
 
   function getNewBrunswickLink(text) {
     // https://archives.gnb.ca/Search/VISSE/141C5.aspx?culture=en-CA&guid=17D55021-5247-4E59-82B6-CE431742F0FC
-    const newBrunswickMatch = /[^[]*(https?:\/\/archives\.gnb\.ca[^\s]+)/;
+    /* Match the link to the New Brunswick Archives alone, preceded by an asterisk (+optional space) or a newline or
+     the within a link (preceded by a square bracket and optional space and followed by link text and optional space and square bracket) 
+    + not very much else. */
+    const newBrunswickMatch = /(?:\* ?|\r ? )?(?:\[[^\]]* ?)?(https?:\/\/archives\.gnb\.ca[^\s]+)(?:[^\]]* ?\])?/;
     if (text.match(newBrunswickMatch)) {
       return text.match(newBrunswickMatch)[1];
     } else {
@@ -4772,7 +4774,7 @@ export async function generateBio() {
     }
     return citation;
   }
-
+  /*
   function fixDate(citation) {
     const today = new Date();
     const options = { day: "numeric", month: "long", year: "numeric" };
@@ -4780,7 +4782,7 @@ export async function generateBio() {
     citation = citation.replace("accessed", "accessed " + dateString);
     return citation;
   }
-
+*/
   function fixDashes(citation) {
     citation = citation.replace("&ndash;", "–");
     return citation;
