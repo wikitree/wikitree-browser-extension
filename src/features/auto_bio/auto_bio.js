@@ -4547,7 +4547,8 @@ export async function generateBio() {
   //let spouseLinks = $("span[itemprop='spouse'] a");
   let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
   //let keys = $("#pageData").attr("data-mid") || htmlEntities(profileID);
-  let keys = encodeURIComponent(profileID);
+  // let keys = encodeURIComponent(profileID);
+
   /*
   spouseLinks.each(function () {
     if ($(this).attr("href").split("/wiki/")[1]) {
@@ -4555,7 +4556,7 @@ export async function generateBio() {
     }
   });
   */
-  window.biographyPeople = await getPeople(keys, 0, 0, 0, 0, 1, "*");
+  window.biographyPeople = await getPeople(profileID, 0, 0, 0, 0, 1, "*");
   console.log("biographyPeople", window.biographyPeople);
   const biographyPeopleKeys = Object.keys(window.biographyPeople[0].people);
   biographyPeopleKeys.forEach(function (key) {
@@ -5185,7 +5186,9 @@ export async function generateBio() {
     if (filteredText.length > 0) {
       sourcesText += "See also:\n";
       filteredText.forEach(function (anAlso) {
-        sourcesText += "* " + anAlso.replace(/^\*\s?/, "") + "\n";
+        if (anAlso) {
+          sourcesText += "* " + anAlso.replace(/^\*\s?/, "") + "\n";
+        }
       });
       sourcesText += "\n";
     }
