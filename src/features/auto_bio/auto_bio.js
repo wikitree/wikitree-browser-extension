@@ -1599,7 +1599,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
   const lastNamePattern = new RegExp(
     "(" + window.profilePerson.LastNameAtBirth + "|" + window.profilePerson.LastNameCurrent + ") ?"
   );
-  const pattern = new RegExp(firstName + "[^;.]+");
+  const pattern = new RegExp(firstName + "[^;,]+");
   const match = pattern.exec(reference.Text);
   const countryPattern = new RegExp(
     "familysearch.+?(.*?, )((['a-zA-Z .-]+, )?['a-zA-Z .-]+,['a-zA-Z ().-]+), (United States|England|Scotland|Canada|Wales|Australia);"
@@ -1612,6 +1612,8 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
   }
   if (match) {
     let matchedText = match[0];
+    console.log(reference);
+    console.log(matchedText);
     const beforeFirstCommaPattern = new RegExp(firstName.trim() + "\\.?\\s[^,]+");
     const beforeFirstCommaMatch = beforeFirstCommaPattern.exec(matchedText);
     const ourText = beforeFirstCommaMatch[0].replace(lastNamePattern, "");
@@ -4266,6 +4268,9 @@ function splitBioIntoSections() {
       let originalTitle = newSectionTitle;
       if (newSectionTitle == "Acknowledgments") {
         newSectionTitle = "Acknowledgements";
+      }
+      if (newSectionTitle.match(/Research Notes/i)) {
+        newSectionTitle = "Research Notes";
       }
 
       sections[newSectionTitle] = {
