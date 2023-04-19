@@ -1598,7 +1598,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
   const lastNamePattern = new RegExp(
     "(" + window.profilePerson.LastNameAtBirth + "|" + window.profilePerson.LastNameCurrent + ") ?"
   );
-  const pattern = new RegExp(firstName + "[^;.]+");
+  const pattern = new RegExp(firstName + "[^;,]+");
   const match = pattern.exec(reference.Text);
   const countryPattern = new RegExp(
     "familysearch.+?(.*?, )((['a-zA-Z .-]+, )?['a-zA-Z .-]+,['a-zA-Z ().-]+), (United States|England|Scotland|Canada|Wales|Australia);"
@@ -1611,6 +1611,8 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
   }
   if (match) {
     let matchedText = match[0];
+    console.log(reference);
+    console.log(matchedText);
     const beforeFirstCommaPattern = new RegExp(firstName.trim() + "\\.?\\s[^,]+");
     const beforeFirstCommaMatch = beforeFirstCommaPattern.exec(matchedText);
     const ourText = beforeFirstCommaMatch[0].replace(lastNamePattern, "");
@@ -4321,6 +4323,7 @@ function getFamilySearchFacts() {
           ageBit = " (" + getAgeFromISODates(window.profilePerson.BirthDate, getYYYYMMDD(aFact.Date)) + ")";
         }
         aFact.Info = aFact.Fact.split(dateMatch[0])[1].trim();
+
         if (aFact.Fact.match(/Fact: Residence/i)) {
           aFact.Residence = aFact.Info;
           aFact.FactType = "Residence";
@@ -4444,6 +4447,9 @@ function splitBioIntoSections() {
       let originalTitle = newSectionTitle;
       if (newSectionTitle == "Acknowledgments") {
         newSectionTitle = "Acknowledgements";
+      }
+      if (newSectionTitle.match(/Research Notes/i)) {
+        newSectionTitle = "Research Notes";
       }
 
       sections[newSectionTitle] = {
@@ -4720,7 +4726,8 @@ export async function generateBio() {
   //let spouseLinks = $("span[itemprop='spouse'] a");
   let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
   //let keys = $("#pageData").attr("data-mid") || htmlEntities(profileID);
-  let keys = encodeURIComponent(profileID);
+  // let keys = encodeURIComponent(profileID);
+
   /*
   spouseLinks.each(function () {
     if ($(this).attr("href").split("/wiki/")[1]) {
@@ -4728,7 +4735,7 @@ export async function generateBio() {
     }
   });
   */
-  window.biographyPeople = await getPeople(keys, 0, 0, 0, 0, 1, "*");
+  window.biographyPeople = await getPeople(profileID, 0, 0, 0, 0, 1, "*");
   console.log("biographyPeople", window.biographyPeople);
   const biographyPeopleKeys = Object.keys(window.biographyPeople[0].people);
   biographyPeopleKeys.forEach(function (key) {
