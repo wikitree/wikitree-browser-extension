@@ -238,7 +238,7 @@ registerFeature({
 registerFeature({
   name: "Language Setting",
   id: "languageSetting",
-  description: "Remembers your choice of langauge and automatically selects it on Add Person pages.",
+  description: "Remembers your choice of language and automatically selects it on Add Person pages.",
   category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
