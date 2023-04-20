@@ -170,3 +170,10 @@ sup.reference {
 .hide-categories .x-categories {
   display: none !important;
 }
+
+@media only print {
+  .toggle.reading-mode,
+  .toggle.toggle.show-sources {
+    display: none;
+  }
+}
