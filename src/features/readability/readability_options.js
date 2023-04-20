@@ -198,6 +198,10 @@ const readabilityFeature = {
               text: "in reading mode",
             },
             {
+              value: 254,
+              text: "only on demand",
+            },
+            {
               value: 255,
               text: "always",
             },
