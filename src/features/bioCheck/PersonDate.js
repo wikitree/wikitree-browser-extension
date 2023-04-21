@@ -62,6 +62,8 @@ export class PersonDate {
     if (bDay != null && bDay.length > 0) {
       this.personDate.birthDateString = bDay;
       this.personDate.birthDate = this.getDate(this.personDate.birthDateString);
+    } else {
+      this.personDate.hasBirthDate = false;
     }
     if (this.personDate.lastDateCheckedEmpty) {
       this.personDate.hasBirthDate = false;
@@ -69,6 +71,8 @@ export class PersonDate {
     if (dDay != null && dDay.length > 0) {
       this.personDate.deathDateString = dDay;
       this.personDate.deathDate = this.getDate(this.personDate.deathDateString);
+    } else {
+      this.personDate.hasDeathDate = false;
     }
     if (this.personDate.lastDateCheckedEmpty) {
       this.personDate.hasDeathDate = false;
