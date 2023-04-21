@@ -14,6 +14,8 @@ features.forEach(function (feature) {
   }
 });
 
+$("h1").first().after('<div id="categoryBar"><ul></ul></div>');
+
 // NOTE: This is called recursively
 function fillOptionsDataFromUiElements(feature, options, optionsData) {
   const optionElementIdPrefix = feature.id + "_";
@@ -326,7 +328,10 @@ features.sort(function (a, b) {
 
 // adds HTML elements for each feature to the options page
 categories.forEach(function (category) {
-  $("#features").append(`<h2 data-category="${category}">${category} 
+  $("#categoryBar > ul")
+    .first()
+    .append(`<li><a href="#category_${category.replace(/\W+/g, "")}">${category}</a></li>`);
+  $("#features").append(`<h2 id="category_${category.replace(/\W+/g, "")}" data-category="${category}">${category} 
   <div class="feature-toggle">
   <label class="switch">
   <input type="checkbox">
