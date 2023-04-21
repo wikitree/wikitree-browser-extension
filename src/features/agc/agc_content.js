@@ -26,13 +26,6 @@ SOFTWARE.
 Created By: Rob Pavey (Pavey-429)
 */
 
-<<<<<<< HEAD
-/*
-Created By: Rob Pavey (Pavey-429)
-*/
-
-=======
->>>>>>> e8f615c4f2f1119464034619121d52d602d1d4e2
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 // file level variables
