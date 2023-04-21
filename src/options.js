@@ -419,11 +419,11 @@ $(".feature-options-button").on("click", function () {
     let featureId = id.substring(0, index);
     let optionsElementId = `${featureId}_options`;
     if ($(`#${optionsElementId}`).is(":hidden")) {
-      $(`#${optionsElementId}`).slideDown();
-      $(this).text("Hide Options");
+      $(`#${optionsElementId}`).slideDown().get(0).scrollIntoView({ behavior: "smooth", block: "center" });
+      $(this).text("Hide options");
     } else {
       $(`#${optionsElementId}`).slideUp();
-      $(this).text("Show Options");
+      $(this).text("Show options");
     }
   }
 });
@@ -448,18 +448,35 @@ function addFeatureToOptionsPage(featureData) {
           </button>
         </div>
         <div class="feature-author">`;
-          if (featureData.creators && featureData.creators.length) {
-            featureHTML += `Created by: ` + featureData.creators.map((person) => `<a href="https://www.wikitree.com/wiki/${person.wikitreeid}" target="_blank">${person.name}</a>`).join(", ") + `.`;
-          }
-          if (featureData.contributors && featureData.contributors.length) {
-            featureHTML += `<br>Contributors: ` + featureData.contributors.map((person) => `<a href="https://www.wikitree.com/wiki/${person.wikitreeid}" target="_blank">${person.name}</a>`).join(", ") + `.`;
-          }
-          featureHTML += `
+  if (featureData.creators && featureData.creators.length) {
+    featureHTML +=
+      (featureData.creators.length > 1 ? `Creators: ` : `Creator: `) +
+      featureData.creators
+        .map(
+          (person) => `<a href="https://www.wikitree.com/wiki/${person.wikitreeid}" target="_blank">${person.name}</a>`
+        )
+        .join(", ");
+  }
+  if (featureData.contributors && featureData.contributors.length) {
+    featureHTML +=
+      `<br />` +
+      (featureData.contributors.length > 1 ? `Contributors: ` : `Contributor: `) +
+      featureData.contributors
+        .map(
+          (person) => `<a href="https://www.wikitree.com/wiki/${person.wikitreeid}" target="_blank">${person.name}</a>`
+        )
+        .join(", ");
+  }
+  featureHTML += `
         </div>
       </div>
       <div class="feature-content">
         <div class="feature-description">
-          ${featureData.description}
+          ${featureData.description}`;
+  if (featureData.link) {
+    featureHTML += ` <span class="feature-link">(<a href="${featureData.link}" target="_blank">More details</a>)</span>`;
+  }
+  featureHTML += `
         </div>
       </div>
     </div>
