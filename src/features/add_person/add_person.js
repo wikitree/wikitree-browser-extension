@@ -17,24 +17,17 @@ Place #sourceBits before #backToActionButton.
 }
 
 function showBasicData() {
-  if ($("#mBirthDate").val() || $("#mDeathDate").val()) {
-    // if matches container is visible, scroll to it
-    if ($("#matchesContainer").is(":visible")) {
-      $("html, body").animate(
-        {
-          scrollTop: $("#matchesContainer").offset().top,
-        },
-        100
-      );
-    }
-    $("#basicDataSection").show();
-    $("#backToActionButton").text("Back to Action");
-    $("#backToActionButton").insertBefore($("#dismissMatchesButton"));
-    if ($("#validationContainer").length == 0) {
-      $("#enterBasicDataButton").hide();
-    }
-    $("#potentialMatchesSection .returnToBasicButton").hide();
+  //if ($("#mBirthDate").val() || $("#mDeathDate").val()) {
+  scrollTo("#matchesContainer");
+  $("#basicDataSection").show();
+  $("#backToActionButton").text("Back to Action");
+  $("#backToActionButton").insertBefore($("#dismissMatchesButton"));
+  if ($("#validationContainer").length == 0) {
+    $("#enterBasicDataButton").hide();
   }
+  $("#potentialMatchesSection .returnToBasicButton").hide();
+  $("#connectionsSection").show();
+  //}
 }
 
 /* 
@@ -44,6 +37,7 @@ function keepBasicDataSectionVisible() {
   $("#enterBasicDataButton").on("click", function () {
     setTimeout(() => {
       showBasicData();
+      scrollTo("#matchesContainer");
     }, 2000);
   });
   $("#dismissMatchesButton").text("None of these is a match: Create Profile");
@@ -51,14 +45,19 @@ function keepBasicDataSectionVisible() {
     $("#addNewPersonButton").click();
     setTimeout(() => {
       $("#basicDataSection").show();
-      $("html, body").animate(
-        {
-          scrollTop: $("#sourceBits").offset().top,
-        },
-        100
-      );
       $("#continueToSourcesButton").show();
-    }, 100);
+      if ($("#mSources.missing").length) {
+        $("#sourcesSection").show();
+      }
+      scrollTo("#matchesContainer");
+    }, 200);
+  });
+
+  $("#addNewPersonButton,#dismissMatchesButton").on("click", function () {
+    setTimeout(() => {
+      scrollTo("#mSources.missing");
+      $("#continueToSourcesButton").hide();
+    }, 1000);
   });
 
   $("#sourcesSection .returnToMatchesButton, #basicDataTab,#validationTab,#potentialMatchesTab,#connectionsTab").on(
@@ -67,12 +66,7 @@ function keepBasicDataSectionVisible() {
       setTimeout(() => {
         showBasicData();
         if (e.target.id === "potentialMatchesTab") {
-          $("html, body").animate(
-            {
-              scrollTop: $("#matchesContainer").offset().top,
-            },
-            100
-          );
+          scrollTo("#matchesContainer");
         }
       }, 100);
     }
@@ -82,6 +76,9 @@ function keepBasicDataSectionVisible() {
     $("#enterBasicDataButton").show();
     $("#backToActionButton").text("Back");
     $("#backToActionButton").insertBefore($("#enterBasicDataButton"));
+    $("#backToActionButton").on("click", function () {
+      $("#noMatches").remove();
+    });
   });
 
   // observe changes to the DOM and show the basic data section when the #matchesContainer appears
@@ -91,11 +88,8 @@ function keepBasicDataSectionVisible() {
         for (const node of mutation.addedNodes) {
           if (node.nodeType === Node.ELEMENT_NODE && node.id === "matchesContainer") {
             showBasicData();
-            $("#connectionsSection")
-              .insertAfter($("#potentialMatchesInner"))
-              .show()
-              .css({ border: "1px solid forestgreen", "padding-top": "10px", "border-radius": "5px" });
             $("#connectionsSection .newPersonData").text($("#mFirstName").val());
+            scrollTo("#matchesContainer");
             observer.disconnect();
             break;
           }
@@ -104,6 +98,29 @@ function keepBasicDataSectionVisible() {
     });
   });
   observer.observe(document.body, { childList: true, subtree: true });
+
+  $("#sourcesSection .returnToConnectionsButton").remove();
+  $("#continueToSourcesButton").hide();
+  $("#backToActionButton")
+    .clone(true)
+    .text("Back to Action")
+    .insertBefore($("#addNewPersonButton"))
+    .attr("id", "backToActionButton2");
+  $("#backToActionButton2").on("click", function (e) {
+    e.preventDefault();
+    $("#backToActionButton").click();
+  });
+}
+
+function scrollTo(el) {
+  if ($(el).length) {
+    $("html, body").animate(
+      {
+        scrollTop: $(el).offset().top,
+      },
+      100
+    );
+  }
 }
 
 checkIfFeatureEnabled("addPersonRedesign").then((result) => {
@@ -168,22 +185,39 @@ checkIfFeatureEnabled("addPersonRedesign").then((result) => {
       }
     });
 
-    $("#enterBasicDataButton").on("click", function () {
+    $("#enterBasicDataButton,#saveWithoutCorrection").on("click", function () {
       setTimeout(() => {
+        console.log($("#matchesContainer").length, $("#validationContainer").length);
         if ($("#matchesContainer").length == 0 && $("#validationContainer").length == 0) {
-          $("#sourcesSection").show();
+          $("#sourcesSection,#basicDataSection").show();
+          showBasicData();
+          scrollTo("#matchesContainer");
+          if ($("#potentialMatchesContainer").length == 0) {
+            $("#basicDataSection").append($("<div id='noMatches'>No Matches</div>"));
+            scrollTo("#noMatches");
+          } else {
+            $("#noMatches").remove();
+          }
         }
-      }, 2000);
+      }, 3000);
     });
 
     $("#actionButton").on("click", function () {
       setTimeout(() => {
         if ($("#editAction_connectExisting").prop("checked") == true) {
           $("#sourcesSection").show();
+        } else if ($("#editAction_createNew").prop("checked") == true) {
+          $("#connectionsSection").appendTo($("#sourceBits")).show();
+          $("span.newPersonData[data-field='mFirstName']").text("this person");
         }
-      }, 1500);
+      }, 3000);
     });
 
+    $("span#basicDataTab").on("click", function () {
+      setTimeout(() => {
+        showBasicData();
+      }, 200);
+    });
     //  ||$("#editAction_connectExisting").prop("checked") == true
   }
 });

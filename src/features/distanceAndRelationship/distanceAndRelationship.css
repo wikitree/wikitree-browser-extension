@@ -9,7 +9,8 @@
   background: white;
   opacity: 0.8;
   z-index: 1;
-  cursor:default;
+  cursor: default;
+  margin-left: 1em;
 }
 button.copyWidget {
   z-index: 10;

@@ -341,8 +341,7 @@ function doExtraWatchlist() {
 
       bits.forEach(function (aKey) {
         if (aKey.match("Space:")) {
-          console.log(aKey);
-          get_Profile(aKey).then((person) => {
+          get_Profile(decodeURIComponent(aKey)).then((person) => {
             console.log(person);
             console.log(person[0]);
             addToExtraWatchlist(person[0]);

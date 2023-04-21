@@ -13,12 +13,7 @@ checkIfFeatureEnabled("distanceAndRelationship").then((result) => {
 
   const profileID = $("a.pureCssMenui0 span.person").text();
   const userID = Cookies.get("wikitree_wtb_UserName");
-  if (
-    result &&
-    $("body.profile").length &&
-    profileID != userID &&
-    profileID != ""
-  ) {
+  if (result && $("body.profile").length && profileID != userID && profileID != "") {
     import("./distanceAndRelationship.css");
     // set up databases
     window.connectionFinderDBVersion = 1;
@@ -277,7 +272,11 @@ function doRelationshipText(userID, profileID) {
           .text()
           .replaceAll(/[\t\n]/g, "");
         out = dummy.find("b").text();
-        let secondName = dummy.find("b").parent().text().split(out)[1];
+        const outOuterHTML = dummy.find("b")[0].outerHTML;
+        // console.log(dummy.find("b"));
+        // console.log(outOuterHTML);
+        // let secondName = dummy.find("b").parent().text().split(out)[1];
+        let secondName = dummy.find("b").parent().html().split(outOuterHTML)[1];
         let lastLink = dummy.find("#imageContainer > p > span:last-of-type a").attr("href");
         const userFirstName = dummy.find(`p a[href$='${userID}']`).eq(0).text().split(" ")[0];
         const profileFirstName = $("h1 span[itemprop='name']").text().split(" ")[0];

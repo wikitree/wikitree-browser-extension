@@ -187,7 +187,7 @@ const readabilityFeature = {
         {
           id: "collapseSources",
           type: OptionType.SELECT,
-          label: "Collapse the entire sources section",
+          label: "Collapse the entire Sources section",
           values: [
             {
               value: 0,
@@ -283,6 +283,12 @@ const readabilityFeature = {
             },
           ],
           defaultValue: 1,
+        },
+        {
+          id: "indentSrcPlainText",
+          type: OptionType.CHECKBOX,
+          label: 'Indent plain text (like "See also:") in the Sources section',
+          defaultValue: false,
         },
       ],
     },
