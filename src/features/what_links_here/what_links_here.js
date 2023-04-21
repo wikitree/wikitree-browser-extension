@@ -34,7 +34,7 @@ async function whatLinksHereSection() {
             window.whatLinksHereSReponses++;
             if (person?.Name) {
               let thisWikiLink = $(
-                "<a href='http://www.wikitree.com/wiki/" + person.Name + "'>" + displayName(person)[0] + "</a>"
+                `<a href="http://www.wikitree.com/wiki/${person.Name}">${displayName(person)[0]}</a>`
               );
               window.whatLinksHereS.push(thisWikiLink);
             }
@@ -73,11 +73,7 @@ async function whatLinksHereSection() {
         } else {
           window.whatLinksHereS.push(
             $(
-              "<a href='https://www.wikitree.com/wiki/" +
-                $(this).attr("href").split("/wiki/")[1] +
-                "'>" +
-                $(this).text() +
-                "</a>"
+              `<a href="https://www.wikitree.com/wiki/${$(this).attr("href").split("/wiki/")[1]}">${$(this).text()}</a>`
             )
           );
         }
@@ -88,7 +84,7 @@ async function whatLinksHereSection() {
 
 async function whatLinksHereLink() {
   // Add link after 'Watchlist' on edit, profile, and space pages
-  const findMatchesLi = $("li a.pureCssMenui[href='/wiki/Special:WatchedList']");
+  const findMatchesLi = $('li a.pureCssMenui[href="/wiki/Special:WatchedList"]');
   const thisURL = window.location.href;
   let dLink = "";
   // Edit page
@@ -107,9 +103,7 @@ async function whatLinksHereLink() {
   if (dLink != "") {
     // Add the link
     const newLi = $(
-      "<li><a class='pureCssMenui whatLinksHere' href='https://www.wikitree.com/index.php?title=Special:Whatlinkshere/" +
-        dLink +
-        "&limit=1000' title='See what links to this page' id='whatLinksHere'>What Links Here</li>"
+      `<li><a class="pureCssMenui whatLinksHere" href="https://www.wikitree.com/index.php?title=Special:Whatlinkshere/${dLink}&limit=1000" title="See what links to this page" id="whatLinksHere">What Links Here</li>`
     );
     newLi.insertAfter(findMatchesLi.parent());
   }
