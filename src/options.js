@@ -149,16 +149,32 @@ function restore_options() {
   });
 }
 
-// reads all options from storage and restores state of options page
-function restore_defaults() {
-  chrome.storage.sync.get(null, (items) => {
+// resets the state of options page to the default settings
+function reset_options(preserveFeatureOptions, callback) {
+  if (preserveFeatureOptions) {
+    // in this scenario, we are only updating the enabled value of each feature to the default
+    let items = {};
     features.forEach((feature) => {
-      let featureEnabled = items[feature.id];
-      featureEnabled = feature.defaultValue ? true : false;
-      $(`#${feature.id} input`).prop("checked", featureEnabled);
-      restoreFeatureOptions(feature, items);
+      items[feature.id] = !!feature.defaultValue;
     });
-  });
+    chrome.storage.sync.set(items, callback);
+  } else {
+    // clear everything from storage, including items that may no longer be used, and start from scratch
+    chrome.storage.sync.clear(() => {
+      // give the UI a second to update to the defaults after the change event and then save everything
+      window.setTimeout(() => {
+        let items = {};
+        features.forEach((feature) => {
+          items[feature.id] = !!feature.defaultValue;
+          if (feature.options) {
+            let optionsData = (items[feature.id + "_options"] = {});
+            fillOptionsDataFromUiElements(feature, feature.options, optionsData);
+          }
+        });
+        chrome.storage.sync.set(items, callback);
+      }, 1000);
+    });
+  }
 }
 
 // This is called recursively to build the elements of the options page
@@ -387,7 +403,7 @@ $("h1").append(
   All <label class="switch">
 <input type="checkbox" id="toggleAll">
 <span class="slider round"></span>
-</label></div><button id="default">Default</button>`)
+</label></div><button id="settings">Settings</button>`)
 );
 
 $("#toggleAll").on("change", function () {
@@ -402,8 +418,101 @@ $("#toggleAll").on("change", function () {
   }
 });
 
-$("#default").on("click", function () {
-  restore_defaults();
+$("#settings").on("click", function () {
+  let modal = $('<div id="settingsModal" class="modal" style="display: none;"></div>');
+  let hideModal = function () {
+    modal.fadeOut(400, function () {
+      $(this).remove();
+    });
+  };
+  modal.on("click", function (e) {
+    if (this === e.target) {
+      // only close if clicking on the modal background, not elements inside the modal
+      hideModal();
+    }
+  });
+  let dialog = $(
+    '<div id="settingsDialog" class="dialog">' +
+      '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Settings &amp; Data Backup</div>' +
+      '<div class="dialog-content"><ul>' +
+      '<li title="This would be like toggling all of the radio buttons back to the default. Each feature\'s options will be preserved."><button id="btnResetOptions">Default Features</button> Enable only the default features.</li>' +
+      '<li title="This will pop up a dialog to select the download location for your feature options."><button id="btnExportOptions">Export Options</button> Back up your current feature options.</li>' +
+      '<li title="This will pop up a dialog to select the backup file for your feature options. This will overwrite your current options."><button id="btnImportOptions">Import Options</button><input type="file" id="optionsUpload" style="display: none;" /> Restore the feature options from a previous backup.</li>' +
+      '<li title="Resets all feature options to the defaults. This does not include data stored on WikiTree by features like My Menu, Extra Watchlist, etc."><button id="btnClearOptions">Reset Options</button> Reset all options to the defaults.</li>' +
+      '<li class="hide-on-wikitree" style="font-size: 10pt; font-style: italic; color: #bbb; text-align: center;">For more data options, access this from the <a href="https://www.wikitree.com/" style="color: #bbb;" target="_blank">WikiTree</a> site.</li>' +
+      '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Data from My Menu, Change Summary Options, Extra Watchlist, Clipboard and Notes, etc.</li>' +
+      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select the download location for your feature data."><button id="btnExportData">Export Data</button> Back up your feature data from WikiTree.</li>' +
+      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select your feature data backup file."><button id="btnImportData">Import Data</button> Restore your feature data on WikiTree.</li>' +
+      "</ul></div></div>"
+  ).appendTo(modal);
+  dialog
+    .find(".close")
+    .on("auxclick", function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    })
+    .on("click", function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      hideModal();
+    });
+  dialog.find("#btnResetOptions").on("click", function (e) {
+    dialog.fadeOut();
+    reset_options(true, hideModal);
+  });
+  dialog.find("#btnClearOptions").on("click", function (e) {
+    dialog.fadeOut();
+    reset_options(false, hideModal);
+  });
+  dialog.find("#btnExportOptions").on("click", function (e) {
+    chrome.storage.sync.get(null, (result) => {
+      let json = JSON.stringify(result);
+      let link = document.createElement("a");
+      link.download =
+        Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "short" }) // sv-SE uses ISO format
+          .format(new Date())
+          .replace(":", "")
+          .replace(" ", "_") + "_WBE_options.txt"; // formatted to match WBE data export
+      let blob = new Blob([json], { type: "text/plain" });
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      URL.revokeObjectURL(link.href);
+      hideModal();
+    });
+  });
+  dialog.find("#btnExportData").on("click", function (e) {
+    backup();
+    hideModal();
+  });
+  dialog.find("#btnImportOptions").on("click", function (e) {
+    $(this).siblings("#optionsUpload").trigger("click");
+  });
+  dialog.find("#optionsUpload").on("change", function (e) {
+    if (window.FileReader) {
+      if (this.files && this.files.length > 0) {
+        let reader = new FileReader();
+        reader.addEventListener("loadend", function (e) {
+          if (this.result) {
+            dialog.fadeOut();
+            try {
+              let json = JSON.parse(this.result);
+              chrome.storage.sync.set(json, () => {
+                window.setTimeout(hideModal, 1000);
+              });
+            } catch {}
+          }
+        });
+        reader.readAsText(this.files[0]);
+      }
+    }
+  });
+  dialog.find("#btnImportData").on("click", function (e) {
+    restoreBackup();
+    hideModal();
+  });
+  modal.css({ display: "block", opacity: "0" }).prependTo(document.body);
+  dialog.css("--dialog-height", dialog.find(".dialog-content > ul").height() + "px");
+  modal.css({ display: "none", opacity: "unset" }).fadeIn();
 });
 
 // Auto save the options on click (on 'change' would create lots of events when a big switch is clicked)
@@ -509,32 +618,15 @@ chrome.storage.onChanged.addListener(function () {
   restore_options();
 });
 
-function addBackupButtons() {
+if (chrome && chrome.tabs && chrome.tabs.query) {
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     if (tabs[0].url) {
       if (tabs[0].url.match("wikitree.com")) {
-        $("body").append(
-          $(`<div id="backup"><h2>Back up</h2>
-    <div class="feature-information">
-    Back up	"My Menu", "Change Summary Options", "Clipboard and Notes", and "Extra Watchlist".
-      <div id="backupButtons">
-        <button id="backupButton">Back up</button>
-        <button id="restoreBackupButton">Restore</button>
-      </div>
-    </div>
-  </div>`)
-        );
-        $("#backupButton").on("click", function () {
-          backup();
-        });
-        $("#restoreBackupButton").on("click", function () {
-          restoreBackup();
-        });
+        $("html").addClass("is-on-wikitree");
       }
     }
   });
 }
-addBackupButtons();
 
 function backup() {
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {

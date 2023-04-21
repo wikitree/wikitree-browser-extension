@@ -66,8 +66,7 @@ html {
   padding: 10px 0 0 70px;
   font-size: medium;
 }
-.feature-options-button,
-#options #backup button {
+.feature-options-button {
   border-radius: 34px;
   background-color: #ddd;
   font-size: medium;
@@ -246,45 +245,127 @@ input:checked + .slider:before {
   right: 1em;
 }
 
-#options #backup {
-  font-size: medium;
-  margin-bottom: 1em;
-}
-#options #backup h2 {
-  font-size: 1.5em;
-}
-#options #backup button {
-  display: inline-block;
-}
-#options #backupButtons {
-  display: block;
-  margin: 1em auto;
-}
-#options #backup button:active {
-  border: 2px solid gray;
-}
-
 h1 .feature-toggle {
   margin-left: 0.5em;
 }
-h1 #default {
+h1 #settings {
   float: right;
   position: relative;
-  width: 60px;
+}
+h1 #settings,
+#settingsDialog button {
+  background-color: #ddd;
+  padding: 0 17px;
   height: 34px;
+  line-height: 34px;
   border-radius: 34px;
   border: 0;
-  font-weight: bold;
+  font-size: 12pt;
+}
+h1 #settings:hover,
+#settingsDialog button:hover {
+  background-color: #8fc641;
   cursor: pointer;
 }
-h1 #default:hover {
-  background-color: #8fc641;
-}
-h1 #default:active {
+h1 #settings:active,
+#settingsDialog button:active {
   box-shadow: 0;
+}
+
+.modal {
+  position: fixed;
+  z-index: 999;
+  background: rgba(204, 204, 204, 0.6);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+.modal .dialog {
+  position: relative;
+  border: 1px solid #000;
+  background-color: #fff;
+  margin: calc(clamp(100px, calc(var(--dialog-height, 0px) + 51px), 580px) / -2) auto 0 auto;
+  top: 50%;
+  width: 80%;
+  height: clamp(100px, calc(var(--dialog-height, 0px) + 51px), 580px);
+  font-size: 12pt;
+}
+.modal .dialog:before {
+  content: " ";
+  display: block;
+  position: absolute;
+  background: none;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  -webkit-box-shadow: 3px 3px 12px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 3px 3px 12px 6px rgba(0, 0, 0, 0.3);
+}
+.dialog .dialog-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 31px;
+  background-color: #ddd;
+  padding: 0 30px 0 10px;
+  line-height: 30px;
+  font-weight: bold;
+}
+.dialog .close {
+  position: absolute;
+  display: inline-block;
+  right: 0px;
+  top: 0px;
+  font-size: 11pt;
+  font-weight: normal;
+  padding: 0 10px;
+}
+.dialog .dialog-content {
+  position: absolute;
+  padding: 10px;
+  top: 31px;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  overflow: auto;
+}
+.dialog .close,
+.dialog .close:visited,
+.dialog .close:active {
+  color: #000;
+  text-decoration: none;
+}
+.dialog .close:hover {
+  color: #fff;
+  background-color: #8fc641;
+  text-decoration: none;
+}
+
+#settingsDialog ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+#settingsDialog li {
+  margin-top: 10px;
+}
+#settingsDialog li:first-child {
+  margin-top: 0;
 }
 
 /* content */
 #wte-topMenuUL {
   margin-right: 1em;
+}
+
+.hide-unless-wikitree,
+.is-on-wikitree .hide-on-wikitree {
+  display: none;
+}
+.is-on-wikitree .hide-unless-wikitree {
+  display: revert;
 }
