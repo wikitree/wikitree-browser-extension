@@ -2,6 +2,7 @@ import $ from "jquery";
 
 import { features, OptionType } from "./core/options/options_registry";
 import "./features/register_feature_options";
+import { restoreOptions, restoreData } from "./upload";
 
 $("h1").prepend($("<img src='" + chrome.runtime.getURL("images/wikitree-small.png") + "'>"));
 
@@ -436,13 +437,13 @@ $("#settings").on("click", function () {
       '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Settings &amp; Data Backup</div>' +
       '<div class="dialog-content"><ul>' +
       '<li title="This would be like toggling all of the radio buttons back to the default. Each feature\'s options will be preserved."><button id="btnResetOptions">Default Features</button> Enable only the default features.</li>' +
-      '<li title="This will pop up a dialog to select the download location for your feature options."><button id="btnExportOptions">Export Options</button> Back up your current feature options.</li>' +
-      '<li title="This will pop up a dialog to select the backup file for your feature options. This will overwrite your current options."><button id="btnImportOptions">Import Options</button><input type="file" id="optionsUpload" style="display: none;" /> Restore the feature options from a previous backup.</li>' +
+      '<li title="This will pop up a dialog to select the download location for your feature options."><button id="btnExportOptions">Back Up Options</button> Back up your current feature options.</li>' +
+      '<li title="This will pop up a dialog to select the backup file for your feature options. This will overwrite your current options."><button id="btnImportOptions">Restore Options</button> Restore the feature options from a previous backup.</li>' +
       '<li title="Resets all feature options to the defaults. This does not include data stored on WikiTree by features like My Menu, Extra Watchlist, etc."><button id="btnClearOptions">Reset Options</button> Reset all options to the defaults.</li>' +
       '<li class="hide-on-wikitree" style="font-size: 10pt; font-style: italic; color: #bbb; text-align: center;">For more data options, access this from the <a href="https://www.wikitree.com/" style="color: #bbb;" target="_blank">WikiTree</a> site.</li>' +
       '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Data from My Menu, Change Summary Options, Extra Watchlist, Clipboard and Notes, etc.</li>' +
-      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select the download location for your feature data."><button id="btnExportData">Export Data</button> Back up your feature data from WikiTree.</li>' +
-      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select your feature data backup file."><button id="btnImportData">Import Data</button> Restore your feature data on WikiTree.</li>' +
+      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select the download location for your feature data."><button id="btnExportData">Back Up Data</button> Back up your feature data from WikiTree.</li>' +
+      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select your feature data backup file."><button id="btnImportData">Restore Data</button> Restore your feature data on WikiTree.</li>' +
       "</ul></div></div>"
   ).appendTo(modal);
   dialog
@@ -493,41 +494,42 @@ $("#settings").on("click", function () {
     hideModal();
   });
   dialog.find("#btnImportOptions").on("click", function (e) {
-    $(this).siblings("#optionsUpload").trigger("click");
-  });
-  dialog.find("#optionsUpload").on("change", function (e) {
-    let file = $(this);
-    if (window.FileReader) {
-      if (this.files && this.files.length > 0) {
-        let reader = new FileReader();
-        reader.addEventListener("loadend", function (e) {
-          if (this.result) {
-            let isValid = false;
-            try {
-              let json = JSON.parse(this.result);
-              if (
-                (isValid =
-                  json.extension && json.extension.indexOf("WikiTree Browser Extension") === 0 && json.features)
-              ) {
-                dialog.fadeOut();
-                chrome.storage.sync.set(json.features, () => {
-                  window.setTimeout(hideModal, 1000);
-                });
-              }
-            } catch {}
-            if (!isValid) {
-              file.replaceWith(file.val("").clone(true)); // reset the file input
-              alert("The selected file is not valid.");
-            }
-          }
+    if (navigator.userAgent.indexOf("Firefox/") > -1) {
+      window.open(
+        "popup.html#UploadOptions",
+        "wbe_upload",
+        `innerWidth=${window.innerWidth},innerHeight=${window.innerHeight},screenX=${window.screenX},screenY=${window.screenY},popup=1`
+      );
+    } else {
+      restoreOptions(() => {
+        dialog.fadeOut();
+      })
+        .catch(() => {
+          alert("The options file was not valid.");
+        })
+        .finally(() => {
+          hideModal();
         });
-        reader.readAsText(this.files[0]);
-      }
     }
   });
   dialog.find("#btnImportData").on("click", function (e) {
-    restoreBackup();
-    hideModal();
+    if (navigator.userAgent.indexOf("Firefox/") > -1) {
+      window.open(
+        "popup.html#UploadData",
+        "wbe_upload",
+        `innerWidth=${window.innerWidth},innerHeight=${window.innerHeight},screenX=${window.screenX},screenY=${window.screenY},popup=1`
+      );
+    } else {
+      restoreData(() => {
+        dialog.fadeOut();
+      })
+        .catch(() => {
+          alert("The data file was not valid.");
+        })
+        .finally(() => {
+          hideModal();
+        });
+    }
   });
   modal.css({ display: "block", opacity: "0" }).prependTo(document.body);
   dialog.css("--dialog-height", dialog.find(".dialog-content > ul").height() + "px");
@@ -653,31 +655,4 @@ function backup() {
       console.log(response.farewell);
     });
   });
-}
-
-function restoreBackup() {
-  var fileChooser = document.createElement("input");
-  fileChooser.type = "file";
-  fileChooser.addEventListener("change", function () {
-    var file = fileChooser.files[0];
-    var reader = new FileReader();
-    let data;
-    reader.onload = function () {
-      let data = reader.result;
-    };
-    reader.readAsText(file);
-    setTimeout(function () {
-      data = JSON.parse(reader.result);
-      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-        chrome.tabs.sendMessage(tabs[0].id, { greeting: "restoreBackup", data: data }, function (response) {
-          console.log(response.farewell);
-        });
-      });
-    }, 1000);
-    form.reset();
-  });
-  /* Wrap it in a form for resetting */
-  var form = document.createElement("form");
-  form.appendChild(fileChooser);
-  fileChooser.click();
 }
