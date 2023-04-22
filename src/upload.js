@@ -66,10 +66,12 @@ export function restoreData(onProcessing) {
         try {
           let data = JSON.parse(this.result);
           if (onProcessing) onProcessing();
-          chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-            chrome.tabs.sendMessage(tabs[0].id, { greeting: "restoreBackup", data: data }, function (response) {
-              resolve(data);
-            });
+          chrome.tabs.query({ url: "*://*.wikitree.com/*" }, function (tabs) {
+            if (tabs.length > 0) {
+              chrome.tabs.sendMessage(tabs[0].id, { greeting: "restoreBackup", data: data }, function (response) {
+                resolve(data);
+              });
+            }
           });
         } catch (ex) {
           reject({ error: "invalid", exception: ex });
