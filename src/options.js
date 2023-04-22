@@ -466,11 +466,19 @@ $("#settings").on("click", function () {
   });
   dialog.find("#btnExportOptions").on("click", function (e) {
     chrome.storage.sync.get(null, (result) => {
-      let json = JSON.stringify(result);
+      const manifest = chrome.runtime.getManifest();
+      let now = new Date();
+      let json = JSON.stringify({
+        extension: manifest.name,
+        version: manifest.version,
+        browser: navigator.userAgent,
+        timestamp: now.toISOString(),
+        features: result,
+      });
       let link = document.createElement("a");
       link.download =
         Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "short" }) // sv-SE uses ISO format
-          .format(new Date())
+          .format(now)
           .replace(":", "")
           .replace(" ", "_") + "_WBE_options.txt"; // formatted to match WBE data export
       let blob = new Blob([json], { type: "text/plain" });
@@ -488,18 +496,29 @@ $("#settings").on("click", function () {
     $(this).siblings("#optionsUpload").trigger("click");
   });
   dialog.find("#optionsUpload").on("change", function (e) {
+    let file = $(this);
     if (window.FileReader) {
       if (this.files && this.files.length > 0) {
         let reader = new FileReader();
         reader.addEventListener("loadend", function (e) {
           if (this.result) {
-            dialog.fadeOut();
+            let isValid = false;
             try {
               let json = JSON.parse(this.result);
-              chrome.storage.sync.set(json, () => {
-                window.setTimeout(hideModal, 1000);
-              });
+              if (
+                (isValid =
+                  json.extension && json.extension.indexOf("WikiTree Browser Extension") === 0 && json.features)
+              ) {
+                dialog.fadeOut();
+                chrome.storage.sync.set(json.features, () => {
+                  window.setTimeout(hideModal, 1000);
+                });
+              }
             } catch {}
+            if (!isValid) {
+              file.replaceWith(file.val("").clone(true)); // reset the file input
+              alert("The selected file is not valid.");
+            }
           }
         });
         reader.readAsText(this.files[0]);
