@@ -7,6 +7,12 @@ h6 {
   color: #333333;
 }
 
+body {
+  /* set to match injected stylesheet from Chrome */
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  font-size: 75%;
+}
+
 a {
   color: #060;
   text-decoration: underline;
