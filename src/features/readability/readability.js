@@ -388,7 +388,12 @@ async function initReadability() {
     if (isToggled(options.hideInlineTables)) {
       $("html").toggleClass("hide-inline-tables");
     }
-    if (isToggled(options.collapseSources)) {
+    if (options.collapseSources / 1 === 254) {
+      if (initToggleOptions) {
+        // this turns the toggle button on, but it starts out as expanded instead of collapsed (see below)
+        $("html").toggleClass("collapse-sources");
+      }
+    } else if (isToggled(options.collapseSources)) {
       $("html").toggleClass("collapse-sources");
     }
     if (isToggled(options.hideCitations)) {
@@ -445,8 +450,8 @@ async function initReadability() {
     let toggleSourcesSection = function () {
       $("html").toggleClass("expand-sources");
     };
-    let startExpanded = false; // by default we start collapsed, but in some cases we may need to start expanded
-    if (!!window.location.hash) {
+    let startExpanded = options.collapseSources / 1 === 254; // by default we start collapsed, but in some cases we may need to start expanded
+    if (!startExpanded && !!window.location.hash) {
       let target = document.getElementById(window.location.hash.substring(1));
       if (!target) {
         target = document.getElementsByName(window.location.hash.substring(1));
@@ -456,9 +461,11 @@ async function initReadability() {
       }
       if (target && $(target).closest(".x-sources").length > 0) {
         // only expand if the target is part of the Sources section
-        toggleSourcesSection();
         startExpanded = true;
       }
+    }
+    if (startExpanded) {
+      toggleSourcesSection();
     }
     let toggleElement = $(
       '<span class="toggle show-sources"><input type="checkbox" id="sources_checkbox"' +
@@ -482,13 +489,17 @@ async function initReadability() {
   if (options.readingMode) {
     // this function will toggle reading mode on/off in the feature options
     let setToggleValue = async function (value) {
-      await chrome.storage.sync.get("readability_options").then(async (result) => {
-        if (result) {
-          let options = (result.readability_options = result.readability_options || {});
-          options.readingMode_toggle = value;
-          await chrome.storage.sync.set(result);
-        }
-      });
+      try {
+        await chrome.storage.sync.get("readability_options").then(async (result) => {
+          if (result) {
+            let options = (result.readability_options = result.readability_options || {});
+            options.readingMode_toggle = value;
+            await chrome.storage.sync.set(result);
+          }
+        });
+      } catch {
+        // ignore the error if the extension context was invalidated; the value simply won't be persisted this time
+      }
     };
 
     // add the toggle to turn reading mode on/off while viewing the page instead of having to go into the extension for it
