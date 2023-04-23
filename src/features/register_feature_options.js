@@ -423,7 +423,7 @@ registerFeature({
   creators: [{ name: "Steve Harris", wikitreeid: "Harris-5439" }],
   contributors: [],
   defaultValue: false,
-  pages: [isProfilePage],
+  pages: [isProfilePage, isSpacePage],
 });
 
 registerFeature({
