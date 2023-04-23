@@ -25,6 +25,7 @@
   .sticky-header .wrapper #header,
   .sticky-header .qa-body-wrapper .qa-header {
     position: fixed;
+    z-index: 2147000000;
     top: 0;
     height: var(--header-height);
     background: none;
@@ -33,7 +34,6 @@
   .sticky-header .qa-body-wrapper .qa-header {
     width: 940px;
     background-color: #fff;
-    z-index: 1;
   }
 
   .sticky-header .wrapper #header::before {

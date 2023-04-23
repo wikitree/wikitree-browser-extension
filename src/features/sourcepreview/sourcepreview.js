@@ -16,7 +16,7 @@ checkIfFeatureEnabled("sPreviews").then((result) => {
                     var sPreview = document.createElement('div');
                     sPreview.setAttribute('id', 'sourcePreview');
                     sPreview.setAttribute('class', 'box rounded');
-                    sPreview.setAttribute('style', 'z-index:999; width: 450px; position:absolute;');
+                    sPreview.setAttribute('style', 'z-index:999; width: 450px; position:absolute; white-space: normal; font-size: 14px; font-style: normal; font-weight: normal;');
                     document.getElementById(this.id).appendChild(sPreview);
                     document.getElementById('sourcePreview').innerHTML = document.getElementById(sourceID).innerHTML;
                 },

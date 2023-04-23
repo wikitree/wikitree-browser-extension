@@ -51,7 +51,7 @@ sup.reference {
   margin-left: var(--a11y-citation-spacing);
 }
 
-.a11y-ref-clean sup.reference a {
+.a11y-ref-clean sup.reference > a {
   text-decoration: none;
 }
 

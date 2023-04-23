@@ -21,7 +21,7 @@ checkIfFeatureEnabled("spacePreviews").then((result) => {
         sPreview.setAttribute("class", "box rounded");
         sPreview.setAttribute(
           "style",
-          `z-index:9999; max-height:450px; overflow: scroll; position:absolute; padding: 10px;`
+          `z-index:9999; max-height:450px; overflow: scroll; position:absolute; padding: 10px; font-style: normal; font-weight: normal; text-decoration: none;`
         );
         document.getElementById("spaceHover").parentElement.appendChild(sPreview);
         $.ajax({
