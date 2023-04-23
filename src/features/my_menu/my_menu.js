@@ -75,7 +75,7 @@ function addCustomMenuOptions() {
   if (isOK(mCustomMenu)) {
     const storedCustomMenu = JSON.parse(mCustomMenu);
     storedCustomMenu.arr.forEach(function (aLink) {
-      let anLi = $("<li data-menu='" + aLink.Menu + "'><a href='" + aLink.Link + "'>" + aLink.LinkText + "</a></li>");
+      let anLi = $(`<li data-menu="${aLink.Menu}"><a href="${aLink.Link}">${aLink.LinkText}</a></li>`);
       $("#customMenu").append(anLi);
       anLi.find("a").on("click", function () {
         returnToMenu($(this).parent());
@@ -246,9 +246,7 @@ function addCustomMenu() {
           dLinkText = aLink.LinkText;
         }
 
-        newLink = $(
-          "<li data-menu='" + aLink.Menu + "'><a class='pureCssMenui0' href='" + dLink + "'>" + dLinkText + "</a></li>"
-        );
+        newLink = $(`<li data-menu="${aLink.Menu}"><a class="pureCssMenui0" href="${dLink}">${dLinkText}</a></li>`);
       }
       $("#myCustomMenu").append(newLink);
     });
@@ -346,7 +344,7 @@ function returnToMenu(jq) {
     } else {
       jq.remove();
     }
-  } else if (dMenu.find("a[href='" + jq.find("a").attr("href") + "']").length < 1) {
+  } else if (dMenu.find(`a[href="${jq.find("a").attr("href")}"]`).length < 1) {
     jq.appendTo(dMenu);
     sortMenu(dMenu);
   } else {
