@@ -7,6 +7,7 @@ const srcDir = path.join(__dirname, "..", "src");
 module.exports = (env) => ({
   entry: {
     options: path.join(srcDir, "options.js"),
+    popup: path.join(srcDir, "popup.js"),
     content: path.join(srcDir, "content.js"),
   },
   output: {

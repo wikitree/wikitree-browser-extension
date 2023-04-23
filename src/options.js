@@ -2,6 +2,7 @@ import $ from "jquery";
 
 import { features, OptionType } from "./core/options/options_registry";
 import "./features/register_feature_options";
+import { restoreOptions, restoreData } from "./upload";
 
 $("h1").prepend($("<img src='" + chrome.runtime.getURL("images/wikitree-small.png") + "'>"));
 
@@ -13,6 +14,8 @@ features.forEach(function (feature) {
     categories.push(feature.category);
   }
 });
+
+$("h1").first().after('<div id="categoryBar"><ul></ul></div>');
 
 // NOTE: This is called recursively
 function fillOptionsDataFromUiElements(feature, options, optionsData) {
@@ -147,16 +150,32 @@ function restore_options() {
   });
 }
 
-// reads all options from storage and restores state of options page
-function restore_defaults() {
-  chrome.storage.sync.get(null, (items) => {
+// resets the state of options page to the default settings
+function reset_options(preserveFeatureOptions, callback) {
+  if (preserveFeatureOptions) {
+    // in this scenario, we are only updating the enabled value of each feature to the default
+    let items = {};
     features.forEach((feature) => {
-      let featureEnabled = items[feature.id];
-      featureEnabled = feature.defaultValue ? true : false;
-      $(`#${feature.id} input`).prop("checked", featureEnabled);
-      restoreFeatureOptions(feature, items);
+      items[feature.id] = !!feature.defaultValue;
     });
-  });
+    chrome.storage.sync.set(items, callback);
+  } else {
+    // clear everything from storage, including items that may no longer be used, and start from scratch
+    chrome.storage.sync.clear(() => {
+      // give the UI a second to update to the defaults after the change event and then save everything
+      window.setTimeout(() => {
+        let items = {};
+        features.forEach((feature) => {
+          items[feature.id] = !!feature.defaultValue;
+          if (feature.options) {
+            let optionsData = (items[feature.id + "_options"] = {});
+            fillOptionsDataFromUiElements(feature, feature.options, optionsData);
+          }
+        });
+        chrome.storage.sync.set(items, callback);
+      }, 1000);
+    });
+  }
 }
 
 // This is called recursively to build the elements of the options page
@@ -326,7 +345,10 @@ features.sort(function (a, b) {
 
 // adds HTML elements for each feature to the options page
 categories.forEach(function (category) {
-  $("#features").append(`<h2 data-category="${category}">${category} 
+  $("#categoryBar > ul")
+    .first()
+    .append(`<li><a href="#category_${category.replace(/\W+/g, "")}">${category}</a></li>`);
+  $("#features").append(`<h2 id="category_${category.replace(/\W+/g, "")}" data-category="${category}">${category} 
   <div class="feature-toggle">
   <label class="switch">
   <input type="checkbox">
@@ -382,7 +404,7 @@ $("h1").append(
   All <label class="switch">
 <input type="checkbox" id="toggleAll">
 <span class="slider round"></span>
-</label></div><button id="default">Default</button>`)
+</label></div><button id="settings">Settings</button>`)
 );
 
 $("#toggleAll").on("change", function () {
@@ -397,8 +419,121 @@ $("#toggleAll").on("change", function () {
   }
 });
 
-$("#default").on("click", function () {
-  restore_defaults();
+$("#settings").on("click", function () {
+  let modal = $('<div id="settingsModal" class="modal" style="display: none;"></div>');
+  let hideModal = function () {
+    modal.fadeOut(400, function () {
+      $(this).remove();
+    });
+  };
+  modal.on("click", function (e) {
+    if (this === e.target) {
+      // only close if clicking on the modal background, not elements inside the modal
+      hideModal();
+    }
+  });
+  let dialog = $(
+    '<div id="settingsDialog" class="dialog">' +
+      '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Settings &amp; Data Backup</div>' +
+      '<div class="dialog-content"><ul>' +
+      '<li title="This would be like toggling all of the radio buttons back to the default. Each feature\'s options will be preserved."><button id="btnResetOptions">Default Features</button> Enable only the default features.</li>' +
+      '<li title="This will pop up a dialog to select the download location for your feature options."><button id="btnExportOptions">Back Up Options</button> Back up your current feature options.</li>' +
+      '<li title="This will pop up a dialog to select the backup file for your feature options. This will overwrite your current options."><button id="btnImportOptions">Restore Options</button> Restore the feature options from a previous backup.</li>' +
+      '<li title="Resets all feature options to the defaults. This does not include data stored on WikiTree by features like My Menu, Extra Watchlist, etc."><button id="btnClearOptions">Reset Options</button> Reset all options to the defaults.</li>' +
+      '<li class="hide-on-wikitree" style="font-size: 10pt; font-style: italic; color: #bbb; text-align: center;">For more data options, access this from the <a href="https://www.wikitree.com/" style="color: #bbb;" target="_blank">WikiTree</a> site.</li>' +
+      '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Data from My Menu, Change Summary Options, Extra Watchlist, Clipboard and Notes, etc.</li>' +
+      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select the download location for your feature data."><button id="btnExportData">Back Up Data</button> Back up your feature data from WikiTree.</li>' +
+      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select your feature data backup file."><button id="btnImportData">Restore Data</button> Restore your feature data on WikiTree.</li>' +
+      "</ul></div></div>"
+  ).appendTo(modal);
+  dialog
+    .find(".close")
+    .on("auxclick", function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    })
+    .on("click", function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      hideModal();
+    });
+  dialog.find("#btnResetOptions").on("click", function (e) {
+    dialog.fadeOut();
+    reset_options(true, hideModal);
+  });
+  dialog.find("#btnClearOptions").on("click", function (e) {
+    dialog.fadeOut();
+    reset_options(false, hideModal);
+  });
+  dialog.find("#btnExportOptions").on("click", function (e) {
+    chrome.storage.sync.get(null, (result) => {
+      const manifest = chrome.runtime.getManifest();
+      let now = new Date();
+      let json = JSON.stringify({
+        extension: manifest.name,
+        version: manifest.version,
+        browser: navigator.userAgent,
+        timestamp: now.toISOString(),
+        features: result,
+      });
+      let link = document.createElement("a");
+      link.download =
+        Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "short" }) // sv-SE uses ISO format
+          .format(now)
+          .replace(":", "")
+          .replace(" ", "_") + "_WBE_options.txt"; // formatted to match WBE data export
+      let blob = new Blob([json], { type: "text/plain" });
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      URL.revokeObjectURL(link.href);
+      hideModal();
+    });
+  });
+  dialog.find("#btnExportData").on("click", function (e) {
+    backup();
+    hideModal();
+  });
+  dialog.find("#btnImportOptions").on("click", function (e) {
+    if (navigator.userAgent.indexOf("Firefox/") > -1) {
+      window.open(
+        "popup.html#UploadOptions",
+        "wbe_upload",
+        `innerWidth=${window.innerWidth},innerHeight=${window.innerHeight},screenX=${window.screenX},screenY=${window.screenY},popup=1`
+      );
+    } else {
+      restoreOptions(() => {
+        dialog.fadeOut();
+      })
+        .catch(() => {
+          alert("The options file was not valid.");
+        })
+        .finally(() => {
+          hideModal();
+        });
+    }
+  });
+  dialog.find("#btnImportData").on("click", function (e) {
+    if (navigator.userAgent.indexOf("Firefox/") > -1) {
+      window.open(
+        "popup.html#UploadData",
+        "wbe_upload",
+        `innerWidth=${window.innerWidth},innerHeight=${window.innerHeight},screenX=${window.screenX},screenY=${window.screenY},popup=1`
+      );
+    } else {
+      restoreData(() => {
+        dialog.fadeOut();
+      })
+        .catch(() => {
+          alert("The data file was not valid.");
+        })
+        .finally(() => {
+          hideModal();
+        });
+    }
+  });
+  modal.css({ display: "block", opacity: "0" }).prependTo(document.body);
+  dialog.css("--dialog-height", dialog.find(".dialog-content > ul").height() + "px");
+  modal.css({ display: "none", opacity: "unset" }).fadeIn();
 });
 
 // Auto save the options on click (on 'change' would create lots of events when a big switch is clicked)
@@ -419,11 +554,11 @@ $(".feature-options-button").on("click", function () {
     let featureId = id.substring(0, index);
     let optionsElementId = `${featureId}_options`;
     if ($(`#${optionsElementId}`).is(":hidden")) {
-      $(`#${optionsElementId}`).slideDown();
-      $(this).text("Hide Options");
+      $(`#${optionsElementId}`).slideDown().get(0).scrollIntoView({ behavior: "smooth", block: "center" });
+      $(this).text("Hide options");
     } else {
       $(`#${optionsElementId}`).slideUp();
-      $(this).text("Show Options");
+      $(this).text("Show options");
     }
   }
 });
@@ -448,18 +583,35 @@ function addFeatureToOptionsPage(featureData) {
           </button>
         </div>
         <div class="feature-author">`;
-          if (featureData.creators && featureData.creators.length) {
-            featureHTML += `Created by: ` + featureData.creators.map((person) => `<a href="https://www.wikitree.com/wiki/${person.wikitreeid}" target="_blank">${person.name}</a>`).join(", ") + `.`;
-          }
-          if (featureData.contributors && featureData.contributors.length) {
-            featureHTML += `<br>Contributors: ` + featureData.contributors.map((person) => `<a href="https://www.wikitree.com/wiki/${person.wikitreeid}" target="_blank">${person.name}</a>`).join(", ") + `.`;
-          }
-          featureHTML += `
+  if (featureData.creators && featureData.creators.length) {
+    featureHTML +=
+      (featureData.creators.length > 1 ? `Creators: ` : `Creator: `) +
+      featureData.creators
+        .map(
+          (person) => `<a href="https://www.wikitree.com/wiki/${person.wikitreeid}" target="_blank">${person.name}</a>`
+        )
+        .join(", ");
+  }
+  if (featureData.contributors && featureData.contributors.length) {
+    featureHTML +=
+      `<br />` +
+      (featureData.contributors.length > 1 ? `Contributors: ` : `Contributor: `) +
+      featureData.contributors
+        .map(
+          (person) => `<a href="https://www.wikitree.com/wiki/${person.wikitreeid}" target="_blank">${person.name}</a>`
+        )
+        .join(", ");
+  }
+  featureHTML += `
         </div>
       </div>
       <div class="feature-content">
         <div class="feature-description">
-          ${featureData.description}
+          ${featureData.description}`;
+  if (featureData.link) {
+    featureHTML += ` <span class="feature-link">(<a href="${featureData.link}" target="_blank">More details</a>)</span>`;
+  }
+  featureHTML += `
         </div>
       </div>
     </div>
@@ -487,32 +639,15 @@ chrome.storage.onChanged.addListener(function () {
   restore_options();
 });
 
-function addBackupButtons() {
+if (chrome && chrome.tabs && chrome.tabs.query) {
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     if (tabs[0].url) {
       if (tabs[0].url.match("wikitree.com")) {
-        $("body").append(
-          $(`<div id="backup"><h2>Back up</h2>
-    <div class="feature-information">
-    Back up	"My Menu", "Change Summary Options", "Clipboard and Notes", and "Extra Watchlist".
-      <div id="backupButtons">
-        <button id="backupButton">Back up</button>
-        <button id="restoreBackupButton">Restore</button>
-      </div>
-    </div>
-  </div>`)
-        );
-        $("#backupButton").on("click", function () {
-          backup();
-        });
-        $("#restoreBackupButton").on("click", function () {
-          restoreBackup();
-        });
+        $("html").addClass("is-on-wikitree");
       }
     }
   });
 }
-addBackupButtons();
 
 function backup() {
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
@@ -520,31 +655,4 @@ function backup() {
       console.log(response.farewell);
     });
   });
-}
-
-function restoreBackup() {
-  var fileChooser = document.createElement("input");
-  fileChooser.type = "file";
-  fileChooser.addEventListener("change", function () {
-    var file = fileChooser.files[0];
-    var reader = new FileReader();
-    let data;
-    reader.onload = function () {
-      let data = reader.result;
-    };
-    reader.readAsText(file);
-    setTimeout(function () {
-      data = JSON.parse(reader.result);
-      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-        chrome.tabs.sendMessage(tabs[0].id, { greeting: "restoreBackup", data: data }, function (response) {
-          console.log(response.farewell);
-        });
-      });
-    }, 1000);
-    form.reset();
-  });
-  /* Wrap it in a form for resetting */
-  var form = document.createElement("form");
-  form.appendChild(fileChooser);
-  fileChooser.click();
 }

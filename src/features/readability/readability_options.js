@@ -91,7 +91,8 @@ const readabilityFeature = {
   name: "Readability Options",
   id: "readability",
   description:
-    "Enable reading mode to toggle the WikiTree interface on and off when browsing profiles. Configure additional styling options to make profiles more readable. (<a href='https://www.wikitree.com/wiki/Space:WikiTree_Readability_Options#Options' target='_blank'>More details</a>)",
+    "Enable reading mode to toggle the WikiTree interface on and off when browsing profiles. Configure additional styling options to make profiles more readable.",
+  link: "https://www.wikitree.com/wiki/Space:WikiTree_Readability_Options#Options",
   category: "Style",
   creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   contributors: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],

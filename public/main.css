@@ -7,6 +7,20 @@ h6 {
   color: #333333;
 }
 
+a {
+  color: #060;
+  text-decoration: underline;
+  outline: 0;
+}
+a:active {
+  color: #8ec641;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: none;
+  background: #ffe270;
+}
+
 html,
 body,
 h1 {
@@ -28,7 +42,7 @@ html {
   flex-direction: row;
   justify-content: space-between;
 }
-.feature-header-left{
+.feature-header-left {
   display: flex;
 }
 .feature-name {
@@ -39,24 +53,30 @@ html {
   padding-left: 10px;
 }
 .feature-author {
-  align-items: right;
+  text-align: right;
 }
 .feature-description {
   padding: 10px 0 0 70px;
   font-size: medium;
 }
+.feature-link {
+  font-size: 75%;
+}
 .feature-options {
   padding: 10px 0 0 70px;
   font-size: medium;
 }
-.feature-options-button,
-#options #backup button {
+.feature-options-button {
   border-radius: 34px;
-  background-color: #8fc641;
+  background-color: #ddd;
   font-size: medium;
   width: 120px;
   border: 0px;
   margin-left: 20px;
+  cursor: pointer;
+}
+.feature-options-button:hover {
+  background-color: #8fc641;
 }
 
 /* Option elements */
@@ -92,19 +112,72 @@ html {
   display: inline-block;
 }
 
+/* Make the header (h1) sticky */
+body {
+  position: relative;
+  padding-top: 70px;
+}
+#options h1 {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: #f7f6f0;
+  -webkit-box-shadow: 0 0 10px 3px rgba(0, 0, 0, 0.13);
+  box-shadow: 0 0 6px 2px rgba(0, 0, 0, 0.13);
+  height: 40px;
+  z-index: 100;
+}
+h2[id^="category_"] {
+  scroll-margin-top: 90px;
+}
+:root {
+  scroll-behavior: smooth;
+}
+
+#categoryBar {
+  position: fixed;
+  top: 62px;
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  -webkit-box-shadow: 0 0 10px 3px rgba(0, 0, 0, 0.13);
+  box-shadow: 0 0 6px 2px rgba(0, 0, 0, 0.13);
+  height: 28px;
+  z-index: 99;
+  overflow: hidden;
+}
+#categoryBar > ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  line-height: 32px;
+  text-align: center;
+}
+#categoryBar > ul > li {
+  display: inline-block;
+  margin: 0 1em;
+}
+#categoryBar > ul > li > a {
+  text-decoration: none;
+  padding: 2px 8px;
+}
+#categoryBar > ul > li:first-child {
+  margin-left: 0;
+}
+#categoryBar > ul > li:last-child {
+  margin-right: 0;
+}
+
 #options h1,
 #options h2 {
-  background: url("https://www.wikitree.com/images/header-bg-sm.gif") bottom repeat-x #f7f6f0;
-  height: 47px;
   padding: 0.5em;
-  position: relative;
   font-size: 2em;
 }
 #options h2 {
-  height: auto;
+  position: relative;
   padding-bottom: 1em;
   background-color: #e1f0b4;
-  background-image: none;
 }
 #options #h1Text {
   margin-left: 1em;
@@ -172,42 +245,127 @@ input:checked + .slider:before {
   right: 1em;
 }
 
-#options #backup {
-  font-size: medium;
-  margin-bottom: 1em;
-}
-#options #backup h2 {
-  font-size: 1.5em;
-}
-#options #backup button {
-  display: inline-block;
-}
-#options #backupButtons {
-  display: block;
-  margin: 1em auto;
-}
-#options #backup button:active {
-  border: 2px solid gray;
-}
-
 h1 .feature-toggle {
   margin-left: 0.5em;
 }
-h1 #default {
+h1 #settings {
   float: right;
   position: relative;
-  display: inline-block;
-  width: 60px;
+}
+h1 #settings,
+#settingsDialog button {
+  background-color: #ddd;
+  padding: 0 17px;
   height: 34px;
+  line-height: 34px;
   border-radius: 34px;
   border: 0;
+  font-size: 12pt;
+}
+h1 #settings:hover,
+#settingsDialog button:hover {
+  background-color: #8fc641;
+  cursor: pointer;
+}
+h1 #settings:active,
+#settingsDialog button:active {
+  box-shadow: 0;
+}
+
+.modal {
+  position: fixed;
+  z-index: 999;
+  background: rgba(204, 204, 204, 0.6);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+.modal .dialog {
+  position: relative;
+  border: 1px solid #000;
+  background-color: #fff;
+  margin: calc(clamp(100px, calc(var(--dialog-height, 0px) + 51px), 580px) / -2) auto 0 auto;
+  top: 50%;
+  width: 80%;
+  height: clamp(100px, calc(var(--dialog-height, 0px) + 51px), 580px);
+  font-size: 12pt;
+}
+.modal .dialog:before {
+  content: " ";
+  display: block;
+  position: absolute;
+  background: none;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  -webkit-box-shadow: 3px 3px 12px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 3px 3px 12px 6px rgba(0, 0, 0, 0.3);
+}
+.dialog .dialog-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 31px;
+  background-color: #ddd;
+  padding: 0 30px 0 10px;
+  line-height: 30px;
   font-weight: bold;
 }
-h1 #default:active {
-  box-shadow: 0;
+.dialog .close {
+  position: absolute;
+  display: inline-block;
+  right: 0px;
+  top: 0px;
+  font-size: 11pt;
+  font-weight: normal;
+  padding: 0 10px;
+}
+.dialog .dialog-content {
+  position: absolute;
+  padding: 10px;
+  top: 31px;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  overflow: auto;
+}
+.dialog .close,
+.dialog .close:visited,
+.dialog .close:active {
+  color: #000;
+  text-decoration: none;
+}
+.dialog .close:hover {
+  color: #fff;
+  background-color: #8fc641;
+  text-decoration: none;
+}
+
+#settingsDialog ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+#settingsDialog li {
+  margin-top: 10px;
+}
+#settingsDialog li:first-child {
+  margin-top: 0;
 }
 
 /* content */
 #wte-topMenuUL {
   margin-right: 1em;
+}
+
+.hide-unless-wikitree,
+.is-on-wikitree .hide-on-wikitree {
+  display: none;
+}
+.is-on-wikitree .hide-unless-wikitree {
+  display: revert;
 }
