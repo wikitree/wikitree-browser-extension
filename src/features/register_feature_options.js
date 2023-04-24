@@ -421,9 +421,9 @@ registerFeature({
   description: "Enable source previews on inline references.",
   category: "Global",
   creators: [{ name: "Steve Harris", wikitreeid: "Harris-5439" }],
-  contributors: [],
+  contributors: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   defaultValue: false,
-  pages: [isProfilePage, isSpacePage],
+  pages: [isProfilePage, isProfileEdit, isSpacePage, isSpaceEdit],
 });
 
 registerFeature({
@@ -432,7 +432,7 @@ registerFeature({
   description: "Enable previews of Space Pages on hover.",
   category: "Global",
   creators: [{ name: "Steve Harris", wikitreeid: "Harris-5439" }],
-  contributors: [],
+  contributors: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   defaultValue: false,
   pages: [true],
 });
