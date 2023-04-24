@@ -135,6 +135,8 @@ function fixUSLocation(event) {
         event.Location = locationBits.slice(0, locationBits.length - 1).join(", ") + ", " + state.name;
         if (isSameDateOrAfter(event.Date, state.admissionDate)) {
           event.Location += ", " + "United States";
+        } else if (state.admissionDate && state.former_name && window.autoBioOptions.changeUS) {
+          event.Location = event.Location.replace(lastLocationBit, state.former_name);
         }
       } else if (["US", "USA", "United States of America", "United States", "U.S.A."].includes(lastLocationBit)) {
         const theState = locationBits[locationBits.length - 2];
@@ -150,6 +152,8 @@ function fixUSLocation(event) {
             } else {
               event.Location += ", " + lastLocationBit;
             }
+          } else if (state.admissionDate && state.former_name && window.autoBioOptions.changeUS) {
+            event.Location = event.Location.replace(theState, state.former_name);
           }
         }
       }
