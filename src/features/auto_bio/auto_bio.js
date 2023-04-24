@@ -135,6 +135,8 @@ function fixUSLocation(event) {
         event.Location = locationBits.slice(0, locationBits.length - 1).join(", ") + ", " + state.name;
         if (isSameDateOrAfter(event.Date, state.admissionDate)) {
           event.Location += ", " + "United States";
+        } else if (state.admissionDate && state.former_name && window.autoBioOptions.changeUS) {
+          event.Location = event.Location.replace(lastLocationBit, state.former_name);
         }
       } else if (["US", "USA", "United States of America", "United States", "U.S.A."].includes(lastLocationBit)) {
         const theState = locationBits[locationBits.length - 2];
@@ -150,6 +152,8 @@ function fixUSLocation(event) {
             } else {
               event.Location += ", " + lastLocationBit;
             }
+          } else if (state.admissionDate && state.former_name && window.autoBioOptions.changeUS) {
+            event.Location = event.Location.replace(theState, state.former_name);
           }
         }
       }
@@ -1580,6 +1584,45 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
           }
         }
       }
+    }
+  } else if (reference.Text.match(/\(accessed.*?\),/)) {
+    const details = reference.Text.split(/\(accessed.*?\),/)[1].trim();
+    if (details.match(/\. Born/)) {
+      text = details.split(/\. Born/)[0].trim() + ". ";
+      console.log(text);
+      /* If it's like this: Mary Vandover (38) in Perry, Martin, Indiana, USA. 
+    turn into a grammatical sentence with 'was living', without USA. */
+      let fNameVariants = [window.profilePerson.PersonName.FirstName];
+      if (firstNameVariants[window.profilePerson.PersonName.FirstName]) {
+        fNameVariants = firstNameVariants[window.profilePerson.PersonName.FirstName];
+      }
+
+      // Create a regex pattern to match the desired text format
+      let regexPattern = new RegExp(
+        `\\b(?:${fNameVariants.join(
+          "|"
+        )})\\b\\s(?:\\w+\\s|\\w\\.\\s)?(\\w+)(?:\\s\\((\\d+)\\)|\\s\\((\\d+)\\),\\s(.*),)\\s+in\\s(\\w+,\\s\\w+,\\s\\w+)`,
+        "i"
+      );
+
+      console.log(regexPattern);
+
+      if (text.match(regexPattern)) {
+        // Replace the matched text with the desired format
+        text = text.replace(regexPattern, (match, lastName, age1, age2, occupation, place) => {
+          let firstName = match.match(new RegExp(`\\b(?:${fNameVariants.join("|")})\\b`, "i"))[0];
+          let result = `${firstName} ${lastName} `;
+          let age = age1 || age2;
+          result += `(${age})`;
+          if (occupation) {
+            result += `, ${occupation},`;
+          }
+          result += ` was living in ${place.replace(", USA", "")}`;
+          console.log(result);
+          return result;
+        });
+      }
+      console.log(text);
     }
   }
 

@@ -374,7 +374,8 @@ const autoBio = {
         {
           id: "checkUS",
           type: OptionType.CHECKBOX,
-          label: "Remove 'United States' before the state joined the Union. Add 'United States' if it's missing.",
+          label:
+            "Remove 'United States' before the state joined the Union (and change the state name to its pre-Union name where applicable). Add 'United States' if it's missing.",
           defaultValue: true,
         },
         {
