@@ -25,14 +25,6 @@ checkIfFeatureEnabled("bioCheck").then((result) => {
 
     // theSourceRules are an immutable singleton
 
-/*
-The 'added' save button is not actually added.  The whole box moves up and down the page as you scroll.  You (or I) would just need to place the Bio Check section within that box. The box is named #saveStuff and it's created by the Change Summary Options feature.  So... It may depend on the timing of the features loading. If the Bio Check box has loaded when the Change Summary Options code runs (to create the box and set up the moving) I could add it to the #saveStuff box. If it's the other way around, you could add it to the box (if that makes sense).  In jQuery, I would add this line to both features:
-if ($("#bioCheckContainer").closest("#saveStuff").length==0){
-$("#bioCheckContainer").appendTo($("#saveStuff"))
-} .
-I think that would do it.  (I'm sure you'd know what that would be in vanilla javascript.)
-*/
-
     // Look at the type of page and take appropriate action
     if (document.body.classList.contains("page-Special_EditPerson")) {
       // If custom change summary options enabled, wait for the saveStuff to be created
@@ -98,7 +90,6 @@ function checkSaveStuff() {
   }
 }
 
-
 /*
  * Notes about packaging and differences from the BioCheck app
  *
@@ -126,7 +117,11 @@ function checkBio() {
   );
   // status true if appears sourced and no style issues, else false
   let bioStatus = biography.validate();
-  // now report from biography results
+  // now report from biography results by adding a list to the page
+  reportResults(getReportLines(bioStatus, biography));
+}
+
+function getReportLines(bioStatus, biography) {
   let profileReportLines = [];
   if (!bioStatus) {
     let bioMsg = "Profile has source or style issues.";
@@ -218,11 +213,7 @@ function checkBio() {
     profileStatus = "Profile has Acknowledgements before Sources heading";
     profileReportLines.push(profileStatus);
   }
-
-  //console.log(profileReportLines);
-
-  // add a list to the page
-  reportResults(profileReportLines);
+  return profileReportLines;
 }
 
 function reportResults(reportLines) {
@@ -233,6 +224,8 @@ function reportResults(reportLines) {
   if (!bioCheckResultsContainer) {
     bioCheckResultsContainer = document.createElement("div");
     bioCheckResultsContainer.setAttribute("id", "biocheckContainer");
+    // if the status class is too much, a big yellow box take out following line
+    bioCheckResultsContainer.setAttribute('class', 'status');
 
     let bioCheckTitle = document.createElement("b");
     bioCheckTitle.innerText = "Bio Check results\u00A0\u00A0"; // TODO use style?
@@ -288,7 +281,8 @@ function checkSources() {
       useAdvanced = document.getElementById('useAdvancedSources').value;
     }
     // Either check the sources box or advanced sourcing like a bio
-    let hasSources = true;
+    // So you either report just like checkBio or just the list of sources
+    let hasSources = false;
     let hasStyleIssues = false;
     if (useAdvanced != 0) {
       biography.parse(
@@ -297,45 +291,42 @@ function checkSources() {
         let isValid = biography.validate();
         hasSources = biography.hasSources();
         hasStyleIssues = biography.hasStyleIssues();
-     } else {
-        let isValid = biography.validateSourcesStr(
+        let titleMsg = "Bio Check results:\u00A0\u00A0";
+        reportSources(getReportLines(isValid, biography), isValid, hasStyleIssues, titleMsg);
+    } else {
+      let isValid = biography.validateSourcesStr(
           sourcesStr, thePerson.isPersonPre1500(), isPre1700, thePerson.mustBeOpen());
-     }
-    // now report from biography results
-    reportSources(biography.getInvalidSources(), isPre1700, hasSources, hasStyleIssues);
-  
-    // TODO
-    // Figure out what to do when the user has a profile with no sources
-    // and clicks one of the options BioCheck says is invalid
-    // these options are:
-    // Personal recollection of events witnessed by [[Sands-1865|Kay (Sands)Knight]] as remembered 18 Oct 2022.
-    // Unsourced family tree handed down to [[Sands-1865|Kay (Sands)Knight]].
-    // Source will be added by [[Sands-1865|Kay (Sands)Knight]] by 19 Oct 2022.
-    // To do this the sources are not in the Sources box so you need to pick them
-    // up and validate based on the button click
+      let numLines = biography.getInvalidSources().length;
+      hasSources = biography.hasSources();
+      let titleMsg = sourcesTitle(isPre1700, hasSources, hasStyleIssues, numLines);
+      reportSources(biography.getInvalidSources(), isValid, hasStyleIssues, titleMsg);
+    }
   }
 }
 
-function reportSources(invalidSourceLines, isPre1700, hasSources, hasStyleIssues) {
+/*
+ * report sources for profile where the input lines are either
+ * a list of invalid sources 
+ * or
+ * the lines of a full biocheck report
+*/
+function reportSources(invalidSourceLines, isValid, hasStyleIssues, titleMsg) {
   let numLines = invalidSourceLines.length;
   let previousSources = document.getElementById("bioCheckSourcesList");
   let bioCheckSourcesContainer = document.getElementById("bioCheckSourcesContainer");
   let bioCheckTitle = document.getElementById("bioCheckTitle");
   // If you have been here before get and remove the old list of results
   if (!bioCheckSourcesContainer) {
-    if (!hasSources || hasStyleIssues || numLines > 0) {
+    if (!isValid || numLines > 0) {
       bioCheckSourcesContainer = document.createElement("div");
       bioCheckSourcesContainer.setAttribute("id", "bioCheckSourcesContainer");
-      let br = document.createElement('br');
-      bioCheckSourcesContainer.appendChild(br);
-      // status class is too much, a big yellow box
-      // bioCheckSourcesContainer.setAttribute('class', 'status');
+      // if the status class is too much, a big yellow box take out following line
+      bioCheckSourcesContainer.setAttribute('class', 'status');
+
       bioCheckTitle = document.createElement("b");
       bioCheckTitle.setAttribute("id", "bioCheckTitle");
-      // fill contents of the title each time you are here in case date changes
-      bioCheckTitle.innerText = sourcesTitle(isPre1700, hasSources, hasStyleIssues, numLines);
+      bioCheckTitle.innerText = titleMsg; // fill contents of the title each time you are here in case data changes
       bioCheckSourcesContainer.appendChild(bioCheckTitle);
-
       setHelp(bioCheckSourcesContainer);
     }
   }
@@ -350,14 +341,13 @@ function reportSources(invalidSourceLines, isPre1700, hasSources, hasStyleIssues
   }
 
   // Add or replace the results
-  if ((numLines > 0) || !hasSources || hasStyleIssues) {
-    bioCheckTitle.innerText = sourcesTitle(isPre1700, hasSources, hasStyleIssues, numLines);
+  if ((numLines > 0) || !isValid) {
+    bioCheckTitle.innerText = titleMsg; // fill contents of the title each time you are here in case data changes
     if (previousSources != null) {
       previousSources.replaceWith(bioSourcesList);
     } else {
       bioCheckSourcesContainer.appendChild(bioSourcesList);
-      // Add the message before the save button
-      // or after the Sources table in the BETA version
+      // Add after the Sources table 
       let saveButton = document.getElementById('addNewPersonButton');
       if (saveButton) {
         document.querySelector("table.sourcesContent").after(bioCheckSourcesContainer);
@@ -376,6 +366,7 @@ function reportSources(invalidSourceLines, isPre1700, hasSources, hasStyleIssues
  */
 function sourcesTitle(isPre1700, hasSources, hasStyleIssues, numLines) {
   let msg = '';
+  let title = "Bio Check results\u00A0\u00A0";
   if (numLines > 0) { 
     msg = "Bio Check found sources that are not ";
     if (isPre1700) {
@@ -384,16 +375,17 @@ function sourcesTitle(isPre1700, hasSources, hasStyleIssues, numLines) {
     msg += "clearly identified: \u00A0\u00A0"; // TODO use style?
   } else {
     if (!hasSources) {
-      msg = 'BioCheck results: Profile lacks sources  ';
+      msg = 'Bio Check results: Profile lacks sources  ';
       if (hasStyleIssues) {
         msg += 'and has style issues  ';
       }
     } else {
       if (hasStyleIssues) {
-        msg = 'BioCheck results: Profile has style issues  ';
+        msg = 'Bio Check results: Profile has style issues  ';
       }
     }
   }
+  msg += "\u00A0\u00A0"; // TODO use style?
   return msg;
 }
 /**
