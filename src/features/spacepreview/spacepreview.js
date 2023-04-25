@@ -9,11 +9,7 @@ import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/opt
 
 function onHoverIn($element) {
   hideActivePreview();
-  let $popup = $(
-    '<div id="activeSpacePreview" class="box rounded x-space-preview"' +
-      ' style="display: none; position:absolute; z-index:9999; max-height:450px; overflow: scroll; overflow-x: auto; padding: 10px; font-style: normal; font-weight: normal; text-decoration: none;"' +
-      "></div>"
-  );
+  let $popup = $('<div id="activePagePreview" class="x-page-preview" style="display: none;"></div>');
 
   const match = $element[0].href.match(/\/wiki\/((Space|Category):.*?)(#.*|$)/i);
   $element.after($popup);
@@ -54,29 +50,13 @@ function populateSpacePreview($popup, spaceId, redirectCount) {
             populateSpacePreview(redirectMatch[1], redirectCount);
           }
         } else {
-          let $content = $(bio);
-          $content.find(".EDIT").remove();
           $popup.get(0).innerHTML =
-            '<a href="#" class="popup-close" style="position: absolute; right: 0; top: 0; display: inline-block; padding: 0 7px; color: black; font-size: 14px; text-decoration: none;">&#x2716;</a>' +
             (redirectCount > 0
-              ? `<div style="color: #c00; font-size: small; font-weight: bold;">[[${$popup.data(
-                  "targetId"
-                )}]] redirected ` +
+              ? `<div class="x-redirect-alert">[[${$popup.data("targetId")}]] redirected ` +
                 (redirectCount > 1 ? `${redirectCount} times` : "") +
                 ` to [[${results[0].page_name}]]</div>`
-              : "") +
-            $content.html();
-          $popup
-            .find("a.popup-close")
-            .on("auxclick", function (e) {
-              e.stopPropagation();
-              e.preventDefault();
-            })
-            .on("click", function (e) {
-              e.stopPropagation();
-              e.preventDefault();
-              onCloseClicked($(this));
-            });
+              : "") + bio;
+          addCloseButton($popup);
           $popup.fadeIn("fast");
         }
       }
@@ -105,24 +85,12 @@ function populateCategoryPreview($popup, url) {
               return $(this).has("a.toggleSection");
             })
             .first();
+          $content.prev("br").remove();
           $keep = $content.prev();
           $content.nextAll().addBack().remove();
           $content = $keep.parent();
-          $content.find(".EDIT").remove();
-          $popup.get(0).innerHTML =
-            '<a href="#" class="popup-close" style="position: absolute; right: 0; top: 0; display: inline-block; padding: 0 7px; color: black; font-size: 14px; text-decoration: none;">&#x2716;</a>' +
-            $content.html();
-          $popup
-            .find("a.popup-close")
-            .on("auxclick", function (e) {
-              e.stopPropagation();
-              e.preventDefault();
-            })
-            .on("click", function (e) {
-              e.stopPropagation();
-              e.preventDefault();
-              onCloseClicked($(this));
-            });
+          $popup.get(0).innerHTML = $content.html();
+          addCloseButton($popup);
           $popup.fadeIn("fast");
         }
       }
@@ -131,6 +99,21 @@ function populateCategoryPreview($popup, url) {
     console.warn(err);
     hideActivePreview();
   }
+}
+
+function addCloseButton($popup) {
+  $popup.prepend(
+    $('<a href="#" class="x-preview-close">&#x2716;</a>')
+      .on("auxclick", function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+      })
+      .on("click", function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        onCloseClicked($(this));
+      })
+  );
 }
 
 function hidePreview($element) {
@@ -143,11 +126,11 @@ function hidePreview($element) {
 }
 
 function onCloseClicked($element) {
-  hidePreview($element.closest(".x-space-preview"));
+  hidePreview($element.closest(".x-page-preview"));
 }
 
 function hideActivePreview() {
-  hidePreview($(".x-space-preview[id='activeSpacePreview']"));
+  hidePreview($(".x-page-preview[id='activePagePreview']"));
 }
 
 let spacePagePreview = true,
@@ -167,7 +150,7 @@ function attachHover(target) {
         // make sure each element is only wired up once
         if (!this.xHasSpaceHover) {
           // don't wire up space previews inside other space preview windows
-          if ($(this).closest(".x-space-preview").length > 0) {
+          if ($(this).closest(".x-page-preview").length > 0) {
             return false;
           }
           this.xHasSpaceHover = true;
@@ -211,6 +194,7 @@ async function initFeature() {
 
 checkIfFeatureEnabled("spacePreviews").then((result) => {
   if (result) {
+    import("./spacepreview.css");
     initFeature();
   }
 });

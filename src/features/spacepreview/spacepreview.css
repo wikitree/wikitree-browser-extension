@@ -1,0 +1,59 @@
+.x-page-preview {
+  position: absolute;
+  z-index: 9999;
+  -webkit-box-shadow: 3px 3px 12px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 3px 3px 12px 6px rgba(0, 0, 0, 0.3);
+  background-color: #fff;
+  border: 2px solid #ccc;
+  padding: 10px;
+  -webkit-border-radius: 1em;
+  -moz-border-radius: 1em;
+  border-radius: 1em;
+  max-height: 450px;
+  overflow: scroll !important;
+  overflow-x: auto !important;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: normal;
+  text-decoration: none;
+}
+
+.x-page-preview .EDIT,
+.x-page-preview .editsection {
+  display: none;
+}
+
+.x-preview-close {
+  position: absolute;
+  right: 0;
+  top: 0;
+  display: inline-block;
+  padding: 0 7px;
+  font-size: 14px;
+}
+.x-preview-close,
+.x-preview-close:visited,
+.x-preview-close:active {
+  color: #000;
+  text-decoration: none !important;
+}
+.x-preview-close:hover {
+  color: #fff;
+  background-color: #8fc641;
+  text-decoration: none !important;
+}
+
+.x-page-preview p:first-of-type,
+.x-page-preview :nth-child(2) {
+  margin-top: 0;
+}
+.x-page-preview p:last-of-type,
+.x-page-preview :last-child {
+  margin-bottom: 0;
+}
+
+.x-redirect-alert {
+  color: #c00;
+  font-size: small;
+  font-weight: bold;
+}

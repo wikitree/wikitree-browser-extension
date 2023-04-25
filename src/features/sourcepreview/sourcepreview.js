@@ -11,11 +11,7 @@ let removeBackReferences = true;
 
 function onHoverIn($element) {
   hideActivePreview();
-  let $popup = $(
-    '<div id="activeSourcePreview" class="box rounded x-source-preview"' +
-      ' style="display: none; position:absolute; z-index:999; width: 450px; white-space: normal; font-size: 14px; font-style: normal; font-weight: normal;"' +
-      "></div>"
-  );
+  let $popup = $('<div id="activeSourcePreview" class="x-source-preview" style="display: none;"></div>');
 
   const citation = $element.closest(".reference").get(0);
   const targetId = citation.id.replace("ref", "note").replace(/(_[0-9]+$)/g, "");
@@ -97,6 +93,7 @@ async function initFeature() {
 
 checkIfFeatureEnabled("sPreviews").then((result) => {
   if (result) {
+    import("./sourcepreview.css");
     initFeature();
   }
 });
