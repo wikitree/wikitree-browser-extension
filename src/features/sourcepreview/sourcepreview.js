@@ -5,7 +5,9 @@ Contributors: Jonathan Duke (Duke-5773)
 
 import $ from "jquery";
 import "../../thirdparty/jquery.hoverDelay";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+
+let removeBackReferences = true;
 
 function onHoverIn($element) {
   hideActivePreview();
@@ -18,19 +20,21 @@ function onHoverIn($element) {
   const citation = $element.closest(".reference").get(0);
   const targetId = citation.id.replace("ref", "note").replace(/(_[0-9]+$)/g, "");
   $popup.get(0).innerHTML = document.getElementById(targetId).innerHTML;
-  // remove back-reference links (based on readability.js:54)
-  $popup.contents().each(function () {
-    let el = $(this);
-    if (el.is(".a11y-back-ref, sup, a[href^='#_ref']:first-of-type, span:empty, a[name]:empty")) {
-      $(this).remove();
-      return true; // remove back-reference links
-    }
-    if (this.nodeValue && /^[*\s\u2191]*$/.test(this.nodeValue)) {
-      $(this).remove();
-      return true; // remove whitespace and the up arrow
-    }
-    return false;
-  });
+  if (removeBackReferences) {
+    // remove back-reference links (based on readability.js:54)
+    $popup.contents().each(function () {
+      let el = $(this);
+      if (el.is(".a11y-back-ref, sup, a[href^='#_ref']:first-of-type, span:empty, a[name]:empty")) {
+        $(this).remove();
+        return true; // remove back-reference links
+      }
+      if (this.nodeValue && /^[*\s\u2191]*$/.test(this.nodeValue)) {
+        $(this).remove();
+        return true; // remove whitespace and the up arrow
+      }
+      return false;
+    });
+  }
   $popup.appendTo(citation).fadeIn("fast");
 }
 
@@ -71,6 +75,9 @@ function attachHover(target) {
 }
 
 async function initFeature() {
+  const options = await getFeatureOptions("sPreviews");
+  removeBackReferences = options.removeBackReferences !== false;
+
   $(() => {
     const $root = $('*[id="content"]').last();
     if ($root.length > 0) {

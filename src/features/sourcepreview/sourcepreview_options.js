@@ -22,6 +22,15 @@ const sourcePreviewFeature = {
   contributors: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   defaultValue: false,
   pages: [isProfilePage, isProfileEdit, isSpacePage, isSpaceEdit, isCategoryPage, isCategoryEdit],
+
+  options: [
+    {
+      id: "removeBackReferences",
+      type: OptionType.CHECKBOX,
+      label: "Remove back-reference links from the preview window",
+      defaultValue: true,
+    },
+  ],
 };
 
 registerFeature(sourcePreviewFeature);
