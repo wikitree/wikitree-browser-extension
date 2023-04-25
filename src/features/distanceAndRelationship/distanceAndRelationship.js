@@ -301,8 +301,6 @@ function doRelationshipText(userID, profileID) {
             }
             if (out.match(/(uncle|aunt) or.*/)) {
               out = out.split(" or ")[0];
-            } else if (out.match(/ or (uncle|aunt)/)) {
-              out = out.split(" or ")[1];
             }
           }
           if (
