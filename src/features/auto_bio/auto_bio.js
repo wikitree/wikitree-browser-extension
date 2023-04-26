@@ -1491,6 +1491,8 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
               }
               familyMembers.push(aMember);
             }
+            console.log(JSON.parse(JSON.stringify(reference)));
+
             if (familyMembers.length > 1) {
               //   console.log(familyMembers);
               reference.Household = familyMembers;
@@ -2068,12 +2070,115 @@ function findRelation(person) {
   return relationWord;
 }
 
+function analyzeColumns(lines) {
+  const columns = {};
+
+  lines.forEach((line) => {
+    const parts = line.split(/\t/);
+
+    parts.forEach((part, index) => {
+      //if (!columns[index]) {
+      columns[index] = { Name: 0, Gender: 0, Relation: 0, Age: 0, BirthPlace: 0, Occupation: 0 };
+      //}
+      if (index == 0) {
+        columns[index].Name++;
+      } else if (part.match(/(?:M|F|Male|Female)/)) {
+        columns[index].gender++;
+      } else if (part.match(/(Head|Wife|Son|Daughter|Mother|Father|Brother|Sister)/i)) {
+        columns[index].relation++;
+      } else if (part.match(/\d{1,2}(?:\s?years|\s?mos)?/)) {
+        columns[index].age++;
+      } else if (part.match(/[\w\s,]+/)) {
+        columns[index].birthPlace++;
+      } else {
+        columns[index].occupation++;
+      }
+    });
+  });
+
+  const sortedColumns = Object.values(columns)
+    .map((column, index) => {
+      return { index, ...column };
+    })
+    .sort((a, b) => {
+      const aValue = Math.max(a.gender, a.relation, a.age, a.birthPlace, a.occupation);
+      const bValue = Math.max(b.gender, b.relation, b.age, b.birthPlace, b.occupation);
+      return bValue - aValue;
+    });
+
+  const columnMapping = {};
+  sortedColumns.forEach((column) => {
+    const columnName = Object.keys(column).reduce((a, b) => (column[a] > column[b] ? a : b));
+    columnMapping[column.index] = columnName;
+  });
+
+  return columnMapping;
+}
+
+function parseFamilyData(inputData) {
+  const lines = inputData.trim().split("\n");
+  const columnMapping = analyzeColumns(lines);
+  const families = [];
+
+  lines.forEach((line) => {
+    const parts = line.split(/\t/);
+    const familyMember = {};
+
+    Object.keys(columnMapping).forEach((columnIndex) => {
+      const columnName = columnMapping[columnIndex];
+      familyMember[columnName] = parts[columnIndex];
+    });
+
+    families.push(familyMember);
+  });
+
+  return families;
+}
+
+function parseCensusData(censusData) {
+  const parsedData = [];
+
+  let currentSection = [];
+  let currentYear = null;
+
+  censusData.forEach((line) => {
+    if (line.startsWith(":")) {
+      currentSection.push(line.slice(1));
+    } else {
+      const yearMatch = line.match(/\b(\d{4})\s+census\b/i);
+      if (yearMatch) {
+        currentYear = parseInt(yearMatch[1], 10);
+      }
+      if (currentSection.length > 0) {
+        const parsedFamilyData = parseFamilyData(currentSection.join("\n"));
+        parsedFamilyData.forEach((family) => {
+          family.year = currentYear;
+        });
+        parsedData.push(...parsedFamilyData);
+        currentSection = [];
+      }
+    }
+  });
+
+  if (currentSection.length > 0) {
+    const parsedFamilyData = parseFamilyData(currentSection.join("\n"));
+    parsedFamilyData.forEach((family) => {
+      family.year = currentYear;
+    });
+    parsedData.push(...parsedFamilyData);
+  }
+
+  return parsedData;
+}
+
 function getCensusesFromCensusSection() {
   let censusSection;
   if (window.sectionsObject?.Biography?.subsections?.Census) {
     censusSection = window.sectionsObject.Biography.subsections.Census;
+    console.log(parseCensusData(censusSection.text));
   } else if (window.sectionsObject?.Census) {
     censusSection = window.sectionsObject.Census;
+    console.log(parseCensusData(censusSection.text));
   } else {
     return;
   }
@@ -2106,6 +2211,7 @@ function getCensusesFromCensusSection() {
           ref.Household = [];
         }
         ref.ListText = [];
+
         censusSection.text.forEach(function (line) {
           const yearMatch = line.match(censusTypeMatch[1]);
           const aYearMatch = line.match(/\b1[789]\d{2}\b/);
@@ -2300,6 +2406,7 @@ function getCensusesFromCensusSection() {
               }
             }
           }
+          console.log(JSON.parse(JSON.stringify(ref)));
           if (yearMatch) {
             thisCensus = true;
           }
@@ -2343,6 +2450,8 @@ function addToNeedsProfilesCreated(householdMember) {
 
 function parseSourcerCensusWithCSVList(reference) {
   const referenceBits = reference.Text.split(/<br\s?>/);
+  console.log(JSON.parse(JSON.stringify(reference)));
+
   const lastBit = referenceBits[referenceBits.length - 1];
   if (
     lastBit.match(window.profilePerson.PersonName.FirstName) &&
@@ -2379,6 +2488,8 @@ function parseSourcerCensusWithCSVList(reference) {
         reference.Household.push(person);
       }
     });
+    console.log(JSON.parse(JSON.stringify(reference)));
+
     /* Get the residence from the second to last bit, 
     which may look like this: 
     George H Bleeker (17), single son, in household of Gerritt Bleeker Jr. (42)
@@ -2408,13 +2519,14 @@ function parseSourcerCensusWithColons(reference) {
 :: William Thomas    M    20        Pennsylvania
 :: Charlotte Thomas    F    12        Pennsylvania
  */
+  console.log(JSON.parse(JSON.stringify(reference)));
   const referenceBits = reference.Text.split(/<br\s?>/);
   const lastBit = referenceBits[referenceBits.length - 1];
-  if (lastBit.match(/::\s?[A-Z][^\d]+\d/)) {
+  if (lastBit.match(/::?\s?[A-Z][^\d]+\d/)) {
     reference.Household = [];
     const lines = lastBit.split(/[\n\r]/);
     lines.forEach(function (line) {
-      if (line.match(/^::/)) {
+      if (line.match(/^::?/)) {
         const person = {};
         const nameMatch = line.match(/[A-Z][^\d,(\s\s)]+/);
         if (nameMatch) {
@@ -2443,6 +2555,8 @@ function parseSourcerCensusWithColons(reference) {
     });
     reference = assignSelf(reference);
   }
+  console.log(JSON.parse(JSON.stringify(reference)));
+
   return reference;
 }
 
@@ -5530,6 +5644,34 @@ function addSubsection(title) {
   return subsectionText;
 }
 
+function removeCountryName(location) {
+  const usVariants = ["United States", "USA", "U.S.A.", "US", "U.S.", "United States of America", "U S A", "U S"];
+  const ukVariants = ["UK", "United Kingdom", "England", "Scotland", "Wales"];
+
+  let locationSplit = location.split(", ").reverse();
+
+  // Remove country name for US
+  if (usVariants.includes(locationSplit[0])) {
+    locationSplit.shift();
+  }
+  // Remove country name for UK
+  else if (ukVariants.includes(locationSplit[0])) {
+    locationSplit.shift();
+
+    // Remove additional country name if it's also a UK variant (e.g., "England, United Kingdom")
+    if (ukVariants.includes(locationSplit[0])) {
+      locationSplit.shift();
+    }
+  }
+  // Remove country name for other countries
+  else {
+    locationSplit.shift();
+  }
+
+  // Reconstruct the location string without the country name(s)
+  return locationSplit.reverse().join(", ");
+}
+
 async function getLocationCategory(type, location = null) {
   // type = birth, death, marriage, other
   // For birth and death, we can use the location from the profile
@@ -5564,16 +5706,23 @@ async function getLocationCategory(type, location = null) {
   }
   // Remove all after 3rd comma
   const locationSplit = location.split(/, /);
+  /*
   if (locationSplit[3]) {
     locationSplit.splice(3, 3);
+  } else {
+    locationSplit.splice(2, 2);
   }
+  console.log(locationSplit.join(", "));
+*/
+  const searchLocation = removeCountryName(location);
   let api;
   try {
-    api = await wtAPICatCIBSearch("WBE", categoryType, locationSplit.join(", "));
+    api = await wtAPICatCIBSearch("WBE", categoryType, searchLocation);
   } catch (error) {
     console.log("Error getting location category", error);
     api = null;
   }
+  console.log(api.response.categories);
   if (api?.response?.categories?.length == 1) {
     return api?.response?.categories[0].category;
   } else if (api?.response?.categories?.length > 1) {
