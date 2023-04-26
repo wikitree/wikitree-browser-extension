@@ -1579,7 +1579,6 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
         }
       }
     }
-    console.log(JSON.parse(JSON.stringify(reference)));
   }
 
   if (text.match(/in the household/) && !text.match(/^[^.]*?\bwas\b[^.\n]*\./)) {
