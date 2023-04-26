@@ -2077,21 +2077,21 @@ function analyzeColumns(lines) {
     const parts = line.split(/\t/);
 
     parts.forEach((part, index) => {
-      //if (!columns[index]) {
-      columns[index] = { Name: 0, Gender: 0, Relation: 0, Age: 0, BirthPlace: 0, Occupation: 0 };
-      //}
+      if (!columns[index]) {
+        columns[index] = { Name: 0, Gender: 0, Relation: 0, Age: 0, BirthPlace: 0, Occupation: 0 };
+      }
       if (index == 0) {
         columns[index].Name++;
       } else if (part.match(/(?:M|F|Male|Female)/)) {
-        columns[index].gender++;
+        columns[index].Gender++;
       } else if (part.match(/(Head|Wife|Son|Daughter|Mother|Father|Brother|Sister)/i)) {
-        columns[index].relation++;
+        columns[index].Relation++;
       } else if (part.match(/\d{1,2}(?:\s?years|\s?mos)?/)) {
-        columns[index].age++;
+        columns[index].Age++;
       } else if (part.match(/[\w\s,]+/)) {
-        columns[index].birthPlace++;
+        columns[index].BirthPlace++;
       } else {
-        columns[index].occupation++;
+        columns[index].Occupation++;
       }
     });
   });
@@ -2101,8 +2101,8 @@ function analyzeColumns(lines) {
       return { index, ...column };
     })
     .sort((a, b) => {
-      const aValue = Math.max(a.gender, a.relation, a.age, a.birthPlace, a.occupation);
-      const bValue = Math.max(b.gender, b.relation, b.age, b.birthPlace, b.occupation);
+      const aValue = Math.max(a.Gender, a.Relation, a.Age, a.BirthPlace, a.Occupation);
+      const bValue = Math.max(b.Gender, b.Relation, b.Age, b.BirthPlace, b.Occupation);
       return bValue - aValue;
     });
 
@@ -2146,16 +2146,18 @@ function parseCensusData(censusData) {
       currentSection.push(line.slice(1));
     } else {
       const yearMatch = line.match(/\b(\d{4})\s+census\b/i);
-      if (yearMatch) {
-        currentYear = parseInt(yearMatch[1], 10);
-      }
+
       if (currentSection.length > 0) {
         const parsedFamilyData = parseFamilyData(currentSection.join("\n"));
         parsedFamilyData.forEach((family) => {
-          family.year = currentYear;
+          family.Year = currentYear;
         });
-        parsedData.push(...parsedFamilyData);
+        parsedData.push(parsedFamilyData);
         currentSection = [];
+      }
+
+      if (yearMatch) {
+        currentYear = parseInt(yearMatch[1], 10);
       }
     }
   });
@@ -2165,7 +2167,7 @@ function parseCensusData(censusData) {
     parsedFamilyData.forEach((family) => {
       family.year = currentYear;
     });
-    parsedData.push(...parsedFamilyData);
+    parsedData.push(parsedFamilyData);
   }
 
   return parsedData;
