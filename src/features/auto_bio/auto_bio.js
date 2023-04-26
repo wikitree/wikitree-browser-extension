@@ -1787,20 +1787,32 @@ function getHouseholdOfRelationAndName(text) {
   return text;
 }
 function updateRelations(data) {
+  console.log(JSON.parse(JSON.stringify(data)));
+
   // Find self
   const selfIndex = data.findIndex((person) => person.Relation === "Self");
+  console.log(selfIndex);
 
   if (selfIndex < 0) {
     // Self is not in the household, return the original data
     return data;
   }
   const self = data[selfIndex];
+  console.log(JSON.parse(JSON.stringify(self)));
+
   self.Gender = window.profilePerson.Gender;
   if (self.originalRelation != "Head") {
-    data.forEach(function (person) {
-      person.originalRelation = person.Relation;
+    data.forEach(function (person, index) {
+      console.log(JSON.parse(JSON.stringify(person)));
+      if (!person.originalRelation) {
+        person.originalRelation = person.Relation;
+      }
       if (person.Relation != "Self") {
-        if (person != self) {
+        if (index != selfIndex) {
+          console.log(JSON.parse(JSON.stringify(data)));
+          console.log(JSON.parse(JSON.stringify(self)));
+          console.log(JSON.parse(JSON.stringify(person)));
+
           switch (person.censusRelation || person.originalRelation) {
             case "Head":
               switch (self.censusRelation || self.originalRelation) {
@@ -1861,6 +1873,7 @@ function updateRelations(data) {
                 case "Son":
                 case "Daughter":
                   person.Relation = "Sister";
+                  console.log("HERE NOW");
                   break;
                 case "Brother":
                 case "Sister":
@@ -1990,10 +2003,13 @@ function updateRelations(data) {
           }
         }
       }
+      console.log(JSON.parse(JSON.stringify(data)));
+
       if (!person.Relation) {
         person.Relation = findRelation(person);
       }
     });
+    console.log(JSON.parse(JSON.stringify(data)));
   }
   return data;
 }
@@ -2078,14 +2094,14 @@ function analyzeColumns(lines) {
 
     parts.forEach((part, index) => {
       if (!columns[index]) {
-        columns[index] = { Name: 0, Gender: 0, Relation: 0, Age: 0, BirthPlace: 0, Occupation: 0 };
+        columns[index] = { Name: 0, Gender: 0, originalRelation: 0, Age: 0, BirthPlace: 0, Occupation: 0 };
       }
       if (index == 0) {
         columns[index].Name++;
       } else if (part.match(/(?:M|F|Male|Female)/)) {
         columns[index].Gender++;
       } else if (part.match(/(Head|Wife|Son|Daughter|Mother|Father|Brother|Sister)/i)) {
-        columns[index].Relation++;
+        columns[index].originalRelation++;
       } else if (part.match(/\d{1,2}(?:\s?years|\s?mos)?/)) {
         columns[index].Age++;
       } else if (part.match(/[\w\s,]+/)) {
@@ -2101,8 +2117,8 @@ function analyzeColumns(lines) {
       return { index, ...column };
     })
     .sort((a, b) => {
-      const aValue = Math.max(a.Gender, a.Relation, a.Age, a.BirthPlace, a.Occupation);
-      const bValue = Math.max(b.Gender, b.Relation, b.Age, b.BirthPlace, b.Occupation);
+      const aValue = Math.max(a.Gender, a.originalRelation, a.Age, a.BirthPlace, a.Occupation);
+      const bValue = Math.max(b.Gender, b.originalRelation, b.Age, b.BirthPlace, b.Occupation);
       return bValue - aValue;
     });
 
@@ -2128,6 +2144,7 @@ function parseFamilyData(inputData) {
       const columnName = columnMapping[columnIndex];
       familyMember[columnName] = parts[columnIndex];
     });
+    familyMember.Relation = familyMember.originalRelation;
 
     families.push(familyMember);
   });
@@ -2142,32 +2159,31 @@ function parseCensusData(censusData) {
   let currentYear = null;
 
   censusData.forEach((line) => {
-    if (line.startsWith(":")) {
-      currentSection.push(line.slice(1));
-    } else {
-      const yearMatch = line.match(/\b(\d{4})\s+census\b/i);
-      if (yearMatch) {
-        currentYear = parseInt(yearMatch[1], 10);
-      }
+    const yearMatch = line.match(/\b(\d{4})\s+census\b/i);
+
+    if (yearMatch) {
       if (currentSection.length > 0) {
         const parsedFamilyData = parseFamilyData(currentSection.join("\n"));
-        parsedFamilyData.forEach((family) => {
-          family.Year = currentYear;
-          family.OriginalText = currentSection.join("\n");
+        parsedData.push({
+          Year: currentYear,
+          Household: parsedFamilyData,
+          OriginalText: currentSection.join("\n"),
         });
-        parsedData.push(parsedFamilyData);
         currentSection = [];
       }
+      currentYear = parseInt(yearMatch[1], 10);
+    } else if (line.startsWith(":")) {
+      currentSection.push(line.slice(1));
     }
   });
 
   if (currentSection.length > 0) {
     const parsedFamilyData = parseFamilyData(currentSection.join("\n"));
-    parsedFamilyData.forEach((family) => {
-      family.Year = currentYear;
-      family.OriginalText = currentSection.join("\n");
+    parsedData.push({
+      Year: currentYear,
+      Household: parsedFamilyData,
+      OriginalText: currentSection.join("\n"),
     });
-    parsedData.push(parsedFamilyData);
   }
 
   return parsedData;
@@ -2217,10 +2233,11 @@ function getCensusesFromCensusSection() {
 
         if (parsedCensusSection) {
           parsedCensusSection.forEach(function (family) {
-            if (family[0].Year == censusTypeMatch[1]) {
+            if (family.Year == censusTypeMatch[1]) {
               thisCensus = true;
-              ref.Household = family;
-              console.log(family);
+              ref.Household = family.Household;
+              ref.Text = ref.Text + "\n" + family.OriginalText;
+              console.log(JSON.parse(JSON.stringify(family)));
             }
           });
         } else {
