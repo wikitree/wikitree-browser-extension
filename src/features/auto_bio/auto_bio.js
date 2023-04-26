@@ -2146,18 +2146,17 @@ function parseCensusData(censusData) {
       currentSection.push(line.slice(1));
     } else {
       const yearMatch = line.match(/\b(\d{4})\s+census\b/i);
-
+      if (yearMatch) {
+        currentYear = parseInt(yearMatch[1], 10);
+      }
       if (currentSection.length > 0) {
         const parsedFamilyData = parseFamilyData(currentSection.join("\n"));
         parsedFamilyData.forEach((family) => {
           family.Year = currentYear;
+          family.OriginalText = currentSection.join("\n");
         });
         parsedData.push(parsedFamilyData);
         currentSection = [];
-      }
-
-      if (yearMatch) {
-        currentYear = parseInt(yearMatch[1], 10);
       }
     }
   });
@@ -2165,7 +2164,8 @@ function parseCensusData(censusData) {
   if (currentSection.length > 0) {
     const parsedFamilyData = parseFamilyData(currentSection.join("\n"));
     parsedFamilyData.forEach((family) => {
-      family.year = currentYear;
+      family.Year = currentYear;
+      family.OriginalText = currentSection.join("\n");
     });
     parsedData.push(parsedFamilyData);
   }
@@ -2175,12 +2175,13 @@ function parseCensusData(censusData) {
 
 function getCensusesFromCensusSection() {
   let censusSection;
+  let parsedCensusSection;
   if (window.sectionsObject?.Biography?.subsections?.Census) {
     censusSection = window.sectionsObject.Biography.subsections.Census;
-    console.log(parseCensusData(censusSection.text));
+    parsedCensusSection = parseCensusData(censusSection.text);
   } else if (window.sectionsObject?.Census) {
     censusSection = window.sectionsObject.Census;
-    console.log(parseCensusData(censusSection.text));
+    parsedCensusSection = parseCensusData(censusSection.text);
   } else {
     return;
   }
@@ -2214,159 +2215,34 @@ function getCensusesFromCensusSection() {
         }
         ref.ListText = [];
 
-        censusSection.text.forEach(function (line) {
-          const yearMatch = line.match(censusTypeMatch[1]);
-          const aYearMatch = line.match(/\b1[789]\d{2}\b/);
-          if (thisCensus) {
-            if (aYearMatch) {
-              if (aYearMatch[0] != censusTypeMatch[1] && line.match(/^:/) == null) {
-                thisCensus = false;
-                if (newPerson.Name) {
-                  ref.Household.push(newPerson);
-                  newPerson = {};
+        if (parsedCensusSection) {
+          parsedCensusSection.forEach(function (family) {
+            if (family[0].Year == censusTypeMatch[1]) {
+              thisCensus = true;
+              ref.Household = family;
+              console.log(family);
+            }
+          });
+        } else {
+          censusSection.text.forEach(function (line) {
+            const yearMatch = line.match(censusTypeMatch[1]);
+            const aYearMatch = line.match(/\b1[789]\d{2}\b/);
+            if (thisCensus) {
+              if (aYearMatch) {
+                if (aYearMatch[0] != censusTypeMatch[1] && line.match(/^:/) == null) {
+                  thisCensus = false;
+                  if (newPerson.Name) {
+                    ref.Household.push(newPerson);
+                    newPerson = {};
+                  }
                 }
               }
-            }
-            if (line.match(/^:/)) {
-              if (thisCensus && ref.Year == 1939 && ref.CensusType == "findmypast") {
-                if (line.match("findmypast") == null) {
-                  ref.ListText.push(line);
-                }
-                const lineBits = line.split("\t");
-                lineBits.forEach(function (aBit, index) {
-                  aBit = aBit.replace(/^:/, "").trim();
-                  if (index == 0) {
-                    newPerson["FirstName"] = aBit;
+              if (line.match(/^:/)) {
+                if (thisCensus && ref.Year == 1939 && ref.CensusType == "findmypast") {
+                  if (line.match("findmypast") == null) {
+                    ref.ListText.push(line);
                   }
-                  if (index == 1) {
-                    newPerson["LastName"] = aBit;
-                    newPerson.Name = newPerson.FirstName + " " + newPerson.LastName;
-                  }
-                  if (index == 2) {
-                    newPerson["BirthDate"] = aBit;
-                  }
-                  if (index == 3) {
-                    newPerson["Gender"] = aBit;
-                  }
-                  if (index == 4) {
-                    newPerson["Occupation"] = aBit;
-                  }
-                  if (index == 5) {
-                    newPerson["MaritalStatus"] = aBit;
-                  }
-                  if (index == 6) {
-                    newPerson["Age"] = aBit;
-                  }
-                });
-                if (newPerson.Name) {
-                  ref.Household.push(newPerson);
-                  newPerson = {};
-                }
-                newPerson = {};
-              } else if (thisCensus && ref.CensusType == "ukcensusonline") {
-                if (line.match("ukcensusonline") == null) {
-                  ref.ListText.push(line);
-                }
-                const lineBits = line.split("\t");
-                lineBits.forEach(function (aBit, index) {
-                  aBit = aBit.replace(/^:/, "").trim();
-                  if (index == 0) {
-                    newPerson["FirstName"] = aBit;
-                  }
-                  if (index == 1) {
-                    newPerson["LastName"] = aBit;
-                    newPerson.Name = newPerson.FirstName + " " + newPerson.LastName;
-                  }
-
-                  if (["1881", "1901"].includes(ref.Year)) {
-                    if (index == 2) {
-                      newPerson["Age"] = aBit;
-                    }
-                    if (index == 3) {
-                      newPerson["BirthDate"] = aBit;
-                    }
-                    if (index == 4) {
-                      newPerson["Relation"] = aBit;
-                    }
-                    if (index == 5) {
-                      newPerson["BirthLocation"] = aBit;
-                    }
-                    if (index == 6) {
-                      newPerson["Occupation"] = aBit;
-                    }
-                  } else {
-                    if (index == 2) {
-                      newPerson["Age"] = aBit;
-                    }
-                    if (index == 3) {
-                      newPerson["BirthDate"] = aBit;
-                    }
-                    if (index == 4) {
-                      newPerson["Gender"] = aBit;
-                    }
-                    if (index == 5) {
-                      newPerson["Relation"] = aBit;
-                    }
-                    if (index == 6) {
-                      newPerson["MaritalStatus"] = aBit;
-                    }
-                    if (index == 7) {
-                      newPerson["YearsMarried"] = aBit;
-                    }
-                    if (index == 8) {
-                      newPerson["BirthLocation"] = aBit;
-                    }
-                    if (index == 9) {
-                      newPerson["Occupation"] = aBit;
-                    }
-                  }
-                });
-                if (newPerson.Name) {
-                  ref.Household.push(newPerson);
-                  newPerson = {};
-                }
-                newPerson = {};
-              } else if (thisCensus && ref.CensusType == "findmypast") {
-                if (!ref.ListText.includes(line) && line.match("findmypast") == null) {
-                  ref.ListText.push(line);
-                }
-                if (line.match(/\s{4}/)) {
-                  const lineBits = line.split(/\s{4}/);
-                  lineBits.forEach(function (aBit, index) {
-                    aBit = aBit.replace(/^:/, "").trim();
-                    if (index == 0) {
-                      let nameBits = aBit.split(" ");
-                      newPerson["FirstName"] = nameBits[0];
-                      newPerson["LastName"] = nameBits[nameBits.length - 1];
-                      newPerson.Name = aBit;
-                    }
-                    if (index == 1) {
-                      newPerson["Relation"] = aBit;
-                    }
-                    if (index == 2) {
-                      newPerson["MaritalStatus"] = aBit;
-                    }
-                    if (index == 3) {
-                      if (aBit == "M") {
-                        newPerson.Gender = "Male";
-                      } else if (aBit == "F") {
-                        newPerson.Gender = "Female";
-                      } else {
-                        newPerson.Gender = "";
-                      }
-                    }
-                    if (index == 4) {
-                      newPerson["Age"] = aBit;
-                    }
-                    if (index == 5) {
-                      newPerson["Occupation"] = aBit;
-                    }
-                    if (index == 6) {
-                      newPerson["BirthLocation"] = aBit;
-                    }
-                  });
-                } else {
-                  const lineBits = line.split(/\t/);
+                  const lineBits = line.split("\t");
                   lineBits.forEach(function (aBit, index) {
                     aBit = aBit.replace(/^:/, "").trim();
                     if (index == 0) {
@@ -2377,44 +2253,179 @@ function getCensusesFromCensusSection() {
                       newPerson.Name = newPerson.FirstName + " " + newPerson.LastName;
                     }
                     if (index == 2) {
-                      newPerson["Relation"] = aBit;
-                    }
-                    if (index == 3) {
-                      newPerson["MaritalStatus"] = aBit;
-                    }
-                    if (index == 4) {
-                      newPerson.Gender = aBit;
-                    }
-                    if (index == 5) {
-                      newPerson["Age"] = aBit;
-                    }
-                    if (index == 6) {
                       newPerson["BirthDate"] = aBit;
                     }
-                    if (index == 7) {
+                    if (index == 3) {
+                      newPerson["Gender"] = aBit;
+                    }
+                    if (index == 4) {
                       newPerson["Occupation"] = aBit;
                     }
-                    if (index == 8) {
-                      newPerson["BirthLocation"] = aBit;
+                    if (index == 5) {
+                      newPerson["MaritalStatus"] = aBit;
+                    }
+                    if (index == 6) {
+                      newPerson["Age"] = aBit;
                     }
                   });
-                }
+                  if (newPerson.Name) {
+                    ref.Household.push(newPerson);
+                    newPerson = {};
+                  }
+                  newPerson = {};
+                } else if (thisCensus && ref.CensusType == "ukcensusonline") {
+                  if (line.match("ukcensusonline") == null) {
+                    ref.ListText.push(line);
+                  }
+                  const lineBits = line.split("\t");
+                  lineBits.forEach(function (aBit, index) {
+                    aBit = aBit.replace(/^:/, "").trim();
+                    if (index == 0) {
+                      newPerson["FirstName"] = aBit;
+                    }
+                    if (index == 1) {
+                      newPerson["LastName"] = aBit;
+                      newPerson.Name = newPerson.FirstName + " " + newPerson.LastName;
+                    }
 
-                if (newPerson.Name) {
-                  ref.Household.push(newPerson);
+                    if (["1881", "1901"].includes(ref.Year)) {
+                      if (index == 2) {
+                        newPerson["Age"] = aBit;
+                      }
+                      if (index == 3) {
+                        newPerson["BirthDate"] = aBit;
+                      }
+                      if (index == 4) {
+                        newPerson["Relation"] = aBit;
+                      }
+                      if (index == 5) {
+                        newPerson["BirthLocation"] = aBit;
+                      }
+                      if (index == 6) {
+                        newPerson["Occupation"] = aBit;
+                      }
+                    } else {
+                      if (index == 2) {
+                        newPerson["Age"] = aBit;
+                      }
+                      if (index == 3) {
+                        newPerson["BirthDate"] = aBit;
+                      }
+                      if (index == 4) {
+                        newPerson["Gender"] = aBit;
+                      }
+                      if (index == 5) {
+                        newPerson["Relation"] = aBit;
+                      }
+                      if (index == 6) {
+                        newPerson["MaritalStatus"] = aBit;
+                      }
+                      if (index == 7) {
+                        newPerson["YearsMarried"] = aBit;
+                      }
+                      if (index == 8) {
+                        newPerson["BirthLocation"] = aBit;
+                      }
+                      if (index == 9) {
+                        newPerson["Occupation"] = aBit;
+                      }
+                    }
+                  });
+                  if (newPerson.Name) {
+                    ref.Household.push(newPerson);
+                    newPerson = {};
+                  }
+                  newPerson = {};
+                } else if (thisCensus && ref.CensusType == "findmypast") {
+                  if (!ref.ListText.includes(line) && line.match("findmypast") == null) {
+                    ref.ListText.push(line);
+                  }
+                  if (line.match(/\s{4}/)) {
+                    const lineBits = line.split(/\s{4}/);
+                    lineBits.forEach(function (aBit, index) {
+                      aBit = aBit.replace(/^:/, "").trim();
+                      if (index == 0) {
+                        let nameBits = aBit.split(" ");
+                        newPerson["FirstName"] = nameBits[0];
+                        newPerson["LastName"] = nameBits[nameBits.length - 1];
+                        newPerson.Name = aBit;
+                      }
+                      if (index == 1) {
+                        newPerson["Relation"] = aBit;
+                      }
+                      if (index == 2) {
+                        newPerson["MaritalStatus"] = aBit;
+                      }
+                      if (index == 3) {
+                        if (aBit == "M") {
+                          newPerson.Gender = "Male";
+                        } else if (aBit == "F") {
+                          newPerson.Gender = "Female";
+                        } else {
+                          newPerson.Gender = "";
+                        }
+                      }
+                      if (index == 4) {
+                        newPerson["Age"] = aBit;
+                      }
+                      if (index == 5) {
+                        newPerson["Occupation"] = aBit;
+                      }
+                      if (index == 6) {
+                        newPerson["BirthLocation"] = aBit;
+                      }
+                    });
+                  } else {
+                    const lineBits = line.split(/\t/);
+                    lineBits.forEach(function (aBit, index) {
+                      aBit = aBit.replace(/^:/, "").trim();
+                      if (index == 0) {
+                        newPerson["FirstName"] = aBit;
+                      }
+                      if (index == 1) {
+                        newPerson["LastName"] = aBit;
+                        newPerson.Name = newPerson.FirstName + " " + newPerson.LastName;
+                      }
+                      if (index == 2) {
+                        newPerson["Relation"] = aBit;
+                      }
+                      if (index == 3) {
+                        newPerson["MaritalStatus"] = aBit;
+                      }
+                      if (index == 4) {
+                        newPerson.Gender = aBit;
+                      }
+                      if (index == 5) {
+                        newPerson["Age"] = aBit;
+                      }
+                      if (index == 6) {
+                        newPerson["BirthDate"] = aBit;
+                      }
+                      if (index == 7) {
+                        newPerson["Occupation"] = aBit;
+                      }
+                      if (index == 8) {
+                        newPerson["BirthLocation"] = aBit;
+                      }
+                    });
+                  }
+
+                  if (newPerson.Name) {
+                    ref.Household.push(newPerson);
+                    newPerson = {};
+                  }
                   newPerson = {};
                 }
-                newPerson = {};
               }
             }
+            console.log(JSON.parse(JSON.stringify(ref)));
+            if (yearMatch) {
+              thisCensus = true;
+            }
+          });
+          if (newPerson.Name) {
+            ref.Household.push(newPerson);
           }
-          console.log(JSON.parse(JSON.stringify(ref)));
-          if (yearMatch) {
-            thisCensus = true;
-          }
-        });
-        if (newPerson.Name) {
-          ref.Household.push(newPerson);
         }
         ref = assignSelf(ref);
       }
