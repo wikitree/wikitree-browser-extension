@@ -5530,6 +5530,34 @@ function addSubsection(title) {
   return subsectionText;
 }
 
+function removeCountryName(location) {
+  const usVariants = ["United States", "USA", "U.S.A.", "US", "U.S.", "United States of America", "U S A", "U S"];
+  const ukVariants = ["UK", "United Kingdom", "England", "Scotland", "Wales"];
+
+  let locationSplit = location.split(", ").reverse();
+
+  // Remove country name for US
+  if (usVariants.includes(locationSplit[0])) {
+    locationSplit.shift();
+  }
+  // Remove country name for UK
+  else if (ukVariants.includes(locationSplit[0])) {
+    locationSplit.shift();
+
+    // Remove additional country name if it's also a UK variant (e.g., "England, United Kingdom")
+    if (ukVariants.includes(locationSplit[0])) {
+      locationSplit.shift();
+    }
+  }
+  // Remove country name for other countries
+  else {
+    locationSplit.shift();
+  }
+
+  // Reconstruct the location string without the country name(s)
+  return locationSplit.reverse().join(", ");
+}
+
 async function getLocationCategory(type, location = null) {
   // type = birth, death, marriage, other
   // For birth and death, we can use the location from the profile
@@ -5564,12 +5592,16 @@ async function getLocationCategory(type, location = null) {
   }
   // Remove all after 3rd comma
   const locationSplit = location.split(/, /);
+  /*
   if (locationSplit[3]) {
     locationSplit.splice(3, 3);
   }
+  */
+  const searchLocation = removeCountryName(location);
+
   let api;
   try {
-    api = await wtAPICatCIBSearch("WBE", categoryType, locationSplit.join(", "));
+    api = await wtAPICatCIBSearch("WBE", categoryType, searchLocation);
   } catch (error) {
     console.log("Error getting location category", error);
     api = null;
