@@ -1,0 +1,17 @@
+.x-source-preview {
+  position: absolute;
+  z-index: 999;
+  -webkit-box-shadow: 3px 3px 12px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 3px 3px 12px 6px rgba(0, 0, 0, 0.3);
+  background-color: #fff;
+  border: 2px solid #ccc;
+  padding: 10px;
+  -webkit-border-radius: 1em;
+  -moz-border-radius: 1em;
+  border-radius: 1em;
+  width: 450px;
+  white-space: normal;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: normal;
+}
