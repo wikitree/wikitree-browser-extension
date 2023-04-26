@@ -69,7 +69,7 @@ function original2real(val) {
   return htmlEntitiesReverse(val);
 }
 
-function addClipping(type) {
+function addClipping(type, e) {
   const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
   clipboardDB.onsuccess = function (event) {
     let cdb = clipboardDB.result;
@@ -77,22 +77,22 @@ function addClipping(type) {
       .transaction(["Clipboard"], "readwrite")
       .objectStore("Clipboard")
       .put({ type: type, text: $("#clippingBox").val() });
-    clipboard(type, "add");
+    clipboard(type, e, "add");
     $("#clippingBox").val("");
   };
 }
 
-function deleteClipping(key, type) {
+function deleteClipping(key, type, e) {
   const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
   clipboardDB.onsuccess = function (event) {
     let cdb = clipboardDB.result;
     let insert = cdb.transaction(["Clipboard"], "readwrite").objectStore("Clipboard").delete(key);
-    clipboard(type, "delete");
+    clipboard(type, e, "delete");
     $("#clippingBox").val("");
   };
 }
 
-function editClipping(key, type) {
+function editClipping(key, type, e) {
   const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
   clipboardDB.onsuccess = function (event) {
     let cdb = clipboardDB.result;
@@ -100,7 +100,7 @@ function editClipping(key, type) {
       .transaction(["Clipboard"], "readwrite")
       .objectStore("Clipboard")
       .put({ type: type, text: $("#clippingBox").val() }, key);
-    clipboard(type, "edit");
+    clipboard(type, e, "edit");
     $("#clippingBox").val("");
   };
 }
@@ -174,7 +174,7 @@ function setAddClippingAction(type) {
   $("#addClipping").on("click", function (e) {
     e.preventDefault();
     if ($("#clippingBox").val() != "") {
-      addClipping(type);
+      addClipping(type, e);
     }
   });
   let word = "clipping";
@@ -185,15 +185,15 @@ function setAddClippingAction(type) {
   $("#clippingBox").val("");
 }
 
-function placeClipboard(aClipboard) {
+function placeClipboard(aClipboard, event) {
+  // let mouseX = event.pageX;
+  let mouseY = event.pageY;
+
   if ($("#privatemessage-modal").css("display") == "block") {
     aClipboard.insertAfter($(".theClipboardButtons"));
   } else if ($("h1:contains('Edit Marriage Information')").length) {
     aClipboard.insertAfter($("#header"));
-  } /* 
-  else if ($("body.page-Special_EditPerson,body.page-Special_EditFamily").length) {
-    aClipboard.insertAfter($("#toolbar,#mEmail"));
-  }*/ else if ($("body.page-Special_EditPerson").length) {
+  } else if ($("body.page-Special_EditPerson").length) {
     aClipboard.insertAfter($("#toolbar,#mEmail"));
   } else if (window.clipboardClicker != undefined) {
     if (window.clipboardClicker.parent().hasClass("answerForm")) {
@@ -204,9 +204,16 @@ function placeClipboard(aClipboard) {
       aClipboard.insertAfter($("#header,.qa-header"));
     }
   }
+
+  // Set the position of the clipboard based on the current pointer location.
+  aClipboard.css({
+    position: "absolute",
+    top: mouseY,
+    // left: mouseX,
+  });
 }
 
-async function clipboard(type, action = false) {
+async function clipboard(type, e, action = false) {
   if ($("#clipboard").length) {
     $("#clipboard tbody").html("");
   } else {
@@ -236,7 +243,7 @@ async function clipboard(type, action = false) {
         "</button></div>"
     );
 
-    placeClipboard(aClipboard);
+    placeClipboard(aClipboard, e);
     if ($("body.page-Special_EditPerson").length && thisWord == "clipping") {
       if ($("#clipboardInfo").length == 0) {
         setClipboardText();
@@ -265,10 +272,10 @@ async function clipboard(type, action = false) {
   if (action == false) {
     $("#clipboard").toggle();
 
-    placeClipboard($("#clipboard"));
+    placeClipboard($("#clipboard"), e);
   } else {
     $("#clipboard").show();
-    placeClipboard($("#clipboard"));
+    placeClipboard($("#clipboard"), e);
   }
 
   window.lastClipboardClicker = window.clipboardClicker;
@@ -329,7 +336,7 @@ async function clipboard(type, action = false) {
       }
       $(".deleteClippingButton").unbind();
       $(".deleteClippingButton").click(function () {
-        deleteClipping($(this).closest("tr").data("key"), type);
+        deleteClipping($(this).closest("tr").data("key"), type, e);
       });
       $(".editClippingButton").each(function () {
         let aButton = $(this);
@@ -351,7 +358,7 @@ async function clipboard(type, action = false) {
             $("#addClipping").unbind();
             $("#addClipping").on("click", function (e) {
               e.preventDefault();
-              editClipping(key, type);
+              editClipping(key, type, e);
 
               var word = "clipping";
               if (type == "notes") {
@@ -448,14 +455,14 @@ async function initClipboard() {
         let lccpc = window.lastClipboardClicker.parent().attr("class");
         if ($("#clipboard").data("type") == "notes") {
           $("#clipboard").remove();
-          clipboard("clipboard");
+          clipboard("clipboard", e);
         } else if ($("#clipboard").css("display") == "block") {
           if (ccpc == lccpc || lccpc == undefined) {
             $("#clipboard").slideUp();
           }
-          placeClipboard($("#clipboard"));
+          placeClipboard($("#clipboard"), e);
         } else {
-          clipboard("clipboard");
+          clipboard("clipboard", e);
         }
         window.lastClipboardClicker = window.clipboardClicker;
       });
@@ -469,14 +476,14 @@ async function initClipboard() {
 
         if ($("#clipboard").data("type") == "clipboard") {
           $("#clipboard").remove();
-          clipboard("notes");
+          clipboard("notes", e);
         } else if ($("#clipboard").css("display") == "block") {
           if (ccpc == lccpc || lccpc == undefined) {
             $("#clipboard").slideUp();
           }
-          placeClipboard($("#clipboard"));
+          placeClipboard($("#clipboard"), e);
         } else {
-          clipboard("notes");
+          clipboard("notes", e);
         }
 
         window.lastClipboardClicker = window.clipboardClicker;

@@ -77,7 +77,7 @@ function updateAncestryLink(linkText, options) {
 
 function updateAncestryRakutenLink(link, options) {
   if (options.ancestryDomain == "none" || !options.ancestryDomain) {
-    return linkText;
+    return link;
   }
 
   // NOTE: Ancestry switched from Partnerize to Rakuten on 18 Apr 2023. Partnerize used the

@@ -273,9 +273,6 @@ function doRelationshipText(userID, profileID) {
           .replaceAll(/[\t\n]/g, "");
         out = dummy.find("b").text();
         const outOuterHTML = dummy.find("b")[0].outerHTML;
-        // console.log(dummy.find("b"));
-        // console.log(outOuterHTML);
-        // let secondName = dummy.find("b").parent().text().split(out)[1];
         let secondName = dummy.find("b").parent().html().split(outOuterHTML)[1];
         let lastLink = dummy.find("#imageContainer > p > span:last-of-type a").attr("href");
         const userFirstName = dummy.find(`p a[href$='${userID}']`).eq(0).text().split(" ")[0];
@@ -301,6 +298,9 @@ function doRelationshipText(userID, profileID) {
             }
             if (profileGender == "female") {
               out = out.replace(/nephew|niece/, "aunt");
+            }
+            if (out.match(/(uncle|aunt) or.*/)) {
+              out = out.split(" or ")[0];
             }
           }
           if (

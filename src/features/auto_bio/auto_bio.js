@@ -135,6 +135,8 @@ function fixUSLocation(event) {
         event.Location = locationBits.slice(0, locationBits.length - 1).join(", ") + ", " + state.name;
         if (isSameDateOrAfter(event.Date, state.admissionDate)) {
           event.Location += ", " + "United States";
+        } else if (state.admissionDate && state.former_name && window.autoBioOptions.changeUS) {
+          event.Location = event.Location.replace(lastLocationBit, state.former_name);
         }
       } else if (["US", "USA", "United States of America", "United States", "U.S.A."].includes(lastLocationBit)) {
         const theState = locationBits[locationBits.length - 2];
@@ -150,6 +152,8 @@ function fixUSLocation(event) {
             } else {
               event.Location += ", " + lastLocationBit;
             }
+          } else if (state.admissionDate && state.former_name && window.autoBioOptions.changeUS) {
+            event.Location = event.Location.replace(theState, state.former_name);
           }
         }
       }
@@ -1284,6 +1288,7 @@ function buildSpouses(person) {
 }
 
 function getAgeFromISODates(birth, date) {
+  //console.log(birth, date);
   let [year1, month1, day1] = birth.split("-");
   let [year2, month2, day2] = date.split("-");
   let age = getAge({
@@ -1329,8 +1334,8 @@ function getMonthNumber(month) {
   if (!match) {
     return null; // Invalid month input
   }
-
-  const monthAbbreviation = match[0].toUpperCase();
+  // console.log(match);
+  let monthAbbreviation = match[0].slice(0, 3).toUpperCase();
 
   switch (monthAbbreviation) {
     case "JAN":
@@ -1371,6 +1376,12 @@ export function getYYYYMMDD(dateString) {
       const month = getMonthNumber(dateParts[1]);
       const day = `0${dateParts[0]}`.slice(-2);
       return `${year}-${month}-${day}`;
+    } else if (dateParts.length == 2) {
+      if (dateParts[0].match(/\w/)) {
+        const year = dateParts[1];
+        const month = getMonthNumber(dateParts[0].slice(0, 3));
+        return `${year}-${month}-15`;
+      }
     } else if (dateParts.length === 1 && dateParts[0].length === 4) {
       const year = dateParts[0];
       return `${year}-07-02`;
@@ -1446,6 +1457,7 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
           }
 
           if (i < textSplit.length - 1 && textSplit[i + 1]) {
+            //  console.log(textSplit);
             const familyMembers = [];
             const maybeFamily = textSplit[i + 1].split(",");
             for (let j = 0; j < maybeFamily.length; j++) {
@@ -1478,6 +1490,7 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
               console.log(familyMembers);
             }
             if (familyMembers.length > 1) {
+              //   console.log(familyMembers);
               reference.Household = familyMembers;
               reference = assignSelf(reference);
               reference.Household = updateRelations(reference.Household);
@@ -1579,6 +1592,45 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
         }
       }
     }
+  } else if (reference.Text.match(/\(accessed.*?\),/)) {
+    const details = reference.Text.split(/\(accessed.*?\),/)[1].trim();
+    if (details.match(/\. Born/)) {
+      text = details.split(/\. Born/)[0].trim() + ". ";
+      console.log(text);
+      /* If it's like this: Mary Vandover (38) in Perry, Martin, Indiana, USA. 
+    turn into a grammatical sentence with 'was living', without USA. */
+      let fNameVariants = [window.profilePerson.PersonName.FirstName];
+      if (firstNameVariants[window.profilePerson.PersonName.FirstName]) {
+        fNameVariants = firstNameVariants[window.profilePerson.PersonName.FirstName];
+      }
+
+      // Create a regex pattern to match the desired text format
+      let regexPattern = new RegExp(
+        `\\b(?:${fNameVariants.join(
+          "|"
+        )})\\b\\s(?:\\w+\\s|\\w\\.\\s)?(\\w+)(?:\\s\\((\\d+)\\)|\\s\\((\\d+)\\),\\s(.*),)\\s+in\\s(\\w+,\\s\\w+,\\s\\w+)`,
+        "i"
+      );
+
+      console.log(regexPattern);
+
+      if (text.match(regexPattern)) {
+        // Replace the matched text with the desired format
+        text = text.replace(regexPattern, (match, lastName, age1, age2, occupation, place) => {
+          let firstName = match.match(new RegExp(`\\b(?:${fNameVariants.join("|")})\\b`, "i"))[0];
+          let result = `${firstName} ${lastName} `;
+          let age = age1 || age2;
+          result += `(${age})`;
+          if (occupation) {
+            result += `, ${occupation},`;
+          }
+          result += ` was living in ${place.replace(", USA", "")}`;
+          console.log(result);
+          return result;
+        });
+      }
+      console.log(text);
+    }
   }
 
   if (text.match(/in the household/) && !text.match(/^[^.]*?\bwas\b[^.\n]*\./)) {
@@ -1661,6 +1713,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
 function getHouseholdOfRelationAndName(text) {
   let householdHeadMatch = text.match(/household\sof\s(.+?)((\s[a-z])|\.|,)/);
   if (householdHeadMatch) {
+    // console.log(householdHeadMatch);
     let householdHeadFirstName = householdHeadMatch[1].split(" ")[0];
     ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
       if (window.profilePerson[relation]) {
@@ -1710,6 +1763,8 @@ function getHouseholdOfRelationAndName(text) {
                     : "spouse"
                   : relationSingular;
             }
+
+            householdHeadMatch[1] = householdHeadMatch[1].split(" (")[0];
             text = text.replace(
               householdHeadMatch[1],
               window.profilePerson.Pronouns.possessiveAdjective +
@@ -2290,6 +2345,7 @@ function parseSourcerCensusWithCSVList(reference) {
   if (
     lastBit.match(window.profilePerson.PersonName.FirstName) &&
     lastBit.match(/\b(wife|husband|son|daughter|father|mother)\b/) &&
+    lastBit.match(/household/) == null &&
     referenceBits.length > 0
   ) {
     /* Parse a family in this format: Gerritt Bleeker Jr. 42, 
@@ -2521,16 +2577,19 @@ function buildCensusNarratives() {
       if (!reference.Residence) {
         reference.Residence = residenceBits.join(", ");
       }
+      //   console.log(JSON.parse(JSON.stringify(reference)));
 
       const ageAtCensus = getAgeAtCensus(window.profilePerson, reference["Census Year"]);
 
       if (!reference.Household) {
         reference = parseSourcerCensusWithCSVList(reference);
       }
+      //  console.log(JSON.parse(JSON.stringify(reference)));
 
       if (!reference.Household) {
         reference = parseSourcerCensusWithColons(reference);
       }
+      // console.log(JSON.parse(JSON.stringify(reference)));
 
       let householdLength = true;
       if (Array.isArray(reference.Household)) {
@@ -2605,6 +2664,7 @@ function buildCensusNarratives() {
         text = getHouseholdOfRelationAndName(text);
       } else {
         // If there's a spouse in the table, but there's no profile for the spouse
+        //  console.log(JSON.parse(JSON.stringify(reference)));
 
         addAges();
 
@@ -2681,6 +2741,8 @@ function buildCensusNarratives() {
         }
 
         if (reference.Household) {
+          // console.log(JSON.parse(JSON.stringify(reference)));
+
           // Add relationships if they're not already there
           reference.Household.forEach(function (householdMember) {
             if (!householdMember.Relation) {
@@ -4318,7 +4380,8 @@ function getFamilySearchFacts() {
         aFact.Year = dateMatch[0].match(/\d{4}/)[0];
         aFact.OrderDate = formatDate(aFact.Date, 0, { format: 8 });
         let ageBit = "";
-        if (aFact.Date) {
+        if (aFact.Date && window.profilePerson.BirthDate) {
+          // console.log(aFact);
           ageBit = " (" + getAgeFromISODates(window.profilePerson.BirthDate, getYYYYMMDD(aFact.Date)) + ")";
         }
         aFact.Info = aFact.Fact.split(dateMatch[0])[1].trim();
@@ -5687,6 +5750,34 @@ function addSubsection(title) {
   return subsectionText;
 }
 
+function removeCountryName(location) {
+  const usVariants = ["United States", "USA", "U.S.A.", "US", "U.S.", "United States of America", "U S A", "U S"];
+  const ukVariants = ["UK", "United Kingdom", "England", "Scotland", "Wales"];
+
+  let locationSplit = location.split(", ").reverse();
+
+  // Remove country name for US
+  if (usVariants.includes(locationSplit[0])) {
+    locationSplit.shift();
+  }
+  // Remove country name for UK
+  else if (ukVariants.includes(locationSplit[0])) {
+    locationSplit.shift();
+
+    // Remove additional country name if it's also a UK variant (e.g., "England, United Kingdom")
+    if (ukVariants.includes(locationSplit[0])) {
+      locationSplit.shift();
+    }
+  }
+  // Remove country name for other countries
+  else {
+    locationSplit.shift();
+  }
+
+  // Reconstruct the location string without the country name(s)
+  return locationSplit.reverse().join(", ");
+}
+
 async function getLocationCategory(type, location = null) {
   // type = birth, death, marriage, other
   // For birth and death, we can use the location from the profile
@@ -5721,12 +5812,16 @@ async function getLocationCategory(type, location = null) {
   }
   // Remove all after 3rd comma
   const locationSplit = location.split(/, /);
+  /*
   if (locationSplit[3]) {
     locationSplit.splice(3, 3);
   }
+  */
+  const searchLocation = removeCountryName(location);
+
   let api;
   try {
-    api = await wtAPICatCIBSearch("WBE", categoryType, locationSplit.join(", "));
+    api = await wtAPICatCIBSearch("WBE", categoryType, searchLocation);
   } catch (error) {
     console.log("Error getting location category", error);
     api = null;
