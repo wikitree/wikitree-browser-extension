@@ -1292,6 +1292,7 @@ function buildSpouses(person) {
 }
 
 function getAgeFromISODates(birth, date) {
+  //console.log(birth, date);
   let [year1, month1, day1] = birth.split("-");
   let [year2, month2, day2] = date.split("-");
   let age = getAge({
@@ -1337,8 +1338,8 @@ function getMonthNumber(month) {
   if (!match) {
     return null; // Invalid month input
   }
-
-  const monthAbbreviation = match[0].toUpperCase();
+  // console.log(match);
+  let monthAbbreviation = match[0].slice(0, 3).toUpperCase();
 
   switch (monthAbbreviation) {
     case "JAN":
@@ -1379,6 +1380,12 @@ export function getYYYYMMDD(dateString) {
       const month = getMonthNumber(dateParts[1]);
       const day = `0${dateParts[0]}`.slice(-2);
       return `${year}-${month}-${day}`;
+    } else if (dateParts.length == 2) {
+      if (dateParts[0].match(/\w/)) {
+        const year = dateParts[1];
+        const month = getMonthNumber(dateParts[0].slice(0, 3));
+        return `${year}-${month}-15`;
+      }
     } else if (dateParts.length === 1 && dateParts[0].length === 4) {
       const year = dateParts[0];
       return `${year}-07-02`;
@@ -1453,6 +1460,7 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
           }
 
           if (i < textSplit.length - 1 && textSplit[i + 1]) {
+            //  console.log(textSplit);
             const familyMembers = [];
             const maybeFamily = textSplit[i + 1].split(",");
             for (let j = 0; j < maybeFamily.length; j++) {
@@ -1484,6 +1492,7 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
               familyMembers.push(aMember);
             }
             if (familyMembers.length > 1) {
+              //   console.log(familyMembers);
               reference.Household = familyMembers;
               reference = assignSelf(reference);
               reference.Household = updateRelations(reference.Household);
@@ -1706,6 +1715,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
 function getHouseholdOfRelationAndName(text) {
   let householdHeadMatch = text.match(/household\sof\s(.+?)((\s[a-z])|\.|,)/);
   if (householdHeadMatch) {
+    // console.log(householdHeadMatch);
     let householdHeadFirstName = householdHeadMatch[1].split(" ")[0];
     ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
       if (window.profilePerson[relation]) {
@@ -1755,6 +1765,8 @@ function getHouseholdOfRelationAndName(text) {
                     : "spouse"
                   : relationSingular;
             }
+
+            householdHeadMatch[1] = householdHeadMatch[1].split(" (")[0];
             text = text.replace(
               householdHeadMatch[1],
               window.profilePerson.Pronouns.possessiveAdjective +
@@ -2335,6 +2347,7 @@ function parseSourcerCensusWithCSVList(reference) {
   if (
     lastBit.match(window.profilePerson.PersonName.FirstName) &&
     lastBit.match(/\b(wife|husband|son|daughter|father|mother)\b/) &&
+    lastBit.match(/household/) == null &&
     referenceBits.length > 0
   ) {
     /* Parse a family in this format: Gerritt Bleeker Jr. 42, 
@@ -2523,16 +2536,19 @@ function buildCensusNarratives() {
       if (!reference.Residence) {
         reference.Residence = residenceBits.join(", ");
       }
+      //   console.log(JSON.parse(JSON.stringify(reference)));
 
       const ageAtCensus = getAgeAtCensus(window.profilePerson, reference["Census Year"]);
 
       if (!reference.Household) {
         reference = parseSourcerCensusWithCSVList(reference);
       }
+      //  console.log(JSON.parse(JSON.stringify(reference)));
 
       if (!reference.Household) {
         reference = parseSourcerCensusWithColons(reference);
       }
+      // console.log(JSON.parse(JSON.stringify(reference)));
 
       if (!reference.Household) {
         // No table, probably
@@ -2600,6 +2616,7 @@ function buildCensusNarratives() {
         text = getHouseholdOfRelationAndName(text);
       } else {
         // If there's a spouse in the table, but there's no profile for the spouse
+        //  console.log(JSON.parse(JSON.stringify(reference)));
 
         addAges();
 
@@ -2676,6 +2693,8 @@ function buildCensusNarratives() {
         }
 
         if (reference.Household) {
+          // console.log(JSON.parse(JSON.stringify(reference)));
+
           // Add relationships if they're not already there
           reference.Household.forEach(function (householdMember) {
             if (!householdMember.Relation) {
@@ -4183,7 +4202,8 @@ function getFamilySearchFacts() {
         aFact.Year = dateMatch[0].match(/\d{4}/)[0];
         aFact.OrderDate = formatDate(aFact.Date, 0, { format: 8 });
         let ageBit = "";
-        if (aFact.Date) {
+        if (aFact.Date && window.profilePerson.BirthDate) {
+          // console.log(aFact);
           ageBit = " (" + getAgeFromISODates(window.profilePerson.BirthDate, getYYYYMMDD(aFact.Date)) + ")";
         }
         aFact.Info = aFact.Fact.split(dateMatch[0])[1].trim();
