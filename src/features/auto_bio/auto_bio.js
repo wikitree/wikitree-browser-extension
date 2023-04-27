@@ -2090,19 +2090,19 @@ function analyzeColumns(lines) {
   const columns = {};
 
   lines.forEach((line) => {
-    const parts = line.split(/\s{2,}/);
+    const parts = line.split(/\t/);
 
     parts.forEach((part, index) => {
       if (!columns[index]) {
-        columns[index] = { Name: 0, Gender: 0, Relation: 0, Age: 0, BirthPlace: 0, Occupation: 0 };
+        columns[index] = { Name: 0, Gender: 0, originalRelation: 0, Age: 0, BirthPlace: 0, Occupation: 0 };
       }
       if (index == 0) {
         columns[index].Name++;
-      } else if (part.match(/(?:M|F|Male|Female)/)) {
+      } else if (part.match(/(?:M|F|Male|Female)/i)) {
         columns[index].Gender++;
       } else if (part.match(/(Head|Wife|Son|Daughter|Mother|Father|Brother|Sister)/i)) {
-        columns[index].Relation++;
-      } else if (part.match(/\d{1,2}(?:\s?years|\s?mos)?/)) {
+        columns[index].originalRelation++;
+      } else if (part.match(/^\d{1,2}$/)) {
         columns[index].Age++;
       } else if (part.match(/[\w\s,]+/)) {
         columns[index].BirthPlace++;
@@ -2117,8 +2117,8 @@ function analyzeColumns(lines) {
       return { index, ...column };
     })
     .sort((a, b) => {
-      const aValue = Math.max(a.Gender, a.Relation, a.Age, a.BirthPlace, a.Occupation);
-      const bValue = Math.max(b.Gender, b.Relation, b.Age, b.BirthPlace, b.Occupation);
+      const aValue = Math.max(a.Gender, a.originalRelation, a.Age, a.BirthPlace, a.Occupation);
+      const bValue = Math.max(b.Gender, b.originalRelation, b.Age, b.BirthPlace, b.Occupation);
       return bValue - aValue;
     });
 
@@ -2142,12 +2142,23 @@ function extractHouseholdMembers(row) {
   return lines;
 }
 
-function parseFamilyData(data, separator) {
-  const lines = Array.isArray(data) ? data : data.split("\n");
-  const columnMapping = analyzeColumns(lines);
+function parseFamilyData(lines, delimiter) {
+  if (Array.isArray(lines)) {
+    lines = lines.join("\n");
+  }
 
-  const family = lines.map((line) => {
-    const parts = line.split(new RegExp(separator === "\t" ? "\\t" : "\\s{1,}", "g"));
+  const formattedLines = lines.split("\n").map((line) => {
+    return line
+      .replace(/ {2,}/g, "\t")
+      .replace(/ *\t */, "\t")
+      .trim();
+  });
+
+  const columnMapping = analyzeColumns(formattedLines);
+  const familyMembers = [];
+
+  formattedLines.forEach((line) => {
+    const parts = line.split("\t");
     const member = {};
 
     parts.forEach((part, index) => {
@@ -2158,17 +2169,12 @@ function parseFamilyData(data, separator) {
     });
 
     if (member.Name) {
-      const nameMatch = member.Name.match(/^(.*?)\s+(Head|Wife|Son|Daughter|Mother|Father|Brother|Sister)/);
-      if (nameMatch) {
-        member.Name = nameMatch[1].trim();
-        member.Relation = nameMatch[2];
-      }
+      member.Name = member.Name.replace(/[:*#]+/, "").trim();
     }
-
-    return member;
+    familyMembers.push(member);
   });
 
-  return family;
+  return familyMembers;
 }
 
 function parseCensusData(censusData) {
