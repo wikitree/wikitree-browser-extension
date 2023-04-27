@@ -2090,18 +2090,18 @@ function analyzeColumns(lines) {
   const columns = {};
 
   lines.forEach((line) => {
-    const parts = line.split(/\t/);
+    const parts = line.split(/\s{2,}/);
 
     parts.forEach((part, index) => {
       if (!columns[index]) {
-        columns[index] = { Name: 0, Gender: 0, originalRelation: 0, Age: 0, BirthPlace: 0, Occupation: 0 };
+        columns[index] = { Name: 0, Gender: 0, Relation: 0, Age: 0, BirthPlace: 0, Occupation: 0 };
       }
       if (index == 0) {
         columns[index].Name++;
       } else if (part.match(/(?:M|F|Male|Female)/)) {
         columns[index].Gender++;
       } else if (part.match(/(Head|Wife|Son|Daughter|Mother|Father|Brother|Sister)/i)) {
-        columns[index].originalRelation++;
+        columns[index].Relation++;
       } else if (part.match(/\d{1,2}(?:\s?years|\s?mos)?/)) {
         columns[index].Age++;
       } else if (part.match(/[\w\s,]+/)) {
@@ -2117,8 +2117,8 @@ function analyzeColumns(lines) {
       return { index, ...column };
     })
     .sort((a, b) => {
-      const aValue = Math.max(a.Gender, a.originalRelation, a.Age, a.BirthPlace, a.Occupation);
-      const bValue = Math.max(b.Gender, b.originalRelation, b.Age, b.BirthPlace, b.Occupation);
+      const aValue = Math.max(a.Gender, a.Relation, a.Age, a.BirthPlace, a.Occupation);
+      const bValue = Math.max(b.Gender, b.Relation, b.Age, b.BirthPlace, b.Occupation);
       return bValue - aValue;
     });
 
@@ -2131,25 +2131,44 @@ function analyzeColumns(lines) {
   return columnMapping;
 }
 
-function parseFamilyData(inputData) {
-  const lines = inputData.trim().split("\n");
+function extractHouseholdMembers(row) {
+  const brRegex = /<br\s*\/?>/gi;
+  const rowData = row.split("||")[1].trim();
+  const lines = rowData.split(brRegex);
+
+  console.log("rowData:", rowData); // Debug log
+  console.log("lines:", lines); // Debug log
+
+  return lines;
+}
+
+function parseFamilyData(data, separator) {
+  const lines = Array.isArray(data) ? data : data.split("\n");
   const columnMapping = analyzeColumns(lines);
-  const families = [];
 
-  lines.forEach((line) => {
-    const parts = line.split(/\t/);
-    const familyMember = {};
+  const family = lines.map((line) => {
+    const parts = line.split(new RegExp(separator === "\t" ? "\\t" : "\\s{1,}", "g"));
+    const member = {};
 
-    Object.keys(columnMapping).forEach((columnIndex) => {
-      const columnName = columnMapping[columnIndex];
-      familyMember[columnName] = parts[columnIndex];
+    parts.forEach((part, index) => {
+      const columnName = columnMapping[index];
+      if (columnName) {
+        member[columnName] = part;
+      }
     });
-    familyMember.Relation = familyMember.originalRelation;
 
-    families.push(familyMember);
+    if (member.Name) {
+      const nameMatch = member.Name.match(/^(.*?)\s+(Head|Wife|Son|Daughter|Mother|Father|Brother|Sister)/);
+      if (nameMatch) {
+        member.Name = nameMatch[1].trim();
+        member.Relation = nameMatch[2];
+      }
+    }
+
+    return member;
   });
 
-  return families;
+  return family;
 }
 
 function parseCensusData(censusData) {
@@ -3048,131 +3067,146 @@ function parseWikiTable(text) {
     data["Year"] = match[1];
   }
 
+  // Parse Sourcer Household Members row with <br> tags
   for (const row of rows) {
-    if (row.match("Household Members")) {
-      data.Household = [];
+    if (
+      row.startsWith("| Household Members") &&
+      row.includes("<br>") &&
+      row.includes("||") &&
+      row.match(/<br.*?>/g).length >= 2
+    ) {
+      const members = extractHouseholdMembers(row);
+      data.Household = parseFamilyData(members, " ");
+      console.log(JSON.parse(JSON.stringify(data.Household)));
     }
-    if (!row.includes("|")) continue;
-    if (row.match(/\|\|/)) {
-      const cells = row.split("||");
-      const key = cells[0].trim().replace("|", "").replace(/:$/, "");
-      const value = cells[1].trim().replace("|", "");
-      if (data.Household) {
-        const aMember = { Name: key, Census: data["Year"] };
-        for (let i = 1; i < cells.length; i++) {
+  }
+
+  if (!data.Household) {
+    for (const row of rows) {
+      if (row.match("Household Members") && row.match(/<br.{0,2}>/) == null) {
+        data.Household = [];
+      }
+      if (!row.includes("|")) continue;
+      if (row.match(/\|\|/)) {
+        const cells = row.split("||");
+        const key = cells[0].trim().replace("|", "").replace(/:$/, "");
+        const value = cells[1].trim().replace("|", "");
+        if (data.Household) {
+          const aMember = { Name: key, Census: data["Year"] };
+          for (let i = 1; i < cells.length; i++) {
+            if (
+              cells[i].match(
+                /father|mother|brother|sister|wife|husband|head|son|daughter|child|boarder|visitor|aunt|uncle|grandmother|grandfather|grandson|granddaughter|niece|nephew|cousin|teacher/i
+              )
+            ) {
+              aMember.Relation = cells[i].trim();
+              aMember.censusRelation = aMember.Relation;
+            } else if (cells[i].match(/^\s?\d{1,2}/)) {
+              aMember.Age = cells[i].trim();
+              aMember.BirthYear = data["Year"] - aMember.Age;
+            } else if (cells[i].match(/^M$/)) {
+              aMember.Gender = "Male";
+            } else if (cells[i].match(/^F$/)) {
+              aMember.Gender = "Female";
+            } else if (cells[i].match(/[A-Z][a-z]+/)) {
+              aMember["Birth Place"] = cells[i].trim();
+            }
+          }
+
           if (
-            cells[i].match(
-              /father|mother|brother|sister|wife|husband|head|son|daughter|child|boarder|visitor|aunt|uncle|grandmother|grandfather|grandson|granddaughter|niece|nephew|cousin|teacher/i
-            )
+            isSameName(key, window.profilePerson.NameVariants) &&
+            isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), aMember.Age, 5)
           ) {
-            aMember.Relation = cells[i].trim();
-            aMember.censusRelation = aMember.Relation;
-          } else if (cells[i].match(/^\s?\d{1,2}/)) {
-            aMember.Age = cells[i].trim();
-            aMember.BirthYear = data["Year"] - aMember.Age;
-          } else if (cells[i].match(/^M$/)) {
-            aMember.Gender = "Male";
-          } else if (cells[i].match(/^F$/)) {
-            aMember.Gender = "Female";
-          } else if (cells[i].match(/[A-Z][a-z]+/)) {
-            aMember["Birth Place"] = cells[i].trim();
-          }
-        }
-
-        if (
-          isSameName(key, window.profilePerson.NameVariants) &&
-          isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), aMember.Age, 5)
-        ) {
-          aMember.Relation = "Self";
-        } else if (data["Relation to Head"] && aMember.Relation) {
-          if (["Son", "Daughter"].includes(data["Relation to Head"])) {
-            if (aMember.Relation == "Son") {
-              aMember.Relation = "Brother";
-            } else if (aMember.Relation == "Daughter") {
-              aMember.Relation = "Sister";
-            } else if (aMember.Relation == "Wife") {
-              aMember.Relation = "Mother";
-            } else if (aMember.Relation == "Husband") {
-              aMember.Relation = "Father";
-            } else if (aMember.Relation == "Child") {
-              aMember.Relation = "Sibling";
-            }
-          } else if (["Brother", "Sister"].includes(data["Relation to Head"])) {
-            if (aMember.Relation == "Son") {
-              aMember.Relation = "Nephew";
-            } else if (aMember.Relation == "Daughter") {
-              aMember.Relation = "Niece";
-            } else if (aMember.Relation == "Wife") {
-              aMember.Relation = "Sister-in-law";
-            } else if (aMember.Relation == "Husband") {
-              aMember.Relation = "Brother-in-law";
-            } else if (aMember.Relation == "Child") {
-              aMember.Relation = "Nephew/Niece";
-            }
-          } else if (["Father", "Mother"].includes(data["Relation to Head"])) {
-            if (aMember.Relation == "Son") {
-              aMember.Relation = "Grandson";
-            } else if (aMember.Relation == "Daughter") {
-              aMember.Relation = "Granddaughter";
-            } else if (aMember.Relation == "Wife") {
-              aMember.Relation = "Daughter-in-law";
-            } else if (aMember.Relation == "Husband") {
-              aMember.Relation = "Son-in-law";
-            } else if (aMember.Relation == "Child") {
-              aMember.Relation = "Grandson/Granddaughter";
+            aMember.Relation = "Self";
+          } else if (data["Relation to Head"] && aMember.Relation) {
+            if (["Son", "Daughter"].includes(data["Relation to Head"])) {
+              if (aMember.Relation == "Son") {
+                aMember.Relation = "Brother";
+              } else if (aMember.Relation == "Daughter") {
+                aMember.Relation = "Sister";
+              } else if (aMember.Relation == "Wife") {
+                aMember.Relation = "Mother";
+              } else if (aMember.Relation == "Husband") {
+                aMember.Relation = "Father";
+              } else if (aMember.Relation == "Child") {
+                aMember.Relation = "Sibling";
+              }
+            } else if (["Brother", "Sister"].includes(data["Relation to Head"])) {
+              if (aMember.Relation == "Son") {
+                aMember.Relation = "Nephew";
+              } else if (aMember.Relation == "Daughter") {
+                aMember.Relation = "Niece";
+              } else if (aMember.Relation == "Wife") {
+                aMember.Relation = "Sister-in-law";
+              } else if (aMember.Relation == "Husband") {
+                aMember.Relation = "Brother-in-law";
+              } else if (aMember.Relation == "Child") {
+                aMember.Relation = "Nephew/Niece";
+              }
+            } else if (["Father", "Mother"].includes(data["Relation to Head"])) {
+              if (aMember.Relation == "Son") {
+                aMember.Relation = "Grandson";
+              } else if (aMember.Relation == "Daughter") {
+                aMember.Relation = "Granddaughter";
+              } else if (aMember.Relation == "Wife") {
+                aMember.Relation = "Daughter-in-law";
+              } else if (aMember.Relation == "Husband") {
+                aMember.Relation = "Son-in-law";
+              } else if (aMember.Relation == "Child") {
+                aMember.Relation = "Grandson/Granddaughter";
+              }
             }
           }
-        }
-        ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
-          let oKeys = Object.keys(window.profilePerson[relation]);
-          oKeys.forEach(function (aKey) {
-            let aPerson = window.profilePerson[relation][aKey];
-            let theRelation;
+          ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
+            let oKeys = Object.keys(window.profilePerson[relation]);
+            oKeys.forEach(function (aKey) {
+              let aPerson = window.profilePerson[relation][aKey];
+              let theRelation;
 
-            /*
+              /*
             console.log(key);
             console.log(JSON.parse(JSON.stringify(aMember)));
             console.log(aPerson);
             console.log(relation);
             console.log(isSameName(key, getNameVariants(aPerson)));
             console.log(isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5));
-*/
-            if (
-              isSameName(key, getNameVariants(aPerson)) &&
-              isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5)
-            ) {
-              aMember.HasProfile = true;
-              if (aPerson.Gender) {
-                aMember.Gender = aPerson.Gender;
-                if (aMember.Gender == "Male") {
-                  theRelation =
-                    relation == "Parents"
-                      ? "Father"
-                      : relation == "Siblings"
-                      ? "Brother"
-                      : relation == "Spouses"
-                      ? "Husband"
-                      : relation == "Children"
-                      ? "Son"
-                      : "";
-                  // console.log(relation, theRelation);
+            */
+              if (
+                isSameName(key, getNameVariants(aPerson)) &&
+                isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5)
+              ) {
+                aMember.HasProfile = true;
+                if (aPerson.Gender) {
+                  aMember.Gender = aPerson.Gender;
+                  if (aMember.Gender == "Male") {
+                    theRelation =
+                      relation == "Parents"
+                        ? "Father"
+                        : relation == "Siblings"
+                        ? "Brother"
+                        : relation == "Spouses"
+                        ? "Husband"
+                        : relation == "Children"
+                        ? "Son"
+                        : "";
+                    // console.log(relation, theRelation);
+                  }
+                  if (aMember.Gender == "Female") {
+                    theRelation =
+                      relation == "Parents"
+                        ? "Mother"
+                        : relation == "Siblings"
+                        ? "Sister"
+                        : relation == "Spouses"
+                        ? "Wife"
+                        : relation == "Children"
+                        ? "Daughter"
+                        : "";
+                  }
                 }
-                if (aMember.Gender == "Female") {
-                  theRelation =
-                    relation == "Parents"
-                      ? "Mother"
-                      : relation == "Siblings"
-                      ? "Sister"
-                      : relation == "Spouses"
-                      ? "Wife"
-                      : relation == "Children"
-                      ? "Daughter"
-                      : "";
-                }
-              }
-              aMember.Relation = theRelation;
-              aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
-              /*
+                aMember.Relation = theRelation;
+                aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
+                /*
               if (isOK(aPerson.BirthDate)) {
                 if (isWithinX(getAgeAtCensus(aPerson, data["Year"]), value, 4)) {
                   aMember.Relation = theRelation;
@@ -3183,24 +3217,24 @@ function parseWikiTable(text) {
                 aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
               }
               */
-            } else if (data.Father == key && data.Age < aMember.Age) {
-              aMember.Relation = "Father";
-            } else if (data.Mother == key && data.Age < aMember.Age) {
-              aMember.Relation = "Mother";
-            }
+              } else if (data.Father == key && data.Age < aMember.Age) {
+                aMember.Relation = "Father";
+              } else if (data.Mother == key && data.Age < aMember.Age) {
+                aMember.Relation = "Mother";
+              }
+            });
           });
-        });
-        data.Household.push(aMember);
-      } else {
-        if (data[key]) {
-          data[key] = data[key] + ", " + value;
+          data.Household.push(aMember);
         } else {
-          data[key] = value;
+          if (data[key]) {
+            data[key] = data[key] + ", " + value;
+          } else {
+            data[key] = value;
+          }
         }
       }
     }
   }
-
   data = assignSelf(data);
 
   // Add relations for unknown members
@@ -4085,10 +4119,21 @@ function getSourcerCensuses() {
   refs.forEach((ref) => ref.remove());
   const text = dummy.innerHTML;
   const regex = /In the (\d{4}) census.*?\{.*?\|\}/gms;
+  const regex2 = /In the (\d{4}) census.*\n([.:#*].+\n)(?=\n{1,2}\n|==)/gms;
   let match;
 
   while ((match = regex.exec(text)) !== null) {
     censuses.push({ "Census Year": match[1], Text: match[0], Year: match[1] });
+  }
+  let household;
+  while ((match = regex2.exec(text)) !== null) {
+    const matchSplit = match[0].split(/\n\n/);
+    if (matchSplit[1]) {
+      console.log(matchSplit[1]);
+      household = parseFamilyData(matchSplit[1], "    ");
+      console.log(JSON.parse(JSON.stringify(household)));
+    }
+    censuses.push({ "Census Year": match[1], Text: match[0], Year: match[1], Household: household });
   }
 
   if (window.sectionsObject?.Biography?.subsections?.Census) {
