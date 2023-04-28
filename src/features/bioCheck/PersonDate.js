@@ -113,7 +113,6 @@ export class PersonDate {
     if (this.personDate.lastDateCheckedEmpty) {
       this.personDate.hasDeathDate = false;
     }
-
     // Go ahead and see if pre1500, pre1700 or too old
     this.isPersonPre1500();
     this.isPersonPre1700();
@@ -147,6 +146,7 @@ export class PersonDate {
     // because you want to test for all dates of 0
     if (year + month + day == 0) {
       this.personDate.lastDateCheckedEmpty = true;
+      return new Date();
     }
     if (year === 0) {
       year = 1;
