@@ -1,3 +1,16 @@
+@import url("https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap");
+
+html {
+  font-size: 12px;
+  min-width: 780px;
+}
+
+body {
+  /* override the injected stylesheet from Chrome which is percentage-based to match the root size */
+  font-family: "Open Sans", Helvetica, Arial, sans-serif;
+  font-size: 1rem;
+}
+
 h1,
 h2,
 h3,
@@ -5,12 +18,6 @@ h4,
 h5,
 h6 {
   color: #333333;
-}
-
-body {
-  /* set to match injected stylesheet from Chrome */
-  font-family: "Segoe UI", Tahoma, sans-serif;
-  font-size: 75%;
 }
 
 a {
@@ -32,9 +39,6 @@ body,
 h1 {
   margin: 0;
 }
-html {
-  min-width: 780px;
-}
 
 /* Options page */
 .feature-information {
@@ -53,7 +57,7 @@ html {
 }
 .feature-name {
   color: #333;
-  font-size: large;
+  font-size: 18px;
   display: flex;
   align-items: center;
   padding-left: 10px;
@@ -63,21 +67,22 @@ html {
 }
 .feature-description {
   padding: 10px 0 0 70px;
-  font-size: medium;
+  font-size: 16px;
 }
 .feature-link {
-  font-size: 75%;
+  font-size: 12px;
 }
 .feature-options {
   padding: 10px 0 0 70px;
-  font-size: medium;
+  font-size: 16px;
 }
 .feature-options-button {
   border-radius: 34px;
   background-color: #ddd;
-  font-size: medium;
-  width: 120px;
-  border: 0px;
+  font-size: 16px;
+  padding: 0 17px;
+  min-width: 130px;
+  border: 0;
   margin-left: 20px;
   cursor: pointer;
 }
@@ -87,7 +92,7 @@ html {
 
 /* Option elements */
 .option-subheading {
-  font-size: medium;
+  font-size: 16px;
   font-weight: bold;
   margin-top: 10px;
   margin-bottom: 2px;
@@ -98,18 +103,18 @@ html {
   margin-bottom: 10px;
 }
 .option-text-line {
-  font-size: medium;
+  font-size: 16px;
   font-style: italic;
-  margin: 2px 2px;
+  margin: 2px;
 }
 .option-checkbox {
-  margin: 4px 0px;
+  margin: 4px 0;
 }
 .option-select {
-  margin: 2px 2px;
+  margin: 2px;
 }
 .option-number {
-  margin: 2px 0px;
+  margin: 2px 0;
   width: 40px;
 }
 .option-comment {
@@ -129,7 +134,7 @@ body {
   left: 0;
   right: 0;
   background-color: #f7f6f0;
-  -webkit-box-shadow: 0 0 10px 3px rgba(0, 0, 0, 0.13);
+  -webkit-box-shadow: 0 0 6px 2px rgba(0, 0, 0, 0.13);
   box-shadow: 0 0 6px 2px rgba(0, 0, 0, 0.13);
   height: 40px;
   z-index: 100;
@@ -147,7 +152,7 @@ h2[id^="category_"] {
   left: 0;
   right: 0;
   background-color: #fff;
-  -webkit-box-shadow: 0 0 10px 3px rgba(0, 0, 0, 0.13);
+  -webkit-box-shadow: 0 0 6px 2px rgba(0, 0, 0, 0.13);
   box-shadow: 0 0 6px 2px rgba(0, 0, 0, 0.13);
   height: 28px;
   z-index: 99;
@@ -178,7 +183,7 @@ h2[id^="category_"] {
 #options h1,
 #options h2 {
   padding: 0.5em;
-  font-size: 2em;
+  font-size: 24px;
 }
 #options h2 {
   position: relative;
@@ -266,7 +271,7 @@ h1 #settings,
   line-height: 34px;
   border-radius: 34px;
   border: 0;
-  font-size: 12pt;
+  font-size: 16px;
 }
 h1 #settings:hover,
 #settingsDialog button:hover {
@@ -295,7 +300,7 @@ h1 #settings:active,
   top: 50%;
   width: 80%;
   height: clamp(100px, calc(var(--dialog-height, 0px) + 51px), 580px);
-  font-size: 12pt;
+  font-size: 16px;
 }
 .modal .dialog:before {
   content: " ";
@@ -324,9 +329,9 @@ h1 #settings:active,
 .dialog .close {
   position: absolute;
   display: inline-block;
-  right: 0px;
-  top: 0px;
-  font-size: 11pt;
+  right: 0;
+  top: 0;
+  font-size: 15px;
   font-weight: normal;
   padding: 0 10px;
 }
