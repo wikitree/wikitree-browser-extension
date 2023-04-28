@@ -1628,7 +1628,7 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
           if (occupation) {
             result += `, ${occupation},`;
           }
-          result += ` was living in ${place.replace(", USA", "")}`;
+          result += ` was living in ${minimalPlace(place.replace(", USA", ""))}`;
           console.log(result);
           return result;
         });
@@ -1809,10 +1809,6 @@ function updateRelations(data) {
       }
       if (person.Relation != "Self") {
         if (index != selfIndex) {
-          console.log(JSON.parse(JSON.stringify(data)));
-          console.log(JSON.parse(JSON.stringify(self)));
-          console.log(JSON.parse(JSON.stringify(person)));
-
           switch (person.censusRelation || person.originalRelation) {
             case "Head":
               switch (self.censusRelation || self.originalRelation) {
@@ -2086,31 +2082,92 @@ function findRelation(person) {
   return relationWord;
 }
 
+function convertOneLineCase(lines) {
+  const newLines = [];
+  lines.forEach((line) => {
+    /* Convert this into tab separated lines.
+      The usual case is Name, Age, originalRelation.
+      Sometimes, there may be other fields, too.
+      We can't just split on spaces, because the name may have spaces in it.
+      First, find the age, and split on that.
+      */
+    const ageMatch = line.match(/\s\d{1,3}/);
+    if (ageMatch) {
+      const age = ageMatch[0].trim();
+      const parts = line.split(age);
+      const name = parts[0].trim();
+      let relation = "";
+      if (parts[1]) {
+        relation = parts[1].trim();
+      }
+      newLines.push(`${name}\t${age}\t${relation}`);
+    }
+  });
+  return newLines;
+}
+
 function analyzeColumns(lines) {
   const columns = {};
-
   lines.forEach((line) => {
-    const parts = line.split(/\t/);
+    const parts = line.split(/ {4}|\t/);
 
     parts.forEach((part, index) => {
       if (!columns[index]) {
-        columns[index] = { Name: 0, Gender: 0, originalRelation: 0, Age: 0, BirthPlace: 0, Occupation: 0 };
+        columns[index] = {
+          Name: 0,
+          Gender: 0,
+          originalRelation: 0,
+          Age: 0,
+          BirthPlace: 0,
+          Occupation: 0,
+          MaritalStatus: 0,
+        };
       }
+      let matched = false;
+
       if (index == 0) {
         columns[index].Name++;
-      } else if (part.match(/(?:M|F|Male|Female)/i)) {
-        columns[index].Gender++;
-      } else if (part.match(/(Head|Wife|Son|Daughter|Mother|Father|Brother|Sister)/i)) {
-        columns[index].originalRelation++;
-      } else if (part.match(/^\d{1,2}$/)) {
-        columns[index].Age++;
-      } else if (part.match(/[\w\s,]+/)) {
-        columns[index].BirthPlace++;
+        matched = true;
       } else {
-        columns[index].Occupation++;
+        if (part.match(/(?:M|F|Male|Female)\b/i)) {
+          columns[index].Gender++;
+          matched = true;
+        }
+        if (part.match(/married|widowed/i)) {
+          columns[index].MaritalStatus++;
+          matched = true;
+        }
+        if (
+          part.match(
+            /\b(Head|Wife|Son|Daughter|Mother|Father|Brother|Sister|Grand(?:mother|father)|Uncle|Aunt|Niece|Nephew|Cousin|In-law|Step(?:son|daughter|brother|sister|mother|father)|Visitor|Lodger|Boarder)\b/i
+          )
+        ) {
+          columns[index].originalRelation++;
+          matched = true;
+        }
+        if (part.match(/^\d{1,2}$/)) {
+          columns[index].Age++;
+          matched = true;
+        }
+        if (
+          part.match(/,/) ||
+          part.match(
+            /\w+(land|shire|mere|acres|bay|beach|bluffs|center|corner|cove|crest|crossing|falls|farms|fields|flats|fork|gardens|gate|glen|green|grove|harbor|heights|hills|hollow|inlet|key|knolls|landing|light|manor|mesa|mills|mount|mountain|orchard|park|passage|pines|point|ranch|ridge|river|runway|shores|sky|springs|terrace|trace|view|village|vista|woods|basin|cape|canyon|delta|forest|glacier|gulf|island|isthmus|lake|mesa|oasis|plain|plateau|prairie|sea|shore|sound|swamp|trail|valley|waterfall|peak|ridge|summit|pass|range|butte|knob|dome|spit|shoals|rapids|falls|bend|junction|spur|switch|fork|cross|field|estate|parkway|boulevard|circle|court|place|avenue|plaza|path|way|alley|borough|city|county|district|municipality|parish|town|township|village|territory|region|state|province|shire|ton|ham|don|wick|ford|bury|port|stadt|stede|burg|burgh|by|ville|beck|dale|holme|hurts|mead|wold|boro|chester|heath|hill|vale|wyke)\b/gi
+          )
+        ) {
+          columns[index].BirthPlace++;
+          matched = true;
+        }
+        if (!matched) {
+          columns[index].Occupation++;
+          // Give additional weight to BirthPlace over Occupation
+          columns[index - 1].BirthPlace += 0.5;
+        }
       }
     });
   });
+
+  console.log("Columns", columns);
 
   const sortedColumns = Object.values(columns)
     .map((column, index) => {
@@ -2123,11 +2180,24 @@ function analyzeColumns(lines) {
     });
 
   const columnMapping = {};
+  const assignedColumnNames = new Set();
   sortedColumns.forEach((column) => {
     const columnName = Object.keys(column).reduce((a, b) => (column[a] > column[b] ? a : b));
-    columnMapping[column.index] = columnName;
+    if (columnName !== "index" && !assignedColumnNames.has(columnName)) {
+      columnMapping[column.index] = columnName;
+      assignedColumnNames.add(columnName);
+    }
   });
 
+  const unassignedColumns = Object.keys(columns).filter((index) => !columnMapping.hasOwnProperty(index));
+  unassignedColumns.forEach((index) => {
+    const remainingColumnNames = ["Gender", "originalRelation", "Age", "BirthPlace", "Occupation"].filter(
+      (columnName) => !assignedColumnNames.has(columnName)
+    );
+    columnMapping[index] = remainingColumnNames.shift();
+  });
+
+  //console.log(columnMapping);
   return columnMapping;
 }
 
@@ -2136,45 +2206,41 @@ function extractHouseholdMembers(row) {
   const rowData = row.split("||")[1].trim();
   const lines = rowData.split(brRegex);
 
-  console.log("rowData:", rowData); // Debug log
-  console.log("lines:", lines); // Debug log
+  // console.log("rowData:", rowData); // Debug log
+  // console.log("lines:", lines); // Debug log
 
   return lines;
 }
 
-function parseFamilyData(lines, delimiter) {
-  if (Array.isArray(lines)) {
-    lines = lines.join("\n");
+function parseFamilyData(familyData) {
+  const oneLineCase = Array.isArray(familyData);
+  let lines = oneLineCase ? familyData : familyData.split("\n");
+  if (oneLineCase) {
+    lines = convertOneLineCase(lines);
   }
+  const columnMapping = analyzeColumns(lines, oneLineCase);
 
-  const formattedLines = lines.split("\n").map((line) => {
-    return line
-      .replace(/ {2,}/g, "\t")
-      .replace(/ *\t */, "\t")
-      .trim();
-  });
-
-  const columnMapping = analyzeColumns(formattedLines);
-  const familyMembers = [];
-
-  formattedLines.forEach((line) => {
-    const parts = line.split("\t");
-    const member = {};
+  const result = lines.map((line) => {
+    // Update the line parsing based on the list case
+    const lineRegex = /\s{4}|\t/;
+    const parts = line.split(lineRegex);
+    // console.log("Parts", parts);
+    const person = {};
 
     parts.forEach((part, index) => {
-      const columnName = columnMapping[index];
-      if (columnName) {
-        member[columnName] = part;
+      if (columnMapping[index] === "Name") {
+        person[columnMapping[index]] = part.replace(/^[*#:]+/, "").trim();
+      } else if (columnMapping[index] === "Gender") {
+        person[columnMapping[index]] = part === "M" ? "Male" : "Female";
+      } else {
+        person[columnMapping[index]] = part;
       }
     });
 
-    if (member.Name) {
-      member.Name = member.Name.replace(/[:*#]+/, "").trim();
-    }
-    familyMembers.push(member);
+    return person;
   });
 
-  return familyMembers;
+  return result;
 }
 
 function parseCensusData(censusData) {
@@ -2702,10 +2768,10 @@ function buildCensusNarratives() {
       if (reference["County/Island"]) {
         residenceBits.push(reference["County/Island"]);
       }
-      if (!reference.Residence) {
+      if (residenceBits.length > 0) {
         reference.Residence = residenceBits.join(", ");
       }
-      //   console.log(JSON.parse(JSON.stringify(reference)));
+      console.log("%cReference", "font-size:200%", JSON.parse(JSON.stringify(reference)));
 
       const ageAtCensus = getAgeAtCensus(window.profilePerson, reference["Census Year"]);
 
@@ -3073,6 +3139,17 @@ function parseWikiTable(text) {
     data["Year"] = match[1];
   }
 
+  for (const row of rows) {
+    if (!data.Household) {
+      if (row.match(/\|\|/)) {
+        const cells = row.split("||");
+        const key = cells[0].replace("|", "").replace(/:$/, "").trim();
+        const value = cells[1].replace("|", "").trim();
+        data[key] = value;
+      }
+    }
+  }
+
   // Parse Sourcer Household Members row with <br> tags
   for (const row of rows) {
     if (
@@ -3083,12 +3160,24 @@ function parseWikiTable(text) {
     ) {
       const members = extractHouseholdMembers(row);
       data.Household = parseFamilyData(members, " ");
-      console.log(JSON.parse(JSON.stringify(data.Household)));
+      console.log(
+        "%cOne-line case",
+        "background: #222; color: #bada55; font-size: 20px; padding: 5px; border-radius: 3px;",
+        JSON.parse(JSON.stringify(data.Household))
+      );
     }
   }
 
   if (!data.Household) {
     for (const row of rows) {
+      if (!data.Household) {
+        if (row.match(/\|\|/)) {
+          const cells = row.split("||");
+          const key = cells[0].trim().replace("|", "").replace(/:$/, "");
+          const value = cells[1].trim().replace("|", "");
+          data[key] = value;
+        }
+      }
       if (row.match("Household Members") && row.match(/<br.{0,2}>/) == null) {
         data.Household = [];
       }
@@ -3097,6 +3186,7 @@ function parseWikiTable(text) {
         const cells = row.split("||");
         const key = cells[0].trim().replace("|", "").replace(/:$/, "");
         const value = cells[1].trim().replace("|", "");
+
         if (data.Household) {
           const aMember = { Name: key, Census: data["Year"] };
           for (let i = 1; i < cells.length; i++) {
@@ -3735,6 +3825,7 @@ function sourcesArray(bio) {
   refArr.forEach(function (aRef) {
     let table = parseWikiTable(aRef.Text);
     Object.assign(aRef, table);
+    console.log("%cReference", "color:green", JSON.parse(JSON.stringify(aRef)));
 
     // Parse FreeREG
     if (aRef.Text.match(/freereg.org.uk/)) {
@@ -3993,7 +4084,7 @@ function sourcesArray(bio) {
             ", " +
             window.profilePerson.PersonName.FirstName +
             " was living in " +
-            aRef.Residence +
+            minimalPlace(aRef.Residence) +
             ".";
         }
       }
@@ -4125,7 +4216,7 @@ function getSourcerCensuses() {
   refs.forEach((ref) => ref.remove());
   const text = dummy.innerHTML;
   const regex = /In the (\d{4}) census.*?\{.*?\|\}/gms;
-  const regex2 = /In the (\d{4}) census.*\n([.:#*].+\n)(?=\n{1,2}\n|==)/gms;
+  const regex2 = /In the (\d{4}) census.*\n([.:#*].+?\n)(?=\n{1,2}\n|==)/gms;
   let match;
 
   while ((match = regex.exec(text)) !== null) {
@@ -4135,9 +4226,13 @@ function getSourcerCensuses() {
   while ((match = regex2.exec(text)) !== null) {
     const matchSplit = match[0].split(/\n\n/);
     if (matchSplit[1]) {
-      console.log(matchSplit[1]);
+      // console.log(matchSplit[1]);
       household = parseFamilyData(matchSplit[1], "    ");
-      console.log(JSON.parse(JSON.stringify(household)));
+      console.log(
+        "%cList",
+        "background: #222; color: #bada55; font-size: 20px; padding: 5px; border-radius: 3px;",
+        JSON.parse(JSON.stringify(household))
+      );
     }
     censuses.push({ "Census Year": match[1], Text: match[0], Year: match[1], Household: household });
   }
@@ -4192,6 +4287,7 @@ function processCensus(census) {
   const tableMatch = text.match(/\{.*?\|\}/gms);
 
   if (tableMatch) {
+    console.log("Table", tableMatch[0]);
     const table = tableMatch[0];
     processTable(table, census);
   }
