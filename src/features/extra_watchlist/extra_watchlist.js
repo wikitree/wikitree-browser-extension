@@ -227,7 +227,12 @@ async function get_Profile(id) {
       xhrFields: { withCredentials: true },
       type: "POST",
       dataType: "json",
-      data: { action: "getProfile", key: id, fields: "*" },
+      data: {
+        action: "getProfile",
+        key: id,
+        fields: "*",
+        appId: "WBE_extra_watchlist",
+      },
     });
     return result;
   } catch (error) {
@@ -265,6 +270,7 @@ async function getPeople(
         bioFormat: bioFormat,
         fields: fields,
         resolveRedirect: 1,
+        appId: "WBE_extra_watchlist",
       },
     });
     return result;

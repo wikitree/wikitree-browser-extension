@@ -121,6 +121,7 @@ export async function getPeople(keys, siblings, ancestors, descendants, nuclear,
         nuclear: nuclear,
         minGeneration: minGeneration,
         fields: fields,
+        appId: "WBE_dna_table",
       },
     });
     return result;

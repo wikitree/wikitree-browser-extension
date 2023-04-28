@@ -67,6 +67,7 @@ export async function getRelatives(id, fields = "*") {
         getSiblings: 1,
         getSpouses: 1,
         getChildren: 1,
+        appId: "WBE",
       },
     });
     return result[0].items[0].person;

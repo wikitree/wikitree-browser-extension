@@ -126,7 +126,12 @@ export async function getProfile(id, fields = "*") {
       xhrFields: { withCredentials: true },
       type: "POST",
       dataType: "json",
-      data: { action: "getProfile", key: id, fields: fields },
+      data: {
+        action: "getProfile",
+        key: id,
+        fields: fields,
+        appId: "WBE_distanceAndRelationship",
+      },
     });
     return result[0].profile;
   } catch (error) {

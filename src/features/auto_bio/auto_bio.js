@@ -4702,7 +4702,11 @@ function addLoginButton() {
         xhrFields: { withCredentials: true },
         type: "POST",
         dataType: "JSON",
-        data: { action: "clientLogin", authcode: authcode },
+        data: {
+          action: "clientLogin",
+          authcode: authcode,
+          appId: "WBE_auto_bio",
+        },
         success: function (data) {
           if (data) {
             if (data.clientLogin.result == "Success") {
@@ -4716,7 +4720,7 @@ function addLoginButton() {
 
   let userID = Cookies.get("wikitree_wtb_UserID");
   $.ajax({
-    url: "https://api.wikitree.com/api.php?action=clientLogin&checkLogin=" + userID,
+    url: "https://api.wikitree.com/api.php?action=clientLogin&appId=WBE_auto_bio&checkLogin=" + userID,
     crossDomain: true,
     xhrFields: { withCredentials: true },
     type: "POST",
@@ -4733,7 +4737,7 @@ function addLoginButton() {
           loginButton.on("click", function (e) {
             e.preventDefault();
             window.location =
-              "https://api.wikitree.com/api.php?action=clientLogin&returnURL=" +
+              "https://api.wikitree.com/api.php?action=clientLogin&appId=WBE_auto_bio&returnURL=" +
               encodeURI("https://www.wikitree.com/wiki/" + $("a.pureCssMenui0 span.person").text());
           });
         }

@@ -248,6 +248,7 @@ function reallyMakeFamLists() {
           fields:
             "BirthDate,BirthLocation,BirthName,BirthDateDecade,DeathDate,DeathDateDecade,DeathLocation,IsLiving,Father,FirstName,Gender,Id,LastNameAtBirth,LastNameCurrent,Prefix,Suffix,LastNameOther,Derived.LongName,Derived.LongNamePrivate,Manager,MiddleName,Mother,Name,Photo,RealName,ShortName,Touched,Connected,DataStatus",
           format: "json",
+          appId: "WBE_change_family_lists",
         },
         success: function (data) {
           const oPerson = data;
