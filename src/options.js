@@ -532,8 +532,14 @@ $("#settings").on("click", function () {
     }
   });
   modal.css({ display: "block", opacity: "0" }).prependTo(document.body);
-  dialog.css("--dialog-height", dialog.find(".dialog-content > ul").height() + "px");
-  modal.css({ display: "none", opacity: "unset" }).fadeIn();
+  // add a slight delay to get the height measurement right
+  window.setTimeout(function () {
+    dialog.css("--dialog-height", dialog.find(".dialog-content > ul").height() + "px");
+    modal.css({ display: "none", opacity: "unset" }).fadeIn(function () {
+      // double-check that the measurement is right
+      dialog.css("--dialog-height", dialog.find(".dialog-content > ul").height() + "px");
+    });
+  }, 100);
 });
 
 // Auto save the options on click (on 'change' would create lots of events when a big switch is clicked)
