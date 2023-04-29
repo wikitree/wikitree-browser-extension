@@ -80,7 +80,7 @@ async function locationsHelper() {
   } else {
     theID = $("a.pureCssMenui:Contains(Edit)").attr("href").split("u=")[1];
   }
-  getRelatives(theID).then((result) => {
+  getRelatives(theID, undefined, "WBE_locationsHelper").then((result) => {
     const thisFamily = familyArray(result);
     window.bdLocations = [];
     thisFamily.forEach(function (aPe) {

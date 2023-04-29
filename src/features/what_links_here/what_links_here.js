@@ -30,7 +30,7 @@ async function whatLinksHereSection() {
             .match(/Help:|Docs:|Space:|Category:|Project:|Special:|Template:/) == null
         ) {
           window.whatLinksHereSRequests++;
-          getProfile($(this).text()).then((person) => {
+          getProfile($(this).text(), undefined, "WBE_what_links_here").then((person) => {
             window.whatLinksHereSReponses++;
             if (person?.Name) {
               let thisWikiLink = $(
@@ -133,7 +133,11 @@ async function whatLinksHereLink() {
               .match(/Help:|Docs:|Space:|Category:|Project:|Special:|Template:/) == null
           ) {
             window.whatLinksHereRequests++;
-            getProfile($(this).text(), "Name,Id,FirstName,LastNameAtBirth,RealName,LastNameCurrent").then((person) => {
+            getProfile(
+              $(this).text(),
+              "Name,Id,FirstName,LastNameAtBirth,RealName,LastNameCurrent",
+              "WBE_what_links_here"
+            ).then((person) => {
               window.whatLinksHereResponses++;
               if (person.Name) {
                 let thisWikiLink = "[[" + person.Name + "|" + displayName(person)[0] + "]]<br>";

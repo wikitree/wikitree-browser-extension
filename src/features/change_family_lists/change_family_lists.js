@@ -165,6 +165,7 @@ async function onlyAgesAtMarriages() {
   getRelatives([id], {
     getSpouses: true,
     fields: ["*"],
+    appId: "WBE_change_family_lists",
   }).then((personData) => {
     window.people = [personData[0]];
     addMarriageAges();

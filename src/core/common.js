@@ -51,7 +51,7 @@ export function createTopMenu() {
 }
 
 // Used in familyTimeline, familyGroup, locationsHelper
-export async function getRelatives(id, fields = "*") {
+export async function getRelatives(id, fields = "*", appId = "WBE") {
   try {
     const result = await $.ajax({
       url: "https://api.wikitree.com/api.php",
@@ -67,7 +67,7 @@ export async function getRelatives(id, fields = "*") {
         getSiblings: 1,
         getSpouses: 1,
         getChildren: 1,
-        appId: "WBE",
+        appId: appId || "WBE",
       },
     });
     return result[0].items[0].person;

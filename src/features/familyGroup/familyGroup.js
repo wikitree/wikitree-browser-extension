@@ -101,6 +101,7 @@ export async function showFamilySheet(theClicked, profileID) {
       getSiblings: true,
       getSpouses: true,
       getChildren: true,
+      appId: "WBE_familyGroup",
     }).then((person) => {
       const uPeople = familyArray(person[0]);
       // Make the table

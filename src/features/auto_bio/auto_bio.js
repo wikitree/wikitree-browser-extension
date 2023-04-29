@@ -4801,7 +4801,7 @@ export async function generateBio() {
     }
   });
   */
-  window.biographyPeople = await getPeople(profileID, 0, 0, 0, 0, 1, "*");
+  window.biographyPeople = await getPeople(profileID, 0, 0, 0, 0, 1, "*", "WBE_auto_bio");
   console.log("biographyPeople", window.biographyPeople);
   const biographyPeopleKeys = Object.keys(window.biographyPeople[0].people);
   biographyPeopleKeys.forEach(function (key) {
@@ -4832,7 +4832,7 @@ export async function generateBio() {
   // Get spouse parents
   if (window.profilePerson.Spouses) {
     let spouseKeys = Object.keys(window.profilePerson.Spouses);
-    window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 0, 0, "*");
+    window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 0, 0, "*", "WBE_auto_bio");
     const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
     biographySpouseParentsKeys.forEach(function (key) {
       const person = window.biographySpouseParents[0].people[key];

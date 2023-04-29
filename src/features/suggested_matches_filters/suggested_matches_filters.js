@@ -79,6 +79,7 @@ async function getLocations(WTID) {
     getParents: true,
     getSiblings: true,
     fields: ["BirthLocation,DeathLocation"],
+    appId: "WBE_suggested_matches_filters",
   });
   const locations = [relatives[0]?.BirthLocation, relatives[0]?.DeathLocation];
   const relativeTypes = ["Parents", "Siblings", "Spouses", "Children"];
@@ -162,7 +163,16 @@ async function nameFilter(level) {
       }
     });
     const keys = peopleIDs.join(",");
-    peopleData = await getPeople(keys, 0, 0, 0, 0, 0, "LastNameAtBirth,LastNameCurrent,FirstName,MiddleName");
+    peopleData = await getPeople(
+      keys,
+      0,
+      0,
+      0,
+      0,
+      0,
+      "LastNameAtBirth,LastNameCurrent,FirstName,MiddleName",
+      "WBE_suggested_matches_filters"
+    );
   }
   suggestedMatches.forEach(function (person) {
     let thisPerson, thisPersonID;
@@ -244,6 +254,7 @@ async function initSuggestedMatchesFilters() {
     getParents: true,
     getSiblings: true,
     fields: ["BirthLocation,DeathLocation"],
+    appId: "WBE_suggested_matches_filters",
   });
   const locations = [
     relatives[0]?.BirthLocation,

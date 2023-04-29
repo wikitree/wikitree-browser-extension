@@ -21,7 +21,7 @@ checkIfFeatureEnabled("editFamilyData").then((result) => {
 async function addInfoAboutOtherPerson() {
   const uIDbutton = $("h1 > button").first();
   const uID = uIDbutton.attr("data-copy-text");
-  getPerson(uID).then((data) => {
+  getPerson(uID, { appId: "WBE_edit_family_data" }).then((data) => {
     const efProfile = data;
     let efBdate = "";
     let efBlocation = "";
