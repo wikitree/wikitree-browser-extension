@@ -4215,26 +4215,40 @@ function getSourcerCensuses() {
   const refs = dummy.querySelectorAll("ref");
   refs.forEach((ref) => ref.remove());
   const text = dummy.innerHTML;
-  const regex = /In the (\d{4}) census.*?\{.*?\|\}/gms;
-  const regex2 = /In the (\d{4}) census.*\n([.:#*].+?\n)(?=\n{1,2}\n|==)/gms;
-  let match;
 
-  while ((match = regex.exec(text)) !== null) {
-    censuses.push({ "Census Year": match[1], Text: match[0], Year: match[1] });
+  const regexWikitable = /In the (\d{4}) census.*?(\{\|.*?\|\})/gms;
+  const regexNonWikitable = /In the (\d{4}) census.*?\n([.:#*].+?)(?=\n[^:#*])/gms;
+
+  const tempCensuses = {};
+
+  for (const match of text.matchAll(regexWikitable)) {
+    const household = parseFamilyData(match[0], "wikitable");
+    console.log(match);
+    tempCensuses[match[1]] = { "Census Year": match[1], Text: match[0], Year: match[1], Household: household };
   }
-  let household;
-  while ((match = regex2.exec(text)) !== null) {
+
+  for (const match of text.matchAll(regexNonWikitable)) {
     const matchSplit = match[0].split(/\n\n/);
+    console.log(match);
+    let household;
     if (matchSplit[1]) {
-      // console.log(matchSplit[1]);
-      household = parseFamilyData(matchSplit[1], "    ");
+      household = parseFamilyData(matchSplit[1], "list");
       console.log(
         "%cList",
         "background: #222; color: #bada55; font-size: 20px; padding: 5px; border-radius: 3px;",
         JSON.parse(JSON.stringify(household))
       );
     }
-    censuses.push({ "Census Year": match[1], Text: match[0], Year: match[1], Household: household });
+    if (!tempCensuses[match[1]]) {
+      tempCensuses[match[1]] = { "Census Year": match[1], Text: match[0], Year: match[1], Household: household };
+    } else {
+      tempCensuses[match[1]].Text = match[0];
+      tempCensuses[match[1]].Household = household;
+    }
+  }
+
+  for (const key in tempCensuses) {
+    censuses.push(tempCensuses[key]);
   }
 
   if (window.sectionsObject?.Biography?.subsections?.Census) {
@@ -4243,7 +4257,7 @@ function getSourcerCensuses() {
 
   censuses.forEach(processCensus);
 
-  console.log("Censuses", censuses);
+  console.log("Censuses", JSON.parse(JSON.stringify(censuses)));
   return addRelationsToSourcerCensuses(censuses);
 }
 
