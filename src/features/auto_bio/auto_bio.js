@@ -4207,6 +4207,10 @@ function addRelationsToSourcerCensuses(censuses) {
   return censuses;
 }
 
+function logNow(myVar) {
+  return JSON.parse(JSON.stringify(myVar));
+}
+
 function getSourcerCensuses() {
   const censuses = [];
   const thisBio = document.getElementById("wpTextbox1").value;
@@ -4226,6 +4230,7 @@ function getSourcerCensuses() {
     console.log(match);
     tempCensuses[match[1]] = { "Census Year": match[1], Text: match[0], Year: match[1], Household: household };
   }
+  console.log("tempCensuses", logNow(tempCensuses));
 
   for (const match of text.matchAll(regexNonWikitable)) {
     const matchSplit = match[0].split(/\n\n/);
@@ -4245,6 +4250,7 @@ function getSourcerCensuses() {
       tempCensuses[match[1]].Text = match[0];
       tempCensuses[match[1]].Household = household;
     }
+    console.log("tempCensuses", logNow(tempCensuses));
   }
 
   for (const key in tempCensuses) {
