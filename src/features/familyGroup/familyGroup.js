@@ -96,13 +96,16 @@ export async function showFamilySheet(theClicked, profileID) {
     $("#" + profileID.replace(" ", "_") + "_family").fadeToggle();
   } else {
     // Make the table and do other things
-    getRelatives([profileID], {
-      getParents: true,
-      getSiblings: true,
-      getSpouses: true,
-      getChildren: true,
-      appId: "WBE_familyGroup",
-    }).then((person) => {
+    getRelatives(
+      [profileID],
+      {
+        getParents: true,
+        getSiblings: true,
+        getSpouses: true,
+        getChildren: true,
+      },
+      { appId: "WBE_familyGroup" }
+    ).then((person) => {
       const uPeople = familyArray(person[0]);
       // Make the table
       const familyTable = peopleToTable(uPeople);

@@ -196,14 +196,17 @@ function timeline() {
       "Bio",
     ];
     const id = $("a.pureCssMenui0 span.person").text();
-    getRelatives([id], {
-      getParents: true,
-      getSiblings: true,
-      getSpouses: true,
-      getChildren: true,
-      fields,
-      appId: "WBE_familyTimeline",
-    }).then((personData) => {
+    getRelatives(
+      [id],
+      {
+        getParents: true,
+        getSiblings: true,
+        getSpouses: true,
+        getChildren: true,
+        fields,
+      },
+      { appId: "WBE_familyTimeline" }
+    ).then((personData) => {
       const person = personData[0];
       const parents = extractRelatives(person.Parents, "Parent");
       const siblings = extractRelatives(person.Siblings, "Sibling");

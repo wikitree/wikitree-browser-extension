@@ -162,11 +162,14 @@ async function prepareFamilyLists() {
 
 async function onlyAgesAtMarriages() {
   const id = $("a.pureCssMenui0 span.person").text();
-  getRelatives([id], {
-    getSpouses: true,
-    fields: ["*"],
-    appId: "WBE_change_family_lists",
-  }).then((personData) => {
+  getRelatives(
+    [id],
+    {
+      getSpouses: true,
+      fields: ["*"],
+    },
+    { appId: "WBE_change_family_lists" }
+  ).then((personData) => {
     window.people = [personData[0]];
     addMarriageAges();
   });
