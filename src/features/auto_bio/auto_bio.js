@@ -5592,11 +5592,6 @@ async function getLocationCategory(type, location = null) {
   }
   // Remove all after 3rd comma
   const locationSplit = location.split(/, /);
-  /*
-  if (locationSplit[3]) {
-    locationSplit.splice(3, 3);
-  }
-  */
   const searchLocation = removeCountryName(location);
 
   let api;
