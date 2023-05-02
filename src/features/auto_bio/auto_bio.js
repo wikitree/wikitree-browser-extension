@@ -3080,7 +3080,6 @@ function parseWikiTable(aRef) {
     if (row.match("Household Members")) {
       reachedHouseholdMembers = true;
     }
-
     if (row.match("|}")) {
       reachedHouseholdMembers = false;
     }
