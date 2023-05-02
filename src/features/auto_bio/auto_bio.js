@@ -3024,7 +3024,6 @@ function doHousehold(aRef) {
                   : relation == "Children"
                   ? "Son"
                   : "";
-              // console.log(relation, theRelation);
             }
             if (aMember.Gender == "Female") {
               theRelation =
