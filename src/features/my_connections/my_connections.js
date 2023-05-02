@@ -126,7 +126,11 @@ function addLoginButton() {
         xhrFields: { withCredentials: true },
         type: "POST",
         dataType: "JSON",
-        data: { action: "clientLogin", authcode: authcode },
+        data: {
+          action: "clientLogin",
+          authcode: authcode,
+          appId: "WBE_my_connections",
+        },
         success: function (data) {
           if (data) {
             if (data.clientLogin.result == "Success") {
@@ -140,7 +144,7 @@ function addLoginButton() {
 
   let userID = Cookies.get("wikitree_wtb_UserID");
   $.ajax({
-    url: "https://api.wikitree.com/api.php?action=clientLogin&checkLogin=" + userID,
+    url: "https://api.wikitree.com/api.php?action=clientLogin&appId=WBE_my_connections&checkLogin=" + userID,
     crossDomain: true,
     xhrFields: { withCredentials: true },
     type: "POST",
@@ -155,7 +159,7 @@ function addLoginButton() {
           loginButton.on("click", function (e) {
             e.preventDefault();
             window.location =
-              "https://api.wikitree.com/api.php?action=clientLogin&returnURL=" +
+              "https://api.wikitree.com/api.php?action=clientLogin&appId=WBE_my_connections&returnURL=" +
               encodeURI(window.location.href.split("?")[0]);
           });
         }
@@ -531,6 +535,7 @@ async function getMoreConnections() {
         resolveRedirect: "1",
         fields:
           "Name,BirthDate,DeathDate,FirstName,LastNameAtBirth,LastNameCurrent,Derived.LongName,RealName,BirthDateDecade,DeathDateDecade",
+        appId: "WBE_my_connections",
       },
       type: "POST",
       dataType: "json",
@@ -771,10 +776,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
   IDstring = IDstring.replace("Private-1", "Bascome-5").replace("Private-2", "Bascome-16");
 
   $.ajax({
-    url:
-      "https://api.wikitree.com/api.php?action=getRelatives&getSpouses=1&getChildren=1&getParents=1&getSiblings=1&keys=" +
-      IDstring +
-      "&fields=*",
+    url: "https://api.wikitree.com/api.php",
     crossDomain: true,
     xhrFields: { withCredentials: true },
     type: "POST",
@@ -787,6 +789,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
       getSiblings: 1,
       keys: IDstring,
       fields: "*",
+      appId: "WBE_my_connections",
     },
     success: function (data) {
       let setAs = "";

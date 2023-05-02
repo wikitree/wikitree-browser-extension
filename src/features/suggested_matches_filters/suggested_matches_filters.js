@@ -73,13 +73,17 @@ function checkReady() {
   }
 }
 async function getLocations(WTID) {
-  const relatives = await getRelatives([WTID], {
-    getSpouses: true,
-    getChildren: true,
-    getParents: true,
-    getSiblings: true,
-    fields: ["BirthLocation,DeathLocation"],
-  });
+  const relatives = await getRelatives(
+    [WTID],
+    {
+      getSpouses: true,
+      getChildren: true,
+      getParents: true,
+      getSiblings: true,
+      fields: ["BirthLocation,DeathLocation"],
+    },
+    { appId: "WBE_suggested_matches_filters" }
+  );
   const locations = [relatives[0]?.BirthLocation, relatives[0]?.DeathLocation];
   const relativeTypes = ["Parents", "Siblings", "Spouses", "Children"];
   let keys, aPerson;
@@ -162,7 +166,16 @@ async function nameFilter(level) {
       }
     });
     const keys = peopleIDs.join(",");
-    peopleData = await getPeople(keys, 0, 0, 0, 0, 0, "LastNameAtBirth,LastNameCurrent,FirstName,MiddleName");
+    peopleData = await getPeople(
+      keys,
+      0,
+      0,
+      0,
+      0,
+      0,
+      "LastNameAtBirth,LastNameCurrent,FirstName,MiddleName",
+      "WBE_suggested_matches_filters"
+    );
   }
   suggestedMatches.forEach(function (person) {
     let thisPerson, thisPersonID;
@@ -238,13 +251,17 @@ function dateFilter(level, newPerson) {
 const suggestedMatches = [];
 async function initSuggestedMatchesFilters() {
   const WTID = $("h1 button[aria-label='Copy ID']").data("copy-text");
-  const relatives = await getRelatives([WTID], {
-    getSpouses: true,
-    getChildren: true,
-    getParents: true,
-    getSiblings: true,
-    fields: ["BirthLocation,DeathLocation"],
-  });
+  const relatives = await getRelatives(
+    [WTID],
+    {
+      getSpouses: true,
+      getChildren: true,
+      getParents: true,
+      getSiblings: true,
+      fields: ["BirthLocation,DeathLocation"],
+    },
+    { appId: "WBE_suggested_matches_filters" }
+  );
   const locations = [
     relatives[0]?.BirthLocation,
     relatives[0]?.DeathLocation,

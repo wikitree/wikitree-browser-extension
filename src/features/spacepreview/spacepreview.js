@@ -38,6 +38,7 @@ function populateSpacePreview($popup, spaceId, redirectCount) {
         fields: "Bio",
         bioFormat: "both",
         resolveRedirect: 0,
+        appId: "WBE_spacepreview",
       },
       xhrFields: { withCredentials: true },
     }).done(function (results) {

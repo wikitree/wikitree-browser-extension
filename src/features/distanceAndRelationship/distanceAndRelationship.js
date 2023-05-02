@@ -118,7 +118,7 @@ checkIfFeatureEnabled("distanceAndRelationship").then((result) => {
   }
 });
 
-export async function getProfile(id, fields = "*") {
+export async function getProfile(id, fields = "*", appId = "WBE") {
   try {
     const result = await $.ajax({
       url: "https://api.wikitree.com/api.php",
@@ -126,7 +126,12 @@ export async function getProfile(id, fields = "*") {
       xhrFields: { withCredentials: true },
       type: "POST",
       dataType: "json",
-      data: { action: "getProfile", key: id, fields: fields },
+      data: {
+        action: "getProfile",
+        key: id,
+        fields: fields,
+        appId: appId || "WBE",
+      },
     });
     return result[0].profile;
   } catch (error) {
@@ -468,7 +473,7 @@ function initDistanceAndRelationship(userID, profileID, clicked = false) {
     getDistance();
     doRelationshipText(userID, profileID);
   } else {
-    getProfile(profileID)
+    getProfile(profileID, undefined, "WBE_distanceAndRelationship")
       .then((person) => {
         if (person.Privacy > 29 && person.Connected == 1) {
           getDistance();

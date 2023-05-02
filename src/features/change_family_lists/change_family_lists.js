@@ -162,10 +162,14 @@ async function prepareFamilyLists() {
 
 async function onlyAgesAtMarriages() {
   const id = $("a.pureCssMenui0 span.person").text();
-  getRelatives([id], {
-    getSpouses: true,
-    fields: ["*"],
-  }).then((personData) => {
+  getRelatives(
+    [id],
+    {
+      getSpouses: true,
+      fields: ["*"],
+    },
+    { appId: "WBE_change_family_lists" }
+  ).then((personData) => {
     window.people = [personData[0]];
     addMarriageAges();
   });
@@ -248,6 +252,7 @@ function reallyMakeFamLists() {
           fields:
             "BirthDate,BirthLocation,BirthName,BirthDateDecade,DeathDate,DeathDateDecade,DeathLocation,IsLiving,Father,FirstName,Gender,Id,LastNameAtBirth,LastNameCurrent,Prefix,Suffix,LastNameOther,Derived.LongName,Derived.LongNamePrivate,Manager,MiddleName,Mother,Name,Photo,RealName,ShortName,Touched,Connected,DataStatus",
           format: "json",
+          appId: "WBE_change_family_lists",
         },
         success: function (data) {
           const oPerson = data;

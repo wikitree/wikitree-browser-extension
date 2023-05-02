@@ -31,7 +31,7 @@ function getBirthplaces() {
     });
     while (ids.length) {
       let chunk = ids.splice(0, 100).join(",");
-      getPeople(chunk, 0, 0, 0, 0, 0, "Id,Name,BirthLocation").then((data) => {
+      getPeople(chunk, 0, 0, 0, 0, 0, "Id,Name,BirthLocation", "WBE_dna_table").then((data) => {
         let theKeys = Object.keys(data[0].people);
         theKeys.forEach(function (aKey) {
           let person = data[0].people[aKey];
@@ -102,7 +102,7 @@ checkIfFeatureEnabled("dnaTable").then((result) => {
   }
 });
 
-export async function getPeople(keys, siblings, ancestors, descendants, nuclear, minGeneration, fields) {
+export async function getPeople(keys, siblings, ancestors, descendants, nuclear, minGeneration, fields, appId = "WBE") {
   try {
     const result = await $.ajax({
       url: "https://api.wikitree.com/api.php",
@@ -121,6 +121,7 @@ export async function getPeople(keys, siblings, ancestors, descendants, nuclear,
         nuclear: nuclear,
         minGeneration: minGeneration,
         fields: fields,
+        appId: appId || "WBE",
       },
     });
     return result;

@@ -79,7 +79,7 @@ export async function getRandomProfile(ourCountry = false) {
   // Quotation marks may be needed to search WT+.
   const ourCountryStripped = ourCountry.replaceAll('"', "");
   if (okLocations.includes(ourCountryStripped) && parseInt(window.searchedForRandomProfile) < 50) {
-    getPerson(randomProfileID)
+    getPerson(randomProfileID, undefined, { appId: "WBE_randomProfile" })
       .then((person) => {
         // check to see if the profile is Open
         if (person.Privacy_IsOpen) {
