@@ -3035,7 +3035,14 @@ function buildCensusNarratives() {
         reference = parseSourcerCensusWithColons(reference);
       }
 
-      if (!reference.Household || reference?.Household?.length == 0) {
+      let householdLength = true;
+      if (Array.isArray(reference.Household)) {
+        if (reference.Household.length == 0) {
+          householdLength = false;
+        }
+      }
+
+      if (!reference.Household || !householdLength) {
         // No table, probably
 
         let nameMatchPattern = window.profilePerson.FirstName;
