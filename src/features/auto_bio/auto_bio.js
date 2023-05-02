@@ -1579,7 +1579,6 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
       if (text.match(regexPattern)) {
         // Replace the matched text with the desired format
         text = text.replace(regexPattern, (match, lastName, age1, age2, occupation, place) => {
-          console.log(match);
           let firstName = match.match(new RegExp(`\\b(?:${fNameVariants.join("|")})\\b`, "i"))[0];
           let result = `${firstName} ${lastName} `;
           let age = age1 || age2;
@@ -1817,6 +1816,10 @@ function updateRelations(household) {
                 case "Father-in-law":
                 case "Mother-in-law":
                   person.Relation = "Daughter";
+                  break;
+                case "Son-in-law":
+                case "Daughter-in-law":
+                  person.Relation = "Mother-in-law";
                   break;
               }
               break;
@@ -2357,8 +2360,6 @@ function analyzeColumns(lines) {
       }
       let matched = false;
 
-      console.log(part);
-
       // RegExp of cities, counties, states
       const bigPlacesMatch = new RegExp("\\b" + citiesCountiesStates.join("|") + "\\b", "i");
       const occupationMatch = new RegExp("\\b" + occupationList.join("|") + "\\b", "i");
@@ -2404,79 +2405,41 @@ function analyzeColumns(lines) {
     });
   });
 
-  console.log("Columns", columns);
-
   const columnPriority = ["Name", "Gender", "originalRelation", "Age", "BirthPlace", "Occupation", "MaritalStatus"];
   const assignedColumnNames = new Set();
   const columnMapping = {};
 
-  const columnScores = {};
-  const weight = 1.5; // You can adjust this value to fine-tune the column assignment process
-
   for (const columnName of columnPriority) {
+    let maxScore = 0;
+    let maxScoreIndex = null;
+
     for (const [index, column] of Object.entries(columns)) {
-      const total = Object.values(column).reduce((a, b) => a + b);
-      const scoreRatio = column[columnName] / total;
-      const weightedScore = column[columnName] * weight;
+      if (!Object.values(columnMapping).includes(index) && column) {
+        const total = Object.values(column).reduce((a, b) => a + b);
+        const score = column[columnName];
 
-      if (!columnScores[columnName]) {
-        columnScores[columnName] = { index, scoreRatio, weightedScore };
-      } else if (weightedScore > columnScores[columnName].weightedScore) {
-        columnScores[columnName] = { index, scoreRatio, weightedScore };
-      } else if (
-        weightedScore === columnScores[columnName].weightedScore &&
-        scoreRatio > columnScores[columnName].scoreRatio
-      ) {
-        columnScores[columnName] = { index, scoreRatio, weightedScore };
+        if (!assignedColumnNames.has(columnName) && score / total > maxScore) {
+          maxScore = score / total;
+          maxScoreIndex = index;
+        }
+      }
+    }
+
+    // Calculate the threshold for each column based on the counts
+    const minCount = 2; // Minimum count to be considered for assignment
+    if (maxScoreIndex !== null) {
+      const columnCounts = Object.values(columns[maxScoreIndex]);
+      const maxColumnCount = Math.max(...columnCounts);
+      const threshold = Math.max(minCount, maxColumnCount * 0.2); // 20% of the maximum count or the minCount, whichever is greater
+
+      if (columns[maxScoreIndex][columnName] >= threshold) {
+        columnMapping[maxScoreIndex] = columnName;
+        assignedColumnNames.add(columnName);
       }
     }
   }
 
-  for (const columnName of columnPriority) {
-    const { index } = columnScores[columnName];
-    if (!Object.values(columnMapping).includes(columnName)) {
-      columnMapping[index] = columnName;
-    }
-  }
-
-  // Fix the MaritalStatus column assignment
-  if (!Object.values(columnMapping).includes("MaritalStatus")) {
-    for (const [index, column] of Object.entries(columns)) {
-      if (!columnMapping.hasOwnProperty(index) && lines.some((line) => line.match(/married|widowed|single/i))) {
-        columnMapping[index] = "MaritalStatus";
-        assignedColumnNames.add("MaritalStatus");
-        break;
-      }
-    }
-  }
-
-  // Reassign the MaritalStatus column if it has been incorrectly assigned
-  for (const [index, columnName] of Object.entries(columnMapping)) {
-    if (columnName === "MaritalStatus" && !lines.some((line) => line.match(/married|widowed|single/i))) {
-      const remainingColumnNames = columnPriority.filter((name) => !assignedColumnNames.has(name));
-      columnMapping[index] = remainingColumnNames.shift();
-      assignedColumnNames.delete("MaritalStatus");
-    }
-  }
-
-  Object.keys(columns).forEach((index) => {
-    if (!columnMapping.hasOwnProperty(index)) {
-      const columnName = Object.keys(columns[index]).reduce((a, b) => (columns[index][a] > columns[index][b] ? a : b));
-      if (assignedColumnNames.has(columnName)) {
-        const remainingColumnNames = columnPriority.filter((name) => !assignedColumnNames.has(name));
-        columnMapping[index] = remainingColumnNames.shift();
-      } else {
-        columnMapping[index] = columnName;
-      }
-      assignedColumnNames.add(columnMapping[index]);
-    }
-  });
-
-  console.log(columnMapping);
   return columnMapping;
-
-  // console.log(columnMapping);
-  // return columnMapping;
 }
 
 function extractHouseholdMembers(row) {
@@ -2524,7 +2487,6 @@ function parseFamilyData(familyData, options = { format: "list", year: "" }) {
     lines = convertOneLineCase(lines);
   }
   const columnMapping = analyzeColumns(lines, oneLineCase);
-
   const result = lines.map((line) => {
     // Update the line parsing based on the list case
     const lineRegex = /\s{4}|\t/;
@@ -2955,40 +2917,7 @@ function parseSourcerCensusWithColons(reference) {
     if (theList) {
       reference.Household = parseFamilyData(theList, { year: reference.Year });
     }
-    /*
-    reference.Household = [];
-    const lines = lastBit.split(/[\n\r]/);
-    lines.forEach(function (line) {
-      if (line.match(/^[:.*#]+/)) {
-        const person = {};
-        const nameMatch = line.match(/[A-Z][^\d,(\s\s)]+/);
-        if (nameMatch) {
-          person["Name"] = nameMatch[0].trim();
-          const ageMatch = line.match(/\d+(\s(mo.|months))?/);
-          if (ageMatch) {
-            person["Age"] = ageMatch[0];
-          }
-          const relationMatch = line.match(
-            /father|mother|brother|sister|son|daughter|grandfather|grandmother|aunt|uncle/
-          );
-          if (relationMatch) {
-            person["OriginalRelation"] = relationMatch[0];
-          }
-          const genderMatch = line.match(/\s([MF])\s/);
-          if (genderMatch) {
-            if (genderMatch[0] == "M") {
-              person.Gender = "Male";
-            } else if (genderMatch[0] == "F") {
-              person.Gender = "Female";
-            }
-          }
-          console.log(person);
-          reference.Household.push(person);
-        }
-      }
-      
-    });
-    */
+
     reference = assignSelf(reference);
   }
 
@@ -3053,22 +2982,15 @@ function buildCensusNarratives() {
         }
 
         if (window.sourcerCensuses) {
-          console.log(window.sourcerCensuses);
           window.sourcerCensuses.forEach(function (sourcerReference) {
             if (sourcerReference["Census Year"] == reference["Census Year"]) {
               const { Text, Residence, ...rest } = sourcerReference;
-
               // Use the spread operator to copy the remaining properties to the target object
               Object.assign(reference, rest);
-
-              // reference.Household = sourcerReference.Household;
               reference.sourcerText = sourcerReference.Text;
-              // reference.List = sourcerReference.List;
-              // reference.RefName = sourcerReference.RefName;
               if (!reference.Residence) {
                 reference.Residence = sourcerReference.Residence;
               }
-              // reference["Residence Type"] = sourcerReference["Residence Type"];
             }
           });
         }
@@ -3156,7 +3078,6 @@ function buildCensusNarratives() {
         let censusRest = "";
         if (reference.Text.match(/.{0,5}'''\d{4} Census'''/)) {
           censusRest += sourcerCensusWithNoTable(reference, nameMatchPattern);
-          console.log(censusRest);
         } else if (
           reference.Text.match(/database( with images)?, (<i>|''')?FamilySearch/) ||
           reference.Text.match(/\{\{FamilySearch Record\|.*?\}\}/)
@@ -3305,6 +3226,11 @@ function createFamilyNarrative(familyMembers) {
       !["Self", "Wife", "Husband", "Daughter", "Son", "Brother", "Sister", "Father", "Mother"].includes(member.Relation)
   );
 
+  const logem = { familyMembers, spouse, children, siblings, parents, others };
+  // Log each on as console.log(logNow(var)) if they are objects. If not make them into an object and log them.
+
+  console.log(logNow(logem));
+
   const removeMainPersonLastName = (name) => {
     const names = name.split(" ");
     let lastNameAtBirth = window.profilePerson.LastNameAtBirth;
@@ -3450,53 +3376,39 @@ function parseWikiTable(text) {
   const rows = text.split("\n");
   let data = {};
 
-  const yearRegex = /\s\b(1[89]\d{2})\b(?!-)/;
+  const yearRegex = /\b(1[789]\d{2})\b(?!-)/;
   let match = text.match(yearRegex);
   if (match) {
     data["Year"] = match[1];
   }
-  /*
+
+  // Parse main table
+  // If Household Members has been reached, stop parsing
+  let reachedHouseholdMembers = false;
   for (const row of rows) {
-    if (!data.Household) {
-      if (row.match(/\|\|/)) {
-        const cells = row.split("||");
-        const key = cells[0].replace("|", "").replace(/:$/, "").trim();
-        const value = cells[1].replace("|", "").trim();
-        data[key] = value;
-      }
-      
+    if (row.match("Household Members")) {
+      reachedHouseholdMembers = true;
+    }
+
+    if (row.match("|}")) {
+      reachedHouseholdMembers = false;
+    }
+    if (row.match(/\|\|/) && !reachedHouseholdMembers) {
+      const cells = row.split("||");
+      const key = cells[0].replace("|", "").replace(/:$/, "").trim();
+      const value = cells[1].replace("|", "").trim();
+      data[key] = value;
     }
   }
-*/
+
   // Parse Sourcer Household Members row with <br> tags
-
-  // Step 1: Create a separate object to store the information from the first table
-  let firstTableData = {};
-
   for (const row of rows) {
-    if (!data.Household) {
-      if (row.match(/\|\|/)) {
-        const cells = row.split("||");
-        const key = cells[0].replace("|", "").replace(/:$/, "").trim();
-        const value = cells[1].replace("|", "").trim();
-        firstTableData[key] = value; // Store the data in the firstTableData object
-      }
+    if (row.startsWith("| Household Members") && row.includes("||") && row.match(/<br.*?>/g).length >= 2) {
+      const members = extractHouseholdMembers(row);
+      data.Household = parseFamilyData(members, " ");
     }
   }
-
-  // Step 2: After processing the second table, check if any information from the first table matches a household member in the second table
-  if (data.Household) {
-    data.Household.forEach((member) => {
-      if (isSameName(member.Name, firstTableData.Name)) {
-        // Step 3: If there's a match, update the household member's information with the data from the first table
-        Object.keys(firstTableData).forEach((key) => {
-          if (!member[key]) {
-            member[key] = firstTableData[key];
-          }
-        });
-      }
-    });
-  }
+  // Parse tables from BEE
   if (!data.Household) {
     for (const row of rows) {
       if (!data.Household) {
@@ -3507,15 +3419,15 @@ function parseWikiTable(text) {
           data[key] = value;
         }
       }
+
       if (row.match("Household Members") && row.match(/<br.{0,2}>/) == null) {
         data.Household = [];
       }
       if (!row.includes("|")) continue;
-      if (row.match(/\|\|/)) {
+      if (row.match(/\|\|/) && data.Household) {
         const cells = row.split("||");
         const key = cells[0].trim().replace("|", "").replace(/:$/, "");
         const value = cells[1].trim().replace("|", "");
-
         if (data.Household) {
           const aMember = { Name: key, Census: data["Year"] };
           for (let i = 1; i < cells.length; i++) {
@@ -3649,7 +3561,7 @@ function parseWikiTable(text) {
             });
           });
           data.Household.push(aMember);
-        } else {
+        } else if (!reachedHouseholdMembers) {
           if (data[key]) {
             data[key] = data[key] + ", " + value;
           } else {
@@ -3659,8 +3571,10 @@ function parseWikiTable(text) {
       }
     }
   }
+
   data = assignSelf(data);
   // Add relations for unknown members
+
   if (data.Household) {
     data.Household.forEach(function (aMember) {
       if (!aMember.Relation && aMember.Age) {
@@ -3686,7 +3600,6 @@ function parseWikiTable(text) {
           }
         });
       }
-
       // Add to Research Notes
       if (!aMember.HasProfile && aMember.Relation != "Self") {
         if (!window.sectionsObject["Research Notes"].subsections.NeedsProfiles.includes(aMember)) {
@@ -3726,9 +3639,11 @@ function assignSelf(data) {
           }
           member.Relation = "Self";
           hasSelf = true;
+          /*
           if (member.Occupation) {
             data.Occupation = member.Occupation;
           }
+          */
         }
       }
       strength -= 0.1;
@@ -4150,12 +4065,10 @@ function sourcesArray(bio) {
   });
 
   refArr.forEach(function (aRef) {
-    console.log(logNow(aRef));
     let table = parseWikiTable(aRef.Text);
-    console.log(table);
-    console.log(logNow(aRef));
+    console.log(logNow(table), logNow(aRef));
     Object.assign(aRef, table);
-    console.log(logNow(aRef));
+    console.log(logNow(table), logNow(aRef));
 
     // Parse FreeREG
     if (aRef.Text.match(/freereg.org.uk/)) {
@@ -4399,12 +4312,9 @@ function sourcesArray(bio) {
       const placeMatch2 = aRef.Text.match(/Residence place:\s([^.{]*)/);
       const placeMatch3 = aRef.Text.match(/(Home in \d{4})|(Census Place):(.+?);/);
       const thePlace = placeMatch2 ? placeMatch2[1] : placeMatch3 ? placeMatch3[3] : "";
-
-      console.log(placeMatch, placeMatch2, placeMatch3);
       if (thePlace) {
         aRef.Residence = thePlace.trim();
       }
-      console.log(logNow(aRef));
 
       /* Search bio for "In the [year] census, [person] was living in [place]." */
       const censusBioRegex = new RegExp("In the " + aRef.Year + " census .*? was living in ([^.]+)", "i");
@@ -4412,7 +4322,6 @@ function sourcesArray(bio) {
         /\(\d{1,2}\).*? in (.+)(?=(, (United States|United Kingdom|England|Scotland|Wales|Canada|Australia)\.))/
       );
       const censusResidenceRegex2 = aRef.Text.match(/\(\d{1,2}\).*? in (.+)(?=\. Born)/);
-      console.log(aRef, censusBioRegex, censusResidenceRegex);
       const censusBioMatch = localStorage.previousBio.match(censusBioRegex);
       if (censusBioMatch) {
         aRef.Residence = censusBioMatch[1];
@@ -4565,16 +4474,12 @@ function getSourcerCensuses() {
   const dummy = document.createElement("div");
   dummy.innerHTML = thisBio;
   //  dummy.innerHTML = dummy.innerHTML.replace(/<ref[^>]*\/>/g, "");
-  console.log(dummy.innerHTML);
   const refs = dummy.querySelectorAll("ref");
   refs.forEach((ref) => ref.remove());
   const text = dummy.innerHTML;
 
   const regexWikitable = /In the (\d{4}) census[^\n]+?\n{1,2}(\{\|.*?\|\})/gms;
   const regexNonWikitable = /In the (\d{4}) census[^{=]*?\n([.:#*].+?)(?=\n[^:#*])/gms;
-
-  console.log(text.regexNonWikitable);
-  console.log(text);
 
   const tempCensuses = {};
 
@@ -4615,7 +4520,6 @@ function getSourcerCensuses() {
   for (const key in tempCensuses) {
     censuses.push(tempCensuses[key]);
   }
-  console.log(logNow(censuses));
 
   // For non-Sourcer narrative ones
   const censusListRegex = /((?:1[789]\d{2}).*?)(?=1[789]\d{2}|$)/gs;
@@ -4653,8 +4557,6 @@ function getSourcerCensuses() {
 
   // Filter out objects with empty lists
   const filteredCensusListObjects = censusListObjects.filter((obj) => obj.ListItems.length > 0);
-
-  console.log("Filtered Census List Objects:", filteredCensusListObjects);
   for (const key in filteredCensusListObjects) {
     censuses.push(filteredCensusListObjects[key]);
   }
@@ -4665,9 +4567,6 @@ function getSourcerCensuses() {
   censuses.forEach(assignSelf);
   censuses.forEach(processCensus);
   censuses = addRelationsToSourcerCensuses(censuses);
-
-  console.log("Censuses:", censuses);
-
   return censuses;
 }
 
