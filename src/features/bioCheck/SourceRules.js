@@ -1,8 +1,4 @@
 /*
-Created By: Kay Knight (Sands-1865)
-*/
-
-/*
 The MIT License (MIT)
 
 Copyright (c) 2022 Kathryn J Knight
@@ -288,6 +284,7 @@ class SourceRules {
     "personal family records",
     "thanks to family search",
     "no sources at this time",
+    "scotlandspeople database",
     "family search family tree",
     "scotland's people website",
     "us census, public records",

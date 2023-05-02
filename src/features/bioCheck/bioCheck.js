@@ -123,18 +123,17 @@ function checkBio() {
 
 function getReportLines(bioStatus, biography) {
   let profileReportLines = [];
-  if (!bioStatus) {
-    let bioMsg = "Profile has source or style issues.";
-    profileReportLines.push(bioMsg);
-  }
-  let profileStatus = "Profile appears to have sources.";
+  let profileStatus = "Profile appears to have sources";
   if (biography.isMarkedUnsourced()) {
-    profileStatus = "Profile is marked unsourced.";
+    profileStatus = "Profile is marked unsourced";
   } else {
     if (!biography.hasSources()) {
-      profileStatus = "Profile may be unsourced.";
+      profileStatus = "Profile may be unsourced";
     }
   }
+  if (biography.hasStyleIssues()) {
+    profileStatus += " and has style issues";
+  } 
   profileReportLines.push(profileStatus);
 
   if (biography.isEmpty()) {
