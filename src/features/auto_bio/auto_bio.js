@@ -186,6 +186,7 @@ function fixLocations() {
       "Trinidad and Tobago",
       "Papua New Guinea",
       "Bosnia and Herzegovina",
+      "Spain", // New Spain
     ];
     countries.forEach(function (country) {
       if (!excludeCountries.includes(country.name)) {
@@ -193,8 +194,10 @@ function fixLocations() {
       }
     });
     countryArray.forEach(function (country) {
-      const spaceCountryPattern = new RegExp(`([a-z])\\s${country}$`);
+      const spaceCountryPattern = new RegExp(`(\\w)\\s${country}$`);
       const thisMatch = event.Location.match(spaceCountryPattern);
+      console.log(spaceCountryPattern);
+      console.log(thisMatch);
       if (thisMatch) {
         event.Location = event.Location.replace(thisMatch[0], thisMatch[1] + ", " + country);
       }
@@ -204,11 +207,11 @@ function fixLocations() {
     locationBits = locationBits.map((str) => str.trim());
     const lastLocationBit = locationBits[locationBits.length - 1];
 
-    if (window.autoBioOptions.checkUS) {
+    if (window.autoBioOptions.checkUS && isOK(event.Date)) {
       event = fixUSLocation(event);
     }
 
-    if (window.autoBioOptions.checkUK) {
+    if (window.autoBioOptions.checkUK && isOK(event.Date)) {
       if (["England", "Scotland", "Wales"].includes(lastLocationBit) && isSameDateOrAfter(event.Date, "1801-01-01")) {
         event.Location += ", United Kingdom";
       } else if (["United Kingdom", "UK"].includes(lastLocationBit) && !isSameDateOrAfter(event.Date, "1801-01-01")) {
@@ -757,7 +760,7 @@ function childList(person, spouse) {
   if (ourChildren.length != 1) {
     text = text.replace(/\s\.$/, "");
   } else {
-    text = text.replace(/\s\.$/, ".\n");
+    text = text.replace(/\s\.$/, ".");
   }
   return text;
 }
@@ -2446,6 +2449,7 @@ function extractHouseholdMembers(row) {
   const brRegex = /<br\s*\/?>/gi;
   const rowData = row.split("||")[1].trim();
   const lines = rowData.split(brRegex);
+  //console.log("lines", lines);
   return lines;
 }
 
@@ -2494,6 +2498,7 @@ function parseFamilyData(familyData, options = { format: "list", year: "" }) {
     const person = {};
 
     parts.forEach((part, index) => {
+      //console.log(part);
       if (columnMapping[index] === "Name") {
         person[columnMapping[index]] = part.replace(/^[*#:]+/, "").trim();
       } else if (columnMapping[index] === "Gender") {
@@ -2509,6 +2514,8 @@ function parseFamilyData(familyData, options = { format: "list", year: "" }) {
     if (person.originalRelation) {
       person.originalRelation = standardizeRelation(person.originalRelation);
     }
+
+    // console.log("person", logNow(person));
 
     return person;
   });
@@ -2995,6 +3002,7 @@ function buildCensusNarratives() {
           });
         }
       }
+
       let residenceBits = [];
       if (reference["Street Address"]) {
         residenceBits.push(reference["Street Address"]);
@@ -3003,11 +3011,11 @@ function buildCensusNarratives() {
           residenceBits.push(reference["Address"]);
         }
       }
-      if (reference["Residence Place"]) {
-        residenceBits.push(reference["Residence Place"]);
+      if (reference["Residence Place"] || reference["Residence place"]) {
+        residenceBits.push(reference["Residence Place"] || reference["Residence place"]);
       } else {
-        if (reference["Civil Parish"]) {
-          residenceBits.push(reference["Civil Parish"]);
+        if (reference["Civil parish"]) {
+          residenceBits.push(reference["Civil parish"]);
         }
         if (reference["County/Island"]) {
           residenceBits.push(reference["County/Island"]);
@@ -3022,6 +3030,7 @@ function buildCensusNarratives() {
       if (!reference.Household) {
         reference = parseSourcerCensusWithCSVList(reference);
       }
+
       if (!reference.Household) {
         reference = parseSourcerCensusWithColons(reference);
       }
@@ -3226,11 +3235,6 @@ function createFamilyNarrative(familyMembers) {
       !["Self", "Wife", "Husband", "Daughter", "Son", "Brother", "Sister", "Father", "Mother"].includes(member.Relation)
   );
 
-  const logem = { familyMembers, spouse, children, siblings, parents, others };
-  // Log each on as console.log(logNow(var)) if they are objects. If not make them into an object and log them.
-
-  console.log(logNow(logem));
-
   const removeMainPersonLastName = (name) => {
     const names = name.split(" ");
     let lastNameAtBirth = window.profilePerson.LastNameAtBirth;
@@ -3271,7 +3275,8 @@ function createFamilyNarrative(familyMembers) {
       childrenBit += `children, `;
     }
     children.forEach((child, index) => {
-      childrenBit += `${removeMainPersonLastName(child.Name)} (${child.Age})`;
+      const childAge = child.Age ? ` (${child.Age})` : "";
+      childrenBit += `${removeMainPersonLastName(child.Name)} ${childAge}`;
       if (index === children.length - 2) {
         childrenBit += `, and `;
       } else if (index !== children.length - 1) {
@@ -3405,7 +3410,7 @@ function parseWikiTable(text) {
   for (const row of rows) {
     if (row.startsWith("| Household Members") && row.includes("||") && row.match(/<br.*?>/g).length >= 2) {
       const members = extractHouseholdMembers(row);
-      data.Household = parseFamilyData(members, " ");
+      data.Household = parseFamilyData(members);
     }
   }
   // Parse tables from BEE
@@ -3571,8 +3576,8 @@ function parseWikiTable(text) {
       }
     }
   }
-
   data = assignSelf(data);
+
   // Add relations for unknown members
 
   if (data.Household) {
@@ -4066,9 +4071,7 @@ function sourcesArray(bio) {
 
   refArr.forEach(function (aRef) {
     let table = parseWikiTable(aRef.Text);
-    console.log(logNow(table), logNow(aRef));
     Object.assign(aRef, table);
-    console.log(logNow(table), logNow(aRef));
 
     // Parse FreeREG
     if (aRef.Text.match(/freereg.org.uk/)) {
@@ -4523,7 +4526,7 @@ function getSourcerCensuses() {
 
   // For non-Sourcer narrative ones
   const censusListRegex = /((?:1[789]\d{2}).*?)(?=1[789]\d{2}|$)/gs;
-  const listItemRegex = /^(?:[*:#]+)?\s+(?=.*(\s{4}|\t){2})(.*)$/gm;
+  const listItemRegex = /^([*:#]+)\s+(?=.*(\s{4}|\t)){2,}(.*)$/gm;
 
   const censusListMatches = [...text.matchAll(censusListRegex)].map((match) => match[1].trim());
 
@@ -4534,15 +4537,17 @@ function getSourcerCensuses() {
     const year = yearMatch ? yearMatch[1] : null;
 
     const listItems = [];
+    let bulletType;
     let listItemMatch;
     while ((listItemMatch = listItemRegex.exec(censusList)) !== null) {
-      listItems.push(listItemMatch[2].trim());
+      listItems.push(listItemMatch[3].trim());
+      bulletType = listItemMatch[1];
     }
     let household;
     let list;
     if (listItems.length > 0) {
-      list = listItems.join("\n");
-      household = parseFamilyData(list, "list");
+      list = listItems.map((item) => bulletType + item).join("\n");
+      household = parseFamilyData(list, { format: "list" });
     }
     return {
       Year: year,
@@ -4552,6 +4557,7 @@ function getSourcerCensuses() {
       Text: yearLine,
       RefName: "Census_" + year,
       "Census Year": year,
+      BulletType: bulletType,
     };
   });
 
@@ -5905,8 +5911,15 @@ export async function generateBio() {
   extensionNotes += "\n-->\n";
 
   // Add Unsourced template if there are no good sources
-  if (window.autoBioOptions.unsourced == true) {
+  if (window.autoBioOptions.unsourced != false) {
     let doCheck = true;
+    let addTemplate = false;
+    let addCategory = false;
+    if (window.autoBioOptions.unsourced == "template") {
+      addTemplate = true;
+    } else {
+      addCategory = true;
+    }
     // Don't add Unsourced template if there is a Find A Grave source (maybe added by the code above) or an Ancestry/FS template
     window.references.forEach(function (aRef) {
       if (
@@ -5919,36 +5932,74 @@ export async function generateBio() {
     });
     if (doCheck == true) {
       if (autoBioCheck(currentBio) == false) {
+        let unsourcedCategory;
         let unsourcedTemplate;
 
         // Check each part of the birth and death locations for unsourced categories
         const birthPlaces = window.profilePerson.BirthLocation?.split(", ");
         const deathPlaces = window.profilePerson.DeathLocation?.split(", ");
         const places = birthPlaces.concat(deathPlaces);
-        places.forEach(function (aPlace) {
-          if (
-            unsourcedCategories[aPlace] &&
-            !(["Wales", "Canada", "United States"].includes(aPlace) && unsourcedTemplate)
-          ) {
-            unsourcedTemplate = `[[Category: ${unsourcedCategories[aPlace]}]]`;
+        const USstates = [];
+        const USbirthState = findUSState(window.profilePerson.BirthLocation);
+        if (USbirthState) {
+          USstates.push(USbirthState);
+        }
+        const USdeathState = findUSState(window.profilePerson.DeathLocation);
+        if (USdeathState) {
+          USstates.push(USdeathState);
+        }
+        if (USstates.length > 0) {
+          if (addCategory) {
+            USstates.forEach(function (aState) {
+              unsourcedCategory = `[[Category: ${unsourcedCategories[aState]}]]`;
+              if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedCategory)) {
+                window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
+              }
+            });
+          } else {
+            const statesString = USstates.join("|");
+            unsourcedTemplate = `{{Unsourced|${statesString}}}`;
             if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
               window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
             }
           }
-        });
+        } else {
+          let unsourcedTemplateString = "";
+          places.forEach(function (aPlace) {
+            if (
+              unsourcedCategories[aPlace] &&
+              !(["Wales", "Canada", "United States"].includes(aPlace) && unsourcedCategory)
+            ) {
+              if (addCategory) {
+                unsourcedCategory = `[[Category: ${unsourcedCategories[aPlace]}]]`;
+                if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedCategory)) {
+                  window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
+                }
+              } else {
+                unsourcedTemplateString += `|${aPlace}`;
+              }
+            }
+          });
+          if (unsourcedTemplateString) {
+            unsourcedTemplate = `{{Unsourced${unsourcedTemplateString}}}`;
+            if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
+              window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
+            }
+          }
+        }
         const surnames = [
           window.profilePerson.PersonName.LastNameAtBirth,
           window.profilePerson.PersonName.LastNameCurrent,
         ];
         surnames.forEach(function (aSurname) {
           if (unsourcedCategories[aSurname + " Name Study"]) {
-            unsourcedTemplate = `[[Category: ${unsourcedCategories[aSurname + " Name Study"]}]]`;
-            if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
-              window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
+            unsourcedCategory = `[[Category: ${unsourcedCategories[aSurname + " Name Study"]}]]`;
+            if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedCategory)) {
+              window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
             }
           }
         });
-        if (!unsourcedTemplate) {
+        if (!unsourcedCategory && !unsourcedTemplate) {
           unsourcedTemplate = "{{Unsourced}}";
           let gotIt = false;
           for (const thing of window.sectionsObject["StuffBeforeTheBio"].text) {
@@ -5962,6 +6013,52 @@ export async function generateBio() {
         }
       }
     }
+  }
+
+  function findUSState(location) {
+    // Test last part of location against variants of US country name and US state names
+    const usCountryNames = [
+      "United States",
+      "USA",
+      "U.S.A.",
+      "U.S.",
+      "US",
+      "U.S.A",
+      "U.S",
+      "US",
+      "U.S.A.",
+      "U.S.",
+      "US",
+      "U.S.A",
+      "U.S",
+      "US",
+    ];
+    // Split the location string into parts
+    const parts = location.split(",").map((part) => part.trim());
+
+    // Check if the last part is a US country name or a state
+    const lastPart = parts[parts.length - 1];
+    const isUSLocation = usCountryNames.includes(lastPart);
+    const lastPartState = USstatesObjArray.find((state) => state.name === lastPart || state.abbreviation === lastPart);
+
+    // If the last part is a US country name, check the second-to-last part for a state name
+    if (isUSLocation && parts.length > 1) {
+      const secondToLastPart = parts[parts.length - 2];
+      const secondToLastPartState = USstatesObjArray.find(
+        (state) => state.name === secondToLastPart || state.abbreviation === secondToLastPart
+      );
+      if (secondToLastPartState) {
+        return secondToLastPartState.name; // Return the full state name
+      }
+    }
+
+    // If the last part is a state, return the full state name
+    if (lastPartState) {
+      return lastPartState.name;
+    }
+
+    // If no matching state is found, return false
+    return false;
   }
 
   function categoriesBeforeProjects(textArray) {

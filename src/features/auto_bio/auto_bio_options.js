@@ -262,16 +262,30 @@ const autoBio = {
           defaultValue: true,
         },
         {
-          id: "unsourced",
-          type: OptionType.CHECKBOX,
-          label: "Add Unsourced template to unsourced profiles",
-          defaultValue: true,
-        },
-        {
           id: "diedYoung",
           type: OptionType.CHECKBOX,
           label: "Add Died Young sticker for people who died aged 16 or younger",
           defaultValue: true,
+        },
+        {
+          id: "unsourced",
+          type: OptionType.RADIO,
+          label: "Add Unsourced template/category to unsourced profiles",
+          values: [
+            {
+              value: "template",
+              text: "Template",
+            },
+            {
+              value: "category",
+              text: "Category",
+            },
+            {
+              value: false,
+              text: "No",
+            },
+          ],
+          defaultValue: "category",
         },
       ],
     },
@@ -407,6 +421,12 @@ const autoBio = {
           type: OptionType.CHECKBOX,
           label:
             "Check other countries for their native name and creation date of the state. (Information given in Notes.)",
+          defaultValue: true,
+        },
+        {
+          id: "addComma",
+          type: OptionType.CHECKBOX,
+          label: "Add a missing comma before country names.",
           defaultValue: true,
         },
       ],
