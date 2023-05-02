@@ -399,10 +399,16 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
         backupObject.clipboard = JSON.stringify(req.result);
         let link = document.createElement("a");
         link.download = strDate() + "_WBE_backup.txt";
-        let blob = new Blob([JSON.stringify(backupObject)], { type: "text/plain" });
-        link.href = URL.createObjectURL(blob);
-        link.click();
-        URL.revokeObjectURL(link.href);
+        let json = JSON.stringify(backupObject);
+        if (!window.safari) {
+          link.href = "data:text/plain;base64," + window.btoa(json);
+          link.click();
+        } else {
+          let blob = new Blob([json], { type: "text/plain" });
+          link.href = URL.createObjectURL(blob);
+          link.click();
+          URL.revokeObjectURL(link.href);
+        }
       };
     };
   }

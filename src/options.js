@@ -484,11 +484,15 @@ $("#settings").on("click", function () {
           .format(now)
           .replace(":", "")
           .replace(" ", "_") + "_WBE_options.txt"; // formatted to match WBE data export
-      let blob = new Blob([json], { type: "text/plain" });
-      link.href = URL.createObjectURL(blob);
-      link.click();
-      URL.revokeObjectURL(link.href);
-      hideModal();
+      if (!window.safari) {
+        link.href = "data:text/plain;base64," + window.btoa(json);
+        link.click();
+      } else {
+        let blob = new Blob([json], { type: "text/plain" });
+        link.href = URL.createObjectURL(blob);
+        link.click();
+        URL.revokeObjectURL(link.href);
+      }
     });
   });
   dialog.find("#btnExportData").on("click", function (e) {
