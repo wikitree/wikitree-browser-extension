@@ -196,8 +196,6 @@ function fixLocations() {
     countryArray.forEach(function (country) {
       const spaceCountryPattern = new RegExp(`(\\w)\\s${country}$`);
       const thisMatch = event.Location.match(spaceCountryPattern);
-      console.log(spaceCountryPattern);
-      console.log(thisMatch);
       if (thisMatch) {
         event.Location = event.Location.replace(thisMatch[0], thisMatch[1] + ", " + country);
       }
