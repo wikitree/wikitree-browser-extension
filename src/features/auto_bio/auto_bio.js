@@ -4824,7 +4824,20 @@ export async function generateBio() {
   //let spouseLinks = $("span[itemprop='spouse'] a");
   let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
 
-  window.biographyPeople = await getPeople(profileID, 0, 0, 0, 0, 1, "*", "WBE_auto_bio");
+  window.biographyPeople = await getPeople(profileID, 0, 0, 0, 0, 1, "*");
+  window.profilePerson = window.biographyPeople[0].people[window.biographyPeople[0].resultByKey[profileID].Id];
+  const originalFormData = getFormData();
+  fixLocations();
+  const originalFirstName = window.profilePerson.FirstName;
+  // Get the form data and add it to the profilePerson
+  const formData = getFormData();
+  let personKeys = Object.keys(formData);
+  personKeys.forEach(function (aKey) {
+    if (!(aKey == "BirthDate" && formData[aKey] == null)) {
+      window.profilePerson[aKey] = formData[aKey];
+    }
+  });
+
   console.log("biographyPeople", window.biographyPeople);
   const biographyPeopleKeys = Object.keys(window.biographyPeople[0].people);
   biographyPeopleKeys.forEach(function (key) {
