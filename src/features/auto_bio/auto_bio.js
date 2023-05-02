@@ -3217,7 +3217,6 @@ function parseWikiTable(aRef) {
                         : relation == "Children"
                         ? "Son"
                         : "";
-                    // console.log(relation, theRelation);
                   }
                   if (aMember.Gender == "Female") {
                     theRelation =
@@ -3253,11 +3252,11 @@ function parseWikiTable(aRef) {
             });
           });
           data.Household.push(aMember);
-        } else {
+        } else if (!reachedHouseholdMembers) {
           if (data[key]) {
-            data[key.trim()] = data[key.trim()] + ", " + value;
+            data[key] = data[key] + ", " + value;
           } else {
-            data[key.trim()] = value;
+            data[key] = value;
           }
         }
       }
@@ -4824,16 +4823,7 @@ export async function generateBio() {
   window.usedPlaces = [];
   //let spouseLinks = $("span[itemprop='spouse'] a");
   let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
-  //let keys = $("#pageData").attr("data-mid") || htmlEntities(profileID);
-  // let keys = encodeURIComponent(profileID);
 
-  /*
-  spouseLinks.each(function () {
-    if ($(this).attr("href").split("/wiki/")[1]) {
-      keys += "," + $(this).attr("href").split("/wiki/")[1];
-    }
-  });
-  */
   window.biographyPeople = await getPeople(profileID, 0, 0, 0, 0, 1, "*", "WBE_auto_bio");
   console.log("biographyPeople", window.biographyPeople);
   const biographyPeopleKeys = Object.keys(window.biographyPeople[0].people);
