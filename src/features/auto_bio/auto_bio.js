@@ -3074,19 +3074,53 @@ function parseWikiTable(aRef) {
     data["Year"] = match[1];
   }
 
-  const gotHousehold = aRef.Household;
+  // Parse main table
+  // If Household Members has been reached, stop parsing
+  let reachedHouseholdMembers = false;
+  for (const row of rows) {
+    if (row.match("Household Members")) {
+      reachedHouseholdMembers = true;
+    }
 
+    if (row.match("|}")) {
+      reachedHouseholdMembers = false;
+    }
+    if (row.match(/\|\|/) && !reachedHouseholdMembers) {
+      const cells = row.split("||");
+      const key = cells[0].replace("|", "").replace(/:$/, "").trim();
+      const value = cells[1].replace("|", "").trim();
+      data[key] = value;
+    }
+  }
+
+  // Parse Sourcer Household Members row with <br> tags
+  for (const row of rows) {
+    if (row.startsWith("| Household Members") && row.includes("||") && row.match(/<br.*?>/g).length >= 2) {
+      const members = extractHouseholdMembers(row);
+      data.Household = parseFamilyData(members);
+    }
+  }
+  // Parse tables from BEE
   if (!data.Household) {
     for (const row of rows) {
-      if (row.match("Household Members") && !gotHousehold) {
+      if (!data.Household) {
+        if (row.match(/\|\|/)) {
+          const cells = row.split("||");
+          const key = cells[0].trim().replace("|", "").replace(/:$/, "");
+          const value = cells[1].trim().replace("|", "");
+          data[key] = value;
+        }
+      }
+
+      if (row.match("Household Members") && row.match(/<br.{0,2}>/) == null) {
         data.Household = [];
       }
       if (!row.includes("|")) continue;
-      if (row.match(/\|\|/)) {
+      if (row.match(/\|\|/) && data.Household) {
         const cells = row.split("||");
         const key = cells[0].trim().replace("|", "").replace(/:$/, "");
         const value = cells[1].trim().replace("|", "");
-        if (data.Household && !gotHousehold) {
+        if (data.Household) {
           const aMember = { Name: key, Census: data["Year"] };
           for (let i = 1; i < cells.length; i++) {
             if (
