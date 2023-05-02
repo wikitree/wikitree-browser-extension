@@ -5593,7 +5593,6 @@ async function getLocationCategory(type, location = null) {
   // Remove all after 3rd comma
   const locationSplit = location.split(/, /);
   const searchLocation = removeCountryName(location);
-
   let api;
   try {
     api = await wtAPICatCIBSearch("WBE", categoryType, searchLocation);
