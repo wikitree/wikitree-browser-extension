@@ -3017,7 +3017,7 @@ function parseSourcerFamilyListWithBRs(reference) {
 }
 
 function buildCensusNarratives() {
-  const yearRegex = /\b(1[89]\d{2})\b/;
+  const yearRegex = /\b(1[789]\d{2})\b/;
   // getCensusesFromCensusSection();
 
   window.references.forEach(function (reference) {
