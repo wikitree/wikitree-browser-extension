@@ -469,35 +469,13 @@ $("#settings").on("click", function () {
   });
   dialog.find("#btnExportOptions").on("click", function (e) {
     chrome.storage.sync.get(null, (result) => {
-      const manifest = chrome.runtime.getManifest();
-      let now = new Date();
-      let json = JSON.stringify({
-        extension: manifest.name,
-        version: manifest.version,
-        browser: navigator.userAgent,
-        timestamp: now.toISOString(),
-        features: result,
-      });
-      let link = document.createElement("a");
-      link.download =
-        Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "short" }) // sv-SE uses ISO format
-          .format(now)
-          .replace(":", "")
-          .replace(" ", "_") + "_WBE_options.txt"; // formatted to match WBE data export
-      if (!window.safari) {
-        link.href = "data:text/plain;base64," + window.btoa(json);
-        link.click();
-      } else {
-        let blob = new Blob([json], { type: "text/plain" });
-        link.href = URL.createObjectURL(blob);
-        link.click();
-        URL.revokeObjectURL(link.href);
-      }
+      downloadBackupData("features", result);
     });
   });
   dialog.find("#btnExportData").on("click", function (e) {
-    backup();
-    hideModal();
+    backupData().then(() => {
+      hideModal();
+    });
   });
   dialog.find("#btnImportOptions").on("click", function (e) {
     if (navigator.userAgent.indexOf("Firefox/") > -1) {
@@ -510,11 +488,9 @@ $("#settings").on("click", function () {
       restoreOptions(() => {
         dialog.fadeOut();
       })
+        .then(hideModal)
         .catch(() => {
           alert("The options file was not valid.");
-        })
-        .finally(() => {
-          hideModal();
         });
     }
   });
@@ -529,11 +505,9 @@ $("#settings").on("click", function () {
       restoreData(() => {
         dialog.fadeOut();
       })
+        .then(hideModal)
         .catch(() => {
           alert("The data file was not valid.");
-        })
-        .finally(() => {
-          hideModal();
         });
     }
   });
@@ -652,19 +626,72 @@ chrome.storage.onChanged.addListener(function () {
 });
 
 if (chrome && chrome.tabs && chrome.tabs.query) {
-  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-    if (tabs[0].url) {
-      if (tabs[0].url.match("wikitree.com")) {
-        $("html").addClass("is-on-wikitree");
-      }
-    }
+  chrome.tabs.query({ currentWindow: true, url: ["*://*.wikitree.com/*"] }, function (tabs) {
+    $("html").addClass("is-on-wikitree");
   });
 }
 
-function backup() {
-  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-    chrome.tabs.sendMessage(tabs[0].id, { greeting: "backup" }, function (response) {
-      console.log(response.farewell);
+function wrapBackupData(key, data) {
+  const manifest = chrome.runtime.getManifest();
+  let now = new Date();
+  let wrapped = {
+    id:
+      Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "medium" }) // sv-SE uses ISO format
+        .format(now)
+        .replace(/:/g, "")
+        .replace(/ /g, "_") +
+      "_WBE_backup_" +
+      key,
+    extension: manifest.name,
+    version: manifest.version,
+    browser: navigator.userAgent,
+    timestamp: now.toISOString(),
+  };
+  wrapped[key] = data;
+  return wrapped;
+}
+
+function getBackupLink(wrappedJsonData) {
+  let link = document.createElement("a");
+  let json = JSON.stringify(wrappedJsonData);
+  link.download = wrappedJsonData.id + ".txt";
+  if (!!window.safari) {
+    link.href = "data:text/plain;base64," + window.btoa(json);
+  } else {
+    let blob = new Blob([json], { type: "application/json" });
+    link.href = URL.createObjectURL(blob);
+  }
+  return link;
+}
+
+function downloadBackupData(key, data) {
+  const wrapped = wrapBackupData(key, data);
+  const link = getBackupLink(wrapped);
+  link.click();
+  if (link.href.indexOf("blob:") === 0) {
+    URL.revokeObjectURL(link.href);
+  }
+}
+
+function backupData() {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.query({ currentWindow: true, url: ["*://*.wikitree.com/*"] }, function (tabs) {
+      if (tabs.length > 0) {
+        chrome.tabs.sendMessage(tabs[0].id, { greeting: "backupData" }, function (response) {
+          if (response) {
+            if (response.nak) {
+              reject(response.nak);
+            } else if (response.ack) {
+              if (response.backup) {
+                downloadBackupData("data", response.backup);
+                resolve();
+              } else {
+                reject("no data received");
+              }
+            }
+          }
+        });
+      }
     });
   });
 }

@@ -45,7 +45,7 @@ export function restoreOptions(onProcessing) {
           ) {
             if (onProcessing) onProcessing();
             chrome.storage.sync.set(json.features, () => {
-              resolve(json.features);
+              resolve();
             });
           }
         } catch {}
@@ -63,18 +63,36 @@ export function restoreData(onProcessing) {
       if (!this.result) {
         reject({ error: "empty" });
       } else {
+        let isValid = false;
         try {
-          let data = JSON.parse(this.result);
-          if (onProcessing) onProcessing();
-          chrome.tabs.query({ url: "*://*.wikitree.com/*" }, function (tabs) {
-            if (tabs.length > 0) {
-              chrome.tabs.sendMessage(tabs[0].id, { greeting: "restoreBackup", data: data }, function (response) {
-                resolve(data);
-              });
-            }
-          });
-        } catch (ex) {
-          reject({ error: "invalid", exception: ex });
+          let json = JSON.parse(this.result);
+          if (
+            !json.extension &&
+            !json.oldFormat &&
+            !json.data &&
+            (json.changeSummaryOptions || json.myMenu || json.extraWatchlist || json.clipboard)
+          ) {
+            json = { extension: "WikiTree Browser Extension (Legacy) or WikiTree BEE", data: json };
+          }
+          if ((isValid = json.extension && json.extension.indexOf("WikiTree Browser Extension") === 0 && json.data)) {
+            if (onProcessing) onProcessing();
+            chrome.tabs.query({ currentWindow: true, url: ["*://*.wikitree.com/*"] }, function (tabs) {
+              if (tabs.length > 0) {
+                chrome.tabs.sendMessage(tabs[0].id, { greeting: "restoreData", data: json.data }, function (response) {
+                  if (response) {
+                    if (response.nak) {
+                      reject(response.nak);
+                    } else if (response.ack) {
+                      resolve();
+                    }
+                  }
+                });
+              }
+            });
+          }
+        } catch {}
+        if (!isValid) {
+          reject({ error: "invalid", content: this.result });
         }
       }
     });
