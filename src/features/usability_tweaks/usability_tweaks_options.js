@@ -12,22 +12,36 @@ const usabilityTweaks = {
   pages: [true],
   options: [
     {
-      id: "saveSearchFormDataButton",
-      type: OptionType.CHECKBOX,
-      label: "Add a button to the search page to save the form data.",
-      defaultValue: false,
+      id: "editPage",
+      type: OptionType.GROUP,
+      label: "Profile edit page",
+      options: [
+        {
+          id: "removeTargetsFromEditFamilyLinks",
+          type: OptionType.CHECKBOX,
+          label: "Open Add/Remove/Replace links in the same tab.",
+          defaultValue: false,
+        },
+        {
+          id: "addRemoveConnectLinks",
+          type: OptionType.CHECKBOX,
+          label: "Replace Add/Remove/Replace links with Add, Remove, Connect links.",
+          defaultValue: false,
+        },
+      ],
     },
     {
-      id: "removeTargetsFromEditFamilyLinks",
-      type: OptionType.CHECKBOX,
-      label: "Edit Page: Open Add/Remove/Replace links in the same tab.",
-      defaultValue: false,
-    },
-    {
-      id: "addRemoveConnectLinks",
-      type: OptionType.CHECKBOX,
-      label: "Edit Page: Replace Add/Remove/Replace links with Add, Remove, Connect links.",
-      defaultValue: false,
+      id: "searchPage",
+      type: OptionType.GROUP,
+      label: "Search page",
+      options: [
+        {
+          id: "saveSearchFormDataButton",
+          type: OptionType.CHECKBOX,
+          label: "Add a button to the search page to save the form data to populate fields on the Add Person page.",
+          defaultValue: false,
+        },
+      ],
     },
   ],
 };

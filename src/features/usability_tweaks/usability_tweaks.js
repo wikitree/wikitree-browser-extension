@@ -160,7 +160,10 @@ checkIfFeatureEnabled("usabilityTweaks").then((result) => {
             } else if (WBEactionValue == "Remove") {
               $("#editAction_remove").trigger("click");
             }
-            if (!(whoValue == "Remove" && ["child", "spouse"].includes(whoValue)) && WBEactionValue != "Connect") {
+            if (
+              WBEactionValue == "Add" ||
+              (WBEactionValue == "Remove" && whoValue != "child" && whoValue != "spouse")
+            ) {
               $("#actionButton").trigger("click");
             }
           }
