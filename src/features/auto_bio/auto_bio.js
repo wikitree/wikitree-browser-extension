@@ -4994,7 +4994,7 @@ async function getStickersAndBoxes() {
 
       if (window.autoBioOptions.diedYoung) {
         const deathAge = ageAtDeath(window.profilePerson, false);
-        if (deathAge[0]) {
+        if (typeof deathAge[0] !== "undefined") {
           if (deathAge[0] < 17 && !thingsToAddAfterBioHeading.includes("{{Died Young}}")) {
             thingsToAddAfterBioHeading.push("{{Died Young}}");
           }
