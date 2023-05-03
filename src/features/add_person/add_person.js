@@ -91,6 +91,13 @@ function keepBasicDataSectionVisible() {
             $("#connectionsSection .newPersonData").text($("#mFirstName").val());
             scrollTo("#matchesContainer");
             observer.disconnect();
+
+            $(".matchActionButton").on("click", function () {
+              setTimeout(() => {
+                $("#sourcesSection").show();
+              }, 1000);
+            });
+
             break;
           }
         }
