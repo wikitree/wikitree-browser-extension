@@ -46,6 +46,7 @@ import "./features/spacepreview/spacepreview";
 import "./features/sticky_header/sticky_header";
 import "./features/sticky_toolbar/sticky_toolbar";
 import "./features/suggested_matches_filters/suggested_matches_filters";
+import "./features/usability_tweaks/usability_tweaks";
 import "./features/verifyID/verifyID";
 import "./features/what_links_here/what_links_here";
 import "./features/wtPlus/wtPlus";
