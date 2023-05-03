@@ -86,8 +86,10 @@ export let isSpecialDNATests = false;
 export let isDNADescendants = false;
 // Special: WatchedList page
 export let isSpecialWatchedList = false;
-
+// G2G
 export let isG2G = false;
+// Special:SearchPerson
+export let isSearchPage = false;
 
 if (
   // Profile Edit Page
@@ -247,6 +249,9 @@ if (
     window.location.href.match(/\/index.php\?title=Special:WatchedList.*/g)
   ) {
     isSpecialWatchedList = true;
+  } else if (window.location.href.match(/\/Special:SearchPerson/g)) {
+    // Special:SearchPerson
+    isSearchPage = true;
   }
 } else if (
   // Other Edit Page
