@@ -2,6 +2,7 @@ import $ from "jquery";
 
 import { features, OptionType } from "./core/options/options_registry";
 import "./features/register_feature_options";
+import { isWikiTreeUrl } from "./core/common";
 import { restoreOptions, restoreData } from "./upload";
 
 $("h1").prepend($("<img src='" + chrome.runtime.getURL("images/wikitree-small.png") + "'>"));
@@ -439,12 +440,12 @@ $("#settings").on("click", function () {
       '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Settings &amp; Data Backup</div>' +
       '<div class="dialog-content"><ul>' +
       '<li title="This would be like toggling all of the radio buttons back to the default. Each feature\'s options will be preserved."><button id="btnResetOptions">Default Features</button> Enable only the default features.</li>' +
-      '<li title="This will pop up a dialog to select the download location for your feature options."><button id="btnExportOptions">Back Up Options</button> Back up your current feature options.</li>' +
+      '<li title="This will download a backup file with your current feature options."><button id="btnExportOptions">Back Up Options</button> Back up your current feature options.</li>' +
       '<li title="This will pop up a dialog to select the backup file for your feature options. This will overwrite your current options."><button id="btnImportOptions">Restore Options</button> Restore the feature options from a previous backup.</li>' +
       '<li title="Resets all feature options to the defaults. This does not include data stored on WikiTree by features like My Menu, Extra Watchlist, etc."><button id="btnClearOptions">Reset Options</button> Reset all options to the defaults.</li>' +
       '<li class="hide-on-wikitree" style="font-size: 10pt; font-style: italic; color: #bbb; text-align: center;">For more data options, access this from the <a href="https://www.wikitree.com/" style="color: #bbb;" target="_blank">WikiTree</a> site.</li>' +
       '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Data from My Menu, Change Summary Options, Extra Watchlist, Clipboard and Notes, etc.</li>' +
-      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select the download location for your feature data."><button id="btnExportData">Back Up Data</button> Back up your feature data from WikiTree.</li>' +
+      '<li class="hide-unless-wikitree" title="This will download a backup file with your current feature data."><button id="btnExportData">Back Up Data</button> Back up your feature data from WikiTree.</li>' +
       '<li class="hide-unless-wikitree" title="This will pop up a dialog to select your feature data backup file."><button id="btnImportData">Restore Data</button> Restore your feature data on WikiTree.</li>' +
       "</ul></div></div>"
   ).appendTo(modal);
@@ -625,11 +626,18 @@ chrome.storage.onChanged.addListener(function () {
   restore_options();
 });
 
-if (chrome && chrome.tabs && chrome.tabs.query) {
-  chrome.tabs.query({ currentWindow: true, url: ["*://*.wikitree.com/*"] }, function (tabs) {
-    $("html").addClass("is-on-wikitree");
-  });
-}
+(function (tabs) {
+  if (tabs && tabs.query) {
+    tabs.query({}, function (tabs) {
+      for (let tab of tabs) {
+        if (isWikiTreeUrl(tab.url)) {
+          $("html").addClass("is-on-wikitree");
+          break;
+        }
+      }
+    });
+  }
+})((browser || chrome).tabs);
 
 function wrapBackupData(key, data) {
   const manifest = chrome.runtime.getManifest();
@@ -658,7 +666,7 @@ function getBackupLink(wrappedJsonData) {
   if (!!window.safari) {
     link.href = "data:text/plain;base64," + window.btoa(json);
   } else {
-    let blob = new Blob([json], { type: "application/json" });
+    let blob = new Blob([json], { type: "text/plain" });
     link.href = URL.createObjectURL(blob);
   }
   return link;
@@ -675,22 +683,25 @@ function downloadBackupData(key, data) {
 
 function backupData() {
   return new Promise((resolve, reject) => {
-    chrome.tabs.query({ currentWindow: true, url: ["*://*.wikitree.com/*"] }, function (tabs) {
-      if (tabs.length > 0) {
-        chrome.tabs.sendMessage(tabs[0].id, { greeting: "backupData" }, function (response) {
-          if (response) {
-            if (response.nak) {
-              reject(response.nak);
-            } else if (response.ack) {
-              if (response.backup) {
-                downloadBackupData("data", response.backup);
-                resolve();
-              } else {
-                reject("no data received");
+    chrome.tabs.query({}, function (tabs) {
+      for (let tab of tabs) {
+        if (isWikiTreeUrl(tab.url)) {
+          chrome.tabs.sendMessage(tab.id, { greeting: "backupData" }, function (response) {
+            if (response) {
+              if (response.nak) {
+                reject(response.nak);
+              } else if (response.ack) {
+                if (response.backup) {
+                  downloadBackupData("data", response.backup);
+                  resolve();
+                } else {
+                  reject("no data received");
+                }
               }
             }
-          }
-        });
+          });
+          break;
+        }
       }
     });
   });

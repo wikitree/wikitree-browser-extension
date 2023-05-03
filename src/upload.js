@@ -1,4 +1,5 @@
 import $ from "jquery";
+import { isWikiTreeUrl } from "./core/common";
 
 export function openFileChooser(readerCallback, readAs = "text") {
   if (window.FileReader) {
@@ -76,17 +77,20 @@ export function restoreData(onProcessing) {
           }
           if ((isValid = json.extension && json.extension.indexOf("WikiTree Browser Extension") === 0 && json.data)) {
             if (onProcessing) onProcessing();
-            chrome.tabs.query({ currentWindow: true, url: ["*://*.wikitree.com/*"] }, function (tabs) {
-              if (tabs.length > 0) {
-                chrome.tabs.sendMessage(tabs[0].id, { greeting: "restoreData", data: json.data }, function (response) {
-                  if (response) {
-                    if (response.nak) {
-                      reject(response.nak);
-                    } else if (response.ack) {
-                      resolve();
+            chrome.tabs.query({}, function (tabs) {
+              for (let tab of tabs) {
+                if (isWikiTreeUrl(tab.url)) {
+                  chrome.tabs.sendMessage(tab.id, { greeting: "restoreData", data: json.data }, function (response) {
+                    if (response) {
+                      if (response.nak) {
+                        reject(response.nak);
+                      } else if (response.ack) {
+                        resolve();
+                      }
                     }
-                  }
-                });
+                  });
+                  break;
+                }
               }
             });
           }

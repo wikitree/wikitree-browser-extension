@@ -310,15 +310,18 @@ async function initReadability() {
       $(".x-content sup.reference a, .x-content a[href^='#']")
         .filter(function () {
           if (!$(this).parent().is("sup.reference")) {
-            let el = document.getElementById(this.getAttribute("href").substring(1));
-            if (!el) {
-              el = document.getElementsByName(this.getAttribute("href").substring(1));
-              if (el.length > 0) {
-                el = el[0];
+            let refId = this.getAttribute("href").substring(1);
+            if (refId) {
+              let el = document.getElementById(refId);
+              if (!el) {
+                el = document.getElementsByName(this.getAttribute("href").substring(1));
+                if (el.length > 0) {
+                  el = el[0];
+                }
               }
-            }
-            if (el && $(el).closest(".x-sources").length > 0) {
-              return true; // any links to elements under the sources section should also trigger this
+              if (el && $(el).closest(".x-sources").length > 0) {
+                return true; // any links to elements under the sources section should also trigger this
+              }
             }
             return false; // any other links should not expand the sources
           }

@@ -369,6 +369,13 @@ export async function updateDraftList() {
   return true;
 }
 
+export function isWikiTreeUrl(url) {
+  if (url) {
+    return /^http(s)?:\/+((www|staging)\.)?wikitree\.com\//i.test(url);
+  }
+  return false;
+}
+
 function backupData(sendResponse) {
   const data = {};
   data.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
@@ -377,12 +384,17 @@ function backupData(sendResponse) {
   const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
   clipboardDB.onsuccess = function (event) {
     let cdb = clipboardDB.result;
-    let transaction = cdb.transaction(["Clipboard"]);
-    let req = transaction.objectStore("Clipboard").getAll();
-    req.onsuccess = function (event) {
-      data.clipboard = JSON.stringify(req.result);
+    try {
+      let transaction = cdb.transaction(["Clipboard"]);
+      let req = transaction.objectStore("Clipboard").getAll();
+      req.onsuccess = function (event) {
+        data.clipboard = JSON.stringify(req.result);
+        sendResponse({ ack: "feature data attached", backup: data });
+      };
+    } catch (e) {
+      console.warn(e); // we weren't able to export any clipboard data, but we can still download the rest
       sendResponse({ ack: "feature data attached", backup: data });
-    };
+    }
   };
 }
 
