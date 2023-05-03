@@ -63,6 +63,55 @@ function dataStatusWord(status, ISOdate, options = { needOnIn: false, onlyYears:
   }
 }
 
+function findUSState(location) {
+  if (!location) {
+    return false;
+  }
+  // Test last part of location against variants of US country name and US state names
+  const usCountryNames = [
+    "United States",
+    "USA",
+    "U.S.A.",
+    "U.S.",
+    "US",
+    "U.S.A",
+    "U.S",
+    "US",
+    "U.S.A.",
+    "U.S.",
+    "US",
+    "U.S.A",
+    "U.S",
+    "US",
+  ];
+  // Split the location string into parts
+  const parts = location.split(",").map((part) => part.trim());
+
+  // Check if the last part is a US country name or a state
+  const lastPart = parts[parts.length - 1];
+  const isUSLocation = usCountryNames.includes(lastPart);
+  const lastPartState = USstatesObjArray.find((state) => state.name === lastPart || state.abbreviation === lastPart);
+
+  // If the last part is a US country name, check the second-to-last part for a state name
+  if (isUSLocation && parts.length > 1) {
+    const secondToLastPart = parts[parts.length - 2];
+    const secondToLastPartState = USstatesObjArray.find(
+      (state) => state.name === secondToLastPart || state.abbreviation === secondToLastPart
+    );
+    if (secondToLastPartState) {
+      return secondToLastPartState.name; // Return the full state name
+    }
+  }
+
+  // If the last part is a state, return the full state name
+  if (lastPartState) {
+    return lastPartState.name;
+  }
+
+  // If no matching state is found, return false
+  return false;
+}
+
 function autoBioCheck(sourcesStr) {
   let thePerson = new PersonDate();
   let birthDate = document.getElementById("mBirthDate").value;
@@ -6233,52 +6282,6 @@ export async function generateBio() {
     }
   }
 
-  function findUSState(location) {
-    // Test last part of location against variants of US country name and US state names
-    const usCountryNames = [
-      "United States",
-      "USA",
-      "U.S.A.",
-      "U.S.",
-      "US",
-      "U.S.A",
-      "U.S",
-      "US",
-      "U.S.A.",
-      "U.S.",
-      "US",
-      "U.S.A",
-      "U.S",
-      "US",
-    ];
-    // Split the location string into parts
-    const parts = location.split(",").map((part) => part.trim());
-
-    // Check if the last part is a US country name or a state
-    const lastPart = parts[parts.length - 1];
-    const isUSLocation = usCountryNames.includes(lastPart);
-    const lastPartState = USstatesObjArray.find((state) => state.name === lastPart || state.abbreviation === lastPart);
-
-    // If the last part is a US country name, check the second-to-last part for a state name
-    if (isUSLocation && parts.length > 1) {
-      const secondToLastPart = parts[parts.length - 2];
-      const secondToLastPartState = USstatesObjArray.find(
-        (state) => state.name === secondToLastPart || state.abbreviation === secondToLastPart
-      );
-      if (secondToLastPartState) {
-        return secondToLastPartState.name; // Return the full state name
-      }
-    }
-
-    // If the last part is a state, return the full state name
-    if (lastPartState) {
-      return lastPartState.name;
-    }
-
-    // If no matching state is found, return false
-    return false;
-  }
-
   function categoriesBeforeProjects(textArray) {
     return textArray.sort((a, b) => {
       if (a.startsWith("{{") && b.startsWith("[[")) {
@@ -6509,6 +6512,19 @@ async function getLocationCategory(type, location = null) {
       return;
     }
   }
+
+  function sameState(location1, location2) {
+    const state1 = findUSState(location1);
+    if (!state1) {
+      return "notUS";
+    }
+    const state2 = findUSState(location2);
+    if (state1 && state2 && state1 == state2) {
+      return "same";
+    }
+    return false;
+  }
+
   // Remove all after 3rd comma
   const locationSplit = location.split(/, /);
   const searchLocation = removeCountryName(location);
@@ -6520,25 +6536,40 @@ async function getLocationCategory(type, location = null) {
     api = null;
   }
   if (api?.response?.categories?.length == 1) {
+    if (
+      type == "Cemetery" &&
+      sameState(window.profilePerson.DeathLocation, api?.response?.categories[0].location) == false
+    ) {
+      return false;
+    }
+
     return api?.response?.categories[0].category;
   } else if (api?.response?.categories?.length > 1) {
     let foundCategory = null;
+    let thisState = findUSState(location);
+    if (type == "Cemetery") {
+      thisState = findUSState(window.profilePerson.DeathLocation);
+    }
     api.response.categories.forEach(function (aCat) {
       let category = aCat.category;
-      if (locationSplit[0] + ", " + locationSplit[1] == category) {
-        foundCategory = category;
-      } else if (locationSplit[0] + ", " + locationSplit[1] + ", " + locationSplit[2] == category) {
-        foundCategory = category;
-      } else if (locationSplit[1] + ", " + locationSplit[2] == category) {
-        foundCategory = category;
-      } else if (locationSplit[0] + ", " + locationSplit[2] == category) {
-        foundCategory = category;
-      } else if (locationSplit[0] == category) {
-        foundCategory = category;
-      } else if (locationSplit[1] == category) {
-        foundCategory = category;
-      } else if (locationSplit[2] == category) {
-        foundCategory = category;
+      if (!(type == "Cemetery" && sameState(window.profilePerson.DeathLocation, aCat.location) == false)) {
+        if (locationSplit[0] + ", " + locationSplit[1] + ", " + thisState == category) {
+          foundCategory = category;
+        } else if (locationSplit[0] + ", " + locationSplit[1] == category) {
+          foundCategory = category;
+        } else if (locationSplit[0] + ", " + locationSplit[1] + ", " + locationSplit[2] == category) {
+          foundCategory = category;
+        } else if (locationSplit[1] + ", " + locationSplit[2] == category) {
+          foundCategory = category;
+        } else if (locationSplit[0] + ", " + locationSplit[2] == category) {
+          foundCategory = category;
+        } else if (locationSplit[0] == category) {
+          foundCategory = category;
+        } else if (locationSplit[1] == category) {
+          foundCategory = category;
+        } else if (locationSplit[2] == category) {
+          foundCategory = category;
+        }
       }
     });
     if (foundCategory) {
