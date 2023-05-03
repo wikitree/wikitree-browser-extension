@@ -72,7 +72,9 @@ function setUiElementsFromOptionsData(feature, options, optionsData) {
       if (option.type == OptionType.CHECKBOX) {
         element.checked = optionsData[option.id];
       } else if (option.type == OptionType.RADIO) {
-        element.querySelector(`input[value="${optionsData[option.id]}"]`).checked = true;
+        if (element.querySelector(`input[value="${optionsData[option.id]}"]`)) {
+          element.querySelector(`input[value="${optionsData[option.id]}"]`).checked = true;
+        }
       } else {
         element.value = optionsData[option.id];
       }
