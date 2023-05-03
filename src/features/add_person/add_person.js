@@ -223,7 +223,11 @@ checkIfFeatureEnabled("addPersonRedesign").then((result) => {
     $("span#basicDataTab").on("click", function () {
       setTimeout(() => {
         showBasicData();
-      }, 200);
+        if ($("span#basicDataTab").hasClass("current")) {
+          $("#backToActionButton").insertBefore($("#enterBasicDataButton"));
+          $("#enterBasicDataButton,#backToActionButton").show();
+        }
+      }, 300);
     });
     //  ||$("#editAction_connectExisting").prop("checked") == true
   }
