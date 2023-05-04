@@ -369,68 +369,72 @@ export async function updateDraftList() {
   return true;
 }
 
-function strDate() {
-  var d = new Date();
-  var strD =
-    d.getFullYear() +
-    "-" +
-    ("0" + (d.getMonth() + 1)).slice(-2) +
-    "-" +
-    ("0" + d.getDate()).slice(-2) +
-    "_" +
-    ("0" + d.getHours()).slice(-2) +
-    ("0" + d.getMinutes()).slice(-2);
-  return strD;
+export function isWikiTreeUrl(url) {
+  if (url) {
+    return /^http(s)?:\/+((www|staging)\.)?wikitree\.com\//i.test(url);
+  }
+  return false;
 }
 
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-  sendResponse({ farewell: "goodbye" });
-  if (request.greeting == "backup") {
-    const backupObject = {};
-    backupObject.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
-    backupObject.myMenu = localStorage.customMenu;
-    backupObject.extraWatchlist = localStorage.extraWatchlist;
-    const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
-    clipboardDB.onsuccess = function (event) {
-      let cdb = clipboardDB.result;
+function backupData(sendResponse) {
+  const data = {};
+  data.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
+  data.myMenu = localStorage.customMenu;
+  data.extraWatchlist = localStorage.extraWatchlist;
+  const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
+  clipboardDB.onsuccess = function (event) {
+    let cdb = clipboardDB.result;
+    try {
       let transaction = cdb.transaction(["Clipboard"]);
       let req = transaction.objectStore("Clipboard").getAll();
       req.onsuccess = function (event) {
-        backupObject.clipboard = JSON.stringify(req.result);
-        let link = document.createElement("a");
-        link.download = strDate() + "_WBE_backup.txt";
-        let blob = new Blob([JSON.stringify(backupObject)], { type: "text/plain" });
-        link.href = URL.createObjectURL(blob);
-        link.click();
-        URL.revokeObjectURL(link.href);
+        data.clipboard = JSON.stringify(req.result);
+        sendResponse({ ack: "feature data attached", backup: data });
       };
-    };
+    } catch (e) {
+      console.warn(e); // we weren't able to export any clipboard data, but we can still download the rest
+      sendResponse({ ack: "feature data attached", backup: data });
+    }
+  };
+}
+
+function restoreData(data, sendResponse) {
+  if (data.changeSummaryOptions) {
+    localStorage.setItem("LSchangeSummaryOptions", data.changeSummaryOptions);
   }
-  if (request.greeting == "restoreBackup") {
-    const data = request.data;
-    console.log(data);
-    if (data.changeSummaryOptions) {
-      localStorage.setItem("LSchangeSummaryOptions", data.changeSummaryOptions);
-    }
-    if (data.myMenu) {
-      localStorage.setItem("customMenu", data.myMenu);
-    }
-    if (data.extraWatchlist) {
-      localStorage.setItem("extraWatchlist", data.extraWatchlist);
-    }
-    if (data.clipboard) {
-      function addToDB(db, dbv, os, obj) {
-        const aDB = window.indexedDB.open(db, dbv);
-        aDB.onsuccess = function (event) {
-          let xdb = aDB.result;
-          let insert = xdb.transaction([os], "readwrite").objectStore(os).put(obj);
-        };
-      }
-      const clipboard = JSON.parse(data.clipboard);
-      clipboard.forEach(function (aClipping) {
-        addToDB("Clipboard", 1, "Clipboard", aClipping);
-      });
-    }
-    sendResponse("Thank you!");
+  if (data.myMenu) {
+    localStorage.setItem("customMenu", data.myMenu);
   }
+  if (data.extraWatchlist) {
+    localStorage.setItem("extraWatchlist", data.extraWatchlist);
+  }
+  if (data.clipboard) {
+    function addToDB(db, dbv, os, obj) {
+      const aDB = window.indexedDB.open(db, dbv);
+      aDB.onsuccess = function (event) {
+        let xdb = aDB.result;
+        let insert = xdb.transaction([os], "readwrite").objectStore(os).put(obj);
+      };
+    }
+    const clipboard = JSON.parse(data.clipboard);
+    clipboard.forEach(function (aClipping) {
+      addToDB("Clipboard", 1, "Clipboard", aClipping);
+    });
+    sendResponse({ ack: "data restored" });
+  }
+}
+
+chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+  if (request && request.greeting) {
+    if (request.greeting === "backupData") {
+      backupData(sendResponse);
+    } else if (request.greeting === "restoreData") {
+      restoreData(request.data, sendResponse);
+    } else {
+      sendResponse({ nak: `unexpected greeting ${request.greeting}` });
+    }
+  } else {
+    sendResponse({ nak: "unexpected request" });
+  }
+  return true; // potentially prevent the "The message port closed before a response was received." error
 });

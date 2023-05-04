@@ -9,6 +9,8 @@ body {
   /* override the injected stylesheet from Chrome which is percentage-based to match the root size */
   font-family: "Open Sans", Helvetica, Arial, sans-serif;
   font-size: 1rem;
+  /* override Safari's semi-transparent background */
+  background-color: #fff;
 }
 
 h1,

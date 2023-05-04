@@ -2,6 +2,7 @@ import $ from "jquery";
 
 import { features, OptionType } from "./core/options/options_registry";
 import "./features/register_feature_options";
+import { isWikiTreeUrl } from "./core/common";
 import { restoreOptions, restoreData } from "./upload";
 
 $("h1").prepend($("<img src='" + chrome.runtime.getURL("images/wikitree-small.png") + "'>"));
@@ -427,6 +428,9 @@ $("#settings").on("click", function () {
     modal.fadeOut(400, function () {
       $(this).remove();
     });
+    modal.find("a[href^='blob:'").each(function () {
+      URL.revokeObjectURL(this.href);
+    });
   };
   modal.on("click", function (e) {
     if (this === e.target) {
@@ -439,12 +443,12 @@ $("#settings").on("click", function () {
       '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Settings &amp; Data Backup</div>' +
       '<div class="dialog-content"><ul>' +
       '<li title="This would be like toggling all of the radio buttons back to the default. Each feature\'s options will be preserved."><button id="btnResetOptions">Default Features</button> Enable only the default features.</li>' +
-      '<li title="This will pop up a dialog to select the download location for your feature options."><button id="btnExportOptions">Back Up Options</button> Back up your current feature options.</li>' +
+      '<li title="This will download a backup file with your current feature options."><button id="btnExportOptions">Back Up Options</button> Back up your current feature options.</li>' +
       '<li title="This will pop up a dialog to select the backup file for your feature options. This will overwrite your current options."><button id="btnImportOptions">Restore Options</button> Restore the feature options from a previous backup.</li>' +
       '<li title="Resets all feature options to the defaults. This does not include data stored on WikiTree by features like My Menu, Extra Watchlist, etc."><button id="btnClearOptions">Reset Options</button> Reset all options to the defaults.</li>' +
       '<li class="hide-on-wikitree" style="font-size: 10pt; font-style: italic; color: #bbb; text-align: center;">For more data options, access this from the <a href="https://www.wikitree.com/" style="color: #bbb;" target="_blank">WikiTree</a> site.</li>' +
       '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Data from My Menu, Change Summary Options, Extra Watchlist, Clipboard and Notes, etc.</li>' +
-      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select the download location for your feature data."><button id="btnExportData">Back Up Data</button> Back up your feature data from WikiTree.</li>' +
+      '<li class="hide-unless-wikitree" title="This will download a backup file with your current feature data."><button id="btnExportData">Back Up Data</button> Back up your feature data from WikiTree.</li>' +
       '<li class="hide-unless-wikitree" title="This will pop up a dialog to select your feature data backup file."><button id="btnImportData">Restore Data</button> Restore your feature data on WikiTree.</li>' +
       "</ul></div></div>"
   ).appendTo(modal);
@@ -467,34 +471,8 @@ $("#settings").on("click", function () {
     dialog.fadeOut();
     reset_options(false, hideModal);
   });
-  dialog.find("#btnExportOptions").on("click", function (e) {
-    chrome.storage.sync.get(null, (result) => {
-      const manifest = chrome.runtime.getManifest();
-      let now = new Date();
-      let json = JSON.stringify({
-        extension: manifest.name,
-        version: manifest.version,
-        browser: navigator.userAgent,
-        timestamp: now.toISOString(),
-        features: result,
-      });
-      let link = document.createElement("a");
-      link.download =
-        Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "short" }) // sv-SE uses ISO format
-          .format(now)
-          .replace(":", "")
-          .replace(" ", "_") + "_WBE_options.txt"; // formatted to match WBE data export
-      let blob = new Blob([json], { type: "text/plain" });
-      link.href = URL.createObjectURL(blob);
-      link.click();
-      URL.revokeObjectURL(link.href);
-      hideModal();
-    });
-  });
-  dialog.find("#btnExportData").on("click", function (e) {
-    backup();
-    hideModal();
-  });
+  dialog.find("#btnExportOptions").on("click", exportOptionsClicked);
+  dialog.find("#btnExportData").on("click", exportDataClicked);
   dialog.find("#btnImportOptions").on("click", function (e) {
     if (navigator.userAgent.indexOf("Firefox/") > -1) {
       window.open(
@@ -506,11 +484,9 @@ $("#settings").on("click", function () {
       restoreOptions(() => {
         dialog.fadeOut();
       })
+        .then(hideModal)
         .catch(() => {
           alert("The options file was not valid.");
-        })
-        .finally(() => {
-          hideModal();
         });
     }
   });
@@ -525,11 +501,9 @@ $("#settings").on("click", function () {
       restoreData(() => {
         dialog.fadeOut();
       })
+        .then(hideModal)
         .catch(() => {
           alert("The data file was not valid.");
-        })
-        .finally(() => {
-          hideModal();
         });
     }
   });
@@ -647,20 +621,80 @@ chrome.storage.onChanged.addListener(function () {
   restore_options();
 });
 
-if (chrome && chrome.tabs && chrome.tabs.query) {
-  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-    if (tabs[0].url) {
-      if (tabs[0].url.match("wikitree.com")) {
-        $("html").addClass("is-on-wikitree");
+(function (tabs) {
+  if (tabs && tabs.query) {
+    tabs.query({}, function (tabs) {
+      for (let tab of tabs) {
+        if (isWikiTreeUrl(tab.url)) {
+          $("html").addClass("is-on-wikitree");
+          break;
+        }
       }
-    }
+    });
+  }
+})((typeof browser !== "undefined" ? browser : chrome).tabs);
+
+function wrapBackupData(key, data) {
+  const manifest = chrome.runtime.getManifest();
+  let now = new Date();
+  let wrapped = {
+    id:
+      Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "medium" }) // sv-SE uses ISO format
+        .format(now)
+        .replace(/:/g, "")
+        .replace(/ /g, "_") +
+      "_WBE_backup_" +
+      key,
+    extension: manifest.name,
+    version: manifest.version,
+    browser: navigator.userAgent,
+    timestamp: now.toISOString(),
+  };
+  wrapped[key] = data;
+  return wrapped;
+}
+
+function getBackupLink(wrappedJsonData) {
+  let link = document.createElement("a");
+  let json = JSON.stringify(wrappedJsonData);
+  if (/(?=.*\bSafari\b)(?!.*\b(Chrome|Firefox)\b).*/.test(navigator.userAgent)) {
+    // Safari doesn't handle blobs or the download attribute properly
+    link.href = "data:application/octet-stream;base64," + window.btoa(json);
+    link.target = "_blank";
+  } else {
+    let blob = new Blob([json], { type: "text/plain" });
+    link.href = URL.createObjectURL(blob);
+    link.download = wrappedJsonData.id + ".txt";
+  }
+  return link;
+}
+
+function downloadBackupData(key, data, button) {
+  const wrapped = wrapBackupData(key, data);
+  const link = $(getBackupLink(wrapped)).addClass("button download").text("Download").hide();
+  $(button).hide().parent().append(" ").append(link);
+  link.fadeIn();
+}
+
+function exportOptionsClicked() {
+  const button = this;
+  chrome.storage.sync.get(null, (result) => {
+    downloadBackupData("features", result, button);
   });
 }
 
-function backup() {
-  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-    chrome.tabs.sendMessage(tabs[0].id, { greeting: "backup" }, function (response) {
-      console.log(response.farewell);
-    });
+function exportDataClicked() {
+  const button = this;
+  chrome.tabs.query({}, function (tabs) {
+    for (let tab of tabs) {
+      if (isWikiTreeUrl(tab.url)) {
+        chrome.tabs.sendMessage(tab.id, { greeting: "backupData" }, function (response) {
+          if (response && response.ack && response.backup) {
+            downloadBackupData("data", response.backup, button);
+          }
+        });
+        break;
+      }
+    }
   });
 }

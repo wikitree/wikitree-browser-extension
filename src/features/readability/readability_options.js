@@ -85,7 +85,7 @@ import { isCategoryPage, isProfilePage, isSpacePage } from "../../core/pageType"
       }
     });
   }
-})(chrome.storage.sync);
+})((typeof browser !== "undefined" ? browser : chrome).storage.sync);
 
 const readabilityFeature = {
   name: "Readability Options",
