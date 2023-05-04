@@ -173,7 +173,9 @@ checkIfFeatureEnabled("usabilityTweaks").then((result) => {
       // focusFirstNameField
       if (options.focusFirstNameField) {
         setTimeout(function () {
-          if ($("#wpFirst").length) {
+          if ($("#mFirstName").length) {
+            $("#mFirstName").trigger("focus");
+          } else if ($("#wpFirst").length) {
             $("#wpFirst").trigger("focus");
           } else {
             $("input[name='wpFirst']").eq(0).trigger("focus");

@@ -19,7 +19,7 @@ const usabilityTweaks = {
         {
           id: "focusFirstNameField",
           type: OptionType.CHECKBOX,
-          label: "Put the focus in the First Name search field.",
+          label: "Put the focus in the First Name field (search field or Add Person First Name at Birth).",
           defaultValue: false,
         },
       ],
@@ -59,4 +59,3 @@ const usabilityTweaks = {
   ],
 };
 registerFeature(usabilityTweaks);
-
