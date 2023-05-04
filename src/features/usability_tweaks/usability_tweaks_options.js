@@ -12,6 +12,19 @@ const usabilityTweaks = {
   pages: [true],
   options: [
     {
+      id: "global",
+      type: OptionType.GROUP,
+      label: "Global",
+      options: [
+        {
+          id: "focusFirstNameField",
+          type: OptionType.CHECKBOX,
+          label: "Put the focus in the First Name search field.",
+          defaultValue: false,
+        },
+      ],
+    },
+    {
       id: "editPage",
       type: OptionType.GROUP,
       label: "Profile edit page",
@@ -46,3 +59,4 @@ const usabilityTweaks = {
   ],
 };
 registerFeature(usabilityTweaks);
+

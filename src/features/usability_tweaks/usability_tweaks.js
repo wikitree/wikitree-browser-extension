@@ -169,6 +169,17 @@ checkIfFeatureEnabled("usabilityTweaks").then((result) => {
           }
         }, 1000);
       }
+
+      // focusFirstNameField
+      if (options.focusFirstNameField) {
+        setTimeout(function () {
+          if ($("#wpFirst").length) {
+            $("#wpFirst").trigger("focus");
+          } else {
+            $("input[name='wpFirst']").eq(0).trigger("focus");
+          }
+        }, 1000);
+      }
     });
   }
 });
