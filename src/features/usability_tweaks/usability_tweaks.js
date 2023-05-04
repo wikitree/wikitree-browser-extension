@@ -1,5 +1,5 @@
 import $ from "jquery";
-import { isSearchPage, isProfileEdit, isProfileAddRelative } from "../../core/pageType";
+import { isSearchPage, isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType";
 import "./usability_tweaks.css";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
@@ -58,15 +58,12 @@ checkIfFeatureEnabled("usabilityTweaks").then((result) => {
   if (result) {
     getFeatureOptions("usabilityTweaks").then((options) => {
       window.usabilityTweaksOptions = options;
-      console.log(123);
-      console.log(isSearchPage);
-      console.log(options);
 
       // Add save form button
       if (isSearchPage && options.saveSearchFormDataButton) {
         addSaveSearchFormDataButton();
       }
-      if (isProfileAddRelative && options.saveSearchFormDataButton) {
+      if ((isProfileAddRelative || isAddUnrelatedPerson) && options.saveSearchFormDataButton) {
         addUseSearchFormDataButton();
       }
 
