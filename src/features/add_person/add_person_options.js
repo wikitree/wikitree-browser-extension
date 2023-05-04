@@ -18,7 +18,7 @@ const addPersonRedesign = {
     {
       id: "additionalFields",
       type: OptionType.CHECKBOX,
-      label: "Add additional fields (Prefix, Nicknames, Other Last Names, and Suffix)",
+      label: "Add additional fields (Prefix, Nicknames, Other Last Names, Suffix, and Biography)",
       defaultValue: false,
     },
   ],
