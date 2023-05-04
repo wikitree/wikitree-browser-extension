@@ -226,10 +226,10 @@ function reportResults(reportLines) {
     // if the status class is too much, a big yellow box take out following line
     bioCheckResultsContainer.setAttribute('class', 'status');
 
-    let bioCheckTitle = document.createElement("b");
+    let bioCheckTitle = document.createElement("div");
     bioCheckTitle.innerText = "Bio Check results\u00A0\u00A0"; // TODO use style?
     bioCheckResultsContainer.appendChild(bioCheckTitle);
-    setHelp(bioCheckResultsContainer);
+    setHelp(bioCheckTitle);
   }
 
   // need a new set of results
@@ -266,7 +266,14 @@ function reportResults(reportLines) {
 function checkSources() {
 
   // Don't check if just connecting existing profile
-  if (!document.getElementById('editAction_connectExisting').checked) {
+  // and this checkbox is not on add unrelated person
+  let addingNewProfile = true;
+  if (document.getElementById('editAction_connectExisting')) {
+    if (document.getElementById('editAction_connectExisting').checked) {
+      addingNewProfile = false;
+    }
+  }
+  if (addingNewProfile) {
     let thePerson = new PersonDate();
     // get the bio text and person dates to check
     let sourcesStr = document.getElementById("mSources").value;
@@ -322,11 +329,11 @@ function reportSources(invalidSourceLines, isValid, hasStyleIssues, titleMsg) {
       // if the status class is too much, a big yellow box take out following line
       bioCheckSourcesContainer.setAttribute('class', 'status');
 
-      bioCheckTitle = document.createElement("b");
+      bioCheckTitle = document.createElement("div");
       bioCheckTitle.setAttribute("id", "bioCheckTitle");
       bioCheckTitle.innerText = titleMsg; // fill contents of the title each time you are here in case data changes
       bioCheckSourcesContainer.appendChild(bioCheckTitle);
-      setHelp(bioCheckSourcesContainer);
+      setHelp(bioCheckTitle);
     }
   }
 
