@@ -189,6 +189,16 @@ checkIfFeatureEnabled("addPersonRedesign").then((result) => {
           );
         }
         document.querySelector("#mLastNameCurrent").value = lastNameCurrent;
+
+        const notesRow = $(`<tr>
+<td align="right" valign="top" id="notesLabel">
+<a title="Added by WBE">Biography</a>:
+</td>
+<td>
+<textarea class="small" id="mBioWithoutSources" name="mBioWithoutSources" rows="5" cols="80" placeholder="Add your biography here or wait until you reach the edit page."></textarea>
+</td>
+</tr>`);
+        $("#sourcesLabel").closest("tr").before(notesRow);
       }
     });
 
