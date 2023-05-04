@@ -428,6 +428,9 @@ $("#settings").on("click", function () {
     modal.fadeOut(400, function () {
       $(this).remove();
     });
+    modal.find("a[href^='blob:'").each(function () {
+      URL.revokeObjectURL(this.href);
+    });
   };
   modal.on("click", function (e) {
     if (this === e.target) {
@@ -468,16 +471,8 @@ $("#settings").on("click", function () {
     dialog.fadeOut();
     reset_options(false, hideModal);
   });
-  dialog.find("#btnExportOptions").on("click", function (e) {
-    chrome.storage.sync.get(null, (result) => {
-      downloadBackupData("features", result);
-    });
-  });
-  dialog.find("#btnExportData").on("click", function (e) {
-    backupData().then(() => {
-      hideModal();
-    });
-  });
+  dialog.find("#btnExportOptions").on("click", exportOptionsClicked);
+  dialog.find("#btnExportData").on("click", exportDataClicked);
   dialog.find("#btnImportOptions").on("click", function (e) {
     if (navigator.userAgent.indexOf("Firefox/") > -1) {
       window.open(
@@ -637,7 +632,7 @@ chrome.storage.onChanged.addListener(function () {
       }
     });
   }
-})((browser || chrome).tabs);
+})((typeof browser !== "undefined" ? browser : chrome).tabs);
 
 function wrapBackupData(key, data) {
   const manifest = chrome.runtime.getManifest();
@@ -662,47 +657,44 @@ function wrapBackupData(key, data) {
 function getBackupLink(wrappedJsonData) {
   let link = document.createElement("a");
   let json = JSON.stringify(wrappedJsonData);
-  link.download = wrappedJsonData.id + ".txt";
-  if (!!window.safari) {
-    link.href = "data:text/plain;base64," + window.btoa(json);
+  if (/(?=.*\bSafari\b)(?!.*\b(Chrome|Firefox)\b).*/.test(navigator.userAgent)) {
+    // Safari doesn't handle blobs or the download attribute properly
+    link.href = "data:application/octet-stream;base64," + window.btoa(json);
+    link.target = "_blank";
   } else {
     let blob = new Blob([json], { type: "text/plain" });
     link.href = URL.createObjectURL(blob);
+    link.download = wrappedJsonData.id + ".txt";
   }
   return link;
 }
 
-function downloadBackupData(key, data) {
+function downloadBackupData(key, data, button) {
   const wrapped = wrapBackupData(key, data);
-  const link = getBackupLink(wrapped);
-  link.click();
-  if (link.href.indexOf("blob:") === 0) {
-    URL.revokeObjectURL(link.href);
-  }
+  const link = $(getBackupLink(wrapped)).addClass("button download").text("Download").hide();
+  $(button).hide().parent().append(" ").append(link);
+  link.fadeIn();
 }
 
-function backupData() {
-  return new Promise((resolve, reject) => {
-    chrome.tabs.query({}, function (tabs) {
-      for (let tab of tabs) {
-        if (isWikiTreeUrl(tab.url)) {
-          chrome.tabs.sendMessage(tab.id, { greeting: "backupData" }, function (response) {
-            if (response) {
-              if (response.nak) {
-                reject(response.nak);
-              } else if (response.ack) {
-                if (response.backup) {
-                  downloadBackupData("data", response.backup);
-                  resolve();
-                } else {
-                  reject("no data received");
-                }
-              }
-            }
-          });
-          break;
-        }
+function exportOptionsClicked() {
+  const button = this;
+  chrome.storage.sync.get(null, (result) => {
+    downloadBackupData("features", result, button);
+  });
+}
+
+function exportDataClicked() {
+  const button = this;
+  chrome.tabs.query({}, function (tabs) {
+    for (let tab of tabs) {
+      if (isWikiTreeUrl(tab.url)) {
+        chrome.tabs.sendMessage(tab.id, { greeting: "backupData" }, function (response) {
+          if (response && response.ack && response.backup) {
+            downloadBackupData("data", response.backup, button);
+          }
+        });
+        break;
       }
-    });
+    }
   });
 }
