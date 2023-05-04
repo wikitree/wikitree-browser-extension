@@ -175,7 +175,7 @@ checkIfFeatureEnabled("usabilityTweaks").then((result) => {
         setTimeout(function () {
           if ($("#mFirstName").length) {
             $("#mFirstName").trigger("focus");
-          } else if ($("#wpFirst").length) {
+          } else if ($("#wpFirst").length && $("b:Contains('Search Results')").length == 0) {
             $("#wpFirst").trigger("focus");
           } else {
             $("input[name='wpFirst']").eq(0).trigger("focus");
