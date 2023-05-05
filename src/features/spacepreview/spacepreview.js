@@ -7,104 +7,167 @@ import $ from "jquery";
 import "../../thirdparty/jquery.hoverDelay";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
+let previewClasses = "x-page-preview";
+
 function onHoverIn($element) {
   hideActivePreview();
-  let $popup = $('<div id="activePagePreview" class="x-page-preview" style="display: none;"></div>');
-
+  let $popup = $('<div id="activePagePreview" class="' + previewClasses + '" style="display: none;"></div>');
   const match = $element[0].href.match(/\/wiki\/((Space|Category):.*?)(#.*|$)/i);
-  $element.after($popup);
-
-  if (match[2].toLowerCase() === "space") {
-    const targetId = decodeURIComponent(match[1]);
-    populateSpacePreview($popup, targetId, 0);
-  } else {
-    populateCategoryPreview($popup, $element[0].href);
-  }
-}
-
-function populateSpacePreview($popup, spaceId, redirectCount) {
-  // this can be recursive since getProfile does not handle redirects on space pages
-  if (redirectCount === 0) {
-    $popup.data("targetId", spaceId);
-  }
-  try {
-    $.ajax({
-      url: "https://api.wikitree.com/api.php",
-      type: "POST",
-      dataType: "json",
-      data: {
-        action: "getProfile",
-        key: spaceId.replace(/ /g, "_"),
-        fields: "Bio",
-        bioFormat: "both",
-        resolveRedirect: 0,
-        appId: "WBE_spacepreview",
-      },
-      xhrFields: { withCredentials: true },
-    }).done(function (results) {
-      let bio = null;
-      if (results && results.length && results[0] && results[0].profile && (bio = results[0].profile.bioHTML)) {
-        let redirectMatch;
-        if ((redirectMatch = results[0].profile.bio.match(/^\s*#REDIRECT \[\[\s*(Space:.*)\s*\]\]\s*$/))) {
-          // make sure we don't get stuck in an endless recursive loop of redirects
-          if (++redirectCount < 5) {
-            populateSpacePreview(redirectMatch[1], redirectCount);
-          }
-        } else {
-          $popup.get(0).innerHTML =
-            (redirectCount > 0
-              ? `<div class="x-redirect-alert">[[${$popup.data("targetId")}]] redirected ` +
-                (redirectCount > 1 ? `${redirectCount} times` : "") +
-                ` to [[${results[0].page_name}]]</div>`
-              : "") + bio;
-          addCloseButton($popup);
-          $popup.fadeIn("fast");
-        }
-      }
+  getPreviewContent(
+    match[2].toLowerCase(), // page type (Space, Category, Help, etc.)
+    decodeURIComponent(match[1]), // prefixed ID (Space:WikiTree_Browser_Extension, Category:Cemeteries, Help:Apps)
+    $element[0].href // page URL
+  )
+    .then((content) => {
+      $element.after($popup);
+      $popup.append(content.body);
+      addCloseButton($popup);
+      $popup.prepend(
+        $('<h2 class="preview-title"></h2>')
+          .append($("<a></a>").attr("href", $element[0].href).text(content.title))
+          .append(
+            '<button aria-label="Copy ID" class="copyWidget" data-copy-text="' +
+              decodeURIComponent(match[1]).replace(/_/g, " ") +
+              '" style="color:#8fc641;"><img src="/images/icons/scissors.png">ID</button><button aria-label="Copy Wiki Link" class="copyWidget" data-copy-label="Copy Wiki Link" data-copy-text="[[:' +
+              decodeURIComponent(match[1]).replace(/_/g, " ") +
+              ']]" style="color:#8fc641;">/Link</button><button aria-label="Copy URL" class="copyWidget" data-copy-label="Copy URL" data-copy-text="' +
+              (window.location.href.match(/^.*\/{2,}.*?(?=\/)/) ?? "") +
+              "/wiki/" +
+              match[1] +
+              '" style="color:#8fc641;">/URL</button>'
+          )
+      );
+      $popup.fadeIn("fast");
+    })
+    .catch((reason) => {
+      console.warn(reason);
+      hideActivePreview();
     });
-  } catch (err) {
-    console.warn(err);
-    hideActivePreview();
-  }
 }
 
-function populateCategoryPreview($popup, url) {
-  try {
+function getPreviewContent(type, pageId, url) {
+  return new Promise((resolve, reject) => {
+    const parse =
+      type === "space"
+        ? parseSpaceContent // free-space profiles
+        : type === "category"
+        ? parseCategoryContent // category profiles
+        : parsePageContent; // any other generic content page
+    fetch(type, pageId, url)
+      .then((response) => {
+        // do stuff with the content
+        resolve(parse(response));
+      })
+      .catch((reason) => {
+        reject(reason);
+      });
+  });
+}
+
+function fetch(type, pageId, url) {
+  // right now, we have to get the full HTML from the page because the user may not be authenticated on the API
+  return new Promise((resolve, reject) => {
     $.ajax({
       url: url,
       type: "GET",
       xhrFields: { withCredentials: true },
-    }).done(function (result) {
-      if (result) {
-        let $content = $(result);
-        if ($content && ($content = $content.find("h1").first())) {
-          let $keep = $content.next();
-          $content.prevAll().addBack().remove();
-          $content = $keep
-            .siblings(".SMALL")
-            .filter(function () {
-              return $(this).has("a.toggleSection");
-            })
-            .first();
-          $content.prev("br").remove();
-          $keep = $content.prev();
-          $content.nextAll().addBack().remove();
-          $content = $keep.parent();
-          $popup.get(0).innerHTML = $content.html();
-          addCloseButton($popup);
-          $popup.fadeIn("fast");
+    })
+      .done((data, textStatus, jqXHR) => {
+        if (data) {
+          resolve(data);
+        } else {
+          reject(textStatus);
+        }
+      })
+      .fail((jqXHR, textStatus, errorThrown) => {
+        reject(errorThrown);
+      });
+  });
+}
+
+function parsePageContent(response) {
+  let content = {
+    document: response.replace(/(<\/?)(?=script)/g, "$1no"), // sanitize script tags
+    body: "<div></div>",
+  };
+  let $content = $(content.document);
+  content.title =
+    $content.find("h1").first().clone().children().remove().end().text() ?? $content.find("title").first().text();
+  if ($content && ($content = $content.find("h1").first())) {
+    let $keep = $content.next();
+    $content.prevAll().addBack().remove();
+    content.body = $keep.parent().html();
+  }
+  return content;
+}
+
+function parseSpaceContent(response) {
+  let content = parsePageContent(response);
+  let $content = $(content.document);
+  $content = $content.find(".columns.ten");
+  // mark all elements above the TOC or first heading as part of the header
+  let head = $content.children("h2, .toc").first();
+  if (head.length > 0) {
+    head = head.get(0).previousSibling;
+    while (head) {
+      let node = head;
+      head = head.previousSibling;
+      if (node.nodeType === 3) {
+        $(node).wrap('<span class="preview-header"></span>');
+      } else {
+        node = $(node).addClass("preview-header");
+        if (node.is('.SMALL[style*="background-color"]')) {
+          node.removeClass("preview-header").addClass("preview-audit");
         }
       }
-    });
-  } catch (err) {
-    console.warn(err);
-    hideActivePreview();
+    }
   }
+  // if the first h2 matches the page title (as many pages do), hide it if the title is shown
+  $content
+    .children("h2")
+    .first()
+    .filter(function () {
+      let title = (content.title ?? "").replace(/(^\s+)|(\s+$)/g, "");
+      let heading = ($(this).find(".mw-headline").text() ?? "").replace(/(^\s+)|(\s+$)/g, "");
+      return heading && heading === title;
+    })
+    .addClass("same-title");
+  // remove memories
+  let $memories = $content.find("a[name='Memories']");
+  $memories.prev().nextAll().addBack().remove();
+  // remove <br> tags and the invite button from the bottom
+  [].reverse.call($content.children()).each(function (index, element) {
+    if ($(element).is("br, a.button")) {
+      element.remove();
+      return true;
+    }
+    return false;
+  });
+  content.body = $content.html();
+  return content;
+}
+
+function parseCategoryContent(response) {
+  let content = parsePageContent(response);
+  if (content.title) {
+    content.title = content.title.replace(/^\s*Category\s*:\s*/, "");
+  }
+  let $content = $("<div></div>").html(content.body);
+  let $subs = $content
+    .children(".SMALL")
+    .filter(function () {
+      return $(this).has("a.toggleSection");
+    })
+    .first();
+  $subs.prev("br").remove();
+  $subs.nextAll().addBack().remove();
+  content.body = $content.html();
+  return content;
 }
 
 function addCloseButton($popup) {
   $popup.prepend(
-    $('<a href="#" class="x-preview-close">&#x2716;</a>')
+    $('<a href="#" class="x-preview-close" title="Click here to go back">&#x2716;</a>')
       .on("auxclick", function (e) {
         e.stopPropagation();
         e.preventDefault();
@@ -173,6 +236,13 @@ async function initFeature() {
   spacePagePreview = options.spacePagePreview !== false;
   categoryPagePreview = !!options.categoryPagePreview;
 
+  if (options.showTitle !== false) previewClasses += " show-title";
+  if (options.showScissors !== false) previewClasses += " show-scissors";
+  if (options.showHeader !== false) previewClasses += " show-header";
+  if (!!options.showAudit) previewClasses += " show-audit";
+  if (!!options.showEdit) previewClasses += " show-edit";
+  if (!!options.showToc) previewClasses += " show-toc";
+
   $(() => {
     new MutationObserver(function (mutations) {
       for (const mutation of mutations) {
@@ -187,7 +257,7 @@ async function initFeature() {
 
   // intercept clicks outside of the preview to close it
   $(document).on("click", function (event) {
-    if ($(event.target).closest("#spacePreview").length === 0) {
+    if ($(event.target).closest("#activePagePreview").length === 0) {
       hideActivePreview();
     }
   });
