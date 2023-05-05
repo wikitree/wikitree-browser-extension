@@ -82,7 +82,6 @@ function sortTouched(order = "touched") {
 }
 
 function recentChange(person) {
-  console.log(person);
   $("#ewlEmpty").hide();
   let pt = false;
   let ptOut = "";
@@ -348,8 +347,6 @@ function doExtraWatchlist() {
       bits.forEach(function (aKey) {
         if (aKey.match("Space:")) {
           get_Profile(decodeURIComponent(aKey)).then((person) => {
-            console.log(person);
-            console.log(person[0]);
             addToExtraWatchlist(person[0]);
           });
         }
@@ -400,8 +397,14 @@ async function extraWatchlist() {
     e.preventDefault();
 
     if ($("#extraWatchlistWindow").length == 0) {
+      const mouseY = e.pageY;
       const eww = $("<div id='extraWatchlistWindow' class='ui-widget-content'></div>");
       eww.insertAfter($("#views-wrap"));
+      eww.css({
+        position: "absolute",
+        top: mouseY,
+        // left: mouseX,
+      });
       if ($("body.profile").length == 0) {
         eww.insertAfter($("#header,.qa-header"));
       }
