@@ -114,8 +114,15 @@ function parseSpaceContent(response) {
   let $content = $(content.document);
   let $categories = $content.find("#categories");
   $content = $content.find(".columns.ten");
+  // flag the colored audit box plus the div below it to clear the float
+  $content
+    .find('.SMALL[style*="background-color"] + div[style*=clear]')
+    .addClass("preview-audit")
+    .prevAll('.SMALL[style*="background-color"]')
+    .addClass("preview-audit");
   // mark all elements above the TOC or first heading as part of the header
   let head = $content.children("h2, .toc").first();
+  if (head.length === 0) head = $content.children(".preview-audit").first();
   if (head.length > 0) {
     head = head.get(0).previousSibling;
     while (head) {
@@ -130,7 +137,6 @@ function parseSpaceContent(response) {
         }
       }
     }
-    $content.find(".preview-audit + div[style*=clear]").addClass("preview-audit");
     $content.find(".preview-audit ~ .preview-header").removeClass("preview-header").addClass("preview-other");
     $content
       .find('.preview-other > a[href*="/wiki/Space:"]')
@@ -190,7 +196,7 @@ function parseCategoryContent(response) {
 
 function addCloseButton($popup) {
   $popup.prepend(
-    $('<a href="#" class="x-preview-close" title="Click here to go back">&#x2716;</a>')
+    $('<a href="#" class="x-preview-close" title="Click here to close this preview window">&#x2716;</a>')
       .on("auxclick", function (e) {
         e.stopPropagation();
         e.preventDefault();
