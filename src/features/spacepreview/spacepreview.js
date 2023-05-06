@@ -112,6 +112,7 @@ function parsePageContent(response) {
 function parseSpaceContent(response) {
   let content = parsePageContent(response);
   let $content = $(content.document);
+  let $categories = $content.find("#categories");
   $content = $content.find(".columns.ten");
   // mark all elements above the TOC or first heading as part of the header
   let head = $content.children("h2, .toc").first();
@@ -129,7 +130,19 @@ function parseSpaceContent(response) {
         }
       }
     }
+    $content.find(".preview-audit + div[style*=clear]").addClass("preview-audit");
     $content.find(".preview-audit ~ .preview-header").removeClass("preview-header").addClass("preview-other");
+    $content
+      .find('.preview-other > a[href*="/wiki/Space:"]')
+      .closest(".preview-other")
+      .filter(function () {
+        return /^\s*(Other):/.test($(this).text());
+      })
+      .removeClass("preview-other")
+      .addClass("preview-links");
+    // move category links directly below the audit section
+    $content.find(".preview-audit").last().after($('<p class="preview-links"></p>').html($categories.html()));
+    $content.find("p.preview-links + p.preview-links").first().prev().addClass("first-of-many");
   }
   // if the first h2 matches the page title (as many pages do), hide it if the title is shown
   $content
@@ -162,6 +175,7 @@ function parseCategoryContent(response) {
     content.title = content.title.replace(/^\s*Category\s*:\s*/, "");
   }
   let $content = $("<div></div>").html(content.body);
+  $content.find('p > a[href$="/wiki/Category:Categories"]:first-child').closest("p").addClass("preview-links");
   let $subs = $content
     .children(".SMALL")
     .filter(function () {
@@ -248,6 +262,7 @@ async function initFeature() {
   if (options.showTitle !== false) previewClasses += " show-title";
   if (options.showScissors !== false) previewClasses += " show-scissors";
   if (options.showHeader !== false) previewClasses += " show-header";
+  if (options.showLinks !== false) previewClasses += " show-links";
   if (!!options.showAudit) previewClasses += " show-audit";
   if (!!options.showEdit) previewClasses += " show-edit";
   if (!!options.showToc) previewClasses += " show-toc";

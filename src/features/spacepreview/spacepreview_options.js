@@ -65,6 +65,12 @@ const pagePreviewFeature = {
           defaultValue: false,
         },
         {
+          id: "showLinks",
+          type: OptionType.CHECKBOX,
+          label: 'Show "Categories:" and "Other:" links at the top',
+          defaultValue: true,
+        },
+        {
           id: "showEdit",
           type: OptionType.CHECKBOX,
           label: "Show edit links",
