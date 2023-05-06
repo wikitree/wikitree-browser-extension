@@ -394,8 +394,8 @@ async function addHalfsStyle() {
 function addDataToPerson(el, pData) {
   if (pData) {
     let oGender = "";
-    if (!(pData.DataStatus.Gender == "blank" || pData.Gender == "")) {
-      oGender = pData.Gender;
+    if (!(pData?.DataStatus?.Gender == "blank" || !pData.Gender)) {
+      oGender = pData.Gender || "";
     }
     el.attr("data-gender", oGender);
     el.attr("data-id", pData.Id);
@@ -598,8 +598,6 @@ function makeFamLists() {
       }
       if (anIMG.attr("src")) {
         if (anIMG.attr("src").match("dna/DNA")) {
-          console.log("dna found");
-          console.log(window.parentDNA);
           if (!window.parentDNA) {
             window.parentDNA = [];
           }
@@ -607,7 +605,6 @@ function makeFamLists() {
             Name: $(aParent).find("span[itemprop='name']").text(),
             IMG: $(aParent.nextElementSibling),
           });
-          console.log(window.parentDNA);
           aParent.setAttribute("data-dna", $(aParent).find("span[itemprop='name']").text());
         }
       }
@@ -819,7 +816,10 @@ function list2ol(items, olid) {
   nList.id = olid;
   nList.className = "nameList";
   items[0].parentNode.insertBefore(nList, items[0]);
-
+  let isPrivate = false;
+  if (!window.people[0].Name) {
+    isPrivate = true;
+  }
   items.forEach(function (item) {
     var dHalf;
     let nLi = document.createElement("li");
@@ -868,8 +868,6 @@ function list2ol(items, olid) {
           nLi.append(anIMG.IMG[0]);
         }
       });
-      //      let anImg = dnaImg.clone();
-      //      nLi.append(anImg[0]);
     }
     nList.appendChild(nLi);
 
@@ -881,15 +879,50 @@ function list2ol(items, olid) {
       let did = decodeURIComponent(dbits[1].replace(/#.*/, ""));
       let dPeep = "";
       let peeps = window.people;
-
       let pLen = peeps.length;
       for (let w = 0; w < pLen; w++) {
-        if (did == peeps[w].Name.replace(/_/g, " ")) {
-          dPeep = peeps[w];
+        if (peeps[w].Name) {
+          if (did == peeps[w].Name.replace(/_/g, " ")) {
+            dPeep = peeps[w];
+          }
+        } else if (peeps[w].Id) {
+          const linkElement = $('ul.profile-tabs a[href*="Special:TrustedList"]');
+
+          if (linkElement.length > 0) {
+            const href = linkElement.attr("href");
+            const regex = /u=(\d+)/;
+            const match = href.match(regex);
+
+            if (match) {
+              const uValue = match[1];
+              if (uValue == peeps[w].Id) {
+                dPeep = peeps[w];
+                const changesTabElement = $('ul.profile-tabs a[href*="Special:NetworkFeed"]');
+                const href2 = changesTabElement.attr("href");
+                const regex2 = /who=(.+)/;
+                const match2 = href2.match(regex2);
+                if (match2) {
+                  dPeep.Name = match2[1];
+                  dPeep.FirstName = $("span[itemprop='givenName']").text();
+                  dPeep.LastNameAtBirth = $("span[itemprop='familyName']").text();
+                  dPeep.LastNameCurrent = $("a[title='Current Last Name']").text();
+                  dPeep.LastNameAtBirth = $("a[title='Last Name at Birth']").text();
+                  dPeep.BirthDate = $("time[itemprop='birthDate']").attr("datetime");
+                  dPeep.DeathDate = $("time[itemprop='deathDate']").attr("datetime");
+                  dPeep.Gender = "";
+                }
+              }
+            }
+          } else {
+            console.log("Link not found.");
+          }
         }
       }
-      addDataToPerson($(dLink).closest("li"), dPeep);
-      list2ol2(dPeep);
+
+      if (dPeep && !isPrivate) {
+        addDataToPerson($(dLink).closest("li"), dPeep);
+        list2ol2(dPeep);
+      }
     }
   });
   while (nList.nextSibling) {
@@ -897,7 +930,9 @@ function list2ol(items, olid) {
   }
 
   window.inserted = false;
-  window.insertInterval = setInterval(insertInSibList, 500);
+  if (!isPrivate) {
+    window.insertInterval = setInterval(insertInSibList, 500);
+  }
   window.triedInsertSib = 0;
 }
 
@@ -909,7 +944,10 @@ function list2ol2(person) {
   if (pdata != null && pdata != undefined) {
     if (typeof pdata["BirthDate"] != "undefined") {
       dob = pdata["BirthDate"];
-      dobStatus = status2symbol(pdata["DataStatus"]["BirthDate"]);
+      dobStatus = "";
+      if (pdata.DataStatus) {
+        dobStatus = status2symbol(pdata?.DataStatus?.BirthDate);
+      }
     } else {
       dob = "";
     }
@@ -1620,7 +1658,6 @@ export function getAge(start, end = false) {
     end_day = parseInt(start.end.date);
     end_month = parseInt(start.end.month);
     end_year = parseInt(start.end.year);
-    console.log();
   } else {
     const startSplit = start.split("-");
     start_day = parseInt(startSplit[2]);
