@@ -68,7 +68,10 @@ async function initReadability() {
     });
   }
   if (options.indentSrcPlainText) {
-    $(".x-sources.x-text-only").wrapInner('<dl class="x-sources x-text-only"><dd></dd></dl>').children().unwrap();
+    $(".x-sources.x-text-only")
+      .wrapInner('<dl class="section-sources x-sources x-text-only"><dd></dd></dl>')
+      .children()
+      .unwrap();
   }
   if (options.removeSourceBreaks / 1 || options.removeSourceLabels || options.boldSources) {
     let qy = $(".x-src");
@@ -305,8 +308,8 @@ async function initReadability() {
           }
         });
     }
-    if (options.collapseSources / 1 > 0) {
-      // when clicking on a citation, make sure that the sources are not collapsed
+    if (options.collapseSources / 1 > 0 || options.collapseResearchNotes / 1 > 0) {
+      // when clicking on a citation, make sure that the containing section is not collapsed
       $(".x-content sup.reference a, .x-content a[href^='#']")
         .filter(function () {
           if (!$(this).parent().is("sup.reference")) {
@@ -319,16 +322,19 @@ async function initReadability() {
                   el = el[0];
                 }
               }
-              if (el && $(el).closest(".x-sources").length > 0) {
-                return true; // any links to elements under the sources section should also trigger this
+              let $section;
+              if (el && ($section = $(el).closest(".section-sources, .section-researchnotes")) && $section.length > 0) {
+                el.xContainingSection = $section.get(0).className.match(/\bsection-\S+/)[0]; // remember the section for later when we need to trigger expansion
+                return true; // any links to elements under the containing section should also trigger this
               }
             }
-            return false; // any other links should not expand the sources
+            return false; // any other links should not expand the section
           }
           return true; // any citations by <ref> tags are automatically covered
         })
         .on("click", function () {
-          let $chk = $(".collapse-sources input#sources_checkbox");
+          let targetSection = this.xContainingSection && this.xContainingSection.match(/\bsection-(\S+)/)[1];
+          let $chk = $(".collapse-" + targetSection + " input#" + targetSection + "_checkbox");
           let chk = $chk.get(0);
           if (chk && !chk.checked) {
             chk.checked = true;
@@ -391,14 +397,19 @@ async function initReadability() {
     if (isToggled(options.hideInlineTables)) {
       $("html").toggleClass("hide-inline-tables");
     }
-    if (options.collapseSources / 1 === 254) {
-      if (initToggleOptions) {
-        // this turns the toggle button on, but it starts out as expanded instead of collapsed (see below)
-        $("html").toggleClass("collapse-sources");
-      }
-    } else if (isToggled(options.collapseSources)) {
-      $("html").toggleClass("collapse-sources");
-    }
+    (function (collapsibleSections) {
+      collapsibleSections.forEach(function (section) {
+        let sectionLower = section.toLowerCase();
+        if (options["collapse" + section] / 1 === 254) {
+          if (initToggleOptions) {
+            // this turns the toggle button on, but it starts out as expanded instead of collapsed (see below)
+            $("html").toggleClass("collapse-" + sectionLower);
+          }
+        } else if (isToggled(options["collapse" + section])) {
+          $("html").toggleClass("collapse-" + sectionLower);
+        }
+      });
+    })(["Sources", "ResearchNotes"]);
     if (isToggled(options.hideCitations)) {
       $("html").toggleClass("hide-citations");
     }
@@ -449,37 +460,50 @@ async function initReadability() {
     initToggleOptions = false;
   };
 
-  if (options.collapseSources) {
-    let toggleSourcesSection = function () {
-      $("html").toggleClass("expand-sources");
-    };
-    let startExpanded = options.collapseSources / 1 === 254; // by default we start collapsed, but in some cases we may need to start expanded
-    if (!startExpanded && !!window.location.hash) {
-      let target = document.getElementById(window.location.hash.substring(1));
-      if (!target) {
-        target = document.getElementsByName(window.location.hash.substring(1));
-        if (target.length > 0) {
-          target = target[0];
+  (function (collapsibleSections) {
+    collapsibleSections.forEach(function (section) {
+      let sectionLower = section.toLowerCase();
+      if (options["collapse" + section]) {
+        let toggleSection = function () {
+          $("html").toggleClass("expand-" + sectionLower);
+        };
+        let startExpanded = options["collapse" + section] / 1 === 254; // by default we start collapsed, but in some cases we may need to start expanded
+        if (!startExpanded && !!window.location.hash) {
+          let target = document.getElementById(window.location.hash.substring(1));
+          if (!target) {
+            target = document.getElementsByName(window.location.hash.substring(1));
+            if (target.length > 0) {
+              target = target[0];
+            }
+          }
+          if (target && $(target).closest(".section-" + sectionLower).length > 0) {
+            // only expand if the target is part of the containing section
+            startExpanded = true;
+          }
         }
+        if (startExpanded) {
+          toggleSection();
+        }
+        let toggleElement = $(
+          '<span class="toggle toggle-section show-' +
+            sectionLower +
+            '"><input type="checkbox" id="toggle_section_' +
+            sectionLower +
+            '"' +
+            (startExpanded ? ' checked="checked"' : "") +
+            '><label for="toggle_section_' +
+            sectionLower +
+            '"></label></span>'
+        );
+        toggleElement.find("input").on("change", function () {
+          toggleSection();
+        });
+        $("h2.section-" + sectionLower)
+          .first()
+          .append(toggleElement);
       }
-      if (target && $(target).closest(".x-sources").length > 0) {
-        // only expand if the target is part of the Sources section
-        startExpanded = true;
-      }
-    }
-    if (startExpanded) {
-      toggleSourcesSection();
-    }
-    let toggleElement = $(
-      '<span class="toggle show-sources"><input type="checkbox" id="sources_checkbox"' +
-        (startExpanded ? ' checked="checked"' : "") +
-        '><label for="sources_checkbox"></label></span>'
-    );
-    toggleElement.find("input").on("change", function () {
-      toggleSourcesSection();
     });
-    $("h2.x-sources").first().append(toggleElement);
-  }
+  })(["Sources", "ResearchNotes"]);
 
   if (options.hideBackground) {
     let bgStyle = $(".x-style-bg");
