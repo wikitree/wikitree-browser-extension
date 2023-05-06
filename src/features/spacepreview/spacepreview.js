@@ -37,6 +37,14 @@ function onHoverIn($element) {
               '" style="color:#8fc641;">/URL</button>'
           )
       );
+      let visibleElements = $popup.children().filter(function () {
+        if ($(this).css("visibility") !== "hidden") {
+          return !($(this).is(".x-preview-close") || !$(this).text());
+        }
+        return false;
+      });
+      visibleElements.first().addClass("x-first-visible");
+      visibleElements.last().addClass("x-last-visible");
       $popup.fadeIn("fast");
     })
     .catch((reason) => {
@@ -112,7 +120,7 @@ function parseSpaceContent(response) {
     while (head) {
       let node = head;
       head = head.previousSibling;
-      if (node.nodeType === 3) {
+      if (node.nodeType === 3 && /\S/.test(node.textContent)) {
         $(node).wrap('<span class="preview-header"></span>');
       } else {
         node = $(node).addClass("preview-header");
@@ -121,6 +129,7 @@ function parseSpaceContent(response) {
         }
       }
     }
+    $content.find(".preview-audit ~ .preview-header").removeClass("preview-header").addClass("preview-other");
   }
   // if the first h2 matches the page title (as many pages do), hide it if the title is shown
   $content

@@ -55,7 +55,7 @@ const pagePreviewFeature = {
         {
           id: "showHeader",
           type: OptionType.CHECKBOX,
-          label: "Show header (tags, categories, etc.)",
+          label: "Show header (date, location, tags/surnames)",
           defaultValue: true,
         },
         {

@@ -43,10 +43,10 @@
   text-decoration: none !important;
 }
 
-.x-page-preview > :first-child {
+.x-page-preview > .x-first-visible {
   margin-top: 0;
 }
-.x-page-preview > :last-child {
+.x-page-preview > .x-last-visible {
   margin-bottom: 0;
 }
 
@@ -64,8 +64,10 @@
 .x-page-preview:not(.show-edit) .editsection,
 .x-page-preview:not(.show-toc) > .toc {
   display: none;
+  visibility: hidden;
 }
 
 .x-page-preview > br.preview-header {
   line-height: 0;
+  visibility: hidden;
 }
