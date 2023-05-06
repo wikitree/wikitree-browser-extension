@@ -48,7 +48,7 @@ function onHoverIn($element) {
         $('<h2 class="preview-title"></h2>')
           .append($("<a></a>").attr("href", $element[0].href).text(content.title))
           .append(
-            '<button aria-label="Copy ID" class="copyWidget" data-copy-text="' +
+            ' <button aria-label="Copy ID" class="copyWidget" data-copy-text="' +
               decodeURIComponent(match[1]).replace(/_/g, " ") +
               '" style="color:#8fc641;"><img src="/images/icons/scissors.png">ID</button><button aria-label="Copy Wiki Link" class="copyWidget" data-copy-label="Copy Wiki Link" data-copy-text="[[:' +
               decodeURIComponent(match[1]).replace(/_/g, " ") +
@@ -121,8 +121,9 @@ function parsePageContent(response) {
     body: "<div></div>",
   };
   let $content = $(content.document);
-  content.title =
-    $content.find("h1").first().clone().children().remove().end().text() ?? $content.find("title").first().text();
+  content.title = (
+    $content.find("h1").first().clone().children().remove().end().text() ?? $content.find("title").first().text()
+  )?.replace(/(^\s+)|(\s+$)/g, "");
   if ($content && ($content = $content.find("h1").first())) {
     let $keep = $content.next();
     $content.prevAll().addBack().remove();
@@ -177,9 +178,8 @@ function parseSpaceContent(response) {
     .children("h2")
     .first()
     .filter(function () {
-      let title = (content.title ?? "").replace(/(^\s+)|(\s+$)/g, "");
       let heading = ($(this).find(".mw-headline").text() ?? "").replace(/(^\s+)|(\s+$)/g, "");
-      return heading && heading === title;
+      return heading && heading === content.title;
     })
     .addClass("same-title");
   // remove memories

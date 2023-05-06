@@ -73,6 +73,7 @@
 }
 
 .x-page-preview:not(.show-title) > .preview-title,
+.x-page-preview:not(.show-scissors) > .preview-title button,
 .x-page-preview.show-title > .same-title,
 .x-page-preview:not(.show-header) > .preview-header,
 .x-page-preview:not(.show-audit) > .preview-audit,
