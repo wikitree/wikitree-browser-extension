@@ -21,12 +21,34 @@ function onHoverIn($element) {
     .then((content) => {
       $element.after($popup);
       $popup.append(content.body);
+      $popup.find('a[name], *[id], a[href^="#"]').each(function () {
+        if (this.name) {
+          this.name = "_xPagePreview_" + this.name;
+        }
+        if (this.id) {
+          this.id = "_xPagePreview_" + this.id;
+        }
+        if (this.href) {
+          $(this).attr("href", $(this).attr("href").replace(/^#/, "#_xPagePreview_"));
+        }
+      });
+      if (previewClasses.indexOf("show-toc") > -1) {
+        let toggleElement = $(
+          '<span class="toggle toggle-toc"><input type="checkbox" id="_xPagePreview_toc_checkbox"' +
+            (previewClasses.indexOf("expand-toc") > -1 ? ' checked="checked"' : "") +
+            '><label for="_xPagePreview_toc_checkbox"></label></span>'
+        );
+        toggleElement.find("input").on("change", function () {
+          $(this).closest(".x-page-preview").toggleClass("expand-toc");
+        });
+        $popup.find("#_xPagePreview_toctitle > h2").first().wrapInner("<span></span>").append(toggleElement);
+      }
       addCloseButton($popup);
       $popup.prepend(
         $('<h2 class="preview-title"></h2>')
           .append($("<a></a>").attr("href", $element[0].href).text(content.title))
           .append(
-            '<button aria-label="Copy ID" class="copyWidget" data-copy-text="' +
+            ' <button aria-label="Copy ID" class="copyWidget" data-copy-text="' +
               decodeURIComponent(match[1]).replace(/_/g, " ") +
               '" style="color:#8fc641;"><img src="/images/icons/scissors.png">ID</button><button aria-label="Copy Wiki Link" class="copyWidget" data-copy-label="Copy Wiki Link" data-copy-text="[[:' +
               decodeURIComponent(match[1]).replace(/_/g, " ") +
@@ -37,6 +59,14 @@ function onHoverIn($element) {
               '" style="color:#8fc641;">/URL</button>'
           )
       );
+      let visibleElements = $popup.children().filter(function () {
+        if ($(this).css("visibility") !== "hidden") {
+          return !($(this).is(".x-preview-close") || !$(this).text());
+        }
+        return false;
+      });
+      visibleElements.first().addClass("x-first-visible");
+      visibleElements.last().addClass("x-last-visible");
       $popup.fadeIn("fast");
     })
     .catch((reason) => {
@@ -91,8 +121,9 @@ function parsePageContent(response) {
     body: "<div></div>",
   };
   let $content = $(content.document);
-  content.title =
-    $content.find("h1").first().clone().children().remove().end().text() ?? $content.find("title").first().text();
+  content.title = (
+    $content.find("h1").first().clone().children().remove().end().text() ?? $content.find("title").first().text()
+  )?.replace(/(^\s+)|(\s+$)/g, "");
   if ($content && ($content = $content.find("h1").first())) {
     let $keep = $content.next();
     $content.prevAll().addBack().remove();
@@ -104,15 +135,23 @@ function parsePageContent(response) {
 function parseSpaceContent(response) {
   let content = parsePageContent(response);
   let $content = $(content.document);
+  let $categories = $content.find("#categories");
   $content = $content.find(".columns.ten");
+  // flag the colored audit box plus the div below it to clear the float
+  $content
+    .find('.SMALL[style*="background-color"] + div[style*=clear]')
+    .addClass("preview-audit")
+    .prevAll('.SMALL[style*="background-color"]')
+    .addClass("preview-audit");
   // mark all elements above the TOC or first heading as part of the header
   let head = $content.children("h2, .toc").first();
+  if (head.length === 0) head = $content.children(".preview-audit").first();
   if (head.length > 0) {
     head = head.get(0).previousSibling;
     while (head) {
       let node = head;
       head = head.previousSibling;
-      if (node.nodeType === 3) {
+      if (node.nodeType === 3 && /\S/.test(node.textContent)) {
         $(node).wrap('<span class="preview-header"></span>');
       } else {
         node = $(node).addClass("preview-header");
@@ -121,15 +160,26 @@ function parseSpaceContent(response) {
         }
       }
     }
+    $content.find(".preview-audit ~ .preview-header").removeClass("preview-header").addClass("preview-other");
+    $content
+      .find('.preview-other > a[href*="/wiki/Space:"]')
+      .closest(".preview-other")
+      .filter(function () {
+        return /^\s*(Other):/.test($(this).text());
+      })
+      .removeClass("preview-other")
+      .addClass("preview-links");
+    // move category links directly below the audit section
+    $content.find(".preview-audit").last().after($('<p class="preview-links"></p>').html($categories.html()));
+    $content.find("p.preview-links + p.preview-links").first().prev().addClass("first-of-many");
   }
   // if the first h2 matches the page title (as many pages do), hide it if the title is shown
   $content
     .children("h2")
     .first()
     .filter(function () {
-      let title = (content.title ?? "").replace(/(^\s+)|(\s+$)/g, "");
       let heading = ($(this).find(".mw-headline").text() ?? "").replace(/(^\s+)|(\s+$)/g, "");
-      return heading && heading === title;
+      return heading && heading === content.title;
     })
     .addClass("same-title");
   // remove memories
@@ -153,6 +203,7 @@ function parseCategoryContent(response) {
     content.title = content.title.replace(/^\s*Category\s*:\s*/, "");
   }
   let $content = $("<div></div>").html(content.body);
+  $content.find('p > a[href$="/wiki/Category:Categories"]:first-child').closest("p").addClass("preview-links");
   let $subs = $content
     .children(".SMALL")
     .filter(function () {
@@ -167,7 +218,7 @@ function parseCategoryContent(response) {
 
 function addCloseButton($popup) {
   $popup.prepend(
-    $('<a href="#" class="x-preview-close" title="Click here to go back">&#x2716;</a>')
+    $('<a href="#" class="x-preview-close" title="Click here to close this preview window">&#x2716;</a>')
       .on("auxclick", function (e) {
         e.stopPropagation();
         e.preventDefault();
@@ -239,9 +290,14 @@ async function initFeature() {
   if (options.showTitle !== false) previewClasses += " show-title";
   if (options.showScissors !== false) previewClasses += " show-scissors";
   if (options.showHeader !== false) previewClasses += " show-header";
+  if (options.showLinks !== false) previewClasses += " show-links";
   if (!!options.showAudit) previewClasses += " show-audit";
   if (!!options.showEdit) previewClasses += " show-edit";
-  if (!!options.showToc) previewClasses += " show-toc";
+  if (options.tocDisplay % 2 === 1) {
+    previewClasses += " show-toc";
+    import("../../core/toggleCheckbox.css");
+  }
+  if (options.tocDisplay / 1 >= 2) previewClasses += " expand-toc";
 
   $(() => {
     new MutationObserver(function (mutations) {
