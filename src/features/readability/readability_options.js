@@ -232,7 +232,7 @@ const readabilityFeature = {
         {
           id: "removeSourceLabels",
           type: OptionType.SELECT,
-          label: "Remove bold labels (and leading asterisks) from the beginning of sources",
+          label: "Remove bold labels and asterisks from the beginning of sources",
           values: [
             {
               value: 0,
