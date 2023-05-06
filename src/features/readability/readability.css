@@ -62,13 +62,14 @@ sup.reference {
   padding: 4px 0;
 }
 
-.toggle.show-sources {
+.toggle.toggle-section {
   position: relative;
   top: -2px;
   margin-left: 8px;
   visibility: hidden;
 }
 
+.collapse-researchnotes .toggle.show-researchnotes,
 .collapse-sources .toggle.show-sources {
   visibility: visible;
 }
@@ -102,7 +103,8 @@ sup.reference {
   display: none !important;
 }
 
-.collapse-sources:not(.expand-sources) .x-sources:not(h2):not(a[name]) {
+.collapse-researchnotes:not(.expand-researchnotes) .section-researchnotes:not(h2):not(a[name]),
+.collapse-sources:not(.expand-sources) .section-sources:not(h2):not(a[name]) {
   display: none !important;
 }
 
@@ -173,7 +175,7 @@ sup.reference {
 
 @media only print {
   .toggle.reading-mode,
-  .toggle.toggle.show-sources {
+  .toggle.toggle.toggle-section {
     display: none;
   }
 }

@@ -807,6 +807,30 @@ const readabilityFeature = {
               ],
               defaultValue: 0,
             },
+            {
+              id: "collapseResearchNotes",
+              type: OptionType.SELECT,
+              label: "Collapse the Research Notes section",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 254,
+                  text: "only on demand",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 0,
+            },
           ],
         },
         {

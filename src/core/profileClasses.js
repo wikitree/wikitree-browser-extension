@@ -198,19 +198,25 @@ export function ensureProfileClasses() {
     $("a[name='Memories']").prev().addClass("x-memories").nextAll().addClass("x-memories");
     $(".x-memories, .x-content > br:last-child").addClass("x-memories").prevUntil("*:not(br)").addClass("x-memories"); // memories are usually preceded by a couple of line breaks, sometimes present at the end of content even if the memories block is missing
 
-    // mark elements related to the sources section (including header, lists, and any other root elements) up until the next section *** dependent on x-memories being set
-    $(".x-content a[name='Sources']")
-      .first()
-      .addClass("x-sources")
-      .nextUntil(".x-root-section, div.EDIT, .x-memories, br[clear] + div.SMALL")
-      .addClass("x-sources")
-      .each(function () {
-        // sometimes text can be put in the sources section, such as "See also:" (only happens with leading whitespace)
-        if (this.previousSibling.nodeType == 3 && /\S/.test(this.previousSibling.nodeValue)) {
-          $(this.previousSibling).wrap('<p class="x-sources"></p>');
-        }
-      });
-    $(".x-content ol.references").addClass("x-sources");
+    // mark elements related to certain sections (including header, lists, and any other root elements) up until the next section *** dependent on x-memories being set
+    $(".x-content a[name].x-root-section").each(function () {
+      let className = "section-" + this.name.replace(/[\W_]+/g, "").toLowerCase();
+      if (className == "section-sources") {
+        className += " x-sources";
+      }
+      $(this)
+        .first()
+        .nextUntil(".x-root-section, div.EDIT, .x-memories, br[clear] + div.SMALL")
+        .addBack()
+        .addClass(className)
+        .each(function () {
+          // sometimes text can be put in the sources section, such as "See also:" (only happens with leading whitespace)
+          if (this.previousSibling.nodeType == 3 && /\S/.test(this.previousSibling.nodeValue)) {
+            $(this.previousSibling).wrap('<p class="' + className + '"></p>');
+          }
+        });
+    });
+    $(".x-content ol.references").addClass("section-sources x-sources");
 
     // mark plain-text elements at the root of the sources section
     $(".x-content > p.x-sources")
