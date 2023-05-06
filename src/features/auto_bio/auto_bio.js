@@ -5460,7 +5460,7 @@ export async function generateBio() {
   window.biographyPeople = await getPeople(profileID, 0, 0, 0, 0, 1, "*");
   window.profilePerson = window.biographyPeople[0].people[window.biographyPeople[0].resultByKey[profileID].Id];
   const originalFormData = getFormData();
-  fixLocations();
+
   const originalFirstName = window.profilePerson.FirstName;
   // Get the form data and add it to the profilePerson
   const formData = getFormData();
@@ -5478,6 +5478,7 @@ export async function generateBio() {
     assignPersonNames(person);
     setOrderBirthDate(person);
   });
+  fixLocations();
 
   if (!window.autoBioNotes) {
     window.autoBioNotes = [];
