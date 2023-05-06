@@ -62,6 +62,16 @@
   margin-top: 0;
 }
 
+.x-page-preview > .toc td > div > h2 {
+  margin-bottom: 0;
+}
+
+.x-page-preview .toggle.toggle-toc {
+  position: relative;
+  top: -2px;
+  margin-left: 8px;
+}
+
 .x-page-preview:not(.show-title) > .preview-title,
 .x-page-preview.show-title > .same-title,
 .x-page-preview:not(.show-header) > .preview-header,
@@ -71,6 +81,8 @@
 .x-page-preview:not(.show-edit) .BLANK,
 .x-page-preview:not(.show-edit) .preview-links .SMALL,
 .x-page-preview:not(.show-edit) .editsection,
+.x-page-preview > .toc .toctoggle,
+.x-page-preview:not(.expand-toc) > .toc td > div + ul,
 .x-page-preview:not(.show-toc) > .toc {
   display: none;
   visibility: hidden;

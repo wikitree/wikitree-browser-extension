@@ -21,6 +21,28 @@ function onHoverIn($element) {
     .then((content) => {
       $element.after($popup);
       $popup.append(content.body);
+      $popup.find('a[name], *[id], a[href^="#"]').each(function () {
+        if (this.name) {
+          this.name = "_xPagePreview_" + this.name;
+        }
+        if (this.id) {
+          this.id = "_xPagePreview_" + this.id;
+        }
+        if (this.href) {
+          $(this).attr("href", $(this).attr("href").replace(/^#/, "#_xPagePreview_"));
+        }
+      });
+      if (previewClasses.indexOf("show-toc") > -1) {
+        let toggleElement = $(
+          '<span class="toggle toggle-toc"><input type="checkbox" id="_xPagePreview_toc_checkbox"' +
+            (previewClasses.indexOf("expand-toc") > -1 ? ' checked="checked"' : "") +
+            '><label for="_xPagePreview_toc_checkbox"></label></span>'
+        );
+        toggleElement.find("input").on("change", function () {
+          $(this).closest(".x-page-preview").toggleClass("expand-toc");
+        });
+        $popup.find("#_xPagePreview_toctitle > h2").first().wrapInner("<span></span>").append(toggleElement);
+      }
       addCloseButton($popup);
       $popup.prepend(
         $('<h2 class="preview-title"></h2>')
@@ -271,7 +293,11 @@ async function initFeature() {
   if (options.showLinks !== false) previewClasses += " show-links";
   if (!!options.showAudit) previewClasses += " show-audit";
   if (!!options.showEdit) previewClasses += " show-edit";
-  if (!!options.showToc) previewClasses += " show-toc";
+  if (options.tocDisplay % 2 === 1) {
+    previewClasses += " show-toc";
+    import("../../core/toggleCheckbox.css");
+  }
+  if (options.tocDisplay / 1 >= 2) previewClasses += " expand-toc";
 
   $(() => {
     new MutationObserver(function (mutations) {

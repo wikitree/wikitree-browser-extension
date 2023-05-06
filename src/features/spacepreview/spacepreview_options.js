@@ -77,10 +77,24 @@ const pagePreviewFeature = {
           defaultValue: false,
         },
         {
-          id: "showToc",
-          type: OptionType.CHECKBOX,
-          label: "Show table of contents",
-          defaultValue: false,
+          id: "tocDisplay",
+          type: OptionType.SELECT,
+          label: "The table of contents should be",
+          values: [
+            {
+              value: 0,
+              text: "hidden",
+            },
+            {
+              value: 1,
+              text: "collapsed",
+            },
+            {
+              value: 3,
+              text: "expanded",
+            },
+          ],
+          defaultValue: 0,
         },
       ],
     },
