@@ -7,6 +7,7 @@ import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 async function initStickyHeader() {
   let headerHeight = $("#header, .qa-header").first().css("height");
+  let subHeight = $(".qa-nav-sub").first().css("height");
   if (headerHeight) {
     document.documentElement.style.setProperty("--header-height", headerHeight);
     if (!$("body").is(".home")) {
@@ -17,6 +18,9 @@ async function initStickyHeader() {
         window.location.hash = hash;
       }
     }
+  }
+  if (subHeight) {
+    document.documentElement.style.setProperty("--header-sub-height", subHeight);
   }
 }
 
