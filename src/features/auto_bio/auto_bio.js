@@ -5626,7 +5626,7 @@ export async function generateBio() {
     const encodedLink = encodeGuid(link);
     try {
       let result = await $.ajax({
-        url: "https://wikitreebee.com:3000/citation",
+        url: "https://wikitreebee.com/citation",
         type: "GET",
         data: { link: encodedLink },
         dataType: "text",
