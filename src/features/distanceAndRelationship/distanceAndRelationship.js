@@ -4,9 +4,31 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import Cookies from "js-cookie";
-//import { getPerson } from "wikitree-js";
-
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+
+const fixOrdinalSuffix = (text) => {
+  const pattern = /(\d+)(?:st|nd|rd|th)\b/g;
+  return text.replace(pattern, (_, num) => {
+    const numInt = parseInt(num, 10);
+    let suffix = "th";
+
+    if (![11, 12, 13].includes(numInt % 100)) {
+      switch (numInt % 10) {
+        case 1:
+          suffix = "st";
+          break;
+        case 2:
+          suffix = "nd";
+          break;
+        case 3:
+          suffix = "rd";
+          break;
+      }
+    }
+
+    return num + suffix;
+  });
+};
 
 checkIfFeatureEnabled("distanceAndRelationship").then((result) => {
   // define user and profile IDs
@@ -260,8 +282,6 @@ function doRelationshipText(userID, profileID) {
     if (data) {
       var out = "";
       var aRelationship = true;
-      //const commonAncestors = [];
-      //let realOut = "";
       let dummy = $("<html></html>");
       dummy.append($(data.html));
       if (dummy.find("h1").length) {
@@ -326,6 +346,8 @@ function doRelationshipText(userID, profileID) {
         let outSplit = out.split(" ");
         outSplit[0] = ordinalWordToNumberAndSuffix(outSplit[0]);
         out = outSplit.join(" ");
+        out = fixOrdinalSuffix(out);
+        console.log(out);
         if (
           $("#yourRelationshipText").length == 0 &&
           $(".ancestorTextText").length == 0 &&
@@ -456,6 +478,44 @@ export function ordinalWordToNumberAndSuffix(word) {
     ["twenty-third", "23rd"],
     ["twenty-fourth", "24th"],
     ["twenty-fifth", "25th"],
+    ["twenty-sixth", "26th"],
+    ["twenty-seventh", "27th"],
+    ["twenty-eigth", "28th"],
+    ["twenty-ninth", "29th"],
+    ["thirtieth", "30th"],
+    ["thirty-first", "31st"],
+    ["thirty-second", "32nd"],
+    ["thirty-third", "33rd"],
+    ["thirty-fourth", "34th"],
+    ["thirty-fifth", "35th"],
+    ["thirty-sixth", "36th"],
+    ["thirty-seventh", "37th"],
+    ["thirty-eigth", "38th"],
+    ["thirty-ninth", "39th"],
+    ["fortieth", "40th"],
+    ["forty-first", "41st"],
+    ["forty-second", "42nd"],
+    ["forty-third", "43rd"],
+    ["forty-fourth", "44th"],
+    ["forty-fifth", "45th"],
+    ["forty-sixth", "46th"],
+    ["forty-seventh", "47th"],
+    ["forty-eigth", "48th"],
+    ["forty-ninth", "49th"],
+    ["fiftieth", "50th"],
+    ["fifty-first", "51st"],
+    ["fifty-second", "52nd"],
+    ["fifty-third", "53rd"],
+    ["fifty-fourth", "54th"],
+    ["fifty-fifth", "55th"],
+    ["fifty-sixth", "56th"],
+    ["fifty-seventh", "57th"],
+    ["fifty-eigth", "58th"],
+    ["fifty-ninth", "59th"],
+    ["sixtieth", "60th"],
+    ["sixty-first", "61st"],
+    ["sixty-second", "62nd"],
+    ["sixty-third", "63rd"],
   ];
   ordinalsArray.forEach(function (arr) {
     if (word == arr[0]) {
