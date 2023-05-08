@@ -1,8 +1,19 @@
 /*
 Created By: Ian Beacall (Beacall-6)
 */
+import $ from "jquery";
 import "./table_filters.css";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+
+function repositionFilterRow(table) {
+  const hasTbody = table.querySelector("tbody") !== null;
+  const headerRow = hasTbody ? table.querySelector("tbody tr:first-child") : table.querySelector("tr:first-child");
+  const filterRow = table.querySelector(".filter-row");
+
+  if (filterRow.nextSibling !== headerRow) {
+    headerRow.parentElement.insertBefore(filterRow, headerRow.nextSibling);
+  }
+}
 
 function addFiltersToWikitables() {
   const tables = document.querySelectorAll(".wikitable,.wt.names");
@@ -11,7 +22,6 @@ function addFiltersToWikitables() {
     const hasTbody = table.querySelector("tbody") !== null;
     const headerRow = hasTbody ? table.querySelector("tbody tr:first-child") : table.querySelector("tr:first-child");
 
-    // Check if the header row has any th cells, if not create a dummy header row with empty th cells
     let headerCells = headerRow.querySelectorAll("th");
     let isFirstRowHeader = headerCells.length > 0;
     if (!isFirstRowHeader) {
@@ -44,35 +54,94 @@ function addFiltersToWikitables() {
     } else {
       headerRow.parentElement.insertBefore(filterRow, headerRow);
     }
+
+    const sortArrows = table.querySelectorAll(".sortheader");
+    sortArrows.forEach((arrow) => {
+      arrow.addEventListener("click", () => {
+        setTimeout(() => {
+          repositionFilterRow(table);
+        }, 100);
+      });
+    });
   });
 
-  const filterFunction = (event) => {
-    const input = event.target;
-    const text = input.value.toLowerCase();
-    const columnIndex = Array.from(input.parentElement.parentElement.children).indexOf(input.parentElement);
-    const table = input.closest(".wikitable") || input.closest(".wt.names");
+  const filterFunction = () => {
+    const table = tables[0];
     const hasTbody = table.querySelector("tbody") !== null;
     const rows = hasTbody ? table.querySelectorAll("tbody tr") : table.querySelectorAll("tr");
+    const filterInputs = table.querySelectorAll(".filter-input");
 
     rows.forEach((row, rowIndex) => {
       if (rowIndex === 0 || row.classList.contains("filter-row") || row.querySelector("th")) {
         return;
       }
 
-      const cell = row.children[columnIndex];
-      const cellText = cell.textContent.toLowerCase();
+      let displayRow = true;
 
-      if (cellText.includes(text)) {
-        row.style.display = "";
-      } else {
-        row.style.display = "none";
-      }
+      filterInputs.forEach((input, inputIndex) => {
+        const text = input.value.toLowerCase();
+        const columnIndex = Array.from(input.parentElement.parentElement.children).indexOf(input.parentElement);
+        const cell = row.children[columnIndex];
+        const cellText = cell.textContent.toLowerCase();
+
+        if (!cellText.includes(text)) {
+          displayRow = false;
+        }
+      });
+
+      row.style.display = displayRow ? "" : "none";
     });
   };
 
+  function updateClearFiltersButtonVisibility() {
+    const anyFilterHasText = Array.from(document.querySelectorAll(".filter-input")).some(
+      (input) => input.value.trim() !== ""
+    );
+
+    clearFiltersButton.style.display = anyFilterHasText ? "block" : "none";
+  }
+
   document.querySelectorAll(".filter-input").forEach((input) => {
-    input.addEventListener("input", filterFunction);
+    input.addEventListener("input", () => {
+      filterFunction();
+      updateClearFiltersButtonVisibility();
+    });
   });
+
+  // Add Clear Filters button
+  const clearFiltersButton = document.createElement("button");
+  clearFiltersButton.textContent = "X";
+  clearFiltersButton.title = "Clear Filters";
+  clearFiltersButton.id = "clearTableFiltersButton";
+  clearFiltersButton.style.position = "absolute";
+  clearFiltersButton.addEventListener("click", () => {
+    document.querySelectorAll(".filter-input").forEach((input) => {
+      input.value = "";
+    });
+    filterFunction();
+    updateClearFiltersButtonVisibility();
+  });
+
+  // Position the Clear Filters button
+  const filterRow = tables[0].querySelector(".filter-row");
+  const filterRowRect = filterRow.getBoundingClientRect();
+  const xButtonStyle = {
+    position: "absolute",
+    top: `${filterRowRect.top + window.scrollY}px`,
+    left: `${filterRowRect.right + 5}px`,
+  };
+  Object.assign(clearFiltersButton.style, xButtonStyle);
+
+  // Add the button to the page
+  document.body.appendChild(clearFiltersButton);
+
+  // Update the button position on window scroll
+  window.addEventListener("scroll", () => {
+    const filterRowRect = filterRow.getBoundingClientRect();
+    clearFiltersButton.style.top = `${filterRowRect.top + window.scrollY}px`;
+  });
+  // Initially hide the button
+  clearFiltersButton.style.display = "none";
 }
 
 checkIfFeatureEnabled("tableFilters").then((result) => {

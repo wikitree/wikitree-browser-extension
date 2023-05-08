@@ -16,3 +16,8 @@ table tr.filter-row input[type="text"] {
   -moz-transition: border-color 0.2s ease-in-out;
   transition: border-color 0.2s ease-in-out;
 }
+#clearTableFiltersButton {
+  font-size: 0.8em;
+  padding: 0.3em 0.5em;
+  text-align: center;
+}
