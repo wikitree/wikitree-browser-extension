@@ -33,6 +33,12 @@ const pagePreviewFeature = {
           label: "Enable previews on category page links",
           defaultValue: false,
         },
+        {
+          id: "otherPagePreview",
+          type: OptionType.CHECKBOX,
+          label: "Enable previews on special page links (Help, Projects, etc.)",
+          defaultValue: false,
+        },
       ],
     },
     {
@@ -55,7 +61,7 @@ const pagePreviewFeature = {
         {
           id: "showHeader",
           type: OptionType.CHECKBOX,
-          label: "Show header (date, location, tags/surnames)",
+          label: "Show header information (date, location, tags/surnames)",
           defaultValue: true,
         },
         {

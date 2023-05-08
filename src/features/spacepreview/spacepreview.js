@@ -11,10 +11,13 @@ let previewClasses = "x-page-preview";
 
 function onHoverIn($element) {
   hideActivePreview();
-  let $popup = $('<div id="activePagePreview" class="' + previewClasses + '" style="display: none;"></div>');
-  const match = $element[0].href.match(/\/wiki\/((Space|Category):.*?)(#.*|$)/i);
+  const match = $element[0].href.match(/\/wiki\/((\w+):.*?)(#.*|$)/i);
+  const pageType = match[2].toLowerCase();
+  let $popup = $(
+    '<div id="activePagePreview" class="' + previewClasses + " preview-" + pageType + '" style="display: none;"></div>'
+  );
   getPreviewContent(
-    match[2].toLowerCase(), // page type (Space, Category, Help, etc.)
+    pageType, // page type (Space, Category, Help, etc.)
     decodeURIComponent(match[1]), // prefixed ID (Space:WikiTree_Browser_Extension, Category:Cemeteries, Help:Apps)
     $element[0].href // page URL
   )
@@ -42,6 +45,27 @@ function onHoverIn($element) {
           $(this).closest(".x-page-preview").toggleClass("expand-toc");
         });
         $popup.find("#_xPagePreview_toctitle > h2").first().wrapInner("<span></span>").append(toggleElement);
+      }
+      if (pageType === "space") {
+        let $links = $popup.find(".preview-links");
+        if ($links.length > 0) {
+          // put all the links together in a green box container
+          $popup.prepend(
+            ($links = $('<div class="box green rounded preview-links"></div>').append(
+              $links.removeClass("preview-links")
+            ))
+          );
+        }
+      } else {
+        $popup
+          .find("p.SMALL, p.small")
+          .filter(function () {
+            let txt = $(this).text();
+            return txt.indexOf("last modified") > -1 && txt.indexOf("been accessed") > -1;
+          })
+          .prevUntil(":not(br)")
+          .addBack()
+          .addClass("preview-audit"); // this text is displayed at the bottom on other content pages
       }
       addCloseButton($popup);
       $popup.prepend(
@@ -171,7 +195,15 @@ function parseSpaceContent(response) {
       .addClass("preview-links");
     // move category links directly below the audit section
     $content.find(".preview-audit").last().after($('<p class="preview-links"></p>').html($categories.html()));
-    $content.find("p.preview-links + p.preview-links").first().prev().addClass("first-of-many");
+    let $header = $content.find(".preview-header");
+    if ($header.length > 0) {
+      // put all the header items together in a gray box container
+      $content.prepend(
+        ($header = $('<div class="box rounded preview-header"></div>').append($header.removeClass("preview-header")))
+      );
+      $header.find(":not(br)").first().prevAll().remove();
+      $header.children(":not(:last-child)").after("\n");
+    }
   }
   // if the first h2 matches the page title (as many pages do), hide it if the title is shown
   $content
@@ -249,23 +281,31 @@ function hideActivePreview() {
 }
 
 let spacePagePreview = true,
-  categoryPagePreview = false;
+  categoryPagePreview = false,
+  otherPagePreview = false;
 
 function attachHover(target) {
   if (spacePagePreview || categoryPagePreview) {
     const selectors = [
       spacePagePreview ? 'a[href*="/wiki/Space:"]' : null,
       categoryPagePreview ? 'a[href*="/wiki/Category:"]' : null,
+      otherPagePreview ? 'a[href*="/wiki/Help:"]' : null,
+      otherPagePreview ? 'a[href*="/wiki/Project:"]' : null,
+      otherPagePreview ? 'a[href*="/wiki/Special:"]' : null,
     ]
       .join(", ")
       .replace(/^[\s,]+|[\s,]+$/g, "");
     $(target)
       .find(selectors)
       .filter(function () {
+        // do not apply to links in the menus/header/footer (like Help)
+        if ($(this).closest("#header").length > 0 || $(this).closest("#footer").length > 0) {
+          return false;
+        }
         // make sure each element is only wired up once
         if (!this.xHasSpaceHover) {
-          // don't wire up space previews inside other space preview windows
-          if ($(this).closest(".x-page-preview").length > 0) {
+          // don't wire up page previews inside other preview windows
+          if ($(this).closest(".x-page-preview, .x-source-preview").length > 0) {
             return false;
           }
           this.xHasSpaceHover = true;
@@ -286,6 +326,7 @@ async function initFeature() {
   const options = await getFeatureOptions("spacePreviews");
   spacePagePreview = options.spacePagePreview !== false;
   categoryPagePreview = !!options.categoryPagePreview;
+  otherPagePreview = !!options.otherPagePreview;
 
   if (options.showTitle !== false) previewClasses += " show-title";
   if (options.showScissors !== false) previewClasses += " show-scissors";

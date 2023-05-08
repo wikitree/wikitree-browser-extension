@@ -210,9 +210,14 @@ export function ensureProfileClasses() {
         .addBack()
         .addClass(className)
         .each(function () {
-          // sometimes text can be put in the sources section, such as "See also:" (only happens with leading whitespace)
+          /*
+           * Sometimes unwrapped text can be rendered in the body, such as "See also:"
+           * (this seems to happen with leading whitespace or when templates/stickers are
+           * placed within text). Since there are no containers to wrap a section's content,
+           * we have to wrap the text nodes in a <span> tag so that the classes can be applied.
+           */
           if (this.previousSibling.nodeType == 3 && /\S/.test(this.previousSibling.nodeValue)) {
-            $(this.previousSibling).wrap('<p class="' + className + '"></p>');
+            $(this.previousSibling).wrap('<span class="' + className + '"></span>');
           }
         });
     });
