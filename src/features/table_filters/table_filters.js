@@ -146,7 +146,8 @@ function addFiltersToWikitables() {
 
 checkIfFeatureEnabled("tableFilters").then((result) => {
   if (result) {
-    addFiltersToWikitables();
-    console.log("Table Filters enabled");
+    if ($(".wikitable,.wt.names").length > 0) {
+      addFiltersToWikitables();
+    }
   }
 });
