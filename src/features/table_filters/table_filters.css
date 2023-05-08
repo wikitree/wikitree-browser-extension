@@ -1,0 +1,18 @@
+table tr.filter-row input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.1em;
+  border: 1px solid #aaa;
+  border-radius: 0.25em;
+  font-size: 1em;
+  line-height: 1.5em;
+  margin: 0;
+  background-color: #fff;
+  color: #000;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  -webkit-transition: border-color 0.2s ease-in-out;
+  -moz-transition: border-color 0.2s ease-in-out;
+  transition: border-color 0.2s ease-in-out;
+}
