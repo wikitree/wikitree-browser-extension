@@ -656,11 +656,13 @@ function wrapBackupData(key, data) {
 
 function getBackupLink(wrappedJsonData) {
   let link = document.createElement("a");
+  link.title = 'Right-click to "Save as..." at specific location on your device.';
   let json = JSON.stringify(wrappedJsonData);
-  if (/(?=.*\bSafari\b)(?!.*\b(Chrome|Firefox)\b).*/.test(navigator.userAgent)) {
+  if (/^((?!\b(Chrome|Firefox)\/).)*(?=\bSafari\/)/.test(navigator.userAgent)) {
     // Safari doesn't handle blobs or the download attribute properly
     link.href = "data:application/octet-stream;base64," + window.btoa(json);
     link.target = "_blank";
+    link.title = link.title.replace("Save as...", "Download Linked File As...");
   } else {
     let blob = new Blob([json], { type: "text/plain" });
     link.href = URL.createObjectURL(blob);
