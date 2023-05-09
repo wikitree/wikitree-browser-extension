@@ -69,26 +69,6 @@ function waitForCodeMirror(callback) {
   }, 100);
 }
 
-function adjustCodeMirrorHeight(storedHeight) {
-  const cmWrapper = document.querySelector(".CodeMirror");
-  if (cmWrapper && storedHeight) {
-    cmWrapper.style.height = storedHeight + "px";
-  }
-}
-
-function checkForCodeMirror() {
-  const checkInterval = setInterval(function () {
-    if (window.CodeMirror) {
-      clearInterval(checkInterval);
-      const cm = window.CodeMirror.fromTextArea(document.getElementById("wpTextbox1"));
-      const storedHeight = localStorage.getItem("textareaHeight");
-      if (storedHeight) {
-        cm.setSize(null, storedHeight + "px");
-      }
-    }
-  }, 100);
-}
-
 function rememberTextareaHeight() {
   const textarea = document.getElementById("wpTextbox1");
   const enhancedEditorButton = document.getElementById("toggleMarkupColor");
@@ -114,43 +94,31 @@ function rememberTextareaHeight() {
       });
     });
   }
-
-  // Check if the CodeMirror is already initialized
-  if (window.CodeMirror) {
-    waitForCodeMirror(function () {
-      const cm = window.CodeMirror.fromTextArea(document.getElementById("wpTextbox1"));
-      if (storedHeight) {
-        cm.setSize(null, storedHeight + "px");
-      }
-    });
-  } else {
-    waitForCodeMirror(function () {
-      const cm = window.CodeMirror.fromTextArea(document.getElementById("wpTextbox1"));
-      if (storedHeight) {
-        cm.setSize(null, storedHeight + "px");
-      }
-    });
-  }
 }
 
-function resizeOnLoad() {
-  const storedHeight = localStorage.getItem("textareaHeight");
-
-  if (!storedHeight) {
-    return;
-  }
-
-  const textarea = document.getElementById("wpTextbox1");
-  const isCodeMirror = !!window.CodeMirror;
-
-  if (textarea && !isCodeMirror) {
-    textarea.style.height = storedHeight + "px";
-  } else if (isCodeMirror) {
-    waitForCodeMirror(function () {
-      const cm = window.CodeMirror.fromTextArea(document.getElementById("wpTextbox1"));
-      cm.setSize(null, storedHeight + "px");
+function initObserver() {
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === "childList") {
+        const addedNodes = Array.from(mutation.addedNodes);
+        if (addedNodes.some((node) => node.classList && node.classList.contains("CodeMirror"))) {
+          waitForCodeMirror(function () {
+            const cm = window.CodeMirror.fromTextArea(document.getElementById("wpTextbox1"));
+            const storedHeight = localStorage.getItem("textareaHeight");
+            if (storedHeight) {
+              cm.setSize(null, storedHeight + "px");
+            }
+          });
+          observer.disconnect();
+        }
+      }
     });
-  }
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
 }
 
 checkIfFeatureEnabled("usabilityTweaks").then((result) => {
@@ -281,11 +249,17 @@ checkIfFeatureEnabled("usabilityTweaks").then((result) => {
       if (isWikiEdit && options.rememberTextareaHeight) {
         window.addEventListener("load", () => {
           // Call the function on load
-          setTimeout(function () {
-            rememberTextareaHeight();
-            console.log(isWikiEdit);
-            checkForCodeMirror();
-          }, 5000);
+          rememberTextareaHeight();
+
+          // Initialize the observer
+          initObserver();
+
+          // Trigger the button click event twice
+          const enhancedEditorButton = document.getElementById("toggleMarkupColor");
+          if (enhancedEditorButton) {
+            enhancedEditorButton.click();
+            enhancedEditorButton.click();
+          }
         });
       }
     });
