@@ -11,27 +11,35 @@ let removeBackReferences = true;
 
 function onHoverIn($element) {
   hideActivePreview();
-  let $popup = $('<div id="activeSourcePreview" class="x-source-preview" style="display: none;"></div>');
-
-  const citation = $element.closest(".reference").get(0);
-  const targetId = citation.id.replace("ref", "note").replace(/(_[0-9]+$)/g, "");
-  $popup.get(0).innerHTML = document.getElementById(targetId).innerHTML;
+  let x = $element.children("a").get(0).offsetLeft;
+  x = x < 425 ? 0 : x - 425;
+  let $popup = $(
+    '<div id="activeSourcePreview" class="x-source-preview" style="display: none; left: ' + x + 'px;"></div>'
+  );
+  const targetId = $element
+    .get(0)
+    .id.replace("ref", "note")
+    .replace(/(_[0-9]+$)/g, "");
+  $popup.append($("<div></div>").html(document.getElementById(targetId).innerHTML));
   if (removeBackReferences) {
     // remove back-reference links (based on readability.js:54)
-    $popup.contents().each(function () {
-      let el = $(this);
-      if (el.is(".a11y-back-ref, sup, a[href^='#_ref']:first-of-type, span:empty, a[name]:empty")) {
-        $(this).remove();
-        return true; // remove back-reference links
-      }
-      if (this.nodeValue && /^[*\s\u2191]*$/.test(this.nodeValue)) {
-        $(this).remove();
-        return true; // remove whitespace and the up arrow
-      }
-      return false;
-    });
+    $popup
+      .children()
+      .contents()
+      .each(function () {
+        let el = $(this);
+        if (el.is(".a11y-back-ref, sup, a[href^='#_ref']:first-of-type, span:empty, a[name]:empty")) {
+          $(this).remove();
+          return true; // remove back-reference links
+        }
+        if (this.nodeValue && /^[*\s\u2191]*$/.test(this.nodeValue)) {
+          $(this).remove();
+          return true; // remove whitespace and the up arrow
+        }
+        return false;
+      });
   }
-  $popup.appendTo(citation).fadeIn("fast");
+  $popup.appendTo($element).fadeIn("fast");
 }
 
 function hidePreview($element) {
@@ -44,7 +52,7 @@ function hidePreview($element) {
 }
 
 function onHoverOut($element) {
-  hidePreview($element.closest(".reference").find(".x-source-preview"));
+  hidePreview($element.closest(".reference").find(".x-source-preview").addClass("x-preview-hiding"));
 }
 
 function hideActivePreview() {
@@ -62,6 +70,7 @@ function attachHover(target) {
       }
       return false;
     })
+    .parent() // attach to the enclosing .reference, not the link itself
     .hoverDelay({
       delayIn: 500,
       delayOut: 0,
