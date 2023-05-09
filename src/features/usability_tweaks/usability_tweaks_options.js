@@ -41,6 +41,12 @@ const usabilityTweaks = {
           label: "Replace Add/Remove/Replace links with Add, Remove, Connect links.",
           defaultValue: false,
         },
+        {
+          id: "rememberTextareaHeight",
+          type: OptionType.CHECKBOX,
+          label: "Remember the height of the editor on the edit page.",
+          defaultValue: false,
+        },
       ],
     },
     {

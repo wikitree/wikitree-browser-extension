@@ -1,5 +1,11 @@
 import $ from "jquery";
-import { isSearchPage, isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType";
+import {
+  isSearchPage,
+  isProfileEdit,
+  isProfileAddRelative,
+  isAddUnrelatedPerson,
+  isWikiEdit,
+} from "../../core/pageType";
 import "./usability_tweaks.css";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
@@ -50,6 +56,99 @@ function addUseSearchFormDataButton() {
       localStorage.removeItem("searchFormPerson");
       $("#useSearchFormDataButton").remove();
       $("#deleteSearchFromDataButton").remove();
+    });
+  }
+}
+
+function waitForCodeMirror(callback) {
+  const checkInterval = setInterval(function () {
+    if (window.CodeMirror) {
+      clearInterval(checkInterval);
+      callback();
+    }
+  }, 100);
+}
+
+function adjustCodeMirrorHeight(storedHeight) {
+  const cmWrapper = document.querySelector(".CodeMirror");
+  if (cmWrapper && storedHeight) {
+    cmWrapper.style.height = storedHeight + "px";
+  }
+}
+
+function checkForCodeMirror() {
+  const checkInterval = setInterval(function () {
+    if (window.CodeMirror) {
+      clearInterval(checkInterval);
+      const cm = window.CodeMirror.fromTextArea(document.getElementById("wpTextbox1"));
+      const storedHeight = localStorage.getItem("textareaHeight");
+      if (storedHeight) {
+        cm.setSize(null, storedHeight + "px");
+      }
+    }
+  }, 100);
+}
+
+function rememberTextareaHeight() {
+  const textarea = document.getElementById("wpTextbox1");
+  const enhancedEditorButton = document.getElementById("toggleMarkupColor");
+  const storedHeight = localStorage.getItem("textareaHeight");
+
+  if (textarea) {
+    if (storedHeight) {
+      textarea.style.height = storedHeight + "px";
+    }
+
+    textarea.addEventListener("mouseup", function () {
+      localStorage.setItem("textareaHeight", textarea.offsetHeight);
+    });
+  }
+
+  if (enhancedEditorButton) {
+    enhancedEditorButton.addEventListener("click", function () {
+      waitForCodeMirror(function () {
+        const cm = window.CodeMirror.fromTextArea(document.getElementById("wpTextbox1"));
+        if (storedHeight) {
+          cm.setSize(null, storedHeight + "px");
+        }
+      });
+    });
+  }
+
+  // Check if the CodeMirror is already initialized
+  if (window.CodeMirror) {
+    waitForCodeMirror(function () {
+      const cm = window.CodeMirror.fromTextArea(document.getElementById("wpTextbox1"));
+      if (storedHeight) {
+        cm.setSize(null, storedHeight + "px");
+      }
+    });
+  } else {
+    waitForCodeMirror(function () {
+      const cm = window.CodeMirror.fromTextArea(document.getElementById("wpTextbox1"));
+      if (storedHeight) {
+        cm.setSize(null, storedHeight + "px");
+      }
+    });
+  }
+}
+
+function resizeOnLoad() {
+  const storedHeight = localStorage.getItem("textareaHeight");
+
+  if (!storedHeight) {
+    return;
+  }
+
+  const textarea = document.getElementById("wpTextbox1");
+  const isCodeMirror = !!window.CodeMirror;
+
+  if (textarea && !isCodeMirror) {
+    textarea.style.height = storedHeight + "px";
+  } else if (isCodeMirror) {
+    waitForCodeMirror(function () {
+      const cm = window.CodeMirror.fromTextArea(document.getElementById("wpTextbox1"));
+      cm.setSize(null, storedHeight + "px");
     });
   }
 }
@@ -146,7 +245,6 @@ checkIfFeatureEnabled("usabilityTweaks").then((result) => {
       Don't click the button when who is child or spouse and WBEaction is Remove.
       */
         setTimeout(function () {
-          console.log(121);
           const whoValue = new URL(window.location.href).searchParams.get("who");
           const WBEactionValue = new URL(window.location.href).searchParams.get("WBEaction");
           if (WBEactionValue) {
@@ -178,6 +276,17 @@ checkIfFeatureEnabled("usabilityTweaks").then((result) => {
             $("input[name='wpFirst']").eq(0).trigger("focus");
           }
         }, 1000);
+      }
+
+      if (isWikiEdit && options.rememberTextareaHeight) {
+        window.addEventListener("load", () => {
+          // Call the function on load
+          setTimeout(function () {
+            rememberTextareaHeight();
+            console.log(isWikiEdit);
+            checkForCodeMirror();
+          }, 5000);
+        });
       }
     });
   }
