@@ -1,5 +1,11 @@
 import $ from "jquery";
-import { isSearchPage, isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType";
+import {
+  isSearchPage,
+  isProfileEdit,
+  isProfileAddRelative,
+  isAddUnrelatedPerson,
+  isWikiEdit,
+} from "../../core/pageType";
 import "./usability_tweaks.css";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
@@ -52,6 +58,67 @@ function addUseSearchFormDataButton() {
       $("#deleteSearchFromDataButton").remove();
     });
   }
+}
+
+function waitForCodeMirror(callback) {
+  const checkInterval = setInterval(function () {
+    if (window.CodeMirror) {
+      clearInterval(checkInterval);
+      callback();
+    }
+  }, 100);
+}
+
+function rememberTextareaHeight() {
+  const textarea = document.getElementById("wpTextbox1");
+  const enhancedEditorButton = document.getElementById("toggleMarkupColor");
+  const storedHeight = localStorage.getItem("textareaHeight");
+
+  if (textarea) {
+    if (storedHeight) {
+      textarea.style.height = storedHeight + "px";
+    }
+
+    textarea.addEventListener("mouseup", function () {
+      localStorage.setItem("textareaHeight", textarea.offsetHeight);
+    });
+  }
+
+  if (enhancedEditorButton) {
+    enhancedEditorButton.addEventListener("click", function () {
+      waitForCodeMirror(function () {
+        const cm = window.CodeMirror.fromTextArea(document.getElementById("wpTextbox1"));
+        if (storedHeight) {
+          cm.setSize(null, storedHeight + "px");
+        }
+      });
+    });
+  }
+}
+
+function initObserver() {
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === "childList") {
+        const addedNodes = Array.from(mutation.addedNodes);
+        if (addedNodes.some((node) => node.classList && node.classList.contains("CodeMirror"))) {
+          waitForCodeMirror(function () {
+            const cm = window.CodeMirror.fromTextArea(document.getElementById("wpTextbox1"));
+            const storedHeight = localStorage.getItem("textareaHeight");
+            if (storedHeight) {
+              cm.setSize(null, storedHeight + "px");
+            }
+          });
+          observer.disconnect();
+        }
+      }
+    });
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
 }
 
 checkIfFeatureEnabled("usabilityTweaks").then((result) => {
@@ -146,7 +213,6 @@ checkIfFeatureEnabled("usabilityTweaks").then((result) => {
       Don't click the button when who is child or spouse and WBEaction is Remove.
       */
         setTimeout(function () {
-          console.log(121);
           const whoValue = new URL(window.location.href).searchParams.get("who");
           const WBEactionValue = new URL(window.location.href).searchParams.get("WBEaction");
           if (WBEactionValue) {
@@ -178,6 +244,23 @@ checkIfFeatureEnabled("usabilityTweaks").then((result) => {
             $("input[name='wpFirst']").eq(0).trigger("focus");
           }
         }, 1000);
+      }
+
+      if (isWikiEdit && options.rememberTextareaHeight) {
+        window.addEventListener("load", () => {
+          // Call the function on load
+          rememberTextareaHeight();
+
+          // Initialize the observer
+          initObserver();
+
+          // Trigger the button click event twice
+          const enhancedEditorButton = document.getElementById("toggleMarkupColor");
+          if (enhancedEditorButton) {
+            enhancedEditorButton.click();
+            enhancedEditorButton.click();
+          }
+        });
       }
     });
   }
