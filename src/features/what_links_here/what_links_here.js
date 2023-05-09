@@ -33,9 +33,7 @@ async function whatLinksHereSection() {
           getProfile($(this).text(), undefined, "WBE_what_links_here").then((person) => {
             window.whatLinksHereSReponses++;
             if (person?.Name) {
-              let thisWikiLink = $(
-                `<a href="http://www.wikitree.com/wiki/${person.Name}">${displayName(person)[0]}</a>`
-              );
+              let thisWikiLink = $(`<a href="/wiki/${person.Name}">${displayName(person)[0]}</a>`);
               window.whatLinksHereS.push(thisWikiLink);
             }
             if (window.whatLinksHereSReponses == window.whatLinksHereSRequests) {
@@ -72,9 +70,7 @@ async function whatLinksHereSection() {
           });
         } else {
           window.whatLinksHereS.push(
-            $(
-              `<a href="https://www.wikitree.com/wiki/${$(this).attr("href").split("/wiki/")[1]}">${$(this).text()}</a>`
-            )
+            $(`<a href="/wiki/${$(this).attr("href").split("/wiki/")[1]}">${$(this).text()}</a>`)
           );
         }
       });
@@ -103,7 +99,7 @@ async function whatLinksHereLink() {
   if (dLink != "") {
     // Add the link
     const newLi = $(
-      `<li><a class="pureCssMenui whatLinksHere" href="https://www.wikitree.com/index.php?title=Special:Whatlinkshere/${dLink}&limit=1000" title="See what links to this page" id="whatLinksHere">What Links Here</li>`
+      `<li><a class="pureCssMenui whatLinksHere" href="/index.php?title=Special:Whatlinkshere/${dLink}&limit=1000" title="See what links to this page" id="whatLinksHere">What Links Here</li>`
     );
     newLi.insertAfter(findMatchesLi.parent());
   }
