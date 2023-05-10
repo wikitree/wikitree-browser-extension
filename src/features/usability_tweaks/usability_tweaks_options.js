@@ -62,6 +62,19 @@ const usabilityTweaks = {
         },
       ],
     },
+    {
+      id: "other",
+      type: OptionType.GROUP,
+      label: "Other",
+      options: [
+        {
+          id: "fixPrintingBug",
+          type: OptionType.CHECKBOX,
+          label: "Fix a known bug in Chrome on Windows 10 that prevents good printing of WikiTree profiles.",
+          defaultValue: false,
+        },
+      ],
+    },
   ],
 };
 registerFeature(usabilityTweaks);

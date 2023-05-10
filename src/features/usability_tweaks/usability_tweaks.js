@@ -262,6 +262,11 @@ checkIfFeatureEnabled("usabilityTweaks").then((result) => {
           }
         });
       }
+      if (options.fixPrintingBug) {
+        if (navigator.userAgent.indexOf("Windows NT 10.0") != -1) {
+          $("body").addClass("w10");
+        }
+      }
     });
   }
 });
