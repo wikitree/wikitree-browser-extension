@@ -331,6 +331,7 @@ function convertDate(dateString, outputFormat, status = "") {
   dateString = dateString.replaceAll(/-00/g, "");
   // Split the input date string into components
   let components = dateString.split(/[\s,-]+/);
+  /*
   // Determine the format of the input date string
   let inputFormat;
   if (components.length == 1 && /^\d{4}$/.test(components[0])) {
@@ -352,6 +353,30 @@ function convertDate(dateString, outputFormat, status = "") {
     // Short month and year format with no day (e.g. "Jul 2023")
     inputFormat = "MY";
     components.unshift("01");
+  } else if (components.length == 3 && /^[A-Za-z]+/.test(components[1])) {
+    // Day, long month, and year format (e.g. "10 July 1936")
+    inputFormat = "DMY";
+    */
+  // Determine the format of the input date string
+  let inputFormat;
+  if (components.length == 1 && /^\d{4}$/.test(components[0])) {
+    // Year-only format (e.g. "2023")
+    inputFormat = "Y";
+  } else if (components.length == 2 && /^[A-Za-z]{3}$/.test(components[0]) && !/^[A-Za-z]{4,}$/.test(components[0])) {
+    // Short month and year format (e.g. "Jul 2023")
+    inputFormat = "MY";
+  } else if (components.length == 2 && /^[A-Za-z]+/.test(components[0])) {
+    // Long month and year format (e.g. "July 2023")
+    inputFormat = "MDY";
+  } else if (components.length == 3 && /^[A-Za-z]+/.test(components[0])) {
+    // Long month, day, and year format (e.g. "July 23, 2023")
+    inputFormat = "MDY";
+  } else if (components.length == 3 && /^[A-Za-z]{3}$/.test(components[1]) && !/^[A-Za-z]{4,}$/.test(components[1])) {
+    // Short month, day, and year format (e.g. "23 Jul 2023")
+    inputFormat = "DMY";
+  } else if (components.length == 3 && /^[A-Za-z]+/.test(components[1])) {
+    // Day, long month, and year format (e.g. "10 July 1936")
+    inputFormat = "DMY";
   } else if (components.length == 3 && /^\d{2}$/.test(components[1]) && /^\d{2}$/.test(components[2])) {
     // ISO format with no day (e.g. "2023-07-23")
     inputFormat = "ISO";
