@@ -104,7 +104,7 @@ function populateCategoryPreview($popup, url) {
 
 function addCloseButton($popup) {
   $popup.prepend(
-    $('<a href="#" class="x-preview-close">&#x2716;</a>')
+    $('<a href="#" class="x-preview-close" title="Click here to close this preview window">&#x2716;</a>')
       .on("auxclick", function (e) {
         e.stopPropagation();
         e.preventDefault();
@@ -148,6 +148,10 @@ function attachHover(target) {
     $(target)
       .find(selectors)
       .filter(function () {
+        // do not apply to links in the menus/header/footer (like Help)
+        if ($(this).closest("#header").length > 0 || $(this).closest("#footer").length > 0) {
+          return false;
+        }
         // make sure each element is only wired up once
         if (!this.xHasSpaceHover) {
           // don't wire up space previews inside other space preview windows
@@ -187,7 +191,7 @@ async function initFeature() {
 
   // intercept clicks outside of the preview to close it
   $(document).on("click", function (event) {
-    if ($(event.target).closest("#spacePreview").length === 0) {
+    if ($(event.target).closest("#activePagePreview").length === 0) {
       hideActivePreview();
     }
   });
