@@ -1,34 +1,7 @@
 import $ from "jquery";
 import Fuse from "fuse.js";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
-/*
-function fixDates() {
-  $("#mBirthDate,#mDeathDate,#mMarriageDate").on("change", function () {
-    // fix date typos
-    $(this).val(
-      $(this)
-        .val()
-        .replaceAll(/\s+/g, " ")
-        .replaceAll(/[!"#$%&'()~=]/g, "")
-        .replaceAll(/-+/g, "-")
-        .replaceAll(/\s+[-/]/g, "-")
-        .replaceAll(/[-/]\s+/g, "-")
-    );
 
-    // flip Euro dates to ISO dates and handle space-separated dates
-    const euDateMatch = $(this)
-      .val()
-      .replaceAll(/\./g, "-")
-      .match(/(\d{1,2})(\s+)?[\/-\s](\s+)?(\d{1,2})(\s+)?[\/-\s](\s+)?(\d{4})/);
-    if (euDateMatch != null) {
-      const year = euDateMatch[7];
-      const month = euDateMatch[4].padStart(2, "0");
-      const day = euDateMatch[1].padStart(2, "0");
-      $(this).val(`${year}-${month}-${day}`);
-    }
-  });
-}
-*/
 function fixDates() {
   function sanitizeInput(input) {
     return input
