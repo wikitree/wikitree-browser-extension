@@ -17,6 +17,13 @@
   font-weight: normal;
   text-decoration: none;
 }
+dialog .x-page-preview {
+  position: fixed;
+  left: 20%;
+  top: 40%;
+  max-width: min(75vw, 70%);
+  max-height: min(50vh, 450px);
+}
 
 .x-page-preview .EDIT,
 .x-page-preview .editsection {
