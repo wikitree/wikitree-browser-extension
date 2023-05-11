@@ -54,6 +54,7 @@ import "./categoryDisplay/categoryDisplay_options";
 import "./change_family_lists/change_family_lists_options";
 import "./custom_change_summary_options/custom_change_summary_options_options";
 import "./darkMode/darkMode_options";
+import "./date_fixer/date_fixer_options";
 import "./edit_family_data/edit_family_data_options";
 import "./extra_watchlist/extra_watchlist_options";
 import "./g2g/g2g_options";
@@ -162,17 +163,6 @@ registerFeature({
   category: "Global",
   defaultValue: false,
   pages: [true],
-});
-
-registerFeature({
-  name: "Date Fixer",
-  id: "dateFixer",
-  description: "Converts DD/MM/YYY, DD-MM-YYYY, or DD.MM.YYYY to YYYY-MM-DD; Fixes typos in the date fields.",
-  category: "Editing",
-  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
-  defaultValue: false,
-  pages: [isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson],
 });
 
 registerFeature({
