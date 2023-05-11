@@ -5,12 +5,14 @@ import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/opt
 function fixDates() {
   function sanitizeInput(input) {
     return input
-      .replaceAll(/\s+/g, " ")
-      .replaceAll(/[!"#$%&'()~=]/g, "")
-      .replaceAll(/-+/g, "-")
-      .replaceAll(/\/+/g, "/")
-      .replaceAll(/\s+[-/]/g, "-")
-      .replaceAll(/[-/]\s+/g, "-");
+      .replaceAll(/\s+/g, " ") // Replace all occurrences of multiple spaces with a single space
+      .replaceAll(/[!"#$%&'()~=]/g, "") // Remove all special characters
+      .replaceAll(/-+/g, "-") // Replace all occurrences of multiple hyphens with a single hyphen
+      .replaceAll(/\/+/g, "/") // Replace all occurrences of multiple slashes with a single slash
+      .replaceAll(/\s+[-/]/g, "-") // Replace all occurrences of space followed by a hyphen or slash with a single hyphen
+      .replaceAll(/[-/]\s+/g, "-") // Replace all occurrences of a hyphen or slash followed by a space with a single hyphen
+      .replace(/([a-zA-Z])(\d)/g, "$1 $2") // Add a space between a month and a year
+      .replace(/(\d)([a-zA-Z])/g, "$1 $2"); // Add a space between a day and a month
   }
 
   const monthNames = [
@@ -28,33 +30,111 @@ function fixDates() {
     "December",
   ];
 
-  const foreignMonthShortNames = {
-    ene: "Jan", // Spanish
-    gen: "Jan", // Italian
-    sij: "Jan", // Slovenian
-    févr: "Feb", // French
-    fev: "Feb", // Portuguese
-    mär: "Mar", // German
-    avr: "Apr", // French, Portuguese
-    abr: "Apr", // Spanish, Portuguese
-    mai: "May", // French
-    mei: "May", // Dutch
-    mag: "May", // Italian
-    maj: "May", // Slovenian, Swedish
-    juin: "Jun", // French
-    giu: "Jun", // Italian
-    juil: "Jul", // French
-    lug: "Jul", // Italian
-    août: "Aug", // French
-    ago: "Aug", // Spanish, Portuguese
-    avg: "Aug", // Slovenian
-    set: "Sep", // Portuguese, Italian
-    out: "Oct", // Portuguese
-    ott: "Oct", // Italian
-    okt: "Oct", // Dutch, German, Slovenian, Swedish
-    déc: "Dec", // French
-    dic: "Dec", // Spanish, Italian
-    dez: "Dec", // Portuguese, German
+  const nonEnglishMonthNames = {
+    // French
+    janvier: "January",
+    février: "February",
+    mars: "March",
+    avril: "April",
+    mai: "May",
+    juin: "June",
+    juillet: "July",
+    août: "August",
+    septembre: "September",
+    octobre: "October",
+    novembre: "November",
+    décembre: "December",
+    // Spanish
+    enero: "January",
+    febrero: "February",
+    marzo: "March",
+    abril: "April",
+    mayo: "May",
+    junio: "June",
+    julio: "July",
+    agosto: "August",
+    septiembre: "September",
+    octubre: "October",
+    noviembre: "November",
+    diciembre: "December",
+    // German
+    januar: "January",
+    februar: "February",
+    märz: "March",
+    april: "April",
+    //"mai": "May",
+    juni: "June",
+    juli: "July",
+    august: "August",
+    september: "September",
+    oktober: "October",
+    november: "November",
+    dezember: "December",
+    // Dutch
+    januari: "January",
+    februari: "February",
+    maart: "March",
+    // "april": "April",
+    mei: "May",
+    // "juni": "June",
+    // "juli": "July",
+    augustus: "August",
+    // "september": "September",
+    // "oktober": "October",
+    // "november": "November",
+    december: "December",
+    // Portuguese
+    janeiro: "January",
+    fevereiro: "February",
+    março: "March",
+    // "abril": "April",
+    maio: "May",
+    junho: "June",
+    julho: "July",
+    // "agosto": "August",
+    setembro: "September",
+    outubro: "October",
+    novembro: "November",
+    dezembro: "December",
+    // Slovenian
+    //"januar": "January",
+    //"februar": "February",
+    marec: "March",
+    // "april": "April",
+    maj: "May",
+    junij: "June",
+    julij: "July",
+    avgust: "August",
+    // "september": "September",
+    // "oktober": "October",
+    // "november": "November",
+    // "december": "December",
+    // Italian
+    gennaio: "January",
+    febbraio: "February",
+    // "marzo": "March",
+    aprile: "April",
+    maggio: "May",
+    giugno: "June",
+    luglio: "July",
+    // "agosto": "August",
+    settembre: "September",
+    ottobre: "October",
+    //"novembre": "November",
+    dicembre: "December",
+    // Swedish
+    //"januari": "January",
+    // "februari": "February",
+    //"mars": "March",
+    //"april": "April",
+    // "maj": "May",
+    //"juni": "June",
+    //"juli": "July",
+    augusti: "August",
+    //"september": "September",
+    //"oktober": "October",
+    // "november": "November",
+    // "december": "December",
   };
 
   const monthShortNames = monthNames.map((month) => month.substr(0, 3));
@@ -67,10 +147,10 @@ function fixDates() {
     if (monthTypoPattern.test(input)) {
       const [, day, month, year] = monthTypoPattern.exec(input);
 
-      // Convert non-English month abbreviations to English
+      // Convert non-English month names to English
       let correctedMonth = month;
-      if (foreignMonthShortNames[month.toLowerCase()]) {
-        correctedMonth = foreignMonthShortNames[month.toLowerCase()];
+      if (nonEnglishMonthNames[month.toLowerCase()]) {
+        correctedMonth = nonEnglishMonthNames[month.toLowerCase()];
       }
 
       const fuseMonthFull = new Fuse(monthNames, {

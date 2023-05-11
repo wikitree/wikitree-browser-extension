@@ -9,7 +9,9 @@ registerFeature({
   name: "Date Fixer",
   id: "dateFixer",
   description:
-    "Converts DD/MM/YYY and DD.MM.YYYY (and, optionally, DD-MM-YYYY) to DD Mon YYYY; Fixes typos in the date fields.",
+    "Converts DD/MM/YYY and DD.MM.YYYY (and, optionally, DD-MM-YYYY) " +
+    "or dates with non-English months to DD Mon YYYY or DD Month YYYY; " +
+    "Fixes typos in the date fields.",
   category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
