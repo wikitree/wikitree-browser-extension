@@ -5269,7 +5269,12 @@ function splitBioIntoSections() {
     If the line matches "The following people may need profiles:" 
     then add the next lines to NeedsProfiles (while the line has a name) 
     and remove it from ["Research Notes"].text */
-    if (sections["Research Notes"]) {
+    if (sections["Research Notes"] || sections?.Biography?.subsections?.["Research Notes"]) {
+      if (sections?.Biography?.subsections?.["Research Notes"]) {
+        sections.Biography.subsections["Research Notes"].text.forEach(function (line) {
+          sections["Research Notes"].text.push(line);
+        });
+      }
       const namePattern = new RegExp(
         /^\*\s([A-Za-z]+(?:[.'-][A-Za-z]+)*(?:\s[A-Za-z]+(?:[.'-][A-Za-z]+)*)+)(?:\s\(([A-Za-z\s]+)\))?$/
       );
