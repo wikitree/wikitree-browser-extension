@@ -47,6 +47,7 @@ function onHoverIn($element) {
         $popup.find("#_xPagePreview_toctitle > h2").first().wrapInner("<span></span>").append(toggleElement);
       }
       if (pageType === "space") {
+        $popup.find(".preview-links:empty").remove(); // sometimes the categories box can be present but empty
         let $links = $popup.find(".preview-links");
         if ($links.length > 0) {
           // put all the links together in a green box container
@@ -163,13 +164,22 @@ function parseSpaceContent(response) {
   $content = $content.find(".columns.ten");
   // flag the colored audit box plus the div below it to clear the float
   $content
-    .find('.SMALL[style*="background-color"] + div[style*=clear]')
-    .addClass("preview-audit")
-    .prevAll('.SMALL[style*="background-color"]')
+    .find('.SMALL[style*="background-color"] + div[style*="clear"]')
+    .prevAll()
+    .addBack()
     .addClass("preview-audit");
   // mark all elements above the TOC or first heading as part of the header
   let head = $content.children("h2, .toc").first();
   if (head.length === 0) head = $content.children(".preview-audit").first();
+  if (head.length === 0) {
+    head = $content
+      .children('.SMALL[style*="background-color"]')
+      .first()
+      .nextAll('.SMALL[style*="background-color"]')
+      .addBack()
+      .addClass("preview-audit")
+      .last();
+  }
   if (head.length > 0) {
     head = head.get(0).previousSibling;
     while (head) {
@@ -292,6 +302,7 @@ function attachHover(target) {
       otherPagePreview ? 'a[href*="/wiki/Help:"]' : null,
       otherPagePreview ? 'a[href*="/wiki/Project:"]' : null,
       otherPagePreview ? 'a[href*="/wiki/Special:"]' : null,
+      otherPagePreview ? 'a[href*="/wiki/Template:"]' : null,
     ]
       .join(", ")
       .replace(/^[\s,]+|[\s,]+$/g, "");
