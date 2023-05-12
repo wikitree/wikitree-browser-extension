@@ -5,7 +5,20 @@ import "./features/register_feature_options";
 import { isWikiTreeUrl } from "./core/common";
 import { restoreOptions, restoreData } from "./upload";
 
-$("h1").prepend($("<img src='" + chrome.runtime.getURL("images/wikitree-small.png") + "'>"));
+(function (runtime) {
+  const manifest = runtime.getManifest();
+  const title = manifest.name + " " + manifest.version;
+  console.log("Options for " + title);
+  $("head > title").text(title.replace("Extension", "Extension Options"));
+  $("#h1Text").attr("title", title);
+  $("h1").prepend(
+    $(
+      '<a href="https://www.wikitree.com/" target="_blank" class="nohover" title="WikiTree: Where genealogists collaborate"><img src="' +
+        runtime.getURL("images/wikitree-small.png") +
+        '" border="0" alt="WikiTree: Where genealogists collaborate" /></a>'
+    )
+  );
+})(chrome.runtime);
 
 // Categories
 const categories = ["Global", "Profile", "Editing", "Style"];
