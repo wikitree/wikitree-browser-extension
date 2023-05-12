@@ -54,10 +54,25 @@ async function moveCategories() {
   switch (options.categoryLocation) {
     case "sidebar":
       $("#categories").find('span[class="SMALL"]').remove();
-      if ($('a[name="DNA"').length >= 2) {
-        $('a[name="DNA"').last().before($("#categories"));
+      let $sidebar = $(".columns.six").first();
+      if ($sidebar.length > 0) {
+        // space pages don't have a DNA section, so we just need to find the first section element
+        $sidebar.find("div > span.large").first().closest("div").before($("#categories"));
+        // if it's in list form (with no border box)...
+        $("#categories:not(.box) > ol")
+          // ... reformat the heading match the rest of the sidebar ...
+          .closest("div")
+          .removeAttr("style")
+          .prepend('<div class="large" style="margin-bottom:0.5em"><strong>Categories</strong></div>')
+          .children("ol")
+          .first()
+          .contents()
+          .each(function (index, element) {
+            if (element.nodeType === 1 && element.nodeName === "LI") return false;
+            $(element).remove(); // ... and remove the "Categories:" link and content before the list items
+          });
       } else {
-        $('a[name="DNA"').before($("#categories"));
+        $('a[name="DNA"]').last().before($("#categories"));
       }
       break;
     case "top":
