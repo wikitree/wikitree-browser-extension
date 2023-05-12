@@ -5,6 +5,7 @@ Contributors: Jonathan Duke (Duke-5773)
 
 import $ from "jquery";
 import "../../thirdparty/jquery.hoverDelay";
+import { WBE } from "../../core/common";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 let previewClasses = "x-page-preview";
@@ -84,6 +85,14 @@ function onHoverIn($element) {
               '" style="color:#8fc641;">/URL</button>'
           )
       );
+      if (!WBE.isRelease) {
+        $popup.prepend(
+          `<!--\n${WBE.name + " " + WBE.version}\n${decodeURIComponent(match[1])}\n${Intl.DateTimeFormat("sv-SE", {
+            dateStyle: "short",
+            timeStyle: "medium",
+          }).format(new Date())}\n-->`
+        );
+      }
       let visibleElements = $popup.children().filter(function () {
         if ($(this).css("visibility") !== "hidden") {
           return !($(this).is(".x-preview-close") || !$(this).text());

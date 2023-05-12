@@ -7,6 +7,19 @@ import $ from "jquery";
 // Add wte class to body to let WikiTree BEE know not to add the same functions
 document.querySelector("body").classList.add("wte");
 
+export const WBE = {};
+(function (runtime) {
+  const manifest = runtime.getManifest();
+  WBE.name = manifest.name;
+  WBE.version = manifest.version;
+  WBE.isDebug = WBE.name.indexOf("(Debug)") > -1; // non-published versions used by developers
+  WBE.isPreview = WBE.isDebug || WBE.name.indexOf("(Preview)") > -1;
+  WBE.isRelease = !WBE.isPreview;
+  if (!WBE.isRelease) {
+    console.log(WBE.name + " " + WBE.version);
+  }
+})(chrome.runtime);
+
 /**
  * Creates a new menu item in the Apps dropdown menu.
  *

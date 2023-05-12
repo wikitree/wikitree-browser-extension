@@ -2,15 +2,17 @@ import $ from "jquery";
 
 import { features, OptionType } from "./core/options/options_registry";
 import "./features/register_feature_options";
-import { isWikiTreeUrl } from "./core/common";
+import { WBE, isWikiTreeUrl } from "./core/common";
 import { restoreOptions, restoreData } from "./upload";
 
-(function (runtime) {
-  const manifest = runtime.getManifest();
-  const title = manifest.name + " " + manifest.version;
-  console.log("Options for " + title);
+if (!WBE.isRelease) {
+  // in testing versions, add the version number to the page title and in a header tooltip
+  const title = WBE.name + " " + WBE.version;
   $("head > title").text(title.replace("Extension", "Extension Options"));
   $("#h1Text").attr("title", title);
+}
+
+(function (runtime) {
   $("h1").prepend(
     $(
       '<a href="https://www.wikitree.com/" target="_blank" class="nohover" title="WikiTree: Where genealogists collaborate"><img src="' +
@@ -648,7 +650,6 @@ chrome.storage.onChanged.addListener(function () {
 })((typeof browser !== "undefined" ? browser : chrome).tabs);
 
 function wrapBackupData(key, data) {
-  const manifest = chrome.runtime.getManifest();
   let now = new Date();
   let wrapped = {
     id:
@@ -658,8 +659,8 @@ function wrapBackupData(key, data) {
         .replace(/ /g, "_") +
       "_WBE_backup_" +
       key,
-    extension: manifest.name,
-    version: manifest.version,
+    extension: WBE.name,
+    version: WBE.version,
     browser: navigator.userAgent,
     timestamp: now.toISOString(),
   };
