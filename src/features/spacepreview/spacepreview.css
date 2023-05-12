@@ -18,11 +18,14 @@
   font-weight: normal;
   text-decoration: none;
 }
-dialog .x-page-preview {
+
+/* special handling for previews on pins inside WT+ modal dialogs and autocomplete suggestions */
+dialog .x-page-preview,
+*[class$="suggestion-maplink"] .x-page-preview {
   position: fixed;
   left: 20%;
   top: 40%;
-  max-width: min(75vw, 70%);
+  max-width: 75vw;
   max-height: min(50vh, 450px);
 }
 

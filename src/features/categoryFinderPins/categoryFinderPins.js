@@ -12,12 +12,10 @@ async function addCategoryLinksToDropdown() {
     setTimeout(function () {
       $(".autocomplete-suggestions:visible .autocomplete-suggestion").each(function () {
         const term = $(this).text();
-        const pin = $(
-          "<span class='autocomplete-suggestion-maplink'><a target='_new' href='https://www.wikitree.com/wiki/Category:" +
-            term +
-            "'><img src='" +
-            chrome.runtime.getURL("images/newTab.png") +
-            "'></a></span>"
+        const pin = $('<span class="autocomplete-suggestion-maplink"></span>').append(
+          $('<a target="_new"></a>')
+            .attr("href", "/wiki/Category:" + term)
+            .append($("<img />").attr("src", chrome.runtime.getURL("images/newTab.png")))
         );
         if ($(this).prev("span").length == 0) {
           pin.insertBefore($(this));

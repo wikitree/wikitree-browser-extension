@@ -61,8 +61,3 @@ import "./features/debugProfileClasses/debugProfileClasses";
 import "./core/editToolbar";
 
 //createTopMenu();
-
-(function (runtime) {
-  const manifest = runtime.getManifest();
-  console.log(manifest.name + " " + manifest.version + " is accessing this page.");
-})(chrome.runtime);
