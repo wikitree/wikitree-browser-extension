@@ -7,6 +7,11 @@ import { restoreOptions, restoreData } from "./upload";
 
 $("h1").prepend($("<img src='" + chrome.runtime.getURL("images/wikitree-small.png") + "'>"));
 
+(function (runtime) {
+  const manifest = runtime.getManifest();
+  console.log("Options for " + manifest.name + " " + manifest.version);
+})(chrome.runtime);
+
 // Categories
 const categories = ["Global", "Profile", "Editing", "Style"];
 // If a new feature is added with a new category, add the category to the list
