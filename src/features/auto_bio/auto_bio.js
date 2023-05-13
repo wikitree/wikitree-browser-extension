@@ -1,5 +1,6 @@
 import $ from "jquery";
 import { getPeople } from "../dna_table/dna_table";
+import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
 import { PersonName } from "./person_name.js";
 import { countries } from "./countries.js";
 import { needsCategories } from "./needs.js";
@@ -7,7 +8,7 @@ import { occupationCategories } from "./occupations.js";
 import { occupationList } from "./occupation_list";
 import { unsourcedCategories } from "./unsourced_categories.js";
 import { firstNameVariants } from "./first_name_variants.js";
-import { isOK } from "../../core/common";
+import { isOK, familyArray } from "../../core/common";
 import { getAge } from "../change_family_lists/change_family_lists";
 import { titleCase } from "../familyTimeline/familyTimeline";
 import { wtAPICatCIBSearch } from "../../core/wtPlusAPI/wtPlusAPI";
@@ -1191,7 +1192,7 @@ function buildSpouses(person) {
             spouseDetailsB += " of ";
 
             if (spouse.Father) {
-              let spouseFather = window.biographySpouseParents[0].people[spouse.Id].Parents[spouse.Father];
+              let spouseFather = window.biographySpouseParents[0].people[spouse.Father];
               spouseDetailsA += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
               spouseDetailsB += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
 
@@ -1205,7 +1206,7 @@ function buildSpouses(person) {
               spouseDetailsB += " and ";
             }
             if (spouse.Mother) {
-              let spouseMother = window.biographySpouseParents[0].people[spouse.Id].Parents[spouse.Mother];
+              let spouseMother = window.biographySpouseParents[0].people[spouse.Mother];
               spouseDetailsA += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
               spouseDetailsB += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
               if (spouseMother.BirthDate && window.autoBioOptions.includeSpouseParentsDates) {
@@ -5487,8 +5488,15 @@ export async function generateBio() {
   window.usedPlaces = [];
   let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
 
-  window.biographyPeople = await getPeople(profileID, 0, 0, 0, 0, 1, "*");
-  window.profilePerson = window.biographyPeople[0].people[window.biographyPeople[0].resultByKey[profileID].Id];
+  // window.biographyPeople = await getPeople(profileID, 0, 0, 0, 0, 1, "*");
+  window.biographyPeople = await getProfile(
+    profileID,
+    "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix,BirthDate,DeathDate,BirthLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren,NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings",
+    "AutoBio"
+  );
+  console.log("%cPEOPLE", "font-size:200%", window.biographyPeople);
+  window.profilePerson = window.biographyPeople;
+  //[0].people[window.biographyPeople[0].resultByKey[profileID].Id];
   const originalFormData = getFormData();
 
   const originalFirstName = window.profilePerson.FirstName;
@@ -5501,13 +5509,22 @@ export async function generateBio() {
     }
   });
 
-  console.log("biographyPeople", window.biographyPeople);
-  const biographyPeopleKeys = Object.keys(window.biographyPeople[0].people);
+  //const biographyPeopleKeys = Object.keys(window.biographyPeople[0].people);
+  const nuclearFamily = familyArray(window.profilePerson);
+
+  /*
   biographyPeopleKeys.forEach(function (key) {
     const person = window.biographyPeople[0].people[key];
     assignPersonNames(person);
     setOrderBirthDate(person);
   });
+  */
+  nuclearFamily.forEach(function (member) {
+    assignPersonNames(member);
+    setOrderBirthDate(member);
+  });
+  console.log("nuclearFamily", nuclearFamily);
+  console.log("biographyPeople", window.biographyPeople);
   fixLocations();
 
   if (!window.autoBioNotes) {
@@ -5525,7 +5542,7 @@ export async function generateBio() {
   // Get spouse parents
   if (window.profilePerson.Spouses) {
     let spouseKeys = Object.keys(window.profilePerson.Spouses);
-    window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 0, 0, "*", "WBE_auto_bio");
+    window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 1, 1, "*", "WBE_auto_bio");
     const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
     biographySpouseParentsKeys.forEach(function (key) {
       const person = window.biographySpouseParents[0].people[key];
