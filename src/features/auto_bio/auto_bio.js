@@ -1476,7 +1476,6 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
       .replace("in household of", "in the household of");
     text = info;
   }
-  console.log(JSON.parse(JSON.stringify(reference)));
 
   if (reference.Text.match(/<br(\/)?>/)) {
     const textSplit = reference.Text.split(/<br(\/)?>/);
@@ -1528,7 +1527,6 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
                 aMember.Relation = "Head";
               }
               familyMembers.push(aMember);
-              console.log(familyMembers);
             }
 
             if (familyMembers.length > 1) {
@@ -2522,7 +2520,6 @@ function extractHouseholdMembers(row) {
   const brRegex = /<br\s*\/?>/gi;
   const rowData = row.split("||")[1].trim();
   const lines = rowData.split(brRegex);
-  //console.log("lines", lines);
   return lines;
 }
 
@@ -2571,7 +2568,6 @@ function parseFamilyData(familyData, options = { format: "list", year: "" }) {
     const person = {};
 
     parts.forEach((part, index) => {
-      //console.log(part);
       if (columnMapping[index] === "Name") {
         person[columnMapping[index]] = part.replace(/^[*#:]+/, "").trim();
       } else if (columnMapping[index] === "Gender") {
@@ -2587,9 +2583,6 @@ function parseFamilyData(familyData, options = { format: "list", year: "" }) {
     if (person.originalRelation) {
       person.originalRelation = standardizeRelation(person.originalRelation);
     }
-
-    // console.log("person", logNow(person));
-
     return person;
   });
 
@@ -5488,15 +5481,12 @@ export async function generateBio() {
   window.usedPlaces = [];
   let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
 
-  // window.biographyPeople = await getPeople(profileID, 0, 0, 0, 0, 1, "*");
   window.biographyPeople = await getProfile(
     profileID,
     "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix,BirthDate,DeathDate,BirthLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren,NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings",
     "AutoBio"
   );
-  console.log("%cPEOPLE", "font-size:200%", window.biographyPeople);
   window.profilePerson = window.biographyPeople;
-  //[0].people[window.biographyPeople[0].resultByKey[profileID].Id];
   const originalFormData = getFormData();
 
   const originalFirstName = window.profilePerson.FirstName;
@@ -5509,22 +5499,11 @@ export async function generateBio() {
     }
   });
 
-  //const biographyPeopleKeys = Object.keys(window.biographyPeople[0].people);
   const nuclearFamily = familyArray(window.profilePerson);
-
-  /*
-  biographyPeopleKeys.forEach(function (key) {
-    const person = window.biographyPeople[0].people[key];
-    assignPersonNames(person);
-    setOrderBirthDate(person);
-  });
-  */
   nuclearFamily.forEach(function (member) {
     assignPersonNames(member);
     setOrderBirthDate(member);
   });
-  console.log("nuclearFamily", nuclearFamily);
-  console.log("biographyPeople", window.biographyPeople);
   fixLocations();
 
   if (!window.autoBioNotes) {
