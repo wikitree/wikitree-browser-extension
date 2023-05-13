@@ -6204,8 +6204,8 @@ export async function generateBio() {
     "\nNEXT: \n" +
     "1. Edit the new biography (above), checking the output carefully and adding any useful information " +
     "which Auto Bio may have missed from the old biography.\n" +
-    "2. Delete this message and the old biography (below). " +
-    "(You can just click the 'Delete Old Bio' button.)\n" +
+    "2. Delete this message and the old biography (below) by " +
+    "clicking the 'Delete Old Bio' button (above).\n" +
     "Thank you.\n";
 
   if (window.autoBioNotes) {
