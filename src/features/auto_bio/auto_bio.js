@@ -5225,9 +5225,13 @@ function splitBioIntoSections() {
 
       currentSubsection = currentSection.subsections[newSubsectionTitle];
     } else {
-      if (currentSubsection && line) {
+      let skip = false;
+      if (line.match(/^See also:/i) || line.match("''Add \\[\\[sources\\]\\] here.''")) {
+        skip = true;
+      }
+      if (currentSubsection && line && !skip) {
         currentSubsection.text.push(line);
-      } else if (currentSection) {
+      } else if (currentSection && !skip) {
         currentSection.text.push(line);
         if (!currentSection.title) {
           sections.StuffBeforeTheBio.text.push(line);
@@ -5248,7 +5252,8 @@ function splitBioIntoSections() {
         sections.Sources.text[i] = "*" + line.trim();
       }
       shouldStartWithAsterisk = line.trim() === "";
-      if (line.match(/See also:/i)) {
+      if (line.match(/^See also:/i) == null && line.match("''Add \\[\\[sources\\]\\] here.''") == null) {
+        /*
         if (!sections["See Also"]) {
           sections["See Also"] = { originalTitle: "See Also", title: "See Also", text: [], subsections: {} };
           const seeAlsos = sections.Sources.text.slice(i + 1, 10);
@@ -5262,7 +5267,8 @@ function splitBioIntoSections() {
           });
         }
         sections.Sources.text.splice(i, 10);
-      } else {
+*/
+        //} else {
         if (line.match(/This person was created on.* /)) {
           sections.Acknowledgements.text.push(line);
           sections.Sources.text.splice(i, 1);
@@ -6123,6 +6129,12 @@ export async function generateBio() {
   let sourcesText = "";
   let sourcesHeader = "== Sources ==\n<references />\n";
   sourcesText += sourcesHeader;
+  let isAnyUsed = window.references.some((reference) => reference.Used === true);
+  let isAnyUnused = window.references.some((reference) => reference.Used !== true);
+  if ((isAnyUsed && isAnyUnused) || window.autoBioOptions.inlineCitations == false) {
+    sourcesText += "See also:\n";
+  }
+
   window.references.forEach(function (aRef) {
     if (
       ([false, undefined].includes(aRef.Used) || window.autoBioOptions.inlineCitations == false) &&
