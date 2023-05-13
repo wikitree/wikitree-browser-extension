@@ -21,7 +21,7 @@
 
 /* special handling for previews on pins inside WT+ modal dialogs and autocomplete suggestions */
 dialog .x-page-preview,
-*[class$="suggestion-maplink"] .x-page-preview {
+body > .x-page-preview {
   position: fixed;
   left: 20%;
   top: 40%;
