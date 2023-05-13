@@ -23,7 +23,12 @@ function onHoverIn($element) {
     $element[0].href // page URL
   )
     .then((content) => {
-      $element.after($popup);
+      if ($element.closest('*[class$="suggestion-maplink"]').length > 0) {
+        // a bug in Safari causes the fixed window to be clipped, so we'll add it to the body instead
+        $(document.body).append($popup);
+      } else {
+        $element.after($popup);
+      }
       $popup.append(content.body);
       $popup.find('a[name], *[id], a[href^="#"]').each(function () {
         if (this.name) {
