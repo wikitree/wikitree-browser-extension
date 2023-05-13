@@ -1,5 +1,6 @@
 import $ from "jquery";
 import { getPeople } from "../dna_table/dna_table";
+import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
 import { PersonName } from "./person_name.js";
 import { countries } from "./countries.js";
 import { needsCategories } from "./needs.js";
@@ -7,7 +8,7 @@ import { occupationCategories } from "./occupations.js";
 import { occupationList } from "./occupation_list";
 import { unsourcedCategories } from "./unsourced_categories.js";
 import { firstNameVariants } from "./first_name_variants.js";
-import { isOK } from "../../core/common";
+import { isOK, familyArray } from "../../core/common";
 import { getAge } from "../change_family_lists/change_family_lists";
 import { titleCase } from "../familyTimeline/familyTimeline";
 import { wtAPICatCIBSearch } from "../../core/wtPlusAPI/wtPlusAPI";
@@ -1191,7 +1192,7 @@ function buildSpouses(person) {
             spouseDetailsB += " of ";
 
             if (spouse.Father) {
-              let spouseFather = window.biographySpouseParents[0].people[spouse.Id].Parents[spouse.Father];
+              let spouseFather = window.biographySpouseParents[0].people[spouse.Father];
               spouseDetailsA += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
               spouseDetailsB += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
 
@@ -1205,7 +1206,7 @@ function buildSpouses(person) {
               spouseDetailsB += " and ";
             }
             if (spouse.Mother) {
-              let spouseMother = window.biographySpouseParents[0].people[spouse.Id].Parents[spouse.Mother];
+              let spouseMother = window.biographySpouseParents[0].people[spouse.Mother];
               spouseDetailsA += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
               spouseDetailsB += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
               if (spouseMother.BirthDate && window.autoBioOptions.includeSpouseParentsDates) {
@@ -1475,7 +1476,6 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
       .replace("in household of", "in the household of");
     text = info;
   }
-  console.log(JSON.parse(JSON.stringify(reference)));
 
   if (reference.Text.match(/<br(\/)?>/)) {
     const textSplit = reference.Text.split(/<br(\/)?>/);
@@ -1527,7 +1527,6 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
                 aMember.Relation = "Head";
               }
               familyMembers.push(aMember);
-              console.log(familyMembers);
             }
 
             if (familyMembers.length > 1) {
@@ -2521,7 +2520,6 @@ function extractHouseholdMembers(row) {
   const brRegex = /<br\s*\/?>/gi;
   const rowData = row.split("||")[1].trim();
   const lines = rowData.split(brRegex);
-  //console.log("lines", lines);
   return lines;
 }
 
@@ -2570,7 +2568,6 @@ function parseFamilyData(familyData, options = { format: "list", year: "" }) {
     const person = {};
 
     parts.forEach((part, index) => {
-      //console.log(part);
       if (columnMapping[index] === "Name") {
         person[columnMapping[index]] = part.replace(/^[*#:]+/, "").trim();
       } else if (columnMapping[index] === "Gender") {
@@ -2586,9 +2583,6 @@ function parseFamilyData(familyData, options = { format: "list", year: "" }) {
     if (person.originalRelation) {
       person.originalRelation = standardizeRelation(person.originalRelation);
     }
-
-    // console.log("person", logNow(person));
-
     return person;
   });
 
@@ -5231,9 +5225,13 @@ function splitBioIntoSections() {
 
       currentSubsection = currentSection.subsections[newSubsectionTitle];
     } else {
-      if (currentSubsection && line) {
+      let skip = false;
+      if (line.match(/^See also:/i) || line.match("''Add \\[\\[sources\\]\\] here.''")) {
+        skip = true;
+      }
+      if (currentSubsection && line && !skip) {
         currentSubsection.text.push(line);
-      } else if (currentSection) {
+      } else if (currentSection && !skip) {
         currentSection.text.push(line);
         if (!currentSection.title) {
           sections.StuffBeforeTheBio.text.push(line);
@@ -5254,7 +5252,8 @@ function splitBioIntoSections() {
         sections.Sources.text[i] = "*" + line.trim();
       }
       shouldStartWithAsterisk = line.trim() === "";
-      if (line.match(/See also:/i)) {
+      if (line.match(/^See also:/i) == null && line.match("''Add \\[\\[sources\\]\\] here.''") == null) {
+        /*
         if (!sections["See Also"]) {
           sections["See Also"] = { originalTitle: "See Also", title: "See Also", text: [], subsections: {} };
           const seeAlsos = sections.Sources.text.slice(i + 1, 10);
@@ -5268,7 +5267,8 @@ function splitBioIntoSections() {
           });
         }
         sections.Sources.text.splice(i, 10);
-      } else {
+*/
+        //} else {
         if (line.match(/This person was created on.* /)) {
           sections.Acknowledgements.text.push(line);
           sections.Sources.text.splice(i, 1);
@@ -5487,8 +5487,12 @@ export async function generateBio() {
   window.usedPlaces = [];
   let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
 
-  window.biographyPeople = await getPeople(profileID, 0, 0, 0, 0, 1, "*");
-  window.profilePerson = window.biographyPeople[0].people[window.biographyPeople[0].resultByKey[profileID].Id];
+  window.biographyPeople = await getProfile(
+    profileID,
+    "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix,BirthDate,DeathDate,BirthLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren,NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings",
+    "AutoBio"
+  );
+  window.profilePerson = window.biographyPeople;
   const originalFormData = getFormData();
 
   const originalFirstName = window.profilePerson.FirstName;
@@ -5501,12 +5505,10 @@ export async function generateBio() {
     }
   });
 
-  console.log("biographyPeople", window.biographyPeople);
-  const biographyPeopleKeys = Object.keys(window.biographyPeople[0].people);
-  biographyPeopleKeys.forEach(function (key) {
-    const person = window.biographyPeople[0].people[key];
-    assignPersonNames(person);
-    setOrderBirthDate(person);
+  const nuclearFamily = familyArray(window.profilePerson);
+  nuclearFamily.forEach(function (member) {
+    assignPersonNames(member);
+    setOrderBirthDate(member);
   });
   fixLocations();
 
@@ -5525,7 +5527,7 @@ export async function generateBio() {
   // Get spouse parents
   if (window.profilePerson.Spouses) {
     let spouseKeys = Object.keys(window.profilePerson.Spouses);
-    window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 0, 0, "*", "WBE_auto_bio");
+    window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 1, 1, "*", "WBE_auto_bio");
     const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
     biographySpouseParentsKeys.forEach(function (key) {
       const person = window.biographySpouseParents[0].people[key];
@@ -6127,6 +6129,12 @@ export async function generateBio() {
   let sourcesText = "";
   let sourcesHeader = "== Sources ==\n<references />\n";
   sourcesText += sourcesHeader;
+  let isAnyUsed = window.references.some((reference) => reference.Used === true);
+  let isAnyUnused = window.references.some((reference) => reference.Used !== true);
+  if ((isAnyUsed && isAnyUnused) || window.autoBioOptions.inlineCitations == false) {
+    sourcesText += "See also:\n";
+  }
+
   window.references.forEach(function (aRef) {
     if (
       ([false, undefined].includes(aRef.Used) || window.autoBioOptions.inlineCitations == false) &&
@@ -6194,8 +6202,10 @@ export async function generateBio() {
   let extensionNotes =
     "\n<!-- \n --- WikiTree Browser Extension Auto Bio --- " +
     "\nNEXT: \n" +
-    "1. Edit the new biography (above).\n" +
-    "2. Delete this message and the old biography (below). (You can just click the 'Delete Old Bio' button.)\n" +
+    "1. Edit the new biography (above), checking the output carefully and adding any useful information " +
+    "which Auto Bio may have missed from the old biography.\n" +
+    "2. Delete this message and the old biography (below) by " +
+    "clicking the 'Delete Old Bio' button (above).\n" +
     "Thank you.\n";
 
   if (window.autoBioNotes) {
