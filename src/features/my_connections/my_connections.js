@@ -259,7 +259,7 @@ async function myConnectionsCount() {
     const lastH3 = lastH3El.textContent.match(/[0-9]+/)[0];
     window.currentDegreeNum = lastH3;
     myConnectionsCountPt2(lastH3, ols, degreeCountTable);
-  }, 300);
+  }, 2000);
 }
 
 /**
@@ -2073,7 +2073,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
         setTimeout(function () {
           $("#tree").remove();
           $("#ahnen").click();
-        }, 1000);
+        }, 2000);
       }
     },
   });
@@ -2086,7 +2086,7 @@ async function myConnections() {
   window.CC7Diff = false;
   setTimeout(function () {
     myConnectionsCount();
-  }, 1000);
+  }, 2000);
   $(".wrapper ol").each(function (index) {
     $(this).attr("id", "gen" + index + "_list");
   });
@@ -2120,7 +2120,7 @@ async function myConnections() {
       $(".wrapper h3 + ol, .wrapper .peopleTable + ol").each(function (index) {
         $(this).attr("id", "gen" + index + "_list");
       });
-    }, 1000);
+    }, 3000);
   });
 
   if (maxedOutAlready) {
@@ -2368,7 +2368,7 @@ async function addWideTableButton() {
             if ($("body.page-Space_Largest_Unconnected_Branches").length) {
               $("#lubRule").remove();
             }
-          }, 100);
+          }, 1000);
         } else {
           $("#buttonBox").show();
           window.setWideTable = 0;
@@ -2460,7 +2460,7 @@ async function addWideTableButton() {
                 }
               });
             }
-          }, 100);
+          }, 1000);
         }
       });
     }
@@ -2468,7 +2468,7 @@ async function addWideTableButton() {
     setTimeout(function () {
       window.setWideTable = 1;
       $(".wideTableButton").eq(0).trigger("click");
-    }, 100);
+    }, 1000);
   }
 }
 
