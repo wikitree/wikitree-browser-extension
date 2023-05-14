@@ -108,7 +108,6 @@ function addWhatLinksHereLink() {
 }
 
 export function doWhatLinksHere(e) {
-  console.log(e);
   e.preventDefault();
   const whatLinksHereLink = $(e.currentTarget);
   whatLinksHereLink.text("Working...");
@@ -125,7 +124,6 @@ export function doWhatLinksHere(e) {
       window.whatLinksHereRequests = 0;
       window.whatLinksHereResponses = 0;
       dLinks.each(function () {
-        console.log($(this));
         let colon;
         if (
           $(this)
@@ -143,9 +141,7 @@ export function doWhatLinksHere(e) {
               let thisWikiLink = "[[" + person.Name + "|" + displayName(person)[0] + "]]<br>";
               window.whatLinksHere += thisWikiLink;
             }
-            console.log(window.whatLinksHereResponses, window.whatLinksHereRequests);
             if (window.whatLinksHereResponses == window.whatLinksHereRequests) {
-              //console.log(window.whatLinksHere);
               copyToClipboard3($("<div>" + window.whatLinksHere + "</div>"), 0);
               whatLinksHereLink.text("Copied").addClass("copied");
               setTimeout(function () {
