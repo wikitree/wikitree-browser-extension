@@ -7,10 +7,13 @@ import "jquery-ui/ui/widgets/sortable";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { isOK, htmlEntities, showDraftList } from "../../core/common";
 import { getRandomProfile, addRandomProfileLocationBox } from "../randomProfile/randomProfile";
+import { doWhatLinksHere } from "../what_links_here/what_links_here";
 
 checkIfFeatureEnabled("myMenu").then((result) => {
   if (result) {
     import("./my_menu.css");
+    const profileWTID = $("a.pureCssMenui0 span.person").text();
+    window.profileWTID = profileWTID;
     addCustomMenu();
   }
 });
@@ -285,6 +288,35 @@ function addCustomMenu() {
     e.preventDefault();
     $("#wte-tm-printer-friendly").trigger("click");
   });
+
+  if ($("#myCustomMenu li a:contains(What Links Here)").length) {
+    const thisURL = window.location.href;
+    let dLink = "";
+    // Edit page
+    const searchParams = new URLSearchParams(window.location.href);
+    if ($("body.page-Special_EditPerson").length) {
+      dLink = "Wiki:" + window.profileWTID;
+    } else if (searchParams.has("title")) {
+      dLink = "Wiki:" + searchParams.get("title");
+    } else if (thisURL.split(/\/wiki\//)[1]) {
+      dLink = thisURL.split(/\/wiki\//)[1];
+      if (thisURL.match(/Space:/) == null) {
+        dLink = "Wiki:" + dLink;
+      }
+    }
+
+    if (dLink) {
+      const myMenuWhatLinksHere = $("#myCustomMenu li a:contains(What Links Here)");
+      myMenuWhatLinksHere.attr(
+        "href",
+        "https://www.wikitree.com/index.php?title=Special:Whatlinkshere/" + dLink + "&limit=1000"
+      );
+      myMenuWhatLinksHere.contextmenu(function (e) {
+        e.preventDefault();
+        doWhatLinksHere(e);
+      });
+    }
+  }
 
   $("#myCustomMenu li a:contains(Drafts)").on("click", function (e) {
     e.preventDefault();
