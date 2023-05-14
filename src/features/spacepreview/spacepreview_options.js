@@ -6,10 +6,10 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 const pagePreviewFeature = {
-  name: "Page Previews",
+  name: "Preview Pages",
   id: "spacePreviews", // keep ID the same to preserve configuration
   description: "Enable page previews when hovering over certain WikiTree links.",
-  category: "Global",
+  category: "Links",
   creators: [{ name: "Steve Harris", wikitreeid: "Harris-5439" }],
   contributors: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   defaultValue: false,

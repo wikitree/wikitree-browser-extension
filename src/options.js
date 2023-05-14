@@ -23,7 +23,7 @@ if (!WBE.isRelease) {
 })(chrome.runtime);
 
 // Categories
-const categories = ["Global", "Profile", "Editing", "Style"];
+const categories = ["Global", "Profile", "Editing", "Menus", "Links", "Style"];
 // If a new feature is added with a new category, add the category to the list
 features.forEach(function (feature) {
   if (!categories.includes(feature.category)) {
@@ -356,8 +356,19 @@ $(document).ready(() => {
   }, 2000);
 });
 
-// Sort features alphabetically
+// Sort features first by ordinal (positives first, 0/undefined next, negatives last/reversed), and then alphabetically
 features.sort(function (a, b) {
+  let a$ = a.ordinal > 0 ? 1 : a.ordinal < 0 ? -1 : 0;
+  let b$ = b.ordinal > 0 ? 1 : b.ordinal < 0 ? -1 : 0;
+  if (a$ > b$) {
+    return -1;
+  } else if (a$ < b$) {
+    return 1;
+  } else if (a.ordinal < b.ordinal) {
+    return -1;
+  } else if (a.ordinal > b.ordinal) {
+    return 1;
+  }
   return a.name.localeCompare(b.name);
 });
 
