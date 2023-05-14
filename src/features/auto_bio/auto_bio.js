@@ -135,7 +135,7 @@ const unsourced =
   /^\n*?\s*?((^Also:$)|(^See also:$)|(Unsourced)|(Personal (recollection)|(information))|(Firsthand knowledge)|(Sources? will be added)|(Add\s\[\[sources\]\]\shere$)|(created.*?through\sthe\simport\sof\s.*?\.ged)|(FamilySearch(\.com)?$)|(ancestry\.com$)|(family records$)|(Ancestry family trees$))/im;
 
 // Function to get the person's data from the form fields
-function getFormData() {
+export function getFormData() {
   let formData = {};
   $("#editform table input[id]").each(function () {
     if ($(this).attr("type") === "radio") {
@@ -4231,7 +4231,7 @@ function parseNZBDM(aRef) {
   return aRef;
 }
 
-function sourcesArray(bio) {
+export function sourcesArray(bio) {
   let dummy = $(document.createElement("html"));
   bio = bio.replace(/\{\|\s*class="wikitable".*?\|\+ Timeline.*?\|\}/gs, "").replace(/<ref[^>]*\/>/g, "");
   dummy.append(bio);
@@ -5136,7 +5136,7 @@ function getFamilySearchFacts() {
   console.log("familySearchFacts", window.familySearchFacts);
 }
 
-function splitBioIntoSections() {
+export function splitBioIntoSections() {
   const wikiText = $("#wpTextbox1").val();
   let lines = wikiText.split("\n");
   let currentSection = { subsections: {}, text: [] };
@@ -5360,7 +5360,7 @@ function splitBioIntoSections() {
   return sections;
 }
 
-function assignPersonNames(person) {
+export function assignPersonNames(person) {
   // Add personName to person
   function assignPersonNamesB(personB) {
     const aName = new PersonName(personB);
@@ -6521,7 +6521,7 @@ function removeCountryName(location) {
   return locationSplit.reverse().join(", ");
 }
 
-async function getLocationCategory(type, location = null) {
+export async function getLocationCategory(type, location = null) {
   // type = birth, death, marriage, other
   // For birth and death, we can use the location from the profile
   let categoryType = "location";
@@ -6567,6 +6567,9 @@ async function getLocationCategory(type, location = null) {
   }
 
   // Remove all after 3rd comma
+  console.log("Type", type);
+  console.log("Location", location);
+  console.log("Category Type", categoryType);
   const locationSplit = location.split(/, /);
   const searchLocation = removeCountryName(location);
   let api;
