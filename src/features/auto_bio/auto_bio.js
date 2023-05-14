@@ -6216,7 +6216,7 @@ export async function generateBio() {
       });
     }
   }
-  extensionNotes += "\n-->\n";
+  extensionNotes += "-->\n";
 
   // Add Unsourced template if there are no good sources
   if (window.autoBioOptions.unsourced != false) {
