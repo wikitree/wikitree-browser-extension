@@ -422,6 +422,9 @@ async function initReadability() {
     if (isToggled(options.hideAuditData)) {
       $("html").toggleClass("hide-audit-data");
     }
+    if (isToggled(options.hideMemberSection)) {
+      $("html").toggleClass("hide-member-section");
+    }
     if (isToggled(options.hideStatus)) {
       $("html").toggleClass("hide-status");
     }

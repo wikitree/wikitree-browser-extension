@@ -124,6 +124,11 @@ sup.reference {
   display: none !important;
 }
 
+.hide-member-section .x-member-section,
+.hide-member-section #memberSection {
+  display: none !important;
+}
+
 .hide-status .x-content .status {
   display: none !important;
 }
@@ -169,7 +174,8 @@ sup.reference {
   display: none !important;
 }
 
-.hide-categories .x-categories {
+.hide-categories .x-categories,
+.hide-categories #categories {
   display: none !important;
 }
 

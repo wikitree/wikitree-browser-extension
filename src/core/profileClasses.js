@@ -258,7 +258,12 @@ export function ensureProfileClasses() {
       .parent()
       .addClass("x-categories");
     $("#categories").closest(".container").addClass("x-categories");
+    $("#categories").addClass("x-categories");
     $("#footer").prev().addClass("x-categories");
+
+    // mark the member section and the show/hide link for it
+    $("#memberSection").addClass("x-member-section");
+    $(".toggleMemberSection").parentsUntil(".columns").last().addClass("x-member-section");
 
     // prevent this from running more than once per page
     hasProfileClasses = true;
