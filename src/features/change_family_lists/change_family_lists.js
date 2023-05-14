@@ -874,6 +874,7 @@ function list2ol(items, olid) {
     let dLink = item.querySelector("a");
     if (dLink != "undefined" && dLink != null) {
       let dhref = dLink.href;
+      dLink.href = dLink.href.replace(/\s|%20/g, "_");
       let dbits = dhref.split("wiki/");
 
       let did = decodeURIComponent(dbits[1].replace(/#.*/, ""));

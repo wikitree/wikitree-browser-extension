@@ -9,6 +9,8 @@ import { displayName } from "../../core/common";
 
 checkIfFeatureEnabled("whatLinksHere").then((result) => {
   if (result && $("a.whatLinksHere").length == 0) {
+    const profileWTID = $("a.pureCssMenui0 span.person").text();
+    window.profileWTID = profileWTID;
     import("./what_links_here.css");
     whatLinksHereLink();
   }
@@ -78,7 +80,7 @@ async function whatLinksHereSection() {
   });
 }
 
-async function whatLinksHereLink() {
+function addWhatLinksHereLink() {
   // Add link after 'Watchlist' on edit, profile, and space pages
   const findMatchesLi = $('li a.pureCssMenui[href="/wiki/Special:WatchedList"]');
   const thisURL = window.location.href;
@@ -103,67 +105,76 @@ async function whatLinksHereLink() {
     );
     newLi.insertAfter(findMatchesLi.parent());
   }
+}
 
+export function doWhatLinksHere(e) {
+  e.preventDefault();
+  const whatLinksHereLink = $(e.currentTarget);
+  whatLinksHereLink.text("Working...");
+  const URL = whatLinksHereLink.attr("href");
+  $.ajax({
+    url: URL,
+    success: function (data) {
+      const dLinks = $(data).find("#content ul a[href*='/wiki/']");
+      if (dLinks.length == 0) {
+        whatLinksHereLink.text("Nothing links here");
+        return;
+      }
+      window.whatLinksHere = "";
+      window.whatLinksHereRequests = 0;
+      window.whatLinksHereResponses = 0;
+      dLinks.each(function () {
+        let colon;
+        if (
+          $(this)
+            .attr("href")
+            .match(/Help:|Docs:|Space:|Category:|Project:|Special:|Template:/) == null
+        ) {
+          window.whatLinksHereRequests++;
+          getProfile(
+            $(this).text(),
+            "Name,Id,FirstName,LastNameAtBirth,RealName,LastNameCurrent",
+            "WBE_what_links_here"
+          ).then((person) => {
+            window.whatLinksHereResponses++;
+            if (person.Name) {
+              let thisWikiLink = "[[" + person.Name + "|" + displayName(person)[0] + "]]<br>";
+              window.whatLinksHere += thisWikiLink;
+            }
+            if (window.whatLinksHereResponses == window.whatLinksHereRequests) {
+              copyToClipboard3($("<div>" + window.whatLinksHere + "</div>"), 0);
+              whatLinksHereLink.text("Copied").addClass("copied");
+              setTimeout(function () {
+                whatLinksHereLink.text("What Links Here").removeClass("copied");
+              }, 3000);
+            }
+          });
+        } else {
+          colon = "";
+          if (
+            $(this)
+              .text()
+              .match(/Category/)
+          ) {
+            colon = ":";
+          }
+          window.whatLinksHere +=
+            "[[" + colon + $(this).attr("href").split("/wiki/")[1] + "|" + $(this).text() + "]]\n";
+        }
+      });
+    },
+  });
+}
+
+async function whatLinksHereLink() {
+  addWhatLinksHereLink();
   // Check the options and add section
   const options = await getFeatureOptions("whatLinksHere");
   if (options.whatLinksHereSection) {
     whatLinksHereSection();
   }
-
   $("a.whatLinksHere").contextmenu(function (e) {
-    $("#whatLinksHere").text("Working...");
-    e.preventDefault();
-
-    $.ajax({
-      url: $(this).attr("href"),
-      success: function (data) {
-        const dLinks = $(data).find("#content ul a[href*='/wiki/']");
-        window.whatLinksHere = "";
-        window.whatLinksHereRequests = 0;
-        window.whatLinksHereResponses = 0;
-        dLinks.each(function () {
-          let colon;
-          if (
-            $(this)
-              .attr("href")
-              .match(/Help:|Docs:|Space:|Category:|Project:|Special:|Template:/) == null
-          ) {
-            window.whatLinksHereRequests++;
-            getProfile(
-              $(this).text(),
-              "Name,Id,FirstName,LastNameAtBirth,RealName,LastNameCurrent",
-              "WBE_what_links_here"
-            ).then((person) => {
-              window.whatLinksHereResponses++;
-              if (person.Name) {
-                let thisWikiLink = "[[" + person.Name + "|" + displayName(person)[0] + "]]<br>";
-                window.whatLinksHere += thisWikiLink;
-              }
-              console.log(window.whatLinksHereResponses, window.whatLinksHereRequests);
-              if (window.whatLinksHereResponses == window.whatLinksHereRequests) {
-                //console.log(window.whatLinksHere);
-                copyToClipboard3($("<div>" + window.whatLinksHere + "</div>"), 0);
-                $("#whatLinksHere").text("Copied").addClass("copied");
-                setTimeout(function () {
-                  $("#whatLinksHere").text("What Links Here").removeClass("copied");
-                }, 3000);
-              }
-            });
-          } else {
-            colon = "";
-            if (
-              $(this)
-                .text()
-                .match(/Category/)
-            ) {
-              colon = ":";
-            }
-            window.whatLinksHere +=
-              "[[" + colon + $(this).attr("href").split("/wiki/")[1] + "|" + $(this).text() + "]]\n";
-          }
-        });
-      },
-    });
+    doWhatLinksHere(e);
   });
 }
 
