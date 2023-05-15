@@ -32,6 +32,14 @@
     background: none;
   }
 
+  /* the preview container and content for merges by WikiTree needs to be adjusted if sticky header is used */
+  .sticky-header #previewContainer {
+    z-index: 9999999;
+  }
+  .sticky-header #previewContainer #previewContent {
+    top: calc(var(--header-offset) + 20px) !important;
+  }
+
   .sticky-header .qa-body-wrapper .qa-header {
     width: 940px;
     background-color: #fff;
