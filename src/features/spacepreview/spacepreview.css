@@ -17,6 +17,7 @@
   font-style: normal;
   font-weight: normal;
   text-decoration: none;
+  text-align: left;
 }
 
 /* special handling for previews on pins inside WT+ modal dialogs and autocomplete suggestions */
