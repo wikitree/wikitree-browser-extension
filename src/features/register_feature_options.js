@@ -50,6 +50,7 @@ import {
 import "./add_person/add_person_options";
 import "./agc/agc_options";
 import "./auto_bio/auto_bio_options";
+import "./auto_categories/auto_categories_options";
 import "./categoryDisplay/categoryDisplay_options";
 import "./change_family_lists/change_family_lists_options";
 import "./custom_change_summary_options/custom_change_summary_options_options";
