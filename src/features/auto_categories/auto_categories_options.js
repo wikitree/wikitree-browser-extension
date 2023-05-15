@@ -14,4 +14,38 @@ registerFeature({
   contributors: [],
   defaultValue: true,
   pages: [isProfileEdit],
+  options: [
+    {
+      id: "unsourced",
+      type: OptionType.RADIO,
+      label: "Add Unsourced template/category to unsourced profiles",
+      values: [
+        {
+          value: "template",
+          text: "Template",
+        },
+        {
+          value: "category",
+          text: "Category",
+        },
+        {
+          value: false,
+          text: "No",
+        },
+      ],
+      defaultValue: "category",
+    },
+    {
+      id: "occupationCategory",
+      type: OptionType.CHECKBOX,
+      label: "Add occupation category",
+      defaultValue: true,
+    },
+    {
+      id: "diedYoung",
+      type: OptionType.CHECKBOX,
+      label: "Add Died Young sticker for people who died aged 16 or younger",
+      defaultValue: true,
+    },
+  ],
 });
