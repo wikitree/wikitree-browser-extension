@@ -323,8 +323,8 @@ function attachHover(target) {
     $(target)
       .find(selectors)
       .filter(function () {
-        // do not apply to links in the menus/header/footer (like Help)
-        if ($(this).closest("#header").length > 0 || $(this).closest("#footer").length > 0) {
+        // do not apply to links in the menus/header/footer/tabs
+        if ($(this).closest("#header, #footer, .profile-tabs, #views-wrap").length > 0) {
           return false;
         }
         // make sure each element is only wired up once
