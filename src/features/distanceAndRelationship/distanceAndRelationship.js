@@ -224,6 +224,9 @@ function addRelationshipText(oText, commonAncestors) {
       "</ul></div>"
   );
   $("h1").after(cousinText);
+  if (cousinText.next("span.large").length > 0) {
+    cousinText.after($("<br>"));
+  }
   $("#yourRelationshipText").on("click", function (e) {
     e.stopPropagation();
     let id1 = Cookies.get("wikitree_wtb_UserName");
