@@ -18,6 +18,7 @@ import {
   getNameVariants,
   getPronouns,
   addOccupationCategories,
+  buildFamilyForPrivateProfiles,
 } from "../auto_bio/auto_bio";
 
 let currentBio = $("#wpTextbox1").val();
@@ -41,6 +42,7 @@ export async function addAutoCategories() {
 
   // Get form data and store it in a variable
   const formData = getFormData();
+  console.log(formData);
 
   // Get the text of the profile ID from the page
   const profileId = $("a.pureCssMenui0 span.person").text();
@@ -48,12 +50,17 @@ export async function addAutoCategories() {
   // Get the profile of the person based on the profile ID, and await because it's an async operation
   window.profilePerson = await getProfile(
     profileId,
-    "Id,Name,Parents,Siblings,Spouses,Children,LastNameAtBirth,MiddleInitial,MiddleName,Derived.BirthName, Derived.BirthNamePrivate",
+    "Id,Name,Parents,Siblings,Spouses,Children,LastNameAtBirth,MiddleInitial,MiddleName,Derived.BirthName, Derived.BirthNamePrivate,Gender",
     "WBE_auto_categories"
   );
+  console.log(JSON.parse(JSON.stringify(window.profilePerson)));
 
   // Merge the form data into the profilePerson object
   Object.assign(window.profilePerson, formData);
+
+  //if ($("img[title='Privacy Level: Unlisted']").length > 0) {
+  buildFamilyForPrivateProfiles();
+  //}
 
   // Log the profilePerson object to the console for debugging
   console.log(window.profilePerson);
@@ -137,7 +144,9 @@ export async function addAutoCategories() {
     enhanced = true;
   }
   let newText = window.sectionsObject.StuffBeforeTheBio.text.join("\n");
-  currentBio = currentBio.replace(/^(.*?)== Biography ==/s, `${newText}\n== Biography ==`);
+  if (window.sectionsObject.StuffBeforeTheBio.text.length > 0) {
+    currentBio = currentBio.replace(/^(.*?)== Biography ==/s, `${newText}\n== Biography ==`);
+  }
   // Add the text to the textarea and switch back to the enhanced editor if it was on
   $("#wpTextbox1").val(currentBio);
   if (enhanced == true) {
@@ -148,7 +157,6 @@ export async function addAutoCategories() {
 
 checkIfFeatureEnabled("autoCategories").then((result) => {
   if (result) {
-    console.log(window.profilePerson);
     getFeatureOptions("autoCategories").then((options) => {
       window.autoCategoriesOptions = options;
     });

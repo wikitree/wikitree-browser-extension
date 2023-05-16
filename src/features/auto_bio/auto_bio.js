@@ -5831,6 +5831,181 @@ export function addOccupationCategories(feature = "autoBio") {
   });
 }
 
+export function buildFamilyForPrivateProfiles() {
+  if (!window.profilePerson.BirthName) {
+    window.profilePerson.BirthName =
+      window.profilePerson.FirstName + (window.profilePerson.MiddleName ? " " + window.profilePerson.MiddleName : "");
+  }
+  if (!window.profilePerson.BirthNamePrivate) {
+    window.profilePerson.BirthNamePrivate =
+      (window.profilePerson.RealName || window.profilePerson.FirstName) +
+      " " +
+      window.profilePerson.LastNameAtBirth +
+      (window.profilePerson.Suffix ? " " + window.profilePerson.Suffix : "");
+  }
+  if (!window.profilePerson.LastNameAtBirth) {
+    // <a name="last-name"></a>
+    const lastNameAnchor = $("a[name='last-name']");
+    const lastNameText = lastNameAnchor.parent().text().split(" [")[0].trim();
+    window.profilePerson.LastNameAtBirth = lastNameText;
+  }
+  if (!window.profilePerson.Gender) {
+    window.profilePerson.Gender = $("select#mGender option:selected").val();
+  }
+
+  function parseName(name, object) {
+    const nameParts = name.split(" ");
+    let lastNameAtBirthIndex;
+    nameParts.forEach(function (part, index) {
+      if (part.match(/^\(.*\)$/)) {
+        nameParts[index] = part.replace("(", "").replace(")", "");
+        object.LastNameAtBirth = nameParts[index];
+        lastNameAtBirthIndex = index;
+      }
+    });
+    if (lastNameAtBirthIndex) {
+      object.FirstName = nameParts.slice(0, lastNameAtBirthIndex).join(" ");
+      object.LastNameCurrent = nameParts.slice(lastNameAtBirthIndex + 1).join(" ");
+    } else {
+      object.LastNameAtBirth = nameParts.pop();
+      object.FirstName = nameParts.join(" ");
+    }
+  }
+
+  function findFamilyPersonLink(links) {
+    let familyPersonLink;
+    for (let i = 0; i < links.length; i++) {
+      const link = links[i];
+      if (link.href.match(/\/wiki\/.*-\d+$/)) {
+        familyPersonLink = link;
+        break;
+      }
+    }
+    return familyPersonLink;
+  }
+  const familyColumn = $("a[name='family']").closest("div");
+  const familyTable = familyColumn.find("table");
+  const familyTableRows = familyTable.find("tr");
+  let fatherTr, motherTr, siblingsTr, spousesTr, childrenTr;
+  familyTableRows.each(function (index, row) {
+    if (
+      $(this)
+        .find("td")
+        .eq(0)
+        .text()
+        .match(/Father/)
+    ) {
+      fatherTr = row;
+    } else if (
+      $(this)
+        .find("td")
+        .eq(0)
+        .text()
+        .match(/Mother/)
+    ) {
+      motherTr = row;
+    } else if (
+      $(this)
+        .find("td")
+        .eq(0)
+        .text()
+        .match(/Siblings/)
+    ) {
+      siblingsTr = row;
+    } else if (
+      $(this)
+        .find("td")
+        .eq(0)
+        .text()
+        .match(/Spouses/)
+    ) {
+      spousesTr = row;
+    } else if (
+      $(this)
+        .find("td")
+        .eq(0)
+        .text()
+        .match(/Children/)
+    ) {
+      childrenTr = row;
+    }
+  });
+
+  if (!window.profilePerson.Parents) {
+    window.profilePerson.Parents = {};
+    if (fatherTr) {
+      const fatherLinks = fatherTr.querySelectorAll("a");
+      let fatherLink;
+      if (fatherLinks) {
+        fatherLink = findFamilyPersonLink(fatherLinks);
+      }
+      if (fatherLink) {
+        const fatherId = fatherLink.href.split("/").pop();
+        const fatherObject = {};
+        fatherObject.Name = fatherId;
+        const fatherName = fatherLink.textContent;
+        parseName(fatherName, fatherObject);
+        window.profilePerson.Parents[1] = fatherObject;
+        window.profilePerson.Father = 1;
+      }
+    }
+    if (motherTr) {
+      const motherLinks = motherTr.querySelectorAll("a");
+      let motherLink;
+      if (motherLinks) {
+        motherLink = findFamilyPersonLink(motherLinks);
+      }
+      if (motherLink) {
+        const motherId = motherLink.href.split("/").pop();
+        const motherObject = {};
+        motherObject.Name = motherId;
+        const motherName = motherLink.textContent;
+        parseName(motherName, motherObject);
+        window.profilePerson.Parents[2] = motherObject;
+        window.profilePerson.Mother = 2;
+      }
+    }
+  }
+
+  const familyLists = ["Siblings", "Spouses", "Children"];
+  familyLists.forEach((familyList) => {
+    if (!window.profilePerson[familyList]) {
+      window.profilePerson[familyList] = {};
+      const familyTr = familyList === "Siblings" ? siblingsTr : familyList === "Spouses" ? spousesTr : childrenTr;
+      if (familyTr) {
+        const familyTd = $(familyTr).find("td").eq(1)[0];
+        if (familyTd) {
+          const familyOl = familyTd.firstElementChild;
+          if (familyOl) {
+            const family = familyOl.children;
+            for (let i = 0; i < family.length; i++) {
+              const familyMember = family[i];
+              const familyMemberLinks = familyMember.querySelectorAll("a");
+              let familyMemberLink;
+              familyMemberLink = findFamilyPersonLink(familyMemberLinks);
+              if (familyMemberLink) {
+                const familyMemberId = familyMemberLink.href.split("/").pop();
+                const familyMemberObject = {};
+                familyMemberObject.Name = familyMemberId;
+                familyMemberObject.BirthDate = "0000-00-00";
+                if (familyList == "Spouses") {
+                  familyMemberObject["marriage_date"] = "0000-00-00";
+                }
+                const familyMemberName = familyMemberLink.textContent;
+                parseName(familyMemberName, familyMemberObject);
+                window.profilePerson[familyList][i] = familyMemberObject;
+              }
+            }
+          }
+        }
+      }
+    }
+    if (Object.keys(window.profilePerson[familyList]).length === 0) {
+      window.profilePerson[familyList] = [];
+    }
+  });
+}
+
 export async function generateBio() {
   window.autoBioNotes = [];
 
@@ -5868,10 +6043,19 @@ export async function generateBio() {
     }
   });
 
+  // if ($("img[title='Privacy Level: Unlisted']").length > 0) {
+  buildFamilyForPrivateProfiles();
+  //}
+
+  console.log(JSON.parse(JSON.stringify(window.profilePerson)));
+
   const nuclearFamily = familyArray(window.profilePerson);
+  console.log(JSON.parse(JSON.stringify(nuclearFamily)));
   nuclearFamily.forEach(function (member) {
-    assignPersonNames(member);
-    setOrderBirthDate(member);
+    if (member) {
+      assignPersonNames(member);
+      setOrderBirthDate(member);
+    }
   });
   fixLocations();
 
@@ -5916,7 +6100,7 @@ export async function generateBio() {
   } else {
     window.profilePerson.BirthNamePrivate = window.profilePerson.RealName + " " + window.profilePerson.LastNameAtBirth;
   }
-
+  console.log(JSON.parse(JSON.stringify(window.profilePerson)));
   assignPersonNames(window.profilePerson);
   if (isOK(window.profilePerson.BirthDate) && window.profilePerson.BirthDate.match("-") == null) {
     window.profilePerson.BirthDate = convertDate(window.profilePerson.BirthDate, "ISO");
