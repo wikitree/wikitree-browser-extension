@@ -2163,6 +2163,7 @@ function findRelation(person) {
     const needsProfilesList = window.sectionsObject["Research Notes"].subsections.NeedsProfiles;
     if (needsProfilesList) {
       needsProfilesList.forEach(function (needed) {
+        console.log(needed);
         if (getSimilarity(needed.Name, person.Name) > 0.9 && !relationWord) {
           relationWord = needed.Relation;
         }
@@ -3040,6 +3041,8 @@ function buildCensusNarratives() {
   // getCensusesFromCensusSection();
 
   window.references.forEach(function (reference) {
+    console.log(JSON.parse(JSON.stringify(reference)));
+
     let text = "";
     if (reference.Text.match(/census|1939( England and Wales)? Register/i)) {
       reference["Event Type"] = "Census";
@@ -3096,10 +3099,12 @@ function buildCensusNarratives() {
             reference = assignSelf(reference);
           }
         }
+        console.log(JSON.parse(JSON.stringify(reference)));
 
         if (window.sourcerCensuses) {
           window.sourcerCensuses.forEach(function (sourcerReference) {
             if (sourcerReference["Census Year"] == reference["Census Year"]) {
+              console.log(JSON.parse(JSON.stringify(sourcerReference)));
               const { Text, Residence, ...rest } = sourcerReference;
               // Use the spread operator to copy the remaining properties to the target object
               Object.assign(reference, rest);
@@ -3111,6 +3116,7 @@ function buildCensusNarratives() {
           });
         }
       }
+      console.log(JSON.parse(JSON.stringify(reference)));
 
       let residenceBits = [];
       if (reference["Street Address"]) {
@@ -4721,13 +4727,14 @@ function getSourcerCensuses() {
   refs.forEach((ref) => ref.remove());
   const text = dummy.innerHTML;
 
-  const regexWikitable = /In the (\d{4}) census[^\n]+?\n{1,2}(\{\|.*?\|\})/gms;
-  const regexNonWikitable = /In the (\d{4}) census[^{=]*?\n([.:#*].+?)(?=\n[^:#*])/gms;
+  const regexWikitable = /In the .{0,3}?(\d{4}).{0,3}? census[^\n]+?\n{1,2}(\{\|.*?\|\})/gms;
+  const regexNonWikitable = /In the .{0,3}?(\d{4}).{0,3}? census[^{=]*?\n([.:#*].+?)(?=\n[^:#*])/gms;
 
   const tempCensuses = {};
 
   for (const match of text.matchAll(regexWikitable)) {
     let household = parseFamilyData(match[2], { format: "wikitable" });
+    console.log(JSON.parse(JSON.stringify(household)));
     tempCensuses[match[1]] = {
       "Census Year": match[1],
       Text: match[0],
@@ -4737,6 +4744,7 @@ function getSourcerCensuses() {
       Household: household,
     };
   }
+  console.log(JSON.parse(JSON.stringify(censuses)));
 
   for (const match of text.matchAll(regexNonWikitable)) {
     const matchSplit = match[0].split(/\n(?=[.*#:])/);
@@ -4763,6 +4771,7 @@ function getSourcerCensuses() {
   for (const key in tempCensuses) {
     censuses.push(tempCensuses[key]);
   }
+  console.log(JSON.parse(JSON.stringify(censuses)));
 
   // For non-Sourcer narrative ones
   const censusListRegex = /((?:1[789]\d{2}).*?)(?=1[789]\d{2}|$)/gs;
@@ -4800,19 +4809,24 @@ function getSourcerCensuses() {
       BulletType: bulletType,
     };
   });
+  console.log(JSON.parse(JSON.stringify(censuses)));
 
   // Filter out objects with empty lists
   const filteredCensusListObjects = censusListObjects.filter((obj) => obj.ListItems.length > 0);
   for (const key in filteredCensusListObjects) {
     censuses.push(filteredCensusListObjects[key]);
   }
+  console.log(JSON.parse(JSON.stringify(censuses)));
 
   if (window.sectionsObject?.Biography?.subsections?.Census) {
     processCensusSubsections(censuses);
   }
   censuses.forEach(assignSelf);
+  console.log(JSON.parse(JSON.stringify(censuses)));
+
   censuses.forEach(processCensus);
   censuses = addRelationsToSourcerCensuses(censuses);
+  console.log(JSON.parse(JSON.stringify(censuses)));
   return censuses;
 }
 
@@ -4862,6 +4876,8 @@ function processCensus(census) {
 }
 
 function processTable(table, census) {
+  console.log(JSON.parse(JSON.stringify(census)), JSON.parse(JSON.stringify(table)));
+
   const rows = table.split("\n");
   const headers = rows[2]
     .replace(/^.{2}/, "")
@@ -4893,6 +4909,7 @@ function processTable(table, census) {
 
     census.Household.push(obj);
   }
+  console.log(JSON.parse(JSON.stringify(census)));
 
   processHouseholdMembers(census);
 }
