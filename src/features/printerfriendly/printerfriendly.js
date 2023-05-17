@@ -18,7 +18,13 @@ checkIfFeatureEnabled("printerFriendly").then((result) => {
 async function initPrinterFriendly() {
   ensureProfileClasses();
   const options = await getFeatureOptions("printerFriendly");
-  if (options.addMenuItem) {
+
+  if (!!options.onBrowserPrint) {
+    // this will force the browser to always print only the biography content, whether the menu link is used or not
+    $("html").addClass("print-content-only");
+  }
+
+  if (options.addMenuItem !== false) {
     // Add link to WT ID menu
     $("body.profile a.pureCssMenui0 span.person")
       .closest("li")
@@ -31,15 +37,22 @@ async function initPrinterFriendly() {
       );
 
     $(`#wte-tm-printer-friendly`).on("click", () => {
-      // this menu item is essentially pointless now, but the menu item is preserved for backward-compatibility
+      if (!options.onBrowserPrint) {
+        $("html").addClass("print-content-only");
+      }
       window.print();
+      if (!options.onBrowserPrint) {
+        $("html").removeClass("print-content-only");
+      }
     });
   }
 
-  let $heading = $("h1.x-heading-title").first().clone();
-  $heading.children(":not(span)").remove();
+  let $heading = $('<span class="printable-title"></span>').html($("h1.x-heading-title").html());
+  $heading.find(":not(span), *[id], .x-widget, button").remove();
   $heading.text($heading.text()?.replace(/(^\s+)|(\s+$)/g, ""));
   $(".x-profile")
     .last()
-    .prepend($('<div class="print-only printable-heading">').append($(".x-thumbnail img").clone()).append($heading));
+    .prepend(
+      $('<div class="printable-heading" style="display: none;">').append($(".x-thumbnail img").clone()).append($heading)
+    );
 }

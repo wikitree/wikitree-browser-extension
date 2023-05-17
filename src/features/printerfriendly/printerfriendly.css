@@ -3,10 +3,14 @@
 }
 
 @media only print {
-  .columns,
-  .ten,
-  .container .columns,
-  .container .ten.columns {
+  .print-only {
+    display: unset !important;
+  }
+
+  .print-content-only .columns,
+  .print-content-only .ten,
+  .print-content-only .container .columns,
+  .print-content-only .container .ten.columns {
     float: initial;
     display: initial;
     width: unset;
@@ -14,61 +18,63 @@
     margin-right: unset;
   }
 
-  a[target="_Help"],
-  span[title*="for the profile and"],
-  div[style="background-color:#e1efbb;"],
-  div[style="background-color:#eee;"],
-  a[href^="/treewidget/"],
-  a[href="/g2g/"],
-  a[class="nohover"],
-  .VITALS,
-  .star,
-  .profile-tabs,
-  .showhidetree,
-  .row,
-  .button,
-  .large,
-  .sixteen,
-  .five,
-  .editsection,
-  .EDIT,
-  .comment-absent,
-  .box,
-  #views-wrap,
-  #footer,
-  #commentPostDiv,
-  #comments,
-  #commentEditDiv,
-  #commentG2GDiv,
-  #header,
-  #showHideDescendants,
-  #toc,
-  .x-heading,
-  .x-widget,
-  .x-audit,
-  .x-memories,
-  .x-comments,
-  .x-merges,
-  .x-connections,
-  .x-categories {
+  .print-content-only a[target="_Help"],
+  .print-content-only span[title*="for the profile and"],
+  .print-content-only div[style="background-color:#e1efbb;"],
+  .print-content-only div[style="background-color:#eee;"],
+  .print-content-only a[href^="/treewidget/"],
+  .print-content-only a[href="/g2g/"],
+  .print-content-only a[class="nohover"],
+  .print-content-only .VITALS,
+  .print-content-only .star,
+  .print-content-only .profile-tabs,
+  .print-content-only .showhidetree,
+  .print-content-only .row,
+  .print-content-only .button,
+  .print-content-only .large,
+  .print-content-only .sixteen,
+  .print-content-only .five,
+  .print-content-only .editsection,
+  .print-content-only .EDIT,
+  .print-content-only .comment-absent,
+  .print-content-only .box,
+  .print-content-only #views-wrap,
+  .print-content-only #footer,
+  .print-content-only #commentPostDiv,
+  .print-content-only #comments,
+  .print-content-only #commentEditDiv,
+  .print-content-only #commentG2GDiv,
+  .print-content-only #header,
+  .print-content-only #showHideDescendants,
+  .print-content-only #toc,
+  .print-content-only .x-heading,
+  .print-content-only .x-widget,
+  .print-content-only .x-audit,
+  .print-content-only .x-memories,
+  .print-content-only .x-comments,
+  .print-content-only .x-merges,
+  .print-content-only .x-connections,
+  .print-content-only .x-categories {
     display: none !important;
   }
 
-  .print-only {
-    display: unset !important;
+  .print-content-only .printable-heading {
+    display: initial !important;
   }
 }
 
-.printable-heading {
+.print-content-only .printable-heading {
   margin-bottom: 2em;
 }
 
-.printable-heading > img {
+.print-content-only .printable-heading > img {
   margin-right: 50px;
   margin-bottom: 1em;
   vertical-align: top;
 }
 
-.printable-heading > h1 {
-  display: inline;
+.print-content-only .printable-title {
+  font-size: 2.1429em;
+  line-height: 1.4em;
+  font-weight: bold;
 }

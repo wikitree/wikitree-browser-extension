@@ -18,6 +18,12 @@ const printerFriendlyFeature = {
   pages: [isProfilePage, isSpacePage],
   options: [
     {
+      id: "onBrowserPrint",
+      type: OptionType.CHECKBOX,
+      label: "Apply formatting when directly using the browser's print option.",
+      defaultValue: false,
+    },
+    {
       id: "addMenuItem",
       type: OptionType.CHECKBOX,
       label: "Add a link to the profile menu.",
