@@ -113,13 +113,13 @@ async function addAddLinksToHeadings() {
 async function prepareFamilyLists() {
   if ($("body.profile").length && window.location.href.match("Space:") == null && $("#nVitals").length == 0) {
     const ourVitals = $("div.ten div.VITALS");
-    const familyLists = $("<div id='nVitals'></div>");
+    const familyLists = $('<div id="nVitals" style="display: none;"></div>');
+    ourVitals.last().after(familyLists);
     ourVitals.each(function () {
       if ($(this).find("span[itemprop='givenName']").length) {
         $(this).prop("id", "profileName");
       } else if ($(this).text().match(/^Born/)) {
         $(this).prop("id", "birthDetails");
-        $(this).after(familyLists);
       } else if ($(this).text().match(/^Died/)) {
         $(this).prop("id", "deathDetails");
       } else {
@@ -155,6 +155,7 @@ async function prepareFamilyLists() {
       }
     });
 
+    familyLists.show();
     $("#parentDetails").prepend($("span.showHideTree").eq(0));
     $("#childrenDetails").prepend($("span#showHideDescendants"));
   }
@@ -330,7 +331,7 @@ function reallyMakeFamLists() {
           fixAllPrivates();
 
           // cleaning up
-          if ($("span.large:contains(Family Member)").length == 0) {
+          /*if ($("span.large:contains(Family Member)").length == 0)*/ {
             makeFamLists();
             $(".familyList li").each(function () {
               if (
@@ -1099,7 +1100,7 @@ async function prepareHeadings() {
       let ofMatch = n1.textContent.match("of");
       let regexMatch = n1.textContent.match(regex);
       let wrongMatch = false;
-      if (regexMatch && ofMatch == null && n2.textContent.match(" of ") == null) {
+      if (regexMatch && ofMatch == null && !/\bof\b/.test(n2.textContent)) {
         wrongMatch = true;
       }
       if (regexMatch && wrongMatch != true) {
