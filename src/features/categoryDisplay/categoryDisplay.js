@@ -53,7 +53,7 @@ async function moveCategories() {
   // Determine the category placement
   switch (options.categoryLocation) {
     case "sidebar":
-      $("#categories").find('span[class="SMALL"]').remove();
+      $("#categories").addClass("row").find('span[class="SMALL"]').remove();
       let $sidebar = $(".columns.six").first();
       if ($sidebar.length > 0) {
         // space pages don't have a DNA section, so we just need to find the first section element

@@ -616,3 +616,10 @@ body.darkMode .vertical .nameList span.bdDates.parent_2 {
 .vertical ol {
   clear: both;
 }
+
+#nVitals .sidebar-heading {
+  display: none;
+}
+.columns.six #nVitals .sidebar-heading {
+  display: block;
+}

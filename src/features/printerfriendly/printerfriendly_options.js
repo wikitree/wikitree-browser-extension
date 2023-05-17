@@ -26,7 +26,7 @@ const printerFriendlyFeature = {
     {
       id: "printVitals",
       type: OptionType.CHECKBOX,
-      label: "Include vital information before the biography.",
+      label: "Include vitals and family relationships.",
       defaultValue: false,
     },
     {
