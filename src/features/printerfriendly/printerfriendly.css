@@ -1,0 +1,74 @@
+.print-only {
+  display: none !important;
+}
+
+@media only print {
+  .columns,
+  .ten,
+  .container .columns,
+  .container .ten.columns {
+    float: initial;
+    display: initial;
+    width: unset;
+    margin-left: unset;
+    margin-right: unset;
+  }
+
+  a[target="_Help"],
+  span[title*="for the profile and"],
+  div[style="background-color:#e1efbb;"],
+  div[style="background-color:#eee;"],
+  a[href^="/treewidget/"],
+  a[href="/g2g/"],
+  a[class="nohover"],
+  .VITALS,
+  .star,
+  .profile-tabs,
+  .showhidetree,
+  .row,
+  .button,
+  .large,
+  .sixteen,
+  .five,
+  .editsection,
+  .EDIT,
+  .comment-absent,
+  .box,
+  #views-wrap,
+  #footer,
+  #commentPostDiv,
+  #comments,
+  #commentEditDiv,
+  #commentG2GDiv,
+  #header,
+  #showHideDescendants,
+  #toc,
+  .x-heading,
+  .x-widget,
+  .x-audit,
+  .x-memories,
+  .x-comments,
+  .x-merges,
+  .x-connections,
+  .x-categories {
+    display: none !important;
+  }
+
+  .print-only {
+    display: unset !important;
+  }
+}
+
+.printable-heading {
+  margin-bottom: 2em;
+}
+
+.printable-heading > img {
+  margin-right: 50px;
+  margin-bottom: 1em;
+  vertical-align: top;
+}
+
+.printable-heading > h1 {
+  display: inline;
+}

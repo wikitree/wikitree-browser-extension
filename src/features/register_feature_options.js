@@ -61,6 +61,7 @@ import "./extra_watchlist/extra_watchlist_options";
 import "./g2g/g2g_options";
 import "./genderPredictor/gender_predictor_options";
 import "./language_setting/language_setting_options";
+import "./printerfriendly/printerfriendly_options";
 import "./randomProfile/randomProfile_options";
 import "./readability/readability_options";
 import "./redir_ext_links/redir_ext_links_options";
@@ -279,18 +280,6 @@ registerFeature({
   contributors: [],
   defaultValue: false,
   pages: [true],
-});
-
-registerFeature({
-  name: "Printer Friendly Bio",
-  id: "printerFriendly",
-  description: "Change the page to a printer-friendly one.",
-  category: "Menus",
-  ordinal: -1,
-  creators: [{ name: "Jamie Nelson", wikitreeid: "Nelson-3486" }],
-  contributors: [],
-  defaultValue: true,
-  pages: [isProfilePage],
 });
 
 registerFeature({
