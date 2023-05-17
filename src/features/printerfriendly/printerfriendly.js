@@ -24,6 +24,11 @@ async function initPrinterFriendly() {
     $("html").addClass("print-content-only");
   }
 
+  if (!!options.printVitals) {
+    // the original feature removed them, but this seems like something most people would want at the top of the bio
+    $("html").addClass("print-vitals");
+  }
+
   if (options.addMenuItem !== false) {
     // Add link to WT ID menu
     $("body.profile a.pureCssMenui0 span.person")

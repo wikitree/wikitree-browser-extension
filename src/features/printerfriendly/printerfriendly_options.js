@@ -24,6 +24,12 @@ const printerFriendlyFeature = {
       defaultValue: false,
     },
     {
+      id: "printVitals",
+      type: OptionType.CHECKBOX,
+      label: "Include vital information before the biography.",
+      defaultValue: false,
+    },
+    {
       id: "addMenuItem",
       type: OptionType.CHECKBOX,
       label: "Add a link to the profile menu.",
