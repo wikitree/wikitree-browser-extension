@@ -31,3 +31,9 @@
   border-radius: 1em;
   margin-top: 1em;
 }
+
+@media only print {
+  .x-source-preview {
+    display: none;
+  }
+}
