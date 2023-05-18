@@ -113,13 +113,18 @@ async function addAddLinksToHeadings() {
 async function prepareFamilyLists() {
   if ($("body.profile").length && window.location.href.match("Space:") == null && $("#nVitals").length == 0) {
     const ourVitals = $("div.ten div.VITALS");
-    const familyLists = $("<div id='nVitals'></div>");
+    const familyLists = $(
+      '<div id="nVitals" style="display: none;">' +
+        '<div class="large sidebar-heading" style="margin-bottom:0.5em"><strong>Family Relationships</strong></div>' +
+        "</div>"
+    );
+
+    ourVitals.last().after(familyLists);
     ourVitals.each(function () {
       if ($(this).find("span[itemprop='givenName']").length) {
         $(this).prop("id", "profileName");
       } else if ($(this).text().match(/^Born/)) {
         $(this).prop("id", "birthDetails");
-        $(this).after(familyLists);
       } else if ($(this).text().match(/^Died/)) {
         $(this).prop("id", "deathDetails");
       } else {
@@ -155,6 +160,7 @@ async function prepareFamilyLists() {
       }
     });
 
+    familyLists.show();
     $("#parentDetails").prepend($("span.showHideTree").eq(0));
     $("#childrenDetails").prepend($("span#showHideDescendants"));
   }
@@ -183,12 +189,14 @@ async function moveFamilyLists(firstTime = false) {
     let right;
     if (window.innerWidth < 767 || rightHandColumn.find(familyLists).length) {
       familyLists.fadeOut("slow", function () {
-        familyLists.insertAfter($("#birthDetails"));
+        familyLists.removeClass("row");
+        familyLists.insertAfter($("#birthDetails, #profileName").last());
         familyLists.fadeIn("slow");
       });
       right = false;
     } else {
       familyLists.fadeOut("slow", function () {
+        familyLists.addClass("row");
         if ($("a[href='/wiki/Project_protection']").length) {
           familyLists.insertBefore($("a[href='/wiki/Project_protection']").closest("div"));
         } else if ($("#geneticfamily").length) {
@@ -210,8 +218,9 @@ async function moveFamilyLists(firstTime = false) {
   } else {
     getFeatureOptions("changeFamilyLists").then((optionsData) => {
       if (window.innerWidth < 767) {
-        familyLists.insertAfter($("#birthDetails"));
+        familyLists.removeClass("row").insertAfter($("#birthDetails, #profileName").last());
       } else if (optionsData.moveToRight) {
+        familyLists.addClass("row");
         if ($("div.six a[href='/wiki/Project_protection']").length) {
           familyLists.insertAfter($("div.six a[href='/wiki/Project_protection']").closest("div"));
         } else if ($("#geneticfamily").length) {
@@ -330,7 +339,7 @@ function reallyMakeFamLists() {
           fixAllPrivates();
 
           // cleaning up
-          if ($("span.large:contains(Family Member)").length == 0) {
+          /*if ($("span.large:contains(Family Member)").length == 0)*/ {
             makeFamLists();
             $(".familyList li").each(function () {
               if (
@@ -1099,7 +1108,7 @@ async function prepareHeadings() {
       let ofMatch = n1.textContent.match("of");
       let regexMatch = n1.textContent.match(regex);
       let wrongMatch = false;
-      if (regexMatch && ofMatch == null && n2.textContent.match(" of ") == null) {
+      if (regexMatch && ofMatch == null && !/\bof\b/.test(n2.textContent)) {
         wrongMatch = true;
       }
       if (regexMatch && wrongMatch != true) {

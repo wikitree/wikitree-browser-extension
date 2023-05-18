@@ -1,12 +1,35 @@
 /*
 Created By: Jamie Nelson (Nelson-3486)
+Contributors: Jonathan Duke (Duke-5773)
+Contains modified code from Steven's WikiTree Toolkit
 */
 
 import $ from "jquery";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage"
+import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { ensureProfileClasses } from "../../core/profileClasses";
 
 checkIfFeatureEnabled("printerFriendly").then((result) => {
   if (result) {
+    import("./printerfriendly.css");
+    initPrinterFriendly();
+  }
+});
+
+async function initPrinterFriendly() {
+  ensureProfileClasses();
+  const options = await getFeatureOptions("printerFriendly");
+
+  if (!!options.onBrowserPrint) {
+    // this will force the browser to always print only the biography content, whether the menu link is used or not
+    $("html").addClass("print-content-only");
+  }
+
+  if (!!options.printVitals) {
+    // the original feature removed them, but this seems like something most people would want at the top of the bio
+    $("html").addClass("print-vitals");
+  }
+
+  if (options.addMenuItem !== false) {
     // Add link to WT ID menu
     $("body.profile a.pureCssMenui0 span.person")
       .closest("li")
@@ -19,60 +42,22 @@ checkIfFeatureEnabled("printerFriendly").then((result) => {
       );
 
     $(`#wte-tm-printer-friendly`).on("click", () => {
-      printBio();
+      if (!options.onBrowserPrint) {
+        $("html").addClass("print-content-only");
+      }
+      window.print();
+      if (!options.onBrowserPrint) {
+        $("html").removeClass("print-content-only");
+      }
     });
   }
-});
 
-// modified code from Steven's WikiTree Toolkit
-function printBio() {
-  var pTitleClean = $(document).attr("title");
-  var pTitleCleaner = pTitleClean.replace(" | WikiTree FREE Family Tree", "");
-  var pTitle = pTitleCleaner.replace(" - WikiTree Profile", "");
-  var pImage = $("img[src^='/photo.php/']").attr("src");
-  var pTitleInsert = $("h2").first();
-  pTitleInsert.before(
-    `<div>
-			<img style="float:left;" src="https://www.wikitree.com${pImage}" width="75" height="75">
-			<div style="font-size: 2.1429em; line-height: 1.4em; margin-bottom:50px; padding: 20px 100px;">
-				${pTitle}
-			</div>
-		</div>`
-  );
-
-  $("a[target='_Help']").parent().remove();
-  $("span[title*='for the profile and']").parent().remove();
-  $("div[style='background-color:#e1efbb;']").remove();
-  $("div[style='background-color:#eee;']").remove();
-  $("a[href^='/treewidget/']").remove();
-  $("a[href='/g2g/']").remove();
-  $("a[class='nohover']").remove();
-
-  $("div").removeClass("ten columns");
-  $(".VITALS").remove();
-  $(".star").remove();
-  $(".profile-tabs").remove();
-  //$(".SMALL").remove();
-  $(".showhidetree").remove();
-  $(".row").remove();
-  $(".button").remove();
-  $(".large").remove();
-  $(".sixteen").remove();
-  $(".five").remove();
-  $(".editsection").remove();
-  $(".EDIT").remove();
-  $(".comment-absent").remove();
-  $(".box").remove();
-
-  $("#views-wrap").remove();
-  $("#footer").remove();
-  $("#commentPostDiv").remove();
-  $("#comments").remove();
-  $("#commentEditDiv").remove();
-  $("#commentG2GDiv").remove();
-  $("#header").remove();
-  $("#showHideDescendants").remove();
-
-  window.print();
-  location.reload();
+  let $heading = $('<span class="printable-title"></span>').html($("h1.x-heading-title").html());
+  $heading.find(":not(span), *[id], .x-widget, button").remove();
+  $heading.text($heading.text()?.replace(/(^\s+)|(\s+$)/g, ""));
+  $(".x-profile")
+    .last()
+    .prepend(
+      $('<div class="printable-heading" style="display: none;">').append($(".x-thumbnail img").clone()).append($heading)
+    );
 }

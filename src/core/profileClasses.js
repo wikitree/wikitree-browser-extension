@@ -47,7 +47,7 @@ export function ensureProfileClasses() {
       .addClass("x-thumbnail-default");
 
     // mark the widgets (including the scissors container) inside the h1 tag, plus the green buttons like showHideTree
-    $(".x-heading-title button, .showHideTree, #showHideDescendants").addClass("x-widget");
+    $(".x-heading-title button, .showHideTree, #showHideDescendants, #distanceFromYou").addClass("x-widget");
     $(".x-profile-category .x-heading")
       .prevAll()
       .filter(function () {
