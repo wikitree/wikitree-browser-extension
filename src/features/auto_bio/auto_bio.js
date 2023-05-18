@@ -2527,6 +2527,7 @@ function extractHouseholdMembers(row) {
 function parseCensusWikitable(text) {
   const lines = text.split("\n");
   const columnMapping = analyzeColumns(lines);
+  console.log(columnMapping);
   const data = [];
   lines.forEach((line, index) => {
     if (!line.startsWith("|-") && !line.startsWith("|}") && index > 1 && !line.includes(" Age ")) {
@@ -4750,6 +4751,8 @@ function getSourcerCensuses() {
     const matchSplit = match[0].split(/\n(?=[.*#:])/);
     let household;
     if (matchSplit[1]) {
+      console.log(JSON.parse(JSON.stringify(censuses)));
+      console.log(match[2]);
       household = parseFamilyData(match[2], "list");
     }
     if (!tempCensuses[match[1]]) {
@@ -4877,41 +4880,42 @@ function processCensus(census) {
 
 function processTable(table, census) {
   console.log(JSON.parse(JSON.stringify(census)), JSON.parse(JSON.stringify(table)));
-
-  const rows = table.split("\n");
-  const headers = rows[2]
-    .replace(/^.{2}/, "")
-    .split("||")
-    .map((header) => header.trim());
-  census.Household = [];
-
-  for (let i = 3; i < rows.length - 1; i++) {
-    if (rows[i].startsWith("|-")) continue;
-
-    const cells = rows[i]
+  if (!census.Household) {
+    const rows = table.split("\n");
+    const headers = rows[2]
       .replace(/^.{2}/, "")
       .split("||")
-      .map((cell) => cell.trim());
-    const obj = {};
+      .map((header) => header.trim());
+    census.Household = [];
 
-    if (cells[0].match("'''")) {
-      obj.Relation = "Self";
-      obj.isMain = true;
+    for (let i = 3; i < rows.length - 1; i++) {
+      if (rows[i].startsWith("|-")) continue;
+
+      const cells = rows[i]
+        .replace(/^.{2}/, "")
+        .split("||")
+        .map((cell) => cell.trim());
+      const obj = {};
+
+      if (cells[0].match("'''")) {
+        obj.Relation = "Self";
+        obj.isMain = true;
+      }
+
+      for (let j = 0; j < headers.length; j++) {
+        obj[headers[j]] = cells[j].replaceAll("'''", "").replace(/(\d+)(weeks|months)/, "$1}$/ $2");
+      }
+
+      if (obj.Relation === "Self" && obj.Occupation) {
+        census.Occupation = obj.Occupation;
+      }
+
+      census.Household.push(obj);
     }
+    console.log(JSON.parse(JSON.stringify(census)));
 
-    for (let j = 0; j < headers.length; j++) {
-      obj[headers[j]] = cells[j].replaceAll("'''", "").replace(/(\d+)(weeks|months)/, "$1}$/ $2");
-    }
-
-    if (obj.Relation === "Self" && obj.Occupation) {
-      census.Occupation = obj.Occupation;
-    }
-
-    census.Household.push(obj);
+    processHouseholdMembers(census);
   }
-  console.log(JSON.parse(JSON.stringify(census)));
-
-  processHouseholdMembers(census);
 }
 
 function processHouseholdMembers(census) {
@@ -5906,7 +5910,11 @@ export async function generateBio() {
           if (anEvent.Used == true) {
             marriagesAndCensusesText += " <ref" + refNameBit + " />";
           } else {
-            marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + listText + "</ref>";
+            if (window.autoBioOptions.householdTable && listText.match(/\{\|/)) {
+              marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + "</ref>\n" + listText;
+            } else {
+              marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + listText + "</ref>";
+            }
           }
           marriagesAndCensusesText += "\n\n";
           anEvent.Used = true;
