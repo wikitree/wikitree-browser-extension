@@ -103,29 +103,34 @@ checkIfFeatureEnabled("dnaTable").then((result) => {
 });
 
 export async function getPeople(keys, siblings, ancestors, descendants, nuclear, minGeneration, fields, appId = "WBE") {
-  try {
-    const result = await $.ajax({
-      url: "https://api.wikitree.com/api.php",
-      crossDomain: true,
-      xhrFields: {
-        withCredentials: true,
-      },
-      type: "POST",
-      dataType: "json",
-      data: {
-        action: "getPeople",
-        keys: keys,
-        siblings: siblings,
-        ancestors: ancestors,
-        descendants: descendants,
-        nuclear: nuclear,
-        minGeneration: minGeneration,
-        fields: fields,
-        appId: appId || "WBE",
-      },
-    });
-    return result;
-  } catch (error) {
-    console.error(error);
+  if (keys.length) {
+    try {
+      const result = await $.ajax({
+        url: "https://api.wikitree.com/api.php",
+        crossDomain: true,
+        xhrFields: {
+          withCredentials: true,
+        },
+        type: "POST",
+        dataType: "json",
+        data: {
+          action: "getPeople",
+          keys: keys,
+          siblings: siblings,
+          ancestors: ancestors,
+          descendants: descendants,
+          nuclear: nuclear,
+          minGeneration: minGeneration,
+          fields: fields,
+          appId: appId || "WBE",
+        },
+      });
+      return result;
+    } catch (error) {
+      console.error(error);
+      return {}
+    }
+  } else {
+    return {}
   }
 }

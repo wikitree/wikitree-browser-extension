@@ -1,10 +1,13 @@
-#whatLinksHereLinks {
+#whatLinksHereLinksProfiles, 
+#whatLinksHereLinksPages {
   list-style: none;
 }
-#whatLinksHereLinks li:nth-child(n + 11) {
+#whatLinksHereLinksProfiles li:nth-child(n + 11), 
+#whatLinksHereLinksPages li:nth-child(n + 11) {
   display: none;
 }
-#whatLinksHereLinks.showAll li:nth-child(n + 11) {
+#whatLinksHereLinksProfiles.showAll li:nth-child(n + 11), 
+#whatLinksHereLinksPages.showAll li:nth-child(n + 11) {
   display: block;
 }
 #whatLinksHereMore {

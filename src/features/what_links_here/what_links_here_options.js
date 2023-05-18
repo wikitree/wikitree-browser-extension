@@ -13,14 +13,14 @@ const whatLinksHere = {
     " right-click to copy wiki markdown for links to what links to the page.",
   category: "Links",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
+  contributors: [{ name: "Aleš Trtnik", wikitreeid: "Trtnik-2" }],
   defaultValue: true,
   pages: [isWikiPage, isWikiEdit],
   options: [
     {
       id: "whatLinksHereSection",
       type: OptionType.CHECKBOX,
-      label: "Add a 'What Links Here' section to profiles and edit pages",
+      label: "Add a 'What Links Here' section to wiki pages",
       defaultValue: false,
     },
   ],
