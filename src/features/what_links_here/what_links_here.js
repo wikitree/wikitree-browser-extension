@@ -12,12 +12,11 @@ checkIfFeatureEnabled("whatLinksHere").then((result) => {
   if (result && $("a.whatLinksHere").length == 0) {
     const profileWTID = $("a.pureCssMenui0 span.person").text();
     window.profileWTID = profileWTID;
-    import("./what_links_here.css");
     whatLinksHereLink();
   }
 });
 
-async function whatLinksHereSection() {
+async function fillWhatLinksHereSection() {
   const thisUn = $("#whatLinksHere");
   // in annonimous there are no menus
   if (thisUn.length) {
@@ -64,32 +63,7 @@ async function whatLinksHereSection() {
               wlhContainers += "<div><ul id='whatLinksHereLinksPages'></ul></div>";
             }
             wlhContainers = '<div style="display: flex;">' + wlhContainers + "</div>";
-            let theSection;
-            if (isProfilePage || isSpacePage) {
-              // Profiles, Space
-              theSection = $(
-                "<section id='whatLinksHereSection'><h2>What Links Here<button id='whatLinksHereMore' class='button small'>⯈</button></h2>" +
-                  wlhContainers +
-                  "</section>"
-              );
-              $("#content .ten").append(theSection);
-            } else if (isMediaWikiPage || $("#content .sixteen").length) {
-              // Wiki pages
-              theSection = $(
-                "<section id='whatLinksHereSection'><h2>What Links Here<button id='whatLinksHereMore' class='button small'>⯈</button></h2>" +
-                  wlhContainers +
-                  "</section>"
-              );
-              $("#content .sixteen").append(theSection);
-            } else {
-              //???
-              theSection = $(
-                "<p id='whatLinksHereSection'><span class='large'><b>What Links Here</b></span>" +
-                  wlhContainers +
-                  "</p>"
-              );
-              $("#editform .six").append(theSection);
-            }
+            $("#whatLinksHereSection").append(wlhContainers);
 
             whatLinksHerePages.forEach(function (aLink) {
               let anLi = $("<li></li>");
@@ -101,19 +75,6 @@ async function whatLinksHereSection() {
               $("#whatLinksHereLinksProfiles").append(anLi);
               anLi.append($(aLink));
             });
-
-            if (whatLinksHerePages.length > 10 || whatLinksHereProfiles.length > 10) {
-              $("#whatLinksHereMore").show();
-              $("#whatLinksHereMore").on("click", function () {
-                $("#whatLinksHereLinksPages").toggleClass("showAll");
-                $("#whatLinksHereLinksProfiles").toggleClass("showAll");
-                if ($("#whatLinksHereLinksPages").hasClass("showAll")) {
-                  $(this).text("⇩");
-                } else {
-                  $(this).text("⇨");
-                }
-              });
-            }
           });
         }
       },
@@ -172,8 +133,7 @@ export function doWhatLinksHere(e) {
           whatLinksHereWikiTreeIDs.push($(this).text());
         } else {
           const name = $(this).attr("href").split("/wiki/")[1];
-          whatLinksHere +=
-            "[[" + (name.startsWith("Category") ? ":" : "") + name + "|" + $(this).text() + "]]\n";
+          whatLinksHere += "[[" + (name.startsWith("Category") ? ":" : "") + name + "|" + $(this).text() + "]]\n";
         }
       });
       if (whatLinksHereWikiTreeIDs.length || whatLinksHere !== "") {
@@ -208,7 +168,18 @@ async function whatLinksHereLink() {
   // Check the options and add section
   const options = await getFeatureOptions("whatLinksHere");
   if (options.whatLinksHereSection && isWikiPage) {
-    whatLinksHereSection();
+    const theSection = $(
+      `<section id='whatLinksHereSection'><h2>What Links Here <button id='whatLinksHereMore' class='button small' style="font-size: 0.5em; margin-top: 0.5em;">⯈</button></h2></section>`
+    );
+    if (isProfilePage || isSpacePage) {
+      $("#content .ten").append(theSection);
+    } else if (isMediaWikiPage) {
+      $("#content .sixteen").append(theSection);
+    }
+    $("#whatLinksHereMore").on("click", function () {
+      fillWhatLinksHereSection();
+      $("#whatLinksHereMore").hide();
+    });
   }
   $("a.whatLinksHere").contextmenu(function (e) {
     doWhatLinksHere(e);
