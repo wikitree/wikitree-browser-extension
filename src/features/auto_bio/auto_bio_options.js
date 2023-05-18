@@ -34,12 +34,7 @@ const autoBio = {
       label: "Only the South Africa Project style",
       defaultValue: false,
     },
-    {
-      id: "censusFamilyNarrative",
-      type: OptionType.CHECKBOX,
-      label: "Family narrative from census records when possible",
-      defaultValue: true,
-    },
+
     {
       id: "includeAgesAtMarriage",
       type: OptionType.CHECKBOX,
@@ -51,6 +46,25 @@ const autoBio = {
       type: OptionType.CHECKBOX,
       label: "Include age at death",
       defaultValue: true,
+    },
+    {
+      id: "censusGroup",
+      type: OptionType.GROUP,
+      label: "Censuses",
+      options: [
+        {
+          id: "censusFamilyNarrative",
+          type: OptionType.CHECKBOX,
+          label: "Family narrative from census records (when possible)",
+          defaultValue: true,
+        },
+        {
+          id: "householdTable",
+          type: OptionType.CHECKBOX,
+          label: "Household table in the biography (when possible)",
+          defaultValue: false,
+        },
+      ],
     },
     {
       id: "wordingGroup",
