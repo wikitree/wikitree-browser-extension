@@ -1,5 +1,6 @@
 /*
 Created By: Ian Beacall (Beacall-6)
+Contributors: Aleš Trtnik (Trtnik-2), Jonathan Duke (Duke-5773)
 */
 
 import { isWikiPage, isWikiEdit } from "../../core/pageType";
@@ -13,7 +14,10 @@ const whatLinksHere = {
     " right-click to copy wiki markdown for links to what links to the page.",
   category: "Links",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [{ name: "Aleš Trtnik", wikitreeid: "Trtnik-2" }],
+  contributors: [
+    { name: "Aleš Trtnik", wikitreeid: "Trtnik-2" },
+    { name: "Jonathan Duke", wikitreeid: "Duke-5773" },
+  ],
   defaultValue: true,
   pages: [isWikiPage, isWikiEdit],
   options: [

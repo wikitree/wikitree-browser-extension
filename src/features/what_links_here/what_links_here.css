@@ -1,0 +1,8 @@
+#whatLinksHereLinksProfiles,
+#whatLinksHereLinksPages {
+  list-style: none;
+  margin-left: 10px;
+}
+#whatLinksHereLinksProfiles {
+  white-space: nowrap;
+}

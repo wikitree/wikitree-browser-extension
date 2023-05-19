@@ -7,11 +7,15 @@
     display: unset !important;
   }
 
+  .print-content-only body {
+    background: white;
+  }
+
   .print-content-only .columns,
   .print-content-only .ten,
   .print-content-only .container .columns,
   .print-content-only .container .ten.columns {
-    float: initial;
+    float: left;
     display: initial;
     width: unset;
     margin-left: unset;
@@ -38,6 +42,7 @@
   .print-content-only .five,
   .print-content-only .editsection,
   .print-content-only .EDIT,
+  .print-content-only .x-edit,
   .print-content-only .comment-absent,
   .print-content-only .box,
   .print-content-only #views-wrap,
@@ -50,6 +55,7 @@
   .print-content-only #showHideDescendants,
   .print-content-only #categories,
   .print-content-only #toc,
+  .print-content-only #whatLinksHereSection,
   .print-content-only .x-heading,
   .print-content-only .x-widget,
   .print-content-only .x-audit,
@@ -68,16 +74,20 @@
 
 .print-content-only .printable-heading {
   margin-bottom: 2em;
+  clear: both;
 }
 
 .print-content-only .printable-heading > img {
+  float: left;
   margin-right: 50px;
   margin-bottom: 1em;
   vertical-align: top;
 }
 
 .print-content-only .printable-title {
+  display: inline-block;
   font-size: 2.1429em;
   line-height: 1.4em;
   font-weight: bold;
+  width: calc(100% - 125px);
 }
