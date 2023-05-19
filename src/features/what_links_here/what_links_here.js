@@ -1,6 +1,6 @@
 /*
 Created By: Ian Beacall (Beacall-6)
-Contributors: Aleš Trtnik (Trtnik-2)
+Contributors: Aleš Trtnik (Trtnik-2), Jonathan Duke (Duke-5773)
 */
 
 import $ from "jquery";
@@ -28,6 +28,12 @@ async function whatLinksHereSection() {
         const whatLinksHerePages = [];
         const whatLinksHereWikiTreeIDs = [];
         const whatLinksHereProfiles = [];
+        dLinks.sort(function (a, b) {
+          // sort all links by ID (including the Category: or Space: prefixes)
+          let c = $(a).attr("href")?.toLowerCase();
+          let d = $(b).attr("href")?.toLowerCase();
+          return c < d ? -1 : c > d ? 1 : 0;
+        });
         dLinks.each(function () {
           if (
             $(this)
@@ -48,6 +54,19 @@ async function whatLinksHereSection() {
           getPeople(profiles, 0, 0, 0, 0, 0, "Name,Derived.ShortName", "WBE_what_links_here").then((data) => {
             if (data.length) {
               let theKeys = Object.keys(data[0].people);
+              theKeys.sort(function (a, b) {
+                let c = (
+                  data[0].people[a]?.Name?.replace(/-\d+$/, "") +
+                  "|" +
+                  data[0].people[a]?.ShortName
+                ).toLowerCase();
+                let d = (
+                  data[0].people[b]?.Name?.replace(/-\d+$/, "") +
+                  "|" +
+                  data[0].people[b]?.ShortName
+                ).toLowerCase();
+                return c < d ? -1 : c > d ? 1 : 0;
+              });
               theKeys.forEach(function (aKey) {
                 let person = data[0].people[aKey];
                 if (person.Name) {
@@ -58,10 +77,10 @@ async function whatLinksHereSection() {
             }
             let wlhContainers = "";
             if (whatLinksHereWikiTreeIDs.length) {
-              wlhContainers += "<div><ul id='whatLinksHereLinksProfiles'></ul></div>";
+              wlhContainers += "<div><ul id='whatLinksHereLinksProfiles' class='star'></ul></div>";
             }
             if (whatLinksHerePages.length) {
-              wlhContainers += "<div><ul id='whatLinksHereLinksPages'></ul></div>";
+              wlhContainers += "<div><ul id='whatLinksHereLinksPages' class='star'></ul></div>";
             }
             wlhContainers = '<div style="display: flex;">' + wlhContainers + "</div>";
             let theSection;
@@ -172,8 +191,7 @@ export function doWhatLinksHere(e) {
           whatLinksHereWikiTreeIDs.push($(this).text());
         } else {
           const name = $(this).attr("href").split("/wiki/")[1];
-          whatLinksHere +=
-            "[[" + (name.startsWith("Category") ? ":" : "") + name + "|" + $(this).text() + "]]\n";
+          whatLinksHere += "[[" + (name.startsWith("Category") ? ":" : "") + name + "|" + $(this).text() + "]]\n";
         }
       });
       if (whatLinksHereWikiTreeIDs.length || whatLinksHere !== "") {
@@ -182,6 +200,19 @@ export function doWhatLinksHere(e) {
         getPeople(profiles, 0, 0, 0, 0, 0, "Name,Derived.ShortName", "WBE_what_links_here").then((data) => {
           if (data.length) {
             let theKeys = Object.keys(data[0].people);
+            theKeys.sort(function (a, b) {
+              let c = (
+                data[0].people[a]?.Name?.replace(/-\d+$/, "") +
+                "|" +
+                data[0].people[a]?.ShortName
+              ).toLowerCase();
+              let d = (
+                data[0].people[b]?.Name?.replace(/-\d+$/, "") +
+                "|" +
+                data[0].people[b]?.ShortName
+              ).toLowerCase();
+              return c < d ? -1 : c > d ? 1 : 0;
+            });
             theKeys.forEach(function (aKey) {
               let person = data[0].people[aKey];
               if (person.Name) {
