@@ -2163,7 +2163,6 @@ function findRelation(person) {
     const needsProfilesList = window.sectionsObject["Research Notes"].subsections.NeedsProfiles;
     if (needsProfilesList) {
       needsProfilesList.forEach(function (needed) {
-        console.log(needed);
         if (getSimilarity(needed.Name, person.Name) > 0.9 && !relationWord) {
           relationWord = needed.Relation;
         }
@@ -2632,11 +2631,12 @@ function parseCensusWikitable(text) {
       const parts = line.split("||");
       parts.forEach((part, index) => {
         part = part.replace(/^\s*\||\s*\|$/, "").trim();
-        if (part && columnMapping[index]) {
+        const key = Object.keys(columnMapping).find((key) => columnMapping[key] === String(index));
+        if (part && key) {
           if (part.includes("'''")) {
             part = part.replace(/'''/g, "").trim();
           }
-          row[columnMapping[index]] = part;
+          row[key] = part;
         }
       });
 
@@ -4848,8 +4848,6 @@ function getSourcerCensuses() {
     const matchSplit = match[0].split(/\n(?=[.*#:])/);
     let household;
     if (matchSplit[1]) {
-      console.log(JSON.parse(JSON.stringify(censuses)));
-      console.log(match[2]);
       household = parseFamilyData(match[2], "list");
     }
     if (!tempCensuses[match[1]]) {
@@ -5980,6 +5978,7 @@ export async function generateBio() {
 
   // Output marriages, censuses, military things, etc. in order
   var marriagesAndCensusesText = "";
+
   marriagesAndCensusesEtc.sort((a, b) => parseInt(a.OrderDate) - parseInt(b.OrderDate));
   marriagesAndCensusesEtc.forEach(function (anEvent, i) {
     if (anEvent["Record Type"]) {
