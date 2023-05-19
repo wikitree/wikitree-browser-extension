@@ -51,89 +51,93 @@ async function whatLinksHereSection() {
         if (whatLinksHereWikiTreeIDs.length || whatLinksHerePages.length) {
           let profiles = whatLinksHereWikiTreeIDs.join(",");
           // private profiles will not be returned and displayed
-          getPeople(profiles, 0, 0, 0, 0, 0, "Name,Derived.ShortName", "WBE_what_links_here").then((data) => {
-            if (data.length) {
-              let theKeys = Object.keys(data[0].people);
-              theKeys.sort(function (a, b) {
-                let c = (
-                  data[0].people[a]?.Name?.replace(/-\d+$/, "") +
-                  "|" +
-                  data[0].people[a]?.ShortName
-                ).toLowerCase();
-                let d = (
-                  data[0].people[b]?.Name?.replace(/-\d+$/, "") +
-                  "|" +
-                  data[0].people[b]?.ShortName
-                ).toLowerCase();
-                return c < d ? -1 : c > d ? 1 : 0;
-              });
-              theKeys.forEach(function (aKey) {
-                let person = data[0].people[aKey];
-                if (person.Name) {
-                  let thisWikiLink = $(`<a href="/wiki/${person.Name}">${person.ShortName}</a>`);
-                  whatLinksHereProfiles.push(thisWikiLink);
-                }
-              });
-            }
-            let wlhContainers = "";
-            if (whatLinksHereWikiTreeIDs.length) {
-              wlhContainers += "<div><ul id='whatLinksHereLinksProfiles' class='star'></ul></div>";
-            }
-            if (whatLinksHerePages.length) {
-              wlhContainers += "<div><ul id='whatLinksHereLinksPages' class='star'></ul></div>";
-            }
-            wlhContainers = '<div style="display: flex;">' + wlhContainers + "</div>";
-            let theSection;
-            if (isProfilePage || isSpacePage) {
-              // Profiles, Space
-              theSection = $(
-                "<section id='whatLinksHereSection'><h2>What Links Here<button id='whatLinksHereMore' class='button small'>⯈</button></h2>" +
-                  wlhContainers +
-                  "</section>"
-              );
-              $("#content .ten").append(theSection);
-            } else if (isMediaWikiPage || $("#content .sixteen").length) {
-              // Wiki pages
-              theSection = $(
-                "<section id='whatLinksHereSection'><h2>What Links Here<button id='whatLinksHereMore' class='button small'>⯈</button></h2>" +
-                  wlhContainers +
-                  "</section>"
-              );
-              $("#content .sixteen").append(theSection);
-            } else {
-              //???
-              theSection = $(
-                "<p id='whatLinksHereSection'><span class='large'><b>What Links Here</b></span>" +
-                  wlhContainers +
-                  "</p>"
-              );
-              $("#editform .six").append(theSection);
-            }
+          getPeople(profiles, 0, 0, 0, 0, 0, "Name,Derived.ShortName,Derived.LongName", "WBE_what_links_here").then(
+            (data) => {
+              if (data.length) {
+                let theKeys = Object.keys(data[0].people);
+                theKeys.sort(function (a, b) {
+                  let c = (
+                    data[0].people[a]?.Name?.replace(/-\d+$/, "") +
+                    "|" +
+                    (data[0].people[a]?.LongName ?? data[0].people[a]?.ShortName)
+                  ).toLowerCase();
+                  let d = (
+                    data[0].people[b]?.Name?.replace(/-\d+$/, "") +
+                    "|" +
+                    (data[0].people[b]?.LongName ?? data[0].people[b]?.ShortName)
+                  ).toLowerCase();
+                  return c < d ? -1 : c > d ? 1 : 0;
+                });
+                theKeys.forEach(function (aKey) {
+                  let person = data[0].people[aKey];
+                  if (person.Name) {
+                    let thisWikiLink = $("<a></a>")
+                      .attr("href", "/wiki/" + person.Name)
+                      .text(person.LongName ?? person.ShortName ?? person.Name);
+                    whatLinksHereProfiles.push(thisWikiLink);
+                  }
+                });
+              }
+              let wlhContainers = "";
+              if (whatLinksHereWikiTreeIDs.length) {
+                wlhContainers += "<div><ul id='whatLinksHereLinksProfiles' class='star'></ul></div>";
+              }
+              if (whatLinksHerePages.length) {
+                wlhContainers += "<div><ul id='whatLinksHereLinksPages' class='star'></ul></div>";
+              }
+              wlhContainers = '<div style="display: flex;">' + wlhContainers + "</div>";
+              let theSection;
+              if (isProfilePage || isSpacePage) {
+                // Profiles, Space
+                theSection = $(
+                  "<section id='whatLinksHereSection'><h2>What Links Here<button id='whatLinksHereMore' class='button small'>⯈</button></h2>" +
+                    wlhContainers +
+                    "</section>"
+                );
+                $("#content .ten").append(theSection);
+              } else if (isMediaWikiPage || $("#content .sixteen").length) {
+                // Wiki pages
+                theSection = $(
+                  "<section id='whatLinksHereSection'><h2>What Links Here<button id='whatLinksHereMore' class='button small'>⯈</button></h2>" +
+                    wlhContainers +
+                    "</section>"
+                );
+                $("#content .sixteen").append(theSection);
+              } else {
+                //???
+                theSection = $(
+                  "<p id='whatLinksHereSection'><span class='large'><b>What Links Here</b></span>" +
+                    wlhContainers +
+                    "</p>"
+                );
+                $("#editform .six").append(theSection);
+              }
 
-            whatLinksHerePages.forEach(function (aLink) {
-              let anLi = $("<li></li>");
-              $("#whatLinksHereLinksPages").append(anLi);
-              anLi.append($(aLink));
-            });
-            whatLinksHereProfiles.forEach(function (aLink) {
-              let anLi = $("<li></li>");
-              $("#whatLinksHereLinksProfiles").append(anLi);
-              anLi.append($(aLink));
-            });
-
-            if (whatLinksHerePages.length > 10 || whatLinksHereProfiles.length > 10) {
-              $("#whatLinksHereMore").show();
-              $("#whatLinksHereMore").on("click", function () {
-                $("#whatLinksHereLinksPages").toggleClass("showAll");
-                $("#whatLinksHereLinksProfiles").toggleClass("showAll");
-                if ($("#whatLinksHereLinksPages").hasClass("showAll")) {
-                  $(this).text("⇩");
-                } else {
-                  $(this).text("⇨");
-                }
+              whatLinksHerePages.forEach(function (aLink) {
+                let anLi = $("<li></li>");
+                $("#whatLinksHereLinksPages").append(anLi);
+                anLi.append($(aLink));
               });
+              whatLinksHereProfiles.forEach(function (aLink) {
+                let anLi = $("<li></li>");
+                $("#whatLinksHereLinksProfiles").append(anLi);
+                anLi.append($(aLink));
+              });
+
+              if (whatLinksHerePages.length > 10 || whatLinksHereProfiles.length > 10) {
+                $("#whatLinksHereMore").show();
+                $("#whatLinksHereMore").on("click", function () {
+                  $("#whatLinksHereLinksPages").toggleClass("showAll");
+                  $("#whatLinksHereLinksProfiles").toggleClass("showAll");
+                  if ($("#whatLinksHereLinksPages").hasClass("showAll")) {
+                    $(this).text("⇩");
+                  } else {
+                    $(this).text("⇨");
+                  }
+                });
+              }
             }
-          });
+          );
         }
       },
     });
@@ -204,19 +208,20 @@ export function doWhatLinksHere(e) {
               let c = (
                 data[0].people[a]?.Name?.replace(/-\d+$/, "") +
                 "|" +
-                data[0].people[a]?.ShortName
+                (data[0].people[a]?.LongName ?? data[0].people[a]?.ShortName)
               ).toLowerCase();
               let d = (
                 data[0].people[b]?.Name?.replace(/-\d+$/, "") +
                 "|" +
-                data[0].people[b]?.ShortName
+                (data[0].people[b]?.LongName ?? data[0].people[b]?.ShortName)
               ).toLowerCase();
               return c < d ? -1 : c > d ? 1 : 0;
             });
             theKeys.forEach(function (aKey) {
               let person = data[0].people[aKey];
               if (person.Name) {
-                let thisWikiLink = "[[" + person.Name + "|" + person.ShortName + "]]<br>";
+                let thisWikiLink =
+                  "[[" + person.Name + "|" + (person.LongName ?? person.ShortName ?? person.Name) + "]]<br>";
                 whatLinksHere += thisWikiLink;
               }
             });

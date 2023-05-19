@@ -637,4 +637,12 @@ body.darkMode .vertical .nameList span.bdDates.parent_2 {
     margin-top: 1em;
     margin-left: 0;
   }
+
+  .print-content-only #nVitals.vertical a > span {
+    display: inline-block;
+  }
+
+  .print-content-only #nVitals.vertical .dataStatus {
+    font-size: 8pt;
+  }
 }
