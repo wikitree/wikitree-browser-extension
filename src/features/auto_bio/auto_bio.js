@@ -2418,6 +2418,103 @@ const placeNameRegExp =
 function analyzeColumns(lines) {
   lines = lines.map((line) => line.replace(/\|\|/g, "\t")); // convert double pipes to tabs
   const columns = {};
+
+  lines.forEach((line) => {
+    const parts = line.split(/ {4}|\t/);
+
+    parts.forEach((part, index) => {
+      part = part.trim(); // Trim whitespace
+      if (!columns[index]) {
+        columns[index] = {
+          Name: 0,
+          Gender: 0,
+          originalRelation: 0,
+          Age: 0,
+          BirthPlace: 0,
+          Occupation: 0,
+          MaritalStatus: 0,
+        };
+      }
+      let matched = false;
+
+      // RegExp of cities, counties, states
+      const bigPlacesMatch = new RegExp("\\b" + citiesCountiesStates.join("|") + "\\b", "i");
+      const occupationMatch = new RegExp("\\b" + occupationList.join("|") + "\\b", "i");
+
+      if (index == 0) {
+        columns[index].Name++;
+        matched = true;
+      } else {
+        if (part.match(/(?:M|F|Male|Female)\b/i)) {
+          columns[index].Gender++;
+          matched = true;
+        }
+        if (part.match(/married|widowed|single/i)) {
+          columns[index].MaritalStatus++;
+          matched = true;
+        }
+        if (
+          part.match(
+            /\b(Head|Wife|Son|Daughter|Mother|Father|Brother|Sister|Grand(?:mother|father)|Uncle|Aunt|Niece|Nephew|Cousin|(Father|Mother|Brother|Sister|Son|Daughter)-in-law|Step(?:son|daughter|brother|sister|mother|father)|Visitor|Lodger|Boarder)\b/i
+          )
+        ) {
+          columns[index].originalRelation++;
+          matched = true;
+        }
+        if (part.match(/^\d{1,3}$/) && Number(part) <= 150) {
+          columns[index].Age++;
+          matched = true;
+        }
+        if (part.match(/,/) || part.match(bigPlacesMatch) || part.match(placeNameRegExp)) {
+          columns[index].BirthPlace++;
+          matched = true;
+        }
+        if (part.match(occupationMatch)) {
+          columns[index].Occupation++;
+          matched = true;
+        }
+
+        if (!matched && part !== "") {
+          columns[index].BirthPlace++;
+        }
+      }
+    });
+  });
+
+  const columnPriority = ["Name", "Gender", "originalRelation", "Age", "BirthPlace", "Occupation", "MaritalStatus"];
+  const assignedColumnNames = new Set();
+  const columnMapping = {};
+
+  for (const columnName of columnPriority) {
+    let maxScore = 0;
+    let maxScoreIndex = null;
+
+    for (const [index, column] of Object.entries(columns)) {
+      if (!Object.values(columnMapping).includes(index) && column) {
+        const score = column[columnName];
+
+        if (!assignedColumnNames.has(columnName) && score > maxScore) {
+          maxScore = score;
+          maxScoreIndex = index;
+        }
+      }
+    }
+
+    // Calculate the threshold for each column based on the counts
+    const minCount = 2; // Minimum count to be considered for assignment
+    if (maxScoreIndex !== null && maxScore > minCount) {
+      columnMapping[columnName] = maxScoreIndex;
+      assignedColumnNames.add(columnName);
+    }
+  }
+
+  return columnMapping;
+}
+
+/*
+function analyzeColumns(lines) {
+  lines = lines.map((line) => line.replace(/\|\|/g, "\t")); // convert double pipes to tabs
+  const columns = {};
   lines.forEach((line) => {
     const parts = line.split(/ {4}|\t/);
 
@@ -2516,7 +2613,7 @@ function analyzeColumns(lines) {
 
   return columnMapping;
 }
-
+*/
 function extractHouseholdMembers(row) {
   const brRegex = /<br\s*\/?>/gi;
   const rowData = row.split("||")[1].trim();
