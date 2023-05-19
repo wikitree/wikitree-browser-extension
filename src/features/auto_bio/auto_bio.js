@@ -5978,64 +5978,173 @@ export async function generateBio() {
   marriagesAndCensusesEtc.sort((a, b) => parseInt(a.OrderDate) - parseInt(b.OrderDate));
 
   // Output marriages, censuses, military things, etc. in order
-  let marriagesAndCensusesText = "";
-  let censusEvents = new Map();
-  let lastCensusYear;
+  // Create a map to store the narratives for each census year
+  let censusNarratives = new Map();
 
-  marriagesAndCensusesEtc.forEach(function (anEvent, i) {
-    if (anEvent["Record Type"]) {
-      if (anEvent["Record Type"].includes("Census")) {
-        let censusYear = anEvent["Census Year"];
-        if (!censusEvents.has(censusYear)) {
-          censusEvents.set(censusYear, []);
+  // Grouping logic
+  let allEvents = [];
+  let previousEventObject;
+  marriagesAndCensusesEtc.forEach(function (event) {
+    let thisEvent = event["Event Type"] + " " + event.Year;
+    if (previousEventObject && previousEventObject["Event Type"] + " " + previousEventObject.Year != thisEvent) {
+      allEvents.push(previousEventObject);
+      previousEventObject = event;
+    } else {
+      if (previousEventObject) {
+        if (previousEventObject.Texts) {
+          previousEventObject.Texts.push(event.Text);
+        } else {
+          previousEventObject.Texts = [event.Text];
         }
-        censusEvents.get(censusYear).push(anEvent);
+      } else {
+        previousEventObject = event;
+        previousEventObject.Texts = [event.Text];
+      }
+    }
+  });
+  if (previousEventObject) {
+    allEvents.push(previousEventObject);
+  }
 
-        // Only process the census event once all events of the same census year have been collected
-        if (lastCensusYear !== censusYear) {
-          lastCensusYear = censusYear;
-          let narrative = "";
+  let marriagesAndCensusesText = "";
+  allEvents.forEach(function (anEvent, i) {
+    if (anEvent["Record Type"]) {
+      if (anEvent["Record Type"].includes("Marriage")) {
+        anEvent["Event Type"] = "Marriage";
+      }
+
+      if (anEvent["Record Type"].includes("Census") && anEvent.Narrative) {
+        if (anEvent.Narrative.length > 10) {
+          // Get the year of the census
+          let censusYear = anEvent["Census Year"];
+
+          // If we've already stored a narrative for this census year, get it.
+          // Otherwise, use this event's narrative and add it to the map.
+          let censusNarrative;
+          if (censusNarratives.has(censusYear)) {
+            censusNarrative = censusNarratives.get(censusYear);
+          } else {
+            censusNarrative = anEvent.Narrative;
+            censusNarratives.set(censusYear, censusNarrative);
+          }
+
+          let narrativeBits = anEvent.Narrative.split(/,/);
+
+          // Minimal places again
+          let aBit = minimalPlace2(narrativeBits);
+          marriagesAndCensusesText += aBit;
+
+          // Handle references
           let listText = "";
-          let refs = "";
+          if (Array.isArray(anEvent.ListText)) {
+            listText = "\n" + anEvent.ListText.join("\n");
+          } else if (anEvent.List) {
+            listText = "\n" + anEvent.List;
+          } else if (anEvent.sourcerText) {
+            listText = "\n" + anEvent.sourcerText;
+          }
+          let refNameBit = anEvent.RefName ? " name='" + anEvent.RefName + "'" : " name='ref_" + i + "'";
+          if (anEvent.Used == true) {
+            marriagesAndCensusesText += " <ref" + refNameBit + " />";
+          } else {
+            if (window.autoBioOptions.householdTable && listText.match(/\{\|/)) {
+              marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + "</ref>\n" + listText;
+            } else {
+              marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + listText + "</ref>";
+            }
+          }
+          marriagesAndCensusesText += "\n\n";
+          anEvent.Used = true;
+          anEvent.RefName = anEvent.RefName ? anEvent.RefName : "ref_" + i;
+        }
+      } else {
+        // Handle non-census records
+        if (anEvent.Narrative) {
+          if (anEvent.SpouseChildren) {
+            window.childrenShown = true;
+          }
+          let thisRef = "";
+          if (anEvent["Record Type"].includes("ChildList") && !window.childrenShown && !window.listedSomeChildren) {
+            anEvent.Narrative = anEvent.Narrative.replace("other child", "child");
+          }
+          const theseRefs = [];
 
-          censusEvents.get(censusYear).forEach(function (censusEvent, j) {
-            if (censusEvent.Narrative && censusEvent.Narrative.length > 10) {
-              narrative = censusEvent.Narrative;
-
-              if (Array.isArray(censusEvent.ListText)) {
-                listText = "\n" + censusEvent.ListText.join("\n");
-              } else if (censusEvent.List) {
-                listText = "\n" + censusEvent.List;
-              } else if (censusEvent.sourcerText) {
-                listText = "\n" + censusEvent.sourcerText;
-              }
-
-              let refNameBit = censusEvent.RefName ? " name='" + censusEvent.RefName + "'" : " name='ref_" + i + "'";
-              if (censusEvent.Used == true) {
-                refs += " <ref" + refNameBit + " />\n";
+          window.references.forEach(function (aRef, i) {
+            if (
+              anEvent["Record Type"].includes(aRef["Record Type"]) &&
+              aRef.Text.match("contributed by various users") &&
+              aRef.Text.match(window.profilePerson.FirstName)
+            ) {
+              if (aRef.RefName) {
+                thisRef = "<ref name='FamilySearchProfile' />";
               } else {
-                if (window.autoBioOptions.householdTable && listText.match(/\{\|/)) {
-                  refs += " <ref" + refNameBit + ">" + censusEvent.Text + "</ref>\n";
+                thisRef = " <ref name='FamilySearchProfile'>" + aRef.Text + "</ref>";
+                aRef.RefName = "FamilySearchProfile";
+                aRef.Used = true;
+              }
+            } else if (
+              anEvent["Event Type"] == "Military" &&
+              aRef["Record Type"].includes("Military") &&
+              anEvent.War == aRef.War
+            ) {
+              if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
+                thisRef = "<ref name='" + aRef.RefName + "' />";
+              } else {
+                thisRef = " <ref name='military_" + i + "'>" + aRef.Text + "</ref>";
+                aRef.RefName = "military_" + i;
+                aRef.Used = true;
+                window.refNames.push(aRef.RefName);
+              }
+              if (!theseRefs.includes(thisRef)) {
+                theseRefs.push(thisRef);
+              }
+            } else if (
+              aRef["Record Type"].includes(anEvent["Event Type"]) &&
+              anEvent["Divorce Date"] &&
+              aRef.Year == anEvent.Year
+            ) {
+              let thisSpouse = "";
+              if (anEvent.Couple) {
+                if (anEvent.Couple[0].match(window.profilePerson.PersonName.FirstName)) {
+                  thisSpouse = anEvent.Couple[1];
                 } else {
-                  refs += " <ref" + refNameBit + ">" + censusEvent.Text + listText + "</ref>\n";
+                  thisSpouse = anEvent.Couple[0];
                 }
               }
-
-              censusEvent.Used = true;
-              censusEvent.RefName = censusEvent.RefName ? censusEvent.RefName : "ref_" + i;
+              if (aRef.Text.match(thisSpouse)) {
+                if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
+                  thisRef = "<ref name='" + aRef.RefName + "' />";
+                } else {
+                  thisRef = " <ref name='divorce_" + i + "'>" + aRef.Text + "</ref>";
+                  aRef.RefName = "divorce_" + i;
+                  aRef.Used = true;
+                  window.refNames.push(aRef.RefName);
+                }
+              }
+            } else if (
+              anEvent["Event Type"] == "Prison" &&
+              aRef["Record Type"].includes("Prison") &&
+              anEvent.Year == aRef.Year
+            ) {
+              if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
+                thisRef = "<ref name='" + aRef.RefName + "' />";
+              } else {
+                thisRef = " <ref name='prison_" + i + "'>" + aRef.Text + "</ref>";
+                aRef.RefName = "prison_" + i;
+                aRef.Used = true;
+                window.refNames.push(aRef.RefName);
+              }
             }
           });
 
-          if (narrative !== "") {
-            marriagesAndCensusesText += narrative + refs;
-            if (window.autoBioOptions.householdTable && listText.match(/\{\|/)) {
-              marriagesAndCensusesText += listText + "\n\n";
-            }
+          let narrativeBits = anEvent.Narrative.split(",");
+          if (anEvent.FactType == "Burial") {
+            window.profilePerson.BurialFact = minimalPlace2(narrativeBits) + thisRef + "\n\n";
+          } else {
+            let thisBit = minimalPlace2(narrativeBits) + (theseRefs.length == 0 ? thisRef : theseRefs.join()) + "\n\n";
+            marriagesAndCensusesText += thisBit;
           }
         }
-      } else if (anEvent.Narrative) {
-        // The original logic for handling other event types...
-        // ...
       }
     } else {
       marriagesAndCensusesText += anEvent.Narrative + "\n\n";
