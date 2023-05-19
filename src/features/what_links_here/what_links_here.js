@@ -12,6 +12,7 @@ checkIfFeatureEnabled("whatLinksHere").then((result) => {
   if (result && $("a.whatLinksHere").length == 0) {
     const profileWTID = $("a.pureCssMenui0 span.person").text();
     window.profileWTID = profileWTID;
+    import("../../core/toggleCheckbox.css");
     import("./what_links_here.css");
     whatLinksHereLink();
   }
@@ -28,6 +29,10 @@ async function fillWhatLinksHereSection() {
         const whatLinksHerePages = [];
         const whatLinksHereWikiTreeIDs = [];
         const whatLinksHereProfiles = [];
+        if (dLinks.length == 0) {
+          $("#whatLinksHereSection").append("<div><dl><dd>Nothing links here yet.</dd></dl></div>");
+          return;
+        }
         dLinks.sort(function (a, b) {
           // sort all links by ID (including the Category: or Space: prefixes)
           let c = $(a).attr("href")?.toLowerCase();
@@ -143,7 +148,7 @@ export function doWhatLinksHere(e) {
     success: function (data) {
       const dLinks = $(data).find("#content ul a[href*='/wiki/']");
       if (dLinks.length == 0) {
-        whatLinksHereLink.text("Nothing links here");
+        whatLinksHereLink.text("Nothing links here yet.");
         return;
       }
       let whatLinksHere = "";
@@ -207,16 +212,31 @@ async function whatLinksHereLink() {
   const options = await getFeatureOptions("whatLinksHere");
   if (options.whatLinksHereSection && isWikiPage) {
     const theSection = $(
-      `<section id='whatLinksHereSection'><h2>What Links Here <button id='whatLinksHereMore' class='button small' style="font-size: 0.5em; margin-top: 0.5em;">⯈</button></h2></section>`
+      '<section id="whatLinksHereSection">' +
+        "<h2>What Links Here " +
+        '<span class="toggle toggle-whl">' +
+        '<input type="checkbox" id="whatLinksHereMore">' +
+        '<label for="whatLinksHereMore"></label></span></h2></section>'
     );
     if (isProfilePage || isSpacePage) {
-      $("#content .ten").append(theSection);
+      if ($("#content .ten > div.EDIT").length) {
+        // if possible, place it below the bio but before the edit link, memories, etc.
+        $("#content .ten > div.EDIT").before(theSection);
+      } else if ($("#content .ten > br + br:last-child")) {
+        // on private pages, put it above the orange box and any stray <br> tags from the memories code
+        $("#content .ten > br:last-child").prevUntil(":not(br, .box.orange)").last().before(theSection);
+      } else {
+        $("#content .ten").append(theSection);
+      }
     } else if (isMediaWikiPage) {
       $("#content .sixteen").append(theSection);
     }
-    $("#whatLinksHereMore").on("click", function () {
-      fillWhatLinksHereSection();
-      $("#whatLinksHereMore").hide();
+    $("#whatLinksHereMore").on("change", function () {
+      if (!this.xWhatLinksHerePopulated) {
+        fillWhatLinksHereSection();
+        this.xWhatLinksHerePopulated = true;
+      }
+      $(this).closest("section").toggleClass("expand-whl");
     });
   }
   $("a.whatLinksHere").contextmenu(function (e) {
