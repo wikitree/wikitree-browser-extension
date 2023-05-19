@@ -1,5 +1,6 @@
 /*
 Created By: Ian Beacall (Beacall-6)
+Contributors: Jonathan Duke (Duke-5773)
 */
 
 import $ from "jquery";
@@ -18,6 +19,12 @@ checkIfFeatureEnabled("changeFamilyLists").then((result) => {
       getFeatureOptions("changeFamilyLists").then((options) => {
         if (options.moveToRight) {
           moveFamilyLists(true);
+        }
+        if (options.showSidebarHeading) {
+          $("html").addClass("x-cfl-show-heading");
+        }
+        if (options.highlightActiveProfile) {
+          $("html").addClass("x-cfl-highlight-active");
         }
         if (options.verticalLists) {
           $("#nVitals").addClass("vertical");
@@ -200,7 +207,11 @@ async function moveFamilyLists(firstTime = false) {
         if ($("a[href='/wiki/Project_protection']").length) {
           familyLists.insertBefore($("a[href='/wiki/Project_protection']").closest("div"));
         } else if ($("#geneticfamily").length) {
-          familyLists.insertBefore($("#geneticfamily"));
+          let $before = $("#geneticfamily");
+          if ($before.prev().is('a[name="DNA"]')) {
+            $before = $before.prev();
+          }
+          familyLists.insertBefore($before);
         } else {
           rightHandColumn.prepend(familyLists);
         }
@@ -224,7 +235,11 @@ async function moveFamilyLists(firstTime = false) {
         if ($("div.six a[href='/wiki/Project_protection']").length) {
           familyLists.insertAfter($("div.six a[href='/wiki/Project_protection']").closest("div"));
         } else if ($("#geneticfamily").length) {
-          familyLists.insertBefore($("#geneticfamily"));
+          let $before = $("#geneticfamily");
+          if ($before.prev().is('a[name="DNA"]')) {
+            $before = $before.prev();
+          }
+          familyLists.insertBefore($before);
         } else {
           rightHandColumn.prepend(familyLists);
         }
@@ -742,7 +757,7 @@ function makeFamLists() {
 
   if (addSibling.length) {
     let asib = $(addSibling);
-    $("#siblingList").append($("<li id='addSibling'></li>"));
+    $("#siblingList").append($("<li id='addSibling' class='x-edit'></li>"));
     $("#addSibling").append(asib);
     if ($("li:contains('[siblings unknown]')").length) {
       $("li:contains('[siblings unknown]')").remove();
@@ -766,7 +781,7 @@ function makeFamLists() {
   $(".aSpouse").prependTo($("#spouseDetails"));
   if (addChild.length) {
     let ac = $(addChild);
-    $("#childrenList").append($("<li id='addChild'></li>"));
+    $("#childrenList").append($("<li id='addChild' class='x-edit'></li>"));
     $("#addChild").append(ac);
     if ($("li:contains('[children unknown]')").length) {
       $("li:contains('[children unknown]')").remove();
@@ -774,7 +789,7 @@ function makeFamLists() {
   }
   if (motherQ.length) {
     let mq = $(motherQ);
-    $("#parentList").append($("<li id='motherQ'></li>"));
+    $("#parentList").append($("<li id='motherQ' class='x-edit'></li>"));
     $("#motherQ").append(mq);
     if ($("li:contains('[mother unknown]')").length) {
       $("li:contains('[mother unknown]')").remove();
@@ -782,7 +797,7 @@ function makeFamLists() {
   }
   if (fatherQ.length) {
     let fq = $(fatherQ);
-    $("#parentList").prepend($("<li id='fatherQ'></li>"));
+    $("#parentList").prepend($("<li id='fatherQ' class='x-edit'></li>"));
     $("#fatherQ").append(fq);
     if ($("li:contains('[father unknown]')").length) {
       $("li:contains('[father unknown]')").remove();
@@ -1444,7 +1459,7 @@ function extraBitsForFamilyLists() {
     sibsUnknown.append(privateSibsUnknown);
     sibsUnknown.appendTo("#siblingDetails");
     $("#siblingList").remove();
-    $("#parentDetails").prependTo("#nVitals");
+    $("#parentDetails").after($("#nVitals, #nVitals > div:first-child").last());
     $("#siblingDetails").insertAfter("#parentDetails");
   } else if ($("#siblingDetails").length) {
     let sNodes = $("#siblingDetails")[0].childNodes;
