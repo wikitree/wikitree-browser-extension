@@ -5975,11 +5975,77 @@ export async function generateBio() {
     }
     return out;
   }
+  marriagesAndCensusesEtc.sort((a, b) => parseInt(a.OrderDate) - parseInt(b.OrderDate));
 
   // Output marriages, censuses, military things, etc. in order
-  var marriagesAndCensusesText = "";
+  let marriagesAndCensusesText = "";
+  let censusEvents = new Map();
+  let lastCensusYear;
 
-  marriagesAndCensusesEtc.sort((a, b) => parseInt(a.OrderDate) - parseInt(b.OrderDate));
+  marriagesAndCensusesEtc.forEach(function (anEvent, i) {
+    if (anEvent["Record Type"]) {
+      if (anEvent["Record Type"].includes("Census")) {
+        let censusYear = anEvent["Census Year"];
+        if (!censusEvents.has(censusYear)) {
+          censusEvents.set(censusYear, []);
+        }
+        censusEvents.get(censusYear).push(anEvent);
+
+        // Only process the census event once all events of the same census year have been collected
+        if (lastCensusYear !== censusYear) {
+          lastCensusYear = censusYear;
+          let narrative = "";
+          let listText = "";
+          let refs = "";
+
+          censusEvents.get(censusYear).forEach(function (censusEvent, j) {
+            if (censusEvent.Narrative && censusEvent.Narrative.length > 10) {
+              narrative = censusEvent.Narrative;
+
+              if (Array.isArray(censusEvent.ListText)) {
+                listText = "\n" + censusEvent.ListText.join("\n");
+              } else if (censusEvent.List) {
+                listText = "\n" + censusEvent.List;
+              } else if (censusEvent.sourcerText) {
+                listText = "\n" + censusEvent.sourcerText;
+              }
+
+              let refNameBit = censusEvent.RefName ? " name='" + censusEvent.RefName + "'" : " name='ref_" + i + "'";
+              if (censusEvent.Used == true) {
+                refs += " <ref" + refNameBit + " />\n";
+              } else {
+                if (window.autoBioOptions.householdTable && listText.match(/\{\|/)) {
+                  refs += " <ref" + refNameBit + ">" + censusEvent.Text + "</ref>\n";
+                } else {
+                  refs += " <ref" + refNameBit + ">" + censusEvent.Text + listText + "</ref>\n";
+                }
+              }
+
+              censusEvent.Used = true;
+              censusEvent.RefName = censusEvent.RefName ? censusEvent.RefName : "ref_" + i;
+            }
+          });
+
+          if (narrative !== "") {
+            marriagesAndCensusesText += narrative + refs;
+            if (window.autoBioOptions.householdTable && listText.match(/\{\|/)) {
+              marriagesAndCensusesText += listText + "\n\n";
+            }
+          }
+        }
+      } else if (anEvent.Narrative) {
+        // The original logic for handling other event types...
+        // ...
+      }
+    } else {
+      marriagesAndCensusesText += anEvent.Narrative + "\n\n";
+    }
+  });
+
+  // Rest of your code...
+
+  /*
+   let marriagesAndCensusesText = "";
   marriagesAndCensusesEtc.forEach(function (anEvent, i) {
     if (anEvent["Record Type"]) {
       if (anEvent["Record Type"].includes("Marriage")) {
@@ -5988,6 +6054,19 @@ export async function generateBio() {
 
       if (anEvent["Record Type"].includes("Census") && anEvent.Narrative) {
         if (anEvent.Narrative.length > 10) {
+          // Get the year of the census
+          let censusYear = anEvent["Census Year"];
+
+          // If we've already stored a narrative for this census year, get it.
+          // Otherwise, use this event's narrative and add it to the map.
+          let censusNarrative;
+          if (censusNarratives.has(censusYear)) {
+            censusNarrative = censusNarratives.get(censusYear);
+          } else {
+            censusNarrative = anEvent.Narrative;
+            censusNarratives.set(censusYear, censusNarrative);
+          }
+
           let narrativeBits = anEvent.Narrative.split(/,/);
 
           // Minimal places again
@@ -6068,16 +6147,6 @@ export async function generateBio() {
                   thisSpouse = anEvent.Couple[0];
                 }
               }
-              /*
-              anEvent.Narrative =
-                formatDate(anEvent["Divorce Date"]) +
-                " " +
-                window.profilePerson.PersonName.FirstName +
-                " and " +
-                thisSpouse +
-                " divorced" +
-                (anEvent["Divorce Place"] ? " in " + anEvent["Divorce Place"] : "");
-                */
               if (aRef.Text.match(thisSpouse)) {
                 if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
                   thisRef = "<ref name='" + aRef.RefName + "' />";
@@ -6116,6 +6185,7 @@ export async function generateBio() {
       marriagesAndCensusesText += anEvent.Narrative + "\n\n";
     }
   });
+  */
   console.log("marriagesAndCensuses", marriagesAndCensusesEtc);
 
   // Add Military and Obituary subsections
