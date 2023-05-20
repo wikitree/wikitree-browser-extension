@@ -4342,11 +4342,25 @@ function sourcesArray(bio) {
   let refArr = [];
   let refs = dummy.find("ref");
   let refNamesAdded = new Set(); // Keep track of added reference names
+  let refNameCounter = new Map(); // Map to hold counters for each RefName
 
   refs.each(function () {
     let refElement = $(this);
     let refName = refElement.attr("name");
     if (refName && refNamesAdded.has(refName)) return; // Skip if the reference with this name has already been added
+
+    // If the refName exists in the map, increment its value, else set it to 'a'
+    if (refName) {
+      if (refNameCounter.has(refName)) {
+        let counter = refNameCounter.get(refName);
+        counter = String.fromCharCode(counter.charCodeAt() + 1); // Increment character ('a' to 'b', 'b' to 'c', etc.)
+        refNameCounter.set(refName, counter);
+      } else {
+        refNameCounter.set(refName, "a");
+      }
+      // Append the counter to the refName to make it unique
+      refName = refName + "_" + refNameCounter.get(refName);
+    }
 
     let innerHTML = refElement.html().trim();
     if (innerHTML.length === 0) return; // Skip if the reference has no content
@@ -4368,6 +4382,7 @@ function sourcesArray(bio) {
       }
     }
   });
+  console.log(refs);
 
   window.sourcesSection.text = window.sourcesSection.text.map(function (aSource) {
     if (aSource) {
@@ -5981,6 +5996,37 @@ export async function generateBio() {
   // Create a map to store the narratives for each census year
   let censusNarratives = new Map();
 
+  // Initialize a new map to hold the counters for each base refName
+  // Initialize a new map to hold the counters for each base refName
+  let refNameCounter = new Map();
+  /*
+  marriagesAndCensusesEtc.forEach((event, index) => {
+    if (event.Texts) {
+      event.Texts.forEach((text, textIndex) => {
+        // Generate a base refName using the event type and year
+        const baseRefName = `${event["Event Type"]}_${event.Year}`;
+
+        // If the counter for this base refName already exists, increment it; otherwise, initialize it
+        if (refNameCounter.has(baseRefName)) {
+          refNameCounter.set(baseRefName, refNameCounter.get(baseRefName) + 1);
+        } else {
+          refNameCounter.set(baseRefName, 0);
+        }
+
+        // Create a new Text object for each citation, with its own unique RefName
+        let newText = {
+          Text: text,
+          RefName: `${baseRefName}_${refNameCounter.get(baseRefName)}`,
+          Used: false,
+        };
+
+        // Replace the original citation with the new Text object
+        event.Texts[textIndex] = newText;
+      });
+    }
+  });
+  */
+
   // Grouping logic
   let allEvents = [];
   let previousEventObject;
@@ -5990,18 +6036,29 @@ export async function generateBio() {
       allEvents.push(previousEventObject);
       previousEventObject = event;
     } else {
+      const thisObj = {
+        Text: event.Text,
+        Used: false,
+        RefName: event.RefName + "_" + previousEventObject?.Texts?.length || 1,
+      };
       if (previousEventObject) {
         if (previousEventObject.Texts) {
-          previousEventObject.Texts.push(event.Text);
+          previousEventObject.Texts.push(thisObj);
         } else {
-          previousEventObject.Texts = [event.Text];
+          previousEventObject.Texts = [thisObj];
         }
       } else {
         previousEventObject = event;
-        previousEventObject.Texts = [event.Text];
+        previousEventObject.Texts = [thisObj];
       }
     }
   });
+  if (previousEventObject) {
+    allEvents.push(previousEventObject);
+  }
+
+  // The rest of your code...
+
   if (previousEventObject) {
     allEvents.push(previousEventObject);
   }
@@ -6015,12 +6072,9 @@ export async function generateBio() {
 
       if (anEvent["Record Type"].includes("Census") && anEvent.Narrative) {
         if (anEvent.Narrative.length > 10) {
-          // Get the year of the census
           let censusYear = anEvent["Census Year"];
-
-          // If we've already stored a narrative for this census year, get it.
-          // Otherwise, use this event's narrative and add it to the map.
           let censusNarrative;
+
           if (censusNarratives.has(censusYear)) {
             censusNarrative = censusNarratives.get(censusYear);
           } else {
@@ -6029,8 +6083,6 @@ export async function generateBio() {
           }
 
           let narrativeBits = anEvent.Narrative.split(/,/);
-
-          // Minimal places again
           let aBit = minimalPlace2(narrativeBits);
           marriagesAndCensusesText += aBit;
 
@@ -6043,16 +6095,34 @@ export async function generateBio() {
           } else if (anEvent.sourcerText) {
             listText = "\n" + anEvent.sourcerText;
           }
-          let refNameBit = anEvent.RefName ? " name='" + anEvent.RefName + "'" : " name='ref_" + i + "'";
-          if (anEvent.Used == true) {
-            marriagesAndCensusesText += " <ref" + refNameBit + " />";
-          } else {
-            if (window.autoBioOptions.householdTable && listText.match(/\{\|/)) {
-              marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + "</ref>\n" + listText;
+          let refNameBit = ""; // separate variable for reference name
+          let refsText = ""; // separate string for references
+          if (anEvent.Texts) {
+            anEvent.Texts.forEach((text, textIndex) => {
+              refNameBit = text.RefName ? " name='" + text.RefName + "'" : " name='ref_" + textIndex + "'";
+              if (text.Used == true) {
+                refsText += " <ref" + refNameBit + " />";
+              } else {
+                refsText += " <ref" + refNameBit + ">" + text.Text + "</ref>";
+                text.Used = true;
+              }
+            });
+          } else if (anEvent.Text) {
+            let refNameBit = anEvent.RefName ? " name='" + anEvent.RefName + "'" : " name='ref_" + i + "'";
+            if (anEvent.Used == true) {
+              refsText += " <ref" + refNameBit + " />";
             } else {
-              marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + listText + "</ref>";
+              refsText += " <ref" + refNameBit + ">" + anEvent.Text + "</ref>";
+              anEvent.Used = true;
             }
           }
+
+          marriagesAndCensusesText += refsText; // append references
+
+          if (window.autoBioOptions.householdTable && listText.match(/\{\|/)) {
+            marriagesAndCensusesText += listText; // append household table only once
+          }
+
           marriagesAndCensusesText += "\n\n";
           anEvent.Used = true;
           anEvent.RefName = anEvent.RefName ? anEvent.RefName : "ref_" + i;
@@ -6149,6 +6219,16 @@ export async function generateBio() {
     } else {
       marriagesAndCensusesText += anEvent.Narrative + "\n\n";
     }
+  });
+
+  // Update RefName and Used values in marriagesAndCensusesEtc
+  marriagesAndCensusesEtc.forEach((event) => {
+    allEvents.forEach((allEvent) => {
+      if (allEvent["Event Type"] + " " + allEvent.Year == event["Event Type"] + " " + event.Year) {
+        event.RefName = allEvent.RefName;
+        event.Used = allEvent.Used;
+      }
+    });
   });
 
   // Rest of your code...
