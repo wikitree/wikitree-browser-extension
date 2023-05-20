@@ -1459,7 +1459,8 @@ function extraBitsForFamilyLists() {
     sibsUnknown.append(privateSibsUnknown);
     sibsUnknown.appendTo("#siblingDetails");
     $("#siblingList").remove();
-    $("#parentDetails").after($("#nVitals, #nVitals > div:first-child").last());
+    $("#parentDetails").prependTo("#nVitals");
+    $("#nVitals > .sidebar-heading").prependTo("#nVitals"); // prevent the sections from being re-added above the heading
     $("#siblingDetails").insertAfter("#parentDetails");
   } else if ($("#siblingDetails").length) {
     let sNodes = $("#siblingDetails")[0].childNodes;
