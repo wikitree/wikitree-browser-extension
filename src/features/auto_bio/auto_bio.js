@@ -2621,7 +2621,10 @@ function extractHouseholdMembers(row) {
 }
 
 function parseCensusWikitable(text) {
-  const lines = text.split("\n");
+  let lines = text.split("\n");
+  lines = lines.filter(
+    (line) => !line.startsWith("|-") && !line.startsWith("|+") && !line.startsWith("{|") && !line.startsWith("!")
+  ); // Filter out non-data rows
   const columnMapping = analyzeColumns(lines);
   console.log(columnMapping);
   const data = [];
@@ -3137,7 +3140,6 @@ function parseSourcerFamilyListWithBRs(reference) {
 function buildCensusNarratives() {
   const yearRegex = /\b(1[789]\d{2})\b/;
   // getCensusesFromCensusSection();
-
   window.references.forEach(function (reference) {
     console.log(JSON.parse(JSON.stringify(reference)));
 
@@ -3152,6 +3154,7 @@ function buildCensusNarratives() {
         if (!reference.Household) {
           reference = parseSourcerFamilyListWithBRs(reference);
         }
+        console.log(JSON.parse(JSON.stringify(reference)));
 
         // Ancestry list style (from Sourcer?)
         if (!reference.Household) {
@@ -3298,14 +3301,13 @@ function buildCensusNarratives() {
             }
           });
         }
-
         if (nameVariants) {
           firstName = ("(" + nameVariants.join("\\b|") + ")").replace(".", "") + "(\\b|$)";
           nameMatchPattern = new RegExp(firstName);
         }
         let censusIntro = "In " + reference["Census Year"] + ", ";
         let censusRest = "";
-        if (reference.Text.match(/.{0,5}'''\d{4} Census'''/)) {
+        if (reference.Text.match(/.{0,5}'''\d{4} Census'''/i)) {
           censusRest += sourcerCensusWithNoTable(reference, nameMatchPattern);
         } else if (
           reference.Text.match(/database( with images)?, (<i>|''')?FamilySearch/) ||
@@ -3320,6 +3322,7 @@ function buildCensusNarratives() {
         }
         // Switch "in the household of NAME" to "in the household of her father, Frederick" (for example)
         text = getHouseholdOfRelationAndName(text);
+        console.log(JSON.parse(JSON.stringify(reference)));
       } else {
         // If there's a spouse in the table, but there's no profile for the spouse
         addAges();
@@ -3334,6 +3337,7 @@ function buildCensusNarratives() {
             }
           });
         }
+        console.log(JSON.parse(JSON.stringify(reference)));
 
         // With a table
         text +=
@@ -3394,10 +3398,12 @@ function buildCensusNarratives() {
         if (reference.Residence) {
           text += (reference["Street Address"] ? " at " : " in ") + minimalPlace(reference["Residence"]);
         }
+        console.log(JSON.parse(JSON.stringify(reference)));
 
         if (reference.Household) {
           // Add relationships if they're not already there
           reference.Household = updateRelations(reference.Household);
+          console.log(JSON.parse(JSON.stringify(reference.Household)));
           reference.Household.forEach(function (householdMember) {
             if (!householdMember.Relation) {
               householdMember.Relation = findRelation(householdMember);
@@ -4840,14 +4846,39 @@ function getSourcerCensuses() {
   refs.forEach((ref) => ref.remove());
   const text = dummy.innerHTML;
 
-  const regexWikitable = /In the .{0,3}?(\d{4}).{0,3}? census[^\n]+?\n{1,2}(\{\|.*?\|\})/gms;
-  const regexNonWikitable = /In the .{0,3}?(\d{4}).{0,3}? census[^{=]*?\n([.:#*].+?)(?=\n[^:#*])/gms;
+  const regexWikitable = /In the (\d{4}) census[^]+?(\{\|[^]+?\|\})(?![^]*\{\|[^]+?\|\})/g;
+  const regexNonWikitable = /In the (\d{4}) census((?!.*\{\|.*\|\}).*?)(?=\n[^:#*])/gs;
+
+  let textChunks = text.split(/(In the \d{4} census[^]+?)(?=In the \d{4} census|$)/i);
+  let censusData = {};
+
+  for (let i = 0; i < textChunks.length; i++) {
+    let text = textChunks[i];
+
+    let yearMatch = text.match(/In the (\d{4}) census/);
+    let tableMatch = text.match(/(\{\|[^]+?\|\})/);
+
+    if (yearMatch && tableMatch) {
+      let year = yearMatch[1];
+      let table = tableMatch[0];
+
+      let description = text.replace(table, "").trim();
+
+      censusData[year] = {
+        description: description,
+        table: table,
+      };
+    }
+  }
+
+  console.log(censusData);
+  const censusKeys = Object.keys(censusData);
 
   const tempCensuses = {};
 
   for (const match of text.matchAll(regexWikitable)) {
     let household = parseFamilyData(match[2], { format: "wikitable" });
-    console.log(JSON.parse(JSON.stringify(household)));
+    console.log(household);
     tempCensuses[match[1]] = {
       "Census Year": match[1],
       Text: match[0],
@@ -4857,9 +4888,10 @@ function getSourcerCensuses() {
       Household: household,
     };
   }
-  console.log(JSON.parse(JSON.stringify(censuses)));
 
+  /(In the \d{4} census[^]+?)(?=In the \d{4} census|$)/;
   for (const match of text.matchAll(regexNonWikitable)) {
+    console.log("non-table", match[0]);
     const matchSplit = match[0].split(/\n(?=[.*#:])/);
     let household;
     if (matchSplit[1]) {
@@ -5863,6 +5895,542 @@ export async function generateBio() {
     citation = citation.replace(" )", ")");
     return citation;
   }
+
+export async function getCitations() {
+  window.NonSourceCount = 0;
+  for (let i = 0; i < window.references.length; i++) {
+    let aRef = window.references[i];
+    if (aRef.NonSource) {
+      window.NonSourceCount++;
+    }
+    let findAGraveLink = getFindAGraveLink(aRef.Text);
+    let matriculaLink = getMatriculaLink(aRef.Text);
+    let newBrunswickLink = getNewBrunswickLink(aRef.Text);
+    let citationLink = findAGraveLink || matriculaLink || newBrunswickLink;
+
+    if (citationLink) {
+      try {
+        let citation = await getCitation(citationLink);
+        if (citation) {
+          if (findAGraveLink) {
+            citation = addHeading(citation, aRef.Text);
+            //citation = fixDate(citation);
+            citation = fixDashes(citation);
+            citation = fixSpaces(citation);
+          }
+          aRef.Text = citation.trim();
+        } else {
+          console.error("Error fetching citation for link:", citationLink);
+        }
+      } catch (error) {
+        console.error("Error fetching citation:", error);
+      }
+    }
+  }
+}
+
+export function addLocationCategoryToStuffBeforeTheBio(location) {
+  if (location) {
+    const theCategory = "[[Category: " + location + "]]";
+    const theCategoryWithoutSpace = "[[Category:" + location + "]]";
+    if (
+      !window.sectionsObject["StuffBeforeTheBio"].text.includes(theCategory) &&
+      !window.sectionsObject["StuffBeforeTheBio"].text.includes(theCategoryWithoutSpace)
+    ) {
+      window.sectionsObject["StuffBeforeTheBio"].text.push(theCategory);
+    }
+  }
+}
+
+function categoriesBeforeProjects(textArray) {
+  return textArray.sort((a, b) => {
+    if (a.startsWith("{{") && b.startsWith("[[")) {
+      return 1;
+    } else if (a.startsWith("[[") && b.startsWith("{{")) {
+      return -1;
+    } else {
+      return 0;
+    }
+  });
+}
+
+export function getStuffBeforeTheBioText() {
+  let stuffBeforeTheBioText = "";
+  if (window.sectionsObject["StuffBeforeTheBio"]) {
+    window.sectionsObject.StuffBeforeTheBio.text = categoriesBeforeProjects(
+      window.sectionsObject.StuffBeforeTheBio.text
+    );
+    const filteredStuff = window.sectionsObject["StuffBeforeTheBio"].text.filter((item) => item !== "");
+    const stuff = filteredStuff.join("\n");
+    if (stuff) {
+      stuffBeforeTheBioText = stuff + "\n";
+    }
+  }
+  return stuffBeforeTheBioText;
+}
+
+export function addWorking() {
+  const working = $(
+    "<img id='working' style='position:absolute; margin-top:3em; margin-left: 300px' src='" +
+      // eslint-disable-next-line no-undef
+      chrome.runtime.getURL("images/tree.gif") +
+      "'>"
+  );
+  $("#wpTextbox1").before(working);
+}
+export function removeWorking() {
+  $("#working").remove();
+}
+
+export function addUnsourced(feature = "autoBio") {
+  let unsourcedOption;
+  if (feature == "autoCategories") {
+    unsourcedOption = window.autoCategoriesOptions.unsourced;
+  } else {
+    unsourcedOption = window.autoBioOptions.unsourced;
+  }
+  let doCheck = true;
+  let addTemplate = false;
+  let addCategory = false;
+  if (unsourcedOption == "template") {
+    addTemplate = true;
+  } else {
+    addCategory = true;
+  }
+  // Don't add Unsourced template if there is a Find A Grave source (maybe added by the code above) or an Ancestry/FS template
+  window.references.forEach(function (aRef) {
+    if (
+      aRef.Text.match(
+        /(findagrave.com.*Maintained by)|(\{\{FamilySearch|Ancestry Record|Image\|[A-z0-9]+\}\})|(https:\/\/familysearch.org\/ark:\/\w+)/i
+      )
+    ) {
+      doCheck = false;
+    }
+  });
+  if (doCheck == true) {
+    const currentBio = $("#wpTextbox1").val();
+    if (autoBioCheck(currentBio) == false) {
+      let unsourcedCategory;
+      let unsourcedTemplate;
+
+      // Check each part of the birth and death locations for unsourced categories
+      const birthPlaces = window.profilePerson.BirthLocation?.split(", ");
+      const deathPlaces = window.profilePerson.DeathLocation?.split(", ");
+      const places = birthPlaces.concat(deathPlaces);
+      const USstates = [];
+      const USbirthState = findUSState(window.profilePerson.BirthLocation);
+      if (USbirthState) {
+        if (USstates.includes(USbirthState) == false) {
+          USstates.push(USbirthState);
+        }
+      }
+      const USdeathState = findUSState(window.profilePerson.DeathLocation);
+      if (USdeathState) {
+        if (USstates.includes(USdeathState) == false) {
+          USstates.push(USdeathState);
+        }
+      }
+      if (USstates.length > 0) {
+        if (addCategory) {
+          USstates.forEach(function (aState) {
+            unsourcedCategory = `[[Category: ${unsourcedCategories[aState]}]]`;
+            if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedCategory)) {
+              window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
+            }
+          });
+        } else {
+          const statesString = USstates.join("|");
+          unsourcedTemplate = `{{Unsourced|${statesString}}}`;
+          if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
+            window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
+          }
+        }
+      } else {
+        let unsourcedTemplateString = "";
+        places.forEach(function (aPlace) {
+          if (
+            unsourcedCategories[aPlace] &&
+            !(["Wales", "Canada", "United States"].includes(aPlace) && unsourcedCategory)
+          ) {
+            if (addCategory) {
+              unsourcedCategory = `[[Category: ${unsourcedCategories[aPlace]}]]`;
+              if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedCategory)) {
+                window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
+              }
+            } else {
+              unsourcedTemplateString += `|${aPlace}`;
+            }
+          }
+        });
+        if (unsourcedTemplateString) {
+          unsourcedTemplate = `{{Unsourced${unsourcedTemplateString}}}`;
+          if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
+            window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
+          }
+        }
+      }
+      const surnames = [
+        window.profilePerson.PersonName.LastNameAtBirth,
+        window.profilePerson.PersonName.LastNameCurrent,
+      ];
+      surnames.forEach(function (aSurname) {
+        if (unsourcedCategories[aSurname + " Name Study"]) {
+          unsourcedCategory = `[[Category: ${unsourcedCategories[aSurname + " Name Study"]}]]`;
+          if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedCategory)) {
+            window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
+          }
+        }
+      });
+      if (!unsourcedCategory && !unsourcedTemplate) {
+        unsourcedTemplate = "{{Unsourced}}";
+        let gotIt = false;
+        for (const thing of window.sectionsObject["StuffBeforeTheBio"].text) {
+          if (thing.match(/\{\{Unsourced.*?\}\}/i)) {
+            gotIt = true;
+          }
+        }
+        if (gotIt == false) {
+          window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
+        }
+      }
+    }
+  }
+}
+
+export function addOccupationCategories(feature = "autoBio") {
+  let occupationOption;
+  if (feature == "autoCategories") {
+    occupationOption = window.autoCategoriesOptions.occupationCategory;
+  } else {
+    occupationOption = window.autoBioOptions.occupationCategory;
+  }
+  window.references.forEach(function (aRef) {
+    const occupation = aRef.Occupation;
+
+    if (occupationOption && occupation) {
+      const occupationTitleCase = titleCase(occupation);
+      let occupationCategory;
+      if (occupationCategories[occupationTitleCase]) {
+        const places = [];
+        if (window.profilePerson.BirthLocation) {
+          places.push(window.profilePerson.BirthLocation.split(", "));
+        }
+        if (window.profilePerson.DeathLocation) {
+          places.push(window.profilePerson.DeathLocation.split(", "));
+        }
+        if (occupationCategories[occupationTitleCase]["Places"]) {
+          occupationCategories[occupationTitleCase]["Places"].forEach(function (place) {
+            if (places.some((arr) => arr.includes(place))) {
+              occupationCategory = `[[Category: ${place}, ${occupationCategories[occupationTitleCase]["PluralForm"]}]]`;
+            }
+          });
+          if (!occupationCategory) {
+            if (occupationCategories[occupationTitleCase].Standalone) {
+              occupationCategory = `[[Category: ${occupationCategories[occupationTitleCase]["PluralForm"]}]]`;
+            }
+          }
+        }
+      }
+      if (occupationCategory) {
+        window.sectionsObject["StuffBeforeTheBio"].text.push(occupationCategory);
+      }
+    }
+  });
+}
+
+export function buildFamilyForPrivateProfiles() {
+  if (!window.profilePerson.BirthName) {
+    window.profilePerson.BirthName =
+      window.profilePerson.FirstName + (window.profilePerson.MiddleName ? " " + window.profilePerson.MiddleName : "");
+  }
+  if (!window.profilePerson.BirthNamePrivate) {
+    window.profilePerson.BirthNamePrivate =
+      (window.profilePerson.RealName || window.profilePerson.FirstName) +
+      " " +
+      window.profilePerson.LastNameAtBirth +
+      (window.profilePerson.Suffix ? " " + window.profilePerson.Suffix : "");
+  }
+  if (!window.profilePerson.LastNameAtBirth) {
+    // <a name="last-name"></a>
+    const lastNameAnchor = $("a[name='last-name']");
+    const lastNameText = lastNameAnchor.parent().text().split(" [")[0].trim();
+    window.profilePerson.LastNameAtBirth = lastNameText;
+  }
+  if (!window.profilePerson.Gender) {
+    window.profilePerson.Gender = $("select#mGender option:selected").val();
+  }
+
+  function parseName(name, object) {
+    const nameParts = name.split(" ");
+    let lastNameAtBirthIndex;
+    nameParts.forEach(function (part, index) {
+      if (part.match(/^\(.*\)$/)) {
+        nameParts[index] = part.replace("(", "").replace(")", "");
+        object.LastNameAtBirth = nameParts[index];
+        lastNameAtBirthIndex = index;
+      }
+    });
+    if (lastNameAtBirthIndex) {
+      object.FirstName = nameParts.slice(0, lastNameAtBirthIndex).join(" ");
+      object.LastNameCurrent = nameParts.slice(lastNameAtBirthIndex + 1).join(" ");
+    } else {
+      object.LastNameAtBirth = nameParts.pop();
+      object.FirstName = nameParts.join(" ");
+    }
+  }
+
+  function findFamilyPersonLink(links) {
+    let familyPersonLink;
+    for (let i = 0; i < links.length; i++) {
+      const link = links[i];
+      if (link.href.match(/\/wiki\/.*-\d+$/)) {
+        familyPersonLink = link;
+        break;
+      }
+    }
+    return familyPersonLink;
+  }
+  const familyColumn = $("a[name='family']").closest("div");
+  const familyTable = familyColumn.find("table");
+  const familyTableRows = familyTable.find("tr");
+  let fatherTr, motherTr, siblingsTr, spousesTr, childrenTr;
+  familyTableRows.each(function (index, row) {
+    if (
+      $(this)
+        .find("td")
+        .eq(0)
+        .text()
+        .match(/Father/)
+    ) {
+      fatherTr = row;
+    } else if (
+      $(this)
+        .find("td")
+        .eq(0)
+        .text()
+        .match(/Mother/)
+    ) {
+      motherTr = row;
+    } else if (
+      $(this)
+        .find("td")
+        .eq(0)
+        .text()
+        .match(/Siblings/)
+    ) {
+      siblingsTr = row;
+    } else if (
+      $(this)
+        .find("td")
+        .eq(0)
+        .text()
+        .match(/Spouses/)
+    ) {
+      spousesTr = row;
+    } else if (
+      $(this)
+        .find("td")
+        .eq(0)
+        .text()
+        .match(/Children/)
+    ) {
+      childrenTr = row;
+    }
+  });
+
+  if (!window.profilePerson.Parents) {
+    window.profilePerson.Parents = {};
+    if (fatherTr) {
+      const fatherLinks = fatherTr.querySelectorAll("a");
+      let fatherLink;
+      if (fatherLinks) {
+        fatherLink = findFamilyPersonLink(fatherLinks);
+      }
+      if (fatherLink) {
+        const fatherId = fatherLink.href.split("/").pop();
+        const fatherObject = {};
+        fatherObject.Name = fatherId;
+        const fatherName = fatherLink.textContent;
+        parseName(fatherName, fatherObject);
+        window.profilePerson.Parents[1] = fatherObject;
+        window.profilePerson.Father = 1;
+      }
+    }
+    if (motherTr) {
+      const motherLinks = motherTr.querySelectorAll("a");
+      let motherLink;
+      if (motherLinks) {
+        motherLink = findFamilyPersonLink(motherLinks);
+      }
+      if (motherLink) {
+        const motherId = motherLink.href.split("/").pop();
+        const motherObject = {};
+        motherObject.Name = motherId;
+        const motherName = motherLink.textContent;
+        parseName(motherName, motherObject);
+        window.profilePerson.Parents[2] = motherObject;
+        window.profilePerson.Mother = 2;
+      }
+    }
+  }
+
+  const familyLists = ["Siblings", "Spouses", "Children"];
+  familyLists.forEach((familyList) => {
+    if (!window.profilePerson[familyList]) {
+      window.profilePerson[familyList] = {};
+      const familyTr = familyList === "Siblings" ? siblingsTr : familyList === "Spouses" ? spousesTr : childrenTr;
+      if (familyTr) {
+        const familyTd = $(familyTr).find("td").eq(1)[0];
+        if (familyTd) {
+          const familyOl = familyTd.firstElementChild;
+          if (familyOl) {
+            const family = familyOl.children;
+            for (let i = 0; i < family.length; i++) {
+              const familyMember = family[i];
+              const familyMemberLinks = familyMember.querySelectorAll("a");
+              let familyMemberLink;
+              familyMemberLink = findFamilyPersonLink(familyMemberLinks);
+              if (familyMemberLink) {
+                const familyMemberId = familyMemberLink.href.split("/").pop();
+                const familyMemberObject = {};
+                familyMemberObject.Name = familyMemberId;
+                familyMemberObject.BirthDate = "0000-00-00";
+                if (familyList == "Spouses") {
+                  familyMemberObject["marriage_date"] = "0000-00-00";
+                }
+                const familyMemberName = familyMemberLink.textContent;
+                parseName(familyMemberName, familyMemberObject);
+                window.profilePerson[familyList][i] = familyMemberObject;
+              }
+            }
+          }
+        }
+      }
+    }
+    if (Object.keys(window.profilePerson[familyList]).length === 0) {
+      window.profilePerson[familyList] = [];
+    }
+  });
+}
+
+export async function generateBio() {
+  window.autoBioNotes = [];
+
+  // Sort First Name Variants by length
+  for (let key in firstNameVariants) {
+    firstNameVariants[key].sort(function (a, b) {
+      return b.length - a.length;
+    });
+  }
+
+  addWorking();
+  const currentBio = $("#wpTextbox1").val();
+  localStorage.setItem("previousBio", currentBio);
+  // Split the current bio into sections
+  window.sectionsObject = splitBioIntoSections();
+
+  window.usedPlaces = [];
+  let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
+
+  window.biographyPeople = await getProfile(
+    profileID,
+    "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix,BirthDate,DeathDate,BirthLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren,NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings",
+    "AutoBio"
+  );
+  window.profilePerson = window.biographyPeople;
+  const originalFormData = getFormData();
+
+  const originalFirstName = window.profilePerson.FirstName;
+  // Get the form data and add it to the profilePerson
+  const formData = getFormData();
+  let personKeys = Object.keys(formData);
+  personKeys.forEach(function (aKey) {
+    if (!(aKey == "BirthDate" && formData[aKey] == null)) {
+      window.profilePerson[aKey] = formData[aKey];
+    }
+  });
+
+  // if ($("img[title='Privacy Level: Unlisted']").length > 0) {
+  buildFamilyForPrivateProfiles();
+  //}
+
+  console.log(JSON.parse(JSON.stringify(window.profilePerson)));
+
+  const nuclearFamily = familyArray(window.profilePerson);
+  console.log(JSON.parse(JSON.stringify(nuclearFamily)));
+  nuclearFamily.forEach(function (member) {
+    if (member) {
+      assignPersonNames(member);
+      setOrderBirthDate(member);
+    }
+  });
+  fixLocations();
+
+  if (!window.autoBioNotes) {
+    window.autoBioNotes = [];
+  }
+
+  if (!window.profilePerson.Parents) {
+    window.autoBioNotes.push("You may get better results by logging in to the apps server (click the button above).");
+    addLoginButton();
+  } else {
+    window.profilePerson.BirthYear = window.profilePerson.BirthDate?.split("-")[0];
+    window.profilePerson.DeathYear = window.profilePerson.DeathDate?.split("-")[0];
+  }
+
+  // Get spouse parents
+  if (!(Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses.length === 0)) {
+    let spouseKeys = Object.keys(window.profilePerson.Spouses);
+    window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 1, 1, "*", "WBE_auto_bio");
+    const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
+    biographySpouseParentsKeys.forEach(function (key) {
+      const person = window.biographySpouseParents[0].people[key];
+      assignPersonNames(person);
+    });
+  }
+  console.log("biographySpouseParents", window.biographySpouseParents);
+
+  // window.profilePerson.BirthName is their FirstName + MiddleName if they have a MiddleName
+  if (isOK(window.profilePerson.MiddleName)) {
+    window.profilePerson.BirthName = window.profilePerson.FirstName + " " + window.profilePerson.MiddleName;
+  } else {
+    window.profilePerson.BirthName = window.profilePerson.FirstName;
+  }
+
+  if (window.profilePerson.RealName == originalFirstName) {
+    window.profilePerson.RealName = window.profilePerson.FirstName;
+  }
+  // window.profilePerson.BirthNamePrivate is RealName LastNameAtBirth Suffix
+  if (isOK(window.profilePerson.Suffix)) {
+    window.profilePerson.BirthNamePrivate =
+      window.profilePerson.RealName + " " + window.profilePerson.LastNameAtBirth + " " + window.profilePerson.Suffix;
+  } else {
+    window.profilePerson.BirthNamePrivate = window.profilePerson.RealName + " " + window.profilePerson.LastNameAtBirth;
+  }
+  console.log(JSON.parse(JSON.stringify(window.profilePerson)));
+  assignPersonNames(window.profilePerson);
+  if (isOK(window.profilePerson.BirthDate) && window.profilePerson.BirthDate.match("-") == null) {
+    window.profilePerson.BirthDate = convertDate(window.profilePerson.BirthDate, "ISO");
+  }
+  if (isOK(window.profilePerson.DeathDate) && window.profilePerson.DeathDate.match("-") == null) {
+    window.profilePerson.DeathDate = convertDate(window.profilePerson.DeathDate, "ISO");
+  }
+  window.profilePerson.Pronouns = getPronouns(window.profilePerson);
+  window.profilePerson.NameVariants = getNameVariants(window.profilePerson);
+  // Handle census data created with Sourcer
+  window.sourcerCensuses = getSourcerCensuses();
+
+  console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
+
+  // Create the references array
+  if (window.sectionsObject.Sources) {
+    window.sourcesSection = window.sectionsObject.Sources;
+  }
+  sourcesArray(currentBio);
+  console.log("references", JSON.parse(JSON.stringify(window.references)));
+
+  // Update references with Find A Grave citations
+  await getCitations();
 
   // Start OUTPUT
   const bioHeader = "== Biography ==\n";
