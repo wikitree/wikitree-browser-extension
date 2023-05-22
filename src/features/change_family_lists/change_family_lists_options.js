@@ -30,6 +30,12 @@ const changeFamilyLists = {
       defaultValue: false,
     },
     {
+      id: "moveToEnd",
+      type: OptionType.CHECKBOX,
+      label: "Move family relationships below date of death",
+      defaultValue: false,
+    },
+    {
       id: "verticalLists",
       type: OptionType.CHECKBOX,
       label: "Vertical family lists with dates",
