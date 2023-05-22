@@ -1,5 +1,6 @@
 /*
 Created By: Ian Beacall (Beacall-6)
+Contributors: Jonathan Duke (Duke-5773)
 */
 
 import $ from "jquery";
@@ -18,6 +19,12 @@ checkIfFeatureEnabled("changeFamilyLists").then((result) => {
       getFeatureOptions("changeFamilyLists").then((options) => {
         if (options.moveToRight) {
           moveFamilyLists(true);
+        }
+        if (options.showSidebarHeading) {
+          $("html").addClass("x-cfl-show-heading");
+        }
+        if (options.highlightActiveProfile) {
+          $("html").addClass("x-cfl-highlight-active");
         }
         if (options.verticalLists) {
           $("#nVitals").addClass("vertical");
@@ -113,13 +120,18 @@ async function addAddLinksToHeadings() {
 async function prepareFamilyLists() {
   if ($("body.profile").length && window.location.href.match("Space:") == null && $("#nVitals").length == 0) {
     const ourVitals = $("div.ten div.VITALS");
-    const familyLists = $("<div id='nVitals'></div>");
+    const familyLists = $(
+      '<div id="nVitals" style="display: none;">' +
+        '<div class="large sidebar-heading" style="margin-bottom:0.5em"><strong>Family Relationships</strong></div>' +
+        "</div>"
+    );
+
+    ourVitals.last().after(familyLists);
     ourVitals.each(function () {
       if ($(this).find("span[itemprop='givenName']").length) {
         $(this).prop("id", "profileName");
       } else if ($(this).text().match(/^Born/)) {
         $(this).prop("id", "birthDetails");
-        $(this).after(familyLists);
       } else if ($(this).text().match(/^Died/)) {
         $(this).prop("id", "deathDetails");
       } else {
@@ -155,6 +167,7 @@ async function prepareFamilyLists() {
       }
     });
 
+    familyLists.show();
     $("#parentDetails").prepend($("span.showHideTree").eq(0));
     $("#childrenDetails").prepend($("span#showHideDescendants"));
   }
@@ -183,16 +196,22 @@ async function moveFamilyLists(firstTime = false) {
     let right;
     if (window.innerWidth < 767 || rightHandColumn.find(familyLists).length) {
       familyLists.fadeOut("slow", function () {
-        familyLists.insertAfter($("#birthDetails"));
+        familyLists.removeClass("row");
+        familyLists.insertAfter($("#birthDetails, #profileName").last());
         familyLists.fadeIn("slow");
       });
       right = false;
     } else {
       familyLists.fadeOut("slow", function () {
+        familyLists.addClass("row");
         if ($("a[href='/wiki/Project_protection']").length) {
           familyLists.insertBefore($("a[href='/wiki/Project_protection']").closest("div"));
         } else if ($("#geneticfamily").length) {
-          familyLists.insertBefore($("#geneticfamily"));
+          let $before = $("#geneticfamily");
+          if ($before.prev().is('a[name="DNA"]')) {
+            $before = $before.prev();
+          }
+          familyLists.insertBefore($before);
         } else {
           rightHandColumn.prepend(familyLists);
         }
@@ -210,12 +229,17 @@ async function moveFamilyLists(firstTime = false) {
   } else {
     getFeatureOptions("changeFamilyLists").then((optionsData) => {
       if (window.innerWidth < 767) {
-        familyLists.insertAfter($("#birthDetails"));
+        familyLists.removeClass("row").insertAfter($("#birthDetails, #profileName").last());
       } else if (optionsData.moveToRight) {
+        familyLists.addClass("row");
         if ($("div.six a[href='/wiki/Project_protection']").length) {
           familyLists.insertAfter($("div.six a[href='/wiki/Project_protection']").closest("div"));
         } else if ($("#geneticfamily").length) {
-          familyLists.insertBefore($("#geneticfamily"));
+          let $before = $("#geneticfamily");
+          if ($before.prev().is('a[name="DNA"]')) {
+            $before = $before.prev();
+          }
+          familyLists.insertBefore($before);
         } else {
           rightHandColumn.prepend(familyLists);
         }
@@ -330,7 +354,7 @@ function reallyMakeFamLists() {
           fixAllPrivates();
 
           // cleaning up
-          if ($("span.large:contains(Family Member)").length == 0) {
+          /*if ($("span.large:contains(Family Member)").length == 0)*/ {
             makeFamLists();
             $(".familyList li").each(function () {
               if (
@@ -733,7 +757,7 @@ function makeFamLists() {
 
   if (addSibling.length) {
     let asib = $(addSibling);
-    $("#siblingList").append($("<li id='addSibling'></li>"));
+    $("#siblingList").append($("<li id='addSibling' class='x-edit'></li>"));
     $("#addSibling").append(asib);
     if ($("li:contains('[siblings unknown]')").length) {
       $("li:contains('[siblings unknown]')").remove();
@@ -757,7 +781,7 @@ function makeFamLists() {
   $(".aSpouse").prependTo($("#spouseDetails"));
   if (addChild.length) {
     let ac = $(addChild);
-    $("#childrenList").append($("<li id='addChild'></li>"));
+    $("#childrenList").append($("<li id='addChild' class='x-edit'></li>"));
     $("#addChild").append(ac);
     if ($("li:contains('[children unknown]')").length) {
       $("li:contains('[children unknown]')").remove();
@@ -765,7 +789,7 @@ function makeFamLists() {
   }
   if (motherQ.length) {
     let mq = $(motherQ);
-    $("#parentList").append($("<li id='motherQ'></li>"));
+    $("#parentList").append($("<li id='motherQ' class='x-edit'></li>"));
     $("#motherQ").append(mq);
     if ($("li:contains('[mother unknown]')").length) {
       $("li:contains('[mother unknown]')").remove();
@@ -773,7 +797,7 @@ function makeFamLists() {
   }
   if (fatherQ.length) {
     let fq = $(fatherQ);
-    $("#parentList").prepend($("<li id='fatherQ'></li>"));
+    $("#parentList").prepend($("<li id='fatherQ' class='x-edit'></li>"));
     $("#fatherQ").append(fq);
     if ($("li:contains('[father unknown]')").length) {
       $("li:contains('[father unknown]')").remove();
@@ -1099,7 +1123,7 @@ async function prepareHeadings() {
       let ofMatch = n1.textContent.match("of");
       let regexMatch = n1.textContent.match(regex);
       let wrongMatch = false;
-      if (regexMatch && ofMatch == null && n2.textContent.match(" of ") == null) {
+      if (regexMatch && ofMatch == null && !/\bof\b/.test(n2.textContent)) {
         wrongMatch = true;
       }
       if (regexMatch && wrongMatch != true) {
@@ -1436,6 +1460,7 @@ function extraBitsForFamilyLists() {
     sibsUnknown.appendTo("#siblingDetails");
     $("#siblingList").remove();
     $("#parentDetails").prependTo("#nVitals");
+    $("#nVitals > .sidebar-heading").prependTo("#nVitals"); // prevent the sections from being re-added above the heading
     $("#siblingDetails").insertAfter("#parentDetails");
   } else if ($("#siblingDetails").length) {
     let sNodes = $("#siblingDetails")[0].childNodes;

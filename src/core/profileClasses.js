@@ -47,7 +47,7 @@ export function ensureProfileClasses() {
       .addClass("x-thumbnail-default");
 
     // mark the widgets (including the scissors container) inside the h1 tag, plus the green buttons like showHideTree
-    $(".x-heading-title button, .showHideTree, #showHideDescendants").addClass("x-widget");
+    $(".x-heading-title button, .showHideTree, #showHideDescendants, #distanceFromYou").addClass("x-widget");
     $(".x-profile-category .x-heading")
       .prevAll()
       .filter(function () {
@@ -198,19 +198,30 @@ export function ensureProfileClasses() {
     $("a[name='Memories']").prev().addClass("x-memories").nextAll().addClass("x-memories");
     $(".x-memories, .x-content > br:last-child").addClass("x-memories").prevUntil("*:not(br)").addClass("x-memories"); // memories are usually preceded by a couple of line breaks, sometimes present at the end of content even if the memories block is missing
 
-    // mark elements related to the sources section (including header, lists, and any other root elements) up until the next section *** dependent on x-memories being set
-    $(".x-content a[name='Sources']")
-      .first()
-      .addClass("x-sources")
-      .nextUntil(".x-root-section, div.EDIT, .x-memories, br[clear] + div.SMALL")
-      .addClass("x-sources")
-      .each(function () {
-        // sometimes text can be put in the sources section, such as "See also:" (only happens with leading whitespace)
-        if (this.previousSibling.nodeType == 3 && /\S/.test(this.previousSibling.nodeValue)) {
-          $(this.previousSibling).wrap('<p class="x-sources"></p>');
-        }
-      });
-    $(".x-content ol.references").addClass("x-sources");
+    // mark elements related to certain sections (including header, lists, and any other root elements) up until the next section *** dependent on x-memories being set
+    $(".x-content a[name].x-root-section").each(function () {
+      let className = "section-" + this.name.replace(/[\W_]+/g, "").toLowerCase();
+      if (className == "section-sources") {
+        className += " x-sources";
+      }
+      $(this)
+        .first()
+        .nextUntil(".x-root-section, div.EDIT, .x-memories, br[clear] + div.SMALL")
+        .addBack()
+        .addClass(className)
+        .each(function () {
+          /*
+           * Sometimes unwrapped text can be rendered in the body, such as "See also:"
+           * (this seems to happen with leading whitespace or when templates/stickers are
+           * placed within text). Since there are no containers to wrap a section's content,
+           * we have to wrap the text nodes in a <span> tag so that the classes can be applied.
+           */
+          if (this.previousSibling.nodeType == 3 && /\S/.test(this.previousSibling.nodeValue)) {
+            $(this.previousSibling).wrap('<span class="' + className + '"></span>');
+          }
+        });
+    });
+    $(".x-content ol.references").addClass("section-sources x-sources");
 
     // mark plain-text elements at the root of the sources section
     $(".x-content > p.x-sources")
@@ -247,7 +258,12 @@ export function ensureProfileClasses() {
       .parent()
       .addClass("x-categories");
     $("#categories").closest(".container").addClass("x-categories");
+    $("#categories").addClass("x-categories");
     $("#footer").prev().addClass("x-categories");
+
+    // mark the member section and the show/hide link for it
+    $("#memberSection").addClass("x-member-section");
+    $(".toggleMemberSection").parentsUntil(".columns").last().addClass("x-member-section");
 
     // prevent this from running more than once per page
     hasProfileClasses = true;

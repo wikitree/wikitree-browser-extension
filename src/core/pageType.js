@@ -25,6 +25,8 @@ export let isTemplatePage = false;
 export let isProjectPage = false;
 // Help page
 export let isHelpPage = false;
+// Genealogy page
+export let isGenealogyPage = false;
 // Other wiki page (Project:, Docs:, Automated:, ...)
 export let isOtherPage = false;
 
@@ -252,6 +254,8 @@ if (
   } else if (window.location.href.match(/\/Special:SearchPerson/g)) {
     // Special:SearchPerson
     isSearchPage = true;
+  } else if (window.location.href.match(/Special:Surname/)) {
+    isGenealogyPage = true;
   }
 } else if (
   // Other Edit Page
@@ -264,6 +268,9 @@ if (
   window.location.href.match(/\/index.php\?title=.*:.*&action=history/g)
 ) {
   isOtherHistory = true;
+} else if (window.location.href.match(/\/genealogy\//)) {
+  // genealogy page
+  isGenealogyPage = true;
 } else if (
   // Other Page
   window.location.pathname.match(/(\/wiki\/).*:*/g) ||

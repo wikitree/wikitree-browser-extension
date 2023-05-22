@@ -31,7 +31,7 @@ a:active {
   color: #8ec641;
   text-decoration: none;
 }
-a:hover {
+a:not(.nohover):hover {
   text-decoration: none;
   background: #ffe270;
 }

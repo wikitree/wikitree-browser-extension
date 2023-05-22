@@ -1,0 +1,19 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+
+import { registerFeature } from "../../core/options/options_registry";
+import { isGenealogyPage, isProfilePage, isSpacePage, isSpecialWatchedList } from "../../core/pageType";
+
+const tableFilters = {
+  name: "Table Filters",
+  id: "tableFilters",
+  description: "Adds filters to wikitables and name tables (on Watchlist and Surname Genealogy pages).",
+  category: "Other",
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
+  contributors: [],
+  defaultValue: false,
+  pages: [isProfilePage, isSpacePage, isGenealogyPage, isSpecialWatchedList],
+};
+
+registerFeature(tableFilters);
