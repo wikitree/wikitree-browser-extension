@@ -70,6 +70,7 @@ import "./spacepreview/spacepreview_options";
 import "./table_filters/table_filters_options";
 import "./usability_tweaks/usability_tweaks_options";
 import "./what_links_here/what_links_here_options";
+import "./wills/wills_options";
 import "./wtPlus/wtPlus_options";
 
 ////////////////////////////////////////////////////////////////////////////////
