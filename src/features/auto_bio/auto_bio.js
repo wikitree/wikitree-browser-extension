@@ -2535,7 +2535,10 @@ function extractHouseholdMembers(row) {
 }
 
 function parseCensusWikitable(text) {
-  const lines = text.split("\n");
+  let lines = text.split("\n");
+  lines = lines.filter(
+    (line) => !line.startsWith("|-") && !line.startsWith("|+") && !line.startsWith("{|") && !line.startsWith("!")
+  ); // Filter out non-data rows
   const columnMapping = analyzeColumns(lines);
   const data = [];
   lines.forEach((line, index) => {
@@ -3049,7 +3052,6 @@ function parseSourcerFamilyListWithBRs(reference) {
 function buildCensusNarratives() {
   const yearRegex = /\b(1[789]\d{2})\b/;
   // getCensusesFromCensusSection();
-
   window.references.forEach(function (reference) {
     let text = "";
     if (reference.Text.match(/census|1939( England and Wales)? Register/i)) {
@@ -3062,6 +3064,7 @@ function buildCensusNarratives() {
         if (!reference.Household) {
           reference = parseSourcerFamilyListWithBRs(reference);
         }
+        console.log(JSON.parse(JSON.stringify(reference)));
 
         // Ancestry list style (from Sourcer?)
         if (!reference.Household) {
@@ -3122,6 +3125,7 @@ function buildCensusNarratives() {
           });
         }
       }
+      console.log(JSON.parse(JSON.stringify(reference)));
 
       let residenceBits = [];
       if (reference["Street Address"]) {
@@ -3205,14 +3209,13 @@ function buildCensusNarratives() {
             }
           });
         }
-
         if (nameVariants) {
           firstName = ("(" + nameVariants.join("\\b|") + ")").replace(".", "") + "(\\b|$)";
           nameMatchPattern = new RegExp(firstName);
         }
         let censusIntro = "In " + reference["Census Year"] + ", ";
         let censusRest = "";
-        if (reference.Text.match(/.{0,5}'''\d{4} Census'''/)) {
+        if (reference.Text.match(/.{0,5}'''\d{4} Census'''/i)) {
           censusRest += sourcerCensusWithNoTable(reference, nameMatchPattern);
         } else if (
           reference.Text.match(/database( with images)?, (<i>|''')?FamilySearch/) ||
@@ -3227,6 +3230,7 @@ function buildCensusNarratives() {
         }
         // Switch "in the household of NAME" to "in the household of her father, Frederick" (for example)
         text = getHouseholdOfRelationAndName(text);
+        console.log(JSON.parse(JSON.stringify(reference)));
       } else {
         // If there's a spouse in the table, but there's no profile for the spouse
         addAges();
@@ -3241,6 +3245,7 @@ function buildCensusNarratives() {
             }
           });
         }
+        console.log(JSON.parse(JSON.stringify(reference)));
 
         // With a table
         text +=
@@ -3303,10 +3308,12 @@ function buildCensusNarratives() {
         if (reference.Residence) {
           text += (reference["Street Address"] ? " at " : " in ") + minimalPlace(reference["Residence"]);
         }
+        console.log(JSON.parse(JSON.stringify(reference)));
 
         if (reference.Household) {
           // Add relationships if they're not already there
           reference.Household = updateRelations(reference.Household);
+          console.log(JSON.parse(JSON.stringify(reference.Household)));
           reference.Household.forEach(function (householdMember) {
             if (!householdMember.Relation) {
               householdMember.Relation = findRelation(householdMember);
@@ -4734,13 +4741,44 @@ function getSourcerCensuses() {
   refs.forEach((ref) => ref.remove());
   const text = dummy.innerHTML;
 
-  const regexWikitable = /In the (\d{4}) census[^\n]+?\n{1,2}(\{\|.*?\|\})/gms;
-  const regexNonWikitable = /In the (\d{4}) census[^{=]*?\n([.:#*].+?)(?=\n[^:#*])/gms;
+  //const regexWikitable = /In the (\d{4}) census[^\n]+?\n{1,2}.*(\{\|.*?\|\})/gms;
+  //const regexWikitable = /In the (\d{4}) census[^]+?\n{1,2}[^]+?(\{\|[^]+?\|\})/g;
+  //const regexWikitable = /In the (\d{4}) census[\s\S]*?(\{\|[\s\S]*?\|\})/g;
+  const regexWikitable = /In the (\d{4}) census[^]+?(\{\|[^]+?\|\})(?![^]*\{\|[^]+?\|\})/g;
+
+  //const regexNonWikitable = /In the (\d{4}) census[^{=]*?\n([.:#*].+?)(?=\n[^:#*])/gms;
+  const regexNonWikitable = /In the (\d{4}) census((?!.*\{\|.*\|\}).*?)(?=\n[^:#*])/gs;
+
+  let textChunks = text.split(/(In the \d{4} census[^]+?)(?=In the \d{4} census|$)/i);
+  let censusData = {};
+
+  for (let i = 0; i < textChunks.length; i++) {
+    let text = textChunks[i];
+
+    let yearMatch = text.match(/In the (\d{4}) census/);
+    let tableMatch = text.match(/(\{\|[^]+?\|\})/);
+
+    if (yearMatch && tableMatch) {
+      let year = yearMatch[1];
+      let table = tableMatch[0];
+
+      let description = text.replace(table, "").trim();
+
+      censusData[year] = {
+        description: description,
+        table: table,
+      };
+    }
+  }
+
+  console.log(censusData);
+  const censusKeys = Object.keys(censusData);
 
   const tempCensuses = {};
-
+  /*
   for (const match of text.matchAll(regexWikitable)) {
     let household = parseFamilyData(match[2], { format: "wikitable" });
+    console.log(household);
     tempCensuses[match[1]] = {
       "Census Year": match[1],
       Text: match[0],
@@ -4750,8 +4788,24 @@ function getSourcerCensuses() {
       Household: household,
     };
   }
+  */
 
+  for (const key of censusKeys) {
+    let household = parseFamilyData(censusData[key].table, { format: "wikitable" });
+    console.log(household);
+    tempCensuses[key] = {
+      "Census Year": key,
+      Text: censusData[key].description,
+      Year: key,
+      List: censusData[key].table,
+      RefName: "Census_" + key,
+      Household: household,
+    };
+  }
+
+  /(In the \d{4} census[^]+?)(?=In the \d{4} census|$)/;
   for (const match of text.matchAll(regexNonWikitable)) {
+    console.log("non-table", match[0]);
     const matchSplit = match[0].split(/\n(?=[.*#:])/);
     let household;
     if (matchSplit[1]) {
@@ -6072,7 +6126,7 @@ export async function generateBio() {
   }
 
   // Get spouse parents
-  if (window.profilePerson.Spouses) {
+  if (!(Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses.length === 0)) {
     let spouseKeys = Object.keys(window.profilePerson.Spouses);
     window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 1, 1, "*", "WBE_auto_bio");
     const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
