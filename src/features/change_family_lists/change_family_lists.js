@@ -10,59 +10,59 @@ import { displayDates } from "../verifyID/verifyID";
 import { getRelatives } from "wikitree-js";
 import "./change_family_lists.css";
 
-checkIfFeatureEnabled("changeFamilyLists").then((result) => {
+let options;
+
+checkIfFeatureEnabled("changeFamilyLists").then(async (result) => {
   const ancestorsButton = $("span.showHideTree").eq(0);
   const descendantsButton = $("span#showHideDescendants");
   if (result) {
+    options = await getFeatureOptions("changeFamilyLists");
     window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
-    prepareFamilyLists().then(() => {
-      getFeatureOptions("changeFamilyLists").then((options) => {
-        if (options.moveToRight) {
-          moveFamilyLists(true);
-        }
-        if (options.showSidebarHeading) {
-          $("html").addClass("x-cfl-show-heading");
-        }
-        if (options.highlightActiveProfile) {
-          $("html").addClass("x-cfl-highlight-active");
-        }
-        if (options.verticalLists) {
-          $("#nVitals").addClass("vertical");
-          reallyMakeFamLists();
-        } else if (options.agesAtMarriages) {
-          onlyAgesAtMarriages();
-        }
-        if (!options.verticalLists) {
-          $("body").addClass("WTEsibHeaders");
-          prepareHeadings();
-          if (options.siblingAndChildCount) {
-            addChildrenCount();
-          }
-        }
-        if (options.changeHeaders) {
-          setTimeout(function () {
-            siblingsHeader(true);
-          }, 1500);
-        }
+    await prepareFamilyLists();
+    if (options.moveToRight) {
+      moveFamilyLists(true);
+    }
+    if (options.showSidebarHeading) {
+      $("html").addClass("x-cfl-show-heading");
+    }
+    if (options.highlightActiveProfile) {
+      $("html").addClass("x-cfl-highlight-active");
+    }
+    if (options.verticalLists) {
+      $("#nVitals").addClass("vertical");
+      reallyMakeFamLists();
+    } else if (options.agesAtMarriages) {
+      onlyAgesAtMarriages();
+    }
+    if (!options.verticalLists) {
+      $("body").addClass("WTEsibHeaders");
+      prepareHeadings();
+      if (options.siblingAndChildCount) {
+        addChildrenCount();
+      }
+    }
+    if (options.changeHeaders) {
+      setTimeout(function () {
+        siblingsHeader(true);
+      }, 1500);
+    }
 
-        if (!options.verticalLists) {
-          $("#parentDetails").before(ancestorsButton);
-          $("#childrenDetails").before(descendantsButton);
-        } else {
-          $("#parentDetails").prepend(ancestorsButton);
-          $("#childrenDetails").prepend(descendantsButton);
-        }
-        $("span.showHideTree").eq(1).remove();
-        setTimeout(function () {
-          const openPadlock = $("img[title='Privacy Level: Open']");
-          if (openPadlock.length) {
-            addAddLinksToHeadings();
-          }
-        }, 3000);
+    if (!options.verticalLists) {
+      $("#parentDetails").before(ancestorsButton);
+      $("#childrenDetails").before(descendantsButton);
+    } else {
+      $("#parentDetails").prepend(ancestorsButton);
+      $("#childrenDetails").prepend(descendantsButton);
+    }
+    $("span.showHideTree").eq(1).remove();
+    setTimeout(function () {
+      const openPadlock = $("img[title='Privacy Level: Open']");
+      if (openPadlock.length) {
+        addAddLinksToHeadings();
+      }
+    }, 3000);
 
-        addParentStatus();
-      });
-    });
+    addParentStatus();
     window.onresize = function () {
       if ($("body.profile").length && window.location.href.match("Space:") == null) {
         moveFamilyLists(true);
@@ -130,8 +130,14 @@ async function prepareFamilyLists() {
     ourVitals.each(function () {
       if ($(this).find("span[itemprop='givenName']").length) {
         $(this).prop("id", "profileName");
+        if (!options.moveToEnd && !options.moveToRight) {
+          this.after(familyLists);
+        }
       } else if ($(this).text().match(/^Born/)) {
         $(this).prop("id", "birthDetails");
+        if (!options.moveToEnd && !options.moveToRight) {
+          this.after(familyLists);
+        }
       } else if ($(this).text().match(/^Died/)) {
         $(this).prop("id", "deathDetails");
       } else {
@@ -220,31 +226,29 @@ async function moveFamilyLists(firstTime = false) {
       right = true;
     }
     getFeatureOptions("changeFamilyLists").then((optionsData) => {
-      optionsData.moveToRight = right;
+      optionsData.moveToRight = options.moveToRight = right;
       const storageName = "changeFamilyLists_options";
       chrome.storage.sync.set({
         [storageName]: optionsData,
       });
     });
   } else {
-    getFeatureOptions("changeFamilyLists").then((optionsData) => {
-      if (window.innerWidth < 767) {
-        familyLists.removeClass("row").insertAfter($("#birthDetails, #profileName").last());
-      } else if (optionsData.moveToRight) {
-        familyLists.addClass("row");
-        if ($("div.six a[href='/wiki/Project_protection']").length) {
-          familyLists.insertAfter($("div.six a[href='/wiki/Project_protection']").closest("div"));
-        } else if ($("#geneticfamily").length) {
-          let $before = $("#geneticfamily");
-          if ($before.prev().is('a[name="DNA"]')) {
-            $before = $before.prev();
-          }
-          familyLists.insertBefore($before);
-        } else {
-          rightHandColumn.prepend(familyLists);
+    if (window.innerWidth < 767) {
+      familyLists.removeClass("row").insertAfter($("#birthDetails, #profileName").last());
+    } else if (options.moveToRight) {
+      familyLists.addClass("row");
+      if ($("div.six a[href='/wiki/Project_protection']").length) {
+        familyLists.insertAfter($("div.six a[href='/wiki/Project_protection']").closest("div"));
+      } else if ($("#geneticfamily").length) {
+        let $before = $("#geneticfamily");
+        if ($before.prev().is('a[name="DNA"]')) {
+          $before = $before.prev();
         }
+        familyLists.insertBefore($before);
+      } else {
+        rightHandColumn.prepend(familyLists);
       }
-    });
+    }
   }
 }
 
@@ -451,7 +455,7 @@ function siblingsHeader(first = false) {
   }
   if (first == false) {
     getFeatureOptions("changeFamilyLists").then((optionsData) => {
-      optionsData.changeHeaders = isOn;
+      optionsData.changeHeaders = options.changeHeaders = isOn;
       const storageName = "changeFamilyLists_options";
       chrome.storage.sync.set({
         [storageName]: optionsData,
@@ -1435,11 +1439,9 @@ function setUpMarriedOrSpouse() {
         }
       }
 
-      getFeatureOptions("changeFamilyLists").then((options) => {
-        if (options.agesAtMarriages) {
-          addMarriageAges();
-        }
-      });
+      if (options.agesAtMarriages) {
+        addMarriageAges();
+      }
     });
 
     $(".spouseText").eq(0).prependTo("#spouseDetails");
