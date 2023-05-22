@@ -1,33 +1,39 @@
 .x-page-preview {
   position: absolute;
+  left: 2%;
   z-index: 9999;
-  -webkit-box-shadow: 3px 3px 12px 6px rgba(0, 0, 0, 0.3);
-  box-shadow: 3px 3px 12px 6px rgba(0, 0, 0, 0.3);
   background-color: #fff;
   border: 2px solid #ccc;
   padding: 10px;
   -webkit-border-radius: 1em;
   -moz-border-radius: 1em;
   border-radius: 1em;
-  max-height: 450px;
+  max-width: min(98vw, 94%);
+  max-height: min(90vh, 450px);
   overflow: scroll !important;
   overflow-x: auto !important;
+  color: #000;
   font-size: 14px;
   font-style: normal;
   font-weight: normal;
   text-decoration: none;
+  text-align: left;
 }
-dialog .x-page-preview {
+
+/* special handling for previews on pins inside WT+ modal dialogs and autocomplete suggestions */
+dialog .x-page-preview,
+body > .x-page-preview {
   position: fixed;
   left: 20%;
   top: 40%;
-  max-width: min(75vw, 70%);
+  max-width: 75vw;
   max-height: min(50vh, 450px);
 }
 
-.x-page-preview .EDIT,
-.x-page-preview .editsection {
-  display: none;
+.x-page-preview,
+#pagePreviewInner > div:last-child {
+  -webkit-box-shadow: 3px 3px 12px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 3px 3px 12px 6px rgba(0, 0, 0, 0.3);
 }
 
 .x-preview-close {
@@ -50,17 +56,83 @@ dialog .x-page-preview {
   text-decoration: none !important;
 }
 
-.x-page-preview p:first-of-type,
-.x-page-preview :nth-child(2) {
+.x-page-preview > .x-first-visible {
   margin-top: 0;
 }
-.x-page-preview p:last-of-type,
-.x-page-preview :last-child {
+.x-page-preview > .x-last-visible {
   margin-bottom: 0;
 }
 
-.x-redirect-alert {
-  color: #c00;
-  font-size: small;
-  font-weight: bold;
+.x-page-preview .preview-title > a {
+  color: #393a3c !important;
+  text-decoration: none !important;
+}
+
+.x-page-preview .preview-header.box,
+.x-page-preview .preview-links.box {
+  float: right;
+  clear: right;
+  box-sizing: border-box;
+  padding: 0.75em;
+  margin: 0 0.25em 0.5em 0.25em;
+  margin-top: 0;
+  max-width: max(50%, min(380px, 100%));
+}
+@media (max-width: 767px) {
+  .x-page-preview .preview-header.box,
+  .x-page-preview .preview-links.box {
+    min-width: 98%;
+  }
+}
+.x-page-preview .preview-links > p {
+  margin: 0 auto;
+}
+.x-page-preview .preview-links > p + p {
+  margin-top: 0.5em;
+}
+.x-page-preview .TAG {
+  line-height: 1.5;
+}
+
+.x-page-preview > .toc {
+  margin-top: 1em;
+}
+.x-page-preview > .toc td > div > h2,
+.x-page-preview > .toc td > ul {
+  margin-bottom: 0;
+}
+
+.x-page-preview .toggle.toggle-toc {
+  position: relative;
+  top: -2px;
+  margin-left: 8px;
+}
+
+.x-page-preview:not(.show-title) > .preview-title,
+.x-page-preview:not(.show-scissors) > .preview-title button,
+.x-page-preview.show-title > .same-title,
+.x-page-preview:not(.show-header) > .preview-header,
+.x-page-preview:not(.show-audit) .preview-audit,
+.x-page-preview:not(.show-links) > .preview-links,
+.x-page-preview:not(.show-edit) .EDIT,
+.x-page-preview:not(.show-edit) .BLANK,
+.x-page-preview:not(.show-edit) .preview-links .SMALL,
+.x-page-preview:not(.show-edit) .editsection,
+.x-page-preview div[style*="clear:"][class*="preview-"]:empty,
+.x-page-preview > .toc .toctoggle,
+.x-page-preview:not(.expand-toc) > .toc td > div + ul,
+.x-page-preview:not(.show-toc) > .toc {
+  display: none;
+  visibility: hidden;
+}
+
+.x-page-preview > br.preview-header {
+  line-height: 0;
+  visibility: hidden;
+}
+
+@media only print {
+  .x-page-preview {
+    display: none;
+  }
 }

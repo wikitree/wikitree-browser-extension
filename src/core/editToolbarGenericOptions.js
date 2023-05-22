@@ -14,6 +14,18 @@ export default [
     ],
   },
   {
+    button: "Categories",
+    items: [
+      {
+        featureid: "wtplus",
+        title: "Add any category",
+        hint: "Add any category using search for words in name and parent categories.",
+        call: wtPlus,
+        params: { action: "AddCIBCategory", data: "Category" },
+      },
+    ],
+  },
+  {
     button: "Content",
     items: [
       {

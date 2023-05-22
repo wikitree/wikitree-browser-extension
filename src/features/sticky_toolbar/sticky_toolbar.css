@@ -4,6 +4,9 @@
   background: white;
   z-index: 19;
 }
+.sticky-header #toolbar.sticky {
+  top: var(--header-offset);
+}
 body[class*="page-Space_"].stickyToolbar #wpSave.small {
   margin-top: -2em !important;
 }

@@ -26,6 +26,7 @@ SOFTWARE.
 Created By: Rob Pavey (Pavey-429)
 */
 
+import { WBE } from "../../core/common";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 // file level variables
@@ -409,8 +410,7 @@ async function doEditBio() {
         document.getElementById("mMiddleName").value = editBioOutput.middleName;
       }
 
-      const extensionVersion = chrome.runtime.getManifest().version;
-      const changeSummary = "Reformatted by the WikiTreeAGC extension version " + extensionVersion;
+      const changeSummary = "Reformatted by the WikiTreeAGC extension version " + WBE.version;
 
       // Let the page know that changes have been made so that the "Save Changes" button works
       var inputEvent = new Event("input", { bubbles: true });
