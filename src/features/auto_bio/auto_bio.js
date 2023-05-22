@@ -4854,34 +4854,6 @@ function getSourcerCensuses() {
   refs.forEach((ref) => ref.remove());
   const text = dummy.innerHTML;
 
-  const regexWikitable = /In the (\d{4}) census[^]+?(\{\|[^]+?\|\})(?![^]*\{\|[^]+?\|\})/g;
-  const regexNonWikitable = /In the (\d{4}) census((?!.*\{\|.*\|\}).*?)(?=\n[^:#*])/gs;
-
-  let textChunks = text.split(/(In the \d{4} census[^]+?)(?=In the \d{4} census|$)/i);
-  let censusData = {};
-
-  for (let i = 0; i < textChunks.length; i++) {
-    let text = textChunks[i];
-
-    let yearMatch = text.match(/In the (\d{4}) census/);
-    let tableMatch = text.match(/(\{\|[^]+?\|\})/);
-
-    if (yearMatch && tableMatch) {
-      let year = yearMatch[1];
-      let table = tableMatch[0];
-
-      let description = text.replace(table, "").trim();
-
-      censusData[year] = {
-        description: description,
-        table: table,
-      };
-    }
-  }
-
-  console.log(censusData);
-  const censusKeys = Object.keys(censusData);
-
   //const regexNonWikitable = /In the (\d{4}) census[^{=]*?\n([.:#*].+?)(?=\n[^:#*])/gms;
   const regexNonWikitable = /In the (\d{4}) census((?!.*\{\|.*\|\}).*?)(?=\n[^:#*])/gs;
 
@@ -4947,7 +4919,6 @@ function getSourcerCensuses() {
   for (const key in tempCensuses) {
     censuses.push(tempCensuses[key]);
   }
-  console.log(JSON.parse(JSON.stringify(censuses)));
 
   // For non-Sourcer narrative ones
   const censusListRegex = /((?:1[789]\d{2}).*?)(?=1[789]\d{2}|$)/gs;
@@ -6430,36 +6401,6 @@ export async function generateBio() {
   // Create a map to store the narratives for each census year
   let censusNarratives = new Map();
 
-  // Initialize a new map to hold the counters for each base refName
-  // Initialize a new map to hold the counters for each base refName
-  let refNameCounter = new Map();
-  /*
-  marriagesAndCensusesEtc.forEach((event, index) => {
-    if (event.Texts) {
-      event.Texts.forEach((text, textIndex) => {
-        // Generate a base refName using the event type and year
-        const baseRefName = `${event["Event Type"]}_${event.Year}`;
-
-        // If the counter for this base refName already exists, increment it; otherwise, initialize it
-        if (refNameCounter.has(baseRefName)) {
-          refNameCounter.set(baseRefName, refNameCounter.get(baseRefName) + 1);
-        } else {
-          refNameCounter.set(baseRefName, 0);
-        }
-
-        // Create a new Text object for each citation, with its own unique RefName
-        let newText = {
-          Text: text,
-          RefName: `${baseRefName}_${refNameCounter.get(baseRefName)}`,
-          Used: false,
-        };
-
-        // Replace the original citation with the new Text object
-        event.Texts[textIndex] = newText;
-      });
-    }
-  });
-*/
   // Grouping logic
   let allEvents = [];
   let previousEventObject;
@@ -6478,16 +6419,7 @@ export async function generateBio() {
         Used: false,
         RefName: newRefName,
       };
-      /*
-      marriagesAndCensusesEtc.forEach(function (event2) {
-        if (event2.Text == event.Text) {
-          event2.RefName = newRefName;
-        }
-      });
-      */
       event.RefName = newRefName;
-      console.log(newRefName);
-      console.log(event.RefName);
       if (previousEventObject) {
         if (previousEventObject.Texts) {
           previousEventObject.Texts.push(thisObj);
@@ -6503,8 +6435,6 @@ export async function generateBio() {
   if (previousEventObject) {
     allEvents.push(previousEventObject);
   }
-  console.log(allEvents);
-  console.log(JSON.parse(JSON.stringify(marriagesAndCensusesEtc)));
 
   let marriagesAndCensusesText = "";
   allEvents.forEach(function (anEvent, i) {
@@ -6669,162 +6599,6 @@ export async function generateBio() {
     }
   });
 
-  // Update RefName and Used values in marriagesAndCensusesEtc
-  /*
-  marriagesAndCensusesEtc.forEach((event) => {
-    allEvents.forEach((allEvent) => {
-      if (allEvent["Event Type"] + " " + allEvent.Year == event["Event Type"] + " " + event.Year) {
-        event.RefName = allEvent.RefName;
-        event.Used = allEvent.Used;
-      }
-    });
-  });
-  */
-
-  // Rest of your code...
-
-  /*
-   let marriagesAndCensusesText = "";
-  marriagesAndCensusesEtc.forEach(function (anEvent, i) {
-    if (anEvent["Record Type"]) {
-      if (anEvent["Record Type"].includes("Marriage")) {
-        anEvent["Event Type"] = "Marriage";
-      }
-
-      if (anEvent["Record Type"].includes("Census") && anEvent.Narrative) {
-        if (anEvent.Narrative.length > 10) {
-          // Get the year of the census
-          let censusYear = anEvent["Census Year"];
-
-          // If we've already stored a narrative for this census year, get it.
-          // Otherwise, use this event's narrative and add it to the map.
-          let censusNarrative;
-          if (censusNarratives.has(censusYear)) {
-            censusNarrative = censusNarratives.get(censusYear);
-          } else {
-            censusNarrative = anEvent.Narrative;
-            censusNarratives.set(censusYear, censusNarrative);
-          }
-
-          let narrativeBits = anEvent.Narrative.split(/,/);
-
-          // Minimal places again
-          let aBit = minimalPlace2(narrativeBits);
-          marriagesAndCensusesText += aBit;
-          // Add the reference
-          let listText = "";
-          if (Array.isArray(anEvent.ListText)) {
-            listText = "\n" + anEvent.ListText.join("\n");
-          } else if (anEvent.List) {
-            listText = "\n" + anEvent.List;
-          } else if (anEvent.sourcerText) {
-            listText = "\n" + anEvent.sourcerText;
-          }
-          let refNameBit = anEvent.RefName ? " name='" + anEvent.RefName + "'" : " name='ref_" + i + "'";
-          if (anEvent.Used == true) {
-            marriagesAndCensusesText += " <ref" + refNameBit + " />";
-          } else {
-            if (window.autoBioOptions.householdTable && listText.match(/\{\|/)) {
-              marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + "</ref>\n" + listText;
-            } else {
-              marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + listText + "</ref>";
-            }
-          }
-          marriagesAndCensusesText += "\n\n";
-          anEvent.Used = true;
-          anEvent.RefName = anEvent.RefName ? anEvent.RefName : "ref_" + i;
-        }
-      } else {
-        if (anEvent.Narrative) {
-          if (anEvent.SpouseChildren) {
-            window.childrenShown = true;
-          }
-          let thisRef = "";
-          if (anEvent["Record Type"].includes("ChildList") && !window.childrenShown && !window.listedSomeChildren) {
-            anEvent.Narrative = anEvent.Narrative.replace("other child", "child");
-          }
-          const theseRefs = [];
-          window.references.forEach(function (aRef, i) {
-            if (
-              anEvent["Record Type"].includes(aRef["Record Type"]) &&
-              aRef.Text.match("contributed by various users") &&
-              aRef.Text.match(window.profilePerson.FirstName)
-            ) {
-              if (aRef.RefName) {
-                thisRef = "<ref name='FamilySearchProfile' />";
-              } else {
-                thisRef = " <ref name='FamilySearchProfile'>" + aRef.Text + "</ref>";
-                aRef.RefName = "FamilySearchProfile";
-                aRef.Used = true;
-              }
-            } else if (
-              anEvent["Event Type"] == "Military" &&
-              aRef["Record Type"].includes("Military") &&
-              anEvent.War == aRef.War
-            ) {
-              if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
-                thisRef = "<ref name='" + aRef.RefName + "' />";
-              } else {
-                thisRef = " <ref name='military_" + i + "'>" + aRef.Text + "</ref>";
-                aRef.RefName = "military_" + i;
-                aRef.Used = true;
-                window.refNames.push(aRef.RefName);
-              }
-              if (!theseRefs.includes(thisRef)) {
-                theseRefs.push(thisRef);
-              }
-            } else if (
-              aRef["Record Type"].includes(anEvent["Event Type"]) &&
-              anEvent["Divorce Date"] &&
-              aRef.Year == anEvent.Year
-            ) {
-              let thisSpouse = "";
-              if (anEvent.Couple) {
-                if (anEvent.Couple[0].match(window.profilePerson.PersonName.FirstName)) {
-                  thisSpouse = anEvent.Couple[1];
-                } else {
-                  thisSpouse = anEvent.Couple[0];
-                }
-              }
-              if (aRef.Text.match(thisSpouse)) {
-                if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
-                  thisRef = "<ref name='" + aRef.RefName + "' />";
-                } else {
-                  thisRef = " <ref name='divorce_" + i + "'>" + aRef.Text + "</ref>";
-                  aRef.RefName = "divorce_" + i;
-                  aRef.Used = true;
-                  window.refNames.push(aRef.RefName);
-                }
-              }
-            } else if (
-              anEvent["Event Type"] == "Prison" &&
-              aRef["Record Type"].includes("Prison") &&
-              anEvent.Year == aRef.Year
-            ) {
-              if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
-                thisRef = "<ref name='" + aRef.RefName + "' />";
-              } else {
-                thisRef = " <ref name='prison_" + i + "'>" + aRef.Text + "</ref>";
-                aRef.RefName = "prison_" + i;
-                aRef.Used = true;
-                window.refNames.push(aRef.RefName);
-              }
-            }
-          });
-          let narrativeBits = anEvent.Narrative.split(",");
-          if (anEvent.FactType == "Burial") {
-            window.profilePerson.BurialFact = minimalPlace2(narrativeBits) + thisRef + "\n\n";
-          } else {
-            let thisBit = minimalPlace2(narrativeBits) + (theseRefs.length == 0 ? thisRef : theseRefs.join()) + "\n\n";
-            marriagesAndCensusesText += thisBit;
-          }
-        }
-      }
-    } else {
-      marriagesAndCensusesText += anEvent.Narrative + "\n\n";
-    }
-  });
-  */
   console.log("marriagesAndCensuses", marriagesAndCensusesEtc);
 
   // Add Military and Obituary subsections
