@@ -4878,7 +4878,6 @@ function getSourcerCensuses() {
 
   for (const match of text.matchAll(regexWikitable)) {
     let household = parseFamilyData(match[2], { format: "wikitable" });
-    console.log(household);
     tempCensuses[match[1]] = {
       "Census Year": match[1],
       Text: match[0],
