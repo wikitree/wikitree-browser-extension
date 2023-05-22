@@ -681,6 +681,26 @@ const readabilityFeature = {
               ],
               defaultValue: 1,
             },
+            {
+              id: "hideMemberSection",
+              type: OptionType.SELECT,
+              label: "Hide the member section (genealogist, following, badges)",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 0,
+            },
           ],
         },
         {
@@ -730,7 +750,7 @@ const readabilityFeature = {
             {
               id: "hideStickers",
               type: OptionType.SELECT,
-              label: "Hide stickers at the top of the bio",
+              label: "Hide stickers",
               values: [
                 {
                   value: 0,
@@ -799,6 +819,30 @@ const readabilityFeature = {
                 {
                   value: 1,
                   text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 0,
+            },
+            {
+              id: "collapseResearchNotes",
+              type: OptionType.SELECT,
+              label: "Collapse the Research Notes section",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 254,
+                  text: "only on demand",
                 },
                 {
                   value: 255,

@@ -14,10 +14,10 @@ import {
 } from "../../core/pageType";
 
 const sourcePreviewFeature = {
-  name: "Source Previews",
+  name: "Preview Sources",
   id: "sPreviews", // keep ID the same to preserve configuration
   description: "Enable source previews on inline references.",
-  category: "Global",
+  category: "Links",
   creators: [{ name: "Steve Harris", wikitreeid: "Harris-5439" }],
   contributors: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   defaultValue: false,

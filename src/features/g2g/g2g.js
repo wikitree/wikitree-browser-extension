@@ -8,6 +8,104 @@ import { isOK } from "../../core/common";
 import Cookies from "js-cookie";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
+function text2Link(element, text, link) {
+  const childNodes = element.childNodes;
+  let modifiedNodes = [];
+
+  for (let i = 0; i < childNodes.length; i++) {
+    if (childNodes[i].nodeType === 3) {
+      const nodeText = childNodes[i].textContent;
+
+      if (nodeText.includes(text)) {
+        const textSegments = nodeText.split(text);
+
+        const nodesWithLinks = textSegments.flatMap((segment, index) => {
+          const clonedLink = link.cloneNode(true);
+          const textNode = document.createTextNode(segment);
+
+          return index < textSegments.length - 1 ? [textNode, clonedLink] : [textNode];
+        });
+
+        modifiedNodes.push(...nodesWithLinks);
+      } else {
+        modifiedNodes.push(childNodes[i]);
+      }
+    } else {
+      modifiedNodes.push(childNodes[i]);
+    }
+  }
+
+  return modifiedNodes;
+}
+
+function linkify() {
+  const posts = document.querySelectorAll('div[itemprop="text"]');
+
+  let allElements = [];
+  posts.forEach((post) => {
+    allElements.push(post);
+    const paragraphs = post.querySelectorAll("p");
+    if (paragraphs.length > 0) {
+      paragraphs.forEach((paragraph) => {
+        allElements.push(paragraph);
+        const strongElements = paragraph.querySelectorAll("strong");
+        if (strongElements.length > 0) {
+          strongElements.forEach((strongElement) => {
+            allElements.push(strongElement);
+          });
+        }
+        const spanElements = paragraph.querySelectorAll("span");
+        if (spanElements.length > 0) {
+          spanElements.forEach((spanElement) => {
+            allElements.push(spanElement);
+          });
+        }
+      });
+    }
+  });
+
+  const excludeList = ["Pre-1500", "Pre-1800", "Pre-1700", "Pre-1900", "Covid-19", "COVID-19"];
+
+  /* Regex explanation:
+1. The first three lookaheads check that the string contains between 0 and 3 dashes, between 0 and 2 underscores, and between 0 and 1 apostrophes, respectively.
+2. The fourth lookahead checks that there is at least one letter between A and Z, or between À and ž.
+3. The final part checks for a hyphen and a number of up to 6 digits. */
+  const regexPattern =
+    /\b(?=(?:[^-\n]*-){0,3}[^-\n]*$)(?=(?:[^_\n]*_){0,2}[^_\n]*$)(?=(?:[^'\n]*'){0,1}[^'\n]*$)(?=.*[A-ZÀ-ž])[A-Za-zÀ-ž_\-']+-\d{1,6}\b/g;
+
+  allElements.forEach((element) => {
+    const childNodes = element.childNodes;
+
+    childNodes.forEach((childNode, j) => {
+      if (childNode.nodeType === 3) {
+        const nodeText = childNode.textContent;
+        let matches = nodeText.match(regexPattern);
+        matches = [...new Set(matches)];
+        matches = matches.filter((match) => !excludeList.includes(match));
+        const matchCount = matches.length;
+
+        if (matches && matchCount > 0) {
+          matches.forEach((match) => {
+            const link = document.createElement("a");
+            link.href = "https://wikitree.com/wiki/" + match;
+            link.textContent = match;
+            link.className = "WBE_G2G_WTID_link";
+            const currentElement = element;
+            const modifiedElement = currentElement.cloneNode(true);
+            const modifiedNodes = text2Link(modifiedElement, match, link);
+            currentElement.innerHTML = "";
+            modifiedNodes.forEach((modifiedNode) => {
+              const clonedNode = modifiedNode.cloneNode(true);
+              currentElement.appendChild(clonedNode);
+            });
+          });
+        }
+        delete window.matches;
+      }
+    });
+  });
+}
+
 async function initG2G() {
   const options = await getFeatureOptions("g2g");
   if (options.checkMarks) {
@@ -37,6 +135,9 @@ async function initG2G() {
   }
   if (options.pageLinks) {
     g2gPageLinksAtTop();
+  }
+  if (options.linkify) {
+    linkify();
   }
 }
 

@@ -50,20 +50,24 @@ import {
 import "./add_person/add_person_options";
 import "./agc/agc_options";
 import "./auto_bio/auto_bio_options";
+import "./auto_categories/auto_categories_options";
 import "./categoryDisplay/categoryDisplay_options";
 import "./change_family_lists/change_family_lists_options";
 import "./custom_change_summary_options/custom_change_summary_options_options";
 import "./darkMode/darkMode_options";
+import "./date_fixer/date_fixer_options";
 import "./edit_family_data/edit_family_data_options";
 import "./extra_watchlist/extra_watchlist_options";
 import "./g2g/g2g_options";
 import "./genderPredictor/gender_predictor_options";
 import "./language_setting/language_setting_options";
+import "./printerfriendly/printerfriendly_options";
 import "./randomProfile/randomProfile_options";
 import "./readability/readability_options";
 import "./redir_ext_links/redir_ext_links_options";
 import "./sourcepreview/sourcepreview_options";
 import "./spacepreview/spacepreview_options";
+import "./table_filters/table_filters_options";
 import "./usability_tweaks/usability_tweaks_options";
 import "./what_links_here/what_links_here_options";
 import "./wtPlus/wtPlus_options";
@@ -89,7 +93,7 @@ registerFeature({
   name: "AKA Name Links",
   id: "akaNameLinks",
   description: 'Adds surname page links to the "aka" names on the profile page.',
-  category: "Profile",
+  category: "Links",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
@@ -100,7 +104,7 @@ registerFeature({
   name: "Apps Menu",
   id: "appsMenu",
   description: "Adds an apps submenu to the Find menu.",
-  category: "Global",
+  category: "Menus",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
@@ -123,7 +127,7 @@ registerFeature({
   id: "categoryFinderPins",
   description:
     "Adds pins to Category Finder results (on the edit page), similar to the pins in the location dropdown.  These pins link to the category page for you to check that you have the right category.",
-  category: "Editing",
+  category: "Links",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
@@ -164,17 +168,6 @@ registerFeature({
 });
 
 registerFeature({
-  name: "Date Fixer",
-  id: "dateFixer",
-  description: "Converts DD/MM/YYY, DD-MM-YYYY, or DD.MM.YYYY to YYYY-MM-DD; Fixes typos in the date fields.",
-  category: "Editing",
-  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
-  defaultValue: false,
-  pages: [isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson],
-});
-
-registerFeature({
   name: "Distance and Relationship",
   id: "distanceAndRelationship",
   description: "Adds the distance (degrees) between you and the profile person and any relationship between you.",
@@ -200,7 +193,7 @@ registerFeature({
   name: "Draft List",
   id: "draftList",
   description: "Adds a button to the Find menu to show your uncommitted drafts.",
-  category: "Global",
+  category: "Menus",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
@@ -281,7 +274,8 @@ registerFeature({
   name: "My Menu",
   id: "myMenu",
   description: "Add your own custom menu for easy access to your most commonly used links.",
-  category: "Global",
+  category: "Menus",
+  ordinal: 1,
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
@@ -289,22 +283,11 @@ registerFeature({
 });
 
 registerFeature({
-  name: "Printer Friendly Bio",
-  id: "printerFriendly",
-  description: "Change the page to a printer-friendly one.",
-  category: "Global",
-  creators: [{ name: "Jamie Nelson", wikitreeid: "Nelson-3486" }],
-  contributors: [],
-  defaultValue: true,
-  pages: [isProfilePage],
-});
-
-registerFeature({
   name: "Scissors",
   id: "scissors",
   description:
     "Adds scissors (like on profile pages) to Category, Help, Project, Template, and Change Details pages to copy various things.",
-  category: "Other",
+  category: "Links",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [
     { name: "Riël Smit", wikitreeid: "Smit-641" },

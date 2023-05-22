@@ -41,6 +41,12 @@ const usabilityTweaks = {
           label: "Replace Add/Remove/Replace links with Add, Remove, Connect links.",
           defaultValue: false,
         },
+        {
+          id: "rememberTextareaHeight",
+          type: OptionType.CHECKBOX,
+          label: "Remember the height of the editor on the edit page.",
+          defaultValue: false,
+        },
       ],
     },
     {
@@ -52,6 +58,19 @@ const usabilityTweaks = {
           id: "saveSearchFormDataButton",
           type: OptionType.CHECKBOX,
           label: "Add a button to the search page to save the form data to populate fields on the Add Person page.",
+          defaultValue: false,
+        },
+      ],
+    },
+    {
+      id: "other",
+      type: OptionType.GROUP,
+      label: "Other",
+      options: [
+        {
+          id: "fixPrintingBug",
+          type: OptionType.CHECKBOX,
+          label: "Fix a known bug in Chrome on Windows 10 that prevents good printing of WikiTree profiles.",
           defaultValue: false,
         },
       ],
