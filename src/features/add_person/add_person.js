@@ -198,7 +198,17 @@ checkIfFeatureEnabled("addPersonRedesign").then((result) => {
 <textarea class="small" id="mBioWithoutSources" name="mBioWithoutSources" rows="5" cols="80" placeholder="Add your biography here or wait until you reach the edit page."></textarea>
 </td>
 </tr>`);
-        $("#sourcesLabel").closest("tr").before(notesRow);
+        if ($(".toggleAdvancedSources").text().match("Basic") == null) {
+          $("#sourcesLabel").closest("tr").before(notesRow);
+        }
+        $(".toggleAdvancedSources").on("click", function () {
+          if ($(".toggleAdvancedSources").text().match("Basic") && $("#notesLabel").length == 0) {
+            console.log(notesRow);
+            $("#sourcesLabel").closest("tr").before(notesRow);
+          } else {
+            $("#notesLabel").closest("tr").remove();
+          }
+        });
       }
     });
 
