@@ -786,7 +786,11 @@ function onDlgSelectTemplateFlt() {
     )
     .map(
       (item) =>
-        '<tr class="trSelect" data-op="onDlgSelectTemplateTrSel"><td>' +
+        '<tr class="trSelect" data-op="onDlgSelectTemplateTrSel">' +
+        `<td><a target="_blank" href="https://www.wikitree.com/wiki/Template:${
+          item.name
+        }"><img src="${chrome.runtime.getURL("images/newTab.png")}"'></a></td>` +
+        "<td>" +
         item.name +
         "</td><td>" +
         item.group +
@@ -811,7 +815,7 @@ function onDlgSelectTemplateBtn(update) {
     }
     tb.elDlg.close();
     //Add template
-    var templateName = tb.elDlg.querySelectorAll(".trSelected>td")[0].innerText;
+    var templateName = tb.elDlg.querySelectorAll(".trSelected>td")[1].innerText;
     paramsCopy(templateName);
     paramsInitialValues();
     editTemplate("Added");
@@ -864,7 +868,7 @@ function onDlgSelectCIBFlt() {
   var s1 = tb.elDlgCIB.querySelector("#flt1").value;
 
   if (s1.length < 3) {
-    cntr.innerHTML = "enter word(s) to find"
+    cntr.innerHTML = "enter word(s) to find";
   } else {
     // Retrieve categories
     cntr.innerHTML = "Retrieving...";
@@ -1283,18 +1287,18 @@ function posToOffset(txt, pos) {
 }
 */
 export function wtPlus(params) {
-  if (params.action !== 'AddCIBCategory') {
+  if (params.action !== "AddCIBCategory") {
     if (tb.elText.style.display == "none") {
       alert("Enhanced editor is not supported.\n\nTurning it off to use the extension.");
       tb.elEnhanced.click();
-      console.log( 'wt+')    
+      console.log("wt+");
     }
   }
 
   //Sets all edit variables
   tb.elEnhancedActive = tb.elText.style.display == "none";
   if (tb.elEnhancedActive) {
-    console.log( 'wt+ temp Off')    
+    console.log("wt+ temp Off");
     tb.elEnhanced.click();
 
     //            alert ('Enhanced editor is not supported.<br>Turn it off to use WikiTree+ extension.');
@@ -1317,7 +1321,7 @@ export function wtPlus(params) {
   }
   if (tb.elEnhancedActive) {
     tb.elEnhanced.click();
-    console.log( 'wt+ temp On')    
+    console.log("wt+ temp On");
   }
 
   tb.textBefore = tb.textAll.substring(0, tb.selStart);
@@ -1453,10 +1457,10 @@ function mainEventLoop(event) {
   }
   const op = element.dataset.op;
   const id = element.dataset.id;
-  if (!op.startsWith('onDlgSelectCIB')) {
+  if (!op.startsWith("onDlgSelectCIB")) {
     if (tb.elText.style.display == "none") {
       alert("Enhanced editor is not supported.\n\nTurning it off to use the extension.");
-      console.log( 'Main')    
+      console.log("Main");
       tb.elEnhanced.click();
     }
   }
@@ -1525,7 +1529,7 @@ function initWTPlus() {
   /* Initialization */
   getFeatureOptions("wtplus").then((result) => {
     tb.options = result;
-//    console.log(tb.options);
+    //    console.log(tb.options);
   });
   tb.nameSpace = document.title.startsWith("Edit Person ") ? "Profile" : "";
   let w = document.querySelector("h1 > .copyWidget");
@@ -1539,10 +1543,11 @@ function initWTPlus() {
   tb.elSummary = document.getElementById("wpSummary");
   tb.elEnhanced = document.getElementById("toggleMarkupColor");
 
-  document.getElementById("toolbar").insertAdjacentHTML("beforeend", '<dialog id="wtPlusDlg"></dialog><dialog id="wtPlusDlgCIB"></dialog>');
+  document
+    .getElementById("toolbar")
+    .insertAdjacentHTML("beforeend", '<dialog id="wtPlusDlg"></dialog><dialog id="wtPlusDlgCIB"></dialog>');
   tb.elDlg = document.getElementById("wtPlusDlg");
   tb.elDlgCIB = document.getElementById("wtPlusDlgCIB");
-  
 
   // Loading of template definition From Storage
   chrome.storage.local.get(["alltemplates"], function (a) {
