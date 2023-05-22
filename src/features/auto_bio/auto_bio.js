@@ -2428,6 +2428,103 @@ const placeNameRegExp =
 function analyzeColumns(lines) {
   lines = lines.map((line) => line.replace(/\|\|/g, "\t")); // convert double pipes to tabs
   const columns = {};
+
+  lines.forEach((line) => {
+    const parts = line.split(/ {4}|\t/);
+
+    parts.forEach((part, index) => {
+      part = part.trim(); // Trim whitespace
+      if (!columns[index]) {
+        columns[index] = {
+          Name: 0,
+          Gender: 0,
+          originalRelation: 0,
+          Age: 0,
+          BirthPlace: 0,
+          Occupation: 0,
+          MaritalStatus: 0,
+        };
+      }
+      let matched = false;
+
+      // RegExp of cities, counties, states
+      const bigPlacesMatch = new RegExp("\\b" + citiesCountiesStates.join("|") + "\\b", "i");
+      const occupationMatch = new RegExp("\\b" + occupationList.join("|") + "\\b", "i");
+
+      if (index == 0) {
+        columns[index].Name++;
+        matched = true;
+      } else {
+        if (part.match(/(?:M|F|Male|Female)\b/i)) {
+          columns[index].Gender++;
+          matched = true;
+        }
+        if (part.match(/married|widowed|single/i)) {
+          columns[index].MaritalStatus++;
+          matched = true;
+        }
+        if (
+          part.match(
+            /\b(Head|Wife|Son|Daughter|Mother|Father|Brother|Sister|Grand(?:mother|father)|Uncle|Aunt|Niece|Nephew|Cousin|(Father|Mother|Brother|Sister|Son|Daughter)-in-law|Step(?:son|daughter|brother|sister|mother|father)|Visitor|Lodger|Boarder)\b/i
+          )
+        ) {
+          columns[index].originalRelation++;
+          matched = true;
+        }
+        if (part.match(/^\d{1,3}$/) && Number(part) <= 150) {
+          columns[index].Age++;
+          matched = true;
+        }
+        if (part.match(/,/) || part.match(bigPlacesMatch) || part.match(placeNameRegExp)) {
+          columns[index].BirthPlace++;
+          matched = true;
+        }
+        if (part.match(occupationMatch)) {
+          columns[index].Occupation++;
+          matched = true;
+        }
+
+        if (!matched && part !== "") {
+          columns[index].BirthPlace++;
+        }
+      }
+    });
+  });
+
+  const columnPriority = ["Name", "Gender", "originalRelation", "Age", "BirthPlace", "Occupation", "MaritalStatus"];
+  const assignedColumnNames = new Set();
+  const columnMapping = {};
+
+  for (const columnName of columnPriority) {
+    let maxScore = 0;
+    let maxScoreIndex = null;
+
+    for (const [index, column] of Object.entries(columns)) {
+      if (!Object.values(columnMapping).includes(index) && column) {
+        const score = column[columnName];
+
+        if (!assignedColumnNames.has(columnName) && score > maxScore) {
+          maxScore = score;
+          maxScoreIndex = index;
+        }
+      }
+    }
+
+    // Calculate the threshold for each column based on the counts
+    const minCount = 2; // Minimum count to be considered for assignment
+    if (maxScoreIndex !== null && maxScore > minCount) {
+      columnMapping[columnName] = maxScoreIndex;
+      assignedColumnNames.add(columnName);
+    }
+  }
+
+  return columnMapping;
+}
+
+/*
+function analyzeColumns(lines) {
+  lines = lines.map((line) => line.replace(/\|\|/g, "\t")); // convert double pipes to tabs
+  const columns = {};
   lines.forEach((line) => {
     const parts = line.split(/ {4}|\t/);
 
@@ -2526,7 +2623,7 @@ function analyzeColumns(lines) {
 
   return columnMapping;
 }
-
+*/
 function extractHouseholdMembers(row) {
   const brRegex = /<br\s*\/?>/gi;
   const rowData = row.split("||")[1].trim();
@@ -2540,6 +2637,7 @@ function parseCensusWikitable(text) {
     (line) => !line.startsWith("|-") && !line.startsWith("|+") && !line.startsWith("{|") && !line.startsWith("!")
   ); // Filter out non-data rows
   const columnMapping = analyzeColumns(lines);
+  console.log(columnMapping);
   const data = [];
   lines.forEach((line, index) => {
     if (!line.startsWith("|-") && !line.startsWith("|}") && index > 1 && !line.includes(" Age ")) {
@@ -2547,11 +2645,12 @@ function parseCensusWikitable(text) {
       const parts = line.split("||");
       parts.forEach((part, index) => {
         part = part.replace(/^\s*\||\s*\|$/, "").trim();
-        if (part && columnMapping[index]) {
+        const key = Object.keys(columnMapping).find((key) => columnMapping[key] === String(index));
+        if (part && key) {
           if (part.includes("'''")) {
             part = part.replace(/'''/g, "").trim();
           }
-          row[columnMapping[index]] = part;
+          row[key] = part;
         }
       });
 
@@ -3053,6 +3152,8 @@ function buildCensusNarratives() {
   const yearRegex = /\b(1[789]\d{2})\b/;
   // getCensusesFromCensusSection();
   window.references.forEach(function (reference) {
+    console.log(JSON.parse(JSON.stringify(reference)));
+
     let text = "";
     if (reference.Text.match(/census|1939( England and Wales)? Register/i)) {
       reference["Event Type"] = "Census";
@@ -3110,10 +3211,12 @@ function buildCensusNarratives() {
             reference = assignSelf(reference);
           }
         }
+        console.log(JSON.parse(JSON.stringify(reference)));
 
         if (window.sourcerCensuses) {
           window.sourcerCensuses.forEach(function (sourcerReference) {
             if (sourcerReference["Census Year"] == reference["Census Year"]) {
+              console.log(JSON.parse(JSON.stringify(sourcerReference)));
               const { Text, Residence, ...rest } = sourcerReference;
               // Use the spread operator to copy the remaining properties to the target object
               Object.assign(reference, rest);
@@ -4258,11 +4361,25 @@ export function sourcesArray(bio) {
   let refArr = [];
   let refs = dummy.find("ref");
   let refNamesAdded = new Set(); // Keep track of added reference names
+  let refNameCounter = new Map(); // Map to hold counters for each RefName
 
   refs.each(function () {
     let refElement = $(this);
     let refName = refElement.attr("name");
     if (refName && refNamesAdded.has(refName)) return; // Skip if the reference with this name has already been added
+
+    // If the refName exists in the map, increment its value, else set it to 'a'
+    if (refName) {
+      if (refNameCounter.has(refName)) {
+        let counter = refNameCounter.get(refName);
+        counter = String.fromCharCode(counter.charCodeAt() + 1); // Increment character ('a' to 'b', 'b' to 'c', etc.)
+        refNameCounter.set(refName, counter);
+      } else {
+        refNameCounter.set(refName, "a");
+      }
+      // Append the counter to the refName to make it unique
+      refName = refName + "_" + refNameCounter.get(refName);
+    }
 
     let innerHTML = refElement.html().trim();
     if (innerHTML.length === 0) return; // Skip if the reference has no content
@@ -4284,6 +4401,7 @@ export function sourcesArray(bio) {
       }
     }
   });
+  console.log(refs);
 
   window.sourcesSection.text = window.sourcesSection.text.map(function (aSource) {
     if (aSource) {
@@ -4741,9 +4859,6 @@ function getSourcerCensuses() {
   refs.forEach((ref) => ref.remove());
   const text = dummy.innerHTML;
 
-  //const regexWikitable = /In the (\d{4}) census[^\n]+?\n{1,2}.*(\{\|.*?\|\})/gms;
-  //const regexWikitable = /In the (\d{4}) census[^]+?\n{1,2}[^]+?(\{\|[^]+?\|\})/g;
-  //const regexWikitable = /In the (\d{4}) census[\s\S]*?(\{\|[\s\S]*?\|\})/g;
   const regexWikitable = /In the (\d{4}) census[^]+?(\{\|[^]+?\|\})(?![^]*\{\|[^]+?\|\})/g;
 
   //const regexNonWikitable = /In the (\d{4}) census[^{=]*?\n([.:#*].+?)(?=\n[^:#*])/gms;
@@ -4778,7 +4893,6 @@ function getSourcerCensuses() {
   /*
   for (const match of text.matchAll(regexWikitable)) {
     let household = parseFamilyData(match[2], { format: "wikitable" });
-    console.log(household);
     tempCensuses[match[1]] = {
       "Census Year": match[1],
       Text: match[0],
@@ -4830,6 +4944,7 @@ function getSourcerCensuses() {
   for (const key in tempCensuses) {
     censuses.push(tempCensuses[key]);
   }
+  console.log(JSON.parse(JSON.stringify(censuses)));
 
   // For non-Sourcer narrative ones
   const censusListRegex = /((?:1[789]\d{2}).*?)(?=1[789]\d{2}|$)/gs;
@@ -4867,19 +4982,24 @@ function getSourcerCensuses() {
       BulletType: bulletType,
     };
   });
+  console.log(JSON.parse(JSON.stringify(censuses)));
 
   // Filter out objects with empty lists
   const filteredCensusListObjects = censusListObjects.filter((obj) => obj.ListItems.length > 0);
   for (const key in filteredCensusListObjects) {
     censuses.push(filteredCensusListObjects[key]);
   }
+  console.log(JSON.parse(JSON.stringify(censuses)));
 
   if (window.sectionsObject?.Biography?.subsections?.Census) {
     processCensusSubsections(censuses);
   }
   censuses.forEach(assignSelf);
+  console.log(JSON.parse(JSON.stringify(censuses)));
+
   censuses.forEach(processCensus);
   censuses = addRelationsToSourcerCensuses(censuses);
+  console.log(JSON.parse(JSON.stringify(censuses)));
   return censuses;
 }
 
@@ -4929,39 +5049,43 @@ function processCensus(census) {
 }
 
 function processTable(table, census) {
-  const rows = table.split("\n");
-  const headers = rows[2]
-    .replace(/^.{2}/, "")
-    .split("||")
-    .map((header) => header.trim());
-  census.Household = [];
-
-  for (let i = 3; i < rows.length - 1; i++) {
-    if (rows[i].startsWith("|-")) continue;
-
-    const cells = rows[i]
+  console.log(JSON.parse(JSON.stringify(census)), JSON.parse(JSON.stringify(table)));
+  if (!census.Household) {
+    const rows = table.split("\n");
+    const headers = rows[2]
       .replace(/^.{2}/, "")
       .split("||")
-      .map((cell) => cell.trim());
-    const obj = {};
+      .map((header) => header.trim());
+    census.Household = [];
 
-    if (cells[0].match("'''")) {
-      obj.Relation = "Self";
-      obj.isMain = true;
+    for (let i = 3; i < rows.length - 1; i++) {
+      if (rows[i].startsWith("|-")) continue;
+
+      const cells = rows[i]
+        .replace(/^.{2}/, "")
+        .split("||")
+        .map((cell) => cell.trim());
+      const obj = {};
+
+      if (cells[0].match("'''")) {
+        obj.Relation = "Self";
+        obj.isMain = true;
+      }
+
+      for (let j = 0; j < headers.length; j++) {
+        obj[headers[j]] = cells[j].replaceAll("'''", "").replace(/(\d+)(weeks|months)/, "$1}$/ $2");
+      }
+
+      if (obj.Relation === "Self" && obj.Occupation) {
+        census.Occupation = obj.Occupation;
+      }
+
+      census.Household.push(obj);
     }
+    console.log(JSON.parse(JSON.stringify(census)));
 
-    for (let j = 0; j < headers.length; j++) {
-      obj[headers[j]] = cells[j].replaceAll("'''", "").replace(/(\d+)(weeks|months)/, "$1}$/ $2");
-    }
-
-    if (obj.Relation === "Self" && obj.Occupation) {
-      census.Occupation = obj.Occupation;
-    }
-
-    census.Household.push(obj);
+    processHouseholdMembers(census);
   }
-
-  processHouseholdMembers(census);
 }
 
 function processHouseholdMembers(census) {
@@ -6305,10 +6429,251 @@ export async function generateBio() {
     }
     return out;
   }
+  marriagesAndCensusesEtc.sort((a, b) => parseInt(a.OrderDate) - parseInt(b.OrderDate));
 
   // Output marriages, censuses, military things, etc. in order
-  var marriagesAndCensusesText = "";
-  marriagesAndCensusesEtc.sort((a, b) => parseInt(a.OrderDate) - parseInt(b.OrderDate));
+  // Create a map to store the narratives for each census year
+  let censusNarratives = new Map();
+
+  // Initialize a new map to hold the counters for each base refName
+  // Initialize a new map to hold the counters for each base refName
+  let refNameCounter = new Map();
+  /*
+  marriagesAndCensusesEtc.forEach((event, index) => {
+    if (event.Texts) {
+      event.Texts.forEach((text, textIndex) => {
+        // Generate a base refName using the event type and year
+        const baseRefName = `${event["Event Type"]}_${event.Year}`;
+
+        // If the counter for this base refName already exists, increment it; otherwise, initialize it
+        if (refNameCounter.has(baseRefName)) {
+          refNameCounter.set(baseRefName, refNameCounter.get(baseRefName) + 1);
+        } else {
+          refNameCounter.set(baseRefName, 0);
+        }
+
+        // Create a new Text object for each citation, with its own unique RefName
+        let newText = {
+          Text: text,
+          RefName: `${baseRefName}_${refNameCounter.get(baseRefName)}`,
+          Used: false,
+        };
+
+        // Replace the original citation with the new Text object
+        event.Texts[textIndex] = newText;
+      });
+    }
+  });
+  */
+
+  // Grouping logic
+  let allEvents = [];
+  let previousEventObject;
+  marriagesAndCensusesEtc.forEach(function (event) {
+    let thisEvent = event["Event Type"] + " " + event.Year;
+    if (previousEventObject && previousEventObject["Event Type"] + " " + previousEventObject.Year != thisEvent) {
+      allEvents.push(previousEventObject);
+      previousEventObject = event;
+    } else {
+      const thisObj = {
+        Text: event.Text,
+        Used: false,
+        RefName: event.RefName + "_" + previousEventObject?.Texts?.length || 1,
+      };
+      if (previousEventObject) {
+        if (previousEventObject.Texts) {
+          previousEventObject.Texts.push(thisObj);
+        } else {
+          previousEventObject.Texts = [thisObj];
+        }
+      } else {
+        previousEventObject = event;
+        previousEventObject.Texts = [thisObj];
+      }
+    }
+  });
+  if (previousEventObject) {
+    allEvents.push(previousEventObject);
+  }
+
+  // The rest of your code...
+
+  if (previousEventObject) {
+    allEvents.push(previousEventObject);
+  }
+
+  let marriagesAndCensusesText = "";
+  allEvents.forEach(function (anEvent, i) {
+    if (anEvent["Record Type"]) {
+      if (anEvent["Record Type"].includes("Marriage")) {
+        anEvent["Event Type"] = "Marriage";
+      }
+
+      if (anEvent["Record Type"].includes("Census") && anEvent.Narrative) {
+        if (anEvent.Narrative.length > 10) {
+          let censusYear = anEvent["Census Year"];
+          let censusNarrative;
+
+          if (censusNarratives.has(censusYear)) {
+            censusNarrative = censusNarratives.get(censusYear);
+          } else {
+            censusNarrative = anEvent.Narrative;
+            censusNarratives.set(censusYear, censusNarrative);
+          }
+
+          let narrativeBits = anEvent.Narrative.split(/,/);
+          let aBit = minimalPlace2(narrativeBits);
+          marriagesAndCensusesText += aBit;
+
+          // Handle references
+          let listText = "";
+          if (Array.isArray(anEvent.ListText)) {
+            listText = "\n" + anEvent.ListText.join("\n");
+          } else if (anEvent.List) {
+            listText = "\n" + anEvent.List;
+          } else if (anEvent.sourcerText) {
+            listText = "\n" + anEvent.sourcerText;
+          }
+          let refNameBit = ""; // separate variable for reference name
+          let refsText = ""; // separate string for references
+          if (anEvent.Texts) {
+            anEvent.Texts.forEach((text, textIndex) => {
+              refNameBit = text.RefName ? " name='" + text.RefName + "'" : " name='ref_" + textIndex + "'";
+              if (text.Used == true) {
+                refsText += " <ref" + refNameBit + " />";
+              } else {
+                refsText += " <ref" + refNameBit + ">" + text.Text + "</ref>";
+                text.Used = true;
+              }
+            });
+          } else if (anEvent.Text) {
+            let refNameBit = anEvent.RefName ? " name='" + anEvent.RefName + "'" : " name='ref_" + i + "'";
+            if (anEvent.Used == true) {
+              refsText += " <ref" + refNameBit + " />";
+            } else {
+              refsText += " <ref" + refNameBit + ">" + anEvent.Text + "</ref>";
+              anEvent.Used = true;
+            }
+          }
+
+          marriagesAndCensusesText += refsText; // append references
+
+          if (window.autoBioOptions.householdTable && listText.match(/\{\|/)) {
+            marriagesAndCensusesText += listText; // append household table only once
+          }
+
+          marriagesAndCensusesText += "\n\n";
+          anEvent.Used = true;
+          anEvent.RefName = anEvent.RefName ? anEvent.RefName : "ref_" + i;
+        }
+      } else {
+        // Handle non-census records
+        if (anEvent.Narrative) {
+          if (anEvent.SpouseChildren) {
+            window.childrenShown = true;
+          }
+          let thisRef = "";
+          if (anEvent["Record Type"].includes("ChildList") && !window.childrenShown && !window.listedSomeChildren) {
+            anEvent.Narrative = anEvent.Narrative.replace("other child", "child");
+          }
+          const theseRefs = [];
+
+          window.references.forEach(function (aRef, i) {
+            if (
+              anEvent["Record Type"].includes(aRef["Record Type"]) &&
+              aRef.Text.match("contributed by various users") &&
+              aRef.Text.match(window.profilePerson.FirstName)
+            ) {
+              if (aRef.RefName) {
+                thisRef = "<ref name='FamilySearchProfile' />";
+              } else {
+                thisRef = " <ref name='FamilySearchProfile'>" + aRef.Text + "</ref>";
+                aRef.RefName = "FamilySearchProfile";
+                aRef.Used = true;
+              }
+            } else if (
+              anEvent["Event Type"] == "Military" &&
+              aRef["Record Type"].includes("Military") &&
+              anEvent.War == aRef.War
+            ) {
+              if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
+                thisRef = "<ref name='" + aRef.RefName + "' />";
+              } else {
+                thisRef = " <ref name='military_" + i + "'>" + aRef.Text + "</ref>";
+                aRef.RefName = "military_" + i;
+                aRef.Used = true;
+                window.refNames.push(aRef.RefName);
+              }
+              if (!theseRefs.includes(thisRef)) {
+                theseRefs.push(thisRef);
+              }
+            } else if (
+              aRef["Record Type"].includes(anEvent["Event Type"]) &&
+              anEvent["Divorce Date"] &&
+              aRef.Year == anEvent.Year
+            ) {
+              let thisSpouse = "";
+              if (anEvent.Couple) {
+                if (anEvent.Couple[0].match(window.profilePerson.PersonName.FirstName)) {
+                  thisSpouse = anEvent.Couple[1];
+                } else {
+                  thisSpouse = anEvent.Couple[0];
+                }
+              }
+              if (aRef.Text.match(thisSpouse)) {
+                if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
+                  thisRef = "<ref name='" + aRef.RefName + "' />";
+                } else {
+                  thisRef = " <ref name='divorce_" + i + "'>" + aRef.Text + "</ref>";
+                  aRef.RefName = "divorce_" + i;
+                  aRef.Used = true;
+                  window.refNames.push(aRef.RefName);
+                }
+              }
+            } else if (
+              anEvent["Event Type"] == "Prison" &&
+              aRef["Record Type"].includes("Prison") &&
+              anEvent.Year == aRef.Year
+            ) {
+              if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
+                thisRef = "<ref name='" + aRef.RefName + "' />";
+              } else {
+                thisRef = " <ref name='prison_" + i + "'>" + aRef.Text + "</ref>";
+                aRef.RefName = "prison_" + i;
+                aRef.Used = true;
+                window.refNames.push(aRef.RefName);
+              }
+            }
+          });
+
+          let narrativeBits = anEvent.Narrative.split(",");
+          if (anEvent.FactType == "Burial") {
+            window.profilePerson.BurialFact = minimalPlace2(narrativeBits) + thisRef + "\n\n";
+          } else {
+            let thisBit = minimalPlace2(narrativeBits) + (theseRefs.length == 0 ? thisRef : theseRefs.join()) + "\n\n";
+            marriagesAndCensusesText += thisBit;
+          }
+        }
+      }
+    } else {
+      marriagesAndCensusesText += anEvent.Narrative + "\n\n";
+    }
+  });
+
+  // Update RefName and Used values in marriagesAndCensusesEtc
+  marriagesAndCensusesEtc.forEach((event) => {
+    allEvents.forEach((allEvent) => {
+      if (allEvent["Event Type"] + " " + allEvent.Year == event["Event Type"] + " " + event.Year) {
+        event.RefName = allEvent.RefName;
+        event.Used = allEvent.Used;
+      }
+    });
+  });
+
+  // Rest of your code...
+
+  /*
+   let marriagesAndCensusesText = "";
   marriagesAndCensusesEtc.forEach(function (anEvent, i) {
     if (anEvent["Record Type"]) {
       if (anEvent["Record Type"].includes("Marriage")) {
@@ -6317,6 +6682,19 @@ export async function generateBio() {
 
       if (anEvent["Record Type"].includes("Census") && anEvent.Narrative) {
         if (anEvent.Narrative.length > 10) {
+          // Get the year of the census
+          let censusYear = anEvent["Census Year"];
+
+          // If we've already stored a narrative for this census year, get it.
+          // Otherwise, use this event's narrative and add it to the map.
+          let censusNarrative;
+          if (censusNarratives.has(censusYear)) {
+            censusNarrative = censusNarratives.get(censusYear);
+          } else {
+            censusNarrative = anEvent.Narrative;
+            censusNarratives.set(censusYear, censusNarrative);
+          }
+
           let narrativeBits = anEvent.Narrative.split(/,/);
 
           // Minimal places again
@@ -6335,7 +6713,11 @@ export async function generateBio() {
           if (anEvent.Used == true) {
             marriagesAndCensusesText += " <ref" + refNameBit + " />";
           } else {
-            marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + listText + "</ref>";
+            if (window.autoBioOptions.householdTable && listText.match(/\{\|/)) {
+              marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + "</ref>\n" + listText;
+            } else {
+              marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + listText + "</ref>";
+            }
           }
           marriagesAndCensusesText += "\n\n";
           anEvent.Used = true;
@@ -6393,16 +6775,6 @@ export async function generateBio() {
                   thisSpouse = anEvent.Couple[0];
                 }
               }
-              /*
-              anEvent.Narrative =
-                formatDate(anEvent["Divorce Date"]) +
-                " " +
-                window.profilePerson.PersonName.FirstName +
-                " and " +
-                thisSpouse +
-                " divorced" +
-                (anEvent["Divorce Place"] ? " in " + anEvent["Divorce Place"] : "");
-                */
               if (aRef.Text.match(thisSpouse)) {
                 if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
                   thisRef = "<ref name='" + aRef.RefName + "' />";
@@ -6441,6 +6813,7 @@ export async function generateBio() {
       marriagesAndCensusesText += anEvent.Narrative + "\n\n";
     }
   });
+  */
   console.log("marriagesAndCensuses", marriagesAndCensusesEtc);
 
   // Add Military and Obituary subsections
