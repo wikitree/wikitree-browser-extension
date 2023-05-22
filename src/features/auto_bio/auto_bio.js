@@ -135,7 +135,7 @@ const unsourced =
   /^\n*?\s*?((^Also:$)|(^See also:$)|(Unsourced)|(Personal (recollection)|(information))|(Firsthand knowledge)|(Sources? will be added)|(Add\s\[\[sources\]\]\shere$)|(created.*?through\sthe\simport\sof\s.*?\.ged)|(FamilySearch(\.com)?$)|(ancestry\.com$)|(family records$)|(Ancestry family trees$))/im;
 
 // Function to get the person's data from the form fields
-function getFormData() {
+export function getFormData() {
   let formData = {};
   $("#editform table input[id]").each(function () {
     if ($(this).attr("type") === "radio") {
@@ -504,7 +504,7 @@ function padNumberStart(number) {
 }
 
 // Function to use the appropriate pronouns and possessive adjectives
-function getPronouns(person) {
+export function getPronouns(person) {
   let gender = person.Gender;
   if (gender == "Female") {
     return {
@@ -995,6 +995,26 @@ function buildBirthLocation(person) {
   return birthLocationBit;
 }
 
+export function assignCemeteryFromSources() {
+  window.references.forEach(function (source) {
+    if (source["Record Type"].includes("Death")) {
+      let cemeteryMatch = source.Text.match(
+        /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Graveyard)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)).*?),?.*?(?=[,;])/im
+      );
+      let cemeteryMatch2 = source.Text.match(
+        /,\s([^,]*?Cemetery|Memorial|Cimetière|kyrkogård|temető|Grave|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard).*?;/
+      );
+      if (cemeteryMatch && source.Text.match(/Acadian|Wall of Names/) == null) {
+        let cemetery = cemeteryMatch[0].replace("citing ", "").replace("Burial, ", "").trim();
+        window.profilePerson.Cemetery = cemetery;
+      } else if (cemeteryMatch2 && source.Text.match(/Acadian|Wall of Names/) == null) {
+        let cemetery = cemeteryMatch2[1].trim();
+        window.profilePerson.Cemetery = cemetery;
+      }
+    }
+  });
+}
+
 function buildDeath(person) {
   if (!isOK(person.DeathDate) && !isOK(person.DeathDecade) && !isOK(person.DeathLocation)) {
     return false;
@@ -1018,21 +1038,9 @@ function buildDeath(person) {
   // Get cemetery from FS citation
   console.log("window.references", window.references);
   let burialAdded = false;
+  assignCemeteryFromSources();
   window.references.forEach(function (source) {
     if (source["Record Type"].includes("Death")) {
-      let cemeteryMatch = source.Text.match(
-        /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Graveyard)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)).*?),?.*?(?=[,;])/im
-      );
-      let cemeteryMatch2 = source.Text.match(
-        /,\s([^,]*?Cemetery|Memorial|Cimetière|kyrkogård|temető|Grave|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard).*?;/
-      );
-      if (cemeteryMatch && source.Text.match(/Acadian|Wall of Names/) == null) {
-        let cemetery = cemeteryMatch[0].replace("citing ", "").replace("Burial, ", "").trim();
-        window.profilePerson.Cemetery = cemetery;
-      } else if (cemeteryMatch2 && source.Text.match(/Acadian|Wall of Names/) == null) {
-        let cemetery = cemeteryMatch2[1].trim();
-        window.profilePerson.Cemetery = cemetery;
-      }
       if (window.profilePerson.Cemetery && !burialAdded) {
         if (window.profilePerson.Cemetery.match("Memorial")) {
           text +=
@@ -1124,6 +1132,9 @@ function buildParents(person) {
 }
 
 export function minimalPlace(place) {
+  if (!window.usedPlaces) {
+    window.usedPlaces = [];
+  }
   const placeSplit = place.split(",");
   let showPlace = [];
   let used = 0;
@@ -3361,6 +3372,7 @@ function buildCensusNarratives() {
           text += "'s occupation was '" + occupation + "'.";
 
           // Add occupation Category
+          /*
           if (window.autoBioOptions.occupationCategory) {
             const occupationTitleCase = titleCase(occupation);
             let occupationCategory;
@@ -3389,6 +3401,7 @@ function buildCensusNarratives() {
               window.sectionsObject["StuffBeforeTheBio"].text.push(occupationCategory);
             }
           }
+          */
         }
         if (occupation) {
           text += " " + capitalizeFirstLetter(window.profilePerson.Pronouns.subject) + " was living ";
@@ -4105,7 +4118,7 @@ function getNameVariantsB(person, firstNameVariant) {
   return nameVariants;
 }
 
-function getNameVariants(person) {
+export function getNameVariants(person) {
   let nameVariants = [];
   if (person.LongName) {
     nameVariants.push(person.LongName.replace(/\s\s/, " "));
@@ -4341,7 +4354,7 @@ function parseNZBDM(aRef) {
   return aRef;
 }
 
-function sourcesArray(bio) {
+export function sourcesArray(bio) {
   let dummy = $(document.createElement("html"));
   bio = bio.replace(/\{\|\s*class="wikitable".*?\|\+ Timeline.*?\|\}/gs, "").replace(/<ref[^>]*\/>/g, "");
   dummy.append(bio);
@@ -4847,6 +4860,8 @@ function getSourcerCensuses() {
   const text = dummy.innerHTML;
 
   const regexWikitable = /In the (\d{4}) census[^]+?(\{\|[^]+?\|\})(?![^]*\{\|[^]+?\|\})/g;
+
+  //const regexNonWikitable = /In the (\d{4}) census[^{=]*?\n([.:#*].+?)(?=\n[^:#*])/gms;
   const regexNonWikitable = /In the (\d{4}) census((?!.*\{\|.*\|\}).*?)(?=\n[^:#*])/gs;
 
   let textChunks = text.split(/(In the \d{4} census[^]+?)(?=In the \d{4} census|$)/i);
@@ -4875,7 +4890,7 @@ function getSourcerCensuses() {
   const censusKeys = Object.keys(censusData);
 
   const tempCensuses = {};
-
+  /*
   for (const match of text.matchAll(regexWikitable)) {
     let household = parseFamilyData(match[2], { format: "wikitable" });
     tempCensuses[match[1]] = {
@@ -4884,6 +4899,20 @@ function getSourcerCensuses() {
       Year: match[1],
       List: match[2],
       RefName: "Census_" + match[1],
+      Household: household,
+    };
+  }
+  */
+
+  for (const key of censusKeys) {
+    let household = parseFamilyData(censusData[key].table, { format: "wikitable" });
+    console.log(household);
+    tempCensuses[key] = {
+      "Census Year": key,
+      Text: censusData[key].description,
+      Year: key,
+      List: censusData[key].table,
+      RefName: "Census_" + key,
       Household: household,
     };
   }
@@ -5298,7 +5327,7 @@ function getFamilySearchFacts() {
   console.log("familySearchFacts", window.familySearchFacts);
 }
 
-function splitBioIntoSections() {
+export function splitBioIntoSections() {
   const wikiText = $("#wpTextbox1").val();
   let lines = wikiText.split("\n");
   let currentSection = { subsections: {}, text: [] };
@@ -5522,7 +5551,7 @@ function splitBioIntoSections() {
   return sections;
 }
 
-function assignPersonNames(person) {
+export function assignPersonNames(person) {
   // Add personName to person
   function assignPersonNamesB(personB) {
     const aName = new PersonName(personB);
@@ -5624,276 +5653,119 @@ function setOrderBirthDate(person) {
   });
 }
 
-export async function generateBio() {
-  window.autoBioNotes = [];
+// This function is used to find a link to a find a grave page. It can parse input from the following formats:
+// 1. https://www.findagrave.com/memorial/123456789
+// 2. [https://www.findagrave.com/memorial/123456789]
+// 3. {{FindAGrave|123456789}}
+// 4. Find a Grave #123456789
+// 5. Find a Grave memorial #123456789
+// Note that if the input is in format 3, it will not parse if the link contains the text "database and images" (the link will be ignored).
+function getFindAGraveLink(text) {
+  // Define the regexes to be used to find the link
+  const match1 = /(https?:\/\/www\.findagrave.com[^\s]+)$/;
+  const match2 = /\[(https?:\/\/www\.findagrave.com[^\s]+)(\s([^\]]+))?\]/;
+  const match3 = /\{\{FindAGrave\|(\d+)(\|.*?)?\}\}/;
+  const match4 = /database and images/;
+  const match5 = /^\s?Find a Grave:?( memorial)? #?(\d+)\.?$/i;
+  const sourcerMatch = /'''.+<br(.*)?>.+<br(.*)?>/;
 
-  // Sort First Name Variants by length
-  for (let key in firstNameVariants) {
-    firstNameVariants[key].sort(function (a, b) {
-      return b.length - a.length;
-    });
-  }
-
-  const working = $(
-    "<img id='working' style='position:absolute; margin-top:3em; margin-left: 300px' src='" +
-      // eslint-disable-next-line no-undef
-      chrome.runtime.getURL("images/tree.gif") +
-      "'>"
-  );
-  $("#wpTextbox1").before(working);
-  const currentBio = $("#wpTextbox1").val();
-  localStorage.setItem("previousBio", currentBio);
-  // Split the current bio into sections
-  window.sectionsObject = splitBioIntoSections();
-
-  window.usedPlaces = [];
-  let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
-
-  window.biographyPeople = await getProfile(
-    profileID,
-    "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix,BirthDate,DeathDate,BirthLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren,NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings",
-    "AutoBio"
-  );
-  window.profilePerson = window.biographyPeople;
-  const originalFormData = getFormData();
-
-  const originalFirstName = window.profilePerson.FirstName;
-  // Get the form data and add it to the profilePerson
-  const formData = getFormData();
-  let personKeys = Object.keys(formData);
-  personKeys.forEach(function (aKey) {
-    if (!(aKey == "BirthDate" && formData[aKey] == null)) {
-      window.profilePerson[aKey] = formData[aKey];
-    }
-  });
-
-  const nuclearFamily = familyArray(window.profilePerson);
-  nuclearFamily.forEach(function (member) {
-    assignPersonNames(member);
-    setOrderBirthDate(member);
-  });
-  fixLocations();
-
-  if (!window.autoBioNotes) {
-    window.autoBioNotes = [];
-  }
-
-  if (!window.profilePerson.Parents) {
-    window.autoBioNotes.push("You may get better results by logging in to the apps server (click the button above).");
-    addLoginButton();
-  } else {
-    window.profilePerson.BirthYear = window.profilePerson.BirthDate?.split("-")[0];
-    window.profilePerson.DeathYear = window.profilePerson.DeathDate?.split("-")[0];
-  }
-
-  // Get spouse parents
-  if (window.profilePerson.Spouses) {
-    let spouseKeys = Object.keys(window.profilePerson.Spouses);
-    window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 1, 1, "*", "WBE_auto_bio");
-    const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
-    biographySpouseParentsKeys.forEach(function (key) {
-      const person = window.biographySpouseParents[0].people[key];
-      assignPersonNames(person);
-    });
-  }
-  console.log("biographySpouseParents", window.biographySpouseParents);
-
-  // window.profilePerson.BirthName is their FirstName + MiddleName if they have a MiddleName
-  if (isOK(window.profilePerson.MiddleName)) {
-    window.profilePerson.BirthName = window.profilePerson.FirstName + " " + window.profilePerson.MiddleName;
-  } else {
-    window.profilePerson.BirthName = window.profilePerson.FirstName;
-  }
-
-  if (window.profilePerson.RealName == originalFirstName) {
-    window.profilePerson.RealName = window.profilePerson.FirstName;
-  }
-  // window.profilePerson.BirthNamePrivate is RealName LastNameAtBirth Suffix
-  if (isOK(window.profilePerson.Suffix)) {
-    window.profilePerson.BirthNamePrivate =
-      window.profilePerson.RealName + " " + window.profilePerson.LastNameAtBirth + " " + window.profilePerson.Suffix;
-  } else {
-    window.profilePerson.BirthNamePrivate = window.profilePerson.RealName + " " + window.profilePerson.LastNameAtBirth;
-  }
-
-  assignPersonNames(window.profilePerson);
-  if (isOK(window.profilePerson.BirthDate) && window.profilePerson.BirthDate.match("-") == null) {
-    window.profilePerson.BirthDate = convertDate(window.profilePerson.BirthDate, "ISO");
-  }
-  if (isOK(window.profilePerson.DeathDate) && window.profilePerson.DeathDate.match("-") == null) {
-    window.profilePerson.DeathDate = convertDate(window.profilePerson.DeathDate, "ISO");
-  }
-  window.profilePerson.Pronouns = getPronouns(window.profilePerson);
-  window.profilePerson.NameVariants = getNameVariants(window.profilePerson);
-  // Handle census data created with Sourcer
-  window.sourcerCensuses = getSourcerCensuses();
-
-  console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
-
-  // Create the references array
-  if (window.sectionsObject.Sources) {
-    window.sourcesSection = window.sectionsObject.Sources;
-  }
-  sourcesArray(currentBio);
-  console.log("references", JSON.parse(JSON.stringify(window.references)));
-
-  // Update references with Find A Grave citations
-  async function getCitations() {
-    window.NonSourceCount = 0;
-    for (let i = 0; i < window.references.length; i++) {
-      let aRef = window.references[i];
-      if (aRef.NonSource) {
-        window.NonSourceCount++;
-      }
-      let findAGraveLink = getFindAGraveLink(aRef.Text);
-      let matriculaLink = getMatriculaLink(aRef.Text);
-      let newBrunswickLink = getNewBrunswickLink(aRef.Text);
-      let citationLink = findAGraveLink || matriculaLink || newBrunswickLink;
-
-      if (citationLink) {
-        try {
-          let citation = await getCitation(citationLink);
-          if (citation) {
-            if (findAGraveLink) {
-              citation = addHeading(citation, aRef.Text);
-              //citation = fixDate(citation);
-              citation = fixDashes(citation);
-              citation = fixSpaces(citation);
-            }
-            aRef.Text = citation.trim();
-          } else {
-            console.error("Error fetching citation for link:", citationLink);
-          }
-        } catch (error) {
-          console.error("Error fetching citation:", error);
-        }
-      }
-    }
-  }
-
-  await getCitations();
-
-  // This function is used to find a link to a find a grave page. It can parse input from the following formats:
-  // 1. https://www.findagrave.com/memorial/123456789
-  // 2. [https://www.findagrave.com/memorial/123456789]
-  // 3. {{FindAGrave|123456789}}
-  // 4. Find a Grave #123456789
-  // 5. Find a Grave memorial #123456789
-  // Note that if the input is in format 3, it will not parse if the link contains the text "database and images" (the link will be ignored).
-  function getFindAGraveLink(text) {
-    // Define the regexes to be used to find the link
-    const match1 = /(https?:\/\/www\.findagrave.com[^\s]+)$/;
-    const match2 = /\[(https?:\/\/www\.findagrave.com[^\s]+)(\s([^\]]+))?\]/;
-    const match3 = /\{\{FindAGrave\|(\d+)(\|.*?)?\}\}/;
-    const match4 = /database and images/;
-    const match5 = /^\s?Find a Grave( memorial)? #?(\d+)$/i;
-    const sourcerMatch = /'''.+<br(.*)?>.+<br(.*)?>/;
-
-    // If not sourcerMatch
-    if (!text.match(sourcerMatch)) {
-      // If the input is in format 1, return the link
-      if (text.match(match1)) {
-        return text.match(match1)[1];
-        // If the input is in format 2, return the link
-      } else if (text.match(match2)) {
-        return text.match(match2)[1];
-        // If the input is in format 3, return the link if it doesn't contain "database and images"
-      } else if (text.match(match3) && text.match(match4) == null) {
-        return "https://www.findagrave.com/memorial/" + text.match(match3)[1];
-        // If the input is in format 4 or 5, return the link
-      } else if (text.match(match5)) {
-        return "https://www.findagrave.com/memorial/" + text.match(match5)[2];
-        // If the input is in none of the above formats, return null
-      } else {
-        return null;
-      }
+  // If not sourcerMatch
+  if (!text.match(sourcerMatch)) {
+    // If the input is in format 1, return the link
+    if (text.match(match1)) {
+      return text.match(match1)[1];
+      // If the input is in format 2, return the link
+    } else if (text.match(match2)) {
+      return text.match(match2)[1];
+      // If the input is in format 3, return the link if it doesn't contain "database and images"
+    } else if (text.match(match3) && text.match(match4) == null) {
+      return "https://www.findagrave.com/memorial/" + text.match(match3)[1];
+      // If the input is in format 4 or 5, return the link
+    } else if (text.match(match5)) {
+      return "https://www.findagrave.com/memorial/" + text.match(match5)[2];
+      // If the input is in none of the above formats, return null
     } else {
       return null;
     }
+  } else {
+    return null;
   }
+}
 
-  async function getCitation(link) {
-    if (link.match("cgi-bin/fg.cgi")) {
-      let memorial = link.split("id=")[1];
-      link = "https://www.findagrave.com/memorial/" + memorial;
-    }
-    const encodedLink = encodeGuid(link);
-    try {
-      let result = await $.ajax({
-        url: "https://wikitreebee.com/citation",
-        type: "GET",
-        data: { link: encodedLink },
-        dataType: "text",
-      });
-      return result;
-    } catch (error) {
-      console.error("Error fetching citation:", error);
-      return null;
-    }
+async function getCitation(link) {
+  if (link.match("cgi-bin/fg.cgi")) {
+    let memorial = link.split("id=")[1];
+    link = "https://www.findagrave.com/memorial/" + memorial;
   }
-
-  function getMatriculaLink(text) {
-    // Define the regex to match Matricula links
-    const matriculaMatch = /(?:\* ?|\r ? )?(?:\[[^\]]* ?)?(https?:\/\/data\.matricula-online\.eu[^\s]+)(?:[^\]]* ?\])?/;
-    if (text.match(matriculaMatch)) {
-      return text.match(matriculaMatch)[1];
-    } else {
-      return null;
-    }
+  const encodedLink = encodeGuid(link);
+  try {
+    let result = await $.ajax({
+      url: "https://wikitreebee.com/citation",
+      type: "GET",
+      data: { link: encodedLink },
+      dataType: "text",
+    });
+    return result;
+  } catch (error) {
+    console.error("Error fetching citation:", error);
+    return null;
   }
+}
 
-  function getNewBrunswickLink(text) {
-    // https://archives.gnb.ca/Search/VISSE/141C5.aspx?culture=en-CA&guid=17D55021-5247-4E59-82B6-CE431742F0FC
-    /* Match the link to the New Brunswick Archives alone, preceded by an asterisk (+optional space) or a newline or
+function getMatriculaLink(text) {
+  // Define the regex to match Matricula links
+  const matriculaMatch = /(?:\* ?|\r ? )?(?:\[[^\]]* ?)?(https?:\/\/data\.matricula-online\.eu[^\s]+)(?:[^\]]* ?\])?/;
+  if (text.match(matriculaMatch)) {
+    return text.match(matriculaMatch)[1];
+  } else {
+    return null;
+  }
+}
+
+function getNewBrunswickLink(text) {
+  // https://archives.gnb.ca/Search/VISSE/141C5.aspx?culture=en-CA&guid=17D55021-5247-4E59-82B6-CE431742F0FC
+  /* Match the link to the New Brunswick Archives alone, preceded by an asterisk (+optional space) or a newline or
      the within a link (preceded by a square bracket and optional space and followed by link text and optional space and square bracket) 
     + not very much else. */
-    const newBrunswickMatch = /(?:\* ?|\r ? )?(?:\[[^\]]* ?)?(https?:\/\/archives\.gnb\.ca[^\s]+)(?:[^\]]* ?\])?/;
-    if (text.match(newBrunswickMatch)) {
-      return text.match(newBrunswickMatch)[1];
-    } else {
-      return null;
+  const newBrunswickMatch = /(?:\* ?|\r ? )?(?:\[[^\]]* ?)?(https?:\/\/archives\.gnb\.ca[^\s]+)(?:[^\]]* ?\])?/;
+  if (text.match(newBrunswickMatch)) {
+    return text.match(newBrunswickMatch)[1];
+  } else {
+    return null;
+  }
+}
+
+function encodeGuid(url) {
+  const urlObj = new URL(url);
+  if (urlObj.hostname === "archives.gnb.ca") {
+    const guid = urlObj.searchParams.get("guid");
+    if (guid) {
+      urlObj.searchParams.set("guid", encodeURIComponent(guid));
+      return urlObj.href;
     }
   }
+  return url;
+}
 
-  function encodeGuid(url) {
-    const urlObj = new URL(url);
-    if (urlObj.hostname === "archives.gnb.ca") {
-      const guid = urlObj.searchParams.get("guid");
-      if (guid) {
-        urlObj.searchParams.set("guid", encodeURIComponent(guid));
-        return urlObj.href;
-      }
-    }
-    return url;
+function addHeading(citation, text) {
+  citation = citation.replace(/Find a Grave/, "''Find a Grave''");
+  const boldHeadingMatch = text.match(/'''(Memorial|Death|Burial)'''/);
+  if (boldHeadingMatch) {
+    citation = boldHeadingMatch[0] + ": " + citation;
   }
+  return citation;
+}
 
-  function addHeading(citation, text) {
-    citation = citation.replace(/Find a Grave/, "''Find a Grave''");
-    const boldHeadingMatch = text.match(/'''(Memorial|Death|Burial)'''/);
-    if (boldHeadingMatch) {
-      citation = boldHeadingMatch[0] + ": " + citation;
-    }
-    return citation;
-  }
-  /*
-  function fixDate(citation) {
-    const today = new Date();
-    const options = { day: "numeric", month: "long", year: "numeric" };
-    const dateString = today.toLocaleDateString("en-US", options);
-    citation = citation.replace("accessed", "accessed " + dateString);
-    return citation;
-  }
-*/
-  function fixDashes(citation) {
-    citation = citation.replace("&ndash;", "–");
-    return citation;
-  }
+function fixDashes(citation) {
+  citation = citation.replace("&ndash;", "–");
+  return citation;
+}
 
-  function fixSpaces(citation) {
-    citation = citation.replaceAll(/\s+/g, " ");
-    citation = citation.replace(" )", ")");
-    return citation;
-  }
+function fixSpaces(citation) {
+  citation = citation.replaceAll(/\s+/g, " ");
+  citation = citation.replace(" )", ")");
+  return citation;
+}
 
 export async function getCitations() {
   window.NonSourceCount = 0;
@@ -6962,21 +6834,15 @@ export async function generateBio() {
     let types = ["Birth", "Marriage", "Death", "Cemetery"];
     for (let i = 0; i < types.length; i++) {
       const location = await getLocationCategory(types[i]);
-      if (location && location.match(",")) {
-        const theCategory = "[[Category: " + location + "]]";
-        const theCategoryWithoutSpace = "[[Category:" + location + "]]";
-        if (
-          !window.sectionsObject["StuffBeforeTheBio"].text.includes(theCategory) &&
-          !window.sectionsObject["StuffBeforeTheBio"].text.includes(theCategoryWithoutSpace)
-        ) {
-          window.sectionsObject["StuffBeforeTheBio"].text.push(theCategory);
-        }
-      }
+      addLocationCategoryToStuffBeforeTheBio(location);
     }
   }
   if (window.autoBioOptions.locationCategories == true) {
     await getLocationCategories();
   }
+
+  // Add occupation categories
+  addOccupationCategories();
 
   // Make research notes
   if (!window.profilePerson.Father && !window.profilePerson.Mother && currentBio.match(/(son|daughter) of.*\.?/i)) {
@@ -7167,133 +7033,12 @@ export async function generateBio() {
 
   // Add Unsourced template if there are no good sources
   if (window.autoBioOptions.unsourced != false) {
-    let doCheck = true;
-    let addTemplate = false;
-    let addCategory = false;
-    if (window.autoBioOptions.unsourced == "template") {
-      addTemplate = true;
-    } else {
-      addCategory = true;
-    }
-    // Don't add Unsourced template if there is a Find A Grave source (maybe added by the code above) or an Ancestry/FS template
-    window.references.forEach(function (aRef) {
-      if (
-        aRef.Text.match(
-          /(findagrave.com.*Maintained by)|(\{\{FamilySearch|Ancestry Record|Image\|[A-z0-9]+\}\})|(https:\/\/familysearch.org\/ark:\/\w+)/i
-        )
-      ) {
-        doCheck = false;
-      }
-    });
-    if (doCheck == true) {
-      if (autoBioCheck(currentBio) == false) {
-        let unsourcedCategory;
-        let unsourcedTemplate;
-
-        // Check each part of the birth and death locations for unsourced categories
-        const birthPlaces = window.profilePerson.BirthLocation?.split(", ");
-        const deathPlaces = window.profilePerson.DeathLocation?.split(", ");
-        const places = birthPlaces.concat(deathPlaces);
-        const USstates = [];
-        const USbirthState = findUSState(window.profilePerson.BirthLocation);
-        if (USbirthState) {
-          USstates.push(USbirthState);
-        }
-        const USdeathState = findUSState(window.profilePerson.DeathLocation);
-        if (USdeathState) {
-          USstates.push(USdeathState);
-        }
-        if (USstates.length > 0) {
-          if (addCategory) {
-            USstates.forEach(function (aState) {
-              unsourcedCategory = `[[Category: ${unsourcedCategories[aState]}]]`;
-              if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedCategory)) {
-                window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
-              }
-            });
-          } else {
-            const statesString = USstates.join("|");
-            unsourcedTemplate = `{{Unsourced|${statesString}}}`;
-            if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
-              window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
-            }
-          }
-        } else {
-          let unsourcedTemplateString = "";
-          places.forEach(function (aPlace) {
-            if (
-              unsourcedCategories[aPlace] &&
-              !(["Wales", "Canada", "United States"].includes(aPlace) && unsourcedCategory)
-            ) {
-              if (addCategory) {
-                unsourcedCategory = `[[Category: ${unsourcedCategories[aPlace]}]]`;
-                if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedCategory)) {
-                  window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
-                }
-              } else {
-                unsourcedTemplateString += `|${aPlace}`;
-              }
-            }
-          });
-          if (unsourcedTemplateString) {
-            unsourcedTemplate = `{{Unsourced${unsourcedTemplateString}}}`;
-            if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
-              window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
-            }
-          }
-        }
-        const surnames = [
-          window.profilePerson.PersonName.LastNameAtBirth,
-          window.profilePerson.PersonName.LastNameCurrent,
-        ];
-        surnames.forEach(function (aSurname) {
-          if (unsourcedCategories[aSurname + " Name Study"]) {
-            unsourcedCategory = `[[Category: ${unsourcedCategories[aSurname + " Name Study"]}]]`;
-            if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedCategory)) {
-              window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
-            }
-          }
-        });
-        if (!unsourcedCategory && !unsourcedTemplate) {
-          unsourcedTemplate = "{{Unsourced}}";
-          let gotIt = false;
-          for (const thing of window.sectionsObject["StuffBeforeTheBio"].text) {
-            if (thing.match(/\{\{Unsourced.*?\}\}/i)) {
-              gotIt = true;
-            }
-          }
-          if (gotIt == false) {
-            window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
-          }
-        }
-      }
-    }
-  }
-
-  function categoriesBeforeProjects(textArray) {
-    return textArray.sort((a, b) => {
-      if (a.startsWith("{{") && b.startsWith("[[")) {
-        return 1;
-      } else if (a.startsWith("[[") && b.startsWith("{{")) {
-        return -1;
-      } else {
-        return 0;
-      }
-    });
+    addUnsourced();
   }
 
   // Add stuff before the bio
-  let stuffBeforeTheBioText = "";
-  if (window.sectionsObject["StuffBeforeTheBio"]) {
-    window.sectionsObject.StuffBeforeTheBio.text = categoriesBeforeProjects(
-      window.sectionsObject.StuffBeforeTheBio.text
-    );
-    const filteredStuff = window.sectionsObject["StuffBeforeTheBio"].text.filter((item) => item !== "");
-    const stuff = filteredStuff.join("\n");
-    if (stuff) {
-      stuffBeforeTheBioText = stuff + "\n";
-    }
-  }
+  let stuffBeforeTheBioText = getStuffBeforeTheBioText();
+
   let outputText = "";
   let timelineText = "";
   if (window.autoBioOptions.timeline == "SA") {
@@ -7361,7 +7106,7 @@ export async function generateBio() {
   if (enhanced == true) {
     enhancedEditorButton.trigger("click");
   }
-  working.remove();
+  removeWorking();
 
   // Add buttons to 1) remove the Auto Bio and 2) delete the old bio.
   if ($("#deleteOldBio").length == 0) {
@@ -7468,7 +7213,7 @@ function removeCountryName(location) {
   return locationSplit.reverse().join(", ");
 }
 
-async function getLocationCategory(type, location = null) {
+export async function getLocationCategory(type, location = null) {
   // type = birth, death, marriage, other
   // For birth and death, we can use the location from the profile
   let categoryType = "location";
@@ -7514,6 +7259,9 @@ async function getLocationCategory(type, location = null) {
   }
 
   // Remove all after 3rd comma
+  console.log("Type", type);
+  console.log("Location", location);
+  console.log("Category Type", categoryType);
   const locationSplit = location.split(/, /);
   const searchLocation = removeCountryName(location);
   let api;
