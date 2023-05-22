@@ -1,17 +1,18 @@
-#whatLinksHereLinks {
+#whatLinksHereLinksProfiles,
+#whatLinksHereLinksPages {
   list-style: none;
+  margin-left: 10px;
 }
-#whatLinksHereLinks li:nth-child(n + 11) {
-  display: none;
+#whatLinksHereLinksProfiles {
+  white-space: nowrap;
 }
-#whatLinksHereLinks.showAll li:nth-child(n + 11) {
-  display: block;
+
+.toggle.toggle-whl {
+  position: relative;
+  top: -2px;
+  margin-left: 8px;
 }
-#whatLinksHereMore {
-  display: none;
-  font-size: 0.5em;
-  margin-top: 0.5em;
-}
-#whatLinksHereMore {
-  float: right;
+
+#whatLinksHereSection:not(.expand-whl) > h2 + div {
+  display: none !important;
 }

@@ -1,3 +1,10 @@
 body.page-Special_SearchPerson #saveSearchFormButton {
   float: right;
 }
+
+@media print {
+  body.w10 #content > div.sixteen.columns:first-child {
+    width: auto;
+    float: none;
+  }
+}

@@ -1,17 +1,39 @@
+.reference {
+  pointer-events: none;
+}
+.reference > a,
+.reference > .x-source-preview:not(.x-preview-hiding) {
+  pointer-events: auto;
+}
+
 .x-source-preview {
   position: absolute;
+  box-sizing: border-box;
+  display: block;
   z-index: 999;
-  -webkit-box-shadow: 3px 3px 12px 6px rgba(0, 0, 0, 0.3);
-  box-shadow: 3px 3px 12px 6px rgba(0, 0, 0, 0.3);
-  background-color: #fff;
-  border: 2px solid #ccc;
-  padding: 10px;
-  -webkit-border-radius: 1em;
-  -moz-border-radius: 1em;
-  border-radius: 1em;
   width: 450px;
+  margin-top: -0.8em;
   white-space: normal;
   font-size: 14px;
   font-style: normal;
   font-weight: normal;
+}
+
+.x-source-preview > div {
+  -webkit-box-shadow: 3px 3px 12px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 3px 3px 12px 6px rgba(0, 0, 0, 0.3);
+  background-color: #fff;
+  border: 2px solid #ccc;
+  margin-top: 1em;
+  padding: 10px;
+  -webkit-border-radius: 1em;
+  -moz-border-radius: 1em;
+  border-radius: 1em;
+  margin-top: 1em;
+}
+
+@media only print {
+  .x-source-preview {
+    display: none;
+  }
 }

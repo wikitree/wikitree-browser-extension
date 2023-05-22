@@ -70,6 +70,12 @@ const g2g = {
       label: "Page links (Page: [1], [2], [3]) at the top of a page",
       defaultValue: true,
     },
+    {
+      id: "linkify",
+      type: OptionType.CHECKBOX,
+      label: "Turn WikiTree IDs into links to the profiles",
+      defaultValue: true,
+    },
   ],
 };
 

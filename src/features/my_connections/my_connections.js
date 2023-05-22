@@ -1003,7 +1003,6 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
                 ) {
                   mChildren = mSiblings;
                   mChildren.push(window.clonePerson);
-                  let mSpouses = mParents;
                   mParents = "";
                   mSiblings = "";
                 }
@@ -1794,9 +1793,7 @@ async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
               $(this).text("Filter By Location");
             } else {
               const oPersonLocations = $("tr.main").attr("data-locations").split(",");
-
               const rows = $(".peopleTable tbody tr");
-              const oLocations = [];
               if ($("#mBirthLocation").val() != "" && $("#mBirthLocation").length) {
                 const bpLocations = $("#mBirthLocation").val().split(/, ?/);
                 const bpText = $("#mBirthLocation").val();
