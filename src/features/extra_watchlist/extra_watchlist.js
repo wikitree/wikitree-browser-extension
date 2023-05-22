@@ -532,7 +532,7 @@ async function extraWatchlist() {
   });
 }
 
-function secondarySort(rows, dataThing1, dataThing2, isText = 0) {
+export function secondarySort(rows, dataThing1, dataThing2, isText = 0) {
   let lastOne = "Me";
   let tempArr = [lastOne];
   rows.each(function (index) {

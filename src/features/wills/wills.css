@@ -1,0 +1,35 @@
+#willTable {
+  clear: both;
+  font-size: 1.2em;
+  width: auto;
+  margin: 1em auto;
+  position: relative;
+  top: 1em;
+}
+
+#willTable {
+  border: 1px solid forestgreen;
+  border-radius: 1em;
+  padding: 0.2em;
+}
+
+#willTable thead {
+  font-weight: bold;
+  text-align: left;
+}
+
+#willTable thead th[id] {
+  cursor: pointer;
+}
+
+#willTable td {
+  padding: 0.3em;
+}
+
+.frownyFace {
+  text-align: center;
+  display: block;
+  vertical-align: middle;
+  font-size: 2em;
+  width: 100%;
+}
