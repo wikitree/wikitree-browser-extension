@@ -131,12 +131,12 @@ async function prepareFamilyLists() {
       if ($(this).find("span[itemprop='givenName']").length) {
         $(this).prop("id", "profileName");
         if (!options.moveToEnd && !options.moveToRight) {
-          this.after(familyLists);
+          $(this).after(familyLists);
         }
       } else if ($(this).text().match(/^Born/)) {
         $(this).prop("id", "birthDetails");
         if (!options.moveToEnd && !options.moveToRight) {
-          this.after(familyLists);
+          $(this).after(familyLists);
         }
       } else if ($(this).text().match(/^Died/)) {
         $(this).prop("id", "deathDetails");
