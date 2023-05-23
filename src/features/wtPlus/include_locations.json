@@ -8,4 +8,21 @@
 		"to": "Württemberg",
 		"flags": "mgi"
 	}]
+},{
+	"description": "South Africa",
+	"actions": [{
+		"description": "Tulbagh",
+		"example": "Tulbach > Tulbagh",
+		"action": "replaceRegEx",
+		"from": "\\bTulbach\\b",
+		"to": "Tulbagh",
+		"flags": "mgi"
+	},{
+		"description": "Graaff-Reinet",
+		"example": "Graaff Reinet > Graaff-Reinet",
+		"action": "replaceRegEx",
+		"from": "\\bGraaff?[- ]Reinett?\\b",
+		"to": "Graaff-Reinet",
+		"flags": "mgi"
+	}]
 }]
