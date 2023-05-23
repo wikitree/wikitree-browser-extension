@@ -5051,6 +5051,7 @@ function processTable(table, census) {
       if (obj.Relation === "Self" && obj.Occupation) {
         census.Occupation = obj.Occupation;
       }
+
       census.Household.push(obj);
     }
     processHouseholdMembers(census);
@@ -5653,7 +5654,9 @@ function getFindAGraveLink(text) {
     } else if (text.match(match5)) {
       return "https://www.findagrave.com/memorial/" + text.match(match5)[2];
       // If the input is in none of the above formats, return null
-    } 
+    } else {
+      return null;
+    }
   } else {
     return null;
   }
@@ -5722,576 +5725,6 @@ function addHeading(citation, text) {
   }
   return citation;
 }
-
-function fixDashes(citation) {
-  citation = citation.replace("&ndash;", "–");
-  return citation;
-}
-
-function fixSpaces(citation) {
-  citation = citation.replaceAll(/\s+/g, " ");
-  citation = citation.replace(" )", ")");
-  return citation;
-}
-
-export async function getCitations() {
-  window.NonSourceCount = 0;
-  for (let i = 0; i < window.references.length; i++) {
-    let aRef = window.references[i];
-    if (aRef.NonSource) {
-      window.NonSourceCount++;
-    }
-    let findAGraveLink = getFindAGraveLink(aRef.Text);
-    let matriculaLink = getMatriculaLink(aRef.Text);
-    let newBrunswickLink = getNewBrunswickLink(aRef.Text);
-    let citationLink = findAGraveLink || matriculaLink || newBrunswickLink;
-
-    if (citationLink) {
-      try {
-        let citation = await getCitation(citationLink);
-        if (citation) {
-          if (findAGraveLink) {
-            citation = addHeading(citation, aRef.Text);
-            //citation = fixDate(citation);
-            citation = fixDashes(citation);
-            citation = fixSpaces(citation);
-          }
-          aRef.Text = citation.trim();
-        } else {
-          console.error("Error fetching citation for link:", citationLink);
-        }
-      } catch (error) {
-        console.error("Error fetching citation:", error);
-      }
-    }
-  }
-}
-
-export function addLocationCategoryToStuffBeforeTheBio(location) {
-  if (location) {
-    const theCategory = "[[Category: " + location + "]]";
-    const theCategoryWithoutSpace = "[[Category:" + location + "]]";
-    if (
-      !window.sectionsObject["StuffBeforeTheBio"].text.includes(theCategory) &&
-      !window.sectionsObject["StuffBeforeTheBio"].text.includes(theCategoryWithoutSpace)
-    ) {
-      window.sectionsObject["StuffBeforeTheBio"].text.push(theCategory);
-    }
-  }
-}
-
-function categoriesBeforeProjects(textArray) {
-  return textArray.sort((a, b) => {
-    if (a.startsWith("{{") && b.startsWith("[[")) {
-      return 1;
-    } else if (a.startsWith("[[") && b.startsWith("{{")) {
-      return -1;
-    } else {
-      return 0;
-    }
-  });
-}
-
-export function getStuffBeforeTheBioText() {
-  let stuffBeforeTheBioText = "";
-  if (window.sectionsObject["StuffBeforeTheBio"]) {
-    window.sectionsObject.StuffBeforeTheBio.text = categoriesBeforeProjects(
-      window.sectionsObject.StuffBeforeTheBio.text
-    );
-    const filteredStuff = window.sectionsObject["StuffBeforeTheBio"].text.filter((item) => item !== "");
-    const stuff = filteredStuff.join("\n");
-    if (stuff) {
-      stuffBeforeTheBioText = stuff + "\n";
-    }
-  }
-  return stuffBeforeTheBioText;
-}
-
-export function addWorking() {
-  const working = $(
-    "<img id='working' style='position:absolute; margin-top:3em; margin-left: 300px' src='" +
-      // eslint-disable-next-line no-undef
-      chrome.runtime.getURL("images/tree.gif") +
-      "'>"
-  );
-  $("#wpTextbox1").before(working);
-}
-export function removeWorking() {
-  $("#working").remove();
-}
-
-export function addUnsourced(feature = "autoBio") {
-  let unsourcedOption;
-  if (feature == "autoCategories") {
-    unsourcedOption = window.autoCategoriesOptions.unsourced;
-  } else {
-    unsourcedOption = window.autoBioOptions.unsourced;
-  }
-  let doCheck = true;
-  let addTemplate = false;
-  let addCategory = false;
-  if (unsourcedOption == "template") {
-    addTemplate = true;
-  } else {
-    addCategory = true;
-  }
-  // Don't add Unsourced template if there is a Find A Grave source (maybe added by the code above) or an Ancestry/FS template
-  window.references.forEach(function (aRef) {
-    if (
-      aRef.Text.match(
-        /(findagrave.com.*Maintained by)|(\{\{FamilySearch|Ancestry Record|Image\|[A-z0-9]+\}\})|(https:\/\/familysearch.org\/ark:\/\w+)/i
-      )
-    ) {
-      doCheck = false;
-    }
-  });
-  if (doCheck == true) {
-    const currentBio = $("#wpTextbox1").val();
-    if (autoBioCheck(currentBio) == false) {
-      let unsourcedCategory;
-      let unsourcedTemplate;
-
-      // Check each part of the birth and death locations for unsourced categories
-      const birthPlaces = window.profilePerson.BirthLocation?.split(", ");
-      const deathPlaces = window.profilePerson.DeathLocation?.split(", ");
-      const places = birthPlaces.concat(deathPlaces);
-      const USstates = [];
-      const USbirthState = findUSState(window.profilePerson.BirthLocation);
-      if (USbirthState) {
-        if (USstates.includes(USbirthState) == false) {
-          USstates.push(USbirthState);
-        }
-      }
-      const USdeathState = findUSState(window.profilePerson.DeathLocation);
-      if (USdeathState) {
-        if (USstates.includes(USdeathState) == false) {
-          USstates.push(USdeathState);
-        }
-      }
-      if (USstates.length > 0) {
-        if (addCategory) {
-          USstates.forEach(function (aState) {
-            unsourcedCategory = `[[Category: ${unsourcedCategories[aState]}]]`;
-            if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedCategory)) {
-              window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
-            }
-          });
-        } else {
-          const statesString = USstates.join("|");
-          unsourcedTemplate = `{{Unsourced|${statesString}}}`;
-          if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
-            window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
-          }
-        }
-      } else {
-        let unsourcedTemplateString = "";
-        places.forEach(function (aPlace) {
-          if (
-            unsourcedCategories[aPlace] &&
-            !(["Wales", "Canada", "United States"].includes(aPlace) && unsourcedCategory)
-          ) {
-            if (addCategory) {
-              unsourcedCategory = `[[Category: ${unsourcedCategories[aPlace]}]]`;
-              if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedCategory)) {
-                window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
-              }
-            } else {
-              unsourcedTemplateString += `|${aPlace}`;
-            }
-          }
-        });
-        if (unsourcedTemplateString) {
-          unsourcedTemplate = `{{Unsourced${unsourcedTemplateString}}}`;
-          if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
-            window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
-          }
-        }
-      }
-      const surnames = [
-        window.profilePerson.PersonName.LastNameAtBirth,
-        window.profilePerson.PersonName.LastNameCurrent,
-      ];
-      surnames.forEach(function (aSurname) {
-        if (unsourcedCategories[aSurname + " Name Study"]) {
-          unsourcedCategory = `[[Category: ${unsourcedCategories[aSurname + " Name Study"]}]]`;
-          if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedCategory)) {
-            window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
-          }
-        }
-      });
-      if (!unsourcedCategory && !unsourcedTemplate) {
-        unsourcedTemplate = "{{Unsourced}}";
-        let gotIt = false;
-        for (const thing of window.sectionsObject["StuffBeforeTheBio"].text) {
-          if (thing.match(/\{\{Unsourced.*?\}\}/i)) {
-            gotIt = true;
-          }
-        }
-        if (gotIt == false) {
-          window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
-        }
-      }
-    }
-  }
-}
-
-export function addOccupationCategories(feature = "autoBio") {
-  let occupationOption;
-  if (feature == "autoCategories") {
-    occupationOption = window.autoCategoriesOptions.occupationCategory;
-  } else {
-    occupationOption = window.autoBioOptions.occupationCategory;
-  }
-  window.references.forEach(function (aRef) {
-    const occupation = aRef.Occupation;
-
-    if (occupationOption && occupation) {
-      const occupationTitleCase = titleCase(occupation);
-      let occupationCategory;
-      if (occupationCategories[occupationTitleCase]) {
-        const places = [];
-        if (window.profilePerson.BirthLocation) {
-          places.push(window.profilePerson.BirthLocation.split(", "));
-        }
-        if (window.profilePerson.DeathLocation) {
-          places.push(window.profilePerson.DeathLocation.split(", "));
-        }
-        if (occupationCategories[occupationTitleCase]["Places"]) {
-          occupationCategories[occupationTitleCase]["Places"].forEach(function (place) {
-            if (places.some((arr) => arr.includes(place))) {
-              occupationCategory = `[[Category: ${place}, ${occupationCategories[occupationTitleCase]["PluralForm"]}]]`;
-            }
-          });
-          if (!occupationCategory) {
-            if (occupationCategories[occupationTitleCase].Standalone) {
-              occupationCategory = `[[Category: ${occupationCategories[occupationTitleCase]["PluralForm"]}]]`;
-            }
-          }
-        }
-      }
-      if (occupationCategory) {
-        window.sectionsObject["StuffBeforeTheBio"].text.push(occupationCategory);
-      }
-    }
-  });
-}
-
-export function buildFamilyForPrivateProfiles() {
-  if (!window.profilePerson.BirthName) {
-    window.profilePerson.BirthName =
-      window.profilePerson.FirstName + (window.profilePerson.MiddleName ? " " + window.profilePerson.MiddleName : "");
-  }
-  if (!window.profilePerson.BirthNamePrivate) {
-    window.profilePerson.BirthNamePrivate =
-      (window.profilePerson.RealName || window.profilePerson.FirstName) +
-      " " +
-      window.profilePerson.LastNameAtBirth +
-      (window.profilePerson.Suffix ? " " + window.profilePerson.Suffix : "");
-  }
-  if (!window.profilePerson.LastNameAtBirth) {
-    // <a name="last-name"></a>
-    const lastNameAnchor = $("a[name='last-name']");
-    const lastNameText = lastNameAnchor.parent().text().split(" [")[0].trim();
-    window.profilePerson.LastNameAtBirth = lastNameText;
-  }
-  if (!window.profilePerson.Gender) {
-    window.profilePerson.Gender = $("select#mGender option:selected").val();
-  }
-
-  function parseName(name, object) {
-    const nameParts = name.split(" ");
-    let lastNameAtBirthIndex;
-    nameParts.forEach(function (part, index) {
-      if (part.match(/^\(.*\)$/)) {
-        nameParts[index] = part.replace("(", "").replace(")", "");
-        object.LastNameAtBirth = nameParts[index];
-        lastNameAtBirthIndex = index;
-      }
-    });
-    if (lastNameAtBirthIndex) {
-      object.FirstName = nameParts.slice(0, lastNameAtBirthIndex).join(" ");
-      object.LastNameCurrent = nameParts.slice(lastNameAtBirthIndex + 1).join(" ");
-    } else {
-      object.LastNameAtBirth = nameParts.pop();
-      object.FirstName = nameParts.join(" ");
-    }
-  }
-
-  function findFamilyPersonLink(links) {
-    let familyPersonLink;
-    for (let i = 0; i < links.length; i++) {
-      const link = links[i];
-      if (link.href.match(/\/wiki\/.*-\d+$/)) {
-        familyPersonLink = link;
-        break;
-      }
-    }
-    return familyPersonLink;
-  }
-  const familyColumn = $("a[name='family']").closest("div");
-  const familyTable = familyColumn.find("table");
-  const familyTableRows = familyTable.find("tr");
-  let fatherTr, motherTr, siblingsTr, spousesTr, childrenTr;
-  familyTableRows.each(function (index, row) {
-    if (
-      $(this)
-        .find("td")
-        .eq(0)
-        .text()
-        .match(/Father/)
-    ) {
-      fatherTr = row;
-    } else if (
-      $(this)
-        .find("td")
-        .eq(0)
-        .text()
-        .match(/Mother/)
-    ) {
-      motherTr = row;
-    } else if (
-      $(this)
-        .find("td")
-        .eq(0)
-        .text()
-        .match(/Siblings/)
-    ) {
-      siblingsTr = row;
-    } else if (
-      $(this)
-        .find("td")
-        .eq(0)
-        .text()
-        .match(/Spouses/)
-    ) {
-      spousesTr = row;
-    } else if (
-      $(this)
-        .find("td")
-        .eq(0)
-        .text()
-        .match(/Children/)
-    ) {
-      childrenTr = row;
-    }
-  });
-
-  if (!window.profilePerson.Parents) {
-    window.profilePerson.Parents = {};
-    if (fatherTr) {
-      const fatherLinks = fatherTr.querySelectorAll("a");
-      let fatherLink;
-      if (fatherLinks) {
-        fatherLink = findFamilyPersonLink(fatherLinks);
-      }
-      if (fatherLink) {
-        const fatherId = fatherLink.href.split("/").pop();
-        const fatherObject = {};
-        fatherObject.Name = fatherId;
-        const fatherName = fatherLink.textContent;
-        parseName(fatherName, fatherObject);
-        window.profilePerson.Parents[1] = fatherObject;
-        window.profilePerson.Father = 1;
-      }
-    }
-    if (motherTr) {
-      const motherLinks = motherTr.querySelectorAll("a");
-      let motherLink;
-      if (motherLinks) {
-        motherLink = findFamilyPersonLink(motherLinks);
-      }
-      if (motherLink) {
-        const motherId = motherLink.href.split("/").pop();
-        const motherObject = {};
-        motherObject.Name = motherId;
-        const motherName = motherLink.textContent;
-        parseName(motherName, motherObject);
-        window.profilePerson.Parents[2] = motherObject;
-        window.profilePerson.Mother = 2;
-      }
-    }
-  }
-
-  const familyLists = ["Siblings", "Spouses", "Children"];
-  familyLists.forEach((familyList) => {
-    if (!window.profilePerson[familyList]) {
-      window.profilePerson[familyList] = {};
-      const familyTr = familyList === "Siblings" ? siblingsTr : familyList === "Spouses" ? spousesTr : childrenTr;
-      if (familyTr) {
-        const familyTd = $(familyTr).find("td").eq(1)[0];
-        if (familyTd) {
-          const familyOl = familyTd.firstElementChild;
-          if (familyOl) {
-            const family = familyOl.children;
-            for (let i = 0; i < family.length; i++) {
-              const familyMember = family[i];
-              const familyMemberLinks = familyMember.querySelectorAll("a");
-              let familyMemberLink;
-              familyMemberLink = findFamilyPersonLink(familyMemberLinks);
-              if (familyMemberLink) {
-                const familyMemberId = familyMemberLink.href.split("/").pop();
-                const familyMemberObject = {};
-                familyMemberObject.Name = familyMemberId;
-                familyMemberObject.BirthDate = "0000-00-00";
-                if (familyList == "Spouses") {
-                  familyMemberObject["marriage_date"] = "0000-00-00";
-                }
-                const familyMemberName = familyMemberLink.textContent;
-                parseName(familyMemberName, familyMemberObject);
-                window.profilePerson[familyList][i] = familyMemberObject;
-              }
-            }
-          }
-        }
-      }
-    }
-    if (Object.keys(window.profilePerson[familyList]).length === 0) {
-      window.profilePerson[familyList] = [];
-    }
-  });
-}
-
-export async function generateBio() {
-  window.autoBioNotes = [];
-
-  // Sort First Name Variants by length
-  for (let key in firstNameVariants) {
-    firstNameVariants[key].sort(function (a, b) {
-      return b.length - a.length;
-    });
-  }
-
-  addWorking();
-  const currentBio = $("#wpTextbox1").val();
-  localStorage.setItem("previousBio", currentBio);
-  // Split the current bio into sections
-  window.sectionsObject = splitBioIntoSections();
-
-  window.usedPlaces = [];
-  let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
-
-  window.biographyPeople = await getProfile(
-    profileID,
-    "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix,BirthDate,DeathDate,BirthLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren,NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings",
-    "AutoBio"
-  );
-  window.profilePerson = window.biographyPeople;
-  const originalFormData = getFormData();
-
-  const originalFirstName = window.profilePerson.FirstName;
-  // Get the form data and add it to the profilePerson
-  const formData = getFormData();
-  let personKeys = Object.keys(formData);
-  personKeys.forEach(function (aKey) {
-    if (!(aKey == "BirthDate" && formData[aKey] == null)) {
-      window.profilePerson[aKey] = formData[aKey];
-    }
-  });
-
-  // if ($("img[title='Privacy Level: Unlisted']").length > 0) {
-  buildFamilyForPrivateProfiles();
-  //}
-
-  console.log(JSON.parse(JSON.stringify(window.profilePerson)));
-
-  const nuclearFamily = familyArray(window.profilePerson);
-  console.log(JSON.parse(JSON.stringify(nuclearFamily)));
-  nuclearFamily.forEach(function (member) {
-    if (member) {
-      assignPersonNames(member);
-      setOrderBirthDate(member);
-    }
-  });
-  fixLocations();
-
-  if (!window.autoBioNotes) {
-    window.autoBioNotes = [];
-  }
-
-  if (!window.profilePerson.Parents) {
-    window.autoBioNotes.push("You may get better results by logging in to the apps server (click the button above).");
-    addLoginButton();
-  } else {
-    return null;
-  }
-}
-
-
-  // Get spouse parents
-  if (!(Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses.length === 0)) {
-    let spouseKeys = Object.keys(window.profilePerson.Spouses);
-    window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 1, 1, "*", "WBE_auto_bio");
-    const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
-    biographySpouseParentsKeys.forEach(function (key) {
-      const person = window.biographySpouseParents[0].people[key];
-      assignPersonNames(person);
-
-async function getCitation(link) {
-  if (link.match("cgi-bin/fg.cgi")) {
-    let memorial = link.split("id=")[1];
-    link = "https://www.findagrave.com/memorial/" + memorial;
-  }
-  const encodedLink = encodeGuid(link);
-  try {
-    let result = await $.ajax({
-      url: "https://wikitreebee.com/citation",
-      type: "GET",
-      data: { link: encodedLink },
-      dataType: "text",
-
-    });
-    return result;
-  } catch (error) {
-    console.error("Error fetching citation:", error);
-    return null;
-  }
-}
-
-function getMatriculaLink(text) {
-  // Define the regex to match Matricula links
-  const matriculaMatch = /(?:\* ?|\r ? )?(?:\[[^\]]* ?)?(https?:\/\/data\.matricula-online\.eu[^\s]+)(?:[^\]]* ?\])?/;
-  if (text.match(matriculaMatch)) {
-    return text.match(matriculaMatch)[1];
-  } else {
-    return null;
-  }
-}
-
-function getNewBrunswickLink(text) {
-  // https://archives.gnb.ca/Search/VISSE/141C5.aspx?culture=en-CA&guid=17D55021-5247-4E59-82B6-CE431742F0FC
-  /* Match the link to the New Brunswick Archives alone, preceded by an asterisk (+optional space) or a newline or
-     the within a link (preceded by a square bracket and optional space and followed by link text and optional space and square bracket) 
-    + not very much else. */
-  const newBrunswickMatch = /(?:\* ?|\r ? )?(?:\[[^\]]* ?)?(https?:\/\/archives\.gnb\.ca[^\s]+)(?:[^\]]* ?\])?/;
-  if (text.match(newBrunswickMatch)) {
-    return text.match(newBrunswickMatch)[1];
-  } else {
-    return null;
-  }
-
-}
-
-function encodeGuid(url) {
-  const urlObj = new URL(url);
-  if (urlObj.hostname === "archives.gnb.ca") {
-    const guid = urlObj.searchParams.get("guid");
-    if (guid) {
-      urlObj.searchParams.set("guid", encodeURIComponent(guid));
-      return urlObj.href;
-    }
-  }
-  return url;
-}
-
-function addHeading(citation, text) {
-  citation = citation.replace(/Find a Grave/, "''Find a Grave''");
-  const boldHeadingMatch = text.match(/'''(Memorial|Death|Burial)'''/);
-  if (boldHeadingMatch) {
-    citation = boldHeadingMatch[0] + ": " + citation;
-  }
-  return citation;
-}
-
 
 function fixDashes(citation) {
   citation = citation.replace("&ndash;", "–");
@@ -6972,6 +6405,36 @@ export async function generateBio() {
   // Create a map to store the narratives for each census year
   let censusNarratives = new Map();
 
+  // Initialize a new map to hold the counters for each base refName
+  // Initialize a new map to hold the counters for each base refName
+  let refNameCounter = new Map();
+  /*
+  marriagesAndCensusesEtc.forEach((event, index) => {
+    if (event.Texts) {
+      event.Texts.forEach((text, textIndex) => {
+        // Generate a base refName using the event type and year
+        const baseRefName = `${event["Event Type"]}_${event.Year}`;
+
+        // If the counter for this base refName already exists, increment it; otherwise, initialize it
+        if (refNameCounter.has(baseRefName)) {
+          refNameCounter.set(baseRefName, refNameCounter.get(baseRefName) + 1);
+        } else {
+          refNameCounter.set(baseRefName, 0);
+        }
+
+        // Create a new Text object for each citation, with its own unique RefName
+        let newText = {
+          Text: text,
+          RefName: `${baseRefName}_${refNameCounter.get(baseRefName)}`,
+          Used: false,
+        };
+
+        // Replace the original citation with the new Text object
+        event.Texts[textIndex] = newText;
+      });
+    }
+  });
+*/
   // Grouping logic
   let allEvents = [];
   let previousEventObject;
@@ -6990,8 +6453,16 @@ export async function generateBio() {
         Used: false,
         RefName: newRefName,
       };
-
+      /*
+      marriagesAndCensusesEtc.forEach(function (event2) {
+        if (event2.Text == event.Text) {
+          event2.RefName = newRefName;
+        }
+      });
+      */
       event.RefName = newRefName;
+      console.log(newRefName);
+      console.log(event.RefName);
       if (previousEventObject) {
         if (previousEventObject.Texts) {
           previousEventObject.Texts.push(thisObj);
@@ -7007,11 +6478,6 @@ export async function generateBio() {
   if (previousEventObject) {
     allEvents.push(previousEventObject);
   }
-
-
-  let marriagesAndCensusesText = "";
-  allEvents.forEach(function (anEvent, i) {
-
   console.log(allEvents);
   console.log(JSON.parse(JSON.stringify(marriagesAndCensusesEtc)));
 
@@ -7178,6 +6644,23 @@ export async function generateBio() {
     }
   });
 
+  // Update RefName and Used values in marriagesAndCensusesEtc
+  /*
+  marriagesAndCensusesEtc.forEach((event) => {
+    allEvents.forEach((allEvent) => {
+      if (allEvent["Event Type"] + " " + allEvent.Year == event["Event Type"] + " " + event.Year) {
+        event.RefName = allEvent.RefName;
+        event.Used = allEvent.Used;
+      }
+    });
+  });
+  */
+
+  // Rest of your code...
+
+  /*
+   let marriagesAndCensusesText = "";
+  marriagesAndCensusesEtc.forEach(function (anEvent, i) {
     if (anEvent["Record Type"]) {
       if (anEvent["Record Type"].includes("Marriage")) {
         anEvent["Event Type"] = "Marriage";
@@ -7185,7 +6668,6 @@ export async function generateBio() {
 
       if (anEvent["Record Type"].includes("Census") && anEvent.Narrative) {
         if (anEvent.Narrative.length > 10) {
-
           // Get the year of the census
           let censusYear = anEvent["Census Year"];
 
@@ -7200,10 +6682,11 @@ export async function generateBio() {
           }
 
           let narrativeBits = anEvent.Narrative.split(/,/);
+
+          // Minimal places again
           let aBit = minimalPlace2(narrativeBits);
           marriagesAndCensusesText += aBit;
-
-          // Handle references
+          // Add the reference
           let listText = "";
           if (Array.isArray(anEvent.ListText)) {
             listText = "\n" + anEvent.ListText.join("\n");
@@ -7212,47 +6695,21 @@ export async function generateBio() {
           } else if (anEvent.sourcerText) {
             listText = "\n" + anEvent.sourcerText;
           }
-
-          let refNameBit = ""; // separate variable for reference name
-          let refsText = ""; // separate string for references
-          if (anEvent.Texts) {
-            anEvent.Texts.forEach((text, textIndex) => {
-              refNameBit = text.RefName ? " name='" + text.RefName + "'" : " name='ref_" + textIndex + "'";
-              if (text.Used == true) {
-                refsText += " <ref" + refNameBit + " />";
-              } else {
-                refsText += " <ref" + refNameBit + ">" + text.Text + "</ref>";
-                text.Used = true;
-                marriagesAndCensusesEtc.forEach(function (event) {
-                  if (event.RefName == text.RefName) {
-                    event.Used = true;
-                  }
-                });
-              }
-            });
-          } else if (anEvent.Text) {
-            let refNameBit = anEvent.RefName ? " name='" + anEvent.RefName + "'" : " name='ref_" + i + "'";
-            if (anEvent.Used == true) {
-              refsText += " <ref" + refNameBit + " />";
+          let refNameBit = anEvent.RefName ? " name='" + anEvent.RefName + "'" : " name='ref_" + i + "'";
+          if (anEvent.Used == true) {
+            marriagesAndCensusesText += " <ref" + refNameBit + " />";
+          } else {
+            if (window.autoBioOptions.householdTable && listText.match(/\{\|/)) {
+              marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + "</ref>\n" + listText;
             } else {
-              refsText += " <ref" + refNameBit + ">" + anEvent.Text + "</ref>";
-              anEvent.Used = true;
-
+              marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + listText + "</ref>";
             }
           }
-
-          marriagesAndCensusesText += refsText; // append references
-
-          if (window.autoBioOptions.householdTable && listText.match(/\{\|/)) {
-            marriagesAndCensusesText += listText; // append household table only once
-          }
-
           marriagesAndCensusesText += "\n\n";
           anEvent.Used = true;
           anEvent.RefName = anEvent.RefName ? anEvent.RefName : "ref_" + i;
         }
       } else {
-        // Handle non-census records
         if (anEvent.Narrative) {
           if (anEvent.SpouseChildren) {
             window.childrenShown = true;
@@ -7262,7 +6719,6 @@ export async function generateBio() {
             anEvent.Narrative = anEvent.Narrative.replace("other child", "child");
           }
           const theseRefs = [];
-
           window.references.forEach(function (aRef, i) {
             if (
               anEvent["Record Type"].includes(aRef["Record Type"]) &&
@@ -7330,7 +6786,6 @@ export async function generateBio() {
               }
             }
           });
-
           let narrativeBits = anEvent.Narrative.split(",");
           if (anEvent.FactType == "Burial") {
             window.profilePerson.BurialFact = minimalPlace2(narrativeBits) + thisRef + "\n\n";
@@ -7344,7 +6799,7 @@ export async function generateBio() {
       marriagesAndCensusesText += anEvent.Narrative + "\n\n";
     }
   });
-
+  */
   console.log("marriagesAndCensuses", marriagesAndCensusesEtc);
 
   // Add Military and Obituary subsections
