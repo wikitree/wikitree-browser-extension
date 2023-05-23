@@ -2688,16 +2688,19 @@ function parseFamilyData(familyData, options = { format: "list", year: "" }) {
     const parts = line.split(lineRegex);
     const person = {};
 
-    parts.forEach((part, index) => {
-      if (columnMapping[index] === "Name") {
-        person[columnMapping[index]] = part.replace(/^[*#:]+/, "").trim();
-      } else if (columnMapping[index] === "Gender") {
-        person[columnMapping[index]] = part === "M" ? "Male" : "Female";
+    Object.keys(columnMapping).forEach((key) => {
+      const part = parts[columnMapping[key]];
+
+      if (key === "Name") {
+        person[key] = part.replace(/^[*#:]+/, "").trim();
+      } else if (key === "Gender") {
+        person[key] = part === "M" ? "Male" : "Female";
       } else {
-        person[columnMapping[index]] = part;
+        person[key] = part;
       }
-      if (options.year && columnMapping[index] === "Age") {
-        person.BirthYear = parseInt(options.year - person.Age);
+
+      if (options.year && key === "Age") {
+        person.BirthYear = parseInt(options.year - person[key]);
       }
     });
 
@@ -2706,7 +2709,6 @@ function parseFamilyData(familyData, options = { format: "list", year: "" }) {
     }
     return person;
   });
-
   return result;
 }
 
@@ -4854,10 +4856,10 @@ function getSourcerCensuses() {
   refs.forEach((ref) => ref.remove());
   const text = dummy.innerHTML;
 
-  const regexWikitable = /In the (\d{4}) census[^]+?(\{\|[^]+?\|\})(?![^]*\{\|[^]+?\|\})/g;
+  //const regexWikitable = /In the (\d{4}) census[^]+?(\{\|[^]+?\|\})(?![^]*\{\|[^]+?\|\})/g;
 
-  //const regexNonWikitable = /In the (\d{4}) census[^{=]*?\n([.:#*].+?)(?=\n[^:#*])/gms;
-  const regexNonWikitable = /In the (\d{4}) census((?!.*\{\|.*\|\}).*?)(?=\n[^:#*])/gs;
+  const regexNonWikitable = /In the (\d{4}) census[^{=]*?\n([.:#*].+?)(?=\n[^:#*])/gms;
+  //const regexNonWikitable = /In the (\d{4}) census((?!.*\{\|.*\|\}).*?)(?=\n[^:#*])/gs;
 
   let textChunks = text.split(/(In the \d{4} census[^]+?)(?=In the \d{4} census|$)/i);
   let censusData = {};
@@ -4896,7 +4898,7 @@ function getSourcerCensuses() {
     };
   }
 
-  /(In the \d{4} census[^]+?)(?=In the \d{4} census|$)/;
+  //(In the \d{4} census[^]+?)(?=In the \d{4} census|$)/;
   for (const match of text.matchAll(regexNonWikitable)) {
     const matchSplit = match[0].split(/\n(?=[.*#:])/);
     let household;
@@ -4922,7 +4924,6 @@ function getSourcerCensuses() {
   for (const key in tempCensuses) {
     censuses.push(tempCensuses[key]);
   }
-  console.log(JSON.parse(JSON.stringify(censuses)));
 
   // For non-Sourcer narrative ones
   const censusListRegex = /((?:1[789]\d{2}).*?)(?=1[789]\d{2}|$)/gs;
@@ -6195,7 +6196,7 @@ export async function generateBio() {
   buildFamilyForPrivateProfiles();
   //}
 
-  console.log(JSON.parse(JSON.stringify(window.profilePerson)));
+  console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
 
   const nuclearFamily = familyArray(window.profilePerson);
   console.log(JSON.parse(JSON.stringify(nuclearFamily)));
@@ -6453,16 +6454,7 @@ export async function generateBio() {
         Used: false,
         RefName: newRefName,
       };
-      /*
-      marriagesAndCensusesEtc.forEach(function (event2) {
-        if (event2.Text == event.Text) {
-          event2.RefName = newRefName;
-        }
-      });
-      */
       event.RefName = newRefName;
-      console.log(newRefName);
-      console.log(event.RefName);
       if (previousEventObject) {
         if (previousEventObject.Texts) {
           previousEventObject.Texts.push(thisObj);
@@ -6478,8 +6470,6 @@ export async function generateBio() {
   if (previousEventObject) {
     allEvents.push(previousEventObject);
   }
-  console.log(allEvents);
-  console.log(JSON.parse(JSON.stringify(marriagesAndCensusesEtc)));
 
   let marriagesAndCensusesText = "";
   allEvents.forEach(function (anEvent, i) {
