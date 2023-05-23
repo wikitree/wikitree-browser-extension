@@ -11,6 +11,10 @@ import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/opt
 let previewClasses = "x-page-preview";
 
 function onHoverIn($element) {
+  if ($element.get(0).xCancelHover) {
+    // if they already clicked on the link, don't pop up the preview
+    return false;
+  }
   hideActivePreview();
   const match = $element[0].href.match(/\/wiki\/((\w+):.*?)(#.*|$)/i);
   const pageType = match[2].toLowerCase();
@@ -26,6 +30,9 @@ function onHoverIn($element) {
       if ($element.closest('*[class$="suggestion-maplink"]').length > 0) {
         // a bug in Safari causes the fixed window to be clipped, so we'll add it to the body instead
         $(document.body).append($popup);
+      } else if ($element.closest("dialog").length > 0) {
+        // if the preview is inside a dialog element, add it to the end of the dialog body instead of after the link
+        $element.closest("dialog").append($popup);
       } else {
         $element.after($popup);
       }
@@ -359,6 +366,14 @@ function attachHover(target) {
         return false;
       })
       .attr("title", "")
+      .on("mousedown", function () {
+        hideActivePreview();
+        let self = this;
+        self.xCancelHover = true;
+        window.setTimeout(function () {
+          self.xCancelHover = false;
+        }, 500);
+      })
       .hoverDelay({
         delayIn: 500,
         delayOut: 0,
