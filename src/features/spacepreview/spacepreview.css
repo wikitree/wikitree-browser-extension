@@ -18,6 +18,7 @@
   font-weight: normal;
   text-decoration: none;
   text-align: left;
+  line-height: normal;
 }
 
 /* special handling for previews on pins inside WT+ modal dialogs and autocomplete suggestions */

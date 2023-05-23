@@ -30,11 +30,22 @@ function onHoverIn($element) {
         $element.after($popup);
       }
       $popup.append(content.body);
+      let hashTarget = null,
+        hash = $element[0].hash;
+      if (hash) {
+        hash = hash.substr(1);
+      }
       $popup.find('a[name], *[id], a[href^="#"]').each(function () {
         if (this.name) {
+          if (this.name === hash) {
+            hashTarget = this;
+          }
           this.name = "_xPagePreview_" + this.name;
         }
         if (this.id) {
+          if (this.id === hash) {
+            hashTarget = this;
+          }
           this.id = "_xPagePreview_" + this.id;
         }
         if (this.href) {
@@ -107,6 +118,9 @@ function onHoverIn($element) {
       visibleElements.first().addClass("x-first-visible");
       visibleElements.last().addClass("x-last-visible");
       $popup.fadeIn("fast");
+      if (hashTarget) {
+        $popup.get(0).scrollTop = hashTarget.offsetTop;
+      }
     })
     .catch((reason) => {
       console.warn(reason);
@@ -184,7 +198,7 @@ function parseSpaceContent(response) {
     .addClass("preview-audit");
   // mark all elements above the TOC or first heading as part of the header
   let head = $content.children("h2, .toc").first();
-  if (head.length === 0) head = $content.children(".preview-audit").first();
+  if (head.length === 0) head = $content.children(".preview-audit").last();
   if (head.length === 0) {
     head = $content
       .children('.SMALL[style*="background-color"]')
@@ -201,10 +215,12 @@ function parseSpaceContent(response) {
       head = head.previousSibling;
       if (node.nodeType === 3 && /\S/.test(node.textContent)) {
         $(node).wrap('<span class="preview-header"></span>');
-      } else {
-        node = $(node).addClass("preview-header");
-        if (node.is('.SMALL[style*="background-color"]')) {
-          node.removeClass("preview-header").addClass("preview-audit");
+      } else if (node.nodeType === 1) {
+        let $node = $(node);
+        if ($node.is('.SMALL[style*="background-color"]')) {
+          $node.addClass("preview-audit");
+        } else {
+          $node.removeClass("preview-audit").addClass("preview-header");
         }
       }
     }
