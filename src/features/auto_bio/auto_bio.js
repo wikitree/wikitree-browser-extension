@@ -6176,7 +6176,7 @@ export async function generateBio() {
     let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
 
     window.biographyPeople = await getProfile(
-      profileID1,
+      profileID,
       "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix,BirthDate,DeathDate,BirthLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren,NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings",
       "AutoBio"
     );
