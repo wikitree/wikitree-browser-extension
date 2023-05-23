@@ -77,7 +77,13 @@ async function moveCategories() {
       break;
     case "top":
       $("#categories").find('span[class="SMALL"]').remove();
-      $('div[style*="background-color:#eee"]:contains("page has been accessed")').next().after($("#categories"));
+      let $target = $('div[style*="background-color:#eee"]:contains("page has been accessed")');
+      let $next = $target.next();
+      if ($next.is('div[style*="clear"]')) {
+        // sometimes this div is missing on free-space pages that are managed by the logged in user
+        $target = $next;
+      }
+      $target.after($("#categories"));
       break;
     case "default":
       break;

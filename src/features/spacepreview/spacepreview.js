@@ -192,7 +192,11 @@ function parseSpaceContent(response) {
   $content = $content.find(".columns.ten");
   // flag the colored audit box plus the div below it to clear the float
   $content
-    .find('.SMALL[style*="background-color"] + div[style*="clear"]')
+    .find(
+      '.SMALL[style*="background-color"] + div[style*="clear"], ' +
+        '.SMALL[style*="background-color"]:contains("page has been accessed")'
+    )
+    .last()
     .prevAll()
     .addBack()
     .addClass("preview-audit");
