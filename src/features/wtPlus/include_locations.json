@@ -1,0 +1,11 @@
+[{
+	"description": "Germany",
+	"actions": [{
+		"description": "Württemberg",
+		"example": "Wu(e)rttemberg > Württemberg",
+		"action": "replaceRegEx",
+		"from": "\\bWue?rttemberg\\b",
+		"to": "Württemberg",
+		"flags": "mgi"
+	}]
+}]

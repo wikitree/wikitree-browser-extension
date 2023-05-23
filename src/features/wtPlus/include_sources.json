@@ -1,0 +1,150 @@
+[{
+	"description": "FindAGrave URL",
+	"example": "https://www.findagrave.com/memorial/1234/asdf_asdf",
+	"conditions": [{
+		"action": "startsWith",
+		"find": "https://www.findagrave.com/memorial/"
+	}],
+	"actions": [{
+		"action": "replaceRegEx",
+		"from": "https://www\\.findagrave\\.com/memorial/(\\d*)/?(.*)",
+		"to": "{{FindAGrave|$1}} $2"
+	}]
+},{
+	"description": "FindAGrave citation",
+	"example": "Find a Grave, database and images (www.findagrave.com/memorial/1234/iris-m.-robbins: accessed 25 April 2021), memorial page for Iris M. Robbins (1916–1994), Find a Grave Memorial ID 99837394, citing Chase Cemetery, Windham Center, Cumberland County, Maine, USA ; Maintained by gbodge (contributor 4567).",
+	"conditions": [{
+		"action": "startsWith",
+		"find": "Find a Grave, database and images "
+	}],
+	"actions": [{
+		"action": "replaceRegEx",
+		"from": "https://",
+		"to": ""
+	},{
+		"action": "replaceRegEx",
+		"from": "Find a Grave Memorial ID (\\d*)\\,",
+		"to": "{{FindAGrave|$1}},"
+	}]
+},{
+	"description": "WikiData URL",
+	"example": "https://www.wikidata.org/wiki/Q75532495",
+	"conditions": [{
+		"action": "startsWith",
+		"find": "https://www.wikidata.org/wiki/"
+	}],
+	"actions": [{
+		"action": "replaceRegEx",
+		"from": "https://www\\.wikidata\\.org/wiki/(Q\\d*)",
+		"to": "{{Wikidata|$1}}"
+	}]
+},{
+	"description": "Wikipedia URL",
+	"example": "https://it.wikipedia.org/wiki/Bonifacio_del_Vasto",
+	"conditions": [{
+		"action": "startsWith",
+		"find": "https://"
+	},{
+		"action": "includes",
+		"find": ".wikipedia.org/wiki/"
+	}],
+	"actions": [{
+		"action": "replaceRegEx",
+		"from": "https://www\\.wikipedia\\.org/wiki/(.*)",
+		"to": "[[Wikipedia:$1]]"
+	},{
+		"action": "replaceRegEx",
+		"from": "https://(..)\\.wikipedia\\.org/wiki/(.*)",
+		"to": "[[Wikipedia:$1:$2]]"
+	}]
+},{
+	"description": "Ancestry Sharing URL",
+	"example": "https://www.ancestry.com/sharing/21675347?h=9854d0&utm_campaign=bandido-webparts&utm_source=post-share-modal&utm_medium=copy-url",
+	"conditions": [{
+		"action": "startsWith",
+		"find": "https://www.ancestry.co.uk/sharing/"
+	},{
+		"action": "startsWith",
+		"find": "https://www.ancestry.com/sharing/"
+	}],
+	"actions": [{
+		"action": "replaceRegEx",
+		"from": "https://www\\.ancestry\\.(com|co\\.uk)/sharing/\\d*\\?h=([a-z0-9]*).*",
+		"to": "{{Ancestry Sharing|$2|$3}}"
+	}]
+},{
+	"description": "Ancestry Tree URL",
+	"example": "https://www.ancestry.com/family-tree/person/tree/79547272/person/322123697939/facts",
+	"conditions": [{
+		"action": "startsWith",
+		"find": "https://www.ancestry.co.uk/family-tree/person/tree/"
+	},{
+		"action": "startsWith",
+		"find": "https://www.ancestry.com/family-tree/person/tree/"
+	}],
+	"actions": [{
+		"action": "replaceRegEx",
+		"from": "https://www\\.ancestry\\.(com|co\\.uk)/family-tree/person/tree/(\\d*)/person/(\\d*)/facts",
+		"to": "{{Ancestry Tree|$2|$3}}"
+	}]
+},{
+	"description": "FamillySearch Record URL",
+	"example": "https://www.familysearch.org/ark:/61903/1:1:MFKY-YJQ",
+	"conditions": [{
+		"action": "startsWith",
+		"find": "https://www.familysearch.org/ark:/61903/1:1:"
+	}],
+	"actions": [{
+		"action": "replaceRegEx",
+		"from": "https://www\\.familysearch\\.org/ark\\:\/61903/1\\:1\\:([A-Z0-9]*-[A-Z0-9]*)(.*)",
+		"to": "{{FamillySearch Record|$1}}"
+	}]
+},{
+	"description": "FamillySearch Image URL",
+	"example": "https://www.familysearch.org/ark:/61903/3:1:33SQ-GYPR-SK1F?i=1012&cc=1491143",
+	"conditions": [{
+		"action": "startsWith",
+		"find": "https://www.familysearch.org/ark:/61903/3:1:"
+	}],
+	"actions": [{
+		"action": "replaceRegEx",
+		"from": "https://www\\.familysearch\\.org/ark\\:/61903/3\\:1\\:([A-Z0-9]*-[A-Z0-9]*-[A-Z0-9]*)(.*)",
+		"to": "{{FamillySearch Image|$1}}"
+	}]
+},{
+	"description": "FamillySearch Image Citation",
+	"example": "\"Slovenia, Ljubljana, Funeral Accounts, 1937-1970,\" database with images, FamilySearch (https://familysearch.org/ark:/61903/3:1:33SQ-GYPR-SK1F?cc=1491143&wc=M624-W3D%3A53807701%2C57316401%2C57350201 : 21 May 2014), Burial account (Pogreb razreda) > 1968 > vol 291-1021, no 569-1469 > image 1013 of 1249; Zgodovinski Arhiv (Historical Archives), Ljubljana.",
+	"conditions": [{
+		"action": "includes",
+		"find": "FamilySearch (https://familysearch.org/ark:/61903/3:1:"
+	}],
+	"actions": [{
+		"action": "replaceRegEx",
+		"from": "(.*?)https://familysearch\\.org/ark\\:/61903/3\\:1\\:([A-Z0-9]*-[A-Z0-9]*-[A-Z0-9]*).*? (.*)",
+		"to": "$1{{FamillySearch Image|$2}} $3"
+	}]
+},{
+	"description": "PRDH URL Members",
+	"example": "https://www.prdh-igd.com/Membership/en/PRDH/Famille/620",
+	"conditions": [{
+		"action": "includes",
+		"find": "https://www.prdh-igd.com/Membership/"
+	}],
+	"actions": [{
+		"action": "replaceRegEx",
+		"from": "https://www.prdh-igd.com/Membership/(fr|en)/PRDH/(Famille|Individu|Descendance|Union|Acte)/(\\d*)",
+		"to": "{{PRDH|$2|$3|lang=$1}}"
+	}]
+},{
+	"description": "PRDH URL Free",
+	"example": "https://www.prdh-igd.com/Membership/en/PRDH/Famille/620",
+	"conditions": [{
+		"action": "includes",
+		"find": "https://www.prdh-igd.com/"
+	}],
+	"actions": [{
+		"action": "replaceRegEx",
+		"from": "https://www.prdh-igd.com/(fr|en)/Pionnier/(\\d*)",
+		"to": "{{PRDH|Pionnier|$2|lang=$1}}"
+	}]
+}]
