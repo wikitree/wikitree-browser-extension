@@ -6156,260 +6156,262 @@ export function buildFamilyForPrivateProfiles() {
 }
 
 export async function generateBio() {
-  window.autoBioNotes = [];
-
-  // Sort First Name Variants by length
-  for (let key in firstNameVariants) {
-    firstNameVariants[key].sort(function (a, b) {
-      return b.length - a.length;
-    });
-  }
-
-  addWorking();
-  const currentBio = $("#wpTextbox1").val();
-  localStorage.setItem("previousBio", currentBio);
-  // Split the current bio into sections
-  window.sectionsObject = splitBioIntoSections();
-
-  window.usedPlaces = [];
-  let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
-
-  window.biographyPeople = await getProfile(
-    profileID,
-    "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix,BirthDate,DeathDate,BirthLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren,NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings",
-    "AutoBio"
-  );
-  window.profilePerson = window.biographyPeople;
-  const originalFormData = getFormData();
-
-  const originalFirstName = window.profilePerson.FirstName;
-  // Get the form data and add it to the profilePerson
-  const formData = getFormData();
-  let personKeys = Object.keys(formData);
-  personKeys.forEach(function (aKey) {
-    if (!(aKey == "BirthDate" && formData[aKey] == null)) {
-      window.profilePerson[aKey] = formData[aKey];
-    }
-  });
-
-  // if ($("img[title='Privacy Level: Unlisted']").length > 0) {
-  buildFamilyForPrivateProfiles();
-  //}
-
-  console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
-
-  const nuclearFamily = familyArray(window.profilePerson);
-  console.log(JSON.parse(JSON.stringify(nuclearFamily)));
-  nuclearFamily.forEach(function (member) {
-    if (member) {
-      assignPersonNames(member);
-      setOrderBirthDate(member);
-    }
-  });
-  fixLocations();
-
-  if (!window.autoBioNotes) {
+  try {
     window.autoBioNotes = [];
-  }
 
-  if (!window.profilePerson.Parents) {
-    window.autoBioNotes.push("You may get better results by logging in to the apps server (click the button above).");
-    addLoginButton();
-  } else {
-    window.profilePerson.BirthYear = window.profilePerson.BirthDate?.split("-")[0];
-    window.profilePerson.DeathYear = window.profilePerson.DeathDate?.split("-")[0];
-  }
-
-  // Get spouse parents
-  if (!(Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses.length === 0)) {
-    let spouseKeys = Object.keys(window.profilePerson.Spouses);
-    window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 1, 1, "*", "WBE_auto_bio");
-    const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
-    biographySpouseParentsKeys.forEach(function (key) {
-      const person = window.biographySpouseParents[0].people[key];
-      assignPersonNames(person);
-    });
-  }
-  console.log("biographySpouseParents", window.biographySpouseParents);
-
-  // window.profilePerson.BirthName is their FirstName + MiddleName if they have a MiddleName
-  if (isOK(window.profilePerson.MiddleName)) {
-    window.profilePerson.BirthName = window.profilePerson.FirstName + " " + window.profilePerson.MiddleName;
-  } else {
-    window.profilePerson.BirthName = window.profilePerson.FirstName;
-  }
-
-  if (window.profilePerson.RealName == originalFirstName) {
-    window.profilePerson.RealName = window.profilePerson.FirstName;
-  }
-  // window.profilePerson.BirthNamePrivate is RealName LastNameAtBirth Suffix
-  if (isOK(window.profilePerson.Suffix)) {
-    window.profilePerson.BirthNamePrivate =
-      window.profilePerson.RealName + " " + window.profilePerson.LastNameAtBirth + " " + window.profilePerson.Suffix;
-  } else {
-    window.profilePerson.BirthNamePrivate = window.profilePerson.RealName + " " + window.profilePerson.LastNameAtBirth;
-  }
-  console.log(JSON.parse(JSON.stringify(window.profilePerson)));
-  assignPersonNames(window.profilePerson);
-  if (isOK(window.profilePerson.BirthDate) && window.profilePerson.BirthDate.match("-") == null) {
-    window.profilePerson.BirthDate = convertDate(window.profilePerson.BirthDate, "ISO");
-  }
-  if (isOK(window.profilePerson.DeathDate) && window.profilePerson.DeathDate.match("-") == null) {
-    window.profilePerson.DeathDate = convertDate(window.profilePerson.DeathDate, "ISO");
-  }
-  window.profilePerson.Pronouns = getPronouns(window.profilePerson);
-  window.profilePerson.NameVariants = getNameVariants(window.profilePerson);
-  // Handle census data created with Sourcer
-  window.sourcerCensuses = getSourcerCensuses();
-
-  console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
-
-  // Create the references array
-  if (window.sectionsObject.Sources) {
-    window.sourcesSection = window.sectionsObject.Sources;
-  }
-  sourcesArray(currentBio);
-  console.log("references", JSON.parse(JSON.stringify(window.references)));
-
-  // Update references with Find A Grave citations
-  await getCitations();
-
-  // Start OUTPUT
-  const bioHeader = "== Biography ==\n";
-
-  // Stickers and boxes
-  const stickersAndBoxes = await getStickersAndBoxes();
-  const bioHeaderAndStickers = bioHeader + stickersAndBoxes;
-
-  //Add birth
-  const birthText = buildBirth(window.profilePerson) + "\n\n";
-  let deathText = buildDeath(window.profilePerson) + (window.profilePerson.BurialFact || "");
-  if (isOK(deathText)) {
-    deathText += "\n\n";
-  } else {
-    deathText = "";
-  }
-  // Add siblings
-  const siblingListText = siblingList() || "";
-
-  // Get marriages and censuses, order them by date
-  // and add them to the text
-  getFamilySearchFacts();
-  let marriages = [];
-  if (window.profilePerson.Spouses) {
-    marriages = buildSpouses(window.profilePerson);
-  }
-  const marriagesAndCensusesEtc = [...marriages];
-
-  // Get children who were not from one of the spouses
-  if (!Array.isArray(window.profilePerson.Children) && window.profilePerson.Children) {
-    const childrenKeys = Object.keys(window.profilePerson.Children);
-    let aChildList;
-    if (Array.isArray(window.profilePerson.Spouses)) {
-      aChildList = childList(window.profilePerson, false);
-    } else {
-      aChildList = childList(window.profilePerson, "other");
-    }
-    const eventDateMatch = aChildList.match(/(\d{4})–/);
-    const firstBirth = window.profilePerson.Children[childrenKeys[0]].BirthDate;
-    let eventDate;
-    if (firstBirth) {
-      eventDate = firstBirth;
-    }
-    if (eventDateMatch) {
-      eventDate = eventDateMatch[1] + "-00-00";
-    } else {
-      eventDate = "0000-00-00";
-    }
-    const orderDate = eventDate.replaceAll(/-/g, "");
-    const newEvent = {
-      "Record Type": ["ChildList"],
-      "Event Type": "Children",
-      "Event Date": eventDate,
-      Narrative: aChildList,
-      Source: "",
-      OrderDate: orderDate,
-    };
-    marriagesAndCensusesEtc.push(newEvent);
-  }
-
-  if (window.familySearchFacts) {
-    marriagesAndCensusesEtc.push(...window.familySearchFacts);
-  }
-  const wars = [];
-  const warRefs = [];
-  window.references.forEach(function (aRef) {
-    if (
-      aRef["Record Type"].includes("Census") ||
-      aRef["Record Type"].includes("Divorce") ||
-      aRef["Record Type"].includes("Prison")
-    ) {
-      marriagesAndCensusesEtc.push(aRef);
-    }
-    if (aRef["Record Type"].includes("Military")) {
-      if (!wars.includes(aRef.War)) {
-        wars.push(aRef.War);
-        warRefs.push(aRef);
-      }
-    }
-  });
-  if (wars.length) {
-    warRefs.forEach(function (aWar) {
-      marriagesAndCensusesEtc.push({
-        Narrative: aWar.Narrative,
-        OrderDate: formatDate(aWar["Event Date"], 0, { format: 8 }),
-        "Record Type": ["Military"],
-        "Event Date": aWar["Event Date"],
-        "Event Year": aWar["Event Year"],
-        "Event Type": "Military",
-        War: aWar.War,
+    // Sort First Name Variants by length
+    for (let key in firstNameVariants) {
+      firstNameVariants[key].sort(function (a, b) {
+        return b.length - a.length;
       });
-    });
-  }
+    }
 
-  function minimalPlace2(narrativeBits) {
-    let used = 0;
-    let out = "";
-    let toSplice = [];
-    let usedPlaces = []; // array to store used place names
-    narrativeBits.forEach(function (aBit, index) {
-      let trimmed = aBit.replace(/\.$/, "").trim();
-      let placeName = trimmed.match(
-        /\b[A-Z][a-zA-Z]*(\s+[A-Z][a-zA-Z]*)*\b(?!.*\b[A-Z][a-zA-Z]*(\s+[A-Z][a-zA-Z]*)*\b)/
-      );
-      if (placeName) {
-        trimmed = placeName[0];
-        if (usedPlaces.includes(trimmed)) {
-          used++;
-          if (used > 1) {
-            toSplice.push(index);
-          }
-        } else {
-          usedPlaces.push(trimmed);
+    addWorking();
+    const currentBio = $("#wpTextbox1").val();
+    localStorage.setItem("previousBio", currentBio);
+    // Split the current bio into sections
+    window.sectionsObject = splitBioIntoSections();
+
+    window.usedPlaces = [];
+    let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
+
+    window.biographyPeople = await getProfile(
+      profileID1,
+      "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix,BirthDate,DeathDate,BirthLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren,NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings",
+      "AutoBio"
+    );
+    window.profilePerson = window.biographyPeople;
+    const originalFormData = getFormData();
+
+    const originalFirstName = window.profilePerson.FirstName;
+    // Get the form data and add it to the profilePerson
+    const formData = getFormData();
+    let personKeys = Object.keys(formData);
+    personKeys.forEach(function (aKey) {
+      if (!(aKey == "BirthDate" && formData[aKey] == null)) {
+        window.profilePerson[aKey] = formData[aKey];
+      }
+    });
+
+    // if ($("img[title='Privacy Level: Unlisted']").length > 0) {
+    buildFamilyForPrivateProfiles();
+    //}
+
+    console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
+
+    const nuclearFamily = familyArray(window.profilePerson);
+    console.log(JSON.parse(JSON.stringify(nuclearFamily)));
+    nuclearFamily.forEach(function (member) {
+      if (member) {
+        assignPersonNames(member);
+        setOrderBirthDate(member);
+      }
+    });
+    fixLocations();
+
+    if (!window.autoBioNotes) {
+      window.autoBioNotes = [];
+    }
+
+    if (!window.profilePerson.Parents) {
+      window.autoBioNotes.push("You may get better results by logging in to the apps server (click the button above).");
+      addLoginButton();
+    } else {
+      window.profilePerson.BirthYear = window.profilePerson.BirthDate?.split("-")[0];
+      window.profilePerson.DeathYear = window.profilePerson.DeathDate?.split("-")[0];
+    }
+
+    // Get spouse parents
+    if (!(Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses.length === 0)) {
+      let spouseKeys = Object.keys(window.profilePerson.Spouses);
+      window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 1, 1, "*", "WBE_auto_bio");
+      const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
+      biographySpouseParentsKeys.forEach(function (key) {
+        const person = window.biographySpouseParents[0].people[key];
+        assignPersonNames(person);
+      });
+    }
+    console.log("biographySpouseParents", window.biographySpouseParents);
+
+    // window.profilePerson.BirthName is their FirstName + MiddleName if they have a MiddleName
+    if (isOK(window.profilePerson.MiddleName)) {
+      window.profilePerson.BirthName = window.profilePerson.FirstName + " " + window.profilePerson.MiddleName;
+    } else {
+      window.profilePerson.BirthName = window.profilePerson.FirstName;
+    }
+
+    if (window.profilePerson.RealName == originalFirstName) {
+      window.profilePerson.RealName = window.profilePerson.FirstName;
+    }
+    // window.profilePerson.BirthNamePrivate is RealName LastNameAtBirth Suffix
+    if (isOK(window.profilePerson.Suffix)) {
+      window.profilePerson.BirthNamePrivate =
+        window.profilePerson.RealName + " " + window.profilePerson.LastNameAtBirth + " " + window.profilePerson.Suffix;
+    } else {
+      window.profilePerson.BirthNamePrivate =
+        window.profilePerson.RealName + " " + window.profilePerson.LastNameAtBirth;
+    }
+    console.log(JSON.parse(JSON.stringify(window.profilePerson)));
+    assignPersonNames(window.profilePerson);
+    if (isOK(window.profilePerson.BirthDate) && window.profilePerson.BirthDate.match("-") == null) {
+      window.profilePerson.BirthDate = convertDate(window.profilePerson.BirthDate, "ISO");
+    }
+    if (isOK(window.profilePerson.DeathDate) && window.profilePerson.DeathDate.match("-") == null) {
+      window.profilePerson.DeathDate = convertDate(window.profilePerson.DeathDate, "ISO");
+    }
+    window.profilePerson.Pronouns = getPronouns(window.profilePerson);
+    window.profilePerson.NameVariants = getNameVariants(window.profilePerson);
+    // Handle census data created with Sourcer
+    window.sourcerCensuses = getSourcerCensuses();
+
+    console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
+
+    // Create the references array
+    if (window.sectionsObject.Sources) {
+      window.sourcesSection = window.sectionsObject.Sources;
+    }
+    sourcesArray(currentBio);
+    console.log("references", JSON.parse(JSON.stringify(window.references)));
+
+    // Update references with Find A Grave citations
+    await getCitations();
+
+    // Start OUTPUT
+    const bioHeader = "== Biography ==\n";
+
+    // Stickers and boxes
+    const stickersAndBoxes = await getStickersAndBoxes();
+    const bioHeaderAndStickers = bioHeader + stickersAndBoxes;
+
+    //Add birth
+    const birthText = buildBirth(window.profilePerson) + "\n\n";
+    let deathText = buildDeath(window.profilePerson) + (window.profilePerson.BurialFact || "");
+    if (isOK(deathText)) {
+      deathText += "\n\n";
+    } else {
+      deathText = "";
+    }
+    // Add siblings
+    const siblingListText = siblingList() || "";
+
+    // Get marriages and censuses, order them by date
+    // and add them to the text
+    getFamilySearchFacts();
+    let marriages = [];
+    if (window.profilePerson.Spouses) {
+      marriages = buildSpouses(window.profilePerson);
+    }
+    const marriagesAndCensusesEtc = [...marriages];
+
+    // Get children who were not from one of the spouses
+    if (!Array.isArray(window.profilePerson.Children) && window.profilePerson.Children) {
+      const childrenKeys = Object.keys(window.profilePerson.Children);
+      let aChildList;
+      if (Array.isArray(window.profilePerson.Spouses)) {
+        aChildList = childList(window.profilePerson, false);
+      } else {
+        aChildList = childList(window.profilePerson, "other");
+      }
+      const eventDateMatch = aChildList.match(/(\d{4})–/);
+      const firstBirth = window.profilePerson.Children[childrenKeys[0]].BirthDate;
+      let eventDate;
+      if (firstBirth) {
+        eventDate = firstBirth;
+      }
+      if (eventDateMatch) {
+        eventDate = eventDateMatch[1] + "-00-00";
+      } else {
+        eventDate = "0000-00-00";
+      }
+      const orderDate = eventDate.replaceAll(/-/g, "");
+      const newEvent = {
+        "Record Type": ["ChildList"],
+        "Event Type": "Children",
+        "Event Date": eventDate,
+        Narrative: aChildList,
+        Source: "",
+        OrderDate: orderDate,
+      };
+      marriagesAndCensusesEtc.push(newEvent);
+    }
+
+    if (window.familySearchFacts) {
+      marriagesAndCensusesEtc.push(...window.familySearchFacts);
+    }
+    const wars = [];
+    const warRefs = [];
+    window.references.forEach(function (aRef) {
+      if (
+        aRef["Record Type"].includes("Census") ||
+        aRef["Record Type"].includes("Divorce") ||
+        aRef["Record Type"].includes("Prison")
+      ) {
+        marriagesAndCensusesEtc.push(aRef);
+      }
+      if (aRef["Record Type"].includes("Military")) {
+        if (!wars.includes(aRef.War)) {
+          wars.push(aRef.War);
+          warRefs.push(aRef);
         }
       }
     });
-    if (toSplice.length) {
-      for (let i = toSplice.length - 1; i >= 0; i--) {
-        narrativeBits.splice(toSplice[i], 1);
+    if (wars.length) {
+      warRefs.forEach(function (aWar) {
+        marriagesAndCensusesEtc.push({
+          Narrative: aWar.Narrative,
+          OrderDate: formatDate(aWar["Event Date"], 0, { format: 8 }),
+          "Record Type": ["Military"],
+          "Event Date": aWar["Event Date"],
+          "Event Year": aWar["Event Year"],
+          "Event Type": "Military",
+          War: aWar.War,
+        });
+      });
+    }
+
+    function minimalPlace2(narrativeBits) {
+      let used = 0;
+      let out = "";
+      let toSplice = [];
+      let usedPlaces = []; // array to store used place names
+      narrativeBits.forEach(function (aBit, index) {
+        let trimmed = aBit.replace(/\.$/, "").trim();
+        let placeName = trimmed.match(
+          /\b[A-Z][a-zA-Z]*(\s+[A-Z][a-zA-Z]*)*\b(?!.*\b[A-Z][a-zA-Z]*(\s+[A-Z][a-zA-Z]*)*\b)/
+        );
+        if (placeName) {
+          trimmed = placeName[0];
+          if (usedPlaces.includes(trimmed)) {
+            used++;
+            if (used > 1) {
+              toSplice.push(index);
+            }
+          } else {
+            usedPlaces.push(trimmed);
+          }
+        }
+      });
+      if (toSplice.length) {
+        for (let i = toSplice.length - 1; i >= 0; i--) {
+          narrativeBits.splice(toSplice[i], 1);
+        }
       }
+      out = narrativeBits.join(",");
+      if (out.match(/\.$/) == null) {
+        out += ".";
+      }
+      return out;
     }
-    out = narrativeBits.join(",");
-    if (out.match(/\.$/) == null) {
-      out += ".";
-    }
-    return out;
-  }
-  marriagesAndCensusesEtc.sort((a, b) => parseInt(a.OrderDate) - parseInt(b.OrderDate));
+    marriagesAndCensusesEtc.sort((a, b) => parseInt(a.OrderDate) - parseInt(b.OrderDate));
 
-  // Output marriages, censuses, military things, etc. in order
-  // Create a map to store the narratives for each census year
-  let censusNarratives = new Map();
+    // Output marriages, censuses, military things, etc. in order
+    // Create a map to store the narratives for each census year
+    let censusNarratives = new Map();
 
-  // Initialize a new map to hold the counters for each base refName
-  // Initialize a new map to hold the counters for each base refName
-  let refNameCounter = new Map();
-  /*
+    // Initialize a new map to hold the counters for each base refName
+    // Initialize a new map to hold the counters for each base refName
+    let refNameCounter = new Map();
+    /*
   marriagesAndCensusesEtc.forEach((event, index) => {
     if (event.Texts) {
       event.Texts.forEach((text, textIndex) => {
@@ -6436,206 +6438,207 @@ export async function generateBio() {
     }
   });
 */
-  // Grouping logic
-  let allEvents = [];
-  let previousEventObject;
-  marriagesAndCensusesEtc.forEach(function (event) {
-    let thisEvent = event["Event Type"] + " " + event.Year;
-    if (previousEventObject && previousEventObject["Event Type"] + " " + previousEventObject.Year != thisEvent) {
-      allEvents.push(previousEventObject);
-      previousEventObject = event;
-    } else {
-      const newRefName =
-        event.RefName +
-        "_" +
-        (previousEventObject?.Texts?.length ? parseInt(previousEventObject?.Texts?.length + 1) : 1);
-      const thisObj = {
-        Text: event.Text,
-        Used: false,
-        RefName: newRefName,
-      };
-      event.RefName = newRefName;
-      if (previousEventObject) {
-        if (previousEventObject.Texts) {
-          previousEventObject.Texts.push(thisObj);
+    // Grouping logic
+    let allEvents = [];
+    let previousEventObject;
+    marriagesAndCensusesEtc.forEach(function (event) {
+      let thisEvent = event["Event Type"] + " " + event.Year;
+      if (previousEventObject && previousEventObject["Event Type"] + " " + previousEventObject.Year != thisEvent) {
+        allEvents.push(previousEventObject);
+        previousEventObject = event;
+      } else {
+        const newRefName =
+          event.RefName +
+          "_" +
+          (previousEventObject?.Texts?.length ? parseInt(previousEventObject?.Texts?.length + 1) : 1);
+        const thisObj = {
+          Text: event.Text,
+          Used: false,
+          RefName: newRefName,
+        };
+        event.RefName = newRefName;
+        if (previousEventObject) {
+          if (previousEventObject.Texts) {
+            previousEventObject.Texts.push(thisObj);
+          } else {
+            previousEventObject.Texts = [thisObj];
+          }
         } else {
+          previousEventObject = event;
           previousEventObject.Texts = [thisObj];
         }
-      } else {
-        previousEventObject = event;
-        previousEventObject.Texts = [thisObj];
       }
+    });
+    if (previousEventObject) {
+      allEvents.push(previousEventObject);
     }
-  });
-  if (previousEventObject) {
-    allEvents.push(previousEventObject);
-  }
 
-  let marriagesAndCensusesText = "";
-  allEvents.forEach(function (anEvent, i) {
-    if (anEvent["Record Type"]) {
-      if (anEvent["Record Type"].includes("Marriage")) {
-        anEvent["Event Type"] = "Marriage";
-      }
+    let marriagesAndCensusesText = "";
+    allEvents.forEach(function (anEvent, i) {
+      if (anEvent["Record Type"]) {
+        if (anEvent["Record Type"].includes("Marriage")) {
+          anEvent["Event Type"] = "Marriage";
+        }
 
-      if (anEvent["Record Type"].includes("Census") && anEvent.Narrative) {
-        if (anEvent.Narrative.length > 10) {
-          let censusYear = anEvent["Census Year"];
-          let censusNarrative;
+        if (anEvent["Record Type"].includes("Census") && anEvent.Narrative) {
+          if (anEvent.Narrative.length > 10) {
+            let censusYear = anEvent["Census Year"];
+            let censusNarrative;
 
-          if (censusNarratives.has(censusYear)) {
-            censusNarrative = censusNarratives.get(censusYear);
-          } else {
-            censusNarrative = anEvent.Narrative;
-            censusNarratives.set(censusYear, censusNarrative);
-          }
+            if (censusNarratives.has(censusYear)) {
+              censusNarrative = censusNarratives.get(censusYear);
+            } else {
+              censusNarrative = anEvent.Narrative;
+              censusNarratives.set(censusYear, censusNarrative);
+            }
 
-          let narrativeBits = anEvent.Narrative.split(/,/);
-          let aBit = minimalPlace2(narrativeBits);
-          marriagesAndCensusesText += aBit;
+            let narrativeBits = anEvent.Narrative.split(/,/);
+            let aBit = minimalPlace2(narrativeBits);
+            marriagesAndCensusesText += aBit;
 
-          // Handle references
-          let listText = "";
-          if (Array.isArray(anEvent.ListText)) {
-            listText = "\n" + anEvent.ListText.join("\n");
-          } else if (anEvent.List) {
-            listText = "\n" + anEvent.List;
-          } else if (anEvent.sourcerText) {
-            listText = "\n" + anEvent.sourcerText;
-          }
-          let refNameBit = ""; // separate variable for reference name
-          let refsText = ""; // separate string for references
-          if (anEvent.Texts) {
-            anEvent.Texts.forEach((text, textIndex) => {
-              refNameBit = text.RefName ? " name='" + text.RefName + "'" : " name='ref_" + textIndex + "'";
-              if (text.Used == true) {
+            // Handle references
+            let listText = "";
+            if (Array.isArray(anEvent.ListText)) {
+              listText = "\n" + anEvent.ListText.join("\n");
+            } else if (anEvent.List) {
+              listText = "\n" + anEvent.List;
+            } else if (anEvent.sourcerText) {
+              listText = "\n" + anEvent.sourcerText;
+            }
+            let refNameBit = ""; // separate variable for reference name
+            let refsText = ""; // separate string for references
+            if (anEvent.Texts) {
+              anEvent.Texts.forEach((text, textIndex) => {
+                refNameBit = text.RefName ? " name='" + text.RefName + "'" : " name='ref_" + textIndex + "'";
+                if (text.Used == true) {
+                  refsText += " <ref" + refNameBit + " />";
+                } else {
+                  refsText += " <ref" + refNameBit + ">" + text.Text + "</ref>";
+                  text.Used = true;
+                  marriagesAndCensusesEtc.forEach(function (event) {
+                    if (event.RefName == text.RefName) {
+                      event.Used = true;
+                    }
+                  });
+                }
+              });
+            } else if (anEvent.Text) {
+              let refNameBit = anEvent.RefName ? " name='" + anEvent.RefName + "'" : " name='ref_" + i + "'";
+              if (anEvent.Used == true) {
                 refsText += " <ref" + refNameBit + " />";
               } else {
-                refsText += " <ref" + refNameBit + ">" + text.Text + "</ref>";
-                text.Used = true;
-                marriagesAndCensusesEtc.forEach(function (event) {
-                  if (event.RefName == text.RefName) {
-                    event.Used = true;
-                  }
-                });
+                refsText += " <ref" + refNameBit + ">" + anEvent.Text + "</ref>";
+                anEvent.Used = true;
               }
-            });
-          } else if (anEvent.Text) {
-            let refNameBit = anEvent.RefName ? " name='" + anEvent.RefName + "'" : " name='ref_" + i + "'";
-            if (anEvent.Used == true) {
-              refsText += " <ref" + refNameBit + " />";
-            } else {
-              refsText += " <ref" + refNameBit + ">" + anEvent.Text + "</ref>";
-              anEvent.Used = true;
             }
-          }
 
-          marriagesAndCensusesText += refsText; // append references
+            marriagesAndCensusesText += refsText; // append references
 
-          if (window.autoBioOptions.householdTable && listText.match(/\{\|/)) {
-            marriagesAndCensusesText += listText; // append household table only once
-          }
+            if (window.autoBioOptions.householdTable && listText.match(/\{\|/)) {
+              marriagesAndCensusesText += listText; // append household table only once
+            }
 
-          marriagesAndCensusesText += "\n\n";
-          anEvent.Used = true;
-          anEvent.RefName = anEvent.RefName ? anEvent.RefName : "ref_" + i;
-        }
-      } else {
-        // Handle non-census records
-        if (anEvent.Narrative) {
-          if (anEvent.SpouseChildren) {
-            window.childrenShown = true;
+            marriagesAndCensusesText += "\n\n";
+            anEvent.Used = true;
+            anEvent.RefName = anEvent.RefName ? anEvent.RefName : "ref_" + i;
           }
-          let thisRef = "";
-          if (anEvent["Record Type"].includes("ChildList") && !window.childrenShown && !window.listedSomeChildren) {
-            anEvent.Narrative = anEvent.Narrative.replace("other child", "child");
-          }
-          const theseRefs = [];
+        } else {
+          // Handle non-census records
+          if (anEvent.Narrative) {
+            if (anEvent.SpouseChildren) {
+              window.childrenShown = true;
+            }
+            let thisRef = "";
+            if (anEvent["Record Type"].includes("ChildList") && !window.childrenShown && !window.listedSomeChildren) {
+              anEvent.Narrative = anEvent.Narrative.replace("other child", "child");
+            }
+            const theseRefs = [];
 
-          window.references.forEach(function (aRef, i) {
-            if (
-              anEvent["Record Type"].includes(aRef["Record Type"]) &&
-              aRef.Text.match("contributed by various users") &&
-              aRef.Text.match(window.profilePerson.FirstName)
-            ) {
-              if (aRef.RefName) {
-                thisRef = "<ref name='FamilySearchProfile' />";
-              } else {
-                thisRef = " <ref name='FamilySearchProfile'>" + aRef.Text + "</ref>";
-                aRef.RefName = "FamilySearchProfile";
-                aRef.Used = true;
-              }
-            } else if (
-              anEvent["Event Type"] == "Military" &&
-              aRef["Record Type"].includes("Military") &&
-              anEvent.War == aRef.War
-            ) {
-              if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
-                thisRef = "<ref name='" + aRef.RefName + "' />";
-              } else {
-                thisRef = " <ref name='military_" + i + "'>" + aRef.Text + "</ref>";
-                aRef.RefName = "military_" + i;
-                aRef.Used = true;
-                window.refNames.push(aRef.RefName);
-              }
-              if (!theseRefs.includes(thisRef)) {
-                theseRefs.push(thisRef);
-              }
-            } else if (
-              aRef["Record Type"].includes(anEvent["Event Type"]) &&
-              anEvent["Divorce Date"] &&
-              aRef.Year == anEvent.Year
-            ) {
-              let thisSpouse = "";
-              if (anEvent.Couple) {
-                if (anEvent.Couple[0].match(window.profilePerson.PersonName.FirstName)) {
-                  thisSpouse = anEvent.Couple[1];
+            window.references.forEach(function (aRef, i) {
+              if (
+                anEvent["Record Type"].includes(aRef["Record Type"]) &&
+                aRef.Text.match("contributed by various users") &&
+                aRef.Text.match(window.profilePerson.FirstName)
+              ) {
+                if (aRef.RefName) {
+                  thisRef = "<ref name='FamilySearchProfile' />";
                 } else {
-                  thisSpouse = anEvent.Couple[0];
+                  thisRef = " <ref name='FamilySearchProfile'>" + aRef.Text + "</ref>";
+                  aRef.RefName = "FamilySearchProfile";
+                  aRef.Used = true;
                 }
-              }
-              if (aRef.Text.match(thisSpouse)) {
+              } else if (
+                anEvent["Event Type"] == "Military" &&
+                aRef["Record Type"].includes("Military") &&
+                anEvent.War == aRef.War
+              ) {
                 if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
                   thisRef = "<ref name='" + aRef.RefName + "' />";
                 } else {
-                  thisRef = " <ref name='divorce_" + i + "'>" + aRef.Text + "</ref>";
-                  aRef.RefName = "divorce_" + i;
+                  thisRef = " <ref name='military_" + i + "'>" + aRef.Text + "</ref>";
+                  aRef.RefName = "military_" + i;
+                  aRef.Used = true;
+                  window.refNames.push(aRef.RefName);
+                }
+                if (!theseRefs.includes(thisRef)) {
+                  theseRefs.push(thisRef);
+                }
+              } else if (
+                aRef["Record Type"].includes(anEvent["Event Type"]) &&
+                anEvent["Divorce Date"] &&
+                aRef.Year == anEvent.Year
+              ) {
+                let thisSpouse = "";
+                if (anEvent.Couple) {
+                  if (anEvent.Couple[0].match(window.profilePerson.PersonName.FirstName)) {
+                    thisSpouse = anEvent.Couple[1];
+                  } else {
+                    thisSpouse = anEvent.Couple[0];
+                  }
+                }
+                if (aRef.Text.match(thisSpouse)) {
+                  if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
+                    thisRef = "<ref name='" + aRef.RefName + "' />";
+                  } else {
+                    thisRef = " <ref name='divorce_" + i + "'>" + aRef.Text + "</ref>";
+                    aRef.RefName = "divorce_" + i;
+                    aRef.Used = true;
+                    window.refNames.push(aRef.RefName);
+                  }
+                }
+              } else if (
+                anEvent["Event Type"] == "Prison" &&
+                aRef["Record Type"].includes("Prison") &&
+                anEvent.Year == aRef.Year
+              ) {
+                if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
+                  thisRef = "<ref name='" + aRef.RefName + "' />";
+                } else {
+                  thisRef = " <ref name='prison_" + i + "'>" + aRef.Text + "</ref>";
+                  aRef.RefName = "prison_" + i;
                   aRef.Used = true;
                   window.refNames.push(aRef.RefName);
                 }
               }
-            } else if (
-              anEvent["Event Type"] == "Prison" &&
-              aRef["Record Type"].includes("Prison") &&
-              anEvent.Year == aRef.Year
-            ) {
-              if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
-                thisRef = "<ref name='" + aRef.RefName + "' />";
-              } else {
-                thisRef = " <ref name='prison_" + i + "'>" + aRef.Text + "</ref>";
-                aRef.RefName = "prison_" + i;
-                aRef.Used = true;
-                window.refNames.push(aRef.RefName);
-              }
-            }
-          });
+            });
 
-          let narrativeBits = anEvent.Narrative.split(",");
-          if (anEvent.FactType == "Burial") {
-            window.profilePerson.BurialFact = minimalPlace2(narrativeBits) + thisRef + "\n\n";
-          } else {
-            let thisBit = minimalPlace2(narrativeBits) + (theseRefs.length == 0 ? thisRef : theseRefs.join()) + "\n\n";
-            marriagesAndCensusesText += thisBit;
+            let narrativeBits = anEvent.Narrative.split(",");
+            if (anEvent.FactType == "Burial") {
+              window.profilePerson.BurialFact = minimalPlace2(narrativeBits) + thisRef + "\n\n";
+            } else {
+              let thisBit =
+                minimalPlace2(narrativeBits) + (theseRefs.length == 0 ? thisRef : theseRefs.join()) + "\n\n";
+              marriagesAndCensusesText += thisBit;
+            }
           }
         }
+      } else {
+        marriagesAndCensusesText += anEvent.Narrative + "\n\n";
       }
-    } else {
-      marriagesAndCensusesText += anEvent.Narrative + "\n\n";
-    }
-  });
+    });
 
-  // Update RefName and Used values in marriagesAndCensusesEtc
-  /*
+    // Update RefName and Used values in marriagesAndCensusesEtc
+    /*
   marriagesAndCensusesEtc.forEach((event) => {
     allEvents.forEach((allEvent) => {
       if (allEvent["Event Type"] + " " + allEvent.Year == event["Event Type"] + " " + event.Year) {
@@ -6646,9 +6649,9 @@ export async function generateBio() {
   });
   */
 
-  // Rest of your code...
+    // Rest of your code...
 
-  /*
+    /*
    let marriagesAndCensusesText = "";
   marriagesAndCensusesEtc.forEach(function (anEvent, i) {
     if (anEvent["Record Type"]) {
@@ -6790,337 +6793,371 @@ export async function generateBio() {
     }
   });
   */
-  console.log("marriagesAndCensuses", marriagesAndCensusesEtc);
+    console.log("marriagesAndCensuses", marriagesAndCensusesEtc);
 
-  // Add Military and Obituary subsections
-  const subsections = [];
-  ["Military", "Obituary"].forEach(function (aSection) {
-    const subsection = addSubsection(aSection);
-    if (subsection) {
-      subsections.push(subsection);
-    }
-  });
-  let subsectionsText = "";
-  if (subsections.length > 0) {
-    subsectionsText = subsections.join("\n");
-  }
-
-  // Add location category
-  async function getLocationCategories() {
-    let types = ["Birth", "Marriage", "Death", "Cemetery"];
-    for (let i = 0; i < types.length; i++) {
-      const location = await getLocationCategory(types[i]);
-      addLocationCategoryToStuffBeforeTheBio(location);
-    }
-  }
-  if (window.autoBioOptions.locationCategories == true) {
-    await getLocationCategories();
-  }
-
-  // Add occupation categories
-  addOccupationCategories();
-
-  // Make research notes
-  if (!window.profilePerson.Father && !window.profilePerson.Mother && currentBio.match(/(son|daughter) of.*\.?/i)) {
-    let newNote = "";
-    if (currentBio.match(/son of.*\.?/i) && window.profilePerson.Gender == "Male") {
-      newNote = currentBio.match(/son of.*\.?/i)[0];
-    } else if (currentBio.match(/daughter of.*\.?/i) && window.profilePerson.Gender == "Female") {
-      newNote = currentBio.match(/daughter of.*\.?/i)[0];
-    }
-
-    if (window.sectionsObject["Research Notes"].text.includes(newNote) == null) {
-      window.sectionsObject["Research Notes"].text.push(newNote);
-    }
-  }
-
-  // Add Timeline Table
-  let bioTimelineText = "";
-  if (window.autoBioOptions.timeline == "table") {
-    const bioTimeline = bioTimelineFacts(marriagesAndCensusesEtc);
-    bioTimelineText += buildTimelineTable(bioTimeline) + "\n";
-  }
-
-  // Add SA format
-  let southAfricaFormatText = "";
-  let southAfricaTimelineText = "";
-  if (window.autoBioOptions.SouthAfricaProject) {
-    const bioTimeline = bioTimelineFacts(marriagesAndCensusesEtc);
-    for (let i = 0; i < window.references.length; i++) {
-      window.references[i].Used = false;
-    }
-    let buildTimelineSAText = buildTimelineSA(bioTimeline) + "\n";
-    southAfricaFormatText += buildTimelineSAText;
-    southAfricaTimelineText += buildTimelineSAText;
-  } else if (window.autoBioOptions.timeline == "SA") {
-    const bioTimeline = bioTimelineFacts(marriagesAndCensusesEtc);
-    let buildTimelineSAText = buildTimelineSA(bioTimeline) + "\n";
-    southAfricaFormatText += buildTimelineSAText;
-    southAfricaTimelineText += buildTimelineSAText;
-  }
-
-  // Add Research Notes
-  let researchNotesText = "";
-  if (
-    window.sectionsObject["Research Notes"].text.length > 0 ||
-    window.sectionsObject["Research Notes"].subsections["NeedsProfiles"].length > 0
-  ) {
-    let researchNotesHeader = "== Research Notes ==\n";
-    researchNotesText += researchNotesHeader;
-    if (window.sectionsObject["Research Notes"].text.length > 0) {
-      researchNotesText += window.sectionsObject["Research Notes"].text.join("\n");
-      researchNotesText += "\n\n";
-    }
-
-    const needsDone = [];
-    let needsProfileText = "";
-    const needsProfiles = window.sectionsObject["Research Notes"].subsections["NeedsProfiles"];
-    if (needsProfiles.length > 0) {
-      if (needsProfiles.length == 1) {
-        needsProfileText =
-          needsProfiles[0].Name +
-          (needsProfiles[0]?.Relation ? " (" + needsProfiles[0].Relation + ")" : "") +
-          " may need a profile.";
-      } else if (needsProfiles.length > 1) {
-        needsProfileText = "The following people may need profiles:\n";
-        needsProfiles.forEach(function (aMember) {
-          if (!needsDone.includes(aMember.Name)) {
-            needsProfileText += "* " + aMember.Name + " ";
-            needsProfileText += aMember.Relation ? "(" + aMember.Relation + ")\n" : "\n";
-            needsDone.push(aMember.Name);
-          }
-        });
+    // Add Military and Obituary subsections
+    const subsections = [];
+    ["Military", "Obituary"].forEach(function (aSection) {
+      const subsection = addSubsection(aSection);
+      if (subsection) {
+        subsections.push(subsection);
       }
-      researchNotesText += needsProfileText + "\n\n";
+    });
+    let subsectionsText = "";
+    if (subsections.length > 0) {
+      subsectionsText = subsections.join("\n");
+    }
 
-      // Add Needs Profiles Created category
-      if (window.profilePerson.BirthLocation && window.autoBioOptions.needsProfilesCreatedCategory) {
-        const birthPlaces = window.profilePerson.BirthLocation?.split(", ");
-        let needsCategory;
-        birthPlaces.forEach(function (aPlace) {
-          const needsProfilesCreated = needsCategories.Profiles_Created;
-          for (const aNeed of needsProfilesCreated) {
-            const placeMatch = new RegExp("\\b" + aPlace + "\\b", "i");
-            if (aNeed.PlaceOrProject.match(placeMatch) && !needsCategory) {
-              needsCategory = "[[Category: " + aNeed.PlaceOrProject + " Needs Profiles Created]]";
-              break;
-            }
-          }
-        });
-        if (needsCategory && !window.sectionsObject["StuffBeforeTheBio"].text.includes(needsCategory)) {
-          window.sectionsObject["StuffBeforeTheBio"].text.push(needsCategory + "\n");
-        }
+    // Add location category
+    async function getLocationCategories() {
+      let types = ["Birth", "Marriage", "Death", "Cemetery"];
+      for (let i = 0; i < types.length; i++) {
+        const location = await getLocationCategory(types[i]);
+        addLocationCategoryToStuffBeforeTheBio(location);
       }
     }
-  }
+    if (window.autoBioOptions.locationCategories == true) {
+      await getLocationCategories();
+    }
 
-  // Add Sources section
-  let sourcesText = "";
-  let sourcesHeader = "== Sources ==\n<references />\n";
-  sourcesText += sourcesHeader;
-  let isAnyUsed = window.references.some((reference) => reference.Used === true);
-  let isAnyUnused = window.references.some((reference) => reference.Used !== true);
-  if ((isAnyUsed && isAnyUnused) || window.autoBioOptions.inlineCitations == false) {
-    sourcesText += "See also:\n";
-  }
+    // Add occupation categories
+    addOccupationCategories();
 
-  window.references.forEach(function (aRef) {
+    // Make research notes
+    if (!window.profilePerson.Father && !window.profilePerson.Mother && currentBio.match(/(son|daughter) of.*\.?/i)) {
+      let newNote = "";
+      if (currentBio.match(/son of.*\.?/i) && window.profilePerson.Gender == "Male") {
+        newNote = currentBio.match(/son of.*\.?/i)[0];
+      } else if (currentBio.match(/daughter of.*\.?/i) && window.profilePerson.Gender == "Female") {
+        newNote = currentBio.match(/daughter of.*\.?/i)[0];
+      }
+
+      if (window.sectionsObject["Research Notes"].text.includes(newNote) == null) {
+        window.sectionsObject["Research Notes"].text.push(newNote);
+      }
+    }
+
+    // Add Timeline Table
+    let bioTimelineText = "";
+    if (window.autoBioOptions.timeline == "table") {
+      const bioTimeline = bioTimelineFacts(marriagesAndCensusesEtc);
+      bioTimelineText += buildTimelineTable(bioTimeline) + "\n";
+    }
+
+    // Add SA format
+    let southAfricaFormatText = "";
+    let southAfricaTimelineText = "";
+    if (window.autoBioOptions.SouthAfricaProject) {
+      const bioTimeline = bioTimelineFacts(marriagesAndCensusesEtc);
+      for (let i = 0; i < window.references.length; i++) {
+        window.references[i].Used = false;
+      }
+      let buildTimelineSAText = buildTimelineSA(bioTimeline) + "\n";
+      southAfricaFormatText += buildTimelineSAText;
+      southAfricaTimelineText += buildTimelineSAText;
+    } else if (window.autoBioOptions.timeline == "SA") {
+      const bioTimeline = bioTimelineFacts(marriagesAndCensusesEtc);
+      let buildTimelineSAText = buildTimelineSA(bioTimeline) + "\n";
+      southAfricaFormatText += buildTimelineSAText;
+      southAfricaTimelineText += buildTimelineSAText;
+    }
+
+    // Add Research Notes
+    let researchNotesText = "";
     if (
-      ([false, undefined].includes(aRef.Used) || window.autoBioOptions.inlineCitations == false) &&
-      aRef["Record Type"] != "GEDCOM" &&
-      aRef.Text.match(/Sources? will be added/) == null
+      window.sectionsObject["Research Notes"].text.length > 0 ||
+      window.sectionsObject["Research Notes"].subsections["NeedsProfiles"].length > 0
     ) {
-      sourcesText +=
-        "* " +
-        aRef.Text.replace(/Click the Changes tab.*/, "").replace(
-          "''Replace this citation if there is another source.''",
-          ""
-        ) +
-        "\n";
-    }
-    if (aRef["Record Type"].includes("GEDCOM")) {
-      window.sectionsObject["Acknowledgements"].text.push("*" + aRef.Text);
-    }
-  });
+      let researchNotesHeader = "== Research Notes ==\n";
+      researchNotesText += researchNotesHeader;
+      if (window.sectionsObject["Research Notes"].text.length > 0) {
+        researchNotesText += window.sectionsObject["Research Notes"].text.join("\n");
+        researchNotesText += "\n\n";
+      }
 
-  // Add See also
-  if (window.sectionsObject["See Also"]) {
-    // Filter out the unwanted text
-    const filteredText = window.sectionsObject["See Also"].text.filter(
-      (anAlso) => !anAlso.match("''Add \\[\\[sources\\]\\] here.''")
-    );
+      const needsDone = [];
+      let needsProfileText = "";
+      const needsProfiles = window.sectionsObject["Research Notes"].subsections["NeedsProfiles"];
+      if (needsProfiles.length > 0) {
+        if (needsProfiles.length == 1) {
+          needsProfileText =
+            needsProfiles[0].Name +
+            (needsProfiles[0]?.Relation ? " (" + needsProfiles[0].Relation + ")" : "") +
+            " may need a profile.";
+        } else if (needsProfiles.length > 1) {
+          needsProfileText = "The following people may need profiles:\n";
+          needsProfiles.forEach(function (aMember) {
+            if (!needsDone.includes(aMember.Name)) {
+              needsProfileText += "* " + aMember.Name + " ";
+              needsProfileText += aMember.Relation ? "(" + aMember.Relation + ")\n" : "\n";
+              needsDone.push(aMember.Name);
+            }
+          });
+        }
+        researchNotesText += needsProfileText + "\n\n";
 
-    if (filteredText.length > 0) {
+        // Add Needs Profiles Created category
+        if (window.profilePerson.BirthLocation && window.autoBioOptions.needsProfilesCreatedCategory) {
+          const birthPlaces = window.profilePerson.BirthLocation?.split(", ");
+          let needsCategory;
+          birthPlaces.forEach(function (aPlace) {
+            const needsProfilesCreated = needsCategories.Profiles_Created;
+            for (const aNeed of needsProfilesCreated) {
+              const placeMatch = new RegExp("\\b" + aPlace + "\\b", "i");
+              if (aNeed.PlaceOrProject.match(placeMatch) && !needsCategory) {
+                needsCategory = "[[Category: " + aNeed.PlaceOrProject + " Needs Profiles Created]]";
+                break;
+              }
+            }
+          });
+          if (needsCategory && !window.sectionsObject["StuffBeforeTheBio"].text.includes(needsCategory)) {
+            window.sectionsObject["StuffBeforeTheBio"].text.push(needsCategory + "\n");
+          }
+        }
+      }
+    }
+
+    // Add Sources section
+    let sourcesText = "";
+    let sourcesHeader = "== Sources ==\n<references />\n";
+    sourcesText += sourcesHeader;
+    let isAnyUsed = window.references.some((reference) => reference.Used === true);
+    let isAnyUnused = window.references.some((reference) => reference.Used !== true);
+    if ((isAnyUsed && isAnyUnused) || window.autoBioOptions.inlineCitations == false) {
       sourcesText += "See also:\n";
-      filteredText.forEach(function (anAlso) {
-        if (anAlso) {
-          sourcesText += "* " + anAlso.replace(/^\*\s?/, "") + "\n";
+    }
+
+    window.references.forEach(function (aRef) {
+      if (
+        ([false, undefined].includes(aRef.Used) || window.autoBioOptions.inlineCitations == false) &&
+        aRef["Record Type"] != "GEDCOM" &&
+        aRef.Text.match(/Sources? will be added/) == null
+      ) {
+        sourcesText +=
+          "* " +
+          aRef.Text.replace(/Click the Changes tab.*/, "").replace(
+            "''Replace this citation if there is another source.''",
+            ""
+          ) +
+          "\n";
+      }
+      if (aRef["Record Type"].includes("GEDCOM")) {
+        window.sectionsObject["Acknowledgements"].text.push("*" + aRef.Text);
+      }
+    });
+
+    // Add See also
+    if (window.sectionsObject["See Also"]) {
+      // Filter out the unwanted text
+      const filteredText = window.sectionsObject["See Also"].text.filter(
+        (anAlso) => !anAlso.match("''Add \\[\\[sources\\]\\] here.''")
+      );
+
+      if (filteredText.length > 0) {
+        sourcesText += "See also:\n";
+        filteredText.forEach(function (anAlso) {
+          if (anAlso) {
+            sourcesText += "* " + anAlso.replace(/^\*\s?/, "") + "\n";
+          }
+        });
+        sourcesText += "\n";
+      }
+    }
+
+    console.log("sectionsObject", window.sectionsObject);
+    // Add Acknowledgments
+    let acknowledgementsText = "";
+    if (window.sectionsObject["Acknowledgements"].text.length > 0) {
+      window.sectionsObject["Acknowledgements"].text.forEach(function (txt, i) {
+        if (txt.match(/Click the Changes tab for the details|<!-- Please feel free to/)) {
+          window.sectionsObject["Acknowledgements"].text.splice(i, 1);
         }
       });
-      sourcesText += "\n";
-    }
-  }
-
-  console.log("sectionsObject", window.sectionsObject);
-  // Add Acknowledgments
-  let acknowledgementsText = "";
-  if (window.sectionsObject["Acknowledgements"].text.length > 0) {
-    window.sectionsObject["Acknowledgements"].text.forEach(function (txt, i) {
-      if (txt.match(/Click the Changes tab for the details|<!-- Please feel free to/)) {
-        window.sectionsObject["Acknowledgements"].text.splice(i, 1);
+      if (window.sectionsObject["Acknowledgements"].text.length > 0) {
+        let acknowledgementsHeader = "== Acknowledgements ==\n";
+        if (window.sectionsObject["Acknowledgements"].originalTitle) {
+          acknowledgementsHeader = "== " + window.sectionsObject["Acknowledgements"].originalTitle + " ==\n";
+        } else if (
+          window.profilePerson.BirthLocation.match(/United States|USA/) ||
+          window.profilePerson.DeathLocation.match(/United States|USA/)
+        ) {
+          acknowledgementsHeader = "\n== Acknowledgments ==\n";
+        }
+        acknowledgementsText += acknowledgementsHeader;
+        acknowledgementsText += window.sectionsObject["Acknowledgements"].text.join("\n") + "\n";
+        acknowledgementsText = acknowledgementsText
+          .replace(/<!-- Please edit[\s\S]*?Changes page. -->/, "")
+          .replace(/Click to[\s\S]*?and others./, "");
       }
-    });
-    if (window.sectionsObject["Acknowledgements"].text.length > 0) {
-      let acknowledgementsHeader = "== Acknowledgements ==\n";
-      if (window.sectionsObject["Acknowledgements"].originalTitle) {
-        acknowledgementsHeader = "== " + window.sectionsObject["Acknowledgements"].originalTitle + " ==\n";
-      } else if (
-        window.profilePerson.BirthLocation.match(/United States|USA/) ||
-        window.profilePerson.DeathLocation.match(/United States|USA/)
-      ) {
-        acknowledgementsHeader = "\n== Acknowledgments ==\n";
-      }
-      acknowledgementsText += acknowledgementsHeader;
-      acknowledgementsText += window.sectionsObject["Acknowledgements"].text.join("\n") + "\n";
-      acknowledgementsText = acknowledgementsText
-        .replace(/<!-- Please edit[\s\S]*?Changes page. -->/, "")
-        .replace(/Click to[\s\S]*?and others./, "");
     }
-  }
 
-  let extensionNotes =
-    "\n<!-- \n --- WikiTree Browser Extension Auto Bio --- " +
-    "\nNEXT: \n" +
-    "1. Edit the new biography (above), checking the output carefully and adding any useful information " +
-    "which Auto Bio may have missed from the old biography.\n" +
-    "2. Delete this message and the old biography (below) by " +
-    "clicking the 'Delete Old Bio' button (above).\n" +
-    "Thank you.\n";
+    let extensionNotes =
+      "\n<!-- \n --- WikiTree Browser Extension Auto Bio --- " +
+      "\nNEXT: \n" +
+      "1. Edit the new biography (above), checking the output carefully and adding any useful information " +
+      "which Auto Bio may have missed from the old biography.\n" +
+      "2. Delete this message and the old biography (below) by " +
+      "clicking the 'Delete Old Bio' button (above).\n" +
+      "Thank you.\n";
 
-  if (window.autoBioNotes) {
-    if (window.autoBioNotes.length > 0) {
-      extensionNotes += "\nNotes:\n";
-      window.autoBioNotes.forEach(function (aNote) {
-        extensionNotes += "* " + aNote + "\n";
+    if (window.autoBioNotes) {
+      if (window.autoBioNotes.length > 0) {
+        extensionNotes += "\nNotes:\n";
+        window.autoBioNotes.forEach(function (aNote) {
+          extensionNotes += "* " + aNote + "\n";
+        });
+      }
+    }
+    extensionNotes += "-->\n";
+
+    // Add Unsourced template if there are no good sources
+    if (window.autoBioOptions.unsourced != false) {
+      addUnsourced();
+    }
+
+    // Add stuff before the bio
+    let stuffBeforeTheBioText = getStuffBeforeTheBioText();
+
+    let outputText = "";
+    let timelineText = "";
+    if (window.autoBioOptions.timeline == "SA") {
+      timelineText = southAfricaTimelineText;
+    } else if (window.autoBioOptions.timeline == "table") {
+      timelineText = bioTimelineText;
+    }
+    if (window.autoBioOptions.SouthAfricaProject == true) {
+      outputText =
+        stuffBeforeTheBioText +
+        bioHeaderAndStickers +
+        southAfricaFormatText +
+        researchNotesText +
+        sourcesText +
+        acknowledgementsText +
+        extensionNotes;
+    } else if (window.autoBioOptions.deathPosition) {
+      outputText =
+        stuffBeforeTheBioText +
+        bioHeaderAndStickers +
+        birthText +
+        (window.autoBioOptions.siblingList ? siblingListText : "") +
+        deathText +
+        marriagesAndCensusesText +
+        subsectionsText +
+        timelineText +
+        researchNotesText +
+        sourcesText +
+        acknowledgementsText +
+        extensionNotes;
+    } else {
+      outputText =
+        stuffBeforeTheBioText +
+        bioHeaderAndStickers +
+        birthText +
+        (window.autoBioOptions.siblingList ? siblingListText : "") +
+        marriagesAndCensusesText +
+        deathText +
+        subsectionsText +
+        timelineText +
+        researchNotesText +
+        sourcesText +
+        acknowledgementsText +
+        extensionNotes;
+    }
+
+    // Remove inline citations if not wanted
+    if (window.autoBioOptions.inlineCitations == false) {
+      outputText = outputText.replace(/<ref[^>]*>(.*?)<\/ref>/gi, "");
+      outputText = outputText.replace(/<ref\s.*\/>/gi, "").replace(/(\s\.)(?=\s|$)/g, "");
+    }
+
+    // Switch off the enhanced editor if it's on
+    let enhanced = false;
+    let enhancedEditorButton = $("#toggleMarkupColor");
+    if (enhancedEditorButton.attr("value") == "Turn Off Enhanced Editor") {
+      enhancedEditorButton.trigger("click");
+      enhanced = true;
+    }
+
+    console.log("profilePerson", window.profilePerson);
+
+    // Add the text to the textarea and switch back to the enhanced editor if it was on
+    $("#wpTextbox1").val(outputText.replace(/(\s\.)(?=\s|$)/g, "") + $("#wpTextbox1").val());
+    if (enhanced == true) {
+      enhancedEditorButton.trigger("click");
+    }
+    removeWorking();
+
+    // Add buttons to 1) remove the Auto Bio and 2) delete the old bio.
+    if ($("#deleteOldBio").length == 0) {
+      let removeAutoBioButton = $("<button id='removeAutoBio' class='small'>");
+      removeAutoBioButton.text("Undo Auto Bio");
+      removeAutoBioButton.on("click", function (e) {
+        e.preventDefault();
+        if (enhanced == true) {
+          enhancedEditorButton.trigger("click");
+        }
+        $("#wpTextbox1").val(currentBio);
+        if (enhanced == true) {
+          enhancedEditorButton.trigger("click");
+        }
+        const formDataKeys = Object.keys(originalFormData);
+        formDataKeys.forEach(function (key) {
+          $("#m" + key).val(originalFormData[key]);
+        });
+
+        $("#deleteOldBio,#removeAutoBio").remove();
       });
-    }
-  }
-  extensionNotes += "-->\n";
-
-  // Add Unsourced template if there are no good sources
-  if (window.autoBioOptions.unsourced != false) {
-    addUnsourced();
-  }
-
-  // Add stuff before the bio
-  let stuffBeforeTheBioText = getStuffBeforeTheBioText();
-
-  let outputText = "";
-  let timelineText = "";
-  if (window.autoBioOptions.timeline == "SA") {
-    timelineText = southAfricaTimelineText;
-  } else if (window.autoBioOptions.timeline == "table") {
-    timelineText = bioTimelineText;
-  }
-  if (window.autoBioOptions.SouthAfricaProject == true) {
-    outputText =
-      stuffBeforeTheBioText +
-      bioHeaderAndStickers +
-      southAfricaFormatText +
-      researchNotesText +
-      sourcesText +
-      acknowledgementsText +
-      extensionNotes;
-  } else if (window.autoBioOptions.deathPosition) {
-    outputText =
-      stuffBeforeTheBioText +
-      bioHeaderAndStickers +
-      birthText +
-      (window.autoBioOptions.siblingList ? siblingListText : "") +
-      deathText +
-      marriagesAndCensusesText +
-      subsectionsText +
-      timelineText +
-      researchNotesText +
-      sourcesText +
-      acknowledgementsText +
-      extensionNotes;
-  } else {
-    outputText =
-      stuffBeforeTheBioText +
-      bioHeaderAndStickers +
-      birthText +
-      (window.autoBioOptions.siblingList ? siblingListText : "") +
-      marriagesAndCensusesText +
-      deathText +
-      subsectionsText +
-      timelineText +
-      researchNotesText +
-      sourcesText +
-      acknowledgementsText +
-      extensionNotes;
-  }
-
-  // Remove inline citations if not wanted
-  if (window.autoBioOptions.inlineCitations == false) {
-    outputText = outputText.replace(/<ref[^>]*>(.*?)<\/ref>/gi, "");
-    outputText = outputText.replace(/<ref\s.*\/>/gi, "").replace(/(\s\.)(?=\s|$)/g, "");
-  }
-
-  // Switch off the enhanced editor if it's on
-  let enhanced = false;
-  let enhancedEditorButton = $("#toggleMarkupColor");
-  if (enhancedEditorButton.attr("value") == "Turn Off Enhanced Editor") {
-    enhancedEditorButton.trigger("click");
-    enhanced = true;
-  }
-
-  console.log("profilePerson", window.profilePerson);
-
-  // Add the text to the textarea and switch back to the enhanced editor if it was on
-  $("#wpTextbox1").val(outputText.replace(/(\s\.)(?=\s|$)/g, "") + $("#wpTextbox1").val());
-  if (enhanced == true) {
-    enhancedEditorButton.trigger("click");
-  }
-  removeWorking();
-
-  // Add buttons to 1) remove the Auto Bio and 2) delete the old bio.
-  if ($("#deleteOldBio").length == 0) {
-    let removeAutoBioButton = $("<button id='removeAutoBio' class='small'>");
-    removeAutoBioButton.text("Undo Auto Bio");
-    removeAutoBioButton.on("click", function (e) {
-      e.preventDefault();
-      if (enhanced == true) {
-        enhancedEditorButton.trigger("click");
-      }
-      $("#wpTextbox1").val(currentBio);
-      if (enhanced == true) {
-        enhancedEditorButton.trigger("click");
-      }
-      const formDataKeys = Object.keys(originalFormData);
-      formDataKeys.forEach(function (key) {
-        $("#m" + key).val(originalFormData[key]);
+      let deleteOldBioButton = $("<button id='deleteOldBio' class='small'>");
+      deleteOldBioButton.text("Delete Old Bio");
+      deleteOldBioButton.on("click", function (e) {
+        e.preventDefault();
+        if (enhanced == true) {
+          enhancedEditorButton.trigger("click");
+        }
+        let bioNow = $("#wpTextbox1").val();
+        let newBio = bioNow.split("<!-- \n --- WikiTree Browser Extension Auto Bio --- ")[0];
+        $("#wpTextbox1").val(newBio);
+        if (enhanced == true) {
+          enhancedEditorButton.trigger("click");
+        }
+        $("#deleteOldBio").remove();
       });
+      $("#toolbar").append(removeAutoBioButton);
+      $("#toolbar").append(deleteOldBioButton);
+    }
+  } catch (error) {
+    console.log(error);
+    removeWorking();
 
-      $("#deleteOldBio,#removeAutoBio").remove();
+    // Prepare the error message
+    let errorMessage =
+      "Hi Ian,\nI've found a bug for you to fix.\n\nProfile ID: " + profileID + "\n\nError Message: " + error.message;
+
+    // Save the error message to localStorage
+    localStorage.setItem("error_message", errorMessage);
+
+    let errorDiv = $("<div id='errorDiv'>");
+    let errorText = $("<p>");
+    errorText.text("Sorry, something went wrong.<br>Please send a message to Ian with the ID of this profile.");
+    errorDiv.append(errorText);
+
+    let errorButton = $("<button>");
+    errorButton.text("Message Ian");
+    errorButton.on("click", function () {
+      // Open your profile in a new tab
+      window.open("https://www.wikitree.com/wiki/Beacall-6", "_blank");
     });
-    let deleteOldBioButton = $("<button id='deleteOldBio' class='small'>");
-    deleteOldBioButton.text("Delete Old Bio");
-    deleteOldBioButton.on("click", function (e) {
-      e.preventDefault();
-      if (enhanced == true) {
-        enhancedEditorButton.trigger("click");
-      }
-      let bioNow = $("#wpTextbox1").val();
-      let newBio = bioNow.split("<!-- \n --- WikiTree Browser Extension Auto Bio --- ")[0];
-      $("#wpTextbox1").val(newBio);
-      if (enhanced == true) {
-        enhancedEditorButton.trigger("click");
-      }
-      $("#deleteOldBio").remove();
+
+    errorDiv.append(errorButton);
+
+    let errorClose = $("<button>");
+    errorClose.text("X");
+    errorClose.on("click", function () {
+      errorDiv.remove();
     });
-    $("#toolbar").append(removeAutoBioButton);
-    $("#toolbar").append(deleteOldBioButton);
+    errorDiv.append(errorClose);
+
+    $("body").append(errorDiv);
   }
 }
 
@@ -7292,6 +7329,7 @@ export async function getLocationCategory(type, location = null) {
 
 checkIfFeatureEnabled("autoBio").then((result) => {
   if (result) {
+    import("./auto_bio.css");
     getFeatureOptions("autoBio").then((options) => {
       window.autoBioOptions = options;
       window.boldBit = "";

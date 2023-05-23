@@ -1,0 +1,55 @@
+/*
+
+ let errorDiv = $("<div id='errorDiv'>");
+    let errorText = $("<p>");
+    errorText.text("Sorry, something went wrong. Please send a message to Ian with the ID of this profile.");
+    errorDiv.append(errorText);
+
+    let errorClose = $("<button>");
+    errorClose.text("X");
+    errorClose.on("click", function () {
+      errorDiv.remove();
+    });
+    errorDiv.append(errorClose);
+
+    $("body").append(errorDiv);
+
+    CSS for a small draggable window in the middle of the screen 
+    with an X in the top-right-corner to close it. Please.
+ 
+- The X needs to be visible.
+- This should look quite friendly and not at all scary.
+- More padding around the text to  let the button go to the top right corner.
+CSS, Please.
+
+
+    */
+#errorDiv {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #fff;
+  border: 1px solid #000;
+  border-radius: 5px;
+  padding: 10px;
+  z-index: 100;
+}
+
+#errorDiv p {
+  margin: 0;
+  padding: 0;
+}
+
+#errorDiv button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  border: none;
+  border-radius: 5px;
+  padding: 0 5px;
+  font-size: 1.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  margin: 0;
+}
