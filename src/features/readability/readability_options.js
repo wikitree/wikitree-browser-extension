@@ -684,7 +684,7 @@ const readabilityFeature = {
             {
               id: "hideMemberSection",
               type: OptionType.SELECT,
-              label: "Hide the member section (genealogist, following, badges)",
+              label: "Hide the Genealogist section",
               values: [
                 {
                   value: 0,
