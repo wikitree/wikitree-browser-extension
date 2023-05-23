@@ -18,6 +18,7 @@ import { PersonDate } from "../bioCheck/PersonDate.js";
 import { Biography } from "../bioCheck/Biography.js";
 import { ageAtDeath, USstatesObjArray } from "../my_connections/my_connections";
 import { bioTimelineFacts, buildTimelineTable, buildTimelineSA } from "./timeline";
+import { isIansProfile } from "../../core/pageType";
 import Cookies from "js-cookie";
 
 /**
@@ -332,32 +333,7 @@ function convertDate(dateString, outputFormat, status = "") {
   dateString = dateString.replaceAll(/-00/g, "");
   // Split the input date string into components
   let components = dateString.split(/[\s,-]+/);
-  /*
-  // Determine the format of the input date string
-  let inputFormat;
-  if (components.length == 1 && /^\d{4}$/.test(components[0])) {
-    // Year-only format (e.g. "2023")
-    inputFormat = "Y";
-  } else if (components.length == 2 && /^[A-Za-z]{3}$/.test(components[0])) {
-    // Short month and year format (e.g. "Jul 2023")
-    inputFormat = "MY";
-  } else if (components.length == 2 && /^[A-Za-z]+/.test(components[0])) {
-    // Long month and year format (e.g. "July 2023")
-    inputFormat = "MDY";
-  } else if (components.length == 3 && /^[A-Za-z]{3}$/.test(components[1])) {
-    // Short month, day, and year format (e.g. "23 Jul 2023")
-    inputFormat = "DMY";
-  } else if (components.length == 3 && /^[A-Za-z]+/.test(components[0])) {
-    // Long month, day, and year format (e.g. "July 23, 2023")
-    inputFormat = "MDY";
-  } else if (components.length == 2 && /^\d{4}$/.test(components[1])) {
-    // Short month and year format with no day (e.g. "Jul 2023")
-    inputFormat = "MY";
-    components.unshift("01");
-  } else if (components.length == 3 && /^[A-Za-z]+/.test(components[1])) {
-    // Day, long month, and year format (e.g. "10 July 1936")
-    inputFormat = "DMY";
-    */
+
   // Determine the format of the input date string
   let inputFormat;
   if (components.length == 1 && /^\d{4}$/.test(components[0])) {
@@ -6174,13 +6150,14 @@ export async function generateBio() {
 
     window.usedPlaces = [];
     let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
-
+    window.profileID = profileID;
     window.biographyPeople = await getProfile(
       profileID,
       "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix,BirthDate,DeathDate,BirthLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren,NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings",
       "AutoBio"
     );
     window.profilePerson = window.biographyPeople;
+
     const originalFormData = getFormData();
 
     const originalFirstName = window.profilePerson.FirstName;
@@ -6193,9 +6170,15 @@ export async function generateBio() {
       }
     });
 
-    // if ($("img[title='Privacy Level: Unlisted']").length > 0) {
+    if (!window.profilePerson.Name) {
+      window.autoBioNotes.push("You may get better results by logging in to the apps server (click the button above).");
+      addLoginButton();
+    } else {
+      window.profilePerson.BirthYear = window.profilePerson.BirthDate?.split("-")[0];
+      window.profilePerson.DeathYear = window.profilePerson.DeathDate?.split("-")[0];
+    }
+
     buildFamilyForPrivateProfiles();
-    //}
 
     console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
 
@@ -6211,14 +6194,6 @@ export async function generateBio() {
 
     if (!window.autoBioNotes) {
       window.autoBioNotes = [];
-    }
-
-    if (!window.profilePerson.Parents) {
-      window.autoBioNotes.push("You may get better results by logging in to the apps server (click the button above).");
-      addLoginButton();
-    } else {
-      window.profilePerson.BirthYear = window.profilePerson.BirthDate?.split("-")[0];
-      window.profilePerson.DeathYear = window.profilePerson.DeathDate?.split("-")[0];
     }
 
     // Get spouse parents
@@ -6409,35 +6384,8 @@ export async function generateBio() {
     let censusNarratives = new Map();
 
     // Initialize a new map to hold the counters for each base refName
-    // Initialize a new map to hold the counters for each base refName
     let refNameCounter = new Map();
-    /*
-  marriagesAndCensusesEtc.forEach((event, index) => {
-    if (event.Texts) {
-      event.Texts.forEach((text, textIndex) => {
-        // Generate a base refName using the event type and year
-        const baseRefName = `${event["Event Type"]}_${event.Year}`;
 
-        // If the counter for this base refName already exists, increment it; otherwise, initialize it
-        if (refNameCounter.has(baseRefName)) {
-          refNameCounter.set(baseRefName, refNameCounter.get(baseRefName) + 1);
-        } else {
-          refNameCounter.set(baseRefName, 0);
-        }
-
-        // Create a new Text object for each citation, with its own unique RefName
-        let newText = {
-          Text: text,
-          RefName: `${baseRefName}_${refNameCounter.get(baseRefName)}`,
-          Used: false,
-        };
-
-        // Replace the original citation with the new Text object
-        event.Texts[textIndex] = newText;
-      });
-    }
-  });
-*/
     // Grouping logic
     let allEvents = [];
     let previousEventObject;
@@ -6637,162 +6585,6 @@ export async function generateBio() {
       }
     });
 
-    // Update RefName and Used values in marriagesAndCensusesEtc
-    /*
-  marriagesAndCensusesEtc.forEach((event) => {
-    allEvents.forEach((allEvent) => {
-      if (allEvent["Event Type"] + " " + allEvent.Year == event["Event Type"] + " " + event.Year) {
-        event.RefName = allEvent.RefName;
-        event.Used = allEvent.Used;
-      }
-    });
-  });
-  */
-
-    // Rest of your code...
-
-    /*
-   let marriagesAndCensusesText = "";
-  marriagesAndCensusesEtc.forEach(function (anEvent, i) {
-    if (anEvent["Record Type"]) {
-      if (anEvent["Record Type"].includes("Marriage")) {
-        anEvent["Event Type"] = "Marriage";
-      }
-
-      if (anEvent["Record Type"].includes("Census") && anEvent.Narrative) {
-        if (anEvent.Narrative.length > 10) {
-          // Get the year of the census
-          let censusYear = anEvent["Census Year"];
-
-          // If we've already stored a narrative for this census year, get it.
-          // Otherwise, use this event's narrative and add it to the map.
-          let censusNarrative;
-          if (censusNarratives.has(censusYear)) {
-            censusNarrative = censusNarratives.get(censusYear);
-          } else {
-            censusNarrative = anEvent.Narrative;
-            censusNarratives.set(censusYear, censusNarrative);
-          }
-
-          let narrativeBits = anEvent.Narrative.split(/,/);
-
-          // Minimal places again
-          let aBit = minimalPlace2(narrativeBits);
-          marriagesAndCensusesText += aBit;
-          // Add the reference
-          let listText = "";
-          if (Array.isArray(anEvent.ListText)) {
-            listText = "\n" + anEvent.ListText.join("\n");
-          } else if (anEvent.List) {
-            listText = "\n" + anEvent.List;
-          } else if (anEvent.sourcerText) {
-            listText = "\n" + anEvent.sourcerText;
-          }
-          let refNameBit = anEvent.RefName ? " name='" + anEvent.RefName + "'" : " name='ref_" + i + "'";
-          if (anEvent.Used == true) {
-            marriagesAndCensusesText += " <ref" + refNameBit + " />";
-          } else {
-            if (window.autoBioOptions.householdTable && listText.match(/\{\|/)) {
-              marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + "</ref>\n" + listText;
-            } else {
-              marriagesAndCensusesText += " <ref" + refNameBit + ">" + anEvent.Text + listText + "</ref>";
-            }
-          }
-          marriagesAndCensusesText += "\n\n";
-          anEvent.Used = true;
-          anEvent.RefName = anEvent.RefName ? anEvent.RefName : "ref_" + i;
-        }
-      } else {
-        if (anEvent.Narrative) {
-          if (anEvent.SpouseChildren) {
-            window.childrenShown = true;
-          }
-          let thisRef = "";
-          if (anEvent["Record Type"].includes("ChildList") && !window.childrenShown && !window.listedSomeChildren) {
-            anEvent.Narrative = anEvent.Narrative.replace("other child", "child");
-          }
-          const theseRefs = [];
-          window.references.forEach(function (aRef, i) {
-            if (
-              anEvent["Record Type"].includes(aRef["Record Type"]) &&
-              aRef.Text.match("contributed by various users") &&
-              aRef.Text.match(window.profilePerson.FirstName)
-            ) {
-              if (aRef.RefName) {
-                thisRef = "<ref name='FamilySearchProfile' />";
-              } else {
-                thisRef = " <ref name='FamilySearchProfile'>" + aRef.Text + "</ref>";
-                aRef.RefName = "FamilySearchProfile";
-                aRef.Used = true;
-              }
-            } else if (
-              anEvent["Event Type"] == "Military" &&
-              aRef["Record Type"].includes("Military") &&
-              anEvent.War == aRef.War
-            ) {
-              if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
-                thisRef = "<ref name='" + aRef.RefName + "' />";
-              } else {
-                thisRef = " <ref name='military_" + i + "'>" + aRef.Text + "</ref>";
-                aRef.RefName = "military_" + i;
-                aRef.Used = true;
-                window.refNames.push(aRef.RefName);
-              }
-              if (!theseRefs.includes(thisRef)) {
-                theseRefs.push(thisRef);
-              }
-            } else if (
-              aRef["Record Type"].includes(anEvent["Event Type"]) &&
-              anEvent["Divorce Date"] &&
-              aRef.Year == anEvent.Year
-            ) {
-              let thisSpouse = "";
-              if (anEvent.Couple) {
-                if (anEvent.Couple[0].match(window.profilePerson.PersonName.FirstName)) {
-                  thisSpouse = anEvent.Couple[1];
-                } else {
-                  thisSpouse = anEvent.Couple[0];
-                }
-              }
-              if (aRef.Text.match(thisSpouse)) {
-                if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
-                  thisRef = "<ref name='" + aRef.RefName + "' />";
-                } else {
-                  thisRef = " <ref name='divorce_" + i + "'>" + aRef.Text + "</ref>";
-                  aRef.RefName = "divorce_" + i;
-                  aRef.Used = true;
-                  window.refNames.push(aRef.RefName);
-                }
-              }
-            } else if (
-              anEvent["Event Type"] == "Prison" &&
-              aRef["Record Type"].includes("Prison") &&
-              anEvent.Year == aRef.Year
-            ) {
-              if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
-                thisRef = "<ref name='" + aRef.RefName + "' />";
-              } else {
-                thisRef = " <ref name='prison_" + i + "'>" + aRef.Text + "</ref>";
-                aRef.RefName = "prison_" + i;
-                aRef.Used = true;
-                window.refNames.push(aRef.RefName);
-              }
-            }
-          });
-          let narrativeBits = anEvent.Narrative.split(",");
-          if (anEvent.FactType == "Burial") {
-            window.profilePerson.BurialFact = minimalPlace2(narrativeBits) + thisRef + "\n\n";
-          } else {
-            let thisBit = minimalPlace2(narrativeBits) + (theseRefs.length == 0 ? thisRef : theseRefs.join()) + "\n\n";
-            marriagesAndCensusesText += thisBit;
-          }
-        }
-      }
-    } else {
-      marriagesAndCensusesText += anEvent.Narrative + "\n\n";
-    }
-  });
-  */
     console.log("marriagesAndCensuses", marriagesAndCensusesEtc);
 
     // Add Military and Obituary subsections
@@ -7131,18 +6923,21 @@ export async function generateBio() {
 
     // Prepare the error message
     let errorMessage =
-      "Hi Ian,\nI've found a bug for you to fix.\n\nProfile ID: " + profileID + "\n\nError Message: " + error.message;
+      "Hi Ian,\nI've found a bug for you to fix.\n\nProfile ID: " +
+      window.profileID +
+      "\n\nError Message: " +
+      error.message;
 
     // Save the error message to localStorage
     localStorage.setItem("error_message", errorMessage);
 
     let errorDiv = $("<div id='errorDiv'>");
-    let errorText = $("<p>");
-    errorText.text("Sorry, something went wrong.<br>Please send a message to Ian with the ID of this profile.");
+    let errorText = $(
+      "<p>Sorry. Something went wrong with the Auto Bio. <br>Please let us know about it. <br>Thanks you.</p>"
+    );
     errorDiv.append(errorText);
 
-    let errorButton = $("<button>");
-    errorButton.text("Message Ian");
+    let errorButton = $("<button id='reportBugButton'>Report bug</button>");
     errorButton.on("click", function () {
       // Open your profile in a new tab
       window.open("https://www.wikitree.com/wiki/Beacall-6", "_blank");
@@ -7150,8 +6945,7 @@ export async function generateBio() {
 
     errorDiv.append(errorButton);
 
-    let errorClose = $("<button>");
-    errorClose.text("X");
+    let errorClose = $("<button id='closeErrorMessageButton'>X</button>");
     errorClose.on("click", function () {
       errorDiv.remove();
     });
@@ -7327,6 +7121,51 @@ export async function getLocationCategory(type, location = null) {
   return;
 }
 
+function addErrorMessage() {
+  // Check if there's an error message in the localStorage
+  if (localStorage.getItem("error_message")) {
+    // If so, click the first private message link
+    // Select the node that will be observed for mutations
+    let targetNode = document.body; // Replace with a closer parent if possible
+
+    // Options for the observer (which mutations to observe)
+    let config = { childList: true, subtree: true };
+
+    // Callback function to execute when mutations are observed
+    let callback = function (mutationsList, observer) {
+      for (let mutation of mutationsList) {
+        // Check the addedNodes property
+        for (let node of mutation.addedNodes) {
+          // Use the instanceof operator to ensure the added node is an Element
+          if (node instanceof Element) {
+            // Check if our target element exists within this node
+            let targetElement = node.querySelector("#privateMessage-comments");
+            if (targetElement) {
+              // Get member's first name from the form #privateMessgae-sender_name
+              let memberName = $("#privateMessage-sender_name").val().split(" ")[0];
+              $("#privateMessage-comments").val(
+                localStorage.getItem("error_message") + "\n\nGood Luck!\n" + memberName
+              );
+              $("#privateMessage-subject").val("Auto Bio bug report");
+              // Clear the error message from the localStorage
+              localStorage.removeItem("error_message");
+              observer.disconnect();
+            }
+          }
+        }
+      }
+    };
+
+    // Create an observer instance linked to the callback function
+    let observer = new MutationObserver(callback);
+
+    // Start observing the target node for configured mutations
+    observer.observe(targetNode, config);
+
+    $(".privateMessageLink")[0].click();
+  }
+}
+
 checkIfFeatureEnabled("autoBio").then((result) => {
   if (result) {
     import("./auto_bio.css");
@@ -7337,6 +7176,10 @@ checkIfFeatureEnabled("autoBio").then((result) => {
         window.boldBit = "'''";
       }
     });
+
+    if (isIansProfile) {
+      addErrorMessage();
+    }
 
     // check for Firefox (I don't remember why we need this...)
     window.isFirefox = false;
