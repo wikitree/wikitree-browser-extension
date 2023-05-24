@@ -6105,7 +6105,9 @@ export async function generateBio() {
       }
     } else {
       window.profilePerson = {};
-      window.profilePerson.Name = profileID;
+      window.autoBioNotes.push(
+        "Is this a new profile? You may get better results by trying again later. Sometimes, the apps server is a little behind the main server."
+      );
     }
     // Get the form data and add it to the profilePerson
     const formData = getFormData();
@@ -6117,7 +6119,10 @@ export async function generateBio() {
     });
 
     if (!window.profilePerson.Name) {
-      window.autoBioNotes.push("You may get better results by logging in to the apps server (click the button above).");
+      window.autoBioNotes.push(
+        "Is this profile private? You may get better results by logging in to the apps server (click the button above)."
+      );
+      window.profilePerson.Name = profileID;
       addLoginButton();
     } else {
       window.profilePerson.BirthYear = window.profilePerson.BirthDate?.split("-")[0];
