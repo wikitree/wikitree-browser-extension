@@ -1,4 +1,5 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
+import { isProfileEdit, isIansProfile } from "../../core/pageType";
 
 const autoBio = {
   name: "Auto Bio",
@@ -8,6 +9,7 @@ const autoBio = {
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: true,
+  pages: [isProfileEdit, isIansProfile],
   options: [
     {
       id: "boldNames",

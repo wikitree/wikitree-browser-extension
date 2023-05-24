@@ -92,6 +92,8 @@ export let isSpecialWatchedList = false;
 export let isG2G = false;
 // Special:SearchPerson
 export let isSearchPage = false;
+// Ian's Profile
+export let isIansProfile = false;
 
 if (
   // Profile Edit Page
@@ -134,6 +136,10 @@ if (
     if ($("a[href$='/wiki/Special:Genealogist").length) {
       // Profile of a Logged in User page
       isProfileLoggedInUserPage = true;
+    }
+    if (window.location.href.match("https://www.wikitree.com/wiki/Beacall-6")) {
+      // Ian's Profile
+      isIansProfile = true;
     }
   }
 } else if (
