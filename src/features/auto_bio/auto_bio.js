@@ -2506,109 +2506,6 @@ function analyzeColumns(lines) {
   return columnMapping;
 }
 
-/*
-function analyzeColumns(lines) {
-  lines = lines.map((line) => line.replace(/\|\|/g, "\t")); // convert double pipes to tabs
-  const columns = {};
-  lines.forEach((line) => {
-    const parts = line.split(/ {4}|\t/);
-
-    parts.forEach((part, index) => {
-      if (!columns[index]) {
-        columns[index] = {
-          Name: 0,
-          Gender: 0,
-          originalRelation: 0,
-          Age: 0,
-          BirthPlace: 0,
-          Occupation: 0,
-          MaritalStatus: 0,
-        };
-      }
-      let matched = false;
-
-      // RegExp of cities, counties, states
-      const bigPlacesMatch = new RegExp("\\b" + citiesCountiesStates.join("|") + "\\b", "i");
-      const occupationMatch = new RegExp("\\b" + occupationList.join("|") + "\\b", "i");
-      if (index == 0) {
-        columns[index].Name++;
-        matched = true;
-      } else {
-        if (part.match(/(?:M|F|Male|Female)\b/i)) {
-          columns[index].Gender++;
-          matched = true;
-        }
-        if (part.match(/married|widowed|single/i)) {
-          columns[index].MaritalStatus++;
-          matched = true;
-        }
-        if (
-          part.match(
-            /\b(Head|Wife|Son|Daughter|Mother|Father|Brother|Sister|Grand(?:mother|father)|Uncle|Aunt|Niece|Nephew|Cousin|(Father|Mother|Brother|Sister|Son|Daughter)-in-law|Step(?:son|daughter|brother|sister|mother|father)|Visitor|Lodger|Boarder)\b/i
-          )
-        ) {
-          columns[index].originalRelation++;
-          matched = true;
-        }
-        if (part.match(/^\d{1,2}$/)) {
-          columns[index].Age++;
-          matched = true;
-        }
-        if (part.match(/,/) || part.match(bigPlacesMatch) || part.match(placeNameRegExp)) {
-          columns[index].BirthPlace++;
-          matched = true;
-        }
-        if (part.match(occupationMatch)) {
-          columns[index].Occupation++;
-          matched = true;
-        }
-
-        if (!matched) {
-          if (part != "") {
-            columns[index].BirthPlace++;
-          }
-        }
-      }
-    });
-  });
-
-  const columnPriority = ["Name", "Gender", "originalRelation", "Age", "BirthPlace", "Occupation", "MaritalStatus"];
-  const assignedColumnNames = new Set();
-  const columnMapping = {};
-
-  for (const columnName of columnPriority) {
-    let maxScore = 0;
-    let maxScoreIndex = null;
-
-    for (const [index, column] of Object.entries(columns)) {
-      if (!Object.values(columnMapping).includes(index) && column) {
-        const total = Object.values(column).reduce((a, b) => a + b);
-        const score = column[columnName];
-
-        if (!assignedColumnNames.has(columnName) && score / total > maxScore) {
-          maxScore = score / total;
-          maxScoreIndex = index;
-        }
-      }
-    }
-
-    // Calculate the threshold for each column based on the counts
-    const minCount = 2; // Minimum count to be considered for assignment
-    if (maxScoreIndex !== null) {
-      const columnCounts = Object.values(columns[maxScoreIndex]);
-      const maxColumnCount = Math.max(...columnCounts);
-      const threshold = Math.max(minCount, maxColumnCount * 0.2); // 20% of the maximum count or the minCount, whichever is greater
-
-      if (columns[maxScoreIndex][columnName] >= threshold) {
-        columnMapping[maxScoreIndex] = columnName;
-        assignedColumnNames.add(columnName);
-      }
-    }
-  }
-
-  return columnMapping;
-}
-*/
 function extractHouseholdMembers(row) {
   const brRegex = /<br\s*\/?>/gi;
   const rowData = row.split("||")[1].trim();
@@ -6131,6 +6028,47 @@ export function buildFamilyForPrivateProfiles() {
   });
 }
 
+function minimalPlace2(narrativeBits) {
+  let used = 0;
+  let out = "";
+  let toSplice = [];
+  let usedPlaces = []; // array to store used place names
+  narrativeBits.forEach(function (aBit, index) {
+    let trimmed = aBit.replace(/\.$/, "").trim();
+    let placeName = trimmed.match(/\b[A-Z][a-zA-Z]*(\s+[A-Z][a-zA-Z]*)*\b(?!.*\b[A-Z][a-zA-Z]*(\s+[A-Z][a-zA-Z]*)*\b)/);
+    if (placeName) {
+      trimmed = placeName[0];
+      if (usedPlaces.includes(trimmed)) {
+        used++;
+        if (used > 1) {
+          toSplice.push(index);
+        }
+      } else {
+        usedPlaces.push(trimmed);
+      }
+    }
+  });
+  if (toSplice.length) {
+    for (let i = toSplice.length - 1; i >= 0; i--) {
+      narrativeBits.splice(toSplice[i], 1);
+    }
+  }
+  out = narrativeBits.join(",");
+  if (out.match(/\.$/) == null) {
+    out += ".";
+  }
+  return out;
+}
+
+// Add location category
+async function getLocationCategories() {
+  let types = ["Birth", "Marriage", "Death", "Cemetery"];
+  for (let i = 0; i < types.length; i++) {
+    const location = await getLocationCategory(types[i]);
+    addLocationCategoryToStuffBeforeTheBio(location);
+  }
+}
+
 export async function generateBio() {
   try {
     window.autoBioNotes = [];
@@ -6344,39 +6282,6 @@ export async function generateBio() {
       });
     }
 
-    function minimalPlace2(narrativeBits) {
-      let used = 0;
-      let out = "";
-      let toSplice = [];
-      let usedPlaces = []; // array to store used place names
-      narrativeBits.forEach(function (aBit, index) {
-        let trimmed = aBit.replace(/\.$/, "").trim();
-        let placeName = trimmed.match(
-          /\b[A-Z][a-zA-Z]*(\s+[A-Z][a-zA-Z]*)*\b(?!.*\b[A-Z][a-zA-Z]*(\s+[A-Z][a-zA-Z]*)*\b)/
-        );
-        if (placeName) {
-          trimmed = placeName[0];
-          if (usedPlaces.includes(trimmed)) {
-            used++;
-            if (used > 1) {
-              toSplice.push(index);
-            }
-          } else {
-            usedPlaces.push(trimmed);
-          }
-        }
-      });
-      if (toSplice.length) {
-        for (let i = toSplice.length - 1; i >= 0; i--) {
-          narrativeBits.splice(toSplice[i], 1);
-        }
-      }
-      out = narrativeBits.join(",");
-      if (out.match(/\.$/) == null) {
-        out += ".";
-      }
-      return out;
-    }
     marriagesAndCensusesEtc.sort((a, b) => parseInt(a.OrderDate) - parseInt(b.OrderDate));
 
     // Output marriages, censuses, military things, etc. in order
@@ -6600,14 +6505,6 @@ export async function generateBio() {
       subsectionsText = subsections.join("\n");
     }
 
-    // Add location category
-    async function getLocationCategories() {
-      let types = ["Birth", "Marriage", "Death", "Cemetery"];
-      for (let i = 0; i < types.length; i++) {
-        const location = await getLocationCategory(types[i]);
-        addLocationCategoryToStuffBeforeTheBio(location);
-      }
-    }
     if (window.autoBioOptions.locationCategories == true) {
       await getLocationCategories();
     }
@@ -6920,38 +6817,39 @@ export async function generateBio() {
   } catch (error) {
     console.log(error);
     removeWorking();
+    if ($("#errorDiv").length == 0) {
+      // Prepare the error message
+      let errorMessage =
+        "Hi Ian,\nI've found a bug for you to fix.\n\nProfile ID: " +
+        window.profileID +
+        "\n\nError Message: " +
+        error.message;
 
-    // Prepare the error message
-    let errorMessage =
-      "Hi Ian,\nI've found a bug for you to fix.\n\nProfile ID: " +
-      window.profileID +
-      "\n\nError Message: " +
-      error.message;
+      // Save the error message to localStorage
+      localStorage.setItem("error_message", errorMessage);
 
-    // Save the error message to localStorage
-    localStorage.setItem("error_message", errorMessage);
+      let errorDiv = $("<div id='errorDiv'>");
+      let errorText = $(
+        "<p><b>Whoops! 🙈</b> Something went wrong with the Auto Bio. <br>Please let us know about it. <br>Thank you!</p>"
+      );
+      errorDiv.append(errorText);
 
-    let errorDiv = $("<div id='errorDiv'>");
-    let errorText = $(
-      "<p>Sorry. Something went wrong with the Auto Bio. <br>Please let us know about it. <br>Thanks you.</p>"
-    );
-    errorDiv.append(errorText);
+      let errorButton = $("<button id='reportBugButton'>📧 Report bug</button>");
+      errorButton.on("click", function () {
+        errorDiv.remove();
+        window.open("https://www.wikitree.com/wiki/Beacall-6", "_blank");
+      });
 
-    let errorButton = $("<button id='reportBugButton'>Report bug</button>");
-    errorButton.on("click", function () {
-      // Open your profile in a new tab
-      window.open("https://www.wikitree.com/wiki/Beacall-6", "_blank");
-    });
+      errorDiv.append(errorButton);
 
-    errorDiv.append(errorButton);
+      let errorClose = $("<button id='closeErrorMessageButton'>X</button>");
+      errorClose.on("click", function () {
+        errorDiv.remove();
+      });
+      errorDiv.append(errorClose);
 
-    let errorClose = $("<button id='closeErrorMessageButton'>X</button>");
-    errorClose.on("click", function () {
-      errorDiv.remove();
-    });
-    errorDiv.append(errorClose);
-
-    $("body").append(errorDiv);
+      $("body").append(errorDiv);
+    }
   }
 }
 
