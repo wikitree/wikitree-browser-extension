@@ -10,15 +10,17 @@
     "build-firefox-dev": "webpack --config webpack/webpack.dev.js --env browser=firefox",
     "test": "jest",
     "clean": "rimraf dist",
+    "download-templates": "node download-templates.js",
     "update-test-pages": "node src/testing/update_test_pages.js",
-    "zip": "npm run clean && npm run build && cd dist && bestzip ../wikitree-browser-extension.zip *",
-    "zip-firefox": "npm run clean && npm run build-firefox && cd dist && bestzip ../wikitree-firefox-extension.zip *"
+    "zip": "npm run download-templates && npm run clean && npm run build && cd dist && bestzip ../wikitree-browser-extension.zip *",
+    "zip-firefox": "npm run download-templates && npm run clean && npm run build-firefox && cd dist && bestzip ../wikitree-firefox-extension.zip *"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/wikitree/wikitree-browser-extension.git"
   },
   "dependencies": {
+    "axios": "^1.4.0",
     "fuse.js": "^6.6.2",
     "jquery": "^3.6.1",
     "jquery-ui": "^1.13.2",
