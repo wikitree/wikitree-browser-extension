@@ -6098,7 +6098,17 @@ export async function generateBio() {
 
     const originalFormData = getFormData();
 
-    const originalFirstName = window.profilePerson.FirstName;
+    let originalFirstName;
+    if (window.profilePerson) {
+      if (window.profilePerson.FirstName) {
+        originalFirstName = window.profilePerson.FirstName;
+      }
+    } else {
+      window.profilePerson = {};
+      window.autoBioNotes.push(
+        "Is this a new profile? You may get better results by trying again later. Sometimes, the apps server is a little behind the main server."
+      );
+    }
     // Get the form data and add it to the profilePerson
     const formData = getFormData();
     let personKeys = Object.keys(formData);
@@ -6109,7 +6119,10 @@ export async function generateBio() {
     });
 
     if (!window.profilePerson.Name) {
-      window.autoBioNotes.push("You may get better results by logging in to the apps server (click the button above).");
+      window.autoBioNotes.push(
+        "Is this profile private? You may get better results by logging in to the apps server (click the button above)."
+      );
+      window.profilePerson.Name = profileID;
       addLoginButton();
     } else {
       window.profilePerson.BirthYear = window.profilePerson.BirthDate?.split("-")[0];
