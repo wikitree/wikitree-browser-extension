@@ -1688,7 +1688,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
   }
   if (match) {
     let matchedText = match[0];
-    const beforeFirstCommaPattern = new RegExp(firstName.trim() + "\\.?\\s[^,]+");
+    const beforeFirstCommaPattern = new RegExp(firstName.trim() + "\\.?\\s?[^,]*");
     const beforeFirstCommaMatch = beforeFirstCommaPattern.exec(matchedText);
     const ourText = beforeFirstCommaMatch[0].replace(lastNamePattern, "");
     let locationPattern = /\),[^,]+(.*?)(;|\.$)/;
