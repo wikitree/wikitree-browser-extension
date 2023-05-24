@@ -586,6 +586,9 @@ function addFeatureToOptionsPage(featureData) {
           <div class="feature-name">
             ${featureData.name}
           </div>
+          &nbsp;<a href="https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#${featureData.id}" target="_Help">
+            <img src="https://www.wikitree.com/images/icons/help.gif" border="0" width="11" height="11" alt="Help" title="Help about ${featureData.name}">
+          </a>
           <button type="button" class="feature-options-button" id="${featureData.id}_options_button" hidden>
             Show options
           </button>
