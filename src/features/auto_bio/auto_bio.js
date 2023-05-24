@@ -6098,7 +6098,15 @@ export async function generateBio() {
 
     const originalFormData = getFormData();
 
-    const originalFirstName = window.profilePerson.FirstName;
+    let originalFirstName;
+    if (window.profilePerson) {
+      if (window.profilePerson.FirstName) {
+        originalFirstName = window.profilePerson.FirstName;
+      }
+    } else {
+      window.profilePerson = {};
+      window.profilePerson.Name = profileID;
+    }
     // Get the form data and add it to the profilePerson
     const formData = getFormData();
     let personKeys = Object.keys(formData);
