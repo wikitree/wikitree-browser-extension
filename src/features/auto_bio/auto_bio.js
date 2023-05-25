@@ -1180,12 +1180,17 @@ function buildSpouses(person) {
 
             if (spouse.Father) {
               let spouseFather = window.biographySpouseParents[0].people[spouse.Father];
-              spouseDetailsA += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
-              spouseDetailsB += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
+              if (spouseFather) {
+                spouseDetailsA += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
+                spouseDetailsB += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
 
-              if (spouseFather.BirthDate && window.autoBioOptions.includeSpouseParentsDates) {
-                spouseDetailsA += " " + formatDates(spouseFather);
-                spouseDetailsB += " " + formatDates(spouseFather);
+                if (spouseFather.BirthDate && window.autoBioOptions.includeSpouseParentsDates) {
+                  spouseDetailsA += " " + formatDates(spouseFather);
+                  spouseDetailsB += " " + formatDates(spouseFather);
+                }
+              } else {
+                spouseDetailsA += "[father]";
+                spouseDetailsB += "[father]";
               }
             }
             if (spouse.Father && spouse.Mother) {
@@ -1194,11 +1199,16 @@ function buildSpouses(person) {
             }
             if (spouse.Mother) {
               let spouseMother = window.biographySpouseParents[0].people[spouse.Mother];
-              spouseDetailsA += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
-              spouseDetailsB += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
-              if (spouseMother.BirthDate && window.autoBioOptions.includeSpouseParentsDates) {
-                spouseDetailsA += " " + formatDates(spouseMother);
-                spouseDetailsB += " " + formatDates(spouseMother);
+              if (spouseMother) {
+                spouseDetailsA += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
+                spouseDetailsB += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
+                if (spouseMother.BirthDate && window.autoBioOptions.includeSpouseParentsDates) {
+                  spouseDetailsA += " " + formatDates(spouseMother);
+                  spouseDetailsB += " " + formatDates(spouseMother);
+                }
+              } else {
+                spouseDetailsA += "[mother]";
+                spouseDetailsB += "[mother]";
               }
             }
           }
