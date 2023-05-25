@@ -6067,13 +6067,13 @@ export async function generateBio() {
     // Create a map to store the narratives for each census year
     let censusNarratives = new Map();
 
-    // Initialize a new map to hold the counters for each base refName
-    let refNameCounter = new Map();
-
     // Grouping logic
     let allEvents = [];
     let previousEventObject;
     marriagesAndCensusesEtc.forEach(function (event) {
+      if (!event.Year) {
+        event.Year = event["Event Date"] ? event["Event Date"].split("-")[0] : "0000";
+      }
       let thisEvent = event["Event Type"] + " " + event.Year;
       if (previousEventObject && previousEventObject["Event Type"] + " " + previousEventObject.Year != thisEvent) {
         allEvents.push(previousEventObject);
