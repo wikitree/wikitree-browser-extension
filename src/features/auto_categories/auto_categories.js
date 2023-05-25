@@ -22,6 +22,7 @@ import {
 } from "../auto_bio/auto_bio";
 
 let currentBio = $("#wpTextbox1").val();
+
 function addDiedYoung() {
   if (window.autoCategoriesOptions.diedYoung) {
     const deathAge = ageAtDeath(window.profilePerson, false);
@@ -42,7 +43,6 @@ export async function addAutoCategories() {
 
   // Get form data and store it in a variable
   const formData = getFormData();
-  console.log(formData);
 
   // Get the text of the profile ID from the page
   const profileId = $("a.pureCssMenui0 span.person").text();
@@ -53,7 +53,6 @@ export async function addAutoCategories() {
     "Id,Name,Parents,Siblings,Spouses,Children,LastNameAtBirth,MiddleInitial,MiddleName,Derived.BirthName, Derived.BirthNamePrivate,Gender",
     "WBE_auto_categories"
   );
-  console.log(JSON.parse(JSON.stringify(window.profilePerson)));
 
   // Merge the form data into the profilePerson object
   Object.assign(window.profilePerson, formData);
@@ -61,9 +60,6 @@ export async function addAutoCategories() {
   //if ($("img[title='Privacy Level: Unlisted']").length > 0) {
   buildFamilyForPrivateProfiles();
   //}
-
-  // Log the profilePerson object to the console for debugging
-  console.log(window.profilePerson);
 
   // Assign names to the profile person
   assignPersonNames(window.profilePerson);
@@ -78,9 +74,6 @@ export async function addAutoCategories() {
     window.sourcesSection = window.sectionsObject.Sources;
   }
 
-  // Log the window object for debugging
-  console.log(window);
-
   // Generate an array of sources from the bio
   sourcesArray(currentBio);
 
@@ -89,9 +82,6 @@ export async function addAutoCategories() {
 
   // Find a cemetery from the sources
   assignCemeteryFromSources();
-
-  // Log the references to the console for debugging
-  console.log(window.references);
 
   // If the birth date or death date is in YYYY-MM format, append -00 to it
   ["BirthDate", "DeathDate"].forEach((date) => {
@@ -106,16 +96,13 @@ export async function addAutoCategories() {
   // For each event, get the location category and add it to the addCategories array if it doesn't exist already
   for (const event of events) {
     const category = await getLocationCategory(event);
-    console.log(category);
     if (!window.addCategories.includes(category) && category) {
       window.addCategories.push(category);
       console.log(JSON.parse(JSON.stringify(window.addCategories)));
     }
   }
   window.addCategories.forEach((category) => {
-    console.log(category);
     addLocationCategoryToStuffBeforeTheBio(category);
-    console.log(JSON.parse(JSON.stringify(window.sectionsObject.StuffBeforeTheBio.text)));
   });
 
   if (window.autoCategoriesOptions.unsourced) {
@@ -130,11 +117,6 @@ export async function addAutoCategories() {
 
   // Get the text of the stuff before the bio
   const stuffBeforeTheBioText = getStuffBeforeTheBioText();
-  console.log(stuffBeforeTheBioText);
-
-  // Log the addCategories array to the console for debugging
-  console.log(window.sectionsObject);
-  console.log(window.addCategories);
 
   // Switch off the enhanced editor if it's on
   let enhanced = false;
@@ -143,9 +125,9 @@ export async function addAutoCategories() {
     enhancedEditorButton.trigger("click");
     enhanced = true;
   }
-  let newText = window.sectionsObject.StuffBeforeTheBio.text.join("\n");
-  if (window.sectionsObject.StuffBeforeTheBio.text.length > 0) {
-    currentBio = currentBio.replace(/^(.*?)== Biography ==/s, `${newText}\n== Biography ==`);
+
+  if (stuffBeforeTheBioText) {
+    currentBio = currentBio.replace(/^(.*?)== Biography ==/s, `${stuffBeforeTheBioText}\n== Biography ==`);
   }
   // Add the text to the textarea and switch back to the enhanced editor if it was on
   $("#wpTextbox1").val(currentBio);

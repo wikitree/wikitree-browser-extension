@@ -5681,6 +5681,9 @@ export function getStuffBeforeTheBioText() {
       stuffBeforeTheBioText = stuff + "\n";
     }
   }
+  if (window.textBeforeTheBio) {
+    stuffBeforeTheBioText += window.textBeforeTheBio + "\n";
+  }
   return stuffBeforeTheBioText;
 }
 
@@ -6083,6 +6086,28 @@ export async function generateBio() {
     addWorking();
     const currentBio = $("#wpTextbox1").val();
     localStorage.setItem("previousBio", currentBio);
+
+    /* Check for any text before == Biography == that is not a category or a template. 
+    Categories are [[.*]]; Templates are {{.*}}.
+    Especially look out for a section entitled == Disambiguation == here.
+    We need to add this back in later.
+    */
+    const allStuffBeforeTheBio = currentBio.match(/^(.*?)(==\s*Biography\s*==)/s);
+    let textBeforeTheBio = "";
+    if (allStuffBeforeTheBio) {
+      textBeforeTheBio = allStuffBeforeTheBio[1];
+    }
+    const stuffBeforeTheBioArray = textBeforeTheBio.split("\n");
+    let stuffBeforeTheBioArray2 = [];
+    stuffBeforeTheBioArray.forEach(function (aBit) {
+      if (aBit.match(/^\[\[.*\]\]$/) == null && aBit.match(/^\{\{.*\}\}$/) == null && aBit) {
+        stuffBeforeTheBioArray2.push(aBit);
+      }
+    });
+    textBeforeTheBio = stuffBeforeTheBioArray2.join("\n");
+    window.textBeforeTheBio = textBeforeTheBio;
+    console.log("textBeforeTheBio", stuffBeforeTheBioArray2);
+
     // Split the current bio into sections
     window.sectionsObject = splitBioIntoSections();
 
