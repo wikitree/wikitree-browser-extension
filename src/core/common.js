@@ -3,6 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
+import { getWikiTreePage } from "./API/wwwWikiTree";
 
 // Add wte class to body to let WikiTree BEE know not to add the same functions
 document.querySelector("body").classList.add("wte");
@@ -262,71 +263,76 @@ export async function showDraftList() {
         delete window.drafts[index];
         window.draftCalls++;
       } else {
+        getWikiTreePage("Drafts", "/index.php", "title=" + theWTID + "&displayDraft=1").then((res) => {
+/*                  
         $.ajax({
           url: "https://www.wikitree.com/index.php?title=" + theWTID + "&displayDraft=1",
           type: "GET",
           dataType: "html", // added data type
           success: function (res) {
-            window.draftCalls++;
-            const dummy = $(res);
-            const aWTID = dummy.find("a.pureCssMenui0 span.person").text();
-            if (dummy.find("div.status:contains('You have an uncommitted')").length) {
-              window.tempDraftArr.push(aWTID);
-              const useLink = dummy.find("a:contains(Use the Draft)").attr("href");
-              if (useLink != undefined) {
-                const personID = useLink.match(/&u=[0-9]+/)[0].replace("&u=", "");
-                const draftID = useLink.match(/&ud=[0-9]+/)[0].replace("&ud=", "");
-                window.drafts.forEach(function (yDraft) {
-                  if (yDraft[0] == aWTID) {
-                    yDraft[3] = personID;
-                    yDraft[4] = draftID;
-                  }
-                });
-              }
-            }
-            if (window.draftCalls == window.drafts.length) {
-              window.newDraftArr = [];
-              window.drafts.forEach(function (aDraft) {
-                if (window.tempDraftArr.includes(aDraft[0]) && isOK(aDraft[0])) {
-                  window.newDraftArr.push(aDraft);
+*/
+          window.draftCalls++;
+          const dummy = $(res);
+          const aWTID = dummy.find("a.pureCssMenui0 span.person").text();
+          if (dummy.find("div.status:contains('You have an uncommitted')").length) {
+            window.tempDraftArr.push(aWTID);
+            const useLink = dummy.find("a:contains(Use the Draft)").attr("href");
+            if (useLink != undefined) {
+              const personID = useLink.match(/&u=[0-9]+/)[0].replace("&u=", "");
+              const draftID = useLink.match(/&ud=[0-9]+/)[0].replace("&ud=", "");
+              window.drafts.forEach(function (yDraft) {
+                if (yDraft[0] == aWTID) {
+                  yDraft[3] = personID;
+                  yDraft[4] = draftID;
                 }
               });
-
-              newDraftArr.forEach(function (xDraft) {
-                let dButtons = "<td></td><td></td>";
-                if (xDraft[3] != undefined) {
-                  dButtons =
-                    "<td><a href='https://www.wikitree.com/index.php?title=Special:EditPerson&u=" +
-                    xDraft[3] +
-                    "&ud=" +
-                    xDraft[4] +
-                    "' class='small button'>USE</a></td><td><a href='https://www.wikitree.com/index.php?title=Special:EditPerson&u=" +
-                    xDraft[3] +
-                    "&dd=" +
-                    xDraft[4] +
-                    "' class='small button'>DISCARD</a></td>";
-                }
-
-                $("#myDrafts table").append(
-                  $(
-                    "<tr><td><a href='https://www.wikitree.com/index.php?title=" +
-                      xDraft[0] +
-                      "&displayDraft=1'>" +
-                      xDraft[2] +
-                      "</a></td>" +
-                      dButtons +
-                      "</tr>"
-                  )
-                );
-              });
-              $("#myDrafts").slideDown();
-              if (newDraftArr.length == 0) {
-                $("#myDrafts").append($("<p>No drafts!</p>"));
-              }
-              localStorage.setItem("drafts", JSON.stringify(newDraftArr));
             }
+          }
+          if (window.draftCalls == window.drafts.length) {
+            window.newDraftArr = [];
+            window.drafts.forEach(function (aDraft) {
+              if (window.tempDraftArr.includes(aDraft[0]) && isOK(aDraft[0])) {
+                window.newDraftArr.push(aDraft);
+              }
+            });
+
+            newDraftArr.forEach(function (xDraft) {
+              let dButtons = "<td></td><td></td>";
+              if (xDraft[3] != undefined) {
+                dButtons =
+                  "<td><a href='https://www.wikitree.com/index.php?title=Special:EditPerson&u=" +
+                  xDraft[3] +
+                  "&ud=" +
+                  xDraft[4] +
+                  "' class='small button'>USE</a></td><td><a href='https://www.wikitree.com/index.php?title=Special:EditPerson&u=" +
+                  xDraft[3] +
+                  "&dd=" +
+                  xDraft[4] +
+                  "' class='small button'>DISCARD</a></td>";
+              }
+
+              $("#myDrafts table").append(
+                $(
+                  "<tr><td><a href='https://www.wikitree.com/index.php?title=" +
+                    xDraft[0] +
+                    "&displayDraft=1'>" +
+                    xDraft[2] +
+                    "</a></td>" +
+                    dButtons +
+                    "</tr>"
+                )
+              );
+            });
+            $("#myDrafts").slideDown();
+            if (newDraftArr.length == 0) {
+              $("#myDrafts").append($("<p>No drafts!</p>"));
+            }
+            localStorage.setItem("drafts", JSON.stringify(newDraftArr));
+          }
+/*
           },
           error: function (res) {},
+*/
         });
       }
     });

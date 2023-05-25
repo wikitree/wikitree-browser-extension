@@ -5,6 +5,7 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import { titleCase } from "../familyTimeline/familyTimeline";
 import { isOK } from "../../core/common.js";
+import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("sortThemePeople").then((result) => {
@@ -131,63 +132,65 @@ async function connectionsBanner() {
           const urlParams = new URLSearchParams(firstConnectionHREF);
           const firstConnectionWTID = urlParams.get("person1Name");
           localStorage.setItem("firstConnectionWTID", firstConnectionWTID);
-          const homePageURL = "https://www.wikitree.com";
-          $.ajax({
+          getWikiTreePage("SortTheme", "", "").then((data) => {
+/*
+            const homePageURL = "https://www.wikitree.com";
+            $.ajax({
             url: homePageURL,
             success: function (data) {
-              if ($("h2.thisWeeksTheme").length == 0) {
-                const hpHTML = $(data);
-                let linkText = "";
-                if (isOK(localStorage.shogenCFTitleData)) {
-                  linkText = JSON.parse(localStorage.shogenCFTitleData)["linkText"];
-                } else {
-                  linkText = "closely-connected";
-                }
-                let cfTitle = hpHTML
-                  .find("a[href*='" + linkText + "'][title*='G2G post']")
-                  .eq(0)
-                  .text();
-
-                let gotFromShogen = false;
-                //let cfTitleOverride = false;
-                if (isOK(cfTitle) && isOK(localStorage.shogenCFTitleData)) {
-                  const themeData = JSON.parse(localStorage.shogenCFTitleData);
-                  if (themeData.theme == "null") {
-                    cfTitle = "";
-                  } else if (themeData.theme != "") {
-                    //cfTitle = themeData.theme;
-                    localStorage.shogenCFTitle = themeData.theme;
-                   // let cfTitleOverride = true;
-                  } else {
-                    themeData.themes.forEach(function (aTheme) {
-                      const cfRegExp = new RegExp(aTheme[0], "i");
-                      if (cfTitle.match(cfRegExp) != null) {
-                        cfTitle = aTheme[1];
-                        localStorage.shogenCFTitle = cfTitle;
-                        gotFromShogen = true;
-                      }
-                    });
-                  }
-                }
-                if (gotFromShogen == false) {
-                  if (isOK(localStorage.shogenCFTitle)) {
-                    cfTitle = localStorage.shogenCFTitle;
-                  }
-                  if (localStorage.shogenCFTitle == "null") {
-                    cfTitle = "";
-                  }
-                }
-                localStorage.setItem("cfTitle", cfTitle);
-                localStorage.setItem("firstConnection", firstConnection);
-                const mow = hpHTML.find("span.large:contains(Member of the Week)");
-                if (mow.length) {
-                  localStorage.motw = mow.parent().find("img").attr("alt");
-                }
-                setConnectionsBanner();
+*/
+            if ($("h2.thisWeeksTheme").length == 0) {
+              const hpHTML = $(data);
+              let linkText = "";
+              if (isOK(localStorage.shogenCFTitleData)) {
+                linkText = JSON.parse(localStorage.shogenCFTitleData)["linkText"];
               } else {
-                //console.log("here");
+                linkText = "closely-connected";
               }
-            },
+              let cfTitle = hpHTML
+                .find("a[href*='" + linkText + "'][title*='G2G post']")
+                .eq(0)
+                .text();
+
+              let gotFromShogen = false;
+              //let cfTitleOverride = false;
+              if (isOK(cfTitle) && isOK(localStorage.shogenCFTitleData)) {
+                const themeData = JSON.parse(localStorage.shogenCFTitleData);
+                if (themeData.theme == "null") {
+                  cfTitle = "";
+                } else if (themeData.theme != "") {
+                  //cfTitle = themeData.theme;
+                  localStorage.shogenCFTitle = themeData.theme;
+                  // let cfTitleOverride = true;
+                } else {
+                  themeData.themes.forEach(function (aTheme) {
+                    const cfRegExp = new RegExp(aTheme[0], "i");
+                    if (cfTitle.match(cfRegExp) != null) {
+                      cfTitle = aTheme[1];
+                      localStorage.shogenCFTitle = cfTitle;
+                      gotFromShogen = true;
+                    }
+                  });
+                }
+              }
+              if (gotFromShogen == false) {
+                if (isOK(localStorage.shogenCFTitle)) {
+                  cfTitle = localStorage.shogenCFTitle;
+                }
+                if (localStorage.shogenCFTitle == "null") {
+                  cfTitle = "";
+                }
+              }
+              localStorage.setItem("cfTitle", cfTitle);
+              localStorage.setItem("firstConnection", firstConnection);
+              const mow = hpHTML.find("span.large:contains(Member of the Week)");
+              if (mow.length) {
+                localStorage.motw = mow.parent().find("img").attr("alt");
+              }
+              setConnectionsBanner();
+            } else {
+              //console.log("here");
+            }
           });
         }
       }

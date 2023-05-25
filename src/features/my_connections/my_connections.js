@@ -7,6 +7,7 @@ import $ from "jquery";
 import "./my_connections.css";
 import "jquery-ui/ui/widgets/draggable";
 import { getAge } from "../change_family_lists/change_family_lists";
+import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import { isOK, htmlEntities, extractRelatives } from "../../core/common";
 import Cookies from "js-cookie";
 import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup";
@@ -443,20 +444,26 @@ async function myConnectionsMore() {
 async function getMoreConnections() {
   if (window.CC7 == false) {
     const theWTID = $(".pureCssMenui0 span.person").text();
+    // theWTID is not retrieved when looking at another profile. (&w=Kauković-5)
+    if (theWTID !== "") {
+      getWikiTreePage("MyConnections", "/wiki/" + theWTID, "").then((res) => {
+        /*
     $.ajax({
       url: "https://www.wikitree.com/wiki/" + theWTID,
       type: "GET",
       dataType: "html", // added data type
       success: function (res) {
+*/
         let dummy = $(res);
         let topText = dummy.find(".fourteen.columns.omega").text();
         let connectionsText = topText.match(/[0-9]+\sconnections/);
         if (connectionsText != null) {
           window.CC7 = connectionsText[0].match(/[0-9]+/)[0];
         }
-      },
-      error: function (res) {},
-    });
+        //      },
+        //      error: function (res) {},
+      });
+    }
   }
   const allH3s = document.querySelectorAll(".wrapper h3[id*='gen']");
   const lastH3 = allH3s[allH3s.length - 1];

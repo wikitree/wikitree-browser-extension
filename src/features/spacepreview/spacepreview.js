@@ -6,6 +6,7 @@ Contributors: Jonathan Duke (Duke-5773)
 import $ from "jquery";
 import "../../thirdparty/jquery.hoverDelay";
 import { WBE } from "../../core/common";
+import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 let previewClasses = "x-page-preview";
@@ -147,7 +148,7 @@ function getPreviewContent(type, pageId, url) {
         : type === "category"
         ? parseCategoryContent // category profiles
         : parsePageContent; // any other generic content page
-    fetch(type, pageId, url)
+    doFetch(type, pageId, url)
       .then((response) => {
         // do stuff with the content
         resolve(parse(response));
@@ -158,9 +159,27 @@ function getPreviewContent(type, pageId, url) {
   });
 }
 
-function fetch(type, pageId, url) {
+function doFetch(type, pageId, url) {
   // right now, we have to get the full HTML from the page because the user may not be authenticated on the API
-  return new Promise((resolve, reject) => {
+  const urlObj = new URL(url);
+  return getWikiTreePage("PagePrewiew", urlObj.pathname, urlObj.search).then((data) => {
+    return data;
+  })
+/*
+  return new Promise(
+    (resolve, reject) => {
+      const urlObj = new URL(url);
+      getWikiTreePage("PagePrewiew", urlObj.pathname, urlObj.search)
+        .then((data) => {
+          return resolve(data);
+        })
+        .fail((textStatus) => {
+          return reject(textStatus);
+        });
+    }
+  );
+*/
+    /*
     $.ajax({
       url: url,
       type: "GET",
@@ -177,6 +196,7 @@ function fetch(type, pageId, url) {
         reject(errorThrown);
       });
   });
+*/
 }
 
 function parsePageContent(response) {
@@ -348,6 +368,7 @@ function attachHover(target) {
       otherPagePreview ? 'a[href*="/wiki/Project:"]' : null,
       otherPagePreview ? 'a[href*="/wiki/Special:"]' : null,
       otherPagePreview ? 'a[href*="/wiki/Template:"]' : null,
+      otherPagePreview ? 'a[href*="/wiki/Automated:"]' : null,
     ]
       .join(", ")
       .replace(/^[\s,]+|[\s,]+$/g, "");

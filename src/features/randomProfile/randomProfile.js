@@ -5,7 +5,7 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { getPerson } from "wikitree-js";
-import { wtAPIProfileSearch } from "../../core/wtPlusAPI/wtPlusAPI";
+import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import "jquery-ui/ui/widgets/draggable";
 
 checkIfFeatureEnabled("randomProfile").then((result) => {
@@ -14,24 +14,6 @@ checkIfFeatureEnabled("randomProfile").then((result) => {
     addRandomToFindMenu();
   }
 });
-
-/* use wtAPIProfileSearch instead
-export async function getWTPlusJSON(call) {
-  try {
-    const result = await $.ajax({
-      url: "https://plus.wikitree.com/function/" + call,
-      crossDomain: true,
-      xhrFields: { withCredentials: false },
-      type: "POST",
-      dataType: "json",
-      data: { render: "1" },
-    });
-    return result;
-  } catch (error) {
-    console.error(error);
-  }
-}
-*/
 
 // Used in Random Profile and My Menu
 export async function getRandomProfile(ourCountry = false) {
@@ -115,7 +97,6 @@ export async function getRandomProfile(ourCountry = false) {
   } else {
     // If the location is not in okLocations or we've tried 50 random profiles from the database,
     // get 100,000 results from WT+ and choose a random one from there.
-    // before change to API getWTPlusJSON("WTWebProfileSearch/extRandomProfile.json?Query=" + ourCountry + "&MaxProfiles=100000&Format=JSON")
     wtAPIProfileSearch("RandomProfile", ourCountry, {maxProfiles: 100000})
     .then((response) => {
       console.log(response);

@@ -6,6 +6,7 @@ Contributors: Aleš Trtnik (Trtnik-2), Jonathan Duke (Duke-5773)
 import $ from "jquery";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 import { getPeople } from "../dna_table/dna_table";
+import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import { isWikiPage, isProfilePage, isSpacePage, isMediaWikiPage } from "../../core/pageType";
 
 checkIfFeatureEnabled("whatLinksHere").then((result) => {
@@ -19,156 +20,40 @@ checkIfFeatureEnabled("whatLinksHere").then((result) => {
 });
 
 async function fillWhatLinksHereSection() {
-  const thisUn = $("#whatLinksHere");
-  // in annonimous there are no menus
-  if (thisUn.length) {
-    $.ajax({
-      url: thisUn.attr("href").replace("limit=1000", "limit=200"),
-      success: function (data) {
-        const dLinks = $(data).find("#content ul a[href*='/wiki/']");
-        const whatLinksHerePages = [];
-        const whatLinksHereWikiTreeIDs = [];
-        const whatLinksHereProfiles = [];
-        if (dLinks.length == 0) {
-          $("#whatLinksHereSection").append("<div><dl><dd>Nothing links here yet.</dd></dl></div>");
-          return;
-        }
-        dLinks.sort(function (a, b) {
-          // sort all links by ID (including the Category: or Space: prefixes)
-          let c = $(a).attr("href")?.toLowerCase();
-          let d = $(b).attr("href")?.toLowerCase();
-          return c < d ? -1 : c > d ? 1 : 0;
-        });
-        dLinks.each(function () {
-          if (
-            $(this)
-              .attr("href")
-              .match(/Help:|Docs:|Space:|Category:|Project:|Special:|Template:/) == null
-          ) {
-            whatLinksHereWikiTreeIDs.push($(this).text());
-          } else {
-            whatLinksHerePages.push(
-              $(`<a href="/wiki/${$(this).attr("href").split("/wiki/")[1]}">${$(this).text()}</a>`)
-            );
-          }
-        });
-
-        if (whatLinksHereWikiTreeIDs.length || whatLinksHerePages.length) {
-          let profiles = whatLinksHereWikiTreeIDs.join(",");
-          // private profiles will not be returned and displayed
-          getPeople(profiles, 0, 0, 0, 0, 0, "Name,Derived.ShortName,Derived.LongName", "WBE_what_links_here").then(
-            (data) => {
-              if (data.length) {
-                let theKeys = Object.keys(data[0].people);
-                theKeys.sort(function (a, b) {
-                  let c = (
-                    data[0].people[a]?.Name?.replace(/-\d+$/, "") +
-                    "|" +
-                    (data[0].people[a]?.LongName ?? data[0].people[a]?.ShortName)
-                  ).toLowerCase();
-                  let d = (
-                    data[0].people[b]?.Name?.replace(/-\d+$/, "") +
-                    "|" +
-                    (data[0].people[b]?.LongName ?? data[0].people[b]?.ShortName)
-                  ).toLowerCase();
-                  return c < d ? -1 : c > d ? 1 : 0;
-                });
-                theKeys.forEach(function (aKey) {
-                  let person = data[0].people[aKey];
-                  if (person.Name) {
-                    let thisWikiLink = $("<a></a>")
-                      .attr("href", "/wiki/" + person.Name)
-                      .text(person.LongName ?? person.ShortName ?? person.Name);
-                    whatLinksHereProfiles.push(thisWikiLink);
-                  }
-                });
-              }
-              let wlhContainers = "";
-              if (whatLinksHereWikiTreeIDs.length) {
-                wlhContainers += "<div><ul id='whatLinksHereLinksProfiles' class='star'></ul></div>";
-              }
-              if (whatLinksHerePages.length) {
-                wlhContainers += "<div><ul id='whatLinksHereLinksPages' class='star'></ul></div>";
-              }
-              wlhContainers = '<div style="display: flex;">' + wlhContainers + "</div>";
-              $("#whatLinksHereSection").append(wlhContainers);
-
-              whatLinksHerePages.forEach(function (aLink) {
-                let anLi = $("<li></li>");
-                $("#whatLinksHereLinksPages").append(anLi);
-                anLi.append($(aLink));
-              });
-              whatLinksHereProfiles.forEach(function (aLink) {
-                let anLi = $("<li></li>");
-                $("#whatLinksHereLinksProfiles").append(anLi);
-                anLi.append($(aLink));
-              });
-            }
-          );
-        }
-      },
-    });
-  }
-}
-
-function addWhatLinksHereLink() {
-  // Add link after 'Watchlist' on edit, profile, and space pages
-  const findMatchesLi = $('li a.pureCssMenui[href="/wiki/Special:WatchedList"]');
-  const thisURL = window.location.href;
-  let dLink = "";
-  // Edit page
-  const searchParams = new URLSearchParams(window.location.href);
-  if ($("body.page-Special_EditPerson").length) {
-    dLink = "Wiki:" + window.profileWTID;
-  } else if (searchParams.has("title")) {
-    dLink = "Wiki:" + searchParams.get("title");
-  } else if (thisURL.split(/\/wiki\//)[1]) {
-    dLink = thisURL.split(/\/wiki\//)[1];
-    if (!dLink.match(/.+:.+/)) {
-      dLink = "Wiki:" + dLink;
+  const s = getWhatLinksHereLink(200);
+  const url = new URL(s, "https://www.wikitree.com");
+  getWikiTreePage("WhatLinksHereSection", url.pathname, url.search).then((data) => {
+    const dLinks = $(data).find("#content ul a[href*='/wiki/']");
+    const whatLinksHerePages = [];
+    const whatLinksHereWikiTreeIDs = [];
+    const whatLinksHereProfiles = [];
+    if (dLinks.length == 0) {
+      $("#whatLinksHereSection").append("<div><dl><dd>Nothing links here yet.</dd></dl></div>");
+      return;
     }
-  }
-
-  if (dLink != "") {
-    // Add the link
-    const newLi = $(
-      `<li><a class="pureCssMenui whatLinksHere" href="/index.php?title=Special:Whatlinkshere/${dLink}&limit=1000" title="See what links to this page&#10;Right click: Copy to Clopboard" id="whatLinksHere">What Links Here</li>`
-    );
-    newLi.insertAfter(findMatchesLi.parent());
-  }
-}
-
-export function doWhatLinksHere(e) {
-  e.preventDefault();
-  const whatLinksHereLink = $(e.currentTarget);
-  whatLinksHereLink.text("Working...");
-  const URL = whatLinksHereLink.attr("href");
-  $.ajax({
-    url: URL,
-    success: function (data) {
-      const dLinks = $(data).find("#content ul a[href*='/wiki/']");
-      if (dLinks.length == 0) {
-        whatLinksHereLink.text("Nothing links here yet.");
-        return;
+    dLinks.sort(function (a, b) {
+      // sort all links by ID (including the Category: or Space: prefixes)
+      let c = $(a).attr("href")?.toLowerCase();
+      let d = $(b).attr("href")?.toLowerCase();
+      return c < d ? -1 : c > d ? 1 : 0;
+    });
+    dLinks.each(function () {
+      if (
+        $(this)
+          .attr("href")
+          .match(/Help:|Docs:|Space:|Category:|Project:|Special:|Template:/) == null
+      ) {
+        whatLinksHereWikiTreeIDs.push($(this).text());
+      } else {
+        whatLinksHerePages.push($(`<a href="/wiki/${$(this).attr("href").split("/wiki/")[1]}">${$(this).text()}</a>`));
       }
-      let whatLinksHere = "";
-      const whatLinksHereWikiTreeIDs = [];
-      dLinks.each(function () {
-        if (
-          $(this)
-            .attr("href")
-            .match(/Help:|Docs:|Space:|Category:|Project:|Special:|Template:/) == null
-        ) {
-          whatLinksHereWikiTreeIDs.push($(this).text());
-        } else {
-          const name = $(this).attr("href").split("/wiki/")[1];
-          whatLinksHere += "[[" + (name.startsWith("Category") ? ":" : "") + name + "|" + $(this).text() + "]]\n";
-        }
-      });
-      if (whatLinksHereWikiTreeIDs.length || whatLinksHere !== "") {
-        let profiles = whatLinksHereWikiTreeIDs.join(",");
-        // private profiles will not be returned and displayed
-        getPeople(profiles, 0, 0, 0, 0, 0, "Name,Derived.ShortName", "WBE_what_links_here").then((data) => {
+    });
+
+    if (whatLinksHereWikiTreeIDs.length || whatLinksHerePages.length) {
+      let profiles = whatLinksHereWikiTreeIDs.join(",");
+      // private profiles will not be returned and displayed
+      getPeople(profiles, 0, 0, 0, 0, 0, "Name,Derived.ShortName,Derived.LongName", "WBE_what_links_here").then(
+        (data) => {
           if (data.length) {
             let theKeys = Object.keys(data[0].people);
             theKeys.sort(function (a, b) {
@@ -187,22 +72,134 @@ export function doWhatLinksHere(e) {
             theKeys.forEach(function (aKey) {
               let person = data[0].people[aKey];
               if (person.Name) {
-                let thisWikiLink =
-                  "[[" + person.Name + "|" + (person.LongName ?? person.ShortName ?? person.Name) + "]]<br>";
-                whatLinksHere += thisWikiLink;
+                let thisWikiLink = $("<a></a>")
+                  .attr("href", "/wiki/" + person.Name)
+                  .text(person.LongName ?? person.ShortName ?? person.Name);
+                whatLinksHereProfiles.push(thisWikiLink);
               }
             });
           }
-          if (whatLinksHere !== "") {
-            copyToClipboard3($("<div>" + whatLinksHere + "</div>"), 0);
-            whatLinksHereLink.text("Copied").addClass("copied");
-            setTimeout(function () {
-              whatLinksHereLink.text("What Links Here").removeClass("copied");
-            }, 3000);
+          let wlhContainers = "";
+          if (whatLinksHereWikiTreeIDs.length) {
+            wlhContainers += "<div><ul id='whatLinksHereLinksProfiles' class='star'></ul></div>";
           }
-        });
+          if (whatLinksHerePages.length) {
+            wlhContainers += "<div><ul id='whatLinksHereLinksPages' class='star'></ul></div>";
+          }
+          wlhContainers = '<div style="display: flex;">' + wlhContainers + "</div>";
+          $("#whatLinksHereSection").append(wlhContainers);
+
+          whatLinksHerePages.forEach(function (aLink) {
+            let anLi = $("<li></li>");
+            $("#whatLinksHereLinksPages").append(anLi);
+            anLi.append($(aLink));
+          });
+          whatLinksHereProfiles.forEach(function (aLink) {
+            let anLi = $("<li></li>");
+            $("#whatLinksHereLinksProfiles").append(anLi);
+            anLi.append($(aLink));
+          });
+        }
+      );
+    }
+  });
+}
+
+function getWhatLinksHereLink(limit) {
+  const thisURL = window.location.href;
+  let dLink = "";
+  // Edit page
+  const searchParams = new URLSearchParams(window.location.href);
+  if ($("body.page-Special_EditPerson").length) {
+    dLink = "Wiki:" + window.profileWTID;
+  } else if (searchParams.has("title")) {
+    dLink = "Wiki:" + searchParams.get("title");
+  } else if (thisURL.split(/\/wiki\//)[1]) {
+    dLink = thisURL.split(/\/wiki\//)[1];
+    if (!dLink.match(/.+:.+/)) {
+      dLink = "Wiki:" + dLink;
+    }
+  }
+  if (dLink != "") {
+    return `/index.php?title=Special:Whatlinkshere/${dLink}&limit=${limit}`;
+  }
+}
+
+function addWhatLinksHereLink() {
+  // Add link after 'Watchlist' on edit, profile, and space pages
+  const findMatchesLi = $('li a.pureCssMenui[href="/wiki/Special:WatchedList"]');
+  const dLink = getWhatLinksHereLink(1000);
+  if (dLink != "") {
+    // Add the link
+    const newLi = $(
+      `<li><a class="pureCssMenui whatLinksHere" href="${dLink}" title="See what links to this page&#10;Right click: Copy to Clopboard" id="whatLinksHere">What Links Here</li>`
+    );
+    newLi.insertAfter(findMatchesLi.parent());
+  }
+}
+
+export function doWhatLinksHere(e) {
+  e.preventDefault();
+  const whatLinksHereLink = $(e.currentTarget);
+  whatLinksHereLink.text("Working...");
+  const url = new URL(whatLinksHereLink.attr("href"), "https://www.wikitree.com");
+  getWikiTreePage("WhatLinksHereClipboard", url.pathname, url.search).then((data) => {
+    const dLinks = $(data).find("#content ul a[href*='/wiki/']");
+    if (dLinks.length == 0) {
+      whatLinksHereLink.text("Nothing links here yet.");
+      return;
+    }
+    let whatLinksHere = "";
+    const whatLinksHereWikiTreeIDs = [];
+    dLinks.each(function () {
+      if (
+        $(this)
+          .attr("href")
+          .match(/Help:|Docs:|Space:|Category:|Project:|Special:|Template:/) == null
+      ) {
+        whatLinksHereWikiTreeIDs.push($(this).text());
+      } else {
+        const name = $(this).attr("href").split("/wiki/")[1];
+        whatLinksHere += "[[" + (name.startsWith("Category") ? ":" : "") + name + "|" + $(this).text() + "]]\n";
       }
-    },
+    });
+    if (whatLinksHereWikiTreeIDs.length || whatLinksHere !== "") {
+      let profiles = whatLinksHereWikiTreeIDs.join(",");
+      // private profiles will not be returned and displayed
+      getPeople(profiles, 0, 0, 0, 0, 0, "Name,Derived.ShortName", "WBE_what_links_here").then((data) => {
+        if (data.length) {
+          let theKeys = Object.keys(data[0].people);
+          theKeys.sort(function (a, b) {
+            let c = (
+              data[0].people[a]?.Name?.replace(/-\d+$/, "") +
+              "|" +
+              (data[0].people[a]?.LongName ?? data[0].people[a]?.ShortName)
+            ).toLowerCase();
+            let d = (
+              data[0].people[b]?.Name?.replace(/-\d+$/, "") +
+              "|" +
+              (data[0].people[b]?.LongName ?? data[0].people[b]?.ShortName)
+            ).toLowerCase();
+            return c < d ? -1 : c > d ? 1 : 0;
+          });
+          theKeys.forEach(function (aKey) {
+            let person = data[0].people[aKey];
+            if (person.Name) {
+              let thisWikiLink =
+                "[[" + person.Name + "|" + (person.LongName ?? person.ShortName ?? person.Name) + "]]<br>";
+              whatLinksHere += thisWikiLink;
+            }
+          });
+        }
+        if (whatLinksHere !== "") {
+          copyToClipboard3($("<div>" + whatLinksHere + "</div>"), 0);
+          whatLinksHereLink.text("Copied").addClass("copied");
+          setTimeout(function () {
+            whatLinksHereLink.text("What Links Here").removeClass("copied");
+          }, 3000);
+        }
+      });
+    }
   });
 }
 

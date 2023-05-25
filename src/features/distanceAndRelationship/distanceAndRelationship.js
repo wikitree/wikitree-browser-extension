@@ -4,6 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import Cookies from "js-cookie";
+import { getConnectionJSON, getRelationJSON } from "../../core/API/wwwWikiTree";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 
 const fixOrdinalSuffix = (text) => {
@@ -161,6 +162,7 @@ export async function getProfile(id, fields = "*", appId = "WBE") {
   }
 }
 
+/*
 async function getConnectionFinderResult(id1, id2, relatives = 0) {
   try {
     const result = await $.ajax({
@@ -212,6 +214,7 @@ export async function getRelationshipFinderResult(id1, id2) {
     console.error(error);
   }
 }
+*/
 
 function addRelationshipText(oText, commonAncestors) {
   const commonAncestorTextResult = commonAncestorText(commonAncestors);
@@ -281,7 +284,8 @@ function commonAncestorText(commonAncestors) {
 }
 
 function doRelationshipText(userID, profileID) {
-  getRelationshipFinderResult(userID, profileID).then(function (data) {
+//  getRelationshipFinderResult(userID, profileID).then(function (data) {
+  getRelationJSON("DistanceAndRelationship_Relationship", userID, profileID).then(function (data) {
     if (data) {
       var out = "";
       var aRelationship = true;
@@ -412,10 +416,11 @@ async function addDistance(data) {
 async function getDistance() {
   const id1 = Cookies.get("wikitree_wtb_UserName");
   const id2 = $("a.pureCssMenui0 span.person").text();
-  const data = await getConnectionFinderResult(id1, id2);
+  // const data = await getConnectionFinderResult(id1, id2);
+  const data = await getConnectionJSON("DistanceAndRelationship_Distance", id1, id2);
   addDistance(data);
 }
-
+  
 function ordinal(i) {
   var j = i % 10,
     k = i % 100;

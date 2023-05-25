@@ -4,7 +4,7 @@ Created By: Aleš Trtnik (Trtnik-2)
 
 import { isWikiEdit } from "../../core/pageType";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
-import { wtAPICatCIBSearch } from "../../core/wtPlusAPI/wtPlusAPI";
+import { wtAPICatCIBSearch } from "../../core/API/wtPlusAPI";
 
 let tb = {};
 
