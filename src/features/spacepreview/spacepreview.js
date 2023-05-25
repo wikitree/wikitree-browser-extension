@@ -162,41 +162,7 @@ function getPreviewContent(type, pageId, url) {
 function doFetch(type, pageId, url) {
   // right now, we have to get the full HTML from the page because the user may not be authenticated on the API
   const urlObj = new URL(url);
-  return getWikiTreePage("PagePrewiew", urlObj.pathname, urlObj.search).then((data) => {
-    return data;
-  })
-/*
-  return new Promise(
-    (resolve, reject) => {
-      const urlObj = new URL(url);
-      getWikiTreePage("PagePrewiew", urlObj.pathname, urlObj.search)
-        .then((data) => {
-          return resolve(data);
-        })
-        .fail((textStatus) => {
-          return reject(textStatus);
-        });
-    }
-  );
-*/
-    /*
-    $.ajax({
-      url: url,
-      type: "GET",
-      xhrFields: { withCredentials: true },
-    })
-      .done((data, textStatus, jqXHR) => {
-        if (data) {
-          resolve(data);
-        } else {
-          reject(textStatus);
-        }
-      })
-      .fail((jqXHR, textStatus, errorThrown) => {
-        reject(errorThrown);
-      });
-  });
-*/
+  return getWikiTreePage("PagePreview", urlObj.pathname, urlObj.search);
 }
 
 function parsePageContent(response) {
