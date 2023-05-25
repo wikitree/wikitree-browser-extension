@@ -269,13 +269,14 @@ async function clipboard(type, e, action = false) {
 
   setAddClippingAction(type);
 
+  if ($(e.target).hasClass("aClipboardButton") || $(e.target).hasClass("aNotesButton")) {
+    placeClipboard($("#clipboard"), e);
+  }
+
   if (action == false) {
     $("#clipboard").toggle();
-
-    placeClipboard($("#clipboard"), e);
   } else {
     $("#clipboard").show();
-    placeClipboard($("#clipboard"), e);
   }
 
   window.lastClipboardClicker = window.clipboardClicker;

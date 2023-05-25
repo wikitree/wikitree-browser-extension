@@ -2622,265 +2622,6 @@ function parseCensusData(censusData) {
   return parsedData;
 }
 
-function getCensusesFromCensusSection() {
-  let censusSection;
-  let parsedCensusSection;
-  if (window.sectionsObject?.Biography?.subsections?.Census) {
-    censusSection = window.sectionsObject.Biography.subsections.Census;
-    parsedCensusSection = parseCensusData(censusSection.text);
-  } else if (window.sectionsObject?.Census) {
-    censusSection = window.sectionsObject.Census;
-    parsedCensusSection = parseCensusData(censusSection.text);
-  } else {
-    return;
-  }
-  let newPerson = {};
-  window.references.forEach(function (ref) {
-    if (ref.Text.match(/census|1939( England and Wales)? Register/i)) {
-      ref["Record Type"] = ["Census"];
-      ref["Event Type"] = "Census";
-      if (!ref["Residence"]) {
-        const residenceMatch = ref.Text.match(/in\s([A-Z].*?)(\sin\s)([A-Z].*?)(\s[a-z])/);
-        if (residenceMatch) {
-          ref["Residence"] = residenceMatch[1];
-          if (residenceMatch[3]) {
-            ref["Residence"] += ", " + residenceMatch[3];
-          }
-        } else {
-          const residenceMatch2 = ref.Text.match(/,\sat\s([A-Z].*?)R.D./);
-          if (residenceMatch2) {
-            ref["Residence"] = residenceMatch2[1];
-          }
-        }
-      }
-    }
-    if (ref["Record Type"].includes("Census") || ref["Event Type"] == "Census") {
-      const censusTypeMatch = ref.Text.match(/\b(\d{4})\b.*(ukcensusonline|findmypast|familysearch|ancestry|freecen)/s);
-      if (censusTypeMatch) {
-        ref.CensusType = censusTypeMatch[2];
-        let thisCensus = false;
-        if (!ref.Household) {
-          ref.Household = [];
-        }
-        ref.ListText = [];
-
-        if (parsedCensusSection) {
-          parsedCensusSection.forEach(function (family) {
-            if (family.Year == censusTypeMatch[1]) {
-              thisCensus = true;
-              ref.Household = family.Household;
-              ref.Text = ref.Text + "\n" + family.OriginalText;
-            }
-          });
-        } else {
-          censusSection.text.forEach(function (line) {
-            const yearMatch = line.match(censusTypeMatch[1]);
-            const aYearMatch = line.match(/\b1[789]\d{2}\b/);
-            if (thisCensus) {
-              if (aYearMatch) {
-                if (aYearMatch[0] != censusTypeMatch[1] && line.match(/^:/) == null) {
-                  thisCensus = false;
-                  if (newPerson.Name) {
-                    ref.Household.push(newPerson);
-                    newPerson = {};
-                  }
-                }
-              }
-              if (line.match(/^:/)) {
-                if (thisCensus && ref.Year == 1939 && ref.CensusType == "findmypast") {
-                  if (line.match("findmypast") == null) {
-                    ref.ListText.push(line);
-                  }
-                  const lineBits = line.split("\t");
-                  lineBits.forEach(function (aBit, index) {
-                    aBit = aBit.replace(/^:/, "").trim();
-                    if (index == 0) {
-                      newPerson["FirstName"] = aBit;
-                    }
-                    if (index == 1) {
-                      newPerson["LastName"] = aBit;
-                      newPerson.Name = newPerson.FirstName + " " + newPerson.LastName;
-                    }
-                    if (index == 2) {
-                      newPerson["BirthDate"] = aBit;
-                    }
-                    if (index == 3) {
-                      newPerson["Gender"] = aBit;
-                    }
-                    if (index == 4) {
-                      newPerson["Occupation"] = aBit;
-                    }
-                    if (index == 5) {
-                      newPerson["MaritalStatus"] = aBit;
-                    }
-                    if (index == 6) {
-                      newPerson["Age"] = aBit;
-                    }
-                  });
-                  if (newPerson.Name) {
-                    ref.Household.push(newPerson);
-                    newPerson = {};
-                  }
-                  newPerson = {};
-                } else if (thisCensus && ref.CensusType == "ukcensusonline") {
-                  if (line.match("ukcensusonline") == null) {
-                    ref.ListText.push(line);
-                  }
-                  const lineBits = line.split("\t");
-                  lineBits.forEach(function (aBit, index) {
-                    aBit = aBit.replace(/^:/, "").trim();
-                    if (index == 0) {
-                      newPerson["FirstName"] = aBit;
-                    }
-                    if (index == 1) {
-                      newPerson["LastName"] = aBit;
-                      newPerson.Name = newPerson.FirstName + " " + newPerson.LastName;
-                    }
-
-                    if (["1881", "1901"].includes(ref.Year)) {
-                      if (index == 2) {
-                        newPerson["Age"] = aBit;
-                      }
-                      if (index == 3) {
-                        newPerson["BirthDate"] = aBit;
-                      }
-                      if (index == 4) {
-                        newPerson["Relation"] = aBit;
-                      }
-                      if (index == 5) {
-                        newPerson["BirthLocation"] = aBit;
-                      }
-                      if (index == 6) {
-                        newPerson["Occupation"] = aBit;
-                      }
-                    } else {
-                      if (index == 2) {
-                        newPerson["Age"] = aBit;
-                      }
-                      if (index == 3) {
-                        newPerson["BirthDate"] = aBit;
-                      }
-                      if (index == 4) {
-                        newPerson["Gender"] = aBit;
-                      }
-                      if (index == 5) {
-                        newPerson["Relation"] = aBit;
-                      }
-                      if (index == 6) {
-                        newPerson["MaritalStatus"] = aBit;
-                      }
-                      if (index == 7) {
-                        newPerson["YearsMarried"] = aBit;
-                      }
-                      if (index == 8) {
-                        newPerson["BirthLocation"] = aBit;
-                      }
-                      if (index == 9) {
-                        newPerson["Occupation"] = aBit;
-                      }
-                    }
-                  });
-                  if (newPerson.Name) {
-                    ref.Household.push(newPerson);
-                    newPerson = {};
-                  }
-                  newPerson = {};
-                } else if (thisCensus && ref.CensusType == "findmypast") {
-                  if (!ref.ListText.includes(line) && line.match("findmypast") == null) {
-                    ref.ListText.push(line);
-                  }
-                  if (line.match(/\s{4}/)) {
-                    const lineBits = line.split(/\s{4}/);
-                    lineBits.forEach(function (aBit, index) {
-                      aBit = aBit.replace(/^:/, "").trim();
-                      if (index == 0) {
-                        let nameBits = aBit.split(" ");
-                        newPerson["FirstName"] = nameBits[0];
-                        newPerson["LastName"] = nameBits[nameBits.length - 1];
-                        newPerson.Name = aBit;
-                      }
-                      if (index == 1) {
-                        newPerson["Relation"] = aBit;
-                      }
-                      if (index == 2) {
-                        newPerson["MaritalStatus"] = aBit;
-                      }
-                      if (index == 3) {
-                        if (aBit == "M") {
-                          newPerson.Gender = "Male";
-                        } else if (aBit == "F") {
-                          newPerson.Gender = "Female";
-                        } else {
-                          newPerson.Gender = "";
-                        }
-                      }
-                      if (index == 4) {
-                        newPerson["Age"] = aBit;
-                      }
-                      if (index == 5) {
-                        newPerson["Occupation"] = aBit;
-                      }
-                      if (index == 6) {
-                        newPerson["BirthLocation"] = aBit;
-                      }
-                    });
-                  } else {
-                    const lineBits = line.split(/\t/);
-                    lineBits.forEach(function (aBit, index) {
-                      aBit = aBit.replace(/^:/, "").trim();
-                      if (index == 0) {
-                        newPerson["FirstName"] = aBit;
-                      }
-                      if (index == 1) {
-                        newPerson["LastName"] = aBit;
-                        newPerson.Name = newPerson.FirstName + " " + newPerson.LastName;
-                      }
-                      if (index == 2) {
-                        newPerson["Relation"] = aBit;
-                      }
-                      if (index == 3) {
-                        newPerson["MaritalStatus"] = aBit;
-                      }
-                      if (index == 4) {
-                        newPerson.Gender = aBit;
-                      }
-                      if (index == 5) {
-                        newPerson["Age"] = aBit;
-                      }
-                      if (index == 6) {
-                        newPerson["BirthDate"] = aBit;
-                      }
-                      if (index == 7) {
-                        newPerson["Occupation"] = aBit;
-                      }
-                      if (index == 8) {
-                        newPerson["BirthLocation"] = aBit;
-                      }
-                    });
-                  }
-
-                  if (newPerson.Name) {
-                    ref.Household.push(newPerson);
-                    newPerson = {};
-                  }
-                  newPerson = {};
-                }
-              }
-            }
-            if (yearMatch) {
-              thisCensus = true;
-            }
-          });
-          if (newPerson.Name) {
-            ref.Household.push(newPerson);
-          }
-        }
-        ref = assignSelf(ref);
-      }
-    }
-  });
-}
-
 function addAges() {
   window.references.forEach(function (reference) {
     if (reference["Record Type"] == "Census") {
@@ -5681,6 +5422,9 @@ export function getStuffBeforeTheBioText() {
       stuffBeforeTheBioText = stuff + "\n";
     }
   }
+  if (window.textBeforeTheBio) {
+    stuffBeforeTheBioText += window.textBeforeTheBio + "\n";
+  }
   return stuffBeforeTheBioText;
 }
 
@@ -6083,6 +5827,28 @@ export async function generateBio() {
     addWorking();
     const currentBio = $("#wpTextbox1").val();
     localStorage.setItem("previousBio", currentBio);
+
+    /* Check for any text before == Biography == that is not a category or a template. 
+    Categories are [[.*]]; Templates are {{.*}}.
+    Especially look out for a section entitled == Disambiguation == here.
+    We need to add this back in later.
+    */
+    const allStuffBeforeTheBio = currentBio.match(/^(.*?)(==\s*Biography\s*==)/s);
+    let textBeforeTheBio = "";
+    if (allStuffBeforeTheBio) {
+      textBeforeTheBio = allStuffBeforeTheBio[1];
+    }
+    const stuffBeforeTheBioArray = textBeforeTheBio.split("\n");
+    let stuffBeforeTheBioArray2 = [];
+    stuffBeforeTheBioArray.forEach(function (aBit) {
+      if (aBit.match(/^\[\[.*\]\]$/) == null && aBit.match(/^\{\{.*\}\}$/) == null && aBit) {
+        stuffBeforeTheBioArray2.push(aBit);
+      }
+    });
+    textBeforeTheBio = stuffBeforeTheBioArray2.join("\n");
+    window.textBeforeTheBio = textBeforeTheBio;
+    console.log("textBeforeTheBio", stuffBeforeTheBioArray2);
+
     // Split the current bio into sections
     window.sectionsObject = splitBioIntoSections();
 
@@ -6301,13 +6067,13 @@ export async function generateBio() {
     // Create a map to store the narratives for each census year
     let censusNarratives = new Map();
 
-    // Initialize a new map to hold the counters for each base refName
-    let refNameCounter = new Map();
-
     // Grouping logic
     let allEvents = [];
     let previousEventObject;
     marriagesAndCensusesEtc.forEach(function (event) {
+      if (!event.Year) {
+        event.Year = event["Event Date"] ? event["Event Date"].split("-")[0] : "0000";
+      }
       let thisEvent = event["Event Type"] + " " + event.Year;
       if (previousEventObject && previousEventObject["Event Type"] + " " + previousEventObject.Year != thisEvent) {
         allEvents.push(previousEventObject);
