@@ -1184,9 +1184,10 @@ function buildSpouses(person) {
             if (spouse.Father) {
               let spouseFather = window.biographySpouseParents[0].people[spouse.Father];
               if (spouseFather) {
-                spouseDetailsA += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
-                spouseDetailsB += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
-
+                if (spouseFather.Name) {
+                  spouseDetailsA += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
+                  spouseDetailsB += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
+                }
                 if (spouseFather.BirthDate && window.autoBioOptions.includeSpouseParentsDates) {
                   spouseDetailsA += " " + formatDates(spouseFather);
                   spouseDetailsB += " " + formatDates(spouseFather);
@@ -1203,8 +1204,10 @@ function buildSpouses(person) {
             if (spouse.Mother) {
               let spouseMother = window.biographySpouseParents[0].people[spouse.Mother];
               if (spouseMother) {
-                spouseDetailsA += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
-                spouseDetailsB += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
+                if (spouseMother.Name) {
+                  spouseDetailsA += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
+                  spouseDetailsB += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
+                }
                 if (spouseMother.BirthDate && window.autoBioOptions.includeSpouseParentsDates) {
                   spouseDetailsA += " " + formatDates(spouseMother);
                   spouseDetailsB += " " + formatDates(spouseMother);
@@ -6369,10 +6372,12 @@ export async function generateBio() {
         } else if (needsProfiles.length > 1) {
           needsProfileText = "The following people may need profiles:\n";
           needsProfiles.forEach(function (aMember) {
-            if (!needsDone.includes(aMember.Name)) {
-              needsProfileText += "* " + aMember.Name + " ";
-              needsProfileText += aMember.Relation ? "(" + aMember.Relation + ")\n" : "\n";
-              needsDone.push(aMember.Name);
+            if (aMember.Name) {
+              if (!needsDone.includes(aMember.Name)) {
+                needsProfileText += "* " + aMember.Name + " ";
+                needsProfileText += aMember.Relation ? "(" + aMember.Relation + ")\n" : "\n";
+                needsDone.push(aMember.Name);
+              }
             }
           });
         }
@@ -6613,10 +6618,12 @@ export async function generateBio() {
     if ($("#errorDiv").length == 0) {
       // Prepare the error message
       let errorMessage =
-        "Hi Ian,\nI've found a bug for you to fix.\n\nProfile ID: " +
+        "Hi Ian,\n\nI've found a bug for you to fix.\n\nProfile ID: " +
         window.profileID +
         "\n\nError Message: " +
-        error.message;
+        error.message +
+        "\n\nStack Trace:\n" +
+        error.stack;
 
       // Save the error message to localStorage
       localStorage.setItem("error_message", errorMessage);
@@ -6839,7 +6846,7 @@ function addErrorMessage() {
               // Get member's first name from the form #privateMessgae-sender_name
               let memberName = $("#privateMessage-sender_name").val().split(" ")[0];
               $("#privateMessage-comments").val(
-                localStorage.getItem("error_message") + "\n\nGood Luck!\n" + memberName
+                localStorage.getItem("error_message") + "\n\nGood Luck!\n\n" + memberName
               );
               $("#privateMessage-subject").val("Auto Bio bug report");
               // Clear the error message from the localStorage
