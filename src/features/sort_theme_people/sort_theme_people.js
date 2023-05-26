@@ -16,6 +16,27 @@ checkIfFeatureEnabled("sortThemePeople").then((result) => {
     import("./sort_theme_people.css");
     connectionsBanner();
     themePeopleTable();
+
+    // After defining the thisWeeksTheme element
+    const themeHeader = $("#themeTable caption");
+    themeHeader.css("cursor", "pointer");
+    themeHeader.attr("title", "Click to refresh the heading");
+    // Add a click event handler to the header
+    themeHeader.on("click", function () {
+      // Clear the localStorage values
+      localStorage.removeItem("lastThemeChangeDate");
+      localStorage.removeItem("cfTitle");
+      localStorage.removeItem("shogenCFTitle");
+      localStorage.removeItem("shogenCFTitleData");
+      localStorage.removeItem("shogenCFDateTime");
+      localStorage.removeItem("firstConnectionWTID");
+      localStorage.removeItem("firstConnection");
+      localStorage.removeItem("motw");
+      window.noHeading = false;
+
+      // Call the function to refresh data
+      connectionsBanner();
+    });
   }
 });
 
@@ -38,8 +59,6 @@ function themePeopleTable() {
       aThemePerson.name = textSplit[1];
       linksArray.push(aThemePerson);
     });
-
-    //const profileName = $("h1 span[itemprop='name']").text();
     const themeTable = $(`<table id='themeTable'>
   <caption>Featured Connections</caption>
   <thead></thead>
@@ -60,8 +79,26 @@ function themePeopleTable() {
         `<tr><td><a href='/wiki/${aPerson.WTID}'>${aPerson.name}</a></td><td><a href='${aPerson.connectionURL}'>${aPerson.degrees} degrees</a></td><td></td></tr>`
       );
       themeTable.find("tbody").append(aRow);
-      const profileID = $("a.pureCssMenui0 span.person").text();
     });
+  }
+}
+
+function setThemeTitles(dTitle) {
+  let theP = $("body.profile div.sixteen.columns p a[href*='Special:Connection']").closest("p");
+  if (theP.length) {
+    theP.addClass("cfParagraph");
+  } else {
+    theP = $("body.profile div.sixteen.columns div.box.rounded a[href*='Special:Connection']").closest("div");
+  }
+  const theDiv = theP.closest("div");
+  const ourTitle = "This week's theme: " + dTitle;
+  const ourTableTitle = dTitle + ":<br>Connections to " + $("span[itemprop='givenName']").text();
+  if ($("h2.thisWeeksTheme").length == 0) {
+    theDiv.prepend("<h2 class='thisWeeksTheme'>" + ourTitle + "</h2>");
+  }
+  if ($("#themeTable").length) {
+    $("#themeTable caption").html(ourTableTitle);
+    $("h2.thisWeeksTheme").hide();
   }
 }
 
@@ -72,13 +109,15 @@ async function setConnectionsBanner() {
   } else {
     theP = $("body.profile div.sixteen.columns div.box.rounded a[href*='Special:Connection']").closest("div");
   }
-  const theDiv = theP.closest("div");
+
   let dTitle = "";
-  if (!window.noHeading && localStorage.cfTitle != "") {
-    if (localStorage.cfTitle.match(/\bUS\b/) == null) {
+  if (!window.noHeading && localStorage.cfTitle) {
+    if (localStorage.cfTitle.match(/\b[A-Z]{2,}\b/) == null) {
       dTitle = titleCase(localStorage.cfTitle);
     } else if (localStorage.cfTitle) {
       dTitle = localStorage.cfTitle;
+    } else if (localStorage.shogenCFTitle) {
+      dTitle = localStorage.shogenCFTitle;
     }
     if (!dTitle && $("h2.thisWeeksTheme").length) {
       dTitle = $("h2.thisWeeksTheme").text().replace("This week's theme: ", "");
@@ -89,13 +128,6 @@ async function setConnectionsBanner() {
   } else {
     dTitle = "Featured Connections";
   }
-  const ourTitle = "This week's theme: " + dTitle;
-  const ourTableTitle = dTitle + ":<br>Connections to " + $("span[itemprop='givenName']").text();
-  theDiv.prepend("<h2 class='thisWeeksTheme'>" + ourTitle + "</h2>");
-  if ($("#themeTable").length) {
-    $("#themeTable").find("caption").html(ourTableTitle);
-    $("h2.thisWeeksTheme").hide();
-  }
 
   const motwLink = theP.find("a:contains(" + localStorage.motw + ")");
   motwLink.text(motwLink.text().replace(/\bfrom\b/, "from our Member of the Week,"));
@@ -104,10 +136,25 @@ async function setConnectionsBanner() {
   boldText.append(document.createTextNode("our Member of the Week"));
   motwLink.text("");
   motwLink.append(document.createTextNode(mSplits[0]), boldText, document.createTextNode(mSplits[1]));
+
+  const newTitle = localStorage.cfTitle || localStorage.shogenCFTitle || "Featured Connections";
+  setThemeTitles(newTitle);
 }
 
 async function connectionsBanner() {
-  getThemeData().then((response) => {
+  getThemeData().then(async (response) => {
+    // Check if there was a change and its date is after the last Sunday
+    const lastThemeChangeDate = localStorage.lastThemeChangeDate ? new Date(localStorage.lastThemeChangeDate) : null;
+    const lastSunday = new Date();
+    lastSunday.setDate(lastSunday.getDate() - lastSunday.getDay());
+
+    if (lastThemeChangeDate && lastThemeChangeDate > lastSunday) {
+      if ($("h2.thisWeeksTheme").length == 0) {
+        setConnectionsBanner();
+      }
+      return;
+    }
+
     if ($("h2.thisWeeksTheme").length == 0) {
       if (
         $(
@@ -131,64 +178,58 @@ async function connectionsBanner() {
           const urlParams = new URLSearchParams(firstConnectionHREF);
           const firstConnectionWTID = urlParams.get("person1Name");
           localStorage.setItem("firstConnectionWTID", firstConnectionWTID);
-          const homePageURL = "https://www.wikitree.com";
-          $.ajax({
-            url: homePageURL,
-            success: function (data) {
-              if ($("h2.thisWeeksTheme").length == 0) {
-                const hpHTML = $(data);
-                let linkText = "";
-                if (isOK(localStorage.shogenCFTitleData)) {
-                  linkText = JSON.parse(localStorage.shogenCFTitleData)["linkText"];
-                } else {
-                  linkText = "closely-connected";
-                }
-                let cfTitle = hpHTML
-                  .find("a[href*='" + linkText + "'][title*='G2G post']")
-                  .eq(0)
-                  .text();
 
-                let gotFromShogen = false;
-                //let cfTitleOverride = false;
-                if (isOK(cfTitle) && isOK(localStorage.shogenCFTitleData)) {
-                  const themeData = JSON.parse(localStorage.shogenCFTitleData);
-                  if (themeData.theme == "null") {
-                    cfTitle = "";
-                  } else if (themeData.theme != "") {
-                    //cfTitle = themeData.theme;
-                    localStorage.shogenCFTitle = themeData.theme;
-                   // let cfTitleOverride = true;
-                  } else {
-                    themeData.themes.forEach(function (aTheme) {
-                      const cfRegExp = new RegExp(aTheme[0], "i");
-                      if (cfTitle.match(cfRegExp) != null) {
-                        cfTitle = aTheme[1];
-                        localStorage.shogenCFTitle = cfTitle;
-                        gotFromShogen = true;
-                      }
-                    });
-                  }
-                }
-                if (gotFromShogen == false) {
-                  if (isOK(localStorage.shogenCFTitle)) {
-                    cfTitle = localStorage.shogenCFTitle;
-                  }
-                  if (localStorage.shogenCFTitle == "null") {
-                    cfTitle = "";
-                  }
-                }
-                localStorage.setItem("cfTitle", cfTitle);
-                localStorage.setItem("firstConnection", firstConnection);
-                const mow = hpHTML.find("span.large:contains(Member of the Week)");
-                if (mow.length) {
-                  localStorage.motw = mow.parent().find("img").attr("alt");
-                }
-                setConnectionsBanner();
+          const homePageURL = "https://www.wikitree.com";
+          const response = await fetch(homePageURL);
+          const data = await response.text();
+
+          if ($("h2.thisWeeksTheme").length == 0) {
+            const hpHTML = $(data);
+            let linkText = "";
+            if (isOK(localStorage.shogenCFTitleData)) {
+              linkText = JSON.parse(localStorage.shogenCFTitleData)["linkText"];
+            } else {
+              linkText = "closely-connected";
+            }
+            let cfTitle = hpHTML
+              .find("a[href*='" + linkText + "'][title*='G2G post']")
+              .eq(0)
+              .text();
+
+            let gotFromShogen = false;
+            if (isOK(cfTitle) && isOK(localStorage.shogenCFTitleData)) {
+              const themeData = JSON.parse(localStorage.shogenCFTitleData);
+              if (themeData.theme == "null") {
+                cfTitle = "";
+              } else if (themeData.theme != "") {
+                localStorage.shogenCFTitle = themeData.theme;
               } else {
-                //console.log("here");
+                themeData.themes.forEach(function (aTheme) {
+                  const cfRegExp = new RegExp(aTheme[0], "i");
+                  if (cfTitle.match(cfRegExp) != null) {
+                    cfTitle = aTheme[1];
+                    localStorage.shogenCFTitle = cfTitle;
+                    gotFromShogen = true;
+                  }
+                });
               }
-            },
-          });
+            }
+            if (gotFromShogen == false) {
+              if (isOK(localStorage.shogenCFTitle)) {
+                cfTitle = localStorage.shogenCFTitle;
+              }
+              if (localStorage.shogenCFTitle == "null") {
+                cfTitle = "";
+              }
+            }
+            localStorage.setItem("cfTitle", cfTitle);
+            localStorage.setItem("firstConnection", firstConnection);
+            const mow = hpHTML.find("span.large:contains(Member of the Week)");
+            if (mow.length) {
+              localStorage.motw = mow.parent().find("img").attr("alt");
+            }
+            setConnectionsBanner();
+          }
         }
       }
     } else {
@@ -198,6 +239,18 @@ async function connectionsBanner() {
 }
 
 async function getThemeData() {
+  // If localStorage data exist
+  if (localStorage.shogenCFTitle && localStorage.shogenCFTitleData && localStorage.shogenCFDateTime) {
+    const storedDateTime = new Date(localStorage.shogenCFDateTime);
+    const currentDateTime = new Date();
+    const timeDifferenceInHours = Math.abs(currentDateTime - storedDateTime) / 36e5;
+
+    // If the time difference is less than 4 hours, return the stored data
+    if (timeDifferenceInHours < 4) {
+      return true;
+    }
+  }
+
   // get theme data
   const beeURL = "https://wikitreebee.com/BEE.php?q=BEE";
   const result = await $.ajax({
@@ -210,6 +263,8 @@ async function getThemeData() {
       const mData = JSON.parse(data);
       localStorage.shogenCFTitle = mData.theme;
       localStorage.shogenCFTitleData = data;
+      // Store current date and time in localStorage
+      localStorage.shogenCFDateTime = new Date().toISOString();
     },
     error: function (jqXHR, textStatus, error) {
       console.log("error in AJAX call...");
