@@ -105,10 +105,6 @@
       width: unset;
     }
 
-    .sticky-header .wrapper #header .theClipboardButtons {
-      display: none;
-    }
-
     .sticky-header .wrapper #header .logo {
       width: 42px;
       height: 42px;
@@ -157,6 +153,12 @@
 
     .sticky-header .wrapper #header .toggle.reading-mode + #myCustomMenuContainer {
       right: 130px;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .sticky-header .wrapper #header .theClipboardButtons {
+      display: none;
     }
   }
 }
