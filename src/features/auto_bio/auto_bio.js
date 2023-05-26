@@ -975,7 +975,7 @@ export function assignCemeteryFromSources() {
   window.references.forEach(function (source) {
     if (source["Record Type"].includes("Death")) {
       let cemeteryMatch = source.Text.match(
-        /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Graveyard)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)).*?),?.*?(?=[,;])/im
+        /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Graveyard)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)).*?),?.*?(?=[;.])/im
       );
       let cemeteryMatch2 = source.Text.match(
         /,\s([^,]*?Cemetery|Memorial|Cimetière|kyrkogård|temető|Grave|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard).*?;/
@@ -1014,6 +1014,8 @@ function buildDeath(person) {
   // Get cemetery from FS citation
   console.log("window.references", window.references);
   let burialAdded = false;
+  console.log(JSON.parse(JSON.stringify(window.profilePerson)));
+
   assignCemeteryFromSources();
   window.references.forEach(function (source) {
     if (source["Record Type"].includes("Death")) {
@@ -1023,14 +1025,15 @@ function buildDeath(person) {
             " " +
             capitalizeFirstLetter(person.Pronouns.subject) +
             " is commemorated at " +
-            window.profilePerson.Cemetery +
+            removeCountryName(window.profilePerson.Cemetery) +
             ".";
         } else {
+          console.log(JSON.parse(JSON.stringify(window.profilePerson)));
           text +=
             " " +
             capitalizeFirstLetter(person.Pronouns.subject) +
             " was buried in " +
-            window.profilePerson.Cemetery +
+            removeCountryName(window.profilePerson.Cemetery) +
             ".";
         }
         burialAdded = true;
@@ -1062,7 +1065,7 @@ function buildDeath(person) {
       " " +
       capitalizeFirstLetter(person.Pronouns.subject) +
       " was buried in " +
-      minimalPlace(window.profilePerson["Burial Place"]) +
+      removeCountryName(window.profilePerson["Burial Place"]) +
       ".";
     text += addReferences("Burial");
   }
@@ -5987,6 +5990,8 @@ export async function generateBio() {
 
     //Add birth
     const birthText = buildBirth(window.profilePerson) + "\n\n";
+
+    // Add death
     let deathText = buildDeath(window.profilePerson) + (window.profilePerson.BurialFact || "");
     if (isOK(deathText)) {
       deathText += "\n\n";
@@ -6266,10 +6271,9 @@ export async function generateBio() {
 
             let narrativeBits = anEvent.Narrative.split(",");
             if (anEvent.FactType == "Burial") {
-              window.profilePerson.BurialFact = minimalPlace2(narrativeBits) + thisRef + "\n\n";
+              window.profilePerson.BurialFact = narrativeBits + thisRef + "\n\n";
             } else {
-              let thisBit =
-                minimalPlace2(narrativeBits) + (theseRefs.length == 0 ? thisRef : theseRefs.join()) + "\n\n";
+              let thisBit = narrativeBits + (theseRefs.length == 0 ? thisRef : theseRefs.join()) + "\n\n";
               marriagesAndCensusesText += thisBit;
             }
           }
@@ -6700,7 +6704,11 @@ function removeCountryName(location) {
   }
   // Remove country name for other countries
   else {
-    locationSplit.shift();
+    countries.forEach((country) => {
+      if (country.name == locationSplit[0] || country.nativeName == locationSplit[0]) {
+        locationSplit.shift();
+      }
+    });
   }
 
   // Reconstruct the location string without the country name(s)
