@@ -138,6 +138,9 @@ function onHoverIn($element) {
 }
 
 function getPreviewContent(type, pageId, url) {
+  if (!window.xPagePreviewCache) {
+    window.xPagePreviewCache = [];
+  }
   return new Promise((resolve, reject) => {
     const parse =
       type === "space"
@@ -145,14 +148,22 @@ function getPreviewContent(type, pageId, url) {
         : type === "category"
         ? parseCategoryContent // category profiles
         : parsePageContent; // any other generic content page
-    doFetch(type, pageId, url)
-      .then((response) => {
-        // do stuff with the content
-        resolve(parse(response));
-      })
-      .catch((reason) => {
-        reject(reason);
-      });
+    let cachedHtml = window.xPagePreviewCache[url.replace(/#.*/, "").toLowerCase()];
+    if (cachedHtml) {
+      console.log("using cached version: " + url.replace(/#.*/, "").toLowerCase());
+      resolve(parse(cachedHtml));
+    } else {
+      doFetch(type, pageId, url)
+        .then((response) => {
+          // cache for next time
+          window.xPagePreviewCache[url.replace(/#.*/, "").toLowerCase()] = response;
+          // do stuff with the content
+          resolve(parse(response));
+        })
+        .catch((reason) => {
+          reject(reason);
+        });
+    }
   });
 }
 
@@ -323,30 +334,43 @@ let spacePagePreview = true,
   otherPagePreview = false;
 
 function attachHover(target) {
-  if (spacePagePreview || categoryPagePreview) {
+  if (spacePagePreview || categoryPagePreview || otherPagePreview) {
     const selectors = [
       spacePagePreview ? 'a[href*="/wiki/Space:"]' : null,
+      spacePagePreview && /\/wiki\/Space:/i.test(window.location.href) ? 'a[href^="#"]' : null,
       categoryPagePreview ? 'a[href*="/wiki/Category:"]' : null,
+      categoryPagePreview && /\/wiki\/Category:/i.test(window.location.href) ? 'a[href^="#"]' : null,
       otherPagePreview ? 'a[href*="/wiki/Help:"]' : null,
       otherPagePreview ? 'a[href*="/wiki/Project:"]' : null,
       otherPagePreview ? 'a[href*="/wiki/Special:"]' : null,
       otherPagePreview ? 'a[href*="/wiki/Template:"]' : null,
       otherPagePreview ? 'a[href*="/wiki/Automated:"]' : null,
+      otherPagePreview && /\/wiki\/(Help|Project|Special|Template|Automated):/i.test(window.location.href)
+        ? 'a[href^="#"]'
+        : null,
     ]
       .join(", ")
+      .replace(/,[\s+,]+/g, ", ")
       .replace(/^[\s,]+|[\s,]+$/g, "");
     $(target)
       .find(selectors)
       .filter(function () {
-        // do not apply to links in the menus/header/footer/tabs
-        if ($(this).closest("#header, #footer, .profile-tabs, #views-wrap").length > 0) {
-          return false;
-        }
         // make sure each element is only wired up once
         if (!this.xHasSpaceHover) {
+          // do not apply to links in the menus/header/footer/tabs
+          if ($(this).closest("#header, #footer, .profile-tabs, #views-wrap").length > 0) {
+            return false;
+          }
           // don't wire up page previews inside other preview windows
           if ($(this).closest(".x-page-preview, .x-source-preview").length > 0) {
             return false;
+          }
+          // special handling for links to the same page
+          if (this.href.replace(/#.*/, "").toLowerCase() === window.location.href.replace(/#.*/, "").toLowerCase()) {
+            if (this.href.indexOf("#") === -1 || /#(top)?$/.test(this.href)) {
+              // if there is no hash (or it is blank or links back to #top) then don't enable preview
+              return false;
+            }
           }
           this.xHasSpaceHover = true;
           return true;
