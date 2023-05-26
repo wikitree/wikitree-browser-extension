@@ -9,30 +9,17 @@ import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 checkIfFeatureEnabled("locationsHelper").then((result) => {
   if (
     result &&
-    $("body.BEE").length == 0 &&
     ($("body.page-Special_EditPerson").length ||
       $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length)
   ) {
     import("./locationsHelper.css");
-
-   
-    locationsHelper();
+    $("#mBirthLocation,#mDeathLocation").on("focus", function () {
+      if (!window.bdLocations) {
+        locationsHelper();
+      }
+    });
   }
 });
-
-/*
-function addRelArraysToPerson(zPerson) {
-  const zSpouses = extractRelatives(zPerson.Spouses, "Spouse");
-  zPerson.Spouse = zSpouses;
-  const zChildren = extractRelatives(zPerson.Children, "Child");
-  zPerson.Child = zChildren;
-  const zSiblings = extractRelatives(zPerson.Siblings, "Sibling");
-  zPerson.Sibling = zSiblings;
-  const zParents = extractRelatives(zPerson.Parents, "Parent");
-  zPerson.Parent = zParents;
-  return zPerson;
-}
-*/
 
 function editDistance(s1, s2) {
   s1 = s1.toLowerCase();
@@ -45,8 +32,7 @@ function editDistance(s1, s2) {
       else {
         if (j > 0) {
           var newValue = costs[j - 1];
-          if (s1.charAt(i - 1) != s2.charAt(j - 1))
-            newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+          if (s1.charAt(i - 1) != s2.charAt(j - 1)) newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
           costs[j - 1] = lastValue;
           lastValue = newValue;
         }
