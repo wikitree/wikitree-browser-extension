@@ -4,6 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
+import { navigatorDetect } from "./navigatorDetect";
 
 // Add wte class to body to let WikiTree BEE know not to add the same functions
 document.querySelector("body").classList.add("wte");
@@ -17,7 +18,11 @@ export const WBE = {};
   WBE.isPreview = WBE.isDebug || WBE.name.indexOf("(Preview)") > -1;
   WBE.isRelease = !WBE.isPreview;
   if (!WBE.isRelease) {
-    console.log(WBE.name + " " + WBE.version);
+    console.log(
+      `${WBE.name} ${WBE.version} (${navigatorDetect.browser.name ?? "Unknown"}/${
+        navigatorDetect.os.name ?? "Unknown"
+      })`
+    );
   }
 })(chrome.runtime);
 
@@ -264,7 +269,7 @@ export async function showDraftList() {
         window.draftCalls++;
       } else {
         getWikiTreePage("Drafts", "/index.php", "title=" + theWTID + "&displayDraft=1").then((res) => {
-/*                  
+          /*                  
         $.ajax({
           url: "https://www.wikitree.com/index.php?title=" + theWTID + "&displayDraft=1",
           type: "GET",
@@ -329,7 +334,7 @@ export async function showDraftList() {
             }
             localStorage.setItem("drafts", JSON.stringify(newDraftArr));
           }
-/*
+          /*
           },
           error: function (res) {},
 */

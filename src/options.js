@@ -4,6 +4,7 @@ import { features, OptionType } from "./core/options/options_registry";
 import "./features/register_feature_options";
 import { WBE, isWikiTreeUrl } from "./core/common";
 import { restoreOptions, restoreData } from "./upload";
+import { navigatorDetect } from "./core/navigatorDetect";
 
 if (!WBE.isRelease) {
   // in testing versions, add the version number to the page title and in a header tooltip
@@ -500,7 +501,7 @@ $("#settings").on("click", function () {
   dialog.find("#btnExportOptions").on("click", exportOptionsClicked);
   dialog.find("#btnExportData").on("click", exportDataClicked);
   dialog.find("#btnImportOptions").on("click", function (e) {
-    if (navigator.userAgent.indexOf("Firefox/") > -1) {
+    if (navigatorDetect.browser.Firefox) {
       window.open(
         "popup.html#UploadOptions",
         "wbe_upload",
@@ -517,7 +518,7 @@ $("#settings").on("click", function () {
     }
   });
   dialog.find("#btnImportData").on("click", function (e) {
-    if (navigator.userAgent.indexOf("Firefox/") > -1) {
+    if (navigatorDetect.browser.Firefox) {
       window.open(
         "popup.html#UploadData",
         "wbe_upload",
@@ -686,7 +687,7 @@ function getBackupLink(wrappedJsonData) {
   let link = document.createElement("a");
   link.title = 'Right-click to "Save as..." at specific location on your device.';
   let json = JSON.stringify(wrappedJsonData);
-  if (/^((?!\b(Chrome|Firefox)\/).)*(?=\bSafari\/)/.test(navigator.userAgent)) {
+  if (navigatorDetect.browser.Safari) {
     // Safari doesn't handle blobs or the download attribute properly
     link.href = "data:application/octet-stream;base64," + window.btoa(json);
     link.target = "_blank";

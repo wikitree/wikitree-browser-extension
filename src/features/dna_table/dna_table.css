@@ -3,7 +3,7 @@ body.page-Special_DNATests table.wt.names.wbe {
   width: auto !important;
   background-color: #fff;
 }
-body.page-Special_DNATests table.wt.names.wbe {
+.browser-safari body.page-Special_DNATests table.wt.names.wbe {
   min-width: 100%; /* auto doesn't seem to work on Safari, so we have to force it to stretch the table */
 }
 body.page-Special_DNATests table.wt.names.wbe th.selected {

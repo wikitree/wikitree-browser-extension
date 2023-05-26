@@ -8,6 +8,7 @@ import "../../thirdparty/jquery.hoverDelay";
 import { WBE } from "../../core/common";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import "../../core/navigatorDetect"; // needed for CSS classes
 
 let previewClasses = "x-page-preview";
 
@@ -34,10 +35,6 @@ function onHoverIn($element) {
       } else if ($element.closest("dialog").length > 0) {
         // if the preview is inside a dialog element, add it to the end of the dialog body instead of after the link
         $element.closest("dialog").append($popup);
-        if (/^((?!\b(Chrome|Firefox)\/).)*(?=\bSafari\/)/.test(navigator.userAgent)) {
-          // flag for special handling on Safari
-          $popup.addClass("on-safari");
-        }
       } else {
         $element.after($popup);
       }

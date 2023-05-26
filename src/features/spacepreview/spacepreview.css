@@ -30,7 +30,7 @@ body > .x-page-preview {
   max-width: 75vw;
   max-height: min(50vh, 450px);
 }
-dialog:has(> .x-page-preview.on-safari) {
+.browser-safari dialog:has(> .x-page-preview) {
   /* fixes a Safari bug where the content gets clipped */
   overflow: visible;
 }
