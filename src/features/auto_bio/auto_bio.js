@@ -5887,9 +5887,13 @@ export async function generateBio() {
       }
     } else {
       window.profilePerson = {};
-      window.autoBioNotes.push(
-        "Is this a new profile? You may get better results by trying again later. Sometimes, the apps server is a little behind the main server."
-      );
+      const newProfileQuestion =
+        "Is this a new profile? You may get better results by trying again later. Sometimes, the apps server is a little behind the main server.";
+      window.autoBioNotes.push(newProfileQuestion);
+      if (!window.errorExtra) {
+        window.errorExtra = [];
+        window.errorExtra.push(newProfileQuestion);
+      }
     }
     // Get the form data and add it to the profilePerson
     const formData = getFormData();
@@ -6629,8 +6633,16 @@ export async function generateBio() {
       localStorage.setItem("error_message", errorMessage);
 
       let errorDiv = $("<div id='errorDiv'>");
+      let errorExtraMessage = "";
+      if (window.errorExtra) {
+        window.errorExtra.forEach(function (extra) {
+          errorExtraMessage += extra + "<br>";
+        });
+      }
       let errorText = $(
-        "<p><b>Whoops! 🙈</b> Something went wrong with the Auto Bio. <br>Please let us know about it. <br>Thank you!</p>"
+        "<p><b>Whoops! 🙈</b> Something went wrong with the Auto Bio. <br>Please let us know about it. <br>" +
+          errorExtraMessage +
+          "Thank you!</p>"
       );
       errorDiv.append(errorText);
 
