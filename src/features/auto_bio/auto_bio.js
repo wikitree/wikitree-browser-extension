@@ -975,7 +975,7 @@ export function assignCemeteryFromSources() {
   window.references.forEach(function (source) {
     if (source["Record Type"].includes("Death")) {
       let cemeteryMatch = source.Text.match(
-        /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Graveyard)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)).*?),?.*?(?=[,;])/im
+        /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Graveyard)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)).*?),?.*?(?=[;.])/im
       );
       let cemeteryMatch2 = source.Text.match(
         /,\s([^,]*?Cemetery|Memorial|Cimetière|kyrkogård|temető|Grave|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard).*?;/
@@ -1014,6 +1014,8 @@ function buildDeath(person) {
   // Get cemetery from FS citation
   console.log("window.references", window.references);
   let burialAdded = false;
+  console.log(JSON.parse(JSON.stringify(window.profilePerson)));
+
   assignCemeteryFromSources();
   window.references.forEach(function (source) {
     if (source["Record Type"].includes("Death")) {
@@ -1023,14 +1025,15 @@ function buildDeath(person) {
             " " +
             capitalizeFirstLetter(person.Pronouns.subject) +
             " is commemorated at " +
-            window.profilePerson.Cemetery +
+            removeCountryName(window.profilePerson.Cemetery) +
             ".";
         } else {
+          console.log(JSON.parse(JSON.stringify(window.profilePerson)));
           text +=
             " " +
             capitalizeFirstLetter(person.Pronouns.subject) +
             " was buried in " +
-            window.profilePerson.Cemetery +
+            removeCountryName(window.profilePerson.Cemetery) +
             ".";
         }
         burialAdded = true;
@@ -1062,7 +1065,7 @@ function buildDeath(person) {
       " " +
       capitalizeFirstLetter(person.Pronouns.subject) +
       " was buried in " +
-      minimalPlace(window.profilePerson["Burial Place"]) +
+      removeCountryName(window.profilePerson["Burial Place"]) +
       ".";
     text += addReferences("Burial");
   }
@@ -1180,12 +1183,18 @@ function buildSpouses(person) {
 
             if (spouse.Father) {
               let spouseFather = window.biographySpouseParents[0].people[spouse.Father];
-              spouseDetailsA += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
-              spouseDetailsB += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
-
-              if (spouseFather.BirthDate && window.autoBioOptions.includeSpouseParentsDates) {
-                spouseDetailsA += " " + formatDates(spouseFather);
-                spouseDetailsB += " " + formatDates(spouseFather);
+              if (spouseFather) {
+                if (spouseFather.Name) {
+                  spouseDetailsA += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
+                  spouseDetailsB += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
+                }
+                if (spouseFather.BirthDate && window.autoBioOptions.includeSpouseParentsDates) {
+                  spouseDetailsA += " " + formatDates(spouseFather);
+                  spouseDetailsB += " " + formatDates(spouseFather);
+                }
+              } else {
+                spouseDetailsA += "[father]";
+                spouseDetailsB += "[father]";
               }
             }
             if (spouse.Father && spouse.Mother) {
@@ -1194,11 +1203,18 @@ function buildSpouses(person) {
             }
             if (spouse.Mother) {
               let spouseMother = window.biographySpouseParents[0].people[spouse.Mother];
-              spouseDetailsA += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
-              spouseDetailsB += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
-              if (spouseMother.BirthDate && window.autoBioOptions.includeSpouseParentsDates) {
-                spouseDetailsA += " " + formatDates(spouseMother);
-                spouseDetailsB += " " + formatDates(spouseMother);
+              if (spouseMother) {
+                if (spouseMother.Name) {
+                  spouseDetailsA += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
+                  spouseDetailsB += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
+                }
+                if (spouseMother.BirthDate && window.autoBioOptions.includeSpouseParentsDates) {
+                  spouseDetailsA += " " + formatDates(spouseMother);
+                  spouseDetailsB += " " + formatDates(spouseMother);
+                }
+              } else {
+                spouseDetailsA += "[mother]";
+                spouseDetailsB += "[mother]";
               }
             }
           }
@@ -5977,6 +5993,8 @@ export async function generateBio() {
 
     //Add birth
     const birthText = buildBirth(window.profilePerson) + "\n\n";
+
+    // Add death
     let deathText = buildDeath(window.profilePerson) + (window.profilePerson.BurialFact || "");
     if (isOK(deathText)) {
       deathText += "\n\n";
@@ -6256,10 +6274,9 @@ export async function generateBio() {
 
             let narrativeBits = anEvent.Narrative.split(",");
             if (anEvent.FactType == "Burial") {
-              window.profilePerson.BurialFact = minimalPlace2(narrativeBits) + thisRef + "\n\n";
+              window.profilePerson.BurialFact = narrativeBits + thisRef + "\n\n";
             } else {
-              let thisBit =
-                minimalPlace2(narrativeBits) + (theseRefs.length == 0 ? thisRef : theseRefs.join()) + "\n\n";
+              let thisBit = narrativeBits + (theseRefs.length == 0 ? thisRef : theseRefs.join()) + "\n\n";
               marriagesAndCensusesText += thisBit;
             }
           }
@@ -6355,10 +6372,12 @@ export async function generateBio() {
         } else if (needsProfiles.length > 1) {
           needsProfileText = "The following people may need profiles:\n";
           needsProfiles.forEach(function (aMember) {
-            if (!needsDone.includes(aMember.Name)) {
-              needsProfileText += "* " + aMember.Name + " ";
-              needsProfileText += aMember.Relation ? "(" + aMember.Relation + ")\n" : "\n";
-              needsDone.push(aMember.Name);
+            if (aMember.Name) {
+              if (!needsDone.includes(aMember.Name)) {
+                needsProfileText += "* " + aMember.Name + " ";
+                needsProfileText += aMember.Relation ? "(" + aMember.Relation + ")\n" : "\n";
+                needsDone.push(aMember.Name);
+              }
             }
           });
         }
@@ -6599,10 +6618,12 @@ export async function generateBio() {
     if ($("#errorDiv").length == 0) {
       // Prepare the error message
       let errorMessage =
-        "Hi Ian,\nI've found a bug for you to fix.\n\nProfile ID: " +
+        "Hi Ian,\n\nI've found a bug for you to fix.\n\nProfile ID: " +
         window.profileID +
         "\n\nError Message: " +
-        error.message;
+        error.message +
+        "\n\nStack Trace:\n" +
+        error.stack;
 
       // Save the error message to localStorage
       localStorage.setItem("error_message", errorMessage);
@@ -6690,7 +6711,11 @@ function removeCountryName(location) {
   }
   // Remove country name for other countries
   else {
-    locationSplit.shift();
+    countries.forEach((country) => {
+      if (country.name == locationSplit[0] || country.nativeName == locationSplit[0]) {
+        locationSplit.shift();
+      }
+    });
   }
 
   // Reconstruct the location string without the country name(s)
@@ -6821,7 +6846,7 @@ function addErrorMessage() {
               // Get member's first name from the form #privateMessgae-sender_name
               let memberName = $("#privateMessage-sender_name").val().split(" ")[0];
               $("#privateMessage-comments").val(
-                localStorage.getItem("error_message") + "\n\nGood Luck!\n" + memberName
+                localStorage.getItem("error_message") + "\n\nGood Luck!\n\n" + memberName
               );
               $("#privateMessage-subject").val("Auto Bio bug report");
               // Clear the error message from the localStorage
