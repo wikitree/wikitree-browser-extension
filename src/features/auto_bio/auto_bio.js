@@ -1014,7 +1014,6 @@ function buildDeath(person) {
   // Get cemetery from FS citation
   console.log("window.references", window.references);
   let burialAdded = false;
-  console.log(JSON.parse(JSON.stringify(window.profilePerson)));
 
   assignCemeteryFromSources();
   window.references.forEach(function (source) {
@@ -1028,7 +1027,6 @@ function buildDeath(person) {
             removeCountryName(window.profilePerson.Cemetery) +
             ".";
         } else {
-          console.log(JSON.parse(JSON.stringify(window.profilePerson)));
           text +=
             " " +
             capitalizeFirstLetter(person.Pronouns.subject) +
@@ -2512,8 +2510,14 @@ function analyzeColumns(lines) {
     }
 
     // Calculate the threshold for each column based on the counts
-    const minCount = 2; // Minimum count to be considered for assignment
-    if (maxScoreIndex !== null && maxScore > minCount) {
+    let numPeople = lines.length;
+    let minCount;
+    if (numPeople <= 2) {
+      minCount = 1; // For 1-2 people, allow column assignments even for a single match
+    } else {
+      minCount = 2; // For 3 or more people, require at least 2 matches
+    }
+    if (maxScoreIndex !== null && maxScore >= minCount) {
       columnMapping[columnName] = maxScoreIndex;
       assignedColumnNames.add(columnName);
     }
@@ -2909,7 +2913,7 @@ function buildCensusNarratives() {
 
         let nameVariants = [window.profilePerson.PersonName.FirstNames];
 
-        if (window.profilePerson.MiddleInitial != ".") {
+        if (window.profilePerson.MiddleInitial != "." && window.profilePerson.MiddleInitial) {
           nameVariants.push(window.profilePerson.FirstName + " " + window.profilePerson.MiddleInitial);
           nameVariants.push(window.profilePerson.FirstName + " " + window.profilePerson.MiddleInitial.replace(".", ""));
         }
@@ -5909,6 +5913,7 @@ export async function generateBio() {
         "Is this profile private? You may get better results by logging in to the apps server (click the button above)."
       );
       window.profilePerson.Name = profileID;
+      window.profilePerson.MiddleInitial = "";
       addLoginButton();
     } else {
       window.profilePerson.BirthYear = window.profilePerson.BirthDate?.split("-")[0];
@@ -5963,7 +5968,6 @@ export async function generateBio() {
       window.profilePerson.BirthNamePrivate =
         window.profilePerson.RealName + " " + window.profilePerson.LastNameAtBirth;
     }
-    console.log(JSON.parse(JSON.stringify(window.profilePerson)));
     assignPersonNames(window.profilePerson);
     if (isOK(window.profilePerson.BirthDate) && window.profilePerson.BirthDate.match("-") == null) {
       window.profilePerson.BirthDate = convertDate(window.profilePerson.BirthDate, "ISO");
