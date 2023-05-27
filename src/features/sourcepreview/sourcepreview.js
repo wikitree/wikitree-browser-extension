@@ -14,7 +14,9 @@ function onHoverIn($element) {
   let x = $element.children("a").get(0).offsetLeft;
   x = x < 425 ? 0 : x - 425;
   let $popup = $(
-    '<div id="activeSourcePreview" class="x-source-preview" style="display: none; left: ' + x + 'px;"></div>'
+    '<div id="activeSourcePreview" class="x-source-preview no-link-preview" style="display: none; left: ' +
+      x +
+      'px;"></div>'
   );
   const targetId = $element
     .get(0)
@@ -72,7 +74,7 @@ function attachHover(target) {
     })
     .parent() // attach to the enclosing .reference, not the link itself
     .hoverDelay({
-      delayIn: 500,
+      delayIn: 400,
       delayOut: 0,
       handlerIn: onHoverIn,
       handlerOut: onHoverOut,

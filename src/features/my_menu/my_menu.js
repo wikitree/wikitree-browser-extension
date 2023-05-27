@@ -38,7 +38,7 @@ function addCustomMenuOptions() {
     theBigLi.append(theList);
     subMenus.push(theBigLi);
   });
-  const customMenuOptions = $("<div id='customMenuOptions'><x>x</x></div>");
+  const customMenuOptions = $("<div id='customMenuOptions' class='no-link-preview'><x>x</x></div>");
   customMenuOptions.appendTo($("body"));
   const menuClone = $("ul.pureCssMenu:contains(My WikiTree)").clone();
   menuClone.attr("id", "menuClone");

@@ -21,23 +21,31 @@ function onHoverIn($element) {
   const match = $element[0].href.match(/\/wiki\/((\w+):.*?)(#.*|$)/i);
   const pageType = match[2].toLowerCase();
   let $popup = $(
-    '<div id="activePagePreview" class="' + previewClasses + " preview-" + pageType + '" style="display: none;"></div>'
+    '<div id="activePagePreview" class="' +
+      previewClasses +
+      " preview-" +
+      pageType +
+      ' no-link-preview" style="display: none;"></div>'
   );
+
+  // add the hidden placeholder to the document immediately to prevent double preview windows if loading causes a delay
+  if ($element.closest('*[class$="suggestion-maplink"]').length > 0) {
+    // a bug in Safari causes the fixed window to be clipped, so we'll add it to the body instead
+    $(document.body).append($popup);
+  } else if ($element.closest("dialog").length > 0) {
+    // if the preview is inside a dialog element, add it to the end of the dialog body instead of after the link
+    $element.closest("dialog").append($popup);
+  } else {
+    $element.after($popup);
+  }
+
+  // fetch the content to be displayed in the popup
   getPreviewContent(
     pageType, // page type (Space, Category, Help, etc.)
     decodeURIComponent(match[1]), // prefixed ID (Space:WikiTree_Browser_Extension, Category:Cemeteries, Help:Apps)
     $element[0].href // page URL
   )
     .then((content) => {
-      if ($element.closest('*[class$="suggestion-maplink"]').length > 0) {
-        // a bug in Safari causes the fixed window to be clipped, so we'll add it to the body instead
-        $(document.body).append($popup);
-      } else if ($element.closest("dialog").length > 0) {
-        // if the preview is inside a dialog element, add it to the end of the dialog body instead of after the link
-        $element.closest("dialog").append($popup);
-      } else {
-        $element.after($popup);
-      }
       $popup.append(content.body);
       let hashTarget = null,
         hash = $element[0].hash;
@@ -110,14 +118,6 @@ function onHoverIn($element) {
               '" style="color:#8fc641;">/URL</button>'
           )
       );
-      if (!WBE.isRelease) {
-        $popup.prepend(
-          `<!--\n${WBE.name + " " + WBE.version}\n${decodeURIComponent(match[1])}\n${Intl.DateTimeFormat("sv-SE", {
-            dateStyle: "short",
-            timeStyle: "medium",
-          }).format(new Date())}\n-->`
-        );
-      }
       let visibleElements = $popup.children().filter(function () {
         if ($(this).css("visibility") !== "hidden") {
           return !($(this).is(".x-preview-close") || !$(this).text());
@@ -126,9 +126,12 @@ function onHoverIn($element) {
       });
       visibleElements.first().addClass("x-first-visible");
       visibleElements.last().addClass("x-last-visible");
-      $popup.fadeIn("fast");
-      if (hashTarget) {
-        $popup.get(0).scrollTop = hashTarget.offsetTop;
+      // check to make sure hover wasn't cancelled while we were loading before displaying it
+      if (!$popup.get(0).xCancelShow) {
+        $popup.fadeIn("fast");
+        if (hashTarget) {
+          $popup.get(0).scrollTop = hashTarget.offsetTop;
+        }
       }
     })
     .catch((reason) => {
@@ -148,15 +151,17 @@ function getPreviewContent(type, pageId, url) {
         : type === "category"
         ? parseCategoryContent // category profiles
         : parsePageContent; // any other generic content page
-    let cachedHtml = window.xPagePreviewCache[url.replace(/#.*/, "").toLowerCase()];
-    if (cachedHtml) {
-      console.log("using cached version: " + url.replace(/#.*/, "").toLowerCase());
-      resolve(parse(cachedHtml));
+    let cacheItem = window.xPagePreviewCache[url.replace(/#.*/, "").toLowerCase()];
+    if (cacheItem && cacheItem.expiresOn > Date.now()) {
+      resolve(parse(cacheItem.html));
     } else {
       doFetch(type, pageId, url)
         .then((response) => {
           // cache for next time
-          window.xPagePreviewCache[url.replace(/#.*/, "").toLowerCase()] = response;
+          window.xPagePreviewCache[url.replace(/#.*/, "").toLowerCase()] = {
+            html: response,
+            expiresOn: Date.now() + 300000, // expire after 5 minutes
+          };
           // do stuff with the content
           resolve(parse(response));
         })
@@ -173,12 +178,17 @@ function doFetch(type, pageId, url) {
   return getWikiTreePage("PagePreview", urlObj.pathname, urlObj.search);
 }
 
+function parseDocument(html) {
+  // prevent jQuery from loading assets that we don't need
+  return $($.parseHTML(html, null, false));
+}
+
 function parsePageContent(response) {
   let content = {
-    document: response.replace(/(<\/?)(?=script)/g, "$1no"), // sanitize script tags
+    documentHTML: response.replace(/(<\/?)(?=(script|style|link))/g, "$1no"), // sanitize script/style/link tags
     body: "<div></div>",
   };
-  let $content = $(content.document);
+  let $content = parseDocument(content.documentHTML);
   content.title = (
     $content.find("h1").first().clone().children().remove().end().text() ?? $content.find("title").first().text()
   )?.replace(/(^\s+)|(\s+$)/g, "");
@@ -192,7 +202,7 @@ function parsePageContent(response) {
 
 function parseSpaceContent(response) {
   let content = parsePageContent(response);
-  let $content = $(content.document);
+  let $content = parseDocument(content.documentHTML);
   let $categories = $content.find("#categories");
   $content = $content.find(".columns.ten");
   // flag the colored audit box plus the div below it to clear the float
@@ -313,12 +323,15 @@ function addCloseButton($popup) {
 }
 
 function hidePreview($element) {
-  $element
-    .attr("id", "")
-    .css("z-index", "9998")
-    .fadeOut("fast", function () {
-      $(this).remove();
-    });
+  if ($element.length) {
+    $element.get(0).xCancelShow = true;
+    $element
+      .attr("id", "")
+      .css("z-index", "9998")
+      .fadeOut("fast", function () {
+        $(this).remove();
+      });
+  }
 }
 
 function onCloseClicked($element) {
@@ -357,12 +370,12 @@ function attachHover(target) {
       .filter(function () {
         // make sure each element is only wired up once
         if (!this.xHasSpaceHover) {
-          // do not apply to links in the menus/header/footer/tabs
-          if ($(this).closest("#header, #footer, .profile-tabs, #views-wrap").length > 0) {
-            return false;
-          }
-          // don't wire up page previews inside other preview windows
-          if ($(this).closest(".x-page-preview, .x-source-preview").length > 0) {
+          // do not apply to certain links
+          if (
+            $(this).closest(
+              ".no-link-preview, .reference, #header, #footer, .profile-tabs, #views-wrap, .pureCssMenu, #customMenuOptions"
+            ).length > 0
+          ) {
             return false;
           }
           // special handling for links to the same page
@@ -387,7 +400,7 @@ function attachHover(target) {
         }, 500);
       })
       .hoverDelay({
-        delayIn: 500,
+        delayIn: 600,
         delayOut: 0,
         handlerIn: onHoverIn,
       });
