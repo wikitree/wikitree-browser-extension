@@ -77,24 +77,31 @@ export default [
     items: [
       {
         featureid: "wtplus",
-        title: "Add location category",
+        title: "Add any Category",
+        hint: "Add any category using search for words in name and parent categories.",
+        call: wtPlus,
+        params: { action: "AddCIBCategory", data: "Category" },
+      },
+      {
+        featureid: "wtplus",
+        title: "Add Location Category",
         hint: "Add location category using search for words in name and parent categories.",
         call: wtPlus,
         params: { action: "AddCIBCategory", data: "Location" },
       },
       {
         featureid: "wtplus",
-        title: "Add cemetery category",
-        hint: "Add Cemetery category using search for words in name, parent, location and aka names.",
+        title: "Add Cemetery Category",
+        hint: "Add cemetery category using search for words in name, parent, location and aka names.",
         call: wtPlus,
         params: { action: "AddCIBCategory", data: "Cemetery" },
       },
       {
         featureid: "wtplus",
-        title: "Add any category",
-        hint: "Add any category using search for words in name and parent categories.",
+        title: "Add One Name Study Category",
+        hint: "Add name study category using search for words in name, variations, parent and location.",
         call: wtPlus,
-        params: { action: "AddCIBCategory", data: "Category" },
+        params: { action: "AddCIBCategory", data: "NameStudy" },
       },
       {
         featureid: "autoCategories",
