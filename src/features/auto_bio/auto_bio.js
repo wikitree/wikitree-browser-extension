@@ -6418,7 +6418,7 @@ export async function generateBio() {
     sourcesText += sourcesHeader;
     let isAnyUsed = window.references.some((reference) => reference.Used === true);
     let isAnyUnused = window.references.some((reference) => reference.Used !== true);
-    if ((isAnyUsed && isAnyUnused) || window.autoBioOptions.inlineCitations == false) {
+    if (isAnyUsed && isAnyUnused) {
       sourcesText += "See also:\n";
     }
 
