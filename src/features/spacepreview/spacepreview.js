@@ -373,7 +373,7 @@ function attachHover(target) {
           // do not apply to certain links
           if (
             $(this).closest(
-              ".no-link-preview, .reference, #header, #footer, .profile-tabs, #views-wrap, .pureCssMenu, #customMenuOptions"
+              ".no-link-preview, .reference, #header, #footer, .profile-tabs, #views-wrap, .pureCssMenu, #customMenuOptions, .button"
             ).length > 0
           ) {
             return false;
