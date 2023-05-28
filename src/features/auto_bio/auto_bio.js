@@ -19,6 +19,7 @@ import { Biography } from "../bioCheck/Biography.js";
 import { ageAtDeath, USstatesObjArray } from "../my_connections/my_connections";
 import { bioTimelineFacts, buildTimelineTable, buildTimelineSA } from "./timeline";
 import { isIansProfile } from "../../core/pageType";
+import ONSjson from "./ONS.json";
 import Cookies from "js-cookie";
 
 /**
@@ -4807,6 +4808,15 @@ async function getStickersAndBoxes() {
         }
       });
 
+      const ONSstickers = getONSstickers();
+      if (ONSstickers.length > 0) {
+        ONSstickers.forEach(function (sticker) {
+          if (!thingsToAddAfterBioHeading.includes(sticker)) {
+            thingsToAddAfterBioHeading.push(sticker);
+          }
+        });
+      }
+
       if (window.autoBioOptions.diedYoung) {
         const deathAge = ageAtDeath(window.profilePerson, false);
         if (typeof deathAge[0] !== "undefined") {
@@ -5461,6 +5471,31 @@ export function removeWorking() {
   $("#working").remove();
 }
 
+export function getONSstickers() {
+  const surnames = [window.profilePerson.PersonName.LastNameAtBirth];
+  if (window.profilePerson.PersonName.LastNameCurrent != window.profilePerson.PersonName.LastNameAtBirth) {
+    surnames.push(window.profilePerson.PersonName.LastNameCurrent);
+  }
+  const out = [];
+  surnames.forEach(async (aSurname) => {
+    if (searchName(aSurname)) {
+      aSurname = searchName(aSurname);
+      // console.log("ONS", aSurname);
+      //out.push(`{{Member|ONS|name=${aSurname}}}`);
+    }
+    let results;
+
+    try {
+      results = await wtAPICatCIBSearch("WBE_AutoBio_ONS", "nameStudy", aSurname + " name study");
+      console.log(results);
+    } catch (error) {
+      console.log("Error getting ONS categories", error);
+      results = null;
+    }
+  });
+  return out;
+}
+
 export function addUnsourced(feature = "autoBio") {
   let unsourcedOption;
   if (feature == "autoCategories") {
@@ -5574,6 +5609,20 @@ export function addUnsourced(feature = "autoBio") {
       }
     }
   }
+}
+
+function searchName(searchTerm) {
+  const data = ONSjson;
+  for (var i = 0; i < data.length; i++) {
+    var nameObj = data[i];
+    var name = nameObj.Name;
+    var nameVariants = nameObj.NameVariants;
+
+    if (nameVariants.includes(searchTerm) || name === searchTerm) {
+      return name;
+    }
+  }
+  return null;
 }
 
 export function addOccupationCategories(feature = "autoBio") {
