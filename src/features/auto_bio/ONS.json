@@ -1,0 +1,473 @@
+[
+  {
+    "Name": "Aarons",
+    "NameVariants": ["Ahrens", "Arons"]
+  },
+  {
+    "Name": "Abbott",
+    "NameVariants": ["Abbot", "Abbit", "Abot"]
+  },
+  {
+    "Name": "Abel",
+    "NameVariants": ["Abell", ""]
+  },
+  {
+    "Name": "Abernathy",
+    "NameVariants": ["Abernethy", ""]
+  },
+  {
+    "Name": "Abney",
+    "NameVariants": ["Abner", ""]
+  },
+  {
+    "Name": "Acklam",
+    "NameVariants": ["Acklem", "Acklum"]
+  },
+  {
+    "Name": "Acks",
+    "NameVariants": ["Ochs", "Ax"]
+  },
+  {
+    "Name": "Addington",
+    "NameVariants": ["Adington", "Adyngton"]
+  },
+  {
+    "Name": "Adey",
+    "NameVariants": ["Addy", "Adye"]
+  },
+  {
+    "Name": "Adrain",
+    "NameVariants": ["Adrian", "Drain"]
+  },
+  {
+    "Name": "Aebersold",
+    "NameVariants": ["Abersold", "Ebersold"]
+  },
+  {
+    "Name": "Ager",
+    "NameVariants": ["Eager", "Egger"]
+  },
+  {
+    "Name": "Albright",
+    "NameVariants": ["Allbright", ""]
+  },
+  {
+    "Name": "Alington",
+    "NameVariants": ["Allington", "Alyngton"]
+  },
+  {
+    "Name": "Allen",
+    "NameVariants": ["Allin", "Allan"]
+  },
+  {
+    "Name": "Amerman",
+    "NameVariants": ["Ammerman", "Amberman"]
+  },
+  {
+    "Name": "Ames",
+    "NameVariants": ["Eames", "Amis"]
+  },
+  {
+    "Name": "Ancrum",
+    "NameVariants": ["Ankrim", "Ankrum"]
+  },
+  {
+    "Name": "Andolina",
+    "NameVariants": ["Andolino", ""]
+  },
+  {
+    "Name": "Andrewartha",
+    "NameVariants": ["Trewartha", "Trewarth"]
+  },
+  {
+    "Name": "Angier",
+    "NameVariants": ["Ainger", "Anger"]
+  },
+  {
+    "Name": "Applegate",
+    "NameVariants": ["Appelgate", "Appleget"]
+  },
+  {
+    "Name": "Archer",
+    "NameVariants": ["Archar", "Arcter"]
+  },
+  {
+    "Name": "Armes",
+    "NameVariants": ["Arms", ""]
+  },
+  {
+    "Name": "Armistead",
+    "NameVariants": ["Armisted", "Armistad"]
+  },
+  {
+    "Name": "Arnold",
+    "NameVariants": ["Arnell"]
+  },
+  {
+    "Name": "Arries",
+    "NameVariants": ["Arris", "Arres"]
+  },
+  {
+    "Name": "Ashton",
+    "NameVariants": ["Assheton", "Assheaton"]
+  },
+  {
+    "Name": "Aspevik",
+    "NameVariants": ["Aspevig", ""]
+  },
+  {
+    "Name": "Aspinwall",
+    "NameVariants": ["Aspinall", "Aspinwell"]
+  },
+  {
+    "Name": "Astill",
+    "NameVariants": ["Astell", "Astle"]
+  },
+  {
+    "Name": "Atwood",
+    "NameVariants": ["Attwood", "AttWode"]
+  },
+  {
+    "Name": "Auld",
+    "NameVariants": ["Aulds", ""]
+  },
+  {
+    "Name": "Avery",
+    "NameVariants": ["Every", ""]
+  },
+  {
+    "Name": "Awbrey",
+    "NameVariants": ["Aubrey", ""]
+  },
+  {
+    "Name": "Ayer",
+    "NameVariants": ["Ayers", "Ayres"]
+  },
+  {
+    "Name": "Batte",
+    "NameVariants": ["Batts", "Bates", "Batt", "Battey", "Battie", "Beatty", "Beattie"]
+  },
+  {
+    "Name": "Beasley",
+    "NameVariants": ["Beesley", "Beazley", "Beezley"]
+  },
+  {
+    "Name": "Beismer",
+    "NameVariants": ["Beesimer", "Besimer", "Bismer", "Beasmer Beesmer", "Beasimer", "Biesemiere", "Beisemeyer"]
+  },
+  {
+    "Name": "Blood",
+    "NameVariants": ["Blod", "Blode", "Bloode", "Bloud", "Blud", "Blude", "Bludd", "Bludde"]
+  },
+  {
+    "Name": "Broadwell",
+    "NameVariants": ["Bradwell", "Broodwell", "Brodwell"]
+  },
+  {
+    "Name": "Buk\uff83\uff61\uff84\u7a3fk",
+    "NameVariants": ["Bukacek", "Bukackova", "Buk\uff83\uff61\uff84\u8015ov\uff83\uff61"]
+  },
+  {
+    "Name": "Burkhart",
+    "NameVariants": ["Burkett", "Birkett", "Burkitt", "Burkhardt", "Burket"]
+  },
+  {
+    "Name": "Chapman",
+    "NameVariants": ["Chatman", "Chapmon", "Chatmon", "Chipmon"]
+  },
+  {
+    "Name": "Cook",
+    "NameVariants": ["Cooke"]
+  },
+  {
+    "Name": "Crawford",
+    "NameVariants": ["Craufurd", "Crofferd", "Crauford", "Crafoord"]
+  },
+  {
+    "Name": "Dijkgraaf",
+    "NameVariants": [
+      "Dijckgraeff",
+      "Dijckgraaf",
+      "Dijckgraef",
+      "Dijckgraeff",
+      "Dijkgraaff",
+      "Dijkgraeff",
+      "Dijkgreave",
+      "Dykgraaf",
+      "van den Dijkgraaf",
+      "van den Dijkgraaff",
+      "van der Dijkgraaf",
+      "van der Dijkgraaff"
+    ]
+  },
+  {
+    "Name": "Eklund",
+    "NameVariants": ["Eckland", "Acklund", "Ecklund"]
+  },
+  {
+    "Name": "Elliott",
+    "NameVariants": ["Elliot", "Eliot", "Eliott"]
+  },
+  {
+    "Name": "Endecott",
+    "NameVariants": [
+      "Endacot",
+      "Endacott",
+      "Endecot",
+      "Endecote",
+      "Endicott",
+      "Endicot",
+      "Endicote",
+      "Endycott",
+      "Endycote",
+      "Yendicot",
+      "Yendicott",
+      "Yendacott",
+      "Inticot",
+      "Inticott",
+      "Intecott",
+      "Indicott",
+      "Enticot",
+      "Enticott",
+      "Endeacott",
+      "De Yendecott",
+      "De Yendercott"
+    ]
+  },
+  {
+    "Name": "Farman",
+    "NameVariants": ["Fearman", "Fairman", "Fayerman", "Firman", "Furman"]
+  },
+  {
+    "Name": "Franzen",
+    "NameVariants": ["Frantzen"]
+  },
+  {
+    "Name": "Freiburghaus",
+    "NameVariants": ["Fryburghus"]
+  },
+  {
+    "Name": "Garrigues",
+    "NameVariants": ["Garrigus", "Garrigue", "Garriques"]
+  },
+  {
+    "Name": "Gautrey",
+    "NameVariants": ["Gautry"]
+  },
+  {
+    "Name": "Gerard",
+    "NameVariants": ["Gerrard", "Garard", "Garrard", "Giraud", "Garrett", "Jared", "Jerrard", ""]
+  },
+  {
+    "Name": "Gimblett",
+    "NameVariants": ["Gimblet", "Gimlett", "Gimblette", "Gimlette", "Gimlet"]
+  },
+  {
+    "Name": "Hartley",
+    "NameVariants": ["Hartly"]
+  },
+  {
+    "Name": "Hollenkamp ",
+    "NameVariants": ["Hollencamp", "Holenkamp"]
+  },
+  {
+    "Name": "Horton",
+    "NameVariants": ["Orton", "Horten"]
+  },
+  {
+    "Name": "Igo",
+    "NameVariants": ["Igoe", "Igou", "Igon"]
+  },
+  {
+    "Name": "Judith",
+    "NameVariants": ["Judit"]
+  },
+  {
+    "Name": "Kirtland",
+    "NameVariants": ["Kirtlan", "Kertland", "Kyrtland", "Curtland"]
+  },
+  {
+    "Name": "Klitzke",
+    "NameVariants": ["Klitzkie", "Klatzke", "Kletzke", "Klotzke", "Kloetzke", "Kluetzke", "Klitz"]
+  },
+  {
+    "Name": "Kolze",
+    "NameVariants": ["Koltze"]
+  },
+  {
+    "Name": "Kool",
+    "NameVariants": ["Cole", "Koel", "Cool", "Van de Cuyl"]
+  },
+  {
+    "Name": "Kotzschmar",
+    "NameVariants": ["Kotzschmer", "Kortzschmar", "Kortzschmer", "Kotschmar", "Kretzschmar"]
+  },
+  {
+    "Name": "Kuykendall",
+    "NameVariants": [
+      "Van Kuykendall",
+      "Kirkendall",
+      "Coykendall",
+      "Cuykendall",
+      "Kikendall",
+      "Kuykendaal",
+      "Kuyendal",
+      "Curkendall",
+      "Kuykendoll",
+      "Vankuykendall",
+      "Kurkendall",
+      "Kuykendahl"
+    ]
+  },
+  {
+    "Name": "Lancaster",
+    "NameVariants": ["Loncastre", "Longcaster", "Lankister", "Lancastre", "Lankshear", "Lankster"]
+  },
+  {
+    "Name": "Ligocki",
+    "NameVariants": ["Ligocka"]
+  },
+  {
+    "Name": "L\uff83\uff7ctzenburger",
+    "NameVariants": [
+      "L\uff83\uff7ctzenberger",
+      "Litzenberger",
+      "L\uff83\uff7ctzelberger",
+      "L\uff83\uff7ctzelburg",
+      "L\uff83\uff7ctzelburger"
+    ]
+  },
+  {
+    "Name": "Maness",
+    "NameVariants": ["Manis", "Manes", "Manus"]
+  },
+  {
+    "Name": "Markle",
+    "NameVariants": ["Merkel", "Markel"]
+  },
+  {
+    "Name": "Marshall",
+    "NameVariants": ["Marshal", "Marschall", "Marshell"]
+  },
+  {
+    "Name": "McClure",
+    "NameVariants": ["MacClure", "MacLure", "MacCloor", "McLeur", "McCloor", "McCluer", "McClewer"]
+  },
+  {
+    "Name": "McCune",
+    "NameVariants": ["McCoon", "McKoon", "McKune", "McCue", "McKeown", "McKeon", "McKewan", "MacKeown"]
+  },
+  {
+    "Name": "McMurray",
+    "NameVariants": ["McMurry", "MacMurray", "McMurrain", "McMurrey", "MacMurry"]
+  },
+  {
+    "Name": "Mortimer",
+    "NameVariants": ["Mortimere"]
+  },
+  {
+    "Name": "Motz",
+    "NameVariants": ["Moats", "Motes"]
+  },
+  {
+    "Name": "Oats",
+    "NameVariants": ["Oates"]
+  },
+  {
+    "Name": "Pegues",
+    "NameVariants": ["Pegus", "Pigue", "Pogue", "Pague"]
+  },
+  {
+    "Name": "Pepperrell",
+    "NameVariants": ["Pepperell", "Pepperall", "Pipperall"]
+  },
+  {
+    "Name": "Pollard",
+    "NameVariants": ["Paillard", "Pallard", "Polhard"]
+  },
+  {
+    "Name": "Price",
+    "NameVariants": ["Pryce", "Preece", "Priess", "Preese", "Prize", "Priesz"]
+  },
+  {
+    "Name": "Reilly",
+    "NameVariants": ["Riley", "O'Reilly"]
+  },
+  {
+    "Name": "Ripke",
+    "NameVariants": ["Ribbke", "Ripcke"]
+  },
+  {
+    "Name": "Smitherman",
+    "NameVariants": ["Smotherman", "Smothermon", "Smytheman", "Smithyman"]
+  },
+  {
+    "Name": "Soden",
+    "NameVariants": ["Sodan", "Sodin", "Sodon", "Sowdon", "Sowden", "Souden"]
+  },
+  {
+    "Name": "Strozier",
+    "NameVariants": ["Strasser", "Strauser", "Strosser", "Storzer", "Stroer"]
+  },
+  {
+    "Name": "Suggitt",
+    "NameVariants": ["Sugget", "Suggett", "Suggit", "Suggate"]
+  },
+  {
+    "Name": "Threlkeld",
+    "NameVariants": ["Thrailkeld", "Thrailkill", "Threldkeld", "Threlkel", "Thurlkill"]
+  },
+  {
+    "Name": "Tilliduff",
+    "NameVariants": ["Tullideph"]
+  },
+  {
+    "Name": "Wadenphul",
+    "NameVariants": [
+      "Wadenpfuhl",
+      "Wartenpuhl",
+      "Watenpool",
+      "Wahlpfuhl",
+      "Wadenpoell",
+      "Wadenpul",
+      "Watenphul",
+      "Wadepul",
+      "Wadenpohl",
+      "Wadenpful",
+      "Wadenpuhl",
+      "Wadephul",
+      "Wartenpful"
+    ]
+  },
+  {
+    "Name": "Westfall",
+    "NameVariants": [
+      "Westphal",
+      "Westphalen",
+      "Westfael",
+      "Westphall",
+      "Westvaal",
+      "Westfal",
+      "Westfalen",
+      "Westphahl",
+      "Westvael",
+      "Van Westphalen"
+    ]
+  },
+  {
+    "Name": "Wilhite",
+    "NameVariants": ["Willhite", "Wilhite", "Wilhoite", "Wilhoit"]
+  },
+  {
+    "Name": "Wodel",
+    "NameVariants": ["Woodall", "Wooddall"]
+  },
+  {
+    "Name": "Wormuth",
+    "NameVariants": ["Warmuth", "Wermuth", "Warmouth", "Wermouth", "Wormouth", "Wormwood"]
+  },
+  {
+    "Name": "Zanrè",
+    "NameVariants": ["Zanre", "Zanretis", "Zanré", "Zanrré", "Zanrre"]
+  }
+]

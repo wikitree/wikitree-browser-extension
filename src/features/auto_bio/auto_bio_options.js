@@ -284,6 +284,12 @@ const autoBio = {
           defaultValue: true,
         },
         {
+          id: "nameStudyStickers",
+          type: OptionType.CHECKBOX,
+          label: "Add One Name Study stickers for profiles with surnames with a name study",
+          defaultValue: true,
+        },
+        {
           id: "unsourced",
           type: OptionType.RADIO,
           label: "Add Unsourced template/category to unsourced profiles",

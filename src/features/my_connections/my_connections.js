@@ -710,7 +710,7 @@ async function getMoreConnections() {
   });
 }
 
-async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
+export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "") {
   let captionText = "";
   let thisP = false;
   if ($(".searchResultsButton").length) {
