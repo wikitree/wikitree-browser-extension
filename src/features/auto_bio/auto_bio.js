@@ -4786,7 +4786,7 @@ async function getStickersAndBoxes() {
   // eslint-disable-next-line no-undef
   await fetch(chrome.runtime.getURL("features/wtPlus/templatesExp.json"))
     .then((resp) => resp.json())
-    .then((jsonData) => {
+    .then(async (jsonData) => {
       const templatesToAdd = ["Sticker", "Navigation Profile Box", "Project Box", "Profile Box"];
       const beforeHeadingThings = ["Project Box", "Research note box"];
       let thingsToAddAfterBioHeading = [];
@@ -4808,13 +4808,53 @@ async function getStickersAndBoxes() {
         }
       });
 
-      const ONSstickers = getONSstickers();
-      if (ONSstickers.length > 0) {
-        ONSstickers.forEach(function (sticker) {
-          if (!thingsToAddAfterBioHeading.includes(sticker)) {
-            thingsToAddAfterBioHeading.push(sticker);
-          }
-        });
+      if (window.autoBioOptions.nameStudyStickers) {
+        const ONSstickers = await getONSstickers();
+        if (ONSstickers) {
+          ONSstickers.forEach(function (ONSsticker) {
+            let isDuplicate = false;
+            for (let sticker of thingsToAddAfterBioHeading) {
+              if (sticker.replace(/\s/g, "") === ONSsticker.replace(/\s/g, "")) {
+                isDuplicate = true;
+                break;
+              }
+            }
+            if (!isDuplicate) {
+              if (ONSsticker.match("|category=")) {
+                /*
+                console.log("ONSsticker", ONSsticker);
+                console.log("thingsToAddAfterBioHeading", thingsToAddAfterBioHeading);
+                console.log("thingsToAddBeforeBioHeading", thingsToAddBeforeBioHeading);
+                console.log(JSON.parse(JSON.stringify(window.sectionsObject.StuffBeforeTheBio.text)));
+                */
+                // If thingsToAdd... includes a plain ONS sticker with the same name but not the category, remove it.
+                thingsToAddAfterBioHeading = thingsToAddAfterBioHeading.filter(function (sticker) {
+                  return (
+                    sticker
+                      .replace(/\s/g, "")
+                      .toLowerCase()
+                      .indexOf(ONSsticker.split("|category=")[0].replace(/\s/g, "").toLowerCase()) === -1
+                  );
+                });
+                // If stuffBeforeTheBio includes the same category, remove it.
+                window.sectionsObject.StuffBeforeTheBio.text = window.sectionsObject.StuffBeforeTheBio.text.filter(
+                  function (categoryLine) {
+                    if (ONSsticker.includes("category=")) {
+                      const categoryInLine = categoryLine.replace("[[Category:", "").replace("]]", "").trim();
+                      const categoryInSticker = ONSsticker.split("category=")[1].replace("}}", "").trim();
+                      return (
+                        categoryInLine.replace(/\s/g, "").toLowerCase() !==
+                        categoryInSticker.replace(/\s/g, "").toLowerCase()
+                      );
+                    }
+                    return true; // keep the categoryLine in case there's no "category=" in ONSsticker
+                  }
+                );
+              }
+              thingsToAddAfterBioHeading.push(ONSsticker);
+            }
+          });
+        }
       }
 
       if (window.autoBioOptions.diedYoung) {
@@ -5471,28 +5511,100 @@ export function removeWorking() {
   $("#working").remove();
 }
 
-export function getONSstickers() {
+function findBestMatch(surname, birthLocation, deathLocation, categories) {
+  let birthLocArray = birthLocation.split(",").map((item) => item.trim());
+  let deathLocArray = deathLocation.split(",").map((item) => item.trim());
+
+  let checkMatch = (locationArray, category) => {
+    let categoryWithoutSurname = category.replace(`, ${surname} Name Study`, "");
+    let categoryParts = categoryWithoutSurname.split(",").map((item) => item.trim());
+
+    // Check if all categoryParts are in locationArray (with or without 'County')
+    return categoryParts.every((catPart) => {
+      let catPartNoCounty = catPart.replace(/ County$/, "");
+      return locationArray.some((locPart) => locPart === catPart || locPart === catPartNoCounty);
+    });
+  };
+
+  let bestMatch = null;
+  let bestMatchSpecificity = -1;
+
+  for (let category of categories) {
+    if (checkMatch(birthLocArray, category.category) || checkMatch(deathLocArray, category.category)) {
+      let categorySpecificity = category.category.split(",").length - 1;
+      if (categorySpecificity > bestMatchSpecificity) {
+        bestMatch = category.category;
+        bestMatchSpecificity = categorySpecificity;
+      }
+    }
+  }
+
+  // If no match found, try to find general 'Surname Name Study' category
+  if (!bestMatch) {
+    let generalNameStudy = categories.find((category) => category.category === surname + " Name Study");
+
+    if (generalNameStudy) {
+      bestMatch = generalNameStudy.category;
+    }
+  }
+
+  return bestMatch;
+}
+
+export async function getONSstickers() {
   const surnames = [window.profilePerson.PersonName.LastNameAtBirth];
   if (window.profilePerson.PersonName.LastNameCurrent != window.profilePerson.PersonName.LastNameAtBirth) {
     surnames.push(window.profilePerson.PersonName.LastNameCurrent);
   }
-  const out = [];
-  surnames.forEach(async (aSurname) => {
+  if (window.profilePerson.LastNameOther) {
+    // split by comma, trim and push to surnames if not already in surnames
+    window.profilePerson.LastNameOther.split(",").forEach((item) => {
+      item = item.trim();
+      if (!surnames.includes(item)) {
+        surnames.push(item);
+      }
+    });
+  }
+
+  let promises = surnames.map(async (aSurname) => {
+    let isOnONSlist = false;
     if (searchName(aSurname)) {
       aSurname = searchName(aSurname);
-      // console.log("ONS", aSurname);
-      //out.push(`{{Member|ONS|name=${aSurname}}}`);
+      isOnONSlist = true;
     }
     let results;
-
     try {
       results = await wtAPICatCIBSearch("WBE_AutoBio_ONS", "nameStudy", aSurname + " name study");
-      console.log(results);
+      // console.log(results);
+      if (results?.response?.categories) {
+        const result = findBestMatch(
+          aSurname,
+          window.profilePerson.BirthLocation,
+          window.profilePerson.DeathLocation,
+          results.response.categories
+        );
+        // console.log(result);
+        if (result) {
+          if (result.match(",")) {
+            return `{{One Name Study|name=${aSurname}|category=${result}}}`;
+          } else {
+            return `{{One Name Study|name=${aSurname}}}`;
+          }
+        } else {
+          return `{{One Name Study|name=${aSurname}}}`;
+        }
+      } else if (isOnONSlist) {
+        return `{{One Name Study|name=${aSurname}}}`;
+      }
     } catch (error) {
       console.log("Error getting ONS categories", error);
       results = null;
     }
   });
+
+  let out = await Promise.all(promises);
+  out = out.filter((item) => item != null); // Remove null values if any
+  // console.log(out);
   return out;
 }
 
