@@ -21,9 +21,8 @@ import {
   buildFamilyForPrivateProfiles,
 } from "../auto_bio/auto_bio";
 
-let currentBio = $("#wpTextbox1").val();
-
 function addDiedYoung() {
+  let currentBio = $("#wpTextbox1").val();
   if (window.autoCategoriesOptions.diedYoung) {
     const deathAge = ageAtDeath(window.profilePerson, false);
     if (typeof deathAge[0] !== "undefined") {
@@ -37,6 +36,7 @@ function addDiedYoung() {
 // Export the function addAutoCategories as an asynchronous function
 export async function addAutoCategories() {
   addWorking();
+  let currentBio = $("#wpTextbox1").val();
 
   // Initialize an empty array in the global window object
   window.addCategories = [];
@@ -116,7 +116,7 @@ export async function addAutoCategories() {
   }
 
   // Get the text of the stuff before the bio
-  const stuffBeforeTheBioText = getStuffBeforeTheBioText();
+  let stuffBeforeTheBioText = getStuffBeforeTheBioText();
 
   // Switch off the enhanced editor if it's on
   let enhanced = false;
@@ -127,7 +127,10 @@ export async function addAutoCategories() {
   }
 
   if (stuffBeforeTheBioText) {
-    currentBio = currentBio.replace(/^(.*?)== Biography ==/s, `${stuffBeforeTheBioText}\n== Biography ==`);
+    if (stuffBeforeTheBioText.match(/\n$/) == null) {
+      stuffBeforeTheBioText += "\n";
+    }
+    currentBio = currentBio.replace(/^(.*?)== Biography ==/s, `${stuffBeforeTheBioText}== Biography ==`);
   }
   // Add the text to the textarea and switch back to the enhanced editor if it was on
   $("#wpTextbox1").val(currentBio);
