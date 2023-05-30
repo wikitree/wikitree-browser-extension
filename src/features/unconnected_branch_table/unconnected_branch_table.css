@@ -1,0 +1,75 @@
+#unconnectedBranchTable.wrap {
+  width: 80%;
+  white-space: normal;
+}
+#unconnectedBranchTable .date {
+  white-space: nowrap;
+}
+#unconnectedBranchTable {
+  white-space: nowrap;
+  height: auto;
+  max-height: 40em;
+  overflow: auto;
+  position: absolute;
+  width: auto;
+  left: 10%;
+  z-index: 4000;
+  background: white;
+  border: 3px solid forestgreen;
+  border-radius: 1em;
+  box-shadow: 1em 1em 1em #ccc;
+  display: none;
+
+  text-align: left;
+}
+
+#unconnectedBranchTable caption {
+  font-size: 1.5em;
+  font-weight: bold;
+  cursor: move;
+}
+
+#unconnectedBranchTable x {
+  position: absolute;
+  top: 0;
+  right: 0.5em;
+  font-weight: bold;
+  cursor: pointer;
+}
+#unconnectedBranchTable w {
+  position: absolute;
+  top: 0;
+  left: 0.5em;
+  font-weight: bold;
+  cursor: pointer;
+}
+#unconnectedBranchTable .BioPerson {
+  font-weight: bold;
+}
+#unconnectedBranchTable tr.BioPerson.Birth {
+  border-top: 1px solid forestgreen;
+}
+#unconnectedBranchTable tr.BioPerson.Death {
+  border-bottom: 1px solid forestgreen;
+}
+#unconnectedBranchTable caption {
+  position: sticky;
+  top: 0;
+  background-color: #fff;
+  z-index: 1;
+}
+
+#unconnectedBranchTable x {
+  right: 0;
+}
+
+#unconnectedBranchTable thead {
+  position: sticky;
+  top: 30px;
+  background-color: #fff;
+  z-index: 1;
+}
+#unconnectedBranchTable td,
+#unconnectedBranchTable th {
+  padding: 0 0.3em;
+}
