@@ -5575,7 +5575,7 @@ export async function getONSstickers() {
     let results;
     try {
       results = await wtAPICatCIBSearch("WBE_AutoBio_ONS", "nameStudy", aSurname + " name study");
-      // console.log(results);
+      console.log(results);
       if (results?.response?.categories) {
         const result = findBestMatch(
           aSurname,
@@ -5583,15 +5583,13 @@ export async function getONSstickers() {
           window.profilePerson.DeathLocation,
           results.response.categories
         );
-        // console.log(result);
+        console.log(result);
         if (result) {
           if (result.match(",")) {
             return `{{One Name Study|name=${aSurname}|category=${result}}}`;
           } else {
             return `{{One Name Study|name=${aSurname}}}`;
           }
-        } else {
-          return `{{One Name Study|name=${aSurname}}}`;
         }
       } else if (isOnONSlist) {
         return `{{One Name Study|name=${aSurname}}}`;
@@ -5604,7 +5602,7 @@ export async function getONSstickers() {
 
   let out = await Promise.all(promises);
   out = out.filter((item) => item != null); // Remove null values if any
-  // console.log(out);
+  console.log(out);
   return out;
 }
 
