@@ -5,7 +5,7 @@ registerFeature({
   id: "editFamilyData",
   description:
     "Adds the dates and locations of the profile person to a new profile page (for a parent, sibling, etc.).",
-  category: "Editing/Add Person",
+  category: "Editing/Add_Person",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,

@@ -2,29 +2,34 @@ let root = {
   categories: [
     {
       name: "Global",
-      description: "These features affect the entire site.",
       ordinal: 1,
-      catgories: [
+      categories: [
         {
           name: "Style",
-          description: "These features change the way the site looks.",
-          ordinal: 6,
+          description: "Change the way the site looks and behaves.",
+          ordinal: -1,
         },
       ],
     },
     {
       name: "Profile",
-      description: "These features apply to profile pages.",
+      description: "Customize the display when browsing profiles.",
       ordinal: 2,
     },
     {
       name: "Editing",
-      description: "These features enhance the editing pages.",
+      description: "Additional tools to make editing profiles easier.",
       ordinal: 3,
+      categories: [
+        {
+          name: "Add Person",
+          description: "Tools to simplify the process when adding a new person to the tree.",
+        },
+      ],
     },
     {
       name: "Navigation",
-      description: "Features related to WikiTree links and menus.",
+      description: "Improve menus and interaction with links on profiles.",
       ordinal: 4,
       categories: [
         {
@@ -35,7 +40,7 @@ let root = {
     },
     {
       name: "Community",
-      description: "Features to enhance your interaction with other WikiTreers.",
+      description: "Enhance your interaction with other WikiTreers.",
       ordinal: 5,
     },
   ],

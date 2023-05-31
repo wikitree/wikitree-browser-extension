@@ -358,7 +358,7 @@ registerFeature({
   name: "Suggested Matches Filters",
   id: "suggestedMatchesFilters",
   description: "Lets you filter out suggested matches for new profiles by location, name, and/or date.",
-  category: "Editing/Add Person",
+  category: "Editing/Add_Person",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
@@ -370,7 +370,7 @@ registerFeature({
   id: "verifyID",
   description:
     "When attaching a person by ID, you can see some details of the person and check that you've entered the correct ID.",
-  category: "Editing/Add Person",
+  category: "Editing/Add_Person",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
