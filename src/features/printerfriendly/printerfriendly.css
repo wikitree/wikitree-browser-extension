@@ -7,84 +7,94 @@
     display: unset !important;
   }
 
-  .print-content-only body {
+  body {
     background: white;
   }
 
-  .print-content-only .columns,
-  .print-content-only .ten,
-  .print-content-only .container .columns,
-  .print-content-only .container .ten.columns {
+  .columns,
+  .ten,
+  .container .columns,
+  .container .six.columns,
+  .container .ten.columns {
     float: left;
+    clear: left;
     display: initial;
     width: unset;
     margin-left: unset;
     margin-right: unset;
   }
 
-  .print-content-only a[target="_Help"],
-  .print-content-only span[title*="for the profile and"],
-  .print-content-only div[style="background-color:#e1efbb;"],
-  .print-content-only div[style="background-color:#eee;"],
-  .print-content-only a[href^="/treewidget/"],
-  .print-content-only a[href="/g2g/"],
-  .print-content-only a[class="nohover"],
-  .print-content-only:not(.print-vitals) .VITALS,
-  .print-content-only:not(.print-vitals) #nVitals,
-  .print-content-only .star,
-  .print-content-only .profile-tabs,
-  .print-content-only .showhidetree,
-  .print-content-only .row:not(#nVitals),
-  .print-content-only .button,
-  .print-content-only :not(.VITALS, #nVitals) > .large,
-  .print-content-only a[target="_map"] > img[alt="map"],
-  .print-content-only .sixteen,
-  .print-content-only .five,
-  .print-content-only .editsection,
-  .print-content-only .EDIT,
-  .print-content-only .x-edit,
-  .print-content-only .comment-absent,
-  .print-content-only .box,
-  .print-content-only #views-wrap,
-  .print-content-only #footer,
-  .print-content-only #commentPostDiv,
-  .print-content-only #comments,
-  .print-content-only #commentEditDiv,
-  .print-content-only #commentG2GDiv,
-  .print-content-only #header,
-  .print-content-only #showHideDescendants,
-  .print-content-only #categories,
-  .print-content-only #toc,
-  .print-content-only #whatLinksHereSection,
-  .print-content-only .x-heading,
-  .print-content-only .x-widget,
-  .print-content-only .x-audit,
-  .print-content-only .x-memories,
-  .print-content-only .x-comments,
-  .print-content-only .x-merges,
-  .print-content-only .x-connections,
-  .print-content-only .x-categories {
+  a[target="_Help"],
+  span[title*="for the profile and"],
+  div[style="background-color:#e1efbb;"],
+  div[style="background-color:#eee;"],
+  a[href^="/treewidget/"],
+  a[href="/g2g/"],
+  a[class="nohover"],
+  .no-print-vitals .VITALS,
+  .no-print-vitals #nVitals,
+  .no-print-research-notes .section-researchnotes,
+  .no-print-dna .section-dna,
+  .no-print-dna *[class*="section-dna"],
+  .no-print-sources .section-sources,
+  .star,
+  .profile-tabs,
+  .showhidetree,
+  .row:not(#nVitals),
+  .button,
+  :not(.VITALS, #nVitals) > .large,
+  a[target="_map"] > img[alt="map"],
+  .sixteen,
+  .five,
+  .editsection,
+  .EDIT,
+  .x-edit,
+  .comment-absent,
+  .box,
+  #views-wrap,
+  #footer,
+  #commentPostDiv,
+  #comments,
+  #commentEditDiv,
+  #commentG2GDiv,
+  #header,
+  #showHideDescendants,
+  #categories,
+  #toc,
+  #whatLinksHereSection,
+  .x-heading,
+  .x-widget,
+  .x-audit,
+  .x-memories,
+  .x-comments,
+  .x-merges,
+  .x-connections,
+  .x-categories {
     display: none !important;
   }
 
-  .print-content-only .printable-heading {
+  .printable-heading {
     display: initial !important;
+  }
+
+  #nVitals .sidebar-heading {
+    display: block !important;
   }
 }
 
-.print-content-only .printable-heading {
+.printable-heading {
   margin-bottom: 2em;
   clear: both;
 }
 
-.print-content-only .printable-heading > img {
+.printable-heading > img {
   float: left;
   margin-right: 50px;
   margin-bottom: 1em;
   vertical-align: top;
 }
 
-.print-content-only .printable-title {
+.printable-title {
   display: inline-block;
   font-size: 2.1429em;
   line-height: 1.4em;
