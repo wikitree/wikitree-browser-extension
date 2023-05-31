@@ -155,7 +155,7 @@ function restore_options() {
       if (featureEnabled === undefined) {
         featureEnabled = feature.defaultValue ? true : false;
       }
-      $(`#${feature.id} input`).prop("checked", featureEnabled);
+      $(`#${feature.id} input`).prop("checked", featureEnabled).trigger("change");
       restoreFeatureOptions(feature, items);
       setTimeout(function () {
         setCategorySwitches();
@@ -420,12 +420,15 @@ function setCategorySwitches() {
         }
       });
     if ($(this).is(".category-root")) {
-      $("#toggleAll").prop("checked", count > 0);
+      $("#toggleAll")
+        .prop("checked", count > 0)
+        .trigger("change");
     } else {
       $(this)
         .find("> .section-header > .toggle > input")
         .first()
-        .prop("checked", count > 0);
+        .prop("checked", count > 0)
+        .trigger("change");
     }
   });
 }
@@ -444,7 +447,7 @@ $("#toggleAll, .section.category > .section-header > .toggle > input").on("click
     $top = $(this).closest(".section.category");
   }
   if ($top) {
-    $top.find(".section:not(#darkMode) > .section-header > .toggle > input").prop("checked", oSwitch);
+    $top.find(".section:not(#darkMode) > .section-header > .toggle > input").prop("checked", oSwitch).trigger("change");
     saveFeatureOnOffOptions();
   }
 });
@@ -564,7 +567,17 @@ function addFeatureToOptionsPage(featureData, container) {
   let $header = $('<div class="section-header"></div>').appendTo(container);
   $header.append(
     $(`<div style="--font-px:16" class="toggle toggle-feature"></div>`)
-      .append($(`<input type="checkbox" id="toggle_${featureData.id}">`).on("click", saveFeatureOnOffOptions))
+      .append(
+        $(`<input type="checkbox" id="toggle_${featureData.id}">`)
+          .on("click", saveFeatureOnOffOptions)
+          .on("change", function () {
+            if (this.checked) {
+              $(this).closest(".section").removeClass("feature-disabled").addClass("feature-enabled");
+            } else {
+              $(this).closest(".section").removeClass("feature-enabled").addClass("feature-disabled");
+            }
+          })
+      )
       .append($(`<label for="toggle_${featureData.id}"></label>`).text(featureData.name))
   );
   let helpLink =

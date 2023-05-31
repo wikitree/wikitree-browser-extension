@@ -63,6 +63,16 @@ div.feature-options {
 .feature-options-button:hover {
   background-color: #8fc641;
 }
+.section:not(.feature-enabled) > .section-content > div.feature-options::before,
+.section:not(.feature-enabled) > .section-content > dialog.feature-options > .dialog-content::before {
+  display: block;
+  content: "This feature must be toggled on for these options to take effect.";
+  color: #c00;
+  font-size: 14px;
+  font-style: italic;
+  font-weight: bold;
+  margin-bottom: 0.5em;
+}
 
 /* Option elements */
 .option-subheading {
