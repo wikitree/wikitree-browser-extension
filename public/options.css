@@ -1,52 +1,63 @@
 /* Options page */
-.feature-information {
-  display: flex;
-  flex-direction: column;
-  border-bottom: 1px solid #333;
-  padding: 10px;
+.category-root {
+  margin-top: 20px;
 }
-.feature-header {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
+.section {
+  position: relative;
 }
-.feature-header-left {
-  display: flex;
+.category-root > .section .section {
+  padding-top: 10px;
+  padding-bottom: 8px;
 }
-.feature-name {
-  color: #333;
-  font-size: 18px;
-  display: flex;
-  align-items: center;
-  padding-left: 10px;
+.section-content > .section > .section-content {
+  padding-left: 4em;
 }
+.section-description {
+  font-size: 13px;
+  margin-left: 22px;
+}
+.section.category > .section-header > .section-description {
+  margin-left: 60px;
+}
+.category-root > .section > .section-header > .section-description {
+  display: inline-block;
+  margin-left: 10px;
+  font-size: 14px;
+}
+
 .feature-author {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  padding: 3px 5px;
   text-align: right;
+  color: #999;
 }
-.feature-description {
-  padding: 10px 0 0 70px;
-  font-size: 16px;
-}
-.feature-help-link{
-  display: flex;
-  align-items: center;
-  padding-left: 10px;
-}
-.feature-link {
+.feature-author > div {
   font-size: 12px;
+  line-height: 14px;
+}
+.feature-help-link {
+  display: inline-block;
+  margin-left: 5px;
 }
 .feature-options {
-  padding: 10px 0 0 70px;
   font-size: 16px;
+  font-weight: 300;
+}
+div.feature-options {
+  padding-top: 10px;
 }
 .feature-options-button {
-  border-radius: 34px;
+  position: relative;
+  left: 20px;
+  top: -3px;
   background-color: #ddd;
-  font-size: 16px;
-  padding: 0 17px;
-  min-width: 130px;
+  border-radius: 34px;
+  font-size: 14px;
+  padding: 6px 17px;
+  min-width: 120px;
   border: 0;
-  margin-left: 20px;
   cursor: pointer;
 }
 .feature-options-button:hover {
@@ -86,23 +97,30 @@
   display: inline-block;
 }
 
-/* Make the header (h1) sticky */
-#options {
+/* Toggle buttons */
+.toggle-category:not(.label-left),
+.toggle-feature {
+  display: inline-block;
+}
+
+.toggle-category.label-left {
   position: relative;
-  padding-top: 70px;
+  float: right;
+  clear: right;
 }
-#options h1 {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  background-color: #f7f6f0;
-  -webkit-box-shadow: 0 0 6px 2px rgba(0, 0, 0, 0.13);
-  box-shadow: 0 0 6px 2px rgba(0, 0, 0, 0.13);
-  height: 40px;
-  z-index: 100;
+h1 .toggle-category {
+  margin-left: 0.5em;
 }
-#options h2[id^="category_"] {
+
+.section-header > .toggle > label {
+  font-weight: 500;
+}
+.category-root > .section > .section-header > .toggle > label {
+  font-weight: 700;
+}
+
+/* Categories */
+.section.category[id] {
   scroll-margin-top: 90px;
 }
 
@@ -132,6 +150,8 @@
 #categoryBar > ul > li > a {
   text-decoration: none;
   padding: 2px 8px;
+  font-weight: 600;
+  color: #060;
 }
 #categoryBar > ul > li:first-child {
   margin-left: 0;
@@ -140,43 +160,126 @@
   margin-right: 0;
 }
 
-#options h1,
-#options h2 {
+.section-header {
+  position: relative;
+  margin: 0;
+  padding: 0 10px;
+}
+.category-root > .section > .section-header {
+  background: #e1f0b4
+    linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0.005) 37%,
+      rgba(0, 0, 0, 0.01) 69%,
+      rgba(0, 0, 0, 0.02) 85%,
+      rgba(0, 0, 0, 0.04) 93%,
+      rgba(0, 0, 0, 0.08) 97%,
+      rgba(0, 0, 0, 0.16) 99%,
+      rgba(0, 0, 0, 0.32) 100%
+    );
+  background-size: 100% 30px;
+  background-repeat: repeat-x;
+  padding: 10px 10px;
+  font-size: 24px;
+}
+.category-root > .section > .section-content > .section {
+  background: linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.005) 37%,
+    rgba(0, 0, 0, 0.01) 69%,
+    rgba(0, 0, 0, 0.02) 85%,
+    rgba(0, 0, 0, 0.04) 93%,
+    rgba(0, 0, 0, 0.08) 97%,
+    rgba(0, 0, 0, 0.16) 99%,
+    rgba(0, 0, 0, 0.32) 100%
+  );
+  background-size: 100% 30px;
+  background-repeat: repeat-x;
+}
+
+/* Make the header (h1) sticky */
+#options {
+  position: relative;
+  padding-top: 70px;
+}
+#options h1 {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: #f7f6f0;
+  -webkit-box-shadow: 0 0 6px 2px rgba(0, 0, 0, 0.13);
+  box-shadow: 0 0 6px 2px rgba(0, 0, 0, 0.13);
+  height: 40px;
+  z-index: 100;
+}
+
+/* Page header */
+#options h1 {
   padding: 0.5em;
   font-size: 24px;
 }
-#options h2 {
-  position: relative;
-  padding-bottom: 1em;
-  background-color: #e1f0b4;
-}
 #options #h1Text {
-  margin-left: 1em;
   display: inline-block;
-  top: -0.5em;
-  position: relative;
+  color: #25422d;
+  position: absolute;
+  left: 220px;
+  bottom: 15px;
+  font-size: 35px;
+  font-weight: 300;
+  letter-spacing: -3px;
+}
+#options #h1Text .version {
+  position: absolute;
+  right: -2px;
+  top: 4px;
+  font-family: monospace;
+  font-size: 11px;
+  letter-spacing: -2px;
+  opacity: 0.3;
 }
 
-#options h2 div.feature-toggle {
+#openSettings {
   float: right;
+  width: 34px;
+  height: 34px;
+  filter: drop-shadow(0 0 1px #000);
 }
-#options h1 div.feature-toggle {
-  float: right;
+#openSettings g > rect {
+  fill: #ddd;
 }
-#options #saveOptions {
-  position: fixed;
-  top: 1em;
-  right: 1em;
+#openSettings > circle {
+  stroke: #ddd;
+}
+#openSettings:hover {
+  cursor: pointer;
+}
+#openSettings:hover g > rect {
+  fill: #fbb616;
+}
+#openSettings:hover > circle {
+  stroke: #fbb616;
 }
 
-h1 .feature-toggle {
-  margin-left: 0.5em;
+/* Settings dialog */
+#settingsDialog {
+  min-height: 100px;
+  max-height: 580px;
+  font-size: 16px;
 }
-h1 #settings {
-  float: right;
-  position: relative;
+#settingsDialog ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
-h1 #settings,
+#settingsDialog li {
+  margin-top: 10px;
+}
+#settingsDialog li:first-child {
+  margin-top: 0;
+}
 #settingsDialog button,
 #settingsDialog a.button {
   display: inline-block;
@@ -190,14 +293,12 @@ h1 #settings,
   font-size: 16px;
   text-decoration: none;
 }
-h1 #settings:hover,
 #settingsDialog button:hover,
 #settingsDialog a.button:hover {
   background-color: #8fc641;
   color: #000;
   cursor: pointer;
 }
-h1 #settings:active,
 #settingsDialog button:active,
 #settingsDialog a.button:active {
   color: #000;

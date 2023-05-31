@@ -10,7 +10,7 @@ const g2g = {
   name: "G2G Options",
   id: "g2g",
   description: "Add various things to G2G.",
-  category: "Other",
+  category: "Community",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,

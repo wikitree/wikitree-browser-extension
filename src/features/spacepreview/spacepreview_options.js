@@ -9,7 +9,7 @@ const pagePreviewFeature = {
   name: "Preview Pages",
   id: "spacePreviews", // keep ID the same to preserve configuration
   description: "Enable page previews when hovering over certain WikiTree links.",
-  category: "Links",
+  category: "Navigation",
   creators: [{ name: "Steve Harris", wikitreeid: "Harris-5439" }],
   contributors: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   defaultValue: false,

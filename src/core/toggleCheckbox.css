@@ -3,6 +3,9 @@
   --font-px: 15;
   --relative-adjustment: calc(var(--font-px) / 15);
 }
+.toggle.fit-line {
+  --relative-adjustment: calc(var(--font-px) / 24);
+}
 
 .toggle input[type="checkbox"] {
   display: none;
@@ -14,6 +17,9 @@
   line-height: calc(var(--relative-adjustment) * 24px);
   font-size: calc(var(--relative-adjustment) * 15px);
 }
+.toggle.toggle.fit-line input[type="checkbox"] + label {
+  font-size: calc(var(--relative-adjustment) * 24px);
+}
 
 .toggle.label-left input[type="checkbox"] + label {
   margin-left: unset;
@@ -24,15 +30,18 @@
   content: " ";
   display: block;
   position: absolute;
-  top: calc(var(--relative-adjustment) * -3px);
+  top: calc(var(--relative-adjustment) * -2.8px);
   left: calc(var(--relative-adjustment) * -55px);
   width: calc(var(--relative-adjustment) * 45px);
-  height: calc(var(--relative-adjustment) * 24px);
+  height: calc(var(--relative-adjustment) * 24.3px);
   background-color: #ddd;
   border: 1px solid #d3d3d5;
   border-radius: calc(var(--relative-adjustment) * 13px);
   box-shadow: 0 0 calc(var(--relative-adjustment) * 3px) rgba(0, 0, 0, 0.1);
   transition: background-color 0.4s ease;
+}
+.toggle.fit-line input[type="checkbox"] + label::before {
+  top: calc(var(--relative-adjustment) * 1.6px);
 }
 
 .toggle.label-left input[type="checkbox"] + label::before {
@@ -49,15 +58,18 @@
   content: " ";
   display: block;
   position: absolute;
-  top: calc(var(--relative-adjustment) * -1px);
+  top: calc(var(--relative-adjustment) * -1.1px);
   left: calc(var(--relative-adjustment) * -53px);
   width: calc(var(--relative-adjustment) * 20px);
-  height: calc(var(--relative-adjustment) * 20px);
+  height: calc(var(--relative-adjustment) * 20.3px);
   background-color: #fff;
   box-shadow: 0 calc(var(--relative-adjustment) * 1px) calc(var(--relative-adjustment) * 2px) rgba(0, 0, 0, 0.2);
   border: 1px solid #d3d3d5;
   border-radius: calc(var(--relative-adjustment) * 11px);
   transition: left 0.4s ease;
+}
+.toggle.fit-line input[type="checkbox"] + label::after {
+  top: calc(var(--relative-adjustment) * 3.3px);
 }
 
 .toggle.label-left input[type="checkbox"] + label::after {

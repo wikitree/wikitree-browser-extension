@@ -17,7 +17,7 @@ const sourcePreviewFeature = {
   name: "Preview Sources",
   id: "sPreviews", // keep ID the same to preserve configuration
   description: "Enable source previews on inline references.",
-  category: "Links",
+  category: "Navigation",
   creators: [{ name: "Steve Harris", wikitreeid: "Harris-5439" }],
   contributors: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   defaultValue: false,

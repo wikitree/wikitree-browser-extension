@@ -9,14 +9,19 @@ if (window.location.hash) {
   })(
     window.location.hash,
     $(
-      '<div class="modal"><div id="settingsDialog" class="dialog">' +
+      '<dialog id="settingsDialog">' +
         '<div class="dialog-header"></div>' +
-        '<div class="dialog-content"></div></div></div>'
-    ).appendTo(document.body)
+        '<div class="dialog-content"></div></div></dialog>'
+    )
+      .appendTo(document.body)
+      .on("close", function () {
+        window.close();
+      })
   );
 }
 
 function showUpload(hash, dialog) {
+  dialog.get(0).showModal();
   let launch = function () {};
   let exit = function () {
     window.close();
