@@ -1,16 +1,16 @@
 import $ from "jquery";
 
 import { features, OptionType } from "./core/options/options_registry";
+import { categorize } from "./features/register_categories";
 import "./features/register_feature_options";
 import { WBE, isWikiTreeUrl } from "./core/common";
 import { restoreOptions, restoreData } from "./upload";
 import { navigatorDetect } from "./core/navigatorDetect";
 
-if (!WBE.isRelease) {
-  // in testing versions, add the version number to the page title and in a header tooltip
+if (WBE?.version) {
   const title = WBE.name + " " + WBE.version;
   $("head > title").text(title.replace("Extension", "Extension Options"));
-  $("#h1Text").attr("title", title);
+  $("#h1Text").append($('<span class="version"></span>').text(WBE.version).attr("title", title));
 }
 
 (function (runtime) {
@@ -23,14 +23,10 @@ if (!WBE.isRelease) {
   );
 })(chrome.runtime);
 
-// Categories
-const categories = ["Global", "Profile", "Editing", "Menus", "Links", "Style"];
-// If a new feature is added with a new category, add the category to the list
-features.forEach(function (feature) {
-  if (!categories.includes(feature.category)) {
-    categories.push(feature.category);
-  }
-});
+import("./core/toggleCheckbox.css");
+
+// Build the tree of categories with features under them
+const rootCategory = categorize(features);
 
 $("h1").first().after('<div id="categoryBar"><ul></ul></div>');
 
@@ -141,15 +137,11 @@ function saveFeatureOnOffOptions() {
   const itemsToSave = {};
   features.forEach((feature) => {
     const checked = $(`#${feature.id} input`).prop("checked");
-    console.log("Saving feature " + feature.id + ", checked is: " + checked);
+    //console.log("Saving feature " + feature.id + ", checked is: " + checked);
 
     itemsToSave[feature.id] = checked;
 
-    console.log(window.categorySwitchClicked);
-
-    if (window.categorySwitchClicked == false || !window.categorySwitchClicked) {
-      setCategorySwitches();
-    }
+    setCategorySwitches();
   });
 
   chrome.storage.sync.set(itemsToSave);
@@ -165,6 +157,9 @@ function restore_options() {
       }
       $(`#${feature.id} input`).prop("checked", featureEnabled);
       restoreFeatureOptions(feature, items);
+      setTimeout(function () {
+        setCategorySwitches();
+      }, 100);
     });
   });
 }
@@ -250,16 +245,19 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
       textLineElement.className = "option-text-line";
       optionDivElement.appendChild(textLineElement);
     } else if (option.type == OptionType.CHECKBOX) {
+      optionDivElement.style = "--font-px:16";
+      optionDivElement.className = "toggle fit-line toggle-option";
+
       optionElement = document.createElement("input");
       optionElement.type = "checkbox";
       optionElement.className = "option-checkbox";
 
       let labelElement = document.createElement("label");
-      labelElement.appendChild(optionElement);
-
-      const textElement = createTextElementForLabel(option, true, false);
+      labelElement.htmlFor = fullOptionElementId;
+      const textElement = createTextElementForLabel(option, false, false);
       labelElement.appendChild(textElement);
 
+      optionDivElement.appendChild(optionElement);
       optionDivElement.appendChild(labelElement);
     } else if (option.type == OptionType.RADIO) {
       optionElement = document.createElement("label");
@@ -352,122 +350,109 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
 // when the options page loads, load status of options from storage into the UI elements
 $(document).ready(() => {
   restore_options();
-  setTimeout(function () {
-    setCategorySwitches();
-  }, 2000);
 });
 
-// Sort features first by ordinal (positives first, 0/undefined next, negatives last/reversed), and then alphabetically
-features.sort(function (a, b) {
-  let a$ = a.ordinal > 0 ? 1 : a.ordinal < 0 ? -1 : 0;
-  let b$ = b.ordinal > 0 ? 1 : b.ordinal < 0 ? -1 : 0;
-  if (a$ > b$) {
-    return -1;
-  } else if (a$ < b$) {
-    return 1;
-  } else if (a.ordinal < b.ordinal) {
-    return -1;
-  } else if (a.ordinal > b.ordinal) {
-    return 1;
-  }
-  return a.name.localeCompare(b.name);
-});
+// adds HTML elements for each category and its features to the options page
+let toggleCount = 0;
+renderCategory(rootCategory, $("#features"));
 
-// adds HTML elements for each feature to the options page
-categories.forEach(function (category) {
-  $("#categoryBar > ul")
-    .first()
-    .append(`<li><a href="#category_${category.replace(/\W+/g, "")}">${category}</a></li>`);
-  $("#features").append(`<h2 id="category_${category.replace(/\W+/g, "")}" data-category="${category}">${category} 
-  <div class="feature-toggle">
-  <label class="switch">
-  <input type="checkbox">
-  <span class="slider round"></span>
-  </label>
-</div></h2>`);
-  features.forEach((feature) => {
-    if (feature.category == category) {
-      addFeatureToOptionsPage(feature);
+function renderCategory(category, container) {
+  if (!category.depth) {
+    // The "All" switch at the root to toggle every feature goes at the top
+    // add the toggle to turn reading mode on/off while viewing the page instead of having to go into the extension for it
+    $("#openSettings").before(
+      '<div style="--font-px:20" class="toggle label-left toggle-category"><input type="checkbox" id="toggleAll"><label for="toggleAll">All</label></div>'
+    );
+    $(container).addClass("section category-root");
+  } else {
+    container = $(
+      `<div class="section category" id="category_${category.name.replace(/\W+/g, "").toLowerCase()}"></div>`
+    ).appendTo(container);
+    let $header = $(`<div class="section-header"></div>`).appendTo(container);
+    let toggleId = "toggleCategory" + ++toggleCount;
+    if (category.depth === 1) {
+      $("#categoryBar > ul")
+        .first()
+        .append(
+          $(`<a href="#category_${category.name.replace(/\W+/g, "").toLowerCase()}"></a>`)
+            .text(category.name)
+            .wrap("<li></li>")
+            .parent()
+        );
     }
-  });
-});
-
-function setCategorySwitches() {
-  let allTheseSwitches;
-  categories.forEach(function (category) {
-    allTheseSwitches = $(".feature-information." + category + " .switch input");
-    let categorySwitchState = true;
-    allTheseSwitches.each(function () {
-      if ($(this).prop("checked") == false) {
-        categorySwitchState = false;
+    $header.append(
+      $(
+        `<div style="--font-px:${
+          category.depth === 1 ? 20 : 16
+        }" class="toggle toggle-category"><input type="checkbox" id="${toggleId}"></div>`
+      ).append($(`<label for="${toggleId}"></label>`).text(category.name))
+    );
+    if (category.description) {
+      $header.append($('<div class="section-description"></div>').text(category.description));
+    }
+    container = $('<div class="section-content"></div>').appendTo(container);
+  }
+  if (category.children?.length > 0) {
+    category.children.forEach((child) => {
+      if (child.parent && child.depth) {
+        renderCategory(child, container);
+      } else {
+        addFeatureToOptionsPage(child, container);
       }
     });
-    window.setCategorySwitches = true;
-    $("h2[data-category=" + category + "] input").prop("checked", categorySwitchState);
-    window.setCategorySwitches = false;
+  }
+}
+
+function setCategorySwitches() {
+  [].reverse.call($(".category-root, .section.category")).each(function (index, element) {
+    let count = 0; // 0 = no features, positive = all checked, -1 = some unchecked
+    $(this)
+      .find($(this).is(".category-root") ? "> .section" : "> .section-content > .section")
+      .each(function () {
+        let $toggle = $(this).find("> .section-header > .toggle > input").first();
+        if ($toggle.length) {
+          count++;
+          if (!$toggle.is(":checked") && !$toggle.closest("#darkMode").length) {
+            count = -1;
+            return false;
+          }
+          return true;
+        }
+      });
+    if ($(this).is(".category-root")) {
+      $("#toggleAll").prop("checked", count > 0);
+    } else {
+      $(this)
+        .find("> .section-header > .toggle > input")
+        .first()
+        .prop("checked", count > 0);
+    }
   });
 }
-// Category switches
-$("h2 input").on("change", function () {
-  if (window.setCategorySwitches == false || !window.setCategorySwitches) {
-    window.categorySwitchClicked = true;
-    console.log(window.categorySwitchClicked);
-    let oSwitch = true;
-    if ($(this).prop("checked") == false) {
-      oSwitch = false;
-    }
-    let oClass = $(this).closest("h2").data("category");
-    $("." + oClass)
-      .find("input")
-      .prop("checked", oSwitch);
-  }
-  window.setCategorySwitches = false;
-  setTimeout(function () {
-    window.categorySwitchClicked = false;
-  }, 3000);
-});
 
-// Switch at the top to toggle every switch
-
-$("h1").append(
-  $(`<div class="feature-toggle">
-  All <label class="switch">
-<input type="checkbox" id="toggleAll">
-<span class="slider round"></span>
-</label></div><button id="settings">Settings</button>`)
-);
-
-$("#toggleAll").on("change", function () {
-  let darkModeState = $("#darkMode .switch input").prop("checked");
+// Propagate category toggle switches down to all of the sub-features
+$("#toggleAll, .section.category > .section-header > .toggle > input").on("click", function () {
   let oSwitch = true;
   if ($(this).prop("checked") == false) {
     oSwitch = false;
   }
-  $("input[type='checkbox']").prop("checked", oSwitch);
-  if (darkModeState == false) {
-    $("#darkMode .switch input").prop("checked", false);
+  //TODO: propagate instead of letting an event handle the recursion
+  let $top;
+  if (this.id === "toggleAll") {
+    $top = $(".category-root");
+  } else if ($(this).closest(".toggle").is(".toggle-category")) {
+    $top = $(this).closest(".section.category");
+  }
+  if ($top) {
+    $top.find(".section:not(#darkMode) > .section-header > .toggle > input").prop("checked", oSwitch);
+    saveFeatureOnOffOptions();
   }
 });
 
-$("#settings").on("click", function () {
-  let modal = $('<div id="settingsModal" class="modal" style="display: none;"></div>');
-  let hideModal = function () {
-    modal.fadeOut(400, function () {
-      $(this).remove();
-    });
-    modal.find("a[href^='blob:'").each(function () {
-      URL.revokeObjectURL(this.href);
-    });
-  };
-  modal.on("click", function (e) {
-    if (this === e.target) {
-      // only close if clicking on the modal background, not elements inside the modal
-      hideModal();
-    }
-  });
-  let dialog = $(
-    '<div id="settingsDialog" class="dialog">' +
-      '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Settings &amp; Data Backup</div>' +
+$("#openSettings").on("click", function () {
+  let $dialog = $(
+    '<dialog id="settingsDialog">' +
+      '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Feature Options &amp; Data Backup</div>' +
       '<div class="dialog-content"><ul>' +
       '<li title="This would be like toggling all of the radio buttons back to the default. Each feature\'s options will be preserved."><button id="btnResetOptions">Default Features</button> Enable only the default features.</li>' +
       '<li title="This will download a backup file with your current feature options."><button id="btnExportOptions">Back Up Options</button> Back up your current feature options.</li>' +
@@ -478,8 +463,24 @@ $("#settings").on("click", function () {
       '<li class="hide-unless-wikitree" title="This will download a backup file with your current feature data."><button id="btnExportData">Back Up Data</button> Back up your feature data from WikiTree.</li>' +
       '<li class="hide-unless-wikitree" title="This will pop up a dialog to select your feature data backup file."><button id="btnImportData">Restore Data</button> Restore your feature data on WikiTree.</li>' +
       "</ul></div></div>"
-  ).appendTo(modal);
-  dialog
+  )
+    .appendTo(document.body)
+    .on("click", function (e) {
+      if (e.target === this) {
+        this.close(); // close modal if the backdrop is clicked
+      }
+    })
+    .on("close", function () {
+      $(this)
+        .find("a[href^='blob:'")
+        .each(function () {
+          URL.revokeObjectURL(this.href); // release the blob data when closed
+        });
+    });
+  let closeSettings = function () {
+    $dialog.get(0).close();
+  };
+  $dialog
     .find(".close")
     .on("auxclick", function (e) {
       e.stopPropagation();
@@ -488,19 +489,17 @@ $("#settings").on("click", function () {
     .on("click", function (e) {
       e.stopPropagation();
       e.preventDefault();
-      hideModal();
+      this.closest("dialog")?.close();
     });
-  dialog.find("#btnResetOptions").on("click", function (e) {
-    dialog.fadeOut();
-    reset_options(true, hideModal);
+  $dialog.find("#btnResetOptions").on("click", function (e) {
+    reset_options(true, closeSettings);
   });
-  dialog.find("#btnClearOptions").on("click", function (e) {
-    dialog.fadeOut();
-    reset_options(false, hideModal);
+  $dialog.find("#btnClearOptions").on("click", function (e) {
+    reset_options(false, closeSettings);
   });
-  dialog.find("#btnExportOptions").on("click", exportOptionsClicked);
-  dialog.find("#btnExportData").on("click", exportDataClicked);
-  dialog.find("#btnImportOptions").on("click", function (e) {
+  $dialog.find("#btnExportOptions").on("click", exportOptionsClicked);
+  $dialog.find("#btnExportData").on("click", exportDataClicked);
+  $dialog.find("#btnImportOptions").on("click", function (e) {
     if (navigatorDetect.browser.Firefox) {
       window.open(
         "popup.html#UploadOptions",
@@ -508,16 +507,14 @@ $("#settings").on("click", function () {
         `innerWidth=${window.innerWidth},innerHeight=${window.innerHeight},screenX=${window.screenX},screenY=${window.screenY},popup=1`
       );
     } else {
-      restoreOptions(() => {
-        dialog.fadeOut();
-      })
-        .then(hideModal)
+      restoreOptions()
+        .then(closeSettings)
         .catch(() => {
           alert("The options file was not valid.");
         });
     }
   });
-  dialog.find("#btnImportData").on("click", function (e) {
+  $dialog.find("#btnImportData").on("click", function (e) {
     if (navigatorDetect.browser.Firefox) {
       window.open(
         "popup.html#UploadData",
@@ -525,125 +522,134 @@ $("#settings").on("click", function () {
         `innerWidth=${window.innerWidth},innerHeight=${window.innerHeight},screenX=${window.screenX},screenY=${window.screenY},popup=1`
       );
     } else {
-      restoreData(() => {
-        dialog.fadeOut();
-      })
-        .then(hideModal)
+      restoreData()
+        .then(closeSettings)
         .catch(() => {
           alert("The data file was not valid.");
         });
     }
   });
-  modal.css({ display: "block", opacity: "0" }).prependTo(document.body);
-  // add a slight delay to get the height measurement right
-  window.setTimeout(function () {
-    dialog.css("--dialog-height", dialog.find(".dialog-content > ul").height() + "px");
-    modal.css({ display: "none", opacity: "unset" }).fadeIn(function () {
-      // double-check that the measurement is right
-      dialog.css("--dialog-height", dialog.find(".dialog-content > ul").height() + "px");
-    });
-  }, 100);
-});
-
-// Auto save the options on click (on 'change' would create lots of events when a big switch is clicked)
-// The short delay is for the changes to happen after the click
-$("#options .feature-toggle input[type='checkbox']").each(function () {
-  $(this).on("click", function () {
-    setTimeout(function () {
-      saveFeatureOnOffOptions();
-    }, 100);
-  });
+  $dialog.get(0).showModal();
 });
 
 // Hide/show options
 $(".feature-options-button").on("click", function () {
-  let id = $(this).attr("id");
-  if (id.endsWith("_options_button")) {
-    let index = id.indexOf("_options_button");
-    let featureId = id.substring(0, index);
-    let optionsElementId = `${featureId}_options`;
-    if ($(`#${optionsElementId}`).is(":hidden")) {
-      $(`#${optionsElementId}`).slideDown().get(0).scrollIntoView({ behavior: "smooth", block: "center" });
-      $(this).text("Hide options");
-    } else {
-      $(`#${optionsElementId}`).slideUp();
-      $(this).text("Show options");
+  let $section = $(this).closest(".section.feature");
+  if ($section.length) {
+    let $options = $section.find(".feature-options");
+    if ($options.length) {
+      if ($options.is("dialog")) {
+        $options.get(0).showModal();
+      } else {
+        if ($options.is(":hidden")) {
+          $options.slideDown(function () {
+            let target = this.closest(".section");
+            if (target.getBoundingClientRect().bottom > window.innerHeight) {
+              target.closest(".section").scrollIntoView({ behavior: "smooth", block: "end" });
+            }
+          });
+          $(this).text("Hide options");
+        } else {
+          $options.slideUp();
+          $(this).text("Show options");
+        }
+      }
     }
   }
 });
 
 // adds feature HTML to the options page
-function addFeatureToOptionsPage(featureData) {
-  let featureHTML = `
-    <div class="feature-information ${featureData.category}" id="${featureData.id}">
-      <div class="feature-header">
-        <div class="feature-header-left">
-          <div class="feature-toggle">
-            <label class="switch">
-              <input type="checkbox">
-              <span class="slider round"></span>
-            </label>
-          </div>
-          <div class="feature-name">
-            ${featureData.name}
-          </div>
-          <a class="feature-help-link" href="https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#${featureData.id}" target="_Help">
-            <img src="https://www.wikitree.com/images/icons/help.gif" border="0" width="11" height="11" alt="Help" title="Help about ${featureData.name}">
-          </a>
-          <button type="button" class="feature-options-button" id="${featureData.id}_options_button" hidden>
-            Show options
-          </button>
-        </div>
-        <div class="feature-author">`;
-  if (featureData.creators && featureData.creators.length) {
-    featureHTML +=
-      (featureData.creators.length > 1 ? `Creators: ` : `Creator: `) +
-      featureData.creators
-        .map(
-          (person) => `<a href="https://www.wikitree.com/wiki/${person.wikitreeid}" target="_blank">${person.name}</a>`
+function addFeatureToOptionsPage(featureData, container) {
+  container = $(`<div class="section feature" id="${featureData.id}"></div>`).appendTo(container);
+  let $header = $('<div class="section-header"></div>').appendTo(container);
+  $header.append(
+    $(`<div style="--font-px:16" class="toggle toggle-feature"></div>`)
+      .append($(`<input type="checkbox" id="toggle_${featureData.id}">`).on("click", saveFeatureOnOffOptions))
+      .append($(`<label for="toggle_${featureData.id}"></label>`).text(featureData.name))
+  );
+  let helpLink =
+    featureData.helpLink || `https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#${featureData.id}`;
+  if (helpLink) {
+    $header.find("label").after(
+      $(`<a class="feature-help-link nohover" target="WBE_Help"></a>`)
+        .attr("href", helpLink)
+        .append(
+          $(
+            '<img src="https://www.wikitree.com/images/icons/help.gif" border="0" width="11" height="11" alt="Help"></img>'
+          ).attr("title", `Help about ${featureData.name}`)
         )
-        .join(", ");
+    );
   }
-  if (featureData.contributors && featureData.contributors.length) {
-    featureHTML +=
-      `<br />` +
-      (featureData.contributors.length > 1 ? `Contributors: ` : `Contributor: `) +
-      featureData.contributors
-        .map(
-          (person) => `<a href="https://www.wikitree.com/wiki/${person.wikitreeid}" target="_blank">${person.name}</a>`
+  container = $('<div class="section-content"></div>').appendTo(container);
+  if (featureData.description) {
+    container.append($('<div class="section-description"></div>').text(featureData.description));
+  }
+  if (featureData.creators?.length || featureData.contributors?.length) {
+    let $authors = $('<div class="feature-author"></div>').prependTo(container);
+    if (featureData.creators?.length) {
+      $authors.append(
+        $(
+          "<div>" +
+            (featureData.creators.length > 1 ? `Creators: ` : `Creator: `) +
+            featureData.creators
+              .map(
+                (person) =>
+                  `<a href="https://www.wikitree.com/wiki/${person.wikitreeid}" target="_blank">${person.name}</a>`
+              )
+              .join(", ") +
+            "</div>"
         )
-        .join(", ");
+      );
+      if (featureData.contributors?.length) {
+        $authors.append(
+          $(
+            "<div>" +
+              (featureData.contributors.length > 1 ? `Contributors: ` : `Contributor: `) +
+              featureData.contributors
+                .map(
+                  (person) =>
+                    `<a href="https://www.wikitree.com/wiki/${person.wikitreeid}" target="_blank">${person.name}</a>`
+                )
+                .join(", ") +
+              "</div>"
+          )
+        );
+      }
+    }
   }
-  featureHTML += `
-        </div>
-      </div>
-      <div class="feature-content">
-        <div class="feature-description">
-          ${featureData.description}`;
-  if (featureData.link) {
-    featureHTML += ` <span class="feature-link">(<a href="${featureData.link}" target="_blank">More details</a>)</span>`;
-  }
-  featureHTML += `
-        </div>
-      </div>
-    </div>
-  `;
-
-  $("#features").append(featureHTML);
 
   if (featureData.options) {
-    const featureOptionsHTML = `
-          <div id="${featureData.id}_options" class="feature-options" hidden>
-          </div>
-      `;
-
-    $("#" + featureData.id + " .feature-content").append(featureOptionsHTML);
-
-    $("#" + featureData.id + "_options_button").show();
-
-    const optionsElement = document.getElementById(`${featureData.id}_options`);
-
-    addOptionsForFeature(featureData, optionsElement, featureData.options);
+    let $options = $(`<div class="feature-options" hidden></div>`).appendTo(container);
+    $header.append(`<button type="button" class="feature-options-button">Show options</button>`);
+    addOptionsForFeature(featureData, $options.get(0), featureData.options);
+    if ($options.height() > window.innerHeight * 0.8) {
+      $options.wrap('<dialog class="feature-options"></dialog>');
+      $options
+        .removeClass("feature-options")
+        .removeAttr("hidden")
+        .addClass("dialog-content")
+        .before(
+          $('<div class="dialog-header"></div>')
+            .text(`${featureData.name}`)
+            .prepend(
+              $('<a href="#" class="close">&#x2715;</a>')
+                .on("auxclick", function (e) {
+                  e.stopPropagation();
+                  e.preventDefault();
+                })
+                .on("click", function (e) {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  this.closest("dialog")?.close();
+                })
+            )
+        );
+      $options.parent().on("click", function (e) {
+        if (e.target === this) {
+          this.close(); // close modal if the backdrop is clicked
+        }
+      });
+    }
   }
 }
 

@@ -9,7 +9,36 @@
     <title>WikiTree Browser Extension Options</title>
   </head>
   <body id="options">
-    <h1><span id="h1Text">Extension Options</span></h1>
+    <h1>
+      <span id="h1Text">Browser Extension</span>
+      <svg xmlns="http://www.w3.org/2000/svg" id="openSettings" viewBox="0 0 720 720">
+        <!--Public Domain (https://en.wikipedia.org/wiki/File:Factotum_gear_icon.svg)-->
+        <defs>
+          <clipPath id="cut1">
+            <rect fill="#f0f" width="220" height="720" />
+            <rect fill="#f0f" x="500" width="220" height="720" />
+            <rect fill="#f0f" width="720" height="220" />
+            <rect fill="#f0f" y="500" width="720" height="220" />
+          </clipPath>
+          <clipPath id="cut"><circle fill="#000" cx="360" cy="360" r="355" /></clipPath>
+        </defs>
+        <g clip-path="url(#cut)">
+          <rect fill="#000" x="300" y="0" width="120" height="720" clip-path="url(#cut1)" />
+          <rect fill="#000" x="0" y="300" width="720" height="120" clip-path="url(#cut1)" />
+        </g>
+        <g clip-path="url(#cut)">
+          <g clip-path="url(#cut1)">
+            <g transform="translate(360,-277)">
+              <g transform="rotate(45)">
+                <rect fill="#000" x="390" y="0" width="120" height="900" />
+                <rect fill="#000" x="0" y="390" width="900" height="120" />
+              </g>
+            </g>
+          </g>
+        </g>
+        <circle cx="360" cy="360" r="180" fill="none" stroke="#000" stroke-width="120" />
+      </svg>
+    </h1>
     <div id="features"></div>
   </body>
   <script src="js/options.js"></script>
