@@ -118,6 +118,7 @@ export async function showFamilySheet(theClicked, profileID) {
         $(this).fadeOut();
       });
       let theLeft;
+      console.log(theClicked);
       if ($("div.ten.columns").length) {
         theLeft = getOffset($("div.ten.columns")[0]).left;
         familyTable.css({

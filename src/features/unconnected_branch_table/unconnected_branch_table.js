@@ -18,12 +18,88 @@ checkIfFeatureEnabled("unconnectedBranchTable").then((result) => {
       };
       createProfileSubmenuLink(options);
       $("#unconnectedBranchButton").on("click", function () {
-        unconnectedBranch();
+        if ($("#unconnectedBranchTable").length == 0) {
+          unconnectedBranch();
+        } else {
+          $("#unconnectedBranchTable").slideToggle();
+        }
       });
     }
   }
 });
 
+const locationSortOrder = {
+  birthLocation: 0,
+  deathLocation: 0,
+};
+
+function getLocationSortOrder(key) {
+  locationSortOrder[key] = (locationSortOrder[key] + 1) % 4; // cycles through 0, 1, 2, 3
+  return locationSortOrder[key];
+}
+
+function sortLocation(aText, bText, sortOrder) {
+  let aLocations = aText.split(", ");
+  let bLocations = bText.split(", ");
+
+  if (sortOrder === 2 || sortOrder === 3) {
+    aLocations = aLocations.reverse();
+    bLocations = bLocations.reverse();
+  }
+
+  for (let i = 0; i < Math.max(aLocations.length, bLocations.length); i++) {
+    if (aLocations[i] === undefined) return 1; // push undefined to the bottom
+    if (bLocations[i] === undefined) return -1; // push undefined to the bottom
+    let comparison = aLocations[i].localeCompare(bLocations[i], undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+    if (comparison !== 0) return sortOrder === 1 || sortOrder === 3 ? -comparison : comparison;
+  }
+
+  return 0; // equal
+}
+
+function makeTableSortable(table) {
+  let thElements = table.getElementsByTagName("th");
+  let sortingOrder = Array(thElements.length).fill(1);
+
+  for (let i = 0; i < thElements.length; i++) {
+    // in makeTableSortable function
+    // in makeTableSortable function
+    thElements[i].addEventListener("click", () => {
+      let rows = Array.from(table.rows).slice(1);
+      rows.sort((rowA, rowB) => {
+        let aText = rowA.cells[i].innerText || rowA.cells[i].textContent;
+        let bText = rowB.cells[i].innerText || rowB.cells[i].textContent;
+        // Check for empty cells and push them to the bottom
+        if (aText.trim() === "" && bText.trim() !== "") {
+          return 1;
+        } else if (bText.trim() === "" && aText.trim() !== "") {
+          return -1;
+        }
+
+        if (i === 5 || i === 7) {
+          // assuming these are the column indices for birth and death locations
+          const key = i === 5 ? "birthLocation" : "deathLocation";
+          const sortOrder = getLocationSortOrder(key);
+          return sortLocation(aText, bText, sortOrder);
+        } else {
+          const result =
+            sortingOrder[i] * aText.localeCompare(bText, undefined, { numeric: true, sensitivity: "base" });
+          sortingOrder[i] = -sortingOrder[i];
+          return result;
+        }
+      });
+
+      for (let row of rows) {
+        table.tBodies[0].appendChild(row);
+      }
+    });
+  }
+}
+
+/*
 function makeTableSortable(table) {
   let thElements = table.getElementsByTagName("th");
   let sortingOrder = Array(thElements.length).fill(1);
@@ -50,7 +126,7 @@ function makeTableSortable(table) {
     });
   }
 }
-
+*/
 async function unconnectedBranch() {
   if (!window.unconnectedBranch) {
     const profileID = $("a.pureCssMenui0 span.person").text();
@@ -89,7 +165,7 @@ async function unconnectedBranch() {
       }
     });
     assignPersonNames(person);
-    console.log(JSON.parse(JSON.stringify(person)));
+    // console.log(JSON.parse(JSON.stringify(person)));
     const parentKeys = Object.keys(person.Parents);
     parentKeys.forEach((key) => {
       const parent = person.Parents[key];
@@ -97,18 +173,24 @@ async function unconnectedBranch() {
     });
     // Add each person to the table
     const homeIcon = chrome.runtime.getURL("images/Home_icon.png");
-    const homeIconHTML = `<img class='showFamilySheet' src="${homeIcon}" alt="Home" title="Home" width="16" height="16" data-id="${person.Name}">`;
-    theBody.append(
-      `<tr><td>${homeIconHTML}</td><td class='firstNames'><a href="https://www.wikitree.com/wiki/${person.Name}" target="_blank">${person.PersonName.FirstNames}</a></td><td  class='lastNameAtBirth'>${person.LastNameAtBirth}</td><td class='lastNameCurrent'>${person.LastNameCurrent}</td><td class='birthDate'>${person.BirthDate}</td><td class='birthLocation'>${person.BirthLocation}</td><td class='deathDate'>${person.DeathDate}</td><td class='deathLocation'>${person.DeathLocation}</td></tr>`
+    const homeIconHTML = $(
+      `<img class='showFamilySheet' src="${homeIcon}" alt="Home" title="Home" width="16" height="16" data-id="${person.Name}">`
     );
-  });
-
-  $("#unconnectedBranchTable img.showFamilySheet").each(function () {
-    $(this).on("click", function (e) {
+    let gender = person.Gender || "";
+    if (person.DataStatus?.Gender == "blank") {
+      gender = "blank";
+    }
+    const theRow = $(
+      `<tr data-gender="${gender}"><td class='homeRow'></td><td class='firstNames'><a href="https://www.wikitree.com/wiki/${person.Name}" target="_blank">${person.PersonName.FirstNames}</a></td><td  class='lastNameAtBirth'>${person.LastNameAtBirth}</td><td class='lastNameCurrent'>${person.LastNameCurrent}</td><td class='birthDate'>${person.BirthDate}</td><td class='birthLocation'>${person.BirthLocation}</td><td class='deathDate'>${person.DeathDate}</td><td class='deathLocation'>${person.DeathLocation}</td></tr>`
+    );
+    theBody.append(theRow);
+    theRow.find(".homeRow").append(homeIconHTML);
+    homeIconHTML.on("click", function (e) {
       const personID = $(this).data("id");
       console.log(personID);
       console.log("showFamilySheet");
-      showFamilySheet(e, personID);
+      console.log(e);
+      showFamilySheet(e.target, personID);
     });
   });
 
