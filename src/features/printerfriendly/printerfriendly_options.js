@@ -10,7 +10,7 @@ const printerFriendlyFeature = {
   name: "Printer Friendly Bio",
   id: "printerFriendly",
   description: "Reformat profile pages for printing.",
-  category: "Menus",
+  category: "Global",
   ordinal: -1,
   creators: [{ name: "Jamie Nelson", wikitreeid: "Nelson-3486" }],
   contributors: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],

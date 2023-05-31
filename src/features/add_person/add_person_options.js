@@ -9,7 +9,7 @@ const addPersonRedesign = {
   name: "Add Person Redesign",
   id: "addPersonRedesign",
   description: "Redesigns the Add Person page for the convenience of advanced members.",
-  category: "Editing",
+  category: "Editing/Add Person",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,

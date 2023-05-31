@@ -4,6 +4,13 @@ let root = {
       name: "Global",
       description: "These features affect the entire site.",
       ordinal: 1,
+      catgories: [
+        {
+          name: "Style",
+          description: "These features change the way the site looks.",
+          ordinal: 6,
+        },
+      ],
     },
     {
       name: "Profile",
@@ -16,19 +23,20 @@ let root = {
       ordinal: 3,
     },
     {
-      name: "Menus",
-      description: "These features customize the WikiTree menus.",
+      name: "Navigation",
+      description: "Features related to WikiTree links and menus.",
       ordinal: 4,
+      categories: [
+        {
+          name: "Find Menu",
+          description: "Additional links for the Find menu.",
+        },
+      ],
     },
     {
-      name: "Links",
-      description: "These features do something with hyperlinks.",
+      name: "Collaboration",
+      description: "Features to enhance your interaction with other WikiTreers.",
       ordinal: 5,
-    },
-    {
-      name: "Style",
-      description: "These features change the way the site looks.",
-      ordinal: 6,
     },
   ],
 };
