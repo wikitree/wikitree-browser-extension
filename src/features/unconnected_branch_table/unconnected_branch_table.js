@@ -17,8 +17,9 @@ checkIfFeatureEnabled("unconnectedBranchTable").then((result) => {
         url: "#n",
       };
       createProfileSubmenuLink(options);
-      $("#unconnectedBranchButton").on("click", function () {
+      $("#unconnectedBranchButton").on("click", function (event) {
         if ($("#unconnectedBranchTable").length == 0) {
+          addShakingTree(event);
           unconnectedBranch();
         } else {
           $("#unconnectedBranchTable").slideToggle();
@@ -28,105 +29,100 @@ checkIfFeatureEnabled("unconnectedBranchTable").then((result) => {
   }
 });
 
+function addShakingTree(e) {
+  const shakingTree = $(
+    "<img id='shakingTree' src='" +
+      // eslint-disable-next-line no-undef
+      chrome.runtime.getURL("images/tree.gif") +
+      "'>"
+  );
+  shakingTree.appendTo("body");
+  /* position the shaking tree below the button*/
+  const shakingTreeWidth = shakingTree.width();
+  const shakingTreeTop = e.pageY + 10;
+  const shakingTreeLeft = e.pageX - shakingTreeWidth / 2;
+  shakingTree.css({
+    position: "absolute",
+    top: shakingTreeTop,
+    left: shakingTreeLeft,
+  });
+}
+function removeShakingTree() {
+  $("#shakingTree").remove();
+}
+
 const locationSortOrder = {
   birthLocation: 0,
   deathLocation: 0,
 };
-
-function getLocationSortOrder(key) {
-  locationSortOrder[key] = (locationSortOrder[key] + 1) % 4; // cycles through 0, 1, 2, 3
-  return locationSortOrder[key];
-}
-
-function sortLocation(aText, bText, sortOrder) {
-  let aLocations = aText.split(", ");
-  let bLocations = bText.split(", ");
-
-  if (sortOrder === 2 || sortOrder === 3) {
-    aLocations = aLocations.reverse();
-    bLocations = bLocations.reverse();
+// sortLocation is now a helper function that just compares two location strings according to a given sort order
+function sortLocation(a, b, sortOrder) {
+  if (sortOrder % 2 === 1) {
+    // Reverse location strings for comparison (Country-first)
+    a = a.split(", ").reverse().join(", ");
+    b = b.split(", ").reverse().join(", ");
   }
 
-  for (let i = 0; i < Math.max(aLocations.length, bLocations.length); i++) {
-    if (aLocations[i] === undefined) return 1; // push undefined to the bottom
-    if (bLocations[i] === undefined) return -1; // push undefined to the bottom
-    let comparison = aLocations[i].localeCompare(bLocations[i], undefined, {
-      numeric: true,
-      sensitivity: "base",
-    });
-    if (comparison !== 0) return sortOrder === 1 || sortOrder === 3 ? -comparison : comparison;
+  if ((sortOrder / 2) % 2 === 1) {
+    // Descending order
+    [a, b] = [b, a];
   }
 
-  return 0; // equal
+  return a.localeCompare(b);
 }
 
 function makeTableSortable(table) {
-  let thElements = table.getElementsByTagName("th");
-  let sortingOrder = Array(thElements.length).fill(1);
+  const thElements = Array.from(table.getElementsByTagName("th"));
+  const locationIndex = thElements.findIndex((th) => th.innerText === "Location");
+  let clickCounts = Array(thElements.length).fill(0);
 
-  for (let i = 0; i < thElements.length; i++) {
-    // in makeTableSortable function
-    // in makeTableSortable function
-    thElements[i].addEventListener("click", () => {
-      let rows = Array.from(table.rows).slice(1);
+  // Original location data
+  const originalData = Array.from(table.rows)
+    .slice(1)
+    .map((row) => row.cells[locationIndex].innerText || row.cells[locationIndex].textContent);
+
+  thElements.forEach((th, i) => {
+    th.addEventListener("click", () => {
+      clickCounts[i] = (clickCounts[i] + 1) % 4;
+      const rows = Array.from(table.rows).slice(1);
+
+      if (i === locationIndex) {
+        // Adjust the content for display according to the sort order
+        rows.forEach((row, rowIndex) => {
+          if (clickCounts[i] >= 2) {
+            // Country-first display
+            row.cells[i].innerText = originalData[rowIndex].split(", ").reverse().join(", ");
+          } else {
+            // City-first display
+            row.cells[i].innerText = originalData[rowIndex];
+          }
+        });
+      }
+
+      // Sort rows
       rows.sort((rowA, rowB) => {
         let aText = rowA.cells[i].innerText || rowA.cells[i].textContent;
         let bText = rowB.cells[i].innerText || rowB.cells[i].textContent;
-        // Check for empty cells and push them to the bottom
-        if (aText.trim() === "" && bText.trim() !== "") {
-          return 1;
-        } else if (bText.trim() === "" && aText.trim() !== "") {
-          return -1;
-        }
 
-        if (i === 5 || i === 7) {
-          // assuming these are the column indices for birth and death locations
-          const key = i === 5 ? "birthLocation" : "deathLocation";
-          const sortOrder = getLocationSortOrder(key);
-          return sortLocation(aText, bText, sortOrder);
+        if (i === locationIndex) {
+          // Use the sortLocation function for location column
+          return sortLocation(aText, bText, clickCounts[i]);
         } else {
-          const result =
-            sortingOrder[i] * aText.localeCompare(bText, undefined, { numeric: true, sensitivity: "base" });
-          sortingOrder[i] = -sortingOrder[i];
-          return result;
+          // Use normal string comparison for other columns
+          if (clickCounts[i] % 2 === 1) {
+            // Descending order
+            [aText, bText] = [bText, aText];
+          }
+          return aText.localeCompare(bText);
         }
       });
 
-      for (let row of rows) {
-        table.tBodies[0].appendChild(row);
-      }
+      // Append sorted rows back to the table
+      rows.forEach((row) => table.appendChild(row));
     });
-  }
+  });
 }
 
-/*
-function makeTableSortable(table) {
-  let thElements = table.getElementsByTagName("th");
-  let sortingOrder = Array(thElements.length).fill(1);
-
-  for (let i = 0; i < thElements.length; i++) {
-    thElements[i].addEventListener("click", () => {
-      let rows = Array.from(table.rows).slice(1);
-      rows.sort((rowA, rowB) => {
-        let aText = rowA.cells[i].innerText || rowA.cells[i].textContent;
-        let bText = rowB.cells[i].innerText || rowB.cells[i].textContent;
-        // Check for empty cells and push them to the bottom
-        if (aText.trim() === "" && bText.trim() !== "") {
-          return 1;
-        } else if (bText.trim() === "" && aText.trim() !== "") {
-          return -1;
-        }
-
-        return sortingOrder[i] * aText.localeCompare(bText, undefined, { numeric: true, sensitivity: "base" });
-      });
-      sortingOrder[i] = -sortingOrder[i];
-      for (let row of rows) {
-        table.tBodies[0].appendChild(row);
-      }
-    });
-  }
-}
-*/
 async function unconnectedBranch() {
   if (!window.unconnectedBranch) {
     const profileID = $("a.pureCssMenui0 span.person").text();
@@ -174,14 +170,16 @@ async function unconnectedBranch() {
     // Add each person to the table
     const homeIcon = chrome.runtime.getURL("images/Home_icon.png");
     const homeIconHTML = $(
-      `<img class='showFamilySheet' src="${homeIcon}" alt="Home" title="Home" width="16" height="16" data-id="${person.Name}">`
+      `<img class='showFamilySheet' src="${homeIcon}" alt="Family Group" title="Family Group" width="16" height="16" data-id="${person.Name}">`
     );
     let gender = person.Gender || "";
     if (person.DataStatus?.Gender == "blank") {
       gender = "blank";
     }
+    const birthLocation = person.BirthLocation || "";
+    const deathLocation = person.DeathLocation || "";
     const theRow = $(
-      `<tr data-gender="${gender}"><td class='homeRow'></td><td class='firstNames'><a href="https://www.wikitree.com/wiki/${person.Name}" target="_blank">${person.PersonName.FirstNames}</a></td><td  class='lastNameAtBirth'>${person.LastNameAtBirth}</td><td class='lastNameCurrent'>${person.LastNameCurrent}</td><td class='birthDate'>${person.BirthDate}</td><td class='birthLocation'>${person.BirthLocation}</td><td class='deathDate'>${person.DeathDate}</td><td class='deathLocation'>${person.DeathLocation}</td></tr>`
+      `<tr data-gender="${gender}"><td class='homeRow'></td><td class='firstNames'><a href="https://www.wikitree.com/wiki/${person.Name}" target="_blank">${person.PersonName.FirstNames}</a></td><td  class='lastNameAtBirth'>${person.LastNameAtBirth}</td><td class='lastNameCurrent'>${person.LastNameCurrent}</td><td class='birthDate'>${person.BirthDate}</td><td class='birthLocation'>${birthLocation}</td><td class='deathDate'>${person.DeathDate}</td><td class='deathLocation'>${deathLocation}</td></tr>`
     );
     theBody.append(theRow);
     theRow.find(".homeRow").append(homeIconHTML);
@@ -218,4 +216,8 @@ async function unconnectedBranch() {
     $(this).slideUp("swing");
   });
   makeTableSortable(document.getElementById("unconnectedBranchTable").getElementsByTagName("table")[0]);
+
+  //  $("#birthLocationTH").trigger("click"); // simulate a click on the birthDate header to sort the table by birthDate
+
+  removeShakingTree();
 }
