@@ -53,16 +53,12 @@ dialog {
   max-height: 100vh;
   user-select: none;
   border: 1px solid #000;
+  padding: 0;
   -webkit-box-shadow: 3px 3px 12px 6px rgba(0, 0, 0, 0.3);
   box-shadow: 3px 3px 12px 6px rgba(0, 0, 0, 0.3);
 }
 dialog::backdrop {
   backdrop-filter: blur(3px);
-}
-dialog:has(> .dialog-content) {
-  overflow: visible;
-  border: 1px solid #000;
-  padding: 0;
 }
 dialog > .dialog-content {
   box-sizing: border-box;
