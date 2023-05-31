@@ -162,7 +162,7 @@ registerFeature({
   description: "Adds a confirmation to 'Thank you' links.",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
-  category: "Collaboration",
+  category: "Community",
   defaultValue: false,
   pages: [true],
 });
@@ -312,7 +312,7 @@ registerFeature({
   name: "Sort Badges",
   id: "sortBadges",
   description: "Buttons to move or hide your Club 100/1000 badges.",
-  category: "Other",
+  category: "Community",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,

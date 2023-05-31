@@ -34,7 +34,7 @@ let root = {
       ],
     },
     {
-      name: "Collaboration",
+      name: "Community",
       description: "Features to enhance your interaction with other WikiTreers.",
       ordinal: 5,
     },
