@@ -709,7 +709,7 @@ function getBackupLink(wrappedJsonData) {
   let json = JSON.stringify(wrappedJsonData);
   if (navigatorDetect.browser.Safari) {
     // Safari doesn't handle blobs or the download attribute properly
-    link.href = "data:application/octet-stream;base64," + window.btoa(json);
+    link.href = "data:application/octet-stream," + encodeURIComponent(json);
     link.target = "_blank";
     link.title = link.title.replace("Save as...", "Download Linked File As...");
   } else {
