@@ -241,15 +241,6 @@ h1 .toggle-category {
   font-weight: 300;
   letter-spacing: -3px;
 }
-#options #h1Text .version {
-  position: absolute;
-  right: -2px;
-  top: 4px;
-  font-family: monospace;
-  font-size: 11px;
-  letter-spacing: -2px;
-  opacity: 0.3;
-}
 
 #openSettings {
   float: right;

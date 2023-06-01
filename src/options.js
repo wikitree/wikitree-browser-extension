@@ -10,7 +10,7 @@ import { navigatorDetect } from "./core/navigatorDetect";
 if (WBE?.version) {
   const title = WBE.name + " " + WBE.version;
   $("head > title").text(title.replace("Extension", "Extension Options"));
-  $("#h1Text").append($('<span class="version"></span>').text(WBE.version).attr("title", title));
+  $("#h1Text").attr("title", title);
 }
 
 (function (runtime) {
@@ -455,8 +455,9 @@ $("#toggleAll, .section.category > .section-header > .toggle > input").on("click
 $("#openSettings").on("click", function () {
   let $dialog = $(
     '<dialog id="settingsDialog">' +
-      '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Feature Options &amp; Data Backup</div>' +
-      '<div class="dialog-content"><ul>' +
+      '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Settings &amp; Data Backup' +
+      '<a class="feature-help-link nohover" target="WBE_Help" href="https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#Settings"><img src="https://www.wikitree.com/images/icons/help.gif" border="0" width="11" height="11" alt="Help" title="Help about Settings"></a>' +
+      '</div><div class="dialog-content"><ul>' +
       '<li title="This would be like toggling all of the radio buttons back to the default. Each feature\'s options will be preserved."><button id="btnResetOptions">Default Features</button> Enable only the default features.</li>' +
       '<li title="This will download a backup file with your current feature options."><button id="btnExportOptions">Back Up Options</button> Back up your current feature options.</li>' +
       '<li title="This will pop up a dialog to select the backup file for your feature options. This will overwrite your current options."><button id="btnImportOptions">Restore Options</button> Restore the feature options from a previous backup.</li>' +
