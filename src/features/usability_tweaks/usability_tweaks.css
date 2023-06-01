@@ -3,7 +3,7 @@ body.page-Special_SearchPerson #saveSearchFormButton {
 }
 
 @media print {
-  body.w10 #content > div.sixteen.columns:first-child {
+  body.w10 div.sixteen.columns:has(#descendantsContainer) {
     width: auto;
     float: none;
   }
