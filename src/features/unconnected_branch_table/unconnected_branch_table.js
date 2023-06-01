@@ -51,73 +51,73 @@ function removeShakingTree() {
   $("#shakingTree").remove();
 }
 
-const locationSortOrder = {
-  birthLocation: 0,
-  deathLocation: 0,
-};
-// sortLocation is now a helper function that just compares two location strings according to a given sort order
-function sortLocation(a, b, sortOrder) {
+function getLocationSortOrder(key) {
+  locationSortOrder[key] = (locationSortOrder[key] + 1) % 4; // cycles through 0, 1, 2, 3
+  return locationSortOrder[key];
+}
+
+function sortLocation(aText, bText, sortOrder) {
   if (sortOrder % 2 === 1) {
-    // Reverse location strings for comparison (Country-first)
-    a = a.split(", ").reverse().join(", ");
-    b = b.split(", ").reverse().join(", ");
+    aText = aText.split(", ").reverse().join(", ");
+    bText = bText.split(", ").reverse().join(", ");
   }
 
-  if ((sortOrder / 2) % 2 === 1) {
-    // Descending order
-    [a, b] = [b, a];
+  if (sortOrder >= 2) {
+    [aText, bText] = [bText, aText];
   }
 
-  return a.localeCompare(b);
+  return aText.localeCompare(bText, undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
 }
 
 function makeTableSortable(table) {
   const thElements = Array.from(table.getElementsByTagName("th"));
   const locationIndex = thElements.findIndex((th) => th.innerText === "Location");
+
+  // Array to store how many times each header has been clicked
   let clickCounts = Array(thElements.length).fill(0);
+
+  // Array to store sorting direction of each header, 1 means ascending, -1 means descending
+  let sortDirections = Array(thElements.length).fill(1);
 
   // Original location data
   const originalData = Array.from(table.rows)
     .slice(1)
-    .map((row) => row.cells[locationIndex].innerText || row.cells[locationIndex].textContent);
+    .map((row) =>
+      row.cells[locationIndex] ? row.cells[locationIndex].innerText || row.cells[locationIndex].textContent : ""
+    );
 
   thElements.forEach((th, i) => {
     th.addEventListener("click", () => {
-      clickCounts[i] = (clickCounts[i] + 1) % 4;
+      // Increase click count and change sort direction on every two clicks
+      clickCounts[i]++;
+      if (clickCounts[i] % 2 === 0) {
+        sortDirections[i] = -sortDirections[i];
+      }
+
       const rows = Array.from(table.rows).slice(1);
 
       if (i === locationIndex) {
-        // Adjust the content for display according to the sort order
         rows.forEach((row, rowIndex) => {
-          if (clickCounts[i] >= 2) {
-            // Country-first display
-            row.cells[i].innerText = originalData[rowIndex].split(", ").reverse().join(", ");
-          } else {
-            // City-first display
-            row.cells[i].innerText = originalData[rowIndex];
-          }
+          const isCountryFirst = clickCounts[i] >= 2;
+          let locationParts = originalData[rowIndex].split(", ");
+          if (isCountryFirst) locationParts = locationParts.reverse();
+          row.cells[i].innerText = locationParts.join(", ");
         });
       }
 
-      // Sort rows
       rows.sort((rowA, rowB) => {
         let aText = rowA.cells[i].innerText || rowA.cells[i].textContent;
         let bText = rowB.cells[i].innerText || rowB.cells[i].textContent;
-
-        if (i === locationIndex) {
-          // Use the sortLocation function for location column
-          return sortLocation(aText, bText, clickCounts[i]);
-        } else {
-          // Use normal string comparison for other columns
-          if (clickCounts[i] % 2 === 1) {
-            // Descending order
-            [aText, bText] = [bText, aText];
-          }
-          return aText.localeCompare(bText);
+        if (sortDirections[i] === -1) {
+          // Descending order for the 2nd and 4th click
+          [aText, bText] = [bText, aText];
         }
+        return aText.localeCompare(bText);
       });
 
-      // Append sorted rows back to the table
       rows.forEach((row) => table.appendChild(row));
     });
   });
