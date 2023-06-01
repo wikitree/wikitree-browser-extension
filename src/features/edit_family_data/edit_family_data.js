@@ -4,10 +4,10 @@ Created By: Ian Beacall (Beacall-6)
 
 import * as $ from "jquery";
 import { getPerson } from "wikitree-js";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isOK } from "../../core/common";
 
-checkIfFeatureEnabled("editFamilyData").then((result) => {
+shouldInitializeFeature("editFamilyData").then((result) => {
   if (
     result &&
     $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length &&

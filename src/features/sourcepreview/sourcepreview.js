@@ -5,7 +5,7 @@ Contributors: Jonathan Duke (Duke-5773)
 
 import $ from "jquery";
 import "../../thirdparty/jquery.hoverDelay";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 let removeBackReferences = true;
 
@@ -102,7 +102,7 @@ async function initFeature() {
   });
 }
 
-checkIfFeatureEnabled("sPreviews").then((result) => {
+shouldInitializeFeature("sPreviews").then((result) => {
   if (result) {
     import("./sourcepreview.css");
     initFeature();

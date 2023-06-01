@@ -3,10 +3,10 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 const isDNADescendantsPage = window.location.href.match(/\/treewidget\/.*?\/890/g);
 
-checkIfFeatureEnabled("collapsibleDescendantsTree").then((result) => {
+shouldInitializeFeature("collapsibleDescendantsTree").then((result) => {
   if (result) {
     import("./collapsibleDescendantsTree.css");
 

@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage.js";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage.js";
 
 function removeDarkMode() {
   $("body").removeClass("darkMode");
@@ -86,7 +86,7 @@ async function initDarkMode() {
   }
 }
 
-checkIfFeatureEnabled("darkMode").then((result) => {
+shouldInitializeFeature("darkMode").then((result) => {
   if (result) {
     import("./darkMode.css");
     initDarkMode();

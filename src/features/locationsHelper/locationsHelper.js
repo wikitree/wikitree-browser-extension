@@ -4,9 +4,9 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { extractRelatives, familyArray, getRelatives } from "../../core/common";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 
-checkIfFeatureEnabled("locationsHelper").then((result) => {
+shouldInitializeFeature("locationsHelper").then((result) => {
   if (
     result &&
     ($("body.page-Special_EditPerson").length ||

@@ -6,9 +6,9 @@ import * as $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import { getRelatives } from "wikitree-js";
 import { createProfileSubmenuLink, extractRelatives, isOK } from "../../core/common";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 
-checkIfFeatureEnabled("familyTimeline").then((result) => {
+shouldInitializeFeature("familyTimeline").then((result) => {
   if (result) {
     if (result && $("body.profile").length) {
       import("./familyTimeline.css");

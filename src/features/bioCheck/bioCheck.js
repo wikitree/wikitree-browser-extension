@@ -5,11 +5,11 @@ Created By: Kay Knight (Sands-1865)
 import { theSourceRules } from "./SourceRules.js";
 import { PersonDate } from "./PersonDate.js";
 import { Biography } from "./Biography.js";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 var checkSaveIntervalId = 0;
 
-checkIfFeatureEnabled("bioCheck").then((result) => {
+shouldInitializeFeature("bioCheck").then((result) => {
   if (result) {
     /* TODO in the future possibly add options
      * options might move the results report above the Preview button

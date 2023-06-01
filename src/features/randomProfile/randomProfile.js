@@ -3,12 +3,12 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getPerson } from "wikitree-js";
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import "jquery-ui/ui/widgets/draggable";
 
-checkIfFeatureEnabled("randomProfile").then((result) => {
+shouldInitializeFeature("randomProfile").then((result) => {
   if (result) {
     import("./randomProfile.css");
     addRandomToFindMenu();

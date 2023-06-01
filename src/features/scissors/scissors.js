@@ -4,7 +4,7 @@ Created By: Ian Beacall (Beacall-6), Aleš Trtnik (Trtnik-2)
 
 import $ from "jquery";
 import { copyThingToClipboard } from "../g2g/g2g";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 import {
   isMediaWikiPage,
   isProfileHistoryDetail,
@@ -17,7 +17,7 @@ import {
   isProjectPage,
 } from "../../core/pageType";
 
-checkIfFeatureEnabled("scissors").then((result) => {
+shouldInitializeFeature("scissors").then((result) => {
   if (result) {
     import("./scissors.css");
     if ($("#helpScissors").length == 0) {

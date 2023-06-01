@@ -3,9 +3,9 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
-checkIfFeatureEnabled("accessKeys").then((result) => {
+shouldInitializeFeature("accessKeys").then((result) => {
   if (result) {
     addAccessKeys();
   }

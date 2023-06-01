@@ -4,9 +4,9 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import Cookies from "js-cookie";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 
-checkIfFeatureEnabled("appsMenu").then((result) => {
+shouldInitializeFeature("appsMenu").then((result) => {
   if (result) {
     if ($("#appsSubMenu").length == 0) {
       attachAppsMenu();

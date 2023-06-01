@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 function moveSourcesParts() {
   /*
@@ -130,7 +130,7 @@ function scrollTo(el) {
   }
 }
 
-checkIfFeatureEnabled("addPersonRedesign").then((result) => {
+shouldInitializeFeature("addPersonRedesign").then((result) => {
   if (result) {
     import("./add_person.css");
     moveSourcesParts();

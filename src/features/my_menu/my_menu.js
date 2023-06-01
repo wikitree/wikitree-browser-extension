@@ -4,12 +4,12 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import "jquery-ui/ui/widgets/sortable";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { isOK, htmlEntities, showDraftList } from "../../core/common";
 import { getRandomProfile, addRandomProfileLocationBox } from "../randomProfile/randomProfile";
 import { doWhatLinksHere } from "../what_links_here/what_links_here";
 
-checkIfFeatureEnabled("myMenu").then((result) => {
+shouldInitializeFeature("myMenu").then((result) => {
   if (result) {
     import("./my_menu.css");
     const profileWTID = $("a.pureCssMenui0 span.person").text();

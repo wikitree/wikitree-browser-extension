@@ -9,9 +9,9 @@ import "../../thirdparty/date.format.js";
 import "./extra_watchlist.css";
 import { isOK, htmlEntities } from "../../core/common";
 import { appendClipboardButtons } from "../clipboard_and_notes/clipboard_and_notes";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
-checkIfFeatureEnabled("extraWatchlist").then((result) => {
+shouldInitializeFeature("extraWatchlist").then((result) => {
   if (
     result &&
     $("body.page-Special_EditFamily,body.page-Special_EditPerson,body.page-Special_EditFamilySteps").length == 0

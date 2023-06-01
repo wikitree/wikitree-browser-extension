@@ -3,12 +3,12 @@ Created By: Aleš Trtnik (Trtnik-2)
 */
 
 import { isWikiEdit } from "../../core/pageType";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { wtAPICatCIBSearch } from "../../core/API/wtPlusAPI";
 
 let tb = {};
 
-checkIfFeatureEnabled("wtplus").then((result) => {
+shouldInitializeFeature("wtplus").then((result) => {
   if (result && isWikiEdit) {
     import("./wtPlus.css");
     initWTPlus();

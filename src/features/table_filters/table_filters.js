@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 import $ from "jquery";
 import "./table_filters.css";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 function repositionFilterRow(table) {
   const hasTbody = table.querySelector("tbody") !== null;
@@ -144,7 +144,7 @@ function addFiltersToWikitables() {
   clearFiltersButton.style.display = "none";
 }
 
-checkIfFeatureEnabled("tableFilters").then((result) => {
+shouldInitializeFeature("tableFilters").then((result) => {
   if (result) {
     if ($(".wikitable,.wt.names").length > 0) {
       addFiltersToWikitables();

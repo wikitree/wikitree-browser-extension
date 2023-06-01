@@ -27,7 +27,7 @@ Created By: Rob Pavey (Pavey-429)
 */
 
 import { WBE } from "../../core/common";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 // file level variables
 var agcButton = undefined;
@@ -515,7 +515,7 @@ function initAgc() {
   }
 }
 
-checkIfFeatureEnabled("agc").then((result) => {
+shouldInitializeFeature("agc").then((result) => {
   if (result) {
     initAgc();
   }

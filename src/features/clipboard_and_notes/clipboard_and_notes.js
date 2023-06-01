@@ -7,7 +7,7 @@ import "jquery-ui/ui/widgets/sortable";
 import "jquery-ui/ui/widgets/draggable";
 import "./clipboard_and_notes.css";
 import { htmlEntities } from "../../core/common";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 export function appendClipboardButtons(clipboardButtons = $()) {
   if ($("h1:contains('Edit Marriage Information')").length) {
@@ -23,7 +23,7 @@ export function appendClipboardButtons(clipboardButtons = $()) {
   }
 }
 
-checkIfFeatureEnabled("clipboardAndNotes").then((result) => {
+shouldInitializeFeature("clipboardAndNotes").then((result) => {
   if (result && $(".clipboardButtons").length == 0) {
     // BEE class
     window.clipboardClicker = $();

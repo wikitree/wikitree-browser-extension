@@ -4,7 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import "./suggested_matches_filters.css";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getRelatives } from "wikitree-js";
 import { isOK } from "../../core/common";
 import { getPeople } from "../dna_table/dna_table";
@@ -51,7 +51,7 @@ function addNewPersonToH1() {
   $("h1").append($("<span id='newPersonSummary'>&rarr; " + newPerson.summary + "</span>"));
 }
 
-checkIfFeatureEnabled("suggestedMatchesFilters").then((result) => {
+shouldInitializeFeature("suggestedMatchesFilters").then((result) => {
   if (result && $("body.page-Special_EditFamily").length) {
     $("#enterBasicDataButton").on("click", function () {
       setTimeout(function () {

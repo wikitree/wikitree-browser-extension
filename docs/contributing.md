@@ -95,13 +95,13 @@ In the feature's javascript files, you should check if a user has it turned on o
 At the top of the file:
 
 ```js
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 ```
 
-To check if it is enabled:
+To check if it is enabled and has not already been initialized:
 
 ```js
-checkIfFeatureEnabled("myFeature").then((result) => {
+shouldInitializeFeature("myFeature").then((result) => {
   if (result) {
     // additional code
   }
@@ -118,7 +118,7 @@ if (options.myFirstOption) {
 }
 ```
 
-NOTE: getFeatureOptions returns a Promise so you can call it using await as above if you are in an async function. Otherwise you can the `then` syntax as shown above for `checkIfFeatureEnabled`.
+NOTE: getFeatureOptions returns a Promise so you can call it using await as above if you are in an async function. Otherwise you can the `then` syntax as shown above for `shouldInitializeFeature`.
 
 In `src/content.js` import your feature source file:
 

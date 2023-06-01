@@ -5,7 +5,7 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import Cookies from "js-cookie";
 import { getConnectionJSON, getRelationJSON } from "../../core/API/wwwWikiTree";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 const fixOrdinalSuffix = (text) => {
   const pattern = /(\d+)(?:st|nd|rd|th)\b/g;
@@ -31,7 +31,7 @@ const fixOrdinalSuffix = (text) => {
   });
 };
 
-checkIfFeatureEnabled("distanceAndRelationship").then((result) => {
+shouldInitializeFeature("distanceAndRelationship").then((result) => {
   // define user and profile IDs
 
   const profileID = $("a.pureCssMenui0 span.person").text();

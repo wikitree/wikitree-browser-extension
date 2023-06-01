@@ -1,6 +1,6 @@
 import $ from "jquery";
 import fs from "fs";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 import chrome from "sinon-chrome";
 import { getPerson } from "wikitree-js";
 
@@ -18,8 +18,8 @@ describe("randomProfile", () => {
 
   beforeAll(async () => {
     // Do not run feature code when importing feature module.
-    checkIfFeatureEnabled.mockResolvedValue(false);
-    // Import module dynamically because `checkIfFeatureEnabled` has to be mocked beforehand.
+    shouldInitializeFeature.mockResolvedValue(false);
+    // Import module dynamically because `shouldInitializeFeature` has to be mocked beforehand.
     const randomProfileModule = await import("./randomProfile");
     addRandomToFindMenu = randomProfileModule.addRandomToFindMenu;
   });

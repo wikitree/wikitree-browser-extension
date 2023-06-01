@@ -12,7 +12,7 @@ import { isOK, htmlEntities, extractRelatives } from "../../core/common";
 import Cookies from "js-cookie";
 import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup";
 import { ancestorType } from "../distanceAndRelationship/distanceAndRelationship";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 export const USstatesObjArray = [
   { name: "Alabama", abbreviation: "AL", admissionDate: "1819-12-14", former_name: "Alabama Territory" },
@@ -169,7 +169,7 @@ function addLoginButton() {
   });
 }
 
-checkIfFeatureEnabled("myConnections").then((result) => {
+shouldInitializeFeature("myConnections").then((result) => {
   if (
     result &&
     $("body.page-Special_MyConnections").length &&

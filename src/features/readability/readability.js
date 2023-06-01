@@ -8,7 +8,7 @@
  */
 
 import $ from "jquery";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage.js";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage.js";
 import { ensureProfileClasses } from "../../core/profileClasses";
 
 export let toggleReadingMode;
@@ -548,7 +548,7 @@ async function initReadability() {
   }
 }
 
-checkIfFeatureEnabled("readability").then((result) => {
+shouldInitializeFeature("readability").then((result) => {
   if (result) {
     import("../../core/toggleCheckbox.css");
     import("./readability.css");

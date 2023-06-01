@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 function getBirthplaces() {
   const ids = [];
@@ -87,7 +87,7 @@ function getBirthplaces() {
   }, 3000);
 }
 
-checkIfFeatureEnabled("dnaTable").then((result) => {
+shouldInitializeFeature("dnaTable").then((result) => {
   if (result && $("body.page-Special_DNATests").length) {
     import("./dna_table.css");
     $("table.wt.names").addClass("wbe");

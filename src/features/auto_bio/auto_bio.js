@@ -12,7 +12,7 @@ import { isOK, familyArray } from "../../core/common";
 import { getAge } from "../change_family_lists/change_family_lists";
 import { titleCase } from "../familyTimeline/familyTimeline";
 import { wtAPICatCIBSearch } from "../../core/API/wtPlusAPI";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { theSourceRules } from "../bioCheck/SourceRules.js";
 import { PersonDate } from "../bioCheck/PersonDate.js";
 import { Biography } from "../bioCheck/Biography.js";
@@ -7044,7 +7044,7 @@ function addErrorMessage() {
   }
 }
 
-checkIfFeatureEnabled("autoBio").then((result) => {
+shouldInitializeFeature("autoBio").then((result) => {
   if (result) {
     import("./auto_bio.css");
     getFeatureOptions("autoBio").then((options) => {

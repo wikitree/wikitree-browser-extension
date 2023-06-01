@@ -3,9 +3,9 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 
-checkIfFeatureEnabled("googleSearchBox").then((result) => {
+shouldInitializeFeature("googleSearchBox").then((result) => {
   if (result) {
     import("./google_search_box.css");
     addGoogleSearchBox();

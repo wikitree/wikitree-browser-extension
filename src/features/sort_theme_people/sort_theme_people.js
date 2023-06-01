@@ -6,9 +6,9 @@ import $ from "jquery";
 import { titleCase } from "../familyTimeline/familyTimeline";
 import { isOK } from "../../core/common.js";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 
-checkIfFeatureEnabled("sortThemePeople").then((result) => {
+shouldInitializeFeature("sortThemePeople").then((result) => {
   if (
     result &&
     $("body.profile").length &&
