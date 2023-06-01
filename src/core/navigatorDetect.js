@@ -13,7 +13,7 @@ export let navigatorDetect = {
   if (!navigatorDetect.isInitialized) {
     // user-agent detection is not ideal, but for now it seems to work for the 3 browsers supported by the extension
     if (/\bOPR\//.test(n.userAgent)) {
-      navigatorDetect.browser.engine = "WebKit";
+      navigatorDetect.browser.engine = "Blink";
       navigatorDetect.browser.name = "Opera";
     } else if (/^((?!\b(Chrome|Firefox)\/).)*(?=\bSafari\/)/.test(n.userAgent)) {
       navigatorDetect.browser.engine = "WebKit";
