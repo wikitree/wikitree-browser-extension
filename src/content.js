@@ -63,3 +63,17 @@ import "./features/debugProfileClasses/debugProfileClasses";
 import "./core/editToolbar";
 
 //createTopMenu();
+
+if (document?.documentElement?.getAttribute("data-wbe-conflict")) {
+  document.getElementById("conflictAlert")?.remove();
+  let conflictAlert = document.createElement("dialog");
+  conflictAlert.id = "conflictAlert";
+  conflictAlert.style = "color:#c00;max-width:450px;";
+  conflictAlert.innerText =
+    "The WikiTree Browser Extension has reloaded or a conflicting version has been installed. Make sure that only one version is enabled at a time. Some features may no longer work until this page is refreshed. If you were working on this page, you can click anywhere to resume.";
+  conflictAlert.addEventListener("click", function () {
+    this.close();
+  });
+  document.body.prepend(conflictAlert);
+  conflictAlert.showModal();
+}

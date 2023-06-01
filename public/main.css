@@ -3,6 +3,8 @@
 html {
   font-size: 12px;
   min-width: 780px;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 body {
@@ -11,7 +13,6 @@ body {
   font-size: 1rem;
   /* override Safari's semi-transparent background */
   background-color: #fff;
-  user-select: none;
 }
 
 h1,
