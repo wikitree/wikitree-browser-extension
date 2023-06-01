@@ -54,12 +54,15 @@ async function checkIfFeatureEnabled(featureId) {
         }
 
         if (result) {
-          if (featureId && document.documentElement.getAttribute(`data-wbe-${featureId}-initialized`)) {
+          if (document.documentElement.getAttribute(`data-wbe-${featureId}`)) {
             // prevent each feature from initializing more than once in a single window
-            document.documentElement.setAttribute("data-wbe-conflict", true);
+            document.documentElement.setAttribute(
+              "data-wbe-conflict",
+              `${document.documentElement.getAttribute("data-wbe-conflict") ?? Date.now().toString()} ${featureId}`
+            );
             resolve(false);
           } else {
-            document.documentElement.setAttribute(`data-wbe-${featureId}-initialized`, true);
+            document.documentElement.setAttribute(`data-wbe-${featureId}`, Date.now().toString());
             resolve(true);
           }
         } else {
