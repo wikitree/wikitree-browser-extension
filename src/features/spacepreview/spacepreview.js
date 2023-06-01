@@ -7,7 +7,7 @@ import $ from "jquery";
 import "../../thirdparty/jquery.hoverDelay";
 import { WBE } from "../../core/common";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import "../../core/navigatorDetect"; // needed for CSS classes
 
 let previewClasses = "x-page-preview";
@@ -445,7 +445,7 @@ async function initFeature() {
   });
 }
 
-checkIfFeatureEnabled("spacePreviews").then((result) => {
+shouldInitializeFeature("spacePreviews").then((result) => {
   if (result) {
     import("./spacepreview.css");
     initFeature();

@@ -6,7 +6,7 @@ import $ from "jquery";
 import "./g2g_.css";
 import { isOK } from "../../core/common";
 import Cookies from "js-cookie";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 function text2Link(element, text, link) {
   const childNodes = element.childNodes;
@@ -141,7 +141,7 @@ async function initG2G() {
   }
 }
 
-checkIfFeatureEnabled("g2g").then((result) => {
+shouldInitializeFeature("g2g").then((result) => {
   if (result && $(".qa-body-wrapper").length) {
     import("./g2g.css");
     initG2G();

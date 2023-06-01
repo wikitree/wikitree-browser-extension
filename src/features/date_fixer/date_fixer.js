@@ -1,6 +1,6 @@
 import $, { get } from "jquery";
 import Fuse from "fuse.js";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 function fixDates() {
   function sanitizeInput(input) {
@@ -229,7 +229,7 @@ function fixDates() {
   });
 }
 
-checkIfFeatureEnabled("dateFixer").then((result) => {
+shouldInitializeFeature("dateFixer").then((result) => {
   if (result) {
     getFeatureOptions("dateFixer").then((options) => {
       window.dateFixerOptions = options;

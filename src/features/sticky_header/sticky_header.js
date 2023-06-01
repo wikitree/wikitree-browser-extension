@@ -3,7 +3,7 @@ Created By: Jonathan Duke (Duke-5773)
 */
 
 import $ from "jquery";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 async function initStickyHeader() {
   let headerHeight = $("#header, .qa-header").first().css("height");
@@ -24,7 +24,7 @@ async function initStickyHeader() {
   }
 }
 
-checkIfFeatureEnabled("stickyHeader").then((result) => {
+shouldInitializeFeature("stickyHeader").then((result) => {
   if (result) {
     import("./sticky_header.css");
     // wait a second for other items to adjust the page layout

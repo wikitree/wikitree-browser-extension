@@ -4,9 +4,9 @@ Created By: Ian Beacall (Beacall-6)
 
 import * as $ from "jquery";
 import Cookies from "js-cookie";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 
-checkIfFeatureEnabled("sortBadges").then((result) => {
+shouldInitializeFeature("sortBadges").then((result) => {
   if (result && $("a.pureCssMenui0 span.person").text() == Cookies.get("wikitree_wtb_UserName")) {
     import("./sortBadges.css");
     const queryString = window.location.search;

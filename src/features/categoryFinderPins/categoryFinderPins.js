@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 import "./category_finder_pins.css";
 
 async function addCategoryLinksToDropdown() {
@@ -25,7 +25,7 @@ async function addCategoryLinksToDropdown() {
   });
 }
 
-checkIfFeatureEnabled("categoryFinderPins").then((result) => {
+shouldInitializeFeature("categoryFinderPins").then((result) => {
   if (result) {
     setTimeout(function () {
       if ($("#toolbar").length) {

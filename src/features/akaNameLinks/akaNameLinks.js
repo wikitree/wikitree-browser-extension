@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from 'jquery';
-import { checkIfFeatureEnabled } from "../../core/options/options_storage"
+import { shouldInitializeFeature } from "../../core/options/options_storage"
 
 async function akaNames(){
 // Make AKA last names clickable
@@ -26,7 +26,7 @@ async function akaNames(){
     }
 }
 
-checkIfFeatureEnabled("akaNameLinks").then((result) => {
+shouldInitializeFeature("akaNameLinks").then((result) => {
   if (result) { 
     akaNames();
   }

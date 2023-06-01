@@ -3,9 +3,9 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
-checkIfFeatureEnabled("customChangeSummaryOptions").then((result) => {
+shouldInitializeFeature("customChangeSummaryOptions").then((result) => {
   if (result && $("#saveStuff").length == 0) {
     import("./custom_change_summary_options.css");
     addMovingSaveBox();

@@ -7,7 +7,7 @@ import {
   isWikiEdit,
 } from "../../core/pageType";
 import "./usability_tweaks.css";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 function addSaveSearchFormDataButton() {
   const searchResultsP = $("span.large:contains('Search Results')").parent();
@@ -121,7 +121,7 @@ function initObserver() {
   });
 }
 
-checkIfFeatureEnabled("usabilityTweaks").then((result) => {
+shouldInitializeFeature("usabilityTweaks").then((result) => {
   if (result) {
     getFeatureOptions("usabilityTweaks").then((options) => {
       window.usabilityTweaksOptions = options;

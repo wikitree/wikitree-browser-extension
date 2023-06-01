@@ -5,10 +5,10 @@ Contains modified code from Steven's WikiTree Toolkit
 */
 
 import $ from "jquery";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { ensureProfileClasses } from "../../core/profileClasses";
 
-checkIfFeatureEnabled("printerFriendly").then((result) => {
+shouldInitializeFeature("printerFriendly").then((result) => {
   if (result) {
     import("./printerfriendly.css");
     initPrinterFriendly();

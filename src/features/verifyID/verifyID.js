@@ -5,9 +5,9 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import { extractRelatives, displayName } from "../../core/common";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 
-checkIfFeatureEnabled("verifyID").then((result) => {
+shouldInitializeFeature("verifyID").then((result) => {
   if (result) {
     if ($("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
       import("./verifyID.css");

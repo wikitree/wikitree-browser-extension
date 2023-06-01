@@ -1,6 +1,6 @@
 import $ from "jquery";
 import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { ageAtDeath } from "../my_connections/my_connections";
 import {
   getLocationCategory,
@@ -140,7 +140,7 @@ export async function addAutoCategories() {
   removeWorking();
 }
 
-checkIfFeatureEnabled("autoCategories").then((result) => {
+shouldInitializeFeature("autoCategories").then((result) => {
   if (result) {
     getFeatureOptions("autoCategories").then((options) => {
       window.autoCategoriesOptions = options;

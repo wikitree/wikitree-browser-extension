@@ -1,3 +1,5 @@
+document?.documentElement?.removeAttribute("data-wbe-conflict");
+
 //import { createTopMenu } from "./core/common";
 
 import "./features/register_feature_options";
@@ -66,6 +68,10 @@ import "./core/editToolbar";
 
 window.setTimeout(function () {
   if (document?.documentElement?.getAttribute("data-wbe-conflict")) {
+    console.warn(
+      "WikiTree Browser Extension conflict detected: " + document.documentElement.getAttribute("data-wbe-conflict")
+    );
+    /*
     document.getElementById("conflictAlert")?.remove();
     let conflictAlert = document.createElement("dialog");
     conflictAlert.id = "conflictAlert";
@@ -77,5 +83,6 @@ window.setTimeout(function () {
     });
     document.body.prepend(conflictAlert);
     conflictAlert.showModal();
+    */
   }
 }, 2000);

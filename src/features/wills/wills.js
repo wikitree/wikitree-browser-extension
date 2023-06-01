@@ -1,7 +1,7 @@
 import $ from "jquery";
 import { htmlEntities } from "../../core/common.js";
 import { secondarySort } from "../extra_watchlist/extra_watchlist.js";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 function wills() {
   if (window.location.href.match(/https:\/\/www\.wikitree\.com\/wiki\/Category:.*?_Wills_and_Estates/) != null) {
@@ -285,7 +285,7 @@ function sortWillTable(jq) {
   }
 }
 
-checkIfFeatureEnabled("wills").then((result) => {
+shouldInitializeFeature("wills").then((result) => {
   if (result && $("#willTable").length == 0) {
     wills();
     import("./wills.css");

@@ -4,12 +4,12 @@ Contributors: Aleš Trtnik (Trtnik-2), Jonathan Duke (Duke-5773)
 */
 
 import $ from "jquery";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { getPeople } from "../dna_table/dna_table";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import { isWikiPage, isProfilePage, isSpacePage, isMediaWikiPage } from "../../core/pageType";
 
-checkIfFeatureEnabled("whatLinksHere").then((result) => {
+shouldInitializeFeature("whatLinksHere").then((result) => {
   if (result && $("a.whatLinksHere").length == 0) {
     const profileWTID = $("a.pureCssMenui0 span.person").text();
     window.profileWTID = profileWTID;

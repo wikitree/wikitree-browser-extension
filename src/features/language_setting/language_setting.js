@@ -1,7 +1,7 @@
 import $ from "jquery";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
-checkIfFeatureEnabled("languageSetting").then((result) => {
+shouldInitializeFeature("languageSetting").then((result) => {
   if (result) {
     setLanguage();
   }

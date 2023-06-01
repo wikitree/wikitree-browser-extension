@@ -2,7 +2,7 @@
 Created By: Rob Pavey (Pavey-429)
 */
 
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage.js";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage.js";
 import { updateLink } from "./redir_ext_link.js";
 
 async function updateAllLinks() {
@@ -23,7 +23,7 @@ async function updateAllLinks() {
   }
 }
 
-checkIfFeatureEnabled("redirExtLinks").then((result) => {
+shouldInitializeFeature("redirExtLinks").then((result) => {
   if (result) {
     updateAllLinks();
   }

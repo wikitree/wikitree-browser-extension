@@ -3,9 +3,9 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 
-checkIfFeatureEnabled("makeRadioButtonsDeselectable").then((result) => {
+shouldInitializeFeature("makeRadioButtonsDeselectable").then((result) => {
   if (result) {
     if (
       $("body.page-Special_EditPerson").length ||

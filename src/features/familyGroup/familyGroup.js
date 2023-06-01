@@ -7,9 +7,9 @@ import "jquery-ui/ui/widgets/draggable";
 import { getRelatives } from "wikitree-js";
 import { createProfileSubmenuLink, familyArray, isOK, htmlEntities } from "../../core/common";
 
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 
-checkIfFeatureEnabled("familyGroup").then((result) => {
+shouldInitializeFeature("familyGroup").then((result) => {
   if (result && $("body.profile").length) {
     import("../familyTimeline/familyTimeline.css");
     // Add a link to the short list of links below the tabs

@@ -3,9 +3,9 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 
-checkIfFeatureEnabled("confirmThankYous").then((result) => {
+shouldInitializeFeature("confirmThankYous").then((result) => {
   if (result) {
     $("a[href*='Special:Thanks&action=thank']").attr("target", "_blank");
     $("a[href*='Special:Thanks&action=thank']").on("click", function () {

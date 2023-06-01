@@ -4,7 +4,7 @@ Contributors: Jonathan Duke (Duke-5773)
 */
 
 import $ from "jquery";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isOK, htmlEntities, displayName } from "../../core/common";
 import { displayDates } from "../verifyID/verifyID";
 import { getRelatives } from "wikitree-js";
@@ -12,7 +12,7 @@ import "./change_family_lists.css";
 
 let options;
 
-checkIfFeatureEnabled("changeFamilyLists").then(async (result) => {
+shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   const ancestorsButton = $("span.showHideTree").eq(0);
   const descendantsButton = $("span#showHideDescendants");
   if (result) {
