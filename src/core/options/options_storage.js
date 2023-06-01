@@ -23,12 +23,6 @@ This function returns a Promise so it can be used in a couple of different ways:
 
 async function checkIfFeatureEnabled(featureId) {
   return new Promise((resolve, reject) => {
-    if (featureId && document.documentElement.getAttribute(`data-wbe-${featureId}-initialized`)) {
-      // prevent each feature from initializing more than once in a single window
-      document.documentElement.setAttribute("data-wbe-conflict", true);
-      resolve(false);
-      return;
-    }
     try {
       if (!featureId) {
         reject(new Error("No featureId provided"));
@@ -60,10 +54,17 @@ async function checkIfFeatureEnabled(featureId) {
         }
 
         if (result) {
-          document.documentElement.setAttribute(`data-wbe-${featureId}-initialized`, true);
+          if (featureId && document.documentElement.getAttribute(`data-wbe-${featureId}-initialized`)) {
+            // prevent each feature from initializing more than once in a single window
+            document.documentElement.setAttribute("data-wbe-conflict", true);
+            resolve(false);
+          } else {
+            document.documentElement.setAttribute(`data-wbe-${featureId}-initialized`, true);
+            resolve(true);
+          }
+        } else {
+          resolve(false);
         }
-
-        resolve(result);
       });
     } catch (ex) {
       reject(ex);
