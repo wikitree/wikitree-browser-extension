@@ -3400,19 +3400,20 @@ function parseWikiTable(aRef) {
 
   // Parse Sourcer Household Members row with <br> tags
   for (const row of rows) {
-    if (row.startsWith("| Household Members") && row.includes("||") && row.match(/<br.*?>/g).length >= 2) {
+    if (row.startsWith("| Household Members") && row.includes("||") && row.match(/<br.*?>/g)?.length >= 2) {
       const members = extractHouseholdMembers(row);
       data.Household = parseFamilyData(members);
     }
   }
+
   // Parse tables from BEE
   if (!data.Household) {
     for (const row of rows) {
       if (!data.Household) {
         if (row.match(/\|\|/)) {
           const cells = row.split("||");
-          const key = cells[0].trim().replace("|", "").replace(/:$/, "");
-          const value = cells[1].trim().replace("|", "");
+          const key = cells[0].trim().replace("|", "").replace(/:$/, "").trim();
+          const value = cells[1].trim().replace("|", "").trim();
           data[key] = value;
         }
       }
@@ -3423,9 +3424,9 @@ function parseWikiTable(aRef) {
       if (!row.includes("|")) continue;
       if (row.match(/\|\|/) && data.Household) {
         const cells = row.split("||");
-        const key = cells[0].trim().replace("|", "").replace(/:$/, "");
-        const value = cells[1].trim().replace("|", "");
-        if (data.Household) {
+        const key = cells[0].trim().replace("|", "").replace(/:$/, "").trim();
+        const value = cells[1].trim().replace("|", "").trim();
+        if (data.Household && key.match("Household Members") == null) {
           const aMember = { Name: key, Census: data["Year"] };
           for (let i = 1; i < cells.length; i++) {
             if (
