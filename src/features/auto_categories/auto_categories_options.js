@@ -9,7 +9,7 @@ registerFeature({
   name: "Auto Categories",
   id: "autoCategories",
   description: "Adds categories to a biography based on the available data.",
-  category: "Editing",
+  category: "Editing/Edit_Profile",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,

@@ -65,12 +65,14 @@ div.feature-options {
 }
 .section:not(.feature-enabled) > .section-content > div.feature-options::before,
 .section:not(.feature-enabled) > .section-content > dialog.feature-options > .dialog-content::before {
-  display: block;
+  display: inline-block;
   content: "This feature must be toggled on for these options to take effect.";
-  color: #c00;
+  border: 3px solid #fbb616;
   font-size: 14px;
   font-style: italic;
   font-weight: bold;
+  padding: 0.5em;
+  border-radius: 1em;
   margin-bottom: 0.5em;
 }
 

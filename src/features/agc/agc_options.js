@@ -10,7 +10,7 @@ const agcFeature = {
   name: "Automatic GEDCOM Cleanup (AGC)",
   id: "agc",
   description: "Reformats a biography and updates data fields when the profile was created from a GEDCOM.",
-  category: "Editing",
+  category: "Editing/Edit_Profile",
   creators: [{ name: "Rob Pavey", wikitreeid: "Pavey-429" }],
   contributors: [],
   defaultValue: true,

@@ -275,7 +275,6 @@ registerFeature({
   id: "myMenu",
   description: "Add your own custom menu for easy access to your most commonly used links.",
   category: "Navigation",
-  ordinal: 1,
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,

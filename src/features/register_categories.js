@@ -25,6 +25,10 @@ let root = {
           name: "Add Person",
           description: "Tools to simplify the process when adding a new person to the tree.",
         },
+        {
+          name: "Edit Profile",
+          description: "Enhancements to the profile edit page.",
+        },
       ],
     },
     {

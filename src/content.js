@@ -69,9 +69,9 @@ window.setTimeout(function () {
     document.getElementById("conflictAlert")?.remove();
     let conflictAlert = document.createElement("dialog");
     conflictAlert.id = "conflictAlert";
-    conflictAlert.style = "color:#c00;max-width:450px;";
+    conflictAlert.style = "max-width:480px;border:3px solid #fbb616;border-radius:1em;";
     conflictAlert.innerText =
-      "The WikiTree Browser Extension has reloaded or a conflicting version has been installed. Make sure that only one version is enabled at a time. Some features may no longer work until this page is refreshed. If you were working on this page, you can click anywhere to resume.";
+      "The WikiTree Browser Extension has reloaded or a conflicting version has been installed. Make sure features are enabled in only one version at a time. Some features may no longer work until this page is refreshed. If you were still working on this page, you can click anywhere to resume.";
     conflictAlert.addEventListener("click", function () {
       this.close();
     });
