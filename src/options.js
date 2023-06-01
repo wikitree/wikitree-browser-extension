@@ -466,7 +466,7 @@ $("#openSettings").on("click", function () {
       '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Data from My Menu, Change Summary Options, Extra Watchlist, Clipboard and Notes, etc.</li>' +
       '<li class="hide-unless-wikitree" title="This will download a backup file with your current feature data."><button id="btnExportData">Back Up Data</button> Back up your feature data from WikiTree.</li>' +
       '<li class="hide-unless-wikitree" title="This will pop up a dialog to select your feature data backup file."><button id="btnImportData">Restore Data</button> Restore your feature data on WikiTree.</li>' +
-      "</ul></div></div>"
+      "</ul></div></dialog>"
   )
     .appendTo(document.body)
     .on("click", function (e) {
