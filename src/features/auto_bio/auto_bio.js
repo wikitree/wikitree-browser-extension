@@ -6690,14 +6690,42 @@ export async function generateBio() {
         acknowledgementsText +
         extensionNotes;
     } else if (window.autoBioOptions.deathPosition) {
-      outputText =
-        stuffBeforeTheBioText +
-        bioHeaderAndStickers +
+      const actualBio =
         birthText +
         (window.autoBioOptions.siblingList ? siblingListText : "") +
         deathText +
         marriagesAndCensusesText +
-        subsectionsText +
+        subsectionsText;
+
+      // This would be part of your extension's code
+      let url = "https://wikitreebee.com:3000/api/chat"; // Replace with your server's URL
+
+      let data = {
+        messages: [{ role: "user", content: actualBio }],
+      };
+
+      // Options for the fetch() function
+      let options = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      };
+
+      // Send the request to the server
+      fetch(url, options)
+        .then((response) => response.json())
+        .then((data) => {
+          // Here, `data` will be the response from your server. You can process it as needed.
+          console.log(data);
+        })
+        .catch((error) => console.error("Error:", error));
+
+      outputText =
+        stuffBeforeTheBioText +
+        bioHeaderAndStickers +
+        actualBio +
         timelineText +
         researchNotesText +
         sourcesText +
