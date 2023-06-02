@@ -376,6 +376,17 @@ registerFeature({
   pages: [isProfileAddRelative],
 });
 
+registerFeature({
+  name: "Visited Links",
+  id: "visitedLinks",
+  description: "Make links to visited pages purple.",
+  category: "Global/Style",
+  creators: [{ name: "Aleš Trtnik", wikitreeid: "Trtnik-2" }],
+  contributors: [],
+  defaultValue: false,
+  pages: [true],  
+});
+
 /*
  * debugging features for development only
  *

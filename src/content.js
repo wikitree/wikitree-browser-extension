@@ -52,6 +52,7 @@ import "./features/suggested_matches_filters/suggested_matches_filters";
 import "./features/table_filters/table_filters";
 import "./features/usability_tweaks/usability_tweaks";
 import "./features/verifyID/verifyID";
+import "./features/visitedLinks/visitedLinks";
 import "./features/what_links_here/what_links_here";
 import "./features/wills/wills";
 import "./features/wtPlus/wtPlus";
