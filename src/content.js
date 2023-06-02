@@ -5,15 +5,15 @@ document?.documentElement?.removeAttribute("data-wbe-conflict");
 import "./features/register_feature_options";
 
 // First are loaded modules that change the wikitree appearence by altering css style
-import "./features/darkMode/darkMode";
 import "./features/visitedLinks/visitedLinks";
+import "./features/darkMode/darkMode";
+import "./features/readability/readability";
 
-
+// followed by the rest 
 import "./features/access_keys/access_keys";
 import "./features/add_person/add_person";
 import "./features/agc/agc_content";
 import "./features/akaNameLinks/akaNameLinks";
-import "./features/appsMenu/appsMenu";
 import "./features/auto_bio/auto_bio";
 import "./features/auto_categories/auto_categories";
 import "./features/bioCheck/bioCheck";
@@ -27,7 +27,6 @@ import "./features/custom_change_summary_options/custom_change_summary_options";
 import "./features/date_fixer/date_fixer";
 import "./features/distanceAndRelationship/distanceAndRelationship";
 import "./features/dna_table/dna_table";
-import "./features/draftList/draftList";
 import "./features/edit_family_data/edit_family_data";
 import "./features/extra_watchlist/extra_watchlist";
 import "./features/familyGroup/familyGroup";
@@ -41,8 +40,6 @@ import "./features/make_radio_buttons_deselectable/make_radio_buttons_deselectab
 import "./features/my_connections/my_connections";
 import "./features/my_menu/my_menu";
 import "./features/printerfriendly/printerfriendly";
-import "./features/randomProfile/randomProfile";
-import "./features/readability/readability";
 import "./features/redir_ext_links/redir_ext_links";
 import "./features/scissors/scissors";
 import "./features/smooth_scrolling/smooth_scrolling";
@@ -56,9 +53,16 @@ import "./features/suggested_matches_filters/suggested_matches_filters";
 import "./features/table_filters/table_filters";
 import "./features/usability_tweaks/usability_tweaks";
 import "./features/verifyID/verifyID";
-import "./features/what_links_here/what_links_here";
 import "./features/wills/wills";
 import "./features/wtPlus/wtPlus";
+
+// At the end are the features, that add items into menu structure. 
+import "./features/appsMenu/appsMenu";
+import "./features/draftList/draftList";
+import "./features/randomProfile/randomProfile";
+import "./features/what_links_here/what_links_here";
+
+
 
 /*
  * debugging features for development only
