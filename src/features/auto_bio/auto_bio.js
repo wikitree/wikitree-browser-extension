@@ -6697,8 +6697,7 @@ export async function generateBio() {
         marriagesAndCensusesText +
         subsectionsText;
 
-      // This would be part of your extension's code
-      let url = "https://wikitreebee.com:3000/api/chat"; // Replace with your server's URL
+      let url = "https://wikitreebee.com:3000/api/chat";
 
       let data = {
         messages: [{ role: "user", content: actualBio }],
