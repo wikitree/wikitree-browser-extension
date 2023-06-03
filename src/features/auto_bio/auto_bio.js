@@ -5553,6 +5553,18 @@ function findBestMatch(surname, birthLocation, deathLocation, categories) {
 }
 
 export async function getONSstickers() {
+  const excludedSurnames = [
+    "Cresap",
+    "Crippen",
+    "Hoxsie",
+    "Longan",
+    "McBrayer",
+    "Reynolds",
+    "Rodewald",
+    "Vanover",
+    "Weddington",
+  ];
+
   const surnames = [window.profilePerson.PersonName.LastNameAtBirth];
   if (window.profilePerson.PersonName.LastNameCurrent != window.profilePerson.PersonName.LastNameAtBirth) {
     surnames.push(window.profilePerson.PersonName.LastNameCurrent);
@@ -5561,7 +5573,7 @@ export async function getONSstickers() {
     // split by comma, trim and push to surnames if not already in surnames
     window.profilePerson.LastNameOther.split(",").forEach((item) => {
       item = item.trim();
-      if (!surnames.includes(item)) {
+      if (!surnames.includes(item) && !excludedSurnames.includes(item)) {
         surnames.push(item);
       }
     });
