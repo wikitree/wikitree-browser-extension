@@ -161,7 +161,25 @@ function restore_options() {
         setCategorySwitches();
       }, 100);
     });
+    restore_settings(items);
   });
+}
+
+function restore_settings(items) {
+  const settingsDialog = $("#settingsDialog");
+  if (settingsDialog.length) {
+    if (items) {
+      settingsDialog
+        .find("#toggleDisableUpdateNotification")
+        .prop("checked", !!(items.wbeSettings_disableUpdateNotification ?? false));
+    } else {
+      chrome.storage.sync.get(null, (items) => {
+        if (items) {
+          restore_settings(items);
+        }
+      });
+    }
+  }
 }
 
 // resets the state of options page to the default settings
@@ -439,7 +457,6 @@ $("#toggleAll, .section.category > .section-header > .toggle > input").on("click
   if ($(this).prop("checked") == false) {
     oSwitch = false;
   }
-  //TODO: propagate instead of letting an event handle the recursion
   let $top;
   if (this.id === "toggleAll") {
     $top = $(".category-root");
@@ -458,6 +475,8 @@ $("#openSettings").on("click", function () {
       '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Settings &amp; Data Backup' +
       '<a class="feature-help-link nohover" target="WBE_Help" href="https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#Settings"><img src="https://www.wikitree.com/images/icons/help.gif" border="0" width="11" height="11" alt="Help" title="Help about Settings"></a>' +
       '</div><div class="dialog-content"><ul>' +
+      '<li style="font-size: 10pt; font-weight: bold;">Extension Settings</li>' +
+      '<li><div style="--font-px:16" class="toggle"><input type="checkbox" id="toggleDisableUpdateNotification"><label for="toggleDisableUpdateNotification">Disable the notification when the extension updates.</label></div></li>' +
       '<li title="This would be like toggling all of the radio buttons back to the default. Each feature\'s options will be preserved."><button id="btnResetOptions">Default Features</button> Enable only the default features.</li>' +
       '<li title="This will download a backup file with your current feature options."><button id="btnExportOptions">Back Up Options</button> Back up your current feature options.</li>' +
       '<li title="This will pop up a dialog to select the backup file for your feature options. This will overwrite your current options."><button id="btnImportOptions">Restore Options</button> Restore the feature options from a previous backup.</li>' +
@@ -468,7 +487,7 @@ $("#openSettings").on("click", function () {
       '<li class="hide-unless-wikitree" title="This will pop up a dialog to select your feature data backup file."><button id="btnImportData">Restore Data</button> Restore your feature data on WikiTree.</li>' +
       "</ul></div></dialog>"
   )
-    .appendTo(document.body)
+    .appendTo($(document.body).remove("#settingsDialog"))
     .on("click", function (e) {
       if (e.target === this) {
         this.close(); // close modal if the backdrop is clicked
@@ -480,6 +499,7 @@ $("#openSettings").on("click", function () {
         .each(function () {
           URL.revokeObjectURL(this.href); // release the blob data when closed
         });
+      $(this).remove();
     });
   let closeSettings = function () {
     $dialog.get(0).close();
@@ -495,6 +515,9 @@ $("#openSettings").on("click", function () {
       e.preventDefault();
       this.closest("dialog")?.close();
     });
+  $dialog.find("#toggleDisableUpdateNotification").on("change", function (e) {
+    chrome.storage.sync.set({ wbeSettings_disableUpdateNotification: !!this.checked });
+  });
   $dialog.find("#btnResetOptions").on("click", function (e) {
     reset_options(true, closeSettings);
   });
@@ -533,6 +556,7 @@ $("#openSettings").on("click", function () {
         });
     }
   });
+  restore_settings();
   $dialog.get(0).showModal();
 });
 
