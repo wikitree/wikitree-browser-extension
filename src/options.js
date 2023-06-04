@@ -405,30 +405,39 @@ function renderCategory(category, container) {
 
 function setCategorySwitches() {
   [].reverse.call($(".category-root, .section.category")).each(function (index, element) {
-    let count = 0; // 0 = no features, positive = all checked, -1 = some unchecked
+    let count = 0,
+      checked = 0,
+      indeterminate = false;
     $(this)
       .find($(this).is(".category-root") ? "> .section" : "> .section-content > .section")
       .each(function () {
         let $toggle = $(this).find("> .section-header > .toggle > input").first();
         if ($toggle.length) {
-          count++;
-          if (!$toggle.is(":checked") && !$toggle.closest("#darkMode").length) {
-            count = -1;
-            return false;
+          if (!$toggle.closest("#darkMode").length) {
+            count++;
+            if ($toggle.is(":checked")) {
+              checked++;
+            }
+            if ($toggle.get(0).indeterminate || (count > checked && checked > 0)) {
+              indeterminate = true;
+              return false;
+            }
           }
           return true;
         }
       });
     if ($(this).is(".category-root")) {
       $("#toggleAll")
-        .prop("checked", count > 0)
-        .trigger("change");
+        .prop("checked", checked > 0)
+        .trigger("change")
+        .get(0).indeterminate = indeterminate;
     } else {
       $(this)
         .find("> .section-header > .toggle > input")
         .first()
-        .prop("checked", count > 0)
-        .trigger("change");
+        .prop("checked", checked > 0)
+        .trigger("change")
+        .get(0).indeterminate = indeterminate;
     }
   });
 }
