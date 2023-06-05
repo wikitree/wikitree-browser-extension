@@ -46,13 +46,14 @@ import "./features/wtPlus/wtPlus";
 import "./features/agc/agc_content";
 import "./features/auto_bio/auto_bio";
 import "./features/auto_categories/auto_categories";
-import "./features/bioCheck/bioCheck";
 import "./features/custom_change_summary_options/custom_change_summary_options";
 import "./features/date_fixer/date_fixer";
 import "./features/language_setting/language_setting";
 import "./features/locationsHelper/locationsHelper";
 import "./features/make_radio_buttons_deselectable/make_radio_buttons_deselectable";
 import "./features/sticky_toolbar/sticky_toolbar";
+// BioCheck needs to load later than custom_change_summary_options
+import "./features/bioCheck/bioCheck";
 
 // Edit mode Add Person addons are even later
 import "./features/add_person/add_person";
