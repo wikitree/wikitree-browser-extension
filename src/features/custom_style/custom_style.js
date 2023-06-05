@@ -62,7 +62,7 @@ async function initCustomStyle() {
         bits[0] = ".qa-q-item-tag-item a:link";
       }
       if (bits[0] == "visitedLink") {
-        bits[0] = "a:visited";
+        bits[0] = "a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link)";
       }
 
       rules += bits[0] + "{" + bits[1] + ":" + options[key] + " !important;}\n";
