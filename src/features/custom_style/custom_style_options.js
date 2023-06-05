@@ -1,12 +1,14 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
-// The feature data for the myFeature feature
 const myCustomStyle = {
   name: "Custom Style",
   id: "customStyle",
   description: "Add your own style rules to WikiTree.",
-  category: "Style",
-  defaultValue: true,
+  category: "Global/Style",
+  defaultValue: false,
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
+  contributors: [],
+  pages: [true],
   options: [
     {
       id: "headings",
@@ -17,7 +19,7 @@ const myCustomStyle = {
           id: "headings_background-color",
           type: "color",
           label: "Background color",
-          defaultValue: "#E1F0B4",
+          defaultValue: "#ffffff",
         },
         {
           id: "headings_color",
@@ -99,79 +101,15 @@ const myCustomStyle = {
           label: "Link color 2",
           defaultValue: "#fff",
         },
-      ],
-    },
-    {
-      id: "hideSections",
-      type: OptionType.GROUP,
-      label: "Hide Sections",
-      options: [
         {
-          id: "hide_DNA",
-          type: OptionType.CHECKBOX,
-          label: "DNA",
-          defaultValue: false,
-        },
-        {
-          id: "hide_Images",
-          type: OptionType.CHECKBOX,
-          label: "Images",
-          defaultValue: false,
-        },
-        {
-          id: "hide_Collaboration",
-          type: OptionType.CHECKBOX,
-          label: "Collaboration",
-          defaultValue: false,
-        },
-        {
-          id: "hide_Research",
-          type: OptionType.CHECKBOX,
-          label: "Research",
-          defaultValue: false,
-        },
-        {
-          id: "hide_Matches",
-          type: OptionType.CHECKBOX,
-          label: "Matches and Merges",
-          defaultValue: false,
-        },
-        {
-          id: "hide_comments",
-          type: OptionType.CHECKBOX,
-          label: "Comments",
-          defaultValue: false,
-        },
-        {
-          id: "hide_footer",
-          type: OptionType.CHECKBOX,
-          label: "Footer",
-          defaultValue: false,
-        },
-        {
-          id: "hide_more-genealogy-tools-button",
-          type: OptionType.CHECKBOX,
-          label: "More Genealogy Tools button",
-          defaultValue: false,
-        },
-        {
-          id: "hide_profiles-of-the-week",
-          type: OptionType.CHECKBOX,
-          label: "Profiles of the week",
-          defaultValue: false,
-        },
-        {
-          id: "hide_what-links-here",
-          type: OptionType.CHECKBOX,
-          label: "What Links Here",
-          defaultValue: false,
+          id: "visitedLink_color",
+          type: "color",
+          label: "Visited link color",
+          defaultValue: "#B30FB9",
         },
       ],
     },
   ],
 };
 
-// qa-q-item-tag-item
-
-// Just importing this file will register all the features
 registerFeature(myCustomStyle);
