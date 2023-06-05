@@ -7065,6 +7065,7 @@ shouldInitializeFeature("autoBio").then((result) => {
     import("./auto_bio.css");
     getFeatureOptions("autoBio").then((options) => {
       window.autoBioOptions = options;
+      console.log(window.autoBioOptions);
       window.boldBit = "";
       if (window.autoBioOptions.boldNames) {
         window.boldBit = "'''";
