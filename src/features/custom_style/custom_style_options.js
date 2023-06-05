@@ -93,7 +93,7 @@ const myCustomStyle = {
           id: "color3_background-color",
           type: "color",
           label: "Background color 3",
-          defaultValue: "#253b2f",
+          defaultValue: "#ffffff",
         },
         {
           id: "link_color",
