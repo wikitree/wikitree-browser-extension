@@ -34,6 +34,12 @@ const myCustomStyle = {
           defaultValue: "0",
         },
         {
+          id: "headings_margin",
+          type: "number",
+          label: "Margin",
+          defaultValue: "0",
+        },
+        {
           id: "headings_border-radius",
           type: "number",
           label: "Border radius",
@@ -81,7 +87,7 @@ const myCustomStyle = {
           id: "color2_background-color",
           type: "color",
           label: "Background color 2",
-          defaultValue: "#ffe270",
+          defaultValue: "#ffffff",
         },
         {
           id: "color3_background-color",

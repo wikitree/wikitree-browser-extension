@@ -21,12 +21,10 @@ async function initCustomStyle() {
           bits[0] += ",button.copyWidget";
         }
       }
-      if (bits[1] == "padding") {
+      if (bits[1] == "padding" || bits[1] == "margin" || bits[1] == "border-radius") {
         options[key] += "px";
       }
-      if (bits[1] == "border-radius") {
-        options[key] += "px";
-      }
+
       if (bits[1] == "box-shadow") {
         options[key] = options[key] += "px " + options[key] + "px " + options[key] + "px " + options[key] + "px gray";
         //          options[key] += "px";
@@ -56,13 +54,13 @@ async function initCustomStyle() {
       }
 
       if (bits[0] == "link") {
-        bits[0] = "a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link)";
+        bits[0] = "a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a)";
       }
       if (bits[0] == "link2") {
         bits[0] = ".qa-q-item-tag-item a:link";
       }
       if (bits[0] == "visitedLink") {
-        bits[0] = "a:visited";
+        bits[0] = "a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a)";
       }
 
       rules += bits[0] + "{" + bits[1] + ":" + options[key] + " !important;}\n";
