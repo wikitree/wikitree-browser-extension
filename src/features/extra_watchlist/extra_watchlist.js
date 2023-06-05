@@ -20,6 +20,10 @@ shouldInitializeFeature("extraWatchlist").then((result) => {
   }
 });
 
+const favoritePlusOn = chrome.runtime.getURL("images/favorite-plus-on.png");
+const favoritePlusWhite = chrome.runtime.getURL("images/favorite-plus-white.png");
+const binocularsURL = chrome.runtime.getURL("images/binoculars.png");
+
 function getThisID() {
   let spaceMatch = window.location.href.match(/Space:.*$/);
   let thisID;
@@ -372,16 +376,21 @@ async function extraWatchlist() {
     imageColour = "on";
     titleText = "Remove from your Extra Watchlist";
   }
+  let plusImageURL = favoritePlusWhite;
+  if (imageColour == "on") {
+    plusImageURL = favoritePlusOn;
+  }
+
   const plusImage = $(
     "<img id='addToExtraWatchlistButton' class='button small extraWatchlistButton' title='" +
       titleText +
       "' src='" +
-      chrome.runtime.getURL("images/favorite-plus-" + imageColour + ".png") +
+      plusImageURL +
       "'>"
   );
   const binocularsImage = $(
     "<img id='viewExtraWatchlist' class='button small extraWatchlistButton' title='See your Extra Watchlist' src='" +
-      chrome.runtime.getURL("images/binoculars.png") +
+      binocularsURL +
       "'>"
   );
   if ($("span.theClipboardButtons").length == 0) {
@@ -497,7 +506,7 @@ async function extraWatchlist() {
     if (localStorage.extraWatchlist.match(thisID + "@")) {
       $("#addToExtraWatchlistButton").addClass("onList");
       $("#addToExtraWatchlistButton").attr("title", "On your Extra Watchlist (click to remove)");
-      $("#addToExtraWatchlistButton").prop("src", chrome.runtime.getURL("images/favorite-plus-on.png"));
+      $("#addToExtraWatchlistButton").prop("src", favoritePlusOn);
     }
   }
 
@@ -516,13 +525,13 @@ async function extraWatchlist() {
       $("#touchedList tr[data-id='" + str + "']").remove();
       $("#addToExtraWatchlistButton").attr("title", "Add to your Extra Watchlist");
       $("#addToExtraWatchlistButton").removeClass("onList");
-      $("#addToExtraWatchlistButton").prop("src", chrome.runtime.getURL("images/favorite-plus-white.png"));
+      $("#addToExtraWatchlistButton").prop("src", favoritePlusWhite);
     } else {
       const oExtraWatchlist = localStorage.extraWatchlist;
       localStorage.setItem("extraWatchlist", oExtraWatchlist + str + "@");
       $("#addToExtraWatchlistButton").addClass("onList");
       $("#addToExtraWatchlistButton").attr("title", "On your Extra Watchlist (Click to remove)");
-      $("#addToExtraWatchlistButton").prop("src", chrome.runtime.getURL("images/favorite-plus-on.png"));
+      $("#addToExtraWatchlistButton").prop("src", favoritePlusOn);
     }
     if ($("#extraWatchlistWindow").is(":visible") && theChange == "add") {
       get_Profile(thisID).then((response) => {
