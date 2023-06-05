@@ -17,6 +17,11 @@ describe("randomProfile", () => {
   let addRandomToFindMenu;
 
   beforeAll(async () => {
+    // fix test errors with chrome.runtime.getManifest
+    chrome.runtime.getManifest.returns({
+      name: "WBE Test",
+      version: "0.0.0",
+    });
     // Do not run feature code when importing feature module.
     shouldInitializeFeature.mockResolvedValue(false);
     // Import module dynamically because `shouldInitializeFeature` has to be mocked beforehand.
