@@ -81,7 +81,7 @@ const myCustomStyle = {
           id: "color2_background-color",
           type: "color",
           label: "Background color 2",
-          defaultValue: "#ffe270",
+          defaultValue: "#ffffff",
         },
         {
           id: "color3_background-color",
