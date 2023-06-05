@@ -54,13 +54,13 @@ async function initCustomStyle() {
       }
 
       if (bits[0] == "link") {
-        bits[0] = "a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link)";
+        bits[0] = "a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a)";
       }
       if (bits[0] == "link2") {
         bits[0] = ".qa-q-item-tag-item a:link";
       }
       if (bits[0] == "visitedLink") {
-        bits[0] = "a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link)";
+        bits[0] = "a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a)";
       }
 
       rules += bits[0] + "{" + bits[1] + ":" + options[key] + " !important;}\n";
