@@ -8,7 +8,7 @@ import { occupationCategories } from "./occupations.js";
 import { occupationList } from "./occupation_list";
 import { unsourcedCategories } from "./unsourced_categories.js";
 import { firstNameVariants } from "./first_name_variants.js";
-import { isOK, familyArray } from "../../core/common";
+import { isOK, familyArray, treeImageURL } from "../../core/common";
 import { getAge } from "../change_family_lists/change_family_lists";
 import { titleCase } from "../familyTimeline/familyTimeline";
 import { wtAPICatCIBSearch } from "../../core/API/wtPlusAPI";
@@ -4781,11 +4781,11 @@ function updateRelationForSibling(otherPerson) {
     otherPerson.Relation = "Sibling";
   }
 }
-
+const templatesJSON = chrome.runtime.getURL("features/wtPlus/templatesExp.json");
 async function getStickersAndBoxes() {
   let afterBioHeading = "";
   // eslint-disable-next-line no-undef
-  await fetch(chrome.runtime.getURL("features/wtPlus/templatesExp.json"))
+  await fetch(templatesJSON)
     .then((resp) => resp.json())
     .then(async (jsonData) => {
       const templatesToAdd = ["Sticker", "Navigation Profile Box", "Project Box", "Profile Box"];
@@ -5500,13 +5500,17 @@ export function getStuffBeforeTheBioText() {
 }
 
 export function addWorking() {
+  //try {
   const working = $(
     "<img id='working' style='position:absolute; margin-top:3em; margin-left: 300px' src='" +
       // eslint-disable-next-line no-undef
-      chrome.runtime.getURL("images/tree.gif") +
+      treeImageURL +
       "'>"
   );
   $("#wpTextbox1").before(working);
+  // } catch (error) {
+  //   extensionContextInvalidatedCheck(error);
+  // }
 }
 export function removeWorking() {
   $("#working").remove();
@@ -5553,6 +5557,18 @@ function findBestMatch(surname, birthLocation, deathLocation, categories) {
 }
 
 export async function getONSstickers() {
+  const excludedSurnames = [
+    "Cresap",
+    "Crippen",
+    "Hoxsie",
+    "Longan",
+    "McBrayer",
+    "Reynolds",
+    "Rodewald",
+    "Vanover",
+    "Weddington",
+  ];
+
   const surnames = [window.profilePerson.PersonName.LastNameAtBirth];
   if (window.profilePerson.PersonName.LastNameCurrent != window.profilePerson.PersonName.LastNameAtBirth) {
     surnames.push(window.profilePerson.PersonName.LastNameCurrent);
@@ -5561,7 +5577,7 @@ export async function getONSstickers() {
     // split by comma, trim and push to surnames if not already in surnames
     window.profilePerson.LastNameOther.split(",").forEach((item) => {
       item = item.trim();
-      if (!surnames.includes(item)) {
+      if (!surnames.includes(item) && !excludedSurnames.includes(item)) {
         surnames.push(item);
       }
     });

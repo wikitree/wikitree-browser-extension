@@ -6,6 +6,7 @@ import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getPerson } from "wikitree-js";
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
+import { treeImageURL } from "../../core/common";
 import "jquery-ui/ui/widgets/draggable";
 
 shouldInitializeFeature("randomProfile").then((result) => {
@@ -18,7 +19,7 @@ shouldInitializeFeature("randomProfile").then((result) => {
 // Used in Random Profile and My Menu
 export async function getRandomProfile(ourCountry = false) {
   if ($("#working").length == 0) {
-    const working = $("<img id='working' src='" + chrome.runtime.getURL("images/tree.gif") + "'>");
+    const working = $("<img id='working' src='" + treeImageURL + "'>");
     if ($("#working").length == 0 && $("#locationInputLabel").length == 0) {
       working.appendTo("body").css({
         position: "absolute",
@@ -97,8 +98,7 @@ export async function getRandomProfile(ourCountry = false) {
   } else {
     // If the location is not in okLocations or we've tried 50 random profiles from the database,
     // get 100,000 results from WT+ and choose a random one from there.
-    wtAPIProfileSearch("RandomProfile", ourCountry, {maxProfiles: 100000})
-    .then((response) => {
+    wtAPIProfileSearch("RandomProfile", ourCountry, { maxProfiles: 100000 }).then((response) => {
       console.log(response);
       const randomNumber = Math.floor(Math.random() * response.response.found);
       let randomProfileID = response.response.profiles[randomNumber];
@@ -165,7 +165,7 @@ export async function addRandomToFindMenu() {
   newLi.insertBefore(relationshipLi.parent());
   $(".randomProfile").on("click", function (e) {
     e.preventDefault();
-    const working = $("<img id='working' src='" + chrome.runtime.getURL("images/tree.gif") + "'>");
+    const working = $("<img id='working' src='" + treeImageURL + "'>");
     working.appendTo("body").css({
       position: "absolute",
       left: `${e.pageX - 50}px`,

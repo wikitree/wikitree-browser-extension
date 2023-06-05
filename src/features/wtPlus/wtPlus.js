@@ -9,6 +9,8 @@ import { dataTables, dataTableTemplateFindByName, dataTablesLoad } from "../../c
 
 let tb = {};
 
+const newTabIconURL = chrome.runtime.getURL("images/newTab.png");
+
 shouldInitializeFeature("wtplus").then((result) => {
   if (result && isWikiEdit) {
     import("./wtPlus.css");
@@ -784,9 +786,7 @@ function onDlgSelectTemplateFlt() {
     .map(
       (item) =>
         '<tr class="trSelect" data-op="onDlgSelectTemplateTrSel">' +
-        `<td><a target="_blank" href="https://www.wikitree.com/wiki/Template:${
-          item.name
-        }"><img src="${chrome.runtime.getURL("images/newTab.png")}"'></a></td>` +
+        `<td><a target="_blank" href="https://www.wikitree.com/wiki/Template:${item.name}"><img src="${newTabIconURL}"'></a></td>` +
         "<td>" +
         item.name +
         "</td><td>" +
@@ -892,9 +892,7 @@ function onDlgSelectCIBFlt() {
           .map(
             (item) =>
               "<tr>" +
-              `<td><a target="_blank" href="https://www.wikitree.com/wiki/Category:${
-                item.category
-              }"><img src="${chrome.runtime.getURL("images/newTab.png")}"'></a></td>` +
+              `<td><a target="_blank" href="https://www.wikitree.com/wiki/Category:${item.category}"><img src="${newTabIconURL}"'></a></td>` +
               '<td class="tdSelect" data-op="onDlgSelectCIBTrSel" title="' +
               (item.name ? "&#10;Name: " + item.name : "") +
               (item.aka ? "&#10;aka:&#10;&nbsp;&nbsp;" + item.aka.replaceAll(";", "&#10;&nbsp;&nbsp;") : "") +
@@ -1546,5 +1544,5 @@ function initWTPlus() {
   tb.elDlg = document.getElementById("wtPlusDlg");
   tb.elDlgCIB = document.getElementById("wtPlusDlgCIB");
 
-  dataTablesLoad('wtPlus');
+  dataTablesLoad("wtPlus");
 }

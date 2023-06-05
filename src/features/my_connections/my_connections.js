@@ -8,11 +8,26 @@ import "./my_connections.css";
 import "jquery-ui/ui/widgets/draggable";
 import { getAge } from "../change_family_lists/change_family_lists";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
-import { isOK, htmlEntities, extractRelatives } from "../../core/common";
+import { isOK, htmlEntities, extractRelatives, treeImageURL } from "../../core/common";
 import Cookies from "js-cookie";
 import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup";
 import { ancestorType } from "../distanceAndRelationship/distanceAndRelationship";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+
+const missingFatherSrc = chrome.runtime.getURL("images/blue_bricks.jpg");
+const missingMotherSrc = chrome.runtime.getURL("images/pink_bricks.jpg");
+const missingSpouseSrc = chrome.runtime.getURL("images/Q.jpg");
+const privacyOpenURL = chrome.runtime.getURL("images/privacy_open.png");
+const privacyPublicURL = chrome.runtime.getURL("images/privacy_public.png");
+const privacyPublicTreeURL = chrome.runtime.getURL("images/privacy_public-tree.png");
+const privacyPrivacy35URL = chrome.runtime.getURL("images/privacy_privacy35.png");
+const privacyPublicBioURL = chrome.runtime.getURL("images/privacy_public-bio.png");
+const privacyPrivateURL = chrome.runtime.getURL("images/privacy_private.png");
+const privacyUnlistedURL = chrome.runtime.getURL("images/unlisted.png");
+const homeIconURL = chrome.runtime.getURL("images/Home_icon.png");
+const blueBricksURL = chrome.runtime.getURL("images/blue_bricks.jpg");
+const pinkBricksURL = chrome.runtime.getURL("images/pink_bricks.jpg");
+const purpleBricksURL = chrome.runtime.getURL("images/purple_bricks.jpg");
 
 export const USstatesObjArray = [
   { name: "Alabama", abbreviation: "AL", admissionDate: "1819-12-14", former_name: "Alabama Territory" },
@@ -717,7 +732,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     $(".searchResultsButton").show();
   }
   if ($("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
-    $("#suggestedMatches").prepend($("<img id='tree' src='" + chrome.runtime.getURL("images/tree.gif") + "'>"));
+    $("#suggestedMatches").prepend($("<img id='tree' src='" + treeImageURL + "'>"));
     tableClass = "suggestedMatches";
   }
   if ($("body.page-Special_FindMatches").length) {
@@ -739,15 +754,13 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
   } else if (tableID == "profileAncestors") {
     // later?
   } else if (tableClass == "category") {
-    $(".moreDetailsButton").replaceWith(
-      $("<img id='tree' class='waiting category' src='" + chrome.runtime.getURL("images/tree.gif") + "'>")
-    );
+    $(".moreDetailsButton").replaceWith($("<img id='tree' class='waiting category' src='" + treeImageURL + "'>"));
   } else if ($("body.page-Special_MyConnections").length) {
-    $("<img id='tree' class='waiting' src='" + chrome.runtime.getURL("images/tree.gif") + "'>").insertAfter(
+    $("<img id='tree' class='waiting' src='" + treeImageURL + "'>").insertAfter(
       $("button.myConnectionsTableButton.clicked")
     );
   } else {
-    $("h1").append($("<img id='tree' class='waiting' src='" + chrome.runtime.getURL("images/tree.gif") + "'>"));
+    $("h1").append($("<img id='tree' class='waiting' src='" + treeImageURL + "'>"));
   }
   let idArr = IDstring.split(",");
   let thisPLink = $("li:contains(Possible matches for)").find("a").eq(0);
@@ -879,9 +892,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
         }
 
         //aTable
-        const missingFatherSrc = chrome.runtime.getURL("images/blue_bricks.jpg");
-        const missingMotherSrc = chrome.runtime.getURL("images/pink_bricks.jpg");
-        const missingSpouseSrc = chrome.runtime.getURL("images/Q.jpg");
+
         thePeople.forEach(function (aPerson, index) {
           let mPerson = aPerson.person;
 
@@ -1245,31 +1256,31 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
           let privacy = "";
           let privacyTitle = "";
           if (privacyLevel == 60) {
-            privacy = chrome.runtime.getURL("images/privacy_open.png");
+            privacy = privacyOpenURL;
             privacyTitle = "Open";
           }
           if (privacyLevel == 50) {
-            privacy = chrome.runtime.getURL("images/privacy_public.png");
+            privacy = privacyPublicURL;
             privacyTitle = "Public";
           }
           if (privacyLevel == 40) {
-            privacy = chrome.runtime.getURL("images/privacy_public-tree.png");
+            privacy = privacyPublicTreeURL;
             privacyTitle = "Private with Public Bio and Tree";
           }
           if (privacyLevel == 35) {
-            privacy = chrome.runtime.getURL("images/privacy_privacy35.png");
+            privacy = privacyPrivacy35URL;
             privacyTitle = "Private with Public Tree";
           }
           if (privacyLevel == 30) {
-            privacy = chrome.runtime.getURL("images/privacy_public-bio.png");
+            privacy = privacyPublicBioURL;
             privacyTitle = "Public Bio";
           }
           if (privacyLevel == 20) {
-            privacy = chrome.runtime.getURL("images/privacy_private.png");
+            privacy = privacyPrivateURL;
             privacyTitle = "Private";
           }
           if (privacyLevel == 10 || privacyLevel == undefined) {
-            privacy = chrome.runtime.getURL("images/unlisted.png");
+            privacy = privacyUnlistedURL;
             privacyTitle = "Unlisted";
           }
 
@@ -1582,7 +1593,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
               "<td class='connectionsName'  title='" +
               unknownText +
               "'><img class='familyHome' src='" +
-              chrome.runtime.getURL("images/Home_icon.png") +
+              homeIconURL +
               "'><img class='privacyImage' src='" +
               privacy +
               "' title='" +
@@ -2037,19 +2048,19 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
 
       if ($("#tree").length) {
         $("#profileAncestors tr[data-father='0'] td.connectionsName").css({
-          "background-image": "url(" + chrome.runtime.getURL("images/blue_bricks.jpg") + ")",
+          "background-image": "url(" + blueBricksURL + ")",
           "background-size": "3px",
           "background-repeat": "repeat-x",
           "background-position": "bottom",
         });
         $("#profileAncestors tr[data-mother='0'] td.connectionsName").css({
-          "background-image": "url(" + chrome.runtime.getURL("images/pink_bricks.jpg") + ")",
+          "background-image": "url(" + pinkBricksURL + ")",
           "background-size": "3px",
           "background-repeat": "repeat-x",
           "background-position": "bottom",
         });
         $("#profileAncestors tr[data-father='0'][data-mother='0'] td.connectionsName").css({
-          "background-image": "url(" + chrome.runtime.getURL("images/purple_bricks.jpg") + ")",
+          "background-image": "url(" + purpleBricksURL + ")",
           "background-size": "3px",
           "background-repeat": "repeat-x",
           "background-position": "bottom",
