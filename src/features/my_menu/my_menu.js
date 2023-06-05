@@ -5,7 +5,7 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import "jquery-ui/ui/widgets/sortable";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
-import { isOK, htmlEntities, showDraftList } from "../../core/common";
+import { isOK, htmlEntities, showDraftList, treeImageURL } from "../../core/common";
 import { getRandomProfile, addRandomProfileLocationBox } from "../randomProfile/randomProfile";
 import { doWhatLinksHere } from "../what_links_here/what_links_here";
 
@@ -272,7 +272,7 @@ function addCustomMenu() {
 
   $("#myCustomMenu li a:contains(Random Profile)").on("click", function (e) {
     e.preventDefault();
-    const working = $("<img id='working' src='" + chrome.runtime.getURL("images/tree.gif") + "'>");
+    const working = $("<img id='working' src='" + treeImageURL + "'>");
     working.appendTo("body").css({
       position: "absolute",
       left: `${e.pageX - 50}px`,

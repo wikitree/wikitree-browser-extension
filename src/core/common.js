@@ -99,7 +99,7 @@ export async function getRelatives(id, fields = "*", appId = "WBE") {
 // Make the family member arrays easier to handle
 export function extractRelatives(rel, theRelation = false) {
   let people = [];
-  if (typeof rel == undefined || rel == null) {
+  if (typeof rel == "undefined" || rel == null) {
     return false;
   }
   const pKeys = Object.keys(rel);
@@ -301,7 +301,7 @@ export async function showDraftList() {
               }
             });
 
-            newDraftArr.forEach(function (xDraft) {
+            window.newDraftArr.forEach(function (xDraft) {
               let dButtons = "<td></td><td></td>";
               if (xDraft[3] != undefined) {
                 dButtons =
@@ -329,10 +329,10 @@ export async function showDraftList() {
               );
             });
             $("#myDrafts").slideDown();
-            if (newDraftArr.length == 0) {
+            if (window.newDraftArr.length == 0) {
               $("#myDrafts").append($("<p>No drafts!</p>"));
             }
-            localStorage.setItem("drafts", JSON.stringify(newDraftArr));
+            localStorage.setItem("drafts", JSON.stringify(window.newDraftArr));
           }
           /*
           },
@@ -433,18 +433,39 @@ function restoreData(data, sendResponse) {
     localStorage.setItem("extraWatchlist", data.extraWatchlist);
   }
   if (data.clipboard) {
-    function addToDB(db, dbv, os, obj) {
-      const aDB = window.indexedDB.open(db, dbv);
-      aDB.onsuccess = function (event) {
-        let xdb = aDB.result;
-        let insert = xdb.transaction([os], "readwrite").objectStore(os).put(obj);
-      };
-    }
     const clipboard = JSON.parse(data.clipboard);
     clipboard.forEach(function (aClipping) {
       addToDB("Clipboard", 1, "Clipboard", aClipping);
     });
     sendResponse({ ack: "data restored" });
+  }
+}
+
+function addToDB(db, dbv, os, obj) {
+  const aDB = window.indexedDB.open(db, dbv);
+  aDB.onsuccess = function (event) {
+    let xdb = aDB.result;
+    let insert = xdb.transaction([os], "readwrite").objectStore(os).put(obj);
+  };
+}
+
+export function extensionContextInvalidatedCheck(error) {
+  if (error.message.match("Extension context invalidated")) {
+    console.log("Extension context invalidated");
+    const errorMessage = "WikiTree Browser Extension has been updated. <br>Please reload the page and try again.";
+    // Put the message in a small friendly popup, not an alert(), in the centre of the page, fixed position, with an X to close it.
+    const messageDiv = $(
+      "<div id='errorDiv' class='contextInvalidated'><button id='closeErrorMessageButton'>x</button>" +
+        errorMessage +
+        "</div>"
+    );
+    $("body").append(messageDiv);
+    $("#closeErrorMessageButton").on("click", function () {
+      $("#errorDiv").slideUp();
+      setTimeout(function () {
+        $("#errorDiv").remove();
+      }, 1000);
+    });
   }
 }
 
@@ -462,3 +483,5 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
   }
   return true; // potentially prevent the "The message port closed before a response was received." error
 });
+
+export const treeImageURL = chrome.runtime.getURL("images/tree.gif");

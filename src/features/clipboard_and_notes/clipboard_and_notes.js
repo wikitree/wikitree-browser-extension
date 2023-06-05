@@ -6,7 +6,7 @@ import $ from "jquery";
 import "jquery-ui/ui/widgets/sortable";
 import "jquery-ui/ui/widgets/draggable";
 import "./clipboard_and_notes.css";
-import { htmlEntities } from "../../core/common";
+import { htmlEntities, extensionContextInvalidatedCheck } from "../../core/common";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 export function appendClipboardButtons(clipboardButtons = $()) {
@@ -22,6 +22,8 @@ export function appendClipboardButtons(clipboardButtons = $()) {
     $("#header,#HEADER").append(clipboardButtons, $("span.theClipboardButtons"));
   }
 }
+
+const editImage = chrome.runtime.getURL("images/edit.png");
 
 shouldInitializeFeature("clipboardAndNotes").then((result) => {
   if (result && $(".clipboardButtons").length == 0) {
@@ -319,7 +321,7 @@ async function clipboard(type, e, action = false) {
                 "</td><td class='clipping'><pre>" +
                 thisText +
                 "</pre></td><td class='editClipping'><img src='" +
-                chrome.runtime.getURL("images/edit.png") +
+                editImage +
                 "' class='button small editClippingButton'></td><td class='deleteClipping '><span class='deleteClippingButton button small'>X</span></td></tr>"
             );
             $("#clipboard tbody").append(row);
@@ -450,22 +452,27 @@ async function initClipboard() {
     $("#toolbar + br").remove();
     $(".aClipboardButton").each(function () {
       $(this).on("click", function (e) {
-        e.preventDefault();
-        window.clipboardClicker = $(this);
-        let ccpc = window.clipboardClicker.parent().attr("class");
-        let lccpc = window.lastClipboardClicker.parent().attr("class");
-        if ($("#clipboard").data("type") == "notes") {
-          $("#clipboard").remove();
-          clipboard("clipboard", e);
-        } else if ($("#clipboard").css("display") == "block") {
-          if (ccpc == lccpc || lccpc == undefined) {
-            $("#clipboard").slideUp();
+        try {
+          e.preventDefault();
+          window.clipboardClicker = $(this);
+          let ccpc = window.clipboardClicker.parent().attr("class");
+          let lccpc = window.lastClipboardClicker.parent().attr("class");
+          if ($("#clipboard").data("type") == "notes") {
+            $("#clipboard").remove();
+            clipboard("clipboard", e);
+          } else if ($("#clipboard").css("display") == "block") {
+            if (ccpc == lccpc || lccpc == undefined) {
+              $("#clipboard").slideUp();
+            }
+            placeClipboard($("#clipboard"), e);
+          } else {
+            clipboard("clipboard", e);
           }
-          placeClipboard($("#clipboard"), e);
-        } else {
-          clipboard("clipboard", e);
+          window.lastClipboardClicker = window.clipboardClicker;
+        } catch (e) {
+          console.log(e);
+          extensionContextInvalidatedCheck(e);
         }
-        window.lastClipboardClicker = window.clipboardClicker;
       });
     });
     $(".aNotesButton").each(function () {

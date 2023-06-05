@@ -56,3 +56,6 @@
 #errorDiv #reportBugButton:active {
   top: auto;
 }
+#errorDiv.contextInvalidated {
+  width: fit-content;
+}
