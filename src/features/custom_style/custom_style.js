@@ -21,12 +21,10 @@ async function initCustomStyle() {
           bits[0] += ",button.copyWidget";
         }
       }
-      if (bits[1] == "padding") {
+      if (bits[1] == "padding" || bits[1] == "margin" || bits[1] == "border-radius") {
         options[key] += "px";
       }
-      if (bits[1] == "border-radius") {
-        options[key] += "px";
-      }
+
       if (bits[1] == "box-shadow") {
         options[key] = options[key] += "px " + options[key] + "px " + options[key] + "px " + options[key] + "px gray";
         //          options[key] += "px";
