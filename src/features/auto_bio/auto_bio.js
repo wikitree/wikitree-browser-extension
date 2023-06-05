@@ -6680,7 +6680,10 @@ export async function generateBio() {
     } else if (window.autoBioOptions.timeline == "table") {
       timelineText = bioTimelineText;
     }
+    let actualBio;
     if (window.autoBioOptions.SouthAfricaProject == true) {
+      actualBio = southAfricaFormatText;
+
       outputText =
         stuffBeforeTheBioText +
         bioHeaderAndStickers +
@@ -6690,36 +6693,12 @@ export async function generateBio() {
         acknowledgementsText +
         extensionNotes;
     } else if (window.autoBioOptions.deathPosition) {
-      const actualBio =
+      actualBio =
         birthText +
         (window.autoBioOptions.siblingList ? siblingListText : "") +
         deathText +
         marriagesAndCensusesText +
         subsectionsText;
-
-      let url = "https://wikitreebee.com:3000/api/chat";
-
-      let data = {
-        messages: [{ role: "user", content: actualBio }],
-      };
-
-      // Options for the fetch() function
-      let options = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      };
-
-      // Send the request to the server
-      fetch(url, options)
-        .then((response) => response.json())
-        .then((data) => {
-          // Here, `data` will be the response from your server. You can process it as needed.
-          console.log(data);
-        })
-        .catch((error) => console.error("Error:", error));
 
       outputText =
         stuffBeforeTheBioText +
@@ -6731,19 +6710,26 @@ export async function generateBio() {
         acknowledgementsText +
         extensionNotes;
     } else {
-      outputText =
-        stuffBeforeTheBioText +
-        bioHeaderAndStickers +
+      actualBio =
         birthText +
         (window.autoBioOptions.siblingList ? siblingListText : "") +
         marriagesAndCensusesText +
         deathText +
-        subsectionsText +
+        subsectionsText;
+
+      outputText =
+        stuffBeforeTheBioText +
+        bioHeaderAndStickers +
+        actualBio +
         timelineText +
         researchNotesText +
         sourcesText +
         acknowledgementsText +
         extensionNotes;
+    }
+
+    if (actualBio) {
+      getChatBio(actualBio);
     }
 
     // Remove inline citations if not wanted
@@ -6854,6 +6840,37 @@ export async function generateBio() {
       $("body").append(errorDiv);
     }
   }
+}
+
+function getChatBio(actualBio) {
+  let url = "https://wikitreebee.com:3000/api/chat";
+
+  let data = {
+    messages: [
+      {
+        role: "user",
+        content: actualBio + "\n\n oldBio=" + localStorage.getItem("previousBio").split(/==\s+?Sources/)[0],
+      },
+    ],
+  };
+
+  // Options for the fetch() function
+  let options = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  };
+
+  // Send the request to the server
+  fetch(url, options)
+    .then((response) => response.json())
+    .then((data) => {
+      const chatBio = data.choices?.[0]?.message?.content;
+      console.log(chatBio);
+    })
+    .catch((error) => console.error("Error:", error));
 }
 
 function addSubsection(title) {
