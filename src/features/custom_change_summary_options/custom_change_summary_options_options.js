@@ -2,7 +2,7 @@
 Created By: Ian Beacall (Beacall-6)
 */
 
-import { isProfileEdit } from "../../core/pageType";
+import { isProfileEdit,isSpaceEdit } from "../../core/pageType";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 const customChangeSummaryOptions = {
@@ -13,7 +13,7 @@ const customChangeSummaryOptions = {
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
-  pages: [isProfileEdit],
+  pages: [isProfileEdit,isSpaceEdit],
 
   options: [
     {
