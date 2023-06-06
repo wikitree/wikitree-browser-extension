@@ -93,6 +93,7 @@ async function addMovingSaveBox() {
     saveStuff.insertAfter(validationContainer);
     if (isSpaceEdit) {
       $("#wpSummaryLabel").parent().prependTo(saveStuff);
+      $("a:contains(without saving)").parent().appendTo(saveStuff);
       saveStuff.appendTo($("#editform"));
     }
     //const tca = $(".ten.columns.alpha").eq(0);
@@ -221,7 +222,8 @@ function setChangeSummaryOptions(adding = 0) {
           var v = thisThing.val();
           var summary = $("#wpSummary").val();
           if (!summary.includes(v)) {
-            summary += v;
+            summary += " " + v;
+            summary = summary.trim();
             if (summary.length > 150) {
               summary = summary.substring(0, 149);
             }
