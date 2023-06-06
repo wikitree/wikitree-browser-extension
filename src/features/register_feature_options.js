@@ -15,6 +15,7 @@ import {
   isSpacePage,
   isSpaceEdit,
   isSpaceHistory,
+  isNewSpace,
   isMediaWikiPage,
   isMediaWikiEdit,
   isMediaWikiHistory,
@@ -243,7 +244,7 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
-  pages: [isProfileEdit, isProfileAddRelative],
+  pages: [isProfileEdit, isProfileAddRelative, isSpaceEdit, isNewSpace],
 });
 
 registerFeature({

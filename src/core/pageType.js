@@ -39,6 +39,8 @@ export let isProfileEdit = false;
 export let isProfileAddRelative = false;
 // Add unrelated person
 export let isAddUnrelatedPerson = false;
+// New Space page
+export let isNewSpace = false;
 // Space edit page
 export let isSpaceEdit = false;
 // MediaWiki edit page
@@ -159,6 +161,9 @@ if (
   window.location.href.match(/\/index.php\?title=Special:NetworkFeed&space=.*/g)
 ) {
   isSpaceHistory = true;
+} else if (window.location.href.match(/index.php\?action=newspace/)) {
+  // New space page
+  isNewSpace = true;
 } else if (
   // Category Edit Page
   window.location.href.match(/\/index.php\?title=Category:.*&action=edit.*/g) ||
