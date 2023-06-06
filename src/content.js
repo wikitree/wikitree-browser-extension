@@ -8,6 +8,7 @@ import "./features/register_feature_options";
 import "./features/visitedLinks/visitedLinks";
 import "./features/darkMode/darkMode";
 import "./features/readability/readability";
+import "./features/custom_style/custom_style";
 
 // followed by the rest
 import "./features/access_keys/access_keys";
@@ -18,7 +19,6 @@ import "./features/change_family_lists/change_family_lists";
 import "./features/clipboard_and_notes/clipboard_and_notes";
 import "./features/collapsibleDescendantsTree/collapsibleDescendantsTree";
 import "./features/confirm_thank_yous/confirm_thank_yous";
-import "./features/custom_style/custom_style";
 import "./features/distanceAndRelationship/distanceAndRelationship";
 import "./features/dna_table/dna_table";
 import "./features/extra_watchlist/extra_watchlist";
