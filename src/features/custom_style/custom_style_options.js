@@ -3,7 +3,7 @@ import { registerFeature, OptionType } from "../../core/options/options_registry
 const myCustomStyle = {
   name: "Custom Style",
   id: "customStyle",
-  description: "Add your own style rules to WikiTree.",
+  description: "Choose your own font colors, including visited links, and the style of headings.",
   category: "Global/Style",
   defaultValue: false,
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
