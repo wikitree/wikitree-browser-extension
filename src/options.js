@@ -215,6 +215,31 @@ const resetToDefaultButtonsNeeded = ["customStyle"];
 function addOptionsForFeature(featureData, optionsContainerElement, options) {
   const featureId = featureData.id;
 
+  if (
+    resetToDefaultButtonsNeeded.includes(featureId) &&
+    $("#" + featureId + " #resetAllOptionsToDefault").length == 0
+  ) {
+    let resetToDefaultButton = document.createElement("button");
+    resetToDefaultButton.innerText = "Reset all";
+    resetToDefaultButton.className = "reset-to-default-button";
+    resetToDefaultButton.title = "Reset all to default";
+    resetToDefaultButton.id = "resetAllOptionsToDefault";
+    resetToDefaultButton.addEventListener("click", () => {
+      for (let option of options) {
+        if (option.type == "group") {
+          for (let subOption of option.options) {
+            $("#" + featureId + "_" + subOption.id).val(subOption.defaultValue);
+          }
+          continue;
+        } else {
+          $("#" + featureId + "_" + option.id).val(option.defaultValue);
+        }
+      }
+      saveFeatureOptions(featureData);
+    });
+    $(resetToDefaultButton).prependTo($(optionsContainerElement));
+  }
+
   function onChange(event) {
     saveFeatureOptions(featureData);
   }

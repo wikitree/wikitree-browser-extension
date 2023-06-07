@@ -81,19 +81,25 @@ const myCustomStyle = {
           id: "color1_background-color",
           type: "color",
           label: "Background color 1",
-          defaultValue: "#E1F0B4",
+          defaultValue: "#e1f0b4",
         },
         {
           id: "color2_background-color",
           type: "color",
           label: "Background color 2",
-          defaultValue: "#ffffff",
+          defaultValue: "#ffe270",
         },
         {
           id: "color3_background-color",
           type: "color",
           label: "Background color 3",
-          defaultValue: "#ffffff",
+          defaultValue: "#ffe183",
+        },
+        {
+          id: "color4_background-color",
+          type: "color",
+          label: "Background color 3",
+          defaultValue: "#eeeeee",
         },
         {
           id: "link_color",
