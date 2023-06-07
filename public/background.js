@@ -7,8 +7,8 @@ if (chrome.runtime) {
       });
       chrome.runtime.openOptionsPage();
     } else if (details.reason == "update") {
-      chrome.storage.sync.get("wbeSettings_disableUpdateNotification").then((result) => {
-        if (!result.wbeSettings_disableUpdateNotification) {
+      (chrome ?? browser).storage?.sync?.get("wbeSettings_disableUpdateNotification", function (result) {
+        if (!result?.wbeSettings_disableUpdateNotification) {
           // Use this to open the extension update page on update. Comment it out the rest of the time.
           /*
           chrome.tabs.create({
