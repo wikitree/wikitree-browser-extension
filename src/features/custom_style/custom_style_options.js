@@ -34,12 +34,6 @@ const myCustomStyle = {
           defaultValue: "0",
         },
         {
-          id: "headings_margin",
-          type: "number",
-          label: "Margin",
-          defaultValue: "0",
-        },
-        {
           id: "headings_border-radius",
           type: "number",
           label: "Border radius",

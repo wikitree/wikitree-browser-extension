@@ -4,6 +4,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 shouldInitializeFeature("customStyle").then((result) => {
   if (result) {
     initCustomStyle();
+    import("./custom_style.css");
   }
 });
 
@@ -21,7 +22,7 @@ async function initCustomStyle() {
           bits[0] += ",button.copyWidget";
         }
       }
-      if (bits[1] == "padding" || bits[1] == "margin" || bits[1] == "border-radius") {
+      if (bits[1] == "padding" || bits[1] == "border-radius") {
         options[key] += "px";
       }
 
@@ -69,7 +70,7 @@ async function initCustomStyle() {
 
       if (bits[0] == "link") {
         bits[0] =
-          "a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a,a.qa-tag-link)";
+          "a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a,a.qa-tag-link,a.new)";
       }
       if (bits[0] == "link2") {
         bits[0] = ".qa-q-item-tag-item a:link";
