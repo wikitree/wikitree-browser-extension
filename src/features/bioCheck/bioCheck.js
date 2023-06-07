@@ -2,15 +2,22 @@
 Created By: Kay Knight (Sands-1865)
 */
 
-import { theSourceRules } from "./SourceRules.js";
-import { PersonDate } from "./PersonDate.js";
-import { Biography } from "./Biography.js";
 import { shouldInitializeFeature, checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
+import { dataTables, dataTableTemplateFindByName, dataTablesLoad } from "../../core/API/wtPlusData";
+import { theSourceRules } from "./SourceRules.js";
+import { Biography } from "./Biography.js";
+import { PersonDate } from "./PersonDate.js";
 
 var checkSaveIntervalId = 0;
+var bioCheckInitIntervalId = 0;
 
 shouldInitializeFeature("bioCheck").then((result) => {
   if (result) {
+
+    // TODO figure out how to initialize and (a)wait for the dataTables
+    // right now its done with a timer.
+    initBioCheck();
+
     /* TODO in the future possibly add options
      * options might move the results report above the Preview button
      * options might treat all profiles as Pre1700 if the Require Reliable
@@ -74,6 +81,32 @@ shouldInitializeFeature("bioCheck").then((result) => {
   }
 });
 
+// Initialize at interval
+function initAtInterval() {
+//console.log('initAtInterval');
+  if (dataTables.templates) {
+//console.log('got templates inside initAt interval');
+    theSourceRules.loadTemplates(dataTables.templates);
+    clearInterval(bioCheckInitIntervalId);
+  } else {
+    dataTablesLoad('wbeBioCheck');  // using an id of bioCheck gives a CORS error
+  }
+}
+
+export function initBioCheck() {
+//console.log('initBioCheck');
+
+  dataTablesLoad('wbeBioCheck');  // using an id of bioCheck gives a CORS error
+  if (dataTables.templates) {
+//console.log('got templates inside initBioCheck');
+    theSourceRules.loadTemplates(dataTables.templates);
+    clearInterval(bioCheckInitIntervalId);
+  } else {
+//console.log('no templates, wait an interval');
+    bioCheckInitIntervalId = setInterval(initAtInterval, 8);
+  }
+}
+
 // Check at an interval
 function checkBioAtInterval() {
   checkBio();
@@ -113,7 +146,7 @@ function checkBio() {
   let biography = new Biography(theSourceRules);
   biography.parse(
     bioString, thePerson.isPersonPre1500(), thePerson.isPersonPre1700(),
-    thePerson.mustBeOpen(), thePerson.isUndated(), false
+    thePerson.mustBeOpen(), thePerson.isUndated(), ""
   );
   // status true if appears sourced and no style issues, else false
   let bioStatus = biography.validate();
@@ -124,93 +157,17 @@ function checkBio() {
 function getReportLines(bioStatus, biography) {
   let profileReportLines = [];
   let profileStatus = "Profile appears to have sources";
-  if (biography.isMarkedUnsourced()) {
-    profileStatus = "Profile is marked unsourced";
-  } else {
-    if (!biography.hasSources()) {
-      profileStatus = "Profile may be unsourced";
-    }
+  if (!biography.hasSources()) {
+    profileStatus = "Profile may be unsourced";
   }
-  if (biography.hasStyleIssues()) {
-    profileStatus += " and has style issues";
-  } 
   profileReportLines.push(profileStatus);
-
-  if (biography.isEmpty()) {
-    profileStatus = "Profile is empty";
-    profileReportLines.push(profileStatus);
+  let messages = biography.getSectionMessages();
+  for (let i=0; i<messages.length; i++) {
+    profileReportLines.push(messages[i]);
   }
-  if (biography.isUndated()) {
-    profileStatus = "Profile has no dates";
-    profileReportLines.push(profileStatus);
-  }
-  if (biography.getMisplacedLineCount() > 0) {
-    profileStatus = "Profile has " + biography.getMisplacedLineCount();
-    if (biography.getMisplacedLineCount() === 1) {
-      profileStatus += " line";
-    } else {
-      profileStatus += " lines";
-    }
-    profileStatus += " between Sources and <references />";
-    profileReportLines.push(profileStatus);
-  }
-  if (biography.hasEndlessComment()) {
-    profileStatus = "Profile has comment with no end";
-    profileReportLines.push(profileStatus);
-  }
-  if (biography.hasRefWithoutEnd()) {
-    profileStatus = "Profile has inline <ref> with no ending </ref>";
-    profileReportLines.push(profileStatus);
-  }
-  if (biography.hasSpanWithoutEndingSpan()) {
-    profileStatus = "Profile has span with no ending span";
-    profileReportLines.push(profileStatus);
-  }
-  if (biography.isMissingBiographyHeading()) {
-    profileStatus = "Profile is missing Biography heading";
-    profileReportLines.push(profileStatus);
-  }
-  if (biography.hasMultipleBioHeadings()) {
-    profileStatus = "Profile has more than one Biography heading";
-    profileReportLines.push(profileStatus);
-  }
-  if (biography.hasHeadingWithNoLinesFollowing()) {
-    profileStatus = "Profile has empty  Biography section";
-    profileReportLines.push(profileStatus);
-  }
-  let sourcesHeading = [];
-  if (biography.isMissingSourcesHeading()) {
-    profileStatus = "Profile is missing Sources heading";
-    profileReportLines.push(profileStatus);
-  }
-  if (biography.hasMultipleSourceHeadings()) {
-    profileStatus = "Profile has more than one Sources heading";
-    profileReportLines.push(profileStatus);
-  }
-  if (biography.sourcesHeadingHasExtraEqual()) {
-    profileStatus = "Profile Sources heading has extra =";
-    profileReportLines.push(profileStatus);
-  }
-  if (biography.isMissingReferencesTag()) {
-    profileStatus = "Profile is missing <references />";
-    profileReportLines.push(profileStatus);
-  }
-  if (biography.hasMultipleReferencesTags()) {
-    profileStatus = "Profile has more than one <references />";
-    profileReportLines.push(profileStatus);
-  }
-  if (biography.hasRefAfterReferences()) {
-    profileStatus = "Profile has inline <ref> tag after <references >";
-    profileReportLines.push(profileStatus);
-  }
-  let acknowledgements = [];
-  if (biography.acknowledgementsHeadingHasExtraEqual()) {
-    profileStatus = "Profile Acknowledgements has extra =";
-    profileReportLines.push(profileStatus);
-  }
-  if (biography.hasAcknowledgementsBeforeSources()) {
-    profileStatus = "Profile has Acknowledgements before Sources heading";
-    profileReportLines.push(profileStatus);
+  messages = biography.getStyleMessages();
+  for (let i=0; i<messages.length; i++) {
+    profileReportLines.push(messages[i]);
   }
   return profileReportLines;
 }
@@ -293,7 +250,7 @@ function checkSources() {
     if (useAdvanced != 0) {
       biography.parse(
         sourcesStr, thePerson.isPersonPre1500(), thePerson.isPersonPre1700(),
-        thePerson.mustBeOpen(), thePerson.isUndated(), false);
+        thePerson.mustBeOpen(), thePerson.isUndated(), "");
         let isValid = biography.validate();
         hasSources = biography.hasSources();
         hasStyleIssues = biography.hasStyleIssues();
