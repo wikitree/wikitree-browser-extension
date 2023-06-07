@@ -1,5 +1,5 @@
 #editToolbarExt {
-  display: inline-block;
+  display: inline-block!important;
   width: 100%;
 }
 
