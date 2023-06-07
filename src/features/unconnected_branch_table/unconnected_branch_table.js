@@ -51,42 +51,23 @@ function removeShakingTree() {
   $("#shakingTree").remove();
 }
 
-function sortLocation(aText, bText, sortOrder) {
-  if (sortOrder % 2 === 1) {
-    aText = aText.split(", ").reverse().join(", ");
-    bText = bText.split(", ").reverse().join(", ");
+function sortLocation(a, b, direction) {
+  if (!a && !b) return 0; // both a and b are empty
+  if (!a) return 1; // only a is empty, so b comes first
+  if (!b) return -1; // only b is empty, so a comes first
+
+  const aParts = a.split(", ");
+  const bParts = b.split(", ");
+
+  for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
+    const comparison = aParts[i].localeCompare(bParts[i]);
+    if (comparison !== 0) {
+      return comparison * direction;
+    }
   }
 
-  if (sortOrder >= 2) {
-    [aText, bText] = [bText, aText];
-  }
-
-  // Check if the locations are empty after sorting order is determined
-  const aEmpty = !aText.trim();
-  const bEmpty = !bText.trim();
-
-  // If only one is empty, sort that one lower regardless of sort order
-  if (aEmpty && !bEmpty) {
-    return 1;
-  } else if (!aEmpty && bEmpty) {
-    return -1;
-  }
-
-  // If both are empty or both are not empty, proceed to compare them
-  return aText.localeCompare(bText, undefined, {
-    numeric: true,
-    sensitivity: "base",
-  });
-}
-
-let locationSortOrder = {};
-
-function getLocationSortOrder(key) {
-  if (!locationSortOrder.hasOwnProperty(key)) {
-    locationSortOrder[key] = 0;
-  }
-  locationSortOrder[key] = (locationSortOrder[key] + 1) % 4; // cycles through 0, 1, 2, 3
-  return locationSortOrder[key];
+  // If a and b have the same prefix but different lengths
+  return (aParts.length - bParts.length) * direction; // longer comes first if direction is 1, shorter if -1
 }
 
 function makeTableSortable(table) {
@@ -115,6 +96,22 @@ function makeTableSortable(table) {
       ),
   };
 
+  const updateLocationDisplayOrder = (locationIndex, isCountryFirst) => {
+    const rows = Array.from(table.rows).slice(1);
+    rows.forEach((row, rowIndex) => {
+      let locationParts;
+
+      if (locationIndex === birthLocationIndex) {
+        locationParts = originalData.birthLocations[rowIndex].split(", ");
+      } else {
+        locationParts = originalData.deathLocations[rowIndex].split(", ");
+      }
+
+      if (isCountryFirst) locationParts = locationParts.reverse();
+      row.cells[locationIndex].innerText = locationParts.join(", ");
+    });
+  };
+
   thElements.forEach((th, i) => {
     th.addEventListener("click", () => {
       // Increase click count and change sort direction on every two clicks
@@ -123,23 +120,14 @@ function makeTableSortable(table) {
         sortDirections[i] = -sortDirections[i];
       }
 
+      const isCountryFirst = clickCounts[i] >= 2;
+
+      // Update display order of both Birth and Death location columns
+      [birthLocationIndex, deathLocationIndex].forEach((locationIndex) => {
+        updateLocationDisplayOrder(locationIndex, isCountryFirst);
+      });
+
       const rows = Array.from(table.rows).slice(1);
-
-      if (i === birthLocationIndex || i === deathLocationIndex) {
-        rows.forEach((row, rowIndex) => {
-          const isCountryFirst = clickCounts[i] >= 2;
-          let locationParts;
-
-          if (i === birthLocationIndex) {
-            locationParts = originalData.birthLocations[rowIndex].split(", ");
-          } else {
-            locationParts = originalData.deathLocations[rowIndex].split(", ");
-          }
-
-          if (isCountryFirst) locationParts = locationParts.reverse();
-          row.cells[i].innerText = locationParts.join(", ");
-        });
-      }
 
       rows.sort((rowA, rowB) => {
         let aText = rowA.cells[i].innerText || rowA.cells[i].textContent;
