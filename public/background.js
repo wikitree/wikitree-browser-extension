@@ -1,11 +1,17 @@
 async function executeScript(tabId, script, callback) {
-  chrome.scripting.executeScript(
-    {
-      target: { tabId: tabId },
-      files: [script],
-    },
-    callback
-  );
+  if (chrome?.scripting?.executeScript) {
+    // this requires the "scripting" permission in the manifest
+    chrome.scripting.executeScript(
+      {
+        target: { tabId: tabId },
+        files: [script],
+      },
+      callback
+    );
+  } else if (chrome?.tabs?.executeScript) {
+    // fallback if chrome.scripting is not supported/permitted
+    chrome.tabs.executeScript(tabId, { file: script });
+  }
 }
 
 function reloadContentScripts() {
