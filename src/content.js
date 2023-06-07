@@ -74,7 +74,7 @@ import "./features/what_links_here/what_links_here";
 import "./features/debugProfileClasses/debugProfileClasses";
 // end debugging section */
 
-import "./core/editToolbar";
+import "./core/editToolbar/editToolbar";
 
 //createTopMenu();
 

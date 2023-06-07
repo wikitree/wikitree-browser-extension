@@ -8,8 +8,8 @@ import editToolbarCategoryOptions from "./editToolbarCategoryOptions";
 import editToolbarTemplateOptions from "./editToolbarTemplateOptions";
 import editToolbarGenericOptions from "./editToolbarGenericOptions";
 
-import { isCategoryEdit, isProfileEdit, isSpaceEdit, isTemplateEdit, isWikiEdit } from "./pageType";
-import { getEnabledStateForAllFeatures } from "./options/options_storage";
+import { isCategoryEdit, isProfileEdit, isSpaceEdit, isTemplateEdit, isWikiEdit } from "../pageType";
+import { getEnabledStateForAllFeatures } from "../options/options_storage";
 
 let editToolbarOptions = [];
 
