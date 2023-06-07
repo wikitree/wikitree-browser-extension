@@ -1,12 +1,54 @@
 /* Template:Green */
-/*
 span[style="color:#006800"] {
-  color: #98fb98 !important;
-}*/
+  color: #006800 !important;
+}
 
 /* Template:Red */
-/*
 span[style="color:#b60000"] {
-  color: #ff7a7a !important;
+  color: #b60000 !important;
 }
-*/
+
+/* Blue */
+span[style="color:#0000ff"] {
+  color: #0000ff !important;
+}
+
+/* Brown */
+span[style="color:#cd853f"] {
+  color: #cd853f !important;
+}
+
+/* Grey */
+span[style="color:#C0C0C0"] {
+  color: #c0c0c0 !important;
+}
+
+/* Lime Green */
+span[style="color:#66cd00"] {
+  color: #66cd00 !important;
+}
+
+/* Orange */
+span[style="color:#ff7f24"] {
+  color: #ff7f24 !important;
+}
+
+/* Light Yellow Background */
+span[style="background-color:#eeffaa"] {
+  background-color: #eeffaa !important;
+}
+
+/* Yellow */
+span[style="color:#eead0e"] {
+  color: #eead0e !important;
+}
+
+/* Lighter Yellow Background */
+span[style="background-color:#ffee99"] {
+  background-color: #ffee99 !important;
+}
+
+/* Purple */
+span[style="color:#c07fee"] {
+  color: #c07fee !important;
+}

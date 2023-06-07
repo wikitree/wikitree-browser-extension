@@ -4,7 +4,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 shouldInitializeFeature("customStyle").then((result) => {
   if (result) {
     initCustomStyle();
-    //import("./custom_style.css");
+    import("./custom_style.css");
   }
 });
 
