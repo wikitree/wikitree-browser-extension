@@ -30,7 +30,7 @@ async function initCustomStyle() {
         //          options[key] += "px";
       }
       if (bits[0] == "date-headings") {
-        bits[0] = "span.HISTORY-DATE,span.THANKYOU-DATE";
+        bits[0] = "span.HISTORY-DATE:not(body.profile .HISTORY-DATE),span.THANKYOU-DATE";
       }
       if (bits[0] == "color1") {
         bits[0] = "ul.profile-tabs li,\n" + ".ten.columns div.SMALL[style='background-color:#e1f0b4;']";
@@ -73,6 +73,9 @@ async function initCustomStyle() {
       }
       if (bits[0] == "link2") {
         bits[0] = ".qa-q-item-tag-item a:link";
+      }
+      if (bits[0] == "scissorsText") {
+        bits[0] = "button.copyWidget";
       }
       if (bits[0] == "visitedLink") {
         bits[0] =

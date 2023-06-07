@@ -114,6 +114,12 @@ const myCustomStyle = {
           defaultValue: "#ffffff",
         },
         {
+          id: "scissorsText_color",
+          type: "color",
+          label: "Scissors text color",
+          defaultValue: "#8fc641",
+        },
+        {
           id: "visitedLink_color",
           type: "color",
           label: "Visited link color",
