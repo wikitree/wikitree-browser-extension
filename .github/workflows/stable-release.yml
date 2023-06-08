@@ -1,0 +1,30 @@
+name: "stable-release"
+
+on:
+  push:
+    branches:
+      - 1.6
+
+jobs:
+  latest-release:
+    name: "Latest Release"
+    runs-on: "ubuntu-latest"
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: 16.x
+        cache: 'npm'
+    - run: npm ci
+    - run: npm run zip
+    - run: npm run zip-firefox
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        prerelease: true
+        files: |
+          wikitree-browser-extension.zip
+          wikitree-firefox-extension.zip
+        automatic_release_tag: "stable"
