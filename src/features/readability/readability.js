@@ -520,7 +520,7 @@ async function initReadability() {
     // this function will toggle reading mode on/off in the feature options
     let setToggleValue = async function (value) {
       try {
-        await chrome.storage.sync.get("readability_options").then(async (result) => {
+        (chrome ?? browser)?.storage?.sync?.get("readability_options", async function (result) {
           if (result) {
             let options = (result.readability_options = result.readability_options || {});
             options.readingMode_toggle = value;
