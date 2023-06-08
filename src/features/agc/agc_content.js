@@ -29,6 +29,9 @@ Created By: Rob Pavey (Pavey-429)
 import { WBE } from "../../core/common";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
+const undoImageURL = chrome.runtime.getURL("images/agc_undo.png");
+const agcImageURL = chrome.runtime.getURL("images/agc.png");
+
 // file level variables
 var agcButton = undefined;
 var isBioEdited = false;
@@ -222,9 +225,9 @@ function getParentsFromDocument(document, parents) {
 async function updateButton() {
   if (agcButton != undefined) {
     if (isBioEdited) {
-      agcButton.src = chrome.runtime.getURL("images/agc_undo.png");
+      agcButton.src = undoImageURL;
     } else {
-      agcButton.src = chrome.runtime.getURL("images/agc.png");
+      agcButton.src = agcImageURL;
     }
   }
 }
@@ -502,7 +505,7 @@ function initAgc() {
 
     agcButton = document.createElement("img");
     agcButton.className = "mw-toolbar-editbutton";
-    agcButton.src = chrome.runtime.getURL("images/agc.png");
+    agcButton.src = agcImageURL;
     agcButton.border = "0";
     agcButton.alt = "Ancestry GEDCOM Cleanup";
     agcButton.title = "Ancestry GEDCOM Cleanup";

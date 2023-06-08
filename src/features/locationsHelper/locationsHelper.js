@@ -4,16 +4,13 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { extractRelatives, familyArray, getRelatives } from "../../core/common";
+import { isSpaceEdit, isNewSpace } from "../../core/pageType";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 shouldInitializeFeature("locationsHelper").then((result) => {
-  if (
-    result &&
-    ($("body.page-Special_EditPerson").length ||
-      $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length)
-  ) {
+  if (result) {
     import("./locationsHelper.css");
-    $("#mBirthLocation,#mDeathLocation").on("focus", function () {
+    $("#mBirthLocation,#mDeathLocation,#mLocation").on("focus", function () {
       if (!window.bdLocations) {
         locationsHelper();
       }
@@ -63,21 +60,23 @@ async function locationsHelper() {
   let theID;
   if ($("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
     theID = $("a.pureCssMenui0 span.person").text();
-  } else {
+  } else if (!(isSpaceEdit || isNewSpace)) {
     theID = $("a.pureCssMenui:Contains(Edit)").attr("href").split("u=")[1];
   }
-  getRelatives(theID, undefined, "WBE_locationsHelper").then((result) => {
-    const thisFamily = familyArray(result);
-    window.bdLocations = [];
-    thisFamily.forEach(function (aPe) {
-      if (aPe.BirthLocation) {
-        window.bdLocations.push(aPe.BirthLocation);
-      }
-      if (aPe.DeathLocation) {
-        window.bdLocations.push(aPe.DeathLocation);
-      }
+  if (theID) {
+    getRelatives(theID, undefined, "WBE_locationsHelper").then((result) => {
+      const thisFamily = familyArray(result);
+      window.bdLocations = [];
+      thisFamily.forEach(function (aPe) {
+        if (aPe.BirthLocation) {
+          window.bdLocations.push(aPe.BirthLocation);
+        }
+        if (aPe.DeathLocation) {
+          window.bdLocations.push(aPe.DeathLocation);
+        }
+      });
     });
-  });
+  }
 
   const observer2 = new MutationObserver(function (mutations_list) {
     mutations_list.forEach(function (mutation) {
@@ -94,10 +93,14 @@ async function locationsHelper() {
           if (activeEl.name == "mMarriageLocation") {
             whichLocation = "Marriage";
           }
+          if (activeEl.id == "mLocation") {
+            whichLocation = "Location";
+          }
           let dText = added_node.textContent;
           let currentBirthYearMatch = null;
           let currentDeathYearMatch = null;
           let currentMarriageYearMatch = null;
+          let locationYearMatch = null;
           if ($("#mBirthDate").length) {
             currentBirthYearMatch = $("#mBirthDate")
               .val()
@@ -113,6 +116,12 @@ async function locationsHelper() {
               .val()
               .match(/[0-9]{3,4}/);
           }
+          if ($("#mStartDate").length) {
+            locationYearMatch = $("#mStartDate")
+              .val()
+              .match(/[0-9]{3,4}/);
+          }
+
           let startYear = "";
           let endYear = "";
           let goodDate = false;
@@ -121,7 +130,6 @@ async function locationsHelper() {
           const yearsMatch = dText.match(/\([^A-z]*[0-9]{3,4}.*\)/g);
           if (yearsMatch != null) {
             const years = yearsMatch[0].replaceAll(/[()]/g, "").split("-");
-            //console.log(years);
             if (years[0].trim() != "") {
               startYear = years[0].trim();
             }
@@ -138,6 +146,8 @@ async function locationsHelper() {
             myYear = currentDeathYearMatch[0];
           } else if (currentMarriageYearMatch != null && whichLocation == "Marriage") {
             myYear = currentMarriageYearMatch[0];
+          } else if (locationYearMatch != null && whichLocation == "Location") {
+            myYear = locationYearMatch[0];
           }
           if (myYear != "") {
             if (startYear == "" && parseInt(myYear) < parseInt(endYear)) {
@@ -150,15 +160,17 @@ async function locationsHelper() {
           } else {
             goodDate = true;
           }
-          window.bdLocations.forEach(function (aLoc) {
-            dText = dText.split("(")[0].trim();
-            if (similarity(aLoc, dText) > 0.8) {
-              familyLoc = true;
-            }
-            if (similarity(aLoc, dText) > 0.95) {
-              familyLoc2 = true;
-            }
-          });
+          if (window.bdLocations) {
+            window.bdLocations.forEach(function (aLoc) {
+              dText = dText.split("(")[0].trim();
+              if (similarity(aLoc, dText) > 0.8) {
+                familyLoc = true;
+              }
+              if (similarity(aLoc, dText) > 0.95) {
+                familyLoc2 = true;
+              }
+            });
+          }
           const theContainer = $(added_node).closest(".autocomplete-suggestion-container");
           if (goodDate == true) {
             theContainer.addClass("rightPeriod");

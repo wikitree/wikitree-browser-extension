@@ -43,9 +43,15 @@ shouldInitializeFeature("clipboardAndNotes").then((result) => {
       }
     }
 
-    $("#mBioWithoutSources,#mSources,#wpTextbox1,#wpSummary,#privateMessage-comments").on("mouseup", function () {
+    $("#mSources,#wpTextbox1,#wpSummary,#privateMessage-comments").on("mouseup", function () {
       window.activeTextarea = document.activeElement.id;
     });
+
+    setTimeout(function () {
+      $("#mBioWithoutSources").on("mouseup", function () {
+        window.activeTextarea = document.activeElement.id;
+      });
+    }, 1500);
   }
 });
 
