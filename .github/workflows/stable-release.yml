@@ -23,8 +23,6 @@ jobs:
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        prerelease: true
-        files: |
-          wikitree-browser-extension.zip
-          wikitree-firefox-extension.zip
+        prerelease: false
+        files: wbe-*-stable.zip
         automatic_release_tag: "stable"
