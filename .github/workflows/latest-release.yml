@@ -19,9 +19,12 @@ jobs:
         cache: 'npm'
     - run: npm ci
     - run: npm run zip
+    - run: npm run zip-firefox
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         prerelease: true
-        files: wikitree-browser-extension.zip
+        files: |
+          wikitree-browser-extension.zip
+          wikitree-firefox-extension.zip
         automatic_release_tag: "latest"
