@@ -121,7 +121,6 @@ function autoBioCheck(sourcesStr) {
   let birthDate = document.getElementById("mBirthDate").value;
   let deathDate = document.getElementById("mDeathDate").value;
   thePerson.initWithDates(birthDate, deathDate);
-  let theSourceRules = new (SourceRules);
   let biography = new Biography(theSourceRules);
   biography.parse(
     sourcesStr,

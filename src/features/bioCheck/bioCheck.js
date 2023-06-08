@@ -9,13 +9,11 @@ import { Biography } from "./Biography.js";
 import { PersonDate } from "./PersonDate.js";
 
 var checkSaveIntervalId = 0;
-var bioCheckInitIntervalId = 0;
 
 shouldInitializeFeature("bioCheck").then((result) => {
   if (result) {
 
-    // TODO figure out how to initialize and (a)wait for the dataTables
-    // right now its done with a timer.
+    // initialize data tables
     initBioCheck();
 
     /* TODO in the future possibly add options
@@ -81,29 +79,11 @@ shouldInitializeFeature("bioCheck").then((result) => {
   }
 });
 
-// Initialize at interval
-function initAtInterval() {
-//console.log('initAtInterval');
-  if (dataTables.templates) {
-//console.log('got templates inside initAt interval');
-    theSourceRules.loadTemplates(dataTables.templates);
-    clearInterval(bioCheckInitIntervalId);
-  } else {
-    dataTablesLoad('wbeBioCheck');  // using an id of bioCheck gives a CORS error
-  }
-}
+export async function initBioCheck() {
 
-export function initBioCheck() {
-//console.log('initBioCheck');
-
-  dataTablesLoad('wbeBioCheck');  // using an id of bioCheck gives a CORS error
+  await dataTablesLoad('wbeBioCheck');  // using an id of bioCheck gives a CORS error
   if (dataTables.templates) {
-//console.log('got templates inside initBioCheck');
     theSourceRules.loadTemplates(dataTables.templates);
-    clearInterval(bioCheckInitIntervalId);
-  } else {
-//console.log('no templates, wait an interval');
-    bioCheckInitIntervalId = setInterval(initAtInterval, 8);
   }
 }
 
