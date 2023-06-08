@@ -66,11 +66,11 @@ export const dataTablesLoad = (callerID) => {
   if (dataTables.dataVersion) {
     return Promise.resolve();
   } else {
-    return readLocalStorage("alltemplates").then((a) => {
-      if (a.alltemplates && a.alltemplates.version) {
+    return readLocalStorage("alltemplates").then((json) => {
+      if (json && json.version) {
         // Is in storage
-        const d = new Date(a.alltemplates.version);
-        processdata(a.alltemplates, d, "Storage");
+        const d = new Date(json.version);
+        processdata(json, d, "Storage");
       } else {
         // Not in storage
         dataTables.dataVersion = new Date("2000-01-01T00:00:00+01:00");
@@ -81,23 +81,28 @@ export const dataTablesLoad = (callerID) => {
         .then((jsonData) => {
           const d = new Date(jsonData.version);
           if (d.getTime() > dataTables.dataVersion.getTime()) {
+            //if (d.getTime() > dataTables.dataVersion) {
             // Extension definition is newer
-            processdata(jsonData, d, "Storage");
+            processdata(jsonData, d, "Extension");
             chrome.storage.local.set({ alltemplates: jsonData });
           }
           if (dataTables.dataVersion.getTime() < new Date().getTime() - 6 * 3600 * 1000) {
+            //if (dataTables.dataVersion < new Date().getTime() - 6 * 3600 * 1000) {
             // Loading of template definition From Web
             return fetch(`https://plus.wikitree.com/chrome/templatesExp.json?appid=${callerID}`)
               .then((resp) => resp.json())
               .then((jsonData) => {
                 const d = new Date(jsonData.version);
                 if (d.getTime() > dataTables.dataVersion.getTime()) {
+                  //if (d.getTime() > dataTables.dataVersion) {The above is not working for Kay.
                   // Web definition is newer
                   processdata(jsonData, d, "Web");
                   chrome.storage.local.set({ alltemplates: jsonData });
+                  /*
                 } else {
                   dataTables.dataVersion = new Date().getTime();
                   chrome.storage.local.set({ alltemplates: jsonData });
+*/
                 }
               });
           } else {
