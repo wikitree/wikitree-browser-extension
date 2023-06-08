@@ -4,7 +4,7 @@
   "version": "1.6.1",
   "manifest_version": 3,
   "options_page": "options.html",
-  "permissions": ["storage", "scripting"],
+  "permissions": ["storage"],
   "host_permissions": ["https://www.wikitree.com/*"],
   "content_scripts": [
     {

@@ -12,8 +12,7 @@
     "https://api.wikitree.com/*",
     "https://plus.wikitree.com/*",
     "https://wikitreebee.com/*",
-    "storage",
-    "scripting"
+    "storage"
   ],
   "content_scripts": [
     {
