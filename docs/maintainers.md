@@ -74,11 +74,17 @@ First, pull the latest changes to the `development` branch.
 
 Update the version number in [manifest-chrome.json](/src/manifest/manifest-chrome.json) by one. For example, change "1.0.0.12" to "1.0.0.13". You will not be able to update the extension in the Chrome Store if the version number hasn't increased.
 
-To build the extension use:
+All zipped extension files should be automatically built when merging into the stable or development branches. They are available under the [latest releases](https://github.com/wikitree/wikitree-browser-extension/releases).
+
+If you need to manually build the extension use:
 
 `npm run zip`
 
-This should create a zip file named `wikitree-browser-extension.zip`.
+This should create a zip file named `wbe-chrome-preview.zip`.
+
+`npm run zip-firefox`
+
+This should create a zip file named `wbe-firefox-preview.zip`.
 
 ### Updating the Extension in the CWS
 

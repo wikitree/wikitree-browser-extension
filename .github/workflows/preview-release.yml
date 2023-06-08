@@ -1,4 +1,4 @@
-name: "latest-release"
+name: "preview-release"
 
 on:
   push:
@@ -24,7 +24,5 @@ jobs:
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         prerelease: true
-        files: |
-          wikitree-browser-extension.zip
-          wikitree-firefox-extension.zip
-        automatic_release_tag: "latest"
+        files: wbe-*-preview.zip
+        automatic_release_tag: "preview"
