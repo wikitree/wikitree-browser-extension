@@ -1,4 +1,4 @@
-name: "latest-release"
+name: "preview-release"
 
 on:
   push:
@@ -19,9 +19,10 @@ jobs:
         cache: 'npm'
     - run: npm ci
     - run: npm run zip
+    - run: npm run zip-firefox
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         prerelease: true
-        files: wikitree-browser-extension.zip
-        automatic_release_tag: "latest"
+        files: wbe-*-preview.zip
+        automatic_release_tag: "preview"

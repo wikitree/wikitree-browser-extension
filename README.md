@@ -1,14 +1,18 @@
 # WikiTree Browser Extension
 
 [![Build and test](https://github.com/wikitree/wikitree-browser-extension/actions/workflows/test.yml/badge.svg)](https://github.com/wikitree/wikitree-browser-extension/actions/workflows/test.yml)
-[![Build and test](https://img.shields.io/chrome-web-store/v/ijipjpbjobecdgkkjdfpemcidfdmnkid?logo=Google%20Chrome&logoColor=%23aaa)](https://chrome.google.com/webstore/detail/wikitree-browser-extensio/ijipjpbjobecdgkkjdfpemcidfdmnkid)
+[![preview-release](https://img.shields.io/chrome-web-store/v/ijipjpbjobecdgkkjdfpemcidfdmnkid?logo=Google%20Chrome&logoColor=%23aaa)](https://chrome.google.com/webstore/detail/wikitree-browser-extensio/ijipjpbjobecdgkkjdfpemcidfdmnkid)
 [![stable-release](https://img.shields.io/chrome-web-store/v/ncjafpiokcjepnnlmgdaphkkjehapbln?logo=Google%20Chrome&logoColor=%23aaa)](https://chrome.google.com/webstore/detail/wikitree-browser-extensio/ncjafpiokcjepnnlmgdaphkkjehapbln)
 
 ## Installation for testers
 
 To test the extension you can:
 
-- download the latest [wikitree-browser-extension.zip](https://github.com/wikitree/wikitree-browser-extension/releases/download/latest/wikitree-browser-extension.zip),
+- download the latest:
+  - [wbe-chrome-preview.zip](https://github.com/wikitree/wikitree-browser-extension/releases/download/preview/wbe-chrome-preview.zip)
+  - [wbe-firefox-preview.zip](https://github.com/wikitree/wikitree-browser-extension/releases/download/preview/wbe-firefox-preview.zip)
+  - [wbe-chrome-stable.zip](https://github.com/wikitree/wikitree-browser-extension/releases/download/stable/wbe-chrome-stable.zip)
+  - [wbe-firefox-stable.zip](https://github.com/wikitree/wikitree-browser-extension/releases/download/stable/wbe-firefox-stable.zip)
 - unpack it somewhere on your computer,
 - Go to [chrome://extensions](chrome://extensions),
 - Make sure you have _Developer mode_ turned on (top right corner),
