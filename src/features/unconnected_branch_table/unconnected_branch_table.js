@@ -51,25 +51,41 @@ function removeShakingTree() {
   $("#shakingTree").remove();
 }
 
-function sortLocation(a, b, direction, reversed) {
-  const aAttr = reversed ? a.getAttribute("data-birth-location-reversed") : a.getAttribute("data-birth-location");
-  const bAttr = reversed ? b.getAttribute("data-birth-location-reversed") : b.getAttribute("data-birth-location");
+function sortLocation(n, reverse = false) {
+  let table = document.querySelector("#unconnectedBranchTable table");
+  let rows = Array.from(table.rows);
+  let headerRow = rows.shift();
 
-  if (!aAttr && !bAttr) return 0;
-  if (!aAttr) return 1;
-  if (!bAttr) return -1;
+  // Create an array of indices
+  let indices = rows.map((row, index) => index);
 
-  const aParts = aAttr.split(", ");
-  const bParts = bAttr.split(", ");
+  indices.sort((a, b) => {
+    let aText = rows[a].cells[n].getAttribute("data-birth-location");
+    let bText = rows[b].cells[n].getAttribute("data-birth-location");
 
-  for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
-    const comparison = aParts[i].localeCompare(bParts[i]);
-    if (comparison !== 0) {
-      return comparison * direction;
+    // Log the comparison here
+    console.log(`Comparing. aText: ${aText}, bText: ${bText}`);
+
+    if (!aText) aText = "";
+    if (!bText) bText = "";
+
+    // Use the localeCompare function to compare the strings. This function returns -1, 0 or 1
+    // which is exactly what the sort function expects as a return value
+    let comparison = aText.localeCompare(bText);
+
+    // If reverse is true, we multiply the comparison result by -1 to reverse the order
+    if (reverse) {
+      comparison *= -1;
     }
-  }
 
-  return (aParts.length - bParts.length) * direction;
+    return comparison;
+  });
+
+  // Now we remove all rows from the table and append them again in the sorted order
+  rows.forEach((row) => table.removeChild(row));
+  indices.forEach((index) => table.appendChild(rows[index]));
+
+  console.log(`Total switches: ${indices.length}`);
 }
 
 function makeTableSortable(table) {
@@ -81,10 +97,14 @@ function makeTableSortable(table) {
 
   thElements.forEach((th, i) => {
     th.addEventListener("click", () => {
+      console.log(`Clicked column: ${i}`);
       clickCounts[i]++;
       const direction = clickCounts[i] % 2 === 0 ? -1 : 1;
       const reverse = clickCounts[i] % 4 >= 2; // Reverse location on 3rd and 4th click
 
+      console.log(`Direction: ${direction}, Reverse: ${reverse}`);
+
+      // Sort rows
       const rows = Array.from(table.rows).slice(1);
       rows.sort((rowA, rowB) => {
         let a = rowA.cells[i];
@@ -93,14 +113,44 @@ function makeTableSortable(table) {
         let aText = a.innerText || a.textContent;
         let bText = b.innerText || b.textContent;
 
+        console.log(`aText: ${aText}, bText: ${bText}`);
+
         if (i === birthLocationIndex || i === deathLocationIndex) {
-          return sortLocation(a, b, direction, reverse);
+          const reversedAttr = `data-${i === birthLocationIndex ? "birth" : "death"}-location${
+            reverse ? "-reversed" : ""
+          }`;
+          return sortLocation(a, b, direction, reversedAttr);
         }
 
         return aText.localeCompare(bText) * direction;
       });
 
-      rows.forEach((row) => table.appendChild(row));
+      // Remove existing rows
+      for (let j = table.rows.length - 1; j > 0; j--) {
+        table.deleteRow(j);
+      }
+
+      // Add sorted rows back to table
+      rows.forEach((row) => table.appendChild(row.cloneNode(true)));
+
+      // Change table content on 3rd and 4th click for Birth and Death Locations
+      if (i === birthLocationIndex || i === deathLocationIndex) {
+        if (reverse) {
+          rows.forEach((row) => {
+            let cell = row.cells[i];
+            const reversedText = cell.getAttribute(
+              `data-${i === birthLocationIndex ? "birth" : "death"}-location-reversed`
+            );
+            cell.innerText = reversedText ? reversedText : cell.innerText;
+          });
+        } else {
+          rows.forEach((row) => {
+            let cell = row.cells[i];
+            const originalText = cell.getAttribute(`data-${i === birthLocationIndex ? "birth" : "death"}-location`);
+            cell.innerText = originalText ? originalText : cell.innerText;
+          });
+        }
+      }
     });
   });
 }
