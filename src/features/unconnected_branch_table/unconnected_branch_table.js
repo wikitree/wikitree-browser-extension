@@ -51,41 +51,25 @@ function removeShakingTree() {
   $("#shakingTree").remove();
 }
 
-function sortLocation(n, reverse = false) {
-  let table = document.querySelector("#unconnectedBranchTable table");
-  let rows = Array.from(table.rows);
-  let headerRow = rows.shift();
-
-  // Create an array of indices
-  let indices = rows.map((row, index) => index);
-
-  indices.sort((a, b) => {
-    let aText = rows[a].cells[n].getAttribute("data-birth-location");
-    let bText = rows[b].cells[n].getAttribute("data-birth-location");
-
-    // Log the comparison here
-    console.log(`Comparing. aText: ${aText}, bText: ${bText}`);
-
-    if (!aText) aText = "";
-    if (!bText) bText = "";
-
-    // Use the localeCompare function to compare the strings. This function returns -1, 0 or 1
-    // which is exactly what the sort function expects as a return value
-    let comparison = aText.localeCompare(bText);
-
-    // If reverse is true, we multiply the comparison result by -1 to reverse the order
-    if (reverse) {
-      comparison *= -1;
+function fillLocations(rows, order, index, reversed, birthLocationIndex, deathLocationIndex) {
+  return rows.map(function (row) {
+    if (index === birthLocationIndex || index === deathLocationIndex) {
+      let sorter = (index === birthLocationIndex ? "birth-location" : "death-location") + order;
+      let location = $(row).data(sorter);
+      if (location) {
+        return location
+          .split(", ")
+          .map((part) => part.trim())
+          .reverse()
+          .join(", ");
+      } else {
+        // handle case where location data is missing
+        return reversed ? "" : "ZZZZ";
+      }
+    } else {
+      return $(row).find("td").eq(index).text();
     }
-
-    return comparison;
   });
-
-  // Now we remove all rows from the table and append them again in the sorted order
-  rows.forEach((row) => table.removeChild(row));
-  indices.forEach((index) => table.appendChild(rows[index]));
-
-  console.log(`Total switches: ${indices.length}`);
 }
 
 function makeTableSortable(table) {
@@ -93,36 +77,59 @@ function makeTableSortable(table) {
   const birthLocationIndex = thElements.findIndex((th) => th.innerText === "Birth Location");
   const deathLocationIndex = thElements.findIndex((th) => th.innerText === "Death Location");
 
-  let clickCounts = Array(thElements.length).fill(0);
-
   thElements.forEach((th, i) => {
     th.addEventListener("click", () => {
-      console.log(`Clicked column: ${i}`);
-      clickCounts[i]++;
-      const direction = clickCounts[i] % 2 === 0 ? -1 : 1;
-      const reverse = clickCounts[i] % 4 >= 2; // Reverse location on 3rd and 4th click
+      let dataSort = th.getAttribute("data-sort");
+      let dataOrder = th.getAttribute("data-order");
+      let order;
+      let reversed = false;
 
-      console.log(`Direction: ${direction}, Reverse: ${reverse}`);
-
-      // Sort rows
-      const rows = Array.from(table.rows).slice(1);
-      rows.sort((rowA, rowB) => {
-        let a = rowA.cells[i];
-        let b = rowB.cells[i];
-
-        let aText = a.innerText || a.textContent;
-        let bText = b.innerText || b.textContent;
-
-        console.log(`aText: ${aText}, bText: ${bText}`);
-
-        if (i === birthLocationIndex || i === deathLocationIndex) {
-          const reversedAttr = `data-${i === birthLocationIndex ? "birth" : "death"}-location${
-            reverse ? "-reversed" : ""
-          }`;
-          return sortLocation(a, b, direction, reversedAttr);
+      if (i === birthLocationIndex || i === deathLocationIndex) {
+        switch (dataOrder) {
+          case "":
+            dataOrder = "-reversed";
+            order = dataOrder;
+            break;
+          case "-reversed":
+            dataOrder = "";
+            order = dataOrder;
+            break;
+          default:
+            dataOrder = "";
+            order = dataOrder;
+            break;
         }
 
-        return aText.localeCompare(bText) * direction;
+        th.setAttribute("data-order", dataOrder);
+      }
+
+      switch (dataSort) {
+        case "asc":
+          dataSort = "desc";
+          reversed = true;
+          break;
+        case "desc":
+          dataSort = "asc";
+          break;
+        default:
+          dataSort = "desc";
+          reversed = true;
+          break;
+      }
+
+      th.setAttribute("data-sort", dataSort);
+
+      // Sort rows
+      let rows = Array.from(table.rows).slice(1);
+
+      if (i === birthLocationIndex || i === deathLocationIndex) {
+        rows = fillLocations(rows, order, i, reversed, birthLocationIndex, deathLocationIndex);
+      }
+
+      rows.sort((rowA, rowB) => {
+        let aText = rowA.cells[i].innerText || rowA.cells[i].textContent;
+        let bText = rowB.cells[i].innerText || rowB.cells[i].textContent;
+        return reversed ? bText.localeCompare(aText) : aText.localeCompare(bText);
       });
 
       // Remove existing rows
@@ -131,26 +138,7 @@ function makeTableSortable(table) {
       }
 
       // Add sorted rows back to table
-      rows.forEach((row) => table.appendChild(row.cloneNode(true)));
-
-      // Change table content on 3rd and 4th click for Birth and Death Locations
-      if (i === birthLocationIndex || i === deathLocationIndex) {
-        if (reverse) {
-          rows.forEach((row) => {
-            let cell = row.cells[i];
-            const reversedText = cell.getAttribute(
-              `data-${i === birthLocationIndex ? "birth" : "death"}-location-reversed`
-            );
-            cell.innerText = reversedText ? reversedText : cell.innerText;
-          });
-        } else {
-          rows.forEach((row) => {
-            let cell = row.cells[i];
-            const originalText = cell.getAttribute(`data-${i === birthLocationIndex ? "birth" : "death"}-location`);
-            cell.innerText = originalText ? originalText : cell.innerText;
-          });
-        }
-      }
+      rows.forEach((row) => table.appendChild(row));
     });
   });
 }
@@ -168,8 +156,8 @@ async function unconnectedBranch() {
   let peopleArray = Object.values(data[0].people);
   const theTable = $(
     "<div id='unconnectedBranchTable'><table><caption><w>↔</w><x>x</x>Unconnected branch</caption>" +
-      "<thead><tr><th></th><th id='firstNamesTH'>First Name(s)</th><th id='lastNameAtBirthTH' title='Last Name at Birth'>LNAB</th><th title='Current Last Name'  id='lastNameAtCurrentTH' >CLN</th><th  id='birthDateTH' class='date'>Birth Date</th><th   id='birthLocationTH'>Birth Location</th>" +
-      "<th class='date' id='deathDateTH'>Death Date</th><th id='deathLocationTH'>Death Location</th></tr></thead><tbody></tbody></table></div>"
+      "<thead><tr><th></th><th id='firstNamesTH'>First Name(s)</th><th id='lastNameAtBirthTH' title='Last Name at Birth'>LNAB</th><th title='Current Last Name'  id='lastNameAtCurrentTH' >CLN</th><th  id='birthDateTH' class='date'>Birth Date</th><th   id='birthLocationTH' data-order='b2s' data-sort='desc'>Birth Location</th>" +
+      "<th class='date' id='deathDateTH'  data-order='b2s' data-sort='desc'>Death Date</th><th id='deathLocationTH'>Death Location</th></tr></thead><tbody></tbody></table></div>"
   );
   const theBody = theTable.find("tbody");
   peopleArray.forEach((person) => {
