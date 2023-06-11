@@ -1,6 +1,6 @@
 import $ from "jquery";
-import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
-import { createProfileSubmenuLink, isOK, htmlEntities } from "../../core/common";
+import { checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { createProfileSubmenuLink, isOK } from "../../core/common";
 import { getPeople } from "../dna_table/dna_table";
 import { showFamilySheet } from "../familyGroup/familyGroup";
 import { assignPersonNames } from "../auto_bio/auto_bio";
@@ -51,21 +51,85 @@ function removeShakingTree() {
   $("#shakingTree").remove();
 }
 
-function fillLocations(rows, order, i, reversed, columnIndex, reverseIndex) {
+function fillLocations(rows, order) {
   rows.forEach(function (row) {
-    let currentCell = row.cells[i];
-
-    if (i === columnIndex) {
-      let newContent = row.getAttribute("data-birth-location" + order);
-      currentCell.innerText = newContent || "";
-    }
-
-    if (i === reverseIndex) {
-      let currentOrder = reversed ? "" : "-reversed";
-      let newContent = row.getAttribute("data-death-location" + currentOrder);
-      currentCell.innerText = newContent || "";
-    }
+    $(row)
+      .find("td.birthLocation")
+      .text($(row).attr("data-birth-location" + order));
+    $(row)
+      .find("td.deathLocation")
+      .text($(row).attr("data-death-location" + order));
   });
+}
+
+function multiSort(rows, sortOrders, isDesc, table) {
+  let newRows = [];
+  let sameOrder = [];
+  let lastOrderText = null;
+
+  // Loop through the rows.
+  rows.forEach(function (row) {
+    // Get the text from the cell with the class of the primary sort order
+    const orderText = $(row)
+      .find("td." + sortOrders[0])
+      .text();
+
+    if (orderText !== lastOrderText) {
+      if (sameOrder.length > 0) {
+        // Sort the rows that are equal in the primary sort by the remaining sort orders
+        sameOrder.sort(function (rowA, rowB) {
+          for (let i = 1; i < sortOrders.length; i++) {
+            const aText = $(rowA)
+              .find("td." + sortOrders[i])
+              .text();
+            const bText = $(rowB)
+              .find("td." + sortOrders[i])
+              .text();
+            const comparison = isDesc ? bText.localeCompare(aText) : aText.localeCompare(bText);
+            if (comparison !== 0) {
+              return comparison;
+            }
+          }
+          return 0;
+        });
+
+        newRows.push(...sameOrder);
+        sameOrder = [];
+      }
+
+      lastOrderText = orderText;
+    }
+
+    sameOrder.push(row);
+  });
+
+  if (sameOrder.length > 0) {
+    sameOrder.sort(function (rowA, rowB) {
+      for (let i = 1; i < sortOrders.length; i++) {
+        const aText = $(rowA)
+          .find("td." + sortOrders[i])
+          .text();
+        const bText = $(rowB)
+          .find("td." + sortOrders[i])
+          .text();
+        const comparison = isDesc ? bText.localeCompare(aText) : aText.localeCompare(bText);
+        if (comparison !== 0) {
+          return comparison;
+        }
+      }
+      return 0;
+    });
+
+    newRows.push(...sameOrder);
+  }
+
+  // Delete all rows
+  for (let j = table.rows.length - 1; j > 0; j--) {
+    table.deleteRow(j);
+  }
+
+  // Add the sorted rows to the table
+  newRows.forEach((row) => table.appendChild(row));
 }
 
 function makeTableSortable(table) {
@@ -74,38 +138,50 @@ function makeTableSortable(table) {
   const deathLocationIndex = thElements.findIndex((th) => th.innerText === "Death Location");
 
   thElements.forEach((th, i) => {
+    if (th.id) {
+      th.setAttribute("data-sort", "desc");
+    }
     th.addEventListener("click", () => {
       let dataSort = th.getAttribute("data-sort");
       let dataOrder = th.getAttribute("data-order");
-      let reversed = false;
-
-      if (dataSort === "desc") {
-        dataSort = "asc";
-        if (dataOrder === "b2s") {
-          dataOrder = "s2b";
-        }
-      } else if (dataSort === "asc") {
-        dataSort = "desc";
-        if (dataOrder === "s2b") {
-          dataOrder = "b2s";
-        }
-      }
-
-      reversed = dataSort === "desc";
-
-      th.setAttribute("data-sort", dataSort);
-      th.setAttribute("data-order", dataOrder);
-
-      let rows = Array.from(table.rows).slice(1);
 
       if (i === birthLocationIndex || i === deathLocationIndex) {
-        rows = fillLocations(rows, dataOrder, i, reversed, birthLocationIndex, deathLocationIndex);
+        if (dataSort === "desc" && dataOrder === "b2s") {
+          dataSort = "asc";
+          dataOrder = "s2b";
+        } else if (dataSort === "asc" && dataOrder === "s2b") {
+          dataSort = "desc";
+        } else if (dataSort === "desc" && dataOrder === "s2b") {
+          dataSort = "asc";
+          dataOrder = "b2s";
+        } else if (dataSort === "asc" && dataOrder === "b2s") {
+          dataSort = "desc";
+        }
+
+        th.setAttribute("data-sort", dataSort);
+        th.setAttribute("data-order", dataOrder);
+      } else {
+        if (dataSort === "desc") {
+          dataSort = "asc";
+        } else if (dataSort === "asc") {
+          dataSort = "desc";
+        }
+        th.setAttribute("data-sort", dataSort);
       }
 
+      let rows = Array.from(table.rows).slice(1);
+      let reversed = "";
+      if (dataOrder === "b2s") {
+        reversed = "-reversed";
+      }
+
+      let isDesc = dataSort === "desc";
+      fillLocations(rows, reversed);
+
       rows.sort((rowA, rowB) => {
-        let aText = rowA.cells[i].innerText || rowA.cells[i].textContent;
-        let bText = rowB.cells[i].innerText || rowB.cells[i].textContent;
-        return reversed ? bText.localeCompare(aText) : aText.localeCompare(bText);
+        let aText = $(rowA.cells[i]).attr("data-sort-date") || rowA.cells[i].innerText || rowA.cells[i].textContent;
+        let bText = $(rowB.cells[i]).attr("data-sort-date") || rowB.cells[i].innerText || rowB.cells[i].textContent;
+        return isDesc ? bText.localeCompare(aText) : aText.localeCompare(bText);
       });
 
       for (let j = table.rows.length - 1; j > 0; j--) {
@@ -113,6 +189,30 @@ function makeTableSortable(table) {
       }
 
       rows.forEach((row) => table.appendChild(row));
+
+      // Object of sort order classes
+      const sortOrderClasses = {
+        birthLocation: ["birthDate", "deathLocation"],
+        deathLocation: ["birthDate", "birthLocation"],
+        birthDate: ["birthLocation", "deathDate"],
+        deathDate: ["deathLocation", "birthDate"],
+        firstNames: ["lastNameAtBirth", "lastNameCurrent", "birthLocation"],
+        lastNameAtBirth: ["firstNames", "lastNameCurrent", "birthLocation"],
+        lastNameAtCurrent: ["firstNames", "lastNameAtBirth", "birthLocation"],
+      };
+
+      // If the clicked header was one of the sort order classes, do a secondary sort
+      const sortOrderClass = th.id.replace(/TH/, "");
+      if (sortOrderClasses[sortOrderClass]) {
+        multiSort(rows, [sortOrderClass].concat(sortOrderClasses[sortOrderClass]), isDesc, table);
+      }
+
+      // Loop through the rows. If the cell is empty, the sort will put it at the top. Move it to the bottom.
+      for (let j = table.rows.length - 1; j > 0; j--) {
+        if (table.rows[j].cells[i].innerText === "") {
+          table.appendChild(table.rows[j]);
+        }
+      }
     });
   });
 }
@@ -129,9 +229,9 @@ async function unconnectedBranch() {
   const data = window.unconnectedBranch;
   let peopleArray = Object.values(data[0].people);
   const theTable = $(
-    "<div id='unconnectedBranchTable'><table><caption><w>↔</w><x>x</x>Unconnected branch</caption>" +
-      "<thead><tr><th></th><th id='firstNamesTH'>First Name(s)</th><th id='lastNameAtBirthTH' title='Last Name at Birth'>LNAB</th><th title='Current Last Name'  id='lastNameAtCurrentTH' >CLN</th><th  id='birthDateTH' class='date'>Birth Date</th><th   id='birthLocationTH' data-order='b2s' data-sort='desc'>Birth Location</th>" +
-      "<th class='date' id='deathDateTH'  data-order='b2s' data-sort='desc'>Death Date</th><th id='deathLocationTH'>Death Location</th></tr></thead><tbody></tbody></table></div>"
+    "<div id='unconnectedBranchTable'><table><caption><w>↔</w><x>x</x>Unconnected Branch</caption>" +
+      "<thead><tr><th></th><th id='firstNamesTH'>First Name(s)</th><th id='lastNameAtBirthTH' title='Last Name at Birth'>LNAB</th><th title='Current Last Name'  id='lastNameCurrentTH' >CLN</th><th  id='birthDateTH' class='date'>Birth Date</th><th   id='birthLocationTH' data-order='b2s' data-sort='desc'>Birth Location</th>" +
+      "<th class='date' id='deathDateTH'>Death Date</th><th id='deathLocationTH' data-order='b2s' data-sort='desc'>Death Location</th></tr></thead><tbody></tbody></table></div>"
   );
   const theBody = theTable.find("tbody");
   peopleArray.forEach((person) => {
@@ -178,12 +278,14 @@ async function unconnectedBranch() {
     const theRow = $(
       `<tr data-gender="${gender}" data-birth-location="${birthLocation}" data-birth-location-reversed="${birthLocationReversed}" data-death-location="${deathLocation}" data-death-location-reversed='${deathLocationReversed}'>
       <td class='homeRow'></td>
-      <td class='firstNames'><a href="https://www.wikitree.com/wiki/${person.Name}" target="_blank">${person.PersonName.FirstNames}</a></td>
+      <td class='firstNames'><a href="https://www.wikitree.com/wiki/${person.Name}" target="_blank">${
+        person.PersonName.FirstNames
+      }</a></td>
       <td class='lastNameAtBirth'>${person.LastNameAtBirth}</td>
       <td class='lastNameCurrent'>${person.LastNameCurrent}</td>
-      <td class='birthDate'>${person.BirthDate}</td>
+      <td class='birthDate' data-sort-date='${person.BirthDate}'>${person.BirthDate.replace(/-00/g, "")}</td>
       <td class='birthLocation'>${birthLocation}</td>
-      <td class='deathDate'>${person.DeathDate}</td>
+      <td class='deathDate' data-sort-date='${person.DeathDate}'>${person.DeathDate.replace(/-00/g, "")}</td>
       <td class='deathLocation'>${deathLocation}</td>
       </tr>`
     );
@@ -222,8 +324,5 @@ async function unconnectedBranch() {
     $(this).slideUp("swing");
   });
   makeTableSortable(document.getElementById("unconnectedBranchTable").getElementsByTagName("table")[0]);
-
-  //  $("#birthLocationTH").trigger("click"); // simulate a click on the birthDate header to sort the table by birthDate
-
   removeShakingTree();
 }
