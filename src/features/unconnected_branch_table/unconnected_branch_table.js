@@ -51,23 +51,19 @@ function removeShakingTree() {
   $("#shakingTree").remove();
 }
 
-function fillLocations(rows, order, index, reversed, birthLocationIndex, deathLocationIndex) {
-  return rows.map(function (row) {
-    if (index === birthLocationIndex || index === deathLocationIndex) {
-      let sorter = (index === birthLocationIndex ? "birth-location" : "death-location") + order;
-      let location = $(row).data(sorter);
-      if (location) {
-        return location
-          .split(", ")
-          .map((part) => part.trim())
-          .reverse()
-          .join(", ");
-      } else {
-        // handle case where location data is missing
-        return reversed ? "" : "ZZZZ";
-      }
-    } else {
-      return $(row).find("td").eq(index).text();
+function fillLocations(rows, order, i, reversed, columnIndex, reverseIndex) {
+  rows.forEach(function (row) {
+    let currentCell = row.cells[i];
+
+    if (i === columnIndex) {
+      let newContent = row.getAttribute("data-birth-location" + order);
+      currentCell.innerText = newContent || "";
+    }
+
+    if (i === reverseIndex) {
+      let currentOrder = reversed ? "" : "-reversed";
+      let newContent = row.getAttribute("data-death-location" + currentOrder);
+      currentCell.innerText = newContent || "";
     }
   });
 }
@@ -81,49 +77,29 @@ function makeTableSortable(table) {
     th.addEventListener("click", () => {
       let dataSort = th.getAttribute("data-sort");
       let dataOrder = th.getAttribute("data-order");
-      let order;
       let reversed = false;
 
-      if (i === birthLocationIndex || i === deathLocationIndex) {
-        switch (dataOrder) {
-          case "":
-            dataOrder = "-reversed";
-            order = dataOrder;
-            break;
-          case "-reversed":
-            dataOrder = "";
-            order = dataOrder;
-            break;
-          default:
-            dataOrder = "";
-            order = dataOrder;
-            break;
+      if (dataSort === "desc") {
+        dataSort = "asc";
+        if (dataOrder === "b2s") {
+          dataOrder = "s2b";
         }
-
-        th.setAttribute("data-order", dataOrder);
+      } else if (dataSort === "asc") {
+        dataSort = "desc";
+        if (dataOrder === "s2b") {
+          dataOrder = "b2s";
+        }
       }
 
-      switch (dataSort) {
-        case "asc":
-          dataSort = "desc";
-          reversed = true;
-          break;
-        case "desc":
-          dataSort = "asc";
-          break;
-        default:
-          dataSort = "desc";
-          reversed = true;
-          break;
-      }
+      reversed = dataSort === "desc";
 
       th.setAttribute("data-sort", dataSort);
+      th.setAttribute("data-order", dataOrder);
 
-      // Sort rows
       let rows = Array.from(table.rows).slice(1);
 
       if (i === birthLocationIndex || i === deathLocationIndex) {
-        rows = fillLocations(rows, order, i, reversed, birthLocationIndex, deathLocationIndex);
+        rows = fillLocations(rows, dataOrder, i, reversed, birthLocationIndex, deathLocationIndex);
       }
 
       rows.sort((rowA, rowB) => {
@@ -132,12 +108,10 @@ function makeTableSortable(table) {
         return reversed ? bText.localeCompare(aText) : aText.localeCompare(bText);
       });
 
-      // Remove existing rows
       for (let j = table.rows.length - 1; j > 0; j--) {
         table.deleteRow(j);
       }
 
-      // Add sorted rows back to table
       rows.forEach((row) => table.appendChild(row));
     });
   });
