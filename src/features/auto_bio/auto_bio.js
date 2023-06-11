@@ -1300,7 +1300,10 @@ function buildSpouses(person) {
       });
       if (foundSpouse == false && thisSpouse) {
         let text = "";
-        const marriageDate = getYYYYMMDD(reference["Marriage Date"]) || "";
+        let marriageDate = "";
+        if (reference["Marriage Date"]) {
+          marriageDate = getYYYYMMDD(reference["Marriage Date"]);
+        }
         let marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, marriageDate)})`;
         text += person.PersonName.FirstName + marriageAge + " married " + thisSpouse;
         if (reference["Marriage Place"]) {
@@ -5786,7 +5789,7 @@ export function addOccupationCategories(feature = "autoBio") {
           }
         }
       }
-      if (occupationCategory) {
+      if (occupationCategory && !window.sectionsObject["StuffBeforeTheBio"].text.includes(occupationCategory)) {
         window.sectionsObject["StuffBeforeTheBio"].text.push(occupationCategory);
       }
     }
