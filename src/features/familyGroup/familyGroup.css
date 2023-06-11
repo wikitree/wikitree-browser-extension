@@ -46,3 +46,24 @@
 .peopleTable {
   text-align: left;
 }
+
+.familySheet tbody tr {
+  background-color: #efe;
+  border-left: 5px green solid;
+}
+
+.familySheet tbody tr.Male,
+.familySheet tbody tr[data-gender="Male"] {
+  background-color: #eef !important;
+  border-left: 5px blue solid !important;
+}
+
+.familySheet tbody tr.Female,
+.familySheet tbody tr[data-gender="Female"] {
+  background-color: #fee !important;
+  border-left: 5px pink solid !important;
+}
+
+.familySheet thead tr{
+  border:2px solid forestgreen;
+}
