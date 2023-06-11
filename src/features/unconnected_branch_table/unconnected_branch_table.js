@@ -224,7 +224,6 @@ async function unconnectedBranch() {
     const profileID = $("a.pureCssMenui0 span.person").text();
     const people = await getPeople(profileID, 0, 0, 0, 10, 0, "*", "WBE_unconnected_branch");
     window.unconnectedBranch = people;
-    console.log(people);
   }
   const data = window.unconnectedBranch;
   let peopleArray = Object.values(data[0].people);
@@ -257,7 +256,6 @@ async function unconnectedBranch() {
       }
     });
     assignPersonNames(person);
-    // console.log(JSON.parse(JSON.stringify(person)));
     const parentKeys = Object.keys(person.Parents);
     parentKeys.forEach((key) => {
       const parent = person.Parents[key];
@@ -275,6 +273,19 @@ async function unconnectedBranch() {
     const birthLocationReversed = birthLocation.split(", ").reverse().join(", ");
     const deathLocation = person.DeathLocation || "";
     const deathLocationReversed = deathLocation.split(", ").reverse().join(", ");
+
+    if (!person.LastNameAtBirth) {
+      if (person.Parents) {
+        if (person.Parents[person.Father]) {
+          person.LastNameAtBirth = person.Parents[person.Father].LastNameAtBirth;
+        } else if (person.Parents[person.Mother]) {
+          person.LastNameAtBirth = person.Parents[person.Mother].LastNameAtBirth;
+        }
+      } else {
+        person.LastNameAtBirth = "Private";
+      }
+    }
+
     const theRow = $(
       `<tr data-gender="${gender}" data-birth-location="${birthLocation}" data-birth-location-reversed="${birthLocationReversed}" data-death-location="${deathLocation}" data-death-location-reversed='${deathLocationReversed}'>
       <td class='homeRow'></td>
@@ -282,7 +293,7 @@ async function unconnectedBranch() {
         person.PersonName.FirstNames
       }</a></td>
       <td class='lastNameAtBirth'>${person.LastNameAtBirth}</td>
-      <td class='lastNameCurrent'>${person.LastNameCurrent}</td>
+      <td class='lastNameCurrent'>${person.LastNameCurrent || ""}</td>
       <td class='birthDate' data-sort-date='${person.BirthDate}'>${person.BirthDate.replace(/-00/g, "")}</td>
       <td class='birthLocation'>${birthLocation}</td>
       <td class='deathDate' data-sort-date='${person.DeathDate}'>${person.DeathDate.replace(/-00/g, "")}</td>
@@ -293,9 +304,6 @@ async function unconnectedBranch() {
     theRow.find(".homeRow").append(homeIconHTML);
     homeIconHTML.on("click", function (e) {
       const personID = $(this).data("id");
-      console.log(personID);
-      console.log("showFamilySheet");
-      console.log(e);
       showFamilySheet(e.target, personID);
     });
   });
