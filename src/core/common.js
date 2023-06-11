@@ -147,6 +147,8 @@ export function isOK(thing) {
     0,
     false,
     "false",
+    "NaN",
+    NaN,
   ];
   if (!excludeValues.includes(thing)) {
     if (isNumeric(thing)) {

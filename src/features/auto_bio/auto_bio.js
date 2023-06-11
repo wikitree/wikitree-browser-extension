@@ -1145,7 +1145,10 @@ function buildSpouses(person) {
       firstNameAndYear.push({ FirstName: spouse.PersonName.FirstName, Year: spouse.marriage_date.substring(4) });
       let spouseMarriageAge = "";
       if (window.profilePerson.BirthDate && isOK(spouse.marriage_date) && window.autoBioOptions.includeAgesAtMarriage) {
-        marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, spouse.marriage_date)})`;
+        let age = getAgeFromISODates(window.profilePerson.BirthDate, spouse.marriage_date);
+        if (isOK(age)) {
+          marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, spouse.marriage_date)})`;
+        }
       }
       if (spouse.BirthDate && isOK(spouse.marriage_date) && window.autoBioOptions.includeAgesAtMarriage) {
         spouseMarriageAge = ` (${getAgeFromISODates(spouse.BirthDate, spouse.marriage_date)})`;
@@ -1303,8 +1306,14 @@ function buildSpouses(person) {
         let marriageDate = "";
         if (reference["Marriage Date"]) {
           marriageDate = getYYYYMMDD(reference["Marriage Date"]);
+        } else if (reference["Marriage Year"]) {
+          marriageDate = reference["Marriage Year"].trim() + "-00-00";
         }
-        let marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, marriageDate)})`;
+        let age = getAgeFromISODates(window.profilePerson.BirthDate, marriageDate);
+        let marriageAge = "";
+        if (isOK(age)) {
+          marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, marriageDate)})`;
+        }
         text += person.PersonName.FirstName + marriageAge + " married " + thisSpouse;
         if (reference["Marriage Place"]) {
           text += " in " + reference["Marriage Place"];
