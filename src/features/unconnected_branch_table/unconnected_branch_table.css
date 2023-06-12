@@ -61,6 +61,9 @@
 
 #unconnectedBranchTable x {
   right: 0;
+  margin: 0;
+  padding: 0.2em;
+  font-size: 0.8em;
 }
 
 #unconnectedBranchTable thead {
@@ -73,33 +76,32 @@
 #unconnectedBranchTable th {
   padding: 0 0.3em;
 }
-.familySheet tbody tr,
+
 #unconnectedBranchTable tbody tr {
   background-color: #efe;
   border-left: 5px green solid;
 }
 
-.familySheet tbody tr.Male,
-.familySheet tbody tr[data-gender="Male"],
 #unconnectedBranchTable tbody tr[data-gender="Male"] {
   background-color: #eef !important;
   border-left: 5px blue solid !important;
 }
 
-.familySheet tbody tr.Female,
-.familySheet tbody tr[data-gender="Female"],
 #unconnectedBranchTable tbody tr[data-gender="Female"] {
   background-color: #fee !important;
   border-left: 5px pink solid !important;
 }
 
-.familySheet thead tr,
 #unconnectedBranchTable thead tr {
   border: 2px solid forestgreen;
 }
 
 #unconnectedBranchTable thead th[id] {
   cursor: pointer;
+}
+
+#unconnectedBranchTable td[data-sort-date] {
+  white-space: nowrap;
 }
 
 #shakingTree {
