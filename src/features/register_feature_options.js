@@ -118,7 +118,7 @@ registerFeature({
 registerFeature({
   name: "Bio Check",
   id: "bioCheck",
-  description: "Check biography style and sources.",
+  description: "Check biography sources and style.",
   category: "Editing",
   creators: [{ name: "Kay Knight", wikitreeid: "Sands-1865" }],
   contributors: [],

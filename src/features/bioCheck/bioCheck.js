@@ -136,11 +136,13 @@ function checkBio() {
 
 function getReportLines(bioStatus, biography) {
   let profileReportLines = [];
-  let profileStatus = "Profile appears to have sources";
-  if (!biography.hasSources()) {
-    profileStatus = "Profile may be unsourced";
+  if (biography.hasSources()) {
+    profileReportLines.push("Profile appears to have sources");
+  } else {
+    if (!biography.isMarkedUnsourced()) {
+      profileReportLines.push("Profile may be unsourced");
+    }
   }
-  profileReportLines.push(profileStatus);
   let messages = biography.getSectionMessages();
   for (let i=0; i<messages.length; i++) {
     profileReportLines.push(messages[i]);
