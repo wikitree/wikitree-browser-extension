@@ -6,12 +6,19 @@ import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isSpaceEdit } from "../../core/pageType";
 
-shouldInitializeFeature("customChangeSummaryOptions").then((result) => {
+shouldInitializeFeature("customChangeSummaryOptions").then(async (result) => {
   if (result && $("#saveStuff").length == 0) {
-    import("./custom_change_summary_options.css");
+    if (isSpaceEdit) {
+      const options = await getFeatureOptions("customChangeSummaryOptions");
+      if (!options.showOnSpacePages) {
+        return;
+      }
+    }
+    await import("./custom_change_summary_options.css");
     addMovingSaveBox();
   }
 });
+
 const validationContainer = $("#validationContainer");
 async function addMovingSaveBox() {
   const sco = $(".six.columns.omega").eq(0);
@@ -287,9 +294,15 @@ function showHideTextArea() {
     clearTimeout(window.timer); //cancel the previous timer.
     window.timer = null;
   }
+  let wait = 5000;
+
+  if (isSpaceEdit) {
+    wait = 1000;
+  }
+
   window.timer = setTimeout(function () {
     $("#wpSummaryTextArea").hide("swing");
-  }, 5000);
+  }, wait);
 }
 
 function isScrolledIntoView(elem) {
