@@ -12,6 +12,7 @@ import "./features/custom_style/custom_style";
 
 // followed by the rest
 import "./features/access_keys/access_keys";
+import "./features/add_search_boxes/add_search_boxes";
 import "./features/akaNameLinks/akaNameLinks";
 import "./features/categoryDisplay/categoryDisplay";
 import "./features/categoryFinderPins/categoryFinderPins";
@@ -25,7 +26,6 @@ import "./features/extra_watchlist/extra_watchlist";
 import "./features/familyGroup/familyGroup";
 import "./features/familyTimeline/familyTimeline";
 import "./features/g2g/g2g";
-import "./features/google_search_box/google_search_box";
 import "./features/my_connections/my_connections";
 import "./features/my_menu/my_menu";
 import "./features/printerfriendly/printerfriendly";

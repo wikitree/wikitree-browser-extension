@@ -1,0 +1,128 @@
+.googleSearch {
+  background: white;
+  border-radius: 20px;
+  padding: 0 1em;
+  height: 10em;
+  width: 50em;
+  margin: auto;
+}
+
+#googleSearchBox,
+#helpSearchBox {
+  border: 3px solid #8fc741;
+}
+
+.googleSearch .row:after {
+  clear: both;
+  content: "\0020";
+  display: block;
+  overflow: hidden;
+  visibility: hidden;
+  width: 0;
+  height: 0;
+}
+
+#googleSearchBox {
+  width: fit-content;
+  display: inline-block;
+  height: auto;
+  margin: 0.5em 1em;
+}
+#googleSearchBox b {
+  font-weight: bold;
+  display: block;
+}
+
+#googleSearchBox .search-wrapper {
+  display: flex;
+  justify-content: space-between;
+}
+
+#googleSearchBox .search-input,
+#googleSearchBox .search-options {
+  margin: 0 10px;
+}
+
+#helpSearchBox {
+  margin: 0.5em 1em;
+  width: fit-content;
+  background-color: white;
+  padding: 0.5em;
+  border-radius: 20px;
+  display: inline-block;
+}
+
+#helpSearchBox #helpSearchLabel {
+  margin-right: 1em;
+  width: fit-content;
+  font-weight: bold;
+  display: block;
+}
+
+#form-wrapper {
+  display: flex;
+  align-items: stretch; /* This ensures the forms have equal height */
+  gap: 20px; /* Optional: adjust this for desired space between the forms */
+}
+
+#form-wrapper input[type="text"] {
+  border: 3px solid #ddd;
+  padding: 14px 14px;
+  outline: none;
+  -moz-border-radius: 5px;
+  -webkit-border-radius: 5px;
+  border-radius: 5px;
+  font-family: "Open Sans", Helvetica, Arial, sans-serif;
+  font-size: 100% !important;
+  color: #000;
+  margin: 0 0 10px 0;
+  max-width: 100%;
+  display: inline-block;
+  box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  background: #fff;
+}
+
+.qa-footer #form-wrapper input[type="submit" i] {
+  background: #25422d;
+  border: 0;
+  outline: none;
+  cursor: pointer;
+  text-align: center;
+  font-size: 20px;
+  margin-right: 20px;
+  text-transform: uppercase;
+  -moz-border-radius: 5px;
+  -webkit-border-radius: 5px;
+  border-radius: 5px;
+  color: #fff;
+  display: inline-block;
+  font-weight: normal;
+  text-decoration: none !important;
+  cursor: pointer;
+  line-height: normal;
+  padding: 13px 30px 14px !important;
+  appearance: auto;
+  user-select: none;
+  white-space: pre;
+  align-items: flex-start;
+  text-align: center;
+  cursor: default;
+  box-sizing: border-box;
+  background-color: #25422d;
+  color: #fffff1;
+  padding: 1px 6px;
+  border-width: 2px;
+  border-style: outset;
+  border-color: #25422d;
+  border-image: initial;
+}
+
+.qa-footer #form-wrapper input[type="submit" i]:hover {
+  background-color: #8ec641;
+  color: #fffff1;
+  border-width: 2px;
+  border-style: inset;
+  border-color: #8ec641;
+  border-image: initial;
+}

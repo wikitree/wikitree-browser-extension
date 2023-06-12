@@ -49,6 +49,7 @@ import {
 ////////////////////////////////////////////////////////////////////////////////
 
 import "./add_person/add_person_options";
+import "./add_search_boxes/add_search_boxes_options";
 import "./agc/agc_options";
 import "./auto_bio/auto_bio_options";
 import "./auto_categories/auto_categories_options";
@@ -223,17 +224,6 @@ registerFeature({
   contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: true,
   pages: [isProfilePage],
-});
-
-registerFeature({
-  name: "Google Search Box",
-  id: "googleSearchBox",
-  description: "Adds a Google Search Box to the bottom of every page.",
-  category: "Global",
-  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
-  defaultValue: false,
-  pages: [true],
 });
 
 registerFeature({
