@@ -5,11 +5,14 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import { extractRelatives, familyArray, getRelatives } from "../../core/common";
 import { isSpaceEdit, isNewSpace } from "../../core/pageType";
-import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 shouldInitializeFeature("locationsHelper").then((result) => {
   if (result) {
     import("./locationsHelper.css");
+    getFeatureOptions("locationsHelper").then((options) => {
+      window.locationsHelperOptions = options;
+    });
     $("#mBirthLocation,#mDeathLocation,#mLocation").on("focus", function () {
       if (!window.bdLocations) {
         locationsHelper();
@@ -57,6 +60,11 @@ function similarity(s1, s2) {
 }
 
 async function locationsHelper() {
+  if (!window.USstates) {
+    // import USstates.json into the window object
+    window.USstates = await import("./USstates.json");
+  }
+
   let theID;
   if ($("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
     theID = $("a.pureCssMenui0 span.person").text();
@@ -160,6 +168,59 @@ async function locationsHelper() {
           } else {
             goodDate = true;
           }
+
+          if (goodDate == true && window.locationsHelperOptions.correctLocations) {
+            const lastPart = dText.split("(")[0].trim().split(",").pop();
+            const lastPartMatch = lastPart.match(/[A-z]+/g);
+            if (lastPartMatch != null) {
+              lastPartMatch.forEach(function (aWord) {
+                console.log(aWord);
+                if (window.USstates[aWord] != undefined) {
+                  console.log(dText);
+                  const thisState = window.USstates[aWord];
+                  if (thisState.former_name_date_established != undefined) {
+                    if (thisState.former_name_date_established <= myYear && thisState.admissionDate >= myYear) {
+                      dText = dText.replace(lastPart, " " + thisState.former_name).replace(/ \(.+\)/, "");
+                      console.log(dText);
+                      $(added_node).find(".autocomplete-suggestion").attr("data-val", dText.trim());
+                      const innerBit = $(added_node).find(".autocomplete-suggestion-head");
+                      // Build text for innerBit.  This is dText +(thisState.former_name_date_established + "-" + thisState.admissionDate (but only the year))
+                      innerBit.text(
+                        dText +
+                          " (" +
+                          thisState.former_name_date_established +
+                          " - " +
+                          thisState.admissionDate.match(/\d{4}/) +
+                          ")"
+                      );
+                      // And match the parts of the text in the location box (#mBirthLocation, etc.) against dText and wrap <span class="autocomplete-suggestion-term"> around them.
+                      const theLocation = $("#" + activeEl.id);
+                      const theLocationText = theLocation.val();
+                      const theLocationTextMatch = theLocationText.match(/[A-z]+/g);
+                      if (theLocationTextMatch != null) {
+                        theLocationTextMatch.forEach(function (aWord) {
+                          if (dText.match(aWord) != null) {
+                            const theMatch = dText.match(aWord)[0];
+                            const theMatchRegex = new RegExp(theMatch, "g");
+                            innerBit.html(
+                              innerBit
+                                .text()
+                                .trim()
+                                .replace(
+                                  theMatchRegex,
+                                  '<span class="autocomplete-suggestion-term">' + theMatch + "</span>"
+                                )
+                            );
+                          }
+                        });
+                      }
+                    }
+                  }
+                }
+              });
+            }
+          }
+
           if (window.bdLocations) {
             window.bdLocations.forEach(function (aLoc) {
               dText = dText.split("(")[0].trim();
