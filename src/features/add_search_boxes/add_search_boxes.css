@@ -12,6 +12,12 @@
   border: 3px solid #8fc741;
 }
 
+#form-wrapper label.searchBoxLabel {
+  font-weight: bold;
+  display: block;
+  margin: 1em;
+}
+
 .googleSearch .row:after {
   clear: both;
   content: "\0020";
@@ -27,6 +33,7 @@
   display: inline-block;
   height: auto;
   margin: 0.5em 1em;
+  padding: 0.5em;
 }
 #googleSearchBox b {
   font-weight: bold;

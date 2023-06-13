@@ -35,7 +35,7 @@ function addGoogleSearchBox() {
     <input type="hidden" name="ie" value="UTF-8">
     <div class="row">
       <div class="twelve columns alpha" align="left">
-        <b>Search with Google</b>
+        <label class='searchBoxLabel'>Search with Google</label>
         <div class="search-wrapper">
           <div class="search-input">
             <input type="text" name="q" size="20" value=" ">
@@ -70,8 +70,8 @@ function addHelpSearchbox() {
 </form>
   */
   const searchHelp = $(
-    '<form id="helpSearchBox" class="helpSearch" action="/index.php" method="GET">' +
-      '<label id="helpSearchLabel">Search Help Pages</label>' +
+    '<form id="helpSearchBox"class="helpSearch" action="/index.php" method="GET">' +
+      '<label id="helpSearchLabel"   class="searchBoxLabel" >Search Help Pages</label>' +
       '<input type="hidden" name="title" value="Special:SearchPages">' +
       '<input type="text" name="keywords" id="keywords" size="20" value="">' +
       '<input type="submit" name="pageSearch" value="Go">' +
