@@ -97,8 +97,9 @@ export let isSearchPage = false;
 // Ian's Profile
 export let isIansProfile = false;
 
-const path = decodeURI(window.location.pathname) // path
-const uri = decodeURI(window.location.href) // with parameters
+const path = decodeURI(window.location.pathname); // path
+const uri = decodeURI(window.location.href); // with parameters
+
 if (
   // Profile Edit Page
   uri.match(/\/index.php\?title=Special:EditPerson&.*/g)
@@ -124,13 +125,13 @@ if (
   // Profile History Detail Page https://www.wikitree.com/index.php?title=Morgan-14024&diff=53223025&oldid=53223019
   // or https://www.wikitree.com/index.php?title=Morgan-14024&diff=next&oldid=53223019
   // or Page https://www.wikitree.com/index.php?title=Morgan-14024&diff=prev&oldid=53223019
-  uri.match(/\/index.php\?title=\p{L}[^:]*-[0-9]+&diff=(\d*|next|prev)&oldid=\d*/ug)
+  uri.match(/\/index.php\?title=\p{L}[^:]*-[0-9]+&diff=(\d*|next|prev)&oldid=\d*/gu)
 ) {
   isProfileHistoryDetail = true;
 } else if (
   // Profile Page
-  path.match(/(\/wiki\/)\p{L}[^:]*-[0-9]+/ug) ||
-  (uri.match(/\/index.php\?title=\p{L}[^:]*-[0-9]+/ug) &&
+  path.match(/(\/wiki\/)\p{L}[^:]*-[0-9]+/gu) ||
+  (uri.match(/\/index.php\?title=\p{L}[^:]*-[0-9]+/gu) &&
     !uri.match(/\/index.php\?title=(Special|Space|Category|Template|Help|Project)/g))
 ) {
   isProfilePage = true;
