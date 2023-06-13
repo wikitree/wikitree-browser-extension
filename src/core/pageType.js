@@ -97,39 +97,41 @@ export let isSearchPage = false;
 // Ian's Profile
 export let isIansProfile = false;
 
+const path = decodeURI(window.location.pathname); // path
+const uri = decodeURI(window.location.href); // with parameters
 if (
   // Profile Edit Page
-  window.location.href.match(/\/index.php\?title=Special:EditPerson&.*/g)
+  uri.match(/\/index.php\?title=Special:EditPerson&.*/g)
 ) {
   isProfileEdit = true;
 } else if (
   // Profile Add relative
-  window.location.href.match(/\/index.php\?title=Special:EditFamilySteps&.*/g) ||
-  window.location.href.match(/\/index.php\?.*title=Special(:|%3A)EditFamily&.*/g)
+  uri.match(/\/index.php\?title=Special:EditFamilySteps&.*/g) ||
+  uri.match(/\/index.php\?.*title=Special(:|%3A)EditFamily&.*/g)
 ) {
   isProfileAddRelative = true;
 } else if (
   // Add Unrelated Person
-  window.location.href.match(/\/wiki\/Special:EditFamily/g)
+  uri.match(/\/wiki\/Special:EditFamily/g)
 ) {
   isAddUnrelatedPerson = true;
 } else if (
   // Profile History Page https://www.wikitree.com/index.php?title=Special:NetworkFeed&who=Trtnik-2
-  window.location.href.match(/\/index.php\?title=Special:NetworkFeed&who=.*/g)
+  uri.match(/\/index.php\?title=Special:NetworkFeed&who=.*/g)
 ) {
   isProfileHistory = true;
 } else if (
   // Profile History Detail Page https://www.wikitree.com/index.php?title=Morgan-14024&diff=53223025&oldid=53223019
   // or https://www.wikitree.com/index.php?title=Morgan-14024&diff=next&oldid=53223019
   // or Page https://www.wikitree.com/index.php?title=Morgan-14024&diff=prev&oldid=53223019
-  window.location.href.match(/\/index.php\?title=\w[^:]+-[0-9]+&diff=(\d*|next|prev)&oldid=\d*/g)
+  uri.match(/\/index.php\?title=\p{L}[^:]*-[0-9]+&diff=(\d*|next|prev)&oldid=\d*/gu)
 ) {
   isProfileHistoryDetail = true;
 } else if (
   // Profile Page
-  window.location.pathname.match(/(\/wiki\/)\w[^:]*-[0-9]*/g) ||
-  (window.location.href.match(/\/index.php\?title=\w[^:]+-[0-9]+/g) &&
-    !window.location.href.match(/\/index.php\?title=(Special|Space|Category|Template|Help|Project)/g))
+  path.match(/(\/wiki\/)\p{L}[^:]*-[0-9]+/gu) ||
+  (uri.match(/\/index.php\?title=\p{L}[^:]*-[0-9]+/gu) &&
+    !uri.match(/\/index.php\?title=(Special|Space|Category|Template|Help|Project)/g))
 ) {
   isProfilePage = true;
   if ($(".toggleMemberSection").length) {
@@ -139,164 +141,164 @@ if (
       // Profile of a Logged in User page
       isProfileLoggedInUserPage = true;
     }
-    if (window.location.href.match("https://www.wikitree.com/wiki/Beacall-6")) {
+    if (uri.match("https://www.wikitree.com/wiki/Beacall-6")) {
       // Ian's Profile
       isIansProfile = true;
     }
   }
 } else if (
   // Space Edit Page
-  window.location.href.match(/\/index.php\?title=Space:.*&action=edit.*/g) ||
-  window.location.href.match(/\/index.php\?title=Space:.*&action=submit.*/g)
+  uri.match(/\/index.php\?title=Space:.*&action=edit.*/g) ||
+  uri.match(/\/index.php\?title=Space:.*&action=submit.*/g)
 ) {
   isSpaceEdit = true;
 } else if (
   // Space Page
-  window.location.pathname.match(/\/wiki\/Space:.*/g) ||
-  window.location.href.match(/\/index.php\?title=Space:.*/g)
+  path.match(/\/wiki\/Space:.*/g) ||
+  uri.match(/\/index.php\?title=Space:.*/g)
 ) {
   isSpacePage = true;
 } else if (
   // Space History Page https://www.wikitree.com/index.php?title=Special:NetworkFeed&space=41770011
-  window.location.href.match(/\/index.php\?title=Special:NetworkFeed&space=.*/g)
+  uri.match(/\/index.php\?title=Special:NetworkFeed&space=.*/g)
 ) {
   isSpaceHistory = true;
-} else if (window.location.href.match(/index.php\?action=newspace/)) {
+} else if (uri.match(/index.php\?action=newspace/)) {
   // New space page
   isNewSpace = true;
 } else if (
   // Category Edit Page
-  window.location.href.match(/\/index.php\?title=Category:.*&action=edit.*/g) ||
-  window.location.href.match(/\/index.php\?title=Category:.*&action=submit.*/g)
+  uri.match(/\/index.php\?title=Category:.*&action=edit.*/g) ||
+  uri.match(/\/index.php\?title=Category:.*&action=submit.*/g)
 ) {
   isCategoryEdit = true;
 } else if (
   // Category Page
-  window.location.pathname.match(/\/wiki\/Category:.*/g) ||
-  window.location.href.match(/\/index.php\?title=Category:.*/g)
+  path.match(/\/wiki\/Category:.*/g) ||
+  uri.match(/\/index.php\?title=Category:.*/g)
 ) {
   isCategoryPage = true;
 } else if (
   // Category History Page https://www.wikitree.com/index.php?title=Project:Data%20Doctors&action=history
-  window.location.href.match(/\/index.php\?title=Category:.*&action=history/g)
+  uri.match(/\/index.php\?title=Category:.*&action=history/g)
 ) {
   isCategoryHistory = true;
 } else if (
   // Template Edit Page
-  window.location.href.match(/\/index.php\?title=Template:.*&action=edit.*/g) ||
-  window.location.href.match(/\/index.php\?title=Template:.*&action=submit.*/g)
+  uri.match(/\/index.php\?title=Template:.*&action=edit.*/g) ||
+  uri.match(/\/index.php\?title=Template:.*&action=submit.*/g)
 ) {
   isTemplateEdit = true;
 } else if (
   // Template Page
-  window.location.pathname.match(/\/wiki\/Template:.*/g) ||
-  window.location.href.match(/\/index.php\?title=Template:.*/g)
+  path.match(/\/wiki\/Template:.*/g) ||
+  uri.match(/\/index.php\?title=Template:.*/g)
 ) {
   isTemplatePage = true;
 } else if (
   // Template History Page https://www.wikitree.com/index.php?title=Template:Data%20Doctors&action=history
-  window.location.href.match(/\/index.php\?title=Template:.*&action=history/g)
+  uri.match(/\/index.php\?title=Template:.*&action=history/g)
 ) {
   isTemplateHistory = true;
 } else if (
   // Project Edit Page
-  window.location.href.match(/\/index.php\?title=Project:.*&action=edit.*/g) ||
-  window.location.href.match(/\/index.php\?title=Project:.*&action=submit.*/g)
+  uri.match(/\/index.php\?title=Project:.*&action=edit.*/g) ||
+  uri.match(/\/index.php\?title=Project:.*&action=submit.*/g)
 ) {
   isProjectEdit = true;
 } else if (
   // Project Page
-  window.location.pathname.match(/\/wiki\/Project:.*/g) ||
-  window.location.href.match(/\/index.php\?title=Project:.*/g)
+  path.match(/\/wiki\/Project:.*/g) ||
+  uri.match(/\/index.php\?title=Project:.*/g)
 ) {
   isProjectPage = true;
 } else if (
   // Project History Page https://www.wikitree.com/index.php?title=Project:Data%20Doctors&action=history
-  window.location.href.match(/\/index.php\?title=Project:.*&action=history/g)
+  uri.match(/\/index.php\?title=Project:.*&action=history/g)
 ) {
   isProjectHistory = true;
 } else if (
   // Help Edit Page
-  window.location.href.match(/\/index.php\?title=Help:.*&action=edit.*/g) ||
-  window.location.href.match(/\/index.php\?title=Help:.*&action=submit.*/g)
+  uri.match(/\/index.php\?title=Help:.*&action=edit.*/g) ||
+  uri.match(/\/index.php\?title=Help:.*&action=submit.*/g)
 ) {
   isHelpEdit = true;
 } else if (
   // Help Page
-  window.location.pathname.match(/\/wiki\/Help:.*/g) ||
-  window.location.href.match(/\/index.php\?title=Help:.*/g)
+  path.match(/\/wiki\/Help:.*/g) ||
+  uri.match(/\/index.php\?title=Help:.*/g)
 ) {
   isHelpPage = true;
 } else if (
   // Help History Page https://www.wikitree.com/index.php?title=Help:Data%20Doctors&action=history
-  window.location.href.match(/\/index.php\?title=Help:.*&action=history/g)
+  uri.match(/\/index.php\?title=Help:.*&action=history/g)
 ) {
   isHelpHistory = true;
 } else if (
   // Special Page
-  window.location.pathname.match(/(\/wiki\/)Special:*/g) ||
-  window.location.href.match(/\/index.php\?title=Special.*/g)
+  path.match(/(\/wiki\/)Special:*/g) ||
+  uri.match(/\/index.php\?title=Special.*/g)
 ) {
   isSpecialPage = true;
   if (
     // Special Badges Page
-    window.location.pathname.match(/(\/wiki\/)Special:Badges*/g) ||
-    window.location.href.match(/\/index.php\?title=Special:Badges.*/g)
+    path.match(/(\/wiki\/)Special:Badges*/g) ||
+    uri.match(/\/index.php\?title=Special:Badges.*/g)
   ) {
     isSpecialBadges = true;
   } else if (
     // Special My Connections
-    window.location.pathname.match(/(\/wiki\/)Special:MyConnections*/g) ||
-    window.location.href.match(/\/index.php\?title=Special.*?MyConnections.*/g)
+    path.match(/(\/wiki\/)Special:MyConnections*/g) ||
+    uri.match(/\/index.php\?title=Special.*?MyConnections.*/g)
   ) {
     isSpecialMyConnections = true;
   } else if (
     // Special DNA Tests
-    window.location.pathname.match(/(\/wiki\/)Special:DNATests*/g) ||
-    window.location.href.match(/\/index.php\?title=Special:DNATests.*/g)
+    path.match(/(\/wiki\/)Special:DNATests*/g) ||
+    uri.match(/\/index.php\?title=Special:DNATests.*/g)
   ) {
     isSpecialDNATests = true;
   } else if (
     // Special Watched List
-    window.location.pathname.match(/(\/wiki\/)Special:WatchedList*/g) ||
-    window.location.href.match(/\/index.php\?title=Special:WatchedList.*/g)
+    path.match(/(\/wiki\/)Special:WatchedList*/g) ||
+    uri.match(/\/index.php\?title=Special:WatchedList.*/g)
   ) {
     isSpecialWatchedList = true;
-  } else if (window.location.href.match(/\/Special:SearchPerson/g)) {
+  } else if (uri.match(/\/Special:SearchPerson/g)) {
     // Special:SearchPerson
     isSearchPage = true;
-  } else if (window.location.href.match(/Special:Surname/)) {
+  } else if (uri.match(/Special:Surname/)) {
     isGenealogyPage = true;
   }
 } else if (
   // Other Edit Page
-  window.location.href.match(/\/index.php\?title=.*:.*&action=edit.*/g) ||
-  window.location.href.match(/\/index.php\?title=.*:.*&action=submit.*/g)
+  uri.match(/\/index.php\?title=.*:.*&action=edit.*/g) ||
+  uri.match(/\/index.php\?title=.*:.*&action=submit.*/g)
 ) {
   isOtherEdit = true;
 } else if (
   // Other History Page https://www.wikitree.com/index.php?title=...:Data%20Doctors&action=history
-  window.location.href.match(/\/index.php\?title=.*:.*&action=history/g)
+  uri.match(/\/index.php\?title=.*:.*&action=history/g)
 ) {
   isOtherHistory = true;
-} else if (window.location.href.match(/\/genealogy\//)) {
+} else if (uri.match(/\/genealogy\//)) {
   // genealogy page
   isGenealogyPage = true;
 } else if (
   // Other Page
-  window.location.pathname.match(/(\/wiki\/).*:*/g) ||
-  window.location.href.match(/\/index.php\?title=.*:.*/g)
+  path.match(/(\/wiki\/).*:*/g) ||
+  uri.match(/\/index.php\?title=.*:.*/g)
 ) {
   isOtherPage = true;
-} else if (window.location.pathname.match(/\/g2g\//g)) {
+} else if (path.match(/\/g2g\//g)) {
   // Is a G2G page
   isG2G = true;
-} else if (window.location.href.match(/\/treewidget\/.*?\/890/g)) {
+} else if (uri.match(/\/treewidget\/.*?\/890/g)) {
   // DNADescendantsPage
   isDNADescendants = true;
 } else {
   // Unknown page
-  console.log(window.location.href);
+  console.log(uri);
 }
 
 isMediaWikiPage = isCategoryPage || isTemplatePage || isProjectPage || isHelpPage || isOtherPage;
