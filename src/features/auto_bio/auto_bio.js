@@ -16,6 +16,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { theSourceRules } from "../bioCheck/SourceRules.js";
 import { PersonDate } from "../bioCheck/PersonDate.js";
 import { Biography } from "../bioCheck/Biography.js";
+import { initBioCheck } from "../bioCheck/bioCheck.js";
 import { ageAtDeath, USstatesObjArray } from "../my_connections/my_connections";
 import { bioTimelineFacts, buildTimelineTable, buildTimelineSA } from "./timeline";
 import { isIansProfile } from "../../core/pageType";
@@ -127,7 +128,7 @@ function autoBioCheck(sourcesStr) {
     thePerson.isPersonPre1700(),
     thePerson.mustBeOpen(),
     thePerson.isUndated(),
-    false
+    ""
   );
   biography.validate();
   const hasSources = biography.hasSources();
@@ -7099,5 +7100,6 @@ shouldInitializeFeature("autoBio").then((result) => {
         window.isFirefox == true;
       }
     });
+    initBioCheck();
   }
 });

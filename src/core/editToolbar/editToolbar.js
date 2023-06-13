@@ -8,8 +8,8 @@ import editToolbarCategoryOptions from "./editToolbarCategoryOptions";
 import editToolbarTemplateOptions from "./editToolbarTemplateOptions";
 import editToolbarGenericOptions from "./editToolbarGenericOptions";
 
-import { isCategoryEdit, isProfileEdit, isSpaceEdit, isTemplateEdit, isWikiEdit } from "./pageType";
-import { getEnabledStateForAllFeatures } from "./options/options_storage";
+import { isCategoryEdit, isProfileEdit, isSpaceEdit, isTemplateEdit, isWikiEdit } from "../pageType";
+import { getEnabledStateForAllFeatures } from "../options/options_storage";
 
 let editToolbarOptions = [];
 
@@ -105,7 +105,7 @@ async function editToolbarCreate(options) {
     import("./editToolbar.css");
     document
       .getElementById("toolbar")
-      .insertAdjacentHTML("afterend", '<div id="editToolbarExt">' + menuHTML + "</div>");
+      .insertAdjacentHTML("afterend", '<div id="editToolbarExt" style="display: none">' + menuHTML + "</div>");
     document
       .querySelectorAll("a.editToolbarClick")
       .forEach((i) => i.addEventListener("click", (event) => editToolbarEvent(event)));

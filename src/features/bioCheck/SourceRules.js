@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2022 Kathryn J Knight
+Copyright (c) 2023 Kathryn J Knight
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -27,6 +27,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
 class SourceRules {
+  #isInit = false;
+
   // all sorts of rules to parse biography and check sources
   #biographyHeadings = [
     "biography",
@@ -42,6 +44,8 @@ class SourceRules {
   ];
   #researchNotesHeadings = [
     "research notes",
+    // note if you want to give them a break you could
+    // include research  notes (extra space) and research note (no s)
     "notes de recherche",
     "onderzoeksnotities",
     "opmerkingen",
@@ -96,6 +100,14 @@ class SourceRules {
     "podziękowanie",
     "priznanja",
   ];
+  // loads from templates, each is name and status
+  #rnb = [];
+  // loads from templates
+  #navBox = [];
+  // loads from templates
+  #projectBox = [];
+  // loads from templates
+  #sticker = [];
 
   // strings that identify a census source
   // when used by itself or with nothing other than
@@ -209,6 +221,7 @@ class SourceRules {
     "parish records",
     "passenger list",
     "'''see also'''",
+//   12345678901234
     */
     "ancestry source",
     "census records.",
@@ -384,6 +397,8 @@ class SourceRules {
     "perheraamattu",
     "source requise",
     "voir également",
+    */
+//   12345678901234
     "družinsko drevo",
     "drzewo rodzinne",
     "familiestamboom",
@@ -392,7 +407,6 @@ class SourceRules {
     "tarvitaan lähde",
     "quelle benötigt",
     "väestönlaskenta",
-    */
     "árbol de familia",
     "bible de famille",
     "fjölskyldubiblía",
@@ -455,39 +469,42 @@ class SourceRules {
   // not a valid source for
   // profile born > 150 or died > 100
   #tooOldToRememberSourceList = [
-    "personal recollection of events witnessed by",
-    "personal recollection of",
-    "personal knowledge",
-    "first hand knowledge",
-    "firsthand knowledge",
-    "førstehånds kendskab",
-    "ensi käden tieto",
-    "af fyrstu hendi",
-    "førstehåndskjennskap",
-    "förstahandskälla",
-    "förstahands kännedom",
-    "as remembered by",
-    "selon la mémoire de",
-    "zoals herinnerd door",
+    /*
+    "husket av",
+    "nnn mukaan",
     "eigen kennis",
+    "wie erinnert",
+    "som minns av",
+    "som husket av",
+    "ihågkommet av",
+    "kuten muistaa",
+    "som husket af",
+    "samkvæmt minni",
+    "jak zapamiętał",
+    */
+//   12345678901234
+    "personal knowledge",
+    "firsthand knowledge",
+    "first hand knowledge",
+    "af fyrstu hendi",
+    "kot se spominja",
     "wie erinnert von",
-    "wissen aus erster hand",
     "como lo recuerda",
+    "kuten nn muistaa",
+    "as remembered by",
+    "förstahandskälla",
+    "ensi käden tieto",
     "como lembrado por",
     "come ricordato da",
-    "wie erinnert",
     "comme rappelé par",
-    "som husket av",
-    "som minns av",
-    "kuten muistaa",
-    "jak zapamiętał",
-    "kot se spominja",
-    "som husket af",
-    "kuten nn muistaa",
-    "nnn mukaan",
-    "samkvæmt minni",
-    "husket av",
-    "ihågkommet av",
+    "selon la mémoire de",
+    "førstehånds kendskab",
+    "förstahands kännedom",
+    "førstehåndskjennskap",
+    "zoals herinnerd door",
+    "wissen aus erster hand",
+    "personal recollection of",
+    "personal recollection of events witnessed by",
   ];
 
   // anywhere in a line
@@ -525,106 +542,114 @@ class SourceRules {
   // line by itself
   // not a valid source for Pre1700
   #invalidSourceListPre1700 = [
-    "birth certificate",
-    "birth record",
-    "marriage certificate",
-    "marriage record",
-    "death certificate",
-    "death record",
+    /*
     "igi",
     "family data",
-    "certificat de naissance",
-    "registre de naissance",
-    "certificat de décès",
-    "registre de décès",
-    "registre de mariage",
-    "geboorteakte",
-    "geboorte akte",
-    "overlijdensakte",
-    "overlijdens acte",
-    "overlijdens akte",
+    "birth record",
+    "death record",
+    */
+//   12345678901234
+    "marriage record",
+    "birth certificate",
+    "marriage certificate",
+    "death certificate",
+
+    /*
+    "akt zgonu",
+    "dánarskrá",
+    "dödsnotis",
     "trouwakte",
     "trouwacte",
-    "trouw oorkonde",
-    "geburtsurkunde",
-    "sterbeurkunde",
-    "heiratsurkunde",
-    "acta de nacimiento",
-    "acte de naissance",
-    "akt urodzenia",
-    "certidão de nascimento",
-    "certificado de nacimiento",
-    "certificato di nascita",
+    "dåbsattest",
+    "dødsattest",
+    "dödsattest",
+    "dödsrekord",
+    "navneattest",
+    "vigselbevis",
+    "vigselnotis",
+    "dánarvottorð",
+    "fæðingarskrá",
     "födelsebevis",
-    "födelsedokument",
+    "födelsenotis",
+    "geboorteakte",
+    "mrliški list",
+    "poročni list",
+    "rojstni list",
+    "smrtni zapis",
+    "acte de décès",
+    "akt urodzenia",
     "fødselsattest",
     "fødselsrekord",
-    "registro de nascimento",
-    "rojstni list",
-    "rojstni zapis",
-    "syntymätiedot akt urodzenia",
-    "syntymätodistus",
-    "certidão de óbito",
-    "certificado de defunción",
-    "certificato di morte",
-    "certyfikat śmierci",
-    "døds sertifikat",
-    "dødsattest",
-    "dödscertifikat",
-    "kuolintodistus",
-    "mrliški list",
-    "acta de defunción",
-    "acte de décès",
-    "akt zgonu",
-    "dödsrekord",
-    "kuolemantiedot",
-    "registro de morte",
-    "registro degli atti di morte",
-    "smrtni zapis",
-    "akt małżeństwa",
-    "certidão de casamento",
-    "certificado de matrimonio",
-    "certificat de mariage",
-    "certificato di matrimonio",
-    "eheurkunde trauschein",
+    "geboorte akte",
+    "hjúskaparskrá",
     "huwelijksakte",
-    "poročni list",
+    "kuolinkirjaus",
+    "poročni zapis",
+    "rojstni zapis",
+    "sterbeurkunde",
     "vielsesattest",
-    "vigselbevis",
     "vigselsattest",
     "vihkitodistus",
-    "acte de mariage",
-    "ægteskabsoptegnelse",
-    "äktenskap rekord",
-    "avioliitto ennätys",
-    "ekteskapsrekord",
-    "poročni zapis",
-    "record di matrimonio",
-    "registro de casamento",
-    "registro de matrimonio",
-    "dåbsattest",
-    "dánarskrá",
-    "dánarvottorð",
-    "dödsattest",
+    */
+//   12345678901234
+    "akt małżeństwa",
+    "dödscertifikat",
     "dödsfallsintyg",
-    "dödsnotis",
-    "dødsregistrering",
-    "dødsregistrering",
-    "fæðingarskrá",
-    "fæðingarvottorð",
-    "födelsenotis",
-    "fødselsregistrering",
-    "hjúskaparskrá",
-    "hjúskaparvottorð",
-    "kuolinkirjaus",
+    "geburtsurkunde",
+    "heiratsurkunde",
+    "kuolemantiedot",
     "kuolinmerkintä",
-    "navneattest",
+    "kuolintodistus",
     "syntymäkirjaus",
+    "trouw oorkonde",
+    "acte de mariage",
+    "døds sertifikat",
+    "ekteskapsrekord",
+    "födelsedokument",
+    "fæðingarvottorð",
+    "overlijdensakte",
+    "syntymätodistus",
     "syntymämerkintä",
-    "vielselsattest el. vigselsattest",
-    "vielseregistrering",
-    "vigselnotis",
     "vihkimismerkintä",
+    "äktenskap rekord",
+    "äktenskap rekord",
+    "dødsregistrering",
+    "dødsregistrering",
+    "hjúskaparvottorð",
+    "overlijdens acte",
+    "overlijdens akte",
+    "acta de defunción",
+    "certidão de óbito",
+    "registre de décès",
+    "registro de morte",
+    "acte de naissance",
+    "acta de nacimiento",
+    "avioliitto ennätys",
+    "certyfikat śmierci",
+    "vielseregistrering",
+    "fødselsregistrering",
+    "ægteskabsoptegnelse",
+    "certificat de décès",
+    "registre de mariage",
+    "record di matrimonio",
+    "certificato di morte",
+    "certidão de casamento",
+    "certificat de mariage",
+    "eheurkunde trauschein",
+    "registro de casamento",
+    "registre de naissance",
+    "certificato di nascita",
+    "registro de matrimonio",
+    "registro de nascimento",
+    "certidão de nascimento",
+    "certificat de naissance",
+    "certificado de defunción",
+    "certificado de matrimonio",
+    "certificato di matrimonio",
+    "certificado de nacimiento",
+    "syntymätiedot akt urodzenia",
+    "registro degli atti di morte",
+    "vielselsattest el. vigselsattest",
   ];
 
   // anywhere on a line
@@ -707,6 +732,37 @@ class SourceRules {
     return SourceRules.theSourceRules;
   }
 
+  /* 
+   * Load template rules from JSON data
+   */
+  loadTemplates(templates) {
+    if (!this.#isInit) {
+      for (let i = 0; i < templates.length; i++) {
+        if (templates[i].type.toLowerCase().trim() === 'profile box') {
+          if (templates[i].group.toLowerCase().trim() === 'research note box') {
+            let researchNote = {
+              name: "",
+              status: "",
+            };
+            researchNote.name = templates[i].name.toLowerCase().trim();
+            researchNote.status = templates[i].status.toLowerCase().trim();
+            this.#rnb.push(researchNote);
+          }
+        }
+        if (templates[i].type.toLowerCase().trim() === 'navigation profile box') {
+          this.#navBox.push(templates[i].name.toLowerCase().trim());
+        }
+        if (templates[i].type.toLowerCase().trim() === 'project box') {
+          this.#projectBox.push(templates[i].name.toLowerCase().trim());
+        }
+        if (templates[i].type.toLowerCase().trim() === 'sticker') {
+          this.#sticker.push(templates[i].name.toLowerCase().trim());
+        }
+      }
+      this.#isInit = true;
+    }
+  }
+
   /**
    * Determine if a line is a valid biography heading
    * @param {String} line to test
@@ -739,6 +795,70 @@ class SourceRules {
   isAckHeading(line) {
     return this.#acknowledgmentsHeadings.includes(line);
   }
+
+  /**
+   * Determine if a line is a valid Research Notes Box
+   * assumes the leading {{ removed and line is lower case
+   * @param {String} line to test
+   * @returns {Boolean} true if research notes box else false
+   */
+  isResearchNotesBox(line) {
+    let isFound = false;
+    this.#rnb.find((element) => {
+      if (element.name === line) {
+        isFound = true;
+      }
+    });
+    return isFound;
+  }
+
+  /**
+   * Return status value for research notes box
+   * assumes the leading {{ removed and line is lower case
+   * @param {String} line to test
+   * @returns {String} status value or blank if not a research notes box
+   */
+  getResearchNotesBoxStatus(line) {
+    let stat = "";
+    let isFound = false;
+    this.#rnb.find((element) => {
+      if (element.name === line) {
+        stat = element.status;
+      }
+    });
+    return stat;
+  }
+
+  /**
+   * Determine if a line is a valid Project Box
+   * assumes the leading {{ removed and line is lower case
+   * @param {String} line to test
+   * @returns {Boolean} true if research notes box else false
+   */
+  isProjectBox(line) {
+    return this.#projectBox.includes(line);
+  }
+
+  /**
+   * Determine if a line is a valid Nav Box
+   * assumes the leading {{ removed and line is lower case
+   * @param {String} line to test
+   * @returns {Boolean} true if nav box else false
+   */
+  isNavBox(line) {
+    return this.#navBox.includes(line);
+  }
+
+  /**
+   * Determine if a line is a valid Sticker
+   * assumes the leading {{ removed and line is lower case
+   * @param {String} line to test
+   * @returns {Boolean} true if sticker else false
+   */
+  isSticker(line) {
+    return this.lineStartsWithListEntry(line, this.#sticker);
+  }
+
   /**
    * Determine if a line is a census line
    * @param {String} line to test
@@ -762,6 +882,22 @@ class SourceRules {
    */
   isInvalidSource(line) {
     return this.#invalidSourceList.includes(line);
+  }
+
+  /*
+   * Does string start with the text for any of the string in array
+   * @param {String} the line to test
+   * @param {Array} the array of string to test
+   * @returns {Boolean} true if the line includes text from the list of strings else false
+   */
+  lineStartsWithListEntry(line, stringList) {
+    let isFound = false;
+    stringList.find((element) => {
+      if (line.startsWith(element)) {
+        isFound = true;
+      }
+    });
+    return isFound;
   }
 
   /*

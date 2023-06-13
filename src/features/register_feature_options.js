@@ -49,12 +49,14 @@ import {
 ////////////////////////////////////////////////////////////////////////////////
 
 import "./add_person/add_person_options";
+import "./add_search_boxes/add_search_boxes_options";
 import "./agc/agc_options";
 import "./auto_bio/auto_bio_options";
 import "./auto_categories/auto_categories_options";
 import "./categoryDisplay/categoryDisplay_options";
 import "./change_family_lists/change_family_lists_options";
 import "./custom_change_summary_options/custom_change_summary_options_options";
+import "./custom_style/custom_style_options";
 import "./darkMode/darkMode_options";
 import "./date_fixer/date_fixer_options";
 import "./edit_family_data/edit_family_data_options";
@@ -69,6 +71,7 @@ import "./redir_ext_links/redir_ext_links_options";
 import "./sourcepreview/sourcepreview_options";
 import "./spacepreview/spacepreview_options";
 import "./table_filters/table_filters_options";
+import "./unconnected_branch_table/unconnected_branch_table_options";
 import "./usability_tweaks/usability_tweaks_options";
 import "./what_links_here/what_links_here_options";
 import "./wills/wills_options";
@@ -115,7 +118,7 @@ registerFeature({
 registerFeature({
   name: "Bio Check",
   id: "bioCheck",
-  description: "Check biography style and sources.",
+  description: "Check biography sources and style.",
   category: "Editing",
   creators: [{ name: "Kay Knight", wikitreeid: "Sands-1865" }],
   contributors: [],
@@ -221,17 +224,6 @@ registerFeature({
   contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: true,
   pages: [isProfilePage],
-});
-
-registerFeature({
-  name: "Google Search Box",
-  id: "googleSearchBox",
-  description: "Adds a Google Search Box to the bottom of every page.",
-  category: "Global",
-  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
-  defaultValue: false,
-  pages: [true],
 });
 
 registerFeature({
@@ -375,6 +367,17 @@ registerFeature({
   contributors: [],
   defaultValue: true,
   pages: [isProfileAddRelative],
+});
+
+registerFeature({
+  name: "Visited Links",
+  id: "visitedLinks",
+  description: "Make links to visited pages purple.",
+  category: "Global/Style",
+  creators: [{ name: "Aleš Trtnik", wikitreeid: "Trtnik-2" }],
+  contributors: [],
+  defaultValue: false,
+  pages: [true],
 });
 
 /*

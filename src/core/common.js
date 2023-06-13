@@ -116,13 +116,19 @@ export function extractRelatives(rel, theRelation = false) {
 // Used in familyTimeline, familyGroup, locationsHelper
 export function familyArray(person) {
   // This is a person from getRelatives()
-  const rels = ["Parents", "Siblings", "Spouses", "Children"];
-  let familyArr = [person];
-  rels.forEach(function (rel) {
-    const relation = rel.replace(/s$/, "").replace(/ren$/, "");
-    familyArr = familyArr.concat(extractRelatives(person[rel], relation));
-  });
-  return familyArr;
+  if (person) {
+    const rels = ["Parents", "Siblings", "Spouses", "Children"];
+    let familyArr = [person];
+    rels.forEach(function (rel) {
+      const relation = rel.replace(/s$/, "").replace(/ren$/, "");
+      if (person[rel]) {
+        familyArr = familyArr.concat(extractRelatives(person[rel], relation));
+      }
+    });
+    return familyArr;
+  } else {
+    return [];
+  }
 }
 
 function isNumeric(n) {

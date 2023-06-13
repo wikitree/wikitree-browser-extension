@@ -2,7 +2,7 @@
 Created By: Aleš Trtnik (Trtnik-2)
 */
 
-import { wtPlus } from "../features/wtPlus/wtPlus";
+import { wtPlus } from "../../features/wtPlus/wtPlus";
 import { editToolbarApp, editToolbarWiki } from "./editToolbar";
 export default [
   {

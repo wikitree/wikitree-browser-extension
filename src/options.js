@@ -210,9 +210,35 @@ function reset_options(preserveFeatureOptions, callback) {
   }
 }
 
+const resetToDefaultButtonsNeeded = ["customStyle"];
 // This is called recursively to build the elements of the options page
 function addOptionsForFeature(featureData, optionsContainerElement, options) {
   const featureId = featureData.id;
+
+  if (
+    resetToDefaultButtonsNeeded.includes(featureId) &&
+    $("#" + featureId + " #resetAllOptionsToDefault").length == 0
+  ) {
+    let resetToDefaultButton = document.createElement("button");
+    resetToDefaultButton.innerText = "Reset all";
+    resetToDefaultButton.className = "reset-to-default-button";
+    resetToDefaultButton.title = "Reset all to default";
+    resetToDefaultButton.id = "resetAllOptionsToDefault";
+    resetToDefaultButton.addEventListener("click", () => {
+      for (let option of options) {
+        if (option.type == "group") {
+          for (let subOption of option.options) {
+            $("#" + featureId + "_" + subOption.id).val(subOption.defaultValue);
+          }
+          continue;
+        } else {
+          $("#" + featureId + "_" + option.id).val(option.defaultValue);
+        }
+      }
+      saveFeatureOptions(featureData);
+    });
+    $(resetToDefaultButton).prependTo($(optionsContainerElement));
+  }
 
   function onChange(event) {
     saveFeatureOptions(featureData);
@@ -344,6 +370,20 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
     if (optionElement) {
       optionElement.id = fullOptionElementId;
       optionElement.addEventListener("change", onChange);
+    }
+    if (resetToDefaultButtonsNeeded.includes(featureId)) {
+      // Do this if the parent div has a label as the first child
+      if (optionDivElement.firstChild.tagName == "LABEL") {
+        let resetToDefaultButton = document.createElement("button");
+        resetToDefaultButton.innerText = "↺";
+        resetToDefaultButton.className = "reset-to-default-button";
+        resetToDefaultButton.title = "Reset to default";
+        resetToDefaultButton.addEventListener("click", () => {
+          $("#" + featureId + "_" + option.id).val(option.defaultValue);
+          saveFeatureOptions(featureData);
+        });
+        optionDivElement.appendChild(resetToDefaultButton);
+      }
     }
 
     if (option.comment) {
@@ -781,4 +821,20 @@ function exportDataClicked() {
       }
     }
   });
+}
+
+function addResetToDefaultButtons() {
+  const resetToDefaultButtonsNeeded = ["customStyle"];
+  for (let feature of features) {
+    if (resetToDefaultButtonsNeeded.includes(feature.id)) {
+      const resetToDefaultButton = document.createElement("button");
+      resetToDefaultButton.textContent = "Reset to Default";
+      resetToDefaultButton.addEventListener("click", () => {
+        reset_options(true, () => {
+          restore_options();
+        });
+      });
+      document.getElementById(feature.id).appendChild(resetToDefaultButton);
+    }
+  }
 }

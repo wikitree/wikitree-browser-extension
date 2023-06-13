@@ -99,6 +99,7 @@ export let isIansProfile = false;
 
 const path = decodeURI(window.location.pathname); // path
 const uri = decodeURI(window.location.href); // with parameters
+
 if (
   // Profile Edit Page
   uri.match(/\/index.php\?title=Special:EditPerson&.*/g)

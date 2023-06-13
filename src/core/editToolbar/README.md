@@ -1,11 +1,11 @@
 ## Adding items to editMenu
 
 Items are added based on the page type. There are 5 possibilities:
-* Profiles are defined in [editToolbarProfileOptions.js](./core/editToolbarProfileOptions.js)
-* Space pages are defined in [editToolbarSpaceOptions.js](./core/editToolbarSpaceOptions.js)
-* Categories are defined in [editToolbarCategoryOptions.js](./core/editToolbarCategoryOptions.js)
-* Templates are defined in [editToolbarTemplateOptions.js](./core/editToolbarTemplateOptions.js)
-* Other Wiki pages are defined in [editToolbarGenericOptions.js](./core/editToolbarGenericOptions.js)
+* Profiles are defined in [editToolbarProfileOptions.js](./core/editToolbar/editToolbarProfileOptions.js)
+* Space pages are defined in [editToolbarSpaceOptions.js](./core/editToolbar/editToolbarSpaceOptions.js)
+* Categories are defined in [editToolbarCategoryOptions.js](./core/editToolbar/editToolbarCategoryOptions.js)
+* Templates are defined in [editToolbarTemplateOptions.js](./core/editToolbar/editToolbarTemplateOptions.js)
+* Other Wiki pages are defined in [editToolbarGenericOptions.js](./core/editToolbar/editToolbarGenericOptions.js)
 
 In those files menus are defined in JSON format. 
 
