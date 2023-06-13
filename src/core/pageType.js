@@ -124,7 +124,7 @@ if (
   // Profile History Detail Page https://www.wikitree.com/index.php?title=Morgan-14024&diff=53223025&oldid=53223019
   // or https://www.wikitree.com/index.php?title=Morgan-14024&diff=next&oldid=53223019
   // or Page https://www.wikitree.com/index.php?title=Morgan-14024&diff=prev&oldid=53223019
-  uri.match(/\/index.php\?title=\p{L}[^:]*-[0-9]+&diff=(\d*|next|prev)&oldid=\d*//ug)
+  uri.match(/\/index.php\?title=\p{L}[^:]*-[0-9]+&diff=(\d*|next|prev)&oldid=\d*/ug)
 ) {
   isProfileHistoryDetail = true;
 } else if (
