@@ -2,10 +2,14 @@
 Created By: Aleš Trtnik (Trtnik-2)
 */
 
-import { shouldInitializeFeature } from "../../core/options/options_storage.js";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 shouldInitializeFeature("visitedLinks").then((result) => {
   if (result) {
-    import("./visitedLinks.css");
+    getFeatureOptions("visitedLinks").then((options) => {
+      const style = document.createElement("style");
+      style.textContent = "a:visited{color:" + options.color + "!important;}";
+      document.head.appendChild(style);
+    });
   }
 });

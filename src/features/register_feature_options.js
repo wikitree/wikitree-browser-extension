@@ -372,12 +372,20 @@ registerFeature({
 registerFeature({
   name: "Visited Links",
   id: "visitedLinks",
-  description: "Make links to visited pages purple.",
+  description: "Change the color of links to visited pages.",
   category: "Global/Style",
   creators: [{ name: "Aleš Trtnik", wikitreeid: "Trtnik-2" }],
   contributors: [],
   defaultValue: false,
   pages: [true],
+  options: [
+    {
+      id: "color",
+      type: "color",
+      label: "Visited link color",
+      defaultValue: "#d110d1",
+    },
+  ],
 });
 
 /*
