@@ -79,5 +79,4 @@ const g2g = {
   ],
 };
 
-// Just importing this file will register all the features
 registerFeature(g2g);
