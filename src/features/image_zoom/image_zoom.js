@@ -1,26 +1,22 @@
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
-shouldInitializeFeature("imagePreview").then((result) => {
+shouldInitializeFeature("imageZoom").then((result) => {
   if (result) {
-    setupImagePreview();
+    setupImageZoom();
   }
 });
 
-function setupImagePreview() {
+function setupImageZoom() {
   let hoverTimer; // timer for hover delay
   let zoomedImage = null;
+  let originalPosition = {};
 
   // Separate event delegation for images with the class "scale-with-grid"
   $(document).on("mouseover", "img.scale-with-grid", function (e) {
-    clearTimeout(hoverTimer); // clear hover timer here
-    console.log("mouseover on scale-with-grid");
     const alt = $(this).attr("alt");
     if (this.src) {
-      // Remove the existing image preview if any
-      $(".preview-image").remove();
-      $(".dark-screen").remove();
-      // Just add wheel event for zoom functionality
+      originalPosition = $(this).offset();
       $(this).on("wheel", function (e) {
         e.preventDefault();
         const delta = Math.sign(e.originalEvent.deltaY);
@@ -36,46 +32,30 @@ function setupImagePreview() {
         $(this).css("transform", `scale(${scale})`);
         $(this).data("scale", scale);
       });
-      $(this).draggable({
-        start: function (event, ui) {
-          $(this).data("originalTop", $(this).css("top"));
-          $(this).data("originalLeft", $(this).css("left"));
-        },
-      });
+      $(this).draggable();
     }
   });
 
-  // Add mouseout event to remove the zoom functionality from "scale-with-grid" images
   $(document).on("mouseout", "img.scale-with-grid", function () {
     $(this).off("wheel"); // remove wheel event
     $(this).css("transform", `scale(1)`); // reset scaling
     $(this).data("scale", 1); // reset scale data
-    // Check if the image is draggable before destroying it
-    if ($(this).data("ui-draggable")) {
-      $(this).draggable("destroy");
-    }
-    $(this).css({
-      top: $(this).data("originalTop"),
-      left: $(this).data("originalLeft"),
-    });
+    $(this).draggable("destroy");
+    $(this).offset(originalPosition);
   });
 
   // Separate event delegation for images with "thumb" in their src
   $(document).on("mouseover", "img[src*='thumb']", function (e) {
-    clearTimeout(hoverTimer); // clear hover timer here
-    console.log("mouseover on thumb");
     const src = $(this).attr("src");
     const alt = $(this).attr("alt");
     if (src) {
       const newSrc = src.replace("/thumb/", "/").replace(/\/[^/]+$/, "");
       hoverTimer = setTimeout(function () {
-        // Set up a dark screen
         setupDarkScreen();
-        // create an img element
         const imgElement = $("<img>", {
           src: newSrc,
           alt: alt,
-          class: "preview-image",
+          class: "zoom-image",
           css: {
             position: "absolute",
             width: "400px",
@@ -83,15 +63,12 @@ function setupImagePreview() {
             zIndex: 20001,
             border: "2px solid white",
           },
-        }).on("load", function () {
-          // Recalculate top and left after image loads
-          $(this).css({
-            top: ($(window).height() - $(this).height()) / 2 + $(window).scrollTop(),
-            left: ($(window).width() - $(this).width()) / 2,
-          });
         });
-        // append the image to body
         imgElement.appendTo("body");
+        imgElement.css({
+          top: ($(window).height() - imgElement.height()) / 2 + $(window).scrollTop(),
+          left: ($(window).width() - imgElement.width()) / 2,
+        });
         imgElement.draggable();
         imgElement.dblclick(function () {
           $(".dark-screen").remove();
@@ -106,6 +83,7 @@ function setupImagePreview() {
           } else {
             scaleFactor = 0.9;
           }
+
           let scale = $(this).data("scale") || 1;
           scale = scale * scaleFactor;
           $(this).css("transform", `scale(${scale})`);
@@ -116,7 +94,10 @@ function setupImagePreview() {
     }
   });
 
-  // Remove the preview when clicking outside the image
+  $(document).on("mouseout", "img[src*='thumb']", function () {
+    clearTimeout(hoverTimer);
+  });
+
   $(document).on("click", function (e) {
     if (!zoomedImage || $(e.target).is(zoomedImage)) return;
     $(".dark-screen").remove();

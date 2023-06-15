@@ -26,7 +26,7 @@ import "./features/extra_watchlist/extra_watchlist";
 import "./features/familyGroup/familyGroup";
 import "./features/familyTimeline/familyTimeline";
 import "./features/g2g/g2g";
-import "./features/image_preview/image_preview";
+import "./features/image_zoom/image_zoom";
 import "./features/my_connections/my_connections";
 import "./features/my_menu/my_menu";
 import "./features/printerfriendly/printerfriendly";

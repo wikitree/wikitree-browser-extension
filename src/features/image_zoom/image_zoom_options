@@ -6,13 +6,14 @@ import { registerFeature, OptionType } from "../../core/options/options_registry
 
 // The feature data for the myFeature feature
 registerFeature({
-  name: "Image Preview",
-  id: "imagePreview",
-  description: "Enlarge images on hover.",
+  name: "Image Zoom",
+  id: "imageZoom",
+  description: "Enable image zooming.",
   category: "Global",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
   pages: [isWikiPage],
-  options: [],
+  options: [   
+  ],
 });
