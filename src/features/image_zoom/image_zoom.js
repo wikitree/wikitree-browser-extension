@@ -45,10 +45,16 @@ function setupImageZoom() {
   });
 
   // Separate event delegation for images with "thumb" in their src
-  $(document).on("mouseover", "img[src*='thumb']", function (e) {
+  $(document).on("mouseover", "img[src*='thumb']:not(.commenter-image)", function (e) {
     const src = $(this).attr("src");
     const alt = $(this).attr("alt");
-    if (src) {
+    if (
+      src &&
+      !(
+        $(".x-privacy img[title*='Privacy Level: Private']").length &&
+        $(this).closest("#content.x-profile-person").length
+      )
+    ) {
       const newSrc = src.replace("/thumb/", "/").replace(/\/[^/]+$/, "");
       hoverTimer = setTimeout(function () {
         setupDarkScreen();
@@ -94,7 +100,7 @@ function setupImageZoom() {
     }
   });
 
-  $(document).on("mouseout", "img[src*='thumb']", function () {
+  $(document).on("mouseout", "img[src*='thumb']:not(.commenter-image)", function () {
     clearTimeout(hoverTimer);
   });
 
