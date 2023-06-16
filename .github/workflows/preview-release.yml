@@ -4,10 +4,11 @@ on:
   push:
     branches:
       - development
+
 jobs:
   latest-release:
     name: "Latest Release"
-    runs-on: "macos-latest" 
+    runs-on: "ubuntu-latest"
 
     steps:
     - uses: actions/checkout@v2
@@ -19,15 +20,9 @@ jobs:
     - run: npm ci
     - run: npm run zip
     - run: npm run zip-firefox
-    - name: Convert extension for Safari
-      run: |
-        xcrun safari-web-extension-converter --rebuild-project ./dist 
-    - name: Zip Safari extension
-      run: |
-        zip -r wbe-safari-preview.zip ./dist/safari 
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         prerelease: true
-        files: wbe-*-preview.zip, wbe-safari-preview.zip
+        files: wbe-*-preview.zip
         automatic_release_tag: "preview"
