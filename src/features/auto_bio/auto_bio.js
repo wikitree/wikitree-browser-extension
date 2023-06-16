@@ -3542,17 +3542,6 @@ function parseWikiTable(aRef) {
                 }
                 aMember.Relation = theRelation;
                 aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
-                /*
-              if (isOK(aPerson.BirthDate)) {
-                if (isWithinX(getAgeAtCensus(aPerson, data["Year"]), value, 4)) {
-                  aMember.Relation = theRelation;
-                  aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
-                }
-              } else {
-                aMember.Relation = theRelation;
-                aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
-              }
-              */
               } else if (data.Father == key && data.Age < aMember.Age) {
                 aMember.Relation = "Father";
               } else if (data.Mother == key && data.Age < aMember.Age) {
