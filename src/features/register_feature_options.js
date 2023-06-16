@@ -63,6 +63,7 @@ import "./edit_family_data/edit_family_data_options";
 import "./extra_watchlist/extra_watchlist_options";
 import "./g2g/g2g_options";
 import "./genderPredictor/gender_predictor_options";
+import "./image_zoom/image_zoom_options";
 import "./language_setting/language_setting_options";
 import "./printerfriendly/printerfriendly_options";
 import "./randomProfile/randomProfile_options";
