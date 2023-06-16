@@ -4,11 +4,10 @@ on:
   push:
     branches:
       - development
-
 jobs:
   latest-release:
     name: "Latest Release"
-    runs-on: "macos-latest"
+    runs-on: "macos-latest" 
 
     steps:
     - uses: actions/checkout@v2
@@ -22,10 +21,10 @@ jobs:
     - run: npm run zip-firefox
     - name: Convert extension for Safari
       run: |
-        xcrun safari-web-extension-converter --rebuild-project src
+        xcrun safari-web-extension-converter --rebuild-project dist # Replace with the correct path to the dist directory
     - name: Zip Safari extension
       run: |
-        zip -r wbe-safari-preview.zip src/safari
+        zip -r wbe-safari-preview.zip dist/safari # Replace with the correct path to the Safari extension
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
