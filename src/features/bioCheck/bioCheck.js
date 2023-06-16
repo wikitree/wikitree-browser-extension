@@ -6,84 +6,93 @@ import { shouldInitializeFeature, checkIfFeatureEnabled, getFeatureOptions } fro
 import { dataTables, dataTableTemplateFindByName, dataTablesLoad } from "../../core/API/wtPlusData";
 import { theSourceRules } from "./SourceRules.js";
 import { Biography } from "./Biography.js";
-import { PersonDate } from "./PersonDate.js";
+import { BioCheckPerson } from "./BioCheckPerson.js";
 
 var checkSaveIntervalId = 0;
+var isInit = false;
 
-shouldInitializeFeature("bioCheck").then((result) => {
+shouldInitializeFeature("bioCheck").then(async (result) => {
   if (result) {
-
-    // initialize data tables
-    initBioCheck();
-
-    /* TODO in the future possibly add options
-     * options might move the results report above the Preview button
-     * options might treat all profiles as Pre1700 if the Require Reliable
-     *   Sources option is selected
-     * To add options
-     * - move the registerFeature call out of src/features/register_feature_options.js
-     *   into a separate file named src/features/bioCheck/bio_check_options.js
-     * - include the new file in register_feature_options.js (like agc_options)
-     * - in the registerFeature call add an "options" member to the object passed in
-     *   (see agc or darkMode for examples)
-     */
-
-    // theSourceRules are an immutable singleton
-
-    // Look at the type of page and take appropriate action
-    if (document.body.classList.contains("page-Special_EditPerson")) {
-      // If custom change summary options enabled, wait for the saveStuff to be created
-      // It seems that the check is long enough to wait but just in case there are slower machines
-      checkIfFeatureEnabled("customChangeSummaryOptions").then((result) => {
-        if (result) {
-          checkSaveIntervalId = setInterval(checkSaveStuff, 8);
-        }
-
-        let saveDraftButton = document.getElementById("wpSaveDraft");
-        if (saveDraftButton) {
-          saveDraftButton.onclick = function () {
-            checkBio();
-          };
-          saveDraftButton.addEventListener("mouseover", checkBioAtInterval);
-          saveDraftButton.addEventListener("touchstart", checkBioAtInterval);
-          let saveButton = document.getElementById("wpSave");
-          saveButton.addEventListener("mouseover", checkBioAtInterval);
-          saveButton.addEventListener("touchstart", checkBioAtInterval);
-
-          // and also once a minute
-          setInterval(checkBioAtInterval, 60000);
-        }
-        checkBio();
-      });
-
-    } else {
-
-      let saveButton = null;
-      if (document.getElementById("mSources")) {
-        if (document.body.classList.contains("page-Special_EditFamily")) {
-          saveButton = document.getElementById('addNewPersonButton');
-        }
-        if (saveButton) {
-          // listening to the save button click seemed to interfere with
-          // the actual save, so it was removed
-          saveButton.addEventListener("mouseover", checkSourcesAtInterval);
-          saveButton.addEventListener("touchstart", checkSourcesAtInterval);
-          setInterval(checkSourcesAtInterval, 30000);
-        }
-      } else {
-        if (document.body.classList.contains("page-Special_WatchedList")) {
-          checkWatchlist();
-        }
-      }
-    }
+    await bioCheckSetup();
   }
 });
 
-export async function initBioCheck() {
+// Need to initialize asynchronously to allow for interdependencies
+// the auto_bio feature uses bioCheck
+// bioCheck will add to an element from customChangeSummaryOptions
+async function bioCheckSetup() {
+  // initialize data tables
+  // this await is key to the interdependencies
+  await initBioCheck();
 
-  await dataTablesLoad('wbeBioCheck');  // using an id of bioCheck gives a CORS error
-  if (dataTables.templates) {
-    theSourceRules.loadTemplates(dataTables.templates);
+  /* TODO in the future possibly add options
+   * options might move the results report above the Preview button
+   * options might treat all profiles as Pre1700 if the Require Reliable
+   *   Sources option is selected
+   * To add options
+   * - move the registerFeature call out of src/features/register_feature_options.js
+   *   into a separate file named src/features/bioCheck/bio_check_options.js
+   * - include the new file in register_feature_options.js (like agc_options)
+   * - in the registerFeature call add an "options" member to the object passed in
+   *   (see agc or darkMode for examples)
+   */
+
+  // Look at the type of page and take appropriate action
+  if (document.body.classList.contains("page-Special_EditPerson")) {
+    // If custom change summary options enabled, wait for the saveStuff to be created
+    // It seems that the check is long enough to wait but just in case there are slower machines
+    checkIfFeatureEnabled("customChangeSummaryOptions").then((result) => {
+      if (result) {
+        checkSaveIntervalId = setInterval(checkSaveStuff, 10);
+      }
+
+      let saveDraftButton = document.getElementById("wpSaveDraft");
+      if (saveDraftButton) {
+        saveDraftButton.onclick = function () {
+          checkBio();
+        };
+        saveDraftButton.addEventListener("mouseover", checkBioAtInterval);
+        saveDraftButton.addEventListener("touchstart", checkBioAtInterval);
+        let saveButton = document.getElementById("wpSave");
+        saveButton.addEventListener("mouseover", checkBioAtInterval);
+        saveButton.addEventListener("touchstart", checkBioAtInterval);
+
+        // and also once a minute
+        setInterval(checkBioAtInterval, 60000);
+      }
+      checkBio();
+    });
+
+  } else {
+
+    let saveButton = null;
+    if (document.getElementById("mSources")) {
+      if (document.body.classList.contains("page-Special_EditFamily")) {
+        saveButton = document.getElementById('addNewPersonButton');
+      }
+      if (saveButton) {
+        // listening to the save button click seemed to interfere with
+        // the actual save, so it was removed
+        saveButton.addEventListener("mouseover", checkSourcesAtInterval);
+        saveButton.addEventListener("touchstart", checkSourcesAtInterval);
+        setInterval(checkSourcesAtInterval, 30000);
+      }
+    } else {
+      if (document.body.classList.contains("page-Special_WatchedList")) {
+        checkWatchlist();
+      }
+    }
+  }
+}
+
+// Initalize - load templates into source rules
+export async function initBioCheck() {
+  if (!isInit) {  // we may be called from outside, but only want to load once
+    isInit = true;
+    await dataTablesLoad('wbeBioCheck');  // using an id of bioCheck gives a CORS error
+    if (dataTables.templates) {
+      theSourceRules.loadTemplates(dataTables.templates);
+    }
   }
 }
 
@@ -97,6 +106,7 @@ function checkSourcesAtInterval() {
 
 // Wait for the save stuff container
 // May not need this, might need in future
+// Just racing around...
 function checkSaveStuff() {
   if (document.getElementById("saveStuff")) {
     clearInterval(checkSaveIntervalId);
@@ -108,7 +118,7 @@ function checkSaveStuff() {
  *
  * Copied the following files into features/bioCheck:
  *   Biography.js
- *   PersonDate.js
+ *   BioCheckPerson.js
  *   SourceRules.js
  *
  * When checking a biography there is no check for privacy
@@ -117,30 +127,37 @@ function checkSaveStuff() {
  */
 
 function checkBio() {
-  let thePerson = new PersonDate();
-  // get the bio text and person dates to check
+  let thePerson = new BioCheckPerson();
   let bioString = document.getElementById("wpTextbox1").value;
-  let birthDate = document.getElementById("mBirthDate").value;
-  let deathDate = document.getElementById("mDeathDate").value;
-  thePerson.initWithDates(birthDate, deathDate);
+  thePerson.build();
   let biography = new Biography(theSourceRules);
-  biography.parse(
-    bioString, thePerson.isPersonPre1500(), thePerson.isPersonPre1700(),
-    thePerson.mustBeOpen(), thePerson.isUndated(), ""
-  );
-  // status true if appears sourced and no style issues, else false
+  biography.parse(bioString, thePerson, "");
   let bioStatus = biography.validate();
   // now report from biography results by adding a list to the page
-  reportResults(getReportLines(bioStatus, biography));
+  reportResults(getReportLines(bioStatus, biography, thePerson.isPre1700()));
 }
 
-function getReportLines(bioStatus, biography) {
+function getReportLines(bioStatus, biography, isPre1700) {
+
   let profileReportLines = [];
   if (biography.hasSources()) {
     profileReportLines.push("Profile appears to have sources");
   } else {
     if (!biography.isMarkedUnsourced()) {
       profileReportLines.push("Profile may be unsourced");
+    }
+  }
+  let numLines = biography.getInvalidSources().length;
+  if (biography.getInvalidSources().length > 0) {
+    let msg = "Bio Check found sources that are not ";
+    if (isPre1700) {
+      msg += "reliable or ";
+    }
+    msg += "clearly identified: \u00A0\u00A0"; // TODO use style?
+    profileReportLines.push(msg);
+    for (let i=0; i<biography.getInvalidSources().length; i++) {
+      let msg = '\xa0\xa0\xa0' + biography.getInvalidSources()[i];
+      profileReportLines.push(msg);
     }
   }
   let messages = biography.getSectionMessages();
@@ -213,13 +230,10 @@ function checkSources() {
     }
   }
   if (addingNewProfile) {
-    let thePerson = new PersonDate();
+    let thePerson = new BioCheckPerson();
     // get the bio text and person dates to check
     let sourcesStr = document.getElementById("mSources").value;
-    let birthDate = document.getElementById("mBirthDate").value;
-    let deathDate = document.getElementById("mDeathDate").value;
-    thePerson.initWithDates(birthDate, deathDate);
-    let isPre1700 = thePerson.isPersonPre1700();
+    thePerson.build();
     let biography = new Biography(theSourceRules);
     let useAdvanced = false;
     if (document.getElementById('useAdvancedSources') != null) {
@@ -227,25 +241,15 @@ function checkSources() {
     }
     // Either check the sources box or advanced sourcing like a bio
     // So you either report just like checkBio or just the list of sources
-    let hasSources = false;
-    let hasStyleIssues = false;
+    let isValid = true;
     if (useAdvanced != 0) {
-      biography.parse(
-        sourcesStr, thePerson.isPersonPre1500(), thePerson.isPersonPre1700(),
-        thePerson.mustBeOpen(), thePerson.isUndated(), "");
-        let isValid = biography.validate();
-        hasSources = biography.hasSources();
-        hasStyleIssues = biography.hasStyleIssues();
-        let titleMsg = "Bio Check results:\u00A0\u00A0";
-        reportSources(getReportLines(isValid, biography), isValid, hasStyleIssues, titleMsg);
+      biography.parse(sourcesStr, thePerson, "");
+      isValid = biography.validate();
+      reportSources(getReportLines(isValid, biography, thePerson.isPre1700()), isValid);
     } else {
-      let isValid = biography.validateSourcesStr(
-          sourcesStr, thePerson.isPersonPre1500(), isPre1700, thePerson.mustBeOpen());
-      let numLines = biography.getInvalidSources().length;
-      hasSources = biography.hasSources();
-      let titleMsg = sourcesTitle(isPre1700, hasSources, hasStyleIssues, numLines);
-      reportSources(biography.getInvalidSources(), isValid, hasStyleIssues, titleMsg);
+      isValid = biography.validateSourcesStr(sourcesStr, thePerson);
     }
+    reportSources(getReportLines(isValid, biography, thePerson.isPre1700()), isValid);
   }
 }
 
@@ -255,7 +259,7 @@ function checkSources() {
  * or
  * the lines of a full biocheck report
 */
-function reportSources(invalidSourceLines, isValid, hasStyleIssues, titleMsg) {
+function reportSources(invalidSourceLines, isValid) {
   let numLines = invalidSourceLines.length;
   let previousSources = document.getElementById("bioCheckSourcesList");
   let bioCheckSourcesContainer = document.getElementById("bioCheckSourcesContainer");
@@ -270,7 +274,7 @@ function reportSources(invalidSourceLines, isValid, hasStyleIssues, titleMsg) {
 
       bioCheckTitle = document.createElement("div");
       bioCheckTitle.setAttribute("id", "bioCheckTitle");
-      bioCheckTitle.innerText = titleMsg; // fill contents of the title each time you are here in case data changes
+      bioCheckTitle.innerText = "Bio Check results:\u00A0\u00A0";
       bioCheckSourcesContainer.appendChild(bioCheckTitle);
       setHelp(bioCheckTitle);
     }
@@ -287,7 +291,6 @@ function reportSources(invalidSourceLines, isValid, hasStyleIssues, titleMsg) {
 
   // Add or replace the results
   if ((numLines > 0) || !isValid) {
-    bioCheckTitle.innerText = titleMsg; // fill contents of the title each time you are here in case data changes
     if (previousSources != null) {
       previousSources.replaceWith(bioSourcesList);
     } else {
@@ -303,35 +306,6 @@ function reportSources(invalidSourceLines, isValid, hasStyleIssues, titleMsg) {
       bioCheckSourcesContainer.remove();
     }
   }
-}
-/**
- * Build title for sources message
- * @param isPre1700 true to build Pre-1700 profile message
- * @return sources title message
- */
-function sourcesTitle(isPre1700, hasSources, hasStyleIssues, numLines) {
-  let msg = '';
-  let title = "Bio Check results\u00A0\u00A0";
-  if (numLines > 0) { 
-    msg = "Bio Check found sources that are not ";
-    if (isPre1700) {
-      msg += "reliable or ";
-    }
-    msg += "clearly identified: \u00A0\u00A0"; // TODO use style?
-  } else {
-    if (!hasSources) {
-      msg = 'Bio Check results: Profile lacks sources  ';
-      if (hasStyleIssues) {
-        msg += 'and has style issues  ';
-      }
-    } else {
-      if (hasStyleIssues) {
-        msg = 'Bio Check results: Profile has style issues  ';
-      }
-    }
-  }
-  msg += "\u00A0\u00A0"; // TODO use style?
-  return msg;
 }
 /**
  * Build a link for help
@@ -382,6 +356,4 @@ function checkWatchlist() {
     // Insert in alpha order, use appendChild to add at end
     buttonList.insertBefore(bioCheckItem, buttonList.children[myPosition]);
   }
-
-
 }
