@@ -21,10 +21,10 @@ jobs:
     - run: npm run zip-firefox
     - name: Convert extension for Safari
       run: |
-        xcrun safari-web-extension-converter --rebuild-project dist # Replace with the correct path to the dist directory
+        xcrun safari-web-extension-converter --rebuild-project ./dist 
     - name: Zip Safari extension
       run: |
-        zip -r wbe-safari-preview.zip dist/safari # Replace with the correct path to the Safari extension
+        zip -r wbe-safari-preview.zip ./dist/safari 
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
