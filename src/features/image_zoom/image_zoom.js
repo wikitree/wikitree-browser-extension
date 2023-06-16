@@ -3,6 +3,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 
 shouldInitializeFeature("imageZoom").then((result) => {
   if (result) {
+    import("./image_zoom.css");
     setupImageZoom();
   }
 });
@@ -14,9 +15,9 @@ function setupImageZoom() {
 
   // Separate event delegation for images with the class "scale-with-grid"
   $(document).on("mouseover", "img.scale-with-grid", function (e) {
-    const alt = $(this).attr("alt");
     if (this.src) {
       originalPosition = $(this).offset();
+      $(this).addClass("zoomable");
       $(this).on("wheel", function (e) {
         e.preventDefault();
         const delta = Math.sign(e.originalEvent.deltaY);
@@ -40,8 +41,12 @@ function setupImageZoom() {
     $(this).off("wheel"); // remove wheel event
     $(this).css("transform", `scale(1)`); // reset scaling
     $(this).data("scale", 1); // reset scale data
-    $(this).draggable("destroy");
+    // Check if the image is draggable before destroying it
+    if ($(this).data("ui-draggable")) {
+      $(this).draggable("destroy");
+    }
     $(this).offset(originalPosition);
+    $(this).removeClass("zoomable");
   });
 
   // Separate event delegation for images with "thumb" in their src
@@ -50,10 +55,7 @@ function setupImageZoom() {
     const alt = $(this).attr("alt");
     if (
       src &&
-      !(
-        $(".x-privacy img[title*='Privacy Level: Private']").length &&
-        $(this).closest("#content.x-profile-person").length
-      )
+      !($(".x-privacy img[title*='Privacy Level: Private']").length && $(this).closest(".x-thumbnail").length)
     ) {
       const newSrc = src.replace("/thumb/", "/").replace(/\/[^/]+$/, "");
       hoverTimer = setTimeout(function () {
@@ -96,7 +98,7 @@ function setupImageZoom() {
           $(this).data("scale", scale);
         });
         zoomedImage = imgElement;
-      }, 1000); // 1 second delay before showing the image
+      }, 1500); // 1.5 second delay before showing the image
     }
   });
 
