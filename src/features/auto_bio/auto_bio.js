@@ -149,7 +149,7 @@ function fixUSLocation(event) {
   const lastLocationBit = locationBits[locationBits.length - 1];
   if (
     locationBits.length == 1 &&
-    ["US", "USA", "United States of America", "United States", "U.S.A."].includes(lastLocationBit)
+    ["US", "USA", "United States of America", "United States", "U.S.A.", "U.S."].includes(lastLocationBit)
   ) {
     if (window.autoBioOptions?.changeUS) {
       event.Location = "United States";
