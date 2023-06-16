@@ -14,7 +14,7 @@ import { titleCase } from "../familyTimeline/familyTimeline";
 import { wtAPICatCIBSearch } from "../../core/API/wtPlusAPI";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { theSourceRules } from "../bioCheck/SourceRules.js";
-import { BioCheckPerson } from "../bioCheck/BioCheckPerson.js";
+import { PersonDate } from "../bioCheck/PersonDate.js";
 import { Biography } from "../bioCheck/Biography.js";
 import { initBioCheck } from "../bioCheck/bioCheck.js";
 import { ageAtDeath, USstatesObjArray } from "../my_connections/my_connections";
@@ -102,10 +102,19 @@ function findUSState(location) {
 }
 
 function autoBioCheck(sourcesStr) {
-  let thePerson = new BioCheckPerson();
-  thePerson.build();
+  let thePerson = new PersonDate();
+  let birthDate = document.getElementById("mBirthDate").value;
+  let deathDate = document.getElementById("mDeathDate").value;
+  thePerson.initWithDates(birthDate, deathDate);
   let biography = new Biography(theSourceRules);
-  biography.parse(sourcesStr, thePerson, "");
+  biography.parse(
+    sourcesStr,
+    thePerson.isPersonPre1500(),
+    thePerson.isPersonPre1700(),
+    thePerson.mustBeOpen(),
+    thePerson.isUndated(),
+    ""
+  );
   biography.validate();
   const hasSources = biography.hasSources();
   return hasSources;
