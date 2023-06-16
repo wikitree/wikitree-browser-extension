@@ -6176,8 +6176,6 @@ export async function generateBio() {
     // Handle census data created with Sourcer
     window.sourcerCensuses = getSourcerCensuses();
 
-    // console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
-
     // Create the references array
     if (window.sectionsObject.Sources) {
       window.sourcesSection = window.sectionsObject.Sources;
@@ -7075,7 +7073,6 @@ function addErrorMessage() {
 
     // Start observing the target node for configured mutations
     observer.observe(targetNode, config);
-
     $(".privateMessageLink")[0].click();
   }
 }
