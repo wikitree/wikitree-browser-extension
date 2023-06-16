@@ -36,14 +36,16 @@
   "Connecticut": {
     "abbreviation": "CT",
     "admissionDate": "1788-01-09",
-    "former_name": "Crown Colony of Connecticut",
-    "former_name_date_established": "1636"
+    "former_name": "Connecticut Colony",
+    "former_name_date_established": "1636",
+    "postRevolutionName": "State of Connecticut"
   },
   "Delaware": {
     "abbreviation": "DE",
     "admissionDate": "1787-12-07",
-    "former_name": "Colony of Delaware",
-    "former_name_date_established": "1638"
+    "former_name": "Delaware Colony",
+    "former_name_date_established": "1638",
+    "postRevolutionName": "State of Delaware"
   },
   "Florida": {
     "abbreviation": "FL",
@@ -54,8 +56,9 @@
   "Georgia": {
     "abbreviation": "GA",
     "admissionDate": "1788-01-02",
-    "former_name": "Crown Colony of Georgia",
-    "former_name_date_established": "1732"
+    "former_name": "Province of Georgia",
+    "former_name_date_established": "1732",
+    "postRevolutionName": "State of Georgia"
   },
   "Hawaii": {
     "abbreviation": "HI",
@@ -115,13 +118,15 @@
     "abbreviation": "MD",
     "admissionDate": "1788-04-28",
     "former_name": "Province of Maryland",
-    "former_name_date_established": "1632"
+    "former_name_date_established": "1632",
+    "postRevolutionName": "State of Maryland"
   },
   "Massachusetts": {
     "abbreviation": "MA",
     "admissionDate": "1788-02-06",
     "former_name": "Province of Massachusetts Bay",
-    "former_name_date_established": "1691"
+    "former_name_date_established": "1691",
+    "postRevolutionName": "Commonwealth of Massachusetts"
   },
   "Michigan": {
     "abbreviation": "MI",
@@ -169,13 +174,15 @@
     "abbreviation": "NH",
     "admissionDate": "1788-06-21",
     "former_name": "Province of New Hampshire",
-    "former_name_date_established": "1679"
+    "former_name_date_established": "1679",
+    "postRevolutionName": "State of New Hampshire"
   },
   "New Jersey": {
     "abbreviation": "NJ",
     "admissionDate": "1787-12-12",
     "former_name": "Province of New Jersey",
-    "former_name_date_established": "1702"
+    "former_name_date_established": "1702",
+    "postRevolutionName": "State of New Jersey"
   },
   "New Mexico": {
     "abbreviation": "NM",
@@ -187,13 +194,15 @@
     "abbreviation": "NY",
     "admissionDate": "1788-07-26",
     "former_name": "Province of New York",
-    "former_name_date_established": "1664"
+    "former_name_date_established": "1664",
+    "postRevolutionName": "State of New York"
   },
   "North Carolina": {
     "abbreviation": "NC",
     "admissionDate": "1789-11-21",
     "former_name": "Province of North Carolina",
-    "former_name_date_established": "1712"
+    "former_name_date_established": "1712",
+    "postRevolutionName": "State of North Carolina"
   },
   "North Dakota": {
     "abbreviation": "ND",
@@ -223,19 +232,22 @@
     "abbreviation": "PA",
     "admissionDate": "1787-12-12",
     "former_name": "Province of Pennsylvania",
-    "former_name_date_established": "1681-03-04"
+    "former_name_date_established": "1681-03-04",
+    "postRevolutionName": "Commonwealth of Pennsylvania"
   },
   "Rhode Island": {
     "abbreviation": "RI",
     "admissionDate": "1790-05-29",
     "former_name": "Colony of Rhode Island and Providence Plantations",
-    "former_name_date_established": "1636"
+    "former_name_date_established": "1636",
+    "postRevolutionName": "State of Rhode Island and Providence Plantations"
   },
   "South Carolina": {
     "abbreviation": "SC",
     "admissionDate": "1788-05-23",
     "former_name": "Province of South Carolina",
-    "former_name_date_established": "1712"
+    "former_name_date_established": "1712",
+    "postRevolutionName": "State of South Carolina"
   },
   "South Dakota": {
     "abbreviation": "SD",
@@ -271,7 +283,8 @@
     "abbreviation": "VA",
     "admissionDate": "1788-06-25",
     "former_name": "Colony of Virginia",
-    "former_name_date_established": "1607"
+    "former_name_date_established": "1607",
+    "postRevolutionName": "Commonwealth of Virginia"
   },
   "Washington": {
     "abbreviation": "WA",

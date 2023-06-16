@@ -180,19 +180,25 @@ async function locationsHelper() {
                   const thisState = window.USstates[aWord];
                   if (thisState.former_name_date_established != undefined) {
                     if (thisState.former_name_date_established <= myYear && thisState.admissionDate >= myYear) {
-                      dText = dText.replace(lastPart, " " + thisState.former_name).replace(/ \(.+\)/, "");
-                      console.log(dText);
-                      $(added_node).find(".autocomplete-suggestion").attr("data-val", dText.trim());
                       const innerBit = $(added_node).find(".autocomplete-suggestion-head");
-                      // Build text for innerBit.  This is dText +(thisState.former_name_date_established + "-" + thisState.admissionDate (but only the year))
-                      innerBit.text(
-                        dText +
+                      let innerBitText = "";
+                      if (myYear >= 1776 && thisState.postRevolutionName) {
+                        dText = dText.replace(lastPart, " " + aWord);
+                        innerBitText =
+                          dText + " (" + "1776-07-04" + " - " + thisState.admissionDate.match(/\d{4}/) + ")";
+                      } else {
+                        dText = dText.replace(lastPart, " " + thisState.former_name).replace(/ \(.+\)/, "");
+                        // Build text for innerBit.  This is dText +(thisState.former_name_date_established + "-" + thisState.admissionDate (but only the year))
+                        innerBitText =
+                          dText +
                           " (" +
                           thisState.former_name_date_established +
                           " - " +
                           thisState.admissionDate.match(/\d{4}/) +
-                          ")"
-                      );
+                          ")";
+                      }
+                      $(added_node).find(".autocomplete-suggestion").attr("data-val", dText.trim());
+                      innerBit.text(innerBitText);
                       // And match the parts of the text in the location box (#mBirthLocation, etc.) against dText and wrap <span class="autocomplete-suggestion-term"> around them.
                       const theLocation = $("#" + activeEl.id);
                       const theLocationText = theLocation.val();
