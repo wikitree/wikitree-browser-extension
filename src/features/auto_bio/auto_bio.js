@@ -72,22 +72,7 @@ function findUSState(location) {
     return false;
   }
   // Test last part of location against variants of US country name and US state names
-  const usCountryNames = [
-    "United States",
-    "USA",
-    "U.S.A.",
-    "U.S.",
-    "US",
-    "U.S.A",
-    "U.S",
-    "US",
-    "U.S.A.",
-    "U.S.",
-    "US",
-    "U.S.A",
-    "U.S",
-    "US",
-  ];
+  const usCountryNames = ["United States", "USA", "U.S.A.", "U.S.", "US", "United States of America"];
   // Split the location string into parts
   const parts = location.split(",").map((part) => part.trim());
 
