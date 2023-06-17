@@ -2612,7 +2612,7 @@ function parseFamilyData(familyData, options = { format: "list", year: "" }) {
   });
   return result;
 }
-
+/*
 function parseCensusData(censusData) {
   const parsedData = [];
 
@@ -2649,7 +2649,7 @@ function parseCensusData(censusData) {
 
   return parsedData;
 }
-
+*/
 function addAges() {
   window.references.forEach(function (reference) {
     if (reference["Record Type"] == "Census") {
@@ -7086,7 +7086,7 @@ shouldInitializeFeature("autoBio").then((result) => {
       addErrorMessage();
     }
 
-    // check for Firefox (I don't remember why we need this...)
+    // check for Firefox
     window.isFirefox = false;
     window.addEventListener("load", () => {
       let prefix = Array.prototype.slice
