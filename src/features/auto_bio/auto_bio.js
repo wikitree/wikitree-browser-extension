@@ -169,6 +169,7 @@ function fixUSLocation(event) {
           state.former_name &&
           window.autoBioOptions?.changeUS &&
           !(isSameDateOrAfter(event.Date, "1776-07-04") && state.postRevolutionName)
+        ) {
           event.Location = event.Location.replace(lastLocationBit, state.former_name);
         }
       } else if (["US", "USA", "United States of America", "United States", "U.S.A."].includes(lastLocationBit)) {
