@@ -48,6 +48,7 @@ class SourceRules {
     // include research  notes (extra space) and research note (no s)
     "notes de recherche",
     "onderzoeksnotities",
+    "onderzoeknotities",
     "opmerkingen",
     "bemerkungen zur nachforschung",
     "forschungsnotizen",
@@ -109,6 +110,31 @@ class SourceRules {
   // loads from templates
   #sticker = [];
 
+  // recommended HTML tags
+  #recommendedTagsStart = [
+    "<!--",
+    "<blockquote",
+    "</blockquote",
+    "<br",
+    "<center",
+    "</center",
+    "<includeonly",
+    "</includeonly",
+    "<noinclude",
+    "</noinclude",
+    "<nowiki",
+    "</nowiki",
+    "<onlyinclude",
+    "</onlyinclude",
+    "<ref",
+    "</ref",
+    "<sub",
+    "</sub",
+    "<sup",
+    "</sup",
+    "<span",
+    "</span",
+  ];
   // strings that identify a census source
   // when used by itself or with nothing other than
   // date are not a valid source
@@ -235,6 +261,7 @@ class SourceRules {
     "'''see also:'''",
     "www.ancestry.ca",
     "www.bms2000.org",
+    "confirmed by dna",
     "familysearch.org",
     "family documents",
     "family knowledge",
@@ -261,6 +288,8 @@ class SourceRules {
     ":'''source list'''",
     "'''source list:'''",
     "cemetery headstone",
+    "mother matches dna",
+    "father matches dna",
     "citing this record",
     "family information",
     "newspaper obituary",
@@ -291,6 +320,7 @@ class SourceRules {
     "mormon church records",
     "replace this citation",
     "ancestry and documents",
+    "confirmed by dna match",
     "scotlandspeople.gov.uk",
     "ancestry tree & sources",
     "family tree on ancestry",
@@ -328,6 +358,9 @@ class SourceRules {
     "research on ancestry and marriage records",
     "geneanet community trees index on ancestry",
     "marriage records and ancestry.com research",
+    "maternal relationship confirmed by dna match",
+    "paternal relationship confirmed by dna match",
+    "parental relationship confirmed by dna match",
     "passenger and immigration lists index, 1500s-1900s",
     "replace this citation if there is another source",
     "research on ancestry and a variety of other places",
@@ -857,6 +890,16 @@ class SourceRules {
    */
   isSticker(line) {
     return this.lineStartsWithListEntry(line, this.#sticker);
+  }
+
+  /** 
+   * Determine if a line start with an HTML tag
+   * that is recommended for use on WikiTree
+   * @param {String} line to test
+   * @returns {Boolean} true if recommended else false
+   */
+  isRecommendedTag(line) {
+    return this.lineStartsWithListEntry(line, this.#recommendedTagsStart);
   }
 
   /**

@@ -14,7 +14,7 @@ import { titleCase } from "../familyTimeline/familyTimeline";
 import { wtAPICatCIBSearch } from "../../core/API/wtPlusAPI";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { theSourceRules } from "../bioCheck/SourceRules.js";
-import { PersonDate } from "../bioCheck/PersonDate.js";
+import { BioCheckPerson } from "../bioCheck/BioCheckPerson.js";
 import { Biography } from "../bioCheck/Biography.js";
 import { initBioCheck } from "../bioCheck/bioCheck.js";
 import { ageAtDeath, USstatesObjArray } from "../my_connections/my_connections";
@@ -102,19 +102,10 @@ function findUSState(location) {
 }
 
 function autoBioCheck(sourcesStr) {
-  let thePerson = new PersonDate();
-  let birthDate = document.getElementById("mBirthDate").value;
-  let deathDate = document.getElementById("mDeathDate").value;
-  thePerson.initWithDates(birthDate, deathDate);
+  let thePerson = new BioCheckPerson();
+  thePerson.build();
   let biography = new Biography(theSourceRules);
-  biography.parse(
-    sourcesStr,
-    thePerson.isPersonPre1500(),
-    thePerson.isPersonPre1700(),
-    thePerson.mustBeOpen(),
-    thePerson.isUndated(),
-    ""
-  );
+  biography.parse(sourcesStr, thePerson, "");
   biography.validate();
   const hasSources = biography.hasSources();
   return hasSources;
@@ -158,7 +149,7 @@ function fixUSLocation(event) {
   const lastLocationBit = locationBits[locationBits.length - 1];
   if (
     locationBits.length == 1 &&
-    ["US", "USA", "United States of America", "United States", "U.S.A."].includes(lastLocationBit)
+    ["US", "USA", "United States of America", "United States", "U.S.A.", "U.S."].includes(lastLocationBit)
   ) {
     if (window.autoBioOptions?.changeUS) {
       event.Location = "United States";
@@ -178,7 +169,6 @@ function fixUSLocation(event) {
           state.former_name &&
           window.autoBioOptions?.changeUS &&
           !(isSameDateOrAfter(event.Date, "1776-07-04") && state.postRevolutionName)
-        ) {
           event.Location = event.Location.replace(lastLocationBit, state.former_name);
         }
       } else if (["US", "USA", "United States of America", "United States", "U.S.A."].includes(lastLocationBit)) {
@@ -3556,17 +3546,6 @@ function parseWikiTable(aRef) {
                 }
                 aMember.Relation = theRelation;
                 aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
-                /*
-              if (isOK(aPerson.BirthDate)) {
-                if (isWithinX(getAgeAtCensus(aPerson, data["Year"]), value, 4)) {
-                  aMember.Relation = theRelation;
-                  aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
-                }
-              } else {
-                aMember.Relation = theRelation;
-                aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
-              }
-              */
               } else if (data.Father == key && data.Age < aMember.Age) {
                 aMember.Relation = "Father";
               } else if (data.Mother == key && data.Age < aMember.Age) {
@@ -6189,9 +6168,6 @@ export async function generateBio() {
     window.profilePerson.NameVariants = getNameVariants(window.profilePerson);
     // Handle census data created with Sourcer
     window.sourcerCensuses = getSourcerCensuses();
-
-    // console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
-
     // Create the references array
     if (window.sectionsObject.Sources) {
       window.sourcesSection = window.sectionsObject.Sources;
@@ -7089,7 +7065,6 @@ function addErrorMessage() {
 
     // Start observing the target node for configured mutations
     observer.observe(targetNode, config);
-
     $(".privateMessageLink")[0].click();
   }
 }

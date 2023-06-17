@@ -1,0 +1,19 @@
+/*
+Created By: Ian Beacall (Beacall-6)
+*/
+import { isWikiPage } from "../../core/pageType";
+import { registerFeature, OptionType } from "../../core/options/options_registry";
+
+// The feature data for the myFeature feature
+registerFeature({
+  name: "Image Zoom",
+  id: "imageZoom",
+  description: "Enable image zooming (with your mousewheel). For a thumbnail, a zoomable image pops up.  Other images are zoomable in place.",
+  category: "Global",
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
+  contributors: [],
+  defaultValue: false,
+  pages: [isWikiPage],
+  options: [   
+  ],
+});

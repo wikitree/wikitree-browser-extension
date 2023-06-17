@@ -63,6 +63,7 @@ import "./edit_family_data/edit_family_data_options";
 import "./extra_watchlist/extra_watchlist_options";
 import "./g2g/g2g_options";
 import "./genderPredictor/gender_predictor_options";
+import "./image_zoom/image_zoom_options";
 import "./language_setting/language_setting_options";
 import "./printerfriendly/printerfriendly_options";
 import "./randomProfile/randomProfile_options";
@@ -372,12 +373,20 @@ registerFeature({
 registerFeature({
   name: "Visited Links",
   id: "visitedLinks",
-  description: "Make links to visited pages purple.",
+  description: "Change the color of links to visited pages.",
   category: "Global/Style",
   creators: [{ name: "Aleš Trtnik", wikitreeid: "Trtnik-2" }],
   contributors: [],
   defaultValue: false,
   pages: [true],
+  options: [
+    {
+      id: "color",
+      type: "color",
+      label: "Visited link color",
+      defaultValue: "#d110d1",
+    },
+  ],
 });
 
 /*
