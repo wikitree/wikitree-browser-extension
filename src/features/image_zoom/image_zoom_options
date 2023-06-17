@@ -8,7 +8,7 @@ import { registerFeature, OptionType } from "../../core/options/options_registry
 registerFeature({
   name: "Image Zoom",
   id: "imageZoom",
-  description: "Enable image zooming. For a thumbnail, a zoomable image pops up.  Other images are zoomable in place.",
+  description: "Enable image zooming (with your mousewheel). For a thumbnail, a zoomable image pops up.  Other images are zoomable in place.",
   category: "Global",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
