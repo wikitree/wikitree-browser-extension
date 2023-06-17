@@ -164,7 +164,12 @@ function fixUSLocation(event) {
         event.Location = locationBits.slice(0, locationBits.length - 1).join(", ") + ", " + state.name;
         if (isSameDateOrAfter(event.Date, state.admissionDate)) {
           event.Location += ", " + "United States";
-        } else if (state.admissionDate && state.former_name && window.autoBioOptions?.changeUS) {
+        } else if (
+          state.admissionDate &&
+          state.former_name &&
+          window.autoBioOptions?.changeUS &&
+          !(isSameDateOrAfter(event.Date, "1776-07-04") && state.postRevolutionName)
+        ) {
           event.Location = event.Location.replace(lastLocationBit, state.former_name);
         }
       } else if (["US", "USA", "United States of America", "United States", "U.S.A."].includes(lastLocationBit)) {
@@ -6164,7 +6169,6 @@ export async function generateBio() {
     window.profilePerson.NameVariants = getNameVariants(window.profilePerson);
     // Handle census data created with Sourcer
     window.sourcerCensuses = getSourcerCensuses();
-
     // Create the references array
     if (window.sectionsObject.Sources) {
       window.sourcesSection = window.sectionsObject.Sources;
