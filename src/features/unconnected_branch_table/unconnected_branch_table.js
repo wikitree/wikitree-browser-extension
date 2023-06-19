@@ -6,6 +6,7 @@ import { getPeople } from "../dna_table/dna_table";
 import { showFamilySheet } from "../familyGroup/familyGroup";
 import { assignPersonNames } from "../auto_bio/auto_bio";
 import { addFiltersToWikitables } from "../table_filters/table_filters";
+import { repositionFilterRow } from "../table_filters/table_filters";
 import "jquery-ui/ui/widgets/draggable";
 
 checkIfFeatureEnabled("unconnectedBranchTable").then((result) => {
@@ -125,7 +126,9 @@ function multiSort(rows, sortOrders, isDesc, table) {
 
   // Delete all rows
   for (let j = table.rows.length - 1; j > 0; j--) {
-    table.deleteRow(j);
+    if (!table.rows[j].classList.contains("filter-row")) {
+      table.deleteRow(j);
+    }
   }
 
   // Add the sorted rows to the table
@@ -170,6 +173,8 @@ function makeTableSortable(table) {
       }
 
       let rows = Array.from(table.rows).slice(1);
+      // Filter out '.filter-row'
+      rows = rows.filter((row) => !row.classList.contains("filter-row"));
 
       let reversed = "";
       if (dataOrder === "b2s") {
@@ -186,10 +191,15 @@ function makeTableSortable(table) {
       });
 
       for (let j = table.rows.length - 1; j > 0; j--) {
-        table.deleteRow(j);
+        // Do not delete the filter row
+        if (!table.rows[j].classList.contains("filter-row")) {
+          table.deleteRow(j);
+        }
       }
+
       const tbody = $(table).find("tbody")[0];
       rows.forEach((row) => tbody.appendChild(row));
+      repositionFilterRow(table);
 
       // Object of sort order classes
       const sortOrderClasses = {
@@ -210,7 +220,7 @@ function makeTableSortable(table) {
 
       // Loop through the rows. If the cell is empty, the sort will put it at the top. Move it to the bottom.
       for (let j = table.rows.length - 1; j > 0; j--) {
-        if (table.rows[j].cells[i].innerText === "") {
+        if (table.rows[j].cells[i].innerText === "" && table.rows[j].classList.contains("filter-row") === false) {
           tbody.appendChild(table.rows[j]);
         }
       }
