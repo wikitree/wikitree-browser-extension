@@ -102,7 +102,8 @@ function multiSort(rows, sortOrders, isDesc, table) {
 
     sameOrder.push(row);
   });
-
+  // log
+  console.log("sameOrder.length: " + sameOrder.length);
   if (sameOrder.length > 0) {
     sameOrder.sort(function (rowA, rowB) {
       for (let i = 1; i < sortOrders.length; i++) {
@@ -119,18 +120,27 @@ function multiSort(rows, sortOrders, isDesc, table) {
       }
       return 0;
     });
-
+    // log
+    console.log("before push: ", newRows);
     newRows.push(...sameOrder);
+    //log
+    console.log("after push: ", newRows);
   }
 
   // Delete all rows
   for (let j = table.rows.length - 1; j > 0; j--) {
+    // log
+    console.log("j: " + j);
     table.deleteRow(j);
   }
 
   // Add the sorted rows to the table
-  const tbody = $("table").find("tbody")[0];
+  const tbody = $(table).find("tbody")[0];
+  // log
+  console.log("before append: ", rows);
   newRows.forEach((row) => tbody.appendChild(row));
+  // log
+  console.log("after append: ", rows);
 }
 
 function makeTableSortable(table) {
@@ -141,11 +151,16 @@ function makeTableSortable(table) {
   thElements.forEach((th, i) => {
     if (th.id) {
       th.setAttribute("data-sort", "desc");
+      // log
+      console.log("th.id: " + th.id);
     }
     th.addEventListener("click", () => {
+      console.log("Header clicked!");
       let dataSort = th.getAttribute("data-sort");
       let dataOrder = th.getAttribute("data-order");
-
+      // log
+      console.log("dataSort: " + dataSort);
+      console.log("dataOrder: " + dataOrder);
       if (i === birthLocationIndex || i === deathLocationIndex) {
         if (dataSort === "desc" && dataOrder === "b2s") {
           dataSort = "asc";
