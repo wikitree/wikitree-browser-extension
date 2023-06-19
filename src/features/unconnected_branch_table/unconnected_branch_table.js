@@ -204,7 +204,7 @@ function makeTableSortable(table) {
       for (let j = table.rows.length - 1; j > 0; j--) {
         table.deleteRow(j);
       }
-      const tbody = $("table").find("tbody")[0];
+      const tbody = $(table).find("tbody")[0];
       rows.forEach((row) => tbody.appendChild(row));
 
       // Object of sort order classes
