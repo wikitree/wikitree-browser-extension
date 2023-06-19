@@ -5,13 +5,15 @@ import { createProfileSubmenuLink, isOK } from "../../core/common";
 import { getPeople } from "../dna_table/dna_table";
 import { showFamilySheet } from "../familyGroup/familyGroup";
 import { assignPersonNames } from "../auto_bio/auto_bio";
-import { addFiltersToWikitables } from "../table_filters/table_filters";
-import { repositionFilterRow } from "../table_filters/table_filters";
+import { addFiltersToWikitables, repositionFilterRow } from "../table_filters/table_filters";
 import "jquery-ui/ui/widgets/draggable";
 
 checkIfFeatureEnabled("unconnectedBranchTable").then((result) => {
   if (result) {
-    if ($(".x-connections").length == 0) {
+    if (
+      $(".x-connections").length == 0 &&
+      $("a[href*='title=Special:Connection&action=connect&person1Name']").length < 7
+    ) {
       const options = {
         title: "Display table of unconnected branch",
         id: "unconnectedBranchButton",
