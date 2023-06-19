@@ -5,6 +5,7 @@ import { createProfileSubmenuLink, isOK } from "../../core/common";
 import { getPeople } from "../dna_table/dna_table";
 import { showFamilySheet } from "../familyGroup/familyGroup";
 import { assignPersonNames } from "../auto_bio/auto_bio";
+import { addFiltersToWikitables } from "../table_filters/table_filters";
 import "jquery-ui/ui/widgets/draggable";
 
 checkIfFeatureEnabled("unconnectedBranchTable").then((result) => {
@@ -367,4 +368,7 @@ async function unconnectedBranch() {
   });
   makeTableSortable(document.getElementById("unconnectedBranchTable").getElementsByTagName("table")[0]);
   removeShakingTree();
+  //setTimeout(function () {
+  addFiltersToWikitables($("#unconnectedBranchTable table")[0]);
+  //}, 1000);
 }
