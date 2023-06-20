@@ -164,7 +164,12 @@ function fixUSLocation(event) {
         event.Location = locationBits.slice(0, locationBits.length - 1).join(", ") + ", " + state.name;
         if (isSameDateOrAfter(event.Date, state.admissionDate)) {
           event.Location += ", " + "United States";
-        } else if (state.admissionDate && state.former_name && window.autoBioOptions?.changeUS) {
+        } else if (
+          state.admissionDate &&
+          state.former_name &&
+          window.autoBioOptions?.changeUS &&
+          !(isSameDateOrAfter(event.Date, "1776-07-04") && state.postRevolutionName)
+        ) {
           event.Location = event.Location.replace(lastLocationBit, state.former_name);
         }
       } else if (["US", "USA", "United States of America", "United States", "U.S.A."].includes(lastLocationBit)) {
@@ -3591,7 +3596,7 @@ function parseWikiTable(aRef) {
       }
       // Add to Research Notes
       if (!aMember.HasProfile && aMember.Relation != "Self") {
-        if (!window.sectionsObject["Research Notes"].subsections.NeedsProfiles.includes(aMember)) {
+        if (!window.sectionsObject["Research Notes"].subsections?.NeedsProfiles?.includes(aMember)) {
           window.sectionsObject["Research Notes"].subsections.NeedsProfiles.push(aMember);
         }
       }
@@ -3765,7 +3770,7 @@ export function getNameVariants(person) {
 
   nameVariants.push(...getNameVariantsB(person, person.FirstName));
   let variantKeys = Object.keys(firstNameVariants);
-  if (variantKeys.includes(person.FirstName)) {
+  if (variantKeys?.includes(person.FirstName)) {
     firstNameVariants[person.FirstName].forEach(function (variant) {
       nameVariants.push(...getNameVariantsB(person, variant));
     });
@@ -4793,12 +4798,12 @@ async function getStickersAndBoxes() {
       let thingsToAddBeforeBioHeading = [];
       const currentBio = $("#wpTextbox1").val();
       jsonData.templates.forEach(function (aTemplate) {
-        if (templatesToAdd.includes(aTemplate.type)) {
+        if (templatesToAdd?.includes(aTemplate.type)) {
           var newTemplateMatch = currentBio.matchAll(/\{\{[^}]*?\}\}/gs);
           for (var match of newTemplateMatch) {
             var re = new RegExp(aTemplate.name, "gs");
-            if (match[0].match(re) && !thingsToAddAfterBioHeading.includes(match[0])) {
-              if (beforeHeadingThings.includes(aTemplate.type) || beforeHeadingThings.includes(aTemplate.group)) {
+            if (match[0].match(re) && !thingsToAddAfterBioHeading?.includes(match[0])) {
+              if (beforeHeadingThings?.includes(aTemplate.type) || beforeHeadingThings?.includes(aTemplate.group)) {
                 thingsToAddBeforeBioHeading.push(match[0]);
               } else {
                 thingsToAddAfterBioHeading.push(match[0]);
@@ -4839,7 +4844,7 @@ async function getStickersAndBoxes() {
                 // If stuffBeforeTheBio includes the same category, remove it.
                 window.sectionsObject.StuffBeforeTheBio.text = window.sectionsObject.StuffBeforeTheBio.text.filter(
                   function (categoryLine) {
-                    if (ONSsticker.includes("category=")) {
+                    if (ONSsticker?.includes("category=")) {
                       const categoryInLine = categoryLine.replace("[[Category:", "").replace("]]", "").trim();
                       const categoryInSticker = ONSsticker.split("category=")[1].replace("}}", "").trim();
                       return (
@@ -4860,14 +4865,14 @@ async function getStickersAndBoxes() {
       if (window.autoBioOptions?.diedYoung) {
         const deathAge = ageAtDeath(window.profilePerson, false);
         if (typeof deathAge[0] !== "undefined") {
-          if (deathAge[0] < 17 && !thingsToAddAfterBioHeading.includes("{{Died Young}}")) {
+          if (deathAge[0] < 17 && !thingsToAddAfterBioHeading?.includes("{{Died Young}}")) {
             thingsToAddAfterBioHeading.push("{{Died Young}}");
           }
         }
       }
 
       thingsToAddBeforeBioHeading.forEach(function (box) {
-        if (!window.sectionsObject.StuffBeforeTheBio.text.includes(box)) {
+        if (!window.sectionsObject.StuffBeforeTheBio.text?.includes(box)) {
           window.sectionsObject.StuffBeforeTheBio.text.push(box);
         }
       });
@@ -5466,10 +5471,10 @@ export function addLocationCategoryToStuffBeforeTheBio(location) {
     const theCategory = "[[Category: " + location + "]]";
     const theCategoryWithoutSpace = "[[Category:" + location + "]]";
     if (
-      !window.sectionsObject["StuffBeforeTheBio"].text.includes(theCategory) &&
-      !window.sectionsObject["StuffBeforeTheBio"].text.includes(theCategoryWithoutSpace) &&
-      window.textBeforeTheBio.includes(theCategory) === false &&
-      window.textBeforeTheBio.includes(theCategoryWithoutSpace) === false
+      !window.sectionsObject["StuffBeforeTheBio"].text?.includes(theCategory) &&
+      !window.sectionsObject["StuffBeforeTheBio"].text?.includes(theCategoryWithoutSpace) &&
+      window.textBeforeTheBio?.includes(theCategory) === false &&
+      window.textBeforeTheBio?.includes(theCategoryWithoutSpace) === false
     ) {
       window.sectionsObject["StuffBeforeTheBio"].text.push(theCategory);
     }
@@ -5584,7 +5589,7 @@ export async function getONSstickers() {
     // split by comma, trim and push to surnames if not already in surnames
     window.profilePerson.LastNameOther.split(",").forEach((item) => {
       item = item.trim();
-      if (!surnames.includes(item) && !excludedSurnames.includes(item)) {
+      if (!surnames?.includes(item) && !excludedSurnames?.includes(item)) {
         surnames.push(item);
       }
     });
@@ -5668,13 +5673,13 @@ export function addUnsourced(feature = "autoBio") {
       const USstates = [];
       const USbirthState = findUSState(window.profilePerson.BirthLocation);
       if (USbirthState) {
-        if (USstates.includes(USbirthState) == false) {
+        if (USstates?.includes(USbirthState) == false) {
           USstates.push(USbirthState);
         }
       }
       const USdeathState = findUSState(window.profilePerson.DeathLocation);
       if (USdeathState) {
-        if (USstates.includes(USdeathState) == false) {
+        if (USstates?.includes(USdeathState) == false) {
           USstates.push(USdeathState);
         }
       }
@@ -5682,14 +5687,14 @@ export function addUnsourced(feature = "autoBio") {
         if (addCategory) {
           USstates.forEach(function (aState) {
             unsourcedCategory = `[[Category: ${unsourcedCategories[aState]}]]`;
-            if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedCategory)) {
+            if (!window.sectionsObject["StuffBeforeTheBio"].text?.includes(unsourcedCategory)) {
               window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
             }
           });
         } else {
           const statesString = USstates.join("|");
           unsourcedTemplate = `{{Unsourced|${statesString}}}`;
-          if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
+          if (!window.sectionsObject["StuffBeforeTheBio"].text?.includes(unsourcedTemplate)) {
             window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
           }
         }
@@ -5702,7 +5707,7 @@ export function addUnsourced(feature = "autoBio") {
           ) {
             if (addCategory) {
               unsourcedCategory = `[[Category: ${unsourcedCategories[aPlace]}]]`;
-              if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedCategory)) {
+              if (!window.sectionsObject["StuffBeforeTheBio"].text?.includes(unsourcedCategory)) {
                 window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
               }
             } else {
@@ -5712,7 +5717,7 @@ export function addUnsourced(feature = "autoBio") {
         });
         if (unsourcedTemplateString) {
           unsourcedTemplate = `{{Unsourced${unsourcedTemplateString}}}`;
-          if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedTemplate)) {
+          if (!window.sectionsObject["StuffBeforeTheBio"].text?.includes(unsourcedTemplate)) {
             window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedTemplate);
           }
         }
@@ -5724,7 +5729,7 @@ export function addUnsourced(feature = "autoBio") {
       surnames.forEach(function (aSurname) {
         if (unsourcedCategories[aSurname + " Name Study"]) {
           unsourcedCategory = `[[Category: ${unsourcedCategories[aSurname + " Name Study"]}]]`;
-          if (!window.sectionsObject["StuffBeforeTheBio"].text.includes(unsourcedCategory)) {
+          if (!window.sectionsObject["StuffBeforeTheBio"].text?.includes(unsourcedCategory)) {
             window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
           }
         }
@@ -5752,7 +5757,7 @@ function searchName(searchTerm) {
     var name = nameObj.Name;
     var nameVariants = nameObj.NameVariants;
 
-    if (nameVariants.includes(searchTerm) || name === searchTerm) {
+    if (nameVariants?.includes(searchTerm) || name === searchTerm) {
       return name;
     }
   }
@@ -5782,7 +5787,7 @@ export function addOccupationCategories(feature = "autoBio") {
         }
         if (occupationCategories[occupationTitleCase]["Places"]) {
           occupationCategories[occupationTitleCase]["Places"].forEach(function (place) {
-            if (places.some((arr) => arr.includes(place))) {
+            if (places.some((arr) => arr?.includes(place))) {
               occupationCategory = `[[Category: ${place}, ${occupationCategories[occupationTitleCase]["PluralForm"]}]]`;
             }
           });
@@ -5985,7 +5990,7 @@ function minimalPlace2(narrativeBits) {
     let placeName = trimmed.match(/\b[A-Z][a-zA-Z]*(\s+[A-Z][a-zA-Z]*)*\b(?!.*\b[A-Z][a-zA-Z]*(\s+[A-Z][a-zA-Z]*)*\b)/);
     if (placeName) {
       trimmed = placeName[0];
-      if (usedPlaces.includes(trimmed)) {
+      if (usedPlaces?.includes(trimmed)) {
         used++;
         if (used > 1) {
           toSplice.push(index);
@@ -6164,7 +6169,6 @@ export async function generateBio() {
     window.profilePerson.NameVariants = getNameVariants(window.profilePerson);
     // Handle census data created with Sourcer
     window.sourcerCensuses = getSourcerCensuses();
-
     // Create the references array
     if (window.sectionsObject.Sources) {
       window.sourcesSection = window.sectionsObject.Sources;
@@ -6243,14 +6247,14 @@ export async function generateBio() {
     const warRefs = [];
     window.references.forEach(function (aRef) {
       if (
-        aRef["Record Type"].includes("Census") ||
-        aRef["Record Type"].includes("Divorce") ||
-        aRef["Record Type"].includes("Prison")
+        aRef["Record Type"]?.includes("Census") ||
+        aRef["Record Type"]?.includes("Divorce") ||
+        aRef["Record Type"]?.includes("Prison")
       ) {
         marriagesAndCensusesEtc.push(aRef);
       }
-      if (aRef["Record Type"].includes("Military")) {
-        if (!wars.includes(aRef.War)) {
+      if (aRef["Record Type"]?.includes("Military")) {
+        if (!wars?.includes(aRef.War)) {
           wars.push(aRef.War);
           warRefs.push(aRef);
         }
@@ -6317,11 +6321,11 @@ export async function generateBio() {
     let marriagesAndCensusesText = "";
     allEvents.forEach(function (anEvent, i) {
       if (anEvent["Record Type"]) {
-        if (anEvent["Record Type"].includes("Marriage")) {
+        if (anEvent["Record Type"]?.includes("Marriage")) {
           anEvent["Event Type"] = "Marriage";
         }
 
-        if (anEvent["Record Type"].includes("Census") && anEvent.Narrative) {
+        if (anEvent["Record Type"]?.includes("Census") && anEvent.Narrative) {
           if (anEvent.Narrative.length > 10) {
             let censusYear = anEvent["Census Year"];
             let censusNarrative;
@@ -6390,14 +6394,14 @@ export async function generateBio() {
               window.childrenShown = true;
             }
             let thisRef = "";
-            if (anEvent["Record Type"].includes("ChildList") && !window.childrenShown && !window.listedSomeChildren) {
+            if (anEvent["Record Type"]?.includes("ChildList") && !window.childrenShown && !window.listedSomeChildren) {
               anEvent.Narrative = anEvent.Narrative.replace("other child", "child");
             }
             const theseRefs = [];
 
             window.references.forEach(function (aRef, i) {
               if (
-                anEvent["Record Type"].includes(aRef["Record Type"]) &&
+                anEvent["Record Type"]?.includes(aRef["Record Type"]) &&
                 aRef.Text.match("contributed by various users") &&
                 aRef.Text.match(window.profilePerson.FirstName)
               ) {
@@ -6410,10 +6414,10 @@ export async function generateBio() {
                 }
               } else if (
                 anEvent["Event Type"] == "Military" &&
-                aRef["Record Type"].includes("Military") &&
+                aRef["Record Type"]?.includes("Military") &&
                 anEvent.War == aRef.War
               ) {
-                if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
+                if (aRef.RefName && window.refNames?.includes(aRef.RefName)) {
                   thisRef = "<ref name='" + aRef.RefName + "' />";
                 } else {
                   thisRef = " <ref name='military_" + i + "'>" + aRef.Text + "</ref>";
@@ -6421,11 +6425,11 @@ export async function generateBio() {
                   aRef.Used = true;
                   window.refNames.push(aRef.RefName);
                 }
-                if (!theseRefs.includes(thisRef)) {
+                if (!theseRefs?.includes(thisRef)) {
                   theseRefs.push(thisRef);
                 }
               } else if (
-                aRef["Record Type"].includes(anEvent["Event Type"]) &&
+                aRef["Record Type"]?.includes(anEvent["Event Type"]) &&
                 anEvent["Divorce Date"] &&
                 aRef.Year == anEvent.Year
               ) {
@@ -6438,7 +6442,7 @@ export async function generateBio() {
                   }
                 }
                 if (aRef.Text.match(thisSpouse)) {
-                  if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
+                  if (aRef.RefName && window.refNames?.includes(aRef.RefName)) {
                     thisRef = "<ref name='" + aRef.RefName + "' />";
                   } else {
                     thisRef = " <ref name='divorce_" + i + "'>" + aRef.Text + "</ref>";
@@ -6449,10 +6453,10 @@ export async function generateBio() {
                 }
               } else if (
                 anEvent["Event Type"] == "Prison" &&
-                aRef["Record Type"].includes("Prison") &&
+                aRef["Record Type"]?.includes("Prison") &&
                 anEvent.Year == aRef.Year
               ) {
-                if (aRef.RefName && window.refNames.includes(aRef.RefName)) {
+                if (aRef.RefName && window.refNames?.includes(aRef.RefName)) {
                   thisRef = "<ref name='" + aRef.RefName + "' />";
                 } else {
                   thisRef = " <ref name='prison_" + i + "'>" + aRef.Text + "</ref>";
@@ -6508,7 +6512,7 @@ export async function generateBio() {
         newNote = currentBio.match(/daughter of.*\.?/i)[0];
       }
 
-      if (window.sectionsObject["Research Notes"].text.includes(newNote) == null) {
+      if (window.sectionsObject["Research Notes"].text?.includes(newNote) == null) {
         window.sectionsObject["Research Notes"].text.push(newNote);
       }
     }
@@ -6564,7 +6568,7 @@ export async function generateBio() {
           needsProfileText = "The following people may need profiles:\n";
           needsProfiles.forEach(function (aMember) {
             if (aMember.Name) {
-              if (!needsDone.includes(aMember.Name)) {
+              if (!needsDone?.includes(aMember.Name)) {
                 needsProfileText += "* " + aMember.Name + " ";
                 needsProfileText += aMember.Relation ? "(" + aMember.Relation + ")\n" : "\n";
                 needsDone.push(aMember.Name);
@@ -6588,7 +6592,7 @@ export async function generateBio() {
               }
             }
           });
-          if (needsCategory && !window.sectionsObject["StuffBeforeTheBio"].text.includes(needsCategory)) {
+          if (needsCategory && !window.sectionsObject["StuffBeforeTheBio"].text?.includes(needsCategory)) {
             window.sectionsObject["StuffBeforeTheBio"].text.push(needsCategory + "\n");
           }
         }
@@ -6607,7 +6611,7 @@ export async function generateBio() {
 
     window.references.forEach(function (aRef) {
       if (
-        ([false, undefined].includes(aRef.Used) || window.autoBioOptions?.inlineCitations == false) &&
+        ([false, undefined]?.includes(aRef.Used) || window.autoBioOptions?.inlineCitations == false) &&
         aRef["Record Type"] != "GEDCOM" &&
         aRef.Text.match(/Sources? will be added/) == null
       ) {
@@ -6619,7 +6623,7 @@ export async function generateBio() {
           ) +
           "\n";
       }
-      if (aRef["Record Type"].includes("GEDCOM")) {
+      if (aRef["Record Type"]?.includes("GEDCOM")) {
         window.sectionsObject["Acknowledgements"].text.push("*" + aRef.Text);
       }
     });
@@ -6896,15 +6900,15 @@ function removeCountryName(location) {
   let locationSplit = location.split(", ").reverse();
 
   // Remove country name for US
-  if (usVariants.includes(locationSplit[0])) {
+  if (usVariants?.includes(locationSplit[0])) {
     locationSplit.shift();
   }
   // Remove country name for UK
-  else if (ukVariants.includes(locationSplit[0])) {
+  else if (ukVariants?.includes(locationSplit[0])) {
     locationSplit.shift();
 
     // Remove additional country name if it's also a UK variant (e.g., "England, United Kingdom")
-    if (ukVariants.includes(locationSplit[0])) {
+    if (ukVariants?.includes(locationSplit[0])) {
       locationSplit.shift();
     }
   }

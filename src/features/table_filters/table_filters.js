@@ -5,24 +5,40 @@ import $ from "jquery";
 import "./table_filters.css";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
-function repositionFilterRow(table) {
+export function repositionFilterRow(table) {
   const hasTbody = table.querySelector("tbody") !== null;
-  const headerRow = hasTbody ? table.querySelector("tbody tr:first-child") : table.querySelector("tr:first-child");
+  const hasThead = table.querySelector("thead") !== null;
+  const headerRow = hasThead
+    ? table.querySelector("thead tr:first-child")
+    : hasTbody
+    ? table.querySelector("tbody tr:first-child")
+    : table.querySelector("tr:first-child");
   const filterRow = table.querySelector(".filter-row");
-
-  if (filterRow.nextSibling !== headerRow) {
-    headerRow.parentElement.insertBefore(filterRow, headerRow.nextSibling);
+  if (filterRow) {
+    if (filterRow.nextSibling !== headerRow) {
+      headerRow.parentElement.insertBefore(filterRow, headerRow.nextSibling);
+    }
   }
 }
 
-function addFiltersToWikitables() {
-  const tables = document.querySelectorAll(".wikitable,.wt.names");
-
+export function addFiltersToWikitables(aTable = null) {
+  let tables;
+  if (aTable) {
+    tables = [aTable];
+  } else {
+    tables = document.querySelectorAll(".wikitable,.wt.names");
+  }
   tables.forEach((table) => {
     const hasTbody = table.querySelector("tbody") !== null;
-    const headerRow = hasTbody ? table.querySelector("tbody tr:first-child") : table.querySelector("tr:first-child");
+    const hasThead = table.querySelector("thead") !== null;
+    const headerRow = hasThead
+      ? table.querySelector("thead tr:first-child")
+      : hasTbody
+      ? table.querySelector("tbody tr:first-child")
+      : table.querySelector("tr:first-child");
 
     let headerCells = headerRow.querySelectorAll("th");
+    const originalHeaderCells = headerCells;
     let isFirstRowHeader = headerCells.length > 0;
     if (!isFirstRowHeader) {
       const firstRowCells = headerRow.querySelectorAll("td");
@@ -38,9 +54,12 @@ function addFiltersToWikitables() {
     const filterRow = document.createElement("tr");
     filterRow.classList.add("filter-row");
 
-    headerCells.forEach((headerCell) => {
+    headerCells.forEach((headerCell, i) => {
       const filterCell = document.createElement("th");
-      if (headerCell.textContent.trim() !== "Pos.") {
+      const headerCellText = headerCell.textContent.trim();
+      const originalHeaderCellText = originalHeaderCells[i].textContent.trim();
+      if (!["Pos."].includes(headerCellText) && !["Pos.", ""].includes(originalHeaderCellText)) {
+        console.log(headerCellText);
         const filterInput = document.createElement("input");
         filterInput.type = "text";
         filterInput.classList.add("filter-input");
@@ -68,11 +87,18 @@ function addFiltersToWikitables() {
   const filterFunction = () => {
     const table = tables[0];
     const hasTbody = table.querySelector("tbody") !== null;
+    const hasThead = table.querySelector("thead") !== null;
     const rows = hasTbody ? table.querySelectorAll("tbody tr") : table.querySelectorAll("tr");
     const filterInputs = table.querySelectorAll(".filter-input");
 
     rows.forEach((row, rowIndex) => {
-      if (rowIndex === 0 || row.classList.contains("filter-row") || row.querySelector("th")) {
+      // Skip first row only if there's no 'thead'
+      if (!hasThead && rowIndex === 0) {
+        return;
+      }
+
+      // Skip if row is a filter-row or contains 'th' elements
+      if (row.classList.contains("filter-row") || row.querySelector("th")) {
         return;
       }
 
@@ -125,21 +151,35 @@ function addFiltersToWikitables() {
   // Position the Clear Filters button
   const filterRow = tables[0].querySelector(".filter-row");
   const filterRowRect = filterRow.getBoundingClientRect();
-  const xButtonStyle = {
-    position: "absolute",
-    top: `${filterRowRect.top + window.scrollY}px`,
-    left: `${filterRowRect.right + 5}px`,
-  };
-  Object.assign(clearFiltersButton.style, xButtonStyle);
 
-  // Add the button to the page
-  document.body.appendChild(clearFiltersButton);
+  // If the table has a caption, place the button within the caption, on the right, before an 'x' element if it exists
+  const caption = tables[0].querySelector("caption");
+  console.log(caption);
+  if (caption) {
+    caption.appendChild(clearFiltersButton);
+
+    // And change the text of the button to Clear Filters
+    clearFiltersButton.textContent = "Clear Filters";
+    // Add inCaption class to the button
+    clearFiltersButton.classList.add("inCaption");
+  } else {
+    // Place the button to the right of the filter row
+    const xButtonStyle = {
+      position: "absolute",
+      top: `${filterRowRect.top + window.scrollY}px`,
+      left: `${filterRowRect.right + 5}px`,
+    };
+    Object.assign(clearFiltersButton.style, xButtonStyle);
+    // Add the button to the page
+    document.body.appendChild(clearFiltersButton);
+  }
 
   // Update the button position on window scroll
   window.addEventListener("scroll", () => {
     const filterRowRect = filterRow.getBoundingClientRect();
     clearFiltersButton.style.top = `${filterRowRect.top + window.scrollY}px`;
   });
+
   // Initially hide the button
   clearFiltersButton.style.display = "none";
 }

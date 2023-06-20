@@ -21,3 +21,9 @@ table tr.filter-row input[type="text"] {
   padding: 0.3em 0.5em;
   text-align: center;
 }
+#clearTableFiltersButton.inCaption {
+  float: right;
+  padding: 0.2em 0.4em;
+  margin-right: 0.1em;
+  position: relative !important;
+}

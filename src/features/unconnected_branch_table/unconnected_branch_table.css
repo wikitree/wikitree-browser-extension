@@ -30,9 +30,8 @@
 }
 
 #unconnectedBranchTable x {
-  position: absolute;
-  top: 0;
-  right: 0.5em;
+  float: right;
+  margin-right: 0.5em;
   font-weight: bold;
   cursor: pointer;
 }

@@ -5,11 +5,15 @@ import { createProfileSubmenuLink, isOK } from "../../core/common";
 import { getPeople } from "../dna_table/dna_table";
 import { showFamilySheet } from "../familyGroup/familyGroup";
 import { assignPersonNames } from "../auto_bio/auto_bio";
+import { addFiltersToWikitables, repositionFilterRow } from "../table_filters/table_filters";
 import "jquery-ui/ui/widgets/draggable";
 
 checkIfFeatureEnabled("unconnectedBranchTable").then((result) => {
   if (result) {
-    if ($(".x-connections").length == 0) {
+    if (
+      $(".x-connections").length == 0 &&
+      $("a[href*='title=Special:Connection&action=connect&person1Name']").length < 7
+    ) {
       const options = {
         title: "Display table of unconnected branch",
         id: "unconnectedBranchButton",
@@ -119,17 +123,18 @@ function multiSort(rows, sortOrders, isDesc, table) {
       }
       return 0;
     });
-
     newRows.push(...sameOrder);
   }
 
   // Delete all rows
   for (let j = table.rows.length - 1; j > 0; j--) {
-    table.deleteRow(j);
+    if (!table.rows[j].classList.contains("filter-row")) {
+      table.deleteRow(j);
+    }
   }
 
   // Add the sorted rows to the table
-  const tbody = $("table").find("tbody")[0];
+  const tbody = $(table).find("tbody")[0];
   newRows.forEach((row) => tbody.appendChild(row));
 }
 
@@ -145,7 +150,6 @@ function makeTableSortable(table) {
     th.addEventListener("click", () => {
       let dataSort = th.getAttribute("data-sort");
       let dataOrder = th.getAttribute("data-order");
-
       if (i === birthLocationIndex || i === deathLocationIndex) {
         if (dataSort === "desc" && dataOrder === "b2s") {
           dataSort = "asc";
@@ -171,6 +175,8 @@ function makeTableSortable(table) {
       }
 
       let rows = Array.from(table.rows).slice(1);
+      // Filter out '.filter-row'
+      rows = rows.filter((row) => !row.classList.contains("filter-row"));
 
       let reversed = "";
       if (dataOrder === "b2s") {
@@ -187,10 +193,15 @@ function makeTableSortable(table) {
       });
 
       for (let j = table.rows.length - 1; j > 0; j--) {
-        table.deleteRow(j);
+        // Do not delete the filter row
+        if (!table.rows[j].classList.contains("filter-row")) {
+          table.deleteRow(j);
+        }
       }
-      const tbody = $("table").find("tbody")[0];
+
+      const tbody = $(table).find("tbody")[0];
       rows.forEach((row) => tbody.appendChild(row));
+      repositionFilterRow(table);
 
       // Object of sort order classes
       const sortOrderClasses = {
@@ -211,7 +222,7 @@ function makeTableSortable(table) {
 
       // Loop through the rows. If the cell is empty, the sort will put it at the top. Move it to the bottom.
       for (let j = table.rows.length - 1; j > 0; j--) {
-        if (table.rows[j].cells[i].innerText === "") {
+        if (table.rows[j].cells[i].innerText === "" && table.rows[j].classList.contains("filter-row") === false) {
           tbody.appendChild(table.rows[j]);
         }
       }
@@ -369,4 +380,7 @@ async function unconnectedBranch() {
   });
   makeTableSortable(document.getElementById("unconnectedBranchTable").getElementsByTagName("table")[0]);
   removeShakingTree();
+  //setTimeout(function () {
+  addFiltersToWikitables($("#unconnectedBranchTable table")[0]);
+  //}, 1000);
 }
