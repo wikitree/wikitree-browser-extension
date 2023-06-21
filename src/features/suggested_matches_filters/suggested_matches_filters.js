@@ -431,12 +431,7 @@ async function initSuggestedMatchesFilters() {
         $(this).attr("data-level", "1");
         $(this).text("location 1");
       }
-      console.log(suggestedMatches);
       suggestedMatches.forEach(function (person) {
-        //
-        console.log("person", person);
-        console.log("filteredLocations", filteredLocations);
-        console.log("newPerson", newPerson);
         locationFilter(person, filteredLocations, newPerson);
       });
     }
