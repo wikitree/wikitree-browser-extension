@@ -4,11 +4,9 @@
   bottom: 10px; /* Adjust as per your needs */
   right: 10px; /* Adjust as per your needs */
   z-index: 10;
-  display: none; /* Initially hidden */
-  color: white; /* Color of the '+' symbol */
-  background: rgba(0, 0, 0, 0.2); /* Semi-transparent black background for visibility */
+  font-weight: bold;
+  color: forestgreen; /* Color of the '+' symbol */
   padding: 1px 5px; /* Adjust as per your needs */
-  border-radius: 50%; /* Circular overlay */
   cursor: pointer; /* Indicate that the overlay is clickable */
   font-size: 1em; /* Size of the '+' symbol, Adjust as per your needs */
 }

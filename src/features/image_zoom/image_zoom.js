@@ -1,4 +1,7 @@
 import $ from "jquery";
+// import draggable
+import "jquery-ui/ui/widgets/draggable";
+import "jquery-ui-touch-punch";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 shouldInitializeFeature("imageZoom").then((result) => {
@@ -56,6 +59,39 @@ function createZoomedImage(src, alt) {
     $(this).css("transform", `scale(${scale})`);
     $(this).data("scale", scale);
   });
+
+  if ("ontouchstart" in window) {
+    // Add touch event handlers
+    let startDistance, startScale;
+    imgElement.on("touchstart", function (e) {
+      if (e.touches.length === 2) {
+        let dx = e.touches[0].pageX - e.touches[1].pageX;
+        let dy = e.touches[0].pageY - e.touches[1].pageY;
+        startDistance = Math.sqrt(dx * dx + dy * dy);
+        startScale = $(this).data("scale") || 1;
+        e.preventDefault();
+      }
+    });
+    imgElement.on("touchmove", function (e) {
+      if (e.touches.length === 2) {
+        let dx = e.touches[0].pageX - e.touches[1].pageX;
+        let dy = e.touches[0].pageY - e.touches[1].pageY;
+        let distance = Math.sqrt(dx * dx + dy * dy);
+        let scaleFactor = distance / startDistance;
+        let scale = startScale * scaleFactor;
+        $(this).css("transform", `scale(${scale})`);
+        $(this).data("scale", scale);
+        e.preventDefault();
+      }
+    });
+    imgElement.on("touchend", function (e) {
+      if (e.touches.length < 2) {
+        startDistance = null;
+        startScale = null;
+      }
+    });
+  }
+
   setupDarkScreen(imgElement);
   return imgElement;
 }
@@ -81,86 +117,79 @@ function setupDarkScreen(zoomedImage) {
 }
 
 function setupImageZoom() {
-  let hoverTimer;
-  let zoomedImage = null;
-  let originalPosition = {};
-  let mouseOutTimer = null;
+  // Select the images on which you want to apply the zoom functionality
+  let images = $("a:has(img.scale-with-grid), a:has(img[src*='thumb']:not(.commenter-image))");
 
-  $(document).on(
-    "mouseover",
-    "a:has(img.scale-with-grid), a:has(img[src*='thumb']:not(.commenter-image))",
-    function (e) {
-      clearTimeout(mouseOutTimer);
-      let img = $(this).find("img");
-      let imgSrc = img.attr("src");
-      let imgAlt = img.attr("alt");
+  images.each(function () {
+    let img = $(this).find("img");
+    let imgSrc = img.attr("src");
+    let imgAlt = img.attr("alt");
 
-      // Check if an overlay already exists for this image
-      if (img.parent().find(".image_zoom_overlay").length > 0) {
-        return; // If it does, exit the function
+    if (imgSrc) {
+      if (imgSrc.includes("thumb")) {
+        imgSrc = imgSrc.replace("/thumb/", "/").replace(/\/[^/]+$/, "");
       }
 
-      if (imgSrc) {
-        if (imgSrc.includes("thumb")) {
-          imgSrc = imgSrc.replace("/thumb/", "/").replace(/\/[^/]+$/, "");
-        }
-
-        originalPosition = img.offset();
-        let parent = $(this).css({ display: "inline-block", position: "relative" });
-        const overlay = $('<div class="image_zoom_overlay">+</div>').appendTo(parent);
-
-        overlay.css({ "z-index": 99999, position: "absolute", bottom: "0", right: "0" });
-
-        overlay.one("pointerdown", (e) => {
+      let parent = $(this).css({ display: "inline-block", position: "relative" });
+      const overlay = $('<div class="image_zoom_overlay">+</div>').appendTo(parent);
+      // Set the overlay styles, making it larger than the plus sign
+      overlay.css({
+        "z-index": 99999,
+        position: "absolute",
+        bottom: "0",
+        right: "0",
+        height: "50%", // adjust this value as needed
+        width: "50%", // adjust this value as needed
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "flex-end",
+      });
+      overlay.on({
+        mousedown: function (e) {
           console.log("overlay clicked");
           e.preventDefault();
           e.stopPropagation();
           createZoomedImage(imgSrc, imgAlt);
           overlay.hide();
-          return false;
-        });
-
-        overlay.on("mouseover", (e) => {
-          $(this)
-            .closest("a")
-            .on("click", function (e) {
-              e.preventDefault();
+          // prevent click event propagation to document
+          setTimeout(() => {
+            $(document).one("click", function (clickEvent) {
+              clickEvent.stopImmediatePropagation();
             });
-        });
+          }, 0);
+          return false;
+        },
+        touchstart: function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          createZoomedImage(imgSrc, imgAlt);
+          overlay.hide();
+          // prevent click event propagation to document
+          setTimeout(() => {
+            $(document).one("click", function (clickEvent) {
+              clickEvent.stopImmediatePropagation();
+            });
+          }, 0);
+          return false;
+        },
+      });
 
-        overlay.on("mouseout", (e) => {
-          $(this).closest("a").off("click");
-        });
+      overlay.on("mouseover", (e) => {
+        $(this)
+          .closest("a")
+          .on("click", function (e) {
+            e.preventDefault();
+          });
+      });
 
-        img.addClass("zoomable");
-        img.on("wheel", wheelZoomHandler);
-        img.draggable();
-        overlay.show();
-      }
+      overlay.on("mouseout", (e) => {
+        $(this).closest("a").off("click");
+      });
+
+      img.addClass("zoomable");
+      img.on("wheel", wheelZoomHandler);
+      img.draggable();
+      overlay.show();
     }
-  );
-
-  $(document).on("mouseout", "a:has(img.scale-with-grid), a:has(img[src*='thumb']:not(.commenter-image))", function () {
-    mouseOutTimer = setTimeout(() => {
-      let img = $(this).find("img");
-      img.off("wheel");
-      img.css("transform", `scale(1)`);
-      img.data("scale", 1);
-      if (img.data("ui-draggable")) {
-        img.draggable("destroy");
-      }
-      img.offset(originalPosition);
-      img.css({ position: "static", top: "auto", left: "auto" });
-      img.removeClass("zoomable");
-      $(this).css({ display: "", position: "" });
-      $(this).find(".image_zoom_overlay").remove();
-    }, 500);
-  });
-
-  $(document).on("click", function (e) {
-    if (!zoomedImage || $(e.target).is(zoomedImage)) return;
-    $(".dark-screen").remove();
-    zoomedImage.remove();
-    zoomedImage = null;
   });
 }

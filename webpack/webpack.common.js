@@ -35,12 +35,20 @@ module.exports = (env) => ({
       options: {},
     }),
     new CopyPlugin({
-      patterns: [{
-        from: `manifest/manifest-${env.browser}.json`,
-        to: "../manifest.json",
-        context: "src" }],
+      patterns: [
+        {
+          from: `manifest/manifest-${env.browser}.json`,
+          to: "../manifest.json",
+          context: "src",
+        },
+      ],
     }),
     new WebExtension(),
+    new webpack.ProvidePlugin({
+      $: "jquery",
+      jQuery: "jquery",
+      "window.jQuery": "jquery",
+    }),
   ],
   module: {
     rules: [
