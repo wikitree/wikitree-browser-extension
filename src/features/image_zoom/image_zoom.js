@@ -1,4 +1,9 @@
 import $ from "jquery";
+// import draggable
+import "jquery-ui/ui/widgets/draggable";
+import "jquery-ui-touch-punch";
+import interact from "interactjs";
+
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 shouldInitializeFeature("imageZoom").then((result) => {
@@ -7,6 +12,33 @@ shouldInitializeFeature("imageZoom").then((result) => {
     setupImageZoom();
   }
 });
+
+function makeDraggableOnTouch(imgElement) {
+  let touchStartX;
+  let touchStartY;
+  let imageStartX;
+  let imageStartY;
+
+  imgElement.on("touchstart", function (e) {
+    let touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    imageStartX = parseInt($(this).css("left"), 10);
+    imageStartY = parseInt($(this).css("top"), 10);
+    e.preventDefault();
+  });
+
+  imgElement.on("touchmove", function (e) {
+    let touch = e.touches[0];
+    let dx = touch.clientX - touchStartX;
+    let dy = touch.clientY - touchStartY;
+    $(this).css({
+      left: imageStartX + dx,
+      top: imageStartY + dy,
+    });
+    e.preventDefault();
+  });
+}
 
 function wheelZoomHandler(e) {
   e.preventDefault();
@@ -44,7 +76,11 @@ function createZoomedImage(src, alt) {
     top: ($(window).height() - imgElement.height()) / 2 + $(window).scrollTop(),
     left: ($(window).width() - imgElement.width()) / 2,
   });
-  imgElement.draggable();
+  imgElement.draggable({
+    stop: function (event, ui) {
+      $("body").css("cursor", "default");
+    },
+  });
   imgElement.dblclick(function () {
     $(".dark-screen").remove();
     imgElement.remove();
@@ -56,7 +92,73 @@ function createZoomedImage(src, alt) {
     $(this).css("transform", `scale(${scale})`);
     $(this).data("scale", scale);
   });
+
+  if ("ontouchstart" in window) {
+    // Add touch event handlers
+    let startDistance, startScale;
+    imgElement.on("touchstart", function (e) {
+      if (e.touches.length === 2) {
+        let dx = e.touches[0].pageX - e.touches[1].pageX;
+        let dy = e.touches[0].pageY - e.touches[1].pageY;
+        startDistance = Math.sqrt(dx * dx + dy * dy);
+        startScale = $(this).data("scale") || 1;
+        e.preventDefault();
+      }
+    });
+    imgElement.on("touchmove", function (e) {
+      if (e.touches.length === 2) {
+        let dx = e.touches[0].pageX - e.touches[1].pageX;
+        let dy = e.touches[0].pageY - e.touches[1].pageY;
+        let distance = Math.sqrt(dx * dx + dy * dy);
+        let scaleFactor = distance / startDistance;
+        let scale = startScale * scaleFactor;
+        $(this).css("transform", `scale(${scale})`);
+        $(this).data("scale", scale);
+        e.preventDefault();
+      }
+    });
+    imgElement.on("touchend", function (e) {
+      if (e.touches.length < 2) {
+        startDistance = null;
+        startScale = null;
+      }
+    });
+  }
+
   setupDarkScreen(imgElement);
+
+  // Make the image draggable using interact.js
+  interact(imgElement.get(0)).draggable({
+    inertia: true,
+    modifiers: [
+      interact.modifiers.restrictRect({
+        restriction: "parent",
+        endOnly: true,
+      }),
+    ],
+    autoScroll: true,
+    listeners: {
+      move: function (event) {
+        var target = event.target,
+          x = (parseFloat(target.getAttribute("data-x")) || 0) + event.dx,
+          y = (parseFloat(target.getAttribute("data-y")) || 0) + event.dy;
+
+        target.style.webkitTransform = target.style.transform = "translate(" + x + "px, " + y + "px)";
+
+        target.setAttribute("data-x", x);
+        target.setAttribute("data-y", y);
+      },
+      end: function (event) {
+        // Set the cursor back to default when dragging ends
+        event.target.style.cursor = "default";
+      },
+    },
+    onmove: function (event) {
+      // Change the cursor to move when dragging starts
+      event.target.style.cursor = "move";
+    },
+  });
+
   return imgElement;
 }
 
@@ -81,86 +183,82 @@ function setupDarkScreen(zoomedImage) {
 }
 
 function setupImageZoom() {
-  let hoverTimer;
-  let zoomedImage = null;
-  let originalPosition = {};
-  let mouseOutTimer = null;
+  // Select the images on which you want to apply the zoom functionality
+  let images = $("a:has(img.scale-with-grid), a:has(img[src*='thumb']:not(.commenter-image))");
 
-  $(document).on(
-    "mouseover",
-    "a:has(img.scale-with-grid), a:has(img[src*='thumb']:not(.commenter-image))",
-    function (e) {
-      clearTimeout(mouseOutTimer);
-      let img = $(this).find("img");
-      let imgSrc = img.attr("src");
-      let imgAlt = img.attr("alt");
+  images.each(function () {
+    let img = $(this).find("img");
+    let imgSrc = img.attr("src");
+    let imgAlt = img.attr("alt");
 
-      // Check if an overlay already exists for this image
-      if (img.parent().find(".image_zoom_overlay").length > 0) {
-        return; // If it does, exit the function
+    if (imgSrc) {
+      if (imgSrc.includes("thumb")) {
+        imgSrc = imgSrc.replace("/thumb/", "/").replace(/\/[^/]+$/, "");
       }
 
-      if (imgSrc) {
-        if (imgSrc.includes("thumb")) {
-          imgSrc = imgSrc.replace("/thumb/", "/").replace(/\/[^/]+$/, "");
-        }
-
-        originalPosition = img.offset();
-        let parent = $(this).css({ display: "inline-block", position: "relative" });
-        const overlay = $('<div class="image_zoom_overlay">+</div>').appendTo(parent);
-
-        overlay.css({ "z-index": 99999, position: "absolute", bottom: "0", right: "0" });
-
-        overlay.one("pointerdown", (e) => {
+      let parent = $(this).css({ display: "inline-block", position: "relative" });
+      const overlay = $('<div class="image_zoom_overlay">🔍</div>').appendTo(parent);
+      // Set the overlay styles, making it larger than the plus sign
+      overlay.css({
+        "z-index": 20000,
+        position: "absolute",
+        bottom: "0",
+        right: "0",
+        height: "50%", // adjust this value as needed
+        width: "50%", // adjust this value as needed
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "flex-end",
+      });
+      overlay.on({
+        mousedown: function (e) {
           console.log("overlay clicked");
           e.preventDefault();
           e.stopPropagation();
-          createZoomedImage(imgSrc, imgAlt);
-          overlay.hide();
-          return false;
-        });
-
-        overlay.on("mouseover", (e) => {
-          $(this)
-            .closest("a")
-            .on("click", function (e) {
-              e.preventDefault();
+          let zoomedImage = createZoomedImage(imgSrc, imgAlt);
+          if ("ontouchstart" in window) {
+            makeDraggableOnTouch(zoomedImage);
+          } else {
+            zoomedImage.draggable();
+          }
+          // prevent click event propagation to document
+          setTimeout(() => {
+            $(document).one("click", function (clickEvent) {
+              clickEvent.stopImmediatePropagation();
             });
-        });
+          }, 0);
+          return false;
+        },
+        touchstart: function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          createZoomedImage(imgSrc, imgAlt);
+          // prevent click event propagation to document
+          setTimeout(() => {
+            $(document).one("click", function (clickEvent) {
+              clickEvent.stopImmediatePropagation();
+            });
+          }, 0);
+          return false;
+        },
+      });
 
-        overlay.on("mouseout", (e) => {
-          $(this).closest("a").off("click");
-        });
+      overlay.on("mouseover", (e) => {
+        $(this)
+          .closest("a")
+          .on("click", function (e) {
+            e.preventDefault();
+          });
+      });
 
-        img.addClass("zoomable");
-        img.on("wheel", wheelZoomHandler);
-        img.draggable();
-        overlay.show();
-      }
+      overlay.on("mouseout", (e) => {
+        $(this).closest("a").off("click");
+      });
+
+      img.addClass("zoomable");
+      img.on("wheel", wheelZoomHandler);
+      //img.draggable();
+      overlay.show();
     }
-  );
-
-  $(document).on("mouseout", "a:has(img.scale-with-grid), a:has(img[src*='thumb']:not(.commenter-image))", function () {
-    mouseOutTimer = setTimeout(() => {
-      let img = $(this).find("img");
-      img.off("wheel");
-      img.css("transform", `scale(1)`);
-      img.data("scale", 1);
-      if (img.data("ui-draggable")) {
-        img.draggable("destroy");
-      }
-      img.offset(originalPosition);
-      img.css({ position: "static", top: "auto", left: "auto" });
-      img.removeClass("zoomable");
-      $(this).css({ display: "", position: "" });
-      $(this).find(".image_zoom_overlay").remove();
-    }, 500);
-  });
-
-  $(document).on("click", function (e) {
-    if (!zoomedImage || $(e.target).is(zoomedImage)) return;
-    $(".dark-screen").remove();
-    zoomedImage.remove();
-    zoomedImage = null;
   });
 }
