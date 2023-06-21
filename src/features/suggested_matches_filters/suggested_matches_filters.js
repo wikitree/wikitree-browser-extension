@@ -56,7 +56,7 @@ shouldInitializeFeature("suggestedMatchesFilters").then((result) => {
     $("#enterBasicDataButton").on("click", function () {
       setTimeout(function () {
         checkReady();
-      }, 1000);
+      }, 2000);
       addNewPersonToH1();
     });
   }
@@ -69,7 +69,7 @@ function checkReady() {
     setTimeout(function () {
       checked++;
       checkReady();
-    }, 1000);
+    }, 2000);
   }
 }
 async function getLocations(WTID) {
