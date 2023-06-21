@@ -84,15 +84,15 @@ async function getLocations(WTID) {
     },
     { appId: "WBE_suggested_matches_filters" }
   );
-  const locations = [relatives[0]?.BirthLocation, relatives[0]?.DeathLocation];
+  const locations = [relatives?.[0]?.BirthLocation, relatives?.[0]?.DeathLocation];
   const relativeTypes = ["Parents", "Siblings", "Spouses", "Children"];
   let keys, aPerson;
   relativeTypes.forEach(function (relativeType) {
-    if (relatives[0]) {
-      if (relatives[0][relativeType]) {
-        keys = Object.keys(relatives[0][relativeType]);
+    if (relatives?.[0]) {
+      if (relatives?.[0][relativeType]) {
+        keys = Object.keys(relatives?.[0][relativeType]);
         keys.forEach(function (aKey) {
-          aPerson = relatives[0][relativeType][aKey];
+          aPerson = relatives?.[0][relativeType][aKey];
           locations.push(aPerson.BirthLocation, aPerson.DeathLocation);
         });
       }
@@ -131,7 +131,7 @@ function locationFilter(person, filteredLocations, newPerson) {
   let matchCount = 0;
   person.locations.forEach(function (aLocation) {
     if (filteredLocations.includes(aLocation)) {
-      if (!countries.includes(aLocation)) {
+      if (!(countries.includes(aLocation) && filteredLocations.length > 1)) {
         matchCount++;
       }
       if ($("#locationFilterButton").attr("data-level") != "2") {
@@ -251,20 +251,23 @@ function dateFilter(level, newPerson) {
 const suggestedMatches = [];
 async function initSuggestedMatchesFilters() {
   const WTID = $("h1 button[aria-label='Copy ID']").data("copy-text");
-  const relatives = await getRelatives(
-    [WTID],
-    {
-      getSpouses: true,
-      getChildren: true,
-      getParents: true,
-      getSiblings: true,
-      fields: ["BirthLocation,DeathLocation"],
-    },
-    { appId: "WBE_suggested_matches_filters" }
-  );
+  let relatives;
+  if (WTID) {
+    relatives = await getRelatives(
+      [WTID],
+      {
+        getSpouses: true,
+        getChildren: true,
+        getParents: true,
+        getSiblings: true,
+        fields: ["BirthLocation,DeathLocation"],
+      },
+      { appId: "WBE_suggested_matches_filters" }
+    );
+  }
   const locations = [
-    relatives[0]?.BirthLocation,
-    relatives[0]?.DeathLocation,
+    relatives?.[0]?.BirthLocation,
+    relatives?.[0]?.DeathLocation,
     $("#mBirthLocation").val(),
     $("#mDeathLocation").val(),
   ];
@@ -280,12 +283,12 @@ async function initSuggestedMatchesFilters() {
   });
   const relativeTypes = ["Parents", "Siblings", "Spouses", "Children"];
   let keys, aPerson;
-  if (relatives[0]) {
+  if (relatives?.[0]) {
     relativeTypes.forEach(function (relativeType) {
-      if (relatives[0][relativeType]) {
-        keys = Object.keys(relatives[0][relativeType]);
+      if (relatives?.[0][relativeType]) {
+        keys = Object.keys(relatives?.[0][relativeType]);
         keys.forEach(function (aKey) {
-          aPerson = relatives[0][relativeType][aKey];
+          aPerson = relatives?.[0][relativeType][aKey];
           locations.push(aPerson.BirthLocation, aPerson.DeathLocation);
         });
       }
@@ -359,7 +362,7 @@ async function initSuggestedMatchesFilters() {
       "<button class='small button' id='dateFilterButton'>Date</button></div>"
   );
   if ($("#filterButtons").length == 0) {
-    filterButtons.appendTo($("#matchesStatusBox p.large"));
+    filterButtons.appendTo($("#matchesStatusBox p:first-child"));
   }
   $("#nameFilterButton").on("click", function (e) {
     e.preventDefault();
@@ -428,8 +431,12 @@ async function initSuggestedMatchesFilters() {
         $(this).attr("data-level", "1");
         $(this).text("location 1");
       }
-
+      console.log(suggestedMatches);
       suggestedMatches.forEach(function (person) {
+        //
+        console.log("person", person);
+        console.log("filteredLocations", filteredLocations);
+        console.log("newPerson", newPerson);
         locationFilter(person, filteredLocations, newPerson);
       });
     }
