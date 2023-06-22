@@ -211,76 +211,10 @@ async function locationsHelper() {
             const innerBit = $(added_node).find(".autocomplete-suggestion-head");
             let innerBitText = "";
 
-            // Fix Massachusetts (and any other pre-1776 states)
-            const lastPart = dText.split("(")[0].trim().split(",").pop();
-            const lastPartMatch = lastPart.match(/[A-z]+/g);
-            if (lastPartMatch != null) {
-              lastPartMatch.forEach(function (aWord) {
-                if (window.USstates[aWord] != undefined) {
-                  const thisState = window.USstates[aWord];
-                  if (thisState.former_name_date_established != undefined) {
-                    if (thisState.former_name_date_established <= myYear && thisState.admissionDate >= myYear) {
-                      if (myYear >= 1776 && thisState.postRevolutionName) {
-                        dText = dText.replace(lastPart, " " + aWord);
-                        innerBitText =
-                          dText + " (" + "1776-07-04" + " - " + thisState.admissionDate.match(/\d{4}/) + ")";
-                      } else {
-                        dText = dText.replace(lastPart, " " + thisState.former_name).replace(/ \(.+\)/, "");
-                        // Build text for innerBit.  This is dText +(thisState.former_name_date_established + "-" + thisState.admissionDate (but only the year))
-                        innerBitText =
-                          dText +
-                          " (" +
-                          thisState.former_name_date_established +
-                          " - " +
-                          thisState.admissionDate.match(/\d{4}/) +
-                          ")";
-                      }
-                      fixText(added_node, activeEl, dText, innerBit, innerBitText);
-                    }
-                  }
-                }
-              });
-            }
+            // Brisbane
+            dText = dText.replace("Brisbane City, Queensland, Australia", "Brisbane, Queensland, Australa");
 
-            // Fix German locations
-            if (myYear < 1806) {
-              dText = dText
-                .replace("Deutsches Reich", "Heiliges Römisches Reich")
-                .replace("Deutschland", "Heiliges Römisches Reich");
-            } else if (myYear < 1815) {
-              dText = dText
-                .replace(", Heiliges Römisches Reich", "")
-                .replace(", Deutschland", "")
-                .replace(", Deutscher Bund", "")
-                .replace(", Deutsches Reich", "");
-            } else if (myYear < 1866) {
-              dText = dText.replace("Deutsches Reich", "Deutscher Bund").replace("Deutschland", "Deutscher Bund");
-            } else if (myYear < 1871) {
-              dText = dText.replace(", Deutsches Reich", "").replace("Deutschland", "");
-            } else if (myYear < 1945) {
-              dText = dText.replace("Deutschland", "Deutsches Reich");
-              // Deutsches Reich is accurate from 1871 until 1945
-            } else if (myYear > 1949) {
-              dText = dText.replace("Deutsches Reich", "Deutschland").replace("Deutscher Bund", "Deutschland");
-            }
-
-            // Add Steyning, Stogursey, Somerset, England
-            if (dText.match(/Steyning/)) {
-              // add a new autocomplete suggestion
-              /*
-<div class="autocomplete-suggestion-container"><span class="autocomplete-suggestion-maplink"><a target="_new" href="https://familysearch.org/research/places/?focusedId=425694"><img src="/images/icons/map.gif"></a></span><div class="autocomplete-suggestion" data-val="Frankfurt am Main, Hessen, Deutschland"><div class="autocomplete-suggestion-head"><span class="autocomplete-suggestion-term">Frankfurt</span> am Main, Hessen, Deutschland (1945 - ) </div></div></div>
-              */
-              if ($(added_node).parent().find(".Steyning").length == 0) {
-                const newSuggestion = document.createElement("div");
-                newSuggestion.className = "autocomplete-suggestion-container";
-                newSuggestion.classList.add("Steyning");
-                newSuggestion.innerHTML =
-                  '<div class="autocomplete-suggestion" data-val="Steyning, Stogursey, Somerset, England"><div class="autocomplete-suggestion-head"><span class="autocomplete-suggestion-term">Steyning</span>, Stogursey, Somerset, England</div></div>';
-                $(newSuggestion).insertBefore($(added_node));
-              }
-            }
-
-            // Fix Canadian locations
+            // Canadian districts
             if (dText.match(/Canada/)) {
               const regionalDistricts = [
                 "Greater Vancouver Regional District",
@@ -316,11 +250,74 @@ async function locationsHelper() {
               // end Canadian districts
             }
 
-            // Brisbane
-            dText = dText.replace("Brisbane City, Queensland, Australia", "Brisbane, Queensland, Australa");
-
             // County Durham
             dText = dText.replace("Durham, England", "County Durham, England");
+
+            // German country names
+            if (myYear < 1806) {
+              dText = dText
+                .replace("Deutsches Reich", "Heiliges Römisches Reich")
+                .replace("Deutschland", "Heiliges Römisches Reich");
+            } else if (myYear < 1815) {
+              dText = dText
+                .replace(", Heiliges Römisches Reich", "")
+                .replace(", Deutschland", "")
+                .replace(", Deutscher Bund", "")
+                .replace(", Deutsches Reich", "");
+            } else if (myYear < 1866) {
+              dText = dText.replace("Deutsches Reich", "Deutscher Bund").replace("Deutschland", "Deutscher Bund");
+            } else if (myYear < 1871) {
+              dText = dText.replace(", Deutsches Reich", "").replace("Deutschland", "");
+            } else if (myYear < 1945) {
+              dText = dText.replace("Deutschland", "Deutsches Reich");
+              // Deutsches Reich is accurate from 1871 until 1945
+            } else if (myYear > 1949) {
+              dText = dText.replace("Deutsches Reich", "Deutschland").replace("Deutscher Bund", "Deutschland");
+            }
+
+            // Massachusetts (and any other pre-1776 states)
+            const lastPart = dText.split("(")[0].trim().split(",").pop();
+            const lastPartMatch = lastPart.match(/[A-z]+/g);
+            if (lastPartMatch != null) {
+              lastPartMatch.forEach(function (aWord) {
+                if (window.USstates[aWord] != undefined) {
+                  const thisState = window.USstates[aWord];
+                  if (thisState.former_name_date_established != undefined) {
+                    if (thisState.former_name_date_established <= myYear && thisState.admissionDate >= myYear) {
+                      if (myYear >= 1776 && thisState.postRevolutionName) {
+                        dText = dText.replace(lastPart, " " + aWord);
+                        innerBitText =
+                          dText + " (" + "1776-07-04" + " - " + thisState.admissionDate.match(/\d{4}/) + ")";
+                      } else {
+                        dText = dText.replace(lastPart, " " + thisState.former_name).replace(/ \(.+\)/, "");
+                        // Build text for innerBit.  This is dText +(thisState.former_name_date_established + "-" + thisState.admissionDate (but only the year))
+                        innerBitText =
+                          dText +
+                          " (" +
+                          thisState.former_name_date_established +
+                          " - " +
+                          thisState.admissionDate.match(/\d{4}/) +
+                          ")";
+                      }
+                      fixText(added_node, activeEl, dText, innerBit, innerBitText);
+                    }
+                  }
+                }
+              });
+            }
+
+            // Steyning, Stogursey, Somerset, England
+            if (dText.match(/Steyning/)) {
+              // add a new autocomplete suggestion
+              if ($(added_node).parent().find(".Steyning").length == 0) {
+                const newSuggestion = document.createElement("div");
+                newSuggestion.className = "autocomplete-suggestion-container";
+                newSuggestion.classList.add("Steyning");
+                newSuggestion.innerHTML =
+                  '<div class="autocomplete-suggestion" data-val="Steyning, Stogursey, Somerset, England"><div class="autocomplete-suggestion-head"><span class="autocomplete-suggestion-term">Steyning</span>, Stogursey, Somerset, England</div></div>';
+                $(newSuggestion).insertBefore($(added_node));
+              }
+            }
 
             fixText(added_node, activeEl, dText, innerBit, innerBitText);
           }
