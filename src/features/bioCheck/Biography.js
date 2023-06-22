@@ -42,7 +42,6 @@ export class Biography {
   #researchNotesBoxes = [];   // what research notes boxes are there?
   #unexpectedLines = [];       // unexpected lines before bio heading
   #missingRnb = [];  // missing Research Note Boxes
-  #headingBeforeBiography = false;
 
   #bioInputString = ""; // input string may be modified by processing
   #biographyIndex = -1; // line with the biography heading 
@@ -119,7 +118,6 @@ export class Biography {
   static #REF_START = "<ref>";
   static #REF_END = "</ref>";
   static #END_BRACKET = ">";
-  static #START_BRACKET = "<";
   static #REF_START_NAMED = "<ref name";
   static #REF_END_NAMED = "/>";
   static #HEADING_START = "==";
@@ -153,14 +151,17 @@ export class Biography {
    * Parse contents of the bio.
    * Side effects - set statistics and style
    * @param {String} inStr bio string as returned by API in Wiki format for the profile
-   * @param thePerson {BioCheckPerson} person to check
+   * @param {Boolean} isPre1500 true if profile is treated as Pre1500
+   * @param {Boolean} isPre1700 true if profile is treated as Pre1700
+   * @param {Boolean} mustBeOpen true if profile is treated as too old to remember
+   * @param {Boolean} bioUndated true if profile has no dates
    * @param {Boolean} search string to report any profile containing the string
    */
-  parse(inStr, thePerson, bioSearchString) {
-    this.#isPre1500 = thePerson.isPre1500();
-    this.#isPre1700 = thePerson.isPre1700();
-    this.#tooOldToRemember = thePerson.isTooOldToRemember();
-    this.#stats.bioIsUndated = thePerson.isUndated();
+  parse(inStr, isPre1500, isPre1700, mustBeOpen, bioUndated, bioSearchString) {
+    this.#isPre1500 = isPre1500;
+    this.#isPre1700 = isPre1700;
+    this.#tooOldToRemember = mustBeOpen;
+    this.#stats.bioIsUndated = bioUndated;
     this.#bioSearchString = bioSearchString;
 
     this.#bioInputString = inStr;
@@ -189,8 +190,6 @@ export class Biography {
     let haveProjectBox = false;
     let haveBiography = false;
 
-    let checkForNavBox = false;
-
     // build a vector of each line in the bio then iterate
     this.#getLines(this.#bioInputString);
     let lineCount = this.#bioLines.length;
@@ -218,8 +217,6 @@ export class Biography {
         if (this.#checkForEmail(line)) {
           this.#style.bioMightHaveEmail = true;
         }
-        this.#checkRecommendedHtml(line);
-
         if (this.#bioSearchString.length > 0) {
           if (line.includes(this.#bioSearchString.toLowerCase())) {
             this.#style.bioHasSearchString = true;
@@ -315,12 +312,10 @@ export class Biography {
               } else {
                 if (this.#sourceRules.isNavBox(partialLine)) {
                   haveNavBox = true;
-                  if (checkForNavBox) {
-                    if (haveBiography) {
-                      let msg = 'Navigation box: ' + partialMixedCaseLine + ' should be before Biography';
-                      this.#messages.styleMessages.push(msg);
-                      this.#style.bioHasStyleIssues = true;
-                    }
+                  if (haveBiography) {
+                    let msg = 'Navigation box: ' + partialMixedCaseLine + ' should be before Biography';
+                    this.#messages.styleMessages.push(msg);
+                    this.#style.bioHasStyleIssues = true;
                   }
                 } else {
                   if (this.#sourceRules.isSticker(partialLine)) {
@@ -341,21 +336,18 @@ export class Biography {
                 this.#notocIndex = currentIndex;
               } else {
                 let str = this.#bioLines[currentIndex];
-                // test the line before the bio
-                this.#checkLineBeforeBio(str);
-
-                //let i = str.length;
-                //if (i > 40) {
-                  //str = str.substring(0, 40);
-                  //str += "...";
-                //}
+                let i = str.length;
+                if (i > 40) {
+                  str = str.substring(0, 40);
+                  str += "...";
+                }
                 // TODO well it looks like anything other than a separator is allowed
                 // but there may be font or headings or whatever so...
                 // report with caveat, you can take it out later
                 //let tmpString = str.replace("-", " ");
                 //tmpString = tmpString.trim();
                 //if (tmpString.length > 0) {
-                //  this.#unexpectedLines.push(str);
+                  this.#unexpectedLines.push(str);
                 //}
               }
             }
@@ -456,15 +448,17 @@ export class Biography {
   /**
    * Validate contents Sources for adding a new profile
    * @param {String} sourcesStr string containing sources
-   * @param thePerson {BioCheckPerson} person to check
+   * @param {Boolean} isPre1500 true if profile is treated as Pre1500
+   * @param {Boolean} isPre1700 true if profile is treated as Pre1700
+   * @param {Boolean} mustBeOpen true if profile is treated as too old to remember
    * @returns {Boolean} true if probably valid sources, else false
    */
-  validateSourcesStr(sourcesStr, thePerson) {
+  validateSourcesStr(sourcesStr, isPre1500, isPre1700, mustBeOpen) {
     // build bioLines from the input sources string then validate
     this.#getLines(sourcesStr);
-    this.#isPre1500 = thePerson.isPre1500();
-    this.#isPre1700 = thePerson.isPre1700();
-    this.#tooOldToRemember = thePerson.isTooOldToRemember();
+    this.#isPre1500 = isPre1500;
+    this.#isPre1700 = isPre1700;
+    this.#tooOldToRemember = mustBeOpen;
     let isValid = this.#validateReferenceStrings(false);
     if (isValid) {
       this.#sources.sourcesFound = true;
@@ -1286,6 +1280,7 @@ export class Biography {
     for (let i=0; i<this.#headings.length; i++) {
       let str = this.#headings[i].headingText.toLowerCase().trim();
       if (this.#sourceRules.isResearchNotesBox(str)) {
+        //if (!this.#sourceRules.lineStartsWithListEntry(str, this.#researchNotesBoxes)) {
         if (!this.#researchNotesBoxes.includes(str)) {
            this.#missingRnb.push(this.#headings[i].headingText);
            this.#style.bioMissingResearchNotesBox = true;;
@@ -1337,56 +1332,6 @@ export class Biography {
       }
     }
     return looksLikeEmail;
-  }
-
-  /*
-   * Check line before Biography heading
-   * no horizontal rule
-   * no heading or subheading
-   * when we get here it is not a category start, already did that test
-   */
-  #checkLineBeforeBio(line) {
-    if (line.startsWith('----')) {
-      this.#messages.styleMessages.push('Horizontal rule before Biography');
-      this.#style.bioHasStyleIssues = true;
-      this.#headingBeforeBiography = true;
-    } else {
-      if (line.startsWith(Biography.#HEADING_START)) {
-        if (!this.#headingBeforeBiography) {
-          this.#style.bioHasStyleIssues = true;
-          this.#headingBeforeBiography = true;
-          this.#messages.styleMessages.push('Heading or subheading before Biography');
-        }
-      }  else {
-        // See https://www.wikitree.com/wiki/Help:Recommended_Tags
-        // this might be too aggressive
-        if ((line.startsWith('[[')) && (line.endsWith(']]'))) {
-          this.#unexpectedLines.push(line);
-        }
-        if ((line.includes('through the import of')) ||
-            (line.includes('collaborative work-in-progress'))) {
-          this.#unexpectedLines.push(line);
-        }
-      }
-    }
-  }
-
-  /*
-   * Check for HTML directives that are not recommended
-   */
-  #checkRecommendedHtml(line) {
-    if (line.startsWith(Biography.#START_BRACKET)) {
-      if (!this.#sourceRules.isRecommendedTag(line)) {
-        let msg = 'Biography contains HTML tag that is not recommended ' + line;
-        if (msg.length > 80) {
-          msg = msg.substring(0, 80);
-          msg += "...";
-        }
-        this.#messages.styleMessages.push(msg);
-        this.#style.bioHasStyleIssues = true;
-      }
-    }
-    return;
   }
 
   /* *********************************************************************
@@ -1447,16 +1392,10 @@ export class Biography {
                 if (!this.#invalidFamilyTree(line)) {
                   if (!this.#isJustRepository(line)) {
                     if (!this.#isJustGedcomCrud(line)) {
-                       if (this.#isDnaConfirmation(line)) {
-                        // TODO add logic to check a DNA confirmation
-                        // so the source MIGHT be valid but the confirmation might be incomplete
-;
-                      } else {
-                        // TODO add more logic to eliminate sources as valid
-                        // TODO is the manager's name a valid source (this is hard)
-                        // TODO add logic to check for just the name followed by grave
-                        isValid = true;
-                      }
+                      // TODO add more logic to eliminate sources as valid
+                      // TODO is the manager's name a valid source (this is hard)
+                      // TODO add logic to check for just the name followed by grave
+                      isValid = true;
                     }
                   }
                 }
@@ -1864,21 +1803,4 @@ export class Biography {
     }
     return isGedcomCrud;
   }
-
-  /*
-   * check to see if the source is a DNA confirmation
-   * @param {String} line line to test
-   * @returns {Boolean} true if line appears to be a DNA confirmation
-   */
-  #isDnaConfirmation(line) {
-    let isDnaConf = false;
-    if ((line.includes('dna')) && (line.includes('confirmed'))) {
-      if (line.includes('maternal') || line.includes('mother') || 
-          line.includes('paternal') || line.includes('father')) {
-        isDnaConf = true;
-      }
-    }
-    return isDnaConf;
-  }
-
 }
