@@ -7,8 +7,10 @@
   padding: 1em;
   border: 2px solid forestgreen;
   border-radius: 1em;
-  max-height: 40em;
+  height: 40em;
   max-width: 70em;
+  min-width: min-content;
+  min-height: min-content;
   overflow: auto;
   position: absolute;
   box-shadow: 0.1em 0.1em 0.1em 0.1em lightgreen;
