@@ -61,6 +61,7 @@ import "./darkMode/darkMode_options";
 import "./date_fixer/date_fixer_options";
 import "./edit_family_data/edit_family_data_options";
 import "./extra_watchlist/extra_watchlist_options";
+import "./locationsHelper/locationsHelper_options";
 import "./g2g/g2g_options";
 import "./genderPredictor/gender_predictor_options";
 import "./image_zoom/image_zoom_options";
@@ -225,19 +226,6 @@ registerFeature({
   contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: true,
   pages: [isProfilePage],
-});
-
-registerFeature({
-  name: "Locations Helper",
-  id: "locationsHelper",
-  description:
-    "Manipulates the suggested locations, highlighting likely correct locations," +
-    " based on family members' locations, and demoting likely wrong locations, based on the dates.",
-  category: "Editing",
-  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
-  defaultValue: true,
-  pages: [isProfileEdit, isProfileAddRelative, isSpaceEdit, isNewSpace],
 });
 
 registerFeature({

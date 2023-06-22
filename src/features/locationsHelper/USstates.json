@@ -1,0 +1,313 @@
+{
+  "Alabama": {
+    "abbreviation": "AL",
+    "admissionDate": "1819-12-14",
+    "former_name": "Alabama Territory",
+    "former_name_date_established": "1817-08-15"
+  },
+  "Alaska": {
+    "abbreviation": "AK",
+    "admissionDate": "1959-01-03",
+    "former_name": "Territory of Alaska",
+    "former_name_date_established": "1912-08-24"
+  },
+  "Arizona": {
+    "abbreviation": "AZ",
+    "admissionDate": "1912-02-14",
+    "former_name": "Arizona Territory",
+    "former_name_date_established": "1863-02-24"
+  },
+  "Arkansas": {
+    "abbreviation": "AR",
+    "admissionDate": "1836-06-15",
+    "former_name": "Arkansas Territory",
+    "former_name_date_established": "1819-03-02"
+  },
+  "California": {
+    "abbreviation": "CA",
+    "admissionDate": "1850-09-09"
+  },
+  "Colorado": {
+    "abbreviation": "CO",
+    "admissionDate": "1876-08-01",
+    "former_name": "Colorado Territory",
+    "former_name_date_established": "1861-02-28"
+  },
+  "Connecticut": {
+    "abbreviation": "CT",
+    "admissionDate": "1788-01-09",
+    "former_name": "Connecticut Colony",
+    "former_name_date_established": "1636",
+    "postRevolutionName": "State of Connecticut"
+  },
+  "Delaware": {
+    "abbreviation": "DE",
+    "admissionDate": "1787-12-07",
+    "former_name": "Delaware Colony",
+    "former_name_date_established": "1638",
+    "postRevolutionName": "State of Delaware"
+  },
+  "Florida": {
+    "abbreviation": "FL",
+    "admissionDate": "1845-03-03",
+    "former_name": "Florida Territory",
+    "former_name_date_established": "1822-03-30"
+  },
+  "Georgia": {
+    "abbreviation": "GA",
+    "admissionDate": "1788-01-02",
+    "former_name": "Province of Georgia",
+    "former_name_date_established": "1732",
+    "postRevolutionName": "State of Georgia"
+  },
+  "Hawaii": {
+    "abbreviation": "HI",
+    "admissionDate": "1959-08-21",
+    "former_name": "Territory of Hawaii",
+    "former_name_date_established": "1900-04-30"
+  },
+  "Idaho": {
+    "abbreviation": "ID",
+    "admissionDate": "1890-07-03",
+    "former_name": "Idaho Territory",
+    "former_name_date_established": "1863-03-03"
+  },
+  "Illinois": {
+    "abbreviation": "IL",
+    "admissionDate": "1818-12-03",
+    "former_name": "Illinois Territory",
+    "former_name_date_established": "1809-03-01"
+  },
+  "Indiana": {
+    "abbreviation": "IN",
+    "admissionDate": "1816-12-11",
+    "former_name": "Indiana Territory",
+    "former_name_date_established": "1800-07-04"
+  },
+  "Iowa": {
+    "abbreviation": "IA",
+    "admissionDate": "1846-12-28",
+    "former_name": "Iowa Territory",
+    "former_name_date_established": "1838-07-04"
+  },
+  "Kansas": {
+    "abbreviation": "KS",
+    "admissionDate": "1861-01-29",
+    "former_name": "Kansas Territory",
+    "former_name_date_established": "1854-05-30"
+  },
+  "Kentucky": {
+    "abbreviation": "KY",
+    "admissionDate": "1792-06-01",
+    "former_name": "Kentucky County, Virginia",
+    "former_name_date_established": "1776"
+  },
+  "Louisiana": {
+    "abbreviation": "LA",
+    "admissionDate": "1812-04-30",
+    "former_name": "Territory of Orleans",
+    "former_name_date_established": "1804-10-01"
+  },
+  "Maine": {
+    "abbreviation": "ME",
+    "admissionDate": "1820-03-15",
+    "former_name": "District of Maine, Massachusetts",
+    "former_name_date_established": "1677"
+  },
+  "Maryland": {
+    "abbreviation": "MD",
+    "admissionDate": "1788-04-28",
+    "former_name": "Province of Maryland",
+    "former_name_date_established": "1632",
+    "postRevolutionName": "State of Maryland"
+  },
+  "Massachusetts": {
+    "abbreviation": "MA",
+    "admissionDate": "1788-02-06",
+    "former_name": "Province of Massachusetts Bay",
+    "former_name_date_established": "1691",
+    "postRevolutionName": "Commonwealth of Massachusetts"
+  },
+  "Michigan": {
+    "abbreviation": "MI",
+    "admissionDate": "1837-01-26",
+    "former_name": "Michigan Territory",
+    "former_name_date_established": "1805-06-30"
+  },
+  "Minnesota": {
+    "abbreviation": "MN",
+    "admissionDate": "1858-05-11",
+    "former_name": "Minnesota Territory",
+    "former_name_date_established": "1849-03-03"
+  },
+  "Mississippi": {
+    "abbreviation": "MS",
+    "admissionDate": "1817-12-10",
+    "former_name": "Mississippi Territory",
+    "former_name_date_established": "1798-04-07"
+  },
+  "Missouri": {
+    "abbreviation": "MO",
+    "admissionDate": "1821-08-10",
+    "former_name": "Missouri Territory",
+    "former_name_date_established": "1812-06-04"
+  },
+  "Montana": {
+    "abbreviation": "MT",
+    "admissionDate": "1889-11-08",
+    "former_name": "Montana Territory",
+    "former_name_date_established": "1864-05-26"
+  },
+  "Nebraska": {
+    "abbreviation": "NE",
+    "admissionDate": "1867-03-01",
+    "former_name": "Nebraska Territory",
+    "former_name_date_established": "1854-05-30"
+  },
+  "Nevada": {
+    "abbreviation": "NV",
+    "admissionDate": "1864-10-31",
+    "former_name": "Nevada Territory",
+    "former_name_date_established": "1861-03-02"
+  },
+  "New Hampshire": {
+    "abbreviation": "NH",
+    "admissionDate": "1788-06-21",
+    "former_name": "Province of New Hampshire",
+    "former_name_date_established": "1679",
+    "postRevolutionName": "State of New Hampshire"
+  },
+  "New Jersey": {
+    "abbreviation": "NJ",
+    "admissionDate": "1787-12-12",
+    "former_name": "Province of New Jersey",
+    "former_name_date_established": "1702",
+    "postRevolutionName": "State of New Jersey"
+  },
+  "New Mexico": {
+    "abbreviation": "NM",
+    "admissionDate": "1912-01-06",
+    "former_name": "New Mexico Territory",
+    "former_name_date_established": "1850-09-09"
+  },
+  "New York": {
+    "abbreviation": "NY",
+    "admissionDate": "1788-07-26",
+    "former_name": "Province of New York",
+    "former_name_date_established": "1664",
+    "postRevolutionName": "State of New York"
+  },
+  "North Carolina": {
+    "abbreviation": "NC",
+    "admissionDate": "1789-11-21",
+    "former_name": "Province of North Carolina",
+    "former_name_date_established": "1712",
+    "postRevolutionName": "State of North Carolina"
+  },
+  "North Dakota": {
+    "abbreviation": "ND",
+    "admissionDate": "1889-11-02",
+    "former_name": "Dakota Territory",
+    "former_name_date_established": "1861-03-02"
+  },
+  "Ohio": {
+    "abbreviation": "OH",
+    "admissionDate": "1803-03-01",
+    "former_name": "Northwest Territory",
+    "former_name_date_established": "1787-07-13"
+  },
+  "Oklahoma": {
+    "abbreviation": "OK",
+    "admissionDate": "1907-11-16",
+    "former_name": "Oklahoma Territory",
+    "former_name_date_established": "1890-05-02"
+  },
+  "Oregon": {
+    "abbreviation": "OR",
+    "admissionDate": "1859-02-14",
+    "former_name": "Oregon Territory",
+    "former_name_date_established": "1848-08-14"
+  },
+  "Pennsylvania": {
+    "abbreviation": "PA",
+    "admissionDate": "1787-12-12",
+    "former_name": "Province of Pennsylvania",
+    "former_name_date_established": "1681-03-04",
+    "postRevolutionName": "Commonwealth of Pennsylvania"
+  },
+  "Rhode Island": {
+    "abbreviation": "RI",
+    "admissionDate": "1790-05-29",
+    "former_name": "Colony of Rhode Island and Providence Plantations",
+    "former_name_date_established": "1636",
+    "postRevolutionName": "State of Rhode Island and Providence Plantations"
+  },
+  "South Carolina": {
+    "abbreviation": "SC",
+    "admissionDate": "1788-05-23",
+    "former_name": "Province of South Carolina",
+    "former_name_date_established": "1712",
+    "postRevolutionName": "State of South Carolina"
+  },
+  "South Dakota": {
+    "abbreviation": "SD",
+    "admissionDate": "1889-11-02",
+    "former_name": "Dakota Territory",
+    "former_name_date_established": "1861-03-02"
+  },
+  "Tennessee": {
+    "abbreviation": "TN",
+    "admissionDate": "1796-06-01",
+    "former_name": "Southwest Territory",
+    "former_name_date_established": "1790"
+  },
+  "Texas": {
+    "abbreviation": "TX",
+    "admissionDate": "1845-12-29",
+    "former_name": "Republic of Texas",
+    "former_name_date_established": "1836-03-02"
+  },
+  "Utah": {
+    "abbreviation": "UT",
+    "admissionDate": "1896-01-04",
+    "former_name": "Utah Territory",
+    "former_name_date_established": "1850-09-09"
+  },
+  "Vermont": {
+    "abbreviation": "VT",
+    "admissionDate": "1791-03-04",
+    "former_name": "Vermont Republic",
+    "former_name_date_established": "1777-01-15"
+  },
+  "Virginia": {
+    "abbreviation": "VA",
+    "admissionDate": "1788-06-25",
+    "former_name": "Colony of Virginia",
+    "former_name_date_established": "1607",
+    "postRevolutionName": "Commonwealth of Virginia"
+  },
+  "Washington": {
+    "abbreviation": "WA",
+    "admissionDate": "1889-11-11",
+    "former_name": "Washington Territory",
+    "former_name_date_established": "1853-03-02"
+  },
+  "West Virginia": {
+    "abbreviation": "WV",
+    "admissionDate": "1863-06-20",
+    "former_name": "Virginia",
+    "former_name_date_established": "1607"
+  },
+  "Wisconsin": {
+    "abbreviation": "WI",
+    "admissionDate": "1848-05-29",
+    "former_name": "Wisconsin Territory",
+    "former_name_date_established": "1836-07-03"
+  },
+  "Wyoming": {
+    "abbreviation": "WY",
+    "admissionDate": "1890-07-10",
+    "former_name": "Wyoming Territory",
+    "former_name_date_established": "1868-07-25"
+  }
+}

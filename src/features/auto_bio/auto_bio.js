@@ -312,7 +312,7 @@ function fixLocations() {
   });
 }
 
-function convertDate(dateString, outputFormat, status = "") {
+export function convertDate(dateString, outputFormat, status = "") {
   dateString = dateString.replaceAll(/-00/g, "");
   // Split the input date string into components
   let components = dateString.split(/[\s,-]+/);
