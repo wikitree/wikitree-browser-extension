@@ -63,11 +63,13 @@ class SourceRules {
     "raziskovalne opombe",
     "viittaukset",
     "rannsóknarnótur",
+    "navorsingsnotas",
   ];
   #sourcesHeadings = [
     "sources",
     "quellen",
     "bronnen",
+    "bronne",
     "fuentes",
     "lähteet",
     "fonti",
@@ -100,6 +102,7 @@ class SourceRules {
     "tunnustukset",
     "podziękowanie",
     "priznanja",
+    "erkennings",
   ];
   // loads from templates, each is name and status
   #rnb = [];
