@@ -9,15 +9,15 @@
   },
   {
     "Name": "Abel",
-    "NameVariants": ["Abell", ""]
+    "NameVariants": ["Abell"]
   },
   {
     "Name": "Abernathy",
-    "NameVariants": ["Abernethy", ""]
+    "NameVariants": ["Abernethy"]
   },
   {
     "Name": "Abney",
-    "NameVariants": ["Abner", ""]
+    "NameVariants": ["Abner"]
   },
   {
     "Name": "Acklam",
@@ -49,7 +49,7 @@
   },
   {
     "Name": "Albright",
-    "NameVariants": ["Allbright", ""]
+    "NameVariants": ["Allbright"]
   },
   {
     "Name": "Alington",
@@ -73,7 +73,7 @@
   },
   {
     "Name": "Andolina",
-    "NameVariants": ["Andolino", ""]
+    "NameVariants": ["Andolino"]
   },
   {
     "Name": "Andrewartha",
@@ -93,7 +93,7 @@
   },
   {
     "Name": "Armes",
-    "NameVariants": ["Arms", ""]
+    "NameVariants": ["Arms"]
   },
   {
     "Name": "Armistead",
@@ -113,7 +113,7 @@
   },
   {
     "Name": "Aspevik",
-    "NameVariants": ["Aspevig", ""]
+    "NameVariants": ["Aspevig"]
   },
   {
     "Name": "Aspinwall",
@@ -129,23 +129,31 @@
   },
   {
     "Name": "Auld",
-    "NameVariants": ["Aulds", ""]
+    "NameVariants": ["Aulds"]
   },
   {
     "Name": "Avery",
-    "NameVariants": ["Every", ""]
+    "NameVariants": ["Every"]
   },
   {
     "Name": "Awbrey",
-    "NameVariants": ["Aubrey", ""]
+    "NameVariants": ["Aubrey"]
   },
   {
     "Name": "Ayer",
     "NameVariants": ["Ayers", "Ayres"]
   },
   {
+    "Name": "Balderstone",
+    "NameVariants": ["Balderston", "Balderson"]
+  },
+  {
     "Name": "Batte",
     "NameVariants": ["Batts", "Bates", "Batt", "Battey", "Battie", "Beatty", "Beattie"]
+  },
+  {
+    "Name": "Beardsley",
+    "NameVariants": ["Beardsley", "Beardslee"]
   },
   {
     "Name": "Beasley",
@@ -156,6 +164,10 @@
     "NameVariants": ["Beesimer", "Besimer", "Bismer", "Beasmer Beesmer", "Beasimer", "Biesemiere", "Beisemeyer"]
   },
   {
+    "Name": "Blomfield",
+    "NameVariants": ["Bloomfield", "Blomfyld", "Blomvyle", "Blomville", "Blomvile", "Blomefield", "Blomefyld"]
+  },
+  {
     "Name": "Blood",
     "NameVariants": ["Blod", "Blode", "Bloode", "Bloud", "Blud", "Blude", "Bludd", "Bludde"]
   },
@@ -164,16 +176,24 @@
     "NameVariants": ["Bradwell", "Broodwell", "Brodwell"]
   },
   {
-    "Name": "Buk\uff83\uff61\uff84\u7a3fk",
-    "NameVariants": ["Bukacek", "Bukackova", "Buk\uff83\uff61\uff84\u8015ov\uff83\uff61"]
+    "Name": "Bukáček",
+    "NameVariants": ["Bukacek", "Bukackova", "Bukáčková"]
   },
   {
     "Name": "Burkhart",
     "NameVariants": ["Burkett", "Birkett", "Burkitt", "Burkhardt", "Burket"]
   },
   {
+    "Name": "Cazeneuve",
+    "NameVariants": ["de Cazeneuve", "Casenan", "Cazenove", "Cazenave", "Caseneuve", "Casenove."]
+  },
+  {
     "Name": "Chapman",
     "NameVariants": ["Chatman", "Chapmon", "Chatmon", "Chipmon"]
+  },
+  {
+    "Name": "Cohen",
+    "NameVariants": ["Cowherne", "Cowan", "Cowen"]
   },
   {
     "Name": "Cook",
@@ -256,7 +276,7 @@
   },
   {
     "Name": "Gerard",
-    "NameVariants": ["Gerrard", "Garard", "Garrard", "Giraud", "Garrett", "Jared", "Jerrard", ""]
+    "NameVariants": ["Gerrard", "Garard", "Garrard", "Giraud", "Garrett", "Jared", "Jerrard"]
   },
   {
     "Name": "Gimblett",
@@ -265,6 +285,10 @@
   {
     "Name": "Hartley",
     "NameVariants": ["Hartly"]
+  },
+  {
+    "Name": "Hewitt",
+    "NameVariants": ["Hewit", "Huit", "Huett", "Hewet"]
   },
   {
     "Name": "Hollenkamp ",
@@ -277,6 +301,10 @@
   {
     "Name": "Igo",
     "NameVariants": ["Igoe", "Igou", "Igon"]
+  },
+  {
+    "Name": "Judd",
+    "NameVariants": ["Judde"]
   },
   {
     "Name": "Judith",
@@ -328,14 +356,16 @@
     "NameVariants": ["Ligocka"]
   },
   {
-    "Name": "L\uff83\uff7ctzenburger",
-    "NameVariants": [
-      "L\uff83\uff7ctzenberger",
-      "Litzenberger",
-      "L\uff83\uff7ctzelberger",
-      "L\uff83\uff7ctzelburg",
-      "L\uff83\uff7ctzelburger"
-    ]
+    "Name": "Livesay",
+    "NameVariants": ["Livsley", "Livesley"]
+  },
+  {
+    "Name": "Lützenburger",
+    "NameVariants": ["Lützenberger", "Litzenberger", "Lützelberger", "Lützelburg", "Lützelburger"]
+  },
+  {
+    "Name": "Macklem",
+    "NameVariants": ["Macklin"]
   },
   {
     "Name": "Maness",
@@ -368,6 +398,10 @@
   {
     "Name": "Motz",
     "NameVariants": ["Moats", "Motes"]
+  },
+  {
+    "Name": "Mylrea",
+    "NameVariants": ["Milroy", "McIlrae", "McYlrea", "Mylroie"]
   },
   {
     "Name": "Oats",
@@ -403,6 +437,8 @@
       "Smarzyńska",
       "Smarzynski",
       "Smarzynska",
+      "Smarzinski",
+      "Smarzinska",
       "Smarzyk",
       "Smarczyk",
       "Smarzych",
@@ -431,6 +467,19 @@
     "NameVariants": ["Sodan", "Sodin", "Sodon", "Sowdon", "Sowden", "Souden"]
   },
   {
+    "Name": "Spalding",
+    "NameVariants": [
+      "Spaulding",
+      "Spaldinge",
+      "Spauldinge",
+      "Spaldin",
+      "Spalden",
+      "Spaldyng",
+      "de Spalding",
+      "de Spaldyng"
+    ]
+  },
+  {
     "Name": "Strozier",
     "NameVariants": ["Strasser", "Strauser", "Strosser", "Storzer", "Stroer"]
   },
@@ -439,12 +488,24 @@
     "NameVariants": ["Sugget", "Suggett", "Suggit", "Suggate"]
   },
   {
+    "Name": "Sumby",
+    "NameVariants": ["Sumbey", "Somby", "Sombye"]
+  },
+  {
     "Name": "Threlkeld",
     "NameVariants": ["Thrailkeld", "Thrailkill", "Threldkeld", "Threlkel", "Thurlkill"]
   },
   {
     "Name": "Tilliduff",
     "NameVariants": ["Tullideph"]
+  },
+  {
+    "Name": "Topliss",
+    "NameVariants": ["Toplis", "Toples"]
+  },
+  {
+    "Name": "Toy",
+    "NameVariants": ["Toye"]
   },
   {
     "Name": "Wadenphul",
