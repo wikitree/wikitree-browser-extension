@@ -16,6 +16,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { theSourceRules } from "../bioCheck/SourceRules.js";
 import { PersonDate } from "../bioCheck/PersonDate.js";
 import { Biography } from "../bioCheck/Biography.js";
+import { initBioCheck } from "../bioCheck/bioCheck.js";
 import { ageAtDeath, USstatesObjArray } from "../my_connections/my_connections";
 import { bioTimelineFacts, buildTimelineTable, buildTimelineSA } from "./timeline";
 import { isIansProfile } from "../../core/pageType";
@@ -52,7 +53,7 @@ function dataStatusWord(status, ISOdate, options = { needOnIn: false, onlyYears:
 
   const thisStatusFormat = onlyYears
     ? window.autoBioOptions.yearsDateStatusFormat
-    : window.autoBioOptions.dateStatusFormat;
+    : window.autoBioOptions.dateStatusFormat || "abbreviations";
 
   if (thisStatusFormat == "abbreviations") {
     statusOut = statusOut.replace("before", "bef.").replace("after", "aft.").replace("about", "abt.");
@@ -71,22 +72,7 @@ function findUSState(location) {
     return false;
   }
   // Test last part of location against variants of US country name and US state names
-  const usCountryNames = [
-    "United States",
-    "USA",
-    "U.S.A.",
-    "U.S.",
-    "US",
-    "U.S.A",
-    "U.S",
-    "US",
-    "U.S.A.",
-    "U.S.",
-    "US",
-    "U.S.A",
-    "U.S",
-    "US",
-  ];
+  const usCountryNames = ["United States", "USA", "U.S.A.", "U.S.", "US", "United States of America"];
   // Split the location string into parts
   const parts = location.split(",").map((part) => part.trim());
 
@@ -127,7 +113,7 @@ function autoBioCheck(sourcesStr) {
     thePerson.isPersonPre1700(),
     thePerson.mustBeOpen(),
     thePerson.isUndated(),
-    false
+    ""
   );
   biography.validate();
   const hasSources = biography.hasSources();
@@ -174,11 +160,11 @@ function fixUSLocation(event) {
     locationBits.length == 1 &&
     ["US", "USA", "United States of America", "United States", "U.S.A."].includes(lastLocationBit)
   ) {
-    if (window.autoBioOptions.changeUS) {
+    if (window.autoBioOptions?.changeUS) {
       event.Location = "United States";
     }
   } else if (locationBits.length == 1 && ["UK"].includes(lastLocationBit)) {
-    if (window.autoBioOptions.checkUK) {
+    if (window.autoBioOptions?.checkUK) {
       event.Location = "United Kingdom";
     }
   } else {
@@ -187,24 +173,29 @@ function fixUSLocation(event) {
         event.Location = locationBits.slice(0, locationBits.length - 1).join(", ") + ", " + state.name;
         if (isSameDateOrAfter(event.Date, state.admissionDate)) {
           event.Location += ", " + "United States";
-        } else if (state.admissionDate && state.former_name && window.autoBioOptions.changeUS) {
+        } else if (
+          state.admissionDate &&
+          state.former_name &&
+          window.autoBioOptions?.changeUS &&
+          !(isSameDateOrAfter(event.Date, "1776-07-04") && state.postRevolutionName)
+        ) {
           event.Location = event.Location.replace(lastLocationBit, state.former_name);
         }
       } else if (["US", "USA", "United States of America", "United States", "U.S.A."].includes(lastLocationBit)) {
         const theState = locationBits[locationBits.length - 2];
         if (state.abbreviation == theState || state.name == theState) {
-          if (window.autoBioOptions.expandStates) {
+          if (window.autoBioOptions?.expandStates) {
             event.Location = locationBits.slice(0, locationBits.length - 2).join(", ") + ", " + state.name;
           } else {
             event.Location = locationBits.slice(0, locationBits.length - 2).join(", ") + ", " + theState;
           }
           if (isSameDateOrAfter(event.Date, state.admissionDate)) {
-            if (window.autoBioOptions.changeUS) {
+            if (window.autoBioOptions?.changeUS) {
               event.Location += ", " + "United States";
             } else {
               event.Location += ", " + lastLocationBit;
             }
-          } else if (state.admissionDate && state.former_name && window.autoBioOptions.changeUS) {
+          } else if (state.admissionDate && state.former_name && window.autoBioOptions?.changeUS) {
             event.Location = event.Location.replace(theState, state.former_name);
           }
         }
@@ -257,11 +248,11 @@ function fixLocations() {
     locationBits = locationBits.map((str) => str.trim());
     const lastLocationBit = locationBits[locationBits.length - 1];
 
-    if (window.autoBioOptions.checkUS && isOK(event.Date)) {
+    if (window.autoBioOptions?.checkUS && isOK(event.Date)) {
       event = fixUSLocation(event);
     }
 
-    if (window.autoBioOptions.checkUK && isOK(event.Date)) {
+    if (window.autoBioOptions?.checkUK && isOK(event.Date)) {
       if (["England", "Scotland", "Wales"].includes(lastLocationBit) && isSameDateOrAfter(event.Date, "1801-01-01")) {
         event.Location += ", United Kingdom";
       } else if (["United Kingdom", "UK"].includes(lastLocationBit) && !isSameDateOrAfter(event.Date, "1801-01-01")) {
@@ -272,12 +263,12 @@ function fixLocations() {
     }
     if (
       !["United States", "United Kingdom", "New Zealand"].includes(lastLocationBit) &&
-      (window.autoBioOptions.checkOtherCountries || window.autoBioOptions.nativeNames)
+      (window.autoBioOptions?.checkOtherCountries || window.autoBioOptions?.nativeNames)
     ) {
       countries.forEach(function (country) {
         if (country.name == lastLocationBit) {
           let aNote;
-          if (window.autoBioOptions.nativeNames) {
+          if (window.autoBioOptions?.nativeNames) {
             if (country.name != country.nativeName) {
               if (locationBits.length == 1) {
                 event.Location = country.nativeName;
@@ -295,7 +286,7 @@ function fixLocations() {
                 ", is " +
                 country.nativeName +
                 ".";
-              window.autoBioNotes.push(aNote);
+              window.autoBioNotes?.push(aNote);
             }
           }
           if (!isSameDateOrAfter(event.Date, country.date)) {
@@ -309,7 +300,7 @@ function fixLocations() {
               "'s " +
               event.Event +
               ".";
-            window.autoBioNotes.push(aNote);
+            window.autoBioNotes?.push(aNote);
           }
         }
       });
@@ -324,7 +315,7 @@ function fixLocations() {
         "' to '" +
         event.Location +
         "'.";
-      window.autoBioNotes.push(changeNote);
+      window.autoBioNotes?.push(changeNote);
     }
     document.getElementById(event.ID).value = event.Location;
   });
@@ -524,18 +515,18 @@ export function formatDates(person) {
     const status = dataStatusWord(birthStatus, birthDate, { needOnIn: false, onlyYears: true });
     if (status) {
       birthDate = status + " " + birthDate;
-      if (window.autoBioOptions.yearsDateStatusFormat == "symbols") {
+      if (window.autoBioOptions?.yearsDateStatusFormat == "symbols") {
         birthDate = birthDate.replace(/\s/g, "");
       }
     }
   }
 
   if (deathDate !== " ") {
-    const deathStatus = !person.DeathDate ? "guess" : person.DataStatus.DeathDate;
+    const deathStatus = !person?.DeathDate ? "guess" : person?.DataStatus?.DeathDate;
     const status = dataStatusWord(deathStatus, birthDate, { needOnIn: false, onlyYears: true });
     if (status) {
       deathDate = status + " " + deathDate;
-      if (window.autoBioOptions.yearsDateStatusFormat == "symbols") {
+      if (window.autoBioOptions?.yearsDateStatusFormat == "symbols") {
         deathDate = deathDate.replace(/\s/g, "");
       }
     }
@@ -550,9 +541,9 @@ export function formatDate(date, status, options = { format: "MDY", needOn: fals
   let format;
   if (options.format) {
     format = options.format;
-  } else if (window.autoBioOptions.dateFormat && format !== 8) {
+  } else if (window.autoBioOptions?.dateFormat && format !== 8) {
     // Use the global date format if available and format is not 8
-    format = window.autoBioOptions.dateFormat;
+    format = window.autoBioOptions?.dateFormat;
   } else {
     format = "MDY";
   }
@@ -659,7 +650,7 @@ export function formatDate(date, status, options = { format: "MDY", needOn: fals
 
 function nameLink(person) {
   let theName = person.PersonName.BirthName;
-  if (window.autoBioOptions.fullNameOrBirthName == "FullName") {
+  if (window.autoBioOptions?.fullNameOrBirthName == "FullName") {
     theName = person.PersonName.FullName;
   }
   return "[[" + person.Name + "|" + (theName || person.FullName) + "]]";
@@ -667,33 +658,33 @@ function nameLink(person) {
 
 function personDates(person) {
   let theDates = formatDates(person);
-  if (window.autoBioOptions.longDates) {
+  if (window.autoBioOptions?.longDates) {
     let birthDate = person.BirthDate;
     if (!isOK(person.BirthDate)) {
       birthDate = person.BirthDateDecade;
     }
-    let deathDate = person.DeathDate;
-    if (!isOK(person.DeathDate)) {
-      deathDate = person.DeathDateDecade;
+    let deathDate = person?.DeathDate || person?.DeathDateDecade || "";
+    if (!isOK(person?.DeathDate)) {
+      deathDate = person?.DeathDateDecade || "";
     }
 
     theDates =
       "(" +
       (!isOK(person.BirthDate)
         ? birthDate || ""
-        : convertDate(birthDate, window.autoBioOptions.dateFormat, person.DataStatus.BirthDate)) +
+        : convertDate(birthDate, window.autoBioOptions?.dateFormat, person.DataStatus.BirthDate)) +
       " – " +
       (!isOK(person.DeathDate)
         ? deathDate || ""
-        : convertDate(deathDate, window.autoBioOptions.dateFormat, person.DataStatus.DeathDate)) +
+        : convertDate(deathDate, window.autoBioOptions?.dateFormat, person.DataStatus.DeathDate)) +
       ")";
 
-    if (window.autoBioOptions.notDeathDate) {
+    if (window.autoBioOptions?.notDeathDate) {
       if (birthDate) {
         if (!isOK(person.BirthDate)) {
           theDates = "(born " + birthDate + ")";
         } else {
-          theDates = "(born " + convertDate(person.BirthDate, window.autoBioOptions.dateFormat) + ")";
+          theDates = "(born " + convertDate(person.BirthDate, window.autoBioOptions?.dateFormat) + ")";
         }
       }
     }
@@ -760,7 +751,7 @@ function childList(person, spouse) {
   }
 
   let known = "";
-  if (!window.profilePerson.NoChildren && window.autoBioOptions.addKnown) {
+  if (!window.profilePerson.NoChildren && window.autoBioOptions?.addKnown) {
     known = "known ";
   }
 
@@ -790,7 +781,7 @@ function childList(person, spouse) {
     let gotChild = false;
     ourChildren.sort((a, b) => a.OrderBirthDate.replaceAll(/-/g, "") - b.OrderBirthDate.replaceAll(/-/g, ""));
     ourChildren.forEach(function (child) {
-      if (window.autoBioOptions.familyListStyle == "bullets") {
+      if (window.autoBioOptions?.familyListStyle == "bullets") {
         childListText += "* ";
       } else {
         childListText += "#";
@@ -840,7 +831,7 @@ function siblingList() {
       text += capitalizeFirstLetter(window.profilePerson.Pronouns.possessiveAdjective) + " siblings were:\n";
       siblings.sort((a, b) => a.OrderBirthDate.replaceAll(/-/g, "") - b.OrderBirthDate.replaceAll(/-/g, ""));
       siblings.forEach(function (sibling) {
-        if (window.autoBioOptions.familyListStyle == "bullets") {
+        if (window.autoBioOptions?.familyListStyle == "bullets") {
           text += "* ";
         } else {
           text += "#";
@@ -917,7 +908,7 @@ function isReferenceRelevant(reference, event, spouse) {
 function buildBirth(person) {
   let text = "";
   let theName = person.PersonName.BirthName || person.RealName;
-  if (window.autoBioOptions.fullNameOrBirthName == "FullName") {
+  if (window.autoBioOptions?.fullNameOrBirthName == "FullName") {
     theName = person.PersonName.FullName || person.RealName;
   }
   text += window.boldBit + theName + window.boldBit + " was";
@@ -996,7 +987,7 @@ function buildDeath(person) {
   if (!isOK(person.DeathDate) && !isOK(person.DeathDecade) && !isOK(person.DeathLocation)) {
     return false;
   }
-  const diedWord = window.autoBioOptions.diedWord;
+  const diedWord = window.autoBioOptions?.diedWord || "died";
   let text = person.PersonName.FirstName + " " + diedWord;
   if (person.DeathDate) {
     text += " " + formatDate(person.DeathDate, person.mStatus_DeathDate || "", { needOn: true });
@@ -1005,7 +996,7 @@ function buildDeath(person) {
     let place = minimalPlace(person.DeathLocation);
     text += " in " + place;
   }
-  if (person.BirthDate && person.DeathDate && window.autoBioOptions.includeAgeAtDeath) {
+  if (person.BirthDate && person.DeathDate && window.autoBioOptions?.includeAgeAtDeath) {
     const birthDate = person.BirthDate.match("-") ? person.BirthDate : getYYYYMMDD(person.BirthDate);
     const deathDate = person.DeathDate.match("-") ? person.DeathDate : getYYYYMMDD(person.DeathDate);
     let age = getAgeFromISODates(birthDate, deathDate);
@@ -1087,7 +1078,7 @@ function buildParents(person) {
       father.FullName = aName.withParts(["FullName"]);
       */
       text += nameLink(father);
-      if (window.autoBioOptions.includeParentsDates) {
+      if (window.autoBioOptions?.includeParentsDates) {
         text += " " + formatDates(father);
       }
     }
@@ -1101,7 +1092,7 @@ function buildParents(person) {
       mother.FullName = aName.withParts(["FullName"]);
       */
       text += nameLink(mother);
-      if (window.autoBioOptions.includeParentsDates) {
+      if (window.autoBioOptions?.includeParentsDates) {
         text += " " + formatDates(mother);
       }
     }
@@ -1144,13 +1135,17 @@ function buildSpouses(person) {
       let marriageAge = "";
       firstNameAndYear.push({ FirstName: spouse.PersonName.FirstName, Year: spouse.marriage_date.substring(4) });
       let spouseMarriageAge = "";
-      if (window.profilePerson.BirthDate && isOK(spouse.marriage_date) && window.autoBioOptions.includeAgesAtMarriage) {
+      if (
+        window.profilePerson.BirthDate &&
+        isOK(spouse.marriage_date) &&
+        window.autoBioOptions?.includeAgesAtMarriage
+      ) {
         let age = getAgeFromISODates(window.profilePerson.BirthDate, spouse.marriage_date);
         if (isOK(age)) {
           marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, spouse.marriage_date)})`;
         }
       }
-      if (spouse.BirthDate && isOK(spouse.marriage_date) && window.autoBioOptions.includeAgesAtMarriage) {
+      if (spouse.BirthDate && isOK(spouse.marriage_date) && window.autoBioOptions?.includeAgesAtMarriage) {
         spouseMarriageAge = ` (${getAgeFromISODates(spouse.BirthDate, spouse.marriage_date)})`;
       }
 
@@ -1158,12 +1153,12 @@ function buildSpouses(person) {
       let spouseDetailsB = "";
       //Spouse details
       const spousePronoun = spouse.Gender == "Male" ? "He" : spouse.Gender == "Female" ? "She" : "";
-      if (window.autoBioOptions.spouseDetails) {
+      if (window.autoBioOptions?.spouseDetails) {
         if (isOK(spouse.BirthDate) || spouse.BirthLocation) {
           spouseDetailsA += " (born";
           spouseDetailsB += " " + spouse.PersonName.FirstName + " was born";
         }
-        if (isOK(spouse.BirthDate) && window.autoBioOptions.includeSpouseDates) {
+        if (isOK(spouse.BirthDate) && window.autoBioOptions?.includeSpouseDates) {
           spouseDetailsA += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate, { needOn: true });
           spouseDetailsB += " " + formatDate(spouse.BirthDate, spouse.DataStatus.BirthDate, { needOn: true });
         }
@@ -1174,7 +1169,7 @@ function buildSpouses(person) {
         }
 
         //Spouse parent details
-        if (window.autoBioOptions.spouseParentDetails) {
+        if (window.autoBioOptions?.spouseParentDetails) {
           if (spouse.Father || spouse.Mother) {
             spouseDetailsA += "; ";
             spouseDetailsB += ". " + (spousePronoun || spouse.PersonName.FirstName) + " was the ";
@@ -1190,7 +1185,7 @@ function buildSpouses(person) {
                   spouseDetailsA += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
                   spouseDetailsB += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
                 }
-                if (spouseFather.BirthDate && window.autoBioOptions.includeSpouseParentsDates) {
+                if (spouseFather.BirthDate && window.autoBioOptions?.includeSpouseParentsDates) {
                   spouseDetailsA += " " + formatDates(spouseFather);
                   spouseDetailsB += " " + formatDates(spouseFather);
                 }
@@ -1210,7 +1205,7 @@ function buildSpouses(person) {
                   spouseDetailsA += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
                   spouseDetailsB += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
                 }
-                if (spouseMother.BirthDate && window.autoBioOptions.includeSpouseParentsDates) {
+                if (spouseMother.BirthDate && window.autoBioOptions?.includeSpouseParentsDates) {
                   spouseDetailsA += " " + formatDates(spouseMother);
                   spouseDetailsB += " " + formatDates(spouseMother);
                 }
@@ -1262,14 +1257,14 @@ function buildSpouses(person) {
         marriageDatePlace +
         spouseDetailsB;
 
-      if (window.autoBioOptions.marriageFormat == "formatA") {
+      if (window.autoBioOptions?.marriageFormat == "formatA") {
         text += marriageFormatA.replace(/\.\.$/, ".");
-      } else if (window.autoBioOptions.marriageFormat == "formatB") {
+      } else {
         text += marriageFormatB.replace(/\.\.$/, ".");
       }
 
       let spouseChildren = false;
-      if (window.autoBioOptions.childList) {
+      if (window.autoBioOptions?.childList) {
         const aChildList = childList(person, spouse);
         text += " " + aChildList;
         if (aChildList) {
@@ -1385,6 +1380,7 @@ function getAgeAtCensus(person, censusYear) {
 }
 
 function getMonthNumber(month) {
+  console.log("getMonthNumber", month);
   const regex = /^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)/i;
   const match = month.match(regex);
 
@@ -1424,13 +1420,21 @@ function getMonthNumber(month) {
 }
 
 export function getYYYYMMDD(dateString) {
+  console.log(dateString);
+  if (!dateString) {
+    return "";
+  } else {
+    dateString = dateString.replace(/(abt|about|bef|before|aft|after|bet|between|and|cal|calculated)/i, "").trim();
+  }
   function parseDate(dateStr) {
+    console.log(dateStr);
     const dateParts = dateStr.split(" ");
-
+    console.log(dateParts + " " + dateParts.length);
     if (dateParts.length === 3) {
       const year = dateParts[2];
       const month = getMonthNumber(dateParts[1]);
       const day = `0${dateParts[0]}`.slice(-2);
+      console.log(year, month, day);
       return `${year}-${month}-${day}`;
     } else if (dateParts.length == 2) {
       if (dateParts[0].match(/\w/)) {
@@ -1447,7 +1451,7 @@ export function getYYYYMMDD(dateString) {
   }
 
   let parsedDate = parseDate(dateString);
-
+  console.log(parsedDate);
   if (parsedDate) {
     return parsedDate;
   } else {
@@ -2617,7 +2621,7 @@ function parseFamilyData(familyData, options = { format: "list", year: "" }) {
   });
   return result;
 }
-
+/*
 function parseCensusData(censusData) {
   const parsedData = [];
 
@@ -2654,7 +2658,7 @@ function parseCensusData(censusData) {
 
   return parsedData;
 }
-
+*/
 function addAges() {
   window.references.forEach(function (reference) {
     if (reference["Record Type"] == "Census") {
@@ -3078,7 +3082,7 @@ function buildCensusNarratives() {
             // eslint-disable-next-line no-unused-vars
             [day, month, year] = window.profilePerson["BirthDate"].split(" ");
           }
-          if (window.autoBioOptions.censusFamilyNarrative) {
+          if (window.autoBioOptions?.censusFamilyNarrative) {
             if (reference.Household.length > 0) {
               text += " with ";
             }
@@ -4218,7 +4222,10 @@ export function sourcesArray(bio) {
           } else {
             aRef["Spouse Name"] = aRef["Couple"][1];
           }
-          aRef.Year = aRef["Marriage Date"].match(/\d{4}/)[0];
+          const marriageYearMatch = aRef["Marriage Date"].match(/\d{4}/);
+          if (marriageYearMatch) {
+            aRef.Year = marriageYearMatch[0];
+          }
           const weddingLocationMatch = aRef.Text.match(/citing Marriage,?(.*?), United States/);
           if (weddingLocationMatch) {
             aRef["Marriage Place"] = weddingLocationMatch[1].trim();
@@ -4229,7 +4236,12 @@ export function sourcesArray(bio) {
         aRef.Couple.push(detailsMatch3[1].replace(/\(.*?\)/, "").trim());
         aRef.Couple.push(detailsMatch3[2].replace(/\(.*?\)/, "").trim());
         aRef["Marriage Date"] = detailsMatch3[3];
-        aRef.Year = detailsMatch3[3].match(/\d{4}/)[0];
+        const refYearMatch = detailsMatch3[3].match(/\d{4}/);
+        if (refYearMatch) {
+          aRef.Year = detailsMatch3[3].match(/\d{4}/)[0];
+        } else {
+          aRef.Year = "";
+        }
         aRef["Marriage Place"] = detailsMatch3[4].trim();
         window.profilePerson.NameVariants.forEach((name) => {
           if (name == aRef.Couple[0]) {
@@ -4821,7 +4833,7 @@ async function getStickersAndBoxes() {
         }
       });
 
-      if (window.autoBioOptions.nameStudyStickers) {
+      if (window.autoBioOptions?.nameStudyStickers) {
         const ONSstickers = await getONSstickers();
         if (ONSstickers) {
           ONSstickers.forEach(function (ONSsticker) {
@@ -4870,7 +4882,7 @@ async function getStickersAndBoxes() {
         }
       }
 
-      if (window.autoBioOptions.diedYoung) {
+      if (window.autoBioOptions?.diedYoung) {
         const deathAge = ageAtDeath(window.profilePerson, false);
         if (typeof deathAge[0] !== "undefined") {
           if (deathAge[0] < 17 && !thingsToAddAfterBioHeading.includes("{{Died Young}}")) {
@@ -4921,7 +4933,13 @@ function getFamilySearchFacts() {
         aFact.OrderDate = formatDate(aFact.Date, 0, { format: 8 });
         let ageBit = "";
         if (aFact.Date && window.profilePerson.BirthDate) {
-          ageBit = " (" + getAgeFromISODates(window.profilePerson.BirthDate, getYYYYMMDD(aFact.Date)) + ")";
+          console.log(aFact.Date, window.profilePerson.BirthDate);
+          let factDate = aFact.Date;
+          // If date matches this "01 Jan 1995-01 Jan 2004", use the first date
+          if (aFact.Date.match(/(.*?\d{4})-.+/)) {
+            factDate = aFact.Date.match(/(.*?\d{4})-.+/)[1];
+          }
+          ageBit = " (" + getAgeFromISODates(window.profilePerson.BirthDate, getYYYYMMDD(factDate)) + ")";
         }
         aFact.Info = aFact.Fact.split(dateMatch[0])[1].trim();
 
@@ -4992,7 +5010,7 @@ function getFamilySearchFacts() {
     return !arr.slice(0, index).some((prevItem) => prevItem.Narrative === item.Narrative);
   });
   window.familySearchFacts = filteredData;
-  console.log("familySearchFacts", window.familySearchFacts);
+  //console.log("familySearchFacts", window.familySearchFacts);
 }
 
 export function splitBioIntoSections() {
@@ -5474,7 +5492,9 @@ export function addLocationCategoryToStuffBeforeTheBio(location) {
     const theCategoryWithoutSpace = "[[Category:" + location + "]]";
     if (
       !window.sectionsObject["StuffBeforeTheBio"].text.includes(theCategory) &&
-      !window.sectionsObject["StuffBeforeTheBio"].text.includes(theCategoryWithoutSpace)
+      !window.sectionsObject["StuffBeforeTheBio"].text.includes(theCategoryWithoutSpace) &&
+      window.textBeforeTheBio.includes(theCategory) === false &&
+      window.textBeforeTheBio.includes(theCategoryWithoutSpace) === false
     ) {
       window.sectionsObject["StuffBeforeTheBio"].text.push(theCategory);
     }
@@ -5604,7 +5624,7 @@ export async function getONSstickers() {
     let results;
     try {
       results = await wtAPICatCIBSearch("WBE_AutoBio_ONS", "nameStudy", aSurname + " name study");
-      console.log(results);
+      //console.log(results);
       if (results?.response?.categories) {
         const result = findBestMatch(
           aSurname,
@@ -5631,16 +5651,16 @@ export async function getONSstickers() {
 
   let out = await Promise.all(promises);
   out = out.filter((item) => item != null); // Remove null values if any
-  console.log(out);
+  //console.log(out);
   return out;
 }
 
 export function addUnsourced(feature = "autoBio") {
   let unsourcedOption;
   if (feature == "autoCategories") {
-    unsourcedOption = window.autoCategoriesOptions.unsourced;
+    unsourcedOption = window.autoCategoriesOptions?.unsourced;
   } else {
-    unsourcedOption = window.autoBioOptions.unsourced;
+    unsourcedOption = window.autoBioOptions?.unsourced || "template";
   }
   let doCheck = true;
   let addTemplate = false;
@@ -5769,7 +5789,7 @@ export function addOccupationCategories(feature = "autoBio") {
   if (feature == "autoCategories") {
     occupationOption = window.autoCategoriesOptions.occupationCategory;
   } else {
-    occupationOption = window.autoBioOptions.occupationCategory;
+    occupationOption = window.autoBioOptions?.occupationCategory;
   }
   window.references.forEach(function (aRef) {
     const occupation = aRef.Occupation;
@@ -6044,7 +6064,7 @@ export async function generateBio() {
     const allStuffBeforeTheBio = currentBio.match(/^(.*?)(==\s*Biography\s*==)/s);
     let textBeforeTheBio = "";
     if (allStuffBeforeTheBio) {
-      textBeforeTheBio = allStuffBeforeTheBio[1];
+      textBeforeTheBio = allStuffBeforeTheBio[1].trim();
     }
     const stuffBeforeTheBioArray = textBeforeTheBio.split("\n");
     let stuffBeforeTheBioArray2 = [];
@@ -6055,7 +6075,7 @@ export async function generateBio() {
     });
     textBeforeTheBio = stuffBeforeTheBioArray2.join("\n");
     window.textBeforeTheBio = textBeforeTheBio;
-    console.log("textBeforeTheBio", stuffBeforeTheBioArray2);
+    //console.log("textBeforeTheBio", stuffBeforeTheBioArray2);
 
     // Split the current bio into sections
     window.sectionsObject = splitBioIntoSections();
@@ -6105,15 +6125,17 @@ export async function generateBio() {
       addLoginButton();
     } else {
       window.profilePerson.BirthYear = window.profilePerson.BirthDate?.split("-")[0];
-      window.profilePerson.DeathYear = window.profilePerson.DeathDate?.split("-")[0];
+      if (window.profilePerson.DeathDate) {
+        window.profilePerson.DeathYear = window.profilePerson.DeathDate?.split("-")[0];
+      }
     }
 
     buildFamilyForPrivateProfiles();
 
-    console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
+    //console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
 
     const nuclearFamily = familyArray(window.profilePerson);
-    console.log(JSON.parse(JSON.stringify(nuclearFamily)));
+    //console.log(JSON.parse(JSON.stringify(nuclearFamily)));
     nuclearFamily.forEach(function (member) {
       if (member) {
         assignPersonNames(member);
@@ -6136,7 +6158,7 @@ export async function generateBio() {
         assignPersonNames(person);
       });
     }
-    console.log("biographySpouseParents", window.biographySpouseParents);
+    //console.log("biographySpouseParents", window.biographySpouseParents);
 
     // window.profilePerson.BirthName is their FirstName + MiddleName if they have a MiddleName
     if (isOK(window.profilePerson.MiddleName)) {
@@ -6168,7 +6190,7 @@ export async function generateBio() {
     // Handle census data created with Sourcer
     window.sourcerCensuses = getSourcerCensuses();
 
-    console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
+    // console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
 
     // Create the references array
     if (window.sectionsObject.Sources) {
@@ -6380,7 +6402,7 @@ export async function generateBio() {
 
             marriagesAndCensusesText += refsText; // append references
 
-            if (window.autoBioOptions.householdTable && listText.match(/\{\|/)) {
+            if (window.autoBioOptions?.householdTable && listText.match(/\{\|/)) {
               marriagesAndCensusesText += listText; // append household table only once
             }
 
@@ -6497,7 +6519,7 @@ export async function generateBio() {
       subsectionsText = subsections.join("\n");
     }
 
-    if (window.autoBioOptions.locationCategories == true) {
+    if (window.autoBioOptions?.locationCategories == true) {
       await getLocationCategories();
     }
 
@@ -6520,7 +6542,7 @@ export async function generateBio() {
 
     // Add Timeline Table
     let bioTimelineText = "";
-    if (window.autoBioOptions.timeline == "table") {
+    if (window.autoBioOptions?.timeline == "table") {
       const bioTimeline = bioTimelineFacts(marriagesAndCensusesEtc);
       bioTimelineText += buildTimelineTable(bioTimeline) + "\n";
     }
@@ -6528,7 +6550,7 @@ export async function generateBio() {
     // Add SA format
     let southAfricaFormatText = "";
     let southAfricaTimelineText = "";
-    if (window.autoBioOptions.SouthAfricaProject) {
+    if (window.autoBioOptions?.SouthAfricaProject) {
       const bioTimeline = bioTimelineFacts(marriagesAndCensusesEtc);
       for (let i = 0; i < window.references.length; i++) {
         window.references[i].Used = false;
@@ -6536,7 +6558,7 @@ export async function generateBio() {
       let buildTimelineSAText = buildTimelineSA(bioTimeline) + "\n";
       southAfricaFormatText += buildTimelineSAText;
       southAfricaTimelineText += buildTimelineSAText;
-    } else if (window.autoBioOptions.timeline == "SA") {
+    } else if (window.autoBioOptions?.timeline == "SA") {
       const bioTimeline = bioTimelineFacts(marriagesAndCensusesEtc);
       let buildTimelineSAText = buildTimelineSA(bioTimeline) + "\n";
       southAfricaFormatText += buildTimelineSAText;
@@ -6580,7 +6602,7 @@ export async function generateBio() {
         researchNotesText += needsProfileText + "\n\n";
 
         // Add Needs Profiles Created category
-        if (window.profilePerson.BirthLocation && window.autoBioOptions.needsProfilesCreatedCategory) {
+        if (window.profilePerson.BirthLocation && window.autoBioOptions?.needsProfilesCreatedCategory) {
           const birthPlaces = window.profilePerson.BirthLocation?.split(", ");
           let needsCategory;
           birthPlaces.forEach(function (aPlace) {
@@ -6612,7 +6634,7 @@ export async function generateBio() {
 
     window.references.forEach(function (aRef) {
       if (
-        ([false, undefined].includes(aRef.Used) || window.autoBioOptions.inlineCitations == false) &&
+        ([false, undefined].includes(aRef.Used) || window.autoBioOptions?.inlineCitations == false) &&
         aRef["Record Type"] != "GEDCOM" &&
         aRef.Text.match(/Sources? will be added/) == null
       ) {
@@ -6694,7 +6716,7 @@ export async function generateBio() {
     extensionNotes += "-->\n";
 
     // Add Unsourced template if there are no good sources
-    if (window.autoBioOptions.unsourced != false) {
+    if (window.autoBioOptions?.unsourced != false) {
       addUnsourced();
     }
 
@@ -6703,12 +6725,12 @@ export async function generateBio() {
 
     let outputText = "";
     let timelineText = "";
-    if (window.autoBioOptions.timeline == "SA") {
+    if (window.autoBioOptions?.timeline == "SA") {
       timelineText = southAfricaTimelineText;
-    } else if (window.autoBioOptions.timeline == "table") {
+    } else if (window.autoBioOptions?.timeline == "table") {
       timelineText = bioTimelineText;
     }
-    if (window.autoBioOptions.SouthAfricaProject == true) {
+    if (window.autoBioOptions?.SouthAfricaProject == true) {
       outputText =
         stuffBeforeTheBioText +
         bioHeaderAndStickers +
@@ -6717,12 +6739,12 @@ export async function generateBio() {
         sourcesText +
         acknowledgementsText +
         extensionNotes;
-    } else if (window.autoBioOptions.deathPosition) {
+    } else if (window.autoBioOptions?.deathPosition) {
       outputText =
         stuffBeforeTheBioText +
         bioHeaderAndStickers +
         birthText +
-        (window.autoBioOptions.siblingList ? siblingListText : "") +
+        (window.autoBioOptions?.siblingList ? siblingListText : "") +
         deathText +
         marriagesAndCensusesText +
         subsectionsText +
@@ -6736,7 +6758,7 @@ export async function generateBio() {
         stuffBeforeTheBioText +
         bioHeaderAndStickers +
         birthText +
-        (window.autoBioOptions.siblingList ? siblingListText : "") +
+        (window.autoBioOptions?.siblingList ? siblingListText : "") +
         marriagesAndCensusesText +
         deathText +
         subsectionsText +
@@ -6748,7 +6770,7 @@ export async function generateBio() {
     }
 
     // Remove inline citations if not wanted
-    if (window.autoBioOptions.inlineCitations == false) {
+    if (window.autoBioOptions?.inlineCitations == false) {
       outputText = outputText.replace(/<ref[^>]*>(.*?)<\/ref>/gi, "");
       outputText = outputText.replace(/<ref\s.*\/>/gi, "").replace(/(\s\.)(?=\s|$)/g, "");
     }
@@ -7077,9 +7099,9 @@ shouldInitializeFeature("autoBio").then((result) => {
     import("./auto_bio.css");
     getFeatureOptions("autoBio").then((options) => {
       window.autoBioOptions = options;
-      console.log(window.autoBioOptions);
+      //  console.log(window.autoBioOptions);
       window.boldBit = "";
-      if (window.autoBioOptions.boldNames) {
+      if (window.autoBioOptions?.boldNames) {
         window.boldBit = "'''";
       }
     });
@@ -7088,7 +7110,7 @@ shouldInitializeFeature("autoBio").then((result) => {
       addErrorMessage();
     }
 
-    // check for Firefox (I don't remember why we need this...)
+    // check for Firefox
     window.isFirefox = false;
     window.addEventListener("load", () => {
       let prefix = Array.prototype.slice
@@ -7099,5 +7121,6 @@ shouldInitializeFeature("autoBio").then((result) => {
         window.isFirefox == true;
       }
     });
+    initBioCheck();
   }
 });
