@@ -1389,6 +1389,7 @@ function getMonthNumber(month) {
   if (!match) {
     return null; // Invalid month input
   }
+  console.log(match);
   let monthAbbreviation = match[0].slice(0, 3).toUpperCase();
 
   switch (monthAbbreviation) {
@@ -4929,6 +4930,12 @@ function getFamilySearchFacts() {
           // If date matches this "01 Jan 1995-01 Jan 2004", use the first date
           if (aFact.Date.match(/(.*?\d{4})-.+/)) {
             factDate = aFact.Date.match(/(.*?\d{4})-.+/)[1];
+          } else if (
+            // Matches "from 1 December 2002 to 29 October 2007" (format)
+            // Remove 'from' and uses the date before ' to '
+            aFact.Date.match(/from .+ to .+/)
+          ) {
+            factDate = aFact.Date.match(/from (.+) to .+/)[1];
           }
           ageBit = " (" + getAgeFromISODates(window.profilePerson.BirthDate, getYYYYMMDD(factDate)) + ")";
         }
@@ -5647,6 +5654,9 @@ export async function getONSstickers() {
 }
 
 export function addUnsourced(feature = "autoBio") {
+  if (!window.autoBioOptions.unsourced) {
+    return;
+  }
   let unsourcedOption;
   if (feature == "autoCategories") {
     unsourcedOption = window.autoCategoriesOptions?.unsourced;
