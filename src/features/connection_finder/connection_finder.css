@@ -263,3 +263,10 @@ body.page-Special_Connection .treeImg {
   border-radius: 50%;
   border: 3px solid forestgreen;
 }
+
+#heritageSocietyTA {
+  width: 50em;
+  margin: 1em auto;
+  display: block;
+  height: 10em;
+}

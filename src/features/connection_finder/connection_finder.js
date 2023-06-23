@@ -306,7 +306,7 @@ function connectionsRelation(relationText) {
     relationshipColour = relationshipColours[relationshipColourNum];
   }
 
-  return [gender, arrow, window.relationshipColour, mRelationOut];
+  return [gender, arrow, relationshipColour, mRelationOut];
 }
 
 function addAPrivate(privateMatch) {
@@ -788,7 +788,8 @@ async function addConnectionText(num = 0) {
     .text()
     .split(/\s\bis\b.*from\s/);
   const h1Name = h1Names[1].split(":")[0] + " ".trim();
-  const relMessage = h1Name.replaceAll(/(↓)|(More)|(Table)/g, "").trim() + " is " + h1Names[0] + "&apos;s ";
+  let relMessage = h1Name.replaceAll(/(↓)|(More)|(Table)/g, "").trim() + " is " + h1Names[0] + "&apos;s ";
+
   arr.forEach(function (aRel, i) {
     let addApos;
     if (i < arr.length - 1) {
@@ -796,7 +797,7 @@ async function addConnectionText(num = 0) {
     } else {
       addApos = ".";
     }
-    let relMessage = "";
+
     if (aRel[2]) {
       relMessage += aRel[2] + addApos;
     } else {
