@@ -991,7 +991,18 @@ function buildDeath(person) {
     const birthDate = person.BirthDate.match("-") ? person.BirthDate : getYYYYMMDD(person.BirthDate);
     const deathDate = person.DeathDate.match("-") ? person.DeathDate : getYYYYMMDD(person.DeathDate);
     let age = getAgeFromISODates(birthDate, deathDate);
-    text += ", aged " + age;
+    const uncertainDate =
+      person.DataStatus?.DeathDate == "guess" ||
+      person.DataStatus?.DeathDate == "before" ||
+      person.DataStatus?.DeathDate == "after" ||
+      person.DataStatus?.BirthDate == "guess" ||
+      person.DataStatus?.BirthDate == "before" ||
+      person.DataStatus?.BirthDate == "after";
+    let aboutWord = "";
+    if (uncertainDate) {
+      aboutWord = "about ";
+    }
+    text += ", aged " + aboutWord + age;
   }
   text += ".";
   // Get cemetery from FS citation
