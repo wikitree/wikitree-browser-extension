@@ -1,0 +1,265 @@
+body.page-Special_Connection .tableContainer {
+  float: left;
+  width: 100%;
+}
+#connectionsTable .Female {
+  background-color: #fff8f7;
+  border-left: 5px pink solid;
+}
+#connectionsTable .Male {
+  background-color: #f4fefe;
+  border-left: 5px blue solid;
+}
+#connectionsTable.wide {
+  white-space: nowrap;
+  table-layout: auto;
+}
+#connectionsTable.wide #connectionsTableNotes {
+  white-space: normal;
+}
+
+#connectionsTable .connectionsName a {
+  float: left;
+  white-space: break-spaces;
+  margin-right: 4.5em;
+}
+
+#connectionsTable .connectionsName .privacyImage {
+  float: right;
+  position: absolute;
+  right: 3em;
+}
+
+#connectionsTable .connectionsName .timelineButton {
+  position: absolute;
+  right: 1.5em;
+}
+
+#connectionsTable .connectionsName .familyHome {
+  position: absolute;
+  right: 0;
+  left: auto;
+  margin-top: 0;
+}
+
+#connectionsTable #theRelText {
+  display: block;
+  font-style: normal;
+  border: 2px solid forestgreen;
+  border-radius: 1em;
+  padding: 0.5em;
+  margin: 0.5em;
+  cursor: pointer;
+}
+
+#connectionsTable.wide td span.relationWord,
+#connectionsTable.wide td.connectionsName a {
+  margin-right: 3em;
+  white-space: nowrap;
+}
+
+/* Connection Finder */
+button.small.moreDetails,
+h1 button.downloadLines.small {
+  float: right;
+  font-size: 12px;
+  display: none;
+}
+
+button.smaller {
+  font-size: 12px;
+}
+
+button.small.moreDetailsButton {
+  float: right;
+  font-size: 12px;
+}
+
+#connectionsTable,
+.peopleTable {
+  clear: both;
+}
+
+#connectionsTable tr,
+.peopleTable tr {
+  border: 1px solid gray;
+  border-radius: 0.5em;
+}
+
+#connectionsTable td,
+.peopleTable td {
+  padding: 5px;
+}
+
+#connectionsTable .relationWord,
+#connectionsTable .aDate,
+.peopleTable .aDate,
+.familySheet .aDate {
+  white-space: nowrap;
+}
+
+#connectionsTable .relationship,
+#connectionsTable .aDate,
+.peopleTable .aDate {
+  border-right: 2px solid white;
+  border-left: 2px solid white;
+}
+
+#connectionsTable .greenFamily {
+  background-color: lightgreen;
+}
+
+#connectionsTable .yellowFamily {
+  background-color: #fe9;
+}
+
+#connectionsTable .blueFamily {
+  background-color: lightblue;
+}
+
+#connectionsTable .redFamily {
+  background-color: pink;
+}
+
+#connectionsTable .greyFamily {
+  background-color: lightgray;
+}
+
+#connectionsTable .orangeFamily {
+  background-color: orange;
+}
+
+#connectionsTable .purpleFamily {
+  background-color: #cbc3e3;
+}
+
+#connectionsTable .whiteFamily {
+  background-color: #fff;
+}
+
+#connectionsTable .pinkFamily {
+  background-color: hotpink;
+}
+
+#connectionsTable .goldFamily {
+  background-color: gold;
+}
+
+#connectionsTable .green2Family {
+  background-color: #d0ece7;
+}
+
+#connectionsTable .blue2Family {
+  background-color: #c6f0fd;
+}
+
+#connectionsTable .grey2Family {
+  background-color: #d0d0d0;
+}
+
+#connectionsTable .orange2Family {
+  background-color: #fad347;
+}
+
+#connectionsTable .red2Family {
+  background-color: #e6b0aa;
+}
+
+#connectionsTable .mintFamily {
+  background-color: #98ff98;
+}
+
+#connectionsTable .salmonFamily {
+  background-color: salmon;
+}
+
+#connectionsTable .brownFamily {
+  background-color: #c4a484;
+}
+
+#connectionsTable .turquoiseFamily {
+  background-color: #afeeee;
+}
+
+#connectionsTable .creamFamily {
+  background-color: #fffdd0;
+}
+
+#connectionsTable .peachFamily {
+  background-color: #ffe5b4;
+}
+
+#connectionsTable .lilacFamily {
+  background-color: #aa98a9;
+}
+
+#connectionsTable .skyblueFamily {
+  background-color: #87ceeb;
+}
+
+#connectionsTable .grey3Family {
+  background-color: #ecf0f1;
+}
+
+#connectionsTable td.relationship {
+  position: relative;
+}
+
+#connectionsTable span.relationshipArrow,
+#connectionsTable tbody .privacyImage,
+#connectionsTable .timelineButton {
+  float: right;
+  background-color: white;
+  border-radius: 1em;
+  border: 1px forestgreen solid;
+  display: block;
+  width: 1.5em;
+  height: 1.5em;
+  line-height: 1.5em;
+  font-weight: bold;
+  text-align: center;
+}
+
+#connectionsTable tbody .privacyImage,
+#connectionsTable .timelineButton {
+  border: none;
+  position: relative;
+  float: right;
+}
+
+#connectionsTable .timelineButton {
+  cursor: pointer;
+}
+
+#connectionsTable a:link,
+#connectionsTable a:visited,
+.peopleTable a:link,
+.peopleTable a:visited {
+  text-decoration: none;
+}
+
+#connectionsTable tbody tr:first-child span.relationshipArrow {
+  display: none;
+}
+
+#connectionsTable td.connectionsName {
+  position: relative;
+}
+
+body.page-Special_Connection .whiteText {
+  color: white;
+}
+
+body.page-Special_Connection .clickable {
+  cursor: pointer;
+}
+
+body.page-Special_Connection .treeImg {
+  height: 2.5em;
+  display: block;
+  position: absolute;
+  right: -2em;
+  top: 0;
+  border-radius: 50%;
+  border: 3px solid forestgreen;
+}

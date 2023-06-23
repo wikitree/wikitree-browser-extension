@@ -159,7 +159,7 @@ function capitalizeFirstLetter(string) {
   return string.substring(0, 1).toUpperCase() + string.substring(1);
 }
 
-function timeline() {
+export function timeline() {
   if ($("#timeline").length) {
     $("#timeline").slideToggle();
   } else {

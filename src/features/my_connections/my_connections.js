@@ -2366,7 +2366,7 @@ function hsDetails(person, includeLink = 0) {
   return outText.replace("  ", " ").trim();
 }
 
-async function addWideTableButton() {
+export async function addWideTableButton() {
   if (
     $("body.page-Special_Surname table.wt.names").length ||
     $("#connectionsTable").length ||
