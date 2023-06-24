@@ -35,10 +35,18 @@ module.exports = (env) => ({
       options: {},
     }),
     new CopyPlugin({
-      patterns: [{
-        from: `manifest/manifest-${env.browser}.json`,
-        to: "../manifest.json",
-        context: "src" }],
+      patterns: [
+        {
+          from: `manifest/manifest-${env.browser}.json`,
+          to: "../manifest.json",
+          context: "src",
+        },
+      ],
+    }),
+    new webpack.DefinePlugin({
+      WBE_BUILD_DATE: `'${new Date(Date.now()).toISOString()}'`,
+      GIT_SHORT_HASH: `'${require("child_process").execSync("git rev-parse --short HEAD").toString().trim()}'`,
+      GIT_COMMIT_HASH: `'${require("child_process").execSync("git rev-parse HEAD").toString().trim()}'`,
     }),
     new WebExtension(),
   ],

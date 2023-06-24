@@ -14,6 +14,15 @@ export const WBE = {};
   const manifest = runtime.getManifest();
   WBE.name = manifest.name;
   WBE.version = manifest.version;
+  if (typeof WBE_BUILD_DATE !== "undefined") {
+    WBE.buildDate = new Date(Date.parse(WBE_BUILD_DATE));
+  }
+  if (typeof GIT_SHORT_HASH !== "undefined") {
+    WBE.shortHash = GIT_SHORT_HASH;
+  }
+  if (typeof GIT_COMMIT_HASH !== "undefined") {
+    WBE.commitHash = GIT_COMMIT_HASH;
+  }
   WBE.isDebug = WBE.name.indexOf("(Debug)") > -1; // non-published versions used by developers
   WBE.isPreview = WBE.isDebug || WBE.name.indexOf("(Preview)") > -1;
   WBE.isRelease = !WBE.isPreview;
@@ -21,7 +30,7 @@ export const WBE = {};
     console.log(
       `${WBE.name} ${WBE.version} (${navigatorDetect.browser.name ?? "Unknown"}/${
         navigatorDetect.os.name ?? "Unknown"
-      })`
+      }) commit ${WBE.shortHash} built ${WBE.buildDate}`
     );
   }
 })(chrome.runtime);

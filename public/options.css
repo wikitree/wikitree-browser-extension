@@ -272,6 +272,17 @@ h1 .toggle-category {
   max-height: 580px;
   font-size: 16px;
 }
+#settingsDialog .dialog-version {
+  float: right;
+  margin-top: -5px;
+  margin-right: -5px;
+  font-size: 8pt;
+  color: #999;
+}
+#settingsDialog .dialog-version > a {
+  color: #999;
+  text-decoration: none;
+}
 #settingsDialog ul {
   list-style: none;
   margin: 0;
