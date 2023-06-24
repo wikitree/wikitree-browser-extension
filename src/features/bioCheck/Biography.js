@@ -1171,7 +1171,11 @@ export class Biography {
     if (this.#style.bioHasUnknownSectionHeadings) {
       this.#style.bioHasStyleIssues = true;
       for (let i=0; i < this.#wrongLevelHeadings.length; i++) {
-        this.#messages.styleMessages.push('Wrong level heading == ' + this.#wrongLevelHeadings[i] + ' ==');
+        let str = this.#wrongLevelHeadings[i];
+        if (str.length > 60) {
+          str = str.substring(0, 60) + "...";
+        }
+        this.#messages.styleMessages.push('Wrong level heading == ' + str + ' ==');
       }
     }
     if (this.#style.acknowledgementsHeadingHasExtraEqual) {
@@ -1508,6 +1512,7 @@ export class Biography {
       if ((this.#isPre1700 || this.#treatAsPre1700) && !foundInvalidPartialSource) {
         foundInvalidPartialSource = this.#sourceRules.isInvalidPartialSourcePre1700(line);
       }
+      // TODO add more pre1500 validation
     }
     return foundInvalidPartialSource;
   }
