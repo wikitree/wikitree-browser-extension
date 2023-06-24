@@ -1,0 +1,975 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		AB6D261B2A47873F0086ED14 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB6D261A2A47873F0086ED14 /* AppDelegate.swift */; };
+		AB6D261D2A47873F0086ED14 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB6D261C2A47873F0086ED14 /* SceneDelegate.swift */; };
+		AB6D26202A47873F0086ED14 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AB6D261E2A47873F0086ED14 /* LaunchScreen.storyboard */; };
+		AB6D26232A47873F0086ED14 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AB6D26212A47873F0086ED14 /* Main.storyboard */; };
+		AB6D262C2A47873F0086ED14 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB6D262B2A47873F0086ED14 /* AppDelegate.swift */; };
+		AB6D262F2A47873F0086ED14 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AB6D262D2A47873F0086ED14 /* Main.storyboard */; };
+		AB6D26372A47873F0086ED14 /* WikiTree Browser Extension Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AB6D26362A47873F0086ED14 /* WikiTree Browser Extension Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AB6D26412A47873F0086ED14 /* WikiTree Browser Extension Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AB6D26402A47873F0086ED14 /* WikiTree Browser Extension Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AB6D26472A47873F0086ED14 /* Main.html in Resources */ = {isa = PBXBuildFile; fileRef = AB6D260A2A4787250086ED14 /* Main.html */; };
+		AB6D26482A47873F0086ED14 /* Main.html in Resources */ = {isa = PBXBuildFile; fileRef = AB6D260A2A4787250086ED14 /* Main.html */; };
+		AB6D26492A47873F0086ED14 /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = AB6D260C2A4787250086ED14 /* Icon.png */; };
+		AB6D264A2A47873F0086ED14 /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = AB6D260C2A4787250086ED14 /* Icon.png */; };
+		AB6D264B2A47873F0086ED14 /* Style.css in Resources */ = {isa = PBXBuildFile; fileRef = AB6D260D2A4787250086ED14 /* Style.css */; };
+		AB6D264C2A47873F0086ED14 /* Style.css in Resources */ = {isa = PBXBuildFile; fileRef = AB6D260D2A4787250086ED14 /* Style.css */; };
+		AB6D264D2A47873F0086ED14 /* Script.js in Resources */ = {isa = PBXBuildFile; fileRef = AB6D260E2A4787250086ED14 /* Script.js */; };
+		AB6D264E2A47873F0086ED14 /* Script.js in Resources */ = {isa = PBXBuildFile; fileRef = AB6D260E2A4787250086ED14 /* Script.js */; };
+		AB6D264F2A47873F0086ED14 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB6D260F2A4787250086ED14 /* ViewController.swift */; };
+		AB6D26502A47873F0086ED14 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB6D260F2A4787250086ED14 /* ViewController.swift */; };
+		AB6D26512A47873F0086ED14 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB6D26102A47873E0086ED14 /* Assets.xcassets */; };
+		AB6D26522A47873F0086ED14 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB6D26102A47873E0086ED14 /* Assets.xcassets */; };
+		AB6D26532A47873F0086ED14 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB6D26122A47873E0086ED14 /* SafariWebExtensionHandler.swift */; };
+		AB6D26542A47873F0086ED14 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB6D26122A47873E0086ED14 /* SafariWebExtensionHandler.swift */; };
+		AB6D26702A4787400086ED14 /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = AB6D26662A4787400086ED14 /* background.js */; };
+		AB6D26712A4787400086ED14 /* images in Resources */ = {isa = PBXBuildFile; fileRef = AB6D26672A4787400086ED14 /* images */; };
+		AB6D26722A4787400086ED14 /* js in Resources */ = {isa = PBXBuildFile; fileRef = AB6D26682A4787400086ED14 /* js */; };
+		AB6D26732A4787400086ED14 /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = AB6D26692A4787400086ED14 /* popup.html */; };
+		AB6D26742A4787400086ED14 /* features in Resources */ = {isa = PBXBuildFile; fileRef = AB6D266A2A4787400086ED14 /* features */; };
+		AB6D26752A4787400086ED14 /* main.css in Resources */ = {isa = PBXBuildFile; fileRef = AB6D266B2A4787400086ED14 /* main.css */; };
+		AB6D26762A4787400086ED14 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = AB6D266C2A4787400086ED14 /* manifest.json */; };
+		AB6D26772A4787400086ED14 /* options.html in Resources */ = {isa = PBXBuildFile; fileRef = AB6D266D2A4787400086ED14 /* options.html */; };
+		AB6D26782A4787400086ED14 /* popup.css in Resources */ = {isa = PBXBuildFile; fileRef = AB6D266E2A4787400086ED14 /* popup.css */; };
+		AB6D26792A4787400086ED14 /* options.css in Resources */ = {isa = PBXBuildFile; fileRef = AB6D266F2A4787400086ED14 /* options.css */; };
+		AB6D267A2A4787400086ED14 /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = AB6D26662A4787400086ED14 /* background.js */; };
+		AB6D267B2A4787400086ED14 /* images in Resources */ = {isa = PBXBuildFile; fileRef = AB6D26672A4787400086ED14 /* images */; };
+		AB6D267C2A4787400086ED14 /* js in Resources */ = {isa = PBXBuildFile; fileRef = AB6D26682A4787400086ED14 /* js */; };
+		AB6D267D2A4787400086ED14 /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = AB6D26692A4787400086ED14 /* popup.html */; };
+		AB6D267E2A4787400086ED14 /* features in Resources */ = {isa = PBXBuildFile; fileRef = AB6D266A2A4787400086ED14 /* features */; };
+		AB6D267F2A4787400086ED14 /* main.css in Resources */ = {isa = PBXBuildFile; fileRef = AB6D266B2A4787400086ED14 /* main.css */; };
+		AB6D26802A4787400086ED14 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = AB6D266C2A4787400086ED14 /* manifest.json */; };
+		AB6D26812A4787400086ED14 /* options.html in Resources */ = {isa = PBXBuildFile; fileRef = AB6D266D2A4787400086ED14 /* options.html */; };
+		AB6D26822A4787400086ED14 /* popup.css in Resources */ = {isa = PBXBuildFile; fileRef = AB6D266E2A4787400086ED14 /* popup.css */; };
+		AB6D26832A4787400086ED14 /* options.css in Resources */ = {isa = PBXBuildFile; fileRef = AB6D266F2A4787400086ED14 /* options.css */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AB6D26382A47873F0086ED14 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AB6D26042A4787240086ED14 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AB6D26352A47873F0086ED14;
+			remoteInfo = "WikiTree Browser Extension Extension (iOS)";
+		};
+		AB6D26422A47873F0086ED14 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AB6D26042A4787240086ED14 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AB6D263F2A47873F0086ED14;
+			remoteInfo = "WikiTree Browser Extension Extension (macOS)";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AB6D265A2A47873F0086ED14 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				AB6D26372A47873F0086ED14 /* WikiTree Browser Extension Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AB6D26612A47873F0086ED14 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				AB6D26412A47873F0086ED14 /* WikiTree Browser Extension Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		AB6D260B2A4787250086ED14 /* Base */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = Base; path = ../Base.lproj/Main.html; sourceTree = "<group>"; };
+		AB6D260C2A4787250086ED14 /* Icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Icon.png; sourceTree = "<group>"; };
+		AB6D260D2A4787250086ED14 /* Style.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = Style.css; sourceTree = "<group>"; };
+		AB6D260E2A4787250086ED14 /* Script.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Script.js; sourceTree = "<group>"; };
+		AB6D260F2A4787250086ED14 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+		AB6D26102A47873E0086ED14 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AB6D26122A47873E0086ED14 /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
+		AB6D26172A47873E0086ED14 /* WikiTree Browser Extension.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "WikiTree Browser Extension.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AB6D261A2A47873F0086ED14 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		AB6D261C2A47873F0086ED14 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		AB6D261F2A47873F0086ED14 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		AB6D26222A47873F0086ED14 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		AB6D26242A47873F0086ED14 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AB6D26292A47873F0086ED14 /* WikiTree Browser Extension.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "WikiTree Browser Extension.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AB6D262B2A47873F0086ED14 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		AB6D262E2A47873F0086ED14 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		AB6D26302A47873F0086ED14 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AB6D26312A47873F0086ED14 /* WikiTree Browser Extension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "WikiTree Browser Extension.entitlements"; sourceTree = "<group>"; };
+		AB6D26362A47873F0086ED14 /* WikiTree Browser Extension Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "WikiTree Browser Extension Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AB6D263B2A47873F0086ED14 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AB6D26402A47873F0086ED14 /* WikiTree Browser Extension Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "WikiTree Browser Extension Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AB6D26452A47873F0086ED14 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AB6D26462A47873F0086ED14 /* WikiTree Browser Extension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "WikiTree Browser Extension.entitlements"; sourceTree = "<group>"; };
+		AB6D26662A4787400086ED14 /* background.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = background.js; path = ../../../dist/background.js; sourceTree = "<group>"; };
+		AB6D26672A4787400086ED14 /* images */ = {isa = PBXFileReference; lastKnownFileType = folder; name = images; path = ../../../dist/images; sourceTree = "<group>"; };
+		AB6D26682A4787400086ED14 /* js */ = {isa = PBXFileReference; lastKnownFileType = folder; name = js; path = ../../../dist/js; sourceTree = "<group>"; };
+		AB6D26692A4787400086ED14 /* popup.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = popup.html; path = ../../../dist/popup.html; sourceTree = "<group>"; };
+		AB6D266A2A4787400086ED14 /* features */ = {isa = PBXFileReference; lastKnownFileType = folder; name = features; path = ../../../dist/features; sourceTree = "<group>"; };
+		AB6D266B2A4787400086ED14 /* main.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; name = main.css; path = ../../../dist/main.css; sourceTree = "<group>"; };
+		AB6D266C2A4787400086ED14 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = manifest.json; path = ../../../dist/manifest.json; sourceTree = "<group>"; };
+		AB6D266D2A4787400086ED14 /* options.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = options.html; path = ../../../dist/options.html; sourceTree = "<group>"; };
+		AB6D266E2A4787400086ED14 /* popup.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; name = popup.css; path = ../../../dist/popup.css; sourceTree = "<group>"; };
+		AB6D266F2A4787400086ED14 /* options.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; name = options.css; path = ../../../dist/options.css; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AB6D26142A47873E0086ED14 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AB6D26262A47873F0086ED14 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AB6D26332A47873F0086ED14 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AB6D263D2A47873F0086ED14 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		AB6D26032A4787240086ED14 = {
+			isa = PBXGroup;
+			children = (
+				AB6D26082A4787240086ED14 /* Shared (App) */,
+				AB6D26112A47873E0086ED14 /* Shared (Extension) */,
+				AB6D26192A47873E0086ED14 /* iOS (App) */,
+				AB6D262A2A47873F0086ED14 /* macOS (App) */,
+				AB6D263A2A47873F0086ED14 /* iOS (Extension) */,
+				AB6D26442A47873F0086ED14 /* macOS (Extension) */,
+				AB6D26182A47873E0086ED14 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AB6D26082A4787240086ED14 /* Shared (App) */ = {
+			isa = PBXGroup;
+			children = (
+				AB6D260F2A4787250086ED14 /* ViewController.swift */,
+				AB6D26102A47873E0086ED14 /* Assets.xcassets */,
+				AB6D26092A4787250086ED14 /* Resources */,
+			);
+			path = "Shared (App)";
+			sourceTree = "<group>";
+		};
+		AB6D26092A4787250086ED14 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				AB6D260A2A4787250086ED14 /* Main.html */,
+				AB6D260C2A4787250086ED14 /* Icon.png */,
+				AB6D260D2A4787250086ED14 /* Style.css */,
+				AB6D260E2A4787250086ED14 /* Script.js */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		AB6D26112A47873E0086ED14 /* Shared (Extension) */ = {
+			isa = PBXGroup;
+			children = (
+				AB6D26652A47873F0086ED14 /* Resources */,
+				AB6D26122A47873E0086ED14 /* SafariWebExtensionHandler.swift */,
+			);
+			path = "Shared (Extension)";
+			sourceTree = "<group>";
+		};
+		AB6D26182A47873E0086ED14 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AB6D26172A47873E0086ED14 /* WikiTree Browser Extension.app */,
+				AB6D26292A47873F0086ED14 /* WikiTree Browser Extension.app */,
+				AB6D26362A47873F0086ED14 /* WikiTree Browser Extension Extension.appex */,
+				AB6D26402A47873F0086ED14 /* WikiTree Browser Extension Extension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		AB6D26192A47873E0086ED14 /* iOS (App) */ = {
+			isa = PBXGroup;
+			children = (
+				AB6D261A2A47873F0086ED14 /* AppDelegate.swift */,
+				AB6D261C2A47873F0086ED14 /* SceneDelegate.swift */,
+				AB6D261E2A47873F0086ED14 /* LaunchScreen.storyboard */,
+				AB6D26212A47873F0086ED14 /* Main.storyboard */,
+				AB6D26242A47873F0086ED14 /* Info.plist */,
+			);
+			path = "iOS (App)";
+			sourceTree = "<group>";
+		};
+		AB6D262A2A47873F0086ED14 /* macOS (App) */ = {
+			isa = PBXGroup;
+			children = (
+				AB6D262B2A47873F0086ED14 /* AppDelegate.swift */,
+				AB6D262D2A47873F0086ED14 /* Main.storyboard */,
+				AB6D26302A47873F0086ED14 /* Info.plist */,
+				AB6D26312A47873F0086ED14 /* WikiTree Browser Extension.entitlements */,
+			);
+			path = "macOS (App)";
+			sourceTree = "<group>";
+		};
+		AB6D263A2A47873F0086ED14 /* iOS (Extension) */ = {
+			isa = PBXGroup;
+			children = (
+				AB6D263B2A47873F0086ED14 /* Info.plist */,
+			);
+			path = "iOS (Extension)";
+			sourceTree = "<group>";
+		};
+		AB6D26442A47873F0086ED14 /* macOS (Extension) */ = {
+			isa = PBXGroup;
+			children = (
+				AB6D26452A47873F0086ED14 /* Info.plist */,
+				AB6D26462A47873F0086ED14 /* WikiTree Browser Extension.entitlements */,
+			);
+			path = "macOS (Extension)";
+			sourceTree = "<group>";
+		};
+		AB6D26652A47873F0086ED14 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				AB6D26662A4787400086ED14 /* background.js */,
+				AB6D26672A4787400086ED14 /* images */,
+				AB6D26682A4787400086ED14 /* js */,
+				AB6D26692A4787400086ED14 /* popup.html */,
+				AB6D266A2A4787400086ED14 /* features */,
+				AB6D266B2A4787400086ED14 /* main.css */,
+				AB6D266C2A4787400086ED14 /* manifest.json */,
+				AB6D266D2A4787400086ED14 /* options.html */,
+				AB6D266E2A4787400086ED14 /* popup.css */,
+				AB6D266F2A4787400086ED14 /* options.css */,
+			);
+			name = Resources;
+			path = "Shared (Extension)";
+			sourceTree = SOURCE_ROOT;
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AB6D26162A47873E0086ED14 /* WikiTree Browser Extension (iOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AB6D265B2A47873F0086ED14 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension (iOS)" */;
+			buildPhases = (
+				AB6D26132A47873E0086ED14 /* Sources */,
+				AB6D26142A47873E0086ED14 /* Frameworks */,
+				AB6D26152A47873E0086ED14 /* Resources */,
+				AB6D265A2A47873F0086ED14 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AB6D26392A47873F0086ED14 /* PBXTargetDependency */,
+			);
+			name = "WikiTree Browser Extension (iOS)";
+			productName = "WikiTree Browser Extension (iOS)";
+			productReference = AB6D26172A47873E0086ED14 /* WikiTree Browser Extension.app */;
+			productType = "com.apple.product-type.application";
+		};
+		AB6D26282A47873F0086ED14 /* WikiTree Browser Extension (macOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AB6D26622A47873F0086ED14 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension (macOS)" */;
+			buildPhases = (
+				AB6D26252A47873F0086ED14 /* Sources */,
+				AB6D26262A47873F0086ED14 /* Frameworks */,
+				AB6D26272A47873F0086ED14 /* Resources */,
+				AB6D26612A47873F0086ED14 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AB6D26432A47873F0086ED14 /* PBXTargetDependency */,
+			);
+			name = "WikiTree Browser Extension (macOS)";
+			productName = "WikiTree Browser Extension (macOS)";
+			productReference = AB6D26292A47873F0086ED14 /* WikiTree Browser Extension.app */;
+			productType = "com.apple.product-type.application";
+		};
+		AB6D26352A47873F0086ED14 /* WikiTree Browser Extension Extension (iOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AB6D26572A47873F0086ED14 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension Extension (iOS)" */;
+			buildPhases = (
+				AB6D26322A47873F0086ED14 /* Sources */,
+				AB6D26332A47873F0086ED14 /* Frameworks */,
+				AB6D26342A47873F0086ED14 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "WikiTree Browser Extension Extension (iOS)";
+			productName = "WikiTree Browser Extension Extension (iOS)";
+			productReference = AB6D26362A47873F0086ED14 /* WikiTree Browser Extension Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		AB6D263F2A47873F0086ED14 /* WikiTree Browser Extension Extension (macOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AB6D265E2A47873F0086ED14 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension Extension (macOS)" */;
+			buildPhases = (
+				AB6D263C2A47873F0086ED14 /* Sources */,
+				AB6D263D2A47873F0086ED14 /* Frameworks */,
+				AB6D263E2A47873F0086ED14 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "WikiTree Browser Extension Extension (macOS)";
+			productName = "WikiTree Browser Extension Extension (macOS)";
+			productReference = AB6D26402A47873F0086ED14 /* WikiTree Browser Extension Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AB6D26042A4787240086ED14 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1420;
+				LastUpgradeCheck = 1420;
+				TargetAttributes = {
+					AB6D26162A47873E0086ED14 = {
+						CreatedOnToolsVersion = 14.2;
+					};
+					AB6D26282A47873F0086ED14 = {
+						CreatedOnToolsVersion = 14.2;
+					};
+					AB6D26352A47873F0086ED14 = {
+						CreatedOnToolsVersion = 14.2;
+					};
+					AB6D263F2A47873F0086ED14 = {
+						CreatedOnToolsVersion = 14.2;
+					};
+				};
+			};
+			buildConfigurationList = AB6D26072A4787240086ED14 /* Build configuration list for PBXProject "WikiTree Browser Extension" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = AB6D26032A4787240086ED14;
+			productRefGroup = AB6D26182A47873E0086ED14 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AB6D26162A47873E0086ED14 /* WikiTree Browser Extension (iOS) */,
+				AB6D26282A47873F0086ED14 /* WikiTree Browser Extension (macOS) */,
+				AB6D26352A47873F0086ED14 /* WikiTree Browser Extension Extension (iOS) */,
+				AB6D263F2A47873F0086ED14 /* WikiTree Browser Extension Extension (macOS) */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AB6D26152A47873E0086ED14 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AB6D26492A47873F0086ED14 /* Icon.png in Resources */,
+				AB6D26202A47873F0086ED14 /* LaunchScreen.storyboard in Resources */,
+				AB6D26472A47873F0086ED14 /* Main.html in Resources */,
+				AB6D264D2A47873F0086ED14 /* Script.js in Resources */,
+				AB6D26512A47873F0086ED14 /* Assets.xcassets in Resources */,
+				AB6D26232A47873F0086ED14 /* Main.storyboard in Resources */,
+				AB6D264B2A47873F0086ED14 /* Style.css in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AB6D26272A47873F0086ED14 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AB6D264A2A47873F0086ED14 /* Icon.png in Resources */,
+				AB6D264C2A47873F0086ED14 /* Style.css in Resources */,
+				AB6D262F2A47873F0086ED14 /* Main.storyboard in Resources */,
+				AB6D264E2A47873F0086ED14 /* Script.js in Resources */,
+				AB6D26522A47873F0086ED14 /* Assets.xcassets in Resources */,
+				AB6D26482A47873F0086ED14 /* Main.html in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AB6D26342A47873F0086ED14 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AB6D267B2A4787400086ED14 /* images in Resources */,
+				AB6D26802A4787400086ED14 /* manifest.json in Resources */,
+				AB6D26832A4787400086ED14 /* options.css in Resources */,
+				AB6D267E2A4787400086ED14 /* features in Resources */,
+				AB6D26812A4787400086ED14 /* options.html in Resources */,
+				AB6D267F2A4787400086ED14 /* main.css in Resources */,
+				AB6D26822A4787400086ED14 /* popup.css in Resources */,
+				AB6D267D2A4787400086ED14 /* popup.html in Resources */,
+				AB6D267C2A4787400086ED14 /* js in Resources */,
+				AB6D267A2A4787400086ED14 /* background.js in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AB6D263E2A47873F0086ED14 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AB6D26712A4787400086ED14 /* images in Resources */,
+				AB6D26762A4787400086ED14 /* manifest.json in Resources */,
+				AB6D26792A4787400086ED14 /* options.css in Resources */,
+				AB6D26742A4787400086ED14 /* features in Resources */,
+				AB6D26772A4787400086ED14 /* options.html in Resources */,
+				AB6D26752A4787400086ED14 /* main.css in Resources */,
+				AB6D26782A4787400086ED14 /* popup.css in Resources */,
+				AB6D26732A4787400086ED14 /* popup.html in Resources */,
+				AB6D26722A4787400086ED14 /* js in Resources */,
+				AB6D26702A4787400086ED14 /* background.js in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AB6D26132A47873E0086ED14 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AB6D264F2A47873F0086ED14 /* ViewController.swift in Sources */,
+				AB6D261B2A47873F0086ED14 /* AppDelegate.swift in Sources */,
+				AB6D261D2A47873F0086ED14 /* SceneDelegate.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AB6D26252A47873F0086ED14 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AB6D26502A47873F0086ED14 /* ViewController.swift in Sources */,
+				AB6D262C2A47873F0086ED14 /* AppDelegate.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AB6D26322A47873F0086ED14 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AB6D26532A47873F0086ED14 /* SafariWebExtensionHandler.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AB6D263C2A47873F0086ED14 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AB6D26542A47873F0086ED14 /* SafariWebExtensionHandler.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AB6D26392A47873F0086ED14 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AB6D26352A47873F0086ED14 /* WikiTree Browser Extension Extension (iOS) */;
+			targetProxy = AB6D26382A47873F0086ED14 /* PBXContainerItemProxy */;
+		};
+		AB6D26432A47873F0086ED14 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AB6D263F2A47873F0086ED14 /* WikiTree Browser Extension Extension (macOS) */;
+			targetProxy = AB6D26422A47873F0086ED14 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		AB6D260A2A4787250086ED14 /* Main.html */ = {
+			isa = PBXVariantGroup;
+			children = (
+				AB6D260B2A4787250086ED14 /* Base */,
+			);
+			name = Main.html;
+			sourceTree = "<group>";
+		};
+		AB6D261E2A47873F0086ED14 /* LaunchScreen.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				AB6D261F2A47873F0086ED14 /* Base */,
+			);
+			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+		AB6D26212A47873F0086ED14 /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				AB6D26222A47873F0086ED14 /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+		AB6D262D2A47873F0086ED14 /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				AB6D262E2A47873F0086ED14 /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		AB6D26552A47873F0086ED14 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		AB6D26562A47873F0086ED14 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		AB6D26582A47873F0086ED14 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.wikitree.WikiTree-Browser-Extension.Extension";
+				PRODUCT_NAME = "WikiTree Browser Extension Extension";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AB6D26592A47873F0086ED14 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.wikitree.WikiTree-Browser-Extension.Extension";
+				PRODUCT_NAME = "WikiTree Browser Extension Extension";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		AB6D265C2A47873F0086ED14 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.wikitree.WikiTree-Browser-Extension";
+				PRODUCT_NAME = "WikiTree Browser Extension";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AB6D265D2A47873F0086ED14 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.wikitree.WikiTree-Browser-Extension";
+				PRODUCT_NAME = "WikiTree Browser Extension";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		AB6D265F2A47873F0086ED14 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "macOS (Extension)/WikiTree Browser Extension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.wikitree.WikiTree-Browser-Extension.Extension";
+				PRODUCT_NAME = "WikiTree Browser Extension Extension";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		AB6D26602A47873F0086ED14 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "macOS (Extension)/WikiTree Browser Extension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.wikitree.WikiTree-Browser-Extension.Extension";
+				PRODUCT_NAME = "WikiTree Browser Extension Extension";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		AB6D26632A47873F0086ED14 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "macOS (App)/WikiTree Browser Extension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.wikitree.WikiTree-Browser-Extension";
+				PRODUCT_NAME = "WikiTree Browser Extension";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		AB6D26642A47873F0086ED14 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "macOS (App)/WikiTree Browser Extension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.wikitree.WikiTree-Browser-Extension";
+				PRODUCT_NAME = "WikiTree Browser Extension";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AB6D26072A4787240086ED14 /* Build configuration list for PBXProject "WikiTree Browser Extension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AB6D26552A47873F0086ED14 /* Debug */,
+				AB6D26562A47873F0086ED14 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AB6D26572A47873F0086ED14 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension Extension (iOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AB6D26582A47873F0086ED14 /* Debug */,
+				AB6D26592A47873F0086ED14 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AB6D265B2A47873F0086ED14 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension (iOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AB6D265C2A47873F0086ED14 /* Debug */,
+				AB6D265D2A47873F0086ED14 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AB6D265E2A47873F0086ED14 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension Extension (macOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AB6D265F2A47873F0086ED14 /* Debug */,
+				AB6D26602A47873F0086ED14 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AB6D26622A47873F0086ED14 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension (macOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AB6D26632A47873F0086ED14 /* Debug */,
+				AB6D26642A47873F0086ED14 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = AB6D26042A4787240086ED14 /* Project object */;
+}
