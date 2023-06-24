@@ -62,18 +62,23 @@ body.page-Special_Connection .tableContainer {
 }
 
 /* Connection Finder */
-button.small.moreDetails,
-h1 button.downloadLines.small {
+body.page-Special_Connection button.small.moreDetails,
+body.page-Special_Connection h1 button.downloadLines.small,
+body.page-Special_Connection #connectionFinderLoginButton {
   float: right;
   font-size: 12px;
   display: none;
 }
 
-button.smaller {
+body.page-Special_Connection #connectionFinderLoginButton {
+  display: inline;
+}
+
+body.page-Special_Connection button.smaller {
   font-size: 12px;
 }
 
-button.small.moreDetailsButton {
+body.page-Special_Connection button.small.moreDetailsButton {
   float: right;
   font-size: 12px;
 }
@@ -283,4 +288,20 @@ body.page-Special_Connection .treeImg {
 }
 body.page-Special_Connection #buttonBox {
   display: none !important;
+}
+
+body.page-Special_Connection .surnames {
+  border: 1px solid forestgreen;
+  padding: 0.5em;
+  border-radius: 1em;
+  margin: 1em;
+}
+
+body.page-Special_Connection #surnames3 ul {
+  list-style: none;
+  margin: 1em;
+}
+
+body.page-Special_Connection #familyTextCount span {
+  display: inline-block;
 }

@@ -188,7 +188,7 @@ export const USstatesObjArray = [
   { name: "Wyoming", abbreviation: "WY", admissionDate: "1890-07-10", former_name: "Wyoming Territory" },
 ];
 
-function addLoginButton() {
+export function addLoginButton(appId = "WBE") {
   let x = window.location.href.split("?");
   if (x[1]) {
     let queryParams = new URLSearchParams(x[1]);
@@ -203,22 +203,21 @@ function addLoginButton() {
         data: {
           action: "clientLogin",
           authcode: authcode,
-          appId: "WBE_my_connections",
+          appId: appId,
         },
         success: function (data) {
           if (data) {
             if (data.clientLogin.result == "Success") {
-              $("#myConnectionsLoginButton").hide();
+              $("#myConnectionsLoginButton,#connectionFinderLoginButton").hide();
             }
           }
         },
       });
     }
   }
-
   let userID = Cookies.get("wikitree_wtb_UserID");
   $.ajax({
-    url: "https://api.wikitree.com/api.php?action=clientLogin&appId=WBE_my_connections&checkLogin=" + userID,
+    url: "https://api.wikitree.com/api.php?action=clientLogin&appId=" + appId + "&checkLogin=" + userID,
     crossDomain: true,
     xhrFields: { withCredentials: true },
     type: "POST",
@@ -230,11 +229,21 @@ function addLoginButton() {
             "<button title='Log in to the apps server for better Missing Connections results' class='small button' id='myConnectionsLoginButton'>Apps Login</button>"
           );
           loginButton.appendTo($("span[title^='This is your Connection Count']"));
+          let returnURL = encodeURI(window.location.href.split("?")[0]);
+          if (appId == "WBE_connection_finder_options") {
+            loginButton.attr("id", "connectionFinderLoginButton");
+            loginButton.attr("title", "Log in to the apps server for better Connection Finder Table results");
+            loginButton.appendTo($("h1:contains('Connection Finder')"));
+            returnURL = encodeURI(window.location.href.replace(/&action=connect/, ""));
+          }
           loginButton.on("click", function (e) {
             e.preventDefault();
+            if (appId == "WBE_connection_finder_options") {
+              const currentPeople = { person1Name: $("#person1Name").val(), person2Name: $("#person2Name").val() };
+              localStorage.setItem("connectionFinderLogin", JSON.stringify(currentPeople));
+            }
             window.location =
-              "https://api.wikitree.com/api.php?action=clientLogin&appId=WBE_my_connections&returnURL=" +
-              encodeURI(window.location.href.split("?")[0]);
+              "https://api.wikitree.com/api.php?action=clientLogin&appId=" + appId + "&returnURL=" + returnURL;
           });
         }
       }
@@ -249,7 +258,7 @@ shouldInitializeFeature("myConnections").then((result) => {
     $("#gen0").length &&
     window.doingMyConnections == undefined
   ) {
-    addLoginButton();
+    addLoginButton("WBE_my_connections");
     $("body").addClass("wbeMyConnections");
     window.doingMyConnections = true;
     myConnections();
