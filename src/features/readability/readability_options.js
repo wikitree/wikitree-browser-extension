@@ -345,67 +345,7 @@ const readabilityFeature = {
             {
               id: "hideSidebar",
               type: OptionType.SELECT,
-              label: "Collapse the entire sidebar (and extend the content to full-width)",
-              values: [
-                {
-                  value: 0,
-                  text: "never",
-                },
-                {
-                  value: 1,
-                  text: "in reading mode",
-                },
-                {
-                  value: 255,
-                  text: "always",
-                },
-              ],
-              defaultValue: 1,
-            },
-            {
-              id: "hideSidebarStatus",
-              type: OptionType.SELECT,
-              label: "Hide status blocks (like project protected) from the sidebar",
-              values: [
-                {
-                  value: 0,
-                  text: "never",
-                },
-                {
-                  value: 1,
-                  text: "in reading mode",
-                },
-                {
-                  value: 255,
-                  text: "always",
-                },
-              ],
-              defaultValue: 0,
-            },
-            {
-              id: "hideForumPosts",
-              type: OptionType.SELECT,
-              label: "Hide G2G forum posts in the sidebar",
-              values: [
-                {
-                  value: 0,
-                  text: "never",
-                },
-                {
-                  value: 1,
-                  text: "in reading mode",
-                },
-                {
-                  value: 255,
-                  text: "always",
-                },
-              ],
-              defaultValue: 0,
-            },
-            {
-              id: "hideDNAConnections",
-              type: OptionType.SELECT,
-              label: "Hide DNA connections in the sidebar",
+              label: "Collapse and extend the content to full-width",
               values: [
                 {
                   value: 0,
@@ -428,12 +368,80 @@ const readabilityFeature = {
                   text: "always",
                 },
               ],
-              defaultValue: 0,
+              defaultValue: 3,
+            },
+            {
+              id: "hideSidebarStatus",
+              type: OptionType.SELECT,
+              label: "Hide status blocks (like project protected)",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 1,
+            },
+            {
+              id: "hideForumPosts",
+              type: OptionType.SELECT,
+              label: "Hide G2G forum posts",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 1,
+            },
+            {
+              id: "hideDNAConnections",
+              type: OptionType.SELECT,
+              label: "Hide DNA connections",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 3,
+                  text: "in reading mode when empty",
+                },
+                {
+                  value: 253,
+                  text: "always when empty",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 1,
             },
             {
               id: "hideSidebarImages",
               type: OptionType.SELECT,
-              label: "Hide popular images in the sidebar",
+              label: "Hide popular images",
               values: [
                 {
                   value: 0,
@@ -448,12 +456,12 @@ const readabilityFeature = {
                   text: "always",
                 },
               ],
-              defaultValue: 0,
+              defaultValue: 1,
             },
             {
               id: "hideCollaborationLinks",
               type: OptionType.SELECT,
-              label: "Hide collaboration links in the sidebar",
+              label: "Hide collaboration links",
               values: [
                 {
                   value: 0,
@@ -468,12 +476,12 @@ const readabilityFeature = {
                   text: "always",
                 },
               ],
-              defaultValue: 0,
+              defaultValue: 1,
             },
             {
               id: "hideResearch",
               type: OptionType.SELECT,
-              label: "Hide the research section in the sidebar",
+              label: "Hide the research section",
               values: [
                 {
                   value: 0,
@@ -488,7 +496,7 @@ const readabilityFeature = {
                   text: "always",
                 },
               ],
-              defaultValue: 0,
+              defaultValue: 1,
             },
           ],
         },

@@ -82,7 +82,8 @@ sup.reference {
     visibility: visible;
   }
 
-  .hide-sidebar .x-sidebar {
+  .collapse-sidebar-if-empty .x-sidebar.no-visible-content,
+  .collapse-sidebar .x-sidebar {
     display: none !important;
   }
 
