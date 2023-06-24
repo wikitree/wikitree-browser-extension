@@ -1,28 +1,27 @@
-#timeline.wrap,
+.timeline.wrap,
 .familySheet.wrap {
   width: 80%;
   white-space: normal;
 }
-#timeline,
+.timeline,
 .familySheet {
   white-space: nowrap;
   height: auto;
-  position: absolute;
+  position: absolute !important;
   width: auto;
   left: 10%;
-  z-index: 4000;
+  z-index: 100000;
   background: white;
   border: 3px solid forestgreen;
   border-radius: 1em;
   box-shadow: 1em 1em 1em #ccc;
   padding: 0.3em;
-  display: none;
   cursor: move;
 }
-#timelineTable td {
+.timelineTable td {
   padding: 0.3em;
 }
-#timelineTable caption {
+.timelineTable caption {
   font-size: 1.5em;
   font-weight: bold;
 }
@@ -40,7 +39,7 @@ th.tlEventLocation {
 .tlDate {
   white-space: nowrap;
 }
-#timeline x,
+.timeline x,
 .familySheet x {
   position: absolute;
   top: 0;
@@ -48,24 +47,25 @@ th.tlEventLocation {
   font-weight: bold;
   cursor: pointer;
 }
-#timeline w {
+.timeline w {
   position: absolute;
   top: 0;
   left: 0.5em;
   font-weight: bold;
   cursor: pointer;
 }
-#timeline .BioPerson,
-#timeline .marriage {
+.timeline .BioPerson,
+.timeline .marriage {
   font-weight: bold;
 }
-#timeline tr.BioPerson.Birth {
+.timeline tr.BioPerson.Birth {
   border-top: 1px solid forestgreen;
 }
-#timeline tr.BioPerson.Death {
+.timeline tr.BioPerson.Death {
   border-bottom: 1px solid forestgreen;
 }
-#timelineTable {
+.timelineTable {
   width: 98%;
   margin: auto;
+  background-color: white;
 }

@@ -87,12 +87,12 @@ const yearColours = [
 let relationshipColourNum = 0;
 let relationshipColour;
 let pNumber;
-const privacy = chrome.runtime.getURL("images/privacy_private.png");
 const openPrivacy = chrome.runtime.getURL("images/privacy_open.png");
 const publicPrivacy = chrome.runtime.getURL("images/privacy_public.png");
 const publicTreePrivacy = chrome.runtime.getURL("images/privacy_privacy35.png");
 const publicBioPrivacy = chrome.runtime.getURL("images/privacy_public-bio.png");
 const privatePrivacy = chrome.runtime.getURL("images/privacy_private.png");
+const unlisted = chrome.runtime.getURL("images/unlisted.png");
 const timeLineImg = chrome.runtime.getURL("images/timeline.png");
 const homeImg = chrome.runtime.getURL("images/Home_icon.png");
 
@@ -341,7 +341,7 @@ function addAPrivate(privateMatch) {
       "</span>" +
       mRelationOut +
       "</td><td class='connectionsName'><img class='privacyImage'  src='" +
-      privacy +
+      privatePrivacy +
       "' title='" +
       privacyTitle +
       "'><a>" +
@@ -837,7 +837,7 @@ function connectionFinderTable() {
   setTimeout(() => {
     const moreDetailsButton =
       "<button class='downloadLines small' > &darr; </button><button class='small button moreDetails'>Table</button>";
-    $("h1").append($(moreDetailsButton));
+    $("h1:contains(Connection Finder)").append($(moreDetailsButton));
 
     if (window.location.href.match("action=connect") != null) {
       $(".moreDetails").show();
@@ -847,7 +847,7 @@ function connectionFinderTable() {
       $(".moreDetails").slideUp();
       if ($("#connectionList").length) {
         const treeImg = $("<img class='treeImg' src='" + tree + "'>");
-        $("h1").append(treeImg);
+        $("h1:contains(Connection Finder)").append(treeImg);
         let IDstring = "";
         const connectionLinks = $("#connectionList a");
         connectionLinks.each(function () {
@@ -872,7 +872,6 @@ function connectionFinderTable() {
           xhrFields: { withCredentials: true },
           type: "POST",
           dataType: "json",
-          // Local success handling to set our cookies.
           success: function (data) {
             yearColours.reverse();
 
@@ -895,6 +894,24 @@ function connectionFinderTable() {
                 addAPrivate(privateMatch);
               }
               let mPerson = aPerson.person;
+              console.log(mPerson);
+              if (!mPerson.Name) {
+                const oPerson = $("#connectionList li").eq(index);
+                const thisLink = oPerson.find("a");
+                const thisLinkHREF = thisLink.attr("href");
+                if (thisLinkHREF) {
+                  mPerson.Name = thisLinkHREF.replace("/wiki/", "");
+                  const nameBits = thisLink.text().split(" ");
+                  mPerson.LastNameAtBirth = nameBits[nameBits.length - 1];
+                  mPerson.LastNameCurrent = nameBits[nameBits.length - 1];
+                  mPerson.FirstName = nameBits[0];
+                  if (nameBits.length > 2) {
+                    mPerson.MiddleName = nameBits[1];
+                  }
+                }
+                mPerson.Privacy = "20";
+              }
+
               mPerson = addRelArraysToPerson(mPerson);
               const pDates = displayFullDates(mPerson);
               let birthDate = ymdFix(mPerson.BirthDate);
@@ -985,7 +1002,7 @@ function connectionFinderTable() {
                 privacyTitle = "Public Bio";
               }
 
-              if (privacyLevel == 20) {
+              if (privacyLevel <= 20) {
                 privacy = privatePrivacy;
                 privacyTitle = "Private";
               }
@@ -1174,6 +1191,7 @@ function connectionFinderTable() {
             if (relationshipColour == "greenFamily") {
               const hsTextDiv = $("<div id='heritageSociety'><textarea id='heritageSocietyTA'></textarea></div>");
               hsTextDiv.insertAfter($("#connectionsTable"));
+              hsTextDiv.show();
               let hsTextOut = "";
               hsText.forEach(function (aText, i) {
                 hsTextOut += i + ". " + aText[0] + "\n";
@@ -1290,7 +1308,7 @@ function connectionFinderTable() {
             });
 
             $("img.familyHome").on("click", function () {
-              showFamilySheet($(this));
+              showFamilySheet($(this), $(this).data("wtid"));
             });
           }, // end success
         });
@@ -1331,7 +1349,7 @@ function cfTimeline(jq) {
       window.BioParents = getRels(cfPerson.Parents, cfPerson, "Parent");
       window.BioSiblings = getRels(cfPerson.Siblings, cfPerson, "Sibling");
 
-      timeline();
+      timeline(ID);
     },
   });
 }
@@ -1492,6 +1510,8 @@ function excelOut() {
 shouldInitializeFeature("connectionFinderOptions").then((result) => {
   if (result && $(".moreDetails").length == 0) {
     import("./connection_finder.css");
+    import("../familyGroup/familyGroup.css");
+    import("../familyTimeline/familyTimeline.css");
     connectionFinderTable();
     connectionFinderThings();
   }

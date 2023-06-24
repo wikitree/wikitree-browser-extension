@@ -2,6 +2,9 @@ body.page-Special_Connection .tableContainer {
   float: left;
   width: 100%;
 }
+#connectionsTable {
+  background-color: #fff;
+}
 #connectionsTable .Female {
   background-color: #fff8f7;
   border-left: 5px pink solid;
@@ -254,6 +257,10 @@ body.page-Special_Connection .clickable {
   cursor: pointer;
 }
 
+body.page-Special_Connection h1 {
+  position: relative;
+}
+
 body.page-Special_Connection .treeImg {
   height: 2.5em;
   display: block;
@@ -269,4 +276,11 @@ body.page-Special_Connection .treeImg {
   margin: 1em auto;
   display: block;
   height: 10em;
+}
+#heritageSociety {
+  display: none;
+  background-color: white;
+}
+body.page-Special_Connection #buttonBox {
+  display: none !important;
 }
