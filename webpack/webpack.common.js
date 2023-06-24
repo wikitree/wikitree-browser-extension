@@ -3,6 +3,21 @@ const path = require("path");
 const CopyPlugin = require("copy-webpack-plugin");
 const WebExtension = require("webpack-target-webextension");
 const srcDir = path.join(__dirname, "..", "src");
+const buildInfo = { buildDate: new Date(Date.now()).toISOString() };
+
+try {
+  // attempt to get the last commit hash; this will work on GitHub but could fail if git is not in the user's local path
+  const gitOutput = require("child_process").execSync('git log -1 --pretty="%h %H"').toString();
+  const hashes = gitOutput?.match(/^\s*([0-9a-f]+)\s+([0-9a-f]+)\s*$/);
+  if (hashes?.length > 2) {
+    buildInfo.shortHash = hashes[1];
+    buildInfo.commitHash = hashes[2];
+  } else {
+    console.log(gitOutput);
+  }
+} catch {}
+
+console.log(JSON.stringify(buildInfo));
 
 module.exports = (env) => ({
   entry: {
@@ -44,9 +59,7 @@ module.exports = (env) => ({
       ],
     }),
     new webpack.DefinePlugin({
-      WBE_BUILD_DATE: `'${new Date(Date.now()).toISOString()}'`,
-      GIT_SHORT_HASH: `'${require("child_process").spawnSync("git rev-parse --short HEAD").toString().trim()}'`,
-      GIT_COMMIT_HASH: `'${require("child_process").spawnSync("git rev-parse HEAD").toString().trim()}'`,
+      BUILD_INFO: JSON.stringify(buildInfo),
     }),
     new WebExtension(),
     new webpack.ProvidePlugin({
