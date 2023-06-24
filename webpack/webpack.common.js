@@ -43,6 +43,11 @@ module.exports = (env) => ({
         },
       ],
     }),
+    new webpack.DefinePlugin({
+      WBE_BUILD_DATE: `'${new Date(Date.now()).toISOString()}'`,
+      GIT_SHORT_HASH: `'${require("child_process").execSync("git rev-parse --short HEAD").toString().trim()}'`,
+      GIT_COMMIT_HASH: `'${require("child_process").execSync("git rev-parse HEAD").toString().trim()}'`,
+    }),
     new WebExtension(),
     new webpack.ProvidePlugin({
       $: "jquery",

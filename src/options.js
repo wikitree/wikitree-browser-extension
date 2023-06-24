@@ -523,8 +523,19 @@ $("#openSettings").on("click", function () {
     '<dialog id="settingsDialog">' +
       '<div class="dialog-header"><a href="#" class="close">&#x2715;</a>Settings &amp; Data Backup' +
       '<a class="feature-help-link nohover" target="WBE_Help" href="https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#Settings"><img src="https://www.wikitree.com/images/icons/help.gif" border="0" width="11" height="11" alt="Help" title="Help about Settings"></a>' +
-      '</div><div class="dialog-content"><ul>' +
-      '<li style="font-size: 10pt; font-weight: bold;">Extension Settings</li>' +
+      '</div><div class="dialog-content">' +
+      `<div class="dialog-version">v${WBE.version} (${WBE.isRelease ? "stable" : WBE.isDebug ? "debug" : "preview"})${
+        WBE.buildDate
+          ? ` built <a href="https://github.com/wikitree/wikitree-browser-extension/tree/${
+              WBE.commitHash
+            }" title="built at ${WBE.buildDate.toLocaleTimeString()} from commit ${
+              WBE.shortHash
+            }" class="nohover" target="_blank">${WBE.buildDate
+              .toDateString()
+              .replace(/^\s*\w+\s+(\w+)\s+0*([1-9]\d+)\s+(\d+)\s*$/, "$2 $1 $3")}</a>`
+          : ""
+      }</div>` +
+      '<ul><li style="font-size: 10pt; font-weight: bold;">Extension Settings</li>' +
       '<li><div style="--font-px:16" class="toggle"><input type="checkbox" id="toggleDisableUpdateNotification"><label for="toggleDisableUpdateNotification">Disable the notification when the extension updates.</label></div></li>' +
       '<li title="This would be like toggling all of the radio buttons back to the default. Each feature\'s options will be preserved."><button id="btnResetOptions">Default Features</button> Enable only the default features.</li>' +
       '<li title="This will download a backup file with your current feature options."><button id="btnExportOptions">Back Up Options</button> Back up your current feature options.</li>' +
