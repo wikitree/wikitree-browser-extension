@@ -486,10 +486,10 @@ $("#openSettings").on("click", function () {
       '</div><div class="dialog-content">' +
       `<div class="dialog-version">v${WBE.version} (${WBE.isRelease ? "stable" : WBE.isDebug ? "debug" : "preview"})${
         WBE.buildDate
-          ? ` built <a href="https://github.com/wikitree/wikitree-browser-extension/tree/${
-              WBE.commitHash
-            }" title="built at ${WBE.buildDate.toLocaleTimeString()} from commit ${
-              WBE.shortHash
+          ? ` built <a href="https://github.com/wikitree/wikitree-browser-extension/${
+              WBE.commitHash ? "tree/" + WBE.commitHash : ""
+            }" title="built at ${WBE.buildDate.toLocaleTimeString()}${
+              WBE.shortHash ? " from commit " + WBE.shortHash : ""
             }" class="nohover" target="_blank">${WBE.buildDate
               .toDateString()
               .replace(/^\s*\w+\s+(\w+)\s+0*([1-9]\d+)\s+(\d+)\s*$/, "$2 $1 $3")}</a>`
