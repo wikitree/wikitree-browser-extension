@@ -94,6 +94,8 @@ export let isSpecialWatchedList = false;
 export let isG2G = false;
 // Special:SearchPerson
 export let isSearchPage = false;
+// Special:Connection
+export let isConnectionFinder = false;
 // Ian's Profile
 export let isIansProfile = false;
 
@@ -269,6 +271,8 @@ if (
     isSearchPage = true;
   } else if (uri.match(/Special:Surname/)) {
     isGenealogyPage = true;
+  } else if (uri.match(/Special:Connection/)) {
+    isConnectionFinder = true;
   }
 } else if (
   // Other Edit Page

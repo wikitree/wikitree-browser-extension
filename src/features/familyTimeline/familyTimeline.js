@@ -159,10 +159,18 @@ function capitalizeFirstLetter(string) {
   return string.substring(0, 1).toUpperCase() + string.substring(1);
 }
 
-function timeline() {
-  if ($("#timeline").length) {
-    $("#timeline").slideToggle();
-  } else {
+export function timeline(id = false) {
+  let doit = true;
+  if (id) {
+    if ($(".timeline[data-wtid='" + id + "']").length) {
+      $(".timeline[data-wtid='" + id + "']").slideToggle();
+      doit = false;
+    }
+  } else if ($(".timeline").length) {
+    $(".timeline").slideToggle();
+    doit = false;
+  }
+  if (doit) {
     const fields = [
       "BirthDate",
       "BirthLocation",
@@ -195,7 +203,9 @@ function timeline() {
       "Derived.BirthName",
       "Bio",
     ];
-    const id = $("a.pureCssMenui0 span.person").text();
+    if (!id) {
+      id = $("a.pureCssMenui0 span.person").text();
+    }
     getRelatives(
       [id],
       {
@@ -389,8 +399,8 @@ function timeline() {
         person.FirstName = person.RealName;
       }
       // Make a table
-      const timelineTable = $(
-        `<div class='wrap' id='timeline' data-wtid='${person.Name}'><w>↔</w><x>x</x><table id='timelineTable'>` +
+      const aTimeline = $(
+        `<div class='wrap' class='timeline' data-wtid='${person.Name}'><w>↔</w><x>x</x><table class='timelineTable'>` +
           `<caption>Events in the life of ${person.FirstName}'s family</caption><thead><th class='tlDate'>Date</th>` +
           `<th class='tlBioAge'>Age</th><th class='tlEventDescription'>Event</th><th class='tlEventLocation'>Location</th>` +
           `</thead></table></div>`
@@ -398,13 +408,13 @@ function timeline() {
       // Attach the table to the container div
       let theContainer = $("div.container.full-width");
       if (theContainer.prop("id") == "memberSection") {
-        $("#views-wrap").after(timelineTable);
+        $("#views-wrap").after(aTimeline);
       } else {
-        timelineTable.prependTo(theContainer);
+        aTimeline.prependTo(theContainer);
       }
       if ($("#connectionList").length) {
-        timelineTable.prependTo($("#content"));
-        timelineTable.css({ top: window.pointerY - 30, left: 10 });
+        aTimeline.prependTo($("#content"));
+        aTimeline.css({ top: window.pointerY - 30, left: 10 });
       }
       let bpDead = false;
       let bpDeadAge;
@@ -515,25 +525,26 @@ function timeline() {
         const tlTR = $(
           "<tr class='" + classText + "'>" + tlDate + tlBioAge + tlEventDescription + tlEventLocation + "</tr>"
         );
-        $("#timelineTable").append(tlTR);
+        aTimeline.append(tlTR);
         if (aFact.evnt == "Death" && aFact.wtId == person.Name) {
           bpDead = true;
           bpDeadAge = bpAgeAtEvent;
         }
       });
-
-      $("#timeline").slideDown("slow");
-      $("#timeline x").click(function () {
-        $("#timeline").slideUp();
+      aTimeline.show();
+      aTimeline.slideDown("slow");
+      aTimeline.find("x").on("click", function () {
+        aTimeline.slideUp();
       });
-      $("#timeline w").click(function () {
-        $("#timeline").toggleClass("wrap");
+      aTimeline.find("w").on("click", function () {
+        aTimeline.toggleClass("wrap");
       });
       // Use jquery-ui to make the table draggable
-      $("#timeline").draggable();
-      $("#timeline").dblclick(function () {
+      aTimeline.draggable();
+      aTimeline.on("dblclick", function () {
         $(this).slideUp("swing");
       });
+      aTimeline.addClass("timeline");
     });
   }
 }

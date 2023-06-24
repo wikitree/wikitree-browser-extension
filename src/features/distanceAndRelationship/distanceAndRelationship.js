@@ -284,7 +284,7 @@ function commonAncestorText(commonAncestors) {
 }
 
 function doRelationshipText(userID, profileID) {
-//  getRelationshipFinderResult(userID, profileID).then(function (data) {
+  //  getRelationshipFinderResult(userID, profileID).then(function (data) {
   getRelationJSON("DistanceAndRelationship_Relationship", userID, profileID).then(function (data) {
     if (data) {
       var out = "";
@@ -420,8 +420,8 @@ async function getDistance() {
   const data = await getConnectionJSON("DistanceAndRelationship_Distance", id1, id2);
   addDistance(data);
 }
-  
-function ordinal(i) {
+
+export function ordinal(i) {
   var j = i % 10,
     k = i % 100;
   if (j == 1 && k != 11) {
