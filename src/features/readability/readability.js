@@ -11,8 +11,6 @@ import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage.js";
 import { ensureProfileClasses } from "../../core/profileClasses";
 
-export let toggleReadingMode;
-
 async function initReadability() {
   ensureProfileClasses();
   const options = await getFeatureOptions("readability");
@@ -344,14 +342,14 @@ async function initReadability() {
     }
   }
   // toggle hidden elements (either always or in reading mode only)
-  let initToggleOptions = true;
-  toggleReadingMode = function () {
+  function setHiddenElements(toggleValue) {
+    const isReadingMode = !!(toggleValue !== undefined ? toggleValue : options.readingMode_toggle);
     let isToggled = function (option, flags) {
       let alwaysFlag = ((flags || 0) ^ 0x7e) | 0x81; // negate the flag bits and set the always and reading bits
       let readingFlag = (flags || 0) | 1; // set the reading bit
       if (option) {
-        if (initToggleOptions) {
-          return option % 256 === alwaysFlag || (options.readingMode_toggle && option % 128 === readingFlag);
+        if (toggleValue === undefined) {
+          return option % 256 === alwaysFlag || (isReadingMode && option % 128 === readingFlag);
         } else {
           return option % 256 === readingFlag;
         }
@@ -369,10 +367,6 @@ async function initReadability() {
     }
     if (isToggled(options.removeBackReferences)) {
       $("html").toggleClass("hide-src-back");
-    }
-    if (isToggled(options.hideSidebar)) {
-      $("html").toggleClass("hide-sidebar");
-      $(".x-sidebar").prev().toggleClass("ten").toggleClass("sixteen");
     }
     if (isToggled(options.hideSidebarStatus)) {
       $("html").toggleClass("hide-sidebar-status");
@@ -401,8 +395,8 @@ async function initReadability() {
       collapsibleSections.forEach(function (section) {
         let sectionLower = section.toLowerCase();
         if (options["collapse" + section] / 1 === 254) {
-          if (initToggleOptions) {
-            // this turns the toggle button on, but it starts out as expanded instead of collapsed (see below)
+          if (toggleValue === undefined) {
+            // this displays the toggle button at initialization, but it will start expanded instead of collapsed (see toggleSection below)
             $("html").toggleClass("collapse-" + sectionLower);
           }
         } else if (isToggled(options["collapse" + section])) {
@@ -460,8 +454,41 @@ async function initReadability() {
     if (isToggled(options.hideBackground)) {
       $("html").toggleClass("hide-background");
     }
-    initToggleOptions = false;
-  };
+    // this needs to take place after all of the other elements are toggled (to check for visible children)
+    if (options.hideSidebar / 1 > 0) {
+      let $sb = $(".x-sidebar");
+      if (isToggled(options.hideSidebar, 2)) {
+        $("html").toggleClass("collapse-sidebar-if-empty");
+      } else if (isToggled(options.hideSidebar)) {
+        $("html").toggleClass("collapse-sidebar");
+        $sb.prev().toggleClass("ten").toggleClass("sixteen");
+      }
+      if (options.hideSidebar / 1 === 3 || options.hideSidebar / 1 === 253) {
+        $sb.removeClass("no-visible-content");
+        // wait for the CSS to apply so that we can determine visibility
+        window.setTimeout(function () {
+          if (
+            $sb.children(":visible").filter(function () {
+              // some elements may technically be visible but have no content, like anchors and #geneticfamily
+              return !!$(this).html();
+            }).length === 0
+          ) {
+            $sb.addClass("no-visible-content");
+          } else {
+            $sb.removeClass("no-visible-content");
+          }
+          // wait for the no-visible-content class to be applied
+          window.setTimeout(function () {
+            if (!$sb.is(":visible")) {
+              $sb.prev().addClass("sixteen").removeClass("ten");
+            } else {
+              $sb.prev().removeClass("sixteen").addClass("ten");
+            }
+          }, 0);
+        }, 0);
+      }
+    }
+  }
 
   (function (collapsibleSections) {
     collapsibleSections.forEach(function (section) {
@@ -474,9 +501,9 @@ async function initReadability() {
         if (!startExpanded && !!window.location.hash) {
           let target = document.getElementById(window.location.hash.substring(1));
           if (!target) {
-            target = document.getElementsByName(window.location.hash.substring(1));
-            if (target.length > 0) {
-              target = target[0];
+            let byName = document.getElementsByName(window.location.hash.substring(1));
+            if (byName.length > 0) {
+              target = byName[0];
             }
           }
           if (target && $(target).closest(".section-" + sectionLower).length > 0) {
@@ -513,7 +540,7 @@ async function initReadability() {
     bgStyle.text(bgStyle.text().replace(/\b(BODY\s*{)/is, "html:not(.hide-background) $1"));
   }
 
-  toggleReadingMode();
+  setHiddenElements(); // initialize with the saved setting
 
   // this only controls whether the toggle button for reading mode is on the screen
   if (options.readingMode) {
@@ -539,7 +566,7 @@ async function initReadability() {
         '><label for="reading_mode_checkbox">Reading Mode</label>'
     );
     toggleElement.find("input").on("change", function () {
-      toggleReadingMode();
+      setHiddenElements(this.checked);
       setToggleValue(this.checked);
     });
     // add the toggle button at the top of the page content
