@@ -60,6 +60,8 @@
   .print-content-only #commentG2GDiv,
   .print-content-only #header,
   .print-content-only #showHideDescendants,
+  .print-content-only #ancestorTreeContainer,
+  .print-content-only #descendantsContainer,
   .print-content-only #categories,
   .print-content-only #toc,
   .print-content-only #whatLinksHereSection,
