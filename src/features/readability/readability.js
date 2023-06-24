@@ -501,9 +501,9 @@ async function initReadability() {
         if (!startExpanded && !!window.location.hash) {
           let target = document.getElementById(window.location.hash.substring(1));
           if (!target) {
-            target = document.getElementsByName(window.location.hash.substring(1));
-            if (target.length > 0) {
-              target = target[0];
+            let byName = document.getElementsByName(window.location.hash.substring(1));
+            if (byName.length > 0) {
+              target = byName[0];
             }
           }
           if (target && $(target).closest(".section-" + sectionLower).length > 0) {
