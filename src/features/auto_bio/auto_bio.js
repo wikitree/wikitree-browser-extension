@@ -1219,7 +1219,8 @@ function buildSpouses(person) {
           }
         }
 
-        if (spouse.BirthDate || spouse.BirthLocation) {
+        console.log(spouse);
+        if (isOK(spouse.BirthDate) || spouse.BirthLocation) {
           spouseDetailsA += ")";
           spouseDetailsB += ".";
         }
@@ -3024,38 +3025,6 @@ function buildCensusNarratives() {
 
         if (occupation) {
           text += "'s occupation was '" + occupation + "'.";
-
-          // Add occupation Category
-          /*
-          if (window.autoBioOptions.occupationCategory) {
-            const occupationTitleCase = titleCase(occupation);
-            let occupationCategory;
-            if (occupationCategories[occupationTitleCase]) {
-              const places = [];
-              if (window.profilePerson.BirthLocation) {
-                places.push(window.profilePerson.BirthLocation.split(", "));
-              }
-              if (window.profilePerson.DeathLocation) {
-                places.push(window.profilePerson.DeathLocation.split(", "));
-              }
-              if (occupationCategories[occupationTitleCase]["Places"]) {
-                occupationCategories[occupationTitleCase]["Places"].forEach(function (place) {
-                  if (places.some((arr) => arr.includes(place))) {
-                    occupationCategory = `[[Category: ${place}, ${occupationCategories[occupationTitleCase]["PluralForm"]}]]`;
-                  }
-                });
-                if (!occupationCategory) {
-                  if (occupationCategories[occupationTitleCase].Standalone) {
-                    occupationCategory = `[[Category: ${occupationCategories[occupationTitleCase]["PluralForm"]}]]`;
-                  }
-                }
-              }
-            }
-            if (occupationCategory) {
-              window.sectionsObject["StuffBeforeTheBio"].text.push(occupationCategory);
-            }
-          }
-          */
         }
         if (occupation) {
           text += " " + capitalizeFirstLetter(window.profilePerson.Pronouns.subject) + " was living ";
@@ -6714,7 +6683,7 @@ export async function generateBio() {
     extensionNotes += "-->\n";
 
     // Add Unsourced template if there are no good sources
-    if (window.autoBioOptions?.unsourced != false) {
+    if (window.autoBioOptions?.unsourced) {
       addUnsourced();
     }
 
