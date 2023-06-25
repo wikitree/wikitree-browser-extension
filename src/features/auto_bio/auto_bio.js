@@ -1219,7 +1219,6 @@ function buildSpouses(person) {
           }
         }
 
-        console.log(spouse);
         if (isOK(spouse.BirthDate) || spouse.BirthLocation) {
           spouseDetailsA += ")";
           spouseDetailsB += ".";
