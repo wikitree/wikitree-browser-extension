@@ -13,9 +13,23 @@ async function initStickyHeader() {
     if (!$("body").is(".home")) {
       $("html").addClass("sticky-header");
       if (window.location.hash) {
-        let hash = window.location.hash;
-        window.location.hash = "";
-        window.location.hash = hash;
+        let target = document.getElementById(window.location.hash.substring(1));
+        if (!target) {
+          let byName = document.getElementsByName(window.location.hash.substring(1));
+          if (byName.length > 0) {
+            target = byName[0];
+          }
+          if (!target) {
+            if (window.location.hash == "#Ancestors") {
+              target = document.getElementById("ancestorTreeContainer");
+            } else if (window.location.hash == "#Descendants") {
+              target = document.getElementById("descendantsContainer");
+            }
+          }
+        }
+        if (target) {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
       }
     }
   }
