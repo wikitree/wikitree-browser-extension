@@ -1,0 +1,4 @@
+#saveButtons p a:first-child,
+.six.columns #saveButtons button:first-child {
+  margin-bottom: 10px;
+}
