@@ -5458,11 +5458,20 @@ export function addLocationCategoryToStuffBeforeTheBio(location) {
   if (location) {
     const theCategory = "[[Category: " + location + "]]";
     const theCategoryWithoutSpace = "[[Category:" + location + "]]";
+
+    let notInTextBeforeTheBio = true;
+    if (window.textBeforeTheBio) {
+      if (window.textBeforeTheBio.includes(theCategory)) {
+        notInTextBeforeTheBio = false;
+      } else if (window.textBeforeTheBio.includes(theCategoryWithoutSpace)) {
+        notInTextBeforeTheBio = false;
+      }
+    }
+
     if (
       !window.sectionsObject["StuffBeforeTheBio"].text?.includes(theCategory) &&
       !window.sectionsObject["StuffBeforeTheBio"].text?.includes(theCategoryWithoutSpace) &&
-      window.textBeforeTheBio?.includes(theCategory) === false &&
-      window.textBeforeTheBio?.includes(theCategoryWithoutSpace) === false
+      notInTextBeforeTheBio
     ) {
       window.sectionsObject["StuffBeforeTheBio"].text.push(theCategory);
     }
