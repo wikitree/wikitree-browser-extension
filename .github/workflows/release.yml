@@ -1,0 +1,43 @@
+name: "Build and release"
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - development
+      - 1.6 # increment for each major build
+
+jobs:
+  latest-release:
+    name: "Latest Release"
+    runs-on: "ubuntu-latest"
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2
+    - name: Set release flags based on branch
+      run: |
+        echo "X_SHORT_HASH=`git rev-parse --short HEAD`" >> $GITHUB_ENV
+        echo "X_RELEASE_TAG=${{ github.ref_name == 'development' && 'preview' || startsWith(github.ref_name, '1.') && 'stable' || github.ref_name }}" >> $GITHUB_ENV
+    - name: Setup Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: 16.x
+        cache: 'npm'
+    - name: Install dependencies
+      run: npm ci
+    - name: Build for Chrome
+      run: npm run zip
+    - name: Build for Firefox
+      run: npm run zip-firefox
+    - name: Rename release assets
+      run: |
+        mv dist-chrome.zip wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_SHORT_HASH }}-chrome.zip
+        mv dist-firefox.zip wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_SHORT_HASH }}-firefox.zip
+    - name: Update release
+      uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        prerelease: ${{ env.X_RELEASE_TAG != 'stable' }}
+        files: wbe-*.zip
+        automatic_release_tag: "${{ env.X_RELEASE_TAG }}"
