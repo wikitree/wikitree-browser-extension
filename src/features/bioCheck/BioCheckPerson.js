@@ -88,11 +88,11 @@ export class BioCheckPerson {
     let canUseThis = true;
     if (profileObj.BirthDate != null) {
       this.#birthDateString = profileObj.BirthDate;
-      this.#birthDate = this.#getDate(this.#birthDateString);
+      this.#birthDate = this.#getDateFromString(this.#birthDateString);
     } else {
       if (profileObj.BirthDateDecade != null) {
         this.#birthDateString = profileObj.BirthDateDecade.slice(0, -1);
-        this.#birthDate = this.#getDate(this.#birthDateString);
+        this.#birthDate = this.#getDateFromString(this.#birthDateString);
       }
     }
     if (this.#lastDateCheckedEmpty) {
@@ -100,11 +100,11 @@ export class BioCheckPerson {
     }
     if (profileObj.DeathDate != null) {
       this.#deathDateString = profileObj.DeathDate;
-      this.#deathDate = this.#getDate(this.#deathDateString);
+      this.#deathDate = this.#getDateFromString(this.#deathDateString);
     } else {
       if (profileObj.DeathDateDecade != null) {
         this.#deathDateString = profileObj.DeathDateDecade.slice(0, -1);
-        this.#deathDate = this.#getDate(this.#deathDateString);
+        this.#deathDate = this.#getDateFromString(this.#deathDateString);
       }
     }
     if (this.#lastDateCheckedEmpty) {
@@ -318,9 +318,18 @@ export class BioCheckPerson {
       let dDay = document.getElementById("mDeathDate").value;
       this.#birthDate = null;
       this.#deathDate = null;
+      // the API returns date string in the form yyyy-mon-dd
+      // the edit page document element is in the form yyyy mon dd
+      // well the edit page tells the user to use one of the forms
+      //   yyyy-mm-dd
+      //   dd mon yyyy
+      //   mon dd, yyyy
+      // or maybe just whatever is entered by the user?
+      // test example is day month year
+      // can the edit page document element be in a different form?
       if (bDay != null && bDay.length > 0) {
         this.#birthDateString = bDay;
-        this.#birthDate = this.#getDate(this.#birthDateString);
+        this.#birthDate = this.#getDateFromString(this.#birthDateString);
       } else {
         this.#hasBirthDate = false;
       }
@@ -328,8 +337,9 @@ export class BioCheckPerson {
         this.#hasBirthDate = false;
       }
       if (dDay != null && dDay.length > 0) {
+        //this.#deathDateString = dDay.replace(/ /g, '-');
         this.#deathDateString = dDay;
-        this.#deathDate = this.#getDate(this.#deathDateString);
+        this.#deathDate = this.#getDateFromString(this.#deathDateString);
       } else {
         this.#hasDeathDate = false;
       }
@@ -366,22 +376,68 @@ export class BioCheckPerson {
    * @param {String} dateString as input from WikiTree API in the form 0000-00-00
    * @returns {Date} Date for the input string
    */
-  #getDate(dateString) {
+  #getDateFromString(dateString) {
     let year = 0; // default in case of 0 values
     let month = 0;
     let day = 0;
     this.#lastDateCheckedEmpty = false; // hack hack
-    let splitString = dateString.split("-");
-    let len = splitString.length;
-    if (len > 0) {
-      year = splitString[0];
+
+    // okay possible forms are
+    // maybe more, but these are 'official'
+    //   yyyy-mm-dd
+    //   mon dd, yyyy
+    //   dd mon yyyy
+    //   mon yyyy
+    //   yyyy
+    if (dateString.includes("-")) {
+      let splitString = dateString.split("-");
+      let len = splitString.length;
+      if (len > 0) {
+        year = splitString[0];
+      }
+      if (len > 1) {
+        month = splitString[1];
+      }
+      if (len >= 2) {
+        day = splitString[2];
+      }
+    } else {
+      if (dateString.includes(",")) {    // mon dd, yyyy
+        let splitString = dateString.split(" ");
+        let len = splitString.length;
+          if (len > 0) {
+            month = splitString[0];
+          }
+          if (len > 1) {
+            day = splitString[1];
+            day = day.replace(",", "");
+          }
+          if (len >= 2) {
+            year = splitString[2];
+          }
+      } else {
+        let splitString = dateString.split(" ");
+        let len = splitString.length;
+        if (len === 1) {
+          year = splitString[0];
+        }
+        if (len === 2) {
+          year = splitString[1];
+          month = splitString[0];
+        }
+        if (len === 3) {
+          year = splitString[2];
+          month = splitString[1];
+          day = splitString[0];
+        }
+      }
     }
-    if (len > 1) {
-      month = splitString[1];
+    let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let monthNum = months.indexOf(month);
+    if (monthNum >= 0) {
+      month = monthNum;
     }
-    if (len >= 2) {
-      day = splitString[2];
-    }
+
     // very important the test below should be == and not ===
     // because you want to test for all dates of 0
     if (year + month + day == 0) {
@@ -412,6 +468,7 @@ export class BioCheckPerson {
     let day = today.getDate();
     let earliestMemoryBeforeDeath = new Date(year - BioCheckPerson.TOO_OLD_TO_REMEMBER_DEATH, month, day);
     let earliestMemoryBeforeBirth = new Date(year - BioCheckPerson.TOO_OLD_TO_REMEMBER_BIRTH, month, day);
+
     if (this.#birthDate != null) {
       if (this.#birthDate < theYear1500) {
         this.#isPre1500 = true;
