@@ -19,7 +19,8 @@ const readLocalStorage = async (key) => {
   return new Promise((resolve, reject) => {
     chrome.storage.local.get([key], function (result) {
       if (result[key] === undefined) {
-        reject();
+        //reject();  // will cause an exception for undefined
+        resolve(null);
       } else {
         resolve(result[key]);
       }
