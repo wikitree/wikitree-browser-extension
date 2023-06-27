@@ -663,11 +663,11 @@ function personDates(person) {
       "(" +
       (!isOK(person.BirthDate)
         ? birthDate || ""
-        : convertDate(birthDate, window.autoBioOptions?.dateFormat, person.DataStatus.BirthDate)) +
+        : convertDate(birthDate, window.autoBioOptions?.dateFormat, person?.DataStatus?.BirthDate)) +
       " – " +
       (!isOK(person.DeathDate)
         ? deathDate || ""
-        : convertDate(deathDate, window.autoBioOptions?.dateFormat, person.DataStatus.DeathDate)) +
+        : convertDate(deathDate, window.autoBioOptions?.dateFormat, person?.DataStatus?.DeathDate)) +
       ")";
 
     if (window.autoBioOptions?.notDeathDate) {
@@ -4217,40 +4217,42 @@ export function sourcesArray(bio) {
       }
       aRef.OrderDate = formatDate(aRef["Marriage Date"], 0, { format: 8 });
     }
-    if (aRef.Text.match(/Divorce Records/)) {
+    if (aRef.Text.match(/Divorce Records/) && aRef.Text.match(/Marriage and/) == null) {
       aRef["Record Type"].push("Divorce");
       const divorceDetails = aRef.Text.match(
         /([^>;,]+?)\sdivorce from\s(.*?)\son\s(\d{1,2}\s[A-z]{3}\s\d{4})(\s\bin\b\s(.*))?\./
       );
-      const divorceCouple = [divorceDetails[1], divorceDetails[2]];
-      aRef.Couple = divorceCouple;
-      aRef["Divorce Date"] = divorceDetails[3];
-      aRef["Event Date"] = divorceDetails[3];
-      if (divorceDetails[5]) {
-        aRef["Divorce Place"] = divorceDetails[5];
-      }
-      aRef["Event Type"] = "Divorce";
-      aRef.Year = divorceDetails[3].match(/\d{4}/)[0];
-      aRef.Location = aRef.Text.match(/in\s(.*?)(,\sUnited States)?/)[1];
-      aRef.OrderDate = formatDate(aRef["Divorce Date"], 0, { format: 8 });
-      aRef.Narrative = "";
-      let thisSpouse = "";
-      if (aRef.Couple) {
-        if (aRef.Couple[0].match(window.profilePerson.PersonName.FirstName)) {
-          thisSpouse = aRef.Couple[1];
-        } else {
-          thisSpouse = aRef.Couple[0];
+      if (divorceDetails) {
+        const divorceCouple = [divorceDetails[1], divorceDetails[2]];
+        aRef.Couple = divorceCouple;
+        aRef["Divorce Date"] = divorceDetails[3];
+        aRef["Event Date"] = divorceDetails[3];
+        if (divorceDetails[5]) {
+          aRef["Divorce Place"] = divorceDetails[5];
         }
+        aRef["Event Type"] = "Divorce";
+        aRef.Year = divorceDetails[3].match(/\d{4}/)[0];
+        aRef.Location = aRef.Text.match(/in\s(.*?)(,\sUnited States)?/)[1];
+        aRef.OrderDate = formatDate(aRef["Divorce Date"], 0, { format: 8 });
+        aRef.Narrative = "";
+        let thisSpouse = "";
+        if (aRef.Couple) {
+          if (aRef.Couple[0].match(window.profilePerson.PersonName.FirstName)) {
+            thisSpouse = aRef.Couple[1];
+          } else {
+            thisSpouse = aRef.Couple[0];
+          }
+        }
+        aRef.Narrative =
+          capitalizeFirstLetter(formatDate(aRef["Divorce Date"])) +
+          ", " +
+          window.profilePerson.PersonName.FirstName +
+          " and " +
+          thisSpouse.replace(window.profilePerson.LastNameAtBirth, "").replace(/\s$/, "") +
+          " divorced" +
+          (aRef["Divorce Place"] ? " in " + aRef["Divorce Place"] : "") +
+          ".";
       }
-      aRef.Narrative =
-        capitalizeFirstLetter(formatDate(aRef["Divorce Date"])) +
-        ", " +
-        window.profilePerson.PersonName.FirstName +
-        " and " +
-        thisSpouse.replace(window.profilePerson.LastNameAtBirth, "").replace(/\s$/, "") +
-        " divorced" +
-        (aRef["Divorce Place"] ? " in " + aRef["Divorce Place"] : "") +
-        ".";
     }
     if (aRef.Text.match(/Prison Records/)) {
       aRef["Record Type"].push("Prison");
