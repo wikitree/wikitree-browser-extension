@@ -967,7 +967,7 @@ export class Biography {
     if (this.#acknowledgementsIndex > 0 && this.#acknowledgementsIndex < endIndex) {
       endIndex = this.#acknowledgementsIndex;
     }
-
+    startIndex++;
     if (this.#biographyIndex === endIndex) {
       this.#style.bioHeadingWithNoLinesFollowing = true;
     } else {
@@ -977,6 +977,10 @@ export class Biography {
           startIndex++;
         }
       }
+    }
+    let str = bioLinesString.trim();
+    if (str.length === 0) {
+      this.#style.bioHeadingWithNoLinesFollowing = true;
     }
     return bioLinesString;
   }
@@ -1158,7 +1162,7 @@ export class Biography {
     }
     if (this.#style.bioHeadingWithNoLinesFollowing) {
       this.#style.bioHasStyleIssues = true;
-      this.#messages.sectionMessages.push('Empty Biography section');
+      this.#messages.styleMessages.push('Empty Biography section');
     }
     if (this.#style.bioHasMultipleSourceHeadings) {
       this.#style.bioHasStyleIssues = true;
@@ -1407,6 +1411,7 @@ export class Biography {
    */
   #isValidSource(mixedCaseLine) {
     let isValid = false; // assume guilty
+    let isRepository = false;
 
     // just ignore starting *
     if (mixedCaseLine.startsWith("*")) {
@@ -1416,7 +1421,6 @@ export class Biography {
 
     // perform tests on lower case line
     let line = mixedCaseLine.toLowerCase().trim();
-
     // ignore starting source:
     if (line.length > 0 && line.startsWith(Biography.#SOURCE_START)) {
       line = line.substring(7);
@@ -1436,37 +1440,49 @@ export class Biography {
         if (this.#isFindAGraveCitation(line)) {
           isValid = true;
         } else {
-          // Does line contain a phrase on the invalid partial source list?
-          if (this.#onAnyPartialSourceList(line)) {
-            isValid = false;
+          // Very important to check for valid part of a string on Pre1700
+          // before checking for the invalid ones....
+          if (this.#onAnyValidPartialSourceList(line)) {
+            isValid = true;
           } else {
-            // Check for line that starts with something on the invalid start partial list
-            if (this.#sourceRules.isInvalidStartPartialSource(line)) {
+            // Does line contain a phrase on the invalid partial source list?
+            // lines with ' or & will not match the source rules
+            line = line.replace(/\u0027/g, '');  // lines with ' will not match
+            line = line.replace(/\u0026/g, 'and');  // and convert & to and
+            if (this.#onAnyPartialSourceList(line)) {
               isValid = false;
             } else {
-              // TODO can you refactor so this uses a plugin architecture?
+              // Check for line that starts with something on the invalid start partial list
+              if (this.#sourceRules.isInvalidStartPartialSource(line)) {
+                isValid = false;
+              } else {
+                // TODO can you refactor so this uses a plugin architecture?
 
-              // Some other things to check
-              if (!this.#isJustCensus(line)) {
-                if (!this.#invalidFamilyTree(line)) {
-                  if (!this.#isJustRepository(line)) {
-                    if (!this.#isJustGedcomCrud(line)) {
-                       if (this.#isDnaConfirmation(line)) {
-                        // TODO add logic to check a DNA confirmation
-                        // so the source MIGHT be valid but the confirmation might be incomplete
-;
-                      } else {
-                        // TODO add more logic to eliminate sources as valid
-                        // TODO is the manager's name a valid source (this is hard)
-                        // TODO add logic to check for just the name followed by grave
-                        isValid = true;
+                // Some other things to check
+                if (!this.#isJustCensus(line)) {
+                  if (!this.#invalidFamilyTree(line)) {
+                    isRepository = this.#isJustRepository(line)
+                    if (!isRepository) {
+                      if (!this.#isJustGedcomCrud(line)) {
+                         if (!this.#isJustThePeerage(line)) {
+                           if (this.#isDnaConfirmation(line)) {
+                            // TODO add logic to check a DNA confirmation
+                            // so the source MIGHT be valid but the confirmation might be incomplete
+                            ;   // TODO
+                          } else {
+                            // TODO add more logic to eliminate sources as valid by combining ones
+                            // TODO is the manager's name a valid source (this is hard)
+                            // TODO add logic to check for just the name followed by grave
+                            isValid = true;
+                          }
+                        }
                       }
                     }
                   }
                 }
-              }
-            } // endif starts with invalid phrase
-          } // endif contains a phrase on invalid partial source list
+              } // endif starts with invalid phrase
+            } // endif contains a phrase on invalid partial source list
+          } // endif on any valid partial list
         } // endif a findagrave citation
       } // endif on the list of invalid sources
     } // endif too short when stripped of whitespace
@@ -1475,7 +1491,9 @@ export class Biography {
     if (isValid) {
       this.#sources.validSource.push(mixedCaseLine);
     } else {
-      this.#sources.invalidSource.push(mixedCaseLine);
+      if (!isRepository) {
+        this.#sources.invalidSource.push(mixedCaseLine);
+      }
     }
     return isValid;
   }
@@ -1515,6 +1533,18 @@ export class Biography {
       // TODO add more pre1500 validation
     }
     return foundInvalidPartialSource;
+  }
+  /*
+   * Determine if found on valid partial source list
+   * @param {String} line input source string
+   * @returns {Boolean} true if on a list of valid partial sources else false
+   */
+  #onAnyValidPartialSourceList(line) {
+    let foundValidPartialSource = false;
+    if (this.#isPre1700 || this.#treatAsPre1700) {
+      foundValidPartialSource = this.#sourceRules.isValidPartialSourcePre1700(line);
+    }
+    return foundValidPartialSource;
   }
 
   /*
@@ -1697,6 +1727,23 @@ export class Biography {
 
   /*
    * Check for a line that is just
+   * The Peerage then some digits
+   * @param {String} line to check
+   * @returns {Boolean} true if just a peerage line 
+   */
+  #isJustThePeerage(line) {
+    let isPeerage = true;
+    line = line.replace(/[0-9]/g, '');
+    line = line.replace('the peerage', '');
+    line = line.trim();
+    if (line.length > 0) {
+      isPeerage = false;
+    }
+    return isPeerage;
+  }
+
+  /*
+   * Check for a line that is just
    * some collection of numbers and digits then census
    * @param {String} line to check
    * @returns {Boolean} true if just a census line else false
@@ -1817,6 +1864,7 @@ export class Biography {
         "internet",
         "cont",
         "unknown",
+        "www.ancestry.com",
       ];
       for (let i = 0; i < repositoryStrings.length; i++) {
         let str = repositoryStrings[i];
