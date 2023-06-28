@@ -8,11 +8,9 @@
 
 To test the extension you can:
 
-- download the latest:
-  - [wbe-chrome-preview.zip](https://github.com/wikitree/wikitree-browser-extension/releases/download/preview/wbe-chrome-preview.zip)
-  - [wbe-firefox-preview.zip](https://github.com/wikitree/wikitree-browser-extension/releases/download/preview/wbe-firefox-preview.zip)
-  - [wbe-chrome-stable.zip](https://github.com/wikitree/wikitree-browser-extension/releases/download/stable/wbe-chrome-stable.zip)
-  - [wbe-firefox-stable.zip](https://github.com/wikitree/wikitree-browser-extension/releases/download/stable/wbe-firefox-stable.zip)
+- download the latest zip for your browser:
+  - [stable version](https://github.com/wikitree/wikitree-browser-extension/releases/tag/stable)
+  - [preview version](https://github.com/wikitree/wikitree-browser-extension/releases/tag/preview)
 - unpack it somewhere on your computer,
 - Go to [chrome://extensions](chrome://extensions),
 - Make sure you have _Developer mode_ turned on (top right corner),

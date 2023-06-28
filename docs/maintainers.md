@@ -80,7 +80,7 @@ If you need to manually build the extension use:
 
 `npm run zip`
 
-This should create a zip file named `wbe-chrome-preview.zip`.
+This should create a zip file named `dist-chrome.zip`.
 
 ### Updating the Extension in the CWS
 
@@ -118,7 +118,7 @@ If you need to manually build the extension use:
 
 `npm run zip-firefox`
 
-This should create a zip file named `wbe-firefox-preview.zip`.
+This should create a zip file named `dist-firefox.zip`.
 
 ### Updating the Extension on the Firefox site
 
