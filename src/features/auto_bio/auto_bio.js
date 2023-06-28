@@ -1427,7 +1427,7 @@ export function getYYYYMMDD(dateString) {
   if (!dateString) {
     return "";
   } else {
-    dateString = dateString.replace(/(abt|about|bef|before|aft|after|bet|between|and|cal|calculated)/i, "").trim();
+    dateString = dateString.replace(/(abt|about|before|bef|after|aft|between|bet|and|calculated|cal)/i, "").trim();
   }
   function parseDate(dateStr) {
     console.log(dateStr);
