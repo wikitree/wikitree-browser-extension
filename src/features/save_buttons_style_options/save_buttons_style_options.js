@@ -8,6 +8,14 @@ shouldInitializeFeature("saveButtonsStyleOptions").then((result) => {
   if (result) {
     import("./save_buttons_style_options.css");
     changeLinksToButtons();
+    $("#wpSaveDraft").on("click", function () {
+      setTimeout(function () {
+        changeLinksToButtons();
+      }, 1000);
+    });
+    setTimeout(function () {
+      changeLinksToButtons();
+    }, 60500);
   }
 });
 
