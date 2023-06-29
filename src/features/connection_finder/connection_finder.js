@@ -292,8 +292,8 @@ function connectionsRelation(relationText) {
   }
   const mRelationOut =
     "<span class='hisHer'>" + mRelationBits[0] + "</span> <span class='relationWord'>" + mRelationBits[1] + "</span>";
-
-  var arrow, gender;
+  let arrow;
+  let gender;
   if (relationText.match(/(wife)|(mother)|(sister)|(daughter)/) != null) {
     gender = "Female";
   }
