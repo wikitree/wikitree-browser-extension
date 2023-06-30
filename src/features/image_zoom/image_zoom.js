@@ -1,5 +1,4 @@
 import $ from "jquery";
-// import draggable
 import "jquery-ui/ui/widgets/draggable";
 import "jquery-ui-touch-punch";
 import interact from "interactjs";
@@ -202,14 +201,12 @@ function setupImageZoom() {
 
       let parent = $(this).css({ display: "inline-block", position: "relative" });
       const overlay = $('<div class="image_zoom_overlay">🔍</div>').appendTo(parent);
-      // Set the overlay styles, making it larger than the plus sign
       overlay.css({
-        "z-index": 20000,
         position: "absolute",
         bottom: "0",
         right: "0",
-        height: "50%", // adjust this value as needed
-        width: "50%", // adjust this value as needed
+        height: "50%",
+        width: "50%",
         display: "flex",
         alignItems: "flex-end",
         justifyContent: "flex-end",
