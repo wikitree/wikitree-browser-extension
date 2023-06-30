@@ -50,6 +50,19 @@ const usabilityTweaks = {
       ],
     },
     {
+      id: "navHomePage",
+      type: OptionType.GROUP,
+      label: "Navigation Home Page",
+      options: [
+        {
+          id: "addScratchPadButton",
+          type: OptionType.CHECKBOX,
+          label: "Add an Edit/Save button above the Scratch Pad.",
+          defaultValue: true,
+        },
+      ],
+    },
+    {
       id: "searchPage",
       type: OptionType.GROUP,
       label: "Search page",
@@ -59,6 +72,12 @@ const usabilityTweaks = {
           type: OptionType.CHECKBOX,
           label: "Add a button to the search page to save the form data to populate fields on the Add Person page.",
           defaultValue: false,
+        },
+        {
+          id: "onlyMembers",
+          type: OptionType.CHECKBOX,
+          label: "Add a link to show only active members.",
+          defaultValue: true,
         },
       ],
     },

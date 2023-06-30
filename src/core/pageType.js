@@ -27,6 +27,8 @@ export let isProjectPage = false;
 export let isHelpPage = false;
 // Genealogy page
 export let isGenealogyPage = false;
+// Nav Home Page
+export let isNavHomePage = false;
 // Other wiki page (Project:, Docs:, Automated:, ...)
 export let isOtherPage = false;
 
@@ -271,6 +273,8 @@ if (
     isSearchPage = true;
   } else if (uri.match(/Special:Surname/)) {
     isGenealogyPage = true;
+  } else if (uri.match(/Special:Home/)) {
+    isNavHomePage = true;
   } else if (uri.match(/Special:Connection/)) {
     isConnectionFinder = true;
   }

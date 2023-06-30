@@ -8,3 +8,10 @@ body.page-Special_SearchPerson #saveSearchFormButton {
     float: none;
   }
 }
+
+body.page-Special_SearchPerson #onlyMembers.active {
+  border: 2px solid forestgreen;
+  padding: 0.2em 0.5em;
+  background: peachpuff;
+  border-radius: 5px;
+}

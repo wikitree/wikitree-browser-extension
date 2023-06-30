@@ -1,10 +1,12 @@
 import $ from "jquery";
+import Cookies from "js-cookie";
 import {
   isSearchPage,
   isProfileEdit,
   isProfileAddRelative,
   isAddUnrelatedPerson,
   isWikiEdit,
+  isNavHomePage,
 } from "../../core/pageType";
 import "./usability_tweaks.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
@@ -119,6 +121,64 @@ function initObserver() {
     childList: true,
     subtree: true,
   });
+}
+
+function setSaveScratchPad() {
+  const saveButton = $("input[value='Save Scratch Pad Changes']").clone(true).attr("id", "clonedSaveButton");
+  $("#clonedScratchPadButton").replaceWith(saveButton);
+  saveButton.on("click", function () {
+    addScratchPadButton();
+  });
+}
+
+function addScratchPadButton() {
+  const spButton = $("input[value='Edit Scratch Pad']").clone(true).attr("id", "clonedScratchPadButton");
+  if ($("#clonedSaveButton").length) {
+    $("#clonedSaveButton").replaceWith(spButton);
+  } else {
+    spButton.insertAfter($("h2:contains(Scratch Pad) + p"));
+  }
+  spButton.on("click", function () {
+    setSaveScratchPad();
+  });
+}
+
+function toggleNonMembers() {
+  $(".P-ITEM").each(function () {
+    if ($(this).find("img[alt='Active member']").length == 0) {
+      $(this).toggle();
+    }
+  });
+
+  let mPITEMs = $(".P-ITEM");
+  let foundItem = false;
+  let mPITEM;
+  for (let i = 0; i < mPITEMs.length; i++) {
+    mPITEM = mPITEMs.eq(i);
+    if (mPITEM.find("img[alt='Active member']").length == 0) {
+      foundItem = true;
+      break;
+    }
+  }
+  Cookies.set("onlyMembers", 0);
+  if (foundItem == true) {
+    if (mPITEM.css("display") == "none") {
+      Cookies.set("onlyMembers", 1);
+    }
+  }
+}
+
+async function onlyMembers() {
+  $("p").eq(0).append($("<span class='small'>[<a id='onlyMembers'>only active members</a>]</span>"));
+  $("#onlyMembers").on("click", function () {
+    $("#onlyMembers").toggleClass("active");
+    toggleNonMembers();
+    return;
+  });
+  if (Cookies.get("onlyMembers") == 1) {
+    $("#onlyMembers").toggleClass("active");
+    toggleNonMembers();
+  }
 }
 
 shouldInitializeFeature("usabilityTweaks").then((result) => {
@@ -266,6 +326,12 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
         if (navigator.userAgent.indexOf("Windows NT 10.0") != -1) {
           $("body").addClass("w10");
         }
+      }
+      if (options.addScratchPadButton && isNavHomePage && $("#clonedScratchPadButton").length == 0) {
+        addScratchPadButton();
+      }
+      if (options.onlyMembers && isSearchPage && $("#onlyMembers").length == 0) {
+        onlyMembers();
       }
     });
   }
