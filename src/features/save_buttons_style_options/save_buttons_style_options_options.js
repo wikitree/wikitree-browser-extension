@@ -9,7 +9,7 @@ registerFeature({
   name: "Save Buttons Style Options",
   id: "saveButtonsStyleOptions",
   description: "Turns the Compare and Return (Delete Draft) links in the Save section on the Edit page into buttons.",
-  category: "Global/Style",
+  category: "Editing/Edit_Profile",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
