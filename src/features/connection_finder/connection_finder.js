@@ -304,7 +304,6 @@ function connectionsRelation(relationText) {
   if (isOK(relationText)) {
     arrow = whichArrow(relationText);
   }
-
   if (relationText == "his wife" || relationText == "her husband") {
     relationshipColourNum++;
     if (relationshipColourNum > relationshipColours.length - 1) {
@@ -312,7 +311,6 @@ function connectionsRelation(relationText) {
     }
   }
   relationshipColour = relationshipColours[relationshipColourNum];
-
   return [gender, arrow, relationshipColour, mRelationOut];
 }
 
