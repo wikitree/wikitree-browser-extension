@@ -1,4 +1,18 @@
-#saveButtons p a:first-child,
-.six.columns #saveButtons button:first-child {
-  margin-bottom: 10px;
+#wpSave1 {
+  margin-top: -2em !important;
+}
+#wpSave.button,
+#saveButtons .small.button {
+  padding: 7px 15px !important;
+}
+#saveButtons a.small.button {
+  padding: 6px 15px !important;
+  margin-left: 1em;
+}
+#wpSave.button.big {
+  padding: 13px 30px 14px !important;
+}
+#wpSave.button:first-child,
+#saveButtons p .button:first-child {
+  margin-bottom: 10px !important;
 }
