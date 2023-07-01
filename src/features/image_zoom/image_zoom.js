@@ -80,14 +80,16 @@ function createZoomedImage(src, alt) {
       $("body").css("cursor", "default");
     },
   });
+  /*
   imgElement.dblclick(function () {
     $(".dark-screen").remove();
     imgElement.remove();
   });
+  */
   imgElement.on("wheel", wheelZoomHandler);
   imgElement.on("click", function () {
     let scale = $(this).data("scale") || 1;
-    scale = scale * 1.1; // Choose your scale factor, 1.1 as an example
+    scale = scale * 1.25; // Choose your scale factor, 1.1 as an example
     $(this).css("transform", `scale(${scale})`);
     $(this).data("scale", scale);
   });
@@ -200,7 +202,7 @@ function setupImageZoom() {
       }
 
       let parent = $(this).css({ display: "inline-block", position: "relative" });
-      const overlay = $('<div class="image_zoom_overlay">🔍</div>').appendTo(parent);
+      const overlay = $('<div class="image_zoom_overlay"><span>🔍</span></div>').appendTo(parent);
       overlay.css({
         position: "absolute",
         bottom: "0",

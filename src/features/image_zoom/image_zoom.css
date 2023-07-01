@@ -10,3 +10,9 @@
   cursor: zoom-in; /* Indicate that the overlay is clickable */
   font-size: 0.8em; /* Size of the '+' symbol, Adjust as per your needs */
 }
+.image_zoom_overlay span {
+  visibility: hidden;
+}
+.image_zoom_overlay:hover span {
+  visibility: visible;
+}
