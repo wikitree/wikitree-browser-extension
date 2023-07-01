@@ -26,8 +26,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 /**
  * Parse and validate a WikiTree biography.
- * Gather information about style and the parts needed to validate
- * along with information about the bio and methods to parse and validate
+ * Gathers information about style and the parts needed to validate,
+ * along with information about the bio. Provides methods to parse and validate.
+ * @param theSourceRules {SourceRules} source rules for validating sources
  */
 export class Biography {
   #sourceRules = null; // rules for testing sources
@@ -39,7 +40,7 @@ export class Biography {
   #namedRefStringList = []; // all the <ref> with names
   #headings = [];    // collection of heading lines
   #wrongLevelHeadings = [];   // collection of wrong level 2 headings
-  #researchNotesBoxes = [];   // what research notes boxes are there?
+  #researchNoteBoxes = [];   // what research notes boxes are there?
   #unexpectedLines = [];       // unexpected lines before bio heading
   #missingRnb = [];  // missing Research Note Boxes
   #headingBeforeBiography = false;
@@ -93,7 +94,7 @@ export class Biography {
       bioHasAcknowledgementsBeforeSources: false,
       bioHasUnknownSectionHeadings: false,
       bioCategoryNotAtStart: false,
-      bioMissingResearchNotesBox: false,
+      bioMissingResearchNoteBox: false,
       bioMightHaveEmail: false,
       bioHasSearchString: false,
   };
@@ -143,7 +144,6 @@ export class Biography {
 
   /**
    * Constructor
-   * @param sourceRules {SourceRules} source rules for validating sources
    */
   constructor(theSourceRules) {
     this.#sourceRules = theSourceRules;
@@ -151,10 +151,13 @@ export class Biography {
 
   /**
    * Parse contents of the bio.
-   * Side effects - set statistics and style
-   * @param {String} inStr bio string as returned by API in Wiki format for the profile
-   * @param thePerson {BioCheckPerson} person to check
-   * @param {Boolean} search string to report any profile containing the string
+   * After using this, the contents can be validated. 
+   * Information about the biography style can be accessed via get methods.
+   * @param {String} inStr the bio string. This contains the bio as returned 
+   * by the WikiTree API in Wiki format for the profile. Alternately, it can
+   * be contents obtained from the Edit or Add person pages.
+   * @param {BioCheckPerson} thePerson person to check
+   * @param {String} bioSearchString search string to search for in bio
    */
   parse(inStr, thePerson, bioSearchString) {
     this.#isPre1500 = thePerson.isPre1500();
@@ -184,7 +187,7 @@ export class Biography {
     // swallow any <br>
     this.#bioInputString = this.#swallowBr(this.#bioInputString);
 
-    let haveResearchNotesBox = false;
+    let haveResearchNoteBox = false;
     let haveNavBox = false;
     let haveProjectBox = false;
     let haveBiography = false;
@@ -231,7 +234,7 @@ export class Biography {
         }
         if (line.startsWith(Biography.#CATEGORY_START)) {
           // out of order if RNB, Project Box, Nav Box or Biography heading preceeds
-          if (haveResearchNotesBox || haveNavBox || haveProjectBox || haveBiography) {
+          if (haveResearchNoteBox || haveNavBox || haveProjectBox || haveBiography) {
             this.#style.bioCategoryNotAtStart = true;
           }
           this.#stats.bioHasCategories = true;
@@ -276,7 +279,7 @@ export class Biography {
               partialLine = line.substring(2, j).trim().toLowerCase();
               partialMixedCaseLine = this.#bioLines[currentIndex].substring(2, j).trim();
             }
-            if (this.#sourceRules.isResearchNotesBox(partialLine)) {
+            if (this.#sourceRules.isResearchNoteBox(partialLine)) {
               if (haveProjectBox || haveBiography) {
                 let msg = 'Research Note Box: ' + partialMixedCaseLine + ' should be before ';
                 if (haveProjectBox) {
@@ -294,10 +297,10 @@ export class Biography {
               // maybe propose some standard
 
               // out of order if Project Box or Nav Box or Biography preceeds
-              haveResearchNotesBox = true;
-              this.#researchNotesBoxes.push(partialLine);
+              haveResearchNoteBox = true;
+              this.#researchNoteBoxes.push(partialLine);
 
-              let stat = this.#sourceRules.getResearchNotesBoxStatus(partialLine);
+              let stat = this.#sourceRules.getResearchNoteBoxStatus(partialLine);
               if ((stat.length > 0) && (stat != 'approved')) {
                 let msg = 'Research Note Box: ' + partialMixedCaseLine + ' is ' + stat + ' status';
                 this.#messages.styleMessages.push(msg);
@@ -406,7 +409,9 @@ export class Biography {
 
   /**
    * Validate contents of bio
-   * @returns {Boolean} true if probably valid sources and no style issues, else false
+   * @returns {Boolean} true if sources found. Returns false for empty bio, a profile
+   * with no dates, or a profile that has an Unsourced Research Notes Box or is in
+   * an Unsourced category.
    */
   validate() {
     let isValid = false;
@@ -454,10 +459,11 @@ export class Biography {
   }
 
   /**
-   * Validate contents Sources for adding a new profile
+   * Validate using just a string of sources. This is typically
+   * used when adding a new person in basic mode.
    * @param {String} sourcesStr string containing sources
    * @param thePerson {BioCheckPerson} person to check
-   * @returns {Boolean} true if probably valid sources, else false
+   * @returns {Boolean} true if sources found.
    */
   validateSourcesStr(sourcesStr, thePerson) {
     // build bioLines from the input sources string then validate
@@ -493,7 +499,7 @@ export class Biography {
   }
   /**
    * does bio have Unsourced template or category
-   * @returns {Boolean} true if bio unsourced
+   * @returns {Boolean} true if bio has Unsourced template or category
    */
   isMarkedUnsourced() {
     return this.#stats.bioIsMarkedUnsourced;
@@ -534,13 +540,13 @@ export class Biography {
   hasNonCategoryTextBeforeBiographyHeading() {
     return this.#style.bioHasNonCategoryTextBeforeBiographyHeading;
   }
-  /**
+  /*
    * does bio have section or subsection heading that matches a Research Note Box
-   * but lack the Research Note Box
+   * but lack the corresponding Research Note Box
    * @returns {Boolean} true if bio missing Research Note
    */
-  hasMissingResearchNotesBox() {
-    return this.#style.bioMissingResearchNotesBox;
+  hasMissingResearchNoteBox() {
+    return this.#style.bioMissingResearchNoteBox;
   }
   /**
    * does bio have style issues
@@ -599,7 +605,7 @@ export class Biography {
   isMissingSourcesHeading() {
     return this.#style.bioIsMissingSourcesHeading;
   }
-  /**
+  /*
    * does bio have sources heading with extra =
    * @returns {Boolean} true if bio has sources heading with extra =
    */
@@ -641,7 +647,7 @@ export class Biography {
   hasRefAfterReferences() {
     return this.#style.bioHasRefAfterReferences;
   }
-  /**
+  /*
    * does bio have acknowledgements heading with extra =
    * @returns {Boolean} true if bio has acknowledgements heading with extra =
    */
@@ -664,32 +670,25 @@ export class Biography {
   }
   /** 
    * Return messages for reporting
-   * @returns sectionMessages[]
+   * @returns {Array} sectionMessages[]
    */
   getSectionMessages() {
     return this.#messages.sectionMessages;
   }
   /** 
    * Return messages for reporting
-   * @returns styleMessages[]
+   * @returns {Array} styleMessages[]
    */
   getStyleMessages() {
     return this.#messages.styleMessages;
   }
   /**
    * does bio have search string
-   * @returns {Boolean} true if bio has someting before categories
+   * @returns {Boolean} true if bio has the searchString
+   * that was supplied to the parse() method
    */
   hasSearchString() {
     return this.#style.bioHasSearchString;
-  }
-
-  /**
-   * Return headings
-   * @returns {Array} containing header context objects
-   */
-  getHeadings() {
-    return this.#headings;
   }
 
   // getters for sources results
@@ -1190,7 +1189,7 @@ export class Biography {
       this.#style.bioHasStyleIssues = true;
       this.#messages.sectionMessages.push('Acknowledgements before Sources');
     }
-    if (this.#style.bioMissingResearchNotesBox) {
+    if (this.#style.bioMissingResearchNoteBox) {
       this.#style.bioHasStyleIssues = true;
       for (let i=0; i < this.#missingRnb.length; i++) {
         this.#messages.styleMessages.push('Missing Research Note box for: ' + this.#missingRnb[i]);
@@ -1293,10 +1292,10 @@ export class Biography {
   #findMissingRnb() {
     for (let i=0; i<this.#headings.length; i++) {
       let str = this.#headings[i].headingText.toLowerCase().trim();
-      if (this.#sourceRules.isResearchNotesBox(str)) {
-        if (!this.#researchNotesBoxes.includes(str)) {
+      if (this.#sourceRules.isResearchNoteBox(str)) {
+        if (!this.#researchNoteBoxes.includes(str)) {
            this.#missingRnb.push(this.#headings[i].headingText);
-           this.#style.bioMissingResearchNotesBox = true;;
+           this.#style.bioMissingResearchNoteBox = true;;
         }
       }
     }

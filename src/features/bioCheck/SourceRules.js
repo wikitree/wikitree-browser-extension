@@ -22,8 +22,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 /**
  * Rules for identifying sources in a biography that are not valid.
- * This class is intended to be a singleton and immutable
- * and look like what could be read from database tables
+ * This class is intended to be a singleton and immutable.
+ * Access this class using theSourceRules.
+ * The SourceRules are used to check a biography. The methods do not need to
+ * be explictly used, but are available to test strings against the rules if desired.
+ * They could be used, for example, to test for various headings in multiple languages.
+ * All tests assume that the string to test has been converted to lowercase.
  */
 
 class SourceRules {
@@ -283,6 +287,7 @@ class SourceRules {
     "fellow researcher",
     "my family records",
     "scotland's people",
+    "verified ancestor",
     "wiki, family tree",
     ":'''footnotes:'''",
     "personal research",
@@ -730,6 +735,7 @@ class SourceRules {
     "genealogie.quebec",
     "genealogieonline",
     "geneanet tree",
+    "genealogical registry and database of mennonite ancestry",
     "geni tree",
     "myheritage tree",
     "nos origines",
@@ -941,12 +947,12 @@ class SourceRules {
   }
 
   /**
-   * Determine if a line is a valid Research Notes Box
+   * Determine if a line is a valid Research Note Box
    * assumes the leading {{ removed and line is lower case
    * @param {String} line to test
    * @returns {Boolean} true if research notes box else false
    */
-  isResearchNotesBox(line) {
+  isResearchNoteBox(line) {
     let isFound = false;
     this.#rnb.find((element) => {
       if (element.name === line) {
@@ -957,12 +963,12 @@ class SourceRules {
   }
 
   /**
-   * Return status value for research notes box
+   * Return status value for Research Note Box
    * assumes the leading {{ removed and line is lower case
    * @param {String} line to test
    * @returns {String} status value or blank if not a research notes box
    */
-  getResearchNotesBoxStatus(line) {
+  getResearchNoteBoxStatus(line) {
     let stat = "";
     let isFound = false;
     this.#rnb.find((element) => {
@@ -1004,8 +1010,9 @@ class SourceRules {
   }
 
   /** 
-   * Determine if a line start with an HTML tag
-   * that is recommended for use on WikiTree
+   * Determine if a line starts with an HTML tag
+   * that is recommended for use on WikiTree. 
+   * Typically used for a line that starts with <
    * @param {String} line to test
    * @returns {Boolean} true if recommended else false
    */
@@ -1080,15 +1087,16 @@ class SourceRules {
     return this.lineContainsListEntry(line, this.#validPartialSourceList);
   }
   /**
-   * Determine if found on partial source list
+   * Determine if line is an invalid source when found anywhere on a line
    * @param {String} line input source string
-   * @returns {Boolean} true if found on partial source list, else false
+   * @returns {Boolean} true if found on invalid partial source list, else false
    */
   isInvalidPartialSource(line) {
     return this.lineContainsListEntry(line, this.#invalidPartialSourceList);
   }
   /**
-   * Determine if found on partial source list too old to remember
+   * Determine if line is an invalid source when found anywhere on a line
+   * when the person is too old to remember
    * @param {String} line input source string
    * @returns {Boolean} true if found on too old partial source list, else false
    */
@@ -1096,7 +1104,8 @@ class SourceRules {
     return this.lineContainsListEntry(line, this.#invalidPartialSourceListTooOld);
   }
   /**
-   * Determine if found on partial source list for pre1700
+   * Determine if line is an invalid source when found anywhere on a line
+   * and the person is Pre1700
    * @param {String} line input source string
    * @returns {Boolean} true if found on pre1700 partial source list, else false
    */
@@ -1104,7 +1113,8 @@ class SourceRules {
     return this.lineContainsListEntry(line, this.#invalidPartialSourceListPre1700);
   }
   /**
-   * Determine if found on valid partial source list for pre1700
+   * Determine if line is a valid source if found anywhere on a line 
+   * and the person is Pre1700
    * @param {String} line input source string
    * @returns {Boolean} true if found on pre1700 valid partial source list, else false
    */
@@ -1112,7 +1122,7 @@ class SourceRules {
     return this.lineContainsListEntry(line, this.#validPartialSourceListPre1700);
   }
   /**
-   * Determine if starts with something on the invalid partial source list
+   * Determine if line starts with something on the invalid partial source list
    * @param {String} line input source string
    * @returns {Boolean} true if starts with invalid source, else false
    */

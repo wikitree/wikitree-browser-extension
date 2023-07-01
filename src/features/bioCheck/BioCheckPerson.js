@@ -24,8 +24,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /**
  * Contains information about a WikiTree Profile.
  * Could be a profile obtained via the API in the app
- * or could be a profile in the WikiTree Browser Extension
- * Only contains a subset of the complete set of data available
+ * or could be a profile in the WikiTree Browser Extension.
+ * Only contains a subset of the complete set of data available.
+ * Expects the profile to contain the following fields from the API:
+ * Id,Name,IsLiving,Privacy,Manager,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,
+ * FirstName,RealName,LastNameCurrent,LastNameAtBirth,Mother,Father,DataStatus,Bio
  */
 export class BioCheckPerson {
 
@@ -74,11 +77,11 @@ export class BioCheckPerson {
   }
 
   /**
-   * Build person from profile object from WikiTree API profile object
-   * and determine if it can be used in the App
+   * Build person from WikiTree API profile object
+   * and determine if it can be used to check sources and style
    * @param {Object} profileObj containing the profile as returned from WikiTree APIs
    * @param {Boolean} mustBeOpen true if profile must be open privacy
-   * @param {Boolean} ingorePre1500 true to ignore Pre1500 profiles
+   * @param {Boolean} ignorePre1500 true to ignore Pre1500 profiles
    * @param {String} userId wikiTreeId of the person running the app
    * @returns {Boolean} true if this person can be checked
    */
@@ -309,7 +312,9 @@ export class BioCheckPerson {
   }
 
   /**
-   * Initalize person for browser extension
+   * Initalize person for browser extension.
+   * Uses fields from the web page including mBirthDate, mDeathDate,
+   * mStatusFather, mStatusMother
    */
   build() {
     if (!this.#isApp) {
@@ -369,7 +374,7 @@ export class BioCheckPerson {
     }
   }
 
-  /**
+  /*
    * Convert date from form returned by WikiTree API to a Date
    * The WikiTree API may have 00 for any year, month, day
    * In that case, the value 1 is used
@@ -456,7 +461,7 @@ export class BioCheckPerson {
     return new Date(year, month, day);
   }
 
-  /**
+  /*
    * Check for person that is Pre 1500, Pre1700 or too old to remember
    */
   #checkEarlyDates() {
