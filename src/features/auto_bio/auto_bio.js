@@ -350,28 +350,35 @@ export function convertDate(dateString, outputFormat, status = "") {
   }
 
   // Convert the input date components to a standard format (YYYY-MM-DD)
-  var year, month, day;
-  if (inputFormat == "Y") {
-    year = parseInt(components[0]);
-    outputFormat = "Y";
-  } else if (inputFormat == "MY") {
-    year = parseInt(components[1]);
-    month = convertMonth(components[0]);
-    if (!outputFormat) {
-      outputFormat = "MY";
+  let year,
+    month = 0,
+    day = 0;
+  try {
+    if (inputFormat == "Y") {
+      year = parseInt(components[0]);
+      outputFormat = "Y";
+    } else if (inputFormat == "MY") {
+      year = parseInt(components[1]);
+      month = convertMonth(components[0]);
+      if (!outputFormat) {
+        outputFormat = "MY";
+      }
+    } else if (inputFormat == "MDY") {
+      year = parseInt(components[components.length - 1]);
+      month = convertMonth(components[0]);
+      day = parseInt(components[1]);
+    } else if (inputFormat == "DMY") {
+      year = parseInt(components[2]);
+      month = convertMonth(components[1]);
+      day = parseInt(components[0]);
+    } else if (inputFormat == "ISO") {
+      year = parseInt(components[0]);
+      month = parseInt(components[1]);
+      day = parseInt(components[2]);
     }
-  } else if (inputFormat == "MDY") {
-    year = parseInt(components[components.length - 1]);
-    month = convertMonth(components[0]);
-    day = parseInt(components[1]);
-  } else if (inputFormat == "DMY") {
-    year = parseInt(components[2]);
-    month = convertMonth(components[1]);
-    day = parseInt(components[0]);
-  } else if (inputFormat == "ISO") {
-    year = parseInt(components[0]);
-    month = parseInt(components[1]);
-    day = parseInt(components[2]);
+  } catch (err) {
+    console.error("Error during conversion:", err);
+    return null;
   }
 
   // Convert the date components to the output format
@@ -407,8 +414,13 @@ export function convertDate(dateString, outputFormat, status = "") {
     if (outputFormat == "Y") {
       onlyYears = true;
     }
-    const statusOut = dataStatusWord(status, ISOdate, { needInOn: true, onlyYears: onlyYears });
-    // Check if the statusOut is a symbol, and if so, don't add space
+    let statusOut = "";
+    try {
+      statusOut = dataStatusWord(status, ISOdate, { needInOn: true, onlyYears: onlyYears });
+      // Check if the statusOut is a symbol, and if so, don't add space
+    } catch (error) {
+      console.log("dataStatusWord error:", error);
+    }
     if (["<", ">", "~"].includes(statusOut.trim())) {
       outputDate = statusOut + outputDate.trim();
     } else {
