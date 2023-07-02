@@ -1,18 +1,30 @@
 /* image_zoom.css */
 .image_zoom_overlay {
   position: absolute;
-  bottom: 10px; /* Adjust as per your needs */
-  right: 10px; /* Adjust as per your needs */
+  bottom: 0;
+  right: 0;
   z-index: 10;
   font-weight: normal;
-  color: forestgreen; /* Color of the '+' symbol */
-  padding: 1px 5px; /* Adjust as per your needs */
+  color: forestgreen;
+  padding: 1px 5px;
   cursor: zoom-in; /* Indicate that the overlay is clickable */
-  font-size: 0.8em; /* Size of the '+' symbol, Adjust as per your needs */
+  font-size: 0.8em;
 }
 .image_zoom_overlay span {
   visibility: hidden;
 }
 .image_zoom_overlay:hover span {
   visibility: visible;
+}
+
+.magnifier {
+  position: absolute;
+  pointer-events: none;
+  width: 300px;
+  height: 100px;
+  border: 3px solid #000;
+  box-shadow: 0px 0px 5px 3px rgba(0, 0, 0, 0.5);
+  cursor: none !important;
+  background-repeat: no-repeat;
+  display: none;
 }

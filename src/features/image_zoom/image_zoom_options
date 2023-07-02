@@ -2,13 +2,13 @@
 Created By: Ian Beacall (Beacall-6)
 */
 import { isWikiPage } from "../../core/pageType";
-import { registerFeature } from "../../core/options/options_registry";
+import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 registerFeature({
-  name: "Image Zoom",
+  name: "Image Zoom and Magnifier",
   id: "imageZoom",
   description:
-    "Enable image zooming. Click or tap the 🔍 in the bottom-right of an image " +
+    "Enable image zooming and magnifying. To magnify: hover over the image. To zoom: Click or tap the 🔍 in the bottom-right of an image " +
     "for a full-size image. Zoom in/out with a mouse wheel, or zoom in by clicking or tapping. " +
     "Full-size images can be dragged around with a mouse or touch.",
   category: "Global",
@@ -16,4 +16,18 @@ registerFeature({
   contributors: [],
   defaultValue: false,
   pages: [isWikiPage],
+  options: [
+    {
+      id: "zoomInPlace",
+      type: OptionType.CHECKBOX,
+      label: "Zoom in place (with the mouse wheel)",
+      defaultValue: true,
+    },
+    {
+      id: "addMagnifier",
+      type: OptionType.CHECKBOX,
+      label: "Add magnifier",
+      defaultValue: true,
+    },
+  ],
 });
