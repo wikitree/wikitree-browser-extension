@@ -260,7 +260,7 @@ function fixLocations() {
         if (country.name == lastLocationBit) {
           let aNote;
           if (window.autoBioOptions?.nativeNames) {
-            if (country.name != country.nativeName) {
+            if (country.name != country.nativeName && country.name != "Ireland") {
               if (locationBits.length == 1) {
                 event.Location = country.nativeName;
               } else {
@@ -268,7 +268,7 @@ function fixLocations() {
               }
             }
           } else {
-            if (country.name != country.nativeName) {
+            if (country.name != country.nativeName && country.name != "Ireland") {
               aNote =
                 "The native name for the country of " +
                 event.Event +
