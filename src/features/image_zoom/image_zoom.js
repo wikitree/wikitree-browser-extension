@@ -15,7 +15,7 @@ let showMagnifier = false;
 let isZoomInPlace = false;
 
 function wheelZoomHandler(e) {
-  if (!wheelZoomEnabled) {
+  if (!wheelZoomEnabled || !isZoomInPlace) {
     e.preventDefault();
     return;
   }
@@ -84,9 +84,10 @@ function createZoomedImage(src, alt) {
   });
   imgElement.appendTo("body");
 
-  if (window.imageZoomOptions?.zoomInPlace) {
-    imgElement.on("wheel", wheelZoomHandler);
-  }
+  //if (window.imageZoomOptions?.zoomInPlace) {
+  wheelZoomEnabled = true;
+  imgElement.on("wheel", wheelZoomHandler);
+  //}
   imgElement.on("click", function () {
     let scale = $(this).data("scale") || 1;
     let newScale = scale * 1.1; // Choose your scale factor, 1.1 as an example
@@ -116,6 +117,7 @@ function createZoomedImage(src, alt) {
         imgElement.data("scale", 1);
         // Re-center the image
         centreImage(imgElement);
+        $("#magnifier").hide();
       }
     });
 
@@ -203,72 +205,71 @@ function setupDarkScreen(zoomedImage) {
   });
 }
 
+function toggleMagnifier() {
+  showMagnifier = !showMagnifier;
+  updateFeatureOptions("imageZoom", "showMagnifier", showMagnifier);
+  showToggleMessage("showMagnifier", "Magnifier", showMagnifier);
+}
+function toggleZoomInPlace() {
+  isZoomInPlace = !isZoomInPlace;
+  updateFeatureOptions("imageZoom", "zoomInPlace", isZoomInPlace);
+  showToggleMessage("zoomInPlace", "Zoom in Place", isZoomInPlace);
+}
+function showToggleMessage(option, optionText, optionValue) {
+  let messageWord = optionValue ? "enabled" : "disabled";
+  $("<div class='toggle-message'>" + optionText + " " + messageWord + "</div>")
+    .appendTo("body")
+    .delay(1000)
+    .fadeOut(2000, function () {
+      $(this).remove();
+    });
+}
+
+function updateFeatureOptions(featureName, optionName, optionValue) {
+  getFeatureOptions(featureName).then((optionsData) => {
+    optionsData[optionName] = optionValue;
+    const storageName = featureName + "_options";
+    chrome.storage.sync.set({
+      [storageName]: optionsData,
+    });
+  });
+}
+
+// Helper function to create buttons and attach event listeners
+function createButton(id, text, clickEvent, accessKey) {
+  const button = $(`<button id='${id}'>${text}</button>`)
+    .appendTo("body")
+    .on("click", clickEvent)
+    .attr("accessKey", accessKey);
+  return button;
+}
+
 async function setupImageZoom() {
   window.imageZoomOptions = await getFeatureOptions("imageZoom");
   showMagnifier = window.imageZoomOptions?.showMagnifier || false;
   isZoomInPlace = window.imageZoomOptions?.zoomInPlace || false;
-
-  let keysPressed = {};
-
-  $(document).on("keydown", function (e) {
-    keysPressed[e.key] = true;
-    if (!["Shift", "Alt", "M", "m", "Z", "z"].includes(e.key)) {
-      keysPressed = {};
-    }
-
-    if (keysPressed["Shift"] && keysPressed["Alt"] && (keysPressed["M"] || keysPressed["m"])) {
-      // all three keys are pressed
-      showMagnifier = !showMagnifier;
-
-      // Show a little message to the user
-      let messageWord = showMagnifier ? "enabled" : "disabled";
-
-      $("<div class='magnifier-message'>Magnifier " + messageWord + "</div>")
-        .appendTo("body")
-        .delay(1000)
-        .fadeOut(1000, function () {
-          $(this).remove();
-        });
-
-      keysPressed = {};
-
-      // Update options
-      getFeatureOptions("imageZoom").then((optionsData) => {
-        optionsData.showMagnifier = showMagnifier;
-        const storageName = "imageZoom_options";
-        chrome.storage.sync.set({
-          [storageName]: optionsData,
-        });
-      });
-    } else if (keysPressed["Shift"] && keysPressed["Alt"] && (keysPressed["Z"] || keysPressed["z"])) {
-      // all three keys are pressed
-      isZoomInPlace = !isZoomInPlace;
-
-      // Show a little message to the user
-      let messageWord = isZoomInPlace ? "enabled" : "disabled";
-
-      $("<div class='magnifier-message'>Zoom In Place " + messageWord + "</div>")
-        .appendTo("body")
-        .delay(1000)
-        .fadeOut(1000, function () {
-          $(this).remove();
-        });
-
-      keysPressed = {};
-
-      // Update options
-      getFeatureOptions("imageZoom").then((optionsData) => {
-        optionsData.zoomInPlace = isZoomInPlace;
-        const storageName = "imageZoom_options";
-        chrome.storage.sync.set({
-          [storageName]: optionsData,
-        });
-      });
-    }
-  });
+  // Simplified button creation
+  createButton(
+    "toggleZoomInPlace",
+    "Toggle Zoom in Place",
+    (e) => {
+      e.preventDefault();
+      toggleZoomInPlace();
+    },
+    "z"
+  );
+  createButton(
+    "toggleMagnifier",
+    "Toggle Magnifier",
+    (e) => {
+      e.preventDefault();
+      toggleMagnifier();
+    },
+    "m"
+  );
 
   let images = $("a:has(img.scale-with-grid), a:has(img[src*='thumb']:not(.commenter-image))");
-  const magnifier = $('<div class="magnifier"></div>').appendTo("body");
+  const magnifier = $('<div id="magnifier"></div>').appendTo("body");
 
   images.each(function () {
     let img = $(this).find("img");
@@ -355,6 +356,8 @@ async function setupImageZoom() {
           } else {
             // If already magnifying, update the magnifier immediately
             updateMagnifier(event, img, magnifier, imgSrc);
+            magnifier.addClass("magnifierActive");
+            $("img").addClass("magnifierActive");
           }
         }
         event.stopPropagation(); // stop event propagation to prevent it from reaching other elements
@@ -377,34 +380,31 @@ async function setupImageZoom() {
       //}
 
       img.addClass("zoomable");
-      if (window.imageZoomOptions?.zoomInPlace) {
-        img.on("wheel", function (e) {
-          wheelZoomHandler.call(this, e);
-        });
-        img.on("mouseenter", function (e) {
-          wheelZoomTimeoutId = setTimeout(
-            function () {
-              enableWheelZoom(e);
-            }.bind(this),
-            1500
-          );
-        });
+      //if (window.imageZoomOptions?.zoomInPlace) {
+      img.on("wheel", function (e) {
+        wheelZoomHandler.call(this, e);
+      });
+      img.on("mouseenter", function (e) {
+        wheelZoomTimeoutId = setTimeout(
+          function () {
+            enableWheelZoom(e);
+          }.bind(this),
+          1500
+        );
+      });
 
-        img.on("mouseleave", function () {
-          clearTimeout(wheelZoomTimeoutId);
-          wheelZoomEnabled = false;
-          $(this).attr("style", "cursor: auto");
-        });
-      }
+      img.on("mouseleave", function () {
+        clearTimeout(wheelZoomTimeoutId);
+        wheelZoomEnabled = false;
+        $(this).removeClass("magnifierActive");
+        $("img").removeClass("magnifierActive");
+      });
+      // }
       overlay.show();
     }
   });
   function enableWheelZoom(e) {
     wheelZoomEnabled = true;
-    $(e.target).attr(
-      "style",
-      "cursor: url('https://apps.wikitree.com/apps/beacall6/images/wheel-icon24.png'), auto !important;"
-    );
   }
 }
 
@@ -432,5 +432,6 @@ function updateMagnifier(event, img, magnifier, imgSrc) {
     "background-image": `url(${imgSrc})`,
     display: "block",
     "background-size": `${img.width() * 2}px ${img.height() * 2}px`,
+    cursor: "none !important",
   });
 }

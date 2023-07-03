@@ -8,16 +8,16 @@
   color: forestgreen;
   padding: 1px 5px;
   cursor: zoom-in; /* Indicate that the overlay is clickable */
-  font-size: 0.8em;
+  font-size: 1em;
 }
 .image_zoom_overlay span {
   visibility: hidden;
 }
-.image_zoom_overlay:hover span {
+.zoomable:hover + div span {
   visibility: visible;
 }
 
-.magnifier {
+#magnifier {
   position: absolute;
   pointer-events: none;
   width: 300px;
@@ -30,7 +30,7 @@
   z-index: 1000000;
 }
 
-.magnifier-message {
+.toggle-message {
   position: fixed;
   top: 50%;
   left: 50%;
@@ -40,4 +40,13 @@
   padding: 10px;
   border-radius: 5px;
   z-index: 9999999;
+}
+
+#toggleMagnifier,
+#toggleZoomInPlace {
+  display: none;
+}
+
+.magnifierActive {
+  cursor: none !important;
 }
