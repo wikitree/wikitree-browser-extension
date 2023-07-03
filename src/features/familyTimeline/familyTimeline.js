@@ -403,7 +403,7 @@ export function timeline(id = false) {
         `<div class='wrap' class='timeline' data-wtid='${person.Name}'><w>↔</w><x>x</x><table class='timelineTable'>` +
           `<caption>Events in the life of ${person.FirstName}'s family</caption><thead><th class='tlDate'>Date</th>` +
           `<th class='tlBioAge'>Age</th><th class='tlEventDescription'>Event</th><th class='tlEventLocation'>Location</th>` +
-          `</thead></table></div>`
+          `</thead><tbody></tbody></table></div>`
       );
       // Attach the table to the container div
       let theContainer = $("div.container.full-width");
@@ -525,7 +525,7 @@ export function timeline(id = false) {
         const tlTR = $(
           "<tr class='" + classText + "'>" + tlDate + tlBioAge + tlEventDescription + tlEventLocation + "</tr>"
         );
-        aTimeline.append(tlTR);
+        aTimeline.find("tbody").append(tlTR);
         if (aFact.evnt == "Death" && aFact.wtId == person.Name) {
           bpDead = true;
           bpDeadAge = bpAgeAtEvent;
