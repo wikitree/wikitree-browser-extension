@@ -4150,12 +4150,12 @@ export function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        /Huwelijk|Trouwen|'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage -|citing.*Marriage|> Marriages/
+        /Huwelijk|Trouwen|'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage (Registration )?Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage -|citing.*Marriage|> Marriages/
       ) ||
       aRef["Marriage Date"]
     ) {
-      const dateMatch = aRef.Text.match(/\b\d{1,2}\s\w{3}\s1[89]\d{2}\b/);
-      const dateMatch2 = aRef.Text.match(/\s(1[89]\d{2})\b(?!-)/);
+      const dateMatch = aRef.Text.match(/\b\d{1,2}\s\w{3}\s1[6789]\d{2}\b/);
+      const dateMatch2 = aRef.Text.match(/\s(1[6789]\d{2})\b(?!-)/);
       aRef["Record Type"].push("Marriage");
       if (dateMatch) {
         aRef["Marriage Date"] = dateMatch[0];
@@ -4851,6 +4851,118 @@ async function getStickersAndBoxes() {
                 );
               }
               thingsToAddAfterBioHeading.push(ONSsticker);
+            }
+          });
+        }
+      }
+      if (window.autoBioOptions?.australiaBornStickers) {
+        let colonies = {
+          "Colony of New South Wales": {
+            bornInLabel: "{{Australia Born in Colony|colony=Colony of New South Wales}}",
+            yearRange: [1788, 1900],
+          },
+          "Van Diemen's Land": {
+            bornInLabel: "{{Australia Born in Colony|colony=Van Diemen's Land}}",
+            yearRange: [1826, 1856],
+          },
+          "Swan River Colony": {
+            bornInLabel: "{{Australia Born in Colony|colony=Swan River Colony}}",
+            yearRange: [1828, 1832],
+          },
+          "Colony of South Australia": {
+            bornInLabel: "{{Australia Born in Colony|colony=Colony of South Australia}}",
+            yearRange: [1836, 1900],
+          },
+          "Colony of Victoria": {
+            bornInLabel: "{{Australia Born in Colony|colony=Colony of Victoria}}",
+            yearRange: [1851, 1900],
+          },
+          "Colony of Tasmania": {
+            bornInLabel: "{{Australia Born in Colony|colony=Colony of Tasmania}}",
+            yearRange: [1856, 1900],
+          },
+          "Colony of Queensland": {
+            bornInLabel: "{{Australia Born in Colony|colony=Colony of Queensland}}",
+            yearRange: [1859, 1900],
+          },
+          "Colony of Western Australia": {
+            bornInLabel: "{{Australia Born in Colony|colony=Colony of Western Australia}}",
+            yearRange: [1832, 1900],
+          },
+          "Australian Capital Territory": {
+            bornInLabel: "{{Australia Sticker|Capital Territory}}",
+            yearRange: [1901],
+          },
+          "Northern Territory of Australia": {
+            bornInLabel: "{{Australia Sticker|Northern Territory}}",
+            yearRange: [1901],
+          },
+          "New South Wales, Australia": {
+            bornInLabel: "{{Australia Sticker|New South Wales}}",
+            yearRange: [1901],
+          },
+          "Victoria, Australia": {
+            bornInLabel: "{{Australia Sticker|Victoria}}",
+            yearRange: [1901],
+          },
+          "Queensland, Australia": {
+            bornInLabel: "{{Australia Sticker|Queensland}}",
+            yearRange: [1901],
+          },
+          "South Australia, Australia": {
+            bornInLabel: "{{Australia Sticker|South Australia}}",
+            yearRange: [1901],
+          },
+          "Western Australia, Australia": {
+            bornInLabel: "{{Australia Sticker|Western Australia}}",
+            yearRange: [1901],
+          },
+          "Tasmania, Australia": {
+            bornInLabel: "{{Australia Sticker|Tasmania}}",
+            yearRange: [1901],
+          },
+          "Keeling Islands, Australia": {
+            bornInLabel: "{{Australia Sticker|Keeling Islands}}",
+            yearRange: [1901],
+          },
+          "Cocos Islands, Australia": {
+            bornInLabel: "{{Australia Sticker|Cocos Islands}}",
+            yearRange: [1901],
+          },
+          "Christmas Island, Australia": {
+            bornInLabel: "{{Australia Sticker|Christmas Island}}",
+            yearRange: [1901],
+          },
+          "Norfolk Island, Australia": {
+            bornInLabel: "{{Australia Sticker|Norfolk Island}}",
+            yearRange: [1901],
+          },
+          Australia: {
+            bornInLabel: "{{Australia Sticker}}",
+            yearRange: [1901],
+          },
+        };
+
+        const australiaKeys = Object.keys(colonies);
+        const birthPlace = window.profilePerson.BirthLocation;
+        if (birthPlace) {
+          let gotBirthSticker = false;
+          australiaKeys.forEach(function (colony) {
+            if (birthPlace.includes(colony) && !gotBirthSticker) {
+              const yearMatch = window.profilePerson.BirthDate?.match(/\d{4}/);
+              if (yearMatch) {
+                const year = parseInt(yearMatch[0]);
+                if (year) {
+                  const endYear = colonies[colony].yearRange[1] || 3000;
+                  if (year >= colonies[colony].yearRange[0] && year <= endYear) {
+                    console.log(`Year falls in the range. Attempting to add sticker.`);
+                    if (!thingsToAddAfterBioHeading?.includes(colonies[colony].bornInLabel)) {
+                      thingsToAddAfterBioHeading.push(colonies[colony].bornInLabel);
+                      gotBirthSticker = true;
+                    }
+                  }
+                }
+              }
             }
           });
         }

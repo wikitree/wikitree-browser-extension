@@ -290,6 +290,12 @@ const autoBio = {
           defaultValue: true,
         },
         {
+          id: "australiaBornStickers",
+          type: OptionType.CHECKBOX,
+          label: "Add Australia '... born in' stickers",
+          defaultValue: true,
+        },
+        {
           id: "unsourced",
           type: OptionType.RADIO,
           label: "Add Unsourced template/category to unsourced profiles",
