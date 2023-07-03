@@ -9,7 +9,17 @@ shouldInitializeFeature("imageZoom").then((result) => {
   }
 });
 
+let wheelZoomTimeoutId = null;
+let wheelZoomEnabled = false;
+let showMagnifier = false;
+let isZoomInPlace = false;
+
 function wheelZoomHandler(e) {
+  if (!wheelZoomEnabled) {
+    e.preventDefault();
+    return;
+  }
+
   e.preventDefault();
   const delta = Math.sign(e.originalEvent.deltaY);
   let scaleFactor;
@@ -195,7 +205,68 @@ function setupDarkScreen(zoomedImage) {
 
 async function setupImageZoom() {
   window.imageZoomOptions = await getFeatureOptions("imageZoom");
-  console.log(window.imageZoomOptions);
+  showMagnifier = window.imageZoomOptions?.showMagnifier || false;
+  isZoomInPlace = window.imageZoomOptions?.zoomInPlace || false;
+
+  let keysPressed = {};
+
+  $(document).on("keydown", function (e) {
+    keysPressed[e.key] = true;
+    if (!["Shift", "Alt", "M", "m", "Z", "z"].includes(e.key)) {
+      keysPressed = {};
+    }
+
+    if (keysPressed["Shift"] && keysPressed["Alt"] && (keysPressed["M"] || keysPressed["m"])) {
+      // all three keys are pressed
+      showMagnifier = !showMagnifier;
+
+      // Show a little message to the user
+      let messageWord = showMagnifier ? "enabled" : "disabled";
+
+      $("<div class='magnifier-message'>Magnifier " + messageWord + "</div>")
+        .appendTo("body")
+        .delay(1000)
+        .fadeOut(1000, function () {
+          $(this).remove();
+        });
+
+      keysPressed = {};
+
+      // Update options
+      getFeatureOptions("imageZoom").then((optionsData) => {
+        optionsData.showMagnifier = showMagnifier;
+        const storageName = "imageZoom_options";
+        chrome.storage.sync.set({
+          [storageName]: optionsData,
+        });
+      });
+    } else if (keysPressed["Shift"] && keysPressed["Alt"] && (keysPressed["Z"] || keysPressed["z"])) {
+      // all three keys are pressed
+      isZoomInPlace = !isZoomInPlace;
+
+      // Show a little message to the user
+      let messageWord = isZoomInPlace ? "enabled" : "disabled";
+
+      $("<div class='magnifier-message'>Zoom In Place " + messageWord + "</div>")
+        .appendTo("body")
+        .delay(1000)
+        .fadeOut(1000, function () {
+          $(this).remove();
+        });
+
+      keysPressed = {};
+
+      // Update options
+      getFeatureOptions("imageZoom").then((optionsData) => {
+        optionsData.zoomInPlace = isZoomInPlace;
+        const storageName = "imageZoom_options";
+        chrome.storage.sync.set({
+          [storageName]: optionsData,
+        });
+      });
+    }
+  });
+
   let images = $("a:has(img.scale-with-grid), a:has(img[src*='thumb']:not(.commenter-image))");
   const magnifier = $('<div class="magnifier"></div>').appendTo("body");
 
@@ -223,7 +294,6 @@ async function setupImageZoom() {
       });
       overlay.on({
         mousedown: function (e) {
-          console.log("overlay clicked");
           e.preventDefault();
           e.stopPropagation();
           let zoomedImage = createZoomedImage(imgSrc, imgAlt);
@@ -262,38 +332,105 @@ async function setupImageZoom() {
       });
 
       // Add the magnifying glass functionality
-      if (window.imageZoomOptions?.addMagnifier) {
-        img.parent().on("mousemove", function (event) {
-          const imgOffset = img.offset();
-          const xPos = event.pageX - imgOffset.left;
-          const yPos = event.pageY - imgOffset.top;
+      //if (window.imageZoomOptions?.addMagnifier) {
+      img.parent().on("mouseenter", function () {
+        // Store the image title and then remove it
+        imgTitle = img.attr("title");
+        img.attr("title", "");
+      });
 
-          const overlaySize = 30; // size of your overlay in pixels
-
-          // Check if cursor is within the overlay area
-          if (yPos > img.height() - overlaySize && xPos > img.width() - overlaySize) {
-            magnifier.css("display", "none");
-            return;
+      img.parent().on("mousemove", function (event) {
+        let scale = img.data("scale") || 1;
+        if (scale !== 1) {
+          magnifier.hide();
+          return;
+        }
+        if (showMagnifier) {
+          if (!isMagnifying) {
+            // If not currently magnifying, set a timer to start magnification
+            timeoutId = setTimeout(() => {
+              isMagnifying = true;
+              updateMagnifier(event, img, magnifier, imgSrc);
+            }, 1500);
+          } else {
+            // If already magnifying, update the magnifier immediately
+            updateMagnifier(event, img, magnifier, imgSrc);
           }
+        }
+        event.stopPropagation(); // stop event propagation to prevent it from reaching other elements
+      });
 
-          magnifier.css({
-            "background-position": `${-xPos * 2 + magnifier.width() / 2}px ${-yPos * 2 + magnifier.height() / 2}px`,
-            left: `${event.pageX - magnifier.width() / 2}px`,
-            top: `${event.pageY - magnifier.height() / 2}px`,
-            "background-image": `url(${imgSrc})`,
-            display: "block",
-            "background-size": `${img.width() * 2}px ${img.height() * 2}px`,
-          });
-        });
-
-        $(document).on("mouseout", function () {
+      img.parent().on("mouseout wheel", function () {
+        // When mouse leaves the image, clear the timer and reset the flag
+        clearTimeout(timeoutId);
+        isMagnifying = false;
+        img.attr("title", imgTitle);
+        // If magnifier is showing, hide it
+        if (magnifier.css("display") !== "none") {
           magnifier.css("display", "none");
-        });
-      }
+        }
+      });
+
+      magnifier.on("mousemove", function (event) {
+        event.stopPropagation(); // Prevent the magnifier from triggering the mousemove event
+      });
+      //}
 
       img.addClass("zoomable");
-      img.on("wheel", wheelZoomHandler);
+      if (window.imageZoomOptions?.zoomInPlace) {
+        img.on("wheel", function (e) {
+          wheelZoomHandler.call(this, e);
+        });
+        img.on("mouseenter", function (e) {
+          wheelZoomTimeoutId = setTimeout(
+            function () {
+              enableWheelZoom(e);
+            }.bind(this),
+            1500
+          );
+        });
+
+        img.on("mouseleave", function () {
+          clearTimeout(wheelZoomTimeoutId);
+          wheelZoomEnabled = false;
+          $(this).attr("style", "cursor: auto");
+        });
+      }
       overlay.show();
     }
+  });
+  function enableWheelZoom(e) {
+    wheelZoomEnabled = true;
+    $(e.target).attr(
+      "style",
+      "cursor: url('https://apps.wikitree.com/apps/beacall6/images/wheel-icon24.png'), auto !important;"
+    );
+  }
+}
+
+let timeoutId;
+let isMagnifying = false;
+let imgTitle;
+
+function updateMagnifier(event, img, magnifier, imgSrc) {
+  const imgOffset = img.offset();
+  const xPos = event.pageX - imgOffset.left;
+  const yPos = event.pageY - imgOffset.top;
+
+  const overlaySize = 30; // size of your overlay in pixels
+
+  // Check if cursor is within the overlay area
+  if (yPos > img.height() - overlaySize && xPos > img.width() - overlaySize) {
+    magnifier.css("display", "none");
+    return;
+  }
+
+  magnifier.css({
+    "background-position": `${-xPos * 2 + magnifier.width() / 2}px ${-yPos * 2 + magnifier.height() / 2}px`,
+    left: `${event.pageX - magnifier.width() / 2}px`,
+    top: `${event.pageY - magnifier.height() / 2}px`,
+    "background-image": `url(${imgSrc})`,
+    display: "block",
+    "background-size": `${img.width() * 2}px ${img.height() * 2}px`,
   });
 }

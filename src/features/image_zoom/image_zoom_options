@@ -24,10 +24,10 @@ registerFeature({
       defaultValue: true,
     },
     {
-      id: "addMagnifier",
+      id: "showMagnifier",
       type: OptionType.CHECKBOX,
-      label: "Add magnifier",
-      defaultValue: true,
+      label: "Show magnifier",
+      defaultValue: false,
     },
   ],
 });
