@@ -5470,6 +5470,7 @@ export function addLocationCategoryToStuffBeforeTheBio(location) {
   if (location) {
     const theCategory = "[[Category: " + location + "]]";
     const theCategoryWithoutSpace = "[[Category:" + location + "]]";
+    const excludedCategories = ["Acadie"];
 
     let notInTextBeforeTheBio = true;
     if (window.textBeforeTheBio) {
@@ -5483,7 +5484,8 @@ export function addLocationCategoryToStuffBeforeTheBio(location) {
     if (
       !window.sectionsObject["StuffBeforeTheBio"].text?.includes(theCategory) &&
       !window.sectionsObject["StuffBeforeTheBio"].text?.includes(theCategoryWithoutSpace) &&
-      notInTextBeforeTheBio
+      notInTextBeforeTheBio &&
+      !excludedCategories.includes(location)
     ) {
       window.sectionsObject["StuffBeforeTheBio"].text.push(theCategory);
     }
