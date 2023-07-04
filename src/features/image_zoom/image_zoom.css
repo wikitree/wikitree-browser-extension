@@ -16,6 +16,10 @@
 .zoomable:hover + div span {
   visibility: visible;
 }
+.image_zoom_overlay:hover span,
+.image_zoom_overlay span:hover {
+  visibility: visible;
+}
 
 #magnifier {
   position: absolute;

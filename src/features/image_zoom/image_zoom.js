@@ -16,7 +16,6 @@ let isZoomInPlace = false;
 
 function wheelZoomHandler(e) {
   if (!wheelZoomEnabled || !isZoomInPlace) {
-    e.preventDefault();
     return;
   }
 
@@ -417,7 +416,7 @@ function updateMagnifier(event, img, magnifier, imgSrc) {
   const xPos = event.pageX - imgOffset.left;
   const yPos = event.pageY - imgOffset.top;
 
-  const overlaySize = 30; // size of your overlay in pixels
+  const overlaySize = 50; // size of your overlay in pixels
 
   // Check if cursor is within the overlay area
   if (yPos > img.height() - overlaySize && xPos > img.width() - overlaySize) {
