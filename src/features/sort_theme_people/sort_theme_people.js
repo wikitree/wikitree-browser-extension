@@ -188,10 +188,11 @@ async function connectionsBanner() {
               } else {
                 linkText = "closely-connected";
               }
-              let cfTitle = hpHTML
-                .find("a[href*='" + linkText + "'][title*='G2G post']")
-                .eq(0)
-                .text();
+              let cfTitleAs = hpHTML.find("a[href*='" + linkText + "'][title*='G2G post']");
+              let cfTitle = cfTitleAs.eq(0).text();
+              if (cfTitle == "") {
+                cfTitle = cfTitleAs.eq(1).text();
+              }
 
               let gotFromShogen = false;
               if (isOK(cfTitle) && isOK(localStorage.shogenCFTitleData)) {
