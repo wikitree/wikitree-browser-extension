@@ -23,6 +23,152 @@ import { isIansProfile } from "../../core/pageType";
 import ONSjson from "./ONS.json";
 import Cookies from "js-cookie";
 
+const australianLocations = {
+  "Colony of New South Wales": {
+    bornInLabel: "{{Australia Born in Colony|colony=Colony of New South Wales}}",
+    yearRange: [1788, 1900],
+    startDate: "1788-02-07",
+    endDate: "1900-12-31",
+  },
+  "Van Diemen's Land": {
+    bornInLabel: "{{Australia Born in Colony|colony=Van Diemen's Land}}",
+    yearRange: [1825, 1855],
+    startDate: "1825-12-03",
+    endDate: "1855-12-31",
+    previousName: "Colony of New South Wales",
+  },
+  "Swan River Colony": {
+    bornInLabel: "{{Australia Born in Colony|colony=Swan River Colony}}",
+    yearRange: [1829, 1832],
+    startDate: "1829-05-02",
+    endDate: "1832-02-05",
+    previousName: "Colony of New South Wales",
+  },
+  "Colony of South Australia": {
+    bornInLabel: "{{Australia Born in Colony|colony=Colony of South Australia}}",
+    yearRange: [1836, 1900],
+    startDate: "1836-12-28",
+    endDate: "1900-12-31",
+  },
+  "Colony of Victoria": {
+    bornInLabel: "{{Australia Born in Colony|colony=Colony of Victoria}}",
+    yearRange: [1851, 1900],
+    startDate: "1851-07-01",
+    endDate: "1900-12-31",
+    previousName: "Colony of New South Wales",
+  },
+  "Colony of Tasmania": {
+    bornInLabel: "{{Australia Born in Colony|colony=Colony of Tasmania}}",
+    yearRange: [1856, 1900],
+    startDate: "1856-01-01",
+    endDate: "1900-12-31",
+    previousName: "Van Diemen's Land",
+  },
+  "Colony of Queensland": {
+    bornInLabel: "{{Australia Born in Colony|colony=Colony of Queensland}}",
+    yearRange: [1859, 1900],
+    startDate: "1859-06-06",
+    endDate: "1900-12-31",
+    previousName: "Colony of New South Wales",
+  },
+  "Colony of Western Australia": {
+    bornInLabel: "{{Australia Born in Colony|colony=Colony of Western Australia}}",
+    yearRange: [1832, 1900],
+    startDate: "1832-02-06",
+    endDate: "1900-12-31",
+    previousName: "Swan River Colony",
+  },
+  "Australian Capital Territory": {
+    bornInLabel: "{{Australia Sticker|Capital Territory}}",
+    yearRange: [1911],
+    startDate: "1911-01-01",
+    endDate: null,
+  },
+  "Northern Territory of Australia": {
+    bornInLabel: "{{Australia Sticker|Northern Territory}}",
+    yearRange: [1911],
+    startDate: "1911-01-01",
+    endDate: null,
+    previousName: "Colony of South Australia",
+  },
+  "New South Wales, Australia": {
+    bornInLabel: "{{Australia Sticker|New South Wales}}",
+    yearRange: [1901],
+    startDate: "1901-01-01",
+    endDate: null,
+    previousName: "Colony of New South Wales",
+  },
+  "Victoria, Australia": {
+    bornInLabel: "{{Australia Sticker|Victoria}}",
+    yearRange: [1901],
+    startDate: "1901-01-01",
+    endDate: null,
+    previousName: "Colony of Victoria",
+  },
+  "Queensland, Australia": {
+    bornInLabel: "{{Australia Sticker|Queensland}}",
+    yearRange: [1901],
+    startDate: "1901-01-01",
+    endDate: null,
+    previousName: "Colony of Queensland",
+  },
+  "South Australia, Australia": {
+    bornInLabel: "{{Australia Sticker|South Australia}}",
+    yearRange: [1901],
+    startDate: "1901-01-01",
+    endDate: null,
+    previousName: "Colony of South Australia",
+  },
+  "Western Australia, Australia": {
+    bornInLabel: "{{Australia Sticker|Western Australia}}",
+    yearRange: [1901],
+    startDate: "1901-01-01",
+    endDate: null,
+    previousName: "Colony of Western Australia",
+  },
+  "Tasmania, Australia": {
+    bornInLabel: "{{Australia Sticker|Tasmania}}",
+    yearRange: [1901],
+    startDate: "1901-01-01",
+    endDate: null,
+    previousName: "Colony of Tasmania",
+  },
+  "Keeling Islands, Australia": {
+    bornInLabel: "{{Australia Sticker|Keeling Islands}}",
+    yearRange: [1901],
+    startDate: "1901-01-01",
+    endDate: null,
+    previousName: "Colony of Western Australia",
+  },
+  "Cocos Islands, Australia": {
+    bornInLabel: "{{Australia Sticker|Cocos Islands}}",
+    yearRange: [1901],
+    startDate: "1901-01-01",
+    endDate: null,
+    previousName: "Colony of Western Australia",
+  },
+  "Christmas Island, Australia": {
+    bornInLabel: "{{Australia Sticker|Christmas Island}}",
+    yearRange: [1901],
+    startDate: "1901-01-01",
+    endDate: null,
+    previousName: "Colony of Western Australia",
+  },
+  "Norfolk Island, Australia": {
+    bornInLabel: "{{Australia Sticker|Norfolk Island}}",
+    yearRange: [1901],
+    startDate: "1901-01-01",
+    endDate: null,
+    previousName: "Colony of New South Wales",
+  },
+  Australia: {
+    bornInLabel: "{{Australia Sticker}}",
+    yearRange: [1901],
+    startDate: "1901-01-01",
+    endDate: null,
+  },
+};
+
 /**
 Returns a status word based on the input status and optional needOnIn parameter, with an optional ISO date string parameter.
 @function
@@ -241,6 +387,42 @@ function fixLocations() {
 
     if (window.autoBioOptions?.checkUS && isOK(event.Date)) {
       event = fixUSLocation(event);
+    }
+
+    if (window.autoBioOptions?.checkAustralia && isOK(event.Date)) {
+      const locationKeys = Object.keys(australianLocations);
+      let foundLocationMatch = false;
+
+      locationKeys.forEach(function (key) {
+        if (foundLocationMatch) return; // Exit the loop if a match has been found already
+
+        // Check for places without the country name
+        const addedAustralia = lastLocationBit + ", Australia";
+
+        if (event.Location.includes(key) || addedAustralia == key) {
+          // Check if the event date is within the location's year range
+          const yearRange = australianLocations[key]["yearRange"];
+          const afterStart = isSameDateOrAfter(event.Date, yearRange["startDate"]);
+          const beforeEnd = yearRange["endDate"] ? !isSameDateOrAfter(event.Date, yearRange["endDate"]) : true;
+
+          if (afterStart && beforeEnd) {
+            foundLocationMatch = true;
+          } else if ("previousName" in australianLocations[key]) {
+            // If the date is out of range, consider the previousName (if any)
+            if (event.Location.includes(australianLocations[key]["previousName"])) {
+              foundLocationMatch = true;
+            }
+          }
+        }
+      });
+
+      if (foundLocationMatch) {
+        // Do something if a match was found
+        console.log("Match found: ", event.Location);
+      } else {
+        // Do something if no match was found
+        console.log("No match found: ", event.Location);
+      }
     }
 
     if (window.autoBioOptions?.checkUK && isOK(event.Date)) {
@@ -4856,94 +5038,7 @@ async function getStickersAndBoxes() {
         }
       }
       if (window.autoBioOptions?.australiaBornStickers) {
-        let colonies = {
-          "Colony of New South Wales": {
-            bornInLabel: "{{Australia Born in Colony|colony=Colony of New South Wales}}",
-            yearRange: [1788, 1900],
-          },
-          "Van Diemen's Land": {
-            bornInLabel: "{{Australia Born in Colony|colony=Van Diemen's Land}}",
-            yearRange: [1826, 1856],
-          },
-          "Swan River Colony": {
-            bornInLabel: "{{Australia Born in Colony|colony=Swan River Colony}}",
-            yearRange: [1828, 1832],
-          },
-          "Colony of South Australia": {
-            bornInLabel: "{{Australia Born in Colony|colony=Colony of South Australia}}",
-            yearRange: [1836, 1900],
-          },
-          "Colony of Victoria": {
-            bornInLabel: "{{Australia Born in Colony|colony=Colony of Victoria}}",
-            yearRange: [1851, 1900],
-          },
-          "Colony of Tasmania": {
-            bornInLabel: "{{Australia Born in Colony|colony=Colony of Tasmania}}",
-            yearRange: [1856, 1900],
-          },
-          "Colony of Queensland": {
-            bornInLabel: "{{Australia Born in Colony|colony=Colony of Queensland}}",
-            yearRange: [1859, 1900],
-          },
-          "Colony of Western Australia": {
-            bornInLabel: "{{Australia Born in Colony|colony=Colony of Western Australia}}",
-            yearRange: [1832, 1900],
-          },
-          "Australian Capital Territory": {
-            bornInLabel: "{{Australia Sticker|Capital Territory}}",
-            yearRange: [1901],
-          },
-          "Northern Territory of Australia": {
-            bornInLabel: "{{Australia Sticker|Northern Territory}}",
-            yearRange: [1901],
-          },
-          "New South Wales, Australia": {
-            bornInLabel: "{{Australia Sticker|New South Wales}}",
-            yearRange: [1901],
-          },
-          "Victoria, Australia": {
-            bornInLabel: "{{Australia Sticker|Victoria}}",
-            yearRange: [1901],
-          },
-          "Queensland, Australia": {
-            bornInLabel: "{{Australia Sticker|Queensland}}",
-            yearRange: [1901],
-          },
-          "South Australia, Australia": {
-            bornInLabel: "{{Australia Sticker|South Australia}}",
-            yearRange: [1901],
-          },
-          "Western Australia, Australia": {
-            bornInLabel: "{{Australia Sticker|Western Australia}}",
-            yearRange: [1901],
-          },
-          "Tasmania, Australia": {
-            bornInLabel: "{{Australia Sticker|Tasmania}}",
-            yearRange: [1901],
-          },
-          "Keeling Islands, Australia": {
-            bornInLabel: "{{Australia Sticker|Keeling Islands}}",
-            yearRange: [1901],
-          },
-          "Cocos Islands, Australia": {
-            bornInLabel: "{{Australia Sticker|Cocos Islands}}",
-            yearRange: [1901],
-          },
-          "Christmas Island, Australia": {
-            bornInLabel: "{{Australia Sticker|Christmas Island}}",
-            yearRange: [1901],
-          },
-          "Norfolk Island, Australia": {
-            bornInLabel: "{{Australia Sticker|Norfolk Island}}",
-            yearRange: [1901],
-          },
-          Australia: {
-            bornInLabel: "{{Australia Sticker}}",
-            yearRange: [1901],
-          },
-        };
-
-        const australiaKeys = Object.keys(colonies);
+        const australiaKeys = Object.keys(australianLocations);
         const birthPlace = window.profilePerson.BirthLocation;
         if (birthPlace) {
           let gotBirthSticker = false;
@@ -4953,11 +5048,11 @@ async function getStickersAndBoxes() {
               if (yearMatch) {
                 const year = parseInt(yearMatch[0]);
                 if (year) {
-                  const endYear = colonies[colony].yearRange[1] || 3000;
-                  if (year >= colonies[colony].yearRange[0] && year <= endYear) {
+                  const endYear = australianLocations[colony].yearRange[1] || 3000;
+                  if (year >= australianLocations[colony].yearRange[0] && year <= endYear) {
                     console.log(`Year falls in the range. Attempting to add sticker.`);
-                    if (!thingsToAddAfterBioHeading?.includes(colonies[colony].bornInLabel)) {
-                      thingsToAddAfterBioHeading.push(colonies[colony].bornInLabel);
+                    if (!thingsToAddAfterBioHeading?.includes(australianLocations[colony].bornInLabel)) {
+                      thingsToAddAfterBioHeading.push(australianLocations[colony].bornInLabel);
                       gotBirthSticker = true;
                     }
                   }
