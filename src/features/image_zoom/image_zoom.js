@@ -30,6 +30,9 @@ function wheelZoomHandler(e) {
 
   let scale = $(this).data("scale") || 1;
   let newScale = scale * scaleFactor;
+  if (newScale < 1) {
+    newScale = 1;
+  }
   let imgWidth = $(this).width();
   $(this).parent().css("zIndex", "90000");
   $(this).parent().css("position", "relative");
