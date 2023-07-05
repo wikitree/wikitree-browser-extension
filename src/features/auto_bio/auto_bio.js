@@ -392,37 +392,71 @@ function fixLocations() {
     if (window.autoBioOptions?.checkAustralia && isOK(event.Date)) {
       const locationKeys = Object.keys(australianLocations);
       let foundLocationMatch = false;
+      let matchedKey = null;
+      let originalMatched = false;
 
-      locationKeys.forEach(function (key) {
-        if (foundLocationMatch) return; // Exit the loop if a match has been found already
+      for (let i = 0; i < locationKeys.length; i++) {
+        let key = locationKeys[i];
 
-        // Check for places without the country name
         const addedAustralia = lastLocationBit + ", Australia";
 
-        if (event.Location.includes(key) || addedAustralia == key) {
-          // Check if the event date is within the location's year range
+        if (event.Location.includes(key)) {
+          matchedKey = key;
+          originalMatched = true;
+          console.log("Matched key:", matchedKey);
+          console.log("Original matched:", originalMatched);
+        } else if (addedAustralia == key) {
+          matchedKey = key;
+          originalMatched = false;
+          console.log("Matched key:", matchedKey);
+          console.log("Original matched:", originalMatched);
+        }
+
+        if (matchedKey) {
           const yearRange = australianLocations[key]["yearRange"];
-          const afterStart = isSameDateOrAfter(event.Date, yearRange["startDate"]);
-          const beforeEnd = yearRange["endDate"] ? !isSameDateOrAfter(event.Date, yearRange["endDate"]) : true;
+          const startDate = yearRange["startDate"];
+          const endDate = yearRange["endDate"];
+          const afterStart = isSameDateOrAfter(event.Date, startDate);
+          const beforeEnd = endDate ? !isSameDateOrAfter(event.Date, endDate) : true;
+
+          console.log("Event Date:", event.Date);
+          console.log("Location Start Date:", startDate);
+          console.log("Location End Date:", endDate);
+          console.log("Is event Date after Start Date?", afterStart);
+          console.log("Is event Date before End Date?", beforeEnd);
 
           if (afterStart && beforeEnd) {
             foundLocationMatch = true;
+            console.log("foundLocationMatch:", foundLocationMatch);
+            break;
           } else if ("previousName" in australianLocations[key]) {
-            // If the date is out of range, consider the previousName (if any)
             if (event.Location.includes(australianLocations[key]["previousName"])) {
               foundLocationMatch = true;
+              matchedKey = australianLocations[key]["previousName"];
+              console.log("foundLocationMatch:", foundLocationMatch);
+              console.log("Updated matched key:", matchedKey);
+              break;
             }
           }
         }
-      });
+        console.log("Checking key:", key);
+      }
 
       if (foundLocationMatch) {
-        // Do something if a match was found
-        console.log("Match found: ", event.Location);
-      } else {
-        // Do something if no match was found
-        console.log("No match found: ", event.Location);
+        if (australianLocations[matchedKey]["previousName"]) {
+          if (originalMatched) {
+            event.Location = event.Location.replace(matchedKey, australianLocations[matchedKey]["previousName"]);
+          } else {
+            event.Location = event.Location.replace(lastLocationBit, australianLocations[matchedKey]["previousName"]);
+          }
+          console.log("Updated event location:", event.Location);
+        } else {
+          console.log("No previousName defined for matchedKey:", matchedKey);
+        }
       }
+      console.log("Final result - foundLocationMatch:", foundLocationMatch);
+      console.log("Final result - matchedKey:", matchedKey);
+      console.log("Final result - originalMatched:", originalMatched);
     }
 
     if (window.autoBioOptions?.checkUK && isOK(event.Date)) {
