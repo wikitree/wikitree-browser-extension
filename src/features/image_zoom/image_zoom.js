@@ -277,28 +277,22 @@ async function setupImageZoom() {
     let img = $(this).find("img");
     let imgSrc = img.attr("src");
     let imgAlt = img.attr("alt");
-
+    let isThumb;
     if (imgSrc) {
       if (imgSrc.includes("thumb")) {
-        imgSrc = imgSrc.replace("/thumb/", "/").replace(/\/[^/]+$/, "");
+        isThumb = true;
       }
-
       let parent = $(this).css({ display: "inline-block", position: "relative" });
       const overlay = $('<div class="image_zoom_overlay"><span>🔍</span></div>').appendTo(parent);
-      overlay.css({
-        position: "absolute",
-        bottom: "0",
-        right: "0",
-        height: "30px",
-        width: "30px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      });
+
       overlay.on({
         mousedown: function (e) {
           e.preventDefault();
           e.stopPropagation();
+          if (isThumb && !img.hasClass("beenZoomed")) {
+            imgSrc = imgSrc.replace("/thumb/", "/").replace(/\/[^/]+$/, "");
+            img.addClass("beenZoomed");
+          }
           let zoomedImage = createZoomedImage(imgSrc, imgAlt);
           // prevent click event propagation to document
           setTimeout(() => {
@@ -348,7 +342,7 @@ async function setupImageZoom() {
           magnifier.hide();
           return;
         }
-        if (showMagnifier) {
+        if (showMagnifier && !isThumb) {
           if (!isMagnifying) {
             // If not currently magnifying, set a timer to start magnification
             timeoutId = setTimeout(() => {

@@ -3,6 +3,11 @@
   position: absolute;
   bottom: 0;
   right: 0;
+  height: 30px;
+  width: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: right;
   z-index: 10;
   font-weight: normal;
   color: forestgreen;
@@ -10,8 +15,12 @@
   cursor: zoom-in; /* Indicate that the overlay is clickable */
   font-size: 1em;
 }
+
 .image_zoom_overlay span {
   visibility: hidden;
+  position: absolute;
+  bottom: 0;
+  right: 0;
 }
 .zoomable:hover + div span {
   visibility: visible;
