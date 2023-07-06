@@ -196,7 +196,7 @@ function fixUSLocation(event) {
   return event;
 }
 
-function fixLocations() {
+async function fixLocations() {
   const birth = {
     Date: document.getElementById("mBirthDate").value,
     Location: document.getElementById("mBirthLocation").value,
@@ -209,7 +209,7 @@ function fixLocations() {
     ID: "mDeathLocation",
     Event: "death",
   };
-  [birth, death].forEach(function (event) {
+  [birth, death].forEach(async function (event) {
     // Look for space before country name and add a comma if found
     const countryArray = ["US", "USA", "U.S.A.", "UK", "U.K.", "United States of America"];
     // Countries that may have a north, south, etc.
@@ -241,6 +241,90 @@ function fixLocations() {
 
     if (window.autoBioOptions?.checkUS && isOK(event.Date)) {
       event = fixUSLocation(event);
+    }
+
+    if (window.autoBioOptions?.checkAustralia && isOK(event.Date)) {
+      let australianLocations;
+      if (!window.australianLocations) {
+        australianLocations = await import("./australian_locations.json");
+        console.log(australianLocations);
+      } else {
+        australianLocations = window.australianLocations;
+      }
+      const locationKeys = Object.keys(australianLocations);
+      let foundLocationMatch = false;
+      let matchedKey = null;
+      let originalMatched = false;
+
+      for (let i = 0; i < locationKeys.length; i++) {
+        let key = locationKeys[i];
+
+        const addedAustralia = lastLocationBit + ", Australia";
+
+        if (event.Location.includes(key)) {
+          matchedKey = key;
+          originalMatched = true;
+          console.log("Matched key:", matchedKey);
+          console.log("Original matched:", originalMatched);
+        } else if (addedAustralia == key) {
+          matchedKey = key;
+          originalMatched = false;
+          console.log("Matched key:", matchedKey);
+          console.log("Original matched:", originalMatched);
+        }
+
+        if (matchedKey) {
+          const startDate = australianLocations[key]["startDate"];
+          const endDate = australianLocations[key]["endDate"];
+          const afterStart = isSameDateOrAfter(event.Date, startDate);
+          const beforeEnd = endDate ? !isSameDateOrAfter(event.Date, endDate) : true;
+
+          console.log("Event Date:", event.Date);
+          console.log("Location Start Date:", startDate);
+          console.log("Location End Date:", endDate);
+          console.log("Is event Date after Start Date?", afterStart);
+          console.log("Is event Date before End Date?", beforeEnd);
+
+          if (afterStart && beforeEnd) {
+            foundLocationMatch = true;
+            console.log("foundLocationMatch:", foundLocationMatch);
+            break;
+          } else if (!afterStart && "previousName" in australianLocations[key]) {
+            foundLocationMatch = true;
+            matchedKey = key; // keep the original key
+            console.log("foundLocationMatch:", foundLocationMatch);
+            console.log("Using previous name for the matched key:", matchedKey);
+            break;
+          }
+        }
+        console.log("Checking key:", key);
+
+        console.log("Checking key:", key);
+      }
+      if (foundLocationMatch) {
+        const startDate = australianLocations[matchedKey]["startDate"];
+        const afterStart = isSameDateOrAfter(event.Date, startDate);
+
+        if (!afterStart && australianLocations[matchedKey]["previousName"]) {
+          // Use previousName if the event date is before the start date of the matched location
+          if (originalMatched) {
+            event.Location = event.Location.replace(matchedKey, australianLocations[matchedKey]["previousName"]);
+          } else {
+            event.Location = event.Location.replace(lastLocationBit, australianLocations[matchedKey]["previousName"]);
+          }
+          console.log("Updated event location:", event.Location);
+        } else if (!originalMatched && matchedKey) {
+          // If the location match was found with the addedAustralia search and the event date is within the appropriate timeframe, add matchedKey to the location.
+          event.Location = event.Location.replace(lastLocationBit, matchedKey);
+          console.log("Updated event location:", event.Location);
+        } else if (!australianLocations[matchedKey]["previousName"]) {
+          console.log("No previousName defined for matchedKey:", matchedKey);
+        }
+      }
+
+      console.log("Final result - foundLocationMatch:", foundLocationMatch);
+      console.log("Final result - matchedKey:", matchedKey);
+      console.log("Final result - originalMatched:", originalMatched);
     }
 
     if (window.autoBioOptions?.checkUK && isOK(event.Date)) {
@@ -4856,94 +4940,14 @@ async function getStickersAndBoxes() {
         }
       }
       if (window.autoBioOptions?.australiaBornStickers) {
-        let colonies = {
-          "Colony of New South Wales": {
-            bornInLabel: "{{Australia Born in Colony|colony=Colony of New South Wales}}",
-            yearRange: [1788, 1900],
-          },
-          "Van Diemen's Land": {
-            bornInLabel: "{{Australia Born in Colony|colony=Van Diemen's Land}}",
-            yearRange: [1826, 1856],
-          },
-          "Swan River Colony": {
-            bornInLabel: "{{Australia Born in Colony|colony=Swan River Colony}}",
-            yearRange: [1828, 1832],
-          },
-          "Colony of South Australia": {
-            bornInLabel: "{{Australia Born in Colony|colony=Colony of South Australia}}",
-            yearRange: [1836, 1900],
-          },
-          "Colony of Victoria": {
-            bornInLabel: "{{Australia Born in Colony|colony=Colony of Victoria}}",
-            yearRange: [1851, 1900],
-          },
-          "Colony of Tasmania": {
-            bornInLabel: "{{Australia Born in Colony|colony=Colony of Tasmania}}",
-            yearRange: [1856, 1900],
-          },
-          "Colony of Queensland": {
-            bornInLabel: "{{Australia Born in Colony|colony=Colony of Queensland}}",
-            yearRange: [1859, 1900],
-          },
-          "Colony of Western Australia": {
-            bornInLabel: "{{Australia Born in Colony|colony=Colony of Western Australia}}",
-            yearRange: [1832, 1900],
-          },
-          "Australian Capital Territory": {
-            bornInLabel: "{{Australia Sticker|Capital Territory}}",
-            yearRange: [1901],
-          },
-          "Northern Territory of Australia": {
-            bornInLabel: "{{Australia Sticker|Northern Territory}}",
-            yearRange: [1901],
-          },
-          "New South Wales, Australia": {
-            bornInLabel: "{{Australia Sticker|New South Wales}}",
-            yearRange: [1901],
-          },
-          "Victoria, Australia": {
-            bornInLabel: "{{Australia Sticker|Victoria}}",
-            yearRange: [1901],
-          },
-          "Queensland, Australia": {
-            bornInLabel: "{{Australia Sticker|Queensland}}",
-            yearRange: [1901],
-          },
-          "South Australia, Australia": {
-            bornInLabel: "{{Australia Sticker|South Australia}}",
-            yearRange: [1901],
-          },
-          "Western Australia, Australia": {
-            bornInLabel: "{{Australia Sticker|Western Australia}}",
-            yearRange: [1901],
-          },
-          "Tasmania, Australia": {
-            bornInLabel: "{{Australia Sticker|Tasmania}}",
-            yearRange: [1901],
-          },
-          "Keeling Islands, Australia": {
-            bornInLabel: "{{Australia Sticker|Keeling Islands}}",
-            yearRange: [1901],
-          },
-          "Cocos Islands, Australia": {
-            bornInLabel: "{{Australia Sticker|Cocos Islands}}",
-            yearRange: [1901],
-          },
-          "Christmas Island, Australia": {
-            bornInLabel: "{{Australia Sticker|Christmas Island}}",
-            yearRange: [1901],
-          },
-          "Norfolk Island, Australia": {
-            bornInLabel: "{{Australia Sticker|Norfolk Island}}",
-            yearRange: [1901],
-          },
-          Australia: {
-            bornInLabel: "{{Australia Sticker}}",
-            yearRange: [1901],
-          },
-        };
-
-        const australiaKeys = Object.keys(colonies);
+        let australianLocations;
+        if (!window.australianLocations) {
+          australianLocations = await import("./australian_locations.json");
+          console.log(australianLocations);
+        } else {
+          australianLocations = window.australianLocations;
+        }
+        const australiaKeys = Object.keys(australianLocations);
         const birthPlace = window.profilePerson.BirthLocation;
         if (birthPlace) {
           let gotBirthSticker = false;
@@ -4953,11 +4957,11 @@ async function getStickersAndBoxes() {
               if (yearMatch) {
                 const year = parseInt(yearMatch[0]);
                 if (year) {
-                  const endYear = colonies[colony].yearRange[1] || 3000;
-                  if (year >= colonies[colony].yearRange[0] && year <= endYear) {
+                  const endYear = australianLocations[colony].yearRange[1] || 3000;
+                  if (year >= australianLocations[colony].yearRange[0] && year <= endYear) {
                     console.log(`Year falls in the range. Attempting to add sticker.`);
-                    if (!thingsToAddAfterBioHeading?.includes(colonies[colony].bornInLabel)) {
-                      thingsToAddAfterBioHeading.push(colonies[colony].bornInLabel);
+                    if (!thingsToAddAfterBioHeading?.includes(australianLocations[colony].bornInLabel)) {
+                      thingsToAddAfterBioHeading.push(australianLocations[colony].bornInLabel);
                       gotBirthSticker = true;
                     }
                   }

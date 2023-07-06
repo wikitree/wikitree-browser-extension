@@ -439,6 +439,13 @@ const autoBio = {
           defaultValue: true,
         },
         {
+          id: "checkAustralia",
+          type: OptionType.CHECKBOX,
+          label:
+            "Fix Australian locations: 1) Add 'Australia' if it's missing. 2) Use the colony name if it's before 1901.",
+          defaultValue: true,
+        },
+        {
           id: "nativeNames",
           type: OptionType.CHECKBOX,
           label: "Change country names from English to their native name.",
