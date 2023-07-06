@@ -1,0 +1,31 @@
+{
+  "Borough": [
+    "Aleutians East",
+    "Bristol Bay",
+    "Denali",
+    "Fairbanks North Star",
+    "Haines",
+    "Kenai Peninsula",
+    "Ketchikan Gateway",
+    "Kodiak Island",
+    "Lake and Peninsula",
+    "Matanuska-Susitna",
+    "North Slope",
+    "Northwest Arctic"
+  ],
+  "Census Area": [
+    "Aleutians West",
+    "Bethel",
+    "Dillingham",
+    "Hoonah-Angoon",
+    "Nome",
+    "Petersburg",
+    "Prince of Wales-Hyder",
+    "Southeast Fairbanks",
+    "Valdez-Cordova",
+    "Wade Hampton",
+    "Yukon-Koyukuk"
+  ],
+  "Municipality": ["Anchorage", "Skagway"],
+  "City and Borough": ["Juneau", "Sitka", "Wrangell", "Yakutat"]
+}
