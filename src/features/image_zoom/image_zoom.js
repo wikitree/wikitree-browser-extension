@@ -342,7 +342,9 @@ async function setupImageZoom() {
           magnifier.hide();
           return;
         }
-        if (showMagnifier && !isThumb) {
+        const imgWidth = img.width();
+        const imgHeight = img.height();
+        if (showMagnifier && imgWidth > 76) {
           if (!isMagnifying) {
             // If not currently magnifying, set a timer to start magnification
             timeoutId = setTimeout(() => {
