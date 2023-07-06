@@ -126,7 +126,7 @@ async function locationsHelper() {
 
   const observer2 = new MutationObserver(function (mutations_list) {
     mutations_list.forEach(function (mutation) {
-      mutation.addedNodes.forEach(function (added_node) {
+      mutation.addedNodes.forEach(async function (added_node) {
         if (added_node.className == "autocomplete-suggestion-container") {
           let activeEl = document.activeElement;
           let whichLocation = "";
@@ -207,115 +207,157 @@ async function locationsHelper() {
             goodDate = true;
           }
 
-          if (goodDate == true && window.locationsHelperOptions.correctLocations) {
+          if (window.locationsHelperOptions?.correctLocations || window.locationsHelperOptions?.addUSCounty) {
             const innerBit = $(added_node).find(".autocomplete-suggestion-head");
             let innerBitText = "";
+            if (window.locationsHelperOptions?.correctLocations && goodDate) {
+              // Brisbane
+              dText = dText.replace("Brisbane City, Queensland, Australia", "Brisbane, Queensland, Australa");
 
-            // Brisbane
-            dText = dText.replace("Brisbane City, Queensland, Australia", "Brisbane, Queensland, Australa");
+              // Canadian districts
+              if (dText.match(/Canada/)) {
+                const regionalDistricts = [
+                  "Greater Vancouver Regional District",
+                  "Fraser Valley Regional District",
+                  "Capital Regional District",
+                  "Metro Vancouver Regional District",
+                  "Squamish-Lillooet Regional District",
+                  "Central Okanagan Regional District",
+                  "Thompson-Nicola Regional District",
+                  "Cariboo Regional District",
+                  "Bulkley-Nechako Regional District",
+                  "Peace River Regional District",
+                  "Kitimat-Stikine Regional District",
+                  "Northern Rockies Regional Municipality",
+                  "Columbia-Shuswap Regional District",
+                  "Okanagan-Similkameen Regional District",
+                  "North Okanagan Regional District",
+                  "Kootenay Boundary Regional District",
+                  "Central Kootenay Regional District",
+                  "East Kootenay Regional District",
+                  "Mount Waddington Regional District",
+                  "Comox Valley Regional District",
+                  "Cowichan Valley Regional District",
+                  "Alberni-Clayoquot Regional District",
+                  "Strathcona Regional District",
+                  "Sunshine Coast Regional District",
+                  "Powell River Regional District",
+                ];
+                regionalDistricts.forEach(function (aDistrict) {
+                  // Replace aDistrict+", " with ""
+                  dText = dText.replace(aDistrict + ", ", "");
+                });
+                // end Canadian districts
+              }
 
-            // Canadian districts
-            if (dText.match(/Canada/)) {
-              const regionalDistricts = [
-                "Greater Vancouver Regional District",
-                "Fraser Valley Regional District",
-                "Capital Regional District",
-                "Metro Vancouver Regional District",
-                "Squamish-Lillooet Regional District",
-                "Central Okanagan Regional District",
-                "Thompson-Nicola Regional District",
-                "Cariboo Regional District",
-                "Bulkley-Nechako Regional District",
-                "Peace River Regional District",
-                "Kitimat-Stikine Regional District",
-                "Northern Rockies Regional Municipality",
-                "Columbia-Shuswap Regional District",
-                "Okanagan-Similkameen Regional District",
-                "North Okanagan Regional District",
-                "Kootenay Boundary Regional District",
-                "Central Kootenay Regional District",
-                "East Kootenay Regional District",
-                "Mount Waddington Regional District",
-                "Comox Valley Regional District",
-                "Cowichan Valley Regional District",
-                "Alberni-Clayoquot Regional District",
-                "Strathcona Regional District",
-                "Sunshine Coast Regional District",
-                "Powell River Regional District",
-              ];
-              regionalDistricts.forEach(function (aDistrict) {
-                // Replace aDistrict+", " with ""
-                dText = dText.replace(aDistrict + ", ", "");
-              });
-              // end Canadian districts
-            }
+              // County Durham
+              dText = dText.replace("Durham, England", "County Durham, England");
 
-            // County Durham
-            dText = dText.replace("Durham, England", "County Durham, England");
+              // German country names
+              if (myYear < 1806) {
+                dText = dText
+                  .replace("Deutsches Reich", "Heiliges Römisches Reich")
+                  .replace("Deutschland", "Heiliges Römisches Reich");
+              } else if (myYear < 1815) {
+                dText = dText
+                  .replace(", Heiliges Römisches Reich", "")
+                  .replace(", Deutschland", "")
+                  .replace(", Deutscher Bund", "")
+                  .replace(", Deutsches Reich", "");
+              } else if (myYear < 1866) {
+                dText = dText.replace("Deutsches Reich", "Deutscher Bund").replace("Deutschland", "Deutscher Bund");
+              } else if (myYear < 1871) {
+                dText = dText.replace(", Deutsches Reich", "").replace("Deutschland", "");
+              } else if (myYear < 1945) {
+                dText = dText.replace("Deutschland", "Deutsches Reich");
+                // Deutsches Reich is accurate from 1871 until 1945
+              } else if (myYear > 1949) {
+                dText = dText.replace("Deutsches Reich", "Deutschland").replace("Deutscher Bund", "Deutschland");
+              }
 
-            // German country names
-            if (myYear < 1806) {
-              dText = dText
-                .replace("Deutsches Reich", "Heiliges Römisches Reich")
-                .replace("Deutschland", "Heiliges Römisches Reich");
-            } else if (myYear < 1815) {
-              dText = dText
-                .replace(", Heiliges Römisches Reich", "")
-                .replace(", Deutschland", "")
-                .replace(", Deutscher Bund", "")
-                .replace(", Deutsches Reich", "");
-            } else if (myYear < 1866) {
-              dText = dText.replace("Deutsches Reich", "Deutscher Bund").replace("Deutschland", "Deutscher Bund");
-            } else if (myYear < 1871) {
-              dText = dText.replace(", Deutsches Reich", "").replace("Deutschland", "");
-            } else if (myYear < 1945) {
-              dText = dText.replace("Deutschland", "Deutsches Reich");
-              // Deutsches Reich is accurate from 1871 until 1945
-            } else if (myYear > 1949) {
-              dText = dText.replace("Deutsches Reich", "Deutschland").replace("Deutscher Bund", "Deutschland");
-            }
-
-            // Massachusetts (and any other pre-1776 states)
-            const lastPart = dText.split("(")[0].trim().split(",").pop();
-            const lastPartMatch = lastPart.match(/[A-z]+/g);
-            if (lastPartMatch != null) {
-              lastPartMatch.forEach(function (aWord) {
-                if (window.USstates[aWord] != undefined) {
-                  const thisState = window.USstates[aWord];
-                  if (thisState.former_name_date_established != undefined) {
-                    if (thisState.former_name_date_established <= myYear && thisState.admissionDate >= myYear) {
-                      if (myYear >= 1776 && thisState.postRevolutionName) {
-                        dText = dText.replace(lastPart, " " + aWord);
-                        innerBitText =
-                          dText + " (" + "1776-07-04" + " - " + thisState.admissionDate.match(/\d{4}/) + ")";
-                      } else {
-                        dText = dText.replace(lastPart, " " + thisState.former_name).replace(/ \(.+\)/, "");
-                        // Build text for innerBit.  This is dText +(thisState.former_name_date_established + "-" + thisState.admissionDate (but only the year))
-                        innerBitText =
-                          dText +
-                          " (" +
-                          thisState.former_name_date_established +
-                          " - " +
-                          thisState.admissionDate.match(/\d{4}/) +
-                          ")";
+              // Massachusetts (and any other pre-1776 states)
+              const lastPart = dText.split("(")[0].trim().split(",").pop();
+              const lastPartMatch = lastPart.match(/[A-z]+/g);
+              if (lastPartMatch != null) {
+                lastPartMatch.forEach(function (aWord) {
+                  if (window.USstates[aWord] != undefined) {
+                    const thisState = window.USstates[aWord];
+                    if (thisState.former_name_date_established != undefined) {
+                      if (thisState.former_name_date_established <= myYear && thisState.admissionDate >= myYear) {
+                        if (myYear >= 1776 && thisState.postRevolutionName) {
+                          dText = dText.replace(lastPart, " " + aWord);
+                          innerBitText =
+                            dText + " (" + "1776-07-04" + " - " + thisState.admissionDate.match(/\d{4}/) + ")";
+                        } else {
+                          dText = dText.replace(lastPart, " " + thisState.former_name).replace(/ \(.+\)/, "");
+                          // Build text for innerBit.  This is dText +(thisState.former_name_date_established + "-" + thisState.admissionDate (but only the year))
+                          innerBitText =
+                            dText +
+                            " (" +
+                            thisState.former_name_date_established +
+                            " - " +
+                            thisState.admissionDate.match(/\d{4}/) +
+                            ")";
+                        }
+                        fixText(added_node, activeEl, dText, innerBit, innerBitText);
                       }
-                      fixText(added_node, activeEl, dText, innerBit, innerBitText);
+                    }
+                  }
+                });
+              }
+
+              // Steyning, Stogursey, Somerset, England
+              if (dText.match(/Steyning/)) {
+                // add a new autocomplete suggestion
+                if ($(added_node).parent().find(".Steyning").length == 0) {
+                  const newSuggestion = document.createElement("div");
+                  newSuggestion.className = "autocomplete-suggestion-container";
+                  newSuggestion.classList.add("Steyning");
+                  newSuggestion.innerHTML =
+                    '<div class="autocomplete-suggestion" data-val="Steyning, Stogursey, Somerset, England"><div class="autocomplete-suggestion-head"><span class="autocomplete-suggestion-term">Steyning</span>, Stogursey, Somerset, England</div></div>';
+                  $(newSuggestion).insertBefore($(added_node));
+                }
+              }
+            }
+            if (window.locationsHelperOptions?.addUSCounty) {
+              // US counties
+              if (dText.match(/United States/)) {
+                const stateMatch = dText.match(/([^,]+), ([^,]+), United States/);
+                if (stateMatch != null) {
+                  const countyName = stateMatch[1].trim();
+                  const stateName = stateMatch[2].trim();
+                  if (!window.UScounties) {
+                    window.UScounties = await import("./UScounties.json");
+                    window.alaskaEndings = await import("./alaska_endings.json");
+                  }
+
+                  if (window.UScounties[stateName] != undefined) {
+                    const thisStateCounties = window.UScounties[stateName];
+                    if (thisStateCounties.includes(countyName)) {
+                      if (stateName == "Alaska") {
+                        const alaskaKeys = Object.keys(window.alaskaEndings);
+                        alaskaKeys.forEach(function (aKey) {
+                          if (window.alaskaEndings[aKey]?.includes(countyName)) {
+                            dText = dText.replace(countyName, countyName + " " + aKey);
+                            innerBitText = innerBit.text().replace(countyName, countyName + " " + aKey);
+                          }
+                        });
+                      } else if (stateName == "Louisiana") {
+                        if (window.UScounties["Louisiana"].includes(countyName)) {
+                          dText = dText.replace(countyName + ", " + stateName, countyName + " Parish, " + stateName);
+                          innerBitText = innerBit
+                            .text()
+                            .replace(countyName + ", " + stateName, countyName + " Parish, " + stateName);
+                        }
+                      } else {
+                        dText = dText.replace(countyName + ", " + stateName, countyName + " County, " + stateName);
+                        innerBitText = innerBit
+                          .text()
+                          .replace(countyName + ", " + stateName, countyName + " County, " + stateName);
+                      }
                     }
                   }
                 }
-              });
-            }
-
-            // Steyning, Stogursey, Somerset, England
-            if (dText.match(/Steyning/)) {
-              // add a new autocomplete suggestion
-              if ($(added_node).parent().find(".Steyning").length == 0) {
-                const newSuggestion = document.createElement("div");
-                newSuggestion.className = "autocomplete-suggestion-container";
-                newSuggestion.classList.add("Steyning");
-                newSuggestion.innerHTML =
-                  '<div class="autocomplete-suggestion" data-val="Steyning, Stogursey, Somerset, England"><div class="autocomplete-suggestion-head"><span class="autocomplete-suggestion-term">Steyning</span>, Stogursey, Somerset, England</div></div>';
-                $(newSuggestion).insertBefore($(added_node));
               }
             }
 

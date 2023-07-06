@@ -31,5 +31,11 @@ registerFeature({
       label: "Correct Locations",
       defaultValue: false,
     },
+    {
+      id: "addUSCounty",
+      type: OptionType.CHECKBOX,
+      label: "Add 'County' to US locations",
+      defaultValue: false,
+    },
   ],
 });
