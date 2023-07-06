@@ -1,0 +1,145 @@
+{
+  "Colony of New South Wales": {
+    "bornInLabel": "{{Australia Born in Colony|colony=Colony of New South Wales}}",
+    "yearRange": [1788, 1900],
+    "startDate": "1788-02-07",
+    "endDate": "1900-12-31"
+  },
+  "Van Diemen's Land": {
+    "bornInLabel": "{{Australia Born in Colony|colony=Van Diemen's Land}}",
+    "yearRange": [1825, 1855],
+    "startDate": "1825-12-03",
+    "endDate": "1855-12-31",
+    "previousName": "Colony of New South Wales"
+  },
+  "Swan River Colony": {
+    "bornInLabel": "{{Australia Born in Colony|colony=Swan River Colony}}",
+    "yearRange": [1829, 1832],
+    "startDate": "1829-05-02",
+    "endDate": "1832-02-05",
+    "previousName": "Colony of New South Wales"
+  },
+  "Colony of South Australia": {
+    "bornInLabel": "{{Australia Born in Colony|colony=Colony of South Australia}}",
+    "yearRange": [1836, 1900],
+    "startDate": "1836-12-28",
+    "endDate": "1900-12-31"
+  },
+  "Colony of Victoria": {
+    "bornInLabel": "{{Australia Born in Colony|colony=Colony of Victoria}}",
+    "yearRange": [1851, 1900],
+    "startDate": "1851-07-01",
+    "endDate": "1900-12-31",
+    "previousName": "Colony of New South Wales"
+  },
+  "Colony of Tasmania": {
+    "bornInLabel": "{{Australia Born in Colony|colony=Colony of Tasmania}}",
+    "yearRange": [1856, 1900],
+    "startDate": "1856-01-01",
+    "endDate": "1900-12-31",
+    "previousName": "Van Diemen's Land"
+  },
+  "Colony of Queensland": {
+    "bornInLabel": "{{Australia Born in Colony|colony=Colony of Queensland}}",
+    "yearRange": [1859, 1900],
+    "startDate": "1859-06-06",
+    "endDate": "1900-12-31",
+    "previousName": "Colony of New South Wales"
+  },
+  "Colony of Western Australia": {
+    "bornInLabel": "{{Australia Born in Colony|colony=Colony of Western Australia}}",
+    "yearRange": [1832, 1900],
+    "startDate": "1832-02-06",
+    "endDate": "1900-12-31",
+    "previousName": "Swan River Colony"
+  },
+  "Australian Capital Territory": {
+    "bornInLabel": "{{Australia Sticker|Capital Territory}}",
+    "yearRange": [1911],
+    "startDate": "1911-01-01",
+    "endDate": null
+  },
+  "Northern Territory of Australia": {
+    "bornInLabel": "{{Australia Sticker|Northern Territory}}",
+    "yearRange": [1911],
+    "startDate": "1911-01-01",
+    "endDate": null,
+    "previousName": "Colony of South Australia"
+  },
+  "New South Wales, Australia": {
+    "bornInLabel": "{{Australia Sticker|New South Wales}}",
+    "yearRange": [1901],
+    "startDate": "1901-01-01",
+    "endDate": null,
+    "previousName": "Colony of New South Wales"
+  },
+  "Victoria, Australia": {
+    "bornInLabel": "{{Australia Sticker|Victoria}}",
+    "yearRange": [1901],
+    "startDate": "1901-01-01",
+    "endDate": null,
+    "previousName": "Colony of Victoria"
+  },
+  "Queensland, Australia": {
+    "bornInLabel": "{{Australia Sticker|Queensland}}",
+    "yearRange": [1901],
+    "startDate": "1901-01-01",
+    "endDate": null,
+    "previousName": "Colony of Queensland"
+  },
+  "South Australia, Australia": {
+    "bornInLabel": "{{Australia Sticker|South Australia}}",
+    "yearRange": [1901],
+    "startDate": "1901-01-01",
+    "endDate": null,
+    "previousName": "Colony of South Australia"
+  },
+  "Western Australia, Australia": {
+    "bornInLabel": "{{Australia Sticker|Western Australia}}",
+    "yearRange": [1901],
+    "startDate": "1901-01-01",
+    "endDate": null,
+    "previousName": "Colony of Western Australia"
+  },
+  "Tasmania, Australia": {
+    "bornInLabel": "{{Australia Sticker|Tasmania}}",
+    "yearRange": [1901],
+    "startDate": "1901-01-01",
+    "endDate": null,
+    "previousName": "Colony of Tasmania"
+  },
+  "Keeling Islands, Australia": {
+    "bornInLabel": "{{Australia Sticker|Keeling Islands}}",
+    "yearRange": [1901],
+    "startDate": "1901-01-01",
+    "endDate": null,
+    "previousName": "Colony of Western Australia"
+  },
+  "Cocos Islands, Australia": {
+    "bornInLabel": "{{Australia Sticker|Cocos Islands}}",
+    "yearRange": [1901],
+    "startDate": "1901-01-01",
+    "endDate": null,
+    "previousName": "Colony of Western Australia"
+  },
+  "Christmas Island, Australia": {
+    "bornInLabel": "{{Australia Sticker|Christmas Island}}",
+    "yearRange": [1901],
+    "startDate": "1901-01-01",
+    "endDate": null,
+    "previousName": "Colony of Western Australia"
+  },
+  "Norfolk Island, Australia": {
+    "bornInLabel": "{{Australia Sticker|Norfolk Island}}",
+    "yearRange": [1901],
+    "startDate": "1901-01-01",
+    "endDate": null,
+    "previousName": "Colony of New South Wales"
+  },
+  "Australia": {
+    "bornInLabel": "{{Australia Sticker}}",
+    "yearRange": [1901],
+    "startDate": "1901-01-01",
+    "endDate": null
+  }
+}

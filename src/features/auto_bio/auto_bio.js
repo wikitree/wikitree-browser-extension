@@ -23,152 +23,6 @@ import { isIansProfile } from "../../core/pageType";
 import ONSjson from "./ONS.json";
 import Cookies from "js-cookie";
 
-const australianLocations = {
-  "Colony of New South Wales": {
-    bornInLabel: "{{Australia Born in Colony|colony=Colony of New South Wales}}",
-    yearRange: [1788, 1900],
-    startDate: "1788-02-07",
-    endDate: "1900-12-31",
-  },
-  "Van Diemen's Land": {
-    bornInLabel: "{{Australia Born in Colony|colony=Van Diemen's Land}}",
-    yearRange: [1825, 1855],
-    startDate: "1825-12-03",
-    endDate: "1855-12-31",
-    previousName: "Colony of New South Wales",
-  },
-  "Swan River Colony": {
-    bornInLabel: "{{Australia Born in Colony|colony=Swan River Colony}}",
-    yearRange: [1829, 1832],
-    startDate: "1829-05-02",
-    endDate: "1832-02-05",
-    previousName: "Colony of New South Wales",
-  },
-  "Colony of South Australia": {
-    bornInLabel: "{{Australia Born in Colony|colony=Colony of South Australia}}",
-    yearRange: [1836, 1900],
-    startDate: "1836-12-28",
-    endDate: "1900-12-31",
-  },
-  "Colony of Victoria": {
-    bornInLabel: "{{Australia Born in Colony|colony=Colony of Victoria}}",
-    yearRange: [1851, 1900],
-    startDate: "1851-07-01",
-    endDate: "1900-12-31",
-    previousName: "Colony of New South Wales",
-  },
-  "Colony of Tasmania": {
-    bornInLabel: "{{Australia Born in Colony|colony=Colony of Tasmania}}",
-    yearRange: [1856, 1900],
-    startDate: "1856-01-01",
-    endDate: "1900-12-31",
-    previousName: "Van Diemen's Land",
-  },
-  "Colony of Queensland": {
-    bornInLabel: "{{Australia Born in Colony|colony=Colony of Queensland}}",
-    yearRange: [1859, 1900],
-    startDate: "1859-06-06",
-    endDate: "1900-12-31",
-    previousName: "Colony of New South Wales",
-  },
-  "Colony of Western Australia": {
-    bornInLabel: "{{Australia Born in Colony|colony=Colony of Western Australia}}",
-    yearRange: [1832, 1900],
-    startDate: "1832-02-06",
-    endDate: "1900-12-31",
-    previousName: "Swan River Colony",
-  },
-  "Australian Capital Territory": {
-    bornInLabel: "{{Australia Sticker|Capital Territory}}",
-    yearRange: [1911],
-    startDate: "1911-01-01",
-    endDate: null,
-  },
-  "Northern Territory of Australia": {
-    bornInLabel: "{{Australia Sticker|Northern Territory}}",
-    yearRange: [1911],
-    startDate: "1911-01-01",
-    endDate: null,
-    previousName: "Colony of South Australia",
-  },
-  "New South Wales, Australia": {
-    bornInLabel: "{{Australia Sticker|New South Wales}}",
-    yearRange: [1901],
-    startDate: "1901-01-01",
-    endDate: null,
-    previousName: "Colony of New South Wales",
-  },
-  "Victoria, Australia": {
-    bornInLabel: "{{Australia Sticker|Victoria}}",
-    yearRange: [1901],
-    startDate: "1901-01-01",
-    endDate: null,
-    previousName: "Colony of Victoria",
-  },
-  "Queensland, Australia": {
-    bornInLabel: "{{Australia Sticker|Queensland}}",
-    yearRange: [1901],
-    startDate: "1901-01-01",
-    endDate: null,
-    previousName: "Colony of Queensland",
-  },
-  "South Australia, Australia": {
-    bornInLabel: "{{Australia Sticker|South Australia}}",
-    yearRange: [1901],
-    startDate: "1901-01-01",
-    endDate: null,
-    previousName: "Colony of South Australia",
-  },
-  "Western Australia, Australia": {
-    bornInLabel: "{{Australia Sticker|Western Australia}}",
-    yearRange: [1901],
-    startDate: "1901-01-01",
-    endDate: null,
-    previousName: "Colony of Western Australia",
-  },
-  "Tasmania, Australia": {
-    bornInLabel: "{{Australia Sticker|Tasmania}}",
-    yearRange: [1901],
-    startDate: "1901-01-01",
-    endDate: null,
-    previousName: "Colony of Tasmania",
-  },
-  "Keeling Islands, Australia": {
-    bornInLabel: "{{Australia Sticker|Keeling Islands}}",
-    yearRange: [1901],
-    startDate: "1901-01-01",
-    endDate: null,
-    previousName: "Colony of Western Australia",
-  },
-  "Cocos Islands, Australia": {
-    bornInLabel: "{{Australia Sticker|Cocos Islands}}",
-    yearRange: [1901],
-    startDate: "1901-01-01",
-    endDate: null,
-    previousName: "Colony of Western Australia",
-  },
-  "Christmas Island, Australia": {
-    bornInLabel: "{{Australia Sticker|Christmas Island}}",
-    yearRange: [1901],
-    startDate: "1901-01-01",
-    endDate: null,
-    previousName: "Colony of Western Australia",
-  },
-  "Norfolk Island, Australia": {
-    bornInLabel: "{{Australia Sticker|Norfolk Island}}",
-    yearRange: [1901],
-    startDate: "1901-01-01",
-    endDate: null,
-    previousName: "Colony of New South Wales",
-  },
-  Australia: {
-    bornInLabel: "{{Australia Sticker}}",
-    yearRange: [1901],
-    startDate: "1901-01-01",
-    endDate: null,
-  },
-};
-
 /**
 Returns a status word based on the input status and optional needOnIn parameter, with an optional ISO date string parameter.
 @function
@@ -342,7 +196,7 @@ function fixUSLocation(event) {
   return event;
 }
 
-function fixLocations() {
+async function fixLocations() {
   const birth = {
     Date: document.getElementById("mBirthDate").value,
     Location: document.getElementById("mBirthLocation").value,
@@ -355,7 +209,7 @@ function fixLocations() {
     ID: "mDeathLocation",
     Event: "death",
   };
-  [birth, death].forEach(function (event) {
+  [birth, death].forEach(async function (event) {
     // Look for space before country name and add a comma if found
     const countryArray = ["US", "USA", "U.S.A.", "UK", "U.K.", "United States of America"];
     // Countries that may have a north, south, etc.
@@ -390,6 +244,13 @@ function fixLocations() {
     }
 
     if (window.autoBioOptions?.checkAustralia && isOK(event.Date)) {
+      let australianLocations;
+      if (!window.australianLocations) {
+        australianLocations = await import("./australian_locations.json");
+        console.log(australianLocations);
+      } else {
+        australianLocations = window.australianLocations;
+      }
       const locationKeys = Object.keys(australianLocations);
       let foundLocationMatch = false;
       let matchedKey = null;
@@ -413,9 +274,8 @@ function fixLocations() {
         }
 
         if (matchedKey) {
-          const yearRange = australianLocations[key]["yearRange"];
-          const startDate = yearRange["startDate"];
-          const endDate = yearRange["endDate"];
+          const startDate = australianLocations[key]["startDate"];
+          const endDate = australianLocations[key]["endDate"];
           const afterStart = isSameDateOrAfter(event.Date, startDate);
           const beforeEnd = endDate ? !isSameDateOrAfter(event.Date, endDate) : true;
 
@@ -429,31 +289,39 @@ function fixLocations() {
             foundLocationMatch = true;
             console.log("foundLocationMatch:", foundLocationMatch);
             break;
-          } else if ("previousName" in australianLocations[key]) {
-            if (event.Location.includes(australianLocations[key]["previousName"])) {
-              foundLocationMatch = true;
-              matchedKey = australianLocations[key]["previousName"];
-              console.log("foundLocationMatch:", foundLocationMatch);
-              console.log("Updated matched key:", matchedKey);
-              break;
-            }
+          } else if (!afterStart && "previousName" in australianLocations[key]) {
+            foundLocationMatch = true;
+            matchedKey = key; // keep the original key
+            console.log("foundLocationMatch:", foundLocationMatch);
+            console.log("Using previous name for the matched key:", matchedKey);
+            break;
           }
         }
         console.log("Checking key:", key);
-      }
 
+        console.log("Checking key:", key);
+      }
       if (foundLocationMatch) {
-        if (australianLocations[matchedKey]["previousName"]) {
+        const startDate = australianLocations[matchedKey]["startDate"];
+        const afterStart = isSameDateOrAfter(event.Date, startDate);
+
+        if (!afterStart && australianLocations[matchedKey]["previousName"]) {
+          // Use previousName if the event date is before the start date of the matched location
           if (originalMatched) {
             event.Location = event.Location.replace(matchedKey, australianLocations[matchedKey]["previousName"]);
           } else {
             event.Location = event.Location.replace(lastLocationBit, australianLocations[matchedKey]["previousName"]);
           }
           console.log("Updated event location:", event.Location);
-        } else {
+        } else if (!originalMatched && matchedKey) {
+          // If the location match was found with the addedAustralia search and the event date is within the appropriate timeframe, add matchedKey to the location.
+          event.Location = event.Location.replace(lastLocationBit, matchedKey);
+          console.log("Updated event location:", event.Location);
+        } else if (!australianLocations[matchedKey]["previousName"]) {
           console.log("No previousName defined for matchedKey:", matchedKey);
         }
       }
+
       console.log("Final result - foundLocationMatch:", foundLocationMatch);
       console.log("Final result - matchedKey:", matchedKey);
       console.log("Final result - originalMatched:", originalMatched);
@@ -5072,6 +4940,13 @@ async function getStickersAndBoxes() {
         }
       }
       if (window.autoBioOptions?.australiaBornStickers) {
+        let australianLocations;
+        if (!window.australianLocations) {
+          australianLocations = await import("./australian_locations.json");
+          console.log(australianLocations);
+        } else {
+          australianLocations = window.australianLocations;
+        }
         const australiaKeys = Object.keys(australianLocations);
         const birthPlace = window.profilePerson.BirthLocation;
         if (birthPlace) {
