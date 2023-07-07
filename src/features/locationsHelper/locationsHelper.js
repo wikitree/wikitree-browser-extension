@@ -13,11 +13,18 @@ shouldInitializeFeature("locationsHelper").then((result) => {
     getFeatureOptions("locationsHelper").then((options) => {
       window.locationsHelperOptions = options;
     });
-    $("#mBirthLocation,#mDeathLocation,#Email[name='mMarriageLocation']").on("focus", function () {
+
+    $("#mBirthLocation,#mDeathLocation,#Email[name='mMarriageLocation'],#mLocation").on("focus", function () {
       if (!window.bdLocations) {
         locationsHelper();
       }
     });
+
+    setTimeout(function () {
+      $("#mMarriageLocation").on("focus", function () {
+        locationsHelper();
+      });
+    }, 5000);
   }
 });
 
@@ -136,7 +143,7 @@ async function locationsHelper() {
           if (activeEl.id == "mDeathLocation") {
             whichLocation = "Death";
           }
-          if (activeEl.name == "mMarriageLocation") {
+          if (activeEl.name == "mMarriageLocation" || activeEl.id == "Email" || activeEl.id == "mMarriageLocation") {
             whichLocation = "Marriage";
           }
           if (activeEl.id == "mLocation") {
@@ -212,7 +219,7 @@ async function locationsHelper() {
             let innerBitText = "";
             if (window.locationsHelperOptions?.correctLocations && goodDate) {
               // Brisbane
-              dText = dText.replace("Brisbane City, Queensland, Australia", "Brisbane, Queensland, Australa");
+              dText = dText.replace("Brisbane City, Queensland, Australia", "Brisbane, Queensland, Australia");
 
               // Canadian districts
               if (dText.match(/Canada/)) {
@@ -398,6 +405,12 @@ async function locationsHelper() {
     });
     if ($("#mDeathLocation").length) {
       observer2.observe($(".autocomplete-suggestions").eq(1)[0], {
+        subtree: false,
+        childList: true,
+      });
+    }
+    if ($("#mMarriageLocation").length) {
+      observer2.observe($(".autocomplete-suggestions").eq(2)[0], {
         subtree: false,
         childList: true,
       });
