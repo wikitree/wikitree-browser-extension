@@ -399,21 +399,11 @@ async function locationsHelper() {
   });
 
   setTimeout(function () {
-    observer2.observe($(".autocomplete-suggestions").eq(0)[0], {
-      subtree: false,
-      childList: true,
+    $(".autocomplete-suggestions").each(function () {
+      observer2.observe($(this)[0], {
+        subtree: false,
+        childList: true,
+      });
     });
-    if ($("#mDeathLocation").length) {
-      observer2.observe($(".autocomplete-suggestions").eq(1)[0], {
-        subtree: false,
-        childList: true,
-      });
-    }
-    if ($("#mMarriageLocation").length) {
-      observer2.observe($(".autocomplete-suggestions").eq(2)[0], {
-        subtree: false,
-        childList: true,
-      });
-    }
   }, 3000);
 }
