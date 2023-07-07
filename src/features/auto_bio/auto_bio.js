@@ -588,9 +588,9 @@ export function formatDates(person) {
   }
   let deathDate = " ";
   if (person.DeathDate) {
-    deathDate = person.DeathDate.substring(0, 4) || " ";
-  } else if (person.DeathDateDecade) {
-    deathDate = person.DeathDateDecade.substring(0, 3) + "5" || " ";
+    deathDate = person?.DeathDate.substring(0, 4) || " ";
+  } else if (person?.DeathDateDecade) {
+    deathDate = person?.DeathDateDecade.substring(0, 3) + "5" || " ";
   }
   if (birthDate === "0000") birthDate = " ";
   if (deathDate === "0000") deathDate = " ";
@@ -666,7 +666,7 @@ export function formatDate(date, status, options = { format: "MDY", needOn: fals
     year = parseInt(year);
     month = parseInt(month);
     day = parseInt(day);
-  } else {
+  } else if (date) {
     const split = date.split(" ");
     split.forEach(function (bit) {
       if (/\d{4}/.test(bit)) {
@@ -677,6 +677,8 @@ export function formatDate(date, status, options = { format: "MDY", needOn: fals
         day = bit;
       }
     });
+  } else {
+    return;
   }
 
   function getStatusOut(status, day) {
@@ -1085,7 +1087,7 @@ function buildDeath(person) {
   }
   if (person.BirthDate && person.DeathDate && window.autoBioOptions?.includeAgeAtDeath) {
     const birthDate = person.BirthDate.match("-") ? person.BirthDate : getYYYYMMDD(person.BirthDate);
-    const deathDate = person.DeathDate.match("-") ? person.DeathDate : getYYYYMMDD(person.DeathDate);
+    const deathDate = person?.DeathDate.match("-") ? person?.DeathDate : getYYYYMMDD(person?.DeathDate);
     let age = getAgeFromISODates(birthDate, deathDate);
     const uncertainDate =
       person.DataStatus?.DeathDate == "guess" ||
@@ -2644,9 +2646,15 @@ function analyzeColumns(lines) {
 
 function extractHouseholdMembers(row) {
   const brRegex = /<br\s*\/?>/gi;
-  const rowData = row.split("||")[1].trim();
-  const lines = rowData.split(brRegex);
-  return lines;
+  const rowDataSplit = row.split("||");
+  let rowData;
+  if (rowDataSplit[1]) {
+    rowData = rowDataSplit[1].trim();
+    const lines = rowData.split(brRegex);
+    return lines;
+  } else {
+    return [];
+  }
 }
 
 function parseCensusWikitable(text) {
@@ -4328,7 +4336,10 @@ export function sourcesArray(bio) {
         }
         aRef["Event Type"] = "Divorce";
         aRef.Year = divorceDetails[3].match(/\d{4}/)[0];
-        aRef.Location = aRef.Text.match(/in\s(.*?)(,\sUnited States)?/)[1];
+        const locationMatch = aRef.Text.match(/in\s(.*?)(,\sUnited States)?/);
+        if (locationMatch) {
+          aRef.Location = aRef.Text.match(/in\s(.*?)(,\sUnited States)?/)[1];
+        }
         aRef.OrderDate = formatDate(aRef["Divorce Date"], 0, { format: 8 });
         aRef.Narrative = "";
         let thisSpouse = "";
@@ -5037,8 +5048,10 @@ function getFamilySearchFacts() {
           }
           ageBit = " (" + getAgeFromISODates(window.profilePerson.BirthDate, getYYYYMMDD(factDate)) + ")";
         }
-        aFact.Info = aFact.Fact.split(dateMatch[0])[1].trim();
-
+        const aFactInfoSplit = aFact.Fact.split(dateMatch[0]);
+        if (aFactInfoSplit.length > 1) {
+          aFact.Info = aFactInfoSplit[1].trim();
+        }
         if (aFact.Fact.match(/Fact: Residence/i)) {
           aFact.Residence = aFact.Info;
           aFact.FactType = "Residence";
@@ -5475,7 +5488,7 @@ function getFindAGraveLink(text) {
 }
 
 async function getCitation(link) {
-  if (link.match("cgi-bin/fg.cgi")) {
+  if (link.match("cgi-bin/fg.cgi") && link.match("id=")) {
     let memorial = link.split("id=")[1];
     link = "https://www.findagrave.com/memorial/" + memorial;
   }
@@ -6049,6 +6062,9 @@ export function buildFamilyForPrivateProfiles() {
         fatherObject.Name = fatherId;
         const fatherName = fatherLink.textContent;
         parseName(fatherName, fatherObject);
+        if (!window.profilePerson.Parents) {
+          window.profilePerson.Parents = [];
+        }
         window.profilePerson.Parents[1] = fatherObject;
         window.profilePerson.Father = 1;
       }
@@ -6236,7 +6252,7 @@ export async function generateBio() {
     } else {
       window.profilePerson.BirthYear = window.profilePerson.BirthDate?.split("-")[0];
       if (window.profilePerson.DeathDate) {
-        window.profilePerson.DeathYear = window.profilePerson.DeathDate?.split("-")[0];
+        window.profilePerson.DeathYear = window.profilePerson?.DeathDate?.split("-")[0];
       }
     }
 
@@ -6292,8 +6308,8 @@ export async function generateBio() {
     if (isOK(window.profilePerson.BirthDate) && window.profilePerson.BirthDate.match("-") == null) {
       window.profilePerson.BirthDate = convertDate(window.profilePerson.BirthDate, "ISO");
     }
-    if (isOK(window.profilePerson.DeathDate) && window.profilePerson.DeathDate.match("-") == null) {
-      window.profilePerson.DeathDate = convertDate(window.profilePerson.DeathDate, "ISO");
+    if (isOK(window.profilePerson?.DeathDate) && window.profilePerson?.DeathDate.match("-") == null) {
+      window.profilePerson.DeathDate = convertDate(window.profilePerson?.DeathDate, "ISO");
     }
     window.profilePerson.Pronouns = getPronouns(window.profilePerson);
     window.profilePerson.NameVariants = getNameVariants(window.profilePerson);
@@ -6565,7 +6581,7 @@ export async function generateBio() {
               ) {
                 let thisSpouse = "";
                 if (anEvent.Couple) {
-                  if (anEvent.Couple[0].match(window.profilePerson.PersonName.FirstName)) {
+                  if (anEvent.Couple[0].match(window.profilePerson.PersonName.FirstName) && anEvent.Couple[1]) {
                     thisSpouse = anEvent.Couple[1];
                   } else {
                     thisSpouse = anEvent.Couple[0];
@@ -7219,12 +7235,15 @@ shouldInitializeFeature("autoBio").then((result) => {
     // check for Firefox (I don't remember why we need this...)
     window.isFirefox = false;
     window.addEventListener("load", () => {
-      let prefix = Array.prototype.slice
+      let prefixMatch = Array.prototype.slice
         .call(window.getComputedStyle(document.documentElement, ""))
         .join("")
-        .match(/-(moz|webkit|ms)-/)[1];
-      if (prefix == "moz") {
-        window.isFirefox == true;
+        .match(/-(moz|webkit|ms)-/);
+      if (prefixMatch[1]) {
+        const prefix = prefixMatch[1];
+        if (prefix == "moz") {
+          window.isFirefox == true;
+        }
       }
     });
     initBioCheck();
