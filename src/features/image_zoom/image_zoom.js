@@ -227,7 +227,7 @@ function showToggleMessage(option, optionText, optionValue) {
     });
 }
 
-function updateFeatureOptions(featureName, optionName, optionValue) {
+export function updateFeatureOptions(featureName, optionName, optionValue) {
   getFeatureOptions(featureName).then((optionsData) => {
     optionsData[optionName] = optionValue;
     const storageName = featureName + "_options";

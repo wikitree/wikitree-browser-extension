@@ -63,6 +63,8 @@ export let isOtherEdit = false;
 export let isWikiHistory = false;
 // Profile History page
 export let isProfileHistory = false;
+// Profile History page
+export let isActivityFeed = false;
 // Profile History Detail page
 export let isProfileHistoryDetail = false;
 // Space History page
@@ -121,9 +123,14 @@ if (
   isAddUnrelatedPerson = true;
 } else if (
   // Profile History Page https://www.wikitree.com/index.php?title=Special:NetworkFeed&who=Trtnik-2
-  uri.match(/\/index.php\?title=Special:NetworkFeed&who=.*/g)
+  uri.match(/\/index.php\?title=Special:NetworkFeed&who=.*/g) ||
+  uri.match(/\/index.php\?title=Special:NetworkFeed&surname=.*/g)
 ) {
-  isProfileHistory = true;
+  if (uri.match(/watchlist|ancestors|descendants|connections|followed|surname/)) {
+    isActivityFeed = true;
+  } else {
+    isProfileHistory = true;
+  }
 } else if (
   // Profile History Detail Page https://www.wikitree.com/index.php?title=Morgan-14024&diff=53223025&oldid=53223019
   // or https://www.wikitree.com/index.php?title=Morgan-14024&diff=next&oldid=53223019
