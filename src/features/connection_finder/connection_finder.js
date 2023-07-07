@@ -123,7 +123,7 @@ function addTrees() {
         surnameSummariesButton.fadeIn();
       }
     }
-  }, 3000);
+  }, 5000);
 }
 
 async function addCFsurnameList() {
