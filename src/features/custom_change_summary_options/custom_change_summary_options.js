@@ -123,7 +123,7 @@ async function addMovingSaveBox() {
     $("#wpSummaryTextArea").hide("swing");
   });
 
-  $("#wpSummary").on("keyup click paste change", function () {
+  $("body.page-Special_EditPerson #wpSummary").on("keyup click paste change", function () {
     $("#wpSummaryTextArea").text($("#wpSummary").val());
     showHideTextArea();
   });
@@ -289,7 +289,7 @@ function summaryBox(el, added = false) {
 }
 
 function showHideTextArea() {
-  $("#wpSummaryTextArea").show();
+  $("body.page-Special_EditPerson #wpSummaryTextArea").show();
   if (window.timer != undefined) {
     clearTimeout(window.timer); //cancel the previous timer.
     window.timer = null;
