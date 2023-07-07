@@ -478,13 +478,16 @@ async function initReadability() {
             $sb.removeClass("no-visible-content");
           }
           // wait for the no-visible-content class to be applied
-          window.setTimeout(function () {
-            if (!$sb.is(":visible")) {
-              $sb.prev().addClass("sixteen").removeClass("ten");
-            } else {
-              $sb.prev().removeClass("sixteen").addClass("ten");
-            }
-          }, 0);
+          window.setTimeout(
+            function () {
+              if (!$sb.is(":visible")) {
+                $sb.prev().addClass("sixteen").removeClass("ten");
+              } else {
+                $sb.prev().removeClass("sixteen").addClass("ten");
+              }
+            },
+            toggleValue === undefined ? 1000 : 0 // delay a little extra on the initial load
+          );
         }, 0);
       }
     }
