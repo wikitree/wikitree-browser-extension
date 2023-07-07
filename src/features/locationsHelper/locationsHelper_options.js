@@ -17,8 +17,8 @@ registerFeature({
   description:
     "Manipulates the suggested locations, highlighting likely correct locations," +
     " based on family members' locations, and demoting likely wrong locations, based on the dates." +
-    " There is an option to automatically correct the names of US states before they joined the Union." +
-    " e.g. 'Massachusetts Bay Colony' to 'Province of Massachusetts Bay'.",
+    " Options: 1) Automatically correct the names of US states before they joined the Union. " +
+    "2) Add 'County' to US locations. ",
   category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
