@@ -55,5 +55,36 @@ function addAccessKeys() {
     if ($(".editToolbarMenu0 a[data-id='Add any template']").length) {
       $(".editToolbarMenu0 a[data-id='Add any template']")[0].accessKey = "t";
     }
+
+    const buttons = [
+      { ariaLabel: "Copy ID", accessKey: "i", message: "ID" },
+      { ariaLabel: "Copy Wiki Link", accessKey: "l", message: "Link" },
+      { ariaLabel: "Copy URL", accessKey: "u", message: "URL" },
+    ];
+
+    buttons.forEach(({ ariaLabel, accessKey, message }) => {
+      const button = $(`button[aria-label='${ariaLabel}']`);
+      if (button.length) {
+        button[0].accessKey = accessKey;
+        button.on("click", function () {
+          showCopyMessage(message);
+        });
+      }
+    });
+
+    setTimeout(function () {
+      if ($("img[title='Automatic GEDCOM Cleanup']").length) {
+        $("img[title='Automatic GEDCOM Cleanup']")[0].accessKey = "a";
+      }
+    }, 3000);
   }, 1000);
+}
+
+function showCopyMessage(message) {
+  $("<div class='toggle-message'>Copied " + message + "</div>")
+    .appendTo("body")
+    .delay(1000)
+    .fadeOut(2000, function () {
+      $(this).remove();
+    });
 }

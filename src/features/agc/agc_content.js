@@ -507,8 +507,8 @@ function initAgc() {
     agcButton.className = "mw-toolbar-editbutton";
     agcButton.src = agcImageURL;
     agcButton.border = "0";
-    agcButton.alt = "Ancestry GEDCOM Cleanup";
-    agcButton.title = "Ancestry GEDCOM Cleanup";
+    agcButton.alt = "Automatic GEDCOM Cleanup";
+    agcButton.title = "Automatic GEDCOM Cleanup";
     agcButton.style = "cursor: pointer;";
 
     // This adds it on the left side of the toolbar
