@@ -40,6 +40,8 @@ function addAccessKeys() {
 
     if ($("#deleteDraftLinkContainer a").length) {
       $("#deleteDraftLinkContainer a")[0].accessKey = "q";
+    } else if ($("div a:contains('return to')").length) {
+      $("div a:contains('return to')")[0].accessKey = "q";
     }
 
     if ($("a.viewDiffButton").length) {
