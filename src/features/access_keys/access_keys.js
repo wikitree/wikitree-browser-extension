@@ -37,5 +37,21 @@ function addAccessKeys() {
     if ($("a[href$='/wiki/Special:SearchPages']").length) {
       $("a[href$='/wiki/Special:SearchPages']")[0].accessKey = "h";
     }
+
+    if ($("#deleteDraftLinkContainer a").length) {
+      $("#deleteDraftLinkContainer a")[0].accessKey = "q";
+    }
+
+    if ($("a.viewDiffButton").length) {
+      $("a.viewDiffButton")[0].accessKey = "c";
+    }
+
+    if ($(".editToolbarMenu0 a[data-id='Auto Bio']")) {
+      $(".editToolbarMenu0 a[data-id='Auto Bio']")[0].accessKey = "b";
+    }
+
+    if ($(".editToolbarMenu0 a[data-id='Add any template']")) {
+      $(".editToolbarMenu0 a[data-id='Add any template']")[0].accessKey = "t";
+    }
   }, 1000);
 }
