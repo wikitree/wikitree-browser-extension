@@ -46,11 +46,11 @@ function addAccessKeys() {
       $("a.viewDiffButton")[0].accessKey = "c";
     }
 
-    if ($(".editToolbarMenu0 a[data-id='Auto Bio']")) {
+    if ($(".editToolbarMenu0 a[data-id='Auto Bio']").length) {
       $(".editToolbarMenu0 a[data-id='Auto Bio']")[0].accessKey = "b";
     }
 
-    if ($(".editToolbarMenu0 a[data-id='Add any template']")) {
+    if ($(".editToolbarMenu0 a[data-id='Add any template']").length) {
       $(".editToolbarMenu0 a[data-id='Add any template']")[0].accessKey = "t";
     }
   }, 1000);
