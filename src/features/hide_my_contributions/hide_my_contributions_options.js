@@ -9,7 +9,7 @@ registerFeature({
   name: "Hide My Contributions",
   id: "hideMyContributions",
   description: "Stores your preference to hide or show your own contributions on Activity Feed pages.",
-  category: "Other",
+  category: "Community",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
