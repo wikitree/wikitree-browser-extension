@@ -89,8 +89,10 @@ registerFeature({
   name: "Access Keys",
   id: "accessKeys",
   description:
-    "Adds access keys. g: G2G Recent Activity; r: Random Profile, n: Nav Home Page;" +
-    " h: Help Search; s: Save; e: Edit; k: Category; p: Preview.",
+    "Adds access keys. b: Auto Bio; c: Compare draft with saved information; e: Edit; " +
+    "g: G2G Recent Activity; h: Help Search; k: Category; n: Nav Home Page; " +
+    "p: Preview; q: Return to profile / Delete draft; r: Random Profile; " +
+    "s: Save; t: Add any template.",
   category: "Global",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
