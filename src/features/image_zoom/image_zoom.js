@@ -228,11 +228,22 @@ function showToggleMessage(option, optionText, optionValue) {
 }
 
 export function updateFeatureOptions(featureName, optionName, optionValue) {
-  getFeatureOptions(featureName).then((optionsData) => {
-    optionsData[optionName] = optionValue;
-    const storageName = featureName + "_options";
-    chrome.storage.sync.set({
-      [storageName]: optionsData,
+  return new Promise((resolve, reject) => {
+    getFeatureOptions(featureName).then((optionsData) => {
+      optionsData[optionName] = optionValue;
+      const storageName = featureName + "_options";
+      chrome.storage.sync.set(
+        {
+          [storageName]: optionsData,
+        },
+        () => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve();
+          }
+        }
+      );
     });
   });
 }

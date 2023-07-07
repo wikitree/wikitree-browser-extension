@@ -1,4 +1,5 @@
 import $ from "jquery";
+import { updateFeatureOptions } from "../image_zoom/image_zoom.js";
 import { checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 
 checkIfFeatureEnabled("hideMyContributions").then((isEnabled) => {
@@ -59,24 +60,3 @@ checkIfFeatureEnabled("hideMyContributions").then((isEnabled) => {
     });
   }
 });
-
-function updateFeatureOptions(featureName, optionName, optionValue) {
-  return new Promise((resolve, reject) => {
-    getFeatureOptions(featureName).then((optionsData) => {
-      optionsData[optionName] = optionValue;
-      const storageName = featureName + "_options";
-      chrome.storage.sync.set(
-        {
-          [storageName]: optionsData,
-        },
-        () => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError);
-          } else {
-            resolve();
-          }
-        }
-      );
-    });
-  });
-}
