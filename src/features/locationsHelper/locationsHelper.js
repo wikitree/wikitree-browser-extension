@@ -13,7 +13,7 @@ shouldInitializeFeature("locationsHelper").then((result) => {
     getFeatureOptions("locationsHelper").then((options) => {
       window.locationsHelperOptions = options;
     });
-    $("#mBirthLocation,#mDeathLocation,#mLocation").on("focus", function () {
+    $("#mBirthLocation,#mDeathLocation,#Email[name='mMarriageLocation']").on("focus", function () {
       if (!window.bdLocations) {
         locationsHelper();
       }

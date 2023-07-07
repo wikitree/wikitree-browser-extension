@@ -131,7 +131,7 @@ function scrollTo(el) {
 }
 
 shouldInitializeFeature("addPersonRedesign").then((result) => {
-  if (result) {
+  if (result && $("h1:contains('Edit Marriage')").length == 0) {
     import("./add_person.css");
     moveSourcesParts();
     keepBasicDataSectionVisible();
