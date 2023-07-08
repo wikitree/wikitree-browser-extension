@@ -121,6 +121,43 @@ const myCustomStyle = {
         },
       ],
     },
+    {
+      id: "editorHighlighting",
+      type: OptionType.GROUP,
+      label: "Enhanced Editor Highlighting",
+      options: [
+        {
+          id: "cm-bracket_background-color",
+          type: "color",
+          label: "Bracket background color",
+          defaultValue: "#eeeeee",
+        },
+        {
+          id: "cm-reference_background-color",
+          type: "color",
+          label: "Reference background color",
+          defaultValue: "#eeeeee",
+        },
+        {
+          id: "cm-tag_background-color",
+          type: "color",
+          label: "Tag background color",
+          defaultValue: "#eeeeee",
+        },
+        {
+          id: "cm-heading_background-color",
+          type: "color",
+          label: "Heading background color",
+          defaultValue: "#eeeeee",
+        },
+        {
+          id: "cm-asterisk_background-color",
+          type: "color",
+          label: "Asterisk background color",
+          defaultValue: "#eeeeee",
+        },
+      ],
+    },
   ],
 };
 

@@ -52,3 +52,8 @@ span[style="background-color:#ffee99"] {
 span[style="color:#c07fee"] {
   color: #c07fee !important;
 }
+
+.start-tag::before {
+  content: "";
+  display: block;
+}
