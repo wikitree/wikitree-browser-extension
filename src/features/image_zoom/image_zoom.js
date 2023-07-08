@@ -288,6 +288,8 @@ async function setupImageZoom() {
     let img = $(this).find("img");
     let imgSrc = img.attr("src");
     let imgAlt = img.attr("alt");
+    const imgWidth = img.width();
+    const imgHeight = img.height();
     let isThumb;
     if (imgSrc) {
       if (imgSrc.includes("thumb")) {
@@ -295,6 +297,9 @@ async function setupImageZoom() {
       }
       let parent = $(this).css({ display: "inline-block", position: "relative" });
       const overlay = $('<div class="image_zoom_overlay"><span>🔍</span></div>').appendTo(parent);
+      if (imgWidth < 100 || imgHeight < 100) {
+        overlay.addClass("small-image");
+      }
 
       overlay.on({
         mousedown: function (e) {
@@ -353,8 +358,7 @@ async function setupImageZoom() {
           magnifier.hide();
           return;
         }
-        const imgWidth = img.width();
-        const imgHeight = img.height();
+
         if (showMagnifier && imgWidth > 76) {
           if (!isMagnifying) {
             // If not currently magnifying, set a timer to start magnification

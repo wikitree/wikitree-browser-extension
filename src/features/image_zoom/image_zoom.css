@@ -15,6 +15,11 @@
   cursor: zoom-in; /* Indicate that the overlay is clickable */
   font-size: 1em;
 }
+.image_zoom_overlay.small-image {
+  height: 1em;
+  width: 1em;
+  font-size: 0.8em;
+}
 
 .image_zoom_overlay span {
   visibility: hidden;
