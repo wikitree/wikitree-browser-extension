@@ -13,6 +13,7 @@ async function initCustomStyle() {
   const options = await getFeatureOptions("customStyle");
   const keys = Object.keys(options);
   keys.forEach(function (key) {
+    let important = " !important";
     if (options[key]) {
       let bits = key.split("_");
       let selectors;
@@ -79,30 +80,83 @@ async function initCustomStyle() {
         if (bits[0] == "cm-asterisk") {
           selectors += "list";
         }
+        if (bits[0] == "cm-attribute") {
+          selectors += "exttag-attribute";
+        }
+        if (bits[0] == "cm-category-bracket") {
+          selectors += "link-bracket";
+        }
+        if (bits[0] == "cm-category-text") {
+          selectors += "link-pagename";
+        }
+        /*
+ {
+          id: "cm-template-bracket_background-color",
+          type: "color",
+          label: "Template bracket background color",
+          defaultValue: "#eef5e5",
+        },
+        {
+          id: "cm-template-name_background-color",
+          type: "color",
+          label: "Template name background color",
+          defaultValue: "#eeeeee",
+        },
+        {
+          id: "cm-template-pipe_background-color",
+          type: "color",
+          label: "Template pipe background color",
+          defaultValue: "#eeeeee",
+        },
+        {
+          id: "cm-template-parameter_background-color",
+          type: "color",
+          label: "Template parameter background color",
+          defaultValue: "#eeeeee",
+        },
+        {
+          id: "cm-template-parameter-value_background-color",
+          type: "color",
+          label: "Template parameter value background color",
+          defaultValue: "#fcf5d5",
+        },
+        */
+
+        if (bits[0] == "cm-template-bracket") {
+          selectors += "template-bracket";
+        }
+        if (bits[0] == "cm-template-name") {
+          selectors += "template-name";
+        }
+        if (bits[0] == "cm-template-pipe") {
+          selectors += "template-delimiter";
+        }
+        if (bits[0] == "cm-template-parameter") {
+          selectors += "template-argument-name";
+        }
+        if (bits[0] == "cm-template-parameter-value") {
+          selectors += "template";
+        }
+
+        important = "";
       }
-      rules += selectors + "{" + bits[1] + ":" + options[key] + " !important;}\n";
+      rules += selectors + "{" + bits[1] + ":" + options[key] + important + ";}\n";
     }
   });
   $("<style>" + rules + "</style>").appendTo($("head"));
-  setTimeout(function () {
-    $("span.cm-mw-exttag-bracket")
-      .filter(function () {
-        return /^><$/.test($(this).text());
-      })
-      .each(function () {
-        var originalSpan = $(this);
+  addStartEndTagClasses();
+  $("#wpTextbox1").on("change", addStartTagClass);
+}
 
-        // Create new span elements for each bracket
-        var newSpan1 = $("<span>").addClass("cm-mw-exttag-bracket cm-mw-ext-ref").html("&gt;");
-        var newSpan2 = $("<span>").addClass("cm-mw-exttag-bracket cm-mw-ext-ref").html("&lt;");
-
-        // Replace the original span with the two new ones
-        originalSpan.replaceWith(newSpan1, newSpan2);
-      });
-    $("span.cm-mw-exttag-bracket")
-      .filter(function () {
-        return $(this).text() === "<";
-      })
-      .addClass("start-tag");
-  }, 2000);
+function addStartEndTagClasses() {
+  $("span.cm-mw-exttag-bracket")
+    .filter(function () {
+      return $(this).text() === "<";
+    })
+    .addClass("start-tag");
+  $("span.cm-mw-exttag-bracket")
+    .filter(function () {
+      return $(this).text() === ">" || $(this).text() === "/>";
+    })
+    .addClass("end-tag");
 }

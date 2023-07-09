@@ -57,3 +57,7 @@ span[style="color:#c07fee"] {
   content: "";
   display: block;
 }
+.end-tag::after {
+  content: "";
+  display: block;
+}
