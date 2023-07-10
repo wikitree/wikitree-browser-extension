@@ -118,6 +118,9 @@ async function initCustomStyle() {
             selectors += "section-header, body pre.cm-mw-section-2, body pre.cm-mw-section-3, body pre.cm-mw-section-4";
           }
         }
+        if (bits[0] == "cm-reference-text-font") {
+          selectors += "tag-ref";
+        }
 
         important = "";
       }

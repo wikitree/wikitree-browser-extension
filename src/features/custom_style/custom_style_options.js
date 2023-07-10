@@ -124,7 +124,7 @@ const myCustomStyle = {
     {
       id: "editorHighlighting",
       type: OptionType.GROUP,
-      label: "Enhanced Editor Highlighting",
+      label: "Enhanced Editor",
       options: [
         {
           id: "cmBackgroundColors",
@@ -200,7 +200,7 @@ const myCustomStyle = {
           ],
         },
         {
-          id: "cmFontColors",
+          id: "cmTextColors",
           type: OptionType.GROUP,
           label: "Text Color",
           options: [
@@ -221,6 +221,40 @@ const myCustomStyle = {
               type: "color",
               label: "References",
               defaultValue: "#000000",
+            },
+          ],
+        },
+
+        {
+          id: "cmFontColors",
+          type: OptionType.GROUP,
+          label: "Font",
+          options: [
+            {
+              id: "cm-bio-text-font_font-family",
+              type: OptionType.SELECT,
+              label: "Biography text",
+              defaultValue: "inherit",
+              values: [
+                { value: "inherit", text: "Default" },
+                { value: "monospace", text: "Monospace" },
+                { value: "Courier new", text: "Courier new" },
+                { value: "sans-serif", text: "Sans-serif" },
+                { value: "serif", text: "Serif" },
+              ],
+            },
+            {
+              id: "cm-reference-text-font_font-family",
+              type: OptionType.SELECT,
+              label: "References",
+              defaultValue: "inherit",
+              values: [
+                { value: "inherit", text: "Default" },
+                { value: "monospace", text: "Monospace" },
+                { value: "Courier new", text: "Courier new" },
+                { value: "sans-serif", text: "Sans-serif" },
+                { value: "serif", text: "Serif" },
+              ],
             },
           ],
         },
