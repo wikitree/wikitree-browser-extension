@@ -53,6 +53,7 @@ span[style="color:#c07fee"] {
   color: #c07fee !important;
 }
 
+/*
 .start-tag::before {
   content: "";
   display: block;
@@ -60,4 +61,14 @@ span[style="color:#c07fee"] {
 .end-tag::after {
   content: "";
   display: block;
+}
+*/
+
+pre[role="presentation"].source,
+pre[role="presentation"].source span[role="presentation"] {
+  color: black;
+}
+
+span[class^="cm-"] {
+  color: black;
 }

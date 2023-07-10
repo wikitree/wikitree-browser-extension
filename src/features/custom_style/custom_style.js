@@ -19,7 +19,7 @@ async function initCustomStyle() {
       let selectors;
 
       if (bits[0] == "headings") {
-        selectors = "h1,h2,h3,\n" + "#themeTable caption";
+        selectors = "h1,h2,h3,h4,h5,h6\n" + "#themeTable caption";
         if (bits[1] == "color") {
           selectors += ",button.copyWidget";
         }
@@ -64,78 +64,59 @@ async function initCustomStyle() {
       }
       if (bits[0].match(/^cm-/)) {
         // Code Mirror"
-        selectors = "body .cm-mw-";
-        if (bits[0] == "cm-bracket") {
-          selectors += "exttag-bracket";
+        selectors = "body span.cm-mw-";
+        if (bits[0] == "cm-reference-tag-bg") {
+          selectors += "exttag-bracket, body span.cm-mw-exttag-name, body span.cm-mw-exttag-attribute";
         }
-        if (bits[0] == "cm-reference") {
+        if (bits[0] == "cm-reference-text-bg") {
           selectors += "tag-ref";
         }
-        if (bits[0] == "cm-tag") {
-          selectors += "exttag-name";
+        if (bits[0] == "cm-heading-bg") {
+          if (options[key] == "#eeeeee") {
+            selectors += "section-header";
+          } else {
+            selectors += "section-header, body pre.cm-mw-section-2, body pre.cm-mw-section-3, body pre.cm-mw-section-4";
+          }
         }
-        if (bits[0] == "cm-heading") {
-          selectors += "section-header";
-        }
-        if (bits[0] == "cm-asterisk") {
+        if (bits[0] == "cm-asterisk-bg") {
           selectors += "list";
         }
-        if (bits[0] == "cm-attribute") {
-          selectors += "exttag-attribute";
-        }
-        if (bits[0] == "cm-category-bracket") {
+        if (bits[0] == "cm-category-bracket-bg") {
           selectors += "link-bracket";
         }
-        if (bits[0] == "cm-category-text") {
+        if (bits[0] == "cm-category-text-bg") {
           selectors += "link-pagename";
         }
-        /*
- {
-          id: "cm-template-bracket_background-color",
-          type: "color",
-          label: "Template bracket background color",
-          defaultValue: "#eef5e5",
-        },
-        {
-          id: "cm-template-name_background-color",
-          type: "color",
-          label: "Template name background color",
-          defaultValue: "#eeeeee",
-        },
-        {
-          id: "cm-template-pipe_background-color",
-          type: "color",
-          label: "Template pipe background color",
-          defaultValue: "#eeeeee",
-        },
-        {
-          id: "cm-template-parameter_background-color",
-          type: "color",
-          label: "Template parameter background color",
-          defaultValue: "#eeeeee",
-        },
-        {
-          id: "cm-template-parameter-value_background-color",
-          type: "color",
-          label: "Template parameter value background color",
-          defaultValue: "#fcf5d5",
-        },
-        */
-
-        if (bits[0] == "cm-template-bracket") {
+        if (bits[0] == "cm-template-bracket-bg") {
           selectors += "template-bracket";
         }
-        if (bits[0] == "cm-template-name") {
+        if (bits[0] == "cm-template-name-bg") {
           selectors += "template-name";
         }
-        if (bits[0] == "cm-template-pipe") {
+        if (bits[0] == "cm-template-pipe-bg") {
           selectors += "template-delimiter";
         }
-        if (bits[0] == "cm-template-parameter") {
+        if (bits[0] == "cm-template-parameter-bg") {
           selectors += "template-argument-name";
         }
-        if (bits[0] == "cm-template-parameter-value") {
+        if (bits[0] == "cm-template-parameter-value-bg") {
           selectors += "template";
+        }
+
+        // Text colors
+        if (bits[0] == "cm-regular-text") {
+          selectors = "span[role='presentation']";
+        }
+        if (bits[0] == "cm-reference-text") {
+          selectors +=
+            "tag-ref, body span.cm-mw-exttag-bracket, body span.cm-mw-exttag-name, body span.cm-mw-exttag-attribute";
+        }
+        if (bits[0] == "cm-heading-text") {
+          if (options[key] == "#000000") {
+            selectors += "section-header";
+          } else {
+            selectors += "section-header, body pre.cm-mw-section-2, body pre.cm-mw-section-3, body pre.cm-mw-section-4";
+          }
         }
 
         important = "";
@@ -146,6 +127,29 @@ async function initCustomStyle() {
   $("<style>" + rules + "</style>").appendTo($("head"));
   addStartEndTagClasses();
   $("#wpTextbox1").on("change", addStartEndTagClasses);
+
+  watchCodeMirror();
+}
+
+function watchCodeMirror() {
+  const codeMirrorLines = document.querySelector(".CodeMirror-lines");
+
+  if (codeMirrorLines) {
+    // Create a new MutationObserver instance
+    var observer = new MutationObserver(function (mutations) {
+      mutations.forEach(function (mutation) {
+        if (mutation.type === "childList") {
+          addStartEndTagClasses();
+        }
+      });
+    });
+
+    // Specify what the observer should watch for: changes to the children of codeMirrorLines
+    var config = { childList: true, subtree: true };
+    observer.observe(codeMirrorLines, config);
+  } else {
+    console.log("CodeMirror lines element not found");
+  }
 }
 
 function addStartEndTagClasses() {
@@ -159,4 +163,5 @@ function addStartEndTagClasses() {
       return $(this).text() === ">" || $(this).text() === "/>";
     })
     .addClass("end-tag");
+  $("pre.cm-mw-section-2:has(span:contains('Sources'))").nextAll().addClass("source");
 }
