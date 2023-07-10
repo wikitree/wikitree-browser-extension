@@ -145,7 +145,7 @@ async function initCustomStyle() {
   });
   $("<style>" + rules + "</style>").appendTo($("head"));
   addStartEndTagClasses();
-  $("#wpTextbox1").on("change", addStartTagClass);
+  $("#wpTextbox1").on("change", addStartEndTagClasses);
 }
 
 function addStartEndTagClasses() {
