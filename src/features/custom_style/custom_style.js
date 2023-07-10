@@ -17,7 +17,7 @@ async function initCustomStyle() {
       let bits = key.split("_");
 
       if (bits[0] == "headings") {
-        bits[0] = "h1,h2,h3,\n" + "#themeTable caption";
+        bits[0] = "h1,h2,h3,h4,h5,h6\n" + "#themeTable caption";
         if (bits[1] == "color") {
           bits[0] += ",button.copyWidget";
         }

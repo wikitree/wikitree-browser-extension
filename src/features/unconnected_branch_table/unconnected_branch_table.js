@@ -6,14 +6,14 @@ import { getPeople } from "../dna_table/dna_table";
 import { showFamilySheet } from "../familyGroup/familyGroup";
 import { assignPersonNames } from "../auto_bio/auto_bio";
 import { addFiltersToWikitables, repositionFilterRow } from "../table_filters/table_filters";
+import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
 import "jquery-ui/ui/widgets/draggable";
 
-checkIfFeatureEnabled("unconnectedBranchTable").then((result) => {
-  if (result) {
-    if (
-      $(".x-connections").length == 0 &&
-      $("a[href*='title=Special:Connection&action=connect&person1Name']").length < 7
-    ) {
+async function initUnconnectedBranch() {
+  const profileID = $("a.pureCssMenui0 span.person").text();
+  const profile = await getProfile(profileID, "Id,Created,Name", "WBE_UnconnectedBranch");
+  if (profile.Created) {
+    if (!isLessThan24HoursAgo(profile.Created)) {
       const options = {
         title: "Display table of unconnected branch",
         id: "unconnectedBranchButton",
@@ -29,6 +29,46 @@ checkIfFeatureEnabled("unconnectedBranchTable").then((result) => {
           $("#unconnectedBranchTable").slideToggle();
         }
       });
+    }
+  }
+}
+
+function isLessThan24HoursAgo(dateString) {
+  // Split the date string into components
+  let year = dateString.substring(0, 4);
+  let month = dateString.substring(4, 6);
+  let day = dateString.substring(6, 8);
+  let hours = dateString.substring(8, 10);
+  let minutes = dateString.substring(10, 12);
+  let seconds = dateString.substring(12, 14);
+
+  // Create a new date object
+  let date = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
+
+  // Get the current date
+  let now = new Date();
+
+  // Calculate the difference in milliseconds
+  let diff = now - date;
+
+  // Convert milliseconds to hours
+  let diffInHours = diff / 1000 / 60 / 60;
+
+  // Check if the difference is less than 24
+  if (diffInHours < 24) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+checkIfFeatureEnabled("unconnectedBranchTable").then((result) => {
+  if (result) {
+    if (
+      $(".x-connections").length == 0 &&
+      $("a[href*='title=Special:Connection&action=connect&person1Name']").length < 7
+    ) {
+      initUnconnectedBranch();
     }
   }
 });
