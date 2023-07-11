@@ -3,80 +3,104 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
+import { isCategoryPage, isWikiEdit } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 shouldInitializeFeature("accessKeys").then((result) => {
   if (result) {
-    addAccessKeys();
+    getFeatureOptions("accessKeys").then((options) => {
+      addAccessKeys(options);
+    });
   }
 });
 
-function addAccessKeys() {
+function addAccessKeys(options) {
   setTimeout(function () {
-    if ($("#previewButton").length) {
+    if (options.Preview && $("#previewButton").length) {
       $("#previewButton")[0].accessKey = "p";
     }
 
-    $("body").append("<a style='display:none;' id='G2Grecent' href='https://www.wikitree.com/g2g/activity'></a>");
-    $("#G2Grecent")[0].accessKey = "g";
-    if ($("a[title='Edit Profile and Family Relationships'],a[title='Edit this Profile']").length) {
-      $("a[title='Edit Profile and Family Relationships'],a[title='Edit this Profile']")[0].accessKey = "e";
+    if (options.G2G && $("#G2Grecent").length) {
+      $("#G2Grecent")[0].accessKey = "g";
     }
-    if ($("#wpSave").length) {
+
+    if (options.Edit && $("a[title='Edit Profile and Family Relationships'],a[title='Edit this Profile']").length) {
+      $("a[title='Edit Profile and Family Relationships'],a[title='Edit this Profile']")[0].accessKey = "e";
+    } else if (options.Edit && isCategoryPage && $("div.EDIT a[title='Edit the text on this category page']").length) {
+      $("div.EDIT a[title='Edit the text on this category page']")[0].accessKey = "e";
+    } else if (options.enhancedEditor && isWikiEdit && $("#toggleMarkupColor").length) {
+      $("#toggleMarkupColor")[0].accessKey = "e";
+    }
+
+    if (options.Save && $("#wpSave").length) {
       $("#wpSave")[0].accessKey = "s";
     }
-    if ($("#addCategoryButton").length) {
+
+    if (options.Category && $("#addCategoryButton").length) {
       $("#addCategoryButton")[0].accessKey = "k";
     }
-    if ($("a.pureCssMenui.randomProfile").length) {
+
+    if (options.RandomProfile && $("a.pureCssMenui.randomProfile").length) {
       $("a.pureCssMenui.randomProfile")[0].accessKey = "r";
     }
-    if ($("a[href$='/wiki/Special:Home']").length) {
+
+    if (options.NavHomePage && $("a[href$='/wiki/Special:Home']").length) {
       $("a[href$='/wiki/Special:Home']")[0].accessKey = "n";
     }
-    if ($("a[href$='/wiki/Special:SearchPages']").length) {
+
+    if (options.HelpSearch && $("a[href$='/wiki/Special:SearchPages']").length) {
       $("a[href$='/wiki/Special:SearchPages']")[0].accessKey = "h";
     }
 
-    if ($("#deleteDraftLinkContainer a").length) {
+    if (options.ReturnProfileDeleteDraft && $("#deleteDraftLinkContainer a").length) {
       $("#deleteDraftLinkContainer a")[0].accessKey = "q";
-    } else if ($("div a:contains('return to')").length) {
+    } else if (options.ReturnProfileDeleteDraft && $("div a:contains('return to')").length) {
       $("div a:contains('return to')")[0].accessKey = "q";
     }
 
-    if ($("a.viewDiffButton").length) {
+    if (options.Compare && $("a.viewDiffButton").length) {
       $("a.viewDiffButton")[0].accessKey = "c";
     }
 
-    if ($(".editToolbarMenu0 a[data-id='Auto Bio']").length) {
+    if (options.AutoBio && $(".editToolbarMenu0 a[data-id='Auto Bio']").length) {
       $(".editToolbarMenu0 a[data-id='Auto Bio']")[0].accessKey = "b";
     }
 
-    if ($(".editToolbarMenu0 a[data-id='Add any template']").length) {
+    if (options.AddTemplate && $(".editToolbarMenu0 a[data-id='Add any template']").length) {
       $(".editToolbarMenu0 a[data-id='Add any template']")[0].accessKey = "t";
     }
 
-    const buttons = [
-      { ariaLabel: "Copy ID", accessKey: "i", message: "ID" },
-      { ariaLabel: "Copy Wiki Link", accessKey: "l", message: "Link" },
-      { ariaLabel: "Copy URL", accessKey: "u", message: "URL" },
-    ];
+    if (options.CopyID && $(`button[aria-label='Copy ID']`).length) {
+      const button = $(`button[aria-label='Copy ID']`);
+      button[0].accessKey = "i";
+      button.on("click", function () {
+        showCopyMessage("ID");
+      });
+    }
 
-    buttons.forEach(({ ariaLabel, accessKey, message }) => {
-      const button = $(`button[aria-label='${ariaLabel}']`);
-      if (button.length) {
-        button[0].accessKey = accessKey;
-        button.on("click", function () {
-          showCopyMessage(message);
-        });
-      }
-    });
+    if (options.CopyLink && $(`button[aria-label='Copy Wiki Link']`).length) {
+      const button = $(`button[aria-label='Copy Wiki Link']`);
+      button[0].accessKey = "l";
+      button.on("click", function () {
+        showCopyMessage("Link");
+      });
+    }
 
-    setTimeout(function () {
-      if ($("img[title='Automatic GEDCOM Cleanup']").length) {
-        $("img[title='Automatic GEDCOM Cleanup']")[0].accessKey = "a";
-      }
-    }, 3000);
+    if (options.CopyURL && $(`button[aria-label='Copy URL']`).length) {
+      const button = $(`button[aria-label='Copy URL']`);
+      button[0].accessKey = "u";
+      button.on("click", function () {
+        showCopyMessage("URL");
+      });
+    }
+
+    if (options.AGC) {
+      setTimeout(function () {
+        if ($("img[title='Automatic GEDCOM Cleanup']").length) {
+          $("img[title='Automatic GEDCOM Cleanup']")[0].accessKey = "a";
+        }
+      }, 3000);
+    }
   }, 1000);
 }
 
