@@ -1,0 +1,244 @@
+import $ from "jquery";
+import dt from "datatables.net-dt";
+import "datatables.net-dt/css/jquery.dataTables.css";
+import { getPeople } from "../dna_table/dna_table";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+
+const bigDiv = $(".box.orange.rounded.row");
+shouldInitializeFeature("anniversariesTable").then((result) => {
+  if (result) {
+    import("./anniversaries_table.css");
+    initAnniversariesTable();
+  }
+});
+
+async function initAnniversariesTable() {
+  await import("./anniversaries_table.css");
+  const anniversariesTableOptions = await getFeatureOptions("anniversariesTable");
+  $("div.row")
+    .eq(0)
+    .after(
+      $("<button id='toggleAnniversariesTableButton' class='small'>Switch Format</button>").css({
+        "margin-bottom": "1em",
+      })
+    );
+  $("#toggleAnniversariesTableButton").on("click", function (e) {
+    e.preventDefault();
+    anniversariesTable().then(() => {
+      bigDiv.toggle();
+      $("#anniversariesTable_wrapper").toggle();
+    });
+  });
+  if (anniversariesTableOptions.showTableOnLoad) {
+    $("#toggleAnniversariesTableButton").trigger("click");
+  }
+}
+
+async function anniversariesTable() {
+  if ($("#anniversariesTable").length > 0) {
+    return;
+  }
+  // First, convert your divs to a table
+  const table = $('<table id="anniversariesTable">');
+  table.append(
+    "<thead><tr><th>Date</th><th>Name</th><th>Event</th><th>Details</th><th>°</th><th>Relationship</th></tr></thead><tbody>"
+  );
+
+  $(".box.orange.rounded.row div").each(function () {
+    const row = $("<tr>");
+    const div = $(this);
+    const dateExp = /(\d{2}) (\w{3}) (\d{4})/;
+    const dateMatch = dateExp.exec(div.text());
+    let date = "";
+    if (dateMatch) {
+      date = dateMatch[0];
+    }
+    const eventExp = /(was born|married|died)/;
+    const eventMatch = eventExp.exec(div.text());
+    let event = "";
+    if (eventMatch) {
+      event = eventMatch[0];
+    }
+
+    if (div.text().includes(" was born ")) {
+      event = "was born";
+    } else if (div.text().includes(" married ")) {
+      event = "married";
+    } else if (div.text().includes(" died ")) {
+      event = "died";
+    }
+
+    const names = div.find("a[href^='/wiki/']");
+    const spans = div.find("span");
+
+    const rowId = names.eq(0).attr("href").substring(6);
+    row.data("rowId", rowId);
+    row.attr("data-event", event);
+
+    row.append(
+      "<td>" +
+        date +
+        "</td>" +
+        "<td>" +
+        names.eq(0).prop("outerHTML") +
+        (names.length > 1 ? " " + spans.eq(0).prop("outerHTML") : "") +
+        "</td>" +
+        "<td>" +
+        event +
+        "</td>" +
+        "<td>" +
+        (names.length > 1
+          ? names.eq(1).prop("outerHTML") + " " + spans.eq(1).prop("outerHTML")
+          : spans.eq(0).prop("outerHTML")) +
+        "</td>" +
+        "<td class='distance-cell'></td>" +
+        "<td class='relationship-cell'></td>"
+    );
+    table.append(row);
+  });
+
+  table.append("</tbody>");
+  const bigDiv = $(".box.orange.rounded.row");
+  bigDiv.before(table);
+
+  // Open the IndexedDB for RelationshipFinderWTE
+  const requestRelationship = window.indexedDB.open("RelationshipFinderWTE", 1);
+  requestRelationship.onsuccess = function (event) {
+    const dbRelationship = event.target.result;
+
+    // Open the IndexedDB for ConnectionFinderWTE
+    const requestConnection = window.indexedDB.open("ConnectionFinderWTE", 1);
+    requestConnection.onsuccess = function (event) {
+      const dbConnection = event.target.result;
+
+      const distanceTransaction = dbConnection.transaction(["distance"], "readonly");
+      const distanceStore = distanceTransaction.objectStore("distance");
+
+      const relationshipTransaction = dbRelationship.transaction(["relationship"], "readonly");
+      const relationshipStore = relationshipTransaction.objectStore("relationship");
+
+      // Create arrays to hold all the promises
+      const distancePromises = [];
+      const relationshipPromises = [];
+
+      // Loop through the rows again to fill the distance and relationship columns
+      $("#anniversariesTable tbody tr").each(function () {
+        const row = $(this);
+        const rowId = row.data("rowId");
+
+        // Request the distance record
+        const getDistance = distanceStore.get(rowId);
+        const distancePromise = new Promise((resolve, reject) => {
+          getDistance.onsuccess = function (event) {
+            const distance = event.target.result ? event.target.result.distance + "°" : "";
+            row.find(".distance-cell").attr("data-sort", distance).text(distance);
+            resolve();
+          };
+        });
+        distancePromises.push(distancePromise);
+
+        // Request the relationship record
+        const getRelationship = relationshipStore.get(rowId);
+        const relationshipPromise = new Promise((resolve, reject) => {
+          getRelationship.onsuccess = function (event) {
+            let relationship =
+              event.target.result && event.target.result.relationship ? event.target.result.relationship : "";
+            row.find(".relationship-cell").attr("data-sort", relationship).text(relationship);
+            resolve();
+          };
+        });
+        relationshipPromises.push(relationshipPromise);
+      });
+
+      // Wait for all promises to resolve before initializing DataTable
+      Promise.all([...distancePromises, ...relationshipPromises])
+        .then(() => {
+          // Initialize DataTable here
+          $("#anniversariesTable").DataTable({
+            paging: false,
+            columnDefs: [
+              {
+                targets: 4,
+                orderDataType: "distance",
+                type: "numeric",
+              },
+            ],
+            language: {
+              search: "Filter:",
+            },
+          });
+          console.log(updateNames());
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    };
+  };
+}
+
+function generateCSV() {
+  let csvList = new Set(); // Use Set to avoid duplicate entries
+
+  // Iterate over each row in the table
+  $("#anniversariesTable tbody tr").each(function () {
+    const row = $(this);
+    // Find all anchor tags in the row with 'href' starting with '/wiki/'
+    const anchors = row.find("a[href^='/wiki/']");
+    anchors.each(function () {
+      // Get the href value and split it to get the ID
+      const id = $(this).attr("href").substring(6);
+      const lastName = id.split("-")[0];
+      if ($(this).text().match(lastName) == null) {
+        csvList.add(id);
+      }
+    });
+  });
+
+  // Convert Set back to array and join the array elements into a string with commas
+  let csvString = Array.from(csvList).join(",");
+  return csvString;
+}
+
+async function updateNames() {
+  let csvString = generateCSV(); // Get the CSV list
+
+  // Call your getPeople function with the CSV list as the keys
+  let people = await getPeople(
+    csvString,
+    false,
+    false,
+    false,
+    false,
+    0,
+    "Name,FirstName,LastNameCurrent,LastNameAtBirth"
+  );
+
+  console.log(people);
+  // Check if people are returned
+  if (people && people.people) {
+    // Iterate over each person
+    for (let i = 0; i < people.length; i++) {
+      for (let key in people[i].people) {
+        let person = people[i].people[key];
+
+        // Check if person has a maiden name and a current last name
+        if (person.FirstName && person.LastNameCurrent && person.LastNameAtBirth && person.Name) {
+          let LNAB = person.LastNameAtBirth; // Get the LNAB from the person.LastNameAtBirth
+
+          // Get the rows which contain this person's key in a link
+          let rows = $("#anniversariesTable tbody tr").filter(function () {
+            return $(this).find(`a[href='/wiki/${person.Name}']`).length > 0;
+          });
+
+          // Update the name in each link to this person in each row
+          rows.each(function () {
+            let links = $(this).find(`a[href='/wiki/${person.Name}']`);
+            links.each(function () {
+              $(this).text(person.FirstName + " (" + LNAB + ") " + person.LastNameCurrent);
+            });
+          });
+        }
+      }
+    }
+  }
+}

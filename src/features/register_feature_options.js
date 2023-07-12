@@ -51,6 +51,7 @@ import {
 import "./add_person/add_person_options";
 import "./add_search_boxes/add_search_boxes_options";
 import "./agc/agc_options";
+import "./anniversaries_table/anniversaries_table_options";
 import "./auto_bio/auto_bio_options";
 import "./auto_categories/auto_categories_options";
 import "./categoryDisplay/categoryDisplay_options";
