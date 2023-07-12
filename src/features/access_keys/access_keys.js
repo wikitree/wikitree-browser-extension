@@ -28,7 +28,7 @@ function addAccessKeys(options) {
       $("a[title='Edit Profile and Family Relationships'],a[title='Edit this Profile']")[0].accessKey = "e";
     } else if (options.Edit && isCategoryPage && $("div.EDIT a[title='Edit the text on this category page']").length) {
       $("div.EDIT a[title='Edit the text on this category page']")[0].accessKey = "e";
-    } else if (options.enhancedEditor && isWikiEdit && $("#toggleMarkupColor").length) {
+    } else if (options.EnhancedEditor && isWikiEdit && $("#toggleMarkupColor").length) {
       $("#toggleMarkupColor")[0].accessKey = "e";
     }
 
@@ -45,11 +45,11 @@ function addAccessKeys(options) {
     }
 
     if (options.NavHomePage && $("a[href$='/wiki/Special:Home']").length) {
-      $("a[href$='/wiki/Special:Home']")[0].accessKey = "."; // period
+      $("a[href$='/wiki/Special:Home']")[0].accessKey = "1";
     }
 
     if (options.HelpSearch && $("a[href$='/wiki/Special:SearchPages']").length) {
-      $("a[href$='/wiki/Special:SearchPages']")[0].accessKey = ","; // comma
+      $("a[href$='/wiki/Special:SearchPages']")[0].accessKey = "h";
     }
 
     if (options.ReturnProfileDeleteDraft && $("#deleteDraftLinkContainer a").length) {
@@ -93,6 +93,18 @@ function addAccessKeys(options) {
         showCopyMessage("URL");
       });
     }
+
+    if (options.TreeApps && $("ul.profile-tabs li:contains('Tree Apps')").length) {
+      $("ul.profile-tabs li:contains('Tree Apps')")[0].accessKey = "t";
+    }
+
+    if (options.Ancestors && $(".showHideTree").length) {
+      $(".showHideTree")[0].accessKey = "a";
+    }
+    if (options.Descendants && $("#showHideDescendants").length) {
+      $("#showHideDescendants")[0].accessKey = "d";
+    }
+
     setTimeout(function () {
       if (options.AGC) {
         if ($("img[title='Automatic GEDCOM Cleanup']").length) {
