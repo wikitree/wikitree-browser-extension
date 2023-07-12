@@ -139,7 +139,7 @@ function watchCodeMirror() {
 
   if (codeMirrorLines) {
     // Create a new MutationObserver instance
-    var observer = new MutationObserver(function (mutations) {
+    const observer = new MutationObserver(function (mutations) {
       mutations.forEach(function (mutation) {
         if (mutation.type === "childList") {
           addStartEndTagClasses();
@@ -148,10 +148,8 @@ function watchCodeMirror() {
     });
 
     // Specify what the observer should watch for: changes to the children of codeMirrorLines
-    var config = { childList: true, subtree: true };
+    const config = { childList: true, subtree: true };
     observer.observe(codeMirrorLines, config);
-  } else {
-    console.log("CodeMirror lines element not found");
   }
 }
 

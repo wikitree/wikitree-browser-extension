@@ -53,6 +53,7 @@ import "./add_search_boxes/add_search_boxes_options";
 import "./agc/agc_options";
 import "./auto_bio/auto_bio_options";
 import "./auto_categories/auto_categories_options";
+import "./access_keys/access_keys_options";
 import "./categoryDisplay/categoryDisplay_options";
 import "./change_family_lists/change_family_lists_options";
 import "./connection_finder/connection_finder_options";
@@ -85,20 +86,6 @@ import "./wtPlus/wtPlus_options";
 ////////////////////////////////////////////////////////////////////////////////
 // Simple features with no options can be registered here
 ////////////////////////////////////////////////////////////////////////////////
-registerFeature({
-  name: "Access Keys",
-  id: "accessKeys",
-  description:
-    "Adds access keys. a: AGC; b: Auto Bio; c: Compare draft with saved information; e: Edit; " +
-    "g: G2G Recent Activity; h: Help Search; i: Copy ID; k: Category; l: Copy Link; n: Nav Home Page; " +
-    "p: Preview; q: Return to profile / Delete draft; r: Random Profile; " +
-    "s: Save; t: Add any template; u: Copy URL.",
-  category: "Global",
-  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
-  defaultValue: true,
-  pages: [true],
-});
 
 registerFeature({
   name: "AKA Name Links",

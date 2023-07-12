@@ -253,7 +253,6 @@ function createButton(id, text, clickEvent, accessKey) {
   const button = $(`<button id='${id}'>${text}</button>`)
     .appendTo("body")
     .on("click", clickEvent)
-    .attr("accessKey", accessKey);
   return button;
 }
 
