@@ -45,11 +45,11 @@ function addAccessKeys(options) {
     }
 
     if (options.NavHomePage && $("a[href$='/wiki/Special:Home']").length) {
-      $("a[href$='/wiki/Special:Home']")[0].accessKey = "n";
+      $("a[href$='/wiki/Special:Home']")[0].accessKey = "."; // period
     }
 
     if (options.HelpSearch && $("a[href$='/wiki/Special:SearchPages']").length) {
-      $("a[href$='/wiki/Special:SearchPages']")[0].accessKey = "h";
+      $("a[href$='/wiki/Special:SearchPages']")[0].accessKey = ","; // comma
     }
 
     if (options.ReturnProfileDeleteDraft && $("#deleteDraftLinkContainer a").length) {
@@ -93,14 +93,33 @@ function addAccessKeys(options) {
         showCopyMessage("URL");
       });
     }
-
-    if (options.AGC) {
-      setTimeout(function () {
+    setTimeout(function () {
+      if (options.AGC) {
         if ($("img[title='Automatic GEDCOM Cleanup']").length) {
           $("img[title='Automatic GEDCOM Cleanup']")[0].accessKey = "a";
         }
-      }, 3000);
-    }
+      }
+      if (options.ZoomInPlace && $(`#toggleZoomInPlace`).length) {
+        const button = $(`#toggleZoomInPlace`);
+        button[0].accessKey = "z";
+      }
+      if (options.Magnifier && $(`#toggleMagnifier`).length) {
+        const button = $(`#toggleMagnifier`);
+        button[0].accessKey = "m";
+      }
+      if (options.ExtraWatchlist && $(`#viewExtraWatchlist`).length) {
+        const button = $(`#viewExtraWatchlist`);
+        button[0].accessKey = "w";
+      }
+      if (options.ExtraWatchlist && $(`.aClipboardButton`).length) {
+        const button = $(`.aClipboardButton`);
+        button[0].accessKey = "v";
+      }
+      if (options.ExtraWatchlist && $(`.aNotesButton`).length) {
+        const button = $(`.aNotesButton`);
+        button[0].accessKey = "n";
+      }
+    }, 3000);
   }, 1000);
 }
 

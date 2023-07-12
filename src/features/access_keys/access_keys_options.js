@@ -62,6 +62,18 @@ registerFeature({
           defaultValue: true,
         },
         {
+          id: "Magnifier",
+          type: OptionType.CHECKBOX,
+          label: "Image Zoom and Magnifier: Toggle Magnifier (Access key: m)",
+          defaultValue: true,
+        },
+        {
+          id: "Notes",
+          type: OptionType.CHECKBOX,
+          label: "Clipboard and Notes: Toggle Notes (Access key: n)",
+          defaultValue: true,
+        },
+        {
           id: "Preview",
           type: OptionType.CHECKBOX,
           label: "Press the Preview button in Edit mode (Access key: p)",
@@ -91,6 +103,24 @@ registerFeature({
           label: "Copy the URL of the current profile into the clipboard (Access key: u)",
           defaultValue: true,
         },
+        {
+          id: "Clipboard",
+          type: OptionType.CHECKBOX,
+          label: "Clipboard and Notes: Toggle Clipboard (Access key: v)",
+          defaultValue: true,
+        },
+        {
+          id: "ExtraWatchlist",
+          type: OptionType.CHECKBOX,
+          label: "Toggle Extra Watchlist (Access key: w)",
+          defaultValue: true,
+        },
+        {
+          id: "ZoomInPlace",
+          type: OptionType.CHECKBOX,
+          label: "Image Zoom and Magnifier: Toggle 'Zoom in Place' (Access key: z)",
+          defaultValue: true,
+        },
       ],
     },
     {
@@ -107,13 +137,13 @@ registerFeature({
         {
           id: "HelpSearch",
           type: OptionType.CHECKBOX,
-          label: "Open Help Search (Access key: h)",
+          label: "Open Help Search (Access key: ,)",
           defaultValue: true,
         },
         {
           id: "NavHomePage",
           type: OptionType.CHECKBOX,
-          label: "Open Nav Home Page (Access key: n)",
+          label: "Open Nav Home Page (Access key: .)",
           defaultValue: true,
         },
         {
