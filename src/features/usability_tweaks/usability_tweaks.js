@@ -9,6 +9,8 @@ import {
   isNavHomePage,
 } from "../../core/pageType";
 import "./usability_tweaks.css";
+import dt from "datatables.net-dt";
+import "datatables.net-dt/css/jquery.dataTables.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 function addSaveSearchFormDataButton() {
@@ -334,5 +336,177 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
         onlyMembers();
       }
     });
+    if (window.location.href.includes("Special:Anniversaries")) {
+      anniversariesTable();
+    }
   }
 });
+
+function anniversariesTable() {
+  // First, convert your divs to a table
+  const table = $('<table id="anniversariesTable">');
+  table.append(
+    "<thead><tr><th>Date</th><th>Name</th><th>Event</th><th>Details</th><th>D</th><th>R</th></tr></thead><tbody>"
+  );
+
+  $(".box.orange.rounded.row div").each(function () {
+    const row = $("<tr>");
+    const div = $(this);
+    const dateExp = /(\d{2}) (\w{3}) (\d{4})/;
+    const dateMatch = dateExp.exec(div.text());
+    let date = "";
+    if (dateMatch) {
+      date = dateMatch[0];
+    }
+    const eventExp = /(was born|married|died)/;
+    const eventMatch = eventExp.exec(div.text());
+    let event = "";
+    if (eventMatch) {
+      event = eventMatch[0];
+    }
+
+    if (div.text().includes(" was born ")) {
+      event = "was born";
+    } else if (div.text().includes(" married ")) {
+      event = "married";
+    } else if (div.text().includes(" died ")) {
+      event = "died";
+    }
+
+    const names = div.find("a[href^='/wiki/']");
+    const spans = div.find("span");
+
+    const rowId = names.eq(0).attr("href").substring(6);
+    row.data("rowId", rowId); // attach the rowId to the row as a data attribute
+
+    row.append(
+      "<td>" +
+        date +
+        "</td>" +
+        "<td>" +
+        names.eq(0).prop("outerHTML") +
+        (names.length > 1 ? " " + spans.eq(0).prop("outerHTML") : "") +
+        "</td>" +
+        "<td>" +
+        event +
+        "</td>" +
+        "<td>" +
+        (names.length > 1
+          ? names.eq(1).prop("outerHTML") + " " + spans.eq(1).prop("outerHTML")
+          : spans.eq(0).prop("outerHTML")) +
+        "</td>" +
+        "<td class='distance-cell'></td>" +
+        "<td class='relationship-cell'></td>"
+    );
+    table.append(row);
+  });
+
+  table.append("</tbody>");
+  const bigDiv = $(".box.orange.rounded.row");
+  bigDiv.before(table);
+  table.before($("<button class='small'>Switch</button>").css({ "margin-bottom": "1em" }));
+  bigDiv.toggle();
+  $("button.small").on("click", function (e) {
+    e.preventDefault();
+    bigDiv.toggle();
+    $("#anniversariesTable_wrapper").toggle();
+  });
+
+  // This is the custom sorting function:
+  jQuery.extend(jQuery.fn.dataTableExt.sort, {
+    "distance-pre": function (a) {
+      // remove "°" and convert to number
+      return parseInt($(a).text().replace("°", ""));
+    },
+
+    "distance-asc": function (a, b) {
+      return a - b;
+    },
+
+    "distance-desc": function (a, b) {
+      return b - a;
+    },
+  });
+
+  // Then here you would initialize your DataTable
+  /*
+  $("#anniversariesTable").DataTable({
+    columnDefs: [
+      {
+        targets: 4,
+        orderDataType: "distance",
+        type: "numeric",
+      },
+    ],
+  });
+  */
+
+  // Open the IndexedDB for RelationshipFinderWTE
+  const requestRelationship = window.indexedDB.open("RelationshipFinderWTE", 1);
+  requestRelationship.onsuccess = function (event) {
+    const dbRelationship = event.target.result;
+
+    // Open the IndexedDB for ConnectionFinderWTE
+    const requestConnection = window.indexedDB.open("ConnectionFinderWTE", 1);
+    requestConnection.onsuccess = function (event) {
+      const dbConnection = event.target.result;
+
+      const distanceTransaction = dbConnection.transaction(["distance"], "readonly");
+      const distanceStore = distanceTransaction.objectStore("distance");
+
+      const relationshipTransaction = dbRelationship.transaction(["relationship"], "readonly");
+      const relationshipStore = relationshipTransaction.objectStore("relationship");
+
+      // Create arrays to hold all the promises
+      const distancePromises = [];
+      const relationshipPromises = [];
+
+      // Loop through the rows again to fill the distance and relationship columns
+      $("#anniversariesTable tbody tr").each(function () {
+        const row = $(this);
+        const rowId = row.data("rowId");
+
+        // Request the distance record
+        const getDistance = distanceStore.get(rowId);
+        const distancePromise = new Promise((resolve, reject) => {
+          getDistance.onsuccess = function (event) {
+            const distance = event.target.result ? event.target.result.distance + "°" : "";
+            row.find(".distance-cell").attr("data-sort", distance).text(distance);
+            resolve();
+          };
+        });
+        distancePromises.push(distancePromise);
+
+        // Request the relationship record
+        const getRelationship = relationshipStore.get(rowId);
+        const relationshipPromise = new Promise((resolve, reject) => {
+          getRelationship.onsuccess = function (event) {
+            let relationship =
+              event.target.result && event.target.result.relationship ? event.target.result.relationship : "";
+            row.find(".relationship-cell").attr("data-sort", relationship).text(relationship);
+            resolve();
+          };
+        });
+        relationshipPromises.push(relationshipPromise);
+      });
+
+      // Wait for all promises to resolve before initializing DataTable
+      Promise.all([...distancePromises, ...relationshipPromises])
+        .then(() => {
+          // Initialize DataTable here
+          $("#anniversariesTable").DataTable({
+            columnDefs: [
+              {
+                targets: 4,
+                orderDataType: "distance",
+                type: "numeric",
+              },
+            ],
+          });
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    };
+  };
+}
