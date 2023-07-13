@@ -158,6 +158,20 @@ async function anniversariesTable() {
         relationshipPromises.push(relationshipPromise);
       });
 
+      $.extend($.fn.dataTableExt.oSort, {
+        "genealogy-pre": function (a) {
+          return computeGenealogicalDistance(a);
+        },
+
+        "genealogy-asc": function (a, b) {
+          return a < b ? -1 : a > b ? 1 : 0;
+        },
+
+        "genealogy-desc": function (a, b) {
+          return a < b ? 1 : a > b ? -1 : 0;
+        },
+      });
+
       // Wait for all promises to resolve before initializing DataTable
       Promise.all([...distancePromises, ...relationshipPromises])
         .then(() => {
@@ -179,6 +193,10 @@ async function anniversariesTable() {
                 targets: 4,
                 orderDataType: "distance",
                 type: "numeric",
+              },
+              {
+                targets: 5, // The "Relationship" column
+                type: "genealogy",
               },
             ],
             language: {
@@ -254,4 +272,59 @@ async function updateNames() {
       });
     }
   }
+}
+
+function computeGenealogicalDistance(relation) {
+  let distance = 0;
+
+  // Helper function to convert ordinal words and digit strings to numbers
+  function wordsToNumbers(word) {
+    const map = {
+      once: 1,
+      twice: 2,
+      thrice: 3,
+      three: 3,
+      four: 4,
+      five: 5,
+      six: 6,
+      seven: 7,
+      eight: 8,
+      nine: 9,
+      ten: 10,
+      eleven: 11,
+      twelve: 12,
+      thirteen: 13,
+      fourteen: 14,
+      fifteen: 15,
+      sixteen: 16,
+      seventeen: 17,
+      eighteen: 18,
+      nineteen: 19,
+      twenty: 20,
+    };
+    // if input is a number string, parse and return the number
+    if (!isNaN(word)) {
+      return parseInt(word, 10);
+    }
+    // otherwise, try to map number words
+    return map[word] || 0;
+  }
+
+  // Calculate the genealogical distance based on the provided rules
+  if (/(brother|sister|father|mother|daughter|son)/i.test(relation)) {
+    distance = 1;
+  } else if (/(uncle|aunt|niece|nephew)/i.test(relation)) {
+    distance = 2;
+  } else if (/(grandfather|grandmother|grandson|granddaughter)/i.test(relation)) {
+    distance = 2 + (relation.match(/great-/gi) || []).length;
+  } else if (/(\w+)\s+cousin(\s+(\w+)\s+removed)?/i.test(relation)) {
+    const cousinMatch = relation.match(/(\w+)\s+cousin(\s+(\w+)\s+removed)?/i);
+    const cousinLevel = wordsToNumbers(cousinMatch[1]);
+    const removedLevel = wordsToNumbers(cousinMatch[3]) || 0;
+    distance = 3 + cousinLevel + removedLevel;
+  } else {
+    distance = 10; // Assign a higher distance for unmatched relationships
+  }
+
+  return distance;
 }
