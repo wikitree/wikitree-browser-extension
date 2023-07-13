@@ -14,6 +14,7 @@ import "./features/custom_style/custom_style";
 import "./features/access_keys/access_keys";
 import "./features/add_search_boxes/add_search_boxes";
 import "./features/akaNameLinks/akaNameLinks";
+import "./features/anniversaries_table/anniversaries_table";
 import "./features/categoryDisplay/categoryDisplay";
 import "./features/categoryFinderPins/categoryFinderPins";
 import "./features/change_family_lists/change_family_lists";

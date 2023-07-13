@@ -84,6 +84,8 @@ export let isOtherHistory = false;
 
 // Special: page
 export let isSpecialPage = false;
+// Special: Anniversaries page
+export let isSpecialAnniversaries = false;
 // Special: Badges page
 export let isSpecialBadges = false;
 // Special: MyConnections page
@@ -252,6 +254,12 @@ if (
 ) {
   isSpecialPage = true;
   if (
+    // Special Anniversaries Page
+    path.match(/(\/wiki\/)Special:Anniversaries*/g) ||
+    uri.match(/\/index.php\?title=Special:Anniversaries.*/g)
+  ) {
+    isSpecialAnniversaries = true;
+  } else if (
     // Special Badges Page
     path.match(/(\/wiki\/)Special:Badges*/g) ||
     uri.match(/\/index.php\?title=Special:Badges.*/g)
