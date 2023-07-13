@@ -8,135 +8,90 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 
 shouldInitializeFeature("accessKeys").then((result) => {
   if (result) {
-    getFeatureOptions("accessKeys").then((options) => {
-      addAccessKeys(options);
-    });
+    import("./access_keys.css");
+    getFeatureOptions("accessKeys").then(addAccessKeys);
   }
 });
 
 function addAccessKeys(options) {
-  setTimeout(function () {
-    if (options.Preview && $("#previewButton").length) {
-      $("#previewButton")[0].accessKey = "p";
-    }
+  setTimeout(() => {
+    setAccessKeyIfOptionEnabled(options.Preview, "#previewButton", "p", options);
+    setAccessKeyIfOptionEnabled(options.G2G, "#G2Grecent", "g", options);
+    setAccessKeyIfOptionEnabled(
+      options.Edit,
+      "a[title='Edit Profile and Family Relationships'],a[title='Edit this Profile']",
+      "e",
+      options
+    );
+    setAccessKeyIfOptionEnabled(
+      options.Edit && isCategoryPage,
+      "div.EDIT a[title='Edit the text on this category page']",
+      "e",
+      options
+    );
+    setAccessKeyIfOptionEnabled(options.EnhancedEditor, "#toggleMarkupColor", "e", options, () => isWikiEdit);
+    setAccessKeyIfOptionEnabled(options.Save, "#wpSave", "s", options);
+    setAccessKeyIfOptionEnabled(options.Category, "#addCategoryButton", "k", options);
+    setAccessKeyIfOptionEnabled(options.RandomProfile, "a.pureCssMenui.randomProfile", "r", options);
+    setAccessKeyIfOptionEnabled(options.NavHomePage, "a[href$='/wiki/Special:Home']", "1", options);
+    setAccessKeyIfOptionEnabled(options.HelpSearch, "a[href$='/wiki/Special:SearchPages']", "h", options);
+    setAccessKeyIfOptionEnabled(options.ReturnProfileDeleteDraft, "#deleteDraftLinkContainer a", "q", options);
+    setAccessKeyIfOptionEnabled(options.Compare, "a.viewDiffButton", "c", options);
+    setAccessKeyIfOptionEnabled(options.AutoBio, ".editToolbarMenu0 a[data-id='Auto Bio']", "b", options);
+    setAccessKeyIfOptionEnabled(options.AddTemplate, ".editToolbarMenu0 a[data-id='Add any template']", "t", options);
+    setCopyButtonAccessKeyAndClickEvent(options.CopyID, "Copy ID", "i");
+    setCopyButtonAccessKeyAndClickEvent(options.CopyLink, "Copy Wiki Link", "l");
+    setCopyButtonAccessKeyAndClickEvent(options.CopyURL, "Copy URL", "u");
+    setAccessKeyIfOptionEnabled(options.TreeApps, "ul.profile-tabs li:contains('Tree Apps')", "t", options);
+    setAccessKeyIfOptionEnabled(options.Ancestors, ".showHideTree", "a", options);
+    setAccessKeyIfOptionEnabled(options.Descendants, "#showHideDescendants", "d", options);
+    setAccessKeyIfOptionEnabled(options.Watchlist, "a[href*='Special:WatchedList']", "w", options);
+    setAccessKeyIfOptionEnabled(options.Search, "a[href*='Special:SearchPerson']", "f", options);
 
-    if (options.G2G && $("#G2Grecent").length) {
-      $("#G2Grecent")[0].accessKey = "g";
-    }
-
-    if (options.Edit && $("a[title='Edit Profile and Family Relationships'],a[title='Edit this Profile']").length) {
-      $("a[title='Edit Profile and Family Relationships'],a[title='Edit this Profile']")[0].accessKey = "e";
-    } else if (options.Edit && isCategoryPage && $("div.EDIT a[title='Edit the text on this category page']").length) {
-      $("div.EDIT a[title='Edit the text on this category page']")[0].accessKey = "e";
-    } else if (options.EnhancedEditor && isWikiEdit && $("#toggleMarkupColor").length) {
-      $("#toggleMarkupColor")[0].accessKey = "e";
-    }
-
-    if (options.Save && $("#wpSave").length) {
-      $("#wpSave")[0].accessKey = "s";
-    }
-
-    if (options.Category && $("#addCategoryButton").length) {
-      $("#addCategoryButton")[0].accessKey = "k";
-    }
-
-    if (options.RandomProfile && $("a.pureCssMenui.randomProfile").length) {
-      $("a.pureCssMenui.randomProfile")[0].accessKey = "r";
-    }
-
-    if (options.NavHomePage && $("a[href$='/wiki/Special:Home']").length) {
-      $("a[href$='/wiki/Special:Home']")[0].accessKey = "1";
-    }
-
-    if (options.HelpSearch && $("a[href$='/wiki/Special:SearchPages']").length) {
-      $("a[href$='/wiki/Special:SearchPages']")[0].accessKey = "h";
-    }
-
-    if (options.ReturnProfileDeleteDraft && $("#deleteDraftLinkContainer a").length) {
-      $("#deleteDraftLinkContainer a")[0].accessKey = "q";
-    } else if (options.ReturnProfileDeleteDraft && $("div a:contains('return to')").length) {
-      $("div a:contains('return to')")[0].accessKey = "q";
-    }
-
-    if (options.Compare && $("a.viewDiffButton").length) {
-      $("a.viewDiffButton")[0].accessKey = "c";
-    }
-
-    if (options.AutoBio && $(".editToolbarMenu0 a[data-id='Auto Bio']").length) {
-      $(".editToolbarMenu0 a[data-id='Auto Bio']")[0].accessKey = "b";
-    }
-
-    if (options.AddTemplate && $(".editToolbarMenu0 a[data-id='Add any template']").length) {
-      $(".editToolbarMenu0 a[data-id='Add any template']")[0].accessKey = "t";
-    }
-
-    if (options.CopyID && $(`button[aria-label='Copy ID']`).length) {
-      const button = $(`button[aria-label='Copy ID']`);
-      button[0].accessKey = "i";
-      button.on("click", function () {
-        showCopyMessage("ID");
-      });
-    }
-
-    if (options.CopyLink && $(`button[aria-label='Copy Wiki Link']`).length) {
-      const button = $(`button[aria-label='Copy Wiki Link']`);
-      button[0].accessKey = "l";
-      button.on("click", function () {
-        showCopyMessage("Link");
-      });
-    }
-
-    if (options.CopyURL && $(`button[aria-label='Copy URL']`).length) {
-      const button = $(`button[aria-label='Copy URL']`);
-      button[0].accessKey = "u";
-      button.on("click", function () {
-        showCopyMessage("URL");
-      });
-    }
-
-    if (options.TreeApps && $("ul.profile-tabs li:contains('Tree Apps')").length) {
-      $("ul.profile-tabs li:contains('Tree Apps')")[0].accessKey = "t";
-    }
-
-    if (options.Ancestors && $(".showHideTree").length) {
-      $(".showHideTree")[0].accessKey = "a";
-    }
-    if (options.Descendants && $("#showHideDescendants").length) {
-      $("#showHideDescendants")[0].accessKey = "d";
-    }
-
-    setTimeout(function () {
-      if (options.AGC) {
-        if ($("img[title='Automatic GEDCOM Cleanup']").length) {
-          $("img[title='Automatic GEDCOM Cleanup']")[0].accessKey = "a";
-        }
-      }
-      if (options.ZoomInPlace && $(`#toggleZoomInPlace`).length) {
-        const button = $(`#toggleZoomInPlace`);
-        button[0].accessKey = "z";
-      }
-      if (options.Magnifier && $(`#toggleMagnifier`).length) {
-        const button = $(`#toggleMagnifier`);
-        button[0].accessKey = "m";
-      }
-      if (options.ExtraWatchlist && $(`#viewExtraWatchlist`).length) {
-        const button = $(`#viewExtraWatchlist`);
-        button[0].accessKey = "w";
-      }
-      if (options.ExtraWatchlist && $(`.aClipboardButton`).length) {
-        const button = $(`.aClipboardButton`);
-        button[0].accessKey = "v";
-      }
-      if (options.ExtraWatchlist && $(`.aNotesButton`).length) {
-        const button = $(`.aNotesButton`);
-        button[0].accessKey = "n";
-      }
+    setTimeout(() => {
+      setAccessKeyIfOptionEnabled(options.AGC, "img[title='Automatic GEDCOM Cleanup']", "a", options);
+      setButtonAccessKeyAndClickEvent(options.ZoomInPlace, "#toggleZoomInPlace", "z");
+      setButtonAccessKeyAndClickEvent(options.Magnifier, "#toggleMagnifier", "m");
+      setButtonAccessKeyAndClickEvent(options.ExtraWatchlist, "#viewExtraWatchlist", "x");
+      setButtonAccessKeyAndClickEvent(options.Clipboard, ".aClipboardButton", "v");
+      setButtonAccessKeyAndClickEvent(options.Notes, ".aNotesButton", "n");
     }, 3000);
   }, 1000);
 }
 
+function setAccessKeyIfOptionEnabled(option, selector, key, options, additionalCondition = () => true) {
+  if (option && additionalCondition()) {
+    const element = $(selector);
+    if (element.length) {
+      element[0].accessKey = key;
+    }
+  }
+}
+
+function setCopyButtonAccessKeyAndClickEvent(option, ariaLabel, key) {
+  if (option) {
+    const selector = `button[aria-label='${ariaLabel}']`;
+    const button = $(selector);
+    if (button.length) {
+      button[0].accessKey = key;
+      button.on("click", () => {
+        showCopyMessage(ariaLabel.replace("Copy ", ""));
+      });
+    }
+  }
+}
+
+function setButtonAccessKeyAndClickEvent(option, selector, key) {
+  if (option) {
+    const button = $(selector);
+    if (button.length) {
+      button[0].accessKey = key;
+    }
+  }
+}
+
 function showCopyMessage(message) {
-  $("<div class='toggle-message'>Copied " + message + "</div>")
+  $("<div class='copied-message'>Copied " + message + "</div>")
     .appendTo("body")
     .delay(1000)
     .fadeOut(2000, function () {

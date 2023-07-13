@@ -126,7 +126,7 @@ registerFeature({
         {
           id: "ExtraWatchlist",
           type: OptionType.CHECKBOX,
-          label: "Toggle Extra Watchlist (Access key: w)",
+          label: "Toggle Extra Watchlist (Access key: x)",
           defaultValue: true,
         },
       ],
@@ -168,6 +168,12 @@ registerFeature({
           defaultValue: true,
         },
         {
+          id: "Search",
+          type: OptionType.CHECKBOX,
+          label: "Open Search page (Access key: f)",
+          defaultValue: true,
+        },
+        {
           id: "G2G",
           type: OptionType.CHECKBOX,
           label: "Open the G2G Recent Activity page (Access key: g)",
@@ -189,6 +195,12 @@ registerFeature({
           id: "TreeApps",
           type: OptionType.CHECKBOX,
           label: "Open Tree Apps (Access key: t)",
+          defaultValue: true,
+        },
+        {
+          id: "Watchlist",
+          type: OptionType.CHECKBOX,
+          label: "Open Your Watchlist (Access key: w)",
           defaultValue: true,
         },
         {
