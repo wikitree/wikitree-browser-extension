@@ -24,7 +24,7 @@ registerFeature({
     {
       id: "pagination",
       type: OptionType.CHECKBOX,
-      label: "Paginate the table (show only 10, 25, 50, or 100 rows at a time).",
+      label: "Paginate the table (show only 10, 25, or 50 rows at a time).",
       defaultValue: true,
     },
   ],

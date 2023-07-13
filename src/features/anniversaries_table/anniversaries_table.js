@@ -28,9 +28,13 @@ async function initAnniversariesTable() {
     anniversariesTable().then(() => {
       bigDiv.toggle();
       $("#anniversariesTable_wrapper").toggle();
+      setTimeout(() => {
+        $("#anniversariesTable").show();
+      }, 200);
     });
   });
   if (anniversariesTableOptions.showTableOnLoad) {
+    $("#anniversariesTable_wrapper").hide();
     $("#toggleAnniversariesTableButton").trigger("click");
   }
 }
@@ -42,7 +46,9 @@ async function anniversariesTable() {
   // First, convert your divs to a table
   const table = $('<table id="anniversariesTable">');
   table.append(
-    "<thead><tr><th>Date</th><th>Name</th><th>Event</th><th>Details</th><th>°</th><th>Relationship</th></tr></thead><tbody>"
+    $(
+      "<thead><tr><th>Date</th><th>Name</th><th>Event</th><th>Details</th><th>°</th><th>Relationship</th></tr></thead><tbody></tbody>"
+    )
   );
 
   $(".box.orange.rounded.row div").each(function () {
@@ -95,10 +101,9 @@ async function anniversariesTable() {
         "<td class='distance-cell'></td>" +
         "<td class='relationship-cell'></td>"
     );
-    table.append(row);
+    table.find("tbody").append(row);
   });
 
-  table.append("</tbody>");
   const bigDiv = $(".box.orange.rounded.row");
   bigDiv.before(table);
 
@@ -178,7 +183,7 @@ async function anniversariesTable() {
               search: "Filter:",
             },
           });
-          console.log(updateNames());
+          updateNames();
         })
         .catch((error) => {
           console.error(error);

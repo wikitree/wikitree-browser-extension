@@ -21,3 +21,6 @@
 #anniversariesTable_wrapper tr[data-event="married"] td:first-child {
   border-left: 3px solid pink;
 }
+#anniversariesTable {
+  display: none;
+}
