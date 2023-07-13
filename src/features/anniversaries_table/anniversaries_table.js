@@ -137,7 +137,9 @@ async function anniversariesTable() {
         const distancePromise = new Promise((resolve, reject) => {
           getDistance.onsuccess = function (event) {
             const distance = event.target.result ? event.target.result.distance + "°" : "";
-            row.find(".distance-cell").attr("data-sort", distance).text(distance);
+            if (event.target.result.distance > 0) {
+              row.find(".distance-cell").attr("data-sort", distance).text(distance);
+            }
             resolve();
           };
         });
