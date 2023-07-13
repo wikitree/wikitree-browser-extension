@@ -50,7 +50,11 @@
   body.darkMode span[style^="color:#000000"],
   body.darkMode a[style*="color: rgb(0, 102, 0)"],
   body.darkMode ol[style*="color:#000000"],
-  body.darkMode ul[style*="color:#000000"] {
+  body.darkMode ul[style*="color:#000000"],
+  /* Tree Apps */ body.darkMode header, 
+  body.darkMode .cc7Table caption,
+  body.darkMode .cc7Table thead,
+  body.darkMode #cc7Degree {
     background-color: #36393f !important;
     color: #dcddde !important;
   }
@@ -76,10 +80,38 @@
   html body.darkMode .qa-main a:visited {
     color: #50c878 !important;
   }
-  html body.darkMode .sixteen h1 a:link {
+  html body.darkMode .sixteen h1 a:link,
+/* Tree Apps */  
+html body.darkMode header a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), html body.darkMode header a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), html body.darkMode .cc7Table a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a),
+ html body.darkMode .cc7Table a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), html body.darkMode header a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), html body.darkMode .cc7Table a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a) {
     color: #f3b51b !important;
   }
-  html body.darkMode .sixteen h1 a:visited {
+  html body.darkMode .sixteen h1 a:visited,
+  html
+    body.darkMode
+    header
+    a:visited:not(.qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a),
+  html
+    body.darkMode
+    header
+    a:visited:not(.qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a),
+  html
+    body.darkMode
+    .cc7Table
+    a:visited:not(.qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a),
+  html
+    body.darkMode
+    .cc7Table
+    a:visited:not(.qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a),
+  html
+    body.darkMode
+    header
+    a:visited:not(.qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a),
+  html
+    body.darkMode
+    .cc7Table
+    a:visited:not(.qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a) {
+    /* Tree Apps */
     color: #ffffa0 !important;
   }
 
@@ -167,7 +199,10 @@
   body.darkMode div.qa-q-item-title a:link .checkmark,
   body.darkMode span.qa-q-item-meta a.qa-q-item-what:link .checkmark,
   html body.darkMode a.yourConnection.relationshipButton:link,
-  html body.darkMode a.yourConnection.relationshipButton:visited {
+  html body.darkMode a.yourConnection.relationshipButton:visited,
+  /* CC7 */
+  body.darkMode #hierarchyView span.relation,
+  body.darkMode #hierarchyView span.countBit {
     color: #36393f !important;
   }
   body.darkMode div.qa-nav-main a:hover,
@@ -483,5 +518,9 @@
   body.darkMode table th[style="background:#66FF66;"] b {
     background-color: #66ff66 !important;
     color: #000 !important;
+  }
+
+  body.darkMode #hierarchyView img.missingIcon {
+    background-color: aliceblue !important;
   }
 }
