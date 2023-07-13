@@ -15,6 +15,7 @@ shouldInitializeFeature("accessKeys").then((result) => {
 
 function addAccessKeys(options) {
   setTimeout(() => {
+    $("body").append("<a style='display:none;' id='G2Grecent' href='https://www.wikitree.com/g2g/activity'></a>");
     setAccessKeyIfOptionEnabled(options.Preview, "#previewButton", "p", options);
     setAccessKeyIfOptionEnabled(options.G2G, "#G2Grecent", "g", options);
     setAccessKeyIfOptionEnabled(
