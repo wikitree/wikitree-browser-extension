@@ -224,7 +224,6 @@ async function updateNames() {
     "Name,FirstName,LastNameCurrent,LastNameAtBirth"
   );
 
-  console.log(result);
   // Check if people are returned
   if (result) {
     const people = result[0].people;
