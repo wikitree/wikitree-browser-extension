@@ -18,7 +18,13 @@ registerFeature({
     {
       id: "showTableOnLoad",
       type: OptionType.CHECKBOX,
-      label: "Show the table on page load.",
+      label: "Show the table automatically.",
+      defaultValue: true,
+    },
+    {
+      id: "pagination",
+      type: OptionType.CHECKBOX,
+      label: "Paginate the table (show only 10, 25, 50, or 100 rows at a time).",
       defaultValue: true,
     },
   ],

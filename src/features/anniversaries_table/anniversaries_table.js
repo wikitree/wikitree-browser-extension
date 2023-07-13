@@ -15,6 +15,7 @@ shouldInitializeFeature("anniversariesTable").then((result) => {
 async function initAnniversariesTable() {
   await import("./anniversaries_table.css");
   const anniversariesTableOptions = await getFeatureOptions("anniversariesTable");
+  window.anniversariesTableOptions = anniversariesTableOptions;
   $("div.row")
     .eq(0)
     .after(
@@ -154,8 +155,18 @@ async function anniversariesTable() {
       Promise.all([...distancePromises, ...relationshipPromises])
         .then(() => {
           // Initialize DataTable here
+          let pagingValue = false;
+          if (window.anniversariesTableOptions.pagination) {
+            pagingValue = true;
+          }
           $("#anniversariesTable").DataTable({
-            paging: false,
+            paging: pagingValue,
+            pagingType: "full_numbers",
+            pageLength: 10,
+            lengthMenu: [
+              [10, 25, 50, -1],
+              [10, 25, 50, "All"],
+            ],
             columnDefs: [
               {
                 targets: 4,
@@ -203,7 +214,7 @@ async function updateNames() {
   let csvString = generateCSV(); // Get the CSV list
 
   // Call your getPeople function with the CSV list as the keys
-  let people = await getPeople(
+  let result = await getPeople(
     csvString,
     false,
     false,
@@ -213,32 +224,28 @@ async function updateNames() {
     "Name,FirstName,LastNameCurrent,LastNameAtBirth"
   );
 
-  console.log(people);
+  console.log(result);
   // Check if people are returned
-  if (people && people.people) {
-    // Iterate over each person
-    for (let i = 0; i < people.length; i++) {
-      for (let key in people[i].people) {
-        let person = people[i].people[key];
+  if (result) {
+    const people = result[0].people;
+    const peopleKeys = Object.keys(people);
+    if (people) {
+      // Iterate over each person
+      peopleKeys.forEach((key) => {
+        let person = people[key];
 
-        // Check if person has a maiden name and a current last name
         if (person.FirstName && person.LastNameCurrent && person.LastNameAtBirth && person.Name) {
           let LNAB = person.LastNameAtBirth; // Get the LNAB from the person.LastNameAtBirth
 
           // Get the rows which contain this person's key in a link
-          let rows = $("#anniversariesTable tbody tr").filter(function () {
-            return $(this).find(`a[href='/wiki/${person.Name}']`).length > 0;
-          });
+          let links = $(`#anniversariesTable a[href='/wiki/${person.Name}']`);
 
           // Update the name in each link to this person in each row
-          rows.each(function () {
-            let links = $(this).find(`a[href='/wiki/${person.Name}']`);
-            links.each(function () {
-              $(this).text(person.FirstName + " (" + LNAB + ") " + person.LastNameCurrent);
-            });
+          links.each(function () {
+            $(this).text(person.FirstName + " (" + LNAB + ") " + person.LastNameCurrent);
           });
         }
-      }
+      });
     }
   }
 }
