@@ -1,24 +1,24 @@
-#anniversariesTable_wrapper tr[data-event="was born"] {
+#anniversariesTable_wrapper tr[data-event="birth"] {
   background-color: #f2ffeb; /* extremely light green */
   border-left: 3px solid green;
 }
-#anniversariesTable_wrapper tr[data-event="was born"] td:first-child {
+#anniversariesTable_wrapper tr[data-event="birth"] td:first-child {
   border-left: 3px solid green;
 }
 
-#anniversariesTable_wrapper tr[data-event="died"] {
+#anniversariesTable_wrapper tr[data-event="death"] {
   background-color: rgb(228, 227, 227);
   border-left: 3px solid gray;
 }
-#anniversariesTable_wrapper tr[data-event="died"] td:first-child {
+#anniversariesTable_wrapper tr[data-event="death"] td:first-child {
   border-left: 3px solid gray;
 }
 
-#anniversariesTable_wrapper tr[data-event="married"] {
+#anniversariesTable_wrapper tr[data-event="marriage"] {
   background-color: #fff5fa; /* extremely light pink */
   border-left: 3px solid pink;
 }
-#anniversariesTable_wrapper tr[data-event="married"] td:first-child {
+#anniversariesTable_wrapper tr[data-event="marriage"] td:first-child {
   border-left: 3px solid pink;
 }
 #anniversariesTable {

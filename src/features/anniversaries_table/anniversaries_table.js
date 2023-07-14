@@ -95,11 +95,11 @@ async function anniversariesTable() {
     }
 
     if (div.text().includes(" was born ")) {
-      event = "was born";
+      event = "birth";
     } else if (div.text().includes(" married ")) {
-      event = "married";
+      event = "marriage";
     } else if (div.text().includes(" died ")) {
-      event = "died";
+      event = "death";
     }
 
     const names = div.find("a[href^='/wiki/']");
@@ -193,15 +193,18 @@ async function anniversariesTable() {
 
         $.extend($.fn.dataTableExt.oSort, {
           "genealogy-pre": function (a) {
+            if (a === "") {
+              return 99999; // a very high kinship value for empty strings
+            }
             return kinshipValue(a);
           },
 
           "genealogy-asc": function (a, b) {
-            return a < b ? -1 : a > b ? 1 : 0;
+            return a - b;
           },
 
           "genealogy-desc": function (a, b) {
-            return a < b ? 1 : a > b ? -1 : 0;
+            return b - a;
           },
         });
 
@@ -359,44 +362,90 @@ async function updateNames() {
     }
   }
 }
-function kinshipValue(kinship) {
-  const greats = (kinship.match(/great/g) || []).length;
-  const cousinMatch = kinship.match(/(\d+)(?:st|nd|rd|th) cousin/);
-  const cousinNum = cousinMatch ? parseInt(cousinMatch[1], 10) : 0;
 
-  let removedNum = 0;
-  const removedMatch = kinship.match(/(\d+) times removed/);
-  if (removedMatch) {
-    removedNum = parseInt(removedMatch[1], 10);
-  } else {
-    const words = ["once", "twice", "three", "four", "five", "six", "seven", "eight", "nine"];
-    for (let i = 0; i < words.length; i++) {
-      if (kinship.includes(words[i] + " times removed")) {
-        removedNum = i + 1;
-        break;
+function kinshipValue(kinship) {
+  let level = 0;
+
+  // Check if 'grand-' is present
+  if (kinship.includes("grand")) {
+    level += 1;
+  }
+
+  // Calculate number of 'great-' prefixes
+  const greatMatch = kinship.match(/(\d+)(?:st|nd|rd|th) great/);
+  if (greatMatch) {
+    level += parseInt(greatMatch[1], 10); // Add the number before 'great'
+  } else if (kinship.includes("great")) {
+    level += 1;
+  }
+
+  // Add level based on base relationship
+  if (kinship.includes("cousin")) {
+    // Extract cousin number
+    level += 1;
+    const cousinNumber = parseInt(kinship.match(/(\d+)(?:st|nd|rd|th) cousin/)?.[1]);
+    level += cousinNumber * 2;
+
+    // Extract 'removed' number
+    const removedMatch = kinship.match(/(\d+) times removed/);
+    if (removedMatch) {
+      const removedNumber = parseInt(removedMatch[1], 10);
+      level += removedNumber;
+    } else {
+      const words = [
+        "once",
+        "twice",
+        "three",
+        "four",
+        "five",
+        "six",
+        "seven",
+        "eight",
+        "nine",
+        "ten",
+        "eleven",
+        "twelve",
+        "thirteen",
+        "fourteen",
+        "fifteen",
+        "sixteen",
+        "seventeen",
+        "eighteen",
+        "nineteen",
+        "twenty",
+        "twenty-one",
+        "twenty-two",
+        "twenty-three",
+        "twenty-four",
+        "twenty-five",
+        "twenty-six",
+        "twenty-seven",
+        "twenty-eight",
+        "twenty-nine",
+        "thirty",
+      ];
+      for (let i = 0; i < words.length; i++) {
+        if (kinship.includes(words[i] + " removed") || kinship.includes(words[i] + " times removed")) {
+          level += i + 1;
+          break;
+        }
       }
     }
+  } else if (["brother", "sister", "father", "mother", "daughter", "son"].some((term) => kinship.includes(term))) {
+    level += 1;
+  } else if (["uncle", "aunt", "niece", "nephew"].some((term) => kinship.includes(term))) {
+    level += 2;
   }
 
-  if (["brother", "sister", "father", "mother", "daughter", "son"].some((term) => kinship.includes(term))) {
-    return [1 + greats, 1];
-  } else if (
-    ["uncle", "aunt", "niece", "nephew", "grandfather", "grandmother", "grandson", "granddaughter"].some((term) =>
-      kinship.includes(term)
-    )
-  ) {
-    return [2 + greats, 1];
-  } else if (["grandaunt", "granduncle", "grandniece", "grandnephew"].some((term) => kinship.includes(term))) {
-    return [3 + greats, 1];
-  } else if (kinship.includes("cousin")) {
-    return [2 + cousinNum + removedNum, 1]; // Changed priority to 1
-  } else {
-    return [Infinity, 1]; // Changed priority to 1 //
-  }
+  return level;
 }
 
+/*
 $.extend($.fn.dataTableExt.oSort, {
   "genealogy-pre": function (a) {
+    if (a === '') {
+      return Number.MAX_SAFE_INTEGER; // push empty values to the end
+    }
     return kinshipValue(a);
   },
 
@@ -408,3 +457,4 @@ $.extend($.fn.dataTableExt.oSort, {
     return b[1] - a[1] || b[0] - a[0]; // priority sorting first, then distance
   },
 });
+*/
