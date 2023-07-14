@@ -1,21 +1,46 @@
 import $ from "jquery";
 import dt from "datatables.net-dt";
 import "datatables.net-dt/css/jquery.dataTables.css";
+import "./anniversaries_table.css";
 import { getPeople } from "../dna_table/dna_table";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
+let tableData = null;
+const shakingTree = $(
+  "<img id='anniversariesShakingTree' src='" +
+    // eslint-disable-next-line no-undef
+    chrome.runtime.getURL("images/tree.gif") +
+    "'>"
+);
 const bigDiv = $(".box.orange.rounded.row");
 shouldInitializeFeature("anniversariesTable").then((result) => {
   if (result) {
-    import("./anniversaries_table.css");
     initAnniversariesTable();
   }
 });
-
+let isTableInitialized = false;
 async function initAnniversariesTable() {
-  await import("./anniversaries_table.css");
   const anniversariesTableOptions = await getFeatureOptions("anniversariesTable");
   window.anniversariesTableOptions = anniversariesTableOptions;
+
+  if (isTableInitialized) {
+    // If the table is already initialized, hide it and return early
+    $("#anniversariesTable_wrapper").hide();
+    return;
+  }
+
+  if (anniversariesTableOptions.showTableOnLoad) {
+    // If the table is already initialized, return early
+    if ($("#anniversariesTable").length > 0) {
+      return;
+    }
+  } else {
+    // If the table is already initialized, hide it and return early
+    if ($("#anniversariesTable").length > 0) {
+      $("#anniversariesTable_wrapper").hide();
+      return;
+    }
+  }
   $("div.row")
     .eq(0)
     .after(
@@ -28,21 +53,23 @@ async function initAnniversariesTable() {
     anniversariesTable().then(() => {
       bigDiv.toggle();
       $("#anniversariesTable_wrapper").toggle();
-      setTimeout(() => {
-        $("#anniversariesTable").show();
-      }, 200);
     });
   });
   if (anniversariesTableOptions.showTableOnLoad) {
     $("#anniversariesTable_wrapper").hide();
     $("#toggleAnniversariesTableButton").trigger("click");
   }
+  isTableInitialized = true;
 }
 
 async function anniversariesTable() {
   if ($("#anniversariesTable").length > 0) {
     return;
   }
+  shakingTree.appendTo($("h1"));
+  bigDiv.show();
+  $("#anniversariesTable, #anniversariesTable_wrapper").hide();
+
   // First, convert your divs to a table
   const table = $('<table id="anniversariesTable">');
   table.append(
@@ -104,112 +131,155 @@ async function anniversariesTable() {
     table.find("tbody").append(row);
   });
 
-  const bigDiv = $(".box.orange.rounded.row");
   bigDiv.before(table);
 
-  // Open the IndexedDB for RelationshipFinderWTE
-  const requestRelationship = window.indexedDB.open("RelationshipFinderWTE", 1);
-  requestRelationship.onsuccess = function (event) {
-    const dbRelationship = event.target.result;
+  setTimeout(() => {
+    // Open the IndexedDB for RelationshipFinderWTE
+    const requestRelationship = window.indexedDB.open("RelationshipFinderWTE", 1);
+    requestRelationship.onsuccess = function (event) {
+      const dbRelationship = event.target.result;
 
-    // Open the IndexedDB for ConnectionFinderWTE
-    const requestConnection = window.indexedDB.open("ConnectionFinderWTE", 1);
-    requestConnection.onsuccess = function (event) {
-      const dbConnection = event.target.result;
+      // Open the IndexedDB for ConnectionFinderWTE
+      const requestConnection = window.indexedDB.open("ConnectionFinderWTE", 1);
+      requestConnection.onsuccess = function (event) {
+        const dbConnection = event.target.result;
 
-      const distanceTransaction = dbConnection.transaction(["distance"], "readonly");
-      const distanceStore = distanceTransaction.objectStore("distance");
+        const distanceTransaction = dbConnection.transaction(["distance"], "readonly");
+        const distanceStore = distanceTransaction.objectStore("distance");
 
-      const relationshipTransaction = dbRelationship.transaction(["relationship"], "readonly");
-      const relationshipStore = relationshipTransaction.objectStore("relationship");
+        const relationshipTransaction = dbRelationship.transaction(["relationship"], "readonly");
+        const relationshipStore = relationshipTransaction.objectStore("relationship");
 
-      // Create arrays to hold all the promises
-      const distancePromises = [];
-      const relationshipPromises = [];
+        // Create arrays to hold all the promises
+        const distancePromises = [];
+        const relationshipPromises = [];
 
-      // Loop through the rows again to fill the distance and relationship columns
-      $("#anniversariesTable tbody tr").each(function () {
-        const row = $(this);
-        const rowId = row.data("rowId");
+        // Loop through the rows again to fill the distance and relationship columns
+        // Access the DataTable instance
+        // tableData = $("#anniversariesTable").DataTable();
 
-        // Request the distance record
-        const getDistance = distanceStore.get(rowId);
-        const distancePromise = new Promise((resolve, reject) => {
-          getDistance.onsuccess = function (event) {
-            const distance = event.target.result ? event.target.result.distance + "°" : "";
-            if (event.target?.result?.distance > 0) {
-              row.find(".distance-cell").attr("data-sort", distance).text(distance);
-            }
-            resolve();
-          };
-        });
-        distancePromises.push(distancePromise);
+        // Iterate over each row
+        $("#anniversariesTable tbody tr").each(function () {
+          const row = $(this);
+          const rowId = row.data("rowId");
 
-        // Request the relationship record
-        const getRelationship = relationshipStore.get(rowId);
-        const relationshipPromise = new Promise((resolve, reject) => {
-          getRelationship.onsuccess = function (event) {
-            let relationship =
-              event.target.result && event.target.result.relationship ? event.target.result.relationship : "";
-            row.find(".relationship-cell").attr("data-sort", relationship).text(relationship);
-            resolve();
-          };
-        });
-        relationshipPromises.push(relationshipPromise);
-      });
-
-      // Wait for all promises to resolve before initializing DataTable
-      Promise.all([...distancePromises, ...relationshipPromises])
-        .then(() => {
-          // Initialize DataTable here
-          let pagingValue = false;
-          if (window.anniversariesTableOptions.pagination) {
-            pagingValue = true;
-          }
-          $("#anniversariesTable").DataTable({
-            paging: pagingValue,
-            pagingType: "full_numbers",
-            pageLength: 10,
-            lengthMenu: [
-              [10, 25, 50, -1],
-              [10, 25, 50, "All"],
-            ],
-            columnDefs: [
-              {
-                targets: 4,
-                orderDataType: "distance",
-                type: "numeric",
-              },
-            ],
-            language: {
-              search: "Filter:",
-            },
+          // Request the distance record
+          const getDistance = distanceStore.get(rowId);
+          const distancePromise = new Promise((resolve, reject) => {
+            getDistance.onsuccess = function (event) {
+              const distance = event.target.result ? event.target.result.distance + "°" : "";
+              if (event.target?.result?.distance > 0) {
+                // Update DataTable data
+                row.find("td").eq(4).text(distance); // assuming that the 5th column is the distance
+              }
+              resolve();
+            };
           });
-          updateNames();
-        })
-        .catch((error) => {
-          console.error(error);
+          distancePromises.push(distancePromise);
+
+          // Request the relationship record
+          const getRelationship = relationshipStore.get(rowId);
+          const relationshipPromise = new Promise((resolve, reject) => {
+            getRelationship.onsuccess = function (event) {
+              let relationship =
+                event.target.result && event.target.result.relationship ? event.target.result.relationship : "";
+              // Update DataTable data
+              row.find("td").eq(5).text(relationship); // assuming that the 5th column is the distance
+              resolve();
+            };
+          });
+          relationshipPromises.push(relationshipPromise);
         });
+
+        $.extend($.fn.dataTableExt.oSort, {
+          "genealogy-pre": function (a) {
+            return kinshipValue(a);
+          },
+
+          "genealogy-asc": function (a, b) {
+            return a < b ? -1 : a > b ? 1 : 0;
+          },
+
+          "genealogy-desc": function (a, b) {
+            return a < b ? 1 : a > b ? -1 : 0;
+          },
+        });
+
+        $.fn.dataTable.ext.type.order["distance-pre"] = function (data) {
+          // Extract the numeric part of the string, parse it as a float, and return it for sorting.
+          const number = parseFloat(data.replace("°", ""));
+          return isNaN(number) ? 0 : number;
+        };
+
+        // Wait for all promises to resolve before initializing DataTable
+        Promise.all([...distancePromises, ...relationshipPromises])
+          .then(() => {
+            // Initialize DataTable here
+            let pagingValue = false;
+            if (window.anniversariesTableOptions.pagination) {
+              pagingValue = true;
+            }
+            tableData = $("#anniversariesTable").DataTable({
+              paging: pagingValue,
+              pagingType: "full_numbers",
+              pageLength: 10,
+              lengthMenu: [
+                [10, 25, 50, -1],
+                [10, 25, 50, "All"],
+              ],
+              columnDefs: [
+                { type: "distance", targets: 4 }, // The "Distance" column
+                {
+                  targets: 5, // The "Relationship" column
+                  type: "genealogy",
+                },
+              ],
+              language: {
+                search: "Filter:",
+              },
+            });
+            updateNames();
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      };
     };
-  };
+  }, 0);
 }
 
 function generateCSV() {
   let csvList = new Set(); // Use Set to avoid duplicate entries
 
   // Iterate over each row in the table
-  $("#anniversariesTable tbody tr").each(function () {
-    const row = $(this);
-    // Find all anchor tags in the row with 'href' starting with '/wiki/'
-    const anchors = row.find("a[href^='/wiki/']");
-    anchors.each(function () {
+  //const table = $("#anniversariesTable").DataTable();
+
+  tableData.rows().every(function (index, tabLoop, rowLoop) {
+    const row = this.data();
+
+    // assuming that row[1] contains the link
+    let link = row[1];
+
+    // Check if link is an array, then join it into a single string
+    if (Array.isArray(link)) {
+      link = link.join("");
+    }
+
+    // Parse the link string into HTML
+    const parsedLink = $.parseHTML(link);
+
+    // Wrap the parsed elements with a div and then find the first anchor tag in the cell with 'href' starting with '/wiki/'
+    const anchor = $("<div>").append(parsedLink).find("a[href^='/wiki/']");
+
+    if (anchor.length > 0) {
       // Get the href value and split it to get the ID
-      const id = $(this).attr("href").substring(6);
-      const lastName = id.split("-")[0];
-      if ($(this).text().match(lastName) == null) {
+      const id = anchor.attr("href").substring(6);
+      const lastName = id.replace(/-\d+/, "");
+
+      if (anchor.text().match(lastName) == null) {
         csvList.add(id);
       }
-    });
+    }
   });
 
   // Convert Set back to array and join the array elements into a string with commas
@@ -231,6 +301,8 @@ async function updateNames() {
     "Name,FirstName,LastNameCurrent,LastNameAtBirth"
   );
 
+  let isUpdated = false;
+
   // Check if people are returned
   if (result) {
     const people = result[0].people;
@@ -243,15 +315,96 @@ async function updateNames() {
         if (person.FirstName && person.LastNameCurrent && person.LastNameAtBirth && person.Name) {
           let LNAB = person.LastNameAtBirth; // Get the LNAB from the person.LastNameAtBirth
 
-          // Get the rows which contain this person's key in a link
-          let links = $(`#anniversariesTable a[href='/wiki/${person.Name}']`);
+          // iterate over all rows in the data
+          tableData.rows().every(function () {
+            // get the data for the row
+            var rowData = this.data();
 
-          // Update the name in each link to this person in each row
-          links.each(function () {
-            $(this).text(person.FirstName + " (" + LNAB + ") " + person.LastNameCurrent);
+            // iterate over all cells in the row data
+            for (var i = 0; i < rowData.length; i++) {
+              // Check if this cell contains the link we need to update
+              if (rowData[i].includes(`/wiki/${person.Name}`)) {
+                // create a temporary DOM element to hold the cell data
+                var temp = $("<div></div>");
+                temp.html(rowData[i]);
+
+                // find the link in the temporary element
+                var link = temp.find(`a[href='/wiki/${person.Name}']`);
+
+                if (link.length > 0) {
+                  // update the link text
+                  link.text(`${person.FirstName} (${LNAB}) ${person.LastNameCurrent}`);
+
+                  // update the cell data with the new HTML
+                  rowData[i] = temp.html();
+
+                  // update the row data
+                  this.data(rowData);
+
+                  isUpdated = true;
+                }
+              }
+            }
           });
         }
       });
+
+      // Redraw the table without resetting the paging if any row was updated
+      if (isUpdated) {
+        tableData.draw(false);
+      }
+      $("#anniversariesShakingTree").hide();
+      bigDiv.hide();
+      $("#anniversariesTable, #anniversariesTable_wrapper").show();
     }
   }
 }
+function kinshipValue(kinship) {
+  const greats = (kinship.match(/great/g) || []).length;
+  const cousinMatch = kinship.match(/(\d+)(?:st|nd|rd|th) cousin/);
+  const cousinNum = cousinMatch ? parseInt(cousinMatch[1], 10) : 0;
+
+  let removedNum = 0;
+  const removedMatch = kinship.match(/(\d+) times removed/);
+  if (removedMatch) {
+    removedNum = parseInt(removedMatch[1], 10);
+  } else {
+    const words = ["once", "twice", "three", "four", "five", "six", "seven", "eight", "nine"];
+    for (let i = 0; i < words.length; i++) {
+      if (kinship.includes(words[i] + " times removed")) {
+        removedNum = i + 1;
+        break;
+      }
+    }
+  }
+
+  if (["brother", "sister", "father", "mother", "daughter", "son"].some((term) => kinship.includes(term))) {
+    return [1 + greats, 1];
+  } else if (
+    ["uncle", "aunt", "niece", "nephew", "grandfather", "grandmother", "grandson", "granddaughter"].some((term) =>
+      kinship.includes(term)
+    )
+  ) {
+    return [2 + greats, 1];
+  } else if (["grandaunt", "granduncle", "grandniece", "grandnephew"].some((term) => kinship.includes(term))) {
+    return [3 + greats, 1];
+  } else if (kinship.includes("cousin")) {
+    return [2 + cousinNum + removedNum, 1]; // Changed priority to 1
+  } else {
+    return [Infinity, 1]; // Changed priority to 1 //
+  }
+}
+
+$.extend($.fn.dataTableExt.oSort, {
+  "genealogy-pre": function (a) {
+    return kinshipValue(a);
+  },
+
+  "genealogy-asc": function (a, b) {
+    return a[1] - b[1] || a[0] - b[0]; // priority sorting first, then distance
+  },
+
+  "genealogy-desc": function (a, b) {
+    return b[1] - a[1] || b[0] - a[0]; // priority sorting first, then distance
+  },
+});
