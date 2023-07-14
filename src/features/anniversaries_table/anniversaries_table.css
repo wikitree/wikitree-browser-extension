@@ -24,3 +24,15 @@
 #anniversariesTable {
   display: none;
 }
+#anniversariesTable_wrapper {
+  display: none;
+}
+
+#anniversariesShakingTree {
+  z-index: 1000000;
+  height: 50px;
+  border-radius: 50%;
+  border: 2px solid forestgreen;
+  position: fixed;
+  margin-left: 2em;
+}
