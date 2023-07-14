@@ -391,7 +391,7 @@ function kinshipValue(kinship) {
   } else if (kinship.includes("cousin")) {
     return [2 + cousinNum + removedNum, 1]; // Changed priority to 1
   } else {
-    return [Infinity, 1]; // Changed priority to 1
+    return [Infinity, 1]; // Changed priority to 1 //
   }
 }
 
