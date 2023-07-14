@@ -359,13 +359,13 @@ async function updateNames() {
     }
   }
 }
+
 function kinshipValue(kinship) {
-  const greats = (kinship.match(/great/g) || []).length;
-  const cousinMatch = kinship.match(/(\d+)(?:st|nd|rd|th) cousin/);
-  const cousinNum = cousinMatch ? parseInt(cousinMatch[1], 10) : 0;
+  let cousinMatch = kinship.match(/(\d+)(?:st|nd|rd|th) cousin/);
+  let cousinNum = cousinMatch ? parseInt(cousinMatch[1], 10) : 0;
 
   let removedNum = 0;
-  const removedMatch = kinship.match(/(\d+) times removed/);
+  let removedMatch = kinship.match(/(\d+) times removed/);
   if (removedMatch) {
     removedNum = parseInt(removedMatch[1], 10);
   } else {
@@ -378,20 +378,22 @@ function kinshipValue(kinship) {
     }
   }
 
+  let greatsMatch = kinship.match(/(\d+)(?:st|nd|rd|th) great/);
+  let greatsNum = greatsMatch ? parseInt(greatsMatch[1], 10) : 0;
+  let greats = (kinship.match(/great/g) || []).length + greatsNum;
+
   if (["brother", "sister", "father", "mother", "daughter", "son"].some((term) => kinship.includes(term))) {
-    return [1 + greats, 1];
-  } else if (
-    ["uncle", "aunt", "niece", "nephew", "grandfather", "grandmother", "grandson", "granddaughter"].some((term) =>
-      kinship.includes(term)
-    )
-  ) {
-    return [2 + greats, 1];
+    return [1, 1];
+  } else if (["uncle", "aunt", "niece", "nephew"].some((term) => kinship.includes(term))) {
+    return [2, 1];
+  } else if (["grandfather", "grandmother", "grandson", "granddaughter"].some((term) => kinship.includes(term))) {
+    return [3 + greats, 1];
   } else if (["grandaunt", "granduncle", "grandniece", "grandnephew"].some((term) => kinship.includes(term))) {
     return [3 + greats, 1];
   } else if (kinship.includes("cousin")) {
-    return [2 + cousinNum + removedNum, 1]; // Changed priority to 1
+    return [cousinNum + removedNum + 2, 1];
   } else {
-    return [Infinity, 1]; // Changed priority to 1 //
+    return [Infinity, 1];
   }
 }
 
@@ -408,3 +410,8 @@ $.extend($.fn.dataTableExt.oSort, {
     return b[1] - a[1] || b[0] - a[0]; // priority sorting first, then distance
   },
 });
+
+console.log(kinshipValue("great grandfather")); // Expected output: [3, 1] -> Result: [1,1]
+console.log(kinshipValue("7th great grandaunt")); // Expected output: [10, 1]-> Result: [2,1]
+console.log(kinshipValue("3rd cousin 6 times removed")); // Expected output: [11, 1]-> Result: [11,1]
+console.log(kinshipValue("1st cousin three times removed")); // Expected output: [6, 1]-> Result: [6,1]
