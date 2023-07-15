@@ -4,8 +4,8 @@
   "version": "1.6.5.21",
   "manifest_version": 3,
   "options_page": "options.html",
-  "permissions": ["storage"],
-  "host_permissions": ["https://*.wikitree.com/*", "clipboardRead", "clipboardWrite"],
+  "permissions": ["storage", "clipboardRead", "clipboardWrite"],
+  "host_permissions": ["https://*.wikitree.com/*"],
   "content_scripts": [
     {
       "matches": ["https://*.wikitree.com/*"],
