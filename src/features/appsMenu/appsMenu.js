@@ -31,7 +31,6 @@ function attachAppsMenu() {
     { title: "Brick Walls", URL: "https://apps.wikitree.com/apps/nelson3486/brickwalls/" },
     { title: "Check Stickers", URL: "https://apps.wikitree.com/apps/anderson23510/stickers/" },
     { title: "Cemetery Mapping", URL: "https://apps.wikitree.com/apps/harris5439/cemeteries/" },
-    { title: "CC7 Views", URL: "https://apps.wikitree.com/apps/beacall6/cc7_table.php?id=mWTID" },
     { title: "DNA Confirmation Citation Maker", URL: "https://apps.wikitree.com/apps/clarke11007/DNAconf.php" },
     { title: "Family Group App", URL: "https://apps.wikitree.com/apps/beacall6/familySheet.php" },
     { title: "FamilySearch Matches", URL: "https://apps.wikitree.com/apps/york1423/fs-match" },
