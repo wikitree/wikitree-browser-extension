@@ -895,7 +895,7 @@ function childList(person, spouse) {
   return text;
 }
 
-function siblingList() {
+export function siblingList() {
   let text = "";
   const siblings = [];
   if (!Array.isArray(window.profilePerson.Siblings) && window.profilePerson.Siblings) {
@@ -944,27 +944,29 @@ function addReferences(event, spouse = false) {
     window.marriageCitations++;
   }
   let text = "";
-  window.references.forEach(function (reference) {
-    if (isReferenceRelevant(reference, event, spouse)) {
-      refCount++;
-      if (reference.Used || window.refNames.includes(reference.RefName)) {
-        text += "<ref name='" + reference.RefName + "' /> ";
-      } else {
-        if (!reference.RefName) {
-          reference.RefName = event + "_" + refCount;
+  if (window.references) {
+    window.references.forEach(function (reference) {
+      if (isReferenceRelevant(reference, event, spouse)) {
+        refCount++;
+        if (reference.Used || window.refNames.includes(reference.RefName)) {
+          text += "<ref name='" + reference.RefName + "' /> ";
+        } else {
+          if (!reference.RefName) {
+            reference.RefName = event + "_" + refCount;
+          }
+          reference.Used = true;
+          text +=
+            "<ref name='" +
+            reference.RefName +
+            "'>" +
+            reference.Text +
+            (reference.List ? "\n" + reference.List : "") +
+            "</ref> ";
+          window.refNames.push(reference.RefName);
         }
-        reference.Used = true;
-        text +=
-          "<ref name='" +
-          reference.RefName +
-          "'>" +
-          reference.Text +
-          (reference.List ? "\n" + reference.List : "") +
-          "</ref> ";
-        window.refNames.push(reference.RefName);
       }
-    }
-  });
+    });
+  }
   return text;
 }
 function isReferenceRelevant(reference, event, spouse) {
@@ -994,7 +996,7 @@ function isReferenceRelevant(reference, event, spouse) {
   );
 }
 
-function buildBirth(person) {
+export function buildBirth(person) {
   let text = "";
   let theName = person.PersonName.BirthName || person.RealName;
   if (window.autoBioOptions?.fullNameOrBirthName == "FullName") {
@@ -1046,6 +1048,9 @@ function buildBirthLocation(person) {
     birthLocationBit = " in " + person.BirthLocation;
     let birthPlaces = person.BirthLocation.split(",");
     birthPlaces.forEach(function (place) {
+      if (!window.usedPlaces) {
+        window.usedPlaces = [];
+      }
       window.usedPlaces.push(place.trim());
     });
   }
@@ -1162,12 +1167,12 @@ function buildDeath(person) {
   return text;
 }
 
-function buildParents(person) {
+export function buildParents(person) {
   let text = "";
   if (person.Gender == "Male") {
-    text += " son of ";
+    text += "son of ";
   } else if (person.Gender == "Female") {
-    text += " daughter of ";
+    text += "daughter of ";
   }
   let parents = person.Parents;
   if (parents) {
@@ -1224,7 +1229,7 @@ export function minimalPlace(place) {
   return showPlace.join(", ");
 }
 
-function buildSpouses(person) {
+export function buildSpouses(person) {
   let spouseKeys = Object.keys(person.Spouses);
   let marriages = [];
   let firstNameAndYear = [];
@@ -1383,60 +1388,62 @@ function buildSpouses(person) {
       });
     });
   }
-  window.references.forEach(function (reference, i) {
-    if (reference["Record Type"].includes("Marriage")) {
-      let foundSpouse = false;
-      const thisSpouse = reference["Spouse Name"] || reference.Spouse || "";
-      firstNameAndYear.forEach(function (obj) {
-        if (obj.Year == reference.Year) {
-          foundSpouse = true;
-        } else if (thisSpouse) {
-          if (thisSpouse.split(" ")[0] == obj.FirstName) {
+  if (window.references) {
+    window.references.forEach(function (reference, i) {
+      if (reference["Record Type"].includes("Marriage")) {
+        let foundSpouse = false;
+        const thisSpouse = reference["Spouse Name"] || reference.Spouse || "";
+        firstNameAndYear.forEach(function (obj) {
+          if (obj.Year == reference.Year) {
             foundSpouse = true;
+          } else if (thisSpouse) {
+            if (thisSpouse.split(" ")[0] == obj.FirstName) {
+              foundSpouse = true;
+            }
           }
-        }
-      });
-      if (foundSpouse == false && thisSpouse) {
-        let text = "";
-        let marriageDate = "";
-        if (reference["Marriage Date"]) {
-          marriageDate = getYYYYMMDD(reference["Marriage Date"]);
-        } else if (reference["Marriage Year"]) {
-          marriageDate = reference["Marriage Year"].trim() + "-00-00";
-        }
-        let age = getAgeFromISODates(window.profilePerson.BirthDate, marriageDate);
-        let marriageAge = "";
-        if (isOK(age)) {
-          marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, marriageDate)})`;
-        }
-        text += person.PersonName.FirstName + marriageAge + " married " + thisSpouse;
-        if (reference["Marriage Place"]) {
-          text += " in " + reference["Marriage Place"];
-        }
-        if (reference["Marriage Date"]) {
-          const showMarriageDate = formatDate(reference["Marriage Date"], "", { needOn: true }).replace(/\s0/, " ");
-          text += " " + showMarriageDate;
-        }
-        text += ".";
-        marriages.push({
-          Spouse: { FullName: thisSpouse, marriage_date: marriageDate },
-          SpouseChildren: "",
-          Narrative: text + "<ref name='ref_" + i + "'>" + reference.Text + "</ref>",
-          OrderDate: formatDate(marriageDate, 0, { format: 8 }),
-          "Marriage Date": reference["Marriage Date"],
-          "Event Type": "Marriage, " + thisSpouse,
-          "Marriage Place": reference["Marriage Place"],
-          "Event Place": reference["Marriage Place"],
-          "Event Year": reference.Year,
-          Year: reference.Year,
         });
-        reference.Used = true;
-        reference.RefName = "ref_" + i;
+        if (foundSpouse == false && thisSpouse) {
+          let text = "";
+          let marriageDate = "";
+          if (reference["Marriage Date"]) {
+            marriageDate = getYYYYMMDD(reference["Marriage Date"]);
+          } else if (reference["Marriage Year"]) {
+            marriageDate = reference["Marriage Year"].trim() + "-00-00";
+          }
+          let age = getAgeFromISODates(window.profilePerson.BirthDate, marriageDate);
+          let marriageAge = "";
+          if (isOK(age)) {
+            marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, marriageDate)})`;
+          }
+          text += person.PersonName.FirstName + marriageAge + " married " + thisSpouse;
+          if (reference["Marriage Place"]) {
+            text += " in " + reference["Marriage Place"];
+          }
+          if (reference["Marriage Date"]) {
+            const showMarriageDate = formatDate(reference["Marriage Date"], "", { needOn: true }).replace(/\s0/, " ");
+            text += " " + showMarriageDate;
+          }
+          text += ".";
+          marriages.push({
+            Spouse: { FullName: thisSpouse, marriage_date: marriageDate },
+            SpouseChildren: "",
+            Narrative: text + "<ref name='ref_" + i + "'>" + reference.Text + "</ref>",
+            OrderDate: formatDate(marriageDate, 0, { format: 8 }),
+            "Marriage Date": reference["Marriage Date"],
+            "Event Type": "Marriage, " + thisSpouse,
+            "Marriage Place": reference["Marriage Place"],
+            "Event Place": reference["Marriage Place"],
+            "Event Year": reference.Year,
+            Year: reference.Year,
+          });
+          reference.Used = true;
+          reference.RefName = "ref_" + i;
 
-        addToNeedsProfilesCreated({ Name: thisSpouse, MarriageDate: marriageDate, Relation: "Spouse" });
+          addToNeedsProfilesCreated({ Name: thisSpouse, MarriageDate: marriageDate, Relation: "Spouse" });
+        }
       }
-    }
-  });
+    });
+  }
   return marriages;
 }
 
@@ -5370,7 +5377,7 @@ export function assignPersonNames(person) {
   });
 }
 
-function addLoginButton() {
+export function addLoginButton() {
   let x = window.location.href.split("?");
   if (x[1]) {
     let queryParams = new URLSearchParams(x[1]);
@@ -5429,7 +5436,7 @@ function addLoginButton() {
 /*
 Set OrderBirthDate.  If person has a BirthDate, use that; if they have a BirthDecade use July 2nd in the 5th year of that decade.
 */
-function setOrderBirthDate(person) {
+export function setOrderBirthDate(person) {
   function setOrderBirthDateB(personB) {
     if (personB.BirthDate) {
       personB.OrderBirthDate = personB.BirthDate;

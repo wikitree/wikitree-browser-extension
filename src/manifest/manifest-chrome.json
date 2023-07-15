@@ -5,7 +5,7 @@
   "manifest_version": 3,
   "options_page": "options.html",
   "permissions": ["storage"],
-  "host_permissions": ["https://*.wikitree.com/*"],
+  "host_permissions": ["https://*.wikitree.com/*", "clipboardRead", "clipboardWrite"],
   "content_scripts": [
     {
       "matches": ["https://*.wikitree.com/*"],
