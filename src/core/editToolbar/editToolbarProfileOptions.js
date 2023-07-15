@@ -3,6 +3,7 @@ Created By: Aleš Trtnik (Trtnik-2)
 */
 import { generateBio } from "../../features/auto_bio/auto_bio";
 import { addAutoCategories } from "../../features/auto_categories/auto_categories";
+import { getFamilyList } from "../../features/family_lists/family_lists";
 import { wtPlus } from "../../features/wtPlus/wtPlus";
 import { editToolbarApp, editToolbarWiki } from "./editToolbar";
 export default [
@@ -128,6 +129,27 @@ export default [
         title: "Automated corrections",
         call: wtPlus,
         params: { action: "AutoUpdate" },
+      },
+      {
+        featureid: "familyLists",
+        hint: "Generate a narrative for birth and parent details",
+        title: "Birth and Parent Details",
+        call: getFamilyList,
+        params: { functionName: "birthAndParents" },
+      },
+      {
+        featureid: "familyLists",
+        hint: "Generate a list of siblings",
+        title: "Sibling List",
+        call: getFamilyList,
+        params: { functionName: "siblingList" },
+      },
+      {
+        featureid: "familyLists",
+        hint: "Generate a list of spouses and their children",
+        title: "Spouse and Child Details",
+        call: getFamilyList,
+        params: { functionName: "spouseChildList" },
       },
     ],
   },

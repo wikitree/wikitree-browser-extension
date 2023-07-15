@@ -64,6 +64,7 @@ import "./darkMode/darkMode_options";
 import "./date_fixer/date_fixer_options";
 import "./edit_family_data/edit_family_data_options";
 import "./extra_watchlist/extra_watchlist_options";
+import "./family_lists/family_lists_options";
 import "./locationsHelper/locationsHelper_options";
 import "./g2g/g2g_options";
 import "./genderPredictor/gender_predictor_options";
