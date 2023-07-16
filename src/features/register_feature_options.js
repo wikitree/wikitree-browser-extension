@@ -62,6 +62,7 @@ import "./custom_change_summary_options/custom_change_summary_options_options";
 import "./custom_style/custom_style_options";
 import "./darkMode/darkMode_options";
 import "./date_fixer/date_fixer_options";
+import "./enhanced_editor_style/enhanced_editor_style_options";
 import "./edit_family_data/edit_family_data_options";
 import "./extra_watchlist/extra_watchlist_options";
 import "./family_lists/family_lists_options";

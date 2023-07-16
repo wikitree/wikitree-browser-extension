@@ -1,0 +1,16 @@
+pre[role="presentation"].source,
+pre[role="presentation"].source span[role="presentation"] {
+  color: black;
+}
+
+html body.darkMode div.CodeMirror pre[role="presentation"].source,
+html body.darkMode div.CodeMirror pre[role="presentation"].source span[role="presentation"] {
+  color: #dcddde;
+}
+
+span[class^="cm-"] {
+  color: black;
+}
+html body.darkMode div.CodeMirror span[class^="cm-"] {
+  color: #dcddde;
+}

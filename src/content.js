@@ -7,6 +7,7 @@ import "./features/register_feature_options";
 // First are loaded modules that change the wikitree appearence by altering css style
 import "./features/visitedLinks/visitedLinks";
 import "./features/darkMode/darkMode";
+import "./features/enhanced_editor_style/enhanced_editor_style";
 import "./features/readability/readability";
 import "./features/custom_style/custom_style";
 

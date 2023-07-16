@@ -210,7 +210,7 @@ function reset_options(preserveFeatureOptions, callback) {
   }
 }
 
-const resetToDefaultButtonsNeeded = ["customStyle"];
+const resetToDefaultButtonsNeeded = ["customStyle", "enhancedEditorStyle"];
 // This is called recursively to build the elements of the options page
 function addOptionsForFeature(featureData, optionsContainerElement, options) {
   const featureId = featureData.id;
