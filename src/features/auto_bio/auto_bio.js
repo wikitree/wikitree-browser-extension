@@ -221,6 +221,7 @@ async function fixLocations() {
       "Papua New Guinea",
       "Bosnia and Herzegovina",
       "Spain", // New Spain
+      "Canada", // Upper Canada, Lower Canada
     ];
     countries.forEach(function (country) {
       if (!excludeCountries.includes(country.name)) {
@@ -247,7 +248,6 @@ async function fixLocations() {
       let australianLocations;
       if (!window.australianLocations) {
         australianLocations = await import("./australian_locations.json");
-        console.log(australianLocations);
       } else {
         australianLocations = window.australianLocations;
       }
@@ -279,27 +279,15 @@ async function fixLocations() {
           const afterStart = isSameDateOrAfter(event.Date, startDate);
           const beforeEnd = endDate ? !isSameDateOrAfter(event.Date, endDate) : true;
 
-          console.log("Event Date:", event.Date);
-          console.log("Location Start Date:", startDate);
-          console.log("Location End Date:", endDate);
-          console.log("Is event Date after Start Date?", afterStart);
-          console.log("Is event Date before End Date?", beforeEnd);
-
           if (afterStart && beforeEnd) {
             foundLocationMatch = true;
-            console.log("foundLocationMatch:", foundLocationMatch);
             break;
           } else if (!afterStart && "previousName" in australianLocations[key]) {
             foundLocationMatch = true;
             matchedKey = key; // keep the original key
-            console.log("foundLocationMatch:", foundLocationMatch);
-            console.log("Using previous name for the matched key:", matchedKey);
             break;
           }
         }
-        console.log("Checking key:", key);
-
-        console.log("Checking key:", key);
       }
       if (foundLocationMatch) {
         const startDate = australianLocations[matchedKey]["startDate"];
@@ -312,7 +300,6 @@ async function fixLocations() {
           } else {
             event.Location = event.Location.replace(lastLocationBit, australianLocations[matchedKey]["previousName"]);
           }
-          console.log("Updated event location:", event.Location);
         } else if (!originalMatched && matchedKey) {
           // If the location match was found with the addedAustralia search and the event date is within the appropriate timeframe, add matchedKey to the location.
           event.Location = event.Location.replace(lastLocationBit, matchedKey);
@@ -321,10 +308,6 @@ async function fixLocations() {
           console.log("No previousName defined for matchedKey:", matchedKey);
         }
       }
-
-      console.log("Final result - foundLocationMatch:", foundLocationMatch);
-      console.log("Final result - matchedKey:", matchedKey);
-      console.log("Final result - originalMatched:", originalMatched);
     }
 
     if (window.autoBioOptions?.checkUK && isOK(event.Date)) {
@@ -340,11 +323,13 @@ async function fixLocations() {
       !["United States", "United Kingdom", "New Zealand"].includes(lastLocationBit) &&
       (window.autoBioOptions?.checkOtherCountries || window.autoBioOptions?.nativeNames)
     ) {
+      const excludeFromThisBit = ["Ireland", "Northern Ireland", "Georgia"];
+
       countries.forEach(function (country) {
         if (country.name == lastLocationBit) {
           let aNote;
           if (window.autoBioOptions?.nativeNames) {
-            if (country.name != country.nativeName && !["Ireland", "Northern Ireland"].includes(country.name)) {
+            if (country.name != country.nativeName && !excludeFromThisBit.includes(country.name)) {
               if (locationBits.length == 1) {
                 event.Location = country.nativeName;
               } else {
@@ -352,7 +337,7 @@ async function fixLocations() {
               }
             }
           } else {
-            if (country.name != country.nativeName && !["Ireland", "Northern Ireland"].includes(country.name)) {
+            if (country.name != country.nativeName && !excludeFromThisBit.includes(country.name)) {
               aNote =
                 "The native name for the country of " +
                 event.Event +
@@ -391,6 +376,8 @@ async function fixLocations() {
         event.Location +
         "'.";
       window.autoBioNotes?.push(changeNote);
+      const toUpdate = event.ID.replace(/^m/, "");
+      window.profilePerson[toUpdate] = event.Location;
     }
     document.getElementById(event.ID).value = event.Location;
   });
@@ -1094,6 +1081,9 @@ function buildDeath(person) {
     const birthDate = person.BirthDate.match("-") ? person.BirthDate : getYYYYMMDD(person.BirthDate);
     const deathDate = person?.DeathDate.match("-") ? person?.DeathDate : getYYYYMMDD(person?.DeathDate);
     let age = getAgeFromISODates(birthDate, deathDate);
+    if (age < 0) {
+      age = 0;
+    }
     const uncertainDate =
       person.DataStatus?.DeathDate == "guess" ||
       person.DataStatus?.DeathDate == "before" ||
@@ -1104,6 +1094,21 @@ function buildDeath(person) {
     let aboutWord = "";
     if (uncertainDate) {
       aboutWord = "about ";
+    }
+    let matchedRecord;
+    let variantSet = new Set(window.profilePerson.NameVariants);
+    const oReferences = window.references;
+    if (oReferences) {
+      for (let i = 0; i < oReferences.length; i++) {
+        if ("Death Age" in oReferences[i] && variantSet.has(oReferences[i]?.Name)) {
+          matchedRecord = oReferences[i];
+          break; // Exit the loop after finding the first match
+        }
+      }
+      if (matchedRecord?.["Death Age"]) {
+        age = matchedRecord["Death Age"];
+        aboutWord = "";
+      }
     }
     text += ", aged " + aboutWord + age;
   }
@@ -6362,7 +6367,11 @@ export async function generateBio() {
     const marriagesAndCensusesEtc = [...marriages];
 
     // Get children who were not from one of the spouses
-    if (!Array.isArray(window.profilePerson.Children) && window.profilePerson.Children) {
+    if (
+      !Array.isArray(window.profilePerson.Children) &&
+      window.profilePerson.Children &&
+      window.autoBioOptions?.childList
+    ) {
       const childrenKeys = Object.keys(window.profilePerson.Children);
       let aChildList;
       if (Array.isArray(window.profilePerson.Spouses)) {
@@ -7065,6 +7074,7 @@ function removeCountryName(location) {
       locationSplit.shift();
     }
   }
+
   // Remove country name for other countries
   else {
     countries.forEach((country) => {
@@ -7125,7 +7135,29 @@ export async function getLocationCategory(type, location = null) {
 
   // Remove all after 3rd comma
   const locationSplit = location.split(/, /);
-  const searchLocation = removeCountryName(location);
+  let searchLocation = removeCountryName(location);
+
+  // Change the location for pre-1901 Australian locations
+  let australianLocations;
+  if (!window.australianLocations) {
+    australianLocations = await import("./australian_locations.json");
+  } else {
+    australianLocations = window.australianLocations;
+  }
+  const lastElement = locationSplit[locationSplit.length - 1];
+  if (australianLocations[lastElement]) {
+    console.log("Found Australian location", lastElement, australianLocations[lastElement]);
+    if (australianLocations[lastElement]?.["modernName"]) {
+      console.log("Found modern name", australianLocations[lastElement]?.["modernName"]);
+      locationSplit.pop(); // Remove the last element
+      const modernLastElement = australianLocations[lastElement]?.["modernName"].replace(/, Australia/, "");
+      locationSplit.push(modernLastElement); // Add the new element
+      searchLocation = locationSplit.join(", ");
+      console.log("New location", locationSplit.join(", "));
+    }
+  }
+  // End Australian location change
+
   let api;
   try {
     api = await wtAPICatCIBSearch("WBE", categoryType, searchLocation);
@@ -7171,6 +7203,7 @@ export async function getLocationCategory(type, location = null) {
       }
     });
     if (foundCategory) {
+      console.log(foundCategory);
       return foundCategory;
     } else {
       return;
