@@ -3,68 +3,90 @@
     "bornInLabel": "{{Australia Born in Colony|colony=Colony of New South Wales}}",
     "yearRange": [1788, 1900],
     "startDate": "1788-02-07",
-    "endDate": "1900-12-31"
+    "endDate": "1900-12-31",
+    "nextName": "New South Wales, Australia",
+    "modernName": "New South Wales, Australia"
   },
   "Van Diemen's Land": {
     "bornInLabel": "{{Australia Born in Colony|colony=Van Diemen's Land}}",
     "yearRange": [1825, 1855],
     "startDate": "1825-12-03",
     "endDate": "1855-12-31",
-    "previousName": "Colony of New South Wales"
+    "previousName": "Colony of New South Wales",
+    "nextName": "Colony of Tasmania",
+    "modernName": "Tasmania, Australia"
   },
   "Swan River Colony": {
     "bornInLabel": "{{Australia Born in Colony|colony=Swan River Colony}}",
     "yearRange": [1829, 1832],
     "startDate": "1829-05-02",
     "endDate": "1832-02-05",
-    "previousName": "Colony of New South Wales"
+    "previousName": "Colony of New South Wales",
+    "nextName": "Colony of Western Australia",
+    "modernName": "Western Australia, Australia"
   },
   "Colony of South Australia": {
     "bornInLabel": "{{Australia Born in Colony|colony=Colony of South Australia}}",
     "yearRange": [1836, 1900],
     "startDate": "1836-12-28",
-    "endDate": "1900-12-31"
+    "endDate": "1900-12-31",
+    "previousName": "Colony of New South Wales",
+    "nextName": "South Australia, Australia",
+    "modernName": "South Australia, Australia"
   },
   "Colony of Victoria": {
     "bornInLabel": "{{Australia Born in Colony|colony=Colony of Victoria}}",
     "yearRange": [1851, 1900],
     "startDate": "1851-07-01",
     "endDate": "1900-12-31",
-    "previousName": "Colony of New South Wales"
+    "previousName": "Colony of New South Wales",
+    "nextName": "Victoria, Australia",
+    "modernName": "Victoria, Australia"
   },
   "Colony of Tasmania": {
     "bornInLabel": "{{Australia Born in Colony|colony=Colony of Tasmania}}",
     "yearRange": [1856, 1900],
     "startDate": "1856-01-01",
     "endDate": "1900-12-31",
-    "previousName": "Van Diemen's Land"
+    "previousName": "Van Diemen's Land",
+    "nextName": "Tasmania, Australia",
+    "modernName": "Tasmania, Australia"
   },
   "Colony of Queensland": {
     "bornInLabel": "{{Australia Born in Colony|colony=Colony of Queensland}}",
     "yearRange": [1859, 1900],
     "startDate": "1859-06-06",
     "endDate": "1900-12-31",
-    "previousName": "Colony of New South Wales"
+    "previousName": "Colony of New South Wales",
+    "nextName": "Queensland, Australia",
+    "modernName": "Queensland, Australia"
   },
   "Colony of Western Australia": {
     "bornInLabel": "{{Australia Born in Colony|colony=Colony of Western Australia}}",
     "yearRange": [1832, 1900],
     "startDate": "1832-02-06",
     "endDate": "1900-12-31",
-    "previousName": "Swan River Colony"
+    "previousName": "Swan River Colony",
+    "nextName": "Western Australia, Australia",
+    "modernName": "Western Australia, Australia"
   },
   "Australian Capital Territory": {
     "bornInLabel": "{{Australia Sticker|Capital Territory}}",
     "yearRange": [1911],
     "startDate": "1911-01-01",
-    "endDate": null
+    "endDate": null,
+    "previousName": "Colony of New South Wales",
+    "nextName": "Australian Capital Territory, Australia",
+    "modernName": "Australian Capital Territory, Australia"
   },
   "Northern Territory of Australia": {
     "bornInLabel": "{{Australia Sticker|Northern Territory}}",
     "yearRange": [1911],
     "startDate": "1911-01-01",
     "endDate": null,
-    "previousName": "Colony of South Australia"
+    "previousName": "Colony of South Australia",
+    "nextName": "Northern Territory, Australia",
+    "modernName": "Northern Territory, Australia"
   },
   "New South Wales, Australia": {
     "bornInLabel": "{{Australia Sticker|New South Wales}}",
