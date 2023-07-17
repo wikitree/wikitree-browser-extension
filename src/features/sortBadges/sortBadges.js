@@ -25,7 +25,7 @@ shouldInitializeFeature("sortBadges").then((result) => {
       });
       $("#moveClubBadgesDown").on("click", (e) => {
         e.preventDefault();
-        moveClubBadgesDown();
+        moveClubBadgesDown(e);
       });
 
       if (localStorage.savedBadges) {
@@ -68,15 +68,19 @@ function hideClubBadges() {
   saveBadgeChanges();
 }
 
-function moveClubBadgesDown() {
+function moveClubBadgesDown(e) {
+  e.preventDefault();
   const clubBadgeLinks = $("a[href$='club100'],a[href$='club1000']");
   clubBadgeLinks.each(function () {
     $(this).closest("li").appendTo($(this).closest("ul"));
+    $(this).closest("li").find("input[name^='hide']").prop("checked", "true");
   });
-  const idArray = [];
-  $("#list_items li").each(function () {
-    idArray.push($(this).attr("id"));
-  });
-  $("#new_order").val(idArray.join(","));
-  saveBadgeChanges();
+  setTimeout(() => {
+    const idArray = [];
+    $("#list_items li").each(function () {
+      idArray.push($(this).attr("id"));
+    });
+    $("#new_order").val(idArray.join(","));
+    saveBadgeChanges();
+  }, 1000);
 }
