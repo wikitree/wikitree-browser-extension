@@ -11,6 +11,25 @@ const myCustomStyle = {
   pages: [true],
   options: [
     {
+      id: "general",
+      type: OptionType.GROUP,
+      label: "General",
+      options: [
+        {
+          id: "roundedCorners",
+          type: OptionType.CHECKBOX,
+          label: "Rounded corners",
+          defaultValue: false,
+        },
+        {
+          id: "header_background-color",
+          type: "color",
+          label: "Header background color",
+          defaultValue: "#f7f6f0",
+        },
+      ],
+    },
+    {
       id: "headings",
       type: OptionType.GROUP,
       label: "Headings",
@@ -74,25 +93,25 @@ const myCustomStyle = {
         {
           id: "color1_background-color",
           type: "color",
-          label: "Background color 1",
+          label: "Background color 1 (Profile tabs, etc.)",
           defaultValue: "#e1f0b4",
         },
         {
           id: "color2_background-color",
           type: "color",
-          label: "Background color 2",
+          label: "Background color 2 (Current profile tab, etc.)",
           defaultValue: "#ffe270",
         },
         {
           id: "color3_background-color",
           type: "color",
-          label: "Background color 3",
+          label: "Background color 3 (Profile manager)",
           defaultValue: "#ffe183",
         },
         {
           id: "color4_background-color",
           type: "color",
-          label: "Background color 3",
+          label: "Background color 4 ('This page has been accessed...')",
           defaultValue: "#eeeeee",
         },
         {
@@ -100,12 +119,6 @@ const myCustomStyle = {
           type: "color",
           label: "Link color",
           defaultValue: "#006600",
-        },
-        {
-          id: "link2_color",
-          type: "color",
-          label: "Link color 2",
-          defaultValue: "#ffffff",
         },
         {
           id: "scissorsText_color",
@@ -118,6 +131,67 @@ const myCustomStyle = {
           type: "color",
           label: "Visited link color",
           defaultValue: "#006600",
+        },
+      ],
+    },
+    {
+      id: "g2gColors",
+      type: OptionType.GROUP,
+      label: "Only G2G",
+      options: [
+        {
+          id: "link2_color",
+          type: "color",
+          label: "Tag color",
+          defaultValue: "#ffffff",
+        },
+        {
+          id: "tag_background-color",
+          type: "color",
+          label: "Tag background color",
+          defaultValue: "#8fc741",
+        },
+        {
+          id: "g2gtab_background-color",
+          type: "color",
+          label: "Tabs and Voting box background color",
+          defaultValue: "#b5d775",
+        },
+        {
+          id: "g2gtab_color",
+          type: "color",
+          label: "Tabs and Voting box text color",
+          defaultValue: "#ffffff",
+        },
+        {
+          id: "g2gtabHover_background-color",
+          type: "color",
+          label: "Tabs hover background color",
+          defaultValue: "#ffffa0",
+        },
+        {
+          id: "g2gtabHover_color",
+          type: "color",
+          label: "Tabs hover text color",
+          defaultValue: "#000000",
+        },
+        {
+          id: "g2gtabSelected_background-color",
+          type: "color",
+          label: "Current tab background color",
+          defaultValue: "#253b2f",
+        },
+        {
+          id: "g2gtabSelected_color",
+          type: "color",
+          label: "Current tab text color",
+          defaultValue: "#ffffff",
+        },
+        {
+          id: "count_background-color",
+          type: "color",
+          label: "Cont box background color",
+          defaultValue: "#fccd7d",
         },
       ],
     },
