@@ -10,6 +10,7 @@
 #googleSearchBox,
 #helpSearchBox {
   border: 3px solid #8fc741;
+  margin: 0.5em 0;
 }
 
 #form-wrapper label.searchBoxLabel {
@@ -29,10 +30,8 @@
 }
 
 #googleSearchBox {
-  width: fit-content;
   display: inline-block;
   height: auto;
-  margin: 0.5em 1em;
   padding: 0.5em;
 }
 #googleSearchBox b {
@@ -50,8 +49,11 @@
   margin: 0 10px;
 }
 
+#googleSearchBox div.twelve.columns.alpha {
+  width: auto;
+}
+
 #helpSearchBox {
-  margin: 0.5em 1em;
   width: fit-content;
   background-color: white;
   padding: 0.5em;
