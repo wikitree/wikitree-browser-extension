@@ -13,7 +13,7 @@ const myCustomStyle = {
     {
       id: "general",
       type: OptionType.GROUP,
-      label: "General",
+      label: "Global",
       options: [
         {
           id: "roundedCorners",
@@ -67,28 +67,9 @@ const myCustomStyle = {
       ],
     },
     {
-      id: "dateHeadings",
-      type: OptionType.GROUP,
-      label: "Date Headings",
-      options: [
-        {
-          id: "date-headings_background-color",
-          type: "color",
-          label: "Background color",
-          defaultValue: "#8fc641",
-        },
-        {
-          id: "date-headings_color",
-          type: "color",
-          label: "Text color",
-          defaultValue: "#ffffff",
-        },
-      ],
-    },
-    {
       id: "standardColors",
       type: OptionType.GROUP,
-      label: "Standard Colors",
+      label: "Profile Background Colors",
       options: [
         {
           id: "color1_background-color",
@@ -114,6 +95,13 @@ const myCustomStyle = {
           label: "Background color 4 ('This page has been accessed...')",
           defaultValue: "#eeeeee",
         },
+      ],
+    },
+    {
+      id: "linkColors",
+      type: OptionType.GROUP,
+      label: "Profile Link Colors",
+      options: [
         {
           id: "link_color",
           type: "color",
@@ -135,9 +123,28 @@ const myCustomStyle = {
       ],
     },
     {
+      id: "dateHeadings",
+      type: OptionType.GROUP,
+      label: "Activity Feed Date Headings",
+      options: [
+        {
+          id: "date-headings_background-color",
+          type: "color",
+          label: "Background color",
+          defaultValue: "#8fc641",
+        },
+        {
+          id: "date-headings_color",
+          type: "color",
+          label: "Text color",
+          defaultValue: "#ffffff",
+        },
+      ],
+    },
+    {
       id: "g2gColors",
       type: OptionType.GROUP,
-      label: "Only G2G",
+      label: "G2G",
       options: [
         {
           id: "link2_color",
@@ -190,7 +197,7 @@ const myCustomStyle = {
         {
           id: "count_background-color",
           type: "color",
-          label: "Cont box background color",
+          label: "Count box background color",
           defaultValue: "#fccd7d",
         },
       ],
