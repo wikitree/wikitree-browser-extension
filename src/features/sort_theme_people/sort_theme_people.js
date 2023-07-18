@@ -77,7 +77,7 @@ function themePeopleTable() {
     });
     linksArray.forEach(function (aPerson) {
       let aRow = $(
-        `<tr><td><a href='/wiki/${aPerson.WTID}'>${aPerson.name}</a></td><td><a href='${aPerson.connectionURL}'>${aPerson.degrees} degrees</a></td><td></td></tr>`
+        `<tr><td><a href="/wiki/${aPerson.WTID}">${aPerson.name}</a></td><td><a href="${aPerson.connectionURL}">${aPerson.degrees} degrees</a></td><td></td></tr>`
       );
       themeTable.find("tbody").append(aRow);
     });
