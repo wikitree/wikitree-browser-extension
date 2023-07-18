@@ -61,6 +61,7 @@ class CustomStyle {
     return `
   div.ten.columns table,
   ul.views.viewsm a.viewsi,
+  ul.views.viewsm li.viewsi a,
   .HISTORY-DATE,
   .THANKYOU-DATE,
   .qa-voting,
@@ -101,7 +102,7 @@ class CustomStyle {
   getSelectors(bits) {
     let idToSelectorMapping = {
       header: ".sticky-header body:not(.darkMode) .wrapper #header::before,#header",
-      headings: "h1,h2,h3,h4,h5,h6,\n#themeTable caption,\n#distanceFromYou",
+      headings: "h1,h2,h3,h4,h5,h6,#themeTable caption",
       date_headings: "span.HISTORY-DATE:not(body.profile .HISTORY-DATE),span.THANKYOU-DATE",
       color1: "ul.profile-tabs li,\n.ten.columns div.SMALL[style='background-color:#e1f0b4;']",
       color2: "ul.profile-tabs li.current,\ndiv.SMALL[style='background-color:#ffe183;']",
@@ -197,7 +198,7 @@ class CustomStyle {
     if (this.options["roundedCorners"]) {
       rules += this.handleRoundedCorners();
     }
-    console.log(rules);
+    //console.log(rules);
     return rules;
   }
 
