@@ -109,8 +109,8 @@ class CustomStyle {
       color3: "div.SMALL[style='background-color:#ffe183;']",
       color4: "div.SMALL[style='background-color:#eee;']",
       link: "a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a,a.qa-tag-link,a.new)",
-      link2: ".qa-q-item-tag-item a:link",
       tag: ".qa-q-item-tag-item a:link",
+      tagHover: ".qa-q-item-tag-item a:link:hover,.qa-q-item-tag-item a:visited:hover",
       scissorsText: "button.copyWidget",
       visitedLink:
         "a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a)",
