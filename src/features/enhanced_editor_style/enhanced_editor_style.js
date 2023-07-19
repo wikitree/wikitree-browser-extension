@@ -123,41 +123,57 @@ async function initEnhancedEditorStyle() {
     }
   });
   $("<style>" + rules + "</style>").appendTo($("head"));
-  addStartEndTagClasses();
-  $("#wpTextbox1").on("change", addStartEndTagClasses);
-
+  wrapTextNodes(document.querySelector(".CodeMirror-code"));
   watchCodeMirror();
 }
+console.log("Script is running");
 
 function watchCodeMirror() {
-  const codeMirrorLines = document.querySelector(".CodeMirror-lines");
+  const codeMirrorLines = document.querySelector(".CodeMirror-code");
+  console.log("CodeMirror lines:", codeMirrorLines);
 
   if (codeMirrorLines) {
+    console.log("OK");
     // Create a new MutationObserver instance
     const observer = new MutationObserver(function (mutations) {
       mutations.forEach(function (mutation) {
-        if (mutation.type === "childList") {
-          addStartEndTagClasses();
-        }
+        setTimeout(() => {
+          wrapTextNodes(codeMirrorLines);
+        }, 1000);
       });
     });
 
     // Specify what the observer should watch for: changes to the children of codeMirrorLines
-    const config = { childList: true, subtree: true };
-    observer.observe(codeMirrorLines, config);
+    const config = { childList: true, subtree: true, characterData: true };
+    observer.observe(document.body, config);
+
+    // Call wrapTextNodes initially to wrap existing text nodes
+    wrapTextNodes(codeMirrorLines);
   }
 }
 
-function addStartEndTagClasses() {
-  $("span.cm-mw-exttag-bracket")
-    .filter(function () {
-      return $(this).text() === "<";
-    })
-    .addClass("start-tag");
-  $("span.cm-mw-exttag-bracket")
-    .filter(function () {
-      return $(this).text() === ">" || $(this).text() === "/>";
-    })
-    .addClass("end-tag");
-  $("pre.cm-mw-section-2:has(span:contains('Sources'))").nextAll().addClass("source");
+function wrapTextNodes(element) {
+  // console.log("Wrapping text nodes in element:", element);
+
+  const nodes = Array.from(element.childNodes);
+
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    //console.log(node);
+    if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim() !== "") {
+      let nextNode = nodes[i + 1];
+      if (nextNode && nextNode.nodeType === Node.ELEMENT_NODE && nextNode.classList.contains("cm-mw-tag-ref")) {
+        console.log(node, nextNode);
+        nextNode.textContent = node.nodeValue + nextNode.textContent;
+        node.remove();
+        console.log(nextNode);
+      }
+      // const newSpan = document.createElement("span");
+      // newSpan.textContent = nextNode.nodeValue;
+      // nextNode.remove();
+      // element.insertBefore(newSpan, nodes[i + 2]);
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      wrapTextNodes(node);
+    }
+  }
 }
