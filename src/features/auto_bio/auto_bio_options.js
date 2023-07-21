@@ -12,42 +12,54 @@ const autoBio = {
   pages: [isProfileEdit, isIansProfile],
   options: [
     {
-      id: "boldNames",
-      type: OptionType.CHECKBOX,
-      label: "Bold names for profile person and spouse(s)",
-      defaultValue: true,
+      id: "formattingGroup",
+      type: OptionType.GROUP,
+      label: "Formatting",
+      options: [
+        {
+          id: "boldNames",
+          type: OptionType.CHECKBOX,
+          label: "Bold names for profile person and spouse(s)",
+          defaultValue: true,
+        },
+        {
+          id: "deathPosition",
+          type: OptionType.CHECKBOX,
+          label: "Death details immediately after birth details",
+          defaultValue: false,
+        },
+        {
+          id: "inlineCitations",
+          type: OptionType.CHECKBOX,
+          label: "Inline citations",
+          defaultValue: true,
+        },
+        {
+          id: "SouthAfricaProject",
+          type: OptionType.CHECKBOX,
+          label: "Only the South Africa Project style",
+          defaultValue: false,
+        },
+      ],
     },
-
     {
-      id: "deathPosition",
-      type: OptionType.CHECKBOX,
-      label: "Death details immediately after birth details",
-      defaultValue: false,
-    },
-    {
-      id: "inlineCitations",
-      type: OptionType.CHECKBOX,
-      label: "Inline citations",
-      defaultValue: true,
-    },
-    {
-      id: "SouthAfricaProject",
-      type: OptionType.CHECKBOX,
-      label: "Only the South Africa Project style",
-      defaultValue: false,
-    },
-
-    {
-      id: "includeAgesAtMarriage",
-      type: OptionType.CHECKBOX,
-      label: "Include ages at marriage",
-      defaultValue: true,
-    },
-    {
-      id: "includeAgeAtDeath",
-      type: OptionType.CHECKBOX,
-      label: "Include age at death",
-      defaultValue: true,
+      id: "agesGroup",
+      type: OptionType.GROUP,
+      label: "Ages",
+      options: [
+        {
+          id: "includeAgesAtMarriage",
+          type: OptionType.CHECKBOX,
+          label: "Include ages at marriage",
+          defaultValue: true,
+        },
+        {
+          id: "includeAgeAtDeath",
+          type: OptionType.CHECKBOX,
+          label: "Include age at death",
+          defaultValue: true,
+        },
+      ],
     },
     {
       id: "censusGroup",
@@ -136,6 +148,12 @@ const autoBio = {
             },
           ],
           defaultValue: "died",
+        },
+        {
+          id: "fullLocations",
+          type: OptionType.CHECKBOX,
+          label: "Full location name every time.",
+          defaultValue: false,
         },
       ],
     },
