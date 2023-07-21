@@ -264,13 +264,9 @@ async function fixLocations() {
         if (event.Location.includes(key)) {
           matchedKey = key;
           originalMatched = true;
-          console.log("Matched key:", matchedKey);
-          console.log("Original matched:", originalMatched);
         } else if (addedAustralia == key) {
           matchedKey = key;
           originalMatched = false;
-          console.log("Matched key:", matchedKey);
-          console.log("Original matched:", originalMatched);
         }
 
         if (matchedKey) {
@@ -303,7 +299,6 @@ async function fixLocations() {
         } else if (!originalMatched && matchedKey) {
           // If the location match was found with the addedAustralia search and the event date is within the appropriate timeframe, add matchedKey to the location.
           event.Location = event.Location.replace(lastLocationBit, matchedKey);
-          console.log("Updated event location:", event.Location);
         } else if (!australianLocations[matchedKey]["previousName"]) {
           console.log("No previousName defined for matchedKey:", matchedKey);
         }
@@ -737,7 +732,7 @@ function personDates(person) {
   if (window.autoBioOptions?.longDates) {
     let birthDate = person.BirthDate;
     if (!isOK(person.BirthDate)) {
-      birthDate = person.BirthDateDecade;
+      birthDate = person?.BirthDateDecade || "";
     }
     let deathDate = person?.DeathDate || person?.DeathDateDecade || "";
     if (!isOK(person?.DeathDate)) {
@@ -1211,6 +1206,9 @@ export function buildParents(person) {
 }
 
 export function minimalPlace(place) {
+  if (window.autoBioOptions?.fullLocations == true) {
+    return place;
+  }
   if (!window.usedPlaces) {
     window.usedPlaces = [];
   }
@@ -1492,14 +1490,12 @@ function getAgeAtCensus(person, censusYear) {
 }
 
 function getMonthNumber(month) {
-  console.log("getMonthNumber", month);
   const regex = /^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)/i;
   const match = month.match(regex);
 
   if (!match) {
     return null; // Invalid month input
   }
-  console.log(match);
   let monthAbbreviation = match[0].slice(0, 3).toUpperCase();
 
   switch (monthAbbreviation) {
@@ -1533,21 +1529,17 @@ function getMonthNumber(month) {
 }
 
 export function getYYYYMMDD(dateString) {
-  console.log(dateString);
   if (!dateString) {
     return "";
   } else {
     dateString = dateString.replace(/(abt|about|before|bef|after|aft|between|bet|and|calculated|cal)/i, "").trim();
   }
   function parseDate(dateStr) {
-    console.log(dateStr);
     const dateParts = dateStr.split(" ");
-    console.log(dateParts + " " + dateParts.length);
     if (dateParts.length === 3) {
       const year = dateParts[2];
       const month = getMonthNumber(dateParts[1]);
       const day = `0${dateParts[0]}`.slice(-2);
-      console.log(year, month, day);
       return `${year}-${month}-${day}`;
     } else if (dateParts.length == 2) {
       if (dateParts[0].match(/\w/)) {
@@ -1564,7 +1556,6 @@ export function getYYYYMMDD(dateString) {
   }
 
   let parsedDate = parseDate(dateString);
-  console.log(parsedDate);
   if (parsedDate) {
     return parsedDate;
   } else {
@@ -4603,12 +4594,28 @@ function getSourcerCensuses() {
   //const regexNonWikitable = /In the (\d{4}) census((?!.*\{\|.*\|\}).*?)(?=\n[^:#*])/gs;
 
   let textChunks = text.split(/(In the \d{4} census[^]+?)(?=In the \d{4} census|$)/i);
+  if (textChunks.length < 2) {
+    textChunks = [];
+    // Find sections that look like a table
+    let tableSections = text.match(/\{\|([^|}]|\|[^}])*\|\}/g);
+    if (tableSections) {
+      tableSections.forEach((section) => {
+        // Check if the section contains the key words
+        if (
+          (/\d{4}.+\bcensus\b/i.test(section) || /\bcensus\b.+\d{4}/i.test(section)) &&
+          /\bName\b.*\bAge\b/.test(section)
+        ) {
+          textChunks.push(section);
+        }
+      });
+    }
+  }
   let censusData = {};
 
   for (let i = 0; i < textChunks.length; i++) {
     let text = textChunks[i];
 
-    let yearMatch = text.match(/In the (\d{4}) census/);
+    let yearMatch = text.match(/(\d{4}).+census/i) || text.match(/census.+(\d{4})/i);
     let tableMatch = text.match(/(\{\|[^]+?\|\})/);
 
     if (yearMatch && tableMatch) {
@@ -4966,7 +4973,6 @@ async function getStickersAndBoxes() {
         let australianLocations;
         if (!window.australianLocations) {
           australianLocations = await import("./australian_locations.json");
-          console.log(australianLocations);
         } else {
           australianLocations = window.australianLocations;
         }
@@ -5046,7 +5052,6 @@ function getFamilySearchFacts() {
         aFact.OrderDate = formatDate(aFact.Date, 0, { format: 8 });
         let ageBit = "";
         if (aFact.Date && window.profilePerson.BirthDate) {
-          console.log(aFact.Date, window.profilePerson.BirthDate);
           let factDate = aFact.Date;
           // If date matches this "01 Jan 1995-01 Jan 2004", use the first date
           if (aFact.Date.match(/(.*?\d{4})-.+/)) {
@@ -5131,7 +5136,6 @@ function getFamilySearchFacts() {
     return !arr.slice(0, index).some((prevItem) => prevItem.Narrative === item.Narrative);
   });
   window.familySearchFacts = filteredData;
-  //console.log("familySearchFacts", window.familySearchFacts);
 }
 
 export function splitBioIntoSections() {
@@ -5756,7 +5760,6 @@ export async function getONSstickers() {
     let results;
     try {
       results = await wtAPICatCIBSearch("WBE_AutoBio_ONS", "nameStudy", aSurname + " name study");
-      //console.log(results);
       if (results?.response?.categories) {
         const result = findBestMatch(
           aSurname,
@@ -5764,7 +5767,6 @@ export async function getONSstickers() {
           window.profilePerson.DeathLocation,
           results.response.categories
         );
-        console.log(result);
         if (result) {
           if (result.match(",")) {
             return `{{One Name Study|name=${aSurname}|category=${result}}}`;
@@ -5783,7 +5785,6 @@ export async function getONSstickers() {
 
   let out = await Promise.all(promises);
   out = out.filter((item) => item != null); // Remove null values if any
-  //console.log(out);
   return out;
 }
 
@@ -6213,7 +6214,6 @@ export async function generateBio() {
     });
     textBeforeTheBio = stuffBeforeTheBioArray2.join("\n");
     window.textBeforeTheBio = textBeforeTheBio;
-    //console.log("textBeforeTheBio", stuffBeforeTheBioArray2);
 
     // Split the current bio into sections
     window.sectionsObject = splitBioIntoSections();
@@ -6273,7 +6273,6 @@ export async function generateBio() {
     //console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
 
     const nuclearFamily = familyArray(window.profilePerson);
-    //console.log(JSON.parse(JSON.stringify(nuclearFamily)));
     nuclearFamily.forEach(function (member) {
       if (member) {
         assignPersonNames(member);
@@ -6296,7 +6295,6 @@ export async function generateBio() {
         assignPersonNames(person);
       });
     }
-    //console.log("biographySpouseParents", window.biographySpouseParents);
 
     // window.profilePerson.BirthName is their FirstName + MiddleName if they have a MiddleName
     if (isOK(window.profilePerson.MiddleName)) {
@@ -6318,7 +6316,7 @@ export async function generateBio() {
     }
     assignPersonNames(window.profilePerson);
     if (isOK(window.profilePerson.BirthDate) && window.profilePerson.BirthDate.match("-") == null) {
-      window.profilePerson.BirthDate = convertDate(window.profilePerson.BirthDate, "ISO");
+      window.profilePerson.BirthDate = convertDate(window.profilePerson?.BirthDate, "ISO");
     }
     if (isOK(window.profilePerson?.DeathDate) && window.profilePerson?.DeathDate.match("-") == null) {
       window.profilePerson.DeathDate = convertDate(window.profilePerson?.DeathDate, "ISO");
@@ -6390,7 +6388,7 @@ export async function generateBio() {
       } else {
         eventDate = "0000-00-00";
       }
-      const orderDate = eventDate.replaceAll(/-/g, "");
+      const orderDate = eventDate?.replaceAll(/-/g, "");
       const newEvent = {
         "Record Type": ["ChildList"],
         "Event Type": "Children",
@@ -6500,9 +6498,12 @@ export async function generateBio() {
             }
 
             let narrativeBits = anEvent.Narrative.split(/,/);
-            let aBit = minimalPlace2(narrativeBits);
-            marriagesAndCensusesText += aBit;
-
+            if (window.autoBioOptions?.fullLocations) {
+              marriagesAndCensusesText += anEvent.Narrative;
+            } else {
+              let aBit = minimalPlace2(narrativeBits);
+              marriagesAndCensusesText += aBit;
+            }
             // Handle references
             let listText = "";
             if (Array.isArray(anEvent.ListText)) {
@@ -7146,14 +7147,11 @@ export async function getLocationCategory(type, location = null) {
   }
   const lastElement = locationSplit[locationSplit.length - 1];
   if (australianLocations[lastElement]) {
-    console.log("Found Australian location", lastElement, australianLocations[lastElement]);
     if (australianLocations[lastElement]?.["modernName"]) {
-      console.log("Found modern name", australianLocations[lastElement]?.["modernName"]);
       locationSplit.pop(); // Remove the last element
       const modernLastElement = australianLocations[lastElement]?.["modernName"].replace(/, Australia/, "");
       locationSplit.push(modernLastElement); // Add the new element
       searchLocation = locationSplit.join(", ");
-      console.log("New location", locationSplit.join(", "));
     }
   }
   // End Australian location change
@@ -7261,7 +7259,6 @@ shouldInitializeFeature("autoBio").then((result) => {
     import("./auto_bio.css");
     getFeatureOptions("autoBio").then((options) => {
       window.autoBioOptions = options;
-      //  console.log(window.autoBioOptions);
       window.boldBit = "";
       if (window.autoBioOptions?.boldNames) {
         window.boldBit = "'''";
