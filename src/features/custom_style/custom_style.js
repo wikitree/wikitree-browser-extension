@@ -53,6 +53,23 @@ class CustomStyle {
     return l1 > l2 ? l1 / l2 : l2 / l1;
   }
 
+  getTextColorForBackground(theValue, backgroundColorKey) {
+    const contrastRatioThreshold = 4.5;
+    const selectedBackgroundColor = this.options[backgroundColorKey];
+    let textColor = null;
+    if (selectedBackgroundColor) {
+      let backgroundColor = this.hexToRgb(selectedBackgroundColor);
+      let chosenTextColor = this.hexToRgb(theValue);
+      const contrastRatio = this.contrastRatio(backgroundColor, chosenTextColor);
+      if (contrastRatio >= contrastRatioThreshold) {
+        textColor = theValue;
+      } else {
+        textColor = this.isLight(backgroundColor) ? "#000000" : "#ffffff";
+      }
+    }
+    return textColor || theValue;
+  }
+
   darkenColor(rgb, percent) {
     return rgb.map((value) => Math.round(value * (1 - percent / 100)));
   }
@@ -103,7 +120,20 @@ class CustomStyle {
     let idToSelectorMapping = {
       header: ".sticky-header body:not(.darkMode) .wrapper #header::before,#header",
       headings: "h1,h2,h3,h4,h5,h6,#themeTable caption",
-      date_headings: "span.HISTORY-DATE:not(body.profile .HISTORY-DATE),span.THANKYOU-DATE",
+      headingLinks:
+        "h1 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
+        "h1 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
+        "h2 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
+        "h2 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
+        "h3 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
+        "h3 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
+        "h4 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
+        "h4 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
+        "h5 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
+        "h5 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
+        "h6 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
+        "h6 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a)",
+      dateHeadings: "span.HISTORY-DATE:not(body.profile .HISTORY-DATE),span.THANKYOU-DATE",
       color1: "ul.profile-tabs li,\n.ten.columns div.SMALL[style='background-color:#e1f0b4;']",
       color2: "ul.profile-tabs li.current,\ndiv.SMALL[style='background-color:#ffe183;']",
       color3: "div.SMALL[style='background-color:#ffe183;']",
@@ -125,6 +155,7 @@ class CustomStyle {
 
     if (bits[1] === "color" && bits[0] === "headings") {
       idToSelectorMapping["headings"] += ",button.copyWidget";
+      idToSelectorMapping["headingLinks"] = "h1 a,h2 a,h3 a,h4 a,h5 a,h6 a";
     }
 
     let id = bits[0].replace(/-/g, "_");
@@ -135,10 +166,10 @@ class CustomStyle {
   myCustomStyleFunction() {
     let rules = "";
     const rulesMap = new Map();
-    const contrastRatioThreshold = 4.5;
 
+    let important = " !important";
     for (let key in this.options) {
-      let important = " !important";
+      important = " !important";
       if (key == "g2gtab_color") {
         // important = "";
       }
@@ -147,18 +178,9 @@ class CustomStyle {
       let theValue = this.options[key];
       let textColor = null;
       if (bits[1] === "color") {
-        const selectedBackgroundColor = this.options[bits[0] + "_background-color"];
-        if (selectedBackgroundColor) {
-          let backgroundColor = this.hexToRgb(selectedBackgroundColor);
-          let chosenTextColor = this.hexToRgb(theValue);
-          const contrastRatio = this.contrastRatio(backgroundColor, chosenTextColor);
-          if (contrastRatio >= contrastRatioThreshold) {
-            textColor = theValue;
-          } else {
-            textColor = this.isLight(backgroundColor) ? "#000000" : "#ffffff";
-          }
-          theValue = textColor;
-        }
+        let backgroundColorKey =
+          key === "heading_links_color" ? "headings_background-color" : bits[0] + "_background-color";
+        theValue = this.getTextColorForBackground(theValue, backgroundColorKey);
       } else if (bits[1] === "padding" || bits[1] === "border-radius") {
         theValue += "px";
       } else if (bits[1] === "box-shadow") {
@@ -168,6 +190,8 @@ class CustomStyle {
           bits[1] = "background";
           theValue += " url()";
         }
+      } else if (key === "headingLinks_color") {
+        theValue = this.options["headings_color"];
       }
 
       if (!rulesMap.has(selectors)) {
@@ -182,6 +206,28 @@ class CustomStyle {
       if (textColor) {
         selectorObj.rules["color"] = `${textColor}${important}`;
       }
+    }
+    // Extra section for handling headingLinks
+    const headingLinksSelectors = this.getSelectors(["headingLinks"]);
+    const headingBgColor = this.options["headings_background-color"];
+
+    if (headingLinksSelectors && headingBgColor) {
+      ["link_color", "scissorsText_color", "visitedLink_color"].forEach((linkColorOption) => {
+        let linkColor = this.options[linkColorOption];
+        let contrastRatio = this.contrastRatio(this.hexToRgb(linkColor), this.hexToRgb(headingBgColor));
+        if (contrastRatio < 4.5) {
+          if (!rulesMap.has(headingLinksSelectors)) {
+            rulesMap.set(headingLinksSelectors, {
+              selectors: headingLinksSelectors,
+              rules: {},
+            });
+          }
+          const selectorObj = rulesMap.get(headingLinksSelectors);
+          selectorObj.rules["color"] = this.isLight(this.hexToRgb(headingBgColor))
+            ? "#000000 !important"
+            : "#ffffff !important";
+        }
+      });
     }
 
     rules = "";
