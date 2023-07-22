@@ -147,9 +147,9 @@ const myCustomStyle = {
       label: "G2G",
       options: [
         {
-          id: "link2_color",
+          id: "tag_color",
           type: "color",
-          label: "Tag color",
+          label: "Tag text color",
           defaultValue: "#ffffff",
         },
         {
@@ -157,6 +157,18 @@ const myCustomStyle = {
           type: "color",
           label: "Tag background color",
           defaultValue: "#8fc741",
+        },
+        {
+          id: "tagHover_color",
+          type: "color",
+          label: "Tag hover text color",
+          defaultValue: "#000000",
+        },
+        {
+          id: "tagHover_background-color",
+          type: "color",
+          label: "Tag hover background color",
+          defaultValue: "#ffffa0",
         },
         {
           id: "g2gtab_background-color",
