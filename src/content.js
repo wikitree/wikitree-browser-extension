@@ -27,6 +27,7 @@ import "./features/distanceAndRelationship/distanceAndRelationship";
 import "./features/dna_table/dna_table";
 import "./features/extra_watchlist/extra_watchlist";
 import "./features/familyGroup/familyGroup";
+import "./features/family_dropdown/family_dropdown";
 import "./features/family_lists/family_lists";
 import "./features/familyTimeline/familyTimeline";
 import "./features/g2g/g2g";
