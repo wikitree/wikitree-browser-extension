@@ -41,6 +41,7 @@ function helpScissors() {
     copyItems.push({ label: "ID", text: aTitle, image: true });
     let aLink = "";
     if (isCategoryPage) {
+      aTitle = aTitle + "|" + document.title.replace("Category:", "").trim() + " category";
       aLink = `[[:${aTitle}]]`;
     } else if (isTemplatePage) {
       aLink = `{{${aTitle}}}`;
