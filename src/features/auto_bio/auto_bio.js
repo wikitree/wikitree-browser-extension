@@ -4154,7 +4154,28 @@ export function sourcesArray(bio) {
           }
         });
       } else {
-        refArr.push({ Text: aSource.trim(), RefName: "", NonSource: NonSource });
+        const newRef = { Text: aSource.trim(), RefName: "", NonSource: NonSource };
+        /* Look for ref tags in aSource and compare the text with the refArr
+         If there is a match take the text from before the ref tag 
+         and add it to the object in refArr as Narrative, and don't add newRef to refArr
+        */
+        const refTags = aSource.match(/<ref[^>]*>.*?<\/ref>/gs);
+        let addIt = true;
+        if (refTags) {
+          refTags.forEach(function (aRefTag) {
+            const refTagText = aRefTag.match(/<ref[^>]*>(.*?)<\/ref>/s)[1].trim();
+            const refTagText2 = refTagText.replace(/<br\/>/g, "<br>").replace(/&/g, "&amp;");
+            const refTagTextMatch = refArr.find((ref) => ref.Text == refTagText || ref.Text == refTagText2);
+            if (refTagTextMatch) {
+              const narrative = aSource.split(aRefTag)[0];
+              refTagTextMatch.Narrative = narrative;
+              addIt = false;
+            }
+          });
+        }
+        if (addIt) {
+          refArr.push(newRef);
+        }
       }
     }
   });
