@@ -2,7 +2,7 @@
  * Created By: Steve Harris (Harris-5439)
  * Contributor: Jonathan Duke (Duke-5773)
  */
-
+import { isMainDomain } from "../../core/pageType.js";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 const pagePreviewFeature = {
@@ -13,7 +13,7 @@ const pagePreviewFeature = {
   creators: [{ name: "Steve Harris", wikitreeid: "Harris-5439" }],
   contributors: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   defaultValue: false,
-  pages: [true],
+  pages: [isMainDomain],
 
   options: [
     {

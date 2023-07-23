@@ -1,3 +1,4 @@
+import { isMainDomain } from "../../core/pageType.js";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 registerFeature({
   name: "Enhanced Editor Style",
@@ -7,7 +8,7 @@ registerFeature({
   defaultValue: false,
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
-  pages: [true],
+  pages: [isMainDomain],
   options: [
     {
       id: "cmBackgroundColors",

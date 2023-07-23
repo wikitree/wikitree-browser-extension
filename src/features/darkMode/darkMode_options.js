@@ -1,7 +1,7 @@
 /*
 Created By: Ian Beacall (Beacall-6)
 */
-
+import { isMainDomain } from "../../core/pageType.js";
 import { registerFeature, OptionType } from "../../core/options/options_registry.js";
 
 const darkModeFeature = {
@@ -12,7 +12,7 @@ const darkModeFeature = {
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [{ name: "Coen Dijkgraaf", wikitreeid: "Dijkgraaf-24" }],
   defaultValue: false,
-  pages: [true],
+  pages: [isMainDomain],
   options: [
     {
       id: "mode",

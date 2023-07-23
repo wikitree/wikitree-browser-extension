@@ -1,3 +1,4 @@
+import { isMainDomain } from "../../core/pageType";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 const myCustomStyle = {
@@ -8,7 +9,7 @@ const myCustomStyle = {
   defaultValue: false,
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
-  pages: [true],
+  pages: [isMainDomain],
   options: [
     {
       id: "general",

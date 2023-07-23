@@ -38,6 +38,7 @@ import {
   isSpecialWatchedList,
   isG2G,
   isDNADescendants,
+  isMainDomain,
   /* eslint-enable no-unused-vars */
 } from "../core/pageType";
 
@@ -109,7 +110,7 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
-  pages: [true],
+  pages: [isMainDomain],
 });
 
 registerFeature({
@@ -143,7 +144,7 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
-  pages: [true],
+  pages: [isMainDomain],
 });
 
 registerFeature({
@@ -165,7 +166,7 @@ registerFeature({
   contributors: [],
   category: "Community",
   defaultValue: false,
-  pages: [true],
+  pages: [isMainDomain],
 });
 
 registerFeature({
@@ -198,7 +199,7 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
-  pages: [true],
+  pages: [isMainDomain],
 });
 
 registerFeature({
@@ -255,7 +256,7 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
-  pages: [true],
+  pages: [isMainDomain],
 });
 
 registerFeature({
@@ -281,7 +282,7 @@ registerFeature({
   creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   contributors: [],
   defaultValue: false,
-  pages: [true],
+  pages: [isMainDomain],
 });
 
 registerFeature({
@@ -315,7 +316,7 @@ registerFeature({
   creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   contributors: [],
   defaultValue: false,
-  pages: [true],
+  pages: [isMainDomain],
 });
 
 registerFeature({
@@ -361,7 +362,7 @@ registerFeature({
   creators: [{ name: "Aleš Trtnik", wikitreeid: "Trtnik-2" }],
   contributors: [],
   defaultValue: false,
-  pages: [true],
+  pages: [isMainDomain],
   options: [
     {
       id: "color",
