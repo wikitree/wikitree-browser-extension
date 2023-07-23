@@ -4135,6 +4135,19 @@ export function sourcesArray(bio) {
 
   let sourcesSection = window.sourcesSection.text.join("\n");
   let sourcesBits = sourcesSection.split(/^\*/gm);
+  /* If a sourceBit starts with * now, it started with ** before, so add the * back (so... **)
+  and add it to the previous sourceBit */
+  console.log(logNow(sourcesBits));
+  for (let i = sourcesBits.length - 1; i >= 0; i--) {
+    let aSourceBit = sourcesBits[i];
+    if (aSourceBit.match(/^\*/) && i > 0) {
+      sourcesBits[i - 1] = sourcesBits[i - 1] + "*" + aSourceBit;
+      sourcesBits[i] = "";
+    }
+  }
+
+  console.log(logNow(sourcesBits));
+
   let notShow = /^[\n\s]*$/;
   if (sourcesSection.match(/\*/) == null) {
     sourcesBits = sourcesSection.split(/\n/);
