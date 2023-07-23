@@ -123,7 +123,7 @@ if (domain.match("apps.wikitree.com")) {
 } else if (domain.match("plus.wikitree.com")) {
   isPlusDomain = true;
 } else {
-  isMainDomain = false;
+  isMainDomain = true;
 
   const path = decodeURI(window.location.pathname); // path
   const uri = decodeURI(window.location.href); // with parameters
