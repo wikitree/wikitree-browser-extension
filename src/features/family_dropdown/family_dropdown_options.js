@@ -23,5 +23,11 @@ registerFeature({
       type: OptionType.CHECKBOX,
       defaultValue: true,
     },
+    {
+      label: "Add a link to Me in the dropdown",
+      id: "addMeLink",
+      type: OptionType.CHECKBOX,
+      defaultValue: false,
+    },
   ],
 });

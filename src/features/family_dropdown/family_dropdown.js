@@ -7,12 +7,13 @@ import $ from "jquery";
 import { displayName } from "../../core/common.js";
 import "jquery-ui/ui/widgets/draggable";
 import { displayDates } from "../verifyID/verifyID";
-import { getRelatives } from "wikitree-js";
+import { getRelatives, getPerson } from "wikitree-js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import "./family_dropdown_pre.css";
 import { isProfileEdit } from "../../core/pageType";
 import { showCopyMessage } from "../access_keys/access_keys.js";
 import "../../core/common.css";
+import Cookies from "js-cookie";
 
 /**
  * Check if familyDropdown feature is enabled.
@@ -201,6 +202,23 @@ async function doFamilyDropdown() {
     $("#familyDropdown").append($("<option value='other'>Other</option>"));
   }
 
+  if (window.familyDropdownOptions.addMeLink) {
+    const userId = Cookies.get("wikitree_wtb_UserID");
+    const user = await getPerson(userId, { fields: ["Name", "FirstName", "LastNameCurrent"] });
+    if (user) {
+      let userName = "Me";
+      if (user.FirstName) {
+        userName = user.FirstName;
+      }
+      if (user.LastNameCurrent) {
+        userName += " " + user.LastNameCurrent;
+      }
+      let relSymbol = "[Me]";
+      $("#familyDropdown").append(
+        `<option data-id="" value="[[${user.Name}|${userName}]]">${relSymbol} ${userName}</option>`
+      );
+    }
+  }
   // Copy on change handler
   $("#familyDropdown").on("change", function () {
     copyfamilyDropdown();

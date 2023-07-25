@@ -73,18 +73,19 @@ shouldInitializeFeature("shareableSources").then((result) => {
         } else {
           // Get ID of selected relative
           let anID = $(this).find("option:selected").data("id");
+          if (anID != "") {
+            // Get person object
+            const ourPerson =
+              window.profilePersonNuclear?.["Parents"]?.[anID] ||
+              window.profilePersonNuclear?.["Spouses"]?.[anID] ||
+              window.profilePersonNuclear?.["Siblings"]?.[anID] ||
+              window.profilePersonNuclear?.["Children"]?.[anID] ||
+              window.profilePersonNuclear;
 
-          // Get person object
-          const ourPerson =
-            window.profilePersonNuclear?.["Parents"]?.[anID] ||
-            window.profilePersonNuclear?.["Spouses"]?.[anID] ||
-            window.profilePersonNuclear?.["Siblings"]?.[anID] ||
-            window.profilePersonNuclear?.["Children"]?.[anID] ||
-            window.profilePersonNuclear;
+            getSources(ourPerson);
 
-          getSources(ourPerson);
-
-          $("#otherPerson").parent().removeClass("highlight");
+            $("#otherPerson").parent().removeClass("highlight");
+          }
         }
       });
     }
