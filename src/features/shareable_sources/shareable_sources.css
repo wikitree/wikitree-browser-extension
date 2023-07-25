@@ -1,0 +1,117 @@
+.referenceBox textarea {
+  max-height: 9em;
+  min-height: 4em;
+  height: 8em;
+  overflow: auto;
+  width: 100%;
+  border: 1px solid forestgreen;
+  border-radius: 1em;
+  margin: 0;
+  padding: 1em;
+  white-space: pre-wrap;
+}
+
+.referenceBox {
+  width: 30em;
+  z-index: 9000;
+  background: white;
+  position: fixed;
+  top: 7em;
+  padding: 0.5em;
+  border: 1px solid forestgreen;
+  border-radius: 1em;
+  box-shadow: 0 0 1em 0.5em rgba(0, 0, 0, 0.5);
+}
+
+.referenceBox.addRelative {
+  width: auto;
+  z-index: 9000;
+  background: white;
+  padding: 0.5em;
+  border: 1px solid forestgreen;
+  border-radius: 1em;
+  box-shadow: 0 0 1em 0.5em rgba(0, 0, 0, 0.5);
+  position: relative;
+  top: auto;
+  box-shadow: none;
+}
+
+div.six.columns.omega {
+  position: relative;
+}
+
+.referenceBox div {
+  width: 95%;
+  margin: 1em;
+}
+
+.referenceBox h3 {
+  cursor: pointer;
+  display: inline-block;
+  margin: 10px;
+  line-height: 1em;
+}
+
+.showSources {
+  font-size: 0.5em;
+}
+
+.referenceBox button {
+  margin: 2px;
+}
+
+button.seeBiography {
+  font-size: 0.7em;
+  position: absolute !important;
+  padding: 5px;
+  top: 0;
+  left: 0;
+}
+
+#relativeBiography {
+  display: none;
+  width: 30em;
+  height: 30em;
+  overflow: auto;
+  position: fixed;
+  top: 20%;
+  left: 20%;
+  padding: 2em;
+  border-radius: 1em;
+  border: 2px solid forestgreen;
+  background: white;
+  z-index: 10000;
+  box-shadow: 0 0 1em 0.5em rgba(0, 0, 0, 0.5);
+}
+
+#relativeBiography h3 {
+  cursor: move;
+  margin: 0;
+  margin-bottom: 0.5em;
+  padding: 0.2em;
+  border: 1px solid forestgreen;
+  border-radius: 1em;
+  text-align: center;
+}
+
+#relativeBiography x,
+.referenceBox x {
+  font-weight: bold;
+  position: absolute;
+  top: 0;
+  right: 0;
+  cursor: pointer;
+  padding: 4px 10px;
+  margin-right: 0;
+}
+
+#relativeBiography x:active,
+.referenceBox x:active {
+  position: absolute !important;
+}
+
+#relativeBioContent {
+  height: 24em;
+  width: 100%;
+  resize: none;
+}
