@@ -22,7 +22,7 @@ import "./features/change_family_lists/change_family_lists";
 import "./features/clipboard_and_notes/clipboard_and_notes";
 import "./features/collapsibleDescendantsTree/collapsibleDescendantsTree";
 import "./features/confirm_thank_yous/confirm_thank_yous";
-//import "./features/connection_finder/connection_finder";
+import "./features/connection_finder/connection_finder";
 import "./features/distanceAndRelationship/distanceAndRelationship";
 import "./features/dna_table/dna_table";
 import "./features/extra_watchlist/extra_watchlist";
