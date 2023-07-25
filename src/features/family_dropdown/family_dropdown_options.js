@@ -11,7 +11,7 @@ registerFeature({
   description:
     "Adds a dropdown menu to the edit page to quickly copy the WikiLinks " +
     "of family members and see the sources on their profiles.",
-  category: "Editing",
+  category: "Editing/Edit_Profile",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
