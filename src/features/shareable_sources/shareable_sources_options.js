@@ -6,11 +6,9 @@ import { registerFeature, OptionType } from "../../core/options/options_registry
 import { isProfileAddRelative, isProfileEdit } from "../../core/pageType";
 
 registerFeature({
-  name: "Family Dropdown",
-  id: "familyDropdown",
-  description:
-    "Adds a dropdown menu to the edit page to quickly copy the WikiLinks " +
-    "of family members and see the sources on their profiles.",
+  name: "Shareable Sources",
+  id: "shareableSources",
+  description: "See the sources from the profile person's family members.",
   category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
@@ -18,8 +16,8 @@ registerFeature({
   pages: [isProfileEdit, isProfileAddRelative],
   options: [
     {
-      label: "Include dates in copied link",
-      id: "includeDates",
+      label: "Connect with Family Dropdown",
+      id: "connectWithFamilyDropdown",
       type: OptionType.CHECKBOX,
       defaultValue: true,
     },

@@ -79,6 +79,7 @@ import "./randomProfile/randomProfile_options";
 import "./readability/readability_options";
 import "./redir_ext_links/redir_ext_links_options";
 import "./save_buttons_style_options/save_buttons_style_options_options";
+import "./shareable_sources/shareable_sources_options";
 import "./sourcepreview/sourcepreview_options";
 import "./spacepreview/spacepreview_options";
 import "./table_filters/table_filters_options";
