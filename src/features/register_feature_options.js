@@ -79,6 +79,7 @@ import "./randomProfile/randomProfile_options";
 import "./readability/readability_options";
 import "./redir_ext_links/redir_ext_links_options";
 import "./save_buttons_style_options/save_buttons_style_options_options";
+import "./scissors/scissors_options";
 import "./shareable_sources/shareable_sources_options";
 import "./sourcepreview/sourcepreview_options";
 import "./spacepreview/spacepreview_options";
@@ -259,21 +260,6 @@ registerFeature({
   contributors: [],
   defaultValue: false,
   pages: [isMainDomain],
-});
-
-registerFeature({
-  name: "Scissors",
-  id: "scissors",
-  description:
-    "Adds scissors (like on profile pages) to Category, Help, Project, Template, and Change Details pages to copy various things.",
-  category: "Editing",
-  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [
-    { name: "Riël Smit", wikitreeid: "Smit-641" },
-    { name: "Aleš Trtnik", wikitreeid: "Trtnik-2" },
-  ],
-  defaultValue: true,
-  pages: [isWikiPage, isProfileEdit, isSpaceEdit, isProfileHistoryDetail],
 });
 
 registerFeature({

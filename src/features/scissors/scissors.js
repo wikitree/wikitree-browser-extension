@@ -4,7 +4,7 @@ Created By: Ian Beacall (Beacall-6), Aleš Trtnik (Trtnik-2)
 
 import $ from "jquery";
 import { copyThingToClipboard } from "../g2g/g2g";
-import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import {
   isMediaWikiPage,
   isProfileHistoryDetail,
@@ -26,7 +26,8 @@ shouldInitializeFeature("scissors").then((result) => {
   }
 });
 
-function helpScissors() {
+async function helpScissors() {
+  const options = await getFeatureOptions("scissors");
   let copyItems = [];
   let copyPosition = $("h1");
 
@@ -41,7 +42,9 @@ function helpScissors() {
     copyItems.push({ label: "ID", text: aTitle, image: true });
     let aLink = "";
     if (isCategoryPage) {
-      aTitle = aTitle + "|" + document.title.replace("Category:", "").trim() + " category";
+      if (options.categoryTextLink) {
+        aTitle = aTitle + "|" + document.title.replace("Category:", "").trim() + " category";
+      }
       aLink = `[[:${aTitle}]]`;
     } else if (isTemplatePage) {
       aLink = `{{${aTitle}}}`;
@@ -52,6 +55,13 @@ function helpScissors() {
     const aUrl = window.location.href;
     copyItems.push({ label: "URL", text: aUrl });
   }
+
+  if (isCategoryPage) {
+    const aTitle = document.title.trim();
+    const aLink = `[[${aTitle}]]`;
+    copyItems.push({ label: "Use", text: aLink });
+  }
+
   // Space page
   if (isSpacePage || isSpaceEdit) {
     const aTitle = document.title.replace("Editing ", "");
@@ -62,6 +72,15 @@ function helpScissors() {
   if (isProfilePage || isProfileEdit) {
     const userID = $("#pageData").attr("data-mid");
     copyItems.push({ label: "UserID", text: userID });
+
+    if (options.removeDates) {
+      console.log("remove dates");
+      const dateless = $("button[aria-label='Copy Wiki Link']")
+        .data("copy-text")
+        .replace(/ \(.*[0-9]{4}.*\)/, "");
+      $("button[aria-label='Copy Wiki Link']").data("copy-text", dateless).attr("data-copy-text", dateless);
+      console.log($("button[aria-label='Copy Wiki Link']").data("copy-text"));
+    }
   }
 
   // Profiles change details page
