@@ -7174,7 +7174,6 @@ export async function getLocationCategory(type, location = null) {
   }
   const lastElement = locationSplit[locationSplit.length - 1];
   if (australianLocations[lastElement]) {
-    //console.log("Found Australian location", lastElement, australianLocations[lastElement]);
     if (australianLocations[lastElement]?.["modernName"]) {
       locationSplit.pop(); // Remove the last element
       const modernLastElement = australianLocations[lastElement]?.["modernName"].replace(/, Australia/, "");
