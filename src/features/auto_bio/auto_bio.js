@@ -4226,7 +4226,7 @@ export function sourcesArray(bio) {
 
     if (
       aRef.Text.match(
-        /NZBDM BIRTH|Dopen|Doop|Geboorte|'''Birth'''|Birth (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|[A-Z][a-z]+ Births, (?!Marriages|Deaths)|GRO Online Index - Birth|^Birth -|births,\s\d|citing Birth/i
+        /NZBDM BIRTH|(New Zealand Department.*Birth Registration)|Dopen|Doop|Geboorte|'''Birth'''|Birth (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|[A-Z][a-z]+ Births, (?!Marriages|Deaths)|GRO Online Index - Birth|^Birth -|births,\s\d|citing Birth/is
       ) ||
       aRef["Birth Date"]
     ) {
@@ -4279,7 +4279,7 @@ export function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        /NZBDM MARRIAGE|Huwelijk|Trouwen|'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage (Registration )?Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage -|citing.*Marriage|> Marriages/
+        /NZBDM MARRIAGE|(New Zealand Department.*Marriage Registration)|Huwelijk|Trouwen|'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage (Registration )?Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage -|citing.*Marriage|> Marriages/s
       ) ||
       aRef["Marriage Date"]
     ) {
@@ -4423,7 +4423,7 @@ export function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        /NZBDM DEATH|Overlijden|[A-Z][a-z]+ Deaths|'''Death'''|Death (Index|Record|Reg)|findagrave|Find a Grave|memorial|Cemetery Registers|Death Certificate|^Death -|citing Death|citing Burial|Probate/i
+        /NZBDM DEATH|(New Zealand Department.*Death Registration)|Overlijden|[A-Z][a-z]+ Deaths|'''Death'''|Death (Index|Record|Reg)|findagrave|Find a Grave|memorial|Cemetery Registers|Death Certificate|^Death -|citing Death|citing Burial|Probate/is
       ) ||
       aRef["Death Date"]
     ) {
