@@ -4968,12 +4968,6 @@ async function getStickersAndBoxes() {
             }
             if (!isDuplicate) {
               if (ONSsticker.match("|category=")) {
-                /*
-                console.log("ONSsticker", ONSsticker);
-                console.log("thingsToAddAfterBioHeading", thingsToAddAfterBioHeading);
-                console.log("thingsToAddBeforeBioHeading", thingsToAddBeforeBioHeading);
-                console.log(JSON.parse(JSON.stringify(window.sectionsObject.StuffBeforeTheBio.text)));
-                */
                 // If thingsToAdd... includes a plain ONS sticker with the same name but not the category, remove it.
                 thingsToAddAfterBioHeading = thingsToAddAfterBioHeading.filter(function (sticker) {
                   return (
@@ -5022,7 +5016,6 @@ async function getStickersAndBoxes() {
                 if (year) {
                   const endYear = australianLocations[colony].yearRange[1] || 3000;
                   if (year >= australianLocations[colony].yearRange[0] && year <= endYear) {
-                    console.log(`Year falls in the range. Attempting to add sticker.`);
                     if (!thingsToAddAfterBioHeading?.includes(australianLocations[colony].bornInLabel)) {
                       thingsToAddAfterBioHeading.push(australianLocations[colony].bornInLabel);
                       gotBirthSticker = true;
@@ -5803,7 +5796,52 @@ export async function getONSstickers() {
         );
         if (result) {
           if (result.match(",")) {
-            return `{{One Name Study|name=${aSurname}|category=${result}}}`;
+            const splitResult = result.split(",");
+            const trimmedResult = splitResult.map((item) => item.trim());
+            let isACountry = countries.some((obj) => obj.name === trimmedResult[0]);
+            let scottishCounties = [
+              "Aberdeenshire",
+              "Angus",
+              "Argyll",
+              "Ayrshire",
+              "Banffshire",
+              "Berwickshire",
+              "Bute",
+              "Caithness",
+              "Clackmannanshire",
+              "Dumfriesshire",
+              "Dunbartonshire",
+              "East Lothian",
+              "Fife",
+              "Inverness-shire",
+              "Kincardineshire",
+              "Kinross-shire",
+              "Kirkcudbrightshire",
+              "Lanarkshire",
+              "Midlothian",
+              "Moray",
+              "Nairnshire",
+              "Orkney",
+              "Peeblesshire",
+              "Perthshire",
+              "Renfrewshire",
+              "Ross-shire",
+              "Roxburghshire",
+              "Selkirkshire",
+              "Shetland",
+              "Stirlingshire",
+              "Sutherland",
+              "West Lothian",
+              "Wigtownshire",
+            ];
+            const otherHighLevel = ["England", "Ireland", "Scotland", "Wales", "United States"];
+            if (
+              !(isACountry || scottishCounties.includes(trimmedResult[0]) || otherHighLevel.includes(trimmedResult[0]))
+            ) {
+              return `{{One Name Study|name=${aSurname}|category=${result}}}`;
+            } else {
+              return `{{One Name Study|name=${aSurname}}}`;
+            }
           } else {
             return `{{One Name Study|name=${aSurname}}}`;
           }
@@ -7204,8 +7242,11 @@ export async function getLocationCategory(type, location = null) {
     ) {
       return false;
     }
-
-    return api?.response?.categories[0].category;
+    //console.log(api?.response?.categories[0]);
+    const category = api?.response?.categories[0];
+    if (!category.topLevel) {
+      return category.category;
+    }
   } else if (api?.response?.categories?.length > 1) {
     let foundCategory = null;
     let thisState = findUSState(location);
@@ -7213,23 +7254,24 @@ export async function getLocationCategory(type, location = null) {
       thisState = findUSState(window.profilePerson.DeathLocation);
     }
     api.response.categories.forEach(function (aCat) {
-      let category = aCat.category;
-      if (!(type == "Cemetery" && sameState(window.profilePerson.DeathLocation, aCat.location) == false)) {
-        if (locationSplit[0] + ", " + locationSplit[1] + ", " + thisState == category) {
-          foundCategory = category;
-        } else if (locationSplit[0] + ", " + locationSplit[1] == category) {
-          foundCategory = category;
-        } else if (locationSplit[0] + ", " + locationSplit[1] + ", " + locationSplit[2] == category) {
-          foundCategory = category;
-        } else if (locationSplit[1] + ", " + locationSplit[2] == category) {
-          foundCategory = category;
-        } else if (locationSplit[0] + ", " + locationSplit[2] == category) {
-          foundCategory = category;
+      if (!aCat.topLevel) {
+        let category = aCat.category;
+        if (!(type == "Cemetery" && sameState(window.profilePerson.DeathLocation, aCat.location) == false)) {
+          if (locationSplit[0] + ", " + locationSplit[1] + ", " + thisState == category) {
+            foundCategory = category;
+          } else if (locationSplit[0] + ", " + locationSplit[1] == category) {
+            foundCategory = category;
+          } else if (locationSplit[0] + ", " + locationSplit[1] + ", " + locationSplit[2] == category) {
+            foundCategory = category;
+          } else if (locationSplit[1] + ", " + locationSplit[2] == category) {
+            foundCategory = category;
+          } else if (locationSplit[0] + ", " + locationSplit[2] == category) {
+            foundCategory = category;
+          }
         }
       }
     });
     if (foundCategory) {
-      console.log(foundCategory);
       return foundCategory;
     } else {
       return;
