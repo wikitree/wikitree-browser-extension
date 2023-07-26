@@ -7193,12 +7193,6 @@ export async function getLocationCategory(type, location = null) {
           foundCategory = category;
         } else if (locationSplit[0] + ", " + locationSplit[2] == category) {
           foundCategory = category;
-        } else if (locationSplit[0] == category) {
-          foundCategory = category;
-        } else if (locationSplit[1] == category) {
-          foundCategory = category;
-        } else if (locationSplit[2] == category) {
-          foundCategory = category;
         }
       }
     });
