@@ -264,13 +264,9 @@ async function fixLocations() {
         if (event.Location.includes(key)) {
           matchedKey = key;
           originalMatched = true;
-          //console.log("Matched key:", matchedKey);
-          //console.log("Original matched:", originalMatched);
         } else if (addedAustralia == key) {
           matchedKey = key;
           originalMatched = false;
-          //console.log("Matched key:", matchedKey);
-          // console.log("Original matched:", originalMatched);
         }
 
         if (matchedKey) {
@@ -4927,7 +4923,6 @@ async function getStickersAndBoxes() {
             }
             if (!isDuplicate) {
               if (ONSsticker.match("|category=")) {
-                //console.log("ONSsticker", ONSsticker);
                 // If thingsToAdd... includes a plain ONS sticker with the same name but not the category, remove it.
                 thingsToAddAfterBioHeading = thingsToAddAfterBioHeading.filter(function (sticker) {
                   return (
@@ -4961,7 +4956,6 @@ async function getStickersAndBoxes() {
         let australianLocations;
         if (!window.australianLocations) {
           australianLocations = await import("./australian_locations.json");
-          //  console.log(australianLocations);
         } else {
           australianLocations = window.australianLocations;
         }
@@ -4977,7 +4971,6 @@ async function getStickersAndBoxes() {
                 if (year) {
                   const endYear = australianLocations[colony].yearRange[1] || 3000;
                   if (year >= australianLocations[colony].yearRange[0] && year <= endYear) {
-                    // console.log(`Year falls in the range. Attempting to add sticker.`);
                     if (!thingsToAddAfterBioHeading?.includes(australianLocations[colony].bornInLabel)) {
                       thingsToAddAfterBioHeading.push(australianLocations[colony].bornInLabel);
                       gotBirthSticker = true;
@@ -5041,7 +5034,6 @@ function getFamilySearchFacts() {
         aFact.OrderDate = formatDate(aFact.Date, 0, { format: 8 });
         let ageBit = "";
         if (aFact.Date && window.profilePerson.BirthDate) {
-          console.log(aFact.Date, window.profilePerson.BirthDate);
           let factDate = aFact.Date;
           // If date matches this "01 Jan 1995-01 Jan 2004", use the first date
           if (aFact.Date.match(/(.*?\d{4})-.+/)) {
@@ -5126,7 +5118,6 @@ function getFamilySearchFacts() {
     return !arr.slice(0, index).some((prevItem) => prevItem.Narrative === item.Narrative);
   });
   window.familySearchFacts = filteredData;
-  //console.log("familySearchFacts", window.familySearchFacts);
 }
 
 export function splitBioIntoSections() {
@@ -5751,7 +5742,6 @@ export async function getONSstickers() {
     let results;
     try {
       results = await wtAPICatCIBSearch("WBE_AutoBio_ONS", "nameStudy", aSurname + " name study");
-      //  console.log(results);
       if (results?.response?.categories) {
         const result = findBestMatch(
           aSurname,
@@ -5759,10 +5749,8 @@ export async function getONSstickers() {
           window.profilePerson.DeathLocation,
           results.response.categories
         );
-        //  console.log(result);
         if (result) {
           if (result.match(",")) {
-            //    console.log(result);
             const splitResult = result.split(",");
             const trimmedResult = splitResult.map((item) => item.trim());
             let isACountry = countries.some((obj) => obj.name === trimmedResult[0]);
@@ -5824,7 +5812,6 @@ export async function getONSstickers() {
 
   let out = await Promise.all(promises);
   out = out.filter((item) => item != null); // Remove null values if any
-  //console.log(out);
   return out;
 }
 
@@ -7189,12 +7176,10 @@ export async function getLocationCategory(type, location = null) {
   if (australianLocations[lastElement]) {
     //console.log("Found Australian location", lastElement, australianLocations[lastElement]);
     if (australianLocations[lastElement]?.["modernName"]) {
-      // console.log("Found modern name", australianLocations[lastElement]?.["modernName"]);
       locationSplit.pop(); // Remove the last element
       const modernLastElement = australianLocations[lastElement]?.["modernName"].replace(/, Australia/, "");
       locationSplit.push(modernLastElement); // Add the new element
       searchLocation = locationSplit.join(", ");
-      // console.log("New location", locationSplit.join(", "));
     }
   }
   // End Australian location change
@@ -7243,7 +7228,6 @@ export async function getLocationCategory(type, location = null) {
       }
     });
     if (foundCategory) {
-      // console.log(foundCategory);
       return foundCategory;
     } else {
       return;
