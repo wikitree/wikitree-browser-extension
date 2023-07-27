@@ -7284,31 +7284,30 @@ shouldInitializeFeature("autoBio").then((result) => {
     import("./auto_bio.css");
     getFeatureOptions("autoBio").then((options) => {
       window.autoBioOptions = options;
-      //  console.log(window.autoBioOptions);
       window.boldBit = "";
       if (window.autoBioOptions?.boldNames) {
         window.boldBit = "'''";
       }
-    });
 
-    if (isIansProfile) {
-      addErrorMessage();
-    }
-
-    // check for Firefox (I don't remember why we need this...)
-    window.isFirefox = false;
-    window.addEventListener("load", () => {
-      let prefixMatch = Array.prototype.slice
-        .call(window.getComputedStyle(document.documentElement, ""))
-        .join("")
-        .match(/-(moz|webkit|ms)-/);
-      if (prefixMatch[1]) {
-        const prefix = prefixMatch[1];
-        if (prefix == "moz") {
-          window.isFirefox == true;
-        }
+      if (isIansProfile) {
+        addErrorMessage();
       }
+
+      // check for Firefox (I don't remember why we need this...)
+      window.isFirefox = false;
+      window.addEventListener("load", () => {
+        let prefixMatch = Array.prototype.slice
+          .call(window.getComputedStyle(document.documentElement, ""))
+          .join("")
+          .match(/-(moz|webkit|ms)-/);
+        if (prefixMatch[1]) {
+          const prefix = prefixMatch[1];
+          if (prefix == "moz") {
+            window.isFirefox == true;
+          }
+        }
+      });
+      initBioCheck();
     });
-    initBioCheck();
   }
 });
