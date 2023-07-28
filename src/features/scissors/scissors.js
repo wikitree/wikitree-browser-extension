@@ -42,7 +42,7 @@ async function helpScissors() {
     copyItems.push({ label: "ID", text: aTitle, image: true });
     let aLink = "";
     if (isCategoryPage) {
-      if (options.categoryTextLink) {
+      if (options.categoryLinkFormat == "withParameter") {
         aTitle = aTitle + "|" + document.title.replace("Category:", "").trim() + " category";
       }
       aLink = `[[:${aTitle}]]`;
@@ -72,20 +72,24 @@ async function helpScissors() {
   if (isProfilePage || isProfileEdit) {
     const userID = $("#pageData").attr("data-mid");
     copyItems.push({ label: "UserID", text: userID });
-
     if (options.removeDates) {
-      console.log("remove dates");
       const dateless = $("button[aria-label='Copy Wiki Link']")
         .data("copy-text")
         .replace(/ \(.*[0-9]{4}.*\)/, "");
       $("button[aria-label='Copy Wiki Link']").data("copy-text", dateless).attr("data-copy-text", dateless);
-      console.log($("button[aria-label='Copy Wiki Link']").data("copy-text"));
     }
+  }
+
+  // Space page
+  if ((isSpacePage || isSpaceEdit) && options.spaceLinkFormat != "withParameter") {
+    const button = $("button[aria-label='Copy Wiki Link']");
+    const aTitle = document.title.trim();
+    const noParameter = "[[:Space: " + aTitle + "]]";
+    button.data("copy-text", noParameter).attr("data-copy-text", noParameter);
   }
 
   // Profiles change details page
   if (isProfileHistoryDetail) {
-    // if  ($("h1:contains('Change Details')").length || $("h1:contains('Creation of Profile')").length) {
     const historyItem = $("span.HISTORY-ITEM");
     let change = "Added";
     const theAct = historyItem.find("a:contains(created),a:contains(imported the data)");

@@ -22,10 +22,24 @@ registerFeature({
       defaultValue: false,
     },
     {
-      id: "categoryTextLink",
-      type: OptionType.CHECKBOX,
-      label: "Category Link: [[:Category: X|X category]] (not [[:Category: X]])",
-      defaultValue: true,
+      id: "spaceLinkFormat",
+      type: OptionType.RADIO,
+      label: "Space Link Format",
+      defaultValue: "withParameter",
+      values: [
+        { value: "withParameter", text: "[[Space: X|X]]" },
+        { value: "noParameter", text: "[[:Space: X]]" },
+      ],
+    },
+    {
+      id: "categoryLinkFormat",
+      type: OptionType.RADIO,
+      label: "Category Link Format",
+      defaultValue: "withParameter",
+      values: [
+        { value: "withParameter", text: "[[:Category: X|X category]]" },
+        { value: "noParameter", text: "[[:Category: X]]" },
+      ],
     },
   ],
 });
