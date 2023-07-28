@@ -220,7 +220,7 @@ function getSources(person, active = 0) {
         if ($(this).hasClass("paste")) {
           box = "mSources";
           if (theText.charAt(0) != "*") {
-            theText = "* " + theText;
+            theText = "* " + theText + "\n";
           }
         }
 
