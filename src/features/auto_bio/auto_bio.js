@@ -299,7 +299,6 @@ async function fixLocations() {
         } else if (!originalMatched && matchedKey) {
           // If the location match was found with the addedAustralia search and the event date is within the appropriate timeframe, add matchedKey to the location.
           event.Location = event.Location.replace(lastLocationBit, matchedKey);
-          console.log("Updated event location:", event.Location);
         } else if (!australianLocations[matchedKey]["previousName"]) {
           console.log("No previousName defined for matchedKey:", matchedKey);
         }
@@ -605,7 +604,7 @@ export function formatDates(person) {
   return `(${birthDate}–${deathDate})`;
 }
 
-export function formatDate(date, status, options = { format: "MDY", needOn: false }) {
+export function formatDate(date, status, options = { format: "", needOn: false }) {
   // Ensure that the 'date' parameter is a string
   if (typeof date !== "string") return "";
   let format;
@@ -617,6 +616,7 @@ export function formatDate(date, status, options = { format: "MDY", needOn: fals
   } else {
     format = "MDY";
   }
+
   let needOn = false;
   if (options.needOn) {
     needOn = true;
@@ -1488,14 +1488,12 @@ function getAgeAtCensus(person, censusYear) {
 }
 
 function getMonthNumber(month) {
-  console.log("getMonthNumber", month);
   const regex = /^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)/i;
   const match = month.match(regex);
 
   if (!match) {
     return null; // Invalid month input
   }
-  console.log(match);
   let monthAbbreviation = match[0].slice(0, 3).toUpperCase();
 
   switch (monthAbbreviation) {
@@ -1529,21 +1527,17 @@ function getMonthNumber(month) {
 }
 
 export function getYYYYMMDD(dateString) {
-  console.log(dateString);
   if (!dateString) {
     return "";
   } else {
     dateString = dateString.replace(/(abt|about|before|bef|after|aft|between|bet|and|calculated|cal)/i, "").trim();
   }
   function parseDate(dateStr) {
-    console.log(dateStr);
     const dateParts = dateStr.split(" ");
-    console.log(dateParts + " " + dateParts.length);
     if (dateParts.length === 3) {
       const year = dateParts[2];
       const month = getMonthNumber(dateParts[1]);
       const day = `0${dateParts[0]}`.slice(-2);
-      console.log(year, month, day);
       return `${year}-${month}-${day}`;
     } else if (dateParts.length == 2) {
       if (dateParts[0].match(/\w/)) {
@@ -1560,7 +1554,6 @@ export function getYYYYMMDD(dateString) {
   }
 
   let parsedDate = parseDate(dateString);
-  console.log(parsedDate);
   if (parsedDate) {
     return parsedDate;
   } else {
