@@ -930,6 +930,7 @@ function addReferences(event, spouse = false) {
   if (window.references) {
     window.references.forEach(function (reference) {
       if (isReferenceRelevant(reference, event, spouse)) {
+        console.log(reference, event, spouse, reference.Used);
         refCount++;
         if (reference.Used || window.refNames.includes(reference.RefName)) {
           text += "<ref name='" + reference.RefName + "' /> ";
@@ -6479,9 +6480,18 @@ export async function generateBio() {
           event.RefName +
           "_" +
           (previousEventObject?.Texts?.length ? parseInt(previousEventObject?.Texts?.length + 1) : 1);
+
+        console.log("newRefName", newRefName);
+        console.log("event.RefName", event.RefName);
+        console.log("used", event.Used);
+
+        let used = false;
+        if (event.Used) {
+          used = true;
+        }
         const thisObj = {
           Text: event.Text,
-          Used: false,
+          Used: used,
           RefName: newRefName,
         };
         event.RefName = newRefName;
