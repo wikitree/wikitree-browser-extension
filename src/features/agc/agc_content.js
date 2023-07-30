@@ -269,6 +269,8 @@ function displayErrorDialog(editBioMessage) {
   toastInfo.ariaLive = "polite";
   //toastInfo.setAttribute("style", "display: block;");
   //toastInfo.style = "display: block;";
+  toastInfo.style = "z-index: 10000000 !important;";
+
   toastInfo.style.display = "block";
   toastContainer.appendChild(toastInfo);
 
