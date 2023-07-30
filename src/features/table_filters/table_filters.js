@@ -230,12 +230,18 @@ function addSortToTables() {
     headCells.forEach((cell) => {
       // Add an img element for the arrow
       const arrow = document.createElement("img");
-      arrow.src = "/skins/common/images/sort_none.gif";
-      arrow.alt = "↓";
-      arrow.classList.add("sort-arrow");
       cell.appendChild(arrow);
       cell.style.cursor = "pointer"; // change cursor to pointer
-      cell.title = "Click to sort"; // add tooltip
+      if (arrow) {
+        arrow.src = "/skins/common/images/sort_none.gif";
+        arrow.alt = "↓";
+        arrow.classList.add("sort-arrow");
+        cell.appendChild(arrow);
+        cell.style.cursor = "pointer"; // change cursor to pointer
+        cell.title = "Click to sort"; // add tooltip
+      } else {
+        console.error("Failed to create arrow image element");
+      }
     });
 
     headCells.forEach((cell, columnIndex) => {
