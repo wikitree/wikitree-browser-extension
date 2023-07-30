@@ -230,8 +230,6 @@ function addSortToTables() {
     headCells.forEach((cell) => {
       // Add an img element for the arrow
       const arrow = document.createElement("img");
-      cell.appendChild(arrow);
-      cell.style.cursor = "pointer"; // change cursor to pointer
       if (arrow) {
         arrow.src = "/skins/common/images/sort_none.gif";
         arrow.alt = "↓";
