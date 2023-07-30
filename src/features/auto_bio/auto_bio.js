@@ -930,7 +930,7 @@ function addReferences(event, spouse = false) {
   if (window.references) {
     window.references.forEach(function (reference) {
       if (isReferenceRelevant(reference, event, spouse)) {
-        console.log(reference, event, spouse, reference.Used);
+        console.log(JSON.parse(JSON.stringify(reference)), event, spouse, reference.Used, reference.RefName);
         refCount++;
         if (reference.Used || window.refNames.includes(reference.RefName)) {
           text += "<ref name='" + reference.RefName + "' /> ";
@@ -947,6 +947,7 @@ function addReferences(event, spouse = false) {
             (reference.List ? "\n" + reference.List : "") +
             "</ref> ";
           window.refNames.push(reference.RefName);
+          console.log(JSON.parse(JSON.stringify(reference)), event, spouse, reference.Used, reference.RefName);
         }
       }
     });
@@ -1180,10 +1181,6 @@ export function buildParents(person) {
   if (parents) {
     if (person.Father) {
       let father = person.Parents[person.Father];
-      /*
-      let aName = new PersonName(father);
-      father.FullName = aName.withParts(["FullName"]);
-      */
       text += nameLink(father);
       if (window.autoBioOptions?.includeParentsDates) {
         text += " " + formatDates(father);
@@ -6471,22 +6468,26 @@ export async function generateBio() {
       if (!event.Year) {
         event.Year = event["Event Date"] ? event["Event Date"].split("-")[0] : "0000";
       }
+      let used = false;
       let thisEvent = event["Event Type"] + " " + event.Year;
       if (previousEventObject && previousEventObject["Event Type"] + " " + previousEventObject.Year != thisEvent) {
         allEvents.push(previousEventObject);
         previousEventObject = event;
       } else {
-        const newRefName =
-          event.RefName +
-          "_" +
-          (previousEventObject?.Texts?.length ? parseInt(previousEventObject?.Texts?.length + 1) : 1);
+        console.log(JSON.parse(JSON.stringify(event)));
 
-        console.log("newRefName", newRefName);
-        console.log("event.RefName", event.RefName);
-        console.log("used", event.Used);
+        const thisNumber = previousEventObject?.Texts?.length ? parseInt(previousEventObject?.Texts?.length + 1) : 1;
+        let newRefName = event.RefName;
+        if (thisNumber != 1) {
+          const newRefName =
+            event.RefName +
+            "_" +
+            (previousEventObject?.Texts?.length ? parseInt(previousEventObject?.Texts?.length + 1) : 1);
 
-        let used = false;
-        if (event.Used) {
+          console.log("newRefName", newRefName);
+          console.log("event.RefName", event.RefName);
+          console.log("used", event.Used);
+        } else if (event.Used) {
           used = true;
         }
         const thisObj = {
