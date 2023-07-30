@@ -279,6 +279,9 @@ export function buildTimelineSA(bioTimeline) {
   const headings = ["Birth", "Baptism", "Marriage", "Burial", "Death"];
   let outText = "";
   let refCount = 0;
+  let marriages = bioTimeline.filter((obj) => obj["Event Type"] === "Marriage");
+  let marriageCount = marriages.length;
+  let marriageIndex = 1;
   headings.forEach(function (head) {
     let text = "";
     bioTimeline.forEach(function (aEvent) {
@@ -351,6 +354,10 @@ export function buildTimelineSA(bioTimeline) {
         if (isOK(eventDate)) {
           formattedEventDate = formatDate(eventDate.replaceAll(/-00/g, "")).replace(/in\s|on\s/, "");
         }
+        if (marriageCount > 1 && head == "Marriage") {
+          text += ":'''Marriage " + marriageIndex + "'''\n";
+          marriageIndex++;
+        }
         text += ":Date: " + formattedEventDate + dateSources + "\n";
         text += ":Place: " + eventLocation + " " + placeSources + "\n";
         if (head == "Marriage") {
@@ -358,13 +365,13 @@ export function buildTimelineSA(bioTimeline) {
           placeSources = replaceTags(placeSources);
 
           if (window.profilePerson.Gender == "Male") {
-            text += "::Groom: " + window.profilePerson.BirthName + dateSources + "\n";
+            text += "::Groom: " + window.profilePerson.PersonName.BirthName + dateSources + "\n";
             text +=
               "::Bride: " + (aEvent.Spouse ? aEvent.Spouse.BirthName : aEvent.person?.BirthName) + dateSources + "\n";
           } else {
             text +=
               "::Groom: " + (aEvent.Spouse ? aEvent.Spouse.BirthName : aEvent.person?.BirthName) + dateSources + "\n";
-            text += "::Bride: " + window.profilePerson.BirthName + dateSources + "\n";
+            text += "::Bride: " + window.profilePerson.PersonName.BirthName + dateSources + "\n";
           }
         }
       }

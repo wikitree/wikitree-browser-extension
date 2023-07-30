@@ -604,7 +604,7 @@ export function formatDates(person) {
   return `(${birthDate}–${deathDate})`;
 }
 
-export function formatDate(date, status, options = { format: "MDY", needOn: false }) {
+export function formatDate(date, status, options = { format: "", needOn: false }) {
   // Ensure that the 'date' parameter is a string
   if (typeof date !== "string") return "";
   let format;
@@ -616,6 +616,7 @@ export function formatDate(date, status, options = { format: "MDY", needOn: fals
   } else {
     format = "MDY";
   }
+
   let needOn = false;
   if (options.needOn) {
     needOn = true;
@@ -1178,10 +1179,6 @@ export function buildParents(person) {
   if (parents) {
     if (person.Father) {
       let father = person.Parents[person.Father];
-      /*
-      let aName = new PersonName(father);
-      father.FullName = aName.withParts(["FullName"]);
-      */
       text += nameLink(father);
       if (window.autoBioOptions?.includeParentsDates) {
         text += " " + formatDates(father);
@@ -3398,14 +3395,6 @@ function doHousehold(aRef) {
         let aPerson = window.profilePerson[relation][aKey];
         let theRelation;
 
-        /*
-    console.log(key);
-    console.log(JSON.parse(JSON.stringify(aMember)));
-    console.log(aPerson);
-    console.log(relation);
-    console.log(isSameName(key, getNameVariants(aPerson)));
-    console.log(isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5));
-    */
         if (
           isSameName(aMember.Name, getNameVariants(aPerson)) &&
           isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5)
@@ -3592,14 +3581,6 @@ function parseWikiTable(aRef) {
               let aPerson = window.profilePerson[relation][aKey];
               let theRelation;
 
-              /*
-            console.log(key);
-            console.log(JSON.parse(JSON.stringify(aMember)));
-            console.log(aPerson);
-            console.log(relation);
-            console.log(isSameName(key, getNameVariants(aPerson)));
-            console.log(isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5));
-            */
               if (
                 isSameName(key, getNameVariants(aPerson)) &&
                 isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5)
@@ -3701,16 +3682,6 @@ function assignSelf(data) {
     let strength = 0.9;
     while (!hasSelf && strength > 0) {
       for (const member of data.Household) {
-        /*
-        console.log(member.Name);
-        console.log(window.profilePerson.NameVariants);
-        console.log(strength);
-        console.log(data["Year"]);
-        console.log(getAgeAtCensus(window.profilePerson, data["Year"]));
-        console.log(member.Age);
-        console.log(isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), member.Age, isWithinRange));
-        console.log(isSameName(member.Name, window.profilePerson.NameVariants, strength));
-        */
         if (
           isSameName(member.Name, window.profilePerson.NameVariants, strength) &&
           isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), member.Age, isWithinRange)
@@ -6519,18 +6490,25 @@ export async function generateBio() {
       if (!event.Year) {
         event.Year = event["Event Date"] ? event["Event Date"].split("-")[0] : "0000";
       }
+      let used = false;
       let thisEvent = event["Event Type"] + " " + event.Year;
+      let newRefName = event.RefName;
       if (previousEventObject && previousEventObject["Event Type"] + " " + previousEventObject.Year != thisEvent) {
         allEvents.push(previousEventObject);
         previousEventObject = event;
       } else {
-        const newRefName =
-          event.RefName +
-          "_" +
-          (previousEventObject?.Texts?.length ? parseInt(previousEventObject?.Texts?.length + 1) : 1);
+        const thisNumber = previousEventObject?.Texts?.length ? parseInt(previousEventObject?.Texts?.length + 1) : 1;
+        if (thisNumber != 1) {
+          newRefName =
+            event.RefName +
+            "_" +
+            (previousEventObject?.Texts?.length ? parseInt(previousEventObject?.Texts?.length + 1) : 1);
+        } else if (event.Used) {
+          used = true;
+        }
         const thisObj = {
           Text: event.Text,
-          Used: false,
+          Used: used,
           RefName: newRefName,
         };
         event.RefName = newRefName;
@@ -7333,26 +7311,26 @@ shouldInitializeFeature("autoBio").then((result) => {
       if (window.autoBioOptions?.boldNames) {
         window.boldBit = "'''";
       }
-    });
 
-    if (isIansProfile) {
-      addErrorMessage();
-    }
-
-    // check for Firefox (I don't remember why we need this...)
-    window.isFirefox = false;
-    window.addEventListener("load", () => {
-      let prefixMatch = Array.prototype.slice
-        .call(window.getComputedStyle(document.documentElement, ""))
-        .join("")
-        .match(/-(moz|webkit|ms)-/);
-      if (prefixMatch[1]) {
-        const prefix = prefixMatch[1];
-        if (prefix == "moz") {
-          window.isFirefox == true;
-        }
+      if (isIansProfile) {
+        addErrorMessage();
       }
+
+      // check for Firefox (I don't remember why we need this...)
+      window.isFirefox = false;
+      window.addEventListener("load", () => {
+        let prefixMatch = Array.prototype.slice
+          .call(window.getComputedStyle(document.documentElement, ""))
+          .join("")
+          .match(/-(moz|webkit|ms)-/);
+        if (prefixMatch[1]) {
+          const prefix = prefixMatch[1];
+          if (prefix == "moz") {
+            window.isFirefox == true;
+          }
+        }
+      });
+      initBioCheck();
     });
-    initBioCheck();
   }
 });
