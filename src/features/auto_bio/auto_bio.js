@@ -930,7 +930,6 @@ function addReferences(event, spouse = false) {
   if (window.references) {
     window.references.forEach(function (reference) {
       if (isReferenceRelevant(reference, event, spouse)) {
-        console.log(JSON.parse(JSON.stringify(reference)), event, spouse, reference.Used, reference.RefName);
         refCount++;
         if (reference.Used || window.refNames.includes(reference.RefName)) {
           text += "<ref name='" + reference.RefName + "' /> ";
@@ -947,7 +946,6 @@ function addReferences(event, spouse = false) {
             (reference.List ? "\n" + reference.List : "") +
             "</ref> ";
           window.refNames.push(reference.RefName);
-          console.log(JSON.parse(JSON.stringify(reference)), event, spouse, reference.Used, reference.RefName);
         }
       }
     });
@@ -3394,14 +3392,6 @@ function doHousehold(aRef) {
         let aPerson = window.profilePerson[relation][aKey];
         let theRelation;
 
-        /*
-    console.log(key);
-    console.log(JSON.parse(JSON.stringify(aMember)));
-    console.log(aPerson);
-    console.log(relation);
-    console.log(isSameName(key, getNameVariants(aPerson)));
-    console.log(isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5));
-    */
         if (
           isSameName(aMember.Name, getNameVariants(aPerson)) &&
           isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5)
@@ -3588,14 +3578,6 @@ function parseWikiTable(aRef) {
               let aPerson = window.profilePerson[relation][aKey];
               let theRelation;
 
-              /*
-            console.log(key);
-            console.log(JSON.parse(JSON.stringify(aMember)));
-            console.log(aPerson);
-            console.log(relation);
-            console.log(isSameName(key, getNameVariants(aPerson)));
-            console.log(isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5));
-            */
               if (
                 isSameName(key, getNameVariants(aPerson)) &&
                 isWithinX(aMember.BirthYear, aPerson.BirthDate?.slice(0, 4), 5)
@@ -3697,16 +3679,6 @@ function assignSelf(data) {
     let strength = 0.9;
     while (!hasSelf && strength > 0) {
       for (const member of data.Household) {
-        /*
-        console.log(member.Name);
-        console.log(window.profilePerson.NameVariants);
-        console.log(strength);
-        console.log(data["Year"]);
-        console.log(getAgeAtCensus(window.profilePerson, data["Year"]));
-        console.log(member.Age);
-        console.log(isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), member.Age, isWithinRange));
-        console.log(isSameName(member.Name, window.profilePerson.NameVariants, strength));
-        */
         if (
           isSameName(member.Name, window.profilePerson.NameVariants, strength) &&
           isWithinX(getAgeAtCensus(window.profilePerson, data["Year"]), member.Age, isWithinRange)
@@ -6470,23 +6442,17 @@ export async function generateBio() {
       }
       let used = false;
       let thisEvent = event["Event Type"] + " " + event.Year;
+      let newRefName = event.RefName;
       if (previousEventObject && previousEventObject["Event Type"] + " " + previousEventObject.Year != thisEvent) {
         allEvents.push(previousEventObject);
         previousEventObject = event;
       } else {
-        console.log(JSON.parse(JSON.stringify(event)));
-
         const thisNumber = previousEventObject?.Texts?.length ? parseInt(previousEventObject?.Texts?.length + 1) : 1;
-        let newRefName = event.RefName;
         if (thisNumber != 1) {
-          const newRefName =
+          newRefName =
             event.RefName +
             "_" +
             (previousEventObject?.Texts?.length ? parseInt(previousEventObject?.Texts?.length + 1) : 1);
-
-          console.log("newRefName", newRefName);
-          console.log("event.RefName", event.RefName);
-          console.log("used", event.Used);
         } else if (event.Used) {
           used = true;
         }
