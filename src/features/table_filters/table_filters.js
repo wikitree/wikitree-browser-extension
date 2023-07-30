@@ -255,6 +255,17 @@ function addSortToTables() {
           let cellAContent = rowA.children[columnIndex].textContent.trim();
           let cellBContent = rowB.children[columnIndex].textContent.trim();
 
+          // Exclude index span from sorting
+          const indexSpanA = rowA.children[columnIndex].querySelector(".index");
+          const indexSpanB = rowB.children[columnIndex].querySelector(".index");
+
+          if (indexSpanA) {
+            cellAContent = cellAContent.replace(indexSpanA.textContent, "").trim();
+          }
+          if (indexSpanB) {
+            cellBContent = cellBContent.replace(indexSpanB.textContent, "").trim();
+          }
+
           // If the cell content has a four-digit number, extract the first one
           const fourDigitNumberRegex = /^\b\d{4}\b/;
           const matchA = cellAContent.match(fourDigitNumberRegex);
@@ -288,14 +299,18 @@ function addSortToTables() {
         });
 
         // Update sort direction indicators, tooltips, and arrow image
+        // Update sort direction indicators, tooltips, and arrow image
         headCells.forEach((cell) => {
           const arrow = cell.querySelector(".sort-arrow");
-          arrow.src =
-            cell === headCells[columnIndex]
-              ? newSortDirection === "asc"
-                ? "/skins/common/images/sort_down.gif"
-                : "/skins/common/images/sort_up.gif"
-              : "/skins/common/images/sort_none.gif";
+          if (arrow) {
+            // Ensure arrow element exists before trying to set its properties
+            arrow.src =
+              cell === headCells[columnIndex]
+                ? newSortDirection === "asc"
+                  ? "/skins/common/images/sort_down.gif"
+                  : "/skins/common/images/sort_up.gif"
+                : "/skins/common/images/sort_none.gif";
+          }
           cell.title =
             cell === headCells[columnIndex]
               ? newSortDirection === "asc"
