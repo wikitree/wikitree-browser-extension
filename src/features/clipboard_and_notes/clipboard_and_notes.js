@@ -80,11 +80,6 @@ function original2real(val) {
 function addClipping(type, e) {
   const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
   clipboardDB.onsuccess = function (event) {
-    let db = event.target.result;
-
-    if (!db.objectStoreNames.contains("Clipboard")) {
-      db.createObjectStore("Clipboard", { autoIncrement: true });
-    }
     let cdb = clipboardDB.result;
     let insert = cdb
       .transaction(["Clipboard"], "readwrite")
@@ -98,11 +93,6 @@ function addClipping(type, e) {
 function deleteClipping(key, type, e) {
   const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
   clipboardDB.onsuccess = function (event) {
-    let db = event.target.result;
-
-    if (!db.objectStoreNames.contains("Clipboard")) {
-      db.createObjectStore("Clipboard", { autoIncrement: true });
-    }
     let cdb = clipboardDB.result;
     let insert = cdb.transaction(["Clipboard"], "readwrite").objectStore("Clipboard").delete(key);
     clipboard(type, e, "delete");
@@ -113,11 +103,6 @@ function deleteClipping(key, type, e) {
 function editClipping(key, type, e) {
   const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
   clipboardDB.onsuccess = function (event) {
-    let db = event.target.result;
-
-    if (!db.objectStoreNames.contains("Clipboard")) {
-      db.createObjectStore("Clipboard", { autoIncrement: true });
-    }
     let cdb = clipboardDB.result;
     let insert = cdb
       .transaction(["Clipboard"], "readwrite")
@@ -310,11 +295,6 @@ async function clipboard(type, e, action = false) {
 
   const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
   clipboardDB.onsuccess = function () {
-    let db = event.target.result;
-
-    if (!db.objectStoreNames.contains("Clipboard")) {
-      db.createObjectStore("Clipboard", { autoIncrement: true });
-    }
     let cdb = clipboardDB.result;
     let transaction = cdb.transaction(["Clipboard"]);
     let req = transaction.objectStore("Clipboard").openCursor();
