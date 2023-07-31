@@ -4160,7 +4160,7 @@ export function sourcesArray(bio) {
 
     if (
       aRef.Text.match(
-        /Dopen|Doop|Geboorte|'''Birth'''|Birth (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|[A-Z][a-z]+ Births, (?!Marriages|Deaths)|GRO Online Index - Birth|^Birth -|births,\s\d|citing Birth/i
+        /Dopen|Doop|Geboorte|'''Birth'''|Births? (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|[A-Z][a-z]+ Births, (?!Marriages|Deaths)|GRO Online Index - Birth|^Birth -|births,\s\d|citing Birth/i
       ) ||
       aRef["Birth Date"]
     ) {
@@ -4213,7 +4213,7 @@ export function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        /Huwelijk|Trouwen|'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage (Registration )?Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage -|citing.*Marriage|> Marriages/
+        /Marriages? Index|Huwelijk|Trouwen|'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage (Registration )?Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage -|citing.*Marriage|> Marriages/
       ) ||
       aRef["Marriage Date"]
     ) {
@@ -4357,7 +4357,7 @@ export function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        /Overlijden|[A-Z][a-z]+ Deaths|'''Death'''|Death (Index|Record|Reg)|findagrave|Find a Grave|memorial|Cemetery Registers|Death Certificate|^Death -|citing Death|citing Burial|Probate/i
+        /Overlijden|[A-Z][a-z]+ Deaths(?!\s&|\sand)|'''Death'''|Death (Index|Record|Reg)|findagrave|Find a Grave|memorial|Cemetery Registers|Death Certificate|^Death -|citing Death|citing Burial|Probate/i
       ) ||
       aRef["Death Date"]
     ) {
