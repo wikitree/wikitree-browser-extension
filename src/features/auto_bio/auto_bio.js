@@ -144,6 +144,9 @@ function isSameDateOrAfter(dateStr1, dateStr2) {
 }
 
 function fixUSLocation(event) {
+  if (!event.Location) {
+    return;
+  }
   let locationBits = event.Location.split(",");
   locationBits = locationBits.map((str) => str.trim());
   const lastLocationBit = locationBits[locationBits.length - 1];
@@ -381,6 +384,9 @@ async function fixLocations() {
 export function convertDate(dateString, outputFormat, status = "") {
   dateString = dateString.replaceAll(/-00/g, "");
   // Split the input date string into components
+  if (!dateString) {
+    return "";
+  }
   let components = dateString.split(/[\s,-]+/);
 
   // Determine the format of the input date string
@@ -1448,6 +1454,9 @@ export function buildSpouses(person) {
 }
 
 function getAgeFromISODates(birth, date) {
+  if (!birth || !date) {
+    return "";
+  }
   let [year1, month1, day1] = birth.split("-");
   let [year2, month2, day2] = date.split("-");
   let age = getAge({
@@ -1532,6 +1541,9 @@ export function getYYYYMMDD(dateString) {
     dateString = dateString.replace(/(abt|about|before|bef|after|aft|between|bet|and|calculated|cal)/i, "").trim();
   }
   function parseDate(dateStr) {
+    if (!dateStr) {
+      return null;
+    }
     const dateParts = dateStr.split(" ");
     if (dateParts.length === 3) {
       const year = dateParts[2];
@@ -2645,6 +2657,9 @@ function analyzeColumns(lines) {
 }
 
 function extractHouseholdMembers(row) {
+  if (!row) {
+    return [];
+  }
   const brRegex = /<br\s*\/?>/gi;
   const rowDataSplit = row.split("||");
   let rowData;
@@ -4597,8 +4612,10 @@ function getSourcerCensuses() {
 
   const regexNonWikitable = /In the (\d{4}) census[^{=]*?\n([.:#*].+?)(?=\n[^:#*])/gms;
   //const regexNonWikitable = /In the (\d{4}) census((?!.*\{\|.*\|\}).*?)(?=\n[^:#*])/gs;
-
-  let textChunks = text.split(/(In the \d{4} census[^]+?)(?=In the \d{4} census|$)/i);
+  let textChunks = [];
+  if (text) {
+    textChunks = text.split(/(In the \d{4} census[^]+?)(?=In the \d{4} census|$)/i);
+  }
   if (textChunks.length < 2) {
     textChunks = [];
     // Find sections that look like a table
@@ -4778,10 +4795,13 @@ function processCensus(census) {
 function processTable(table, census) {
   if (!census.Household) {
     const rows = table.split("\n");
-    const headers = rows[2]
-      .replace(/^.{2}/, "")
-      .split("||")
-      .map((header) => header.trim());
+    let headers;
+    if (rows[2]) {
+      headers = rows[2]
+        .replace(/^.{2}/, "")
+        .split("||")
+        .map((header) => header.trim());
+    }
     census.Household = [];
 
     for (let i = 3; i < rows.length - 1; i++) {
@@ -5138,7 +5158,10 @@ function getFamilySearchFacts() {
 
 export function splitBioIntoSections() {
   const wikiText = $("#wpTextbox1").val();
-  let lines = wikiText.split("\n");
+  let lines = [];
+  if (wikiText) {
+    lines = wikiText.split("\n");
+  }
   let currentSection = { subsections: {}, text: [] };
   let currentSubsection = null;
   let sections = {
@@ -5683,8 +5706,14 @@ export function removeWorking() {
 }
 
 function findBestMatch(surname, birthLocation, deathLocation, categories) {
-  let birthLocArray = birthLocation.split(",").map((item) => item.trim());
-  let deathLocArray = deathLocation.split(",").map((item) => item.trim());
+  let birthLocArray = [];
+  if (birthLocation) {
+    birthLocArray = birthLocation.split(",").map((item) => item.trim());
+  }
+  let deathLocArray = [];
+  if (deathLocation) {
+    deathLocArray = deathLocation.split(",").map((item) => item.trim());
+  }
 
   let checkMatch = (locationArray, category) => {
     let categoryWithoutSurname = category.replace(`, ${surname} Name Study`, "");
