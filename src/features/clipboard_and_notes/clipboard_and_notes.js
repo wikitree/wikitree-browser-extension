@@ -309,7 +309,7 @@ async function clipboard(type, e, action = false) {
   $("#clipboard tbody").html("");
 
   const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
-  clipboardDB.onsuccess = function () {
+  clipboardDB.onsuccess = function (event) {
     let db = event.target.result;
 
     if (!db.objectStoreNames.contains("Clipboard")) {
