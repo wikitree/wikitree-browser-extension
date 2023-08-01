@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - development
-      - 1.7 # increment for each major build
+      - 1.8 # increment for each major build
 
 jobs:
   latest-release:
