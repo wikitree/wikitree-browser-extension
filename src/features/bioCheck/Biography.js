@@ -398,8 +398,6 @@ export class Biography {
     this.#findRef(bioLineString);
     this.#findNamedRef(bioLineString);
 
-    this.#setBioStatisticsAndStyle();
-
     // Lose bio lines not considered to contain sources before testing sources
     this.#removeResearchNotes();
     this.#removeAcknowledgements();
@@ -455,6 +453,9 @@ export class Biography {
     if (isValid) {
       this.#sources.sourcesFound = true;
     }
+    // get the style issues found in validate
+    this.#setBioStatisticsAndStyle();
+
     return isValid;
   }
 
@@ -1003,6 +1004,10 @@ export class Biography {
         }
         let line = bioLineString.substring(startOfRef, endOfRef);
         this.#refStringList.push(line);
+        // check for ref embedded within a ref
+        if (line.indexOf("<ref") >= 0) {
+          this.#style.hasRefWithoutEnd = true;
+        }
         endOfRef++;
         if (endOfRef < bioLineString.length) {
           startOfRef = bioLineString.indexOf(Biography.#REF_START, endOfRef);
@@ -1051,6 +1056,10 @@ export class Biography {
       if (refStart > 0) {
         refStart++;
         this.#namedRefStringList.push(line.substring(refStart));
+        // check for ref embedded within a ref
+        if (line.substring(refStart).indexOf("<ref") >= 0) {
+          this.#style.hasRefWithoutEnd = true;
+        }
       }
 
       // move past the ref
@@ -1145,7 +1154,7 @@ export class Biography {
 
     if (this.#style.hasRefWithoutEnd) {
       this.#style.bioHasStyleIssues = true;
-      this.#messages.sectionMessgages.push('Inline <ref> tag with no ending </ref> tag');
+      this.#messages.sectionMessages.push('Inline <ref> tag with no ending </ref> tag');
     }
     if (this.#style.bioHasRefAfterReferences) {
       this.#style.bioHasStyleIssues = true;
