@@ -39,6 +39,9 @@
   .sticky-header #previewContainer #previewContent {
     top: calc(var(--header-offset) + 20px) !important;
   }
+  #toast-container {
+    z-index: 10000000 !important;
+  }
 
   .sticky-header .qa-body-wrapper .qa-header {
     width: 940px;

@@ -1,0 +1,7 @@
+#familyDropdown {
+  display: block;
+  position: relative;
+  max-width: 27em;
+  background-size: 2em 2em;
+  padding: 0.2em 3em 0.2em 0.5em;
+}

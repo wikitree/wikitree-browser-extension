@@ -1,7 +1,7 @@
 /*
 Created By: Ian Beacall (Beacall-6)
 */
-
+import { isMainDomain } from "../../core/pageType.js";
 import { registerFeature } from "../../core/options/options_registry.js";
 
 const randomProfileFeature = {
@@ -13,7 +13,7 @@ const randomProfileFeature = {
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [{ name: "Jamie Nelson", wikitreeid: "Nelson-3486" }],
   defaultValue: true,
-  pages: [true],
+  pages: [isMainDomain],
 };
 
 registerFeature(randomProfileFeature);

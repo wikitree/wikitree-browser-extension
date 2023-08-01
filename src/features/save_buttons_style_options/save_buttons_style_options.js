@@ -17,7 +17,7 @@ shouldInitializeFeature("saveButtonsStyleOptions").then((result) => {
     if (!isSpaceEdit) {
       setTimeout(function () {
         changeLinksToButtons();
-      }, 60500);
+      }, 61000);
     }
   }
 });

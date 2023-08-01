@@ -6,9 +6,10 @@ import { registerFeature } from "../../core/options/options_registry";
 import { isGenealogyPage, isProfilePage, isSpacePage, isSpecialWatchedList } from "../../core/pageType";
 
 const tableFilters = {
-  name: "Table Filters",
+  name: "Table Filters and Sorting",
   id: "tableFilters",
-  description: "Adds filters to wikitables and name tables (on Watchlist and Surname Genealogy pages).",
+  description:
+    "Adds filters to wikitables and name tables (on Watchlist and Surname Genealogy pages) and adds sortability to each column.",
   category: "Other",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],

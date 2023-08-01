@@ -123,23 +123,53 @@ function initObserver() {
   });
 }
 
-function setSaveScratchPad() {
-  const saveButton = $("input[value='Save Scratch Pad Changes']").clone(true).attr("id", "clonedSaveButton");
-  $("#clonedScratchPadButton").replaceWith(saveButton);
-  saveButton.on("click", function () {
-    addScratchPadButton();
-  });
-}
-
 function addScratchPadButton() {
-  const spButton = $("input[value='Edit Scratch Pad']").clone(true).attr("id", "clonedScratchPadButton");
-  if ($("#clonedSaveButton").length) {
-    $("#clonedSaveButton").replaceWith(spButton);
-  } else {
-    spButton.insertAfter($("h2:contains(Scratch Pad) + p"));
+  let isProgrammaticClick = false;
+
+  // Clone both buttons initially
+  let editButton = $("input[value='Edit Scratch Pad']").clone().attr("id", "clonedEditButton");
+  let saveButton = $("input[value='Save Scratch Pad Changes']").clone().attr("id", "clonedSaveButton");
+
+  // Function to update button visibility and events
+  function updateButtonVisibility() {
+    if ($("input[value='Edit Scratch Pad']:not(#clonedEditButton)").is(":visible")) {
+      $("#clonedEditButton").show();
+      $("#clonedSaveButton").hide();
+    } else {
+      $("#clonedEditButton").hide();
+      $("#clonedSaveButton").show();
+    }
   }
-  spButton.on("click", function () {
-    setSaveScratchPad();
+
+  // Bind click events to original buttons
+  editButton.click(function () {
+    if (!isProgrammaticClick) {
+      isProgrammaticClick = true;
+      $("input[value='Edit Scratch Pad']:not(#clonedEditButton)").click();
+      setTimeout(updateButtonVisibility, 500);
+      isProgrammaticClick = false;
+    }
+  });
+
+  saveButton.click(function () {
+    if (!isProgrammaticClick) {
+      isProgrammaticClick = true;
+      $("input[value='Save Scratch Pad Changes']:not(#clonedSaveButton)").click();
+      setTimeout(updateButtonVisibility, 1000);
+      isProgrammaticClick = false;
+    }
+  });
+
+  // Add cloned buttons to the DOM
+  editButton.insertAfter($("h2:contains(Scratch Pad) + p"));
+  saveButton.insertAfter($("h2:contains(Scratch Pad) + p"));
+
+  // Initial setup
+  updateButtonVisibility();
+
+  // Bind click events to original buttons that update the visibility of the cloned buttons
+  $("input[value='Edit Scratch Pad'], input[value='Save Scratch Pad Changes']").click(function () {
+    setTimeout(updateButtonVisibility, 500);
   });
 }
 

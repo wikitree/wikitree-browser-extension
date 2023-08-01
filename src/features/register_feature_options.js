@@ -38,6 +38,7 @@ import {
   isSpecialWatchedList,
   isG2G,
   isDNADescendants,
+  isMainDomain,
   /* eslint-enable no-unused-vars */
 } from "../core/pageType";
 
@@ -57,7 +58,7 @@ import "./auto_categories/auto_categories_options";
 import "./access_keys/access_keys_options";
 import "./categoryDisplay/categoryDisplay_options";
 import "./change_family_lists/change_family_lists_options";
-//import "./connection_finder/connection_finder_options";
+import "./connection_finder/connection_finder_options";
 import "./custom_change_summary_options/custom_change_summary_options_options";
 import "./custom_style/custom_style_options";
 import "./darkMode/darkMode_options";
@@ -65,6 +66,7 @@ import "./date_fixer/date_fixer_options";
 import "./enhanced_editor_style/enhanced_editor_style_options";
 import "./edit_family_data/edit_family_data_options";
 import "./extra_watchlist/extra_watchlist_options";
+import "./family_dropdown/family_dropdown_options";
 import "./family_lists/family_lists_options";
 import "./locationsHelper/locationsHelper_options";
 import "./g2g/g2g_options";
@@ -77,6 +79,8 @@ import "./randomProfile/randomProfile_options";
 import "./readability/readability_options";
 import "./redir_ext_links/redir_ext_links_options";
 import "./save_buttons_style_options/save_buttons_style_options_options";
+import "./scissors/scissors_options";
+import "./shareable_sources/shareable_sources_options";
 import "./sourcepreview/sourcepreview_options";
 import "./spacepreview/spacepreview_options";
 import "./table_filters/table_filters_options";
@@ -109,7 +113,7 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
-  pages: [true],
+  pages: [isMainDomain],
 });
 
 registerFeature({
@@ -143,7 +147,7 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
-  pages: [true],
+  pages: [isMainDomain],
 });
 
 registerFeature({
@@ -165,7 +169,7 @@ registerFeature({
   contributors: [],
   category: "Community",
   defaultValue: false,
-  pages: [true],
+  pages: [isMainDomain],
 });
 
 registerFeature({
@@ -198,7 +202,7 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
-  pages: [true],
+  pages: [isMainDomain],
 });
 
 registerFeature({
@@ -255,22 +259,7 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
-  pages: [true],
-});
-
-registerFeature({
-  name: "Scissors",
-  id: "scissors",
-  description:
-    "Adds scissors (like on profile pages) to Category, Help, Project, Template, and Change Details pages to copy various things.",
-  category: "Editing",
-  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [
-    { name: "Riël Smit", wikitreeid: "Smit-641" },
-    { name: "Aleš Trtnik", wikitreeid: "Trtnik-2" },
-  ],
-  defaultValue: true,
-  pages: [isWikiPage, isProfileEdit, isSpaceEdit, isProfileHistoryDetail],
+  pages: [isMainDomain],
 });
 
 registerFeature({
@@ -281,7 +270,7 @@ registerFeature({
   creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   contributors: [],
   defaultValue: false,
-  pages: [true],
+  pages: [isMainDomain],
 });
 
 registerFeature({
@@ -315,7 +304,7 @@ registerFeature({
   creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   contributors: [],
   defaultValue: false,
-  pages: [true],
+  pages: [isMainDomain],
 });
 
 registerFeature({
@@ -361,7 +350,7 @@ registerFeature({
   creators: [{ name: "Aleš Trtnik", wikitreeid: "Trtnik-2" }],
   contributors: [],
   defaultValue: false,
-  pages: [true],
+  pages: [isMainDomain],
   options: [
     {
       id: "color",

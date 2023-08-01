@@ -153,6 +153,8 @@ export async function getProfile(id, fields = "*", appId = "WBE") {
         action: "getProfile",
         key: id,
         fields: fields,
+        bioFormat: "text",
+        resolveRedirect: 1,
         appId: appId || "WBE",
       },
     });

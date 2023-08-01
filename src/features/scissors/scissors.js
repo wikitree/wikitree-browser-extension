@@ -4,7 +4,7 @@ Created By: Ian Beacall (Beacall-6), Aleš Trtnik (Trtnik-2)
 
 import $ from "jquery";
 import { copyThingToClipboard } from "../g2g/g2g";
-import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import {
   isMediaWikiPage,
   isProfileHistoryDetail,
@@ -26,7 +26,8 @@ shouldInitializeFeature("scissors").then((result) => {
   }
 });
 
-function helpScissors() {
+async function helpScissors() {
+  const options = await getFeatureOptions("scissors");
   let copyItems = [];
   let copyPosition = $("h1");
 
@@ -41,6 +42,9 @@ function helpScissors() {
     copyItems.push({ label: "ID", text: aTitle, image: true });
     let aLink = "";
     if (isCategoryPage) {
+      if (options.categoryLinkFormat == "withParameter") {
+        aTitle = aTitle + "|" + document.title.replace("Category:", "").trim() + " category";
+      }
       aLink = `[[:${aTitle}]]`;
     } else if (isTemplatePage) {
       aLink = `{{${aTitle}}}`;
@@ -51,6 +55,13 @@ function helpScissors() {
     const aUrl = window.location.href;
     copyItems.push({ label: "URL", text: aUrl });
   }
+
+  if (isCategoryPage) {
+    const aTitle = document.title.trim();
+    const aLink = `[[${aTitle}]]`;
+    copyItems.push({ label: "Use", text: aLink });
+  }
+
   // Space page
   if (isSpacePage || isSpaceEdit) {
     const aTitle = document.title.replace("Editing ", "");
@@ -61,11 +72,24 @@ function helpScissors() {
   if (isProfilePage || isProfileEdit) {
     const userID = $("#pageData").attr("data-mid");
     copyItems.push({ label: "UserID", text: userID });
+    if (options.removeDates) {
+      const dateless = $("button[aria-label='Copy Wiki Link']")
+        .data("copy-text")
+        .replace(/ \(.*[0-9]{4}.*\)/, "");
+      $("button[aria-label='Copy Wiki Link']").data("copy-text", dateless).attr("data-copy-text", dateless);
+    }
+  }
+
+  // Space page
+  if ((isSpacePage || isSpaceEdit) && options.spaceLinkFormat != "withParameter") {
+    const button = $("button[aria-label='Copy Wiki Link']");
+    const aTitle = document.title.trim();
+    const noParameter = "[[:Space: " + aTitle + "]]";
+    button.data("copy-text", noParameter).attr("data-copy-text", noParameter);
   }
 
   // Profiles change details page
   if (isProfileHistoryDetail) {
-    // if  ($("h1:contains('Change Details')").length || $("h1:contains('Creation of Profile')").length) {
     const historyItem = $("span.HISTORY-ITEM");
     let change = "Added";
     const theAct = historyItem.find("a:contains(created),a:contains(imported the data)");

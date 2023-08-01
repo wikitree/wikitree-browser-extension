@@ -1,3 +1,4 @@
+import { isMainDomain } from "../../core/pageType.js";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 // The feature data for the myFeature feature
@@ -9,7 +10,7 @@ const usabilityTweaks = {
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
-  pages: [true],
+  pages: [isMainDomain],
   options: [
     {
       id: "global",

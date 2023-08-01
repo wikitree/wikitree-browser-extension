@@ -1,7 +1,7 @@
 /*
 Created By: Ian Beacall (Beacall-6)
 */
-
+import { isMainDomain } from "../../core/pageType.js";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 registerFeature({
@@ -12,7 +12,7 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
-  pages: [true],
+  pages: [isMainDomain],
   options: [
     {
       id: "addGoogle",

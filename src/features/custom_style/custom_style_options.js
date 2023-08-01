@@ -1,3 +1,4 @@
+import { isMainDomain } from "../../core/pageType";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 const myCustomStyle = {
@@ -8,8 +9,27 @@ const myCustomStyle = {
   defaultValue: false,
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
-  pages: [true],
+  pages: [isMainDomain],
   options: [
+    {
+      id: "general",
+      type: OptionType.GROUP,
+      label: "Global",
+      options: [
+        {
+          id: "roundedCorners",
+          type: OptionType.CHECKBOX,
+          label: "Rounded corners",
+          defaultValue: false,
+        },
+        {
+          id: "header_background-color",
+          type: "color",
+          label: "Header background color",
+          defaultValue: "#f7f6f0",
+        },
+      ],
+    },
     {
       id: "headings",
       type: OptionType.GROUP,
@@ -48,9 +68,65 @@ const myCustomStyle = {
       ],
     },
     {
+      id: "standardColors",
+      type: OptionType.GROUP,
+      label: "Profile Background Colors",
+      options: [
+        {
+          id: "color1_background-color",
+          type: "color",
+          label: "Background color 1 (Profile tabs, etc.)",
+          defaultValue: "#e1f0b4",
+        },
+        {
+          id: "color2_background-color",
+          type: "color",
+          label: "Background color 2 (Current profile tab, etc.)",
+          defaultValue: "#ffe270",
+        },
+        {
+          id: "color3_background-color",
+          type: "color",
+          label: "Background color 3 (Profile manager)",
+          defaultValue: "#ffe183",
+        },
+        {
+          id: "color4_background-color",
+          type: "color",
+          label: "Background color 4 ('This page has been accessed...')",
+          defaultValue: "#eeeeee",
+        },
+      ],
+    },
+    {
+      id: "linkColors",
+      type: OptionType.GROUP,
+      label: "Profile Link Colors",
+      options: [
+        {
+          id: "link_color",
+          type: "color",
+          label: "Link color",
+          defaultValue: "#006600",
+        },
+        {
+          id: "scissorsText_color",
+          type: "color",
+          label: "Scissors text color",
+          defaultValue: "#8fc641",
+        },
+        {
+          id: "visitedLink_color",
+          type: "color",
+          label: "Visited link color",
+          defaultValue: "#006600",
+        },
+      ],
+    },
+    {
       id: "dateHeadings",
       type: OptionType.GROUP,
-      label: "Date Headings",
+      label: "Activity Feed Date Headings",
       options: [
         {
           id: "date-headings_background-color",
@@ -67,57 +143,75 @@ const myCustomStyle = {
       ],
     },
     {
-      id: "standardColors",
+      id: "g2gColors",
       type: OptionType.GROUP,
-      label: "Standard Colors",
+      label: "G2G",
       options: [
         {
-          id: "color1_background-color",
+          id: "tag_color",
           type: "color",
-          label: "Background color 1",
-          defaultValue: "#e1f0b4",
-        },
-        {
-          id: "color2_background-color",
-          type: "color",
-          label: "Background color 2",
-          defaultValue: "#ffe270",
-        },
-        {
-          id: "color3_background-color",
-          type: "color",
-          label: "Background color 3",
-          defaultValue: "#ffe183",
-        },
-        {
-          id: "color4_background-color",
-          type: "color",
-          label: "Background color 3",
-          defaultValue: "#eeeeee",
-        },
-        {
-          id: "link_color",
-          type: "color",
-          label: "Link color",
-          defaultValue: "#006600",
-        },
-        {
-          id: "link2_color",
-          type: "color",
-          label: "Link color 2",
+          label: "Tag text color",
           defaultValue: "#ffffff",
         },
         {
-          id: "scissorsText_color",
+          id: "tag_background-color",
           type: "color",
-          label: "Scissors text color",
-          defaultValue: "#8fc641",
+          label: "Tag background color",
+          defaultValue: "#8fc741",
         },
         {
-          id: "visitedLink_color",
+          id: "tagHover_color",
           type: "color",
-          label: "Visited link color",
-          defaultValue: "#006600",
+          label: "Tag hover text color",
+          defaultValue: "#000000",
+        },
+        {
+          id: "tagHover_background-color",
+          type: "color",
+          label: "Tag hover background color",
+          defaultValue: "#ffffa0",
+        },
+        {
+          id: "g2gtab_background-color",
+          type: "color",
+          label: "Tabs and Voting box background color",
+          defaultValue: "#b5d775",
+        },
+        {
+          id: "g2gtab_color",
+          type: "color",
+          label: "Tabs and Voting box text color",
+          defaultValue: "#ffffff",
+        },
+        {
+          id: "g2gtabHover_background-color",
+          type: "color",
+          label: "Tabs hover background color",
+          defaultValue: "#ffffa0",
+        },
+        {
+          id: "g2gtabHover_color",
+          type: "color",
+          label: "Tabs hover text color",
+          defaultValue: "#000000",
+        },
+        {
+          id: "g2gtabSelected_background-color",
+          type: "color",
+          label: "Current tab background color",
+          defaultValue: "#253b2f",
+        },
+        {
+          id: "g2gtabSelected_color",
+          type: "color",
+          label: "Current tab text color",
+          defaultValue: "#ffffff",
+        },
+        {
+          id: "count_background-color",
+          type: "color",
+          label: "Count box background color",
+          defaultValue: "#fccd7d",
         },
       ],
     },

@@ -144,6 +144,9 @@ function isSameDateOrAfter(dateStr1, dateStr2) {
 }
 
 function fixUSLocation(event) {
+  if (!event.Location) {
+    return;
+  }
   let locationBits = event.Location.split(",");
   locationBits = locationBits.map((str) => str.trim());
   const lastLocationBit = locationBits[locationBits.length - 1];
@@ -381,6 +384,9 @@ async function fixLocations() {
 export function convertDate(dateString, outputFormat, status = "") {
   dateString = dateString.replaceAll(/-00/g, "");
   // Split the input date string into components
+  if (!dateString) {
+    return "";
+  }
   let components = dateString.split(/[\s,-]+/);
 
   // Determine the format of the input date string
@@ -733,7 +739,7 @@ function personDates(person) {
   if (window.autoBioOptions?.longDates) {
     let birthDate = person.BirthDate;
     if (!isOK(person.BirthDate)) {
-      birthDate = person.BirthDateDecade;
+      birthDate = person?.BirthDateDecade || "";
     }
     let deathDate = person?.DeathDate || person?.DeathDateDecade || "";
     if (!isOK(person?.DeathDate)) {
@@ -1203,6 +1209,9 @@ export function buildParents(person) {
 }
 
 export function minimalPlace(place) {
+  if (window.autoBioOptions?.fullLocations == true) {
+    return place;
+  }
   if (!window.usedPlaces) {
     window.usedPlaces = [];
   }
@@ -1445,6 +1454,9 @@ export function buildSpouses(person) {
 }
 
 function getAgeFromISODates(birth, date) {
+  if (!birth || !date) {
+    return "";
+  }
   let [year1, month1, day1] = birth.split("-");
   let [year2, month2, day2] = date.split("-");
   let age = getAge({
@@ -1529,6 +1541,9 @@ export function getYYYYMMDD(dateString) {
     dateString = dateString.replace(/(abt|about|before|bef|after|aft|between|bet|and|calculated|cal)/i, "").trim();
   }
   function parseDate(dateStr) {
+    if (!dateStr) {
+      return null;
+    }
     const dateParts = dateStr.split(" ");
     if (dateParts.length === 3) {
       const year = dateParts[2];
@@ -2642,6 +2657,9 @@ function analyzeColumns(lines) {
 }
 
 function extractHouseholdMembers(row) {
+  if (!row) {
+    return [];
+  }
   const brRegex = /<br\s*\/?>/gi;
   const rowDataSplit = row.split("||");
   let rowData;
@@ -4103,6 +4121,19 @@ export function sourcesArray(bio) {
 
   let sourcesSection = window.sourcesSection.text.join("\n");
   let sourcesBits = sourcesSection.split(/^\*/gm);
+  /* If a sourceBit starts with * now, it started with ** before, so add the * back (so... **)
+  and add it to the previous sourceBit */
+  console.log(logNow(sourcesBits));
+  for (let i = sourcesBits.length - 1; i >= 0; i--) {
+    let aSourceBit = sourcesBits[i];
+    if (aSourceBit.match(/^\*/) && i > 0) {
+      sourcesBits[i - 1] = sourcesBits[i - 1] + "*" + aSourceBit;
+      sourcesBits[i] = "";
+    }
+  }
+
+  console.log(logNow(sourcesBits));
+
   let notShow = /^[\n\s]*$/;
   if (sourcesSection.match(/\*/) == null) {
     sourcesBits = sourcesSection.split(/\n/);
@@ -4122,7 +4153,28 @@ export function sourcesArray(bio) {
           }
         });
       } else {
-        refArr.push({ Text: aSource.trim(), RefName: "", NonSource: NonSource });
+        const newRef = { Text: aSource.trim(), RefName: "", NonSource: NonSource };
+        /* Look for ref tags in aSource and compare the text with the refArr
+         If there is a match take the text from before the ref tag 
+         and add it to the object in refArr as Narrative, and don't add newRef to refArr
+        */
+        const refTags = aSource.match(/<ref[^>]*>.*?<\/ref>/gs);
+        let addIt = true;
+        if (refTags) {
+          refTags.forEach(function (aRefTag) {
+            const refTagText = aRefTag.match(/<ref[^>]*>(.*?)<\/ref>/s)[1].trim();
+            const refTagText2 = refTagText.replace(/<br\/>/g, "<br>").replace(/&/g, "&amp;");
+            const refTagTextMatch = refArr.find((ref) => ref.Text == refTagText || ref.Text == refTagText2);
+            if (refTagTextMatch) {
+              const narrative = aSource.split(aRefTag)[0];
+              refTagTextMatch.Narrative = narrative;
+              addIt = false;
+            }
+          });
+        }
+        if (addIt) {
+          refArr.push(newRef);
+        }
       }
     }
   });
@@ -4160,7 +4212,7 @@ export function sourcesArray(bio) {
 
     if (
       aRef.Text.match(
-        /Dopen|Doop|Geboorte|'''Birth'''|Births? (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|[A-Z][a-z]+ Births, (?!Marriages|Deaths)|GRO Online Index - Birth|^Birth -|births,\s\d|citing Birth/i
+        /NZBDM BIRTH|(New Zealand Department.*Birth Registration)|Dopen|Doop|Geboorte|'''Birth'''|Births? (Certificate|Registration|Index)|Births and Christenings|Births and Baptisms|[A-Z][a-z]+ Births, (?!Marriages|Deaths)|GRO Online Index - Birth|^Birth -|births,\s\d|citing Birth/i
       ) ||
       aRef["Birth Date"]
     ) {
@@ -4213,7 +4265,7 @@ export function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        /Marriages? Index|Huwelijk|Trouwen|'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage (Registration )?Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage -|citing.*Marriage|> Marriages/
+        /NZBDM MARRIAGE|(New Zealand Department.*Marriage Registration)|Marriages? Index|Huwelijk|Trouwen|'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage (Registration )?Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage -|citing.*Marriage|> Marriages/
       ) ||
       aRef["Marriage Date"]
     ) {
@@ -4357,7 +4409,7 @@ export function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        /Overlijden|[A-Z][a-z]+ Deaths(?!\s&|\sand)|'''Death'''|Death (Index|Record|Reg)|findagrave|Find a Grave|memorial|Cemetery Registers|Death Certificate|^Death -|citing Death|citing Burial|Probate/i
+        /NZBDM DEATH|(New Zealand Department.*Death Registration)|Overlijden|[A-Z][a-z]+ Deaths(?!\s&|\sand)|'''Death'''|Death (Index|Record|Reg)|findagrave|Find a Grave|memorial|Cemetery Registers|Death Certificate|^Death -|citing Death|citing Burial|Probate/i
       ) ||
       aRef["Death Date"]
     ) {
@@ -4560,14 +4612,32 @@ function getSourcerCensuses() {
 
   const regexNonWikitable = /In the (\d{4}) census[^{=]*?\n([.:#*].+?)(?=\n[^:#*])/gms;
   //const regexNonWikitable = /In the (\d{4}) census((?!.*\{\|.*\|\}).*?)(?=\n[^:#*])/gs;
-
-  let textChunks = text.split(/(In the \d{4} census[^]+?)(?=In the \d{4} census|$)/i);
+  let textChunks = [];
+  if (text) {
+    textChunks = text.split(/(In the \d{4} census[^]+?)(?=In the \d{4} census|$)/i);
+  }
+  if (textChunks.length < 2) {
+    textChunks = [];
+    // Find sections that look like a table
+    let tableSections = text.match(/\{\|([^|}]|\|[^}])*\|\}/g);
+    if (tableSections) {
+      tableSections.forEach((section) => {
+        // Check if the section contains the key words
+        if (
+          (/\d{4}.+\bcensus\b/i.test(section) || /\bcensus\b.+\d{4}/i.test(section)) &&
+          /\bName\b.*\bAge\b/.test(section)
+        ) {
+          textChunks.push(section);
+        }
+      });
+    }
+  }
   let censusData = {};
 
   for (let i = 0; i < textChunks.length; i++) {
     let text = textChunks[i];
 
-    let yearMatch = text.match(/In the (\d{4}) census/);
+    let yearMatch = text.match(/(\d{4}).+census/i) || text.match(/census.+(\d{4})/i);
     let tableMatch = text.match(/(\{\|[^]+?\|\})/);
 
     if (yearMatch && tableMatch) {
@@ -4725,10 +4795,13 @@ function processCensus(census) {
 function processTable(table, census) {
   if (!census.Household) {
     const rows = table.split("\n");
-    const headers = rows[2]
-      .replace(/^.{2}/, "")
-      .split("||")
-      .map((header) => header.trim());
+    let headers;
+    if (rows[2]) {
+      headers = rows[2]
+        .replace(/^.{2}/, "")
+        .split("||")
+        .map((header) => header.trim());
+    }
     census.Household = [];
 
     for (let i = 3; i < rows.length - 1; i++) {
@@ -5085,7 +5158,10 @@ function getFamilySearchFacts() {
 
 export function splitBioIntoSections() {
   const wikiText = $("#wpTextbox1").val();
-  let lines = wikiText.split("\n");
+  let lines = [];
+  if (wikiText) {
+    lines = wikiText.split("\n");
+  }
   let currentSection = { subsections: {}, text: [] };
   let currentSubsection = null;
   let sections = {
@@ -5630,8 +5706,14 @@ export function removeWorking() {
 }
 
 function findBestMatch(surname, birthLocation, deathLocation, categories) {
-  let birthLocArray = birthLocation.split(",").map((item) => item.trim());
-  let deathLocArray = deathLocation.split(",").map((item) => item.trim());
+  let birthLocArray = [];
+  if (birthLocation) {
+    birthLocArray = birthLocation.split(",").map((item) => item.trim());
+  }
+  let deathLocArray = [];
+  if (deathLocation) {
+    deathLocArray = deathLocation.split(",").map((item) => item.trim());
+  }
 
   let checkMatch = (locationArray, category) => {
     let categoryWithoutSurname = category.replace(`, ${surname} Name Study`, "");
@@ -6204,7 +6286,6 @@ export async function generateBio() {
     });
     textBeforeTheBio = stuffBeforeTheBioArray2.join("\n");
     window.textBeforeTheBio = textBeforeTheBio;
-    //console.log("textBeforeTheBio", stuffBeforeTheBioArray2);
 
     // Split the current bio into sections
     window.sectionsObject = splitBioIntoSections();
@@ -6264,7 +6345,6 @@ export async function generateBio() {
     //console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
 
     const nuclearFamily = familyArray(window.profilePerson);
-    //console.log(JSON.parse(JSON.stringify(nuclearFamily)));
     nuclearFamily.forEach(function (member) {
       if (member) {
         assignPersonNames(member);
@@ -6287,7 +6367,6 @@ export async function generateBio() {
         assignPersonNames(person);
       });
     }
-    //console.log("biographySpouseParents", window.biographySpouseParents);
 
     // window.profilePerson.BirthName is their FirstName + MiddleName if they have a MiddleName
     if (isOK(window.profilePerson.MiddleName)) {
@@ -6309,7 +6388,7 @@ export async function generateBio() {
     }
     assignPersonNames(window.profilePerson);
     if (isOK(window.profilePerson.BirthDate) && window.profilePerson.BirthDate.match("-") == null) {
-      window.profilePerson.BirthDate = convertDate(window.profilePerson.BirthDate, "ISO");
+      window.profilePerson.BirthDate = convertDate(window.profilePerson?.BirthDate, "ISO");
     }
     if (isOK(window.profilePerson?.DeathDate) && window.profilePerson?.DeathDate.match("-") == null) {
       window.profilePerson.DeathDate = convertDate(window.profilePerson?.DeathDate, "ISO");
@@ -6381,7 +6460,7 @@ export async function generateBio() {
       } else {
         eventDate = "0000-00-00";
       }
-      const orderDate = eventDate.replaceAll(/-/g, "");
+      const orderDate = eventDate?.replaceAll(/-/g, "");
       const newEvent = {
         "Record Type": ["ChildList"],
         "Event Type": "Children",
@@ -6498,9 +6577,12 @@ export async function generateBio() {
             }
 
             let narrativeBits = anEvent.Narrative.split(/,/);
-            let aBit = minimalPlace2(narrativeBits);
-            marriagesAndCensusesText += aBit;
-
+            if (window.autoBioOptions?.fullLocations) {
+              marriagesAndCensusesText += anEvent.Narrative;
+            } else {
+              let aBit = minimalPlace2(narrativeBits);
+              marriagesAndCensusesText += aBit;
+            }
             // Handle references
             let listText = "";
             if (Array.isArray(anEvent.ListText)) {
