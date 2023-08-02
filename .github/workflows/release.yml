@@ -83,7 +83,7 @@ jobs:
         # using dist already built from Chrome
         run: |
           rm -rf xcode/*.xcarchive
-          xcodebuild clean archive -quiet -project "${{ env.X_SAFARI_PROJECT }}" -scheme "${{ env.X_SAFARI_FOLDER }} (iOS)" -configuration Release -destination generic/platform=iOS -allowProvisioningUpdates -archivePath xcode/output
+          xcodebuild clean archive -quiet -project "${{ env.X_SAFARI_PROJECT }}" -scheme "${{ env.X_SAFARI_FOLDER }} (iOS)" -configuration Release -destination generic/platform=iOS -archivePath xcode/output
           cd xcode/output.xcarchive/Products/Applications
           zip -r ../../../../dist-safari-ios.zip "${{ env.X_SAFARI_FOLDER }}.app"
           cd ../../../..
