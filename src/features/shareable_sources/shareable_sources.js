@@ -44,57 +44,57 @@ async function addOptionsToWindow(feature) {
 shouldInitializeFeature("shareableSources").then((result) => {
   if (result) {
     import("./shareable_sources.css");
-  }
 
-  addOptionsToWindow("shareableSources");
+    addOptionsToWindow("shareableSources");
 
-  setTimeout(function () {
-    // Connect with family dropdown if enabled
-    if (isProfileEdit && window.shareableSourcesOptions.connectWithFamilyDropdown) {
-      $("#familyDropdown").on("change", async function () {
-        if ($(this).val() === "other") {
-          // Allow entering ID
-          if ($("#otherPerson").length === 0) {
-            let otherPerson = $(
-              `<label id='otherPersonLabel'>Enter WikiTree ID and Press 'Enter': <input type='text' id='otherPerson'></label>`
-            );
-            otherPerson.insertAfter("#familyDropdown");
-            $("#otherPerson").trigger("focus");
+    setTimeout(function () {
+      // Connect with family dropdown if enabled
+      if (isProfileEdit && window.shareableSourcesOptions.connectWithFamilyDropdown) {
+        $("#familyDropdown").on("change", async function () {
+          if ($(this).val() === "other") {
+            // Allow entering ID
+            if ($("#otherPerson").length === 0) {
+              let otherPerson = $(
+                `<label id='otherPersonLabel'>Enter WikiTree ID and Press 'Enter': <input type='text' id='otherPerson'></label>`
+              );
+              otherPerson.insertAfter("#familyDropdown");
+              $("#otherPerson").trigger("focus");
 
-            $("#otherPerson").on("keydown", function (event) {
-              if (event.key === "Enter") {
-                let anID = $(this).val().trim();
-                initShareableSources(anID);
-              }
-            });
+              $("#otherPerson").on("keydown", function (event) {
+                if (event.key === "Enter") {
+                  let anID = $(this).val().trim();
+                  initShareableSources(anID);
+                }
+              });
+            } else {
+              $("#otherPerson").addClass("highlight").trigger("focus");
+            }
           } else {
-            $("#otherPerson").addClass("highlight").trigger("focus");
+            // Get ID of selected relative
+            let anID = $(this).find("option:selected").data("id");
+            if (anID != "") {
+              // Get person object
+              const ourPerson =
+                window.profilePersonNuclear?.["Parents"]?.[anID] ||
+                window.profilePersonNuclear?.["Spouses"]?.[anID] ||
+                window.profilePersonNuclear?.["Siblings"]?.[anID] ||
+                window.profilePersonNuclear?.["Children"]?.[anID] ||
+                window.profilePersonNuclear;
+
+              getSources(ourPerson);
+
+              $("#otherPerson").parent().removeClass("highlight");
+            }
           }
-        } else {
-          // Get ID of selected relative
-          let anID = $(this).find("option:selected").data("id");
-          if (anID != "") {
-            // Get person object
-            const ourPerson =
-              window.profilePersonNuclear?.["Parents"]?.[anID] ||
-              window.profilePersonNuclear?.["Spouses"]?.[anID] ||
-              window.profilePersonNuclear?.["Siblings"]?.[anID] ||
-              window.profilePersonNuclear?.["Children"]?.[anID] ||
-              window.profilePersonNuclear;
+        });
+      }
 
-            getSources(ourPerson);
-
-            $("#otherPerson").parent().removeClass("highlight");
-          }
-        }
-      });
-    }
-
-    // Initialize on add relative page
-    else if (isProfileAddRelative) {
-      initShareableSources();
-    }
-  }, 1000);
+      // Initialize on add relative page
+      else if (isProfileAddRelative) {
+        initShareableSources();
+      }
+    }, 1000);
+  }
 });
 
 /**
