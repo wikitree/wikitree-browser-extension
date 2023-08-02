@@ -21,6 +21,7 @@ jobs:
           echo "X_RELEASE_TAG=${{ github.ref_name == 'development' && 'preview' || startsWith(github.ref_name, '1.') && 'stable' || github.ref_name }}" >> $GITHUB_ENV
           grep -Eo 'version.*\.\d+' src/manifest/manifest-chrome.json > ver.tmp
           sed -E 's/[^0-9]*([0-9.]+).*/X_VERSION=\1/' ver.tmp >> $GITHUB_ENV
+          sed -E 's/[^0-9]*([0-9]+\.[0-9]+(\.[1-9][0-9]*)?).*/X_SAFARI_VERSION=\1/' ver.tmp >> $GITHUB_ENV
       - name: Setup Node.js
         uses: actions/setup-node@v2
         with:
@@ -38,13 +39,40 @@ jobs:
           cd dist
           zip -r ../dist-chrome.zip *
           cd ..
+      - name: Prepare Xcode environment
+        env:
+          X_SAFARI_FOLDER: ${{ env.X_RELEASE_TAG == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension (Preview)' }}
+          X_SAFARI_PROJECT: xcode/${{ env.X_RELEASE_TAG == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension (Preview)' }}/${{ env.X_RELEASE_TAG == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension (Preview)' }}.xcodeproj
+        run: |
+          echo "X_SAFARI_FOLDER=${{ env.X_SAFARI_FOLDER }}" >> $GITHUB_ENV
+          echo "X_SAFARI_PROJECT=${{ env.X_SAFARI_PROJECT }}" >> $GITHUB_ENV
+          echo "X_SAFARI_SIGNED=${{ secrets.BUILD_CERTIFICATE_BASE64 != '' && 'signed' || 'unsigned' }}" >> $GITHUB_ENV
+          mv -f "${{ env.X_SAFARI_PROJECT }}/project.pbxproj" "${{ env.X_SAFARI_PROJECT }}/project.pbxproj.tmp"
+          sed -E 's/MARKETING_VERSION[ ]*=[ ]*[0-9.]+/MARKETING_VERSION = ${{ env.X_SAFARI_VERSION }}/Ig' "${{ env.X_SAFARI_PROJECT }}/project.pbxproj.tmp" > "${{ env.X_SAFARI_PROJECT }}/project.pbxproj"
+      - name: Update Xcode project when unsigned
+        if: env.X_SAFARI_SIGNED != 'signed'
+        run: |
+          mv -f "${{ env.X_SAFARI_PROJECT }}/project.pbxproj" "${{ env.X_SAFARI_PROJECT }}/project.pbxproj.tmp"
+          sed -E 's/(DEVELOPMENT_TEAM[ ]*=[ ]*.*;)/\/* \1 *\//Ig' "${{ env.X_SAFARI_PROJECT }}/project.pbxproj.tmp" > "${{ env.X_SAFARI_PROJECT }}/project.pbxproj"
+      - name: Update Xcode environment for signing
+        if: env.X_SAFARI_SIGNED == 'signed'
+        run: |
+          echo TODO: need to set up signing keys
       - name: Build for Safari (macOS)
         # using dist already built from Chrome
         run: |
           rm -rf xcode/*.xcarchive
-          xcodebuild clean archive -quiet -project "xcode/${{ env.X_RELEASE_TAG == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension (Preview)' }}/${{ env.X_RELEASE_TAG == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension (Preview)' }}.xcodeproj" -scheme "${{ env.X_RELEASE_TAG == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension (Preview)' }} (macOS)" -configuration Release -destination generic/platform=macOS -archivePath xcode/output
+          xcodebuild clean archive -quiet -project "${{ env.X_SAFARI_PROJECT }}" -scheme "${{ env.X_SAFARI_FOLDER }} (macOS)" -configuration Release -destination generic/platform=macOS -archivePath xcode/output
           cd xcode/output.xcarchive/Products/Applications
-          zip -r ../../../../dist-safari-macos.zip "${{ env.X_RELEASE_TAG == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension (Preview)' }}.app"
+          zip -r ../../../../dist-safari-macos.zip "${{ env.X_SAFARI_FOLDER }}.app"
+          cd ../../../..
+      - name: Build for Safari (iOS)
+        if: env.X_SAFARI_SIGNED == 'signed'
+        run: |
+          rm -rf xcode/*.xcarchive
+          xcodebuild clean archive -quiet -project "${{ env.X_SAFARI_PROJECT }}" -scheme "${{ env.X_SAFARI_FOLDER }} (iOS)" -configuration Release -destination generic/platform=iOS -archivePath xcode/output
+          cd xcode/output.xcarchive/Products/Applications
+          zip -r ../../../../dist-safari-ios.zip "${{ env.X_SAFARI_FOLDER }}.app"
           cd ../../../..
       - name: Build for Firefox
         run: |
@@ -57,7 +85,8 @@ jobs:
         run: |
           mv dist-chrome.zip wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-chrome.zip
           mv dist-firefox.zip wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-firefox.zip
-          mv dist-safari-macos.zip wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-safari-macos.zip
+          mv dist-safari-macos.zip wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-safari-macos-${{ env.X_SAFARI_SIGNED }}.zip
+          [ ! -f dist-safari-ios.zip ] || mv dist-safari-ios.zip wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-safari-ios-${{ env.X_SAFARI_SIGNED }}.zip
       - name: Update release
         uses: "marvinpinto/action-automatic-releases@latest"
         with:
