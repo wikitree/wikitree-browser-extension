@@ -46,7 +46,7 @@ jobs:
         run: |
           echo "X_SAFARI_FOLDER=${{ env.X_SAFARI_FOLDER }}" >> $GITHUB_ENV
           echo "X_SAFARI_PROJECT=${{ env.X_SAFARI_PROJECT }}" >> $GITHUB_ENV
-          # echo "X_SAFARI_CAN_SIGN=${{ secrets.BUILD_CERTIFICATE_BASE64 != '' && 'true' || 'false' }}" >> $GITHUB_ENV
+          echo "X_SAFARI_CAN_SIGN=${{ secrets.BUILD_CERTIFICATE_BASE64 != '' && 'true' || 'false' }}" >> $GITHUB_ENV
           mv -f "${{ env.X_SAFARI_PROJECT }}/project.pbxproj" "${{ env.X_SAFARI_PROJECT }}/project.pbxproj.tmp"
           sed -E 's/MARKETING_VERSION[ ]*=[ ]*[0-9.]+/MARKETING_VERSION = ${{ env.X_SAFARI_VERSION }}/Ig' "${{ env.X_SAFARI_PROJECT }}/project.pbxproj.tmp" > "${{ env.X_SAFARI_PROJECT }}/project.pbxproj"
       - name: Install the Apple certificate and provisioning profile
