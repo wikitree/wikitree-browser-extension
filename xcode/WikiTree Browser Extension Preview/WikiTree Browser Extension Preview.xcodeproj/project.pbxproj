@@ -13,8 +13,8 @@
 		ABB178962A4787E2001A88A9 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = ABB178942A4787E2001A88A9 /* Main.storyboard */; };
 		ABB1789F2A4787E2001A88A9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABB1789E2A4787E2001A88A9 /* AppDelegate.swift */; };
 		ABB178A22A4787E2001A88A9 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = ABB178A02A4787E2001A88A9 /* Main.storyboard */; };
-		ABB178AA2A4787E3001A88A9 /* WikiTree Browser Extension (Preview) Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = ABB178A92A4787E3001A88A9 /* WikiTree Browser Extension (Preview) Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		ABB178B42A4787E3001A88A9 /* WikiTree Browser Extension (Preview) Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = ABB178B32A4787E3001A88A9 /* WikiTree Browser Extension (Preview) Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		ABB178AA2A4787E3001A88A9 /* WikiTree Browser Extension Preview Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = ABB178A92A4787E3001A88A9 /* WikiTree Browser Extension Preview Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		ABB178B42A4787E3001A88A9 /* WikiTree Browser Extension Preview Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = ABB178B32A4787E3001A88A9 /* WikiTree Browser Extension Preview Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		ABB178BA2A4787E3001A88A9 /* Main.html in Resources */ = {isa = PBXBuildFile; fileRef = ABB1787D2A4787C2001A88A9 /* Main.html */; };
 		ABB178BB2A4787E3001A88A9 /* Main.html in Resources */ = {isa = PBXBuildFile; fileRef = ABB1787D2A4787C2001A88A9 /* Main.html */; };
 		ABB178BC2A4787E3001A88A9 /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = ABB1787F2A4787C2001A88A9 /* Icon.png */; };
@@ -57,14 +57,14 @@
 			containerPortal = ABB178772A4787C1001A88A9 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = ABB178A82A4787E3001A88A9;
-			remoteInfo = "WikiTree Browser Extension (Preview) Extension (iOS)";
+			remoteInfo = "WikiTree Browser Extension Preview Extension (iOS)";
 		};
 		ABB178B52A4787E3001A88A9 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = ABB178772A4787C1001A88A9 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = ABB178B22A4787E3001A88A9;
-			remoteInfo = "WikiTree Browser Extension (Preview) Extension (macOS)";
+			remoteInfo = "WikiTree Browser Extension Preview Extension (macOS)";
 		};
 /* End PBXContainerItemProxy section */
 
@@ -75,7 +75,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				ABB178AA2A4787E3001A88A9 /* WikiTree Browser Extension (Preview) Extension.appex in Embed Foundation Extensions */,
+				ABB178AA2A4787E3001A88A9 /* WikiTree Browser Extension Preview Extension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -86,7 +86,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				ABB178B42A4787E3001A88A9 /* WikiTree Browser Extension (Preview) Extension.appex in Embed Foundation Extensions */,
+				ABB178B42A4787E3001A88A9 /* WikiTree Browser Extension Preview Extension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -101,22 +101,22 @@
 		ABB178822A4787C3001A88A9 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
 		ABB178832A4787E2001A88A9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		ABB178852A4787E2001A88A9 /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
-		ABB1788A2A4787E2001A88A9 /* WikiTree Browser Extension (Preview).app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "WikiTree Browser Extension (Preview).app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		ABB1788A2A4787E2001A88A9 /* WikiTree Browser Extension Preview.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "WikiTree Browser Extension Preview.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		ABB1788D2A4787E2001A88A9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		ABB1788F2A4787E2001A88A9 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		ABB178922A4787E2001A88A9 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		ABB178952A4787E2001A88A9 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		ABB178972A4787E2001A88A9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		ABB1789C2A4787E2001A88A9 /* WikiTree Browser Extension (Preview).app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "WikiTree Browser Extension (Preview).app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		ABB1789C2A4787E2001A88A9 /* WikiTree Browser Extension Preview.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "WikiTree Browser Extension Preview.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		ABB1789E2A4787E2001A88A9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		ABB178A12A4787E2001A88A9 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		ABB178A32A4787E2001A88A9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		ABB178A42A4787E2001A88A9 /* WikiTree Browser Extension (Preview).entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "WikiTree Browser Extension (Preview).entitlements"; sourceTree = "<group>"; };
-		ABB178A92A4787E3001A88A9 /* WikiTree Browser Extension (Preview) Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "WikiTree Browser Extension (Preview) Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		ABB178A42A4787E2001A88A9 /* WikiTree Browser Extension Preview.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "WikiTree Browser Extension Preview.entitlements"; sourceTree = "<group>"; };
+		ABB178A92A4787E3001A88A9 /* WikiTree Browser Extension Preview Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "WikiTree Browser Extension Preview Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		ABB178AE2A4787E3001A88A9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		ABB178B32A4787E3001A88A9 /* WikiTree Browser Extension (Preview) Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "WikiTree Browser Extension (Preview) Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		ABB178B32A4787E3001A88A9 /* WikiTree Browser Extension Preview Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "WikiTree Browser Extension Preview Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		ABB178B82A4787E3001A88A9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		ABB178B92A4787E3001A88A9 /* WikiTree Browser Extension (Preview).entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "WikiTree Browser Extension (Preview).entitlements"; sourceTree = "<group>"; };
+		ABB178B92A4787E3001A88A9 /* WikiTree Browser Extension Preview.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "WikiTree Browser Extension Preview.entitlements"; sourceTree = "<group>"; };
 		ABB178D92A4787E5001A88A9 /* background.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = background.js; path = ../../../dist/background.js; sourceTree = "<group>"; };
 		ABB178DA2A4787E5001A88A9 /* images */ = {isa = PBXFileReference; lastKnownFileType = folder; name = images; path = ../../../dist/images; sourceTree = "<group>"; };
 		ABB178DB2A4787E5001A88A9 /* js */ = {isa = PBXFileReference; lastKnownFileType = folder; name = js; path = ../../../dist/js; sourceTree = "<group>"; };
@@ -207,10 +207,10 @@
 		ABB1788B2A4787E2001A88A9 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				ABB1788A2A4787E2001A88A9 /* WikiTree Browser Extension (Preview).app */,
-				ABB1789C2A4787E2001A88A9 /* WikiTree Browser Extension (Preview).app */,
-				ABB178A92A4787E3001A88A9 /* WikiTree Browser Extension (Preview) Extension.appex */,
-				ABB178B32A4787E3001A88A9 /* WikiTree Browser Extension (Preview) Extension.appex */,
+				ABB1788A2A4787E2001A88A9 /* WikiTree Browser Extension Preview.app */,
+				ABB1789C2A4787E2001A88A9 /* WikiTree Browser Extension Preview.app */,
+				ABB178A92A4787E3001A88A9 /* WikiTree Browser Extension Preview Extension.appex */,
+				ABB178B32A4787E3001A88A9 /* WikiTree Browser Extension Preview Extension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -233,7 +233,7 @@
 				ABB1789E2A4787E2001A88A9 /* AppDelegate.swift */,
 				ABB178A02A4787E2001A88A9 /* Main.storyboard */,
 				ABB178A32A4787E2001A88A9 /* Info.plist */,
-				ABB178A42A4787E2001A88A9 /* WikiTree Browser Extension (Preview).entitlements */,
+				ABB178A42A4787E2001A88A9 /* WikiTree Browser Extension Preview.entitlements */,
 			);
 			path = "macOS (App)";
 			sourceTree = "<group>";
@@ -250,7 +250,7 @@
 			isa = PBXGroup;
 			children = (
 				ABB178B82A4787E3001A88A9 /* Info.plist */,
-				ABB178B92A4787E3001A88A9 /* WikiTree Browser Extension (Preview).entitlements */,
+				ABB178B92A4787E3001A88A9 /* WikiTree Browser Extension Preview.entitlements */,
 			);
 			path = "macOS (Extension)";
 			sourceTree = "<group>";
@@ -276,9 +276,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		ABB178892A4787E2001A88A9 /* WikiTree Browser Extension (Preview) (iOS) */ = {
+		ABB178892A4787E2001A88A9 /* WikiTree Browser Extension Preview (iOS) */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = ABB178CE2A4787E3001A88A9 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension (Preview) (iOS)" */;
+			buildConfigurationList = ABB178CE2A4787E3001A88A9 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension Preview (iOS)" */;
 			buildPhases = (
 				ABB178862A4787E2001A88A9 /* Sources */,
 				ABB178872A4787E2001A88A9 /* Frameworks */,
@@ -290,14 +290,14 @@
 			dependencies = (
 				ABB178AC2A4787E3001A88A9 /* PBXTargetDependency */,
 			);
-			name = "WikiTree Browser Extension (Preview) (iOS)";
-			productName = "WikiTree Browser Extension (Preview) (iOS)";
-			productReference = ABB1788A2A4787E2001A88A9 /* WikiTree Browser Extension (Preview).app */;
+			name = "WikiTree Browser Extension Preview (iOS)";
+			productName = "WikiTree Browser Extension Preview (iOS)";
+			productReference = ABB1788A2A4787E2001A88A9 /* WikiTree Browser Extension Preview.app */;
 			productType = "com.apple.product-type.application";
 		};
-		ABB1789B2A4787E2001A88A9 /* WikiTree Browser Extension (Preview) (macOS) */ = {
+		ABB1789B2A4787E2001A88A9 /* WikiTree Browser Extension Preview (macOS) */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = ABB178D52A4787E3001A88A9 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension (Preview) (macOS)" */;
+			buildConfigurationList = ABB178D52A4787E3001A88A9 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension Preview (macOS)" */;
 			buildPhases = (
 				ABB178982A4787E2001A88A9 /* Sources */,
 				ABB178992A4787E2001A88A9 /* Frameworks */,
@@ -309,14 +309,14 @@
 			dependencies = (
 				ABB178B62A4787E3001A88A9 /* PBXTargetDependency */,
 			);
-			name = "WikiTree Browser Extension (Preview) (macOS)";
-			productName = "WikiTree Browser Extension (Preview) (macOS)";
-			productReference = ABB1789C2A4787E2001A88A9 /* WikiTree Browser Extension (Preview).app */;
+			name = "WikiTree Browser Extension Preview (macOS)";
+			productName = "WikiTree Browser Extension Preview (macOS)";
+			productReference = ABB1789C2A4787E2001A88A9 /* WikiTree Browser Extension Preview.app */;
 			productType = "com.apple.product-type.application";
 		};
-		ABB178A82A4787E3001A88A9 /* WikiTree Browser Extension (Preview) Extension (iOS) */ = {
+		ABB178A82A4787E3001A88A9 /* WikiTree Browser Extension Preview Extension (iOS) */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = ABB178CA2A4787E3001A88A9 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension (Preview) Extension (iOS)" */;
+			buildConfigurationList = ABB178CA2A4787E3001A88A9 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension Preview Extension (iOS)" */;
 			buildPhases = (
 				ABB178A52A4787E3001A88A9 /* Sources */,
 				ABB178A62A4787E3001A88A9 /* Frameworks */,
@@ -326,14 +326,14 @@
 			);
 			dependencies = (
 			);
-			name = "WikiTree Browser Extension (Preview) Extension (iOS)";
-			productName = "WikiTree Browser Extension (Preview) Extension (iOS)";
-			productReference = ABB178A92A4787E3001A88A9 /* WikiTree Browser Extension (Preview) Extension.appex */;
+			name = "WikiTree Browser Extension Preview Extension (iOS)";
+			productName = "WikiTree Browser Extension Preview Extension (iOS)";
+			productReference = ABB178A92A4787E3001A88A9 /* WikiTree Browser Extension Preview Extension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
-		ABB178B22A4787E3001A88A9 /* WikiTree Browser Extension (Preview) Extension (macOS) */ = {
+		ABB178B22A4787E3001A88A9 /* WikiTree Browser Extension Preview Extension (macOS) */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = ABB178D12A4787E3001A88A9 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension (Preview) Extension (macOS)" */;
+			buildConfigurationList = ABB178D12A4787E3001A88A9 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension Preview Extension (macOS)" */;
 			buildPhases = (
 				ABB178AF2A4787E3001A88A9 /* Sources */,
 				ABB178B02A4787E3001A88A9 /* Frameworks */,
@@ -343,9 +343,9 @@
 			);
 			dependencies = (
 			);
-			name = "WikiTree Browser Extension (Preview) Extension (macOS)";
-			productName = "WikiTree Browser Extension (Preview) Extension (macOS)";
-			productReference = ABB178B32A4787E3001A88A9 /* WikiTree Browser Extension (Preview) Extension.appex */;
+			name = "WikiTree Browser Extension Preview Extension (macOS)";
+			productName = "WikiTree Browser Extension Preview Extension (macOS)";
+			productReference = ABB178B32A4787E3001A88A9 /* WikiTree Browser Extension Preview Extension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
@@ -372,7 +372,7 @@
 					};
 				};
 			};
-			buildConfigurationList = ABB1787A2A4787C1001A88A9 /* Build configuration list for PBXProject "WikiTree Browser Extension (Preview)" */;
+			buildConfigurationList = ABB1787A2A4787C1001A88A9 /* Build configuration list for PBXProject "WikiTree Browser Extension Preview" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -385,10 +385,10 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				ABB178892A4787E2001A88A9 /* WikiTree Browser Extension (Preview) (iOS) */,
-				ABB1789B2A4787E2001A88A9 /* WikiTree Browser Extension (Preview) (macOS) */,
-				ABB178A82A4787E3001A88A9 /* WikiTree Browser Extension (Preview) Extension (iOS) */,
-				ABB178B22A4787E3001A88A9 /* WikiTree Browser Extension (Preview) Extension (macOS) */,
+				ABB178892A4787E2001A88A9 /* WikiTree Browser Extension Preview (iOS) */,
+				ABB1789B2A4787E2001A88A9 /* WikiTree Browser Extension Preview (macOS) */,
+				ABB178A82A4787E3001A88A9 /* WikiTree Browser Extension Preview Extension (iOS) */,
+				ABB178B22A4787E3001A88A9 /* WikiTree Browser Extension Preview Extension (macOS) */,
 			);
 		};
 /* End PBXProject section */
@@ -498,12 +498,12 @@
 /* Begin PBXTargetDependency section */
 		ABB178AC2A4787E3001A88A9 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = ABB178A82A4787E3001A88A9 /* WikiTree Browser Extension (Preview) Extension (iOS) */;
+			target = ABB178A82A4787E3001A88A9 /* WikiTree Browser Extension Preview Extension (iOS) */;
 			targetProxy = ABB178AB2A4787E3001A88A9 /* PBXContainerItemProxy */;
 		};
 		ABB178B62A4787E3001A88A9 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = ABB178B22A4787E3001A88A9 /* WikiTree Browser Extension (Preview) Extension (macOS) */;
+			target = ABB178B22A4787E3001A88A9 /* WikiTree Browser Extension Preview Extension (macOS) */;
 			targetProxy = ABB178B52A4787E3001A88A9 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -656,12 +656,13 @@
 		ABB178CB2A4787E3001A88A9 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = G22D2T42PF;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension (Preview) Extension";
+				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension Preview Extension";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -675,7 +676,8 @@
 					SafariServices,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.WikiTree.WikiTree-Browser-Extension-Preview.Extension";
-				PRODUCT_NAME = "WikiTree Browser Extension (Preview) Extension";
+				PRODUCT_NAME = "WikiTree Browser Extension Preview Extension";
+				PROVISIONING_PROFILE_SPECIFIER = "WBE Preview Extension (iOS)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -687,12 +689,13 @@
 		ABB178CC2A4787E3001A88A9 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = G22D2T42PF;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension (Preview) Extension";
+				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension Preview Extension";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -706,7 +709,8 @@
 					SafariServices,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.WikiTree.WikiTree-Browser-Extension-Preview.Extension";
-				PRODUCT_NAME = "WikiTree Browser Extension (Preview) Extension";
+				PRODUCT_NAME = "WikiTree Browser Extension Preview Extension";
+				PROVISIONING_PROFILE_SPECIFIER = "WBE Preview Extension (iOS)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -722,12 +726,13 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = G22D2T42PF;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (App)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension (Preview)";
+				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension Preview";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -747,7 +752,8 @@
 					WebKit,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.WikiTree.WikiTree-Browser-Extension-Preview";
-				PRODUCT_NAME = "WikiTree Browser Extension (Preview)";
+				PRODUCT_NAME = "WikiTree Browser Extension Preview";
+				PROVISIONING_PROFILE_SPECIFIER = "WBE Preview App (iOS)";
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -761,12 +767,13 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = G22D2T42PF;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (App)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension (Preview)";
+				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension Preview";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -786,7 +793,8 @@
 					WebKit,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.WikiTree.WikiTree-Browser-Extension-Preview";
-				PRODUCT_NAME = "WikiTree Browser Extension (Preview)";
+				PRODUCT_NAME = "WikiTree Browser Extension Preview";
+				PROVISIONING_PROFILE_SPECIFIER = "WBE Preview App (iOS)";
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -798,14 +806,15 @@
 		ABB178D22A4787E3001A88A9 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = "macOS (Extension)/WikiTree Browser Extension (Preview).entitlements";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = "macOS (Extension)/WikiTree Browser Extension Preview.entitlements";
+				CODE_SIGN_IDENTITY = "3rd Party Mac Developer Application";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = G22D2T42PF;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "macOS (Extension)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension (Preview) Extension";
+				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension Preview Extension";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -819,7 +828,8 @@
 					SafariServices,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.WikiTree.WikiTree-Browser-Extension-Preview.Extension";
-				PRODUCT_NAME = "WikiTree Browser Extension (Preview) Extension";
+				PRODUCT_NAME = "WikiTree Browser Extension Preview Extension";
+				PROVISIONING_PROFILE_SPECIFIER = "WBE Preview Extension (macOS)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -830,14 +840,15 @@
 		ABB178D32A4787E3001A88A9 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = "macOS (Extension)/WikiTree Browser Extension (Preview).entitlements";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = "macOS (Extension)/WikiTree Browser Extension Preview.entitlements";
+				CODE_SIGN_IDENTITY = "3rd Party Mac Developer Application";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = G22D2T42PF;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "macOS (Extension)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension (Preview) Extension";
+				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension Preview Extension";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -851,7 +862,8 @@
 					SafariServices,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.WikiTree.WikiTree-Browser-Extension-Preview.Extension";
-				PRODUCT_NAME = "WikiTree Browser Extension (Preview) Extension";
+				PRODUCT_NAME = "WikiTree Browser Extension Preview Extension";
+				PROVISIONING_PROFILE_SPECIFIER = "WBE Preview Extension (macOS)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -865,14 +877,15 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "macOS (App)/WikiTree Browser Extension (Preview).entitlements";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = "macOS (App)/WikiTree Browser Extension Preview.entitlements";
+				CODE_SIGN_IDENTITY = "3rd Party Mac Developer Application";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = G22D2T42PF;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "macOS (App)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension (Preview)";
+				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension Preview";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSMainStoryboardFile = Main;
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -889,7 +902,8 @@
 					WebKit,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.WikiTree.WikiTree-Browser-Extension-Preview";
-				PRODUCT_NAME = "WikiTree Browser Extension (Preview)";
+				PRODUCT_NAME = "WikiTree Browser Extension Preview";
+				PROVISIONING_PROFILE_SPECIFIER = "WBE Preview App (macOS)";
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -902,14 +916,15 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "macOS (App)/WikiTree Browser Extension (Preview).entitlements";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = "macOS (App)/WikiTree Browser Extension Preview.entitlements";
+				CODE_SIGN_IDENTITY = "3rd Party Mac Developer Application";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = G22D2T42PF;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "macOS (App)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension (Preview)";
+				INFOPLIST_KEY_CFBundleDisplayName = "WikiTree Browser Extension Preview";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSMainStoryboardFile = Main;
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -926,7 +941,8 @@
 					WebKit,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.WikiTree.WikiTree-Browser-Extension-Preview";
-				PRODUCT_NAME = "WikiTree Browser Extension (Preview)";
+				PRODUCT_NAME = "WikiTree Browser Extension Preview";
+				PROVISIONING_PROFILE_SPECIFIER = "WBE Preview App (macOS)";
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -936,7 +952,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		ABB1787A2A4787C1001A88A9 /* Build configuration list for PBXProject "WikiTree Browser Extension (Preview)" */ = {
+		ABB1787A2A4787C1001A88A9 /* Build configuration list for PBXProject "WikiTree Browser Extension Preview" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				ABB178C82A4787E3001A88A9 /* Debug */,
@@ -945,7 +961,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		ABB178CA2A4787E3001A88A9 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension (Preview) Extension (iOS)" */ = {
+		ABB178CA2A4787E3001A88A9 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension Preview Extension (iOS)" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				ABB178CB2A4787E3001A88A9 /* Debug */,
@@ -954,7 +970,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		ABB178CE2A4787E3001A88A9 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension (Preview) (iOS)" */ = {
+		ABB178CE2A4787E3001A88A9 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension Preview (iOS)" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				ABB178CF2A4787E3001A88A9 /* Debug */,
@@ -963,7 +979,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		ABB178D12A4787E3001A88A9 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension (Preview) Extension (macOS)" */ = {
+		ABB178D12A4787E3001A88A9 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension Preview Extension (macOS)" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				ABB178D22A4787E3001A88A9 /* Debug */,
@@ -972,7 +988,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		ABB178D52A4787E3001A88A9 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension (Preview) (macOS)" */ = {
+		ABB178D52A4787E3001A88A9 /* Build configuration list for PBXNativeTarget "WikiTree Browser Extension Preview (macOS)" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				ABB178D62A4787E3001A88A9 /* Debug */,
