@@ -16,7 +16,7 @@ import SafariServices
 typealias PlatformViewController = NSViewController
 #endif
 
-let extensionBundleIdentifier = "com.wikitree.WikiTree-Browser-Extension--Preview-.Extension"
+let extensionBundleIdentifier = "com.WikiTree.WikiTree-Browser-Extension-Preview.Extension"
 
 class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMessageHandler {
 

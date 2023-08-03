@@ -6,9 +6,11 @@
 
 ## Installation for end users
 
-- [Firefox](https://addons.mozilla.org/en-US/firefox/addon/wikitree-browser-extension/)
+The latest version can be downloaded from your browser's app store:
+
 - [Chrome](https://chrome.google.com/webstore/detail/wikitree-browser-extensio/ncjafpiokcjepnnlmgdaphkkjehapbln)
-- For Safari (Mac only) — from the Apple App Store
+- [Firefox](https://addons.mozilla.org/en-US/firefox/addon/wikitree-browser-extension/)
+- [Safari](https://apps.apple.com/us/app/wikitree-browser-extension/id6447643999) (iOS and Mac)
 
 ## Installation for testers
 
