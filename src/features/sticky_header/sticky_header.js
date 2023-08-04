@@ -4,6 +4,7 @@ Created By: Jonathan Duke (Duke-5773)
 
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { isAppsDomain, isAppsPage } from "../../core/pageType";
 
 async function initStickyHeader() {
   let headerHeight = $("#header, .qa-header").first().css("height");
@@ -39,7 +40,7 @@ async function initStickyHeader() {
 }
 
 shouldInitializeFeature("stickyHeader").then((result) => {
-  if (result) {
+  if (result && !isAppsDomain && !isAppsPage) {
     import("./sticky_header.css");
     // wait a second for other items to adjust the page layout
     window.setTimeout(initStickyHeader, 1000);

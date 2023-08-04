@@ -108,6 +108,8 @@ export let isDNADescendants = false;
 export let isSpecialWatchedList = false;
 // G2G
 export let isG2G = false;
+// Apps page
+export let isAppsPage = false;
 // Special:SearchPerson
 export let isSearchPage = false;
 // Special:Connection
@@ -339,6 +341,9 @@ if (domain.match("apps.wikitree.com")) {
   } else if (uri.match(/\/treewidget\/.*?\/890/g)) {
     // DNADescendantsPage
     isDNADescendants = true;
+  } else if (uri.match(/\/apps\//)) {
+    // Is an apps page (hosted on WikiTree in the /apps/ folder like Tree Apps)
+    isAppsPage = true;
   } else {
     // Unknown page
     console.log(uri);

@@ -3,6 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 import $ from "jquery";
 import "./table_filters.css";
+import { getYYYYMMDD } from "../auto_bio/auto_bio";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 /**
@@ -129,14 +130,18 @@ export function addFiltersToWikitables(aTable = null) {
           const cell = row.children[columnIndex];
           const cellText = cell.textContent.toLowerCase();
 
+          // Match the date at the start of the string. The date can be preceded by 'bef', 'aft', or 'abt' and can contain a day, month, and year, a month and year, or just a year.
+          const birthYearMatch = cell.textContent.match(/\d{4}/);
+          let birthYear = birthYearMatch ? birthYearMatch : "";
+
           if (text.startsWith(">")) {
-            const num = parseFloat(text.slice(1));
-            if (!isNaN(num) && parseFloat(cellText) <= num) {
+            const num = parseFloat(text.slice(1).replace(/-/g, ""));
+            if (!isNaN(num) && (parseFloat(cellText) <= num || (birthYear && birthYear <= num))) {
               displayRow = false;
             }
           } else if (text.startsWith("<")) {
             const num = parseFloat(text.slice(1));
-            if (!isNaN(num) && parseFloat(cellText) >= num) {
+            if (!isNaN(num) && (parseFloat(cellText) >= num || (birthYear && birthYear >= num))) {
               displayRow = false;
             }
           } else if (!cellText.includes(text)) {
@@ -276,6 +281,17 @@ function addSortToTables() {
           }
           if (matchB && matchB[0]) {
             cellBContent = matchB[0];
+          }
+
+          // If the cell content matches the pattern of a date, treat it as a date for sorting
+          const birthDateMatchA = cellAContent.match(/\b((?:abt|aft|bef)? ?(?:\d{1,2} \w+ )?\d{4})/);
+          const birthDateMatchB = cellBContent.match(/\b((?:abt|aft|bef)? ?(?:\d{1,2} \w+ )?\d{4})/);
+
+          if (birthDateMatchA && birthDateMatchA[1]) {
+            cellAContent = getYYYYMMDD(birthDateMatchA[1]);
+          }
+          if (birthDateMatchB && birthDateMatchB[1]) {
+            cellBContent = getYYYYMMDD(birthDateMatchB[1]);
           }
 
           const cellA = isNaN(Number(cellAContent)) ? cellAContent : Number(cellAContent);

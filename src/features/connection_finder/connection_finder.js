@@ -669,6 +669,7 @@ function hsDetails(person, includeLink = 0) {
 async function reduceRelWords(oWords, xWords = 0) {
   let changed = false;
   let oWordMatch;
+
   if (xWords == 0) {
     window.relWords.forEach(function (rWord, i) {
       if (i > 0) {
@@ -684,21 +685,23 @@ async function reduceRelWords(oWords, xWords = 0) {
     });
   } else if (xWords != 0) {
     window.relWords.forEach(function (rWord, i) {
-      if (i > 0) {
+      if (i > 1) {
         oWordMatch = new RegExp(oWords);
         const xWordMatch = new RegExp(xWords);
-        if (window.relWords[i - 1][0].match(xWordMatch) != null) {
+        const prevWordMatch = new RegExp(window.relWords[i - 1][0]);
+        if (window.relWords[i - 2][0].match(prevWordMatch) != null) {
           if (rWord[0].match(oWordMatch)) {
             rWord[1] = window.relWords[i - 1][1] + rWord[1];
-            if ("father".match(xWordMatch) != null) {
+            if (rWord[0] == "brother" || rWord[0] == "sister") {
+              rWord[0] = "half-" + rWord[0];
+            } else if ("father".match(xWordMatch) != null || "mother".match(xWordMatch) != null) {
               if (rWord[0] == "brother") {
                 rWord[0] = "uncle";
               }
               if (rWord[0] == "sister") {
                 rWord[0] = "aunt";
               }
-            }
-            if ("son".match(xWordMatch) != null) {
+            } else if ("son".match(xWordMatch) != null || "daughter".match(xWordMatch) != null) {
               if (rWord[0] == "brother") {
                 rWord[0] = "nephew";
               }
@@ -706,13 +709,14 @@ async function reduceRelWords(oWords, xWords = 0) {
                 rWord[0] = "niece";
               }
             }
-            window.relWords.splice(i - 1, 1);
+            window.relWords.splice(i - 2, 1);
             changed = true;
           }
         }
       }
     });
   }
+
   if (changed == true) {
     reduceRelWords(oWords, xWords);
   }
@@ -899,7 +903,6 @@ function connectionFinderTable() {
                 addAPrivate(privateMatch);
               }
               let mPerson = aPerson.person;
-              console.log(mPerson);
               if (!mPerson.Name) {
                 const oPerson = $("#connectionList li").eq(index);
                 const thisLink = oPerson.find("a");
