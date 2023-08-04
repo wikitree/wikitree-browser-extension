@@ -283,6 +283,17 @@ function addSortToTables() {
             cellBContent = matchB[0];
           }
 
+          // If the cell content matches the pattern of a date, treat it as a date for sorting
+          const birthDateMatchA = cellAContent.match(/\b((?:abt|aft|bef)? ?(?:\d{1,2} \w+ )?\d{4})/);
+          const birthDateMatchB = cellBContent.match(/\b((?:abt|aft|bef)? ?(?:\d{1,2} \w+ )?\d{4})/);
+
+          if (birthDateMatchA && birthDateMatchA[1]) {
+            cellAContent = getYYYYMMDD(birthDateMatchA[1]);
+          }
+          if (birthDateMatchB && birthDateMatchB[1]) {
+            cellBContent = getYYYYMMDD(birthDateMatchB[1]);
+          }
+
           const cellA = isNaN(Number(cellAContent)) ? cellAContent : Number(cellAContent);
           const cellB = isNaN(Number(cellBContent)) ? cellBContent : Number(cellBContent);
 
