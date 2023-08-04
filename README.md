@@ -4,6 +4,14 @@
 [![preview-release](https://img.shields.io/chrome-web-store/v/ijipjpbjobecdgkkjdfpemcidfdmnkid?logo=Google%20Chrome&logoColor=%23aaa)](https://chrome.google.com/webstore/detail/wikitree-browser-extensio/ijipjpbjobecdgkkjdfpemcidfdmnkid)
 [![stable-release](https://img.shields.io/chrome-web-store/v/ncjafpiokcjepnnlmgdaphkkjehapbln?logo=Google%20Chrome&logoColor=%23aaa)](https://chrome.google.com/webstore/detail/wikitree-browser-extensio/ncjafpiokcjepnnlmgdaphkkjehapbln)
 
+## Installation for end users
+
+The latest version can be downloaded from your browser's app store:
+
+- [Chrome](https://chrome.google.com/webstore/detail/wikitree-browser-extensio/ncjafpiokcjepnnlmgdaphkkjehapbln)
+- [Firefox](https://addons.mozilla.org/en-US/firefox/addon/wikitree-browser-extension/)
+- [Safari](https://apps.apple.com/us/app/wikitree-browser-extension/id6447643999) (iOS and Mac)
+
 ## Installation for testers
 
 To test the extension you can:

@@ -1,11 +1,7 @@
 name: "Build and release"
 
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - development
-      - 1.8 # increment for each major build
+  workflow_dispatch: # run manually only
 
 jobs:
   latest-release:
@@ -21,7 +17,10 @@ jobs:
           echo "X_RELEASE_TAG=${{ github.ref_name == 'development' && 'preview' || startsWith(github.ref_name, '1.') && 'stable' || github.ref_name }}" >> $GITHUB_ENV
           grep -Eo 'version.*\.\d+' src/manifest/manifest-chrome.json > ver.tmp
           sed -E 's/[^0-9]*([0-9.]+).*/X_VERSION=\1/' ver.tmp >> $GITHUB_ENV
+          # Safari can only use the first 3 digits; we'll trim to 2 if the last digit is 0
           sed -E 's/[^0-9]*([0-9]+\.[0-9]+(\.[1-9][0-9]*)?).*/X_SAFARI_VERSION=\1/' ver.tmp >> $GITHUB_ENV
+          # build number is the number of seconds since 2023-08-01 UTC
+          echo "X_SAFARI_BUILD=$((`date -u +%s`-1690848000))" >> $GITHUB_ENV
       - name: Setup Node.js
         uses: actions/setup-node@v2
         with:
@@ -41,60 +40,82 @@ jobs:
           cd ..
       - name: Prepare Xcode environment
         env:
-          X_SAFARI_FOLDER: ${{ env.X_RELEASE_TAG == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension (Preview)' }}
-          X_SAFARI_PROJECT: xcode/${{ env.X_RELEASE_TAG == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension (Preview)' }}/${{ env.X_RELEASE_TAG == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension (Preview)' }}.xcodeproj
+          X_SAFARI_NAME: ${{ env.X_RELEASE_TAG == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension Preview' }}
+          X_SAFARI_PROJECT: xcode/${{ env.X_RELEASE_TAG == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension Preview' }}/${{ env.X_RELEASE_TAG == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension Preview' }}.xcodeproj
         run: |
-          echo "X_SAFARI_FOLDER=${{ env.X_SAFARI_FOLDER }}" >> $GITHUB_ENV
+          echo "X_SAFARI_NAME=${{ env.X_SAFARI_NAME }}" >> $GITHUB_ENV
           echo "X_SAFARI_PROJECT=${{ env.X_SAFARI_PROJECT }}" >> $GITHUB_ENV
-          echo "X_SAFARI_CAN_SIGN=${{ secrets.BUILD_CERTIFICATE_BASE64 != '' && 'true' || 'false' }}" >> $GITHUB_ENV
           mv -f "${{ env.X_SAFARI_PROJECT }}/project.pbxproj" "${{ env.X_SAFARI_PROJECT }}/project.pbxproj.tmp"
           sed -E 's/MARKETING_VERSION[ ]*=[ ]*[0-9.]+/MARKETING_VERSION = ${{ env.X_SAFARI_VERSION }}/Ig' "${{ env.X_SAFARI_PROJECT }}/project.pbxproj.tmp" > "${{ env.X_SAFARI_PROJECT }}/project.pbxproj"
-      - name: Install the Apple certificate and provisioning profile
-        if: env.X_SAFARI_CAN_SIGN == 'true'
+          mv -f "${{ env.X_SAFARI_PROJECT }}/project.pbxproj" "${{ env.X_SAFARI_PROJECT }}/project.pbxproj.tmp"
+          sed -E 's/CURRENT_PROJECT_VERSION[ ]*=[ ]*[0-9.]+/CURRENT_PROJECT_VERSION = ${{ env.X_SAFARI_BUILD }}/Ig' "${{ env.X_SAFARI_PROJECT }}/project.pbxproj.tmp" > "${{ env.X_SAFARI_PROJECT }}/project.pbxproj"
+      - name: Install the Apple certificates and provisioning profiles
+        if: vars.APPLE_SIGNING_ENABLED == 'true'
         env:
-          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_DISTRIBUTION: ${{ secrets.P12_DISTRIBUTION }}
+          P12_INSTALLATION: ${{ secrets.P12_INSTALLATION }}
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-          BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+          PROVISIONING_APP_IOS: ${{ env.X_RELEASE_TAG == 'stable' && secrets.PROVISIONING_STABLE_APP_IOS || secrets.PROVISIONING_PREVIEW_APP_IOS }}
+          PROVISIONING_APP_MACOS: ${{ env.X_RELEASE_TAG == 'stable' && secrets.PROVISIONING_STABLE_APP_MACOS || secrets.PROVISIONING_PREVIEW_APP_MACOS }}
+          PROVISIONING_EXT_IOS: ${{ env.X_RELEASE_TAG == 'stable' && secrets.PROVISIONING_STABLE_EXT_IOS || secrets.PROVISIONING_PREVIEW_EXT_IOS }}
+          PROVISIONING_EXT_MACOS: ${{ env.X_RELEASE_TAG == 'stable' && secrets.PROVISIONING_STABLE_EXT_MACOS || secrets.PROVISIONING_PREVIEW_EXT_MACOS }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          # create variables
-          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-          PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
+          # create variables for temporary files
+          DIST_CERT_PATH=$RUNNER_TEMP/dist_certificate.p12
+          INST_CERT_PATH=$RUNNER_TEMP/inst_certificate.p12
+          PP_APP_IOS_PATH=$RUNNER_TEMP/build_app_ios.mobileprovision
+          PP_APP_MACOS_PATH=$RUNNER_TEMP/build_app_macos.provisionprofile
+          PP_EXT_IOS_PATH=$RUNNER_TEMP/build_ext_ios.mobileprovision
+          PP_EXT_MACOS_PATH=$RUNNER_TEMP/build_ext_macos.provisionprofile
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
 
-          # import certificate and provisioning profile from secrets
-          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
-          echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
+          # import certificates and provisioning profiles from secrets
+          echo -n "$P12_DISTRIBUTION" | base64 --decode -o $DIST_CERT_PATH
+          echo -n "$P12_INSTALLATION" | base64 --decode -o $INST_CERT_PATH
+          echo -n "$PROVISIONING_APP_IOS" | base64 --decode -o $PP_APP_IOS_PATH
+          echo -n "$PROVISIONING_APP_MACOS" | base64 --decode -o $PP_APP_MACOS_PATH
+          echo -n "$PROVISIONING_EXT_IOS" | base64 --decode -o $PP_EXT_IOS_PATH
+          echo -n "$PROVISIONING_EXT_MACOS" | base64 --decode -o $PP_EXT_MACOS_PATH
 
           # create temporary keychain
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
 
-          # import certificate to keychain
-          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          # import certificates to keychain
+          security import $DIST_CERT_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security import $INST_CERT_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
 
-          # apply provisioning profile
+          # apply provisioning profiles
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles
-      - name: Build for Safari (iOS)
-        if: env.X_SAFARI_CAN_SIGN == 'true'
-        # using dist already built from Chrome
+          cp $PP_APP_IOS_PATH ~/Library/MobileDevice/Provisioning\ Profiles
+          cp $PP_APP_MACOS_PATH ~/Library/MobileDevice/Provisioning\ Profiles
+          cp $PP_EXT_IOS_PATH ~/Library/MobileDevice/Provisioning\ Profiles
+          cp $PP_EXT_MACOS_PATH ~/Library/MobileDevice/Provisioning\ Profiles
+      # Safari Versions use dist already built from Chrome
+      - name: Build signed version for Safari (iOS)
+        if: vars.APPLE_SIGNING_ENABLED == 'true'
         run: |
-          rm -rf xcode/*.xcarchive
-          xcodebuild clean archive -quiet -project "${{ env.X_SAFARI_PROJECT }}" -scheme "${{ env.X_SAFARI_FOLDER }} (iOS)" -configuration Release -destination generic/platform=iOS -archivePath xcode/output
-          cd xcode/output.xcarchive/Products/Applications
-          zip -r ../../../../dist-safari-ios.zip "${{ env.X_SAFARI_FOLDER }}.app"
-          cd ../../../..
-      - name: Build for Safari (macOS)
+          xcodebuild clean archive -quiet -project "${{ env.X_SAFARI_PROJECT }}" -scheme "${{ env.X_SAFARI_NAME }} (iOS)" -configuration Release -destination generic/platform=iOS -archivePath xcode/build-ios
+          xcodebuild -exportArchive -archivePath xcode/build-ios.xcarchive -exportPath xcode/build-ios.xcexport -exportOptionsPlist xcode/ExportOptions.${{ env.X_RELEASE_TAG == 'stable' && 'stable' || 'preview' }}.ios.plist
+          cp "xcode/build-ios.xcexport/${{ env.X_SAFARI_NAME }}.ipa" dist-safari-ios.ipa
+      - name: Build signed version for Safari (macOS)
+        if: vars.APPLE_SIGNING_ENABLED == 'true'
+        run: |
+          xcodebuild clean archive -quiet -project "${{ env.X_SAFARI_PROJECT }}" -scheme "${{ env.X_SAFARI_NAME }} (macOS)" -configuration Release -destination generic/platform=macOS -archivePath xcode/build-macos
+          xcodebuild -exportArchive -archivePath xcode/build-macos.xcarchive -exportPath xcode/build-macos.xcexport -exportOptionsPlist xcode/ExportOptions.${{ env.X_RELEASE_TAG == 'stable' && 'stable' || 'preview' }}.macos.plist
+          cp "xcode/build-macos.xcexport/${{ env.X_SAFARI_NAME }}.pkg" dist-safari-macos.pkg
+      # if signing is disabled or not configured, build the unsigned version for macOS only (iOS requires signing)
+      - name: Build unsigned version for Safari (macOS)
+        if: vars.APPLE_SIGNING_ENABLED != 'true'
         run: |
           mv -f "${{ env.X_SAFARI_PROJECT }}/project.pbxproj" "${{ env.X_SAFARI_PROJECT }}/project.pbxproj.tmp"
-          sed -E 's/(DEVELOPMENT_TEAM[ ]*=[ ]*.*;)/\/* \1 *\//Ig' "${{ env.X_SAFARI_PROJECT }}/project.pbxproj.tmp" > "${{ env.X_SAFARI_PROJECT }}/project.pbxproj"
-          rm -rf xcode/*.xcarchive
-          xcodebuild clean archive -quiet -project "${{ env.X_SAFARI_PROJECT }}" -scheme "${{ env.X_SAFARI_FOLDER }} (macOS)" -configuration Release -destination generic/platform=macOS -archivePath xcode/output
-          cd xcode/output.xcarchive/Products/Applications
-          zip -r ../../../../dist-safari-macos.zip "${{ env.X_SAFARI_FOLDER }}.app"
+          sed -E 's/((CODE_SIGN_IDENTITY|CODE_SIGN_STYLE|DEVELOPMENT_TEAM|PROVISIONING_PROFILE_SPECIFIER).*;)/\/* \1 *\//g' "${{ env.X_SAFARI_PROJECT }}/project.pbxproj.tmp" > "${{ env.X_SAFARI_PROJECT }}/project.pbxproj"
+          xcodebuild clean archive -quiet -project "${{ env.X_SAFARI_PROJECT }}" -scheme "${{ env.X_SAFARI_NAME }} (macOS)" -configuration Release -destination generic/platform=macOS -archivePath xcode/build-unsigned
+          cd xcode/build-unsigned.xcarchive/Products/Applications
+          zip -r ../../../../dist-safari-macos.zip "${{ env.X_SAFARI_NAME }}.app"
           cd ../../../..
       - name: Build for Firefox
         run: |
@@ -103,17 +124,36 @@ jobs:
           cd dist
           zip -r ../dist-firefox.zip *
           cd ..
+      - name: Upload packages to Apple
+        if: vars.APPLE_SIGNING_ENABLED == 'true' && vars.APPLE_UPLOADING_ENABLED == 'true'
+        env:
+          API_ISSUER_ID: ${{ secrets.API_ISSUER_ID }}
+          API_KEY_ID: ${{ secrets.API_KEY_ID }}
+          API_KEY_P8: ${{ secrets.API_KEY_P8 }}
+        run: |
+          mkdir private_keys
+          P8_PATH=private_keys/AuthKey_$API_KEY_ID.p8
+          echo -n "$API_KEY_P8" | base64 --decode -o $P8_PATH
+          xcrun altool --validate-app -f dist-safari-ios.ipa -t ios --apiKey $API_KEY_ID --apiIssuer $API_ISSUER_ID
+          xcrun altool --validate-app -f dist-safari-macos.pkg -t macos --apiKey $API_KEY_ID --apiIssuer $API_ISSUER_ID
+          # upload-app is deprecated for upload-package, so we need to update at some point
+          xcrun altool --upload-app -f dist-safari-ios.ipa -t ios --apiKey $API_KEY_ID --apiIssuer $API_ISSUER_ID
+          xcrun altool --upload-app -f dist-safari-macos.pkg -t macos --apiKey $API_KEY_ID --apiIssuer $API_ISSUER_ID
       - name: Rename release assets
         run: |
           mv dist-chrome.zip wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-chrome.zip
           mv dist-firefox.zip wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-firefox.zip
-          mv dist-safari-macos.zip wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-safari-macos.zip
-          [ ! -f dist-safari-ios.zip ] || mv dist-safari-ios.zip wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-safari-ios.zip
+          [ ! -f dist-safari-ios.ipa ] || mv dist-safari-ios.ipa wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-safari-ios.ipa
+          [ ! -f dist-safari-macos.pkg ] || mv dist-safari-macos.pkg wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-safari-macos.pkg
+          [ ! -f dist-safari-macos.zip ] || mv dist-safari-macos.zip wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-safari-macos.zip
       - name: Update release
         uses: "marvinpinto/action-automatic-releases@latest"
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           prerelease: ${{ env.X_RELEASE_TAG != 'stable' }}
-          files: wbe-*.zip
+          files: |
+            wbe-*.zip
+            wbe-*.ipa
+            wbe-*.pkg
           automatic_release_tag: "${{ (env.X_RELEASE_TAG == 'stable' || env.X_RELEASE_TAG == 'preview') && env.X_RELEASE_TAG || format('release-{0}', github.ref_name) }}"
           title: ${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}
