@@ -113,7 +113,7 @@ async function getFamily() {
   return;
 }
 
-function copyToClipboardAPI(text) {
+export function copyToClipboardAPI(text) {
   navigator.clipboard.writeText(text).then(
     function () {
       console.log("Copying to clipboard was successful!");

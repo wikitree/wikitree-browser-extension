@@ -23,6 +23,7 @@ import "./features/clipboard_and_notes/clipboard_and_notes";
 import "./features/collapsibleDescendantsTree/collapsibleDescendantsTree";
 import "./features/confirm_thank_yous/confirm_thank_yous";
 import "./features/connection_finder/connection_finder";
+import "./features/copy_previous_bio/copy_previous_bio";
 import "./features/distanceAndRelationship/distanceAndRelationship";
 import "./features/dna_table/dna_table";
 import "./features/extra_watchlist/extra_watchlist";
