@@ -5861,7 +5861,7 @@ export async function getONSstickers() {
 }
 
 export function addUnsourced(feature = "autoBio") {
-  if (!window.autoBioOptions.unsourced) {
+  if (!window.autoBioOptions?.unsourced || window.autoBioOptions?.unsourced == "false") {
     return;
   }
   let unsourcedOption;
@@ -6935,7 +6935,7 @@ export async function generateBio() {
     extensionNotes += "-->\n";
 
     // Add Unsourced template if there are no good sources
-    if (window.autoBioOptions?.unsourced) {
+    if (window.autoBioOptions?.unsourced && window.autoBioOptions?.unsourced != "false") {
       addUnsourced();
     }
 
@@ -7336,6 +7336,7 @@ shouldInitializeFeature("autoBio").then((result) => {
     import("./auto_bio.css");
     getFeatureOptions("autoBio").then((options) => {
       window.autoBioOptions = options;
+      console.log(window.autoBioOptions);
       window.boldBit = "";
       if (window.autoBioOptions?.boldNames) {
         window.boldBit = "'''";
