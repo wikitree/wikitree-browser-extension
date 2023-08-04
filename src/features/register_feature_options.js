@@ -59,6 +59,7 @@ import "./access_keys/access_keys_options";
 import "./categoryDisplay/categoryDisplay_options";
 import "./change_family_lists/change_family_lists_options";
 import "./connection_finder/connection_finder_options";
+import "./copy_previous_bio/copy_previous_bio_options";
 import "./custom_change_summary_options/custom_change_summary_options_options";
 import "./custom_style/custom_style_options";
 import "./darkMode/darkMode_options";
