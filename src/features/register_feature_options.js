@@ -240,6 +240,17 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Migration Category Helper",
+  id: "migrationCategoryHelper",
+  description: "Automatically populates migration categories when a new one is opened for editing.",
+  category: "Editing",
+  creators: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
+  contributors: [],
+  defaultValue: true,
+  pages: [isCategoryEdit],
+});
+
+registerFeature({
   name: "My Connections",
   id: "myConnections",
   description:
