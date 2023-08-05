@@ -143,13 +143,6 @@ export default [
         call: wtPlus,
         params: { action: "AutoUpdate" },
       },
-      {
-        featureid: "wtplus",
-        hint: "Creates migration category code based on the page title",
-        title: "Migration category",
-        call: wtPlus,
-        params: { action: "CreateMigrationCategory" },
-      },
     ],
   },
   {
