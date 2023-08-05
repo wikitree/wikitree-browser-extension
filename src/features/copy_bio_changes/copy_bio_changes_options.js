@@ -2,10 +2,11 @@ import { isProfileHistoryDetail } from "../../core/pageType";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 registerFeature({
-  name: "Copy Previous Bio",
-  id: "copyPreviousBio",
+  name: "Copy Bio Changes",
+  id: "copyBioChanges",
   description:
-    "Adds a button to a profile's Change Details page to copy the biography as it was before changes were made.",
+    "Adds buttons to a profile's Change Details page to copy the biography " +
+    "as it was before or after changes were made.",
   category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],

@@ -13,8 +13,16 @@ function appendCopyButton() {
   const copyPreBioChangesButton = $(
     '<button id="copyPreBioChangesButton" class="small" style="margin-left:1em;">Copy</button>'
   );
-  $("table.diff td.diff-lineno:contains('Bio Changes')").append(copyPreBioChangesButton);
-  copyPreBioChangesButton.on("click", copyPreviousBioBit);
+  const copyPostBioChangesButton = $(
+    '<button id="copyPostBioChangesButton" class="small" style="float:right;">Copy</button>'
+  );
+  $("table.diff td.diff-lineno:contains('Bio Changes')").append(copyPreBioChangesButton, copyPostBioChangesButton);
+  copyPreBioChangesButton.on("click", function () {
+    copyBioChangesBit("pre");
+  });
+  copyPostBioChangesButton.on("click", function () {
+    copyBioChangesBit("post");
+  });
 }
 
 /**
@@ -23,9 +31,10 @@ function appendCopyButton() {
  * It only copies the content from cells that have the classes "diff-context", "diff-deletedline", or "diff-addedline".
  * The copied content is then sent to the clipboard.
  */
-function copyPreviousBioBit() {
+function copyBioChangesBit(which) {
   const table = $("table.diff");
   const before = [];
+  const after = [];
   let start = false;
 
   table.find("tr").each(function () {
@@ -39,21 +48,34 @@ function copyPreviousBioBit() {
 
     if (start) {
       const cell2 = $(this).find("td").eq(1);
-
+      const cell3 = $(this).find("td").eq(2);
+      const cell4 = $(this).find("td").eq(3);
       if (cell2.hasClass("diff-context") || cell2.hasClass("diff-deletedline") || cell2.hasClass("diff-addedline")) {
-        before.push(cell2.text());
+        before.push(cell2.text().trim());
+      }
+      if (cell4.hasClass("diff-context") || cell4.hasClass("diff-deletedline") || cell4.hasClass("diff-addedline")) {
+        after.push(cell4.text().trim());
+      } else if (
+        cell3.hasClass("diff-context") ||
+        cell3.hasClass("diff-deletedline") ||
+        cell3.hasClass("diff-addedline")
+      ) {
+        after.push(cell3.text().trim());
       }
     }
   });
-
-  const textStr = before.join("\n");
-  copyToClipboardAPI(textStr);
-  showCopyMessage("Previous Bio");
+  let str = "";
+  if (which == "pre") {
+    str = before.join("\n");
+  } else {
+    str = after.join("\n");
+  }
+  copyToClipboardAPI(str);
+  showCopyMessage("Bio Changes" + (which == "pre" ? " (before)" : " (after)"));
 }
 
-shouldInitializeFeature("copyPreviousBio").then((result) => {
+shouldInitializeFeature("copyBioChanges").then((result) => {
   if (result) {
-    console.log("Copy Previous Bio Feature Enabled");
     appendCopyButton();
   }
 });
