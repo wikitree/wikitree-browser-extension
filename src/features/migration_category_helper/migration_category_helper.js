@@ -19,11 +19,39 @@ function CreateMigrationCategory(tb) {
   let countryTo = "";
   let entityTo = "";
 
+  if (cat.indexOf("Migrants") > -1) {
+    const indexTo = cat.indexOf(" to ");
+    const fromPart = cat.substring(0, indexTo);
+    const toPart = cat.substring(indexTo);
+    countryTo = getRightFromWord("to ", toPart);
+    entityTo = getRightFromWord("to ", toPart);
+    countryFrom = getRightFromWord("from ", fromPart);
+    entityFrom = getRightFromWord("from ", fromPart);
+  } else if (cat.indexOf("Emigrants") > -1) {
+    countryFrom = getLeftFromComma(cat);
+    entityFrom = getLeftFromComma(cat);
+
+    if (cat.indexOf(" to ") > -1) {
+      countryTo = getRightFromWord("to ", cat);
+      entityTo = getRightFromWord("to ", cat);
+    }
+  } else if (cat.indexOf("Immigrants") > -1) {
+    countryTo = getLeftFromComma(cat);
+    entityTo = getLeftFromComma(cat);
+    if (cat.indexOf(" from ") > -1) {
+      countryFrom = getRightFromWord("from ", cat);
+      entityFrom = getRightFromWord("from ", cat);
+    }
+  } else {
+    //no migration category
+    return;
+  }
+
   const entities = {
     "Holy Roman Empire": [],
     "German Empire": [] /* see below */,
     "German Confederation": [] /* see below */,
-    "Germany": [
+    Germany: [
       "Baden-Württemberg",
       "Bavaria",
       "Berlin",
@@ -104,9 +132,9 @@ function CreateMigrationCategory(tb) {
       "Wyoming",
     ],
 
-    "Australia": ["Western Australia", "South Australia", "Queensland", "New South Wales", "Victoria", "Tasmania"],
+    Australia: ["Western Australia", "South Australia", "Queensland", "New South Wales", "Victoria", "Tasmania"],
 
-    "England": [
+    England: [
       "Bedfordshire",
       "Berkshire",
       "Buckinghamshire",
@@ -150,7 +178,7 @@ function CreateMigrationCategory(tb) {
 
     "Austria-Hungary": ["Kingdom of Bohemia", "Kingdom of Galicia and Lodomeria", "Kingdom of Hungary"],
 
-    "Canada": [
+    Canada: [
       "Ontario",
       "Quebec",
       "Nova Scotia",
@@ -178,30 +206,6 @@ function CreateMigrationCategory(tb) {
       "Zeeland",
     ],
   };
-  if (cat.indexOf("Migrants") > -1) {
-    const indexTo = cat.indexOf(" to ");
-    const fromPart = cat.substring(0, indexTo);
-    const toPart = cat.substring(indexTo);
-    countryTo = getRightFromWord("to ", toPart);
-    entityTo = getRightFromWord("to ", toPart);
-    countryFrom = getRightFromWord("from ", fromPart);
-    entityFrom = getRightFromWord("from ", fromPart);
-  } else if (cat.indexOf("Emigrants") > -1) {
-    countryFrom = getLeftFromComma(cat);
-    entityFrom = getLeftFromComma(cat);
-
-    if (cat.indexOf(" to ") > -1) {
-      countryTo = getRightFromWord("to ", cat);
-      entityTo = getRightFromWord("to ", cat);
-    }
-  } else if (cat.indexOf("Immigrants") > -1) {
-    countryTo = getLeftFromComma(cat);
-    entityTo = getLeftFromComma(cat);
-    if (cat.indexOf(" from ") > -1) {
-      countryFrom = getRightFromWord("from ", cat);
-      entityFrom = getRightFromWord("from ", cat);
-    }
-  }
 
   countryTo = GetKnownCountry(entityTo, entities);
   entityTo = GetBlankEntityIfIsCountry(entityTo, entities);
