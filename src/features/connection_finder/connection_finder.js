@@ -666,9 +666,33 @@ function hsDetails(person, includeLink = 0) {
   return outText.replace("  ", " ").trim();
 }
 
+function markHalfSiblings(relations) {
+  const parentRelations = ["father", "mother"];
+  const siblingRelations = ["sister", "brother"];
+  const childRelations = ["son", "daughter"];
+
+  for (let i = 1; i < relations.length - 1; i++) {
+    if (
+      parentRelations.includes(relations[i - 1][0]) &&
+      siblingRelations.includes(relations[i][0]) &&
+      parentRelations.includes(relations[i + 1][0])
+    ) {
+      relations[i][0] = "half-" + relations[i][0];
+    } else if (
+      childRelations.includes(relations[i - 1][0]) &&
+      siblingRelations.includes(relations[i][0]) &&
+      childRelations.includes(relations[i + 1][0])
+    ) {
+      relations[i][0] = "half-" + relations[i][0];
+    }
+  }
+  return relations;
+}
+
 async function reduceRelWords(oWords, xWords = 0) {
   let changed = false;
   let oWordMatch;
+  window.relWords = markHalfSiblings(window.relWords);
 
   if (xWords == 0) {
     window.relWords.forEach(function (rWord, i) {
@@ -821,6 +845,8 @@ async function addConnectionText(num = 0) {
     }
   }
 
+  console.log(relMessage);
+
   $("tr#connectionsTableNotes td").prepend(
     $("<span id='theRelText' title='" + disTitle + "' data-relative-list='" + num + "'>" + relMessage + "</span>")
   );
@@ -893,7 +919,7 @@ function connectionFinderTable() {
             let relationshipColour = relationshipColours[relationshipColourNum];
 
             pNumber = 0;
-            const heritageSociety = [];
+            window.heritageSociety = [];
             thePeople.forEach(function (aPerson, index) {
               const privateMatch = connectionList
                 .eq(pNumber)
@@ -1098,130 +1124,11 @@ function connectionFinderTable() {
                   }
                 }
 
-                heritageSociety.push([mPerson, oSpouse]);
+                window.heritageSociety.push([mPerson, oSpouse]);
               }
               // end heritage society
             });
             window.peopleTablePeople = thePeople;
-
-            // Heritage Society Stuff (B)
-            if ($("span.familyCount2").length == 0) {
-              const hsText = [];
-              heritageSociety.forEach(function (aCouple, i) {
-                let oHSout = "";
-                let oText = [];
-
-                let pText = hsDetails(aCouple[0]);
-                oText.push(pText);
-                if ($.isEmptyObject(aCouple[1]) == false) {
-                  pText = hsDetails(aCouple[1]);
-
-                  $.ajax({
-                    url: "https://api.wikitree.com/api.php?action=getRelatives&getParents=true&keys=" + aCouple[1].Name,
-                    crossDomain: true,
-                    xhrFields: { withCredentials: true },
-                    type: "POST",
-                    dataType: "json",
-                    success: function (data) {
-                      const spPerson = data[0].items[0].person;
-                      let spF = false;
-                      let spM = false;
-                      let spPText = "";
-                      let spFather = {};
-                      let spMother = {};
-                      if (spPerson.Father != "0") {
-                        spFather = spPerson.Parents[spPerson.Father];
-                        spF = true;
-                      }
-                      if (spPerson.Mother != "0") {
-                        spMother = spPerson.Parents[spPerson.Mother];
-                        spM = true;
-                      }
-                      if (spF && spM) {
-                        spPText =
-                          (spFather.FirstName + " " + spFather.MiddleName).trim() +
-                          " and " +
-                          (spMother.FirstName + " " + spMother.MiddleName).trim() +
-                          " (" +
-                          spMother.LastNameAtBirth +
-                          ") " +
-                          spFather.LastNameCurrent;
-                      } else if (spF) {
-                        spPText =
-                          (spFather.FirstName + " " + spFather.MiddleName).trim() + " " + spFather.LastNameAtBirth;
-                      } else if (spM) {
-                        spPText =
-                          (spMother.FirstName + " " + spMother.MiddleName).trim() +
-                          " " +
-                          " (" +
-                          spMother.LastNameAtBirth +
-                          ") " +
-                          spMother.LastNameCurrent;
-                      }
-                      let anS = "";
-                      if (spPText != "") {
-                        if (spF && spM) {
-                          anS = "s";
-                        } else {
-                          anS = "";
-                        }
-                        spPText = "Parent" + anS + ": " + spPText;
-                      }
-                      if ($("#heritageSocietyTA").length) {
-                        const textLines = $("#heritageSocietyTA").val().split("\n");
-                        const newTextLines = [];
-                        textLines.forEach(function (aLine) {
-                          const fName = spPerson.FirstName;
-                          const lName = spPerson.LastNameAtBirth;
-                          const regEx = new RegExp(fName + ".*" + lName);
-
-                          if (aLine.match(regEx) != null) {
-                            aLine = aLine + " " + spPText;
-                          }
-
-                          newTextLines.push(aLine);
-                        });
-                        $("#heritageSocietyTA").val(newTextLines.join("\n"));
-                      }
-                    },
-                  });
-
-                  oText.push(pText);
-                  let mDate = "";
-                  if (aCouple[1].marriage_date) {
-                    mDate = hsDateFormat(aCouple[1].marriage_date);
-                  }
-                  let mLocation = "";
-                  if (aCouple[1].marriage_location == "") {
-                    mLocation = "";
-                  } else {
-                    mLocation = " in " + aCouple[1].marriage_location;
-                  }
-                  pText = "married " + mDate + mLocation;
-                  oText.push(pText.replace("  ", " ").replace("()", "").trim());
-                }
-
-                hsText.push(oText);
-              });
-
-              const hsTextDiv = $("<div id='heritageSociety'><textarea id='heritageSocietyTA'></textarea></div>");
-              hsTextDiv.insertAfter($("#connectionsTable"));
-              hsTextDiv.show();
-              let hsTextOut = "";
-              hsText.forEach(function (aText, i) {
-                hsTextOut += i + ". " + aText[0] + "\n";
-                if (isOK(aText[1])) {
-                  hsTextOut += "\t" + aText[2] + "\n";
-                }
-                if (isOK(aText[1])) {
-                  hsTextOut += "\t" + aText[1] + "\n";
-                }
-                hsTextOut += "\n";
-              });
-              $("#heritageSocietyTA").val(hsTextOut);
-            }
-            // end Heritage Society thing
-
             window.relWords = [];
             $("#connectionsTable td[data-relationship]").each(function () {
               const rWord = $(this).data("relationship").substring(4);
@@ -1325,6 +1232,7 @@ function connectionFinderTable() {
             $("img.familyHome").on("click", function () {
               showFamilySheet($(this), $(this).data("wtid"));
             });
+            showHeritageSocietyBox();
           }, // end success
         });
       }
@@ -1367,6 +1275,126 @@ function cfTimeline(jq) {
       timeline(ID);
     },
   });
+}
+
+function showHeritageSocietyBox() {
+  if (window.relWords.some((subArray) => subArray[0].startsWith("half"))) {
+    return;
+  }
+  if ($("span.familyCount2").length == 0) {
+    const hsText = [];
+    window.heritageSociety.forEach(function (aCouple, i) {
+      let oHSout = "";
+      let oText = [];
+
+      let pText = hsDetails(aCouple[0]);
+      oText.push(pText);
+      if ($.isEmptyObject(aCouple[1]) == false) {
+        pText = hsDetails(aCouple[1]);
+
+        $.ajax({
+          url: "https://api.wikitree.com/api.php?action=getRelatives&getParents=true&keys=" + aCouple[1].Name,
+          crossDomain: true,
+          xhrFields: { withCredentials: true },
+          type: "POST",
+          dataType: "json",
+          success: function (data) {
+            const spPerson = data[0].items[0].person;
+            let spF = false;
+            let spM = false;
+            let spPText = "";
+            let spFather = {};
+            let spMother = {};
+            if (spPerson.Father != "0") {
+              spFather = spPerson.Parents[spPerson.Father];
+              spF = true;
+            }
+            if (spPerson.Mother != "0") {
+              spMother = spPerson.Parents[spPerson.Mother];
+              spM = true;
+            }
+            if (spF && spM) {
+              spPText =
+                (spFather.FirstName + " " + spFather.MiddleName).trim() +
+                " and " +
+                (spMother.FirstName + " " + spMother.MiddleName).trim() +
+                " (" +
+                spMother.LastNameAtBirth +
+                ") " +
+                spFather.LastNameCurrent;
+            } else if (spF) {
+              spPText = (spFather.FirstName + " " + spFather.MiddleName).trim() + " " + spFather.LastNameAtBirth;
+            } else if (spM) {
+              spPText =
+                (spMother.FirstName + " " + spMother.MiddleName).trim() +
+                " " +
+                " (" +
+                spMother.LastNameAtBirth +
+                ") " +
+                spMother.LastNameCurrent;
+            }
+            let anS = "";
+            if (spPText != "") {
+              if (spF && spM) {
+                anS = "s";
+              } else {
+                anS = "";
+              }
+              spPText = "Parent" + anS + ": " + spPText;
+            }
+            if ($("#heritageSocietyTA").length) {
+              const textLines = $("#heritageSocietyTA").val().split("\n");
+              const newTextLines = [];
+              textLines.forEach(function (aLine) {
+                const fName = spPerson.FirstName;
+                const lName = spPerson.LastNameAtBirth;
+                const regEx = new RegExp(fName + ".*" + lName);
+
+                if (aLine.match(regEx) != null) {
+                  aLine = aLine + " " + spPText;
+                }
+
+                newTextLines.push(aLine);
+              });
+              $("#heritageSocietyTA").val(newTextLines.join("\n"));
+            }
+          },
+        });
+
+        oText.push(pText);
+        let mDate = "";
+        if (aCouple[1].marriage_date) {
+          mDate = hsDateFormat(aCouple[1].marriage_date);
+        }
+        let mLocation = "";
+        if (aCouple[1].marriage_location == "") {
+          mLocation = "";
+        } else {
+          mLocation = " in " + aCouple[1].marriage_location;
+        }
+        pText = "married " + mDate + mLocation;
+        oText.push(pText.replace("  ", " ").replace("()", "").trim());
+      }
+
+      hsText.push(oText);
+    });
+
+    const hsTextDiv = $("<div id='heritageSociety'><textarea id='heritageSocietyTA'></textarea></div>");
+    hsTextDiv.insertAfter($("#connectionsTable"));
+    hsTextDiv.show();
+    let hsTextOut = "";
+    hsText.forEach(function (aText, i) {
+      hsTextOut += i + ". " + aText[0] + "\n";
+      if (isOK(aText[1])) {
+        hsTextOut += "\t" + aText[2] + "\n";
+      }
+      if (isOK(aText[1])) {
+        hsTextOut += "\t" + aText[1] + "\n";
+      }
+      hsTextOut += "\n";
+    });
+    $("#heritageSocietyTA").val(hsTextOut);
+  }
 }
 
 function excelOut() {
