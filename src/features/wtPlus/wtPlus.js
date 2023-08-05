@@ -974,17 +974,17 @@ function onDlgSelectCIBBtn(update) {
 }
 
 function CreateMigrationCategory() {
-  var title = window.document.title;
+  const title = window.document.title;
 
-  var indexCategory = title.indexOf("Category:") + "Category:".length;
-  var cat = title.substring(indexCategory);
+  const indexCategory = title.indexOf("Category:") + "Category:".length;
+  const cat = title.substring(indexCategory);
 
-  var countryFrom = "";
-  var entityFrom = "";
-  var countryTo = "";
-  var entityTo = "";
+  let countryFrom = "";
+  let entityFrom = "";
+  let countryTo = "";
+  let entityTo = "";
 
-  var entities = {
+  const entities = {
     "Holy Roman Empire": [],
     "German Empire": [] /* see below */,
     "German Confederation": [] /* see below */,
@@ -1144,9 +1144,9 @@ function CreateMigrationCategory() {
     ],
   };
   if (cat.indexOf("Migrants") > -1) {
-    var indexTo = cat.indexOf(" to ");
-    var fromPart = cat.substring(0, indexTo);
-    var toPart = cat.substring(indexTo);
+    const indexTo = cat.indexOf(" to ");
+    const fromPart = cat.substring(0, indexTo);
+    const toPart = cat.substring(indexTo);
     countryTo = getRightFromWord("to ", toPart);
     entityTo = getRightFromWord("to ", toPart);
     countryFrom = getRightFromWord("from ", fromPart);
@@ -1195,12 +1195,12 @@ function CreateMigrationCategory() {
   void 0;
 }
 function getLeftFromComma(cat) {
-  var indexComma = cat.indexOf(",");
+  const indexComma = cat.indexOf(",");
   return cat.substring(0, indexComma).trim();
 }
 
 function getRightFromWord(word, cat) {
-  var indexWord = cat.indexOf(word) + word.length;
+  const indexWord = cat.indexOf(word) + word.length;
   return cat.substring(indexWord).trim();
 }
 
