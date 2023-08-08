@@ -833,13 +833,13 @@ function childList(person, spouse) {
     known = "known ";
   }
 
-  if (ourChildren.length == 0) {
+  if (ourChildren?.length == 0) {
     return "";
-  } else if (ourChildren.length == 1) {
+  } else if (ourChildren?.length == 1) {
     let childWord = "child";
-    if (ourChildren[0].Gender) {
-      if (ourChildren[0].Gender == "Male") childWord = "son";
-      else if (ourChildren[0].Gender == "Female") childWord = "daughter";
+    if (ourChildren[0]?.Gender) {
+      if (ourChildren[0]?.Gender == "Male") childWord = "son";
+      else if (ourChildren[0]?.Gender == "Female") childWord = "daughter";
     }
     text += (possessive || "Their") + " " + other + known + childWord + " was ";
   } else {
@@ -847,7 +847,7 @@ function childList(person, spouse) {
   }
   let childListText = "";
   //  || spouse == false
-  if (ourChildren.length == 1) {
+  if (ourChildren?.length == 1) {
     if (ourChildren[0].Father == spouse.Id || ourChildren[0].Mother == spouse.Id) {
       const theDates = personDates(ourChildren[0]).replace(/(in|on)\s/g, "");
       const status = getStatus(ourChildren[0]);
@@ -876,7 +876,7 @@ function childList(person, spouse) {
   childListText = childListText.trim();
 
   text += childListText;
-  if (ourChildren.length != 1) {
+  if (ourChildren?.length != 1) {
     text = text.replace(/\s\.$/, "");
   } else {
     text = text.replace(/\s\.$/, ".");
@@ -894,8 +894,8 @@ export function siblingList() {
       siblings.push(sibling);
     });
   }
-  if (siblings.length > 0) {
-    if (siblings.length == 1) {
+  if (siblings?.length > 0) {
+    if (siblings?.length == 1) {
       text +=
         window.profilePerson.PersonName.FirstName +
         " had a " +
@@ -905,7 +905,7 @@ export function siblingList() {
         " " +
         personDates(siblings[0]).replace(/(in|on)\s/g, "") +
         ".\n";
-    } else if (siblings.length > 1) {
+    } else if (siblings?.length > 1) {
       text += capitalizeFirstLetter(window.profilePerson.Pronouns.possessiveAdjective) + " siblings were:\n";
       siblings.sort((a, b) => a.OrderBirthDate.replaceAll(/-/g, "") - b.OrderBirthDate.replaceAll(/-/g, ""));
       siblings.forEach(function (sibling) {
@@ -1545,18 +1545,18 @@ export function getYYYYMMDD(dateString) {
       return null;
     }
     const dateParts = dateStr.split(" ");
-    if (dateParts.length === 3) {
+    if (dateParts?.length === 3) {
       const year = dateParts[2];
       const month = getMonthNumber(dateParts[1]);
       const day = `0${dateParts[0]}`.slice(-2);
       return `${year}-${month}-${day}`;
-    } else if (dateParts.length == 2) {
+    } else if (dateParts?.length == 2) {
       if (dateParts[0].match(/\w/)) {
         const year = dateParts[1];
         const month = getMonthNumber(dateParts[0].slice(0, 3));
         return `${year}-${month}-15`;
       }
-    } else if (dateParts.length === 1 && dateParts[0].length === 4) {
+    } else if (dateParts?.length === 1 && dateParts[0]?.length === 4) {
       const year = dateParts[0];
       return `${year}-07-02`;
     } else {
@@ -1660,7 +1660,7 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
               familyMembers.push(aMember);
             }
 
-            if (familyMembers.length > 1) {
+            if (familyMembers?.length > 1) {
               reference.Household = familyMembers;
               reference = assignSelf(reference);
               reference.Household = updateRelations(reference.Household);
@@ -1669,7 +1669,7 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
               const siblings = [];
               const children = [];
               const spouse = [];
-              if (reference.Household.length > 0) {
+              if (reference.Household?.length > 0) {
                 reference.Household.forEach(function (member) {
                   if (member.Relation == "Mother" || member.Relation == "Father") {
                     parents.push(member);
@@ -1685,7 +1685,7 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
                   }
                 });
                 let familyText = "";
-                if (spouse.length > 0) {
+                if (spouse?.length > 0) {
                   familyText +=
                     spouse[0].Relation +
                     ", " +
@@ -1693,7 +1693,7 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
                     (spouse[0].Age ? " (" + spouse[0].Age + ") " : "") +
                     "; ";
                 }
-                if (parents.length == 2) {
+                if (parents?.length == 2) {
                   familyText +=
                     window.profilePerson.Pronouns.possessiveAdjective +
                     " parents, " +
@@ -1704,7 +1704,7 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
                     (parents[1].Age ? " (" + parents[1].Age + ")" : "") +
                     "; ";
                 }
-                if (parents.length == 1) {
+                if (parents?.length == 1) {
                   familyText +=
                     window.profilePerson.Pronouns.possessiveAdjective +
                     " " +
@@ -1714,17 +1714,17 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
                     (parents[0].Age ? " (" + parents[0].Age + ")" : "") +
                     "; ";
                 }
-                if (siblings.length > 1) {
+                if (siblings?.length > 1) {
                   familyText += window.profilePerson.Pronouns.possessiveAdjective + " siblings, ";
                   siblings.forEach(function (sibling, index) {
-                    if (index == siblings.length - 1) {
+                    if (index == siblings?.length - 1) {
                       familyText += "and ";
                     }
                     familyText += sibling.FirstName + (sibling.Age ? " (" + sibling.Age + ")" : "") + ", ";
                   });
                   familyText = familyText.replace(/, $/, "; ");
                 }
-                if (siblings.length == 1) {
+                if (siblings?.length == 1) {
                   familyText +=
                     window.profilePerson.Pronouns.possessiveAdjective +
                     " " +
@@ -1734,17 +1734,17 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
                     (siblings[0].Age ? " (" + siblings[0].Age + ")" : "") +
                     "; ";
                 }
-                if (children.length > 1) {
+                if (children?.length > 1) {
                   familyText += window.profilePerson.Pronouns.possessiveAdjective + " children, ";
                   children.forEach(function (child, index) {
-                    if (index == children.length - 1) {
+                    if (index == children?.length - 1) {
                       familyText += "and ";
                     }
                     familyText += child.FirstName + (child.Age ? " (" + child.Age + ")" : "") + ", ";
                   });
                   familyText = text.replace(/, $/, "; ");
                 }
-                if (children.length == 1) {
+                if (children?.length == 1) {
                   familyText +=
                     window.profilePerson.Pronouns.possessiveAdjective +
                     " " +
@@ -2640,7 +2640,7 @@ function analyzeColumns(lines) {
     }
 
     // Calculate the threshold for each column based on the counts
-    let numPeople = lines.length;
+    let numPeople = lines?.length;
     let minCount;
     if (numPeople <= 2) {
       minCount = 1; // For 1-2 people, allow column assignments even for a single match
@@ -2694,7 +2694,7 @@ function parseCensusWikitable(text) {
         }
       });
 
-      if (Object.keys(row).length > 0) {
+      if (Object.keys(row)?.length > 0) {
         data.push(row);
       }
     }
@@ -2754,7 +2754,7 @@ function parseCensusData(censusData) {
     const yearMatch = line.match(/\b(\d{4})\s+census\b/i);
 
     if (yearMatch) {
-      if (currentSection.length > 0) {
+      if (currentSection?.length > 0) {
         const parsedFamilyData = parseFamilyData(currentSection.join("\n"));
         parsedData.push({
           Year: currentYear,
@@ -2769,7 +2769,7 @@ function parseCensusData(censusData) {
     }
   });
 
-  if (currentSection.length > 0) {
+  if (currentSection?.length > 0) {
     const parsedFamilyData = parseFamilyData(currentSection.join("\n"));
     parsedData.push({
       Year: currentYear,
@@ -2817,7 +2817,7 @@ function parseSourcerCensusWithCSVList(reference) {
     lastBit.match(window.profilePerson.PersonName.FirstName) &&
     lastBit.match(/\b(wife|husband|son|daughter|father|mother)\b/) &&
     lastBit.match(/household/) == null &&
-    referenceBits.length > 0
+    referenceBits?.length > 0
   ) {
     /* Parse a family in this format: Gerritt Bleeker Jr. 42, 
     wife Minnie Bleeker 42, son Garry P Bleeker 19, 
@@ -2826,7 +2826,7 @@ function parseSourcerCensusWithCSVList(reference) {
     son Floyd M Bleeker 4.
     */
     const familyBits = lastBit.split(/, /);
-    if (familyBits.length) {
+    if (familyBits?.length) {
       reference.Household = [];
     }
     familyBits.forEach(function (familyBit) {
@@ -2854,7 +2854,7 @@ function parseSourcerCensusWithCSVList(reference) {
     George H Bleeker (17), single son, in household of Gerritt Bleeker Jr. (42)
      in Thull, Golden Valley, Montana, United States. Born in Montana.
     */
-    if (referenceBits.length > 1) {
+    if (referenceBits?.length > 1) {
       const residenceBits = referenceBits[referenceBits.length - 2].split(/, /);
 
       const residence = residenceBits[0];
@@ -3009,7 +3009,7 @@ function buildCensusNarratives() {
       if (reference["Street Address"]) {
         residenceBits.push(reference["Street Address"]);
       } else if (reference["Address"]) {
-        if (reference["Address"].length > 10) {
+        if (reference["Address"]?.length > 10) {
           residenceBits.push(reference["Address"]);
         }
       }
@@ -3023,7 +3023,7 @@ function buildCensusNarratives() {
           residenceBits.push(reference["County/Island"]);
         }
       }
-      if (residenceBits.length > 0) {
+      if (residenceBits?.length > 0) {
         reference.Residence = residenceBits.join(", ");
       }
 
@@ -3039,7 +3039,7 @@ function buildCensusNarratives() {
 
       let householdLength = true;
       if (Array.isArray(reference.Household)) {
-        if (reference.Household.length == 0) {
+        if (reference.Household?.length == 0) {
           householdLength = false;
         }
       }
@@ -3173,7 +3173,7 @@ function buildCensusNarratives() {
             [day, month, year] = window.profilePerson["BirthDate"].split(" ");
           }
           if (window.autoBioOptions?.censusFamilyNarrative) {
-            if (reference.Household.length > 0) {
+            if (reference.Household?.length > 0) {
               text += " with ";
             }
             text += createFamilyNarrative(reference.Household);
@@ -3235,7 +3235,7 @@ function createFamilyNarrative(familyMembers) {
   }
 
   let childrenBit = "";
-  if (children.length > 0) {
+  if (children?.length > 0) {
     if (spouse) {
       childrenBit += ` their `;
     } else {
@@ -3247,7 +3247,7 @@ function createFamilyNarrative(familyMembers) {
         childrenBit += ` their `;
       }
     }
-    if (children.length === 1) {
+    if (children?.length === 1) {
       childrenBit += `${children[0].Relation.toLowerCase()}, `;
     } else {
       childrenBit += `children, `;
@@ -3255,17 +3255,17 @@ function createFamilyNarrative(familyMembers) {
     children.forEach((child, index) => {
       const childAge = child.Age ? ` (${child.Age})` : "";
       childrenBit += `${removeMainPersonLastName(child.Name)} ${childAge}`;
-      if (index === children.length - 2) {
+      if (index === children?.length - 2) {
         childrenBit += `, and `;
-      } else if (index !== children.length - 1) {
+      } else if (index !== children?.length - 1) {
         childrenBit += `, `;
       }
     });
   }
 
   let siblingsBit = "";
-  if (siblings.length > 0) {
-    if (siblings.length === 1) {
+  if (siblings?.length > 0) {
+    if (siblings?.length === 1) {
       if (siblings[0].Relation === "Brother") {
         siblingsBit += `${window.profilePerson.Pronouns.possessiveAdjective} brother, `;
       } else {
@@ -3276,17 +3276,17 @@ function createFamilyNarrative(familyMembers) {
     }
     siblings.forEach((sibling, index) => {
       siblingsBit += `${removeMainPersonLastName(sibling.Name)} (${sibling.Age})`;
-      if (index === siblings.length - 2) {
+      if (index === siblings?.length - 2) {
         siblingsBit += `, and `;
-      } else if (index !== siblings.length - 1) {
+      } else if (index !== siblings?.length - 1) {
         siblingsBit += `, `;
       }
     });
   }
 
   let parentsBit = "";
-  if (parents.length > 0) {
-    if (parents.length === 1) {
+  if (parents?.length > 0) {
+    if (parents?.length === 1) {
       if (parents[0].Relation === "Father") {
         parentsBit += `${window.profilePerson.Pronouns.possessiveAdjective} father, `;
       } else {
@@ -3297,14 +3297,14 @@ function createFamilyNarrative(familyMembers) {
     }
     parents.forEach((parent, index) => {
       parentsBit += `${removeMainPersonLastName(parent.Name)} (${parent.Age})`;
-      if (index === parents.length - 2) {
+      if (index === parents?.length - 2) {
         parentsBit += ` and `;
       }
     });
   }
 
   let othersBit = "";
-  if (others.length > 0) {
+  if (others?.length > 0) {
     if (parentsBit || siblingsBit || childrenBit || spouseBit) {
       othersBit += "; and ";
     }
@@ -3315,9 +3315,9 @@ function createFamilyNarrative(familyMembers) {
       oRelationStr = oRelation ? ", " + oRelation.toLowerCase() : "";
       othersBit += other.Name + " (" + other.Age + oRelationStr + ")";
 
-      if (index === others.length - 2) {
+      if (index === others?.length - 2) {
         othersBit += ", and ";
-      } else if (index !== others.length - 1) {
+      } else if (index !== others?.length - 1) {
         othersBit += ", ";
       }
     });
@@ -3761,6 +3761,7 @@ function getEditDistance(string1, string2) {
 }
 
 function getSimilarity(string1, string2) {
+  if (!string1 || !string2) return 0;
   string1 = string1.toLowerCase();
   string2 = string2.toLowerCase();
   const longer = Math.max(string1.length, string2.length);
@@ -4026,7 +4027,7 @@ function parseFreeCen(aRef) {
         household.push(aPerson);
       }
     });
-    if (household.length > 0) {
+    if (household?.length > 0) {
       aRef.Household = household;
       aRef = assignSelf(aRef);
     }
@@ -4085,7 +4086,7 @@ export function sourcesArray(bio) {
     }
 
     let innerHTML = refElement.html().trim();
-    if (innerHTML.length === 0) return; // Skip if the reference has no content
+    if (innerHTML?.length === 0) return; // Skip if the reference has no content
 
     let theRef = innerHTML.match(/^(.*?)(?=<\/?ref|$)/s)[1].trim();
 
@@ -4124,7 +4125,7 @@ export function sourcesArray(bio) {
   /* If a sourceBit starts with * now, it started with ** before, so add the * back (so... **)
   and add it to the previous sourceBit */
   console.log(logNow(sourcesBits));
-  for (let i = sourcesBits.length - 1; i >= 0; i--) {
+  for (let i = sourcesBits?.length - 1; i >= 0; i--) {
     let aSourceBit = sourcesBits[i];
     if (aSourceBit.match(/^\*/) && i > 0) {
       sourcesBits[i - 1] = sourcesBits[i - 1] + "*" + aSourceBit;
@@ -4181,6 +4182,11 @@ export function sourcesArray(bio) {
 
   refArr.forEach(function (aRef) {
     if (aRef.Text) {
+      const tableMatch = aRef.Text.match(/\{\|[^}]*Name.[^}]*Age[^}]*\|\}/gs);
+      if (tableMatch) {
+        const table = tableMatch[0];
+        aRef.Household = parseFamilyData(table, { format: "wikitable" });
+      }
       aRef = parseSourcerFamilyListWithBRs(aRef);
       aRef = doHousehold(aRef);
     }
@@ -4608,7 +4614,7 @@ function getSourcerCensuses() {
   refs.forEach((ref) => ref.remove());
   const text = dummy.innerHTML;
 
-  //const regexWikitable = /In the (\d{4}) census[^]+?(\{\|[^]+?\|\})(?![^]*\{\|[^]+?\|\})/g;
+  //const regexWikitable = /(\d{4}) census[^]+?(\{\|[^]+?\|\})(?![^]*\{\|[^]+?\|\})/g;
 
   const regexNonWikitable = /In the (\d{4}) census[^{=]*?\n([.:#*].+?)(?=\n[^:#*])/gms;
   //const regexNonWikitable = /In the (\d{4}) census((?!.*\{\|.*\|\}).*?)(?=\n[^:#*])/gs;
@@ -4616,7 +4622,7 @@ function getSourcerCensuses() {
   if (text) {
     textChunks = text.split(/(In the \d{4} census[^]+?)(?=In the \d{4} census|$)/i);
   }
-  if (textChunks.length < 2) {
+  if (textChunks?.length < 2) {
     textChunks = [];
     // Find sections that look like a table
     let tableSections = text.match(/\{\|([^|}]|\|[^}])*\|\}/g);
@@ -4624,7 +4630,7 @@ function getSourcerCensuses() {
       tableSections.forEach((section) => {
         // Check if the section contains the key words
         if (
-          (/\d{4}.+\bcensus\b/i.test(section) || /\bcensus\b.+\d{4}/i.test(section)) &&
+          (/\d{4}.+\bcensus\b/i.test(text) || /\bcensus\b.+\d{4}/i.test(section)) &&
           /\bName\b.*\bAge\b/.test(section)
         ) {
           textChunks.push(section);
@@ -4634,7 +4640,7 @@ function getSourcerCensuses() {
   }
   let censusData = {};
 
-  for (let i = 0; i < textChunks.length; i++) {
+  for (let i = 0; i < textChunks?.length; i++) {
     let text = textChunks[i];
 
     let yearMatch = text.match(/(\d{4}).+census/i) || text.match(/census.+(\d{4})/i);
@@ -4716,7 +4722,7 @@ function getSourcerCensuses() {
     }
     let household;
     let list;
-    if (listItems.length > 0) {
+    if (listItems?.length > 0) {
       list = listItems.map((item) => bulletType + item).join("\n");
       household = parseFamilyData(list, { format: "list" });
     }
@@ -5084,7 +5090,7 @@ function getFamilySearchFacts() {
           ageBit = " (" + getAgeFromISODates(window.profilePerson.BirthDate, getYYYYMMDD(factDate)) + ")";
         }
         const aFactInfoSplit = aFact.Fact.split(dateMatch[0]);
-        if (aFactInfoSplit.length > 1) {
+        if (aFactInfoSplit?.length > 1) {
           aFact.Info = aFactInfoSplit[1].trim();
         }
         if (aFact.Fact.match(/Fact: Residence/i)) {
@@ -5347,7 +5353,7 @@ export function splitBioIntoSections() {
   }
 
   // Split the things before the bio up into separate items
-  if (sections.StuffBeforeTheBio.text.length > 0) {
+  if (sections.StuffBeforeTheBio.text?.length > 0) {
     const pattern = /(\{\{.*?\}\}|\[\[.*?\]\])/g;
 
     for (let i = 0; i < sections.StuffBeforeTheBio.text.length; i++) {
@@ -5358,7 +5364,7 @@ export function splitBioIntoSections() {
         sections.StuffBeforeTheBio.text[i] = matches[0];
 
         // If there are additional matches, add them to the array after the current element
-        if (matches.length > 1) {
+        if (matches?.length > 1) {
           const additionalMatches = matches.slice(1);
           sections.StuffBeforeTheBio.text.splice(i + 1, 0, ...additionalMatches);
         }
@@ -5374,7 +5380,7 @@ export function splitBioIntoSections() {
     }
   }
 
-  if (sections.Acknowledgements.text.length > 0) {
+  if (sections.Acknowledgements.text?.length > 0) {
     sections.Acknowledgements.text = sections.Acknowledgements.text.map((str) =>
       str.replace("This person was created", "This profile was created")
     );
@@ -5448,7 +5454,7 @@ export function addLoginButton() {
           let loginButton = $(
             "<button title='Log in to the apps server for better Auto Bio results' class='small button' id='appsLoginButton'>Apps Login</button>"
           );
-          if ($("#appsLoginButton").length == 0) {
+          if ($("#appsLoginButton")?.length == 0) {
             $("#toolbar").append(loginButton);
           }
           loginButton.on("click", function (e) {
@@ -5911,7 +5917,7 @@ export function addUnsourced(feature = "autoBio") {
           USstates.push(USdeathState);
         }
       }
-      if (USstates.length > 0) {
+      if (USstates?.length > 0) {
         if (addCategory) {
           USstates.forEach(function (aState) {
             unsourcedCategory = `[[Category: ${unsourcedCategories[aState]}]]`;
@@ -6205,7 +6211,7 @@ export function buildFamilyForPrivateProfiles() {
         }
       }
     }
-    if (Object.keys(window.profilePerson[familyList]).length === 0) {
+    if (Object.keys(window.profilePerson[familyList])?.length === 0) {
       window.profilePerson[familyList] = [];
     }
   });
@@ -6231,7 +6237,7 @@ function minimalPlace2(narrativeBits) {
       }
     }
   });
-  if (toSplice.length) {
+  if (toSplice?.length) {
     for (let i = toSplice.length - 1; i >= 0; i--) {
       narrativeBits.splice(toSplice[i], 1);
     }
@@ -6358,7 +6364,7 @@ export async function generateBio() {
     }
 
     // Get spouse parents
-    if (!(Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses.length === 0)) {
+    if (!(Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses?.length === 0)) {
       let spouseKeys = Object.keys(window.profilePerson.Spouses);
       window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 1, 1, "*", "WBE_auto_bio");
       const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
@@ -6492,7 +6498,7 @@ export async function generateBio() {
         }
       }
     });
-    if (wars.length) {
+    if (wars?.length) {
       warRefs.forEach(function (aWar) {
         marriagesAndCensusesEtc.push({
           Narrative: aWar.Narrative,
@@ -6558,6 +6564,7 @@ export async function generateBio() {
     }
 
     let marriagesAndCensusesText = "";
+
     allEvents.forEach(function (anEvent, i) {
       if (anEvent["Record Type"]) {
         if (anEvent["Record Type"]?.includes("Marriage")) {
@@ -6576,8 +6583,16 @@ export async function generateBio() {
               censusNarratives.set(censusYear, censusNarrative);
             }
 
+            if (anEvent.Narrative?.match(/\{\|.*\|\}/gs) && anEvent?.Text.match(/\{\|.*\|\}/gs)) {
+              if (window.autoBioOptions?.householdTable) {
+                anEvent.Text = anEvent.Text.replace(/\{\|.*\|\}/gs, "");
+              } else {
+                anEvent.Narrative = anEvent.Narrative.replace(/\{\|.*\|\}/gs, "");
+              }
+            }
+
             let narrativeBits = anEvent.Narrative.split(/,/);
-            if (window.autoBioOptions?.fullLocations) {
+            if (window.autoBioOptions?.fullLocations || anEvent.Narrative.match(/\{\|.*\|\}/gs)) {
               marriagesAndCensusesText += anEvent.Narrative;
             } else {
               let aBit = minimalPlace2(narrativeBits);
@@ -7249,7 +7264,6 @@ export async function getLocationCategory(type, location = null) {
     ) {
       return false;
     }
-    //console.log(api?.response?.categories[0]);
     const category = api?.response?.categories[0];
     if (!category.topLevel) {
       return category.category;
@@ -7336,7 +7350,6 @@ shouldInitializeFeature("autoBio").then((result) => {
     import("./auto_bio.css");
     getFeatureOptions("autoBio").then((options) => {
       window.autoBioOptions = options;
-      console.log(window.autoBioOptions);
       window.boldBit = "";
       if (window.autoBioOptions?.boldNames) {
         window.boldBit = "'''";
