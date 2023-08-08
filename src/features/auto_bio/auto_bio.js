@@ -533,9 +533,9 @@ function convertMonth(monthString, outputFormat = "short") {
     }
     return capitalizeFirstLetter(month);
   } else {
-    index = shortNames.indexOf(monthString.toLowerCase());
+    index = shortNames.indexOf(monthString?.toLowerCase());
     if (index == -1) {
-      index = longNames.indexOf(monthString.toLowerCase());
+      index = longNames.indexOf(monthString?.toLowerCase());
     }
     return index + 1;
   }
@@ -575,7 +575,7 @@ export function formatDates(person) {
     birthDate = person.BirthDateDecade.substring(0, 3) + "5" || " ";
   }
   let deathDate = " ";
-  if (person.DeathDate) {
+  if (person?.DeathDate) {
     deathDate = person?.DeathDate.substring(0, 4) || " ";
   } else if (person?.DeathDateDecade) {
     deathDate = person?.DeathDateDecade.substring(0, 3) + "5" || " ";
@@ -752,7 +752,7 @@ function personDates(person) {
         ? birthDate || ""
         : convertDate(birthDate, window.autoBioOptions?.dateFormat, person?.DataStatus?.BirthDate)) +
       " – " +
-      (!isOK(person.DeathDate)
+      (!isOK(person?.DeathDate)
         ? deathDate || ""
         : convertDate(deathDate, window.autoBioOptions?.dateFormat, person?.DataStatus?.DeathDate)) +
       ")";
@@ -1067,19 +1067,19 @@ export function assignCemeteryFromSources() {
 }
 
 function buildDeath(person) {
-  if (!isOK(person.DeathDate) && !isOK(person.DeathDecade) && !isOK(person.DeathLocation)) {
+  if (!isOK(person?.DeathDate) && !isOK(person.DeathDecade) && !isOK(person.DeathLocation)) {
     return false;
   }
   const diedWord = window.autoBioOptions?.diedWord || "died";
   let text = person.PersonName.FirstName + " " + diedWord;
-  if (person.DeathDate) {
-    text += " " + formatDate(person.DeathDate, person.mStatus_DeathDate || "", { needOn: true });
+  if (person?.DeathDate) {
+    text += " " + formatDate(person?.DeathDate, person.mStatus_DeathDate || "", { needOn: true });
   }
   if (person.DeathLocation) {
     let place = minimalPlace(person.DeathLocation);
     text += " in " + place;
   }
-  if (person.BirthDate && person.DeathDate && window.autoBioOptions?.includeAgeAtDeath) {
+  if (person.BirthDate && person?.DeathDate && window.autoBioOptions?.includeAgeAtDeath) {
     const birthDate = person.BirthDate.match("-") ? person.BirthDate : getYYYYMMDD(person.BirthDate);
     const deathDate = person?.DeathDate.match("-") ? person?.DeathDate : getYYYYMMDD(person?.DeathDate);
     let age = getAgeFromISODates(birthDate, deathDate);
@@ -1708,7 +1708,7 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
                   familyText +=
                     window.profilePerson.Pronouns.possessiveAdjective +
                     " " +
-                    parents[0].Relation.toLowerCase() +
+                    parents[0].Relation?.toLowerCase() +
                     ", " +
                     parents[0].FirstName +
                     (parents[0].Age ? " (" + parents[0].Age + ")" : "") +
@@ -1728,7 +1728,7 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
                   familyText +=
                     window.profilePerson.Pronouns.possessiveAdjective +
                     " " +
-                    siblings[0].Relation.toLowerCase() +
+                    siblings[0].Relation?.toLowerCase() +
                     ", " +
                     siblings[0].FirstName +
                     (siblings[0].Age ? " (" + siblings[0].Age + ")" : "") +
@@ -1748,7 +1748,7 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
                   familyText +=
                     window.profilePerson.Pronouns.possessiveAdjective +
                     " " +
-                    children[0].Relation.toLowerCase() +
+                    children[0].Relation?.toLowerCase() +
                     ", " +
                     children[0].FirstName +
                     (children[0].Age ? " (" + children[0].Age + ")" : "") +
@@ -2334,7 +2334,7 @@ function convertOneLineCase(lines) {
 
 function standardizeRelation(relation) {
   return relation.replace(/^(?:.*\s+)?([A-Za-z]+)\s*(?:-)?\s*in\s*(?:-)?\s*law\b.*/gi, (match, p1) => {
-    return p1.charAt(0).toUpperCase() + p1.slice(1).toLowerCase() + "-in-law";
+    return p1.charAt(0).toUpperCase() + p1.slice(1)?.toLowerCase() + "-in-law";
   });
 }
 
@@ -3130,14 +3130,14 @@ function buildCensusNarratives() {
           ", " +
           window.profilePerson.PersonName.FirstName +
           (ageAtCensus != false ? " (" + ageAtCensus + ")" : "");
-        let occupation = reference.Occupation ? reference.Occupation.toLowerCase() : "";
+        let occupation = reference.Occupation ? reference.Occupation?.toLowerCase() : "";
         if (!occupation) {
           let selfObj = reference.Household.find((obj) => obj.Relation === "Self");
           if (selfObj) {
             occupation = selfObj.Occupation;
           }
           if (occupation) {
-            occupation = occupation.toLowerCase();
+            occupation = occupation?.toLowerCase();
           }
         }
 
@@ -3231,7 +3231,7 @@ function createFamilyNarrative(familyMembers) {
   if (spouse) {
     spouseBit = `${
       window.profilePerson.Pronouns.possessiveAdjective
-    } ${spouse.Relation.toLowerCase()}, ${removeMainPersonLastName(spouse.Name)} (${spouse.Age})`;
+    } ${spouse.Relation?.toLowerCase()}, ${removeMainPersonLastName(spouse.Name)} (${spouse.Age})`;
   }
 
   let childrenBit = "";
@@ -3248,7 +3248,7 @@ function createFamilyNarrative(familyMembers) {
       }
     }
     if (children?.length === 1) {
-      childrenBit += `${children[0].Relation.toLowerCase()}, `;
+      childrenBit += `${children[0].Relation?.toLowerCase()}, `;
     } else {
       childrenBit += `children, `;
     }
@@ -3312,7 +3312,7 @@ function createFamilyNarrative(familyMembers) {
     let oRelationStr;
     others.forEach((other, index) => {
       oRelation = other.Relation;
-      oRelationStr = oRelation ? ", " + oRelation.toLowerCase() : "";
+      oRelationStr = oRelation ? ", " + oRelation?.toLowerCase() : "";
       othersBit += other.Name + " (" + other.Age + oRelationStr + ")";
 
       if (index === others?.length - 2) {
@@ -3736,8 +3736,8 @@ function assignSelf(data) {
 }
 
 function getEditDistance(string1, string2) {
-  string1 = string1.toLowerCase();
-  string2 = string2.toLowerCase();
+  string1 = string1?.toLowerCase();
+  string2 = string2?.toLowerCase();
 
   const costs = [];
   for (let i = 0; i <= string1.length; i++) {
@@ -3762,8 +3762,8 @@ function getEditDistance(string1, string2) {
 
 function getSimilarity(string1, string2) {
   if (!string1 || !string2) return 0;
-  string1 = string1.toLowerCase();
-  string2 = string2.toLowerCase();
+  string1 = string1?.toLowerCase();
+  string2 = string2?.toLowerCase();
   const longer = Math.max(string1.length, string2.length);
   if (longer === 0) return 1;
   return (longer - getEditDistance(string1, string2)) / longer;
@@ -3773,7 +3773,7 @@ function isSameName(name, nameVariants, strength = 0.9) {
   let sameName = false;
   nameVariants.forEach(function (nv) {
     if (nv && name) {
-      if (getSimilarity(nv.toLowerCase(), name.toLowerCase()) > strength) {
+      if (getSimilarity(nv?.toLowerCase(), name?.toLowerCase()) > strength) {
         sameName = true;
       }
     }
@@ -4970,8 +4970,8 @@ async function getStickersAndBoxes() {
                   return (
                     sticker
                       .replace(/\s/g, "")
-                      .toLowerCase()
-                      .indexOf(ONSsticker.split("|category=")[0].replace(/\s/g, "").toLowerCase()) === -1
+                      ?.toLowerCase()
+                      .indexOf(ONSsticker.split("|category=")[0].replace(/\s/g, "")?.toLowerCase()) === -1
                   );
                 });
                 // If stuffBeforeTheBio includes the same category, remove it.
@@ -4981,8 +4981,8 @@ async function getStickersAndBoxes() {
                       const categoryInLine = categoryLine.replace("[[Category:", "").replace("]]", "").trim();
                       const categoryInSticker = ONSsticker.split("category=")[1].replace("}}", "").trim();
                       return (
-                        categoryInLine.replace(/\s/g, "").toLowerCase() !==
-                        categoryInSticker.replace(/\s/g, "").toLowerCase()
+                        categoryInLine.replace(/\s/g, "")?.toLowerCase() !==
+                        categoryInSticker.replace(/\s/g, "")?.toLowerCase()
                       );
                     }
                     return true; // keep the categoryLine in case there's no "category=" in ONSsticker
@@ -6341,7 +6341,7 @@ export async function generateBio() {
       addLoginButton();
     } else {
       window.profilePerson.BirthYear = window.profilePerson.BirthDate?.split("-")[0];
-      if (window.profilePerson.DeathDate) {
+      if (window.profilePerson?.DeathDate) {
         window.profilePerson.DeathYear = window.profilePerson?.DeathDate?.split("-")[0];
       }
     }
