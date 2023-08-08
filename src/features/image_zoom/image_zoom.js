@@ -169,7 +169,9 @@ function createZoomedImage(src, alt) {
   setupDarkScreen(imgElement);
 
   // Adjust image position to center it
-  centreImage(imgElement);
+  imgElement.on("load", function () {
+    centreImage(imgElement);
+  });
 
   return imgElement;
 }
@@ -184,6 +186,14 @@ function centreImage(imgElement) {
   const scrollTop = $(window).scrollTop();
   const left = scrollLeft + (windowWidth - imageWidth) / 2;
   const top = scrollTop + (windowHeight - imageHeight) / 2;
+
+  console.log("Image Width:", imageWidth);
+  console.log("Image Height:", imageHeight);
+  console.log("Window Width:", windowWidth);
+  console.log("Window Height:", windowHeight);
+  console.log("Calculated Left:", left);
+  console.log("Calculated Top:", top);
+
   imgElement.css({ left: left, top: top });
 }
 
@@ -250,9 +260,7 @@ export function updateFeatureOptions(featureName, optionName, optionValue) {
 
 // Helper function to create buttons and attach event listeners
 function createButton(id, text, clickEvent, accessKey) {
-  const button = $(`<button id='${id}'>${text}</button>`)
-    .appendTo("body")
-    .on("click", clickEvent)
+  const button = $(`<button id='${id}'>${text}</button>`).appendTo("body").on("click", clickEvent);
   return button;
 }
 
