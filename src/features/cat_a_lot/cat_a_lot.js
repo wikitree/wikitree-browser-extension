@@ -22,7 +22,8 @@ shouldInitializeFeature("catALot").then((result) => {
 
     }
     if (isCategoryPage) {
-      AddCheckmarks();
+      AddProfileCheckmarks();
+      AddSubcatLinks();
       AddControls();
     }
 
@@ -54,6 +55,24 @@ function AddControls() {
   document.getElementsByTagName("h2")[0].addEventListener("click",  OnCatALotStarted);
 }
 
+function AddSubcatLinks()
+{
+  let subCatDiv = document.getElementsByClassName('row Subcategories')[0];
+  let subCatLinks = subCatDiv.getElementsByClassName('P-X');
+  const reg = /\(\d+,\s\d+,\s\d+\)/;
+
+  for (let i = 0; i < subCatLinks.length; ++i) {
+    let newLink = document.createElement("a");
+    newLink.innerText = 'here';
+    newLink.addEventListener("click", function()
+    {
+      const clearCatName = subCatLinks[i].innerText.replace(reg, "");
+      AddVerifiedCatLink(clearCatName);
+    } 
+    );
+    subCatLinks[i].parentNode.appendChild(newLink);
+  }
+}
 function OnCatALotStarted() {
   let cboxes = document.getElementsByClassName('profile_selector');
   let remCat = "";
@@ -89,7 +108,7 @@ function GetThisCategoryName() {
   return currentCategory;
 }
 
-function AddCheckmarks() {
+function AddProfileCheckmarks() {
   // <div class="P-ITEM">
   // <span itemscope="" itemtype="https://schema.org/Person">
   //       <a class="P-M" href="/wiki/Schilling-1881" target="_blank" itemprop="url" title="">
@@ -117,13 +136,18 @@ function AddCheckmarks() {
 
 function UpdateCatName() {
   var catTyped = document.getElementById('inputCatTyped').value;
-  let catUrl = 'https://www.wikitree.com/wiki/Category:' + catTyped;
+  let catUrl = 'https://www.wikitree.com/wiki/Category:' + encodeURI(catTyped);
   let xmlHttp = new XMLHttpRequest();
   xmlHttp.open("GET", catUrl, false); // false for synchronous request
   xmlHttp.send(null);
   if (xmlHttp.status < 400) {
-    document.getElementById('inputCatVerified').innerHTML = '<a href="' + catUrl + '">' + catTyped + '</a>';
+    AddVerifiedCatLink(catTyped)
   }
+}
+
+function AddVerifiedCatLink(cat)
+{
+  document.getElementById('inputCatVerified').innerHTML = '<a href="https://www.wikitree.com/wiki/Category:' + cat + '">' + cat + '</a>';
 }
 
 function AddCat(wpTextbox1, urlParams) {
@@ -147,10 +171,7 @@ function RemoveCat(wpTextbox1, urlParams) {
 }
 
 function DoSave() {
-  alert("vor Save");
   let saveButton = document.getElementById('wpSave');
-  alert("nach Save");
   saveButton.disabled = false;
-  alert("klick");
 }
 
