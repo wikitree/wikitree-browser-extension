@@ -424,6 +424,12 @@ const autoBio = {
           label: "Do not show death dates",
           defaultValue: false,
         },
+        {
+          id: "usePrivate",
+          type: OptionType.CHECKBOX,
+          label: "Use 'Private' for private/unlisted profiles",
+          defaultValue: true,
+        },
       ],
     },
     {
