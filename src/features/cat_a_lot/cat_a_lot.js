@@ -31,11 +31,12 @@ shouldInitializeFeature("catALot").then((result) => {
 });
 
 function AddControls() {
-  let inputCatTyped = document.createElement('input');
+  const inputCatTyped = document.createElement('input');
   inputCatTyped.id = 'inputCatTyped';
+  inputCatTyped.placeholder = 'category add/move';
   inputCatTyped.addEventListener("change", UpdateCatName);
 
-  let inputCatVerified = document.createElement('div');
+  const inputCatVerified = document.createElement('div');
   inputCatVerified.readOnly = true;
   inputCatVerified.id = 'inputCatVerified';
 
@@ -44,15 +45,30 @@ function AddControls() {
   radioButtons += '<input type="radio" name="moveOrAdd" value="add" id="radioAdd">';
   radioButtons += '<label for="radioAdd">add</label>';
   radioButtons += '<input type="radio" name="moveOrAdd" value="remove" id="radioRemove">';
-  radioButtons += '<label for="radioRemove">remove current</label>';
+  radioButtons += '<label for="radioRemove">remove current</label><br />';
   // var textbox = '<input type="text" id="addCatTextType"><br/>';
   // textbox+='<input type="text" disabled id="addCatText">';
 
-  document.getElementsByClassName('SMALL x-audit')[2].appendChild(inputCatTyped);
-  document.getElementsByClassName('SMALL x-audit')[2].appendChild(inputCatVerified);
-  document.getElementsByClassName('SMALL x-audit')[1].innerHTML = radioButtons + document.getElementsByClassName('SMALL x-audit')[1].innerHTML;
+  // document.getElementsByClassName('SMALL x-audit')[2].appendChild(inputCatTyped);
+  // document.getElementsByClassName('SMALL x-audit')[2].appendChild(inputCatVerified);
+  // document.getElementsByClassName('SMALL x-audit')[1].innerHTML = radioButtons + document.getElementsByClassName('SMALL x-audit')[1].innerHTML;
 
-  document.getElementsByTagName("h2")[0].addEventListener("click",  OnCatALotStarted);
+  // document.getElementsByTagName("h2")[0].addEventListener("click",  OnCatALotStarted);
+
+  const catALotButton = document.createElement('input');
+  catALotButton.type = 'button';
+  catALotButton.value = "Cat a lot";
+  catALotButton.addEventListener("click",  OnCatALotStarted);
+
+  const catALotDiv = document.createElement("div");
+  catALotDiv.align = 'right';
+  catALotDiv.innerHTML = radioButtons;
+  catALotDiv.appendChild(inputCatTyped);
+  catALotDiv.appendChild(document.createElement('br'));
+  catALotDiv.append("destination: ");
+  catALotDiv.appendChild(inputCatVerified);
+  catALotDiv.appendChild(catALotButton);
+  document.getElementById('categories').appendChild(catALotDiv);
 }
 
 function AddSubcatLinks()
@@ -74,7 +90,7 @@ function AddSubcatLinks()
   }
 }
 function OnCatALotStarted() {
-  let cboxes = document.getElementsByClassName('profile_selector');
+  const cboxes = document.getElementsByClassName('profile_selector');
   let remCat = "";
   let addCat = "";
  
@@ -135,7 +151,12 @@ function AddProfileCheckmarks() {
 }
 
 function UpdateCatName() {
-  var catTyped = document.getElementById('inputCatTyped').value;
+  let catTyped = document.getElementById('inputCatTyped').value;
+  const indexOfColon = catTyped.indexOf(":");
+  if(indexOfColon > -1)
+  {
+    catTyped = catTyped.substring(indexOfColon+1);
+  }
   let catUrl = 'https://www.wikitree.com/wiki/Category:' + encodeURI(catTyped);
   let xmlHttp = new XMLHttpRequest();
   xmlHttp.open("GET", catUrl, false); // false for synchronous request
