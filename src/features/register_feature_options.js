@@ -247,7 +247,7 @@ registerFeature({
   creators: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
   contributors: [],
   defaultValue: true,
-  pages: [isCategoryEdit],
+  pages: [isProfileEdit, isCategoryPage],
 });
 
 registerFeature({
