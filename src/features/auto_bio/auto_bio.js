@@ -295,7 +295,9 @@ async function fixLocations() {
         if (!afterStart && australianLocations[matchedKey]["previousName"]) {
           // Use previousName if the event date is before the start date of the matched location
           if (originalMatched) {
-            event.Location = event.Location.replace(matchedKey, australianLocations[matchedKey]["previousName"]);
+            // cope with "Australian Colonies"
+            const matchedKeyPattern = new RegExp(matchedKey + ".*");
+            event.Location = event.Location.replace(matchedKeyPattern, australianLocations[matchedKey]["previousName"]);
           } else {
             event.Location = event.Location.replace(lastLocationBit, australianLocations[matchedKey]["previousName"]);
           }
@@ -796,31 +798,18 @@ function getStatus(child) {
 }
 
 function childList(person, spouse) {
-  /*
-  const spouseKeys = [];
-  if (!Array.isArray(person.Spouses)) {
-    Object.keys(person.Spouses).forEach(function (key) {
-      spouseKeys.push(key);
-    });
-  }
-  */
-
-  console.log(logNow(person));
-
   let text = "";
   let ourChildren = [];
   let childrenKeys = Object.keys(person.Children);
   childrenKeys.forEach(function (key) {
     if (spouse == false && !person.Children[key].Displayed) {
       ourChildren.push(person.Children[key]);
-      console.log(logNow(person.Children[key]));
     } else if (
       (person.Children[key].Father == spouse.Id || person.Children[key].Mother == spouse.Id) &&
       !person.Children[key].Displayed
     ) {
       ourChildren.push(person.Children[key]);
       person.Children[key].Displayed = true;
-      console.log(logNow(person.Children[key]));
     } else if (
       !person.Children[key].Displayed &&
       spouse == "other" &&
@@ -829,7 +818,6 @@ function childList(person, spouse) {
     ) {
       ourChildren.push(person.Children[key]);
       person.Children[key].Displayed = true;
-      console.log(logNow(person.Children[key]));
     }
   });
   let possessive;
@@ -859,14 +847,10 @@ function childList(person, spouse) {
     text += (possessive || "Their") + " " + other + known + "children were:\n";
   }
 
-  console.log("text", text);
-
   let childListText = "";
   //  || spouse == false
   if (ourChildren?.length == 1) {
     if (ourChildren[0].Father == spouse.Id || ourChildren[0].Mother == spouse.Id || !spouse) {
-      console.log(spouse);
-
       const theDates = personDates(ourChildren[0]).replace(/(in|on)\s/g, "");
       const status = getStatus(ourChildren[0]);
 
@@ -1038,9 +1022,6 @@ export function buildBirth(person) {
     } else {
       text += " the ";
     }
-
-    console.log(logNow(person));
-
     text += buildParents(person);
   }
   text += ".";
@@ -4176,7 +4157,6 @@ export function sourcesArray(bio) {
   let sourcesBits = sourcesSection.split(/^\*/gm);
   /* If a sourceBit starts with * now, it started with ** before, so add the * back (so... **)
   and add it to the previous sourceBit */
-  console.log(logNow(sourcesBits));
   for (let i = sourcesBits?.length - 1; i >= 0; i--) {
     let aSourceBit = sourcesBits[i];
     if (aSourceBit.match(/^\*/) && i > 0) {
@@ -4184,8 +4164,6 @@ export function sourcesArray(bio) {
       sourcesBits[i] = "";
     }
   }
-
-  console.log(logNow(sourcesBits));
 
   let notShow = /^[\n\s]*$/;
   if (sourcesSection.match(/\*/) == null) {
@@ -6190,11 +6168,7 @@ export async function buildFamilyForPrivateProfiles() {
       childrenTr = row;
     }
   });
-
-  console.log("Private", logNow(window.profilePerson));
-
   if (!window.profilePerson.Parents) {
-    console.log("Not");
     window.profilePerson.Parents = {};
   }
   if (fatherTr) {
@@ -6286,7 +6260,6 @@ export async function buildFamilyForPrivateProfiles() {
     }
   });
 
-  console.log("Private", logNow(window.profilePerson));
   const ids = [];
   ["Parents", "Siblings", "Spouses", "Children"].forEach(function (familyList) {
     for (let key in window.profilePerson[familyList]) {
@@ -6296,12 +6269,7 @@ export async function buildFamilyForPrivateProfiles() {
       }
     }
   });
-  console.log(ids);
   const familyProfiles = await getPeople(ids.join(","), 0, 0, 0, 0, 0, "*", "WBE_auto_bio");
-  console.log(familyProfiles);
-
-  console.log(Object.keys(familyProfiles[0].people));
-  console.log(Object.keys(familyProfiles[0].resultByKey));
 
   ["Parents", "Siblings", "Spouses", "Children"].forEach(function (familyList) {
     const keys = Object.keys(window.profilePerson[familyList]);
@@ -6313,9 +6281,7 @@ export async function buildFamilyForPrivateProfiles() {
         const thisPerson = familyProfiles[0]?.people[thisId];
         if (thisPerson) {
           window.profilePerson[familyList][thisId] = thisPerson;
-          console.log(logNow(thisPerson));
-          console.log(logNow(window.profilePerson[familyList][thisId]));
-          console.log(logNow(window.profilePerson));
+
           if (familyList == "Parents") {
             if (thisPerson.Gender == "Male") {
               window.profilePerson.Father = thisId;
@@ -6323,16 +6289,9 @@ export async function buildFamilyForPrivateProfiles() {
               window.profilePerson.Mother = thisId;
             }
           }
-          /*
-          if (window.profilePerson.Father == key) {
-            window.profilePerson.Father = thisId;
-          } else if (window.profilePerson.Mother == key) {
-            window.profilePerson.Mother = thisId;
+          if (key < 20) {
+            delete window.profilePerson[familyList][key];
           }
-          */
-          console.log("Private", logNow(window.profilePerson));
-          delete window.profilePerson[familyList][key];
-          console.log("Private", logNow(window.profilePerson));
         }
       }
     }
@@ -6340,30 +6299,25 @@ export async function buildFamilyForPrivateProfiles() {
   assignPersonNames(window.profilePerson);
 
   for (let i = -10; i < 0; i++) {
-    if (familyProfiles?.[0].people[i]) {
+    if (familyProfiles?.[0]?.people[i]) {
       const thisPerson = familyProfiles[0].people[i];
       if (!thisPerson.BirthDate && thisPerson.BirthDateDecade) {
         thisPerson.tempBirthDate = thisPerson.BirthDateDecade.replace(/s$/, "");
-        console.log("thisPerson", logNow(thisPerson));
       }
       window.profilePerson.BirthYear = window.profilePerson.BirthDate.match(/\d{4}/)[0];
       if (thisPerson.Mother == window.profilePerson.Id || thisPerson.Father == window.profilePerson.Id) {
-        console.log("thisPerson", logNow(thisPerson));
         for (let x = 0; x < 10; x++) {
           if (window.profilePerson.Children[x] && !window.profilePerson.Children[x]?.Id) {
             const thisChild = window.profilePerson.Children[x];
             Object.assign(thisChild, thisPerson);
-            console.log("thisPerson", logNow(thisPerson));
             break;
           }
         }
       } else if (parseInt(thisPerson.tempBirthDate) < parseInt(window.profilePerson.BirthYear) - 18) {
-        console.log("thisPerson", logNow(thisPerson));
         for (let x = 0; x < 10; x++) {
           if (window.profilePerson.Parents[x] && !window.profilePerson.Parents[x]?.Id) {
             const thisParent = window.profilePerson.Parents[x];
             Object.assign(thisParent, thisPerson);
-            console.log("thisPerson", logNow(thisPerson));
             break;
           }
         }
@@ -6371,30 +6325,23 @@ export async function buildFamilyForPrivateProfiles() {
         (window.profilePerson.Mother && thisPerson.Mother == window.profilePerson.Mother) ||
         (window.profilePerson.Father && thisPerson.Father == window.profilePerson.Father)
       ) {
-        console.log("thisPerson", logNow(thisPerson));
         for (let x = 0; x < 10; x++) {
           if (window.profilePerson.Siblings[x] && !window.profilePerson.Siblings[x]?.Id) {
             const thisSibling = window.profilePerson.Siblings[x];
             Object.assign(thisSibling, thisPerson);
-            console.log("thisPerson", logNow(thisPerson));
             break;
           }
         }
       } else if (thisPerson.BirthDateDecade) {
-        console.log("thisPerson", logNow(thisPerson));
         const birthYearMatch = window.profilePerson.BirthDate.match(/\d{4}/);
         if (birthYearMatch) {
-          console.log("thisPerson", logNow(thisPerson));
           const tempBirthDate = thisPerson.BirthDateDecade.replace(/s$/, "");
           window.profilePerson.BirthYear = birthYearMatch[0];
-          console.log(thisPerson);
           if (parseInt(tempBirthDate) > parseInt(window.profilePerson.BirthYear) + 18) {
-            console.log("thisPerson", logNow(thisPerson));
             for (let x = 0; x < 10; x++) {
               if (window.profilePerson.Children[x] && !window.profilePerson.Children[x]?.Id) {
                 const thisChild = window.profilePerson.Children[x];
                 Object.assign(thisChild, thisPerson);
-                console.log("thisPerson", logNow(thisPerson));
                 break;
               }
             }
@@ -6404,7 +6351,6 @@ export async function buildFamilyForPrivateProfiles() {
                 const thisSpouse = window.profilePerson.Spouses[x];
                 Object.assign(thisSpouse, thisPerson);
                 await getSpouseParents2();
-                console.log(logNow(window.biographySpouseParents));
                 break;
               } else if (window.profilePerson.Siblings[x] && !window.profilePerson.Siblings[x]?.Id) {
                 const thisSibling = window.profilePerson.Siblings[x];
@@ -6417,7 +6363,6 @@ export async function buildFamilyForPrivateProfiles() {
       }
     }
   }
-  console.log(logNow(window.profilePerson));
 }
 
 function minimalPlace2(narrativeBits) {
@@ -6542,7 +6487,6 @@ export async function generateBio() {
       "AutoBio"
     );
     window.profilePerson = window.biographyPeople;
-    console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
 
     const originalFormData = getFormData();
 
@@ -6584,13 +6528,7 @@ export async function generateBio() {
       }
     }
 
-    // if (!window.profilePerson.LastNameAtBirth) {
     await buildFamilyForPrivateProfiles();
-    console.log("after build for private", logNow(window.profilePerson));
-
-    // }
-
-    //console.log("profilePerson", JSON.parse(JSON.stringify(window.profilePerson)));
 
     const nuclearFamily = familyArray(window.profilePerson);
     nuclearFamily.forEach(function (member) {
@@ -7478,7 +7416,7 @@ export async function getLocationCategory(type, location = null) {
   if (australianLocations[lastElement]) {
     if (australianLocations[lastElement]?.["modernName"]) {
       locationSplit.pop(); // Remove the last element
-      const modernLastElement = australianLocations[lastElement]?.["modernName"].replace(/, Australia/, "");
+      const modernLastElement = australianLocations[lastElement]?.["modernName"].replace(/, Australia.*/, "");
       locationSplit.push(modernLastElement); // Add the new element
       searchLocation = locationSplit.join(", ");
     }
