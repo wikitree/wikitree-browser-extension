@@ -79,6 +79,7 @@ import "./features/edit_family_data/edit_family_data";
 import "./features/draftList/draftList";
 import "./features/randomProfile/randomProfile";
 import "./features/what_links_here/what_links_here";
+import "./features/cat_a_lot/cat_a_lot";
 
 /*
  * debugging features for development only

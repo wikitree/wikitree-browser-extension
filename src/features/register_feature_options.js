@@ -247,6 +247,17 @@ registerFeature({
   creators: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
   contributors: [],
   defaultValue: true,
+  pages: [isCategoryEdit],
+});
+
+registerFeature({
+  name: "Cat a lot",
+  id: "catALot",
+  description: "Categorize from within a category",
+  category: "Editing",
+  creators: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
+  contributors: [],
+  defaultValue: true,
   pages: [isProfileEdit, isCategoryPage],
 });
 
