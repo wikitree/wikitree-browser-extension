@@ -44,9 +44,10 @@ function PerformActualProfileChanges() {
 
 function GetActualAkaCategoryUsedInProfile(wpTextbox1, cats) {
   let actualCat = "";
-  const bio = wpTextbox1.value.replace("Category: ", "Category:");
+  let bio = wpTextbox1.value.replace("Category: ", "Category:");
   const remCats = cats.split("|");
 
+  //todo: make this one work: https://www.wikitree.com/index.php?title=Special:EditPerson&w=Stober-28&addCat=Staffort,%20Baden-W%C3%BCrttemberg&remCat=Baden-W%C3%BCrttemberg,%20Germany|Baden-W%C3%BCrttemberg,%20Deutschland
   for (let i = 0; i < remCats.length; ++i) {
     if (bio.indexOf("Category:" + remCats[i]) > -1) {
       actualCat = remCats[i];
@@ -206,6 +207,8 @@ function UpdateTypedCatName() {
   xmlHttp.send(null);
   if (xmlHttp.status < 400) {
     AddVerifiedCatLink(catTyped);
+  } else {
+    alert(xmlHttp.status);
   }
 }
 
@@ -223,10 +226,15 @@ function AddCat(wpTextbox1, cat) {
 }
 
 function RemoveCat(wpTextbox1, cat) {
-  let bio = wpTextbox1.value;
-  let catSyntax = "[[Category:" + cat + "]]";
+  const bio = wpTextbox1.value;
+  const catSyntax = "[[Category:" + cat + "]]";
+  const catSyntaxWithBlank = "[[Category: " + cat + "]]";
   if (bio.indexOf(cat + "]]") > -1) {
-    window.document.getElementById("wpTextbox1").value = bio.replace(catSyntax + "\n", "").replace(catSyntax, "");
+    window.document.getElementById("wpTextbox1").value = bio
+      .replace(catSyntax + "\n", "")
+      .replace(catSyntax, "")
+      .replace(catSyntaxWithBlank + "\n", "")
+      .replace(catSyntaxWithBlank, "");
   }
 }
 
