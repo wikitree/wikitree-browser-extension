@@ -85,14 +85,14 @@ export function bioTimelineFacts(marriagesAndCensusesEtc) {
           person: aPerson,
           Year: deathDate.slice(0, 4),
         });
-        if (aRel == "Spouses") {
+        if (aRel == "Spouses" && aPerson["marriage_date"]) {
           bioTimeline.push({
             "Event Date": aPerson.marriage_date,
             "Event Type": "Marriage",
             "Event Place": aPerson.marriage_location,
-            OrderDate: padNumber(aPerson["marriage_date"].replaceAll(/-/g, "")),
+            OrderDate: padNumber(aPerson["marriage_date"]?.replaceAll(/-/g, "")),
             person: aPerson,
-            Year: aPerson.marriage_date.slice(0, 4),
+            Year: aPerson.marriage_date?.slice(0, 4),
           });
         }
       });
