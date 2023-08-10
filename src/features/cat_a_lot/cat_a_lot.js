@@ -6,12 +6,32 @@ shouldInitializeFeature("catALot").then((result) => {
     if (isProfileEdit) {
       PerformActualProfileChanges();
     } else if (isCategoryPage) {
-      AddProfileCheckmarks();
-      AddSubcatLinks();
-      AddControls();
+      AddActivateButton();
     }
   }
 });
+
+function AddActivateButton() {
+  const buttonEnable = document.createElement("a");
+  buttonEnable.innerText = "cat a lot";
+  buttonEnable.href = "#0";
+  buttonEnable.id = "activate_button";
+  buttonEnable.addEventListener("click", ShowCatALot);
+
+  const spanEnable = document.createElement("span");
+  spanEnable.append("[");
+  spanEnable.appendChild(buttonEnable);
+  spanEnable.append("]");
+
+  document.getElementsByClassName("EDIT")[2].appendChild(spanEnable);
+}
+function ShowCatALot() {
+  // document.getElementById('activate_button').remove();
+  AddProfileCheckmarks();
+  AddSubcatLinks();
+  AddControls();
+  return false;
+}
 
 function AddControls() {
   const inputCatTyped = document.createElement("input");
@@ -188,10 +208,9 @@ function PerformActualProfileChanges() {
     summary = "adding " + "'" + cat + "'" + ", ";
   }
   if (bHasRem) {
-    
-    //because replace only replaces first occurrence 
+    //because replace only replaces first occurrence
     wpTextbox1.value = wpTextbox1.value.split("Category: ").join("Category:");
-    
+
     cat = urlParams.get("remCat");
     if (cat.indexOf("|") > -1) {
       cat = GetActualAkaCategoryUsedInProfile(wpTextbox1, cat);
@@ -232,9 +251,7 @@ function RemoveCat(wpTextbox1, cat) {
   const bio = wpTextbox1.value;
   const catSyntax = "[[Category:" + cat + "]]";
   if (bio.indexOf(cat + "]]") > -1) {
-    window.document.getElementById("wpTextbox1").value = bio
-      .replace(catSyntax + "\n", "")
-      .replace(catSyntax, "");
+    window.document.getElementById("wpTextbox1").value = bio.replace(catSyntax + "\n", "").replace(catSyntax, "");
   }
 }
 
