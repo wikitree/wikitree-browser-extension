@@ -6,6 +6,13 @@ import "./features/register_feature_options";
 import { WBE, isWikiTreeUrl } from "./core/common";
 import { restoreOptions, restoreData } from "./upload";
 import { navigatorDetect } from "./core/navigatorDetect";
+import { shouldInitializeFeature, getFeatureOptions } from "./core/options/options_storage.js";
+
+shouldInitializeFeature("darkMode").then((result) => {
+  if (result) {
+    import("./features/darkMode/darkMode.css");
+  }
+});
 
 if (WBE?.version) {
   const title = WBE.name + " " + WBE.version;
