@@ -6,8 +6,8 @@ shouldInitializeFeature("catALot").then((result) => {
     if (isProfileEdit) {
       PerformActualProfileChanges();
     } else if (isCategoryPage) {
-      ShowCatALot();
-      // AddActivateButton();
+      //ShowCatALot();
+      AddActivateButton();
     }
   }
 });
@@ -27,7 +27,6 @@ function AddActivateButton() {
   document.getElementsByClassName("EDIT")[2].appendChild(spanEnable);
 }
 function ShowCatALot() {
-  // document.getElementById('activate_button').remove();
   AddProfileCheckmarks();
   AddSubcatLinks();
   AddControls();
@@ -43,8 +42,6 @@ function AddControls() {
   const inputCatVerified = document.createElement("div");
   inputCatVerified.readOnly = true;
   inputCatVerified.id = "inputCatVerified";
-
-  //todo: disable button if no category is set and radio is on move or add
 
   let radioMove = document.createElement("input");
   radioMove.type = "radio";
@@ -91,7 +88,7 @@ function AddControls() {
   catALotButton.value = "Cat a lot";
   catALotButton.id = "catALotButton";
   catALotButton.disabled = true;
-  catALotButton.addEventListener("click", OnCatALotStarted);
+  catALotButton.addEventListener("click", OnCatALotClicked);
 
   const catALotDiv = document.createElement("div");
   catALotDiv.align = "right";
@@ -123,8 +120,7 @@ function AddSubcatLinks() {
   }
 }
 
-function OnCatALotStarted() {
-  const cboxes = document.getElementsByClassName("profile_selector");
+function OnCatALotClicked() {
   let remCat = "";
   let addCat = "";
   if (document.getElementById("radioMove").checked || document.getElementById("radioRemove").checked) {
@@ -136,9 +132,15 @@ function OnCatALotStarted() {
   }
 
   const baseEditUrl = "https://www.wikitree.com/index.php?title=Special:EditPerson&w=";
+  const cboxes = document.getElementsByClassName("profile_selector");
+
   for (let i = 0; i < cboxes.length; ++i) {
     if (cboxes[i].checked) {
       let url = baseEditUrl + cboxes[i].value + addCat + remCat;
+      if (!document.getElementById("radioAdd").checked) {
+        cboxes[i].parentNode.style.display = "none";
+      }
+
       let win = window.open(url);
     }
   }
