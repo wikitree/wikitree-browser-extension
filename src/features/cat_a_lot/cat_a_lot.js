@@ -6,7 +6,8 @@ shouldInitializeFeature("catALot").then((result) => {
     if (isProfileEdit) {
       PerformActualProfileChanges();
     } else if (isCategoryPage) {
-      AddActivateButton();
+      ShowCatALot();
+      // AddActivateButton();
     }
   }
 });
@@ -37,36 +38,67 @@ function AddControls() {
   const inputCatTyped = document.createElement("input");
   inputCatTyped.id = "inputCatTyped";
   inputCatTyped.placeholder = "category add/move";
-  inputCatTyped.addEventListener("change", UpdateTypedCatName);
+  inputCatTyped.addEventListener("change", OnTypedCatNameChanged);
 
   const inputCatVerified = document.createElement("div");
   inputCatVerified.readOnly = true;
   inputCatVerified.id = "inputCatVerified";
 
   //todo: disable button if no category is set and radio is on move or add
-  let radioButtons = '<input type="radio" name="moveOrAdd" value="move" id="radioMove" checked>';
-  radioButtons += '<label for="radioMove">move</label>';
-  radioButtons += '<input type="radio" name="moveOrAdd" value="add" id="radioAdd">';
-  radioButtons += '<label for="radioAdd">add</label>';
-  radioButtons += '<input type="radio" name="moveOrAdd" value="remove" id="radioRemove">';
-  radioButtons += '<label for="radioRemove">remove current</label><br />';
-  // var textbox = '<input type="text" id="addCatTextType"><br/>';
-  // textbox+='<input type="text" disabled id="addCatText">';
 
-  // document.getElementsByClassName('SMALL x-audit')[2].appendChild(inputCatTyped);
-  // document.getElementsByClassName('SMALL x-audit')[2].appendChild(inputCatVerified);
-  // document.getElementsByClassName('SMALL x-audit')[1].innerHTML = radioButtons + document.getElementsByClassName('SMALL x-audit')[1].innerHTML;
+  let radioMove = document.createElement("input");
+  radioMove.type = "radio";
+  radioMove.id = "radioMove";
+  radioMove.value = "move";
+  radioMove.name = "catAction";
+  radioMove.checked = true;
+  radioMove.addEventListener("click", function () {
+    document.getElementById("catALotButton").disabled = document.getElementById("inputCatVerified").innerHTML == "";
+  });
 
-  // document.getElementsByTagName("h2")[0].addEventListener("click",  OnCatALotStarted);
+  let labelMove = document.createElement("label");
+  labelMove.appendChild(radioMove);
+  labelMove.append("Move");
+
+  const radioAdd = document.createElement("input");
+  radioAdd.type = "radio";
+  radioAdd.id = "radioAdd";
+  radioAdd.value = "Add";
+  radioAdd.name = "catAction";
+  radioAdd.addEventListener("click", function () {
+    document.getElementById("catALotButton").disabled = document.getElementById("inputCatVerified").innerHTML == "";
+  });
+
+  const labelAdd = document.createElement("label");
+  labelAdd.appendChild(radioAdd);
+  labelAdd.append("Add");
+
+  const radioRemove = document.createElement("input");
+  radioRemove.type = "radio";
+  radioRemove.id = "radioRemove";
+  radioRemove.value = "Remove";
+  radioRemove.name = "catAction";
+  radioRemove.addEventListener("click", function () {
+    document.getElementById("catALotButton").disabled = false;
+  });
+
+  const labelRemove = document.createElement("label");
+  labelRemove.appendChild(radioRemove);
+  labelRemove.append("Remove");
 
   const catALotButton = document.createElement("input");
   catALotButton.type = "button";
   catALotButton.value = "Cat a lot";
+  catALotButton.id = "catALotButton";
+  catALotButton.disabled = true;
   catALotButton.addEventListener("click", OnCatALotStarted);
 
   const catALotDiv = document.createElement("div");
   catALotDiv.align = "right";
-  catALotDiv.innerHTML = radioButtons;
+  catALotDiv.appendChild(labelMove);
+  catALotDiv.appendChild(labelAdd);
+  catALotDiv.appendChild(labelRemove);
+
   catALotDiv.appendChild(inputCatTyped);
   catALotDiv.appendChild(document.createElement("br"));
   catALotDiv.append("destination: ");
@@ -172,7 +204,7 @@ function AddProfileCheckmarks() {
   }
 }
 
-function UpdateTypedCatName() {
+function OnTypedCatNameChanged() {
   let catTyped = document.getElementById("inputCatTyped").value;
   const indexOfColon = catTyped.indexOf(":");
   if (indexOfColon > -1) {
@@ -184,14 +216,17 @@ function UpdateTypedCatName() {
   xmlHttp.send(null);
   if (xmlHttp.status < 400) {
     AddVerifiedCatLink(catTyped);
+  } else if (xmlHttp.status == 404) {
+    alert("Category doesn't exist");
   } else {
-    alert(xmlHttp.status);
+    alert("Error while checking category: " + xmlHttp.status);
   }
 }
 
 function AddVerifiedCatLink(cat) {
   document.getElementById("inputCatVerified").innerHTML =
     '<a href="https://www.wikitree.com/wiki/Category:' + cat + '">' + cat + "</a>";
+  document.getElementById("catALotButton").disabled = false;
 }
 
 function PerformActualProfileChanges() {
