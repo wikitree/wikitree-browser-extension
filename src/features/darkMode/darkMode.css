@@ -38,6 +38,7 @@
   body.darkMode #content header,
   body.darkMode #content main,
   body.darkMode .googleSearch,
+  body.darkMode #helpSearchBox.helpSearch,
   html body.darkMode .qa-main .qa-q-item-title a:link,
   html body.darkMode .qa-main .qa-q-item-title a:visited,
   html body.darkMode .qa-main .qa-q-item-tags a:link,
@@ -55,7 +56,11 @@
   /* Tree Apps */ body.darkMode header, 
   body.darkMode .cc7Table caption,
   body.darkMode .cc7Table thead,
-  body.darkMode #cc7Degree {
+  body.darkMode #cc7Degree,
+  /* Options */ 
+  body.wte#options,
+  body.wte#options #categoryBar,
+  body.wte#options dialog#settingsDialog {
     background-color: #36393f !important;
     color: #dcddde !important;
   }
@@ -414,12 +419,16 @@ html body.darkMode header a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link
   }
 
   /* Family lists, Theme of the Week, EditToolbar  */
-  body.darkMode .vertical .nameList li[data-gender="male"],
-  body.darkMode span[data-gender="Male"],
-  body.darkMode .vertical .nameList li[data-gender="female"],
-  body.darkMode span[data-gender="Female"],
-  body.darkMode #themeTable caption,
-  body.darkMode .editToolbarButton {
+  html body.darkMode .vertical .nameList li[data-gender="male"],
+  html body.darkMode .vertical .nameList li[data-gender="male"]#profilePerson,
+  html body.darkMode span[data-gender="Male"],
+  html body.darkMode div.spouseDetails span[data-gender="Male"],
+  html body.darkMode .vertical .nameList li[data-gender="female"],
+  html body.darkMode .vertical .nameList li[data-gender="female"]#profilePerson,
+  html body.darkMode span[data-gender="Female"],
+  html body.darkMode div.spouseDetails span[data-gender="Female"],
+  html body.darkMode #themeTable caption,
+  html body.darkMode .editToolbarButton {
     background-color: transparent !important;
   }
 
@@ -523,5 +532,26 @@ html body.darkMode header a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link
 
   body.darkMode #hierarchyView img.missingIcon {
     background-color: aliceblue !important;
+  }
+
+  /* Options page */
+  body.wte#options div.category-root,
+  body.wte#options dialog#settingsDialog div.dialog-header {
+    color: black !important;
+  }
+  body.wte#options div.section-header label {
+    color: black;
+  }
+  body.wte#options div.feature.section,
+  body.wte#options div.feature.section a,
+  body.wte#options div.section.category a:link,
+  body.wte#options div.feature-author,
+  body.wte#options div.section-content div.section-header label,
+  body.wte#options div.section-description,
+  body.wte#options #categoryBar a:link {
+    color: #e1efbb;
+  }
+  body.wte#options #categoryBar {
+    border-bottom: #e1efbb 1px solid;
   }
 }

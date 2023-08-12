@@ -226,7 +226,7 @@ async function whatLinksHereLink() {
         $("#content .ten").append(theSection);
       }
     } else if (isMediaWikiPage) {
-      $("#content > .sixteen").append(theSection);
+      $("#content .sixteen").append(theSection);
     }
     $("#whatLinksHereMore").on("change", function () {
       if (!this.xWhatLinksHerePopulated) {

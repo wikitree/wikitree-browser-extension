@@ -932,6 +932,8 @@ export function siblingList() {
             sibling?.Gender == "Male" ? "Brother" : sibling?.Gender == "Female" ? "Sister" : "Sibling";
           text += "Private " + siblingWord + "\n";
         } else {
+          console.log(sibling, "sibling");
+
           text += nameLink(sibling) + " " + personDates(sibling).replace(/(in|on)\s/g, "") + "\n";
         }
       });
@@ -4253,27 +4255,46 @@ export function sourcesArray(bio) {
       aRef["Birth Date"]
     ) {
       aRef["Record Type"].push("Birth");
-      aRef.OrderDate = formatDate(aRef["Birth Date"], 0, { format: 8 });
+      if (aRef["Birth Date"]) {
+        aRef.OrderDate = formatDate(aRef["Birth Date"], 0, { format: 8 });
+      }
     }
     if (
       aRef["Baptism Date"] ||
       aRef["Christening Date"] ||
       aRef["Baptism date"] ||
       aRef["Christening date"] ||
-      aRef.Text.match(/Baptism Record/)
+      aRef.Text.match(/Baptism Record|citing.+Baptism,/)
     ) {
       aRef["Record Type"].push("Baptism");
       const nameMatch = aRef.Text.match(/familysearch.*, ([A-Z].*?) baptism/i);
+      const nameMatch2 = aRef.Text.match(
+        /familysearch.*\),\s(.*?),\s\b\d{1,2}\s\w{3}\s\d{4}\b;.*Baptism,\s(.*), (United Kingdom|USA|United States|Canada|Australia|New Zealand)/i
+      );
       const baptismDateMatch = aRef.Text.match(/familysearch.*,.*?\bon\b (.*?\d{4}\b)/i);
+      const baptismDateMatch2 = aRef.Text.match(/familysearch.*\),.*(\b(\d{1,2}\s)(\w{3}\s)\d{4}\b);/i);
       const birthDateMatch = aRef.Text.match(/familysearch.*,.*?\bborn\b (.*?\d{4}\b)/i);
       const baptismLocationMatch = aRef.Text.match(/familysearch.*,.*?\bin\b (.*?)\./i);
+      const baptismLocationMatch2 = aRef.Text.match(
+        /familysearch.*\),.*\b\d{1,2}\s\w{3}\s\d{4}\b;.*Baptism,\s(.*), (United Kingdom|USA|United States|Canada|Australia|New Zealand)/i
+      );
 
       if (nameMatch) {
         aRef.Name = nameMatch[1];
       }
+      if (nameMatch2) {
+        aRef.Name = nameMatch2[1];
+      }
+      console.log(nameMatch2);
       if (baptismDateMatch) {
+        console.log("baptismDateMatch");
         aRef["Baptism Date"] = baptismDateMatch[1];
         aRef["Year"] = baptismDateMatch[1].match(/\d{4}/)[0];
+      } else if (baptismDateMatch2) {
+        console.log("baptismDateMatch2");
+        console.log(baptismDateMatch2);
+        aRef["Baptism Date"] = baptismDateMatch2[1];
+        aRef["Year"] = baptismDateMatch2[1].match(/\d{4}/)[0];
       }
       if (birthDateMatch) {
         aRef["Birth Date"] = birthDateMatch[1];
@@ -4281,6 +4302,8 @@ export function sourcesArray(bio) {
       }
       if (baptismLocationMatch) {
         aRef["Baptism Place"] = baptismLocationMatch[1];
+      } else if (baptismLocationMatch2) {
+        aRef["Baptism Place"] = baptismLocationMatch2[1];
       }
 
       if (aRef.Name) {
@@ -4445,13 +4468,27 @@ export function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        /NZBDM DEATH|(New Zealand Department.*Death Registration)|Overlijden|[A-Z][a-z]+ Deaths(?!\s&|\sand)|'''Death'''|Death (Index|Record|Reg)|findagrave|Find a Grave|memorial|Cemetery Registers|Death Certificate|^Death -|citing Death|citing Burial|Probate/i
+        /NZBDM DEATH|(New Zealand Department.*Death Registration)|Overlijden|[A-Z][a-z]+ Deaths(?!\s&|\sand)|'''Death'''|Death (Index|Record|Reg)|findagrave|Find a Grave|memorial|Cemetery Registers|Death Certificate|^Death -|citing Death|citing.*Burial,|Probate/i
       ) ||
       aRef["Death Date"]
     ) {
       aRef["Record Type"].push("Death");
 
       aRef.OrderDate = formatDate(aRef["Death Date"], 0, { format: 8 });
+    }
+    if (aRef.Text.match(/citing.*Burial,/i)) {
+      const familySearchBurialMatch = aRef.Text.match(
+        /familysearch.*\),\s(.*?),\s(\b\d{1,2}\s\w{3}\s\d{4}\b);.*Burial,\s(.*), (United Kingdom|USA|United States|Canada|Australia|New Zealand)/i
+      );
+      if (familySearchBurialMatch) {
+        aRef["Burial Date"] = familySearchBurialMatch[2];
+        aRef["Burial Place"] = familySearchBurialMatch[3];
+        aRef["Name"] = familySearchBurialMatch[1];
+      }
+      aRef["Event Type"] = "Burial";
+      if (aRef["Burial Date"]) {
+        aRef.OrderDate = formatDate(aRef["Burial Date"], 0, { format: 8 });
+      }
     }
     if (aRef.Text.match(/created .*? the import of.*\.GED/i)) {
       aRef["Record Type"].push("GEDCOM");
@@ -6069,11 +6106,19 @@ export function addOccupationCategories(feature = "autoBio") {
   });
 }
 
+/**
+ * This function builds a family tree for private profiles.
+ * It retrieves and processes family information (like parents, siblings, spouses, children)
+ * from the current window and updates the global `window.profilePerson` object.
+ */
 export async function buildFamilyForPrivateProfiles() {
+  // Construct BirthName if it doesn't exist
   if (!window.profilePerson.BirthName) {
     window.profilePerson.BirthName =
       window.profilePerson.FirstName + (window.profilePerson.MiddleName ? " " + window.profilePerson.MiddleName : "");
   }
+
+  // Construct BirthNamePrivate if it doesn't exist
   if (!window.profilePerson.BirthNamePrivate) {
     window.profilePerson.BirthNamePrivate =
       (window.profilePerson.RealName || window.profilePerson.FirstName) +
@@ -6081,16 +6126,23 @@ export async function buildFamilyForPrivateProfiles() {
       window.profilePerson.LastNameAtBirth +
       (window.profilePerson.Suffix ? " " + window.profilePerson.Suffix : "");
   }
+
+  // Retrieve LastNameAtBirth from the page if not present
   if (!window.profilePerson.LastNameAtBirth) {
-    // <a name="last-name"></a>
     const lastNameAnchor = $("a[name='last-name']");
     const lastNameText = lastNameAnchor.parent().text().split(" [")[0].trim();
     window.profilePerson.LastNameAtBirth = lastNameText;
   }
+
+  // Retrieve Gender from the page if not present
   if (!window.profilePerson.Gender) {
     window.profilePerson.Gender = $("select#mGender option:selected").val();
   }
 
+  /**
+   * Helper function to parse a name string.
+   * If the name has a part in parentheses, it's considered the LastNameAtBirth.
+   */
   function parseName(name, object) {
     const nameParts = name.split(" ");
     let lastNameAtBirthIndex;
@@ -6101,7 +6153,7 @@ export async function buildFamilyForPrivateProfiles() {
         lastNameAtBirthIndex = index;
       }
     });
-    if (lastNameAtBirthIndex) {
+    if (lastNameAtBirthIndex !== undefined) {
       object.FirstName = nameParts.slice(0, lastNameAtBirthIndex).join(" ");
       object.LastNameCurrent = nameParts.slice(lastNameAtBirthIndex + 1).join(" ");
     } else {
@@ -6110,77 +6162,48 @@ export async function buildFamilyForPrivateProfiles() {
     }
   }
 
+  /**
+   * Helper function to find the correct link for a family member
+   * from a given list of links.
+   */
   function findFamilyPersonLink(links) {
-    let familyPersonLink;
     for (let i = 0; i < links.length; i++) {
       const link = links[i];
       if (link.href.match(/\/wiki\/.*-\d+$/)) {
-        familyPersonLink = link;
-        break;
+        return link.replace(/\s/g, "_");
       }
     }
-    return familyPersonLink;
+    return null;
   }
+
+  // Locate family members in the page
   const familyColumn = $("a[name='family']").closest("div");
   const familyTable = familyColumn.find("table");
   const familyTableRows = familyTable.find("tr");
   let fatherTr, motherTr, siblingsTr, spousesTr, childrenTr;
   familyTableRows.each(function (index, row) {
-    if (
-      $(this)
-        .find("td")
-        .eq(0)
-        .text()
-        .match(/Father/)
-    ) {
-      fatherTr = row;
-    } else if (
-      $(this)
-        .find("td")
-        .eq(0)
-        .text()
-        .match(/Mother/)
-    ) {
-      motherTr = row;
-    } else if (
-      $(this)
-        .find("td")
-        .eq(0)
-        .text()
-        .match(/Siblings/)
-    ) {
-      siblingsTr = row;
-    } else if (
-      $(this)
-        .find("td")
-        .eq(0)
-        .text()
-        .match(/Spouses/)
-    ) {
-      spousesTr = row;
-    } else if (
-      $(this)
-        .find("td")
-        .eq(0)
-        .text()
-        .match(/Children/)
-    ) {
-      childrenTr = row;
-    }
+    const cellText = $(this).find("td").eq(0).text();
+    if (cellText.includes("Father")) fatherTr = row;
+    else if (cellText.includes("Mother")) motherTr = row;
+    else if (cellText.includes("Siblings")) siblingsTr = row;
+    else if (cellText.includes("Spouses")) spousesTr = row;
+    else if (cellText.includes("Children")) childrenTr = row;
   });
+
+  // Initialize Parents if not already done
   if (!window.profilePerson.Parents) {
     window.profilePerson.Parents = {};
   }
+
+  // Process father's data if available
   if (fatherTr) {
     const fatherLinks = fatherTr.querySelectorAll("a");
-    let fatherLink;
-    if (fatherLinks) {
-      fatherLink = findFamilyPersonLink(fatherLinks);
-    }
+    const fatherLink = findFamilyPersonLink(fatherLinks);
     if (fatherLink) {
       const fatherId = fatherLink.href.split("/").pop();
-      const fatherObject = {};
-      fatherObject.Name = fatherId;
+      const fatherObject = {
+        Name: fatherId,
+      };
       const fatherName = fatherLink.textContent;
       parseName(fatherName, fatherObject);
       if (window.profilePerson.Father) {
@@ -6196,16 +6219,16 @@ export async function buildFamilyForPrivateProfiles() {
       }
     }
   }
+
+  // Process mother's data if available
   if (motherTr) {
     const motherLinks = motherTr.querySelectorAll("a");
-    let motherLink;
-    if (motherLinks) {
-      motherLink = findFamilyPersonLink(motherLinks);
-    }
+    const motherLink = findFamilyPersonLink(motherLinks);
     if (motherLink) {
       const motherId = motherLink.href.split("/").pop();
-      const motherObject = {};
-      motherObject.Name = motherId;
+      const motherObject = {
+        Name: motherId,
+      };
       const motherName = motherLink.textContent;
       parseName(motherName, motherObject);
       if (window.profilePerson.Mother) {
@@ -6222,9 +6245,9 @@ export async function buildFamilyForPrivateProfiles() {
     }
   }
 
+  // Process and initialize Siblings, Spouses, and Children data
   const familyLists = ["Siblings", "Spouses", "Children"];
   familyLists.forEach((familyList) => {
-    // if (!window.profilePerson[familyList]) {
     window.profilePerson[familyList] = {};
     const familyTr = familyList === "Siblings" ? siblingsTr : familyList === "Spouses" ? spousesTr : childrenTr;
     if (familyTr) {
@@ -6236,13 +6259,13 @@ export async function buildFamilyForPrivateProfiles() {
           for (let i = 0; i < family.length; i++) {
             const familyMember = family[i];
             const familyMemberLinks = familyMember.querySelectorAll("a");
-            let familyMemberLink;
-            familyMemberLink = findFamilyPersonLink(familyMemberLinks);
+            const familyMemberLink = findFamilyPersonLink(familyMemberLinks);
             if (familyMemberLink) {
               const familyMemberId = familyMemberLink.href.split("/").pop();
-              const familyMemberObject = {};
-              familyMemberObject.Name = familyMemberId;
-              familyMemberObject.BirthDate = "0000-00-00";
+              const familyMemberObject = {
+                Name: familyMemberId,
+                BirthDate: "0000-00-00",
+              };
               if (familyList == "Spouses") {
                 familyMemberObject["marriage_date"] = "0000-00-00";
               }
@@ -6254,12 +6277,12 @@ export async function buildFamilyForPrivateProfiles() {
         }
       }
     }
-    // }
     if (Object.keys(window.profilePerson[familyList])?.length === 0) {
       window.profilePerson[familyList] = [];
     }
   });
 
+  // Collate all the family members' names for subsequent fetch
   const ids = [];
   ["Parents", "Siblings", "Spouses", "Children"].forEach(function (familyList) {
     for (let key in window.profilePerson[familyList]) {
@@ -6269,8 +6292,11 @@ export async function buildFamilyForPrivateProfiles() {
       }
     }
   });
+
+  // Fetch family profiles data
   const familyProfiles = await getPeople(ids.join(","), 0, 0, 0, 0, 0, "*", "WBE_auto_bio");
 
+  // Assign the fetched family profiles data to the respective family lists
   ["Parents", "Siblings", "Spouses", "Children"].forEach(function (familyList) {
     const keys = Object.keys(window.profilePerson[familyList]);
     for (let i = 0; i < keys.length; i++) {
@@ -6281,7 +6307,6 @@ export async function buildFamilyForPrivateProfiles() {
         const thisPerson = familyProfiles[0]?.people[thisId];
         if (thisPerson) {
           window.profilePerson[familyList][thisId] = thisPerson;
-
           if (familyList == "Parents") {
             if (thisPerson.Gender == "Male") {
               window.profilePerson.Father = thisId;
@@ -6296,8 +6321,11 @@ export async function buildFamilyForPrivateProfiles() {
       }
     }
   });
+
+  // Update the main profile with the new family members' names
   assignPersonNames(window.profilePerson);
 
+  // Further refinement of the family tree based on fetched data
   for (let i = -10; i < 0; i++) {
     if (familyProfiles?.[0]?.people[i]) {
       const thisPerson = familyProfiles[0].people[i];
