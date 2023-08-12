@@ -10,7 +10,6 @@ import {
 } from "../../core/pageType";
 import "./usability_tweaks.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import "../../core/common.css";
 
 function addSaveSearchFormDataButton() {
   const searchResultsP = $("span.large:contains('Search Results')").parent();
