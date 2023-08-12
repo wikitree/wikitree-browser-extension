@@ -932,8 +932,6 @@ export function siblingList() {
             sibling?.Gender == "Male" ? "Brother" : sibling?.Gender == "Female" ? "Sister" : "Sibling";
           text += "Private " + siblingWord + "\n";
         } else {
-          console.log(sibling, "sibling");
-
           text += nameLink(sibling) + " " + personDates(sibling).replace(/(in|on)\s/g, "") + "\n";
         }
       });
@@ -6106,6 +6104,7 @@ export function addOccupationCategories(feature = "autoBio") {
   });
 }
 
+
 /**
  * This function builds a family tree for private profiles.
  * It retrieves and processes family information (like parents, siblings, spouses, children)
@@ -6248,6 +6247,7 @@ export async function buildFamilyForPrivateProfiles() {
   // Process and initialize Siblings, Spouses, and Children data
   const familyLists = ["Siblings", "Spouses", "Children"];
   familyLists.forEach((familyList) => {
+
     window.profilePerson[familyList] = {};
     const familyTr = familyList === "Siblings" ? siblingsTr : familyList === "Spouses" ? spousesTr : childrenTr;
     if (familyTr) {
@@ -6259,6 +6259,7 @@ export async function buildFamilyForPrivateProfiles() {
           for (let i = 0; i < family.length; i++) {
             const familyMember = family[i];
             const familyMemberLinks = familyMember.querySelectorAll("a");
+
             const familyMemberLink = findFamilyPersonLink(familyMemberLinks);
             if (familyMemberLink) {
               const familyMemberId = familyMemberLink.href.split("/").pop();
@@ -6277,10 +6278,12 @@ export async function buildFamilyForPrivateProfiles() {
         }
       }
     }
+    // }
     if (Object.keys(window.profilePerson[familyList])?.length === 0) {
       window.profilePerson[familyList] = [];
     }
   });
+
 
   // Collate all the family members' names for subsequent fetch
   const ids = [];
@@ -6292,6 +6295,7 @@ export async function buildFamilyForPrivateProfiles() {
       }
     }
   });
+
 
   // Fetch family profiles data
   const familyProfiles = await getPeople(ids.join(","), 0, 0, 0, 0, 0, "*", "WBE_auto_bio");
@@ -6307,6 +6311,7 @@ export async function buildFamilyForPrivateProfiles() {
         const thisPerson = familyProfiles[0]?.people[thisId];
         if (thisPerson) {
           window.profilePerson[familyList][thisId] = thisPerson;
+
           if (familyList == "Parents") {
             if (thisPerson.Gender == "Male") {
               window.profilePerson.Father = thisId;
@@ -6321,6 +6326,7 @@ export async function buildFamilyForPrivateProfiles() {
       }
     }
   });
+
 
   // Update the main profile with the new family members' names
   assignPersonNames(window.profilePerson);
