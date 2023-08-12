@@ -932,8 +932,6 @@ export function siblingList() {
             sibling?.Gender == "Male" ? "Brother" : sibling?.Gender == "Female" ? "Sister" : "Sibling";
           text += "Private " + siblingWord + "\n";
         } else {
-          console.log(sibling, "sibling");
-
           text += nameLink(sibling) + " " + personDates(sibling).replace(/(in|on)\s/g, "") + "\n";
         }
       });
@@ -6171,7 +6169,6 @@ export async function buildFamilyForPrivateProfiles() {
       const link = links[i];
       const linkMatch = link.href.match(/\/wiki\/.*-\d+$/);
       if (linkMatch) {
-        console.log(link);
         link.href = link.href.replace(/\s|%20/g, "_");
         return link;
       }
