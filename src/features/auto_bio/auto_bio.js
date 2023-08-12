@@ -932,6 +932,8 @@ export function siblingList() {
             sibling?.Gender == "Male" ? "Brother" : sibling?.Gender == "Female" ? "Sister" : "Sibling";
           text += "Private " + siblingWord + "\n";
         } else {
+          console.log(sibling, "sibling");
+
           text += nameLink(sibling) + " " + personDates(sibling).replace(/(in|on)\s/g, "") + "\n";
         }
       });
@@ -4253,27 +4255,46 @@ export function sourcesArray(bio) {
       aRef["Birth Date"]
     ) {
       aRef["Record Type"].push("Birth");
-      aRef.OrderDate = formatDate(aRef["Birth Date"], 0, { format: 8 });
+      if (aRef["Birth Date"]) {
+        aRef.OrderDate = formatDate(aRef["Birth Date"], 0, { format: 8 });
+      }
     }
     if (
       aRef["Baptism Date"] ||
       aRef["Christening Date"] ||
       aRef["Baptism date"] ||
       aRef["Christening date"] ||
-      aRef.Text.match(/Baptism Record/)
+      aRef.Text.match(/Baptism Record|citing.+Baptism,/)
     ) {
       aRef["Record Type"].push("Baptism");
       const nameMatch = aRef.Text.match(/familysearch.*, ([A-Z].*?) baptism/i);
+      const nameMatch2 = aRef.Text.match(
+        /familysearch.*\),\s(.*?),\s\b\d{1,2}\s\w{3}\s\d{4}\b;.*Baptism,\s(.*), (United Kingdom|USA|United States|Canada|Australia|New Zealand)/i
+      );
       const baptismDateMatch = aRef.Text.match(/familysearch.*,.*?\bon\b (.*?\d{4}\b)/i);
+      const baptismDateMatch2 = aRef.Text.match(/familysearch.*\),.*(\b(\d{1,2}\s)(\w{3}\s)\d{4}\b);/i);
       const birthDateMatch = aRef.Text.match(/familysearch.*,.*?\bborn\b (.*?\d{4}\b)/i);
       const baptismLocationMatch = aRef.Text.match(/familysearch.*,.*?\bin\b (.*?)\./i);
+      const baptismLocationMatch2 = aRef.Text.match(
+        /familysearch.*\),.*\b\d{1,2}\s\w{3}\s\d{4}\b;.*Baptism,\s(.*), (United Kingdom|USA|United States|Canada|Australia|New Zealand)/i
+      );
 
       if (nameMatch) {
         aRef.Name = nameMatch[1];
       }
+      if (nameMatch2) {
+        aRef.Name = nameMatch2[1];
+      }
+      console.log(nameMatch2);
       if (baptismDateMatch) {
+        console.log("baptismDateMatch");
         aRef["Baptism Date"] = baptismDateMatch[1];
         aRef["Year"] = baptismDateMatch[1].match(/\d{4}/)[0];
+      } else if (baptismDateMatch2) {
+        console.log("baptismDateMatch2");
+        console.log(baptismDateMatch2);
+        aRef["Baptism Date"] = baptismDateMatch2[1];
+        aRef["Year"] = baptismDateMatch2[1].match(/\d{4}/)[0];
       }
       if (birthDateMatch) {
         aRef["Birth Date"] = birthDateMatch[1];
@@ -4281,6 +4302,8 @@ export function sourcesArray(bio) {
       }
       if (baptismLocationMatch) {
         aRef["Baptism Place"] = baptismLocationMatch[1];
+      } else if (baptismLocationMatch2) {
+        aRef["Baptism Place"] = baptismLocationMatch2[1];
       }
 
       if (aRef.Name) {
@@ -4445,13 +4468,27 @@ export function sourcesArray(bio) {
     }
     if (
       aRef.Text.match(
-        /NZBDM DEATH|(New Zealand Department.*Death Registration)|Overlijden|[A-Z][a-z]+ Deaths(?!\s&|\sand)|'''Death'''|Death (Index|Record|Reg)|findagrave|Find a Grave|memorial|Cemetery Registers|Death Certificate|^Death -|citing Death|citing Burial|Probate/i
+        /NZBDM DEATH|(New Zealand Department.*Death Registration)|Overlijden|[A-Z][a-z]+ Deaths(?!\s&|\sand)|'''Death'''|Death (Index|Record|Reg)|findagrave|Find a Grave|memorial|Cemetery Registers|Death Certificate|^Death -|citing Death|citing.*Burial,|Probate/i
       ) ||
       aRef["Death Date"]
     ) {
       aRef["Record Type"].push("Death");
 
       aRef.OrderDate = formatDate(aRef["Death Date"], 0, { format: 8 });
+    }
+    if (aRef.Text.match(/citing.*Burial,/i)) {
+      const familySearchBurialMatch = aRef.Text.match(
+        /familysearch.*\),\s(.*?),\s(\b\d{1,2}\s\w{3}\s\d{4}\b);.*Burial,\s(.*), (United Kingdom|USA|United States|Canada|Australia|New Zealand)/i
+      );
+      if (familySearchBurialMatch) {
+        aRef["Burial Date"] = familySearchBurialMatch[2];
+        aRef["Burial Place"] = familySearchBurialMatch[3];
+        aRef["Name"] = familySearchBurialMatch[1];
+      }
+      aRef["Event Type"] = "Burial";
+      if (aRef["Burial Date"]) {
+        aRef.OrderDate = formatDate(aRef["Burial Date"], 0, { format: 8 });
+      }
     }
     if (aRef.Text.match(/created .*? the import of.*\.GED/i)) {
       aRef["Record Type"].push("GEDCOM");
@@ -6115,7 +6152,7 @@ export async function buildFamilyForPrivateProfiles() {
     for (let i = 0; i < links.length; i++) {
       const link = links[i];
       if (link.href.match(/\/wiki\/.*-\d+$/)) {
-        familyPersonLink = link;
+        familyPersonLink = link.replace(/\s/g, "_");
         break;
       }
     }
