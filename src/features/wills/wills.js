@@ -78,14 +78,14 @@ function wills() {
         .replace(/ \-/, "")
         .trim();
 
-      const personTextSplit = personText.split(" ");
-      const surname = personTextSplit[personTextSplit.length - 1].replaceAll(/[()]/g, "");
+      let personTextSplit = personText.split(" ");
+      let surname = personTextSplit[personTextSplit.length - 1].replaceAll(/[()]/g, "");
 
       let glos = false;
       if (wText.match(/Will \([0-9]+?(, [0-9]+?)?\)/) != null) {
         const wTextSp = wText.split(/\([0-9]+\) of/);
         if (wTextSp[1]) {
-          const sp2 = wTextSp[1].split("of");
+          let sp2 = wTextSp[1].split("of");
           personText = sp2[0].trim();
           if (sp2[1]) {
             const sp3 = sp2[1].split("-");
@@ -95,13 +95,13 @@ function wills() {
             }
           }
         }
-        const personTextSplit = personText.split(" ");
-        const surname = personTextSplit[personTextSplit.length - 1].replaceAll(/[()]/g, "");
+        personTextSplit = personText.split(" ");
+        surname = personTextSplit[personTextSplit.length - 1].replaceAll(/[()]/g, "");
         glos = true;
       }
 
       if ((wText.match(/Estate of/) != null || wText.match(/Estate:/) != null) && personText == "") {
-        const sp = wText.split(/Estate of/);
+        let sp = wText.split(/Estate of/);
         if (sp[1]) {
           personText = sp[1].trim();
         } else {
@@ -111,8 +111,8 @@ function wills() {
           }
         }
         if (personText != "") {
-          const personTextSplit = personText.split(" ");
-          const surname = personTextSplit[personTextSplit.length - 1].replaceAll(/[()]/g, "");
+          personTextSplit = personText.split(" ");
+          surname = personTextSplit[personTextSplit.length - 1].replaceAll(/[()]/g, "");
         }
       }
 

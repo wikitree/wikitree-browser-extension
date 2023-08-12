@@ -67,7 +67,7 @@ async function getFamily() {
         window.profilePerson.DeathYear = window.profilePerson?.DeathDate?.split("-")[0];
       }
     }
-    await buildFamilyForPrivateProfiles();
+    buildFamilyForPrivateProfiles();
     const nuclearFamily = familyArray(window.profilePerson);
     nuclearFamily.forEach(function (member) {
       if (member) {
@@ -113,7 +113,7 @@ async function getFamily() {
   return;
 }
 
-function copyToClipboardAPI(text) {
+export function copyToClipboardAPI(text) {
   navigator.clipboard.writeText(text).then(
     function () {
       console.log("Copying to clipboard was successful!");
@@ -153,6 +153,7 @@ async function getList(functionName) {
       spouses.forEach(function (spouse, index) {
         result += spouse.Narrative + "\n" + (index + 1 < spouses.length ? "\n" : "");
       });
+      console.log("spouses", spouses);
       message = "Spouse and Child Details";
       break;
     case "siblingList":
