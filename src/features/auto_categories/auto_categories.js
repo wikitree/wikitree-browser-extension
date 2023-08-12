@@ -57,7 +57,9 @@ export async function addAutoCategories() {
   // Merge the form data into the profilePerson object
   Object.assign(window.profilePerson, formData);
 
-  await buildFamilyForPrivateProfiles();
+  //if ($("img[title='Privacy Level: Unlisted']").length > 0) {
+  buildFamilyForPrivateProfiles();
+  //}
 
   // Assign names to the profile person
   assignPersonNames(window.profilePerson);
@@ -96,6 +98,7 @@ export async function addAutoCategories() {
     const category = await getLocationCategory(event);
     if (!window.addCategories.includes(category) && category) {
       window.addCategories.push(category);
+      console.log(JSON.parse(JSON.stringify(window.addCategories)));
     }
   }
   window.addCategories.forEach((category) => {
