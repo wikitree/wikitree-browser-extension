@@ -6169,8 +6169,11 @@ export async function buildFamilyForPrivateProfiles() {
   function findFamilyPersonLink(links) {
     for (let i = 0; i < links.length; i++) {
       const link = links[i];
-      if (link.href.match(/\/wiki\/.*-\d+$/)) {
-        return link.replace(/\s/g, "_");
+      const linkMatch = link.href.match(/\/wiki\/.*-\d+$/);
+      if (linkMatch) {
+        console.log(link);
+        link.href = link.href.replace(/\s|%20/g, "_");
+        return link;
       }
     }
     return null;
