@@ -67,7 +67,7 @@ async function getFamily() {
         window.profilePerson.DeathYear = window.profilePerson?.DeathDate?.split("-")[0];
       }
     }
-    buildFamilyForPrivateProfiles();
+    await buildFamilyForPrivateProfiles();
     const nuclearFamily = familyArray(window.profilePerson);
     nuclearFamily.forEach(function (member) {
       if (member) {
@@ -153,7 +153,6 @@ async function getList(functionName) {
       spouses.forEach(function (spouse, index) {
         result += spouse.Narrative + "\n" + (index + 1 < spouses.length ? "\n" : "");
       });
-      console.log("spouses", spouses);
       message = "Spouse and Child Details";
       break;
     case "siblingList":

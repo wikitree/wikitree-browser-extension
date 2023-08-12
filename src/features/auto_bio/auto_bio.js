@@ -4283,14 +4283,10 @@ export function sourcesArray(bio) {
       if (nameMatch2) {
         aRef.Name = nameMatch2[1];
       }
-      console.log(nameMatch2);
       if (baptismDateMatch) {
-        console.log("baptismDateMatch");
         aRef["Baptism Date"] = baptismDateMatch[1];
         aRef["Year"] = baptismDateMatch[1].match(/\d{4}/)[0];
       } else if (baptismDateMatch2) {
-        console.log("baptismDateMatch2");
-        console.log(baptismDateMatch2);
         aRef["Baptism Date"] = baptismDateMatch2[1];
         aRef["Year"] = baptismDateMatch2[1].match(/\d{4}/)[0];
       }
@@ -6295,7 +6291,6 @@ export async function buildFamilyForPrivateProfiles() {
 
   // Fetch family profiles data
   const familyProfiles = await getPeople(ids.join(","), 0, 0, 0, 0, 0, "*", "WBE_auto_bio");
-
   // Assign the fetched family profiles data to the respective family lists
   ["Parents", "Siblings", "Spouses", "Children"].forEach(function (familyList) {
     const keys = Object.keys(window.profilePerson[familyList]);
