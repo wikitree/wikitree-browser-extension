@@ -10,6 +10,7 @@ import {
 } from "../../core/pageType";
 import "./usability_tweaks.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import "../../core/common.css";
 
 function addSaveSearchFormDataButton() {
   const searchResultsP = $("span.large:contains('Search Results')").parent();
@@ -142,7 +143,7 @@ function addScratchPadButton() {
   }
 
   // Bind click events to original buttons
-  editButton.click(function () {
+  editButton.on("click", function () {
     if (!isProgrammaticClick) {
       isProgrammaticClick = true;
       $("input[value='Edit Scratch Pad']:not(#clonedEditButton)").click();

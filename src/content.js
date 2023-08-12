@@ -23,6 +23,7 @@ import "./features/clipboard_and_notes/clipboard_and_notes";
 import "./features/collapsibleDescendantsTree/collapsibleDescendantsTree";
 import "./features/confirm_thank_yous/confirm_thank_yous";
 import "./features/connection_finder/connection_finder";
+import "./features/copy_bio_changes/copy_bio_changes";
 import "./features/distanceAndRelationship/distanceAndRelationship";
 import "./features/dna_table/dna_table";
 import "./features/extra_watchlist/extra_watchlist";
@@ -60,6 +61,7 @@ import "./features/date_fixer/date_fixer";
 import "./features/language_setting/language_setting";
 import "./features/locationsHelper/locationsHelper";
 import "./features/make_radio_buttons_deselectable/make_radio_buttons_deselectable";
+import "./features/migration_category_helper/migration_category_helper";
 import "./features/save_buttons_style_options/save_buttons_style_options";
 import "./features/sticky_toolbar/sticky_toolbar";
 // BioCheck needs to load later than custom_change_summary_options

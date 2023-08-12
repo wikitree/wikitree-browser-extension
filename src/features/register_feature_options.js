@@ -59,6 +59,7 @@ import "./access_keys/access_keys_options";
 import "./categoryDisplay/categoryDisplay_options";
 import "./change_family_lists/change_family_lists_options";
 import "./connection_finder/connection_finder_options";
+import "./copy_bio_changes/copy_bio_changes_options";
 import "./custom_change_summary_options/custom_change_summary_options_options";
 import "./custom_style/custom_style_options";
 import "./darkMode/darkMode_options";
@@ -236,6 +237,17 @@ registerFeature({
   contributors: [],
   defaultValue: true,
   pages: [isProfileEdit, isProfileAddRelative],
+});
+
+registerFeature({
+  name: "Migration Category Helper",
+  id: "migrationCategoryHelper",
+  description: "Automatically populates migration categories when a new one is opened for editing.",
+  category: "Editing",
+  creators: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
+  contributors: [],
+  defaultValue: true,
+  pages: [isCategoryEdit],
 });
 
 registerFeature({
