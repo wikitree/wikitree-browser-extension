@@ -315,8 +315,14 @@ function AddCat(wpTextbox1, cat) {
 function RemoveCat(wpTextbox1, cat) {
   const bio = wpTextbox1.value;
   const catSyntax = "[[Category:" + cat + "]]";
-  if (bio.indexOf(cat + "]]") > -1) {
-    window.document.getElementById("wpTextbox1").value = bio.replace(catSyntax + "\n", "").replace(catSyntax, "");
+  const catUnderlines = cat.replace(" ", "_");
+  const catSyntaxUnderlines = "[[Category:" + catUnderlines + "]]";
+  if (bio.indexOf(cat + "]]") > -1 || bio.indexOf(catUnderlines) > -1) {
+    window.document.getElementById("wpTextbox1").value = 
+    bio.replace(catSyntax + "\n", "")
+    .replace(catSyntax, "")
+    .replace(catSyntaxUnderlines + "\n", "")
+    .replace(catSyntaxUnderlines, "");
   }
 }
 
