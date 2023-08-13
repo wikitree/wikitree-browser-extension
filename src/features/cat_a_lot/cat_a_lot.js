@@ -307,7 +307,7 @@ function GetActualAkaCategoryUsedInProfile(wpTextbox1, cats) {
 function AddCat(wpTextbox1, cat) {
   let bio = wpTextbox1.value;
   let catSyntax = "[[Category:" + cat + "]]";
-  if (bio.indexOf(cat + "]]") == -1) {
+  if (bio.indexOf(catSyntax) == -1) {
     window.document.getElementById("wpTextbox1").value = catSyntax + "\n" + bio;
   }
 }
