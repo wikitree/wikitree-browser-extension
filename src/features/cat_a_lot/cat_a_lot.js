@@ -105,18 +105,21 @@ function AddControls() {
 }
 
 function AddSubcatLinks() {
-  let subCatDiv = document.getElementsByClassName("row Subcategories")[0];
-  let subCatLinks = subCatDiv.getElementsByClassName("P-X");
-  const reg = /\(\d+,\s\d+,\s\d+\)/;
+  let subCatDiv = document.getElementsByClassName("row Subcategories");
 
-  for (let i = 0; i < subCatLinks.length; ++i) {
-    let newLink = document.createElement("a");
-    newLink.innerText = "here";
-    newLink.addEventListener("click", function () {
-      const clearCatName = subCatLinks[i].innerText.replace(reg, "");
-      AddVerifiedCatLink(clearCatName);
-    });
-    subCatLinks[i].parentNode.appendChild(newLink);
+  if (subCatDiv != null && subCatDiv.length > 0) {
+    let subCatLinks = subCatDiv[0].getElementsByClassName("P-X");
+    const reg = /\(\d+,\s\d+,\s\d+\)/;
+
+    for (let i = 0; i < subCatLinks.length; ++i) {
+      let newLink = document.createElement("a");
+      newLink.innerText = "here";
+      newLink.addEventListener("click", function () {
+        const clearCatName = subCatLinks[i].innerText.replace(reg, "");
+        AddVerifiedCatLink(clearCatName);
+      });
+      subCatLinks[i].parentNode.appendChild(newLink);
+    }
   }
 }
 
