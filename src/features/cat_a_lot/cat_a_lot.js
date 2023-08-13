@@ -142,6 +142,7 @@ function OnCatALotClicked() {
       let url = baseEditUrl + cboxes[i].value + addCat + remCat;
       if (!document.getElementById("radioAdd").checked) {
         cboxes[i].parentNode.style.display = "none";
+        cboxes[i].checked = false;
       }
 
       let win = window.open(url);
