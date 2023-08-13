@@ -29,6 +29,7 @@ function AddActivateButton() {
 function ShowCatALot() {
   AddProfileCheckmarks();
   AddSubcatLinks();
+  AddLetterlinks();
   AddControls();
   return false;
 }
@@ -102,6 +103,29 @@ function AddControls() {
   catALotDiv.appendChild(inputCatVerified);
   catALotDiv.appendChild(catALotButton);
   document.getElementById("categories").appendChild(catALotDiv);
+}
+
+function AddLetterlinks() {
+  let letterHeadlines = document.getElementsByTagName("h3");
+  if (letterHeadlines != null) {
+    for (let i = 0; i < letterHeadlines.length; i++) {
+      if (letterHeadlines[i].innerText.length == 1 || letterHeadlines[i].innerText.indexOf("cont.") > -1) {
+        let newLink = document.createElement("a");
+        newLink.innerText = "[x]";
+        newLink.addEventListener("click", function () {
+          if (letterHeadlines[i].nextSibling != null) {
+            let sibling = letterHeadlines[i].nextSibling.nextSibling;
+
+            while (sibling != null && sibling.tagName == "DIV") {
+              sibling.firstChild.checked = true;
+              sibling = sibling.nextSibling.nextSibling; //text after div
+            }
+          }
+        });
+        letterHeadlines[i].appendChild(newLink);
+      }
+    }
+  }
 }
 
 function AddSubcatLinks() {
