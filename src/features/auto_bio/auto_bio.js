@@ -7050,6 +7050,15 @@ export async function generateBio() {
           }
         }
       }
+
+      // Get other subsections and add them to the Research Notes section
+      const otherSubsections = window.sectionsObject["Research Notes"].subsections;
+      Object.keys(otherSubsections).forEach(function (aSubsection) {
+        if (aSubsection != "NeedsProfiles") {
+          const subsectionText = otherSubsections[aSubsection].text.join("\n");
+          researchNotesText += "=== " + aSubsection + " ===\n" + subsectionText + "\n\n";
+        }
+      });
     }
 
     // Add Sources section
