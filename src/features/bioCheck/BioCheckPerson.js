@@ -27,7 +27,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * or could be a profile in the WikiTree Browser Extension.
  * Only contains a subset of the complete set of data available.
  * Expects the profile to contain the following fields from the API:
- * Id,Name,IsLiving,Privacy,Manager,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,
+ * Id,Name,IsLiving,Privacy,Manager,IsMember,
+ * BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,
  * FirstName,RealName,LastNameCurrent,LastNameAtBirth,Mother,Father,DataStatus,Bio
  */
 export class BioCheckPerson {
@@ -55,6 +56,7 @@ export class BioCheckPerson {
     bio: "",
     hasName: false,
     privacyLevel: 0,
+    isMember: false,
     uncheckedDueToPrivacy: false,
     uncheckedDueToDate: false,
     fatherDnaConfirmed: false,
@@ -130,6 +132,11 @@ export class BioCheckPerson {
       if (profileObj.Privacy != null) {
         this.person.privacyLevel = profileObj.Privacy;
       }
+      if (profileObj.IsMember != null) {
+        if (profileObj.IsMember === 1) {
+          this.person.isMember = true;
+        }
+      }
       if (profileObj.bio != null) {
         this.person.bio = profileObj.bio;
         this.person.hasBio = true;
@@ -168,7 +175,6 @@ export class BioCheckPerson {
         }
       }
       // can use if logged in user is the same as Manager
-      // test with Nelson-3486
       if (this.person.privacyLevel < BioCheckPerson.MIN_PRIVACY) {
         if (userId === 0) {
           canUseThis = false; // user not logged in
@@ -178,6 +184,14 @@ export class BioCheckPerson {
           }
         }
       }
+
+      // Do not check the profile for a member
+      // TODO not sure that you want to do this, need team guidance
+      /*
+      if (this.person.isMember) {
+        canUseThis = false;
+      }
+      */
       if (mustBeOpen && this.person.privacyLevel < BioCheckPerson.OPEN_PRIVACY) {
         canUseThis = false;
       }
@@ -255,6 +269,15 @@ export class BioCheckPerson {
     const WIKI_TREE_URI = "https://www.wikitree.com/wiki/";
     return WIKI_TREE_URI + this.person.wikiTreeId;
   }
+
+  /** 
+   * Is profile for a member
+   * @returns {Boolean} true if profile for a member
+   */
+  isMember() {
+    return this.person.isMember;
+  }
+
   /**
    * Get the privacy
    * @returns {Number} numeric privacy level
@@ -342,7 +365,6 @@ export class BioCheckPerson {
         this.#hasBirthDate = false;
       }
       if (dDay != null && dDay.length > 0) {
-        //this.#deathDateString = dDay.replace(/ /g, '-');
         this.#deathDateString = dDay;
         this.#deathDate = this.#getDateFromString(this.#deathDateString);
       } else {
@@ -370,6 +392,11 @@ export class BioCheckPerson {
             this.person.motherDnaConfirmed = true;
           }
         }
+      }
+      // Active profile manager has an email address
+      let emailElements = document.getElementsByName('mEmail');
+      if (emailElements.length > 0) {
+        this.person.isMember = true;
       }
     }
   }
