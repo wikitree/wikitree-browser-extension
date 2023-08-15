@@ -3860,7 +3860,7 @@ export function getNameVariants(person) {
   if (person.LongName) {
     nameVariants.push(person.LongName.replace(/\s\s/, " "));
   }
-  if (person.PersonName.BirthName) {
+  if (person.PersonName?.BirthName) {
     nameVariants.push(person.PersonName.BirthName);
   }
   if (person.LongNamePrivate) {
@@ -6327,16 +6327,9 @@ export async function buildFamilyForPrivateProfiles() {
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i];
       const person = window.profilePerson[familyList][key];
-
-      console.log("person", person);
-
       if (person.Name) {
         const thisId = familyProfiles[0]?.resultByKey[person.Name]?.Id;
         const thisPerson = familyProfiles[0]?.people[thisId];
-
-        console.log("thisId", thisId);
-        console.log("thisPerson", thisPerson);
-
         if (thisPerson) {
           if (familyList == "Spouses") {
             thisPerson.Spouses.forEach(function (spouse) {
@@ -7534,6 +7527,7 @@ export async function getLocationCategory(type, location = null) {
       thisState = findUSState(window.profilePerson.DeathLocation);
     }
     api.response.categories.forEach(function (aCat) {
+      console.log(aCat);
       if (!aCat.topLevel) {
         let category = aCat.category;
         if (!(type == "Cemetery" && sameState(window.profilePerson.DeathLocation, aCat.location) == false)) {
