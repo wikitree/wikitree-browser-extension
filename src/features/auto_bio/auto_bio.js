@@ -6290,17 +6290,66 @@ export async function buildFamilyForPrivateProfiles() {
   });
 
   // Fetch family profiles data
-  const familyProfiles = await getPeople(ids.join(","), 0, 0, 0, 0, 0, "*", "WBE_auto_bio");
+
+  const theFields = [
+    "BirthDate",
+    "BirthDateDecade",
+    "BirthLocation",
+    "DataStatus",
+    "DeathDate",
+    "DeathDateDecade",
+    "DeathLocation",
+    "Derived.BirthName",
+    "Derived.BirthNamePrivate",
+    "Father",
+    "FirstName",
+    "Gender",
+    "HasChildren",
+    "Id",
+    "IsRedirect",
+    "LastNameAtBirth",
+    "LastNameCurrent",
+    "LastNameOther",
+    "MiddleName",
+    "Mother",
+    "Name",
+    "Nicknames",
+    "Prefix",
+    "RealName",
+    "Suffix",
+    "Spouses",
+  ];
+
+  const familyProfiles = await getPeople(ids.join(","), 0, 0, 0, 0, 0, theFields.join(","), "WBE_auto_bio");
   // Assign the fetched family profiles data to the respective family lists
   ["Parents", "Siblings", "Spouses", "Children"].forEach(function (familyList) {
     const keys = Object.keys(window.profilePerson[familyList]);
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i];
       const person = window.profilePerson[familyList][key];
+
+      console.log("person", person);
+
       if (person.Name) {
         const thisId = familyProfiles[0]?.resultByKey[person.Name]?.Id;
         const thisPerson = familyProfiles[0]?.people[thisId];
+
+        console.log("thisId", thisId);
+        console.log("thisPerson", thisPerson);
+
         if (thisPerson) {
+          if (familyList == "Spouses") {
+            thisPerson.Spouses.forEach(function (spouse) {
+              if (spouse.Id == window.profilePerson.Id) {
+                thisPerson.marriage_date = spouse?.marriage_date;
+                thisPerson.marriage_location = spouse?.marriage_location;
+                thisPerson.data_status = {
+                  marriage_date: spouse?.DataStatus?.MarriageDate,
+                  marriage_location: spouse?.DataStatus?.MarriageLocation,
+                };
+              }
+            });
+          }
           window.profilePerson[familyList][thisId] = thisPerson;
           if (familyList == "Parents") {
             if (thisPerson.Gender == "Male") {
@@ -6309,13 +6358,15 @@ export async function buildFamilyForPrivateProfiles() {
               window.profilePerson.Mother = thisId;
             }
           }
-          if (key < 20) {
+          if (key < 70) {
             delete window.profilePerson[familyList][key];
           }
         }
       }
     }
   });
+
+  console.log("profile person now", logNow(window.profilePerson));
 
   // Update the main profile with the new family members' names
   assignPersonNames(window.profilePerson);
@@ -6372,6 +6423,9 @@ export async function buildFamilyForPrivateProfiles() {
             for (let x = 0; x < 10; x++) {
               if (window.profilePerson.Spouses[x] && !window.profilePerson.Spouses[x]?.Id) {
                 const thisSpouse = window.profilePerson.Spouses[x];
+
+                console.log("thisSpouse", thisSpouse);
+
                 Object.assign(thisSpouse, thisPerson);
                 await getSpouseParents2();
                 break;
