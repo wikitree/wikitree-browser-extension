@@ -10,7 +10,7 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set release flags based on branch
         run: |
           echo "X_SHORT_HASH=`git rev-parse --short HEAD`" >> $GITHUB_ENV
@@ -22,7 +22,7 @@ jobs:
           # build number is the number of seconds since 2023-08-01 UTC
           echo "X_SAFARI_BUILD=$((`date -u +%s`+300000000-1690848000))" >> $GITHUB_ENV
       - name: Setup Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: 16.x
           cache: "npm"
@@ -147,7 +147,7 @@ jobs:
           [ ! -f dist-safari-macos.pkg ] || mv dist-safari-macos.pkg wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-safari-macos.pkg
           [ ! -f dist-safari-macos.zip ] || mv dist-safari-macos.zip wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-safari-macos.zip
       - name: Update release
-        uses: "marvinpinto/action-automatic-releases@latest"
+        uses: "marvinpinto/action-automatic-releases@6273874b61ebc8c71f1a61b2d98e234cf389b303"
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           prerelease: ${{ env.X_RELEASE_TAG != 'stable' }}
