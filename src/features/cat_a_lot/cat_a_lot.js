@@ -7,33 +7,37 @@ shouldInitializeFeature("catALot").then((result) => {
       PerformActualProfileChanges();
     } else if (isCategoryPage || isSearchPage) {
       //ShowCatALot();
-      AddActivateButton();
+      AddCatALotLink();
     }
   }
 });
 
-function AddActivateButton() {
+function AddCatALotLink() {
   const buttonEnable = document.createElement("a");
   buttonEnable.innerText = "cat a lot";
   buttonEnable.href = "#0";
-  buttonEnable.id = "activate_button";
+  buttonEnable.id = "activate_link";
   buttonEnable.addEventListener("click", ShowCatALot);
 
   const spanEnable = document.createElement("span");
   spanEnable.append("[");
   spanEnable.appendChild(buttonEnable);
   spanEnable.append("]");
+  spanEnable.className = "small";
   if (isCategoryPage) {
     document.getElementsByClassName("EDIT")[2].appendChild(spanEnable);
   }
   else if (isSearchPage) {
-    document.getElementsByTagName("H2")[0].appendChild(spanEnable);
+    // document.getElementsByClassName('two columns omega')[0].appendChild(spanEnable);
+    document.getElementsByTagName("p")[0].appendChild(spanEnable);
   }
 }
 function ShowCatALot() {
   if (isSearchPage) {
-    AddCatALotControls(document.getElementsByClassName('two columns omega')[0]);
+    //  AddCatALotControls(document.getElementsByClassName('two columns omega')[0]);
+    AddCatALotControls(document.getElementsByTagName("p")[0]);
     HackMergeCheckboxes();
+    AddSelectAllResultsLink();
   }
   else if (isCategoryPage) {
     AddCheckboxes();
@@ -45,6 +49,13 @@ function ShowCatALot() {
 }
 
 function AddCatALotControls(elementToAppendTo) {
+  if (document.getElementById("catALotButton") != null) {
+    return;
+  }
+  document.getElementById('activate_link').hidden = true;
+  document.getElementById('activate_link').previousSibling.textContent = "";
+  document.getElementById('activate_link').nextSibling.textContent = "";
+
   const inputCatTyped = document.createElement("input");
   inputCatTyped.id = "inputCatTyped";
   inputCatTyped.placeholder = "category add/move";
@@ -121,6 +132,22 @@ function AddCatALotControls(elementToAppendTo) {
   catALotDiv.appendChild(inputCatVerified);
   catALotDiv.appendChild(catALotButton);
   elementToAppendTo.appendChild(catALotDiv);
+}
+
+function AddSelectAllResultsLink() {
+  let newLink = document.createElement("a");
+  newLink.innerText = "[x]";
+  newLink.addEventListener("click", function () {
+    const cboxes = document.getElementsByClassName("profile_selector");
+
+    for (let i = 0; i < cboxes.length; ++i) {
+      if (cboxes[i].parentNode.parentNode.style.display != "none") {
+        cboxes[i].checked = true;
+      }
+    }
+  });
+
+  document.getElementsByClassName("large")[0].appendChild(newLink);
 }
 
 function AddLetterlinks() {
@@ -246,12 +273,20 @@ function HackMergeCheckboxes() {
 
   for (let i = 0; i < cbs.length; i++) {
     if (cbs[i].type == "checkbox" && cbs[i].name == "mergeany[]") {
+      cbs[i].parentNode.style.display = "inline";
       cbs[i].classList.add("profile_selector");
       cbs[i].name = "cb" + i;
       cbs[i].id = "cb" + i;
       cbs[i].nextSibling.remove();
     }
   }
+  //remove merge controls and annotations
+  document.getElementsByClassName("mergeany")[0].parentNode.href = "#";
+  document.getElementsByClassName("mergeany")[0].parentNode.style.display = "none";
+  document.getElementsByClassName("mergeany")[0].parentNode.previousSibling.textContent = ""; //[
+  document.getElementsByClassName("mergeany")[0].parentNode.nextSibling.textContent = ""; //]
+  document.getElementsByClassName("mergeany")[0].style.display = "none";
+  document.getElementsByClassName("mergeany")[1].style.display = "none";
 }
 function AddCheckboxes() {
   //category
@@ -294,7 +329,7 @@ function OnTypedCatNameChanged() {
   let catTyped = document.getElementById("inputCatTyped").value.replace("[[", "").replace("]]", "");
   const indexOfColon = catTyped.indexOf(":");
   if (indexOfColon > -1) {
-    catTyped = catTyped.substring(indexOfColon + 1);
+    catTyped = catTyped.substring(indexOfColon + 1).trim();
   }
   let catUrl = "https://www.wikitree.com/wiki/Category:" + encodeURI(catTyped);
   let xmlHttp = new XMLHttpRequest();
@@ -307,6 +342,7 @@ function OnTypedCatNameChanged() {
   } else {
     alert("Error while checking category: " + xmlHttp.status);
   }
+  document.getElementById("inputCatTyped").value = catTyped;
 }
 
 function AddVerifiedCatLink(cat) {
@@ -326,7 +362,7 @@ function PerformActualProfileChanges() {
   if (bHasAdd) {
     cat = urlParams.get("addCat");
     AddCat(wpTextbox1, cat);
-    summary = "adding " + "'" + cat + "'" + ", ";
+    summary = "adding " + "'" + cat + "'";
   }
   if (bHasRem) {
     //because replace only replaces first occurrence
@@ -339,6 +375,9 @@ function PerformActualProfileChanges() {
     }
     if (cat != "") {
       RemoveCat(wpTextbox1, cat);
+      if (summary != "") {
+        summary += ", ";
+      }
       summary = summary + "removing " + "'" + cat + "'";
     }
   }
