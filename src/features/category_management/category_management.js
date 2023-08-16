@@ -137,7 +137,7 @@ function AddCatALotControls(elementToAppendTo) {
 
 function AddSelectAllResultsLink() {
   let newLink = document.createElement("a");
-  newLink.innerText = "[x]";
+  newLink.innerText = "[✓]";
   newLink.addEventListener("click", function () {
     const cboxes = document.getElementsByClassName("profile_selector");
 
@@ -157,7 +157,7 @@ function AddLetterlinks() {
     for (let i = 0; i < letterHeadlines.length; i++) {
       if (letterHeadlines[i].innerText.length == 1 || letterHeadlines[i].innerText.indexOf("cont.") > -1) {
         let newLink = document.createElement("a");
-        newLink.innerText = "[x]";
+        newLink.innerText = "[✓]";
         newLink.addEventListener("click", function () {
           if (letterHeadlines[i].nextSibling != null) {
             let sibling = letterHeadlines[i].nextSibling.nextSibling;
