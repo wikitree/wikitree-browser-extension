@@ -1,6 +1,6 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 import {
-  isProfileEdit, isCategoryPage, isSearchPage
+  isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit
 } from "../../core/pageType";
 
 registerFeature({
@@ -11,7 +11,7 @@ registerFeature({
   creators: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
   contributors: [],
   defaultValue: true,
-  pages: [isProfileEdit, isCategoryPage, isSearchPage],
+  pages: [isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit],
   options: [
     {
       id: "catALotCategory",
@@ -25,5 +25,29 @@ registerFeature({
       label: "batch add category for profiles within search results",
       defaultValue: false,
     },
+    {
+      id: "catMarkDelete",
+      type: OptionType.CHECKBOX,
+      label: "add link to request deletion",
+      defaultValue: false,
+    },
+    {
+      id: "catMarkRename",
+      type: OptionType.CHECKBOX,
+      label: "add link to ask new name, edit new category and request renaming",
+      defaultValue: false,
+    },
+    {
+      id: "catCopyRename",
+      type: OptionType.CHECKBOX,
+      label: "add link to copy and rename category",
+      defaultValue: false,
+    },
+    {
+      id: "disableCategories",
+      type: OptionType.CHECKBOX,
+      label: "deactivate marked categories with <nowiki>",
+      defaultValue: false,
+    }
   ],
 });
