@@ -59,6 +59,8 @@ export async function addAutoCategories() {
 
   await buildFamilyForPrivateProfiles();
 
+  console.log(JSON.parse(JSON.stringify(window.profilePerson)));
+
   // Assign names to the profile person
   assignPersonNames(window.profilePerson);
   window.profilePerson.Pronouns = getPronouns(window.profilePerson);

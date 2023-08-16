@@ -3860,7 +3860,7 @@ export function getNameVariants(person) {
   if (person.LongName) {
     nameVariants.push(person.LongName.replace(/\s\s/, " "));
   }
-  if (person.PersonName.BirthName) {
+  if (person.PersonName?.BirthName) {
     nameVariants.push(person.PersonName.BirthName);
   }
   if (person.LongNamePrivate) {
@@ -6327,16 +6327,9 @@ export async function buildFamilyForPrivateProfiles() {
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i];
       const person = window.profilePerson[familyList][key];
-
-      console.log("person", person);
-
       if (person.Name) {
         const thisId = familyProfiles[0]?.resultByKey[person.Name]?.Id;
         const thisPerson = familyProfiles[0]?.people[thisId];
-
-        console.log("thisId", thisId);
-        console.log("thisPerson", thisPerson);
-
         if (thisPerson) {
           if (familyList == "Spouses") {
             thisPerson.Spouses.forEach(function (spouse) {
@@ -7533,24 +7526,31 @@ export async function getLocationCategory(type, location = null) {
     if (type == "Cemetery") {
       thisState = findUSState(window.profilePerson.DeathLocation);
     }
+
     api.response.categories.forEach(function (aCat) {
       if (!aCat.topLevel) {
         let category = aCat.category;
-        if (!(type == "Cemetery" && sameState(window.profilePerson.DeathLocation, aCat.location) == false)) {
-          if (locationSplit[0] + ", " + locationSplit[1] + ", " + thisState == category) {
-            foundCategory = category;
-          } else if (locationSplit[0] + ", " + locationSplit[1] == category) {
-            foundCategory = category;
-          } else if (locationSplit[0] + ", " + locationSplit[1] + ", " + locationSplit[2] == category) {
-            foundCategory = category;
-          } else if (locationSplit[1] + ", " + locationSplit[2] == category) {
-            foundCategory = category;
-          } else if (locationSplit[0] + ", " + locationSplit[2] == category) {
+
+        if (type !== "Cemetery" || sameState(window.profilePerson.DeathLocation, aCat.location)) {
+          const [part0, part1, part2] = locationSplit;
+          const suffixes = [thisState, part2];
+
+          const combinations = [`${part0}, ${part1}`, `${part1}, ${part2}`, `${part0}, ${part2}`].flatMap((pattern) => [
+            pattern,
+            `${pattern} County`,
+            ...suffixes.map((suffix) => `${pattern}, ${suffix}`),
+            ...suffixes.map((suffix) => `${pattern} County, ${suffix}`),
+          ]);
+
+          if (combinations.includes(category)) {
             foundCategory = category;
           }
         }
       }
     });
+
+    return foundCategory || undefined;
+
     if (foundCategory) {
       return foundCategory;
     } else {
