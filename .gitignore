@@ -13,3 +13,6 @@ dist
 .vscode/settings.json
 .vscode/tasks.json
 *.zip
+
+# WinMerge backups
+*.bak

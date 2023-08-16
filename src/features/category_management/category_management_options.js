@@ -16,13 +16,13 @@ registerFeature({
     {
       id: "catALotCategory",
       type: OptionType.CHECKBOX,
-      label: "Cat-A-Lot: add/change/remove category of multiple profiles in one category",
+      label: "batch add, change and remove category for profiles in one category",
       defaultValue: true,
     },
     {
       id: "catALotSearchResults",
       type: OptionType.CHECKBOX,
-      label: "Cat-A-Lot: add category of multiple profiles within search results",
+      label: "batch add category for profiles within search results",
       defaultValue: false,
     },
   ],

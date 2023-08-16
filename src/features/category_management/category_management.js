@@ -1,6 +1,8 @@
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isCategoryPage, isProfileEdit, isSearchPage } from "../../core/pageType";
 
+//todo: rename CatALot to Batch cat. or whatever it will be in the end
+
 shouldInitializeFeature("categoryManagement").then((result) => {
   if (result) {
 
@@ -10,7 +12,7 @@ shouldInitializeFeature("categoryManagement").then((result) => {
       //ShowCatALot();
       getFeatureOptions("categoryManagement").then((options) => {
         const buttonEnable = document.createElement("a");
-        buttonEnable.innerText = "cat a lot";
+        buttonEnable.innerText = "batch cat.";
         buttonEnable.href = "#0";
         buttonEnable.id = "activate_link";
         buttonEnable.addEventListener("click", ShowCatALot);
