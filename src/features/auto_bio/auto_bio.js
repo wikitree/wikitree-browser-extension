@@ -7550,12 +7550,6 @@ export async function getLocationCategory(type, location = null) {
     });
 
     return foundCategory || undefined;
-
-    if (foundCategory) {
-      return foundCategory;
-    } else {
-      return;
-    }
   }
   return;
 }
