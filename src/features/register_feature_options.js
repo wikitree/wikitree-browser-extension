@@ -58,6 +58,7 @@ import "./auto_bio/auto_bio_options";
 import "./auto_categories/auto_categories_options";
 import "./access_keys/access_keys_options";
 import "./categoryDisplay/categoryDisplay_options";
+import "./category_management/category_management_options";
 import "./change_family_lists/change_family_lists_options";
 import "./connection_finder/connection_finder_options";
 import "./copy_bio_changes/copy_bio_changes_options";
@@ -249,17 +250,6 @@ registerFeature({
   contributors: [],
   defaultValue: true,
   pages: [isCategoryEdit],
-});
-
-registerFeature({
-  name: "Cat a lot",
-  id: "catALot",
-  description: "Categorize from within a category",
-  category: "Editing",
-  creators: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
-  contributors: [],
-  defaultValue: true,
-  pages: [isProfileEdit, isCategoryPage, isSearchPage, isSearchPage],
 });
 
 registerFeature({

@@ -1,37 +1,38 @@
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isCategoryPage, isProfileEdit, isSearchPage } from "../../core/pageType";
 
-shouldInitializeFeature("catALot").then((result) => {
+shouldInitializeFeature("categoryManagement").then((result) => {
   if (result) {
+
     if (isProfileEdit) {
       PerformActualProfileChanges();
     } else if (isCategoryPage || isSearchPage) {
       //ShowCatALot();
-      AddCatALotLink();
+      getFeatureOptions("categoryManagement").then((options) => {
+        const buttonEnable = document.createElement("a");
+        buttonEnable.innerText = "cat a lot";
+        buttonEnable.href = "#0";
+        buttonEnable.id = "activate_link";
+        buttonEnable.addEventListener("click", ShowCatALot);
+
+        const spanEnable = document.createElement("span");
+        spanEnable.append("[");
+        spanEnable.appendChild(buttonEnable);
+        spanEnable.append("]");
+        spanEnable.className = "small";
+
+        if (options.catALotCategory && isCategoryPage) {
+          document.getElementsByClassName("EDIT")[2].appendChild(spanEnable);
+        }
+        else if (options.catALotSearchResults && isSearchPage) {
+          // document.getElementsByClassName('two columns omega')[0].appendChild(spanEnable);
+          document.getElementsByTagName("p")[0].appendChild(spanEnable);
+        }
+      });
     }
   }
 });
 
-function AddCatALotLink() {
-  const buttonEnable = document.createElement("a");
-  buttonEnable.innerText = "cat a lot";
-  buttonEnable.href = "#0";
-  buttonEnable.id = "activate_link";
-  buttonEnable.addEventListener("click", ShowCatALot);
-
-  const spanEnable = document.createElement("span");
-  spanEnable.append("[");
-  spanEnable.appendChild(buttonEnable);
-  spanEnable.append("]");
-  spanEnable.className = "small";
-  if (isCategoryPage) {
-    document.getElementsByClassName("EDIT")[2].appendChild(spanEnable);
-  }
-  else if (isSearchPage) {
-    // document.getElementsByClassName('two columns omega')[0].appendChild(spanEnable);
-    document.getElementsByTagName("p")[0].appendChild(spanEnable);
-  }
-}
 function ShowCatALot() {
   if (isSearchPage) {
     //  AddCatALotControls(document.getElementsByClassName('two columns omega')[0]);
