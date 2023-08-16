@@ -108,6 +108,17 @@ class SourceRules {
     "priznanja",
     "erkennings",
   ];
+  #advanceDirectiveHeadings = [
+    "advance directive",
+    "directive préalable",
+    "diretiva antecipada",
+    "diretriz antecipada",
+    "directiva anticipada",
+    "digitaal testament",
+    "wilsverklaring",
+    "predhodna direktiva",
+  ];
+
   // loads from templates, each is name and status
   #rnb = [];
   // loads from templates
@@ -945,6 +956,14 @@ class SourceRules {
    */
   isAckHeading(line) {
     return this.#acknowledgmentsHeadings.includes(line);
+  }
+  /**
+   * Determine if a line is a valid advance directive heading
+   * @param {String} line to test
+   * @returns {Boolean} true if advance directive heading else false
+   */
+  isAdvanceDirective(line) {
+    return this.#advanceDirectiveHeadings.includes(line);
   }
 
   /**
