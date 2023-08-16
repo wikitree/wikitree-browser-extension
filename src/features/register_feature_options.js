@@ -39,6 +39,7 @@ import {
   isG2G,
   isDNADescendants,
   isMainDomain,
+  isSearchPage,
   /* eslint-enable no-unused-vars */
 } from "../core/pageType";
 
@@ -258,7 +259,7 @@ registerFeature({
   creators: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
   contributors: [],
   defaultValue: true,
-  pages: [isProfileEdit, isCategoryPage],
+  pages: [isProfileEdit, isCategoryPage, isSearchPage, isSearchPage],
 });
 
 registerFeature({

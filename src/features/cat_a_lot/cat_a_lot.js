@@ -1,11 +1,11 @@
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { isCategoryPage, isProfileEdit } from "../../core/pageType";
+import { isCategoryPage, isProfileEdit, isSearchPage } from "../../core/pageType";
 
 shouldInitializeFeature("catALot").then((result) => {
   if (result) {
     if (isProfileEdit) {
       PerformActualProfileChanges();
-    } else if (isCategoryPage) {
+    } else if (isCategoryPage || isSearchPage) {
       //ShowCatALot();
       AddActivateButton();
     }
@@ -23,18 +23,28 @@ function AddActivateButton() {
   spanEnable.append("[");
   spanEnable.appendChild(buttonEnable);
   spanEnable.append("]");
-
-  document.getElementsByClassName("EDIT")[2].appendChild(spanEnable);
+  if (isCategoryPage) {
+    document.getElementsByClassName("EDIT")[2].appendChild(spanEnable);
+  }
+  else if (isSearchPage) {
+    document.getElementsByTagName("H2")[0].appendChild(spanEnable);
+  }
 }
 function ShowCatALot() {
-  AddProfileCheckmarks();
-  AddSubcatLinks();
-  AddLetterlinks();
-  AddControls();
+  if (isSearchPage) {
+    AddCatALotControls(document.getElementsByClassName('two columns omega')[0]);
+    HackMergeCheckboxes();
+  }
+  else if (isCategoryPage) {
+    AddCheckboxes();
+    AddSubcatLinks();
+    AddLetterlinks();
+    AddCatALotControls(document.getElementById("categories"));
+  }
   return false;
 }
 
-function AddControls() {
+function AddCatALotControls(elementToAppendTo) {
   const inputCatTyped = document.createElement("input");
   inputCatTyped.id = "inputCatTyped";
   inputCatTyped.placeholder = "category add/move";
@@ -49,7 +59,6 @@ function AddControls() {
   radioMove.id = "radioMove";
   radioMove.value = "move";
   radioMove.name = "catAction";
-  radioMove.checked = true;
   radioMove.addEventListener("click", function () {
     document.getElementById("catALotButton").disabled = document.getElementById("inputCatVerified").innerHTML == "";
   });
@@ -96,13 +105,22 @@ function AddControls() {
   catALotDiv.appendChild(labelMove);
   catALotDiv.appendChild(labelAdd);
   catALotDiv.appendChild(labelRemove);
+  if (isCategoryPage) {
+    radioMove.checked = true;
+  }
+  else if (isSearchPage) {
+    radioAdd.checked = true;
+    labelMove.hidden = true;
+    labelAdd.hidden = true;
+    labelRemove.hidden = true;
+  }
 
   catALotDiv.appendChild(inputCatTyped);
   catALotDiv.appendChild(document.createElement("br"));
   catALotDiv.append("destination: ");
   catALotDiv.appendChild(inputCatVerified);
   catALotDiv.appendChild(catALotButton);
-  document.getElementById("categories").appendChild(catALotDiv);
+  elementToAppendTo.appendChild(catALotDiv);
 }
 
 function AddLetterlinks() {
@@ -165,7 +183,14 @@ function OnCatALotClicked() {
     if (cboxes[i].checked) {
       let url = baseEditUrl + cboxes[i].value + addCat + remCat;
       if (!document.getElementById("radioAdd").checked) {
-        cboxes[i].parentNode.style.display = "none";
+
+        if (isCategoryPage) {
+          cboxes[i].parentNode.style.display = "none";
+          cboxes[i].checked = false;
+        }
+      }
+      else if (isSearchPage) {
+        cboxes[i].parentNode.parentNode.style.display = "none";
         cboxes[i].checked = false;
       }
 
@@ -173,6 +198,7 @@ function OnCatALotClicked() {
     }
   }
 }
+
 
 function GetThisCategoryNameAndAllAkas() {
   const headline = document.getElementsByTagName("h1")[0];
@@ -200,7 +226,35 @@ function GetThisCategoryNameAndAllAkas() {
   return currentCategory;
 }
 
-function AddProfileCheckmarks() {
+function tagMergeAny(string) {
+  console.log(string);
+}
+
+function HackMergeCheckboxes() {
+  //   <div class="P-ITEM">
+  // <span class="mergeany"><input type="checkbox" name="mergeany[]" id="mergeany-Seib-21" value="Seib-21" onchange="tagMergeAny(&quot;Seib-21&quot;)">Seib-21</span>
+  // <a class="P-F" href="/wiki/Seib-21" target="_blank" title="">Elisabeth Seib</a>
+  // 1645 Diedenshausen, Marburg-Biedenkopf, Hessen, Germany - 1710
+  // <span class="SMALL">
+  // <img src="/images/icons/bullet60.gif.pagespeed.ce.rUBRf7PHZA.gif" width="10" height="10" title="Privacy Level: Open" alt="Privacy Level: Open (White)">
+  // Seib-21
+  // <a href="/index.php?title=Special:EditPerson&amp;u=6126856" target="_blank"><img src="/images/icons/edit.gif.pagespeed.ce.fe79TrdOz8.gif" border="0" width="11" height="11" alt="edit" title="Edit Profile of Seib-21"></a>
+  // <a href="/wiki/Seib-21#Ancestors" target="_blank" title=""><img src="/images/icons/pedigree.gif.pagespeed.ce.4kSwuvQoBH.gif" border="0" width="8" height="11" alt="ancestors" title="Go to Family Tree"></a>
+  // </span>
+  // </div>
+  let cbs = document.getElementsByTagName('input');
+
+  for (let i = 0; i < cbs.length; i++) {
+    if (cbs[i].type == "checkbox" && cbs[i].name == "mergeany[]") {
+      cbs[i].classList.add("profile_selector");
+      cbs[i].name = "cb" + i;
+      cbs[i].id = "cb" + i;
+      cbs[i].nextSibling.remove();
+    }
+  }
+}
+function AddCheckboxes() {
+  //category
   // <div class="P-ITEM">
   // <span itemscope="" itemtype="https://schema.org/Person">
   //       <a class="P-M" href="/wiki/Schilling-1881" target="_blank" itemprop="url" title="">
@@ -213,6 +267,7 @@ function AddProfileCheckmarks() {
   // </div>
   let profileDivs = document.getElementsByClassName("row Persons ")[0].getElementsByClassName("P-ITEM");
   let profileDiv;
+
   for (let i = 0; (profileDiv = profileDivs[i]); i++) {
     try {
       let profile = profileDiv.childNodes[1].childNodes[0].href.replace("https://www.wikitree.com/wiki/", "");
@@ -234,8 +289,9 @@ function AddProfileCheckmarks() {
   }
 }
 
+
 function OnTypedCatNameChanged() {
-  let catTyped = document.getElementById("inputCatTyped").value;
+  let catTyped = document.getElementById("inputCatTyped").value.replace("[[", "").replace("]]", "");
   const indexOfColon = catTyped.indexOf(":");
   if (indexOfColon > -1) {
     catTyped = catTyped.substring(indexOfColon + 1);
@@ -318,11 +374,11 @@ function RemoveCat(wpTextbox1, cat) {
   const catUnderlines = cat.replace(" ", "_");
   const catSyntaxUnderlines = "[[Category:" + catUnderlines + "]]";
   if (bio.indexOf(cat + "]]") > -1 || bio.indexOf(catUnderlines) > -1) {
-    window.document.getElementById("wpTextbox1").value = 
-    bio.replace(catSyntax + "\n", "")
-    .replace(catSyntax, "")
-    .replace(catSyntaxUnderlines + "\n", "")
-    .replace(catSyntaxUnderlines, "");
+    window.document.getElementById("wpTextbox1").value =
+      bio.replace(catSyntax + "\n", "")
+        .replace(catSyntax, "")
+        .replace(catSyntaxUnderlines + "\n", "")
+        .replace(catSyntaxUnderlines, "");
   }
 }
 
