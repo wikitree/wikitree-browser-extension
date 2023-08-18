@@ -12,8 +12,6 @@ shouldInitializeFeature("verifyID").then((result) => {
     if ($("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
       import("./verifyID.css");
       checkAttachPersonID();
-      // Try not to clash with BEE
-      $("body").addClass("verifyID");
     }
   }
 });
@@ -130,11 +128,7 @@ async function checkAttachPersonID() {
     if (window.timeoutId) {
       clearTimeout(window.timeoutId);
     }
-    if (
-      $(this)
-        .val()
-        .match(/.+-.+/)
-    ) {
+    if ($(this).val().match(/.+-.+/)) {
       const theKey = $(this).val();
       window.timeoutId = setTimeout(function () {
         $.ajax({
@@ -154,6 +148,7 @@ async function checkAttachPersonID() {
             appId: "WBE_verifyID",
           },
           success: function (data) {
+            $("#verification").remove();
             let ah2 = $("<h3>?</h3>");
             let aUL = $("<ul></ul>");
             if (data[0]?.items) {
@@ -203,11 +198,11 @@ async function checkAttachPersonID() {
               aUL = $("<ul></ul>");
             }
             $("#verification").prepend(aUL).prepend(ah2);
-            $("#verification").dblclick(function () {
+            $("#verification").on("dblclick", function () {
               $(this).fadeOut();
             });
-            $("#verification x").click(function () {
-              $("#verification").fadeOut();
+            $("#verification x").on("click", function () {
+              $(this).parent().fadeOut();
             });
           },
         });
