@@ -90,7 +90,7 @@ function CreateCopyRenameCatLink() {
 
 function CreateBatchCatActivationLinkAndSpan() {
   const buttonEnable = document.createElement("a");
-  buttonEnable.innerText = "batch cat.";
+  buttonEnable.innerText = "batch categorize";
   buttonEnable.href = "#0";
   buttonEnable.id = "activate_link";
   buttonEnable.addEventListener("click", ShowCatALot);
