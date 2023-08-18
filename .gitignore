@@ -11,4 +11,8 @@ dist
 *_testout.txt
 .eslintrc.js
 .vscode/settings.json
+.vscode/tasks.json
 *.zip
+
+# WinMerge backups
+*.bak

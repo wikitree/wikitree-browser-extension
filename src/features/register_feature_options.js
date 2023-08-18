@@ -39,6 +39,7 @@ import {
   isG2G,
   isDNADescendants,
   isMainDomain,
+  isSearchPage,
   /* eslint-enable no-unused-vars */
 } from "../core/pageType";
 
@@ -57,6 +58,7 @@ import "./auto_bio/auto_bio_options";
 import "./auto_categories/auto_categories_options";
 import "./access_keys/access_keys_options";
 import "./categoryDisplay/categoryDisplay_options";
+import "./category_management/category_management_options";
 import "./change_family_lists/change_family_lists_options";
 import "./connection_finder/connection_finder_options";
 import "./copy_bio_changes/copy_bio_changes_options";
