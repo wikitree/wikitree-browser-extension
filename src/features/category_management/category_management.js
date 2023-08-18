@@ -90,7 +90,7 @@ function CreateCopyRenameCatLink() {
 
 function CreateBatchCatActivationLinkAndSpan() {
   const buttonEnable = document.createElement("a");
-  buttonEnable.innerText = "batch cat.";
+  buttonEnable.innerText = "batch categorize";
   buttonEnable.href = "#0";
   buttonEnable.id = "activate_link";
   buttonEnable.addEventListener("click", ShowCatALot);
@@ -390,7 +390,10 @@ function AddCheckboxes() {
   //  31 Mar 1796 Tilleda, Amt Kelbra, Schwarzburg-Rudolstadt, Heiliges Römisches Reich - 17 Oct 1852
   // <small></small>
   // </div>
-  let profileDivs = document.getElementsByClassName("row Persons ")[0].getElementsByClassName("P-ITEM");
+
+  const personDivs =  document.getElementsByClassName("row Persons ");
+  const indexProfiles = personDivs.length == 1 ? 0 : 1;
+  let profileDivs = personDivs[indexProfiles].getElementsByClassName("P-ITEM");
   let profileDiv;
 
   for (let i = 0; (profileDiv = profileDivs[i]); i++) {

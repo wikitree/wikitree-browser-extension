@@ -16,3 +16,6 @@ dist
 
 # WinMerge backups
 *.bak
+
+# generated during build process
+public/features/wtPlus/templatesExp.json
