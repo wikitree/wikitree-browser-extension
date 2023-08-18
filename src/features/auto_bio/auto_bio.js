@@ -4070,12 +4070,26 @@ function parseFreeCen(aRef) {
 
 function parseNZBDM(aRef) {
   const yearAndNumber = aRef.Text.match(/(1[89]\d{2})\/\d{3,}/);
-  if (yearAndNumber[0]) {
+  if (yearAndNumber) {
     aRef.Year = yearAndNumber[1];
     aRef["Record Number"] = yearAndNumber[0];
   }
+  const dateMatch = aRef.Text.match(/\d{1,2} [A-Z][a-z]+ \d{4}/);
+  if (dateMatch) {
+    aRef["Event Date"] = dateMatch[0];
+    aRef.OrderDate = formatDate(dateMatch[0], 0, { format: 8 });
+    aRef["Event Year"] = aRef.OrderDate?.substring(0, 4);
+    aRef.Year = aRef["Event Year"];
+  }
+  const regMatch = aRef.Text.match(/Reg\.\s?No\.\s?(\d+)$/);
+  if (regMatch) {
+    aRef["Record Number"] = regMatch[1];
+  }
   const typeMatch = aRef.Text.match(
-    /(Birth|Death|Marriage|Divorce|Civil Union|Name Change|Adoption|Census) Record: (.*?)\./i
+    /(Birth|Death|Marriage|Divorce|Civil Union|Name Change|Adoption|Census)(\sRecord)?: (.*?)\./i
+  );
+  const typeMatch2 = aRef.Text.match(
+    /NZ\s?BDM\s(Birth|Death|Marriage|Divorce|Civil Union|Name Change|Adoption|Census)/i
   );
   if (typeMatch) {
     if (typeMatch[1]) {
@@ -4086,6 +4100,8 @@ function parseNZBDM(aRef) {
         aRef.Person = typeMatch[2];
       }
     }
+  } else if (typeMatch2) {
+    aRef["Record Type"] = capitalizeFirstLetter(typeMatch2[1]);
   }
   aRef.Source = "NZBDM";
   return aRef;
