@@ -1,8 +1,10 @@
-.timeline.wrap {
+.timeline.wrap,
+.familySheet.wrap {
   width: 80%;
   white-space: normal;
 }
-.timeline {
+.timeline,
+.familySheet {
   white-space: nowrap;
   height: auto;
   position: absolute !important;
@@ -37,7 +39,8 @@ th.tlEventLocation {
 .tlDate {
   white-space: nowrap;
 }
-.timeline x {
+.timeline x,
+.familySheet x {
   position: absolute;
   top: 0;
   right: 0.5em;

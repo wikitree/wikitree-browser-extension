@@ -143,7 +143,7 @@ function addScratchPadButton() {
   }
 
   // Bind click events to original buttons
-  editButton.click(function () {
+  editButton.on("click", function () {
     if (!isProgrammaticClick) {
       isProgrammaticClick = true;
       $("input[value='Edit Scratch Pad']:not(#clonedEditButton)").click();
@@ -367,5 +367,3 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
     });
   }
 });
-
-
