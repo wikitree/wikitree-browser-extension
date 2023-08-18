@@ -154,7 +154,7 @@ async function checkAttachPersonID() {
             if (data[0]?.items) {
               let person = data[0].items[0].person;
               person = addRelativeArraysToPerson(person);
-              $("#mName").after($("<div id='verification'><x>x</x></div>"));
+              $("#mName").after($(`<div id='verification'><x>x</x><span id="wtid">${person.Name}</span></div>`));
               $("#verification").draggable();
               if (person.Created) {
                 ah2 = $(
