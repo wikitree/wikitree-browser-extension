@@ -2,7 +2,7 @@
 Created By: Ian Beacall (Beacall-6)
 */
 
-import { registerFeature } from "../../core/options/options_registry";
+import { registerFeature, OptionType } from "../../core/options/options_registry";
 import { isGenealogyPage, isProfilePage, isSpacePage, isSpecialWatchedList } from "../../core/pageType";
 
 const tableFilters = {
@@ -15,6 +15,14 @@ const tableFilters = {
   contributors: [],
   defaultValue: false,
   pages: [isProfilePage, isSpacePage, isGenealogyPage, isSpecialWatchedList],
+  options: [
+    {
+      id: "distanceAndRelationship",
+      type: OptionType.CHECKBOX,
+      label: "Add Distance and Relationship columns to Watchlist and Surname Genealogy tables",
+      default: false,
+    },
+  ],
 };
 
 registerFeature(tableFilters);

@@ -3860,7 +3860,7 @@ export function getNameVariants(person) {
   if (person.LongName) {
     nameVariants.push(person.LongName.replace(/\s\s/, " "));
   }
-  if (person.PersonName.BirthName) {
+  if (person.PersonName?.BirthName) {
     nameVariants.push(person.PersonName.BirthName);
   }
   if (person.LongNamePrivate) {
@@ -4070,12 +4070,26 @@ function parseFreeCen(aRef) {
 
 function parseNZBDM(aRef) {
   const yearAndNumber = aRef.Text.match(/(1[89]\d{2})\/\d{3,}/);
-  if (yearAndNumber[0]) {
+  if (yearAndNumber) {
     aRef.Year = yearAndNumber[1];
     aRef["Record Number"] = yearAndNumber[0];
   }
+  const dateMatch = aRef.Text.match(/\d{1,2} [A-Z][a-z]+ \d{4}/);
+  if (dateMatch) {
+    aRef["Event Date"] = dateMatch[0];
+    aRef.OrderDate = formatDate(dateMatch[0], 0, { format: 8 });
+    aRef["Event Year"] = aRef.OrderDate?.substring(0, 4);
+    aRef.Year = aRef["Event Year"];
+  }
+  const regMatch = aRef.Text.match(/Reg\.\s?No\.\s?(\d+)$/);
+  if (regMatch) {
+    aRef["Record Number"] = regMatch[1];
+  }
   const typeMatch = aRef.Text.match(
-    /(Birth|Death|Marriage|Divorce|Civil Union|Name Change|Adoption|Census) Record: (.*?)\./i
+    /(Birth|Death|Marriage|Divorce|Civil Union|Name Change|Adoption|Census)(\sRecord)?: (.*?)\./i
+  );
+  const typeMatch2 = aRef.Text.match(
+    /NZ\s?BDM\s(Birth|Death|Marriage|Divorce|Civil Union|Name Change|Adoption|Census)/i
   );
   if (typeMatch) {
     if (typeMatch[1]) {
@@ -4086,6 +4100,8 @@ function parseNZBDM(aRef) {
         aRef.Person = typeMatch[2];
       }
     }
+  } else if (typeMatch2) {
+    aRef["Record Type"] = capitalizeFirstLetter(typeMatch2[1]);
   }
   aRef.Source = "NZBDM";
   return aRef;
@@ -4283,14 +4299,10 @@ export function sourcesArray(bio) {
       if (nameMatch2) {
         aRef.Name = nameMatch2[1];
       }
-      console.log(nameMatch2);
       if (baptismDateMatch) {
-        console.log("baptismDateMatch");
         aRef["Baptism Date"] = baptismDateMatch[1];
         aRef["Year"] = baptismDateMatch[1].match(/\d{4}/)[0];
       } else if (baptismDateMatch2) {
-        console.log("baptismDateMatch2");
-        console.log(baptismDateMatch2);
         aRef["Baptism Date"] = baptismDateMatch2[1];
         aRef["Year"] = baptismDateMatch2[1].match(/\d{4}/)[0];
       }
@@ -6294,8 +6306,37 @@ export async function buildFamilyForPrivateProfiles() {
   });
 
   // Fetch family profiles data
-  const familyProfiles = await getPeople(ids.join(","), 0, 0, 0, 0, 0, "*", "WBE_auto_bio");
 
+  const theFields = [
+    "BirthDate",
+    "BirthDateDecade",
+    "BirthLocation",
+    "DataStatus",
+    "DeathDate",
+    "DeathDateDecade",
+    "DeathLocation",
+    "Derived.BirthName",
+    "Derived.BirthNamePrivate",
+    "Father",
+    "FirstName",
+    "Gender",
+    "HasChildren",
+    "Id",
+    "IsRedirect",
+    "LastNameAtBirth",
+    "LastNameCurrent",
+    "LastNameOther",
+    "MiddleName",
+    "Mother",
+    "Name",
+    "Nicknames",
+    "Prefix",
+    "RealName",
+    "Suffix",
+    "Spouses",
+  ];
+
+  const familyProfiles = await getPeople(ids.join(","), 0, 0, 0, 0, 0, theFields.join(","), "WBE_auto_bio");
   // Assign the fetched family profiles data to the respective family lists
   ["Parents", "Siblings", "Spouses", "Children"].forEach(function (familyList) {
     const keys = Object.keys(window.profilePerson[familyList]);
@@ -6306,6 +6347,18 @@ export async function buildFamilyForPrivateProfiles() {
         const thisId = familyProfiles[0]?.resultByKey[person.Name]?.Id;
         const thisPerson = familyProfiles[0]?.people[thisId];
         if (thisPerson) {
+          if (familyList == "Spouses") {
+            thisPerson.Spouses.forEach(function (spouse) {
+              if (spouse.Id == window.profilePerson.Id) {
+                thisPerson.marriage_date = spouse?.marriage_date;
+                thisPerson.marriage_location = spouse?.marriage_location;
+                thisPerson.data_status = {
+                  marriage_date: spouse?.DataStatus?.MarriageDate,
+                  marriage_location: spouse?.DataStatus?.MarriageLocation,
+                };
+              }
+            });
+          }
           window.profilePerson[familyList][thisId] = thisPerson;
           if (familyList == "Parents") {
             if (thisPerson.Gender == "Male") {
@@ -6314,13 +6367,15 @@ export async function buildFamilyForPrivateProfiles() {
               window.profilePerson.Mother = thisId;
             }
           }
-          if (key < 20) {
+          if (key < 70) {
             delete window.profilePerson[familyList][key];
           }
         }
       }
     }
   });
+
+  console.log("profile person now", logNow(window.profilePerson));
 
   // Update the main profile with the new family members' names
   assignPersonNames(window.profilePerson);
@@ -6377,6 +6432,9 @@ export async function buildFamilyForPrivateProfiles() {
             for (let x = 0; x < 10; x++) {
               if (window.profilePerson.Spouses[x] && !window.profilePerson.Spouses[x]?.Id) {
                 const thisSpouse = window.profilePerson.Spouses[x];
+
+                console.log("thisSpouse", thisSpouse);
+
                 Object.assign(thisSpouse, thisPerson);
                 await getSpouseParents2();
                 break;
@@ -7055,6 +7113,15 @@ export async function generateBio() {
           }
         }
       }
+
+      // Get other subsections and add them to the Research Notes section
+      const otherSubsections = window.sectionsObject["Research Notes"].subsections;
+      Object.keys(otherSubsections).forEach(function (aSubsection) {
+        if (aSubsection != "NeedsProfiles") {
+          const subsectionText = otherSubsections[aSubsection].text.join("\n");
+          researchNotesText += "=== " + aSubsection + " ===\n" + subsectionText + "\n\n";
+        }
+      });
     }
 
     // Add Sources section
@@ -7475,29 +7542,30 @@ export async function getLocationCategory(type, location = null) {
     if (type == "Cemetery") {
       thisState = findUSState(window.profilePerson.DeathLocation);
     }
+
     api.response.categories.forEach(function (aCat) {
       if (!aCat.topLevel) {
         let category = aCat.category;
-        if (!(type == "Cemetery" && sameState(window.profilePerson.DeathLocation, aCat.location) == false)) {
-          if (locationSplit[0] + ", " + locationSplit[1] + ", " + thisState == category) {
-            foundCategory = category;
-          } else if (locationSplit[0] + ", " + locationSplit[1] == category) {
-            foundCategory = category;
-          } else if (locationSplit[0] + ", " + locationSplit[1] + ", " + locationSplit[2] == category) {
-            foundCategory = category;
-          } else if (locationSplit[1] + ", " + locationSplit[2] == category) {
-            foundCategory = category;
-          } else if (locationSplit[0] + ", " + locationSplit[2] == category) {
+
+        if (type !== "Cemetery" || sameState(window.profilePerson.DeathLocation, aCat.location)) {
+          const [part0, part1, part2] = locationSplit;
+          const suffixes = [thisState, part2];
+
+          const combinations = [`${part0}, ${part1}`, `${part1}, ${part2}`, `${part0}, ${part2}`].flatMap((pattern) => [
+            pattern,
+            `${pattern} County`,
+            ...suffixes.map((suffix) => `${pattern}, ${suffix}`),
+            ...suffixes.map((suffix) => `${pattern} County, ${suffix}`),
+          ]);
+
+          if (combinations.includes(category)) {
             foundCategory = category;
           }
         }
       }
     });
-    if (foundCategory) {
-      return foundCategory;
-    } else {
-      return;
-    }
+
+    return foundCategory || undefined;
   }
   return;
 }

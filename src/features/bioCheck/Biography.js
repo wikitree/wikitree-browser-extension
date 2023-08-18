@@ -53,6 +53,8 @@ export class Biography {
   #acknowledgementsIndex = -1; // first line of acknowledgements
   #researchNotesIndex = -1; // first line of researchNotes
   #researchNotesEndIndex = -1; // last line of research notes is next heading
+  #advanceDirectiveIndex = -1;  // start of advance directive
+  #advanceDirectiveEndIndex = -1;  // end of advance directive
 
   #notocIndex = -1;  // location of __NOTOC__ if any
   #firstCategoryIndex = -1;  // first category line
@@ -91,7 +93,10 @@ export class Biography {
       bioHasMultipleReferencesTags: false,
       bioHasRefAfterReferences: false,
       acknowledgementsHeadingHasExtraEqual: false,
+      advanceDirectiveHeadingHasExtraEqual: false,
+      advanceDirectiveOnNonMemberProfile: false,
       bioHasAcknowledgementsBeforeSources: false,
+      bioHasSectionAfterAdvanceDirective: false,
       bioHasUnknownSectionHeadings: false,
       bioCategoryNotAtStart: false,
       bioMissingResearchNoteBox: false,
@@ -388,6 +393,11 @@ export class Biography {
     // Check for any section with RNB text where the RNB is missing
     this.#findMissingRnb();
 
+    // Check for advance directive on non member profiles
+    if ((this.#advanceDirectiveIndex > 0) && (!thePerson.isMember())) {
+      this.#style.advanceDirectiveOnNonMemberProfile = true;
+    }
+
     let line = this.#bioInputString.toLowerCase();
     if (line.includes(Biography.#UNSOURCED_TAG) || line.includes(Biography.#UNSOURCED_TAG2)) {
       this.#stats.bioIsMarkedUnsourced = true;
@@ -401,6 +411,7 @@ export class Biography {
     // Lose bio lines not considered to contain sources before testing sources
     this.#removeResearchNotes();
     this.#removeAcknowledgements();
+    this.#removeAdvanceDirective();
 
     return;
   }
@@ -655,12 +666,33 @@ export class Biography {
   acknowledgementsHeadingHasExtraEqual() {
     return this.#style.acknowledgementsHeadingHasExtraEqual;
   }
+  /*
+   * does bio have advance directive heading with extra =
+   * @returns {Boolean} true if bio has advance directive heading with extra =
+   */
+  advanceDirectiveHeadingHasExtraEqual() {
+    return this.#style.advanceDirectiveHeadingHasExtraEqual;
+  }
+  /*
+   * does bio have advance directive on a non member profile
+   * @returns {Boolean} true if bio has advance directive on a non member profile
+   */
+  advanceDirectiveOnNonMemberProfile() {
+    return this.#style.advanceDirectiveOnNonMemberProfile;
+  }
   /**
    * does bio have acknowledgements before sources
    * @returns {Boolean} true if bio has acknowledgements before sources
    */
   hasAcknowledgementsBeforeSources() {
     return this.#style.bioHasAcknowledgementsBeforeSources;
+  }
+  /**
+   * does bio have section after advance directive 
+   * @returns {Boolean} true if bio has section heading after advance directive
+   */
+  hasSectionAfterAdvanceDirective() {
+    return this.#style.bioHasSectionAfterAdvanceDirective;
   }
   /** 
    * does bio have unknown section headings
@@ -744,16 +776,17 @@ export class Biography {
     while (pos < len && pos >= 0) {
       // get everything to start of comment unless comment is first line in bio
       if (pos > 0) {
-        outStr = outStr + inStr.substring(endPos, pos - 1);
+        outStr = outStr + inStr.substring(endPos, pos);
       }
       // Find end of comment
       endPos = inStr.indexOf(Biography.#END_OF_COMMENT, pos);
       if (endPos > 0) {
         pos = endPos + 3; // skip the --> and move starting position there
+        endPos = endPos + 3;
         if (pos <= len) {
           pos = inStr.indexOf(Biography.#START_OF_COMMENT, pos); // find next comment
           if (pos < 1) {
-            outStr += inStr.substring(endPos + 3);
+            outStr += inStr.substring(endPos);
           }
         }
       } else {
@@ -892,6 +925,9 @@ export class Biography {
     if (this.#isBiographyHeading(headingText)) {
       if (this.#biographyIndex < 0) {
         this.#biographyIndex = currentIndex;
+        if (this.#advanceDirectiveIndex > 0) {
+          this.#style.bioHasSectionAfterAdvanceDirective = true;
+        }
       } else {
         if (this.#researchNotesIndex > 0) {
           this.#researchNotesEndIndex = currentIndex - 1;
@@ -902,6 +938,10 @@ export class Biography {
         this.#researchNotesIndex = currentIndex;
       } else {
         if (this.#isSourcesHeading(headingText)) {
+          if (this.#advanceDirectiveIndex > 0) {
+            this.#style.bioHasSectionAfterAdvanceDirective = true;
+            this.#advanceDirectiveEndIndex = currentIndex -1;
+          }
           if (headingLevel > 2) {
             this.#style.sourcesHeadingHasExtraEqual = true;
           }
@@ -916,6 +956,10 @@ export class Biography {
           }
         } else {
           if (this.#sourceRules.isAckHeading(headingText)) {
+            if (this.#advanceDirectiveIndex > 0) {
+              this.#style.bioHasSectionAfterAdvanceDirective = true;
+              this.#advanceDirectiveEndIndex = currentIndex -1;
+            }
             if (headingLevel > 2) {
               this.#style.acknowledgementsHeadingHasExtraEqual = true;
             }
@@ -927,8 +971,15 @@ export class Biography {
               this.#researchNotesEndIndex = currentIndex - 1;
             }
           } else {
-            if (headingLevel === 2) {
-              this.#wrongLevelHeadings.push(headingContent.headingText);       // save for reporting
+            if (this.#sourceRules.isAdvanceDirective(headingText)) {
+              this.#advanceDirectiveIndex = currentIndex;
+              if (headingLevel > 2) {
+                this.#style.advanceDirectiveHeadingHasExtraEqual = true;
+              }
+            } else {
+              if (headingLevel === 2) {
+                this.#wrongLevelHeadings.push(headingContent.headingText);       // save for reporting
+              }
             }
           } // endif Acknowledgements
         } // endif Sources
@@ -1198,6 +1249,19 @@ export class Biography {
       this.#style.bioHasStyleIssues = true;
       this.#messages.sectionMessages.push('Acknowledgements before Sources');
     }
+    if (this.#style.advanceDirectiveHeadingHasExtraEqual) {
+      this.#style.bioHasStyleIssues = true;
+      this.#messages.sectionMessages.push('Advance Directive subsection instead of section');
+    }
+    if (this.#style.bioHasSectionAfterAdvanceDirective) {
+      this.#style.bioHasStyleIssues = true;
+      this.#messages.sectionMessages.push('Advance Directive is not at end of profile'); 
+    }
+    if (this.#style.advanceDirectiveOnNonMemberProfile) {
+      this.#style.bioHasStyleIssues = true;
+      this.#messages.styleMessages.push('Advance Directive on a non member profile');
+    }
+
     if (this.#style.bioMissingResearchNoteBox) {
       this.#style.bioHasStyleIssues = true;
       for (let i=0; i < this.#missingRnb.length; i++) {
@@ -1283,6 +1347,29 @@ export class Biography {
   #removeAcknowledgements() {
     let i = this.#acknowledgementsIndex;
     let endIndex = this.#acknowledgementsEndIndex;
+    if (endIndex < 0) {
+      endIndex = this.#bioLines.length;
+    }
+    if (i > 0) {
+      while (i <= endIndex) {
+        this.#bioLines[i] = "";
+        i++;
+      }
+    }
+  }
+
+  /*
+   * Remove advance directive from bio lines
+   * Remove lines between start of Advance Directive and
+   * end of Advance Directive
+   * Any content of Advance Directive are not considered
+   * as a source
+   * Advance Directive ends when a heading is found
+   * or at the end of the biography
+   */
+  #removeAdvanceDirective() {
+    let i = this.#advanceDirectiveIndex;
+    let endIndex = this.#advanceDirectiveEndIndex;
     if (endIndex < 0) {
       endIndex = this.#bioLines.length;
     }
@@ -1420,6 +1507,7 @@ export class Biography {
   #isValidSource(mixedCaseLine) {
     let isValid = false; // assume guilty
     let isRepository = false;
+    let isDnaConfLine = false;
 
     // just ignore starting *
     if (mixedCaseLine.startsWith("*")) {
@@ -1473,7 +1561,7 @@ export class Biography {
                     if (!isRepository) {
                       if (!this.#isJustGedcomCrud(line)) {
                          if (!this.#isJustThePeerage(line)) {
-                           if (this.#isDnaConfirmation(line)) {
+                           if (isDnaConfLine = this.#isDnaConfirmation(line)) {
                             // TODO add logic to check a DNA confirmation
                             // so the source MIGHT be valid but the confirmation might be incomplete
                             ;   // TODO
@@ -1499,7 +1587,7 @@ export class Biography {
     if (isValid) {
       this.#sources.validSource.push(mixedCaseLine);
     } else {
-      if (!isRepository) {
+      if ((!isRepository) && (!isDnaConfLine)) {
         this.#sources.invalidSource.push(mixedCaseLine);
       }
     }
@@ -1598,7 +1686,7 @@ export class Biography {
 
   /*
    * Validate all the strings after the == Sources heading
-   * but before Acknowledgements or the end of the biography
+   * but before Acknowledgements or Advance Directive or the end of the biography
    * @param {Boolean} isFullBio true if checking full bio else just a
    * string of sources
    * @returns {Boolean} true if at lease one valid else false
@@ -1933,10 +2021,12 @@ export class Biography {
    */
   #isDnaConfirmation(line) {
     let isDnaConf = false;
-    if ((line.includes('dna')) && (line.includes('confirmed'))) {
-      if (line.includes('maternal') || line.includes('mother') || 
-          line.includes('paternal') || line.includes('father')) {
-        isDnaConf = true;
+    if ((line.includes('dna')) || (line.includes('23andme')) || (line.includes('gedmatch'))) {
+      if (line.includes('confirmed')) {
+        if (line.includes('maternal') || line.includes('mother') || 
+            line.includes('paternal') || line.includes('father')) {
+          isDnaConf = true;
+        }
       }
     }
     return isDnaConf;

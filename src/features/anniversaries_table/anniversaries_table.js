@@ -363,7 +363,7 @@ async function updateNames() {
   }
 }
 
-function kinshipValue(kinship) {
+export function kinshipValue(kinship) {
   let level = 0;
 
   // Check if 'grand-' is present

@@ -4,7 +4,105 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import "./table_filters.css";
 import { getYYYYMMDD } from "../auto_bio/auto_bio";
-import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { kinshipValue } from "../anniversaries_table/anniversaries_table";
+
+function addDistanceAndRelationColumns() {
+  const ids = {};
+  const nameTable = $("table.wt.names");
+  // Get the profile IDs from the watchlist
+  // Get first link of first TD of each TR and extract the profile ID from the href (after /wiki/)
+  nameTable.find("tr").each(function (index) {
+    const aLink = $(this).find("td a").eq(0).attr("href");
+    if (aLink) {
+      const profileID = aLink.split("/wiki/");
+      if (profileID[1]) {
+        ids[profileID[1]] = { WTID: [profileID[1]], index: index };
+      }
+    }
+  });
+
+  // Add the header cells to the table
+
+  const headerCells = $(`<th style="width: 5%; text-align: center; cursor: pointer;">°</th>
+  <th style="width: 15%; text-align: center; cursor: pointer;">Relation</th>`);
+  nameTable.find("tr").eq(0).append(headerCells);
+
+  setTimeout(() => {
+    // Open the IndexedDB for RelationshipFinderWTE
+    const requestRelationship = window.indexedDB.open("RelationshipFinderWTE", 1);
+    requestRelationship.onsuccess = function (event) {
+      const dbRelationship = event.target.result;
+
+      // Open the IndexedDB for ConnectionFinderWTE
+      const requestConnection = window.indexedDB.open("ConnectionFinderWTE", 1);
+      requestConnection.onsuccess = function (event) {
+        const dbConnection = event.target.result;
+
+        const distanceTransaction = dbConnection.transaction(["distance"], "readonly");
+        const distanceStore = distanceTransaction.objectStore("distance");
+
+        const relationshipTransaction = dbRelationship.transaction(["relationship"], "readonly");
+        const relationshipStore = relationshipTransaction.objectStore("relationship");
+
+        // Create arrays to hold all the promises
+        const distancePromises = [];
+        const relationshipPromises = [];
+
+        // Iterate over each row
+        Object.keys(ids).forEach(function (wtid) {
+          // Request the distance record
+          const getDistance = distanceStore.get(wtid);
+          const distancePromise = new Promise((resolve, reject) => {
+            getDistance.onsuccess = function (event) {
+              const distance = event.target.result ? event.target.result.distance + "°" : "";
+              if (event.target?.result?.distance > 0) {
+                ids[wtid].distance = distance;
+                console.log(wtid, distance);
+              }
+              resolve();
+            };
+          });
+          distancePromises.push(distancePromise);
+
+          // Request the relationship record
+          const getRelationship = relationshipStore.get(wtid);
+          const relationshipPromise = new Promise((resolve, reject) => {
+            getRelationship.onsuccess = function (event) {
+              let relationship =
+                event.target.result && event.target.result.relationship ? event.target.result.relationship : "";
+              ids[wtid].relationship = relationship;
+              resolve();
+            };
+          });
+          relationshipPromises.push(relationshipPromise);
+        });
+
+        // Wait for all promises to resolve before initializing DataTable
+        Promise.all([...distancePromises, ...relationshipPromises])
+          .then(() => {
+            nameTable.find("tr").each(function (index) {
+              // find the ids item with the property index: index
+              const id = Object.keys(ids).find((key) => ids[key].index === index - 1);
+              if ($(this).find("th").length == 0) {
+                if (id) {
+                  const distance = ids[id].distance || "";
+                  const relationship = ids[id].relationship || "";
+                  $(this).append(`<td style="text-align: center;">${distance}</td><td>${relationship}</td>`);
+                } else {
+                  $(this).append(`<td style="text-align: center;"></td><td></td>`);
+                }
+              }
+            });
+            /* */
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      };
+    };
+  }, 0);
+}
 
 /**
  * Repositions the filter row in the table if it isn't already in the right place.
@@ -76,7 +174,6 @@ export function addFiltersToWikitables(aTable = null) {
         if (originalHeaderCell) {
           const originalHeaderCellText = originalHeaderCell.textContent.trim();
           if (!["Pos."].includes(headerCellText) && !["Pos.", ""].includes(originalHeaderCellText)) {
-            console.log(headerCellText);
             const filterInput = document.createElement("input");
             filterInput.type = "text";
             filterInput.classList.add("filter-input");
@@ -260,6 +357,20 @@ function addSortToTables() {
           let cellAContent = rowA.children[columnIndex].textContent.trim();
           let cellBContent = rowB.children[columnIndex].textContent.trim();
 
+          // Check if this is the relationship column
+          if (columnIndex === 6 && headCells[columnIndex].textContent === "Relation") {
+            const levelA = kinshipValue(cellAContent);
+            const levelB = kinshipValue(cellBContent);
+            return newSortDirection === "asc" ? levelA - levelB : levelB - levelA;
+          }
+
+          // Check if this is the distance column
+          if (columnIndex === 5 && headCells[columnIndex].textContent === "°") {
+            const distanceA = cellAContent.endsWith("°") ? parseInt(cellAContent.replace("°", ""), 10) : Infinity;
+            const distanceB = cellBContent.endsWith("°") ? parseInt(cellBContent.replace("°", ""), 10) : Infinity;
+            return newSortDirection === "asc" ? distanceA - distanceB : distanceB - distanceA;
+          }
+
           // Exclude index span from sorting
           const indexSpanA = rowA.children[columnIndex].querySelector(".index");
           const indexSpanB = rowB.children[columnIndex].querySelector(".index");
@@ -315,7 +426,6 @@ function addSortToTables() {
         });
 
         // Update sort direction indicators, tooltips, and arrow image
-        // Update sort direction indicators, tooltips, and arrow image
         headCells.forEach((cell) => {
           const arrow = cell.querySelector(".sort-arrow");
           if (arrow) {
@@ -339,12 +449,20 @@ function addSortToTables() {
   });
 }
 
+async function initTableFilters() {
+  window.tableFiltersOptions = await getFeatureOptions("tableFilters");
+  if (window.tableFiltersOptions.distanceAndRelationship) {
+    addDistanceAndRelationColumns();
+  }
+  addFiltersToWikitables();
+  addSortToTables();
+}
+
 // Initialize table filters if the feature is enabled
 shouldInitializeFeature("tableFilters").then((result) => {
   if (result) {
     if ($(".wikitable,.wt.names").length > 0) {
-      addFiltersToWikitables();
-      addSortToTables();
+      initTableFilters();
     }
   }
 });
