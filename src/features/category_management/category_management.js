@@ -105,13 +105,13 @@ function CreateBatchCatActivationLinkAndSpan() {
 
 function ShowCatALot() {
   if (isSearchPage) {
-    //  AddCatALotControls(document.getElementsByClassName('two columns omega')[0]);
     AddCatALotControls(document.getElementsByTagName("p")[0]);
     HackMergeCheckboxes();
     AddSelectAllResultsLink();
   } else if (isCategoryPage) {
     AddCheckboxes();
     AddSubcatLinks();
+    AddSelectAllPersonsInCategoryLink();
     AddLetterlinks();
     AddCatALotControls(document.getElementById("categories"));
   }
@@ -217,6 +217,29 @@ function AddSelectAllResultsLink() {
   });
 
   document.getElementsByClassName("large")[0].appendChild(newLink);
+}
+
+function AddSelectAllPersonsInCategoryLink()
+{
+  let newLink = document.createElement("a");
+  newLink.innerText = "[✓]";
+  newLink.addEventListener("click", function () {
+    const cboxes = document.getElementsByClassName("profile_selector");
+
+    for (let i = 0; i < cboxes.length; ++i) {
+      if (cboxes[i].parentNode.style.display != "none") {
+        cboxes[i].checked = true;
+      }
+    }
+  });
+
+  let h2s = document.getElementsByTagName("h2");
+  for (let i = 0; i < h2s.length; i++) {
+    if(h2s[i].innerText.indexOf("Person Profiles")>-1)
+    {
+      h2s[i].appendChild(newLink);
+    }
+  }
 }
 
 function AddLetterlinks() {
