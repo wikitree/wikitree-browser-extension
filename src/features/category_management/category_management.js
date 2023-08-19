@@ -651,7 +651,7 @@ function OpenNewCategoryInNewTab(newCategory) {
   editForm.target = "_blank";
   const previousAction = editForm.action;
   editForm.action =
-    "https://www.wikitree.com/index.php?title=Category:" + encodeURIComponent(newCategory) + "action=submit";
+    "https://www.wikitree.com/index.php?title=Category:" + encodeURIComponent(newCategory) + "&action=submit";
   document.getElementById("wpDiff").click();
 }
 
