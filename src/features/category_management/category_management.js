@@ -601,23 +601,21 @@ function MarkForRenameOpenNewAndSave(disable, newCategory) {
 }
 
 function CheckWhatLinksHereAndSave() {
-  let catUrl = "https://www.wikitree.com/wiki/Special:Whatlinkshere/Category:" + encodeURI(GetCurrentCategoryName() +  "&appID=WBE_categoryManagement");
+  let catUrl = "https://www.wikitree.com/wiki/Special:Whatlinkshere/Category:" + encodeURI(GetCurrentCategoryName() +  "?appID=WBE_categoryManagement");
   let xmlHttp = new XMLHttpRequest();
 
   xmlHttp.onload = () => {
     if (xmlHttp.status < 400) {
-      let linkedPages = "";
       const ULs = xmlHttp.responseXML.getElementsByTagName("ul");
 
       for (let i = 0; i < ULs.length; i++) {
         if (ULs[i].className == "") {
-          //menu items have class
+          //menu items have a class
+          alert("Please remove/change the links to this category in the tabs that are about to open now");
           const LIs = ULs[i].getElementsByTagName("li");
           for (let i = 0; i < LIs.length; i++) {
-            linkedPages += LIs[i].innerText + "\n";
-          }
-          if (linkedPages != "") {
-            alert("Please remove these links to the category now:\n" + linkedPages);
+            const page = LIs[i].innerText.split(" (← links)").join("");
+            const win = window.open("https://www.wikitree.com/index.php?title=" + encodeURIComponent(page) + "&action=edit");
           }
         }
       }
