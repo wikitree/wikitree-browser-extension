@@ -52,7 +52,7 @@ function AddOptionalCategoryEditPageLinks(options) {
   //to do: check if category exists and hide accordingly
   const editDivs = document.getElementsByClassName("EDIT");
   if (options.catMarkDelete) {
-    editDivs[editDivs.length - 1].appendChild(CreateDeleteCatLinkEditPage(options.disableCategories));
+    editDivs[editDivs.length - 1].appendChild(CreateDeleteCatLinkEditPage());
   }
   if (options.catMarkRename) {
     editDivs[editDivs.length - 1].appendChild(CreateRenameCatLinkEditPage(options.disableCategories));
@@ -75,13 +75,9 @@ function AddCategoryExitLink(parent) {
 
 function CreateDeleteCatLink() {
   const linkDelete = document.createElement("a");
-  linkDelete.href = "#1";
+  linkDelete.href =
+    "https://www.wikitree.com/index.php?title=Category:" + GetCurrentCategoryName() + "&catBot=delete&action=edit";
   linkDelete.innerText = "delete";
-  linkDelete.addEventListener("click", function () {
-    let url =
-      "https://www.wikitree.com/index.php?title=Category:" + GetCurrentCategoryName() + "&catBot=delete&action=edit";
-    window.location = url;
-  });
   return WrapWithBrackets(linkDelete);
 }
 
@@ -557,7 +553,7 @@ function PerformActualCategoryChanges(disable) {
   if (urlParams.has("catBot")) {
     switch (urlParams.get("catBot")) {
       case "delete": {
-        MarkCategoryForDeletionAndSave(disable);
+        MarkCategoryForDeletionAndSave();
         break;
       }
       case "rename": {
@@ -573,16 +569,15 @@ function PerformActualCategoryChanges(disable) {
   }
 }
 
-function MarkCategoryForDeletionAndSave(disable) {
+function MarkCategoryForDeletionAndSave() {
   let wpTextbox1 = window.document.getElementById("wpTextbox1");
-  let toInsert = "";
-  if (disable) {
-    toInsert = "{{Delete Category}}<nowiki>";
-  } else {
-    toInsert = "{{Delete Category}}";
+  const reason = prompt("reason for deletion?");
+  if (reason) {
+    //blanking content as requested by Margaret 
+https://www.wikitree.com/g2g/1624165/next-batschka-category-banat-is-done?show=1624197#c1624197
+    wpTextbox1.value = "{{Delete Category}} \n" + reason + "--~~~~";
+    CheckWhatLinksHereAndSave();
   }
-  wpTextbox1.value = toInsert + "\n" + wpTextbox1.value;
-  document.getElementById("wpSave").click();
 }
 
 function MarkForRenameOpenNewAndSave(disable, newCategory) {
@@ -594,6 +589,7 @@ function MarkForRenameOpenNewAndSave(disable, newCategory) {
   } else {
     toInsert = "{{Rename Category|" + newCategory + "}}";
   }
+
   var editForm = document.getElementById("editform");
   const previousAction = editForm.action;
   OpenNewCategoryInNewTab(newCategory);
@@ -601,7 +597,38 @@ function MarkForRenameOpenNewAndSave(disable, newCategory) {
   editForm.target = "";
 
   wpTextbox1.value = toInsert + "\n" + wpTextbox1.value;
-  document.getElementById("wpSave").click();
+  //document.getElementById("wpSave").click();
+}
+
+function CheckWhatLinksHereAndSave() {
+  let catUrl = "https://www.wikitree.com/wiki/Special:Whatlinkshere/Category:" + encodeURI(GetCurrentCategoryName());
+  let xmlHttp = new XMLHttpRequest();
+
+  xmlHttp.onload = () => {
+    if (xmlHttp.status < 400) {
+      let linkedPages = "";
+      const ULs = xmlHttp.responseXML.getElementsByTagName("ul");
+
+      for (let i = 0; i < ULs.length; i++) {
+        if (ULs[i].className == "") {
+          //menu items have class
+          const LIs = ULs[i].getElementsByTagName("li");
+          for (let i = 0; i < LIs.length; i++) {
+            linkedPages += LIs[i].innerText + "\n";
+          }
+          if (linkedPages != "") {
+            alert("Please remove these links to the category now:\n" + linkedPages);
+          }
+        }
+      }
+      document.getElementById("wpSave").click();
+    } else {
+      alert("Error while checking whatlinkshere: " + xmlHttp.status);
+    }
+  };
+  xmlHttp.responseType = "document";
+  xmlHttp.open("GET", catUrl); // false for synchronous request
+  xmlHttp.send();
 }
 
 function CopyAndRenameCategory(newCategory) {

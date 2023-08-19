@@ -46,7 +46,7 @@ registerFeature({
     {
       id: "disableCategories",
       type: OptionType.CHECKBOX,
-      label: "also deactivate/disable marked categories with <nowiki>",
+      label: "deactivate/disable to be renamed categories with <nowiki> to remove them from their current parent categories",
       defaultValue: false,
     },
     {
