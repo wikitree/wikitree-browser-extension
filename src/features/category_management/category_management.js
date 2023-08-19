@@ -573,9 +573,9 @@ function MarkCategoryForDeletionAndSave() {
   let wpTextbox1 = window.document.getElementById("wpTextbox1");
   const reason = prompt("reason for deletion?");
   if (reason) {
-    //blanking content as requested by Margaret 
-https://www.wikitree.com/g2g/1624165/next-batschka-category-banat-is-done?show=1624197#c1624197
-    wpTextbox1.value = "{{Delete Category}} \n" + reason + "--~~~~";
+    //blanking content as requested by Margaret
+    //www.wikitree.com/g2g/1624165/next-batschka-category-banat-is-done?show=1624197#c1624197
+    https: wpTextbox1.value = "{{Delete Category}} \n" + reason + "--~~~~";
     CheckWhatLinksHereAndSave();
   }
 }
@@ -601,7 +601,11 @@ function MarkForRenameOpenNewAndSave(disable, newCategory) {
 }
 
 function CheckWhatLinksHereAndSave() {
-  let catUrl = "https://www.wikitree.com/wiki/Special:Whatlinkshere/Category:" + encodeURI(GetCurrentCategoryName() +  "?appID=WBE_categoryManagement");
+  const category = GetCurrentCategoryName();
+  let catUrl =
+    "https://www.wikitree.com/wiki/Special:Whatlinkshere/Category:" +
+    encodeURIComponent(category) +
+    "?appID=WBE_categoryManagement";
   let xmlHttp = new XMLHttpRequest();
 
   xmlHttp.onload = () => {
@@ -611,11 +615,19 @@ function CheckWhatLinksHereAndSave() {
       for (let i = 0; i < ULs.length; i++) {
         if (ULs[i].className == "") {
           //menu items have a class
-          alert("Please remove/change the links to this category in the tabs that are about to open now");
-          const LIs = ULs[i].getElementsByTagName("li");
-          for (let i = 0; i < LIs.length; i++) {
-            const page = LIs[i].innerText.split(" (← links)").join("");
-            const win = window.open("https://www.wikitree.com/index.php?title=" + encodeURIComponent(page) + "&action=edit");
+          if (
+            prompt(
+              "Category has links on the pages that will open now. Please replace/remove the links.\n(You might want to copy the category name from below easier search and replace)",
+              category
+            )
+          ) {
+            const LIs = ULs[i].getElementsByTagName("li");
+            for (let i = 0; i < LIs.length; i++) {
+              const page = LIs[i].innerText.split(" (← links)").join("");
+              const win = window.open(
+                "https://www.wikitree.com/index.php?title=" + encodeURIComponent(page) + "&action=edit"
+              );
+            }
           }
         }
       }
