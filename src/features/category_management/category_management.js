@@ -1,5 +1,5 @@
 import { getFeatureOptions, shouldInitializeFeature } from "../../core/options/options_storage";
-import { isCategoryEdit, isCategoryPage, isProfileEdit, isSearchPage } from "../../core/pageType";
+import { isCategoryEdit, isCategoryPage, isProfileEdit, isSearchPage, isCategoryHistory } from "../../core/pageType";
 
 //todo: rename CatALot to Batch cat. or whatever it will be in the end
 
@@ -11,15 +11,22 @@ shouldInitializeFeature("categoryManagement").then((result) => {
       getFeatureOptions("categoryManagement").then((options) => {
         AddOptionalCategoryEditPageLinks(options);
         PerformActualCategoryChanges(options.disableCategories);
+        AddCategoryExitLink(document.getElementsByClassName("EDIT")[0]);
       });
-    } else if (isCategoryPage || isSearchPage) {
-      //ShowCatALot();
+    } else if (isCategoryPage) {
       getFeatureOptions("categoryManagement").then((options) => {
-        if (isCategoryPage) {
-          AddOptionalCategoryPageLinks(options);
-        } else if (isSearchPage && options.catALotSearchResults) {
-          // document.getElementsByClassName('two columns omega')[0].appendChild(spanEnable);
+        AddOptionalCategoryPageLinks(options);
+      });
+    } else if (isSearchPage) {
+      getFeatureOptions("categoryManagement").then((options) => {
+        if (options.catALotSearchResults) {
           document.getElementsByTagName("p")[0].appendChild(CreateBatchCatActivationLinkAndSpan());
+        }
+      });
+    } else if (isCategoryHistory) {
+      getFeatureOptions("categoryManagement").then((options) => {
+        if (options.showExitLinks) {
+          AddCategoryExitLink(document.getElementsByTagName("h1")[0]);
         }
       });
     }
@@ -42,18 +49,28 @@ function AddOptionalCategoryPageLinks(options) {
 }
 
 function AddOptionalCategoryEditPageLinks(options) {
-
   //to do: check if category exists and hide accordingly
   const editDivs = document.getElementsByClassName("EDIT");
   if (options.catMarkDelete) {
-    editDivs[editDivs.length-1].appendChild(CreateDeleteCatLinkEditPage(options.disableCategories));
+    editDivs[editDivs.length - 1].appendChild(CreateDeleteCatLinkEditPage(options.disableCategories));
   }
   if (options.catMarkRename) {
-    editDivs[editDivs.length-1].appendChild(CreateRenameCatLinkEditPage(options.disableCategories));
+    editDivs[editDivs.length - 1].appendChild(CreateRenameCatLinkEditPage(options.disableCategories));
   }
   if (options.catCopyRename) {
-    editDivs[editDivs.length-1].appendChild(CreateCopyRenameCatLinkEditPage("copy & rename"));
+    editDivs[editDivs.length - 1].appendChild(CreateCopyRenameCatLinkEditPage("copy & rename"));
   }
+}
+
+function AddCategoryExitLink(parent) {
+  const linkExit = document.createElement("a");
+  const urlParams = new URLSearchParams(window.location.search);
+
+  const baseUrl = "https://www.wikitree.com/wiki/" + urlParams.get("title");
+  linkExit.href = baseUrl;
+  linkExit.innerText = "exit";
+  parent.appendChild(document.createElement("br"));
+  parent.appendChild(WrapWithBrackets(linkExit));
 }
 
 function CreateDeleteCatLink() {
@@ -119,9 +136,9 @@ function CreateBatchCatActivationLinkAndSpan() {
 
 function WrapWithBrackets(buttonEnable) {
   const spanEnable = document.createElement("span");
-  spanEnable.append("[");
+  spanEnable.append(" [");
   spanEnable.appendChild(buttonEnable);
-  spanEnable.append("]");
+  spanEnable.append("] ");
   spanEnable.className = "small";
   return spanEnable;
 }
@@ -130,8 +147,7 @@ function CreateDeleteCatLinkEditPage(disable) {
   const linkDelete = document.createElement("a");
   linkDelete.innerText = "delete";
   linkDelete.href = "#0";
-  linkDelete.addEventListener("click", function () 
-  {
+  linkDelete.addEventListener("click", function () {
     MarkCategoryForDeletionAndSave(disable);
   });
   return WrapWithBrackets(linkDelete);
@@ -141,8 +157,7 @@ function CreateRenameCatLinkEditPage(disable) {
   const linkDelete = document.createElement("a");
   linkDelete.innerText = "rename";
   linkDelete.href = "#0";
-  linkDelete.addEventListener("click", function () 
-  {
+  linkDelete.addEventListener("click", function () {
     const currentCategory = GetCurrentCategoryName();
     const newCategory = prompt("New name?", currentCategory);
     MarkForRenameOpenNewAndSave(disable, newCategory);
@@ -150,20 +165,17 @@ function CreateRenameCatLinkEditPage(disable) {
   return WrapWithBrackets(linkDelete);
 }
 
-function CreateCopyRenameCatLinkEditPage(label)
-{
+function CreateCopyRenameCatLinkEditPage(label) {
   const linkDelete = document.createElement("a");
   linkDelete.innerText = label;
   linkDelete.href = "#0";
-  linkDelete.addEventListener("click", function () 
-  {
+  linkDelete.addEventListener("click", function () {
     const currentCategory = GetCurrentCategoryName();
     const newCategory = prompt("New name?", currentCategory);
     OpenNewCategoryInNewTab(newCategory);
   });
   return WrapWithBrackets(linkDelete);
 }
-
 
 function ShowCatALot() {
   if (isSearchPage) {
