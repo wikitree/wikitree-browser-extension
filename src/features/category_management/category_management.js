@@ -491,7 +491,7 @@ function OnTypedCatNameChanged() {
   if (indexOfColon > -1) {
     catTyped = catTyped.substring(indexOfColon + 1).trim();
   }
-  let catUrl = "https://www.wikitree.com/wiki/Category:" + encodeURI(catTyped);
+  let catUrl = "https://www.wikitree.com/wiki/Category:" + encodeURI(catTyped) + "?appID=WBE_categoryManagement";
   let xmlHttp = new XMLHttpRequest();
   xmlHttp.open("GET", catUrl, false); // false for synchronous request
   xmlHttp.send(null);
@@ -601,7 +601,7 @@ function MarkForRenameOpenNewAndSave(disable, newCategory) {
 }
 
 function CheckWhatLinksHereAndSave() {
-  let catUrl = "https://www.wikitree.com/wiki/Special:Whatlinkshere/Category:" + encodeURI(GetCurrentCategoryName());
+  let catUrl = "https://www.wikitree.com/wiki/Special:Whatlinkshere/Category:" + encodeURI(GetCurrentCategoryName() +  "&appID=WBE_categoryManagement");
   let xmlHttp = new XMLHttpRequest();
 
   xmlHttp.onload = () => {
