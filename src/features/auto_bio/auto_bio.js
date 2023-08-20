@@ -998,7 +998,9 @@ function isReferenceRelevant(reference, event, spouse) {
   });
   return (
     !(event == "Marriage" && spouseMatch == false && reference.Year != spouse.marriage_date?.substring(0, 4)) &&
-    !(event == "Baptism" && !isWithinX(reference.Year, parseInt(window.profilePerson.BirthYear), 10)) &&
+    !(
+      ["Birth", "Baptism"].includes(event) && !isWithinX(reference.Year, parseInt(window.profilePerson.BirthYear), 10)
+    ) &&
     reference["Record Type"].includes(event) &&
     !sameName == false
   );
@@ -1696,6 +1698,7 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
             if (familyMembers?.length > 1) {
               reference.Household = familyMembers;
               reference = assignSelf(reference);
+              console.log("reference", logNow(reference));
               reference.Household = updateRelations(reference.Household);
               text += capitalizeFirstLetter(window.profilePerson.Pronouns.subject) + " was living with ";
               const parents = [];
@@ -2000,7 +2003,8 @@ function updateRelations(household) {
   }
   const self = data[selfIndex];
   self.Gender = window.profilePerson.Gender;
-  if (self.originalRelation != "Head") {
+  const excludes = ["Head"];
+  if (!excludes.includes(self.originalRelation)) {
     data.forEach(function (person, index) {
       if (person.Relation != "Self") {
         if (index != selfIndex) {
@@ -2713,7 +2717,7 @@ function parseCensusWikitable(text) {
   const columnMapping = analyzeColumns(lines);
   const data = [];
   lines.forEach((line, index) => {
-    if (!line.startsWith("|-") && !line.startsWith("|}") && index > 1 && !line.includes(" Age ")) {
+    if (!line.startsWith("|-") && !line.startsWith("|}") && index > 0 && !line.includes(" Age ")) {
       const row = {};
       const parts = line.split("||");
       parts.forEach((part, index) => {
@@ -2737,6 +2741,7 @@ function parseCensusWikitable(text) {
 }
 
 function parseFamilyData(familyData, options = { format: "list", year: "" }) {
+  console.log("Parsing family data", options);
   if (options.format === "wikitable") {
     return parseCensusWikitable(familyData);
   }
@@ -3765,12 +3770,17 @@ function assignSelf(data) {
   if (data.Household) {
     data.Household = updateRelations(data.Household);
   }
+
   return data;
 }
 
 function getEditDistance(string1, string2) {
   string1 = string1?.toLowerCase();
   string2 = string2?.toLowerCase();
+
+  if (!string1 || !string2) {
+    return false;
+  }
 
   const costs = [];
   for (let i = 0; i <= string1.length; i++) {
@@ -4900,9 +4910,10 @@ function processTable(table, census) {
         obj.Relation = "Self";
         obj.isMain = true;
       }
-
-      for (let j = 0; j < headers.length; j++) {
-        obj[headers[j]] = cells[j].replaceAll("'''", "").replace(/(\d+)(weeks|months)/, "$1}$/ $2");
+      if (headers) {
+        for (let j = 0; j < headers.length; j++) {
+          obj[headers[j]] = cells[j].replaceAll("'''", "").replace(/(\d+)(weeks|months)/, "$1}$/ $2");
+        }
       }
 
       if (obj.Relation === "Self" && obj.Occupation) {
@@ -6432,9 +6443,6 @@ export async function buildFamilyForPrivateProfiles() {
             for (let x = 0; x < 10; x++) {
               if (window.profilePerson.Spouses[x] && !window.profilePerson.Spouses[x]?.Id) {
                 const thisSpouse = window.profilePerson.Spouses[x];
-
-                console.log("thisSpouse", thisSpouse);
-
                 Object.assign(thisSpouse, thisPerson);
                 await getSpouseParents2();
                 break;
@@ -6513,16 +6521,18 @@ async function getSpouseParents2() {
   if (!(Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses?.length === 0)) {
     let spouseKeys = Object.keys(window.profilePerson.Spouses);
     const parentKeys = [];
-    for (let i = 0; i < spouseKeys.length; i++) {
-      parentKeys.push(window.profilePerson.Spouses[spouseKeys[i]].Father);
-      parentKeys.push(window.profilePerson.Spouses[spouseKeys[i]].Mother);
+    if (spouseKeys) {
+      for (let i = 0; i < spouseKeys.length; i++) {
+        parentKeys.push(window.profilePerson.Spouses[spouseKeys[i]].Father);
+        parentKeys.push(window.profilePerson.Spouses[spouseKeys[i]].Mother);
+      }
+      window.biographySpouseParents = await getPeople(parentKeys.join(","), 0, 0, 0, 0, 0, "*", "WBE_auto_bio");
+      const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
+      biographySpouseParentsKeys.forEach(function (key) {
+        const person = window.biographySpouseParents[0].people[key];
+        assignPersonNames(person);
+      });
     }
-    window.biographySpouseParents = await getPeople(parentKeys.join(","), 0, 0, 0, 0, 0, "*", "WBE_auto_bio");
-    const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
-    biographySpouseParentsKeys.forEach(function (key) {
-      const person = window.biographySpouseParents[0].people[key];
-      assignPersonNames(person);
-    });
   }
 }
 
