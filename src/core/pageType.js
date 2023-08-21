@@ -208,16 +208,16 @@ if (domain.match("apps.wikitree.com")) {
   ) {
     isCategoryEdit = true;
   } else if (
-    // Category Page
-    path.match(/\/wiki\/Category:.*/g) ||
-    uri.match(/\/index.php\?title=Category:.*/g)
-  ) {
-    isCategoryPage = true;
-  } else if (
     // Category History Page https://www.wikitree.com/index.php?title=Project:Data%20Doctors&action=history
     uri.match(/\/index.php\?title=Category:.*&action=history/g)
   ) {
     isCategoryHistory = true;
+  } else if (
+    // Category Page without action
+    path.match(/\/wiki\/Category:.*/g) ||
+    uri.match(/\/index.php\?title=Category:.*/g)
+  ) {
+    isCategoryPage = true;
   } else if (
     // Template Edit Page
     uri.match(/\/index.php\?title=Template:.*&action=edit.*/g) ||

@@ -1,6 +1,6 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 import {
-  isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit
+  isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit, isCategoryHistory
 } from "../../core/pageType";
 
 registerFeature({
@@ -9,9 +9,9 @@ registerFeature({
   description: "Creating, filling, changing and emptying categories more efficiently",
   category: "Editing",
   creators: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
-  contributors: [],
+  contributors: [ /*{ name: "Magnus Manske", wikitreeid: "Manske-74" }*/],
   defaultValue: true,
-  pages: [isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit],
+  pages: [isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit, isCategoryHistory],
   options: [
     {
       id: "catALotCategory",
@@ -46,8 +46,15 @@ registerFeature({
     {
       id: "disableCategories",
       type: OptionType.CHECKBOX,
-      label: "deactivate marked categories with <nowiki>",
+      label: "deactivate/disable to be renamed categories with <nowiki> to remove them from their current parent categories",
       defaultValue: false,
+    },
+    {
+      id: "showExitLinks",
+      type: OptionType.CHECKBOX,
+      label: "show exit links in category edit and history page",
+      defaultValue: true,
     }
+
   ],
 });
