@@ -1,6 +1,6 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 import {
-  isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit, isCategoryHistory
+  isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit, isCategoryHistory, isProfilePage
 } from "../../core/pageType";
 
 registerFeature({
@@ -11,7 +11,7 @@ registerFeature({
   creators: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
   contributors: [ /*{ name: "Magnus Manske", wikitreeid: "Manske-74" }*/],
   defaultValue: true,
-  pages: [isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit, isCategoryHistory],
+  pages: [isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit, isCategoryHistory, isProfilePage],
   options: [
     {
       id: "catALotCategory",
@@ -54,7 +54,14 @@ registerFeature({
       type: OptionType.CHECKBOX,
       label: "show exit links in category edit and history page",
       defaultValue: true,
+    },
+    {
+      id: "showCategoryLinksProfile",
+      type: OptionType.CHECKBOX,
+      label: "enable category change in profile",
+      defaultValue: true,
     }
+
 
   ],
 });
