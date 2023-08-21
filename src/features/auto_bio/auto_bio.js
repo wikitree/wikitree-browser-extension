@@ -479,7 +479,11 @@ export function convertDate(dateString, outputFormat, status = "") {
     }
     outputDate += " " + year.toString();
   } else if (outputFormat == "DsMY") {
-    outputDate = day + " " + convertMonth(month).slice(0, 3) + " " + year.toString();
+    outputDate = "";
+    if (day !== 0) {
+      outputDate += day + " ";
+    }
+    outputDate += convertMonth(month).slice(0, 3) + " " + year.toString();
   } else if (outputFormat == "YMD" || outputFormat == "ISO") {
     outputDate = ISOdate;
   } else {
@@ -998,7 +1002,9 @@ function isReferenceRelevant(reference, event, spouse) {
   });
   return (
     !(event == "Marriage" && spouseMatch == false && reference.Year != spouse.marriage_date?.substring(0, 4)) &&
-    !(event == "Baptism" && !isWithinX(reference.Year, parseInt(window.profilePerson.BirthYear), 10)) &&
+    !(
+      ["Birth", "Baptism"].includes(event) && !isWithinX(reference.Year, parseInt(window.profilePerson.BirthYear), 10)
+    ) &&
     reference["Record Type"].includes(event) &&
     !sameName == false
   );
@@ -1696,6 +1702,7 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
             if (familyMembers?.length > 1) {
               reference.Household = familyMembers;
               reference = assignSelf(reference);
+              console.log("reference", logNow(reference));
               reference.Household = updateRelations(reference.Household);
               text += capitalizeFirstLetter(window.profilePerson.Pronouns.subject) + " was living with ";
               const parents = [];
@@ -2000,7 +2007,8 @@ function updateRelations(household) {
   }
   const self = data[selfIndex];
   self.Gender = window.profilePerson.Gender;
-  if (self.originalRelation != "Head") {
+  const excludes = ["Head"];
+  if (!excludes.includes(self.originalRelation)) {
     data.forEach(function (person, index) {
       if (person.Relation != "Self") {
         if (index != selfIndex) {
@@ -2713,7 +2721,7 @@ function parseCensusWikitable(text) {
   const columnMapping = analyzeColumns(lines);
   const data = [];
   lines.forEach((line, index) => {
-    if (!line.startsWith("|-") && !line.startsWith("|}") && index > 1 && !line.includes(" Age ")) {
+    if (!line.startsWith("|-") && !line.startsWith("|}") && index > 0 && !line.includes(" Age ")) {
       const row = {};
       const parts = line.split("||");
       parts.forEach((part, index) => {
@@ -2737,6 +2745,7 @@ function parseCensusWikitable(text) {
 }
 
 function parseFamilyData(familyData, options = { format: "list", year: "" }) {
+  console.log("Parsing family data", options);
   if (options.format === "wikitable") {
     return parseCensusWikitable(familyData);
   }
@@ -3765,12 +3774,17 @@ function assignSelf(data) {
   if (data.Household) {
     data.Household = updateRelations(data.Household);
   }
+
   return data;
 }
 
 function getEditDistance(string1, string2) {
   string1 = string1?.toLowerCase();
   string2 = string2?.toLowerCase();
+
+  if (!string1 || !string2) {
+    return false;
+  }
 
   const costs = [];
   for (let i = 0; i <= string1.length; i++) {
@@ -4900,9 +4914,10 @@ function processTable(table, census) {
         obj.Relation = "Self";
         obj.isMain = true;
       }
-
-      for (let j = 0; j < headers.length; j++) {
-        obj[headers[j]] = cells[j].replaceAll("'''", "").replace(/(\d+)(weeks|months)/, "$1}$/ $2");
+      if (headers) {
+        for (let j = 0; j < headers.length; j++) {
+          obj[headers[j]] = cells[j].replaceAll("'''", "").replace(/(\d+)(weeks|months)/, "$1}$/ $2");
+        }
       }
 
       if (obj.Relation === "Self" && obj.Occupation) {
@@ -6122,6 +6137,12 @@ export function addOccupationCategories(feature = "autoBio") {
  * from the current window and updates the global `window.profilePerson` object.
  */
 export async function buildFamilyForPrivateProfiles() {
+  // Ensure window.profilePerson is defined before proceeding
+  if (!window.profilePerson) {
+    console.error("window.profilePerson is undefined");
+    return; // Exit the function early
+  }
+
   // Construct BirthName if it doesn't exist
   if (!window.profilePerson.BirthName) {
     window.profilePerson.BirthName =
@@ -6140,13 +6161,18 @@ export async function buildFamilyForPrivateProfiles() {
   // Retrieve LastNameAtBirth from the page if not present
   if (!window.profilePerson.LastNameAtBirth) {
     const lastNameAnchor = $("a[name='last-name']");
-    const lastNameText = lastNameAnchor.parent().text().split(" [")[0].trim();
-    window.profilePerson.LastNameAtBirth = lastNameText;
+    if (lastNameAnchor && lastNameAnchor.length > 0) {
+      const lastNameText = lastNameAnchor.parent().text().split(" [")[0].trim();
+      window.profilePerson.LastNameAtBirth = lastNameText;
+    }
   }
 
   // Retrieve Gender from the page if not present
   if (!window.profilePerson.Gender) {
-    window.profilePerson.Gender = $("select#mGender option:selected").val();
+    const genderElement = $("select#mGender option:selected");
+    if (genderElement && genderElement.length > 0) {
+      window.profilePerson.Gender = genderElement.val();
+    }
   }
 
   /**
@@ -6190,117 +6216,121 @@ export async function buildFamilyForPrivateProfiles() {
 
   // Locate family members in the page
   const familyColumn = $("a[name='family']").closest("div");
-  const familyTable = familyColumn.find("table");
-  const familyTableRows = familyTable.find("tr");
-  let fatherTr, motherTr, siblingsTr, spousesTr, childrenTr;
-  familyTableRows.each(function (index, row) {
-    const cellText = $(this).find("td").eq(0).text();
-    if (cellText.includes("Father")) fatherTr = row;
-    else if (cellText.includes("Mother")) motherTr = row;
-    else if (cellText.includes("Siblings")) siblingsTr = row;
-    else if (cellText.includes("Spouses")) spousesTr = row;
-    else if (cellText.includes("Children")) childrenTr = row;
-  });
+  if (familyColumn && familyColumn.length > 0) {
+    const familyTable = familyColumn.find("table");
+    const familyTableRows = familyTable.find("tr");
+    let fatherTr, motherTr, siblingsTr, spousesTr, childrenTr;
+    familyTableRows.each(function (index, row) {
+      const cellText = $(this).find("td").eq(0).text();
+      if (cellText.includes("Father")) fatherTr = row;
+      else if (cellText.includes("Mother")) motherTr = row;
+      else if (cellText.includes("Siblings")) siblingsTr = row;
+      else if (cellText.includes("Spouses")) spousesTr = row;
+      else if (cellText.includes("Children")) childrenTr = row;
+    });
 
-  // Initialize Parents if not already done
-  if (!window.profilePerson.Parents) {
-    window.profilePerson.Parents = {};
-  }
+    // Initialize Parents if not already done
+    if (!window.profilePerson.Parents) {
+      window.profilePerson.Parents = {};
+    }
 
-  // Process father's data if available
-  if (fatherTr) {
-    const fatherLinks = fatherTr.querySelectorAll("a");
-    const fatherLink = findFamilyPersonLink(fatherLinks);
-    if (fatherLink) {
-      const fatherId = fatherLink.href.split("/").pop();
-      const fatherObject = {
-        Name: fatherId,
-      };
-      const fatherName = fatherLink.textContent;
-      parseName(fatherName, fatherObject);
-      if (window.profilePerson.Father) {
-        if (!window.profilePerson.Parents[window.profilePerson.Father]) {
-          fatherObject.Id = window.profilePerson.Father;
-          window.profilePerson.Parents[window.profilePerson.Father] = fatherObject;
-        } else if (!window.profilePerson.Parents[window.profilePerson.Father]?.Name) {
-          window.profilePerson.Parents[window.profilePerson.Father].assign(fatherObject);
+    // Process father's data if available
+    if (fatherTr) {
+      const fatherLinks = fatherTr.querySelectorAll("a");
+      const fatherLink = findFamilyPersonLink(fatherLinks);
+      if (fatherLink) {
+        const fatherId = fatherLink.href.split("/").pop();
+        const fatherObject = {
+          Name: fatherId,
+        };
+        const fatherName = fatherLink.textContent;
+        parseName(fatherName, fatherObject);
+        if (window.profilePerson.Father) {
+          if (!window.profilePerson.Parents[window.profilePerson.Father]) {
+            fatherObject.Id = window.profilePerson.Father;
+            window.profilePerson.Parents[window.profilePerson.Father] = fatherObject;
+          } else if (!window.profilePerson.Parents[window.profilePerson.Father]?.Name) {
+            window.profilePerson.Parents[window.profilePerson.Father].assign(fatherObject);
+          }
+        } else {
+          window.profilePerson.Parents[1] = fatherObject;
+          window.profilePerson.Father = 1;
         }
-      } else {
-        window.profilePerson.Parents[1] = fatherObject;
-        window.profilePerson.Father = 1;
       }
     }
-  }
 
-  // Process mother's data if available
-  if (motherTr) {
-    const motherLinks = motherTr.querySelectorAll("a");
-    const motherLink = findFamilyPersonLink(motherLinks);
-    if (motherLink) {
-      const motherId = motherLink.href.split("/").pop();
-      const motherObject = {
-        Name: motherId,
-      };
-      const motherName = motherLink.textContent;
-      parseName(motherName, motherObject);
-      if (window.profilePerson.Mother) {
-        if (!window.profilePerson.Parents[window.profilePerson.Mother]) {
-          motherObject.Id = window.profilePerson.Mother;
-          window.profilePerson.Parents[window.profilePerson.Mother] = motherObject;
-        } else if (!window.profilePerson.Parents[window.profilePerson.Mother]?.Name) {
-          window.profilePerson.Parents[window.profilePerson.Mother].assign(motherObject);
+    // Process mother's data if available
+    if (motherTr) {
+      const motherLinks = motherTr.querySelectorAll("a");
+      const motherLink = findFamilyPersonLink(motherLinks);
+      if (motherLink) {
+        const motherId = motherLink.href.split("/").pop();
+        const motherObject = {
+          Name: motherId,
+        };
+        const motherName = motherLink.textContent;
+        parseName(motherName, motherObject);
+        if (window.profilePerson.Mother) {
+          if (!window.profilePerson.Parents[window.profilePerson.Mother]) {
+            motherObject.Id = window.profilePerson.Mother;
+            window.profilePerson.Parents[window.profilePerson.Mother] = motherObject;
+          } else if (!window.profilePerson.Parents[window.profilePerson.Mother]?.Name) {
+            window.profilePerson.Parents[window.profilePerson.Mother].assign(motherObject);
+          }
+        } else {
+          window.profilePerson.Parents[2] = motherObject;
+          window.profilePerson.Mother = 2;
         }
-      } else {
-        window.profilePerson.Parents[2] = motherObject;
-        window.profilePerson.Mother = 2;
       }
     }
-  }
 
-  // Process and initialize Siblings, Spouses, and Children data
-  const familyLists = ["Siblings", "Spouses", "Children"];
-  familyLists.forEach((familyList) => {
-    window.profilePerson[familyList] = {};
-    const familyTr = familyList === "Siblings" ? siblingsTr : familyList === "Spouses" ? spousesTr : childrenTr;
-    if (familyTr) {
-      const familyTd = $(familyTr).find("td").eq(1)[0];
-      if (familyTd) {
-        const familyOl = familyTd.firstElementChild;
-        if (familyOl) {
-          const family = familyOl.children;
-          for (let i = 0; i < family.length; i++) {
-            const familyMember = family[i];
-            const familyMemberLinks = familyMember.querySelectorAll("a");
-            const familyMemberLink = findFamilyPersonLink(familyMemberLinks);
-            if (familyMemberLink) {
-              const familyMemberId = familyMemberLink.href.split("/").pop();
-              const familyMemberObject = {
-                Name: familyMemberId,
-                BirthDate: "0000-00-00",
-              };
-              if (familyList == "Spouses") {
-                familyMemberObject["marriage_date"] = "0000-00-00";
+    // Process and initialize Siblings, Spouses, and Children data
+    const familyLists = ["Siblings", "Spouses", "Children"];
+    familyLists.forEach((familyList) => {
+      window.profilePerson[familyList] = {};
+      const familyTr = familyList === "Siblings" ? siblingsTr : familyList === "Spouses" ? spousesTr : childrenTr;
+      if (familyTr) {
+        const familyTd = $(familyTr).find("td").eq(1)[0];
+        if (familyTd) {
+          const familyOl = familyTd.firstElementChild;
+          if (familyOl) {
+            const family = familyOl.children;
+            for (let i = 0; i < family.length; i++) {
+              const familyMember = family[i];
+              const familyMemberLinks = familyMember.querySelectorAll("a");
+              const familyMemberLink = findFamilyPersonLink(familyMemberLinks);
+              if (familyMemberLink) {
+                const familyMemberId = familyMemberLink.href.split("/").pop();
+                const familyMemberObject = {
+                  Name: familyMemberId,
+                  BirthDate: "0000-00-00",
+                };
+                if (familyList == "Spouses") {
+                  familyMemberObject["marriage_date"] = "0000-00-00";
+                }
+                const familyMemberName = familyMemberLink.textContent;
+                parseName(familyMemberName, familyMemberObject);
+                window.profilePerson[familyList][i] = familyMemberObject;
               }
-              const familyMemberName = familyMemberLink.textContent;
-              parseName(familyMemberName, familyMemberObject);
-              window.profilePerson[familyList][i] = familyMemberObject;
             }
           }
         }
       }
-    }
-    if (Object.keys(window.profilePerson[familyList])?.length === 0) {
-      window.profilePerson[familyList] = [];
-    }
-  });
+      if (Object.keys(window.profilePerson[familyList])?.length === 0) {
+        window.profilePerson[familyList] = [];
+      }
+    });
+  }
 
   // Collate all the family members' names for subsequent fetch
   const ids = [];
   ["Parents", "Siblings", "Spouses", "Children"].forEach(function (familyList) {
-    for (let key in window.profilePerson[familyList]) {
-      const person = window.profilePerson[familyList][key];
-      if (person.Name) {
-        ids.push(person.Name);
+    if (window.profilePerson[familyList] && typeof window.profilePerson[familyList] === "object") {
+      for (let key in window.profilePerson[familyList]) {
+        const person = window.profilePerson[familyList][key];
+        if (person.Name) {
+          ids.push(person.Name);
+        }
       }
     }
   });
@@ -6336,44 +6366,53 @@ export async function buildFamilyForPrivateProfiles() {
     "Spouses",
   ];
 
-  const familyProfiles = await getPeople(ids.join(","), 0, 0, 0, 0, 0, theFields.join(","), "WBE_auto_bio");
-  // Assign the fetched family profiles data to the respective family lists
-  ["Parents", "Siblings", "Spouses", "Children"].forEach(function (familyList) {
-    const keys = Object.keys(window.profilePerson[familyList]);
-    for (let i = 0; i < keys.length; i++) {
-      const key = keys[i];
-      const person = window.profilePerson[familyList][key];
-      if (person.Name) {
-        const thisId = familyProfiles[0]?.resultByKey[person.Name]?.Id;
-        const thisPerson = familyProfiles[0]?.people[thisId];
-        if (thisPerson) {
-          if (familyList == "Spouses") {
-            thisPerson.Spouses.forEach(function (spouse) {
-              if (spouse.Id == window.profilePerson.Id) {
-                thisPerson.marriage_date = spouse?.marriage_date;
-                thisPerson.marriage_location = spouse?.marriage_location;
-                thisPerson.data_status = {
-                  marriage_date: spouse?.DataStatus?.MarriageDate,
-                  marriage_location: spouse?.DataStatus?.MarriageLocation,
-                };
+  let familyProfiles = [];
+  try {
+    const familyProfiles = await getPeople(ids.join(","), 0, 0, 0, 0, 0, theFields.join(","), "WBE_auto_bio");
+    if (!familyProfiles || !familyProfiles[0]) {
+      console.error("Failed to fetch family profiles");
+    } else {
+      // Assign the fetched family profiles data to the respective family lists
+      ["Parents", "Siblings", "Spouses", "Children"].forEach(function (familyList) {
+        const keys = Object.keys(window.profilePerson[familyList]);
+        for (let i = 0; i < keys.length; i++) {
+          const key = keys[i];
+          const person = window.profilePerson[familyList][key];
+          if (person.Name) {
+            const thisId = familyProfiles[0]?.resultByKey[person.Name]?.Id;
+            const thisPerson = familyProfiles[0]?.people[thisId];
+            if (thisPerson) {
+              if (familyList == "Spouses") {
+                thisPerson.Spouses.forEach(function (spouse) {
+                  if (spouse.Id == window.profilePerson.Id) {
+                    thisPerson.marriage_date = spouse?.marriage_date;
+                    thisPerson.marriage_location = spouse?.marriage_location;
+                    thisPerson.data_status = {
+                      marriage_date: spouse?.DataStatus?.MarriageDate,
+                      marriage_location: spouse?.DataStatus?.MarriageLocation,
+                    };
+                  }
+                });
               }
-            });
-          }
-          window.profilePerson[familyList][thisId] = thisPerson;
-          if (familyList == "Parents") {
-            if (thisPerson.Gender == "Male") {
-              window.profilePerson.Father = thisId;
-            } else if (thisPerson.Gender == "Female") {
-              window.profilePerson.Mother = thisId;
+              window.profilePerson[familyList][thisId] = thisPerson;
+              if (familyList == "Parents") {
+                if (thisPerson.Gender == "Male") {
+                  window.profilePerson.Father = thisId;
+                } else if (thisPerson.Gender == "Female") {
+                  window.profilePerson.Mother = thisId;
+                }
+              }
+              if (key < 70) {
+                delete window.profilePerson[familyList][key];
+              }
             }
           }
-          if (key < 70) {
-            delete window.profilePerson[familyList][key];
-          }
         }
-      }
+      });
     }
-  });
+  } catch (err) {
+    console.error("Error fetching family profiles", err);
+  }
 
   console.log("profile person now", logNow(window.profilePerson));
 
@@ -6432,9 +6471,6 @@ export async function buildFamilyForPrivateProfiles() {
             for (let x = 0; x < 10; x++) {
               if (window.profilePerson.Spouses[x] && !window.profilePerson.Spouses[x]?.Id) {
                 const thisSpouse = window.profilePerson.Spouses[x];
-
-                console.log("thisSpouse", thisSpouse);
-
                 Object.assign(thisSpouse, thisPerson);
                 await getSpouseParents2();
                 break;
@@ -6513,16 +6549,18 @@ async function getSpouseParents2() {
   if (!(Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses?.length === 0)) {
     let spouseKeys = Object.keys(window.profilePerson.Spouses);
     const parentKeys = [];
-    for (let i = 0; i < spouseKeys.length; i++) {
-      parentKeys.push(window.profilePerson.Spouses[spouseKeys[i]].Father);
-      parentKeys.push(window.profilePerson.Spouses[spouseKeys[i]].Mother);
+    if (spouseKeys) {
+      for (let i = 0; i < spouseKeys.length; i++) {
+        parentKeys.push(window.profilePerson.Spouses[spouseKeys[i]].Father);
+        parentKeys.push(window.profilePerson.Spouses[spouseKeys[i]].Mother);
+      }
+      window.biographySpouseParents = await getPeople(parentKeys.join(","), 0, 0, 0, 0, 0, "*", "WBE_auto_bio");
+      const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
+      biographySpouseParentsKeys.forEach(function (key) {
+        const person = window.biographySpouseParents[0].people[key];
+        assignPersonNames(person);
+      });
     }
-    window.biographySpouseParents = await getPeople(parentKeys.join(","), 0, 0, 0, 0, 0, "*", "WBE_auto_bio");
-    const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
-    biographySpouseParentsKeys.forEach(function (key) {
-      const person = window.biographySpouseParents[0].people[key];
-      assignPersonNames(person);
-    });
   }
 }
 

@@ -129,6 +129,18 @@ async function helpScissors() {
           .join("")
       )
     );
+
+    // Remove the space before "UserID"
+    const copyID = document.querySelector('.copyWidget[aria-label="Copy UserID"]');
+    if (copyID) {
+      let previousSibling = copyID.previousSibling;
+      while (previousSibling && previousSibling.nodeType === 3 && /^\s*$/.test(previousSibling.nodeValue)) {
+        var toRemove = previousSibling;
+        previousSibling = previousSibling.previousSibling;
+        toRemove.parentNode.removeChild(toRemove);
+      }
+    }
+
     $("helpScissors").on("click", function (e) {
       e.preventDefault();
       copyThingToClipboard($(this).attr("data-copy-text"));

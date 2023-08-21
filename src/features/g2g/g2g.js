@@ -64,7 +64,7 @@ function linkify() {
     }
   });
 
-  const excludeList = ["Pre-1500", "Pre-1800", "Pre-1700", "Pre-1900", "Covid-19", "COVID-19"];
+  const excludeList = [/pre-\d{4}/i, /post-\d{4}/i, /COVID-19/i];
 
   /* Regex explanation:
 1. The first three lookaheads check that the string contains between 0 and 3 dashes, between 0 and 2 underscores, and between 0 and 1 apostrophes, respectively.
@@ -81,7 +81,7 @@ function linkify() {
         const nodeText = childNode.textContent;
         let matches = nodeText.match(regexPattern);
         matches = [...new Set(matches)];
-        matches = matches.filter((match) => !excludeList.includes(match));
+        matches = matches.filter((match) => !excludeList.some((regex) => regex.test(match)));
         const matchCount = matches.length;
 
         if (matches && matchCount > 0) {
