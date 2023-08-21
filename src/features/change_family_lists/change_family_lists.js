@@ -40,6 +40,37 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
       if (options.siblingAndChildCount) {
         addChildrenCount();
       }
+      await getWindowPeople();
+      // Find the name from the element
+      const nameToFind = $("a.pureCssMenui0 span.person").text();
+
+      const oChildren = window.people?.[0]?.Children;
+      let children = [];
+      if (oChildren) {
+        children = Object.values(oChildren);
+      }
+      // Find the person whose Name matches
+      const parentPerson = window.people.find((person) => person.Name === nameToFind);
+      if (parentPerson) {
+        // Get the parent's Id
+        const parentId = parentPerson.Id;
+        // Iterate through the people to find children with the matching parent Id
+        children.forEach((person) => {
+          let addDNAconfirmed = false;
+          if (person.Mother == parentId && person.DataStatus?.Mother == 30) {
+            addDNAconfirmed = true;
+          } else if (person.Father == parentId && person.DataStatus?.Father == 30) {
+            addDNAconfirmed = true;
+          }
+          if (addDNAconfirmed) {
+            $(`.VITALS a[href$="${person.Name}"]`).after(
+              $(
+                `<img class="DNAConfirmed" src="/images/icons/dna/DNA-confirmed.gif" border="0" width="38" height="12" alt="DNA confirmed" title="Confirmed with DNA testing">`
+              )
+            );
+          }
+        });
+      }
     }
     if (options.changeHeaders) {
       setTimeout(function () {
@@ -63,6 +94,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     }, 3000);
 
     addParentStatus();
+
     window.onresize = function () {
       if ($("body.profile").length && window.location.href.match("Space:") == null) {
         moveFamilyLists(true);
@@ -89,6 +121,12 @@ async function addAddLinksToHeadings() {
     ["#motherUnknown", "mother"],
   ];
   let whichParent;
+
+  if (!window.people) {
+    const getPeopleResult = await getFamilyPeople();
+    window.people = Object.values(getPeopleResult[0].people);
+  }
+
   if (window.people) {
     if (!window.people[0] && window.people[0].Father) {
       whichParent = "mother";
@@ -179,19 +217,67 @@ async function prepareFamilyLists() {
   }
 }
 
-async function onlyAgesAtMarriages() {
+async function getWindowPeople() {
   const id = $("a.pureCssMenui0 span.person").text();
-  getRelatives(
+  const aResult = await getRelatives(
     [id],
     {
       getSpouses: true,
+      getChildren: true,
+      getParents: true,
+      getSibings: true,
       fields: ["*"],
     },
     { appId: "WBE_change_family_lists" }
-  ).then((personData) => {
-    window.people = [personData[0]];
-    addMarriageAges();
+  );
+  if (aResult[0]) {
+    window.people = [aResult[0]];
+  } else {
+    if (window.people.length == 0) {
+      const getPeopleResult = await getFamilyPeople();
+      window.people = Object.values(getPeopleResult[0].people);
+    }
+  }
+  return true;
+}
+
+async function onlyAgesAtMarriages() {
+  await getWindowPeople();
+  addMarriageAges();
+}
+
+async function getFamilyPeople(args) {
+  const keys = args.keys || $("a.pureCssMenui0 span.person").text();
+  const fields = args.fields || "*";
+  const result = await postToAPI({
+    action: "getPeople",
+    appId: "WBE_changeFamilyLists",
+    keys: keys,
+    fields: fields,
+    resolveRedirect: 1,
+    nuclear: 1,
   });
+  return result;
+}
+
+function postToAPI(postData) {
+  var ajax = $.ajax({
+    // The WikiTree API endpoint
+    url: "https://api.wikitree.com/api.php",
+
+    // We tell the browser to send any cookie credentials we might have (in case we authenticated).
+    xhrFields: { withCredentials: true },
+
+    // Doesn't help. Not required from (dev|apps).wikitree.com and api.wikitree.com disallows cross-origin:*
+    //'crossDomain': true,
+
+    // We're POSTing the data so we don't worry about URL size limits and want JSON back.
+    type: "POST",
+    dataType: "json",
+    data: postData,
+  });
+
+  return ajax;
 }
 
 async function moveFamilyLists(firstTime = false) {
@@ -284,11 +370,14 @@ function reallyMakeFamLists() {
         },
         success: function (data) {
           const oPerson = data;
-          window.people = [oPerson[0]["items"][0]["person"]];
-          if (oPerson[0]["items"][0]["person"]?.Connected == 1) {
-            window.profileIsConnected = true;
-          } else {
-            window.profileIsConnected = false;
+          window.people = [];
+          if (oPerson[0]?.["items"]?.[0]?.["person"]) {
+            window.people = [oPerson[0]["items"][0]["person"]];
+            if (oPerson[0]["items"][0]["person"]?.Connected == 1) {
+              window.profileIsConnected = true;
+            } else {
+              window.profileIsConnected = false;
+            }
           }
           const orels = ["Children", "Parents", "Siblings", "Spouses"];
           orels.forEach(function (rel) {
@@ -845,7 +934,7 @@ function list2ol(items, olid) {
   nList.className = "nameList";
   items[0].parentNode.insertBefore(nList, items[0]);
   let isPrivate = false;
-  if (!window.people[0].Name) {
+  if (!window.people?.[0]?.Name) {
     isPrivate = true;
   }
   items.forEach(function (item) {
@@ -1858,28 +1947,56 @@ function addParentStatus() {
   setTimeout(function () {
     if (window.people) {
       const profileP = window.people[0];
-      if ($("#parentList li[data-gender='male'] a span:contains([uncertain])").length == 0) {
-        if (profileP.DataStatus?.Father == "10") {
-          $("#parentList li[data-gender='male'] a").append($("<span class='uncertain dataStatus'>[uncertain]</span>"));
+      if (profileP) {
+        if ($("#parentList li[data-gender='male'] a span:contains([uncertain])").length == 0) {
+          if (profileP.DataStatus?.Father == "10") {
+            $("#parentList li[data-gender='male'] a").append(
+              $("<span class='uncertain dataStatus'>[uncertain]</span>")
+            );
+          }
+          if (profileP.DataStatus?.Father == "5") {
+            $("#parentList li[data-gender='male'] a").append(
+              $("<span class='non-biological dataStatus'>[non-biological]</span>")
+            );
+          }
         }
-        if (profileP.DataStatus?.Father == "5") {
-          $("#parentList li[data-gender='male'] a").append(
-            $("<span class='non-biological dataStatus'>[non-biological]</span>")
-          );
-        }
-      }
-      if ($("#parentList li[data-gender='female'] a span:contains([uncertain])").length == 0) {
-        if (profileP.DataStatus?.Mother == "10") {
-          $("#parentList li[data-gender='female'] a").append(
-            $("<span class='uncertain  dataStatus'>[uncertain]</span>")
-          );
-        }
-        if (profileP.DataStatus?.Mother == "5") {
-          $("#parentList li[data-gender='female'] a").append(
-            $("<span class='non-biological  dataStatus'>[non-biological]</span>")
-          );
+
+        if ($("#parentList li[data-gender='female'] a span:contains([uncertain])").length == 0) {
+          if (profileP.DataStatus?.Mother == "10") {
+            $("#parentList li[data-gender='female'] a").append(
+              $("<span class='uncertain  dataStatus'>[uncertain]</span>")
+            );
+          }
+          if (profileP.DataStatus?.Mother == "5") {
+            $("#parentList li[data-gender='female'] a").append(
+              $("<span class='non-biological  dataStatus'>[non-biological]</span>")
+            );
+          }
         }
       }
     }
+    addDNAstatusToChildren();
   }, 3000);
+}
+
+function addDNAstatusToChildren() {
+  // Find the name from the element
+  const nameToFind = $("a.pureCssMenui0 span.person").text();
+
+  // Find the person whose Name matches
+  const parentPerson = window.people.find((person) => person.Name === nameToFind);
+
+  // Check if the person was found
+  if (parentPerson) {
+    // Get the parent's Id
+    const parentId = parentPerson.Id;
+
+    $(
+      `#childrenList li[data-father="${parentId}"][data-father-status="30"],#childrenList li[data-mother="${parentId}"][data-mother-status="30"]`
+    ).append(
+      $(
+        '<img class="DNAConfirmed" src="/images/icons/dna/DNA-confirmed.gif" border="0" width="38" height="12" alt="DNA confirmed" title="Confirmed with DNA testing">'
+      )
+    );
+  }
 }
