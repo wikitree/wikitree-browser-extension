@@ -52,8 +52,8 @@ function dataStatusWord(status, ISOdate, options = { needOnIn: false, onlyYears:
       : "";
 
   const thisStatusFormat = onlyYears
-    ? window.autoBioOptions.yearsDateStatusFormat
-    : window.autoBioOptions.dateStatusFormat || "abbreviations";
+    ? window.autoBioOptions?.yearsDateStatusFormat
+    : window.autoBioOptions?.dateStatusFormat || "abbreviations";
 
   if (thisStatusFormat == "abbreviations") {
     statusOut = statusOut.replace("before", "bef.").replace("after", "aft.").replace("about", "abt.");
@@ -3117,7 +3117,7 @@ function buildCensusNarratives() {
 
         // Sort nameVariants by length
         nameVariants.sort(function (a, b) {
-          return b.length - a.length;
+          return b?.length - a?.length;
         });
 
         if (window.profilePerson.Nicknames) {
@@ -3256,6 +3256,7 @@ function createFamilyNarrative(familyMembers) {
   );
 
   const removeMainPersonLastName = (name) => {
+    if (!name) return name;
     const names = name.split(" ");
     let lastNameAtBirth = window.profilePerson.LastNameAtBirth;
     let lastNameCurrent = window.profilePerson.LastNameCurrent;
@@ -6295,22 +6296,24 @@ export async function buildFamilyForPrivateProfiles() {
           const familyOl = familyTd.firstElementChild;
           if (familyOl) {
             const family = familyOl.children;
-            for (let i = 0; i < family.length; i++) {
-              const familyMember = family[i];
-              const familyMemberLinks = familyMember.querySelectorAll("a");
-              const familyMemberLink = findFamilyPersonLink(familyMemberLinks);
-              if (familyMemberLink) {
-                const familyMemberId = familyMemberLink.href.split("/").pop();
-                const familyMemberObject = {
-                  Name: familyMemberId,
-                  BirthDate: "0000-00-00",
-                };
-                if (familyList == "Spouses") {
-                  familyMemberObject["marriage_date"] = "0000-00-00";
+            if (family) {
+              for (let i = 0; i < family.length; i++) {
+                const familyMember = family[i];
+                const familyMemberLinks = familyMember.querySelectorAll("a");
+                const familyMemberLink = findFamilyPersonLink(familyMemberLinks);
+                if (familyMemberLink) {
+                  const familyMemberId = familyMemberLink.href.split("/").pop();
+                  const familyMemberObject = {
+                    Name: familyMemberId,
+                    BirthDate: "0000-00-00",
+                  };
+                  if (familyList == "Spouses") {
+                    familyMemberObject["marriage_date"] = "0000-00-00";
+                  }
+                  const familyMemberName = familyMemberLink.textContent;
+                  parseName(familyMemberName, familyMemberObject);
+                  window.profilePerson[familyList][i] = familyMemberObject;
                 }
-                const familyMemberName = familyMemberLink.textContent;
-                parseName(familyMemberName, familyMemberObject);
-                window.profilePerson[familyList][i] = familyMemberObject;
               }
             }
           }
@@ -6571,7 +6574,7 @@ export async function generateBio() {
     // Sort First Name Variants by length
     for (let key in firstNameVariants) {
       firstNameVariants[key].sort(function (a, b) {
-        return b.length - a.length;
+        return b?.length - a?.length;
       });
     }
 
@@ -6869,7 +6872,7 @@ export async function generateBio() {
         }
 
         if (anEvent["Record Type"]?.includes("Census") && anEvent.Narrative) {
-          if (anEvent.Narrative.length > 10) {
+          if (anEvent.Narrative?.length > 10) {
             let censusYear = anEvent["Census Year"];
             let censusNarrative;
 
@@ -7025,7 +7028,7 @@ export async function generateBio() {
             if (anEvent.FactType == "Burial") {
               window.profilePerson.BurialFact = narrativeBits + thisRef + "\n\n";
             } else {
-              let thisBit = narrativeBits + (theseRefs.length == 0 ? thisRef : theseRefs.join()) + "\n\n";
+              let thisBit = narrativeBits + (theseRefs?.length == 0 ? thisRef : theseRefs.join()) + "\n\n";
               marriagesAndCensusesText += thisBit;
             }
           }
@@ -7046,7 +7049,7 @@ export async function generateBio() {
       }
     });
     let subsectionsText = "";
-    if (subsections.length > 0) {
+    if (subsections?.length > 0) {
       subsectionsText = subsections.join("\n");
     }
 
@@ -7099,12 +7102,12 @@ export async function generateBio() {
     // Add Research Notes
     let researchNotesText = "";
     if (
-      window.sectionsObject["Research Notes"].text.length > 0 ||
-      window.sectionsObject["Research Notes"].subsections["NeedsProfiles"].length > 0
+      window.sectionsObject["Research Notes"]?.text?.length > 0 ||
+      window.sectionsObject["Research Notes"]?.subsections["NeedsProfiles"]?.length > 0
     ) {
       let researchNotesHeader = "== Research Notes ==\n";
       researchNotesText += researchNotesHeader;
-      if (window.sectionsObject["Research Notes"].text.length > 0) {
+      if (window.sectionsObject["Research Notes"]?.text?.length > 0) {
         researchNotesText += window.sectionsObject["Research Notes"].text.join("\n");
         researchNotesText += "\n\n";
       }
@@ -7112,7 +7115,7 @@ export async function generateBio() {
       const needsDone = [];
       let needsProfileText = "";
       const needsProfiles = window.sectionsObject["Research Notes"].subsections["NeedsProfiles"];
-      if (needsProfiles.length > 0) {
+      if (needsProfiles?.length > 0) {
         if (needsProfiles.length == 1) {
           needsProfileText =
             needsProfiles[0].Name +
@@ -7198,7 +7201,7 @@ export async function generateBio() {
         (anAlso) => !anAlso.match("''Add \\[\\[sources\\]\\] here.''")
       );
 
-      if (filteredText.length > 0) {
+      if (filteredText?.length > 0) {
         sourcesText += "See also:\n";
         filteredText.forEach(function (anAlso) {
           if (anAlso) {
@@ -7212,13 +7215,13 @@ export async function generateBio() {
     console.log("sectionsObject", window.sectionsObject);
     // Add Acknowledgments
     let acknowledgementsText = "";
-    if (window.sectionsObject["Acknowledgements"].text.length > 0) {
+    if (window.sectionsObject["Acknowledgements"]?.text?.length > 0) {
       window.sectionsObject["Acknowledgements"].text.forEach(function (txt, i) {
         if (txt.match(/Click the Changes tab for the details|<!-- Please feel free to/)) {
           window.sectionsObject["Acknowledgements"].text.splice(i, 1);
         }
       });
-      if (window.sectionsObject["Acknowledgements"].text.length > 0) {
+      if (window.sectionsObject["Acknowledgements"]?.text?.length > 0) {
         let acknowledgementsHeader = "== Acknowledgements ==\n";
         if (window.sectionsObject["Acknowledgements"].originalTitle) {
           acknowledgementsHeader = "== " + window.sectionsObject["Acknowledgements"].originalTitle + " ==\n";
