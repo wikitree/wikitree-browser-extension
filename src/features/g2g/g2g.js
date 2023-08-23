@@ -64,7 +64,7 @@ function linkify() {
     }
   });
 
-  const excludeList = [/pre-\d{4}/i, /post-\d{4}/i, /COVID-19/i];
+  const excludeList = [/\bpre-\d{4}/i, /\bpost-\d{4}/i, /COVID-19/i];
 
   /* Regex explanation:
 1. The first three lookaheads check that the string contains between 0 and 3 dashes, between 0 and 2 underscores, and between 0 and 1 apostrophes, respectively.
