@@ -119,7 +119,8 @@ class CustomStyle {
   getSelectors(bits) {
     let idToSelectorMapping = {
       header: ".sticky-header body:not(.darkMode) .wrapper #header::before,#header",
-      headings: "h1,h2,h3,h4,h5,h6,#themeTable caption",
+      headings:
+        "h1,h2:not(#view-container h2),h3:not(#view-container h3),h4:not(#view-container h4),h5:not(#view-container h5),h6:not(#view-container h6),#themeTable caption",
       headingLinks:
         "h1 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
         "h1 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
@@ -138,12 +139,12 @@ class CustomStyle {
       color2: "ul.profile-tabs li.current,\ndiv.SMALL[style='background-color:#ffe183;']",
       color3: "div.SMALL[style='background-color:#ffe183;']",
       color4: "div.SMALL[style='background-color:#eee;']",
-      link: "a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a,a.qa-tag-link,a.new,.wt.names th a,#editToolbarExt a)",
+      link: "a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a,a.qa-tag-link,a.new,.wt.names th a,#editToolbarExt a,#view-container a)",
       tag: ".qa-q-item-tag-item a:link",
       tagHover: ".qa-q-item-tag-item a:link:hover,.qa-q-item-tag-item a:visited:hover",
       scissorsText: "button.copyWidget",
       visitedLink:
-        "a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a,.wt.names th a,#editToolbarExt a)",
+        "a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a,.wt.names th a,#editToolbarExt a,#view-container a)",
       g2gtab: ".qa-voting,a.qa-nav-main-link:link,a.qa-nav-main-link:visited",
       g2gtabHover: "a.qa-nav-main-link:hover,a.qa-nav-main-link:link:hover,a.qa-nav-main-link:visited:hover",
       g2gtabSelected:
