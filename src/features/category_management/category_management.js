@@ -1,5 +1,12 @@
 import { getFeatureOptions, shouldInitializeFeature } from "../../core/options/options_storage";
-import { isCategoryEdit, isCategoryPage, isProfileEdit, isSearchPage, isCategoryHistory, isProfilePage } from "../../core/pageType";
+import {
+  isCategoryEdit,
+  isCategoryPage,
+  isProfileEdit,
+  isSearchPage,
+  isCategoryHistory,
+  isProfilePage,
+} from "../../core/pageType";
 
 //todo: rename CatALot to Batch cat. or whatever it will be in the end
 
@@ -8,13 +15,13 @@ shouldInitializeFeature("categoryManagement").then((result) => {
     if (isProfileEdit) {
       PerformActualProfileChanges();
     } else if (isCategoryEdit) {
-            getFeatureOptions("categoryManagement").then((options) => {
+      getFeatureOptions("categoryManagement").then((options) => {
         AddOptionalCategoryEditPageLinks(options);
         PerformActualCategoryChanges(options.disableCategories);
         AddCategoryExitLink(document.getElementsByClassName("EDIT")[0]);
       });
     } else if (isCategoryPage) {
-            getFeatureOptions("categoryManagement").then((options) => {
+      getFeatureOptions("categoryManagement").then((options) => {
         AddOptionalCategoryPageLinks(options);
       });
     } else if (isSearchPage) {
@@ -29,8 +36,7 @@ shouldInitializeFeature("categoryManagement").then((result) => {
           AddCategoryExitLink(document.getElementsByTagName("h1")[0]);
         }
       });
-    }
-    else if (isProfilePage) {
+    } else if (isProfilePage) {
       getFeatureOptions("categoryManagement").then((options) => {
         if (options.showCategoryLinksProfile) {
           AddCategoryChangeLinks(document.getElementById("categories"));
@@ -83,11 +89,11 @@ function AddCategoryExitLink(parent) {
 function AddCategoryChangeLinks(categoryDiv) {
   const profileId = document.getElementsByClassName("person")[0].innerText;
   const catSpans = categoryDiv.getElementsByTagName("span");
-  for (let i = 0; i < (catSpans.length - 1); i++) {
+  for (let i = 0; i < catSpans.length - 1; i++) {
     const catName = catSpans[i].innerText;
     const delLink = document.createElement("a");
     delLink.innerText = "(-)";
-    
+
     delLink.href = "/index.php?title=Special:EditPerson&w=" + profileId + "&remCat=" + catName;
     catSpans[i].append(" ");
     catSpans[i].appendChild(delLink);
@@ -121,9 +127,8 @@ function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
       buttonOk.innerText = "OK";
       buttonOk.addEventListener("click", function () {
         let url = "http://www.wikitree.com/index.php?title=Special:EditPerson&w=" + profileId + "&addCat=" + catNew;
-        if(catName != "")
-        {
-          url+="&remCat=" + catName;
+        if (catName != "") {
+          url += "&remCat=" + catName;
         }
         window.location = url;
       });
@@ -261,7 +266,6 @@ function AddCatALotControls(elementToAppendTo) {
   inputCatTyped.id = "inputCatTyped";
   inputCatTyped.placeholder = "category add/move";
   inputCatTyped.addEventListener("change", function () {
-
     // CheckCategoryExists(document.getElementById("inputCatTyped").value, AddVerifiedCatLink);
     CheckCategoryExists(inputCatTyped.value, AddVerifiedCatLink);
   });
@@ -566,7 +570,6 @@ function CheckCategoryExists(cat, callbackSuccess) {
   xmlHttp.open("GET", catUrl, false); // false for synchronous request
   xmlHttp.send(null);
   if (xmlHttp.status < 400) {
-
     callbackSuccess(catTyped);
   } else if (xmlHttp.status == 404) {
     alert("Category doesn't exist");
@@ -617,7 +620,7 @@ function PerformActualProfileChanges() {
   }
 }
 
-function CreateEditModeLinks(disable) { }
+function CreateEditModeLinks(disable) {}
 
 function PerformActualCategoryChanges(disable) {
   let urlParams = new URLSearchParams(window.location.search);
@@ -695,9 +698,7 @@ function CheckWhatLinksHereAndSave() {
             const LIs = ULs[i].getElementsByTagName("li");
             for (let i = 0; i < LIs.length; i++) {
               const page = LIs[i].innerText.split(" (← links)").join("");
-              const win = window.open(
-                "https://www.wikitree.com/index.php?title=" + page + "&action=edit"
-              );
+              const win = window.open("https://www.wikitree.com/index.php?title=" + page + "&action=edit");
             }
           }
         }
@@ -721,8 +722,7 @@ function OpenNewCategoryInNewTab(newCategory) {
   var editForm = document.getElementById("editform");
   editForm.target = "_blank";
   const previousAction = editForm.action;
-  editForm.action =
-    "https://www.wikitree.com/index.php?title=Category:" + newCategory + "&action=submit";
+  editForm.action = "https://www.wikitree.com/index.php?title=Category:" + newCategory + "&action=submit";
   document.getElementById("wpDiff").click();
 }
 
@@ -733,7 +733,14 @@ function GetActualAkaCategoryUsedInProfile(wpTextbox1, cats) {
 
   for (let i = 0; i < remCats.length; ++i) {
     if (bio.indexOf("Category:" + remCats[i]) > -1) {
-      actualCat = remCats[i];
+      if (actualCat == "") {
+        actualCat = remCats[i];
+
+      }else
+      {
+        //remove additional aka category
+        RemoveCat(wpTextbox1, remCats[i]);
+      }
     }
   }
   return actualCat;
