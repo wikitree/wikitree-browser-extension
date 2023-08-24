@@ -30,30 +30,28 @@ function parseWikiTableData(data) {
       currentRow = {
         cells: [],
         bgColor: line.match(/bgcolor=("|')?(.*?)\1/)?.[2] || null,
-        isHeader: false,
+        isBold: false,
       };
     } else if (line.startsWith("!")) {
       currentRow.isHeader = true;
-      currentRow.cells.push(...line.split("!!").map((cell) => cell.trim().replace(/^!/, "").trim())); // Additional trim
+      currentRow.cells.push(...line.split("!!").map((cell) => cell.trim().replace(/^!/, "").trim()));
     } else if (line.startsWith("|")) {
-      /*
-      currentRow.cells.push(
-        ...line.split("||").map((cell) =>
-          cell
-            .trim()
-            .replace(/^\||\|$/g, "")
-            .trim()
-        )
-      ); // Additional trim
-      */
-      currentRow.cells.push(
-        ...line.split("||").map((cell) =>
-          cell
-            .trim()
-            .replace(/^\||\|$/g, "")
-            .trim()
-        )
-      ); // Additional trim
+      const cells = line.split("||").map((cell) =>
+        cell
+          .trim()
+          .replace(/^\||\|$/g, "")
+          .trim()
+      );
+
+      // Check if the entire row is bold
+      if (cells.every((cell) => cell.startsWith("'''") && cell.endsWith("'''"))) {
+        currentRow.isBold = true;
+        cells.forEach((cell, idx) => {
+          cells[idx] = cell.slice(3, -3).trim(); // Remove ''' from each cell
+        });
+      }
+
+      currentRow.cells.push(...cells);
     }
   });
 
@@ -79,7 +77,7 @@ function parseWikiTableData(data) {
   tableData.rows = tableData.rows.filter((row) => row.cells.some((cell) => cell.trim() !== ""));
 
   return {
-    borderColor: propertiesObj.border || "",
+    borderColor: propertiesObj.bordercolor || "",
     cellPadding: propertiesObj.cellpadding || "",
     bgColor: propertiesObj.bgcolor || "",
     data: tableData,
@@ -107,10 +105,11 @@ function createWikitableCreatorModal() {
       <button id="wikitableCreatorAddRow" class="small">Add Row</button>
       <button id="wikitableCreatorAddColumn" class="small">Add Column</button>
       <input type="text" id="wikitableCreatorCaption" placeholder="Caption" class="small">
-      <label><input type="checkbox" id="wikitableCreatorHeaderRow" class="small"> 1st row as headers</label><br>
-      <label><input type="checkbox" id="wikitableCreatorSortable" class="small"> Make the table sortable</label><br>
-      <label>Border Color: <input type="color" id="wikitableCreatorBorderColor" class="small"></label><br>
-      <label>Cell Padding: <input type="number" id="wikitableCreatorCellPadding" class="small"></label><br>
+      <label><input type="checkbox" id="wikitableCreatorHeaderRow" class="small"> 1st row as headers</label>
+      <label><input type="checkbox" id="wikitableCreatorSortable" class="small"> Make the table sortable</label>
+      <label>Border Color: <input type="color" id="wikitableCreatorBorderColor" class="small"></label>
+      <label>Border Width: <input type="number" id="wikitableCreatorBorderWidth" class="small" min="0"></label>
+      <label>Cell Padding: <input type="number" id="wikitableCreatorCellPadding" class="small" min="0"></label>
       <table id="wikitableCreatorTable"></table>
       <button id="wikitableCreatorGenerateTable" class="small">Generate Table</button>
       <pre id="wikitableCreatorWikiTable"></pre>
@@ -193,6 +192,7 @@ function createWikitableCreatorModal() {
     const isHeaderRow = $("#wikitableCreatorHeaderRow").prop("checked");
     const tableBorderColor = $("#wikitableCreatorBorderColor").val();
     const tableCellPadding = $("#wikitableCreatorCellPadding").val();
+    const tableBorderWidth = $("#wikitableCreatorBorderWidth").val();
     const caption = $("#wikitableCreatorCaption").val();
     $("#wikitableCreatorTable tr").each(function () {
       const row = [];
@@ -208,27 +208,46 @@ function createWikitableCreatorModal() {
       rowStyles.push({ isBold, bgColor });
     });
 
-    let formattedContent =
-      '{| class="wikitable' +
-      (isSortable ? " sortable" : "") +
-      '" border="' +
-      tableBorderColor +
-      '" cellpadding="' +
-      tableCellPadding +
-      '"';
+    let formattedContent = `{| class="wikitable${
+      isSortable ? " sortable" : ""
+    }" bordercolor="${tableBorderColor}" cellpadding="${tableCellPadding}" border="${tableBorderWidth}"`;
+
     if (caption) formattedContent += `\n|+ ${caption}`;
-    data.forEach((row, rowIndex) => {
-      const style = rowStyles[rowIndex];
-      formattedContent += "\n|-";
-      if (style.bgColor) {
-        formattedContent += ` bgcolor=${style.bgColor}`;
-      }
-      row.forEach((cell, cellIndex) => {
-        formattedContent +=
-          (cellIndex === 0 ? " \n| " : " || ") + // Use single | before the first cell
-          (style.isBold ? `'''${cell}'''` : cell);
+
+    // Identify empty columns
+    const emptyColumns = new Set(Array.from({ length: data[0].length }, (_, i) => i));
+    data.forEach((row) => {
+      row.forEach((cell, index) => {
+        if (cell.trim() !== "") {
+          emptyColumns.delete(index);
+        }
       });
     });
+
+    data.forEach((row, rowIndex) => {
+      // Ignore empty rows
+      if (row.every((cell) => cell.trim() === "")) return;
+
+      const style = rowStyles[rowIndex];
+      formattedContent += "\n|-";
+      if (style.bgColor && style.bgColor !== "#000000") {
+        formattedContent += ` bgcolor=${style.bgColor}`;
+      }
+
+      if (isHeaderRow && rowIndex === 0) {
+        // Use "!" for headers if the first row is a header
+        row.forEach((cell, cellIndex) => {
+          if (emptyColumns.has(cellIndex)) return;
+          formattedContent += (cellIndex === 0 ? " \n! " : " !! ") + (style.isBold ? `'''${cell}'''` : cell);
+        });
+      } else {
+        row.forEach((cell, cellIndex) => {
+          if (emptyColumns.has(cellIndex)) return;
+          formattedContent += (cellIndex === 0 ? " \n| " : " || ") + (style.isBold ? `'''${cell}'''` : cell);
+        });
+      }
+    });
+
     formattedContent += "\n|}";
 
     $("#wikitableCreatorWikiTable").text(formattedContent);

@@ -9,6 +9,9 @@
   background-color: rgba(0, 0, 0, 0.4);
   z-index: 1000;
 }
+.wikitable-creator-modal input[type="number"] {
+  width: 3em;
+}
 .wikitable-creator-modal label {
   display: inline-block;
 }
