@@ -8,13 +8,13 @@ shouldInitializeFeature("categoryManagement").then((result) => {
     if (isProfileEdit) {
       PerformActualProfileChanges();
     } else if (isCategoryEdit) {
-      getFeatureOptions("categoryManagement").then((options) => {
+            getFeatureOptions("categoryManagement").then((options) => {
         AddOptionalCategoryEditPageLinks(options);
         PerformActualCategoryChanges(options.disableCategories);
         AddCategoryExitLink(document.getElementsByClassName("EDIT")[0]);
       });
     } else if (isCategoryPage) {
-      getFeatureOptions("categoryManagement").then((options) => {
+            getFeatureOptions("categoryManagement").then((options) => {
         AddOptionalCategoryPageLinks(options);
       });
     } else if (isSearchPage) {
@@ -88,7 +88,7 @@ function AddCategoryChangeLinks(categoryDiv) {
     const delLink = document.createElement("a");
     delLink.innerText = "(-)";
     
-    delLink.href = "/index.php?title=Special:EditPerson&w=" + profileId + "&remCat=" + encodeURIComponent(catName);
+    delLink.href = "/index.php?title=Special:EditPerson&w=" + profileId + "&remCat=" + catName;
     catSpans[i].append(" ");
     catSpans[i].appendChild(delLink);
 
@@ -120,10 +120,10 @@ function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
       const buttonOk = document.createElement("button");
       buttonOk.innerText = "OK";
       buttonOk.addEventListener("click", function () {
-        let url = "http://www.wikitree.com/index.php?title=Special:EditPerson&w=" + profileId + "&addCat=" + encodeURIComponent(catNew);
+        let url = "http://www.wikitree.com/index.php?title=Special:EditPerson&w=" + profileId + "&addCat=" + catNew;
         if(catName != "")
         {
-          url+="&remCat=" + encodeURIComponent(catName);
+          url+="&remCat=" + catName;
         }
         window.location = url;
       });
@@ -576,7 +576,6 @@ function CheckCategoryExists(cat, callbackSuccess) {
 }
 
 function AddVerifiedCatLink(cat) {
-  alert("AddVerifiedCatLink");
   document.getElementById("inputCatVerified").innerHTML =
     '<a href="https://www.wikitree.com/wiki/Category:' + cat + '">' + cat + "</a>";
   document.getElementById("catALotButton").disabled = false;
@@ -697,7 +696,7 @@ function CheckWhatLinksHereAndSave() {
             for (let i = 0; i < LIs.length; i++) {
               const page = LIs[i].innerText.split(" (← links)").join("");
               const win = window.open(
-                "https://www.wikitree.com/index.php?title=" + encodeURIComponent(page) + "&action=edit"
+                "https://www.wikitree.com/index.php?title=" + page + "&action=edit"
               );
             }
           }
@@ -723,7 +722,7 @@ function OpenNewCategoryInNewTab(newCategory) {
   editForm.target = "_blank";
   const previousAction = editForm.action;
   editForm.action =
-    "https://www.wikitree.com/index.php?title=Category:" + encodeURIComponent(newCategory) + "&action=submit";
+    "https://www.wikitree.com/index.php?title=Category:" + newCategory + "&action=submit";
   document.getElementById("wpDiff").click();
 }
 
