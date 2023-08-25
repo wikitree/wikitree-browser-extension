@@ -1,6 +1,7 @@
 #wikitableCreatorModal {
   position: absolute; /* Absolute positioning */
   z-index: 1000; /* High z-index to appear on top */
+  min-width: 30em;
   max-width: 90%; /* Set a maximum width to prevent overflow */
   max-height: 80%; /* Adjust as needed */
   padding: 20px;
@@ -15,6 +16,10 @@
 
 #wikitableCreatorModal input[type="number"] {
   width: 3em;
+}
+#wikitableCreatorModal h2 {
+  cursor: move;
+  margin-bottom: 0.3em;
 }
 
 #wikitableCreatorModal label {
@@ -42,4 +47,62 @@
 #wikitableCreatorTable input[type="text"] {
   width: 100%;
   padding: 0.5em;
+}
+
+#wikitableCreatorWikitable {
+  width: 100%;
+  margin-top: 1em;
+  display: none;
+}
+
+#wikitableCreatorModal .delete-button {
+  background-color: lightgray; /* Red background */
+  color: darkgray; /* White text */
+  text-align: center; /* Center the "x" within the button */
+  font-size: small; /* Set a font size */
+  cursor: pointer; /* Change mouse cursor to pointer on hover */
+  border: none; /* Remove any default border */
+  padding: 2px; /* Add some padding around the "x" */
+  line-height: 1; /* Align "x" to the middle vertically */
+  width: 1.5em; /* Fixed width */
+  height: 1.5em; /* Fixed height */
+  border-radius: 50%; /* Rounded button */
+  margin: 2px; /* Add some margin around the button */
+  float: right;
+}
+
+/* Add a hover effect for user feedback */
+#wikitableCreatorModal .delete-button:hover {
+  background-color: #f44336;
+  opacity: 0.8;
+}
+
+#wikitableContextMenu {
+  position: absolute;
+  border: 1px solid #ccc;
+  background-color: #f9f9f9;
+  z-index: 1000; /* Makes sure it's above other elements */
+  box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+  display: none; /* Initially hidden */
+}
+
+a.wikitable-context-option,
+a.wikitable-context-option:link a.wikitable-context-option:visited {
+  color: black;
+  padding: 8px 12px;
+  text-decoration: none;
+  display: block;
+  text-align: left;
+}
+
+a.wikitable-context-option:hover {
+  background-color: #f1f1f1;
+}
+
+a.wikitable-context-option:active {
+  background-color: #ccc;
+}
+
+#wikitableCreatorUndo {
+  display: none;
 }

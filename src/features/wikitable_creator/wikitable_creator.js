@@ -1,5 +1,7 @@
 import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
+import "./wikitable_creator.css";
+import { showCopyMessage } from "../access_keys/access_keys";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 const colorNameToHex = {
@@ -152,6 +154,7 @@ function parseWikiTableData(data) {
     caption: "",
   };
   let currentRow = null;
+  let isFullWidth = false;
 
   lines.forEach((line) => {
     console.log("Line:", line); // Debug log
@@ -159,17 +162,24 @@ function parseWikiTableData(data) {
     if (line === "|}") return; // Ignore the closing bracket
 
     if (line.startsWith("{|")) {
-      const properties = line.match(/(\w+)=("|')?(.*?)\2/g) || [];
+      // Matching both quoted and unquoted values
+      const properties = line.match(/(\w+)=("|')?([a-zA-Z0-9#]+)\2?/g) || [];
       properties.forEach((prop) => {
-        const [key, value] = prop.split("=");
-        propertiesObj[key] = value.replace(/["']/g, "");
+        const [, key, , value] = prop.match(/(\w+)=("|')?([a-zA-Z0-9#]+)\2?/);
+        propertiesObj[key] = value;
       });
+      if (/width=["']?100%["']?/.test(line)) {
+        console.log("Full width detected:", line);
+        isFullWidth = true; // Set isFullWidth to true if the line contains width="100%"
+      } else {
+        console.log("Full width not detected:", line);
+      }
     } else if (line.startsWith("|+")) {
       tableData.caption = line.replace("|+", "").trim();
     } else if (line.startsWith("|-")) {
       if (currentRow) tableData.rows.push(currentRow);
-      let bgColorMatch = line.match(/bgcolor=(\w+|#?[a-fA-F0-9]+)/); // Match the color value or name
-      let bgColor = bgColorMatch ? bgColorMatch[1] : null; // Get the matched value or name
+      let bgColorMatch = line.match(/bgcolor=("|')?([a-zA-Z0-9#]+)\1?/); // Updated regex pattern
+      let bgColor = bgColorMatch ? bgColorMatch[2] : null; // Get the matched value or name
       if (bgColor && !bgColor.startsWith("#")) {
         bgColor = colorNameToHex[bgColor.toLowerCase()] || null; // Convert color name to hex value if necessary
       }
@@ -201,11 +211,16 @@ function parseWikiTableData(data) {
           .trim()
       );
 
-      // Check if the entire row is bold
-      if (cells.every((cell) => cell.startsWith("'''") && cell.endsWith("'''"))) {
+      // Check if the entire row is bold (excluding empty cells)
+      if (cells.every((cell) => cell.trim() === "" || (cell.match(/^\s*'''/) && cell.match(/'''\s*$/)))) {
         currentRow.isBold = true;
         cells.forEach((cell, idx) => {
-          cells[idx] = cell.slice(3, -3).trim(); // Remove ''' from each cell
+          if (cell.trim() !== "") {
+            cells[idx] = cell
+              .replace(/^\s*'''/, "")
+              .replace(/'''\s*$/, "")
+              .trim(); // Remove ''' from non-empty cells
+          }
         });
       }
 
@@ -228,6 +243,7 @@ function parseWikiTableData(data) {
     return {
       ...row,
       cells: row.cells.filter((_, idx) => nonEmptyColumns.has(idx)),
+      isFullWidth: isFullWidth,
     };
   });
 
@@ -242,6 +258,7 @@ function parseWikiTableData(data) {
     bgColor: propertiesObj.bgcolor || "",
     data: tableData,
     isSortable: isSortable,
+    isFullWidth: isFullWidth,
   };
 }
 
@@ -257,6 +274,9 @@ function parseMultiSpaceData(data) {
   return data.split("\n").map((row) => row.split(/ {2,}/).map((cell) => cell.trim()));
 }
 
+// Stack to keep track of deleted rows and columns
+const deletedStack = [];
+
 function createWikitableCreatorModal() {
   const modalHtml = `
     <div id="wikitableCreatorModal" style="display:none">
@@ -267,17 +287,19 @@ function createWikitableCreatorModal() {
       <button id="wikitableCreatorAddColumn" class="small">Add Column</button>
       <label><input type="checkbox" id="wikitableCreatorHeaderRow" class="small"> 1st row as headers</label>
       <label><input type="checkbox" id="wikitableCreatorSortable" class="small"> Sortable</label>
+      <label><input type="checkbox" id="wikitableCreatorFullWidth" class="small"> Full Width</label> <!-- Added line -->
       <label>Border Color: <input type="color" id="wikitableCreatorBorderColor" class="small"></label>
       <label>Border Width: <input type="number" id="wikitableCreatorBorderWidth" class="small" min="0"></label>
       <label>Cell Padding: <input type="number" id="wikitableCreatorCellPadding" class="small" min="0"></label>
       <label>Caption: <input type="text" id="wikitableCreatorCaption" placeholder="Caption" class="small"></label>
       <table id="wikitableCreatorTable"></table>
-      <button id="wikitableCreatorGenerateTable" class="small">Generate Table</button>
-      <pre id="wikitableCreatorWikiTable"></pre>
+      <button id="wikitableCreatorGenerateAndCopyTable" class="small">Generate and Copy Table</button>
+      <button id="wikitableCreatorUndo" class="small">Undo</button>
+      <textarea id="wikitableCreatorWikitable"></textarea>
     </div>
   `;
   $("#toolbar").after(modalHtml);
-  $("#wikitableCreatorModal").draggable();
+  $("#wikitableCreatorModal").draggable({ handle: "h2" });
 
   for (let i = 0; i < 5; i++) {
     let rowHtml = "<tr>";
@@ -312,6 +334,9 @@ function createWikitableCreatorModal() {
         let parsedData = [];
         if (text.includes("{|") && text.includes("|-")) {
           const wikiTableData = parseWikiTableData(text);
+
+          console.log("isFullWidth detected:", wikiTableData.isFullWidth);
+
           $("#wikitableCreatorTable").empty();
           wikiTableData.data.rows.forEach((row) => {
             let rowHtml = "<tr>";
@@ -336,6 +361,8 @@ function createWikitableCreatorModal() {
           $("#wikitableCreatorBorderColor").val(wikiTableData.borderColor);
           $("#wikitableCreatorCellPadding").val(wikiTableData.cellPadding);
           $("#wikitableCreatorCaption").val(wikiTableData.data.caption);
+          // Set the "Full Width" checkbox based on the value of isFullWidth from the parsed data
+          $("#wikitableCreatorFullWidth").prop("checked", wikiTableData.isFullWidth);
         } else {
           if (text.includes("\t")) {
             parsedData = parseTSVData(text);
@@ -362,11 +389,12 @@ function createWikitableCreatorModal() {
       });
   });
 
-  $("#wikitableCreatorGenerateTable").on("click", function (e) {
+  $("#wikitableCreatorGenerateAndCopyTable").on("click", function (e) {
     e.preventDefault();
     const isSortable = $("#wikitableCreatorSortable").prop("checked");
     const data = [];
     const rowStyles = [];
+    let rowNum = 0;
     const isHeaderRow = $("#wikitableCreatorHeaderRow").prop("checked");
     const tableBorderColor = $("#wikitableCreatorBorderColor").val();
     const tableCellPadding = $("#wikitableCreatorCellPadding").val();
@@ -385,10 +413,10 @@ function createWikitableCreatorModal() {
       const bgColor = $(this).find(".rowBgColor").val();
       rowStyles.push({ isBold, bgColor });
     });
-
-    let formattedContent = `{| class="wikitable${
-      isSortable ? " sortable" : ""
-    }" bordercolor="${tableBorderColor}" cellpadding="${tableCellPadding}" border="${tableBorderWidth}"`;
+    const isFullWidth = $("#wikitableCreatorFullWidth").prop("checked");
+    let formattedContent = `{| class="wikitable${isSortable ? " sortable" : ""}"${
+      isFullWidth ? ' width="100%"' : ""
+    } bordercolor="${tableBorderColor}" cellpadding="${tableCellPadding}" border="${tableBorderWidth}"`;
 
     if (caption) formattedContent += `\n|+ ${caption}`;
 
@@ -405,7 +433,7 @@ function createWikitableCreatorModal() {
     data.forEach((row, rowIndex) => {
       // Ignore empty rows
       if (row.every((cell) => cell.trim() === "")) return;
-
+      rowNum++;
       const style = rowStyles[rowIndex];
       formattedContent += "\n|-";
       if (style.bgColor && style.bgColor !== "#ffffff") {
@@ -427,8 +455,21 @@ function createWikitableCreatorModal() {
     });
 
     formattedContent += "\n|}";
+    rowNum++;
+    $("#wikitableCreatorWikitable")
+      .text(formattedContent)
+      .css("height", `${rowNum * 3.7}em`)
+      .slideDown();
 
-    $("#wikitableCreatorWikiTable").text(formattedContent);
+    const wikitableContent = formattedContent;
+    navigator.clipboard
+      .writeText(wikitableContent)
+      .then(() => {
+        showCopyMessage("Wikitable");
+      })
+      .catch((err) => {
+        console.error("Failed to copy table: " + err);
+      });
   });
 
   $(".wikitable-creator-close").on("click", function (e) {
@@ -475,11 +516,115 @@ function createWikitableCreatorModal() {
     const row = $(this).closest("tr"); // Get the corresponding row
     row.find("td:not(:first-child):not(:nth-child(2)) input").css("background-color", pickedColor); // Update the background color of the containing cells
   });
+
+  // Event handler for undoing a deletion
+  $("#wikitableCreatorUndo").on("click", function (e) {
+    e.preventDefault();
+    if (deletedStack.length === 0) return; // No deleted items to undo
+    const lastDeleted = deletedStack.pop();
+    if (lastDeleted.type === "row") {
+      $("#wikitableCreatorTable").append(lastDeleted.content);
+    } else if (lastDeleted.type === "column") {
+      $("#wikitableCreatorTable tr").each(function (rowIndex) {
+        $(this)
+          .find("td")
+          .eq(lastDeleted.index - 1)
+          .after(lastDeleted.content[rowIndex]);
+      });
+    } else if (lastDeleted.type === "paste") {
+      // Undo the paste action
+      lastDeleted.cell.val(lastDeleted.content);
+    }
+  });
 }
+
+// Create custom context menu
+
+let copiedCellValue = ""; // Variable to store copied value
+let currentCell = null; // Variable to store the current cell
+
+$(document).on("contextmenu", "#wikitableCreatorTable td input[type=text]", function (e) {
+  e.preventDefault();
+
+  // Create context menu
+  const menuHtml = `
+      <div id="wikitableContextMenu">
+        <a href="#" class="wikitable-context-option" data-action="copy">Copy</a>
+        <a href="#" class="wikitable-context-option" data-action="paste">Paste</a>
+        <a href="#" class="wikitable-context-option" data-action="delete-row">Delete Row</a>
+        <a href="#" class="wikitable-context-option" data-action="delete-column">Delete Column</a>
+      </div>
+    `;
+  currentCell = $(this);
+
+  // Append context menu to body
+  $("body").append(menuHtml);
+
+  // Show context menu
+  $("#wikitableContextMenu").css({
+    top: e.pageY + "px",
+    left: e.pageX + "px",
+    display: "block", // Show the context menu
+  });
+
+  // Click handlers for context menu options
+  $(".wikitable-context-option").on("click", function (e) {
+    e.preventDefault();
+    const action = $(this).data("action");
+    // const cellInput = $(e.target).closest("td").find("input[type='text']");
+    // console.log(cellInput);
+    if (action === "copy") {
+      // Copy the cell value
+      const cellValue = currentCell.val();
+      console.log(cellValue);
+      navigator.clipboard.writeText(cellValue).catch((err) => {
+        console.error("Failed to copy text:", err);
+      });
+    } else if (action === "paste") {
+      // Save the current value before pasting
+      const previousValue = currentCell.val();
+      deletedStack.push({ type: "paste", content: previousValue, cell: currentCell });
+
+      // Paste the copied value into the cell
+      navigator.clipboard
+        .readText()
+        .then((text) => {
+          currentCell.val(text);
+        })
+        .catch((err) => {
+          console.error("Failed to read clipboard contents:", err);
+        });
+    } else if (action === "delete-row") {
+      // Delete the row
+      const row = currentCell.closest("tr");
+      deletedStack.push({ type: "row", content: row.clone() });
+      row.remove();
+    } else if (action === "delete-column") {
+      // Delete the column
+      const colIndex = currentCell.closest("td").index();
+      const deletedColumn = [];
+      $("#wikitableCreatorTable tr").each(function () {
+        deletedColumn.push($(this).find("td").eq(colIndex).clone());
+        $(this).find("td").eq(colIndex).remove();
+      });
+      deletedStack.push({ type: "column", content: deletedColumn, index: colIndex });
+    }
+
+    // Close context menu
+    $("#wikitableContextMenu").remove();
+    $("#wikitableCreatorUndo").show();
+  });
+});
+
+// Close context menu on outside click
+$(document).on("click", function (e) {
+  if (!$(e.target).hasClass("wikitable-context-option")) {
+    $("#wikitableContextMenu").remove();
+  }
+});
 
 shouldInitializeFeature("wikitableCreator").then((result) => {
   if (result) {
-    import("./wikitable_creator.css");
     // Run the function to create the Wikitable Creator
     createWikitableCreatorModal();
   }
