@@ -9,7 +9,7 @@ registerFeature({
   description: "Creating, filling, changing and emptying categories more efficiently",
   category: "Editing",
   creators: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
-  contributors: [ /*{ name: "Magnus Manske", wikitreeid: "Manske-74" }*/],
+  contributors: [{ name: "Magnus Manske", wikitreeid: "Manske-74" }],
   defaultValue: true,
   pages: [isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit, isCategoryHistory, isProfilePage],
   options: [
@@ -23,7 +23,7 @@ registerFeature({
       id: "catALotSearchResults",
       type: OptionType.CHECKBOX,
       label: "batch add category for profiles within search results",
-      defaultValue: false,
+      defaultValue: true,
     },
     {
       id: "catMarkDelete",
@@ -41,7 +41,7 @@ registerFeature({
       id: "catCopyRename",
       type: OptionType.CHECKBOX,
       label: "add link to copy and rename category",
-      defaultValue: false,
+      defaultValue: true,
     },
     {
       id: "disableCategories",

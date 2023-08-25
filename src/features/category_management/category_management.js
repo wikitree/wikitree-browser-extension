@@ -82,6 +82,7 @@ function AddCategoryExitLink(parent) {
   const baseUrl = "https://www.wikitree.com/wiki/" + urlParams.get("title");
   linkExit.href = baseUrl;
   linkExit.innerText = "exit";
+  linkExit.title = "Leave editing mode without saving";
   parent.appendChild(document.createElement("br"));
   parent.appendChild(WrapWithBrackets(linkExit));
 }
@@ -141,6 +142,7 @@ function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
 
 function CreateDeleteCatLink() {
   const linkDelete = document.createElement("a");
+  linkDelete.title = "Empty the category description and add a template for EditBOT to delete the category";
   linkDelete.href =
     "https://www.wikitree.com/index.php?title=Category:" + GetCurrentCategoryName() + "&catBot=delete&action=edit";
   linkDelete.innerText = "delete";
@@ -151,6 +153,7 @@ function CreateRenameCatLink() {
   const linkRename = document.createElement("a");
   linkRename.href = "#1";
   linkRename.innerText = "rename";
+  linkRename.title = "Ask for new category name and open it for editing, empty the description of this category and add a template for EditBOT to move the content to the new one";
   linkRename.addEventListener("click", function () {
     const currentCategory = GetCurrentCategoryName();
     const newCategory = prompt("New name?", currentCategory);
@@ -171,6 +174,7 @@ function CreateCopyRenameCatLink() {
   const linkRename = document.createElement("a");
   linkRename.href = "#1";
   linkRename.innerText = "copy & rename";
+  linkRename.title = "Ask for new category name, open it for editing with the content of this one filled-in already";
   linkRename.addEventListener("click", function () {
     const currentCategory = GetCurrentCategoryName();
     const newCategory = prompt("New name?", currentCategory);
@@ -190,6 +194,7 @@ function CreateCopyRenameCatLink() {
 function CreateBatchCatActivationLinkAndSpan() {
   const buttonEnable = document.createElement("a");
   buttonEnable.innerText = "batch categorize";
+  buttonEnable.title = "Change catgories of multiple profiles in this category at once";
   buttonEnable.href = "#0";
   buttonEnable.id = "activate_link";
   buttonEnable.addEventListener("click", ShowCatALot);
@@ -208,6 +213,7 @@ function WrapWithBrackets(buttonEnable) {
 function CreateDeleteCatLinkEditPage(disable) {
   const linkDelete = document.createElement("a");
   linkDelete.innerText = "delete";
+  linkDelete.title = "Empty the category description and add a template for EditBOT to delete the category";
   linkDelete.href = "#0";
   linkDelete.addEventListener("click", function () {
     MarkCategoryForDeletionAndSave(disable);
@@ -218,6 +224,7 @@ function CreateDeleteCatLinkEditPage(disable) {
 function CreateRenameCatLinkEditPage(disable) {
   const linkDelete = document.createElement("a");
   linkDelete.innerText = "rename";
+  linkDelete.title = "Ask for new category name and open it for editing, empty the description of this category and add a template for EditBOT to move the content to the new one";
   linkDelete.href = "#0";
   linkDelete.addEventListener("click", function () {
     const currentCategory = GetCurrentCategoryName();
@@ -230,6 +237,7 @@ function CreateRenameCatLinkEditPage(disable) {
 function CreateCopyRenameCatLinkEditPage(label) {
   const linkDelete = document.createElement("a");
   linkDelete.innerText = label;
+  linkDelete.title = "Ask for new category name, open it for editing with the content of this one filled-in already";
   linkDelete.href = "#0";
   linkDelete.addEventListener("click", function () {
     const currentCategory = GetCurrentCategoryName();
@@ -265,6 +273,7 @@ function AddCatALotControls(elementToAppendTo) {
   const inputCatTyped = document.createElement("input");
   inputCatTyped.id = "inputCatTyped";
   inputCatTyped.placeholder = "category add/move";
+  inputCatTyped.title = "Enter the name of the category to which the checked profiles should be added or moved to";
   inputCatTyped.addEventListener("change", function () {
     // CheckCategoryExists(document.getElementById("inputCatTyped").value, AddVerifiedCatLink);
     CheckCategoryExists(inputCatTyped.value, AddVerifiedCatLink);
@@ -286,6 +295,7 @@ function AddCatALotControls(elementToAppendTo) {
   let labelMove = document.createElement("label");
   labelMove.appendChild(radioMove);
   labelMove.append("Move");
+  labelMove.title = "Remove this category from selected profile and add category from input field instead";
 
   const radioAdd = document.createElement("input");
   radioAdd.type = "radio";
@@ -299,6 +309,7 @@ function AddCatALotControls(elementToAppendTo) {
   const labelAdd = document.createElement("label");
   labelAdd.appendChild(radioAdd);
   labelAdd.append("Add");
+  labelAdd.title = "Add category from input field to selected profiles";
 
   const radioRemove = document.createElement("input");
   radioRemove.type = "radio";
@@ -312,11 +323,13 @@ function AddCatALotControls(elementToAppendTo) {
   const labelRemove = document.createElement("label");
   labelRemove.appendChild(radioRemove);
   labelRemove.append("Remove");
+  labelRemove.title = "Remove this category from selected profiles";
 
   const catALotButton = document.createElement("input");
   catALotButton.type = "button";
   catALotButton.value = "Cat a lot";
   catALotButton.id = "catALotButton";
+  catALotButton.title = "Open all checked profiles in new tabs and perform the add/move/remove operation without saving them";
   catALotButton.disabled = true;
   catALotButton.addEventListener("click", OnCatALotClicked);
 
@@ -411,6 +424,7 @@ function AddSubcatLinks() {
 
     for (let i = 0; i < subCatLinks.length; ++i) {
       let newLink = document.createElement("a");
+      newLink.title = "Set this subcategory as target for add or move";
       newLink.innerText = "here";
       newLink.addEventListener("click", function () {
         const clearCatName = subCatLinks[i].innerText.replace(reg, "");
