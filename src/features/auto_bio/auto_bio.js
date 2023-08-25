@@ -6382,8 +6382,8 @@ export async function buildFamilyForPrivateProfiles() {
           const key = keys[i];
           const person = window.profilePerson[familyList][key];
           if (person.Name) {
-            const thisId = familyProfiles[0]?.resultByKey[person.Name]?.Id;
-            const thisPerson = familyProfiles[0]?.people[thisId];
+            const thisId = familyProfiles[0]?.resultByKey?.[person.Name]?.Id;
+            const thisPerson = familyProfiles[0]?.people?.[thisId];
             if (thisPerson) {
               if (familyList == "Spouses") {
                 thisPerson.Spouses.forEach(function (spouse) {
