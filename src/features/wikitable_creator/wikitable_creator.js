@@ -1,4 +1,5 @@
 import $ from "jquery";
+import "jquery-ui/ui/widgets/draggable";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 const colorNameToHex = {
@@ -167,9 +168,11 @@ function parseWikiTableData(data) {
       tableData.caption = line.replace("|+", "").trim();
     } else if (line.startsWith("|-")) {
       if (currentRow) tableData.rows.push(currentRow);
-      let bgColorMatch = line.match(/bgcolor=("#?[a-fA-F0-9]+")/); // Match the color value
-      let bgColor = bgColorMatch ? bgColorMatch[1].replace(/["']/g, "") : null; // Remove quotes if necessary
-
+      let bgColorMatch = line.match(/bgcolor=(\w+|#?[a-fA-F0-9]+)/); // Match the color value or name
+      let bgColor = bgColorMatch ? bgColorMatch[1] : null; // Get the matched value or name
+      if (bgColor && !bgColor.startsWith("#")) {
+        bgColor = colorNameToHex[bgColor.toLowerCase()] || null; // Convert color name to hex value if necessary
+      }
       const properties = line.match(/(\w+)=("|')?(.*?)\2/g) || [];
       properties.forEach((prop) => {
         const [key, value] = prop.split("=");
@@ -231,11 +234,14 @@ function parseWikiTableData(data) {
   // Filter out empty rows
   tableData.rows = tableData.rows.filter((row) => row.cells.some((cell) => cell.trim() !== ""));
 
+  const isSortable = lines.some((line) => line.startsWith("{|") && /class="wikitable\s*sortable"/i.test(line));
+
   return {
     borderColor: propertiesObj.bordercolor || "",
     cellPadding: propertiesObj.cellpadding || "",
     bgColor: propertiesObj.bgcolor || "",
     data: tableData,
+    isSortable: isSortable,
   };
 }
 
@@ -253,29 +259,29 @@ function parseMultiSpaceData(data) {
 
 function createWikitableCreatorModal() {
   const modalHtml = `
-  <div id="wikitableCreatorModal" class="wikitable-creator-modal">
-    <div class="wikitable-creator-modal-content">
-      <span class="wikitable-creator-close small">&times;</span>
+    <div id="wikitableCreatorModal" style="display:none">
+    <h2>Wikitable Creator</h2>
+      <span class="wikitable-creator-close small">X</span>
       <button id="wikitableCreatorPaste" class="small">Paste Existing Table</button>
       <button id="wikitableCreatorAddRow" class="small">Add Row</button>
       <button id="wikitableCreatorAddColumn" class="small">Add Column</button>
-      <input type="text" id="wikitableCreatorCaption" placeholder="Caption" class="small">
       <label><input type="checkbox" id="wikitableCreatorHeaderRow" class="small"> 1st row as headers</label>
-      <label><input type="checkbox" id="wikitableCreatorSortable" class="small"> Make the table sortable</label>
+      <label><input type="checkbox" id="wikitableCreatorSortable" class="small"> Sortable</label>
       <label>Border Color: <input type="color" id="wikitableCreatorBorderColor" class="small"></label>
       <label>Border Width: <input type="number" id="wikitableCreatorBorderWidth" class="small" min="0"></label>
       <label>Cell Padding: <input type="number" id="wikitableCreatorCellPadding" class="small" min="0"></label>
+      <label>Caption: <input type="text" id="wikitableCreatorCaption" placeholder="Caption" class="small"></label>
       <table id="wikitableCreatorTable"></table>
       <button id="wikitableCreatorGenerateTable" class="small">Generate Table</button>
       <pre id="wikitableCreatorWikiTable"></pre>
     </div>
-  </div>
   `;
-  $("body").append(modalHtml);
+  $("#toolbar").after(modalHtml);
+  $("#wikitableCreatorModal").draggable();
 
   for (let i = 0; i < 5; i++) {
     let rowHtml = "<tr>";
-    rowHtml += '<td><input type="checkbox" class="rowBold"> Bold</td>';
+    rowHtml += '<td><label><input type="checkbox" class="rowBold"> Bold</label></td>';
     rowHtml += '<td><input type="color" class="rowBgColor" value="#ffffff"></td>';
     for (let j = 0; j < 5; j++) {
       rowHtml += '<td><input type="text"></td>';
@@ -326,6 +332,7 @@ function createWikitableCreatorModal() {
           }
 
           // Set other properties
+          $("#wikitableCreatorSortable").prop("checked", wikiTableData.isSortable);
           $("#wikitableCreatorBorderColor").val(wikiTableData.borderColor);
           $("#wikitableCreatorCellPadding").val(wikiTableData.cellPadding);
           $("#wikitableCreatorCaption").val(wikiTableData.data.caption);
@@ -434,6 +441,7 @@ function createWikitableCreatorModal() {
 
   $("#wikitableCreatorOpenModal").on("click", function (e) {
     e.preventDefault();
+
     $("#wikitableCreatorModal").show();
   });
 
@@ -452,15 +460,20 @@ function createWikitableCreatorModal() {
   $("#wikitableCreatorAddColumn").on("click", function (e) {
     e.preventDefault();
     $("#wikitableCreatorTable tr").each(function () {
-      $(this).append('<td><input type="text"></td>');
+      const row = $(this);
+      const isBold = row.find(".rowBold").prop("checked");
+      const bgColor = row.find(".rowBgColor").val();
+      const newCellHtml = `<td><input type="text" style="background-color:${bgColor};${
+        isBold ? "font-weight:bold;" : ""
+      }"></td>`;
+      row.append(newCellHtml);
     });
   });
 
   $(document).on("input", ".rowBgColor", function () {
     const pickedColor = $(this).val(); // Get the picked color
     const row = $(this).closest("tr"); // Get the corresponding row
-    row.find("td input[type=text]").closest("td").css("background-color", pickedColor); // Update the background color of the cells
-    row.find("td:not(:first-child):not(:nth-child(2))").css("background-color", pickedColor); // Update the background color of the containing cells
+    row.find("td:not(:first-child):not(:nth-child(2)) input").css("background-color", pickedColor); // Update the background color of the containing cells
   });
 }
 
