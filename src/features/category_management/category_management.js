@@ -117,6 +117,7 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
     const catName = catSpans[i].innerText;
     const delLink = document.createElement("a");
     delLink.innerText = "(-)";
+    delLink.title = "Remove category " + catName + " without further input";
 
     delLink.href = "/index.php?title=Special:EditPerson&w=" + profileId + "&remCat=" + catName;
     catSpans[i].append(" ");
@@ -124,6 +125,7 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
 
     const changeLink = document.createElement("a");
     changeLink.innerText = "(±)";
+    changeLink.title = "Change category " + catName + " into another one";
     AddAddReplaceEventHandler(changeLink, catSpans[i], profileId, catName);
     catSpans[i].append(" ");
     catSpans[i].appendChild(changeLink);
@@ -131,6 +133,7 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
 
   const addLink = document.createElement("a");
   addLink.innerText = "(+)";
+  addLink.title = "Add a category to this profile";
   AddAddReplaceEventHandler(addLink, catSpans[catSpans.length - 1], profileId, "");
   catSpans[catSpans.length - 1].append(" ");
   catSpans[catSpans.length - 1].appendChild(addLink);
