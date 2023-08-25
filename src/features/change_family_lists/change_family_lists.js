@@ -124,7 +124,9 @@ async function addAddLinksToHeadings() {
 
   if (!window.people) {
     const getPeopleResult = await getFamilyPeople();
-    window.people = Object.values(getPeopleResult[0].people);
+    if (getPeopleResult) {
+      window.people = Object.values(getPeopleResult[0].people);
+    }
   }
 
   if (window.people) {
