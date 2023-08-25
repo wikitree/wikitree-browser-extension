@@ -708,7 +708,7 @@ function MarkForRenameOpenNewAndSave(disable, newCategory) {
   editForm.target = "";
 
   wpTextbox1.value = toInsert + "\n" + wpTextbox1.value;
-  //document.getElementById("wpSave").click();
+  document.getElementById("wpSave").click();
 }
 
 function CheckWhatLinksHereAndSave() {
