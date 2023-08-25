@@ -39,12 +39,35 @@ shouldInitializeFeature("categoryManagement").then((result) => {
     } else if (isProfilePage) {
       getFeatureOptions("categoryManagement").then((options) => {
         if (options.showCategoryLinksProfile) {
-          AddCategoryChangeLinks(document.getElementById("categories"));
+          AddCategoryChangeLinksOnProfile(GetOrCreateCategoriesDiv());
         }
       });
     }
   }
 });
+
+function GetOrCreateCategoriesDiv()
+{
+  let categoriesDiv = document.getElementById("categories");
+  if(categoriesDiv == null)
+  {
+    categoriesDiv = document.createElement("div");
+    categoriesDiv.className = "box green rounded row x-categories";
+    categoriesDiv.id = "categories";
+    categoriesDiv.style.textAlign = "left";
+
+    categoriesDiv.innerHTML = '<a href="/wiki/Category:Categories" title="Browse and learn about categories">Categories</a>: <span dir="ltr"></span>';
+    const ps = document.getElementsByTagName("p");
+    for(let i=0;i<ps.length;i++)
+    {
+      if(ps[i].align =="center")
+      {
+        ps[i].appendChild(categoriesDiv);
+      }
+    }
+  }
+  return categoriesDiv;
+}
 
 function AddOptionalCategoryPageLinks(options) {
   if (options.catALotCategory) {
@@ -87,10 +110,10 @@ function AddCategoryExitLink(parent) {
   parent.appendChild(WrapWithBrackets(linkExit));
 }
 
-function AddCategoryChangeLinks(categoryDiv) {
+function AddCategoryChangeLinksOnProfile(categoryDiv) {
   const profileId = document.getElementsByClassName("person")[0].innerText;
   const catSpans = categoryDiv.getElementsByTagName("span");
-  for (let i = 0; i < catSpans.length - 1; i++) {
+  for (let i = 0; i < catSpans.length - 2 /* not for [top] */; i++) {
     const catName = catSpans[i].innerText;
     const delLink = document.createElement("a");
     delLink.innerText = "(-)";
