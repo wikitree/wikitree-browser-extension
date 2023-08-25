@@ -1,5 +1,12 @@
 import { getFeatureOptions, shouldInitializeFeature } from "../../core/options/options_storage";
-import { isCategoryEdit, isCategoryPage, isProfileEdit, isSearchPage, isCategoryHistory } from "../../core/pageType";
+import {
+  isCategoryEdit,
+  isCategoryPage,
+  isProfileEdit,
+  isSearchPage,
+  isCategoryHistory,
+  isProfilePage,
+} from "../../core/pageType";
 
 //todo: rename CatALot to Batch cat. or whatever it will be in the end
 
@@ -29,9 +36,38 @@ shouldInitializeFeature("categoryManagement").then((result) => {
           AddCategoryExitLink(document.getElementsByTagName("h1")[0]);
         }
       });
+    } else if (isProfilePage) {
+      getFeatureOptions("categoryManagement").then((options) => {
+        if (options.showCategoryLinksProfile) {
+          AddCategoryChangeLinksOnProfile(GetOrCreateCategoriesDiv());
+        }
+      });
     }
   }
 });
+
+function GetOrCreateCategoriesDiv()
+{
+  let categoriesDiv = document.getElementById("categories");
+  if(categoriesDiv == null)
+  {
+    categoriesDiv = document.createElement("div");
+    categoriesDiv.className = "box green rounded row x-categories";
+    categoriesDiv.id = "categories";
+    categoriesDiv.style.textAlign = "left";
+
+    categoriesDiv.innerHTML = '<a href="/wiki/Category:Categories" title="Browse and learn about categories">Categories</a>: <span dir="ltr"></span>';
+    const ps = document.getElementsByTagName("p");
+    for(let i=0;i<ps.length;i++)
+    {
+      if(ps[i].align =="center")
+      {
+        ps[i].appendChild(categoriesDiv);
+      }
+    }
+  }
+  return categoriesDiv;
+}
 
 function AddOptionalCategoryPageLinks(options) {
   if (options.catALotCategory) {
@@ -69,12 +105,70 @@ function AddCategoryExitLink(parent) {
   const baseUrl = "https://www.wikitree.com/wiki/" + urlParams.get("title");
   linkExit.href = baseUrl;
   linkExit.innerText = "exit";
+  linkExit.title = "Leave editing mode without saving";
   parent.appendChild(document.createElement("br"));
   parent.appendChild(WrapWithBrackets(linkExit));
 }
 
+function AddCategoryChangeLinksOnProfile(categoryDiv) {
+  const profileId = document.getElementsByClassName("person")[0].innerText;
+  const catSpans = categoryDiv.getElementsByTagName("span");
+  for (let i = 0; i < catSpans.length - 2 /* not for [top] */; i++) {
+    const catName = catSpans[i].innerText;
+    const delLink = document.createElement("a");
+    delLink.innerText = "(-)";
+    delLink.title = "Remove category " + catName + " without further input";
+
+    delLink.href = "/index.php?title=Special:EditPerson&w=" + profileId + "&remCat=" + catName;
+    catSpans[i].append(" ");
+    catSpans[i].appendChild(delLink);
+
+    const changeLink = document.createElement("a");
+    changeLink.innerText = "(±)";
+    changeLink.title = "Change category " + catName + " into another one";
+    AddAddReplaceEventHandler(changeLink, catSpans[i], profileId, catName);
+    catSpans[i].append(" ");
+    catSpans[i].appendChild(changeLink);
+  }
+
+  const addLink = document.createElement("a");
+  addLink.innerText = "(+)";
+  addLink.title = "Add a category to this profile";
+  AddAddReplaceEventHandler(addLink, catSpans[catSpans.length - 1], profileId, "");
+  catSpans[catSpans.length - 1].append(" ");
+  catSpans[catSpans.length - 1].appendChild(addLink);
+}
+
+function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
+  changeLink.addEventListener("click", function () {
+    changeLink.innerText = "";
+    const catTextbox = document.createElement("input");
+    catTextbox.value = catName;
+
+    catTextbox.addEventListener("change", function () {
+      CheckCategoryExists(catTextbox.value, enableOk);
+    });
+
+    function enableOk(catNew) {
+      const buttonOk = document.createElement("button");
+      buttonOk.innerText = "OK";
+      buttonOk.addEventListener("click", function () {
+        let url = "http://www.wikitree.com/index.php?title=Special:EditPerson&w=" + profileId + "&addCat=" + catNew;
+        if (catName != "") {
+          url += "&remCat=" + catName;
+        }
+        window.location = url;
+      });
+
+      catSpan.appendChild(buttonOk);
+    }
+    catSpan.appendChild(catTextbox);
+  });
+}
+
 function CreateDeleteCatLink() {
   const linkDelete = document.createElement("a");
+  linkDelete.title = "Empty the category description and add a template for EditBOT to delete the category";
   linkDelete.href =
     "https://www.wikitree.com/index.php?title=Category:" + GetCurrentCategoryName() + "&catBot=delete&action=edit";
   linkDelete.innerText = "delete";
@@ -85,6 +179,7 @@ function CreateRenameCatLink() {
   const linkRename = document.createElement("a");
   linkRename.href = "#1";
   linkRename.innerText = "rename";
+  linkRename.title = "Ask for new category name and open it for editing, empty the description of this category and add a template for EditBOT to move the content to the new one";
   linkRename.addEventListener("click", function () {
     const currentCategory = GetCurrentCategoryName();
     const newCategory = prompt("New name?", currentCategory);
@@ -105,6 +200,7 @@ function CreateCopyRenameCatLink() {
   const linkRename = document.createElement("a");
   linkRename.href = "#1";
   linkRename.innerText = "copy & rename";
+  linkRename.title = "Ask for new category name, open it for editing with the content of this one filled-in already";
   linkRename.addEventListener("click", function () {
     const currentCategory = GetCurrentCategoryName();
     const newCategory = prompt("New name?", currentCategory);
@@ -124,6 +220,7 @@ function CreateCopyRenameCatLink() {
 function CreateBatchCatActivationLinkAndSpan() {
   const buttonEnable = document.createElement("a");
   buttonEnable.innerText = "batch categorize";
+  buttonEnable.title = "Change catgories of multiple profiles in this category at once";
   buttonEnable.href = "#0";
   buttonEnable.id = "activate_link";
   buttonEnable.addEventListener("click", ShowCatALot);
@@ -142,6 +239,7 @@ function WrapWithBrackets(buttonEnable) {
 function CreateDeleteCatLinkEditPage(disable) {
   const linkDelete = document.createElement("a");
   linkDelete.innerText = "delete";
+  linkDelete.title = "Empty the category description and add a template for EditBOT to delete the category";
   linkDelete.href = "#0";
   linkDelete.addEventListener("click", function () {
     MarkCategoryForDeletionAndSave(disable);
@@ -152,6 +250,7 @@ function CreateDeleteCatLinkEditPage(disable) {
 function CreateRenameCatLinkEditPage(disable) {
   const linkDelete = document.createElement("a");
   linkDelete.innerText = "rename";
+  linkDelete.title = "Ask for new category name and open it for editing, empty the description of this category and add a template for EditBOT to move the content to the new one";
   linkDelete.href = "#0";
   linkDelete.addEventListener("click", function () {
     const currentCategory = GetCurrentCategoryName();
@@ -164,6 +263,7 @@ function CreateRenameCatLinkEditPage(disable) {
 function CreateCopyRenameCatLinkEditPage(label) {
   const linkDelete = document.createElement("a");
   linkDelete.innerText = label;
+  linkDelete.title = "Ask for new category name, open it for editing with the content of this one filled-in already";
   linkDelete.href = "#0";
   linkDelete.addEventListener("click", function () {
     const currentCategory = GetCurrentCategoryName();
@@ -199,7 +299,11 @@ function AddCatALotControls(elementToAppendTo) {
   const inputCatTyped = document.createElement("input");
   inputCatTyped.id = "inputCatTyped";
   inputCatTyped.placeholder = "category add/move";
-  inputCatTyped.addEventListener("change", OnTypedCatNameChanged);
+  inputCatTyped.title = "Enter the name of the category to which the checked profiles should be added or moved to";
+  inputCatTyped.addEventListener("change", function () {
+    // CheckCategoryExists(document.getElementById("inputCatTyped").value, AddVerifiedCatLink);
+    CheckCategoryExists(inputCatTyped.value, AddVerifiedCatLink);
+  });
 
   const inputCatVerified = document.createElement("div");
   inputCatVerified.readOnly = true;
@@ -217,6 +321,7 @@ function AddCatALotControls(elementToAppendTo) {
   let labelMove = document.createElement("label");
   labelMove.appendChild(radioMove);
   labelMove.append("Move");
+  labelMove.title = "Remove this category from selected profile and add category from input field instead";
 
   const radioAdd = document.createElement("input");
   radioAdd.type = "radio";
@@ -230,6 +335,7 @@ function AddCatALotControls(elementToAppendTo) {
   const labelAdd = document.createElement("label");
   labelAdd.appendChild(radioAdd);
   labelAdd.append("Add");
+  labelAdd.title = "Add category from input field to selected profiles";
 
   const radioRemove = document.createElement("input");
   radioRemove.type = "radio";
@@ -243,11 +349,13 @@ function AddCatALotControls(elementToAppendTo) {
   const labelRemove = document.createElement("label");
   labelRemove.appendChild(radioRemove);
   labelRemove.append("Remove");
+  labelRemove.title = "Remove this category from selected profiles";
 
   const catALotButton = document.createElement("input");
   catALotButton.type = "button";
   catALotButton.value = "Cat a lot";
   catALotButton.id = "catALotButton";
+  catALotButton.title = "Open all checked profiles in new tabs and perform the add/move/remove operation without saving them";
   catALotButton.disabled = true;
   catALotButton.addEventListener("click", OnCatALotClicked);
 
@@ -342,6 +450,7 @@ function AddSubcatLinks() {
 
     for (let i = 0; i < subCatLinks.length; ++i) {
       let newLink = document.createElement("a");
+      newLink.title = "Set this subcategory as target for add or move";
       newLink.innerText = "here";
       newLink.addEventListener("click", function () {
         const clearCatName = subCatLinks[i].innerText.replace(reg, "");
@@ -485,30 +594,35 @@ function AddCheckboxes() {
   }
 }
 
-function OnTypedCatNameChanged() {
-  let catTyped = document.getElementById("inputCatTyped").value.replace("[[", "").replace("]]", "");
+function ClearCatName(catTyped) {
+  catTyped = catTyped.replace("[[", "").replace("]]", "");
   const indexOfColon = catTyped.indexOf(":");
   if (indexOfColon > -1) {
     catTyped = catTyped.substring(indexOfColon + 1).trim();
   }
+  return catTyped;
+}
+
+function CheckCategoryExists(cat, callbackSuccess) {
+  let catTyped = ClearCatName(cat);
   let catUrl = "https://www.wikitree.com/wiki/Category:" + encodeURI(catTyped) + "?appID=WBE_categoryManagement";
   let xmlHttp = new XMLHttpRequest();
   xmlHttp.open("GET", catUrl, false); // false for synchronous request
   xmlHttp.send(null);
   if (xmlHttp.status < 400) {
-    AddVerifiedCatLink(catTyped);
+    callbackSuccess(catTyped);
   } else if (xmlHttp.status == 404) {
     alert("Category doesn't exist");
   } else {
     alert("Error while checking category: " + xmlHttp.status);
   }
-  document.getElementById("inputCatTyped").value = catTyped;
 }
 
 function AddVerifiedCatLink(cat) {
   document.getElementById("inputCatVerified").innerHTML =
     '<a href="https://www.wikitree.com/wiki/Category:' + cat + '">' + cat + "</a>";
   document.getElementById("catALotButton").disabled = false;
+  document.getElementById("inputCatTyped").value = cat;
 }
 
 function PerformActualProfileChanges() {
@@ -597,7 +711,7 @@ function MarkForRenameOpenNewAndSave(disable, newCategory) {
   editForm.target = "";
 
   wpTextbox1.value = toInsert + "\n" + wpTextbox1.value;
-  //document.getElementById("wpSave").click();
+  document.getElementById("wpSave").click();
 }
 
 function CheckWhatLinksHereAndSave() {
@@ -624,9 +738,7 @@ function CheckWhatLinksHereAndSave() {
             const LIs = ULs[i].getElementsByTagName("li");
             for (let i = 0; i < LIs.length; i++) {
               const page = LIs[i].innerText.split(" (← links)").join("");
-              const win = window.open(
-                "https://www.wikitree.com/index.php?title=" + encodeURIComponent(page) + "&action=edit"
-              );
+              const win = window.open("https://www.wikitree.com/index.php?title=" + page + "&action=edit");
             }
           }
         }
@@ -650,8 +762,7 @@ function OpenNewCategoryInNewTab(newCategory) {
   var editForm = document.getElementById("editform");
   editForm.target = "_blank";
   const previousAction = editForm.action;
-  editForm.action =
-    "https://www.wikitree.com/index.php?title=Category:" + encodeURIComponent(newCategory) + "&action=submit";
+  editForm.action = "https://www.wikitree.com/index.php?title=Category:" + newCategory + "&action=submit";
   document.getElementById("wpDiff").click();
 }
 
@@ -662,7 +773,14 @@ function GetActualAkaCategoryUsedInProfile(wpTextbox1, cats) {
 
   for (let i = 0; i < remCats.length; ++i) {
     if (bio.indexOf("Category:" + remCats[i]) > -1) {
-      actualCat = remCats[i];
+      if (actualCat == "") {
+        actualCat = remCats[i];
+
+      }else
+      {
+        //remove additional aka category
+        RemoveCat(wpTextbox1, remCats[i]);
+      }
     }
   }
   return actualCat;

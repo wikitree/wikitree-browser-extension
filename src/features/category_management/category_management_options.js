@@ -1,6 +1,6 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 import {
-  isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit, isCategoryHistory
+  isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit, isCategoryHistory, isProfilePage
 } from "../../core/pageType";
 
 registerFeature({
@@ -9,9 +9,9 @@ registerFeature({
   description: "Creating, filling, changing and emptying categories more efficiently",
   category: "Editing",
   creators: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
-  contributors: [ /*{ name: "Magnus Manske", wikitreeid: "Manske-74" }*/],
+  contributors: [{ name: "Magnus Manske", wikitreeid: "Manske-74" }],
   defaultValue: true,
-  pages: [isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit, isCategoryHistory],
+  pages: [isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit, isCategoryHistory, isProfilePage],
   options: [
     {
       id: "catALotCategory",
@@ -23,7 +23,7 @@ registerFeature({
       id: "catALotSearchResults",
       type: OptionType.CHECKBOX,
       label: "batch add category for profiles within search results",
-      defaultValue: false,
+      defaultValue: true,
     },
     {
       id: "catMarkDelete",
@@ -41,7 +41,7 @@ registerFeature({
       id: "catCopyRename",
       type: OptionType.CHECKBOX,
       label: "add link to copy and rename category",
-      defaultValue: false,
+      defaultValue: true,
     },
     {
       id: "disableCategories",
@@ -54,7 +54,14 @@ registerFeature({
       type: OptionType.CHECKBOX,
       label: "show exit links in category edit and history page",
       defaultValue: true,
+    },
+    {
+      id: "showCategoryLinksProfile",
+      type: OptionType.CHECKBOX,
+      label: "enable category change in profile",
+      defaultValue: true,
     }
+
 
   ],
 });
