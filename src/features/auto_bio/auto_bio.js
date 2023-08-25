@@ -6539,11 +6539,13 @@ async function getSpouseParents() {
   ) {
     let spouseKeys = Object.keys(window.profilePerson.Spouses);
     window.biographySpouseParents = await getPeople(spouseKeys.join(","), 0, 0, 0, 1, 1, "*", "WBE_auto_bio");
-    const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
-    biographySpouseParentsKeys.forEach(function (key) {
-      const person = window.biographySpouseParents[0].people[key];
-      assignPersonNames(person);
-    });
+    if (window.biographySpouseParents[0]?.people) {
+      const biographySpouseParentsKeys = Object.keys(window.biographySpouseParents[0].people);
+      biographySpouseParentsKeys.forEach(function (key) {
+        const person = window.biographySpouseParents[0].people[key];
+        assignPersonNames(person);
+      });
+    }
   }
 }
 
