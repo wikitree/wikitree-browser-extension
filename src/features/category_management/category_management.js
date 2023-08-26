@@ -109,11 +109,9 @@ function AddCategoryExitLink(parent) {
 }
 
 function AddCategoryChangeLinksOnProfile(categoryDiv) {
-
   const somethingBetween5And15 = 10;
   const tabs = document.getElementsByClassName("profile-tabs")[0];
-  if(tabs.childNodes.length<somethingBetween5And15)
-  {
+  if (tabs.childNodes.length < somethingBetween5And15) {
     //not editable
     return;
   }
@@ -121,6 +119,10 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
   const profileId = document.getElementsByClassName("person")[0].innerText;
   const catSpans = categoryDiv.getElementsByTagName("span");
   for (let i = 0; i < catSpans.length - 1 /* not for [top] */; i++) {
+    if (catSpans[i].innerText == "[top]") {
+      continue;
+    }
+
     const catName = catSpans[i].innerText;
     const delLink = document.createElement("a");
     delLink.innerText = "(-)";
@@ -257,7 +259,7 @@ function CreateAutoSuggestionDiv(catTextbox) {
   const ul = document.createElement("ul");
   ul.style.listStyleType = "none";
   resultAutoTypeDiv.append(ul);
-  
+
   resultAutoTypeDiv.hidden = true;
   return resultAutoTypeDiv;
 }
@@ -731,8 +733,7 @@ function CheckCategoryExists(cat, callbackSuccess) {
   let catTyped = ClearCatName(cat);
   let catUrl = "https://www.wikitree.com/wiki/Category:" + encodeURI(catTyped) + "?appID=WBE_categoryManagement";
   let xmlHttp = new XMLHttpRequest();
-  xmlHttp.addEventListener("load", function()
-  {
+  xmlHttp.addEventListener("load", function () {
     if (xmlHttp.status < 400) {
       callbackSuccess(catTyped);
     } else if (showError && xmlHttp.status == 404) {
