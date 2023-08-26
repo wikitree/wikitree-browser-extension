@@ -722,15 +722,18 @@ function CheckCategoryExists(cat, callbackSuccess) {
   let catTyped = ClearCatName(cat);
   let catUrl = "https://www.wikitree.com/wiki/Category:" + encodeURI(catTyped) + "?appID=WBE_categoryManagement";
   let xmlHttp = new XMLHttpRequest();
-  xmlHttp.open("GET", catUrl, false); // false for synchronous request
+  xmlHttp.addEventListener("load", function()
+  {
+    if (xmlHttp.status < 400) {
+      callbackSuccess(catTyped);
+    } else if (showError && xmlHttp.status == 404) {
+      alert("Category does not exist");
+    } else if (showError) {
+      console.log("Error while checking category: " + xmlHttp.status);
+    }
+  });
+  xmlHttp.open("GET", catUrl, true); // false for synchronous request
   xmlHttp.send(null);
-  if (xmlHttp.status < 400) {
-    callbackSuccess(catTyped);
-  } else if (showError && xmlHttp.status == 404) {
-    alert("Category does not exist");
-  } else if (showError) {
-    console.log("Error while checking category: " + xmlHttp.status);
-  }
 }
 
 function AddVerifiedCatLink(cat) {
