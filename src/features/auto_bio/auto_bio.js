@@ -23,6 +23,8 @@ import { isIansProfile } from "../../core/pageType";
 import ONSjson from "./ONS.json";
 import Cookies from "js-cookie";
 
+let bugReportMore = "";
+
 /**
 Returns a status word based on the input status and optional needOnIn parameter, with an optional ISO date string parameter.
 @function
@@ -804,6 +806,10 @@ function getStatus(child) {
 function childList(person, spouse) {
   let text = "";
   let ourChildren = [];
+  if (!isObject(person.Children)) {
+    console.log("children is object", isObject(person.Children));
+    bugReportMore += "person.Children is not an object.\n ";
+  }
   let childrenKeys = Object.keys(person.Children);
   childrenKeys.forEach(function (key) {
     if (spouse == false && !person.Children[key].Displayed) {
@@ -1265,6 +1271,9 @@ export function minimalPlace(place) {
 }
 
 export function buildSpouses(person) {
+  if (!isObject(person.Spouses)) {
+    return;
+  }
   let spouseKeys = Object.keys(person.Spouses);
   let marriages = [];
   let firstNameAndYear = [];
@@ -1918,17 +1927,21 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
   return [text, reference];
 }
 
+function isObject(thing) {
+  return Object.prototype.toString.call(thing) === "[object Object]";
+}
+
 function getHouseholdOfRelationAndName(text) {
   let householdHeadMatch = text.match(/household\sof\s(.+?)((\s[a-z])|\.|,)/);
   if (householdHeadMatch) {
     let householdHeadFirstName = householdHeadMatch[1].split(" ")[0];
     ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
-      if (window.profilePerson[relation]) {
+      if (window.profilePerson[relation] && isObject(window.profilePerson[relation])) {
         let relationSingular = relation.slice(0, -1);
         if (relationSingular == "Childre") {
           relationSingular = "Child";
         }
-        let keys = Object.keys(window.profilePerson[relation]);
+        let keys = Object.keys(window.profilePerson[relation] && isObject(window.profilePerson[relation]));
         keys.forEach(function (key) {
           let oNameVariants = getNameVariants(window.profilePerson[relation][key]);
           oNameVariants = [householdHeadFirstName];
@@ -2290,50 +2303,52 @@ function findRelation(person) {
       if (relationSingular == "Childre") {
         relationSingular = "Child";
       }
-      let keys = Object.keys(window.profilePerson[relation]);
-      keys.forEach(function (key) {
-        let skip = false;
-        let oNameVariants = [person.FirstName];
-        if (firstNameVariants[person.FirstName]) {
-          oNameVariants = firstNameVariants[person.FirstName];
-        }
-        if (isSameName(window.profilePerson[relation][key].FirstName, oNameVariants)) {
-          if (person.BirthYear) {
-            if (!isWithinX(person.BirthYear, window.profilePerson[relation][key].BirthDate.slice(0, 4), 5)) {
-              skip = true;
+      if (isObject(window.profilePerson[relation])) {
+        let keys = Object.keys(window.profilePerson[relation]);
+        keys.forEach(function (key) {
+          let skip = false;
+          let oNameVariants = [person.FirstName];
+          if (firstNameVariants[person.FirstName]) {
+            oNameVariants = firstNameVariants[person.FirstName];
+          }
+          if (isSameName(window.profilePerson[relation][key].FirstName, oNameVariants)) {
+            if (person.BirthYear) {
+              if (!isWithinX(person.BirthYear, window.profilePerson[relation][key].BirthDate.slice(0, 4), 5)) {
+                skip = true;
+              }
+            }
+            if (window.profilePerson[relation][key].Gender && skip == false) {
+              let oGender = window.profilePerson[relation][key].Gender;
+              relationWord =
+                relationSingular == "Child"
+                  ? oGender == "Male"
+                    ? "Son"
+                    : oGender == "Female"
+                    ? "Daughter"
+                    : "Child"
+                  : relationSingular == "Parent"
+                  ? oGender == "Male"
+                    ? "Father"
+                    : oGender == "Female"
+                    ? "Mother"
+                    : "Parent"
+                  : relationSingular == "Sibling"
+                  ? oGender == "Male"
+                    ? "Brother"
+                    : oGender == "Female"
+                    ? "Sister"
+                    : "Sibling"
+                  : relationSingular == "Spouse"
+                  ? oGender == "Male"
+                    ? "Husband"
+                    : oGender == "Female"
+                    ? "Wife"
+                    : "Spouse"
+                  : relationSingular;
             }
           }
-          if (window.profilePerson[relation][key].Gender && skip == false) {
-            let oGender = window.profilePerson[relation][key].Gender;
-            relationWord =
-              relationSingular == "Child"
-                ? oGender == "Male"
-                  ? "Son"
-                  : oGender == "Female"
-                  ? "Daughter"
-                  : "Child"
-                : relationSingular == "Parent"
-                ? oGender == "Male"
-                  ? "Father"
-                  : oGender == "Female"
-                  ? "Mother"
-                  : "Parent"
-                : relationSingular == "Sibling"
-                ? oGender == "Male"
-                  ? "Brother"
-                  : oGender == "Female"
-                  ? "Sister"
-                  : "Sibling"
-                : relationSingular == "Spouse"
-                ? oGender == "Male"
-                  ? "Husband"
-                  : oGender == "Female"
-                  ? "Wife"
-                  : "Spouse"
-                : relationSingular;
-          }
-        }
-      });
+        });
+      }
     }
   });
   if (!relationWord) {
@@ -6740,7 +6755,7 @@ export async function generateBio() {
     getFamilySearchFacts();
     let marriages = [];
     if (window.profilePerson.Spouses) {
-      marriages = buildSpouses(window.profilePerson);
+      marriages = buildSpouses(window.profilePerson) || [];
     }
     const marriagesAndCensusesEtc = [...marriages];
 
@@ -7383,6 +7398,7 @@ export async function generateBio() {
       let errorMessage =
         "Hi Ian,\n\nI've found a bug for you to fix.\n\nProfile ID: " +
         window.profileID +
+        (bugReportMore || "") +
         "\n\nError Message: " +
         error.message +
         "\n\nStack Trace:\n" +
