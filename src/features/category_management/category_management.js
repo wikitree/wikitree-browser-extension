@@ -137,8 +137,8 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
   catSpans[catSpans.length - 1].appendChild(addLink);
 }
 
-function showResultsOnKeyUp(catTextbox, catName) {
-  const resList = document.getElementById("result_" + catName).childNodes[0];
+function showResultsOnKeyUp(catTextbox, resultDiv) {
+  const resList = resultDiv.childNodes[0];
   resList.parentNode.hidden = false;
   EmptySuggestionList(resList);
   const typedVal = catTextbox.value;
@@ -155,10 +155,7 @@ function showResultsOnKeyUp(catTextbox, catName) {
 }
 
 function PopulateSuggestions(terms, resList, catTextbox) {
-  // let terms = autocompleteMatch(catTextbox.value);
-
-  if(terms.length == 1 && terms[0] == catTextbox.value)
-  {
+  if (terms.length == 1 && terms[0] == catTextbox.value) {
     return;
   }
 
@@ -178,7 +175,7 @@ function PopulateSuggestions(terms, resList, catTextbox) {
       oneSuggestion.addEventListener("click", function () {
         catTextbox.value = suggestionWithoutUnderscores;
         resList.parentNode.hidden = true;
-        catTextbox.dispatchEvent(new Event('change'));
+        catTextbox.dispatchEvent(new Event("change"));
       });
       resList.appendChild(oneSuggestion);
     }
@@ -200,34 +197,31 @@ function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
     const catTextbox = document.createElement("input");
     catTextbox.value = catName;
     catTextbox.autocomplete = false;
-    const resultAutoTypeDiv = document.createElement("div");
-    resultAutoTypeDiv.id = "result_" + catName;
-    resultAutoTypeDiv.append(document.createElement("ul"));
-    resultAutoTypeDiv.hidden = true;
+    const resultAutoTypeDiv = CreateAutoSuggestionDiv(catTextbox);
     let timeoutTyping = null;
-  
 
     catTextbox.addEventListener("keyup", (event) => {
       clearTimeout(timeoutTyping);
-      timeoutTyping = setTimeout(function()
-      {
-        showResultsOnKeyUp(catTextbox, catName);
-      },800);
+      timeoutTyping = setTimeout(function () {
+        showResultsOnKeyUp(catTextbox, resultAutoTypeDiv);
+      }, 700);
     });
 
     catTextbox.addEventListener("change", function () {
-      const suggestionList = resultAutoTypeDiv.childNodes[0];
-      let isSuggestion = false;
-      for (let i = 0; i < suggestionList.childNodes.length; i++) {
-        if (suggestionList.childNodes[i].innerText == catTextbox.value) {
-          enableOk(catTextbox.value);
-          return;
-        }
+      if (IsTextInList(resultAutoTypeDiv.childNodes[0], catTextbox.value)) {
+        enableOk(catTextbox.value);
+      } else {
+        CheckCategoryExists(catTextbox.value, enableOk);
       }
-      CheckCategoryExists(catTextbox.value, enableOk, alert);
     });
 
     function enableOk(catNew) {
+      for (let i = 0; i < catSpan.childNodes.length; i++) {
+        if (catSpan.childNodes[i].innerText != null && catSpan.childNodes[i].innerText == "OK") {
+          return;
+        }
+      }
+
       const buttonOk = document.createElement("button");
       buttonOk.innerText = "OK";
       buttonOk.addEventListener("click", function () {
@@ -237,13 +231,33 @@ function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
         }
         window.location = url;
       });
-
       catSpan.appendChild(buttonOk);
     }
     catSpan.appendChild(catTextbox);
     catSpan.appendChild(resultAutoTypeDiv);
     catTextbox.focus();
   });
+}
+
+function CreateAutoSuggestionDiv(catTextbox) {
+  const resultAutoTypeDiv = document.createElement("div");
+  resultAutoTypeDiv.style.textAlign = "left";
+  resultAutoTypeDiv.style.borderWidth = "1px";
+  resultAutoTypeDiv.style.borderStyle = "solid";
+  const ul = document.createElement("ul");
+  ul.style.listStyleType = "none";
+  resultAutoTypeDiv.append(ul);
+  
+  resultAutoTypeDiv.hidden = true;
+  return resultAutoTypeDiv;
+}
+function IsTextInList(suggestionList, val) {
+  for (let i = 0; i < suggestionList.childNodes.length; i++) {
+    if (suggestionList.childNodes[i].innerText == val) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function CreateDeleteCatLink() {
@@ -382,9 +396,23 @@ function AddCatALotControls(elementToAppendTo) {
   inputCatTyped.id = "inputCatTyped";
   inputCatTyped.placeholder = "category add/move";
   inputCatTyped.title = "Enter the name of the category to which the checked profiles should be added or moved to";
+  inputCatTyped.autocomplete = false;
+  const resultAutoTypeDiv = CreateAutoSuggestionDiv(inputCatTyped);
+  let timeoutTyping = null;
+
+  inputCatTyped.addEventListener("keyup", (event) => {
+    clearTimeout(timeoutTyping);
+    timeoutTyping = setTimeout(function () {
+      showResultsOnKeyUp(inputCatTyped, resultAutoTypeDiv);
+    }, 700);
+  });
+
   inputCatTyped.addEventListener("change", function () {
-    // CheckCategoryExists(document.getElementById("inputCatTyped").value, AddVerifiedCatLink);
-    CheckCategoryExists(inputCatTyped.value, AddVerifiedCatLink, true);
+    if (IsTextInList(resultAutoTypeDiv.childNodes[0], inputCatTyped.value)) {
+      AddVerifiedCatLink(inputCatTyped.value);
+    } else {
+      CheckCategoryExists(inputCatTyped.value, AddVerifiedCatLink);
+    }
   });
 
   const inputCatVerified = document.createElement("div");
@@ -457,6 +485,7 @@ function AddCatALotControls(elementToAppendTo) {
   }
 
   catALotDiv.appendChild(inputCatTyped);
+  catALotDiv.appendChild(resultAutoTypeDiv);
   catALotDiv.appendChild(document.createElement("br"));
   catALotDiv.append("destination: ");
   catALotDiv.appendChild(inputCatVerified);
@@ -686,7 +715,7 @@ function ClearCatName(catTyped) {
   return catTyped;
 }
 
-function CheckCategoryExists(cat, callbackSuccess, callbackFail) {
+function CheckCategoryExists(cat, callbackSuccess) {
   const showError = false;
   let catTyped = ClearCatName(cat);
   let catUrl = "https://www.wikitree.com/wiki/Category:" + encodeURI(catTyped) + "?appID=WBE_categoryManagement";
@@ -696,7 +725,7 @@ function CheckCategoryExists(cat, callbackSuccess, callbackFail) {
   if (xmlHttp.status < 400) {
     callbackSuccess(catTyped);
   } else if (showError && xmlHttp.status == 404) {
-    callbackFail();
+    alert("Category does not exist");
   } else if (showError) {
     console.log("Error while checking category: " + xmlHttp.status);
   }
