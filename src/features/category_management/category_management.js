@@ -109,6 +109,15 @@ function AddCategoryExitLink(parent) {
 }
 
 function AddCategoryChangeLinksOnProfile(categoryDiv) {
+
+  const somethingBetween5And15 = 10;
+  const tabs = document.getElementsByClassName("profile-tabs")[0];
+  if(tabs.childNodes.length<somethingBetween5And15)
+  {
+    //not editable
+    return;
+  }
+
   const profileId = document.getElementsByClassName("person")[0].innerText;
   const catSpans = categoryDiv.getElementsByTagName("span");
   for (let i = 0; i < catSpans.length - 1 /* not for [top] */; i++) {
