@@ -119,7 +119,7 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
 
     const catName = catSpans[i].innerText;
     const delLink = document.createElement("a");
-    delLink.innerText = "(-)";
+    delLink.innerText = "(–)";
     delLink.style.textDecoration = "none";
     delLink.title = "Remove category '" + catName + "' without further input";
 
@@ -413,7 +413,6 @@ function AddCatALotControls(elementToAppendTo) {
     return;
   }
 
-  alert("batschka hack!");
   document.getElementById("activate_link").hidden = true;
   document.getElementById("activate_link").previousSibling.textContent = "";
   document.getElementById("activate_link").nextSibling.textContent = "";
@@ -649,7 +648,7 @@ function GetThisCategoryNameAndAllAkas() {
       }
     }
   }
-  return currentCategory+"|Batschka";
+  return currentCategory;
 }
 
 function GetCurrentCategoryName() {
