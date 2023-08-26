@@ -1,3 +1,4 @@
+import { valHooks } from "jquery";
 import { getFeatureOptions, shouldInitializeFeature } from "../../core/options/options_storage";
 import {
   isCategoryEdit,
@@ -46,22 +47,19 @@ shouldInitializeFeature("categoryManagement").then((result) => {
   }
 });
 
-function GetOrCreateCategoriesDiv()
-{
+function GetOrCreateCategoriesDiv() {
   let categoriesDiv = document.getElementById("categories");
-  if(categoriesDiv == null)
-  {
+  if (categoriesDiv == null) {
     categoriesDiv = document.createElement("div");
     categoriesDiv.className = "box green rounded row x-categories";
     categoriesDiv.id = "categories";
     categoriesDiv.style.textAlign = "left";
 
-    categoriesDiv.innerHTML = '<a href="/wiki/Category:Categories" title="Browse and learn about categories">Categories</a>: <span dir="ltr"></span>';
+    categoriesDiv.innerHTML =
+      '<a href="/wiki/Category:Categories" title="Browse and learn about categories">Categories</a>: <span dir="ltr"></span>';
     const ps = document.getElementsByTagName("p");
-    for(let i=0;i<ps.length;i++)
-    {
-      if(ps[i].align =="center")
-      {
+    for (let i = 0; i < ps.length; i++) {
+      if (ps[i].align == "center") {
         ps[i].appendChild(categoriesDiv);
       }
     }
@@ -113,11 +111,11 @@ function AddCategoryExitLink(parent) {
 function AddCategoryChangeLinksOnProfile(categoryDiv) {
   const profileId = document.getElementsByClassName("person")[0].innerText;
   const catSpans = categoryDiv.getElementsByTagName("span");
-  for (let i = 0; i < catSpans.length - 2 /* not for [top] */; i++) {
+  for (let i = 0; i < catSpans.length - 1 /* not for [top] */; i++) {
     const catName = catSpans[i].innerText;
     const delLink = document.createElement("a");
     delLink.innerText = "(-)";
-    delLink.title = "Remove category " + catName + " without further input";
+    delLink.title = "Remove category '" + catName + "' without further input";
 
     delLink.href = "/index.php?title=Special:EditPerson&w=" + profileId + "&remCat=" + catName;
     catSpans[i].append(" ");
@@ -125,7 +123,7 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
 
     const changeLink = document.createElement("a");
     changeLink.innerText = "(±)";
-    changeLink.title = "Change category " + catName + " into another one";
+    changeLink.title = " Replace '" + catName + '" with a different category';
     AddAddReplaceEventHandler(changeLink, catSpans[i], profileId, catName);
     catSpans[i].append(" ");
     catSpans[i].appendChild(changeLink);
@@ -139,14 +137,94 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
   catSpans[catSpans.length - 1].appendChild(addLink);
 }
 
+function showResultsOnKeyUp(catTextbox, catName) {
+  const resList = document.getElementById("result_" + catName).childNodes[0];
+  resList.parentNode.hidden = false;
+  EmptySuggestionList(resList);
+  const typedVal = catTextbox.value;
+  let catUrl =
+    "https://www.wikitree.com/index.php?action=ajax&rs=Title%3A%3AajaxCategorySearch&rsargs[]=" +
+    typedVal +
+    "&rsargs[]=0&appID=WBE_categoryManagement";
+  let xmlHttp = new XMLHttpRequest();
+  xmlHttp.onload = () => {
+    PopulateSuggestions(JSON.parse(xmlHttp.responseText), resList, catTextbox);
+  };
+  xmlHttp.open("GET", catUrl, true); // false for synchronous request
+  xmlHttp.send(null);
+}
+
+function PopulateSuggestions(terms, resList, catTextbox) {
+  // let terms = autocompleteMatch(catTextbox.value);
+
+  if(terms.length == 1 && terms[0] == catTextbox.value)
+  {
+    return;
+  }
+
+  for (let i = 0; i < terms.length; i++) {
+    const suggestionWithoutUnderscores = terms[i].replaceAll("_", " ");
+    let bFound = false;
+    for (let j = 0; i < resList.childNodes.length; j++) {
+      if (resList.childNodes[j].innerText == suggestionWithoutUnderscores) {
+        bFound = true;
+        break;
+      }
+    }
+
+    if (!bFound) {
+      const oneSuggestion = document.createElement("li");
+      oneSuggestion.innerText = suggestionWithoutUnderscores;
+      oneSuggestion.addEventListener("click", function () {
+        catTextbox.value = suggestionWithoutUnderscores;
+        resList.parentNode.hidden = true;
+        catTextbox.dispatchEvent(new Event('change'));
+      });
+      resList.appendChild(oneSuggestion);
+    }
+  }
+}
+
+function EmptySuggestionList(resList) {
+  if (resList.childNodes.length > 0) {
+    const indexLastItem = resList.childNodes.length - 1;
+    for (let i = indexLastItem; i > -1; i--) {
+      resList.childNodes[i].remove();
+    }
+  }
+}
+
 function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
-  changeLink.addEventListener("click", function () {
+  changeLink.addEventListener("click", () => {
     changeLink.innerText = "";
     const catTextbox = document.createElement("input");
     catTextbox.value = catName;
+    catTextbox.autocomplete = false;
+    const resultAutoTypeDiv = document.createElement("div");
+    resultAutoTypeDiv.id = "result_" + catName;
+    resultAutoTypeDiv.append(document.createElement("ul"));
+    resultAutoTypeDiv.hidden = true;
+    let timeoutTyping = null;
+  
+
+    catTextbox.addEventListener("keyup", (event) => {
+      clearTimeout(timeoutTyping);
+      timeoutTyping = setTimeout(function()
+      {
+        showResultsOnKeyUp(catTextbox, catName);
+      },800);
+    });
 
     catTextbox.addEventListener("change", function () {
-      CheckCategoryExists(catTextbox.value, enableOk);
+      const suggestionList = resultAutoTypeDiv.childNodes[0];
+      let isSuggestion = false;
+      for (let i = 0; i < suggestionList.childNodes.length; i++) {
+        if (suggestionList.childNodes[i].innerText == catTextbox.value) {
+          enableOk(catTextbox.value);
+          return;
+        }
+      }
+      CheckCategoryExists(catTextbox.value, enableOk, alert);
     });
 
     function enableOk(catNew) {
@@ -163,6 +241,8 @@ function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
       catSpan.appendChild(buttonOk);
     }
     catSpan.appendChild(catTextbox);
+    catSpan.appendChild(resultAutoTypeDiv);
+    catTextbox.focus();
   });
 }
 
@@ -179,7 +259,8 @@ function CreateRenameCatLink() {
   const linkRename = document.createElement("a");
   linkRename.href = "#1";
   linkRename.innerText = "rename";
-  linkRename.title = "Ask for new category name and open it for editing, empty the description of this category and add a template for EditBOT to move the content to the new one";
+  linkRename.title =
+    "Ask for new category name and open it for editing, empty the description of this category and add a template for EditBOT to move the content to the new one";
   linkRename.addEventListener("click", function () {
     const currentCategory = GetCurrentCategoryName();
     const newCategory = prompt("New name?", currentCategory);
@@ -250,7 +331,8 @@ function CreateDeleteCatLinkEditPage(disable) {
 function CreateRenameCatLinkEditPage(disable) {
   const linkDelete = document.createElement("a");
   linkDelete.innerText = "rename";
-  linkDelete.title = "Ask for new category name and open it for editing, empty the description of this category and add a template for EditBOT to move the content to the new one";
+  linkDelete.title =
+    "Ask for new category name and open it for editing, empty the description of this category and add a template for EditBOT to move the content to the new one";
   linkDelete.href = "#0";
   linkDelete.addEventListener("click", function () {
     const currentCategory = GetCurrentCategoryName();
@@ -302,7 +384,7 @@ function AddCatALotControls(elementToAppendTo) {
   inputCatTyped.title = "Enter the name of the category to which the checked profiles should be added or moved to";
   inputCatTyped.addEventListener("change", function () {
     // CheckCategoryExists(document.getElementById("inputCatTyped").value, AddVerifiedCatLink);
-    CheckCategoryExists(inputCatTyped.value, AddVerifiedCatLink);
+    CheckCategoryExists(inputCatTyped.value, AddVerifiedCatLink, true);
   });
 
   const inputCatVerified = document.createElement("div");
@@ -355,7 +437,8 @@ function AddCatALotControls(elementToAppendTo) {
   catALotButton.type = "button";
   catALotButton.value = "Cat a lot";
   catALotButton.id = "catALotButton";
-  catALotButton.title = "Open all checked profiles in new tabs and perform the add/move/remove operation without saving them";
+  catALotButton.title =
+    "Open all checked profiles in new tabs and perform the add/move/remove operation without saving them";
   catALotButton.disabled = true;
   catALotButton.addEventListener("click", OnCatALotClicked);
 
@@ -603,7 +686,8 @@ function ClearCatName(catTyped) {
   return catTyped;
 }
 
-function CheckCategoryExists(cat, callbackSuccess) {
+function CheckCategoryExists(cat, callbackSuccess, callbackFail) {
+  const showError = false;
   let catTyped = ClearCatName(cat);
   let catUrl = "https://www.wikitree.com/wiki/Category:" + encodeURI(catTyped) + "?appID=WBE_categoryManagement";
   let xmlHttp = new XMLHttpRequest();
@@ -611,10 +695,10 @@ function CheckCategoryExists(cat, callbackSuccess) {
   xmlHttp.send(null);
   if (xmlHttp.status < 400) {
     callbackSuccess(catTyped);
-  } else if (xmlHttp.status == 404) {
-    alert("Category doesn't exist");
-  } else {
-    alert("Error while checking category: " + xmlHttp.status);
+  } else if (showError && xmlHttp.status == 404) {
+    callbackFail();
+  } else if (showError) {
+    console.log("Error while checking category: " + xmlHttp.status);
   }
 }
 
@@ -775,9 +859,7 @@ function GetActualAkaCategoryUsedInProfile(wpTextbox1, cats) {
     if (bio.indexOf("Category:" + remCats[i]) > -1) {
       if (actualCat == "") {
         actualCat = remCats[i];
-
-      }else
-      {
+      } else {
         //remove additional aka category
         RemoveCat(wpTextbox1, remCats[i]);
       }
