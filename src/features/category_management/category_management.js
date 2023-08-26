@@ -37,7 +37,7 @@ shouldInitializeFeature("categoryManagement").then((result) => {
           AddCategoryExitLink(document.getElementsByTagName("h1")[0]);
         }
       });
-    } else if (isProfilePage) {
+    } else if (isProfilePage &&  IsProfileEditable()) {
       getFeatureOptions("categoryManagement").then((options) => {
         if (options.showCategoryLinksProfile) {
           AddCategoryChangeLinksOnProfile(GetOrCreateCategoriesDiv());
@@ -109,12 +109,6 @@ function AddCategoryExitLink(parent) {
 }
 
 function AddCategoryChangeLinksOnProfile(categoryDiv) {
-  const somethingBetween5And15 = 10;
-  const tabs = document.getElementsByClassName("profile-tabs")[0];
-  if (tabs.childNodes.length < somethingBetween5And15) {
-    //not editable
-    return;
-  }
 
   const profileId = document.getElementsByClassName("person")[0].innerText;
   const catSpans = categoryDiv.getElementsByTagName("span");
@@ -147,6 +141,17 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
   AddAddReplaceEventHandler(addLink, catSpans[catSpans.length - 1], profileId, "");
   catSpans[catSpans.length - 1].append(" ");
   catSpans[catSpans.length - 1].appendChild(addLink);
+}
+
+function IsProfileEditable() {
+  const tabs = document.getElementsByClassName("profile-tabs")[0];
+  const linksToTabs = tabs.getElementsByTagName("a");
+  for (let i = 0; i < linksToTabs.length; i++) {
+    if (linksToTabs[i].href.indexOf("EditPerson") > -1) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function showResultsOnKeyUp(catTextbox, resultDiv) {
