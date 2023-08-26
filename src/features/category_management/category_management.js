@@ -131,6 +131,7 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
 
   const addLink = document.createElement("a");
   addLink.innerText = "(+)";
+  addLink.accessKey = "k";
   addLink.title = "Add a category to this profile";
   AddAddReplaceEventHandler(addLink, catSpans[catSpans.length - 1], profileId, "");
   catSpans[catSpans.length - 1].append(" ");
@@ -394,6 +395,7 @@ function AddCatALotControls(elementToAppendTo) {
 
   const inputCatTyped = document.createElement("input");
   inputCatTyped.id = "inputCatTyped";
+  inputCatTyped.accessKey = "k";
   inputCatTyped.placeholder = "category add/move";
   inputCatTyped.title = "Enter the name of the category to which the checked profiles should be added or moved to";
   inputCatTyped.autocomplete = false;
