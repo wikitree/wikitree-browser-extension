@@ -120,6 +120,7 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
     const catName = catSpans[i].innerText;
     const delLink = document.createElement("a");
     delLink.innerText = "(-)";
+    delLink.style.textDecoration = "none";
     delLink.title = "Remove category '" + catName + "' without further input";
 
     delLink.href = "/index.php?title=Special:EditPerson&w=" + profileId + "&remCat=" + catName;
@@ -128,6 +129,8 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
 
     const changeLink = document.createElement("a");
     changeLink.innerText = "(±)";
+    // changeLink.innerText = "(🖉)";
+    changeLink.style.textDecoration = "none";
     changeLink.title = " Replace '" + catName + '" with a different category';
     AddAddReplaceEventHandler(changeLink, catSpans[i], profileId, catName);
     catSpans[i].append(" ");
@@ -136,6 +139,7 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
 
   const addLink = document.createElement("a");
   addLink.innerText = "(+)";
+  addLink.style.textDecoration = "none";
   addLink.accessKey = "k";
   addLink.title = "Add a category to this profile";
   AddAddReplaceEventHandler(addLink, catSpans[catSpans.length - 1], profileId, "");
@@ -156,7 +160,6 @@ function IsProfileEditable() {
 
 function showResultsOnKeyUp(catTextbox, resultDiv) {
   const resList = resultDiv.childNodes[0];
-  resList.parentNode.hidden = false;
   EmptySuggestionList(resList);
   const typedVal = catTextbox.value;
   let catUrl =
@@ -173,9 +176,11 @@ function showResultsOnKeyUp(catTextbox, resultDiv) {
 
 function PopulateSuggestions(terms, resList, catTextbox) {
   if (terms.length == 1 && terms[0] == catTextbox.value) {
+    resList.parentNode.hidden = true;
     return;
   }
 
+  resList.parentNode.hidden = false;
   for (let i = 0; i < terms.length; i++) {
     const suggestionWithoutUnderscores = terms[i].replaceAll("_", " ");
     let bFound = false;
@@ -249,6 +254,8 @@ function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
         window.location = url;
       });
       catSpan.appendChild(buttonOk);
+      catTextbox.value = catNew;
+      buttonOk.focus();
     }
     catSpan.appendChild(catTextbox);
     catSpan.appendChild(resultAutoTypeDiv);
@@ -405,6 +412,8 @@ function AddCatALotControls(elementToAppendTo) {
   if (document.getElementById("catALotButton") != null) {
     return;
   }
+
+  alert("batschka hack!");
   document.getElementById("activate_link").hidden = true;
   document.getElementById("activate_link").previousSibling.textContent = "";
   document.getElementById("activate_link").nextSibling.textContent = "";
@@ -640,7 +649,7 @@ function GetThisCategoryNameAndAllAkas() {
       }
     }
   }
-  return currentCategory;
+  return currentCategory+"|Batschka";
 }
 
 function GetCurrentCategoryName() {
