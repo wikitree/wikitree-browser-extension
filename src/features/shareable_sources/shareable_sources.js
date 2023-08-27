@@ -108,6 +108,11 @@ function getSources(person, active = 0) {
 
   let activeSources = active;
 
+  if (!person.bio) {
+    console.warn("Bio is missing for this person.");
+    return; // Exit the function if 'bio' is missing
+  }
+
   // Use basicSourcesArray function to get sources
   let refArr = basicSourcesArray(person.bio);
 
