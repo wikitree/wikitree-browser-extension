@@ -118,6 +118,8 @@ async function doFamilyDropdown() {
 
   if (!result[0]) return;
 
+  window.profilePersonNuclear = result[0];
+
   const profilePersonNuclear = result[0];
 
   const familyMemberGroups = {
