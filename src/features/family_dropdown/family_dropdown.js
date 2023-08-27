@@ -74,6 +74,30 @@ async function initFamilyDropdown() {
   }
 }
 
+function sortPeopleByBirthDate(people) {
+  return people.sort((a, b) => {
+    const aBirthYear = a.BirthDate
+      ? parseInt(a.BirthDate.split("-")[0], 10)
+      : a.BirthDateDecade
+      ? parseInt(a.BirthDateDecade.slice(0, 4), 10)
+      : 0; // Default value
+    const bBirthYear = b.BirthDate
+      ? parseInt(b.BirthDate.split("-")[0], 10)
+      : b.BirthDateDecade
+      ? parseInt(b.BirthDateDecade.slice(0, 4), 10)
+      : 0; // Default value
+    return aBirthYear - bBirthYear;
+  });
+}
+
+function sortSpousesByMarriageDate(spouses) {
+  return spouses.sort((a, b) => {
+    const aDate = new Date(a.marriage_date);
+    const bDate = new Date(b.marriage_date);
+    return aDate - bDate;
+  });
+}
+
 /**
  * Fetch relatives data and populate dropdown options.
  */
@@ -92,109 +116,81 @@ async function doFamilyDropdown() {
     { appId: "WBE_family_dropdown" }
   );
 
-  if (result[0]) {
-    window.profilePersonNuclear = result[0];
-  } else {
-    return;
+  if (!result[0]) return;
+
+  const profilePersonNuclear = result[0];
+
+  const familyMemberGroups = {
+    father: null,
+    mother: null,
+    siblings: [],
+    spouses: [],
+    children: [],
+  };
+
+  // Populate the arrays or variables
+  if (typeof profilePersonNuclear["Parents"] === "object") {
+    Object.values(profilePersonNuclear["Parents"]).forEach((person) => {
+      if (person.Gender === "Male") familyMemberGroups.father = person;
+      else if (person.Gender === "Female") familyMemberGroups.mother = person;
+    });
   }
 
-  console.log(window.profilePersonNuclear);
+  if (typeof profilePersonNuclear["Siblings"] === "object") {
+    familyMemberGroups.siblings = Object.values(profilePersonNuclear["Siblings"]);
+  }
 
-  // Relatives to include
-  const relatives = ["Parents", "Spouses", "Siblings", "Children"];
+  if (typeof profilePersonNuclear["Spouses"] === "object") {
+    familyMemberGroups.spouses = Object.values(profilePersonNuclear["Spouses"]);
+  }
 
-  // Loop through each relative type
-  relatives.forEach(function (relative) {
-    if (typeof window.profilePersonNuclear[relative] === "object") {
-      const theseKeys = Object.keys(window.profilePersonNuclear[relative]);
+  if (typeof profilePersonNuclear["Children"] === "object") {
+    familyMemberGroups.children = Object.values(profilePersonNuclear["Children"]);
+  }
 
-      // Loop through each relative
-      theseKeys.forEach(function (key) {
-        const person = window.profilePersonNuclear[relative][key];
+  // Sorting logic using your specialized function
+  familyMemberGroups.siblings = sortPeopleByBirthDate(familyMemberGroups.siblings);
+  familyMemberGroups.children = sortPeopleByBirthDate(familyMemberGroups.children);
 
-        // Determine relationship text
-        let relSymbol = "";
-        let relFull = "";
+  // Sorting spouses by marriage_date
+  familyMemberGroups.spouses = sortSpousesByMarriageDate(familyMemberGroups.spouses);
 
-        // Parents
-        if (relative === "Parents") {
-          if (person.Gender === "Male") {
-            relSymbol = "[F]";
-            relFull = "Father";
-          }
-          if (person.Gender === "Female") {
-            relSymbol = "[M]";
-            relFull = "Mother";
-          }
-          if (person.DataStatus.Gender === "blank" || person.Gender === "") {
-            relSymbol = "[P]";
-            relFull = "Parent";
-          }
-        }
+  // Combine all the relatives into one array, placing father and mother at the beginning
+  const allRelatives = [familyMemberGroups.father, familyMemberGroups.mother]
+    .filter(Boolean)
+    .concat(familyMemberGroups.siblings, familyMemberGroups.spouses, familyMemberGroups.children);
 
-        // Spouses
-        if (relative === "Spouses") {
-          if (person.Gender === "Male") {
-            relSymbol = "[H]";
-            relFull = "Husband";
-          }
-          if (person.Gender === "Female") {
-            relSymbol = "[W]";
-            relFull = "Wife";
-          }
-          if (person.DataStatus.Gender === "blank" || person.Gender === "") {
-            relSymbol = "[Sp]";
-            relFull = "Spouse";
-          }
-        }
+  // Append to dropdown
+  allRelatives.forEach((person) => {
+    let relSymbol = "";
+    let relFull = "";
 
-        // Siblings
-        if (relative === "Siblings") {
-          if (person.Gender === "Male") {
-            relSymbol = "[Bro]";
-            relFull = "Brother";
-          }
-          if (person.Gender === "Female") {
-            relSymbol = "[Sis]";
-            relFull = "Sister";
-          }
-          if (person.DataStatus.Gender === "blank" || person.Gender === "") {
-            relSymbol = "[Sib]";
-            relFull = "Sibling";
-          }
-        }
-
-        // Children
-        if (relative === "Children") {
-          if (person.Gender === "Male") {
-            relSymbol = "[Son]";
-            relFull = "Son";
-          }
-          if (person.Gender === "Female") {
-            relSymbol = "[Dau]";
-            relFull = "Daughter";
-          }
-          if (person.Gender === "" || person.DataStatus.Gender === "blank") {
-            relSymbol = "[Ch]";
-            relFull = "Child";
-          }
-        }
-
-        // Get display name
-        let dName = displayName(person)[0];
-
-        // Get display dates
-        let oDisplayDates = " " + displayDates(person);
-        if (!window.familyDropdownOptions.includeDates) {
-          oDisplayDates = "";
-        }
-
-        // Add dropdown option
-        $("#familyDropdown").append(
-          `<option data-id="${person.Id}" title="${dName} was ${window.profilePersonNuclear.FirstName}'s ${relFull}" class="${person.Gender}" value="[[${person.Name}|${dName}${oDisplayDates}]]">${relSymbol} ${dName}</option>`
-        );
-      });
+    if (person === familyMemberGroups.father) {
+      relSymbol = "[F]";
+      relFull = "Father";
+    } else if (person === familyMemberGroups.mother) {
+      relSymbol = "[M]";
+      relFull = "Mother";
+    } else if (familyMemberGroups.siblings.includes(person)) {
+      relSymbol = person.Gender === "Male" ? "[Bro]" : "[Sis]";
+      relFull = person.Gender === "Male" ? "Brother" : "Sister";
+    } else if (familyMemberGroups.spouses.includes(person)) {
+      relSymbol = person.Gender === "Male" ? "[H]" : "[W]";
+      relFull = person.Gender === "Male" ? "Husband" : "Wife";
+    } else if (familyMemberGroups.children.includes(person)) {
+      relSymbol = person.Gender === "Male" ? "[Son]" : "[Dau]";
+      relFull = person.Gender === "Male" ? "Son" : "Daughter";
     }
+
+    let dName = displayName(person)[0];
+    let oDisplayDates = " " + displayDates(person);
+    if (!window.familyDropdownOptions.includeDates) {
+      oDisplayDates = "";
+    }
+
+    $("#familyDropdown").append(
+      `<option data-id="${person.Id}" title="${dName} was ${profilePersonNuclear.FirstName}'s ${relFull}" class="${person.Gender}" value="[[${person.Name}|${dName}${oDisplayDates}]]">${relSymbol} ${dName}</option>`
+    );
   });
 
   // Add other option if enabled
@@ -202,6 +198,7 @@ async function doFamilyDropdown() {
     $("#familyDropdown").append($("<option value='other'>Other</option>"));
   }
 
+  // Add 'Me' option if enabled
   if (window.familyDropdownOptions.addMeLink) {
     const userId = Cookies.get("wikitree_wtb_UserID");
     const user = await getPerson(userId, { fields: ["Name", "FirstName", "LastNameCurrent"] });
@@ -219,6 +216,7 @@ async function doFamilyDropdown() {
       );
     }
   }
+
   // Copy on change handler
   $("#familyDropdown").on("change", function () {
     copyfamilyDropdown();
