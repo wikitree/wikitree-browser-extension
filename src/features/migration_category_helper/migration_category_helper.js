@@ -48,7 +48,25 @@ function CreateMigrationCategory(tb) {
   }
 
   const entities = {
-    "Holy Roman Empire": [],
+    "Colonial America": [
+      "Colony of Rhode Island and Providence Plantations",
+      "Colony of Virginia",
+      "Connecticut Colony",
+      "Delaware Colony",
+      "Massachusetts Bay Colony",
+      "New Netherland",
+      "Plymouth Colony",
+      "Province of Carolina",
+      "Province of Georgia",
+      "Province of Maryland",
+      "Province of New Hampshire",
+      "Province of New Jersey",
+      "Province of New York",
+      "Province of North Carolina",
+      "Province of Pennsylvania",
+      "Province of South Carolina",
+      "Virginia Colony",
+    ],
 
     Australia: ["Western Australia", "South Australia", "Queensland", "New South Wales", "Victoria", "Tasmania"],
 
@@ -150,7 +168,7 @@ function CreateMigrationCategory(tb) {
       "Duchy of Anhalt",
       "Principality of Lippe-Detmold",
     ],
-    "German Confederation/Empire (delete one)": [
+    "German Confederation/German Empire (delete one)": [
       "Prussia",
       "Kingdom of Bavaria",
       "Kingdom of Saxony",
@@ -197,6 +215,8 @@ function CreateMigrationCategory(tb) {
       "Thuringia",
     ],
 
+    "Holy Roman Empire": ["Margraviate of Baden" /* far from complete!*/],
+    
     Ireland: [
       "County Dublin",
       "County Wicklow",
@@ -235,6 +255,42 @@ function CreateMigrationCategory(tb) {
       "County Armagh",
     ],
 
+    Scotland: [
+      "Caithness",
+      "Sutherland",
+      "Ross and Cromarty",
+      "Inverness-shire",
+      "Nairnshire",
+      "Morayshire",
+      "Banffshire",
+      "Aberdeenshire",
+      "Kincardineshire",
+      "Angus",
+      "Perthshire",
+      "Argyll",
+      "Bute",
+      "Ayrshire",
+      "Renfrewshire",
+      "Dunbartonshire",
+      "Stirlingshire",
+      "Clackmannanshire",
+      "Kinross-shire",
+      "Fife",
+      "East Lothian",
+      "Midlothian",
+      "West Lothian",
+      "Lanarkshire",
+      "Peeblesshire",
+      "Selkirkshire",
+      "Berwickshire",
+      "Roxburghshire",
+      "Dumfriesshire",
+      "Kirkcudbrightshire",
+      "Wigtownshire",
+      "Orkney",
+      "Shetland",
+    ],
+
     "the Netherlands": [
       "Drenthe",
       "Flevoland",
@@ -255,7 +311,7 @@ function CreateMigrationCategory(tb) {
       "Alaska",
       "Arizona",
       "Arkansas",
-      "Kalifornien",
+      "California",
       "Colorado",
       "Connecticut",
       "Delaware",
