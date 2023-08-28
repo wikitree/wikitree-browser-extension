@@ -116,6 +116,8 @@ export let isSearchPage = false;
 export let isConnectionFinder = false;
 // Ian's Profile
 export let isIansProfile = false;
+// Upload Photo (index.php?title=Special:UploadPhoto)
+export let isUploadPhoto = false;
 
 const domain = decodeURI(window.location.hostname); // path
 if (domain.match("apps.wikitree.com")) {
@@ -155,6 +157,8 @@ if (domain.match("apps.wikitree.com")) {
     } else {
       isProfileHistory = true;
     }
+  } else if (uri.match(/index.php\?title=Special:UploadPhoto/)) {
+    isUploadPhoto = true;
   } else if (
     // Profile History Detail Page https://www.wikitree.com/index.php?title=Morgan-14024&diff=53223025&oldid=53223019
     // or https://www.wikitree.com/index.php?title=Morgan-14024&diff=next&oldid=53223019
@@ -200,7 +204,7 @@ if (domain.match("apps.wikitree.com")) {
     isSpaceHistory = true;
   } else if (uri.match(/index.php\?action=newspace/)) {
     // New space page
-    isNewSpace = true;
+    isNewSpace = true; 
   } else if (
     // Category Edit Page
     uri.match(/\/index.php\?title=Category:.*&action=edit.*/g) ||

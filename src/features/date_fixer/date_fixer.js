@@ -222,7 +222,7 @@ function fixDates() {
     return input;
   }
 
-  $("#mBirthDate,#mDeathDate,#mMarriageDate").on("change", function () {
+  $("#mBirthDate,#mDeathDate,#mMarriageDate,#photo_date,#mStartDate,#mEndDate").on("change", function () {
     const input = $(this).val().trim();
     const fixedDate = parseDate(input);
     $(this).val(fixedDate);
