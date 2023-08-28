@@ -967,16 +967,16 @@ function addReferences(event, spouse = false) {
       if (isReferenceRelevant(reference, event, spouse)) {
         refCount++;
         if (reference.Used || window.refNames.includes(reference.RefName)) {
-          text += "<ref name='" + reference.RefName + "' /> ";
+          text += `<ref name="${reference.RefName}" /> `;
         } else {
           if (!reference.RefName) {
             reference.RefName = event + "_" + refCount;
           }
           reference.Used = true;
           text +=
-            "<ref name='" +
+            '<ref name="' +
             reference.RefName +
-            "'>" +
+            '">' +
             reference.Text +
             (reference.List ? "\n" + reference.List : "") +
             "</ref> ";
@@ -1481,7 +1481,7 @@ export function buildSpouses(person) {
           marriages.push({
             Spouse: { FullName: thisSpouse, marriage_date: marriageDate },
             SpouseChildren: "",
-            Narrative: text + "<ref name='ref_" + i + "'>" + reference.Text + "</ref>",
+            Narrative: `${text}<ref name="ref_${i}">${reference.Text}</ref>`,
             OrderDate: formatDate(marriageDate, 0, { format: 8 }),
             "Marriage Date": reference["Marriage Date"],
             "Event Type": "Marriage, " + thisSpouse,
@@ -6845,11 +6845,13 @@ export async function generateBio() {
       let used = false;
       let thisEvent = event["Event Type"] + " " + event.Year;
       let newRefName = event.RefName;
+
       if (previousEventObject && previousEventObject["Event Type"] + " " + previousEventObject.Year != thisEvent) {
         allEvents.push(previousEventObject);
         previousEventObject = event;
       } else {
         const thisNumber = previousEventObject?.Texts?.length ? parseInt(previousEventObject?.Texts?.length + 1) : 1;
+
         if (thisNumber != 1) {
           newRefName =
             event.RefName +
@@ -6928,21 +6930,21 @@ export async function generateBio() {
             let refsText = ""; // separate string for references
             if (anEvent.Texts) {
               anEvent.Texts.forEach((text, textIndex) => {
-                refNameBit = text.RefName ? " name='" + text.RefName + "'" : " name='ref_" + textIndex + "'";
+                refNameBit = text.RefName ? ` name="${text.RefName}"` : ` name="ref_${textIndex}"`;
                 if (text.Used == true) {
                   refsText += " <ref" + refNameBit + " />";
                 } else {
                   refsText += " <ref" + refNameBit + ">" + text.Text + "</ref>";
                   text.Used = true;
                   marriagesAndCensusesEtc.forEach(function (event) {
-                    if (event.RefName == text.RefName) {
+                    if (event.RefName && event.RefName == text.RefName) {
                       event.Used = true;
                     }
                   });
                 }
               });
             } else if (anEvent.Text) {
-              let refNameBit = anEvent.RefName ? " name='" + anEvent.RefName + "'" : " name='ref_" + i + "'";
+              let refNameBit = anEvent.RefName ? ` name="${anEvent.RefName}"` : ` name="ref_${i}"`;
               if (anEvent.Used == true) {
                 refsText += " <ref" + refNameBit + " />";
               } else {
@@ -6980,9 +6982,9 @@ export async function generateBio() {
                 aRef.Text.match(window.profilePerson.FirstName)
               ) {
                 if (aRef.RefName) {
-                  thisRef = "<ref name='FamilySearchProfile' />";
+                  thisRef = `<ref name="FamilySearchProfile" />`;
                 } else {
-                  thisRef = " <ref name='FamilySearchProfile'>" + aRef.Text + "</ref>";
+                  thisRef = ` <ref name="FamilySearchProfile">${aRef.Text}</ref>`;
                   aRef.RefName = "FamilySearchProfile";
                   aRef.Used = true;
                 }
@@ -6992,9 +6994,9 @@ export async function generateBio() {
                 anEvent.War == aRef.War
               ) {
                 if (aRef.RefName && window.refNames?.includes(aRef.RefName)) {
-                  thisRef = "<ref name='" + aRef.RefName + "' />";
+                  thisRef = `<ref name="${aRef.RefName}" />`;
                 } else {
-                  thisRef = " <ref name='military_" + i + "'>" + aRef.Text + "</ref>";
+                  thisRef = ` <ref name="military_${i}">${aRef.Text}</ref>`;
                   aRef.RefName = "military_" + i;
                   aRef.Used = true;
                   window.refNames.push(aRef.RefName);
@@ -7017,9 +7019,9 @@ export async function generateBio() {
                 }
                 if (aRef.Text.match(thisSpouse)) {
                   if (aRef.RefName && window.refNames?.includes(aRef.RefName)) {
-                    thisRef = "<ref name='" + aRef.RefName + "' />";
+                    thisRef = `<ref name="${aRef.RefName}" />`;
                   } else {
-                    thisRef = " <ref name='divorce_" + i + "'>" + aRef.Text + "</ref>";
+                    thisRef = ` <ref name="divorce_${i}">${aRef.Text}</ref>`;
                     aRef.RefName = "divorce_" + i;
                     aRef.Used = true;
                     window.refNames.push(aRef.RefName);
@@ -7031,9 +7033,9 @@ export async function generateBio() {
                 anEvent.Year == aRef.Year
               ) {
                 if (aRef.RefName && window.refNames?.includes(aRef.RefName)) {
-                  thisRef = "<ref name='" + aRef.RefName + "' />";
+                  thisRef = `<ref name="${aRef.RefName}" />`;
                 } else {
-                  thisRef = " <ref name='prison_" + i + "'>" + aRef.Text + "</ref>";
+                  thisRef = ` <ref name="prison_${i}">${aRef.Text}</ref>`;
                   aRef.RefName = "prison_" + i;
                   aRef.Used = true;
                   window.refNames.push(aRef.RefName);
@@ -7462,7 +7464,7 @@ function addSubsection(title) {
       .each(function (i) {
         subsectionText = subsectionText.replace(
           "<ref>" + $(this).text() + "</ref>",
-          '<ref name="' + title + "_" + (i + 1) + '">' + $(this).text() + "</ref>"
+          `<ref name="${title}_${i + 1}">${$(this).text()}</ref>`
         );
         let html = $(this).html(); // save the html value
         window.references.forEach((ref) => {
