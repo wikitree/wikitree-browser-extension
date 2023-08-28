@@ -3,7 +3,14 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import { registerFeature, OptionType } from "../../core/options/options_registry";
-import { isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType";
+import {
+  isProfileEdit,
+  isProfileAddRelative,
+  isAddUnrelatedPerson,
+  isUploadPhoto,
+  isNewSpace,
+  isSpaceEdit,
+} from "../../core/pageType";
 
 registerFeature({
   name: "Date Fixer",
@@ -16,7 +23,7 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
-  pages: [isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson],
+  pages: [isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson, isUploadPhoto, isNewSpace, isSpaceEdit],
   options: [
     {
       id: "convertDD-MM-YYYY",
