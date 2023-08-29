@@ -1,4 +1,3 @@
-import { valHooks } from "jquery";
 import { getFeatureOptions, shouldInitializeFeature } from "../../core/options/options_storage";
 import {
   isCategoryEdit,
