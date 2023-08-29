@@ -1097,7 +1097,7 @@ export function assignCemeteryFromSources() {
   });
 }
 
-function buildDeath(person) {
+export function buildDeath(person) {
   if (!isOK(person?.DeathDate) && !isOK(person.DeathDecade) && !isOK(person.DeathLocation)) {
     return false;
   }
