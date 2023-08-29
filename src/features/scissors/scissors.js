@@ -91,18 +91,15 @@ async function helpScissors() {
   // Profiles change details page
   if (isProfileHistoryDetail) {
     const historyItem = $("span.HISTORY-ITEM");
-    let change = "Added";
     const theAct = historyItem.find("a:contains(created),a:contains(imported the data)");
-    if (theAct.length) {
-      change = `Creation of WikiTree profile ${theAct[0].title}`;
-    }
+    const createDetail = theAct.length ? ` at creation of WikiTree profile ${theAct[0].title}` : "";
     const changesMadeBy = $("td:contains(Changes made by)");
     const theDate = changesMadeBy.text().match(/[0-9]+ [A-Z][a-z]+ [0-9]{4}/);
-    let adderA = changesMadeBy.find("a").eq(0);
-    let adderID = adderA.attr("href").split("wiki/")[1];
-    let adderName = adderA.text();
+    const adderA = changesMadeBy.find("a").eq(0);
+    const adderID = adderA.attr("href").split("wiki/")[1];
+    const adderName = adderA.text();
     const url = decodeURIComponent(window.location.href);
-    let reference = "[" + url + " " + change + "] by [[" + adderID + "|" + adderName + "]]";
+    let reference = `[${url} Added]${createDetail} by [[${adderID}|${adderName}]]`;
     if (theDate) {
       reference += " on " + theDate + ".";
     } else {
