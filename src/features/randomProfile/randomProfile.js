@@ -14,6 +14,11 @@ shouldInitializeFeature("randomProfile").then((result) => {
   if (result) {
     import("./randomProfile.css");
     addRandomToFindMenu();
+    const u = new URLSearchParams(window.location.search);
+    const authcode = u?.get("authcode");
+    if (typeof authcode != "undefined" && authcode != null && authcode != "") {
+      doLogin();
+    }
   }
 });
 
@@ -243,18 +248,24 @@ function goAndLogIn() {
   $form.trigger("submit");
 }
 
-async function getRandomWatchlistProfile() {
+async function doLogin() {
   const login = await checkLogin();
-  console.log(login);
   const u = new URLSearchParams(window.location.search);
   const authcode = u?.get("authcode");
   if (typeof authcode != "undefined" && authcode != null && authcode != "") {
     const postData = { action: "clientLogin", authcode: authcode };
     await postToAPI(postData);
+    getRandomWatchlistProfile(true);
   } else if (login?.clientLogin?.result) {
     if (login.clientLogin.result == "error") {
       goAndLogIn();
     }
+  }
+}
+
+async function getRandomWatchlistProfile(skipLogin = false) {
+  if (!skipLogin) {
+    await doLogin();
   }
   let watchlistCount = 1;
   if (localStorage.watchlistCount && !isNaN(localStorage.watchlistCount)) {
@@ -262,12 +273,8 @@ async function getRandomWatchlistProfile() {
   }
   // Get random number from 0 to watchlistCount
   const random = Math.floor(Math.random() * (watchlistCount - 1));
-  console.log(watchlistCount);
-  console.log(random);
   const postData = { action: "getWatchlist", fields: "Id,Name", limit: 1, getSpace: "0", offset: random };
   const randomWatchlistResult = await postToAPI(postData);
-  console.log(randomWatchlistResult);
-  console.log(randomWatchlistResult?.[0]?.watchlistCount);
   localStorage.setItem("watchlistCount", randomWatchlistResult?.[0]?.watchlistCount);
   if (randomWatchlistResult?.[0]?.watchlist?.[0]?.Id) {
     window.location.href = "https://www.wikitree.com/wiki/" + randomWatchlistResult[0].watchlist[0].Id;
