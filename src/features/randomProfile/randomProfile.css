@@ -1,4 +1,4 @@
-#locationInputLabel {
+#randomProfilePopup {
   position: absolute;
   box-shadow: 0.2em 0.2em 0.2em 0.2em darkgreen;
   padding: 1em;
@@ -27,20 +27,20 @@
   box-shadow: 0.1em 0.1em 0.1em 0.1em darkgreen;
 }
 #searchedRandomProfiles x,
-#locationInputLabel x {
+#randomProfilePopup x {
   position: absolute;
   top: 3px;
   right: 5px;
   cursor: pointer;
 }
 
-#locationInputLabel q {
+#randomProfilePopup q {
   position: absolute;
   bottom: 3px;
   right: 5px;
   cursor: pointer;
 }
-#locationInputLabel div.help {
+#randomProfilePopup div.help {
   margin: 0.5em;
   display: none;
   border: 1px solid gray;
@@ -54,5 +54,13 @@
   background: #25422d;
   color: white;
   display: inline-block;
+  line-height: normal;
+}
+#randomProfileFromWatchlistButton {
+  margin: 1em 0.5em;
+  font-size: 0.9em;
+  background: #25422d;
+  color: white;
+  display: block;
   line-height: normal;
 }

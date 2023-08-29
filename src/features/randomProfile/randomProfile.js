@@ -3,6 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
+import Cookies from "js-cookie";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getPerson } from "wikitree-js";
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
@@ -110,8 +111,14 @@ export async function getRandomProfile(ourCountry = false) {
 
 export function addRandomProfileLocationBox(e) {
   const locationInput = $(
-    "<label id='locationInputLabel'>Random Profile Location: <input type='textbox' id='randomProfileLocation'><button id='randomProfileLocationButton' class='small'>Go</button><x>x</x><q>?</q><div class='help'>Use double quotation marks around a place with spaces.</div></label>"
+    `<form id="randomProfilePopup"><label id='locationInputLabel'>Random Profile Location: <input type='textbox' id='randomProfileLocation'>
+    <button id='randomProfileLocationButton' class='small'>Go</button></label>
+    <button id='randomProfileFromWatchlistButton' class='small'>Random Profile From Watchlist</button>
+    <x>x</x><q>?</q>
+    <div class='help'>Use double quotation marks around a place with spaces.</div>
+    </form>`
   );
+
   // Add the input field to the page near the pointer.
   locationInput.appendTo("body").css({
     position: "absolute",
@@ -119,14 +126,19 @@ export function addRandomProfileLocationBox(e) {
     top: e.pageY + "px",
   });
   locationInput.draggable();
-  $("#locationInputLabel x").on("click", function () {
-    $("#locationInputLabel").fadeOut();
+  $("#randomProfileFromWatchlistButton").on("click", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    getRandomWatchlistProfile();
+  });
+  $("#randomProfilePopup x").on("click", function () {
+    $("#randomProfilePopup").fadeOut();
     setTimeout(function () {
-      $("#locationInputLabel").remove();
+      $("#randomProfilePopup").remove();
     }, 2000);
   });
-  $("#locationInputLabel q").on("click", function () {
-    $("#locationInputLabel div.help").slideToggle();
+  $("#randomProfilePopup q").on("click", function () {
+    $("#randomProfilePopup div.help").slideToggle();
   });
   // Store the chosen location to use in future.
   if (localStorage.randomProfileLocation) {
@@ -151,7 +163,8 @@ export function addRandomProfileLocationBox(e) {
     }
   });
 
-  $("#randomProfileLocationButton").on("click", function () {
+  $("#randomProfileLocationButton").on("click", function (e) {
+    e.preventDefault();
     submitThisThing();
   });
 }
@@ -177,4 +190,86 @@ export async function addRandomToFindMenu() {
     e.preventDefault();
     addRandomProfileLocationBox(e);
   });
+}
+
+async function postToAPI(postData) {
+  var ajax = $.ajax({
+    url: "https://api.wikitree.com/api.php",
+    xhrFields: { withCredentials: true },
+    type: "POST",
+    dataType: "json",
+    data: postData,
+  });
+
+  return ajax;
+}
+
+async function checkLogin() {
+  const userID = Cookies.get("wikitree_wtb_UserID");
+  const postData = { action: "clientLogin", checkLogin: userID };
+  const checkLoginResult = await postToAPI(postData);
+  return checkLoginResult;
+}
+
+function goAndLogIn() {
+  // Create the form and its elements
+  const $form = $("<form>", {
+    action: "https://api.wikitree.com/api.php",
+    method: "POST",
+  });
+
+  const $inputAction = $("<input>", {
+    type: "hidden",
+    name: "action",
+    value: "clientLogin",
+  });
+
+  const $inputReturnURL = $("<input>", {
+    type: "hidden",
+    name: "returnURL",
+    value: window.location.href,
+  });
+
+  const $submitButton = $("<input>", {
+    type: "submit",
+    class: "button small",
+    value: "Client Login",
+  });
+
+  // Append elements to form and form to body
+  $form.append($inputAction, $inputReturnURL, $submitButton).appendTo("body");
+
+  // Automatically submit the form
+  $form.trigger("submit");
+}
+
+async function getRandomWatchlistProfile() {
+  const login = await checkLogin();
+  console.log(login);
+  const u = new URLSearchParams(window.location.search);
+  const authcode = u?.get("authcode");
+  if (typeof authcode != "undefined" && authcode != null && authcode != "") {
+    const postData = { action: "clientLogin", authcode: authcode };
+    await postToAPI(postData);
+  } else if (login?.clientLogin?.result) {
+    if (login.clientLogin.result == "error") {
+      goAndLogIn();
+    }
+  }
+  let watchlistCount = 1;
+  if (localStorage.watchlistCount && !isNaN(localStorage.watchlistCount)) {
+    watchlistCount = parseInt(localStorage.watchlistCount);
+  }
+  // Get random number from 0 to watchlistCount
+  const random = Math.floor(Math.random() * (watchlistCount - 1));
+  console.log(watchlistCount);
+  console.log(random);
+  const postData = { action: "getWatchlist", fields: "Id,Name", limit: 1, getSpace: "0", offset: random };
+  const randomWatchlistResult = await postToAPI(postData);
+  console.log(randomWatchlistResult);
+  console.log(randomWatchlistResult?.[0]?.watchlistCount);
+  localStorage.setItem("watchlistCount", randomWatchlistResult?.[0]?.watchlistCount);
+  if (randomWatchlistResult?.[0]?.watchlist?.[0]?.Id) {
+    window.location.href = "https://www.wikitree.com/wiki/" + randomWatchlistResult[0].watchlist[0].Id;
+  }
 }

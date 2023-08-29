@@ -367,37 +367,3 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
     });
   }
 });
-
-async function postToAPI(postData) {
-  var ajax = $.ajax({
-    // The WikiTree API endpoint
-    url: "https://api.wikitree.com/api.php",
-
-    // We tell the browser to send any cookie credentials we might have (in case we authenticated).
-    xhrFields: { withCredentials: true },
-
-    // Doesn't help. Not required from (dev|apps).wikitree.com and api.wikitree.com disallows cross-origin:*
-    //'crossDomain': true,
-
-    // We're POSTing the data so we don't worry about URL size limits and want JSON back.
-    type: "POST",
-    dataType: "json",
-    data: postData,
-  });
-
-  return ajax;
-}
-
-async function getRandomWatchlistProfile() {
-  let watchlistCount = 1;
-  if (localStorage.watchlistCount) {
-    watchlistCount = parseInt(localStorage.watchlistCount);
-  }
-  // Get random number from 0 to watchlistCount
-  const random = Math.floor(Math.random() * watchlistCount);
-  const postData = { action: "getWatchlist", fields: "Id,Name", limit: 1, offset: random };
-  const randomWatchlistResult = await postToAPI(postData);
-  console.log(randomWatchlistResult);
-}
-
-getRandomWatchlistProfile();
