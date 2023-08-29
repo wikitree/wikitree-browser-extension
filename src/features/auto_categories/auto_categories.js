@@ -19,6 +19,7 @@ import {
   getPronouns,
   addOccupationCategories,
   buildFamilyForPrivateProfiles,
+  buildDeath,
 } from "../auto_bio/auto_bio";
 
 function addDiedYoung() {

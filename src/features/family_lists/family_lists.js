@@ -12,10 +12,15 @@ import {
   setOrderBirthDate,
   convertDate,
   buildBirth,
+  buildDeath,
   buildSpouses,
   siblingList,
   getNameVariants,
   getPronouns,
+  sourcesArray,
+  splitBioIntoSections,
+  addWorking,
+  removeWorking,
 } from "../auto_bio/auto_bio";
 import { isOK, familyArray } from "../../core/common";
 
@@ -142,10 +147,23 @@ async function getList(functionName) {
   let result;
   let message;
   let spouses;
+  if (functionName == "death" && !window.references) {
+    addWorking();
+    window.sectionsObject = splitBioIntoSections();
+    if (window.sectionsObject.Sources) {
+      window.sourcesSection = window.sectionsObject.Sources;
+    }
+    sourcesArray($("#wpTextbox1").val());
+  }
   switch (functionName) {
     case "birthAndParents":
       result = buildBirth(window.profilePerson) + "\n";
       message = "Birth and Parent Details";
+      break;
+    case "death":
+      result = buildDeath(window.profilePerson) + "\n";
+      message = "Death Details";
+      removeWorking();
       break;
     case "spouseChildList":
       spouses = buildSpouses(window.profilePerson);

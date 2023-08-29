@@ -139,6 +139,13 @@ export default [
       },
       {
         featureid: "familyLists",
+        hint: "Generate a narrative for death details",
+        title: "Death Details",
+        call: getFamilyList,
+        params: { functionName: "death" },
+      },
+      {
+        featureid: "familyLists",
         hint: "Generate a list of siblings",
         title: "Sibling List",
         call: getFamilyList,
