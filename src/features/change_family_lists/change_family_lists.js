@@ -130,7 +130,7 @@ async function addAddLinksToHeadings() {
   }
 
   if (window.people) {
-    if (!window.people[0] && window.people[0].Father) {
+    if (!window.people?.[0]?.Father) {
       whichParent = "mother";
     }
 
