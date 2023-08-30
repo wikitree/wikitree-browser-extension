@@ -973,13 +973,9 @@ function addReferences(event, spouse = false) {
             reference.RefName = event + "_" + refCount;
           }
           reference.Used = true;
-          text +=
-            '<ref name="' +
-            reference.RefName +
-            '">' +
-            reference.Text +
-            (reference.List ? "\n" + reference.List : "") +
-            "</ref> ";
+          text += `<ref name="${reference.RefName}">${reference.Text}${
+            reference.List ? "\n" + reference.List : ""
+          }</ref> `;
           window.refNames.push(reference.RefName);
         }
       }
@@ -6932,9 +6928,9 @@ export async function generateBio() {
               anEvent.Texts.forEach((text, textIndex) => {
                 refNameBit = text.RefName ? ` name="${text.RefName}"` : ` name="ref_${textIndex}"`;
                 if (text.Used == true) {
-                  refsText += " <ref" + refNameBit + " />";
+                  refsText += ` <ref${refNameBit} />`;
                 } else {
-                  refsText += " <ref" + refNameBit + ">" + text.Text + "</ref>";
+                  refsText += ` <ref${refNameBit}>${text.Text}</ref>`;
                   text.Used = true;
                   marriagesAndCensusesEtc.forEach(function (event) {
                     if (event.RefName && event.RefName == text.RefName) {
@@ -6946,9 +6942,9 @@ export async function generateBio() {
             } else if (anEvent.Text) {
               let refNameBit = anEvent.RefName ? ` name="${anEvent.RefName}"` : ` name="ref_${i}"`;
               if (anEvent.Used == true) {
-                refsText += " <ref" + refNameBit + " />";
+                refsText += ` <ref${refNameBit} />`;
               } else {
-                refsText += " <ref" + refNameBit + ">" + anEvent.Text + "</ref>";
+                refsText += ` <ref${refNameBit}>${anEvent.Text}</ref>`;
                 anEvent.Used = true;
               }
             }
@@ -7463,7 +7459,7 @@ function addSubsection(title) {
       .find("ref")
       .each(function (i) {
         subsectionText = subsectionText.replace(
-          "<ref>" + $(this).text() + "</ref>",
+          `<ref>${$(this).text()}</ref>`,
           `<ref name="${title}_${i + 1}">${$(this).text()}</ref>`
         );
         let html = $(this).html(); // save the html value
