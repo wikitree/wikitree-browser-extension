@@ -1,4 +1,4 @@
-#locationInputLabel {
+#randomProfilePopup {
   position: absolute;
   box-shadow: 0.2em 0.2em 0.2em 0.2em darkgreen;
   padding: 1em;
@@ -6,8 +6,17 @@
   cursor: move;
   border: 2px solid forestgreen;
   z-index: 1000000;
-  width: 19em;
+  width: 28em;
   text-align: left;
+}
+
+#randomProfilePopup button {
+  display: inline-block;
+}
+#locationInputLabel {
+  display: inline-block;
+  width: 50%;
+  font-weight: 600;
 }
 
 #working,
@@ -16,6 +25,11 @@
   height: 50px;
   border-radius: 50%;
   border: 2px solid forestgreen;
+}
+#randomProfilePopup #working {
+  width: 4em;
+  margin: auto;
+  display: block;
 }
 
 #searchedRandomProfiles {
@@ -27,32 +41,38 @@
   box-shadow: 0.1em 0.1em 0.1em 0.1em darkgreen;
 }
 #searchedRandomProfiles x,
-#locationInputLabel x {
+#randomProfilePopup x {
   position: absolute;
   top: 3px;
   right: 5px;
   cursor: pointer;
 }
 
-#locationInputLabel q {
+#randomProfilePopup q {
   position: absolute;
   bottom: 3px;
   right: 5px;
   cursor: pointer;
 }
-#locationInputLabel div.help {
+#randomProfilePopup div.help {
   margin: 0.5em;
   display: none;
   border: 1px solid gray;
 }
 #randomProfileLocationButton {
-  padding: 0.4em;
   margin-left: 1em;
   margin-right: 0;
-  width: 4em;
   font-size: 0.9em;
   background: #25422d;
   color: white;
   display: inline-block;
+  line-height: normal;
+}
+#otherRandomProfileOptionButton {
+  margin: 1em 0.5em;
+  font-size: 0.9em;
+  background: #25422d;
+  color: white;
+  display: block;
   line-height: normal;
 }

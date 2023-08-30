@@ -2,7 +2,7 @@
 Created By: Ian Beacall (Beacall-6)
 */
 import { isMainDomain } from "../../core/pageType.js";
-import { registerFeature } from "../../core/options/options_registry.js";
+import { registerFeature, OptionType } from "../../core/options/options_registry.js";
 
 const randomProfileFeature = {
   name: "Random Profile",
@@ -14,6 +14,14 @@ const randomProfileFeature = {
   contributors: [{ name: "Jamie Nelson", wikitreeid: "Nelson-3486" }],
   defaultValue: true,
   pages: [isMainDomain],
+  options: [
+    {
+      id: "constrainToWatchlist",
+      label: "Constrain to Watchlist",
+      type: OptionType.CHECKBOX,
+      defaultValue: false,
+    },
+  ],
 };
 
 registerFeature(randomProfileFeature);

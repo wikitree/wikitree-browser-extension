@@ -4,9 +4,13 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import "jquery-ui/ui/widgets/sortable";
-import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isOK, htmlEntities, showDraftList, treeImageURL } from "../../core/common";
-import { getRandomProfile, addRandomProfileLocationBox } from "../randomProfile/randomProfile";
+import {
+  goToRandomProfile,
+  addRandomProfileLocationBox,
+  goToRandomWatchlistProfile,
+} from "../randomProfile/randomProfile";
 import { doWhatLinksHere } from "../what_links_here/what_links_here";
 
 shouldInitializeFeature("myMenu").then((result) => {
@@ -15,6 +19,9 @@ shouldInitializeFeature("myMenu").then((result) => {
     const profileWTID = $("a.pureCssMenui0 span.person").text();
     window.profileWTID = profileWTID;
     addCustomMenu();
+    if (!window.randomProfileOptions) {
+      window.randomProfileOptions = getFeatureOptions("randomProfile");
+    }
   }
 });
 
@@ -278,7 +285,11 @@ function addCustomMenu() {
       left: `${e.pageX - 50}px`,
       top: e.pageY + "px",
     });
-    getRandomProfile();
+    if (window?.randomProfileOptions?.constrainToWatchlist) {
+      goToRandomWatchlistProfile();
+    } else {
+      goToRandomProfile();
+    }
   });
   $("#myCustomMenu li a:contains(Random Profile)").on("contextmenu", function (e) {
     e.preventDefault();
