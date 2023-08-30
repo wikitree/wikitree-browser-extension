@@ -123,7 +123,7 @@ export function addRandomProfileLocationBox(e) {
     goButtonText = "Watchlist";
   }
   const locationInput = $(
-    `<form id="randomProfilePopup"><label id='locationInputLabel'>Random Profile Location: <input type='textbox' id='randomProfileLocation'>
+    `<form id="randomProfilePopup"><h2>Random Profile</h2><label id='locationInputLabel'>Constrain to a Location: <input type='textbox' id='randomProfileLocation'>
     </label><button id='randomProfileLocationButton' class='small'>${goButtonText}</button>
     <button id='otherRandomProfileOptionButton' class='small'>${otherRandomProfileOptionButtonText}</button>
     <x>x</x><q>?</q>
@@ -276,6 +276,7 @@ async function doLogin() {
   if (typeof authcode != "undefined" && authcode != null && authcode != "") {
     const postData = { action: "clientLogin", authcode: authcode };
     await postToAPI(postData);
+    showWorking();
     goToRandomWatchlistProfile(true);
   } else if (login?.clientLogin?.result) {
     if (login.clientLogin.result == "error") {
