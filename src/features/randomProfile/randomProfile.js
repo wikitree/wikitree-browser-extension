@@ -118,7 +118,7 @@ export async function goToRandomProfile(ourCountry = false) {
 export function addRandomProfileLocationBox(e) {
   let otherRandomProfileOptionButtonText = "Watchlist";
   let goButtonText = "All";
-  if (window.randomProfileOptions.constrainToWatchlist) {
+  if (window?.randomProfileOptions?.constrainToWatchlist) {
     otherRandomProfileOptionButtonText = "All";
     goButtonText = "Watchlist";
   }
@@ -142,7 +142,7 @@ export function addRandomProfileLocationBox(e) {
     e.preventDefault();
     e.stopPropagation();
     localStorage.setItem("randomProfileLocation", $("#randomProfileLocation").val());
-    if (window.randomProfileOptions.constrainToWatchlist) {
+    if (window?.randomProfileOptions?.constrainToWatchlist) {
       goToRandomProfile();
     } else {
       goToRandomWatchlistProfile();
@@ -165,7 +165,7 @@ export function addRandomProfileLocationBox(e) {
   function submitThisThing() {
     localStorage.setItem("randomProfileLocation", $("#randomProfileLocation").val());
     setTimeout(function () {
-      if (window.randomProfileOptions.constrainToWatchlist) {
+      if (window?.randomProfileOptions?.constrainToWatchlist) {
         goToRandomWatchlistProfile();
       } else {
         goToRandomProfile(document.querySelector("#randomProfileLocation").value);
@@ -206,7 +206,7 @@ export async function addRandomToFindMenu() {
       top: e.pageY + "px",
     });
 
-    if (window.randomProfileOptions.constrainToWatchlist) {
+    if (window?.randomProfileOptions?.constrainToWatchlist) {
       goToRandomWatchlistProfile();
     } else {
       goToRandomProfile();
