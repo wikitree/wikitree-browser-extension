@@ -1332,7 +1332,7 @@ export function buildSpouses(person) {
             spouseDetailsB += " of ";
 
             if (spouse.Father) {
-              let spouseFather = window.biographySpouseParents[0].people[spouse.Father];
+              let spouseFather = window.biographySpouseParents?.[0]?.people[spouse.Father];
               if (spouseFather) {
                 if (spouseFather.Name) {
                   spouseDetailsA += "[[" + spouseFather.Name + "|" + spouseFather.PersonName.FullName + "]]";
@@ -1352,7 +1352,7 @@ export function buildSpouses(person) {
               spouseDetailsB += " and ";
             }
             if (spouse.Mother) {
-              let spouseMother = window.biographySpouseParents[0].people[spouse.Mother];
+              let spouseMother = window.biographySpouseParents?.[0]?.people[spouse.Mother];
               if (spouseMother) {
                 if (spouseMother.Name) {
                   spouseDetailsA += "[[" + spouseMother.Name + "|" + spouseMother.PersonName.FullName + "]]";
@@ -4487,10 +4487,13 @@ export function sourcesArray(bio) {
       aRef["Record Type"].push("Prison");
       aRef["Event Type"] = "Prison";
       const admissionDateMatch = aRef.Text.match(/Admission Date:\s(.*?);/);
-      if (admissionDateMatch[1]) {
+      if (admissionDateMatch) {
         aRef["Event Date"] = admissionDateMatch[1];
-        aRef.Year = aRef["Event Date"].match(/\d{4}/)[0];
-        aRef.OrderDate = formatDate(aRef["Event Date"], 0, { format: 8 });
+        const aRefYearMatch = aRef["Event Date"].match(/\d{4}/);
+        if (aRefYearMatch) {
+          aRefYearMatch[0];
+          aRef.OrderDate = formatDate(aRef["Event Date"], 0, { format: 8 });
+        }
       }
       const locationMatch = aRef.Text.match(/Prison:\s([^;.]+)/);
       if (locationMatch) {
