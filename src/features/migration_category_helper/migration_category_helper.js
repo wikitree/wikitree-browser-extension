@@ -216,7 +216,7 @@ function CreateMigrationCategory(tb) {
     ],
 
     "Holy Roman Empire": ["Margraviate of Baden" /* far from complete!*/],
-    
+
     Ireland: [
       "County Dublin",
       "County Wicklow",
@@ -316,7 +316,41 @@ function CreateMigrationCategory(tb) {
       "Örebro County",
       "Östergötland County",
     ],
-    
+
+    Switzerland: [
+      "Canton of Aargau",
+      "Canton of Appenzell Ausserrhoden",
+      "Canton of Appenzell Innerrhoden",
+      "Canton of Argovia",
+      "Canton of Basel-Landschaft",
+      "Canton of Basel-Stadt",
+      "Canton of Bern",
+      "Canton of Berne",
+      "Canton of Fribourg",
+      "Canton of Geneva",
+      "Canton of Glarus",
+      "Canton of Grisons",
+      "Canton of Jura",
+      "Canton of Lucerne",
+      "Canton of Neuchâtel",
+      "Canton of Nidwalden",
+      "Canton of Obwalden",
+      "Canton of Schaffhausen",
+      "Canton of Schwyz",
+      "Canton of Solothurn",
+      "Canton of St. Gallen",
+      "Canton of Ticino",
+      "Canton of Thurgau",
+      "Canton of Ticino",
+      "Canton of Uri",
+      "Canton of Valais",
+      "Canton of Vaud",
+      "Canton of Zug",
+      "Canton of Zurich",
+      "Canton of Appenzell",
+      "Canton of Basel",
+      "Canton of Unterwalden",
+    ],
     "the Netherlands": [
       "Drenthe",
       "Flevoland",
