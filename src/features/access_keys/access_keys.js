@@ -20,7 +20,7 @@ function addAccessKeys(options) {
     setAccessKeyIfOptionEnabled(options.G2G, "#G2Grecent", "g", options);
     setAccessKeyIfOptionEnabled(
       options.Edit,
-      "a[title='Edit Profile and Family Relationships'],a[title='Edit this Profile']",
+      "a[title='Edit Profile and Family Relationships'],a[title='Edit this Profile'], input[value='Edit Scratch Pad']",
       "e",
       options
     );
@@ -31,7 +31,7 @@ function addAccessKeys(options) {
       options
     );
     setAccessKeyIfOptionEnabled(options.EnhancedEditor, "#toggleMarkupColor", "e", options, () => isWikiEdit);
-    setAccessKeyIfOptionEnabled(options.Save, "#wpSave", "s", options);
+    setAccessKeyIfOptionEnabled(options.Save, "#wpSave, input[value='Save Scratch Pad Changes']", "s", options);
     setAccessKeyIfOptionEnabled(options.Category, "#addCategoryButton", "k", options);
     setAccessKeyIfOptionEnabled(options.RandomProfile, "a.pureCssMenui.randomProfile", "r", options);
     setAccessKeyIfOptionEnabled(options.NavHomePage, "a[href$='/wiki/Special:Home']", "1", options);
@@ -60,7 +60,7 @@ function addAccessKeys(options) {
   }, 1000);
 }
 
-function setAccessKeyIfOptionEnabled(option, selector, key, options, additionalCondition = () => true) {
+export function setAccessKeyIfOptionEnabled(option, selector, key, options, additionalCondition = () => true) {
   if (option && additionalCondition()) {
     const element = $(selector);
     if (element.length) {
