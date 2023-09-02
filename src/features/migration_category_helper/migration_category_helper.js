@@ -350,10 +350,7 @@ function CreateMigrationCategory(tb) {
       "Canton of Valais",
       "Canton of Vaud",
       "Canton of Zug",
-      "Canton of Zurich",
-      "Canton of Appenzell",
-      "Canton of Basel",
-      "Canton of Unterwalden",
+      "Canton of Zürich",
     ],
     "the Netherlands": [
       "Drenthe",
