@@ -37,7 +37,7 @@ export class Biography {
   #sourcesHeadingsFound = []; // sources headings found (multi lang)
   #invalidSpanTargetList = []; // target of a span that are not valid
   #refStringList = []; // all the <ref> this </ref> lines
-  #namedRefStringList = []; // all the <ref> with names
+// TODO  #namedRefStringList = []; // all the <ref> with names
   #headings = [];    // collection of heading lines
   #wrongLevelHeadings = [];   // collection of wrong level 2 headings
   #researchNoteBoxes = [];   // what research notes boxes are there?
@@ -406,7 +406,6 @@ export class Biography {
     // Get the string that might contain <ref>xxx</ref> pairs
     let bioLineString = this.#getBioLineString();
     this.#findRef(bioLineString);
-    this.#findNamedRef(bioLineString);
 
     // Lose bio lines not considered to contain sources before testing sources
     this.#removeResearchNotes();
@@ -450,11 +449,12 @@ export class Biography {
             isValid = true;
           }
         }
+        /* TODO 
         if (this.#validateRefStrings(this.#namedRefStringList)) {
           if (!isValid) {
             isValid = true;
           }
-        }
+        }*/
         if (!isValid) {
           this.#sources.sourcesFound = false;
           isValid = false;
@@ -1037,90 +1037,36 @@ export class Biography {
   }
 
   /*
-   * Find <ref> </ref> pairs that don't have a name
+   * Find <ref> </ref> pairs 
    * adds contents of ref to refStringList
    * @param {String} bioLineString string to look in for pairs
    */
   #findRef(bioLineString) {
-    let startOfRef = bioLineString.indexOf(Biography.#REF_START);
-    let endOfRef = bioLineString.indexOf(Biography.#REF_END, startOfRef);
-    while (startOfRef >= 0 && !this.#style.bioHasRefWithoutEnd) {
-      if (endOfRef < 0) {
-        // Oopsie, starting <ref> without an ending >
-        this.#style.bioHasRefWithoutEnd = true;
-      } else {
-        // Now we should have the whole ref lose the <ref> and move past it
-        if (startOfRef + 5 < endOfRef) {
-          startOfRef = startOfRef + 5;
+    /*
+     * may be in the form <ref>cite</ref>
+     * or in the form <ref name=xxx>cite</ref>
+     * or in the form <ref name=xxx />
+     *
+     * malformed may have no ending </ref> or />
+     * and there may be multiple char between ref and name
+     * or there may be another <ref> before ending
+     *
+     * but one thing you don't do is check for a name that wasn't defined
+     * data entry will find this and you never checked for it previously
+    */
+    let refArray = bioLineString.split('<ref');
+    for (let i = 1; i < refArray.length; i++) {
+      if (refArray[i].indexOf("/>") < 0) {
+        let citeStart = refArray[i].indexOf('>') + 1;
+        if (refArray[i].indexOf('name') >= 0) {
+          citeStart = refArray[i].indexOf('>') + 1;
         }
-        let line = bioLineString.substring(startOfRef, endOfRef);
-        this.#refStringList.push(line);
-        // check for ref embedded within a ref
-        if (line.indexOf("<ref") >= 0) {
+        let citeEnd = refArray[i].indexOf('</ref', 1);
+        if (citeEnd < 0) {
           this.#style.hasRefWithoutEnd = true;
-        }
-        endOfRef++;
-        if (endOfRef < bioLineString.length) {
-          startOfRef = bioLineString.indexOf(Biography.#REF_START, endOfRef);
-          if (startOfRef > 0) {
-            endOfRef = bioLineString.indexOf(Biography.#REF_END, startOfRef);
-          }
-        }
-      }
-    }
-    return;
-  }
-
-  /*
-   * Find named ref
-   * which are pairs in the form <ref name= ></ref>
-   * or in the form <ref name=xxxx />
-   * adds contents of ref to namedRefStringList
-   * @param {String} bioLineString string to look in for pairs
-   */
-  #findNamedRef(bioLineString) {
-    let endOfRefNamed = -1;
-    let endOfRef = -1;
-    let end = -1;
-    let bioLength = bioLineString.length;
-    let startOfRef = bioLineString.indexOf(Biography.#REF_START_NAMED);
-    while (startOfRef >= 0) {
-      endOfRef = bioLineString.indexOf(Biography.#REF_END, startOfRef);
-      endOfRefNamed = bioLineString.indexOf(Biography.#REF_END_NAMED, startOfRef);
-      if (endOfRef < 0) {
-        endOfRef = bioLength;
-      }
-      if (endOfRefNamed < 0) {
-        endOfRefNamed = bioLength;
-      }
-      // lose the <ref> portion and use first ending found
-      if (startOfRef + 5 < endOfRef) {
-        startOfRef = startOfRef + 5;
-      }
-      end = endOfRef;
-      if (endOfRef > endOfRefNamed) {
-        end = endOfRefNamed;
-      }
-      // save just the part of the line after the name
-      let line = bioLineString.substring(startOfRef, end);
-      let refStart = line.indexOf(Biography.#END_BRACKET);
-      if (refStart > 0) {
-        refStart++;
-        this.#namedRefStringList.push(line.substring(refStart));
-        // check for ref embedded within a ref
-        if (line.substring(refStart).indexOf("<ref") >= 0) {
-          this.#style.hasRefWithoutEnd = true;
-        }
-      }
-
-      // move past the ref
-      end++;
-      endOfRef++;
-      if (end <= bioLength) {
-        startOfRef = bioLineString.indexOf(Biography.#REF_START_NAMED, end);
-      } else {
-        if (end > bioLength) {
-          startOfRef = -1; // we are done
+        } else {
+          let line = refArray[i].substring(citeStart, citeEnd);
+          this.#refStringList.push(line);
         }
       }
     }
@@ -1193,7 +1139,8 @@ export class Biography {
       msg += ' between Sources and <references />';
       this.#messages.sectionMessages.push(msg);
     }
-    this.#stats.inlineReferencesCount = this.#refStringList.length + this.#namedRefStringList.length;
+    // TODO this.#stats.inlineReferencesCount = this.#refStringList.length + this.#namedRefStringList.length;
+    this.#stats.inlineReferencesCount = this.#refStringList.length;
 
     this.#stats.possibleSourcesLineCount = this.#acknowledgementsIndex - 1;
     if (this.#stats.possibleSourcesLineCount < 0) {
