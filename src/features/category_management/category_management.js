@@ -111,8 +111,9 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
 
   const profileId = document.getElementsByClassName("person")[0].innerText;
   const catSpans = categoryDiv.getElementsByTagName("span");
-  for (let i = 0; i < catSpans.length - 1 /* not for [top] */; i++) {
-    if (catSpans[i].innerText == "[top]") {
+  let lastCatSpan = null;
+  for (let i = 0; i < catSpans.length /* not for [top] */; i++) {
+    if (catSpans[i].innerText == "[top]" || catSpans[i].innerText == "[edit]") {
       continue;
     }
 
@@ -134,6 +135,7 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
     AddAddReplaceEventHandler(changeLink, catSpans[i], profileId, catName);
     catSpans[i].append(" ");
     catSpans[i].appendChild(changeLink);
+    lastCatSpan = catSpans[i];
   }
 
   const addLink = document.createElement("a");
@@ -141,9 +143,9 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
   addLink.style.textDecoration = "none";
   addLink.accessKey = "k";
   addLink.title = "Add a category to this profile";
-  AddAddReplaceEventHandler(addLink, catSpans[catSpans.length - 1], profileId, "");
-  catSpans[catSpans.length - 1].append(" ");
-  catSpans[catSpans.length - 1].appendChild(addLink);
+  AddAddReplaceEventHandler(addLink, lastCatSpan, profileId, "");
+  lastCatSpan.append(" ");
+  lastCatSpan.appendChild(addLink);
 }
 
 function IsProfileEditable() {
