@@ -2,147 +2,63 @@ import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import "./wikitable_creator.css";
 import { showCopyMessage } from "../access_keys/access_keys";
+import { analyzeColumns } from "../auto_bio/auto_bio";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
-const colorNameToHex = {
-  // Existing colors
-  red: "#ff0000",
-  green: "#008000",
-  blue: "#0000ff",
-  yellow: "#ffff00",
-  aqua: "#00ffff",
-  fuchsia: "#ff00ff",
-  gray: "#808080",
-  lime: "#00ff00",
-  maroon: "#800000",
-  navy: "#000080",
-  olive: "#808000",
-  purple: "#800080",
-  silver: "#c0c0c0",
-  teal: "#008080",
-  white: "#ffffff",
-  black: "#000000",
-  orange: "#ffa500",
-  pink: "#ffc0cb",
-  brown: "#a52a2a",
-  violet: "#ee82ee",
-  indigo: "#4b0082",
-  gold: "#ffd700",
+const colorNameToHex = require("./html_colors.json");
+console.log(colorNameToHex);
 
-  // Additional colors
-  beige: "#f5f5dc",
-  bisque: "#ffe4c4",
-  blanchedalmond: "#ffebcd",
-  blueviolet: "#8a2be2",
-  burlywood: "#deb887",
-  cadetblue: "#5f9ea0",
-  chartreuse: "#7fff00",
-  chocolate: "#d2691e",
-  coral: "#ff7f50",
-  cornflowerblue: "#6495ed",
-  crimson: "#dc143c",
-  cyan: "#00ffff",
-  darkblue: "#00008b",
-  darkcyan: "#008b8b",
-  darkgoldenrod: "#b8860b",
-  darkgray: "#a9a9a9",
-  darkgreen: "#006400",
-  darkkhaki: "#bdb76b",
-  darkmagenta: "#8b008b",
-  darkolivegreen: "#556b2f",
-  darkorange: "#ff8c00",
-  darkorchid: "#9932cc",
-  darkred: "#8b0000",
-  darksalmon: "#e9967a",
-  darkseagreen: "#8fbc8f",
-  darkslateblue: "#483d8b",
-  darkslategray: "#2f4f4f",
-  darkturquoise: "#00ced1",
-  darkviolet: "#9400d3",
-  deeppink: "#ff1493",
-  deepskyblue: "#00bfff",
-  dimgray: "#696969",
-  dodgerblue: "#1e90ff",
-  firebrick: "#b22222",
-  floralwhite: "#fffaf0",
-  forestgreen: "#228b22",
-  gainsboro: "#dcdcdc",
-  ghostwhite: "#f8f8ff",
-  goldenrod: "#daa520",
-  greenyellow: "#adff2f",
-  honeydew: "#f0fff0",
-  hotpink: "#ff69b4",
-  indianred: "#cd5c5c",
-  ivory: "#fffff0",
-  khaki: "#f0e68c",
-  lavender: "#e6e6fa",
-  lavenderblush: "#fff0f5",
-  lawngreen: "#7cfc00",
-  lemonchiffon: "#fffacd",
-  lightblue: "#add8e6",
-  lightcoral: "#f08080",
-  lightcyan: "#e0ffff",
-  lightgoldenrodyellow: "#fafad2",
-  lightgray: "#d3d3d3",
-  lightgreen: "#90ee90",
-  lightpink: "#ffb6c1",
-  lightsalmon: "#ffa07a",
-  lightseagreen: "#20b2aa",
-  lightskyblue: "#87cefa",
-  lightslategray: "#778899",
-  lightsteelblue: "#b0c4de",
-  lightyellow: "#ffffe0",
-  limegreen: "#32cd32",
-  linen: "#faf0e6",
-  mediumaquamarine: "#66cdaa",
-  mediumblue: "#0000cd",
-  mediumorchid: "#ba55d3",
-  mediumpurple: "#9370db",
-  mediumseagreen: "#3cb371",
-  mediumslateblue: "#7b68ee",
-  mediumspringgreen: "#00fa9a",
-  mediumturquoise: "#48d1cc",
-  mediumvioletred: "#c71585",
-  midnightblue: "#191970",
-  mintcream: "#f5fffa",
-  mistyrose: "#ffe4e1",
-  moccasin: "#ffe4b5",
-  navajowhite: "#ffdead",
-  oldlace: "#fdf5e6",
-  olivedrab: "#6b8e23",
-  orangered: "#ff4500",
-  orchid: "#da70d6",
-  palegoldenrod: "#eee8aa",
-  palegreen: "#98fb98",
-  paleturquoise: "#afeeee",
-  palevioletred: "#db7093",
-  papayawhip: "#ffefd5",
-  peachpuff: "#ffdab9",
-  peru: "#cd853f",
-  plum: "#dda0dd",
-  powderblue: "#b0e0e6",
-  rosybrown: "#bc8f8f",
-  royalblue: "#4169e1",
-  saddlebrown: "#8b4513",
-  salmon: "#fa8072",
-  sandybrown: "#f4a460",
-  seagreen: "#2e8b57",
-  seashell: "#fff5ee",
-  sienna: "#a0522d",
-  skyblue: "#87ceeb",
-  slateblue: "#6a5acd",
-  slategray: "#708090",
-  snow: "#fffafa",
-  springgreen: "#00ff7f",
-  steelblue: "#4682b4",
-  tan: "#d2b48c",
-  thistle: "#d8bfd8",
-  tomato: "#ff6347",
-  turquoise: "#40e0d0",
-  wheat: "#f5deb3",
-  whitesmoke: "#f5f5f5",
-  yellowgreen: "#9acd32",
-};
+function parseSSVData(data) {
+  const censusList = data.split("\n").map((line) => line.replace(/^[:#]+/, "").trim());
+  let parsedData = [];
+  const genderRegex = /(?<=\s)([MF])(?=\s)/;
+  const placeRegex = /\w+,\s[\w\s]+/;
+
+  for (const entry of censusList) {
+    let genderMatch = entry.match(genderRegex);
+    let placeMatch = entry.match(placeRegex);
+    if (genderMatch) {
+      const genderIndex = genderMatch.index;
+      const name = entry.substring(0, genderIndex).trim();
+      const rest = entry.substring(genderIndex).trim().split(" ");
+
+      const gender = rest[0];
+      const age = rest[1];
+      const maritalStatus = rest[2];
+      const position = rest[3];
+      rest.splice(0, 4);
+      const remaining = rest.join(" ").replace(placeMatch[0], "").trim();
+      console.log("parsedData:", JSON.parse(JSON.stringify(parsedData)));
+
+      parsedData.push({
+        Name: name,
+        Gender: gender,
+        Age: age,
+        "Marital Status": maritalStatus,
+        Position: position,
+        Occupation: remaining,
+        "Birth Place": placeMatch[0],
+      });
+    }
+  }
+
+  // Get the keys from the first object to serve as headers
+  //const headers = Object.keys(parsedData[0]);
+
+  // Initialize the new array with the headers
+  const newArray = [];
+
+  // Loop through each object in the original array
+  for (const obj of parsedData) {
+    // Create an array of the object's values and add it to the new array
+    const values = Object.values(obj);
+    newArray.push(values);
+  }
+  parsedData = newArray;
+
+  console.log("parsedData:", JSON.parse(JSON.stringify(parsedData)));
+  return parsedData;
+}
 
 function parseWikiTableData(data) {
   // Split the data by lines
@@ -263,15 +179,45 @@ function parseWikiTableData(data) {
 }
 
 function parseCSVData(data) {
-  return data.split("\n").map((row) => row.split(",").map((cell) => cell.trim()));
+  return data.split("\n").map((row) =>
+    row
+      .replace(/^[:*#]+/, "")
+      .split(",")
+      .map((cell) => cell.trim())
+  );
 }
 
 function parseTSVData(data) {
-  return data.split("\n").map((row) => row.split("\t").map((cell) => cell.trim()));
+  return data.split("\n").map((row) =>
+    row
+      .replace(/^[:*#]+/, "")
+      .split("\t")
+      .map((cell) => cell.trim())
+  );
 }
 
 function parseMultiSpaceData(data) {
-  return data.split("\n").map((row) => row.split(/ {2,}/).map((cell) => cell.trim()));
+  console.log("Entering parseMultiSpaceData with data:", data); // Debug log at entry
+
+  const parsedData = data.split("\n").map((row) => {
+    const cleanedRow = row.replace(/^[:*#]+/, "").trim();
+    console.log("Cleaned row:", cleanedRow); // Debug log after cleaning row
+
+    const splitRow = cleanedRow.split(/ {4}/);
+    console.log("Split row:", splitRow); // Debug log after splitting row
+
+    return splitRow.map((cell) => cell.trim());
+  });
+
+  console.log("Final parsedData:", parsedData); // Debug log at exit
+  return parsedData;
+}
+
+function formatColumnName(name) {
+  if (name === "originalRelation") {
+    return "Relation";
+  }
+  return name.replace(/([A-Z])/g, " $1").trim();
 }
 
 // Stack to keep track of deleted rows and columns
@@ -287,6 +233,7 @@ function toggleUndoButton() {
 }
 
 function createWikitableCreatorModal() {
+  let parsedData = null;
   const modalHtml = `
     <div id="wikitableCreatorModal" style="display:none">
     <h2>Wikitable Creator</h2>
@@ -294,7 +241,7 @@ function createWikitableCreatorModal() {
       <button id="wikitableCreatorPaste" class="small">Paste Existing Table</button>
       <button id="wikitableCreatorAddRow" class="small">Add Row</button>
       <button id="wikitableCreatorAddColumn" class="small">Add Column</button>
-      <label><input type="checkbox" id="wikitableCreatorHeaderRow" class="small"> 1st row as headers</label>
+      <label><input type="checkbox" id="wikitableCreatorHeaderRow" class="small" checked> 1st row as headers</label>
       <label><input type="checkbox" id="wikitableCreatorSortable" class="small"> Sortable</label>
       <label><input type="checkbox" id="wikitableCreatorFullWidth" class="small"> Full Width</label> <!-- Added line -->
       <label>Border Color: <input type="color" id="wikitableCreatorBorderColor"  value="#ffffff" class="small"></label>
@@ -340,7 +287,7 @@ function createWikitableCreatorModal() {
     navigator.clipboard
       .readText()
       .then((text) => {
-        let parsedData = [];
+        parsedData = [];
         if (text.includes("{|") && text.includes("|-")) {
           const wikiTableData = parseWikiTableData(text);
 
@@ -375,14 +322,80 @@ function createWikitableCreatorModal() {
         } else {
           if (text.includes("\t")) {
             parsedData = parseTSVData(text);
-          } else if (/ {2,}/.test(text)) {
+            // log
+            console.log("parsedData:", parsedData);
+            console.log("Going to parseTSVData");
+          } else if (/ {4}/.test(text)) {
+            console.log("Text to be tested:", JSON.stringify(text));
+
             parsedData = parseMultiSpaceData(text);
+
+            // log
+            console.log("parsedData:", JSON.parse(JSON.stringify(parsedData)));
+            console.log("Going to parseMultiSpaceData");
           } else {
-            parsedData = parseCSVData(text);
+            const commaMatch = text.split(/\n/)[0].match(/,/g);
+            // log
+            console.log("commaMatch:", commaMatch);
+            if (commaMatch && commaMatch.length > 2) {
+              parsedData = parseCSVData(text);
+              // log
+              console.log("parsedData:", parsedData);
+              console.log("Going to parseCSVData");
+            } else {
+              parsedData = parseSSVData(text);
+              // log
+              console.log("parsedData:", JSON.parse(JSON.stringify(parsedData)));
+              console.log("Going to parseSSVData");
+            }
+          }
+          if (parsedData) {
+            let columnMapping = analyzeColumns(parsedData);
+            console.log(columnMapping);
+
+            // Create an array with the same length as the number of columns
+            const headerRow = new Array(Object.keys(columnMapping).length).fill("");
+
+            // Populate the array with the column names based on their positions
+            for (const [key, value] of Object.entries(columnMapping)) {
+              const formattedKey = formatColumnName(key);
+              headerRow[parseInt(value)] = formattedKey;
+            }
+
+            // Add the header row to the start of your rows array
+            // Assuming `rows` is your array containing all the data rows
+            parsedData.unshift(headerRow);
+
+            $("#wikitableCreatorHeaderRow").off("change");
+            $("#wikitableCreatorHeaderRow").on("change", function () {
+              if ($(this).prop("checked") && $("#wikitableCreatorTable tr.headerRow").length === 0) {
+                const headerItems = ["Name", "Age", "Marital Status", "Position", "Occupation", "Birth Place"];
+                if (parsedData && includesAtLeastTwo(headerItems, parsedData[0])) {
+                  let rowHtml = "<tr class='headerRow'>";
+                  rowHtml += '<td><input type="checkbox" class="rowBold"> Bold</td>';
+                  rowHtml += '<td><input type="color" class="rowBgColor" value="#ffffff"></td>';
+                  parsedData[0].forEach((cell) => {
+                    rowHtml += `<td><input type="text" value="${cell}"></td>`;
+                  });
+                  rowHtml += "</tr>";
+                  $("#wikitableCreatorTable").prepend(rowHtml);
+                }
+              } else {
+                $("#wikitableCreatorTable tr.headerRow").remove();
+              }
+            });
           }
           $("#wikitableCreatorTable").empty();
+          const headerItems = ["Name", "Age", "Marital Status", "Position", "Occupation", "Birth Place"];
           parsedData.forEach((row) => {
-            let rowHtml = "<tr>";
+            let rowClass = "";
+            if (includesAtLeastTwo(headerItems, row)) {
+              rowClass = " class='headerRow'";
+            }
+            if (rowClass && $("#wikitableCreatorHeaderRow").prop("checked") == false) {
+              return;
+            }
+            let rowHtml = "<tr" + rowClass + ">";
             rowHtml += '<td><input type="checkbox" class="rowBold"> Bold</td>';
             rowHtml += '<td><input type="color" class="rowBgColor" value="#ffffff"></td>';
             row.forEach((cell) => {
@@ -591,6 +604,11 @@ function createWikitableCreatorModal() {
 let copiedCellValue = ""; // Variable to store copied value
 let currentCell = null; // Variable to store the current cell
 
+function includesAtLeastTwo(arr1, arr2) {
+  const commonElements = arr1.filter((element) => arr2.includes(element));
+  return commonElements.length >= 2;
+}
+
 $(document).on("contextmenu", "#wikitableCreatorTable td input[type=text]", function (e) {
   e.preventDefault();
 
@@ -677,6 +695,48 @@ $(document).on("click", function (e) {
     $("#wikitableContextMenu").remove();
   }
 });
+/*
+function findMostCommonSpaceCount(sampleLine) {
+  // Initialize a dictionary to hold the frequency of each space count
+  const spaceCountFrequency = {};
+
+  // Initialize variables to keep track of the last non-space character and space count
+  let lastChar = "";
+  let spaceCount = 0;
+
+  // Loop through each character in the sample line
+  for (const char of sampleLine) {
+    if (char === " ") {
+      // If it's a space, increment the space count
+      spaceCount++;
+    } else {
+      // If it's not a space and we have a pending space count, record it
+      if (spaceCount > 0) {
+        if (!spaceCountFrequency[spaceCount]) {
+          spaceCountFrequency[spaceCount] = 0;
+        }
+        spaceCountFrequency[spaceCount]++;
+      }
+      // Reset the space count
+      spaceCount = 0;
+    }
+    // Update the last character
+    lastChar = char;
+  }
+
+  // Find the most common space count
+  let mostCommonSpaceCount = null;
+  let highestFrequency = 0;
+  for (const [count, frequency] of Object.entries(spaceCountFrequency)) {
+    if (frequency > highestFrequency) {
+      mostCommonSpaceCount = parseInt(count);
+      highestFrequency = frequency;
+    }
+  }
+
+  return mostCommonSpaceCount;
+}
+*/
 
 shouldInitializeFeature("wikitableCreator").then((result) => {
   if (result) {
