@@ -7,7 +7,7 @@
     "build-dev": "webpack --config webpack/webpack.dev.js --env browser=chrome",
     "watch-firefox": "webpack --config webpack/webpack.dev.js  --env browser=firefox --watch",
     "build-firefox": "webpack --config webpack/webpack.prod.js --env browser=firefox",
-	"build-and-run-firefox-windows":  "npm run build-firefox && \"C:\\Program Files\\Mozilla Firefox\\firefox.exe\" \"about:debugging#\/runtime\/this-firefox\"",
+    "build-and-run-firefox-windows": "npm run build-firefox && \"C:\\Program Files\\Mozilla Firefox\\firefox.exe\" \"about:debugging#/runtime/this-firefox\"",
     "build-firefox-dev": "webpack --config webpack/webpack.dev.js --env browser=firefox",
     "test": "jest",
     "clean": "rimraf dist",

@@ -6,6 +6,7 @@ import { addAutoCategories } from "../../features/auto_categories/auto_categorie
 import { getFamilyList } from "../../features/family_lists/family_lists";
 import { wtPlus } from "../../features/wtPlus/wtPlus";
 import { editToolbarApp, editToolbarWiki } from "./editToolbar";
+import { createWikitableWizard } from "../../features/wikitable_wizard/wikitable_wizard";
 export default [
   {
     button: "Sources",
@@ -157,6 +158,13 @@ export default [
         title: "Spouse and Child Details",
         call: getFamilyList,
         params: { functionName: "spouseChildList" },
+      },
+      {
+        featureid: "wikitableWizard",
+        hint: "Create and/or edit wikitables",
+        title: "Wikitable Wizard",
+        call: createWikitableWizard,
+        params: {},
       },
     ],
   },

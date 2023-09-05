@@ -6,6 +6,7 @@ import { countries } from "./countries.js";
 import { needsCategories } from "./needs.js";
 import { occupationCategories } from "./occupations.js";
 import { occupationList } from "./occupation_list";
+import { occupationList2 } from "./occupation_list_2";
 import { unsourcedCategories } from "./unsourced_categories.js";
 import { firstNameVariants } from "./first_name_variants.js";
 import { isOK, familyArray, treeImageURL } from "../../core/common";
@@ -2608,12 +2609,18 @@ const citiesCountiesStates = [
 const placeNameRegExp =
   /\w+(land|shire|mere|acres|bay|beach|bluffs|center|corner|cove|crest|crossing|falls|farms|fields|flats|fork|gardens|gate|glen|green|grove|harbor|heights|hills|hollow|inlet|key|knolls|landing|light|manor|mesa|mills|mount|mountain|orchard|park|passage|pines|point|ranch|ridge|river|runway|shores|sky|springs|terrace|trace|view|village|vista|woods|basin|cape|canyon|delta|forest|glacier|gulf|island|isthmus|lake|mesa|oasis|plain|plateau|prairie|sea|shore|sound|swamp|trail|valley|waterfall|peak|ridge|summit|pass|range|butte|knob|dome|spit|shoals|rapids|falls|bend|junction|spur|switch|fork|cross|field|estate|parkway|boulevard|circle|court|place|avenue|plaza|path|way|alley|borough|city|county|district|municipality|parish|town|township|village|territory|region|state|province|shire|ton|ham|don|wick|ford|bury|port|stadt|stede|burg|burgh|by|ville|beck|dale|holme|hurts|mead|wold|boro|chester|heath|hill|vale|wyke)\b/gi;
 
-function analyzeColumns(lines) {
-  lines = lines.map((line) => line.replace(/\|\|/g, "\t")); // convert double pipes to tabs
+export function analyzeColumns(lines) {
+  //lines = lines.map((line) => line.replace(/\|\|/g, "\t")); // convert double pipes to tabs
   const columns = {};
 
-  lines.forEach((line) => {
-    const parts = line.split(/ {4}|\t/);
+  lines.forEach((lineOrParts) => {
+    let parts;
+    if (Array.isArray(lineOrParts)) {
+      parts = lineOrParts;
+    } else {
+      lineOrParts = lineOrParts.replace(/\|\|/g, "\t"); // convert double pipes to tabs
+      parts = lineOrParts.split(/ {4}|\t/);
+    }
 
     parts.forEach((part, index) => {
       part = part.trim(); // Trim whitespace
@@ -2632,7 +2639,10 @@ function analyzeColumns(lines) {
 
       // RegExp of cities, counties, states
       const bigPlacesMatch = new RegExp("\\b" + citiesCountiesStates.join("|") + "\\b", "i");
-      const occupationMatch = new RegExp("\\b" + occupationList.join("|") + "\\b", "i");
+      const occupationMatch = new RegExp(
+        "\\b" + occupationList.join("|") + "|" + occupationList2.join("|") + "\\b",
+        "i"
+      );
 
       if (index == 0) {
         columns[index].Name++;
