@@ -1,4 +1,4 @@
-#wikitableCreatorModal {
+#wikitableWizardModal {
   position: absolute; /* Absolute positioning */
   z-index: 1000; /* High z-index to appear on top */
   min-width: 30em;
@@ -14,20 +14,20 @@
   display: none; /* Initially hidden */
 }
 
-#wikitableCreatorModal input[type="number"] {
+#wikitableWizardModal input[type="number"] {
   width: 3em;
 }
-#wikitableCreatorModal h2 {
+#wikitableWizardModal h2 {
   cursor: move;
   margin-bottom: 0.3em;
 }
 
-#wikitableCreatorModal label {
+#wikitableWizardModal label {
   display: inline-block;
   margin: 0.2em 1em;
 }
 
-.wikitable-creator-close {
+.wikitable-wizard-close {
   color: #aaa;
   position: absolute;
   top: 0;
@@ -37,25 +37,25 @@
   cursor: pointer;
 }
 
-.wikitable-creator-close:hover,
-.wikitable-creator-close:focus {
+.wikitable-wizard-close:hover,
+.wikitable-wizard-close:focus {
   color: #000;
   text-decoration: none;
   cursor: pointer;
 }
 
-#wikitableCreatorTable input[type="text"] {
+#wikitableWizardTable input[type="text"] {
   width: 100%;
   padding: 0.5em;
 }
 
-#wikitableCreatorWikitable {
+#wikitableWizardWikitable {
   width: 100%;
   margin-top: 1em;
   display: none;
 }
 
-#wikitableCreatorModal .delete-button {
+#wikitableWizardModal .delete-button {
   background-color: lightgray; /* Red background */
   color: darkgray; /* White text */
   text-align: center; /* Center the "x" within the button */
@@ -72,7 +72,7 @@
 }
 
 /* Add a hover effect for user feedback */
-#wikitableCreatorModal .delete-button:hover {
+#wikitableWizardModal .delete-button:hover {
   background-color: #f44336;
   opacity: 0.8;
 }
@@ -103,6 +103,6 @@ a.wikitable-context-option:active {
   background-color: #ccc;
 }
 
-#wikitableCreatorUndo {
+#wikitableWizardUndo {
   display: none;
 }

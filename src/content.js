@@ -64,7 +64,7 @@ import "./features/make_radio_buttons_deselectable/make_radio_buttons_deselectab
 import "./features/migration_category_helper/migration_category_helper";
 import "./features/save_buttons_style_options/save_buttons_style_options";
 import "./features/sticky_toolbar/sticky_toolbar";
-import "./features/wikitable_creator/wikitable_creator";
+import "./features/wikitable_wizard/wikitable_wizard";
 // BioCheck needs to load later than custom_change_summary_options
 import "./features/bioCheck/bioCheck";
 

@@ -6,6 +6,7 @@ import { countries } from "./countries.js";
 import { needsCategories } from "./needs.js";
 import { occupationCategories } from "./occupations.js";
 import { occupationList } from "./occupation_list";
+import { occupationList2 } from "./occupation_list_2";
 import { unsourcedCategories } from "./unsourced_categories.js";
 import { firstNameVariants } from "./first_name_variants.js";
 import { isOK, familyArray, treeImageURL } from "../../core/common";
@@ -2621,7 +2622,10 @@ export function analyzeColumns(lines) {
 
       // RegExp of cities, counties, states
       const bigPlacesMatch = new RegExp("\\b" + citiesCountiesStates.join("|") + "\\b", "i");
-      const occupationMatch = new RegExp("\\b" + occupationList.join("|") + "\\b", "i");
+      const occupationMatch = new RegExp(
+        "\\b" + occupationList.join("|") + "|" + occupationList2.join("|") + "\\b",
+        "i"
+      );
 
       if (index == 0) {
         columns[index].Name++;

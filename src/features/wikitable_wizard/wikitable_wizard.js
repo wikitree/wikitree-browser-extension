@@ -1,6 +1,6 @@
 import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
-import "./wikitable_creator.css";
+import "./wikitable_wizard.css";
 import { showCopyMessage } from "../access_keys/access_keys";
 import { analyzeColumns } from "../auto_bio/auto_bio";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
@@ -108,7 +108,7 @@ function parseWikiTableData(data) {
       const borderWidth = propertiesObj["border"];
       if (borderWidth) {
         // Assign the value to the border-width input box
-        $("#wikitableCreatorBorderWidth").val(borderWidth);
+        $("#wikitableWizardBorderWidth").val(borderWidth);
       }
 
       currentRow = {
@@ -226,36 +226,88 @@ const deletedStack = [];
 // Function to toggle the Undo button visibility
 function toggleUndoButton() {
   if (deletedStack.length > 0) {
-    $("#wikitableCreatorUndo").show();
+    $("#wikitableWizardUndo").show();
   } else {
-    $("#wikitableCreatorUndo").hide();
+    $("#wikitableWizardUndo").hide();
   }
 }
 
-function createWikitableCreatorModal() {
+// Function to reset the table
+function resetTable() {
+  // Clear the table data
+  $("#wikitableWizardTable").empty();
+
+  // Add the initial 5 rows and 5 columns back to the table
+  for (let i = 0; i < 5; i++) {
+    let rowHtml = "<tr>";
+    rowHtml += '<td><input type="checkbox" class="rowBold"> Bold</td>';
+    rowHtml += '<td><input type="color" class="rowBgColor" value="#ffffff"></td>';
+    for (let j = 0; j < 5; j++) {
+      rowHtml += '<td><input type="text"></td>';
+    }
+    rowHtml += "</tr>";
+    $("#wikitableWizardTable").append(rowHtml);
+  }
+
+  // Reset other table options to their defaults
+  $("#wikitableWizardHeaderRow").prop("checked", true);
+  $("#wikitableWizardSortable").prop("checked", false);
+  $("#wikitableWizardFullWidth").prop("checked", false); // Resetting Full Width to unchecked
+  $("#wikitableWizardBorderColor").val("#ffffff");
+  $("#wikitableWizardBorderWidth").val("");
+  $("#wikitableWizardCellPadding").val("");
+  $("#wikitableWizardCaption").val("");
+
+  // Clear the textarea
+  $("#wikitableWizardWikitable").val("");
+
+  // Clear the undo stack
+  deletedStack.length = 0;
+
+  // Update Undo button visibility
+  toggleUndoButton();
+
+  // Attach the reset function to the Reset button
+  $("#wikitableWizardReset")
+    .off("click")
+    .on("click", function (e) {
+      e.preventDefault();
+      resetTable();
+    });
+}
+
+function createwikitableWizardModal() {
   let parsedData = null;
   const modalHtml = `
-    <div id="wikitableCreatorModal" style="display:none">
-    <h2>Wikitable Creator</h2>
-      <span class="wikitable-creator-close small">X</span>
-      <button id="wikitableCreatorPaste" class="small">Paste Existing Table</button>
-      <button id="wikitableCreatorAddRow" class="small">Add Row</button>
-      <button id="wikitableCreatorAddColumn" class="small">Add Column</button>
-      <label><input type="checkbox" id="wikitableCreatorHeaderRow" class="small" checked> 1st row as headers</label>
-      <label><input type="checkbox" id="wikitableCreatorSortable" class="small"> Sortable</label>
-      <label><input type="checkbox" id="wikitableCreatorFullWidth" class="small"> Full Width</label> <!-- Added line -->
-      <label>Border Color: <input type="color" id="wikitableCreatorBorderColor"  value="#ffffff" class="small"></label>
-      <label>Border Width: <input type="number" id="wikitableCreatorBorderWidth" class="small" min="0"></label>
-      <label>Cell Padding: <input type="number" id="wikitableCreatorCellPadding" class="small" min="0"></label>
-      <label>Caption: <input type="text" id="wikitableCreatorCaption" placeholder="Caption" class="small"></label>
-      <table id="wikitableCreatorTable"></table>
-      <button id="wikitableCreatorGenerateAndCopyTable" class="small">Generate and Copy Table</button>
-      <button id="wikitableCreatorUndo" class="small">Undo</button>
-      <textarea id="wikitableCreatorWikitable"></textarea>
+    <div id="wikitableWizardModal" style="display:none">
+    <h2>Wikitable Wizard</h2>
+      <span class="wikitable-wizard-close small">X</span>
+      <button id="wikitableWizardPaste" class="small">Paste Existing Table</button>
+      <button id="wikitableWizardAddRow" class="small">Add Row</button>
+      <button id="wikitableWizardAddColumn" class="small">Add Column</button>
+      <label><input type="checkbox" id="wikitableWizardHeaderRow" class="small" checked> 1st row as headers</label>
+      <label><input type="checkbox" id="wikitableWizardSortable" class="small"> Sortable</label>
+      <label><input type="checkbox" id="wikitableWizardFullWidth" class="small"> Full Width</label> <!-- Added line -->
+      <label>Border Color: <input type="color" id="wikitableWizardBorderColor"  value="#ffffff" class="small"></label>
+      <label>Border Width: <input type="number" id="wikitableWizardBorderWidth" class="small" min="0"></label>
+      <label>Cell Padding: <input type="number" id="wikitableWizardCellPadding" class="small" min="0"></label>
+      <label>Caption: <input type="text" id="wikitableWizardCaption" placeholder="Caption" class="small"></label>
+      <table id="wikitableWizardTable"></table>
+      <button id="wikitableWizardGenerateAndCopyTable" class="small">Generate and Copy Table</button>
+      <button id="wikitableWizardReset" class="small">Reset</button>
+      <button id="wikitableWizardUndo" class="small">Undo</button>
+      <textarea id="wikitableWizardWikitable"></textarea>
     </div>
   `;
+
+  // Attach the reset function to the Reset button
+  $("#wikitableWizardReset").on("click", function (e) {
+    e.preventDefault();
+    resetTable();
+  });
+
   $("#toolbar").after(modalHtml);
-  $("#wikitableCreatorModal").draggable({ handle: "h2" });
+  $("#wikitableWizardModal").draggable({ handle: "h2" });
 
   for (let i = 0; i < 5; i++) {
     let rowHtml = "<tr>";
@@ -265,16 +317,16 @@ function createWikitableCreatorModal() {
       rowHtml += '<td><input type="text"></td>';
     }
     rowHtml += "</tr>";
-    $("#wikitableCreatorTable").append(rowHtml);
+    $("#wikitableWizardTable").append(rowHtml);
   }
 
-  $("#wikitableCreatorTable").on("change", ".rowBgColor", function () {
+  $("#wikitableWizardTable").on("change", ".rowBgColor", function () {
     const pickedColor = $(this).val();
     const row = $(this).closest("tr");
     row.find("td:not(:first-child):not(:nth-child(2)) input[type=text]").css("background-color", pickedColor);
   });
 
-  $("#wikitableCreatorTable").on("change", ".rowBold", function () {
+  $("#wikitableWizardTable").on("change", ".rowBold", function () {
     const isChecked = $(this).prop("checked");
     const row = $(this).closest("tr");
     row
@@ -282,7 +334,7 @@ function createWikitableCreatorModal() {
       .css("font-weight", isChecked ? "bold" : "normal");
   });
 
-  $("#wikitableCreatorPaste").on("click", function (e) {
+  $("#wikitableWizardPaste").on("click", function (e) {
     e.preventDefault();
     navigator.clipboard
       .readText()
@@ -293,7 +345,7 @@ function createWikitableCreatorModal() {
 
           console.log("isFullWidth detected:", wikiTableData.isFullWidth);
 
-          $("#wikitableCreatorTable").empty();
+          $("#wikitableWizardTable").empty();
           wikiTableData.data.rows.forEach((row) => {
             let rowHtml = "<tr>";
             rowHtml += `<td><input type="checkbox" class="rowBold"${row.isBold ? " checked" : ""}> Bold</td>`;
@@ -304,21 +356,21 @@ function createWikitableCreatorModal() {
               }"></td>`;
             });
             rowHtml += "</tr>";
-            $("#wikitableCreatorTable").append($(rowHtml));
+            $("#wikitableWizardTable").append($(rowHtml));
           });
 
           if (wikiTableData.data.rows[0]?.isHeader) {
             // Check the "1st row as headers" checkbox if the first row is a header
-            $("#wikitableCreatorHeaderRow").prop("checked", true);
+            $("#wikitableWizardHeaderRow").prop("checked", true);
           }
 
           // Set other properties
-          $("#wikitableCreatorSortable").prop("checked", wikiTableData.isSortable);
-          $("#wikitableCreatorBorderColor").val(wikiTableData.borderColor || "#ffffff");
-          $("#wikitableCreatorCellPadding").val(wikiTableData.cellPadding);
-          $("#wikitableCreatorCaption").val(wikiTableData.data.caption);
+          $("#wikitableWizardSortable").prop("checked", wikiTableData.isSortable);
+          $("#wikitableWizardBorderColor").val(wikiTableData.borderColor || "#ffffff");
+          $("#wikitableWizardCellPadding").val(wikiTableData.cellPadding);
+          $("#wikitableWizardCaption").val(wikiTableData.data.caption);
           // Set the "Full Width" checkbox based on the value of isFullWidth from the parsed data
-          $("#wikitableCreatorFullWidth").prop("checked", wikiTableData.isFullWidth);
+          $("#wikitableWizardFullWidth").prop("checked", wikiTableData.isFullWidth);
         } else {
           if (text.includes("\t")) {
             parsedData = parseTSVData(text);
@@ -366,9 +418,9 @@ function createWikitableCreatorModal() {
             // Assuming `rows` is your array containing all the data rows
             parsedData.unshift(headerRow);
 
-            $("#wikitableCreatorHeaderRow").off("change");
-            $("#wikitableCreatorHeaderRow").on("change", function () {
-              if ($(this).prop("checked") && $("#wikitableCreatorTable tr.headerRow").length === 0) {
+            $("#wikitableWizardHeaderRow").off("change");
+            $("#wikitableWizardHeaderRow").on("change", function () {
+              if ($(this).prop("checked") && $("#wikitableWizardTable tr.headerRow").length === 0) {
                 const headerItems = ["Name", "Age", "Marital Status", "Position", "Occupation", "Birth Place"];
                 if (parsedData && includesAtLeastTwo(headerItems, parsedData[0])) {
                   let rowHtml = "<tr class='headerRow'>";
@@ -378,21 +430,21 @@ function createWikitableCreatorModal() {
                     rowHtml += `<td><input type="text" value="${cell}"></td>`;
                   });
                   rowHtml += "</tr>";
-                  $("#wikitableCreatorTable").prepend(rowHtml);
+                  $("#wikitableWizardTable").prepend(rowHtml);
                 }
               } else {
-                $("#wikitableCreatorTable tr.headerRow").remove();
+                $("#wikitableWizardTable tr.headerRow").remove();
               }
             });
           }
-          $("#wikitableCreatorTable").empty();
+          $("#wikitableWizardTable").empty();
           const headerItems = ["Name", "Age", "Marital Status", "Position", "Occupation", "Birth Place"];
           parsedData.forEach((row) => {
             let rowClass = "";
             if (includesAtLeastTwo(headerItems, row)) {
               rowClass = " class='headerRow'";
             }
-            if (rowClass && $("#wikitableCreatorHeaderRow").prop("checked") == false) {
+            if (rowClass && $("#wikitableWizardHeaderRow").prop("checked") == false) {
               return;
             }
             let rowHtml = "<tr" + rowClass + ">";
@@ -402,7 +454,7 @@ function createWikitableCreatorModal() {
               rowHtml += `<td><input type="text" value="${cell}"></td>`;
             });
             rowHtml += "</tr>";
-            $("#wikitableCreatorTable").append(rowHtml);
+            $("#wikitableWizardTable").append(rowHtml);
           });
         }
       })
@@ -411,35 +463,35 @@ function createWikitableCreatorModal() {
       });
   });
 
-  $("#wikitableCreatorGenerateAndCopyTable").on("click", function (e) {
+  $("#wikitableWizardGenerateAndCopyTable").on("click", function (e) {
     e.preventDefault();
-    const isSortable = $("#wikitableCreatorSortable").prop("checked");
+    const isSortable = $("#wikitableWizardSortable").prop("checked");
     const data = [];
     const rowStyles = [];
     let rowNum = 0;
-    const isHeaderRow = $("#wikitableCreatorHeaderRow").prop("checked");
+    const isHeaderRow = $("#wikitableWizardHeaderRow").prop("checked");
 
     const tableBorderColor =
-      $("#wikitableCreatorBorderColor").val() != "#ffffff" ? $("#wikitableCreatorBorderColor").val() : "";
+      $("#wikitableWizardBorderColor").val() != "#ffffff" ? $("#wikitableWizardBorderColor").val() : "";
     let tableBorderBit = "";
     if (tableBorderColor) {
       tableBorderBit = ` bordercolor="${tableBorderColor}"`;
     }
 
-    const tableCellPadding = $("#wikitableCreatorCellPadding").val();
+    const tableCellPadding = $("#wikitableWizardCellPadding").val();
     let tableCellPaddingBit = "";
     if (tableCellPadding) {
       tableCellPaddingBit = ` cellpadding="${tableCellPadding}"`;
     }
 
-    const tableBorderWidth = $("#wikitableCreatorBorderWidth").val();
+    const tableBorderWidth = $("#wikitableWizardBorderWidth").val();
     let tableBorderWidthBit = "";
     if (tableBorderWidth) {
       tableBorderWidthBit = ` border="${tableBorderWidth}"`;
     }
 
-    const caption = $("#wikitableCreatorCaption").val();
-    $("#wikitableCreatorTable tr").each(function () {
+    const caption = $("#wikitableWizardCaption").val();
+    $("#wikitableWizardTable tr").each(function () {
       const row = [];
       $(this)
         .find("input[type=text]")
@@ -452,7 +504,7 @@ function createWikitableCreatorModal() {
       const bgColor = $(this).find(".rowBgColor").val();
       rowStyles.push({ isBold, bgColor });
     });
-    const isFullWidth = $("#wikitableCreatorFullWidth").prop("checked");
+    const isFullWidth = $("#wikitableWizardFullWidth").prop("checked");
     let formattedContent = `{| class="wikitable${isSortable ? " sortable" : ""}"${
       isFullWidth ? ' width="100%"' : ""
     } ${tableBorderBit} ${tableCellPaddingBit} ${tableBorderWidthBit}`;
@@ -495,7 +547,7 @@ function createWikitableCreatorModal() {
 
     formattedContent += "\n|}";
     rowNum++;
-    $("#wikitableCreatorWikitable")
+    $("#wikitableWizardWikitable")
       .text(formattedContent)
       .css("height", `${rowNum * 3.7}em`)
       .slideDown();
@@ -511,25 +563,25 @@ function createWikitableCreatorModal() {
       });
   });
 
-  $(".wikitable-creator-close").on("click", function (e) {
+  $(".wikitable-wizard-close").on("click", function (e) {
     e.preventDefault();
-    $("#wikitableCreatorModal").hide();
+    $("#wikitableWizardModal").hide();
   });
 
-  const button = $('<button id="wikitableCreatorOpenModal" class="small">Create WikiTable</button>');
+  const button = $('<button id="wikitableWizardOpenModal" class="small">Create WikiTable</button>');
   $("#toolbar").append(button);
 
-  $("#wikitableCreatorOpenModal").on("click", function (e) {
+  $("#wikitableWizardOpenModal").on("click", function (e) {
     e.preventDefault();
 
-    $("#wikitableCreatorModal").show();
+    $("#wikitableWizardModal").show();
   });
 
-  $("#wikitableCreatorAddRow").on("click", function (e) {
+  $("#wikitableWizardAddRow").on("click", function (e) {
     e.preventDefault();
 
     // Save the current table state before adding a row
-    const currentTableState = $("#wikitableCreatorTable").html();
+    const currentTableState = $("#wikitableWizardTable").html();
     deletedStack.push({ type: "tableState", content: currentTableState });
     // Update Undo button visibility
     toggleUndoButton();
@@ -537,23 +589,23 @@ function createWikitableCreatorModal() {
     let rowHtml = "<tr>";
     rowHtml += '<td><input type="checkbox" class="rowBold"> Bold</td>';
     rowHtml += '<td><input type="color" class="rowBgColor" value="#ffffff"></td>';
-    $("#wikitableCreatorTable tr:first-child td:not(:first-child):not(:nth-child(2))").each(function () {
+    $("#wikitableWizardTable tr:first-child td:not(:first-child):not(:nth-child(2))").each(function () {
       rowHtml += '<td><input type="text"></td>';
     });
     rowHtml += "</tr>";
-    $("#wikitableCreatorTable").append(rowHtml);
+    $("#wikitableWizardTable").append(rowHtml);
   });
 
-  $("#wikitableCreatorAddColumn").on("click", function (e) {
+  $("#wikitableWizardAddColumn").on("click", function (e) {
     e.preventDefault();
 
     // Save the current table state before adding a column
-    const currentTableState = $("#wikitableCreatorTable").html();
+    const currentTableState = $("#wikitableWizardTable").html();
     deletedStack.push({ type: "tableState", content: currentTableState });
     // Update Undo button visibility
     toggleUndoButton();
 
-    $("#wikitableCreatorTable tr").each(function () {
+    $("#wikitableWizardTable tr").each(function () {
       const row = $(this);
       const isBold = row.find(".rowBold").prop("checked");
       const bgColor = row.find(".rowBgColor").val();
@@ -571,20 +623,20 @@ function createWikitableCreatorModal() {
   });
 
   // Event handler for undoing a deletion
-  $("#wikitableCreatorUndo").on("click", function (e) {
+  $("#wikitableWizardUndo").on("click", function (e) {
     e.preventDefault();
     if (deletedStack.length === 0) return; // No deleted items to undo
     const lastDeleted = deletedStack.pop();
 
     if (lastDeleted.type === "tableState") {
       // Restore the last saved table state
-      $("#wikitableCreatorTable").html(lastDeleted.content);
+      $("#wikitableWizardTable").html(lastDeleted.content);
     }
 
     if (lastDeleted.type === "row") {
-      $("#wikitableCreatorTable").append(lastDeleted.content);
+      $("#wikitableWizardTable").append(lastDeleted.content);
     } else if (lastDeleted.type === "column") {
-      $("#wikitableCreatorTable tr").each(function (rowIndex) {
+      $("#wikitableWizardTable tr").each(function (rowIndex) {
         $(this)
           .find("td")
           .eq(lastDeleted.index - 1)
@@ -609,7 +661,7 @@ function includesAtLeastTwo(arr1, arr2) {
   return commonElements.length >= 2;
 }
 
-$(document).on("contextmenu", "#wikitableCreatorTable td input[type=text]", function (e) {
+$(document).on("contextmenu", "#wikitableWizardTable td input[type=text]", function (e) {
   e.preventDefault();
 
   // Create context menu
@@ -673,7 +725,7 @@ $(document).on("contextmenu", "#wikitableCreatorTable td input[type=text]", func
       // Delete the column
       const colIndex = currentCell.closest("td").index();
       const deletedColumn = [];
-      $("#wikitableCreatorTable tr").each(function () {
+      $("#wikitableWizardTable tr").each(function () {
         deletedColumn.push($(this).find("td").eq(colIndex).clone());
         // Update Undo button visibility
         toggleUndoButton();
@@ -738,9 +790,9 @@ function findMostCommonSpaceCount(sampleLine) {
 }
 */
 
-shouldInitializeFeature("wikitableCreator").then((result) => {
+shouldInitializeFeature("wikitableWizard").then((result) => {
   if (result) {
-    // Run the function to create the Wikitable Creator
-    createWikitableCreatorModal();
+    // Run the function to create the Wikitable Wizard
+    createwikitableWizardModal();
   }
 });
