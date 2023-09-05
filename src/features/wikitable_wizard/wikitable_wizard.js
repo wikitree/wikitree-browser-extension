@@ -5,7 +5,7 @@ import { showCopyMessage } from "../access_keys/access_keys";
 import { analyzeColumns } from "../auto_bio/auto_bio";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
-const colorNameToHex = require("./html_colors.json");
+const colorNameToHex = import("./html_colors.json");
 console.log(colorNameToHex);
 
 function parseSSVData(data) {
@@ -169,7 +169,6 @@ function parseWikiTableData(data) {
   const isSortable = lines.some((line) => line.startsWith("{|") && /class="wikitable\s*sortable"/i.test(line));
 
   return {
-    borderColor: propertiesObj.bordercolor || "",
     cellPadding: propertiesObj.cellpadding || "",
     bgColor: propertiesObj.bgcolor || "",
     data: tableData,
@@ -250,30 +249,16 @@ function resetTable() {
   }
 
   // Reset other table options to their defaults
-  $("#wikitableWizardHeaderRow").prop("checked", true);
-  $("#wikitableWizardSortable").prop("checked", false);
-  $("#wikitableWizardFullWidth").prop("checked", false); // Resetting Full Width to unchecked
-  $("#wikitableWizardBorderColor").val("#ffffff");
-  $("#wikitableWizardBorderWidth").val("");
-  $("#wikitableWizardCellPadding").val("");
   $("#wikitableWizardCaption").val("");
 
   // Clear the textarea
-  $("#wikitableWizardWikitable").val("");
+  $("#wikitableWizardWikitable").text("").slideUp();
 
   // Clear the undo stack
   deletedStack.length = 0;
 
   // Update Undo button visibility
   toggleUndoButton();
-
-  // Attach the reset function to the Reset button
-  $("#wikitableWizardReset")
-    .off("click")
-    .on("click", function (e) {
-      e.preventDefault();
-      resetTable();
-    });
 }
 
 function createwikitableWizardModal() {
@@ -288,7 +273,6 @@ function createwikitableWizardModal() {
       <label><input type="checkbox" id="wikitableWizardHeaderRow" class="small" checked> 1st row as headers</label>
       <label><input type="checkbox" id="wikitableWizardSortable" class="small"> Sortable</label>
       <label><input type="checkbox" id="wikitableWizardFullWidth" class="small"> Full Width</label> <!-- Added line -->
-      <label>Border Color: <input type="color" id="wikitableWizardBorderColor"  value="#ffffff" class="small"></label>
       <label>Border Width: <input type="number" id="wikitableWizardBorderWidth" class="small" min="0"></label>
       <label>Cell Padding: <input type="number" id="wikitableWizardCellPadding" class="small" min="0"></label>
       <label>Caption: <input type="text" id="wikitableWizardCaption" placeholder="Caption" class="small"></label>
@@ -299,12 +283,6 @@ function createwikitableWizardModal() {
       <textarea id="wikitableWizardWikitable"></textarea>
     </div>
   `;
-
-  // Attach the reset function to the Reset button
-  $("#wikitableWizardReset").on("click", function (e) {
-    e.preventDefault();
-    resetTable();
-  });
 
   $("#toolbar").after(modalHtml);
   $("#wikitableWizardModal").draggable({ handle: "h2" });
@@ -366,7 +344,6 @@ function createwikitableWizardModal() {
 
           // Set other properties
           $("#wikitableWizardSortable").prop("checked", wikiTableData.isSortable);
-          $("#wikitableWizardBorderColor").val(wikiTableData.borderColor || "#ffffff");
           $("#wikitableWizardCellPadding").val(wikiTableData.cellPadding);
           $("#wikitableWizardCaption").val(wikiTableData.data.caption);
           // Set the "Full Width" checkbox based on the value of isFullWidth from the parsed data
@@ -461,6 +438,9 @@ function createwikitableWizardModal() {
       .catch((err) => {
         alert("Failed to read clipboard contents: " + err);
       });
+
+    // Clear the textarea
+    $("#wikitableWizardWikitable").text("").slideUp();
   });
 
   $("#wikitableWizardGenerateAndCopyTable").on("click", function (e) {
@@ -470,13 +450,6 @@ function createwikitableWizardModal() {
     const rowStyles = [];
     let rowNum = 0;
     const isHeaderRow = $("#wikitableWizardHeaderRow").prop("checked");
-
-    const tableBorderColor =
-      $("#wikitableWizardBorderColor").val() != "#ffffff" ? $("#wikitableWizardBorderColor").val() : "";
-    let tableBorderBit = "";
-    if (tableBorderColor) {
-      tableBorderBit = ` bordercolor="${tableBorderColor}"`;
-    }
 
     const tableCellPadding = $("#wikitableWizardCellPadding").val();
     let tableCellPaddingBit = "";
@@ -507,7 +480,7 @@ function createwikitableWizardModal() {
     const isFullWidth = $("#wikitableWizardFullWidth").prop("checked");
     let formattedContent = `{| class="wikitable${isSortable ? " sortable" : ""}"${
       isFullWidth ? ' width="100%"' : ""
-    } ${tableBorderBit} ${tableCellPaddingBit} ${tableBorderWidthBit}`;
+    } ${tableCellPaddingBit} ${tableBorderWidthBit}`;
 
     if (caption) formattedContent += `\n|+ ${caption}`;
 
@@ -549,7 +522,7 @@ function createwikitableWizardModal() {
     rowNum++;
     $("#wikitableWizardWikitable")
       .text(formattedContent)
-      .css("height", `${rowNum * 3.7}em`)
+      .css("height", `${rowNum * 3.8}em`)
       .slideDown();
 
     const wikitableContent = formattedContent;
@@ -649,6 +622,14 @@ function createwikitableWizardModal() {
     // Update Undo button visibility
     toggleUndoButton();
   });
+
+  // Attach the reset function to the Reset button
+  $("#wikitableWizardReset")
+    .off("click")
+    .on("click", function (e) {
+      e.preventDefault();
+      resetTable();
+    });
 }
 
 // Create custom context menu
@@ -666,12 +647,16 @@ $(document).on("contextmenu", "#wikitableWizardTable td input[type=text]", funct
 
   // Create context menu
   const menuHtml = `
-      <div id="wikitableContextMenu">
-        <a href="#" class="wikitable-context-option" data-action="copy">Copy</a>
-        <a href="#" class="wikitable-context-option" data-action="paste">Paste</a>
-        <a href="#" class="wikitable-context-option" data-action="delete-row">Delete Row</a>
-        <a href="#" class="wikitable-context-option" data-action="delete-column">Delete Column</a>
-      </div>
+  <div id="wikitableContextMenu">
+  <a href="#" class="wikitable-context-option" data-action="copy">Copy</a>
+  <a href="#" class="wikitable-context-option" data-action="paste">Paste</a>
+  <a href="#" class="wikitable-context-option" data-action="delete-row">Delete Row</a>
+  <a href="#" class="wikitable-context-option" data-action="delete-column">Delete Column</a>
+  <a href="#" class="wikitable-context-option" data-action="insert-row-above">Insert Row Above</a>
+  <a href="#" class="wikitable-context-option" data-action="insert-row-below">Insert Row Below</a>
+  <a href="#" class="wikitable-context-option" data-action="insert-column-left">Insert Column Left</a>
+  <a href="#" class="wikitable-context-option" data-action="insert-column-right">Insert Column Right</a>
+</div>
     `;
   currentCell = $(this);
 
@@ -688,6 +673,13 @@ $(document).on("contextmenu", "#wikitableWizardTable td input[type=text]", funct
   // Click handlers for context menu options
   $(".wikitable-context-option").on("click", function (e) {
     e.preventDefault();
+
+    function resetClonedRow(newRow) {
+      newRow.find("input[type=text]").val("");
+      newRow.find("input[type=checkbox]").prop("checked", false);
+      newRow.find("input[type=color]").val("#ffffff");
+    }
+
     const action = $(this).data("action");
     // const cellInput = $(e.target).closest("td").find("input[type='text']");
     // console.log(cellInput);
@@ -734,6 +726,32 @@ $(document).on("contextmenu", "#wikitableWizardTable td input[type=text]", funct
       deletedStack.push({ type: "column", content: deletedColumn, index: colIndex });
       // Update Undo button visibility
       toggleUndoButton();
+    } else if (action === "insert-row-above") {
+      const row = currentCell.closest("tr");
+      const newRow = row.clone();
+      resetClonedRow(newRow);
+      row.before(newRow);
+    } else if (action === "insert-row-below") {
+      const row = currentCell.closest("tr");
+      const newRow = row.clone();
+      resetClonedRow(newRow);
+      row.after(newRow);
+    } else if (action === "insert-column-left") {
+      const colIndex = currentCell.closest("td").index();
+      $("#wikitableWizardTable tr").each(function () {
+        const cell = $(this).find("td").eq(colIndex);
+        const newCell = cell.clone();
+        newCell.find("input[type=text]").val("");
+        cell.before(newCell);
+      });
+    } else if (action === "insert-column-right") {
+      const colIndex = currentCell.closest("td").index();
+      $("#wikitableWizardTable tr").each(function () {
+        const cell = $(this).find("td").eq(colIndex);
+        const newCell = cell.clone();
+        newCell.find("input[type=text]").val("");
+        cell.after(newCell);
+      });
     }
 
     // Close context menu
@@ -747,48 +765,6 @@ $(document).on("click", function (e) {
     $("#wikitableContextMenu").remove();
   }
 });
-/*
-function findMostCommonSpaceCount(sampleLine) {
-  // Initialize a dictionary to hold the frequency of each space count
-  const spaceCountFrequency = {};
-
-  // Initialize variables to keep track of the last non-space character and space count
-  let lastChar = "";
-  let spaceCount = 0;
-
-  // Loop through each character in the sample line
-  for (const char of sampleLine) {
-    if (char === " ") {
-      // If it's a space, increment the space count
-      spaceCount++;
-    } else {
-      // If it's not a space and we have a pending space count, record it
-      if (spaceCount > 0) {
-        if (!spaceCountFrequency[spaceCount]) {
-          spaceCountFrequency[spaceCount] = 0;
-        }
-        spaceCountFrequency[spaceCount]++;
-      }
-      // Reset the space count
-      spaceCount = 0;
-    }
-    // Update the last character
-    lastChar = char;
-  }
-
-  // Find the most common space count
-  let mostCommonSpaceCount = null;
-  let highestFrequency = 0;
-  for (const [count, frequency] of Object.entries(spaceCountFrequency)) {
-    if (frequency > highestFrequency) {
-      mostCommonSpaceCount = parseInt(count);
-      highestFrequency = frequency;
-    }
-  }
-
-  return mostCommonSpaceCount;
-}
-*/
 
 shouldInitializeFeature("wikitableWizard").then((result) => {
   if (result) {
