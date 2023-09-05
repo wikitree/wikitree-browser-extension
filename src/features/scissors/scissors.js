@@ -93,6 +93,7 @@ async function helpScissors() {
     const historyItem = $("span.HISTORY-ITEM");
     const theAct = historyItem.find("a:contains(created),a:contains(imported the data)");
     const createDetail = theAct.length ? ` at creation of WikiTree profile ${theAct[0].title}` : "";
+    const fromGedcom = theAct.length ? historyItem.find('a[title*="UploadGedcom"]') : undefined;
     const changesMadeBy = $("td:contains(Changes made by)");
     const theDate = changesMadeBy.text().match(/[0-9]+ [A-Z][a-z]+ [0-9]{4}/);
     const adderA = changesMadeBy.find("a").eq(0);
@@ -100,6 +101,9 @@ async function helpScissors() {
     const adderName = adderA.text();
     const url = decodeURIComponent(window.location.href);
     let reference = `[${url} Added]${createDetail} by [[${adderID}|${adderName}]]`;
+    if (fromGedcom && fromGedcom.length) {
+      reference += ` through the import of ${fromGedcom.text()}`;
+    }
     if (theDate) {
       reference += " on " + theDate + ".";
     } else {
