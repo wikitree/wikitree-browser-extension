@@ -3,11 +3,8 @@ import "jquery-ui/ui/widgets/draggable";
 import "./wikitable_wizard.css";
 import { showCopyMessage } from "../access_keys/access_keys";
 import { analyzeColumns } from "../auto_bio/auto_bio";
-import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 const colorNameToHex = import("./html_colors.json");
-console.log(colorNameToHex);
-
 function parseSSVData(data) {
   const censusList = data.split("\n").map((line) => line.replace(/^[:#]+/, "").trim());
   let parsedData = [];
@@ -28,7 +25,6 @@ function parseSSVData(data) {
       const position = rest[3];
       rest.splice(0, 4);
       const remaining = rest.join(" ").replace(placeMatch[0], "").trim();
-      console.log("parsedData:", JSON.parse(JSON.stringify(parsedData)));
 
       parsedData.push({
         Name: name,
@@ -55,8 +51,6 @@ function parseSSVData(data) {
     newArray.push(values);
   }
   parsedData = newArray;
-
-  console.log("parsedData:", JSON.parse(JSON.stringify(parsedData)));
   return parsedData;
 }
 
@@ -73,8 +67,6 @@ function parseWikiTableData(data) {
   let isFullWidth = false;
 
   lines.forEach((line) => {
-    console.log("Line:", line); // Debug log
-
     if (line === "|}") return; // Ignore the closing bracket
 
     if (line.startsWith("{|")) {
@@ -85,17 +77,14 @@ function parseWikiTableData(data) {
         propertiesObj[key] = value;
       });
       if (/width=["']?100%["']?/.test(line)) {
-        console.log("Full width detected:", line);
         isFullWidth = true; // Set isFullWidth to true if the line contains width="100%"
-      } else {
-        console.log("Full width not detected:", line);
       }
     } else if (line.startsWith("|+")) {
       tableData.caption = line.replace("|+", "").trim();
     } else if (line.startsWith("|-")) {
       if (currentRow) tableData.rows.push(currentRow);
       let bgColorMatch = line.match(/bgcolor=("|')?([a-zA-Z0-9#]+)\1?/); // Updated regex pattern
-      let bgColor = bgColorMatch ? bgColorMatch[2] : null; // Get the matched value or name
+      let bgColor = bgColorMatch ? bgColorMatch[2] : "#ffffff"; // Get the matched value or name
       if (bgColor && !bgColor.startsWith("#")) {
         bgColor = colorNameToHex[bgColor.toLowerCase()] || null; // Convert color name to hex value if necessary
       }
@@ -113,7 +102,7 @@ function parseWikiTableData(data) {
 
       currentRow = {
         cells: [],
-        bgColor: bgColor || null,
+        bgColor: bgColor || "#ffffff",
         isBold: false,
       };
     } else if (line.startsWith("!")) {
@@ -170,7 +159,7 @@ function parseWikiTableData(data) {
 
   return {
     cellPadding: propertiesObj.cellpadding || "",
-    bgColor: propertiesObj.bgcolor || "",
+    bgColor: propertiesObj.bgcolor || "#ffffff",
     data: tableData,
     isSortable: isSortable,
     isFullWidth: isFullWidth,
@@ -196,19 +185,11 @@ function parseTSVData(data) {
 }
 
 function parseMultiSpaceData(data) {
-  console.log("Entering parseMultiSpaceData with data:", data); // Debug log at entry
-
   const parsedData = data.split("\n").map((row) => {
     const cleanedRow = row.replace(/^[:*#]+/, "").trim();
-    console.log("Cleaned row:", cleanedRow); // Debug log after cleaning row
-
     const splitRow = cleanedRow.split(/ {4}/);
-    console.log("Split row:", splitRow); // Debug log after splitting row
-
     return splitRow.map((cell) => cell.trim());
   });
-
-  console.log("Final parsedData:", parsedData); // Debug log at exit
   return parsedData;
 }
 
@@ -231,15 +212,14 @@ function toggleUndoButton() {
   }
 }
 
-// Function to reset the table
-function resetTable() {
+function createBasicTable() {
   // Clear the table data
   $("#wikitableWizardTable").empty();
 
   // Add the initial 5 rows and 5 columns back to the table
   for (let i = 0; i < 5; i++) {
     let rowHtml = "<tr>\n";
-    rowHtml += '<td><input type="checkbox" class="rowBold"> Bold</td>\n';
+    rowHtml += '<td><label class="boldLabel"><input type="checkbox" class="rowBold"> <b>B</b></label></td>\n';
     rowHtml += '<td><input type="color" class="rowBgColor" value="#ffffff"></td>\n';
     for (let j = 0; j < 5; j++) {
       rowHtml += '<td><input type="text"></td>\n';
@@ -247,6 +227,11 @@ function resetTable() {
     rowHtml += "</tr>\n";
     $("#wikitableWizardTable").append(rowHtml);
   }
+}
+
+// Function to reset the table
+function resetTable() {
+  createBasicTable();
 
   // Reset other table options to their defaults
   $("#wikitableWizardCaption").val("");
@@ -267,7 +252,7 @@ function createwikitableWizardModal() {
     <div id="wikitableWizardModal" style="display:none">
     <h2>Wikitable Wizard</h2>
       <span class="wikitable-wizard-close small">X</span>
-      <button id="wikitableWizardPaste" class="small">Paste Existing Table</button>
+      <button id="wikitableWizardPaste" class="small" title="Copy a wikitable or a census list created by Sourcer, and click here to edit it and produce a new table">Paste Table or List</button>
       <button id="wikitableWizardAddRow" class="small">Add Row</button>
       <button id="wikitableWizardAddColumn" class="small">Add Column</button>
       <label><input type="checkbox" id="wikitableWizardHeaderRow" class="small" checked> 1st row as headers</label>
@@ -287,16 +272,7 @@ function createwikitableWizardModal() {
   $("#toolbar").after(modalHtml);
   $("#wikitableWizardModal").draggable({ handle: "h2" });
 
-  for (let i = 0; i < 5; i++) {
-    let rowHtml = "<tr>\n";
-    rowHtml += '<td><label><input type="checkbox" class="rowBold"> Bold</label></td>\n';
-    rowHtml += '<td><input type="color" class="rowBgColor" value="#ffffff"></td>\n';
-    for (let j = 0; j < 5; j++) {
-      rowHtml += '<td><input type="text"></td>\n';
-    }
-    rowHtml += "</tr>\n";
-    $("#wikitableWizardTable").append(rowHtml);
-  }
+  createBasicTable();
 
   $("#wikitableWizardTable")
     .off("change")
@@ -324,15 +300,16 @@ function createwikitableWizardModal() {
         .readText()
         .then((text) => {
           parsedData = [];
+          text = text.trim();
           if (text.includes("{|") && text.includes("|-")) {
             const wikiTableData = parseWikiTableData(text);
-
-            console.log("isFullWidth detected:", wikiTableData.isFullWidth);
 
             $("#wikitableWizardTable").empty();
             wikiTableData.data.rows.forEach((row) => {
               let rowHtml = "<tr>\n";
-              rowHtml += `<td><input type="checkbox" class="rowBold"${row.isBold ? " checked" : ""}> Bold</td>\n`;
+              rowHtml += `<td><label class="boldLabel"><input type="checkbox" class="rowBold"${
+                row.isBold ? " checked" : ""
+              }> <b>B</b></label></td>\n`;
               rowHtml +=
                 '<td><input type="color" class="rowBgColor" value="' + (row.bgColor || "#ffffff") + '"></td>\n';
               row.cells.forEach((cell) => {
@@ -358,36 +335,18 @@ function createwikitableWizardModal() {
           } else {
             if (text.includes("\t")) {
               parsedData = parseTSVData(text);
-              // log
-              console.log("parsedData:", parsedData);
-              console.log("Going to parseTSVData");
             } else if (/ {4}/.test(text)) {
-              console.log("Text to be tested:", JSON.stringify(text));
-
               parsedData = parseMultiSpaceData(text);
-
-              // log
-              console.log("parsedData:", JSON.parse(JSON.stringify(parsedData)));
-              console.log("Going to parseMultiSpaceData");
             } else {
               const commaMatch = text.split(/\n/)[0].match(/,/g);
-              // log
-              console.log("commaMatch:", commaMatch);
               if (commaMatch && commaMatch.length > 2) {
                 parsedData = parseCSVData(text);
-                // log
-                console.log("parsedData:", parsedData);
-                console.log("Going to parseCSVData");
               } else {
                 parsedData = parseSSVData(text);
-                // log
-                console.log("parsedData:", JSON.parse(JSON.stringify(parsedData)));
-                console.log("Going to parseSSVData");
               }
             }
             if (parsedData) {
               let columnMapping = analyzeColumns(parsedData);
-              console.log(columnMapping);
 
               // Create an array with the same length as the number of columns
               const headerRow = new Array(Object.keys(columnMapping).length).fill("");
@@ -409,7 +368,8 @@ function createwikitableWizardModal() {
                     const headerItems = ["Name", "Age", "Marital Status", "Position", "Occupation", "Birth Place"];
                     if (parsedData && includesAtLeastTwo(headerItems, parsedData[0])) {
                       let rowHtml = "<tr class='headerRow'>\n";
-                      rowHtml += '<td><input type="checkbox" class="rowBold"> Bold</td>\n';
+                      rowHtml +=
+                        '<td><label class="boldLabel"><input type="checkbox" class="rowBold"> <b>B</b></label></td>\n';
                       rowHtml += '<td><input type="color" class="rowBgColor" value="#ffffff"></td>\n';
                       parsedData[0].forEach((cell) => {
                         rowHtml += `<td><input type="text" value="${cell}"></td>\n`;
@@ -433,7 +393,7 @@ function createwikitableWizardModal() {
                 return;
               }
               let rowHtml = "<tr" + rowClass + ">\n";
-              rowHtml += '<td><input type="checkbox" class="rowBold"> Bold</td>\n';
+              rowHtml += '<td><label class="boldLabel"><input type="checkbox" class="rowBold"> <b>B</b></label></td>\n';
               rowHtml += '<td><input type="color" class="rowBgColor" value="#ffffff"></td>\n';
               row.forEach((cell) => {
                 rowHtml += `<td><input type="text" value="${cell}"></td>\n`;
@@ -484,7 +444,7 @@ function createwikitableWizardModal() {
         data.push(row);
 
         const isBold = $(this).find(".rowBold").prop("checked");
-        const bgColor = $(this).find(".rowBgColor").val();
+        const bgColor = $(this).find(".rowBgColor").val() || "#ffffff";
         rowStyles.push({ isBold, bgColor });
       });
       const isFullWidth = $("#wikitableWizardFullWidth").prop("checked");
@@ -553,9 +513,6 @@ function createwikitableWizardModal() {
       $("#wikitableWizardModal").hide();
     });
 
-  const button = $('<button id="wikitableWizardOpenModal" class="small">Create WikiTable</button>');
-  $("#toolbar").append(button);
-
   $("#wikitableWizardOpenModal")
     .off("click")
     .on("click", function (e) {
@@ -576,7 +533,7 @@ function createwikitableWizardModal() {
       toggleUndoButton();
 
       let rowHtml = "<tr>\n";
-      rowHtml += '<td><input type="checkbox" class="rowBold"> Bold</td>\n';
+      rowHtml += '<td><label class="boldLabel"><input type="checkbox" class="rowBold"> <b>B</b></label></td>\n';
       rowHtml += '<td><input type="color" class="rowBgColor" value="#ffffff"></td>\n';
       $("#wikitableWizardTable tr:first-child td:not(:first-child):not(:nth-child(2))").each(function () {
         rowHtml += '<td><input type="text"></td>\n';
@@ -608,7 +565,7 @@ function createwikitableWizardModal() {
     });
 
   $(document)
-    .off("click")
+    .off("input")
     .on("input", ".rowBgColor", function () {
       const pickedColor = $(this).val(); // Get the picked color
       const row = $(this).closest("tr"); // Get the corresponding row
@@ -652,11 +609,49 @@ function createwikitableWizardModal() {
       e.preventDefault();
       resetTable();
     });
+
+  $("#wikitableWizardTable").on("keydown", "input", function (e) {
+    const currentCell = $(this).closest("td");
+    const currentRow = $(this).closest("tr");
+    let nextCell, nextRow;
+
+    switch (e.key) {
+      case "ArrowLeft":
+        nextCell = currentCell.prev("td");
+        if (nextCell.length > 0) {
+          nextCell.find("input").trigger("focus");
+        }
+        break;
+
+      case "ArrowUp":
+        nextRow = currentRow.prev("tr");
+        if (nextRow.length > 0) {
+          nextRow.find("td").eq(currentCell.index()).find("input").trigger("focus");
+        }
+        break;
+
+      case "ArrowRight":
+        nextCell = currentCell.next("td");
+        if (nextCell.length > 0) {
+          nextCell.find("input").trigger("focus");
+        }
+        break;
+
+      case "ArrowDown":
+        nextRow = currentRow.next("tr");
+        if (nextRow.length > 0) {
+          nextRow.find("td").eq(currentCell.index()).find("input").trigger("focus");
+        }
+        break;
+
+      default:
+        break;
+    }
+  });
 }
 
 // Create custom context menu
 
-let copiedCellValue = ""; // Variable to store copied value
 let currentCell = null; // Variable to store the current cell
 
 function includesAtLeastTwo(arr1, arr2) {
@@ -700,29 +695,6 @@ $(document)
       .on("click", function (e) {
         e.preventDefault();
 
-        function resetClonedRow(newRow) {
-          const newRowElement = newRow[0]; // Assuming newRow is a jQuery object
-
-          // Reset text inputs
-          newRowElement.querySelectorAll("input[type='text']").forEach(function (input) {
-            input.value = "";
-            input.style.fontWeight = "normal";
-            input.style.backgroundColor = "#ffffff";
-          });
-
-          // Reset checkboxes
-          newRowElement.querySelectorAll("input[type='checkbox']").forEach(function (input) {
-            input.checked = false;
-          });
-
-          // Reset color inputs
-          newRowElement.querySelectorAll("input[type='color']").forEach(function (input) {
-            input.value = "#ffffff";
-          });
-
-          console.log(newRowElement.outerHTML);
-        }
-
         function addTableStateToStack() {
           // Check color inputs and set to #ffffff if they are empty or null
           $("#wikitableWizardTable")
@@ -733,12 +705,7 @@ $(document)
               }
             });
           const currentTableState = $("#wikitableWizardTable").html();
-          // log
-          console.log("Current table state:", currentTableState);
           deletedStack.push({ type: "tableState", content: currentTableState });
-          // log
-          console.log("Current Stack:", deletedStack); // Debug line
-
           // Update Undo button visibility
           toggleUndoButton();
         }
@@ -760,12 +727,14 @@ $(document)
             }
 
             if ($(this).find("input[type='checkbox']").length > 0) {
-              const newCheckbox = $('<input type="checkbox">').prop("checked", false);
+              const newCheckbox = $(
+                '<label class="boldLabel"><input type="checkbox" class="rowBold"> <b>B</b></label>'
+              );
               newCell.append(newCheckbox);
             }
 
             if ($(this).find("input[type='color']").length > 0) {
-              const newColor = $('<input type="color">').val("#ffffff");
+              const newColor = $('<input type="color" value="#ffffff">');
               newCell.append(newColor);
             }
 
@@ -786,6 +755,54 @@ $(document)
           }
         }
 
+        function manualCloneColumnAndReset(colIndex) {
+          const newColumn = [];
+
+          $("#wikitableWizardTable tr").each(function () {
+            const cell = $(this).find("td").eq(colIndex);
+            const newCell = $("<td></td>");
+
+            if (cell.find("input[type='text']").length > 0) {
+              const newText = $('<input type="text">').css({
+                "font-weight": "normal",
+                "background-color": "#ffffff",
+              });
+              newCell.append(newText);
+            }
+
+            if (cell.find("input[type='checkbox']").length > 0) {
+              const newCheckbox = $('<input type="checkbox">').prop("checked", false);
+              newCell.append(newCheckbox);
+            }
+
+            if (cell.find("input[type='color']").length > 0) {
+              const newColor = $('<input type="color" value="#ffffff">');
+              newCell.append(newColor);
+            }
+
+            newColumn.push(newCell);
+          });
+
+          return newColumn;
+        }
+
+        function insertColumn(colIndex, leftOrRight) {
+          addTableStateToStack();
+          const newColumn = manualCloneColumnAndReset(colIndex);
+
+          $("#wikitableWizardTable tr").each(function (rowIndex) {
+            const cell = $(this).find("td").eq(colIndex);
+            const newCell = newColumn[rowIndex];
+
+            if (leftOrRight === "left") {
+              cell.before(newCell);
+            } else {
+              cell.after(newCell);
+            }
+          });
+        }
+
+        /*
         function insertColumn(colIndex, leftOrRight) {
           addTableStateToStack();
           $("#wikitableWizardTable tr").each(function () {
@@ -799,20 +816,15 @@ $(document)
             }
           });
         }
-
+*/
         const action = $(this).data("action");
-        // const cellInput = $(e.target).closest("td").find("input[type='text']");
-        // console.log(cellInput);
         if (action === "copy") {
           // Copy the cell value
           const cellValue = currentCell.val();
-          console.log(cellValue);
           navigator.clipboard.writeText(cellValue).catch((err) => {
             console.error("Failed to copy text:", err);
           });
         } else if (action === "paste") {
-          // Save the current value before pasting
-          const previousValue = currentCell.val();
           deletedStack.push({ type: "paste", content: previousValue, cell: currentCell });
           // Update Undo button visibility
           toggleUndoButton();
@@ -874,9 +886,11 @@ $(document)
     }
   });
 
-shouldInitializeFeature("wikitableWizard").then((result) => {
-  if (result) {
-    // Run the function to create the Wikitable Wizard
+export function createWikitableWizard() {
+  if ($("#wikitableWizardModal").length === 0) {
     createwikitableWizardModal();
+    $("#wikitableWizardModal").toggle();
+  } else {
+    $("#wikitableWizardModal").toggle();
   }
-});
+}
