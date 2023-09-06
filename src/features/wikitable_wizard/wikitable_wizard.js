@@ -204,7 +204,7 @@ function parseWikiTableData(data) {
     data: tableData,
     isSortable: isSortable,
     isFullWidth: isFullWidth,
-    isWikiTable: isWikitableClass,
+    isWikitableClass: isWikitableClass,
   };
 }
 
@@ -300,7 +300,7 @@ function createwikitableWizardModal() {
     <div id="wikitableWizardModal" style="display:none">
     <h2>Wikitable Wizard</h2>
       <span id="wikitableWizardHelpButton"><img src="/images/icons/help.gif" alt="More information"></span>
-      <span class="wikitable-wizard-close">X</span>
+      <x class="wikitable-wizard-close">X</x>
       <button id="wikitableWizardPaste" class="small" title="Copy a wikitable or a census list created by Sourcer, and click here to edit it and produce a new table">Paste Table or List</button>
       <button id="wikitableWizardAddRow" class="small">Add Row</button>
       <button id="wikitableWizardAddColumn" class="small">Add Column</button>
@@ -320,6 +320,7 @@ function createwikitableWizardModal() {
         <label><input type="checkbox" id="wikitableWizardWikitableClass"> wikitable</label>
       </fieldset>  
       <div id="wikitableWizardHelp">
+      <x>x</x>
         <h3>Notes:</h3>
         <p>You can copy a wikitable or a census list created by Sourcer, and click the "Paste Table or List" button to edit it and produce a new table. 
         Census lists produced by Sourcer can be converted to tables, and the Wizard will try to produce an appropriate header row based on the content of the columns.</p>
@@ -331,7 +332,8 @@ function createwikitableWizardModal() {
           <li>The 'sortable' class will make the table sortable.</li>
           <li>The 'wikitable' class will make the table look like a wikitable.  It will also make it available to the WBE's Table Filters and Sorting feature.</li>
           <li>You can move this popup window by dragging the title bar.</li>
-        </ul>
+          <li>There are four ways to close this Notes section: ?, Escape, 'x', and double-click.</li>
+          </ul>
         <p>Bear in mind that this is still being tested. Please <a href="https://www.wikitree.com/wiki/Beacall-6">let me know</a> if you find any bugs.</p>
       </div>
       <table id="wikitableWizardTable"></table>
@@ -734,24 +736,10 @@ function createwikitableWizardModal() {
     let nextCell, nextRow;
 
     switch (e.key) {
-      case "ArrowLeft":
-        nextCell = currentCell.prev("td");
-        if (nextCell.length > 0) {
-          nextCell.find("input").trigger("focus");
-        }
-        break;
-
       case "ArrowUp":
         nextRow = currentRow.prev("tr");
         if (nextRow.length > 0) {
           nextRow.find("td").eq(currentCell.index()).find("input").trigger("focus");
-        }
-        break;
-
-      case "ArrowRight":
-        nextCell = currentCell.next("td");
-        if (nextCell.length > 0) {
-          nextCell.find("input").trigger("focus");
         }
         break;
 
@@ -766,15 +754,41 @@ function createwikitableWizardModal() {
         break;
     }
   });
-  $("#wikitableWizardHeaderRow").on("change", function () {
-    $("#wikitableWizardTable .useHeaderRow").removeClass("useHeaderRow");
-    if ($(this).prop("checked")) {
-      $("#wikitableWizardTable tbody tr:first-child").addClass("useHeaderRow");
+  $("#wikitableWizardHeaderRow")
+    .off("change")
+    .on("change", function () {
+      $("#wikitableWizardTable .useHeaderRow").removeClass("useHeaderRow");
+      if ($(this).prop("checked")) {
+        $("#wikitableWizardTable tbody tr:first-child").addClass("useHeaderRow");
+      }
+    });
+  $("#wikitableWizardHelpButton")
+    .off("click")
+    .on("click", function () {
+      $("#wikitableWizardHelp").slideToggle();
+      $(document).on("keydown", closePopupOnEsc);
+    });
+
+  // Function to close the popup on pressing 'ESC'
+  function closePopupOnEsc(event) {
+    if (event.which === 27) {
+      // 27 is the code for the 'ESC' key
+      $("#wikitableWizardHelp").slideToggle();
+      $(document).off("keydown", closePopupOnEsc);
     }
-  });
-  $("#wikitableWizardHelpButton").on("click", function () {
-    $("#wikitableWizardHelp").slideToggle();
-  });
+  }
+
+  $("#wikitableWizardHelp")
+    .off("dblclick")
+    .on("dblclick", function () {
+      $(this).slideUp();
+    });
+
+  $("#wikitableWizardHelp x")
+    .off("click")
+    .on("click", function () {
+      $("#wikitableWizardHelp").slideUp();
+    });
 }
 
 // Create custom context menu
