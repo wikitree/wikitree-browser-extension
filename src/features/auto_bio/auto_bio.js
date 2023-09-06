@@ -127,7 +127,10 @@ export function getFormData() {
     } else {
       if (["mBirthDate", "mMarriageDate", "mDeathDate"].includes($(this).attr("id"))) {
         if ($(this).val().length > 4) {
-          const date = convertDate($(this).val(), "YMD");
+          let date = convertDate($(this).val(), "YMD");
+          if (date.length == 8) {
+            date += "00";
+          }
           formData[$(this).attr("id")?.substring(1)] = date;
         } else {
           formData[$(this).attr("id")?.substring(1)] = $(this).val();
