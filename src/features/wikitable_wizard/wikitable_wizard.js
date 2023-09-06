@@ -5,6 +5,8 @@ import { showCopyMessage } from "../access_keys/access_keys";
 import { analyzeColumns } from "../auto_bio/auto_bio";
 
 const colorNameToHex = import("./html_colors.json");
+const headerItems = ["Name", "Age", "Marital Status", "Position", "Occupation", "Birth Place", "Gender"];
+
 function parseSSVData(data) {
   const censusList = data.split("\n").map((line) => line.replace(/^[:#]+/, "").trim());
   let parsedData = [];
@@ -155,7 +157,8 @@ function parseWikiTableData(data) {
   // Filter out empty rows
   tableData.rows = tableData.rows.filter((row) => row.cells.some((cell) => cell.trim() !== ""));
 
-  const isSortable = lines.some((line) => line.startsWith("{|") && /class="wikitable\s*sortable"/i.test(line));
+  const isSortable = lines.some((line) => line.startsWith("{|") && /class=".*sortable.*"/i.test(line));
+  const isWikitableClass = lines.some((line) => line.startsWith("{|") && /class=".*wikitable.*"/i.test(line));
 
   return {
     cellPadding: propertiesObj.cellpadding || "",
@@ -163,6 +166,7 @@ function parseWikiTableData(data) {
     data: tableData,
     isSortable: isSortable,
     isFullWidth: isFullWidth,
+    isWikiTable: isWikitableClass,
   };
 }
 
@@ -215,17 +219,22 @@ function toggleUndoButton() {
 function createBasicTable() {
   // Clear the table data
   $("#wikitableWizardTable").empty();
+  $("#wikitableWizardTable").append(
+    `<thead><tr><th title="Make the whole row bold">Bold</th><th title="Set the background color for the row">BG</th><th colspan="3"><input type="text" id="wikitableWizardCaption" title="Add a title to the top of your table" placeholder="Caption" class="small"></th></tr></thead><tbody></tbody>`
+  );
 
   // Add the initial 5 rows and 5 columns back to the table
   for (let i = 0; i < 5; i++) {
-    let rowHtml = "<tr>\n";
-    rowHtml += '<td><label class="boldLabel"><input type="checkbox" class="rowBold"> <b>B</b></label></td>\n';
-    rowHtml += '<td><input type="color" class="rowBgColor" value="#ffffff"></td>\n';
+    let rowHtml = `
+    <tr>
+      <td><input type="checkbox" class="rowBold"></td>
+      <td><input type="color" class="rowBgColor" value="#ffffff"></td>\n`;
     for (let j = 0; j < 5; j++) {
-      rowHtml += '<td><input type="text"></td>\n';
+      rowHtml += '<td><input type="text" class="cell"></td>\n';
     }
-    rowHtml += "</tr>\n";
-    $("#wikitableWizardTable").append(rowHtml);
+    rowHtml += `</tr>
+    `;
+    $("#wikitableWizardTable tbody").append(rowHtml);
   }
 }
 
@@ -251,16 +260,41 @@ function createwikitableWizardModal() {
   const modalHtml = `
     <div id="wikitableWizardModal" style="display:none">
     <h2>Wikitable Wizard</h2>
-      <span class="wikitable-wizard-close small">X</span>
+      <span id="wikitableWizardHelpButton"><img src="/images/icons/help.gif" alt="More information"></span>
+      <span class="wikitable-wizard-close">X</span>
       <button id="wikitableWizardPaste" class="small" title="Copy a wikitable or a census list created by Sourcer, and click here to edit it and produce a new table">Paste Table or List</button>
       <button id="wikitableWizardAddRow" class="small">Add Row</button>
       <button id="wikitableWizardAddColumn" class="small">Add Column</button>
-      <label><input type="checkbox" id="wikitableWizardHeaderRow" class="small" checked> 1st row as headers</label>
-      <label><input type="checkbox" id="wikitableWizardSortable" class="small"> Sortable</label>
-      <label><input type="checkbox" id="wikitableWizardFullWidth" class="small"> Full Width</label> <!-- Added line -->
-      <label>Border Width: <input type="number" id="wikitableWizardBorderWidth" class="small" min="0"></label>
-      <label>Cell Padding: <input type="number" id="wikitableWizardCellPadding" class="small" min="0"></label>
-      <label>Caption: <input type="text" id="wikitableWizardCaption" placeholder="Caption" class="small"></label>
+      <label for="wikitableWizardHeaderRow">
+      <input type="checkbox" id="wikitableWizardHeaderRow">
+      Use first row as headers
+      </label>
+      <label for="addGeneratedHeaders" id="addGeneratedHeadersLabel">
+      <input type="checkbox" id="addGeneratedHeaders" checked>
+      Add generated headers
+      </label>
+      <label><input type="checkbox" id="wikitableWizardFullWidth"> Full Width</label> 
+      <label>Border Width: <input type="number" id="wikitableWizardBorderWidth" min="0"></label>
+      <label>Cell Padding: <input type="number" id="wikitableWizardCellPadding" min="0"></label>
+      <fieldset id='classes'>Classes:
+        <label><input type="checkbox" id="wikitableWizardSortable"> sortable</label>
+        <label><input type="checkbox" id="wikitableWizardWikitableClass"> wikitable</label>
+      </fieldset>  
+      <div id="wikitableWizardHelp">
+        <h3>Notes:</h3>
+        <p>You can copy a wikitable or a census list created by Sourcer, and click the "Paste Table or List" button to edit it and produce a new table. 
+        Census lists produced by Sourcer can be converted to tables, and the Wizard will try to produce an appropriate header row based on the content of the columns.</p>
+        <p>Alternatively, you can paste a different list of values. Each row should be on a new line, and values within rows should be separated by one of the following: a comma, a tab, or four spaces.</p>
+        <p>Copying and pasting (via the "Paste Table or List" button) a regular Excel or Sheets table should work fine.</p>
+        <p>Other points to note:</p>
+        <ul>
+          <li>Right-clicking in a cell will give you a menu of actions: Copy, Paste, Delete Row, Delete Column, Insert Row Above, Insert Row Below, Insert Column Left, and Insert Column Right.</li>
+          <li>The 'sortable' class will make the table sortable.</li>
+          <li>The 'wikitable' class will make the table look like a wikitable.  It will also make it available to the WBE's Table Filters and Sorting feature.</li>
+          <li>You can move this popup window by dragging the title bar.</li>
+        </ul>
+        <p>Bear in mind that this is still being tested. Please <a href="https://www.wikitree.com/wiki/Beacall-6">let me know</a> if you find any bugs.</p>
+      </div>
       <table id="wikitableWizardTable"></table>
       <button id="wikitableWizardGenerateAndCopyTable" class="small">Generate and Copy Table</button>
       <button id="wikitableWizardReset" class="small">Reset</button>
@@ -295,6 +329,7 @@ function createwikitableWizardModal() {
   $("#wikitableWizardPaste")
     .off("click")
     .on("click", function (e) {
+      let headerRow = [];
       e.preventDefault();
       navigator.clipboard
         .readText()
@@ -304,21 +339,19 @@ function createwikitableWizardModal() {
           if (text.includes("{|") && text.includes("|-")) {
             const wikiTableData = parseWikiTableData(text);
 
-            $("#wikitableWizardTable").empty();
+            $("#wikitableWizardTable tbody").empty();
             wikiTableData.data.rows.forEach((row) => {
               let rowHtml = "<tr>\n";
-              rowHtml += `<td><label class="boldLabel"><input type="checkbox" class="rowBold"${
-                row.isBold ? " checked" : ""
-              }> <b>B</b></label></td>\n`;
+              rowHtml += `<td><input type="checkbox" class="rowBold"${row.isBold ? " checked" : ""}></td>\n`;
               rowHtml +=
                 '<td><input type="color" class="rowBgColor" value="' + (row.bgColor || "#ffffff") + '"></td>\n';
               row.cells.forEach((cell) => {
-                rowHtml += `<td><input type="text" value="${cell}" style="background-color:${
+                rowHtml += `<td><input type="text" class="cell" value="${cell}" style="background-color:${
                   row.bgColor || "#ffffff"
                 };${row.isBold ? "font-weight:bold;" : ""}"></td>\n`;
               });
               rowHtml += "</tr>\n";
-              $("#wikitableWizardTable").append($(rowHtml));
+              $("#wikitableWizardTable tbody").append($(rowHtml));
             });
 
             if (wikiTableData.data.rows[0]?.isHeader) {
@@ -328,6 +361,7 @@ function createwikitableWizardModal() {
 
             // Set other properties
             $("#wikitableWizardSortable").prop("checked", wikiTableData.isSortable);
+            $("#wikitableWizardWikitableClass").prop("checked", wikiTableData.isWikitableClass);
             $("#wikitableWizardCellPadding").val(wikiTableData.cellPadding);
             $("#wikitableWizardCaption").val(wikiTableData.data.caption);
             // Set the "Full Width" checkbox based on the value of isFullWidth from the parsed data
@@ -346,10 +380,16 @@ function createwikitableWizardModal() {
               }
             }
             if (parsedData) {
+              console.log("parsedData", parsedData);
+              const originalArray = parsedData;
+              parsedData = originalArray.map((row) => {
+                return row.map((cell) => cell.replace(/"/g, ""));
+              });
+              console.log("parsedData", parsedData);
               let columnMapping = analyzeColumns(parsedData);
 
               // Create an array with the same length as the number of columns
-              const headerRow = new Array(Object.keys(columnMapping).length).fill("");
+              headerRow = new Array(Object.keys(columnMapping).length).fill("");
 
               // Populate the array with the column names based on their positions
               for (const [key, value] of Object.entries(columnMapping)) {
@@ -357,49 +397,68 @@ function createwikitableWizardModal() {
                 headerRow[parseInt(value)] = formattedKey;
               }
 
-              // Add the header row to the start of your rows array
-              // Assuming `rows` is your array containing all the data rows
-              parsedData.unshift(headerRow);
+              console.log("parsedData", parsedData);
 
-              $("#wikitableWizardHeaderRow")
+              // Checkbox for generating the calculated header row
+              $("#addGeneratedHeaders")
                 .off("change")
                 .on("change", function () {
-                  if ($(this).prop("checked") && $("#wikitableWizardTable tr.headerRow").length === 0) {
-                    const headerItems = ["Name", "Age", "Marital Status", "Position", "Occupation", "Birth Place"];
-                    if (parsedData && includesAtLeastTwo(headerItems, parsedData[0])) {
-                      let rowHtml = "<tr class='headerRow'>\n";
-                      rowHtml +=
-                        '<td><label class="boldLabel"><input type="checkbox" class="rowBold"> <b>B</b></label></td>\n';
-                      rowHtml += '<td><input type="color" class="rowBgColor" value="#ffffff"></td>\n';
-                      parsedData[0].forEach((cell) => {
-                        rowHtml += `<td><input type="text" value="${cell}"></td>\n`;
+                  if ($(this).prop("checked")) {
+                    let columnMapping = analyzeColumns(parsedData);
+                    const headerRow = new Array(Object.keys(columnMapping).length).fill("");
+
+                    for (const [key, value] of Object.entries(columnMapping)) {
+                      const formattedKey = formatColumnName(key);
+                      headerRow[parseInt(value)] = formattedKey;
+                    }
+
+                    if (headerRow && includesAtLeastN(headerItems, headerRow, 3)) {
+                      $("#addGeneratedHeadersLabel").show();
+                      let rowHtml = `
+                      <tr class='headerRow'>
+                        <td><input type="checkbox" class="rowBold"></td>
+                        <td><input type="color" class="rowBgColor" value="#ffffff"></td>
+                        `;
+                      headerRow.forEach((cell) => {
+                        rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
                       });
                       rowHtml += "</tr>\n";
-                      $("#wikitableWizardTable").prepend(rowHtml);
+                      $("#wikitableWizardTable tbody").prepend(rowHtml);
                     }
                   } else {
                     $("#wikitableWizardTable tr.headerRow").remove();
                   }
                 });
             }
-            $("#wikitableWizardTable").empty();
-            const headerItems = ["Name", "Age", "Marital Status", "Position", "Occupation", "Birth Place"];
-            parsedData.forEach((row) => {
-              let rowClass = "";
-              if (includesAtLeastTwo(headerItems, row)) {
-                rowClass = " class='headerRow'";
-              }
-              if (rowClass && $("#wikitableWizardHeaderRow").prop("checked") == false) {
-                return;
-              }
-              let rowHtml = "<tr" + rowClass + ">\n";
-              rowHtml += '<td><label class="boldLabel"><input type="checkbox" class="rowBold"> <b>B</b></label></td>\n';
-              rowHtml += '<td><input type="color" class="rowBgColor" value="#ffffff"></td>\n';
-              row.forEach((cell) => {
-                rowHtml += `<td><input type="text" value="${cell}"></td>\n`;
+            $("#wikitableWizardTable tbody").empty();
+
+            console.log("headerRow", headerRow);
+            const addGeneratedHeaders =
+              $("#addGeneratedHeaders").prop("checked") && includesAtLeastN(headerItems, headerRow, 3);
+            console.log("includesAtLeastN", includesAtLeastN(headerItems, headerRow, 3));
+            if (addGeneratedHeaders) {
+              $("#addGeneratedHeadersLabel").css("display", "inline-block");
+              let rowHtml = `
+              <tr class='headerRow'>
+                <td><input type="checkbox" class="rowBold"></td>
+                <td><input type="color" class="rowBgColor" value="#ffffff"></td>
+                `;
+              headerRow.forEach((cell) => {
+                rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
               });
               rowHtml += "</tr>\n";
-              $("#wikitableWizardTable").append(rowHtml);
+              $("#wikitableWizardTable tbody").prepend(rowHtml);
+            }
+            parsedData.forEach((row) => {
+              let rowHtml = `
+              <tr>
+                <td><input type="checkbox" class="rowBold"></td>
+                <td><input type="color" class="rowBgColor" value="#ffffff"></td>`;
+              row.forEach((cell) => {
+                rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
+              });
+              rowHtml += "</tr>\n";
+              $("#wikitableWizardTable tbody").append(rowHtml);
             });
           }
         })
@@ -415,7 +474,17 @@ function createwikitableWizardModal() {
     .off("click")
     .on("click", function (e) {
       e.preventDefault();
+
+      const nonEmptyCells = $(".cell").filter(function () {
+        return $(this).val() !== "";
+      }).length;
+      if (nonEmptyCells === 0) {
+        showCopyMessage("The table is empty...", 1);
+        return;
+      }
+
       const isSortable = $("#wikitableWizardSortable").prop("checked");
+      const isWikitableClass = $("#wikitableWizardWikitableClass").prop("checked");
       const data = [];
       const rowStyles = [];
       let rowNum = 0;
@@ -424,17 +493,17 @@ function createwikitableWizardModal() {
       const tableCellPadding = $("#wikitableWizardCellPadding").val();
       let tableCellPaddingBit = "";
       if (tableCellPadding) {
-        tableCellPaddingBit = ` cellpadding="${tableCellPadding}"`;
+        tableCellPaddingBit = `cellpadding="${tableCellPadding}" `;
       }
 
       const tableBorderWidth = $("#wikitableWizardBorderWidth").val();
       let tableBorderWidthBit = "";
       if (tableBorderWidth) {
-        tableBorderWidthBit = ` border="${tableBorderWidth}"`;
+        tableBorderWidthBit = `border="${tableBorderWidth}" `;
       }
 
       const caption = $("#wikitableWizardCaption").val();
-      $("#wikitableWizardTable tr").each(function () {
+      $("#wikitableWizardTable tbody tr").each(function () {
         const row = [];
         $(this)
           .find("input[type=text]")
@@ -448,8 +517,12 @@ function createwikitableWizardModal() {
         rowStyles.push({ isBold, bgColor });
       });
       const isFullWidth = $("#wikitableWizardFullWidth").prop("checked");
-      let formattedContent = `{| class="wikitable${isSortable ? " sortable" : ""}"${
-        isFullWidth ? ' width="100%"' : ""
+      let classBit = "";
+      if (isWikitableClass || isSortable) {
+        classBit = ` class="${isWikitableClass ? "wikitable" : ""}${isSortable ? " sortable" : ""}" `;
+      }
+      let formattedContent = `{| ${classBit}${
+        isFullWidth ? 'width="100%"' : ""
       } ${tableCellPaddingBit} ${tableBorderWidthBit}`;
 
       if (caption) formattedContent += `\n|+ ${caption}`;
@@ -510,7 +583,7 @@ function createwikitableWizardModal() {
     .off("click")
     .on("click", function (e) {
       e.preventDefault();
-      $("#wikitableWizardModal").hide();
+      $("#wikitableWizardModal").slideUp();
     });
 
   $("#wikitableWizardOpenModal")
@@ -518,7 +591,7 @@ function createwikitableWizardModal() {
     .on("click", function (e) {
       e.preventDefault();
 
-      $("#wikitableWizardModal").show();
+      $("#wikitableWizardModal").slideDown();
     });
 
   $("#wikitableWizardAddRow")
@@ -533,13 +606,13 @@ function createwikitableWizardModal() {
       toggleUndoButton();
 
       let rowHtml = "<tr>\n";
-      rowHtml += '<td><label class="boldLabel"><input type="checkbox" class="rowBold"> <b>B</b></label></td>\n';
+      rowHtml += '<td><input type="checkbox" class="rowBold"></td>\n';
       rowHtml += '<td><input type="color" class="rowBgColor" value="#ffffff"></td>\n';
       $("#wikitableWizardTable tr:first-child td:not(:first-child):not(:nth-child(2))").each(function () {
-        rowHtml += '<td><input type="text"></td>\n';
+        rowHtml += '<td><input type="text" class="cell"></td>\n';
       });
       rowHtml += "</tr>\n";
-      $("#wikitableWizardTable").append(rowHtml);
+      $("#wikitableWizardTable tbody").append(rowHtml);
     });
 
   $("#wikitableWizardAddColumn")
@@ -553,11 +626,11 @@ function createwikitableWizardModal() {
       // Update Undo button visibility
       toggleUndoButton();
 
-      $("#wikitableWizardTable tr").each(function () {
+      $("#wikitableWizardTable tbody tr").each(function () {
         const row = $(this);
         const isBold = row.find(".rowBold").prop("checked");
         const bgColor = row.find(".rowBgColor").val();
-        const newCellHtml = `<td><input type="text" style="background-color:${bgColor};${
+        const newCellHtml = `<td><input type="text" class="cell" style="background-color:${bgColor};${
           isBold ? "font-weight:bold;" : ""
         }"></td>\n`;
         row.append(newCellHtml);
@@ -586,9 +659,16 @@ function createwikitableWizardModal() {
       }
 
       if (lastDeleted.type === "row") {
-        $("#wikitableWizardTable").append(lastDeleted.content);
+        const rowIndex = lastDeleted.index;
+        if (rowIndex === 0) {
+          $("#wikitableWizardTable tbody").prepend(lastDeleted.content);
+        } else {
+          $("#wikitableWizardTable tbody tr")
+            .eq(rowIndex - 1)
+            .after(lastDeleted.content);
+        }
       } else if (lastDeleted.type === "column") {
-        $("#wikitableWizardTable tr").each(function (rowIndex) {
+        $("#wikitableWizardTable tbody tr").each(function (rowIndex) {
           $(this)
             .find("td")
             .eq(lastDeleted.index - 1)
@@ -648,15 +728,35 @@ function createwikitableWizardModal() {
         break;
     }
   });
+  $("#wikitableWizardHeaderRow").on("change", function () {
+    $("#wikitableWizardTable .useHeaderRow").removeClass("useHeaderRow");
+    if ($(this).prop("checked")) {
+      $("#wikitableWizardTable tbody tr:first-child").addClass("useHeaderRow");
+    }
+  });
+  $("#wikitableWizardHelpButton").on("click", function () {
+    $("#wikitableWizardHelp").slideToggle();
+  });
 }
 
 // Create custom context menu
 
 let currentCell = null; // Variable to store the current cell
 
-function includesAtLeastTwo(arr1, arr2) {
+/**
+ * Checks if two arrays share at least `n` common elements.
+ *
+ * @param {Array} arr1 - The first array to be checked.
+ * @param {Array} arr2 - The second array to be checked.
+ * @param {number} n - The minimum number of common elements required.
+ * @returns {boolean} Returns `true` if the two arrays share at least `n` common elements, otherwise `false`.
+ * @example
+ * const result = includesAtLeastN([1, 2, 3], [3, 4, 5], 1);  // Returns true
+ * const result = includesAtLeastN([1, 2, 3], [4, 5, 6], 1);  // Returns false
+ */
+function includesAtLeastN(arr1, arr2, n) {
   const commonElements = arr1.filter((element) => arr2.includes(element));
-  return commonElements.length >= 2;
+  return commonElements.length >= n;
 }
 
 $(document)
@@ -719,7 +819,7 @@ $(document)
             const newCell = $("<td></td>");
 
             if ($(this).find("input[type='text']").length > 0) {
-              const newText = $('<input type="text">').css({
+              const newText = $('<input type="text" class="cell">').css({
                 "font-weight": "normal",
                 "background-color": "#ffffff",
               });
@@ -727,14 +827,12 @@ $(document)
             }
 
             if ($(this).find("input[type='checkbox']").length > 0) {
-              const newCheckbox = $(
-                '<label class="boldLabel"><input type="checkbox" class="rowBold"> <b>B</b></label>'
-              );
+              const newCheckbox = $('<input type="checkbox" class="rowBold">');
               newCell.append(newCheckbox);
             }
 
             if ($(this).find("input[type='color']").length > 0) {
-              const newColor = $('<input type="color" value="#ffffff">');
+              const newColor = $('<input type="color" class="rowBgColor" value="#ffffff">');
               newCell.append(newColor);
             }
 
@@ -758,14 +856,20 @@ $(document)
         function manualCloneColumnAndReset(colIndex) {
           const newColumn = [];
 
-          $("#wikitableWizardTable tr").each(function () {
+          $("#wikitableWizardTable tbody tr").each(function () {
             const cell = $(this).find("td").eq(colIndex);
             const newCell = $("<td></td>");
 
             if (cell.find("input[type='text']").length > 0) {
-              const newText = $('<input type="text">').css({
-                "font-weight": "normal",
-                "background-color": "#ffffff",
+              const newText = $('<input type="text" class="cell">');
+              // Get the CSS properties from the original cell's text input
+              const originalText = cell.find("input[type='text']");
+              const fontWeight = originalText.css("font-weight");
+              const backgroundColor = originalText.css("background-color");
+              // Apply the copied CSS properties to the new text input
+              newText.css({
+                "font-weight": fontWeight,
+                "background-color": backgroundColor,
               });
               newCell.append(newText);
             }
@@ -776,7 +880,7 @@ $(document)
             }
 
             if (cell.find("input[type='color']").length > 0) {
-              const newColor = $('<input type="color" value="#ffffff">');
+              const newColor = $('<input type="color" class="rowBgColor" value="#ffffff">');
               newCell.append(newColor);
             }
 
@@ -790,7 +894,7 @@ $(document)
           addTableStateToStack();
           const newColumn = manualCloneColumnAndReset(colIndex);
 
-          $("#wikitableWizardTable tr").each(function (rowIndex) {
+          $("#wikitableWizardTable tbody tr").each(function (rowIndex) {
             const cell = $(this).find("td").eq(colIndex);
             const newCell = newColumn[rowIndex];
 
@@ -802,21 +906,6 @@ $(document)
           });
         }
 
-        /*
-        function insertColumn(colIndex, leftOrRight) {
-          addTableStateToStack();
-          $("#wikitableWizardTable tr").each(function () {
-            const cell = $(this).find("td").eq(colIndex);
-            const newCell = cell.clone();
-            newCell.find("input[type=text]").val("");
-            if (leftOrRight === "left") {
-              cell.before(newCell);
-            } else {
-              cell.after(newCell);
-            }
-          });
-        }
-*/
         const action = $(this).data("action");
         if (action === "copy") {
           // Copy the cell value
@@ -841,7 +930,8 @@ $(document)
         } else if (action === "delete-row") {
           // Delete the row
           const row = currentCell.closest("tr");
-          deletedStack.push({ type: "row", content: row.clone() });
+          const rowIndex = row.index();
+          deletedStack.push({ type: "row", content: row.clone(), index: rowIndex });
           // Update Undo button visibility
           toggleUndoButton();
           row.remove();
@@ -849,7 +939,7 @@ $(document)
           // Delete the column
           const colIndex = currentCell.closest("td").index();
           const deletedColumn = [];
-          $("#wikitableWizardTable tr").each(function () {
+          $("#wikitableWizardTable tbody tr").each(function () {
             deletedColumn.push($(this).find("td").eq(colIndex).clone());
             // Update Undo button visibility
             toggleUndoButton();
