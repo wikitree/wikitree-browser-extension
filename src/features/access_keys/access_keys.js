@@ -91,8 +91,12 @@ function setButtonAccessKeyAndClickEvent(option, selector, key) {
   }
 }
 
-export function showCopyMessage(message) {
-  $("<div class='copied-message'>Copied " + message + "</div>")
+export function showCopyMessage(message, otherMessage = "") {
+  if (!otherMessage) {
+    message = "Copied " + message;
+  }
+
+  $("<div class='copied-message'>" + message + "</div>")
     .appendTo("body")
     .delay(1000)
     .fadeOut(2000, function () {

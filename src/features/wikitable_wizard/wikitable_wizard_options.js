@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import { registerFeature, OptionType } from "../../core/options/options_registry";
-import { isProfileEdit } from "../../core/pageType";
+import { isProfileEdit, isSpaceEdit } from "../../core/pageType";
 
 registerFeature({
   name: "Wikitable Wizard",
@@ -13,5 +13,5 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
-  pages: [isProfileEdit],
+  pages: [isProfileEdit, isSpaceEdit],
 });
