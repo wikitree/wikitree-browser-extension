@@ -7,6 +7,7 @@ import { analyzeColumns } from "../auto_bio/auto_bio";
 const colorNameToHex = import("./html_colors.json");
 const headerItems = ["Name", "Age", "Marital Status", "Position", "Occupation", "Birth Place", "Gender"];
 
+/*
 function parseSSVData(data) {
   const censusList = data.split("\n").map((line) => line.replace(/^[:#]+/, "").trim());
   let parsedData = [];
@@ -53,6 +54,43 @@ function parseSSVData(data) {
     newArray.push(values);
   }
   parsedData = newArray;
+  return parsedData;
+}
+*/
+
+// Parses a single line of the input data
+function parseLine(entry, genderRegex, placeRegex) {
+  const genderMatch = entry.match(genderRegex);
+  const placeMatch = entry.match(placeRegex);
+
+  if (genderMatch) {
+    const genderIndex = genderMatch.index;
+    const name = entry.substring(0, genderIndex).trim();
+    const rest = entry.substring(genderIndex).trim().split(" ");
+
+    const [gender, age, maritalStatus, position, ...remainingArray] = rest;
+    const remaining = remainingArray.join(" ").replace(placeMatch[0], "").trim();
+
+    return [name, gender, age, maritalStatus, position, remaining, placeMatch[0]];
+  }
+
+  return null;
+}
+
+function parseSSVData(data) {
+  const censusList = data.split("\n").map((line) => line.replace(/^[:#]+/, "").trim());
+  const genderRegex = /(?<=\s)([MF])(?=\s)/;
+  const placeRegex = /\w+,\s[\w\s]+/;
+
+  const parsedData = [];
+
+  for (const entry of censusList) {
+    const parsedLine = parseLine(entry, genderRegex, placeRegex);
+    if (parsedLine) {
+      parsedData.push(parsedLine);
+    }
+  }
+
   return parsedData;
 }
 
@@ -218,8 +256,9 @@ function toggleUndoButton() {
 
 function createBasicTable() {
   // Clear the table data
-  $("#wikitableWizardTable").empty();
-  $("#wikitableWizardTable").append(
+  const theTable = $("#wikitableWizardTable");
+  theTable.empty();
+  theTable.append(
     `<thead><tr><th title="Make the whole row bold">Bold</th><th title="Set the background color for the row">BG</th><th colspan="3"><input type="text" id="wikitableWizardCaption" title="Add a title to the top of your table" placeholder="Caption" class="small"></th></tr></thead><tbody></tbody>`
   );
 
@@ -308,23 +347,22 @@ function createwikitableWizardModal() {
 
   createBasicTable();
 
-  $("#wikitableWizardTable")
-    .off("change")
-    .on("change", ".rowBgColor", function () {
-      const pickedColor = $(this).val();
-      const row = $(this).closest("tr");
-      row.find("td:not(:first-child):not(:nth-child(2)) input[type=text]").css("background-color", pickedColor);
-    });
+  const theTable = $("#wikitableWizardTable");
+  const theTableBody = $("#wikitableWizardTable tbody");
 
-  $("#wikitableWizardTable")
-    .off("change")
-    .on("change", ".rowBold", function () {
-      const isChecked = $(this).prop("checked");
-      const row = $(this).closest("tr");
-      row
-        .find("td:not(:first-child):not(:nth-child(2)) input[type=text]")
-        .css("font-weight", isChecked ? "bold" : "normal");
-    });
+  theTable.off("change").on("change", ".rowBgColor", function () {
+    const pickedColor = $(this).val();
+    const row = $(this).closest("tr");
+    row.find("td:not(:first-child):not(:nth-child(2)) input[type=text]").css("background-color", pickedColor);
+  });
+
+  theTable.off("change").on("change", ".rowBold", function () {
+    const isChecked = $(this).prop("checked");
+    const row = $(this).closest("tr");
+    row
+      .find("td:not(:first-child):not(:nth-child(2)) input[type=text]")
+      .css("font-weight", isChecked ? "bold" : "normal");
+  });
 
   $("#wikitableWizardPaste")
     .off("click")
@@ -339,7 +377,7 @@ function createwikitableWizardModal() {
           if (text.includes("{|") && text.includes("|-")) {
             const wikiTableData = parseWikiTableData(text);
 
-            $("#wikitableWizardTable tbody").empty();
+            theTableBody.empty();
             wikiTableData.data.rows.forEach((row) => {
               let rowHtml = "<tr>\n";
               rowHtml += `<td><input type="checkbox" class="rowBold"${row.isBold ? " checked" : ""}></td>\n`;
@@ -351,7 +389,7 @@ function createwikitableWizardModal() {
                 };${row.isBold ? "font-weight:bold;" : ""}"></td>\n`;
               });
               rowHtml += "</tr>\n";
-              $("#wikitableWizardTable tbody").append($(rowHtml));
+              theTableBody.append($(rowHtml));
             });
 
             if (wikiTableData.data.rows[0]?.isHeader) {
@@ -423,14 +461,14 @@ function createwikitableWizardModal() {
                         rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
                       });
                       rowHtml += "</tr>\n";
-                      $("#wikitableWizardTable tbody").prepend(rowHtml);
+                      theTableBody.prepend(rowHtml);
                     }
                   } else {
                     $("#wikitableWizardTable tr.headerRow").remove();
                   }
                 });
             }
-            $("#wikitableWizardTable tbody").empty();
+            theTableBody.empty();
 
             console.log("headerRow", headerRow);
             const addGeneratedHeaders =
@@ -447,7 +485,7 @@ function createwikitableWizardModal() {
                 rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
               });
               rowHtml += "</tr>\n";
-              $("#wikitableWizardTable tbody").prepend(rowHtml);
+              theTableBody.prepend(rowHtml);
             }
             parsedData.forEach((row) => {
               let rowHtml = `
@@ -458,7 +496,7 @@ function createwikitableWizardModal() {
                 rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
               });
               rowHtml += "</tr>\n";
-              $("#wikitableWizardTable tbody").append(rowHtml);
+              theTableBody.append(rowHtml);
             });
           }
         })
@@ -600,7 +638,7 @@ function createwikitableWizardModal() {
       e.preventDefault();
 
       // Save the current table state before adding a row
-      const currentTableState = $("#wikitableWizardTable").html();
+      const currentTableState = theTable.html();
       deletedStack.push({ type: "tableState", content: currentTableState });
       // Update Undo button visibility
       toggleUndoButton();
@@ -612,7 +650,7 @@ function createwikitableWizardModal() {
         rowHtml += '<td><input type="text" class="cell"></td>\n';
       });
       rowHtml += "</tr>\n";
-      $("#wikitableWizardTable tbody").append(rowHtml);
+      theTableBody.append(rowHtml);
     });
 
   $("#wikitableWizardAddColumn")
@@ -621,7 +659,7 @@ function createwikitableWizardModal() {
       e.preventDefault();
 
       // Save the current table state before adding a column
-      const currentTableState = $("#wikitableWizardTable").html();
+      const currentTableState = theTable.html();
       deletedStack.push({ type: "tableState", content: currentTableState });
       // Update Undo button visibility
       toggleUndoButton();
@@ -655,13 +693,13 @@ function createwikitableWizardModal() {
 
       if (lastDeleted.type === "tableState") {
         // Restore the last saved table state
-        $("#wikitableWizardTable").html(lastDeleted.content);
+        theTable.html(lastDeleted.content);
       }
 
       if (lastDeleted.type === "row") {
         const rowIndex = lastDeleted.index;
         if (rowIndex === 0) {
-          $("#wikitableWizardTable tbody").prepend(lastDeleted.content);
+          theTableBody.prepend(lastDeleted.content);
         } else {
           $("#wikitableWizardTable tbody tr")
             .eq(rowIndex - 1)
@@ -690,7 +728,7 @@ function createwikitableWizardModal() {
       resetTable();
     });
 
-  $("#wikitableWizardTable").on("keydown", "input", function (e) {
+  theTable.on("keydown", "input", function (e) {
     const currentCell = $(this).closest("td");
     const currentRow = $(this).closest("tr");
     let nextCell, nextRow;
@@ -797,14 +835,13 @@ $(document)
 
         function addTableStateToStack() {
           // Check color inputs and set to #ffffff if they are empty or null
-          $("#wikitableWizardTable")
-            .find("input[type='color']")
-            .each(function () {
-              if (!$(this).val()) {
-                $(this).val("#ffffff");
-              }
-            });
-          const currentTableState = $("#wikitableWizardTable").html();
+          const theTable = $("#wikitableWizardTable");
+          theTable.find("input[type='color']").each(function () {
+            if (!$(this).val()) {
+              $(this).val("#ffffff");
+            }
+          });
+          const currentTableState = theTable.html();
           deletedStack.push({ type: "tableState", content: currentTableState });
           // Update Undo button visibility
           toggleUndoButton();
