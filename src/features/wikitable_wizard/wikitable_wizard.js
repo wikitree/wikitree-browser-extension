@@ -1,62 +1,13 @@
 import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
+import "jquery-ui/ui/widgets/sortable";
+import "jquery-ui/ui/widgets/droppable";
 import "./wikitable_wizard.css";
 import { showCopyMessage } from "../access_keys/access_keys";
 import { analyzeColumns } from "../auto_bio/auto_bio";
 
 const colorNameToHex = import("./html_colors.json");
 const headerItems = ["Name", "Age", "Marital Status", "Position", "Occupation", "Birth Place", "Gender"];
-
-/*
-function parseSSVData(data) {
-  const censusList = data.split("\n").map((line) => line.replace(/^[:#]+/, "").trim());
-  let parsedData = [];
-  const genderRegex = /(?<=\s)([MF])(?=\s)/;
-  const placeRegex = /\w+,\s[\w\s]+/;
-
-  for (const entry of censusList) {
-    let genderMatch = entry.match(genderRegex);
-    let placeMatch = entry.match(placeRegex);
-    if (genderMatch) {
-      const genderIndex = genderMatch.index;
-      const name = entry.substring(0, genderIndex).trim();
-      const rest = entry.substring(genderIndex).trim().split(" ");
-
-      const gender = rest[0];
-      const age = rest[1];
-      const maritalStatus = rest[2];
-      const position = rest[3];
-      rest.splice(0, 4);
-      const remaining = rest.join(" ").replace(placeMatch[0], "").trim();
-
-      parsedData.push({
-        Name: name,
-        Gender: gender,
-        Age: age,
-        "Marital Status": maritalStatus,
-        Position: position,
-        Occupation: remaining,
-        "Birth Place": placeMatch[0],
-      });
-    }
-  }
-
-  // Get the keys from the first object to serve as headers
-  //const headers = Object.keys(parsedData[0]);
-
-  // Initialize the new array with the headers
-  const newArray = [];
-
-  // Loop through each object in the original array
-  for (const obj of parsedData) {
-    // Create an array of the object's values and add it to the new array
-    const values = Object.values(obj);
-    newArray.push(values);
-  }
-  parsedData = newArray;
-  return parsedData;
-}
-*/
 
 // Parses a single line of the input data
 function parseLine(entry, genderRegex, placeRegex) {
@@ -259,11 +210,19 @@ function createBasicTable() {
   const theTable = $("#wikitableWizardTable");
   theTable.empty();
   theTable.append(
-    `<thead><tr><th title="Make the whole row bold">Bold</th><th title="Set the background color for the row">BG</th><th colspan="3"><input type="text" id="wikitableWizardCaption" title="Add a title to the top of your table" placeholder="Caption" class="small"></th></tr></thead><tbody></tbody>`
+    `<thead>
+    <tr>
+    <th class='wikitableWizardUI' title="Make the whole row bold">Bold</th>
+    <th class='wikitableWizardUI' title="Set the background color for the row">BG</th>
+    </thead>
+    <tbody>
+    </tbody>`
   );
 
+  const theTableHeadRow = $("#wikitableWizardTable thead tr");
   // Add the initial 5 rows and 5 columns back to the table
   for (let i = 0; i < 5; i++) {
+    theTableHeadRow.append(`<th>${i + 1}</th>`);
     let rowHtml = `
     <tr>
       <td><input type="checkbox" class="rowBold"></td>
@@ -319,6 +278,7 @@ function createwikitableWizardModal() {
         <label><input type="checkbox" id="wikitableWizardSortable"> sortable</label>
         <label><input type="checkbox" id="wikitableWizardWikitableClass"> wikitable</label>
       </fieldset>  
+      <label><input type="text" id="wikitableWizardCaption" title="Add a title to the top of your table" placeholder="Caption" class="small"></label>
       <div id="wikitableWizardHelp">
       <x>x</x>
         <h3>Notes:</h3>
@@ -351,6 +311,7 @@ function createwikitableWizardModal() {
 
   const theTable = $("#wikitableWizardTable");
   const theTableBody = $("#wikitableWizardTable tbody");
+  const theTableHeadRow = $("#wikitableWizardTable thead tr");
 
   theTable.off("change").on("change", ".rowBgColor", function () {
     const pickedColor = $(this).val();
@@ -381,16 +342,15 @@ function createwikitableWizardModal() {
 
             theTableBody.empty();
             wikiTableData.data.rows.forEach((row) => {
-              let rowHtml = "<tr>\n";
-              rowHtml += `<td><input type="checkbox" class="rowBold"${row.isBold ? " checked" : ""}></td>\n`;
-              rowHtml +=
-                '<td><input type="color" class="rowBgColor" value="' + (row.bgColor || "#ffffff") + '"></td>\n';
+              let rowHtml = `<tr>
+              <td><input type="checkbox" class="rowBold"${row.isBold ? " checked" : ""}></td>
+              <td><input type="color" class="rowBgColor" value="${row.bgColor || "#ffffff"}"></td>`;
               row.cells.forEach((cell) => {
                 rowHtml += `<td><input type="text" class="cell" value="${cell}" style="background-color:${
                   row.bgColor || "#ffffff"
                 };${row.isBold ? "font-weight:bold;" : ""}"></td>\n`;
               });
-              rowHtml += "</tr>\n";
+              rowHtml += `</tr>\n`;
               theTableBody.append($(rowHtml));
             });
 
@@ -489,7 +449,10 @@ function createwikitableWizardModal() {
               rowHtml += "</tr>\n";
               theTableBody.prepend(rowHtml);
             }
-            parsedData.forEach((row) => {
+            const theTableHeadRow = $("#wikitableWizardTable thead tr");
+            let columnCount = 0;
+            parsedData.forEach((row, i) => {
+              theTableHeadRow.append(`<th>${i + 1}</th>`);
               let rowHtml = `
               <tr>
                 <td><input type="checkbox" class="rowBold"></td>
@@ -497,9 +460,13 @@ function createwikitableWizardModal() {
               row.forEach((cell) => {
                 rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
               });
+              if (row.length > columnCount) {
+                columnCount = row.length;
+              }
               rowHtml += "</tr>\n";
               theTableBody.append(rowHtml);
             });
+            theTableHeadRow.append(`<th>${columnCount + 1}</th>`);
           }
         })
         .catch((err) => {
@@ -675,6 +642,10 @@ function createwikitableWizardModal() {
         }"></td>\n`;
         row.append(newCellHtml);
       });
+
+      // Add a new header cell
+      const theTableHeadRow = $("#wikitableWizardTable thead tr");
+      theTableHeadRow.append(`<th>${theTableHeadRow.find("th").length + 1}</th>`);
     });
 
   $(document)
@@ -789,6 +760,59 @@ function createwikitableWizardModal() {
     .on("click", function () {
       $("#wikitableWizardHelp").slideUp();
     });
+
+  $(function () {
+    // Enable sorting for table rows
+    $("#wikitableWizardTable tbody").sortable({
+      axis: "y", // Limit dragging to vertical axis
+      handle: "td", // Handle to initiate drag
+      update: function (event, ui) {
+        // You can add your logic here to update the row positions
+      },
+    });
+
+    let dragIndex, dropIndex;
+
+    $("#wikitableWizardTable th:not(.wikitableWizardUI)").draggable({
+      helper: "clone",
+      start: function () {
+        dragIndex = $(this).index();
+      },
+    });
+
+    $("#wikitableWizardTable th").droppable({
+      accept: "th",
+      drop: function (event, ui) {
+        dropIndex = $(this).index();
+
+        // Ensure columns are not moved before the first two UI columns
+        if (dropIndex < 2) {
+          dropIndex = 2;
+        }
+        if (dragIndex < 2) {
+          return;
+        }
+
+        // Reorder th
+        let draggedTH = $("th").eq(dragIndex).detach();
+        if (dragIndex < dropIndex) {
+          $("th").eq(dropIndex).after(draggedTH);
+        } else {
+          $("th").eq(dropIndex).before(draggedTH);
+        }
+
+        // Reorder each td in the column
+        $("#wikitableWizardTable tbody tr").each(function () {
+          let draggedTD = $(this).find("td").eq(dragIndex).detach();
+          if (dragIndex < dropIndex) {
+            $(this).find("td").eq(dropIndex).after(draggedTD);
+          } else {
+            $(this).find("td").eq(dropIndex).before(draggedTD);
+          }
+        });
+      },
+    });
+  });
 }
 
 // Create custom context menu
@@ -955,6 +979,20 @@ $(document)
               cell.after(newCell);
             }
           });
+
+          // Add a new header cell
+          const theTableHeadRow = $("#wikitableWizardTable thead tr");
+          if (leftOrRight === "left") {
+            theTableHeadRow
+              .find("th")
+              .eq(colIndex)
+              .before(`<th>${theTableHeadRow.find("th").length + 1}</th>`);
+          } else {
+            theTableHeadRow
+              .find("th")
+              .eq(colIndex)
+              .after(`<th>${theTableHeadRow.find("th").length + 1}</th>`);
+          }
         }
 
         const action = $(this).data("action");
@@ -996,6 +1034,13 @@ $(document)
             toggleUndoButton();
             $(this).find("td").eq(colIndex).remove();
           });
+          const theTableHead = $("#wikitableWizardTable thead");
+          theTableHead.find("th").eq(colIndex).remove();
+
+          theTableHead.find("th").each(function (index) {
+            $(this).text(index + 1);
+          });
+
           deletedStack.push({ type: "column", content: deletedColumn, index: colIndex });
           // Update Undo button visibility
           toggleUndoButton();
@@ -1018,15 +1063,6 @@ $(document)
       });
   });
 
-// Close context menu on outside click
-$(document)
-  .off("click")
-  .on("click", function (e) {
-    if (!$(e.target).hasClass("wikitable-context-option")) {
-      $("#wikitableContextMenu").remove();
-    }
-  });
-
 export function createWikitableWizard() {
   if ($("#wikitableWizardModal").length === 0) {
     createwikitableWizardModal();
@@ -1034,4 +1070,13 @@ export function createWikitableWizard() {
   } else {
     $("#wikitableWizardModal").toggle();
   }
+
+  // Close context menu on outside click
+  $(document)
+    .off("click")
+    .on("click", function (e) {
+      if (!$(e.target).hasClass("wikitable-context-option")) {
+        $("#wikitableContextMenu").remove();
+      }
+    });
 }
