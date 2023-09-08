@@ -79,6 +79,14 @@
 #wikitableWizardTable {
   margin: 1em 0;
 }
+#wikitableWizardTable tr {
+  white-space: nowrap;
+}
+#wikitableWizardTable span.handle {
+  cursor: move;
+  font-weight: bold;
+  font-size: 1.3em;
+}
 
 #wikitableWizardTable th:not(.wikitableWizardUI) {
   cursor: move;
@@ -88,6 +96,14 @@
   width: 100%;
   margin-top: 1em;
   display: none;
+}
+
+#wikitableWizardModal #wikitableWizardCaption {
+  width: 25em;
+  text-align: center;
+}
+#wikitableWizardModal #wikitableWizardCaption.bold {
+  font-weight: bold;
 }
 
 /* Add a hover effect for user feedback */
