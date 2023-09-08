@@ -52,6 +52,7 @@ function parseWikiTableData(data) {
   const tableData = {
     rows: [],
     caption: "",
+    isCaptionBold: false,
   };
   let currentRow = null;
   let isFullWidth = false;
@@ -70,7 +71,14 @@ function parseWikiTableData(data) {
         isFullWidth = true; // Set isFullWidth to true if the line contains width="100%"
       }
     } else if (line.startsWith("|+")) {
-      tableData.caption = line.replace("|+", "").trim();
+      const captionLine = line.match(/\|\+.*/);
+      if (captionLine) {
+        const captionText = captionLine[0].substring(2).trim();
+        tableData.caption = captionText.replace(/'''/g, "").trim();
+        // Check for bold
+        tableData.isCaptionBold = /'''/.test(captionText);
+        $("#wikitableWizardCaptionBold").prop("checked", tableData.isCaptionBold);
+      }
     } else if (line.startsWith("|-")) {
       if (currentRow) tableData.rows.push(currentRow);
       let bgColorMatch = line.match(/bgcolor=("|')?([a-zA-Z0-9#]+)\1?/); // Updated regex pattern
@@ -209,7 +217,11 @@ function createBasicTable() {
   const theTable = $("#wikitableWizardTable");
   theTable.empty();
   theTable.append(
-    `<thead>
+    `<caption>Title: 
+    <label><input title="Make your title bold" type="checkbox" class="rowBold" id="wikitableWizardCaptionBold"> Bold</label>
+    <label><input type="text" id="wikitableWizardCaption" title="Add a title to the top of your table" placeholder="Title" class="small"></label>
+    </caption>
+    <thead>
     <tr>
     <th class='wikitableWizardUI' title="Make the whole row bold">Bold</th>
     <th class='wikitableWizardUI' title="Set the background color for the row">BG</th>
@@ -224,7 +236,7 @@ function createBasicTable() {
     theTableHeadRow.append(`<th>${i + 1}</th>`);
     let rowHtml = `
     <tr>
-      <td><input type="checkbox" class="rowBold"></td>
+      <td><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"></td>
       <td><input type="color" class="rowBgColor" value="#ffffff"></td>\n`;
     for (let j = 0; j < 5; j++) {
       rowHtml += '<td><input type="text" class="cell"></td>\n';
@@ -237,6 +249,8 @@ function createBasicTable() {
 
 // Function to reset the table
 function resetTable() {
+  parsedData = [];
+
   createBasicTable();
 
   // Reset other table options to their defaults
@@ -260,6 +274,7 @@ function resetTable() {
   toggleUndoButton();
 
   console.log("Table HTML after reset:", $("#wikitableWizardTable").html());
+  setupSorting();
 }
 
 function createwikitableWizardModal() {
@@ -286,7 +301,6 @@ function createwikitableWizardModal() {
         <label><input type="checkbox" id="wikitableWizardSortable"> sortable</label>
         <label><input type="checkbox" id="wikitableWizardWikitableClass"> wikitable</label>
       </fieldset>  
-      <label><input type="text" id="wikitableWizardCaption" title="Add a title to the top of your table" placeholder="Caption" class="small"></label>
       <div id="wikitableWizardHelp">
       <x>x</x>
         <h3>Notes:</h3>
@@ -339,23 +353,23 @@ function createwikitableWizardModal() {
     .off("click")
     .on("click", function (e) {
       console.log("Clicked!"); // Test log
-
+      const theTableBody = $("#wikitableWizardTable tbody");
       let headerRow = [];
       e.preventDefault();
       navigator.clipboard
         .readText()
         .then((text) => {
-          console.log("Clipboard read successful"); // New Debug Log
-          console.log("Clipboard data:", text);
           text = text.trim();
+          theTableBody.empty();
+
           if (text.includes("{|") && text.includes("|-")) {
             const wikiTableData = parseWikiTableData(text);
-            parsedData = wikiTableData.data.rows.map((row) => row.cells); // Assuming each row has a 'cells' array
-
-            theTableBody.empty();
-            wikiTableData.data.rows.forEach((row) => {
+            parsedData = wikiTableData.data.rows.map((row) => row.cells);
+            wikiTableData.data.rows.forEach((row, rowIndex) => {
               let rowHtml = `<tr>
-              <td><input type="checkbox" class="rowBold"${row.isBold ? " checked" : ""}></td>
+              <td><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"${
+                row.isBold ? " checked" : ""
+              }></td>
               <td><input type="color" class="rowBgColor" value="${row.bgColor || "#ffffff"}"></td>`;
               row.cells.forEach((cell) => {
                 rowHtml += `<td><input type="text" class="cell" value="${cell}" style="background-color:${
@@ -369,6 +383,7 @@ function createwikitableWizardModal() {
             if (wikiTableData.data.rows[0]?.isHeader) {
               // Check the "1st row as headers" checkbox if the first row is a header
               $("#wikitableWizardHeaderRow").prop("checked", true);
+              theTableBody.find("tr:first-child").addClass("useHeaderRow");
             }
 
             // Set other properties
@@ -376,11 +391,17 @@ function createwikitableWizardModal() {
             $("#wikitableWizardWikitableClass").prop("checked", wikiTableData.isWikitableClass);
             $("#wikitableWizardCellPadding").val(wikiTableData.cellPadding);
             $("#wikitableWizardCaption").val(wikiTableData.data.caption);
+            $("#wikitableWizardCaptionBold").prop("checked", wikiTableData.data.isCaptionBold);
+            if (wikiTableData.data.isCaptionBold) {
+              $("#wikitableWizardCaption").addClass("bold");
+            } else {
+              $("#wikitableWizardCaption").removeClass("bold");
+            }
             // Set the "Full Width" checkbox based on the value of isFullWidth from the parsed data
             $("#wikitableWizardFullWidth").prop("checked", wikiTableData.isFullWidth);
 
-            const columnCount = wikiTableData.data.rows.reduce((max, row) => Math.max(max, row.cells.length), 0);
-            updateHeaderRow(columnCount);
+            // const columnCount = wikiTableData.data.rows.reduce((max, row) => Math.max(max, row.cells.length), 0);
+            updateHeaderRow();
             console.log("parsedData inside wiki table if block: ", parsedData);
           } else {
             if (text.includes("\t")) {
@@ -434,7 +455,7 @@ function createwikitableWizardModal() {
                       $("#addGeneratedHeadersLabel").show();
                       let rowHtml = `
                       <tr class='headerRow'>
-                        <td><input type="checkbox" class="rowBold"></td>
+                        <td><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"></td>
                         <td><input type="color" class="rowBgColor" value="#ffffff"></td>
                         `;
                       headerRow.forEach((cell) => {
@@ -450,15 +471,13 @@ function createwikitableWizardModal() {
             }
             theTableBody.empty();
 
-            console.log("headerRow", headerRow);
             const addGeneratedHeaders =
               $("#addGeneratedHeaders").prop("checked") && includesAtLeastN(headerItems, headerRow, 3);
-            console.log("includesAtLeastN", includesAtLeastN(headerItems, headerRow, 3));
             if (addGeneratedHeaders) {
               $("#addGeneratedHeadersLabel").css("display", "inline-block");
               let rowHtml = `
               <tr class='headerRow'>
-                <td><input type="checkbox" class="rowBold"></td>
+                <td><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"></td>
                 <td><input type="color" class="rowBgColor" value="#ffffff"></td>
                 `;
               headerRow.forEach((cell) => {
@@ -467,7 +486,6 @@ function createwikitableWizardModal() {
               rowHtml += "</tr>\n";
               theTableBody.prepend(rowHtml);
             }
-            console.log("Parsed data:", parsedData); // New Debug Log to check parsedData
 
             let columnCount = 0;
             parsedData.forEach((row) => {
@@ -475,9 +493,10 @@ function createwikitableWizardModal() {
                 columnCount = row.length;
               }
             });
-            updateHeaderRow(columnCount);
+            updateHeaderRow();
           }
           console.log("Reached the end of the then block"); // New Debug Log
+          setupSorting();
         })
         .catch((err) => {
           console.log("Error reading clipboard: " + err); // New Debug Log
@@ -521,6 +540,8 @@ function createwikitableWizardModal() {
       }
 
       const caption = $("#wikitableWizardCaption").val();
+      const isCaptionBold = $("#wikitableWizardCaptionBold").prop("checked");
+
       $("#wikitableWizardTable tbody tr").each(function () {
         const row = [];
         $(this)
@@ -543,7 +564,12 @@ function createwikitableWizardModal() {
         isFullWidth ? 'width="100%"' : ""
       } ${tableCellPaddingBit} ${tableBorderWidthBit}`;
 
-      if (caption) formattedContent += `\n|+ ${caption}`;
+      if (caption) {
+        formattedContent += "\n|+";
+        if (isCaptionBold) formattedContent += " '''";
+        formattedContent += caption;
+        if (isCaptionBold) formattedContent += "''' ";
+      }
 
       // Identify empty columns
       const emptyColumns = new Set(Array.from({ length: data[0].length }, (_, i) => i));
@@ -623,13 +649,14 @@ function createwikitableWizardModal() {
       // Update Undo button visibility
       toggleUndoButton();
 
-      let rowHtml = "<tr>\n";
-      rowHtml += '<td><input type="checkbox" class="rowBold"></td>\n';
-      rowHtml += '<td><input type="color" class="rowBgColor" value="#ffffff"></td>\n';
+      let rowHtml = `
+      <tr>
+      <td><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"></td>
+      <td><input type="color" class="rowBgColor" value="#ffffff"></td>`;
       $("#wikitableWizardTable tr:first-child td:not(:first-child):not(:nth-child(2))").each(function () {
-        rowHtml += '<td><input type="text" class="cell"></td>\n';
+        rowHtml += `<td><input type="text" class="cell"></td>\n`;
       });
-      rowHtml += "</tr>\n";
+      rowHtml += `</tr>\n`;
       theTableBody.append(rowHtml);
     });
 
@@ -657,6 +684,10 @@ function createwikitableWizardModal() {
       // Add a new header cell
       const theTableHeadRow = $("#wikitableWizardTable thead tr");
       theTableHeadRow.append(`<th>${theTableHeadRow.find("th").length + 1}</th>`);
+
+      // Update the header row
+      updateHeaderRow();
+      setupSorting();
     });
 
   $(document)
@@ -773,62 +804,78 @@ function createwikitableWizardModal() {
     });
 
   $(function () {
-    // Enable sorting for table rows
-    $("#wikitableWizardTable tbody").sortable({
-      axis: "y", // Limit dragging to vertical axis
-      handle: "td", // Handle to initiate drag
-      update: function (event, ui) {
-        // You can add your logic here to update the row positions
-      },
+    setupSorting();
+  });
+
+  $("#wikitableWizardCaptionBold")
+    .off("change")
+    .on("change", function () {
+      if ($(this).prop("checked")) {
+        $("#wikitableWizardCaption").addClass("bold");
+      } else {
+        $("#wikitableWizardCaption").removeClass("bold");
+      }
     });
+}
 
-    let dragIndex, dropIndex;
+function setupSorting() {
+  // Enable sorting for table rows
+  $("#wikitableWizardTable tbody").sortable({
+    axis: "y", // Limit dragging to vertical axis
+    handle: ".handle", // Handle to initiate drag
+    update: function (event, ui) {
+      // You can add your logic here to update the row positions
+    },
+  });
 
-    $("#wikitableWizardTable th:not(.wikitableWizardUI)").draggable({
-      containment: "#wikitableWizardTable",
-      helper: function () {
-        return $(this)
-          .clone()
-          .css({
-            "text-align": "center",
-            width: $(this).width(),
-            height: $(this).height(),
-            "background-color": "#f2f2f2",
-          });
-      },
-      start: function () {
-        dragIndex = $(this).index();
-      },
-    });
+  let dragIndex, dropIndex;
 
-    $("#wikitableWizardTable th").droppable({
-      accept: "th",
-      drop: function (event, ui) {
-        dropIndex = $(this).index();
-
-        // Boundary check
-        const maxIndex = $("#wikitableWizardTable th").length - 1;
-        dropIndex = Math.min(Math.max(dropIndex, 2), maxIndex);
-
-        if (dragIndex < 2 || dropIndex < 2) {
-          return; // Don't move the first two columns
-        }
-
-        // Reorder th
-        let draggedTH = $("th").eq(dragIndex).detach();
-        $("th").eq(dropIndex).before(draggedTH);
-
-        // Reorder each td in the column
-        $("#wikitableWizardTable tbody tr").each(function () {
-          let draggedTD = $(this).find("td").eq(dragIndex).detach();
-
-          // Additional check to prevent td from disappearing
-          let targetIndex = Math.min($(this).find("td").length - 1, dropIndex);
-
-          $(this).find("td").eq(targetIndex).before(draggedTD);
+  $("#wikitableWizardTable th:not(.wikitableWizardUI)").draggable({
+    containment: "#wikitableWizardTable",
+    helper: function () {
+      return $(this)
+        .clone()
+        .css({
+          "text-align": "center",
+          width: $(this).width(),
+          height: $(this).height(),
+          "background-color": "#f2f2f2",
         });
-      },
-    });
+    },
+    start: function () {
+      dragIndex = $(this).index();
+    },
+  });
+
+  $("#wikitableWizardTable th").droppable({
+    accept: "th",
+    drop: function (event, ui) {
+      dropIndex = $(this).index();
+
+      // Boundary check
+      const maxIndex = $("#wikitableWizardTable th").length - 1;
+      dropIndex = Math.min(Math.max(dropIndex, 2), maxIndex);
+
+      if (dragIndex < 2 || dropIndex < 2) {
+        return; // Don't move the first two columns
+      }
+
+      // Reorder th
+      let draggedTH = $("th").eq(dragIndex).detach();
+      $("th").eq(dropIndex).before(draggedTH);
+
+      // Reorder each td in the column
+      $("#wikitableWizardTable tbody tr").each(function () {
+        let draggedTD = $(this).find("td").eq(dragIndex).detach();
+
+        // Additional check to prevent td from disappearing
+        let targetIndex = Math.min($(this).find("td").length - 1, dropIndex);
+
+        $(this).find("td").eq(targetIndex).before(draggedTD);
+      });
+
+      updateHeaderNumbers();
+    },
   });
 }
 
@@ -919,7 +966,7 @@ $(document)
             }
 
             if ($(this).find("input[type='checkbox']").length > 0) {
-              const newCheckbox = $('<input type="checkbox" class="rowBold">');
+              const newCheckbox = $('<span class="handle">&#8214;</span><input type="checkbox" class="rowBold">');
               newCell.append(newCheckbox);
             }
 
@@ -1010,6 +1057,8 @@ $(document)
               .eq(colIndex)
               .after(`<th>${theTableHeadRow.find("th").length + 1}</th>`);
           }
+          updateHeaderRow();
+          setupSorting();
         }
 
         const action = $(this).data("action");
@@ -1061,6 +1110,8 @@ $(document)
           deletedStack.push({ type: "column", content: deletedColumn, index: colIndex });
           // Update Undo button visibility
           toggleUndoButton();
+          updateHeaderRow();
+          setupSorting();
         } else if (action === "insert-row-above") {
           const row = currentCell.closest("tr");
           insertRow(row, "above");
@@ -1098,14 +1149,17 @@ export function createWikitableWizard() {
     });
 }
 
-function updateHeaderRow(columnCount) {
+function updateHeaderRow() {
+  const columnCount = $("#wikitableWizardTable tbody tr:first-child td").length - 2;
+
   // Get the header row and its current number of columns
   const theTableHeadRow = $("#wikitableWizardTable thead tr");
   const currentHeaderCount = theTableHeadRow.find("th").length - 2; // Exclude the first two UI columns
 
   // Add or remove columns to match the data
+  /*
   if (currentHeaderCount < columnCount) {
-    for (let i = currentHeaderCount + 1; i <= columnCount; i++) {
+    for (let i = currentHeaderCount + 3; i <= columnCount; i++) {
       theTableHeadRow.append(`<th>${i}</th>`);
     }
   } else if (currentHeaderCount > columnCount) {
@@ -1113,6 +1167,12 @@ function updateHeaderRow(columnCount) {
       .find("th")
       .slice(columnCount + 2)
       .remove();
+  }
+  */
+  const theTableHeadTH = theTableHeadRow.find("th");
+  theTableHeadTH.slice(2).remove();
+  for (let i = 3; i <= columnCount + 2; i++) {
+    theTableHeadRow.append(`<th>${i}</th>`);
   }
 
   // Sort the headers
@@ -1124,4 +1184,15 @@ function updateHeaderRow(columnCount) {
   });
   theTableHeadRow.find("th").slice(2).remove();
   theTableHeadRow.append(headers);
+
+  updateHeaderNumbers();
+}
+
+function updateHeaderNumbers() {
+  $("#wikitableWizardTable thead tr th").each(function (cellIndex, cell) {
+    if (cellIndex > 1) {
+      // Skip the first two cells for Bold and BG
+      $(this).text(cellIndex - 1);
+    }
+  });
 }
