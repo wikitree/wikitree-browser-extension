@@ -4501,9 +4501,9 @@ export function sourcesArray(bio) {
     if (aRef.Text.match(/Prison Records/)) {
       aRef["Record Type"].push("Prison");
       aRef["Event Type"] = "Prison";
-      const admissionDateMatch = aRef.Text.match(/Admission Date:\s(.*?);/);
+      const admissionDateMatch = aRef.Text.match(/Admission Date:\s([\w\d\s]+).*;/);
       if (admissionDateMatch) {
-        aRef["Event Date"] = admissionDateMatch[1];
+        aRef["Event Date"] = admissionDateMatch[1].trim();
         const aRefYearMatch = aRef["Event Date"].match(/\d{4}/);
         if (aRefYearMatch) {
           aRefYearMatch[0];
