@@ -233,7 +233,7 @@ function createBasicTable() {
   const theTableHeadRow = $("#wikitableWizardTable thead tr");
   // Add the initial 5 rows and 5 columns back to the table
   for (let i = 0; i < 5; i++) {
-    theTableHeadRow.append(`<th>${i + 1}</th>`);
+    theTableHeadRow.append(`<th>===</th>`);
     let rowHtml = `
     <tr>
       <td><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"></td>
@@ -333,7 +333,6 @@ function createwikitableWizardModal() {
 
   const theTable = $("#wikitableWizardTable");
   const theTableBody = $("#wikitableWizardTable tbody");
-  const theTableHeadRow = $("#wikitableWizardTable thead tr");
 
   theTable.off("change").on("change", ".rowBgColor", function () {
     const pickedColor = $(this).val();
@@ -496,16 +495,14 @@ function createwikitableWizardModal() {
             updateHeaderRow();
           }
           updateHeaderRow();
-          console.log("Reached the end of the then block"); // New Debug Log
           setupSorting();
         })
         .catch((err) => {
-          console.log("Error reading clipboard: " + err); // New Debug Log
+          console.log("Error reading clipboard: " + err);
         });
 
       // Clear the textarea
       $("#wikitableWizardWikitable").text("").slideUp();
-      console.log("Reached the end of the click handler"); // New Debug Log
     });
 
   $("#wikitableWizardGenerateAndCopyTable")
@@ -684,7 +681,7 @@ function createwikitableWizardModal() {
 
       // Add a new header cell
       const theTableHeadRow = $("#wikitableWizardTable thead tr");
-      theTableHeadRow.append(`<th>${theTableHeadRow.find("th").length + 1}</th>`);
+      theTableHeadRow.append(`<th>===</th>`);
 
       // Update the header row
       updateHeaderRow();
@@ -817,6 +814,12 @@ function createwikitableWizardModal() {
         $("#wikitableWizardCaption").removeClass("bold");
       }
     });
+
+  $("#wikitableWizardCaption")
+    .off("change")
+    .on("change", function () {
+      $(this).val($(this).val());
+    });
 }
 
 function setupSorting() {
@@ -875,7 +878,7 @@ function setupSorting() {
         $(this).find("td").eq(targetIndex).before(draggedTD);
       });
 
-      updateHeaderNumbers();
+      //updateHeaderNumbers();
     },
   });
 }
@@ -945,7 +948,16 @@ $(document)
             }
           });
           const currentTableState = theTable.html();
-          deletedStack.push({ type: "tableState", content: currentTableState });
+          const currentCaption = $("#wikitableWizardCaption").val();
+          const isCaptionBold = $("#wikitableWizardCaptionBold").prop("checked");
+
+          deletedStack.push({
+            type: "tableState",
+            content: currentTableState,
+            caption: currentCaption,
+            isCaptionBold: isCaptionBold,
+          });
+
           // Update Undo button visibility
           toggleUndoButton();
         }
@@ -1048,15 +1060,9 @@ $(document)
           // Add a new header cell
           const theTableHeadRow = $("#wikitableWizardTable thead tr");
           if (leftOrRight === "left") {
-            theTableHeadRow
-              .find("th")
-              .eq(colIndex)
-              .before(`<th>${theTableHeadRow.find("th").length + 1}</th>`);
+            theTableHeadRow.find("th").eq(colIndex).before(`<th>===</th>`);
           } else {
-            theTableHeadRow
-              .find("th")
-              .eq(colIndex)
-              .after(`<th>${theTableHeadRow.find("th").length + 1}</th>`);
+            theTableHeadRow.find("th").eq(colIndex).after(`<th>===</th>`);
           }
           updateHeaderRow();
           setupSorting();
@@ -1105,7 +1111,7 @@ $(document)
           theTableHead.find("th").eq(colIndex).remove();
 
           theTableHead.find("th").each(function (index) {
-            $(this).text(index + 1);
+            $(this).text("===");
           });
 
           deletedStack.push({ type: "column", content: deletedColumn, index: colIndex });
@@ -1173,7 +1179,7 @@ function updateHeaderRow() {
   const theTableHeadTH = theTableHeadRow.find("th");
   theTableHeadTH.slice(2).remove();
   for (let i = 3; i <= columnCount + 2; i++) {
-    theTableHeadRow.append(`<th>${i}</th>`);
+    theTableHeadRow.append(`<th>===</th>`);
   }
 
   // Sort the headers
@@ -1193,7 +1199,7 @@ function updateHeaderNumbers() {
   $("#wikitableWizardTable thead tr th").each(function (cellIndex, cell) {
     if (cellIndex > 1) {
       // Skip the first two cells for Bold and BG
-      $(this).text(cellIndex - 1);
+      $(this).text("===");
     }
   });
 }
