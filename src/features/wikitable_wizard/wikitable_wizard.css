@@ -81,7 +81,6 @@
 }
 
 #wikitableWizardTable th:not(.wikitableWizardUI) {
-  text-align: left;
   cursor: move;
 }
 
