@@ -310,6 +310,7 @@ function createwikitableWizardModal() {
         <p>Copying and pasting (via the "Paste Table or List" button) a regular Excel or Sheets table should work fine.</p>
         <p>Other points to note:</p>
         <ul>
+          <li>Columns and rows can be moved by grabbing the handle at the top or on the left.</li>
           <li>Right-clicking in a cell will give you a menu of actions: Copy, Paste, Delete Row, Delete Column, Insert Row Above, Insert Row Below, Insert Column Left, and Insert Column Right.</li>
           <li>The 'sortable' class will make the table sortable.</li>
           <li>The 'wikitable' class will make the table look like a wikitable.  It will also make it available to the WBE's Table Filters and Sorting feature.</li>
@@ -317,7 +318,13 @@ function createwikitableWizardModal() {
           <li>There are four ways to close this Notes section: ?, Escape, 'x', and double-click.</li>
           </ul>
         <p>Bear in mind that this is still being tested. Please <a href="https://www.wikitree.com/wiki/Beacall-6">let me know</a> if you find any bugs.</p>
-      </div>
+      <p>Known issues and ideas:</p>
+      <ul>
+        <li>'Undo' doesn't currently include every action.</li>
+        <li>'Undo' will currently empty the title fields. Sorry.</li>
+        <li>We need to be able to right-click (or something) on a table in the editor and have the Wizard open with that table.</li>
+      </ul>    
+        </div>
       <table id="wikitableWizardTable"></table>
       <button id="wikitableWizardGenerateAndCopyTable" class="small">Generate and Copy Table</button>
       <button id="wikitableWizardReset" class="small">Reset</button>
