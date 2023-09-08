@@ -495,6 +495,7 @@ function createwikitableWizardModal() {
             });
             updateHeaderRow();
           }
+          updateHeaderRow();
           console.log("Reached the end of the then block"); // New Debug Log
           setupSorting();
         })
