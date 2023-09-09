@@ -201,11 +201,11 @@ function formatColumnName(name) {
 }
 
 // Stack to keep track of deleted rows and columns
-const deletedStack = [];
+const changeStack = [];
 
 // Function to toggle the Undo button visibility
 function toggleUndoButton() {
-  if (deletedStack.length > 0) {
+  if (changeStack.length > 0) {
     $("#wikitableWizardUndo").show();
   } else {
     $("#wikitableWizardUndo").hide();
@@ -260,7 +260,7 @@ function resetTable() {
   $("#wikitableWizardWikitable").text("").slideUp();
 
   // Clear the undo stack
-  deletedStack.length = 0;
+  changeStack.length = 0;
 
   // Clear the parsed data
   console.log("parsedData before reset:", JSON.stringify(parsedData));
@@ -342,17 +342,11 @@ function createwikitableWizardModal() {
   const theTableBody = $("#wikitableWizardTable tbody");
 
   theTable.off("change").on("change", ".rowBgColor", function () {
-    const pickedColor = $(this).val();
-    const row = $(this).closest("tr");
-    row.find("td:not(:first-child):not(:nth-child(2)) input[type=text]").css("background-color", pickedColor);
+    updateRowColor($(this));
   });
 
   theTable.off("change").on("change", ".rowBold", function () {
-    const isChecked = $(this).prop("checked");
-    const row = $(this).closest("tr");
-    row
-      .find("td:not(:first-child):not(:nth-child(2)) input[type=text]")
-      .css("font-weight", isChecked ? "bold" : "normal");
+    updateRowBold($(this));
   });
 
   $("#wikitableWizardPaste")
@@ -503,6 +497,15 @@ function createwikitableWizardModal() {
           }
           updateHeaderRow();
           setupSorting();
+
+          $("#wikitableWizardTable input").each(function () {
+            const inputType = $(this).attr("type");
+            if (inputType === "checkbox") {
+              $(this).data("previousValue", $(this).prop("checked"));
+            } else {
+              $(this).data("previousValue", $(this).val());
+            }
+          });
         })
         .catch((err) => {
           console.log("Error reading clipboard: " + err);
@@ -650,7 +653,7 @@ function createwikitableWizardModal() {
 
       // Save the current table state before adding a row
       const currentTableState = theTable.html();
-      deletedStack.push({ type: "tableState", content: currentTableState });
+      changeStack.push({ type: "tableState", content: currentTableState });
       // Update Undo button visibility
       toggleUndoButton();
 
@@ -672,7 +675,7 @@ function createwikitableWizardModal() {
 
       // Save the current table state before adding a column
       const currentTableState = theTable.html();
-      deletedStack.push({ type: "tableState", content: currentTableState });
+      changeStack.push({ type: "tableState", content: currentTableState });
       // Update Undo button visibility
       toggleUndoButton();
 
@@ -707,35 +710,96 @@ function createwikitableWizardModal() {
   $("#wikitableWizardUndo")
     .off("click")
     .on("click", function (e) {
-      e.preventDefault();
-      if (deletedStack.length === 0) return; // No deleted items to undo
-      const lastDeleted = deletedStack.pop();
+      console.log("Undo triggered");
 
-      if (lastDeleted.type === "tableState") {
+      e.preventDefault();
+      if (changeStack.length === 0) return; // No deleted items to undo
+      const lastChange = changeStack.pop();
+
+      if (lastChange.type === "tableState") {
         // Restore the last saved table state
-        theTable.html(lastDeleted.content);
+        theTable.html(lastChange.content);
+
+        // Restore dynamic state
+        if (lastChange.dynamicState) {
+          for (const [id, value] of Object.entries(lastChange.dynamicState)) {
+            const elem = $(`#${id}`);
+            if (elem.attr("type") === "checkbox") {
+              elem.prop("checked", value);
+            } else {
+              elem.val(value);
+            }
+          }
+        }
       }
 
-      if (lastDeleted.type === "row") {
-        const rowIndex = lastDeleted.index;
+      if (lastChange.type === "row") {
+        const rowIndex = lastChange.index;
         if (rowIndex === 0) {
-          theTableBody.prepend(lastDeleted.content);
+          theTableBody.prepend(lastChange.content);
         } else {
           $("#wikitableWizardTable tbody tr")
             .eq(rowIndex - 1)
-            .after(lastDeleted.content);
+            .after(lastChange.content);
         }
-      } else if (lastDeleted.type === "column") {
+      } else if (lastChange.type === "column") {
         $("#wikitableWizardTable tbody tr").each(function (rowIndex) {
           $(this)
             .find("td")
-            .eq(lastDeleted.index - 1)
-            .after(lastDeleted.content[rowIndex]);
+            .eq(lastChange.index - 1)
+            .after(lastChange.content[rowIndex]);
         });
-      } else if (lastDeleted.type === "paste") {
+      } else if (lastChange.type === "paste") {
         // Undo the paste action
-        lastDeleted.cell.val(lastDeleted.content);
+        lastChange.cell.val(lastChange.content);
+      } else if (lastChange.type === "inputChange") {
+        // Undo the input change
+        const cell = $("#wikitableWizardTable tbody tr")
+          .eq(lastChange.row)
+          .find("td")
+          .eq(lastChange.col)
+          .find(`input[type='${lastChange.inputType}']`);
+
+        if (lastChange.inputType === "checkbox") {
+          cell.prop("checked", lastChange.oldValue);
+          if (cell.hasClass("rowBold")) {
+            updateRowBold(cell);
+          }
+          console.log(cell.classList);
+        } else {
+          cell.val(lastChange.oldValue);
+          // If it's a color input, update the background color of cells in the row
+          if (lastChange.inputType === "color") {
+            updateRowColor(cell);
+          }
+        }
+        cell.data("previousValue", lastChange.oldValue); // Update the previous value
+      } else if (lastChange.type === "columnMove") {
+        // Capture the current state
+        const movedColumn = $("#wikitableWizardTable th").eq(lastChange.newIndex).detach();
+
+        // Reinsert the column at the old position
+        $("#wikitableWizardTable th").eq(lastChange.oldIndex).before(movedColumn);
+
+        // Do the same for each row in the table body
+        $("#wikitableWizardTable tbody tr").each(function () {
+          const movedTD = $(this).find("td").eq(lastChange.newIndex).detach();
+          $(this).find("td").eq(lastChange.oldIndex).before(movedTD);
+        });
+      } else if (lastChange.type === "rowMove") {
+        // Capture the moved row
+        const movedRow = $("#wikitableWizardTable tbody tr").eq(lastChange.newIndex).detach();
+
+        // Reinsert the row at its old position
+        if (lastChange.oldIndex === 0) {
+          $("#wikitableWizardTable tbody").prepend(movedRow);
+        } else {
+          $("#wikitableWizardTable tbody tr")
+            .eq(lastChange.oldIndex - 1)
+            .after(movedRow);
+        }
       }
+
       // Update Undo button visibility
       toggleUndoButton();
     });
@@ -827,6 +891,41 @@ function createwikitableWizardModal() {
     .on("change", function () {
       $(this).val($(this).val());
     });
+
+  // Listen for changes on any input elements
+  $("#wikitableWizardTable").on("change", "input", function () {
+    console.log("Input change detected");
+
+    const currentInput = $(this);
+    const inputType = currentInput.attr("type");
+    const currentRow = currentInput.closest("tr").index();
+    const currentCol = currentInput.closest("td").index();
+    let newValue;
+
+    if (inputType === "checkbox") {
+      newValue = currentInput.prop("checked");
+    } else {
+      newValue = currentInput.val();
+    }
+
+    const previousValue = currentInput.data("previousValue") || "";
+
+    console.log(`Old Value: ${previousValue}, New Value: ${newValue}`);
+
+    changeStack.push({
+      type: "inputChange",
+      inputType,
+      row: currentRow,
+      col: currentCol,
+      oldValue: previousValue,
+      newValue,
+    });
+
+    currentInput.data("previousValue", newValue); // Update the previous value
+
+    // Update Undo button visibility
+    toggleUndoButton();
+  });
 }
 
 function setupSorting() {
@@ -835,7 +934,20 @@ function setupSorting() {
     axis: "y", // Limit dragging to vertical axis
     handle: ".handle", // Handle to initiate drag
     update: function (event, ui) {
-      // You can add your logic here to update the row positions
+      const newIndex = ui.item.index();
+      const oldIndex = ui.item.data("oldIndex");
+      changeStack.push({
+        type: "rowMove",
+        oldIndex: oldIndex,
+        newIndex: newIndex,
+      });
+      // Update Undo button visibility
+      toggleUndoButton();
+    },
+    start: function (event, ui) {
+      // Capture the original index before moving
+      const startIndex = ui.item.index();
+      ui.item.data("oldIndex", startIndex);
     },
   });
 
@@ -862,6 +974,14 @@ function setupSorting() {
     accept: "th",
     drop: function (event, ui) {
       dropIndex = $(this).index();
+
+      changeStack.push({
+        type: "columnMove",
+        oldIndex: dragIndex,
+        newIndex: dropIndex,
+      });
+      // Update Undo button visibility
+      toggleUndoButton();
 
       // Boundary check
       const maxIndex = $("#wikitableWizardTable th").length - 1;
@@ -946,6 +1066,7 @@ $(document)
       .on("click", function (e) {
         e.preventDefault();
 
+        /*
         function addTableStateToStack() {
           // Check color inputs and set to #ffffff if they are empty or null
           const theTable = $("#wikitableWizardTable");
@@ -958,11 +1079,42 @@ $(document)
           const currentCaption = $("#wikitableWizardCaption").val();
           const isCaptionBold = $("#wikitableWizardCaptionBold").prop("checked");
 
+          console.log("Adding to deletedStack: ", currentTableState);
+
           deletedStack.push({
             type: "tableState",
             content: currentTableState,
             caption: currentCaption,
             isCaptionBold: isCaptionBold,
+          });
+
+          // Update Undo button visibility
+          toggleUndoButton();
+        }
+        */
+
+        function addTableStateToStack() {
+          const theTable = $("#wikitableWizardTable");
+          const currentTableState = theTable.html();
+
+          // Capture dynamic state
+          let dynamicState = {};
+
+          theTable.find("input").each(function () {
+            const id = $(this).attr("id");
+            if (id) {
+              if ($(this).attr("type") === "checkbox") {
+                dynamicState[id] = $(this).prop("checked");
+              } else {
+                dynamicState[id] = $(this).val();
+              }
+            }
+          });
+
+          changeStack.push({
+            type: "tableState",
+            content: currentTableState,
+            dynamicState: dynamicState,
           });
 
           // Update Undo button visibility
@@ -1083,7 +1235,7 @@ $(document)
             console.error("Failed to copy text:", err);
           });
         } else if (action === "paste") {
-          deletedStack.push({ type: "paste", content: previousValue, cell: currentCell });
+          changeStack.push({ type: "paste", content: previousValue, cell: currentCell });
           // Update Undo button visibility
           toggleUndoButton();
 
@@ -1100,7 +1252,7 @@ $(document)
           // Delete the row
           const row = currentCell.closest("tr");
           const rowIndex = row.index();
-          deletedStack.push({ type: "row", content: row.clone(), index: rowIndex });
+          changeStack.push({ type: "row", content: row.clone(), index: rowIndex });
           // Update Undo button visibility
           toggleUndoButton();
           row.remove();
@@ -1121,7 +1273,7 @@ $(document)
             $(this).text("===");
           });
 
-          deletedStack.push({ type: "column", content: deletedColumn, index: colIndex });
+          changeStack.push({ type: "column", content: deletedColumn, index: colIndex });
           // Update Undo button visibility
           toggleUndoButton();
           updateHeaderRow();
@@ -1209,4 +1361,18 @@ function updateHeaderNumbers() {
       $(this).text("===");
     }
   });
+}
+
+function updateRowColor(el) {
+  const pickedColor = el.val();
+  const row = el.closest("tr");
+  row.find("td:not(:first-child):not(:nth-child(2)) input[type=text]").css("background-color", pickedColor);
+}
+
+function updateRowBold(el) {
+  const isChecked = el.prop("checked");
+  const row = el.closest("tr");
+  row
+    .find("td:not(:first-child):not(:nth-child(2)) input[type=text]")
+    .css("font-weight", isChecked ? "bold" : "normal");
 }
