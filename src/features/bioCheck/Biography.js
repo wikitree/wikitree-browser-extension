@@ -37,7 +37,6 @@ export class Biography {
   #sourcesHeadingsFound = []; // sources headings found (multi lang)
   #invalidSpanTargetList = []; // target of a span that are not valid
   #refStringList = []; // all the <ref> this </ref> lines
-// TODO  #namedRefStringList = []; // all the <ref> with names
   #headings = [];    // collection of heading lines
   #wrongLevelHeadings = [];   // collection of wrong level 2 headings
   #researchNoteBoxes = [];   // what research notes boxes are there?
@@ -152,6 +151,13 @@ export class Biography {
    */
   constructor(theSourceRules) {
     this.#sourceRules = theSourceRules;
+  }
+
+  /**
+   * Treat all profiles as Pre-1700
+   */
+  applyPre1700ToAll() {
+    this.#treatAsPre1700 = true; 
   }
 
   /**
@@ -449,12 +455,6 @@ export class Biography {
             isValid = true;
           }
         }
-        /* TODO 
-        if (this.#validateRefStrings(this.#namedRefStringList)) {
-          if (!isValid) {
-            isValid = true;
-          }
-        }*/
         if (!isValid) {
           this.#sources.sourcesFound = false;
           isValid = false;
@@ -1139,7 +1139,6 @@ export class Biography {
       msg += ' between Sources and <references />';
       this.#messages.sectionMessages.push(msg);
     }
-    // TODO this.#stats.inlineReferencesCount = this.#refStringList.length + this.#namedRefStringList.length;
     this.#stats.inlineReferencesCount = this.#refStringList.length;
 
     this.#stats.possibleSourcesLineCount = this.#acknowledgementsIndex - 1;
