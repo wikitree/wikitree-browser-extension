@@ -21,6 +21,7 @@
     "url": "https://github.com/wikitree/wikitree-browser-extension.git"
   },
   "dependencies": {
+    "assert": "^2.1.0",
     "axios": "^1.4.0",
     "cookiejs": "^2.1.2",
     "datatables.net-dt": "^1.13.5",
@@ -30,9 +31,13 @@
     "jquery-ui": "^1.13.2",
     "jquery-ui-touch-punch": "^0.2.3",
     "js-cookie": "^3.0.1",
+    "path-browserify": "^1.0.1",
     "sheetjs": "^2.0.0",
+    "url": "^0.11.2",
+    "util": "^0.12.5",
     "wikitree-js": "^0.4.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "yargs": "^17.7.2"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.19.4",
