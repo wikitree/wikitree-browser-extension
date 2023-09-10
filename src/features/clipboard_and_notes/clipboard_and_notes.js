@@ -1,5 +1,6 @@
 /*
 Created By: Ian Beacall (Beacall-6)
+Groups added by Riël Smit (Smit-641)
 */
 
 import $ from "jquery";
@@ -85,6 +86,10 @@ function groupsOrderNameFor(type) {
   return `clipboard_${type}_group_order`;
 }
 
+function groupNameFromInput() {
+  return $("#groupInput").val().trim();
+}
+
 function addClipping(type, e) {
   const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
   clipboardDB.onsuccess = function (event) {
@@ -94,12 +99,17 @@ function addClipping(type, e) {
       db.createObjectStore("Clipboard", { autoIncrement: true });
     }
     const cdb = clipboardDB.result;
-    const group = $("#groupBox").val().trim();
-    console.log(`group='${group}'`);
+    const group = groupNameFromInput();
+    console.log(`Add clipping to group='${group}'`);
     cdb
       .transaction(["Clipboard"], "readwrite")
       .objectStore("Clipboard")
       .put({ type: type, text: $("#clippingBox").val(), group: group });
+    // Add the group button so long so we can mark it active so that focus can be changed to it
+    const groupKey = makeKeyFrom(group);
+    addGroupButton(groupKey, htmlEntities(group));
+    $("#tab-list *").removeClass("active");
+    $(`#tab-list .tab[data-groupkey="${groupKey}"]`).addClass("active");
     clipboard(type, e, "add");
     $("#clippingBox").val("");
   };
@@ -118,7 +128,7 @@ function deleteClipping(key, type, groupTBody, e) {
 
     if (groupTBody.children("tr").length == 1) {
       // We've removed the last item in a group, delete the group order record
-      const groupKey = groupTBody.siblings("caption").data("key") || "";
+      const groupKey = groupTBody.closest(".tab-content").data("groupkey") || "";
       console.log(`Deleteing ${itemOrderNameForGroup(groupKey, type)}`);
       cdb
         .transaction(["Clipboard"], "readwrite")
@@ -139,11 +149,11 @@ function editClipping(key, type, e) {
       db.createObjectStore("Clipboard", { autoIncrement: true });
     }
     const cdb = clipboardDB.result;
-    console.log(`Edited. group=${$("#groupBox").val().trim()}`);
+    console.log(`Edited. group=${groupNameFromInput()}`);
     cdb
       .transaction(["Clipboard"], "readwrite")
       .objectStore("Clipboard")
-      .put({ type: type, text: $("#clippingBox").val(), group: $("#groupBox").val().trim() }, key);
+      .put({ type: type, text: $("#clippingBox").val(), group: groupNameFromInput() }, key);
     clipboard(type, e, "edit");
     $("#clippingBox").val("");
   };
@@ -205,16 +215,8 @@ function copyClippingToClipboard(element) {
   }
 }
 
-function renumberClipboardTableGroups() {
-  let rowNum = 0;
-  $("#cbtBody > tr").each(function () {
-    rowNum++;
-    $(this).children(".index").text(rowNum);
-  });
-}
-
 function tableBodyForGroup(groupKey) {
-  return `#cbtBody tr[data-key="${groupKey}"] tbody.group`;
+  return `#clippings div[data-groupkey="${groupKey}"] tbody.group`;
 }
 
 function renumberClipboardGroup(groupKey) {
@@ -270,8 +272,11 @@ function placeClipboard(aClipboard, event) {
 }
 
 async function clipboard(type, e, action = false) {
+  let activeTab = "";
   if ($("#clipboard").length) {
-    $("#clipboard tbody").html("");
+    activeTab = $("#tab-list .tab.active").data("groupkey");
+    $("#clipboard #clippings").html("");
+    $("#clipboard #tab-list").html("");
   } else {
     let h1 = "";
     if (type == "clipboard") {
@@ -288,20 +293,18 @@ async function clipboard(type, e, action = false) {
     }
 
     const thisWord = word.slice(0, -1);
+    const capWord = word.charAt(0).toUpperCase() + word.slice(1);
 
     const aClipboard = $(
-      "<div id='clipboard' data-type='" +
-        type +
-        "'><h1>" +
-        h1 +
-        "<x>x</x></h1><table id='clipboardTable'><tbody id='cbtBody'></tbody></table>" +
-        `<textarea id="groupBox" rows="1" cols="50" placeholder="${
-          thisWord.charAt(0).toUpperCase() + thisWord.slice(1)
-        } Group. No group if you can see this."></textarea>` +
+      `<div id='clipboard' data-type='${type}'>` +
+        `<h1>${h1}<x>x</x></h1>` +
+        "<div id='tab-container'>" +
+        "<div id='groupTabs'><ul id='tab-list'></ul></div>" +
+        "<section id='clippings'></section></div>" +
+        `<label title='${capWord} can be grouped under a label entered here.'>Group:` +
+        "<input id='groupInput' type='text' placeholder='(Optional)'></label>" +
         "<textarea id='clippingBox'></textarea>" +
-        "<button class='small button' id='addClipping'>Add " +
-        thisWord +
-        "</button></div>"
+        `<button class='small button' id='addClipping'>Add ${thisWord} </button></div>`
     );
 
     placeClipboard(aClipboard, e);
@@ -342,9 +345,8 @@ async function clipboard(type, e, action = false) {
 
   window.lastClipboardClicker = window.clipboardClicker;
 
-  $("#clipboard table").show();
-  $("#clipboard p").remove();
-  $("#clipboard tbody").html("");
+  $("#groupTabs p").remove();
+  $("#clippings").html("");
 
   const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
   clipboardDB.onsuccess = function (event) {
@@ -380,24 +382,21 @@ async function clipboard(type, e, action = false) {
         let groupNr = 0;
         for (const group of [...groupedItems.keys()].sort()) {
           // Render a group - the group of non-grouped items are rendered first
-          // Each group is rendered as a table in a row of the main table
+          // Each group is rendered as a table
           const groupItems = groupedItems.get(group);
           const groupName = htmlEntities(group);
           const groupKey = makeKeyFrom(group);
           console.log(`drawing group '${group}', key:${groupKey}`, groupItems);
 
+          addGroupButton(groupKey, groupName);
           const grpTable = $(
-            `<tr data-key='${groupKey}'><td class="index" style="display: none;">${++groupNr}</td>` +
-              "<td><table><tbody class='group'>" +
-              "<caption class='groupName' title='Double-click to collapse or expand. Drag to re-position'" +
-              ` data-key='${groupKey}'>${groupName}</caption>` +
-              `</tbody></table></td></tr>`
+            `<div class="tab-content" data-groupkey="${groupKey}" data-group="${groupName}">` +
+              "<table><tbody class='group'></tbody></table></dev>"
           );
-          $("#cbtBody").append(grpTable);
 
           let index = 0;
           for (const item of groupItems) {
-            if ($("#clipboardTable tr[data-key='" + item.key + "']").length == 0) {
+            if (grpTable.find(`tr[data-key="${item.key}"]`).length == 0) {
               index += 1;
               let thisText = "";
               thisText = htmlEntities(item.value.text);
@@ -408,36 +407,44 @@ async function clipboard(type, e, action = false) {
               }
 
               const row = $(
-                "<tr data-key='" +
-                  item.key +
-                  "' data-original='" +
-                  oText.replaceAll(/'/g, "'").replaceAll(/"/g, '"') +
-                  "' data-group='" +
+                `<tr data-key="${item.key}" data-original="${oText}" data-group="${groupName}">` +
                   groupName.replaceAll(/'/g, "'").replaceAll(/"/g, '"') +
-                  "'><td class='index'>" +
-                  index +
-                  "</td><td class='clipping'><pre>" +
-                  thisText +
-                  "</pre></td><td class='editClipping'><img src='" +
-                  editImage +
-                  "' class='button small editClippingButton'></td><td class='deleteClipping '><span class='deleteClippingButton button small'>X</span></td></tr>"
+                  `<td class="index">${index}</td>` +
+                  `<td class="clipping"><pre>${thisText}</pre></td>` +
+                  `<td class="editClipping"><img src="${editImage}" class="button small editClippingButton"></td>` +
+                  `<td class="deleteClipping"><span class="deleteClippingButton button small">X</span></td></tr>`
               );
-              $("#cbtBody tbody.group:last").append(row);
-
-              if (type == "clipboard") {
-                $(".clipping").off();
-                $(".clipping").on("click", function () {
-                  copyClippingToClipboard($(this).parent().data("original"));
-                  $("#clipboard").slideUp();
-                });
-              }
+              grpTable.find("tbody").append(row);
             }
           }
+          $("#clippings").append(grpTable);
+          const itemOrderName = itemOrderNameForGroup(groupKey, type);
+          console.log(`checking for ${itemOrderName}`);
+          if (localStorage[itemOrderName]) {
+            const reverseItemOrder = localStorage[itemOrderName].split("|").reverse();
+            console.log("found reverse order:", reverseItemOrder);
+            reverseItemOrder.forEach((itemKey) => {
+              if (itemKey != "") {
+                // The above check prevents misbehaviour due to legacy sort orders always having an
+                // extra blank key value at the end (which used to have no effect, but here will
+                // result in moving the non-grouped group of items to the end of this named group)
+                $(`#clippings tr[data-key="${itemKey}"]`).prependTo($(tableBodyForGroup(groupKey)));
+              }
+            });
+            renumberClipboardGroup(groupKey);
+          }
         }
-        $("#cbtBody .groupName").off();
-        $("#cbtBody .groupName").on("dblclick", function () {
-          $(this).closest("table").children("tbody.group").slideToggle();
+        $("#tab-list button").on("click", function (ev) {
+          showGroup(this);
         });
+        if (type == "clipboard") {
+          $(".clipping").off();
+          $(".clipping").on("click", function () {
+            copyClippingToClipboard($(this).parent().data("original"));
+            $("#clipboard").slideUp();
+          });
+        }
+
         $(".deleteClippingButton").off();
         $(".deleteClippingButton").on("click", function () {
           deleteClipping($(this).closest("tr").data("key"), type, $(this).closest("tbody.group"), e);
@@ -454,7 +461,7 @@ async function clipboard(type, e, action = false) {
               $(this).closest("tr").addClass("editing");
 
               $("#clippingBox").val(original2real($(this).closest("tr").data("original")));
-              $("#groupBox").val(original2real($(this).closest("tr").data("group")));
+              $("#groupInput").val(original2real($(this).closest(".tab-content").data("group")));
 
               const key = $(this).closest("tr").data("key");
 
@@ -483,70 +490,48 @@ async function clipboard(type, e, action = false) {
           const reverseGroupOrder = localStorage[groupsOrderName].split("|").reverse();
           console.log("found reverse order:", reverseGroupOrder);
           reverseGroupOrder.forEach((groupKey) => {
-            $(`#cbtBody > tr[data-key="${groupKey}"]`).prependTo($("#cbtBody"));
+            $(`#tab-list li:has(button[data-groupkey="${groupKey}"])`).prependTo($("#tab-list"));
           });
-          renumberClipboardTableGroups();
-        }
-        // Order the items in the groups as determined by the saved sort order
-        for (const groupName of [...groupedItems.keys()]) {
-          const groupKey = makeKeyFrom(groupName);
-          const itemOrderName = itemOrderNameForGroup(groupKey, type);
-          console.log(`checking for ${itemOrderName}`);
-          if (localStorage[itemOrderName]) {
-            const reverseItemOrder = localStorage[itemOrderName].split("|").reverse();
-            console.log("found reverse order:", reverseItemOrder);
-            reverseItemOrder.forEach((itemKey) => {
-              if (itemKey != "") {
-                // The above check prevents misbehaviour due to legacy sort orders always having an
-                // extra blank key value at the end (which used to have no effect, but here will
-                // result in moving the non-grouped group of items to the end of this named group)
-                // console.log(
-                //   `should preppend item ${itemKey} to goup '${groupKey}'`,
-                //   $(`#cbtBody tr[data-key="${itemKey}"]`),
-                //   $(tableBodyForGroup(groupKey))
-                // );
-                $(`#cbtBody tr[data-key="${itemKey}"]`).prependTo($(tableBodyForGroup(groupKey)));
-              }
-            });
-            renumberClipboardGroup(groupKey);
-          }
         }
 
-        if ($("#clipboard table tbody tr").length == 0) {
+        if ($(".tab-content").length == 0) {
           $("#clipboard p").remove();
           let word = "clippings";
           if ($("#clipboard").data("type") == "notes") {
             word = "notes";
           }
-          $("#clipboard table").after($("<p>You have no " + word + ".  You can add one below.</p>"));
+          $("#clipboard #clippings").after($("<p>You have no " + word + ".  You can add one below.</p>"));
         }
-        // Make the list of groups re-ordable
-        $("#cbtBody").sortable({
-          containment: $("#clipboard"),
-          revert: true,
-          stop: function (event, ui) {
-            let rowNum = 0;
-            const order = [];
-            $(this)
-              .children("tr")
-              .each(function () {
-                rowNum++;
-                $(this).children(".index").text(rowNum);
-                order.push($(this).data("key"));
-              });
-            console.log(`Writing ${groupsOrderNameFor(type)}: ${order.join("|")}`, order);
-            localStorage.setItem(groupsOrderNameFor(type), order.join("|"));
-          },
-        });
+        // Make the tabs re-ordable
+        const tabList = $("#tab-list");
+        if (tabList.find("li").length > 1) {
+          tabList.sortable({
+            containment: $("#groupTabs"),
+            handle: ".tab-handle",
+            placeholder: "sortable-tab-placeholder",
+            revert: true,
+            stop: function (event, ui) {
+              let rowNum = 0;
+              const order = [];
+              $(this)
+                .find(".tab")
+                .each(function () {
+                  order.push($(this).data("groupkey"));
+                });
+              console.log(`Writing ${groupsOrderNameFor(type)}: ${order.join("|")}`, order);
+              localStorage.setItem(groupsOrderNameFor(type), order.join("|"));
+            },
+          });
+        }
         // Make the items in each group sortable
-        $("#cbtBody tbody.group").sortable({
+        $(".tab-content tbody.group").sortable({
           containment: $("#clipboard"),
           revert: true,
           helper: "clone",
           stop: function (event, ui) {
             let rowNum = 0;
             const order = [];
-            const groupKey = $(this).siblings("caption").data("key") || "";
+            const groupKey = $(this).parents(".tab-content").data("groupkey") || "";
             $(this)
               .children("tr")
               .each(function () {
@@ -558,9 +543,20 @@ async function clipboard(type, e, action = false) {
             localStorage.setItem(itemOrderNameForGroup(groupKey, type), order.join("|"));
           },
         });
+        $(`#tab-list .tab[data-groupkey="${activeTab}"]`).trigger("click");
       }
     };
   };
+}
+
+function addGroupButton(groupKey, groupName) {
+  const button = $(
+    `<li><span class="tab-handle" title="Grab here to re-order the tabs (if there is more than one)">☰</span>` +
+      `<button class="tab" data-groupkey="${groupKey}" title="${
+        groupKey == "" ? "Click to see non-grouped items" : "Click to see this group of items"
+      }">${groupKey == "" ? "&nbsp" : groupName}</button></li>`
+  );
+  button.appendTo("#tab-list");
 }
 
 async function initClipboard() {
@@ -665,6 +661,19 @@ async function initClipboard() {
       });
     }, 2500);
   });
+}
+
+function showGroup(el) {
+  const $el = $(el);
+  $("#tab-list *").removeClass("active");
+  $el.addClass("active");
+  $el.siblings(".tab-handle").addClass("active");
+
+  const groupkey = $el.data("groupkey");
+  $("#clippings div").hide();
+  const groupDiv = $(`#clippings div[data-groupkey="${groupkey}"]`);
+  $("#groupInput").val(original2real(groupDiv.data("group")));
+  groupDiv.show();
 }
 
 function setClipboardText() {
