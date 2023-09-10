@@ -14,4 +14,12 @@ registerFeature({
   contributors: [],
   defaultValue: true,
   pages: [isProfileEdit, isSpaceEdit],
+  options: [
+    {
+      label: "Select a few unique lines of a table to launch the Wizard",
+      id: "selectToLaunch",
+      type: OptionType.CHECKBOX,
+      defaultValue: true,
+    },
+  ],
 });

@@ -5,6 +5,7 @@ import "jquery-ui/ui/widgets/droppable";
 import "./wikitable_wizard.css";
 import { showCopyMessage } from "../access_keys/access_keys";
 import { analyzeColumns } from "../auto_bio/auto_bio";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 const colorNameToHex = import("./html_colors.json");
 const headerItems = ["Name", "Age", "Marital Status", "Position", "Occupation", "Birth Place", "Gender"];
@@ -30,6 +31,7 @@ function parseLine(entry, genderRegex, placeRegex) {
 }
 
 function parseSSVData(data) {
+  parsedData = [];
   const censusList = data.split("\n").map((line) => line.replace(/^[:#]+/, "").trim());
   const genderRegex = /(?<=\s)([MF])(?=\s)/;
   const placeRegex = /\w+,\s[\w\s]+/;
@@ -327,6 +329,7 @@ function createwikitableWizardModal() {
         </div>
       <table id="wikitableWizardTable"></table>
       <button id="wikitableWizardGenerateAndCopyTable" class="small">Generate and Copy Table</button>
+      <button id="wikitableWizardGenerateAndReplaceTable" class="small">Generate and Replace Current Table</button>
       <button id="wikitableWizardReset" class="small">Reset</button>
       <button id="wikitableWizardUndo" class="small">Undo</button>
       <textarea id="wikitableWizardWikitable"></textarea>
@@ -335,6 +338,9 @@ function createwikitableWizardModal() {
 
   $("#toolbar").after(modalHtml);
   $("#wikitableWizardModal").draggable({ handle: "h2" });
+  if (window.selectedTable) {
+    $("#wikitableWizardGenerateAndReplaceTable").show();
+  }
 
   createBasicTable();
 
@@ -419,6 +425,8 @@ function createwikitableWizardModal() {
             console.log("Parsed data:", parsedData); // New Debug Log to check parsedData
 
             if (parsedData) {
+              // resetTable();
+              theTableBody.empty();
               console.log("parsedData", parsedData);
               const originalArray = parsedData;
               parsedData = originalArray.map((row) => {
@@ -468,8 +476,18 @@ function createwikitableWizardModal() {
                     $("#wikitableWizardTable tr.headerRow").remove();
                   }
                 });
+              parsedData.forEach((row, rowIndex) => {
+                let rowHtml = `<tr>
+                  <td><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"></td>
+                  <td><input type="color" class="rowBgColor" value="#ffffff"></td>`;
+                row.forEach((cell) => {
+                  rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
+                });
+                rowHtml += `</tr>\n`;
+                theTableBody.append($(rowHtml));
+              });
             }
-            theTableBody.empty();
+            //theTableBody.empty();
 
             const addGeneratedHeaders =
               $("#addGeneratedHeaders").prop("checked") && includesAtLeastN(headerItems, headerRow, 3);
@@ -515,112 +533,118 @@ function createwikitableWizardModal() {
       $("#wikitableWizardWikitable").text("").slideUp();
     });
 
+  function generateTable() {
+    const nonEmptyCells = $(".cell").filter(function () {
+      return $(this).val() !== "";
+    }).length;
+    if (nonEmptyCells === 0) {
+      showCopyMessage("The table is empty...", 1);
+      return;
+    }
+
+    const isSortable = $("#wikitableWizardSortable").prop("checked");
+    const isWikitableClass = $("#wikitableWizardWikitableClass").prop("checked");
+    const data = [];
+    const rowStyles = [];
+    let rowNum = 0;
+    const isHeaderRow = $("#wikitableWizardHeaderRow").prop("checked");
+
+    const tableCellPadding = $("#wikitableWizardCellPadding").val();
+    let tableCellPaddingBit = "";
+    if (tableCellPadding) {
+      tableCellPaddingBit = `cellpadding="${tableCellPadding}" `;
+    }
+
+    const tableBorderWidth = $("#wikitableWizardBorderWidth").val();
+    let tableBorderWidthBit = "";
+    if (tableBorderWidth) {
+      tableBorderWidthBit = `border="${tableBorderWidth}" `;
+    }
+
+    const caption = $("#wikitableWizardCaption").val();
+    const isCaptionBold = $("#wikitableWizardCaptionBold").prop("checked");
+
+    $("#wikitableWizardTable tbody tr").each(function () {
+      const row = [];
+      $(this)
+        .find("input[type=text]")
+        .each(function () {
+          row.push($(this).val());
+        });
+      data.push(row);
+
+      const isBold = $(this).find(".rowBold").prop("checked");
+      const bgColor = $(this).find(".rowBgColor").val() || "#ffffff";
+      rowStyles.push({ isBold, bgColor });
+    });
+    const isFullWidth = $("#wikitableWizardFullWidth").prop("checked");
+    let classBit = "";
+    if (isWikitableClass || isSortable) {
+      classBit = ` class="${isWikitableClass ? "wikitable" : ""}${isSortable ? " sortable" : ""}" `;
+    }
+    let formattedContent = `{| ${classBit}${
+      isFullWidth ? 'width="100%"' : ""
+    } ${tableCellPaddingBit} ${tableBorderWidthBit}`;
+
+    if (caption) {
+      formattedContent += "\n|+";
+      if (isCaptionBold) formattedContent += " '''";
+      formattedContent += caption;
+      if (isCaptionBold) formattedContent += "''' ";
+    }
+
+    // Identify empty columns
+    const emptyColumns = new Set(Array.from({ length: data[0].length }, (_, i) => i));
+    data.forEach((row) => {
+      row.forEach((cell, index) => {
+        if (cell.trim() !== "") {
+          emptyColumns.delete(index);
+        }
+      });
+    });
+
+    data.forEach((row, rowIndex) => {
+      // Ignore empty rows
+      if (row.every((cell) => cell.trim() === "")) return;
+      rowNum++;
+      const style = rowStyles[rowIndex];
+      formattedContent += "\n|-";
+      if (style.bgColor && style.bgColor !== "#ffffff") {
+        formattedContent += ` bgcolor=${style.bgColor}`;
+      }
+
+      if (isHeaderRow && rowIndex === 0) {
+        // Use "!" for headers if the first row is a header
+        row.forEach((cell, cellIndex) => {
+          if (emptyColumns.has(cellIndex)) return;
+          formattedContent += (cellIndex === 0 ? " \n! " : " !! ") + (style.isBold ? `'''${cell}'''` : cell);
+        });
+      } else {
+        row.forEach((cell, cellIndex) => {
+          if (emptyColumns.has(cellIndex)) return;
+          formattedContent += (cellIndex === 0 ? " \n| " : " || ") + (style.isBold && cell ? `'''${cell}'''` : cell);
+        });
+      }
+    });
+
+    formattedContent += "\n|}";
+    rowNum++;
+    $("#wikitableWizardWikitable")
+      .text(formattedContent)
+      .css("height", `${rowNum * 3.8}em`)
+      .slideDown();
+
+    const wikitableContent = formattedContent;
+    return wikitableContent;
+  }
+
   $("#wikitableWizardGenerateAndCopyTable")
     .off("click")
     .on("click", function (e) {
       e.preventDefault();
 
-      const nonEmptyCells = $(".cell").filter(function () {
-        return $(this).val() !== "";
-      }).length;
-      if (nonEmptyCells === 0) {
-        showCopyMessage("The table is empty...", 1);
-        return;
-      }
+      const wikitableContent = generateTable();
 
-      const isSortable = $("#wikitableWizardSortable").prop("checked");
-      const isWikitableClass = $("#wikitableWizardWikitableClass").prop("checked");
-      const data = [];
-      const rowStyles = [];
-      let rowNum = 0;
-      const isHeaderRow = $("#wikitableWizardHeaderRow").prop("checked");
-
-      const tableCellPadding = $("#wikitableWizardCellPadding").val();
-      let tableCellPaddingBit = "";
-      if (tableCellPadding) {
-        tableCellPaddingBit = `cellpadding="${tableCellPadding}" `;
-      }
-
-      const tableBorderWidth = $("#wikitableWizardBorderWidth").val();
-      let tableBorderWidthBit = "";
-      if (tableBorderWidth) {
-        tableBorderWidthBit = `border="${tableBorderWidth}" `;
-      }
-
-      const caption = $("#wikitableWizardCaption").val();
-      const isCaptionBold = $("#wikitableWizardCaptionBold").prop("checked");
-
-      $("#wikitableWizardTable tbody tr").each(function () {
-        const row = [];
-        $(this)
-          .find("input[type=text]")
-          .each(function () {
-            row.push($(this).val());
-          });
-        data.push(row);
-
-        const isBold = $(this).find(".rowBold").prop("checked");
-        const bgColor = $(this).find(".rowBgColor").val() || "#ffffff";
-        rowStyles.push({ isBold, bgColor });
-      });
-      const isFullWidth = $("#wikitableWizardFullWidth").prop("checked");
-      let classBit = "";
-      if (isWikitableClass || isSortable) {
-        classBit = ` class="${isWikitableClass ? "wikitable" : ""}${isSortable ? " sortable" : ""}" `;
-      }
-      let formattedContent = `{| ${classBit}${
-        isFullWidth ? 'width="100%"' : ""
-      } ${tableCellPaddingBit} ${tableBorderWidthBit}`;
-
-      if (caption) {
-        formattedContent += "\n|+";
-        if (isCaptionBold) formattedContent += " '''";
-        formattedContent += caption;
-        if (isCaptionBold) formattedContent += "''' ";
-      }
-
-      // Identify empty columns
-      const emptyColumns = new Set(Array.from({ length: data[0].length }, (_, i) => i));
-      data.forEach((row) => {
-        row.forEach((cell, index) => {
-          if (cell.trim() !== "") {
-            emptyColumns.delete(index);
-          }
-        });
-      });
-
-      data.forEach((row, rowIndex) => {
-        // Ignore empty rows
-        if (row.every((cell) => cell.trim() === "")) return;
-        rowNum++;
-        const style = rowStyles[rowIndex];
-        formattedContent += "\n|-";
-        if (style.bgColor && style.bgColor !== "#ffffff") {
-          formattedContent += ` bgcolor=${style.bgColor}`;
-        }
-
-        if (isHeaderRow && rowIndex === 0) {
-          // Use "!" for headers if the first row is a header
-          row.forEach((cell, cellIndex) => {
-            if (emptyColumns.has(cellIndex)) return;
-            formattedContent += (cellIndex === 0 ? " \n! " : " !! ") + (style.isBold ? `'''${cell}'''` : cell);
-          });
-        } else {
-          row.forEach((cell, cellIndex) => {
-            if (emptyColumns.has(cellIndex)) return;
-            formattedContent += (cellIndex === 0 ? " \n| " : " || ") + (style.isBold && cell ? `'''${cell}'''` : cell);
-          });
-        }
-      });
-
-      formattedContent += "\n|}";
-      rowNum++;
-      $("#wikitableWizardWikitable")
-        .text(formattedContent)
-        .css("height", `${rowNum * 3.8}em`)
-        .slideDown();
-
-      const wikitableContent = formattedContent;
       navigator.clipboard
         .writeText(wikitableContent)
         .then(() => {
@@ -629,6 +653,28 @@ function createwikitableWizardModal() {
         .catch((err) => {
           console.error("Failed to copy table: " + err);
         });
+    });
+
+  $("#wikitableWizardGenerateAndReplaceTable")
+    .off("click")
+    .on("click", function (e) {
+      e.preventDefault();
+      const wikitableContent = generateTable();
+      // Replace the selected table with the new table
+      // Switch off the Enhanced Editor if it's on
+      let enhanced = false;
+      let enhancedEditorButton = $("#toggleMarkupColor");
+      if (enhancedEditorButton.attr("value") == "Turn Off Enhanced Editor") {
+        enhancedEditorButton.trigger("click");
+        enhanced = true;
+      }
+      const currentBio = $("#wpTextbox1").val();
+      const newBio = currentBio.replace(window.selectedTable, wikitableContent);
+      $("#wpTextbox1").val(newBio);
+      // Switch Enhanced Editor back on if it was on
+      if (enhanced) {
+        enhancedEditorButton.trigger("click");
+      }
     });
 
   $(".wikitable-wizard-close")
@@ -926,6 +972,13 @@ function createwikitableWizardModal() {
     // Update Undo button visibility
     toggleUndoButton();
   });
+
+  if (window.selectedTable) {
+    // setTimeout(() => {
+    console.log(window.selectedTable);
+    $("#wikitableWizardPaste").trigger("click");
+    //}, 1000);
+  }
 }
 
 function setupSorting() {
@@ -1297,24 +1350,6 @@ $(document)
       });
   });
 
-export function createWikitableWizard() {
-  if ($("#wikitableWizardModal").length === 0) {
-    createwikitableWizardModal();
-    $("#wikitableWizardModal").toggle();
-  } else {
-    $("#wikitableWizardModal").toggle();
-  }
-
-  // Close context menu on outside click
-  $(document)
-    .off("click")
-    .on("click", function (e) {
-      if (!$(e.target).hasClass("wikitable-context-option")) {
-        $("#wikitableContextMenu").remove();
-      }
-    });
-}
-
 function updateHeaderRow() {
   const columnCount = $("#wikitableWizardTable tbody tr:first-child td").length - 2;
 
@@ -1376,3 +1411,152 @@ function updateRowBold(el) {
     .find("td:not(:first-child):not(:nth-child(2)) input[type=text]")
     .css("font-weight", isChecked ? "bold" : "normal");
 }
+
+export function createWikitableWizard() {
+  if ($("#wikitableWizardModal").length === 0) {
+    createwikitableWizardModal();
+    $("#wikitableWizardModal").toggle();
+  } else {
+    $("#wikitableWizardModal").toggle();
+  }
+
+  // Close context menu on outside click
+  $(document)
+    .off("click")
+    .on("click", function (e) {
+      if (!$(e.target).hasClass("wikitable-context-option")) {
+        $("#wikitableContextMenu").remove();
+      }
+    });
+}
+
+function findAListMatch(escapedSelectedText, allLists) {
+  let listMatch = null;
+  console.log("All lists:", allLists);
+  if (allLists) {
+    // Loop through each list to find the one that contains the selected text
+    for (const list of allLists) {
+      const normalizedList = list.replace(/\s+/g, " ");
+      const normalizedSelectedText = escapedSelectedText.replace(/\s+/g, " ");
+      console.log(normalizedList);
+      console.log(normalizedSelectedText);
+      if (normalizedList.includes(normalizedSelectedText)) {
+        if (listMatch) {
+          // If we already found a match, this one isn't unique
+          listMatch = false;
+          break;
+        } else {
+          // This is the first match we've found
+          listMatch = list;
+          console.log(listMatch);
+        }
+      }
+    }
+  }
+  return listMatch;
+}
+
+shouldInitializeFeature("wikitableWizard").then((result) => {
+  console.log("Should initialize feature:", result);
+  if (result) {
+    getFeatureOptions("wikitableWizard").then((options) => {
+      console.log("Feature options:", options);
+      if (options.selectToLaunch) {
+        let selectionTimeout;
+
+        let mouseX = 0,
+          mouseY = 0;
+        document.addEventListener("mouseup", function (e) {
+          mouseX = e.clientX;
+          mouseY = e.clientY;
+        });
+
+        document.addEventListener("selectionchange", function () {
+          console.log("Selection change detected.");
+          clearTimeout(selectionTimeout);
+          selectionTimeout = setTimeout(function () {
+            const selection = window.getSelection();
+            const selectedText = selection.toString().trim();
+            console.log("Selected text:", selectedText);
+
+            if (selectedText.length > 0) {
+              const currentBio = $("#wpTextbox1").val();
+              const escapedSelectedText = selectedText.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+
+              const tableMatchRegex = new RegExp(`{\\|[^\\{\\}]*${escapedSelectedText}[^\\{\\}]*\\|\\}`, "g");
+              const tableMatch = currentBio.match(tableMatchRegex);
+              console.log("Table match:", tableMatch);
+
+              // Regex to match each list
+              const allListsRegex =
+                /(^|\n)([*#:]+.*(?:Head|Son|Daughter|Wife|Mother|Father|Brother|Sister|Other|Boarder|Lodger|Visitor|Guest) {4}.*\n)+/gm;
+
+              // Find all lists in the currentBio
+              let allLists = currentBio.match(allListsRegex);
+
+              let listMatch = findAListMatch(escapedSelectedText, allLists);
+              const singleSpaceListsRegex =
+                /(^|\n)([*#:]+.*(?:Head|Son|Daughter|Wife|Mother|Father|Brother|Sister|Other|Boarder|Lodger|Visitor|Guest).*\n)+/gm;
+
+              // Find all single space lists
+              allLists = currentBio.match(singleSpaceListsRegex);
+              if (!listMatch) {
+                listMatch = findAListMatch(escapedSelectedText, allLists);
+              }
+
+              let uniqueMatch = false;
+
+              if (tableMatch && tableMatch.length === 1) {
+                uniqueMatch = true;
+                window.selectedTable = tableMatch[0];
+              } else if (listMatch) {
+                uniqueMatch = true;
+                window.selectedTable = listMatch;
+              }
+
+              console.log("Unique match:", uniqueMatch);
+
+              if (uniqueMatch) {
+                const btn = document.createElement("button");
+                btn.innerHTML = "Launch Wikitable Wizard";
+                btn.classList.add("small");
+                btn.style.position = "fixed";
+                btn.style.left = parseInt(mouseX + 50) + "px";
+                btn.style.top = mouseY + "px";
+                btn.style.zIndex = 1000;
+                document.body.appendChild(btn);
+                console.log("Button added to the document.");
+
+                btn.addEventListener("click", function () {
+                  console.log("Button clicked.");
+                  navigator.clipboard
+                    .writeText(window.selectedTable)
+                    .then(() => {
+                      console.log(window.selectedTable);
+                      if ($("#wikitableWizardModal").length) {
+                        $("#wikitableWizardModal").show();
+                        $("#wikitableWizardPaste").trigger("click");
+                      } else {
+                        createWikitableWizard();
+                      }
+                      document.body.removeChild(btn);
+                    })
+                    .catch((err) => {
+                      console.error("Failed to copy text:", err);
+                    });
+                });
+
+                setTimeout(function () {
+                  if (document.body.contains(btn)) {
+                    console.log("Removing button after 2 seconds.");
+                    $(btn).fadeOut(500);
+                  }
+                }, 2000);
+              }
+            }
+          }, 500);
+        });
+      }
+    });
+  }
+});
