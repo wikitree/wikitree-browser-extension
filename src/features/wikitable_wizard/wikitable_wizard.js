@@ -310,6 +310,9 @@ function createwikitableWizardModal() {
         Census lists produced by Sourcer can be converted to tables, and the Wizard will try to produce an appropriate header row based on the content of the columns.</p>
         <p>Alternatively, you can paste a different list of values. Each row should be on a new line, and values within rows should be separated by one of the following: a comma, a tab, or four spaces.</p>
         <p>Copying and pasting (via the "Paste Table or List" button) a regular Excel or Sheets table should work fine.</p>
+        <p>In the profile editor, you can select a unique portion of a table to get a "Wikitable Wizard" button.  Click this to import the table into the Wizard. 
+        Note: With the Enhanced Editor on, this will import the table as it was when the page loaded.</p> 
+        <p>When you're done, click the "Generate and Copy Table" button to copy the table to your clipboard, or (when you've started by selecting a table in the profile editor) the "Generate and Replace Current Table" button to replace the current table with the new one.</p>
         <p>Other points to note:</p>
         <ul>
           <li>Columns and rows can be moved by grabbing the handle at the top or on the left.</li>
@@ -319,19 +322,13 @@ function createwikitableWizardModal() {
           <li>You can move this popup window by dragging the title bar.</li>
           <li>There are four ways to close this Notes section: ?, Escape, 'x', and double-click.</li>
           </ul>
-        <p>Bear in mind that this is still being tested. Please <a href="https://www.wikitree.com/wiki/Beacall-6">let me know</a> if you find any bugs.</p>
-      <p>Known issues and ideas:</p>
-      <ul>
-        <li>'Undo' doesn't currently include every action.</li>
-        <li>'Undo' will currently empty the title fields. Sorry.</li>
-        <li>We need to be able to right-click (or something) on a table in the editor and have the Wizard open with that table.</li>
-      </ul>    
+        <p>Please <a href="https://www.wikitree.com/wiki/Beacall-6">let me know</a> if you find any bugs.</p>
         </div>
       <table id="wikitableWizardTable"></table>
       <button id="wikitableWizardGenerateAndCopyTable" class="small">Generate and Copy Table</button>
-      <button id="wikitableWizardGenerateAndReplaceTable" class="small">Generate and Replace Current Table</button>
-      <button id="wikitableWizardReset" class="small">Reset</button>
-      <button id="wikitableWizardUndo" class="small">Undo</button>
+      <button id="wikitableWizardGenerateAndReplaceTable" title="Generate the table and replace the table in the profile editor with the generated table" class="small">Save Changes</button>
+      <button id="wikitableWizardReset" class="small" title="Return to an empty 5x5 grid">Reset</button>
+      <button id="wikitableWizardUndo" class="small" title="Undo the latest change">Undo</button>
       <textarea id="wikitableWizardWikitable"></textarea>
     </div>
   `;
@@ -675,6 +672,7 @@ function createwikitableWizardModal() {
       if (enhanced) {
         enhancedEditorButton.trigger("click");
       }
+      $("#wikitableWizardModal").slideUp();
     });
 
   $(".wikitable-wizard-close")
@@ -908,7 +906,9 @@ function createwikitableWizardModal() {
 
   $("#wikitableWizardHelp")
     .off("dblclick")
-    .on("dblclick", function () {
+    .on("dblclick", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
       $(this).slideUp();
     });
 
@@ -916,6 +916,14 @@ function createwikitableWizardModal() {
     .off("click")
     .on("click", function () {
       $("#wikitableWizardHelp").slideUp();
+    });
+
+  $("#wikitableWizardModal h2")
+    .off("dblclick")
+    .on("dblclick", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      $(this).slideUp();
     });
 
   $(function () {
@@ -1471,90 +1479,98 @@ shouldInitializeFeature("wikitableWizard").then((result) => {
           mouseY = e.clientY;
         });
 
-        document.addEventListener("selectionchange", function () {
-          console.log("Selection change detected.");
-          clearTimeout(selectionTimeout);
-          selectionTimeout = setTimeout(function () {
-            const selection = window.getSelection();
-            const selectedText = selection.toString().trim();
-            console.log("Selected text:", selectedText);
+        $(document).on("selectionchange", function () {
+          const selection = window.getSelection();
+          const anchorNode = $(selection.anchorNode);
 
-            if (selectedText.length > 0) {
-              const currentBio = $("#wpTextbox1").val();
-              const escapedSelectedText = selectedText.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+          if (anchorNode.length > 0) {
+            let isInsideTargetElement = anchorNode.closest("#wpTextbox1, .CodeMirror").length > 0;
+            if (isInsideTargetElement) {
+              console.log("Selection change detected.");
+              clearTimeout(selectionTimeout);
+              selectionTimeout = setTimeout(function () {
+                const selection = window.getSelection();
+                const selectedText = selection.toString().trim();
+                console.log("Selected text:", selectedText);
 
-              const tableMatchRegex = new RegExp(`{\\|[^\\{\\}]*${escapedSelectedText}[^\\{\\}]*\\|\\}`, "g");
-              const tableMatch = currentBio.match(tableMatchRegex);
-              console.log("Table match:", tableMatch);
+                if (selectedText.length > 0) {
+                  const currentBio = $("#wpTextbox1").val();
+                  const escapedSelectedText = selectedText.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
 
-              // Regex to match each list
-              const allListsRegex =
-                /(^|\n)([*#:]+.*(?:Head|Son|Daughter|Wife|Mother|Father|Brother|Sister|Other|Boarder|Lodger|Visitor|Guest) {4}.*\n)+/gm;
+                  const tableMatchRegex = new RegExp(`{\\|[^\\{\\}]*${escapedSelectedText}[^\\{\\}]*\\|\\}`, "g");
+                  const tableMatch = currentBio.match(tableMatchRegex);
+                  console.log("Table match:", tableMatch);
 
-              // Find all lists in the currentBio
-              let allLists = currentBio.match(allListsRegex);
+                  // Regex to match each list
+                  const allListsRegex =
+                    /(^|\n)([*#:]+.*(?:Head|Son|Daughter|Wife|Mother|Father|Brother|Sister|Other|Boarder|Lodger|Visitor|Guest) {4}.*\n)+/gm;
 
-              let listMatch = findAListMatch(escapedSelectedText, allLists);
-              const singleSpaceListsRegex =
-                /(^|\n)([*#:]+.*(?:Head|Son|Daughter|Wife|Mother|Father|Brother|Sister|Other|Boarder|Lodger|Visitor|Guest).*\n)+/gm;
+                  // Find all lists in the currentBio
+                  let allLists = currentBio.match(allListsRegex);
 
-              // Find all single space lists
-              allLists = currentBio.match(singleSpaceListsRegex);
-              if (!listMatch) {
-                listMatch = findAListMatch(escapedSelectedText, allLists);
-              }
+                  let listMatch = findAListMatch(escapedSelectedText, allLists);
+                  const singleSpaceListsRegex =
+                    /(^|\n)([*#:]+.*(?:Head|Son|Daughter|Wife|Mother|Father|Brother|Sister|Other|Boarder|Lodger|Visitor|Guest).*\n)+/gm;
 
-              let uniqueMatch = false;
-
-              if (tableMatch && tableMatch.length === 1) {
-                uniqueMatch = true;
-                window.selectedTable = tableMatch[0];
-              } else if (listMatch) {
-                uniqueMatch = true;
-                window.selectedTable = listMatch;
-              }
-
-              console.log("Unique match:", uniqueMatch);
-
-              if (uniqueMatch) {
-                const btn = document.createElement("button");
-                btn.innerHTML = "Launch Wikitable Wizard";
-                btn.classList.add("small");
-                btn.style.position = "fixed";
-                btn.style.left = parseInt(mouseX + 50) + "px";
-                btn.style.top = mouseY + "px";
-                btn.style.zIndex = 1000;
-                document.body.appendChild(btn);
-                console.log("Button added to the document.");
-
-                btn.addEventListener("click", function () {
-                  console.log("Button clicked.");
-                  navigator.clipboard
-                    .writeText(window.selectedTable)
-                    .then(() => {
-                      console.log(window.selectedTable);
-                      if ($("#wikitableWizardModal").length) {
-                        $("#wikitableWizardModal").show();
-                        $("#wikitableWizardPaste").trigger("click");
-                      } else {
-                        createWikitableWizard();
-                      }
-                      document.body.removeChild(btn);
-                    })
-                    .catch((err) => {
-                      console.error("Failed to copy text:", err);
-                    });
-                });
-
-                setTimeout(function () {
-                  if (document.body.contains(btn)) {
-                    console.log("Removing button after 2 seconds.");
-                    $(btn).fadeOut(500);
+                  // Find all single space lists
+                  allLists = currentBio.match(singleSpaceListsRegex);
+                  if (!listMatch) {
+                    listMatch = findAListMatch(escapedSelectedText, allLists);
                   }
-                }, 2000);
-              }
+
+                  let uniqueMatch = false;
+
+                  if (tableMatch && tableMatch.length === 1) {
+                    uniqueMatch = true;
+                    window.selectedTable = tableMatch[0];
+                  } else if (listMatch) {
+                    uniqueMatch = true;
+                    window.selectedTable = listMatch;
+                  }
+
+                  console.log("Unique match:", uniqueMatch);
+
+                  if (uniqueMatch) {
+                    const btn = document.createElement("button");
+                    btn.innerHTML = "Wikitable Wizard";
+                    btn.classList.add("small");
+                    btn.style.position = "fixed";
+                    btn.style.left = parseInt(mouseX + 50) + "px";
+                    btn.style.top = mouseY + "px";
+                    btn.style.zIndex = 1000;
+                    document.body.appendChild(btn);
+                    console.log("Button added to the document.");
+
+                    btn.addEventListener("click", function () {
+                      console.log("Button clicked.");
+                      navigator.clipboard
+                        .writeText(window.selectedTable)
+                        .then(() => {
+                          console.log(window.selectedTable);
+                          if ($("#wikitableWizardModal").length) {
+                            $("#wikitableWizardModal").show();
+                            $("#wikitableWizardPaste").trigger("click");
+                          } else {
+                            createWikitableWizard();
+                          }
+                          document.body.removeChild(btn);
+                        })
+                        .catch((err) => {
+                          console.error("Failed to copy text:", err);
+                        });
+                    });
+
+                    setTimeout(function () {
+                      if (document.body.contains(btn)) {
+                        console.log("Removing button after 2 seconds.");
+                        $(btn).fadeOut(500);
+                      }
+                    }, 2000);
+                  }
+                }
+              }, 500);
             }
-          }, 500);
+          }
         });
       }
     });
