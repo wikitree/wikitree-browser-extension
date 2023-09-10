@@ -279,6 +279,16 @@ function resetTable() {
   setupSorting();
 }
 
+function scrollToElement() {
+  const elementPosition = $("#wikitableWizardModal").offset().top;
+  $("html, body").animate(
+    {
+      scrollTop: parseInt(elementPosition - 100),
+    },
+    500
+  ); // The number 500 represents animation speed in ms
+}
+
 function createwikitableWizardModal() {
   const modalHtml = `
     <div id="wikitableWizardModal" style="display:none">
@@ -334,7 +344,9 @@ function createwikitableWizardModal() {
   `;
 
   $("#toolbar").after(modalHtml);
-  $("#wikitableWizardModal").draggable({ handle: "h2" });
+  $("#wikitableWizardModal").draggable({
+    handle: "h2",
+  });
   if (window.selectedTable) {
     $("#wikitableWizardGenerateAndReplaceTable").show();
   }
@@ -888,21 +900,12 @@ function createwikitableWizardModal() {
         $("#wikitableWizardTable tbody tr:first-child").addClass("useHeaderRow");
       }
     });
+
   $("#wikitableWizardHelpButton")
     .off("click")
     .on("click", function () {
       $("#wikitableWizardHelp").slideToggle();
-      $(document).off("keydown").on("keydown", closePopupOnEsc);
     });
-
-  // Function to close the popup on pressing 'ESC'
-  function closePopupOnEsc(event) {
-    if (event.which === 27) {
-      // 27 is the code for the 'ESC' key
-      $("#wikitableWizardHelp").slideToggle();
-      $(document).off("keydown", closePopupOnEsc);
-    }
-  }
 
   $("#wikitableWizardHelp")
     .off("dblclick")
@@ -923,7 +926,7 @@ function createwikitableWizardModal() {
     .on("dblclick", function (e) {
       e.preventDefault();
       e.stopPropagation();
-      $(this).slideUp();
+      $("#wikitableWizardModal").slideUp();
     });
 
   $(function () {
@@ -982,11 +985,13 @@ function createwikitableWizardModal() {
   });
 
   if (window.selectedTable) {
-    // setTimeout(() => {
     console.log(window.selectedTable);
     $("#wikitableWizardPaste").trigger("click");
-    //}, 1000);
   }
+
+  closeWithEscape();
+  $("#wikitableWizardModal").slideDown();
+  scrollToElement();
 }
 
 function setupSorting() {
@@ -1421,11 +1426,14 @@ function updateRowBold(el) {
 }
 
 export function createWikitableWizard() {
-  if ($("#wikitableWizardModal").length === 0) {
+  const theModal = $("#wikitableWizardModal");
+  if (theModal.length === 0) {
     createwikitableWizardModal();
-    $("#wikitableWizardModal").toggle();
   } else {
-    $("#wikitableWizardModal").toggle();
+    theModal.toggle();
+    if (theModal.css("display") === "block") {
+      scrollToElement();
+    }
   }
 
   // Close context menu on outside click
@@ -1462,6 +1470,27 @@ function findAListMatch(escapedSelectedText, allLists) {
     }
   }
   return listMatch;
+}
+
+// The closeWithEscape function
+function closeWithEscape() {
+  let helpIsOpen = false;
+  $(document).on("keydown", (e) => {
+    // Define your Popup and Help elements here
+    const popupEl = $("#wikitableWizardModal");
+    const helpEl = $("#wikitableWizardHelp");
+    if (helpEl.css("display") === "block") {
+      helpIsOpen = true;
+    }
+    if (e.key === "Escape") {
+      if (helpIsOpen) {
+        helpEl.slideUp();
+        helpIsOpen = false;
+      } else {
+        popupEl.slideUp();
+      }
+    }
+  });
 }
 
 shouldInitializeFeature("wikitableWizard").then((result) => {
