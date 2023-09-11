@@ -30,10 +30,17 @@
   height: 10em;
 }
 
-#tab-list li {
+#tab-list .tab {
   display: inline-block;
   white-space: nowrap;
   word-wrap: normal;
+  background: rgb(221, 250, 218);
+  text-align: center;
+  cursor: pointer;
+  margin-top: 1px;
+  margin-right: 2px;
+  border-radius: 10px 10px 0 0;
+  font-size: 10pt;
 }
 
 #tab-list .active {
@@ -41,36 +48,24 @@
   border-bottom: 2px solid #333;
 }
 
-.tab-handle {
+#tab-list .tab-handle {
   cursor: grab;
-  margin: 0;
-  padding: 7px 5px 9px 10px;
-  text-align: center;
-  background: rgb(221, 250, 218);
-  border-radius: 10px 0 0 0;
-  font-size: 10pt;
+  display: inline-block;
+  padding: 8px 3px 8px 6px;
 }
-.sortable-tab-placeholder {
+#tab-list .tab-name {
+  display: inline-block;
+  padding: 8px 6px 8px 3px;
+}
+#tab-list .sortable-tab-placeholder {
+  display: inline-block;
+  padding: 10px 0;
   border: 2px solid red;
   font-size: 10pt;
-  padding: 7px 0px 9px 0px;
 }
 
-#clipboard .tab {
-  display: inline-block;
-  text-transform: none;
-  background: rgb(221, 250, 218);
-  font-size: 10pt;
-  color: black;
-  padding: 10px 15px 10px 5px;
-  text-align: center;
-  cursor: pointer;
-  width: auto;
-  margin-right: 3px;
-  border-radius: 0 10px 0 0;
-}
 #clipboard .tab:hover {
-  background: rgb(202, 246, 198);
+  background: rgb(192, 248, 187);
 }
 #clipboard .tab-content {
   display: none;

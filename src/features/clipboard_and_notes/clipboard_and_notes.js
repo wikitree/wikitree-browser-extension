@@ -107,8 +107,8 @@ function addClipping(type, e) {
       .put({ type: type, text: $("#clippingBox").val(), group: group });
     // Add the group button so long so we can mark it active so that focus can be changed to it
     const groupKey = makeKeyFrom(group);
-    addGroupButton(groupKey, htmlEntities(group));
-    $("#tab-list *").removeClass("active");
+    addGroupTab(groupKey, htmlEntities(group));
+    $("#tab-list .tab").removeClass("active");
     $(`#tab-list .tab[data-groupkey="${groupKey}"]`).addClass("active");
     clipboard(type, e, "add");
     $("#clippingBox").val("");
@@ -388,7 +388,7 @@ async function clipboard(type, e, action = false) {
           const groupKey = makeKeyFrom(group);
           console.log(`drawing group '${group}', key:${groupKey}`, groupItems);
 
-          addGroupButton(groupKey, groupName);
+          addGroupTab(groupKey, groupName);
           const grpTable = $(
             `<div class="tab-content" data-groupkey="${groupKey}" data-group="${groupName}">` +
               "<table><tbody class='group'></tbody></table></dev>"
@@ -434,8 +434,8 @@ async function clipboard(type, e, action = false) {
             renumberClipboardGroup(groupKey);
           }
         }
-        $("#tab-list button").on("click", function (ev) {
-          showGroup(this);
+        $("#tab-list .tab-name").on("click", function (ev) {
+          showGroup($(this).parent(".tab"));
         });
         if (type == "clipboard") {
           $(".clipping").off();
@@ -489,8 +489,9 @@ async function clipboard(type, e, action = false) {
           // Order the groups as determined by the saved sort order
           const reverseGroupOrder = localStorage[groupsOrderName].split("|").reverse();
           console.log("found reverse order:", reverseGroupOrder);
+          const $tabList = $("#tab-list");
           reverseGroupOrder.forEach((groupKey) => {
-            $(`#tab-list li:has(button[data-groupkey="${groupKey}"])`).prependTo($("#tab-list"));
+            $tabList.find(`.tab[data-groupkey="${groupKey}"]`).prependTo($tabList);
           });
         }
 
@@ -504,13 +505,14 @@ async function clipboard(type, e, action = false) {
         }
         // Make the tabs re-ordable
         const tabList = $("#tab-list");
-        if (tabList.find("li").length > 1) {
+        if (tabList.find(".tab").length > 1) {
           tabList.sortable({
             containment: $("#groupTabs"),
             handle: ".tab-handle",
             placeholder: "sortable-tab-placeholder",
             revert: true,
             stop: function (event, ui) {
+              // Record the current sort order of the groups
               let rowNum = 0;
               const order = [];
               $(this)
@@ -529,6 +531,7 @@ async function clipboard(type, e, action = false) {
           revert: true,
           helper: "clone",
           stop: function (event, ui) {
+            // Record the current sort order within this group
             let rowNum = 0;
             const order = [];
             const groupKey = $(this).parents(".tab-content").data("groupkey") || "";
@@ -543,20 +546,22 @@ async function clipboard(type, e, action = false) {
             localStorage.setItem(itemOrderNameForGroup(groupKey, type), order.join("|"));
           },
         });
-        $(`#tab-list .tab[data-groupkey="${activeTab}"]`).trigger("click");
+        $(`#tab-list .tab[data-groupkey="${activeTab}"] .tab-name`).trigger("click");
       }
     };
   };
 }
 
-function addGroupButton(groupKey, groupName) {
-  const button = $(
-    `<li><span class="tab-handle" title="Grab here to re-order the tabs (if there is more than one)">☰</span>` +
-      `<button class="tab" data-groupkey="${groupKey}" title="${
-        groupKey == "" ? "Click to see non-grouped items" : "Click to see this group of items"
-      }">${groupKey == "" ? "&nbsp" : groupName}</button></li>`
+function addGroupTab(groupKey, groupName) {
+  const isNoGroup = groupKey == "";
+  const tab = $(
+    `<li class="tab" data-groupkey="${groupKey}">` +
+      `<span class="tab-handle" title="Grab here to re-order the tabs (if there is more than one)">☰</span>` +
+      `<span class="tab-name" title="${
+        isNoGroup ? "Click to see non-grouped items" : "Click to see this group of items"
+      } "${isNoGroup ? 'style = "width: 2em;">&nbsp;' : `>${groupName}`}</span></li>`
   );
-  button.appendTo("#tab-list");
+  tab.appendTo("#tab-list");
 }
 
 async function initClipboard() {
@@ -663,13 +668,13 @@ async function initClipboard() {
   });
 }
 
-function showGroup(el) {
-  const $el = $(el);
-  $("#tab-list *").removeClass("active");
-  $el.addClass("active");
-  $el.siblings(".tab-handle").addClass("active");
+function showGroup($tab) {
+  // Mark the active tab
+  $("#tab-list .tab").removeClass("active");
+  $tab.addClass("active");
 
-  const groupkey = $el.data("groupkey");
+  // Show the active tab content
+  const groupkey = $tab.data("groupkey") || "";
   $("#clippings div").hide();
   const groupDiv = $(`#clippings div[data-groupkey="${groupkey}"]`);
   $("#groupInput").val(original2real(groupDiv.data("group")));
