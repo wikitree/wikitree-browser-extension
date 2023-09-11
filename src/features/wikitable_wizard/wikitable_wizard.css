@@ -86,6 +86,9 @@
   cursor: move;
   font-weight: bold;
   font-size: 1.3em;
+  position: absolute;
+  margin-left: -0.5em;
+  margin-top: -0.2em;
 }
 
 #wikitableWizardTable th:not(.wikitableWizardUI) {
@@ -204,4 +207,12 @@ a.wikitable-context-option:active {
 
 #wikitableWizardGenerateAndReplaceTable {
   display: none;
+}
+
+#wikitableWizardModal td.rowBoldCell {
+  text-align: center;
+}
+
+.dragging {
+  visibility: hidden;
 }

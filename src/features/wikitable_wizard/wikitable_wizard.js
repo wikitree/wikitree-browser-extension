@@ -10,6 +10,9 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 const colorNameToHex = import("./html_colors.json");
 const headerItems = ["Name", "Age", "Marital Status", "Position", "Occupation", "Birth Place", "Gender"];
 let parsedData = [];
+const rowBoldCell = `<td class="rowBoldCell"><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"></td>`;
+const rowBgColorCell = `<td><input type="color" class="rowBgColor" value="#ffffff"></td>`;
+const emptyCell = `<td><input type="text" class="cell"></td>`;
 
 // Parses a single line of the input data
 function parseLine(entry, genderRegex, placeRegex) {
@@ -219,9 +222,9 @@ function createBasicTable() {
   const theTable = $("#wikitableWizardTable");
   theTable.empty();
   theTable.append(
-    `<caption>Title: 
+    `<caption>Caption: 
     <label><input title="Make your title bold" type="checkbox" class="rowBold" id="wikitableWizardCaptionBold"> Bold</label>
-    <label><input type="text" id="wikitableWizardCaption" title="Add a title to the top of your table" placeholder="Title" class="small"></label>
+    <label><input type="text" id="wikitableWizardCaption" title="Add a title to the top of your table" placeholder="e.g. 1881 England and Wales Census" class="small"></label>
     </caption>
     <thead>
     <tr>
@@ -238,10 +241,11 @@ function createBasicTable() {
     theTableHeadRow.append(`<th>===</th>`);
     let rowHtml = `
     <tr>
-      <td><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"></td>
-      <td><input type="color" class="rowBgColor" value="#ffffff"></td>\n`;
+      ${rowBoldCell}
+      ${rowBgColorCell}
+      `;
     for (let j = 0; j < 5; j++) {
-      rowHtml += '<td><input type="text" class="cell"></td>\n';
+      rowHtml += `${emptyCell}`;
     }
     rowHtml += `</tr>
     `;
@@ -264,18 +268,13 @@ function resetTable() {
   // Clear the undo stack
   changeStack.length = 0;
 
-  // Clear the parsed data
-  console.log("parsedData before reset:", JSON.stringify(parsedData));
-
   if (typeof parsedData !== "undefined") {
     parsedData.length = 0;
   }
-  console.log("parsedData before reset:", JSON.stringify(parsedData));
 
   // Update Undo button visibility
   toggleUndoButton();
 
-  console.log("Table HTML after reset:", $("#wikitableWizardTable").html());
   setupSorting();
 }
 
@@ -367,7 +366,6 @@ function createwikitableWizardModal() {
   $("#wikitableWizardPaste")
     .off("click")
     .on("click", function (e) {
-      console.log("Clicked!"); // Test log
       const theTableBody = $("#wikitableWizardTable tbody");
       let headerRow = [];
       e.preventDefault();
@@ -382,7 +380,7 @@ function createwikitableWizardModal() {
             parsedData = wikiTableData.data.rows.map((row) => row.cells);
             wikiTableData.data.rows.forEach((row, rowIndex) => {
               let rowHtml = `<tr>
-              <td><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"${
+              <td class="rowBoldCell"><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"${
                 row.isBold ? " checked" : ""
               }></td>
               <td><input type="color" class="rowBgColor" value="${row.bgColor || "#ffffff"}"></td>`;
@@ -417,7 +415,6 @@ function createwikitableWizardModal() {
 
             // const columnCount = wikiTableData.data.rows.reduce((max, row) => Math.max(max, row.cells.length), 0);
             updateHeaderRow();
-            console.log("parsedData inside wiki table if block: ", parsedData);
           } else {
             if (text.includes("\t")) {
               parsedData = parseTSVData(text);
@@ -431,17 +428,14 @@ function createwikitableWizardModal() {
                 parsedData = parseSSVData(text);
               }
             }
-            console.log("Parsed data:", parsedData); // New Debug Log to check parsedData
 
             if (parsedData) {
               // resetTable();
               theTableBody.empty();
-              console.log("parsedData", parsedData);
               const originalArray = parsedData;
               parsedData = originalArray.map((row) => {
                 return row.map((cell) => cell.replace(/"/g, ""));
               });
-              console.log("parsedData", parsedData);
               let columnMapping = analyzeColumns(parsedData);
 
               // Create an array with the same length as the number of columns
@@ -452,8 +446,6 @@ function createwikitableWizardModal() {
                 const formattedKey = formatColumnName(key);
                 headerRow[parseInt(value)] = formattedKey;
               }
-
-              console.log("parsedData", parsedData);
 
               // Checkbox for generating the calculated header row
               $("#addGeneratedHeaders")
@@ -472,8 +464,8 @@ function createwikitableWizardModal() {
                       $("#addGeneratedHeadersLabel").show();
                       let rowHtml = `
                       <tr class='headerRow'>
-                        <td><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"></td>
-                        <td><input type="color" class="rowBgColor" value="#ffffff"></td>
+                      ${rowBoldCell}
+                      ${rowBgColorCell}
                         `;
                       headerRow.forEach((cell) => {
                         rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
@@ -487,8 +479,8 @@ function createwikitableWizardModal() {
                 });
               parsedData.forEach((row, rowIndex) => {
                 let rowHtml = `<tr>
-                  <td><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"></td>
-                  <td><input type="color" class="rowBgColor" value="#ffffff"></td>`;
+                ${rowBoldCell}
+                ${rowBgColorCell}`;
                 row.forEach((cell) => {
                   rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
                 });
@@ -504,8 +496,8 @@ function createwikitableWizardModal() {
               $("#addGeneratedHeadersLabel").css("display", "inline-block");
               let rowHtml = `
               <tr class='headerRow'>
-                <td><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"></td>
-                <td><input type="color" class="rowBgColor" value="#ffffff"></td>
+              ${rowBoldCell}
+              ${rowBgColorCell}
                 `;
               headerRow.forEach((cell) => {
                 rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
@@ -715,10 +707,10 @@ function createwikitableWizardModal() {
 
       let rowHtml = `
       <tr>
-      <td><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"></td>
-      <td><input type="color" class="rowBgColor" value="#ffffff"></td>`;
+      ${rowBoldCell}
+      ${rowBgColorCell}`;
       $("#wikitableWizardTable tr:first-child td:not(:first-child):not(:nth-child(2))").each(function () {
-        rowHtml += `<td><input type="text" class="cell"></td>\n`;
+        rowHtml += `${emptyCell}\n`;
       });
       rowHtml += `</tr>\n`;
       theTableBody.append(rowHtml);
@@ -766,8 +758,6 @@ function createwikitableWizardModal() {
   $("#wikitableWizardUndo")
     .off("click")
     .on("click", function (e) {
-      console.log("Undo triggered");
-
       e.preventDefault();
       if (changeStack.length === 0) return; // No deleted items to undo
       const lastChange = changeStack.pop();
@@ -821,7 +811,6 @@ function createwikitableWizardModal() {
           if (cell.hasClass("rowBold")) {
             updateRowBold(cell);
           }
-          console.log(cell.classList);
         } else {
           cell.val(lastChange.oldValue);
           // If it's a color input, update the background color of cells in the row
@@ -858,6 +847,7 @@ function createwikitableWizardModal() {
 
       // Update Undo button visibility
       toggleUndoButton();
+      refreshSorting();
     });
 
   // Attach the reset function to the Reset button
@@ -951,8 +941,6 @@ function createwikitableWizardModal() {
 
   // Listen for changes on any input elements
   $("#wikitableWizardTable").on("change", "input", function () {
-    console.log("Input change detected");
-
     const currentInput = $(this);
     const inputType = currentInput.attr("type");
     const currentRow = currentInput.closest("tr").index();
@@ -966,8 +954,6 @@ function createwikitableWizardModal() {
     }
 
     const previousValue = currentInput.data("previousValue") || "";
-
-    console.log(`Old Value: ${previousValue}, New Value: ${newValue}`);
 
     changeStack.push({
       type: "inputChange",
@@ -985,13 +971,24 @@ function createwikitableWizardModal() {
   });
 
   if (window.selectedTable) {
-    console.log(window.selectedTable);
     $("#wikitableWizardPaste").trigger("click");
   }
 
   closeWithEscape();
   $("#wikitableWizardModal").slideDown();
   scrollToElement();
+}
+
+function swapColumns(oldIndex, newIndex) {
+  // Swap the header columns
+  let draggedTH = $("th").eq(oldIndex).detach();
+  $("th").eq(newIndex).before(draggedTH);
+
+  // Swap the data columns
+  $("#wikitableWizardTable tbody tr").each(function () {
+    let draggedTD = $(this).find("td").eq(oldIndex).detach();
+    $(this).find("td").eq(newIndex).before(draggedTD);
+  });
 }
 
 function setupSorting() {
@@ -1018,21 +1015,78 @@ function setupSorting() {
   });
 
   let dragIndex, dropIndex;
+  let lastDragX = null;
 
   $("#wikitableWizardTable th:not(.wikitableWizardUI)").draggable({
     containment: "#wikitableWizardTable",
     helper: function () {
-      return $(this)
-        .clone()
-        .css({
-          "text-align": "center",
-          width: $(this).width(),
-          height: $(this).height(),
-          "background-color": "#f2f2f2",
+      const helper = $("<div></div>").css({
+        display: "flex",
+        "flex-direction": "column",
+        "align-items": "center",
+        "background-color": "#ffffff",
+      });
+      const originalIndex = $(this).index();
+
+      const originalColumnWidth = $(this).outerWidth(); // Get the width of the original TH element
+      helper.css("width", originalColumnWidth + "px"); // Set the helper div width
+
+      $("#wikitableWizardTable tr").each((i, row) => {
+        const cell = $(row).find("td, th").eq(originalIndex).clone();
+        cell.css({
+          visibility: "visible",
+          opacity: 1,
         });
+
+        cell.removeClass("dragging");
+        helper.append(cell);
+      });
+      return helper;
+    },
+    drag: function (event, ui) {
+      const dragCenterX = ui.position.left + ui.helper.width() / 2;
+      const movingLeft = lastDragX !== null && dragCenterX < lastDragX;
+      lastDragX = dragCenterX;
+
+      $("#wikitableWizardTable th").each(function (index) {
+        if (index < 2) return; // Skip first two columns
+
+        const thLeft = $(this).offset().left;
+        const thRight = thLeft + $(this).width();
+
+        if (dragCenterX > thLeft && dragCenterX < thRight) {
+          if (movingLeft) {
+            // Perform the column swap when the dragCenterX crosses the left boundary
+            if (dragCenterX < thLeft + $(this).width() / 2) {
+              swapColumns(dragIndex, index);
+              dragIndex = index;
+            }
+          } else {
+            // Existing logic for moving right
+            if (index !== dragIndex) {
+              swapColumns(dragIndex, index);
+              dragIndex = index;
+            }
+          }
+          return false;
+        }
+      });
     },
     start: function () {
       dragIndex = $(this).index();
+      // Hide the entire column
+
+      $("#wikitableWizardTable th").eq(dragIndex).addClass("dragging");
+      $("#wikitableWizardTable tr").each(function () {
+        $(this).find("td").eq(dragIndex).addClass("dragging");
+      });
+    },
+    stop: function () {
+      // Show the entire column back
+      $("#wikitableWizardTable th").eq(dragIndex).removeClass("dragging");
+      $("#wikitableWizardTable tr").each(function () {
+        $(this).find("td").eq(dragIndex).removeClass("dragging");
+      });
     },
   });
 
@@ -1070,10 +1124,26 @@ function setupSorting() {
 
         $(this).find("td").eq(targetIndex).before(draggedTD);
       });
-
-      //updateHeaderNumbers();
     },
   });
+}
+
+function refreshSorting() {
+  // Destroy existing sortable, draggable, and droppable if they are already initialized
+  try {
+    $("#wikitableWizardTable tbody").sortable("destroy");
+  } catch (e) {}
+
+  try {
+    $("#wikitableWizardTable th:not(.wikitableWizardUI)").draggable("destroy");
+  } catch (e) {}
+
+  try {
+    $("#wikitableWizardTable th").droppable("destroy");
+  } catch (e) {}
+
+  // Re-initialize sorting, dragging, and dropping
+  setupSorting();
 }
 
 // Create custom context menu
@@ -1131,33 +1201,6 @@ $(document)
       .off("click")
       .on("click", function (e) {
         e.preventDefault();
-
-        /*
-        function addTableStateToStack() {
-          // Check color inputs and set to #ffffff if they are empty or null
-          const theTable = $("#wikitableWizardTable");
-          theTable.find("input[type='color']").each(function () {
-            if (!$(this).val()) {
-              $(this).val("#ffffff");
-            }
-          });
-          const currentTableState = theTable.html();
-          const currentCaption = $("#wikitableWizardCaption").val();
-          const isCaptionBold = $("#wikitableWizardCaptionBold").prop("checked");
-
-          console.log("Adding to deletedStack: ", currentTableState);
-
-          deletedStack.push({
-            type: "tableState",
-            content: currentTableState,
-            caption: currentCaption,
-            isCaptionBold: isCaptionBold,
-          });
-
-          // Update Undo button visibility
-          toggleUndoButton();
-        }
-        */
 
         function addTableStateToStack() {
           const theTable = $("#wikitableWizardTable");
@@ -1398,17 +1441,6 @@ function updateHeaderRow() {
   });
   theTableHeadRow.find("th").slice(2).remove();
   theTableHeadRow.append(headers);
-
-  updateHeaderNumbers();
-}
-
-function updateHeaderNumbers() {
-  $("#wikitableWizardTable thead tr th").each(function (cellIndex, cell) {
-    if (cellIndex > 1) {
-      // Skip the first two cells for Bold and BG
-      $(this).text("===");
-    }
-  });
 }
 
 function updateRowColor(el) {
@@ -1448,15 +1480,12 @@ export function createWikitableWizard() {
 
 function findAListMatch(escapedSelectedText, allLists) {
   let listMatch = null;
-  console.log("All lists:", allLists);
   if (allLists) {
     // Loop through each list to find the one that contains the selected text
     for (const list of allLists) {
       const normalizedList = list.replace(/\s+/g, " ");
       const normalizedSelectedText = escapedSelectedText.replace(/\s+/g, " ");
-      console.log(normalizedList);
-      console.log(normalizedSelectedText);
-      if (normalizedList.includes(normalizedSelectedText)) {
+      if (normalizedList.replace(/\\/g, "").includes(normalizedSelectedText.replace(/\\/g, ""))) {
         if (listMatch) {
           // If we already found a match, this one isn't unique
           listMatch = false;
@@ -1464,7 +1493,6 @@ function findAListMatch(escapedSelectedText, allLists) {
         } else {
           // This is the first match we've found
           listMatch = list;
-          console.log(listMatch);
         }
       }
     }
@@ -1493,114 +1521,110 @@ function closeWithEscape() {
   });
 }
 
-shouldInitializeFeature("wikitableWizard").then((result) => {
-  console.log("Should initialize feature:", result);
-  if (result) {
-    getFeatureOptions("wikitableWizard").then((options) => {
-      console.log("Feature options:", options);
-      if (options.selectToLaunch) {
-        let selectionTimeout;
+function selectToLaunchWikiTableWizard() {
+  let selectionTimeout;
 
-        let mouseX = 0,
-          mouseY = 0;
-        document.addEventListener("mouseup", function (e) {
-          mouseX = e.clientX;
-          mouseY = e.clientY;
-        });
+  let mouseX = 0,
+    mouseY = 0;
+  document.addEventListener("mouseup", function (e) {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+  });
 
-        $(document).on("selectionchange", function () {
+  $(document).on("selectionchange", function () {
+    const selection = window.getSelection();
+    const anchorNode = $(selection.anchorNode);
+
+    if (anchorNode.length > 0) {
+      let isInsideTargetElement = anchorNode.closest("#wpTextbox1, .CodeMirror").length > 0;
+      if (isInsideTargetElement) {
+        clearTimeout(selectionTimeout);
+        selectionTimeout = setTimeout(function () {
           const selection = window.getSelection();
-          const anchorNode = $(selection.anchorNode);
+          const selectedText = selection.toString().trim();
 
-          if (anchorNode.length > 0) {
-            let isInsideTargetElement = anchorNode.closest("#wpTextbox1, .CodeMirror").length > 0;
-            if (isInsideTargetElement) {
-              console.log("Selection change detected.");
-              clearTimeout(selectionTimeout);
-              selectionTimeout = setTimeout(function () {
-                const selection = window.getSelection();
-                const selectedText = selection.toString().trim();
-                console.log("Selected text:", selectedText);
+          if (selectedText.length > 0) {
+            const currentBio = $("#wpTextbox1").val();
+            const escapedSelectedText = selectedText.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
 
-                if (selectedText.length > 0) {
-                  const currentBio = $("#wpTextbox1").val();
-                  const escapedSelectedText = selectedText.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+            const tableMatchRegex = new RegExp(
+              `{\\|[^\\{\\}]*${escapedSelectedText.replace(/\\\\/g, "\\\\\\\\")}[^\\{\\}]*\\|\\}`,
+              "g"
+            );
+            const tableMatch = currentBio.match(tableMatchRegex);
 
-                  const tableMatchRegex = new RegExp(`{\\|[^\\{\\}]*${escapedSelectedText}[^\\{\\}]*\\|\\}`, "g");
-                  const tableMatch = currentBio.match(tableMatchRegex);
-                  console.log("Table match:", tableMatch);
+            // Regex to match each list
+            const allListsRegex =
+              /(^|\n)([*#:]+.*(?:Head|Son|Daughter|Wife|Mother|Father|Brother|Sister|Other|Boarder|Lodger|Visitor|Guest) {4}.*\n)+/gm;
 
-                  // Regex to match each list
-                  const allListsRegex =
-                    /(^|\n)([*#:]+.*(?:Head|Son|Daughter|Wife|Mother|Father|Brother|Sister|Other|Boarder|Lodger|Visitor|Guest) {4}.*\n)+/gm;
+            // Find all lists in the currentBio
+            let allLists = currentBio.match(allListsRegex);
 
-                  // Find all lists in the currentBio
-                  let allLists = currentBio.match(allListsRegex);
+            let listMatch = findAListMatch(escapedSelectedText, allLists);
+            const singleSpaceListsRegex =
+              /(^|\n)([*#:]+.*(?:Head|Son|Daughter|Wife|Mother|Father|Brother|Sister|Other|Boarder|Lodger|Visitor|Guest).*\n)+/gm;
 
-                  let listMatch = findAListMatch(escapedSelectedText, allLists);
-                  const singleSpaceListsRegex =
-                    /(^|\n)([*#:]+.*(?:Head|Son|Daughter|Wife|Mother|Father|Brother|Sister|Other|Boarder|Lodger|Visitor|Guest).*\n)+/gm;
+            // Find all single space lists
+            allLists = currentBio.match(singleSpaceListsRegex);
+            if (!listMatch) {
+              listMatch = findAListMatch(escapedSelectedText, allLists);
+            }
 
-                  // Find all single space lists
-                  allLists = currentBio.match(singleSpaceListsRegex);
-                  if (!listMatch) {
-                    listMatch = findAListMatch(escapedSelectedText, allLists);
-                  }
+            let uniqueMatch = false;
 
-                  let uniqueMatch = false;
+            if (tableMatch && tableMatch.length === 1) {
+              uniqueMatch = true;
+              window.selectedTable = tableMatch[0];
+            } else if (listMatch) {
+              uniqueMatch = true;
+              window.selectedTable = listMatch;
+            }
 
-                  if (tableMatch && tableMatch.length === 1) {
-                    uniqueMatch = true;
-                    window.selectedTable = tableMatch[0];
-                  } else if (listMatch) {
-                    uniqueMatch = true;
-                    window.selectedTable = listMatch;
-                  }
+            if (uniqueMatch) {
+              const btn = document.createElement("button");
+              btn.innerHTML = "Wikitable Wizard";
+              btn.classList.add("small");
+              btn.style.position = "fixed";
+              btn.style.left = parseInt(mouseX + 50) + "px";
+              btn.style.top = mouseY + "px";
+              btn.style.zIndex = 1000;
+              document.body.appendChild(btn);
 
-                  console.log("Unique match:", uniqueMatch);
+              btn.addEventListener("click", function () {
+                navigator.clipboard
+                  .writeText(window.selectedTable)
+                  .then(() => {
+                    if ($("#wikitableWizardModal").length) {
+                      $("#wikitableWizardModal").show();
+                      $("#wikitableWizardPaste").trigger("click");
+                    } else {
+                      createWikitableWizard();
+                    }
+                    document.body.removeChild(btn);
+                  })
+                  .catch((err) => {
+                    console.error("Failed to copy text:", err);
+                  });
+              });
 
-                  if (uniqueMatch) {
-                    const btn = document.createElement("button");
-                    btn.innerHTML = "Wikitable Wizard";
-                    btn.classList.add("small");
-                    btn.style.position = "fixed";
-                    btn.style.left = parseInt(mouseX + 50) + "px";
-                    btn.style.top = mouseY + "px";
-                    btn.style.zIndex = 1000;
-                    document.body.appendChild(btn);
-                    console.log("Button added to the document.");
-
-                    btn.addEventListener("click", function () {
-                      console.log("Button clicked.");
-                      navigator.clipboard
-                        .writeText(window.selectedTable)
-                        .then(() => {
-                          console.log(window.selectedTable);
-                          if ($("#wikitableWizardModal").length) {
-                            $("#wikitableWizardModal").show();
-                            $("#wikitableWizardPaste").trigger("click");
-                          } else {
-                            createWikitableWizard();
-                          }
-                          document.body.removeChild(btn);
-                        })
-                        .catch((err) => {
-                          console.error("Failed to copy text:", err);
-                        });
-                    });
-
-                    setTimeout(function () {
-                      if (document.body.contains(btn)) {
-                        console.log("Removing button after 2 seconds.");
-                        $(btn).fadeOut(500);
-                      }
-                    }, 2000);
-                  }
+              setTimeout(function () {
+                if (document.body.contains(btn)) {
+                  $(btn).fadeOut(500);
                 }
-              }, 500);
+              }, 2000);
             }
           }
-        });
+        }, 500);
+      }
+    }
+  });
+}
+
+shouldInitializeFeature("wikitableWizard").then((result) => {
+  if (result) {
+    getFeatureOptions("wikitableWizard").then((options) => {
+      if (options.selectToLaunch) {
+        selectToLaunchWikiTableWizard();
       }
     });
   }
