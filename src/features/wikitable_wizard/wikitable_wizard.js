@@ -331,6 +331,10 @@ function createwikitableWizardModal() {
           <li>You can move this popup window by dragging the title bar.</li>
           <li>There are four ways to close this Notes section: ?, Escape, 'x', and double-click.</li>
           </ul>
+        <h3>Known Issue:</h3>
+        <ul>
+        <li>The column sorting looks pretty messed up in Chrome on MacOS.  It's also not great in Safari.</li>
+        </ul>
         <p>Please <a href="https://www.wikitree.com/wiki/Beacall-6">let me know</a> if you find any bugs.</p>
         </div>
       <table id="wikitableWizardTable"></table>
@@ -1534,14 +1538,19 @@ function selectToLaunchWikiTableWizard() {
   $(document).on("selectionchange", function () {
     const selection = window.getSelection();
     const anchorNode = $(selection.anchorNode);
-
+    // logging
+    console.log(selection);
+    console.log(anchorNode);
     if (anchorNode.length > 0) {
-      let isInsideTargetElement = anchorNode.closest("#wpTextbox1, .CodeMirror").length > 0;
+      let isInsideTargetElement =
+        anchorNode.closest("#wpTextbox1, .CodeMirror").length > 0 || anchorNode.children("#wpTextbox1").length > 0;
       if (isInsideTargetElement) {
         clearTimeout(selectionTimeout);
         selectionTimeout = setTimeout(function () {
           const selection = window.getSelection();
           const selectedText = selection.toString().trim();
+          // logging
+          console.log(selectedText);
 
           if (selectedText.length > 0) {
             const currentBio = $("#wpTextbox1").val();
@@ -1579,6 +1588,9 @@ function selectToLaunchWikiTableWizard() {
               uniqueMatch = true;
               window.selectedTable = listMatch;
             }
+            // logging
+            console.log(window.selectedTable);
+            console.log(uniqueMatch);
 
             if (uniqueMatch) {
               const btn = document.createElement("button");
