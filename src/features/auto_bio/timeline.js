@@ -252,9 +252,9 @@ export function buildTimelineTable(bioTimeline) {
           ) {
             let theRef;
             if (aRef.Used) {
-              theRef = "<ref name='" + aRef["RefName"] + "' />";
+              theRef = `<ref name="${aRef["RefName"]}" />`;
             } else {
-              theRef = "<ref name='ref_" + i + "'>" + aRef.Text + "</ref>";
+              theRef = `<ref name="ref_${i}">${aRef.Text}</ref>`;
               aRef.Used = true;
               aRef.RefName = "ref_" + i;
             }
@@ -312,9 +312,9 @@ export function buildTimelineSA(bioTimeline) {
               let theRef;
               for (let i = 0; i < 2; i++) {
                 if (aRef.Used) {
-                  theRef = "<ref name='" + aRef["RefName"] + "' />";
+                  theRef = `<ref name="${aRef["RefName"]}" />`;
                 } else {
-                  theRef = "<ref name='ref_" + refCount + "'>" + aRef.Text + "</ref>";
+                  theRef = `<ref name="ref_${refCount}">${aRef.Text}</ref>`;
                   aRef.Used = true;
                   aRef.RefName = "ref_" + refCount;
                   refCount++;
@@ -384,6 +384,6 @@ export function buildTimelineSA(bioTimeline) {
 }
 
 function replaceTags(text) {
-  text = text.replaceAll(/<ref\s+name='(\w+)'>.*?<\/ref>/gs, "<ref name='$1' />");
+  text = text.replaceAll(/<ref\s+name="(\w+)">.*?<\/ref>/gs, `<ref name="$1" />`);
   return text;
 }
