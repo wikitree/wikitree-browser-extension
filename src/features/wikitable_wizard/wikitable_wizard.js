@@ -331,6 +331,10 @@ function createwikitableWizardModal() {
           <li>You can move this popup window by dragging the title bar.</li>
           <li>There are four ways to close this Notes section: ?, Escape, 'x', and double-click.</li>
           </ul>
+        <h3>Known Issue:</h3>
+        <ul>
+        <li>The column sorting looks pretty messed up in Chrome on MacOS.  It's also not great in Safari.</li>
+        </ul>
         <p>Please <a href="https://www.wikitree.com/wiki/Beacall-6">let me know</a> if you find any bugs.</p>
         </div>
       <table id="wikitableWizardTable"></table>
@@ -1536,7 +1540,8 @@ function selectToLaunchWikiTableWizard() {
     const anchorNode = $(selection.anchorNode);
 
     if (anchorNode.length > 0) {
-      let isInsideTargetElement = anchorNode.closest("#wpTextbox1, .CodeMirror").length > 0;
+      let isInsideTargetElement =
+        anchorNode.closest("#wpTextbox1, .CodeMirror").length > 0 || anchorNode.children("#wpTextbox1").length 
       if (isInsideTargetElement) {
         clearTimeout(selectionTimeout);
         selectionTimeout = setTimeout(function () {
