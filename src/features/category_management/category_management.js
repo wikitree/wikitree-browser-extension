@@ -59,7 +59,9 @@ function AddWikiTreePlusLinks() {
   const iframes = document.getElementsByTagName("iframe");
   if (iframes.length == 1) {
     iframes[0].addEventListener("load", function () {
-      iframes[0].contentDocument.getElementsByTagName("button")[0].appendChild(CreateBatchCatActivationLinkAndSpan());
+      iframes[0].contentDocument
+        .getElementsByTagName("button")[0]
+        .parentNode.appendChild(CreateBatchCatActivationLinkAndSpan());
     });
   } else {
     document.getElementsByTagName("form")[0].appendChild(CreateBatchCatActivationLinkAndSpan());
@@ -425,8 +427,15 @@ function ShowCatALot() {
     AddLetterlinks();
     AddCatALotControls(document.getElementById("categories"));
   } else if (isPlusDomain) {
-    if (document.getElementsByTagName("iframe").length == 1) {
-      alert("please use 'Show result in new tab'");
+    const iframes = document.getElementsByTagName("iframe");
+    if (iframes.length == 1) {
+      if (
+        confirm(
+          "This feature only works with 'Show result in new tab' enabled. Do you want to open this search in a new tab?"
+        )
+      ) {
+        window.open(iframes[0].src);
+      }
     } else {
       const div = document.createElement("div");
       //document.getElementsByTagName("form")[0].parentNode.appendChild(div);
