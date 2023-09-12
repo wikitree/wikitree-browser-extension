@@ -1538,19 +1538,15 @@ function selectToLaunchWikiTableWizard() {
   $(document).on("selectionchange", function () {
     const selection = window.getSelection();
     const anchorNode = $(selection.anchorNode);
-    // logging
-    console.log(selection);
-    console.log(anchorNode);
+
     if (anchorNode.length > 0) {
       let isInsideTargetElement =
-        anchorNode.closest("#wpTextbox1, .CodeMirror").length > 0 || anchorNode.children("#wpTextbox1").length > 0;
+        anchorNode.closest("#wpTextbox1, .CodeMirror").length > 0 || anchorNode.children("#wpTextbox1").length 
       if (isInsideTargetElement) {
         clearTimeout(selectionTimeout);
         selectionTimeout = setTimeout(function () {
           const selection = window.getSelection();
           const selectedText = selection.toString().trim();
-          // logging
-          console.log(selectedText);
 
           if (selectedText.length > 0) {
             const currentBio = $("#wpTextbox1").val();
