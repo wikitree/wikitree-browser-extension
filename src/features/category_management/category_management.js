@@ -417,7 +417,7 @@ function ShowCatALot() {
   if (isSearchPage) {
     AddCatALotControls(document.getElementsByTagName("p")[0]);
     HackMergeCheckboxes();
-    AddSelectAllResultsLink();
+    document.getElementsByClassName("large")[0].appendChild(CreateSelectAllResultsLink());
   } else if (isCategoryPage) {
     AddCheckboxes();
     AddSubcatLinks();
@@ -434,6 +434,7 @@ function ShowCatALot() {
       form.parentNode.insertBefore(div, form);
       AddCatALotControls(div);
       AddCheckboxesWikiTreePlus();
+      document.getElementsByTagName("table")[0].appendChild(CreateSelectAllResultsLink());
     }
   }
   return false;
@@ -550,7 +551,7 @@ function AddCatALotControls(elementToAppendTo) {
   elementToAppendTo.appendChild(catALotDiv);
 }
 
-function AddSelectAllResultsLink() {
+function CreateSelectAllResultsLink() {
   let newLink = document.createElement("a");
   newLink.innerText = "[✓]";
   newLink.addEventListener("click", function () {
@@ -562,8 +563,7 @@ function AddSelectAllResultsLink() {
       }
     }
   });
-
-  document.getElementsByClassName("large")[0].appendChild(newLink);
+  return newLink;
 }
 
 function AddSelectAllPersonsInCategoryLink() {
