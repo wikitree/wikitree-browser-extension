@@ -30,6 +30,13 @@
   height: 10em;
 }
 
+#tab-list {
+  list-style-type: none;
+  display: inline;
+  padding-inline-start: 0.5em;
+  margin-left: 0;
+}
+
 #tab-list .tab {
   display: inline-block;
   white-space: nowrap;
@@ -56,6 +63,7 @@
 #tab-list .tab-name {
   display: inline-block;
   padding: 8px 6px 8px 3px;
+  min-width: 2em;
 }
 #tab-list .sortable-tab-placeholder {
   display: inline-block;
@@ -80,8 +88,19 @@
   margin: 1em 0 0 0.25em;
 }
 
+#clipboard #reorderTabs {
+  display: inline-block;
+  margin: 0;
+  width: auto;
+}
+#clipboard #renameGroup {
+  display: inline-block;
+  margin: 10px;
+  width: auto;
+}
+
 #clipboard label {
-  margin: 2em;
+  margin-left: 2em;
   font-weight: bold;
 }
 

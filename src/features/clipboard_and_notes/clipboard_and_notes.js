@@ -90,53 +90,106 @@ function groupNameFromInput() {
   return $("#groupInput").val().trim();
 }
 
-function addClipping(type, e) {
-  const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
-  clipboardDB.onsuccess = function (event) {
-    const db = event.target.result;
+function currentActiveTabFor(type) {
+  return localStorage[`clipboard_${type}_active_tab`];
+}
 
-    if (!db.objectStoreNames.contains("Clipboard")) {
-      db.createObjectStore("Clipboard", { autoIncrement: true });
-    }
-    const cdb = clipboardDB.result;
-    const group = groupNameFromInput();
-    console.log(`Add clipping to group='${group}'`);
-    cdb
-      .transaction(["Clipboard"], "readwrite")
-      .objectStore("Clipboard")
-      .put({ type: type, text: $("#clippingBox").val(), group: group });
-    // Add the group button so long so we can mark it active so that focus can be changed to it
-    const groupKey = makeKeyFrom(group);
+function focusOnGroup(group) {
+  const groupKey = makeKeyFrom(group);
+  const $li = $(`#tab-list .tab[data-groupkey="${groupKey}"]`);
+  if ($li.length) {
+    $li.addClass("active");
+  } else {
+    // The group has not been loaded yet. Assume it will be loaded and add it's tab item
+    // so long so we can mark it as active for the next refresh
     addGroupTab(groupKey, htmlEntities(group));
     $("#tab-list .tab").removeClass("active");
     $(`#tab-list .tab[data-groupkey="${groupKey}"]`).addClass("active");
+  }
+}
+
+function addClipping(type, e) {
+  const group = groupNameFromInput();
+  const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
+  clipboardDB.onsuccess = function (event) {
+    const db = event.target.result;
+    if (!db.objectStoreNames.contains("Clipboard")) {
+      db.createObjectStore("Clipboard", { autoIncrement: true });
+    }
+
+    clipboardDB.result
+      .transaction(["Clipboard"], "readwrite")
+      .objectStore("Clipboard")
+      .put({ type: type, text: $("#clippingBox").val(), group: group });
+
+    // Add the group button so long so we can mark it active so that focus can be changed to it
+    focusOnGroup(group);
     clipboard(type, e, "add");
     $("#clippingBox").val("");
   };
+}
+
+function removeOrderItem(orderName, item) {
+  const order = localStorage[orderName];
+  if (order) {
+    const newOrder = order
+      .split("|")
+      .filter((g) => g != item)
+      .join("|");
+    localStorage.setItem(orderName, newOrder);
+  }
 }
 
 function deleteClipping(key, type, groupTBody, e) {
   const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
   clipboardDB.onsuccess = function (event) {
     const db = event.target.result;
-
     if (!db.objectStoreNames.contains("Clipboard")) {
       db.createObjectStore("Clipboard", { autoIncrement: true });
     }
-    const cdb = clipboardDB.result;
-    cdb.transaction(["Clipboard"], "readwrite").objectStore("Clipboard").delete(key);
 
-    if (groupTBody.children("tr").length == 1) {
-      // We've removed the last item in a group, delete the group order record
-      const groupKey = groupTBody.closest(".tab-content").data("groupkey") || "";
-      console.log(`Deleteing ${itemOrderNameForGroup(groupKey, type)}`);
-      cdb
-        .transaction(["Clipboard"], "readwrite")
-        .objectStore("Clipboard")
-        .delete(itemOrderNameForGroup(groupKey, type));
+    clipboardDB.result
+      .transaction(["Clipboard"], "readwrite")
+      .objectStore("Clipboard")
+      .delete(+key);
+
+    const groupKey = groupTBody.closest(".tab-content").data("groupkey") || "";
+    if (groupTBody.children("tr").length > 1) {
+      // Remove the clipping's key from it's group's order record
+      removeOrderItem(itemOrderNameForGroup(groupKey, type), key);
+    } else {
+      // We've removed the last item in a group, therefore delete the group's order record
+      localStorage.removeItem(itemOrderNameForGroup(groupKey, type));
+
+      // Also delete the group's key from the group order record
+      removeOrderItem(groupsOrderNameFor(type), groupKey);
     }
     clipboard(type, e, "delete");
     $("#clippingBox").val("");
+  };
+}
+
+function renameGroup(currentKey, newName, type, e) {
+  const records = [];
+  $(`.tab-content[data-groupkey="${currentKey}"] tr`).each((i, tr) => {
+    const $tr = $(tr);
+    records.push([$tr.data("key"), original2real($tr.data("original"))]);
+  });
+
+  const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
+  clipboardDB.onsuccess = function (event) {
+    const db = event.target.result;
+    if (!db.objectStoreNames.contains("Clipboard")) {
+      db.createObjectStore("Clipboard", { autoIncrement: true });
+    }
+
+    const objStore = clipboardDB.result.transaction(["Clipboard"], "readwrite").objectStore("Clipboard");
+    for (const [key, text] of records) {
+      objStore.put({ type: type, text: text, group: newName }, key);
+    }
+    focusOnGroup(newName);
+    clipboard(type, e, "edit");
+    $("#groupInput").val("");
   };
 }
 
@@ -148,12 +201,11 @@ function editClipping(key, type, e) {
     if (!db.objectStoreNames.contains("Clipboard")) {
       db.createObjectStore("Clipboard", { autoIncrement: true });
     }
-    const cdb = clipboardDB.result;
-    console.log(`Edited. group=${groupNameFromInput()}`);
-    cdb
+    clipboardDB.result
       .transaction(["Clipboard"], "readwrite")
       .objectStore("Clipboard")
-      .put({ type: type, text: $("#clippingBox").val(), group: groupNameFromInput() }, key);
+      .put({ type: type, text: $("#clippingBox").val(), group: groupNameFromInput() }, +key);
+
     clipboard(type, e, "edit");
     $("#clippingBox").val("");
   };
@@ -272,7 +324,7 @@ function placeClipboard(aClipboard, event) {
 }
 
 async function clipboard(type, e, action = false) {
-  let activeTab = "";
+  let activeTab = localStorage[currentActiveTabFor(type)] || "";
   if ($("#clipboard").length) {
     activeTab = $("#tab-list .tab.active").data("groupkey");
     $("#clipboard #clippings").html("");
@@ -298,13 +350,15 @@ async function clipboard(type, e, action = false) {
     const aClipboard = $(
       `<div id='clipboard' data-type='${type}'>` +
         `<h1>${h1}<x>x</x></h1>` +
-        "<div id='tab-container'>" +
-        "<div id='groupTabs'><ul id='tab-list'></ul></div>" +
+        "<div id='tab-container'><div id='groupTabs'>" +
+        "<button id='reorderTabs' class='small button' title='Reset the tab sort order to the default lexicographic order'>⇅</button>" +
+        "<ul id='tab-list'></ul></div>" +
         "<section id='clippings'></section></div>" +
-        `<label title='${capWord} can be grouped under a label entered here.'>Group:` +
+        `<span><label title='${capWord} can be grouped under a label entered here.'>Group:` +
         "<input id='groupInput' type='text' placeholder='(Optional)'></label>" +
-        "<textarea id='clippingBox'></textarea>" +
-        `<button class='small button' id='addClipping'>Add ${thisWord} </button></div>`
+        "<button id='renameGroup' class='small button' title='Rename the current active group to the value entered at the left'>Rename</button>" +
+        "</span><textarea id='clippingBox'></textarea>" +
+        `<button id='addClipping' class='small button'>Add ${thisWord}</button></div>`
     );
 
     placeClipboard(aClipboard, e);
@@ -320,6 +374,24 @@ async function clipboard(type, e, action = false) {
     });
     $("#clipboard h1").on("dblclick", function () {
       $("#clipboard").slideUp();
+    });
+    $("#reorderTabs").off();
+    $("#reorderTabs").on("click", function (e) {
+      e.preventDefault();
+      localStorage.removeItem(groupsOrderNameFor(type));
+      clipboard(type, e, "edit");
+    });
+    $("#renameGroup").off();
+    $("#renameGroup").on("click", function (e) {
+      e.preventDefault();
+      const newName = groupNameFromInput();
+      const $activeGroup = $("#tab-list .tab.active");
+      if ($activeGroup.length) {
+        const currentKey = $activeGroup.data("groupkey") || "";
+        if (currentKey != makeKeyFrom(newName)) {
+          renameGroup(currentKey, newName, type, e);
+        }
+      }
     });
     if ($("#clipboard").draggable()) {
       $("#clipboard").draggable("destroy");
@@ -350,7 +422,6 @@ async function clipboard(type, e, action = false) {
 
   const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
   clipboardDB.onsuccess = function (event) {
-    console.log("clipboardDB.open.onsuccess called");
     const groupedItems = new Map();
     const db = event.target.result;
 
@@ -367,7 +438,10 @@ async function clipboard(type, e, action = false) {
         // Collect all the required type of elements into their groups
         const value = cursor.value;
         if (value.type == type) {
-          console.log(`read key:${cursor.primaryKey}, type:${value.type}, group:${value.group}`, value);
+          // console.log(
+          //   `read key:${cursor.primaryKey} (${typeof cursor.primaryKey}), type:${value.type}, group:${value.group}`,
+          //   value
+          // );
           const group = value.group || "";
           const groupItems = groupedItems.get(group) || [];
           groupItems.push({ key: cursor.primaryKey, value: value });
@@ -376,17 +450,15 @@ async function clipboard(type, e, action = false) {
         cursor.continue();
       } else {
         // We've collected them all, now render them
-        console.log("groupedItems", groupedItems);
-        if (groupedItems.size > 0) $("#clipboard p").remove();
+        // console.log("groupedItems", groupedItems);
 
-        let groupNr = 0;
+        if (groupedItems.size > 0) $("#clipboard p").remove();
         for (const group of [...groupedItems.keys()].sort()) {
           // Render a group - the group of non-grouped items are rendered first
           // Each group is rendered as a table
           const groupItems = groupedItems.get(group);
           const groupName = htmlEntities(group);
           const groupKey = makeKeyFrom(group);
-          console.log(`drawing group '${group}', key:${groupKey}`, groupItems);
 
           addGroupTab(groupKey, groupName);
           const grpTable = $(
@@ -398,19 +470,18 @@ async function clipboard(type, e, action = false) {
           for (const item of groupItems) {
             if (grpTable.find(`tr[data-key="${item.key}"]`).length == 0) {
               index += 1;
-              let thisText = "";
-              thisText = htmlEntities(item.value.text);
-              const oText = thisText;
+              let htmlText = htmlEntities(item.value.text);
+              const oText = htmlText;
               if (type == "notes") {
                 // render URLs as links
-                thisText = thisText.replaceAll(/(\bhttps?:\/\/.*\b)/g, "<a href='$1'>$1</a>");
+                htmlText = htmlText.replaceAll(/(\bhttps?:\/\/.*\b)/g, "<a href='$1'>$1</a>");
               }
 
               const row = $(
                 `<tr data-key="${item.key}" data-original="${oText}" data-group="${groupName}">` +
                   groupName.replaceAll(/'/g, "'").replaceAll(/"/g, '"') +
                   `<td class="index">${index}</td>` +
-                  `<td class="clipping"><pre>${thisText}</pre></td>` +
+                  `<td class="clipping"><pre>${htmlText}</pre></td>` +
                   `<td class="editClipping"><img src="${editImage}" class="button small editClippingButton"></td>` +
                   `<td class="deleteClipping"><span class="deleteClippingButton button small">X</span></td></tr>`
               );
@@ -419,18 +490,18 @@ async function clipboard(type, e, action = false) {
           }
           $("#clippings").append(grpTable);
           const itemOrderName = itemOrderNameForGroup(groupKey, type);
-          console.log(`checking for ${itemOrderName}`);
           if (localStorage[itemOrderName]) {
-            const reverseItemOrder = localStorage[itemOrderName].split("|").reverse();
-            console.log("found reverse order:", reverseItemOrder);
-            reverseItemOrder.forEach((itemKey) => {
-              if (itemKey != "") {
-                // The above check prevents misbehaviour due to legacy sort orders always having an
-                // extra blank key value at the end (which used to have no effect, but here will
-                // result in moving the non-grouped group of items to the end of this named group)
-                $(`#clippings tr[data-key="${itemKey}"]`).prependTo($(tableBodyForGroup(groupKey)));
-              }
-            });
+            localStorage[itemOrderName]
+              .split("|")
+              .reverse()
+              .forEach((itemKey) => {
+                if (itemKey != "") {
+                  // The above check prevents misbehaviour due to legacy sort orders always having an
+                  // extra blank key value at the end (which used to have no effect, but here will
+                  // result in moving the non-grouped group of items to the end of this named group)
+                  $(`#clippings tr[data-key="${itemKey}"]`).prependTo($(tableBodyForGroup(groupKey)));
+                }
+              });
             renumberClipboardGroup(groupKey);
           }
         }
@@ -484,15 +555,15 @@ async function clipboard(type, e, action = false) {
         });
 
         const groupsOrderName = groupsOrderNameFor(type);
-        console.log(`checking for ${groupsOrderName}`);
         if (localStorage[groupsOrderName]) {
           // Order the groups as determined by the saved sort order
-          const reverseGroupOrder = localStorage[groupsOrderName].split("|").reverse();
-          console.log("found reverse order:", reverseGroupOrder);
           const $tabList = $("#tab-list");
-          reverseGroupOrder.forEach((groupKey) => {
-            $tabList.find(`.tab[data-groupkey="${groupKey}"]`).prependTo($tabList);
-          });
+          localStorage[groupsOrderName]
+            .split("|")
+            .reverse()
+            .forEach((groupKey) => {
+              $tabList.find(`.tab[data-groupkey="${groupKey}"]`).prependTo($tabList);
+            });
         }
 
         if ($(".tab-content").length == 0) {
@@ -520,7 +591,6 @@ async function clipboard(type, e, action = false) {
                 .each(function () {
                   order.push($(this).data("groupkey"));
                 });
-              console.log(`Writing ${groupsOrderNameFor(type)}: ${order.join("|")}`, order);
               localStorage.setItem(groupsOrderNameFor(type), order.join("|"));
             },
           });
@@ -542,7 +612,6 @@ async function clipboard(type, e, action = false) {
                 $(this).find(".index").text(rowNum);
                 order.push($(this).data("key"));
               });
-            console.log(`Writing ${itemOrderNameForGroup(groupKey, type)}: ${order.join("|")}`, order);
             localStorage.setItem(itemOrderNameForGroup(groupKey, type), order.join("|"));
           },
         });
@@ -559,7 +628,7 @@ function addGroupTab(groupKey, groupName) {
       `<span class="tab-handle" title="Grab here to re-order the tabs (if there is more than one)">☰</span>` +
       `<span class="tab-name" title="${
         isNoGroup ? "Click to see non-grouped items" : "Click to see this group of items"
-      } "${isNoGroup ? 'style = "width: 2em;">&nbsp;' : `>${groupName}`}</span></li>`
+      }">${isNoGroup ? "&nbsp;" : groupName}</span></li>`
   );
   tab.appendTo("#tab-list");
 }
@@ -674,9 +743,10 @@ function showGroup($tab) {
   $tab.addClass("active");
 
   // Show the active tab content
-  const groupkey = $tab.data("groupkey") || "";
+  const groupKey = $tab.data("groupkey") || "";
+  localStorage.setItem(currentActiveTabFor($("#clipboard").data("type")), groupKey);
   $("#clippings div").hide();
-  const groupDiv = $(`#clippings div[data-groupkey="${groupkey}"]`);
+  const groupDiv = $(`#clippings div[data-groupkey="${groupKey}"]`);
   $("#groupInput").val(original2real(groupDiv.data("group")));
   groupDiv.show();
 }
