@@ -844,6 +844,7 @@ function AddVerifiedCatLink(cat) {
 }
 
 function PerformActualProfileChanges() {
+  const enhancedEditorOn = DeactivateEnhancedEditorIfPresent();
   let wpTextbox1 = window.document.getElementById("wpTextbox1");
   let urlParams = new URLSearchParams(window.location.search);
 
@@ -876,11 +877,28 @@ function PerformActualProfileChanges() {
   if (bHasAdd || bHasRem) {
     DoSave("Categories: " + summary);
   }
+  ReactivateEnhancedEditorIfNeeded(enhancedEditorOn);
 }
 
-function CreateEditModeLinks(disable) {}
+function ReactivateEnhancedEditorIfNeeded(enhancedEditorOn) {
+  if (enhancedEditorOn) {
+    $("#toggleMarkupColor").trigger("click");
+  }
+}
+
+function DeactivateEnhancedEditorIfPresent() {
+  let enhancedEditorOn = false;
+  const enhancedEditorButton = $("#toggleMarkupColor[value='Turn Off Enhanced Editor']");
+
+  if (enhancedEditorButton.length) {
+    enhancedEditorOn = true;
+    enhancedEditorButton.trigger("click");
+  }
+  return enhancedEditorOn;
+}
 
 function PerformActualCategoryChanges(disable) {
+  const enhancedEditorOn = DeactivateEnhancedEditorIfPresent();
   let urlParams = new URLSearchParams(window.location.search);
   if (urlParams.has("catBot")) {
     switch (urlParams.get("catBot")) {
@@ -899,6 +917,7 @@ function PerformActualCategoryChanges(disable) {
       }
     }
   }
+  ReactivateEnhancedEditorIfNeeded(enhancedEditorOn);
 }
 
 function MarkCategoryForDeletionAndSave() {
