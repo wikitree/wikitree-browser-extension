@@ -1588,9 +1588,6 @@ function selectToLaunchWikiTableWizard() {
               uniqueMatch = true;
               window.selectedTable = listMatch;
             }
-            // logging
-            console.log(window.selectedTable);
-            console.log(uniqueMatch);
 
             if (uniqueMatch) {
               const btn = document.createElement("button");
