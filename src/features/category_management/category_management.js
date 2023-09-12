@@ -871,16 +871,18 @@ function CheckWhatLinksHereAndSave() {
       for (let i = 0; i < ULs.length; i++) {
         if (ULs[i].className == "") {
           //menu items have a class
-          if (
-            prompt(
-              "Category has links on the pages that will open now. Please replace/remove the links.\n(You might want to copy the category name from below easier search and replace)",
+          const promptResult = prompt(
+            "Category has links on the pages that will open now. Please replace/remove the links." +
+              "\n(You might want to copy the category name from below easier search and replace)",
               category
-            )
-          ) {
+          );
+          if (promptResult != null) {
             const LIs = ULs[i].getElementsByTagName("li");
             for (let i = 0; i < LIs.length; i++) {
               const page = LIs[i].innerText.split(" (← links)").join("");
+              if (!page.startsWith("Automated:")) {
               const win = window.open("https://www.wikitree.com/index.php?title=" + page + "&action=edit");
+              }
             }
           }
         }
