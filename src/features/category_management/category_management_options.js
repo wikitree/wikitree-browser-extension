@@ -1,6 +1,12 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 import {
-  isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit, isCategoryHistory, isProfilePage
+  isProfileEdit,
+  isCategoryPage,
+  isSearchPage,
+  isCategoryEdit,
+  isCategoryHistory,
+  isProfilePage,
+  isPlusDomain,
 } from "../../core/pageType";
 
 registerFeature({
@@ -11,7 +17,7 @@ registerFeature({
   creators: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
   contributors: [{ name: "Magnus Manske", wikitreeid: "Manske-74" }],
   defaultValue: true,
-  pages: [isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit, isCategoryHistory, isProfilePage],
+  pages: [isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit, isCategoryHistory, isProfilePage, isPlusDomain],
   options: [
     {
       id: "catALotCategory",
@@ -23,6 +29,12 @@ registerFeature({
       id: "catALotSearchResults",
       type: OptionType.CHECKBOX,
       label: "batch add category for profiles within search results",
+      defaultValue: true,
+    },
+    {
+      id: "catALotWikiTreePlus",
+      type: OptionType.CHECKBOX,
+      label: "batch add category for profiles within WikiTree+ search results",
       defaultValue: true,
     },
     {
@@ -46,7 +58,8 @@ registerFeature({
     {
       id: "disableCategories",
       type: OptionType.CHECKBOX,
-      label: "deactivate/disable to be renamed categories with <nowiki> to remove them from their current parent categories",
+      label:
+        "deactivate/disable to be renamed categories with <nowiki> to remove them from their current parent categories",
       defaultValue: false,
     },
     {
@@ -60,8 +73,6 @@ registerFeature({
       type: OptionType.CHECKBOX,
       label: "enable category change in profile",
       defaultValue: true,
-    }
-
-
+    },
   ],
 });

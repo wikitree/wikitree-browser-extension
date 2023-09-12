@@ -6,6 +6,7 @@ import {
   isSearchPage,
   isCategoryHistory,
   isProfilePage,
+  isPlusDomain,
 } from "../../core/pageType";
 
 //todo: rename CatALot to Batch cat. or whatever it will be in the end
@@ -36,15 +37,34 @@ shouldInitializeFeature("categoryManagement").then((result) => {
           AddCategoryExitLink(document.getElementsByTagName("h1")[0]);
         }
       });
-    } else if (isProfilePage &&  IsProfileEditable()) {
+    } else if (isProfilePage && IsProfileEditable()) {
       getFeatureOptions("categoryManagement").then((options) => {
         if (options.showCategoryLinksProfile) {
           AddCategoryChangeLinksOnProfile(GetOrCreateCategoriesDiv());
         }
       });
+    } else if (isPlusDomain) {
+      {
+        getFeatureOptions("categoryManagement").then((options) => {
+          if (options.catALotWikiTreePlus) {
+            AddWikiTreePlusLinks();
+          }
+        });
+      }
     }
   }
 });
+
+function AddWikiTreePlusLinks() {
+  const iframes = document.getElementsByTagName("iframe");
+  if (iframes.length == 1) {
+    iframes[0].addEventListener("load", function () {
+      iframes[0].contentDocument.getElementsByTagName("button")[0].appendChild(CreateBatchCatActivationLinkAndSpan());
+    });
+  } else {
+    document.getElementsByTagName("form")[0].appendChild(CreateBatchCatActivationLinkAndSpan());
+  }
+}
 
 function GetOrCreateCategoriesDiv() {
   let categoriesDiv = document.getElementById("categories");
@@ -108,7 +128,6 @@ function AddCategoryExitLink(parent) {
 }
 
 function AddCategoryChangeLinksOnProfile(categoryDiv) {
-
   const profileId = document.getElementsByClassName("person")[0].innerText;
   const catSpans = categoryDiv.getElementsByTagName("span");
   let lastCatSpan = null;
@@ -405,6 +424,17 @@ function ShowCatALot() {
     AddSelectAllPersonsInCategoryLink();
     AddLetterlinks();
     AddCatALotControls(document.getElementById("categories"));
+  } else if (isPlusDomain) {
+    if (document.getElementsByTagName("iframe").length == 1) {
+      alert("please use 'Show result in new tab'");
+    } else {
+      const div = document.createElement("div");
+      //document.getElementsByTagName("form")[0].parentNode.appendChild(div);
+      const form = document.getElementsByTagName("form")[0];
+      form.parentNode.insertBefore(div, form);
+      AddCatALotControls(div);
+      AddCheckboxesWikiTreePlus();
+    }
   }
   return false;
 }
@@ -504,7 +534,7 @@ function AddCatALotControls(elementToAppendTo) {
   catALotDiv.appendChild(labelRemove);
   if (isCategoryPage) {
     radioMove.checked = true;
-  } else if (isSearchPage) {
+  } else if (isSearchPage || isPlusDomain) {
     radioAdd.checked = true;
     labelMove.hidden = true;
     labelAdd.hidden = true;
@@ -622,7 +652,7 @@ function OnCatALotClicked() {
           cboxes[i].parentNode.style.display = "none";
           cboxes[i].checked = false;
         }
-      } else if (isSearchPage) {
+      } else if (isSearchPage || isPlusDomain) {
         cboxes[i].parentNode.parentNode.style.display = "none";
         cboxes[i].checked = false;
       }
@@ -729,6 +759,52 @@ function AddCheckboxes() {
         "</label>";
     } catch (error) {
       console.log("catalot: " + error);
+    }
+  }
+}
+
+function AddCheckboxesWikiTreePlus() {
+  /*
+  <tr>
+    <td><b><a href="https://www.wikitree.com/wiki/03286198" target="_blank">Von Ribbentrop-1</a><br><a href="https://plus.wikitree.com/findtree.htm?userid=03286198" target="_Tree" title="Tree"><img src="https://www.wikitree.com/images/icons/pedigree.gif" border="0" height="11"></a> <a href="https://www.wikitree.com/index.php?title=Special:NetworkFeed&amp;who=03286198" target="_blank" title="History">H</a> <a href="https://plus.wikitree.com/findmap.htm?aid=03286198&amp;grouptype=N" target="_Tree" title="Nuclear familly Map"><img src="https://www.wikitree.com/images/icons/map.gif" border="0" height="11"></a> <a href="https://plus.wikitree.com/findmap.htm?aid=03286198&amp;grouptype=A" target="_Tree" title="Ancestors Map"><img src="https://www.wikitree.com/images/icons/pedigree.gif" border="0" height="11"><img src="https://www.wikitree.com/images/icons/map.gif" border="0" height="11"></a> <a href="https://plus.wikitree.com/findmap.htm?aid=03286198&amp;grouptype=D" target="_Tree" title="Descendants Map"><img src="https://www.wikitree.com/images/icons/descendant-link.gif" border="0" height="11"><img src="https://www.wikitree.com/images/icons/map.gif" border="0" height="11"></a></b></td>
+    <td><b><a href="https://www.wikitree.com/wiki/03286198"> Margot Ruth Anita Selma von Ribbentrop </a></b></td>
+    <td><b>12 Mar 1905  München</b></td>
+    <td><b>Hinterzarten, Schwarzwald</b></td>
+    <td><b>Female</b></td>
+    <td><img border="0" src="https://www.wikitree.com/images/icons/privacy50.png" height="15"></td>
+    <td><a href="https://www.wikitree.com/wiki/3275312" target="_blank">Steinwachs-1</a><br><a href="https://plus.wikitree.com/findmap.htm?aid=3275312&amp;grouptype=M" target="_Tree" title="Managed profiles Map"><img src="https://www.wikitree.com/images/icons/map.gif" border="0" height="11"></a></td>
+    <td>Connected: PublicTree <span style="color: orange;">🟊🟊🟊🟊</span>🟊 256 views</td>	
+  </tr>
+  */
+  const firstTable = document.getElementsByTagName("table")[0];
+  const tableRows = firstTable.getElementsByTagName("tr");
+  for (let i = 0; i < tableRows.length; i++) {
+    //alert(tableRows[i].innerHTML);
+    if (
+      tableRows[i].innerHTML.indexOf("table") == -1 &&
+      tableRows[i].childNodes[1] != null &&
+      tableRows[i].childNodes[1].tagName == "TD"
+    ) {
+      const tableData = tableRows[i].childNodes[1];
+      const bold = tableData.childNodes[0];
+      const profileLink = bold.childNodes[0];
+      if (profileLink != null) {
+        // no tr of an inline table for challenges
+        const profileId = profileLink.innerHTML;
+        profileLink.style.pointerEvents = "none";
+        tableData.innerHTML =
+          '<input type="checkbox" id="cb' +
+          i +
+          '" name="cb' +
+          i +
+          '" class="profile_selector" value="' +
+          profileId +
+          '" /><label for="cb' +
+          i +
+          '">' +
+          tableData.innerHTML +
+          "</label>";
+      }
     }
   }
 }
@@ -874,14 +950,14 @@ function CheckWhatLinksHereAndSave() {
           const promptResult = prompt(
             "Category has links on the pages that will open now. Please replace/remove the links." +
               "\n(You might want to copy the category name from below easier search and replace)",
-              category
+            category
           );
           if (promptResult != null) {
             const LIs = ULs[i].getElementsByTagName("li");
             for (let i = 0; i < LIs.length; i++) {
               const page = LIs[i].innerText.split(" (← links)").join("");
               if (!page.startsWith("Automated:")) {
-              const win = window.open("https://www.wikitree.com/index.php?title=" + page + "&action=edit");
+                const win = window.open("https://www.wikitree.com/index.php?title=" + page + "&action=edit");
               }
             }
           }
