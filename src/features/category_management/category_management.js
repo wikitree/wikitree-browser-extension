@@ -830,7 +830,11 @@ function ClearCatName(catTyped) {
 function CheckCategoryExists(cat, callbackSuccess) {
   const showError = false;
   let catTyped = ClearCatName(cat);
-  let catUrl = "https://www.wikitree.com/wiki/Category:" + encodeURI(catTyped) + "?appID=WBE_categoryManagement";
+  //catUrl = "https://www.wikitree.com/wiki/Category:" + encodeURI(catTyped) + "?appID=WBE_categoryManagement";
+  const catUrl =
+    "https://apps.wikitree.com/apps/straub620/exists.php?page=Category:" +
+    encodeURI(catTyped) +
+    "&appID=WBE_categoryManagement";
   let xmlHttp = new XMLHttpRequest();
   xmlHttp.addEventListener("load", function () {
     if (xmlHttp.status < 400) {
