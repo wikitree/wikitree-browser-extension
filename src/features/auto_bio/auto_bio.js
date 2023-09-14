@@ -5040,8 +5040,108 @@ function updateRelationForSibling(otherPerson) {
     otherPerson.Relation = "Sibling";
   }
 }
+
+export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading = []) {
+  let afterBioHeading = "";
+  if (window.autoBioOptions?.nameStudyStickers) {
+    const ONSstickers = await getONSstickers();
+    if (ONSstickers) {
+      ONSstickers.forEach(function (ONSsticker) {
+        let isDuplicate = false;
+        for (let sticker of thingsToAddAfterBioHeading) {
+          if (sticker.replace(/\s/g, "") === ONSsticker.replace(/\s/g, "")) {
+            isDuplicate = true;
+            break;
+          }
+        }
+        if (!isDuplicate) {
+          if (ONSsticker.match("|category=")) {
+            // If thingsToAdd... includes a plain ONS sticker with the same name but not the category, remove it.
+            thingsToAddAfterBioHeading = thingsToAddAfterBioHeading.filter(function (sticker) {
+              return (
+                sticker
+                  .replace(/\s/g, "")
+                  ?.toLowerCase()
+                  .indexOf(ONSsticker.split("|category=")[0].replace(/\s/g, "")?.toLowerCase()) === -1
+              );
+            });
+            // If stuffBeforeTheBio includes the same category, remove it.
+            window.sectionsObject.StuffBeforeTheBio.text = window.sectionsObject.StuffBeforeTheBio.text.filter(
+              function (categoryLine) {
+                if (ONSsticker?.includes("category=")) {
+                  const categoryInLine = categoryLine.replace("[[Category:", "").replace("]]", "").trim();
+                  const categoryInSticker = ONSsticker.split("category=")[1].replace("}}", "").trim();
+                  return (
+                    categoryInLine.replace(/\s/g, "")?.toLowerCase() !==
+                    categoryInSticker.replace(/\s/g, "")?.toLowerCase()
+                  );
+                }
+                return true; // keep the categoryLine in case there's no "category=" in ONSsticker
+              }
+            );
+          }
+          thingsToAddAfterBioHeading.push(ONSsticker);
+        }
+      });
+    }
+  }
+  if (window.autoBioOptions?.australiaBornStickers) {
+    let australianLocations;
+    if (!window.australianLocations) {
+      australianLocations = await import("./australian_locations.json");
+    } else {
+      australianLocations = window.australianLocations;
+    }
+    const australiaKeys = Object.keys(australianLocations);
+    const birthPlace = window.profilePerson.BirthLocation;
+    if (birthPlace) {
+      let gotBirthSticker = false;
+      australiaKeys.forEach(function (colony) {
+        if (birthPlace.includes(colony) && !gotBirthSticker) {
+          const yearMatch = window.profilePerson.BirthDate?.match(/\d{4}/);
+          if (yearMatch) {
+            const year = parseInt(yearMatch[0]);
+            if (year) {
+              const endYear = australianLocations[colony].yearRange[1] || 3000;
+              if (year >= australianLocations[colony].yearRange[0] && year <= endYear) {
+                if (!thingsToAddAfterBioHeading?.includes(australianLocations[colony].bornInLabel)) {
+                  thingsToAddAfterBioHeading.push(australianLocations[colony].bornInLabel);
+                  gotBirthSticker = true;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+  }
+
+  if (window.autoBioOptions?.diedYoung) {
+    const deathAge = ageAtDeath(window.profilePerson, false);
+    if (typeof deathAge[0] !== "undefined") {
+      if (deathAge[0] < 17 && !thingsToAddAfterBioHeading?.includes("{{Died Young}}")) {
+        thingsToAddAfterBioHeading.push("{{Died Young}}");
+      }
+    }
+  }
+
+  thingsToAddAfterBioHeading.forEach(function (thing) {
+    afterBioHeading += thing + "\n";
+    // If a sticker is before the bio heading, remove it.
+    window.sectionsObject.StuffBeforeTheBio.text.forEach(function (beforeBio) {
+      if (thing == beforeBio) {
+        window.sectionsObject.StuffBeforeTheBio.text.splice(
+          window.sectionsObject.StuffBeforeTheBio.text.indexOf(beforeBio),
+          1
+        );
+      }
+    });
+  });
+  return { text: afterBioHeading, objects: thingsToAddAfterBioHeading };
+}
+
 const templatesJSON = chrome.runtime.getURL("features/wtPlus/templatesExp.json");
-async function getStickersAndBoxes() {
+export async function getStickersAndBoxes() {
   let afterBioHeading = "";
   // eslint-disable-next-line no-undef
   await fetch(templatesJSON)
@@ -5068,106 +5168,14 @@ async function getStickersAndBoxes() {
         }
       });
 
-      if (window.autoBioOptions?.nameStudyStickers) {
-        const ONSstickers = await getONSstickers();
-        if (ONSstickers) {
-          ONSstickers.forEach(function (ONSsticker) {
-            let isDuplicate = false;
-            for (let sticker of thingsToAddAfterBioHeading) {
-              if (sticker.replace(/\s/g, "") === ONSsticker.replace(/\s/g, "")) {
-                isDuplicate = true;
-                break;
-              }
-            }
-            if (!isDuplicate) {
-              if (ONSsticker.match("|category=")) {
-                // If thingsToAdd... includes a plain ONS sticker with the same name but not the category, remove it.
-                thingsToAddAfterBioHeading = thingsToAddAfterBioHeading.filter(function (sticker) {
-                  return (
-                    sticker
-                      .replace(/\s/g, "")
-                      ?.toLowerCase()
-                      .indexOf(ONSsticker.split("|category=")[0].replace(/\s/g, "")?.toLowerCase()) === -1
-                  );
-                });
-                // If stuffBeforeTheBio includes the same category, remove it.
-                window.sectionsObject.StuffBeforeTheBio.text = window.sectionsObject.StuffBeforeTheBio.text.filter(
-                  function (categoryLine) {
-                    if (ONSsticker?.includes("category=")) {
-                      const categoryInLine = categoryLine.replace("[[Category:", "").replace("]]", "").trim();
-                      const categoryInSticker = ONSsticker.split("category=")[1].replace("}}", "").trim();
-                      return (
-                        categoryInLine.replace(/\s/g, "")?.toLowerCase() !==
-                        categoryInSticker.replace(/\s/g, "")?.toLowerCase()
-                      );
-                    }
-                    return true; // keep the categoryLine in case there's no "category=" in ONSsticker
-                  }
-                );
-              }
-              thingsToAddAfterBioHeading.push(ONSsticker);
-            }
-          });
-        }
-      }
-      if (window.autoBioOptions?.australiaBornStickers) {
-        let australianLocations;
-        if (!window.australianLocations) {
-          australianLocations = await import("./australian_locations.json");
-        } else {
-          australianLocations = window.australianLocations;
-        }
-        const australiaKeys = Object.keys(australianLocations);
-        const birthPlace = window.profilePerson.BirthLocation;
-        if (birthPlace) {
-          let gotBirthSticker = false;
-          australiaKeys.forEach(function (colony) {
-            if (birthPlace.includes(colony) && !gotBirthSticker) {
-              const yearMatch = window.profilePerson.BirthDate?.match(/\d{4}/);
-              if (yearMatch) {
-                const year = parseInt(yearMatch[0]);
-                if (year) {
-                  const endYear = australianLocations[colony].yearRange[1] || 3000;
-                  if (year >= australianLocations[colony].yearRange[0] && year <= endYear) {
-                    if (!thingsToAddAfterBioHeading?.includes(australianLocations[colony].bornInLabel)) {
-                      thingsToAddAfterBioHeading.push(australianLocations[colony].bornInLabel);
-                      gotBirthSticker = true;
-                    }
-                  }
-                }
-              }
-            }
-          });
-        }
-      }
-
-      if (window.autoBioOptions?.diedYoung) {
-        const deathAge = ageAtDeath(window.profilePerson, false);
-        if (typeof deathAge[0] !== "undefined") {
-          if (deathAge[0] < 17 && !thingsToAddAfterBioHeading?.includes("{{Died Young}}")) {
-            thingsToAddAfterBioHeading.push("{{Died Young}}");
-          }
-        }
-      }
-
       thingsToAddBeforeBioHeading.forEach(function (box) {
         if (!window.sectionsObject.StuffBeforeTheBio.text?.includes(box)) {
           window.sectionsObject.StuffBeforeTheBio.text.push(box);
         }
       });
 
-      thingsToAddAfterBioHeading.forEach(function (thing) {
-        afterBioHeading += thing + "\n";
-        // If a sticker is before the bio heading, remove it.
-        window.sectionsObject.StuffBeforeTheBio.text.forEach(function (beforeBio) {
-          if (thing == beforeBio) {
-            window.sectionsObject.StuffBeforeTheBio.text.splice(
-              window.sectionsObject.StuffBeforeTheBio.text.indexOf(beforeBio),
-              1
-            );
-          }
-        });
-      });
+      const afterBioHeadingThings = await afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading);
+      afterBioHeading = afterBioHeadingThings.text;
     });
   return afterBioHeading;
 }

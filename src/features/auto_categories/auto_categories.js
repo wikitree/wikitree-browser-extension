@@ -20,6 +20,7 @@ import {
   addOccupationCategories,
   buildFamilyForPrivateProfiles,
   buildDeath,
+  afterBioHeadingTextAndObjects,
 } from "../auto_bio/auto_bio";
 
 function addDiedYoung() {
@@ -37,6 +38,10 @@ function addDiedYoung() {
 // Export the function addAutoCategories as an asynchronous function
 export async function addAutoCategories() {
   addWorking();
+
+  window.autoBioOptions = await getFeatureOptions("autoBio");
+  window.autoCategoriesOptions = await getFeatureOptions("autoCategories");
+
   let currentBio = $("#wpTextbox1").val();
 
   // Initialize an empty array in the global window object
@@ -126,11 +131,26 @@ export async function addAutoCategories() {
     enhanced = true;
   }
 
+  const afterBioHeadingThings = await afterBioHeadingTextAndObjects();
+  console.log(afterBioHeadingThings);
+  let afterBioHeading = afterBioHeadingThings.text;
+  if (afterBioHeading) {
+    afterBioHeading = "\n" + afterBioHeading;
+  }
+  if (afterBioHeadingThings.objects) {
+    afterBioHeadingThings.objects.forEach((object) => {
+      currentBio = currentBio.replace(object, "");
+    });
+  }
+
   if (stuffBeforeTheBioText) {
     if (stuffBeforeTheBioText.match(/\n$/) == null) {
       stuffBeforeTheBioText += "\n";
     }
-    currentBio = currentBio.replace(/^(.*?)== Biography ==/s, `${stuffBeforeTheBioText}== Biography ==`);
+    currentBio = currentBio.replace(
+      /^(.*?)== Biography ==/s,
+      `${stuffBeforeTheBioText}== Biography ==${afterBioHeading}`
+    );
   }
   // Add the text to the textarea and switch back to the enhanced editor if it was on
   $("#wpTextbox1").val(currentBio);
@@ -140,10 +160,15 @@ export async function addAutoCategories() {
   removeWorking();
 }
 
+/*
 shouldInitializeFeature("autoCategories").then((result) => {
   if (result) {
     getFeatureOptions("autoCategories").then((options) => {
       window.autoCategoriesOptions = options;
     });
+    getFeatureOptions("autoBio").then((options) => {
+      window.autoBioOptions = options;
+    });
   }
 });
+*/
