@@ -146,10 +146,10 @@ registerFeature({
 registerFeature({
   name: "Clipboard and Notes",
   id: "clipboardAndNotes",
-  description: "Keep useful things for pasting in the clipboard and useful notes in the notes.",
+  description: "Keep useful things for pasting in the Clipboard and useful notes in the Notes.",
   category: "Global",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
+  contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: false,
   pages: [isMainDomain],
 });
