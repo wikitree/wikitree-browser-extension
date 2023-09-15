@@ -811,7 +811,6 @@ function childList(person, spouse) {
   let text = "";
   let ourChildren = [];
   if (!isObject(person.Children)) {
-    console.log("children is object", isObject(person.Children));
     bugReportMore += "person.Children is not an object.\n ";
   }
   let childrenKeys = Object.keys(person.Children);
@@ -2775,7 +2774,6 @@ function parseCensusWikitable(text) {
 }
 
 function parseFamilyData(familyData, options = { format: "list", year: "" }) {
-  console.log("Parsing family data", options);
   if (options.format === "wikitable") {
     return parseCensusWikitable(familyData);
   }
@@ -7538,10 +7536,59 @@ function removeCountryName(location) {
   return locationSplit.reverse().join(", ");
 }
 
+function generateCombinations(location) {
+  const replacements = [
+    { full: "Saint", abbr: "St." },
+    { full: "Fort", abbr: "Ft." },
+    { full: "Mount", abbr: "Mt." },
+    { full: "County", abbr: "Co." },
+    { full: "Heights", abbr: "Hts." },
+    { full: "Township", abbr: "Twp." },
+    { full: "Lakes", abbr: "Lks." },
+    { full: "Falls", abbr: "Fls." },
+    { full: "Springs", abbr: "Spgs." },
+  ];
+
+  const resultSet = new Set([location]);
+
+  function replaceAndAdd(str, find, replace) {
+    let index = str.indexOf(find);
+    while (index !== -1) {
+      const before = str.substring(0, index);
+      const after = str.substring(index + find.length);
+      const newStr = before + replace + after;
+
+      resultSet.add(newStr);
+
+      index = str.indexOf(find, index + find.length);
+    }
+  }
+
+  let somethingChanged = true;
+
+  while (somethingChanged) {
+    somethingChanged = false;
+
+    for (const loc of Array.from(resultSet)) {
+      for (const { full, abbr } of replacements) {
+        const initialSize = resultSet.size;
+
+        replaceAndAdd(loc, full, abbr);
+        replaceAndAdd(loc, abbr, full);
+
+        if (resultSet.size > initialSize) {
+          somethingChanged = true;
+        }
+      }
+    }
+  }
+
+  return Array.from(resultSet);
+}
+
 export async function getLocationCategory(type, location = null) {
-  // type = birth, death, marriage, other
-  // For birth and death, we can use the location from the profile
   let categoryType = "location";
+
   if (["Birth", "Death"].includes(type)) {
     if ($("#m" + type + "Location").val() != "") {
       location = $("#m" + type + "Location").val();
@@ -7549,10 +7596,11 @@ export async function getLocationCategory(type, location = null) {
       return;
     }
   }
-  if ("Marriage" == type) {
+
+  if ("Marriage" === type) {
     if (!Array.isArray(window.profilePerson.Spouses) && window.profilePerson.Spouses) {
-      let keys = Object.keys(window.profilePerson.Spouses);
-      let spouse = window.profilePerson.Spouses[keys[0]];
+      const keys = Object.keys(window.profilePerson.Spouses);
+      const spouse = window.profilePerson.Spouses[keys[0]];
       if (spouse.marriage_location) {
         location = spouse.marriage_location;
       } else {
@@ -7562,7 +7610,8 @@ export async function getLocationCategory(type, location = null) {
       return;
     }
   }
-  if (type == "Cemetery") {
+
+  if (type === "Cemetery") {
     if (window.profilePerson.Cemetery) {
       location = window.profilePerson.Cemetery;
       categoryType = "cemetery";
@@ -7603,58 +7652,62 @@ export async function getLocationCategory(type, location = null) {
       searchLocation = locationSplit.join(", ");
     }
   }
-  // End Australian location change
 
-  let api;
-  try {
-    api = await wtAPICatCIBSearch("WBE", categoryType, searchLocation);
-  } catch (error) {
-    console.log("Error getting location category", error);
-    api = null;
+  const searchLocationsSet = generateCombinations(searchLocation); // Assuming you have this function
+  const searchLocationsArray = Array.from(searchLocationsSet);
+  const apiPromises = [];
+
+  for (const searchLocation of searchLocationsArray) {
+    apiPromises.push(wtAPICatCIBSearch("WBE", categoryType, searchLocation));
   }
-  if (api?.response?.categories?.length == 1) {
-    if (
-      type == "Cemetery" &&
-      sameState(window.profilePerson.DeathLocation, api?.response?.categories[0].location) == false
-    ) {
-      return false;
-    }
-    const category = api?.response?.categories[0];
-    if (!category.topLevel) {
-      return category.category;
-    }
-  } else if (api?.response?.categories?.length > 1) {
-    let foundCategory = null;
-    let thisState = findUSState(location);
-    if (type == "Cemetery") {
-      thisState = findUSState(window.profilePerson.DeathLocation);
-    }
 
-    api.response.categories.forEach(function (aCat) {
-      if (!aCat.topLevel) {
-        let category = aCat.category;
+  const apiResponses = await Promise.allSettled(apiPromises);
 
-        if (type !== "Cemetery" || sameState(window.profilePerson.DeathLocation, aCat.location)) {
-          const [part0, part1, part2] = locationSplit;
-          const suffixes = [thisState, part2];
-
-          const combinations = [`${part0}, ${part1}`, `${part1}, ${part2}`, `${part0}, ${part2}`].flatMap((pattern) => [
-            pattern,
-            `${pattern} County`,
-            ...suffixes.map((suffix) => `${pattern}, ${suffix}`),
-            ...suffixes.map((suffix) => `${pattern} County, ${suffix}`),
-          ]);
-
-          if (combinations.includes(category)) {
-            foundCategory = category;
+  let foundCategory = null;
+  for (const location of searchLocationsArray) {
+    for (const api of apiResponses) {
+      if (api.status === "fulfilled") {
+        const response = api.value.response;
+        if (response?.categories?.length === 1) {
+          const category = response.categories[0];
+          if (!category.topLevel) {
+            foundCategory = category.category;
           }
-        }
-      }
-    });
+        } else if (response?.categories?.length > 1) {
+          const locationSplit = location.split(", ");
+          let thisState = findUSState(location); // Assuming findUSState is a function you have
 
-    return foundCategory || undefined;
+          response.categories.forEach(function (aCat) {
+            if (!aCat.topLevel) {
+              let category = aCat.category;
+
+              if (type !== "Cemetery" || sameState(window.profilePerson.DeathLocation, aCat.location)) {
+                const [part0, part1, part2] = locationSplit;
+                const suffixes = [thisState, part2];
+
+                const combinations = [`${part0}, ${part1}`, `${part1}, ${part2}`, `${part0}, ${part2}`].flatMap(
+                  (pattern) => [
+                    pattern,
+                    `${pattern} County`,
+                    ...suffixes.map((suffix) => `${pattern}, ${suffix}`),
+                    ...suffixes.map((suffix) => `${pattern} County, ${suffix}`),
+                  ]
+                );
+
+                if (combinations.includes(category)) {
+                  foundCategory = category;
+                }
+              }
+            }
+          });
+        }
+      } else if (api.status === "rejected") {
+        console.log("Error getting location category", api.reason);
+      }
+    }
   }
-  return;
+
+  return foundCategory;
 }
 
 function addErrorMessage() {
