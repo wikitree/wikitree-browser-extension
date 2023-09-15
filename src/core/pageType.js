@@ -119,7 +119,17 @@ export let isIansProfile = false;
 // Upload Photo (index.php?title=Special:UploadPhoto)
 export let isUploadPhoto = false;
 
+// Special:NetworkFeed
+export let isNetworkFeed = false;
+
 const domain = decodeURI(window.location.hostname); // path
+
+if (window.location.href.match("Special:NetworkFeed")) {
+  isNetworkFeed = true;
+}
+// log
+console.log("domain: " + domain);
+
 if (domain.match("apps.wikitree.com")) {
   isAppsDomain = true;
 } else if (domain.match("api.wikitree.com")) {
@@ -204,7 +214,7 @@ if (domain.match("apps.wikitree.com")) {
     isSpaceHistory = true;
   } else if (uri.match(/index.php\?action=newspace/)) {
     // New space page
-    isNewSpace = true; 
+    isNewSpace = true;
   } else if (
     // Category Edit Page
     uri.match(/\/index.php\?title=Category:.*&action=edit.*/g) ||

@@ -15,6 +15,7 @@ import {
   isCategoryPage,
   isTemplatePage,
   isProjectPage,
+  isNetworkFeed,
 } from "../../core/pageType";
 
 shouldInitializeFeature("scissors").then((result) => {
@@ -30,6 +31,53 @@ async function helpScissors() {
   const options = await getFeatureOptions("scissors");
   let copyItems = [];
   let copyPosition = $("h1");
+
+  // Network feed
+  console.log(isNetworkFeed);
+  if (isNetworkFeed || isProfileHistoryDetail) {
+    const urlParams = new URLSearchParams(window.location.search);
+    let feedID = urlParams.get("who");
+    if (isProfileHistoryDetail) {
+      feedID = urlParams.get("title");
+    }
+    const feedURL = window.location.href;
+    let feedTitle = $("h1").text();
+    const feedName = $('span.HISTORY-ITEM a[href*="wiki/' + feedID + '"')
+      .eq(0)
+      .text();
+    if (isProfileHistoryDetail) {
+      feedTitle = "Change Details of " + feedName;
+    }
+
+    copyItems.push({ label: "ID", text: feedID, image: true });
+    copyItems.push({ label: "Link", text: `[[${feedID}|${feedName}]]` });
+    copyItems.push({ label: "Title", text: feedTitle });
+    copyItems.push({ label: "URL", text: feedURL });
+
+    // Profiles change details page
+    if (isProfileHistoryDetail) {
+      const historyItem = $("span.HISTORY-ITEM");
+      const theAct = historyItem.find("a:contains(created),a:contains(imported the data)");
+      const createDetail = theAct.length ? ` at creation of WikiTree profile ${theAct[0].title}` : "";
+      const fromGedcom = theAct.length ? historyItem.find('a[title*="UploadGedcom"]') : undefined;
+      const changesMadeBy = $("td:contains(Changes made by)");
+      const theDate = changesMadeBy.text().match(/[0-9]+ [A-Z][a-z]+ [0-9]{4}/);
+      const adderA = changesMadeBy.find("a").eq(0);
+      const adderID = adderA.attr("href").split("wiki/")[1];
+      const adderName = adderA.text();
+      const url = decodeURIComponent(window.location.href);
+      let reference = `[${url} Added]${createDetail} by [[${adderID}|${adderName}]]`;
+      if (fromGedcom && fromGedcom.length) {
+        reference += ` through the import of ${fromGedcom.text()}`;
+      }
+      if (theDate) {
+        reference += " on " + theDate + ".";
+      } else {
+        reference += ".";
+      }
+      copyItems.push({ label: "Reference", text: reference });
+    }
+  }
 
   // MediaWiki pages
   if (isMediaWikiPage) {
@@ -86,27 +134,6 @@ async function helpScissors() {
     const aTitle = document.title.trim();
     const noParameter = "[[:Space: " + aTitle + "]]";
     button.data("copy-text", noParameter).attr("data-copy-text", noParameter);
-  }
-
-  // Profiles change details page
-  if (isProfileHistoryDetail) {
-    const historyItem = $("span.HISTORY-ITEM");
-    const theAct = historyItem.find("a:contains(created),a:contains(imported the data)");
-    const createDetail = theAct.length ? ` at creation of WikiTree profile ${theAct[0].title}` : "";
-    const changesMadeBy = $("td:contains(Changes made by)");
-    const theDate = changesMadeBy.text().match(/[0-9]+ [A-Z][a-z]+ [0-9]{4}/);
-    const adderA = changesMadeBy.find("a").eq(0);
-    const adderID = adderA.attr("href").split("wiki/")[1];
-    const adderName = adderA.text();
-    const url = decodeURIComponent(window.location.href);
-    let reference = `[${url} Added]${createDetail} by [[${adderID}|${adderName}]]`;
-    if (theDate) {
-      reference += " on " + theDate + ".";
-    } else {
-      reference += ".";
-    }
-    copyPosition = adderA.parent();
-    copyItems.push({ label: "Reference", text: reference, image: true });
   }
 
   // Adds items and event
