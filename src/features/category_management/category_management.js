@@ -790,7 +790,7 @@ function AddCheckboxesWikiTreePlus() {
   for (let i = 0; i < tableRows.length; i++) {
     //alert(tableRows[i].innerHTML);
     if (
-      tableRows[i].innerHTML.indexOf("table") == -1 &&
+      tableRows[i].innerHTML.indexOf("<table") == -1 &&
       tableRows[i].childNodes[1] != null &&
       tableRows[i].childNodes[1].tagName == "TD"
     ) {
