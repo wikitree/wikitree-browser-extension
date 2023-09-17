@@ -931,8 +931,9 @@ function GetActualAkaCategoryUsedInProfile(wpTextbox1, cats) {
 function AddCat(wpTextbox1, cat) {
   let bio = wpTextbox1.value;
   let catSyntax = "[[Category:" + cat + "]]";
-  if (bio.indexOf(catSyntax) == -1) {
-    window.document.getElementById("wpTextbox1").value = catSyntax + "\n" + bio;
+  const catUnderlines = cat.replace(" ", "_");
+  if (bio.indexOf(cat + "]]") == -1 && bio.indexOf(catUnderlines) == -1) {
+    wpTextbox1.value = catSyntax + "\n" + bio;
   }
 }
 
@@ -942,7 +943,7 @@ function RemoveCat(wpTextbox1, cat) {
   const catUnderlines = cat.replace(" ", "_");
   const catSyntaxUnderlines = "[[Category:" + catUnderlines + "]]";
   if (bio.indexOf(cat + "]]") > -1 || bio.indexOf(catUnderlines) > -1) {
-    window.document.getElementById("wpTextbox1").value = bio
+    wpTextbox1.value = bio
       .replace(catSyntax + "\n", "")
       .replace(catSyntax, "")
       .replace(catSyntaxUnderlines + "\n", "")
