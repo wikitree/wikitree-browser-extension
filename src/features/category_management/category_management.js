@@ -860,6 +860,7 @@ function PerformActualProfileChanges() {
   const enhancedEditorOn = DeactivateEnhancedEditorIfPresent();
   let wpTextbox1 = window.document.getElementById("wpTextbox1");
   let urlParams = new URLSearchParams(window.location.search);
+  const previousBio = wpTextbox1.value;
 
   const bHasAdd = urlParams.has("addCat");
   const bHasRem = urlParams.has("remCat");
@@ -887,10 +888,18 @@ function PerformActualProfileChanges() {
       summary = summary + "removing " + "'" + cat + "'";
     }
   }
+  ReactivateEnhancedEditorIfNeeded(enhancedEditorOn);
+
   if (bHasAdd || bHasRem) {
     DoSave("Categories: " + summary);
+
+    const currentBio = wpTextbox1.value;
+    if (previousBio == currentBio) {
+      if (confirm("Nothing changed. Closing edit mode?")) {
+       document.getElementById("deleteDraftLinkContainer").childNodes[1].click();
+      }
+    }
   }
-  ReactivateEnhancedEditorIfNeeded(enhancedEditorOn);
 }
 
 function ReactivateEnhancedEditorIfNeeded(enhancedEditorOn) {
