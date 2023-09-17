@@ -331,6 +331,10 @@ function createwikitableWizardModal() {
           <li>You can move this popup window by dragging the title bar.</li>
           <li>There are four ways to close this Notes section: ?, Escape, 'x', and double-click.</li>
           </ul>
+        <h3>Known Issue:</h3>
+        <ul>
+        <li>The column sorting looks pretty messed up in Chrome on MacOS.  It's also not great in Safari.</li>
+        </ul>
         <p>Please <a href="https://www.wikitree.com/wiki/Beacall-6">let me know</a> if you find any bugs.</p>
         </div>
       <table id="wikitableWizardTable"></table>
@@ -579,13 +583,17 @@ function createwikitableWizardModal() {
       rowStyles.push({ isBold, bgColor });
     });
     const isFullWidth = $("#wikitableWizardFullWidth").prop("checked");
+    let fullWidthBit = "";
+    if (isFullWidth) {
+      fullWidthBit = 'width="100%" ';
+    }
     let classBit = "";
     if (isWikitableClass || isSortable) {
-      classBit = ` class="${isWikitableClass ? "wikitable" : ""}${isSortable ? " sortable" : ""}" `;
+      const classArray = [isWikitableClass ? "wikitable" : "", isSortable ? "sortable" : ""];
+      const classString = classArray.filter((item) => item !== "").join(" ");
+      classBit = `class="${classString}" `;
     }
-    let formattedContent = `{| ${classBit}${
-      isFullWidth ? 'width="100%"' : ""
-    } ${tableCellPaddingBit} ${tableBorderWidthBit}`;
+    let formattedContent = `{| ${classBit}${tableBorderWidthBit}${tableCellPaddingBit}${fullWidthBit}`.trim();
 
     if (caption) {
       formattedContent += "\n|+";
@@ -1534,9 +1542,9 @@ function selectToLaunchWikiTableWizard() {
   $(document).on("selectionchange", function () {
     const selection = window.getSelection();
     const anchorNode = $(selection.anchorNode);
-
     if (anchorNode.length > 0) {
-      let isInsideTargetElement = anchorNode.closest("#wpTextbox1, .CodeMirror").length > 0;
+      let isInsideTargetElement =
+        anchorNode.closest("#wpTextbox1, .CodeMirror").length > 0 || anchorNode.children("#wpTextbox1").length;
       if (isInsideTargetElement) {
         clearTimeout(selectionTimeout);
         selectionTimeout = setTimeout(function () {
@@ -1547,10 +1555,17 @@ function selectToLaunchWikiTableWizard() {
             const currentBio = $("#wpTextbox1").val();
             const escapedSelectedText = selectedText.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
 
+            const escapedSelectedTextWithSpacesHandled = escapedSelectedText
+              .replace(/ /g, "(?: |\\u00A0)") // Replace space with a group that matches either a space or a non-breaking space
+              .replace(/\u00A0/g, "(?: |\\u00A0)"); // Replace non-breaking space similarly
+
             const tableMatchRegex = new RegExp(
-              `{\\|[^\\{\\}]*${escapedSelectedText.replace(/\\\\/g, "\\\\\\\\")}[^\\{\\}]*\\|\\}`,
+              `{\\|[^\\{\\}]*${escapedSelectedTextWithSpacesHandled
+                .replace(/\\\\/g, "\\\\\\\\")
+                .replace(/\|\|/g, "\\|\\|(?: |\\u00A0)*")}[^\\{\\}]*\\|\\}`,
               "g"
             );
+
             const tableMatch = currentBio.match(tableMatchRegex);
 
             // Regex to match each list
