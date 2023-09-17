@@ -13,8 +13,7 @@
     "https://wikitreebee.com/*",
     "storage",
     "clipboardRead",
-    "clipboardWrite",
-    "tabs"
+    "clipboardWrite"
   ],
   "content_scripts": [
     {

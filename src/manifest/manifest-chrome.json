@@ -4,7 +4,7 @@
   "version": "1.9.2.0",
   "manifest_version": 3,
   "options_page": "options.html",
-  "permissions": ["storage", "clipboardRead", "clipboardWrite", "tabs"],
+  "permissions": ["storage", "clipboardRead", "clipboardWrite"],
   "host_permissions": ["https://*.wikitree.com/*"],
   "content_scripts": [
     {
