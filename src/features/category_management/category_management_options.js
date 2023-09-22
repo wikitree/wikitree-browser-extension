@@ -56,13 +56,6 @@ registerFeature({
       defaultValue: true,
     },
     {
-      id: "disableCategories",
-      type: OptionType.CHECKBOX,
-      label:
-        "deactivate/disable to be renamed categories with <nowiki> to remove them from their current parent categories",
-      defaultValue: false,
-    },
-    {
       id: "showExitLinks",
       type: OptionType.CHECKBOX,
       label: "show exit links in category edit and history page",

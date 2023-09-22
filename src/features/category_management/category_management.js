@@ -656,21 +656,34 @@ function OnCatALotClicked() {
   for (let i = 0; i < cboxes.length; ++i) {
     if (cboxes[i].checked) {
       let url = baseEditUrl + cboxes[i].value + addCat + remCat;
+      let parentToHide = null;
       if (!document.getElementById("radioAdd").checked) {
         if (isCategoryPage) {
-          cboxes[i].parentNode.style.display = "none";
-          cboxes[i].checked = false;
+          parentToHide = cboxes[i].parentNode;
         }
       } else if (isSearchPage || isPlusDomain) {
-        cboxes[i].parentNode.parentNode.style.display = "none";
-        cboxes[i].checked = false;
+        parentToHide = cboxes[i].parentNode.parentNode;
       }
 
-      let win = window.open(url);
+      OpenProfileForEditing(url, cboxes[i], parentToHide);
     }
   }
 }
 
+async function OpenProfileForEditing(url, checkbox, parentToHide) {
+  /*
+  const response = await fetch(url);
+
+  console.log(response.status);
+  console.log(response.redirected);
+  console.log(response.url);
+  console.log(response.text());
+  console.log(response);
+  */
+  const win = window.open(url);
+  checkbox.checked = false;
+  parentToHide.style.display = "none";
+}
 function GetThisCategoryNameAndAllAkas() {
   let currentCategory = GetCurrentCategoryName();
   const orangeBoxes = document.getElementsByClassName("orange box row");
@@ -790,7 +803,7 @@ function AddCheckboxesWikiTreePlus() {
   for (let i = 0; i < tableRows.length; i++) {
     //alert(tableRows[i].innerHTML);
     if (
-      tableRows[i].innerHTML.indexOf("table") == -1 &&
+      tableRows[i].innerHTML.indexOf("<table") == -1 &&
       tableRows[i].childNodes[1] != null &&
       tableRows[i].childNodes[1].tagName == "TD"
     ) {
@@ -860,6 +873,7 @@ function PerformActualProfileChanges() {
   const enhancedEditorOn = DeactivateEnhancedEditorIfPresent();
   let wpTextbox1 = window.document.getElementById("wpTextbox1");
   let urlParams = new URLSearchParams(window.location.search);
+  const previousBio = wpTextbox1.value;
 
   const bHasAdd = urlParams.has("addCat");
   const bHasRem = urlParams.has("remCat");
@@ -887,10 +901,18 @@ function PerformActualProfileChanges() {
       summary = summary + "removing " + "'" + cat + "'";
     }
   }
+  ReactivateEnhancedEditorIfNeeded(enhancedEditorOn);
+
   if (bHasAdd || bHasRem) {
     DoSave("Categories: " + summary);
+
+    const currentBio = wpTextbox1.value;
+    if (previousBio == currentBio) {
+      if (confirm("Nothing changed. Closing edit mode?")) {
+       document.getElementById("deleteDraftLinkContainer").childNodes[1].click();
+      }
+    }
   }
-  ReactivateEnhancedEditorIfNeeded(enhancedEditorOn);
 }
 
 function ReactivateEnhancedEditorIfNeeded(enhancedEditorOn) {
