@@ -119,7 +119,7 @@ function addTrees() {
       if (window.connectionFinderOptions.branches) {
         $("h1").eq(0).append(familyCountText);
       }
-      if (window.connectionFinderOptions.surnameSummaries) {
+      if (window.connectionFinderOptions.surnameSummaries && $("#surnames1").length == 0) {
         surnameSummariesButton.fadeIn();
       }
     }
