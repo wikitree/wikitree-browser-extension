@@ -217,6 +217,19 @@ async function locationsHelper() {
 
           if (window.locationsHelperOptions?.correctLocations || window.locationsHelperOptions?.addUSCounty) {
             const innerBit = $(added_node).find(".autocomplete-suggestion-head");
+
+            let theDate = "";
+            if (whichLocation == "Birth") {
+              theDate = $("#mBirthDate").val();
+            } else if (whichLocation == "Death") {
+              theDate = $("#mDeathDate").val();
+            } else if (whichLocation == "Marriage") {
+              theDate = $("#mMarriageDate").val();
+            } else if (whichLocation == "Location") {
+              theDate = $("#mStartDate").val();
+            }
+            theDate = getYYYYMMDD(theDate);
+
             let innerBitText = "";
             if (window.locationsHelperOptions?.correctLocations && goodDate) {
               // Brisbane
@@ -314,6 +327,85 @@ async function locationsHelper() {
                 });
               }
 
+              // UK towns and villages
+
+              // Appleton
+              if (dText.match(/Appleton/)) {
+                const appletonHistory = [
+                  {
+                    startDate: null,
+                    endDate: "1763-12-31",
+                    variant: "Hull and Appleton",
+                    location: "Hull and Appleton, Great Budworth, Cheshire, England",
+                  },
+                  {
+                    startDate: "1764-01-01",
+                    endDate: "1800-12-31",
+                    location: "Appleton, Great Budworth, Cheshire, England",
+                  },
+                  {
+                    startDate: "1801-01-01",
+                    endDate: "1836-12-31",
+                    location: "Appleton, Great Budworth, Cheshire, England, United Kingdom",
+                  },
+                  {
+                    startDate: "1837-01-01",
+                    endDate: "1974-03-31",
+                    location: "Appleton, Runcorn, Cheshire, England, United Kingdom",
+                  },
+                  {
+                    startDate: "1974-04-01",
+                    endDate: null,
+                    location: "Appleton, Warrington, Cheshire, England, United Kingdom",
+                  },
+                ];
+                const record = findLocationByDate(theDate, appletonHistory);
+                // Appleton Cross, Appleton Thorn, Broomfield, The Cobbs, Dudlows Green, Hillcliffe, Lumb Brook (part), and Wrights Green
+                const villages = [
+                  "Appleton Cross",
+                  "Appleton Thorn",
+                  "Broomfield",
+                  "The Cobbs",
+                  "Dudlows Green",
+                  "Hillcliffe",
+                  "Lumb Brook",
+                  "Wrights Green",
+                ];
+                addNewSuggestion(added_node, "Appleton", record.location, record, villages);
+              }
+
+              // Ferintosh
+              if (dText.match(/Ferintosh/)) {
+                const ferintoshHistory = [
+                  {
+                    startDate: null,
+                    endDate: "1800-12-31",
+                    location: "Ferintosh, Nairn, Scotland",
+                  },
+                  {
+                    startDate: "1801-01-01",
+                    endDate: "1891-01-01",
+                    location: "Ferintosh, Nairn, Scotland, United Kingdom",
+                  },
+                  {
+                    startDate: "1891-01-01",
+                    endDate: null,
+                    location: "Ferintosh, Ross and Cromarty, Scotland, United Kingdom",
+                  },
+                ];
+                const record = findLocationByDate(theDate, ferintoshHistory);
+                const villages = [
+                  "Alcag",
+                  "Mulchaich",
+                  "Urquhart",
+                  "Dunvornie",
+                  "Easter Kinkell",
+                  "Smithfield",
+                  "Logie Wester",
+                ];
+                addNewSuggestion(added_node, "Ferintosh", record.location, record, villages);
+              }
+
               // Steyning, Stogursey, Somerset, England
               if (dText.match(/Steyning/)) {
                 // add a new autocomplete suggestion
@@ -329,18 +421,6 @@ async function locationsHelper() {
 
               // Wallenhorst
               if (dText.match(/Wallenhorst/)) {
-                let theDate = "";
-                if (whichLocation == "Birth") {
-                  theDate = $("#mBirthDate").val();
-                } else if (whichLocation == "Death") {
-                  theDate = $("#mDeathDate").val();
-                } else if (whichLocation == "Marriage") {
-                  theDate = $("#mMarriageDate").val();
-                } else if (whichLocation == "Location") {
-                  theDate = $("#mStartDate").val();
-                }
-                theDate = getYYYYMMDD(theDate);
-
                 const wallenhorstHistory = [
                   {
                     startDate: null,
@@ -406,7 +486,6 @@ async function locationsHelper() {
 
                 const record = findLocationByDate(theDate, wallenhorstHistory);
                 addNewSuggestion(added_node, "Wallenhorst", record.location, record);
-                console.log("Wallenhorst", record);
               }
             }
             if (window.locationsHelperOptions?.addUSCounty) {
@@ -510,15 +589,24 @@ function findLocationByDate(date, locationHistory) {
   return null;
 }
 
-function addNewSuggestion(added_node, term, location, dates = "") {
+function addNewSuggestion(added_node, term, location, record, villages = []) {
   if ($(".autocomplete-suggestion-container." + term).length == 0) {
-    const newSuggestion = document.createElement("div");
-    const aRegex = new RegExp("^" + term, "g");
-    const endBit = location.replace(aRegex, "");
-    const theDates = dates ? " (" + (dates.startDate || "") + " - " + (dates.endDate || "") + ")" : "";
-    newSuggestion.className = "autocomplete-suggestion-container";
-    newSuggestion.classList.add(term);
-    newSuggestion.innerHTML = `<div class="autocomplete-suggestion" data-val="${location}"><div class="autocomplete-suggestion-head"><span class="autocomplete-suggestion-term">${term}</span>${endBit} ${theDates}</div></div>`;
-    $(newSuggestion).insertBefore($(added_node));
+    for (let i = 0; i < villages.length + 1; i++) {
+      let villageBit = "";
+      if (i > 0) {
+        villageBit = villages[i - 1] + ", ";
+      }
+      const newSuggestion = document.createElement("div");
+      let aRegex = new RegExp("^" + term, "g");
+      if (record && record.variant) {
+        aRegex = new RegExp("^" + record.variant, "g");
+      }
+      const endBit = location.replace(aRegex, "");
+      const theDates = record ? " (" + (record.startDate || "") + " - " + (record.endDate || "") + ")" : "";
+      newSuggestion.className = "autocomplete-suggestion-container";
+      newSuggestion.classList.add(term);
+      newSuggestion.innerHTML = `<div class="autocomplete-suggestion" data-val="${villageBit}${location}"><div class="autocomplete-suggestion-head">${villageBit}<span class="autocomplete-suggestion-term">${term}</span>${endBit} ${theDates}</div></div>`;
+      $(newSuggestion).insertBefore($(added_node));
+    }
   }
 }
