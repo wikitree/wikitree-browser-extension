@@ -4,6 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { extractRelatives, familyArray, getRelatives } from "../../core/common";
+import { getYYYYMMDD } from "../auto_bio/auto_bio";
 import { isSpaceEdit, isNewSpace } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
@@ -325,6 +326,88 @@ async function locationsHelper() {
                   $(newSuggestion).insertBefore($(added_node));
                 }
               }
+
+              // Wallenhorst
+              if (dText.match(/Wallenhorst/)) {
+                let theDate = "";
+                if (whichLocation == "Birth") {
+                  theDate = $("#mBirthDate").val();
+                } else if (whichLocation == "Death") {
+                  theDate = $("#mDeathDate").val();
+                } else if (whichLocation == "Marriage") {
+                  theDate = $("#mMarriageDate").val();
+                } else if (whichLocation == "Location") {
+                  theDate = $("#mStartDate").val();
+                }
+                theDate = getYYYYMMDD(theDate);
+
+                const wallenhorstHistory = [
+                  {
+                    startDate: null,
+                    endDate: "1802-01-01",
+                    location: "Wallenhorst, Iburg, Osnabrück, Heiliges Römisches Reich",
+                  },
+                  {
+                    startDate: "1802-01-01",
+                    endDate: "1807-01-01",
+                    location: "Wallenhorst, Iburg, Osnabrück, Hannover, Heiliges Römisches Reich",
+                  },
+                  {
+                    startDate: "1807-01-01",
+                    endDate: "1811-01-01",
+                    location: "Wallenhorst, Engter, Osnabrück, Weser, Westphalen, Rheinbund",
+                  },
+                  {
+                    startDate: "1811-01-01",
+                    endDate: "1814-01-01",
+                    location: "Wallenhorst, Wallenhorst, Osnabrück-Land, Osnabrück, Ober-Ems, Frankreich",
+                  },
+                  {
+                    startDate: "1814-01-01",
+                    endDate: "1817-01-01",
+                    location: "Wallenhorst, Osnabrück, Hannover, Deutscher Bund",
+                  },
+                  {
+                    startDate: "1817-01-01",
+                    endDate: "1867-01-01",
+                    location: "Wallenhorst, Osnabrück, Hannover, Deutscher Bund",
+                  },
+                  {
+                    startDate: "1867-01-01",
+                    endDate: "1871-01-01",
+                    location: "Wallenhorst, Osnabrück, Hannover, Preußen, Norddeutscher Bund",
+                  },
+                  {
+                    startDate: "1871-01-01",
+                    endDate: "1945-01-01",
+                    location: "Wallenhorst, Osnabrück, Hannover, Preußen, Deutsches Reich",
+                  },
+                  {
+                    startDate: "1945-01-01",
+                    endDate: "1946-10-31",
+                    location: "Wallenhorst, Osnabrück, Hannover, Britische Besatzungszone",
+                  },
+                  {
+                    startDate: "1946-11-01",
+                    endDate: "1978-01-31",
+                    location: "Wallenhorst, Osnabrück, Niedersachsen, Deutschland",
+                  },
+                  {
+                    startDate: "1978-02-01",
+                    endDate: "2005-01-01",
+                    location: "Wallenhorst, Osnabrück, Weser-Ems, Niedersachsen, Deutschland",
+                  },
+                  {
+                    startDate: "2005-01-01",
+                    endDate: null,
+                    location: "Wallenhorst, Osnabrück, Niedersachsen, Deutschland",
+                  },
+                ];
+
+                const record = findLocationByDate(theDate, wallenhorstHistory);
+                addNewSuggestion(added_node, "Wallenhorst", record.location, record);
+                console.log("Wallenhorst", record);
+              }
             }
             if (window.locationsHelperOptions?.addUSCounty) {
               // US counties
@@ -406,4 +489,36 @@ async function locationsHelper() {
       });
     });
   }, 3000);
+}
+
+function findLocationByDate(date, locationHistory) {
+  // Convert the input date to a Date object for comparison
+  const inputDate = new Date(date);
+
+  // Iterate through the location history
+  for (let record of locationHistory) {
+    const startDate = record.startDate ? new Date(record.startDate) : null;
+    const endDate = record.endDate ? new Date(record.endDate) : null;
+
+    // Check if the input date falls within the range of each record
+    if ((!startDate || inputDate >= startDate) && (!endDate || inputDate < endDate)) {
+      return record;
+    }
+  }
+
+  // Return null if no matching record is found
+  return null;
+}
+
+function addNewSuggestion(added_node, term, location, dates = "") {
+  if ($(".autocomplete-suggestion-container." + term).length == 0) {
+    const newSuggestion = document.createElement("div");
+    const aRegex = new RegExp("^" + term, "g");
+    const endBit = location.replace(aRegex, "");
+    const theDates = dates ? " (" + (dates.startDate || "") + " - " + (dates.endDate || "") + ")" : "";
+    newSuggestion.className = "autocomplete-suggestion-container";
+    newSuggestion.classList.add(term);
+    newSuggestion.innerHTML = `<div class="autocomplete-suggestion" data-val="${location}"><div class="autocomplete-suggestion-head"><span class="autocomplete-suggestion-term">${term}</span>${endBit} ${theDates}</div></div>`;
+    $(newSuggestion).insertBefore($(added_node));
+  }
 }
