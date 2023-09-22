@@ -36,7 +36,7 @@ shouldInitializeFeature("categoryManagement").then((result) => {
           AddCategoryExitLink(document.getElementsByTagName("h1")[0]);
         }
       });
-    } else if (isProfilePage &&  IsProfileEditable()) {
+    } else if (isProfilePage && IsProfileEditable()) {
       getFeatureOptions("categoryManagement").then((options) => {
         if (options.showCategoryLinksProfile) {
           AddCategoryChangeLinksOnProfile(GetOrCreateCategoriesDiv());
@@ -108,7 +108,6 @@ function AddCategoryExitLink(parent) {
 }
 
 function AddCategoryChangeLinksOnProfile(categoryDiv) {
-
   const profileId = document.getElementsByClassName("person")[0].innerText;
   const catSpans = categoryDiv.getElementsByTagName("span");
   for (let i = 0; i < catSpans.length - 1 /* not for [top] */; i++) {
@@ -878,7 +877,9 @@ function CheckWhatLinksHereAndSave() {
             const LIs = ULs[i].getElementsByTagName("li");
             for (let i = 0; i < LIs.length; i++) {
               const page = LIs[i].innerText.split(" (← links)").join("");
-              const win = window.open("https://www.wikitree.com/index.php?title=" + page + "&action=edit");
+              if (!page.startsWith("Automated:")) {
+                const win = window.open("https://www.wikitree.com/index.php?title=" + page + "&action=edit");
+              }
             }
           }
         }
@@ -927,8 +928,9 @@ function GetActualAkaCategoryUsedInProfile(wpTextbox1, cats) {
 function AddCat(wpTextbox1, cat) {
   let bio = wpTextbox1.value;
   let catSyntax = "[[Category:" + cat + "]]";
-  if (bio.indexOf(catSyntax) == -1) {
-    window.document.getElementById("wpTextbox1").value = catSyntax + "\n" + bio;
+  const catUnderlines = cat.replace(" ", "_");
+  if (bio.indexOf(cat + "]]") == -1 && bio.indexOf(catUnderlines) == -1) {
+    wpTextbox1.value = catSyntax + "\n" + bio;
   }
 }
 
@@ -938,7 +940,7 @@ function RemoveCat(wpTextbox1, cat) {
   const catUnderlines = cat.replace(" ", "_");
   const catSyntaxUnderlines = "[[Category:" + catUnderlines + "]]";
   if (bio.indexOf(cat + "]]") > -1 || bio.indexOf(catUnderlines) > -1) {
-    window.document.getElementById("wpTextbox1").value = bio
+    wpTextbox1.value = bio
       .replace(catSyntax + "\n", "")
       .replace(catSyntax, "")
       .replace(catSyntaxUnderlines + "\n", "")
