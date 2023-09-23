@@ -131,7 +131,9 @@ shouldInitializeFeature("distanceAndRelationship").then((result) => {
             }
           }
         } else {
+          /*
           doRelationshipText(userID, profileID);
+          */
         }
       };
       aRequest2.onerror = (error) => {
@@ -163,60 +165,6 @@ export async function getProfile(id, fields = "*", appId = "WBE") {
     console.error(error);
   }
 }
-
-/*
-async function getConnectionFinderResult(id1, id2, relatives = 0) {
-  try {
-    const result = await $.ajax({
-      url: "https://www.wikitree.com/index.php",
-      crossDomain: true,
-      xhrFields: { withCredentials: true },
-      data: {
-        title: "Special:Connection",
-        action: "connect",
-        person1Name: id1,
-        person2Name: id2,
-        relation: relatives,
-        ignoreIds: "",
-      },
-      type: "POST",
-      dataType: "json",
-      success: function (data) {},
-      error: function (error) {
-        console.log(error);
-      },
-    });
-    return result;
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-export async function getRelationshipFinderResult(id1, id2) {
-  try {
-    const result = await $.ajax({
-      url: "https://www.wikitree.com/index.php",
-      crossDomain: true,
-      xhrFields: { withCredentials: true },
-      data: {
-        title: "Special:Relationship",
-        action: "getRelationship",
-        person1_name: id1,
-        person2_name: id2,
-      },
-      type: "POST",
-      dataType: "json",
-      success: function (data) {},
-      error: function (error) {
-        console.log(error);
-      },
-    });
-    return result;
-  } catch (error) {
-    console.error(error);
-  }
-}
-*/
 
 function addRelationshipText(oText, commonAncestors) {
   const commonAncestorTextResult = commonAncestorText(commonAncestors);
@@ -286,7 +234,6 @@ function commonAncestorText(commonAncestors) {
 }
 
 function doRelationshipText(userID, profileID) {
-  //  getRelationshipFinderResult(userID, profileID).then(function (data) {
   getRelationJSON("DistanceAndRelationship_Relationship", userID, profileID).then(function (data) {
     if (data) {
       var out = "";
