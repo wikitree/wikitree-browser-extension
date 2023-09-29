@@ -986,6 +986,9 @@ function addReferences(event, spouse = false) {
   return text;
 }
 function isReferenceRelevant(reference, event, spouse) {
+  if (!window.profilePerson?.BirthYear && window.profilePerson?.BirthDate) {
+    window.profilePerson.BirthYear = window.profilePerson.BirthDate.substring(0, 4);
+  }
   let spousePattern = new RegExp(spouse.FirstName + "|" + spouse.Nickname);
   let spouseMatch = spousePattern.test(reference.Text);
   let sameName = true;
@@ -4311,7 +4314,7 @@ export function sourcesArray(bio) {
       aRef["Christening Date"] ||
       aRef["Baptism date"] ||
       aRef["Christening date"] ||
-      aRef.Text.match(/Baptism Record|citing.+Baptism,/)
+      aRef.Text.match(/Baptism Record|citing.+Baptism,|Baptism\b/)
     ) {
       aRef["Record Type"].push("Baptism");
       const nameMatch = aRef.Text.match(/familysearch.*, ([A-Z].*?) baptism/i);
@@ -4338,6 +4341,21 @@ export function sourcesArray(bio) {
       } else if (baptismDateMatch2) {
         aRef["Baptism Date"] = baptismDateMatch2[1];
         aRef["Year"] = baptismDateMatch2[1].match(/\d{4}/)[0];
+      } else if (aRef["Record Type"].includes("Baptism")) {
+        const dateMatch1 = aRef.Text.match(/\b\d{1,2}\s\w{3}\s1[6789]\d{2}\b/);
+        const dateMatch2 = aRef.Text.match(/\s(1[6789]\d{2})\b(?!-)/);
+        const dateMatch3 = aRef.Text.match(/\b\w{3}\s\d{1,2}\s1[6789]\d{2}\b/);
+        if (dateMatch1) {
+          aRef["Baptism Date"] = dateMatch1[0];
+
+          aRef.Year = dateMatch1[0].match(/\d{4}/)[0];
+        } else if (dateMatch2) {
+          aRef["Baptism Date"] = dateMatch2[1];
+          aRef.Year = dateMatch2[1];
+        } else if (dateMatch3) {
+          aRef["Baptism Date"] = dateMatch3[0];
+          aRef.Year = dateMatch3[0].match(/\d{4}/)[0];
+        }
       }
       if (birthDateMatch) {
         aRef["Birth Date"] = birthDateMatch[1];
@@ -4347,6 +4365,13 @@ export function sourcesArray(bio) {
         aRef["Baptism Place"] = baptismLocationMatch[1];
       } else if (baptismLocationMatch2) {
         aRef["Baptism Place"] = baptismLocationMatch2[1];
+      }
+
+      // Check if the baptism is for the profile person
+      // Check aRef.Text against the profile person's name variants and add the name to aRef.Name
+      const isProfilePerson = profilePersonMatch(aRef.Text) || false;
+      if (isProfilePerson) {
+        aRef.Name = isProfilePerson[0];
       }
 
       if (aRef.Name) {
