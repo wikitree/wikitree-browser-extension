@@ -1008,6 +1008,7 @@ function CheckWhatLinksHereAndSave() {
               const page = LIs[i].innerText.split(" (← links)").join("");
               if (!page.startsWith("Automated:")) {
                 const win = window.open("https://www.wikitree.com/index.php?title=" + page + "&action=edit");
+
               }
             }
           }

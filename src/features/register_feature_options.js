@@ -90,6 +90,7 @@ import "./table_filters/table_filters_options";
 import "./unconnected_branch_table/unconnected_branch_table_options";
 import "./usability_tweaks/usability_tweaks_options";
 import "./what_links_here/what_links_here_options";
+import "./wikitable_wizard/wikitable_wizard_options";
 import "./wills/wills_options";
 import "./wtPlus/wtPlus_options";
 
@@ -145,10 +146,10 @@ registerFeature({
 registerFeature({
   name: "Clipboard and Notes",
   id: "clipboardAndNotes",
-  description: "Keep useful things for pasting in the clipboard and useful notes in the notes.",
+  description: "Keep useful things for pasting in the Clipboard and useful notes in the Notes.",
   category: "Global",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
+  contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: false,
   pages: [isMainDomain],
 });

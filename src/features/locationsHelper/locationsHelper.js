@@ -4,8 +4,10 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { extractRelatives, familyArray, getRelatives } from "../../core/common";
+import { getYYYYMMDD } from "../auto_bio/auto_bio";
 import { isSpaceEdit, isNewSpace } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+// import { australian_locations } from "./auto_bio/australian_locations";
 
 shouldInitializeFeature("locationsHelper").then((result) => {
   if (result) {
@@ -216,6 +218,19 @@ async function locationsHelper() {
 
           if (window.locationsHelperOptions?.correctLocations || window.locationsHelperOptions?.addUSCounty) {
             const innerBit = $(added_node).find(".autocomplete-suggestion-head");
+
+            let theDate = "";
+            if (whichLocation == "Birth") {
+              theDate = $("#mBirthDate").val();
+            } else if (whichLocation == "Death") {
+              theDate = $("#mDeathDate").val();
+            } else if (whichLocation == "Marriage") {
+              theDate = $("#mMarriageDate").val();
+            } else if (whichLocation == "Location") {
+              theDate = $("#mStartDate").val();
+            }
+            theDate = getYYYYMMDD(theDate);
+
             let innerBitText = "";
             if (window.locationsHelperOptions?.correctLocations && goodDate) {
               // Brisbane
@@ -257,8 +272,7 @@ async function locationsHelper() {
                 // end Canadian districts
               }
 
-              // County Durham
-              dText = dText.replace("Durham, England", "County Durham, England");
+              // Germany
 
               // German country names
               if (myYear < 1806) {
@@ -280,6 +294,75 @@ async function locationsHelper() {
                 // Deutsches Reich is accurate from 1871 until 1945
               } else if (myYear > 1949) {
                 dText = dText.replace("Deutsches Reich", "Deutschland").replace("Deutscher Bund", "Deutschland");
+              }
+
+              // Wallenhorst
+              if (dText.match(/Wallenhorst/)) {
+                const wallenhorstHistory = [
+                  {
+                    startDate: null,
+                    endDate: "1802-01-01",
+                    location: "Wallenhorst, Iburg, Osnabrück, Heiliges Römisches Reich",
+                  },
+                  {
+                    startDate: "1802-01-01",
+                    endDate: "1807-01-01",
+                    location: "Wallenhorst, Iburg, Osnabrück, Hannover, Heiliges Römisches Reich",
+                  },
+                  {
+                    startDate: "1807-01-01",
+                    endDate: "1811-01-01",
+                    location: "Wallenhorst, Engter, Osnabrück, Weser, Westphalen, Rheinbund",
+                  },
+                  {
+                    startDate: "1811-01-01",
+                    endDate: "1814-01-01",
+                    location: "Wallenhorst, Wallenhorst, Osnabrück-Land, Osnabrück, Ober-Ems, Frankreich",
+                  },
+                  {
+                    startDate: "1814-01-01",
+                    endDate: "1817-01-01",
+                    location: "Wallenhorst, Osnabrück, Hannover, Deutscher Bund",
+                  },
+                  {
+                    startDate: "1817-01-01",
+                    endDate: "1867-01-01",
+                    location: "Wallenhorst, Osnabrück, Hannover, Deutscher Bund",
+                  },
+                  {
+                    startDate: "1867-01-01",
+                    endDate: "1871-01-01",
+                    location: "Wallenhorst, Osnabrück, Hannover, Preußen, Norddeutscher Bund",
+                  },
+                  {
+                    startDate: "1871-01-01",
+                    endDate: "1945-01-01",
+                    location: "Wallenhorst, Osnabrück, Hannover, Preußen, Deutsches Reich",
+                  },
+                  {
+                    startDate: "1945-01-01",
+                    endDate: "1946-10-31",
+                    location: "Wallenhorst, Osnabrück, Hannover, Britische Besatzungszone",
+                  },
+                  {
+                    startDate: "1946-11-01",
+                    endDate: "1978-01-31",
+                    location: "Wallenhorst, Osnabrück, Niedersachsen, Deutschland",
+                  },
+                  {
+                    startDate: "1978-02-01",
+                    endDate: "2005-01-01",
+                    location: "Wallenhorst, Osnabrück, Weser-Ems, Niedersachsen, Deutschland",
+                  },
+                  {
+                    startDate: "2005-01-01",
+                    endDate: null,
+                    location: "Wallenhorst, Osnabrück, Niedersachsen, Deutschland",
+                  },
+                ];
+
+                const record = findLocationByDate(theDate, wallenhorstHistory);
+                addNewSuggestion(added_node, "Wallenhorst", record.location, record);
               }
 
               // Massachusetts (and any other pre-1776 states)
@@ -311,6 +394,88 @@ async function locationsHelper() {
                     }
                   }
                 });
+              }
+
+              // UK towns and villages
+
+              // Appleton
+              if (dText.match(/Appleton/)) {
+                const appletonHistory = [
+                  {
+                    startDate: null,
+                    endDate: "1763-12-31",
+                    variant: "Hull and Appleton",
+                    location: "Hull and Appleton, Great Budworth, Cheshire, England",
+                  },
+                  {
+                    startDate: "1764-01-01",
+                    endDate: "1800-12-31",
+                    location: "Appleton, Great Budworth, Cheshire, England",
+                  },
+                  {
+                    startDate: "1801-01-01",
+                    endDate: "1836-12-31",
+                    location: "Appleton, Great Budworth, Cheshire, England, United Kingdom",
+                  },
+                  {
+                    startDate: "1837-01-01",
+                    endDate: "1974-03-31",
+                    location: "Appleton, Runcorn, Cheshire, England, United Kingdom",
+                  },
+                  {
+                    startDate: "1974-04-01",
+                    endDate: null,
+                    location: "Appleton, Warrington, Cheshire, England, United Kingdom",
+                  },
+                ];
+                const record = findLocationByDate(theDate, appletonHistory);
+                // Appleton Cross, Appleton Thorn, Broomfield, The Cobbs, Dudlows Green, Hillcliffe, Lumb Brook (part), and Wrights Green
+                const villages = [
+                  "Appleton Cross",
+                  "Appleton Thorn",
+                  "Broomfield",
+                  "The Cobbs",
+                  "Dudlows Green",
+                  "Hillcliffe",
+                  "Lumb Brook",
+                  "Wrights Green",
+                ];
+                addNewSuggestion(added_node, "Appleton", record.location, record, villages);
+              }
+
+              // County Durham
+              dText = dText.replace("Durham, England", "County Durham, England");
+
+              // Ferintosh
+              if (dText.match(/Ferintosh/)) {
+                const ferintoshHistory = [
+                  {
+                    startDate: null,
+                    endDate: "1800-12-31",
+                    location: "Ferintosh, Nairn, Scotland",
+                  },
+                  {
+                    startDate: "1801-01-01",
+                    endDate: "1891-01-01",
+                    location: "Ferintosh, Nairn, Scotland, United Kingdom",
+                  },
+                  {
+                    startDate: "1891-01-01",
+                    endDate: null,
+                    location: "Ferintosh, Ross and Cromarty, Scotland, United Kingdom",
+                  },
+                ];
+                const record = findLocationByDate(theDate, ferintoshHistory);
+                const villages = [
+                  "Alcag",
+                  "Mulchaich",
+                  "Urquhart",
+                  "Dunvornie",
+                  "Easter Kinkell",
+                  "Smithfield",
+                  "Logie Wester",
+                ];
+                addNewSuggestion(added_node, "Ferintosh", record.location, record, villages);
               }
 
               // Steyning, Stogursey, Somerset, England
@@ -406,4 +571,45 @@ async function locationsHelper() {
       });
     });
   }, 3000);
+}
+
+function findLocationByDate(date, locationHistory) {
+  // Convert the input date to a Date object for comparison
+  const inputDate = new Date(date);
+
+  // Iterate through the location history
+  for (let record of locationHistory) {
+    const startDate = record.startDate ? new Date(record.startDate) : null;
+    const endDate = record.endDate ? new Date(record.endDate) : null;
+
+    // Check if the input date falls within the range of each record
+    if ((!startDate || inputDate >= startDate) && (!endDate || inputDate < endDate)) {
+      return record;
+    }
+  }
+
+  // Return null if no matching record is found
+  return null;
+}
+
+function addNewSuggestion(added_node, term, location, record, villages = []) {
+  if ($(".autocomplete-suggestion-container." + term).length == 0) {
+    for (let i = 0; i < villages.length + 1; i++) {
+      let villageBit = "";
+      if (i > 0) {
+        villageBit = villages[i - 1] + ", ";
+      }
+      const newSuggestion = document.createElement("div");
+      let aRegex = new RegExp("^" + term, "g");
+      if (record && record.variant) {
+        aRegex = new RegExp("^" + record.variant, "g");
+      }
+      const endBit = location.replace(aRegex, "");
+      const theDates = record ? " (" + (record.startDate || "") + " - " + (record.endDate || "") + ")" : "";
+      newSuggestion.className = "autocomplete-suggestion-container";
+      newSuggestion.classList.add(term);
+      newSuggestion.innerHTML = `<div class="autocomplete-suggestion" data-val="${villageBit}${location}"><div class="autocomplete-suggestion-head">${villageBit}<span class="autocomplete-suggestion-term">${term}</span>${endBit} ${theDates}</div></div>`;
+      $(newSuggestion).insertBefore($(added_node));
+    }
+  }
 }

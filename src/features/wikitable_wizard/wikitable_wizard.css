@@ -1,0 +1,218 @@
+#wikitableWizardModal {
+  position: absolute; /* Absolute positioning */
+  z-index: 1000; /* High z-index to appear on top */
+  min-width: 30em;
+  width: 100%;
+  max-height: 80%; /* Adjust as needed */
+  padding: 20px;
+  border: 1px solid #888;
+  background-color: #fefefe;
+  overflow: auto;
+  border-radius: 1em;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  box-sizing: border-box;
+  display: none; /* Initially hidden */
+}
+
+#wikitableWizardModal label.boldLabel {
+  width: 3em;
+  margin: 0.2em;
+}
+
+#wikitableWizardModal label {
+  display: inline-block;
+  margin: 0.2em;
+}
+
+#wikitableWizardModal .useHeaderRow input[type="text"] {
+  font-weight: bold;
+  text-align: center;
+}
+
+#wikitableWizardModal fieldset#classes {
+  display: inline-block;
+  margin: 0;
+  padding: 0;
+}
+
+#wikitableWizardModal #addGeneratedHeadersLabel {
+  display: none;
+}
+
+#wikitableWizardModal input[type="number"] {
+  width: 3em;
+}
+#wikitableWizardModal h2 {
+  cursor: move;
+  margin-bottom: 0.3em;
+  text-align: center;
+}
+
+#wikitableWizardModal label {
+  display: inline-block;
+  margin: 0.2em 1em;
+}
+
+.wikitable-wizard-close {
+  color: #aaa;
+  position: absolute;
+  top: 0.5em;
+  right: 1em;
+  font-size: 1em;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.wikitable-wizard-close:hover,
+.wikitable-wizard-close:focus {
+  color: #000;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+#wikitableWizardTable input[type="text"] {
+  width: 100%;
+  padding: 0.2em;
+  margin: 0;
+}
+
+#wikitableWizardTable {
+  margin: 1em 0;
+}
+#wikitableWizardTable tr {
+  white-space: nowrap;
+}
+#wikitableWizardTable span.handle {
+  cursor: move;
+  font-weight: bold;
+  font-size: 1.3em;
+  position: absolute;
+  margin-left: -0.5em;
+  margin-top: -0.2em;
+}
+
+#wikitableWizardTable th:not(.wikitableWizardUI) {
+  cursor: move;
+}
+
+#wikitableWizardWikitable {
+  width: 100%;
+  margin-top: 1em;
+  display: none;
+}
+
+#wikitableWizardModal #wikitableWizardCaption {
+  width: 25em;
+  text-align: center;
+}
+#wikitableWizardModal #wikitableWizardCaption.bold {
+  font-weight: bold;
+}
+
+/* Add a hover effect for user feedback */
+#wikitableWizardModal .delete-button:hover {
+  background-color: #f44336;
+  opacity: 0.8;
+}
+
+#wikitableContextMenu {
+  position: absolute;
+  border: 1px solid #ccc;
+  background-color: #f9f9f9;
+  z-index: 1000; /* Makes sure it's above other elements */
+  box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+  display: none; /* Initially hidden */
+}
+
+#wikitableContextMenu a.wikitable-context-option,
+#wikitableContextMenu a.wikitable-context-option:link,
+#wikitableContextMenu a.wikitable-context-option:visited {
+  color: black !important;
+  padding: 0.2em 0.5em;
+  text-decoration: none;
+  display: block;
+  text-align: left;
+}
+
+#wikitableWizardModal input.rowBgColor {
+  width: 2em;
+}
+
+a.wikitable-context-option:hover {
+  background-color: #f1f1f1;
+}
+
+a.wikitable-context-option:active {
+  background-color: #ccc;
+}
+
+#wikitableWizardUndo {
+  display: none;
+}
+
+#wikitableWizardModal #wikitableWizardHelp {
+  margin: 1em;
+  padding: 1em;
+  border: 1px solid #ccc;
+  border-radius: 1em;
+  background-color: #f9f9f9;
+  box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+  position: relative;
+  display: none; /* Initially hidden */
+}
+
+#wikitableWizardModal #wikitableWizardHelp h3 {
+  margin: 0;
+  padding: 0;
+}
+
+#wikitableWizardModal #wikitableWizardHelpButton {
+  position: absolute;
+  top: 1em;
+  left: 1em;
+  cursor: pointer;
+}
+#wikitableWizardModal #wikitableWizardHelpButton img {
+  opacity: 0.5;
+  transition: opacity 0.3s ease; /* Optional: for smooth transition */
+}
+#wikitableWizardModal #wikitableWizardHelpButton img:hover {
+  opacity: 1;
+}
+#wikitableWizardModal #wikitableWizardHelpButton img:active {
+  opacity: 1;
+  box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.2);
+}
+
+#wikitableWizardHelp x {
+  position: absolute;
+  top: 0.5em;
+  right: 0.5em;
+  cursor: pointer;
+  color: #aaa;
+  font-weight: bold;
+  font-size: 1em;
+  background-color: #ffffff;
+  border-radius: 50%;
+  width: 1.5em;
+  text-align: center;
+}
+#wikitableWizardHelp x:hover {
+  color: #000;
+}
+#wikitableWizardHelp x:active {
+  background-color: #ccc;
+  box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.2);
+}
+
+#wikitableWizardGenerateAndReplaceTable {
+  display: none;
+}
+
+#wikitableWizardModal td.rowBoldCell {
+  text-align: center;
+}
+
+.dragging {
+  visibility: hidden;
+}

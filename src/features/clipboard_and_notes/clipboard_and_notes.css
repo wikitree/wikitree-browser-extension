@@ -30,6 +30,80 @@
   height: 10em;
 }
 
+#tab-list {
+  list-style-type: none;
+  display: inline;
+  padding-inline-start: 0.5em;
+  margin-left: 0;
+}
+
+#tab-list .tab {
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  background: rgb(221, 250, 218);
+  text-align: center;
+  cursor: pointer;
+  margin-top: 1px;
+  margin-right: 2px;
+  border-radius: 10px 10px 0 0;
+  font-size: 10pt;
+}
+
+#tab-list .active {
+  font-weight: bold;
+  border-bottom: 2px solid #333;
+}
+
+#tab-list .tab-handle {
+  cursor: grab;
+  display: inline-block;
+  padding: 8px 3px 8px 6px;
+}
+#tab-list .tab-name {
+  display: inline-block;
+  padding: 8px 6px 8px 3px;
+  min-width: 2em;
+}
+#tab-list .sortable-tab-placeholder {
+  display: inline-block;
+  padding: 10px 0;
+  border: 2px solid red;
+  font-size: 10pt;
+}
+
+#clipboard .tab:hover {
+  background: rgb(192, 248, 187);
+}
+#clipboard .tab-content {
+  display: none;
+}
+
+#clipboard #groupInput {
+  width: 33%;
+  height: 2em;
+  min-height: 2em;
+  padding: 2pt;
+  font-weight: bold;
+  margin: 1em 0 0 0.25em;
+}
+
+#clipboard #reorderTabs {
+  display: inline-block;
+  margin: 0;
+  width: auto;
+}
+#clipboard #renameGroup {
+  display: inline-block;
+  margin: 10px;
+  width: auto;
+}
+
+#clipboard label {
+  margin-left: 2em;
+  font-weight: bold;
+}
+
 #clipboard button {
   margin: auto;
   display: block;
@@ -50,7 +124,7 @@
 }
 
 #clipboard table td {
-  padding: 0.5em;
+  padding: 0.25em;
 }
 
 #clipboard .clipping {
@@ -133,6 +207,7 @@ form[name="a_form"] {
   vertical-align: top;
 }
 
+#cbtBody caption,
 #clipboard .index {
   cursor: move;
 }

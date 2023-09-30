@@ -879,6 +879,7 @@ export const occupationList = [
   "Lutheran Minister",
   "Lutheran Priest",
   "Lyricist",
+  "Machine Man",
   "Machine operator",
   "Machine Tender",
   "Machine Tool Mechanic",
