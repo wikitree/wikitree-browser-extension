@@ -18,7 +18,7 @@ shouldInitializeFeature("categoryManagement").then((result) => {
     } else if (isCategoryEdit) {
       getFeatureOptions("categoryManagement").then((options) => {
         AddOptionalCategoryEditPageLinks(options);
-        PerformActualCategoryChanges(options.disableCategories);
+        PerformActualCategoryChanges();
         AddCategoryExitLink(document.getElementsByClassName("EDIT")[0]);
       });
     } else if (isCategoryPage) {
@@ -909,7 +909,7 @@ function PerformActualProfileChanges() {
     const currentBio = wpTextbox1.value;
     if (previousBio == currentBio) {
       if (confirm("Nothing changed. Closing edit mode?")) {
-       document.getElementById("deleteDraftLinkContainer").childNodes[1].click();
+        document.getElementById("deleteDraftLinkContainer").childNodes[1].click();
       }
     }
   }
@@ -932,7 +932,7 @@ function DeactivateEnhancedEditorIfPresent() {
   return enhancedEditorOn;
 }
 
-function PerformActualCategoryChanges(disable) {
+function PerformActualCategoryChanges() {
   const enhancedEditorOn = DeactivateEnhancedEditorIfPresent();
   let urlParams = new URLSearchParams(window.location.search);
   if (urlParams.has("catBot")) {
@@ -942,7 +942,7 @@ function PerformActualCategoryChanges(disable) {
         break;
       }
       case "rename": {
-        MarkForRenameOpenNewAndSave(disable, urlParams.get("newCat"));
+        MarkForRenameOpenNewAndSave(urlParams.get("newCat"));
         break;
       }
 
@@ -966,15 +966,11 @@ function MarkCategoryForDeletionAndSave() {
   }
 }
 
-function MarkForRenameOpenNewAndSave(disable, newCategory) {
-  let wpTextbox1 = window.document.getElementById("wpTextbox1");
-  let toInsert = "";
+function MarkForRenameOpenNewAndSave(newCategory) {
+  const reason = prompt("reason for renaming?");
 
-  if (disable) {
-    toInsert = "{{Rename Category|" + newCategory + "}}<nowiki>";
-  } else {
-    toInsert = "{{Rename Category|" + newCategory + "}}";
-  }
+  let wpTextbox1 = window.document.getElementById("wpTextbox1");
+  let toInsert = "{{Rename Category|" + newCategory + "}}\n" + reason + " --~~~~";
 
   var editForm = document.getElementById("editform");
   const previousAction = editForm.action;
@@ -982,7 +978,7 @@ function MarkForRenameOpenNewAndSave(disable, newCategory) {
   editForm.action = previousAction;
   editForm.target = "";
 
-  wpTextbox1.value = toInsert + "\n" + wpTextbox1.value;
+  wpTextbox1.value = toInsert;
   document.getElementById("wpSave").click();
 }
 
