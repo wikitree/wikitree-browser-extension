@@ -72,6 +72,20 @@ function CreateMigrationCategory(tb) {
 
     "Austria-Hungary": ["Kingdom of Bohemia", "Kingdom of Galicia and Lodomeria", "Kingdom of Hungary"],
 
+    Canada: [
+      "Ontario",
+      "Quebec",
+      "Nova Scotia",
+      "New Brunswick",
+      "Manitoba",
+      "British Columbia",
+      "Prince Edward Island",
+      "Saskatchewan",
+      "Alberta",
+      "Newfoundland",
+      "Labrador",
+    ],
+
     England: [
       "Bedfordshire",
       "Berkshire",
@@ -112,19 +126,6 @@ function CreateMigrationCategory(tb) {
       "Wiltshire",
       "Worcestershire",
       "Yorkshire",
-    ],
-
-    Canada: [
-      "Ontario",
-      "Quebec",
-      "Nova Scotia",
-      "New Brunswick",
-      "Manitoba",
-      "British Columbia",
-      "Prince Edward Island",
-      "Saskatchewan",
-      "Alberta",
-      "Newfoundland and Labrador",
     ],
 
     "German Confederation": [
@@ -277,6 +278,8 @@ function CreateMigrationCategory(tb) {
       "Umbria",
       "Veneto",
     ],
+
+    "New France": ["Akadia", "Canada, New France", "Louisiana, New France"],
 
     "Italy/France (please add county behind region and don't use it like that in the category name!)": ["Marche"],
 
@@ -472,7 +475,7 @@ function CreateMigrationCategory(tb) {
 }
 
 function getLeftFromComma(cat) {
-  const indexComma = cat.indexOf(",");
+  const indexComma = cat.lastIndexOf(",");
   return cat.substring(0, indexComma).trim();
 }
 
