@@ -1967,7 +1967,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
             // const oLocations = [];
 
             rows.each(function () {
-              keepIt = false;
+              let keepIt = false;
 
               const thisLocations = $(this).attr("data-locations");
               if (thisLocations != "") {
@@ -2108,8 +2108,8 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
           $("tr.main td.birthlocation").text(newBirthLocationR);
         }
         if ($("#locationFilter").text() == "Remove Location Filter") {
-          $("#locationFilter").click();
-          $("#locationFilter").click();
+          $("#locationFilter").trigger("click");
+          $("#locationFilter").trigger("click");
         }
       });
 
@@ -2193,17 +2193,18 @@ async function myConnections() {
   }
 
   // Get the next degree
-  $("#loadNextGenerationButton").unbind();
-  $("#loadNextGenerationButton").on("click", function () {
-    setTimeout(function () {
-      $(".myConnectionsMoreButton,.myConnectionsTableButton").remove();
-      myConnectionsMore();
-      myConnectionsCount();
-      $(".wrapper h3 + ol, .wrapper .peopleTable + ol").each(function (index) {
-        $(this).attr("id", "gen" + index + "_list");
-      });
-    }, 3000);
-  });
+  $("#loadNextGenerationButton")
+    .off("click")
+    .on("click", function () {
+      setTimeout(function () {
+        $(".myConnectionsMoreButton,.myConnectionsTableButton").remove();
+        myConnectionsMore();
+        myConnectionsCount();
+        $(".wrapper h3 + ol, .wrapper .peopleTable + ol").each(function (index) {
+          $(this).attr("id", "gen" + index + "_list");
+        });
+      }, 3000);
+    });
 
   if (maxedOutAlready) {
     window.currentDegreeNum = 4;
