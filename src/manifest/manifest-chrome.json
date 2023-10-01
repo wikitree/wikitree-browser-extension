@@ -1,7 +1,7 @@
 {
-  "name": "WikiTree Browser Extension (Preview)",
+  "name": "WikiTree Browser Extension",
   "description": "The official WikiTree browser extension.",
-  "version": "1.9.3.0",
+  "version": "1.10",
   "manifest_version": 3,
   "options_page": "options.html",
   "permissions": ["storage", "clipboardRead", "clipboardWrite"],
