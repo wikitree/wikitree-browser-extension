@@ -396,6 +396,19 @@ async function locationsHelper() {
                 });
               }
 
+              // Alpharetta (in Forsyth County, Georgia, USA)
+              if (dText.match(/Alpharetta/)) {
+                const alpharettaHistory = [
+                  {
+                    startDate: "1831-12-03",
+                    endDate: null,
+                    location: "Alpharetta, Forsyth County, Georgia, United States",
+                  },
+                ];
+                const record = findLocationByDate(theDate, alpharettaHistory);
+                addNewSuggestion(added_node, "Alpharetta", record.location, record);
+              }
+
               // UK towns and villages
 
               // Appleton
@@ -608,7 +621,11 @@ function addNewSuggestion(added_node, term, location, record, villages = []) {
       const theDates = record ? " (" + (record.startDate || "") + " - " + (record.endDate || "") + ")" : "";
       newSuggestion.className = "autocomplete-suggestion-container";
       newSuggestion.classList.add(term);
-      newSuggestion.innerHTML = `<div class="autocomplete-suggestion" data-val="${villageBit}${location}"><div class="autocomplete-suggestion-head">${villageBit}<span class="autocomplete-suggestion-term">${term}</span>${endBit} ${theDates}</div></div>`;
+      const villageLocation = villageBit + location;
+      newSuggestion.innerHTML = `
+      <span class="autocomplete-suggestion-maplink"><a target="_new" href="https://maps.google.com?q=${villageLocation}"><img src="/images/icons/map.gif"></a></span>
+      <div class="autocomplete-suggestion" data-val="${villageLocation}">
+      <div class="autocomplete-suggestion-head">${villageBit}<span class="autocomplete-suggestion-term">${term}</span>${endBit} ${theDates}</div></div>`;
       $(newSuggestion).insertBefore($(added_node));
     }
   }
