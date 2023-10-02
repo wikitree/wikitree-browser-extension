@@ -989,13 +989,32 @@ function createwikitableWizardModal() {
 
 function swapColumns(oldIndex, newIndex) {
   // Swap the header columns
+
+  // Note: there is an extra th element in the draggable so ignore that with precise selector
+  let numCols = $("#wikitableWizardTable thead > tr > th").length;
+  let addAfter = false;
+  if (newIndex >= numCols - 1) {
+    // index is last column so we need insert dragging column after rather than before
+    addAfter = true;
+    newIndex = numCols - 2;
+  }
+
   let draggedTH = $("th").eq(oldIndex).detach();
-  $("th").eq(newIndex).before(draggedTH);
+  if (addAfter) {
+    $("th").eq(newIndex).after(draggedTH);
+  } else {
+    $("th").eq(newIndex).before(draggedTH);
+  }
 
   // Swap the data columns
   $("#wikitableWizardTable tbody tr").each(function () {
     let draggedTD = $(this).find("td").eq(oldIndex).detach();
-    $(this).find("td").eq(newIndex).before(draggedTD);
+
+    if (addAfter) {
+      $(this).find("td").eq(newIndex).after(draggedTD);
+    } else {
+      $(this).find("td").eq(newIndex).before(draggedTD);
+    }
   });
 }
 
@@ -1056,10 +1075,11 @@ function setupSorting() {
       const movingLeft = lastDragX !== null && dragCenterX < lastDragX;
       lastDragX = dragCenterX;
 
-      $("#wikitableWizardTable th").each(function (index) {
+      // Note: there is an extra th element in the draggable so ignore that with precise selector
+      $("#wikitableWizardTable thead > tr > th").each(function (index) {
         if (index < 2) return; // Skip first two columns
 
-        const thLeft = $(this).offset().left;
+        const thLeft = $(this).position().left;
         const thRight = thLeft + $(this).width();
 
         if (dragCenterX > thLeft && dragCenterX < thRight) {
