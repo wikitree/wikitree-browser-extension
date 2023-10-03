@@ -105,6 +105,24 @@ shouldInitializeFeature("dnaTable").then((result) => {
 export async function getPeople(keys, siblings, ancestors, descendants, nuclear, minGeneration, fields, appId = "WBE") {
   if (keys.length) {
     try {
+      const data = {
+        action: "getPeople",
+        keys: keys,
+        siblings: siblings,
+        ancestors: ancestors,
+        descendants: descendants,
+        nuclear: nuclear,
+        minGeneration: minGeneration,
+        fields: fields,
+        appId: appId || "WBE",
+      };
+      // Remove all empty values
+      Object.keys(data).forEach((key) => {
+        if (data[key] === undefined || data[key] === null || data[key] === "") {
+          delete data[key];
+        }
+      });
+
       const result = await $.ajax({
         url: "https://api.wikitree.com/api.php",
         crossDomain: true,
@@ -113,24 +131,14 @@ export async function getPeople(keys, siblings, ancestors, descendants, nuclear,
         },
         type: "POST",
         dataType: "json",
-        data: {
-          action: "getPeople",
-          keys: keys,
-          siblings: siblings,
-          ancestors: ancestors,
-          descendants: descendants,
-          nuclear: nuclear,
-          minGeneration: minGeneration,
-          fields: fields,
-          appId: appId || "WBE",
-        },
+        data: data,
       });
       return result;
     } catch (error) {
       console.error(error);
-      return {}
+      return {};
     }
   } else {
-    return {}
+    return {};
   }
 }

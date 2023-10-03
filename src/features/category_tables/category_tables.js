@@ -1,6 +1,8 @@
 import $ from "jquery";
 import { addPeopleTable } from "../my_connections/my_connections";
+import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { getPeople } from "../dna_table/dna_table";
 
 shouldInitializeFeature("categoryTables").then((result) => {
   if (result) {
@@ -12,7 +14,7 @@ shouldInitializeFeature("categoryTables").then((result) => {
 async function addCategoryTableButton() {
   let aTableID = "";
   $("h2:contains(Person Profiles)").append($("<button class='small button moreDetailsButton'>Table</button>"));
-  $("button.moreDetailsButton").on("click", function (e) {
+  $("button.moreDetailsButton").on("click", async function (e) {
     e.preventDefault();
     const superIDs = [];
     $("a.P-F,a.P-M").each(function () {
@@ -28,6 +30,53 @@ async function addCategoryTableButton() {
       aTableID = "category";
     }
 
-    addPeopleTable(superIDstr, aTableID, $("#Persons").prev(), "category");
+    /* Clone h1; Remove childen from clone, leaving only the text; get the text; change the text from Category: ... to CategoryFull="..."; replace  spaces with underscores*/
+    const categoryQuery =
+      $("h1").clone().children().remove().end().text().replace("Category: ", 'CategoryFull="').replace(/ /g, "_") + '"';
+
+    const categoryCall = await wtAPIProfileSearch("WBE_categoryTables", categoryQuery, "");
+    console.log(categoryCall);
+    const categoryIDs = await categoryCall.response.profiles;
+    const keys = categoryIDs.join(",");
+
+    const categoryPeopleCall = await getPeople(keys, false, false, false, false, 0, "Name,Id");
+    console.log(categoryPeopleCall);
+
+    /* The result of categoryPeopleCall is like this: [{people:id1:{Name:...,Id:...},id2:{...}}]
+        Sort the people alphabetically by Name and store the IDs.  
+        Use this list as pagination for addPeopleTable. 
+        addPeopleTable(superIDstr, aTableID, $("#Persons").prev(), "category");
+    */
+    const people = categoryPeopleCall[0].people;
+    const peopleKeys = Object.keys(people);
+    peopleKeys.sort(function (a, b) {
+      return people[a].Name.localeCompare(people[b].Name);
+    });
+    // Get 100 people at a time; For now, put the pagination after the table button
+    const peopleIDs = [];
+    let i = 0;
+    while (i < peopleKeys.length) {
+      peopleIDs.push(peopleKeys.slice(i, i + 100));
+      i += 100;
+    }
+    console.log(peopleIDs);
+    // The pagination buttons will be added after the table button; they will call addPeopleTable
+    // with the appropriate IDs.
+    const paginationButtons = $("<div class='paginationButtons'></div>");
+    paginationButtons.insertAfter($("button.moreDetailsButton"));
+    peopleIDs.forEach(function (anID, index) {
+      const aButton = $(
+        `<button class='small button moreDetailsNumberButton' data-button="${index}">${index + 1}</button>`
+      );
+      aButton.on("click", function (e) {
+        e.preventDefault();
+        addPeopleTable(anID.join(","), aTableID, $("#Persons"), "category");
+      });
+      paginationButtons.append(aButton);
+    });
+    // Click button 0 to start
+    paginationButtons.find("button[data-button='0']").trigger("click");
+
+    //addPeopleTable(superIDstr, aTableID, $("#Persons").prev(), "category");
   });
 }
