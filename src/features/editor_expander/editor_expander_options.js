@@ -15,5 +15,4 @@ registerFeature({
   contributors: [],
   defaultValue: true,
   pages: [isProfileEdit, isSpaceEdit],
-  options: [],
 });
