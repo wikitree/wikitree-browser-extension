@@ -868,7 +868,11 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
 
   const fields =
     "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,BirthDate,BirthLocation, DeathDate,DeathLocation, BirthDateDecade,DeathDateDecade,Touched, Created, Gender, Father, Mother,Id,Name,Privacy,DataStatus,ShortName,Derived.BirthNamePrivate,Derived.BirthName,LongNamePrivate,Connected";
+  console.log("IDstring", IDstring);
   const peopleCall = await getPeople(IDstring, false, false, false, 1, 0, fields, "WBE_my_connections_file");
+
+  // logging
+  console.log("peopleCall", peopleCall);
 
   idArr = IDstring.split(",");
   const tablePeople = [];
@@ -974,7 +978,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     setAs = "<th>Action</th>";
   }
   if (tableID == "superCentenarians" || tableID == "centenarians") {
-    livedForCol = "<th id='dayslived'  data-order='asc' class='livedToCol'>Lived for<th>";
+    livedForCol = "<th id='dayslived'  data-order='asc' class='livedToCol'>Lived for</th>";
   }
   let aCaption = "";
   let ahnenHeader = "";
@@ -1014,9 +1018,12 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       // <a class="small moreDetailsNumberButton active" data-link="0">1</a> data-link number
       tableNum = $(".moreDetailsNumberButton.active").data("link");
     }
-
+    let tableIDBit = "";
+    if (tableID && !(tableID == "centenarians" || tableID == "superCentenarians" || tableID == "category")) {
+      tableIDBit = "data-table-id='" + tableID + "' ";
+    }
     aTable = $(
-      `<table class='peopleTable ${tableClass}' id='${tableID}' data-table-number='${tableNum}'>${aCaption}<thead><tr>${missingFather}${missingMother}${missingSpouse}${missingChildren}${ahnenHeader}${relTH}<th id='firstname' data-order=''>Given name(s)</th><th id='lnab'>LNAB</th><th id='lnc' data-order=''>CLN</th><th id='birthdate' data-order=''>Birth date</th><th data-order='' id='birthlocation'>Birth place</th><th data-order='' id='deathdate'>Death date</th><th data-order='' id='deathlocation'>Death place</th>${livedForCol}${setAs}${childrenCountTH}${emptyTD}<th id='created' data-order='' >Created</th><th id='edited' data-order='' >Edited</th></tr></thead><tbody></tbody></table>`
+      `<table class='peopleTable ${tableClass}' id='${tableID}' ${tableIDBit}data-table-number='${tableNum}'>${aCaption}<thead><tr>${missingFather}${missingMother}${missingSpouse}${missingChildren}${ahnenHeader}${relTH}<th id='firstname' data-order=''>Given name(s)</th><th id='lnab'>LNAB</th><th id='lnc' data-order=''>CLN</th><th id='birthdate' data-order=''>Birth date</th><th data-order='' id='birthlocation'>Birth place</th><th data-order='' id='deathdate'>Death date</th><th data-order='' id='deathlocation'>Death place</th>${livedForCol}${setAs}${childrenCountTH}${emptyTD}<th id='created' data-order='' >Created</th><th id='edited' data-order='' >Edited</th></tr></thead><tbody></tbody></table>`
     );
 
     // eslint-disable-next-line no-undef
@@ -1062,7 +1069,8 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
 
     thePeople.forEach(function (mPerson, index) {
       //let mPerson = aPerson.person;
-
+      //let bYear = parseInt(birthDate.substring(0, 4));
+      let noBorDdate = false;
       let missingFatherCell = "";
       let missingMotherCell = "";
       let missingSpouseCell = "";
@@ -1266,9 +1274,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
           deathDate = mPerson.DeathDateDecade;
         }
       }
-
-      //let bYear = parseInt(birthDate.substring(0, 4));
-
+      let livedTo = "";
       let livedToCell = "";
       if (tableID == "superCentenarians" || tableID == "centenarians") {
         let c_bDate = getApproxDate2(birthDate);
@@ -1284,16 +1290,15 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
         }
         let dt1 = c_bDate.Date;
         let dt2 = c_dDate.Date;
-        let livedTo = getAge2(dt1, dt2);
+        livedTo = getAge2(dt1, dt2);
         let daysS = "";
         if (livedTo[1] != 1) {
           daysS = "s";
         }
 
-        //let noBorDdate = false;
         if (!isOK(birthDate) || !isOK(deathDate)) {
           livedToCell = "<td></td>";
-          // noBorDdate = true;
+          noBorDdate = true;
         } else {
           let yearDayText = "";
           if (birthDate.match(/-/) == null && deathDate.match(/-/) == null) {
@@ -1706,6 +1711,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       }
       let dataMissingChildren = "data-missing-children='" + dataMissingChildrenNumber + "' ";
       const dataConnected = "data-connected='" + mPerson.Connected + "' ";
+
       let aLine = $(
         `<tr ${dataMissingFather}
         ${dataMissingMother}
@@ -2633,7 +2639,7 @@ function getAge2(start, end) {
   let firstMonthDays = month[start_month - 1] - start_day;
 
   let restOfYearDays = 0;
-  for (i = start_month; i < 12; i++) {
+  for (let i = start_month; i < 12; i++) {
     restOfYearDays = restOfYearDays + month[i];
   }
   let firstYearDays = firstMonthDays + restOfYearDays;
@@ -2644,7 +2650,7 @@ function getAge2(start, end) {
   } else {
     month[1] = 28;
   }
-  for (i = 0; i < end_month - 1; i++) {
+  for (let i = 0; i < end_month - 1; i++) {
     lastYearMonthDays = lastYearMonthDays + month[i];
   }
   let lastYearDaysTotal = 0;
@@ -2673,4 +2679,8 @@ function getAge2(start, end) {
   }
   let totalDays = Math.round(fullYears * 365.25) + andDays;
   return [fullYears, andDays, totalDays];
+}
+
+function isLeapYear(year) {
+  return year % 100 === 0 ? year % 400 === 0 : year % 4 === 0;
 }
