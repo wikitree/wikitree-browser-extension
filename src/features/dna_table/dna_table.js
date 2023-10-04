@@ -114,6 +114,7 @@ export async function getPeople(keys, siblings, ancestors, descendants, nuclear,
         nuclear: nuclear,
         minGeneration: minGeneration,
         fields: fields,
+        getSpouses: 1,
         appId: appId || "WBE",
       };
       // Remove all empty values

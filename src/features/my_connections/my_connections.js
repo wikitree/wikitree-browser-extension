@@ -12,6 +12,8 @@ import { isOK, htmlEntities, extractRelatives, treeImageURL } from "../../core/c
 import Cookies from "js-cookie";
 import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup";
 import { ancestorType } from "../distanceAndRelationship/distanceAndRelationship";
+import { getPeople } from "../dna_table/dna_table";
+import { addFiltersToWikitables } from "../table_filters/table_filters";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 const missingFatherSrc = chrome.runtime.getURL("images/blue_bricks.jpg");
@@ -807,7 +809,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
   }
   window.isUnconnecteds = false;
   window.isMyUnconnecteds = false;
-
+  const waitingImage = $("<img id='tree' class='waiting' src='" + treeImageURL + "'>");
   if (
     $(
       "body.page-Space_Unconnected_Notables,body.page-Special_Unconnected,body.page-Space_Largest_Unconnected_Branches,body.unconnected"
@@ -821,13 +823,15 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
   } else if (tableID == "profileAncestors") {
     // later?
   } else if (tableClass == "category") {
-    $(".moreDetailsButton").replaceWith($("<img id='tree' class='waiting category' src='" + treeImageURL + "'>"));
+    if ($(".moreDetailsButton").length) {
+      $(".moreDetailsButton").replaceWith(waitingImage);
+    } else {
+      $("#categoryTablePaginationLinks").after(waitingImage);
+    }
   } else if ($("body.page-Special_MyConnections").length) {
-    $("<img id='tree' class='waiting' src='" + treeImageURL + "'>").insertAfter(
-      $("button.myConnectionsTableButton.clicked")
-    );
+    $(waitingImage).insertAfter($("button.myConnectionsTableButton.clicked"));
   } else {
-    $("h1").append($("<img id='tree' class='waiting' src='" + treeImageURL + "'>"));
+    $("h1").append(waitingImage);
   }
   let idArr = IDstring.split(",");
   let thisPLink = $("li:contains(Possible matches for)").find("a").eq(0);
@@ -851,7 +855,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     ) {
       thisP = "McMurdo-150";
       IDstring = thisP + "," + IDstring;
-    } else {
+    } else if (window.location.href.match(/Category:/) == null) {
       thisP = $("h1 button").attr("data-copy-text");
       if (thisP) {
         if (IDstring.match(thisP.replace("_", " ") + ",") == null) {
@@ -862,6 +866,89 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
   }
   IDstring = IDstring.replace("Private-1", "Bascome-5").replace("Private-2", "Bascome-16");
 
+  const fields =
+    "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,BirthDate,BirthLocation, DeathDate,DeathLocation, BirthDateDecade,DeathDateDecade,Touched, Created, Gender, Father, Mother,Id,Name,Privacy,DataStatus,ShortName,Derived.BirthNamePrivate,Derived.BirthName,LongNamePrivate,Connected";
+  const peopleCall = await getPeople(IDstring, false, false, false, 1, 0, fields, "WBE_my_connections_file");
+
+  idArr = IDstring.split(",");
+  const tablePeople = [];
+  const peopleKeys = Object.keys(peopleCall[0]?.people);
+
+  const nameMap = new Map();
+  peopleKeys.forEach(function (aKey) {
+    nameMap.set(peopleCall[0]?.people[aKey].Name, aKey);
+  });
+
+  // logging
+  console.log("peopleCall", peopleCall);
+  console.log("peopleKeys", peopleKeys);
+  console.log("idArr", idArr);
+  console.log("nameMap", nameMap);
+  let arrType = "Id";
+  if (idArr[0]?.match(/\-/)) {
+    arrType = "Name";
+  }
+
+  peopleKeys.forEach(function (aKey) {
+    if (arrType == "Name") {
+      if (idArr.includes(peopleCall[0]?.people[aKey].Name)) {
+        tablePeople.push(peopleCall[0]?.people[aKey]);
+      }
+    } else if (idArr.includes(aKey)) {
+      tablePeople.push(peopleCall[0]?.people[aKey]);
+    }
+  });
+
+  // logging
+  console.log("tablePeople", tablePeople);
+
+  // Use a Set for quicker lookups
+  const peopleKeysSet = new Set(peopleKeys);
+
+  // A map to keep track of already cloned objects
+  const clonedObjects = new Map();
+
+  function findRelatives(personId, relationship, people) {
+    return Array.from(peopleKeysSet)
+      .filter((key) => people[key][relationship] === personId && key !== personId)
+      .map((key) => {
+        if (clonedObjects.has(key)) {
+          return clonedObjects.get(key);
+        }
+        const clone = Object.assign({}, people[key]);
+        clonedObjects.set(key, clone);
+        return clone;
+      });
+  }
+
+  tablePeople.forEach((aPerson) => {
+    aPerson.Parent = [];
+    aPerson.Sibling = [];
+    aPerson.Child = [];
+
+    ["Father", "Mother"].forEach((aParent) => {
+      if (aPerson[aParent]) {
+        const parent = peopleCall[0]?.people[aPerson[aParent]];
+        if (parent) {
+          if (clonedObjects.has(aPerson[aParent])) {
+            aPerson.Parent.push(clonedObjects.get(aPerson[aParent]));
+          } else {
+            const parentClone = Object.assign({}, parent);
+            aPerson.Parent.push(parentClone);
+            clonedObjects.set(aPerson[aParent], parentClone);
+          }
+        }
+
+        aPerson.Sibling = [...aPerson.Sibling, ...findRelatives(aPerson[aParent], aParent, peopleCall[0]?.people)];
+
+        aPerson.Child = [...aPerson.Child, ...findRelatives(aPerson.Id, aParent, peopleCall[0]?.people)];
+      }
+    });
+  });
+
+  console.log("tablePeople", tablePeople);
+
+  /*
   $.ajax({
     url: "https://api.wikitree.com/api.php",
     crossDomain: true,
@@ -879,1286 +966,1236 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       appId: "WBE_my_connections",
     },
     success: function (data) {
-      let setAs = "";
-      let isMain = false;
-      let livedForCol = "";
-      if ($("#mBirthDate").length) {
-        setAs = "<th>Action</th>";
+      */
+  let setAs = "";
+  let isMain = false;
+  let livedForCol = "";
+  if ($("#mBirthDate").length) {
+    setAs = "<th>Action</th>";
+  }
+  if (tableID == "superCentenarians" || tableID == "centenarians") {
+    livedForCol = "<th id='dayslived'  data-order='asc' class='livedToCol'>Lived for<th>";
+  }
+  let aCaption = "";
+  let ahnenHeader = "";
+  let relTH = "";
+  let childrenCountTH = "";
+  if (tableID == "profileAncestors") {
+    ahnenHeader = "<th id='ahnen' data-order=''>Ahnen</th>";
+    aCaption = "<caption title='7-10 Generations of Ancestors'>Ancestors</caption>";
+    relTH = "<th>Relation</th>";
+    childrenCountTH = "<th id='children-count' data-order=''># of Children</th>";
+  }
+
+  //let thePeople = data[0].items;
+  const thePeople = tablePeople;
+
+  let aTable = $("<table>");
+  let emptyTD;
+  if (thePeople != null) {
+    emptyTD = "";
+    if (tableID == "searchMatches") {
+      emptyTD = "<td></td>";
+    }
+
+    let missingFather = "";
+    let missingMother = "";
+    let missingSpouse = "";
+    let missingChildren = "";
+    if ($("body.page-Special_MyConnections").length) {
+      missingFather = "<th id='missing-father'>F</th>";
+      missingMother = "<th id='missing-mother'>M</th>";
+      missingSpouse = "<th id='missing-spouse'>Sp</th>";
+      missingChildren = "<th id='missing-children'>Ch</th>";
+    }
+
+    let tableNum = "";
+    if (tableClass == "category") {
+      // <a class="small moreDetailsNumberButton active" data-link="0">1</a> data-link number
+      tableNum = $(".moreDetailsNumberButton.active").data("link");
+    }
+
+    aTable = $(
+      `<table class='peopleTable ${tableClass}' id='${tableID}' data-table-number='${tableNum}'>${aCaption}<thead><tr>${missingFather}${missingMother}${missingSpouse}${missingChildren}${ahnenHeader}${relTH}<th id='firstname' data-order=''>Given name(s)</th><th id='lnab'>LNAB</th><th id='lnc' data-order=''>CLN</th><th id='birthdate' data-order=''>Birth date</th><th data-order='' id='birthlocation'>Birth place</th><th data-order='' id='deathdate'>Death date</th><th data-order='' id='deathlocation'>Death place</th>${livedForCol}${setAs}${childrenCountTH}${emptyTD}<th id='created' data-order='' >Created</th><th id='edited' data-order='' >Edited</th></tr></thead><tbody></tbody></table>`
+    );
+
+    // eslint-disable-next-line no-undef
+    if (isMyUnconnecteds == true) {
+      insAfter = $("h2").eq(0);
+    }
+
+    if ($(".peopleTable").length && $("body.page-Special_MyConnections").length == 0) {
+      if (tableClass == "category") {
+        $(".peopleTable").hide();
+        $(".peopleTable").eq(0).before(aTable);
+      } else {
+        $(".peopleTable").eq(0).replaceWith(aTable);
       }
-      if (tableID == "superCentenarians" || tableID == "centenarians") {
-        livedForCol = "<th id='dayslived'  data-order='asc' class='livedToCol'>Lived for<th>";
+    } else {
+      aTable.insertAfter(insAfter);
+    }
+
+    $(".unconnectedButton").prop("disabled", false);
+    $(".unconnectedButton").removeClass("clicked");
+    if ($(".unconnectedButton").length) {
+      window.location.href = "#" + aTable.attr("id");
+    }
+
+    //aTable
+
+    // Sort thePeople by LastNameAtBirth, then by FirstName
+    thePeople.sort(function (a, b) {
+      if (a.LastNameAtBirth < b.LastNameAtBirth) {
+        return -1;
       }
-      let aCaption = "";
-      let ahnenHeader = "";
-      let relTH = "";
-      let childrenCountTH = "";
-      if (tableID == "profileAncestors") {
-        ahnenHeader = "<th id='ahnen' data-order=''>Ahnen</th>";
-        aCaption = "<caption title='7-10 Generations of Ancestors'>Ancestors</caption>";
-        relTH = "<th>Relation</th>";
-        childrenCountTH = "<th id='children-count' data-order=''># of Children</th>";
+      if (a.LastNameAtBirth > b.LastNameAtBirth) {
+        return 1;
       }
-      let thePeople = data[0].items;
-      let aTable = $("<table>");
-      let emptyTD;
-      if (thePeople != null) {
-        emptyTD = "";
-        if (tableID == "searchMatches") {
-          emptyTD = "<td></td>";
-        }
+      if (a.FirstName < b.FirstName) {
+        return -1;
+      }
+      if (a.FirstName > b.FirstName) {
+        return 1;
+      }
+      return 0;
+    });
 
-        let missingFather = "";
-        let missingMother = "";
-        let missingSpouse = "";
-        let missingChildren = "";
-        if ($("body.page-Special_MyConnections").length) {
-          missingFather = "<th id='missing-father'>F</th>";
-          missingMother = "<th id='missing-mother'>M</th>";
-          missingSpouse = "<th id='missing-spouse'>Sp</th>";
-          missingChildren = "<th id='missing-children'>Ch</th>";
-        }
+    thePeople.forEach(function (mPerson, index) {
+      //let mPerson = aPerson.person;
 
-        aTable = $(
-          "<table class='peopleTable " +
-            tableClass +
-            "' id='" +
-            tableID +
-            "'>" +
-            aCaption +
-            "<thead><tr>" +
-            missingFather +
-            missingMother +
-            missingSpouse +
-            missingChildren +
-            ahnenHeader +
-            relTH +
-            "<th id='firstname' data-order=''>Given name(s)</th><th id='lnab'>LNAB</th><th id='lnc' data-order=''>CLN</th><th id='birthdate' data-order=''>Birth date</th><th data-order='' id='birthlocation'>Birth place</th><th data-order='' id='deathdate'>Death date</th><th data-order='' id='deathlocation'>Death place</th>" +
-            livedForCol +
-            "<th class='familyTH'>Parents</th><th class='familyTH'>Siblings</th><th class='familyTH'>Spouses</th><th class='familyTH'>Children</th>" +
-            setAs +
-            childrenCountTH +
-            emptyTD +
-            "<th id='created' data-order='' >Created</th><th id='edited' data-order='' >Edited</th></tr></thead><tbody></tbody></table>"
-        );
+      let missingFatherCell = "";
+      let missingMotherCell = "";
+      let missingSpouseCell = "";
+      let missingChildrenCell = "";
+      if ($("body.page-Special_MyConnections").length) {
+        missingFatherCell = "<td class='missingPersonCell'></td>";
+        missingMotherCell = "<td class='missingPersonCell'></td>";
+        missingSpouseCell = "<td class='missingPersonCell'></td>";
+        missingChildrenCell = "<td class='missingPersonCell'></td>";
+        let deathAge = ageAtDeath(mPerson, false);
+        if (mPerson?.Name) {
+          let thisLink = $("ol[id*='gen'] a[href='/wiki/" + htmlEntities(mPerson.Name) + "']");
+          if (mPerson.Father == 0) {
+            missingFatherCell = "<td style='background-image:url(" + missingFatherSrc + ")'></td>";
 
-        // eslint-disable-next-line no-undef
-        if (isMyUnconnecteds == true) {
-          insAfter = $("h2").eq(0);
-        }
-
-        if ($(".peopleTable").length && $("body.page-Special_MyConnections").length == 0) {
-          $(".peopleTable").eq(0).replaceWith(aTable);
-        } else {
-          aTable.insertAfter(insAfter);
-        }
-
-        $(".unconnectedButton").prop("disabled", false);
-        $(".unconnectedButton").removeClass("clicked");
-        if ($(".unconnectedButton").length) {
-          window.location.href = "#" + aTable.attr("id");
-        }
-
-        //aTable
-
-        thePeople.forEach(function (aPerson, index) {
-          let mPerson = aPerson.person;
-
-          let missingFatherCell = "";
-          let missingMotherCell = "";
-          let missingSpouseCell = "";
-          let missingChildrenCell = "";
-          if ($("body.page-Special_MyConnections").length) {
-            missingFatherCell = "<td class='missingPersonCell'></td>";
-            missingMotherCell = "<td class='missingPersonCell'></td>";
-            missingSpouseCell = "<td class='missingPersonCell'></td>";
-            missingChildrenCell = "<td class='missingPersonCell'></td>";
-            let deathAge = ageAtDeath(mPerson, false);
-            if (mPerson?.Name) {
-              let thisLink = $("ol[id*='gen'] a[href='/wiki/" + htmlEntities(mPerson.Name) + "']");
-              if (mPerson.Father == 0) {
-                missingFatherCell = "<td style='background-image:url(" + missingFatherSrc + ")'></td>";
-
-                $(
-                  "<img title='Missing father' class='myConnectionsNoFather missingPerson' src='" +
-                    missingFatherSrc +
-                    "'>"
-                ).insertBefore(thisLink);
-              }
-              if (mPerson.Mother == 0) {
-                missingMotherCell = "<td style='background-image:url(" + missingMotherSrc + ")'></td>";
-                $(
-                  "<img  title='Missing mother' class='myConnectionsNoMother missingPerson' src='" +
-                    missingMotherSrc +
-                    "'>"
-                ).insertBefore(thisLink);
-              }
-              if (
-                (deathAge === false || deathAge > 15) &&
-                mPerson?.Spouses?.length == 0 &&
-                mPerson.DataStatus?.Spouse != "blank"
-              ) {
-                missingSpouseCell = "<td class='missingPersonCell missingPersonZero' title='Missing spouse'>?</td>";
-                $(
-                  "<img  title='Missing spouse?' class='myConnectionsNoSpouse missingPerson' src='" +
-                    missingSpouseSrc +
-                    "'>"
-                ).insertBefore(thisLink);
-              } else {
-                if (mPerson.Spouses) {
-                  let oSpouses = Object.keys(mPerson.Spouses);
-                  missingSpouseCell = "<td class='missingPersonCell'>" + oSpouses.length + "</td>";
-                }
-              }
-              let oChildren, oChildrenNumber;
-              if (mPerson.Children) {
-                oChildren = Object.keys(mPerson.Children);
-                if (oChildren.length > 0) {
-                  oChildrenNumber = oChildren.length;
-                  missingChildrenCell = "<td class='missingPersonCell'>" + oChildrenNumber + "</td>";
-                } else if (
-                  deathAge[0] > 12 &&
-                  mPerson.DataStatus.Spouse != "Null" &&
-                  mPerson.DataStatus.Spouse != "Blank"
-                ) {
-                  missingChildrenCell = "<td class='missingPersonCell missingPersonZero'></td>";
-                } else {
-                  missingChildrenCell = "<td class='missingPersonCell'></td>";
-                }
-              }
+            $(
+              "<img title='Missing father' class='myConnectionsNoFather missingPerson' src='" + missingFatherSrc + "'>"
+            ).insertBefore(thisLink);
+          }
+          if (mPerson.Mother == 0) {
+            missingMotherCell = "<td style='background-image:url(" + missingMotherSrc + ")'></td>";
+            $(
+              "<img  title='Missing mother' class='myConnectionsNoMother missingPerson' src='" + missingMotherSrc + "'>"
+            ).insertBefore(thisLink);
+          }
+          if (
+            (deathAge === false || deathAge > 15) &&
+            mPerson?.Spouses?.length == 0 &&
+            mPerson.DataStatus?.Spouse != "blank"
+          ) {
+            missingSpouseCell = "<td class='missingPersonCell missingPersonZero' title='Missing spouse'>?</td>";
+            $(
+              "<img  title='Missing spouse?' class='myConnectionsNoSpouse missingPerson' src='" +
+                missingSpouseSrc +
+                "'>"
+            ).insertBefore(thisLink);
+          } else {
+            if (mPerson.Spouses) {
+              let oSpouses = Object.keys(mPerson.Spouses);
+              missingSpouseCell = "<td class='missingPersonCell'>" + oSpouses.length + "</td>";
             }
           }
-
-          if (mPerson.Name == "Bascome-5") {
-            mPerson.Name = "Private-1";
-            mPerson.Id = window.BioPerson.Father2;
-            mPerson.FirstName = "Private";
-            mPerson.LastNameAtBirth = "Father";
-            mPerson.LastNameCurrent = "Father";
-          }
-          if (mPerson.Name == "Bascome-16") {
-            mPerson.Name = "Private-2";
-            mPerson.Id = window.BioPerson.Mother2;
-            mPerson.FirstName = "Private";
-            mPerson.LastNameAtBirth = "Mother";
-            mPerson.LastNameCurrent = "Mother";
-          }
-          let mSpouses = extractRelatives(mPerson.Spouses, mPerson, "Spouse");
-          mPerson.Spouse = mSpouses;
-          let mChildren = extractRelatives(mPerson.Children, mPerson, "Child");
-          mPerson.Child = mChildren;
-          let mSiblings = extractRelatives(mPerson.Siblings, mPerson, "Sibling");
-          mPerson.Sibling = mSiblings;
-          let mParents = extractRelatives(mPerson.Parents, mPerson, "Parent");
-          mPerson.Parent = mParents;
-          isMain = false;
-          if (mPerson.Name) {
-            if (thisP == mPerson?.Name.replaceAll(/ /g, "_")) {
-              if ($("body.page-Space_Unconnected_Notables,body.page-Space_Largest_Unconnected_Branches").length) {
-                captionText = mPerson.LongName + ": " + (thePeople.length - 1) + " Connections";
-              }
-
-              isMain = true;
-              mPerson.IsMain = true;
-              if ($("#mBirthDate").length) {
-                mPerson.IsNew = true;
-                window.clonePerson = JSON.parse(JSON.stringify(mPerson));
-                mPerson.FirstName = ($("#mFirstName").val() + " " + $("#mMiddleName").val()).trim();
-                mPerson.MiddleName = "";
-                mPerson.LastNameAtBirth = $("#mLastNameAtBirth").val();
-                mPerson.RealName = $("#mRealName").val();
-                mPerson.LastNameCurrent = $("#mLastNameCurrent").val();
-                mPerson.LastNameOther = $("#mLastNameOther").val();
-                mPerson.BirthDate = ymdFix($("#mBirthDate").val());
-                mPerson.BirthLocation = $("#mBirthLocation").val();
-                mPerson.DeathDate = ymdFix($("#mDeathDate").val());
-                mPerson.DeathLocation = $("#mDeathLocation").val();
-                mPerson.Gender = $("#mGender").val();
-
-                if ($("h2").text().match(/child/) != null) {
-                  mSiblings = mChildren;
-                  mParents = mSpouses;
-                  mParents.push(window.clonePerson);
-                  mChildren = "";
-                  mSpouses = "";
-                }
-                if (
-                  $("h2")
-                    .text()
-                    .match(/(father)|(mother)/) != null
-                ) {
-                  mChildren = mSiblings;
-                  mChildren.push(window.clonePerson);
-                  mParents = "";
-                  mSiblings = "";
-                }
-                if (
-                  $("h2")
-                    .text()
-                    .match(/sibling/) != null
-                ) {
-                  mChildren = "";
-                  mSiblings.push(window.clonePerson);
-                  mSpouses = "";
-                }
-                if (
-                  $("h2")
-                    .text()
-                    .match(/spouse/) != null
-                ) {
-                  mSiblings = "";
-                  mSpouses = [window.clonePerson];
-                  mParents = "";
-                }
-                if (thisP == "McMurdo-150" || mPerson.Name == "Bascome-5" || mPerson.Name == "Bascome-16") {
-                  mSiblings = "";
-                  mParents = "";
-                  mSpouses = "";
-                  mChildren = "";
-                  mPerson.BirthLocation = "";
-                  mPerson.DeathLocation = "";
-                  mPerson.BirthDate = "00-00-00";
-                  mPerson.DeathDate = "00-00-00";
-                }
-              }
-            }
-          }
-
-          if (!mPerson.Privacy) {
-            let theLink = $("a[href$=" + idArr[index] + "]").eq(0);
-            if ($("#mBirthDate").length == 0) {
-              mPerson.Name = idArr[index];
-            } else {
-              let dCheckbox = $("input[type='checkbox'][value='" + idArr[index] + "']");
-              theLink = dCheckbox.next();
-            }
-
-            let mLiClass = theLink.parent().attr("class");
-            if (mLiClass == "BULLET30") {
-              mPerson.Privacy = 30;
-            }
-            if (mLiClass == "BULLET20") {
-              mPerson.Privacy = 20;
-            }
-            if (mLiClass == "BULLET50") {
-              mPerson.Privacy = 50;
-            }
-            mPerson.LongName = theLink
-              .text()
-              .replace(/\bJr.?\b|\bSr.?\b|\bPhD\b|\b[A-Z]{2,}\b$/, "")
-              .trim();
-            let nameSplit = mPerson.LongName.split(" ");
-            mPerson.LastNameCurrent = nameSplit.at(-1);
-            if (mPerson.LongName.match(/\(.*?\)/) != null) {
-              mPerson.LastNameAtBirth = mPerson.LongName.match(/\(.*?\)/)[0].replaceAll(/[()]/g, "");
-            } else {
-              mPerson.LastNameAtBirth = mPerson.LastNameCurrent;
-            }
-            mPerson.FirstName = mPerson.LongName.replace(mPerson.LastNameCurrent, "")
-              .replace(/\(.*?\) /, "")
-              .trim();
-          }
-
-          let birthDate = ymdFix(mPerson.BirthDate);
-          if (birthDate == "") {
-            if (mPerson.BirthDateDecade) {
-              birthDate = mPerson.BirthDateDecade;
-            }
-          }
-          let deathDate = ymdFix(mPerson.DeathDate);
-          if (deathDate == "") {
-            if (mPerson.deathDateDecade) {
-              deathDate = mPerson.DeathDateDecade;
-            }
-          }
-
-          //let bYear = parseInt(birthDate.substring(0, 4));
-
-          let livedToCell = "";
-          if (tableID == "superCentenarians" || tableID == "centenarians") {
-            let c_bDate = getApproxDate2(birthDate);
-            let c_dDate = getApproxDate2(deathDate);
-            let livedToApprox = "";
-            if (
-              c_bDate.Approx == true ||
-              c_dDate.Approx == true ||
-              (mPerson.DataStatus.BirthDate != "certain" && mPerson.DataStatus.BirthDate != "") ||
-              (mPerson.DataStatus.DeathDate != "certain" && mPerson.DataStatus.DeathDate != "")
+          let oChildren, oChildrenNumber;
+          if (mPerson.Children) {
+            oChildren = Object.keys(mPerson.Children);
+            if (oChildren.length > 0) {
+              oChildrenNumber = oChildren.length;
+              missingChildrenCell = "<td class='missingPersonCell'>" + oChildrenNumber + "</td>";
+            } else if (
+              deathAge[0] > 12 &&
+              mPerson.DataStatus.Spouse != "Null" &&
+              mPerson.DataStatus.Spouse != "Blank"
             ) {
-              livedToApprox = "abt. ";
-            }
-            let dt1 = c_bDate.Date;
-            let dt2 = c_dDate.Date;
-            let livedTo = getAge2(dt1, dt2);
-            let daysS = "";
-            if (livedTo[1] != 1) {
-              daysS = "s";
-            }
-
-            //let noBorDdate = false;
-            if (!isOK(birthDate) || !isOK(deathDate)) {
-              livedToCell = "<td></td>";
-              // noBorDdate = true;
+              missingChildrenCell = "<td class='missingPersonCell missingPersonZero'></td>";
             } else {
-              let yearDayText = "";
-              if (birthDate.match(/-/) == null && deathDate.match(/-/) == null) {
-                yearDayText = livedTo[0] + " years";
-              } else {
-                yearDayText = livedTo[0] + " years, " + livedTo[1] + " day" + daysS;
-              }
-
-              livedToCell =
-                "<td class='livedToCell'>" +
-                "<span class='about'>" +
-                livedToApprox +
-                "</span> <span class='yearsAndDays'>" +
-                yearDayText +
-                "</span></td>";
+              missingChildrenCell = "<td class='missingPersonCell'></td>";
             }
           }
+        }
+      }
 
-          let birthLocation = mPerson.BirthLocation;
-          let birthLocationReversed = "";
-          let bLocation2ways = "";
-          if (birthLocation == "null" || birthLocation == undefined) {
-            birthLocation = "";
-            birthLocationReversed = "";
-          } else {
-            bLocation2ways = location2ways(birthLocation);
-            birthLocation = bLocation2ways[0];
-            birthLocationReversed = bLocation2ways[1];
+      if (mPerson.Name == "Bascome-5") {
+        mPerson.Name = "Private-1";
+        mPerson.Id = window.BioPerson.Father2;
+        mPerson.FirstName = "Private";
+        mPerson.LastNameAtBirth = "Father";
+        mPerson.LastNameCurrent = "Father";
+      }
+      if (mPerson.Name == "Bascome-16") {
+        mPerson.Name = "Private-2";
+        mPerson.Id = window.BioPerson.Mother2;
+        mPerson.FirstName = "Private";
+        mPerson.LastNameAtBirth = "Mother";
+        mPerson.LastNameCurrent = "Mother";
+      }
+      let mSpouses = extractRelatives(mPerson.Spouses, mPerson, "Spouse");
+      mPerson.Spouse = mSpouses;
+      let mChildren = extractRelatives(mPerson.Children, mPerson, "Child");
+      mPerson.Child = mChildren;
+      let mSiblings = extractRelatives(mPerson.Siblings, mPerson, "Sibling");
+      mPerson.Sibling = mSiblings;
+      let mParents = extractRelatives(mPerson.Parents, mPerson, "Parent");
+      mPerson.Parent = mParents;
+      isMain = false;
+      if (mPerson.Name) {
+        if (thisP == mPerson?.Name.replaceAll(/ /g, "_")) {
+          if ($("body.page-Space_Unconnected_Notables,body.page-Space_Largest_Unconnected_Branches").length) {
+            captionText = mPerson.LongName + ": " + (thePeople.length - 1) + " Connections";
           }
-          let deathLocation = mPerson.DeathLocation;
-          let deathLocationReversed = "";
-          let dLocation2ways = "";
-          if (deathLocation == "null" || deathLocation == undefined) {
-            deathLocation = "";
-            deathLocationReversed = "";
+
+          isMain = true;
+          mPerson.IsMain = true;
+          if ($("#mBirthDate").length) {
+            mPerson.IsNew = true;
+            window.clonePerson = JSON.parse(JSON.stringify(mPerson));
+            mPerson.FirstName = ($("#mFirstName").val() + " " + $("#mMiddleName").val()).trim();
+            mPerson.MiddleName = "";
+            mPerson.LastNameAtBirth = $("#mLastNameAtBirth").val();
+            mPerson.RealName = $("#mRealName").val();
+            mPerson.LastNameCurrent = $("#mLastNameCurrent").val();
+            mPerson.LastNameOther = $("#mLastNameOther").val();
+            mPerson.BirthDate = ymdFix($("#mBirthDate").val());
+            mPerson.BirthLocation = $("#mBirthLocation").val();
+            mPerson.DeathDate = ymdFix($("#mDeathDate").val());
+            mPerson.DeathLocation = $("#mDeathLocation").val();
+            mPerson.Gender = $("#mGender").val();
+
+            if ($("h2").text().match(/child/) != null) {
+              mSiblings = mChildren;
+              mParents = mSpouses;
+              mParents.push(window.clonePerson);
+              mChildren = "";
+              mSpouses = "";
+            }
+            if (
+              $("h2")
+                .text()
+                .match(/(father)|(mother)/) != null
+            ) {
+              mChildren = mSiblings;
+              mChildren.push(window.clonePerson);
+              mParents = "";
+              mSiblings = "";
+            }
+            if (
+              $("h2")
+                .text()
+                .match(/sibling/) != null
+            ) {
+              mChildren = "";
+              mSiblings.push(window.clonePerson);
+              mSpouses = "";
+            }
+            if (
+              $("h2")
+                .text()
+                .match(/spouse/) != null
+            ) {
+              mSiblings = "";
+              mSpouses = [window.clonePerson];
+              mParents = "";
+            }
+            if (thisP == "McMurdo-150" || mPerson.Name == "Bascome-5" || mPerson.Name == "Bascome-16") {
+              mSiblings = "";
+              mParents = "";
+              mSpouses = "";
+              mChildren = "";
+              mPerson.BirthLocation = "";
+              mPerson.DeathLocation = "";
+              mPerson.BirthDate = "00-00-00";
+              mPerson.DeathDate = "00-00-00";
+            }
+          }
+        }
+      }
+
+      if (!mPerson.Privacy) {
+        let theLink = $("a[href$=" + idArr[index] + "]").eq(0);
+        if ($("#mBirthDate").length == 0) {
+          mPerson.Name = idArr[index];
+        } else {
+          let dCheckbox = $("input[type='checkbox'][value='" + idArr[index] + "']");
+          theLink = dCheckbox.next();
+        }
+
+        let mLiClass = theLink.parent().attr("class");
+        if (mLiClass == "BULLET30") {
+          mPerson.Privacy = 30;
+        }
+        if (mLiClass == "BULLET20") {
+          mPerson.Privacy = 20;
+        }
+        if (mLiClass == "BULLET50") {
+          mPerson.Privacy = 50;
+        }
+        mPerson.LongName = theLink
+          .text()
+          .replace(/\bJr.?\b|\bSr.?\b|\bPhD\b|\b[A-Z]{2,}\b$/, "")
+          .trim();
+        let nameSplit = mPerson.LongName.split(" ");
+        mPerson.LastNameCurrent = nameSplit.at(-1);
+        if (mPerson.LongName.match(/\(.*?\)/) != null) {
+          mPerson.LastNameAtBirth = mPerson.LongName.match(/\(.*?\)/)[0].replaceAll(/[()]/g, "");
+        } else {
+          mPerson.LastNameAtBirth = mPerson.LastNameCurrent;
+        }
+        mPerson.FirstName = mPerson.LongName.replace(mPerson.LastNameCurrent, "")
+          .replace(/\(.*?\) /, "")
+          .trim();
+      }
+
+      let birthDate = ymdFix(mPerson.BirthDate);
+      if (birthDate == "") {
+        if (mPerson.BirthDateDecade) {
+          birthDate = mPerson.BirthDateDecade;
+        }
+      }
+      let deathDate = ymdFix(mPerson.DeathDate);
+      if (deathDate == "") {
+        if (mPerson.deathDateDecade) {
+          deathDate = mPerson.DeathDateDecade;
+        }
+      }
+
+      //let bYear = parseInt(birthDate.substring(0, 4));
+
+      let livedToCell = "";
+      if (tableID == "superCentenarians" || tableID == "centenarians") {
+        let c_bDate = getApproxDate2(birthDate);
+        let c_dDate = getApproxDate2(deathDate);
+        let livedToApprox = "";
+        if (
+          c_bDate.Approx == true ||
+          c_dDate.Approx == true ||
+          (mPerson.DataStatus.BirthDate != "certain" && mPerson.DataStatus.BirthDate != "") ||
+          (mPerson.DataStatus.DeathDate != "certain" && mPerson.DataStatus.DeathDate != "")
+        ) {
+          livedToApprox = "abt. ";
+        }
+        let dt1 = c_bDate.Date;
+        let dt2 = c_dDate.Date;
+        let livedTo = getAge2(dt1, dt2);
+        let daysS = "";
+        if (livedTo[1] != 1) {
+          daysS = "s";
+        }
+
+        //let noBorDdate = false;
+        if (!isOK(birthDate) || !isOK(deathDate)) {
+          livedToCell = "<td></td>";
+          // noBorDdate = true;
+        } else {
+          let yearDayText = "";
+          if (birthDate.match(/-/) == null && deathDate.match(/-/) == null) {
+            yearDayText = livedTo[0] + " years";
           } else {
-            dLocation2ways = location2ways(deathLocation);
-            deathLocation = dLocation2ways[0];
-            deathLocationReversed = dLocation2ways[1];
+            yearDayText = livedTo[0] + " years, " + livedTo[1] + " day" + daysS;
           }
 
-          function setLocations(mPerson) {
-            const oLocations = [];
-            const mParr = [mPerson];
-            const checkEm = [mParr, mPerson.Parent, mPerson.Spouse, mPerson.Sibling, mPerson.Child];
+          livedToCell =
+            "<td class='livedToCell'>" +
+            "<span class='about'>" +
+            livedToApprox +
+            "</span> <span class='yearsAndDays'>" +
+            yearDayText +
+            "</span></td>";
+        }
+      }
 
-            checkEm.forEach(function (anArr) {
-              if (anArr) {
-                anArr.forEach(function (aPers) {
-                  if (aPers.BirthLocation) {
-                    let bits = aPers.BirthLocation.split(",");
-                    bits.forEach(function (aBit) {
-                      let bit = aBit.trim();
-                      if (!oLocations.includes(bit)) {
-                        oLocations.push(bit);
+      let birthLocation = mPerson.BirthLocation;
+      let birthLocationReversed = "";
+      let bLocation2ways = "";
+      if (birthLocation == "null" || birthLocation == undefined) {
+        birthLocation = "";
+        birthLocationReversed = "";
+      } else {
+        bLocation2ways = location2ways(birthLocation);
+        birthLocation = bLocation2ways[0];
+        birthLocationReversed = bLocation2ways[1];
+      }
+      let deathLocation = mPerson.DeathLocation;
+      let deathLocationReversed = "";
+      let dLocation2ways = "";
+      if (deathLocation == "null" || deathLocation == undefined) {
+        deathLocation = "";
+        deathLocationReversed = "";
+      } else {
+        dLocation2ways = location2ways(deathLocation);
+        deathLocation = dLocation2ways[0];
+        deathLocationReversed = dLocation2ways[1];
+      }
+
+      function setLocations(mPerson) {
+        const oLocations = [];
+        const mParr = [mPerson];
+        const checkEm = [mParr, mPerson.Parent, mPerson.Spouse, mPerson.Sibling, mPerson.Child];
+
+        checkEm.forEach(function (anArr) {
+          if (anArr) {
+            anArr.forEach(function (aPers) {
+              if (aPers.BirthLocation) {
+                let bits = aPers.BirthLocation.split(",");
+                bits.forEach(function (aBit) {
+                  let bit = aBit.trim();
+                  if (!oLocations.includes(bit)) {
+                    oLocations.push(bit);
+                  }
+                  let isUS = false;
+                  USstatesObjArray.forEach(function (obj) {
+                    if (bit == obj.name) {
+                      if (!oLocations.includes(obj.abbreviation)) {
+                        oLocations.push(obj.abbreviation);
                       }
-                      let isUS = false;
-                      USstatesObjArray.forEach(function (obj) {
-                        if (bit == obj.name) {
-                          if (!oLocations.includes(obj.abbreviation)) {
-                            oLocations.push(obj.abbreviation);
-                          }
-                          isUS = true;
-                        }
-                        if (bit == obj.abbreviation) {
-                          if (!oLocations.includes(obj.name)) {
-                            oLocations.push(obj.name);
-                          }
-                          isUS = true;
-                        }
-                      });
-                      if (isUS == true) {
-                        let usNames = ["USA", "United States", "United States of America", "U.S.A"];
-                        usNames.forEach(function (aName) {
-                          if (!oLocations.includes(aName)) {
-                            oLocations.push(aName);
-                          }
-                        });
+                      isUS = true;
+                    }
+                    if (bit == obj.abbreviation) {
+                      if (!oLocations.includes(obj.name)) {
+                        oLocations.push(obj.name);
+                      }
+                      isUS = true;
+                    }
+                  });
+                  if (isUS == true) {
+                    let usNames = ["USA", "United States", "United States of America", "U.S.A"];
+                    usNames.forEach(function (aName) {
+                      if (!oLocations.includes(aName)) {
+                        oLocations.push(aName);
                       }
                     });
                   }
-                  if (aPers.DeathLocation) {
-                    let bits = aPers.DeathLocation.split(",");
-                    bits.forEach(function (aBit) {
-                      let bit = aBit.trim();
-                      if (!oLocations.includes(bit)) {
-                        oLocations.push(bit);
+                });
+              }
+              if (aPers.DeathLocation) {
+                let bits = aPers.DeathLocation.split(",");
+                bits.forEach(function (aBit) {
+                  let bit = aBit.trim();
+                  if (!oLocations.includes(bit)) {
+                    oLocations.push(bit);
+                  }
+                  let isUS = false;
+                  USstatesObjArray.forEach(function (obj) {
+                    if (bit == obj.name) {
+                      if (!oLocations.includes(obj.abbreviation)) {
+                        oLocations.push(obj.abbreviation);
                       }
-                      let isUS = false;
-                      USstatesObjArray.forEach(function (obj) {
-                        if (bit == obj.name) {
-                          if (!oLocations.includes(obj.abbreviation)) {
-                            oLocations.push(obj.abbreviation);
-                          }
-                          isUS = true;
-                        }
-                        if (bit == obj.abbreviation) {
-                          if (!oLocations.includes(obj.name)) {
-                            oLocations.push(obj.name);
-                          }
-                          isUS = true;
-                        }
-                      });
-                      if (isUS == true) {
-                        let usNames = ["USA", "United States", "United States of America", "U.S.A"];
-                        usNames.forEach(function (aName) {
-                          if (!oLocations.includes(aName)) {
-                            oLocations.push(aName);
-                          }
-                        });
+                      isUS = true;
+                    }
+                    if (bit == obj.abbreviation) {
+                      if (!oLocations.includes(obj.name)) {
+                        oLocations.push(obj.name);
+                      }
+                      isUS = true;
+                    }
+                  });
+                  if (isUS == true) {
+                    let usNames = ["USA", "United States", "United States of America", "U.S.A"];
+                    usNames.forEach(function (aName) {
+                      if (!oLocations.includes(aName)) {
+                        oLocations.push(aName);
                       }
                     });
                   }
                 });
               }
             });
+          }
+        });
 
-            return oLocations;
-          }
+        return oLocations;
+      }
 
-          let oLocations = setLocations(mPerson).join(",");
-          let privacyLevel = mPerson.Privacy;
-          let privacy = "";
-          let privacyTitle = "";
-          if (privacyLevel == 60) {
-            privacy = privacyOpenURL;
-            privacyTitle = "Open";
-          }
-          if (privacyLevel == 50) {
-            privacy = privacyPublicURL;
-            privacyTitle = "Public";
-          }
-          if (privacyLevel == 40) {
-            privacy = privacyPublicTreeURL;
-            privacyTitle = "Private with Public Bio and Tree";
-          }
-          if (privacyLevel == 35) {
-            privacy = privacyPrivacy35URL;
-            privacyTitle = "Private with Public Tree";
-          }
-          if (privacyLevel == 30) {
-            privacy = privacyPublicBioURL;
-            privacyTitle = "Public Bio";
-          }
-          if (privacyLevel == 20) {
-            privacy = privacyPrivateURL;
-            privacyTitle = "Private";
-          }
-          if (privacyLevel == 10 || privacyLevel == undefined) {
-            privacy = privacyUnlistedURL;
-            privacyTitle = "Unlisted";
-          }
+      let oLocations = setLocations(mPerson).join(",");
+      let privacyLevel = mPerson.Privacy;
+      let privacy = "";
+      let privacyTitle = "";
+      if (privacyLevel == 60) {
+        privacy = privacyOpenURL;
+        privacyTitle = "Open";
+      }
+      if (privacyLevel == 50) {
+        privacy = privacyPublicURL;
+        privacyTitle = "Public";
+      }
+      if (privacyLevel == 40) {
+        privacy = privacyPublicTreeURL;
+        privacyTitle = "Private with Public Bio and Tree";
+      }
+      if (privacyLevel == 35) {
+        privacy = privacyPrivacy35URL;
+        privacyTitle = "Private with Public Tree";
+      }
+      if (privacyLevel == 30) {
+        privacy = privacyPublicBioURL;
+        privacyTitle = "Public Bio";
+      }
+      if (privacyLevel == 20) {
+        privacy = privacyPrivateURL;
+        privacyTitle = "Private";
+      }
+      if (privacyLevel == 10 || privacyLevel == undefined) {
+        privacy = privacyUnlistedURL;
+        privacyTitle = "Unlisted";
+      }
 
-          if (mPerson.MiddleName) {
-            mPerson.FirstName = mPerson.FirstName + " " + mPerson.MiddleName;
-          }
-          if (!mPerson.FirstName && mPerson.RealName) {
-            mPerson.FirstName = mPerson.RealName;
-          }
+      if (mPerson.MiddleName) {
+        mPerson.FirstName = mPerson.FirstName + " " + mPerson.MiddleName;
+      }
+      if (!mPerson.FirstName && mPerson.RealName) {
+        mPerson.FirstName = mPerson.RealName;
+      }
 
-          if (birthDate == "unknown") {
-            birthDate = "";
-          }
-          if (deathDate == "unknown") {
-            deathDate = "";
-          }
+      if (birthDate == "unknown") {
+        birthDate = "";
+      }
+      if (deathDate == "unknown") {
+        deathDate = "";
+      }
 
-          let dBirthDate;
-          if (mPerson.BirthDate) {
-            dBirthDate = mPerson.BirthDate.replaceAll("-", "");
-          } else {
-            dBirthDate = "00000000";
-          }
+      let dBirthDate;
+      if (mPerson.BirthDate) {
+        dBirthDate = mPerson.BirthDate.replaceAll("-", "");
+      } else {
+        dBirthDate = "00000000";
+      }
 
-          let dDeathDate;
-          if (mPerson.DeathDate) {
-            dDeathDate = mPerson.DeathDate.replaceAll("-", "");
-          } else {
-            dDeathDate = "00000000";
-          }
+      let dDeathDate;
+      if (mPerson.DeathDate) {
+        dDeathDate = mPerson.DeathDate.replaceAll("-", "");
+      } else {
+        dDeathDate = "00000000";
+      }
 
-          let setAsText = "";
+      let setAsText = "";
+      if (
+        $("h2")
+          .text()
+          .match(/spouse/)
+      ) {
+        setAsText = "spouse";
+      }
+      if (
+        $("h2")
+          .text()
+          .match(/father/)
+      ) {
+        setAsText = "father";
+      }
+      if (
+        $("h2")
+          .text()
+          .match(/mother/)
+      ) {
+        setAsText = "mother";
+      }
+      if ($("h2").text().match(/child/)) {
+        setAsText = "child";
+      }
+      if (
+        $("h2")
+          .text()
+          .match(/sibling/)
+      ) {
+        setAsText = "sibling";
+      }
+
+      let aClass;
+      if (isMain == true) {
+        aClass = "main";
+      } else {
+        aClass = "";
+      }
+      let oLink = "<a target='_blank' href=\"/wiki/" + htmlEntities(mPerson.Name) + '">' + mPerson.FirstName + "</a>";
+      if (mPerson.IsNew == true) {
+        oLink = mPerson.FirstName;
+      }
+      let actionButton = "";
+      if (mPerson.IsNew != true && $("#mBirthDate").length) {
+        if ($('span[onclick*="' + mPerson.Name + '"]').length) {
+          actionButton =
+            "<td><span title='Set as " +
+            setAsText +
+            "' class='actionButton' onclick='setAsWho(\"" +
+            mPerson.Name +
+            "\")'>SET</span></td>";
+        } else if ($('a[href$="' + mPerson.Name + '"]').length) {
           if (
-            $("h2")
-              .text()
-              .match(/spouse/)
+            $('a[href$="' + mPerson.Name + '"]')
+              .parent()
+              .find("a:contains(Trusted List request)").length
           ) {
-            setAsText = "spouse";
+            actionButton =
+              "<td><a title='Send a Trusted List Request' class='actionButton' href='" +
+              $("a[href$='" + mPerson.Name + "']")
+                .parent()
+                .find("a:contains(Trusted List request)")
+                .attr("href") +
+              "'>Send TL Request</a></td>";
           }
-          if (
-            $("h2")
-              .text()
-              .match(/father/)
-          ) {
-            setAsText = "father";
-          }
-          if (
-            $("h2")
-              .text()
-              .match(/mother/)
-          ) {
-            setAsText = "mother";
-          }
-          if ($("h2").text().match(/child/)) {
-            setAsText = "child";
-          }
-          if (
-            $("h2")
-              .text()
-              .match(/sibling/)
-          ) {
-            setAsText = "sibling";
-          }
+        } else {
+          actionButton = "<td></td>";
+        }
+      }
 
-          let aClass;
-          if (isMain == true) {
-            aClass = "main";
-          } else {
-            aClass = "";
-          }
-          let oLink =
-            "<a target='_blank' href=\"/wiki/" + htmlEntities(mPerson.Name) + '">' + mPerson.FirstName + "</a>";
-          if (mPerson.IsNew == true) {
-            oLink = mPerson.FirstName;
-          }
-          let actionButton = "";
-          if (mPerson.IsNew != true && $("#mBirthDate").length) {
-            if ($('span[onclick*="' + mPerson.Name + '"]').length) {
-              actionButton =
-                "<td><span title='Set as " +
-                setAsText +
-                "' class='actionButton' onclick='setAsWho(\"" +
-                mPerson.Name +
-                "\")'>SET</span></td>";
-            } else if ($('a[href$="' + mPerson.Name + '"]').length) {
-              if (
-                $('a[href$="' + mPerson.Name + '"]')
-                  .parent()
-                  .find("a:contains(Trusted List request)").length
-              ) {
-                actionButton =
-                  "<td><a title='Send a Trusted List Request' class='actionButton' href='" +
-                  $("a[href$='" + mPerson.Name + "']")
-                    .parent()
-                    .find("a:contains(Trusted List request)")
-                    .attr("href") +
-                  "'>Send TL Request</a></td>";
-              }
-            } else {
-              actionButton = "<td></td>";
-            }
-          }
+      if (
+        // eslint-disable-next-line no-undef
+        isUnconnecteds == true &&
+        index == 0 &&
+        isMyUnconnecteds == false &&
+        $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length == 0
+      ) {
+        aClass = "notable";
+      }
+      let livedToDays = "";
+      if (tableID == "superCentenarians" || tableID == "centenarians") {
+        if (noBorDdate == true) {
+          livedToDays = "data-dayslived=''";
+        } else {
+          livedToDays = "data-dayslived='" + livedTo[2] + "'";
+        }
+      }
 
-          if (
-            // eslint-disable-next-line no-undef
-            isUnconnecteds == true &&
-            index == 0 &&
-            isMyUnconnecteds == false &&
-            $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length == 0
-          ) {
-            aClass = "notable";
-          }
-          let livedToDays = "";
-          if (tableID == "superCentenarians" || tableID == "centenarians") {
-            if (noBorDdate == true) {
-              livedToDays = "data-dayslived=''";
-            } else {
-              livedToDays = "data-dayslived='" + livedTo[2] + "'";
-            }
-          }
-
-          let ancestorData = "";
-          let ahnenCell = "";
-          let unknownText = "";
-          // let mfmf = "";
-          let relCell = "";
-          // let mRelType = "";
-          if (tableID == "profileAncestors") {
-            let ahnen1 = "";
-            if (index == 0) {
-              ahnen1 = "1";
-            } else {
-              let mChild = $(
-                "#profileAncestors tr[data-father='" +
-                  mPerson.Id +
-                  "'],#profileAncestors tr[data-mother='" +
-                  mPerson.Id +
-                  "']"
-              );
-              if (!mPerson.Gender) {
-                if ($("#profileAncestors tr[data-father='" + mPerson.Id + "']").length) {
-                  mPerson.Gender = "Male";
-                }
-                if ($("#profileAncestors tr[data-mother='" + mPerson.Id + "']").length) {
-                  mPerson.Gender = "Female";
-                }
-              }
-              if (mChild.length > 1) {
-                let childAhnen = "";
-                mChild.each(function (i) {
-                  let dChildAhnen = $(this).attr("data-ahnen");
-                  if (childAhnen == "") {
-                    if (mPerson.Gender == "Male") {
-                      if ($("#profileAncestors tr[data-ahnen='" + parseInt(dChildAhnen) * 2 + "']").length == 0) {
-                        childAhnen = dChildAhnen;
-                      }
-                    } else if (mPerson.Gender == "Female") {
-                      if ($("#profileAncestors tr[data-ahnen='" + (parseInt(dChildAhnen) * 2 + 1) + "']").length == 0) {
-                        childAhnen = dChildAhnen;
-                      }
-                    }
-                  }
-                });
-              } else if (mChild.length == 1) {
-                childAhnen = mChild.attr("data-ahnen");
-              }
-              mPersonAhnen = "";
-              if (typeof childAhnen != "undefined") {
-                mPersonAhnen = parseInt(childAhnen) * 2;
-              }
-              if (mPerson.Gender == "Female" && mPersonAhnen != "") {
-                mPersonAhnen++;
-              }
-              ahnen1 = mPersonAhnen;
-            }
-            unknownText = "";
-            if (mPerson.Father == "0") {
-              unknownText = "unknown father";
-            }
-            if (mPerson.Mother == "0") {
-              unknownText = "unknown mother";
-            }
-            if (mPerson.Father == "0" && mPerson.Mother == "0") {
-              unknownText = "unknown parents";
-            }
-
-            let ancestorData =
-              "data-id='" +
+      let ancestorData = "";
+      let ahnenCell = "";
+      let unknownText = "";
+      // let mfmf = "";
+      let relCell = "";
+      // let mRelType = "";
+      if (tableID == "profileAncestors") {
+        let ahnen1 = "";
+        if (index == 0) {
+          ahnen1 = "1";
+        } else {
+          let mChild = $(
+            "#profileAncestors tr[data-father='" +
               mPerson.Id +
-              "' data-mother='" +
-              mPerson.Mother +
-              "' data-father='" +
-              mPerson.Father +
-              "' data-Ahnen='" +
-              ahnen1 +
-              "' ";
-
-            if (mPerson.Name == "Private-1") {
-              ancestorData =
-                "data-id='" +
-                mPerson.Id +
-                "' data-mother='" +
-                window.BioPerson.FatherMother +
-                "' data-father='" +
-                window.BioPerson.FatherFather +
-                "' data-Ahnen='2' ";
-              ahnen1 = 2;
+              "'],#profileAncestors tr[data-mother='" +
+              mPerson.Id +
+              "']"
+          );
+          if (!mPerson.Gender) {
+            if ($("#profileAncestors tr[data-father='" + mPerson.Id + "']").length) {
               mPerson.Gender = "Male";
             }
-            if (mPerson.Name == "Private-2") {
-              ancestorData =
-                "data-id='" +
-                mPerson.Id +
-                "' data-mother='" +
-                window.BioPerson.MotherMother +
-                "' data-father='" +
-                window.BioPerson.MotherFather +
-                "' data-Ahnen='3' ";
-              ahnen1 = 3;
+            if ($("#profileAncestors tr[data-mother='" + mPerson.Id + "']").length) {
               mPerson.Gender = "Female";
             }
-
-            let mfmf = ahnenToMF2(ahnen1);
-            let mGeneration = Math.floor(Math.log2(ahnen1));
-            let mRelType;
-            if (isMain == false) {
-              mRelType = ancestorType(mGeneration, mPerson.Gender);
-            }
-            ahnenCell = "<td title='" + mfmf[0] + ": " + mfmf[1].replace("Your", "") + "'>" + ahnen1 + "</td>";
-            relCell = "<td class='relationCell'><span>" + mRelType + "</span></td>";
           }
-
-          let dataCreated = "";
-          let createdText = "";
-          let dataEdited = "";
-          let editedText = "";
-          if (mPerson.Created != undefined) {
-            dataCreated = mPerson.Created.substring(0, 8);
-            createdText = dataCreated.replace(/^([0-9]{4})([0-9]{2})([0-9]{2})/, "$1-$2-$3");
-            dataEdited = mPerson.Touched.substring(0, 8);
-            editedText = dataEdited.replace(/^([0-9]{4})([0-9]{2})([0-9]{2})/, "$1-$2-$3");
-          }
-
-          let deathAge = ageAtDeath(mPerson)[0];
-          let dataMissingFatherNumber = mPerson.Father == 0 ? 0 : 1;
-          let dataMissingFather = "data-missing-father='" + dataMissingFatherNumber + "' ";
-          let dataMissingMotherNumber = mPerson.Father == 0 ? 0 : 1;
-          let dataMissingMother = "data-missing-mother='" + dataMissingMotherNumber + "' ";
-          let dataMissingSpouseNumber;
-          if (mPerson.Spouses) {
-            dataMissingSpouseNumber =
-              mPerson.Spouses.length == 0 && mPerson.DataStatus.Spouse != "Blank" && deathAge > 12
-                ? 100
-                : Object.keys(mPerson.Spouses).length;
-          }
-          let dataMissingSpouse = "data-missing-spouse='" + dataMissingSpouseNumber + "' ";
-          let dataMissingChildrenNumber;
-          if (mPerson.Children) {
-            dataMissingChildrenNumber =
-              mPerson.Children.length == 0 && deathAge > 12 ? 100 : Object.keys(mPerson.Children).length;
-          }
-          let dataMissingChildren = "data-missing-children='" + dataMissingChildrenNumber + "' ";
-
-          let aLine = $(
-            "<tr " +
-              dataMissingFather +
-              dataMissingMother +
-              dataMissingSpouse +
-              dataMissingChildren +
-              ancestorData +
-              " data-created='" +
-              dataCreated +
-              "' data-edited='" +
-              dataEdited +
-              "' data-name='" +
-              mPerson.Name +
-              "' data-locations='" +
-              oLocations +
-              "' data-firstname='" +
-              mPerson.FirstName +
-              "' data-lnab='" +
-              mPerson.LastNameAtBirth +
-              "'  data-lnc='" +
-              mPerson.LastNameCurrent +
-              "' data-birthdate='" +
-              dBirthDate +
-              "' data-deathdate='" +
-              dDeathDate +
-              "' data-birthlocation='" +
-              birthLocation +
-              "' data-birthlocation-reversed='" +
-              birthLocationReversed +
-              "' data-deathlocation='" +
-              deathLocation +
-              "' data-deathlocation-reversed='" +
-              deathLocationReversed +
-              "' " +
-              livedToDays +
-              "  class='" +
-              aClass +
-              " " +
-              mPerson.Gender +
-              "'>" +
-              missingFatherCell +
-              missingMotherCell +
-              missingSpouseCell +
-              missingChildrenCell +
-              ahnenCell +
-              relCell +
-              "<td class='connectionsName'  title='" +
-              unknownText +
-              "'><img class='familyHome' src='" +
-              homeIconURL +
-              "'><img class='privacyImage' src='" +
-              privacy +
-              "' title='" +
-              privacyTitle +
-              "'>" +
-              oLink +
-              "</td><td class='lnab'><a href='https://www.wikitree.com/index.php?title=Special:Surname&order=name&layout=table&s=" +
-              mPerson.LastNameAtBirth +
-              "'>" +
-              mPerson.LastNameAtBirth +
-              "</a></td><td class='lnc'><a href='https://www.wikitree.com/index.php?title=Special:Surname&order=name&layout=table&s=" +
-              mPerson.LastNameCurrent +
-              "'>" +
-              mPerson.LastNameCurrent +
-              "</a></td><td class='aDate birthdate'>" +
-              birthDate +
-              "</td><td class='location birthlocation'>" +
-              birthLocation +
-              "</td><td  class='aDate deathdate'>" +
-              deathDate +
-              "</td><td class='location deathlocation'>" +
-              deathLocation +
-              "</td>" +
-              livedToCell +
-              "<td class='parents familyTD'></td><td class='siblings familyTD'></td><td class='spouses familyTD'></td><td class='children familyTD'></td>" +
-              actionButton +
-              "<td class='created'>" +
-              createdText +
-              "</td><td class='edited'>" +
-              editedText +
-              "</td></tr>"
-          );
-
-          function addFamily(arr, dClass) {
-            if (arr) {
-              arr.forEach(function (aPerson) {
-                let aDiv = $("<div class='aRelation'>" + hsDetails(aPerson, true) + "</div>");
-                let theTD = aLine.find("td." + dClass);
-                theTD.append(aDiv);
-                theTD.addClass("gotRels");
-              });
-              if (dClass == "children" && tableID == "profileAncestors") {
-                let childrenCount2 = arr.length;
-                aLine.append($("<td  title='Number of children'>" + childrenCount2 + "</td>"));
-                aLine.attr("data-children-count", childrenCount2);
-              }
-            }
-          }
-
-          const rels = [
-            [mParents, "parents"],
-            [mSiblings, "siblings"],
-            [mSpouses, "spouses"],
-            [mChildren, "children"],
-          ];
-          rels.forEach(function (anArr) {
-            addFamily(anArr[0], anArr[1]);
-          });
-
-          aTable.find("tbody").append(aLine);
-        });
-      } else {
-        $("#tree").fadeOut();
-      }
-
-      $("tr[data-name='Private-1'],tr[data-name='Private-2']").find("a").attr("href", "#n");
-      $("tr[data-name='Private-1']").eq(0).remove();
-      $("tr[data-name='Private-2']").eq(0).remove();
-
-      $(".peopleTable caption").on("click", function () {
-        $(this).parent().find("thead,tbody").slideToggle();
-      });
-
-      $("img.familyHome").unbind();
-      $("img.familyHome").on("click", function () {
-        showFamilySheet($(this), $(this).closest("tr").data("name"));
-      });
-
-      window.peopleTablePeople = thePeople;
-      if (!window.allPeopleTablePeople) {
-        window.allPeopleTablePeople = [];
-      }
-      window.allPeopleTablePeople = window.allPeopleTablePeople.concat(thePeople);
-
-      if (captionText != "") {
-        $(".peopleTable").prepend($("<caption>" + captionText + "</caption>"));
-      }
-
-      function addShowClick(jq) {
-        jq.click(function () {
-          jq.addClass("show");
-          removeShowClick($(this));
-        });
-      }
-      function removeShowClick(jq) {
-        jq.click(function () {
-          jq.removeClass("show");
-          addShowClick($(this));
-        });
-      }
-
-      $(".gotRels").each(function () {
-        addShowClick($(this));
-      });
-
-      function fillLocations(rows, order) {
-        rows.each(function () {
-          $(this)
-            .find("td.birthlocation")
-            .text($(this).attr("data-birthlocation" + order));
-          $(this)
-            .find("td.deathlocation")
-            .text($(this).attr("data-deathlocation" + order));
-        });
-        return rows;
-      }
-
-      if (aTable !== undefined) {
-        aTable.find("th[id]").each(function () {
-          $(this).on("click", function () {
-            let sorter, rows;
-            sorter = $(this).attr("id");
-            rows = aTable.find("tbody tr");
-            if (sorter == "birthlocation" || sorter == "deathlocation") {
-              if (sorter == "birthlocation") {
-                if ($(this).attr("data-order") == "s2b") {
-                  sorter = "birthlocation-reversed";
-                  $(this).attr("data-order", "b2s");
-                  rows = fillLocations(rows, "-reversed");
-                } else {
-                  $(this).attr("data-order", "s2b");
-                  rows = fillLocations(rows, "");
-                }
-              } else if (sorter == "deathlocation") {
-                if ($(this).attr("data-order") == "s2b") {
-                  sorter = "deathlocation-reversed";
-                  $(this).attr("data-order", "b2s");
-                  rows = fillLocations(rows, "-reversed");
-                } else {
-                  $(this).attr("data-order", "s2b");
-                  rows = fillLocations(rows, "");
-                }
-              }
-              rows.sort(function (a, b) {
-                if ($(b).data(sorter) == "") {
-                  return true;
-                }
-                return $(a).data(sorter).localeCompare($(b).data(sorter));
-              });
-            } else if (isNaN(rows.data(sorter))) {
-              if ($(this).attr("data-order") == "asc") {
-                rows.sort(function (a, b) {
-                  if ($(a).data(sorter) == "") {
-                    return true;
+          if (mChild.length > 1) {
+            let childAhnen = "";
+            mChild.each(function (i) {
+              let dChildAhnen = $(this).attr("data-ahnen");
+              if (childAhnen == "") {
+                if (mPerson.Gender == "Male") {
+                  if ($("#profileAncestors tr[data-ahnen='" + parseInt(dChildAhnen) * 2 + "']").length == 0) {
+                    childAhnen = dChildAhnen;
                   }
-                  return $(b).data(sorter).localeCompare($(a).data(sorter));
-                });
-                $(this).attr("data-order", "desc");
-              } else {
-                rows.sort(function (a, b) {
-                  if ($(b).data(sorter) == "") {
-                    return true;
+                } else if (mPerson.Gender == "Female") {
+                  if ($("#profileAncestors tr[data-ahnen='" + (parseInt(dChildAhnen) * 2 + 1) + "']").length == 0) {
+                    childAhnen = dChildAhnen;
                   }
-                  return $(a).data(sorter).localeCompare($(b).data(sorter));
-                });
-                $(this).attr("data-order", "asc");
-              }
-            } else {
-              if ($(this).attr("data-order") == "asc") {
-                rows.sort((a, b) => ($(b).data(sorter) > $(a).data(sorter) ? 1 : -1));
-                $(this).attr("data-order", "desc");
-              } else {
-                rows.sort((a, b) => ($(a).data(sorter) > $(b).data(sorter) ? 1 : -1));
-                $(this).attr("data-order", "asc");
-              }
-            }
-            aTable.find("tbody").append(rows);
-            rows.each(function () {
-              let toBottom = ["", "00000000"];
-              if (toBottom.includes($(this).data(sorter))) {
-                aTable.find("tbody").append($(this));
+                }
               }
             });
-            aTable.find("tr.main").prependTo(aTable.find("tbody"));
-          });
-        });
-
-        addWideTableButton();
-      }
-      let firstTime = true;
-      if (
-        $("body.page-Special_SearchPerson").length == 0 &&
-        tableClass != "category" &&
-        tableID != "profileAncestors"
-      ) {
-        const locationFilterButton = $(
-          "<button class='button small searchResultsButton' id='locationFilter'>Filter by location</button>"
-        );
-
-        if ($("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
-          if ($("#locationFilter").length) {
-            firstTime = false;
-            $("#locationFilter").show();
-          } else {
-            locationFilterButton.insertBefore($(".peopleTable"));
+          } else if (mChild.length == 1) {
+            childAhnen = mChild.attr("data-ahnen");
           }
-        } else if (isUnconnecteds == false && tableID != "profileAncestors") {
-          $("h2").eq(0).append(locationFilterButton);
+          mPersonAhnen = "";
+          if (typeof childAhnen != "undefined") {
+            mPersonAhnen = parseInt(childAhnen) * 2;
+          }
+          if (mPerson.Gender == "Female" && mPersonAhnen != "") {
+            mPersonAhnen++;
+          }
+          ahnen1 = mPersonAhnen;
         }
-        if (firstTime == true) {
-          $("#locationFilter").click(function (e) {
-            e.preventDefault();
-            if ($(this).text() == "Remove Location Filter") {
-              $("tr.locationFilteredOut").removeClass("locationFilteredOut");
-              $(this).text("Filter By Location");
-            } else {
-              const oPersonLocations = $("tr.main").attr("data-locations").split(",");
-              const rows = $(".peopleTable tbody tr");
-              if ($("#mBirthLocation").val() != "" && $("#mBirthLocation").length) {
-                const bpLocations = $("#mBirthLocation").val().split(/, ?/);
-                const bpText = $("#mBirthLocation").val();
-                if (isUSA(bpText) == true) {
-                  const usNames = ["USA", "United States", "United States of America", "U.S.A"];
-                  usNames.forEach(function (aName) {
-                    if (!bpLocations.includes(aName)) {
-                      bpLocations.push(aName);
-                    }
-                  });
-                }
-                let keepEm;
-                let rbpText;
-                let rLocations;
-                rows.each(function () {
-                  if ($(this).hasClass("main") == false) {
-                    keepEm = false;
-                    if ($(this).find(".birthlocation").text() != "") {
-                      rbpText = $(this).find(".birthlocation").text();
-                      rLocations = rbpText.split(/, ?/);
-                      if (isUSA(rbpText) == true) {
-                        usNames = ["USA", "United States", "United States of America", "U.S.A"];
-                        usNames.forEach(function (aName) {
-                          if (!rLocations.includes(aName)) {
-                            rLocations.push(aName);
-                          }
-                        });
-                      }
-                    } else {
-                      rLocations = $(this).attr("data-locations").split(",");
-                    }
-                    rLocations.forEach(function (aPlace) {
-                      bpLocations.forEach(function (aPlace2) {
-                        if (aPlace.toLowerCase() == aPlace2.toLowerCase()) {
-                          keepEm = true;
-                        }
-                      });
-                    });
-                    if (keepEm == false) {
-                      $(this).addClass("locationFilteredOut");
-                    }
-                  }
-                });
-              } else {
-                rows.each(function () {
-                  if ($(this).hasClass("main") == false) {
-                    keepEm = false;
-                    if ($(this).attr("data-locations")) {
-                      const aPersonLocations = $(this).attr("data-locations").split(",");
-                      aPersonLocations.forEach(function (aLocation) {
-                        oPersonLocations.forEach(function (aLocation2) {
-                          if (aLocation.toLowerCase() == aLocation2.toLowerCase()) {
-                            keepEm = true;
-                          }
-                        });
-                      });
-                    }
-                    if (keepEm == false) {
-                      $(this).addClass("locationFilteredOut");
-                    }
-                  }
-                });
-              }
-              $(this).text("Remove Location Filter");
-            }
-          });
+        unknownText = "";
+        if (mPerson.Father == "0") {
+          unknownText = "unknown father";
         }
-      } else if (isUnconnecteds == false) {
-        const locationFilterSP = $(
-          "<label class='" +
-            tableClass +
-            "' id='spLocationFilterLabel'><input type='text' id='spLocationFilter' title='Enter place names separated by commas and click the button; empty the textbox and click the button to remove the filter'><button class=' button small searchResultsButton' id='spLocationFilterButton'>Filter by Location</button></label>"
-        );
-        locationFilterSP.insertBefore($(".peopleTable"));
-        $("#moreSearchDetails").hide();
-        $("#spLocationFilterButton").click(function (e) {
-          e.preventDefault();
-          if ($(this).text() == "Remove Location Filter" || $("#spLocationFilter").val() == "") {
-            $(this).text("Filter By Location");
-            $("tr").removeClass("locationFilteredOut");
-          } else if ($("#spLocationFilter").val() != "") {
-            $(this).text("Remove Location Filter");
-            let rows = $(".peopleTable tbody tr");
-            let locations = $("#spLocationFilter").val().split(",");
-            const locationsT = locations.map((string) => string.trim());
-            // const oLocations = [];
+        if (mPerson.Mother == "0") {
+          unknownText = "unknown mother";
+        }
+        if (mPerson.Father == "0" && mPerson.Mother == "0") {
+          unknownText = "unknown parents";
+        }
 
-            rows.each(function () {
-              let keepIt = false;
+        let ancestorData =
+          "data-id='" +
+          mPerson.Id +
+          "' data-mother='" +
+          mPerson.Mother +
+          "' data-father='" +
+          mPerson.Father +
+          "' data-Ahnen='" +
+          ahnen1 +
+          "' ";
 
-              const thisLocations = $(this).attr("data-locations");
-              if (thisLocations != "") {
-                const thisLocationsSplit = thisLocations.split(",");
-                thisLocationsSplit.forEach(function (aLocation) {
-                  locationsT.forEach(function (aLocation2) {
-                    if (aLocation2.toLowerCase() == aLocation.toLowerCase()) {
-                      keepIt = true;
-                    }
-                  });
-                });
-              }
-              if (keepIt == false) {
-                $(this).addClass("locationFilteredOut");
-              }
-            });
-            //}
-          }
-        });
-        $("#spLocationFilter").on("keypress", function (e) {
-          if (e.key == "Enter") {
-            $("#spLocationFilterButton").trigger("click");
-          }
-        });
+        if (mPerson.Name == "Private-1") {
+          ancestorData =
+            "data-id='" +
+            mPerson.Id +
+            "' data-mother='" +
+            window.BioPerson.FatherMother +
+            "' data-father='" +
+            window.BioPerson.FatherFather +
+            "' data-Ahnen='2' ";
+          ahnen1 = 2;
+          mPerson.Gender = "Male";
+        }
+        if (mPerson.Name == "Private-2") {
+          ancestorData =
+            "data-id='" +
+            mPerson.Id +
+            "' data-mother='" +
+            window.BioPerson.MotherMother +
+            "' data-father='" +
+            window.BioPerson.MotherFather +
+            "' data-Ahnen='3' ";
+          ahnen1 = 3;
+          mPerson.Gender = "Female";
+        }
+
+        let mfmf = ahnenToMF2(ahnen1);
+        let mGeneration = Math.floor(Math.log2(ahnen1));
+        let mRelType;
+        if (isMain == false) {
+          mRelType = ancestorType(mGeneration, mPerson.Gender);
+        }
+        ahnenCell = "<td title='" + mfmf[0] + ": " + mfmf[1].replace("Your", "") + "'>" + ahnen1 + "</td>";
+        relCell = "<td class='relationCell'><span>" + mRelType + "</span></td>";
       }
 
-      const nameFilterButton = $(
-        "<button class='button small searchResultsButton' id='nameFilter'>Filter by name</button>"
+      let dataCreated = "";
+      let createdText = "";
+      let dataEdited = "";
+      let editedText = "";
+      if (mPerson.Created != undefined) {
+        dataCreated = mPerson.Created.substring(0, 8);
+        createdText = dataCreated.replace(/^([0-9]{4})([0-9]{2})([0-9]{2})/, "$1-$2-$3");
+        dataEdited = mPerson.Touched.substring(0, 8);
+        editedText = dataEdited.replace(/^([0-9]{4})([0-9]{2})([0-9]{2})/, "$1-$2-$3");
+      }
+
+      let deathAge = ageAtDeath(mPerson)[0];
+      let dataMissingFatherNumber = mPerson.Father == 0 ? 0 : 1;
+      let dataMissingFather = "data-missing-father='" + dataMissingFatherNumber + "' ";
+      let dataMissingMotherNumber = mPerson.Father == 0 ? 0 : 1;
+      let dataMissingMother = "data-missing-mother='" + dataMissingMotherNumber + "' ";
+      let dataMissingSpouseNumber;
+      if (mPerson.Spouses) {
+        dataMissingSpouseNumber =
+          mPerson.Spouses.length == 0 && mPerson.DataStatus.Spouse != "Blank" && deathAge > 12
+            ? 100
+            : Object.keys(mPerson.Spouses).length;
+      }
+      let dataMissingSpouse = "data-missing-spouse='" + dataMissingSpouseNumber + "' ";
+      let dataMissingChildrenNumber;
+      if (mPerson.Children) {
+        dataMissingChildrenNumber =
+          mPerson.Children.length == 0 && deathAge > 12 ? 100 : Object.keys(mPerson.Children).length;
+      }
+      let dataMissingChildren = "data-missing-children='" + dataMissingChildrenNumber + "' ";
+      const dataConnected = "data-connected='" + mPerson.Connected + "' ";
+      let aLine = $(
+        `<tr ${dataMissingFather}
+        ${dataMissingMother}
+        ${dataMissingSpouse}
+        ${dataMissingChildren}
+        ${dataConnected}
+        ${ancestorData} data-created='${dataCreated}' data-edited='${dataEdited}' data-name='${mPerson.Name}' data-locations='${oLocations}' data-firstname='${mPerson.FirstName}' data-lnab='${mPerson.LastNameAtBirth}'  data-lnc='${mPerson.LastNameCurrent}' data-birthdate='${dBirthDate}' data-deathdate='${dDeathDate}' data-birthlocation='${birthLocation}' data-birthlocation-reversed='${birthLocationReversed}' data-deathlocation='${deathLocation}' data-deathlocation-reversed='${deathLocationReversed}' ${livedToDays}  class='${aClass} ${mPerson.Gender}'>
+        ${missingFatherCell}
+        ${missingMotherCell}
+        ${missingSpouseCell}
+        ${missingChildrenCell}
+        ${ahnenCell}
+        ${relCell}
+        <td class='connectionsName'  title='${unknownText}'><img class='familyHome' src='${homeIconURL}'><img class='privacyImage' src='${privacy}' title='${privacyTitle}'>${oLink}</td>
+        <td class='lnab'><a href='https://www.wikitree.com/index.php?title=Special:Surname&order=name&layout=table&s=${mPerson.LastNameAtBirth}'>${mPerson.LastNameAtBirth}</a></td><td class='lnc'><a href='https://www.wikitree.com/index.php?title=Special:Surname&order=name&layout=table&s=${mPerson.LastNameCurrent}'>${mPerson.LastNameCurrent}</a></td>
+        <td class='aDate birthdate'>${birthDate}</td><td class='location birthlocation'>${birthLocation}</td>
+        <td  class='aDate deathdate'>${deathDate}</td><td class='location deathlocation'>${deathLocation}</td>
+        ${livedToCell}
+        ${actionButton}
+        <td class='created'>${createdText}</td>
+        <td class='edited'>${editedText}</td>
+        </tr>`
       );
-      if (
-        $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length ||
-        $("body.page-Special_SearchPerson").length
-      ) {
-        if ($("#nameFilter").length) {
-          $("#nameFilter").show();
-        } else {
-          nameFilterButton.insertBefore($(".peopleTable"));
+
+      function addFamily(arr, dClass) {
+        if (arr) {
+          arr.forEach(function (aPerson) {
+            let aDiv = $("<div class='aRelation'>" + hsDetails(aPerson, true) + "</div>");
+            let theTD = aLine.find("td." + dClass);
+            theTD.append(aDiv);
+            theTD.addClass("gotRels");
+          });
+          if (dClass == "children" && tableID == "profileAncestors") {
+            let childrenCount2 = arr.length;
+            aLine.append($("<td  title='Number of children'>" + childrenCount2 + "</td>"));
+            aLine.attr("data-children-count", childrenCount2);
+          }
         }
-      } else if (isUnconnecteds == false && tableClass != "category" && tableID != "profileAncestors") {
-        $("h2").eq(0).append(nameFilterButton);
       }
-      if (firstTime == true) {
-        $("#nameFilter").click(function (e) {
-          e.preventDefault();
-          let LNAB;
-          let firstName;
-          let dPerson;
-          let LNC;
-          if ($(this).text() == "Remove Name Filter") {
-            $("tr.nameFilteredOut").removeClass("nameFilteredOut");
-            $(this).text("Filter By Name");
-          } else {
-            if ($("body.page-Special_SearchPerson").length) {
-              LNAB = $("#wpLast").val();
-              firstName = $("#wpFirst").val();
+
+      const rels = [
+        [mParents, "parents"],
+        [mSiblings, "siblings"],
+        [mSpouses, "spouses"],
+        [mChildren, "children"],
+      ];
+      rels.forEach(function (anArr) {
+        addFamily(anArr[0], anArr[1]);
+      });
+
+      aTable.find("tbody").append(aLine);
+    });
+  } else {
+    $("#tree").fadeOut();
+  }
+
+  $("tr[data-name='Private-1'],tr[data-name='Private-2']").find("a").attr("href", "#n");
+  $("tr[data-name='Private-1']").eq(0).remove();
+  $("tr[data-name='Private-2']").eq(0).remove();
+
+  $(".peopleTable caption").on("click", function () {
+    $(this).parent().find("thead,tbody").slideToggle();
+  });
+
+  $("img.familyHome").unbind();
+  $("img.familyHome").on("click", function () {
+    showFamilySheet($(this), $(this).closest("tr").data("name"));
+  });
+
+  window.peopleTablePeople = thePeople;
+  if (!window.allPeopleTablePeople) {
+    window.allPeopleTablePeople = [];
+  }
+  window.allPeopleTablePeople = window.allPeopleTablePeople.concat(thePeople);
+
+  if (captionText != "") {
+    $(".peopleTable").prepend($("<caption>" + captionText + "</caption>"));
+  }
+
+  function addShowClick(jq) {
+    jq.click(function () {
+      jq.addClass("show");
+      removeShowClick($(this));
+    });
+  }
+  function removeShowClick(jq) {
+    jq.click(function () {
+      jq.removeClass("show");
+      addShowClick($(this));
+    });
+  }
+
+  $(".gotRels").each(function () {
+    addShowClick($(this));
+  });
+
+  function fillLocations(rows, order) {
+    rows.each(function () {
+      $(this)
+        .find("td.birthlocation")
+        .text($(this).attr("data-birthlocation" + order));
+      $(this)
+        .find("td.deathlocation")
+        .text($(this).attr("data-deathlocation" + order));
+    });
+    return rows;
+  }
+
+  if (aTable !== undefined) {
+    aTable.find("th[id]").each(function () {
+      $(this).on("click", function () {
+        let sorter, rows;
+        sorter = $(this).attr("id");
+        rows = aTable.find("tbody tr");
+        if (sorter == "birthlocation" || sorter == "deathlocation") {
+          if (sorter == "birthlocation") {
+            if ($(this).attr("data-order") == "s2b") {
+              sorter = "birthlocation-reversed";
+              $(this).attr("data-order", "b2s");
+              rows = fillLocations(rows, "-reversed");
             } else {
-              dPerson = $("tr.main");
-              LNAB = dPerson.attr("data-lnab");
-              LNC = dPerson.attr("data-lnc");
-              firstName = dPerson.attr("data-firstname");
+              $(this).attr("data-order", "s2b");
+              rows = fillLocations(rows, "");
             }
-            let ofirstNames = [];
-            if (!window.excludeValues.includes(firstName)) {
-              ofirstNames = firstNameVariants(firstName);
+          } else if (sorter == "deathlocation") {
+            if ($(this).attr("data-order") == "s2b") {
+              sorter = "deathlocation-reversed";
+              $(this).attr("data-order", "b2s");
+              rows = fillLocations(rows, "-reversed");
+            } else {
+              $(this).attr("data-order", "s2b");
+              rows = fillLocations(rows, "");
             }
-            const rows = aTable.find("tbody tr");
-            rows.each(function () {
-              let smLNC = $(this).attr("data-lnc");
-              let smLNAB = $(this).attr("data-lnab");
-              let smFirstName = $(this).attr("data-firstname");
-              let filterOut = true;
-              let c1 = false;
-              let smFirstNames = firstNameVariants(smFirstName);
-              smFirstNames.forEach(function (asmfn) {
-                ofirstNames.forEach(function (afn) {
-                  if (asmfn.toLowerCase() == afn.toLowerCase()) {
-                    c1 = true;
-                  }
-                });
-              });
-
-              let c2 = smLNAB == LNAB;
-              let c3;
-              if (typeof LNC != "undefined") {
-                c3 = smLNC == LNC;
-                c4 = smLNAB == LNC;
-              } else {
-                c3 = false;
-                c4 = false;
+          }
+          rows.sort(function (a, b) {
+            if ($(b).data(sorter) == "") {
+              return true;
+            }
+            return $(a).data(sorter).localeCompare($(b).data(sorter));
+          });
+        } else if (isNaN(rows.data(sorter))) {
+          if ($(this).attr("data-order") == "asc") {
+            rows.sort(function (a, b) {
+              if ($(a).data(sorter) == "") {
+                return true;
               }
-
-              let c5 = smLNC == LNAB;
-              let c6 = smLNAB.toLowerCase() == "unknown";
-              let c7 = LNAB.toLowerCase() == "unknown";
-
-              if (c1 && (c2 || c3 || c4 || c5 || c6 || c7)) {
-                filterOut = false;
-              }
-
-              if (filterOut == true) {
-                $(this).addClass("nameFilteredOut");
-              }
+              return $(b).data(sorter).localeCompare($(a).data(sorter));
             });
-            $(this).text("Remove Name Filter");
+            $(this).attr("data-order", "desc");
+          } else {
+            rows.sort(function (a, b) {
+              if ($(b).data(sorter) == "") {
+                return true;
+              }
+              return $(a).data(sorter).localeCompare($(b).data(sorter));
+            });
+            $(this).attr("data-order", "asc");
+          }
+        } else {
+          if ($(this).attr("data-order") == "asc") {
+            rows.sort((a, b) => ($(b).data(sorter) > $(a).data(sorter) ? 1 : -1));
+            $(this).attr("data-order", "desc");
+          } else {
+            rows.sort((a, b) => ($(a).data(sorter) > $(b).data(sorter) ? 1 : -1));
+            $(this).attr("data-order", "asc");
+          }
+        }
+        aTable.find("tbody").append(rows);
+        rows.each(function () {
+          let toBottom = ["", "00000000"];
+          if (toBottom.includes($(this).data(sorter))) {
+            aTable.find("tbody").append($(this));
           }
         });
-      }
-
-      $("#mMiddleName,#mLastNameCurrent").on("change", function () {
-        if ($(this).attr("id") == "mMiddleName") {
-          let newFirstName = ($("#mFirstName").val() + " " + $("#mMiddleName").val()).trim();
-          $("tr.main").attr("data-firstname", newFirstName);
-          $("tr.main td.connectionsName").text(newFirstName);
-        }
-        if ($(this).attr("id") == "mLastNameCurrent") {
-          let newLNC = ($("#mLastNameCurrent").val() + " ").trim();
-          $("tr.main").attr("data-lnc", newLNC);
-          $("tr.main td.lnc").text(newLNC);
-        }
-        if ($("#nameFilter").text() == "Remove Name Filter") {
-          $("#nameFilter").trigger("click");
-          $("#nameFilter").trigger("click");
-        }
+        aTable.find("tr.main").prependTo(aTable.find("tbody"));
       });
-      $("#mBirthLocation").on("change", function () {
-        let newBirthLocation = ($("#mBirthLocation").val() + " ").trim();
-        let newBirthLocationArr = location2ways(newBirthLocation);
-        newBirthLocation = newBirthLocationArr[0];
-        let newBirthLocationR = newBirthLocationArr[1];
-        $("tr.main").attr("data-birthlocation", newBirthLocation);
-        $("tr.main").attr("data-birthlocation-reversed", newBirthLocationR);
-        if (
-          $(".peopleTable th#birthlocation").attr("data-order") == "s2b" ||
-          $(".peopleTable th#birthlocation").attr("data-order") == ""
-        ) {
-          $("tr.main td.birthlocation").text(newBirthLocation);
+    });
+
+    addWideTableButton();
+  }
+  let firstTime = true;
+  if ($("body.page-Special_SearchPerson").length == 0 && tableClass != "category" && tableID != "profileAncestors") {
+    const locationFilterButton = $(
+      "<button class='button small searchResultsButton' id='locationFilter'>Filter by location</button>"
+    );
+
+    if ($("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
+      if ($("#locationFilter").length) {
+        firstTime = false;
+        $("#locationFilter").show();
+      } else {
+        locationFilterButton.insertBefore($(".peopleTable"));
+      }
+    } else if (isUnconnecteds == false && tableID != "profileAncestors") {
+      $("h2").eq(0).append(locationFilterButton);
+    }
+    if (firstTime == true) {
+      $("#locationFilter").click(function (e) {
+        e.preventDefault();
+        if ($(this).text() == "Remove Location Filter") {
+          $("tr.locationFilteredOut").removeClass("locationFilteredOut");
+          $(this).text("Filter By Location");
         } else {
-          $("tr.main td.birthlocation").text(newBirthLocationR);
-        }
-        if ($("#locationFilter").text() == "Remove Location Filter") {
-          $("#locationFilter").trigger("click");
-          $("#locationFilter").trigger("click");
+          const oPersonLocations = $("tr.main").attr("data-locations").split(",");
+          const rows = $(".peopleTable tbody tr");
+          if ($("#mBirthLocation").val() != "" && $("#mBirthLocation").length) {
+            const bpLocations = $("#mBirthLocation").val().split(/, ?/);
+            const bpText = $("#mBirthLocation").val();
+            if (isUSA(bpText) == true) {
+              const usNames = ["USA", "United States", "United States of America", "U.S.A"];
+              usNames.forEach(function (aName) {
+                if (!bpLocations.includes(aName)) {
+                  bpLocations.push(aName);
+                }
+              });
+            }
+            let keepEm;
+            let rbpText;
+            let rLocations;
+            rows.each(function () {
+              if ($(this).hasClass("main") == false) {
+                keepEm = false;
+                if ($(this).find(".birthlocation").text() != "") {
+                  rbpText = $(this).find(".birthlocation").text();
+                  rLocations = rbpText.split(/, ?/);
+                  if (isUSA(rbpText) == true) {
+                    usNames = ["USA", "United States", "United States of America", "U.S.A"];
+                    usNames.forEach(function (aName) {
+                      if (!rLocations.includes(aName)) {
+                        rLocations.push(aName);
+                      }
+                    });
+                  }
+                } else {
+                  rLocations = $(this).attr("data-locations").split(",");
+                }
+                rLocations.forEach(function (aPlace) {
+                  bpLocations.forEach(function (aPlace2) {
+                    if (aPlace.toLowerCase() == aPlace2.toLowerCase()) {
+                      keepEm = true;
+                    }
+                  });
+                });
+                if (keepEm == false) {
+                  $(this).addClass("locationFilteredOut");
+                }
+              }
+            });
+          } else {
+            rows.each(function () {
+              if ($(this).hasClass("main") == false) {
+                keepEm = false;
+                if ($(this).attr("data-locations")) {
+                  const aPersonLocations = $(this).attr("data-locations").split(",");
+                  aPersonLocations.forEach(function (aLocation) {
+                    oPersonLocations.forEach(function (aLocation2) {
+                      if (aLocation.toLowerCase() == aLocation2.toLowerCase()) {
+                        keepEm = true;
+                      }
+                    });
+                  });
+                }
+                if (keepEm == false) {
+                  $(this).addClass("locationFilteredOut");
+                }
+              }
+            });
+          }
+          $(this).text("Remove Location Filter");
         }
       });
+    }
+  } else if (isUnconnecteds == false && tableClass != "category") {
+    const locationFilterSP = $(
+      "<label class='" +
+        tableClass +
+        "' id='spLocationFilterLabel'><input type='text' id='spLocationFilter' title='Enter place names separated by commas and click the button; empty the textbox and click the button to remove the filter'><button class=' button small searchResultsButton' id='spLocationFilterButton'>Filter by Location</button></label>"
+    );
+    if ($("#spLocationFilterLabel").length == 0) {
+      locationFilterSP.insertBefore($(".peopleTable"));
+    }
+    $("#moreSearchDetails").hide();
+    $("#spLocationFilterButton").click(function (e) {
+      e.preventDefault();
+      if ($(this).text() == "Remove Location Filter" || $("#spLocationFilter").val() == "") {
+        $(this).text("Filter By Location");
+        $("tr").removeClass("locationFilteredOut");
+      } else if ($("#spLocationFilter").val() != "") {
+        $(this).text("Remove Location Filter");
+        let rows = $(".peopleTable tbody tr");
+        let locations = $("#spLocationFilter").val().split(",");
+        const locationsT = locations.map((string) => string.trim());
+        // const oLocations = [];
 
-      if ($("#tree").length) {
-        $("#profileAncestors tr[data-father='0'] td.connectionsName").css({
-          "background-image": "url(" + blueBricksURL + ")",
-          "background-size": "3px",
-          "background-repeat": "repeat-x",
-          "background-position": "bottom",
-        });
-        $("#profileAncestors tr[data-mother='0'] td.connectionsName").css({
-          "background-image": "url(" + pinkBricksURL + ")",
-          "background-size": "3px",
-          "background-repeat": "repeat-x",
-          "background-position": "bottom",
-        });
-        $("#profileAncestors tr[data-father='0'][data-mother='0'] td.connectionsName").css({
-          "background-image": "url(" + purpleBricksURL + ")",
-          "background-size": "3px",
-          "background-repeat": "repeat-x",
-          "background-position": "bottom",
-        });
+        rows.each(function () {
+          let keepIt = false;
 
-        if ($("body.unconnected").length) {
-          $("<span id='downloadLines' title='Download table as Excel file'>&#8681;</span>").insertAfter(
-            $("#wideTableButton")
-          );
-
-          setTimeout(function () {
-            $("img.familyHome").on("click", function () {
-              showFamilySheet($(this));
+          const thisLocations = $(this).attr("data-locations");
+          if (thisLocations != "") {
+            const thisLocationsSplit = thisLocations.split(",");
+            thisLocationsSplit.forEach(function (aLocation) {
+              locationsT.forEach(function (aLocation2) {
+                if (aLocation2.toLowerCase() == aLocation.toLowerCase()) {
+                  keepIt = true;
+                }
+              });
             });
-          }, 3000);
-        }
-
-        $("#tree").fadeOut();
-        $(".myConnectionsTableButton.clicked")
-          .text("Hide Table")
-          .addClass("beenClicked")
-          .removeClass("clicked")
-          .prop("disabled", false);
-        $(".toHide").fadeOut().removeClass("toHide");
-        setTimeout(function () {
-          $("#tree").remove();
-          $("#ahnen").click();
-        }, 2000);
+          }
+          if (keepIt == false) {
+            $(this).addClass("locationFilteredOut");
+          }
+        });
+        //}
       }
+    });
+    $("#spLocationFilter").on("keypress", function (e) {
+      if (e.key == "Enter") {
+        $("#spLocationFilterButton").trigger("click");
+      }
+    });
+  }
+
+  const nameFilterButton = $(
+    "<button class='button small searchResultsButton' id='nameFilter'>Filter by name</button>"
+  );
+  if (
+    $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length ||
+    $("body.page-Special_SearchPerson").length
+  ) {
+    if ($("#nameFilter").length) {
+      $("#nameFilter").show();
+    } else {
+      nameFilterButton.insertBefore($(".peopleTable"));
+    }
+  } else if (isUnconnecteds == false && tableClass != "category" && tableID != "profileAncestors") {
+    $("h2").eq(0).append(nameFilterButton);
+  }
+  if (firstTime == true) {
+    $("#nameFilter").click(function (e) {
+      e.preventDefault();
+      let LNAB;
+      let firstName;
+      let dPerson;
+      let LNC;
+      if ($(this).text() == "Remove Name Filter") {
+        $("tr.nameFilteredOut").removeClass("nameFilteredOut");
+        $(this).text("Filter By Name");
+      } else {
+        if ($("body.page-Special_SearchPerson").length) {
+          LNAB = $("#wpLast").val();
+          firstName = $("#wpFirst").val();
+        } else {
+          dPerson = $("tr.main");
+          LNAB = dPerson.attr("data-lnab");
+          LNC = dPerson.attr("data-lnc");
+          firstName = dPerson.attr("data-firstname");
+        }
+        let ofirstNames = [];
+        if (!window.excludeValues.includes(firstName)) {
+          ofirstNames = firstNameVariants(firstName);
+        }
+        const rows = aTable.find("tbody tr");
+        rows.each(function () {
+          let smLNC = $(this).attr("data-lnc");
+          let smLNAB = $(this).attr("data-lnab");
+          let smFirstName = $(this).attr("data-firstname");
+          let filterOut = true;
+          let c1 = false;
+          let smFirstNames = firstNameVariants(smFirstName);
+          smFirstNames.forEach(function (asmfn) {
+            ofirstNames.forEach(function (afn) {
+              if (asmfn.toLowerCase() == afn.toLowerCase()) {
+                c1 = true;
+              }
+            });
+          });
+
+          let c2 = smLNAB == LNAB;
+          let c3;
+          if (typeof LNC != "undefined") {
+            c3 = smLNC == LNC;
+            c4 = smLNAB == LNC;
+          } else {
+            c3 = false;
+            c4 = false;
+          }
+
+          let c5 = smLNC == LNAB;
+          let c6 = smLNAB.toLowerCase() == "unknown";
+          let c7 = LNAB.toLowerCase() == "unknown";
+
+          if (c1 && (c2 || c3 || c4 || c5 || c6 || c7)) {
+            filterOut = false;
+          }
+
+          if (filterOut == true) {
+            $(this).addClass("nameFilteredOut");
+          }
+        });
+        $(this).text("Remove Name Filter");
+      }
+    });
+  }
+
+  $("#mMiddleName,#mLastNameCurrent").on("change", function () {
+    if ($(this).attr("id") == "mMiddleName") {
+      let newFirstName = ($("#mFirstName").val() + " " + $("#mMiddleName").val()).trim();
+      $("tr.main").attr("data-firstname", newFirstName);
+      $("tr.main td.connectionsName").text(newFirstName);
+    }
+    if ($(this).attr("id") == "mLastNameCurrent") {
+      let newLNC = ($("#mLastNameCurrent").val() + " ").trim();
+      $("tr.main").attr("data-lnc", newLNC);
+      $("tr.main td.lnc").text(newLNC);
+    }
+    if ($("#nameFilter").text() == "Remove Name Filter") {
+      $("#nameFilter").trigger("click");
+      $("#nameFilter").trigger("click");
+    }
+  });
+  $("#mBirthLocation").on("change", function () {
+    let newBirthLocation = ($("#mBirthLocation").val() + " ").trim();
+    let newBirthLocationArr = location2ways(newBirthLocation);
+    newBirthLocation = newBirthLocationArr[0];
+    let newBirthLocationR = newBirthLocationArr[1];
+    $("tr.main").attr("data-birthlocation", newBirthLocation);
+    $("tr.main").attr("data-birthlocation-reversed", newBirthLocationR);
+    if (
+      $(".peopleTable th#birthlocation").attr("data-order") == "s2b" ||
+      $(".peopleTable th#birthlocation").attr("data-order") == ""
+    ) {
+      $("tr.main td.birthlocation").text(newBirthLocation);
+    } else {
+      $("tr.main td.birthlocation").text(newBirthLocationR);
+    }
+    if ($("#locationFilter").text() == "Remove Location Filter") {
+      $("#locationFilter").trigger("click");
+      $("#locationFilter").trigger("click");
+    }
+  });
+
+  if ($("#tree").length) {
+    $("#profileAncestors tr[data-father='0'] td.connectionsName").css({
+      "background-image": "url(" + blueBricksURL + ")",
+      "background-size": "3px",
+      "background-repeat": "repeat-x",
+      "background-position": "bottom",
+    });
+    $("#profileAncestors tr[data-mother='0'] td.connectionsName").css({
+      "background-image": "url(" + pinkBricksURL + ")",
+      "background-size": "3px",
+      "background-repeat": "repeat-x",
+      "background-position": "bottom",
+    });
+    $("#profileAncestors tr[data-father='0'][data-mother='0'] td.connectionsName").css({
+      "background-image": "url(" + purpleBricksURL + ")",
+      "background-size": "3px",
+      "background-repeat": "repeat-x",
+      "background-position": "bottom",
+    });
+
+    if ($("body.unconnected").length) {
+      $("<span id='downloadLines' title='Download table as Excel file'>&#8681;</span>").insertAfter(
+        $("#wideTableButton")
+      );
+
+      setTimeout(function () {
+        $("img.familyHome").on("click", function () {
+          showFamilySheet($(this));
+        });
+      }, 3000);
+    }
+
+    $("#tree").fadeOut();
+    $(".myConnectionsTableButton.clicked")
+      .text("Hide Table")
+      .addClass("beenClicked")
+      .removeClass("clicked")
+      .prop("disabled", false);
+    $(".toHide").fadeOut().removeClass("toHide");
+    setTimeout(function () {
+      $("#tree").remove();
+      $("#ahnen").click();
+    }, 2000);
+  }
+  /*
     },
   });
+  */
+  addFiltersToWikitables();
 }
 
 async function myConnections() {

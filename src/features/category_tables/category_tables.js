@@ -11,6 +11,7 @@ shouldInitializeFeature("categoryTables").then((result) => {
   }
 });
 
+let categoryIDs = [];
 async function addCategoryTableButton() {
   let aTableID = "";
   $("h2:contains(Person Profiles)").append($("<button class='small button moreDetailsButton'>Table</button>"));
@@ -36,7 +37,7 @@ async function addCategoryTableButton() {
 
     const categoryCall = await wtAPIProfileSearch("WBE_categoryTables", categoryQuery, "");
     console.log(categoryCall);
-    const categoryIDs = await categoryCall.response.profiles;
+    categoryIDs = await categoryCall.response.profiles;
     const keys = categoryIDs.join(",");
 
     const categoryPeopleCall = await getPeople(keys, false, false, false, false, 0, "Name,Id");
@@ -62,21 +63,61 @@ async function addCategoryTableButton() {
     console.log(peopleIDs);
     // The pagination buttons will be added after the table button; they will call addPeopleTable
     // with the appropriate IDs.
-    const paginationButtons = $("<div class='paginationButtons'></div>");
-    paginationButtons.insertAfter($("button.moreDetailsButton"));
+    const paginationLinks = $("<div id='categoryTablePaginationLinks'></div>");
+    paginationLinks.insertAfter($("button.moreDetailsButton"));
+    const onlyUnconnected = $("<button id='onlyUnconnected' class='small button'>Only Unconnected</button>");
+    onlyUnconnected.insertAfter(paginationLinks);
+    onlyUnconnected.on("click", function (e) {
+      e.preventDefault();
+      if ($(this).hasClass("active")) {
+        $(this).removeClass("active");
+        $(".peopleTable tr").show();
+      } else {
+        $(this).addClass("active");
+        $(".peopleTable tr").hide();
+        $(".peopleTable tr[data-connected='0']").show();
+      }
+    });
     peopleIDs.forEach(function (anID, index) {
-      const aButton = $(
-        `<button class='small button moreDetailsNumberButton' data-button="${index}">${index + 1}</button>`
-      );
-      aButton.on("click", function (e) {
+      const aLink = $(`<a class='small moreDetailsNumberButton' data-link="${index}">${index + 1}</a>`);
+      aLink.on("click", function (e) {
         e.preventDefault();
-        addPeopleTable(anID.join(","), aTableID, $("#Persons"), "category");
+        if ($(".peopleTable[data-table-number='" + $(this).data("link") + "']").length) {
+          $(".peopleTable[data-table-number='" + $(this).data("link") + "']").show();
+          $(".peopleTable:not([data-table-number='" + $(this).data("link") + "'])").hide();
+          $(".moreDetailsNumberButton").removeClass("active");
+          $(this).addClass("active");
+        } else {
+          paginationLinks.find("a").removeClass("active");
+          $(this).addClass("active");
+          addPeopleTable(anID.join(","), "", $("#Persons"), "category");
+        }
       });
-      paginationButtons.append(aButton);
+      paginationLinks.append(aLink);
     });
     // Click button 0 to start
-    paginationButtons.find("button[data-button='0']").trigger("click");
+    paginationLinks.find("a[data-link='0']").trigger("click").addClass("active");
+  });
 
-    //addPeopleTable(superIDstr, aTableID, $("#Persons").prev(), "category");
+  // Add Esc to close family sheet
+  $(document).on("keyup", function (e) {
+    if (e.key === "Escape") {
+      // Find the .familySheet with the highest z-index
+      let highestZIndex = 0;
+      let lastFamilySheet = null;
+
+      $(".familySheet:visible").each(function () {
+        const zIndex = parseInt($(this).css("z-index"), 10);
+        if (zIndex > highestZIndex) {
+          highestZIndex = zIndex;
+          lastFamilySheet = $(this);
+        }
+      });
+
+      // Close the .familySheet with the highest z-index
+      if (lastFamilySheet) {
+        lastFamilySheet.fadeOut();
+      }
+    }
   });
 }

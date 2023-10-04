@@ -1,46 +1,8 @@
-.wideTableButton {
-  float: left;
-}
-
 #tree.waiting {
   position: absolute;
   height: 50px;
   border-radius: 50%;
   border: 2px solid forestgreen;
-}
-
-.degreeCount {
-  border-collapse: collapse;
-  border: 1px solid forestgreen;
-  margin: 1em;
-}
-
-.degreeCount th {
-  text-align: left;
-  padding: 0.5em 1em;
-}
-
-.degreeCount td {
-  padding: 0.5em 1em;
-  text-align: center;
-}
-
-button.myConnectionsMoreButton.small,
-button.myConnectionsTableButton.small,
-button#myConnectionsLoginButton {
-  margin-left: 2em;
-  padding: 0.5em;
-  font-size: 0.5em;
-}
-button#myConnectionsLoginButton {
-  margin: 0 0 0.5em 0.5em;
-  position: relative;
-  top: -0.3em;
-}
-
-button.myConnectionsMoreButton.small.hidden,
-button.myConnectionsTableButton.small.hidden {
-  visibility: hidden;
 }
 
 .tableContainer {
@@ -98,18 +60,6 @@ table.wt.names.compact.wide,
 .peopleTable a:link,
 .peopleTable a:visited {
   text-decoration: none;
-}
-
-button.myConnectionsMoreButton.small,
-button.myConnectionsTableButton.small {
-  margin-left: 2em;
-  padding: 0.5em;
-  font-size: 0.5em;
-}
-
-button.myConnectionsMoreButton.small.hidden,
-button.myConnectionsTableButton.small.hidden {
-  visibility: hidden;
 }
 
 img.missingPerson {
@@ -305,4 +255,51 @@ td.connectionsName .privacyImage {
 .missingPersonZero {
   background-color: white;
   border: 1px solid forestgreen;
+}
+
+#categoryTablePaginationLinks {
+  display: inline-block;
+  margin-left: 1em;
+}
+#categoryTablePaginationLinks a {
+  margin-left: 0.2em;
+  border: 1px solid forestgreen;
+  padding: 0.3em 1em;
+  cursor: pointer;
+  background-color: white;
+  border-radius: 0.5em;
+}
+#categoryTablePaginationLinks a:hover {
+  background-color: lightgreen;
+  color: white;
+}
+#categoryTablePaginationLinks a.active {
+  background-color: forestgreen;
+  color: white;
+}
+h2 button.moreDetailsButton.small,
+#onlyUnconnected {
+  padding: 5px 10px;
+  font-size: small;
+  margin-left: 1em;
+}
+#clearTableFiltersButton {
+  position: relative !important;
+  float: right;
+}
+.peopleTable tr[data-connected="0"] {
+  background-color: #f4fefe;
+}
+.peopleTable tr[data-connected="0"] td:first-child::after {
+  content: "";
+  background: url(https://www.wikitree.com/images/icons/unconnected.png) no-repeat;
+  background-size: 20px 20px;
+  width: 20px; /* Same as background width */
+  height: 20px; /* Same as background height */
+  display: inline-block;
+  margin-right: 5px;
+}
+#onlyUnconnected.active {
+  background-color: forestgreen;
+  color: white;
 }
