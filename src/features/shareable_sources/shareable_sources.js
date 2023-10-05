@@ -44,6 +44,7 @@ async function addOptionsToWindow(feature) {
 shouldInitializeFeature("shareableSources").then((result) => {
   if (result) {
     import("./shareable_sources.css");
+    window.shareableSourcesEnabled = true;
 
     addOptionsToWindow("shareableSources");
 

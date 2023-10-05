@@ -225,11 +225,28 @@ async function doFamilyDropdown() {
   });
 }
 
+async function getDataAndMakeWikilink(id) {
+  const person = await getPerson(id, { fields: ["Name", "FirstName", "LastNameCurrent"] });
+  if (person) {
+    let personName = "";
+    if (person.FirstName) {
+      personName = person.FirstName;
+    }
+    if (person.LastNameCurrent) {
+      personName += " " + person.LastNameCurrent;
+    }
+    const wikilink = `[[${person.Name}|${personName}]]`;
+    return { wikilink: wikilink, person: person, userName: personName };
+  } else {
+    return false;
+  }
+}
+
 /**
  * Copy selected dropdown option to clipboard.
  * @param {string} box - Optional parameter to directly copy a string.
  */
-function copyfamilyDropdown(box = 0) {
+async function copyfamilyDropdown(box = 0) {
   let thing;
 
   if (box === 0) {
@@ -238,7 +255,36 @@ function copyfamilyDropdown(box = 0) {
     thing = box;
   }
 
-  if (thing !== "" && thing !== "other") {
+  if (thing === "other" && !window.shareableSourcesEnabled) {
+    console.log(window.shareableSourcesOptions);
+    // Allow entering ID
+    if ($("#otherPerson").length === 0) {
+      let otherPerson = $(
+        `<label id='otherPersonLabel'>Enter WikiTree ID and Press 'Enter': <input type='text' id='otherPerson'></label>`
+      );
+      otherPerson.insertAfter("#familyDropdown");
+      $("#otherPerson").trigger("focus");
+
+      $("#otherPerson").on("keydown", async function (event) {
+        if (event.key === "Enter") {
+          let anID = $(this).val().trim();
+          const thingObject = await getDataAndMakeWikilink(anID);
+          if (thingObject) {
+            thing = thingObject.wikilink;
+            copyThingToClipboard(thing);
+            // Set copied feedback
+            const copyFeedback = 'Copied "' + thing + '"';
+            $("#familyDropdown").attr("title", copyFeedback + ". (Paste: Ctrl+V)");
+
+            // Show copied indicator
+            showCopyMessage("Wiki Link");
+          }
+        }
+      });
+    } else {
+      $("#otherPerson").addClass("highlight").trigger("focus");
+    }
+  } else if (thing !== "" && thing !== "other") {
     // Copy to clipboard
     copyThingToClipboard(thing);
 
