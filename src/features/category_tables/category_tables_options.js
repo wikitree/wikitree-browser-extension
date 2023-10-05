@@ -14,5 +14,4 @@ registerFeature({
   contributors: [],
   defaultValue: true,
   pages: [isCategoryPage],
-  options: [],
 });
