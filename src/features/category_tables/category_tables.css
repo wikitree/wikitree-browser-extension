@@ -1,0 +1,305 @@
+#tree.waiting {
+  position: absolute;
+  height: 50px;
+  border-radius: 50%;
+  border: 2px solid forestgreen;
+}
+
+.tableContainer {
+  padding-left: 4em;
+}
+
+table.wt.names.compact.wide,
+.tableContainer table.wide {
+  white-space: nowrap;
+  table-layout: auto;
+}
+
+.peopleTable {
+  clear: both;
+}
+
+.peopleTable tr {
+  border: 1px solid gray;
+  border-radius: 0.5em;
+}
+
+.peopleTable td {
+  padding: 5px;
+}
+
+.peopleTable .aDate,
+.familySheet .aDate {
+  white-space: nowrap;
+}
+
+.peopleTable .aDate {
+  border-right: 2px solid white;
+  border-left: 2px solid white;
+}
+
+.peopleTable tbody .privacyImage {
+  float: right;
+  background-color: white;
+  border-radius: 1em;
+  border: 1px forestgreen solid;
+  display: block;
+  width: 1.5em;
+  height: 1.5em;
+  line-height: 1.5em;
+  font-weight: bold;
+  text-align: center;
+}
+
+.peopleTable tbody .privacyImage {
+  border: none;
+  position: relative;
+  float: right;
+}
+
+.peopleTable a:link,
+.peopleTable a:visited {
+  text-decoration: none;
+}
+
+img.missingPerson {
+  height: 15px;
+  width: 15px;
+  position: absolute;
+}
+
+img.myConnectionsNoFather {
+  left: -0.5em;
+  border-radius: 50%;
+  border: 2px solid blue;
+}
+
+img.myConnectionsNoMother {
+  left: 0.5em;
+  border-radius: 50%;
+  border: 2px solid pink;
+}
+
+img.myConnectionsNoSpouse {
+  left: 1.5em;
+}
+
+.peopleTable #created,
+.peopleTable #edited,
+.peopleTable td.created,
+.peopleTable td.edited {
+  display: none;
+}
+
+.peopleTable.wide #created,
+.peopleTable.wide #edited,
+.peopleTable.wide td.created,
+.peopleTable.wide td.edited {
+  display: table-cell;
+}
+
+.peopleTable tr.notable {
+  font-weight: bold;
+  border-top: 2px solid forestgreen;
+  border-bottom: 2px solid forestgreen;
+  border-right: 2px solid forestgreen;
+}
+
+.peopleTable caption {
+  font-weight: bold;
+  text-align: left;
+  font-size: 1.3em;
+}
+
+.peopleTable .Female,
+.Female {
+  background-color: #fff8f7;
+  border-left: 5px pink solid;
+}
+
+.peopleTable .Male,
+.Male {
+  background-color: #f4fefe;
+  border-left: 5px blue solid;
+}
+
+.peopleTable {
+  clear: both;
+}
+
+.peopleTable .aDate {
+  border-right: 2px solid white;
+  border-left: 2px solid white;
+}
+
+.peopleTable .aRelation {
+  display: none;
+  margin-bottom: 0.5em;
+}
+
+.peopleTable .gotRels {
+  background: #ffffe0;
+  cursor: pointer;
+}
+
+.peopleTable .gotRels.show .aRelation {
+  display: block;
+}
+
+.peopleTable th[id] {
+  cursor: pointer;
+}
+
+.peopleTable tr.main {
+  border: 5px solid forestgreen;
+  margin-bottom: 1em;
+  border-radius: 1em;
+}
+
+.peopleTable .familyHome {
+  height: 20px;
+  position: absolute;
+  left: -2em;
+  margin-top: -0.5em;
+  z-index: 500;
+  cursor: pointer;
+}
+
+.peopleTable .familyHome:hover {
+  background: gold;
+  border-radius: 50%;
+  box-shadow: 0.3em 0.3em 0.3em #ccc;
+}
+
+.peopleTable .familyHome:active {
+  box-shadow: 0.1em 0.1em 0.1em #ccc;
+  background: forestgreen;
+}
+
+.familySheet {
+  position: absolute;
+  white-space: nowrap;
+  background: white;
+  z-index: 2000;
+  border: 2px solid forestgreen;
+  border-radius: 1em;
+  box-shadow: 0.8em 0.8em 0.8em #ccc;
+  cursor: move;
+  padding: 1em;
+}
+
+.familySheet.wrap {
+  white-space: normal;
+}
+
+.familySheet .self {
+  font-weight: bold;
+}
+
+.familySheet td {
+  padding: 0.2em;
+}
+
+.familySheet thead,
+.peopleTable thead {
+  text-align: left;
+}
+
+#buttonBox {
+  position: fixed;
+  z-index: 5000;
+  top: 45%;
+  right: -0.5em;
+}
+
+#leftButton,
+#rightButton {
+  width: 30px;
+  padding: 0;
+  background: forestgreen;
+  border: 2px solid green;
+  box-shadow: 2px 2px 2px navy;
+  height: 50px;
+  display: block;
+  margin-top: 0.2em;
+}
+
+.familySheet x {
+  position: absolute;
+  top: 0;
+  right: 0.5em;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+td.connectionsName .privacyImage {
+  position: absolute;
+  left: -2em;
+}
+
+.peopleTable .privacyImage {
+  margin-top: 0.5em;
+}
+
+.tableContainer {
+  overflow-x: auto;
+}
+
+.familyTH,
+.familyTD {
+  display: none;
+}
+.missingPersonCell {
+  width: 0.5em;
+}
+.missingPersonZero {
+  background-color: white;
+  border: 1px solid forestgreen;
+}
+
+#categoryTablePaginationLinks {
+  display: inline-block;
+  margin-left: 1em;
+}
+#categoryTablePaginationLinks a {
+  margin-left: 0.2em;
+  border: 1px solid forestgreen;
+  padding: 0.3em 1em;
+  cursor: pointer;
+  background-color: white;
+  border-radius: 0.5em;
+}
+#categoryTablePaginationLinks a:hover {
+  background-color: lightgreen;
+  color: white;
+}
+#categoryTablePaginationLinks a.active {
+  background-color: forestgreen;
+  color: white;
+}
+h2 button.moreDetailsButton.small,
+#onlyUnconnected {
+  padding: 5px 10px;
+  font-size: small;
+  margin-left: 1em;
+}
+#clearTableFiltersButton {
+  position: relative !important;
+  float: right;
+}
+.peopleTable tr[data-connected="0"] {
+  background-color: #f4fefe;
+}
+.peopleTable tr[data-connected="0"] td:first-child::after {
+  content: "";
+  background: url(https://www.wikitree.com/images/icons/unconnected.png) no-repeat;
+  background-size: 20px 20px;
+  width: 20px; /* Same as background width */
+  height: 20px; /* Same as background height */
+  display: inline-block;
+  margin-right: 5px;
+}
+#onlyUnconnected.active {
+  background-color: forestgreen;
+  color: white;
+}

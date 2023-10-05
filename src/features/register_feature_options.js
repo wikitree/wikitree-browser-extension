@@ -59,6 +59,7 @@ import "./auto_categories/auto_categories_options";
 import "./access_keys/access_keys_options";
 import "./categoryDisplay/categoryDisplay_options";
 import "./category_management/category_management_options";
+import "./category_tables/category_tables_options";
 import "./change_family_lists/change_family_lists_options";
 import "./connection_finder/connection_finder_options";
 import "./copy_bio_changes/copy_bio_changes_options";

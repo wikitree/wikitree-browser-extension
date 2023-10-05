@@ -133,11 +133,14 @@ export function addFiltersToWikitables(aTable = null) {
   if (aTable) {
     tables = [aTable];
   } else {
-    tables = document.querySelectorAll(".wikitable,.wt.names");
+    tables = document.querySelectorAll(".wikitable,.wt.names,.category");
   }
 
   // Add filters to each table
   tables.forEach((table) => {
+    if ($(table).find(".filter-row").length) {
+      return;
+    }
     const hasTbody = table.querySelector("tbody") !== null;
     const hasThead = table.querySelector("thead") !== null;
 
@@ -277,6 +280,7 @@ export function addFiltersToWikitables(aTable = null) {
     document.querySelectorAll(".filter-input").forEach((input) => {
       input.value = "";
     });
+
     filterFunction();
     updateClearFiltersButtonVisibility();
   });
@@ -295,6 +299,8 @@ export function addFiltersToWikitables(aTable = null) {
     clearFiltersButton.textContent = "Clear Filters";
     // Add inCaption class to the button
     clearFiltersButton.classList.add("inCaption");
+  } else if ($(".wideTableButton").length) {
+    $(clearFiltersButton).insertAfter($(".wideTableButton"));
   } else {
     // Place the button to the right of the filter row
     const xButtonStyle = {

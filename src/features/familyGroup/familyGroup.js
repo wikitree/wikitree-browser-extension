@@ -90,6 +90,13 @@ export function ymdFix(date) {
   return outDate;
 }
 
+let zIndexCounter = 1000; // Initial z-index value
+
+export function incrementZIndex(jqObject) {
+  zIndexCounter++;
+  jqObject.css("z-index", zIndexCounter);
+}
+
 export async function showFamilySheet(theClicked, profileID) {
   // If the table already exists toggle it.
   if ($("#" + profileID.replace(" ", "_") + "_family").length) {
@@ -114,8 +121,10 @@ export async function showFamilySheet(theClicked, profileID) {
       familyTable.attr("id", profileID.replace(" ", "_") + "_family");
       familyTable.draggable();
       familyTable.fadeIn();
+      incrementZIndex(familyTable);
       familyTable.on("dblclick", function () {
         $(this).fadeOut();
+        incrementZIndex(familyTable);
       });
       let theLeft;
       console.log(theClicked);
@@ -153,12 +162,12 @@ export async function showFamilySheet(theClicked, profileID) {
         }
       });
 
-      $(".familySheet x").unbind();
-      $(".familySheet x").on("click", function () {
+      // Event delegation for closing and wrapping
+      $(document).on("click", ".familySheet x", function () {
         $(this).parent().fadeOut();
       });
-      $(".familySheet w").unbind();
-      $(".familySheet w").on("click", function () {
+
+      $(document).on("click", ".familySheet w", function () {
         $(this).parent().toggleClass("wrap");
       });
     });
