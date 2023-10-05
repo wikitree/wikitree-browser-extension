@@ -33,7 +33,6 @@ async function helpScissors() {
   let copyPosition = $("h1");
 
   // Network feed
-  console.log(isNetworkFeed);
   if (isNetworkFeed || isProfileHistoryDetail) {
     const urlParams = new URLSearchParams(window.location.search);
     let feedID = urlParams.get("who");
