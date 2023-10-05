@@ -11,34 +11,34 @@ shouldInitializeFeature("categoryTables").then((result) => {
   }
 });
 
+function getPageType() {
+  if ($("body.page-Category_Supercentenarians").length) return "superCentenarians";
+  if ($("body.page-Category_Centenarians").length) return "centenarians";
+  return "category";
+}
+
+// Function to get profile count
+function getProfileCount() {
+  const profileCountText = $("#Persons h2")
+    .text()
+    .match(/[0-9,]+/)[0];
+  return parseInt(profileCountText.replace(/,/g, ""), 10);
+}
+
 let categoryIDs = [];
 async function addCategoryTableButton() {
-  let aTableID = "";
   $("h2:contains(Person Profiles)").append($("<button class='small button moreDetailsButton'>Table</button>"));
   $("button.moreDetailsButton").on("click", async function (e) {
     e.preventDefault();
-    const superIDs = [];
-    $("a.P-F,a.P-M").each(function () {
-      const superID = $(this).attr("href").split("/wiki/")[1];
-      superIDs.push(superID);
-    });
-    const superIDstr = superIDs.join(",");
-    if ($("body.page-Category_Supercentenarians").length) {
-      aTableID = "superCentenarians";
-    } else if ($("body.page-Category_Centenarians").length) {
-      aTableID = "centenarians";
-    } else {
-      aTableID = "category";
-    }
 
-    console.log($("#Persons h2").text());
+    const superIDs = $("a.P-F,a.P-M")
+      .map(function () {
+        return $(this).attr("href").split("/wiki/")[1];
+      })
+      .get();
 
-    const profileCount = $("#Persons h2")
-      .text()
-      .match(/[0-9,]+/)[0]
-      .replace(/,/g, "");
-    console.log("profileCount", profileCount);
-    console.log("parseInt(profileCount)", parseInt(profileCount));
+    const aTableID = getPageType();
+    const profileCount = getProfileCount();
     if (parseInt(profileCount) > 1000) {
       // Split superIDs into groups of 100; Make a table for the first group; Add pagination links for the rest
       const superIDgroups = [];
@@ -103,7 +103,6 @@ async function addCategoryTableButton() {
       peopleKeys.sort(function (a, b) {
         return people[a].Name.localeCompare(people[b].Name);
       });
-      // Get 100 people at a time; For now, put the pagination after the table button
       const peopleIDs = [];
       let i = 0;
       while (i < peopleKeys.length) {
