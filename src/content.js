@@ -82,6 +82,7 @@ import "./features/randomProfile/randomProfile";
 import "./features/what_links_here/what_links_here";
 import "./features/category_management/category_management";
 import "./features/category_tables/category_tables";
+import "./features/editor_expander/editor_expander";
 
 /*
  * debugging features for development only
