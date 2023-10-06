@@ -814,8 +814,8 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
   } else if (tableID == "profileAncestors") {
     // later?
   } else if (tableClass == "category") {
-    if ($(".moreDetailsButton").length) {
-      $(".moreDetailsButton").replaceWith(waitingImage);
+    if ($(".categoryTablesButton").length) {
+      $(".categoryTablesButton").replaceWith(waitingImage);
     } else {
       $("#categoryTablePaginationLinks").after(waitingImage);
     }
@@ -992,16 +992,12 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       missingChildren = "<th id='missing-children'>Ch</th>";
     }
 
-    let tableNum = "";
-    if (tableClass == "category") {
-      tableNum = $(".moreDetailsNumberButton.active").data("link");
-    }
     let tableIDBit = "";
     if (tableID && !(tableID == "centenarians" || tableID == "superCentenarians" || tableID == "category")) {
       tableIDBit = "data-table-id='" + tableID + "' ";
     }
     aTable = $(
-      `<table class='peopleTable ${tableClass}' id='${tableID}' ${tableIDBit}data-table-number='${tableNum}'>${aCaption}<thead><tr>${missingFather}${missingMother}${missingSpouse}${missingChildren}${ahnenHeader}${relTH}<th id='firstname' data-order=''>Given name(s)</th><th id='lnab'>LNAB</th><th id='lnc' data-order=''>CLN</th><th id='birthdate' data-order=''>Birth date</th><th data-order='' id='birthlocation'>Birth place</th><th data-order='' id='deathdate'>Death date</th><th data-order='' id='deathlocation'>Death place</th>${livedForCol}${setAs}${childrenCountTH}${emptyTD}<th id='created' data-order='' >Created</th><th id='edited' data-order='' >Edited</th></tr></thead><tbody></tbody></table>`
+      `<table class='peopleTable ${tableClass}' id='${tableID}' ${tableIDBit}>${aCaption}<thead><tr>${missingFather}${missingMother}${missingSpouse}${missingChildren}${ahnenHeader}${relTH}<th id='firstname' data-order=''>Given name(s)</th><th id='lnab'>LNAB</th><th id='lnc' data-order=''>CLN</th><th id='birthdate' data-order=''>Birth date</th><th data-order='' id='birthlocation'>Birth place</th><th data-order='' id='deathdate'>Death date</th><th data-order='' id='deathlocation'>Death place</th>${livedForCol}${setAs}${childrenCountTH}${emptyTD}<th id='created' data-order='' >Created</th><th id='edited' data-order='' >Edited</th></tr></thead><tbody></tbody></table>`
     );
 
     // eslint-disable-next-line no-undef

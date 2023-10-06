@@ -26,8 +26,8 @@ function getProfileCount() {
 /*
 async function addCategoryTableButton() {
   const personProfilesh2 = $("h2:contains(Person Profiles)");
-  personProfilesh2.append($("<button class='small button moreDetailsButton'>Table</button>"));
-  $("button.moreDetailsButton").on("click", async function (e) {
+  personProfilesh2.append($("<button class='small button categoryTablesButton'>Table</button>"));
+  $("button.categoryTablesButton").on("click", async function (e) {
     e.preventDefault();
     const superIDs = $("a.P-F,a.P-M")
       .map(function () {
@@ -45,7 +45,7 @@ async function addCategoryTableButton() {
     }
     if (superIDgroups.length > 1) {
       const paginationLinks = $("<div id='categoryTablePaginationLinks'></div>");
-      paginationLinks.insertAfter($("button.moreDetailsButton"));
+      paginationLinks.insertAfter($("button.categoryTablesButton"));
     }
     const onlyUnconnected = $("<button id='onlyUnconnected' class='small button'>Only Unconnected</button>");
     onlyUnconnected.appendTo(personProfilesh2);
@@ -115,8 +115,9 @@ async function addCategoryTableButton() {
 
 async function addCategoryTableButton() {
   const personProfilesh2 = $("h2:contains(Person Profiles)");
-  personProfilesh2.append($("<button class='small button moreDetailsButton'>Table</button>"));
-  $("button.moreDetailsButton").on("click", async function (e) {
+
+  personProfilesh2.append($("<button class='small button categoryTablesButton'>Table</button>"));
+  $("button.categoryTablesButton").on("click", async function (e) {
     e.preventDefault();
     const superIDs = $("a.P-F,a.P-M")
       .map(function () {

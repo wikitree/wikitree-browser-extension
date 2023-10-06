@@ -281,7 +281,13 @@ td.connectionsName .privacyImage {
   background-color: forestgreen;
   color: white;
 }
-h2 button.moreDetailsButton.small,
+
+/* Avoid BEE conflict */
+h2 button.moreDetailsButton.small {
+  display: none !important;
+}
+
+h2 button.categoryTablesButton.small,
 #onlyUnconnected {
   padding: 5px 10px;
   font-size: small;
