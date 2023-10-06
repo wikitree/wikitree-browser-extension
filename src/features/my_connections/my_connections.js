@@ -859,15 +859,37 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
 
   const fields =
     "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,BirthDate,BirthLocation, DeathDate,DeathLocation, BirthDateDecade,DeathDateDecade,Touched, Created, Gender, Father, Mother,Id,Name,Privacy,DataStatus,ShortName,Derived.BirthNamePrivate,Derived.BirthName,LongNamePrivate,Connected";
-  const peopleCall = await getPeople(IDstring, false, false, false, 1, 0, fields, "WBE_my_connections_file");
 
-  idArr = IDstring.split(",");
+  let combinedPeople = {};
+
+  // Convert comma-separated IDstring into an array
+  const IDs = IDstring.split(",");
+
+  // Split the IDs if there are more than 100
+  if (IDs.length > 100) {
+    const firstHalf = IDs.slice(0, 100);
+    const secondHalf = IDs.slice(100);
+
+    // Perform two API calls and wait for both to complete
+    const [firstCall, secondCall] = await Promise.all([
+      getPeople(firstHalf.join(","), false, false, false, 1, 0, fields, "WBE_my_connections_file"),
+      getPeople(secondHalf.join(","), false, false, false, 1, 0, fields, "WBE_my_connections_file"),
+    ]);
+
+    // Combine the results from both calls
+    combinedPeople = { ...firstCall[0]?.people, ...secondCall[0]?.people };
+  } else {
+    // If there are 100 or fewer IDs, just make one API call
+    const singleCall = await getPeople(IDstring, false, false, false, 1, 0, fields, "WBE_my_connections_file");
+    combinedPeople = singleCall[0]?.people;
+  }
+
   const tablePeople = [];
-  const peopleKeys = Object.keys(peopleCall[0]?.people);
+  const peopleKeys = Object.keys(combinedPeople);
 
   const nameMap = new Map();
   peopleKeys.forEach(function (aKey) {
-    nameMap.set(peopleCall[0]?.people[aKey].Name, aKey);
+    nameMap.set(combinedPeople[aKey].Name, aKey);
   });
 
   let arrType = "Id";
@@ -876,12 +898,12 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
   }
 
   peopleKeys.forEach(function (aKey) {
-    if (arrType == "Name") {
-      if (idArr.includes(peopleCall[0]?.people[aKey].Name)) {
-        tablePeople.push(peopleCall[0]?.people[aKey]);
+    if (arrType === "Name") {
+      if (idArr.includes(combinedPeople[aKey].Name)) {
+        tablePeople.push(combinedPeople[aKey]);
       }
     } else if (idArr.includes(aKey)) {
-      tablePeople.push(peopleCall[0]?.people[aKey]);
+      tablePeople.push(combinedPeople[aKey]);
     }
   });
 
@@ -893,7 +915,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
 
   function findRelatives(personId, relationship, people) {
     return Array.from(peopleKeysSet)
-      .filter((key) => people[key][relationship] === personId && key !== personId)
+      .filter((key) => people[key]?.[relationship] === personId && key !== personId)
       .map((key) => {
         if (clonedObjects.has(key)) {
           return clonedObjects.get(key);
@@ -911,7 +933,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
 
     ["Father", "Mother"].forEach((aParent) => {
       if (aPerson[aParent]) {
-        const parent = peopleCall[0]?.people[aPerson[aParent]];
+        const parent = tablePeople[aPerson[aParent]];
         if (parent) {
           if (clonedObjects.has(aPerson[aParent])) {
             aPerson.Parent.push(clonedObjects.get(aPerson[aParent]));
@@ -922,9 +944,9 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
           }
         }
 
-        aPerson.Sibling = [...aPerson.Sibling, ...findRelatives(aPerson[aParent], aParent, peopleCall[0]?.people)];
+        aPerson.Sibling = [...aPerson.Sibling, ...findRelatives(aPerson[aParent], aParent, tablePeople)];
 
-        aPerson.Child = [...aPerson.Child, ...findRelatives(aPerson.Id, aParent, peopleCall[0]?.people)];
+        aPerson.Child = [...aPerson.Child, ...findRelatives(aPerson.Id, aParent, tablePeople)];
       }
     });
   });
