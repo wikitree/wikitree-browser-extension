@@ -282,6 +282,7 @@ h2 button.moreDetailsButton.small,
   padding: 5px 10px;
   font-size: small;
   margin-left: 1em;
+  float: none !important;
 }
 #clearTableFiltersButton {
   position: relative !important;

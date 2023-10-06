@@ -424,18 +424,9 @@ window.myConnectionsCompletedMore = [];
 async function myConnectionsMore() {
   $(".wrapper h3").each(function (index) {
     let dOL = $(".wrapper ol[id='" + $(this).attr("id") + "_list']");
-    let classy = "";
-    let completedText = "";
-    let disabled = "";
     let visibility = "";
     if (index < 4 && dOL.find("a").length == 0) {
-      disabled = "disabled";
       visibility = "hidden";
-    }
-    if (window.myConnectionsCompletedMore.includes(index - 1)) {
-      classy = "completed";
-      completedText = " Completed";
-      disabled = "disabled";
     }
 
     if ($(this).attr("id") != "gen0" && dOL.find("li").length < 701) {
@@ -868,11 +859,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
 
   const fields =
     "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,BirthDate,BirthLocation, DeathDate,DeathLocation, BirthDateDecade,DeathDateDecade,Touched, Created, Gender, Father, Mother,Id,Name,Privacy,DataStatus,ShortName,Derived.BirthNamePrivate,Derived.BirthName,LongNamePrivate,Connected";
-  console.log("IDstring", IDstring);
   const peopleCall = await getPeople(IDstring, false, false, false, 1, 0, fields, "WBE_my_connections_file");
-
-  // logging
-  console.log("peopleCall", peopleCall);
 
   idArr = IDstring.split(",");
   const tablePeople = [];
@@ -883,13 +870,8 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     nameMap.set(peopleCall[0]?.people[aKey].Name, aKey);
   });
 
-  // logging
-  console.log("peopleCall", peopleCall);
-  console.log("peopleKeys", peopleKeys);
-  console.log("idArr", idArr);
-  console.log("nameMap", nameMap);
   let arrType = "Id";
-  if (idArr[0]?.match(/\-/)) {
+  if (idArr[0]?.match(/-/)) {
     arrType = "Name";
   }
 
@@ -902,9 +884,6 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       tablePeople.push(peopleCall[0]?.people[aKey]);
     }
   });
-
-  // logging
-  console.log("tablePeople", tablePeople);
 
   // Use a Set for quicker lookups
   const peopleKeysSet = new Set(peopleKeys);
@@ -950,27 +929,6 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     });
   });
 
-  console.log("tablePeople", tablePeople);
-
-  /*
-  $.ajax({
-    url: "https://api.wikitree.com/api.php",
-    crossDomain: true,
-    xhrFields: { withCredentials: true },
-    type: "POST",
-    dataType: "json",
-    data: {
-      action: "getRelatives",
-      getSpouses: 1,
-      getChildren: 1,
-      getParents: 1,
-      getSiblings: 1,
-      keys: IDstring,
-      fields: "*",
-      appId: "WBE_my_connections",
-    },
-    success: function (data) {
-      */
   let setAs = "";
   let isMain = false;
   let livedForCol = "";
@@ -991,7 +949,6 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     childrenCountTH = "<th id='children-count' data-order=''># of Children</th>";
   }
 
-  //let thePeople = data[0].items;
   const thePeople = tablePeople;
 
   let aTable = $("<table>");
@@ -1015,7 +972,6 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
 
     let tableNum = "";
     if (tableClass == "category") {
-      // <a class="small moreDetailsNumberButton active" data-link="0">1</a> data-link number
       tableNum = $(".moreDetailsNumberButton.active").data("link");
     }
     let tableIDBit = "";
@@ -1048,8 +1004,6 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       window.location.href = "#" + aTable.attr("id");
     }
 
-    //aTable
-
     // Sort thePeople by LastNameAtBirth, then by FirstName
     thePeople.sort(function (a, b) {
       if (a.LastNameAtBirth < b.LastNameAtBirth) {
@@ -1068,8 +1022,6 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     });
 
     thePeople.forEach(function (mPerson, index) {
-      //let mPerson = aPerson.person;
-      //let bYear = parseInt(birthDate.substring(0, 4));
       let noBorDdate = false;
       let missingFatherCell = "";
       let missingMotherCell = "";
@@ -1597,7 +1549,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
           }
           if (mChild.length > 1) {
             let childAhnen = "";
-            mChild.each(function (i) {
+            mChild.each(function () {
               let dChildAhnen = $(this).attr("data-ahnen");
               if (childAhnen == "") {
                 if (mPerson.Gender == "Male") {
@@ -1776,10 +1728,11 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     $(this).parent().find("thead,tbody").slideToggle();
   });
 
-  $("img.familyHome").unbind();
-  $("img.familyHome").on("click", function () {
-    showFamilySheet($(this), $(this).closest("tr").data("name"));
-  });
+  $("img.familyHome")
+    .off()
+    .on("click", function () {
+      showFamilySheet($(this), $(this).closest("tr").data("name"));
+    });
 
   window.peopleTablePeople = thePeople;
   if (!window.allPeopleTablePeople) {

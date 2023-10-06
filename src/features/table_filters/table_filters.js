@@ -291,7 +291,7 @@ export function addFiltersToWikitables(aTable = null) {
 
   // If the table has a caption, place the button within the caption, on the right, before an 'x' element if it exists
   const caption = tables[0].querySelector("caption");
-  console.log(caption);
+
   if (caption) {
     caption.appendChild(clearFiltersButton);
 
