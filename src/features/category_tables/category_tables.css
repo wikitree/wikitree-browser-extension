@@ -87,14 +87,18 @@ img.myConnectionsNoSpouse {
 .peopleTable #created,
 .peopleTable #edited,
 .peopleTable td.created,
-.peopleTable td.edited {
+.peopleTable td.edited,
+.peopleTable th.created,
+.peopleTable th.edited {
   display: none;
 }
 
 .peopleTable.wide #created,
 .peopleTable.wide #edited,
 .peopleTable.wide td.created,
-.peopleTable.wide td.edited {
+.peopleTable.wide td.edited,
+.peopleTable.wide th.created,
+.peopleTable.wide th.edited {
   display: table-cell;
 }
 

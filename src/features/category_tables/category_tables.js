@@ -142,7 +142,7 @@ async function addCategoryTableButton() {
         $(".peopleTable tr").show();
       } else {
         $(this).addClass("active");
-        $(".peopleTable tr").hide();
+        $(".peopleTable tbody tr").hide();
         $(".peopleTable tr[data-connected='0']").show();
       }
     });

@@ -201,6 +201,17 @@ export function addFiltersToWikitables(aTable = null) {
         }, 100);
       });
     });
+    const $table = $(table);
+    if ($table.hasClass("peopleTable")) {
+      // Get the first row of tbody; Find cells with classes 'edited' and 'created' and get their index.
+      // Find .filter-row and add these classes to the same cells in that row.
+      if ($table.find("tbody tr").eq(0).find("td.edited").length) {
+        const editedIndex = $table.find("tbody tr").eq(0).find("td.edited").index();
+        $table.find(".filter-row").find("th").eq(editedIndex).addClass("edited");
+        const createdIndex = $table.find("tbody tr").eq(0).find("td.created").index();
+        $table.find(".filter-row").find("th").eq(createdIndex).addClass("created");
+      }
+    }
   });
 
   // Filter function to filter rows based on input
