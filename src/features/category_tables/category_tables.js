@@ -18,7 +18,11 @@ function getPageType() {
 async function addCategoryTableButton() {
   const personProfilesh2 = $("h2:contains(Person Profiles)");
 
-  personProfilesh2.append($("<button class='small button categoryTablesButton'>Table</button>"));
+  personProfilesh2.append(
+    $(
+      "<button class='small button categoryTablesButton' title='Build a sortable and filterable table of these profiles'>Table</button>"
+    )
+  );
   $("button.categoryTablesButton").on("click", async function (e) {
     e.preventDefault();
     const superIDs = $("a.P-F,a.P-M")

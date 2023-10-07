@@ -292,6 +292,7 @@ h2 button.categoryTablesButton.small,
   padding: 5px 10px;
   font-size: small;
   margin-left: 1em;
+  margin-right: 0;
   float: none !important;
 }
 #clearTableFiltersButton {
