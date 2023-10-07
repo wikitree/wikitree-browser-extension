@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import { registerFeature, OptionType } from "../../core/options/options_registry";
-import { isProfileEdit, isSpaceEdit } from "../../core/pageType";
+import { isProfileEdit, isSpaceEdit, isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType";
 
 registerFeature({
   name: "Editor Expander",
@@ -14,5 +14,5 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
-  pages: [isProfileEdit, isSpaceEdit],
+  pages: [isProfileEdit, isSpaceEdit, isProfileAddRelative, isAddUnrelatedPerson],
 });
