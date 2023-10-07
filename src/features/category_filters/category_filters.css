@@ -1,0 +1,24 @@
+h2 button.categoryFilterButton.small {
+  padding: 5px;
+  font-size: x-small;
+  margin-left: 0.5em;
+  margin-right: 0.5em;
+  float: none !important;
+}
+h2 button.categoryFilterButton.small.active {
+  background-color: forestgreen;
+  color: white;
+}
+#categoryFilterButtonsContainer {
+  display: inline-block;
+  margin-left: 1em;
+  padding: 0.2em;
+  border: 1px solid forestgreen;
+  border-radius: 0.5em;
+}
+#categoryFiltersTextFilter {
+  font-size: small !important;
+  padding: 2px !important;
+  width: 10em;
+  margin: 0 0.5em;
+}
