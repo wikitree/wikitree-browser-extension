@@ -1,4 +1,5 @@
-#expandTextareaButton {
+#expandTextareaButton,
+.expandTextareaButton {
   display: inline-block;
   width: 16px;
   height: 20px;
@@ -45,4 +46,10 @@ textarea#wpTextbox1.expanded {
   display: inline;
   position: relative;
   top: -7px;
+}
+
+#mBioWithoutSources.expanded,
+#mSources.expanded {
+  width: 80vw;
+  height: 80vh;
 }
