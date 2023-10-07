@@ -23,6 +23,7 @@ textarea#wpTextbox1.expanded {
   height: calc(95% - 60px) !important;
   border-radius: 5px;
   position: relative;
+  resize: none;
 }
 
 #toolbar.expanded {
