@@ -40,62 +40,103 @@ function initEditorExpander() {
   });
   // Initialize expand buttons for additional textareas
   // Add expand buttons next to each textarea
+  let originalButtonMap = new Map();
+  let originalTextareaMap = new Map();
+
   function addExpandButtons() {
-    const textAreaIds = ["mBioWithoutSources", "mSources"];
     const labelIds = ["notesLabel", "sourcesLabel"];
 
-    for (let i = 0; i < textAreaIds.length; i++) {
+    for (let i = 0; i < labelIds.length; i++) {
       const expandButton = $('<span class="expandTextareaButton" title="Expand text box"></span>');
       const labelTd = $(`#${labelIds[i]}`);
+      const textareaTd = labelTd.next("td");
+      const textarea = textareaTd.find("textarea");
 
       labelTd.append(expandButton);
-      expandButton.data("originalTd", labelTd);
+
+      // Store original elements in JavaScript Map
+      originalButtonMap.set(expandButton[0], labelTd);
+      originalTextareaMap.set(expandButton[0], textarea);
     }
 
     $(".expandTextareaButton").on("click", function () {
-      const originalTd = $(this).data("originalTd");
-      const textarea = originalTd.next("td").find("textarea");
+      const button = this;
+      const originalLabelTd = originalButtonMap.get(button);
+      const originalTextarea = originalTextareaMap.get(button);
 
-      if (textarea.hasClass("expanded")) {
-        // Remove the fixed-position div
-        $("#fixedDiv").remove();
+      if (!originalTextarea) {
+        console.error("Original textarea not found.");
+        return;
+      }
 
-        // Move the textarea back to their original positions
-        originalTd.next("td").append(textarea);
+      function returnElementsToNormal() {
+        $("#editorExpanderFixedDiv").remove();
+        originalTextarea.removeClass("expanded");
+        originalTextarea.show();
+        originalLabelTd.show();
+        $(button).show();
+        // Remove ESC key listener
+        $(document).off("keyup");
+      }
 
-        // Move the button back to its original position
-        originalTd.append(this);
-
-        // Remove the expanded class
-        textarea.removeClass("expanded");
-
-        // Update the button's title
-        $(this).attr("title", "Expand text box");
-      } else {
-        // Add the expanded class
-        textarea.addClass("expanded");
-
-        // Create new fixed-position div
-        const fixedDiv = $('<div id="fixedDiv"></div>').css({
-          position: "fixed",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
+      // Add ESC key listener
+      $(document)
+        .off()
+        .on("keyup", function (e) {
+          if (e.key === "Escape") {
+            returnElementsToNormal();
+          }
         });
 
-        // Add textarea and button to fixed-position div
-        fixedDiv.append(textarea).append(this);
+      if (originalTextarea.hasClass("expanded")) {
+        returnElementsToNormal();
+      } else {
+        originalTextarea.addClass("expanded");
+        originalTextarea.hide();
+        originalLabelTd.hide();
+        $(button).hide();
 
-        // Add fixed-position div to body
+        const fixedDiv = $('<div id="editorExpanderFixedDiv"></div>');
+
+        const newButton = $('<span class="expandTextareaButton" title="Shrink text box"></span>');
+        const newTextarea = $("<textarea></textarea>")
+          .attr({
+            rows: "5",
+            cols: "80",
+            placeholder: originalTextarea.attr("placeholder"), // Copy the placeholder
+          })
+          .addClass("expanded");
+
+        const labelClone = originalLabelTd.find("a").clone(); // Clone the label
+
+        // Sync value from original textarea to new textarea
+        newTextarea.val(originalTextarea.val());
+
+        // Add event listener to sync value when new textarea changes
+        newTextarea.on("input", function () {
+          originalTextarea.val(newTextarea.val());
+        });
+
+        fixedDiv.append(labelClone).append(newTextarea).append(newButton); // Add the cloned label
         $("body").append(fixedDiv);
 
-        // Update the button's title
-        $(this).attr("title", "Shrink text box");
+        newButton.on("click", function () {
+          $("#editorExpanderFixedDiv").remove();
+          originalTextarea.removeClass("expanded");
+          originalTextarea.show();
+          originalLabelTd.show();
+          $(button).show();
+        });
       }
     });
   }
 
-  if (isProfileAddRelative || isAddUnrelatedPerson) {
+  // Initialize the function after a delay, if necessary
+  // Replace isProfileAddRelative and isAddUnrelatedPerson with your actual conditions
+  if (
+    (typeof isProfileAddRelative !== "undefined" && isProfileAddRelative) ||
+    (typeof isAddUnrelatedPerson !== "undefined" && isAddUnrelatedPerson)
+  ) {
     setTimeout(addExpandButtons, 1000);
   }
 }

@@ -18,6 +18,11 @@
   cursor: pointer;
 }
 
+.expandTextareaButton {
+  display: block;
+  margin-top: 0.2em;
+}
+
 div.CodeMirror.expanded,
 textarea#wpTextbox1.expanded {
   width: 100% !important;
@@ -48,8 +53,21 @@ textarea#wpTextbox1.expanded {
   top: -7px;
 }
 
-#mBioWithoutSources.expanded,
-#mSources.expanded {
+#editorExpanderFixedDiv textarea.expanded {
   width: 80vw;
-  height: 80vh;
+  height: calc(80vh - 100px);
+  min-width: 410px;
+}
+
+#editorExpanderFixedDiv {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1001;
+  border: 1px solid forestgreen;
+  border-radius: 1em;
+  padding: 1em;
+  box-shadow: 5px 5px 5px rgba(227, 223, 227, 1);
+  background-color: white;
 }
