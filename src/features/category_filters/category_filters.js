@@ -179,9 +179,14 @@ async function filterCategoryProfiles(buttonID) {
   // Add data-connected and data-orphaned attributes to each $("a.P-F,a.P-M")
   // Then filter the table based on those attributes
   profiles.each(function () {
-    const key = $(this).attr("href").split("/wiki/")[1];
+    const key = $(this).attr("href").split("/wiki/")[1].replace(/ /g, "_");
     // Find the person in filterData (person.Name == key)
     const person = Object.values(filterData).find((person) => person.Name === key);
+
+    // logging
+    if (!person) {
+      console.log("Person not found in filterData: " + key);
+    }
 
     $(this).data("connected", person.Connected);
 
