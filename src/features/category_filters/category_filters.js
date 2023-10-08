@@ -171,10 +171,8 @@ async function filterCategoryProfiles(buttonID) {
     const fields = "Name,Connected,Managers,Father,Mother";
     const appId = "WBE_categoryFilters";
     const people = await fetchPeople({ keys, fields, appId });
-    console.log(people);
     filterData = people?.[0]?.people;
   }
-  console.log(filterData);
   // Get Connected and Orphaned data from filterData
   // Add data-connected and data-orphaned attributes to each $("a.P-F,a.P-M")
   // Then filter the table based on those attributes
@@ -182,11 +180,6 @@ async function filterCategoryProfiles(buttonID) {
     const key = $(this).attr("href").split("/wiki/")[1].replace(/ /g, "_");
     // Find the person in filterData (person.Name == key)
     const person = Object.values(filterData).find((person) => person.Name === key);
-
-    // logging
-    if (!person) {
-      console.log("Person not found in filterData: " + key);
-    }
 
     $(this).data("connected", person.Connected);
 
