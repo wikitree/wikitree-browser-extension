@@ -196,25 +196,27 @@ export function addLoginButton(appId = "WBE") {
     let queryParams = new URLSearchParams(x[1]);
     if (queryParams.get("authcode")) {
       let authcode = queryParams.get("authcode");
-      $.ajax({
-        url: "https://api.wikitree.com/api.php",
-        crossDomain: true,
-        xhrFields: { withCredentials: true },
-        type: "POST",
-        dataType: "JSON",
-        data: {
-          action: "clientLogin",
-          authcode: authcode,
-          appId: appId,
-        },
-        success: function (data) {
-          if (data) {
-            if (data.clientLogin.result == "Success") {
-              $("#myConnectionsLoginButton,#connectionFinderLoginButton").hide();
+      if (authcode) {
+        $.ajax({
+          url: "https://api.wikitree.com/api.php",
+          crossDomain: true,
+          xhrFields: { withCredentials: true },
+          type: "POST",
+          dataType: "JSON",
+          data: {
+            action: "clientLogin",
+            authcode: authcode,
+            appId: appId,
+          },
+          success: function (data) {
+            if (data) {
+              if (data.clientLogin.result == "Success") {
+                $("#myConnectionsLoginButton,#connectionFinderLoginButton,#categoryFiltersLoginButton").hide();
+              }
             }
-          }
-        },
-      });
+          },
+        });
+      }
     }
   }
   let userID = Cookies.get("wikitree_wtb_UserID");
@@ -226,6 +228,7 @@ export function addLoginButton(appId = "WBE") {
     dataType: "JSON",
     success: function (data) {
       if (data) {
+        console.log(data);
         if (data?.clientLogin?.result == "error") {
           let loginButton = $(
             "<button title='Log in to the apps server for better Missing Connections results' class='small button' id='myConnectionsLoginButton'>Apps Login</button>"
@@ -237,6 +240,16 @@ export function addLoginButton(appId = "WBE") {
             loginButton.attr("title", "Log in to the apps server for better Connection Finder Table results");
             loginButton.appendTo($("h1:contains('Connection Finder')"));
             returnURL = encodeURI(window.location.href.replace(/&action=connect/, ""));
+          } else if (appId == "WBE_category_filters") {
+            console.log("here");
+            loginButton.attr("id", "categoryFiltersLoginButton");
+            loginButton.attr(
+              "title",
+              "Log in to the apps server for profiles that you are on the trusted list of to be included in the filtering"
+            );
+            loginButton.appendTo($("#categoryFilterButtonsContainer"));
+            returnURL = encodeURI(window.location.href);
+            console.log(returnURL);
           }
           loginButton.on("click", function (e) {
             e.preventDefault();

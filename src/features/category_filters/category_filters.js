@@ -1,6 +1,7 @@
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { treeImageURL } from "../../core/common";
+import { addLoginButton } from "../my_connections/my_connections";
 
 shouldInitializeFeature("categoryFilters").then((result) => {
   if (result) {
@@ -14,7 +15,7 @@ function createButton(id, title, text) {
 }
 
 const personProfilesh2 = $("h2:contains(Person Profiles)");
-let profiles = $("a.P-F,a.P-M");
+let profiles = $("div.Persons div.P-ITEM a[href*='/wiki/']");
 
 function initCategoryFilters() {
   const filterButtonsContainer = $("<div id='categoryFilterButtonsContainer'></div>");
@@ -25,54 +26,11 @@ function initCategoryFilters() {
     "Show only profiles missing a parent",
     "Missing Parent"
   );
+
   const textFilter = $("<input type='text' id='categoryFiltersTextFilter' placeholder='Text filter'>");
   filterButtonsContainer.appendTo(personProfilesh2);
   filterButtonsContainer.append(unconnectedButton, orphanedButton, missingParentButton, textFilter);
-
-  /*
-  $(textFilter).on("keyup", function () {
-    $(".categoryFilterButton").removeClass("active");
-    const filter = $(this).val().toLowerCase();
-    profiles.closest(".P-ITEM").hide();
-    profiles.each(function () {
-      const profileDiv = $(this).closest(".P-ITEM");
-      // If the filter starts with "<" or ">", treat it as a number filter
-      if ((filter.startsWith("<") || filter.startsWith(">") || filter.startsWith("=")) && filter.length == 5) {
-        const filterNumber = parseInt(filter.slice(1));
-        const birthYearMatch = profileDiv.text().match(/\d{4}/);
-
-        if (birthYearMatch) {
-          const birthYear = parseInt(birthYearMatch[0]);
-          if (filter.startsWith("<")) {
-            if (birthYear < filterNumber) {
-              profileDiv.show();
-            }
-          } else if (filter.startsWith(">")) {
-            if (birthYear >= filterNumber) {
-              profileDiv.show();
-            }
-          } else if (filter.startsWith("=")) {
-            if (birthYear === filterNumber) {
-              profileDiv.show();
-            }
-          }
-        }
-      } else if (filter.startsWith("!")) {
-        const exclusionFilter = filter.slice(1);
-        profiles.each(function () {
-          const profileDiv = $(this).closest(".P-ITEM");
-          if (profileDiv.text().toLowerCase().indexOf(exclusionFilter) > -1) {
-            profileDiv.hide();
-          } else {
-            profileDiv.show();
-          }
-        });
-      } else if (profileDiv.text().toLowerCase().indexOf(filter) > -1) {
-        profileDiv.show();
-      }
-    });
-  });
-  */
+  addLoginButton("WBE_category_filters");
 
   $(textFilter).on("keyup", function () {
     $(".categoryFilterButton").removeClass("active");
@@ -180,25 +138,32 @@ async function filterCategoryProfiles(buttonID) {
     const key = $(this).attr("href").split("/wiki/")[1].replace(/ /g, "_");
     // Find the person in filterData (person.Name == key)
     const person = Object.values(filterData).find((person) => person.Name === key);
+    if (person) {
+      $(this).attr("data-connected", person.Connected);
+      const managersArray = [];
+      let managersString = "";
+      if (person?.Managers?.length > 0) {
+        person.Managers.forEach(function (manager) {
+          managersArray.push(manager.Name);
+        });
+        managersString = managersArray.join(",");
+      } else {
+        managersString = "none";
+      }
 
-    $(this).data("connected", person.Connected);
+      $(this).attr("data-managers", managersString || "null");
 
-    const managersArray = [];
-    let managersString = "";
-    if (person.Managers.length > 0) {
-      person.Managers.forEach(function (manager) {
-        managersArray.push(manager.Name);
-      });
-      managersString = managersArray.join(",");
+      if (person?.Father === 0 || person?.Mother === 0) {
+        $(this).attr("data-missing-parent", "true");
+      } else if (!person?.Father) {
+        $(this).attr("data-missing-parent", "null");
+      } else {
+        $(this).attr("data-missing-parent", "false");
+      }
     } else {
-      managersString = "none";
-    }
-    $(this).data("managers", managersString);
-
-    if (!person.Father || !person.Mother) {
-      $(this).data("missing-parent", true);
-    } else {
-      $(this).data("missing-parent", false);
+      $(this).attr("data-connected", "null");
+      $(this).attr("data-managers", "null");
+      $(this).attr("data-missing-parent", "null");
     }
   });
 
@@ -207,7 +172,7 @@ async function filterCategoryProfiles(buttonID) {
     profiles.closest(".P-ITEM").hide();
     profiles
       .filter(function () {
-        return $(this).data("connected") == 0;
+        return $(this).attr("data-connected") == 0;
       })
       .closest(".P-ITEM")
       .show();
@@ -215,7 +180,7 @@ async function filterCategoryProfiles(buttonID) {
     profiles.closest(".P-ITEM").hide();
     profiles
       .filter(function () {
-        return $(this).data("managers") === "none";
+        return $(this).attr("data-managers") === "none";
       })
       .closest(".P-ITEM")
       .show();
@@ -223,7 +188,7 @@ async function filterCategoryProfiles(buttonID) {
     profiles.closest(".P-ITEM").hide();
     profiles
       .filter(function () {
-        return $(this).data("missing-parent") === true;
+        return $(this).attr("data-missing-parent") === "true";
       })
       .closest(".P-ITEM")
       .show();

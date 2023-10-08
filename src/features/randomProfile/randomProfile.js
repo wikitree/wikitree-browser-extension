@@ -253,7 +253,7 @@ function goAndLogIn() {
   const $inputReturnURL = $("<input>", {
     type: "hidden",
     name: "returnURL",
-    value: window.location.href,
+    value: window.location.href + "?doRandomProfile=1",
   });
 
   const $submitButton = $("<input>", {
@@ -276,8 +276,10 @@ async function doLogin() {
   if (typeof authcode != "undefined" && authcode != null && authcode != "") {
     const postData = { action: "clientLogin", authcode: authcode };
     await postToAPI(postData);
-    showWorking();
-    goToRandomWatchlistProfile(true);
+    if (u?.doRandomProfile) {
+      showWorking();
+      goToRandomWatchlistProfile(true);
+    }
   } else if (login?.clientLogin?.result) {
     if (login.clientLogin.result == "error") {
       goAndLogIn();
