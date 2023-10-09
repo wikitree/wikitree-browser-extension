@@ -504,12 +504,6 @@ function GetKnownCountry(entity, entities) {
   return entity;
 }
 
-function ReactivateEnhancedEditorIfNeeded(enhancedEditorOn) {
-  if (enhancedEditorOn) {
-    $("#toggleMarkupColor").trigger("click");
-  }
-}
-
 function DeactivateEnhancedEditorIfPresent() {
   let enhancedEditorOn = false;
   const enhancedEditorButton = $("#toggleMarkupColor[value='Turn Off Enhanced Editor']");
@@ -519,4 +513,10 @@ function DeactivateEnhancedEditorIfPresent() {
     enhancedEditorButton.trigger("click");
   }
   return enhancedEditorOn;
+}
+
+function ReactivateEnhancedEditorIfNeeded(enhancedEditorOn) {
+  if (enhancedEditorOn) {
+    $("#toggleMarkupColor").trigger("click");
+  }
 }
