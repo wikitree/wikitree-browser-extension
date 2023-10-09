@@ -1,4 +1,5 @@
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { DeactivateEnhancedEditorIfPresent, ReactivateEnhancedEditorIfNeeded } from "../../core/enhancedEditor";
 
 shouldInitializeFeature("migrationCategoryHelper").then((result) => {
   if (result) {
@@ -502,21 +503,4 @@ function GetKnownCountry(entity, entities) {
     }
   });
   return entity;
-}
-
-function DeactivateEnhancedEditorIfPresent() {
-  let enhancedEditorOn = false;
-  const enhancedEditorButton = $("#toggleMarkupColor[value='Turn Off Enhanced Editor']");
-
-  if (enhancedEditorButton.length) {
-    enhancedEditorOn = true;
-    enhancedEditorButton.trigger("click");
-  }
-  return enhancedEditorOn;
-}
-
-function ReactivateEnhancedEditorIfNeeded(enhancedEditorOn) {
-  if (enhancedEditorOn) {
-    $("#toggleMarkupColor").trigger("click");
-  }
 }

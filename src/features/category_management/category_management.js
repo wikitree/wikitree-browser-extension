@@ -8,6 +8,7 @@ import {
   isProfilePage,
   isPlusDomain,
 } from "../../core/pageType";
+import { DeactivateEnhancedEditorIfPresent, ReactivateEnhancedEditorIfNeeded } from "../../core/enhancedEditor";
 
 //todo: rename CatALot to Batch cat. or whatever it will be in the end
 
@@ -915,23 +916,6 @@ function PerformActualProfileChanges() {
   }
 }
 
-function ReactivateEnhancedEditorIfNeeded(enhancedEditorOn) {
-  if (enhancedEditorOn) {
-    $("#toggleMarkupColor").trigger("click");
-  }
-}
-
-function DeactivateEnhancedEditorIfPresent() {
-  let enhancedEditorOn = false;
-  const enhancedEditorButton = $("#toggleMarkupColor[value='Turn Off Enhanced Editor']");
-
-  if (enhancedEditorButton.length) {
-    enhancedEditorOn = true;
-    enhancedEditorButton.trigger("click");
-  }
-  return enhancedEditorOn;
-}
-
 function PerformActualCategoryChanges() {
   const enhancedEditorOn = DeactivateEnhancedEditorIfPresent();
   let urlParams = new URLSearchParams(window.location.search);
@@ -1008,7 +992,6 @@ function CheckWhatLinksHereAndSave() {
               const page = LIs[i].innerText.split(" (← links)").join("");
               if (!page.startsWith("Automated:")) {
                 const win = window.open("https://www.wikitree.com/index.php?title=" + page + "&action=edit");
-
               }
             }
           }
