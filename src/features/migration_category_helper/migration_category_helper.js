@@ -2,10 +2,12 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 
 shouldInitializeFeature("migrationCategoryHelper").then((result) => {
   if (result) {
+    const enhancedEditorOn = DeactivateEnhancedEditorIfPresent();
     let wpTextbox1 = window.document.getElementById("wpTextbox1");
     if (wpTextbox1 != null && wpTextbox1.value == "") {
       CreateMigrationCategory(wpTextbox1);
     }
+    ReactivateEnhancedEditorIfNeeded(enhancedEditorOn);
   }
 });
 
@@ -500,4 +502,21 @@ function GetKnownCountry(entity, entities) {
     }
   });
   return entity;
+}
+
+function ReactivateEnhancedEditorIfNeeded(enhancedEditorOn) {
+  if (enhancedEditorOn) {
+    $("#toggleMarkupColor").trigger("click");
+  }
+}
+
+function DeactivateEnhancedEditorIfPresent() {
+  let enhancedEditorOn = false;
+  const enhancedEditorButton = $("#toggleMarkupColor[value='Turn Off Enhanced Editor']");
+
+  if (enhancedEditorButton.length) {
+    enhancedEditorOn = true;
+    enhancedEditorButton.trigger("click");
+  }
+  return enhancedEditorOn;
 }
