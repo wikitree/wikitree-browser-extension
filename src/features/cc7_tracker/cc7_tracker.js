@@ -75,13 +75,10 @@ export async function initializeCC7Tracking() {
 
 export async function getAndStoreCC7Deltas() {
   const newApiData = await fetchCC7FromAPI();
-  console.log("newApiData:", newApiData);
-
   const lastStoredData = await fetchLastStoredCC7();
 
   // Filter out the user by their Id (replace 'userId' with the actual Id)
   const filteredApiData = newApiData.filter((person) => person.Id !== "userId");
-  console.log("filteredApiData:", filteredApiData);
 
   // Check if initialCC7 is empty and populate it if needed
   if (lastStoredData.length === 0) {
@@ -232,23 +229,38 @@ async function fetchStoredDeltas() {
 
 async function fetchCC7FromAPI() {
   const mWTID = Cookies.get("wikitree_wtb_UserName");
-  const apiResult = await fetchPeople({ keys: mWTID, fields: "Id,Name,Meta", nuclear: 7 });
-  console.log(apiResult);
-  const people = apiResult?.[0]?.people;
-  const restructuredResult = Object.keys(people).reduce((acc, key) => {
-    const entry = people[key];
-    acc[key] = {
-      ...entry,
-      Degrees: entry.Meta.Degrees,
-    };
-    delete acc[key].Meta;
-    return acc;
-  }, {});
-  const arrayOfObjects = Object.keys(restructuredResult).map((key) => {
-    return restructuredResult[key];
-  });
-  console.log(arrayOfObjects);
-  return arrayOfObjects;
+  let peopleObjectArray = [];
+  let getMore = true;
+  const limit = 1000;
+  let start = 0;
+  while (getMore) {
+    const apiResult = await fetchPeople({
+      keys: mWTID,
+      fields: "Id,Name,Meta",
+      nuclear: 7,
+      start: start,
+      limit: limit,
+    });
+    const people = apiResult?.[0]?.people;
+    const restructuredResult = Object.keys(people).reduce((acc, key) => {
+      const entry = people[key];
+      acc[key] = {
+        ...entry,
+        Degrees: entry.Meta.Degrees,
+      };
+      delete acc[key].Meta;
+      return acc;
+    }, {});
+    const arrayOfObjects = Object.keys(restructuredResult).map((key) => {
+      return restructuredResult[key];
+    });
+    start += limit;
+    // Check if we're done
+    getMore = arrayOfObjects.length == limit;
+    // add to peopleObjectArray
+    peopleObjectArray = peopleObjectArray.concat(arrayOfObjects);
+  }
+  return peopleObjectArray;
 }
 
 async function fetchPeopleDetails(idString) {
@@ -289,7 +301,6 @@ async function fetchPeopleDetails(idString) {
   ].join(",");
 
   const apiResult = await fetchPeople({ keys: idString, fields: fields });
-  console.log(apiResult);
   const people = apiResult?.[0]?.people;
   const restructuredResult = Object.keys(people).reduce((acc, key) => {
     const entry = people[key];
@@ -302,90 +313,10 @@ async function fetchPeopleDetails(idString) {
   const arrayOfObjects = Object.keys(restructuredResult).map((key) => {
     return restructuredResult[key];
   });
-  console.log(arrayOfObjects);
   return arrayOfObjects;
 }
 
-/*
-async function showStoredDeltas(data, lastStoredCC7) {
-  const deltasSinceLastVisit = data.deltasSinceLastVisit;
-  const deltasWithinLastMonth = data.deltasWithinLastMonth;
-
-  // log
-  console.log("deltasSinceLastVisit:", deltasSinceLastVisit);
-  console.log("deltasWithinLastMonth:", deltasWithinLastMonth);
-
-  const container = $("<div>").attr("id", "cc7DeltaContainer");
-  const heading = $("<h2>").text("CC7 Changes");
-  container.append(heading);
-
-  const allDetailsSinceLastVisit = await fetchPeopleDetails(idStringSinceLastVisit);
-  const allDetailsWithinLastMonth = await fetchPeopleDetails(idStringWithinLastMonth);
-
-  if (deltasSinceLastVisit.added.length.added.length > 0 || allDetailsWithinLastMonth.length > 0) {
-    // Handle details for changes since last visit
-    if (allDetailsSinceLastVisit.length > 0) {
-      const addedHeading = $("<h3>").text("Added since last visit: ");
-      const addedList = $("<ul>");
-      allDetailsSinceLastVisit.forEach((person) => {
-        const link = $("<a>")
-          .attr("href", `https://www.wikitree.com/wiki/${person.Name}`)
-          .text(person.FullName + " " + displayDates(person));
-        const listItem = $("<li>").append(link);
-        addedList.append(listItem);
-      });
-      container.append(addedHeading, addedList);
-    }
-
-    // Handle details for changes within the last month
-    if (allDetailsWithinLastMonth.length > 0) {
-      const addedHeading = $("<h3>").text("Added within the last month: ");
-      const addedList = $("<ul>");
-      allDetailsWithinLastMonth.forEach((person) => {
-        const link = $("<a>")
-          .attr("href", `https://www.wikitree.com/wiki/${person.Name}`)
-          .text(person.FullName + " " + displayDates(person));
-        const listItem = $("<li>").append(link);
-        addedList.append(listItem);
-      });
-      container.append(addedHeading, addedList);
-    }
-  } else {
-    const noChanges = $("<p>").text("No changes since you last checked.");
-    container.append(noChanges);
-  }
-
-  function closeCC7DeltaContainer() {
-    $("#cc7DeltaContainer").slideUp();
-    setTimeout(() => {
-      $("#cc7DeltaContainer").remove();
-    }, 1000);
-  }
-
-  const x = $("<x>&times;</x>");
-  x.on("click", function () {
-    closeCC7DeltaContainer();
-  });
-  $(container).prepend(x);
-
-  // add Escape to close
-  $(document).on("keyup", function (e) {
-    if (e.key === "Escape") {
-      closeCC7DeltaContainer();
-    }
-  });
-
-  // Add dblclick to close
-  $(container).on("dblclick", function () {
-    closeCC7DeltaContainer();
-  });
-
-  $("body").append(container);
-  $("#cc7DeltaContainer").draggable();
-}
-*/
-
-async function showStoredDeltas(data, lastStoredCC7) {
+async function showStoredDeltas(data) {
   const deltasSinceLastVisit = data.deltasSinceLastVisit.filter((delta) => delta.added.length < 500);
   const deltasWithinLastMonth = data.deltasWithinLastMonth.filter((delta) => delta.added.length < 500);
 
@@ -425,9 +356,6 @@ async function showStoredDeltas(data, lastStoredCC7) {
   if (uniqueIdsWithinLastMonth.length > 0) {
     allDetailsWithinLastMonth = await fetchPeopleDetails(uniqueIdsWithinLastMonth.join(","));
   }
-  // log
-  console.log("allDetailsSinceLastVisit:", allDetailsSinceLastVisit);
-  console.log("allDetailsWithinLastMonth:", allDetailsWithinLastMonth);
 
   const container = $("<div>").attr("id", "cc7DeltaContainer");
   const heading = $("<h2>").text("CC7 Changes");
