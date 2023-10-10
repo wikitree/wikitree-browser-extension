@@ -1,0 +1,27 @@
+#cc7DeltaContainer {
+  position: absolute;
+  top: 200px;
+  left: 35%;
+  border: 1px solid forestgreen;
+  border-radius: 5px;
+  padding: 20px;
+  background-color: #fff;
+  box-shadow: 1em 1em 1em #ccc;
+  z-index: 1000;
+  width: 400px;
+}
+#cc7DeltaContainer x {
+  position: absolute;
+  top: 0;
+  right: 0.5em;
+  font-size: 20px;
+  cursor: pointer;
+}
+#cc7DeltaContainer x:hover {
+  color: red;
+}
+#cc7DeltaContainer ul {
+  list-style: none;
+  padding: 0;
+  margin: 1em 2em;
+}

@@ -79,6 +79,7 @@ import "./features/appsMenu/appsMenu";
 import "./features/category_tables/category_tables";
 import "./features/category_filters/category_filters";
 import "./features/category_management/category_management";
+import "./features/cc7_tracker/cc7_tracker";
 import "./features/edit_family_data/edit_family_data";
 import "./features/editor_expander/editor_expander";
 import "./features/draftList/draftList";
