@@ -106,6 +106,9 @@ export let isSpecialDNATests = false;
 export let isDNADescendants = false;
 // Special: WatchedList page
 export let isSpecialWatchedList = false;
+// MergeEdit
+export let isMergeEdit = false;
+
 // G2G
 export let isG2G = false;
 // Apps page
@@ -328,6 +331,8 @@ if (domain.match("apps.wikitree.com")) {
       isNavHomePage = true;
     } else if (uri.match(/Special:Connection/)) {
       isConnectionFinder = true;
+    } else if (uri.match(/Special:MergeEdit/)) {
+      isMergeEdit = true;
     }
   } else if (
     // Other Edit Page

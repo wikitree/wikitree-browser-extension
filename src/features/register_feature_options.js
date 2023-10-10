@@ -40,6 +40,7 @@ import {
   isDNADescendants,
   isMainDomain,
   isSearchPage,
+  isMergeEdit,
   /* eslint-enable no-unused-vars */
 } from "../core/pageType";
 
@@ -243,7 +244,7 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
-  pages: [isProfileEdit, isProfileAddRelative],
+  pages: [isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson, isMergeEdit, isSpaceEdit],
 });
 
 registerFeature({
