@@ -163,6 +163,7 @@ async function fetchLastStoredCC7() {
   });
 }
 
+/*
 async function fetchStoredDeltas(lastVisitDate) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction("cc7Deltas", "readonly");
@@ -186,6 +187,40 @@ async function fetchStoredDeltas(lastVisitDate) {
         cursor.continue();
       } else {
         resolve({ deltasSinceLastVisit, deltasWithinLastMonth });
+      }
+    };
+
+    getRequest.onerror = function (event) {
+      reject(new Error("Error fetching data from cc7Deltas object store"));
+    };
+  });
+}
+*/
+
+async function fetchStoredDeltas() {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("cc7Deltas", "readonly");
+    const store = tx.objectStore("cc7Deltas");
+    const getRequest = store.openCursor(null, "prev"); // Get the newest entry first
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    let mostRecentDelta = null;
+    const deltasWithinLastMonth = [];
+
+    getRequest.onsuccess = function (event) {
+      const cursor = event.target.result;
+      if (cursor) {
+        if (!mostRecentDelta) {
+          mostRecentDelta = cursor.value; // Take the first (most recent) entry
+        }
+        const date = new Date(cursor.value.date);
+        if (date > oneMonthAgo) {
+          deltasWithinLastMonth.push(cursor.value);
+        }
+        cursor.continue();
+      } else {
+        resolve({ deltasSinceLastVisit: mostRecentDelta ? [mostRecentDelta] : [], deltasWithinLastMonth });
       }
     };
 
@@ -368,21 +403,27 @@ async function showStoredDeltas(data, lastStoredCC7) {
     );
   }, []);
 
-  // log
-  console.log("deltasSinceLastVisit:", deltasSinceLastVisit);
-  console.log("deltasWithinLastMonth:", deltasWithinLastMonth);
-  console.log("idsSinceLastVisit:", idsSinceLastVisit);
-  console.log("idsWithinLastMonth:", idsWithinLastMonth);
+  // Create sets for quick lookup
+  const idsSetSinceLastVisit = new Set(idsSinceLastVisit);
+  const idsSetWithinLastMonth = new Set(idsWithinLastMonth);
+  // Remove duplicates from the 'within last month' set
+  for (const id of idsSetSinceLastVisit) {
+    idsSetWithinLastMonth.delete(id);
+  }
 
-  // Fetch people details based on IDs
+  // Convert the sets back to arrays
+  const uniqueIdsSinceLastVisit = Array.from(idsSetSinceLastVisit);
+  const uniqueIdsWithinLastMonth = Array.from(idsSetWithinLastMonth);
 
   let allDetailsSinceLastVisit = [];
   let allDetailsWithinLastMonth = [];
-  if (idsSinceLastVisit.length > 0) {
-    allDetailsSinceLastVisit = await fetchPeopleDetails(idsSinceLastVisit.join(","));
+  // log
+  // Fetch people details based on unique IDs
+  if (uniqueIdsSinceLastVisit.length > 0) {
+    allDetailsSinceLastVisit = await fetchPeopleDetails(uniqueIdsSinceLastVisit.join(","));
   }
-  if (idsWithinLastMonth.length > 0) {
-    allDetailsWithinLastMonth = await fetchPeopleDetails(idsWithinLastMonth.join(","));
+  if (uniqueIdsWithinLastMonth.length > 0) {
+    allDetailsWithinLastMonth = await fetchPeopleDetails(uniqueIdsWithinLastMonth.join(","));
   }
   // log
   console.log("allDetailsSinceLastVisit:", allDetailsSinceLastVisit);
@@ -394,7 +435,7 @@ async function showStoredDeltas(data, lastStoredCC7) {
 
   // Handle details for changes since last visit
   if (allDetailsSinceLastVisit.length > 0) {
-    const addedHeading = $("<h3>").text("Added since last visit: ");
+    const addedHeading = $("<h3>").text("Added since you last checked: ");
     const addedList = $("<ul>");
     allDetailsSinceLastVisit.forEach((person) => {
       const link = $("<a>")
@@ -408,9 +449,13 @@ async function showStoredDeltas(data, lastStoredCC7) {
 
   // Handle details for changes within the last month
   if (allDetailsWithinLastMonth.length > 0) {
-    const addedHeading = $("<h3>").text("Added within the last month: ");
+    const addedHeadingText =
+      idsSetSinceLastVisit.size > 0 ? "Also added within the last month: " : "Added within the last month: ";
+    const addedHeading = $("<h3>").text(addedHeadingText);
     const addedList = $("<ul>");
-    const removedHeading = $("<h3>").text("Removed within the last month: ");
+    const removedHeadingText =
+      idsSetSinceLastVisit.size > 0 ? "Also removed within the last month: " : "Removed within the last month: ";
+    const removedHeading = $("<h3>").text(removedHeadingText);
     const removedList = $("<ul>");
 
     allDetailsWithinLastMonth.forEach((person) => {
