@@ -443,7 +443,7 @@ async function showStoredDeltas(data) {
   $("#cc7DeltaContainer").draggable();
 }
 
-if (shouldInitializeFeature("cc7Tracker")) {
+if (shouldInitializeFeature("cc7Changes")) {
   initializeCC7Tracking();
-  import("./cc7_tracker.css");
+  import("./cc7_changes.css");
 }

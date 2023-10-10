@@ -1,15 +1,16 @@
 #cc7DeltaContainer {
   position: absolute;
   top: 200px;
-  left: 35%;
+  left: 30%;
   border: 1px solid forestgreen;
   border-radius: 5px;
   padding: 20px;
   background-color: #fff;
   box-shadow: 1em 1em 1em #ccc;
   z-index: 1000;
-  width: 400px;
+  width: 500px;
   height: 600px;
+  overflow: auto;
 }
 #cc7DeltaContainer x {
   position: absolute;
@@ -25,4 +26,16 @@
   list-style: none;
   padding: 0;
   margin: 1em 2em;
+  font-size: 16px;
+}
+#cc7DeltaContainer ul li {
+  margin: 0.5em 0;
+  text-align: left;
+}
+#cc7DeltaContainer h3 {
+  text-align: left;
+  padding-left: 2em !important;
+}
+#cc7DeltaContainer h2 {
+  margin-top: 0;
 }
