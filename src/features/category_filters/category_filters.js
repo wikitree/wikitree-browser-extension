@@ -197,7 +197,7 @@ async function filterCategoryProfiles(buttonID) {
   }
 }
 
-async function fetchPeople(args) {
+export async function fetchPeople(args) {
   const params = {
     action: "getPeople",
   };

@@ -61,6 +61,7 @@ import "./categoryDisplay/categoryDisplay_options";
 import "./category_filters/category_filters_options";
 import "./category_management/category_management_options";
 import "./category_tables/category_tables_options";
+import "./cc7_changes/cc7_changes_options";
 import "./change_family_lists/change_family_lists_options";
 import "./connection_finder/connection_finder_options";
 import "./copy_bio_changes/copy_bio_changes_options";

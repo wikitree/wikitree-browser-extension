@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import Cookies from "js-cookie";
+import Cookies from "js-cookie"; 
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 shouldInitializeFeature("appsMenu").then((result) => {
