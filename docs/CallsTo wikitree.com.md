@@ -1,19 +1,20 @@
-Standardization of retrieving pages whitin applications and extensions. That is not needed for images, css and js files.
+Standardization of retrieving pages within applications and extensions. That is not needed for images, css and js files.
 
 # Identifying a caller
 
-There are several different applications/extensions/services that can make retrieve a page. Here is a standard to identify the caller (xxx in the rest of the page). All calls should start with "api" followed by the type of application
+There are several different applications/extensions/services that can retrieve a page. Here is a standard to identify the caller (xxx in the rest of the page). All calls should start with "api" followed by the type of application
 * "Ext" for extensions
-** "apiExtWbe" for WikiTree Browser Extension.
-** "apiExtBee" for WikiTree Bee.
-** "apiExtSrc" for Sourcerer.
+  * "apiExtWbe" for WikiTree Browser Extension.
+  * "apiExtBee" for WikiTree Bee.
+  * "apiExtSrc" for Sourcerer.
 * "Apps" for applications on apps.wikitree.com.
-** "apiApps_harris5439_maps" for WikiTree Maps application.
+  * "apiApps_harris5439_maps" for WikiTree Maps application.
 * "TreeApp" for the tree applications
-** "apiTreeApp_FanChart"
+  * "apiTreeApp_FanChart"
 * "Svc" for services running on other servers.
-* "apiSvc_Straub620_g2g2rss" for services running on other servers.
-* "apiSvc_wtPlus_EditBot" for services running on other servers.
+  * "apiSvc_Straub620_g2g2rss" for services running on other servers.
+  * "apiSvc_wtPlus_EditBot" for services running on other servers.
+
 Additional text can be added if you want to distinguish between multiple calls in the same application.
 
 # Retrieving a page from
@@ -26,11 +27,11 @@ In all calls to www.wikitree.com you should add a parameter appID=xxx. That appl
 
 ## api.wikitree.com
 
-All calls to api should have the &appID=xxx parameter. At som point in the future it will be required parameter.
+All calls to api should have the &appID=xxx parameter. At some point in the future it will be a required parameter.
 
 ## apps.wikitree.com
 
-Calls to apps domain don't require the appID=xxx parameter unless you are using other user's data. I think I noticed that some Tree apps do calls to the apps domain and in those cases it is usefull to add the identification parameter.
+Calls to the apps domain don't require the appID=xxx parameter unless you are using other user's data. I think I noticed that some Tree apps do calls to the apps domain and in those cases it is useful to add the identification parameter.
 * For a page without parameters add ?appID=xxx to the URL. 
 * For a page with parameters add &appID=xxx to the URL. 
 
