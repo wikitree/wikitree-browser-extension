@@ -1,11 +1,14 @@
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { DeactivateEnhancedEditorIfPresent, ReactivateEnhancedEditorIfNeeded } from "../../core/enhancedEditor";
 
 shouldInitializeFeature("migrationCategoryHelper").then((result) => {
   if (result) {
+    const enhancedEditorOn = DeactivateEnhancedEditorIfPresent();
     let wpTextbox1 = window.document.getElementById("wpTextbox1");
     if (wpTextbox1 != null && wpTextbox1.value == "") {
       CreateMigrationCategory(wpTextbox1);
     }
+    ReactivateEnhancedEditorIfNeeded(enhancedEditorOn);
   }
 });
 
