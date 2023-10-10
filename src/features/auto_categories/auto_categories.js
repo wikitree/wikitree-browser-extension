@@ -4,6 +4,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { ageAtDeath } from "../my_connections/my_connections";
 import {
   getLocationCategory,
+  getLocationCategoriesForSourcePlaces,
   getFormData,
   sourcesArray,
   splitBioIntoSections,
@@ -82,6 +83,7 @@ export async function addAutoCategories() {
 
   // Generate an array of sources from the bio
   sourcesArray(currentBio);
+  console.log(window.references);
 
   // Get citations from the bio and await because it's an async operation
   await getCitations();
@@ -108,6 +110,10 @@ export async function addAutoCategories() {
   }
   window.addCategories.forEach((category) => {
     addLocationCategoryToStuffBeforeTheBio(category);
+  });
+  const referenceLocations = await getLocationCategoriesForSourcePlaces();
+  referenceLocations.forEach((category) => {
+    addLocationCategoryToStuffBeforeTheBio(category.category);
   });
 
   if (window.autoCategoriesOptions.unsourced) {

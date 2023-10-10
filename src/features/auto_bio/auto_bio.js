@@ -1083,7 +1083,7 @@ export function assignCemeteryFromSources() {
   window.references.forEach(function (source) {
     if (source["Record Type"].includes("Death")) {
       let cemeteryMatch = source.Text.match(
-        /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Graveyard)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)).*?),?.*?(?=[;.])/im
+        /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Graveyard)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)|Memorial Park).*?),?.*?(?=[;.])/im
       );
       let cemeteryMatch2 = source.Text.match(
         /,\s([^,]*?Cemetery|Memorial|Cimetière|kyrkogård|temető|Graveyard|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard).*?;/
@@ -1091,13 +1091,15 @@ export function assignCemeteryFromSources() {
       if (cemeteryMatch && source.Text.match(/Acadian|Wall of Names/) == null) {
         let cemetery = cemeteryMatch[0].replace("citing ", "").replace("Burial, ", "").trim();
         window.profilePerson.Cemetery = cemetery;
+        console.log(cemetery);
       } else if (cemeteryMatch2 && source.Text.match(/Acadian|Wall of Names/) == null) {
         let cemetery = cemeteryMatch2[1].trim();
         window.profilePerson.Cemetery = cemetery;
       }
       if (window.profilePerson?.Cemetery) {
-        window.profilePerson?.Cemetery.match(/record|Find a Grave/);
-        window.profilePerson.Cemetery = "";
+        if (window.profilePerson?.Cemetery.match(/record|Find a Grave/)) {
+          window.profilePerson.Cemetery = "";
+        }
       }
     }
   });
@@ -4153,6 +4155,18 @@ function parseNZBDM(aRef) {
   return aRef;
 }
 
+function addReferencePlaces() {
+  window.profilePerson.referencePlaces = [];
+  window.references.forEach(function (aRef) {
+    // Get the place names from the aRef.Text. First, remove "Born in.*?\.".
+    let refText = aRef.Text.replace(/Born in.*?\.$/, "");
+    const placeMatch = refText.match(/in\s+(.*?)\.$/);
+    if (placeMatch) {
+      window.profilePerson.referencePlaces.push(placeMatch[1]);
+    }
+  });
+}
+
 export function sourcesArray(bio) {
   let dummy = $(document.createElement("html"));
   bio = bio.replace(/\{\|\s*class="wikitable".*?\|\+ Timeline.*?\|\}/gs, "").replace(/<ref[^>]*\/>/g, "");
@@ -4678,6 +4692,7 @@ export function sourcesArray(bio) {
   }
   window.references = refArr;
   buildCensusNarratives();
+  addReferencePlaces();
 }
 
 function addRelationsToSourcerCensuses(censuses) {
@@ -5785,6 +5800,18 @@ export async function getCitations() {
             citation = fixSpaces(citation);
           }
           aRef.Text = citation.trim();
+
+          // Get cemetery name from citation
+          if (findAGraveLink) {
+            const cemeteryMatch = citation.match(/citing ([^;]+)/);
+            if (cemeteryMatch) {
+              aRef.Cemetery = cemeteryMatch[1];
+              // If window.profilePerson is in the citation, add the cemetery to the profile
+              if (citation.match(window.profilePerson?.PersonName?.FirstName)) {
+                window.profilePerson.Cemetery = aRef.Cemetery;
+              }
+            }
+          }
         } else {
           console.error("Error fetching citation for link:", citationLink);
         }
@@ -6586,6 +6613,31 @@ function minimalPlace2(narrativeBits) {
   return out;
 }
 
+export async function getLocationCategoriesForSourcePlaces() {
+  // Check if window.profilePerson.referencePlaces exists and is an array
+  if (!Array.isArray(window.profilePerson.referencePlaces)) {
+    console.log("sourcePlaces is not an array or does not exist.");
+    return;
+  }
+
+  const results = [];
+
+  for (const place of window.profilePerson.referencePlaces) {
+    // Assuming "type" is something you know for each place, or it's the same for all places.
+    const type = "Source"; // Replace with the appropriate type for each place
+
+    const foundCategory = await getLocationCategory(type, place);
+    if (foundCategory) {
+      results.push({
+        place,
+        category: foundCategory,
+      });
+    }
+  }
+
+  return results;
+}
+
 // Add location category
 async function getLocationCategories() {
   let types = ["Birth", "Marriage", "Death", "Cemetery"];
@@ -6593,6 +6645,11 @@ async function getLocationCategories() {
     const location = await getLocationCategory(types[i]);
     addLocationCategoryToStuffBeforeTheBio(location);
   }
+  const sourceLocationCategories = await getLocationCategoriesForSourcePlaces();
+  console.log(sourceLocationCategories);
+  sourceLocationCategories.forEach((sourceLocationCategory) => {
+    addLocationCategoryToStuffBeforeTheBio(sourceLocationCategory.category);
+  });
 }
 
 async function getSpouseParents() {
@@ -7678,7 +7735,7 @@ export async function getLocationCategory(type, location = null) {
     }
   }
 
-  const searchLocationsSet = generateCombinations(searchLocation); // Assuming you have this function
+  const searchLocationsSet = generateCombinations(searchLocation);
   const searchLocationsArray = Array.from(searchLocationsSet);
   const apiPromises = [];
 
