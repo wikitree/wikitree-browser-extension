@@ -160,40 +160,6 @@ async function fetchLastStoredCC7() {
   });
 }
 
-/*
-async function fetchStoredDeltas(lastVisitDate) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction("cc7Deltas", "readonly");
-    const store = tx.objectStore("cc7Deltas");
-    const getRequest = store.openCursor(null, "prev");
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-    const deltasSinceLastVisit = [];
-    const deltasWithinLastMonth = [];
-
-    getRequest.onsuccess = function (event) {
-      const cursor = event.target.result;
-      if (cursor) {
-        const date = new Date(cursor.value.date);
-        if (date > oneMonthAgo) {
-          deltasWithinLastMonth.push(cursor.value);
-        }
-        if (date > new Date(lastVisitDate)) {
-          deltasSinceLastVisit.push(cursor.value);
-        }
-        cursor.continue();
-      } else {
-        resolve({ deltasSinceLastVisit, deltasWithinLastMonth });
-      }
-    };
-
-    getRequest.onerror = function (event) {
-      reject(new Error("Error fetching data from cc7Deltas object store"));
-    };
-  });
-}
-*/
-
 async function fetchStoredDeltas() {
   return new Promise((resolve, reject) => {
     const tx = db.transaction("cc7Deltas", "readonly");
@@ -377,12 +343,10 @@ async function showStoredDeltas(data) {
 
   // Handle details for changes within the last month
   if (allDetailsWithinLastMonth.length > 0) {
-    const addedHeadingText =
-      idsSetSinceLastVisit.size > 0 ? "Also added within the last month: " : "Added within the last month: ";
+    const addedHeadingText = idsSetSinceLastVisit.size > 0 ? "Also added recently: " : "Added recently: ";
     const addedHeading = $("<h3>").text(addedHeadingText);
     const addedList = $("<ul>");
-    const removedHeadingText =
-      idsSetSinceLastVisit.size > 0 ? "Also removed within the last month: " : "Removed within the last month: ";
+    const removedHeadingText = idsSetSinceLastVisit.size > 0 ? "Also removed recently: " : "Removed recently: ";
     const removedHeading = $("<h3>").text(removedHeadingText);
     const removedList = $("<ul>");
 
