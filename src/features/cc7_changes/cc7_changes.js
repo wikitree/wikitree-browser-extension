@@ -51,8 +51,9 @@ export async function addCC7ChangesButton() {
     const working = $("<img id='working' src='" + treeImageURL + "'>");
     working.appendTo("body").css({
       position: "absolute",
-      left: `${e.pageX - 50}px`,
-      top: e.pageY + "px",
+      left: `${e.pageX - 100}px`,
+      top: `${e.pageY + 100}px`,
+      "z-index": "1000000",
     });
     await getAndStoreCC7Deltas();
     const storedDeltas = await fetchStoredDeltas();

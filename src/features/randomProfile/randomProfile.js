@@ -28,7 +28,7 @@ function showWorking() {
     if ($("#locationInputLabel").length == 0) {
       working.appendTo("body").css({
         position: "absolute",
-        right: "100px",
+        right: "150px",
         top: "300px",
       });
     } else {
