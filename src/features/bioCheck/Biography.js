@@ -55,10 +55,6 @@ export class Biography {
   #advanceDirectiveIndex = -1;  // start of advance directive
   #advanceDirectiveEndIndex = -1;  // end of advance directive
 
-  #notocIndex = -1;  // location of __NOTOC__ if any
-  #firstCategoryIndex = -1;  // first category line
-  #firstNonBlankLine = -1;  // first line not blank
-
   #isPre1700 = false; // is this a pre1700 profile
   #isPre1500 = false; // is this a pre1500 profile
   #tooOldToRemember = false; // is this profile to old to remember
@@ -158,6 +154,7 @@ export class Biography {
    */
   applyPre1700ToAll() {
     this.#treatAsPre1700 = true; 
+    this.#tooOldToRemember = true;
   }
 
   /**
@@ -202,8 +199,9 @@ export class Biography {
     let haveNavBox = false;
     let haveProjectBox = false;
     let haveBiography = false;
+    let haveTextLine = false;
 
-    let checkForNavBox = false;
+    let reportNavBox = false;  // TODO wait until the location has been approved
 
     // build a vector of each line in the bio then iterate
     this.#getLines(this.#bioInputString);
@@ -217,9 +215,6 @@ export class Biography {
       let line = this.#bioLines[currentIndex].toLowerCase().trim();
       let linesToSkip = 0;
       if (line.length > 0) {         // something here?
-        if (this.#firstNonBlankLine < 0) {
-          this.#firstNonBlankLine = currentIndex;
-        }
         if (line.indexOf(Biography.#REFERENCES_TAG) >= 0) {
           this.#referencesIndex = currentIndex;
         }
@@ -244,14 +239,35 @@ export class Biography {
           line = line.replace("[[ ", "[[");
         }
         if (line.startsWith(Biography.#CATEGORY_START)) {
+          // Report category out of order with the last thing reported first so that
+          // you only get one reported per category
           // out of order if RNB, Project Box, Nav Box or Biography heading preceeds
-          if (haveResearchNoteBox || haveNavBox || haveProjectBox || haveBiography) {
+          if (haveResearchNoteBox || haveNavBox || haveProjectBox || haveBiography || haveTextLine) {
             this.#style.bioCategoryNotAtStart = true;
+            if (haveBiography) {
+              this.#messages.styleMessages.push('Biography heading before ' + this.#bioLines[currentIndex]);
+            } else {
+              if (haveTextLine) {
+                this.#messages.styleMessages.push('Summary Text before ' + this.#bioLines[currentIndex]);
+              } else {
+                if (haveNavBox) {
+                  this.#messages.styleMessages.push('Navigation Box before ' + this.#bioLines[currentIndex]);
+                } else {
+                  if (haveProjectBox) {
+                    this.#messages.styleMessages.push('Project Box before ' + this.#bioLines[currentIndex]);
+                  } else {
+                    if (haveResearchNoteBox) {
+                      this.#messages.styleMessages.push('Research Note Box before ' + this.#bioLines[currentIndex]);
+                    }
+                  }
+                }
+              }
+            }
           }
           this.#stats.bioHasCategories = true;
-          if (this.#firstCategoryIndex < 0) {
-            this.#firstCategoryIndex = currentIndex;
-          }
+          //if (this.#firstCategoryIndex < 0) {
+          //  this.#firstCategoryIndex = currentIndex;
+          //}
           if (line.includes(Biography.#UNSOURCED)) {
             this.#stats.bioIsMarkedUnsourced = true;
           }
@@ -290,71 +306,76 @@ export class Biography {
               partialLine = line.substring(2, j).trim().toLowerCase();
               partialMixedCaseLine = this.#bioLines[currentIndex].substring(2, j).trim();
             }
-            if (this.#sourceRules.isResearchNoteBox(partialLine)) {
-              if (haveProjectBox || haveBiography) {
-                let msg = 'Research Note Box: ' + partialMixedCaseLine + ' should be before ';
-                if (haveProjectBox) {
-                  msg += 'Project ';
+
+            if (this.#sourceRules.isNavBox(partialLine)) {
+              haveNavBox = true;
+              if (haveResearchNoteBox || haveProjectBox || haveBiography) {
+                let msg = 'Navigation Box: ' + partialMixedCaseLine + ' should be before ';
+                if (haveResearchNoteBox) {
+                  msg += 'Research Note Box';
                 } else {
-                  if (haveBiography) {
-                    msg += 'Biography ';
+                  if (haveProjectBox) {
+                    msg += 'Project Box';
+                  } else {
+                    if (haveBiography) {
+                      msg += 'Biography heading';
+                    }
                   }
                 }
-                this.#messages.styleMessages.push(msg);
-                this.#style.bioHasStyleIssues = true;
-              }
-              // TODO see Lejeune-586 maybe elminate nav box
-              // on the other hand this looks awful, deal with it later
-              // maybe propose some standard
-
-              // out of order if Project Box or Nav Box or Biography preceeds
-              haveResearchNoteBox = true;
-              this.#researchNoteBoxes.push(partialLine);
-
-              let stat = this.#sourceRules.getResearchNoteBoxStatus(partialLine);
-              if ((stat.length > 0) && (stat != 'approved')) {
-                let msg = 'Research Note Box: ' + partialMixedCaseLine + ' is ' + stat + ' status';
-                this.#messages.styleMessages.push(msg);
-                this.#style.bioHasStyleIssues = true;
+                if (reportNavBox) {   // TODO
+                  this.#messages.styleMessages.push(msg);
+                  this.#style.bioHasStyleIssues = true;
+                }
               }
             } else {
+              if (this.#sourceRules.isResearchNoteBox(partialLine)) {
+                if (haveProjectBox || haveBiography) {
+                  let msg = 'Research Note Box: ' + partialMixedCaseLine + ' should be before ';
+                  if (haveProjectBox) {
+                    msg += 'Project Box';
+                  } else {
+                    if (haveBiography) {
+                      msg += 'Biography heading';
+                    }
+                  }
+                  this.#messages.styleMessages.push(msg);
+                  this.#style.bioHasStyleIssues = true;
+                }
+                haveResearchNoteBox = true;
+                this.#researchNoteBoxes.push(partialLine);
 
-              if (this.#sourceRules.isProjectBox(partialLine)) {
-                haveProjectBox = true;
-                if (haveBiography) {
-                  let msg = 'Project: ' + partialMixedCaseLine + ' should be before Biography';
+                let stat = this.#sourceRules.getResearchNoteBoxStatus(partialLine);
+                if ((stat.length > 0) && (stat != 'approved')) {
+                  let msg = 'Research Note Box: ' + partialMixedCaseLine + ' is ' + stat + ' status';
                   this.#messages.styleMessages.push(msg);
                   this.#style.bioHasStyleIssues = true;
                 }
               } else {
-                if (this.#sourceRules.isNavBox(partialLine)) {
-                  haveNavBox = true;
-                  if (checkForNavBox) {
-                    if (haveBiography) {
-                      let msg = 'Navigation box: ' + partialMixedCaseLine + ' should be before Biography';
-                      this.#messages.styleMessages.push(msg);
-                      this.#style.bioHasStyleIssues = true;
-                    }
+                if (this.#sourceRules.isProjectBox(partialLine)) {
+                  haveProjectBox = true;
+                  if (haveBiography) {
+                    let msg = 'Project: ' + partialMixedCaseLine + ' should be before Biography heading';
+                    this.#messages.styleMessages.push(msg);
+                    this.#style.bioHasStyleIssues = true;
                   }
                 } else {
                   if (this.#sourceRules.isSticker(partialLine)) {
                     if (!haveBiography) {
-                      let msg = 'Sticker: ' + partialMixedCaseLine + ' should be after Biography';
+                      let msg = 'Sticker: ' + partialMixedCaseLine + ' should be after Biography heading';
                       this.#messages.styleMessages.push(msg);
                       this.#style.bioHasStyleIssues = true;
                     }
                   }  // end sticker
-                } // end nav box
-              } // end project box 
-            } // end research note box
+                } // end project box 
+              } // end research note box
+            } // end nav box
           } else {
             // not a template
             // something other than category or template or NOTOC before biography heading ?
             if (!haveBiography) {
-              if ((line.includes(Biography.#NOTOC)) || (line.includes(Biography.#TOC))) {  // this is okay
-                this.#notocIndex = currentIndex;
-              } else {
-                let str = this.#bioLines[currentIndex];
+              if (!(line.includes(Biography.#NOTOC)) && !(line.includes(Biography.#TOC))) {  // this is okay
+                haveTextLine = true;
+                let str = this.#bioLines[currentIndex].toLowerCase().trim();
                 // test the line before the bio
                 this.#checkLineBeforeBio(str);
 
@@ -386,16 +407,7 @@ export class Biography {
     if (this.#wrongLevelHeadings.length > 0) {
       this.#style.bioHasUnknownSectionHeadings = true;
     }
-    if (this.#firstNonBlankLine < 0) {
-      this.#firstNonBlankLine = 0;
-    }
-    let whereWeExpectCategory = this.#firstNonBlankLine;
-    if (this.#notocIndex >= 0) {
-      whereWeExpectCategory = this.#notocIndex + 1;
-    }
-    if ((this.#firstCategoryIndex >= 0) && (this.#firstCategoryIndex != whereWeExpectCategory)) {
-      this.#style.bioCategoryNotAtStart = true;
-    }
+
     // Check for any section with RNB text where the RNB is missing
     this.#findMissingRnb();
 
@@ -423,18 +435,14 @@ export class Biography {
 
   /**
    * Validate contents of bio
-   * @returns {Boolean} true if sources found. Returns false for empty bio, a profile
-   * with no dates, or a profile that has an Unsourced Research Notes Box or is in
-   * an Unsourced category.
+   * @returns {Boolean} true if profile looks good, else false.
+   * Returns false a profile that appears unsourced (is ?), a profile with an empty bio, a profile with no dates, 
+   * or a profile that has an Unsourced Research Notes Box or is in an Unsourced category.
    */
   validate() {
     let isValid = false;
-    // Don't bother for empty bio, one already marked unsourced, or the manager's own profile
-    if (
-      !this.#stats.bioIsEmpty &&
-      !this.#stats.bioIsMarkedUnsourced &&
-      !this.#stats.bioIsUndated
-    ) {
+    // Don't bother for empty bio
+    if (!this.#stats.bioIsEmpty) {
       // Look for a partial string that makes it valid
       isValid = this.#sourceRules.containsValidPartialSource(this.#bioInputString.toLowerCase());
 
@@ -463,8 +471,12 @@ export class Biography {
     }
     if (isValid) {
       this.#sources.sourcesFound = true;
+      if (this.#stats.bioIsMarkedUnsourced ||
+          this.#stats.bioIsUndated) {
+        isValid = false; // may have sources but needs review
+      }
     }
-    // get the style issues found in validate
+    // set the style issues found in validate
     this.#setBioStatisticsAndStyle();
 
     return isValid;
@@ -1084,14 +1096,17 @@ export class Biography {
     this.#stats.totalBioLines = this.#bioLines.length;
 
     if (this.#stats.bioIsMarkedUnsourced) {
-      this.#messages.sectionMessages.push('Profile is marked unsourced');
+      if (this.#sources.sourcesFound) {
+        this.#messages.sectionMessages.push('Profile is marked unsourced but may have sources');
+      } else {
+        this.#messages.sectionMessages.push('Profile is marked unsourced');
+      }
     }
     if (this.#stats.bioIsUndated) {
       this.#messages.sectionMessages.push('Profile has no dates');
       this.#style.bioHasStyleIssues = true;
     }
     if (this.#style.bioCategoryNotAtStart) {
-      this.#messages.styleMessages.push('Category not at start of biography');
       this.#style.bioHasStyleIssues = true;
     }
     if (this.#biographyIndex < 0) {

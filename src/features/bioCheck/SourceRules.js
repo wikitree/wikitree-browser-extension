@@ -740,6 +740,7 @@ class SourceRules {
     "familiestamboom",
     "familietre",
     "family tree",
+    "family  tree",
     "family-tree",
     "familysearch.org/tree",
     "gedbas",
@@ -763,6 +764,7 @@ class SourceRules {
     "sukupuu",
     "thepeerage.com",
     "trees.ancestry.com",
+    "unsourced family tree handed down",
     "world family tree",
     // compilations (typically from family trees)
     "ancestral file",
