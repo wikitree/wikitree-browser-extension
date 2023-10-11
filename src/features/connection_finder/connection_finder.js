@@ -911,13 +911,10 @@ function connectionFinderTable() {
             yearColours.reverse();
 
             const connectionsTable = $(
-              "<table id='connectionsTable'><thead><tr><th></th><th>Relation</th><th>Name</th><th>Birth date</th><th>Birth place</th><th>Death date</th><th>Death place</th><th>Marriage Date</th><th>Marriage Place</th></tr></thead><tbody></tbody><tfoot><tr id='connectionsTableNotes'><td colspan='9' >Notes: <ul><li>The colours in the 'Relation' column change at each connection by marriage.</li><li>Marriage details are shown when the relation is 'her/his husband' or 'his/her wife'.</li><li>The colours in the 'Birth date' column represent 50-year periods.</li></ul></td></tr></tfoot></table>"
+              "<table id='connectionsTable'><thead><tr><th></th><th></th><th>Relation</th><th>Name</th><th>Birth date</th><th>Birth place</th><th>Death date</th><th>Death place</th><th>Marriage Date</th><th>Marriage Place</th></tr></thead><tbody></tbody><tfoot><tr id='connectionsTableNotes'><td colspan='9' >Notes: <ul><li>The colours in the 'Relation' column change at each connection by marriage.</li><li>Marriage details are shown when the relation is 'her/his husband' or 'his/her wife'.</li><li>The colours in the 'Birth date' column represent 50-year periods.</li></ul></td></tr></tfoot></table>"
             );
             connectionsTable.insertAfter($("#connectionList"));
             const thePeople = data[0].items;
-
-            let relationshipColour = relationshipColours[relationshipColourNum];
-
             pNumber = 0;
             window.heritageSociety = [];
             thePeople.forEach(function (aPerson, index) {
@@ -1061,50 +1058,20 @@ function connectionFinderTable() {
                 "<img data-wtid='" + mPerson.Name + "' src='" + homeImg + "' class='familyHome'>";
 
               const aLine = $(
-                "<tr data-wtid='" +
-                  mPerson.Name +
-                  "' data-name='" +
-                  mPerson.Name +
-                  "' class='" +
-                  mPerson.Gender +
-                  "'><td>" +
-                  pNumber +
-                  "</td><td class='relationship " +
-                  relationshipColour +
-                  "' data-relationship='" +
-                  mRelation +
-                  "'><span class='relationshipArrow'>" +
-                  mArrow +
-                  "</span>" +
-                  mRelationOut +
-                  "</td><td class='connectionsName'>" +
-                  timelineButton +
-                  familySheetButton +
-                  "<img  class='privacyImage'  src='" +
-                  privacy +
-                  "' title='" +
-                  privacyTitle +
-                  "'><a href='/wiki/" +
-                  mPerson.Name +
-                  "'>" +
-                  displayName(mPerson)[0] +
-                  "</a></td><td  style='background-color:" +
-                  yearColour +
-                  "' class='aDate " +
-                  textColor +
-                  "'>" +
-                  birthDate +
-                  "</td><td>" +
-                  birthLocation +
-                  "</td><td  class='aDate'>" +
-                  deathDate +
-                  "</td><td>" +
-                  deathLocation +
-                  "</td><td class='aDate'>" +
-                  marriageDate +
-                  "</td><td>" +
-                  marriageLocation +
-                  "</td></tr>"
+                `<tr data-wtid='${mPerson.Name}' data-name='${mPerson.Name}' class='${mPerson.Gender}'>
+                <td>${pNumber}</td>
+                <td class='buttonsCell'><img  class='privacyImage' src='${privacy}' title='${privacyTitle}'>
+                ${timelineButton}
+                ${familySheetButton}</td>
+                <td class='relationship ${relationshipColour}' data-relationship='${mRelation}'><span class='relationshipArrow'>${mArrow}</span>${mRelationOut}</td>
+                <td class='connectionsName'><a href='/wiki/${mPerson.Name}'>${displayName(mPerson)[0]}</a></td>
+                <td style='background-color:${yearColour}' class='aDate ${textColor}'>${birthDate}</td>
+                <td>${birthLocation}</td>
+                <td  class='aDate'>${deathDate}</td>
+                <td>${deathLocation}</td>
+                <td class='aDate'>${marriageDate}</td>
+                <td>${marriageLocation}</td>
+                </tr>`
               );
               $("#connectionsTable tbody").append(aLine);
               pNumber++;

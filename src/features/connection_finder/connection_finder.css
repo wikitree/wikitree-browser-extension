@@ -22,9 +22,7 @@ body.page-Special_Connection .tableContainer {
 }
 
 #connectionsTable .connectionsName a {
-  float: left;
   white-space: break-spaces;
-  margin-right: 4.5em;
 }
 
 #connectionsTable .connectionsName .privacyImage {
@@ -57,7 +55,6 @@ body.page-Special_Connection .tableContainer {
 
 #connectionsTable.wide td span.relationWord,
 #connectionsTable.wide td.connectionsName a {
-  margin-right: 3em;
   white-space: nowrap;
 }
 
@@ -227,7 +224,17 @@ body.page-Special_Connection button.small.moreDetailsButton {
   font-weight: bold;
   text-align: center;
 }
-
+#connectionsTable.wide span.relationshipArrow {
+  margin-right: 0.5em;
+  float: none;
+  display: inline-block;
+}
+#connectionsTable span.relationshipArrow {
+  top: 0;
+  right: 0;
+  float: right;
+  display: block;
+}
 #connectionsTable tbody .privacyImage,
 #connectionsTable .timelineButton {
   border: none;
@@ -304,4 +311,22 @@ body.page-Special_Connection #surnames3 ul {
 
 body.page-Special_Connection #familyTextCount span {
   display: inline-block;
+}
+
+body.page-Special_Connection #connectionsTable .familyHome,
+body.page-Special_Connection #connectionsTable .privacyImage,
+body.page-Special_Connection #connectionsTable .timelineButton {
+  position: relative;
+  float: none !important;
+  left: auto;
+  top: auto;
+  right: auto;
+  margin: 0;
+}
+body.page-Special_Connection #connectionsTable td.buttonsCell {
+  white-space: nowrap;
+  width: 200px;
+}
+body.page-Special_Connection #connectionsTable td.buttonsCell img {
+  display: inline-block !important;
 }
