@@ -28,7 +28,7 @@ function showWorking() {
     if ($("#locationInputLabel").length == 0) {
       working.appendTo("body").css({
         position: "absolute",
-        right: "150px",
+        right: "250px",
         top: "300px",
       });
     } else {
@@ -202,7 +202,7 @@ export async function addRandomToFindMenu() {
     const working = $("<img id='working' src='" + treeImageURL + "'>");
     working.appendTo("body").css({
       position: "absolute",
-      left: `${e.pageX - 50}px`,
+      left: `${e.pageX - 150}px`,
       top: e.pageY + "px",
     });
 

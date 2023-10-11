@@ -282,7 +282,7 @@ function addCustomMenu() {
     const working = $("<img id='working' src='" + treeImageURL + "'>");
     working.appendTo("body").css({
       position: "absolute",
-      left: `${e.pageX - 50}px`,
+      left: `${e.pageX - 150}px`,
       top: e.pageY + "px",
     });
     if (window?.randomProfileOptions?.constrainToWatchlist) {
