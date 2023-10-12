@@ -9,7 +9,7 @@
   box-shadow: 1em 1em 1em #ccc;
   z-index: 1000;
   width: 500px;
-  height: 600px;
+  max-height: 600px;
   overflow: auto;
 }
 #cc7DeltaContainer x {

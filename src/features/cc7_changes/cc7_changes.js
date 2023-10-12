@@ -8,9 +8,12 @@ import { PersonName } from "../auto_bio/person_name.js";
 import { displayDates } from "../verifyID/verifyID";
 
 let db;
+const working = $("<img id='working' src='" + treeImageURL + "'>");
 
 // Initialize IndexedDB
-export function initializeDB() {
+let dbInitializationSuccessful = false; // flag to indicate DB initialization status
+
+async function initializeDB() {
   return new Promise((resolve, reject) => {
     const openRequest = indexedDB.open("CC7Database", 1);
 
@@ -29,17 +32,25 @@ export function initializeDB() {
     openRequest.onsuccess = function (e) {
       db = e.target.result;
       console.log("DB initialized", db);
+      dbInitializationSuccessful = true; // Set the flag to true
       resolve();
     };
 
     openRequest.onerror = function (e) {
       console.log("Error initializing DB", e);
+      console.log("Error:", e.target.error);
+      console.log("Error code:", e.target.errorCode);
+      console.log("Error name:", e.target.error.name);
+      console.log("Error message:", e.target.error.message);
+      dbInitializationSuccessful = false;
+      $("#working").remove();
       reject(e);
     };
   });
 }
 
 // add random option to 'Find'
+
 export async function addCC7ChangesButton() {
   const relationshipLi = $("li a.pureCssMenui[href='/wiki/Category:Categories']");
   const newLi = $(
@@ -48,7 +59,6 @@ export async function addCC7ChangesButton() {
   newLi.insertBefore(relationshipLi.parent());
   newLi.on("click", async function (e) {
     e.preventDefault();
-    const working = $("<img id='working' src='" + treeImageURL + "'>");
     working.appendTo("body").css({
       position: "absolute",
       left: `${e.pageX - 100}px`,
@@ -57,23 +67,32 @@ export async function addCC7ChangesButton() {
     });
     await getAndStoreCC7Deltas();
     const storedDeltas = await fetchStoredDeltas();
-    const lastStoredCC7 = await fetchLastStoredCC7(); // Fetch the last stored CC7
-    showStoredDeltas(storedDeltas, lastStoredCC7); // Pass it to showStoredDeltas
+    //const lastStoredCC7 = await fetchLastStoredCC7(); // Fetch the last stored CC7
+    showStoredDeltas(storedDeltas, e); // Pass it to showStoredDeltas
 
     working.remove();
   });
 }
 
 export async function initializeCC7Tracking() {
-  await initializeDB();
-  addCC7ChangesButton();
-  // Populate the database on first load if it's empty
-  const lastStoredData = await fetchLastStoredCC7();
-  if (lastStoredData.length === 0) {
-    await getAndStoreCC7Deltas();
+  try {
+    await initializeDB();
+    if (dbInitializationSuccessful) {
+      addCC7ChangesButton();
+      // Populate the database on first load if it's empty
+      const lastStoredData = await fetchLastStoredCC7();
+      if (lastStoredData.length === 0) {
+        await getAndStoreCC7Deltas();
+      }
+    } else {
+      console.log("DB Initialization failed. Not adding the button.");
+    }
+  } catch (e) {
+    console.log("An error occurred during DB initialization:", e);
   }
 }
 
+let initialCC7entryErrors = 0;
 export async function getAndStoreCC7Deltas() {
   const newApiData = await fetchCC7FromAPI();
   const lastStoredData = await fetchLastStoredCC7();
@@ -93,8 +112,20 @@ export async function getAndStoreCC7Deltas() {
       console.log("CC7 data stored successfully.");
     };
 
-    initTx.onerror = function (event) {
-      console.log("Error storing initial CC7 data:", event);
+    initTx.onerror = function (e) {
+      if (initialCC7entryErrors === 0) {
+        console.log("Error storing initial CC7 data:", e);
+        console.log("Error:", e.target.error);
+        console.log("Error code:", e.target.errorCode);
+        console.log("Error name:", e.target.error.name);
+        console.log("Error message:", e.target.error.message);
+        $("#working").remove();
+      }
+      initialCC7entryErrors++;
+      // If the number of errors is a multiple of 10, show a console message
+      if (initialCC7entryErrors % 10 === 0) {
+        console.log(`Error storing initial CC7 data. Number of errors: ${initialCC7entryErrors}`);
+      }
     };
   }
 
@@ -106,7 +137,7 @@ export async function getAndStoreCC7Deltas() {
   const initStore = initTx.objectStore("CC7");
   initStore.clear(); // Clear the existing data
   filteredApiData.forEach((person) => {
-    initStore.add(person);
+    initStore.put(person);
   });
 
   const date = new Date().toISOString();
@@ -195,39 +226,43 @@ async function fetchStoredDeltas() {
 }
 
 async function fetchCC7FromAPI() {
-  const mWTID = Cookies.get("wikitree_wtb_UserName");
-  let peopleObjectArray = [];
-  let getMore = true;
-  const limit = 1000;
-  let start = 0;
-  while (getMore) {
-    const apiResult = await fetchPeople({
-      keys: mWTID,
-      fields: "Id,Name,Meta",
-      nuclear: 7,
-      start: start,
-      limit: limit,
-    });
-    const people = apiResult?.[0]?.people;
-    const restructuredResult = Object.keys(people).reduce((acc, key) => {
-      const entry = people[key];
-      acc[key] = {
-        ...entry,
-        Degrees: entry.Meta.Degrees,
-      };
-      delete acc[key].Meta;
-      return acc;
-    }, {});
-    const arrayOfObjects = Object.keys(restructuredResult).map((key) => {
-      return restructuredResult[key];
-    });
-    start += limit;
-    // Check if we're done
-    getMore = arrayOfObjects.length == limit;
-    // add to peopleObjectArray
-    peopleObjectArray = peopleObjectArray.concat(arrayOfObjects);
+  try {
+    const mWTID = Cookies.get("wikitree_wtb_UserName");
+    let peopleObjectArray = [];
+    let getMore = true;
+    const limit = 1000;
+    let start = 0;
+    while (getMore) {
+      const apiResult = await fetchPeople({
+        keys: mWTID,
+        fields: "Id,Name,Meta",
+        nuclear: 7,
+        start: start,
+        limit: limit,
+      });
+      const people = apiResult?.[0]?.people;
+      const restructuredResult = Object.keys(people).reduce((acc, key) => {
+        const entry = people[key];
+        acc[key] = {
+          ...entry,
+          Degrees: entry.Meta.Degrees,
+        };
+        delete acc[key].Meta;
+        return acc;
+      }, {});
+      const arrayOfObjects = Object.keys(restructuredResult).map((key) => {
+        return restructuredResult[key];
+      });
+      start += limit;
+      // Check if we're done
+      getMore = arrayOfObjects.length == limit;
+      // add to peopleObjectArray
+      peopleObjectArray = peopleObjectArray.concat(arrayOfObjects);
+    }
+    return peopleObjectArray;
+  } catch (error) {
+    console.error("Error fetching data from API:", error);
   }
-  return peopleObjectArray;
 }
 
 async function fetchPeopleDetails(idString) {
@@ -283,7 +318,7 @@ async function fetchPeopleDetails(idString) {
   return arrayOfObjects;
 }
 
-async function showStoredDeltas(data) {
+async function showStoredDeltas(data, e) {
   const deltasSinceLastVisit = data.deltasSinceLastVisit.filter((delta) => delta.added.length < 500);
   const deltasWithinLastMonth = data.deltasWithinLastMonth.filter((delta) => delta.added.length < 500);
 
@@ -404,7 +439,7 @@ async function showStoredDeltas(data) {
     closeCC7DeltaContainer();
   });
 
-  $("body").append(container);
+  $("body").append(container.css("top", e.pageY + 100));
   $("#cc7DeltaContainer").draggable();
 }
 
