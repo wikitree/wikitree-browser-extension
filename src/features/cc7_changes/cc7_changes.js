@@ -9,28 +9,88 @@ import { displayDates } from "../verifyID/verifyID";
 
 let db;
 const working = $("<img id='working' src='" + treeImageURL + "'>");
+const userId = Cookies.get("wikitree_wtb_UserName");
 
 // Initialize IndexedDB
 let dbInitializationSuccessful = false; // flag to indicate DB initialization status
 
 async function initializeDB() {
+  // Check if the DB has already been initialized successfully
+  if (dbInitializationSuccessful) {
+    return Promise.resolve();
+  }
+
   return new Promise((resolve, reject) => {
-    const openRequest = indexedDB.open("CC7Database", 1);
+    console.log("Initializing DB...");
+
+    const openRequest = indexedDB.open("CC7Database", 4);
+
+    openRequest.onblocked = function (event) {
+      console.log("Blocked:", event);
+    };
 
     openRequest.onupgradeneeded = function (e) {
+      console.log("Upgrade needed");
+
+      if (db) {
+        db.close();
+      }
+
       db = e.target.result;
 
+      db.onversionchange = function () {
+        db.close();
+      };
+
+      let objectStore;
+
       if (!db.objectStoreNames.contains("CC7")) {
-        db.createObjectStore("CC7", { keyPath: "Id" });
+        objectStore = db.createObjectStore("CC7", { keyPath: "Id" });
+        objectStore.createIndex("userId", "userId", { unique: false });
       }
 
       if (!db.objectStoreNames.contains("cc7Deltas")) {
-        db.createObjectStore("cc7Deltas", { keyPath: "date" });
+        objectStore = db.createObjectStore("cc7Deltas", { keyPath: "date" });
+        objectStore.createIndex("userId", "userId", { unique: false });
+      }
+
+      // Check if we are upgrading from version 1 to version 2
+      if (e.oldVersion < 2) {
+        // log
+        console.log("Upgrading from version 1 to version 2");
+
+        // Run migration to add userId to existing records
+        const tx = db.transaction(["CC7", "cc7Deltas"], "readwrite");
+
+        tx.objectStore("CC7").openCursor().onsuccess = function (event) {
+          const cursor = event.target.result;
+          if (cursor) {
+            const updateData = cursor.value;
+            updateData.userId = userId;
+            cursor.update(updateData);
+            cursor.continue();
+          }
+        };
+
+        tx.objectStore("cc7Deltas").openCursor().onsuccess = function (event) {
+          const cursor = event.target.result;
+          if (cursor) {
+            const updateData = cursor.value;
+            updateData.userId = userId;
+            cursor.update(updateData);
+            cursor.continue();
+          }
+        };
       }
     };
 
     openRequest.onsuccess = function (e) {
       db = e.target.result;
+
+      db.onversionchange = function () {
+        db.close();
+      };
+
       console.log("DB initialized", db);
       dbInitializationSuccessful = true; // Set the flag to true
       resolve();
@@ -48,8 +108,6 @@ async function initializeDB() {
     };
   });
 }
-
-// add random option to 'Find'
 
 export async function addCC7ChangesButton() {
   const relationshipLi = $("li a.pureCssMenui[href='/wiki/Category:Categories']");
@@ -105,7 +163,8 @@ export async function getAndStoreCC7Deltas() {
     const initTx = db.transaction("CC7", "readwrite");
     const initStore = initTx.objectStore("CC7");
     filteredApiData.forEach((person) => {
-      initStore.add(person);
+      person.userId = userId;
+      initStore.put(person);
     });
 
     initTx.oncomplete = function () {
@@ -137,6 +196,7 @@ export async function getAndStoreCC7Deltas() {
   const initStore = initTx.objectStore("CC7");
   initStore.clear(); // Clear the existing data
   filteredApiData.forEach((person) => {
+    person.userId = userId;
     initStore.put(person);
   });
 
@@ -176,7 +236,9 @@ async function fetchLastStoredCC7() {
   return new Promise((resolve, reject) => {
     const tx = db.transaction("CC7", "readonly");
     const store = tx.objectStore("CC7");
-    const getRequest = store.getAll();
+    const index = store.index("userId");
+
+    const getRequest = index.getAll(IDBKeyRange.only(userId));
 
     getRequest.onsuccess = function (event) {
       if (event.target.result) {
@@ -227,14 +289,13 @@ async function fetchStoredDeltas() {
 
 async function fetchCC7FromAPI() {
   try {
-    const mWTID = Cookies.get("wikitree_wtb_UserName");
     let peopleObjectArray = [];
     let getMore = true;
     const limit = 1000;
     let start = 0;
     while (getMore) {
       const apiResult = await fetchPeople({
-        keys: mWTID,
+        keys: userId,
         fields: "Id,Name,Meta",
         nuclear: 7,
         start: start,
@@ -444,6 +505,7 @@ async function showStoredDeltas(data, e) {
 }
 
 if (shouldInitializeFeature("cc7Changes")) {
-  initializeCC7Tracking();
+  initializeCC7Tracking().catch((e) => console.log("An error occurred while initializing CC7 tracking:", e));
+
   import("./cc7_changes.css");
 }
