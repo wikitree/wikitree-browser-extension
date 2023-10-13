@@ -143,7 +143,16 @@ export function getFormData() {
   return formData;
 }
 
-function isSameDateOrAfter(dateStr1, dateStr2) {
+function isSameDateOrAfter (dateStr1, dateStr2) {
+  // correct date input format Month Year (invalid input for Date constructor)
+  var shortNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  let components = dateStr1.split(/[\s,-]+/);
+
+  if (components.length == 2 && shortNames.includes(components[0].toLowerCase())) {
+    // prefix the string with a 1 because it's only a "Month Year" string
+    dateStr1 = "1 " + dateStr1;
+  }
+
   const date1 = new Date(dateStr1);
   const date2 = new Date(dateStr2);
   return date1 >= date2;
@@ -1825,7 +1834,7 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
     const details = reference.Text.split(/\(accessed.*?\),/)[1].trim();
     if (details.match(/\. Born/)) {
       text = details.split(/\. Born/)[0].trim() + ". ";
-      /* If it's like this: Mary Vandover (38) in Perry, Martin, Indiana, USA. 
+      /* If it's like this: Mary Vandover (38) in Perry, Martin, Indiana, USA.
     turn into a grammatical sentence with 'was living', without USA. */
       let fNameVariants = [window.profilePerson.PersonName.FirstName];
       if (firstNameVariants[window.profilePerson.PersonName.FirstName]) {
@@ -2894,10 +2903,10 @@ function parseSourcerCensusWithCSVList(reference) {
     lastBit.match(/household/) == null &&
     referenceBits?.length > 0
   ) {
-    /* Parse a family in this format: Gerritt Bleeker Jr. 42, 
-    wife Minnie Bleeker 42, son Garry P Bleeker 19, 
-    son George H Bleeker 17, daughter Minnie H Bleeker 16, 
-    daughter Grace F Bleeker 14, son Roy W Bleeker 5, 
+    /* Parse a family in this format: Gerritt Bleeker Jr. 42,
+    wife Minnie Bleeker 42, son Garry P Bleeker 19,
+    son George H Bleeker 17, daughter Minnie H Bleeker 16,
+    daughter Grace F Bleeker 14, son Roy W Bleeker 5,
     son Floyd M Bleeker 4.
     */
     const familyBits = lastBit.split(/, /);
@@ -2924,8 +2933,8 @@ function parseSourcerCensusWithCSVList(reference) {
       }
     });
 
-    /* Get the residence from the second to last bit, 
-    which may look like this: 
+    /* Get the residence from the second to last bit,
+    which may look like this:
     George H Bleeker (17), single son, in household of Gerritt Bleeker Jr. (42)
      in Thull, Golden Valley, Montana, United States. Born in Montana.
     */
@@ -4262,7 +4271,7 @@ export function sourcesArray(bio) {
       } else {
         const newRef = { Text: aSource.trim(), RefName: "", NonSource: NonSource };
         /* Look for ref tags in aSource and compare the text with the refArr
-         If there is a match take the text from before the ref tag 
+         If there is a match take the text from before the ref tag
          and add it to the object in refArr as Narrative, and don't add newRef to refArr
         */
         const refTags = aSource.match(/<ref[^>]*>.*?<\/ref>/gs);
@@ -5491,9 +5500,9 @@ export function splitBioIntoSections() {
         }
       })
     );
-    /* Loop through the Research Notes section.  
-    If the line matches "The following people may need profiles:" 
-    then add the next lines to NeedsProfiles (while the line has a name) 
+    /* Loop through the Research Notes section.
+    If the line matches "The following people may need profiles:"
+    then add the next lines to NeedsProfiles (while the line has a name)
     and remove it from ["Research Notes"].text */
     if (sections["Research Notes"] || sections?.Biography?.subsections?.["Research Notes"]) {
       if (sections?.Biography?.subsections?.["Research Notes"]) {
@@ -5735,7 +5744,7 @@ function getMatriculaLink(text) {
 function getNewBrunswickLink(text) {
   // https://archives.gnb.ca/Search/VISSE/141C5.aspx?culture=en-CA&guid=17D55021-5247-4E59-82B6-CE431742F0FC
   /* Match the link to the New Brunswick Archives alone, preceded by an asterisk (+optional space) or a newline or
-     the within a link (preceded by a square bracket and optional space and followed by link text and optional space and square bracket) 
+     the within a link (preceded by a square bracket and optional space and followed by link text and optional space and square bracket)
     + not very much else. */
   const newBrunswickMatch = /(?:\* ?|\r ? )?(?:\[[^\]]* ?)?(https?:\/\/archives\.gnb\.ca[^\s]+)(?:[^\]]* ?\])?/;
   if (text.match(newBrunswickMatch)) {
@@ -6705,7 +6714,7 @@ export async function generateBio() {
     const currentBio = $("#wpTextbox1").val();
     localStorage.setItem("previousBio", currentBio);
 
-    /* Check for any text before == Biography == that is not a category or a template. 
+    /* Check for any text before == Biography == that is not a category or a template.
     Categories are [[.*]]; Templates are {{.*}}.
     Especially look out for a section entitled == Disambiguation == here.
     We need to add this back in later.
