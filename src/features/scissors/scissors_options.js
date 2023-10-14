@@ -1,5 +1,13 @@
 import { registerFeature, OptionType } from "../../core/options/options_registry";
-import { isProfileEdit, isSpaceEdit, isWikiPage, isProfileHistoryDetail, isNetworkFeed } from "../../core/pageType";
+import {
+  isProfileEdit,
+  isSpaceEdit,
+  isWikiPage,
+  isProfileHistoryDetail,
+  isNetworkFeed,
+  isCategoryPage,
+  isCategoryEdit,
+} from "../../core/pageType";
 
 registerFeature({
   name: "Scissors",
@@ -13,7 +21,15 @@ registerFeature({
     { name: "Aleš Trtnik", wikitreeid: "Trtnik-2" },
   ],
   defaultValue: true,
-  pages: [isWikiPage, isProfileEdit, isSpaceEdit, isProfileHistoryDetail, isNetworkFeed],
+  pages: [
+    isWikiPage,
+    isProfileEdit,
+    isSpaceEdit,
+    isProfileHistoryDetail,
+    isNetworkFeed,
+    isCategoryEdit,
+    isCategoryPage,
+  ],
   options: [
     {
       id: "removeDates",
