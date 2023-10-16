@@ -16,6 +16,7 @@ import {
   isTemplatePage,
   isProjectPage,
   isNetworkFeed,
+  isCategoryEdit,
 } from "../../core/pageType";
 
 shouldInitializeFeature("scissors").then((result) => {
@@ -103,7 +104,7 @@ async function helpScissors() {
     copyItems.push({ label: "URL", text: aUrl });
   }
 
-  if (isCategoryPage) {
+  if (isCategoryPage || isCategoryEdit) {
     const aTitle = document.title.trim();
     const aLink = `[[${aTitle}]]`;
     copyItems.push({ label: "Use", text: aLink });
