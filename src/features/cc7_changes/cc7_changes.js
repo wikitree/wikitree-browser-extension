@@ -7,114 +7,280 @@ import { treeImageURL } from "../../core/common";
 import { PersonName } from "../auto_bio/person_name.js";
 import { displayDates } from "../verifyID/verifyID";
 
-let db;
+console.log(Cookies.get("wikitree_wtb_UserName"));
+
 const working = $("<img id='working' src='" + treeImageURL + "'>");
 const userId = Cookies.get("wikitree_wtb_UserName");
 
-// Initialize IndexedDB
-let dbInitializationSuccessful = false; // flag to indicate DB initialization status
-
-async function initializeDB() {
-  // Check if the DB has already been initialized successfully
-  if (dbInitializationSuccessful) {
-    return Promise.resolve();
+class Database {
+  constructor() {
+    this.db = null;
+    this.userId = Cookies.get("wikitree_wtb_UserName"); // Set userId here
+    this.initialized = false; // Initialize property here
+    this.upgradeNeeded = false;
   }
 
-  return new Promise((resolve, reject) => {
-    console.log("Initializing DB...");
+  async initializeDB() {
+    return new Promise((resolve, reject) => {
+      console.log("Initializing DB...");
+      const openRequest = indexedDB.open("CC7Database", 2);
+      let dbInitializationComplete = false; // Flag to ensure resolve() is called only once
 
-    const openRequest = indexedDB.open("CC7Database", 4);
-
-    openRequest.onblocked = function (event) {
-      console.log("Blocked:", event);
-    };
-
-    openRequest.onupgradeneeded = function (e) {
-      console.log("Upgrade needed");
-
-      if (db) {
-        db.close();
-      }
-
-      db = e.target.result;
-
-      db.onversionchange = function () {
-        db.close();
+      openRequest.onblocked = (event) => {
+        console.log("Blocked:", event);
       };
 
+      openRequest.onupgradeneeded = async (e) => {
+        try {
+          this.upgradeNeeded = true;
+          await this.onUpgradeNeeded(e, resolve, dbInitializationComplete);
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      openRequest.onsuccess = (e) => {
+        console.log("DB opened successfully, waiting for all transactions.");
+        // Do not call resolve here
+        this.db = e.target.result;
+        this.db.onversionchange = () => {
+          this.db.close();
+        };
+        this.initialized = true; // Set the flag here
+        if (!this.upgradeNeeded) {
+          resolve();
+        }
+      };
+
+      openRequest.onerror = (e) => {
+        console.log("Error initializing DB");
+        this.onError(e, reject);
+      };
+    });
+  }
+  /*
+  async onUpgradeNeeded(e) {
+    return new Promise((resolve, reject) => {
+      console.log("Upgrade needed");
+      this.upgradeNeeded = true;
+
+      this.db = e.target.result;
+      this.db.onversionchange = () => {
+        this.db.close();
+      };
+
+      let objectStoresToCreate = [];
+
+      // Create the object stores if they do not exist
+      if (!this.db.objectStoreNames.contains("CC7")) {
+        const objectStore = this.db.createObjectStore("CC7", { keyPath: "Id" });
+        objectStore.createIndex("userId", "userId", { unique: false });
+        objectStoresToCreate.push("CC7");
+      }
+
+      if (!this.db.objectStoreNames.contains("cc7Deltas")) {
+        const objectStore = this.db.createObjectStore("cc7Deltas", { keyPath: "date" });
+        objectStore.createIndex("userId", "userId", { unique: false });
+        objectStoresToCreate.push("cc7Deltas");
+      }
+
+      const transaction = e.target.transaction;
+
+      transaction.oncomplete = () => {
+        console.log("Upgrade transaction complete. Updating records...");
+        this.updateExistingRecords(["CC7", "cc7Deltas"])
+          .then(() => {
+            console.log("Updated existing records with userId.");
+            resolve();
+          })
+          .catch((error) => {
+            console.log("Error updating existing records:", error);
+            reject(error);
+          });
+        // Check if this is the first installation and populate data if needed
+        this.fetchLastStoredCC7().then((lastStoredData) => {
+          if (lastStoredData.length === 0) {
+            // Populate the database on first load if it's empty
+            getAndStoreCC7Deltas(); // Make sure to define or import this function
+          }
+        });
+      };
+
+      transaction.onerror = (error) => {
+        console.log("Transaction error:", error);
+        reject(error);
+      };
+    });
+  }
+  */
+
+  async onUpgradeNeeded(e) {
+    console.log("Upgrade needed");
+    this.upgradeNeeded = true;
+
+    this.db = e.target.result;
+    this.db.onversionchange = () => {
+      this.db.close();
+    };
+
+    let objectStoresToCreateOrUpdate = ["CC7", "cc7Deltas"];
+
+    objectStoresToCreateOrUpdate.forEach((storeName) => {
       let objectStore;
 
-      if (!db.objectStoreNames.contains("CC7")) {
-        objectStore = db.createObjectStore("CC7", { keyPath: "Id" });
+      // Create the object store if it does not exist
+      if (!this.db.objectStoreNames.contains(storeName)) {
+        objectStore = this.db.createObjectStore(storeName, { keyPath: "Id" });
+      } else {
+        objectStore = e.target.transaction.objectStore(storeName);
+      }
+
+      // Create the index if it does not exist
+      if (!objectStore.indexNames.contains("userId")) {
         objectStore.createIndex("userId", "userId", { unique: false });
       }
+    });
 
-      if (!db.objectStoreNames.contains("cc7Deltas")) {
-        objectStore = db.createObjectStore("cc7Deltas", { keyPath: "date" });
-        objectStore.createIndex("userId", "userId", { unique: false });
-      }
+    const transaction = e.target.transaction;
 
-      // Check if we are upgrading from version 1 to version 2
-      if (e.oldVersion < 2) {
-        // log
-        console.log("Upgrading from version 1 to version 2");
-
-        // Run migration to add userId to existing records
-        const tx = db.transaction(["CC7", "cc7Deltas"], "readwrite");
-
-        tx.objectStore("CC7").openCursor().onsuccess = function (event) {
-          const cursor = event.target.result;
-          if (cursor) {
-            const updateData = cursor.value;
-            updateData.userId = userId;
-            cursor.update(updateData);
-            cursor.continue();
-          }
-        };
-
-        tx.objectStore("cc7Deltas").openCursor().onsuccess = function (event) {
-          const cursor = event.target.result;
-          if (cursor) {
-            const updateData = cursor.value;
-            updateData.userId = userId;
-            cursor.update(updateData);
-            cursor.continue();
-          }
-        };
-      }
-    };
-
-    openRequest.onsuccess = function (e) {
-      db = e.target.result;
-
-      db.onversionchange = function () {
-        db.close();
+    // Wrapped it inside a promise
+    return new Promise((resolve, reject) => {
+      transaction.oncomplete = async () => {
+        console.log("Upgrade transaction complete. Updating records...");
+        try {
+          await this.updateExistingRecords(["CC7", "cc7Deltas"]); // Await the update
+          console.log("Updated existing records with userId.");
+          resolve();
+        } catch (error) {
+          console.log("Error updating existing records:", error);
+          reject(error);
+        }
       };
 
-      console.log("DB initialized", db);
-      dbInitializationSuccessful = true; // Set the flag to true
-      resolve();
-    };
+      transaction.onerror = (error) => {
+        console.log("Transaction error:", error);
+        reject(error);
+      };
+    });
+  }
 
-    openRequest.onerror = function (e) {
-      console.log("Error initializing DB", e);
-      console.log("Error:", e.target.error);
-      console.log("Error code:", e.target.errorCode);
-      console.log("Error name:", e.target.error.name);
-      console.log("Error message:", e.target.error.message);
-      dbInitializationSuccessful = false;
-      $("#working").remove();
-      reject(e);
+  async updateExistingRecords(objectStoresToUpdate) {
+    console.log("Entering updateExistingRecords...");
+
+    // If objectStoresToUpdate is empty, resolve immediately
+    if (objectStoresToUpdate.length === 0) {
+      console.log("No object stores to update. Resolving immediately.");
+      return Promise.resolve();
+    }
+
+    console.log(`Starting transaction for object stores: ${objectStoresToUpdate.join(", ")}`);
+    const tx = this.db.transaction(objectStoresToUpdate, "readwrite");
+
+    for (const objectStoreName of objectStoresToUpdate) {
+      console.log(`Opening cursor for object store: ${objectStoreName}`);
+      tx.objectStore(objectStoreName).openCursor().onsuccess = (event) => {
+        const cursor = event.target.result;
+        if (cursor) {
+          console.log(`Updating record with ID: ${cursor.value.Id}`);
+          const updateData = cursor.value;
+          updateData.userId = this.userId;
+          cursor.update(updateData);
+          cursor.continue();
+        } else {
+          console.log(`No more records to update in object store: ${objectStoreName}`);
+        }
+      };
+    }
+
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => {
+        console.log("Transaction complete.");
+        resolve();
+      };
+      tx.onerror = (e) => {
+        console.log("Transaction failed with error:", e);
+        reject(e);
+      };
+    });
+  }
+
+  onSuccess(e, resolve) {
+    this.db = e.target.result;
+    this.db.onversionchange = () => {
+      this.db.close();
     };
-  });
+    console.log("DB initialized", this.db);
+    this.initialized = true; // Set the flag here
+    console.log("upgradeNeed: ", this.upgradeNeeded);
+    if (!this.upgradeNeeded) {
+      resolve();
+    }
+  }
+
+  onError(e, reject) {
+    console.log("Error initializing DB", e);
+    reject(e);
+  }
+
+  async fetchLastStoredCC7() {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction("CC7", "readonly");
+      const store = tx.objectStore("CC7");
+      const index = store.index("userId");
+      const getRequest = index.getAll(IDBKeyRange.only(this.userId));
+      getRequest.onsuccess = (event) => {
+        console.log("Request onSuccess triggered.");
+        if (event.target.result) {
+          resolve(event.target.result);
+        } else {
+          resolve([]);
+        }
+      };
+
+      getRequest.onerror = (event) => {
+        console.error("Error fetching data from CC7 object store", event);
+        reject(new Error("Error fetching data from CC7 object store"));
+      };
+    });
+  }
+
+  async storeCC7Deltas(added, removed) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction("cc7Deltas", "readwrite");
+      const store = tx.objectStore("cc7Deltas");
+
+      const date = new Date().toISOString();
+      const data = {
+        date,
+        added,
+        removed,
+        userId: this.userId,
+      };
+
+      const addRequest = store.add(data);
+
+      addRequest.onsuccess = () => {
+        resolve();
+      };
+
+      addRequest.onerror = (event) => {
+        reject(new Error("Error storing CC7 deltas: " + event.target.error));
+      };
+    });
+  }
 }
 
+const db = new Database();
+// Initialize IndexedDB
+
 export async function addCC7ChangesButton() {
-  const relationshipLi = $("li a.pureCssMenui[href='/wiki/Category:Categories']");
+  // logging
+  console.log("Adding CC7 Changes button...");
+  const categoryLI = $("li a.pureCssMenui[href='/wiki/Category:Categories']");
   const newLi = $(
     "<li><a class='pureCssMenui cc7Tracker' title='Find CC7 changes since you last checked'>CC7 Changes</li>"
   );
-  newLi.insertBefore(relationshipLi.parent());
+  newLi.insertBefore(categoryLI.parent());
   newLi.on("click", async function (e) {
     e.preventDefault();
     working.appendTo("body").css({
@@ -134,11 +300,14 @@ export async function addCC7ChangesButton() {
 
 export async function initializeCC7Tracking() {
   try {
-    await initializeDB();
-    if (dbInitializationSuccessful) {
+    await db.initializeDB();
+    // logging
+    console.log("DB initialized successfully.");
+    console.log(db);
+    if (db.initialized) {
       addCC7ChangesButton();
       // Populate the database on first load if it's empty
-      const lastStoredData = await fetchLastStoredCC7();
+      const lastStoredData = await db.fetchLastStoredCC7();
       if (lastStoredData.length === 0) {
         await getAndStoreCC7Deltas();
       }
@@ -152,15 +321,19 @@ export async function initializeCC7Tracking() {
 
 let initialCC7entryErrors = 0;
 export async function getAndStoreCC7Deltas() {
+  console.log(db);
+  // Should log the Database instance
+  console.log(db.db);
+  // Should log the initialized IndexedDB instance
   const newApiData = await fetchCC7FromAPI();
-  const lastStoredData = await fetchLastStoredCC7();
+  const lastStoredData = await db.fetchLastStoredCC7(); // Using the new method in the Database class
 
   // Filter out the user by their Id (replace 'userId' with the actual Id)
   const filteredApiData = newApiData.filter((person) => person.Id !== "userId");
 
   // Check if initialCC7 is empty and populate it if needed
   if (lastStoredData.length === 0) {
-    const initTx = db.transaction("CC7", "readwrite");
+    const initTx = db.db.transaction("CC7", "readwrite");
     const initStore = initTx.objectStore("CC7");
     filteredApiData.forEach((person) => {
       person.userId = userId;
@@ -191,6 +364,7 @@ export async function getAndStoreCC7Deltas() {
   // Calculate and store the deltas
   const { added, removed } = calculateDifferences(filteredApiData, lastStoredData);
 
+  /*
   // Add this block to update the initialCC7 object store
   const initTx = db.transaction("CC7", "readwrite");
   const initStore = initTx.objectStore("CC7");
@@ -212,6 +386,9 @@ export async function getAndStoreCC7Deltas() {
   tx.onerror = function (event) {
     console.log("Transaction error", event);
   };
+  */
+
+  await db.storeCC7Deltas(added, removed); // Using the new method in the Database class
 }
 
 function calculateDifferences(newData, oldData) {
@@ -232,31 +409,9 @@ function calculateDifferences(newData, oldData) {
   return { added, removed };
 }
 
-async function fetchLastStoredCC7() {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction("CC7", "readonly");
-    const store = tx.objectStore("CC7");
-    const index = store.index("userId");
-
-    const getRequest = index.getAll(IDBKeyRange.only(userId));
-
-    getRequest.onsuccess = function (event) {
-      if (event.target.result) {
-        resolve(event.target.result);
-      } else {
-        resolve([]);
-      }
-    };
-
-    getRequest.onerror = function (event) {
-      reject(new Error("Error fetching data from CC7 object store"));
-    };
-  });
-}
-
 async function fetchStoredDeltas() {
   return new Promise((resolve, reject) => {
-    const tx = db.transaction("cc7Deltas", "readonly");
+    const tx = db.db.transaction("cc7Deltas", "readonly");
     const store = tx.objectStore("cc7Deltas");
     const getRequest = store.openCursor(null, "prev"); // Get the newest entry first
     const oneMonthAgo = new Date();
