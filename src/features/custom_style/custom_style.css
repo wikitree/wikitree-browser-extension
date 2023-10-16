@@ -56,3 +56,21 @@ span[style="color:#c07fee"] {
 #distanceFromYou {
   background: transparent;
 }
+
+.fontSizeButton {
+  display: inline-block;
+  width: 16px;
+  height: 20px;
+  background-position: 5px -644px;
+  background-repeat: no-repeat;
+  line-height: 25px;
+  height: 15px;
+  border: 1px solid grey;
+  padding: 5px;
+  position: relative;
+  top: -1px;
+  border-radius: 3px;
+  background-color: #eee;
+  margin-right: 2px;
+  cursor: pointer;
+}

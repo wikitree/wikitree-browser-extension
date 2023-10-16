@@ -28,6 +28,20 @@ const myCustomStyle = {
           label: "Header background color",
           defaultValue: "#f7f6f0",
         },
+        {
+          id: "editor_font-size",
+          type: OptionType.SELECT,
+          label: "Editor font size",
+          values: [
+            { value: "100", text: "100%" },
+            { value: "120", text: "120%" },
+            { value: "140", text: "140%" },
+            { value: "160", text: "160%" },
+            { value: "180", text: "180%" },
+            { value: "200", text: "200%" },
+          ],
+          defaultValue: "100",
+        },
       ],
     },
     {
