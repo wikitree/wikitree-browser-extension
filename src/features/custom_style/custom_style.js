@@ -116,6 +116,13 @@ class CustomStyle {
   }`;
   }
 
+  editorFontSize(size) {
+    return `
+    div.codeMirror{
+      font-size: ${size} !important;
+    }`;
+  }
+
   getSelectors(bits) {
     let idToSelectorMapping = {
       header: ".sticky-header body:not(.darkMode) .wrapper #header::before,#header",
@@ -152,6 +159,7 @@ class CustomStyle {
         "a.qa-nav-main-selected.qa-nav-main-link:link," +
         "a.qa-nav-main-selected.qa-nav-main-link:visited",
       count: ".qa-a-count",
+      editor: "div.CodeMirror,#wpTextbox1",
     };
 
     if (bits[1] === "color" && bits[0] === "headings") {
@@ -174,6 +182,7 @@ class CustomStyle {
       if (key == "g2gtab_color") {
         // important = "";
       }
+
       const bits = key.split("_");
       let selectors = this.getSelectors(bits);
       let theValue = this.options[key];
@@ -193,6 +202,8 @@ class CustomStyle {
         }
       } else if (key === "headingLinks_color") {
         theValue = this.options["headings_color"];
+      } else if (key === "editor_font-size") {
+        theValue += "%";
       }
 
       if (!rulesMap.has(selectors)) {
@@ -245,13 +256,52 @@ class CustomStyle {
     if (this.options["roundedCorners"]) {
       rules += this.handleRoundedCorners();
     }
-    //console.log(rules);
+
     return rules;
   }
 
   applyStyles() {
     let rules = this.myCustomStyleFunction();
     $("<style>" + rules + "</style>").appendTo($("head"));
+  }
+
+  addFontButtons() {
+    // Add font-size buttons to toolbar
+    const fontIncreaseImage = chrome.runtime.getURL("images/fontIncrease.png");
+    const fontDecreaseImage = chrome.runtime.getURL("images/fontDecrease.png");
+    const fontIncreaseButton = $(`<img id='fontIncreaseButton' class='fontSizeButton' src='${fontIncreaseImage}'>`);
+    const fontDecreaseButton = $(`<img id='fontDecreaseButton' class='fontSizeButton' src='${fontDecreaseImage}'>`);
+    $("body").data("instance", this);
+    $("body").on("click", ".fontSizeButton", function () {
+      // Get the selectors for changing the font size
+      const instance = $("body").data("instance");
+      const selectors = instance.getSelectors(["editor"], ["font-size"]);
+
+      getFeatureOptions("customStyle").then((options) => {
+        // Get the current font size
+        const currentFontSize = options["editor_font-size"];
+
+        // Calculate the new font size
+        const newFontSize = parseInt(currentFontSize) + ($(this).prop("id") === "fontIncreaseButton" ? 20 : -20);
+
+        // Debug: Log the new font size
+        console.log("New font size calculated: " + newFontSize);
+
+        // Update the customStyle options
+        options["editor_font-size"] = newFontSize;
+        const storageName = "customStyle_options";
+        chrome.storage.sync.set({
+          [storageName]: options,
+        });
+
+        // Change the font size
+        $(selectors).attr("style", function (i, style) {
+          return style + "; font-size: " + newFontSize + "% !important;";
+        });
+      });
+    });
+
+    $("#toolbar").append(fontIncreaseButton, fontDecreaseButton);
   }
 }
 
@@ -261,6 +311,7 @@ shouldInitializeFeature("customStyle").then((result) => {
       const customStyle = new CustomStyle(options);
       customStyle.applyStyles();
       import("./custom_style.css");
+      customStyle.addFontButtons();
     });
   }
 });
