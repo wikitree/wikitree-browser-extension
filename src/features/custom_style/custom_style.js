@@ -282,7 +282,7 @@ class CustomStyle {
         const currentFontSize = options["editor_font-size"];
 
         // Calculate the new font size
-        const newFontSize = parseInt(currentFontSize) + ($(this).prop("id") === "fontIncreaseButton" ? 20 : -20);
+        const newFontSize = parseInt(currentFontSize) + ($(this).prop("id") === "fontIncreaseButton" ? 10 : -10);
 
         // Debug: Log the new font size
         console.log("New font size calculated: " + newFontSize);
