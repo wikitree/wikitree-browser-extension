@@ -406,6 +406,45 @@ export async function getAndStoreCC7Deltas() {
   */
 
   await db.storeCC7Deltas(added, removed); // Using the new method in the Database class
+
+  // Now update the CC7 table
+  await updateCC7Table(added, removed);
+}
+
+async function updateCC7Table(added, removed) {
+  return new Promise((resolve, reject) => {
+    const tx = db.db.transaction("CC7", "readwrite");
+    const store = tx.objectStore("CC7");
+
+    // Remove the 'removed' people
+    for (const person of removed) {
+      const request = store.delete(person.Id);
+      request.onerror = function () {
+        console.error("Error deleting record", person.Id);
+        reject(new Error("Couldn't delete record " + person.Id));
+      };
+    }
+
+    // Add the 'added' people
+    for (const person of added) {
+      person.userId = db.userId;
+      const request = store.add(person);
+      request.onerror = function () {
+        console.error("Error adding record", person.Id);
+        reject(new Error("Couldn't add record " + person.Id));
+      };
+    }
+
+    tx.oncomplete = function () {
+      console.log("CC7 table updated successfully.");
+      resolve();
+    };
+
+    tx.onerror = function (event) {
+      console.error("Transaction failed:", event);
+      reject(new Error("Transaction failed"));
+    };
+  });
 }
 
 function calculateDifferences(newData, oldData) {
@@ -578,6 +617,131 @@ async function showStoredDeltas(data, e) {
   // Create sets for quick lookup
   const idsSetSinceLastVisit = new Set(idsSinceLastVisit);
   const idsSetWithinLastMonth = new Set(idsWithinLastMonth);
+
+  // Remove duplicates from the 'within last month' set
+  for (const id of idsSetSinceLastVisit) {
+    idsSetWithinLastMonth.delete(id);
+  }
+
+  // Convert the sets back to arrays
+  const uniqueIdsSinceLastVisit = Array.from(idsSetSinceLastVisit);
+  const uniqueIdsWithinLastMonth = Array.from(idsSetWithinLastMonth);
+
+  let allDetailsSinceLastVisit = [];
+  let allDetailsWithinLastMonth = [];
+
+  // Fetch people details based on unique IDs
+  if (uniqueIdsSinceLastVisit.length > 0) {
+    allDetailsSinceLastVisit = await fetchPeopleDetails(uniqueIdsSinceLastVisit.join(","));
+  }
+  if (uniqueIdsWithinLastMonth.length > 0) {
+    allDetailsWithinLastMonth = await fetchPeopleDetails(uniqueIdsWithinLastMonth.join(","));
+  }
+
+  const container = $("<div>").attr("id", "cc7DeltaContainer");
+  const heading = $("<h2>").text("CC7 Changes");
+  container.append(heading);
+
+  // Handle details for changes since last visit
+  if (allDetailsSinceLastVisit.length > 0) {
+    const addedHeading = $("<h3>").text("Added since you last checked: ");
+    const addedList = $("<ul>");
+    allDetailsSinceLastVisit.forEach((person) => {
+      const link = $("<a>")
+        .attr("href", `https://www.wikitree.com/wiki/${person.Name}`)
+        .text(person.FullName + " " + displayDates(person));
+      const listItem = $("<li>").append(link);
+      addedList.append(listItem);
+    });
+    container.append(addedHeading, addedList);
+  }
+
+  // Handle details for changes within the last month
+  if (allDetailsWithinLastMonth.length > 0) {
+    const addedHeading = $("<h3>").text("Added within the last month: ");
+    const addedList = $("<ul>");
+    const removedHeading = $("<h3>").text("Removed within the last month: ");
+    const removedList = $("<ul>");
+
+    allDetailsWithinLastMonth.forEach((person) => {
+      const link = $("<a>")
+        .attr("href", `https://www.wikitree.com/wiki/${person.Name}`)
+        .text(person.FullName + " " + displayDates(person));
+      const listItem = $("<li>").append(link);
+
+      if (deltasWithinLastMonth.some((delta) => delta.added.some((a) => a.Id === person.Id))) {
+        addedList.append(listItem);
+      }
+      if (deltasWithinLastMonth.some((delta) => delta.removed.some((r) => r.Id === person.Id))) {
+        removedList.append(listItem);
+      }
+    });
+
+    if (addedList.children().length > 0) {
+      container.append(addedHeading, addedList);
+    }
+    if (removedList.children().length > 0) {
+      container.append(removedHeading, removedList);
+    }
+  }
+
+  // Code for no changes
+  if (allDetailsSinceLastVisit.length === 0 && allDetailsWithinLastMonth.length === 0) {
+    const noChanges = $("<p>").text("No changes since you last checked.");
+    container.append(noChanges);
+  }
+
+  function closeCC7DeltaContainer() {
+    $("#cc7DeltaContainer").slideUp();
+    setTimeout(() => {
+      $("#cc7DeltaContainer").remove();
+    }, 1000);
+  }
+
+  const x = $("<x>&times;</x>");
+  x.on("click", function () {
+    closeCC7DeltaContainer();
+  });
+  $(container).prepend(x);
+
+  // add Escape to close
+  $(document).on("keyup", function (e) {
+    if (e.key === "Escape") {
+      closeCC7DeltaContainer();
+    }
+  });
+
+  // Add dblclick to close
+  $(container).on("dblclick", function () {
+    closeCC7DeltaContainer();
+  });
+
+  $("body").append(container.css("top", e.pageY + 100));
+  $("#cc7DeltaContainer").draggable();
+}
+
+/*
+async function showStoredDeltas(data, e) {
+  const deltasSinceLastVisit = data.deltasSinceLastVisit.filter((delta) => delta.added.length < 500);
+  const deltasWithinLastMonth = data.deltasWithinLastMonth.filter((delta) => delta.added.length < 500);
+
+  // Extract all IDs for fetching details
+  const idsSinceLastVisit = deltasSinceLastVisit.reduce((acc, delta) => {
+    return acc.concat(
+      delta.added.map((a) => a.Id),
+      delta.removed.map((r) => r.Id)
+    );
+  }, []);
+  const idsWithinLastMonth = deltasWithinLastMonth.reduce((acc, delta) => {
+    return acc.concat(
+      delta.added.map((a) => a.Id),
+      delta.removed.map((r) => r.Id)
+    );
+  }, []);
+
+  // Create sets for quick lookup
+  const idsSetSinceLastVisit = new Set(idsSinceLastVisit);
+  const idsSetWithinLastMonth = new Set(idsWithinLastMonth);
   // Remove duplicates from the 'within last month' set
   for (const id of idsSetSinceLastVisit) {
     idsSetWithinLastMonth.delete(id);
@@ -681,6 +845,7 @@ async function showStoredDeltas(data, e) {
   $("body").append(container.css("top", e.pageY + 100));
   $("#cc7DeltaContainer").draggable();
 }
+*/
 
 if (shouldInitializeFeature("cc7Changes")) {
   initializeCC7Tracking().catch((e) => console.log("An error occurred while initializing CC7 tracking:", e));
