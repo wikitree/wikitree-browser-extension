@@ -6,6 +6,7 @@ import Cookies from "js-cookie";
 import { treeImageURL } from "../../core/common";
 import { PersonName } from "../auto_bio/person_name.js";
 import { displayDates } from "../verifyID/verifyID";
+import { checkLogin, goAndLogIn, doLogin } from "../randomProfile/randomProfile";
 
 console.log(Cookies.get("wikitree_wtb_UserName"));
 
@@ -128,9 +129,11 @@ class Database {
     objectStoresToCreateOrUpdate.forEach((storeName) => {
       let objectStore;
 
+      const keyPath = storeName === "cc7Deltas" ? "date" : "Id";
+
       // Create the object store if it does not exist
       if (!this.db.objectStoreNames.contains(storeName)) {
-        objectStore = this.db.createObjectStore(storeName, { keyPath: "Id" });
+        objectStore = this.db.createObjectStore(storeName, { keyPath });
       } else {
         objectStore = e.target.transaction.objectStore(storeName);
       }
@@ -256,6 +259,7 @@ class Database {
         removed,
         userId: this.userId,
       };
+      console.log("Data to be added:", data);
 
       const addRequest = store.add(data);
 
@@ -283,15 +287,28 @@ export async function addCC7ChangesButton() {
   newLi.insertBefore(categoryLI.parent());
   newLi.on("click", async function (e) {
     e.preventDefault();
+
+    // Check login status
+    const userId = localStorage.getItem("userId");
+    const loginStatus = await checkLogin(userId);
+    console.log("loginStatus:", loginStatus);
+
+    if (loginStatus.clientLogin.result === "error") {
+      // Not logged in, redirect to login
+      goAndLogIn(window.location.href);
+      return;
+    }
+
+    // Your existing code for handling the CC7 changes starts here
     working.appendTo("body").css({
       position: "absolute",
       left: `${e.pageX - 100}px`,
       top: `${e.pageY + 100}px`,
       "z-index": "1000000",
     });
+
     await getAndStoreCC7Deltas();
     const storedDeltas = await fetchStoredDeltas();
-    //const lastStoredCC7 = await fetchLastStoredCC7(); // Fetch the last stored CC7
     showStoredDeltas(storedDeltas, e); // Pass it to showStoredDeltas
 
     working.remove();
@@ -389,6 +406,45 @@ export async function getAndStoreCC7Deltas() {
   */
 
   await db.storeCC7Deltas(added, removed); // Using the new method in the Database class
+
+  // Now update the CC7 table
+  await updateCC7Table(added, removed);
+}
+
+async function updateCC7Table(added, removed) {
+  return new Promise((resolve, reject) => {
+    const tx = db.db.transaction("CC7", "readwrite");
+    const store = tx.objectStore("CC7");
+
+    // Remove the 'removed' people
+    for (const person of removed) {
+      const request = store.delete(person.Id);
+      request.onerror = function () {
+        console.error("Error deleting record", person.Id);
+        reject(new Error("Couldn't delete record " + person.Id));
+      };
+    }
+
+    // Add the 'added' people
+    for (const person of added) {
+      person.userId = db.userId;
+      const request = store.add(person);
+      request.onerror = function () {
+        console.error("Error adding record", person.Id);
+        reject(new Error("Couldn't add record " + person.Id));
+      };
+    }
+
+    tx.oncomplete = function () {
+      console.log("CC7 table updated successfully.");
+      resolve();
+    };
+
+    tx.onerror = function (event) {
+      console.error("Transaction failed:", event);
+      reject(new Error("Transaction failed"));
+    };
+  });
 }
 
 function calculateDifferences(newData, oldData) {
@@ -457,23 +513,29 @@ async function fetchCC7FromAPI() {
         limit: limit,
       });
       const people = apiResult?.[0]?.people;
-      const restructuredResult = Object.keys(people).reduce((acc, key) => {
-        const entry = people[key];
-        acc[key] = {
-          ...entry,
-          Degrees: entry.Meta.Degrees,
-        };
-        delete acc[key].Meta;
-        return acc;
-      }, {});
-      const arrayOfObjects = Object.keys(restructuredResult).map((key) => {
-        return restructuredResult[key];
-      });
-      start += limit;
-      // Check if we're done
-      getMore = arrayOfObjects.length == limit;
-      // add to peopleObjectArray
-      peopleObjectArray = peopleObjectArray.concat(arrayOfObjects);
+      let restructuredResult;
+      if (people) {
+        restructuredResult = Object.keys(people).reduce((acc, key) => {
+          const entry = people[key];
+          acc[key] = {
+            ...entry,
+            Degrees: entry.Meta.Degrees,
+          };
+          delete acc[key].Meta;
+          return acc;
+        }, {});
+
+        const arrayOfObjects = Object.keys(restructuredResult).map((key) => {
+          return restructuredResult[key];
+        });
+        start += limit;
+        // Check if we're done
+        getMore = arrayOfObjects.length == limit;
+        // add to peopleObjectArray
+        peopleObjectArray = peopleObjectArray.concat(arrayOfObjects);
+      } else {
+        getMore = false;
+      }
     }
     return peopleObjectArray;
   } catch (error) {
@@ -555,6 +617,7 @@ async function showStoredDeltas(data, e) {
   // Create sets for quick lookup
   const idsSetSinceLastVisit = new Set(idsSinceLastVisit);
   const idsSetWithinLastMonth = new Set(idsWithinLastMonth);
+
   // Remove duplicates from the 'within last month' set
   for (const id of idsSetSinceLastVisit) {
     idsSetWithinLastMonth.delete(id);
@@ -566,7 +629,7 @@ async function showStoredDeltas(data, e) {
 
   let allDetailsSinceLastVisit = [];
   let allDetailsWithinLastMonth = [];
-  // log
+
   // Fetch people details based on unique IDs
   if (uniqueIdsSinceLastVisit.length > 0) {
     allDetailsSinceLastVisit = await fetchPeopleDetails(uniqueIdsSinceLastVisit.join(","));
@@ -595,11 +658,9 @@ async function showStoredDeltas(data, e) {
 
   // Handle details for changes within the last month
   if (allDetailsWithinLastMonth.length > 0) {
-    const addedHeadingText = idsSetSinceLastVisit.size > 0 ? "Also added recently: " : "Added recently: ";
-    const addedHeading = $("<h3>").text(addedHeadingText);
+    const addedHeading = $("<h3>").text("Added within the last month: ");
     const addedList = $("<ul>");
-    const removedHeadingText = idsSetSinceLastVisit.size > 0 ? "Also removed recently: " : "Removed recently: ";
-    const removedHeading = $("<h3>").text(removedHeadingText);
+    const removedHeading = $("<h3>").text("Removed within the last month: ");
     const removedList = $("<ul>");
 
     allDetailsWithinLastMonth.forEach((person) => {
@@ -610,7 +671,8 @@ async function showStoredDeltas(data, e) {
 
       if (deltasWithinLastMonth.some((delta) => delta.added.some((a) => a.Id === person.Id))) {
         addedList.append(listItem);
-      } else {
+      }
+      if (deltasWithinLastMonth.some((delta) => delta.removed.some((r) => r.Id === person.Id))) {
         removedList.append(listItem);
       }
     });
@@ -618,7 +680,6 @@ async function showStoredDeltas(data, e) {
     if (addedList.children().length > 0) {
       container.append(addedHeading, addedList);
     }
-
     if (removedList.children().length > 0) {
       container.append(removedHeading, removedList);
     }

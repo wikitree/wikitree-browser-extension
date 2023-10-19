@@ -230,14 +230,20 @@ async function postToAPI(postData) {
   return ajax;
 }
 
-async function checkLogin() {
+export async function checkLogin() {
   const userID = Cookies.get("wikitree_wtb_UserID");
+
+  console.log("userID:", userID);
+
   const postData = { action: "clientLogin", checkLogin: userID };
   const checkLoginResult = await postToAPI(postData);
+
+  console.log("checkLoginResult:", checkLoginResult);
+
   return checkLoginResult;
 }
 
-function goAndLogIn() {
+export function goAndLogIn(returnURL = null) {
   // Create the form and its elements
   const $form = $("<form>", {
     action: "https://api.wikitree.com/api.php",
@@ -250,10 +256,12 @@ function goAndLogIn() {
     value: "clientLogin",
   });
 
+  const returnUrlToUse = returnURL ? returnURL : window.location.href + "?doRandomProfile=1";
+
   const $inputReturnURL = $("<input>", {
     type: "hidden",
     name: "returnURL",
-    value: window.location.href + "?doRandomProfile=1",
+    value: returnUrlToUse,
   });
 
   const $submitButton = $("<input>", {
@@ -269,7 +277,7 @@ function goAndLogIn() {
   $form.trigger("submit");
 }
 
-async function doLogin() {
+export async function doLogin() {
   const login = await checkLogin();
   const u = new URLSearchParams(window.location.search);
   const authcode = u?.get("authcode");
