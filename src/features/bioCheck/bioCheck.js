@@ -245,7 +245,6 @@ function checkSources() {
     if (useAdvanced != 0) {
       biography.parse(sourcesStr, thePerson, "");
       isValid = biography.validate();
-      reportSources(getReportLines(isValid, biography, thePerson.isPre1700()), isValid);
     } else {
       isValid = biography.validateSourcesStr(sourcesStr, thePerson);
     }

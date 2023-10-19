@@ -1098,6 +1098,7 @@ export class Biography {
     if (this.#stats.bioIsMarkedUnsourced) {
       if (this.#sources.sourcesFound) {
         this.#messages.sectionMessages.push('Profile is marked unsourced but may have sources');
+        this.#style.bioHasStyleIssues = true;
       } else {
         this.#messages.sectionMessages.push('Profile is marked unsourced');
       }
