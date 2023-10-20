@@ -327,6 +327,12 @@ body.darkMode .vertical .nameList li.spouse_51 {
   grid-template-areas: "name dates";
 }
 
+.vertical span[itemprop="spouse"].hasRelAge {
+  display: grid;
+  grid-template-columns: 5fr 2fr 1fr;
+  grid-template-areas: "name dates age";
+}
+
 .vertical span[itemprop="spouse"].vanilla {
   display: inline;
   margin: auto;
@@ -338,6 +344,12 @@ body.darkMode .vertical .nameList li.spouse_51 {
 
 .vertical .spouseDates {
   grid-area: dates;
+}
+
+.vertical span[itemprop="spouse"] span.relAge {
+  grid-area: age;
+  font-size: smaller;
+  text-align: right;
 }
 
 .vertical .marriageDetails {
@@ -467,9 +479,9 @@ body.darkMode .vertical .nameList li {
 }
 
 .vertical .nameList li.parent_1,
-.vertical .nameList li span.bdDates.parent_1,
+.vertical .nameList li span[itemprop="sibling"].parent_1,
 body.darkMode .vertical .nameList li.parent_1,
-body.darkMode .vertical .nameList span.bdDates.parent_1 {
+body.darkMode .vertical .nameList span[itemprop="sibling"].parent_1 {
   border-right: 3px solid indigo;
 }
 
@@ -562,6 +574,14 @@ body.darkMode .vertical .nameList span.bdDates.parent_2 {
   grid-template-areas: "name dates";
 }
 
+.vertical .nameList.hasRelAge li span[itemprop="sibling"],
+.vertical .nameList.hasRelAge li span[itemprop="children"],
+.vertical .nameList.hasRelAge li span[itemprop="parent"] {
+  display: grid;
+  grid-template-columns: 5fr 2fr 1fr;
+  grid-template-areas: "name dates age";
+}
+
 .vertical #parentList,
 .vertical #siblingsUnknown {
   list-style: none;
@@ -575,6 +595,16 @@ body.darkMode .vertical .nameList span.bdDates.parent_2 {
 .vertical .bdDates {
   grid-area: dates;
   font-size: smaller;
+}
+
+div.familyList span.relAge {
+  font-size: smaller;
+}
+
+.vertical div.familyList li span.relAge {
+  grid-area: age;
+  font-size: smaller;
+  text-align: right;
 }
 
 .vertical a:link.activeProfile,

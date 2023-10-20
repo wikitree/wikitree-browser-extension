@@ -31,8 +31,6 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     if (options.verticalLists) {
       $("#nVitals").addClass("vertical");
       reallyMakeFamLists();
-    } else if (options.agesAtMarriages) {
-      onlyAgesAtMarriages();
     }
     if (!options.verticalLists) {
       $("body").addClass("WTEsibHeaders");
@@ -41,16 +39,19 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
         addChildrenCount();
       }
       await getWindowPeople();
+      if (options.agesAtMarriages) {
+        addMarriageAges();
+      }
       // Find the name from the element
-      const nameToFind = $("a.pureCssMenui0 span.person").text();
+      // const nameToFind = $("a.pureCssMenui0 span.person").text();
 
-      const oChildren = window.people?.[0]?.Children;
+      const parentPerson = window.people?.[0];
+      const oChildren = parentPerson?.Children;
       let children = [];
       if (oChildren) {
         children = Object.values(oChildren);
       }
-      // Find the person whose Name matches
-      const parentPerson = window.people.find((person) => person.Name === nameToFind);
+
       if (parentPerson) {
         // Get the parent's Id
         const parentId = parentPerson.Id;
@@ -70,6 +71,9 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
             );
           }
         });
+      }
+      if (options.agesOfRelatives && isOK(parentPerson.BirthDate)) {
+        addRelativeAges(parentPerson);
       }
     }
     if (options.changeHeaders) {
@@ -340,6 +344,66 @@ async function moveFamilyLists(firstTime = false) {
   }
 }
 
+function loadRelatives(profileWTID, onSuccess) {
+  if (profileWTID) {
+    $.ajax({
+      url: "https://api.wikitree.com/api.php",
+      type: "POST",
+      crossDomain: true,
+      xhrFields: { withCredentials: true },
+      dataType: "json",
+      data: {
+        action: "getRelatives",
+        keys: profileWTID,
+        getParents: "1",
+        getSpouses: "1",
+        getChildren: "1",
+        getSiblings: "1",
+        fields:
+          "BirthDate,BirthLocation,BirthName,BirthDateDecade,DeathDate,DeathDateDecade,DeathLocation,IsLiving,Father,FirstName,Gender,Id,LastNameAtBirth,LastNameCurrent,Prefix,Suffix,LastNameOther,Derived.LongName,Derived.LongNamePrivate,Manager,MiddleName,Mother,Name,Photo,RealName,ShortName,Touched,Connected,DataStatus",
+        format: "json",
+        appId: "WBE_change_family_lists",
+      },
+      success: function (data) {
+        const oPerson = data;
+        window.people = [];
+        if (oPerson[0]?.["items"]?.[0]?.["person"]) {
+          window.people = [oPerson[0]["items"][0]["person"]];
+          if (oPerson[0]["items"][0]["person"]?.Connected == 1) {
+            window.profileIsConnected = true;
+          } else {
+            window.profileIsConnected = false;
+          }
+        }
+        const orels = ["Children", "Parents", "Siblings", "Spouses"];
+        orels.forEach(function (rel) {
+          if (oPerson[0]["items"] != null) {
+            if (!window.excludeValues.includes(oPerson[0]["items"][0]["person"][rel])) {
+              if (oPerson[0]["items"][0]["person"][rel].length != 0) {
+                oPerson[0]["items"].forEach(function (item) {
+                  const pKeys = Object.keys(item["person"][rel]);
+                  pKeys.forEach(function (pKey) {
+                    if (rel == "Parents") {
+                      window.hasParents = true;
+                    } else if (rel == "Children") {
+                      window.hasChildren = true;
+                    }
+                    window.people.push(item["person"][rel][pKey]);
+                  });
+                });
+              }
+            }
+          }
+        });
+        if (onSuccess) onSuccess();
+      },
+      error: function (xhr, status) {
+        $("#output").append("<br>There was an error getting the person and their relatives:" + status);
+      },
+    });
+  }
+}
+
 function reallyMakeFamLists() {
   if ($("body.profile").length && $("body[class*=page-Space_]").length == 0) {
     const profileWTID = $("a.pureCssMenui0 span.person").text();
@@ -351,128 +415,77 @@ function reallyMakeFamLists() {
         .split("&u=")[1];
         */
     }
-    if (profileWTID) {
-      $.ajax({
-        url: "https://api.wikitree.com/api.php",
-        type: "POST",
-        crossDomain: true,
-        xhrFields: { withCredentials: true },
-        dataType: "json",
-        data: {
-          action: "getRelatives",
-          keys: profileWTID,
-          getParents: "1",
-          getSpouses: "1",
-          getChildren: "1",
-          getSiblings: "1",
-          fields:
-            "BirthDate,BirthLocation,BirthName,BirthDateDecade,DeathDate,DeathDateDecade,DeathLocation,IsLiving,Father,FirstName,Gender,Id,LastNameAtBirth,LastNameCurrent,Prefix,Suffix,LastNameOther,Derived.LongName,Derived.LongNamePrivate,Manager,MiddleName,Mother,Name,Photo,RealName,ShortName,Touched,Connected,DataStatus",
-          format: "json",
-          appId: "WBE_change_family_lists",
-        },
-        success: function (data) {
-          const oPerson = data;
-          window.people = [];
-          if (oPerson[0]?.["items"]?.[0]?.["person"]) {
-            window.people = [oPerson[0]["items"][0]["person"]];
-            if (oPerson[0]["items"][0]["person"]?.Connected == 1) {
-              window.profileIsConnected = true;
-            } else {
-              window.profileIsConnected = false;
-            }
+    loadRelatives(profileWTID, () => {
+      const profilePerson = findPerson(profileWTID);
+      const profileApproxBirthDate = getApproxBirthDate(profilePerson);
+      const profPersonName =
+        profilePerson?.FirstName || profilePerson?.BirthNamePrivate || "the person of the current profile";
+
+      $("span[itemprop='spouse']").each(function () {
+        const theSpouse = $(this);
+        const spouseLinkA = $(this).find("a[href*='wiki']");
+        const spouseLink = spouseLinkA.attr("href");
+        if (options.agesOfRelatives) theSpouse.addClass("hasRelAge");
+        spouseLinkA.addClass("spouseLink");
+        let spouseId = "#n";
+        if (spouseLink) {
+          const spouseBits = spouseLink.split("/");
+          if (spouseBits[2]) {
+            spouseId = spouseBits[2];
           }
-          const orels = ["Children", "Parents", "Siblings", "Spouses"];
-          orels.forEach(function (rel) {
-            if (oPerson[0]["items"] != null) {
-              if (!window.excludeValues.includes(oPerson[0]["items"][0]["person"][rel])) {
-                if (oPerson[0]["items"][0]["person"][rel].length != 0) {
-                  oPerson[0]["items"].forEach(function (item) {
-                    const pKeys = Object.keys(item["person"][rel]);
-                    pKeys.forEach(function (pKey) {
-                      if (rel == "Parents") {
-                        window.hasParents = true;
-                      } else if (rel == "Children") {
-                        window.hasChildren = true;
-                      }
-                      window.people.push(item["person"][rel][pKey]);
-                    });
-                  });
-                }
+        }
+        window.people.forEach(function (aPerson) {
+          if (aPerson.Name == spouseId) {
+            const spouseDates = displayDates(aPerson);
+            if (aPerson.Name.match(/[']/) != null) {
+              aPerson.Name = aPerson.Name.replace("'", "");
+            }
+            const idName = aPerson.Name.replace(".", "");
+            if ($("#" + idName + "-bdDates").length == 0) {
+              theSpouse.append(
+                " <span class='spouseDates bdDates' id='" + idName + "-bdDates'>" + spouseDates + "</span>"
+              );
+              if (options.agesOfRelatives && isOK(aPerson["BirthDate"])) {
+                addRelativeAge(spouseLinkA[0], profPersonName, profileApproxBirthDate, aPerson["BirthDate"]);
               }
             }
-          });
-          const mSpouseSpans = $("span[itemprop='spouse']");
-          let spouseId = "";
-          mSpouseSpans.each(function () {
-            const theSpouse = $(this);
-            const spouseLinkA = $(this).find("a[href*='wiki']");
-            const spouseLink = spouseLinkA.attr("href");
-            spouseLinkA.addClass("spouseLink");
-            if (spouseLink) {
-              const spouseBits = spouseLink.split("/");
-              if (spouseBits[2]) {
-                spouseId = spouseBits[2];
-              } else {
-                spouseId = "#n";
-              }
-            } else {
-              spouseId = "#n";
-            }
-            window.people.forEach(function (aPerson) {
-              let spouseDates = "";
-              if (aPerson.Name == spouseId.replace("_", " ")) {
-                spouseDates = displayDates(aPerson);
-                if (aPerson.Name.match(/[']/) != null) {
-                  aPerson.Name = aPerson.Name.replace("'", "");
-                }
-                const idName = aPerson.Name.replace(".", "");
-                if ($("#" + idName + "-bdDates").length == 0) {
-                  theSpouse.append(
-                    " <span class='spouseDates bdDates' id='" + idName + "-bdDates'>" + spouseDates + "</span>"
-                  );
-                }
-                addDataToPerson(theSpouse.closest("div"), aPerson);
-                theSpouse.attr("data-gender", aPerson.Gender);
-              }
-            });
-          });
-
-          $("#siblingsHeader").off("click");
-          $("body").on("click", "#siblingsHeader", function () {
-            siblingsHeader();
-          });
-
-          setTimeout(function () {
-            addHalfsStyle();
-          }, 1000);
-
-          fixAllPrivates();
-
-          // cleaning up
-          /*if ($("span.large:contains(Family Member)").length == 0)*/ {
-            makeFamLists();
-            $(".familyList li").each(function () {
-              if (
-                $(this)
-                  .text()
-                  .match(/^,|^Sister|^Brother|^\sand\s/)
-              ) {
-                $(this).remove();
-              }
-            });
+            addDataToPerson(theSpouse.closest("div"), aPerson);
+            theSpouse.attr("data-gender", aPerson.Gender);
           }
-
-          $("span#spousesUnknown").each(function () {
-            if ($(this).text() == "") {
-              $(this).remove();
-            }
-          });
-        },
-        error: function (xhr, status) {
-          $("#output").append("<br>There was an error getting the person:" + status);
-        },
+        });
       });
-    }
+
+      $("#siblingsHeader").off("click");
+      $("body").on("click", "#siblingsHeader", function () {
+        siblingsHeader();
+      });
+
+      setTimeout(function () {
+        addHalfsStyle();
+      }, 1000);
+
+      fixAllPrivates();
+
+      // cleaning up
+      /*if ($("span.large:contains(Family Member)").length == 0)*/ {
+        makeFamLists();
+        $(".familyList li").each(function () {
+          if (
+            $(this)
+              .text()
+              .match(/^,|^Sister|^Brother|^\sand\s/)
+          ) {
+            $(this).remove();
+          }
+        });
+      }
+
+      $("span#spousesUnknown").each(function () {
+        if ($(this).text() == "") {
+          $(this).remove();
+        }
+      });
+    });
   }
 }
 
@@ -497,7 +510,7 @@ async function addHalfsStyle() {
           (father == p1id && p1id != undefined) ||
           (thisLi.attr("id") == "profilePerson" && window.BioPerson.Father != 0)
         ) {
-          $(this).find(".bdDates").addClass("parent_1");
+          $(this).find("span[itemprop='sibling']").addClass("parent_1");
         }
         if (
           (mother == p2id && p2id != undefined) ||
@@ -930,15 +943,80 @@ function makeFamLists() {
   }
 }
 
+function getApproxBirthDate(person) {
+  let bDate = person?.BirthDate || "";
+  if (isOK(bDate)) {
+    bDate = getApproxDate(bDate);
+    bDate.Approx ||= person?.DataStatus.BirthDate != "certain" && person?.DataStatus.BirthDate != "";
+  }
+  return bDate;
+}
+
+function findPerson(did) {
+  const wtId = did.replaceAll(" ", "_");
+  let dPeep = null;
+  const peeps = window.people;
+  const pLen = peeps.length;
+  for (let w = 0; w < pLen; w++) {
+    if (peeps[w].Name) {
+      if (wtId == peeps[w].Name) {
+        dPeep = peeps[w];
+        break;
+      }
+    } else if (peeps[w].Id) {
+      const linkElement = $('ul.profile-tabs a[href*="Special:TrustedList"]');
+
+      if (linkElement.length > 0) {
+        const href = linkElement.attr("href");
+        const regex = /u=(\d+)/;
+        const match = href.match(regex);
+
+        if (match) {
+          const uValue = match[1];
+          if (uValue == peeps[w].Id) {
+            dPeep = peeps[w];
+            const changesTabElement = $('ul.profile-tabs a[href*="Special:NetworkFeed"]');
+            const href2 = changesTabElement.attr("href");
+            const regex2 = /who=(.+)/;
+            const match2 = href2.match(regex2);
+            if (match2) {
+              dPeep.Name = match2[1];
+              dPeep.FirstName = $("span[itemprop='givenName']").text();
+              dPeep.LastNameAtBirth = $("span[itemprop='familyName']").text();
+              dPeep.LastNameCurrent = $("a[title='Current Last Name']").text();
+              dPeep.LastNameAtBirth = $("a[title='Last Name at Birth']").text();
+              dPeep.BirthDate = $("time[itemprop='birthDate']").attr("datetime");
+              dPeep.DeathDate = $("time[itemprop='deathDate']").attr("datetime");
+              dPeep.Gender = "";
+            }
+            break;
+          }
+        }
+      } else {
+        console.log("Link not found.");
+      }
+    }
+  }
+  return dPeep;
+}
+
 function list2ol(items, olid) {
   const nList = document.createElement("ol");
   nList.id = olid;
   nList.className = "nameList";
+  if (options.agesOfRelatives) {
+    nList.classList.add("hasRelAge");
+  }
+
   items[0].parentNode.insertBefore(nList, items[0]);
+  const profilePerson = window.people?.[0];
   let isPrivate = false;
-  if (!window.people?.[0]?.Name) {
+  if (!profilePerson?.Name) {
     isPrivate = true;
   }
+  const profileApproxBirthDate = getApproxBirthDate(profilePerson);
+  const profileFirstName = profilePerson?.FirstName || profilePerson?.BirthNamePrivate || "this profile person";
+
   items.forEach(function (item) {
     var dHalf;
     let nLi = document.createElement("li");
@@ -997,51 +1075,10 @@ function list2ol(items, olid) {
       let dbits = dhref.split("wiki/");
 
       let did = decodeURIComponent(dbits[1].replace(/#.*/, ""));
-      let dPeep = "";
-      let peeps = window.people;
-      let pLen = peeps.length;
-      for (let w = 0; w < pLen; w++) {
-        if (peeps[w].Name) {
-          if (did == peeps[w].Name.replace(/_/g, " ")) {
-            dPeep = peeps[w];
-          }
-        } else if (peeps[w].Id) {
-          const linkElement = $('ul.profile-tabs a[href*="Special:TrustedList"]');
-
-          if (linkElement.length > 0) {
-            const href = linkElement.attr("href");
-            const regex = /u=(\d+)/;
-            const match = href.match(regex);
-
-            if (match) {
-              const uValue = match[1];
-              if (uValue == peeps[w].Id) {
-                dPeep = peeps[w];
-                const changesTabElement = $('ul.profile-tabs a[href*="Special:NetworkFeed"]');
-                const href2 = changesTabElement.attr("href");
-                const regex2 = /who=(.+)/;
-                const match2 = href2.match(regex2);
-                if (match2) {
-                  dPeep.Name = match2[1];
-                  dPeep.FirstName = $("span[itemprop='givenName']").text();
-                  dPeep.LastNameAtBirth = $("span[itemprop='familyName']").text();
-                  dPeep.LastNameCurrent = $("a[title='Current Last Name']").text();
-                  dPeep.LastNameAtBirth = $("a[title='Last Name at Birth']").text();
-                  dPeep.BirthDate = $("time[itemprop='birthDate']").attr("datetime");
-                  dPeep.DeathDate = $("time[itemprop='deathDate']").attr("datetime");
-                  dPeep.Gender = "";
-                }
-              }
-            }
-          } else {
-            console.log("Link not found.");
-          }
-        }
-      }
-
+      let dPeep = findPerson(did);
       if (dPeep && !isPrivate) {
         addDataToPerson($(dLink).closest("li"), dPeep);
-        list2ol2(dPeep);
+        list2ol2(dPeep, profileFirstName, profileApproxBirthDate);
       }
     }
   });
@@ -1056,7 +1093,7 @@ function list2ol(items, olid) {
   window.triedInsertSib = 0;
 }
 
-function list2ol2(person) {
+function list2ol2(person, profPersonName, profileApproxBirthDate) {
   let pdata = person;
   let dob, dod, doby, dody;
   let dobStatus = "";
@@ -1089,7 +1126,7 @@ function list2ol2(person) {
       let disID = htmlEntities(pdata["Name"]);
 
       if (disID) {
-        let disLink = document.querySelector("#nVitals a[href='/wiki/" + disID);
+        let disLink = document.querySelector("#nVitals a[href='/wiki/" + disID + "'");
 
         if (isOK(disLink)) {
           let disTitle = disLink.title;
@@ -1156,33 +1193,122 @@ function list2ol2(person) {
       ddates = "";
     }
 
-    let datesSpan = document.createElement("span");
+    const datesSpan = document.createElement("span");
     datesSpan.className = "bdDates";
     datesSpan.setAttribute("data-birth-year", doby);
     datesSpan.setAttribute("data-death-year", dody);
-    let ddn = document.createTextNode(" " + ddates);
+    const ddn = document.createTextNode(" " + ddates);
     datesSpan.appendChild(ddn);
-    let das = document.querySelectorAll("#nVitals a");
-    let done = false;
-    let checkit = encodeURIComponent(pdata["Name"]).replaceAll(/%2C/g, ",");
-    das.forEach(function (ana) {
-      if (ana.href == "https://www.wikitree.com/wiki/" + checkit && done == false) {
-        ana.parentNode.appendChild(datesSpan);
-        done = true;
-        if (typeof pdata["Gender"] != "undefined") {
-          if (pdata["Gender"] == "Male") {
-            ana.parentNode.parentNode.setAttribute("data-gender", "male");
-          } else if (pdata["Gender"] == "Female") {
-            ana.parentNode.parentNode.setAttribute("data-gender", "female");
-          }
+    const checkit = encodeURIComponent(pdata["Name"]).replaceAll(/%2C/g, ",");
+    const ana = document.querySelector("#nVitals a[href='https://www.wikitree.com/wiki/" + checkit + "'");
+    if (ana) {
+      if (options.agesOfRelatives && profileApproxBirthDate != "" && isOK(pdata["BirthDate"])) {
+        addRelativeAge(ana, profPersonName, profileApproxBirthDate, pdata["BirthDate"]);
+      }
+      ana.after(datesSpan);
+      if (typeof pdata["Gender"] != "undefined") {
+        if (pdata["Gender"] == "Male") {
+          ana.parentNode.parentNode.setAttribute("data-gender", "male");
+        } else if (pdata["Gender"] == "Female") {
+          ana.parentNode.parentNode.setAttribute("data-gender", "female");
+        }
 
-          if (pdata["Gender"] == "" || pdata.DataStatus.Gender == "blank") {
-            ana.parentNode.parentNode.setAttribute("data-gender", "");
-          }
+        if (pdata["Gender"] == "" || pdata.DataStatus.Gender == "blank") {
+          ana.parentNode.parentNode.setAttribute("data-gender", "");
+        }
+      }
+    }
+  }
+}
+
+function addRelativeAge(ana, profPersonName, profileApproxBirthDate, relativesBirthDate) {
+  const relType = ana.parentNode.getAttribute("itemprop");
+  const pName = ana.querySelector("span[itemprop='name']").innerText;
+  const ageAt = getAgeAt(profileApproxBirthDate, getApproxDate(relativesBirthDate), relType);
+  const theYearStr = ageStr(ageAt);
+  const ageSpan = document.createElement("span");
+  ageSpan.classList.add("relAge");
+  ageSpan.appendChild(document.createTextNode(` (${ageAt.approx}${ageAt.sign}${ageAt.number})`));
+  let titleText;
+  if (relType == "parent") {
+    titleText = `${pName} was ${theYearStr} when ${profPersonName} was born`;
+  } else {
+    let yearWords = "";
+    if (theYearStr == 0) {
+      yearWords = "in the same year as";
+    } else {
+      yearWords = `${theYearStr} year${Math.abs(ageAt.number) == 1 ? "" : "s"} ${
+        ageAt.sign == "-" ? "before" : "after"
+      }`;
+    }
+    titleText = `${pName} was born ${yearWords} ${profPersonName}`;
+  }
+  ageSpan.setAttribute("title", titleText);
+  ana.after(ageSpan);
+}
+
+function ageStr(a) {
+  return `${a.approx == "" ? "" : "about "}${a.number}`;
+}
+
+function getWtId(link) {
+  let wtId = "";
+  let href = link.getAttribute("href");
+  if (href !== null) {
+    const id = href.split("wiki/")[1];
+    if (id != "") {
+      wtId = decodeURIComponent(id.replace(/#.*/, ""));
+    }
+  }
+  return wtId;
+}
+
+function getAgeAt(profPersonBirthDate, relativesBirthDate, relation) {
+  let approx = "";
+
+  if (profPersonBirthDate.Approx == true || relativesBirthDate.Approx == true) {
+    approx = "~";
+  }
+  const dt1 = relativesBirthDate.Date;
+  const dt2 = profPersonBirthDate.Date;
+  const showYearsSince = relation != "parent";
+  let diff;
+  let sign = "";
+  if (showYearsSince) {
+    // we'll always return a positive number
+    const yearsSince = getAge(dt2, dt1);
+    diff = yearsSince[0];
+    if (diff > 0) {
+      sign = "+";
+    } else if (diff < 0) {
+      sign = "-";
+      diff = -diff;
+    }
+  } else {
+    // parents should always be older than their child, so we assume positive,
+    // but if it is not, then we'll just show it as is (i.e. we return a negative number).
+    const ageAt = getAge(dt1, dt2);
+    diff = ageAt[0];
+  }
+  return { approx: approx, sign: sign, number: diff };
+}
+
+function addRelativeAges(profilePerson) {
+  loadRelatives(profilePerson.Name, () => {
+    const profileApproxBirthDate = getApproxBirthDate(profilePerson);
+    const profPersonName =
+      profilePerson?.FirstName || profilePerson?.BirthNamePrivate || "the person of the current profile";
+    document.querySelectorAll("#nVitals a[href^='/wiki/']").forEach((ana) => {
+      const wtId = getWtId(ana);
+      if (wtId != "") {
+        const relative = findPerson(wtId);
+        const relativesBirthDate = relative ? relative["BirthDate"] : null;
+        if (isOK(relativesBirthDate)) {
+          addRelativeAge(ana, profPersonName, profileApproxBirthDate, relativesBirthDate);
         }
       }
     });
-  }
+  });
 }
 
 function textNodesUnder(el) {
@@ -1196,12 +1322,12 @@ function textNodesUnder(el) {
 async function addChildrenCount() {
   if ($("#childrenCount").length == 0) {
     const siblingLength = $(".VITALS span[itemprop='sibling']").length;
-    $("<span id='siblingCount'>(" + siblingLength + ")</span>").insertAfter(
+    $("<span id='siblingCount'>[" + siblingLength + "]</span>").insertAfter(
       $(".VITALS span[itemprop='sibling']").eq(siblingLength - 1)
     );
 
     const childrenLength = $(".VITALS span[itemprop='children']").length;
-    $("<span id='childrenCount'>(" + childrenLength + ")</span>").insertAfter(
+    $("<span id='childrenCount'>[" + childrenLength + "]</span>").insertAfter(
       $(".VITALS span[itemprop='children']").eq(childrenLength - 1)
     );
   }
@@ -1408,7 +1534,7 @@ function insertInSibList() {
       }
     }
     if ($(".parent_1").length) {
-      $("#profilePerson .bdDates").addClass("parent_1");
+      $("#profilePerson span[itemprop='sibling']").addClass("parent_1");
     }
     if ($(".parent_2").length) {
       $("#profilePerson").addClass("parent_2");
@@ -1986,7 +2112,7 @@ function addDNAstatusToChildren() {
   const nameToFind = $("a.pureCssMenui0 span.person").text();
 
   // Find the person whose Name matches
-  const parentPerson = window.people.find((person) => person.Name === nameToFind);
+  const parentPerson = window.people?.find((person) => person.Name === nameToFind);
 
   // Check if the person was found
   if (parentPerson) {

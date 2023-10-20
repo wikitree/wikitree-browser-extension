@@ -56,6 +56,12 @@ const changeFamilyLists = {
       defaultValue: false,
     },
     {
+      id: "agesOfRelatives",
+      type: OptionType.CHECKBOX,
+      label: "Add parent ages and age differences with siblings and children",
+      defaultValue: false,
+    },
+    {
       id: "agesAtMarriages",
       type: OptionType.CHECKBOX,
       label: "Add ages at marriage",
