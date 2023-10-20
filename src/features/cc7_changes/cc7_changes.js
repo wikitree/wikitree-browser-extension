@@ -7,6 +7,7 @@ import { treeImageURL } from "../../core/common";
 import { PersonName } from "../auto_bio/person_name.js";
 import { displayDates } from "../verifyID/verifyID";
 import { checkLogin, goAndLogIn, doLogin } from "../randomProfile/randomProfile";
+import { login } from "wikitree-js";
 
 console.log(Cookies.get("wikitree_wtb_UserName"));
 
@@ -21,44 +22,65 @@ class Database {
     this.upgradeNeeded = false;
   }
 
-  async initializeDB() {
+  async emptyDatabase() {
     return new Promise((resolve, reject) => {
-      console.log("Initializing DB...");
-      const openRequest = indexedDB.open("CC7Database", 2);
-      let dbInitializationComplete = false; // Flag to ensure resolve() is called only once
+      const currentVersion = this.db ? this.db.version : 1;
+      const openRequest = indexedDB.open("CC7Database", currentVersion + 1);
 
-      openRequest.onblocked = (event) => {
-        console.log("Blocked:", event);
-      };
+      openRequest.onupgradeneeded = (e) => {
+        const db = e.target.result;
 
-      openRequest.onupgradeneeded = async (e) => {
-        try {
-          this.upgradeNeeded = true;
-          await this.onUpgradeNeeded(e, resolve, dbInitializationComplete);
-        } catch (error) {
-          reject(error);
+        // Loop through all object store names and delete them
+        for (let i = 0; i < db.objectStoreNames.length; i++) {
+          db.deleteObjectStore(db.objectStoreNames[i]);
         }
-      };
 
-      openRequest.onsuccess = (e) => {
-        console.log("DB opened successfully, waiting for all transactions.");
-        // Do not call resolve here
-        this.db = e.target.result;
-        this.db.onversionchange = () => {
-          this.db.close();
-        };
-        this.initialized = true; // Set the flag here
-        if (!this.upgradeNeeded) {
-          resolve();
-        }
+        // Recreate the object stores (Optional)
+        // You can call your onUpgradeNeeded method here if you want to recreate the object stores immediately
+        this.onUpgradeNeeded(e).then(resolve).catch(reject);
       };
 
       openRequest.onerror = (e) => {
-        console.log("Error initializing DB");
-        this.onError(e, reject);
+        console.error(`Error emptying database: `, e);
+        reject(e);
       };
     });
   }
+
+  async initializeDB() {
+    return new Promise((resolve, reject) => {
+      const openRequest = indexedDB.open("CC7Database", 2);
+
+      openRequest.onupgradeneeded = (e) => {
+        const db = e.target.result;
+
+        // Delete existing object stores
+        for (let i = 0; i < db.objectStoreNames.length; i++) {
+          db.deleteObjectStore(db.objectStoreNames[i]);
+        }
+
+        // Create new object stores
+        const cc7Store = db.createObjectStore("CC7", { keyPath: "Id" });
+        cc7Store.createIndex("userId", "userId", { unique: false });
+
+        const cc7DeltasStore = db.createObjectStore("cc7Deltas", { keyPath: "date" });
+        cc7DeltasStore.createIndex("userId", "userId", { unique: false });
+
+        this.db = db;
+        this.initialized = true;
+      };
+
+      openRequest.onsuccess = () => {
+        this.db = openRequest.result;
+        resolve();
+      };
+
+      openRequest.onerror = (e) => {
+        reject(e);
+      };
+    });
+  }
+
   /*
   async onUpgradeNeeded(e) {
     return new Promise((resolve, reject) => {
@@ -261,7 +283,7 @@ class Database {
       };
       console.log("Data to be added:", data);
 
-      const addRequest = store.add(data);
+      const addRequest = store.put(data);
 
       addRequest.onsuccess = () => {
         resolve();
@@ -274,8 +296,68 @@ class Database {
   }
 }
 
+const loginPopup = $(`<div id="login-popup" class="login-popup-hidden">
+<button id="login-btn">Login to initialize CC7 Changes</button>
+<button id="dismiss-btn">Dismiss</button>
+</div>`);
+
 const db = new Database();
 // Initialize IndexedDB
+
+// Function to check login status
+async function checkLoginStatus() {
+  // Replace this with your actual check login logic
+  const userId = localStorage.getItem("userId");
+  const loginStatus = await checkLogin(userId); // your checkLogin function
+
+  return loginStatus.clientLogin.result !== "error";
+}
+
+// Function to show login popup
+function showLoginPopup() {
+  loginPopup.appendTo("body");
+  loginPopup.className = "login-popup-shown";
+}
+
+// Function to hide login popup
+function hideLoginPopup() {
+  const loginPopup = document.getElementById("login-popup");
+  loginPopup.className = "login-popup-hidden";
+}
+
+// Attach event listeners to the buttons
+document.getElementById("login-btn").addEventListener("click", async () => {
+  // Redirect to login or trigger login process
+  goAndLogIn(window.location.href);
+
+  // After successful login, hide the popup and initialize CC7 Changes
+  if (await checkLoginStatus()) {
+    hideLoginPopup();
+    await initializeCC7Tracking();
+  }
+});
+
+document.getElementById("dismiss-btn").addEventListener("click", () => {
+  // Hide the popup when the user dismisses it
+  hideLoginPopup();
+});
+
+// Function to set a flag before redirecting for login
+function redirectToLogin() {
+  localStorage.setItem("redirectToLoginForCC7", "true");
+  goAndLogIn(window.location.href); // Your function to redirect to the login page
+}
+
+// Attach event listeners to the buttons
+document.getElementById("login-btn").addEventListener("click", () => {
+  // Redirect to login
+  redirectToLogin();
+});
+
+document.getElementById("dismiss-btn").addEventListener("click", () => {
+  // Hide the popup when the user dismisses it
+  hideLoginPopup();
+});
 
 export async function addCC7ChangesButton() {
   // logging
@@ -428,7 +510,7 @@ async function updateCC7Table(added, removed) {
     // Add the 'added' people
     for (const person of added) {
       person.userId = db.userId;
-      const request = store.add(person);
+      const request = store.put(person);
       request.onerror = function () {
         console.error("Error adding record", person.Id);
         reject(new Error("Couldn't add record " + person.Id));
@@ -725,3 +807,20 @@ if (shouldInitializeFeature("cc7Changes")) {
 
   import("./cc7_changes.css");
 }
+
+// Main logic
+(async () => {
+  if (await checkLoginStatus()) {
+    // Check if the user was redirected for login
+    if (localStorage.getItem("redirectToLoginForCC7") === "true") {
+      // Remove the flag
+      localStorage.removeItem("redirectToLoginForCC7");
+
+      // Initialize and populate the database
+      await initializeCC7Tracking();
+    }
+  } else {
+    // User is not logged in, show the login popup
+    showLoginPopup();
+  }
+})();

@@ -41,3 +41,18 @@
   margin-top: 0;
   cursor: move;
 }
+
+/* CSS */
+.login-popup-hidden {
+  display: none;
+}
+
+.login-popup-shown {
+  display: block;
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  background-color: #f1f1f1;
+  border: 1px solid #ccc;
+  z-index: 1000;
+}
