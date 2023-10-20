@@ -555,6 +555,8 @@ function CreateMigrationCategory(tb) {
       "Wisconsin",
       "Wyoming",
     ],
+
+    Yugoslavia: ["Serbia (until 2006)"],
   };
 
   countryTo = GetKnownCountry(entityTo, entities);
