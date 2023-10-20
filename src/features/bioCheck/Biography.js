@@ -97,6 +97,7 @@ export class Biography {
       bioMissingResearchNoteBox: false,
       bioMightHaveEmail: false,
       bioHasSearchString: false,
+      bioHasBrWithoutEnd: false,
   };
   #sources = {
       sourcesFound: false,
@@ -823,7 +824,7 @@ export class Biography {
     if (pos < 0) {
       outStr = inStr; // no br
     }
-    while (pos < len && pos >= 0) {
+    while (pos < len && pos >= 0 && endPos >= 0) {
       if (pos > 0) {
         outStr = outStr + inStr.substring(endPos, pos);
       }
@@ -836,6 +837,9 @@ export class Biography {
             outStr += inStr.substring(endPos + 1);
           }
         }
+      } else {
+        // <BR without ending bracket
+        this.#style.bioHasBrWithoutEnd = true;
       }
     }
     return outStr;
@@ -1110,6 +1114,11 @@ export class Biography {
     if (this.#style.bioCategoryNotAtStart) {
       this.#style.bioHasStyleIssues = true;
     }
+    if (this.#style.bioHasBrWithoutEnd) {
+      this.#style.bioHasStyleIssues = true;
+      this.#messages.styleMessages.push('Biography has <BR without ending > ');
+    }
+
     if (this.#biographyIndex < 0) {
       this.#style.bioHasStyleIssues = true;
       this.#style.bioIsMissingBiographyHeading = true;
@@ -1531,6 +1540,7 @@ export class Biography {
                             // TODO add more logic to eliminate sources as valid by combining ones
                             // TODO is the manager's name a valid source (this is hard)
                             // TODO add logic to check for just the name followed by grave
+                            // TODO add logic to strip "information from" from the start
                             isValid = true;
                           }
                         }
