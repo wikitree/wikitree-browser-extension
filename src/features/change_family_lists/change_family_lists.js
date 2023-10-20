@@ -253,8 +253,8 @@ async function onlyAgesAtMarriages() {
 }
 
 async function getFamilyPeople(args) {
-  const keys = args.keys || $("a.pureCssMenui0 span.person").text();
-  const fields = args.fields || "*";
+  const keys = args?.keys || $("a.pureCssMenui0 span.person").text();
+  const fields = args?.fields || "*";
   const result = await postToAPI({
     action: "getPeople",
     appId: "WBE_changeFamilyLists",
