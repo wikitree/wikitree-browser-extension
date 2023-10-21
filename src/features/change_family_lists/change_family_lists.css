@@ -329,7 +329,7 @@ body.darkMode .vertical .nameList li.spouse_51 {
 
 .vertical span[itemprop="spouse"].hasRelAge {
   display: grid;
-  grid-template-columns: 5fr 2fr 1fr;
+  grid-template-columns: 5fr 2.3fr 1fr;
   grid-template-areas: "name dates age";
 }
 
@@ -578,7 +578,7 @@ body.darkMode .vertical .nameList span.bdDates.parent_2 {
 .vertical .nameList.hasRelAge li span[itemprop="children"],
 .vertical .nameList.hasRelAge li span[itemprop="parent"] {
   display: grid;
-  grid-template-columns: 5fr 2fr 1fr;
+  grid-template-columns: 5fr 2.3fr 1fr;
   grid-template-areas: "name dates age";
 }
 
