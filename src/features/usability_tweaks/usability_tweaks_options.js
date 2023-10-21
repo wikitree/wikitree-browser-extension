@@ -13,14 +13,14 @@ const usabilityTweaks = {
   pages: [isMainDomain],
   options: [
     {
-      id: "global",
+      id: "addPerson",
       type: OptionType.GROUP,
-      label: "Global",
+      label: "Add Person",
       options: [
         {
           id: "focusFirstNameField",
           type: OptionType.CHECKBOX,
-          label: "Put the focus in the First Name field (search field or Add Person First Name at Birth).",
+          label: "Put the focus in the First Name field.",
           defaultValue: false,
         },
       ],

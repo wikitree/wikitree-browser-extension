@@ -326,15 +326,18 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
 
       // focusFirstNameField
       if (options.focusFirstNameField) {
-        setTimeout(function () {
-          if ($("#mFirstName").length) {
-            $("#mFirstName").trigger("focus");
-          } else if ($("#wpFirst").length && $("b:Contains('Search Results')").length == 0) {
-            $("#wpFirst").trigger("focus");
-          } else {
-            $("input[name='wpFirst']").eq(0).trigger("focus");
-          }
-        }, 1000);
+        if (isAddUnrelatedPerson) {
+          document.getElementById("mFirstName").focus();
+        } else if (isProfileAddRelative) {
+          var enterBasicDataButton = document.getElementById("actionButton");
+          let timeoutShowBasicData = null;
+          enterBasicDataButton.addEventListener("click", function () {
+            clearTimeout(timeoutShowBasicData);
+            timeoutShowBasicData = setTimeout(function () {
+              document.getElementById("mFirstName").focus();
+            }, 300);
+          });
+        }
       }
 
       if (isWikiEdit && options.rememberTextareaHeight) {
@@ -367,5 +370,3 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
     });
   }
 });
-
-
