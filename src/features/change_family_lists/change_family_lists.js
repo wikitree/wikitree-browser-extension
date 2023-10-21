@@ -72,7 +72,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
           }
         });
       }
-      if (options.agesOfRelatives && isOK(parentPerson.BirthDate)) {
+      if (isOK(parentPerson.BirthDate) && (options.parentAges || options.ageDifferences)) {
         addRelativeAges(parentPerson);
       }
     }
@@ -420,7 +420,7 @@ function reallyMakeFamLists() {
         const theSpouse = $(this);
         const spouseLinkA = $(this).find("a[href*='wiki']");
         const spouseLink = spouseLinkA.attr("href");
-        if (options.agesOfRelatives) theSpouse.addClass("hasRelAge");
+        if (options.ageDifferences) theSpouse.addClass("hasRelAge");
         spouseLinkA.addClass("spouseLink");
         let spouseId = "#n";
         if (spouseLink) {
@@ -440,7 +440,7 @@ function reallyMakeFamLists() {
               theSpouse.append(
                 " <span class='spouseDates bdDates' id='" + idName + "-bdDates'>" + spouseDates + "</span>"
               );
-              if (options.agesOfRelatives && isOK(aPerson["BirthDate"])) {
+              if (options.ageDifferences && isOK(aPerson["BirthDate"])) {
                 addRelativeAge(spouseLinkA[0], profPersonName, profileApproxBirthDate, aPerson["BirthDate"]);
               }
             }
@@ -996,10 +996,11 @@ function findPerson(did) {
 }
 
 function list2ol(items, olid) {
+  const addAges = (options.parentAges && olid == "parentList") || (options.ageDifferences && olid != "parentList");
   const nList = document.createElement("ol");
   nList.id = olid;
   nList.className = "nameList";
-  if (options.agesOfRelatives) {
+  if (addAges) {
     nList.classList.add("hasRelAge");
   }
 
@@ -1009,8 +1010,12 @@ function list2ol(items, olid) {
   if (!profilePerson?.Name) {
     isPrivate = true;
   }
-  const profileApproxBirthDate = getApproxBirthDate(profilePerson);
-  const profileFirstName = profilePerson?.FirstName || profilePerson?.BirthNamePrivate || "this profile person";
+  let profileFirstName = null;
+  let profileApproxBirthDate = null;
+  if (addAges) {
+    profileFirstName = profilePerson?.FirstName || profilePerson?.BirthNamePrivate || "this profile person";
+    profileApproxBirthDate = getApproxBirthDate(profilePerson);
+  }
 
   items.forEach(function (item) {
     var dHalf;
@@ -1197,7 +1202,7 @@ function list2ol2(person, profPersonName, profileApproxBirthDate) {
     const checkit = encodeURIComponent(pdata["Name"]).replaceAll(/%2C/g, ",");
     const ana = document.querySelector("#nVitals a[href='https://www.wikitree.com/wiki/" + checkit + "'");
     if (ana) {
-      if (options.agesOfRelatives && profileApproxBirthDate != "" && isOK(pdata["BirthDate"])) {
+      if (profPersonName && profileApproxBirthDate != "" && isOK(pdata["BirthDate"])) {
         addRelativeAge(ana, profPersonName, profileApproxBirthDate, pdata["BirthDate"]);
       }
       ana.after(datesSpan);
@@ -1293,7 +1298,17 @@ function addRelativeAges(profilePerson) {
     const profileApproxBirthDate = getApproxBirthDate(profilePerson);
     const profPersonName =
       profilePerson?.FirstName || profilePerson?.BirthNamePrivate || "the person of the current profile";
-    document.querySelectorAll("#nVitals a[href^='/wiki/']").forEach((ana) => {
+    // if we get here, either parents, or siblings and children or all should get ages
+    let selector = "#nVitals a[href^='/wiki/']"; // assume everyone
+    if (!options.parentAges) {
+      // siblings and children only
+      selector =
+        "#nVitals span[itemprop='sibling'] a[href^='/wiki/'], #nVitals span[itemprop='children'] a[href^='/wiki/']";
+    } else if (!options.ageDifferences) {
+      // parents only
+      selector = "#nVitals span[itemprop='parent'] a[href^='/wiki/']";
+    }
+    document.querySelectorAll(selector).forEach((ana) => {
       const wtId = getWtId(ana);
       if (wtId != "") {
         const relative = findPerson(wtId);
