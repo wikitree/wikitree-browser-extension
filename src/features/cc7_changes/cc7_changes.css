@@ -47,7 +47,7 @@
   display: none;
 }
 
-.login-popup-shown {
+#login-popup {
   display: block;
   position: fixed;
   bottom: 0;
@@ -55,4 +55,14 @@
   background-color: #f1f1f1;
   border: 1px solid #ccc;
   z-index: 1000;
+}
+#login-btn,
+#dismiss-btn {
+  border: none;
+  color: white;
+  padding: 1em;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: small;
 }

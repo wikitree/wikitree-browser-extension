@@ -296,7 +296,7 @@ class Database {
   }
 }
 
-const loginPopup = $(`<div id="login-popup" class="login-popup-hidden">
+const loginPopup = $(`<div id="login-popup">
 <button id="login-btn">Login to initialize CC7 Changes</button>
 <button id="dismiss-btn">Dismiss</button>
 </div>`);
@@ -314,50 +314,32 @@ async function checkLoginStatus() {
 }
 
 // Function to show login popup
+// Function to show login popup
 function showLoginPopup() {
   loginPopup.appendTo("body");
   loginPopup.className = "login-popup-shown";
+
+  // Attach an event listener to the login button
+  document.getElementById("login-btn").addEventListener("click", async () => {
+    goAndLogIn(window.location.href);
+
+    // After successful login, hide the popup and initialize CC7 Changes
+    if (await checkLoginStatus()) {
+      const userId = localStorage.getItem("userId");
+      await initializeCC7Tracking(userId);
+    }
+  });
+
+  document.getElementById("dismiss-btn").addEventListener("click", () => {
+    $("#login-popup").remove();
+  });
 }
-
-// Function to hide login popup
-function hideLoginPopup() {
-  const loginPopup = document.getElementById("login-popup");
-  loginPopup.className = "login-popup-hidden";
-}
-
-// Attach event listeners to the buttons
-document.getElementById("login-btn").addEventListener("click", async () => {
-  // Redirect to login or trigger login process
-  goAndLogIn(window.location.href);
-
-  // After successful login, hide the popup and initialize CC7 Changes
-  if (await checkLoginStatus()) {
-    hideLoginPopup();
-    await initializeCC7Tracking();
-  }
-});
-
-document.getElementById("dismiss-btn").addEventListener("click", () => {
-  // Hide the popup when the user dismisses it
-  hideLoginPopup();
-});
 
 // Function to set a flag before redirecting for login
 function redirectToLogin() {
   localStorage.setItem("redirectToLoginForCC7", "true");
   goAndLogIn(window.location.href); // Your function to redirect to the login page
 }
-
-// Attach event listeners to the buttons
-document.getElementById("login-btn").addEventListener("click", () => {
-  // Redirect to login
-  redirectToLogin();
-});
-
-document.getElementById("dismiss-btn").addEventListener("click", () => {
-  // Hide the popup when the user dismisses it
-  hideLoginPopup();
-});
 
 export async function addCC7ChangesButton() {
   // logging
@@ -398,6 +380,16 @@ export async function addCC7ChangesButton() {
 }
 
 export async function initializeCC7Tracking() {
+  // Check login status first
+  const userId = localStorage.getItem("userId");
+  const loginStatus = await checkLogin(userId);
+
+  if (loginStatus.clientLogin.result === "error") {
+    // Not logged in, show login popup
+    showLoginPopup();
+    return;
+  }
+
   try {
     await db.initializeDB();
     // logging
@@ -802,25 +794,25 @@ async function showStoredDeltas(data, e) {
   $("#cc7DeltaContainer").draggable();
 }
 
-if (shouldInitializeFeature("cc7Changes")) {
-  initializeCC7Tracking().catch((e) => console.log("An error occurred while initializing CC7 tracking:", e));
+async function initializeTheFeature() {
+  const userId = localStorage.getItem("userId");
 
-  import("./cc7_changes.css");
+  // Check the login status
+  const loginStatus = await checkLogin(userId);
+  console.log("loginStatus:", loginStatus);
+
+  if (loginStatus.clientLogin.result === "error") {
+    // Not logged in, show login popup
+    showLoginPopup();
+  } else {
+    // Logged in, initialize CC7 Changes
+    await initializeCC7Tracking(userId);
+  }
 }
 
-// Main logic
-(async () => {
-  if (await checkLoginStatus()) {
-    // Check if the user was redirected for login
-    if (localStorage.getItem("redirectToLoginForCC7") === "true") {
-      // Remove the flag
-      localStorage.removeItem("redirectToLoginForCC7");
-
-      // Initialize and populate the database
-      await initializeCC7Tracking();
-    }
-  } else {
-    // User is not logged in, show the login popup
-    showLoginPopup();
-  }
-})();
+if (shouldInitializeFeature("cc7Changes")) {
+  setTimeout(() => {
+    initializeCC7Tracking().catch((e) => console.log("An error occurred while initializing CC7 tracking:", e));
+    import("./cc7_changes.css");
+  }, 5000);
+}
