@@ -1332,14 +1332,10 @@ function textNodesUnder(el) {
 async function addChildrenCount() {
   if ($("#childrenCount").length == 0) {
     const siblingLength = $(".VITALS span[itemprop='sibling']").length;
-    $("<span id='siblingCount'>[" + siblingLength + "]</span>").insertAfter(
-      $(".VITALS span[itemprop='sibling']").eq(siblingLength - 1)
-    );
+    $("#siblingDetails").append($("<span id='siblingCount'>[" + siblingLength + "]</span>"));
 
     const childrenLength = $(".VITALS span[itemprop='children']").length;
-    $("<span id='childrenCount'>[" + childrenLength + "]</span>").insertAfter(
-      $(".VITALS span[itemprop='children']").eq(childrenLength - 1)
-    );
+    $("#childrenDetails").append($("<span id='childrenCount'>[" + childrenLength + "]</span>"));
   }
 }
 
