@@ -1,143 +1,180 @@
 import $ from "jquery";
-import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 import "jquery-ui/ui/widgets/draggable";
 import { fetchPeople } from "../category_filters/category_filters";
 import Cookies from "js-cookie";
 import { treeImageURL } from "../../core/common";
 import { PersonName } from "../auto_bio/person_name.js";
 import { displayDates } from "../verifyID/verifyID";
-import { checkLogin, goAndLogIn, doLogin } from "../randomProfile/randomProfile";
-import { login } from "wikitree-js";
+import { goAndLogIn } from "../randomProfile/randomProfile";
 
 console.log(Cookies.get("wikitree_wtb_UserName"));
 
 const working = $("<img id='working' src='" + treeImageURL + "'>");
 const userId = Cookies.get("wikitree_wtb_UserName");
+const USER_NUM_ID = Cookies.get("wikitree_wtb_UserID");
+const CC7_STORE = "CC7";
+const CC7_DELTAS_STORE = "cc7Deltas";
+const READONLY = "readonly";
+const USER_ID = "userId";
+const READWRITE = "readwrite";
+const DATE = "date";
+const ID = "Id";
+const CC7_DELTA_CONTAINER = "cc7DeltaContainer";
+const CC7_DELTA_CONTAINER_ID = "#" + CC7_DELTA_CONTAINER;
+const APP_ID = "cc7Changes";
+
+let isDBInitialized = false;
+
+export async function fetchAPI(args) {
+  const params = {};
+  // Iterate over the args object and add any non-null values to the params object
+  for (const [key, value] of Object.entries(args)) {
+    if (value !== null) {
+      params[key] = value;
+    }
+  }
+
+  // Create a new URLSearchParams object with the updated params object
+  const searchParams = new URLSearchParams(params);
+
+  return fetch("https://api.wikitree.com/api.php", {
+    method: "POST",
+    mode: "cors",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: searchParams,
+  })
+    .then(async (response) => {
+      if (response.status !== 200) {
+        console.log("Looks like there was a problem. Status Code: " + response.status);
+        return null;
+      }
+      const data = await response.json();
+      return data;
+    })
+    .catch((error) => {
+      console.log("Fetch Error:", error);
+      return null;
+    });
+}
 
 class Database {
   constructor() {
+    // Check if an instance already exists
+    if (Database.instance) {
+      return Database.instance;
+    }
+
+    // Initialize object properties
     this.db = null;
-    this.userId = Cookies.get("wikitree_wtb_UserName"); // Set userId here
+    this.userId = userId;
     this.initialized = false; // Initialize property here
     this.upgradeNeeded = false;
+    this.isUpgrading = false; // NEW: flag to track if upgrading is in progress
+    this.appId = "cc7Changes";
+    this.initializationPromise = this.initializeDB();
+
+    // Store the single instance
+    Database.instance = this;
   }
 
-  async emptyDatabase() {
+  async handleUpgrade(e, isNeeded = false) {
+    await this.waitForUpgrade(); // Wait if an upgrade is in progress
+
     return new Promise((resolve, reject) => {
-      const currentVersion = this.db ? this.db.version : 1;
-      const openRequest = indexedDB.open("CC7Database", currentVersion + 1);
+      console.log("handleUpgrade called");
+      console.log("Setting isUpgrading to true");
 
-      openRequest.onupgradeneeded = (e) => {
-        const db = e.target.result;
+      this.isUpgrading = true; // NEW: set the flag
 
-        // Loop through all object store names and delete them
+      const db = e.target.result;
+
+      // Delete existing object stores if an upgrade is needed
+      if (isNeeded) {
         for (let i = 0; i < db.objectStoreNames.length; i++) {
           db.deleteObjectStore(db.objectStoreNames[i]);
         }
+      }
 
-        // Recreate the object stores (Optional)
-        // You can call your onUpgradeNeeded method here if you want to recreate the object stores immediately
-        this.onUpgradeNeeded(e).then(resolve).catch(reject);
-      };
+      // Create new object stores
+      this.createObjectStores(db);
 
-      openRequest.onerror = (e) => {
-        console.error(`Error emptying database: `, e);
-        reject(e);
-      };
+      this.db = db;
+      this.initialized = true;
+      console.log("Setting isUpgrading to false");
+
+      this.isUpgrading = false; // NEW: reset the flag
+
+      console.log(`handleUpgrade: db.initialized set to ${this.initialized}`);
+      if (this.db) {
+        console.log(`DB Version: ${this.db.version}`);
+      } else {
+        console.log("Database is not initialized.");
+      }
+
+      resolve(); // Resolve the Promise since the function is done
     });
+  }
+
+  // New method to wait for upgrade to complete
+  async waitForUpgrade() {
+    while (this.isUpgrading) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+
+  async createObjectStores(db) {
+    //await this.waitForUpgrade(); // Wait if an upgrade is in progress
+
+    if (!db.objectStoreNames.contains(CC7_STORE)) {
+      const cc7Store = db.createObjectStore(CC7_STORE, { keyPath: ID });
+      cc7Store.createIndex(USER_ID, USER_ID, { unique: false });
+    }
+    if (!db.objectStoreNames.contains(CC7_DELTAS_STORE)) {
+      const cc7DeltasStore = db.createObjectStore(CC7_DELTAS_STORE, { keyPath: DATE });
+      cc7DeltasStore.createIndex(USER_ID, USER_ID, { unique: false });
+    }
   }
 
   async initializeDB() {
+    if (isDBInitialized) {
+      return;
+    }
+    await this.waitForUpgrade(); // Wait if an upgrade is in progress
+
     return new Promise((resolve, reject) => {
-      const openRequest = indexedDB.open("CC7Database", 2);
+      console.log("initializeDB called");
+      const openRequest = indexedDB.open("CC7Database", 3);
+      console.log("openRequest created", openRequest);
 
-      openRequest.onupgradeneeded = (e) => {
-        const db = e.target.result;
-
-        // Delete existing object stores
-        for (let i = 0; i < db.objectStoreNames.length; i++) {
-          db.deleteObjectStore(db.objectStoreNames[i]);
-        }
-
-        // Create new object stores
-        const cc7Store = db.createObjectStore("CC7", { keyPath: "Id" });
-        cc7Store.createIndex("userId", "userId", { unique: false });
-
-        const cc7DeltasStore = db.createObjectStore("cc7Deltas", { keyPath: "date" });
-        cc7DeltasStore.createIndex("userId", "userId", { unique: false });
-
-        this.db = db;
-        this.initialized = true;
-      };
-
-      openRequest.onsuccess = () => {
-        this.db = openRequest.result;
+      openRequest.onupgradeneeded = async (e) => {
+        console.log("onupgradeneeded handler in initializeDB called");
+        await this.handleUpgrade(e); // isNeeded defaults to false
         resolve();
       };
 
+      openRequest.onsuccess = (event) => {
+        this.db = openRequest.result;
+        this.initialized = true;
+        this.isUpgrading = false;
+        console.log("DB initialized", this.db);
+        resolve(); // resolve the promise
+      };
+
       openRequest.onerror = (e) => {
-        reject(e);
+        console.log("onerror handler in initializeDB called");
+        this.onError(e, reject);
       };
+      isDBInitialized = true;
     });
   }
 
-  /*
   async onUpgradeNeeded(e) {
-    return new Promise((resolve, reject) => {
-      console.log("Upgrade needed");
-      this.upgradeNeeded = true;
+    await this.waitForUpgrade(); // Wait if an upgrade is in progress
 
-      this.db = e.target.result;
-      this.db.onversionchange = () => {
-        this.db.close();
-      };
-
-      let objectStoresToCreate = [];
-
-      // Create the object stores if they do not exist
-      if (!this.db.objectStoreNames.contains("CC7")) {
-        const objectStore = this.db.createObjectStore("CC7", { keyPath: "Id" });
-        objectStore.createIndex("userId", "userId", { unique: false });
-        objectStoresToCreate.push("CC7");
-      }
-
-      if (!this.db.objectStoreNames.contains("cc7Deltas")) {
-        const objectStore = this.db.createObjectStore("cc7Deltas", { keyPath: "date" });
-        objectStore.createIndex("userId", "userId", { unique: false });
-        objectStoresToCreate.push("cc7Deltas");
-      }
-
-      const transaction = e.target.transaction;
-
-      transaction.oncomplete = () => {
-        console.log("Upgrade transaction complete. Updating records...");
-        this.updateExistingRecords(["CC7", "cc7Deltas"])
-          .then(() => {
-            console.log("Updated existing records with userId.");
-            resolve();
-          })
-          .catch((error) => {
-            console.log("Error updating existing records:", error);
-            reject(error);
-          });
-        // Check if this is the first installation and populate data if needed
-        this.fetchLastStoredCC7().then((lastStoredData) => {
-          if (lastStoredData.length === 0) {
-            // Populate the database on first load if it's empty
-            getAndStoreCC7Deltas(); // Make sure to define or import this function
-          }
-        });
-      };
-
-      transaction.onerror = (error) => {
-        console.log("Transaction error:", error);
-        reject(error);
-      };
-    });
-  }
-  */
-
-  async onUpgradeNeeded(e) {
     console.log("Upgrade needed");
     this.upgradeNeeded = true;
 
@@ -146,40 +183,33 @@ class Database {
       this.db.close();
     };
 
-    let objectStoresToCreateOrUpdate = ["CC7", "cc7Deltas"];
+    let objectStoresToCreateOrUpdate = [CC7_STORE, CC7_DELTAS_STORE];
 
     objectStoresToCreateOrUpdate.forEach((storeName) => {
-      let objectStore;
+      const keyPath = storeName === CC7_DELTAS_STORE ? DATE : ID;
 
-      const keyPath = storeName === "cc7Deltas" ? "date" : "Id";
-
-      // Create the object store if it does not exist
-      if (!this.db.objectStoreNames.contains(storeName)) {
-        objectStore = this.db.createObjectStore(storeName, { keyPath });
-      } else {
-        objectStore = e.target.transaction.objectStore(storeName);
+      // Delete the object store if it exists
+      if (this.db.objectStoreNames.contains(storeName)) {
+        this.db.deleteObjectStore(storeName);
       }
 
+      // Create the object store
+      const objectStore = this.db.createObjectStore(storeName, { keyPath });
+
       // Create the index if it does not exist
-      if (!objectStore.indexNames.contains("userId")) {
-        objectStore.createIndex("userId", "userId", { unique: false });
+      if (!objectStore.indexNames.contains(USER_ID)) {
+        objectStore.createIndex(USER_ID, USER_ID, { unique: false });
       }
     });
 
     const transaction = e.target.transaction;
+    console.log(`Transaction state: ${transaction.readyState}`);
 
     // Wrapped it inside a promise
     return new Promise((resolve, reject) => {
       transaction.oncomplete = async () => {
-        console.log("Upgrade transaction complete. Updating records...");
-        try {
-          await this.updateExistingRecords(["CC7", "cc7Deltas"]); // Await the update
-          console.log("Updated existing records with userId.");
-          resolve();
-        } catch (error) {
-          console.log("Error updating existing records:", error);
-          reject(error);
-        }
+        console.log("Upgrade transaction complete.");
+        resolve();
       };
 
       transaction.onerror = (error) => {
@@ -189,56 +219,23 @@ class Database {
     });
   }
 
-  async updateExistingRecords(objectStoresToUpdate) {
-    console.log("Entering updateExistingRecords...");
+  async onSuccess(e, resolve) {
+    await this.waitForUpgrade(); // Wait if an upgrade is in progress
 
-    // If objectStoresToUpdate is empty, resolve immediately
-    if (objectStoresToUpdate.length === 0) {
-      console.log("No object stores to update. Resolving immediately.");
-      return Promise.resolve();
-    }
-
-    console.log(`Starting transaction for object stores: ${objectStoresToUpdate.join(", ")}`);
-    const tx = this.db.transaction(objectStoresToUpdate, "readwrite");
-
-    for (const objectStoreName of objectStoresToUpdate) {
-      console.log(`Opening cursor for object store: ${objectStoreName}`);
-      tx.objectStore(objectStoreName).openCursor().onsuccess = (event) => {
-        const cursor = event.target.result;
-        if (cursor) {
-          console.log(`Updating record with ID: ${cursor.value.Id}`);
-          const updateData = cursor.value;
-          updateData.userId = this.userId;
-          cursor.update(updateData);
-          cursor.continue();
-        } else {
-          console.log(`No more records to update in object store: ${objectStoreName}`);
-        }
-      };
-    }
-
-    return new Promise((resolve, reject) => {
-      tx.oncomplete = () => {
-        console.log("Transaction complete.");
-        resolve();
-      };
-      tx.onerror = (e) => {
-        console.log("Transaction failed with error:", e);
-        reject(e);
-      };
-    });
-  }
-
-  onSuccess(e, resolve) {
+    console.log("onSuccess called");
     this.db = e.target.result;
     this.db.onversionchange = () => {
       this.db.close();
     };
     console.log("DB initialized", this.db);
     this.initialized = true; // Set the flag here
+    console.log("db.initialized set to:", this.initialized);
     console.log("upgradeNeed: ", this.upgradeNeeded);
     if (!this.upgradeNeeded) {
+      console.log("Resolving the promise");
       resolve();
+    } else {
+      console.log("Not resolving the promise due to upgradeNeeded");
     }
   }
 
@@ -248,32 +245,26 @@ class Database {
   }
 
   async fetchLastStoredCC7() {
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction("CC7", "readonly");
-      const store = tx.objectStore("CC7");
-      const index = store.index("userId");
-      const getRequest = index.getAll(IDBKeyRange.only(this.userId));
-      getRequest.onsuccess = (event) => {
-        console.log("Request onSuccess triggered.");
-        if (event.target.result) {
-          resolve(event.target.result);
-        } else {
-          resolve([]);
-        }
-      };
+    await this.waitForUpgrade(); // Wait if an upgrade is in progress
+    await this.initializationPromise; // wait for DB to initialize
 
-      getRequest.onerror = (event) => {
-        console.error("Error fetching data from CC7 object store", event);
-        reject(new Error("Error fetching data from CC7 object store"));
-      };
-    });
+    console.log("Starting to fetch the last stored CC7.");
+    console.log(`User ID: ${this.userId}`);
+
+    try {
+      const result = await this.getObjectStoreData(CC7_STORE, "userId", this.userId);
+      console.log("Successfully fetched the last stored CC7:", result);
+      return result;
+    } catch (error) {
+      console.error("An error occurred while fetching the last stored CC7:", error);
+      throw error;
+    }
   }
 
   async storeCC7Deltas(added, removed) {
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction("cc7Deltas", "readwrite");
-      const store = tx.objectStore("cc7Deltas");
+    await this.waitForUpgrade(); // Wait if an upgrade is in progress
 
+    try {
       const date = new Date().toISOString();
       const data = {
         date,
@@ -281,23 +272,75 @@ class Database {
         removed,
         userId: this.userId,
       };
-      console.log("Data to be added:", data);
+      await this.putObjectStoreData(CC7_DELTAS_STORE, data);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
 
+  async transaction(storeName, mode) {
+    await this.waitForUpgrade(); // Wait if an upgrade is in progress
+
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(storeName, mode);
+      tx.oncomplete = () => resolve();
+      tx.onerror = (e) => reject(new Error(`Transaction failed on ${storeName}: ${e.target.error}`));
+    });
+  }
+
+  async getObjectStoreData(storeName, indexName, key) {
+    await this.waitForUpgrade(); // NEW: wait if an upgrade is in progress
+
+    return new Promise((resolve, reject) => {
+      console.log(`Starting transaction for store ${storeName}`);
+      if (this.isUpgrading) {
+        // NEW: check the flag
+        return reject(new Error("A version change transaction is in progress."));
+      }
+
+      const tx = this.db.transaction(storeName, "readonly");
+
+      // Log the transaction state
+      console.log(`Transaction state: ${tx.readyState}`);
+
+      const store = tx.objectStore(storeName);
+      const index = store.index(indexName);
+      const getRequest = index.getAll(IDBKeyRange.only(key));
+
+      getRequest.onsuccess = (event) => {
+        console.log(`Successfully fetched data from ${storeName}`);
+        resolve(event.target.result || []);
+      };
+      getRequest.onerror = (event) => {
+        console.log(`Error occurred while fetching data from ${storeName}`);
+        reject(new Error(`Error fetching data from ${storeName} object store`));
+      };
+    });
+  }
+
+  async putObjectStoreData(storeName, data) {
+    await this.waitForUpgrade(); // Wait if an upgrade is in progress
+
+    return new Promise((resolve, reject) => {
+      if (this.isUpgrading) {
+        // NEW: check the flag
+        return reject(new Error("A version change transaction is in progress."));
+      }
+      const tx = this.db.transaction(storeName, "readwrite");
+      const store = tx.objectStore(storeName);
       const addRequest = store.put(data);
 
-      addRequest.onsuccess = () => {
-        resolve();
-      };
-
-      addRequest.onerror = (event) => {
-        reject(new Error("Error storing CC7 deltas: " + event.target.error));
-      };
+      addRequest.onsuccess = () => resolve();
+      addRequest.onerror = (e) => reject(new Error(`Error storing data in ${storeName}: ${e.target.error}`));
     });
   }
 }
 
 const loginPopup = $(`<div id="login-popup">
-<button id="login-btn">Login to initialize CC7 Changes</button>
+<button id="login-btn" title="You need to be logged in to the apps server to use CC7 Changes. 
+It's possible that the login will fail and you'll see this button again.  
+Sorry about that.">Log in to initialize WBE CC7 Changes</button>
 <button id="dismiss-btn">Dismiss</button>
 </div>`);
 
@@ -307,13 +350,16 @@ const db = new Database();
 // Function to check login status
 async function checkLoginStatus() {
   // Replace this with your actual check login logic
-  const userId = localStorage.getItem("userId");
-  const loginStatus = await checkLogin(userId); // your checkLogin function
+  const userId = localStorage.getItem(USER_ID);
+
+  const args = { action: "clientLogin", checkLogin: USER_NUM_ID, appId: APP_ID };
+  const loginStatus = await fetchAPI(args); // your checkLogin function
+  //const loginStatus = await checkLogin(userId); // your checkLogin function
+  console.log("Login Status: ", loginStatus);
 
   return loginStatus.clientLogin.result !== "error";
 }
 
-// Function to show login popup
 // Function to show login popup
 function showLoginPopup() {
   loginPopup.appendTo("body");
@@ -325,7 +371,7 @@ function showLoginPopup() {
 
     // After successful login, hide the popup and initialize CC7 Changes
     if (await checkLoginStatus()) {
-      const userId = localStorage.getItem("userId");
+      const userId = localStorage.getItem(USER_ID);
       await initializeCC7Tracking(userId);
     }
   });
@@ -333,12 +379,6 @@ function showLoginPopup() {
   document.getElementById("dismiss-btn").addEventListener("click", () => {
     $("#login-popup").remove();
   });
-}
-
-// Function to set a flag before redirecting for login
-function redirectToLogin() {
-  localStorage.setItem("redirectToLoginForCC7", "true");
-  goAndLogIn(window.location.href); // Your function to redirect to the login page
 }
 
 export async function addCC7ChangesButton() {
@@ -353,8 +393,9 @@ export async function addCC7ChangesButton() {
     e.preventDefault();
 
     // Check login status
-    const userId = localStorage.getItem("userId");
-    const loginStatus = await checkLogin(userId);
+    const userId = localStorage.getItem(USER_ID);
+    const args = { action: "clientLogin", checkLogin: USER_NUM_ID, appId: APP_ID };
+    const loginStatus = await fetchAPI(args); // your checkLogin function
     console.log("loginStatus:", loginStatus);
 
     if (loginStatus.clientLogin.result === "error") {
@@ -379,34 +420,50 @@ export async function addCC7ChangesButton() {
   });
 }
 
-export async function initializeCC7Tracking() {
-  // Check login status first
-  const userId = localStorage.getItem("userId");
-  const loginStatus = await checkLogin(userId);
-
-  if (loginStatus.clientLogin.result === "error") {
-    // Not logged in, show login popup
-    showLoginPopup();
-    return;
-  }
+async function initializeCC7Tracking() {
+  // log
+  console.log("Initializing CC7 tracking...");
 
   try {
+    // Try initializing the database first
     await db.initializeDB();
-    // logging
-    console.log("DB initialized successfully.");
-    console.log(db);
-    if (db.initialized) {
-      addCC7ChangesButton();
-      // Populate the database on first load if it's empty
+    console.log("DB initialized successfully.", db);
+
+    let shouldCheckLogin = false;
+
+    if (db.initialized && !db.upgradeNeeded) {
       const lastStoredData = await db.fetchLastStoredCC7();
       if (lastStoredData.length === 0) {
-        await getAndStoreCC7Deltas();
+        // Database is empty, so we should check for login
+        shouldCheckLogin = true;
+      } else {
+        // Database has entries, proceed with normal operation
+        addCC7ChangesButton();
+        // await getAndStoreCC7Deltas();
       }
     } else {
-      console.log("DB Initialization failed. Not adding the button.");
+      // Database is not initialized or is being upgraded, check for login
+      shouldCheckLogin = true;
+      console.log("DB Initialization failed or upgrade is in progress. Not adding the button.");
+    }
+
+    // Check for login only if necessary
+    if (shouldCheckLogin) {
+      const args = { action: "clientLogin", checkLogin: USER_NUM_ID, appId: APP_ID };
+      const loginStatus = await fetchAPI(args); // your checkLogin function
+      console.log("loginStatus:", loginStatus);
+
+      if (loginStatus.clientLogin.result === "error") {
+        // Show login popup if login failed
+        showLoginPopup();
+      } else {
+        // User is logged in and the database is empty, populate the database
+        addCC7ChangesButton();
+        await getAndStoreCC7Deltas(); // Populate the database
+      }
     }
   } catch (e) {
-    console.log("An error occurred during DB initialization:", e);
+    console.log("An error occurred during DB initialization or login check:", e);
   }
 }
 
@@ -417,15 +474,18 @@ export async function getAndStoreCC7Deltas() {
   console.log(db.db);
   // Should log the initialized IndexedDB instance
   const newApiData = await fetchCC7FromAPI();
+  console.log("New API Data: ", newApiData);
+
   const lastStoredData = await db.fetchLastStoredCC7(); // Using the new method in the Database class
+  console.log("Last Stored Data: ", lastStoredData);
 
   // Filter out the user by their Id (replace 'userId' with the actual Id)
-  const filteredApiData = newApiData.filter((person) => person.Id !== "userId");
+  const filteredApiData = newApiData.filter((person) => person.Id !== USER_ID);
 
   // Check if initialCC7 is empty and populate it if needed
   if (lastStoredData.length === 0) {
-    const initTx = db.db.transaction("CC7", "readwrite");
-    const initStore = initTx.objectStore("CC7");
+    const initTx = db.db.transaction(CC7_STORE, READWRITE);
+    const initStore = initTx.objectStore(CC7_STORE);
     filteredApiData.forEach((person) => {
       person.userId = userId;
       initStore.put(person);
@@ -455,30 +515,6 @@ export async function getAndStoreCC7Deltas() {
   // Calculate and store the deltas
   const { added, removed } = calculateDifferences(filteredApiData, lastStoredData);
 
-  /*
-  // Add this block to update the initialCC7 object store
-  const initTx = db.transaction("CC7", "readwrite");
-  const initStore = initTx.objectStore("CC7");
-  initStore.clear(); // Clear the existing data
-  filteredApiData.forEach((person) => {
-    person.userId = userId;
-    initStore.put(person);
-  });
-
-  const date = new Date().toISOString();
-  const tx = db.transaction("cc7Deltas", "readwrite");
-  const deltaStore = tx.objectStore("cc7Deltas");
-  deltaStore.add({ date, added, removed });
-
-  tx.oncomplete = function () {
-    console.log("Transaction completed.");
-  };
-
-  tx.onerror = function (event) {
-    console.log("Transaction error", event);
-  };
-  */
-
   await db.storeCC7Deltas(added, removed); // Using the new method in the Database class
 
   // Now update the CC7 table
@@ -487,8 +523,8 @@ export async function getAndStoreCC7Deltas() {
 
 async function updateCC7Table(added, removed) {
   return new Promise((resolve, reject) => {
-    const tx = db.db.transaction("CC7", "readwrite");
-    const store = tx.objectStore("CC7");
+    const tx = db.db.transaction(CC7_STORE, READWRITE);
+    const store = tx.objectStore(CC7_STORE);
 
     // Remove the 'removed' people
     for (const person of removed) {
@@ -530,8 +566,8 @@ function calculateDifferences(newData, oldData) {
   const oldIds = new Set(oldData.map((person) => person.Id));
 
   // Exclude the user (assumed Id to be 'userId')
-  newIds.delete("userId");
-  oldIds.delete("userId");
+  newIds.delete(USER_ID);
+  oldIds.delete(USER_ID);
 
   const added = newData.filter((person) => !oldIds.has(person.Id));
   const removed = oldData.filter((person) => !newIds.has(person.Id));
@@ -541,8 +577,9 @@ function calculateDifferences(newData, oldData) {
 
 async function fetchStoredDeltas() {
   return new Promise((resolve, reject) => {
-    const tx = db.db.transaction("cc7Deltas", "readonly");
-    const store = tx.objectStore("cc7Deltas");
+    const tx = db.db.transaction(CC7_DELTAS_STORE, READONLY);
+    const store = tx.objectStore(CC7_DELTAS_STORE);
+
     const getRequest = store.openCursor(null, "prev"); // Get the newest entry first
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
@@ -671,148 +708,109 @@ async function fetchPeopleDetails(idString) {
 }
 
 async function showStoredDeltas(data, e) {
-  const deltasSinceLastVisit = data.deltasSinceLastVisit.filter((delta) => delta.added.length < 500);
-  const deltasWithinLastMonth = data.deltasWithinLastMonth.filter((delta) => delta.added.length < 500);
+  const container = createCC7DeltaContainer();
+  $("body").append(container.css("top", e.pageY + 100));
 
-  // Extract all IDs for fetching details
-  const idsSinceLastVisit = deltasSinceLastVisit.reduce((acc, delta) => {
+  const deltasSinceLastVisit = filterDeltas(data.deltasSinceLastVisit);
+  const deltasWithinLastMonth = filterDeltas(data.deltasWithinLastMonth);
+
+  const uniqueIdsSinceLastVisit = getUniqueIds(deltasSinceLastVisit);
+  const uniqueIdsWithinLastMonth = getUniqueIds(deltasWithinLastMonth, uniqueIdsSinceLastVisit);
+
+  const allDetailsSinceLastVisit = await fetchDetailsForUniqueIds(uniqueIdsSinceLastVisit);
+  const allDetailsWithinLastMonth = await fetchDetailsForUniqueIds(uniqueIdsWithinLastMonth);
+
+  if (allDetailsSinceLastVisit.length > 0) {
+    appendDetailsToContainer(container, allDetailsSinceLastVisit, "Added since you last checked: ");
+  }
+
+  if (allDetailsWithinLastMonth.length > 0) {
+    appendDetailsToContainer(container, allDetailsWithinLastMonth, "Added within the last month: ");
+  }
+
+  if (allDetailsSinceLastVisit.length === 0 && allDetailsWithinLastMonth.length === 0) {
+    container.append($("<p>").text("No changes since you last checked."));
+  }
+
+  $(CC7_DELTA_CONTAINER_ID).draggable();
+  addCloseEventHandlers(container);
+}
+
+function filterDeltas(deltas) {
+  return deltas.filter((delta) => delta.added.length < 500);
+}
+
+function difference(setA, setB) {
+  const differenceSet = new Set(setA);
+  for (let elem of setB) {
+    differenceSet.delete(elem);
+  }
+  return differenceSet;
+}
+
+function getUniqueIds(deltas, excludeIds = new Set()) {
+  const ids = deltas.reduce((acc, delta) => {
     return acc.concat(
       delta.added.map((a) => a.Id),
       delta.removed.map((r) => r.Id)
     );
   }, []);
-  const idsWithinLastMonth = deltasWithinLastMonth.reduce((acc, delta) => {
-    return acc.concat(
-      delta.added.map((a) => a.Id),
-      delta.removed.map((r) => r.Id)
-    );
-  }, []);
 
-  // Create sets for quick lookup
-  const idsSetSinceLastVisit = new Set(idsSinceLastVisit);
-  const idsSetWithinLastMonth = new Set(idsWithinLastMonth);
+  const uniqueIdsSet = new Set(ids);
+  const uniqueIds = Array.from(difference(uniqueIdsSet, excludeIds));
 
-  // Remove duplicates from the 'within last month' set
-  for (const id of idsSetSinceLastVisit) {
-    idsSetWithinLastMonth.delete(id);
+  return uniqueIds;
+}
+
+async function fetchDetailsForUniqueIds(uniqueIds) {
+  if (uniqueIds.length > 0) {
+    return await fetchPeopleDetails(uniqueIds.join(","));
   }
+  return [];
+}
 
-  // Convert the sets back to arrays
-  const uniqueIdsSinceLastVisit = Array.from(idsSetSinceLastVisit);
-  const uniqueIdsWithinLastMonth = Array.from(idsSetWithinLastMonth);
+function appendDetailsToContainer(container, details, headingText) {
+  const heading = $("<h3>").text(headingText);
+  const list = $("<ul>");
+  details.forEach((person) => {
+    const link = $("<a>")
+      .attr("href", `https://www.wikitree.com/wiki/${person.Name}`)
+      .text(`${person.FullName} ${displayDates(person)}`);
+    const listItem = $("<li>").append(link);
+    list.append(listItem);
+  });
+  container.append(heading, list);
+}
 
-  let allDetailsSinceLastVisit = [];
-  let allDetailsWithinLastMonth = [];
-
-  // Fetch people details based on unique IDs
-  if (uniqueIdsSinceLastVisit.length > 0) {
-    allDetailsSinceLastVisit = await fetchPeopleDetails(uniqueIdsSinceLastVisit.join(","));
-  }
-  if (uniqueIdsWithinLastMonth.length > 0) {
-    allDetailsWithinLastMonth = await fetchPeopleDetails(uniqueIdsWithinLastMonth.join(","));
-  }
-
+function createCC7DeltaContainer() {
   const container = $("<div>").attr("id", "cc7DeltaContainer");
   const heading = $("<h2>").text("CC7 Changes");
-  container.append(heading);
+  const closeBtn = $("<x>&times;</x>");
+  closeBtn.on("click", closeCC7DeltaContainer);
+  container.append(closeBtn, heading);
+  return container;
+}
 
-  // Handle details for changes since last visit
-  if (allDetailsSinceLastVisit.length > 0) {
-    const addedHeading = $("<h3>").text("Added since you last checked: ");
-    const addedList = $("<ul>");
-    allDetailsSinceLastVisit.forEach((person) => {
-      const link = $("<a>")
-        .attr("href", `https://www.wikitree.com/wiki/${person.Name}`)
-        .text(person.FullName + " " + displayDates(person));
-      const listItem = $("<li>").append(link);
-      addedList.append(listItem);
-    });
-    container.append(addedHeading, addedList);
-  }
-
-  // Handle details for changes within the last month
-  if (allDetailsWithinLastMonth.length > 0) {
-    const addedHeading = $("<h3>").text("Added within the last month: ");
-    const addedList = $("<ul>");
-    const removedHeading = $("<h3>").text("Removed within the last month: ");
-    const removedList = $("<ul>");
-
-    allDetailsWithinLastMonth.forEach((person) => {
-      const link = $("<a>")
-        .attr("href", `https://www.wikitree.com/wiki/${person.Name}`)
-        .text(person.FullName + " " + displayDates(person));
-      const listItem = $("<li>").append(link);
-
-      if (deltasWithinLastMonth.some((delta) => delta.added.some((a) => a.Id === person.Id))) {
-        addedList.append(listItem);
-      }
-      if (deltasWithinLastMonth.some((delta) => delta.removed.some((r) => r.Id === person.Id))) {
-        removedList.append(listItem);
-      }
-    });
-
-    if (addedList.children().length > 0) {
-      container.append(addedHeading, addedList);
-    }
-    if (removedList.children().length > 0) {
-      container.append(removedHeading, removedList);
-    }
-  }
-
-  // Code for no changes
-  if (allDetailsSinceLastVisit.length === 0 && allDetailsWithinLastMonth.length === 0) {
-    const noChanges = $("<p>").text("No changes since you last checked.");
-    container.append(noChanges);
-  }
-
-  function closeCC7DeltaContainer() {
-    $("#cc7DeltaContainer").slideUp();
-    setTimeout(() => {
-      $("#cc7DeltaContainer").remove();
-    }, 1000);
-  }
-
-  const x = $("<x>&times;</x>");
-  x.on("click", function () {
-    closeCC7DeltaContainer();
-  });
-  $(container).prepend(x);
-
-  // add Escape to close
-  $(document).on("keyup", function (e) {
+function addCloseEventHandlers(container) {
+  $(document).on("keyup", (e) => {
     if (e.key === "Escape") {
       closeCC7DeltaContainer();
     }
   });
-
-  // Add dblclick to close
-  $(container).on("dblclick", function () {
-    closeCC7DeltaContainer();
-  });
-
-  $("body").append(container.css("top", e.pageY + 100));
-  $("#cc7DeltaContainer").draggable();
+  container.on("dblclick", closeCC7DeltaContainer);
 }
 
-async function initializeTheFeature() {
-  const userId = localStorage.getItem("userId");
-
-  // Check the login status
-  const loginStatus = await checkLogin(userId);
-  console.log("loginStatus:", loginStatus);
-
-  if (loginStatus.clientLogin.result === "error") {
-    // Not logged in, show login popup
-    showLoginPopup();
-  } else {
-    // Logged in, initialize CC7 Changes
-    await initializeCC7Tracking(userId);
-  }
+function closeCC7DeltaContainer() {
+  $(CC7_DELTA_CONTAINER_ID).slideUp();
+  setTimeout(() => {
+    $(CC7_DELTA_CONTAINER_ID).remove();
+  }, 1000);
 }
 
 if (shouldInitializeFeature("cc7Changes")) {
-  setTimeout(() => {
-    initializeCC7Tracking().catch((e) => console.log("An error occurred while initializing CC7 tracking:", e));
-    import("./cc7_changes.css");
-  }, 5000);
+  //setTimeout(() => {
+  console.log("Initializing CC7 Changes...");
+  initializeCC7Tracking().catch((e) => console.log("An error occurred while initializing CC7 tracking:", e));
+  import("./cc7_changes.css");
+  //}, 5000);
 }
