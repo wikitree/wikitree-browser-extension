@@ -79,7 +79,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     if (options.changeHeaders) {
       setTimeout(function () {
         siblingsHeader(true);
-      }, 1500);
+      }, 3000);
     }
 
     if (!options.verticalLists) {
@@ -549,7 +549,7 @@ function siblingsHeader(first = false) {
     el.addClass("clickable");
   });
   let isOn = false;
-  if ($("#siblingsHeader").text().match("iblings")) {
+  if ($("#parentsHeader").text().match("Parents: ")) {
     isOn = true;
   }
   if (first == false) {
