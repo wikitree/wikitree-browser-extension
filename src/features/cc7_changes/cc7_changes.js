@@ -714,6 +714,15 @@ async function showStoredDeltas(data, e) {
   const deltasSinceLastVisit = filterDeltas(data.deltasSinceLastVisit);
   const deltasWithinLastMonth = filterDeltas(data.deltasWithinLastMonth);
 
+  // Remove the first delta (initial population) from each list
+  if (deltasSinceLastVisit.length > 0) {
+    deltasSinceLastVisit.shift();
+  }
+
+  if (deltasWithinLastMonth.length > 0) {
+    deltasWithinLastMonth.shift();
+  }
+
   const uniqueIdsSinceLastVisit = getUniqueIds(deltasSinceLastVisit);
   const uniqueIdsWithinLastMonth = getUniqueIds(deltasWithinLastMonth, uniqueIdsSinceLastVisit);
 
