@@ -125,6 +125,10 @@ export let isUploadPhoto = false;
 // Special:NetworkFeed
 export let isNetworkFeed = false;
 
+// WikiTree Plus variables
+// Profile Search results
+export let isPlusProfileSearch = false;
+
 const domain = decodeURI(window.location.hostname); // path
 
 if (window.location.href.match("Special:NetworkFeed")) {
@@ -139,6 +143,14 @@ if (domain.match("apps.wikitree.com")) {
   isApiDomain = true;
 } else if (domain.match("plus.wikitree.com")) {
   isPlusDomain = true;
+
+  const path = decodeURI(window.location.pathname); // path
+  if (
+    // Profile Search result
+    path.match(/\/(function|f)\/(WTWebProfileSearch|WTWebProfileSearchTree|)\/.*\.htm/gi)
+  ) {
+    isPlusProfileSearch = true;
+  } 
 } else {
   isMainDomain = true;
 
