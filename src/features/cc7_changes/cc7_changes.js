@@ -8,8 +8,6 @@ import { PersonName } from "../auto_bio/person_name.js";
 import { displayDates } from "../verifyID/verifyID";
 import { goAndLogIn } from "../randomProfile/randomProfile";
 
-console.log(Cookies.get("wikitree_wtb_UserName"));
-
 const working = $("<img id='working' src='" + treeImageURL + "'>");
 const userId = Cookies.get("wikitree_wtb_UserName");
 const USER_NUM_ID = Cookies.get("wikitree_wtb_UserID");
@@ -344,17 +342,13 @@ Sorry about that.">Log in to initialize WBE CC7 Changes</button>
 <button id="dismiss-btn">Dismiss</button>
 </div>`);
 
-const db = new Database();
+let db;
 // Initialize IndexedDB
 
 // Function to check login status
 async function checkLoginStatus() {
-  // Replace this with your actual check login logic
-  const userId = localStorage.getItem(USER_ID);
-
   const args = { action: "clientLogin", checkLogin: USER_NUM_ID, appId: APP_ID };
   const loginStatus = await fetchAPI(args); // your checkLogin function
-  //const loginStatus = await checkLogin(userId); // your checkLogin function
   console.log("Login Status: ", loginStatus);
 
   return loginStatus.clientLogin.result !== "error";
@@ -393,9 +387,8 @@ export async function addCC7ChangesButton() {
     e.preventDefault();
 
     // Check login status
-    const userId = localStorage.getItem(USER_ID);
     const args = { action: "clientLogin", checkLogin: USER_NUM_ID, appId: APP_ID };
-    const loginStatus = await fetchAPI(args); // your checkLogin function
+    const loginStatus = await fetchAPI(args);
     console.log("loginStatus:", loginStatus);
 
     if (loginStatus.clientLogin.result === "error") {
@@ -404,7 +397,6 @@ export async function addCC7ChangesButton() {
       return;
     }
 
-    // Your existing code for handling the CC7 changes starts here
     working.appendTo("body").css({
       position: "absolute",
       left: `${e.pageX - 100}px`,
@@ -816,10 +808,11 @@ function closeCC7DeltaContainer() {
   }, 1000);
 }
 
-if (shouldInitializeFeature("cc7Changes")) {
-  //setTimeout(() => {
-  console.log("Initializing CC7 Changes...");
-  initializeCC7Tracking().catch((e) => console.log("An error occurred while initializing CC7 tracking:", e));
-  import("./cc7_changes.css");
-  //}, 5000);
-}
+shouldInitializeFeature("cc7Changes").then(async (result) => {
+  if (result) {
+    console.log("Initializing CC7 Changes...");
+    db = new Database();
+    initializeCC7Tracking().catch((e) => console.log("An error occurred while initializing CC7 tracking:", e));
+    import("./cc7_changes.css");
+  }
+});
