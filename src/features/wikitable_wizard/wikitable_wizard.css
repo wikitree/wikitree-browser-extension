@@ -1,6 +1,6 @@
 #wikitableWizardModal {
   position: absolute; /* Absolute positioning */
-  z-index: 1000; /* High z-index to appear on top */
+  z-index: 10000; /* High z-index to appear on top */
   min-width: 30em;
   width: 100%;
   max-height: 80%; /* Adjust as needed */

@@ -27,7 +27,7 @@ async function addCategoryTableButton() {
     e.preventDefault();
     const superIDs = $("a.P-F,a.P-M")
       .map(function () {
-        return $(this).attr("href").split("/wiki/")[1];
+        return $(this).attr("href").split("/wiki/")[1].replace(/ /, "_");
       })
       .get();
 
