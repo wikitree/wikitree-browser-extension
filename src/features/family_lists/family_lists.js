@@ -172,6 +172,9 @@ async function getList(functionName) {
         result += spouse.Narrative + "\n" + (index + 1 < spouses.length ? "\n" : "");
       });
       message = "Spouse and Child Details";
+      for (const key in window.profilePerson.Children) {
+        window.profilePerson.Children[key].Displayed = false;
+      }
       break;
     case "siblingList":
       result = siblingList(window.profilePerson) + "\n";
