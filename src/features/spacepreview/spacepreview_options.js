@@ -1,8 +1,9 @@
 /*
  * Created By: Steve Harris (Harris-5439)
  * Contributor: Jonathan Duke (Duke-5773)
+ * Contributor: Aleš Trtnik (Trtnik-2) plus.wikitree.com support
  */
-import { isMainDomain } from "../../core/pageType.js";
+import { isMainDomain, isPlusDomain } from "../../core/pageType.js";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 const pagePreviewFeature = {
@@ -11,9 +12,12 @@ const pagePreviewFeature = {
   description: "Enable page previews when hovering over certain WikiTree links.",
   category: "Navigation",
   creators: [{ name: "Steve Harris", wikitreeid: "Harris-5439" }],
-  contributors: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
+  contributors: [
+    { name: "Jonathan Duke", wikitreeid: "Duke-5773" },
+    { name: "Aleš Trtnik", wikitreeid: "Trtnik-2" },
+  ],
   defaultValue: false,
-  pages: [isMainDomain],
+  pages: [isMainDomain, isPlusDomain],
 
   options: [
     {

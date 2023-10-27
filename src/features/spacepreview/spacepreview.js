@@ -8,6 +8,7 @@ import "../../thirdparty/jquery.hoverDelay";
 import { WBE } from "../../core/common";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { isPlusDomain } from "../../core/pageType.js";
 import "../../core/navigatorDetect"; // needed for CSS classes
 
 let previewClasses = "x-page-preview";
@@ -69,6 +70,18 @@ function onHoverIn($element) {
           $(this).attr("href", $(this).attr("href").replace(/^#/, "#_xPagePreview_"));
         }
       });
+/*
+      if (isPlusDomain) {
+        //correct image path to Main domain
+        $popup.find('img[src^="/"]').each(function () {
+          $(this).attr("src", $(this).attr("src").replace(/^\//, "https://www.wikitree.com/"));
+        });  
+        //correct links to Main domain
+        $popup.find('a[href^="/"]').each(function () {
+          $(this).attr("href", $(this).attr("href").replace(/^\//, "https://www.wikitree.com/"));
+        });  
+      }
+*/
       if (previewClasses.indexOf("show-toc") > -1) {
         let toggleElement = $(
           '<span class="toggle toggle-toc"><input type="checkbox" id="_xPagePreview_toc_checkbox"' +
@@ -109,7 +122,7 @@ function onHoverIn($element) {
           .append(
             ' <button aria-label="Copy ID" class="copyWidget" data-copy-text="' +
               decodeURIComponent(match[1]).replace(/_/g, " ") +
-              '" style="color:#8fc641;"><img src="/images/icons/scissors.png">ID</button><button aria-label="Copy Wiki Link" class="copyWidget" data-copy-label="Copy Wiki Link" data-copy-text="[[:' +
+              '" style="color:#8fc641;"><img src="https://www.wikitree.com/images/icons/scissors.png">ID</button><button aria-label="Copy Wiki Link" class="copyWidget" data-copy-label="Copy Wiki Link" data-copy-text="[[:' +
               decodeURIComponent(match[1]).replace(/_/g, " ") +
               ']]" style="color:#8fc641;">/Link</button><button aria-label="Copy URL" class="copyWidget" data-copy-label="Copy URL" data-copy-text="' +
               (window.location.href.match(/^.*\/{2,}.*?(?=\/)/) ?? "") +
@@ -188,6 +201,13 @@ function parsePageContent(response) {
     documentHTML: response.replace(/(<\/?)(?=(script|style|link))/g, "$1no"), // sanitize script/style/link tags
     body: "<div></div>",
   };
+  // Since $("<div></div>").html(content.body); in parseCategoryContent queues images for request they have to be corrected before.
+  if (isPlusDomain) {    
+    //correct image path to Main domain
+    content.documentHTML = content.documentHTML.replaceAll('src="/', 'src="https://www.wikitree.com/',);
+    //correct links to Main domain
+    content.documentHTML = content.documentHTML.replaceAll('href="/', 'href="https://www.wikitree.com/');
+  }
   let $content = parseDocument(content.documentHTML);
   content.title = (
     $content.find("h1").first().clone().children().remove().end().text() ?? $content.find("title").first().text()

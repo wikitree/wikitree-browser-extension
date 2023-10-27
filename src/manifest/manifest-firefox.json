@@ -17,7 +17,8 @@
   "content_scripts": [
     {
       "matches": ["https://*.wikitree.com/*"],
-      "js": ["js/vendor.js", "js/content.js"]
+      "js": ["js/vendor.js", "js/content.js"],
+      "all_frames": true
     }
   ],
   "background": {
