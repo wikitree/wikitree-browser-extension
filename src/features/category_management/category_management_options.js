@@ -1,3 +1,9 @@
+/*
+ * Created By: Florian Straub (Straub-620)
+ * Contributor: Magnus Manske (Manske-74)
+ * Contributor: Aleš Trtnik (Trtnik-2) plus.wikitree.com support
+ */
+
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 import {
   isProfileEdit,
@@ -6,7 +12,7 @@ import {
   isCategoryEdit,
   isCategoryHistory,
   isProfilePage,
-  isPlusDomain,
+  isPlusProfileSearch,
 } from "../../core/pageType";
 
 registerFeature({
@@ -15,9 +21,9 @@ registerFeature({
   description: "Creating, filling, changing and emptying categories more efficiently",
   category: "Editing",
   creators: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
-  contributors: [{ name: "Magnus Manske", wikitreeid: "Manske-74" }],
+  contributors: [{ name: "Magnus Manske", wikitreeid: "Manske-74" }, { name: "Aleš Trtnik", wikitreeid: "Trtnik-2" }],
   defaultValue: true,
-  pages: [isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit, isCategoryHistory, isProfilePage, isPlusDomain],
+  pages: [isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit, isCategoryHistory, isProfilePage, isPlusProfileSearch],
   options: [
     {
       id: "catALotCategory",

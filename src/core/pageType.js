@@ -129,6 +129,9 @@ export let isNetworkFeed = false;
 // Profile Search results
 export let isPlusProfileSearch = false;
 
+// Profile Tree results
+export let isPlusProfileTree = false;
+
 const domain = decodeURI(window.location.hostname); // path
 
 if (window.location.href.match("Special:NetworkFeed")) {
@@ -147,9 +150,14 @@ if (domain.match("apps.wikitree.com")) {
   const path = decodeURI(window.location.pathname); // path
   if (
     // Profile Search result
-    path.match(/\/(function|f)\/(WTWebProfileSearch|WTWebProfileSearchTree|)\/.*\.htm/gi)
+    path.match(/\/(function|f)\/WTWebProfileSearch\/.*\.htm/gi)
   ) {
     isPlusProfileSearch = true;
+  } else if (
+    // Profile Search result
+    path.match(/\/(function|f)\/WTWebProfileSearchTree\/.*\.htm/gi)
+  ) {
+    isPlusProfileTree = true;
   } 
 } else {
   isMainDomain = true;
