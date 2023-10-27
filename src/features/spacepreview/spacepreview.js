@@ -1,7 +1,8 @@
 /*
-Created By: Steve Harris (Harris-5439)
-Contributors: Jonathan Duke (Duke-5773)
-*/
+ * Created By: Steve Harris (Harris-5439)
+ * Contributor: Jonathan Duke (Duke-5773)
+ * Contributor: Aleš Trtnik (Trtnik-2) plus.wikitree.com support
+ */
 
 import $ from "jquery";
 import "../../thirdparty/jquery.hoverDelay";
