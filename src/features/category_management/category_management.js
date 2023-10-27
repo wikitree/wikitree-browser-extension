@@ -1,3 +1,9 @@
+/*
+ * Created By: Florian Straub (Straub-620)
+ * Contributor: Magnus Manske (Manske-74)
+ * Contributor: Aleš Trtnik (Trtnik-2) plus.wikitree.com support
+ */
+
 import { getFeatureOptions, shouldInitializeFeature } from "../../core/options/options_storage";
 import {
   isCategoryEdit,
@@ -7,6 +13,7 @@ import {
   isCategoryHistory,
   isProfilePage,
   isPlusDomain,
+  isPlusProfileSearch,
 } from "../../core/pageType";
 
 //todo: rename CatALot to Batch cat. or whatever it will be in the end
@@ -56,6 +63,7 @@ shouldInitializeFeature("categoryManagement").then((result) => {
 });
 
 function AddWikiTreePlusLinks() {
+/*
   const iframes = document.getElementsByTagName("iframe");
   if (iframes.length == 1) {
     iframes[0].addEventListener("load", function () {
@@ -66,6 +74,9 @@ function AddWikiTreePlusLinks() {
   } else {
     document.getElementsByTagName("form")[0].appendChild(CreateBatchCatActivationLinkAndSpan());
   }
+*/
+  const aTable = document.getElementsByTagName("table")[0];
+  aTable.parentNode.insertBefore(CreateBatchCatActivationLinkAndSpan(), aTable);
 }
 
 function GetOrCreateCategoriesDiv() {
@@ -427,24 +438,18 @@ function ShowCatALot() {
     AddLetterlinks();
     AddCatALotControls(document.getElementById("categories"));
   } else if (isPlusDomain) {
-    const iframes = document.getElementsByTagName("iframe");
-    if (iframes.length == 1) {
-      if (
-        confirm(
-          "This feature only works with 'Show result in new tab' enabled. Do you want to open this search in a new tab?"
-        )
-      ) {
-        window.open(iframes[0].src);
-      }
-    } else {
-      const div = document.createElement("div");
-      //document.getElementsByTagName("form")[0].parentNode.appendChild(div);
-      const form = document.getElementsByTagName("form")[0];
-      form.parentNode.insertBefore(div, form);
-      AddCatALotControls(div);
+    if (isPlusProfileSearch) {
+      const aTable = document.getElementsByTagName("table")[0];
+//      const div = document.createElement("div");
+//      aTable.parentNode.insertBefore(div, aTable);
       AddCheckboxesWikiTreePlus();
-      document.getElementsByTagName("table")[0].appendChild(CreateSelectAllResultsLink());
-    }
+      let row = aTable.insertRow(1)
+      let cell = row.insertCell(0)
+      cell.appendChild(CreateSelectAllResultsLink());    
+      cell = row.insertCell(1)
+      cell.colSpan = aTable.rows[0].cells.length - 1;
+      AddCatALotControls(cell);
+    }  
   }
   return false;
 }
@@ -536,9 +541,14 @@ function AddCatALotControls(elementToAppendTo) {
     "Open all checked profiles in new tabs and perform the add/move/remove operation without saving them";
   catALotButton.disabled = true;
   catALotButton.addEventListener("click", OnCatALotClicked);
-
-  const catALotDiv = document.createElement("div");
-  catALotDiv.align = "right";
+  
+  let catALotDiv = document.createElement("div");
+  if (isPlusDomain) {
+    catALotDiv.style = "display: flex;justify-content: space-between;";
+  
+  } else {  
+    catALotDiv.align = "right";
+  }    
   catALotDiv.appendChild(labelMove);
   catALotDiv.appendChild(labelAdd);
   catALotDiv.appendChild(labelRemove);
@@ -553,8 +563,10 @@ function AddCatALotControls(elementToAppendTo) {
 
   catALotDiv.appendChild(inputCatTyped);
   catALotDiv.appendChild(resultAutoTypeDiv);
-  catALotDiv.appendChild(document.createElement("br"));
-  catALotDiv.append("destination: ");
+  if (!isPlusDomain) {
+    catALotDiv.appendChild(document.createElement("br"));
+  }  
+  catALotDiv.append(" destination: ");
   catALotDiv.appendChild(inputCatVerified);
   catALotDiv.appendChild(catALotButton);
   elementToAppendTo.appendChild(catALotDiv);
