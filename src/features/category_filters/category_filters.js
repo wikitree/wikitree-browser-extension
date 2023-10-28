@@ -3,6 +3,8 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { treeImageURL } from "../../core/common";
 import { addLoginButton } from "../my_connections/my_connections";
 
+let filterMode = "only"; // Default filter mode
+
 shouldInitializeFeature("categoryFilters").then((result) => {
   if (result) {
     import("./category_filters.css");
@@ -10,12 +12,62 @@ shouldInitializeFeature("categoryFilters").then((result) => {
   }
 });
 
+function shouldShowProfile(profile) {
+  const isConnected = $(profile).attr("data-connected") == 0;
+  const isOrphaned = $(profile).attr("data-managers") === "none";
+  const isMissingParent = $(profile).attr("data-missing-parent") === "true";
+
+  if (filterMode === "and") {
+    return activeFilters.every((filter) => {
+      if (filter === "unconnectedButton") return isConnected;
+      if (filter === "orphanedButton") return isOrphaned;
+      if (filter === "missingParentButton") return isMissingParent;
+      return false;
+    });
+  } else if (filterMode === "or") {
+    return activeFilters.some((filter) => {
+      if (filter === "unconnectedButton") return isConnected;
+      if (filter === "orphanedButton") return isOrphaned;
+      if (filter === "missingParentButton") return isMissingParent;
+      return false;
+    });
+  } else if (filterMode === "only") {
+    if (activeFilters.length !== 1) return false; // If more than one filter is active, don't show any profile
+    const filter = activeFilters[0]; // The only active filter
+    if (filter === "unconnectedButton") return isConnected;
+    if (filter === "orphanedButton") return isOrphaned;
+    if (filter === "missingParentButton") return isMissingParent;
+  }
+
+  return false;
+}
+
 function createButton(id, title, text) {
   return $(`<button class="categoryFilterButton small" id="${id}" title="${title}">${text}</button>`);
 }
 
+// Create a single radio button
+function createRadioButton(id, title, text, name, defaultChecked = false) {
+  const radio = $(`<label><input type="radio" id="${id}" name="${name}" title="${title}">${text}</input></label>`);
+  if (defaultChecked) {
+    radio.find("input").prop("checked", true);
+  }
+  return radio;
+}
+
+// Create a set of radio buttons
+function createRadioButtons(radioData, containerId, name) {
+  const container = $(`<div id="${containerId}"></div>`);
+  radioData.forEach((data) => {
+    const radio = createRadioButton(data.id, data.title, data.text, name, data.defaultChecked);
+    container.append(radio);
+  });
+  return container;
+}
+
 const personProfilesh2 = $("h2:contains(Person Profiles)");
 let profiles = $("div.Persons div.P-ITEM a[href*='/wiki/']");
+let activeFilters = []; // An array to store the IDs of active buttons
 
 function initCategoryFilters() {
   const filterButtonsContainer = $("<div id='categoryFilterButtonsContainer'></div>");
@@ -31,6 +83,51 @@ function initCategoryFilters() {
   filterButtonsContainer.appendTo(personProfilesh2);
   filterButtonsContainer.append(unconnectedButton, orphanedButton, missingParentButton, textFilter);
   addLoginButton("WBE_category_filters");
+
+  // Data for the radio buttons
+  const radioData = [
+    {
+      id: "andRadio",
+      title: "Show only profiles that match all filters",
+      text: "and",
+    },
+    {
+      id: "orRadio",
+      title: "Show profiles that match any filter",
+      text: "or",
+    },
+    {
+      id: "onlyRadio",
+      title: "Show profiles that match only the selected filter",
+      text: "only",
+      defaultChecked: true,
+    },
+  ];
+
+  // Create and append the radio buttons
+  const radios = createRadioButtons(radioData, "categoryFilterRadios", "andOrOnly");
+
+  filterButtonsContainer.append(radios);
+
+  // Event listener for radio buttons
+  $("input[name='andOrOnly']").on("change", function () {
+    const newFilterMode = $(this).attr("id").replace("Radio", "");
+
+    if (newFilterMode === "only") {
+      // Keep only the most recently clicked button active
+      if (activeFilters.length > 0) {
+        const mostRecentlyClicked = activeFilters[activeFilters.length - 1];
+        $(".categoryFilterButton").removeClass("active");
+        $("#" + mostRecentlyClicked).addClass("active");
+        activeFilters = [mostRecentlyClicked];
+      }
+    }
+    // No special action needed for "and" or "or" modes, activeFilters remains the same
+
+    filterMode = newFilterMode;
+    // Trigger re-filtering based on the new mode
+    filterCategoryProfiles(activeFilters);
+  });
 
   $(textFilter).on("keyup", function () {
     $(".categoryFilterButton").removeClass("active");
@@ -100,7 +197,7 @@ function initCategoryFilters() {
       }
     });
   });
-
+  /*
   $(".categoryFilterButton").on("click", function (e) {
     e.preventDefault();
     if ($(this).hasClass("active")) {
@@ -112,12 +209,43 @@ function initCategoryFilters() {
       filterCategoryProfiles($(this).attr("id"));
     }
   });
+  */
+
+  $(".categoryFilterButton").on("click", function (e) {
+    e.preventDefault();
+    const buttonID = $(this).attr("id");
+
+    if (filterMode === "only") {
+      // Deactivate all other buttons
+      $(".categoryFilterButton").removeClass("active");
+      activeFilters = [];
+    }
+
+    if ($(this).hasClass("active")) {
+      $(this).removeClass("active");
+      const index = activeFilters.indexOf(buttonID);
+      if (index > -1) {
+        activeFilters.splice(index, 1);
+      }
+    } else {
+      $(this).addClass("active");
+      activeFilters.push(buttonID);
+    }
+
+    filterCategoryProfiles(activeFilters);
+  });
 }
 
 let filterData = null;
 const waitingImage = $("<img id='tree' class='waiting' src='" + treeImageURL + "'>");
 
-async function filterCategoryProfiles(buttonID) {
+async function filterCategoryProfiles() {
+  // If no filters are active, show all profiles and return
+  if (activeFilters.length === 0) {
+    profiles.closest(".P-ITEM").show();
+    return;
+  }
+
   if (filterData === null) {
     personProfilesh2.append(waitingImage);
     const keysArray = $("a.P-F,a.P-M")
@@ -168,6 +296,7 @@ async function filterCategoryProfiles(buttonID) {
   });
 
   waitingImage.remove();
+  /*
   if (buttonID === "unconnectedButton") {
     profiles.closest(".P-ITEM").hide();
     profiles
@@ -195,6 +324,37 @@ async function filterCategoryProfiles(buttonID) {
   } else {
     profiles.closest(".P-ITEM").show();
   }
+
+  let filterFunction;
+
+  if (filterMode === "and") {
+    // Logic for 'and' mode
+    filterFunction = function () {
+      // Put your 'and' filter logic here
+      return true; // Example
+    };
+  } else if (filterMode === "or") {
+    // Logic for 'or' mode
+    filterFunction = function () {
+      // Put your 'or' filter logic here
+      return true; // Example
+    };
+  } else if (filterMode === "only") {
+    // Logic for 'only' mode (your existing logic)
+    filterFunction = function () {
+      // Put your 'only' filter logic here
+      return true; // Example
+    };
+  }
+  */
+
+  profiles.closest(".P-ITEM").hide();
+  profiles
+    .filter(function () {
+      return shouldShowProfile(this);
+    })
+    .closest(".P-ITEM")
+    .show();
 }
 
 export async function fetchPeople(args) {

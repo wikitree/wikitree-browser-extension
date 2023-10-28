@@ -23,3 +23,14 @@ h2 button.categoryFilterButton.small.active {
   width: 10em;
   margin: 0.2em 0.5em;
 }
+#categoryFilterRadios {
+  display: inline-block;
+  font-size: small;
+  line-height: 1;
+  padding: 0;
+  margin: 0;
+}
+#categoryFilterRadios input[type="radio"] {
+  margin: 0 0.2em;
+  padding: 0;
+}
