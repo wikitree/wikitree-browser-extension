@@ -4,6 +4,7 @@ Created By: Aleš Trtnik (Trtnik-2)
 
 import { wtPlus } from "../../features/wtPlus/wtPlus";
 import { editToolbarApp, editToolbarWiki } from "./editToolbar";
+import { createWikitableWizard } from "../../features/wikitable_wizard/wikitable_wizard";
 export default [
   {
     button: "Templates",
@@ -43,6 +44,13 @@ export default [
         hint: "Add any category using search for words in name and parent categories.",
         call: wtPlus,
         params: { action: "AddCIBCategory", data: "Category" },
+      },
+      {
+        featureid: "wikitableWizard",
+        hint: "Create and/or edit wikitables",
+        title: "Wikitable Wizard",
+        call: createWikitableWizard,
+        params: {},
       },
     ],
   },

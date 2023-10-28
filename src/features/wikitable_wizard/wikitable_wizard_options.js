@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import { registerFeature, OptionType } from "../../core/options/options_registry";
-import { isProfileEdit, isSpaceEdit } from "../../core/pageType";
+import { isWikiEdit } from "../../core/pageType";
 
 registerFeature({
   name: "Wikitable Wizard",
@@ -13,7 +13,7 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
-  pages: [isProfileEdit, isSpaceEdit],
+  pages: [isWikiEdit],
   options: [
     {
       label: "Select a few unique lines of a table to launch the Wizard",

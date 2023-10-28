@@ -4,6 +4,7 @@ Created By: Aleš Trtnik (Trtnik-2)
 
 import { wtPlus } from "../../features/wtPlus/wtPlus";
 import { editToolbarApp, editToolbarWiki } from "./editToolbar";
+import { createWikitableWizard } from "../../features/wikitable_wizard/wikitable_wizard";
 export default [
   {
     button: "Templates",
@@ -143,7 +144,14 @@ export default [
         call: wtPlus,
         params: { action: "AutoUpdate" },
       },
-    ],
+      {
+        featureid: "wikitableWizard",
+        hint: "Create and/or edit wikitables",
+        title: "Wikitable Wizard",
+        call: createWikitableWizard,
+        params: {},
+      },
+   ],
   },
   {
     button: "EditBOT",
