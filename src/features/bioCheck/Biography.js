@@ -815,7 +815,7 @@ export class Biography {
    * @param {String} inStr
    * @returns {String} string with br removed
    */
-  #swallowBr(inStr) {
+  #Old_swallowBr(inStr) {
     let outStr = "";
     let pos = 0;
     let endPos = 0;
@@ -834,13 +834,32 @@ export class Biography {
         if (pos <= len) {
           pos = inStr.indexOf(Biography.#START_OF_BR, pos); // find next comment
           if (pos < 1) {
-            outStr += inStr.substring(endPos + 1);
+            outStr += inStr.substring(endPos);
           }
         }
       } else {
         // <BR without ending bracket
         this.#style.bioHasBrWithoutEnd = true;
       }
+    }
+    return outStr;
+  }
+  /*
+   * Swallow BR
+   * could be in the form <br> or <br/> or <br />
+   * @param {String} inStr
+   * @returns {String} string with br removed
+   */
+  #swallowBr(inStr) {
+    let outStr = inStr.replace(/<br.*\/?>/gi, "");
+
+    // Test for <BR without ending bracket
+    let str = outStr.toLowerCase();
+    let startPos = str.indexOf(Biography.#START_OF_BR);
+    if ((startPos >= 0) &&
+        ((str.indexOf(Biography.#END_BRACKET) < 0) ||
+         (str.indexOf(Biography.#END_BRACKET) < startPos))) {
+      this.#style.bioHasBrWithoutEnd = true;
     }
     return outStr;
   }
