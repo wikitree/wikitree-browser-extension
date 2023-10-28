@@ -6290,6 +6290,59 @@ export async function buildFamilyForPrivateProfiles() {
     }
   }
 
+  // jsdoc
+  /**
+   * Helper function to decode accents in a string.
+   * @param {string} str - The string to decode.
+   * @returns {string} The decoded string.
+   * @example decodeAccents("%C3%A0") // returns "à"
+   * @example decodeAccents("%C3%A1") // returns "á"
+   **/
+
+  function decodeAccents(str) {
+    const accentsMap = {
+      "%C3%A0": "à",
+      "%C3%A1": "á",
+      "%C3%A2": "â",
+      "%C3%A3": "ã",
+      "%C3%A4": "ä",
+      "%C3%A5": "å",
+      "%C3%A6": "æ",
+      "%C3%A7": "ç",
+      "%C3%A8": "è",
+      "%C3%A9": "é",
+      "%C3%AA": "ê",
+      "%C3%AB": "ë",
+      "%C3%AC": "ì",
+      "%C3%AD": "í",
+      "%C3%AE": "î",
+      "%C3%AF": "ï",
+      "%C3%B0": "ð",
+      "%C3%B1": "ñ",
+      "%C3%B2": "ò",
+      "%C3%B3": "ó",
+      "%C3%B4": "ô",
+      "%C3%B5": "õ",
+      "%C3%B6": "ö",
+      "%C3%B8": "ø",
+      "%C3%B9": "ù",
+      "%C3%BA": "ú",
+      "%C3%BB": "û",
+      "%C3%BC": "ü",
+      "%C3%BD": "ý",
+      "%C3%BE": "þ",
+      "%C3%BF": "ÿ",
+    };
+
+    let decodedStr = str;
+    for (const encoded in accentsMap) {
+      const regex = new RegExp(encoded, "g");
+      decodedStr = decodedStr.replace(regex, accentsMap[encoded]);
+    }
+
+    return decodedStr;
+  }
+
   /**
    * Helper function to find the correct link for a family member
    * from a given list of links.
@@ -6331,7 +6384,7 @@ export async function buildFamilyForPrivateProfiles() {
       const fatherLinks = fatherTr.querySelectorAll("a");
       const fatherLink = findFamilyPersonLink(fatherLinks);
       if (fatherLink) {
-        const fatherId = fatherLink.href.split("/").pop();
+        const fatherId = decodeAccents(fatherLink.href.split("/").pop());
         const fatherObject = {
           Name: fatherId,
         };
@@ -6356,7 +6409,7 @@ export async function buildFamilyForPrivateProfiles() {
       const motherLinks = motherTr.querySelectorAll("a");
       const motherLink = findFamilyPersonLink(motherLinks);
       if (motherLink) {
-        const motherId = motherLink.href.split("/").pop();
+        const motherId = decodeAccents(motherLink.href.split("/").pop());
         const motherObject = {
           Name: motherId,
         };
@@ -6393,7 +6446,7 @@ export async function buildFamilyForPrivateProfiles() {
                 const familyMemberLinks = familyMember.querySelectorAll("a");
                 const familyMemberLink = findFamilyPersonLink(familyMemberLinks);
                 if (familyMemberLink) {
-                  const familyMemberId = familyMemberLink.href.split("/").pop();
+                  const familyMemberId = decodeAccents(familyMemberLink.href.split("/").pop());
                   const familyMemberObject = {
                     Name: familyMemberId,
                     BirthDate: "0000-00-00",
