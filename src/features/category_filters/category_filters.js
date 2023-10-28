@@ -12,6 +12,72 @@ shouldInitializeFeature("categoryFilters").then((result) => {
   }
 });
 
+function applyTextFilter() {
+  const filterInput = $("#categoryFiltersTextFilter").val().toLowerCase();
+  let filters = [];
+
+  if (filterInput.startsWith("!")) {
+    filters = filterInput.split("|").map((f) => (f.startsWith("!") ? f : "!" + f));
+  } else {
+    filters = filterInput.split("|");
+  }
+
+  profiles.each(function () {
+    const profileDiv = $(this).closest(".P-ITEM");
+    const text = profileDiv.text().toLowerCase();
+
+    let shouldShow = false; // Default is to hide
+
+    for (const filter of filters) {
+      if (filter.startsWith("<") || filter.startsWith(">") || filter.startsWith("=")) {
+        if (filter.length === 5) {
+          const filterNumber = parseInt(filter.slice(1));
+          const birthYearMatch = text.match(/\d{4}/);
+
+          if (birthYearMatch) {
+            const birthYear = parseInt(birthYearMatch[0]);
+            if (filter.startsWith("<")) {
+              if (birthYear < filterNumber) {
+                shouldShow = true;
+                break;
+              }
+            } else if (filter.startsWith(">")) {
+              if (birthYear > filterNumber) {
+                shouldShow = true;
+                break;
+              }
+            } else if (filter.startsWith("=")) {
+              if (birthYear === filterNumber) {
+                shouldShow = true;
+                break;
+              }
+            }
+          }
+        }
+      } else if (filter.startsWith("!")) {
+        const exclusion = filter.substring(1);
+        if (text.includes(exclusion)) {
+          shouldShow = false;
+          break;
+        } else {
+          shouldShow = true;
+        }
+      } else {
+        if (text.includes(filter)) {
+          shouldShow = true;
+          break;
+        }
+      }
+    }
+
+    if (shouldShow) {
+      profileDiv.show();
+    } else {
+      profileDiv.hide();
+    }
+  });
+}
+
 function shouldShowProfile(profile) {
   const isConnected = $(profile).attr("data-connected") == 0;
   const isOrphaned = $(profile).attr("data-managers") === "none";
@@ -130,86 +196,8 @@ function initCategoryFilters() {
   });
 
   $(textFilter).on("keyup", function () {
-    $(".categoryFilterButton").removeClass("active");
-    const filterInput = $(this).val().toLowerCase();
-    let filters = [];
-
-    if (filterInput.startsWith("!")) {
-      filters = filterInput.split("|").map((f) => (f.startsWith("!") ? f : "!" + f));
-    } else {
-      filters = filterInput.split("|");
-    }
-
-    profiles.closest(".P-ITEM").hide();
-
-    profiles.each(function () {
-      const profileDiv = $(this).closest(".P-ITEM");
-      const text = profileDiv.text().toLowerCase();
-
-      let shouldShow = false; // Default is to hide
-
-      for (const filter of filters) {
-        if (filter.startsWith("<") || filter.startsWith(">") || filter.startsWith("=")) {
-          if (filter.length === 5) {
-            const filterNumber = parseInt(filter.slice(1));
-            const birthYearMatch = text.match(/\d{4}/);
-
-            if (birthYearMatch) {
-              const birthYear = parseInt(birthYearMatch[0]);
-              if (filter.startsWith("<")) {
-                if (birthYear < filterNumber) {
-                  shouldShow = true;
-                  break;
-                }
-              } else if (filter.startsWith(">")) {
-                if (birthYear > filterNumber) {
-                  shouldShow = true;
-                  break;
-                }
-              } else if (filter.startsWith("=")) {
-                if (birthYear === filterNumber) {
-                  shouldShow = true;
-                  break;
-                }
-              }
-            }
-          }
-        } else if (filter.startsWith("!")) {
-          const exclusion = filter.substring(1);
-          if (text.includes(exclusion)) {
-            shouldShow = false;
-            break;
-          } else {
-            shouldShow = true;
-          }
-        } else {
-          if (text.includes(filter)) {
-            shouldShow = true;
-            break;
-          }
-        }
-      }
-
-      if (shouldShow) {
-        profileDiv.show();
-      } else {
-        profileDiv.hide();
-      }
-    });
+    applyTextFilter();
   });
-  /*
-  $(".categoryFilterButton").on("click", function (e) {
-    e.preventDefault();
-    if ($(this).hasClass("active")) {
-      $(this).removeClass("active");
-      filterCategoryProfiles("all");
-    } else {
-      $(".categoryFilterButton").removeClass("active");
-      $(this).addClass("active");
-      filterCategoryProfiles($(this).attr("id"));
-    }
-  });
-  */
 
   $(".categoryFilterButton").on("click", function (e) {
     e.preventDefault();
@@ -243,6 +231,7 @@ async function filterCategoryProfiles() {
   // If no filters are active, show all profiles and return
   if (activeFilters.length === 0) {
     profiles.closest(".P-ITEM").show();
+    applyTextFilter(); // Apply text filter even if no button filters are active
     return;
   }
 
@@ -296,57 +285,6 @@ async function filterCategoryProfiles() {
   });
 
   waitingImage.remove();
-  /*
-  if (buttonID === "unconnectedButton") {
-    profiles.closest(".P-ITEM").hide();
-    profiles
-      .filter(function () {
-        return $(this).attr("data-connected") == 0;
-      })
-      .closest(".P-ITEM")
-      .show();
-  } else if (buttonID === "orphanedButton") {
-    profiles.closest(".P-ITEM").hide();
-    profiles
-      .filter(function () {
-        return $(this).attr("data-managers") === "none";
-      })
-      .closest(".P-ITEM")
-      .show();
-  } else if (buttonID === "missingParentButton") {
-    profiles.closest(".P-ITEM").hide();
-    profiles
-      .filter(function () {
-        return $(this).attr("data-missing-parent") === "true";
-      })
-      .closest(".P-ITEM")
-      .show();
-  } else {
-    profiles.closest(".P-ITEM").show();
-  }
-
-  let filterFunction;
-
-  if (filterMode === "and") {
-    // Logic for 'and' mode
-    filterFunction = function () {
-      // Put your 'and' filter logic here
-      return true; // Example
-    };
-  } else if (filterMode === "or") {
-    // Logic for 'or' mode
-    filterFunction = function () {
-      // Put your 'or' filter logic here
-      return true; // Example
-    };
-  } else if (filterMode === "only") {
-    // Logic for 'only' mode (your existing logic)
-    filterFunction = function () {
-      // Put your 'only' filter logic here
-      return true; // Example
-    };
-  }
-  */
 
   profiles.closest(".P-ITEM").hide();
   profiles
