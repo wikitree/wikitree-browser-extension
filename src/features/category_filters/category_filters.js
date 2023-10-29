@@ -15,6 +15,12 @@ shouldInitializeFeature("categoryFilters").then((result) => {
 function combinedFilter() {
   const filterInput = $("#categoryFiltersTextFilter").val().toLowerCase(); // Retrieve the current state of the text filter
 
+  if (filterMode === "only" && filterInput.length > 0) {
+    // Deactivate all button filters in 'only' mode when text is entered
+    $(".categoryFilterButton").removeClass("active");
+    activeFilters = [];
+  }
+
   profiles.each(function () {
     const profileDiv = $(this).closest(".P-ITEM");
     let shouldShowByText = filterInput.length > 0 ? applyTextFilter(profileDiv) : null; // If text filter is empty, set to null
@@ -249,6 +255,8 @@ function initCategoryFilters() {
       if (filterMode === "only") {
         $(".categoryFilterButton").removeClass("active");
         activeFilters = [];
+        // Clear the text box
+        $("#categoryFiltersTextFilter").val("");
       }
       // Activate this button
       $(this).addClass("active");
