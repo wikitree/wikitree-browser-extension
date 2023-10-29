@@ -815,43 +815,8 @@ export class Biography {
    * @param {String} inStr
    * @returns {String} string with br removed
    */
-  #Old_swallowBr(inStr) {
-    let outStr = "";
-    let pos = 0;
-    let endPos = 0;
-    let len = inStr.length;
-    pos = inStr.indexOf(Biography.#START_OF_BR);
-    if (pos < 0) {
-      outStr = inStr; // no br
-    }
-    while (pos < len && pos >= 0 && endPos >= 0) {
-      if (pos > 0) {
-        outStr = outStr + inStr.substring(endPos, pos);
-      }
-      endPos = inStr.indexOf(Biography.#END_BRACKET, pos);
-      if (endPos > 0) {
-        pos = endPos + 1; // skip the /> and move starting position there
-        if (pos <= len) {
-          pos = inStr.indexOf(Biography.#START_OF_BR, pos); // find next comment
-          if (pos < 1) {
-            outStr += inStr.substring(endPos);
-          }
-        }
-      } else {
-        // <BR without ending bracket
-        this.#style.bioHasBrWithoutEnd = true;
-      }
-    }
-    return outStr;
-  }
-  /*
-   * Swallow BR
-   * could be in the form <br> or <br/> or <br />
-   * @param {String} inStr
-   * @returns {String} string with br removed
-   */
   #swallowBr(inStr) {
-    let outStr = inStr.replace(/<br.*\/?>/gi, "");
+    let outStr = inStr.replace(/<br\s*?\/?>/gi, "");
 
     // Test for <BR without ending bracket
     let str = outStr.toLowerCase();
