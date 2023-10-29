@@ -1,5 +1,5 @@
 import $ from "jquery";
-import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { treeImageURL } from "../../core/common";
 import { addLoginButton } from "../my_connections/my_connections";
 
@@ -12,60 +12,38 @@ shouldInitializeFeature("categoryFilters").then((result) => {
   }
 });
 
-function applyTextFilter() {
-  const filterInput = $("#categoryFiltersTextFilter").val().toLowerCase();
-  let filters = [];
-
-  if (filterInput.startsWith("!")) {
-    filters = filterInput.split("|").map((f) => (f.startsWith("!") ? f : "!" + f));
-  } else {
-    filters = filterInput.split("|");
-  }
+function combinedFilter() {
+  const filterInput = $("#categoryFiltersTextFilter").val().toLowerCase(); // Retrieve the current state of the text filter
 
   profiles.each(function () {
     const profileDiv = $(this).closest(".P-ITEM");
-    const text = profileDiv.text().toLowerCase();
+    let shouldShowByText = filterInput.length > 0 ? applyTextFilter(profileDiv) : null; // If text filter is empty, set to null
+    let shouldShowByButton = activeFilters.length > 0 ? shouldShowProfile(this) : null; // If no buttons are active, set to null
 
-    let shouldShow = false; // Default is to hide
+    let shouldShow;
 
-    for (const filter of filters) {
-      if (filter.startsWith("<") || filter.startsWith(">") || filter.startsWith("=")) {
-        if (filter.length === 5) {
-          const filterNumber = parseInt(filter.slice(1));
-          const birthYearMatch = text.match(/\d{4}/);
-
-          if (birthYearMatch) {
-            const birthYear = parseInt(birthYearMatch[0]);
-            if (filter.startsWith("<")) {
-              if (birthYear < filterNumber) {
-                shouldShow = true;
-                break;
-              }
-            } else if (filter.startsWith(">")) {
-              if (birthYear > filterNumber) {
-                shouldShow = true;
-                break;
-              }
-            } else if (filter.startsWith("=")) {
-              if (birthYear === filterNumber) {
-                shouldShow = true;
-                break;
-              }
-            }
-          }
-        }
-      } else if (filter.startsWith("!")) {
-        const exclusion = filter.substring(1);
-        if (text.includes(exclusion)) {
-          shouldShow = false;
-          break;
-        } else {
-          shouldShow = true;
-        }
+    if (filterMode === "and") {
+      shouldShow =
+        (shouldShowByText !== null ? shouldShowByText : true) &&
+        (shouldShowByButton !== null ? shouldShowByButton : true);
+    } else if (filterMode === "or") {
+      if (shouldShowByText === null && shouldShowByButton === null) {
+        shouldShow = true; // If no filters are active, show by default
       } else {
-        if (text.includes(filter)) {
-          shouldShow = true;
-          break;
+        shouldShow =
+          (shouldShowByText !== null ? shouldShowByText : false) ||
+          (shouldShowByButton !== null ? shouldShowByButton : false);
+      }
+    } else if (filterMode === "only") {
+      if (shouldShowByText === null && shouldShowByButton === null) {
+        shouldShow = true; // If no filters are active, show by default
+      } else {
+        if (filterInput.length > 0 && activeFilters.length === 0) {
+          shouldShow = shouldShowByText; // If only text filter is active, use its result
+        } else if (filterInput.length === 0 && activeFilters.length === 1) {
+          shouldShow = shouldShowByButton !== null ? shouldShowByButton : false; // If only one button filter is active, use its result
+        } else {
+          shouldShow = false; // If more than one filter is active or none, don't show any profile
         }
       }
     }
@@ -76,6 +54,61 @@ function applyTextFilter() {
       profileDiv.hide();
     }
   });
+}
+
+function applyTextFilter(profileDiv) {
+  const filterInput = $("#categoryFiltersTextFilter").val().toLowerCase();
+  let filters = [];
+
+  if (filterInput.startsWith("!")) {
+    filters = filterInput.split("|").map((f) => (f.startsWith("!") ? f : "!" + f));
+  } else {
+    filters = filterInput.split("|");
+  }
+
+  const text = profileDiv.text().toLowerCase();
+  let shouldShow = filterMode === "and" ? true : false; // Default based on mode
+
+  for (const filter of filters) {
+    let currentFilterResult = false; // Result for the current iteration
+
+    // Your existing filter logic for special characters and normal text
+    if (filter.startsWith("<") || filter.startsWith(">") || filter.startsWith("=")) {
+      if (filter.length === 5) {
+        const filterNumber = parseInt(filter.slice(1));
+        const birthYearMatch = text.match(/\d{4}/);
+        if (birthYearMatch) {
+          const birthYear = parseInt(birthYearMatch[0]);
+          if (filter.startsWith("<") && birthYear < filterNumber) {
+            currentFilterResult = true;
+          } else if (filter.startsWith(">") && birthYear > filterNumber) {
+            currentFilterResult = true;
+          } else if (filter.startsWith("=") && birthYear === filterNumber) {
+            currentFilterResult = true;
+          }
+        }
+      }
+    } else if (filter.startsWith("!")) {
+      const exclusion = filter.substring(1);
+      currentFilterResult = !text.includes(exclusion);
+    } else {
+      currentFilterResult = text.includes(filter);
+    }
+
+    if (filterMode === "and") {
+      shouldShow = shouldShow && currentFilterResult;
+    } else if (filterMode === "or") {
+      if (currentFilterResult) {
+        shouldShow = true;
+        break; // Exit loop if one condition is met
+      }
+    } else if (filterMode === "only") {
+      shouldShow = currentFilterResult; // Only this condition matters
+      break; // Exit loop
+    }
+  }
+
+  return shouldShow;
 }
 
 function shouldShowProfile(profile) {
@@ -105,7 +138,7 @@ function shouldShowProfile(profile) {
     if (filter === "missingParentButton") return isMissingParent;
   }
 
-  return false;
+  return false; // If no conditions match, return false
 }
 
 function createButton(id, title, text) {
@@ -193,22 +226,18 @@ function initCategoryFilters() {
     filterMode = newFilterMode;
     // Trigger re-filtering based on the new mode
     filterCategoryProfiles(activeFilters);
+    combinedFilter(); // Call combinedFilter when radio buttons change
   });
 
   $(textFilter).on("keyup", function () {
-    applyTextFilter();
+    combinedFilter(); // Call combinedFilter when radio buttons change
   });
 
   $(".categoryFilterButton").on("click", function (e) {
     e.preventDefault();
     const buttonID = $(this).attr("id");
 
-    if (filterMode === "only") {
-      // Deactivate all other buttons
-      $(".categoryFilterButton").removeClass("active");
-      activeFilters = [];
-    }
-
+    // If this button is already active, deactivate it
     if ($(this).hasClass("active")) {
       $(this).removeClass("active");
       const index = activeFilters.indexOf(buttonID);
@@ -216,11 +245,18 @@ function initCategoryFilters() {
         activeFilters.splice(index, 1);
       }
     } else {
+      // If we are in 'only' mode, deactivate all other buttons
+      if (filterMode === "only") {
+        $(".categoryFilterButton").removeClass("active");
+        activeFilters = [];
+      }
+      // Activate this button
       $(this).addClass("active");
       activeFilters.push(buttonID);
     }
 
     filterCategoryProfiles(activeFilters);
+    combinedFilter(); // Call combinedFilter when radio buttons change
   });
 }
 

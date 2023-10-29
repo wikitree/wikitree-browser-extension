@@ -30,7 +30,7 @@ h2 button.categoryFilterButton.small.active {
   padding: 0;
   margin: 0;
 }
-#categoryFilterRadios input[type="radio"] {
-  margin: 0 0.2em;
+#categoryFilterRadios label {
+  margin: 0 0.1em;
   padding: 0;
 }
