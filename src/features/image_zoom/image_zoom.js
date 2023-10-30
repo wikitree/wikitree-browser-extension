@@ -289,6 +289,10 @@ async function setupImageZoom() {
   );
 
   let images = $("a:has(img.scale-with-grid), a:has(img[src*='thumb']:not(.commenter-image))");
+  // remove img[src*='Data_Error_HelpTemplate_Sanbox-1.jpg'] from images
+  images = images.filter(function () {
+    return !$(this).find("img").attr("src").includes("Data_Error_HelpTemplate_Sanbox-1.jpg");
+  });
   const magnifier = $('<div id="magnifier"></div>').appendTo("body");
 
   images.each(function () {
