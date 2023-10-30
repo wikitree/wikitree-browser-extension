@@ -10,6 +10,7 @@ import {
   goToRandomProfile,
   addRandomProfileLocationBox,
   goToRandomWatchlistProfile,
+  goToRandomSpacePage,
 } from "../randomProfile/randomProfile";
 import { doWhatLinksHere } from "../what_links_here/what_links_here";
 
@@ -298,6 +299,18 @@ function addCustomMenu() {
   $("#myCustomMenu li a:contains(Printer Friendly Bio)").on("click", function (e) {
     e.preventDefault();
     $("#wte-tm-printer-friendly").trigger("click");
+  });
+
+  $("#myCustomMenu li a:contains(Random Space Page)").on("click", function (e) {
+    e.preventDefault();
+    const working = $("<img id='working' src='" + treeImageURL + "'>");
+    working.appendTo("body").css({
+      position: "absolute",
+      left: `${e.pageX - 150}px`,
+      top: e.pageY + "px",
+    });
+
+    goToRandomSpacePage();
   });
 
   if ($("#myCustomMenu li a:contains(What Links Here)").length) {

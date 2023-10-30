@@ -208,11 +208,22 @@ export async function addRandomToFindMenu() {
   // Event listeners for existing button
   $(".randomProfile").on("click", async function (e) {
     e.preventDefault();
-    // Your existing logic here
+    const working = $("<img id='working' src='" + treeImageURL + "'>");
+    working.appendTo("body").css({
+      position: "absolute",
+      left: `${e.pageX - 150}px`,
+      top: e.pageY + "px",
+    });
+
+    if (window?.randomProfileOptions?.constrainToWatchlist) {
+      goToRandomWatchlistProfile();
+    } else {
+      goToRandomProfile();
+    }
   });
   $(".randomProfile").on("contextmenu", function (e) {
     e.preventDefault();
-    // Your existing logic here
+    addRandomProfileLocationBox(e);
   });
 
   // Event listener for new button
@@ -260,7 +271,7 @@ async function fetchRandomSpacePage() {
   console.log("Exceeded maximum number of attempts");
 }
 
-async function goToRandomSpacePage() {
+export async function goToRandomSpacePage() {
   // Usage
   fetchRandomSpacePage().then((profileData) => {
     // Navigate to the profile page or do something else
