@@ -192,11 +192,20 @@ export function addRandomProfileLocationBox(e) {
 // add random option to 'Find'
 export async function addRandomToFindMenu() {
   window.randomProfileOptions = await getFeatureOptions("randomProfile");
+  // Existing button
   const relationshipLi = $("li a.pureCssMenui[href='/wiki/Special:Relationship']");
-  const newLi = $(
+  const randomProfileLi = $(
     "<li><a class='pureCssMenui randomProfile' title='Go to a random profile; Right-click to choose a location'>Random Profile</li>"
   );
-  newLi.insertBefore(relationshipLi.parent());
+  randomProfileLi.insertBefore(relationshipLi.parent());
+
+  // New button
+  const randomSpaceLi = $(
+    "<li><a class='pureCssMenui randomSpace' title='Go to a random space page'>Random Space Page</li>"
+  );
+  randomSpaceLi.insertBefore(relationshipLi.parent());
+
+  // Event listeners for existing button
   $(".randomProfile").on("click", async function (e) {
     e.preventDefault();
     const working = $("<img id='working' src='" + treeImageURL + "'>");
@@ -215,6 +224,58 @@ export async function addRandomToFindMenu() {
   $(".randomProfile").on("contextmenu", function (e) {
     e.preventDefault();
     addRandomProfileLocationBox(e);
+  });
+
+  // Event listener for new button
+  $(".randomSpace").on("click", async function (e) {
+    e.preventDefault();
+    // Logic to fetch and navigate to a random space page
+    const working = $("<img id='working' src='" + treeImageURL + "'>");
+    working.appendTo("body").css({
+      position: "absolute",
+      left: `${e.pageX - 150}px`,
+      top: e.pageY + "px",
+    });
+    // Add function to navigate to a random space page
+    goToRandomSpacePage();
+  });
+}
+
+async function fetchRandomSpacePage() {
+  let counter = 0;
+  const maxAttempts = 10; // Maximum number of attempts
+
+  while (counter < maxAttempts) {
+    const res = await fetch("https://apps.wikitree.com/apps/beacall6/WBE/random_space_page.php");
+    const data = await res.text();
+
+    console.log(res, data);
+
+    const profileData = await postToAPI({
+      action: "getProfile",
+      key: "Space:" + data,
+    });
+
+    console.log(profileData);
+
+    // Use the specific condition to check if the profile information is sufficient
+    if (profileData?.[0]?.profile?.Privacy_IsAtLeastPublic == true) {
+      // Navigate to the profile page or do whatever you want with the profile data
+      window.location.href = `https://www.wikitree.com/wiki/Space:${data}`;
+      return;
+    }
+
+    counter++; // Increment the counter
+  }
+
+  console.log("Exceeded maximum number of attempts");
+}
+
+export async function goToRandomSpacePage() {
+  // Usage
+  fetchRandomSpacePage().then((profileData) => {
+    // Navigate to the profile page or do something else
+    console.log("Found a good profile:", profileData);
   });
 }
 
