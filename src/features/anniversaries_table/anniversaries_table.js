@@ -332,7 +332,7 @@ async function updateNames() {
                 temp.html(rowData[i]);
 
                 // find the link in the temporary element
-                var link = temp.find(`a[href='/wiki/${person.Name}']`);
+                var link = temp.find(`a[href="/wiki/${person.Name}"]`);
 
                 if (link.length > 0) {
                   // update the link text
