@@ -1,8 +1,7 @@
 {
-  "name": "WikiTree Browser Extension (Preview)",
+  "name": "WikiTree Browser Extension",
   "description": "The official WikiTree browser extension.",
-
-  "version": "1.10.2.1",
+  "version": "1.11",
   "manifest_version": 2,
   "options_ui": {
     "page": "options.html",
@@ -36,7 +35,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "info@wikitree.com"
+      "id": "in.fo@wikitree.com"
     }
   },
   "browser_action": {
