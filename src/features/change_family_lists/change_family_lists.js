@@ -79,7 +79,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     if (options.changeHeaders) {
       setTimeout(function () {
         siblingsHeader(true);
-      }, 3000);
+      }, 5000);
     }
 
     if (!options.verticalLists) {
