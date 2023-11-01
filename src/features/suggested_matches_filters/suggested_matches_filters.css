@@ -9,3 +9,24 @@
 body.page-Special_EditFamilySteps table {
   clear: both;
 }
+#potentialMatchesSection td.nameMatch a:first-child {
+  border: 2px solid forestgreen;
+  padding: 0.2em;
+}
+#potentialMatchesSection td span.birthLocationMatchSpan {
+  border: 2px solid forestgreen;
+  background-color: lightgreen;
+}
+#potentialMatchesSection td span.deathDateMatchSpan {
+  border: 2px solid darkgrey;
+  background-color: rgb(216, 216, 216);
+}
+#potentialMatchesSection td span.birthDateMatchSpan {
+  border: 2px solid navy;
+  background-color: lightblue;
+}
+#potentialMatchesSection td span.matchSpan {
+  margin: 0.2em;
+  padding: 0.2em;
+  display: inline-block;
+}

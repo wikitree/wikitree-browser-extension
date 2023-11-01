@@ -4,14 +4,16 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import "./suggested_matches_filters.css";
-import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { getRelatives } from "wikitree-js";
 import { isOK } from "../../core/common";
 import { getPeople } from "../dna_table/dna_table";
+import { convertDate } from "../auto_bio/auto_bio";
 
 const newPerson = {};
 
 function addNewPersonToH1() {
+  $("#newPersonSummary").remove();
   newPerson.locations = [];
   newPerson.FirstName = ($("#mFirstName").val() + " ").trim();
   newPerson.BirthDate = ($("#mBirthDate").val() + " ").trim();
@@ -19,7 +21,12 @@ function addNewPersonToH1() {
   newPerson.LastNameAtBirth = ($("#mLastNameAtBirth").val() + " ").trim();
   newPerson.LastNameCurrent = ($("#mLastNameCurrent").val() + " ").trim();
   newPerson.DeathDate = ($("#mDeathDate").val() + " ").trim();
-
+  newPerson.FullName = (newPerson.FirstName + " " + newPerson.MiddleName + " " + newPerson.LastNameAtBirth).replace(
+    "  ",
+    " "
+  );
+  newPerson.BirthLocation = ($("#mBirthLocation").val() + " ").trim();
+  newPerson.DeathLocation = ($("#mDeathLocation").val() + " ").trim();
   newPerson.BirthYear = newPerson.BirthDate.match(/[0-9]{4}/);
   newPerson.DeathYear = newPerson.DeathDate.match(/[0-9]{4}/);
 
@@ -47,7 +54,6 @@ function addNewPersonToH1() {
     " - " +
     newPerson.DeathYear +
     ")";
-  $("#newPersonSummary").remove();
   $("h1").append($("<span id='newPersonSummary'>&rarr; " + newPerson.summary + "</span>"));
 }
 
@@ -364,6 +370,14 @@ async function initSuggestedMatchesFilters() {
   if ($("#filterButtons").length == 0) {
     filterButtons.appendTo($("#matchesStatusBox p:first-child"));
   }
+
+  // Highlighting
+  getFeatureOptions("suggestedMatchesFilters").then((options) => {
+    if (options.highlightMatches) {
+      highlightMatches();
+    }
+  });
+
   $("#nameFilterButton").on("click", function (e) {
     e.preventDefault();
     if ($(this).attr("data-level") == "2") {
@@ -851,3 +865,58 @@ const countries = [
   "Zambie",
   "Zimbabwe",
 ];
+
+function highlightMatches() {
+  const people = $("table#matchesTable tr[id^=potentialMatch] td:first-child");
+  people.each(function () {
+    const thisTD = $(this);
+    const thisText = thisTD.text();
+    const birthDeathSplit = thisText.split(" - ");
+    let matchCount = 0;
+    let birthDate, deathDate, newPersonBirthDate, newPersonDeathDate;
+    const dateMatch = /(\d{1,2}\s)?(\w{3}\s)?[0-9]{4}/g;
+    birthDate = birthDeathSplit[0].match(dateMatch);
+    if (birthDate) {
+      birthDate = convertDate(birthDate[0].replace(/(abt|bef|aft)\s/, ""), "ISO");
+      newPersonBirthDate = convertDate(newPerson.BirthDate, "ISO");
+      if (birthDate == newPersonBirthDate) {
+        thisTD.addClass("birthDateMatch");
+        thisTD.append($("<span class='birthDateMatchSpan matchSpan'>Birth Date Match</span>"));
+        matchCount++;
+      }
+    }
+    if (birthDeathSplit[0].match(newPerson.BirthLocation)) {
+      thisTD.addClass("birthLocationMatch");
+      thisTD.append($("<span class='birthLocationMatchSpan matchSpan'>Birth Location Match</span>"));
+      matchCount++;
+    }
+    if (birthDeathSplit[1]) {
+      deathDate = birthDeathSplit[1].match(dateMatch);
+      if (deathDate) {
+        deathDate = convertDate(deathDate[0].replace(/(abt|bef|aft)\s/, ""), "ISO");
+        newPersonDeathDate = convertDate(newPerson.DeathDate, "ISO");
+
+        if (deathDate == newPersonDeathDate) {
+          thisTD.addClass("deathDateMatch");
+          thisTD.append($("<span class='deathDateMatchSpan matchSpan'>Death Date Match</span>"));
+          matchCount++;
+        }
+      }
+    }
+    const thisName = thisTD.find("a:first-child").text();
+    if (newPerson.FullName == thisName) {
+      thisTD.addClass("nameMatch");
+      matchCount++;
+    }
+    thisTD.data("match-count", matchCount);
+  });
+  for (let i = 1; i < 5; i++) {
+    people.each(function () {
+      const thisTD = $(this);
+      const thisTR = thisTD.closest("tr");
+      if (thisTD.data("match-count") == i) {
+        thisTR.prependTo(thisTR.parent());
+      }
+    });
+  }
+}
