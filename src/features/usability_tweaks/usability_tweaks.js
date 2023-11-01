@@ -28,7 +28,6 @@ function addSaveSearchFormDataButton() {
       aPerson.DeathLocation = $("input[name='death_location']").val();
       aPerson.Gender = $("input[name='gender']:checked").val() || "";
       localStorage.setItem("searchFormPerson", JSON.stringify(aPerson));
-      console.log(aPerson);
     });
   }
 }

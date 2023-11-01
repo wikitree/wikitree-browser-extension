@@ -8,6 +8,6 @@ registerFeature({
   category: "Navigation/Find_Menu",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
-  defaultValue: true,
+  defaultValue: false,
   pages: [isMainDomain],
 });
