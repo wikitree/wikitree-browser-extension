@@ -17,13 +17,25 @@ body.page-Special_EditFamilySteps table {
   border: 2px solid forestgreen;
   background-color: lightgreen;
 }
+#potentialMatchesSection td span.partialBirthLocationMatchSpan {
+  border: 2px solid lightgreen;
+  background-color: rgb(196, 245, 196);
+}
 #potentialMatchesSection td span.deathDateMatchSpan {
   border: 2px solid darkgrey;
   background-color: rgb(216, 216, 216);
 }
+#potentialMatchesSection td span.deathYearMatchSpan {
+  border: 2px solid rgb(216, 216, 216);
+  background-color: rgb(237, 235, 235);
+}
 #potentialMatchesSection td span.birthDateMatchSpan {
   border: 2px solid navy;
   background-color: lightblue;
+}
+#potentialMatchesSection td span.birthYearMatchSpan {
+  border: 2px solid rgb(194, 194, 253);
+  background-color: rgb(187, 233, 248);
 }
 #potentialMatchesSection td span.matchSpan {
   margin: 0.2em;
