@@ -58,7 +58,6 @@ function addDistanceAndRelationColumns() {
               const distance = event.target.result ? event.target.result.distance + "°" : "";
               if (event.target?.result?.distance > 0) {
                 ids[wtid].distance = distance;
-                console.log(wtid, distance);
               }
               resolve();
             };

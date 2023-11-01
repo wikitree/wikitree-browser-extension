@@ -83,9 +83,6 @@ class Database {
     await this.waitForUpgrade(); // Wait if an upgrade is in progress
 
     return new Promise((resolve, reject) => {
-      console.log("handleUpgrade called");
-      console.log("Setting isUpgrading to true");
-
       this.isUpgrading = true; // NEW: set the flag
 
       const db = e.target.result;
@@ -102,16 +99,7 @@ class Database {
 
       this.db = db;
       this.initialized = true;
-      console.log("Setting isUpgrading to false");
-
       this.isUpgrading = false; // NEW: reset the flag
-
-      console.log(`handleUpgrade: db.initialized set to ${this.initialized}`);
-      if (this.db) {
-        console.log(`DB Version: ${this.db.version}`);
-      } else {
-        console.log("Database is not initialized.");
-      }
 
       resolve(); // Resolve the Promise since the function is done
     });
@@ -144,12 +132,8 @@ class Database {
     await this.waitForUpgrade(); // Wait if an upgrade is in progress
 
     return new Promise((resolve, reject) => {
-      console.log("initializeDB called");
       const openRequest = indexedDB.open("CC7Database", 3);
-      console.log("openRequest created", openRequest);
-
       openRequest.onupgradeneeded = async (e) => {
-        console.log("onupgradeneeded handler in initializeDB called");
         await this.handleUpgrade(e); // isNeeded defaults to false
         resolve();
       };
@@ -158,12 +142,10 @@ class Database {
         this.db = openRequest.result;
         this.initialized = true;
         this.isUpgrading = false;
-        console.log("DB initialized", this.db);
         resolve(); // resolve the promise
       };
 
       openRequest.onerror = (e) => {
-        console.log("onerror handler in initializeDB called");
         this.onError(e, reject);
       };
       isDBInitialized = true;
@@ -172,8 +154,6 @@ class Database {
 
   async onUpgradeNeeded(e) {
     await this.waitForUpgrade(); // Wait if an upgrade is in progress
-
-    console.log("Upgrade needed");
     this.upgradeNeeded = true;
 
     this.db = e.target.result;
@@ -201,17 +181,14 @@ class Database {
     });
 
     const transaction = e.target.transaction;
-    console.log(`Transaction state: ${transaction.readyState}`);
 
     // Wrapped it inside a promise
     return new Promise((resolve, reject) => {
       transaction.oncomplete = async () => {
-        console.log("Upgrade transaction complete.");
         resolve();
       };
 
       transaction.onerror = (error) => {
-        console.log("Transaction error:", error);
         reject(error);
       };
     });
@@ -219,18 +196,12 @@ class Database {
 
   async onSuccess(e, resolve) {
     await this.waitForUpgrade(); // Wait if an upgrade is in progress
-
-    console.log("onSuccess called");
     this.db = e.target.result;
     this.db.onversionchange = () => {
       this.db.close();
     };
-    console.log("DB initialized", this.db);
     this.initialized = true; // Set the flag here
-    console.log("db.initialized set to:", this.initialized);
-    console.log("upgradeNeed: ", this.upgradeNeeded);
     if (!this.upgradeNeeded) {
-      console.log("Resolving the promise");
       resolve();
     } else {
       console.log("Not resolving the promise due to upgradeNeeded");
@@ -246,12 +217,8 @@ class Database {
     await this.waitForUpgrade(); // Wait if an upgrade is in progress
     await this.initializationPromise; // wait for DB to initialize
 
-    console.log("Starting to fetch the last stored CC7.");
-    console.log(`User ID: ${this.userId}`);
-
     try {
       const result = await this.getObjectStoreData(CC7_STORE, "userId", this.userId);
-      console.log("Successfully fetched the last stored CC7:", result);
       return result;
     } catch (error) {
       console.error("An error occurred while fetching the last stored CC7:", error);
@@ -291,7 +258,6 @@ class Database {
     await this.waitForUpgrade(); // NEW: wait if an upgrade is in progress
 
     return new Promise((resolve, reject) => {
-      console.log(`Starting transaction for store ${storeName}`);
       if (this.isUpgrading) {
         // NEW: check the flag
         return reject(new Error("A version change transaction is in progress."));
@@ -299,15 +265,11 @@ class Database {
 
       const tx = this.db.transaction(storeName, "readonly");
 
-      // Log the transaction state
-      console.log(`Transaction state: ${tx.readyState}`);
-
       const store = tx.objectStore(storeName);
       const index = store.index(indexName);
       const getRequest = index.getAll(IDBKeyRange.only(key));
 
       getRequest.onsuccess = (event) => {
-        console.log(`Successfully fetched data from ${storeName}`);
         resolve(event.target.result || []);
       };
       getRequest.onerror = (event) => {
@@ -376,8 +338,6 @@ function showLoginPopup() {
 }
 
 export async function addCC7ChangesButton() {
-  // logging
-  console.log("Adding CC7 Changes button...");
   const categoryLI = $("li a.pureCssMenui[href='/wiki/Category:Categories']");
   const newLi = $(
     "<li><a class='pureCssMenui cc7Tracker' title='Find CC7 changes since you last checked'>CC7 Changes</li>"
@@ -389,7 +349,6 @@ export async function addCC7ChangesButton() {
     // Check login status
     const args = { action: "clientLogin", checkLogin: USER_NUM_ID, appId: APP_ID };
     const loginStatus = await fetchAPI(args);
-    console.log("loginStatus:", loginStatus);
 
     if (loginStatus.clientLogin.result === "error") {
       // Not logged in, redirect to login
@@ -413,13 +372,9 @@ export async function addCC7ChangesButton() {
 }
 
 async function initializeCC7Tracking() {
-  // log
-  console.log("Initializing CC7 tracking...");
-
   try {
     // Try initializing the database first
     await db.initializeDB();
-    console.log("DB initialized successfully.", db);
 
     let shouldCheckLogin = false;
 
@@ -443,7 +398,6 @@ async function initializeCC7Tracking() {
     if (shouldCheckLogin) {
       const args = { action: "clientLogin", checkLogin: USER_NUM_ID, appId: APP_ID };
       const loginStatus = await fetchAPI(args); // your checkLogin function
-      console.log("loginStatus:", loginStatus);
 
       if (loginStatus.clientLogin.result === "error") {
         // Show login popup if login failed
@@ -461,15 +415,9 @@ async function initializeCC7Tracking() {
 
 let initialCC7entryErrors = 0;
 export async function getAndStoreCC7Deltas() {
-  console.log(db);
-  // Should log the Database instance
-  console.log(db.db);
-  // Should log the initialized IndexedDB instance
   const newApiData = await fetchCC7FromAPI();
-  console.log("New API Data: ", newApiData);
 
   const lastStoredData = await db.fetchLastStoredCC7(); // Using the new method in the Database class
-  console.log("Last Stored Data: ", lastStoredData);
 
   // Filter out the user by their Id (replace 'userId' with the actual Id)
   const filteredApiData = newApiData.filter((person) => person.Id !== USER_ID);
@@ -810,7 +758,6 @@ function closeCC7DeltaContainer() {
 
 shouldInitializeFeature("cc7Changes").then(async (result) => {
   if (result) {
-    console.log("Initializing CC7 Changes...");
     db = new Database();
     initializeCC7Tracking().catch((e) => console.log("An error occurred while initializing CC7 tracking:", e));
     import("./cc7_changes.css");
