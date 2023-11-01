@@ -192,4 +192,4 @@ export const countries = [
   { name: "Yemen", nativeName: "اليَمَن‎", date: "1918-10-14" },
   { name: "Zambia", nativeName: "Zambia", date: "1964-10-24" },
   { name: "Zimbabwe", nativeName: "Zimbabwe", date: "1980-04-18" },
-];
+]; 
