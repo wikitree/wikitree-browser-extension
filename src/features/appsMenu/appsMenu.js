@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import Cookies from "js-cookie"; 
+import Cookies from "js-cookie";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 shouldInitializeFeature("appsMenu").then((result) => {
@@ -21,7 +21,6 @@ function attachAppsMenu() {
   const appsList = $("<menu class='subMenu' id='appsSubMenu'></menu>");
   const theMenu = [
     { title: "Ancestor Explorer", URL: "https://apps.wikitree.com/apps/ashley1950/ancestorexplorer" },
-    { title: "Ancestor Statistics", URL: "https://apps.wikitree.com/apps/nelson3486/stats/" },
     { title: "Ancestry Citation Builder", URL: "https://apps.wikitree.com/apps/clarke11007/ancite.php" },
     { title: "Antenati Citation Builder", URL: "https://apps.wikitree.com/apps/clarke11007/antenati.php" },
     {
@@ -38,7 +37,6 @@ function attachAppsMenu() {
       title: "Genealogietools.nl",
       URL: "https://www.wikitree.com/wiki/Space:Genealogietools.nl_-_WieWasWie_formatter",
     },
-    { title: "Missing Links", URL: "https://apps.wikitree.com/apps/nelson3486/connections/" },
     { title: "Profile Overview", URL: "https://apps.wikitree.com/apps/beacall6/templates.php" },
     { title: "Relative SpiderWebs", URL: "https://apps.wikitree.com/apps/clarke11007/webs.php" },
     { title: "RootsSearch", URL: "https://apps.wikitree.com/apps/york1423/rootssearch/" },
