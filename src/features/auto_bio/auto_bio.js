@@ -25,6 +25,29 @@ import ONSjson from "./ONS.json";
 import Cookies from "js-cookie";
 
 let bugReportMore = "";
+function getSpelling(word) {
+  const americanToBritishSpelling = {
+    baptized: "baptised",
+    // Add other words and their variants here
+  };
+
+  const userLanguage = navigator.language || navigator.userLanguage;
+  const BritishEnglish = [
+    "en-GB", // United Kingdom
+    "en-AU", // Australia
+    "en-NZ", // New Zealand
+    "en-ZA", // South Africa
+    "en-IE", // Ireland
+    "en-IN", // India
+    "en-SG", // Singapore
+    "en-MT", // Malta
+  ];
+
+  if (BritishEnglish.includes(userLanguage) && americanToBritishSpelling[word]) {
+    return americanToBritishSpelling[word];
+  }
+  return word;
+}
 
 /**
 Returns a status word based on the input status and optional needOnIn parameter, with an optional ISO date string parameter.
@@ -1024,7 +1047,7 @@ export function buildBirth(person) {
   if (window.autoBioOptions?.fullNameOrBirthName == "FullName") {
     theName = person.PersonName.FullName || person.RealName;
   }
-  text += window.boldBit + theName + window.boldBit + " was";
+  text += boldBit + theName + boldBit + " was";
   if (person.BirthDate || person.BirthLocation) {
     text += " born";
     text += buildBirthDate(person);
@@ -1041,7 +1064,7 @@ export function buildBirth(person) {
   text += ".";
   text += addReferences("Birth");
   if (person["Baptism Date"] || person["Baptism Place"]) {
-    text += " " + capitalizeFirstLetter(person.Pronouns.subject) + " was baptized";
+    text += " " + capitalizeFirstLetter(person.Pronouns.subject) + " was " + getSpelling("baptized");
   }
   if (person["Baptism Date"]) {
     text += " " + formatDate(person["Baptism Date"] || "", "", { needOn: true });
@@ -1407,9 +1430,9 @@ export function buildSpouses(person) {
         person.PersonName.FirstName +
         marriageAge +
         " married " +
-        window.boldBit +
+        boldBit +
         spouseName +
-        window.boldBit +
+        boldBit +
         spouseMarriageAge +
         spouseDetailsA +
         marriageDatePlace;
@@ -1418,9 +1441,9 @@ export function buildSpouses(person) {
         person.PersonName.FirstName +
         marriageAge +
         " and " +
-        window.boldBit +
+        boldBit +
         spouseName +
-        window.boldBit +
+        boldBit +
         spouseMarriageAge +
         " were married" +
         marriageDatePlace +
@@ -5282,7 +5305,8 @@ function getFamilySearchFacts() {
           aFact.Narrative =
             window.profilePerson.PersonName.FirstName +
             ageBit +
-            " was baptized" +
+            " was " +
+            getSpelling("baptized") +
             " " +
             formatDate(aFact.Date, "", { needOn: true }) +
             (aFact.Info ? " in " + minimalPlace(aFact.Info.replace(/,([A-z])/g, ", $1")) : "") +
@@ -7888,15 +7912,15 @@ function addErrorMessage() {
     $(".privateMessageLink")[0].click();
   }
 }
-
+let boldBit = "";
 shouldInitializeFeature("autoBio").then((result) => {
   if (result) {
     import("./auto_bio.css");
     getFeatureOptions("autoBio").then((options) => {
       window.autoBioOptions = options;
-      window.boldBit = "";
+      boldBit = "";
       if (window.autoBioOptions?.boldNames) {
-        window.boldBit = "'''";
+        boldBit = "'''";
       }
 
       if (isIansProfile) {
