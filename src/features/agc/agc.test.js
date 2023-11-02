@@ -26,6 +26,33 @@ import {editBio} from './library/editbio';
 import fs from 'fs'
 import {fail} from 'assert';
 
+/*
+Data and logic to run an AGC regression test. To run the test, use
+   npm run test
+
+   There should not be any errors reported. If there are errors, it
+   will show the differences of a text comparison between the expected and 
+   received output.
+
+   To run a single test case:
+   npm run test -- -t 'agc profileName'
+   where profileName is the value of the profileName, such as Adams-1513
+*/
+
+/*
+To add a new profile to the regression test:
+  Add an entry for the profile in testProfiles, in alphabetical order
+
+  Create a directory using the profileName (in lowercase) to the 
+  regression_data directory
+  
+  Add a text file name profile-name_input.txt that contains the 
+  content of the biography before editing.
+  
+  Add a text file named profle-name_refout.txt that contains the expected
+  content of the biography after editing.
+*/
+
 // need to include this to register the feature so that we can get the default options
 import "./agc_options";
 
@@ -3491,6 +3518,12 @@ function getUserOptions(testData) {
   return { ...defaultUserOptions, ...specifiedOptions }; 
 }
 
+/*
+Test a profile to see if the expected output is produced
+
+The expected input and output for the profile is in a subdirectory named with the
+profile name in the regression data.
+*/
 function doEditBio(testData) {
 
   let inputBioText = "";
@@ -3566,6 +3599,17 @@ function doEditBio(testData) {
     expect(editBioOutput.errorMessage).toBe(testData.refErrorMessage);
   }
 }
+
+/*
+Test each of the profiles in the test set
+Each profile may be tested using either the default or custom options
+Each profile may also be tested with a variant profile name
+
+Each profile in the test set is described in the testProfiles array
+Each test profile also has a directory in the regression data that contains
+the expected input and output text. When a profile has a variant, the 
+expected input and output area also included in the regression data.
+*/
 
 describe("AGC", () => {
   for (const testProfile of testProfiles) {
