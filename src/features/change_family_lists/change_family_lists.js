@@ -1200,7 +1200,7 @@ function list2ol2(person, profPersonName, profileApproxBirthDate) {
     const ddn = document.createTextNode(" " + ddates);
     datesSpan.appendChild(ddn);
     const checkit = encodeURIComponent(pdata["Name"]).replaceAll(/%2C/g, ",");
-    const ana = document.querySelector("#nVitals a[href='https://www.wikitree.com/wiki/" + checkit + "'");
+    const ana = document.querySelector(`#nVitals a[href="https://www.wikitree.com/wiki/${checkit}"`);
     if (ana) {
       if (profPersonName && profileApproxBirthDate != "" && isOK(pdata?.["BirthDate"])) {
         addRelativeAge(ana, profPersonName, profileApproxBirthDate, pdata["BirthDate"]);
