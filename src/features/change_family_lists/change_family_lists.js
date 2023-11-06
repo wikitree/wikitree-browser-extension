@@ -937,12 +937,24 @@ function makeFamLists() {
     }
   }
 }
-
+/*
 function getApproxBirthDate(person) {
   let bDate = person?.BirthDate || "";
   if (isOK(bDate)) {
     bDate = getApproxDate(bDate);
     bDate.Approx ||= person?.DataStatus?.BirthDate != "certain" && person?.DataStatus?.BirthDate != "";
+  }
+  return bDate;
+}
+*/
+
+function getApproxBirthDate(person) {
+  let bDate = person?.BirthDate || "";
+  if (isOK(bDate)) {
+    bDate = getApproxDate(bDate);
+    if (typeof bDate === "object" && bDate !== null) {
+      bDate.Approx ||= person?.DataStatus?.BirthDate != "certain" && person?.DataStatus?.BirthDate != "";
+    }
   }
   return bDate;
 }
