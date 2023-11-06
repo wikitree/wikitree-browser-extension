@@ -76,6 +76,12 @@ const g2g = {
       label: "Turn WikiTree IDs into links to the profiles",
       defaultValue: true,
     },
+    {
+      id: "previewLinks",
+      type: OptionType.CHECKBOX,
+      label: "Make links to answers and comments show preview when shared on Discord",
+      defaultValue: false,
+    },
   ],
 };
 
