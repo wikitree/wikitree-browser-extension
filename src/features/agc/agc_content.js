@@ -234,6 +234,9 @@ function getParentsFromDocument(document, parents) {
   }
 }
 
+/*
+ * Change the image for the AGC button if the bio has been edited or not
+*/
 async function updateButton() {
   if (agcButton != undefined) {
     if (isBioEdited) {
@@ -304,6 +307,13 @@ function displayErrorDialog(editBioMessage) {
   closeButton.addEventListener("click", onErrorCloseButtonClicked, false);
 }
 
+/*
+ * Edit the biography
+ * Get the input values from the current page, and get options from user storage
+ * Then use editbio to clean the GEDCOM import
+ * Save the new data to use for Undo then put the new data into the date fields
+ * (e.g., birth date) and let changes bubble up so that user can save profile
+ */
 async function doEditBio() {
   // Need to check if the enhanced editor is enabled and if so turn it off
   var enhancedEditorButton = document.getElementById("toggleMarkupColor");
@@ -458,6 +468,9 @@ async function doEditBio() {
   });
 }
 
+/*
+ * Revert profile to values before AGC
+ */
 function undoEditBio() {
   // console.log("undoEditBio");
 
