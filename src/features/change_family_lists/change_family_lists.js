@@ -72,7 +72,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
           }
         });
       }
-      if (isOK(parentPerson.BirthDate) && (options.parentAges || options.ageDifferences)) {
+      if (isOK(parentPerson?.BirthDate) && (options?.parentAges || options?.ageDifferences)) {
         addRelativeAges(parentPerson);
       }
     }
@@ -440,7 +440,7 @@ function reallyMakeFamLists() {
               theSpouse.append(
                 " <span class='spouseDates bdDates' id='" + idName + "-bdDates'>" + spouseDates + "</span>"
               );
-              if (options.ageDifferences && isOK(aPerson["BirthDate"])) {
+              if (options.ageDifferences && isOK(aPerson?.["BirthDate"])) {
                 addRelativeAge(spouseLinkA[0], profPersonName, profileApproxBirthDate, aPerson["BirthDate"]);
               }
             }
@@ -937,12 +937,24 @@ function makeFamLists() {
     }
   }
 }
+/*
+function getApproxBirthDate(person) {
+  let bDate = person?.BirthDate || "";
+  if (isOK(bDate)) {
+    bDate = getApproxDate(bDate);
+    bDate.Approx ||= person?.DataStatus?.BirthDate != "certain" && person?.DataStatus?.BirthDate != "";
+  }
+  return bDate;
+}
+*/
 
 function getApproxBirthDate(person) {
   let bDate = person?.BirthDate || "";
   if (isOK(bDate)) {
     bDate = getApproxDate(bDate);
-    bDate.Approx ||= person?.DataStatus.BirthDate != "certain" && person?.DataStatus.BirthDate != "";
+    if (typeof bDate === "object" && bDate !== null) {
+      bDate.Approx ||= person?.DataStatus?.BirthDate != "certain" && person?.DataStatus?.BirthDate != "";
+    }
   }
   return bDate;
 }
@@ -1099,7 +1111,7 @@ function list2ol2(person, profPersonName, profileApproxBirthDate) {
   let dobStatus = "";
   let dodStatus = "";
   if (pdata != null && pdata != undefined) {
-    if (typeof pdata["BirthDate"] != "undefined") {
+    if (typeof pdata?.["BirthDate"] != "undefined") {
       dob = pdata["BirthDate"];
       dobStatus = "";
       if (pdata.DataStatus) {
@@ -1200,9 +1212,9 @@ function list2ol2(person, profPersonName, profileApproxBirthDate) {
     const ddn = document.createTextNode(" " + ddates);
     datesSpan.appendChild(ddn);
     const checkit = encodeURIComponent(pdata["Name"]).replaceAll(/%2C/g, ",");
-    const ana = document.querySelector("#nVitals a[href='https://www.wikitree.com/wiki/" + checkit + "'");
+    const ana = document.querySelector(`#nVitals a[href="https://www.wikitree.com/wiki/${checkit}"`);
     if (ana) {
-      if (profPersonName && profileApproxBirthDate != "" && isOK(pdata["BirthDate"])) {
+      if (profPersonName && profileApproxBirthDate != "" && isOK(pdata?.["BirthDate"])) {
         addRelativeAge(ana, profPersonName, profileApproxBirthDate, pdata["BirthDate"]);
       }
       ana.after(datesSpan);
@@ -1312,7 +1324,7 @@ function addRelativeAges(profilePerson) {
       const wtId = getWtId(ana);
       if (wtId != "") {
         const relative = findPerson(wtId);
-        const relativesBirthDate = relative ? relative["BirthDate"] : null;
+        const relativesBirthDate = relative ? relative?.["BirthDate"] : null;
         if (isOK(relativesBirthDate)) {
           addRelativeAge(ana, profPersonName, profileApproxBirthDate, relativesBirthDate);
         }
@@ -1486,14 +1498,14 @@ function insertInSibList() {
     if (window.inserted == false) {
       if ($("#profilePerson").length == 0 && window.people) {
         pPerson.bYear = "";
-        if (pPerson.BirthDate) {
+        if (pPerson?.BirthDate) {
           pPerson.bYear = pPerson.BirthDate.split("-")[0];
-        } else if (pPerson.BirthDateDecade) {
+        } else if (pPerson?.BirthDateDecade) {
           pPerson.bYear = parseInt(pPerson.BirthDateDecade.replace("s", "")) + 5;
         }
-        if (pPerson.DeathDate) {
+        if (pPerson?.DeathDate) {
           pPerson.dYear = pPerson.DeathDate.split("-")[0];
-        } else if (pPerson.DeathDateDecade) {
+        } else if (pPerson?.DeathDateDecade) {
           pPerson.dYear = parseInt(pPerson.DeathDateDecade.replace("s", "")) + 5;
         }
         let sibDates = $("#siblingList .bdDates");
@@ -1821,16 +1833,16 @@ function amaTimer() {
       let aSp = aSpouse[1];
       if (isOK(aSp.marriage_date)) {
         let bioPersonMarriageAge;
-        if (!window.excludeValues.includes(window.people[0].BirthDate)) {
+        if (!window.excludeValues.includes(window.people?.[0]?.BirthDate)) {
           bioPersonMarriageAge = getMarriageAge(window.people[0].BirthDate, aSp.marriage_date, window.people[0]);
         }
-        let aSpMarriageAge = getMarriageAge(aSp.BirthDate, aSp.marriage_date, aSp);
+        let aSpMarriageAge = getMarriageAge(aSp?.BirthDate, aSp.marriage_date, aSp);
         let spBit = "";
         let bpBit = "";
         if (bioPersonMarriageAge) {
           bpBit = window.people[0].FirstName + " (" + bioPersonMarriageAge + ")";
         }
-        if (isOK(aSp.BirthDate)) {
+        if (isOK(aSp?.BirthDate)) {
           spBit = aSp.FirstName + " (" + aSpMarriageAge + ")";
           if (bioPersonMarriageAge) {
             spBit = "; " + spBit;
@@ -1863,7 +1875,7 @@ function getMarriageAge(d1, d2, mPerson) {
   if (
     bDate.Approx == true ||
     mDate.Approx == true ||
-    (mPerson.DataStatus.BirthDate != "certain" && mPerson.DataStatus.BirthDate != "")
+    (mPerson?.DataStatus?.BirthDate != "certain" && mPerson?.DataStatus?.BirthDate != "")
   ) {
     approx = "~";
   }

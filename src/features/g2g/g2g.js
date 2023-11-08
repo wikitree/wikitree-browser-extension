@@ -106,6 +106,24 @@ function linkify() {
   });
 }
 
+function replacePermaLinks() {
+  const allAnchorNodes = document.getElementsByTagName("a");
+  for (let i = 0; i < allAnchorNodes.length; i++) {
+    //https://www.wikitree.com/g2g/1652303/join-the-2nd-germany-research-party-on-wikitree-day?show=1657604#a1657604
+
+    const indexShow = allAnchorNodes[i].href.indexOf("show=");
+
+    if (indexShow > -1) {
+      //console.log(allAnchorNodes[i].href);
+      const indexHash = allAnchorNodes[i].href.indexOf("#");
+      const indexAfterHashAndAorC = indexHash + 2;
+      const number = allAnchorNodes[i].href.substring(indexAfterHashAndAorC);
+      const plainURL = window.location.href.split("?")[0];
+      allAnchorNodes[i].href = "https://apps.wikitree.com/apps/straub620/g2gpeek.php?post=" + plainURL + "&a=" + number;
+    }
+  }
+}
+
 async function initG2G() {
   const options = await getFeatureOptions("g2g");
   if (options.checkMarks) {
@@ -138,6 +156,9 @@ async function initG2G() {
   }
   if (options.linkify) {
     linkify();
+  }
+  if (options.previewLinks) {
+    replacePermaLinks();
   }
 }
 
