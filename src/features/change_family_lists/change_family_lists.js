@@ -1135,13 +1135,13 @@ function list2ol2(person, profPersonName, profileApproxBirthDate) {
     } else {
       doby = " ";
       var disGender;
-      let disID = htmlEntities(pdata["Name"]);
+      const disID = htmlEntities(pdata["Name"]);
 
       if (disID) {
-        let disLink = document.querySelector("#nVitals a[href='/wiki/" + disID + "'");
+        const disLink = document.querySelector(`#nVitals a[href="/wiki/${disID}"`);
 
         if (isOK(disLink)) {
-          let disTitle = disLink.title;
+          const disTitle = disLink.title;
 
           const regex1 = /(Daughter)|(Sister)|(Mother)|(Wife)/g;
           const female = disTitle.match(regex1);
