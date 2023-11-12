@@ -714,6 +714,11 @@ function fixupLinksInString(str) {
   return str;
 }
 
+/*
+ * cleanup the text of a "source" 
+ * by removing things that are obviously not sources
+ * and returning the text
+ */
 function cleanupSourceText(sourceText) {
 
   // sometime non-breaking space characters are in the source
@@ -1789,6 +1794,12 @@ class Fact {
     return matchingResidenceData;
   }
 
+  /*
+   * Remove duplicate refs
+   * from this Fact
+   *
+   * different from the method removeDuplicateRefs in Biography
+   */
   removeDuplicateRefs() {
 
     if (this.isHidden) return;
@@ -7363,6 +7374,11 @@ class BiographyWriter {
   }
 }
 
+/*
+ * Class to process a biography
+ * Will clean up information, look for and clean up information
+ * and generate new biography text
+ */
 class Biography {
   constructor(origText) {
     this.origText = origText;
@@ -7404,6 +7420,19 @@ class Biography {
     }
   }
 
+  /*
+   * Test biography for expected items
+   * Return true if it looks as expected else false
+   *
+   * Skips any Category or {{Unsourced template after the Biography heading
+   *
+   * Unexpected (insane) items
+   * - no Biography heading and also missing some (of the many) created through import and missing any User ID or Name * subheadings
+   * - no Sources subheading and also missing some (of the many) created through import and missing any User ID or Name * subheadings
+   * - categories or stickers before Biography (or import preamble)
+   * - more than one Biography heading
+   * - biography text contains "could not interpret date"
+   */
   doSanityChecks() {
 
     var bioStartIndex = this.origText.search(/==\s*Biography\s*==/);
@@ -7465,6 +7494,7 @@ class Biography {
       this.origText = this.origText + "\n== Sources ==\n";
     }
 
+    // Save any categories/stickers/etc before Biography heading for later use
     var preamble = this.origText.substring(0, bioStartIndex);
     var nonSpaceInPreambleIndex = preamble.search(/[^\s\n]/);
 
@@ -7516,6 +7546,19 @@ class Biography {
     return true;
   }
 
+  /*
+   * Examine biography to determine if it is a 2011 or 2020 format.
+   * The default is an unknown format
+   * A number of variants of GEDCOM import and created through the import are 2011 format
+   * In the absense of that 'created through' phrase, any profile with Name, Born, or Died in bold is 2020 format
+   * In the absense of that 'created through' phrase, any profile without Name, Born, or Died in bold and
+   *   with Name, Birth, Death subheadings is 2011 format
+   * In the absense of that 'created through' phrase, Name, Born, or Died in bold or Name, Birth, Death subheadings
+   *   a profile with no bold heading and no subheadings is 2011 format and 
+   *   a profile with a bold heading and no subheading is 2020 format and
+   *   a profile a bold heading before a subheading is 2020 format and
+   *   a profile with a subheading before a bold heading is 2011 format
+   */
   detectBioFormat() {
 
     this.format = BioFormat.formatUnknown;
@@ -7782,6 +7825,10 @@ class Biography {
     this.facts.sort(Biography.compareFacts);
   }
 
+  /*
+   * Create sources map using text after Sources and before next heading
+   * and an array of sources that are not referenced by a span tag
+   */
   createSourceMap(sourcesText) {
     //const sourceSeparator = "* Source: <span id='";
 //    const sourceSeparator = /^ *\* */m;
@@ -7888,10 +7935,11 @@ class Biography {
         if (text.length < 4) {
           continue; // ignore any stray characters on a line 
         }
-
         // do the same fixes that we do for citation text for Ancestry links and APIDs etc
+        // remove portions of source text that are obviously not part of the source
         text = cleanupSourceText(text);
 
+        // and save the source either in a map by span id or as other source lines
         if (id != "") {
           this.sourcesMap.set(id, new Source(id, text));
         }
@@ -8204,6 +8252,10 @@ class Biography {
     return -1;
   }
 
+  /*
+   * Check for an External Files subsection
+   * and return the text without the external files subsection and its content
+   */
   checkForExternalFilesSection(text) {
 
     const externalFilesStartIndex = text.search(/===\s+External Files\s+===\s*\n/i);
@@ -8231,6 +8283,15 @@ class Biography {
     return newText;
   }
 
+  /*
+   * Flatten note references for 2020 format
+   * First build a map indexed by span id containing the text and a boolean for used
+   * Then for each note reference in the form Note: [[#N0501]]
+   *   pull out the number as id
+   *   if the id is found in the map replace the text with the span content and mark the id as used
+   *   else remove the text for the note from somewhere
+   * Report an alert message for each unused note
+   */
   flattenNoteReferences(text)
   {
     const spanRegEx = /\<span id\=['"]N\d+['"]\>/;
@@ -8685,6 +8746,19 @@ class Biography {
     return newText;
   }
 
+  /*
+   * Parse bio in a 2020 format
+   * return false for unexpected input
+   * - missing Biography heading
+   * - no content after Biography heading
+   * - no bold (fact title) heading
+   * - no bold (fact title) heading before section or subsection
+   * - Sources heading but no <references /> following
+   * - Subheading between Sources and <references />
+   * and also
+   * - build a map of span Note items with a boolean if used
+   * - convert Ackknowledgement subsection to section
+   */
   parseBio() {
     // find the biography header
     var bioHeader = /==\s*Biography\s*==\s*\n/;
@@ -8822,9 +8896,10 @@ class Biography {
       this.textAfterResearchNotesBeforeSources = gedcomBioText.substring(nextHeaderStartIndex, sourcesHeaderStartIndex);
     }
 
+    // lose any text in an External Files subsection
     this.textAfterBioBeforeResearchNotes = this.checkForExternalFilesSection(this.textAfterBioBeforeResearchNotes);
     this.textAfterResearchNotesBeforeSources = this.checkForExternalFilesSection(this.textAfterResearchNotesBeforeSources);
-
+    
     var sourcesText = "";
     if (sourcesHeaderStartIndex != -1) {
       const sourcesStartIndex = sourcesHeaderStartIndex + sourcesHeader.length;
@@ -8873,6 +8948,7 @@ class Biography {
         }
       }
 
+      // Get the sources text as the text after the Sources heading and before the next section or subsection heading
       // Sometimes the sources are between the sources header and the "references" line. Sometime they are after the references line.
       sourcesText = gedcomBioText.substring(sourcesStartIndex, sourcesEndIndex);
       const startOfTextAfterReferences = referencesStartIndex + referencesLine.length;
@@ -8886,17 +8962,20 @@ class Biography {
       sourcesText = sourcesText.replace(pleaseEditAndBeBoldString, "").trim();
     }
 
+    // build a map of sources indexed by span (or note) id and an array of otherSourceLines
     if (!this.createSourceMap(sourcesText)) {
       this.errorMessage = "Failed to parse sources section.";
       return false;
     }
 
+// TODO you are here
     this.parseFacts(factsText);
 
     //console.log(this.facts);
     return true;
   }
 
+// TODO you are here adding comments. 
   parseFactsFormat2011(factsText) {
     //console.log("factsText is:");
     //console.log(factsText);
@@ -9102,6 +9181,9 @@ class Biography {
     return text.trim();
   }
 
+  /* 
+   * Parse bio in a 2011 format
+   */
   parseBioFormat2011() {
 
     // remove any lines that just contain "----". These can be created by merges
@@ -10557,6 +10639,10 @@ class Biography {
     return true;
   }
 
+  /*
+   * Remove duplicate refs from this Biography
+   * uses the removeDuplicateRefs method for each fact.
+   */
   removeDuplicateRefs() {
 
     // first find refs where the citation and source are the same and make them won each other
@@ -11825,6 +11911,14 @@ class Biography {
   }
 }
 
+/*
+ * Cleanup (edit) a GEDCOM imported profiles
+ * The input is used to create a new Biography object
+ * Create a result to contain the results of the edit
+ * Have the Biography object clean up a number of things
+ * and finally generate the new bio string
+ * @return result with status, bio text, dates and name
+ */
 export function editBio(editBioInput) {
 
   //console.log("editBioInput:");
@@ -11899,6 +11993,8 @@ export function editBio(editBioInput) {
     result.errorMessage = "Unknown biography format.";
     return result;
   }
+
+  // TODO you are here adding comments after you go through and comment the parsers above
 
   biography.removeDuplicateFacts();
 
