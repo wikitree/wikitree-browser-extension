@@ -97,33 +97,37 @@ const timeLineImg = chrome.runtime.getURL("images/timeline.png");
 const homeImg = chrome.runtime.getURL("images/Home_icon.png");
 
 function addTrees() {
-  setTimeout(function () {
-    const familyCount = [];
-    for (let i = 0; i < 20; i++) {
-      if ($("span.familyCount" + i).length) {
-        familyCount.push($("span.familyCount" + i).length);
+  const interval = setInterval(function () {
+    if ($("#connectionList").length) {
+      clearInterval(interval); // Stop polling once the element is found
+
+      const familyCount = [];
+      for (let i = 0; i < 20; i++) {
+        if ($("span.familyCount" + i).length) {
+          familyCount.push($("span.familyCount" + i).length);
+        }
+      }
+      $("#familyTextCount").remove();
+      let familyCountText = "";
+      if (familyCount.length != 0) {
+        familyCountText = $(
+          "<span id='familyTextCount'>: <span>" +
+            familyCount.length +
+            " branch" +
+            (familyCount.length > 1 ? "es" : "") +
+            " (" +
+            familyCount.join("-") +
+            ")</span></span>"
+        );
+        if (window.connectionFinderOptions.branches) {
+          $("h1").eq(0).append(familyCountText);
+        }
+        if (window.connectionFinderOptions.surnameSummaries && $("#surnames1").length == 0) {
+          surnameSummariesButton.fadeIn();
+        }
       }
     }
-    $("#familyTextCount").remove();
-    let familyCountText = "";
-    if (familyCount.length != 0) {
-      familyCountText = $(
-        "<span id='familyTextCount'>: <span>" +
-          familyCount.length +
-          " branch" +
-          (familyCount.length > 1 ? "es" : "") +
-          " (" +
-          familyCount.join("-") +
-          ")</span></span>"
-      );
-      if (window.connectionFinderOptions.branches) {
-        $("h1").eq(0).append(familyCountText);
-      }
-      if (window.connectionFinderOptions.surnameSummaries && $("#surnames1").length == 0) {
-        surnameSummariesButton.fadeIn();
-      }
-    }
-  }, 5000);
+  }, 500); // Check every 500ms, adjust as needed
 }
 
 async function addCFsurnameList() {
@@ -1518,7 +1522,7 @@ function excelOut() {
 }
 
 shouldInitializeFeature("connectionFinderOptions").then((result) => {
-  if (result && $(".moreDetails").length == 0) {
+  if (result) {
     // Get options
     getFeatureOptions("connectionFinderOptions").then((options) => {
       window.connectionFinderOptions = options;
