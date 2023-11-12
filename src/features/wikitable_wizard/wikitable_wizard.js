@@ -490,11 +490,17 @@ function createwikitableWizardModal() {
       navigator.clipboard
         .readText()
         .then((text) => {
+          console.log("Text retrieved from clipboard.");
+
           text = text.trim();
           theTableBody.empty();
 
           if (text.includes("{|") && text.includes("|-")) {
+            console.log("Detected Wikitable format.");
+
             const wikiTableData = parseWikiTableData(text);
+            console.log("Parsed WikiTable data:", wikiTableData);
+
             parsedData = wikiTableData.data.rows.map((row) => row.cells);
             wikiTableData.data.rows.forEach((row, rowIndex) => {
               let rowHtml = `<tr data-row-hash="${row.hash}">
@@ -534,6 +540,10 @@ function createwikitableWizardModal() {
             // const columnCount = wikiTableData.data.rows.reduce((max, row) => Math.max(max, row.cells.length), 0);
             updateHeaderRow();
           } else {
+            console.log(
+              "Text does not appear to be in Wikitable format. Checking for CSV, TSV, or space-separated values."
+            );
+
             console.log(text);
             console.log(isCSV(text));
             console.log(isTSV(text));
@@ -644,6 +654,8 @@ function createwikitableWizardModal() {
               $(this).data("previousValue", $(this).val());
             }
           });
+
+          console.log("Table update complete.");
         })
         .catch((err) => {
           console.log("Error reading clipboard: " + err);
