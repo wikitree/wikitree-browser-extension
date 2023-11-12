@@ -166,7 +166,7 @@ export function isOK(thing) {
     if (isNumeric(thing)) {
       return true;
     } else {
-      if ($.type(thing) === "string") {
+      if (typeof thing === "string") {
         const nanMatch = thing.match(/NaN/);
         if (nanMatch == null) {
           return true;
@@ -283,7 +283,7 @@ export async function showDraftList() {
         window.draftCalls++;
       } else {
         getWikiTreePage("Drafts", "/index.php", "title=" + theWTID + "&displayDraft=1").then((res) => {
-          /*                  
+          /*
         $.ajax({
           url: "https://www.wikitree.com/index.php?title=" + theWTID + "&displayDraft=1",
           type: "GET",
