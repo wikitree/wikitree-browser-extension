@@ -1816,5 +1816,11 @@ shouldInitializeFeature("wikitableWizard").then((result) => {
         selectToLaunchWikiTableWizard();
       }
     });
+    // Listen for messages from the background script
+    chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+      if (request.action === "launchWikitableWizard") {
+        createWikitableWizard();
+      }
+    });
   }
 });

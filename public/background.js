@@ -21,3 +21,24 @@ if (chrome.runtime) {
     }
   });
 }
+
+// Create a context menu item when the extension is installed
+chrome.runtime.onInstalled.addListener(function () {
+  chrome.contextMenus.create({
+    id: "myContextMenu",
+    title: "Wikitable Wizard",
+    contexts: ["all"],
+    documentUrlPatterns: [
+      "https://www.wikitree.com/index.php?title=Special:EditPerson*",
+      "https://www.wikitree.com/index.php?title=Space:*",
+    ], // Only show on WikiTree profile edit and space edit pages
+  });
+});
+
+// Listen for the context menu item click
+chrome.contextMenus.onClicked.addListener(function (info, tab) {
+  if (info.menuItemId === "myContextMenu") {
+    // Execute script in the content script
+    chrome.tabs.sendMessage(tab.id, { action: "launchWikitableWizard" });
+  }
+});
