@@ -572,11 +572,54 @@
     "NameVariants": ["Woodall", "Wooddall"]
   },
   {
+    "Name": "Wołoszyn",
+    "NameVariants": [
+      "Volochine",
+      "Volosen",
+      "Voloshen",
+      "Voloshin",
+      "Voloshina",
+      "Voloshyn",
+      "Voloshyna",
+      "Volosin",
+      "Volossin",
+      "Woloschin",
+      "Woloshen",
+      "Woloshin",
+      "Woloshyn",
+      "Wolosin",
+      "Woloson",
+      "Wolosyn",
+      "Woloszyn",
+      "Wolozin",
+      "Волошин",
+      "Волошина"
+    ]
+  },
+  {
     "Name": "Wormuth",
     "NameVariants": ["Warmuth", "Wermuth", "Warmouth", "Wermouth", "Wormouth", "Wormwood"]
   },
   {
-    "Name": "Zanrè",
+    "Name": "Young",
+    "NameVariants": [
+      "Dejong",
+      "Dion",
+      "Guyon",
+      "Jong",
+      "Jung",
+      "Lajeunesse",
+      "Lejeune",
+      "Yong",
+      "Yonge",
+      "Yongue",
+      "Younge",
+      "Younger",
+      "Youngs"
+    ]
+  },
+  {
+    "Name": "Zanre",
     "NameVariants": ["Zanre", "Zanretis", "Zanré", "Zanrré", "Zanrre"]
   }
 ]
