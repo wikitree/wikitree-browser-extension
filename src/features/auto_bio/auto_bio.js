@@ -8087,9 +8087,6 @@ function spell(text) {
     // T
     theater: "theatre",
     theaters: "theatres",
-    tire: "tyre",
-    tired: "tyred",
-    tires: "tyres",
 
     // Traveling
     traveled: "travelled",
