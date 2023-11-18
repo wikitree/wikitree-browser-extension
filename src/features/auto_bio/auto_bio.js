@@ -7957,6 +7957,7 @@ function spell(text) {
     centers: "centres",
     color: "colour",
     colored: "coloured",
+    colorful: "colourful",
     colorfully: "colourfully",
     coloring: "colouring",
     colors: "colours",
