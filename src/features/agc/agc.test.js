@@ -28,29 +28,58 @@ import { fail } from "assert";
 
 /*
 Data and logic to run an AGC regression test. To run the test, use
-   npm run test
+  npm run test
 
-   There should not be any errors reported. If there are errors, it
-   will show the differences of a text comparison between the expected and 
-   received output.
+  There should not be any errors reported. If there are errors, it
+  will show the differences of a text comparison between the expected and 
+  received output.
 
-   To run a single test case:
-   npm run test -- -t 'agc profileName'
-   where profileName is the value of the profileName, such as Adams-1513
+  To run a single test case:
+  npm run test -- -t 'agc profileName'
+  where profileName is the value of the profileName, such as Adams-1513
+
+  When there are variants this can run more than one test vecause jest treats the -t
+  argument as a match string.
+  So this will run two tests:
+    npm run test -- -t 'agc Arseneau-156'
+  while this will run just one variant:
+    npm run test -- -t 'agc Arseneau-156_a'
+  there is currently no way to run the base test without its variants.
+
+  NOTE: you can also run the tests without using npm - which can be useful for debugging.
+  For example:
+    node_modules/.bin/jest -t "agc adams-1513"
+
+  If a test fails it can be because the biography text did not match or because the
+  output fields such as birthDate or currentLastName do not match.
+
+  If the biography text did not matcha diff is shown by jest. You can also compare the
+    profile-name_refout.txt file with the profile-name_testout.txt
+  in your favorite diff program (such as Compare Files) in vscode.
 */
 
 /*
 To add a new profile to the regression test:
   Add an entry for the profile in testProfiles, in alphabetical order
+  This will involve copying some data from the profile such as preferred name and birth date etc/
 
-  Create a directory using the profileName (in lowercase) to the 
-  regression_data directory
+  Create a directory using the profileName (in lowercase) to the regression_data directory.
+  The directory should contain two files:
+    profile-name_input.txt
+    profle-name_refout.txt
+
+  There is a script that will do this for you automatically. You can run it like this:
+    node scripts/create_agc_test_dir.mjs Foo-99
+  it automatically changes the test name to lowercase.
   
-  Add a text file name profile-name_input.txt that contains the 
-  content of the biography before editing.
-  
-  Add a text file named profle-name_refout.txt that contains the expected
-  content of the biography after editing.
+  Copy the biography text from the profile into the _input.txt file.
+
+  Run the tests. The new test should fail since there is not yet any reference output.
+  Running the tests will produce a file called:
+    profile-name_input.txt
+  in the test directory (note that these files are ignored by git).
+
+  You can now copy the contents of the _testout.txt file into the _refout.txt file.
 */
 
 // need to include this to register the feature so that we can get the default options
@@ -364,6 +393,23 @@ const testProfiles = [
     refDeathDate: "10 Jan 1901",
     refDeathDateIsBefore: false,
     refCurrentLastName: "Biddick",
+  },
+  {
+    profileName: "Bobleau-1",
+    inBirthDate: "15 Jan 1822",
+    inBirthDateIsBefore: false,
+    inDeathDate: "16 Oct 1912",
+    inDeathDateIsBefore: false,
+    inPrefName: "Sophie",
+    currentLastName: "Bobleau",
+    inPersonGender: "Female",
+
+    refSucceeded: true,
+    refBirthDate: "15 Jan 1822",
+    refBirthDateIsBefore: false,
+    refDeathDate: "16 Oct 1912",
+    refDeathDateIsBefore: false,
+    refCurrentLastName: "Bessette",
   },
   {
     // Bug reported on 3/29/2021. Latest format had 3 issues:
@@ -3543,6 +3589,7 @@ function doEditBio(testData) {
   const regressionDataPath = "./src/features/agc/regression_data/" + profileName + "/";
   const inBioFile = regressionDataPath + profileName + "_input.txt";
   const refBioFile = regressionDataPath + profileName + profileVariant + "_refout.txt";
+  const testBioFile = regressionDataPath + profileName + profileVariant + "_testout.txt";
 
   try {
     inputBioText = fs.readFileSync(inBioFile, "utf8");
@@ -3581,6 +3628,13 @@ function doEditBio(testData) {
   };
 
   const editBioOutput = editBio(editBioInput);
+
+  try {
+    fs.writeFileSync(testBioFile, editBioOutput.bioText, "utf8");
+  } catch (e) {
+    console.log("Error:", e.stack);
+    fail("Failed to write test reference file");
+  }
 
   expect(editBioOutput.succeeded).toBe(testData.refSucceeded);
 
@@ -3624,7 +3678,7 @@ describe("AGC", () => {
     const profileVariant = testProfile.profileVariant ? `_${testProfile.profileVariant}` : "";
     const profileName = `${testProfile.profileName}${profileVariant}`;
 
-    it(`Profile "${profileName}" passes tests (${optionsDesc})`, () => {
+    it(profileName, () => {
       doEditBio(testProfile);
     });
   }
