@@ -93,7 +93,7 @@ async function useModuleToEditBio(editBioInput, callback) {
  *
  * note that there may be some GEDCOM created profile variants that are not recognized
  * but the editbio logic may need updates to handle them....
-*/
+ */
 function checkForGedcomCreatedProfile() {
   var textbox = document.getElementById("wpTextbox1");
 
@@ -236,7 +236,7 @@ function getParentsFromDocument(document, parents) {
 
 /*
  * Change the image for the AGC button if the bio has been edited or not
-*/
+ */
 async function updateButton() {
   if (agcButton != undefined) {
     if (isBioEdited) {
