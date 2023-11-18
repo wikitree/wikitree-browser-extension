@@ -73,6 +73,20 @@ function CreateMigrationCategory(tb) {
 
     Australia: ["Western Australia", "South Australia", "Queensland", "New South Wales", "Victoria", "Tasmania"],
 
+    Austria: [
+      "Burgenland",
+      "Carinthia",
+      // "Lower Austria",
+      "Salzburg",
+      "Styria",
+      "Tyrol",
+      // "Upper Austria",
+      "Vienna",
+      // "Vorarlberg",
+    ],
+
+    "Austria or German Confederation (remove one)": ["Upper Austria", "Lower Austria", "Vorarlberg"],
+
     "Austria-Hungary": ["Kingdom of Bohemia", "Kingdom of Galicia and Lodomeria", "Kingdom of Hungary"],
 
     Canada: [
@@ -239,8 +253,8 @@ function CreateMigrationCategory(tb) {
     "German Confederation": [
       "Austrian Empire",
       "Archduchy of Austria",
-      "Upper Austria",
-      "Lower Austria",
+      // "Upper Austria",
+      // "Lower Austria",
       "Kingdom of Bohemia",
       "Margraviate of Moravia",
       "Grand Duchy of Salzburg",
@@ -250,7 +264,7 @@ function CreateMigrationCategory(tb) {
       "Duchy of Styria",
       "Littoral",
       "County of Tyrol",
-      "Vorarlberg",
+      // "Vorarlberg",
       "Kingdom of Hanover",
       "Electorate of Hesse",
       "Grand Duchy of Luxemburg",
@@ -339,9 +353,9 @@ function CreateMigrationCategory(tb) {
       "County Longford",
       "County Westmeath",
       "County Offaly",
-      "King’s County  ",
+      "King's County  ",
       "County Laois",
-      "Queen’s County ",
+      "Queen's County ",
       "County Leix",
       "County Kilkenny",
       "County Waterford",
@@ -388,6 +402,26 @@ function CreateMigrationCategory(tb) {
     ],
 
     "New France": ["Akadia", "Canada, New France", "Louisiana, New France"],
+
+    "New Zealand": [
+      "Northland",
+      "Auckland",
+      "Waikato",
+      "Bay of Plenty",
+      "Taranaki",
+      "Gisborne",
+      "Hawke's Bay",
+      "Manawatu-Wanganui",
+      "Wellington",
+      "Tasman",
+      "Nelson",
+      "Marlborough",
+      "West Coast",
+      "Canterbury",
+      "Otago",
+      "Southland",
+      "Chatham Islands",
+    ],
 
     "Italy/France (please add county behind region and don't use it like that in the category name!)": ["Marche"],
 
