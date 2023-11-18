@@ -1454,6 +1454,508 @@ class Fact {
     this.locationStringForBio = this.location;
   }
 
+  log() {
+    console.log('Fact: ' + JSON.stringify(this, "", 3));
+  }
+  logRefs() {
+    this.refs.forEach (function(value, key) {
+    console.log('key ' + key + ' = ' + JSON.stringify(value, "", 3));
+    })
+  }
+
+  getDateStringForOutput() {
+    return this.factDate.bioString;
+  }
+
+  getDateStringForNarrative() {
+    // This is like getDateStringForOutput but it will check for quarterly dates and instead of:
+    //  October 1854
+    // it will output:
+    //  the October quarter of 1854
+
+    const sourcesThatUseQuarters = [
+      { 'string': "Birth Index", 'monthsBefore': 2 },
+      { 'string': "Death Index", 'monthsBefore': 1 },
+    ];
+
+    if (this.factDate.isValid && this.factDate.day == 0 && this.factDate.month != 0) {
+        // In records from ancestry quarters always seem to use the first month of the quarter
+      if (this.factDate.month == 1 || this.factDate.month == 4 || this.factDate.month == 7 || this.factDate.month == 10) {
+        for (var ref of this.refs.values()) {
+          if (ref.source != undefined && ref.source.text != "") {
+            const sourceText = ref.source.text;
+      
+            // See if the source include one of the predetermined strings
+            for (var sourceThatUsesQuarters of sourcesThatUseQuarters) {
+              if (sourceText.includes(sourceThatUsesQuarters.string)) {
+                // If a birth is registered in a quarter it could have happened before that quarter
+                var startMonth = this.factDate.month - sourceThatUsesQuarters.monthsBefore;
+                var startYear = this.factDate.year;
+                if (startMonth < 1) {
+                  startMonth += 12;
+                  startYear--;
+                }
+                
+                var endMonth = this.factDate.month + 2; // end month of quarter
+                var endYear = this.factDate.year;
+
+                const startMonthString = MonthStrings[startMonth-1]; //January is 0
+                const endMonthString = MonthStrings[endMonth-1]; //January is 0
+
+                if (startYear == endYear) {
+                  return "between " + startMonthString + " and " + endMonthString + " " + endYear;
+                }
+                return "between " + startMonthString + " " + startYear + " and " + endMonthString + " " + endYear;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return this.factDate.bioString;
+  }
+
+  absDaysBetweenFacts(otherFact) {
+    return this.factDate.absDaysBetweenDates(otherFact.factDate);
+  }
+ 
+  getLocationStringForOutput() {
+
+    var latLonUrl = "";
+    if (userOptions.include_mapLinks &&
+      this.latitude != undefined && this.latitude != "" &&
+      this.longitude != undefined && this.longitude != "") {
+
+      var isLatLonValid = false;
+      var lat = this.latitude.trim();
+      var lon = this.longitude.trim();
+      if (lat[lat.length-1] == ".") {
+        lat = lat.substr(0,lat.length-1).trim();
+      }
+      if (lon[lon.length-1] == ".") {
+        lon = lon.substr(0,lon.length-1).trim();
+      }
+
+      if (!isDigit(lat[0])) {
+        if (lat[0].toLowerCase() == "n") {
+          lat = lat.substring(1);
+        }
+        else if (lat[0].toLowerCase() == "e") {
+          lat = "-" + lat.substring(1);
+        }
+      }
+
+      if (!isDigit(lon[0])) {
+        if (lon[0].toLowerCase() == "e") {
+          lon = lon.substring(1);
+        }
+        else if (lon[0].toLowerCase() == "w") {
+          lon = "-" + lon.substring(1);
+        }
+      }
+
+      if (/^\-?[\d\.]*$/.test(lat) && /^\-?[\d\.]*$/.test(lon)) {
+        latLonUrl = "https://www.openstreetmap.org/?mlat=" + lat + "&mlon=" + lon;
+      }
+    }
+
+    var locationString = this.locationStringForBio;
+
+    if (latLonUrl != "") {
+      locationString = "[" + latLonUrl + " " + locationString + "]";
+    }
+
+    return locationString;
+  }
+
+  getSectionNameForSourceTitle(ref) {
+    const source = ref.source;
+    // This is used to put a title on a source (in the ref)
+
+    var defaultName = undefined;
+
+    if (this.factType == FactType.burial) {
+      defaultName = "Burial";
+    }
+    if (this.factType == FactType.baptism) {
+      defaultName = "Baptism";
+    }
+    if (this.factType == FactType.birth) {
+      if (source != undefined && source.text.includes("Birth Index")) {
+        return "Birth Registration";
+      }
+      // The date of birth can come from many places
+      const matchingResidenceData = ref.getMatchingResidenceData();
+      if (matchingResidenceData != undefined) {
+        return matchingResidenceData.refTitle;
+      }
+      if (source != undefined && source.text.includes("Find A Grave Index")) {
+        return "Gravestone";
+      }
+      if (source != undefined && source.text.includes("Marriage Bond")) {
+        return "Marriage Bond";
+      }
+      defaultName = "Birth";
+    }
+
+    if (this.factType == FactType.marriage) {
+      if (this.suspectMarriage) {
+        return "Marriage of other person";
+      }
+
+      defaultName = "Marriage";
+    }
+
+    if (this.factType == FactType.death && source != undefined) {
+      if (source.text.includes("Death Index")) {
+        return "Death Registration";
+      }
+      if (source.text.includes("Probate")) {
+        return "Probate";
+      }
+      if (source.text.includes("Will")) {
+        return "Will";
+      }
+      if (source.text.includes("Burial")) {
+        return "Burial";
+      }
+      if (source.text.includes("Find A Grave Index")) {
+        return "Gravestone";
+      }
+      defaultName = "Death";
+    }
+    if (this.factType == FactType.residence) {
+      const matchingResidenceData = ref.getMatchingResidenceData();
+      if (matchingResidenceData != undefined) {
+        return matchingResidenceData.refTitle;
+      }
+
+      if (source != undefined && source.text.includes("Marriage Bond")) {
+        return "Marriage Bond";
+      }
+
+      defaultName = "Residence";
+    }
+    if (this.factType == FactType.employment) {
+      const matchingResidenceData = ref.getMatchingResidenceData();
+      if (matchingResidenceData != undefined) {
+        return matchingResidenceData.refTitle;
+      }
+
+      defaultName = "Employment";
+    }
+    if (this.factType == FactType.census) {
+      const matchingResidenceData = ref.getMatchingResidenceData();
+      if (matchingResidenceData != undefined) {
+        return matchingResidenceData.refTitle;
+      }
+
+//      defaultName = "Census";
+    }
+    if (this.factType == FactType.name && source != undefined) {
+
+      const sourceToRefTitles = [
+        ["Quarter Sessions", "Quarter Sessions"],
+        ["Select Births and Christenings", "Child Baptism"],
+        ["Church of England Baptisms, 1813-", "Child Baptism"],
+        ["Births and Baptisms, 1813-", "Child Baptism"],
+        ["Christening Index", "Child Baptism"],
+        ["Social Security Applications and Claims Index", "Child Social Security"],
+        ["Church of England Marriages, 1", "Child Marriage"],
+        ["Marriages and Banns", "Child Marriage"],
+        ["Select Marriages,", "Child Marriage"],
+        ["Marriage Records", "Child Marriage"],
+        ["Death Records", "Child Death"],
+        ["Obituary Index", "Child Death"],
+        ["Death Certificates", "Child Death"],
+      ];
+      // we need to look at the ref to determine what title to use
+      for (const sourceToRefTitle of sourceToRefTitles) {
+        if (source.text.includes(sourceToRefTitle[0])) {
+          return sourceToRefTitle[1];
+        }  
+      }
+      
+      defaultName = "Unclassified";
+    }
+
+    if (source != undefined && (source.text.toLowerCase().includes("member tree") || source.text.toLowerCase().includes("family tree")))
+    {
+      const recordPrefix = "Record for ";
+      const recordPrefixIndex = ref.citation.indexOf(recordPrefix);
+      if (recordPrefixIndex != -1) {
+        const recordNameIndex = recordPrefixIndex + recordPrefix.length;
+        var recordName = ref.citation.substr(recordNameIndex);
+
+        // Sometimes the source citation contains links or templates. We just want the first part that
+        // would be the name
+        recordName = stringRemoveAnythingAfterPrefixes(recordName,
+          ["link:", "Link:", "https:", "http:", "{", "[", "*", "\n", ","]);
+        recordName = removeTrailingPeriodAndSpaces(recordName);
+
+        return "Family Tree record for " + recordName;
+      }
+
+      if (source.text.includes("Title: Family tree ") || source.text.includes("Title: Public Member Trees")) {
+        return "Family Tree";
+      }
+
+      if (defaultName == undefined) {
+        return "Family Tree";
+      }
+    }
+
+// TODO if factType is Name it will never be undefined, it will be Unclassified.
+// is that what we want?
+    if (defaultName == undefined) {
+      defaultName = this.sectionName;
+      // remove any trailing :  (in fact remove any : characters)
+      defaultName = defaultName.replace(/\:/g,"").trim();
+    }
+
+    return defaultName;
+  }
+
+  getCleanDateForOtherFields() {
+    /*
+    // remove trailing . or spaces
+    var dateString = this.date;
+    while (dateString[dateString.length-1] == "." || dateString[dateString.length-1] == " ") {
+      if (dateString.length > 1) {
+        dateString = dateString.substring(0, dateString.length-1);
+      }
+    }
+
+    // remove leading spaces or zeros
+    while (dateString[0] == "0" || dateString[0] == " ") {
+      if (dateString.length > 1) {
+        dateString = dateString.substring(1);
+      }
+    }
+
+    return dateString;
+    */
+    if (this.factDate.isValid) {
+      return this.factDate.bioString;
+    }
+    return this.factDate.inputString;
+  }
+
+  extractDateFromSourceOrCitation() {
+
+    for (var ref of this.refs.values()) {
+      if (this.factType == FactType.residence) {
+        var isMarriageRef = false;
+        if (ref.source != undefined && ref.source.text.includes("Marriages"))
+        {
+          isMarriageRef = true;
+        }
+        else if (ref.citation.includes("Marriages")) {
+          isMarriageRef = true;
+        }
+        if (isMarriageRef) {
+          const marriageDateIndex = ref.citation.indexOf("Marriage date:");
+          if (marriageDateIndex != -1) {
+            const endDateIndex = ref.citation.indexOf(";", marriageDateIndex);
+            if (endDateIndex != -1) {
+              const dateString = ref.citation.substring(marriageDateIndex + "Marriage date:".length, endDateIndex);
+              const newFactDate = new FactDate(dateString);
+              if (newFactDate.isValid) {
+                this.factDate = newFactDate;
+                return true;
+              }
+            }
+          }
+        }
+      }
+  
+    }
+
+    return false;
+  }
+  
+  
+  // if all the refs use the have the same matching residence data then return that, otherwise return undefined
+  getMatchingResidenceData() {
+    var matchingResidenceData = undefined;
+    if (this.refs.size == 1) {
+      const ref = this.refs.values().next().value;  // first element in Map
+
+      matchingResidenceData = ref.getMatchingResidenceData();
+    }
+    else if (this.refs.size > 1) {
+      // there is more than one ref. See if they all have the same matchingResidenceData
+      var isFirst = true;
+      for (var ref of this.refs.values()) {
+        if (isFirst) {
+          isFirst = false;
+          matchingResidenceData = ref.getMatchingResidenceData();
+        }
+        else {
+          var thisMatchingResidenceData = ref.getMatchingResidenceData();
+          if (thisMatchingResidenceData != undefined && thisMatchingResidenceData != matchingResidenceData) {
+            matchingResidenceData = undefined;
+            break;
+          }
+        }
+      }
+    }  
+
+    return matchingResidenceData;
+  }
+
+  /*
+   * Remove duplicate refs
+   * from this Fact
+   *
+   * different from the method removeDuplicateRefs in Biography
+   */
+  removeDuplicateRefs() {
+
+    if (this.isHidden) return;
+
+    const refs = Array.from(this.refs.values());
+
+    if (refs.length < 2) return;
+
+    for (var refIndex = 0; refIndex < refs.length; refIndex++) {
+
+      const ref = refs[refIndex];
+      for (var otherRefIndex = 0; otherRefIndex < refIndex; otherRefIndex++) {
+        const otherRef = refs[otherRefIndex];
+        var isDuplicate = false;
+        
+        if (ref.owningRef == undefined && otherRef.owningRef == undefined) {
+          if (ref.citation.toLowerCase() == otherRef.citation.toLowerCase()) {
+            if (ref.source != undefined && otherRef.source != undefined) {
+              if (ref.source.text.toLowerCase() == otherRef.source.text.toLowerCase()) {
+                // it is a duplicate, ref is the same as a previous ref
+                isDuplicate = true;
+              }
+            }
+            else if (ref.source == undefined && otherRef.source == undefined) {
+              isDuplicate = true;
+            }
+          }
+        }
+
+        if (isDuplicate) {
+          // this is a duplicate, however since we are changing this very late in the day - after analyze and name refs
+          // we need to fix things up.
+
+          // change any owned refs of the otherRef to point to "ref" instead
+          for (var ownedRef of otherRef.ownedRefs) {
+            ownedRef.owningRef = ref;
+            ref.ownedRefs.push(ownedRef);
+          }
+          otherRef.owningRef = ref;
+          ref.ownedRefs.push(otherRef);
+
+          otherRef.ownedRefs = [];
+        }
+      }
+    }
+  }
+
+  removeRefsOwnedBySameRef() {
+    if (this.isHidden) return;
+
+    const refs = Array.from(this.refs.values());
+
+    var refsToRemove = new Set;
+
+    if (refs.length < 2) return;
+
+    for (var refIndex = 0; refIndex < refs.length; refIndex++) {
+      const ref = refs[refIndex];
+
+      var refCitation = "";
+      var refSource = "";
+      if (ref.owningRef != undefined) {
+        refCitation = ref.owningRef.citation.toLowerCase();
+        if (ref.owningRef.source != undefined) {
+          refSource = ref.owningRef.source.text.toLowerCase();
+        }
+      }
+      else {
+        refCitation = ref.citation.toLowerCase();
+        if (ref.source != undefined) {
+          refSource = ref.source.text.toLowerCase();
+        }
+      }
+
+      for (var otherRefIndex = 0; otherRefIndex < refIndex; otherRefIndex++) {
+        const otherRef = refs[otherRefIndex];
+
+        var otherRefCitation = "";
+        var otherRefSource = "";
+        if (otherRef.owningRef != undefined) {
+          otherRefCitation = otherRef.owningRef.citation.toLowerCase();
+          if (otherRef.owningRef.source != undefined) {
+            otherRefSource = otherRef.owningRef.source.text.toLowerCase();
+          }
+        }
+        else {
+          otherRefCitation = otherRef.citation.toLowerCase();
+          if (otherRef.source != undefined) {
+            otherRefSource = otherRef.source.text.toLowerCase();
+          }
+        }
+
+        if (otherRef.owningRef == ref) {
+          refsToRemove.add(otherRef);
+
+          ref.ownedRefs = ref.ownedRefs.filter(function(refIter) {
+            return refIter != otherRef;
+          });
+        }
+        else if (ref.owingRef == otherRef) {
+          refsToRemove.add(ref);
+
+          otherRef.ownedRefs = otherRef.ownedRefs.filter(function(refIter) {
+            return refIter != ref;
+          });
+        }
+        else if (refCitation == otherRefCitation && refSource == otherRefSource) {
+          if (otherRef.owningRef != undefined) {
+            refsToRemove.add(otherRef);
+          }
+          else if (ref.owningRef != undefined) {
+            refsToRemove.add(ref);
+          }
+          else {
+            // this should never happen, duplicate refs neither owned by the other
+          }
+        }
+      }
+    }
+
+    for (var refToRemove of refsToRemove) {
+      this.refs.delete(refToRemove.name);
+    }
+  }
+
+}
+
+class FileFact {
+  constructor(fileLink, fileFormat, description, sectionName) {
+    this.fileLink = fileLink;
+    this.fileFormat = fileFormat;
+    this.description = description;
+    this.sectionName = sectionName;
+  }
+}
+
+class FactSection {
+  constructor(name, text) {
+    this.name = name;
+    this.text = text;
+    this.facts = [];
+    this.fileFacts = [];
+    this.factType = FactType.unknown;
+  }
+
   getDateStringForOutput() {
     return this.factDate.bioString;
   }
@@ -1925,26 +2427,6 @@ class Fact {
     }
   }
 
-}
-
-class FileFact {
-  constructor(fileLink, fileFormat, description, sectionName) {
-    this.fileLink = fileLink;
-    this.fileFormat = fileFormat;
-    this.description = description;
-    this.sectionName = sectionName;
-  }
-}
-
-class FactSection {
-  constructor(name, text) {
-    this.name = name;
-    this.text = text;
-    this.facts = [];
-    this.fileFacts = [];
-    this.factType = FactType.unknown;
-  }
-
   parseFileSectionFacts() {
 
     // break the text into an array of lines
@@ -2071,7 +2553,6 @@ class FactSection {
 
     var sectionName = this.name;
     var factType = this.factType;
-
     // The latest (c2020) format has the <ref> and </ref> tags on separate lines
     // Some earlier variations (c2018) do not, to make it easier to parse add newlines if not there
     var text = this.text.replace(/([^\n])<ref>/g, "$1\n<ref>\n");
@@ -2092,7 +2573,6 @@ class FactSection {
 
     // break the text into an array of lines
     var array = text.split("\n");
-
     var i;
     var description = "";
     var date = "";
@@ -2119,7 +2599,6 @@ class FactSection {
 
     // Local function called when we find the line beyond the current fact
     function onFactCompleted(factSection, howCompleted) {
-
       // if there was no date and only one of description or location the line will have been put in description
       // but it actually belongs in location
       if (date == "" && description != "" && location == "") {
@@ -2157,7 +2636,6 @@ class FactSection {
           description = description.replace("Service: ", "");
         }
       }
-
       var newFact = new Fact(date, location, description, refs, unnamedRefs, sectionName, factType);
 
       if (factSection.name == "Marriage") {
@@ -2215,7 +2693,6 @@ class FactSection {
             if (quoteIndex == -1) {
               line = line.replace(/<ref name\=([^\s\/]+)\s*\/>/g, "<ref name=\"$1\" />");
             }
-
             // this is an instance rather than a definition
             const namePrefix = 'name="';
             const nameIndex = line.indexOf(namePrefix);
@@ -2260,7 +2737,6 @@ class FactSection {
               body = body.concat("\n", array[lineIndex]);
               lineIndex++;
             }
-
             var ref = new Ref(name, body);
 
             if (name != "") {
@@ -2276,7 +2752,6 @@ class FactSection {
 
           line = array[i];
         } while (line != undefined && line.startsWith("<ref"))
-
         // console.log("Refs: size is " + refs.size);
 
         i--;
@@ -6444,7 +6919,6 @@ class BiographyWriter {
         this.append("\n");
       }
     }
-
     // first output the primary refs, then the secondary refs
     for (var ref of fact.refs.values()) {
       if (ref.owningRef == undefined) {
@@ -6697,7 +7171,6 @@ class BiographyWriter {
 
   writeRefsFromNameFact(nameFactWithRefs, checkOnly) {
     if (nameFactWithRefs == undefined) return false;
-
     var allNonNameRefs = [];
     for (var fact of this.biography.facts) {
       if (fact.factType != FactType.name) {
@@ -7407,6 +7880,69 @@ class Biography {
     this.useSpanId = true;  // if this is new format without span Ids this will be set to false
   }
 
+  log() {
+    console.log('Biography ' + JSON.stringify(this, "", 3));
+  }
+  logFacts() {
+    for (let i=0; i<this.facts.length; i++) {
+      this.facts[i].log();
+    }
+  }
+  logFactsAndRefs() {
+    for (let i=0; i<this.facts.length; i++) {
+      let f = this.facts[i];
+      f.log();
+      f.logRefs();
+    }
+  }
+  logFactRefs() {
+    console.log('Fact Refs');
+    for (let i=0; i<this.facts.length; i++) {
+      let f = this.facts[i];
+      f.logRefs();
+    }
+  }
+
+  logFactSectionMap() {
+    this.factSectionMap.forEach (function(value, key) {
+    })
+  }
+  logFactSectionArray() {
+    for (let i=0; i<this.factSectionArray.length; i++) {
+      console.log('FactSection ' + JSON.stringify(this.factSectionArray[i], "", 3));
+    }
+  }
+
+  logFactSectionArrayFactsAndRefs() {
+    for (let i=0; i<this.factSectionArray.length; i++) {
+      let fs = this.factSectionArray[i];
+      let sectionFacts = fs.facts;
+      for (let i=0; i<sectionFacts.length; i++) {
+        let f = sectionFacts[i];
+        f.log();
+        f.logRefs();
+      }
+    }
+  }
+  logFactSectionArrayRefs() {
+    console.log('FactSectionArray Refs');
+    for (let i=0; i<this.factSectionArray.length; i++) {
+      let fs = this.factSectionArray[i];
+      let sectionFacts = fs.facts;
+      for (let i=0; i<sectionFacts.length; i++) {
+        let f = sectionFacts[i];
+        f.logRefs();
+      }
+    }
+  }
+  logSourcesMap() {
+    console.log('Sources Map');
+    this.sourcesMap.forEach (function(value, key) {
+    console.log('key ' + key + ' = ' + JSON.stringify(value, "", 3));
+    })
+    console.log('otherSourceLines ' + this.otherSourceLines);
+  }
+
   addAlertMessage(alertMessage) {
     var isDuplicate = false;
     for (var message of this.alertMessages) {
@@ -7948,7 +8484,6 @@ class Biography {
         }
       }
     }
-
     return true;
   }
 
@@ -8903,15 +9438,14 @@ class Biography {
     var sourcesText = "";
     if (sourcesHeaderStartIndex != -1) {
       const sourcesStartIndex = sourcesHeaderStartIndex + sourcesHeader.length;
-
       const referencesLine = "<references */>";
+      // the input may have <references/> with no space
       const referencesStartIndex = regexIndexOf(gedcomBioText, referencesLine, sourcesHeaderStartIndex);
       if (referencesStartIndex == -1 || referencesStartIndex < sourcesStartIndex) {
         this.errorMessage = "No references line found after sources line.";
         return false;
       }
       var sourcesEndIndex = referencesStartIndex;
-      
       nextTopLevelHeaderStartIndex = regexIndexOf(gedcomBioText, nextTopLevelHeader, sourcesStartIndex);
       nextSubHeaderStartIndex = regexIndexOf(gedcomBioText, nextSubHeader, sourcesStartIndex);
       nextHeaderStartIndex = nextTopLevelHeaderStartIndex;
@@ -8950,8 +9484,25 @@ class Biography {
 
       // Get the sources text as the text after the Sources heading and before the next section or subsection heading
       // Sometimes the sources are between the sources header and the "references" line. Sometime they are after the references line.
+      // An example of one with "<references/>" is Corvi-9
       sourcesText = gedcomBioText.substring(sourcesStartIndex, sourcesEndIndex);
-      const startOfTextAfterReferences = referencesStartIndex + referencesLine.length;
+      let startOfTextAfterReferences = referencesStartIndex;
+      var noReferencesLine = false;
+      if (referencesStartIndex == -1) {
+        // An example of one with no "<references />" isBrodie-85
+        referencesStartIndex = gedcomBioText.length;
+        noReferencesLine = true;
+      }
+      if (!noReferencesLine) {
+        const referencesLineTerminator = ">";
+        let terminatorIndex = gedcomBioText.indexOf(referencesLineTerminator, referencesStartIndex);
+        if (terminatorIndex == -1) {
+          // this probably is not possible
+          this.errorMessage = "No terminator found for references line.";
+          return false;
+        }
+        startOfTextAfterReferences = terminatorIndex + referencesLineTerminator.length;
+      }
       var endOfTextAfterReferences = nextHeaderStartIndex;
       if (endOfTextAfterReferences == -1) {
         endOfTextAfterReferences = gedcomBioText.length;
@@ -8961,21 +9512,16 @@ class Biography {
       sourcesText = sourcesText.replace(pleaseEditString, "").trim();
       sourcesText = sourcesText.replace(pleaseEditAndBeBoldString, "").trim();
     }
-
     // build a map of sources indexed by span (or note) id and an array of otherSourceLines
     if (!this.createSourceMap(sourcesText)) {
       this.errorMessage = "Failed to parse sources section.";
       return false;
     }
 
-// TODO you are here
     this.parseFacts(factsText);
-
-    //console.log(this.facts);
     return true;
   }
 
-// TODO you are here adding comments. 
   parseFactsFormat2011(factsText) {
     //console.log("factsText is:");
     //console.log(factsText);
@@ -9452,7 +9998,17 @@ class Biography {
 
       // Sometimes the sources are between the sources header and the "references" line. Sometime they are after the references line.
       sourcesText = gedcomBioText.substring(sourcesStartIndex, sourcesEndIndex);
-      const startOfTextAfterReferences = (noReferencesLine) ? referencesStartIndex : referencesStartIndex + referencesLine.length;
+      let startOfTextAfterReferences = referencesStartIndex;
+      if (!noReferencesLine) {
+        const referencesLineTerminator = ">";
+        let terminatorIndex = gedcomBioText.indexOf(referencesLineTerminator, referencesStartIndex);
+        if (terminatorIndex == -1) {
+          // this probably is not possible
+          this.errorMessage = "No terminator found for references line.";
+          return false;
+        }
+        startOfTextAfterReferences = terminatorIndex + referencesLineTerminator.length;
+      }
       var endOfTextAfterReferences = nextTopLevelHeaderStartIndex;
       if (endOfTextAfterReferences == -1) {
         endOfTextAfterReferences = gedcomBioText.length;
@@ -10658,7 +11214,6 @@ class Biography {
   }
 
   improveAndAbbreviateLocations() {
-
     var countryIndexOfLastLocationOutput = -1;
 
     const countryStrings = [
@@ -10700,10 +11255,10 @@ class Biography {
         var locationString = fact.location;
 
         // remove trailing . or spaces
-        while (locationString[locationString.length-1] == "." || locationString[locationString.length-1] == " ") {
-          if (locationString.length > 1) {
-            locationString = locationString.substring(0, locationString.length-1);
-          }
+        locationString = locationString.trim();
+        while (locationString.length > 0 && locationString[locationString.length - 1] == ".") {
+          locationString = locationString.substring(0, locationString.length - 1);
+          locationString = locationString.trim();
         }
 
         // if there is a word character immediately after a comma then add a space
@@ -10711,7 +11266,6 @@ class Biography {
 
         // optionally remove country if it is the same as the last one output
         if (userOptions.narrative_includeCountry != "always" || userOptions.narrative_standardizeCountry) {
-
           var countryIndex = -1;
           var countryString = null;
           var stdCountryString = null;
@@ -10763,11 +11317,9 @@ class Biography {
             countryIndexOfLastLocationOutput = countryIndex;
           }
         }
-
         fact.locationStringForBio = locationString;
       }
     }
-
   }
 
   checkForLinksInFacts() {
@@ -11994,10 +12546,7 @@ export function editBio(editBioInput) {
     return result;
   }
 
-  // TODO you are here adding comments after you go through and comment the parsers above
-
   biography.removeDuplicateFacts();
-
   if (!biography.embedSourceInfoForSourceFacts()) {
     console.log("embedSourceInfoForSourceFacts failed");
     return result;
@@ -12047,7 +12596,6 @@ export function editBio(editBioInput) {
   biography.improveOtherFields(result);
 
   biography.removeDuplicateRefs();
-
   biography.improveAndAbbreviateLocations();
 
   // Make the result accessible to the biography so that if we need the current last name etc
