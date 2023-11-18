@@ -7926,6 +7926,8 @@ shouldInitializeFeature("autoBio").then((result) => {
 function spell(text) {
   const americanToBritishSpelling = {
     // A
+    acknowledgment: "acknowledgement",
+    acknowledgments: "acknowledgements",
     aging: "ageing",
     analog: "analogue",
     analyze: "analyse",
@@ -7953,8 +7955,6 @@ function spell(text) {
     catalogs: "catalogues",
     center: "centre",
     centers: "centres",
-    check: "cheque",
-    checks: "cheques",
     color: "colour",
     colored: "coloured",
     colorfully: "colourfully",
@@ -8024,10 +8024,8 @@ function spell(text) {
     luster: "lustre",
 
     // M
-    marvel: "marvel",
     marveled: "marvelled",
     marveling: "marvelling",
-    marvels: "marvels",
     meager: "meagre",
     modeled: "modelled",
     modeling: "modelling",
@@ -8064,8 +8062,6 @@ function spell(text) {
     privatizing: "privatising",
 
     // R
-    program: "programme",
-    programs: "programmes",
     realization: "realisation",
     realizations: "realisations",
     realize: "realise",
@@ -8093,17 +8089,12 @@ function spell(text) {
     tire: "tyre",
     tired: "tyred",
     tires: "tyres",
-    tiring: "tyring",
-    toiled: "toyled",
-    toiling: "toyling",
-    toils: "toyls",
 
     // Traveling
     traveled: "travelled",
     traveler: "traveller",
     travelers: "travellers",
     traveling: "travelling",
-    travels: "travels",
 
     // V
     valor: "valour",
