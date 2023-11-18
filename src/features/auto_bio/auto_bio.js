@@ -8115,7 +8115,7 @@ function spell(text) {
   };
 
   const userLanguage = navigator.language || navigator.userLanguage;
-  const isBritishEnglish = ["en-GB", "en-AU", "en-NZ", "en-ZA", "en-IE", "en-IN", "en-SG", "en-MT"].includes(
+  const useBritishEnglish = ["en-GB", "en-AU", "en-NZ", "en-ZA", "en-IE", "en-IN", "en-SG", "en-MT"].includes(
     userLanguage
   );
 
@@ -8136,7 +8136,7 @@ function spell(text) {
 
       if (americanToBritishSpelling.hasOwnProperty(lowerCaseWord)) {
         const converted = americanToBritishSpelling[lowerCaseWord];
-        return isBritishEnglish ? matchCase(word, converted) : word;
+        return useBritishEnglish ? matchCase(word, converted) : word;
       }
 
       return word;
