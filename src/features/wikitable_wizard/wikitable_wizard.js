@@ -14,6 +14,11 @@ const rowBoldCell = `<td class="rowBoldCell"><span class='handle'>&#8214;</span>
 const rowBgColorCell = `<td><input type="color" class="rowBgColor" value="#ffffff"></td>`;
 const emptyCell = `<td><input type="text" class="cell"></td>`;
 
+let globalWikiTableStyles = {
+  tableStyle: "",
+  rowStyles: [],
+};
+
 // Parses a single line of the input data
 function parseLine(entry, genderRegex, placeRegex) {
   const genderMatch = entry.match(genderRegex);
@@ -58,14 +63,21 @@ function parseWikiTableData(data) {
     rows: [],
     caption: "",
     isCaptionBold: false,
+    styles: {}, // Object to store style attributes
   };
   let currentRow = null;
   let isFullWidth = false;
 
-  lines.forEach((line) => {
+  lines.forEach((line, index) => {
     if (line === "|}") return; // Ignore the closing bracket
 
     if (line.startsWith("{|")) {
+      // Capture table-wide style attributes
+      const styleMatch = line.match(/style="([^"]*)"/);
+      if (styleMatch) {
+        tableData.styles.tableStyle = styleMatch[1];
+      }
+
       // Matching both quoted and unquoted values
       const properties = line.match(/(\w+)=("|')?([a-zA-Z0-9#]+)\2?/g) || [];
       properties.forEach((prop) => {
@@ -84,8 +96,17 @@ function parseWikiTableData(data) {
         tableData.isCaptionBold = /'''/.test(captionText);
         $("#wikitableWizardCaptionBold").prop("checked", tableData.isCaptionBold);
       }
-    } else if (line.startsWith("|-")) {
+    } else if (line.startsWith("|-") || (line.startsWith("|") && index === 0)) {
       if (currentRow) tableData.rows.push(currentRow);
+
+      // Capture row-specific style attributes
+      const rowStyleMatch = line.match(/style="([^"]*)"/);
+      if (rowStyleMatch) {
+        currentRow = { cells: [], style: rowStyleMatch[1] };
+      } else {
+        currentRow = { cells: [], style: "" };
+      }
+
       let bgColorMatch = line.match(/bgcolor=("|')?([a-zA-Z0-9#]+)\1?/); // Updated regex pattern
       let bgColor = bgColorMatch ? bgColorMatch[2] : "#ffffff"; // Get the matched value or name
       if (bgColor && !bgColor.startsWith("#")) {
@@ -108,6 +129,13 @@ function parseWikiTableData(data) {
         bgColor: bgColor || "#ffffff",
         isBold: false,
       };
+
+      // Generate and store the hash for the currentRow
+      if (currentRow) {
+        const hash = generateRowHash(currentRow.cells);
+        currentRow.hash = hash; // Store the hash with the row
+        globalWikiTableStyles.rowStyles[hash] = currentRow.style; // Use the hash as a key for the style
+      }
     } else if (line.startsWith("!")) {
       currentRow.isHeader = true;
       currentRow.cells.push(...line.split("!!").map((cell) => cell.trim().replace(/^!/, "").trim()));
@@ -152,6 +180,7 @@ function parseWikiTableData(data) {
       ...row,
       cells: row.cells.filter((_, idx) => nonEmptyColumns.has(idx)),
       isFullWidth: isFullWidth,
+      styles: tableData.styles, // Include the captured styles in the return object
     };
   });
 
@@ -161,6 +190,9 @@ function parseWikiTableData(data) {
   const isSortable = lines.some((line) => line.startsWith("{|") && /class=".*sortable.*"/i.test(line));
   const isWikitableClass = lines.some((line) => line.startsWith("{|") && /class=".*wikitable.*"/i.test(line));
 
+  globalWikiTableStyles.tableStyle = tableData.styles.tableStyle; // For table-wide styles
+  globalWikiTableStyles.rowStyles = tableData.rows.map((row) => row.style); // For row-specific styles
+
   return {
     cellPadding: propertiesObj.cellpadding || "",
     bgColor: propertiesObj.bgcolor || "#ffffff",
@@ -169,33 +201,6 @@ function parseWikiTableData(data) {
     isFullWidth: isFullWidth,
     isWikitableClass: isWikitableClass,
   };
-}
-
-function parseCSVData(data) {
-  return data.split("\n").map((row) =>
-    row
-      .replace(/^[:*#]+/, "")
-      .split(",")
-      .map((cell) => cell.trim())
-  );
-}
-
-function parseTSVData(data) {
-  return data.split("\n").map((row) =>
-    row
-      .replace(/^[:*#]+/, "")
-      .split("\t")
-      .map((cell) => cell.trim())
-  );
-}
-
-function parseMultiSpaceData(data) {
-  parsedData = data.split("\n").map((row) => {
-    const cleanedRow = row.replace(/^[:*#]+/, "").trim();
-    const splitRow = cleanedRow.split(/ {4}/);
-    return splitRow.map((cell) => cell.trim());
-  });
-  return parsedData;
 }
 
 function formatColumnName(name) {
@@ -288,6 +293,115 @@ function scrollToElement() {
   ); // The number 500 represents animation speed in ms
 }
 
+function isCSV(text) {
+  // Split the text into lines
+  const lines = text.split("\n");
+
+  // Function to count commas outside of quoted fields
+  function countCommas(line) {
+    let inQuotes = false;
+    let commaCount = 0;
+
+    for (let char of line) {
+      if (char === '"') {
+        inQuotes = !inQuotes; // Toggle the inQuotes flag
+      } else if (char === "," && !inQuotes) {
+        commaCount++; // Count commas outside of quotes
+      }
+    }
+
+    return commaCount;
+  }
+
+  // Count the number of commas in the first line
+  const firstLineCommaCount = countCommas(lines[0]);
+
+  // Check if every line has the same number of commas
+  return lines.every((line) => countCommas(line) === firstLineCommaCount);
+}
+
+function isTSV(text) {
+  // Split the text into lines
+  const lines = text.split("\n");
+
+  // Function to count tabs
+  function countTabs(line) {
+    let inQuotes = false;
+    let tabCount = 0;
+
+    for (let char of line) {
+      if (char === '"') {
+        inQuotes = !inQuotes; // Toggle the inQuotes flag
+      } else if (char === "\t" && !inQuotes) {
+        tabCount++; // Count tabs outside of quotes
+      }
+    }
+
+    return tabCount;
+  }
+
+  // Count the number of tabs in the first line
+  const firstLineTabCount = countTabs(lines[0]);
+
+  // Check if every line has the same number of tabs
+  return lines.every((line) => countTabs(line) === firstLineTabCount);
+}
+
+function parseDelimitedText(data) {
+  // Function to detect delimiter by checking the first line
+  function detectDelimiter(line) {
+    const commaCount = (line.match(/,/g) || []).length;
+    const tabCount = (line.match(/\t/g) || []).length;
+    const fourSpaceCount = (line.match(/ {4}/g) || []).length;
+
+    if (commaCount > tabCount && commaCount > fourSpaceCount) return ",";
+    if (tabCount > commaCount && tabCount > fourSpaceCount) return "\t";
+    if (fourSpaceCount > commaCount && fourSpaceCount > tabCount) return "    "; // Four spaces
+    return null; // In case of a tie or no clear delimiter
+  }
+
+  // Function to parse a single line
+  function parseLine(line, delimiter) {
+    // Remove any leading colons, asterisks, or hash characters
+    line = line.replace(/^[:*#]+/, "");
+
+    // If the delimiter is null, return the line as a single field
+    if (!delimiter) return [line];
+
+    // Split the line by the delimiter
+    let fields = line.split(delimiter);
+
+    // Trim whitespace from each field
+    fields = fields.map((field) => field.trim());
+
+    return fields;
+  }
+
+  // Detect the delimiter
+  const firstLine = data.split("\n")[0];
+  const delimiter = detectDelimiter(firstLine);
+
+  // Split the data into lines and parse each line
+  return data.split("\n").map((line) => parseLine(line, delimiter));
+}
+
+function generateRowHash(row) {
+  // Create a string representation of the row data
+  const rowStr = row.join("|");
+  // Encode the string to base64 to create a simple hash
+  return btoa(rowStr);
+}
+
+// Assume this function is called after the table is imported and parsed
+function addHashesToRows(parsedRows) {
+  parsedRows.forEach((row) => {
+    // Generate a hash for the row
+    const hash = generateRowHash(row.cells);
+    // Store the hash with the row's data
+    row.hash = hash;
+  });
+}
+
 function createwikitableWizardModal() {
   const modalHtml = `
     <div id="wikitableWizardModal" style="display:none">
@@ -376,14 +490,20 @@ function createwikitableWizardModal() {
       navigator.clipboard
         .readText()
         .then((text) => {
+          console.log("Text retrieved from clipboard.");
+
           text = text.trim();
           theTableBody.empty();
 
           if (text.includes("{|") && text.includes("|-")) {
+            console.log("Detected Wikitable format.");
+
             const wikiTableData = parseWikiTableData(text);
+            console.log("Parsed WikiTable data:", wikiTableData);
+
             parsedData = wikiTableData.data.rows.map((row) => row.cells);
             wikiTableData.data.rows.forEach((row, rowIndex) => {
-              let rowHtml = `<tr>
+              let rowHtml = `<tr data-row-hash="${row.hash}">
               <td class="rowBoldCell"><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"${
                 row.isBold ? " checked" : ""
               }></td>
@@ -420,17 +540,22 @@ function createwikitableWizardModal() {
             // const columnCount = wikiTableData.data.rows.reduce((max, row) => Math.max(max, row.cells.length), 0);
             updateHeaderRow();
           } else {
-            if (text.includes("\t")) {
-              parsedData = parseTSVData(text);
-            } else if (/ {4}/.test(text)) {
-              parsedData = parseMultiSpaceData(text);
+            console.log(
+              "Text does not appear to be in Wikitable format. Checking for CSV, TSV, or space-separated values."
+            );
+
+            console.log(text);
+            console.log(isCSV(text));
+            console.log(isTSV(text));
+            if (isCSV(text) || isTSV(text) || / {4}/.test(text)) {
+              console.log(isCSV(text));
+              //             parsedData = parseCSVData(text);
+              parsedData = parseDelimitedText(text);
             } else {
-              const commaMatch = text.split(/\n/)[0].match(/,/g);
-              if (commaMatch && commaMatch.length > 2) {
-                parsedData = parseCSVData(text);
-              } else {
-                parsedData = parseSSVData(text);
-              }
+              console.log(isCSV(text));
+              //              const commaMatch = text.split(/\n/)[0].match(/,/g);
+
+              parsedData = parseSSVData(text);
             }
 
             if (parsedData) {
@@ -529,6 +654,8 @@ function createwikitableWizardModal() {
               $(this).data("previousValue", $(this).val());
             }
           });
+
+          console.log("Table update complete.");
         })
         .catch((err) => {
           console.log("Error reading clipboard: " + err);
@@ -594,6 +721,15 @@ function createwikitableWizardModal() {
       classBit = `class="${classString}" `;
     }
     let formattedContent = `{| ${classBit}${tableBorderWidthBit}${tableCellPaddingBit}${fullWidthBit}`.trim();
+    // Include the table's style if it exists
+    // Retrieve the hash for the current row
+    const rowHash = $(this).data("rowHash");
+
+    // Retrieve the style for the current row using the hash
+    const rowStyle = globalWikiTableStyles.rowStyles[rowHash] || "";
+
+    // Generate the row with the appropriate style
+    formattedContent += ` ${rowStyle}`;
 
     if (caption) {
       formattedContent += "\n|+";
@@ -612,12 +748,30 @@ function createwikitableWizardModal() {
       });
     });
 
+    // Find the last non-empty row index
+    let lastNonEmptyRowIndex = data.length - 1;
+    while (lastNonEmptyRowIndex >= 0 && data[lastNonEmptyRowIndex].every((cell) => cell.trim() === "")) {
+      lastNonEmptyRowIndex--;
+    }
+
     data.forEach((row, rowIndex) => {
       // Ignore empty rows
-      if (row.every((cell) => cell.trim() === "")) return;
+      // if (row.every((cell) => cell.trim() === "")) return;
       rowNum++;
+
+      if (rowIndex > lastNonEmptyRowIndex) {
+        // This is an empty row at the end, ignore it
+        return;
+      }
+
+      // Start the row with row styles if available
+      if (globalWikiTableStyles.rowStyles[rowIndex]) {
+        formattedContent += `\n|-${globalWikiTableStyles.rowStyles[rowIndex]}`;
+      } else {
+        formattedContent += "\n|-";
+      }
+
       const style = rowStyles[rowIndex];
-      formattedContent += "\n|-";
       if (style.bgColor && style.bgColor !== "#ffffff") {
         formattedContent += ` bgcolor=${style.bgColor}`;
       }
@@ -1660,6 +1814,12 @@ shouldInitializeFeature("wikitableWizard").then((result) => {
     getFeatureOptions("wikitableWizard").then((options) => {
       if (options.selectToLaunch) {
         selectToLaunchWikiTableWizard();
+      }
+    });
+    // Listen for messages from the background script
+    chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+      if (request.action === "launchWikitableWizard") {
+        createWikitableWizard();
       }
     });
   }

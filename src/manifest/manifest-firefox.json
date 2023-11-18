@@ -2,7 +2,7 @@
   "name": "WikiTree Browser Extension (Preview)",
   "description": "The official WikiTree browser extension.",
 
-  "version": "1.11.3.0",
+  "version": "1.11.4.1",
   "manifest_version": 2,
   "options_ui": {
     "page": "options.html",
@@ -13,7 +13,9 @@
     "https://wikitreebee.com/*",
     "storage",
     "clipboardRead",
-    "clipboardWrite"
+    "clipboardWrite",
+    "contextMenus",
+    "activeTab"
   ],
   "content_scripts": [
     {

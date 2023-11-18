@@ -1135,13 +1135,13 @@ function list2ol2(person, profPersonName, profileApproxBirthDate) {
     } else {
       doby = " ";
       var disGender;
-      let disID = htmlEntities(pdata["Name"]);
+      const disID = htmlEntities(pdata["Name"]);
 
       if (disID) {
-        let disLink = document.querySelector("#nVitals a[href='/wiki/" + disID + "'");
+        const disLink = document.querySelector(`#nVitals a[href="/wiki/${disID}"`);
 
         if (isOK(disLink)) {
-          let disTitle = disLink.title;
+          const disTitle = disLink.title;
 
           const regex1 = /(Daughter)|(Sister)|(Mother)|(Wife)/g;
           const female = disTitle.match(regex1);
@@ -1214,7 +1214,7 @@ function list2ol2(person, profPersonName, profileApproxBirthDate) {
     const checkit = encodeURIComponent(pdata["Name"]).replaceAll(/%2C/g, ",");
     const ana = document.querySelector(`#nVitals a[href="https://www.wikitree.com/wiki/${checkit}"`);
     if (ana) {
-      if (profPersonName && profileApproxBirthDate != "" && isOK(pdata?.["BirthDate"])) {
+      if (profPersonName && profileApproxBirthDate != "" && isOK(pdata["BirthDate"])) {
         addRelativeAge(ana, profPersonName, profileApproxBirthDate, pdata["BirthDate"]);
       }
       ana.after(datesSpan);
@@ -1240,7 +1240,9 @@ function addRelativeAge(ana, profPersonName, profileApproxBirthDate, relativesBi
   const theYearStr = ageStr(ageAt);
   const ageSpan = document.createElement("span");
   ageSpan.classList.add("relAge");
-  ageSpan.appendChild(document.createTextNode(` (${ageAt.approx}${ageAt.sign}${ageAt.number})`));
+  ageSpan.appendChild(
+    document.createTextNode(ageAt.number == "?" ? "" : ` (${ageAt.approx}${ageAt.sign}${ageAt.number})`)
+  );
   let titleText;
   if (relType == "parent") {
     titleText = `${pName} was ${theYearStr} when ${profPersonName} was born`;
@@ -1276,8 +1278,10 @@ function getWtId(link) {
 }
 
 function getAgeAt(profPersonBirthDate, relativesBirthDate, relation) {
+  if (profPersonBirthDate == "0000-00-00") {
+    return { approx: "", sign: "", number: "?" };
+  }
   let approx = "";
-
   if (profPersonBirthDate.Approx == true || relativesBirthDate.Approx == true) {
     approx = "~";
   }
