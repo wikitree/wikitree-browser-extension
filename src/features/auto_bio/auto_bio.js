@@ -25,29 +25,6 @@ import ONSjson from "./ONS.json";
 import Cookies from "js-cookie";
 
 let bugReportMore = "";
-function getSpelling(word) {
-  const americanToBritishSpelling = {
-    baptized: "baptised",
-    // Add other words and their variants here
-  };
-
-  const userLanguage = navigator.language || navigator.userLanguage;
-  const BritishEnglish = [
-    "en-GB", // United Kingdom
-    "en-AU", // Australia
-    "en-NZ", // New Zealand
-    "en-ZA", // South Africa
-    "en-IE", // Ireland
-    "en-IN", // India
-    "en-SG", // Singapore
-    "en-MT", // Malta
-  ];
-
-  if (BritishEnglish.includes(userLanguage) && americanToBritishSpelling[word]) {
-    return americanToBritishSpelling[word];
-  }
-  return word;
-}
 
 /**
 Returns a status word based on the input status and optional needOnIn parameter, with an optional ISO date string parameter.
@@ -1064,7 +1041,7 @@ export function buildBirth(person) {
   text += ".";
   text += addReferences("Birth");
   if (person["Baptism Date"] || person["Baptism Place"]) {
-    text += " " + capitalizeFirstLetter(person.Pronouns.subject) + " was " + getSpelling("baptized");
+    text += " " + capitalizeFirstLetter(person.Pronouns.subject) + " was " + spell("baptized");
   }
   if (person["Baptism Date"]) {
     text += " " + formatDate(person["Baptism Date"] || "", "", { needOn: true });
@@ -5306,7 +5283,7 @@ function getFamilySearchFacts() {
             window.profilePerson.PersonName.FirstName +
             ageBit +
             " was " +
-            getSpelling("baptized") +
+            spell("baptized") +
             " " +
             formatDate(aFact.Date, "", { needOn: true }) +
             (aFact.Info ? " in " + minimalPlace(aFact.Info.replace(/,([A-z])/g, ", $1")) : "") +
@@ -7945,3 +7922,227 @@ shouldInitializeFeature("autoBio").then((result) => {
     });
   }
 });
+
+function spell(text) {
+  const americanToBritishSpelling = {
+    // A
+    aging: "ageing",
+    analog: "analogue",
+    analyze: "analyse",
+    analyzed: "analysed",
+    analyzes: "analyses",
+    analyzing: "analysing",
+    apologize: "apologise",
+    apologized: "apologised",
+    apologizes: "apologises",
+    apologizing: "apologising",
+    arbor: "arbour",
+    arbors: "arbours",
+    ax: "axe",
+
+    // B
+    baptize: "baptise",
+    baptized: "baptised",
+    baptizes: "baptises",
+    baptizing: "baptising",
+    behavior: "behaviour",
+    behaviors: "behaviours",
+
+    // C
+    catalog: "catalogue",
+    catalogs: "catalogues",
+    center: "centre",
+    centers: "centres",
+    check: "cheque",
+    checks: "cheques",
+    color: "colour",
+    colored: "coloured",
+    colorfully: "colourfully",
+    coloring: "colouring",
+    colors: "colours",
+
+    // D
+    dialog: "dialogue",
+    dialogs: "dialogues",
+    draft: "draught",
+    drafts: "draughts",
+    defense: "defence",
+    defenses: "defences",
+
+    // E
+    enroll: "enrol",
+    enrolled: "enrolled",
+    enrolling: "enrolling",
+    enrollment: "enrolment",
+    enrollments: "enrolments",
+    encyclopedia: "encyclopaedia",
+    encyclopedias: "encyclopaedias",
+    esophagus: "oesophagus",
+    esthetic: "aesthetic",
+
+    // F
+    favor: "favour",
+    favored: "favoured",
+    favoring: "favouring",
+    favors: "favours",
+    fiber: "fibre",
+    fibers: "fibres",
+    fulfill: "fulfil",
+    fulfilled: "fulfilled",
+    fulfilling: "fulfilling",
+    fulfillment: "fulfilment",
+    fulfillments: "fulfilments",
+
+    // G
+    gray: "grey",
+    grays: "greys",
+
+    // H
+    honor: "honour",
+    honored: "honoured",
+    honoring: "honouring",
+    honors: "honours",
+    humor: "humour",
+    humored: "humoured",
+    humoring: "humouring",
+    humors: "humours",
+
+    // I-J
+    inquiry: "enquiry",
+    inquiries: "enquiries",
+    jewelry: "jewellery",
+    judgment: "judgement",
+    judgments: "judgements",
+
+    // L
+    labor: "labour",
+    labors: "labours",
+    license: "licence",
+    licenses: "licences",
+    liter: "litre",
+    liters: "litres",
+    luster: "lustre",
+
+    // M
+    marvel: "marvel",
+    marveled: "marvelled",
+    marveling: "marvelling",
+    marvels: "marvels",
+    meager: "meagre",
+    modeled: "modelled",
+    modeling: "modelling",
+    models: "models",
+    mold: "mould",
+    molds: "moulds",
+    mom: "mum",
+    moms: "mums",
+
+    // N
+    neighbor: "neighbour",
+    neighboring: "neighbouring",
+    neighbors: "neighbours",
+
+    // O
+    organization: "organisation",
+    organizations: "organisations",
+    organize: "organise",
+    organized: "organised",
+    organizes: "organises",
+    organizing: "organising",
+
+    // P
+    personalize: "personalise",
+    personalized: "personalised",
+    personalizes: "personalises",
+    personalizing: "personalising",
+    plow: "plough",
+    plows: "ploughs",
+    practicing: "practising",
+    privatize: "privatise",
+    privatized: "privatised",
+    privatizes: "privatises",
+    privatizing: "privatising",
+
+    // R
+    program: "programme",
+    programs: "programmes",
+    realization: "realisation",
+    realizations: "realisations",
+    realize: "realise",
+    realized: "realised",
+    realizes: "realises",
+    realizing: "realising",
+    recognize: "recognise",
+    recognized: "recognised",
+    recognizes: "recognises",
+    recognizing: "recognising",
+    rumor: "rumour",
+    rumors: "rumours",
+
+    // S
+    saber: "sabre",
+    sabers: "sabres",
+    skillful: "skilful",
+    skillfully: "skilfully",
+    somber: "sombre",
+    sulfur: "sulphur",
+
+    // T
+    theater: "theatre",
+    theaters: "theatres",
+    tire: "tyre",
+    tired: "tyred",
+    tires: "tyres",
+    tiring: "tyring",
+    toiled: "toyled",
+    toiling: "toyling",
+    toils: "toyls",
+
+    // Traveling
+    traveled: "travelled",
+    traveler: "traveller",
+    travelers: "travellers",
+    traveling: "travelling",
+    travels: "travels",
+
+    // V
+    valor: "valour",
+    vapor: "vapour",
+    vapors: "vapours",
+
+    // W
+    willful: "wilful",
+    willfully: "wilfully",
+
+    // Add more as needed
+  };
+
+  const userLanguage = navigator.language || navigator.userLanguage;
+  const isBritishEnglish = ["en-GB", "en-AU", "en-NZ", "en-ZA", "en-IE", "en-IN", "en-SG", "en-MT"].includes(
+    userLanguage
+  );
+
+  function matchCase(original, transformed) {
+    if (original === original.toUpperCase()) {
+      return transformed.toUpperCase();
+    }
+    if (original[0] === original[0].toUpperCase()) {
+      return transformed[0].toUpperCase() + transformed.slice(1);
+    }
+    return transformed;
+  }
+
+  return text
+    .split(/\b/)
+    .map((word) => {
+      const lowerCaseWord = word.toLowerCase();
+
+      if (americanToBritishSpelling.hasOwnProperty(lowerCaseWord)) {
+        const converted = americanToBritishSpelling[lowerCaseWord];
+        return isBritishEnglish ? matchCase(word, converted) : word;
+      }
+
+      return word;
+    })
+    .join("");
+}
