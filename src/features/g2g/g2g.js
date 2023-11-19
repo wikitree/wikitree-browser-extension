@@ -158,7 +158,10 @@ async function initG2G() {
     linkify();
   }
   if (options.previewLinks) {
-    replacePermaLinks();
+    const questionURL = window.location.toString().match(/https:\/\/www\.wikitree\.com\/g2g\/\d+\//);
+    if (questionURL != null) {
+      replacePermaLinks();
+    }
   }
 }
 
