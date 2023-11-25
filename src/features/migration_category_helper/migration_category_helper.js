@@ -418,6 +418,8 @@ function CreateMigrationCategory(tb) {
       "Veneto",
     ],
 
+    "Italy/France (please add county behind region and don't use it like that in the category name!)": ["Marche"],
+
     "New France": ["Akadia", "Canada, New France", "Louisiana, New France"],
 
     "New Zealand": [
@@ -440,8 +442,24 @@ function CreateMigrationCategory(tb) {
       "Chatham Islands",
     ],
 
-    "Italy/France (please add county behind region and don't use it like that in the category name!)": ["Marche"],
-
+    Poland: [
+      "Greater Poland Voivodeship",
+      "Kuyavian-Pomeranian Voivodeship",
+      "Lesser Poland Voivodeship",
+      "Łódź Voivodeship",
+      "Lower Silesian Voivodeship",
+      "Lublin Voivodeship",
+      "Lubusz Voivodeship",
+      "Masovian Voivodeship",
+      "Opole Voivodeship",
+      "Podlaskie Voivodeship",
+      "Pomeranian Voivodeship",
+      "Silesian Voivodeship",
+      "Subcarpathian Voivodeship",
+      "Holy Cross Voivodeship",
+      "Warmian-Masurian Voivodeship",
+      "West Pomeranian Voivodeship",
+    ],
     Scotland: [
       "Aberdeenshire",
       "Angus",
