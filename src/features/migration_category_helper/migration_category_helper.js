@@ -318,6 +318,23 @@ function CreateMigrationCategory(tb) {
       "Free and Hanseatic City of Hamburg",
       "Free and Hanseatic City of Lübeck",
     ],
+    "German Democratic Republic (East Germany)": [
+      "Rostock District",
+      "Schwerin District",
+      "Neubrandenburg District",
+      "Potsdam District",
+      "Frankfurt (Oder) District",
+      "Magdeburg District",
+      "Cottbus District",
+      "Halle District",
+      "Leipzig District",
+      "Erfurt District",
+      "Dresden District",
+      "Karl-Marx-Stadt District",
+      "Gera District",
+      "Suhl District",
+      "East Berlin",
+    ],
 
     Germany: [
       "Baden-Württemberg",
