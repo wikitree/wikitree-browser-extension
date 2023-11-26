@@ -437,7 +437,7 @@ async function doEditBio() {
         document.getElementById("mMiddleName").value = editBioOutput.middleName;
       }
 
-      const changeSummary = "Reformatted by the WikiTreeAGC extension version " + WBE.version;
+      const changeSummary = "Reformatted by the WikiTreeAGC extension version " + WBE.version + ". ";
 
       // Let the page know that changes have been made so that the "Save Changes" button works
       var inputEvent = new Event("input", { bubbles: true });
