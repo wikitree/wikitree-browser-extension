@@ -768,8 +768,14 @@ function fixupLinksInString(str) {
     }
   }
 
+  // not handling this case which is in the citation and has no leading 1,
+  // APID: 1274::2017072
   if (str.search(/APID[ \:]+1\,/) != -1) {
     str = str.replace(/APID[ \:]+1,(\w+)\:\:(\w+)/g, "{{Ancestry Record|$1|$2}}");
+  } else {
+    if (str.search(/APID[ \:]+/) != -1) {
+      str = str.replace(/APID[ \:]+(\w+)\:\:(\w+)/g, "{{Ancestry Record|$1|$2}}");
+    }
   }
 
   // remove any bad templates, e.g. ones with dbId and record id set to zero
@@ -904,6 +910,10 @@ function cleanupCitationText(citationText) {
   if (str.includes(" CONT ")) {
     str = str.replace(/ CONT /g, "\n* ");
   }
+
+  // the citation may have Note: or Data: with nothing following
+  str = str.replace("* Note:\n", "");
+  str = str.replace("* Data:\n", "");
 
   return str;
 }
@@ -1454,7 +1464,6 @@ class Ref {
       // We used to add " No source specified for this citation in GEDCOM" but there are cases like: Wheatley-921
       // where the source IDs were removed and pasted into the refs. This isn't really an error.
     }
-
     // console.log("ExtractSourceId, this.sourceId = " + this.sourceId + ", this.body = " + this.body);
   }
 
@@ -2541,7 +2550,6 @@ class FactSection {
 
   parseNoteSectionFacts(bio) {
     var noteText = this.text.trim();
-
     if (noteText.length == 0) {
       return;
     }
@@ -5585,7 +5593,6 @@ class CitationBuilder {
   cleanAndCombineSourceAndCitationForAncestryCases(fact, ref) {
     var sourceText = "";
     var cleanedSourceAndCitation = "";
-
     if (ref.source != undefined) {
       sourceText = ref.source.text.trim();
     } else {
@@ -5780,7 +5787,6 @@ class CitationBuilder {
 
   generateReference(fact, ref) {
     var refString = "";
-
     if (ref.owningRef != undefined) {
       if (ref.generateRef) {
         // this may be a bug but sometimes, for refs on suspect marriages, the owning ref is itself owned
@@ -8475,7 +8481,6 @@ class Biography {
   createSourceMapFormat2011(sourcesText) {
     // break the text into an array of lines
     var lineArray = sourcesText.split("\n");
-
     // Various different 2011 formats format source differently
     // see whether more of the lines start with * or :
     var numStarLines = 0;

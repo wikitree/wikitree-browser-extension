@@ -5,7 +5,6 @@ Charles died on 4 December 1943 in Salt Lake City, Salt Lake, Utah, United State
 * Quality or Certainty of Data: 4
 * Date: 7 Dec 1943
 * Note: Mother's Maiden Name mispelled: Elizabeth Denney
-* Data:
 * Text: 1. Place of Death: Salt Lake County
 * 1b. City: Salt Lake City
 * 1c Name of Hospital: Salt Lake County Hospital
