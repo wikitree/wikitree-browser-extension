@@ -32,10 +32,30 @@ const pinkBricksURL = chrome.runtime.getURL("images/pink_bricks.jpg");
 const purpleBricksURL = chrome.runtime.getURL("images/purple_bricks.jpg");
 
 export const USstatesObjArray = [
-  { name: "Alabama", abbreviation: "AL", admissionDate: "1819-12-14", former_name: "Alabama Territory" },
-  { name: "Alaska", abbreviation: "AK", admissionDate: "1959-01-03", former_name: "Territory of Alaska" },
+  { name: "Alabama", abbreviation: "AL", admissionDate: "1819-12-14", former_name: "Alabama Territory",
+former_names: {
+    "Alabama Territory": { start: "1817-10-10", end: "1819-12-13" },
+    "Mississippi Territory": { start: "1798-04-07", end: "1817-10-09" },
+}
+ },
+  {
+    name: "Alaska",
+    abbreviation: "AK",
+    admissionDate: "1959-01-03",
+    former_name: "Territory of Alaska",
+    former_names: {
+      "Territory of Alaska": { start: "1912-08-24", end: "1959-01-02" },
+      "District of Alaska": { start: "1884-05-17", end: "1912-08-23" },
+      "Department of Alaska": { start: "1867-10-18", end: "1884-05-16" },
+      "Russkaya Amerika": { start: "1733-01-01", end: "1867-10-18" },
+    },
+  },
   { name: "American Samoa", abbreviation: "AS" },
-  { name: "Arizona", abbreviation: "AZ", admissionDate: "1912-02-14", former_name: "Arizona Territory" },
+  { name: "Arizona", abbreviation: "AZ", admissionDate: "1912-02-14", former_name: "Arizona Territory",
+former_names: {
+    "Arizona Territory": { start: "1863-02-24", end: "1912-02-13" },
+    "New Mexico Territory": { start: "1850-09-09", end: "1863-02-23" },}
+ },
   { name: "Arkansas", abbreviation: "AR", admissionDate: "1836-06-15", former_name: "Arkansas Territory" },
   {
     name: "California",
