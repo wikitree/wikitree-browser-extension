@@ -231,6 +231,7 @@ async function fixLocations() {
       "Bosnia and Herzegovina",
       "Spain", // New Spain
       "Canada", // Upper Canada, Lower Canada
+      "France", // New France
     ];
     countries.forEach(function (country) {
       if (!excludeCountries.includes(country.name)) {

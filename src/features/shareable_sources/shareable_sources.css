@@ -11,7 +11,7 @@
   white-space: pre-wrap;
 }
 
-.referenceBox {
+body.page-Special_EditPerson .referenceBox {
   width: 30em;
   z-index: 9000;
   background: white;
