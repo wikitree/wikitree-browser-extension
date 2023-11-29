@@ -7,6 +7,8 @@ import {
   isAddUnrelatedPerson,
   isWikiEdit,
   isNavHomePage,
+  isSpecialTrustedList,
+  isProfilePage,
 } from "../../core/pageType";
 import "./usability_tweaks.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
@@ -211,6 +213,36 @@ async function onlyMembers() {
   }
 }
 
+function addRemoveMeButton() {
+  const removeMeButton = $(
+    `<button id="removeMeButton" title="Double-click to remove yourself as manager of this profile" class="button small">❌</button>`
+  );
+  const profileManagerLink = $("span:contains('Profile manager')").parent().find("a[href*='/wiki/']");
+  if (profileManagerLink.length) {
+    const profileManagerWTID = profileManagerLink.attr("href").split("/").pop();
+    const thisUserWTID = Cookies.get("wikitree_wtb_UserName");
+    const thisUserId = Cookies.get("wikitree_wtb_UserID");
+    console.log(profileManagerWTID, thisUserWTID);
+    if (profileManagerWTID == thisUserWTID) {
+      profileManagerLink.after(removeMeButton);
+      $(`a[data-who='${thisUserId}']:contains(send)`).text("email");
+      removeMeButton.on("dblclick", function (e) {
+        e.preventDefault();
+        const privacyTab = $(`a[title="View Privacy Settings and Trusted List"]`);
+        privacyTab.attr("href", privacyTab.attr("href") + "&WBEaction=RemoveMe");
+        window.location = privacyTab.attr("href");
+      });
+    }
+  }
+}
+
+function removeMe() {
+  if (window.location.href.includes("WBEaction=RemoveMe")) {
+    const removeYourselfButton = $("input[value='Remove Yourself']");
+    removeYourselfButton.trigger("click");
+  }
+}
+
 shouldInitializeFeature("usabilityTweaks").then((result) => {
   if (result) {
     getFeatureOptions("usabilityTweaks").then((options) => {
@@ -365,6 +397,12 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
       }
       if (options.onlyMembers && isSearchPage && $("#onlyMembers").length == 0) {
         onlyMembers();
+      }
+      if (options.removeMeButton && isProfilePage) {
+        addRemoveMeButton();
+      }
+      if (options.removeMeButton && isSpecialTrustedList) {
+        removeMe();
       }
     });
   }

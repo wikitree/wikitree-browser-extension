@@ -106,6 +106,8 @@ export let isSpecialDNATests = false;
 export let isDNADescendants = false;
 // Special: WatchedList page
 export let isSpecialWatchedList = false;
+// Special: TrustedList page
+export let isSpecialTrustedList = false;
 // MergeEdit
 export let isMergeEdit = false;
 
@@ -158,7 +160,7 @@ if (domain.match("apps.wikitree.com")) {
     path.match(/\/(function|f)\/WTWebProfileSearchTree\/.*\.htm/gi)
   ) {
     isPlusProfileTree = true;
-  } 
+  }
 } else {
   isMainDomain = true;
 
@@ -353,6 +355,8 @@ if (domain.match("apps.wikitree.com")) {
       isConnectionFinder = true;
     } else if (uri.match(/Special:MergeEdit/)) {
       isMergeEdit = true;
+    } else if (uri.match(/Special:TrustedList/)) {
+      isSpecialTrustedList = true;
     }
   } else if (
     // Other Edit Page

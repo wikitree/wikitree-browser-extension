@@ -13,6 +13,19 @@ const usabilityTweaks = {
   pages: [isMainDomain],
   options: [
     {
+      id: "profilePage",
+      type: OptionType.GROUP,
+      label: "Profile",
+      options: [
+        {
+          id: "removeMeButton",
+          type: OptionType.CHECKBOX,
+          label: "Add a button to profile pages to remove yourself as manager.",
+          defaultValue: false,
+        },
+      ],
+    },
+    {
       id: "addPerson",
       type: OptionType.GROUP,
       label: "Add Person",
