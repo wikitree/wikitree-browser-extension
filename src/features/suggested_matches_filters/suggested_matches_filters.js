@@ -981,6 +981,10 @@ function highlightMatches() {
       matchCount++;
     }
 
+    // Strip UK from the end of the location to match England, Scotland, Wales
+    extractedData.birthLocation = extractedData.birthLocation.replace(/, (United Kingdom|UK|U.K.)$/g, "");
+    newPerson.BirthLocation = newPerson.BirthLocation.replace(/, (United Kingdom|UK|U.K.)$/g, "");
+
     if (extractedData.birthLocation === newPerson.BirthLocation) {
       $(this).addClass("birthLocationMatch");
       $(this).append($("<span class='birthLocationMatchSpan matchSpan'>Birth Location Match</span>"));
