@@ -18,7 +18,7 @@ import { theSourceRules } from "../bioCheck/SourceRules.js";
 import { BioCheckPerson } from "../bioCheck/BioCheckPerson.js";
 import { Biography } from "../bioCheck/Biography.js";
 import { initBioCheck } from "../bioCheck/bioCheck.js";
-import { ageAtDeath, USstatesObjArray } from "../my_connections/my_connections";
+import { ageAtDeath } from "../my_connections/my_connections";
 import { bioTimelineFacts, buildTimelineTable, buildTimelineSA } from "./timeline";
 import { isIansProfile } from "../../core/pageType";
 import ONSjson from "./ONS.json";
@@ -149,10 +149,39 @@ function isSameDateOrAfter(dateStr1, dateStr2) {
   return date1 >= date2;
 }
 
+function getPossibleLocationNames(event, state) {
+  const lastLocationBit = event.Location.split(",")
+    .map((str) => str.trim())
+    .pop();
+  if (state.former_names) {
+    // state.former_names is an object with keys of the former name and values of the start and end dates
+    let possibleFormerNames = [];
+    const formerNames = Object.keys(state.former_names);
+    formerNames.forEach(function (name) {
+      const startDate = state.former_names[name].start;
+      const endDate = state.former_names[name].end;
+      if (isSameDateOrAfter(event.Date, startDate) && (!endDate || !isSameDateOrAfter(event.Date, endDate))) {
+        possibleFormerNames.push(name);
+      }
+    });
+    if (possibleFormerNames.length == 1) {
+      event.Location = event.Location.replace(lastLocationBit, possibleFormerNames[0]);
+      console.log(logNow(event));
+    } else if (possibleFormerNames.length > 1) {
+      // If there are multiple possible former names, don't change the location and add a note
+      const note = "Possible correct locations for " + event.Event + " are: " + possibleFormerNames.join(", ");
+      window.autoBioNotes?.push(note);
+    }
+  }
+  return event;
+}
+
 function fixUSLocation(event) {
   if (!event.Location) {
+    console.log("No location found in event.");
     return;
   }
+
   let locationBits = event.Location.split(",");
   locationBits = locationBits.map((str) => str.trim());
   const lastLocationBit = locationBits[locationBits.length - 1];
@@ -169,6 +198,7 @@ function fixUSLocation(event) {
     }
   } else {
     USstatesObjArray.forEach(function (state) {
+      console.log("Checking state:", state);
       if (state.abbreviation == lastLocationBit || state.name == lastLocationBit) {
         event.Location = locationBits.slice(0, locationBits.length - 1).join(", ") + ", " + state.name;
         if (isSameDateOrAfter(event.Date, state.admissionDate)) {
@@ -179,7 +209,7 @@ function fixUSLocation(event) {
           window.autoBioOptions?.changeUS &&
           !(isSameDateOrAfter(event.Date, "1776-07-04") && state.postRevolutionName)
         ) {
-          event.Location = event.Location.replace(lastLocationBit, state.former_name);
+          event = getPossibleLocationNames(event, state, lastLocationBit);
         }
       } else if (["US", "USA", "United States of America", "United States", "U.S.A."].includes(lastLocationBit)) {
         const theState = locationBits[locationBits.length - 2];
@@ -196,7 +226,7 @@ function fixUSLocation(event) {
               event.Location += ", " + lastLocationBit;
             }
           } else if (state.admissionDate && state.former_name && window.autoBioOptions?.changeUS) {
-            event.Location = event.Location.replace(theState, state.former_name);
+            event = getPossibleLocationNames(event, state, lastLocationBit);
           }
         }
       }
@@ -6745,7 +6775,12 @@ async function getSpouseParents2() {
   }
 }
 
+let USstatesObjArray;
 export async function generateBio() {
+  const module = await import("./us_states.json");
+  USstatesObjArray = module.default;
+  console.log("USstatesObjArray", USstatesObjArray);
+
   try {
     window.autoBioNotes = [];
 
