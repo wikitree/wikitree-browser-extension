@@ -1,0 +1,1827 @@
+[
+  {
+    "name": "Alabama",
+    "admissionDate": "1819-12-14",
+    "former_name": "Alabama Territory",
+    "former_names": {
+      "Alabama Territory": {
+        "start": "1817-10-10",
+        "end": "1819-12-14"
+      },
+      "Mississippi Territory": {
+        "start": "1798-04-07",
+        "end": "1817-10-10"
+      },
+      "West Florida (Spain)": {
+        "start": "1513-01-01",
+        "end": "1812-05-14"
+      },
+      "La Florida (Spain)": {
+        "start": "1513-01-01",
+        "end": "1794-12-31"
+      },
+      "Georgia": {
+        "start": "1776-07-04",
+        "end": "1803-12-31"
+      },
+      "South Carolina": {
+        "start": "1776-07-04",
+        "end": "1786-12-31"
+      },
+      "Province of South Carolina": {
+        "start": "1712-01-01",
+        "end": "1776-07-04"
+      },
+      "Clarendon Province, Carolina": {
+        "start": "1669-07-21",
+        "end": "1712-01-01"
+      },
+      "Province of Carolina": {
+        "start": "1663-01-01",
+        "end": "1669-07-20"
+      }
+    }
+  },
+  {
+    "name": "Alaska",
+    "admissionDate": "1959-01-03",
+    "former_name": "Territory of Alaska",
+    "former_names": {
+      "Alaska Territory": {
+        "start": "1912-08-24",
+        "end": "1959-01-03"
+      },
+      "District of Alaska": {
+        "start": "1884-05-17",
+        "end": "1912-08-24"
+      },
+      "Department of Alaska": {
+        "start": "1867-10-18",
+        "end": "1884-05-17"
+      },
+      "Russkaya America": {
+        "start": "1733-01-01",
+        "end": "1867-10-18"
+      }
+    }
+  },
+  {
+    "name": "Arizona",
+    "abbreviation": "AZ",
+    "admissionDate": "1912-02-14",
+    "former_name": "Arizona Territory",
+    "former_names": {
+      "Arizona Territory": {
+        "start": "1863-02-24",
+        "end": "1912-02-14"
+      },
+      "New Mexico Territory": {
+        "start": "1850-09-09",
+        "end": "1863-02-24"
+      },
+      "U.S. prov. gov. of New Mexico": {
+        "start": "1846-01-01",
+        "end": "1850-09-09"
+      },
+      "2nd Estados Unidos Mexicano": {
+        "start": "1846-08-22",
+        "end": "1848-02-02"
+      },
+      "Central Republic in Mexico": {
+        "start": "1835-10-23",
+        "end": "1846-08-22"
+      },
+      "1st Estados Unidos Mexicanos": {
+        "start": "1823-03-19",
+        "end": "1835-10-23"
+      },
+      "Imperio Mexicano": {
+        "start": "1821-09-28",
+        "end": "1823-03-19"
+      },
+      "Alta California, Nueva España": {
+        "start": "1565-01-01",
+        "end": "1821-09-27"
+      }
+    }
+  },
+  {
+    "name": "Arkansas",
+    "abbreviation": "AR",
+    "admissionDate": "1836-06-15",
+    "former_name": "Arkansas Territory",
+    "former_names": {
+      "Arkansaw Territory": {
+        "start": "1819-03-02",
+        "end": "1836-06-15"
+      },
+      "Missouri Territory": {
+        "start": "1812-01-01",
+        "end": "1819-03-02"
+      },
+      "Louisiana Territory": {
+        "start": "1805-07-04",
+        "end": "1812-06-04"
+      },
+      "La Louisiane fran\u00e7aise": {
+        "start": "1800-10-30",
+        "end": "1803-10-03"
+      },
+      "Luisiana, Nueva Espa\u00f1a": {
+        "start": "1762-11-13",
+        "end": "1800-10-30"
+      },
+      "la Louisiane fran\u00e7aise, Nouvelle-France": {
+        "start": "1682-04-09",
+        "end": "1762-11-12"
+      }
+    }
+  },
+  {
+    "name": "California",
+    "abbreviation": "CA",
+    "admissionDate": "1850-09-09",
+    "former_name": "California Republic",
+    "former_names": {
+      "US Military Government": {
+        "start": "1846-07-09",
+        "end": "1850-09-09"
+      },
+      "California Republic": {
+        "start": "1846-06-14",
+        "end": "1846-07-09"
+      },
+      "2nd Estados Unidos Mexicano": {
+        "start": "1846-06-14",
+        "end": "1846-08-22"
+      },
+      "Central Republic in Mexico": {
+        "start": "1835-10-23",
+        "end": "1846-08-22"
+      },
+      "1st Estados Unidos Mexicanos": {
+        "start": "1823-11-01",
+        "end": "1835-10-23"
+      },
+      "Imperio Mexicano": {
+        "start": "1821-09-28",
+        "end": "1823-03-01"
+      },
+      "Alta California, Nueva España": {
+        "start": "1565-01-01",
+        "end": "1821-09-27"
+      }
+    }
+  },
+  {
+    "name": "Colorado",
+    "abbreviation": "CO",
+    "admissionDate": "1876-08-01",
+    "former_name": "Colorado Territory",
+    "former_names": {
+      "Colorado Territory": {
+        "start": "1861-02-28",
+        "end": "1876-08-01"
+      },
+      "Unorganized US Territory": {
+        "start": "1821-08-10",
+        "end": "1861-02-28"
+      },
+      "Missouri Territory": {
+        "start": "1812-06-04",
+        "end": "1821-08-10"
+      },
+      "Louisiana Territory": {
+        "start": "1804-07-04",
+        "end": "1812-06-04"
+      },
+      "La Louisiane française": {
+        "start": "1800-10-30",
+        "end": "1803-04-30"
+      },
+      "Louisiana Purchase": {
+        "start": "1803-04-30",
+        "end": "1804-07-04"
+      },
+      "Luisiana, Nueva España": {
+        "start": "1762-11-13",
+        "end": "1800-10-30"
+      },
+      "Santa Fe de Nuevo México, Nueva España": {
+        "start": "1521-01-01",
+        "end": "1762-11-12"
+      },
+      "la Louisiane française, Nouvelle-France": {
+        "start": "1682-04-09",
+        "end": "1762-11-12"
+      }
+    }
+  },
+  {
+    "name": "Connecticut",
+    "abbreviation": "CT",
+    "admissionDate": "1788-01-09",
+    "former_name": "Connecticut Colony",
+    "postRevolutionName": "State of Connecticut",
+    "former_names": {
+      "Connecticut": {
+        "start": "1776-07-04",
+        "end": "1788-01-09"
+      },
+      "Connecticut Colony": {
+        "start": "1636-01-01",
+        "end": "1776-07-04"
+      },
+      "Saybrook Colony": {
+        "start": "1635-01-01",
+        "end": "1644-01-01"
+      },
+      "New Haven Colony": {
+        "start": "1637-01-01",
+        "end": "1665-01-01"
+      }
+    }
+  },
+  {
+    "name": "Delaware",
+    "abbreviation": "DE",
+    "admissionDate": "1787-12-07",
+    "former_name": "Colony of Delaware",
+    "postRevolutionName": "State of Delaware",
+    "former_names": {
+      "Delaware": {
+        "start": "1776-01-01",
+        "end": "1787-12-07"
+      },
+      "Delaware Colony": {
+        "start": "1672-01-01",
+        "end": "1776-01-01"
+      },
+      "Delaware County, Province of Maryland": {
+        "start": "1669-01-01",
+        "end": "1672-01-01"
+      },
+      "New Sweden": {
+        "start": "1631-01-01",
+        "end": "1655-01-01"
+      },
+      "New Netherland": {
+        "start": "1614-01-01",
+        "end": "1667-01-01"
+      }
+    }
+  },
+  {
+    "name": "Florida",
+    "abbreviation": "FL",
+    "admissionDate": "1845-03-03",
+    "former_name": "Florida Territory",
+    "former_names": {
+      "Florida Territory": {
+        "start": "1821-02-22",
+        "end": "1845-03-03"
+      },
+      "Spanish West Florida": {
+        "start": "1783-01-01",
+        "end": "1822-03-30"
+      },
+      "British West Florida": {
+        "start": "1763-01-01",
+        "end": "1783-01-01"
+      },
+      "Spanish East Florida": {
+        "end": "1821-02-22",
+        "start": "1783-01-01"
+      },
+      "British East Florida": {
+        "start": "1763-01-01",
+        "end": "1783-01-01"
+      },
+      "La Florida": {
+        "start": "1513-01-01",
+        "end": "1763-01-01"
+      }
+    }
+  },
+  {
+    "name": "Georgia",
+    "abbreviation": "GA",
+    "admissionDate": "1788-01-02",
+    "former_name": "Province of Georgia",
+    "postRevolutionName": "State of Georgia",
+    "former_names": {
+      "South Carolina": {
+        "start": "1776-07-04",
+        "end": "1787-01-01"
+      },
+      "Province of Georgia": {
+        "start": "1732-06-09",
+        "end": "1776-07-04"
+      },
+      "Clarendon Province, Carolina": {
+        "start": "1669-07-21",
+        "end": "1711-12-31"
+      },
+      "Province of Carolina": {
+        "start": "1663-01-01",
+        "end": "1669-07-20"
+      }
+    }
+  },
+  {
+    "name": "Hawaii",
+    "abbreviation": "HI",
+    "admissionDate": "1959-08-21",
+    "former_name": "Territory of Hawaii",
+    "former_names": {
+      "Hawaii Territory": {
+        "start": "1898-08-12",
+        "end": "1959-08-21"
+      },
+      "Republic of Hawai'i": {
+        "start": "1894-07-04",
+        "end": "1898-08-12"
+      },
+      "Provisional Government of Hawai'i": {
+        "start": "1893-01-17",
+        "end": "1894-07-04"
+      },
+      "Kingdom of Hawai'i": {
+        "start": "1795-05-01",
+        "end": "1893-01-17"
+      }
+    }
+  },
+  {
+    "name": "Idaho",
+    "abbreviation": "ID",
+    "admissionDate": "1890-07-03",
+    "former_name": "Idaho Territory",
+    "former_names": {
+      "Idaho Territory": {
+        "start": "1863-03-03",
+        "end": "1890-07-03"
+      },
+      "Washington Territory": {
+        "start": "1853-03-02",
+        "end": "1863-03-03"
+      },
+      "Oregon Territory": {
+        "start": "1849-03-03",
+        "end": "1859-02-14"
+      },
+      "US Prov. Gov. of Oregon": {
+        "start": "1843-05-02",
+        "end": "1849-03-03"
+      },
+      "Columbia District": {
+        "start": "1818-01-01",
+        "end": "1821-01-01"
+      },
+      "Columbia Department": {
+        "start": "1821-01-01",
+        "end": "1843-05-02"
+      },
+      "Nueva España": {
+        "start": "1775-01-01",
+        "end": "1819-01-01"
+      }
+    }
+  },
+  {
+    "name": "Illinois",
+    "abbreviation": "IL",
+    "admissionDate": "1818-12-03",
+    "former_name": "Illinois Territory",
+    "former_names": {
+      "Illinois Territory": {
+        "start": "1809-03-01",
+        "end": "1818-12-03"
+      },
+      "Indiana Territory": {
+        "start": "1800-07-04",
+        "end": "1809-03-01"
+      },
+      "Northwest Territory": {
+        "start": "1783-09-03",
+        "end": "1800-07-04"
+      },
+      "Province of Quebec": {
+        "start": "1763-02-10",
+        "end": "1783-09-03"
+      },
+      "La Louisiane fran\u00e7aise": {
+        "start": "1717-01-01",
+        "end": "1763-01-01"
+      },
+      "Pays des Illinois, Nouvelle-France": {
+        "start": "1673-01-01",
+        "end": "1717-01-01"
+      }
+    }
+  },
+  {
+    "name": "Indiana",
+    "abbreviation": "IN",
+    "admissionDate": "1816-12-11",
+    "former_name": "Indiana Territory",
+    "former_names": {
+      "Indiana Territory": {
+        "start": "1800-07-04",
+        "end": "1816-12-11"
+      },
+      "Northwest Territory": {
+        "start": "1783-09-03",
+        "end": "1800-07-04"
+      },
+      "Province of Quebec": {
+        "start": "1763-02-10",
+        "end": "1783-09-03"
+      },
+      "La Louisiane fran\u00e7aise": {
+        "start": "1717-01-01",
+        "end": "1763-01-01"
+      },
+      "Pays des Illinois, Nouvelle-France": {
+        "start": "1673-01-01",
+        "end": "1717-01-01"
+      }
+    }
+  },
+  {
+    "name": "Iowa",
+    "abbreviation": "IA",
+    "admissionDate": "1846-12-28",
+    "former_name": "Iowa Territory",
+    "former_names": {
+      "Iowa Territory": {
+        "start": "1838-07-04",
+        "end": "1846-12-28"
+      },
+      "Wisconsin Territory": {
+        "start": "1836-07-03",
+        "end": "1838-07-04"
+      },
+      "Michigan Territory": {
+        "start": "1834-01-01",
+        "end": "1836-07-03"
+      },
+      "US Unorganized Territory": {
+        "start": "1834-01-01",
+        "end": "1803-04-30"
+      },
+      "Missouri Territory": {
+        "start": "1812-06-04",
+        "end": "1821-08-10"
+      },
+      "Louisiana Territory": {
+        "start": "1805-07-04",
+        "end": "1812-06-04"
+      },
+      "Louisiana Purchase": {
+        "start": "1803-04-30",
+        "end": "1804-10-01"
+      },
+      "La Louisiane fran\u00e7aise": {
+        "start": "1800-10-30",
+        "end": "1803-04-30"
+      },
+      "Luisiana, Nueva Espa\u00f1a": {
+        "start": "1762-11-13",
+        "end": "1800-10-30"
+      },
+      "la Louisiane fran\u00e7aise, Nouvelle-France": {
+        "start": "1717-01-01",
+        "end": "1762-11-12"
+      },
+      "Pays des Illinois, Nouvelle-France": {
+        "start": "1673-01-01",
+        "end": "1717-01-01"
+      }
+    }
+  },
+  {
+    "name": "Kansas",
+    "abbreviation": "KS",
+    "admissionDate": "1861-01-29",
+    "former_name": "Kansas Territory",
+    "former_names": {
+      "Kansas Territory": {
+        "start": "1854-05-30",
+        "end": "1861-01-29"
+      },
+      "Louisiana Territory": {
+        "start": "1803-04-30",
+        "end": "1854-05-30"
+      },
+      "La Louisiane fran\u00e7aise": {
+        "start": "1800-10-30",
+        "end": "1803-04-30"
+      },
+      "Luisiana, Nueva Espa\u00f1a": {
+        "start": "1762-11-13",
+        "end": "1800-10-30"
+      },
+      "la Louisiane fran\u00e7aise, Nouvelle-France": {
+        "start": "1682-04-09",
+        "end": "1762-11-12"
+      }
+    }
+  },
+  {
+    "name": "Kentucky",
+    "abbreviation": "KY",
+    "admissionDate": "1792-06-01",
+    "former_name": "Virginia",
+    "former_names": {
+      "Indian Reserve": {
+        "start": "1763-02-10",
+        "end": "1783-01-01"
+      },
+      "Fincastle County, Virginia": {
+        "start": "1772-01-01",
+        "end": "1776-07-04"
+      },
+      "Transylvania Colony": {
+        "start": "1775-01-01",
+        "end": "1776-01-01"
+      },
+      "Kentucky County, Virginia": {
+        "start": "1776-12-31",
+        "end": "1792-06-01"
+      },
+      "Botetourt County, Virginia": {
+        "start": "1770-01-01",
+        "end": "1771-01-01"
+      },
+      "Augusta County, Virginia": {
+        "start": "1738-01-01",
+        "end": "1770-01-01"
+      },
+      "Orange County, Virginia": {
+        "start": "1734-08-01",
+        "end": "1738-01-01"
+      }
+    }
+  },
+  {
+    "name": "Louisiana",
+    "abbreviation": "LA",
+    "admissionDate": "1812-04-30",
+    "former_name": "Territory of Orleans",
+    "former_names": {
+      "Territory of Orleans": {
+        "start": "1804-10-01",
+        "end": "1812-04-30"
+      },
+      "Sabine Free State": {
+        "start": "1806-01-01",
+        "end": "1821-01-01"
+      },
+      "Spanish West Florida": {
+        "start": "1783-01-01",
+        "end": "1821-07-16"
+      },
+      "Spanish Texas": {
+        "start": "1690-01-01",
+        "end": "1806-01-01"
+      },
+      "French Texas": {
+        "start": "1684-01-01",
+        "end": "1689-01-01"
+      },
+      "Louisiana Purchase": {
+        "start": "1803-04-30",
+        "end": "1804-10-01"
+      },
+      "La Louisiane fran\u00e7aise": {
+        "start": "1800-10-30",
+        "end": "1803-04-30"
+      },
+      "La Florida": {
+        "start": "1513-01-01",
+        "end": "1763-01-01"
+      },
+      "Luisiana, Nueva Espa\u00f1a": {
+        "start": "1762-11-13",
+        "end": "1800-10-30"
+      },
+      "la Louisiane fran\u00e7aise, Nouvelle-France": {
+        "start": "1682-04-09",
+        "end": "1762-11-12"
+      }
+    }
+  },
+  {
+    "name": "Maine",
+    "abbreviation": "ME",
+    "admissionDate": "1820-03-15",
+    "former_name": "Massachusetts (District of Maine)",
+    "former_names": {
+      "District of Maine": {
+        "end": "1819-03-15",
+        "start": "1780-10-25"
+      },
+      "Province of Maine": {
+        "end": "1780-10-25",
+        "start": "1776-07-04"
+      },
+      "Province of Maine, Massachusetts Bay": {
+        "start": "1691-10-07",
+        "end": "1760-01-01"
+      },
+      "Massachusetts Bay Colony": {
+        "start": "1630-08-10",
+        "end": "1691-10-07"
+      },
+      "Province of Maine ": {
+        "start": "1629-01-01",
+        "end": "1630-08-10"
+      },
+      "New Somersetshire": {
+        "start": "1635-01-01",
+        "end": "1647-01-01"
+      },
+      "Province of Maine,  New York": {
+        "start": "1664-01-01",
+        "end": "1691-10-07"
+      },
+      "Sagadahock Territory": {
+        "start": "1608-01-01",
+        "end": "1664-01-01"
+      },
+      "Acadie": {
+        "start": "1604-01-01",
+        "end": "1725-01-01"
+      }
+    }
+  },
+  {
+    "name": "Maryland",
+    "abbreviation": "MD",
+    "admissionDate": "1788-04-28",
+    "former_name": "Province of Maryland",
+    "postRevolutionName": "State of Maryland",
+    "former_names": {
+      "Maryland": {
+        "start": "1776-07-04",
+        "end": "1788-04-28"
+      },
+      "Province of Maryland": {
+        "start": "1632-01-01",
+        "end": "1776-07-04"
+      }
+    }
+  },
+  {
+    "name": "Massachusetts",
+    "abbreviation": "MA",
+    "admissionDate": "1788-02-06",
+    "former_name": "Province of Massachusetts Bay",
+    "postRevolutionName": "Commonwealth of Massachusetts",
+    "former_names": {
+      "Commonwealth of Massachusetts": {
+        "start": "1776-07-04",
+        "end": "1788-02-06"
+      },
+      "Province of Massachusetts Bay": {
+        "start": "1691-10-07",
+        "end": "1776-07-04"
+      },
+      "Massachusetts Bay Colony": {
+        "start": "1628-03-4",
+        "end": "1691-10-07"
+      },
+      "Plymouth Colony": {
+        "start": "1620-01-01",
+        "end": "1691-10-07"
+      },
+      "Plymouth Council for New England": {
+        "start": "1620-01-01",
+        "end": "1628-06-07"
+      },
+      "Plymouth Company": {
+        "start": "1606-01-01",
+        "end": "1620-01-01"
+      }
+    }
+  },
+  {
+    "name": "Michigan",
+    "abbreviation": "MI",
+    "admissionDate": "1837-01-26",
+    "former_name": "Michigan Territory",
+    "former_names": {
+      "Michigan Territory": {
+        "start": "1805-06-30",
+        "end": "1837-01-26"
+      },
+      " Indiana Territory": {
+        "start": "1800-07-04",
+        "end": "1805-06-30"
+      },
+      "Northwest Territory, United States": {
+        "start": "1787-07-13",
+        "end": "1803-03-01"
+      },
+      "Province of Quebec": {
+        "start": "1763-02-10",
+        "end": "1783-09-03"
+      },
+      "Pays d'en Haut": {
+        "start": "1660-01-01",
+        "end": "1763-02-10"
+      }
+    }
+  },
+  {
+    "name": "Minnesota",
+    "abbreviation": "MN",
+    "admissionDate": "1858-05-11",
+    "former_name": "Minnesota Territory",
+    "former_names": {
+      "Minnesota Territory": {
+        "start": "1849-03-03",
+        "end": "1858-05-11"
+      },
+      "Unorganized US Territory": {
+        "start": "1846-12-28",
+        "end": "1849-03-03"
+      },
+      "Iowa Territory": {
+        "start": "1838-07-04",
+        "end": "1846-12-28"
+      },
+      "Wisconsin Territory": {
+        "start": "1836-07-03",
+        "end": "1846-12-28"
+      },
+      "Michigan Territory": {
+        "start": "1818-12-03",
+        "end": "1836-07-03"
+      },
+      "Illinois Territory": {
+        "start": "1809-03-01",
+        "end": "1818-12-03"
+      },
+      "Indiana Territory": {
+        "start": "1803-04-30",
+        "end": "1809-03-01"
+      },
+      "Northwest Territory": {
+        "start": "1787-07-13",
+        "end": "1800-07-04"
+      },
+      "Province of Quebec": {
+        "start": "1763-01-01",
+        "end": "1783-01-01"
+      },
+      "La Louisiane fran\u00e7aise": {
+        "start": "1717-01-01",
+        "end": "1762-11-13"
+      },
+      "Pays des Illinois, Nouvelle-France": {
+        "start": "1673-01-01",
+        "end": "1717-01-01"
+      },
+      "Luisiana, Nueva Espa\u00f1a": {
+        "start": "1762-11-13",
+        "end": "1783-07-13"
+      }
+    }
+  },
+  {
+    "name": "Mississippi",
+    "abbreviation": "MS",
+    "admissionDate": "1817-12-10",
+    "former_name": "Mississippi Territory",
+    "former_names": {
+      "Mississippi Territory": {
+        "start": "1798-04-07",
+        "end": "1817-12-10"
+      },
+      "West Florida (Spain)": {
+        "start": "1513-01-01",
+        "end": "1812-05-14"
+      },
+      "Province of Carolina": {
+        "start": "1663-01-01",
+        "end": "1669-07-20"
+      },
+      "Clarendon Province, Carolina": {
+        "start": "1669-07-21",
+        "end": "1712-01-01"
+      },
+      "South Carolina": {
+        "start": "1712-01-01",
+        "end": "1776-07-04"
+      },
+      "Georgia": {
+        "start": "1732-06-09",
+        "end": "1704-07-04"
+      },
+      "La Florida (Spain)": {
+        "start": "1513-01-01",
+        "end": "1795-01-01"
+      }
+    }
+  },
+  {
+    "name": "Missouri",
+    "abbreviation": "MO",
+    "admissionDate": "1821-08-10",
+    "former_name": "Missouri Territory",
+    "former_names": {
+      "Missouri Territory": {
+        "start": "1812-06-04",
+        "end": "1821-08-10"
+      },
+      "Louisiana Territory": {
+        "start": "1805-07-04",
+        "end": "1812-06-04"
+      },
+      "La Louisiane fran\u00e7aise": {
+        "start": "1800-10-30",
+        "end": "1803-04-30"
+      },
+      "Luisiana, Nueva Espa\u00f1a": {
+        "start": "1762-11-13",
+        "end": "1800-10-30"
+      },
+      "la Louisiane fran\u00e7aise, Nouvelle-France": {
+        "start": "1682-04-09",
+        "end": "1762-11-12"
+      }
+    }
+  },
+  {
+    "name": "Montana",
+    "abbreviation": "MT",
+    "admissionDate": "1889-11-08",
+    "former_name": "Montana Territory",
+    "former_names": {
+      "Montana Territory": {
+        "start": "1864-05-28",
+        "end": "1889-11-08"
+      },
+      "Dakota Territory": {
+        "start": "1861-03-02",
+        "end": "1864-05-28"
+      },
+      "Nebraska Territory": {
+        "start": "1854-05-30",
+        "end": "1867-03-01"
+      },
+      "Washington Territory": {
+        "start": "1853-03-02",
+        "end": "1863-03-02"
+      },
+      "Oregon Territory": {
+        "start": "1849-03-03",
+        "end": "1859-02-14"
+      },
+      "US Prov. Gov. of Oregon": {
+        "start": "1843-05-02",
+        "end": "1849-03-02"
+      },
+      "Columbia Department": {
+        "start": "1821-01-01",
+        "end": "1843-05-02"
+      },
+      "Columbia District": {
+        "start": "1818-01-01",
+        "end": "1821-01-01"
+      },
+      "Nueva España": {
+        "start": "1775-01-01",
+        "end": "1819-01-01"
+      },
+      "Louisiana Territory": {
+        "start": "1803-04-30",
+        "end": "1854-05-30"
+      },
+      "La Louisiane fran\u00e7aise": {
+        "start": "1777-01-01",
+        "end": "1803-01-01"
+      },
+      "Luisiana, Nueva Espa\u00f1a": {
+        "start": "1762-11-13",
+        "end": "1800-10-30"
+      },
+      "la Louisiane fran\u00e7aise, Nouvelle-France": {
+        "start": "1682-04-09",
+        "end": "1762-11-12"
+      }
+    }
+  },
+  {
+    "name": "Nebraska",
+    "abbreviation": "NE",
+    "admissionDate": "1867-03-01",
+    "former_name": "Nebraska Territory",
+    "former_names": {
+      "Nebraska Territory": {
+        "start": "1854-05-30",
+        "end": "1867-03-01"
+      },
+      "Louisiana Territory": {
+        "start": "1803-04-30",
+        "end": "1854-05-30"
+      },
+      "La Louisiane fran\u00e7aise": {
+        "start": "1717-01-01",
+        "end": "1803-01-01"
+      },
+      "Luisiana, Nueva Espa\u00f1a": {
+        "start": "1762-11-13",
+        "end": "1800-10-30"
+      },
+      "la Louisiane fran\u00e7aise, Nouvelle-France": {
+        "start": "1682-04-09",
+        "end": "1762-11-12"
+      }
+    }
+  },
+  {
+    "name": "Nevada",
+    "abbreviation": "NV",
+    "admissionDate": "1864-10-31",
+    "former_name": "Nevada Territory",
+    "former_names": {
+      "Nevada Territory": {
+        "start": "1861-03-02",
+        "end": "1864-10-31"
+      },
+      "Utah Territory ": {
+        "start": "1850-09-09",
+        "end": "1861-03-02"
+      },
+      "Unorganized US Territory": {
+        "start": "1848-02-02",
+        "end": "1850-09-09"
+      },
+      "Estados Unidos Mexicano": {
+        "end": "1848-02-02",
+        "start": "1846-08-22"
+      },
+      "Rep\u00fablica Centralista de M\u00e9xico. ": {
+        "end": "1846-08-22",
+        "start": "1835-10-23"
+      },
+      "Estados Unidos Mexicanos": {
+        "end": "1835-10-23",
+        "start": "1824-11-01"
+      },
+      "Imperio Mexicano": {
+        "end": "1821-09-26",
+        "Start": "1565-01-01"
+      }
+    }
+  },
+  {
+    "name": "New Hampshire",
+    "abbreviation": "NH",
+    "admissionDate": "1788-06-21",
+    "former_name": "Province of New Hampshire",
+    "postRevolutionName": "State of New Hampshire",
+    "former_names": {
+      "New Hampshire": {
+        "start": "1776-07-04",
+        "end": "1788-06-21"
+      },
+      "Province of New Hampshire": {
+        "start": "1679-01-01",
+        "end": "1776-07-04"
+      },
+      "Massachusetts Bay Colony": {
+        "end": "1679-01-01",
+        "start": "1641-07-04"
+      },
+      "Colony of New Hampshire": {
+        "end": "1641-07-04",
+        "start": "1629-01-01"
+      },
+      "Plymouth Council": {
+        "start": "1620-01-01",
+        "end": "1635-06-07"
+      },
+      "Plymouth Company": {
+        "start": "1606-01-01",
+        "end": "1620-01-01"
+      }
+    }
+  },
+  {
+    "name": "New Jersey",
+    "abbreviation": "NJ",
+    "admissionDate": "1787-12-12",
+    "former_name": "Province of New Jersey",
+    "postRevolutionName": "State of New Jersey",
+    "former_names": {
+      "New Jersey": {
+        "start": "1776-07-04",
+        "end": "1787-12-18"
+      },
+      "Province of New Jersey": {
+        "start": "1702-01-01",
+        "end": "1776-07-04"
+      },
+      "Province of West Jersey": {
+        "start": "1674-01-01",
+        "end": "1702-01-01"
+      },
+      "Province of East Jersey": {
+        "end": "1702-01-01",
+        "start": "1664-06-24"
+      },
+      "Colony of New Jersey": {
+        "end": "1664-06-24",
+        "start": "1664-06-24"
+      },
+      "New Netherland": {
+        "end": "1664-06-24",
+        "start": "1614-01-01"
+      },
+      "New Sweden": {
+        "end": "1655-01-01",
+        "start": "1638-01-01"
+      }
+    }
+  },
+  {
+    "name": "New Mexico",
+    "abbreviation": "NM",
+    "admissionDate": "1912-01-06",
+    "former_name": "New Mexico Territory",
+    "former_names": {
+      "New Mexico Territory": {
+        "start": "1850-09-09",
+        "end": "1912-01-06"
+      },
+      "US prov. gov. of New Mexico": {
+        "start": "1846-01-01",
+        "end": "1850-09-09"
+      },
+      "Primera Rep\u00fablica Federal": {
+        "start": "1823-01-01",
+        "end": "1848-01-01"
+      },
+      "Imperio Mexicano": {
+        "start": "1821-01-01",
+        "end": "1823-01-01"
+      },
+      "Santa Fe de Nuevo M\u00e9xico, Nueva Espa\u00f1a": {
+        "start": "1692-09-14",
+        "end": "1821-09-27"
+      },
+      "Pueblo Lands": {
+        "start": "1680-08-10",
+        "end": "1692-09-14"
+      }
+    }
+  },
+  {
+    "name": "New York",
+    "abbreviation": "NY",
+    "admissionDate": "1788-07-26",
+    "former_name": "Province of New York",
+    "postRevolutionName": "State of New York",
+    "former_names": {
+      "New York": {
+        "start": "1776-01-01",
+        "end": "1788-07-26"
+      },
+      "Province of New York ": {
+        "start": "1664-01-01",
+        "end": "1776-01-01"
+      },
+      "New Netherland": {
+        "start": "1614-01-01",
+        "end": "1664-01-01"
+      },
+      "New Haven Colony": {
+        "start": "1640-01-01",
+        "end": "1664-01-01"
+      }
+    }
+  },
+  {
+    "name": "North Carolina",
+    "abbreviation": "NC",
+    "admissionDate": "1789-11-21",
+    "former_name": "Province of North Carolina",
+    "postRevolutionName": "State of North Carolina",
+    "former_names": {
+      "North Carolina": {
+        "start": "1776-07-04",
+        "end": "1789-11-21"
+      },
+      "Province of North Carolina": {
+        "start": "1729-01-01",
+        "end": "1776-07-04"
+      },
+      "Clarendon Province": {
+        "start": "1669-01-01",
+        "end": "1729-01-01"
+      },
+      "Granville District": {
+        "end": "1776-01-01",
+        "start": "1729-01-01"
+      },
+      "Abermarle Province": {
+        "end": "1729-01-01",
+        "start": "1669-01-01"
+      },
+      "Province of Carolina": {
+        "end": "1669-01-01",
+        "start": "1663-03-24"
+      },
+      "Colony of Virginia": {
+        "end": "1669-01-01",
+        "start": "1665-01-01"
+      }
+    }
+  },
+  {
+    "name": "North Dakota",
+    "abbreviation": "ND",
+    "admissionDate": "1889-11-02",
+    "former_name": "Dakota Territory",
+    "former_names": {
+      "Dakota Territory": {
+        "start": "1861-03-02",
+        "end": "1889-11-02"
+      },
+      "Nebraska Territory": {
+        "start": "1854-05-30",
+        "end": "1867-03-01"
+      },
+      "Louisiana Territory": {
+        "start": "1803-04-30",
+        "end": "1854-05-30"
+      },
+      "Minnesota Territory": {
+        "end": "1858-05-11",
+        "start": "1849-03-03"
+      },
+      "Iowa Territory": {
+        "end": "1846-12-28",
+        "start": "1838-07-04"
+      },
+      "Wisconsin Territory": {
+        "end": "1838-07-04",
+        "start": "1836-07-03"
+      },
+      "Michigan Territory": {
+        "end": "1836-07-03",
+        "start": "1818-12-03"
+      },
+      "Illinois Territory": {
+        "end": "1818-12-03",
+        "start": "1809-03-01"
+      },
+      "Indiana Territory": {
+        "end": "1809-03-01",
+        "start": "1803-04-30"
+      },
+      "Northwest Territory": {
+        "start": "1787-07-13",
+        "end": "1800-07-04"
+      },
+      "Province of Quebec": {
+        "end": "1783-07-13",
+        "start": "1763-01-01"
+      },
+      "La Louisiane fran\u00e7aise": {
+        "end": "1803-01-01",
+        "start": "1717-01-01"
+      },
+      "Luisiana, Nueva Espa\u00f1a": {
+        "end": "1800-10-30",
+        "start": "1762-11-13"
+      },
+      "la Louisiane fran\u00e7aise, Nouvelle-France": {
+        "end": "1762-11-12",
+        "start": "1682-04-09"
+      },
+      "Pays des Illinois, Nouvelle-France": {
+        "end": "1717-01-01",
+        "start": "1673-01-01"
+      }
+    }
+  },
+  {
+    "name": "Ohio",
+    "abbreviation": "OH",
+    "admissionDate": "1803-03-01",
+    "former_name": "Northwest Territory",
+    "former_names": {
+      "Northwest Territory": {
+        "start": "1783-07-13",
+        "end": "1803-02-19"
+      },
+      "Province of Quebec": {
+        "start": "1763-01-01",
+        "end": "1783-01-01"
+      },
+      "La Louisiane fran\u00e7aise": {
+        "start": "1717-01-01",
+        "end": "1762-01-01"
+      },
+      "Pays des Illinois, Nouvelle-France": {
+        "end": "1717-01-01",
+        "start": "1673-01-01"
+      }
+    }
+  },
+  {
+    "name": "Oklahoma",
+    "abbreviation": "OK",
+    "admissionDate": "1907-11-16",
+    "former_name": "Oklahoma Territory",
+    "former_names": {
+      "Oklahoma Territory": {
+        "start": "1890-05-02",
+        "end": "1907-11-16"
+      },
+      "Oklahoma Panhandle": {
+        "end": "1890-05-02",
+        "start": "1850-09-01"
+      },
+      "Texas": {
+        "end": "1850-09-01",
+        "start": "1845-12-29"
+      },
+      "Republic of Texas": {
+        "start": "1836-03-02",
+        "end": "1845-12-29"
+      },
+      "Indian Territory": {
+        "end": "1890-05-02",
+        "start": "1834-06-30"
+      },
+      "Unorganized US Territory": {
+        "end": "1834-06-30",
+        "start": "1824-11-15"
+      },
+      "Arkansaw Territory": {
+        "end": "1824-11-15",
+        "start": "1819-03-02"
+      },
+      "Missouri Territory": {
+        "end": "1819-03-02",
+        "start": "1812-06-04"
+      },
+      "Louisiana Territory": {
+        "end": "1812-06-04",
+        "start": "1805-07-04"
+      },
+      "Louisiana Purchase": {
+        "end": "1805-07-04",
+        "start": "1803-04-30"
+      },
+      "La Louisiane fran\u00e7aise": {
+        "end": "1803-04-30",
+        "start": "1800-10-30"
+      },
+      "Luisiana, Nueva Espa\u00f1a": {
+        "end": "1800-10-30",
+        "start": "1762-11-13"
+      },
+      "Estados Unidos Mexicanos": {
+        "end": "1835-10-23",
+        "start": "1824-11-01"
+      },
+      "Imperio Mexicano": {
+        "start": "1821-09-28",
+        "end": "1823-03-19"
+      },
+      "Santa Fe de Nuevo M\u00e9xico, Nueva Espa\u00f1a": {
+        "end": "1821-09-27",
+        "start": "1692-09-14"
+      }
+    }
+  },
+  {
+    "name": "Oregon",
+    "abbreviation": "OR",
+    "admissionDate": "1859-02-14",
+    "former_name": "Oregon Territory",
+    "former_names": {
+      "Oregon Territory": {
+        "start": "1848-08-14",
+        "end": "1859-02-14"
+      },
+      "Prov. Gov. of Oregon": {
+        "end": "1849-03-03",
+        "start": "1843-05-02"
+      },
+      "Oregon Country": {
+        "end": "1843-05-02",
+        "start": "1821-01-01"
+      },
+      "Columbia District": {
+        "end": "1821-01-01",
+        "start": "1818-01-01"
+      },
+      "Columbia Department": {
+        "end": "1818-01-01",
+        "start": "1813-01-01"
+      },
+      "Nueva España": {
+        "start": "1775-01-01",
+        "end": "1819-01-01"
+      }
+    }
+  },
+  {
+    "name": "Pennsylvania",
+    "abbreviation": "PA",
+    "admissionDate": "1787-12-12",
+    "former_name": "Province of Pennsylvania",
+    "postRevolutionName": "Commonwealth of Pennsylvania",
+    "former_names": {
+      "Pennsylvania": {
+        "start": "null",
+        "end": "1783-09-04"
+      },
+      "Province of Pennsylvania": {
+        "start": "1681-03-04",
+        "end": "1783-09-02"
+      },
+      "Province of New York": {
+        "start": "1667-07-21",
+        "end": "1681-03-05"
+      },
+      "New Netherland": {
+        "start": "1614-01-01",
+        "end": "1667-07-21"
+      },
+      "New Sweden": {
+        "start": "1631-01-01",
+        "end": "1655-01-01"
+      }
+    }
+  },
+  {
+    "name": "Rhode Island",
+    "abbreviation": "RI",
+    "admissionDate": "1790-05-29",
+    "former_name": "Colony of Rhode Island and Providence Plantations",
+    "postRevolutionName": "State of Rhode Island and Providence Plantations",
+    "former_names": {
+      "Rhode Island and Providence Plantations": {
+        "start": "1776-07-04",
+        "end": "1790-05-29"
+      },
+      "Colony of Rhode Island and Providence Plantations": {
+        "start": "1663-01-01",
+        "end": "1776-07-04"
+      },
+      "Providence Plantations": {
+        "start": "1636-01-01",
+        "end": "1663-01-01"
+      },
+      "Portsmouth": {
+        "start": "1638-01-01",
+        "end": "1663-01-01"
+      },
+      "Pocasset": {
+        "start": "1637-01-01",
+        "end": "1638-01-01"
+      },
+      "Newport": {
+        "start": "1639-01-01",
+        "end": "1663-01-01"
+      },
+      "Warwick": {
+        "start": "1648-01-01",
+        "end": "1663-01-01"
+      },
+      "Shawomet Plantation": {
+        "start": "1642-01-01",
+        "end": "1648-01-01"
+      }
+    }
+  },
+  {
+    "name": "South Carolina",
+    "abbreviation": "SC",
+    "admissionDate": "1788-05-23",
+    "former_name": "Province of South Carolina",
+    "postRevolutionName": "State of South Carolina",
+    "former_names": {
+      "South Carolina": {
+        "start": "1776-07-04",
+        "end": "1787-01-01"
+      },
+      "Province of South Carolina": {
+        "start": "1712-01-01",
+        "end": "1776-07-04"
+      },
+      "Clarendon Province, Carolina": {
+        "start": "1669-07-21",
+        "end": "1712-01-01"
+      },
+      "Province of Carolina": {
+        "start": "1663-03-24",
+        "end": "1669-07-21"
+      }
+    }
+  },
+  {
+    "name": "South Dakota",
+    "abbreviation": "SD",
+    "admissionDate": "1889-11-02",
+    "former_name": "Dakota Territory",
+    "former_names": {
+      "Dakota Territory": {
+        "start": "1861-03-02",
+        "end": "1889-11-02"
+      },
+      "Minnesota Territory": {
+        "start": "1849-03-03",
+        "end": "1858-05-11"
+      },
+      "Iowa Territory": {
+        "start": "1838-07-04",
+        "end": "1846-12-28"
+      },
+      "Wisconsin Territory": {
+        "start": "1836-07-03",
+        "end": "1838-07-04"
+      },
+      "Michigan Territory": {
+        "start": "1818-12-03",
+        "end": "1836-07-03"
+      },
+      "Illinois Territory": {
+        "start": "1809-03-01",
+        "end": "1818-12-03"
+      },
+      "Indiana Territory": {
+        "start": "1803-04-30",
+        "end": "1809-03-01"
+      },
+      "Northwest Territory": {
+        "start": "1783-07-13",
+        "end": "1800-07-04"
+      },
+      "Province of Quebec": {
+        "start": "1763-01-01",
+        "end": "1783-01-01"
+      },
+      "Pays des Illinois, Nouvelle-France": {
+        "start": "1673-01-01",
+        "end": "1717-01-01"
+      },
+      "Nebraska Territory": {
+        "end": "1867-03-01",
+        "start": "1854-05-30"
+      },
+      "Louisiana Territory": {
+        "end": "1854-05-30",
+        "start": "1803-04-30"
+      },
+      "La Louisiane fran\u00e7aise": {
+        "end": "1803-04-30",
+        "start": "1717-01-01"
+      },
+      "Luisiana, Nueva Espa\u00f1a": {
+        "end": "1800-10-30",
+        "start": "1762-11-13"
+      },
+      "la Louisiane fran\u00e7aise, Nouvelle-France": {
+        "end": "1762-11-12",
+        "start": "1682-04-09"
+      }
+    }
+  },
+  {
+    "name": "Tennessee",
+    "abbreviation": "TN",
+    "admissionDate": "1796-06-01",
+    "former_name": "Southwest Territory",
+    "former_names": {
+      "Southwest Territory": {
+        "start": "1790-05-26",
+        "end": "1796-06-01"
+      },
+      "Republic of Franklin": {
+        "end": "1788-08-23",
+        "start": "1784-08-23"
+      },
+      "Washington District": {
+        "end": "1784-08-23",
+        "start": "1776-11-01"
+      },
+      "Watauga Association": {
+        "end": "1776-11-01",
+        "start": "1772-05-01"
+      },
+      "Indian Reserve": {
+        "start": "1763-02-10",
+        "end": "1783-09-03"
+      },
+      "La Louisiane fran\u00e7aise": {
+        "start": "1717-01-01",
+        "end": "1762-11-12"
+      },
+      "Pays des Illinois, Nouvelle-France": {
+        "start": "1673-01-01",
+        "end": "1717-01-01"
+      }
+    }
+  },
+  {
+    "name": "Texas",
+    "abbreviation": "TX",
+    "admissionDate": "1845-12-29",
+    "former_name": "Republic of Texas",
+    "former_names": {
+      "Republic of Texas": {
+        "start": "1836-03-02",
+        "end": "1845-12-29"
+      },
+      "Mexican Texas": {
+        "end": "1836-03-02",
+        "start": "1821-09-28"
+      },
+      "Tejas": {
+        "end": "1821-09-28",
+        "start": "1690-09-28"
+      },
+      "Nueva España": {
+        "end": "1690-09-28",
+        "start": "1519-01-01"
+      },
+      "Comanchería": {
+        "end": "1750-01-01",
+        "start": "1835-01-01"
+      },
+      "Louisiana": {
+        "end": "1689-01-01",
+        "start": "1684-01-01"
+      }
+    }
+  },
+  {
+    "name": "Utah",
+    "abbreviation": "UT",
+    "admissionDate": "1896-01-04",
+    "former_name": "Utah Territory",
+    "former_names": {
+      "Utah Territory ": {
+        "start": "1850-09-09",
+        "end": "1896-01-04"
+      },
+      "Las Californias, 2nd Estados Unidos Mexicano": {
+        "start": "1846-08-22",
+        "end": "1848-02-02"
+      },
+      "Las Californias, Rep\u00fablica Centralista de M\u00e9xico. ": {
+        "start": "1835-10-23",
+        "end": "1846-08-22"
+      },
+      "Alta California, 1st Estados Unidos Mexicanos": {
+        "end": "1835-10-23",
+        "start": "1824-11-01"
+      },
+      "Alta California, Imperio Mexicano": {
+        "end": "1823-03-19",
+        "start": "1821-09-28"
+      },
+      "Alta California, Nueva España": {
+        "end": "1821-09-27",
+        "start": "1804-01-01"
+      },
+      "Las Californias, Nueva España": {
+        "end": "1804-01-01",
+        "start": "1767-01-01"
+      },
+      "Nueva España": {
+        "end": "1767-01-01",
+        "start": "1519-01-01"
+      }
+    }
+  },
+  {
+    "name": "Vermont",
+    "abbreviation": "VT",
+    "admissionDate": "1791-03-04",
+    "former_name": "Vermont Republic",
+    "former_names": {
+      "Vermont Republic": {
+        "start": "1777-06-02",
+        "end": "1791-03-04"
+      },
+      "Province of New York": {
+        "start": "1664-01-01",
+        "end": "1777-01-15"
+      },
+      "Republic of New Connecticut": {
+        "start": "1777-01-15",
+        "end": "1777-06-02"
+      },
+      "Province of New Hampshire": {
+        "start": "1741-01-01",
+        "end": "1764-01-01"
+      }
+    }
+  },
+  {
+    "name": "Virginia",
+    "abbreviation": "VA",
+    "admissionDate": "1788-06-25",
+    "former_name": "Colony of Virginia",
+    "postRevolutionName": "Commonwealth of Virginia",
+    "former_names": {
+      "Commonwealth of Virginia": {
+        "start": "1776-06-29",
+        "end": "1788-06-25"
+      },
+      "Colony of Virginia": {
+        "end": "1776-06-29",
+        "start": "1607-05-01"
+      },
+      "London Company": {
+        "start": "1606-01-01",
+        "end": "1624-01-01"
+      }
+    }
+  },
+  {
+    "name": "Washington",
+    "abbreviation": "WA",
+    "admissionDate": "1889-11-11",
+    "former_name": "Washington Territory",
+    "former_names": {
+      "Washington Territory": {
+        "start": "1853-03-02",
+        "end": "1889-11-11"
+      },
+      "Oregon Territory": {
+        "start": "1848-08-14",
+        "end": "1853-03-02"
+      },
+      "US Prov. Gov. of Oregon": {
+        "end": "1849-03-03",
+        "start": "1843-05-02"
+      },
+      "Columbia Department": {
+        "start": "1821-01-01",
+        "end": "1843-05-02"
+      },
+      "Columbia District": {
+        "start": "1818-01-01",
+        "end": "1821-01-01"
+      },
+      "Nueva España": {
+        "start": "1775-01-01",
+        "end": "1819-01-01"
+      }
+    }
+  },
+  {
+    "name": "West Virginia",
+    "abbreviation": "WV",
+    "admissionDate": "1863-06-20",
+    "former_name": "Virginia",
+    "former_names": {
+      "Commonwealth of Virginia": {
+        "start": "1776-06-29",
+        "end": "1863-06-20"
+      },
+      "Colony of Virginia": {
+        "end": "1776-06-29",
+        "start": "1607-05-01"
+      },
+      "London Company": {
+        "start": "1606-01-01",
+        "end": "1624-01-01"
+      }
+    }
+  },
+  {
+    "name": "Wisconsin",
+    "admissionDate": "1848-05-29",
+    "former_name": "Wisconsin Territory",
+    "former_names": {
+      "Wisconsin Territory ": {
+        "start": "1836-07-04",
+        "end": "1848-05-29"
+      },
+      "Michigan Territory": {
+        "start": "1818-12-03",
+        "end": "1836-07-03"
+      },
+      "Illinois Territory": {
+        "start": "1809-03-01",
+        "end": "1818-12-03"
+      },
+      "Indiana Territory": {
+        "start": "1803-04-30",
+        "end": "1809-03-01"
+      },
+      "Northwest Territory": {
+        "start": "1783-07-13",
+        "end": "1800-07-04"
+      },
+      "Province of Quebec": {
+        "start": "1763-01-01",
+        "end": "1783-01-01"
+      },
+      "La Louisiane fran\u00e7aise": {
+        "start": "1717-01-01",
+        "end": "1762-01-01"
+      },
+      "Pays des Illinois, Nouvelle-France": {
+        "start": "1673-01-01",
+        "end": "1717-01-01"
+      }
+    }
+  },
+  {
+    "name": "Wyoming",
+    "admissionDate": "1890-07-10",
+    "former_name": "Wyoming Territory",
+    "former_names": {
+      "Wyoming Territory": {
+        "start": "1868-07-25",
+        "end": "1890-07-10"
+      },
+      "Washington Territory": {
+        "start": "1853-03-02",
+        "end": "1863-03-02"
+      },
+      "Oregon Territory": {
+        "start": "1848-08-14",
+        "end": "1853-03-02"
+      },
+      "US Prov. Gov. of Oregon": {
+        "start": "1849-03-03",
+        "end": "1843-05-02"
+      },
+      "Columbia Department": {
+        "start": "1821-01-01",
+        "end": "1843-05-02"
+      },
+      "Columbia District": {
+        "start": "1818-01-01",
+        "end": "1821-01-01"
+      },
+      "Nueva España": {
+        "start": "1521-01-01",
+        "end": "1819-01-01"
+      },
+      "Las Californias, 2nd Estados Unidos Mexicano": {
+        "end": "1848-02-02",
+        "start": "1846-08-22"
+      },
+      "Las Californias, Rep\u00fablica Centralista de M\u00e9xico. ": {
+        "end": "1846-08-22",
+        "start": "1835-10-23"
+      },
+      "Alta California, 1st Estados Unidos Mexicanos": {
+        "end": "1835-10-23",
+        "start": "1824-11-01"
+      },
+      "Alta California, Imperio Mexicano": {
+        "end": "1823-03-19",
+        "start": "1821-09-28"
+      },
+      "Alta California, Nueva Espa\u00f1a": {
+        "end": "1821-09-27",
+        "start": "1804-01-01"
+      },
+      "Las Californias, Nueva Espa\u00f1a": {
+        "end": "1804-01-01",
+        "start": "1767-01-01"
+      },
+      "Idaho Territory": {
+        "end": "1864-07-03",
+        "start": "1863-03-02"
+      },
+      "Dakota Territory": {
+        "end": "1863-03-02",
+        "start": "1861-03-02"
+      },
+      "Nebraska Territory": {
+        "end": "1861-01-01",
+        "start": "1854-05-30"
+      },
+      "Unorganized US Territory": {
+        "end": "1854-05-30",
+        "start": "1804-10-01"
+      },
+      "Louisiana Purchase": {
+        "end": "1804-10-01",
+        "start": "1803-04-30"
+      },
+      "La Louisiane fran\u00e7aise": {
+        "end": "1803-04-30",
+        "start": "1800-10-30"
+      }
+    }
+  }
+]
