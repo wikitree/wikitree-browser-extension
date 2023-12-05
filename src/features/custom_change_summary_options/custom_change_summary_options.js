@@ -20,8 +20,9 @@ shouldInitializeFeature("customChangeSummaryOptions").then(async (result) => {
 });
 
 const validationContainer = $("#validationContainer");
+const sco = $(".six.columns.omega").eq(0);
+
 async function addMovingSaveBox() {
-  const sco = $(".six.columns.omega").eq(0);
   if ($("#saveStuff").length == 0 && $("#removeSpouse").length == 0) {
     const saveStuff = $("<div id='saveStuff'></div>");
     saveStuff.append($("#wpSummary").parent());
@@ -129,6 +130,7 @@ async function addMovingSaveBox() {
   });
   window.timer = null;
 
+  /*
   const options = await getFeatureOptions("customChangeSummaryOptions");
   if (options.movingSaveBox) {
     $("#saveStuff").prependTo(sco);
@@ -148,6 +150,42 @@ async function addMovingSaveBox() {
         $("#suggestionLinkSpan").show();
       }
     });
+  }
+  */
+
+  const options = await getFeatureOptions("customChangeSummaryOptions");
+  if (options.movingSaveBox) {
+    const saveStuff = $("#saveStuff");
+    const placeholder = $("<div>").addClass("save-stuff-placeholder").prependTo(sco); // Insert the placeholder before #saveStuff
+
+    const updatePlaceholderDimensions = () => {
+      placeholder.css({
+        width: saveStuff.outerWidth(),
+        height: saveStuff.outerHeight(),
+      });
+    };
+
+    $(window).on("scroll", function () {
+      if (
+        isScrolledIntoView($("#previewButton")) ||
+        isScrolledPast($("#previewButton")) ||
+        isScrolledIntoView($("#footer")) ||
+        isScrolledIntoView($("a[name='save']"))
+      ) {
+        saveStuff.insertAfter(validationContainer);
+        updatePlaceholderDimensions(); // Update dimensions after moving #saveStuff
+        placeholder.show(); // Show the placeholder
+        $("#suggestionLinkSpan").hide();
+      } else {
+        saveStuff.prependTo(sco);
+        updatePlaceholderDimensions(); // Update dimensions after moving #saveStuff back
+        placeholder.hide(); // Hide the placeholder
+        $("#suggestionLinkSpan").show();
+      }
+    });
+
+    // Initial dimensions update
+    updatePlaceholderDimensions();
   }
 }
 
