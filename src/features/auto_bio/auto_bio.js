@@ -5500,7 +5500,7 @@ export function splitBioIntoSections() {
           });
         }
         sections.Sources.text.splice(i, 10);
-*/
+        */
         //} else {
         if (line.match(/This person was created on.* /)) {
           sections.Acknowledgements.text.push(line);
@@ -5588,6 +5588,17 @@ export function splitBioIntoSections() {
     sections.Acknowledgements.text = sections.Acknowledgements.text.map((str) =>
       str.replace("This person was created", "This profile was created")
     );
+  }
+
+  // Use some of the original text by wrapping it in 'use' tags
+  if (sections.Biography.text?.length > 0) {
+    const biographyText = sections.Biography.text.join("\n");
+    const biographyDummy = $("<div>" + biographyText + "</div>");
+    const use = biographyDummy.find("use");
+    sections.Biography.use = [];
+    use.each(function () {
+      sections.Biography.use.push($(this).html());
+    });
   }
 
   return sections;
@@ -7257,7 +7268,7 @@ export async function generateBio() {
 
     // Add Military and Obituary subsections
     const subsections = [];
-    ["Military", "Obituary"].forEach(function (aSection) {
+    ["Military", "Military Service", "Obituary"].forEach(function (aSection) {
       const subsection = addSubsection(aSection);
       if (subsection) {
         subsections.push(subsection);
@@ -7266,6 +7277,23 @@ export async function generateBio() {
     let subsectionsText = "";
     if (subsections?.length > 0) {
       subsectionsText = subsections.join("\n");
+    }
+
+    // Add 'use' items
+    let useItemsText = "";
+    if (window.sectionsObject?.Biography?.use?.length > 0) {
+      const tempHTML = $("<div>" + window.sectionsObject?.Biography?.use.join("\n") + "</div>");
+      const thisRefs = tempHTML.find("ref");
+      // Remove each ref from window.references
+      thisRefs.each(function () {
+        const thisRef = $(this).text();
+        window.references.forEach(function (aRef, i) {
+          if (aRef.Text == thisRef) {
+            window.references.splice(i, 1);
+          }
+        });
+      });
+      useItemsText += window.sectionsObject?.Biography?.use.join("\n") + "\n\n";
     }
 
     if (window.autoBioOptions?.locationCategories == true) {
@@ -7493,6 +7521,7 @@ export async function generateBio() {
         stuffBeforeTheBioText +
         bioHeaderAndStickers +
         southAfricaFormatText +
+        useItemsText +
         researchNotesText +
         sourcesText +
         acknowledgementsText +
@@ -7506,6 +7535,7 @@ export async function generateBio() {
         deathText +
         marriagesAndCensusesText +
         subsectionsText +
+        useItemsText +
         timelineText +
         researchNotesText +
         sourcesText +
@@ -7520,6 +7550,7 @@ export async function generateBio() {
         marriagesAndCensusesText +
         deathText +
         subsectionsText +
+        useItemsText +
         timelineText +
         researchNotesText +
         sourcesText +
