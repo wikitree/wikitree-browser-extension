@@ -63,8 +63,9 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
           } else if (person.Father == parentId && person.DataStatus?.Father == 30) {
             addDNAconfirmed = true;
           }
+          person.NameWithSpaces = person.Name.replace(/_/g, " ");
           if (addDNAconfirmed) {
-            $(`.VITALS a[href$="${person.Name}"]`).after(
+            $(`.VITALS a[href$="${person.Name}"],.VITALS a[href$="${person.NameWithSpaces}"]`).after(
               $(
                 `<img class="DNAConfirmed" src="/images/icons/dna/DNA-confirmed.gif" border="0" width="38" height="12" alt="DNA confirmed" title="Confirmed with DNA testing">`
               )
@@ -937,16 +938,6 @@ function makeFamLists() {
     }
   }
 }
-/*
-function getApproxBirthDate(person) {
-  let bDate = person?.BirthDate || "";
-  if (isOK(bDate)) {
-    bDate = getApproxDate(bDate);
-    bDate.Approx ||= person?.DataStatus?.BirthDate != "certain" && person?.DataStatus?.BirthDate != "";
-  }
-  return bDate;
-}
-*/
 
 function getApproxBirthDate(person) {
   let bDate = person?.BirthDate || "";
