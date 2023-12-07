@@ -25,6 +25,7 @@
     "axios": "^1.4.0",
     "cookiejs": "^2.1.2",
     "datatables.net-dt": "^1.13.5",
+    "date-fns": "^2.30.0",
     "file-saver": "^2.0.5",
     "fuse.js": "^6.6.2",
     "jquery": "^3.7.0",

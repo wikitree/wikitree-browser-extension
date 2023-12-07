@@ -1,20 +1,96 @@
-import $, { get } from "jquery";
+import $ from "jquery";
 import Fuse from "fuse.js";
+import { parse, isValid, format } from "date-fns";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
-function fixDates() {
-  function sanitizeInput(input) {
-    return input
-      .replaceAll(/\s+/g, " ") // Replace all occurrences of multiple spaces with a single space
-      .replaceAll(/[!"#$%&'()~=]/g, "") // Remove all special characters
-      .replaceAll(/-+/g, "-") // Replace all occurrences of multiple hyphens with a single hyphen
-      .replaceAll(/\/+/g, "/") // Replace all occurrences of multiple slashes with a single slash
-      .replaceAll(/\s+[-/]/g, "-") // Replace all occurrences of space followed by a hyphen or slash with a single hyphen
-      .replaceAll(/[-/]\s+/g, "-") // Replace all occurrences of a hyphen or slash followed by a space with a single hyphen
-      .replace(/([a-zA-Z])(\d)/g, "$1 $2") // Add a space between a month and a year
-      .replace(/(\d)([a-zA-Z])/g, "$1 $2"); // Add a space between a day and a month
+// Function to try parsing a date string with multiple formats
+function tryParseDate(dateString, formats) {
+  for (let format of formats) {
+    const parsedDate = parse(dateString, format, new Date());
+    if (isValid(parsedDate)) {
+      return parsedDate;
+    }
   }
+  return null;
+}
 
+// Function to handle and format the date
+function handleDateInput(dateString, inputElement) {
+  // Try parsing the date with both European and American formats
+  const euParsed = tryParseDate(dateString, ["dd-MM-yyyy", "dd MMM yyyy"]);
+  const usParsed = tryParseDate(dateString, ["MM-dd-yyyy", "MMM dd yyyy"]);
+
+  // Check if both interpretations are valid (ambiguous case)
+  if (isValid(euParsed) && isValid(usParsed)) {
+    const formattedEu = format(euParsed, "d MMM yyyy"); // Format European date
+    const formattedUs = format(usParsed, "d MMM yyyy"); // Format American date
+
+    const dateClarification = $(`
+      <div id="dateClarificationModal">
+        <p>Please clarify the date:</p>
+        <button id="optionEu">${formattedEu}</button>
+        <button id="optionUs">${formattedUs}</button>
+          <x>&#215;</x>       
+        </div>
+    `);
+
+    // Prompt the user to select the correct interpretation
+    $("#dateClarificationModal").remove();
+    inputElement.after(dateClarification);
+    $("#dateClarificationModal x").on("click", function () {
+      $("#dateClarificationModal").remove();
+    });
+
+    $("#dateClarificationModal").show();
+
+    $("#optionEu").on("click", function (e) {
+      e.preventDefault();
+      inputElement.val(formattedEu);
+      $("#dateClarificationModal").remove();
+    });
+    $("#optionUs").on("click", function (e) {
+      e.preventDefault();
+      inputElement.val(formattedUs);
+      $("#dateClarificationModal").remove();
+    });
+    return "Ambiguous date";
+  } else if (isValid(euParsed)) {
+    // Format and return the European interpretation
+    return format(euParsed, "dd MMM yyyy");
+  } else if (isValid(usParsed)) {
+    // Format and return the American interpretation
+    return format(usParsed, "dd MMM yyyy");
+  } else {
+    // Invalid date
+    //return "Invalid date";
+    displayWarning(inputElement, "Invalid date format.");
+  }
+}
+
+// Function to display a warning message
+function displayWarning(inputElement, message) {
+  const warningElement = $(`<div id="dateWarning">${message}</div>`);
+  $("#dateWarning").remove(); // Remove any existing warnings
+  inputElement.after(warningElement);
+
+  setTimeout(() => {
+    warningElement.remove();
+  }, 5000); // Removes the warning after 5 seconds
+}
+
+function sanitizeInput(input) {
+  return input
+    .replaceAll(/\s+/g, " ") // Replace all occurrences of multiple spaces with a single space
+    .replaceAll(/[!"#$%&'()~=]/g, "") // Remove all special characters
+    .replaceAll(/-+/g, "-") // Replace all occurrences of multiple hyphens with a single hyphen
+    .replaceAll(/\/+/g, "/") // Replace all occurrences of multiple slashes with a single slash
+    .replaceAll(/\s+[-/]/g, "-") // Replace all occurrences of space followed by a hyphen or slash with a single hyphen
+    .replaceAll(/[-/]\s+/g, "-") // Replace all occurrences of a hyphen or slash followed by a space with a single hyphen
+    .replace(/([a-zA-Z])(\d)/g, "$1 $2") // Add a space between a month and a year
+    .replace(/(\d)([a-zA-Z])/g, "$1 $2"); // Add a space between a day and a month
+}
+
+function fixDates() {
   const monthNames = [
     "January",
     "February",
@@ -139,8 +215,49 @@ function fixDates() {
 
   const monthShortNames = monthNames.map((month) => month.substr(0, 3));
 
-  function parseDate(input) {
+  function parseDate(input, inputElement) {
+    $("#dateWarning").remove(); // Remove any existing warnings
+    $("#dateClarificationModal").remove(); // Remove any existing date clarification modal
+
     input = sanitizeInput(input);
+
+    // Updated regex pattern to accommodate starting with a month or year
+    const dateLikePattern =
+      /\b((\d{1,4})|(\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)))([\/.-](\d{1,2}|\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)))?([\/.-]\d{1,4})?\b/;
+    if (!dateLikePattern.test(input)) {
+      displayWarning(inputElement, "Invalid date format.");
+      return "";
+    }
+
+    let isValidDate = false; // Flag to track if a valid date pattern is found
+
+    const patterns = [
+      /^(\d{1,2})\s(\d{1,2})\s(\d{4})$/,
+      /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
+      /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/,
+    ];
+    for (const pattern of patterns) {
+      if (pattern.test(input)) {
+        isValidDate = true; // Valid date pattern found
+        const [, day, month, year] = pattern.exec(input);
+        return `${String(day).padStart(2, "0")} ${monthShortNames[parseInt(month, 10) - 1]} ${year}`;
+      }
+    }
+
+    // Define a pattern for "YYYY MMM DD"
+    const yearFirstPattern = /^(\d{4}) ([a-zA-Z]+) (\d{1,2})$/;
+    if (yearFirstPattern.test(input)) {
+      const [, year, month, day] = yearFirstPattern.exec(input);
+
+      // Convert non-English month names to English
+      let correctedMonth = month;
+      if (nonEnglishMonthNames[month.toLowerCase()]) {
+        correctedMonth = nonEnglishMonthNames[month.toLowerCase()];
+      }
+
+      // Convert to "DD MMM YYYY" format
+      return `${String(day).padStart(2, "0")} ${correctedMonth} ${year}`;
+    }
 
     // Fix typos in month names
     const monthTypoPattern = /^(\d{1,2})?\s*([a-zA-Z]+)\s*(\d{1,2})?,?\s*(\d{4})$/;
@@ -172,6 +289,17 @@ function fixDates() {
       input = input.replace(month, correctedMonth);
     }
 
+    // Define a pattern for ambiguous dates (e.g., 01-02-1900)
+    const ambiguousDatePattern = /^(\d{2})-(\d{2})-(\d{4})$/;
+    // Check if the date is ambiguous first
+    if (ambiguousDatePattern.test(input)) {
+      // Handle the ambiguous date
+      const formattedDate = handleDateInput(input, inputElement);
+      if (formattedDate !== "Ambiguous date") {
+        return formattedDate;
+      }
+    }
+
     const validPatterns = [
       new RegExp(`^(${monthNames.join("|")}) (\\d{1,2}), (\\d{4})$`, "i"), // Month DD, YYYY
       new RegExp(`^(${monthShortNames.join("|")}) (\\d{1,2}) (\\d{4})$`, "i"), // Mon DD YYYY
@@ -183,23 +311,27 @@ function fixDates() {
       new RegExp(`^(${monthNames.join("|")}) (\\d{4})$`, "i"), // Month YYYY
       /^(\d{4})$/, // YYYY
     ];
+
     const AABBYYYY = /^(\d{2})-(\d{2})-(\d{4})$/;
     for (const pattern of validPatterns) {
       if (pattern.test(input)) {
-        if (AABBYYYY.test(input) == false) {
-          return input;
-        }
+        isValidDate = true; // Valid date pattern found
+        const [, day, month, year] = pattern.exec(input);
+        return `${String(day).padStart(2, "0")} ${monthShortNames[parseInt(month, 10) - 1]} ${year}`;
+      } else {
+        return input;
       }
     }
 
-    const patterns = [
-      /^(\d{1,2})\s(\d{1,2})\s(\d{4})$/,
-      /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
-      /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/,
-    ];
     let firstBitIsDay = false;
     console.log(input);
-    if (AABBYYYY.test(input) && !window.dateFixerOptions["convertDD-MM-YYYY"]) {
+
+    if (window.dateFixerOptions["convertDD-MM-YYYY"] == "askMe") {
+      const formattedDate = handleDateInput(input, inputElement);
+      console.log(formattedDate);
+    }
+
+    if (AABBYYYY.test(input) && !window.dateFixerOptions["convertDD-MM-YYYY"] == "always") {
       const firstBit = input.split("-")[0];
       console.log(input, firstBit);
       if (parseInt(firstBit) > 12 && firstBit.length < 3) {
@@ -208,30 +340,32 @@ function fixDates() {
         return input;
       }
     }
-    if (window.dateFixerOptions["convertDD-MM-YYYY"] || firstBitIsDay) {
+    if (window.dateFixerOptions["convertDD-MM-YYYY"] == "always" || firstBitIsDay) {
       patterns.push(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
     }
-    for (const pattern of patterns) {
-      if (pattern.test(input)) {
-        const [, day, month, year] = pattern.exec(input);
-        return `${String(day).padStart(2, "0")} ${monthShortNames[parseInt(month, 10) - 1]} ${year}`;
-        //        return `${year}-${String(month).padStart(2, "0")}-${day.padStart(2, "0")}`;
-      }
+
+    // If no valid pattern is found, display a warning
+    if (!isValidDate) {
+      displayWarning(inputElement, "Invalid date format.");
+      return "";
     }
 
-    return input;
+    //    return input;
   }
 
   $("#mBirthDate,#mDeathDate,#mMarriageDate,#photo_date,#mStartDate,#mEndDate").on("change", function () {
     const input = $(this).val().trim();
-    const fixedDate = parseDate(input);
-    $(this).val(fixedDate);
+    const fixedDate = parseDate(input, $(this));
+    if (fixedDate) {
+      $(this).val(fixedDate);
+    }
   });
 }
 
 shouldInitializeFeature("dateFixer").then((result) => {
   if (result) {
     getFeatureOptions("dateFixer").then((options) => {
+      import("./date_fixer.css");
       window.dateFixerOptions = options;
       fixDates();
     });

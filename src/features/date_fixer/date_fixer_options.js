@@ -27,11 +27,24 @@ registerFeature({
   options: [
     {
       id: "convertDD-MM-YYYY",
-      type: OptionType.CHECKBOX,
+      type: OptionType.RADIO,
       label:
         "Convert DD-MM-YYYY. (WikiTree accepts the US date format MM-DD-YYYY. " +
-        "If you're not American, you may use DD-MM-YYYY. " +
-        "This option will convert your DD-MM-YYYY to an accepted format.)",
+        "This option can convert DD-MM-YYYY to an accepted format every time.)",
+      values: [
+        {
+          value: "always",
+          text: "Always",
+        },
+        {
+          value: "askMe",
+          text: "Ask me each time",
+        },
+        {
+          value: false,
+          text: "Never",
+        },
+      ],
       defaultValue: false,
     },
   ],
