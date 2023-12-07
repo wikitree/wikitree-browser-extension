@@ -2435,8 +2435,7 @@ function standardizeRelation(relation) {
   });
 }
 
-const citiesCountiesStates = [
-  // UK Counties
+const EnglandCounties = [
   "Bedfordshire",
   "Berkshire",
   "Bristol",
@@ -2484,7 +2483,25 @@ const citiesCountiesStates = [
   "West Yorkshire",
   "Wiltshire",
   "Worcestershire",
+];
 
+const EnglandHistoricCounties = [
+  "Middlesex",
+  "Westmorland",
+  "Cumberland",
+  "Rutland",
+  "Huntingdonshire",
+  "Monmouthshire",
+  "Sutherland",
+  "Breconshire",
+  "Montgomeryshire",
+  "Radnorshire",
+  "West Riding of Yorkshire",
+];
+
+EnglandCounties.push(...EnglandHistoricCounties);
+
+const UKMetropolitanCities = [
   // UK Metropolitan Cities
   "London",
   "Birmingham",
@@ -2565,7 +2582,9 @@ const citiesCountiesStates = [
   "Preston",
   "Sale",
   "Newcastle-under-Lyme",
+];
 
+const citiesCountiesStates = [
   // US States
   "Alabama",
   "Alaska",
@@ -2643,6 +2662,10 @@ const citiesCountiesStates = [
   "Victoria",
   "Western Australia",
 ];
+
+// Add UK Counties and  Metropolitan Cities to the list of citiesCountiesStates
+citiesCountiesStates.push(...EnglandCounties);
+citiesCountiesStates.push(...UKMetropolitanCities);
 
 const placeNameRegExp =
   /\w+(land|shire|mere|acres|bay|beach|bluffs|center|corner|cove|crest|crossing|falls|farms|fields|flats|fork|gardens|gate|glen|green|grove|harbor|heights|hills|hollow|inlet|key|knolls|landing|light|manor|mesa|mills|mount|mountain|orchard|park|passage|pines|point|ranch|ridge|river|runway|shores|sky|springs|terrace|trace|view|village|vista|woods|basin|cape|canyon|delta|forest|glacier|gulf|island|isthmus|lake|mesa|oasis|plain|plateau|prairie|sea|shore|sound|swamp|trail|valley|waterfall|peak|ridge|summit|pass|range|butte|knob|dome|spit|shoals|rapids|falls|bend|junction|spur|switch|fork|cross|field|estate|parkway|boulevard|circle|court|place|avenue|plaza|path|way|alley|borough|city|county|district|municipality|parish|town|township|village|territory|region|state|province|shire|ton|ham|don|wick|ford|bury|port|stadt|stede|burg|burgh|by|ville|beck|dale|holme|hurts|mead|wold|boro|chester|heath|hill|vale|wyke)\b/gi;
@@ -6153,7 +6176,12 @@ export function addUnsourced(feature = "autoBio") {
         places.forEach(function (aPlace) {
           if (
             unsourcedCategories[aPlace] &&
-            !(["Wales", "Canada", "United States"].includes(aPlace) && unsourcedCategory)
+            !(["Wales", "Canada", "United States"].includes(aPlace) && unsourcedCategory) &&
+            // Don't add if aPlace is a UK county or city && places does not include UK, England, Scotland, Wales, or Ireland
+            !(
+              places.includes(/(England|Scotland|Wales|Ireland)/) == false &&
+              (EnglandCounties.includes(aPlace) || UKMetropolitanCities.includes(aPlace))
+            )
           ) {
             if (addCategory) {
               unsourcedCategory = `[[Category: ${unsourcedCategories[aPlace]}]]`;
