@@ -1,0 +1,108 @@
+#surnameTableMoreButton {
+  float: right;
+  font-size: 0.5em;
+  margin: 0.4em;
+}
+table.wt.names .pinkWall,
+table.wt.names .blueWall {
+  height: 1.5em;
+  width: 10px;
+  float: right;
+  display: block;
+  margin: 0;
+  border-radius: 0;
+}
+tr.surnameTableHeaderRow #birthLocation {
+  cursor: pointer;
+}
+th#privacyHeader {
+  width: 2em;
+}
+th#editDateHeader,
+th#PMHeader {
+  width: 7em;
+}
+
+.wt.names span.PM,
+.wt.names span.yourAncestor,
+.wt.names span.checkLNC,
+.wt.names span.orphan {
+  border: 2px solid forestgreen;
+  border-radius: 1em;
+  color: forestgreen;
+  position: absolute;
+  left: -2.5em;
+  padding: 0.2em;
+  background: white;
+  top: 0em;
+  font-size: 0.7em;
+  z-index: 1000;
+}
+
+.wt.names span.orphan {
+  background-color: lightblue;
+  font-weight: bold;
+  color: navy;
+  padding: 0.2em 0.6em;
+  border-radius: 50%;
+}
+
+.wt.names span.checkLNC {
+  left: -5.2em;
+  border-radius: 50%;
+  background: blue;
+  color: white;
+  padding: 0.2em 0.6em;
+  font-weight: bold;
+}
+
+.wt.names span.yourAncestor {
+  left: -4em;
+  border-radius: 50%;
+  background: forestgreen;
+  color: white;
+  padding: 0.2em 0.5em;
+}
+.wt.names tr[data-manager] td {
+  position: relative;
+}
+
+table.wt.names.wide,
+table.wt.names.wide td,
+table.wt.names.wide th {
+  width: auto !important;
+  white-space: nowrap;
+  table-layout: auto;
+  background: white;
+}
+table.wt.names.wide th.selected {
+  background-color: #25422d;
+}
+
+#buttonBox {
+  position: fixed;
+  z-index: 5000;
+  top: 45%;
+  right: -0.5em;
+}
+
+#leftButton,
+#rightButton {
+  width: 30px;
+  padding: 0;
+  background: forestgreen;
+  border: 2px solid green;
+  box-shadow: 2px 2px 2px navy;
+  height: 50px;
+  display: block;
+  margin-top: 0.2em;
+}
+#tableContainer {
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 100%;
+  width: 100%;
+  position: relative;
+  margin: 0;
+  padding: 0;
+}

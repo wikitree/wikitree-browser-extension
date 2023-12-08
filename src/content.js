@@ -47,6 +47,7 @@ import "./features/sort_theme_people/sort_theme_people";
 import "./features/sourcepreview/sourcepreview";
 import "./features/spacepreview/spacepreview";
 import "./features/sticky_header/sticky_header";
+import "./features/surname_table/surname_table";
 import "./features/table_filters/table_filters";
 import "./features/unconnected_branch_table/unconnected_branch_table";
 import "./features/usability_tweaks/usability_tweaks";

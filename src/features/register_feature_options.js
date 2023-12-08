@@ -92,6 +92,7 @@ import "./send_to_merge/send_to_merge_options";
 import "./shareable_sources/shareable_sources_options";
 import "./sourcepreview/sourcepreview_options";
 import "./spacepreview/spacepreview_options";
+import "./surname_table/surname_table_options";
 import "./table_filters/table_filters_options";
 import "./unconnected_branch_table/unconnected_branch_table_options";
 import "./usability_tweaks/usability_tweaks_options";
