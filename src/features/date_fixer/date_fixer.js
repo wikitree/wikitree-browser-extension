@@ -14,11 +14,48 @@ function tryParseDate(dateString, formats) {
   return null;
 }
 
+const euDateFormats = [
+  "dd-MM-yyyy",
+  "d-MM-yyyy",
+  "dd-M-yyyy",
+  "d-M-yyyy",
+  "dd MMM yyyy",
+  "d MMM yyyy",
+  "dd.MM.yyyy",
+  "d.MM.yyyy",
+  "dd.MM.yyyy",
+  "d.MM.yyyy",
+  "dd/MM/yyyy",
+  "d/MM/yyyy",
+  "dd/M/yyyy",
+  "d/M/yyyy",
+];
+
+const usDateFormats = [
+  "MM-dd-yyyy",
+  "M-dd-yyyy",
+  "MM-d-yyyy",
+  "M-d-yyyy",
+  "MMM dd yyyy",
+  "MMM d yyyy",
+  "MM.dd.yyyy",
+  "M.dd.yyyy",
+  "MM.d.yyyy",
+  "M.d.yyyy",
+  "MM/dd/yyyy",
+  "M/dd/yyyy",
+  "MM/d/yyyy",
+  "M/d/yyyy",
+];
+
+const isoDateFormats = ["yyyy-MM-dd", "yyyy-M-d"];
+
 // Function to handle and format the date
+/*
 function handleDateInput(dateString, inputElement) {
   // Try parsing the date with both European and American formats
-  const euParsed = tryParseDate(dateString, ["dd-MM-yyyy", "dd MMM yyyy"]);
-  const usParsed = tryParseDate(dateString, ["MM-dd-yyyy", "MMM dd yyyy"]);
+  const euParsed = tryParseDate(dateString, euDateFormats);
+  const usParsed = tryParseDate(dateString, usDateFormats);
 
   // Check if both interpretations are valid (ambiguous case)
   if (isValid(euParsed) && isValid(usParsed)) {
@@ -66,6 +103,56 @@ function handleDateInput(dateString, inputElement) {
     displayWarning(inputElement, "Invalid date format.");
   }
 }
+*/
+
+function handleDateInput(dateString, inputElement) {
+  // Try parsing the date with both European and American formats
+  const euParsed = tryParseDate(dateString, euDateFormats);
+  const usParsed = tryParseDate(dateString, usDateFormats);
+
+  // Check if both interpretations are valid (ambiguous case)
+  if (isValid(euParsed) && isValid(usParsed)) {
+    const formattedEu = format(euParsed, "d MMM yyyy"); // Format European date
+    const formattedUs = format(usParsed, "d MMM yyyy"); // Format American date
+    const dateClarification = $(`
+      <div id="dateClarificationModal">
+        <p>Please clarify the date:</p>
+        <button id="optionEu">${formattedEu}</button>
+        <button id="optionUs">${formattedUs}</button>
+          <x>&#215;</x>       
+        </div>
+    `);
+
+    // Prompt the user to select the correct interpretation
+    $("#dateClarificationModal").remove();
+    inputElement.after(dateClarification);
+
+    $("#dateClarificationModal x").on("click", function () {
+      $("#dateClarificationModal").remove();
+    });
+
+    $("#dateClarificationModal").show();
+
+    $("#optionEu").on("click", function (e) {
+      e.preventDefault();
+      inputElement.val(formattedEu);
+      $("#dateClarificationModal").remove();
+    });
+    $("#optionUs").on("click", function (e) {
+      e.preventDefault();
+      inputElement.val(formattedUs);
+      $("#dateClarificationModal").remove();
+    });
+
+    return dateString;
+  } else if (isValid(euParsed)) {
+    return format(euParsed, "dd MMM yyyy");
+  } else if (isValid(usParsed)) {
+    return format(usParsed, "dd MMM yyyy");
+  } else {
+    displayWarning(inputElement, "Invalid date format.");
+  }
+}
 
 // Function to display a warning message
 function displayWarning(inputElement, message) {
@@ -84,142 +171,169 @@ function sanitizeInput(input) {
     .replaceAll(/[!"#$%&'()~=]/g, "") // Remove all special characters
     .replaceAll(/-+/g, "-") // Replace all occurrences of multiple hyphens with a single hyphen
     .replaceAll(/\/+/g, "/") // Replace all occurrences of multiple slashes with a single slash
+    .replaceAll(/\.+/g, ".") // Replace all occurrences of multiple periods with a single period
     .replaceAll(/\s+[-/]/g, "-") // Replace all occurrences of space followed by a hyphen or slash with a single hyphen
     .replaceAll(/[-/]\s+/g, "-") // Replace all occurrences of a hyphen or slash followed by a space with a single hyphen
     .replace(/([a-zA-Z])(\d)/g, "$1 $2") // Add a space between a month and a year
     .replace(/(\d)([a-zA-Z])/g, "$1 $2"); // Add a space between a day and a month
 }
 
+const monthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const nonEnglishMonthNames = {
+  // French
+  janvier: "January",
+  février: "February",
+  mars: "March",
+  avril: "April",
+  mai: "May",
+  juin: "June",
+  juillet: "July",
+  août: "August",
+  septembre: "September",
+  octobre: "October",
+  novembre: "November",
+  décembre: "December",
+  // Spanish
+  enero: "January",
+  febrero: "February",
+  marzo: "March",
+  abril: "April",
+  mayo: "May",
+  junio: "June",
+  julio: "July",
+  agosto: "August",
+  septiembre: "September",
+  octubre: "October",
+  noviembre: "November",
+  diciembre: "December",
+  // German
+  januar: "January",
+  februar: "February",
+  märz: "March",
+  april: "April",
+  //"mai": "May",
+  juni: "June",
+  juli: "July",
+  august: "August",
+  september: "September",
+  oktober: "October",
+  november: "November",
+  dezember: "December",
+  // Dutch
+  januari: "January",
+  februari: "February",
+  maart: "March",
+  // "april": "April",
+  mei: "May",
+  // "juni": "June",
+  // "juli": "July",
+  augustus: "August",
+  // "september": "September",
+  // "oktober": "October",
+  // "november": "November",
+  december: "December",
+  // Portuguese
+  janeiro: "January",
+  fevereiro: "February",
+  março: "March",
+  // "abril": "April",
+  maio: "May",
+  junho: "June",
+  julho: "July",
+  // "agosto": "August",
+  setembro: "September",
+  outubro: "October",
+  novembro: "November",
+  dezembro: "December",
+  // Slovenian
+  //"januar": "January",
+  //"februar": "February",
+  marec: "March",
+  // "april": "April",
+  maj: "May",
+  junij: "June",
+  julij: "July",
+  avgust: "August",
+  // "september": "September",
+  // "oktober": "October",
+  // "november": "November",
+  // "december": "December",
+  // Italian
+  gennaio: "January",
+  febbraio: "February",
+  // "marzo": "March",
+  aprile: "April",
+  maggio: "May",
+  giugno: "June",
+  luglio: "July",
+  // "agosto": "August",
+  settembre: "September",
+  ottobre: "October",
+  //"novembre": "November",
+  dicembre: "December",
+  // Swedish
+  //"januari": "January",
+  // "februari": "February",
+  //"mars": "March",
+  //"april": "April",
+  // "maj": "May",
+  //"juni": "June",
+  //"juli": "July",
+  augusti: "August",
+  //"september": "September",
+  //"oktober": "October",
+  // "november": "November",
+  // "december": "December",
+};
+
+const monthShortNames = monthNames.map((month) => month.substr(0, 3));
+
 function fixDates() {
-  const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-
-  const nonEnglishMonthNames = {
-    // French
-    janvier: "January",
-    février: "February",
-    mars: "March",
-    avril: "April",
-    mai: "May",
-    juin: "June",
-    juillet: "July",
-    août: "August",
-    septembre: "September",
-    octobre: "October",
-    novembre: "November",
-    décembre: "December",
-    // Spanish
-    enero: "January",
-    febrero: "February",
-    marzo: "March",
-    abril: "April",
-    mayo: "May",
-    junio: "June",
-    julio: "July",
-    agosto: "August",
-    septiembre: "September",
-    octubre: "October",
-    noviembre: "November",
-    diciembre: "December",
-    // German
-    januar: "January",
-    februar: "February",
-    märz: "March",
-    april: "April",
-    //"mai": "May",
-    juni: "June",
-    juli: "July",
-    august: "August",
-    september: "September",
-    oktober: "October",
-    november: "November",
-    dezember: "December",
-    // Dutch
-    januari: "January",
-    februari: "February",
-    maart: "March",
-    // "april": "April",
-    mei: "May",
-    // "juni": "June",
-    // "juli": "July",
-    augustus: "August",
-    // "september": "September",
-    // "oktober": "October",
-    // "november": "November",
-    december: "December",
-    // Portuguese
-    janeiro: "January",
-    fevereiro: "February",
-    março: "March",
-    // "abril": "April",
-    maio: "May",
-    junho: "June",
-    julho: "July",
-    // "agosto": "August",
-    setembro: "September",
-    outubro: "October",
-    novembro: "November",
-    dezembro: "December",
-    // Slovenian
-    //"januar": "January",
-    //"februar": "February",
-    marec: "March",
-    // "april": "April",
-    maj: "May",
-    junij: "June",
-    julij: "July",
-    avgust: "August",
-    // "september": "September",
-    // "oktober": "October",
-    // "november": "November",
-    // "december": "December",
-    // Italian
-    gennaio: "January",
-    febbraio: "February",
-    // "marzo": "March",
-    aprile: "April",
-    maggio: "May",
-    giugno: "June",
-    luglio: "July",
-    // "agosto": "August",
-    settembre: "September",
-    ottobre: "October",
-    //"novembre": "November",
-    dicembre: "December",
-    // Swedish
-    //"januari": "January",
-    // "februari": "February",
-    //"mars": "March",
-    //"april": "April",
-    // "maj": "May",
-    //"juni": "June",
-    //"juli": "July",
-    augusti: "August",
-    //"september": "September",
-    //"oktober": "October",
-    // "november": "November",
-    // "december": "December",
-  };
-
-  const monthShortNames = monthNames.map((month) => month.substr(0, 3));
-
   function parseDate(input, inputElement) {
     $("#dateWarning").remove(); // Remove any existing warnings
     $("#dateClarificationModal").remove(); // Remove any existing date clarification modal
 
     input = sanitizeInput(input);
+
+    // Try parsing the date with both European and American formats
+    const euParsed = tryParseDate(input, euDateFormats);
+    const usParsed = tryParseDate(input, usDateFormats);
+    const isoParsed = tryParseDate(input, isoDateFormats);
+
+    // Check if the date is ambiguous (both EU and US formats are valid)
+    if (isValid(euParsed) && isValid(usParsed)) {
+      if (window.dateFixerOptions["convertDD-MM-YYYY"] == "askMe") {
+        // Trigger the clarification modal for ambiguous dates
+        return handleDateInput(input, inputElement);
+      } else if (window.dateFixerOptions["convertDD-MM-YYYY"] == "always") {
+        // If the option is set to always, choose a format (here, we choose the EU format)
+        return format(euParsed, "dd MMM yyyy");
+      }
+      // If the option is set to never, no action is taken (you can add logic here if needed)
+    } else {
+      // If the date is not ambiguous, check individual formats
+      if (isValid(euParsed)) {
+        return format(euParsed, "dd MMM yyyy");
+      } else if (isValid(usParsed)) {
+        return format(usParsed, "dd MMM yyyy");
+      } else if (isValid(isoParsed)) {
+        return format(isoParsed, "yyyy-MM-dd");
+      }
+    }
 
     // Updated regex pattern to accommodate starting with a month or year
     const dateLikePattern =
@@ -324,16 +438,13 @@ function fixDates() {
     }
 
     let firstBitIsDay = false;
-    console.log(input);
 
     if (window.dateFixerOptions["convertDD-MM-YYYY"] == "askMe") {
-      const formattedDate = handleDateInput(input, inputElement);
-      console.log(formattedDate);
+      handleDateInput(input, inputElement);
     }
 
     if (AABBYYYY.test(input) && !window.dateFixerOptions["convertDD-MM-YYYY"] == "always") {
       const firstBit = input.split("-")[0];
-      console.log(input, firstBit);
       if (parseInt(firstBit) > 12 && firstBit.length < 3) {
         firstBitIsDay = true;
       } else {
