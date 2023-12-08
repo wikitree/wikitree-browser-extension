@@ -352,6 +352,12 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
       optionElement = document.createElement("input");
       optionElement.type = "number";
       optionElement.className = "option-number";
+      if (option.min) {
+        optionElement.min = option.min;
+      }
+      if (option.max) {
+        optionElement.max = option.max;
+      }
 
       let labelElement = document.createElement("label");
 

@@ -52,6 +52,14 @@ const printerFriendlyFeature = {
       label: "Do not print sources.",
       defaultValue: false,
     },
+    {
+      id: "fontSize",
+      type: OptionType.NUMBER,
+      label: "Font size (pt)",
+      min: 8,
+      max: 22,
+      defaultValue: 12,
+    },
   ],
 };
 

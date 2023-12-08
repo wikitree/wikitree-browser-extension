@@ -36,13 +36,19 @@ async function initPrinterFriendly() {
         )
       );
 
+    const fontSizeOption = $(
+      `<style id="fontSizeOption">.print-content-only body{ font-size: ${options.fontSize}pt; }</style>`
+    );
+
     $(`#wte-tm-printer-friendly`).on("click", () => {
       if (!options.onBrowserPrint) {
         $("html").addClass("print-content-only");
+        fontSizeOption.appendTo("head");
       }
       window.print();
       if (!options.onBrowserPrint) {
         $("html").removeClass("print-content-only");
+        fontSizeOption.remove();
       }
     });
   }
