@@ -77,14 +77,19 @@ function rememberTextareaHeight() {
   const textarea = document.getElementById("wpTextbox1");
   const enhancedEditorButton = document.getElementById("toggleMarkupColor");
   const storedHeight = localStorage.getItem("textareaHeight");
+  const storedWidth = localStorage.getItem("textareaWidth");
 
   if (textarea) {
     if (storedHeight) {
       textarea.style.height = storedHeight + "px";
     }
+    if (storedWidth) {
+      textarea.style.width = storedWidth + "px";
+    }
 
     textarea.addEventListener("mouseup", function () {
       localStorage.setItem("textareaHeight", textarea.offsetHeight);
+      localStorage.setItem("textareaWidth", textarea.offsetWidth);
     });
   }
 
@@ -92,8 +97,8 @@ function rememberTextareaHeight() {
     enhancedEditorButton.addEventListener("click", function () {
       waitForCodeMirror(function () {
         const cm = window.CodeMirror.fromTextArea(document.getElementById("wpTextbox1"));
-        if (storedHeight) {
-          cm.setSize(null, storedHeight + "px");
+        if (storedHeight || storedWidth) {
+          cm.setSize(storedWidth ? storedWidth + "px" : null, storedHeight ? storedHeight + "px" : null);
         }
       });
     });

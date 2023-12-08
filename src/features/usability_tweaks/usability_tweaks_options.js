@@ -58,7 +58,7 @@ const usabilityTweaks = {
         {
           id: "rememberTextareaHeight",
           type: OptionType.CHECKBOX,
-          label: "Remember the height of the editor on the edit page.",
+          label: "Remember the dimensions of the editor on the edit page.",
           defaultValue: false,
         },
       ],
