@@ -29,5 +29,11 @@
   color: red;
   font-weight: bold;
   display: inline-block;
+  width: fit-content;
   margin-left: 1em;
+  position: absolute;
+  background-color: white;
+  border-radius: 1em;
+  padding: 0.2em 1em;
+  border: 2px solid black;
 }
