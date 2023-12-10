@@ -447,6 +447,23 @@ function parsedDate(input) {
   return { eu: euParsed, us: usParsed, iso: isoParsed, validDate: validDate };
 }
 
+// Function to remove accents/diacritics from a string
+function removeAccents(str) {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+// Function to replace non-English month names with English ones
+function replaceNonEnglishMonth(month) {
+  let normalizedMonth = removeAccents(month.toLowerCase());
+
+  for (let nonEnglishMonth in nonEnglishMonthNames) {
+    if (removeAccents(nonEnglishMonth) === normalizedMonth) {
+      return nonEnglishMonthNames[nonEnglishMonth];
+    }
+  }
+  return month; // Return the original month if no match is found
+}
+
 const monthTypoPattern = /^(\d+)?\s*(\p{L}+)\s*(\d{1,2})?,?\s*(\d+)$/u;
 
 function fixMonthTypos(input) {
@@ -457,7 +474,9 @@ function fixMonthTypos(input) {
     console.log(`Detected - Day: ${day}, Month: ${month}, Year: ${year}`);
 
     // Replace non-English month names with English ones
-    let correctedMonth = nonEnglishMonthNames[month.toLowerCase()] || month;
+    //let correctedMonth = nonEnglishMonthNames[month.toLowerCase()] || month;
+    let correctedMonth = replaceNonEnglishMonth(month);
+
     console.log("After non-English month replacement:", correctedMonth);
 
     // Use Fuse.js to correct typos in English month names
