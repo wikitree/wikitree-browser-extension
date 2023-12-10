@@ -36,6 +36,17 @@ const euDateFormats = [
   "d MM yyyy",
   "dd m yyyy",
   "d m yyyy",
+  // Year only
+  "yyyy",
+  // Year and month only
+  "M yyyy",
+  "MM yyyy",
+  "MMM yyyy",
+  "MMMM yyyy",
+  "M.yyyy",
+  "MM.yyyy",
+  "MMM.yyyy",
+  "MMMM.yyyy",
 ];
 
 const usDateFormats = [
@@ -60,6 +71,17 @@ const usDateFormats = [
   "M dd yyyy",
   "MM d yyyy",
   "M d yyyy",
+  // Year only
+  "yyyy",
+  // Year and month only
+  "M yyyy",
+  "MM yyyy",
+  "MMM yyyy",
+  "MMMM yyyy",
+  "M.yyyy",
+  "MM.yyyy",
+  "MMM.yyyy",
+  "MMMM.yyyy",
 ];
 
 const isoDateFormats = [
@@ -88,6 +110,19 @@ const isoDateFormats = [
   "yyyy M dd",
   "yyyy MM d",
   "yyyy M d",
+  // Year only
+  "yyyy",
+  // Year and month only
+  "yyyy-MM",
+  "yyyy MM",
+  "yyyy/MM",
+  "yyyy.MM",
+  "yyyy-M",
+  "yyyy M",
+  "yyyy/M",
+  "yyyy.M",
+  "yyyy MMMM",
+  "yyyy MMM",
 ];
 
 function displayClarificationModal(dateString, ambiguousMonth, inputElement, possibleMonths) {
@@ -123,6 +158,29 @@ function displayClarificationModal(dateString, ambiguousMonth, inputElement, pos
 }
 
 function handleDateInput(dateString, inputElement) {
+  // Check if the input is just a year
+  if (/^\d{4}$/.test(dateString)) {
+    // Directly return the year as it's unambiguous
+    return format(new Date(dateString, 0, 1), "yyyy");
+  }
+
+  // Regular expressions to match year-month and month-year patterns
+  const yearMonthPattern = /^(\d{4})\s([a-zA-Z]+)/;
+  const monthYearPattern = /^([a-zA-Z]+)\s(\d{4})/;
+
+  // Check for year-month or month-year pattern
+  if (yearMonthPattern.test(dateString) || monthYearPattern.test(dateString)) {
+    // Process date without showing clarification modal
+    const formattedDate = parsedDate(dateString).validDate;
+    if (formattedDate) {
+      inputElement.val(formattedDate);
+      return formattedDate;
+    } else {
+      displayWarning(inputElement, "Invalid date format.");
+      return "";
+    }
+  }
+
   // Detect if the date string has an ambiguous month abbreviation
   const ambiguousMonthMatch = dateString.match(/\b(Ju|J|M|Ma|A)\b/i);
   if (ambiguousMonthMatch) {
@@ -366,7 +424,13 @@ function parsedDate(input) {
     return null;
   }
   let validDate = false;
-  if (isValid(usParsed)) {
+  const yearMonthPattern = /^(\d{4})\s([a-zA-Z]+)/;
+  const monthYearPattern = /^([a-zA-Z]+)\s(\d{4})/;
+
+  if (yearMonthPattern.test(input) || monthYearPattern.test(input)) {
+    // If input is year-month or month-year, format as "MMM yyyy"
+    return { validDate: format(new Date(input), "MMM yyyy") };
+  } else if (isValid(usParsed)) {
     validDate = format(usParsed, "dd MMM yyyy");
   } else if (isValid(euParsed)) {
     validDate = format(euParsed, "dd MMM yyyy");
