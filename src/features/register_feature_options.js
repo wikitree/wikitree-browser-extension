@@ -88,6 +88,7 @@ import "./readability/readability_options";
 import "./redir_ext_links/redir_ext_links_options";
 import "./save_buttons_style_options/save_buttons_style_options_options";
 import "./scissors/scissors_options";
+import "./send_to_merge/send_to_merge_options";
 import "./shareable_sources/shareable_sources_options";
 import "./sourcepreview/sourcepreview_options";
 import "./spacepreview/spacepreview_options";

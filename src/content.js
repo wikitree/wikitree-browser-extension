@@ -39,6 +39,7 @@ import "./features/my_menu/my_menu";
 import "./features/printerfriendly/printerfriendly";
 import "./features/redir_ext_links/redir_ext_links";
 import "./features/scissors/scissors";
+import "./features/send_to_merge/send_to_merge";
 import "./features/shareable_sources/shareable_sources";
 import "./features/smooth_scrolling/smooth_scrolling";
 import "./features/sortBadges/sortBadges";
