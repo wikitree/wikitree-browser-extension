@@ -424,12 +424,19 @@ function parsedDate(input) {
     return null;
   }
   let validDate = false;
-  const yearMonthPattern = /^(\d{4})\s([a-zA-Z]+)/;
-  const monthYearPattern = /^([a-zA-Z]+)\s(\d{4})/;
+  const yearMonthPattern = /^(\d{4})\s([a-zA-Z]+)$/;
+  const monthYearPattern = /^([a-zA-Z]+)\s(\d{4})$/;
+  const yearMonthDayPattern = /^(\d{4})\s([a-zA-Z]+)\s(\d{1,2})$/;
+  const monthYearDayPattern = /^([a-zA-Z]+)\s(\d{4})\s(\d{1,2})$/;
 
   if (yearMonthPattern.test(input) || monthYearPattern.test(input)) {
     // If input is year-month or month-year, format as "MMM yyyy"
     return { validDate: format(new Date(input), "MMM yyyy") };
+  } else if (yearMonthDayPattern.test(input) || monthYearDayPattern.test(input)) {
+    // If input is year-month-day or month-year-day, format as "dd MMM yyyy"
+    let parts = input.split(/\s/);
+    let newDate = new Date(parts[0], monthNames.indexOf(parts[1]), parts[2] || 1);
+    return { validDate: format(newDate, "dd MMM yyyy") };
   } else if (isValid(usParsed)) {
     validDate = format(usParsed, "dd MMM yyyy");
   } else if (isValid(euParsed)) {
