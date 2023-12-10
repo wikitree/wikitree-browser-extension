@@ -109,7 +109,7 @@ function displayClarificationModal(dateString, ambiguousMonth, inputElement, pos
 
 function handleDateInput(dateString, inputElement) {
   // Detect if the date string has an ambiguous month abbreviation
-  const ambiguousMonthMatch = dateString.match(/\b(Ju|J|M|A)\b/);
+  const ambiguousMonthMatch = dateString.match(/\b(Ju|J|M|Ma|A)\b/i);
   if (ambiguousMonthMatch) {
     const possibleMonths = getAmbiguousMonths(ambiguousMonthMatch[0]);
     return displayClarificationModal(dateString, ambiguousMonthMatch[0], inputElement, possibleMonths);
@@ -320,16 +320,19 @@ function getAmbiguousMonths(input) {
   console.log("Checking for ambiguous months in input:", input);
 
   const abbreviations = {
-    J: ["Jan", "Jun", "Jul"],
-    Ju: ["Jun", "Jul"],
-    M: ["Mar", "May"],
-    A: ["Apr", "Aug"],
+    j: ["Jan", "Jun", "Jul"],
+    ju: ["Jun", "Jul"],
+    ma: ["Mar", "May"],
+    m: ["Mar", "May"],
+    a: ["Apr", "Aug"],
     // Add other ambiguous cases here
   };
 
+  const lowerInput = input.toLowerCase();
+
   for (const key in abbreviations) {
     const regex = new RegExp(`\\b${key}\\b`);
-    if (input.match(regex)) {
+    if (lowerInput.match(regex)) {
       console.log(`Ambiguous abbreviation '${key}' found, possible months:`, abbreviations[key]);
       return abbreviations[key];
     }
@@ -401,7 +404,7 @@ function fixDates() {
     console.log("After sanitization:", input);
 
     // Check for ambiguous month abbreviations
-    const ambiguousMonthMatch = input.match(/\b(Ju|J|M|A)\b/);
+    const ambiguousMonthMatch = input.match(/\b(Ju|J|M|Ma|A)\b/i);
     if (ambiguousMonthMatch) {
       console.log("Found ambiguous month abbreviation:", ambiguousMonthMatch[0]);
 
