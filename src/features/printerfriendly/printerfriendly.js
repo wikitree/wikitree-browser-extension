@@ -19,9 +19,23 @@ async function initPrinterFriendly() {
   ensureProfileClasses();
   const options = await getFeatureOptions("printerFriendly");
 
+  const fontSizeOption = $(
+    `<style id="fontSizeOption">
+    @media print {
+      .print-content-only body{ 
+        font-size: ${options.fontSize}pt; 
+      }
+      .print-content-only ul li.x-src { 
+        line-height: 1em !important; 
+      }
+    }
+    </style>`
+  );
+
   if (!!options.onBrowserPrint) {
     // this will force the browser to always print only the biography content, whether the menu link is used or not
     $("html").addClass("print-content-only");
+    fontSizeOption.appendTo("head");
   }
 
   if (options.addMenuItem !== false) {
@@ -35,10 +49,6 @@ async function initPrinterFriendly() {
           "<li><a id='wte-tm-printer-friendly' title='Changes the format to a printer-friendly one'>Printer Friendly Bio</a></li>"
         )
       );
-
-    const fontSizeOption = $(
-      `<style id="fontSizeOption">.print-content-only body{ font-size: ${options.fontSize}pt; }</style>`
-    );
 
     $(`#wte-tm-printer-friendly`).on("click", () => {
       if (!options.onBrowserPrint) {
