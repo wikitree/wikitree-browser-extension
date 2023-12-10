@@ -176,7 +176,7 @@ function handleDateInput(dateString, inputElement) {
       inputElement.val(formattedDate);
       return formattedDate;
     } else {
-      displayWarning(inputElement, "Invalid date format.");
+      displayWarning(inputElement, "Invalid date format");
       return "";
     }
   }
@@ -233,7 +233,7 @@ function handleDateInput(dateString, inputElement) {
   } else if (isValid(usParsed)) {
     return format(usParsed, "dd MMM yyyy");
   } else {
-    displayWarning(inputElement, "Invalid date format.");
+    displayWarning(inputElement, "Invalid date format");
   }
 }
 
@@ -483,11 +483,23 @@ function fixDates() {
   function parseDate(input, inputElement) {
     console.log("Original input:", input);
 
+    // Check for empty input
+    if (input.trim() === "") {
+      // If input is empty, just return
+      return "";
+    }
+
     $("#dateWarning").remove(); // Remove any existing warnings
     $("#dateClarificationModal").remove(); // Remove any existing date clarification modal
 
     input = sanitizeInput(input);
     console.log("After sanitization:", input);
+
+    // Check if the input is just a year and convertDD-MM-YYYY option is not 'always'
+    if (/^\d{4}$/.test(input)) {
+      // If it's just a year, return the year as it is
+      return input;
+    }
 
     // Check for ambiguous month abbreviations
     const ambiguousMonthMatch = input.match(/\b(Ju|J|M|Ma|A)\b/i);
@@ -519,6 +531,8 @@ function fixDates() {
         } else if (window.dateFixerOptions["convertDD-MM-YYYY"] == "always") {
           // If the option is set to always, choose a format (here, we choose the EU format)
           return format(parsed.eu, "dd MMM yyyy");
+        } else {
+          return format(parsed.us, "dd MMM yyyy");
         }
         // If the option is set to never, no action is taken (you can add logic here if needed)
       } else {
@@ -531,7 +545,7 @@ function fixDates() {
     const dateLikePattern =
       /\b((\d{1,4})|(\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)))([\/.-](\d{1,2}|\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)))?([\/.-]\d{1,4})?\b/;
     if (!dateLikePattern.test(input)) {
-      displayWarning(inputElement, "Invalid date format.");
+      displayWarning(inputElement, "Invalid date format");
       return "";
     }
 
@@ -662,12 +676,14 @@ function fixDates() {
 
     // If no valid pattern is found, display a warning
     if (!isValidDate) {
-      displayWarning(inputElement, "Invalid date format.");
+      displayWarning(inputElement, "Invalid date format");
       return "";
     }
   }
 
   $("#mBirthDate,#mDeathDate,#mMarriageDate,#photo_date,#mStartDate,#mEndDate").on("change", function () {
+    $("#dateWarning").remove(); // Remove any existing warnings
+    $("#dateClarificationModal").remove(); // Remove any existing date clarification modal
     const input = $(this).val().trim();
     const fixedDate = parseDate(input, $(this));
     if (fixedDate) {
