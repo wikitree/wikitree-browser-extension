@@ -25,8 +25,11 @@ async function initPrinterFriendly() {
       .print-content-only body{ 
         font-size: ${options.fontSize}pt; 
       }
-      .print-content-only ul li.x-src { 
+      .print-content-only li { 
         line-height: 1em !important; 
+      }
+      .print-content-only * { 
+        max-width:100%; 
       }
     }
     </style>`

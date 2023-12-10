@@ -36,6 +36,8 @@
   .print-content-only.no-print-research-notes .section-researchnotes,
   .print-content-only.no-print-dna .section-dna,
   .print-content-only.no-print-dna *[class*="section-dna"],
+  .print-content-only.no-print-dna .section-dnaconfirmations,
+  .print-content-only.no-print-dna *[class*="section-dnaconfirmations"],
   .print-content-only.no-print-sources .section-sources,
   .print-content-only.no-print-sources sup.reference,
   .print-content-only .star,

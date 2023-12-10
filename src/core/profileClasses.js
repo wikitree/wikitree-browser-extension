@@ -199,7 +199,7 @@ export function ensureProfileClasses() {
     $(".x-memories, .x-content > br:last-child").addClass("x-memories").prevUntil("*:not(br)").addClass("x-memories"); // memories are usually preceded by a couple of line breaks, sometimes present at the end of content even if the memories block is missing
 
     // mark elements related to certain sections (including header, lists, and any other root elements) up until the next section *** dependent on x-memories being set
-    $(".x-content a[name].x-root-section").each(function () {
+    $(".x-content a[name].x-root-section, .x-content a[name].x-section").each(function () {
       let className = "section-" + this.name.replace(/[\W_]+/g, "").toLowerCase();
       if (className == "section-sources") {
         className += " x-sources";
