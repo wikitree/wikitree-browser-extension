@@ -31,6 +31,11 @@ const euDateFormats = [
   "d/MM/yyyy",
   "dd/M/yyyy",
   "d/M/yyyy",
+  // spaces
+  "dd MM yyyy",
+  "d MM yyyy",
+  "dd m yyyy",
+  "d m yyyy",
 ];
 
 const usDateFormats = [
@@ -50,6 +55,11 @@ const usDateFormats = [
   "M/d/yyyy",
   "MMMM d yyyy",
   "MMMM dd yyyy",
+  // spaces
+  "MM dd yyyy",
+  "M dd yyyy",
+  "MM d yyyy",
+  "M d yyyy",
 ];
 
 const isoDateFormats = [
@@ -73,6 +83,11 @@ const isoDateFormats = [
   "yyyy MMM dd",
   "yyyy MMMM d",
   "yyyy MMM d",
+  // spaces
+  "yyyy MM dd",
+  "yyyy M dd",
+  "yyyy MM d",
+  "yyyy M d",
 ];
 
 function displayClarificationModal(dateString, ambiguousMonth, inputElement, possibleMonths) {
