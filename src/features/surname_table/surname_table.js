@@ -1,4 +1,5 @@
 import $ from "jquery";
+import "jquery-ui/ui/widgets/draggable";
 import { secondarySort } from "../extra_watchlist/extra_watchlist";
 import "./surname_table.css";
 import { initTableFilters } from "../table_filters/table_filters";
@@ -7,19 +8,33 @@ import Cookies from "js-cookie";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 const USER_WT_ID = Cookies.get("wikitree_wtb_UserName");
-//const USER_NUM_ID = Cookies.get("wikitree_wtb_UserID");
+const USER_NUM_ID = Cookies.get("wikitree_wtb_UserID");
+
+async function init() {
+  const h1 = $("h1");
+  window.surnameTableOptions = await getFeatureOptions("surnameTable");
+  console.log(window.surnameTableOptions);
+  $("table.wt.names tbody tr:first-child").addClass("surnameTableHeaderRow");
+  const moreButton = $("<button id='surnameTableMoreButton' class='small'>More</button>");
+  h1.append(moreButton);
+  moreButton.on("click", function () {
+    initSurnameTableSorting();
+    if (
+      window.surnameTableOptions.ShowYouArePMorTL ||
+      window.surnameTableOptions.ShowMissingParents ||
+      window.surnameTableOptions.ShowProfileImage
+    ) {
+      getBrickWalls();
+    }
+    addWideTableButton();
+    $(this).fadeOut();
+  });
+}
 
 shouldInitializeFeature("surnameTable").then((result) => {
   if (result) {
     if (window.location.href.match(/layout=table/)) {
-      const h1 = $("h1");
-      $("table.wt.names tbody tr:first-child").addClass("surnameTableHeaderRow");
-      const moreButton = $("<button id='surnameTableMoreButton' class='small'>More</button>");
-      h1.append(moreButton);
-      moreButton.on("click", function () {
-        initSurnameTableSorting();
-      });
-      surnameTableMore();
+      init();
     }
   }
 });
@@ -74,7 +89,11 @@ async function initSurnameTableSorting() {
         $(this).attr("data-year", "");
       }
     });
-    dNumbering();
+
+    if (window.surnameTableOptions.NumberTheTable) {
+      dNumbering();
+    }
+
     const managerWord = rows.eq(0).find("th").eq(2);
     managerWord.html(
       "<a id='managerWord' title='Sort by profile manager. Note: Only the results on this page will be sorted.' data-order='za'>Manager</a> <span id='managerWordArrow'>&darr;</span>"
@@ -236,7 +255,6 @@ async function initSurnameTableSorting() {
         $(this).attr("data-order", "big2small");
 
         rows.sort(function (a, b) {
-          console.log(a, b);
           return $(a).data("birth-location-small2big").localeCompare($(b).data("birth-location-small2big"));
         });
         rows.each(function () {
@@ -261,15 +279,18 @@ async function initSurnameTableSorting() {
 
       rows.appendTo($("table.wt.names"));
       secondarySort(rows, "birth-location-" + listOrder, "year");
-      dNumbering();
+      if (window.surnameTableOptions.NumberTheTable) {
+        dNumbering();
+      }
 
       $("tr").removeClass("firstBirthLocation");
       $("table.wt.names tr[data-birth-location-small2big!='']").eq(0).addClass("firstBirthLocation");
     });
   }
   $("table.wt.names").addClass("ready");
-  dNumbering();
-
+  if (window.surnameTableOptions.NumberTheTable) {
+    dNumbering();
+  }
   // Add filters
   getFeatureOptions("tableFilters").then((options) => {
     if (options) {
@@ -278,52 +299,291 @@ async function initSurnameTableSorting() {
   });
 }
 
-function surnameTableMore() {
-  setupBrickWallButton();
-  setupIndexedDBConnection();
+const url = new URL(window.location.href);
+const params = url.searchParams;
+const layout = params.get("layout");
+const pinkSRC = chrome.runtime.getURL("images/pink_bricks.jpg");
+const blueSRC = chrome.runtime.getURL("images/blue_bricks.jpg");
+const pinkBricks = $("<img src='" + pinkSRC + "' class='pinkWall' title='Mother not known.'>");
+const blueBricks = $("<img src='" + blueSRC + "' class='blueWall' title='Father not known.'>");
+
+async function getBrickWalls() {
+  let finishedBWs = false;
+  const mWTID = USER_WT_ID;
+  const mWTIDID = USER_NUM_ID;
+  const theseKeys = [];
+  $("table.wt.names tbody tr input[name='mergeany[]'],a.P-M,a.P-F").each(function () {
+    if ($("table.wt.names").length) {
+      theseKeys.push($(this).attr("value"));
+    } else {
+      theseKeys.push($(this).attr("href").split("/")[2]);
+    }
+  });
+  let chunk;
+
+  while (theseKeys.length) {
+    chunk = theseKeys.splice(0, 50).join(",");
+    const fields =
+      "Id,Name,Manager,Mother,Father,Spouses,LastNameAtBirth,LastNameCurrent,Gender,Photo,PhotoData,BirthLocation,DeathLocation,Connected,TrustedList,Privacy";
+    getPeople(chunk, 0, 0, 0, 0, 0, fields).then((result) => {
+      console.log(result);
+      const peopleKeys = Object.keys(result[0].people);
+      peopleKeys.forEach((key) => {
+        const person = result[0].people[key];
+        const thisID = person.Name;
+        let BWtable;
+        let dParentEl;
+        if ($("table.wt.names").length) {
+          BWtable = true;
+        }
+        if (BWtable == true) {
+          dParentEl = $('table.wt.names tbody tr input[name="mergeany[]"][value="' + thisID + '"]').closest("td");
+          dParentEl.css({ position: "relative" });
+        } else {
+          dParentEl = $('a.P-F[href$="' + thisID + '"],a.P-M[href$="' + thisID + '"]').closest(".P-ITEM");
+        }
+
+        let hasSpouse = false;
+        let birthLocationMatch = null;
+        let birthLocation = null;
+        let deathLocationMatch = null;
+        let deathLocation = null;
+        let isManager = false;
+        let isTL = false;
+        let apic = null;
+        let lnc = null;
+        if (person) {
+          if (person["Spouses"]) {
+            birthLocationMatch = null;
+            birthLocation = person["BirthLocation"];
+            if (birthLocation) {
+              birthLocationMatch = birthLocation.match(
+                /(Sweden)|(Denmark)|(Norway)|(Iceland)|(Danmark)|(Norge)|(Sverige)/
+              );
+            }
+
+            deathLocationMatch = null;
+            deathLocation = person["DeathLocation"];
+            if (deathLocation) {
+              deathLocationMatch = deathLocation.match(
+                /(Sweden)|(Denmark)|(Norway)|(Iceland)|(Danmark)|(Norge)|(Sverige)/
+              );
+            }
+
+            if ($("table.wt.names").length) {
+              if (deathLocation != null) {
+                dParentEl.closest("tr").find(".deathLocation").text(deathLocation);
+
+                // add death location to the row data
+                deathLocation = deathLocation
+                  .replaceAll(/,([A-Z])/g, ", $1")
+                  .replaceAll(/, ,/g, "")
+                  .trim();
+                dParentEl.closest("tr").attr("data-death-location-small2big", deathLocation);
+
+                const blSplit = deathLocation.split(", ");
+                blSplit.reverse();
+                const deathLocationBig2Small = blSplit.join(", ");
+                dParentEl.closest("tr").attr("data-death-location-big2small", deathLocationBig2Small);
+              }
+            } else {
+              $("<span> " + deathLocation + "</span>").insertBefore(dParentEl.find("small"));
+            }
+
+            if (
+              typeof person["Spouses"].length == "undefined" &&
+              birthLocationMatch == null &&
+              deathLocationMatch == null
+            ) {
+              hasSpouse = "true";
+              if (hasSpouse && person.LastNameAtBirth == person.LastNameCurrent && person.Gender == "Female") {
+                lnc = $(
+                  "<span class='checkLNC' title='Check current last name. It may be different due to marriage.'>?</span>"
+                );
+                dParentEl.prepend(lnc);
+              }
+            }
+          }
+        }
+
+        $("td").removeClass("active");
+        $(".P-ITEM").removeClass("active");
+        if (finishedBWs == false) {
+          dParentEl.addClass("active");
+        }
+        isManager = false;
+        isTL = false;
+        if (person.Managers) {
+          person.Managers.forEach(function (man) {
+            if (man.Id == mWTIDID) {
+              isManager = true;
+            }
+          });
+        }
+        if (person.TrustedList) {
+          person.TrustedList.forEach(function (man) {
+            if (man.Id == mWTIDID) {
+              isTL = true;
+            }
+          });
+        }
+
+        if (person.Manager) {
+          if (person.Manager == mWTIDID) {
+            isManager = true;
+          }
+        } else if (person.Manager == "0" && layout != "table") {
+          dParentEl.prepend($("<span class='orphan' title='Orphaned profile'>O</span>"));
+        }
+
+        if (window.surnameTableOptions.ShowYouArePMorTL) {
+          if (dParentEl.find("span.PM").length == 0 && isManager == true) {
+            dParentEl.prepend($("<span class='PM' title='You manage this profile'>PM</span>"));
+          } else if (dParentEl.find("span.PM").length == 0 && isTL == true) {
+            dParentEl.prepend($("<span class='PM' title='You are on the Trusted List'>TL</span>"));
+          }
+        }
+
+        if (person.Privacy_IsAtLeastPublic && window.surnameTableOptions.ShowMissingParents) {
+          if (person.Mother == "0") {
+            if (BWtable == false) {
+              $("a.P-M[href$='" + thisID + "'],a.P-F[href$='" + thisID + "']").after(pinkBricks.clone(true));
+            } else {
+              $("a[href$='" + thisID + "']").after(pinkBricks.clone(true));
+            }
+          }
+
+          if (person.Father == "0") {
+            if (BWtable == false) {
+              $("a.P-M[href$='" + thisID + "'],a.P-F[href$='" + thisID + "']").after(blueBricks.clone(true));
+            } else {
+              $("a[href$='" + thisID + "']").after(blueBricks.clone(true));
+            }
+          }
+        }
+
+        if (person.Photo && window.surnameTableOptions.ShowProfileImage) {
+          if (person.PhotoData) {
+            if (person.PhotoData.url) {
+              if (person.PhotoData.url.match(".pdf") == null) {
+                const apic = $("<img src='https://wikitree.com" + person.PhotoData.url + "'>");
+                dParentEl.append(apic);
+              }
+            }
+          }
+        }
+
+        const regex = thisID + "(?![0-9])";
+        const re = new RegExp(regex, "g");
+        const mAncList = localStorage.w_myAncestors;
+
+        if (mAncList.match(re) != null && thisID != mWTID) {
+          dParentEl.prepend($("<span class='yourAncestor' title='Your ancestor'>A</span>"));
+        }
+
+        if (person.Connected == "0") {
+          dParentEl.find("a").each(function () {
+            if ($(this).attr("href").match("/wiki/") != null) {
+              dParentEl.css({
+                "border-left": "3px solid gold",
+                "border-right": "4px solid gold",
+              });
+              dParentEl.attr("title", "Unconnected");
+            }
+          });
+        }
+      });
+    });
+  }
+  $("P-ITEM").removeClass("active");
 }
 
-function setupBrickWallButton() {
-  const brickWallButton = $("<button>", {
-    id: 'brickWallButton',
-    class: 'button small',
-    text: 'More Details',
-    title: '',
-    disabled: true
+function makeTableWide(dTable) {
+  dTable.addClass("wide");
+  dTable.draggable({
+    axis: "x",
+    cursor: "grabbing",
   });
+  let container;
+  if ($("#tableContainer").length) {
+    container = $("#tableContainer");
+  } else {
+    container = $("<div id='tableContainer'></div>");
+  }
+  container.insertBefore($("div.box.green.rounded.row"));
+  container.append(dTable);
 
-  brickWallButton.insertAfter($("#surnames_heading"));
-
-  if ($("table.wt.names").length) {
-    const aCaption = $("<caption>", { id: 'brickWallButtonRow' }).append(brickWallButton);
-    $("table.wt.names").prepend(aCaption);
+  if ($("#buttonBox").length == 0) {
+    addButtonBox();
+  } else {
+    $("#buttonBox").show();
   }
 }
 
-function setupIndexedDBConnection() {
-  window.idbv = 1;
-  const getDB = window.indexedDB.open("awt", window.idbv);
-
-  getDB.onsuccess = function (event) {
-    const idb = getDB.result;
-    const request = idb.transaction(["AncestorList"]).objectStore("AncestorList").getAll();
-    request.onsuccess = function () {
-      enableBrickWallButton(request.result);
-    };
-  };
+function makeTableNotWide(dTable) {
+  dTable.removeClass("wide");
+  dTable.find("th").each(function () {
+    $(this).css("width", $(this).data("width"));
+  });
+  dTable.draggable("destroy");
+  dTable.insertBefore($("#tableContainer"));
+  $("#buttonBox").hide();
 }
 
-function enableBrickWallButton(ancestorsList) {
-  const ancIDs = ancestorsList.map(anc => anc.Name);
-  const idString = ancIDs.join("|");
-  const w_myAncestors = USER_WT_ID + "," + idString;
-  localStorage["w_myAncestors"] = w_myAncestors;
-
-  $("#brickWallButton")
-    .prop("disabled", false)
-    .attr("title", "Click for missing parents, death locations, your ancestors, and more.");
+function addButtonBox() {
+  if ($("#buttonBox").length == 0) {
+    const leftButton = $("<button id='leftButton'>&larr;</button>");
+    const rightButton = $("<button id='rightButton'>&rarr;</button>");
+    const buttonBox = $("<div id='buttonBox'></div>");
+    buttonBox.append(leftButton, rightButton);
+    const container = $("#tableContainer");
+    $("div.wrapper").prepend(buttonBox);
+    rightButton.on("click", function (event) {
+      event.preventDefault();
+      container.animate(
+        {
+          scrollLeft: "+=300px",
+        },
+        "slow"
+      );
+    });
+    leftButton.on("click", function (event) {
+      event.preventDefault();
+      container.animate(
+        {
+          scrollLeft: "-=300px",
+        },
+        "slow"
+      );
+    });
+  }
 }
 
+async function addWideTableButton() {
+  const dTable = $("body.page-Special_Surname table.wt.names");
+  const wideTableButton = $("<button class='button small wideTableButton'>Wide Table</button>");
+  if ($(".wideTableButton").length == 0) {
+    wideTableButton.insertBefore($("body.page-Special_Surname table.wt.names"));
+  }
+  let surnameTableWideTableOption = localStorage.getItem("surnameTableWideTableOption");
+  if (surnameTableWideTableOption) {
+    makeTableWide(dTable);
+    wideTableButton.text("Normal Table");
+  }
+  wideTableButton.on("click", function (e) {
+    e.preventDefault();
+    if (dTable.hasClass("wide") == false) {
+      makeTableWide(dTable);
+      surnameTableWideTableOption = true;
+      wideTableButton.text("Normal Table");
+    } else {
+      makeTableNotWide(dTable);
+      surnameTableWideTableOption = false;
+      wideTableButton.text("Wide Table");
+    }
+    localStorage.setItem("surnameTableWideTableOption", surnameTableWideTableOption);
+  });
+}
 
 /*
 

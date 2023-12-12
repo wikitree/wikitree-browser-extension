@@ -14,4 +14,30 @@ registerFeature({
   contributors: [],
   defaultValue: false,
   pages: [isGenealogyPage],
+  options: [
+    {
+      id: "ShowYouArePMorTL",
+      type: OptionType.CHECKBOX,
+      label: "Show if you are the profile manager or on the trusted list",
+      defaultValue: true,
+    },
+    {
+      id: "NumberTheTable",
+      type: OptionType.CHECKBOX,
+      label: "Number the table",
+      defaultValue: true,
+    },
+    {
+      id: "ShowMissingParents",
+      type: OptionType.CHECKBOX,
+      label: "Indicate missing parents",
+      defaultValue: true,
+    },
+    {
+      id: "ShowProfileImage",
+      type: OptionType.CHECKBOX,
+      label: "Show profile image",
+      defaultValue: true,
+    },
+  ],
 });
