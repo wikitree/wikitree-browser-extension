@@ -279,8 +279,57 @@ async function initSurnameTableSorting() {
 }
 
 function surnameTableMore() {
+  setupBrickWallButton();
+  setupIndexedDBConnection();
+}
+
+function setupBrickWallButton() {
+  const brickWallButton = $("<button>", {
+    id: 'brickWallButton',
+    class: 'button small',
+    text: 'More Details',
+    title: '',
+    disabled: true
+  });
+
+  brickWallButton.insertAfter($("#surnames_heading"));
+
+  if ($("table.wt.names").length) {
+    const aCaption = $("<caption>", { id: 'brickWallButtonRow' }).append(brickWallButton);
+    $("table.wt.names").prepend(aCaption);
+  }
+}
+
+function setupIndexedDBConnection() {
+  window.idbv = 1;
+  const getDB = window.indexedDB.open("awt", window.idbv);
+
+  getDB.onsuccess = function (event) {
+    const idb = getDB.result;
+    const request = idb.transaction(["AncestorList"]).objectStore("AncestorList").getAll();
+    request.onsuccess = function () {
+      enableBrickWallButton(request.result);
+    };
+  };
+}
+
+function enableBrickWallButton(ancestorsList) {
+  const ancIDs = ancestorsList.map(anc => anc.Name);
+  const idString = ancIDs.join("|");
+  const w_myAncestors = USER_WT_ID + "," + idString;
+  localStorage["w_myAncestors"] = w_myAncestors;
+
+  $("#brickWallButton")
+    .prop("disabled", false)
+    .attr("title", "Click for missing parents, death locations, your ancestors, and more.");
+}
+
+
+/*
+
+function surnameTableMore() {
   const brickWallButton = $(
-    "<button href='#n' title='Wait... Have you clicked the shaking tree yet?' disabled id='brickWallButton' class='button small'>More Details</button>"
+    "<button href='#n' title='' disabled id='brickWallButton' class='button small'>More Details</button>"
   );
   brickWallButton.insertAfter($("#surnames_heading"));
   if ($("table.wt.names").length) {
@@ -551,3 +600,4 @@ async function getBrickWalls() {
   $("#brickWallButton").prop("disabled", true);
   $("P-ITEM").removeClass("active");
 }
+*/
