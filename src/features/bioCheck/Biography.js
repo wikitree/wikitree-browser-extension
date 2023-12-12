@@ -137,6 +137,8 @@ export class Biography {
   static #SPAN_REFERENCE_END = "]]";
   static #SOURCE_START = "source:";
   static #SEE_ALSO = "see also";
+  static #SEE_ALSO2 = "ver tambiéna";
+  static #SEE_ALSO3 = "ver también";
   static #TEMPLATE_START = "{{";
   static #TEMPLATE_END = "}}";
   static #NOTOC = "__notoc__";
@@ -197,12 +199,11 @@ export class Biography {
     this.#bioInputString = this.#swallowBr(this.#bioInputString);
 
     let haveResearchNoteBox = false;
-    let haveNavBox = false;
+    let haveNavBoxConfused = false;
+    let haveNavBoxSuccession = false;
     let haveProjectBox = false;
     let haveBiography = false;
     let haveTextLine = false;
-
-    let reportNavBox = false;  // TODO wait until the location has been approved
 
     // build a vector of each line in the bio then iterate
     this.#getLines(this.#bioInputString);
@@ -243,7 +244,8 @@ export class Biography {
           // Report category out of order with the last thing reported first so that
           // you only get one reported per category
           // out of order if RNB, Project Box, Nav Box or Biography heading preceeds
-          if (haveResearchNoteBox || haveNavBox || haveProjectBox || haveBiography || haveTextLine) {
+          //if (haveResearchNoteBox || haveNavBox || haveProjectBox || haveBiography || haveTextLine) {
+          if (haveResearchNoteBox || haveNavBoxConfused || haveNavBoxSuccession || haveProjectBox || haveBiography || haveTextLine) {
             this.#style.bioCategoryNotAtStart = true;
             if (haveBiography) {
               this.#messages.styleMessages.push('Biography heading before ' + this.#bioLines[currentIndex]);
@@ -251,14 +253,18 @@ export class Biography {
               if (haveTextLine) {
                 this.#messages.styleMessages.push('Summary Text before ' + this.#bioLines[currentIndex]);
               } else {
-                if (haveNavBox) {
-                  this.#messages.styleMessages.push('Navigation Box before ' + this.#bioLines[currentIndex]);
+                if (haveNavBoxSuccession) {
+                    this.#messages.styleMessages.push('Succession Navigation Box before ' + this.#bioLines[currentIndex]);
                 } else {
                   if (haveProjectBox) {
                     this.#messages.styleMessages.push('Project Box before ' + this.#bioLines[currentIndex]);
                   } else {
                     if (haveResearchNoteBox) {
                       this.#messages.styleMessages.push('Research Note Box before ' + this.#bioLines[currentIndex]);
+                    } else {
+                      if (haveNavBoxConfused) {
+                        this.#messages.styleMessages.push('Easily Confused Navigation Box before ' + this.#bioLines[currentIndex]);
+                      }
                     }
                   }
                 }
@@ -308,35 +314,69 @@ export class Biography {
               partialMixedCaseLine = this.#bioLines[currentIndex].substring(2, j).trim();
             }
 
+            /* 
+             * Navigation box placement rules vary by type
+             * Easily Confused:
+             *  Placement: The code should be placed directly below any categories. It belongs above all other 
+             *             Profile Boxes, including Research Note Boxes and Project Boxes. 
+             * Succession:
+             *  They should be placed directly above the Biography headline, below any Research Note Boxes and Project Boxes. 
+             *
+             * and since you are confusing the Successsion and Succession box and the later are deprecated, check for
+             * that first
+             */
             if (this.#sourceRules.isNavBox(partialLine)) {
-              haveNavBox = true;
-              if (haveResearchNoteBox || haveProjectBox || haveBiography) {
-                let msg = 'Navigation Box: ' + partialMixedCaseLine + ' should be before ';
-                if (haveResearchNoteBox) {
-                  msg += 'Research Note Box';
-                } else {
-                  if (haveProjectBox) {
-                    msg += 'Project Box';
-                  } else {
-                    if (haveBiography) {
-                      msg += 'Biography heading';
-                    }
-                  }
-                }
-                if (reportNavBox) {   // TODO
+              let stat = this.#sourceRules.getNavBoxStatus(partialLine);
+              if ((stat.length > 0) && (stat != 'approved')) {
+                  let msg = 'Navigation Box: ' + partialMixedCaseLine + ' is ' + stat + ' status';
                   this.#messages.styleMessages.push(msg);
                   this.#style.bioHasStyleIssues = true;
+              } else {
+                if (partialLine.startsWith('easily confused')) {
+                  haveNavBoxConfused = true;
+                  if (haveResearchNoteBox || haveProjectBox || haveBiography || haveNavBoxSuccession) {
+                    let msg = 'Navigation Box: ' + partialMixedCaseLine + ' should be before ';
+                    if (haveResearchNoteBox) {
+                      msg += 'Research Note Box';
+                    } else {
+                      if (haveProjectBox) {
+                        msg += 'Project Box';
+                      } else {
+                        if (haveNavBoxSuccession) {
+                            msg += 'Succession Navigation Box';
+                        } else {
+                          if (haveBiography) {
+                            msg += 'Biography heading';
+                          }
+                        }
+                      }
+                    }
+                    this.#messages.styleMessages.push(msg);
+                    this.#style.bioHasStyleIssues = true;
+                  }
+                }
+                if (partialLine.startsWith('succession')) {
+                  haveNavBoxSuccession = true;
+                  if (haveBiography) {
+                    let msg = 'Navigation Box: ' + partialMixedCaseLine + ' should be before Biography heading';
+                    this.#messages.styleMessages.push(msg);
+                    this.#style.bioHasStyleIssues = true;
+                  }
                 }
               }
             } else {
               if (this.#sourceRules.isResearchNoteBox(partialLine)) {
-                if (haveProjectBox || haveBiography) {
+                if (haveProjectBox || haveBiography || haveNavBoxSuccession) {
                   let msg = 'Research Note Box: ' + partialMixedCaseLine + ' should be before ';
                   if (haveProjectBox) {
                     msg += 'Project Box';
                   } else {
                     if (haveBiography) {
                       msg += 'Biography heading';
+                    } else {
+                      if (haveNavBoxSuccession) {
+                        msg += 'Succession Navigation Box';
+                      }
                     }
                   }
                   this.#messages.styleMessages.push(msg);
@@ -354,10 +394,15 @@ export class Biography {
               } else {
                 if (this.#sourceRules.isProjectBox(partialLine)) {
                   haveProjectBox = true;
-                  if (haveBiography) {
-                    let msg = 'Project: ' + partialMixedCaseLine + ' should be before Biography heading';
+                  if (haveNavBoxSuccession) {
+                    let msg = 'Project: ' + partialMixedCaseLine + ' should be before Succession Navigation Box';
                     this.#messages.styleMessages.push(msg);
-                    this.#style.bioHasStyleIssues = true;
+                  } else {
+                    if (haveBiography) {
+                      let msg = 'Project: ' + partialMixedCaseLine + ' should be before Biography heading';
+                      this.#messages.styleMessages.push(msg);
+                      this.#style.bioHasStyleIssues = true;
+                    }
                   }
                 } else {
                   if (this.#sourceRules.isSticker(partialLine)) {
@@ -1521,11 +1566,13 @@ export class Biography {
                             // so the source MIGHT be valid but the confirmation might be incomplete
                             ;   // TODO
                           } else {
-                            // TODO add more logic to eliminate sources as valid by combining ones
-                            // TODO is the manager's name a valid source (this is hard)
-                            // TODO add logic to check for just the name followed by grave
-                            // TODO add logic to strip "information from" from the start
-                            isValid = true;
+                            if (!this.#isJustCombinedLines(line)) {
+                              // TODO add more logic to eliminate sources as valid by combining ones
+                              // TODO is the manager's name a valid source (this is hard)
+                              // TODO add logic to check for just the name followed by grave
+                              // TODO add logic to strip "information from" from the start
+                              isValid = true;
+                            }
                           }
                         }
                       }
@@ -1680,6 +1727,8 @@ export class Biography {
         !line.startsWith(Biography.#REFERENCES_TAG) &&
         !line.startsWith(Biography.#HEADING_START) &&
         !line.includes(Biography.#SEE_ALSO) &&
+        !line.includes(Biography.#SEE_ALSO2) &&
+        !line.includes(Biography.#SEE_ALSO3) &&
         line.length > 0
       ) {
         // Now gather all lines from this line until an empty line
@@ -1892,6 +1941,15 @@ export class Biography {
     let isRepository = false;
     if (line.includes("repository")) {
       let repositoryStrings = [
+        "ancestry.com.au",
+        "ancestry.com",
+        "ancestry.co.uk",
+        "ancestry.ca",
+        "ancestry.de",
+        "ancestry.it",
+        "ancestry.fr",
+        "ancestry.se",
+        "ancestry.mx",
         "ancestry",
         "com",
         "name",
@@ -1917,6 +1975,7 @@ export class Biography {
         "cont",
         "unknown",
         "www.ancestry.com",
+        "personal library",
       ];
       for (let i = 0; i < repositoryStrings.length; i++) {
         let str = repositoryStrings[i];
@@ -1988,4 +2047,41 @@ export class Biography {
     return isDnaConf;
   }
 
+  /*
+   * Check to see if the line is just a combination of lines by themselves that are not valid
+   */
+  #isJustCombinedLines(line) {
+    let isJustCombined = false;
+    /*
+     * You cannot split based on punctuation since many valid source citations include punctuation
+     * so that means instead taking the line and removing just the invalid standalone sources
+     * then seeing if anything is left
+     *
+     * the invalid source list only has non sources with > 15 characters so...
+     * needs special logic to remove those items
+     *
+     */
+     /* 
+      * First remove any invalid source line
+      * then take out any too old to remember
+      * then take out any pre1700
+      * anything left?
+      */
+      let linePart = line.replaceAll(';', ',');
+      linePart = this.#sourceRules.removeInvalidSourcePart(linePart);
+      if (this.#tooOldToRemember) {
+        linePart = this.#sourceRules.removeInvalidSourcePartTooOld(linePart);
+        if (this.#isPre1700 || this.#treatAsPre1700) {
+          linePart = this.#sourceRules.removeInvalidSourcePartPre1700(line);
+        }
+      }
+
+      // you could go the extra mile and get rid of the punctuation but...
+      // each is trimmed when parts removed
+      linePart.trim();
+      if (linePart.length < 3) {
+        isJustCombined = true;
+      }
+    return isJustCombined;
+  }
 }
