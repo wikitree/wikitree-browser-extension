@@ -465,13 +465,15 @@ function addSortToTables() {
   });
 }
 
-async function initTableFilters() {
+export async function initTableFilters() {
   window.tableFiltersOptions = await getFeatureOptions("tableFilters");
   if (window.tableFiltersOptions.distanceAndRelationship) {
     addDistanceAndRelationColumns();
   }
   addFiltersToWikitables();
-  addSortToTables();
+  if ($(".wt.names th#deathDate").length == 0) {
+    addSortToTables();
+  }
 }
 
 // Initialize table filters if the feature is enabled

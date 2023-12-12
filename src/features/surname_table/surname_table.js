@@ -1,182 +1,60 @@
 import $ from "jquery";
-//import { secondarySort } from "../extra_watchlist/extra_watchlist";
+import { secondarySort } from "../extra_watchlist/extra_watchlist";
+import "./surname_table.css";
+import { initTableFilters } from "../table_filters/table_filters";
+import { getPeople } from "../dna_table/dna_table";
+import Cookies from "js-cookie";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+
+const USER_WT_ID = Cookies.get("wikitree_wtb_UserName");
+//const USER_NUM_ID = Cookies.get("wikitree_wtb_UserID");
 
 shouldInitializeFeature("surnameTable").then((result) => {
   if (result) {
-    import("./surname_table.css");
-    sortByManager();
+    if (window.location.href.match(/layout=table/)) {
+      const h1 = $("h1");
+      $("table.wt.names tbody tr:first-child").addClass("surnameTableHeaderRow");
+      const moreButton = $("<button id='surnameTableMoreButton' class='small'>More</button>");
+      h1.append(moreButton);
+      moreButton.on("click", function () {
+        initSurnameTableSorting();
+      });
+      surnameTableMore();
+    }
   }
 });
 
-async function sortByManager() {
-  if (!isTablePresent()) return;
+async function dNumbering() {
+  // Remove existing index spans
+  $("table.wt.names tr span.index").remove();
 
-  let headingRow = getFirstRow();
-  let rows = getAllRows();
+  // Process each row except the first (header) row
+  $("table.wt.names tr").each(function (i) {
+    if (i === 0) return; // Skip the header row
 
-  processRows(rows);
-  setupManagerSorting(rows, headingRow);
-  setupAdditionalHeaders(headingRow);
-  processEachRowAdditional();
-
-  $("table.wt.names").addClass("ready");
-}
-
-function isTablePresent() {
-  return $("table.wt.names").length;
-}
-
-function processRows(rows) {
-  rows.each(function () {
-    processManagerData($(this));
-    processDateData($(this));
-    processYearData($(this));
-  });
-  dNumbering();
-}
-
-function processManagerData(row) {
-  let managerTD = row.find("td").eq(2);
-
-  if (managerTD.find("a").length) {
-    let dManager = managerTD.find("a").attr("href").split("/wiki/")[1];
-    row.attr("data-manager", dManager);
-  } else if (managerTD.find("img").length) {
-    if (managerTD.find("img").attr("src").match("ditto")) {
-      row.attr("data-manager", row.prev().attr("data-manager"));
-      managerTD.html(row.prev().find("td").eq(2).html());
-    }
-  }
-}
-
-function processDateData(row) {
-  let dateTD = row.find("td").eq(3);
-
-  if (dateTD.find("img").length) {
-    if (dateTD.find("img").attr("src").match("ditto")) {
-      dateTD.html(row.prev().find("td").eq(3).html());
-    }
-  }
-}
-
-function processYearData(row) {
-  let detailsTD = row.find("td").eq(1);
-  let firstYear = detailsTD.text().match(/[0-9]{4}/);
-
-  if (firstYear != null) {
-    row.attr("data-year", firstYear[0]);
-  } else {
-    row.attr("data-year", "");
-  }
-}
-
-function setupManagerSorting(rows, headingRow) {
-  let managerWord = rows.eq(0).find("th").eq(2);
-  managerWord.html(
-    "<a id='managerWord' title='Sort by profile manager. Note: Only the results on this page will be sorted.' data-order='za'>Manager</a> <span id='managerWordArrow'>&darr;</span>"
-  );
-
-  $("#managerWord").click(function () {
-    performManagerSorting($(this), rows, headingRow);
+    let indexCell = $(this).find("td").eq(0);
+    indexCell
+      .css("position", "relative")
+      .prepend($("<span class='index'>" + i + "</span>").css({ position: "absolute", left: "-2em", top: "0" }));
   });
 }
 
-function performManagerSorting(clickedElement, rows, headingRow) {
-  let listOrder = clickedElement.attr("data-order") === "za" ? "az" : "za";
-  clickedElement.closest("tr").find("th").removeClass("selected");
-  clickedElement.closest("th").addClass("selected");
-  clickedElement.attr("data-order", listOrder);
-
-  $("#managerWordArrow").html(listOrder === "az" ? "&#8595;" : "&#8593;");
-
-  rows
-    .slice(1)
-    .sort(function (a, b) {
-      return listOrder === "az"
-        ? $(a).data("manager").localeCompare($(b).data("manager"))
-        : $(b).data("manager").localeCompare($(a).data("manager"));
-    })
-    .appendTo($("table.wt.names"));
-
-  dNumbering();
-  headingRow.prependTo($("table.wt.names"));
-  $("#managerWordArrow").show();
-}
-function setupAdditionalHeaders(headingRow) {
-  // Insert birth location and death date headers
-  let detailsHeader = headingRow.find("th").eq(1);
-  $("<th id='birthLocation'></th>").insertAfter(detailsHeader);
-  $("<th id='deathDate'>Death</th>").insertAfter("#birthLocation");
-
-  // Assign IDs to other headers for easy reference
-  headingRow.find("th").eq(6).attr("id", "privacyHeader");
-  headingRow.find("th").eq(5).attr("id", "editDateHeader");
-  headingRow.find("th").eq(4).attr("id", "PMHeader");
-  headingRow.find("th").eq(0).attr("id", "nameHeader");
-
-  // Additional logic for headers
-  // For example, setting up click event listeners for sorting,
-  // applying specific styles, or adding tooltips, etc.
-  // ...
-}
-
-function processEachRowAdditional() {
-  $("table.wt.names tr").each(function () {
-    // Example of additional row processing logic
-    let row = $(this);
-
-    // Example condition: Check if a certain column has a specific value or meets a condition
-    let specificColumnValue = row.find("td").eq(/* index of the column */).text();
-
-    if (specificCondition(specificColumnValue)) {
-      // If condition is met, add a class or data attribute
-      row.addClass("special-condition-met");
-      // Or add a data attribute
-      row.attr("data-special-condition", "true");
-    } else {
-      // Optional: Handle the case where the condition is not met
-      row.removeClass("special-condition-met");
-      row.attr("data-special-condition", "false");
-    }
-
-    // Add any other row-level processing needed for your table
-  });
-}
-
-function specificCondition(value) {
-  // Define your specific condition here
-  // For example, check if the value contains a certain string, is a number greater than a threshold, etc.
-  // Return true if condition is met, false otherwise
-  return /* condition evaluation */;
-}
-
-function getFirstRow() {
-  return $("table.wt.names tr:first-child").attr("data-manager", "");
-}
-
-function getAllRows() {
-  return $("table.wt.names tr");
-}
-
-/*
-async function sortByManager() {
-  // or birth location
+async function initSurnameTableSorting() {
+  // Remove filter row
+  $(".filterInput").off();
+  $("table.wt.names tr.filter-row").remove();
+  $("th .sort-arrow").off().remove();
 
   if ($("table.wt.names").length) {
-    headingRow = $("table.wt.names tr:first-child");
-
+    const headingRow = $("table.wt.names tr:first-child");
     headingRow.attr("data-manager", "");
-    rows = $("table.wt.names tr");
+    const rows = $("table.wt.names tr");
     rows.each(function (i, el) {
-      managerTD = $(this).find("td").eq(2);
-      dateTD = $(this).find("td").eq(3);
-      detailsTD = $(this).find("td").eq(1);
-      bLocationHeader = $("<td></td>");
-      dDateHeader = $("<td>Death</td>");
-
+      const managerTD = $(this).find("td").eq(2);
+      const dateTD = $(this).find("td").eq(3);
+      const detailsTD = $(this).find("td").eq(1);
       if (managerTD.find("a").length) {
-        dManager = managerTD.find("a").attr("href").split("/wiki/")[1];
+        const dManager = managerTD.find("a").attr("href").split("/wiki/")[1];
         $(this).attr("data-manager", dManager);
       } else if (managerTD.find("img").length) {
         if (managerTD.find("img").attr("src").match("ditto")) {
@@ -189,7 +67,7 @@ async function sortByManager() {
           dateTD.html($(this).prev().find("td").eq(3).html());
         }
       }
-      firstYear = detailsTD.text().match(/[0-9]{4}/);
+      const firstYear = detailsTD.text().match(/[0-9]{4}/);
       if (firstYear != null) {
         $(this).attr("data-year", firstYear[0]);
       } else {
@@ -197,11 +75,12 @@ async function sortByManager() {
       }
     });
     dNumbering();
-    managerWord = rows.eq(0).find("th").eq(2);
+    const managerWord = rows.eq(0).find("th").eq(2);
     managerWord.html(
       "<a id='managerWord' title='Sort by profile manager. Note: Only the results on this page will be sorted.' data-order='za'>Manager</a> <span id='managerWordArrow'>&darr;</span>"
     );
-    $("#managerWord").click(function () {
+    let listOrder = "za";
+    $("#managerWord").on("click", function () {
       $(this).closest("tr").find("th").removeClass("selected");
       $(this).closest("th").addClass("selected");
       if ($(this).attr("data-order") == "za") {
@@ -214,8 +93,8 @@ async function sortByManager() {
         $(this).attr("data-order", "za");
       }
 
-      headingRow = $("table.wt.names tr:first-child");
-      rows = $("table.wt.names tr");
+      const headingRow = $("table.wt.names tr:first-child");
+      const rows = $("table.wt.names tr");
       if (rows.length) {
         rows.slice(1);
         rows.sort(function (a, b) {
@@ -228,8 +107,8 @@ async function sortByManager() {
         rows.appendTo($("table.wt.names"));
         dNumbering();
 
-        lastManager = "Me";
-        tempArr = [lastManager];
+        let lastManager = "Me";
+        let tempArr = [lastManager];
         rows.each(function (index) {
           if ($(this).data("manager") == lastManager) {
             tempArr.push($(this));
@@ -260,37 +139,37 @@ async function sortByManager() {
     headingRow.find("th").each(function () {
       $(this).css("width", "");
     });
-    detailsHeader = headingRow.find("th").eq(1);
+    const detailsHeader = headingRow.find("th").eq(1);
     detailsHeader.attr("id", "birthDate");
-    bLocationHeader = $("<th id='birthLocation'></th>");
-    dDateHeader = $("<th id='deathDate'>Death</th>");
+    const bLocationHeader = $("<th id='birthLocation'></th>");
+    const dDateHeader = $("<th id='deathDate'>Death</th>");
     bLocationHeader.insertAfter(detailsHeader);
     dDateHeader.insertAfter(bLocationHeader);
 
-    privacyHeader = headingRow.find("th").eq(6);
+    const privacyHeader = headingRow.find("th").eq(6);
     privacyHeader.attr("id", "privacyHeader");
 
-    editDateHeader = headingRow.find("th").eq(5);
+    const editDateHeader = headingRow.find("th").eq(5);
     editDateHeader.attr("id", "editDateHeader");
 
-    PMHeader = headingRow.find("th").eq(4);
+    const PMHeader = headingRow.find("th").eq(4);
     PMHeader.attr("id", "PMHeader");
 
-    nameHeader = headingRow.find("th").eq(0);
+    const nameHeader = headingRow.find("th").eq(0);
     nameHeader.attr("id", "nameHeader");
 
     $("table.wt.names tr").each(function () {
       // Add location sorting to surname page.
-      detailsTD = $(this).find("td").eq(1);
-      cellText = detailsTD.text();
+      const detailsTD = $(this).find("td").eq(1);
+      const cellText = detailsTD.text();
 
-      cellTextSplit = cellText.split(" - ");
-      birthBit = cellTextSplit[0];
-      birthBitBits = birthBit.split(/\b[0-9]{3,4}s?\b/);
+      const cellTextSplit = cellText.split(" - ");
+      const birthBit = cellTextSplit[0];
+      const birthBitBits = birthBit.split(/\b[0-9]{3,4}s?\b/);
 
-      bDateMatch = birthBit.match(/.*?[0-9]{3,4}s?\b/);
-      bDateTD = $("<td class='birthDate date'></td>");
-
+      const bDateMatch = birthBit.match(/.*?[0-9]{3,4}s?\b/);
+      const bDateTD = $("<td class='birthDate date'></td>");
+      let birthLocation = "";
       if (bDateMatch != null) {
         bDateTD.text(bDateMatch[0]);
       }
@@ -301,16 +180,14 @@ async function sortByManager() {
         birthLocation = "";
       }
 
-      bLocationTD = $(
-        "<td class='birthLocation' class='location'>" + birthLocation + "</td>"
-      );
+      const bLocationTD = $("<td class='birthLocation' class='location'>" + birthLocation + "</td>");
 
-      dLocation = "";
-      dDate = "";
+      let dLocation = "";
+      let dDate = "";
 
       if (cellTextSplit[1]) {
         dDate = cellTextSplit[1];
-        dDateSplit = cellTextSplit[1].split(/\b[0-9]{3,4}s?\b/);
+        const dDateSplit = cellTextSplit[1].split(/\b[0-9]{3,4}s?\b/);
         if (dDateSplit[1]) {
           dLocation = dDateSplit[1];
           dDate = cellTextSplit[1].match(/.*?[0-9]{3,4}s?\b/);
@@ -319,10 +196,8 @@ async function sortByManager() {
           }
         }
       }
-      dDateTD = $("<td class='deathDate date'>" + dDate + "</td>");
-      dLocationSpan = $(
-        "<span class='dLocation'>" + dLocation.trim() + "</span>"
-      );
+      const dDateTD = $("<td class='deathDate date'>" + dDate + "</td>");
+      const dLocationSpan = $("<span class='dLocation'>" + dLocation.trim() + "</span>");
       if (dLocationSpan.text() != "") {
         bLocationTD.append(dLocationSpan);
         bLocationTD.addClass("isDeath").attr("title", "Death location");
@@ -338,24 +213,22 @@ async function sortByManager() {
 
       $(this).attr("data-birth-location-small2big", birthLocation);
 
-      blSplit = birthLocation.split(", ");
+      const blSplit = birthLocation.split(", ");
       blSplit.reverse();
-      birthLocationBig2Small = blSplit.join(", ");
+      const birthLocationBig2Small = blSplit.join(", ");
       $(this).attr("data-birth-location-big2small", birthLocationBig2Small);
     });
 
-    birthHeader = rows.eq(0).find("th").eq(1);
-
-    birthLocationWord = $(
+    const birthLocationWord = $(
       "<span id='BLWord'><a id='birthLocationWord' title='Sort by birth location. You can sort by country or by town. Note: Only the results on this page will be sorted.' data-order='small2big'>Location</a> <span id='birthLocationWordArrow'></span></span>"
     );
     birthLocationWord.appendTo(bLocationHeader);
 
-    $("#birthLocationWord").click(function () {
+    $("#birthLocationWord").on("click", function () {
       $(this).closest("tr").find("th").removeClass("selected");
       $("#birthLocation").addClass("selected");
-      listOrder = $(this).attr("data-order");
-      rows = $("table.wt.names tr");
+      const listOrder = $(this).attr("data-order");
+      const rows = $("table.wt.names tr:not(.filter-row, .surnameTableHeaderRow)");
       rows.slice(0, 1);
       if (listOrder == "small2big") {
         $("#birthLocationWordArrow").html("&#9698;");
@@ -363,17 +236,12 @@ async function sortByManager() {
         $(this).attr("data-order", "big2small");
 
         rows.sort(function (a, b) {
-          return $(a)
-            .data("birth-location-small2big")
-            .localeCompare($(b).data("birth-location-small2big"));
+          console.log(a, b);
+          return $(a).data("birth-location-small2big").localeCompare($(b).data("birth-location-small2big"));
         });
         rows.each(function () {
-          $(this)
-            .find(".birthLocation")
-            .text($(this).data("birth-location-small2big"));
-          $(this)
-            .find(".deathLocation")
-            .text($(this).data("death-location-small2big"));
+          $(this).find(".birthLocation").text($(this).data("birth-location-small2big"));
+          $(this).find(".deathLocation").text($(this).data("death-location-small2big"));
         });
       }
       if (listOrder == "big2small") {
@@ -382,18 +250,12 @@ async function sortByManager() {
         $(this).attr("data-order", "small2big");
 
         rows.sort(function (a, b) {
-          return $(a)
-            .data("birth-location-big2small")
-            .localeCompare($(b).data("birth-location-big2small"));
+          return $(a).data("birth-location-big2small").localeCompare($(b).data("birth-location-big2small"));
         });
 
         rows.each(function () {
-          $(this)
-            .find(".birthLocation")
-            .text($(this).data("birth-location-big2small"));
-          $(this)
-            .find(".deathLocation")
-            .text($(this).data("death-location-big2small"));
+          $(this).find(".birthLocation").text($(this).data("birth-location-big2small"));
+          $(this).find(".deathLocation").text($(this).data("death-location-big2small"));
         });
       }
 
@@ -402,12 +264,290 @@ async function sortByManager() {
       dNumbering();
 
       $("tr").removeClass("firstBirthLocation");
-      $("table.wt.names tr[data-birth-location-small2big!='']")
-        .eq(0)
-        .addClass("firstBirthLocation");
+      $("table.wt.names tr[data-birth-location-small2big!='']").eq(0).addClass("firstBirthLocation");
     });
   }
   $("table.wt.names").addClass("ready");
   dNumbering();
+
+  // Add filters
+  getFeatureOptions("tableFilters").then((options) => {
+    if (options) {
+      setTimeout(initTableFilters, 2000);
+    }
+  });
 }
-*/
+
+function surnameTableMore() {
+  const brickWallButton = $(
+    "<button href='#n' title='Wait... Have you clicked the shaking tree yet?' disabled id='brickWallButton' class='button small'>More Details</button>"
+  );
+  brickWallButton.insertAfter($("#surnames_heading"));
+  if ($("table.wt.names").length) {
+    const aCaption = $("<caption id='brickWallButtonRow'></caption>");
+    aCaption.append(brickWallButton);
+    $("table.wt.names").prepend(aCaption);
+  }
+  window.idbv = 1;
+  const getDB = window.indexedDB.open("awt", window.idbv);
+  getDB.onsuccess = function (event) {
+    const idb = getDB.result;
+    const request = idb.transaction(["AncestorList"]).objectStore("AncestorList").getAll();
+    request.onsuccess = function () {
+      const ancIDs = [];
+      request.result.forEach(function (anc6) {
+        ancIDs.push(anc6.Name);
+      });
+      const idString = ancIDs.join("|");
+      const w_myAncestors = USER_WT_ID + "," + idString;
+      localStorage["w_myAncestors"] = w_myAncestors;
+
+      $("#brickWallButton")
+        .prop("disabled", false)
+        .attr("title", "Click for missing parents, death locations, your ancestors, and more.");
+    };
+  };
+}
+
+let BWclicked = false;
+const url = new URL(window.location.href);
+const params = url.searchParams;
+const layout = params.get("layout");
+
+function brickWallButtonClick() {
+  $("table.wt.names").addClass("clicked");
+  if (!BWclicked) {
+    BWclicked = true;
+    window.BWcount = 0;
+    if (layout == "table") {
+      window.BWprofileLinks = $("table.wt.names td[bgcolor] a[href*='/wiki/'][title='']");
+      window.BWtable = true;
+      $("table.wt.names tr").each(function () {
+        if ($("#deathLocation").length == 0) {
+          $("<th id='deathLocation'></th>").insertAfter($(this).find("#deathDate"));
+        }
+
+        $("<td class='deathLocation'></td>").insertAfter($(this).find(".deathDate"));
+      });
+    } else {
+      window.BWprofileLinks = $(".P-M,.P-F");
+      window.BWtable = false;
+    }
+
+    // PM to unlisted ones
+    $(".P-ITEM small").each(function () {
+      if ($(this).text().match(USER_WT_ID)) {
+        if ($(this).parent().find("span.PM").length == 0) {
+          $(this).parent().prepend($("<span class='PM' title='You are the PM'>PM</span>"));
+        }
+      }
+    });
+    if ($("table.wt.names tr").length) {
+      $("table.wt.names tr").each(function () {
+        if ($(this).attr("data-manager") == data[0].profile.Name) {
+          if ($(this).find("span.PM").length == 0) {
+            $(this)
+              .find("td")
+              .eq(0)
+              .prepend($("<span class='PM' title='You are the PM'>PM</span>"))
+              .css("position", "relative");
+          }
+        }
+      });
+    }
+  } else {
+    $("#brickWallButton").prop("disabled", "true");
+  }
+}
+
+const pinkSRC = chrome.runtime.getURL("images/pink_bricks.jpg");
+const blueSRC = chrome.runtime.getURL("images/blue_bricks.jpg");
+const pinkBricks = $("<img src='" + pinkSRC + "' class='pinkWall' title='Mother not known.'>");
+const blueBricks = $("<img src='" + blueSRC + "' class='blueWall' title='Father not known.'>");
+
+async function getBrickWalls() {
+  let finishedBWs = false;
+  const mWTID = USER_WT_ID;
+  const mWTIDID = USER_WT_ID;
+  const theseKeys = [];
+  $("table.wt.names tbody tr input[name='mergeany[]'],a.P-M,a.P-F").each(function () {
+    if ($("table.wt.names").length) {
+      theseKeys.push($(this).attr("value"));
+    } else {
+      theseKeys.push($(this).attr("href").split("/")[2]);
+    }
+  });
+  let chunk;
+
+  while (theseKeys.length) {
+    chunk = theseKeys.splice(0, 50).join(",");
+    const fields =
+      "Id,Name,Manager,Mother,Father,Spouses,LastNameAtBirth,LastNameCurrent,Gender,Photo,PhotoData,BirthLocation,DeathLocation,Connected,Managers,TrustedList";
+    getPeople(chunk, 0, 0, 0, 0, 0, fields).then((result) => {
+      const peopleKeys = Object.keys(result[0].people);
+      peopleKeys.forEach((key) => {
+        const person = result[0].people[key];
+        const thisID = person.Name;
+        let BWtable;
+        let dParentEl;
+        if ($("table.wt.names").length) {
+          BWtable = true;
+        }
+        if (BWtable == true) {
+          dParentEl = $('table.wt.names tbody tr input[name="mergeany[]"][value="' + thisID + '"]').closest("td");
+          dParentEl.css({ position: "relative" });
+        } else {
+          dParentEl = $('a.P-F[href$="' + thisID + '"],a.P-M[href$="' + thisID + '"]').closest(".P-ITEM");
+        }
+
+        let hasSpouse = false;
+        let birthLocationMatch = null;
+        let birthLocation = null;
+        let deathLocationMatch = null;
+        let deathLocation = null;
+        let isManager = false;
+        let isTL = false;
+        let apic = null;
+        let lnc = null;
+        if (person) {
+          if (person["Spouses"]) {
+            birthLocationMatch = null;
+            birthLocation = person["BirthLocation"];
+            if (birthLocation) {
+              birthLocationMatch = birthLocation.match(
+                /(Sweden)|(Denmark)|(Norway)|(Iceland)|(Danmark)|(Norge)|(Sverige)/
+              );
+            }
+
+            deathLocationMatch = null;
+            deathLocation = person["DeathLocation"];
+            if (deathLocation) {
+              deathLocationMatch = deathLocation.match(
+                /(Sweden)|(Denmark)|(Norway)|(Iceland)|(Danmark)|(Norge)|(Sverige)/
+              );
+            }
+
+            if ($("table.wt.names.compact").length) {
+              if (deathLocation != null) {
+                dParentEl.closest("tr").find(".deathLocation").text(deathLocation);
+
+                // add death location to the row data
+                deathLocation = deathLocation
+                  .replaceAll(/,([A-Z])/g, ", $1")
+                  .replaceAll(/, ,/g, "")
+                  .trim();
+                dParentEl.closest("tr").attr("data-death-location-small2big", deathLocation);
+
+                const blSplit = deathLocation.split(", ");
+                blSplit.reverse();
+                const deathLocationBig2Small = blSplit.join(", ");
+                dParentEl.closest("tr").attr("data-death-location-big2small", deathLocationBig2Small);
+              }
+            } else {
+              $("<span> " + deathLocation + "</span>").insertBefore(dParentEl.find("small"));
+            }
+
+            if (
+              typeof person["Spouses"].length == "undefined" &&
+              birthLocationMatch == null &&
+              deathLocationMatch == null
+            ) {
+              hasSpouse = "true";
+              if (hasSpouse && person.LastNameAtBirth == person.LastNameCurrent && person.Gender == "Female") {
+                lnc = $(
+                  "<span class='checkLNC' title='Check current last name. It may be different due to marriage.'>?</span>"
+                );
+                dParentEl.prepend(lnc);
+              }
+            }
+          }
+        }
+
+        $("td").removeClass("active");
+        $(".P-ITEM").removeClass("active");
+        if (finishedBWs == false) {
+          dParentEl.addClass("active");
+        }
+        isManager = false;
+        isTL = false;
+        if (person.Managers) {
+          person.Managers.forEach(function (man) {
+            if (man.Id == mWTIDID) {
+              isManager = true;
+            }
+          });
+        }
+        if (person.TrustedList) {
+          person.TrustedList.forEach(function (man) {
+            if (man.Id == mWTIDID) {
+              isTL = true;
+            }
+          });
+        }
+
+        if (person.Manager) {
+          if (person.Manager == mWTIDID) {
+            isManager = true;
+          }
+        } else if (person.Manager == "0" && layout != "table") {
+          dParentEl.prepend($("<span class='orphan' title='Orphaned profile'>O</span>"));
+        }
+
+        if (dParentEl.find("span.PM").length == 0 && isManager == true) {
+          dParentEl.prepend($("<span class='PM' title='You manage this profile'>PM</span>"));
+        } else if (dParentEl.find("span.PM").length == 0 && isTL == true) {
+          dParentEl.prepend($("<span class='PM' title='You are on the Trusted List'>TL</span>"));
+        }
+
+        if (person.Mother == "0") {
+          if (BWtable == false) {
+            $("a.P-M[href$='" + thisID + "'],a.P-F[href$='" + thisID + "']").after(pinkBricks.clone(true));
+          } else {
+            $("a[href$='" + thisID + "']").after(pinkBricks.clone(true));
+          }
+        }
+
+        if (person.Father == "0") {
+          if (BWtable == false) {
+            $("a.P-M[href$='" + thisID + "'],a.P-F[href$='" + thisID + "']").after(blueBricks.clone(true));
+          } else {
+            $("a[href$='" + thisID + "']").after(blueBricks.clone(true));
+          }
+        }
+
+        if (person.Photo) {
+          if (person.PhotoData) {
+            if (person.PhotoData.url) {
+              if (person.PhotoData.url.match(".pdf") == null) {
+                const apic = $("<img src='https://wikitree.com" + person.PhotoData.url + "'>");
+                dParentEl.append(apic);
+              }
+            }
+          }
+        }
+
+        const regex = thisID + "(?![0-9])";
+        const re = new RegExp(regex, "g");
+        const mAncList = localStorage.w_myAncestors;
+
+        if (mAncList.match(re) != null && thisID != mWTID) {
+          dParentEl.prepend($("<span class='yourAncestor' title='Your ancestor'>A</span>"));
+        }
+
+        if (person.Connected == "0") {
+          dParentEl.find("a").each(function () {
+            if ($(this).attr("href").match("/wiki/") != null) {
+              dParentEl.css({
+                "border-left": "3px solid gold",
+                "border-right": "4px solid gold",
+              });
+              dParentEl.attr("title", "Unconnected");
+            }
+          });
+        }
+      });
+    });
+  }
+  $("#brickWallButton").prop("disabled", true);
+  $("P-ITEM").removeClass("active");
+}
