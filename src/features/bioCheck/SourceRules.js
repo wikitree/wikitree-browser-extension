@@ -121,7 +121,7 @@ class SourceRules {
 
   // loads from templates, each is name and status
   #rnb = [];
-  // loads from templates
+  // loads from templates, each is name and status
   #navBox = [];
   // loads from templates
   #projectBox = [];
@@ -156,46 +156,52 @@ class SourceRules {
   // strings that identify a census source
   // when used by itself or with nothing other than
   // date are not a valid source
+  // sequence to be able to remove these from source line
   #censusStrings = [
+    "united states federal census",
+    "england and wales census",
+    "new york state census",
+    "united states census",
+    "us federal censuses",
+    "census information",
+    "federal census for",
+    "us census returns",
+    "us federal census",
+    "iowa state census",
+    "census of canada",
+    "michigan census",
+    "mo state census",
+    "scotland census",
+    "canadian census",
+    "federal census",
+    "ny 1892 census",
+    "swedish census",
+    "england census",
+    "ireland census",
+    "canada census",
+    "census canada",
+    "irish census",
+    "wales census",
+    "u.s. census",
+    "us census",
     "census",
-    "recensement",
     "bevolkingsregister",
+    "väestönlaskenta",
+    "väestönlaskenta",
     "volkszählung",
-    "censo",
-    "censimento",
     "volkstelling",
     "folketælling",
-    "telling",
-    "folkräkning",
-    "väestönlaskenta",
-    "spis",
-    "ludności",
-    "popis",
-    "väestönlaskenta",
-    "manntal",
     "folketelling",
     "folkräkning",
-    "us federal census",
-    "united states federal census",
-    "united states census",
-    "us census",
-    "u.s. census",
-    "us census returns",
-    "federal census",
-    "federal census for",
-    "swedish census",
-    "canada census",
-    "census of canada",
-    "canadian census",
-    "england census",
-    "irish census",
-    "ireland census",
-    "census information",
-    "new york state census",
-    "iowa state census",
-    "scotland census",
-    "england and wales census",
-    "michigan census",
+    "folkräkning",
+    "recensement",
+    "censimento",
+    "ludności",
+    "telling",
+    "manntal",
+    "censo",
+    "popis",
+    "spis",
   ];
 
   /* order by length then alpha, but for efficiency
@@ -209,10 +215,13 @@ class SourceRules {
     "census records.",
     "familysearchorg",
     "family accounts",
+    "family document",
     "familie dossier",
     "family research",
+    "gro death index",
     "online research",
     "own family tree",
+    "source required",
     "title: marriage",
     "'''see also:'''",
     "www.ancestry.ca",
@@ -227,9 +236,12 @@ class SourceRules {
     "iowa death index",
     "personal records",
     "research records",
+    "various archives",
     "www.ancestry.com",
     "acknowledgements:",
+    "familysearch.com",
     "ancestry research",
+    "drouin collection",
     "familysearch data",
     "familysearch tree",
     "family collection",
@@ -237,6 +249,7 @@ class SourceRules {
     "family search lds",
     "fellow researcher",
     "my family records",
+    "on going research",
     "scotland's people",
     "verified ancestor",
     "wiki, family tree",
@@ -276,6 +289,7 @@ class SourceRules {
     "www.familysearch.org",
     "ancestry family trees",
     "family search records",
+    "family search website",
     "freereg baptism entry",
     "mormon church records",
     "replace this citation",
@@ -300,8 +314,10 @@ class SourceRules {
     "family bible, certificates",
     "michigan deaths, 1867-1996",
     "new york census, 1790-1890",
+    "texas marriages, 1966-2010",
     "www.scotlandspeople.gov.uk",
     "family tree on familysearch",
+    "library and archives canada",
     "social security death index",
     "torrey's marriages database",
     "sources are on my family tree",
@@ -314,39 +330,69 @@ class SourceRules {
     "family search files on internet",
     "other vital statistic documents",
     "victorian death index 1921-1985",
+    "california birth index, 1905-1995",
+    "california death index, 1940-1997",
     "iowa, select marriages, 1809-1992",
-    "research on ancestry and wikiTree",
+    "research on ancestry and wikitree",
+    "minnesota birth certificates index",
     "personal knowledge , census reports",
+    "new zealand, birth index, 1840-1950",
     "canada births and baptisms, 1661-1959",
     "queensland births, deaths & marriages",
     "a source is still needed for this data",
+    "maryland births and christenings index",
     "social security applications and claims",
     "a source for this information is needed",
+    "new zealand, electoral rolls, 1853-1981",
+    "california, u.s., death index, 1940-1997",
+    "scotland, births and baptisms, 1564-1950",
+    "a source for this information is required",
+    "a source for this information is required",
     "family records, census, and death records",
+    "iowa, u.s., state census collection, 1915",
     "research on ancestry and burial card info",
     "research on ancestry and marriage records",
     "u.s., new england marriages prior to 1700",
     "geneanet community trees index on ancestry",
     "marriage records and ancestry.com research",
+    "north carolina, marriage records, 1741-2011",
     "illinois statewide marriage index, 1763–1900",
     "maternal relationship confirmed by dna match",
+    "north carolina marriage collection 1741-2004",
     "paternal relationship confirmed by dna match",
     "parental relationship confirmed by dna match",
-    "u.s., social security death index, 1935-2014",
     "vital statistics of nova scotia 1800-present",
+    "u.s., social security death index, 1935-2014",
+    "wales, select births and baptisms, 1541-1907",
+    "social security applications and claims index",
+    "us & international marriage records 1560-1900", 
     "virginia, u.s., compiled marriages, 1740-1850",
     "from behind the ancestry.com subscription wall:",
     "personal knowledge, newspaper and bible records",
+    "us and international marriage records 1560-1900", 
     "massachusetts, town and vital records, 1620-1988",
     "replace this citation if there is another source",
+    "england and wales, freebmd birth index, 1837-1915",
+    "england and wales, freebmd death index, 1837-1915",
+    "u.s., world war ii draft registration cards, 1942",
     "passenger and immigration lists index, 1500s-1900s",
-    "u.s. and international marriage records, 1560-1900",
     "research on ancestry and a variety of other places",
+    "u.s. and international marriage records, 1560-1900",
+    "england and wales, civil registration marriage index",
     "england and wales death registration index 1837-2007",
+    "england and wales, freebmd marriage index, 1837-1915",
+    "virginia land marriage and probate records 1639-1850",
+    "us federal census mortality schedules index 1850-1880",
+    "u.s., world war i draft registration cards, 1917-1918",
+    "u.s., civil war draft registrations records, 1863-1865",
     "u.s., new england marriages prior to 1700 (ancestry.com)",
+    "u.s., social security applications and claims index, 1936-2007",
+    "philadelphia, pennsylvania, death certificates index, 1803-1915",
     "massachusetts, town and vital records, 1620-1988 (ancestry.com)",
     "search at https://www.freereg.org.uk with appropriate parameters",
     "u.s. and international marriage records, 1560-1900 (ancestry.com)",
+    "u.s., civil war pension index: general index to pension files, 1861-1934",
+    "u.s., revolutionary war pension and bounty-land warrant application files, 1800-1900",
     "personal recollection, as told to me by their relative. notes and sources in their possession.",
     "michael lechner,",
     "virginia hanks",
@@ -666,6 +712,126 @@ class SourceRules {
 
   ];
 
+  // List of short strings that are not by themselves a valid source
+  // to use for pulling apart a "source" that is a combination of these
+  // list of sources not valid by themselves that are < 15 characterse
+  // but you want to find these in reverse order to remove from the source
+  #invalidSourceListShort = [
+    "ancestry.co.uk",
+    "ancestrydotcom",
+    "billion graves",
+    "census records",
+    "church records",
+    "family history",
+    "family records",
+    "findagrave.com",
+    "freebmd.org.uk",
+    "internet files",
+    "my family tree",
+    "myheritage.com",
+    "parish records",
+    "passenger list",
+    "public records",
+    "'''see also'''",
+    "ancestry.com:",
+    "billiongraves",
+    "family member",
+    "family papers",
+    "family search",
+    "needs sources",
+    ":source list:",
+    "source needed",
+    "we relate web",
+    "ancestry.com",
+    "familysearch",
+    "family bible",
+    "family trees",
+    "find a grave",
+    "find-a-grave",
+    "find my past",
+    "source list:",
+    "ancestrycom",
+    "ancestry.uk",
+    "ancestry.ca",
+    "bdm records",
+    "my heritage",
+    "my research",
+    "will follow",
+    "findagrave",
+    "footnotes:",
+    "myheritage",
+    "footnotes",
+    "see also:",
+    "we relate",
+    "ancestry",
+    "footnote",
+    "geneanet",
+    "research",
+    "see also",
+    "freebmd",
+    "hinshaw",
+    "family",
+    "census",
+    "bible",
+    "ibid",
+    "----",
+    "bmd",
+    "---",
+//   1234567890
+  ];
+
+    // list of sources not valid Pre1700 that are < 15 characterse
+  #invalidSourceListPre1700Short = [
+//   12345678901234
+    "birth record",
+    "death record",
+    "igi",
+    "family data",
+    "geboorteakte",
+    "geboorte akte",
+    "trouwakte",
+    "trouwacte",
+    "trouw oorkonde",
+    "geburtsurkunde",
+    "sterbeurkunde",
+    "heiratsurkunde",
+    "akt urodzenia",
+    "födelsebevis",
+    "fødselsattest",
+    "fødselsrekord",
+    "rojstni list",
+    "rojstni zapis",
+    "dødsattest",
+    "dödscertifikat",
+    "kuolintodistus",
+    "mrliški list",
+    "acte de décès",
+    "akt zgonu",
+    "dödsrekord",
+    "kuolemantiedot",
+    "smrtni zapis",
+    "akt małżeństwa",
+    "huwelijksakte",
+    "poročni list",
+    "vielsesattest",
+    "vigselbevis",
+    "vigselsattest",
+    "vihkitodistus",
+    "poročni zapis",
+    "dåbsattest",
+    "dánarskrá",
+    "dánarvottorð",
+    "dödsattest",
+    "dödsnotis",
+    "fæðingarskrá",
+    "födelsenotis",
+    "hjúskaparskrá",
+    "kuolinkirjaus",
+    "kuolinmerkintä",
+    "navneattest",
+    "vigselnotis",
+  ];
+
   // make this a singleton
   constructor() {
     if (!SourceRules.theSourceRules) {
@@ -691,9 +857,19 @@ class SourceRules {
             this.#rnb.push(researchNote);
           }
         }
-        if (templates[i].type.toLowerCase().trim() === 'navigation profile box') {
-          this.#navBox.push(templates[i].name.toLowerCase().trim());
+        if ((templates[i].type.toLowerCase().trim() === 'navigation box') ||
+            (templates[i].type.toLowerCase().trim() === 'navigation profile box')) {
+          let navBox = {
+            name: "",
+            status: "",
+          };
+          navBox.name = templates[i].name.toLowerCase().trim();
+          navBox.status = templates[i].status.toLowerCase().trim();
+          this.#navBox.push(navBox);
         }
+        //if (templates[i].type.toLowerCase().trim() === 'navigation profile box') {
+          //this.#navBox.push(templates[i].name.toLowerCase().trim());
+        //}
         if (templates[i].type.toLowerCase().trim() === 'project box') {
           this.#projectBox.push(templates[i].name.toLowerCase().trim());
         }
@@ -779,6 +955,17 @@ class SourceRules {
     return stat;
   }
 
+  getNavBoxStatus(line) {
+    let stat = "";
+    let isFound = false;
+    this.#navBox.find((element) => {
+      if (element.name === line) {
+        stat = element.status;
+      }
+    });
+    return stat;
+  }
+
   /**
    * Determine if a line is a valid Project Box
    * assumes the leading {{ removed and line is lower case
@@ -796,7 +983,14 @@ class SourceRules {
    * @returns {Boolean} true if nav box else false
    */
   isNavBox(line) {
-    return this.#navBox.includes(line);
+    //return this.#navBox.includes(line);
+    let isFound = false;
+    this.#navBox.find((element) => {
+      if (element.name === line) {
+        isFound = true;
+      }
+    });
+    return isFound;
   }
 
   /**
@@ -845,6 +1039,34 @@ class SourceRules {
     return this.#invalidSourceList.includes(line);
   }
 
+  /** 
+   * Remove a string that by itself on a line is not a valid source
+   * @param {String} line the line to check
+   * @returns {String} line with any invalid sources removed
+   */
+  removeInvalidSourcePart(line) {
+    let linePart = this.removeSourcePart(line, this.#invalidSourceList);
+    return this.removeSourcePart(linePart, this.#invalidSourceListShort);
+  }
+  /** 
+   * Remove a string that by itself on a line is not a valid source
+   * for too old to remember
+   * @param {String} line the line to check
+   * @returns {String} line with any invalid sources removed
+   */
+  removeInvalidSourcePartTooOld(line) {
+    return this.removeSourcePart(line, this.#tooOldToRememberSourceList);
+  }
+  /** 
+   * Remove a string that by itself on a line is not a valid source Pre1700
+   * @param {String} line the line to check
+   * @returns {String} line with any invalid sources removed
+   */
+  removeInvalidSourcePartPre1700(line) {
+    let linePart = this.removeSourcePart(line, this.#invalidSourceListPre1700);
+    return this.removeSourcePart(linePart, this.#invalidSourceListPre1700Short);
+  }
+
   /*
    * Does string start with the text for any of the string in array
    * @param {String} the line to test
@@ -875,6 +1097,21 @@ class SourceRules {
       }
     });
     return hasText;
+  }
+  /*
+   * Remove invalid source found on list from line
+   * return the line with the source string removed
+   */
+  removeSourcePart(linePart, sourceStringList) {
+    if (linePart.length > 0) {
+      let sourceCount = sourceStringList.length;
+      let i = 0;
+      while ((linePart.length > 0) && (i < sourceCount)) {
+        linePart = linePart.replace(sourceStringList[i], '');
+        i++;;
+      }
+    }
+    return linePart.trim();
   }
   /*
    * Does line contain a phrase on the valid partial source list
