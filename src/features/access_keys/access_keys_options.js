@@ -71,6 +71,12 @@ registerFeature({
           defaultValue: true,
         },
         {
+          id: "CopyUserID",
+          type: OptionType.CHECKBOX,
+          label: "Copy the User (number) ID of the current profile (Access key: j)",
+          defaultValue: true,
+        },
+        {
           id: "CopyLink",
           type: OptionType.CHECKBOX,
           label: "Copy the WikiTree link for the current profile (Access key: l)",
@@ -158,7 +164,6 @@ registerFeature({
           label: "Toggle Enhanced Editor (Access key: e)",
           defaultValue: true,
         },
-
         {
           id: "Compare",
           type: OptionType.CHECKBOX,

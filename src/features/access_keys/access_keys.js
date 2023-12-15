@@ -41,6 +41,7 @@ function addAccessKeys(options) {
     setAccessKeyIfOptionEnabled(options.AutoBio, ".editToolbarMenu0 a[data-id='Auto Bio']", "b", options);
     setAccessKeyIfOptionEnabled(options.AddTemplate, ".editToolbarMenu0 a[data-id='Add any template']", "t", options);
     setCopyButtonAccessKeyAndClickEvent(options.CopyID, "Copy ID", "i");
+    setCopyButtonAccessKeyAndClickEvent(options.CopyUserID, "Copy UserID", "j");
     setCopyButtonAccessKeyAndClickEvent(options.CopyLink, "Copy Wiki Link", "l");
     setCopyButtonAccessKeyAndClickEvent(options.CopyURL, "Copy URL", "u");
     setAccessKeyIfOptionEnabled(options.TreeApps, "ul.profile-tabs li:contains('Tree Apps')", "t", options);
