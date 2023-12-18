@@ -66,6 +66,13 @@ function updateAncestryDomain(linkText, options) {
 }
 
 function updateAncestryLink(linkText, options) {
+  // do not redirect sharing links when using library edition since that does not work
+  if (linkText.includes("/sharing/") || linkText.includes("%2Fsharing%2F")) {
+    if (options.ancestryDomain.includes("library")) {
+      return linkText;
+    }
+  }
+
   let newLink = linkText;
 
   newLink = updateAncestryOldFormatLink(newLink, options);
@@ -78,6 +85,13 @@ function updateAncestryLink(linkText, options) {
 function updateAncestryRakutenLink(link, options) {
   if (options.ancestryDomain == "none" || !options.ancestryDomain) {
     return link;
+  }
+
+  // do not redirect sharing links when using library edition since that does not work
+  if (link.includes("/sharing/") || link.includes("%2Fsharing%2F")) {
+    if (options.ancestryDomain.includes("library")) {
+      return link;
+    }
   }
 
   // NOTE: Ancestry switched from Partnerize to Rakuten on 18 Apr 2023. Partnerize used the
