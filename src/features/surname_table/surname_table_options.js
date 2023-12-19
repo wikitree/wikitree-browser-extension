@@ -8,7 +8,7 @@ import { isGenealogyPage } from "../../core/pageType";
 registerFeature({
   name: "Surname Table Options",
   id: "surnameTable",
-  description: "Adds columns and more functionality to surname genealogy pages.",
+  description: "Adds columns and more functionality to surname genealogy pages. Click the More button.",
   category: "Other",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
