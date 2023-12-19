@@ -13,6 +13,7 @@ import {
   isCategoryHistory,
   isProfilePage,
   isPlusProfileSearch,
+  isPlusDomain,
 } from "../../core/pageType";
 
 registerFeature({
@@ -21,9 +22,21 @@ registerFeature({
   description: "Creating, filling, changing and emptying categories more efficiently",
   category: "Editing",
   creators: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
-  contributors: [{ name: "Magnus Manske", wikitreeid: "Manske-74" }, { name: "Aleš Trtnik", wikitreeid: "Trtnik-2" }],
+  contributors: [
+    { name: "Magnus Manske", wikitreeid: "Manske-74" },
+    { name: "Aleš Trtnik", wikitreeid: "Trtnik-2" },
+  ],
   defaultValue: true,
-  pages: [isProfileEdit, isCategoryPage, isSearchPage, isCategoryEdit, isCategoryHistory, isProfilePage, isPlusProfileSearch],
+  pages: [
+    isProfileEdit,
+    isCategoryPage,
+    isSearchPage,
+    isCategoryEdit,
+    isCategoryHistory,
+    isProfilePage,
+    isPlusProfileSearch,
+    isPlusDomain,
+  ],
   options: [
     {
       id: "catALotCategory",
@@ -41,6 +54,12 @@ registerFeature({
       id: "catALotWikiTreePlus",
       type: OptionType.CHECKBOX,
       label: "batch add category for profiles within WikiTree+ search results",
+      defaultValue: true,
+    },
+    {
+      id: "catALotCemeteryReport",
+      type: OptionType.CHECKBOX,
+      label: "add missing categories via Cemetery Report and Partial Cemeteries",
       defaultValue: true,
     },
     {

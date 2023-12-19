@@ -51,11 +51,20 @@ shouldInitializeFeature("categoryManagement").then((result) => {
           AddCategoryChangeLinksOnProfile(GetOrCreateCategoriesDiv());
         }
       });
+    } else if (isPlusProfileSearch) {
+      getFeatureOptions("categoryManagement").then((options) => {
+        if (options.catALotWikiTreePlus) {
+          AddWikiTreePlusLinks();
+        }
+      });
     } else if (isPlusDomain) {
-      {
+      if (
+        window.location.toString().indexOf("Cemetery.htm") > -1 ||
+        window.location.toString().indexOf("FindAGraveCemeteries") > -1
+      ) {
         getFeatureOptions("categoryManagement").then((options) => {
-          if (options.catALotWikiTreePlus) {
-            AddWikiTreePlusLinks();
+          if (options.catALotCemeteryReport) {
+            AddCemeteryReportLinks();
           }
         });
       }
@@ -63,8 +72,38 @@ shouldInitializeFeature("categoryManagement").then((result) => {
   }
 });
 
+function AddCemeteryReportLinks() {
+  const tableHeadings = document.getElementsByTagName("th");
+  for (let i = 0; i < tableHeadings.length; i++) {
+    if (tableHeadings[i].innerText.trim() == "No Category") {
+      const parentTable = tableHeadings[i].parentNode.parentNode;
+      const aDestination = parentTable.getElementsByTagName("a")[1];
+      let cat = aDestination.innerText;
+
+      const parentDiv = parentTable.getElementsByTagName("div")[0];
+      const profileDivs = parentDiv.getElementsByTagName("div");
+      for (let j = 0; j < profileDivs.length; j++) {
+        /* <div><a href="https://www.wikitree.com/wiki/33039864" target="_blank">Adams-56427</a> (<a href="https://www.findagrave.com/memorial/26206407" target="_blank">26206407</a>)</div> */
+        const wikiTreeId = profileDivs[j].firstChild.innerText;
+        const addLink = document.createElement("a");
+
+        addLink.innerText = "add";
+        addLink.href =
+          "https://www.wikitree.com/index.php?title=Special:EditPerson&w=" +
+          encodeURIComponent(wikiTreeId) +
+          "&addCat=" +
+          encodeURIComponent(cat);
+        addLink.target = "_blank";
+        profileDivs[j].append(" (");
+        profileDivs[j].appendChild(addLink);
+        profileDivs[j].append(")");
+      }
+    }
+  }
+}
+
 function AddWikiTreePlusLinks() {
-/*
+  /*
   const iframes = document.getElementsByTagName("iframe");
   if (iframes.length == 1) {
     iframes[0].addEventListener("load", function () {
@@ -441,16 +480,16 @@ function ShowCatALot() {
   } else if (isPlusDomain) {
     if (isPlusProfileSearch) {
       const aTable = document.getElementsByTagName("table")[0];
-//      const div = document.createElement("div");
-//      aTable.parentNode.insertBefore(div, aTable);
+      //      const div = document.createElement("div");
+      //      aTable.parentNode.insertBefore(div, aTable);
       AddCheckboxesWikiTreePlus();
-      let row = aTable.insertRow(1)
-      let cell = row.insertCell(0)
-      cell.appendChild(CreateSelectAllResultsLink());    
-      cell = row.insertCell(1)
+      let row = aTable.insertRow(1);
+      let cell = row.insertCell(0);
+      cell.appendChild(CreateSelectAllResultsLink());
+      cell = row.insertCell(1);
       cell.colSpan = aTable.rows[0].cells.length - 1;
       AddCatALotControls(cell);
-    }  
+    }
   }
   return false;
 }
@@ -542,14 +581,13 @@ function AddCatALotControls(elementToAppendTo) {
     "Open all checked profiles in new tabs and perform the add/move/remove operation without saving them";
   catALotButton.disabled = true;
   catALotButton.addEventListener("click", OnCatALotClicked);
-  
+
   let catALotDiv = document.createElement("div");
   if (isPlusDomain) {
     catALotDiv.style = "display: flex;justify-content: space-between;";
-  
-  } else {  
+  } else {
     catALotDiv.align = "right";
-  }    
+  }
   catALotDiv.appendChild(labelMove);
   catALotDiv.appendChild(labelAdd);
   catALotDiv.appendChild(labelRemove);
@@ -566,7 +604,7 @@ function AddCatALotControls(elementToAppendTo) {
   catALotDiv.appendChild(resultAutoTypeDiv);
   if (!isPlusDomain) {
     catALotDiv.appendChild(document.createElement("br"));
-  }  
+  }
   catALotDiv.append(" destination: ");
   catALotDiv.appendChild(inputCatVerified);
   catALotDiv.appendChild(catALotButton);
