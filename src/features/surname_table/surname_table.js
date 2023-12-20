@@ -33,7 +33,7 @@ async function init() {
 
 shouldInitializeFeature("surnameTable").then((result) => {
   if (result) {
-    if (window.location.href.match(/layout=table/)) {
+    if (window.location.href.match(/layout=table|order=name/)) {
       init();
     }
   }
@@ -302,6 +302,7 @@ async function initSurnameTableSorting() {
 const url = new URL(window.location.href);
 const params = url.searchParams;
 const layout = params.get("layout");
+const order = params.get("order");
 const pinkSRC = chrome.runtime.getURL("images/pink_bricks.jpg");
 const blueSRC = chrome.runtime.getURL("images/blue_bricks.jpg");
 const pinkBricks = $("<img src='" + pinkSRC + "' class='pinkWall' title='Mother not known.'>");
