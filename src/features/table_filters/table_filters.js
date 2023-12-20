@@ -468,7 +468,9 @@ function addSortToTables() {
 export async function initTableFilters() {
   window.tableFiltersOptions = await getFeatureOptions("tableFilters");
   if (window.tableFiltersOptions.distanceAndRelationship) {
-    addDistanceAndRelationColumns();
+    if ($("th:contains('°')").length == 0) {
+      addDistanceAndRelationColumns();
+    }
   }
   addFiltersToWikitables();
   if ($(".wt.names th#deathDate").length == 0) {
