@@ -511,7 +511,23 @@ function makeTableWide(dTable) {
   } else {
     container = $("<div id='tableContainer'></div>");
   }
-  container.insertBefore($("div.box.green.rounded.row"));
+
+  // Find all <td> elements with the specific width and align attributes
+  let targetTDs = $("td[width='70%'][align='center'].center");
+
+  // Ensure there are at least two such elements
+  if (targetTDs.length >= 2) {
+    // Select the second instance
+    let secondTD = targetTDs.eq(1);
+
+    // Find the closest table to this <td>
+    let closestTable = secondTD.closest("table");
+
+    // Place the container before the closest table
+    container.insertBefore(closestTable);
+  } else {
+    container.insertBefore($("div.box.green.rounded.row"));
+  }
   container.append(dTable);
 
   if ($("#buttonBox").length == 0) {
@@ -526,7 +542,12 @@ function makeTableNotWide(dTable) {
   dTable.find("th").each(function () {
     $(this).css("width", $(this).data("width"));
   });
-  dTable.draggable("destroy");
+
+  // Check if the element has the draggable functionality initialized
+  if (dTable.hasClass("ui-draggable")) {
+    dTable.draggable("destroy");
+  }
+
   dTable.insertBefore($("#tableContainer"));
   $("#buttonBox").hide();
 }
@@ -559,7 +580,7 @@ function addButtonBox() {
     });
   }
 }
-
+/*
 async function addWideTableButton() {
   const dTable = $("body.page-Special_Surname table.wt.names");
   const wideTableButton = $("<button class='button small wideTableButton'>Wide Table</button>");
@@ -585,280 +606,40 @@ async function addWideTableButton() {
     localStorage.setItem("surnameTableWideTableOption", surnameTableWideTableOption);
   });
 }
+*/
 
-/*
+async function addWideTableButton() {
+  const dTable = $("body.page-Special_Surname table.wt.names");
+  const wideTableButton = $("<button class='button small wideTableButton'>Wide Table</button>");
 
-function surnameTableMore() {
-  const brickWallButton = $(
-    "<button href='#n' title='' disabled id='brickWallButton' class='button small'>More Details</button>"
-  );
-  brickWallButton.insertAfter($("#surnames_heading"));
-  if ($("table.wt.names").length) {
-    const aCaption = $("<caption id='brickWallButtonRow'></caption>");
-    aCaption.append(brickWallButton);
-    $("table.wt.names").prepend(aCaption);
+  if ($(".wideTableButton").length == 0) {
+    wideTableButton.insertBefore($("body.page-Special_Surname table.wt.names"));
   }
-  window.idbv = 1;
-  const getDB = window.indexedDB.open("awt", window.idbv);
-  getDB.onsuccess = function (event) {
-    const idb = getDB.result;
-    const request = idb.transaction(["AncestorList"]).objectStore("AncestorList").getAll();
-    request.onsuccess = function () {
-      const ancIDs = [];
-      request.result.forEach(function (anc6) {
-        ancIDs.push(anc6.Name);
-      });
-      const idString = ancIDs.join("|");
-      const w_myAncestors = USER_WT_ID + "," + idString;
-      localStorage["w_myAncestors"] = w_myAncestors;
 
-      $("#brickWallButton")
-        .prop("disabled", false)
-        .attr("title", "Click for missing parents, death locations, your ancestors, and more.");
-    };
-  };
-}
+  // Retrieve the last state from local storage
+  let surnameTableWideTableOption = localStorage.getItem("surnameTableWideTableOption");
 
-let BWclicked = false;
-const url = new URL(window.location.href);
-const params = url.searchParams;
-const layout = params.get("layout");
-
-function brickWallButtonClick() {
-  $("table.wt.names").addClass("clicked");
-  if (!BWclicked) {
-    BWclicked = true;
-    window.BWcount = 0;
-    if (layout == "table") {
-      window.BWprofileLinks = $("table.wt.names td[bgcolor] a[href*='/wiki/'][title='']");
-      window.BWtable = true;
-      $("table.wt.names tr").each(function () {
-        if ($("#deathLocation").length == 0) {
-          $("<th id='deathLocation'></th>").insertAfter($(this).find("#deathDate"));
-        }
-
-        $("<td class='deathLocation'></td>").insertAfter($(this).find(".deathDate"));
-      });
-    } else {
-      window.BWprofileLinks = $(".P-M,.P-F");
-      window.BWtable = false;
-    }
-
-    // PM to unlisted ones
-    $(".P-ITEM small").each(function () {
-      if ($(this).text().match(USER_WT_ID)) {
-        if ($(this).parent().find("span.PM").length == 0) {
-          $(this).parent().prepend($("<span class='PM' title='You are the PM'>PM</span>"));
-        }
-      }
-    });
-    if ($("table.wt.names tr").length) {
-      $("table.wt.names tr").each(function () {
-        if ($(this).attr("data-manager") == data[0].profile.Name) {
-          if ($(this).find("span.PM").length == 0) {
-            $(this)
-              .find("td")
-              .eq(0)
-              .prepend($("<span class='PM' title='You are the PM'>PM</span>"))
-              .css("position", "relative");
-          }
-        }
-      });
-    }
+  // Check if there was a saved state and apply it
+  if (surnameTableWideTableOption === "true") {
+    // Make sure to compare with a string, since localStorage stores everything as strings
+    makeTableWide(dTable);
+    wideTableButton.text("Normal Table");
   } else {
-    $("#brickWallButton").prop("disabled", "true");
+    makeTableNotWide(dTable);
+    wideTableButton.text("Wide Table");
   }
-}
 
-const pinkSRC = chrome.runtime.getURL("images/pink_bricks.jpg");
-const blueSRC = chrome.runtime.getURL("images/blue_bricks.jpg");
-const pinkBricks = $("<img src='" + pinkSRC + "' class='pinkWall' title='Mother not known.'>");
-const blueBricks = $("<img src='" + blueSRC + "' class='blueWall' title='Father not known.'>");
-
-async function getBrickWalls() {
-  let finishedBWs = false;
-  const mWTID = USER_WT_ID;
-  const mWTIDID = USER_WT_ID;
-  const theseKeys = [];
-  $("table.wt.names tbody tr input[name='mergeany[]'],a.P-M,a.P-F").each(function () {
-    if ($("table.wt.names").length) {
-      theseKeys.push($(this).attr("value"));
+  // Handle button click to toggle table width
+  wideTableButton.on("click", function (e) {
+    e.preventDefault();
+    if (!dTable.hasClass("wide")) {
+      makeTableWide(dTable);
+      wideTableButton.text("Normal Table");
+      localStorage.setItem("surnameTableWideTableOption", "true");
     } else {
-      theseKeys.push($(this).attr("href").split("/")[2]);
+      makeTableNotWide(dTable);
+      wideTableButton.text("Wide Table");
+      localStorage.setItem("surnameTableWideTableOption", "false");
     }
   });
-  let chunk;
-
-  while (theseKeys.length) {
-    chunk = theseKeys.splice(0, 50).join(",");
-    const fields =
-      "Id,Name,Manager,Mother,Father,Spouses,LastNameAtBirth,LastNameCurrent,Gender,Photo,PhotoData,BirthLocation,DeathLocation,Connected,Managers,TrustedList";
-    getPeople(chunk, 0, 0, 0, 0, 0, fields).then((result) => {
-      const peopleKeys = Object.keys(result[0].people);
-      peopleKeys.forEach((key) => {
-        const person = result[0].people[key];
-        const thisID = person.Name;
-        let BWtable;
-        let dParentEl;
-        if ($("table.wt.names").length) {
-          BWtable = true;
-        }
-        if (BWtable == true) {
-          dParentEl = $('table.wt.names tbody tr input[name="mergeany[]"][value="' + thisID + '"]').closest("td");
-          dParentEl.css({ position: "relative" });
-        } else {
-          dParentEl = $('a.P-F[href$="' + thisID + '"],a.P-M[href$="' + thisID + '"]').closest(".P-ITEM");
-        }
-
-        let hasSpouse = false;
-        let birthLocationMatch = null;
-        let birthLocation = null;
-        let deathLocationMatch = null;
-        let deathLocation = null;
-        let isManager = false;
-        let isTL = false;
-        let apic = null;
-        let lnc = null;
-        if (person) {
-          if (person["Spouses"]) {
-            birthLocationMatch = null;
-            birthLocation = person["BirthLocation"];
-            if (birthLocation) {
-              birthLocationMatch = birthLocation.match(
-                /(Sweden)|(Denmark)|(Norway)|(Iceland)|(Danmark)|(Norge)|(Sverige)/
-              );
-            }
-
-            deathLocationMatch = null;
-            deathLocation = person["DeathLocation"];
-            if (deathLocation) {
-              deathLocationMatch = deathLocation.match(
-                /(Sweden)|(Denmark)|(Norway)|(Iceland)|(Danmark)|(Norge)|(Sverige)/
-              );
-            }
-
-            if ($("table.wt.names.compact").length) {
-              if (deathLocation != null) {
-                dParentEl.closest("tr").find(".deathLocation").text(deathLocation);
-
-                // add death location to the row data
-                deathLocation = deathLocation
-                  .replaceAll(/,([A-Z])/g, ", $1")
-                  .replaceAll(/, ,/g, "")
-                  .trim();
-                dParentEl.closest("tr").attr("data-death-location-small2big", deathLocation);
-
-                const blSplit = deathLocation.split(", ");
-                blSplit.reverse();
-                const deathLocationBig2Small = blSplit.join(", ");
-                dParentEl.closest("tr").attr("data-death-location-big2small", deathLocationBig2Small);
-              }
-            } else {
-              $("<span> " + deathLocation + "</span>").insertBefore(dParentEl.find("small"));
-            }
-
-            if (
-              typeof person["Spouses"].length == "undefined" &&
-              birthLocationMatch == null &&
-              deathLocationMatch == null
-            ) {
-              hasSpouse = "true";
-              if (hasSpouse && person.LastNameAtBirth == person.LastNameCurrent && person.Gender == "Female") {
-                lnc = $(
-                  "<span class='checkLNC' title='Check current last name. It may be different due to marriage.'>?</span>"
-                );
-                dParentEl.prepend(lnc);
-              }
-            }
-          }
-        }
-
-        $("td").removeClass("active");
-        $(".P-ITEM").removeClass("active");
-        if (finishedBWs == false) {
-          dParentEl.addClass("active");
-        }
-        isManager = false;
-        isTL = false;
-        if (person.Managers) {
-          person.Managers.forEach(function (man) {
-            if (man.Id == mWTIDID) {
-              isManager = true;
-            }
-          });
-        }
-        if (person.TrustedList) {
-          person.TrustedList.forEach(function (man) {
-            if (man.Id == mWTIDID) {
-              isTL = true;
-            }
-          });
-        }
-
-        if (person.Manager) {
-          if (person.Manager == mWTIDID) {
-            isManager = true;
-          }
-        } else if (person.Manager == "0" && layout != "table") {
-          dParentEl.prepend($("<span class='orphan' title='Orphaned profile'>O</span>"));
-        }
-
-        if (dParentEl.find("span.PM").length == 0 && isManager == true) {
-          dParentEl.prepend($("<span class='PM' title='You manage this profile'>PM</span>"));
-        } else if (dParentEl.find("span.PM").length == 0 && isTL == true) {
-          dParentEl.prepend($("<span class='PM' title='You are on the Trusted List'>TL</span>"));
-        }
-
-        if (person.Mother == "0") {
-          if (BWtable == false) {
-            $("a.P-M[href$='" + thisID + "'],a.P-F[href$='" + thisID + "']").after(pinkBricks.clone(true));
-          } else {
-            $("a[href$='" + thisID + "']").after(pinkBricks.clone(true));
-          }
-        }
-
-        if (person.Father == "0") {
-          if (BWtable == false) {
-            $("a.P-M[href$='" + thisID + "'],a.P-F[href$='" + thisID + "']").after(blueBricks.clone(true));
-          } else {
-            $("a[href$='" + thisID + "']").after(blueBricks.clone(true));
-          }
-        }
-
-        if (person.Photo) {
-          if (person.PhotoData) {
-            if (person.PhotoData.url) {
-              if (person.PhotoData.url.match(".pdf") == null) {
-                const apic = $("<img src='https://wikitree.com" + person.PhotoData.url + "'>");
-                dParentEl.append(apic);
-              }
-            }
-          }
-        }
-
-        const regex = thisID + "(?![0-9])";
-        const re = new RegExp(regex, "g");
-        const mAncList = localStorage.w_myAncestors;
-
-        if (mAncList.match(re) != null && thisID != mWTID) {
-          dParentEl.prepend($("<span class='yourAncestor' title='Your ancestor'>A</span>"));
-        }
-
-        if (person.Connected == "0") {
-          dParentEl.find("a").each(function () {
-            if ($(this).attr("href").match("/wiki/") != null) {
-              dParentEl.css({
-                "border-left": "3px solid gold",
-                "border-right": "4px solid gold",
-              });
-              dParentEl.attr("title", "Unconnected");
-            }
-          });
-        }
-      });
-    });
-  }
-  $("#brickWallButton").prop("disabled", true);
-  $("P-ITEM").removeClass("active");
 }
-*/
