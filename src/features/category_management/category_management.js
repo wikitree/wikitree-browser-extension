@@ -88,6 +88,8 @@ function AddCemeteryReportLinks() {
         const addLink = document.createElement("a");
 
         addLink.innerText = "add";
+        addLink.title =
+          "Opens the profile for editing, adds the category and lets you review the changes, before saving it.";
         addLink.href =
           "https://www.wikitree.com/index.php?title=Special:EditPerson&w=" +
           encodeURIComponent(wikiTreeId) +
