@@ -318,7 +318,12 @@ async function checkLoginStatus() {
 
 // Function to show login popup
 function showLoginPopup() {
-  loginPopup.appendTo("body");
+  if ($("#login-popup").length == 0) {
+    if (window.self === window.top) {
+      // Append loginPopup to the body of the main document
+      $("body").append(loginPopup);
+    }
+  }
   loginPopup.className = "login-popup-shown";
 
   // Attach an event listener to the login button

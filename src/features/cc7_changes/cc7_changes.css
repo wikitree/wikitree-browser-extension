@@ -67,3 +67,15 @@
   display: inline-block;
   font-size: small;
 }
+button {
+  background: #25422d;
+  outline: none;
+  cursor: pointer;
+  text-align: center;
+  text-transform: uppercase;
+  border-radius: 5px;
+  font-weight: normal;
+  text-decoration: none !important;
+  cursor: pointer;
+  line-height: normal;
+}
