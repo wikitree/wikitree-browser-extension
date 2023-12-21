@@ -56,18 +56,7 @@
   border: 1px solid #ccc;
   z-index: 1000;
 }
-#login-btn,
-#dismiss-btn {
-  border: none;
-  color: white;
-  padding: 1em;
-  margin: 0.2em;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-  font-size: small;
-}
-button {
+#login-popup button {
   background: #25422d;
   outline: none;
   cursor: pointer;
@@ -78,4 +67,15 @@ button {
   text-decoration: none !important;
   cursor: pointer;
   line-height: normal;
+}
+#login-btn,
+#dismiss-btn {
+  border: none;
+  color: white;
+  padding: 1em;
+  margin: 0.2em;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: small;
 }
