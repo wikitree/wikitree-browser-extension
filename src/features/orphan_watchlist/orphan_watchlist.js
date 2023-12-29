@@ -40,11 +40,18 @@ shouldInitializeFeature("orphanWatchlist").then((result) => {
         const checkBox = document.createElement("input");
         checkBox.type = "checkbox";
         checkBox.value = profileId;
+        checkBox.id = "cb_" + profileId;
+        /*
         editLink.parentElement.addEventListener("click", () => {
           //will also be triggered, when left-clicking on links :(
           checkBox.checked = checkBox.checked == false;
-        });
-        editLink.parentNode.insertBefore(checkBox, editLink.parentNode.firstChild);
+        });*/
+
+        const tdThis = editLink.parentNode;
+        tdThis.insertBefore(checkBox, tdThis.firstChild);
+
+        const tdNext = tdThis.nextSibling.nextSibling; //there is a newline in-between the two tds
+        tdNext.innerHTML = '<label for="cb_' + profileId + '">' + tdNext.innerText + "</label>";
       }
     }
 
