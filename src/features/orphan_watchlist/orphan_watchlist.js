@@ -60,9 +60,11 @@ shouldInitializeFeature("orphanWatchlist").then((result) => {
 });
 
 async function DoOrphan() {
-  const form = CreateForm();
-
   const ids = GetIdsToOrphan();
+  if (ids.length == 0) {
+    return;
+  }
+  const form = CreateForm();
   while (ids.length) {
     let chunk = ids.splice(0, 100).join(",");
     getPeople(chunk, 0, 0, 0, 0, 0, "id,PageId,Name,TrustedList", "WBE_orphan_watchlist").then((data) => {
@@ -87,6 +89,7 @@ async function DoOrphan() {
     addInvisibleInput(form, "object_email", myEmail);
     submitButton.click();
     HideOrphanedLines();
+    form.remove();
   });
 }
 
@@ -97,7 +100,7 @@ function CreateForm() {
   form.action = "/wiki/Special:TrustedListChanges";
   form.target = "_blank";
   form.enctype = "multipart/form-data";
-  form.style.visibility = "collapse";
+  //form.style.visibility = "collapse"; //will lead to empty fields in Chrome
   document.body.appendChild(form);
   return form;
 }
