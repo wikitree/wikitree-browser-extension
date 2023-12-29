@@ -86,6 +86,7 @@ async function DoOrphan() {
   getMyEmail(myId).then((myEmail) => {
     addInvisibleInput(form, "object_email", myEmail);
     submitButton.click();
+    HideOrphanedLines();
   });
 }
 
@@ -101,6 +102,15 @@ function CreateForm() {
   return form;
 }
 
+function HideOrphanedLines() {
+  const checkBoxes = document.getElementsByTagName("input");
+  for (let i = 0; i < checkBoxes.length; i++) {
+    if (checkBoxes[i].checked) {
+      checkBoxes[i].checked = false;
+      checkBoxes[i].parentElement.parentElement.style.visibility = "collapse";
+    }
+  }
+}
 function GetIdsToOrphan() {
   const ids = [];
   const checkBoxes = document.getElementsByTagName("input");
