@@ -29,22 +29,21 @@ shouldInitializeFeature("orphanWatchlist").then((result) => {
 </td></tr>
     **/
 
-    // document.forms[0]
-    //     document.innerHTML =
-    //       '<form id="editform" name="editform" method="post" action="/wiki/Special:TrustedListChanges" enctype="multipart/form-data">' +
-    //       document.innerHTML +
-    //       "</form>";
     const profileRows = document.getElementsByTagName("tr");
 
-    for (let i = 1 /* skip sorting table */; i < profileRows.length; i++) {
+    for (let i = 1 /* skip table with sorting links */; i < profileRows.length; i++) {
       const editLink = profileRows[i].getElementsByTagName("a")[3];
       var urlParams = new URLSearchParams(editLink.href);
       if (urlParams.has("u")) {
+        //parent of edit link is td
         const profileId = urlParams.get("u");
         const checkBox = document.createElement("input");
         checkBox.type = "checkbox";
-        checkBox.name = "idlist[]";
         checkBox.value = profileId;
+        editLink.parentElement.addEventListener("click", () => {
+          //will also be triggered, when left-clicking on links :(
+          checkBox.checked = checkBox.checked == false;
+        });
         editLink.parentNode.insertBefore(checkBox, editLink.parentNode.firstChild);
       }
     }
@@ -104,7 +103,7 @@ function CreateForm() {
 
 function GetIdsToOrphan() {
   const ids = [];
-  const checkBoxes = document.getElementsByName("idlist[]");
+  const checkBoxes = document.getElementsByTagName("input");
   for (let i = 0; i < checkBoxes.length; i++) {
     if (checkBoxes[i].checked) {
       ids.push(checkBoxes[i].value);
