@@ -285,6 +285,17 @@ registerFeature({
 });
 
 registerFeature({
+  name: "Orphan from watchlist",
+  id: "orphanWatchlist",
+  description: "Let's you orphan profiles from watchlist",
+  category: "Other",
+  creators: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
+  contributors: [],
+  defaultValue: true,
+  pages: [isSpecialWatchedList],
+});
+
+registerFeature({
   name: "Smooth Scrolling",
   id: "smoothScrolling",
   description: "Scroll the window smoothly when linking to specific sections of the page.",
