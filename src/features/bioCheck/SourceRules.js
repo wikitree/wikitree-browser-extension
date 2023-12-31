@@ -663,6 +663,7 @@ class SourceRules {
     "trees.ancestry.com",
     "unsourced family tree handed down",
     "world family tree",
+    "www.geni.com/people",
     // compilations (typically from family trees)
     "ancestral file",
     "derbund wft",
