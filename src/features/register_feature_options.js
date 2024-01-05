@@ -285,9 +285,9 @@ registerFeature({
 });
 
 registerFeature({
-  name: "Remove profiles from watchlist",
+  name: "Remove Profiles from Watchlist",
   id: "removeFromWatchlist",
-  description: "Lets you remove yourself multiple profiles from watchlist at once",
+  description: "Lets you remove multiple profiles from your watchlist at once.",
   category: "Other",
   creators: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
   contributors: [],
