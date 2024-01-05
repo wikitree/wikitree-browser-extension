@@ -327,14 +327,17 @@ function doRelationshipText(userID, profileID) {
               .replace(/siblings/, "sibling");
           }
           if (out.match(/nephew|niece/)) {
-            if (profileGender == "male") {
-              out = out.replace(/nephew|niece/, "uncle");
-            }
-            if (profileGender == "female") {
-              out = out.replace(/nephew|niece/, "aunt");
-            }
-            if (out.match(/(uncle|aunt) or.*/)) {
-              out = out.split(" or ")[0];
+            if (out.match(/(nephew|niece) or (nephew|niece)/)) {
+              out = out.replace(/nephew/, "uncle");
+              out = out.replace(/niece/, "aunt");
+            } else {
+              if (profileGender == "male") {
+                out = out.replace(/nephew|niece/, "uncle");
+              } else if (profileGender == "female") {
+                out = out.replace(/nephew|niece/, "aunt");
+              } else {
+                out = out.replace(/nephew|niece/, "uncle or aunt");
+              }
             }
           }
           if (
