@@ -853,10 +853,12 @@ function AddCheckboxesWikiTreePlus() {
   */
   const firstTable = document.getElementsByTagName("table")[0];
   const tableRows = firstTable.getElementsByTagName("tr");
+  const goodLineToken = "\n<td><b><a href=";
   for (let i = 0; i < tableRows.length; i++) {
     //alert(tableRows[i].innerHTML);
     if (
-      tableRows[i].innerHTML.indexOf("<table") == -1 &&
+      tableRows[i].innerHTML.indexOf(goodLineToken) == 0 &&
+      tableRows[i].childNodes.length > 1 &&
       tableRows[i].childNodes[1] != null &&
       tableRows[i].childNodes[1].tagName == "TD"
     ) {
