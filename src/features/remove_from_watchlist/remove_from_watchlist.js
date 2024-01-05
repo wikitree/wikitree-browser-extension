@@ -45,10 +45,13 @@ shouldInitializeFeature("removeFromWatchlist").then((result) => {
         const tdThis = editLink.parentNode;
         tdThis.insertBefore(checkBox, tdThis.firstChild);
 
-        tdThis.addEventListener("click", () => {
+        tdThis.addEventListener("click", function (e) {
           //will also be triggered, when left-clicking on links :(
-
           checkBox.checked = checkBox.checked == false;
+          console.log(checkBox.checked);
+        });
+        checkBox.addEventListener("click", function (e) {
+          e.stopPropagation();
         });
 
         for (let c = 0; c < tdThis.childNodes.length; c++) {
