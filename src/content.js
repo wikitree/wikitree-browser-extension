@@ -64,6 +64,7 @@ import "./features/language_setting/language_setting";
 import "./features/locationsHelper/locationsHelper";
 import "./features/make_radio_buttons_deselectable/make_radio_buttons_deselectable";
 import "./features/migration_category_helper/migration_category_helper";
+import "./features/orphan_watchlist/orphan_watchlist";
 import "./features/save_buttons_style_options/save_buttons_style_options";
 import "./features/sticky_toolbar/sticky_toolbar";
 import "./features/wikitable_wizard/wikitable_wizard";
