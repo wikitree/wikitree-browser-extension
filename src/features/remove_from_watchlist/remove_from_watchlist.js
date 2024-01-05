@@ -45,22 +45,20 @@ shouldInitializeFeature("removeFromWatchlist").then((result) => {
         const tdThis = editLink.parentNode;
         tdThis.insertBefore(checkBox, tdThis.firstChild);
 
-        /*
         tdThis.addEventListener("click", () => {
           //will also be triggered, when left-clicking on links :(
 
           checkBox.checked = checkBox.checked == false;
         });
 
-        for (let c = 0; c > tdThis.childNodes.length; c++) {
+        for (let c = 0; c < tdThis.childNodes.length; c++) {
           const childNode = tdThis.childNodes[c];
           if (childNode.type != "checkbox") {
-            childNode.addEventListener("click", () => {
+            childNode.addEventListener("click", function (event) {
               event.stopPropagation();
-              alert("stopped");
             });
           }
-        }*/
+        }
 
         const tdNext = tdThis.nextSibling.nextSibling; //there is a newline in-between the two tds
         tdNext.innerHTML = '<label for="cb_' + profileId + '">' + tdNext.innerText + "</label>";
