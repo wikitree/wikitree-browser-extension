@@ -1,7 +1,7 @@
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { getPeople } from "../dna_table/dna_table";
 
-shouldInitializeFeature("orphanWatchlist").then((result) => {
+shouldInitializeFeature("removeFromWatchlist").then((result) => {
   if (result) {
     /**
     <tr><td bgcolor="#eef" title="Male">
@@ -41,14 +41,26 @@ shouldInitializeFeature("orphanWatchlist").then((result) => {
         checkBox.type = "checkbox";
         checkBox.value = profileId;
         checkBox.id = "cb_" + profileId;
-        /*
-        editLink.parentElement.addEventListener("click", () => {
-          //will also be triggered, when left-clicking on links :(
-          checkBox.checked = checkBox.checked == false;
-        });*/
 
         const tdThis = editLink.parentNode;
         tdThis.insertBefore(checkBox, tdThis.firstChild);
+
+        /*
+        tdThis.addEventListener("click", () => {
+          //will also be triggered, when left-clicking on links :(
+
+          checkBox.checked = checkBox.checked == false;
+        });
+
+        for (let c = 0; c > tdThis.childNodes.length; c++) {
+          const childNode = tdThis.childNodes[c];
+          if (childNode.type != "checkbox") {
+            childNode.addEventListener("click", () => {
+              event.stopPropagation();
+              alert("stopped");
+            });
+          }
+        }*/
 
         const tdNext = tdThis.nextSibling.nextSibling; //there is a newline in-between the two tds
         tdNext.innerHTML = '<label for="cb_' + profileId + '">' + tdNext.innerText + "</label>";
@@ -58,7 +70,9 @@ shouldInitializeFeature("orphanWatchlist").then((result) => {
     const nextButton = document.getElementsByClassName("twelve columns center")[0];
     const orphanButton = document.createElement("input");
     orphanButton.type = "button";
-    orphanButton.value = "orphan selected";
+    orphanButton.value = "remove selected from watchlist";
+    orphanButton.classList.add("small");
+    orphanButton.style.setProperty("margin-left", "1em", "important");
     orphanButton.addEventListener("click", () => {
       DoOrphan();
     });
