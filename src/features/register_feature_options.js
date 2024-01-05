@@ -285,9 +285,9 @@ registerFeature({
 });
 
 registerFeature({
-  name: "Orphan from watchlist",
-  id: "orphanWatchlist",
-  description: "Let's you orphan profiles from watchlist",
+  name: "Remove profiles from watchlist",
+  id: "removeFromWatchlist",
+  description: "Lets you remove yourself multiple profiles from watchlist at once",
   category: "Other",
   creators: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
   contributors: [],
