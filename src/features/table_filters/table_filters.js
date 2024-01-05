@@ -238,24 +238,26 @@ export function addFiltersToWikitables(aTable = null) {
           const text = input.value.toLowerCase();
           const columnIndex = Array.from(input.parentElement.parentElement.children).indexOf(input.parentElement);
           const cell = row.children[columnIndex];
-          const cellText = cell.textContent.toLowerCase();
+          if (cell) {
+            const cellText = cell.textContent.toLowerCase();
 
-          // Match the date at the start of the string. The date can be preceded by 'bef', 'aft', or 'abt' and can contain a day, month, and year, a month and year, or just a year.
-          const birthYearMatch = cell.textContent.match(/\d{4}/);
-          let birthYear = birthYearMatch ? birthYearMatch : "";
+            // Match the date at the start of the string. The date can be preceded by 'bef', 'aft', or 'abt' and can contain a day, month, and year, a month and year, or just a year.
+            const birthYearMatch = cell.textContent.match(/\d{4}/);
+            let birthYear = birthYearMatch ? birthYearMatch : "";
 
-          if (text.startsWith(">")) {
-            const num = parseFloat(text.slice(1).replace(/-/g, ""));
-            if (!isNaN(num) && (parseFloat(cellText) <= num || (birthYear && birthYear <= num))) {
+            if (text.startsWith(">")) {
+              const num = parseFloat(text.slice(1).replace(/-/g, ""));
+              if (!isNaN(num) && (parseFloat(cellText) <= num || (birthYear && birthYear <= num))) {
+                displayRow = false;
+              }
+            } else if (text.startsWith("<")) {
+              const num = parseFloat(text.slice(1));
+              if (!isNaN(num) && (parseFloat(cellText) >= num || (birthYear && birthYear >= num))) {
+                displayRow = false;
+              }
+            } else if (!cellText.includes(text)) {
               displayRow = false;
             }
-          } else if (text.startsWith("<")) {
-            const num = parseFloat(text.slice(1));
-            if (!isNaN(num) && (parseFloat(cellText) >= num || (birthYear && birthYear >= num))) {
-              displayRow = false;
-            }
-          } else if (!cellText.includes(text)) {
-            displayRow = false;
           }
         });
 
