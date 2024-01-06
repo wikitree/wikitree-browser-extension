@@ -6585,51 +6585,53 @@ export async function buildFamilyForPrivateProfiles() {
   ];
 
   let familyProfiles = [];
-  try {
-    const familyProfiles = await getPeople(ids.join(","), 0, 0, 0, 0, 0, theFields.join(","), "WBE_auto_bio");
-    if (!familyProfiles || !familyProfiles[0]) {
-      console.error("Failed to fetch family profiles");
-    } else {
-      // Assign the fetched family profiles data to the respective family lists
-      ["Parents", "Siblings", "Spouses", "Children"].forEach(function (familyList) {
-        const keys = Object.keys(window.profilePerson[familyList]);
-        for (let i = 0; i < keys.length; i++) {
-          const key = keys[i];
-          const person = window.profilePerson[familyList][key];
-          if (person.Name) {
-            const thisId = familyProfiles?.[0]?.resultByKey?.[person.Name]?.Id;
-            const thisPerson = familyProfiles?.[0]?.people?.[thisId];
-            if (thisPerson) {
-              if (familyList == "Spouses") {
-                thisPerson.Spouses.forEach(function (spouse) {
-                  if (spouse.Id == window.profilePerson.Id) {
-                    thisPerson.marriage_date = spouse?.marriage_date;
-                    thisPerson.marriage_location = spouse?.marriage_location;
-                    thisPerson.data_status = {
-                      marriage_date: spouse?.DataStatus?.MarriageDate,
-                      marriage_location: spouse?.DataStatus?.MarriageLocation,
-                    };
-                  }
-                });
-              }
-              window.profilePerson[familyList][thisId] = thisPerson;
-              if (familyList == "Parents") {
-                if (thisPerson.Gender == "Male") {
-                  window.profilePerson.Father = thisId;
-                } else if (thisPerson.Gender == "Female") {
-                  window.profilePerson.Mother = thisId;
+  if (ids.length > 0) {
+    try {
+      const familyProfiles = await getPeople(ids.join(","), 0, 0, 0, 0, 0, theFields.join(","), "WBE_auto_bio");
+      if (!familyProfiles || !familyProfiles[0]) {
+        console.error("Failed to fetch family profiles");
+      } else {
+        // Assign the fetched family profiles data to the respective family lists
+        ["Parents", "Siblings", "Spouses", "Children"].forEach(function (familyList) {
+          const keys = Object.keys(window.profilePerson[familyList]);
+          for (let i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            const person = window.profilePerson[familyList][key];
+            if (person.Name) {
+              const thisId = familyProfiles?.[0]?.resultByKey?.[person.Name]?.Id;
+              const thisPerson = familyProfiles?.[0]?.people?.[thisId];
+              if (thisPerson) {
+                if (familyList == "Spouses") {
+                  thisPerson.Spouses.forEach(function (spouse) {
+                    if (spouse.Id == window.profilePerson.Id) {
+                      thisPerson.marriage_date = spouse?.marriage_date;
+                      thisPerson.marriage_location = spouse?.marriage_location;
+                      thisPerson.data_status = {
+                        marriage_date: spouse?.DataStatus?.MarriageDate,
+                        marriage_location: spouse?.DataStatus?.MarriageLocation,
+                      };
+                    }
+                  });
                 }
-              }
-              if (key < 70) {
-                delete window.profilePerson[familyList][key];
+                window.profilePerson[familyList][thisId] = thisPerson;
+                if (familyList == "Parents") {
+                  if (thisPerson.Gender == "Male") {
+                    window.profilePerson.Father = thisId;
+                  } else if (thisPerson.Gender == "Female") {
+                    window.profilePerson.Mother = thisId;
+                  }
+                }
+                if (key < 70) {
+                  delete window.profilePerson[familyList][key];
+                }
               }
             }
           }
-        }
-      });
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching family profiles", err);
     }
-  } catch (err) {
-    console.error("Error fetching family profiles", err);
   }
 
   console.log("profile person now", logNow(window.profilePerson));
@@ -7818,6 +7820,11 @@ function generateCombinations(location) {
 }
 
 export async function getLocationCategory(type, location = null) {
+  if (!USstatesObjArray) {
+    const module = await import("./us_states.json");
+    USstatesObjArray = module.default;
+  }
+
   let categoryType = "location";
 
   if (["Birth", "Death"].includes(type)) {
