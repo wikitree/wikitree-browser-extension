@@ -112,8 +112,10 @@ function replacePermaLinks() {
     //https://www.wikitree.com/g2g/1652303/join-the-2nd-germany-research-party-on-wikitree-day?show=1657604#a1657604
 
     const indexShow = allAnchorNodes[i].href.indexOf("show=");
+    const indexHash = allAnchorNodes[i].href.indexOf("#"); //spare the top left menu when show= is used
+    const indexLast = allAnchorNodes[i].href.length - 1;
 
-    if (indexShow > -1) {
+    if (indexShow > -1 && indexHash < indexLast) {
       //console.log(allAnchorNodes[i].href);
       const indexHash = allAnchorNodes[i].href.indexOf("#");
       const indexAfterHashAndAorC = indexHash + 2;
@@ -162,6 +164,9 @@ async function initG2G() {
     if (questionURL != null) {
       replacePermaLinks();
     }
+  }
+  if (options.fixHome) {
+    document.getElementsByClassName("pureCssMenui0")[0].href = "https://www.wikitree.com/wiki/Special:Home";
   }
 }
 
