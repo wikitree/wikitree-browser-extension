@@ -78,6 +78,10 @@ function AddCemeteryReportLinks() {
     if (tableHeadings[i].innerText.trim() == "No Category") {
       const parentTable = tableHeadings[i].parentNode.parentNode;
       const aDestination = parentTable.getElementsByTagName("a")[1];
+      if (aDestination.href.toString().indexOf("Category") == -1) {
+        //other errors, like contradictions between link to Find a Grave and cemetery category in a profile
+        continue;
+      }
       let cat = aDestination.innerText;
 
       const parentDiv = parentTable.getElementsByTagName("div")[0];
