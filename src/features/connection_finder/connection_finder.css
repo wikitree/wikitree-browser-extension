@@ -61,12 +61,16 @@ body.page-Special_Connection .tableContainer {
 /* Connection Finder */
 body.page-Special_Connection button.small.moreDetails,
 body.page-Special_Connection h1 button.downloadLines.small,
-body.page-Special_Connection #connectionFinderLoginButton {
+body.page-Special_Connection #connectionFinderLoginButton,
+body.page-Special_Connection #copyList {
   float: right;
   font-size: 12px;
   display: none;
 }
 
+body.page-Special_Connection #copyList {
+  display: inline;
+}
 body.page-Special_Connection #connectionFinderLoginButton {
   display: inline;
 }

@@ -84,6 +84,33 @@ const yearColours = [
   "#4B088A",
   "#868A08",
 ];
+const familyColours = [
+  "#90EE90", // lightgreen
+  "#ADD8E6", // lightblue
+  "#FFC0CB", // pink
+  "#D3D3D3", // lightgray
+  "#FFA500", // orange
+  "#FF69B4", // hotpink
+  "#FFD700", // gold
+  "#FA8072", // salmon
+  "#98FF98", // mint
+  "#fe9", // yellowFamily (#fe9 is shorthand for #ffee99)
+  "#cbc3e3", // purpleFamily
+  "#fff", // whiteFamily
+  "#d0ece7", // green2Family
+  "#c6f0fd", // blue2Family
+  "#d0d0d0", // grey2Family
+  "#fad347", // orange2Family
+  "#e6b0aa", // red2Family
+  "#c4a484", // brownFamily
+  "#afeeee", // turquoiseFamily
+  "#fffdd0", // creamFamily
+  "#ffe5b4", // peachFamily
+  "#aa98a9", // lilacFamily
+  "#87ceeb", // skyblueFamily
+  "#ecf0f1", // grey3Family
+];
+
 let relationshipColourNum = 0;
 let relationshipColour;
 let pNumber;
@@ -1448,6 +1475,40 @@ function excelOut() {
         ws_data.push(texties);
       }
     });
+
+    let battleList = "";
+    let colourNo = 0;
+    ws_data.forEach(function (aLine, i) {
+      if (i == 0) {
+        return;
+      }
+      if (i == 1) {
+        //battleList += aLine.join(", ").replace(/: /, "") + "<br>";
+      } else if (i == 2) {
+        battleList += `<span style='display:block; background-color:${familyColours[colourNo]}'>0: <a href="https://www.wikitree.com/wiki/${aLine[3]}">${aLine[4]}</a></span>`;
+      } else {
+        if (aLine[2].match(/husband|wife/)) {
+          colourNo++;
+        }
+        battleList += `<span style='display:block; background-color:${familyColours[colourNo]}'>${
+          aLine[0]
+        }: ${aLine[2].replace(/([↑↔↓=])/, "$1 ")}, <a href="https://www.wikitree.com/wiki/${aLine[3]}">${
+          aLine[4]
+        }</a><span>`;
+      }
+    });
+    const battleListElement = $(`<div>${battleList}</div>`);
+    const copyList = $("<button class='small' id='copyList'>Copy List</button>");
+    $(".downloadLines.small").before(copyList);
+    copyList.on("click", function (e) {
+      e.preventDefault();
+      copyRichTextToClipboard(battleListElement.html());
+      // show 'Copied' message
+      copyList.text("Copied");
+      setTimeout(function () {
+        copyList.text("Copy List");
+      }, 1000);
+    });
   } else if ($(".peopleTable.unconnecteds").length) {
     const ths = $(".peopleTable.unconnecteds th");
     const thVals = [];
@@ -1523,6 +1584,43 @@ function excelOut() {
     var wbout = XLSX.write(wb, { bookType: "xlsx", type: "binary" });
     saveAs(new Blob([s2ab(wbout)], { type: "application/octet-stream" }), fileName + ".xlsx");
   });
+}
+
+function copyRichTextToClipboard(html) {
+  // Create a contenteditable div and append it to the body
+  var div = document.createElement("div");
+  div.contentEditable = true;
+  div.innerHTML = html;
+  document.body.appendChild(div);
+
+  // Select the content
+  var range, selection;
+  if (document.body.createTextRange) {
+    range = document.body.createTextRange();
+    range.moveToElementText(div);
+    range.select();
+  } else if (window.getSelection) {
+    selection = window.getSelection();
+    range = document.createRange();
+    range.selectNodeContents(div);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  // Copy the selection
+  try {
+    var successful = document.execCommand("copy");
+    var msg = successful ? "successful" : "unsuccessful";
+    console.log("Copy command was " + msg);
+  } catch (err) {
+    console.log("Oops, unable to copy");
+  }
+
+  // Clean up
+  document.body.removeChild(div);
+  if (selection) {
+    selection.removeAllRanges();
+  }
 }
 
 shouldInitializeFeature("connectionFinderOptions").then((result) => {
