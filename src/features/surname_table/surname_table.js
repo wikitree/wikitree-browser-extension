@@ -33,7 +33,7 @@ async function init() {
 
 shouldInitializeFeature("surnameTable").then((result) => {
   if (result) {
-    if (window.location.href.match(/layout=table|order=name/)) {
+    if (window.location.href.match(/Special:Surname/) && $("table.wt.names").length) {
       init();
     }
   }
@@ -476,11 +476,13 @@ async function getBrickWalls() {
 
         const regex = thisID + "(?![0-9])";
         const re = new RegExp(regex, "g");
+        /*
         const mAncList = localStorage.w_myAncestors;
 
         if (mAncList.match(re) != null && thisID != mWTID) {
           dParentEl.prepend($("<span class='yourAncestor' title='Your ancestor'>A</span>"));
         }
+        */
 
         if (person.Connected == "0") {
           dParentEl.find("a").each(function () {
@@ -580,33 +582,6 @@ function addButtonBox() {
     });
   }
 }
-/*
-async function addWideTableButton() {
-  const dTable = $("body.page-Special_Surname table.wt.names");
-  const wideTableButton = $("<button class='button small wideTableButton'>Wide Table</button>");
-  if ($(".wideTableButton").length == 0) {
-    wideTableButton.insertBefore($("body.page-Special_Surname table.wt.names"));
-  }
-  let surnameTableWideTableOption = localStorage.getItem("surnameTableWideTableOption");
-  if (surnameTableWideTableOption) {
-    makeTableWide(dTable);
-    wideTableButton.text("Normal Table");
-  }
-  wideTableButton.on("click", function (e) {
-    e.preventDefault();
-    if (dTable.hasClass("wide") == false) {
-      makeTableWide(dTable);
-      surnameTableWideTableOption = true;
-      wideTableButton.text("Normal Table");
-    } else {
-      makeTableNotWide(dTable);
-      surnameTableWideTableOption = false;
-      wideTableButton.text("Wide Table");
-    }
-    localStorage.setItem("surnameTableWideTableOption", surnameTableWideTableOption);
-  });
-}
-*/
 
 async function addWideTableButton() {
   const dTable = $("body.page-Special_Surname table.wt.names");
