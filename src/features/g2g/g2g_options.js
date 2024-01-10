@@ -77,6 +77,12 @@ const g2g = {
       defaultValue: true,
     },
     {
+      id: "fixHome",
+      type: OptionType.CHECKBOX,
+      label: "Make 'My WikiTree' link work like on other pages",
+      defaultValue: true,
+    },
+    {
       id: "previewLinks",
       type: OptionType.CHECKBOX,
       label: "Make links to answers and comments show preview when shared on Discord",
