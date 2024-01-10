@@ -1414,24 +1414,28 @@ function excelOut() {
         const tds = $(this).find("td");
         let td;
         tds.each(function () {
-          td = $(this).html();
-          const idMatch = $(this)
-            .html()
-            .match(/\/wiki\/(.*)"/);
-          if (idMatch != null) {
-            const thisID = idMatch[1];
-            const oName = $(this).text();
-            texties.push(thisID);
-            td = oName; //+" ("+thisID+")";
-          }
+          if ($(this).find("img.privacyImage").length) {
+            td = $(this).find("img.privacyImage").attr("title");
+          } else {
+            td = $(this).html();
+            const idMatch = $(this)
+              .html()
+              .match(/\/wiki\/(.*)"/);
+            if (idMatch != null) {
+              const thisID = idMatch[1];
+              const oName = $(this).text();
+              texties.push(thisID);
+              td = oName; //+" ("+thisID+")";
+            }
 
-          if ($(this).text() == "private person") {
-            texties.push("");
-            td = "private person";
-          }
+            if ($(this).text() == "private person") {
+              texties.push("");
+              td = "private person";
+            }
 
-          if ($(this).hasClass("relationship")) {
-            td = $(this).text();
+            if ($(this).hasClass("relationship")) {
+              td = $(this).text();
+            }
           }
 
           texties.push(td);
@@ -1489,7 +1493,7 @@ function excelOut() {
     return buf;
   }
 
-  $("#downloadLines, .downloadLines").unbind();
+  $("#downloadLines, .downloadLines").off();
   $("#downloadLines, .downloadLines").on("click", function () {
     if ($("#connectionsTable").length) {
       $(this).slideUp();
