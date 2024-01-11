@@ -175,8 +175,8 @@ function addScratchPadButton() {
   updateButtonVisibility();
 
   // Bind click events to original buttons that update the visibility of the cloned buttons
-  $("input[value='Edit Scratch Pad'], input[value='Save Scratch Pad Changes']").click(function () {
-    setTimeout(updateButtonVisibility, 500);
+  $("input[value='Edit Scratch Pad'], input[value='Save Scratch Pad Changes']").on("click", function () {
+    setTimeout(updateButtonVisibility, 1000);
   });
 }
 
