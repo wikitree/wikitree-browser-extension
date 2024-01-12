@@ -33,7 +33,7 @@ async function init() {
 
 shouldInitializeFeature("surnameTable").then((result) => {
   if (result) {
-    if (window.location.href.match(/Special:Surname/) && $("table.wt.names").length) {
+    if (window.location.href.match(/Special:(Surname|WatchedList)/) && $("table.wt.names").length) {
       init();
     }
   }
@@ -327,7 +327,6 @@ async function getBrickWalls() {
     const fields =
       "Id,Name,Manager,Mother,Father,Spouses,LastNameAtBirth,LastNameCurrent,Gender,Photo,PhotoData,BirthLocation,DeathLocation,Connected,TrustedList,Privacy";
     getPeople(chunk, 0, 0, 0, 0, 0, fields).then((result) => {
-      console.log(result);
       const peopleKeys = Object.keys(result[0].people);
       peopleKeys.forEach((key) => {
         const person = result[0].people[key];
@@ -473,16 +472,6 @@ async function getBrickWalls() {
             }
           }
         }
-
-        const regex = thisID + "(?![0-9])";
-        const re = new RegExp(regex, "g");
-        /*
-        const mAncList = localStorage.w_myAncestors;
-
-        if (mAncList.match(re) != null && thisID != mWTID) {
-          dParentEl.prepend($("<span class='yourAncestor' title='Your ancestor'>A</span>"));
-        }
-        */
 
         if (person.Connected == "0") {
           dParentEl.find("a").each(function () {

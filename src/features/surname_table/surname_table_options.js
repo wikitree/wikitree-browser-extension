@@ -3,17 +3,17 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import { registerFeature, OptionType } from "../../core/options/options_registry";
-import { isGenealogyPage } from "../../core/pageType";
+import { isGenealogyPage, isSpecialWatchedList } from "../../core/pageType";
 
 registerFeature({
-  name: "Surname Table Options",
+  name: "Surname and Watchlist Table Options",
   id: "surnameTable",
-  description: "Adds columns and more functionality to surname genealogy pages. Click the More button.",
+  description: "Adds columns and more functionality to surname genealogy and Watchlist pages. Click the More button.",
   category: "Other",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
-  pages: [isGenealogyPage],
+  pages: [isGenealogyPage, isSpecialWatchedList],
   options: [
     {
       id: "ShowYouArePMorTL",
