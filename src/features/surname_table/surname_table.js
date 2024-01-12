@@ -13,7 +13,6 @@ const USER_NUM_ID = Cookies.get("wikitree_wtb_UserID");
 async function init() {
   const h1 = $("h1");
   window.surnameTableOptions = await getFeatureOptions("surnameTable");
-  console.log(window.surnameTableOptions);
   $("table.wt.names tbody tr:first-child").addClass("surnameTableHeaderRow");
   const moreButton = $("<button id='surnameTableMoreButton' class='small'>More</button>");
   h1.append(moreButton);
