@@ -81,6 +81,11 @@ table.wt.names.wide th {
 table.wt.names.wide th.selected {
   background-color: #25422d;
 }
+table.wt.names span.index {
+  padding: 2px;
+  border-radius: 50%;
+  background: #ffffff;
+}
 
 #buttonBox {
   position: fixed;
