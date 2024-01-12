@@ -32,7 +32,13 @@ async function init() {
 
 shouldInitializeFeature("surnameTable").then((result) => {
   if (result) {
-    if (window.location.href.match(/Special:(Surname|WatchedList)/) && $("table.wt.names").length) {
+    // <li class="current">Free-Space Profiles</li>
+    const isFreeSpaceList = $("ul.profile-tabs li.current").text().match("Free-Space Profiles");
+    if (
+      window.location.href.match(/Special:(Surname|WatchedList)/) &&
+      $("table.wt.names").length &&
+      isFreeSpaceList == null
+    ) {
       init();
     }
   }
