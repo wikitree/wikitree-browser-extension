@@ -5221,8 +5221,12 @@ export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading =
   if (window.autoBioOptions?.diedYoung) {
     const deathAge = ageAtDeath(window.profilePerson, false);
     if (typeof deathAge[0] !== "undefined") {
-      if (deathAge[0] < 17 && !thingsToAddAfterBioHeading?.includes("{{Died Young}}")) {
-        thingsToAddAfterBioHeading.push("{{Died Young}}");
+      if (deathAge[0] < 17 && !thingsToAddAfterBioHeading?.includes("{{Died Young")) {
+        if (window.autoBioOptions?.diedYoungImage != "Default") {
+          thingsToAddAfterBioHeading.push("{{Died Young|" + window.autoBioOptions?.diedYoungImage + "}}");
+        } else {
+          thingsToAddAfterBioHeading.push("{{Died Young}}");
+        }
       }
     }
   }

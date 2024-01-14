@@ -302,6 +302,62 @@ const autoBio = {
           defaultValue: true,
         },
         {
+          id: "diedYoungImage",
+          type: OptionType.SELECT,
+          label: "Died Young sticker image",
+          values: [
+            {
+              value: "Default",
+              text: "Default",
+            },
+            {
+              value: "Ribbon",
+              text: "Ribbon",
+            },
+            {
+              value: "Cradle",
+              text: "Cradle",
+            },
+            {
+              value: "Swing",
+              text: "Swing",
+            },
+            {
+              value: "Candle",
+              text: "Candle",
+            },
+            {
+              value: "Babyfeet",
+              text: "Babyfeet",
+            },
+            {
+              value: "Butterfly1",
+              text: "Butterfly1",
+            },
+            {
+              value: "Butterfly2",
+              text: "Butterfly2",
+            },
+            {
+              value: "Marigold",
+              text: "Marigold",
+            },
+            {
+              value: "Bluebirds",
+              text: "Bluebirds",
+            },
+            {
+              value: "Feethands",
+              text: "Feethands",
+            },
+            {
+              value: "Lotusbutterfly",
+              text: "Lotusbutterfly",
+            },
+          ],
+          defaultValue: "Default",
+        },
+        {
           id: "nameStudyStickers",
           type: OptionType.CHECKBOX,
           label: "Add One Name Study stickers for profiles with surnames with a name study",
