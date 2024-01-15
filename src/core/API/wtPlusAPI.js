@@ -47,7 +47,9 @@ export const wtAPIProfileSearch = (callerID, query, params) => {
   wtAPICatCIBSearch     Retrieve CategoryInfoBox categories
     Parameters:
       callerID:         Prefarably unique name of the caller: "CategoryPicker"
-      cibType:          Type of CategoryInfoBox: "Cemetery"
+      cibType:          Type of CategoryInfoBox: "Cemetery" 
+                        Recognized values: cemetery, cemeteryGroup, location, nameStudy, category
+                        TopLevel is returned as (topLevel: true) in location and category searches so they can be excluded if necessary. 
       query:            Words to search for: "Oak Hill Alabama"
     Returns:            JS object:
       {
