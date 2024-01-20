@@ -267,72 +267,82 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
       }
 
       // Replace Add/Remove/Replace links with Add, Remove, Connect links
-      if (isProfileEdit && options.addRemoveConnectLinks) {
-        const hasFather = $("input[name='mStatus_Father']").length;
-        const hasMother = $("input[name='mStatus_Mother']").length;
-        const hasSpouse = $("div.five.columns.omega a:Contains(edit marriage)").length;
-        $("div.five.columns.omega a[href*='&who=']").each(function () {
-          /* Replace one link like this: https://www.wikitree.com/index.php?title=Special:EditFamily&u=23943734&who=father
-           * with three links like this: https://www.wikitree.com/index.php?title=Special:EditFamily&u=23943734&who=father&WBEaction=add (remove, connect)
-           */
-          if ($(this).text().includes("edit marriage") == false) {
-            const href = "https://www.wikitree.com" + $(this).attr("href");
-            const urlObject = new URL(href);
-            const whoValue = urlObject.searchParams.get("who");
-
-            let addText = "Add";
-            let addTitle = "Add a " + whoValue;
-            let removeTitle = "Remove a " + whoValue;
-
-            if (whoValue == "father") {
-              if (hasFather) {
-                addText = "Replace";
-                addTitle = "Replace this father";
-              } else {
-                addText = "Add";
-              }
-            } else if (whoValue == "mother") {
-              if (hasMother) {
-                addText = "Replace";
-                addTitle = "Replace this mother";
-              } else {
-                addText = "Add";
-              }
-            } else if (whoValue == "spouse" && hasSpouse) {
-              removeTitle = "Remove a spouse";
-            } else if (whoValue == "child") {
-              removeTitle = "Remove a child";
+      if (options.addRemoveConnectLinks) {
+        if (isProfilePage) {
+          const editFamilyLinks = document.getElementsByClassName("x-edit");
+          for (let i = 0; i < editFamilyLinks.length; i++) {
+            if (editFamilyLinks[i].innerText != "[uncertain]") {
+              editFamilyLinks[i].href = editFamilyLinks[i].href + "&WBEaction=Add";
             }
-
-            if (
-              whoValue != "sibling" &&
-              !(whoValue == "father" && hasFather == 0) &&
-              !(whoValue == "mother" && hasMother == 0)
-            ) {
-              const newHref = href + "&WBEaction=Remove";
-              const newLink = $(this).clone();
-              newLink.attr("href", newHref);
-              newLink.text("Remove");
-              $(this).after(newLink);
-              $(this).after(" | ");
-              newLink.attr("title", removeTitle);
-            }
-
-            const newLink2 = $(this).clone();
-            newLink2.attr("href", href + "&WBEaction=Connect");
-            newLink2.text("Connect");
-            $(this).after(newLink2);
-            $(this).after(" | ");
-            newLink2.attr("title", "Connect a " + whoValue + " by ID");
-
-            const newLink3 = $(this).clone();
-            newLink3.attr("href", href + "&WBEaction=Add");
-            newLink3.text(addText);
-            newLink3.attr("title", addTitle);
-            $(this).after(newLink3);
-            $(this).remove();
           }
-        });
+        }
+        if (isProfileEdit) {
+          const hasFather = $("input[name='mStatus_Father']").length;
+          const hasMother = $("input[name='mStatus_Mother']").length;
+          const hasSpouse = $("div.five.columns.omega a:Contains(edit marriage)").length;
+          $("div.five.columns.omega a[href*='&who=']").each(function () {
+            /* Replace one link like this: https://www.wikitree.com/index.php?title=Special:EditFamily&u=23943734&who=father
+             * with three links like this: https://www.wikitree.com/index.php?title=Special:EditFamily&u=23943734&who=father&WBEaction=add (remove, connect)
+             */
+            if ($(this).text().includes("edit marriage") == false) {
+              const href = "https://www.wikitree.com" + $(this).attr("href");
+              const urlObject = new URL(href);
+              const whoValue = urlObject.searchParams.get("who");
+
+              let addText = "Add";
+              let addTitle = "Add a " + whoValue;
+              let removeTitle = "Remove a " + whoValue;
+
+              if (whoValue == "father") {
+                if (hasFather) {
+                  addText = "Replace";
+                  addTitle = "Replace this father";
+                } else {
+                  addText = "Add";
+                }
+              } else if (whoValue == "mother") {
+                if (hasMother) {
+                  addText = "Replace";
+                  addTitle = "Replace this mother";
+                } else {
+                  addText = "Add";
+                }
+              } else if (whoValue == "spouse" && hasSpouse) {
+                removeTitle = "Remove a spouse";
+              } else if (whoValue == "child") {
+                removeTitle = "Remove a child";
+              }
+
+              if (
+                whoValue != "sibling" &&
+                !(whoValue == "father" && hasFather == 0) &&
+                !(whoValue == "mother" && hasMother == 0)
+              ) {
+                const newHref = href + "&WBEaction=Remove";
+                const newLink = $(this).clone();
+                newLink.attr("href", newHref);
+                newLink.text("Remove");
+                $(this).after(newLink);
+                $(this).after(" | ");
+                newLink.attr("title", removeTitle);
+              }
+
+              const newLink2 = $(this).clone();
+              newLink2.attr("href", href + "&WBEaction=Connect");
+              newLink2.text("Connect");
+              $(this).after(newLink2);
+              $(this).after(" | ");
+              newLink2.attr("title", "Connect a " + whoValue + " by ID");
+
+              const newLink3 = $(this).clone();
+              newLink3.attr("href", href + "&WBEaction=Add");
+              newLink3.text(addText);
+              newLink3.attr("title", addTitle);
+              $(this).after(newLink3);
+              $(this).remove();
+            }
+          });
+        }
       }
 
       if (isProfileAddRelative && options.addRemoveConnectLinks) {
