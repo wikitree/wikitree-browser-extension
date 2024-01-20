@@ -269,10 +269,23 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
       // Replace Add/Remove/Replace links with Add, Remove, Connect links
       if (options.addRemoveConnectLinks) {
         if (isProfilePage) {
-          const editFamilyLinks = document.getElementsByClassName("x-edit");
+          const editFamilyLinks = document.getElementsByClassName("BLANK");
           for (let i = 0; i < editFamilyLinks.length; i++) {
-            if (editFamilyLinks[i].innerText != "[uncertain]") {
-              editFamilyLinks[i].href = editFamilyLinks[i].href + "&WBEaction=Add";
+            switch (editFamilyLinks[i].innerText) {
+              case "[mother?]":
+              case "[father?]":
+              case "[spouse?]":
+              case "[add spouse?]":
+              case "[add child]":
+              case "[children?]": {
+                if (editFamilyLinks[i].tagName == "A") {
+                  editFamilyLinks[i].href = editFamilyLinks[i].href + "&WBEaction=Add";
+                } else if (editFamilyLinks[i].tagName == "SPAN") {
+                  editFamilyLinks[i].firstChild.href = editFamilyLinks[i].firstChild.href + "&WBEaction=Add";
+                }
+
+                break;
+              }
             }
           }
         }
@@ -367,7 +380,7 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
               $("#actionButton").trigger("click");
             }
           }
-        }, 1000);
+        }, 300);
       }
 
       // focusFirstNameField
