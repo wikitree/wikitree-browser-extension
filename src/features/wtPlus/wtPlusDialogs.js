@@ -1,4 +1,5 @@
 import { wtAPICatCIBSearch } from "../../core/API/wtPlusAPI";
+import { tb, wtUpdateEdit } from "./wtPlus";
 
 /**************************/
 /* Select category to add */
@@ -102,7 +103,7 @@ export async function selectCIB(data, hideTopLevel) {
       tb.birthLocationResult = "";
       tb.deathLocationResult = "";
       tb.addToSummary = "Added " + tb.elDlgCIB.querySelector("#cb1").value + " Category";
-      //      updateEdit();
+      wtUpdateEdit();
     } else {
       tb.elDlgCIB.close();
       tb.addToSummary = "";
@@ -142,8 +143,6 @@ export async function selectCIB(data, hideTopLevel) {
       return onDlgSelectCIBBtn(id);
     }
   };
-
-  let tb = {};
 
   const newTabIconURL = chrome.runtime.getURL("images/newTab.png");
 

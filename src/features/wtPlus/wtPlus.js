@@ -7,7 +7,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { dataTables, dataTableTemplateFindByName, dataTablesLoad } from "../../core/API/wtPlusData";
 import { selectCIB } from "./wtPlusDialogs";
 
-let tb = {};
+export const tb = {};
 
 const newTabIconURL = chrome.runtime.getURL("images/newTab.png");
 
@@ -306,7 +306,7 @@ const urlMappings = [
 
 /* Setting result */
 
-function updateEdit() {
+export function wtUpdateEdit() {
   if (tb.elEnhancedActive) {
     tb.elEnhanced.click();
   }
@@ -617,7 +617,7 @@ function onDlgEditTemplateBtn(update) {
     tb.selEnd = tb.selStart + tb.inserttext.length;
     tb.birthLocationResult = "";
     tb.deathLocationResult = "";
-    updateEdit();
+    wtUpdateEdit();
   }
   tb.elDlg.innerHTML = "";
   tb.addToSummary = "";
@@ -1016,7 +1016,7 @@ function onDlgProfileCleanupBtn(update) {
       }
     }
     tb.addToSummary = s2;
-    updateEdit();
+    wtUpdateEdit();
   } else {
     tb.elDlg.innerHTML = "";
     tb.addToSummary = "";
@@ -1061,7 +1061,7 @@ function onDlgPasteSourceBtn(update) {
     tb.selEnd = tb.selStart + tb.inserttext.length;
     tb.birthLocationResult = "";
     tb.deathLocationResult = "";
-    updateEdit();
+    wtUpdateEdit();
   } else {
     tb.elDlg.innerHTML = "";
     tb.addToSummary = "";
@@ -1274,7 +1274,7 @@ export function wtPlus(params) {
         tb.birthLocationResult = "";
         tb.deathLocationResult = "";
         tb.addToSummary = "";
-        updateEdit();
+        wtUpdateEdit();
         break;
 
       case "AutoUpdate": //automatic corrections
@@ -1287,7 +1287,7 @@ export function wtPlus(params) {
         tb.birthLocationResult = "";
         tb.deathLocationResult = "";
         tb.addToSummary = "Confirmation for EditBOT";
-        updateEdit();
+        wtUpdateEdit();
         break;
 
       case "AddTemplate": //add any template
