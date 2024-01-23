@@ -17,7 +17,7 @@ function addDistanceAndRelationColumns() {
     if (aLink) {
       const profileID = aLink.split("/wiki/");
       if (profileID[1]) {
-        ids[profileID[1]] = { WTID: [profileID[1]], index: index };
+        ids[profileID[1]?.replace(/ /g, "_")] = { WTID: [profileID[1]], index: index };
       }
     }
   });
