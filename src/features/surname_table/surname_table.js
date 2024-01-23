@@ -28,6 +28,14 @@ async function init() {
     addWideTableButton();
     $(this).fadeOut();
   });
+
+  if (window.location.href.includes("title=Special:WatchedList") && window.surnameTableOptions.RememberDisplayDensity) {
+    window.onbeforeunload = function (event) {
+      if (Cookies.get("watchedlist_layout")) {
+        Cookies.set("watchedlist_layout", Cookies.get("watchedlist_layout"), { expires: 30, path: "/" });
+      }
+    };
+  }
 }
 
 shouldInitializeFeature("surnameTable").then((result) => {

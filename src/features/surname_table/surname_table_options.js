@@ -39,5 +39,10 @@ registerFeature({
       label: "Show profile image",
       defaultValue: true,
     },
+    {
+      id: "RememberDisplayDensity",
+      type: OptionType.CHECKBOX,
+      label: "Remember display density choice",
+    },
   ],
 });
