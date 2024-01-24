@@ -1,6 +1,7 @@
 [
   {
     "name": "Alabama",
+    "abbreviation": "AL",
     "admissionDate": "1819-12-14",
     "former_name": "Alabama Territory",
     "former_names": {
@@ -44,6 +45,7 @@
   },
   {
     "name": "Alaska",
+    "abbreviation": "AK",
     "admissionDate": "1959-01-03",
     "former_name": "Territory of Alaska",
     "former_names": {
@@ -1704,6 +1706,7 @@
   },
   {
     "name": "Wisconsin",
+    "abbreviation": "WI",
     "admissionDate": "1848-05-29",
     "former_name": "Wisconsin Territory",
     "former_names": {
@@ -1743,6 +1746,7 @@
   },
   {
     "name": "Wyoming",
+    "abbreviation": "WY",
     "admissionDate": "1890-07-10",
     "former_name": "Wyoming Territory",
     "former_names": {
