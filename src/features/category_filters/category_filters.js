@@ -287,7 +287,7 @@ async function filterCategoryProfiles() {
       })
       .get();
     const keys = keysArray.join(",");
-    const fields = "Name,Connected,Managers,Father,Mother";
+    const fields = "Name,Connected,Managers,Manager,Father,Mother";
     const appId = "WBE_categoryFilters";
     const people = await fetchPeople({ keys, fields, appId });
     filterData = people?.[0]?.people;
@@ -308,8 +308,10 @@ async function filterCategoryProfiles() {
           managersArray.push(manager.Name);
         });
         managersString = managersArray.join(",");
-      } else {
+      } else if (person.Manager === 0) {
         managersString = "none";
+      } else if (person.Manager === null) {
+        managersString = "null";
       }
 
       $(this).attr("data-managers", managersString || "null");
