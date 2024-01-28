@@ -99,6 +99,21 @@ shouldInitializeFeature("distanceAndRelationship").then((result) => {
                 `<span id='distanceFromYou' title='${profileName} is ${aRequest.result.distance} degrees from you. \nClick to refresh.'>${aRequest.result.distance}°</span>`
               )
             );
+            // Add a big hover text thing
+            $("#distanceFromYou")
+              .on("mouseenter", function () {
+                const offset = $(this).offset();
+                const tooltip = $('<div id="distanceFromYouTooltip">Click to refresh</div>').css({
+                  top: offset.top + $(this).outerHeight() + 5,
+                  left: offset.left,
+                  position: "absolute",
+                });
+                $("body").append(tooltip);
+              })
+              .on("mouseleave", function () {
+                $("#distanceFromYouTooltip").remove();
+              });
+
             $("#distanceFromYou").on("click", function (e) {
               e.preventDefault();
               $(this).fadeOut("slow").remove();
