@@ -1889,7 +1889,9 @@ export class Biography {
    * @returns {Boolean} true if line contains both findagrave and created by
    */
   #isFindAGraveCitation(line) {
-    if (line.indexOf("findagrave") >= 0 && line.indexOf("created by") >= 0) {
+    //if (line.indexOf("findagrave") >= 0 && line.indexOf("created by") >= 0) {
+    // need to handle the 93000+ managed by Family Tree Maker. Sigh
+    if (line.indexOf("findagrave") >= 0) {
       return true;
     } else {
       return false;
