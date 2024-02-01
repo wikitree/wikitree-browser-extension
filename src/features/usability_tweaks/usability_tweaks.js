@@ -278,6 +278,7 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
               case "[add spouse?]":
               case "[add child]":
               case "[children?]":
+              case "[brothers or sisters?]":
               case "[add sibling]": {
                 if (editFamilyLinks[i].tagName == "A") {
                   editFamilyLinks[i].href = editFamilyLinks[i].href + "&WBEaction=Add";
