@@ -18,8 +18,7 @@
     --header-offset: calc(14px + var(--header-height) + var(--header-sub-height));
   }
 
-  .sticky-header a[name],
-  .sticky-header *[id] {
+  .sticky-header a[name] {
     scroll-margin-top: var(--header-offset);
   }
 
