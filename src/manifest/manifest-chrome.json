@@ -5,7 +5,7 @@
   "manifest_version": 3,
   "options_page": "options.html",
   "permissions": ["storage", "clipboardRead", "clipboardWrite", "contextMenus", "activeTab"],
-  "host_permissions": ["https://*.wikitree.com/*"],
+  "host_permissions": ["https://*.wikitree.com/*", "https://wikitree.sdms.si/*"],
   "content_scripts": [
     {
       "matches": ["https://*.wikitree.com/*", "https://wikitree.sdms.si/*"],
@@ -18,7 +18,7 @@
   },
   "web_accessible_resources": [
     {
-      "matches": ["https://*.wikitree.com/*"],
+      "matches": ["https://*.wikitree.com/*", "https://wikitree.sdms.si/*"],
       "resources": ["images/*", "features/wtPlus/templatesExp.json", "features/darkMode/darkMode.css", "js/*.js"]
     }
   ],
