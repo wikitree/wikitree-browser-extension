@@ -10,6 +10,7 @@
   },
   "permissions": [
     "https://*.wikitree.com/*",
+    "https://wikitree.sdms.si/*",
     "https://wikitreebee.com/*",
     "storage",
     "clipboardRead",
@@ -19,7 +20,7 @@
   ],
   "content_scripts": [
     {
-      "matches": ["https://*.wikitree.com/*"],
+      "matches": ["https://*.wikitree.com/*", "https://wikitree.sdms.si/*"],
       "js": ["js/vendor.js", "js/content.js"],
       "all_frames": true
     }
