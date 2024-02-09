@@ -13,8 +13,8 @@
     "clean": "rimraf dist",
     "download-templates": "node download-templates.js",
     "update-test-pages": "node src/testing/update_test_pages.js",
-    "zip": "npm run download-templates && npm run clean && npm run build && cd dist && bestzip ../dist-chrome.zip *",
-    "zip-firefox": "npm run download-templates && npm run clean && npm run build-firefox && cd dist && bestzip ../dist-firefox.zip *"
+    "zip": "npm run download-templates && npm run clean && npm run build && cd dist && bestzip ../dist-chrome.zip * && cd .. && python scripts/name_zip.py",
+    "zip-firefox": "npm run download-templates && npm run clean && npm run build-firefox && cd dist && bestzip ../dist-firefox.zip * && python scripts/name_zip.py"
   },
   "repository": {
     "type": "git",
