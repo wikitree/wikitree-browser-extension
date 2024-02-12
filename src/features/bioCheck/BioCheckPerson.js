@@ -57,6 +57,7 @@ export class BioCheckPerson {
     hasName: false,
     privacyLevel: 0,
     isMember: false,
+    isOrphan: false,
     uncheckedDueToPrivacy: false,
     uncheckedDueToDate: false,
     fatherDnaConfirmed: false,
@@ -83,12 +84,12 @@ export class BioCheckPerson {
    * and determine if it can be used to check sources and style
    * @param {Object} profileObj containing the profile as returned from WikiTree APIs
    * @param {Boolean} mustBeOpen true if profile must be open privacy
+   * @param {Boolean} mustBeOpen true if profile must not have a manager
    * @param {Boolean} ignorePre1500 true to ignore Pre1500 profiles
    * @param {String} userId wikiTreeId of the person running the app
    * @returns {Boolean} true if this person can be checked
    */
-  canUse(profileObj, mustBeOpen, ignorePre1500, userId) {
-
+  canUse(profileObj, mustBeOpen, mustBeOrphan, ignorePre1500, userId) {
     // TODO do you want to check and if !this.#isApp just bail?
     let canUseThis = true;
     if (profileObj.BirthDate != null) {
@@ -184,6 +185,24 @@ export class BioCheckPerson {
           }
         }
       }
+      if ((profileObj.Manager !== null) && (profileObj.Manager === 0)) {
+        this.person.isOrphan = true;
+      }
+      if (mustBeOrphan && !this.person.isOrphan) {
+          canUseThis = false;
+      }
+      /*
+      // Manager will be null due to privacy or 0 if a true orphan)
+      if (mustBeOrphan) {
+        if (profileObj.Manager == null) {   // don't see manager due to privacy
+          canUseThis = false;
+        } else {
+          if (this.person.managerId !== 0) {  // not an orphan
+            canUseThis = false;
+          }
+        }
+      }
+      */
 
       // Do not check the profile for a member
       // TODO not sure that you want to do this, need team guidance
@@ -276,6 +295,14 @@ export class BioCheckPerson {
    */
   isMember() {
     return this.person.isMember;
+  }
+
+  /** 
+   * Is profile an orphan
+   * @returns {Boolean} true if profile is an orphan
+   */
+  isOrphan() {
+    return this.person.isOrphan;
   }
 
   /**
