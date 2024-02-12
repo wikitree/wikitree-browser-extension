@@ -18,6 +18,7 @@ import "./features/akaNameLinks/akaNameLinks";
 import "./features/anniversaries_table/anniversaries_table";
 import "./features/categoryDisplay/categoryDisplay";
 import "./features/categoryFinderPins/categoryFinderPins";
+import "./features/connector_image/connector_image";
 import "./features/change_family_lists/change_family_lists";
 import "./features/clipboard_and_notes/clipboard_and_notes";
 import "./features/collapsibleDescendantsTree/collapsibleDescendantsTree";
