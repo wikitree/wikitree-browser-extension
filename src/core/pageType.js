@@ -146,7 +146,7 @@ if (domain.match("apps.wikitree.com")) {
   isAppsDomain = true;
 } else if (domain.match("api.wikitree.com")) {
   isApiDomain = true;
-} else if (domain.match("plus.wikitree.com")) {
+} else if (domain.match("plus.wikitree.com") || domain.match("wikitree.sdms.si")) {
   isPlusDomain = true;
 
   const path = decodeURI(window.location.pathname); // path
