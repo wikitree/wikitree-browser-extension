@@ -166,7 +166,6 @@ function getPossibleLocationNames(event, state) {
     });
     if (possibleFormerNames.length == 1) {
       event.Location = event.Location.replace(lastLocationBit, possibleFormerNames[0]);
-      console.log(logNow(event));
     } else if (possibleFormerNames.length > 1) {
       // If there are multiple possible former names, don't change the location and add a note
       const note = "Possible correct locations for " + event.Event + " are: " + possibleFormerNames.join(", ");
@@ -198,7 +197,6 @@ function fixUSLocation(event) {
     }
   } else {
     USstatesObjArray.forEach(function (state) {
-      console.log("Checking state:", state);
       if (state.abbreviation == lastLocationBit || state.name == lastLocationBit) {
         event.Location = locationBits.slice(0, locationBits.length - 1).join(", ") + ", " + state.name;
         if (isSameDateOrAfter(event.Date, state.admissionDate)) {
@@ -232,6 +230,12 @@ function fixUSLocation(event) {
       }
     });
   }
+
+  // Special case for Maine, which was part of Massachusetts until 1820
+  if (event.Location.includes("Massachusetts") && isSameDateOrAfter(event.Date, "1776-07-04")) {
+    event.Location = event.Location.replace(/Massachusetts.*/, "Massachusetts, United States");
+  }
+
   return event;
 }
 
@@ -1122,7 +1126,6 @@ export function assignCemeteryFromSources() {
       if (cemeteryMatch && source.Text.match(/Acadian|Wall of Names/) == null) {
         let cemetery = cemeteryMatch[0].replace("citing ", "").replace("Burial, ", "").trim();
         window.profilePerson.Cemetery = cemetery;
-        console.log(cemetery);
       } else if (cemeteryMatch2 && source.Text.match(/Acadian|Wall of Names/) == null) {
         let cemetery = cemeteryMatch2[1].trim();
         window.profilePerson.Cemetery = cemetery;
@@ -6776,7 +6779,6 @@ async function getLocationCategories() {
     addLocationCategoryToStuffBeforeTheBio(location);
   }
   const sourceLocationCategories = await getLocationCategoriesForSourcePlaces();
-  console.log(sourceLocationCategories);
   sourceLocationCategories.forEach((sourceLocationCategory) => {
     addLocationCategoryToStuffBeforeTheBio(sourceLocationCategory.category);
   });
@@ -6824,7 +6826,6 @@ let USstatesObjArray;
 export async function generateBio() {
   const module = await import("./us_states.json");
   USstatesObjArray = module.default;
-  console.log("USstatesObjArray", USstatesObjArray);
 
   try {
     window.autoBioNotes = [];
