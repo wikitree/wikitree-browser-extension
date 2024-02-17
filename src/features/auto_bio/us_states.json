@@ -619,13 +619,10 @@
     "abbreviation": "ME",
     "admissionDate": "1820-03-15",
     "former_name": "Massachusetts (District of Maine)",
+    "notes": "Maine was part of Massachusetts until 1820. It was admitted as a free state as part of the Missouri Compromise. It was the Province of Maine (1776-07-04 -- 1780-10-25), then the District of Maine (1780-10-25 -- 1820-03-15) (both within Massachusetts)",
     "former_names": {
-      "District of Maine": {
-        "end": "1819-03-15",
-        "start": "1780-10-25"
-      },
-      "Province of Maine": {
-        "end": "1780-10-25",
+      "Massachusetts": {
+        "end": "1820-03-14",
         "start": "1776-07-04"
       },
       "Province of Maine, Massachusetts Bay": {
