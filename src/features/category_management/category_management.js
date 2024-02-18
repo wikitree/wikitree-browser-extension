@@ -122,7 +122,9 @@ function AddWikiTreePlusLinks() {
   }
 */
   const aTable = document.getElementsByTagName("table")[0];
-  aTable.parentNode.insertBefore(CreateBatchCatActivationLinkAndSpan(), aTable);
+  if (aTable != null && aTable.parentNode != null) {
+    aTable.parentNode.insertBefore(CreateBatchCatActivationLinkAndSpan(), aTable);
+  }
 }
 
 function GetOrCreateCategoriesDiv() {
