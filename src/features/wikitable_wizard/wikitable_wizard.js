@@ -5,6 +5,7 @@ import "jquery-ui/ui/widgets/droppable";
 import "./wikitable_wizard.css";
 import { showCopyMessage } from "../access_keys/access_keys";
 import { analyzeColumns } from "../auto_bio/auto_bio";
+import { stateInfo } from "./us_states.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 const colorNameToHex = import("./html_colors.json");
@@ -68,7 +69,7 @@ function parseWikiTableData(data) {
   let currentRow = { cells: [], bgColor: "#ffffff", isBold: false, isHeader: false, style: "" };
   let isFullWidth = false;
 
-  console.log(lines);
+  //console.log(lines);
   lines.forEach((line, index) => {
     let bgColorMatch = line.match(/bgcolor=("|')?([a-zA-Z0-9#]+)\1?/); // Updated regex pattern
     let bgColor = bgColorMatch ? bgColorMatch[2] : "#ffffff"; // Get the matched value or name
@@ -187,7 +188,7 @@ function parseWikiTableData(data) {
 
   // Find columns that are not empty in at least one row
   const nonEmptyColumns = tableData.rows.reduce((acc, row) => {
-    console.log("Row:", row);
+    //console.log("Row:", row);
     if (!row.cells) {
       return acc;
     }
@@ -370,12 +371,58 @@ function isTSV(text) {
   return lines.every((line) => countTabs(line) === firstLineTabCount);
 }
 
+function countSingleSpaces(str) {
+  const match = str.match(/(?<! ) (?! )/g);
+  return match ? match.length : 0;
+}
+
+function splitLineIntoColumns(line, stateInfo) {
+  // Remove leading ":: " and split the line by spaces to start analyzing parts
+  let cleanLine = line.replace(/^[#*:]+/, "").trim();
+  let parts = cleanLine.split(" ");
+
+  // Find the index where gender (M or F) is present
+  let genderIndex = parts.findIndex((part) => part === "M" || part === "F");
+
+  // Extract the name, assuming it's everything before the gender
+  const name = parts.slice(0, genderIndex).join(" ");
+
+  // Directly extracting gender, age
+  const gender = parts[genderIndex];
+  const age = parts[genderIndex + 1]; // Assuming age follows gender
+  const maritalStatus = parts[genderIndex + 2]; // Assuming marital status is right before gender
+  const relation = parts[genderIndex + 3]; // Assuming relation is after age
+
+  // Rejoin the remaining parts to form a string for further processing
+  let remainingString = parts.slice(genderIndex + 4).join(" ");
+
+  // Identify the location using stateInfo
+  let locationIdentified = "";
+  for (const state of stateInfo) {
+    if (
+      remainingString.includes(`${state.name}, United States`) ||
+      remainingString.includes(`${state.abbreviation}, United States`)
+    ) {
+      locationIdentified = `${state.name}, United States`;
+      break;
+    }
+  }
+
+  // Extract occupation by removing the location from the remaining string
+  let occupation = remainingString.replace(locationIdentified, "").trim();
+
+  // Assemble and return the structured data
+  return [name, relation, maritalStatus, gender, age, occupation, locationIdentified];
+}
+
 function parseDelimitedText(data) {
   // Function to detect delimiter by checking the first line
   function detectDelimiter(line) {
     const commaCount = (line.match(/,/g) || []).length;
     const tabCount = (line.match(/\t/g) || []).length;
     const fourSpaceCount = (line.match(/ {4}/g) || []).length;
+
+    if (commaCount < 3 && tabCount < 3 && fourSpaceCount < 3 && countSingleSpaces(line) > 4) return " "; // Not enough delimiters to detect a pattern
 
     if (commaCount > tabCount && commaCount > fourSpaceCount) return ",";
     if (tabCount > commaCount && tabCount > fourSpaceCount) return "\t";
@@ -396,7 +443,6 @@ function parseDelimitedText(data) {
 
     // Trim whitespace from each field
     fields = fields.map((field) => field.trim());
-
     return fields;
   }
 
@@ -404,6 +450,10 @@ function parseDelimitedText(data) {
   const firstLine = data.split("\n")[0];
   const delimiter = detectDelimiter(firstLine);
 
+  if (delimiter === " ") {
+    const theData = data.split("\n").map((line) => splitLineIntoColumns(line, stateInfo));
+    return theData;
+  }
   // Split the data into lines and parse each line
   return data.split("\n").map((line) => parseLine(line, delimiter));
 }
@@ -468,10 +518,6 @@ function createwikitableWizardModal() {
           <li>You can move this popup window by dragging the title bar.</li>
           <li>There are four ways to close this Notes section: ?, Escape, 'x', and double-click.</li>
           </ul>
-        <h3>Known Issue:</h3>
-        <ul>
-        <li>The column sorting looks pretty messed up in Chrome on MacOS.  It's also not great in Safari.</li>
-        </ul>
         <p>Please <a href="https://www.wikitree.com/wiki/Beacall-6">let me know</a> if you find any bugs.</p>
         </div>
       <table id="wikitableWizardTable"></table>
@@ -522,7 +568,7 @@ function createwikitableWizardModal() {
             console.log("Detected Wikitable format.");
 
             const wikiTableData = parseWikiTableData(text);
-            console.log("Parsed WikiTable data:", wikiTableData);
+            // console.log("Parsed WikiTable data:", wikiTableData);
 
             parsedData = wikiTableData.data.rows.map((row) => row.cells);
             wikiTableData.data.rows.forEach((row, rowIndex) => {
@@ -571,11 +617,11 @@ function createwikitableWizardModal() {
             console.log(isCSV(text));
             console.log(isTSV(text));
             if (isCSV(text) || isTSV(text) || / {4}/.test(text)) {
-              console.log(isCSV(text));
+              //  console.log(isCSV(text));
               //             parsedData = parseCSVData(text);
               parsedData = parseDelimitedText(text);
             } else {
-              console.log(isCSV(text));
+              // console.log(isCSV(text));
               //              const commaMatch = text.split(/\n/)[0].match(/,/g);
 
               parsedData = parseSSVData(text);
