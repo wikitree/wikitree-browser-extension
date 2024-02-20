@@ -65,10 +65,17 @@ function parseWikiTableData(data) {
     isCaptionBold: false,
     styles: {}, // Object to store style attributes
   };
-  let currentRow = null;
+  let currentRow = { cells: [], bgColor: "#ffffff", isBold: false, isHeader: false, style: "" };
   let isFullWidth = false;
 
+  console.log(lines);
   lines.forEach((line, index) => {
+    let bgColorMatch = line.match(/bgcolor=("|')?([a-zA-Z0-9#]+)\1?/); // Updated regex pattern
+    let bgColor = bgColorMatch ? bgColorMatch[2] : "#ffffff"; // Get the matched value or name
+    if (bgColor && !bgColor.startsWith("#")) {
+      bgColor = colorNameToHex[bgColor.toLowerCase()] || null; // Convert color name to hex value if necessary
+    }
+
     if (line === "|}") return; // Ignore the closing bracket
 
     if (line.startsWith("{|")) {
@@ -137,8 +144,17 @@ function parseWikiTableData(data) {
         globalWikiTableStyles.rowStyles[hash] = currentRow.style; // Use the hash as a key for the style
       }
     } else if (line.startsWith("!")) {
+      currentRow = {
+        cells: [],
+        bgColor: bgColor || "#ffffff",
+        isBold: false,
+      };
       currentRow.isHeader = true;
-      currentRow.cells.push(...line.split("!!").map((cell) => cell.trim().replace(/^!/, "").trim()));
+      if (line.includes("!!")) {
+        currentRow.cells.push(...line.split("!!").map((cell) => cell.trim().replace(/^!/, "").trim()));
+      } else if (line.includes("||")) {
+        currentRow.cells.push(...line.split("||").map((cell) => cell.trim().replace(/^!/, "").trim()));
+      }
     } else if (line.startsWith("|")) {
       const cells = line.split("||").map((cell) =>
         cell
@@ -150,6 +166,9 @@ function parseWikiTableData(data) {
       // Check if the entire row is bold (excluding empty cells)
       if (cells.every((cell) => cell.trim() === "" || (cell.match(/^\s*'''/) && cell.match(/'''\s*$/)))) {
         currentRow.isBold = true;
+
+        console.log("Current row is bold:", currentRow.isBold);
+        console.log("Cells:", cells);
         cells.forEach((cell, idx) => {
           if (cell.trim() !== "") {
             cells[idx] = cell
@@ -168,6 +187,10 @@ function parseWikiTableData(data) {
 
   // Find columns that are not empty in at least one row
   const nonEmptyColumns = tableData.rows.reduce((acc, row) => {
+    console.log("Row:", row);
+    if (!row.cells) {
+      return acc;
+    }
     row.cells.forEach((cell, idx) => {
       if (cell.trim() !== "") acc.add(idx);
     });
