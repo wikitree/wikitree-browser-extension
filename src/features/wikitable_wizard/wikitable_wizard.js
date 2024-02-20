@@ -339,6 +339,11 @@ function isCSV(text) {
 
   // Count the number of commas in the first line
   const firstLineCommaCount = countCommas(lines[0]);
+  // Count single spaces not preceded by a comma.
+  const singleSpaceCount = (lines[0].match(/(?<!, ) /g) || []).length;
+  if (singleSpaceCount - 2 > firstLineCommaCount) {
+    return false;
+  }
 
   // Check if every line has the same number of commas
   return lines.every((line) => countCommas(line) === firstLineCommaCount);
@@ -366,6 +371,11 @@ function isTSV(text) {
 
   // Count the number of tabs in the first line
   const firstLineTabCount = countTabs(lines[0]);
+
+  const singleSpaceCount = (lines[0].match(/(?<!, ) /g) || []).length;
+  if (singleSpaceCount - 2 > firstLineTabCount) {
+    return false;
+  }
 
   // Check if every line has the same number of tabs
   return lines.every((line) => countTabs(line) === firstLineTabCount);
@@ -621,9 +631,7 @@ function createwikitableWizardModal() {
               //             parsedData = parseCSVData(text);
               parsedData = parseDelimitedText(text);
             } else {
-              // console.log(isCSV(text));
-              //              const commaMatch = text.split(/\n/)[0].match(/,/g);
-
+              console.log("Text does not appear to be in CSV, TSV, or 4-space-separated format.");
               parsedData = parseSSVData(text);
             }
 
