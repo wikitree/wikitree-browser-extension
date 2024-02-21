@@ -1322,6 +1322,31 @@ export function buildSpouses(person) {
   let marriages = [];
   let firstNameAndYear = [];
   if (person.Spouses) {
+    console.log(person.Spouses);
+    // Order the spouses by marriage date
+    spouseKeys.sort(function (a, b) {
+      // Attempt to use marriage_date, if available
+      let aMarriageDate = person.Spouses[a].marriage_date ? person.Spouses[a].marriage_date.replaceAll(/-/g, "") : null;
+      let bMarriageDate = person.Spouses[b].marriage_date ? person.Spouses[b].marriage_date.replaceAll(/-/g, "") : null;
+
+      // If both have marriage_dates, compare them
+      if (aMarriageDate && bMarriageDate) {
+        return parseInt(aMarriageDate, 10) - parseInt(bMarriageDate, 10);
+      }
+
+      // If either does not have a marriage_date, use BirthDate for comparison
+      let aBirthDate = person.Spouses[a].BirthDate ? person.Spouses[a].BirthDate.replaceAll(/-/g, "") : "99999999"; // Fallback to a high value if missing
+      let bBirthDate = person.Spouses[b].BirthDate ? person.Spouses[b].BirthDate.replaceAll(/-/g, "") : "99999999"; // Fallback to a high value if missing
+
+      // Compare using BirthDates if either marriage_date is missing
+      if (!aMarriageDate || !bMarriageDate) {
+        return parseInt(aBirthDate, 10) - parseInt(bBirthDate, 10);
+      }
+
+      // Fallback return if for some reason both comparisons fail
+      return 0;
+    });
+
     spouseKeys.forEach(function (key) {
       let text = "";
       let spouse = person.Spouses[key];
