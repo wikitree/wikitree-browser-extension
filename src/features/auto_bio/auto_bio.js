@@ -5275,12 +5275,14 @@ export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading =
 }
 
 const templatesJSON = chrome.runtime.getURL("features/wtPlus/templatesExp.json");
+let templatesObject = {};
 export async function getStickersAndBoxes() {
   let afterBioHeading = "";
   // eslint-disable-next-line no-undef
   await fetch(templatesJSON)
     .then((resp) => resp.json())
     .then(async (jsonData) => {
+      templatesObject = jsonData;
       const templatesToAdd = ["Sticker", "Navigation Profile Box", "Project Box", "Profile Box"];
       const beforeHeadingThings = ["Project Box", "Research note box"];
       let thingsToAddAfterBioHeading = [];
@@ -5946,6 +5948,56 @@ export function addLocationCategoryToStuffBeforeTheBio(location) {
   }
 }
 
+function sortStuffBeforeBio() {
+  const tempStuffObject = {
+    categories: [],
+    easilyConfused: [],
+    researchNoteBoxes: [],
+    projectBoxes: [],
+    succession: [],
+  };
+  if (window.sectionsObject["StuffBeforeTheBio"]) {
+    const stuff = window.sectionsObject["StuffBeforeTheBio"].text;
+    stuff.forEach(function (item) {
+      const itemName = item.match(/\{\{([^|}]+)/);
+      console.log(item, itemName);
+      if (item.startsWith("[[Category:")) {
+        tempStuffObject.categories.push(item);
+      } else if (item.startsWith("{{Easily Confused")) {
+        tempStuffObject.easilyConfused.push(item);
+      } else if (
+        templatesObject.templates.find(
+          (template) => template.name === itemName[1] && template.group === "Research note box"
+        )
+      ) {
+        console.log("researchNoteBoxes", item);
+        tempStuffObject.researchNoteBoxes.push(item);
+      } else if (
+        templatesObject.templates.find((template) => template.name === itemName[1] && template.type === "Project Box")
+      ) {
+        console.log("projectBoxes", item);
+        tempStuffObject.projectBoxes.push(item);
+      } else if (
+        templatesObject.templates.find((template) => template.name === itemName[1] && template.group === "Succession")
+      ) {
+        console.log("succession", item);
+        tempStuffObject.succession.push(item);
+      }
+    });
+  }
+  console.log("tempStuffObject", tempStuffObject);
+  // Combine the arrays.
+  const combinedStuff = [
+    ...tempStuffObject.categories,
+    ...tempStuffObject.easilyConfused,
+    ...tempStuffObject.researchNoteBoxes,
+    ...tempStuffObject.projectBoxes,
+    ...tempStuffObject.succession,
+  ];
+  console.log("combinedStuff", combinedStuff);
+  return combinedStuff;
+}
+
 function categoriesBeforeProjects(textArray) {
   return textArray.sort((a, b) => {
     if (a.startsWith("{{") && b.startsWith("[[")) {
@@ -5960,6 +6012,7 @@ function categoriesBeforeProjects(textArray) {
 
 export function getStuffBeforeTheBioText() {
   let stuffBeforeTheBioText = "";
+  /*
   if (window.sectionsObject["StuffBeforeTheBio"]) {
     window.sectionsObject.StuffBeforeTheBio.text = categoriesBeforeProjects(
       window.sectionsObject.StuffBeforeTheBio.text
@@ -5969,6 +6022,13 @@ export function getStuffBeforeTheBioText() {
     if (stuff) {
       stuffBeforeTheBioText = stuff + "\n";
     }
+  }
+  */
+
+  const sortedStuff = sortStuffBeforeBio();
+  const filteredStuff = sortedStuff.filter((item) => item !== "");
+  if (filteredStuff.length > 0) {
+    stuffBeforeTheBioText += filteredStuff.join("\n") + "\n";
   }
   if (window.textBeforeTheBio) {
     stuffBeforeTheBioText += window.textBeforeTheBio + "\n";
@@ -6883,6 +6943,9 @@ export async function generateBio() {
         stuffBeforeTheBioArray2.push(aBit);
       }
     });
+
+    console.log(stuffBeforeTheBioArray2);
+
     textBeforeTheBio = stuffBeforeTheBioArray2.join("\n");
     window.textBeforeTheBio = textBeforeTheBio;
 
