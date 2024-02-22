@@ -1115,6 +1115,39 @@ function buildBirthLocation(person) {
 }
 
 export function assignCemeteryFromSources() {
+  // Check if the references array is present and log its length
+  if (!(window.references && Array.isArray(window.references))) {
+    return; // Exit if no references to process
+  }
+
+  window.references.forEach(function (source, index) {
+    if (source["Record Type"].includes("Death")) {
+      let cemeteryMatch = source.Text.match(
+        /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Graveyard)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)|Memorial Park).*?),?.*?(?=[;.])/im
+      );
+      let cemeteryMatch2 = source.Text.match(
+        /,\s([^,]*?Cemetery|Memorial|Cimetière|kyrkogård|temető|Graveyard|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard).*?;/
+      );
+
+      if (cemeteryMatch && source.Text.match(/Acadian|Wall of Names|sameas=no/) == null) {
+        let cemetery = cemeteryMatch[0].replace("citing ", "").replace("Burial, ", "").trim();
+        window.profilePerson.Cemetery = cemetery;
+      } else if (cemeteryMatch2 && source.Text.match(/Acadian|Wall of Names|sameas=no/) == null) {
+        let cemetery = cemeteryMatch2[1].trim();
+        window.profilePerson.Cemetery = cemetery;
+      }
+
+      if (window.profilePerson?.Cemetery) {
+        if (window.profilePerson?.Cemetery.match(/record|Find a Grave/)) {
+          window.profilePerson.Cemetery = "";
+        }
+      }
+    }
+  });
+}
+
+/*
+export function assignCemeteryFromSources() {
   window.references.forEach(function (source) {
     if (source["Record Type"].includes("Death")) {
       let cemeteryMatch = source.Text.match(
@@ -1123,10 +1156,10 @@ export function assignCemeteryFromSources() {
       let cemeteryMatch2 = source.Text.match(
         /,\s([^,]*?Cemetery|Memorial|Cimetière|kyrkogård|temető|Graveyard|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard).*?;/
       );
-      if (cemeteryMatch && source.Text.match(/Acadian|Wall of Names/) == null) {
+      if (cemeteryMatch && source.Text.match(/Acadian|Wall of Names|sameas=no/) == null) {
         let cemetery = cemeteryMatch[0].replace("citing ", "").replace("Burial, ", "").trim();
         window.profilePerson.Cemetery = cemetery;
-      } else if (cemeteryMatch2 && source.Text.match(/Acadian|Wall of Names/) == null) {
+      } else if (cemeteryMatch2 && source.Text.match(/Acadian|Wall of Names|sameas=no/) == null) {
         let cemetery = cemeteryMatch2[1].trim();
         window.profilePerson.Cemetery = cemetery;
       }
@@ -1138,7 +1171,7 @@ export function assignCemeteryFromSources() {
     }
   });
 }
-
+*/
 export function buildDeath(person) {
   if (!isOK(person?.DeathDate) && !isOK(person.DeathDecade) && !isOK(person.DeathLocation)) {
     return false;
@@ -1322,7 +1355,6 @@ export function buildSpouses(person) {
   let marriages = [];
   let firstNameAndYear = [];
   if (person.Spouses) {
-    console.log(person.Spouses);
     // Order the spouses by marriage date
     spouseKeys.sort(function (a, b) {
       // Attempt to use marriage_date, if available
@@ -5770,6 +5802,8 @@ export function setOrderBirthDate(person) {
 // 4. Find a Grave #123456789
 // 5. Find a Grave memorial #123456789
 // Note that if the input is in format 3, it will not parse if the link contains the text "database and images" (the link will be ignored).
+
+/*
 function getFindAGraveLink(text) {
   // Define the regexes to be used to find the link
   const match1 = /(https?:\/\/www\.findagrave.com[^\s]+)$/;
@@ -5788,12 +5822,43 @@ function getFindAGraveLink(text) {
     } else if (text.match(match2)) {
       return text.match(match2)[1];
       // If the input is in format 3, return the link if it doesn't contain "database and images"
-    } else if (text.match(match3) && text.match(match4) == null) {
+    } else if (text.match(match3) && text.match(match4) == null && text.match(match3)[0].match(/samesas=no/) == null) {
       return "https://www.findagrave.com/memorial/" + text.match(match3)[1];
       // If the input is in format 4 or 5, return the link
-    } else if (text.match(match5)) {
+    } else if (text.match(match5) && text.match(match5)[0].match(/samesas=no/) == null) {
       return "https://www.findagrave.com/memorial/" + text.match(match5)[2];
       // If the input is in none of the above formats, return null
+    } else {
+      return null;
+    }
+  } else {
+    return null;
+  }
+}
+*/
+
+function getFindAGraveLink(text) {
+  // Define the regexes to be used to find the link
+  const match1 = /(https?:\/\/www\.findagrave.com[^\s]+)$/;
+  const match2 = /\[(https?:\/\/www\.findagrave.com[^\s]+)(\s([^\]]+))?\]/;
+  const match3 = /\{\{\s?FindAGrave\s?\|\s?(\d+)(\|.*?)?\s?\}\}/;
+  const match4 = /database and images/;
+  const match5 = /^\s?Find a Grave:?( memorial)? #?(\d+)\.?$/i;
+  const sourcerMatch = /'''.+<br(.*)?>.+<br(.*)?>/;
+
+  // Check for sourcerMatch
+  if (!text.match(sourcerMatch)) {
+    console.log("sourcerMatch not found, proceeding with other matches...");
+
+    // Check each match case and log the outcome
+    if (text.match(match1)) {
+      return text.match(match1)[1];
+    } else if (text.match(match2)) {
+      return text.match(match2)[1];
+    } else if (text.match(match3) && text.match(match4) == null && text.match(match3)[0].match(/samesas=no/) == null) {
+      return "https://www.findagrave.com/memorial/" + text.match(match3)[1];
+    } else if (text.match(match5) && text.match(match5)[0].match(/samesas=no/) == null) {
+      return "https://www.findagrave.com/memorial/" + text.match(match5)[2];
     } else {
       return null;
     }
@@ -5889,7 +5954,7 @@ export async function getCitations() {
     let newBrunswickLink = getNewBrunswickLink(aRef.Text);
     let citationLink = findAGraveLink || matriculaLink || newBrunswickLink;
 
-    if (citationLink) {
+    if (citationLink && aRef.Text.match(/sameas=no/) == null) {
       try {
         let citation = await getCitation(citationLink);
         if (citation) {
@@ -5902,7 +5967,7 @@ export async function getCitations() {
           aRef.Text = citation.trim();
 
           // Get cemetery name from citation
-          if (findAGraveLink) {
+          if (findAGraveLink && aRef.Text.match(/sameas=no/) == null) {
             const cemeteryMatch = citation.match(/citing ([^;]+)/);
             if (cemeteryMatch) {
               aRef.Cemetery = cemeteryMatch[1];
@@ -5926,7 +5991,7 @@ export function addLocationCategoryToStuffBeforeTheBio(location) {
   if (location) {
     const theCategory = "[[Category: " + location + "]]";
     const theCategoryWithoutSpace = "[[Category:" + location + "]]";
-    const excludedCategories = ["Acadie"];
+    // const excludedCategories = ["Acadie"];
 
     let notInTextBeforeTheBio = true;
     if (window.textBeforeTheBio) {
@@ -5940,8 +6005,7 @@ export function addLocationCategoryToStuffBeforeTheBio(location) {
     if (
       !window.sectionsObject["StuffBeforeTheBio"].text?.includes(theCategory) &&
       !window.sectionsObject["StuffBeforeTheBio"].text?.includes(theCategoryWithoutSpace) &&
-      notInTextBeforeTheBio &&
-      !excludedCategories.includes(location)
+      notInTextBeforeTheBio
     ) {
       window.sectionsObject["StuffBeforeTheBio"].text.push(theCategory);
     }
@@ -5960,32 +6024,27 @@ function sortStuffBeforeBio() {
     const stuff = window.sectionsObject["StuffBeforeTheBio"].text;
     stuff.forEach(function (item) {
       const itemName = item.match(/\{\{([^|}]+)/);
-      console.log(item, itemName);
       if (item.startsWith("[[Category:")) {
         tempStuffObject.categories.push(item);
       } else if (item.startsWith("{{Easily Confused")) {
         tempStuffObject.easilyConfused.push(item);
       } else if (
         templatesObject.templates.find(
-          (template) => template.name === itemName[1] && template.group === "Research note box"
+          (template) => template.name === itemName?.[1] && template.group === "Research note box"
         )
       ) {
-        console.log("researchNoteBoxes", item);
         tempStuffObject.researchNoteBoxes.push(item);
       } else if (
-        templatesObject.templates.find((template) => template.name === itemName[1] && template.type === "Project Box")
+        templatesObject.templates.find((template) => template.name === itemName?.[1] && template.type === "Project Box")
       ) {
-        console.log("projectBoxes", item);
         tempStuffObject.projectBoxes.push(item);
       } else if (
-        templatesObject.templates.find((template) => template.name === itemName[1] && template.group === "Succession")
+        templatesObject.templates.find((template) => template.name === itemName?.[1] && template.group === "Succession")
       ) {
-        console.log("succession", item);
         tempStuffObject.succession.push(item);
       }
     });
   }
-  console.log("tempStuffObject", tempStuffObject);
   // Combine the arrays.
   const combinedStuff = [
     ...tempStuffObject.categories,
@@ -5994,10 +6053,10 @@ function sortStuffBeforeBio() {
     ...tempStuffObject.projectBoxes,
     ...tempStuffObject.succession,
   ];
-  console.log("combinedStuff", combinedStuff);
   return combinedStuff;
 }
 
+/*
 function categoriesBeforeProjects(textArray) {
   return textArray.sort((a, b) => {
     if (a.startsWith("{{") && b.startsWith("[[")) {
@@ -6009,6 +6068,7 @@ function categoriesBeforeProjects(textArray) {
     }
   });
 }
+*/
 
 export function getStuffBeforeTheBioText() {
   let stuffBeforeTheBioText = "";
@@ -6944,8 +7004,6 @@ export async function generateBio() {
       }
     });
 
-    console.log(stuffBeforeTheBioArray2);
-
     textBeforeTheBio = stuffBeforeTheBioArray2.join("\n");
     window.textBeforeTheBio = textBeforeTheBio;
 
@@ -7876,6 +7934,8 @@ function generateCombinations(location) {
   ];
 
   const resultSet = new Set([location]);
+  const locationSplit = location.split(/, /);
+  resultSet.add(locationSplit[0] + ", " + locationSplit[1]);
 
   function replaceAndAdd(str, find, replace) {
     let index = str.indexOf(find);
@@ -7995,6 +8055,7 @@ export async function getLocationCategory(type, location = null) {
   const apiResponses = await Promise.allSettled(apiPromises);
 
   let foundCategory = null;
+
   for (const location of searchLocationsArray) {
     for (const api of apiResponses) {
       if (api.status === "fulfilled") {
