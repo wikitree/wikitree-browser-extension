@@ -5,6 +5,83 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
+import { isNavHomePage } from "./pageType.js";
+import { shouldInitializeFeature } from "./options/options_storage";
+
+async function checkAnyDataFeature() {
+  const features = ["extraWatchlist", "clipboard", "changeSummaryOptions", "customMenu"];
+  const promises = features.map((feature) => shouldInitializeFeature(feature));
+
+  try {
+    const results = await Promise.all(promises);
+    // results is an array of booleans. If any is true, initialize that feature.
+
+    const anyFeatureToInitialize = results.some((result) => result);
+    if (anyFeatureToInitialize) {
+      // Proceed with initialization since at least one feature returned true.
+      console.log("Initializing features based on conditions.");
+      // You can also check which feature(s) should be initialized and act accordingly
+      results.forEach((result, index) => {
+        if (result) {
+          console.log(`Initializing ${features[index]}`);
+          addDataButtons();
+        }
+      });
+    } else {
+      // None of the features returned true for initialization.
+      console.log("No features to initialize.");
+    }
+  } catch (error) {
+    console.error("Error checking features to initialize:", error);
+  }
+}
+
+// Add buttons to download or import the feature data (My Menu, Change Summary Options, Extra Watchlist, Clipboard)
+if (isNavHomePage) {
+  checkAnyDataFeature();
+}
+
+function downloadFeatureData() {
+  const data = { data: { changeSummaryOptions: [], myMenu: [], extraWatchlist: [], clipboard: [] } };
+  if (localStorage.LSchangeSummaryOptions) {
+    data.data.changeSummaryOptions = JSON.parse(localStorage.LSchangeSummaryOptions);
+  }
+  if (localStorage.customMenu) {
+    data.data.myMenu = JSON.parse(localStorage.customMenu);
+  }
+  if (localStorage.extraWatchlist) {
+    data.data.extraWatchlist = JSON.parse(localStorage.extraWatchlist);
+  }
+  if (localStorage.clipboard) {
+    data.data.clipboard = JSON.parse(localStorage.clipboard);
+  }
+  // Download this as a file
+  const file = new Blob([JSON.stringify(data)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(file);
+  // Get the date and time for the filename
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const day = now.getDate();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const seconds = now.getSeconds();
+  a.download = `${year}-${month}-${day}_${hours}${minutes}${seconds}_WBE_backup_data.json`;
+  a.click();
+}
+
+function addDataButtons() {
+  const dataButtons = `
+    <div id="featureDataButtons">
+      <button id="downloadFeatureData">Download WBE Feature Data</button>
+      <button id="importFeatureData">Import WBE Feature Data</button>
+    </div>
+  `;
+  $(".eight.columns.alpha").last().after(dataButtons);
+  $("#downloadFeatureData").on("click", downloadFeatureData);
+  $("#importFeatureData").on("click", importFeatureData);
+}
 
 // Add wte class to body to let WikiTree BEE know not to add the same functions
 document.querySelector("body").classList.add("wte");

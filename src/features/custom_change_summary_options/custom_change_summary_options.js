@@ -15,12 +15,67 @@ shouldInitializeFeature("customChangeSummaryOptions").then(async (result) => {
       }
     }
     await import("./custom_change_summary_options.css");
+    updateDataFormat();
     addMovingSaveBox();
+    $("body").on("keyup-changeSummaryOptions", "#newOption", function (event) {
+      event.stopPropagation();
+      if (event.key === "Enter") {
+        $("#addOptionButton").trigger("click");
+      }
+    });
   }
 });
 
 const validationContainer = $("#validationContainer");
 const sco = $(".six.columns.omega").eq(0);
+
+function updateDataFormat() {
+  const storedOptions = localStorage.getItem("LSchangeSummaryOptions");
+
+  if (storedOptions) {
+    if (!localStorage.getItem("LSchangeSummaryOptionsBackUp")) {
+      localStorage.setItem("LSchangeSummaryOptionsBackUp", storedOptions);
+    }
+    try {
+      let options = JSON.parse(storedOptions);
+      if (!Array.isArray(options)) {
+        throw new Error("Not an array");
+      }
+      options = options.map((option) => option.trim()).filter((option) => option !== "");
+      localStorage.setItem("LSchangeSummaryOptions", JSON.stringify(options));
+    } catch (error) {
+      const options = storedOptions
+        .split("@@")
+        .map((option) => option.trim())
+        .filter((option) => option !== "");
+      localStorage.setItem("LSchangeSummaryOptions", JSON.stringify(options));
+    }
+  } else {
+    console.log("LSchangeSummaryOptions does not exist. No action needed or initialize as required.");
+  }
+
+  console.log("Updated LSchangeSummaryOptions:", localStorage.getItem("LSchangeSummaryOptions"));
+}
+
+function addOption(option) {
+  let currentOptions = JSON.parse(localStorage.getItem("LSchangeSummaryOptions")) || [];
+  if (!currentOptions.includes(option.trim()) && option.trim() !== "") {
+    currentOptions.push(option.replace(/"/g, "'").trim());
+    localStorage.setItem("LSchangeSummaryOptions", JSON.stringify(currentOptions));
+  }
+  console.log("Updated LSchangeSummaryOptions:", localStorage.getItem("LSchangeSummaryOptions"));
+}
+
+function removeOption(option) {
+  let currentOptions = JSON.parse(localStorage.getItem("LSchangeSummaryOptions")) || [];
+  const index = currentOptions.indexOf(option);
+  $(`input.summary-suggestion[value="${option}"]`).parent().remove();
+  if (index > -1) {
+    currentOptions.splice(index, 1);
+    localStorage.setItem("LSchangeSummaryOptions", JSON.stringify(currentOptions));
+  }
+  console.log("Updated LSchangeSummaryOptions:", localStorage.getItem("LSchangeSummaryOptions"));
+}
 
 async function addMovingSaveBox() {
   if ($("#saveStuff").length == 0 && $("#removeSpouse").length == 0) {
@@ -54,7 +109,9 @@ async function addMovingSaveBox() {
           currentLS = "";
         }
 
-        localStorage.setItem("LSchangeSummaryOptions", currentLS + $("#newOption").val() + "@@");
+        addOption($("#newOption").val());
+
+        //localStorage.setItem("LSchangeSummaryOptions", currentLS + $("#newOption").val() + "@@");
 
         setTimeout(function () {
           setChangeSummaryOptions(1);
@@ -202,7 +259,13 @@ function setChangeSummaryOptions(adding = 0) {
 
   $(".addedOption").remove();
   $("#currentOptions").html("");
-  let extraOptions = localStorage.getItem("LSchangeSummaryOptions");
+  let extraOptions = JSON.parse(localStorage.getItem("LSchangeSummaryOptions")) || [];
+  console.log("extraOptions", extraOptions);
+  if (extraOptions == null) {
+    extraOptions = [];
+  }
+
+  /*
   if (extraOptions != "" && extraOptions != null) {
     let extras;
     if (extraOptions.match(/@@/) == null) {
@@ -215,93 +278,87 @@ function setChangeSummaryOptions(adding = 0) {
       extras = extraOptions.split("@@");
     }
     extraOptions = extras.join("@@");
-    let addedNum = 0;
-    extras.forEach(function (extraOption) {
-      if (extraOption != "") {
-        addedNum++;
-        let check = "";
-        if (checkedSummarySuggestions.includes(extraOption)) {
-          check = "checked";
-        }
-        let anOption;
-        if (extraOption.match(/"/) != null) {
-          anOption = $(
-            '<label tabindex="-1" style="outline-width: 0px;" class="addedOption"><input type="checkbox" class="summary-suggestion" name="summarySuggestion" ' +
-              check +
-              ' id="added_' +
-              addedNum +
-              "\" value='" +
-              extraOption +
-              ' \' tabindex="-1">' +
-              extraOption +
-              "</label>"
-          );
-        } else {
-          anOption = $(
-            '<label tabindex="-1" style="outline-width: 0px;" class="addedOption"><input type="checkbox" class="summary-suggestion" name="summarySuggestion" ' +
-              check +
-              ' id="added_' +
-              addedNum +
-              '" value="' +
-              extraOption +
-              ' " tabindex="-1">' +
-              extraOption +
-              "</label>"
-          );
-        }
-
-        $("#saveStuff > p").append(anOption);
-
-        if (extraOption.match(/"/) != null) {
-          $("#currentOptions").append(
-            "<li class='deleteOption' data-option='" + extraOption + "'>" + extraOption + " [x]</li>"
-          );
-        } else {
-          $("#currentOptions").append(
-            "<li class='deleteOption' data-option=\"" + extraOption + '">' + extraOption + " [x]</li>"
-          );
-        }
-        $("#added_" + addedNum).on("click", $("#added_" + addedNum), function (e) {
-          const thisThing = e.data;
-          $("#wpSave").prop("disabled", false);
-          var v = thisThing.val();
-          var summary = $("#wpSummary").val();
-          if (!summary.includes(v)) {
-            summary += " " + v;
-            summary = summary.trim();
-            if (summary.length > 150) {
-              summary = summary.substring(0, 149);
-            }
-            $("#wpSummary").val(summary);
-          }
-          summaryBox(e.data);
-        });
+  }
+    */
+  //    let addedNum = 0;
+  extraOptions.forEach(function (extraOption, index) {
+    if (extraOption != "") {
+      //addedNum++;
+      let check = "";
+      if (checkedSummarySuggestions.includes(extraOption)) {
+        check = "checked";
+      }
+      let anOption;
+      if (extraOption.match(/"/) == null) {
+        anOption = $(
+          `<label tabindex="-1" style="outline-width: 0px;" class="addedOption"><input 
+          type="checkbox" class="summary-suggestion" name="summarySuggestion" 
+              ${check} id="added_${parseInt(index + 1)}" value="${extraOption}" tabindex="-1">${extraOption}
+              </label>`
+        );
+      } else {
+        anOption = $(`<label tabindex="-1" style="outline-width: 0px;" class="addedOption"><input 
+        type="checkbox" class="summary-suggestion" name="summarySuggestion" 
+          ${check} id="added_${index + 1}" value='${extraOption}' tabindex="-1">${extraOption}
+          </label>`);
       }
 
-      $(".deleteOption").on("click", function (e) {
-        const myOption = $(this);
-        if (myOption.hasClass("deleteOption")) {
-          $(myOption).hide();
-        }
+      $("#saveStuff > p").append(anOption);
 
-        if (myOption.data("option").match(/"/) != null) {
-          $(".summary-suggestion[value='" + myOption.data("option") + " " + "']")
-            .parent()
-            .hide();
-        } else {
-          $('.summary-suggestion[value="' + myOption.data("option") + " " + '"]')
-            .parent()
-            .hide();
-        }
+      if (extraOption.match(/"/) != null) {
+        $("#currentOptions").append(
+          "<li class='deleteOption' data-option='" + extraOption + "'>" + extraOption + " [x]</li>"
+        );
+      } else {
+        $("#currentOptions").append(
+          "<li class='deleteOption' data-option=\"" + extraOption + '">' + extraOption + " [x]</li>"
+        );
+      }
+    }
 
-        extraOptions = localStorage.getItem("LSchangeSummaryOptions");
+    $(".deleteOption").on("click", function (e) {
+      const myOption = $(this);
+      if (myOption.hasClass("deleteOption")) {
+        $(myOption).hide();
+      }
 
-        extraOptions = extraOptions.replace(myOption.data("option") + "@@", "");
+      if (myOption.data("option").match(/"/) != null) {
+        $(".summary-suggestion[value='" + myOption.data("option") + " " + "']")
+          .parent()
+          .hide();
+      } else {
+        $('.summary-suggestion[value="' + myOption.data("option") + " " + '"]')
+          .parent()
+          .hide();
+      }
 
-        localStorage.setItem("LSchangeSummaryOptions", extraOptions);
-      });
+      extraOptions = localStorage.getItem("LSchangeSummaryOptions");
+
+      //extraOptions = extraOptions.replace(myOption.data("option") + "@@", "");
+      removeOption(myOption.data("option"));
+
+      // localStorage.setItem("LSchangeSummaryOptions", extraOptions);
     });
-  }
+  });
+
+  $("label.addedOption input")
+    .off()
+    .on("click", function (e) {
+      $("#wpSave").prop("disabled", false);
+      const v = $(this).val().trim();
+      let summary = $("#wpSummary").val();
+      const regex = new RegExp(`\\b${v}\\b`, "g");
+      if (!summary.match(regex)) {
+        summary += " " + v + " ";
+        summary = summary.replace(/\s+/g, " ");
+        if (summary.length > 150) {
+          summary = summary.substring(0, 149);
+        }
+        $("#wpSummary").val(summary);
+      }
+      summaryBox($(this));
+    });
+
   sortChangeSummaryOptions();
 }
 
@@ -379,6 +436,8 @@ function sortChangeSummaryOptions() {
     aSpan.insertBefore(theLabels.eq(0));
     theLabels.appendTo(aSpan);
     theLabels.sort(function (a, b) {
+      console.log("a", $(a).text());
+      console.log("b", $(b).text());
       if ($(b).text() == "") {
         return true;
       }
