@@ -9,12 +9,12 @@ import { isNavHomePage } from "./pageType.js";
 import { shouldInitializeFeature } from "./options/options_storage";
 
 async function checkAnyDataFeature() {
-  const features = ["extraWatchlist", "clipboard", "changeSummaryOptions", "customMenu"];
+  const features = ["extraWatchlist", "clipboardAndNotes", "customChangeSummaryOptions", "myMenu"];
   const promises = features.map((feature) => shouldInitializeFeature(feature));
 
   try {
     const results = await Promise.all(promises);
-    // results is an array of booleans. If any is true, initialize that feature.
+    // results is an array of booleans. If any is true, initialize this feature.
 
     const anyFeatureToInitialize = results.some((result) => result);
     if (anyFeatureToInitialize) {
@@ -24,7 +24,9 @@ async function checkAnyDataFeature() {
       results.forEach((result, index) => {
         if (result) {
           console.log(`Initializing ${features[index]}`);
-          addDataButtons();
+          if ($("div#featureDataButtons").length == 0) {
+            addDataButtons();
+          }
         }
       });
     } else {
@@ -42,7 +44,11 @@ if (isNavHomePage) {
 }
 
 function downloadFeatureData() {
-  const data = { data: { changeSummaryOptions: [], myMenu: [], extraWatchlist: [], clipboard: [] } };
+  const data = {
+    extension: "WikiTree Browser Extension",
+    features: "1",
+    data: { changeSummaryOptions: [], myMenu: [], extraWatchlist: "", clipboard: [] },
+  };
   if (localStorage.LSchangeSummaryOptions) {
     data.data.changeSummaryOptions = JSON.parse(localStorage.LSchangeSummaryOptions);
   }
@@ -50,7 +56,7 @@ function downloadFeatureData() {
     data.data.myMenu = JSON.parse(localStorage.customMenu);
   }
   if (localStorage.extraWatchlist) {
-    data.data.extraWatchlist = JSON.parse(localStorage.extraWatchlist);
+    data.data.extraWatchlist = localStorage.extraWatchlist;
   }
   if (localStorage.clipboard) {
     data.data.clipboard = JSON.parse(localStorage.clipboard);
@@ -62,11 +68,11 @@ function downloadFeatureData() {
   // Get the date and time for the filename
   const now = new Date();
   const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const day = now.getDate();
-  const hours = now.getHours();
-  const minutes = now.getMinutes();
-  const seconds = now.getSeconds();
+  const month = (now.getMonth() + 1).toString().padStart(2, "0");
+  const day = now.getDate().toString().padStart(2, "0");
+  const hours = now.getHours().toString().padStart(2, "0");
+  const minutes = now.getMinutes().toString().padStart(2, "0");
+  const seconds = now.getSeconds().toString().padStart(2, "0");
   a.download = `${year}-${month}-${day}_${hours}${minutes}${seconds}_WBE_backup_data.json`;
   a.click();
 }
