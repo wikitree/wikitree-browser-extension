@@ -93,6 +93,13 @@ async function DoOrphan() {
       let theKeys = Object.keys(data[0].people);
       theKeys.forEach(function (aKey) {
         let person = data[0].people[aKey];
+        if (person.PageId == undefined) {
+          alert(
+            "removing yourself from private profiles requires API login. Please log in, close the TreeApps tab and try again."
+          );
+          window.open("https://api.wikitree.com/api.php");
+          return;
+        }
         addInvisibleInput(form, "idlist[]", person.PageId);
       });
     });
