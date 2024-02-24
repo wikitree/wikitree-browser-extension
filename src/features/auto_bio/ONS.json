@@ -8,6 +8,10 @@
     "NameVariants": ["Abbot", "Abbit", "Abot"]
   },
   {
+    "Name": "Abbühl",
+    "NameVariants": ["Abbuehl", "Abbuhl", "Aubiel", "Opphile"]
+  },
+  {
     "Name": "Abel",
     "NameVariants": ["Abell"]
   },
@@ -144,6 +148,10 @@
     "NameVariants": ["Ayers", "Ayres"]
   },
   {
+    "Name": "Barnscheidt",
+    "NameVariants": ["Barnscheid", "Bannscheidt", "Bannscheid"]
+  },
+  {
     "Name": "Batte",
     "NameVariants": ["Batts", "Bates", "Batt", "Battey", "Battie", "Beatty", "Beattie"]
   },
@@ -164,8 +172,16 @@
     "NameVariants": ["Blod", "Blode", "Bloode", "Bloud", "Blud", "Blude", "Bludd", "Bludde"]
   },
   {
+    "Name": "Bourque",
+    "NameVariants": ["Bourg", "Bourc", "Bourck"]
+  },
+  {
     "Name": "Broadwell",
     "NameVariants": ["Bradwell", "Broodwell", "Brodwell"]
+  },
+  {
+    "Name": "Buck",
+    "NameVariants": ["Buch", "Buk"]
   },
   {
     "Name": "Bukáček",
@@ -386,6 +402,10 @@
   {
     "Name": "Oats",
     "NameVariants": ["Oates"]
+  },
+  {
+    "Name": "Ostermann",
+    "NameVariants": ["Osterman", "Oosterman", "Östermann", "Österman", "Остерман"]
   },
   { "Name": "Overcast", "NameVariants": ["Overcash", "Oberkirsh", "Oberkirch", "Oberkirsher", "Oberkirsch"] },
   {
