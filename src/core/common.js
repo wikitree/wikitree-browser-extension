@@ -47,19 +47,19 @@ function downloadFeatureData() {
   const data = {
     extension: "WikiTree Browser Extension",
     features: "1",
-    data: { changeSummaryOptions: [], myMenu: [], extraWatchlist: "", clipboard: [] },
+    data: { changeSummaryOptions: "[]", myMenu: "[]", extraWatchlist: "", clipboard: "[]" },
   };
   if (localStorage.LSchangeSummaryOptions) {
-    data.data.changeSummaryOptions = JSON.parse(localStorage.LSchangeSummaryOptions);
+    data.data.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
   }
   if (localStorage.customMenu) {
-    data.data.myMenu = JSON.parse(localStorage.customMenu);
+    data.data.myMenu = localStorage.customMenu;
   }
   if (localStorage.extraWatchlist) {
     data.data.extraWatchlist = localStorage.extraWatchlist;
   }
   if (localStorage.clipboard) {
-    data.data.clipboard = JSON.parse(localStorage.clipboard);
+    data.data.clipboard = localStorage.clipboard;
   }
   // Download this as a file
   const file = new Blob([JSON.stringify(data)], { type: "application/json" });
@@ -75,6 +75,39 @@ function downloadFeatureData() {
   const seconds = now.getSeconds().toString().padStart(2, "0");
   a.download = `${year}-${month}-${day}_${hours}${minutes}${seconds}_WBE_backup_data.json`;
   a.click();
+}
+
+function importFeatureData() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "application/json";
+  input.onchange = function () {
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = function () {
+      const data = JSON.parse(reader.result);
+      if (data.extension.startsWith("WikiTree Browser Extension") && data.features) {
+        if (data.data.changeSummaryOptions) {
+          localStorage.LSchangeSummaryOptions = data.data.changeSummaryOptions;
+        }
+        if (data.data.myMenu) {
+          localStorage.customMenu = data.data.myMenu;
+        }
+        if (data.data.extraWatchlist) {
+          localStorage.extraWatchlist = data.data.extraWatchlist;
+        }
+        if (data.data.clipboard) {
+          localStorage.clipboard = data.data.clipboard;
+        }
+        // Reload the page to apply the changes
+        location.reload();
+      } else {
+        alert("Invalid file");
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
 }
 
 function addDataButtons() {
