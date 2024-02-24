@@ -5,6 +5,122 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
+import { isNavHomePage } from "./pageType.js";
+import { shouldInitializeFeature } from "./options/options_storage";
+
+async function checkAnyDataFeature() {
+  const features = ["extraWatchlist", "clipboardAndNotes", "customChangeSummaryOptions", "myMenu"];
+  const promises = features.map((feature) => shouldInitializeFeature(feature));
+
+  try {
+    const results = await Promise.all(promises);
+    // results is an array of booleans. If any is true, initialize this feature.
+
+    const anyFeatureToInitialize = results.some((result) => result);
+    if (anyFeatureToInitialize) {
+      // Proceed with initialization since at least one feature returned true.
+      console.log("Initializing features based on conditions.");
+      // You can also check which feature(s) should be initialized and act accordingly
+      results.forEach((result, index) => {
+        if (result) {
+          console.log(`Initializing ${features[index]}`);
+          if ($("div#featureDataButtons").length == 0) {
+            addDataButtons();
+          }
+        }
+      });
+    } else {
+      // None of the features returned true for initialization.
+      console.log("No features to initialize.");
+    }
+  } catch (error) {
+    console.error("Error checking features to initialize:", error);
+  }
+}
+
+// Add buttons to download or import the feature data (My Menu, Change Summary Options, Extra Watchlist, Clipboard)
+if (isNavHomePage) {
+  checkAnyDataFeature();
+}
+
+function downloadFeatureData() {
+  const data = {
+    extension: "WikiTree Browser Extension",
+    features: "1",
+    data: { changeSummaryOptions: "[]", myMenu: "[]", extraWatchlist: "", clipboard: "[]" },
+  };
+  if (localStorage.LSchangeSummaryOptions) {
+    data.data.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
+  }
+  if (localStorage.customMenu) {
+    data.data.myMenu = localStorage.customMenu;
+  }
+  if (localStorage.extraWatchlist) {
+    data.data.extraWatchlist = localStorage.extraWatchlist;
+  }
+  if (localStorage.clipboard) {
+    data.data.clipboard = localStorage.clipboard;
+  }
+  // Download this as a file
+  const file = new Blob([JSON.stringify(data)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(file);
+  // Get the date and time for the filename
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = (now.getMonth() + 1).toString().padStart(2, "0");
+  const day = now.getDate().toString().padStart(2, "0");
+  const hours = now.getHours().toString().padStart(2, "0");
+  const minutes = now.getMinutes().toString().padStart(2, "0");
+  const seconds = now.getSeconds().toString().padStart(2, "0");
+  a.download = `${year}-${month}-${day}_${hours}${minutes}${seconds}_WBE_backup_data.json`;
+  a.click();
+}
+
+function importFeatureData() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "application/json";
+  input.onchange = function () {
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = function () {
+      const data = JSON.parse(reader.result);
+      if (data.extension.startsWith("WikiTree Browser Extension") && data.features) {
+        if (data.data.changeSummaryOptions) {
+          localStorage.LSchangeSummaryOptions = data.data.changeSummaryOptions;
+        }
+        if (data.data.myMenu) {
+          localStorage.customMenu = data.data.myMenu;
+        }
+        if (data.data.extraWatchlist) {
+          localStorage.extraWatchlist = data.data.extraWatchlist;
+        }
+        if (data.data.clipboard) {
+          localStorage.clipboard = data.data.clipboard;
+        }
+        // Reload the page to apply the changes
+        location.reload();
+      } else {
+        alert("Invalid file");
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function addDataButtons() {
+  const dataButtons = `
+    <div id="featureDataButtons">
+      <button id="downloadFeatureData">Download WBE Feature Data</button>
+      <button id="importFeatureData">Import WBE Feature Data</button>
+    </div>
+  `;
+  $(".eight.columns.alpha").last().after(dataButtons);
+  $("#downloadFeatureData").on("click", downloadFeatureData);
+  $("#importFeatureData").on("click", importFeatureData);
+}
 
 // Add wte class to body to let WikiTree BEE know not to add the same functions
 document.querySelector("body").classList.add("wte");

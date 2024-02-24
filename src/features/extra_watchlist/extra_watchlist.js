@@ -16,13 +16,21 @@ shouldInitializeFeature("extraWatchlist").then((result) => {
     result &&
     $("body.page-Special_EditFamily,body.page-Special_EditPerson,body.page-Special_EditFamilySteps").length == 0
   ) {
+    if (localStorage.getItem("extraWatchlist")) {
+      if (!localStorage.getItem("extraWatchlist").includes(",") && !localStorage.getItem("extraWatchlistBackUp")) {
+        localStorage.setItem("extraWatchlistBackUp", localStorage.getItem("extraWatchlist"));
+      }
+      localStorage.setItem("extraWatchlist", localStorage.extraWatchlist.replaceAll(/@/g, ","));
+    }
     extraWatchlist();
+    setPlusButton();
   }
 });
 
 const favoritePlusOn = chrome.runtime.getURL("images/favorite-plus-on.png");
 const favoritePlusWhite = chrome.runtime.getURL("images/favorite-plus-white.png");
 const binocularsURL = chrome.runtime.getURL("images/binoculars.png");
+const thisID = getThisID();
 
 function getThisID() {
   let spaceMatch = window.location.href.match(/Space:.*$/);
@@ -218,7 +226,12 @@ function recentChange(person) {
 
   $("span.removeFromExtraWatchlist[data-id='" + htmlEntities(person.Name) + "']").on("click", function () {
     $(this).closest("tr").hide();
-    localStorage.setItem("extraWatchlist", localStorage.extraWatchlist.replaceAll($(this).attr("data-id") + "@", ""));
+    let ewList = localStorage.extraWatchlist
+      .split(",")
+      .filter((id) => id !== $(this).attr("data-id"))
+      .join(","); // Adjust for ","
+    localStorage.setItem("extraWatchlist", ewList);
+    setPlusButton();
   });
 }
 
@@ -294,6 +307,7 @@ async function sortExtraWatchlist() {
 }
 
 function addToExtraWatchlist(person) {
+  console.log("person", person);
   let thead = $(
     "<thead><tr><th id='wtIDcol' class='wtIDcol'>ID</th><th id='nameCol'>Name</th><th id='recentChangeCol'>Changed</th><th></th><th></th></tr></thead>"
   );
@@ -320,6 +334,7 @@ function addToExtraWatchlist(person) {
   }
   window.extraWatchlistTouched.push(person.Id);
   recentChange(person);
+  setPlusButton();
 }
 
 window.extraWatchlistTouched = [];
@@ -329,17 +344,23 @@ function doExtraWatchlist() {
     window.userName = Cookies.get("wikitree_wtb_UserName");
     window.userID = Cookies.get("wikitree_wtb_UserID");
     if (localStorage.extraWatchlist != null) {
-      let bits = localStorage.extraWatchlist.split("@");
-      let filteredArray = bits.filter((x) => !window.addedToExtraWatchlist.includes(x));
+      let bits = localStorage.extraWatchlist.split(/[@,]/);
+      console.log("bits", bits);
+      const spacePages = bits.filter((x) => x.match("Space:"));
+      const personPages = bits.filter((x) => !x.match("Space:"));
+      //let filteredArray = bits.filter((x) => !window.addedToExtraWatchlist.includes(x));
+      //console.log("filteredArray", filteredArray);
+      console.log("window.addedToExtraWatchlist", window.addedToExtraWatchlist);
       let keys;
-      if (filteredArray.length > 0) {
-        while (filteredArray.length) {
-          let splicedArray = filteredArray.splice(0, 1000);
+      if (personPages.length > 0) {
+        while (personPages.length) {
+          let splicedArray = personPages.splice(0, 1000);
           keys = splicedArray.join(",");
           window.addedToExtraWatchlist = window.addedToExtraWatchlist.concat(splicedArray);
           getPeople(keys, 0, 0, 0, 0, 0, 0, "*").then((data) => {
             let people = data[0].people;
             let peopleKeys = Object.keys(people);
+            console.log("people", people);
             peopleKeys.forEach(function (aKey) {
               addToExtraWatchlist(people[aKey]);
             });
@@ -348,7 +369,7 @@ function doExtraWatchlist() {
         }
       }
 
-      bits.forEach(function (aKey) {
+      spacePages.forEach(function (aKey) {
         if (aKey.match("Space:")) {
           get_Profile(decodeURIComponent(aKey)).then((person) => {
             addToExtraWatchlist(person[0]);
@@ -366,7 +387,8 @@ async function extraWatchlist() {
   let onExtraWatchlist = false;
   const thisID = getThisID();
   if (localStorage.extraWatchlist != undefined) {
-    if (localStorage.extraWatchlist.match(thisID + "@")) {
+    const ids = localStorage.extraWatchlist.split(",");
+    if (ids.includes(thisID)) {
       onExtraWatchlist = true;
     }
   }
@@ -445,6 +467,7 @@ async function extraWatchlist() {
         .attr("href", makeTextFile(ewText))
         .attr("download", "extraWatchlist_" + strD + ".txt");
 
+      /*
       $("#importExtraWatchlist").on("click", function (e) {
         e.preventDefault();
         var fileChooser = document.createElement("input");
@@ -454,18 +477,49 @@ async function extraWatchlist() {
           var reader = new FileReader();
           reader.readAsText(file);
           setTimeout(function () {
-            localStorage.setItem("extraWatchlist", reader.result.replaceAll(/,/g, "@"));
+            localStorage.setItem("extraWatchlist", reader.result.replaceAll(/@/g, ","));
             $("#extraWatchlistWindow").remove();
             $("#viewExtraWatchlist").trigger("click");
           }, 1000);
           form.reset();
         });
-
-        /* Wrap it in a form for resetting */
         var form = document.createElement("form");
         form.appendChild(fileChooser);
         fileChooser.click();
       });
+      */
+
+      $("#importExtraWatchlist")
+        .off()
+        .on("click", function (e) {
+          e.preventDefault();
+          const fileChooser = document.createElement("input");
+          fileChooser.type = "file";
+
+          fileChooser.addEventListener("change", function () {
+            const file = fileChooser.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+              // Here we use the FileReader's load event to ensure the read operation has completed
+              const textData = e.target.result.replaceAll(/@/g, ","); // Replace '@' with ',' in the imported data
+              localStorage.setItem("extraWatchlist", textData); // Update localStorage with the cleaned data
+
+              // Now that the data is imported, you might want to refresh or do something else
+              $("#extraWatchlistWindow").remove(); // Consider whether you want to remove this or refresh its contents
+              $("#viewExtraWatchlist").trigger("click"); // Triggering another action might depend on what you expect to happen next
+            };
+
+            reader.onerror = function (e) {
+              console.error("Error reading file:", e);
+            };
+
+            reader.readAsText(file); // Start reading the file's contents
+          });
+
+          fileChooser.click(); // Programmatically click the file input to open the file dialog
+        });
+
       setTimeout(function () {
         $("#extraWatchlistWindow").slideDown();
       }, 1000);
@@ -499,46 +553,104 @@ async function extraWatchlist() {
   });
 
   if (localStorage.extraWatchlist == null) {
-    localStorage.extraWatchlist = "";
+    localStorage.setItem("extraWatchlist", "");
   }
 
   if (localStorage.extraWatchlist != undefined) {
-    if (localStorage.extraWatchlist.match(thisID + "@")) {
+    // Split extraWatchlist by ","
+    const ids = localStorage.extraWatchlist.split(",");
+    if (ids.includes(thisID)) {
       $("#addToExtraWatchlistButton").addClass("onList");
       $("#addToExtraWatchlistButton").attr("title", "On your Extra Watchlist (click to remove)");
       $("#addToExtraWatchlistButton").prop("src", favoritePlusOn);
     }
   }
 
+  /*
   $("#addToExtraWatchlistButton").on("click", function () {
     const thisID = getThisID();
     if (localStorage.extraWatchlist == "" || localStorage.extraWatchlist == null) {
       localStorage.extraWatchlist = "";
     }
-
-    const str = thisID.toString();
     let theChange = "add";
-    if (localStorage.extraWatchlist.match(str + "@")) {
-      theChange = "remove";
-      let newEW = localStorage.extraWatchlist.replace(str + "@", "");
-      localStorage.setItem("extraWatchlist", newEW);
-      $("#touchedList tr[data-id='" + str + "']").remove();
-      $("#addToExtraWatchlistButton").attr("title", "Add to your Extra Watchlist");
-      $("#addToExtraWatchlistButton").removeClass("onList");
-      $("#addToExtraWatchlistButton").prop("src", favoritePlusWhite);
-    } else {
-      const oExtraWatchlist = localStorage.extraWatchlist;
-      localStorage.setItem("extraWatchlist", oExtraWatchlist + str + "@");
-      $("#addToExtraWatchlistButton").addClass("onList");
-      $("#addToExtraWatchlistButton").attr("title", "On your Extra Watchlist (Click to remove)");
-      $("#addToExtraWatchlistButton").prop("src", favoritePlusOn);
-    }
     if ($("#extraWatchlistWindow").is(":visible") && theChange == "add") {
       get_Profile(thisID).then((response) => {
         addToExtraWatchlist(response[0].profile);
+        setPlusButton();
       });
     }
+    setPlusButton();
   });
+  */
+
+  $("#addToExtraWatchlistButton").on("click", function () {
+    const thisID = getThisID(); // Ensure this gets the current ID correctly.
+
+    // Initialize extraWatchlist if it doesn't exist.
+    if (!localStorage.extraWatchlist) {
+      localStorage.extraWatchlist = "";
+    }
+
+    // Split the existing list into an array, or initialize an empty array if it's empty.
+    let ids = localStorage.extraWatchlist ? localStorage.extraWatchlist.split(",") : [];
+
+    // Check if the current ID is in the array.
+    if (ids.includes(thisID)) {
+      // If the ID is found, remove it from the array.
+      ids = ids.filter((id) => id !== thisID);
+      console.log(thisID + " removed from the extraWatchlist.");
+    } else {
+      // If the ID is not found, add it to the array.
+      ids.push(thisID);
+      console.log(thisID + " added to the extraWatchlist.");
+    }
+
+    // Join the array back into a string and save it to localStorage.
+    localStorage.extraWatchlist = ids.join(",");
+
+    // Update the plus button's appearance based on the new state.
+    setPlusButton();
+
+    // If the extraWatchlist window is visible, refresh its content.
+    if ($("#extraWatchlistWindow").is(":visible")) {
+      if (!ids.includes(thisID)) {
+        $("#touchedList tr[data-id='" + thisID + "']").hide();
+      } else {
+        // If thisID was just added, fetch its profile and add it to the UI.
+        get_Profile(thisID).then((response) => {
+          addToExtraWatchlist(response[0].profile); // Make sure this function correctly handles adding the new profile to the UI.
+        });
+      }
+    }
+  });
+}
+
+function setPlusButton() {
+  // Assuming getThisID() correctly retrieves the ID as a string. If not, make sure to convert or ensure it's a string.
+  const thisID = getThisID().toString(); // Ensure thisID is a string.
+  console.log("Current ID: ", thisID);
+
+  if (localStorage.getItem("extraWatchlist")) {
+    const ids = localStorage.getItem("extraWatchlist").split(",");
+    console.log("Watchlist IDs: ", ids);
+
+    // Ensure thisID is treated as a string for comparison. If there's any chance it might not be,
+    // explicitly converting it to a string can help avoid unexpected behavior.
+    if (ids.includes(String(thisID))) {
+      // Use String(thisID) to ensure comparison as strings
+      console.log("ID found in watchlist.");
+      $("#addToExtraWatchlistButton").addClass("onList");
+      $("#addToExtraWatchlistButton").attr("title", "On your Extra Watchlist (click to remove)");
+      $("#addToExtraWatchlistButton").prop("src", favoritePlusOn);
+    } else {
+      console.log("ID not found in watchlist.");
+      $("#addToExtraWatchlistButton").removeClass("onList");
+      $("#addToExtraWatchlistButton").attr("title", "Add to your Extra Watchlist");
+      $("#addToExtraWatchlistButton").prop("src", favoritePlusWhite);
+    }
+  } else {
+    console.log("localStorage.extraWatchlist is not set or empty.");
+  }
 }
 
 export function secondarySort(rows, dataThing1, dataThing2, isText = 0) {
