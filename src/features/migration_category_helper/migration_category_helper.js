@@ -22,6 +22,16 @@ function CreateMigrationCategory(tb) {
   let countryTo = "";
   let entityTo = "";
 
+  if (cat.indexOf("(Ship)") || cat.match("(d{4})$")) {
+    let value = "[[Category:Ships by Name]]\n[[Category:Immigrant Ships]]";
+    const decade = cat.match(/\d{3}/g);
+    if (decade[0]) {
+      value += "\n" + "[[Category:" + decade + "0s Ships]]";
+    }
+    tb.value = value;
+    return;
+  }
+
   if (cat.indexOf("Migrants") > -1) {
     const indexTo = cat.indexOf(" to ");
     const fromPart = cat.substring(0, indexTo);
@@ -653,6 +663,7 @@ function CreateMigrationCategory(tb) {
       "West Virginia",
       "Wisconsin",
       "Wyoming",
+      "District of Columbia",
     ],
 
     Yugoslavia: ["Serbia (until 2006)"],
