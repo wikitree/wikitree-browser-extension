@@ -22,6 +22,7 @@ const euDateFormats = [
   "dd MMM yyyy",
   "d MMM yyyy",
   "dd MMMM yyyy",
+  "dd. MMMM yyyy",
   "d MMMM yyyy",
   "dd.MM.yyyy",
   "d.MM.yyyy",
@@ -464,7 +465,7 @@ function replaceNonEnglishMonth(month) {
   return month; // Return the original month if no match is found
 }
 
-const monthTypoPattern = /^(\d+)?\s*(\p{L}+)\s*(\d{1,2})?,?\s*(\d+)$/u;
+const monthTypoPattern = /^(\d+)?\.?\s*(\p{L}+)\s*(\d{1,2})?,?\s*(\d+)$/u;
 
 function fixMonthTypos(input) {
   console.log("Original Input:", input);
