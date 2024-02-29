@@ -37,12 +37,16 @@ function keepBasicDataSectionVisible() {
   $("#enterBasicDataButton").on("click", function () {
     setTimeout(() => {
       showBasicData();
+      if ($("#matchesStatusBox").text().match("0 Possible Matches")) {
+        $("#dismissMatchesButton").text("No matches: Create Profile");
+      }
+      $("#potentialMatchesSection").show();
       scrollTo("#matchesContainer");
     }, 2000);
   });
   $("#dismissMatchesButton").text("None of these is a match: Create Profile");
   $("#dismissMatchesButton,#continueToSourcesButton").on("click", function () {
-    $("#addNewPersonButton").click();
+    $("#addNewPersonButton").trigger("click");
     setTimeout(() => {
       $("#basicDataSection").show();
       $("#continueToSourcesButton").show();
