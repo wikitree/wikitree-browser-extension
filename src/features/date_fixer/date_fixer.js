@@ -417,6 +417,8 @@ function getAmbiguousMonths(input) {
 }
 
 function parsedDate(input) {
+  console.log("parsedDateISO", parsedDateISO(input));
+
   // Try parsing the date with both European and American formats
   const euParsed = tryParseDate(input, euDateFormats);
   const usParsed = tryParseDate(input, usDateFormats);
@@ -446,6 +448,38 @@ function parsedDate(input) {
     validDate = format(isoParsed, "yyyy-MM-dd");
   }
   return { eu: euParsed, us: usParsed, iso: isoParsed, validDate: validDate };
+}
+
+export function parsedDateISO(input) {
+  // Try parsing the date with both European and American formats
+  const euParsed = tryParseDate(input, euDateFormats);
+  const usParsed = tryParseDate(input, usDateFormats);
+  const isoParsed = tryParseDate(input, isoDateFormats);
+  if (!isValid(euParsed) && !isValid(usParsed) && !isValid(isoParsed)) {
+    return null;
+  }
+  let validDate = false;
+  const yearMonthPattern = /^(\d{4})\s([a-zA-Z]+)$/;
+  const monthYearPattern = /^([a-zA-Z]+)\s(\d{4})$/;
+  const yearMonthDayPattern = /^(\d{4})\s([a-zA-Z]+)\s(\d{1,2})$/;
+  const monthYearDayPattern = /^([a-zA-Z]+)\s(\d{4})\s(\d{1,2})$/;
+
+  if (yearMonthPattern.test(input) || monthYearPattern.test(input)) {
+    // If input is year-month or month-year, format as "MMM yyyy"
+    return { validDate: format(new Date(input), "yyyy-mm-15") };
+  } else if (yearMonthDayPattern.test(input) || monthYearDayPattern.test(input)) {
+    // If input is year-month-day or month-year-day, format as "dd MMM yyyy"
+    let parts = input.split(/\s/);
+    let newDate = new Date(parts[0], monthNames.indexOf(parts[1]), parts[2] || 1);
+    return { validDate: format(newDate, "yyyy-MM-dd") };
+  } else if (isValid(usParsed)) {
+    validDate = format(usParsed, "yyyy-MM-dd");
+  } else if (isValid(euParsed)) {
+    validDate = format(euParsed, "yyyy-MM-dd");
+  } else if (isValid(isoParsed)) {
+    validDate = format(isoParsed, "yyyy-MM-dd");
+  }
+  return validDate;
 }
 
 // Function to remove accents/diacritics from a string
