@@ -141,14 +141,15 @@ async function locationsHelper() {
           let whichLocation = "";
           if (activeEl.id == "mBirthLocation") {
             whichLocation = "Birth";
-          }
-          if (activeEl.id == "mDeathLocation") {
+          } else if (activeEl.id == "mDeathLocation") {
             whichLocation = "Death";
-          }
-          if (activeEl.name == "mMarriageLocation" || activeEl.id == "Email" || activeEl.id == "mMarriageLocation") {
+          } else if (
+            activeEl.name == "mMarriageLocation" ||
+            activeEl.id == "Email" ||
+            activeEl.id == "mMarriageLocation"
+          ) {
             whichLocation = "Marriage";
-          }
-          if (activeEl.id == "mLocation") {
+          } else if (activeEl.id == "mLocation") {
             whichLocation = "Location";
           }
           let dText = added_node.textContent;
@@ -205,11 +206,11 @@ async function locationsHelper() {
             myYear = locationYearMatch[0];
           }
           if (myYear != "") {
-            if (startYear == "" && parseInt(myYear) < parseInt(endYear)) {
+            if (startYear == "" && parseInt(myYear) <= parseInt(endYear)) {
               goodDate = true;
-            } else if (endYear == "" && parseInt(myYear) > parseInt(startYear)) {
+            } else if (endYear == "" && parseInt(myYear) >= parseInt(startYear)) {
               goodDate = true;
-            } else if (parseInt(myYear) > parseInt(startYear) && parseInt(myYear) < parseInt(endYear)) {
+            } else if (parseInt(myYear) >= parseInt(startYear) && parseInt(myYear) <= parseInt(endYear)) {
               goodDate = true;
             }
           } else {
@@ -502,6 +503,71 @@ async function locationsHelper() {
                     '<div class="autocomplete-suggestion" data-val="Steyning, Stogursey, Somerset, England"><div class="autocomplete-suggestion-head"><span class="autocomplete-suggestion-term">Steyning</span>, Stogursey, Somerset, England</div></div>';
                   $(newSuggestion).insertBefore($(added_node));
                 }
+              }
+
+              // South Africa
+              //
+              dText = dText
+                .replace("Cape Colony, South Africa", "Cape Colony")
+                .replace("Cape of Good Hope, South Africa", "Cabo de Goede Hoop")
+                .replace("Orange River Colony, South Africa", "Oranje Unie");
+
+              // Cape
+              if (myYear >= 1806 && myYear < 1961) {
+                dText = dText
+                  .replace("Cape Province, South Africa", "Cape Colony")
+                  .replace("Cape, Cape Colony", "Cape Colony");
+              } else if ((myYear != "" && myYear <= 1795) || (myYear >= 1803 && myYear < 1806)) {
+                dText = dText
+                  .replace("Cape Province, South Africa", "Cabo de Goede Hoop")
+                  .replace("Dutch Cape Colony", "Cabo de Goede Hoop")
+                  .replace("Cape Colony", "Cabo de Goede Hoop")
+                  .replace("Cape, Cape Colony", "Cabo de Goede Hoop");
+                if (myYear <= 1795) dText = dText.replace("Cape Town, Cabo de Goede Hoop", "de Caep de Goede Hoop");
+              } else if (myYear > 1795 && myYear < 1803) {
+                dText = dText
+                  .replace("Cape Province, South Africa", "Cape of Good Hope Colony")
+                  .replace("Dutch Cape Colony", "Cape of Good Hope Colony")
+                  .replace("Cape of Good Hope", "Cape of Good Hope Colony")
+                  .replace("Cabo de Goede Hoop", "Cape of Good Hope Colony")
+                  .replace("Cape Colony", "Cape of Good Hope Colony");
+              }
+
+              //Transvaal
+              if (myYear >= 1848 && myYear < 1852) {
+                dText = dText.replace("Transvaal, South Africa", "Transvaal Republic");
+              } else if (myYear >= 1852 && myYear < 1902) {
+                dText = dText.replace("Transvaal, South Africa", "Zuid-Afrikaanscha Republic");
+              } else if (myYear >= 1902 && myYear < 1910) {
+                dText = dText.replace("Transvaal, South Africa", "Transvaal Colony");
+              }
+
+              // Orange Free State
+              if (myYear != "" && myYear < 1852) {
+                dText = dText
+                  .replace("Orange Free State, South Africa", "Transoranje")
+                  .replace("Oranje Unie", "Transoranje");
+              } else if (myYear >= 1852 && myYear <= 1900) {
+                dText = dText
+                  .replace("Orange Free State, South Africa", "Oranje Vrijstaat")
+                  .replace("Oranje Unie", "Oranje Vrijstaat");
+              } else if (myYear == 1901) {
+                dText = dText
+                  .replace("Orange Free State, South Africa", "Oranjerivierkolonie")
+                  .replace("Oranje Unie", "Oranjerivierkolonie");
+              } else if (myYear >= 1902 && myYear < 1910) {
+                dText = dText.replace("Orange Free State, South Africa", "Oranje Unie");
+              }
+
+              // Natal
+              if (myYear != "" && myYear < 1839) {
+                dText = dText.replace("Natal, South Africa", "Zululand");
+              } else if (myYear >= 1839 && myYear < 1843) {
+                dText = dText.replace("Natal, South Africa", "Natalia Republic");
+              } else if (myYear >= 1843 && myYear < 1856) {
+                dText = dText.replace("Natal, South Africa", "Natal Colony");
+              } else if (myYear >= 1856 && myYear < 1910) {
+                dText = dText.replace("Natal, South Africa", "Natal");
               }
             }
             if (window.locationsHelperOptions?.addUSCounty) {

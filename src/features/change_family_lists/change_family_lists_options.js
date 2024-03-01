@@ -12,7 +12,10 @@ const changeFamilyLists = {
   description: "Change the position and/or appearance of family lists (parents, siblings, spouses, and children)",
   category: "Profile",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
+  contributors: [
+    { name: "Jonathan Duke", wikitreeid: "Duke-5773" },
+    { name: "Riël Smit", wikitreeid: "Smit-641" },
+  ],
   defaultValue: false,
   pages: [isProfilePage],
 

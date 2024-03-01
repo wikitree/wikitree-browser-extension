@@ -17,11 +17,16 @@ registerFeature({
   description:
     "Manipulates the suggested locations, highlighting likely correct locations," +
     " based on family members' locations, and demoting likely wrong locations, based on the dates." +
-    " Options: 1) Automatically correct the names of US states before they joined the Union. " +
+    " Options: 1) Automatically correct some date-based location names:" +
+    " US state names before they joined the Union," +
+    " Canadian regional districts," +
+    " German country names and Wallenhorst," +
+    " UK towns and villages," +
+    " South African provinces. " +
     "2) Add 'County' to US locations. ",
   category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
+  contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: true,
   pages: [isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson, isSpaceEdit, isNewSpace],
   options: [
