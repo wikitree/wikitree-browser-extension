@@ -4,10 +4,25 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { extractRelatives, familyArray, getRelatives } from "../../core/common";
-import { getYYYYMMDD } from "../auto_bio/auto_bio";
+import { parsedDateISO } from "../date_fixer/date_fixer";
 import { isSpaceEdit, isNewSpace } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 // import { australian_locations } from "./auto_bio/australian_locations";
+
+//Cape
+const vocEnd = new Date("1795-09-17");
+const bataviaStart = new Date("1803-02-21");
+const capeColonyStart = new Date("1806-01-19");
+const colonyEnd = new Date("1910-05-31");
+// Transvaal
+const tRepStart = new Date("1844-04-09");
+const boerRepStart = new Date("1852-01-17");
+const boerColonyStart = new Date("1902-05-31");
+// Free State
+const fsColonyStart = new Date("1900-10-06");
+const nataliaStart = new Date("1839-01-01");
+const natalColonyStart = new Date("1843-05-04");
+const natalStart = new Date("1856-01-01");
 
 shouldInitializeFeature("locationsHelper").then((result) => {
   if (result) {
@@ -16,11 +31,14 @@ shouldInitializeFeature("locationsHelper").then((result) => {
       window.locationsHelperOptions = options;
     });
 
-    $("#mBirthLocation,#mDeathLocation,#Email[name='mMarriageLocation'],#mLocation").on("focus", function () {
-      if (!window.bdLocations) {
-        locationsHelper();
+    $("#mBirthLocation,#mDeathLocation,#Email[name='mMarriageLocation'],#mLocation,#photo_location").on(
+      "focus",
+      function () {
+        if (!window.bdLocations) {
+          locationsHelper();
+        }
       }
-    });
+    );
 
     setTimeout(function () {
       $("#mMarriageLocation").on("focus", function () {
@@ -150,7 +168,9 @@ async function locationsHelper() {
           ) {
             whichLocation = "Marriage";
           } else if (activeEl.id == "mLocation") {
-            whichLocation = "Location";
+            whichLocation = "spaceLocation";
+          } else if (activeEl.id == "photo_location") {
+            whichLocation = "photoLocation";
           }
           let dText = added_node.textContent;
           let currentBirthYearMatch = null;
@@ -174,6 +194,11 @@ async function locationsHelper() {
           }
           if ($("#mStartDate").length) {
             locationYearMatch = $("#mStartDate")
+              .val()
+              .match(/[0-9]{3,4}/);
+          }
+          if ($("#photo_date").length) {
+            locationYearMatch = $("#photo_date")
               .val()
               .match(/[0-9]{3,4}/);
           }
@@ -202,7 +227,10 @@ async function locationsHelper() {
             myYear = currentDeathYearMatch[0];
           } else if (currentMarriageYearMatch != null && whichLocation == "Marriage") {
             myYear = currentMarriageYearMatch[0];
-          } else if (locationYearMatch != null && whichLocation == "Location") {
+          } else if (
+            locationYearMatch != null &&
+            (whichLocation == "spaceLocation" || whichLocation == "photoLocation")
+          ) {
             myYear = locationYearMatch[0];
           }
           if (myYear != "") {
@@ -227,10 +255,12 @@ async function locationsHelper() {
               theDate = $("#mDeathDate").val();
             } else if (whichLocation == "Marriage") {
               theDate = $("#mMarriageDate").val();
-            } else if (whichLocation == "Location") {
+            } else if (whichLocation == "spaceLocation") {
               theDate = $("#mStartDate").val();
+            } else if (whichLocation == "photoLocation") {
+              theDate = $("#photo_date").val();
             }
-            theDate = getYYYYMMDD(theDate);
+            theDate = new Date(parsedDateISO(theDate));
 
             let innerBitText = "";
             if (window.locationsHelperOptions?.correctLocations && goodDate) {
@@ -513,18 +543,18 @@ async function locationsHelper() {
                 .replace("Orange River Colony, South Africa", "Oranje Unie");
 
               // Cape
-              if (myYear >= 1806 && myYear < 1961) {
+              if (theDate >= capeColonyStart && theDate < colonyEnd) {
                 dText = dText
                   .replace("Cape Province, South Africa", "Cape Colony")
                   .replace("Cape, Cape Colony", "Cape Colony");
-              } else if ((myYear != "" && myYear <= 1795) || (myYear >= 1803 && myYear < 1806)) {
+              } else if ((myYear != "" && theDate < vocEnd) || (theDate >= bataviaStart && theDate < capeColonyStart)) {
                 dText = dText
                   .replace("Cape Province, South Africa", "Cabo de Goede Hoop")
                   .replace("Dutch Cape Colony", "Cabo de Goede Hoop")
                   .replace("Cape Colony", "Cabo de Goede Hoop")
                   .replace("Cape, Cape Colony", "Cabo de Goede Hoop");
-                if (myYear <= 1795) dText = dText.replace("Cape Town, Cabo de Goede Hoop", "de Caep de Goede Hoop");
-              } else if (myYear > 1795 && myYear < 1803) {
+                if (theDate < vocEnd) dText = dText.replace("Cape Town, Cabo de Goede Hoop", "de Caep de Goede Hoop");
+              } else if (theDate < vocEnd && theDate < bataviaStart) {
                 dText = dText
                   .replace("Cape Province, South Africa", "Cape of Good Hope Colony")
                   .replace("Dutch Cape Colony", "Cape of Good Hope Colony")
@@ -533,40 +563,40 @@ async function locationsHelper() {
                   .replace("Cape Colony", "Cape of Good Hope Colony");
               }
 
-              //Transvaal
-              if (myYear >= 1848 && myYear < 1852) {
+              // Transvaal
+              if (theDate >= tRepStart && theDate < boerRepStart) {
                 dText = dText.replace("Transvaal, South Africa", "Transvaal Republic");
-              } else if (myYear >= 1852 && myYear < 1902) {
-                dText = dText.replace("Transvaal, South Africa", "Zuid-Afrikaanscha Republic");
-              } else if (myYear >= 1902 && myYear < 1910) {
+              } else if (theDate >= boerRepStart && theDate < boerColonyStart) {
+                dText = dText.replace("Transvaal, South Africa", "Zuid-Afrikaansche Republic");
+              } else if (theDate >= boerColonyStart && theDate < colonyEnd) {
                 dText = dText.replace("Transvaal, South Africa", "Transvaal Colony");
               }
 
               // Orange Free State
-              if (myYear != "" && myYear < 1852) {
+              if (myYear != "" && theDate < boerRepStart) {
                 dText = dText
                   .replace("Orange Free State, South Africa", "Transoranje")
                   .replace("Oranje Unie", "Transoranje");
-              } else if (myYear >= 1852 && myYear <= 1900) {
+              } else if (theDate >= boerRepStart && theDate <= fsColonyStart) {
                 dText = dText
                   .replace("Orange Free State, South Africa", "Oranje Vrijstaat")
                   .replace("Oranje Unie", "Oranje Vrijstaat");
-              } else if (myYear == 1901) {
+              } else if (theDate >= fsColonyStart && theDate < boerColonyStart) {
                 dText = dText
                   .replace("Orange Free State, South Africa", "Oranjerivierkolonie")
                   .replace("Oranje Unie", "Oranjerivierkolonie");
-              } else if (myYear >= 1902 && myYear < 1910) {
+              } else if (theDate >= boerColonyStart && theDate < colonyEnd) {
                 dText = dText.replace("Orange Free State, South Africa", "Oranje Unie");
               }
 
               // Natal
-              if (myYear != "" && myYear < 1839) {
+              if (myYear != "" && theDate < nataliaStart) {
                 dText = dText.replace("Natal, South Africa", "Zululand");
-              } else if (myYear >= 1839 && myYear < 1843) {
+              } else if (theDate >= nataliaStart && theDate < natalColonyStart) {
                 dText = dText.replace("Natal, South Africa", "Natalia Republic");
-              } else if (myYear >= 1843 && myYear < 1856) {
+              } else if (theDate >= natalColonyStart && theDate < natalStart) {
                 dText = dText.replace("Natal, South Africa", "Natal Colony");
-              } else if (myYear >= 1856 && myYear < 1910) {
+              } else if (theDate >= natalStart && theDate < colonyEnd) {
                 dText = dText.replace("Natal, South Africa", "Natal");
               }
             }
@@ -652,9 +682,8 @@ async function locationsHelper() {
   }, 3000);
 }
 
-function findLocationByDate(date, locationHistory) {
-  // Convert the input date to a Date object for comparison
-  const inputDate = new Date(date);
+function findLocationByDate(dateObj, locationHistory) {
+  // We assume the input date is a Date object
 
   // Iterate through the location history
   for (let record of locationHistory) {
@@ -662,7 +691,7 @@ function findLocationByDate(date, locationHistory) {
     const endDate = record.endDate ? new Date(record.endDate) : null;
 
     // Check if the input date falls within the range of each record
-    if ((!startDate || inputDate >= startDate) && (!endDate || inputDate < endDate)) {
+    if ((!startDate || dateObj >= startDate) && (!endDate || dateObj < endDate)) {
       return record;
     }
   }
