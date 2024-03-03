@@ -123,7 +123,7 @@ async function helpScissors() {
     if (options.removeDates) {
       const dateless = $("button[aria-label='Copy Wiki Link']")
         .data("copy-text")
-        .replace(/ \(.*[0-9]{4}.*\)/, "");
+        .replace(/ \([0-9]{3,4}-[0-9]{3,4}\)/, "");
       $("button[aria-label='Copy Wiki Link']").data("copy-text", dateless).attr("data-copy-text", dateless);
     }
   }
