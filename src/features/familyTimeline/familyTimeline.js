@@ -7,6 +7,7 @@ import "jquery-ui/ui/widgets/draggable";
 import { getRelatives } from "wikitree-js";
 import { createProfileSubmenuLink, extractRelatives, isOK } from "../../core/common";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { getHighestZindex } from "../familyGroup/familyGroup";
 
 shouldInitializeFeature("familyTimeline").then((result) => {
   if (result) {
@@ -20,7 +21,7 @@ shouldInitializeFeature("familyTimeline").then((result) => {
         url: "#n",
       };
       createProfileSubmenuLink(options);
-      $("#" + options.id).click(function (e) {
+      $("#" + options.id).on("click", function (e) {
         e.preventDefault();
         timeline();
       });
@@ -163,7 +164,9 @@ export function timeline(id = false) {
   let doit = true;
   if (id) {
     if ($(".timeline[data-wtid='" + id + "']").length) {
-      $(".timeline[data-wtid='" + id + "']").slideToggle();
+      const thisTimeline = $(".timeline[data-wtid='" + id + "']");
+      thisTimeline.slideToggle();
+      thisTimeline.css("z-index", getHighestZindex() + 1);
       doit = false;
     }
   } else if ($(".timeline").length) {
@@ -415,6 +418,7 @@ export function timeline(id = false) {
       if ($("#connectionList").length) {
         aTimeline.prependTo($("#content"));
         aTimeline.css({ top: window.pointerY - 30, left: 10 });
+        aTimeline.css("z-index", getHighestZindex() + 1);
       }
       let bpDead = false;
       let bpDeadAge;

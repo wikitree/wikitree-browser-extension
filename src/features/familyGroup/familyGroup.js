@@ -97,10 +97,21 @@ export function incrementZIndex(jqObject) {
   jqObject.css("z-index", zIndexCounter);
 }
 
+export function getHighestZindex() {
+  let highest = 0;
+  $("*").each(function () {
+    const current = parseInt($(this).css("z-index"), 10);
+    if (current && highest < current) highest = current;
+  });
+  return highest;
+}
+
 export async function showFamilySheet(theClicked, profileID) {
   // If the table already exists toggle it.
   if ($("#" + profileID.replace(" ", "_") + "_family").length) {
-    $("#" + profileID.replace(" ", "_") + "_family").fadeToggle();
+    const thisFamilySheet = $("#" + profileID.replace(" ", "_") + "_family");
+    thisFamilySheet.fadeToggle();
+    thisFamilySheet.css("z-index", getHighestZindex() + 1);
   } else {
     // Make the table and do other things
     getRelatives(
@@ -126,6 +137,8 @@ export async function showFamilySheet(theClicked, profileID) {
         $(this).fadeOut();
         incrementZIndex(familyTable);
       });
+      familyTable.css("z-index", getHighestZindex() + 1);
+
       let theLeft;
       console.log(theClicked);
       if ($("div.ten.columns").length) {

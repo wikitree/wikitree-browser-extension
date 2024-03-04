@@ -10,6 +10,7 @@ import { saveAs } from "file-saver";
 import { timeline } from "../familyTimeline/familyTimeline.js";
 import { addWideTableButton, addLoginButton } from "../my_connections/my_connections.js";
 import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup";
+import { showCopyMessage } from "../access_keys/access_keys.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 const surnameSummariesButton = $("<button id='surnameSummaries' class='small button'>Surname summaries</button>");
@@ -123,6 +124,26 @@ const unlisted = chrome.runtime.getURL("images/unlisted.png");
 const timeLineImg = chrome.runtime.getURL("images/timeline.png");
 const homeImg = chrome.runtime.getURL("images/Home_icon.png");
 
+$(document).on("keydown", function (e) {
+  if (e.key === "Escape") {
+    // Find .timeline or .familySheet with highest z-index and fadeOut()
+    const popups = $(".timeline, .familySheet");
+    let highestZIndex = 0;
+    let highestPopup;
+    popups.each(function () {
+      const zIndex = parseInt($(this).css("z-index"));
+      if (zIndex > highestZIndex && $(this).is(":visible")) {
+        highestZIndex = zIndex;
+        highestPopup = $(this);
+      }
+    });
+    if (highestPopup) {
+      highestPopup.fadeOut();
+    }
+  }
+});
+
+/*
 function addTrees() {
   const interval = setInterval(function () {
     if ($("#connectionList").length) {
@@ -155,6 +176,163 @@ function addTrees() {
       }
     }
   }, 500); // Check every 500ms, adjust as needed
+}
+*/
+
+function addTrees() {
+  // Select the node that will be observed for mutations
+  const targetNode = document.body; // You might need to adjust this based on your page structure
+
+  // Options for the observer (which mutations to observe)
+  const config = { childList: true, subtree: true };
+
+  // Callback function to execute when mutations are observed
+  const callback = function (mutationsList, observer) {
+    // Use traditional 'for loops' for IE 11
+    for (const mutation of mutationsList) {
+      if (mutation.type === "childList") {
+        if ($("#connectionList").length) {
+          observer.disconnect(); // Stop observing once #connectionList is found
+
+          const familyCount = [];
+          for (let i = 0; i < 20; i++) {
+            if ($("span.familyCount" + i).length) {
+              familyCount.push($("span.familyCount" + i).length);
+            }
+          }
+          $("#familyTextCount").remove();
+          let familyCountText = "";
+          if (familyCount.length != 0) {
+            familyCountText = $(
+              "<span id='familyTextCount'>: <span>" +
+                familyCount.length +
+                " branch" +
+                (familyCount.length > 1 ? "es" : "") +
+                " (" +
+                familyCount.join("-") +
+                ")</span></span>"
+            );
+            if (window.connectionFinderOptions.branches) {
+              $("h1").eq(0).append(familyCountText);
+            }
+            if (window.connectionFinderOptions.surnameSummaries && $("#surnames1").length == 0) {
+              surnameSummariesButton.fadeIn();
+
+              const copyNamesButton = $("<button id='copyNames' class='small button'>Copy names</button>");
+              surnameSummariesButton.after(copyNamesButton);
+              copyNamesButton.on("click", function () {
+                copyNamesToClipboard();
+                showCopyMessage("names to clipboard");
+              });
+
+              const copyFormattedNamesButton = $(
+                "<button id='copyFormattedNames' class='small button'>Copy names and relations</button>"
+              );
+              copyNamesButton.after(copyFormattedNamesButton);
+              copyFormattedNamesButton.on("click", function () {
+                copyFormattedNamesToClipboard();
+                showCopyMessage("names and relations to clipboard");
+              });
+            }
+          }
+          break; // Exit loop after handling the found element
+        }
+      }
+    }
+  };
+
+  // Create an observer instance linked to the callback function
+  const observer = new MutationObserver(callback);
+
+  // Start observing the target node for configured mutations
+  observer.observe(targetNode, config);
+}
+
+function copyFormattedNamesToClipboard() {
+  let branchIndex = 0; // Index to keep track of the current branch color
+  let formattedNamesHtml = $("#connectionList li")
+    .map(function (index) {
+      const linkElement = $(this).find("a").first();
+      const name = linkElement.text();
+      const relationshipText =
+        $(this)
+          .text()
+          .match(/\(([^)]+)\)/)?.[1] || "";
+      let arrow = "";
+      let gender = "unknown"; // Default gender
+
+      // Determine arrow and gender based on relationship text
+      if (relationshipText.includes("wife") || relationshipText.includes("husband")) {
+        arrow = "= "; // Spouse, indicating a new family branch
+        gender = relationshipText.includes("wife") ? "female" : "male";
+        branchIndex = (branchIndex + 1) % familyColours.length; // Move to the next color for a new branch
+      } else if (relationshipText.includes("sister") || relationshipText.includes("brother")) {
+        arrow = "↔ "; // Sibling
+        gender = relationshipText.includes("sister") ? "female" : "male";
+      } else if (relationshipText.includes("son") || relationshipText.includes("daughter")) {
+        arrow = "↓ "; // Child
+        gender = relationshipText.includes("daughter") ? "female" : "male";
+      } else if (relationshipText.includes("father") || relationshipText.includes("mother")) {
+        arrow = "↑ "; // Parent
+        gender = relationshipText.includes("mother") ? "female" : "male";
+      }
+
+      const backgroundColor = familyColours[branchIndex]; // Use branchIndex to get the background color
+      const genderedBackgroundColor = gender == "female" ? "#fee" : gender == "male" ? "#eef" : "#efe";
+
+      const formattedRelationship = relationshipText ? ` (${relationshipText})` : "";
+      return `<div style="font-size:12pt; background-color: ${backgroundColor};">${index}: ${arrow}<a style="background-color:${genderedBackgroundColor}" href="${linkElement.attr("href")}">${name}</a>${formattedRelationship}</div>`;
+    })
+    .get()
+    .join(""); // Join without newline to create continuous HTML
+
+  copyRichTextToClipboard(formattedNamesHtml);
+}
+
+function copyNamesToClipboard() {
+  let branchIndex = 0; // Initialize branch index
+
+  let namesHtml = $("#connectionList li")
+    .map(function () {
+      const linkElement = $(this).find("a").first();
+      const name = linkElement.text();
+      const relationshipText = $(this).text();
+
+      // Infer gender from the relationship text
+      let gender = "unknown"; // Default gender
+      if (
+        relationshipText.includes("wife") ||
+        relationshipText.includes("sister") ||
+        relationshipText.includes("daughter") ||
+        relationshipText.includes("mother")
+      ) {
+        gender = "female";
+      } else if (
+        relationshipText.includes("husband") ||
+        relationshipText.includes("brother") ||
+        relationshipText.includes("son") ||
+        relationshipText.includes("father")
+      ) {
+        gender = "male";
+      }
+
+      // Adjust branchIndex and background color when encountering a spouse
+      if (relationshipText.includes("wife") || relationshipText.includes("husband")) {
+        branchIndex = (branchIndex + 1) % familyColours.length; // Move to the next color for a new branch
+      }
+
+      // Choose background color for the row based on current branch
+      const backgroundColor = familyColours[branchIndex];
+      // Gender-based background color for the link
+      const genderedBackgroundColor = gender === "female" ? "#fee" : gender === "male" ? "#eef" : "#fff"; // Default white for unknown
+
+      return `<div style="font-size:12pt; background-color: ${backgroundColor};"><a style="background-color:${genderedBackgroundColor};" href="${linkElement.attr("href")}">${name}</a></div>`;
+    })
+    .get()
+    .join(""); // Join without newline to create continuous HTML
+
+  // Use the provided function to copy rich text HTML to the clipboard
+  copyRichTextToClipboard(namesHtml);
 }
 
 async function addCFsurnameList() {
@@ -1474,40 +1652,6 @@ function excelOut() {
 
         ws_data.push(texties);
       }
-    });
-
-    let battleList = "";
-    let colourNo = 0;
-    ws_data.forEach(function (aLine, i) {
-      if (i == 0) {
-        return;
-      }
-      if (i == 1) {
-        //battleList += aLine.join(", ").replace(/: /, "") + "<br>";
-      } else if (i == 2) {
-        battleList += `<span style='display:block; background-color:${familyColours[colourNo]}'>0: <a href="https://www.wikitree.com/wiki/${aLine[3]}">${aLine[4]}</a></span>`;
-      } else {
-        if (aLine[2].match(/husband|wife/)) {
-          colourNo++;
-        }
-        battleList += `<span style='display:block; background-color:${familyColours[colourNo]}'>${
-          aLine[0]
-        }: ${aLine[2].replace(/([↑↔↓=])/, "$1 ")}, <a href="https://www.wikitree.com/wiki/${aLine[3]}">${
-          aLine[4]
-        }</a><span>`;
-      }
-    });
-    const battleListElement = $(`<div>${battleList}</div>`);
-    const copyList = $("<button class='small' id='copyList'>Copy List</button>");
-    $(".downloadLines.small").before(copyList);
-    copyList.on("click", function (e) {
-      e.preventDefault();
-      copyRichTextToClipboard(battleListElement.html());
-      // show 'Copied' message
-      copyList.text("Copied");
-      setTimeout(function () {
-        copyList.text("Copy List");
-      }, 1000);
     });
   } else if ($(".peopleTable.unconnecteds").length) {
     const ths = $(".peopleTable.unconnecteds th");

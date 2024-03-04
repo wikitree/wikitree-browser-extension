@@ -329,7 +329,6 @@ body.page-Special_Connection #connectionsTable .timelineButton {
 }
 body.page-Special_Connection #connectionsTable td.buttonsCell {
   white-space: nowrap;
-  width: 200px;
 }
 body.page-Special_Connection #connectionsTable td.buttonsCell img {
   display: inline-block !important;
