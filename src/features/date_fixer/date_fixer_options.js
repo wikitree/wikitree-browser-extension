@@ -16,8 +16,8 @@ registerFeature({
   name: "Date Fixer",
   id: "dateFixer",
   description:
-    "Converts DD/MM/YYY and DD.MM.YYYY (and, optionally, DD-MM-YYYY) " +
-    "or dates with non-English months to DD Mon YYYY or DD Month YYYY; " +
+    "Choose between MM-DD-YYYY and DD-MM-YYYY; Convert DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY, " +
+    "or dates with non-English months to DD Mon YYYY; " +
     "Fixes typos in the date fields.",
   category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
@@ -29,20 +29,20 @@ registerFeature({
       id: "convertDD-MM-YYYY",
       type: OptionType.RADIO,
       label:
-        "Convert DD-MM-YYYY. (WikiTree accepts the US date format MM-DD-YYYY. " +
-        "This option can convert DD-MM-YYYY to an accepted format every time.)",
+        "Assume DD-MM-YYYY. WikiTree assumes a date of AA-BB-YYYY to be in the US format MM-DD-YYYY. " +
+        "This option controls how AA-BB-YYYY should be interpreted",
       values: [
         {
           value: "always",
-          text: "Always",
+          text: "Assume DD-MM-YYYY",
+        },
+        {
+          value: false,
+          text: "Assume MM-DD-YYYY",
         },
         {
           value: "askMe",
           text: "Ask me each time",
-        },
-        {
-          value: false,
-          text: "Never",
         },
       ],
       defaultValue: false,
