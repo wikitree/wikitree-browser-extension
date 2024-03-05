@@ -178,7 +178,7 @@ function addTrees() {
   }, 500); // Check every 500ms, adjust as needed
 }
 */
-
+/*
 function addTrees() {
   // Select the node that will be observed for mutations
   const targetNode = document.body; // You might need to adjust this based on your page structure
@@ -246,6 +246,83 @@ function addTrees() {
 
   // Start observing the target node for configured mutations
   observer.observe(targetNode, config);
+}
+*/
+
+function addTrees() {
+  // Check if #connectionList already exists
+  if ($("#connectionList").length) {
+    processConnectionList();
+  } else {
+    // Select the node that will be observed for mutations
+    const targetNode = document.body; // You might need to adjust this based on your page structure
+
+    // Options for the observer (which mutations to observe)
+    const config = { childList: true, subtree: true };
+
+    // Callback function to execute when mutations are observed
+    const callback = function (mutationsList, observer) {
+      for (const mutation of mutationsList) {
+        if (mutation.type === "childList") {
+          if ($("#connectionList").length) {
+            observer.disconnect(); // Stop observing once #connectionList is found
+            processConnectionList();
+            break; // Exit loop after handling the found element
+          }
+        }
+      }
+    };
+
+    // Create an observer instance linked to the callback function
+    const observer = new MutationObserver(callback);
+
+    // Start observing the target node for configured mutations
+    observer.observe(targetNode, config);
+  }
+}
+
+function processConnectionList() {
+  const familyCount = [];
+  for (let i = 0; i < 20; i++) {
+    if ($("span.familyCount" + i).length) {
+      familyCount.push($("span.familyCount" + i).length);
+    }
+  }
+  $("#familyTextCount").remove();
+  let familyCountText = "";
+  if (familyCount.length != 0) {
+    familyCountText = $(
+      "<span id='familyTextCount'>: <span>" +
+        familyCount.length +
+        " branch" +
+        (familyCount.length > 1 ? "es" : "") +
+        " (" +
+        familyCount.join("-") +
+        ")</span></span>"
+    );
+    if (window.connectionFinderOptions.branches) {
+      $("h1").eq(0).append(familyCountText);
+    }
+    if (window.connectionFinderOptions.surnameSummaries && $("#surnames1").length == 0) {
+      surnameSummariesButton.fadeIn();
+
+      const copyNamesButton = $("<button id='copyNames' class='small button'>Copy names</button>");
+      surnameSummariesButton.after(copyNamesButton);
+      copyNamesButton.on("click", function () {
+        copyNamesToClipboard();
+        showCopyMessage("names to clipboard");
+      });
+
+      const copyFormattedNamesButton = $(
+        "<button id='copyFormattedNames' class='small button'>Copy names and relations</button>"
+      );
+      copyNamesButton.after(copyFormattedNamesButton);
+      copyFormattedNamesButton.on("click", function () {
+        copyFormattedNamesToClipboard();
+        showCopyMessage("names and relations to clipboard");
+      });
+    }
+  }
 }
 
 function copyFormattedNamesToClipboard() {
