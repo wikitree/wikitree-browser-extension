@@ -53,8 +53,6 @@ function updateDataFormat() {
   } else {
     console.log("LSchangeSummaryOptions does not exist. No action needed or initialize as required.");
   }
-
-  console.log("Updated LSchangeSummaryOptions:", localStorage.getItem("LSchangeSummaryOptions"));
 }
 
 function addOption(option) {
@@ -260,26 +258,10 @@ function setChangeSummaryOptions(adding = 0) {
   $(".addedOption").remove();
   $("#currentOptions").html("");
   let extraOptions = JSON.parse(localStorage.getItem("LSchangeSummaryOptions")) || [];
-  console.log("extraOptions", extraOptions);
   if (extraOptions == null) {
     extraOptions = [];
   }
 
-  /*
-  if (extraOptions != "" && extraOptions != null) {
-    let extras;
-    if (extraOptions.match(/@@/) == null) {
-      extras = extraOptions.split("|");
-      localStorage.setItem(
-        "LSchangeSummaryOptions",
-        localStorage.getItem("LSchangeSummaryOptions").replaceAll("|", "@@")
-      );
-    } else {
-      extras = extraOptions.split("@@");
-    }
-    extraOptions = extras.join("@@");
-  }
-    */
   //    let addedNum = 0;
   extraOptions.forEach(function (extraOption, index) {
     if (extraOption != "") {
@@ -436,8 +418,6 @@ function sortChangeSummaryOptions() {
     aSpan.insertBefore(theLabels.eq(0));
     theLabels.appendTo(aSpan);
     theLabels.sort(function (a, b) {
-      console.log("a", $(a).text());
-      console.log("b", $(b).text());
       if ($(b).text() == "") {
         return true;
       }
