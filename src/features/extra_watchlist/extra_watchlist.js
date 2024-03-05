@@ -467,28 +467,6 @@ async function extraWatchlist() {
         .attr("href", makeTextFile(ewText))
         .attr("download", "extraWatchlist_" + strD + ".txt");
 
-      /*
-      $("#importExtraWatchlist").on("click", function (e) {
-        e.preventDefault();
-        var fileChooser = document.createElement("input");
-        fileChooser.type = "file";
-        fileChooser.addEventListener("change", function () {
-          var file = fileChooser.files[0];
-          var reader = new FileReader();
-          reader.readAsText(file);
-          setTimeout(function () {
-            localStorage.setItem("extraWatchlist", reader.result.replaceAll(/@/g, ","));
-            $("#extraWatchlistWindow").remove();
-            $("#viewExtraWatchlist").trigger("click");
-          }, 1000);
-          form.reset();
-        });
-        var form = document.createElement("form");
-        form.appendChild(fileChooser);
-        fileChooser.click();
-      });
-      */
-
       $("#importExtraWatchlist")
         .off()
         .on("click", function (e) {
@@ -566,23 +544,6 @@ async function extraWatchlist() {
     }
   }
 
-  /*
-  $("#addToExtraWatchlistButton").on("click", function () {
-    const thisID = getThisID();
-    if (localStorage.extraWatchlist == "" || localStorage.extraWatchlist == null) {
-      localStorage.extraWatchlist = "";
-    }
-    let theChange = "add";
-    if ($("#extraWatchlistWindow").is(":visible") && theChange == "add") {
-      get_Profile(thisID).then((response) => {
-        addToExtraWatchlist(response[0].profile);
-        setPlusButton();
-      });
-    }
-    setPlusButton();
-  });
-  */
-
   $("#addToExtraWatchlistButton").on("click", function () {
     const thisID = getThisID(); // Ensure this gets the current ID correctly.
 
@@ -628,28 +589,22 @@ async function extraWatchlist() {
 function setPlusButton() {
   // Assuming getThisID() correctly retrieves the ID as a string. If not, make sure to convert or ensure it's a string.
   const thisID = getThisID().toString(); // Ensure thisID is a string.
-  console.log("Current ID: ", thisID);
 
   if (localStorage.getItem("extraWatchlist")) {
     const ids = localStorage.getItem("extraWatchlist").split(",");
-    console.log("Watchlist IDs: ", ids);
 
     // Ensure thisID is treated as a string for comparison. If there's any chance it might not be,
     // explicitly converting it to a string can help avoid unexpected behavior.
     if (ids.includes(String(thisID))) {
       // Use String(thisID) to ensure comparison as strings
-      console.log("ID found in watchlist.");
       $("#addToExtraWatchlistButton").addClass("onList");
       $("#addToExtraWatchlistButton").attr("title", "On your Extra Watchlist (click to remove)");
       $("#addToExtraWatchlistButton").prop("src", favoritePlusOn);
     } else {
-      console.log("ID not found in watchlist.");
       $("#addToExtraWatchlistButton").removeClass("onList");
       $("#addToExtraWatchlistButton").attr("title", "Add to your Extra Watchlist");
       $("#addToExtraWatchlistButton").prop("src", favoritePlusWhite);
     }
-  } else {
-    console.log("localStorage.extraWatchlist is not set or empty.");
   }
 }
 
