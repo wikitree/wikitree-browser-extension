@@ -13,7 +13,9 @@ import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup
 import { showCopyMessage } from "../access_keys/access_keys.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
-const surnameSummariesButton = $("<button id='surnameSummaries' class='small button'>Surname summaries</button>");
+const surnameSummariesButton = $(
+  "<button id='surnameSummaries' style='margin:0.5em;' class='small button'>Surname summaries</button>"
+);
 const tree = chrome.runtime.getURL("images/tree.gif");
 const connectionIDs = [];
 const connectionList = $("#connectionList li");
@@ -329,7 +331,10 @@ function processConnectionList() {
 
 function setupConnectionTools() {
   // Add buttons for actions related to names
-  const actionsContainer = $("<div/>").attr("id", "customActionsContainer").css("display", "inline-block");
+  const actionsContainer = $("<div/>")
+    .attr("id", "customActionsContainer")
+    .css("display", "inline-block")
+    .css("margin", "0.5em");
 
   const copyNamesButton = $("<button/>")
     .addClass("small button")
@@ -344,7 +349,6 @@ function setupConnectionTools() {
   // Append buttons to the container
   actionsContainer.append(copyNamesButton, copyFormattedNamesButton);
 
-  // Append the container to a specific element on the page, adjust as needed
   $("button#surnameSummaries").after(actionsContainer);
 }
 
@@ -590,7 +594,7 @@ async function addCFsurnameList() {
 async function connectionFinderThings() {
   // Add Surname summaries button
   if (window.connectionFinderOptions.surnameSummaries) {
-    surnameSummariesButton.insertAfter($("#results")).hide();
+    surnameSummariesButton.insertAfter($("#getImageButton")).hide();
 
     surnameSummariesButton.on("click", function () {
       addCFsurnameList();
