@@ -4279,12 +4279,24 @@ function parseNZBDM(aRef) {
 
 function addReferencePlaces() {
   window.profilePerson.referencePlaces = [];
-  window.references.forEach(function (aRef) {
+  window.references.forEach(function (aRef, index) {
     // Get the place names from the aRef.Text. First, remove "Born in.*?\.".
     let refText = aRef.Text.replace(/Born in.*?\.$/, "");
-    const placeMatch = refText.match(/in\s+(.*?)\.$/);
+
+    const placeMatchRegex = /in\s+([A-Z].*?)\.$/;
+    const placeMatchRegex2 = /in\s+((?:[A-Z][^,.]*?)(?:,\s*(?![a-z])[A-Z][^,.]*?)*?)(?=\s*,\s*[a-z]|\s*\.[^A-Z])/g;
+    const placeMatch = refText.match(placeMatchRegex);
     if (placeMatch) {
       window.profilePerson.referencePlaces.push(placeMatch[1]);
+    }
+
+    if (aRef.sourcerText) {
+      const matches = Array.from(aRef.sourcerText.matchAll(placeMatchRegex2));
+      if (matches.length > 0) {
+        matches.forEach((match, matchIndex) => {
+          window.profilePerson.referencePlaces.push(match[1]);
+        });
+      }
     }
   });
 }
@@ -4901,11 +4913,13 @@ function getSourcerCensuses() {
 
   //const regexWikitable = /(\d{4}) census[^]+?(\{\|[^]+?\|\})(?![^]*\{\|[^]+?\|\})/g;
 
-  const regexNonWikitable = /In the (\d{4}) census[^{=]*?\n([.:#*].+?)(?=\n[^:#*])/gms;
-  //const regexNonWikitable = /In the (\d{4}) census((?!.*\{\|.*\|\}).*?)(?=\n[^:#*])/gs;
+  //const regexNonWikitable = /In the (\d{4}) census[^{=]*?\n([.:#*].+?)(?=\n[^:#*])/gms;
+  const regexNonWikitable = /In the (?:''')?(\d{4})(?:''')? census[^{=]*?\n([.:#*].+?)(?=\n[^:#*])/gms;
+
   let textChunks = [];
   if (text) {
-    textChunks = text.split(/(In the \d{4} census[^]+?)(?=In the \d{4} census|$)/i);
+    //textChunks = text.split(/(In the \d{4} census[^]+?)(?=In the \d{4} census|$)/i);
+    textChunks = text.split(/(In the (?:''')?\d{4}(?:''')? census[^]+?)(?=In the (?:''')?\d{4}(?:''')? census|$)/);
   }
   if (textChunks?.length < 2) {
     textChunks = [];
@@ -6064,34 +6078,8 @@ function sortStuffBeforeBio() {
   return combinedStuff;
 }
 
-/*
-function categoriesBeforeProjects(textArray) {
-  return textArray.sort((a, b) => {
-    if (a.startsWith("{{") && b.startsWith("[[")) {
-      return 1;
-    } else if (a.startsWith("[[") && b.startsWith("{{")) {
-      return -1;
-    } else {
-      return 0;
-    }
-  });
-}
-*/
-
 export function getStuffBeforeTheBioText() {
   let stuffBeforeTheBioText = "";
-  /*
-  if (window.sectionsObject["StuffBeforeTheBio"]) {
-    window.sectionsObject.StuffBeforeTheBio.text = categoriesBeforeProjects(
-      window.sectionsObject.StuffBeforeTheBio.text
-    );
-    const filteredStuff = window.sectionsObject["StuffBeforeTheBio"].text.filter((item) => item !== "");
-    const stuff = filteredStuff.join("\n");
-    if (stuff) {
-      stuffBeforeTheBioText = stuff + "\n";
-    }
-  }
-  */
 
   const sortedStuff = sortStuffBeforeBio();
   const filteredStuff = sortedStuff.filter((item) => item !== "");
@@ -7116,6 +7104,8 @@ export async function generateBio() {
     window.profilePerson.NameVariants = getNameVariants(window.profilePerson);
     // Handle census data created with Sourcer
     window.sourcerCensuses = getSourcerCensuses();
+    console.log("sourcerCensuses", window.sourcerCensuses);
+
     // Create the references array
     if (window.sectionsObject.Sources) {
       window.sourcesSection = window.sectionsObject.Sources;
