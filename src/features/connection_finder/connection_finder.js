@@ -594,7 +594,7 @@ async function addCFsurnameList() {
 async function connectionFinderThings() {
   // Add Surname summaries button
   if (window.connectionFinderOptions.surnameSummaries) {
-    surnameSummariesButton.insertAfter($("#getImageButton")).hide();
+    surnameSummariesButton.insertBefore($("#layoutButton")).hide();
 
     surnameSummariesButton.on("click", function () {
       addCFsurnameList();
