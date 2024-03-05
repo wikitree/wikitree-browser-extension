@@ -249,6 +249,7 @@ function addTrees() {
 }
 */
 
+/*
 function addTrees() {
   // Check if #connectionList already exists
   if ($("#connectionList").length) {
@@ -324,6 +325,62 @@ function processConnectionList() {
     }
   }
 }
+*/
+
+function setupConnectionTools() {
+  // Add buttons for actions related to names
+  const actionsContainer = $("<div/>").attr("id", "customActionsContainer").css("display", "inline-block");
+
+  const copyNamesButton = $("<button/>")
+    .addClass("small button")
+    .text("Copy Names")
+    .on("click", () => copyNamesToClipboard());
+
+  const copyFormattedNamesButton = $("<button/>")
+    .addClass("small button")
+    .text("Copy Names and Relations")
+    .on("click", () => copyFormattedNamesToClipboard());
+
+  // Append buttons to the container
+  actionsContainer.append(copyNamesButton, copyFormattedNamesButton);
+
+  // Append the container to a specific element on the page, adjust as needed
+  $("button#surnameSummaries").after(actionsContainer);
+}
+
+function displayBranchListAutomatically() {
+  const checkConnectionListInterval = setInterval(() => {
+    if ($("#connectionList").length) {
+      clearInterval(checkConnectionListInterval); // Stop checking once #connectionList is found
+      displayBranchList(); // Call function to display the branch list
+    }
+  }, 100); // Check every 100 milliseconds
+}
+
+function displayBranchList() {
+  // Logic to display the branch list
+  const familyCount = [];
+  for (let i = 0; i < 20; i++) {
+    if ($("span.familyCount" + i).length) {
+      familyCount.push($("span.familyCount" + i).length);
+    }
+  }
+  $("#familyTextCount").remove(); // Remove existing count if any
+  let familyCountText = "";
+  if (familyCount.length != 0) {
+    familyCountText =
+      "<span id='familyTextCount'>: <span>" +
+      familyCount.length +
+      " branch" +
+      (familyCount.length > 1 ? "es" : "") +
+      " (" +
+      familyCount.join("-") +
+      ")</span></span>";
+    if (window.connectionFinderOptions && window.connectionFinderOptions.branches) {
+      $("h1").eq(0).append($(familyCountText)); // Append to a suitable element
+    }
+  }
+}
 
 function copyFormattedNamesToClipboard() {
   let branchIndex = 0; // Index to keep track of the current branch color
@@ -364,6 +421,7 @@ function copyFormattedNamesToClipboard() {
     .join(""); // Join without newline to create continuous HTML
 
   copyRichTextToClipboard(formattedNamesHtml);
+  showCopyMessage("names and relations to clipboard");
 }
 
 function copyNamesToClipboard() {
@@ -410,6 +468,7 @@ function copyNamesToClipboard() {
 
   // Use the provided function to copy rich text HTML to the clipboard
   copyRichTextToClipboard(namesHtml);
+  showCopyMessage("names to clipboard");
 }
 
 async function addCFsurnameList() {
@@ -545,12 +604,16 @@ async function connectionFinderThings() {
   });
 
   if ($("h1:contains(Degrees)").length) {
-    addTrees();
+    //addTrees();
+    setupConnectionTools();
+    displayBranchListAutomatically();
     surnameSummariesButton.fadeIn();
   }
 
   $("#findButton").on("click", function () {
-    addTrees();
+    // addTrees();
+    setupConnectionTools();
+    displayBranchListAutomatically();
   });
 }
 
