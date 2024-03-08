@@ -424,7 +424,6 @@ function basicSourcesArray(bio) {
       for (let source of sourcesBits) {
         if (source.trim()) {
           source = source.replace(/^\*/g, "").trim();
-          console.log("pushing " + source);
           sources.push(source);
         }
       }
