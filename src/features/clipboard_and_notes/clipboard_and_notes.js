@@ -263,6 +263,11 @@ function copyClippingToClipboard(element) {
       const partB = el.val().substr(selStart);
 
       el.val(partA + decodeHTMLEntities(theText) + partB);
+
+      //textarea: putting the cursor after the insertion and focussing
+      el[0].selectionStart = el.val().indexOf(partB);
+      el[0].selectionEnd = el[0].selectionStart;
+      el[0].focus();
     }
   }
 }
