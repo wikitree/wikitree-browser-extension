@@ -403,8 +403,17 @@ function basicSourcesArray(bio) {
       // Split sources section into bits
       let sourcesBits = sourcesSection.split(/\n{2,}/);
 
-      // Handle ** sources by merging with previous
       for (let i = sourcesBits.length - 1; i >= 0; i--) {
+        // Splitting sources without empty line between them
+        const splitSourceBits = sourcesBits[i].trim().split("\n*");
+        if (splitSourceBits.length > 1) {
+          sourcesBits[i] = splitSourceBits[0];
+          for (let j = 1; j < splitSourceBits.length; j++) {
+            sourcesBits.splice(i + j, 0, splitSourceBits[j]);
+          }
+        }
+
+        // Handle ** sources by merging with previous
         if (sourcesBits[i].trim().startsWith("**")) {
           sourcesBits[i - 1] += "\n" + sourcesBits[i];
           sourcesBits.splice(i, 1);
@@ -415,6 +424,7 @@ function basicSourcesArray(bio) {
       for (let source of sourcesBits) {
         if (source.trim()) {
           source = source.replace(/^\*/g, "").trim();
+          console.log("pushing " + source);
           sources.push(source);
         }
       }
