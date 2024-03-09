@@ -20,6 +20,7 @@ registerFeature({
   contributors: [
     { name: "Riël Smit", wikitreeid: "Smit-641" },
     { name: "Aleš Trtnik", wikitreeid: "Trtnik-2" },
+    { name: "Florian Straub", wikitreeid: "Straub-620" },
   ],
   defaultValue: true,
   pages: [

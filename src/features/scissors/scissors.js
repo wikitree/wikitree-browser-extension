@@ -165,6 +165,15 @@ async function helpScissors() {
   AddItems(copyItems, copyPosition);
 
   // Sections of Space and Help
+  AddToSections();
+
+  $("helpScissors").on("click", function (e) {
+    e.preventDefault();
+    copyThingToClipboard($(this).attr("data-copy-text"));
+  });
+}
+
+function AddToSections() {
   const allAs = document.getElementsByTagName("a");
   for (let i = 0; i < allAs.length; i++) {
     /*
@@ -174,17 +183,16 @@ async function helpScissors() {
         </span> <span class="mw-headline"> Nächster Termin </span>
       </h2>
     */
-
     if (
       allAs[i].name == null ||
       allAs[i].name == "" ||
       allAs[i].nextSibling == null /*||
-      allAs[i].nextSibling.nextSibling == null*/
+        allAs[i].nextSibling.nextSibling == null*/
     ) {
       continue;
     }
 
-    const reg = /(\.)(\d{1})/gm;
+    const reg = /\.[A-Z|\d]{2}/gm;
     const section = decodeURIComponent(
       allAs[i].name
         .split("_")
@@ -200,44 +208,36 @@ async function helpScissors() {
     }
 
     const wikiLink = "[[" + title + "#" + section + "]]";
-    const copyItemsSection = [{ label: "", text: wikiLink, image: true }];
-    AddItems(copyItemsSection, $(allAs[i].nextSibling) /* headline */);
+    const copyItemsSection = [{ label: "Link", text: wikiLink, image: true }];
+    AddItems(copyItemsSection, $(allAs[i].nextSibling));
   }
-
-  $("helpScissors").on("click", function (e) {
-    e.preventDefault();
-    copyThingToClipboard($(this).attr("data-copy-text"));
-  });
 }
 
 function AddItems(copyItems, copyPosition) {
-  // Adds items and event
-  if (copyItems && copyItems.length != 0) {
-    copyPosition.append(
-      $(
-        copyItems
-          .map((item) => {
-            let x = `<button aria-label="Copy ${item.label}" title="${item.text}" data-copy-label="Copy ${item.label}" class="copyWidget helpScissors" data-copy-text="${item.text}" style="color:#8fc641;">`;
-            if (item.image) {
-              x += '<img src="/images/icons/scissors.png">' + item.label + "</button>";
-            } else {
-              x += "/" + item.label + "</button>";
-            }
-            return x;
-          })
-          .join("")
-      )
-    );
+  for (let i = 0; i < copyItems.length; i++) {
+    const item = copyItems[i];
+    let button = document.createElement("button");
+    button.setAttribute("aria-label", item.label);
+    button.setAttribute("title", item.text);
+    button.setAttribute("data-copy-label", `Copy ${item.label}`);
+    button.setAttribute("class", "copyWidget helpScissors");
+    button.setAttribute("data-copy-text", item.text);
+    button.setAttribute("style", "color:#8fc641;");
 
-    // Remove the space before "UserID"
-    const copyID = document.querySelector('.copyWidget[aria-label="Copy UserID"]');
-    if (copyID) {
-      let previousSibling = copyID.previousSibling;
-      while (previousSibling && previousSibling.nodeType === 3 && /^\s*$/.test(previousSibling.nodeValue)) {
-        var toRemove = previousSibling;
-        previousSibling = previousSibling.previousSibling;
-        toRemove.parentNode.removeChild(toRemove);
-      }
+    if (item.image) {
+      button.innerHTML = '<img src="/images/icons/scissors.png">' + item.label + "</button>";
+    }
+    copyPosition.append(button);
+  }
+
+  // Remove the space before "UserID"
+  const copyID = document.querySelector('.copyWidget[aria-label="Copy UserID"]');
+  if (copyID) {
+    let previousSibling = copyID.previousSibling;
+    while (previousSibling && previousSibling.nodeType === 3 && /^\s*$/.test(previousSibling.nodeValue)) {
+      var toRemove = previousSibling;
+      previousSibling = previousSibling.previousSibling;
+      toRemove.parentNode.removeChild(toRemove);
     }
   }
 }
