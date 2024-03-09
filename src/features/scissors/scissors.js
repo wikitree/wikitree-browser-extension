@@ -128,7 +128,7 @@ async function helpScissors() {
       |caption=${aTitle}\n}}`;
 
     let useLink = `[[Image:${fullName}|250px|${aTitle}]]`;
-    copyItems.push({ label: "Link", text: aLink });
+    copyItems.push({ label: "Link", text: aLink, image: true });
     copyItems.push({ label: "URL", text: url });
 
     if (ext != "pdf") {
@@ -200,7 +200,7 @@ async function helpScissors() {
     }
 
     const wikiLink = "[[" + title + "#" + section + "]]";
-    const copyItemsSection = [{ label: "Link", text: wikiLink }];
+    const copyItemsSection = [{ label: "", text: wikiLink, image: true }];
     AddItems(copyItemsSection, $(allAs[i].nextSibling) /* headline */);
   }
 
