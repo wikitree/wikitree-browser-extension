@@ -29,6 +29,10 @@ export let isSpacePage = false;
 export let isMediaWikiPage = false;
 // Category page
 export let isCategoryPage = false;
+
+//Image page
+export let isImagePage = false;
+
 // Template page
 export let isTemplatePage = false;
 // Project page
@@ -258,6 +262,11 @@ if (domain.match("apps.wikitree.com")) {
   ) {
     isCategoryPage = true;
   } else if (
+    // Image Page (without action?)
+    uri.match(/\/photo\//g)
+  ) {
+    isImagePage = true;
+  } else if (
     // Template Edit Page
     uri.match(/\/index.php\?title=Template:.*&action=edit.*/g) ||
     uri.match(/\/index.php\?title=Template:.*&action=submit.*/g)
@@ -393,7 +402,7 @@ if (domain.match("apps.wikitree.com")) {
   }
 
   isMediaWikiPage = isCategoryPage || isTemplatePage || isProjectPage || isHelpPage || isOtherPage;
-  isWikiPage = isProfilePage || isSpacePage || isMediaWikiPage;
+  isWikiPage = isProfilePage || isSpacePage || isMediaWikiPage || isImagePage;
   isMediaWikiEdit = isCategoryEdit || isTemplateEdit || isProjectEdit || isHelpEdit || isOtherEdit;
   isWikiEdit = isProfileEdit || isSpaceEdit || isMediaWikiEdit;
   isMediaWikiHistory = isCategoryHistory || isTemplateHistory || isProjectHistory || isHelpHistory || isOtherHistory;
