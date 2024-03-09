@@ -162,7 +162,55 @@ async function helpScissors() {
     const noParameter = "[[:Space: " + aTitle + "]]";
     button.data("copy-text", noParameter).attr("data-copy-text", noParameter);
   }
+  AddItems(copyItems, copyPosition);
 
+  // Sections of Space and Help
+  const allAs = document.getElementsByTagName("a");
+  for (let i = 0; i < allAs.length; i++) {
+    /*
+    <a name="N.C3.A4chster_Termin"></a>
+      <h2>
+        <span class="editsection">[<a href="/index.php?title=Space:Stammtisch&amp;action=edit&amp;section=1" title="Edit section: Nächster Termin">edit</a>]
+        </span> <span class="mw-headline"> Nächster Termin </span>
+      </h2>
+    */
+
+    if (
+      allAs[i].name == null ||
+      allAs[i].name == "" ||
+      allAs[i].nextSibling == null /*||
+      allAs[i].nextSibling.nextSibling == null*/
+    ) {
+      continue;
+    }
+
+    const reg = /(\.)(\d{1})/gm;
+    const section = decodeURIComponent(
+      allAs[i].name
+        .split("_")
+        .join(" ")
+        .replaceAll(reg, function (x) {
+          return x.replace(".", "%");
+        })
+    );
+
+    let title = document.title;
+    if (isSpacePage) {
+      title = "Space:" + title;
+    }
+
+    const wikiLink = "[[" + title + "#" + section + "]]";
+    const copyItemsSection = [{ label: "Link", text: wikiLink }];
+    AddItems(copyItemsSection, $(allAs[i].nextSibling) /* headline */);
+  }
+
+  $("helpScissors").on("click", function (e) {
+    e.preventDefault();
+    copyThingToClipboard($(this).attr("data-copy-text"));
+  });
+}
+
+function AddItems(copyItems, copyPosition) {
   // Adds items and event
   if (copyItems && copyItems.length != 0) {
     copyPosition.append(
@@ -191,10 +239,5 @@ async function helpScissors() {
         toRemove.parentNode.removeChild(toRemove);
       }
     }
-
-    $("helpScissors").on("click", function (e) {
-      e.preventDefault();
-      copyThingToClipboard($(this).attr("data-copy-text"));
-    });
   }
 }
