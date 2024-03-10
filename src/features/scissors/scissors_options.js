@@ -35,6 +35,12 @@ registerFeature({
   ],
   options: [
     {
+      id: "sectionLinkOnProfiles",
+      type: OptionType.CHECKBOX,
+      label: "Show in sections of profile pages",
+      defaultValue: false,
+    },
+    {
       id: "removeDates",
       type: OptionType.CHECKBOX,
       label: "Profile Link: Remove dates",

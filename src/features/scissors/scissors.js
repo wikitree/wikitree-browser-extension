@@ -165,7 +165,7 @@ async function helpScissors() {
   AddItems(copyItems, copyPosition);
 
   // Sections of Space and Help
-  AddToSections();
+  AddToSections(options.sectionLinkOnProfiles);
 
   $("helpScissors").on("click", function (e) {
     e.preventDefault();
@@ -173,7 +173,11 @@ async function helpScissors() {
   });
 }
 
-function AddToSections() {
+function AddToSections(alsoOnProfilePages) {
+  if (isProfilePage && !alsoOnProfilePages) {
+    return;
+  }
+
   const allAs = document.getElementsByTagName("a");
   for (let i = 0; i < allAs.length; i++) {
     /*
