@@ -195,6 +195,7 @@ function AddToSections(alsoOnProfilePages) {
     ) {
       continue;
     }
+    const url = document.location.href.split("#")[0] + "#" + allAs[i].name;
 
     const reg = /\.[A-Z|\d]{2}/gm;
     const section = decodeURIComponent(
@@ -212,8 +213,9 @@ function AddToSections(alsoOnProfilePages) {
     }
 
     const wikiLink = "[[" + title + "#" + section + "]]";
-    const copyItemsSection = [{ label: "Link", text: wikiLink, image: true }];
-    AddItems(copyItemsSection, $(allAs[i].nextSibling));
+    const wikiLinkItem = { label: "Link", text: wikiLink, image: true };
+    const urlLinkItem = { label: "URL", text: url, image: false };
+    AddItems([wikiLinkItem, urlLinkItem], $(allAs[i].nextSibling));
   }
 }
 
