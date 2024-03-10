@@ -225,7 +225,11 @@ function AddItems(copyItems, copyPosition) {
     button.setAttribute("style", "color:#8fc641;");
 
     if (item.image) {
-      button.innerHTML = '<img src="/images/icons/scissors.png">' + item.label + "</button>";
+      button.innerHTML = '<img src="/images/icons/scissors.png">';
+    }
+    button.innerHTML += item.label;
+    if (i < copyItems.length - 1) {
+      button.innerHTML += "/";
     }
     copyPosition.append(button);
   }
