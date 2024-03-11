@@ -128,7 +128,7 @@ async function helpScissors() {
       |caption=${aTitle}\n}}`;
 
     let useLink = `[[Image:${fullName}|250px|${aTitle}]]`;
-    copyItems.push({ label: "Link", text: aLink });
+    copyItems.push({ label: "Link", text: aLink, image: true });
     copyItems.push({ label: "URL", text: url });
 
     if (ext != "pdf") {
@@ -162,39 +162,92 @@ async function helpScissors() {
     const noParameter = "[[:Space: " + aTitle + "]]";
     button.data("copy-text", noParameter).attr("data-copy-text", noParameter);
   }
+  AddItems(copyItems, copyPosition);
 
-  // Adds items and event
-  if (copyItems && copyItems.length != 0) {
-    copyPosition.append(
-      $(
-        copyItems
-          .map((item) => {
-            let x = `<button aria-label="Copy ${item.label}" title="${item.text}" data-copy-label="Copy ${item.label}" class="copyWidget helpScissors" data-copy-text="${item.text}" style="color:#8fc641;">`;
-            if (item.image) {
-              x += '<img src="/images/icons/scissors.png">' + item.label + "</button>";
-            } else {
-              x += "/" + item.label + "</button>";
-            }
-            return x;
-          })
-          .join("")
-      )
+  // Sections of Space and Help
+  AddToSections(options.sectionLinkOnProfiles);
+
+  $("helpScissors").on("click", function (e) {
+    e.preventDefault();
+    copyThingToClipboard($(this).attr("data-copy-text"));
+  });
+}
+
+function AddToSections(alsoOnProfilePages) {
+  if (isProfilePage && !alsoOnProfilePages) {
+    return;
+  }
+
+  const allAs = document.getElementsByTagName("a");
+  for (let i = 0; i < allAs.length; i++) {
+    /*
+    <a name="N.C3.A4chster_Termin"></a>
+      <h2>
+        <span class="editsection">[<a href="/index.php?title=Space:Stammtisch&amp;action=edit&amp;section=1" title="Edit section: Nächster Termin">edit</a>]
+        </span> <span class="mw-headline"> Nächster Termin </span>
+      </h2>
+    */
+    if (
+      allAs[i].name == null ||
+      allAs[i].name == "" ||
+      allAs[i].nextSibling == null /*||
+        allAs[i].nextSibling.nextSibling == null*/
+    ) {
+      continue;
+    }
+    const url = document.location.href.split("#")[0] + "#" + allAs[i].name;
+
+    const reg = /\.[A-Z|\d]{2}/gm;
+    const section = decodeURIComponent(
+      allAs[i].name
+        .split("_")
+        .join(" ")
+        .replaceAll(reg, function (x) {
+          return x.replace(".", "%");
+        })
     );
 
-    // Remove the space before "UserID"
-    const copyID = document.querySelector('.copyWidget[aria-label="Copy UserID"]');
-    if (copyID) {
-      let previousSibling = copyID.previousSibling;
-      while (previousSibling && previousSibling.nodeType === 3 && /^\s*$/.test(previousSibling.nodeValue)) {
-        var toRemove = previousSibling;
-        previousSibling = previousSibling.previousSibling;
-        toRemove.parentNode.removeChild(toRemove);
-      }
+    let title = document.title;
+    if (isSpacePage) {
+      title = "Space:" + title;
     }
 
-    $("helpScissors").on("click", function (e) {
-      e.preventDefault();
-      copyThingToClipboard($(this).attr("data-copy-text"));
-    });
+    const wikiLink = "[[" + title + "#" + section + "]]";
+    const wikiLinkItem = { label: "Link", text: wikiLink, image: true };
+    const urlLinkItem = { label: "URL", text: url, image: false };
+    AddItems([wikiLinkItem, urlLinkItem], $(allAs[i].nextSibling));
+  }
+}
+
+function AddItems(copyItems, copyPosition) {
+  for (let i = 0; i < copyItems.length; i++) {
+    const item = copyItems[i];
+    let button = document.createElement("button");
+    button.setAttribute("aria-label", item.label);
+    button.setAttribute("title", item.text);
+    button.setAttribute("data-copy-label", `Copy ${item.label}`);
+    button.setAttribute("class", "copyWidget helpScissors");
+    button.setAttribute("data-copy-text", item.text);
+    button.setAttribute("style", "color:#8fc641;");
+
+    if (item.image) {
+      button.innerHTML = '<img src="/images/icons/scissors.png">';
+    }
+    button.innerHTML += item.label;
+    if (i < copyItems.length - 1) {
+      button.innerHTML += "/";
+    }
+    copyPosition.append(button);
+  }
+
+  // Remove the space before "UserID"
+  const copyID = document.querySelector('.copyWidget[aria-label="Copy UserID"]');
+  if (copyID) {
+    let previousSibling = copyID.previousSibling;
+    while (previousSibling && previousSibling.nodeType === 3 && /^\s*$/.test(previousSibling.nodeValue)) {
+      var toRemove = previousSibling;
+      previousSibling = previousSibling.previousSibling;
+      toRemove.parentNode.removeChild(toRemove);
+    }
   }
 }
