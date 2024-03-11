@@ -185,29 +185,6 @@ async function addMovingSaveBox() {
   });
   window.timer = null;
 
-  /*
-  const options = await getFeatureOptions("customChangeSummaryOptions");
-  if (options.movingSaveBox) {
-    $("#saveStuff").prependTo(sco);
-    $(window).on("scroll", function () {
-      //let scroll = $(window).scrollTop();
-      //const previewBox = $("#previewbox");
-      if (
-        isScrolledIntoView($("#previewButton")) ||
-        isScrolledPast($("#previewButton")) ||
-        isScrolledIntoView($("#footer")) ||
-        isScrolledIntoView($("a[name='save']"))
-      ) {
-        $("#saveStuff").insertAfter(validationContainer);
-        $("#suggestionLinkSpan").hide();
-      } else {
-        $("#saveStuff").prependTo(sco);
-        $("#suggestionLinkSpan").show();
-      }
-    });
-  }
-  */
-
   const options = await getFeatureOptions("customChangeSummaryOptions");
   if (options.movingSaveBox) {
     const saveStuff = $("#saveStuff");
@@ -315,13 +292,15 @@ function setChangeSummaryOptions(adding = 0) {
       }
 
       extraOptions = localStorage.getItem("LSchangeSummaryOptions");
-
-      //extraOptions = extraOptions.replace(myOption.data("option") + "@@", "");
       removeOption(myOption.data("option"));
 
       // localStorage.setItem("LSchangeSummaryOptions", extraOptions);
     });
   });
+
+  function escapeRegExpCharacters(text) {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // Escapes special characters for regex
+  }
 
   $("label.addedOption input")
     .off()
@@ -329,15 +308,22 @@ function setChangeSummaryOptions(adding = 0) {
       $("#wpSave").prop("disabled", false);
       const v = $(this).val().trim();
       let summary = $("#wpSummary").val();
-      const regex = new RegExp(`\\b${v}\\b`, "g");
+
+      // Escape special characters in v
+      const escapedV = escapeRegExpCharacters(v);
+
+      // Use escapedV in the regex
+      const regex = new RegExp(`\\b${escapedV}\\b`, "g");
+
       if (!summary.match(regex)) {
-        summary += " " + v + " ";
-        summary = summary.replace(/\s+/g, " ");
+        summary += ` ${v} `;
+        summary = summary.replace(/\s+/g, " ").trim();
         if (summary.length > 150) {
           summary = summary.substring(0, 149);
         }
         $("#wpSummary").val(summary);
       }
+
       summaryBox($(this));
     });
 
@@ -347,7 +333,11 @@ function setChangeSummaryOptions(adding = 0) {
 function summaryBox(el, added = false) {
   const thisText = el.val();
   if (added == true) {
-    $("#wpSummary").val(($("#wpSummary").val() + " " + thisText).replace(/\s+/g, " ").trim());
+    const wpSummaryVal = $("#wpSummary").val();
+    console.log(wpSummaryVal);
+    let newSummary = `${wpSummaryVal} ${thisText}`;
+    console.log(newSummary);
+    $("#wpSummary").val(newSummary.replace(/\s+/g, " ").trim());
   }
 
   if (el.prop("checked") == false) {
@@ -356,9 +346,6 @@ function summaryBox(el, added = false) {
       return value.replaceAll(thisTextTrimmed, "");
     });
     $("#wpSummary").val($("#wpSummary").val().replace(/\s+/g, " ").trim());
-  } else {
-    //const aRegex = new RegExp("[^s]" + thisText);
-    //const matching = $("#wpSummary").val().match(aRegex);
   }
   $("#wpSummaryTextArea").text($("#wpSummary").val());
 
