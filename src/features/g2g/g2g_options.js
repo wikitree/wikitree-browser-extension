@@ -47,6 +47,12 @@ const g2g = {
       defaultValue: true,
     },
     {
+      id: "scissors_answers",
+      type: OptionType.CHECKBOX,
+      label: "Copy preview / url links for answers (Scissors)",
+      defaultValue: true,
+    },
+    {
       id: "backToTop",
       type: OptionType.CHECKBOX,
       label: "'Back to Top' links at the bottom of each G2G page",
@@ -81,12 +87,6 @@ const g2g = {
       type: OptionType.CHECKBOX,
       label: "Make 'My WikiTree' link work like on other pages",
       defaultValue: true,
-    },
-    {
-      id: "previewLinks",
-      type: OptionType.CHECKBOX,
-      label: "Make links to answers and comments show preview when shared on Discord",
-      defaultValue: false,
     },
   ],
 };

@@ -3,7 +3,6 @@ Created By: Ian Beacall (Beacall-6), Aleš Trtnik (Trtnik-2)
 */
 
 import $ from "jquery";
-import { copyThingToClipboard } from "../g2g/g2g";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import {
   isMediaWikiPage,
@@ -162,15 +161,12 @@ async function helpScissors() {
     const noParameter = "[[:Space: " + aTitle + "]]";
     button.data("copy-text", noParameter).attr("data-copy-text", noParameter);
   }
-  AddItems(copyItems, copyPosition);
+  addItems(copyItems, copyPosition);
 
   // Sections of Space and Help
   AddToSections(options.sectionLinkOnProfiles);
 
-  $("helpScissors").on("click", function (e) {
-    e.preventDefault();
-    copyThingToClipboard($(this).attr("data-copy-text"));
-  });
+  attachScissorsEvent();
 }
 
 function AddToSections(alsoOnProfilePages) {
@@ -215,11 +211,11 @@ function AddToSections(alsoOnProfilePages) {
     const wikiLink = "[[" + title + "#" + section + "]]";
     const wikiLinkItem = { label: "Link", text: wikiLink, image: true };
     const urlLinkItem = { label: "URL", text: url, image: false };
-    AddItems([wikiLinkItem, urlLinkItem], $(allAs[i].nextSibling));
+    addItems([wikiLinkItem, urlLinkItem], $(allAs[i].nextSibling));
   }
 }
 
-function AddItems(copyItems, copyPosition) {
+export function addItems(copyItems, copyPosition) {
   for (let i = 0; i < copyItems.length; i++) {
     const item = copyItems[i];
     let button = document.createElement("button");
@@ -250,4 +246,19 @@ function AddItems(copyItems, copyPosition) {
       toRemove.parentNode.removeChild(toRemove);
     }
   }
+}
+
+export function copyThingToClipboard(thing) {
+  const $temp = $("<input>");
+  $("body").prepend($temp);
+  $temp.val(thing).select();
+  document.execCommand("copy");
+  $temp.remove();
+}
+
+export function attachScissorsEvent() {
+  $("#g2gScissors button").on("click", function (e) {
+    e.preventDefault();
+    copyThingToClipboard($(this).attr("data-copy-text"));
+  });
 }

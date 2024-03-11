@@ -7,6 +7,7 @@ import "./g2g_.css";
 import { isOK } from "../../core/common";
 import Cookies from "js-cookie";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { addItems, attachScissorsEvent, copyThingToClipboard } from "../scissors/scissors";
 
 function text2Link(element, text, link) {
   const childNodes = element.childNodes;
@@ -106,7 +107,7 @@ function linkify() {
   });
 }
 
-function replacePermaLinks() {
+function addScissorsToAnswers() {
   const allAnchorNodes = document.getElementsByTagName("a");
   for (let i = 0; i < allAnchorNodes.length; i++) {
     //https://www.wikitree.com/g2g/1652303/join-the-2nd-germany-research-party-on-wikitree-day?show=1657604#a1657604
@@ -121,7 +122,20 @@ function replacePermaLinks() {
       const indexAfterHashAndAorC = indexHash + 2;
       const number = allAnchorNodes[i].href.substring(indexAfterHashAndAorC);
       const plainURL = window.location.href.split("?")[0];
-      allAnchorNodes[i].href = "https://apps.wikitree.com/apps/straub620/g2gpeek.php?post=" + plainURL + "&a=" + number;
+      //allAnchorNodes[i].href = "https://apps.wikitree.com/apps/straub620/g2gpeek.php?post=" + plainURL + "&a=" + number;
+
+      const previewLinkItem = {
+        label: "Preview",
+        text: "https://apps.wikitree.com/apps/straub620/g2gpeek.php?post=" + plainURL + "&a=" + number,
+        image: true,
+      };
+
+      const urlItem = {
+        label: "URL",
+        text: allAnchorNodes[i].href,
+      };
+
+      addItems([previewLinkItem, urlItem], $(allAnchorNodes[i].parentNode));
     }
   }
 }
@@ -141,7 +155,7 @@ async function initG2G() {
     addG2GButtons();
   }
   if (options.scissors) {
-    g2gScissors();
+    g2gScissors(options.scissors_answers);
   }
   if (options.backToTop) {
     g2gBackToTop();
@@ -159,12 +173,7 @@ async function initG2G() {
   if (options.linkify) {
     linkify();
   }
-  if (options.previewLinks) {
-    const questionURL = window.location.toString().match(/https:\/\/www\.wikitree\.com\/g2g\/\d+\//);
-    if (questionURL != null) {
-      replacePermaLinks();
-    }
-  }
+
   if (options.fixHome) {
     document.getElementsByClassName("pureCssMenui0")[0].href = "https://www.wikitree.com/wiki/Special:Home";
   }
@@ -188,7 +197,7 @@ function g2gPageLinksAtTop() {
   }
 }
 
-function g2gScissors() {
+function g2gScissors(alsoInAnswers) {
   if ($("body.qa-template-question.qa-body-js-on").length && $("#g2gScissors").length == 0) {
     const url = window.location.href.replaceAll(/%2C/g, ",");
     const g2gIDmatch = url.match(/\/([0-9]{1,8})\//);
@@ -207,21 +216,12 @@ function g2gScissors() {
             '" style="color:#8fc641;">/Question</button></span>'
         )
       );
-
-      $("#g2gScissors button").on("click", function (e) {
-        e.preventDefault();
-        copyThingToClipboard($(this).attr("data-copy-text"));
-      });
+      if (alsoInAnswers) {
+        addScissorsToAnswers();
+      }
+      attachScissorsEvent();
     }
   }
-}
-
-export function copyThingToClipboard(thing) {
-  const $temp = $("<input>");
-  $("body").prepend($temp);
-  $temp.val(thing).select();
-  document.execCommand("copy");
-  $temp.remove();
 }
 
 function addG2GButtons() {
