@@ -24,6 +24,7 @@ shouldInitializeFeature("scissors").then((result) => {
     import("./scissors.css");
     if ($("#helpScissors").length == 0) {
       helpScissors();
+      setTimeout(removeWhitespaceBeforeCopyUserID, 2000);
     }
   }
 });
@@ -176,26 +177,15 @@ function AddToSections(alsoOnProfilePages) {
 
   const allAs = document.getElementsByTagName("a");
   for (let i = 0; i < allAs.length; i++) {
-    /*
-    <a name="N.C3.A4chster_Termin"></a>
-      <h2>
-        <span class="editsection">[<a href="/index.php?title=Space:Stammtisch&amp;action=edit&amp;section=1" title="Edit section: Nächster Termin">edit</a>]
-        </span> <span class="mw-headline"> Nächster Termin </span>
-      </h2>
-    */
-    if (
-      allAs[i].name == null ||
-      allAs[i].name == "" ||
-      allAs[i].nextSibling == null /*||
-        allAs[i].nextSibling.nextSibling == null*/
-    ) {
+    if (allAs[i].getAttribute("name") == null || allAs[i].getAttribute("name") == "" || allAs[i].nextSibling == null) {
       continue;
     }
-    const url = document.location.href.split("#")[0] + "#" + allAs[i].name;
+    const url = document.location.href.split("#")[0] + "#" + allAs[i].getAttribute("name");
 
     const reg = /\.[A-Z|\d]{2}/gm;
     const section = decodeURIComponent(
-      allAs[i].name
+      allAs[i]
+        .getAttribute("name")
         .split("_")
         .join(" ")
         .replaceAll(reg, function (x) {
@@ -208,7 +198,13 @@ function AddToSections(alsoOnProfilePages) {
       title = "Space:" + title;
     }
 
-    const wikiLink = "[[" + title + "#" + section + "]]";
+    let wikiLink = "[[" + title + "#" + section + "]]";
+
+    if (isProfilePage) {
+      const profileID =
+        $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
+      wikiLink = `[[${profileID}#${section}|${title.replace(" - WikiTree Profile", "")}: ${section}]]`;
+    }
     const wikiLinkItem = { label: "Link", text: wikiLink, image: true };
     const urlLinkItem = { label: "URL", text: url, image: false };
     addItems([wikiLinkItem, urlLinkItem], $(allAs[i].nextSibling));
@@ -235,16 +231,23 @@ export function addItems(copyItems, copyPosition) {
     }
     copyPosition.append(button);
   }
+}
 
+function removeWhitespaceBeforeCopyUserID() {
   // Remove the space before "UserID"
-  const copyID = document.querySelector('.copyWidget[aria-label="Copy UserID"]');
+  const jqueryCopyID = $('button:contains("UserID")');
+  const copyID = jqueryCopyID[0];
+
   if (copyID) {
     let previousSibling = copyID.previousSibling;
+
     while (previousSibling && previousSibling.nodeType === 3 && /^\s*$/.test(previousSibling.nodeValue)) {
-      var toRemove = previousSibling;
+      const toRemove = previousSibling;
       previousSibling = previousSibling.previousSibling;
       toRemove.parentNode.removeChild(toRemove);
     }
+    // Prepend the button text with a slash
+    copyID.textContent = `/${copyID.textContent}`;
   }
 }
 
