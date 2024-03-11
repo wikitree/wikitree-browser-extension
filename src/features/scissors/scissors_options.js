@@ -7,13 +7,14 @@ import {
   isNetworkFeed,
   isCategoryPage,
   isCategoryEdit,
+  isImagePage,
 } from "../../core/pageType";
 
 registerFeature({
   name: "Scissors",
   id: "scissors",
   description:
-    "Adds scissors (like on profile pages) to Category, Help, Project, Template, and Change Details pages to copy various things.",
+    "Adds scissors (like on profile pages) to Category, Image, Help, Project, Template, and Change Details pages to copy various things.",
   category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [
@@ -29,6 +30,7 @@ registerFeature({
     isNetworkFeed,
     isCategoryEdit,
     isCategoryPage,
+    isImagePage,
   ],
   options: [
     {

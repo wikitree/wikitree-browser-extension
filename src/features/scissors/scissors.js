@@ -13,6 +13,7 @@ import {
   isSpaceEdit,
   isSpacePage,
   isCategoryPage,
+  isImagePage,
   isTemplatePage,
   isProjectPage,
   isNetworkFeed,
@@ -108,6 +109,32 @@ async function helpScissors() {
     const aTitle = document.title.trim();
     const aLink = `[[${aTitle}]]`;
     copyItems.push({ label: "Use", text: aLink });
+  }
+
+  if (isImagePage) {
+    const aTitle = document.title.trim();
+    const url = window.location.toString();
+
+    //www.wikitree.com/photo/pdf/THE_STORY_OF_MY_YOUTH_AND_EARLY_MARRIED_LIFE_AS_TOLD_TO_LOIS_ELKINTON-1
+    const linkParts = url.split("/");
+    const fileName = linkParts[linkParts.length - 1];
+    const ext = linkParts[linkParts.length - 2];
+    const fullName = fileName + "." + ext;
+    const aLink = `[[:Image:${fullName}|${aTitle}]]`;
+
+    const useTemplate = `{{Image|file=${fullName}
+      |align=r
+      |size=m
+      |caption=${aTitle}\n}}`;
+
+    let useLink = `[[Image:${fullName}|250px|${aTitle}]]`;
+    copyItems.push({ label: "Link", text: aLink });
+    copyItems.push({ label: "URL", text: url });
+
+    if (ext != "pdf") {
+      copyItems.push({ label: "Use[]", text: useLink });
+      copyItems.push({ label: "Use{}", text: useTemplate });
+    }
   }
 
   // Space page
