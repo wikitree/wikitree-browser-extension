@@ -6216,6 +6216,7 @@ export async function getONSstickers() {
           results.response.categories
         );
         if (result) {
+          let ONSresult;
           if (result.match(",")) {
             const splitResult = result.split(",");
             const trimmedResult = splitResult.map((item) => item.trim());
@@ -6259,12 +6260,15 @@ export async function getONSstickers() {
             if (
               !(isACountry || scottishCounties.includes(trimmedResult[0]) || otherHighLevel.includes(trimmedResult[0]))
             ) {
-              return `{{One Name Study|name=${aSurname}|category=${result}}}`;
+              ONSresult = `{{One Name Study|name=${aSurname}|category=${result}}}`;
             } else {
-              return `{{One Name Study|name=${aSurname}}}`;
+              ONSresult = `{{One Name Study|name=${aSurname}}}`;
             }
           } else {
-            return `{{One Name Study|name=${aSurname}}}`;
+            ONSresult = `{{One Name Study|name=${aSurname}}}`;
+          }
+          if (ONSresult && isOnONSlist) {
+            return ONSresult;
           }
         }
       } else if (isOnONSlist) {
