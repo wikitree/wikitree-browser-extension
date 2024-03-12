@@ -22,7 +22,7 @@ function CreateMigrationCategory(tb) {
   let countryTo = "";
   let entityTo = "";
 
-  if (cat.indexOf("(Ship)") || cat.match("(d{4})$")) {
+  if (cat.indexOf("(Ship)" > -1) || cat.match(/\((\d{4})\)$/) != null) {
     let value = "[[Category:Ships by Name]]\n[[Category:Immigrant Ships]]";
     const decade = cat.match(/\d{3}/g);
     if (decade[0]) {
