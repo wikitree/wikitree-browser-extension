@@ -6165,7 +6165,6 @@ export async function getONSstickers() {
     "Ebbons",
     "Ebons",
     "Ebben",
-    "French",
     "Glaester",
     "Glaister",
     "Glaster",
@@ -6176,14 +6175,23 @@ export async function getONSstickers() {
     "McBrayer",
     "Reynolds",
     "Rodewald",
-    "Slade",
     "Vanover",
     "Weddington",
-    "Welch",
     "Wrayford",
     "Wreford",
     "Wreyford",
   ];
+
+  const topOfLineOnly = ["Slade", "French", "Welch"];
+
+  function topOfLineOnlyCondition(surname) {
+    const isTopOfLineOnly = topOfLineOnly.some((item) => item === surname);
+    // Check if the person has a parent with the same surname
+    const hasParentWithSameSurname = window.profilePerson.Parents.some(
+      (parent) => parent.PersonName.LastNameAtBirth === surname || parent.PersonName.LastNameCurrent === surname
+    );
+    return isTopOfLineOnly && hasParentWithSameSurname;
+  }
 
   const surnames = [window.profilePerson.PersonName.LastNameAtBirth];
   if (window.profilePerson.PersonName.LastNameCurrent != window.profilePerson.PersonName.LastNameAtBirth) {
@@ -6267,11 +6275,11 @@ export async function getONSstickers() {
           } else {
             ONSresult = `{{One Name Study|name=${aSurname}}}`;
           }
-          if (ONSresult && isOnONSlist) {
+          if (ONSresult && isOnONSlist && !topOfLineOnlyCondition(aSurname)) {
             return ONSresult;
           }
         }
-      } else if (isOnONSlist) {
+      } else if (isOnONSlist && !topOfLineOnlyCondition(aSurname)) {
         return `{{One Name Study|name=${aSurname}}}`;
       }
     } catch (error) {

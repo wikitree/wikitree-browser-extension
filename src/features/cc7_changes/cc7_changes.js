@@ -350,6 +350,9 @@ export async function addCC7ChangesButton() {
   newLi.insertBefore(categoryLI.parent());
   newLi.on("click", async function (e) {
     e.preventDefault();
+    if (($("#working").length > 0 && $("#working").is(":visible")) || $("#cc7DeltaContainer").length > 0) {
+      return;
+    }
 
     // Check login status
     const args = { action: "clientLogin", checkLogin: USER_NUM_ID, appId: APP_ID };
@@ -639,6 +642,9 @@ async function fetchPeopleDetails(idString) {
 
   const apiResult = await fetchPeople({ keys: idString, fields: fields });
   const people = apiResult?.[0]?.people;
+  if (!people) {
+    return [];
+  }
   const restructuredResult = Object.keys(people).reduce((acc, key) => {
     const entry = people[key];
     const aName = new PersonName(entry);
@@ -673,8 +679,9 @@ async function showStoredDeltas(data, e) {
   const uniqueIdsWithinLastMonth = getUniqueIds(deltasWithinLastMonth, uniqueIdsSinceLastVisit);
 
   const allDetailsSinceLastVisit = await fetchDetailsForUniqueIds(uniqueIdsSinceLastVisit);
+  console.log("allDetailsSinceLastVisit", allDetailsSinceLastVisit);
   const allDetailsWithinLastMonth = await fetchDetailsForUniqueIds(uniqueIdsWithinLastMonth);
-
+  console.log("allDetailsWithinLastMonth", allDetailsWithinLastMonth);
   if (allDetailsSinceLastVisit.length > 0) {
     appendDetailsToContainer(container, allDetailsSinceLastVisit, "Added since you last checked: ");
   }
