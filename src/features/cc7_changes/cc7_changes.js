@@ -298,8 +298,8 @@ class Database {
 }
 
 const loginPopup = $(`<div id="login-popup">
-<button id="login-btn" title="You need to be logged in to the apps server to use CC7 Changes. 
-It's possible that the login will fail and you'll see this button again.  
+<button id="login-btn" title="You need to be logged in to the apps server to use CC7 Changes.
+It's possible that the login will fail and you'll see this button again.
 Sorry about that.">Log in to initialize WBE CC7 Changes</button>
 <button id="dismiss-btn">Dismiss</button>
 </div>`);
@@ -584,11 +584,12 @@ async function fetchCC7FromAPI() {
         const arrayOfObjects = Object.keys(restructuredResult).map((key) => {
           return restructuredResult[key];
         });
-        start += limit;
-        // Check if we're done
-        getMore = arrayOfObjects.length == limit;
         // add to peopleObjectArray
         peopleObjectArray = peopleObjectArray.concat(arrayOfObjects);
+
+        start += limit;
+        // Check if we're done
+        getMore = apiResult[0].status?.startsWith("Maximum number of profiles");
       } else {
         getMore = false;
       }
@@ -717,10 +718,12 @@ function getUniqueIds(deltas, excludeIds = new Set()) {
 }
 
 async function fetchDetailsForUniqueIds(uniqueIds) {
-  if (uniqueIds.length > 0) {
-    return await fetchPeopleDetails(uniqueIds.join(","));
+  let result = [];
+  for (let i = 0; i < uniqueIds.length; i += 1000) {
+    const detail = await fetchPeopleDetails(uniqueIds.slice(i, 1000).join(","));
+    result = result.concat(detail);
   }
-  return [];
+  return result;
 }
 
 function appendDetailsToContainer(container, details, headingText) {
