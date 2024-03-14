@@ -8,9 +8,20 @@ import { PersonName } from "../auto_bio/person_name.js";
 import { displayDates } from "../verifyID/verifyID";
 import { goAndLogIn } from "../randomProfile/randomProfile";
 
+// If TESTING is true, we pretend to be user Trompetter-42 (who is long dead and in an unconnected, mostly orphaned branch)
+// and currently has a CC7 of 132. Whenever we retrieve the current CC7, we remove one random profile from each API call
+// result before processing it, so we can get deltas generated. With TESTING true, we also do some extra logging to help
+// with debugging.
+// If you want the TESTING logging, but not use the test user, set TESTING to true and USE_TEST_USER to false.
+// IMPORTANT: make sure TESTING is false before you commit!!
+const TESTING = false;
+const USE_TEST_USER = true && TESTING;
+const TEST_USER_WTID = "Trompetter-42";
+const TEST_USER_ID = 24595942;
+
+const userId = USE_TEST_USER ? TEST_USER_WTID : Cookies.get("wikitree_wtb_UserName");
+const USER_NUM_ID = USE_TEST_USER ? TEST_USER_ID : Cookies.get("wikitree_wtb_UserID");
 const working = $("<img id='working' src='" + treeImageURL + "'>");
-const userId = Cookies.get("wikitree_wtb_UserName");
-const USER_NUM_ID = Cookies.get("wikitree_wtb_UserID");
 const CC7_STORE = "CC7";
 const CC7_DELTAS_STORE = "cc7Deltas";
 const READONLY = "readonly";
@@ -354,29 +365,34 @@ export async function addCC7ChangesButton() {
       return;
     }
 
-    // Check login status
-    const args = { action: "clientLogin", checkLogin: USER_NUM_ID, appId: APP_ID };
-    const loginStatus = await fetchAPI(args);
+    if (!TESTING) {
+      // Check login status
+      const args = { action: "clientLogin", checkLogin: USER_NUM_ID, appId: APP_ID };
+      const loginStatus = await fetchAPI(args);
 
-    if (loginStatus.clientLogin.result === "error") {
-      // Not logged in, redirect to login
-      goAndLogIn(window.location.href);
-      return;
+      if (loginStatus.clientLogin.result === "error") {
+        // Not logged in, redirect to login
+        goAndLogIn(window.location.href);
+        return;
+      }
     }
 
-    working.appendTo("body").css({
-      position: "absolute",
-      left: `${e.pageX - 100}px`,
-      top: `${e.pageY + 100}px`,
-      "z-index": "1000000",
-    });
+    const container = createCC7DeltaContainer();
+    $("body").append(container.css("top", e.pageY + 100));
 
-    await getAndStoreCC7Deltas();
-    const storedDeltas = await fetchStoredDeltas();
-    showStoredDeltas(storedDeltas, e); // Pass it to showStoredDeltas
-
-    working.remove();
+    const isOk = await calculateAndStoreCC7Deltas();
+    if (isOk) {
+      const storedDeltas = await fetchStoredDeltas();
+      showStoredDeltas(storedDeltas, container);
+    } else {
+      showError("Something went wrong when retrieving your CC7. Try again later.");
+    }
   });
+}
+
+function showError(msg) {
+  working.remove();
+  $("#cc7DeltaContainer").append($(`<p>${msg}</p>`));
 }
 
 async function initializeCC7Tracking() {
@@ -402,8 +418,13 @@ async function initializeCC7Tracking() {
       console.log("DB Initialization failed or upgrade is in progress. Not adding the button.");
     }
 
-    // Check for login only if necessary
+    // Check for login and populate the database only if necessary
     if (shouldCheckLogin) {
+      if (TESTING) {
+        addCC7ChangesButton();
+        await calculateAndStoreCC7Deltas(); // Populate the database
+        return;
+      }
       const args = { action: "clientLogin", checkLogin: USER_NUM_ID, appId: APP_ID };
       const loginStatus = await fetchAPI(args); // your checkLogin function
 
@@ -413,7 +434,7 @@ async function initializeCC7Tracking() {
       } else {
         // User is logged in and the database is empty, populate the database
         addCC7ChangesButton();
-        await getAndStoreCC7Deltas(); // Populate the database
+        await calculateAndStoreCC7Deltas(); // Populate the database
       }
     }
   } catch (e) {
@@ -422,51 +443,57 @@ async function initializeCC7Tracking() {
 }
 
 let initialCC7entryErrors = 0;
-export async function getAndStoreCC7Deltas() {
+export async function calculateAndStoreCC7Deltas() {
   const newApiData = await fetchCC7FromAPI();
+  if (newApiData == null) return false;
 
-  const lastStoredData = await db.fetchLastStoredCC7(); // Using the new method in the Database class
+  try {
+    const lastStoredData = await db.fetchLastStoredCC7(); // Using the new method in the Database class
 
-  // Filter out the user by their Id (replace 'userId' with the actual Id)
-  const filteredApiData = newApiData.filter((person) => person.Id !== USER_ID);
+    // Filter out the user by their Id (replace 'userId' with the actual Id)
+    const filteredApiData = newApiData.filter((person) => person.Id !== USER_ID);
 
-  // Check if initialCC7 is empty and populate it if needed
-  if (lastStoredData.length === 0) {
-    const initTx = db.db.transaction(CC7_STORE, READWRITE);
-    const initStore = initTx.objectStore(CC7_STORE);
-    filteredApiData.forEach((person) => {
-      person.userId = userId;
-      initStore.put(person);
-    });
+    // Check if initialCC7 is empty and populate it if needed
+    if (lastStoredData.length === 0) {
+      const initTx = db.db.transaction(CC7_STORE, READWRITE);
+      const initStore = initTx.objectStore(CC7_STORE);
+      filteredApiData.forEach((person) => {
+        person.userId = userId;
+        initStore.put(person);
+      });
 
-    initTx.oncomplete = function () {
-      console.log("CC7 data stored successfully.");
-    };
+      initTx.oncomplete = function () {
+        console.log("CC7 data stored successfully.");
+      };
 
-    initTx.onerror = function (e) {
-      if (initialCC7entryErrors === 0) {
-        console.log("Error storing initial CC7 data:", e);
-        console.log("Error:", e.target.error);
-        console.log("Error code:", e.target.errorCode);
-        console.log("Error name:", e.target.error.name);
-        console.log("Error message:", e.target.error.message);
-        $("#working").remove();
-      }
-      initialCC7entryErrors++;
-      // If the number of errors is a multiple of 10, show a console message
-      if (initialCC7entryErrors % 10 === 0) {
-        console.log(`Error storing initial CC7 data. Number of errors: ${initialCC7entryErrors}`);
-      }
-    };
+      initTx.onerror = function (e) {
+        if (initialCC7entryErrors === 0) {
+          console.log("Error storing initial CC7 data:", e);
+          console.log("Error:", e.target.error);
+          console.log("Error code:", e.target.errorCode);
+          console.log("Error name:", e.target.error.name);
+          console.log("Error message:", e.target.error.message);
+          $("#working").remove();
+        }
+        initialCC7entryErrors++;
+        // If the number of errors is a multiple of 10, show a console message
+        if (initialCC7entryErrors % 10 === 0) {
+          console.log(`Error storing initial CC7 data. Number of errors: ${initialCC7entryErrors}`);
+        }
+      };
+    }
+
+    // Calculate and store the deltas
+    const { added, removed } = calculateDifferences(filteredApiData, lastStoredData);
+
+    await db.storeCC7Deltas(added, removed); // Using the new method in the Database class
+
+    // Now update the CC7 table
+    await updateCC7Table(added, removed);
+    return true;
+  } catch (e) {
+    showError(`An error occurred while calculating CC7 deltas: ${e.message}`);
   }
-
-  // Calculate and store the deltas
-  const { added, removed } = calculateDifferences(filteredApiData, lastStoredData);
-
-  await db.storeCC7Deltas(added, removed); // Using the new method in the Database class
-
-  // Now update the CC7 table
-  await updateCC7Table(added, removed);
 }
 
 async function updateCC7Table(added, removed) {
@@ -494,7 +521,7 @@ async function updateCC7Table(added, removed) {
     }
 
     tx.oncomplete = function () {
-      console.log("CC7 table updated successfully.");
+      console.log(`CC7 table updated successfully: ${added.length} additions, ${removed.length} removals.`);
       resolve();
     };
 
@@ -532,22 +559,34 @@ async function fetchStoredDeltas() {
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
-    let mostRecentDelta = null;
+    let mostRecentDelta = [];
     const deltasWithinLastMonth = [];
+    let removeInitial = true;
 
     getRequest.onsuccess = function (event) {
       const cursor = event.target.result;
       if (cursor) {
-        if (!mostRecentDelta) {
-          mostRecentDelta = cursor.value; // Take the first (most recent) entry
-        }
-        const date = new Date(cursor.value.date);
-        if (date > oneMonthAgo) {
-          deltasWithinLastMonth.push(cursor.value);
+        const delta = cursor.value;
+        if (delta.userId == userId) {
+          if (TESTING) console.log("fetched stored delta", delta);
+          if (mostRecentDelta.length == 0) {
+            // Take the first (most recent) entry
+            mostRecentDelta.push(delta);
+          }
+          const date = new Date(delta.date);
+          if (date > oneMonthAgo) {
+            deltasWithinLastMonth.push(delta);
+          } else {
+            removeInitial = false;
+          }
         }
         cursor.continue();
       } else {
-        resolve({ deltasSinceLastVisit: mostRecentDelta ? [mostRecentDelta] : [], deltasWithinLastMonth });
+        // We remove the initial load delta (assuming it is the oldest one) because
+        // we do not want to overwhelm the user with all that data.
+        if (removeInitial) deltasWithinLastMonth.pop();
+        if (deltasWithinLastMonth.length == 0) mostRecentDelta.pop();
+        resolve({ deltasSinceLastVisit: mostRecentDelta, deltasWithinLastMonth });
       }
     };
 
@@ -571,7 +610,8 @@ async function fetchCC7FromAPI() {
         start: start,
         limit: limit,
       });
-      const people = apiResult?.[0]?.people;
+      if (apiResult == null) return null;
+      const people = apiResult[0]?.people;
       let restructuredResult;
       if (people) {
         restructuredResult = Object.keys(people).reduce((acc, key) => {
@@ -584,9 +624,17 @@ async function fetchCC7FromAPI() {
           return acc;
         }, {});
 
-        const arrayOfObjects = Object.keys(restructuredResult).map((key) => {
+        let arrayOfObjects = Object.keys(restructuredResult).map((key) => {
           return restructuredResult[key];
         });
+
+        if (TESTING && arrayOfObjects.length > 1) {
+          // Remove a random profile from the list so we can be assured of a change in the CC7
+          // Pick a number between 1 and (number of profiles in the list) - 1
+          const i = Math.floor(Math.random() * arrayOfObjects.length - 2) + 1;
+          console.log(`Removing profile ${i} for testing purposes`, arrayOfObjects[i]);
+          arrayOfObjects = arrayOfObjects.toSpliced(i, 1);
+        }
         // add to peopleObjectArray
         peopleObjectArray = peopleObjectArray.concat(arrayOfObjects);
 
@@ -600,6 +648,7 @@ async function fetchCC7FromAPI() {
     return peopleObjectArray;
   } catch (error) {
     console.error("Error fetching data from API:", error);
+    return null;
   }
 }
 
@@ -659,39 +708,37 @@ async function fetchPeopleDetails(idString) {
   return arrayOfObjects;
 }
 
-async function showStoredDeltas(data, e) {
-  const container = createCC7DeltaContainer();
-  $("body").append(container.css("top", e.pageY + 100));
-
+async function showStoredDeltas(data, container) {
   const deltasSinceLastVisit = filterDeltas(data.deltasSinceLastVisit);
   const deltasWithinLastMonth = filterDeltas(data.deltasWithinLastMonth);
-
-  // Remove the first delta (initial population) from each list
-  if (deltasSinceLastVisit.length > 0) {
-    deltasSinceLastVisit.shift();
+  if (TESTING) {
+    console.log("deltasSinceLastVisit", deltasSinceLastVisit);
+    console.log("deltasWithinLastMonth", deltasWithinLastMonth);
   }
-
-  if (deltasWithinLastMonth.length > 0) {
-    deltasWithinLastMonth.shift();
-  }
-
   const uniqueIdsSinceLastVisit = getUniqueIds(deltasSinceLastVisit);
   const uniqueIdsWithinLastMonth = getUniqueIds(deltasWithinLastMonth, uniqueIdsSinceLastVisit);
-
+  if (TESTING) {
+    console.log("uniqueIdsSinceLastVisit", uniqueIdsSinceLastVisit);
+    console.log("uniqueIdsWithinLastMonth", uniqueIdsWithinLastMonth);
+  }
   const allDetailsSinceLastVisit = await fetchDetailsForUniqueIds(uniqueIdsSinceLastVisit);
-  console.log("allDetailsSinceLastVisit", allDetailsSinceLastVisit);
   const allDetailsWithinLastMonth = await fetchDetailsForUniqueIds(uniqueIdsWithinLastMonth);
-  console.log("allDetailsWithinLastMonth", allDetailsWithinLastMonth);
-  if (allDetailsSinceLastVisit.length > 0) {
-    appendDetailsToContainer(container, allDetailsSinceLastVisit, "Added since you last checked: ");
+  if (TESTING) {
+    console.log("allDetailsSinceLastVisit", allDetailsSinceLastVisit.values());
+    console.log("allDetailsWithinLastMonth", allDetailsWithinLastMonth.values());
   }
 
-  if (allDetailsWithinLastMonth.length > 0) {
-    appendDetailsToContainer(container, allDetailsWithinLastMonth, "Added within the last month: ");
+  working.remove();
+
+  if (allDetailsSinceLastVisit.size > 0) {
+    appendDetailsToContainer(container, uniqueIdsSinceLastVisit, allDetailsSinceLastVisit, "since you last checked: ");
+  }
+  if (allDetailsWithinLastMonth.size > 0) {
+    appendDetailsToContainer(container, uniqueIdsWithinLastMonth, allDetailsWithinLastMonth, "within the last month: ");
   }
 
-  if (allDetailsSinceLastVisit.length === 0 && allDetailsWithinLastMonth.length === 0) {
-    container.append($("<p>").text("No changes since you last checked."));
+  if (allDetailsSinceLastVisit.size === 0 && allDetailsWithinLastMonth.size === 0) {
+    container.append($("<p>No changes since you last checked.</p"));
   }
 
   $(CC7_DELTA_CONTAINER_ID).draggable();
@@ -710,40 +757,55 @@ function difference(setA, setB) {
   return differenceSet;
 }
 
-function getUniqueIds(deltas, excludeIds = new Set()) {
-  const ids = deltas.reduce((acc, delta) => {
-    return acc.concat(
-      delta.added.map((a) => a.Id),
-      delta.removed.map((r) => r.Id)
-    );
-  }, []);
+function getUniqueIds(deltas, excludeIds) {
+  if (excludeIds) {
+    return {
+      added: [...difference(new Set(uniqueIdsFor("added")), new Set(excludeIds.added))],
+      removed: [...difference(new Set(uniqueIdsFor("removed")), new Set(excludeIds.removed))],
+    };
+  } else {
+    return {
+      added: [...new Set(uniqueIdsFor("added"))],
+      removed: [...new Set(uniqueIdsFor("removed"))],
+    };
+  }
 
-  const uniqueIdsSet = new Set(ids);
-  const uniqueIds = Array.from(difference(uniqueIdsSet, excludeIds));
-
-  return uniqueIds;
+  function uniqueIdsFor(what) {
+    return deltas.reduce((acc, delta) => {
+      return acc.concat(delta[what].map((a) => a.Id));
+    }, []);
+  }
 }
 
 async function fetchDetailsForUniqueIds(uniqueIds) {
-  let result = [];
-  for (let i = 0; i < uniqueIds.length; i += 1000) {
-    const detail = await fetchPeopleDetails(uniqueIds.slice(i, 1000).join(","));
-    result = result.concat(detail);
+  let result = new Map();
+  const allIds = [...new Set(uniqueIds.added.concat(uniqueIds.removed))];
+  for (let i = 0; i < allIds.length; i += 1000) {
+    const detail = await fetchPeopleDetails(allIds.slice(i, i + 1000).join(","));
+    detail.forEach((p) => result.set(p.Id, p));
   }
   return result;
 }
 
-function appendDetailsToContainer(container, details, headingText) {
-  const heading = $("<h3>").text(headingText);
-  const list = $("<ul>");
-  details.forEach((person) => {
-    const link = $("<a>")
-      .attr("href", `https://www.wikitree.com/wiki/${person.Name}`)
-      .text(`${person.FullName} ${displayDates(person)}`);
-    const listItem = $("<li>").append(link);
-    list.append(listItem);
-  });
-  container.append(heading, list);
+function appendDetailsToContainer(container, uniqueIds, details, headingTail) {
+  if (uniqueIds.added.length > 0) appendDetails(`Added ${headingTail}`, uniqueIds.added);
+  if (uniqueIds.removed.length > 0) appendDetails(`Removed ${headingTail}`, uniqueIds.removed);
+
+  function appendDetails(headingText, ids) {
+    const heading = $("<h3>").text(headingText);
+    const list = $("<ul>");
+    ids.forEach((id) => {
+      const person = details.get(id);
+      if (person) {
+        const link = $("<a>")
+          .attr("href", `https://www.wikitree.com/wiki/${person.Name}`)
+          .text(`${person.FullName} ${displayDates(person)}`);
+        const listItem = $("<li>").append(link);
+        list.append(listItem);
+      }
+    });
+    container.append(heading, list);
+  }
 }
 
 function createCC7DeltaContainer() {
@@ -751,7 +813,14 @@ function createCC7DeltaContainer() {
   const heading = $("<h2>").text("CC7 Changes");
   const closeBtn = $("<x>&times;</x>");
   closeBtn.on("click", closeCC7DeltaContainer);
-  container.append(closeBtn, heading);
+  container.append(
+    closeBtn,
+    heading,
+    working.css({
+      display: "block",
+      margin: "auto",
+    })
+  );
   return container;
 }
 

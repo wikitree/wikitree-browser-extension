@@ -7,7 +7,7 @@ registerFeature({
   description: "Tracks changes in your CC7. Click the button in the Find menu to see the changes.",
   category: "Navigation/Find_Menu",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
+  contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: false,
   pages: [isMainDomain],
 });
