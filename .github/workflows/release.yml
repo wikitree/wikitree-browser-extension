@@ -161,3 +161,7 @@ jobs:
           allowUpdates: true
           removeArtifacts: true
           replacesArtifacts: true
+      - name: Update tag
+        run: |
+          git tag -f ${{ env.X_RELEASE_TAG }}
+          git push -f origin ${{ env.X_RELEASE_TAG }}
