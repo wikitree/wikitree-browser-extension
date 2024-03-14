@@ -140,29 +140,18 @@ async function helpScissors() {
   // Space page
   if (isSpacePage || isSpaceEdit) {
     const aTitle = document.title.replace("Editing ", "");
-    copyItems.push({ label: "Title", text: aTitle });
+    copyItems.push({ label: "/Title", text: aTitle });
   }
 
   // Profile page
   if (isProfilePage || isProfileEdit) {
     const userID = $("#pageData").attr("data-mid");
     copyItems.push({ label: "UserID", text: userID });
-    if (options.removeDates) {
-      const dateless = $("button[aria-label='Copy Wiki Link']")
-        .data("copy-text")
-        .replace(/ \([0-9]{3,4}-[0-9]{3,4}\)/, "");
-      $("button[aria-label='Copy Wiki Link']").data("copy-text", dateless).attr("data-copy-text", dateless);
-    }
   }
 
-  // Space page
-  if ((isSpacePage || isSpaceEdit) && options.spaceLinkFormat != "withParameter") {
-    const button = $("button[aria-label='Copy Wiki Link']");
-    const aTitle = document.title.trim();
-    const noParameter = "[[:Space: " + aTitle + "]]";
-    button.data("copy-text", noParameter).attr("data-copy-text", noParameter);
-  }
   addItems(copyItems, copyPosition);
+
+  modifyLinkButtons(options);
 
   // Sections of Space and Help
   AddToSections(options.sectionLinkOnProfiles);
@@ -170,8 +159,24 @@ async function helpScissors() {
   attachScissorsEvent();
 }
 
+function modifyLinkButtons(options) {
+  if ((isProfilePage || isProfileEdit) && options.removeDates) {
+    const dateless = $("button[aria-label='Copy Wiki Link']")
+      .data("copy-text")
+      .replace(/ \([0-9]{3,4}-[0-9]{3,4}\)/, "");
+    $("button[aria-label='Copy Wiki Link']").data("copy-text", dateless).attr("data-copy-text", dateless);
+  }
+
+  if ((isSpacePage || isSpaceEdit) && options.spaceLinkFormat != "withParameter") {
+    const button = $("button[aria-label='Copy Wiki Link']");
+    const aTitle = document.title.trim();
+    const noParameter = "[[:Space: " + aTitle + "]]";
+    button.data("copy-text", noParameter).attr("data-copy-text", noParameter);
+  }
+}
+
 function AddToSections(alsoOnProfilePages) {
-  if (isProfilePage && !alsoOnProfilePages) {
+  if ((isProfilePage && !alsoOnProfilePages) || isProfileEdit) {
     return;
   }
 
