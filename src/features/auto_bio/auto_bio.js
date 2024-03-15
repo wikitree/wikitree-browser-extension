@@ -5314,6 +5314,7 @@ export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading =
   }
 
   thingsToAddAfterBioHeading.forEach(function (thing) {
+    console.log("thing", thing);
     afterBioHeading += thing + "\n";
     // If a sticker is before the bio heading, remove it.
     window.sectionsObject.StuffBeforeTheBio.text.forEach(function (beforeBio) {
@@ -6155,6 +6156,28 @@ function findBestMatch(surname, birthLocation, deathLocation, categories) {
   return bestMatch;
 }
 
+const topOfLineOnly = ["Slade", "French", "Welch"];
+
+export function topOfLineOnlyCondition(surname) {
+  const isTopOfLineOnly = topOfLineOnly.some((item) => item === surname);
+
+  // Normalize Parents to an array whether it's initially an object or an array
+  let parentsArray = [];
+  const parents = window.profilePerson?.Parents;
+  if (Array.isArray(parents)) {
+    parentsArray = parents;
+  } else if (typeof parents === "object" && parents !== null) {
+    parentsArray = Object.values(parents);
+  }
+
+  // Check if the person has a parent with the same surname
+  const hasParentWithSameSurname = parentsArray.some(
+    (parent) => parent.PersonName?.LastNameAtBirth === surname || parent.PersonName?.LastNameCurrent === surname
+  );
+
+  return isTopOfLineOnly && hasParentWithSameSurname;
+}
+
 export async function getONSstickers() {
   const excludedSurnames = [
     "Cresap",
@@ -6181,17 +6204,6 @@ export async function getONSstickers() {
     "Wreford",
     "Wreyford",
   ];
-
-  const topOfLineOnly = ["Slade", "French", "Welch"];
-
-  function topOfLineOnlyCondition(surname) {
-    const isTopOfLineOnly = topOfLineOnly.some((item) => item === surname);
-    // Check if the person has a parent with the same surname
-    const hasParentWithSameSurname = window.profilePerson.Parents.some(
-      (parent) => parent.PersonName.LastNameAtBirth === surname || parent.PersonName.LastNameCurrent === surname
-    );
-    return isTopOfLineOnly && hasParentWithSameSurname;
-  }
 
   const surnames = [window.profilePerson.PersonName.LastNameAtBirth];
   if (window.profilePerson.PersonName.LastNameCurrent != window.profilePerson.PersonName.LastNameAtBirth) {
@@ -6418,10 +6430,10 @@ export function addUnsourced(feature = "autoBio") {
 
 function searchName(searchTerm) {
   const data = ONSjson;
-  for (var i = 0; i < data.length; i++) {
-    var nameObj = data[i];
-    var name = nameObj.Name;
-    var nameVariants = nameObj.NameVariants;
+  for (let i = 0; i < data.length; i++) {
+    const nameObj = data[i];
+    const name = nameObj.Name;
+    const nameVariants = nameObj.NameVariants;
 
     if (nameVariants?.includes(searchTerm) || name === searchTerm) {
       return name;

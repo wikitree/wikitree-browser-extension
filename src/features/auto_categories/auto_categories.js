@@ -149,9 +149,11 @@ export async function addAutoCategories() {
     });
   }
 
-  if (stuffBeforeTheBioText) {
-    if (stuffBeforeTheBioText.match(/\n$/) == null) {
+  if (stuffBeforeTheBioText || afterBioHeading) {
+    if (stuffBeforeTheBioText && stuffBeforeTheBioText.match(/\n$/) == null) {
       stuffBeforeTheBioText += "\n";
+    } else {
+      stuffBeforeTheBioText = "";
     }
     currentBio = currentBio.replace(
       /^(.*?)== Biography ==/s,
@@ -165,16 +167,3 @@ export async function addAutoCategories() {
   }
   removeWorking();
 }
-
-/*
-shouldInitializeFeature("autoCategories").then((result) => {
-  if (result) {
-    getFeatureOptions("autoCategories").then((options) => {
-      window.autoCategoriesOptions = options;
-    });
-    getFeatureOptions("autoBio").then((options) => {
-      window.autoBioOptions = options;
-    });
-  }
-});
-*/
