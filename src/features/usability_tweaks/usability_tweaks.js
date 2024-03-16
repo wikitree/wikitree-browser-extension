@@ -222,11 +222,23 @@ function addRemoveMeButton() {
   const removeMeButton = $(
     `<button id="removeMeButton" title="Double-click to remove yourself as manager of this profile" class="button small">❌</button>`
   );
-  const profileManagerLink = $("span:contains('Profile manager')").parent().find("a[href*='/wiki/']");
-  if (profileManagerLink.length) {
+  const thisUserWTID = Cookies.get("wikitree_wtb_UserName");
+  const thisUserId = Cookies.get("wikitree_wtb_UserID");
+
+  // First, select the <span> elements containing 'Profile manager'
+  const spanElements = $("span:contains('Profile manager')");
+  let targetAnchor;
+  // Then, for each span element found, navigate to its parent and find the desired <a> element
+  spanElements.each(function () {
+    const parentElement = $(this).parent();
+    targetAnchor = parentElement.find(`a[href*='/wiki/${thisUserWTID}']`);
+    // Do something with targetAnchor
+  });
+  const profileManagerLink = targetAnchor;
+  //const profileManagerLink = $(`span:contains('Profile manager').parent().find("a[href*='/wiki/${thisUserWTID}']")`);
+  if (profileManagerLink) {
     const profileManagerWTID = profileManagerLink.attr("href").split("/").pop();
-    const thisUserWTID = Cookies.get("wikitree_wtb_UserName");
-    const thisUserId = Cookies.get("wikitree_wtb_UserID");
+
     console.log(profileManagerWTID, thisUserWTID);
     if (profileManagerWTID == thisUserWTID) {
       profileManagerLink.after(removeMeButton);
