@@ -715,6 +715,7 @@ async function showStoredDeltas(data, container) {
     console.log("deltasSinceLastVisit", deltasSinceLastVisit);
     console.log("deltasWithinLastMonth", deltasWithinLastMonth);
   }
+  // getUniqueIds => {added: Map(id => {Id: , Name: , Degree: }), removed: Map(id => {Id: , Name: , Degree: })}
   const uniqueIdsSinceLastVisit = getUniqueIds(deltasSinceLastVisit);
   const uniqueIdsWithinLastMonth = getUniqueIds(deltasWithinLastMonth, uniqueIdsSinceLastVisit);
   if (TESTING) {
@@ -749,37 +750,50 @@ function filterDeltas(deltas) {
   return deltas.filter((delta) => delta.added.length < 500);
 }
 
-function difference(setA, setB) {
-  const differenceSet = new Set(setA);
-  for (let elem of setB) {
-    differenceSet.delete(elem);
+// Remove the keys of mapB from mapA, returning the updated mapA
+function removeFrom(mapA, mapB) {
+  for (const id of mapB.keys()) {
+    mapA.delete(id);
   }
-  return differenceSet;
+  return mapA;
 }
 
+/**
+ * @param {*} deltas - An array of objects each representing a profile: {Id: number-id, Name: WT-id, Degree: number}
+ * @param {*} excludeIds (optional) If present, an object previously returned from this method
+ * @returns an object:
+ *   {
+ *     added: Map(id => {Id: , Name: , Degree: }),
+ *     removed: Map(id => {Id: , Name: , Degree: })
+ *   }
+ */
 function getUniqueIds(deltas, excludeIds) {
   if (excludeIds) {
     return {
-      added: [...difference(new Set(uniqueIdsFor("added")), new Set(excludeIds.added))],
-      removed: [...difference(new Set(uniqueIdsFor("removed")), new Set(excludeIds.removed))],
+      added: removeFrom(new Map(idsAndObjectsOf("added")), excludeIds.added),
+      removed: removeFrom(new Map(idsAndObjectsOf("removed")), excludeIds.removed),
     };
   } else {
     return {
-      added: [...new Set(uniqueIdsFor("added"))],
-      removed: [...new Set(uniqueIdsFor("removed"))],
+      added: new Map(idsAndObjectsOf("added")),
+      removed: new Map(idsAndObjectsOf("removed")),
     };
   }
 
-  function uniqueIdsFor(what) {
+  function idsAndObjectsOf(what) {
     return deltas.reduce((acc, delta) => {
-      return acc.concat(delta[what].map((a) => a.Id));
+      return acc.concat(delta[what].map((a) => [a.Id, a]));
     }, []);
   }
 }
 
+/**
+ * @param {*} uniqueIds - {added: Map(id => {Id: , Name: , Degree: }), removed: Map(id => {Id: , Name: , Degree: })}
+ * @returns Map(id => WT person object)
+ */
 async function fetchDetailsForUniqueIds(uniqueIds) {
   let result = new Map();
-  const allIds = [...new Set(uniqueIds.added.concat(uniqueIds.removed))];
+  const allIds = [...new Set([...uniqueIds.added.keys(), ...uniqueIds.removed.keys()])];
   for (let i = 0; i < allIds.length; i += 1000) {
     const detail = await fetchPeopleDetails(allIds.slice(i, i + 1000).join(","));
     detail.forEach((p) => result.set(p.Id, p));
@@ -788,21 +802,24 @@ async function fetchDetailsForUniqueIds(uniqueIds) {
 }
 
 function appendDetailsToContainer(container, uniqueIds, details, headingTail) {
-  if (uniqueIds.added.length > 0) appendDetails(`Added ${headingTail}`, uniqueIds.added);
-  if (uniqueIds.removed.length > 0) appendDetails(`Removed ${headingTail}`, uniqueIds.removed);
+  if (uniqueIds.added.size > 0) appendDetails("Added", uniqueIds.added);
+  if (uniqueIds.removed.size > 0) appendDetails("Removed", uniqueIds.removed);
 
-  function appendDetails(headingText, ids) {
-    const heading = $("<h3>").text(headingText);
-    const list = $("<ul>");
-    ids.forEach((id) => {
-      const person = details.get(id);
-      if (person) {
-        const link = $("<a>")
-          .attr("href", `https://www.wikitree.com/wiki/${person.Name}`)
-          .text(`${person.FullName} ${displayDates(person)}`);
-        const listItem = $("<li>").append(link);
-        list.append(listItem);
-      }
+  function appendDetails(what, idMap) {
+    const heading = $("<h3>").text(`${what} ${headingTail}`);
+    const list = $("<ol>");
+    const sortedDeltas = [...idMap.values()].sort((a, b) => a.Degrees - b.Degrees);
+    sortedDeltas.forEach((el) => {
+      const person = details.get(el.Id);
+      const text = person
+        ? `${person.FullName} ${displayDates(person)}`
+        : `Profile ${el.Name ? el.Name : el.Id} (deleted from WikiTree)`;
+      const link = $("<a>").attr("href", `https://www.wikitree.com/wiki/${el.Name}`).text(text);
+      const degree = $(
+        `<span title="${what} at ${el.Degrees} degree${el.Degrees > 1 ? "s" : ""}"> [${el.Degrees}]</span>`
+      );
+      const listItem = $("<li>").append(link, degree);
+      list.append(listItem);
     });
     container.append(heading, list);
   }
