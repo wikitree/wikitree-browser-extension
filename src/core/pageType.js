@@ -140,7 +140,7 @@ export let isPlusProfileTree = false;
 
 const domain = decodeURI(window.location.hostname); // path
 
-if (window.location.href.match("Special:NetworkFeed")) {
+if (window.location.href.match("Special(:|%3A|%3a)NetworkFeed")) {
   isNetworkFeed = true;
 }
 // log
@@ -172,13 +172,13 @@ if (domain.match("apps.wikitree.com")) {
   const uri = decodeURI(window.location.href); // with parameters
   if (
     // Profile Edit Page
-    uri.match(/\/index.php\?title=Special:EditPerson&.*/g)
+    uri.match(/\/index.php\?title=Special(:|%3A|%3a)EditPerson&.*/g)
   ) {
     isProfileEdit = true;
   } else if (
     // Profile Add relative
-    uri.match(/\/index.php\?title=Special:EditFamilySteps&.*/g) ||
-    uri.match(/\/index.php\?.*title=Special(:|%3A)EditFamily&.*/g)
+    uri.match(/\/index.php\?title=Special(:|%3A|%3a)EditFamilySteps&.*/g) ||
+    uri.match(/\/index.php\?.*title=Special(:|%3A|%3a)EditFamily&.*/g)
   ) {
     isProfileAddRelative = true;
   } else if (
@@ -226,19 +226,19 @@ if (domain.match("apps.wikitree.com")) {
     }
   } else if (
     // Space Edit Page
-    uri.match(/\/index.php\?title=Space:.*&action=edit.*/g) ||
-    uri.match(/\/index.php\?title=Space:.*&action=submit.*/g)
+    uri.match(/\/index.php\?title=Space(:|%3A|%3a).*&action=edit.*/g) ||
+    uri.match(/\/index.php\?title=Space(:|%3A|%3a).*&action=submit.*/g)
   ) {
     isSpaceEdit = true;
   } else if (
     // Space Page
-    path.match(/\/wiki\/Space:.*/g) ||
-    uri.match(/\/index.php\?title=Space:.*/g)
+    path.match(/\/wiki\/Space(:|%3A|%3a).*/gi) ||
+    uri.match(/\/index.php\?title=Space(:|%3A|%3a).*/gi)
   ) {
     isSpacePage = true;
   } else if (
     // Space History Page https://www.wikitree.com/index.php?title=Special:NetworkFeed&space=41770011
-    uri.match(/\/index.php\?title=Special:NetworkFeed&space=.*/g)
+    uri.match(/\/index.php\?title=Special(:|%3A|%3a)NetworkFeed&space=.*/g)
   ) {
     isSpaceHistory = true;
   } else if (uri.match(/index.php\?action=newspace/)) {
@@ -246,19 +246,19 @@ if (domain.match("apps.wikitree.com")) {
     isNewSpace = true;
   } else if (
     // Category Edit Page
-    uri.match(/\/index.php\?title=Category:.*&action=edit.*/g) ||
-    uri.match(/\/index.php\?title=Category:.*&action=submit.*/g)
+    uri.match(/\/index.php\?title=Category(:|%3A|%3a).*&action=edit.*/g) ||
+    uri.match(/\/index.php\?title=Category(:|%3A|%3a).*&action=submit.*/g)
   ) {
     isCategoryEdit = true;
   } else if (
     // Category History Page https://www.wikitree.com/index.php?title=Project:Data%20Doctors&action=history
-    uri.match(/\/index.php\?title=Category:.*&action=history/g)
+    uri.match(/\/index.php\?title=Category(:|%3A|%3a).*&action=history/g)
   ) {
     isCategoryHistory = true;
   } else if (
     // Category Page without action
     path.match(/\/wiki\/Category:.*/g) ||
-    uri.match(/\/index.php\?title=Category:.*/g)
+    uri.match(/\/index.php\?title=Category(:|%3A|%3a).*/g)
   ) {
     isCategoryPage = true;
   } else if (
@@ -268,103 +268,103 @@ if (domain.match("apps.wikitree.com")) {
     isImagePage = true;
   } else if (
     // Template Edit Page
-    uri.match(/\/index.php\?title=Template:.*&action=edit.*/g) ||
-    uri.match(/\/index.php\?title=Template:.*&action=submit.*/g)
+    uri.match(/\/index.php\?title=Template(:|%3A|%3a).*&action=edit.*/g) ||
+    uri.match(/\/index.php\?title=Template(:|%3A|%3a).*&action=submit.*/g)
   ) {
     isTemplateEdit = true;
   } else if (
     // Template Page
-    path.match(/\/wiki\/Template:.*/g) ||
-    uri.match(/\/index.php\?title=Template:.*/g)
+    path.match(/\/wiki\/Template(:|%3A|%3a).*/g) ||
+    uri.match(/\/index.php\?title=Template(:|%3A|%3a).*/g)
   ) {
     isTemplatePage = true;
   } else if (
     // Template History Page https://www.wikitree.com/index.php?title=Template:Data%20Doctors&action=history
-    uri.match(/\/index.php\?title=Template:.*&action=history/g)
+    uri.match(/\/index.php\?title=Template(:|%3A|%3a).*&action=history/g)
   ) {
     isTemplateHistory = true;
   } else if (
     // Project Edit Page
-    uri.match(/\/index.php\?title=Project:.*&action=edit.*/g) ||
-    uri.match(/\/index.php\?title=Project:.*&action=submit.*/g)
+    uri.match(/\/index.php\?title=Project(:|%3A|%3a).*&action=edit.*/g) ||
+    uri.match(/\/index.php\?title=Project(:|%3A|%3a).*&action=submit.*/g)
   ) {
     isProjectEdit = true;
   } else if (
     // Project Page
-    path.match(/\/wiki\/Project:.*/g) ||
-    uri.match(/\/index.php\?title=Project:.*/g)
+    path.match(/\/wiki\/Project(:|%3A|%3a).*/g) ||
+    uri.match(/\/index.php\?title=Project(:|%3A|%3a).*/g)
   ) {
     isProjectPage = true;
   } else if (
     // Project History Page https://www.wikitree.com/index.php?title=Project:Data%20Doctors&action=history
-    uri.match(/\/index.php\?title=Project:.*&action=history/g)
+    uri.match(/\/index.php\?title=Project(:|%3A|%3a).*&action=history/g)
   ) {
     isProjectHistory = true;
   } else if (
     // Help Edit Page
-    uri.match(/\/index.php\?title=Help:.*&action=edit.*/g) ||
-    uri.match(/\/index.php\?title=Help:.*&action=submit.*/g)
+    uri.match(/\/index.php\?title=Help(:|%3A|%3a).*&action=edit.*/g) ||
+    uri.match(/\/index.php\?title=Help(:|%3A|%3a).*&action=submit.*/g)
   ) {
     isHelpEdit = true;
   } else if (
     // Help Page
-    path.match(/\/wiki\/Help:.*/g) ||
-    uri.match(/\/index.php\?title=Help:.*/g)
+    path.match(/\/wiki\/Help(:|%3A|%3a).*/g) ||
+    uri.match(/\/index.php\?title=Help(:|%3A|%3a).*/g)
   ) {
     isHelpPage = true;
   } else if (
     // Help History Page https://www.wikitree.com/index.php?title=Help:Data%20Doctors&action=history
-    uri.match(/\/index.php\?title=Help:.*&action=history/g)
+    uri.match(/\/index.php\?title=Help(:|%3A|%3a).*&action=history/g)
   ) {
     isHelpHistory = true;
   } else if (
     // Special Page
-    path.match(/(\/wiki\/)Special:*/g) ||
+    path.match(/(\/wiki\/)Special(:|%3A|%3a)*/g) ||
     uri.match(/\/index.php\?title=Special.*/g)
   ) {
     isSpecialPage = true;
     if (
       // Special Anniversaries Page
-      path.match(/(\/wiki\/)Special:Anniversaries*/g) ||
-      uri.match(/\/index.php\?title=Special:Anniversaries.*/g)
+      path.match(/(\/wiki\/)Special(:|%3A|%3a)Anniversaries*/g) ||
+      uri.match(/\/index.php\?title=Special(:|%3A|%3a)Anniversaries.*/g)
     ) {
       isSpecialAnniversaries = true;
     } else if (
       // Special Badges Page
-      path.match(/(\/wiki\/)Special:Badges*/g) ||
-      uri.match(/\/index.php\?title=Special:Badges.*/g)
+      path.match(/(\/wiki\/)Special(:|%3A|%3a)Badges*/g) ||
+      uri.match(/\/index.php\?title=Special(:|%3A|%3a)Badges.*/g)
     ) {
       isSpecialBadges = true;
     } else if (
       // Special My Connections
-      path.match(/(\/wiki\/)Special:MyConnections*/g) ||
+      path.match(/(\/wiki\/)Special(:|%3A|%3a)MyConnections*/g) ||
       uri.match(/\/index.php\?title=Special.*?MyConnections.*/g)
     ) {
       isSpecialMyConnections = true;
     } else if (
       // Special DNA Tests
-      path.match(/(\/wiki\/)Special:DNATests*/g) ||
-      uri.match(/\/index.php\?title=Special:DNATests.*/g)
+      path.match(/(\/wiki\/)Special(:|%3A|%3a)DNATests*/g) ||
+      uri.match(/\/index.php\?title=Special(:|%3A|%3a)DNATests.*/g)
     ) {
       isSpecialDNATests = true;
     } else if (
       // Special Watched List
-      path.match(/(\/wiki\/)Special:WatchedList*/g) ||
-      uri.match(/\/index.php\?title=Special:WatchedList.*/g)
+      path.match(/(\/wiki\/)Special(:|%3A|%3a)WatchedList*/g) ||
+      uri.match(/\/index.php\?title=Special(:|%3A|%3a)WatchedList.*/g)
     ) {
       isSpecialWatchedList = true;
-    } else if (uri.match(/\/Special:SearchPerson/g)) {
+    } else if (uri.match(/\/Special(:|%3A|%3a)SearchPerson/g)) {
       // Special:SearchPerson
       isSearchPage = true;
-    } else if (uri.match(/Special:Surname/)) {
+    } else if (uri.match(/Special(:|%3A|%3a)Surname/)) {
       isGenealogyPage = true;
-    } else if (uri.match(/Special:Home/)) {
+    } else if (uri.match(/Special(:|%3A|%3a)Home/)) {
       isNavHomePage = true;
-    } else if (uri.match(/Special:Connection/)) {
+    } else if (uri.match(/Special(:|%3A|%3a)Connection/)) {
       isConnectionFinder = true;
-    } else if (uri.match(/Special:MergeEdit/)) {
+    } else if (uri.match(/Special(:|%3A|%3a)MergeEdit/)) {
       isMergeEdit = true;
-    } else if (uri.match(/Special:TrustedList/)) {
+    } else if (uri.match(/Special(:|%3A|%3a)TrustedList/)) {
       isSpecialTrustedList = true;
     }
   } else if (

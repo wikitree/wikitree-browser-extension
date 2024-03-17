@@ -167,11 +167,17 @@ function modifyLinkButtons(options) {
     $("button[aria-label='Copy Wiki Link']").data("copy-text", dateless).attr("data-copy-text", dateless);
   }
 
-  if ((isSpacePage || isSpaceEdit) && options.spaceLinkFormat != "withParameter") {
+  if (isSpacePage || isSpaceEdit) {
     const button = $("button[aria-label='Copy Wiki Link']");
     const aTitle = document.title.trim();
-    const noParameter = "[[:Space: " + aTitle + "]]";
-    button.data("copy-text", noParameter).attr("data-copy-text", noParameter);
+    if (options.spaceLinkFormat == "withParameter") {
+      //overwriting partial url encodings of the default server version
+      const withParameter = "[[Space:" + aTitle + "|" + aTitle + "]]";
+      button.data("copy-text", withParameter).attr("data-copy-text", withParameter);
+    } else {
+      const noParameter = "[[Space:" + aTitle + "]]";
+      button.data("copy-text", noParameter).attr("data-copy-text", noParameter);
+    }
   }
 }
 
