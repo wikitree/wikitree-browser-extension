@@ -91,19 +91,18 @@ async function CreateMigrationCategory(tb) {
 
 async function ProcessArrivalCategory(cat, tb) {
   const ship = getLeftFromComma(cat);
-  const arrivalDate = getRightFromWord("Arrived ", cat);
-  const arrivalYear = arrivalDate.match(/\d{4}/g);
+  const arrivalText = getRightFromWord("Arrived ", cat);
+  const arrivalDate = tryParseDate(arrivalText, ["dd MMM yyyy"]);
+  const arrivalYear = format(arrivalDate, "yyyy");
   const shipCats = await getShipCategories(ship, arrivalYear);
-
-  const arrivalDateDate = tryParseDate(arrivalDate, ["dd MMM yyyy"]);
-  const sortKey = format(arrivalDateDate, "yyyyMMdd");
+  const sortKey = format(arrivalDate, "yyyyMMdd");
 
   let cats = "";
   if (shipCats.length == 0) {
     cats = "[[Category:|" + sortKey + "]]\n";
   }
   if (shipCats.length > 1) {
-    cats = "<!-- removed uneeded ship categories -->\n";
+    cats = "<!-- remove un-needed ship categories -->\n";
   }
   for (let i = 0; i < shipCats.length; i++) {
     cats += "[[Category:" + shipCats[i] + "|" + sortKey + "]]\n";
@@ -124,9 +123,9 @@ async function ProcessArrivalCategory(cat, tb) {
     "|webpagetext=\n" +
     "|departlocation=\n" +
     "|departdate=\n" +
-    "|arrivelocation\n" +
+    "|arrivelocation=\n" +
     "|arrivedate=" +
-    arrivalDate +
+    arrivalText +
     "\n" +
     "}}";
   tb.value = value;
