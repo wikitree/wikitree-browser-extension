@@ -449,11 +449,11 @@ export class PersonName {
         nameToSplit = nameToSplit.substring(0, idx - 1);
       }
     } else {
-      console.log(
-        "Fields BirthName and/or BirthNamePrivate are not present in the profile data " +
-          "(i.e. Derived.BirthName and/or Derived.BirthNamePrivate were not requested via the API) " +
-          `therefore name construction for ${personData.Name || personData.id} might be less than optimal`
-      );
+      // console.log(
+      //   "Fields BirthName and/or BirthNamePrivate are not present in the profile data " +
+      //     "(i.e. Derived.BirthName and/or Derived.BirthNamePrivate were not requested via the API) " +
+      //     `therefore name construction for ${personData.Name || personData.id} might be less than optimal`
+      // );
       nameToSplit = (personData.FirstName || "") + " " + (personData.MiddleName || "");
       if (nameToSplit == " ") {
         nameToSplit = personData.RealName || "";
