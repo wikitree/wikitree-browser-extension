@@ -234,9 +234,9 @@ function addRemoveMeButton() {
     targetAnchor = parentElement.find(`a[href*='/wiki/${thisUserWTID}']`);
     // Do something with targetAnchor
   });
-  const profileManagerLink = targetAnchor;
+  const profileManagerLink = $(targetAnchor);
   //const profileManagerLink = $(`span:contains('Profile manager').parent().find("a[href*='/wiki/${thisUserWTID}']")`);
-  if (profileManagerLink) {
+  if (profileManagerLink.length) {
     const profileManagerWTID = profileManagerLink.attr("href").split("/").pop();
 
     console.log(profileManagerWTID, thisUserWTID);
