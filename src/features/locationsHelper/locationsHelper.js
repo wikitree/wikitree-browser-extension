@@ -554,7 +554,7 @@ async function locationsHelper() {
                   .replace("Cape Colony", "Cabo de Goede Hoop")
                   .replace("Cape, Cape Colony", "Cabo de Goede Hoop");
                 if (theDate < vocEnd) dText = dText.replace("Cape Town, Cabo de Goede Hoop", "de Caep de Goede Hoop");
-              } else if (theDate < vocEnd && theDate < bataviaStart) {
+              } else if (theDate >= vocEnd && theDate < bataviaStart) {
                 dText = dText
                   .replace("Cape Province, South Africa", "Cape of Good Hope Colony")
                   .replace("Dutch Cape Colony", "Cape of Good Hope Colony")
