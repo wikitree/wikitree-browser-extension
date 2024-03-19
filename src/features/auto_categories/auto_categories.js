@@ -13,6 +13,7 @@ import {
   assignCemeteryFromSources,
   addLocationCategoryToStuffBeforeTheBio,
   getStuffBeforeTheBioText,
+  getStickersAndBoxes,
   addWorking,
   removeWorking,
   addUnsourced,
@@ -20,8 +21,6 @@ import {
   getPronouns,
   addOccupationCategories,
   buildFamilyForPrivateProfiles,
-  buildDeath,
-  afterBioHeadingTextAndObjects,
 } from "../auto_bio/auto_bio";
 
 function addDiedYoung() {
@@ -137,23 +136,28 @@ export async function addAutoCategories() {
     enhanced = true;
   }
 
-  const afterBioHeadingThings = await afterBioHeadingTextAndObjects();
-  console.log(afterBioHeadingThings);
-  let afterBioHeading = afterBioHeadingThings.text;
-  if (afterBioHeading) {
-    afterBioHeading = "\n" + afterBioHeading;
+  //  const afterBioHeadingThings = await afterBioHeadingTextAndObjects();
+  const afterBioHeadingThings = await getStickersAndBoxes();
+  // console.log(afterBioHeadingThings);
+  //let afterBioHeading = afterBioHeadingThings.text;
+  let afterBioHeading = "";
+  if (afterBioHeadingThings) {
+    afterBioHeading = "\n" + afterBioHeadingThings;
   }
-  if (afterBioHeadingThings.objects) {
-    afterBioHeadingThings.objects.forEach((object) => {
-      currentBio = currentBio.replace(object, "");
+  if (afterBioHeadingThings) {
+    const splitLines = afterBioHeadingThings.split("\n");
+    // Remove the text from the bio.
+    splitLines.forEach((line) => {
+      currentBio = currentBio.replace(line, "");
     });
+
+    // Remove and blank lines between the bio and the afterBioHeadingThings
+    currentBio = currentBio.replace(/\n{2,}/g, "\n");
   }
 
   if (stuffBeforeTheBioText || afterBioHeading) {
     if (stuffBeforeTheBioText && stuffBeforeTheBioText.match(/\n$/) == null) {
       stuffBeforeTheBioText += "\n";
-    } else {
-      stuffBeforeTheBioText = "";
     }
     currentBio = currentBio.replace(
       /^(.*?)== Biography ==/s,

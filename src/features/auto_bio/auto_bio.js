@@ -5303,7 +5303,10 @@ export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading =
   if (window.autoBioOptions?.diedYoung) {
     const deathAge = ageAtDeath(window.profilePerson, false);
     if (typeof deathAge[0] !== "undefined") {
-      if (deathAge[0] < 17 && !thingsToAddAfterBioHeading?.includes("{{Died Young")) {
+      // Check if "thingsToAddAfterBioHeading" already contains any "{{Died Young" entries.
+      const alreadyHasDiedYoungTemplate = thingsToAddAfterBioHeading.some((item) => item.startsWith("{{Died Young"));
+
+      if (deathAge[0] < 17 && !alreadyHasDiedYoungTemplate) {
         if (window.autoBioOptions?.diedYoungImage != "Default") {
           thingsToAddAfterBioHeading.push("{{Died Young|" + window.autoBioOptions?.diedYoungImage + "}}");
         } else {
@@ -5345,9 +5348,9 @@ export async function getStickersAndBoxes() {
       const currentBio = $("#wpTextbox1").val();
       jsonData.templates.forEach(function (aTemplate) {
         if (templatesToAdd?.includes(aTemplate.type)) {
-          var newTemplateMatch = currentBio.matchAll(/\{\{[^}]*?\}\}/gs);
-          for (var match of newTemplateMatch) {
-            var re = new RegExp(aTemplate.name, "gs");
+          const newTemplateMatch = currentBio.matchAll(/\{\{[^}]*?\}\}/gs);
+          for (let match of newTemplateMatch) {
+            const re = new RegExp(aTemplate.name, "gs");
             if (match[0].match(re) && !thingsToAddAfterBioHeading?.includes(match[0])) {
               if (beforeHeadingThings?.includes(aTemplate.type) || beforeHeadingThings?.includes(aTemplate.group)) {
                 thingsToAddBeforeBioHeading.push(match[0]);
@@ -7162,6 +7165,7 @@ export async function generateBio() {
 
     // Stickers and boxes
     const stickersAndBoxes = await getStickersAndBoxes();
+    console.log("stickersAndBoxes", stickersAndBoxes);
     const bioHeaderAndStickers = bioHeader + stickersAndBoxes;
 
     //Add birth
