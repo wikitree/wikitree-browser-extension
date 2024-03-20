@@ -4,7 +4,7 @@ import { parse, isValid, format } from "date-fns";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 // Function to try parsing a date string with multiple formats
-function tryParseDate(dateString, formats) {
+export function tryParseDate(dateString, formats) {
   for (let format of formats) {
     const parsedDate = parse(dateString, format, new Date());
     if (isValid(parsedDate)) {
