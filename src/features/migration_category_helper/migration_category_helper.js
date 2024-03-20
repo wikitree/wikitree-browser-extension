@@ -19,7 +19,7 @@ async function CreateMigrationCategory(tb) {
   const title = window.document.title;
   const indexCategory = title.indexOf("Category:") + "Category:".length;
   const cat = title.substring(indexCategory);
-
+  const commonShipCategories = "[[Category:Ships by Name]]\n[[Category:Immigrant Ships]]";
   let countryFrom = "";
   let entityFrom = "";
   let countryTo = "";
@@ -48,16 +48,18 @@ async function CreateMigrationCategory(tb) {
       countryFrom = getRightFromWord("from ", cat);
       entityFrom = getRightFromWord("from ", cat);
     }
-  } else if (IsShipWithLaunchUnknown(cat) || IsShipWithLaunchKnown(cat)) {
-    let value = "[[Category:Ships by Name]]\n[[Category:Immigrant Ships]]";
+  } else if (IsShipWithLaunchUnknown(cat)) {
+    tb.value = commonShipCategories + "\n[[Category:Needs Launch Year and Renamed]]";
+    return;
+  } else if (IsShipWithLaunchKnown(cat)) {
     const decade = cat.match(/\d{3}/g);
-    if (decade[0]) {
-      value += "\n" + "[[Category:" + decade + "0s Ships]]";
-    }
-    tb.value = value;
+    tb.value = commonShipCategories + "\n[[Category:" + decade[0] + "0s Ships]]";
     return;
   } else if (cat.indexOf(", Arrived") > -1) {
-    ProcessArrivalCategory(cat, tb);
+    tb.value = await ProcessVoyageCategory(cat, "Arrived");
+    return;
+  } else if (cat.indexOf(", sailed") > -1) {
+    tb.value = await ProcessVoyageCategory(cat, "sailed");
     return;
   } else {
     //no migration category
@@ -89,30 +91,40 @@ async function CreateMigrationCategory(tb) {
   tb.value = value;
 }
 
-async function ProcessArrivalCategory(cat, tb) {
-  const ship = getLeftFromComma(cat);
-  const arrivalText = getRightFromWord("Arrived ", cat);
-  const arrivalDate = tryParseDate(arrivalText, ["dd MMM yyyy"]);
-  const arrivalYear = format(arrivalDate, "yyyy");
-  const shipCats = await getShipCategories(ship, arrivalYear);
-  const sortKey = format(arrivalDate, "yyyyMMdd");
+async function ProcessVoyageCategory(cat, sailedOrArrived) {
+  let theDate = "";
+  let arrivalText = "";
+  let sailedText = "";
+  let parentCategories = "";
 
-  let cats = "";
-  if (shipCats.length == 0) {
-    cats = "[[Category:|" + sortKey + "]]\n";
+  if (sailedOrArrived == "Arrived") {
+    arrivalText = getRightFromWord("Arrived ", cat);
+    theDate = tryParseDate(arrivalText, ["dd MMM yyyy"]);
+    parentCategories =
+      "[[Category:Immigrant Voyages to Australia]]<!-- remove if not needed -->\n" +
+      "[[Category:Arrivals to <state>]]<!-- remove if not needed -->\n";
+  } else if ((sailedOrArrived = "sailed")) {
+    sailedText = getRightFromWord("sailed ", cat);
+    theDate = tryParseDate(sailedText, ["dd MMM yyyy"]);
   }
-  if (shipCats.length > 1) {
-    cats = "<!-- remove un-needed ship categories -->\n";
+  const theYear = format(theDate, "yyyy");
+  const ship = getLeftFromComma(cat);
+  const shipCatList = await getShipCategories(ship, theYear);
+  const sortKey = format(theDate, "yyyyMMdd");
+
+  if (shipCatList.length == 0) {
+    parentCategories = "[[Category:|" + sortKey + "]]\n";
   }
-  for (let i = 0; i < shipCats.length; i++) {
-    cats += "[[Category:" + shipCats[i] + "|" + sortKey + "]]\n";
+  if (shipCatList.length > 1) {
+    parentCategories = "<!-- remove un-needed ship categories -->\n";
+  }
+  for (let i = 0; i < shipCatList.length; i++) {
+    parentCategories += "[[Category:" + shipCatList[i] + "|" + sortKey + "]]\n";
   }
 
   let value =
-    cats +
-    "[[Category:Immigrant Voyages to Australia]]<!-- remove if not needed -->\n" +
-    "[[Category:Arrivals to <state>]]<!-- remove if not needed -->\n" +
-    "{{CategoryInfoBox Migrant Ship\n" +
+    parentCategories +
+    +"{{CategoryInfoBox Migrant Ship\n" +
     "|shipname=" +
     ship +
     "\n" +
@@ -122,13 +134,15 @@ async function ProcessArrivalCategory(cat, tb) {
     "|webpage=\n" +
     "|webpagetext=\n" +
     "|departlocation=\n" +
-    "|departdate=\n" +
+    "|departdate=" +
+    sailedText +
+    "\n" +
     "|arrivelocation=\n" +
     "|arrivedate=" +
     arrivalText +
     "\n" +
     "}}";
-  tb.value = value;
+  return value;
 }
 
 function getLeftFromComma(cat) {
