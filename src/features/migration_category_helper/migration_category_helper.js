@@ -102,13 +102,13 @@ async function ProcessVoyageCategory(cat, sailedOrArrived) {
 
   if (sailedOrArrived == "Arrived") {
     arrivalText = getRightFromWord("Arrived ", cat);
-    theDate = tryParseDate(arrivalText, ["dd MMM yyyy"]);
+    theDate = tryParseDate(arrivalText, ["dd MMM yyyy", "dd MMMM yyyy"]);
     parentCategories =
       "[[Category:Immigrant Voyages to Australia]]<!-- remove if not needed -->\n" +
       "[[Category:Arrivals to <state>]]<!-- remove if not needed -->\n";
   } else if ((sailedOrArrived = "sailed")) {
     sailedText = getRightFromWord("sailed ", cat);
-    theDate = tryParseDate(sailedText, ["dd MMM yyyy"]);
+    theDate = tryParseDate(sailedText, ["dd MMM yyyy", "dd MMMM yyyy"]);
   }
   const theYear = format(theDate, "yyyy");
   const ship = getLeftFromComma(cat);
