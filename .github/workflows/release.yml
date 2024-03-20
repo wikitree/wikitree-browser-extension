@@ -155,7 +155,8 @@ jobs:
             wbe-*.zip
             wbe-*.ipa
             wbe-*.pkg
-          tag: ${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}
+          tag: "${{ (env.X_RELEASE_TAG == 'stable' || env.X_RELEASE_TAG == 'preview') && env.X_RELEASE_TAG || format('release-{0}', github.ref_name) }}"
+          name: ${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}
           bodyFile: ".github/RELEASE_TEMPLATE/${{ env.X_RELEASE_TAG == 'stable' && 'stable' || 'preview' }}.md"
           allowUpdates: true
           removeArtifacts: true
