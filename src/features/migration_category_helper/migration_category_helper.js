@@ -52,8 +52,7 @@ async function CreateMigrationCategory(tb) {
     tb.value = commonShipCategories + "\n[[Category:Needs Launch Year and Renamed]]";
     return;
   } else if (IsShipWithLaunchKnown(cat)) {
-    const decade = cat.match(/\d{3}/g);
-    tb.value = commonShipCategories + "\n[[Category:" + decade[0] + "0s Ships]]";
+    tb.value = commonShipCategories + "\n[[Category:" + getDecade(cat) + " Ships]]";
     return;
   } else if (cat.indexOf(", Arrived") > -1) {
     tb.value = await ProcessVoyageCategory(cat, "Arrived");
@@ -91,6 +90,10 @@ async function CreateMigrationCategory(tb) {
   tb.value = value;
 }
 
+function getDecade(cat) {
+  return cat.match(/\d{3}/g)[0] + "0s";
+}
+
 async function ProcessVoyageCategory(cat, sailedOrArrived) {
   let theDate = "";
   let arrivalText = "";
@@ -112,19 +115,19 @@ async function ProcessVoyageCategory(cat, sailedOrArrived) {
   const shipCatList = await getShipCategories(ship, theYear);
   const sortKey = format(theDate, "yyyyMMdd");
 
+  parentCategories += "[[Category:" + getDecade(cat) + " Sailings]]\n";
   if (shipCatList.length == 0) {
-    parentCategories = "[[Category:|" + sortKey + "]]\n";
+    parentCategories += "[[Category:<ship name>|" + sortKey + "]]\n";
   }
   if (shipCatList.length > 1) {
-    parentCategories = "<!-- remove un-needed ship categories -->\n";
+    parentCategories += "<!-- remove un-needed ship categories -->\n";
   }
   for (let i = 0; i < shipCatList.length; i++) {
     parentCategories += "[[Category:" + shipCatList[i] + "|" + sortKey + "]]\n";
   }
-
   let value =
     parentCategories +
-    +"{{CategoryInfoBox Migrant Ship\n" +
+    "{{CategoryInfoBox Migrant Ship\n" +
     "|shipname=" +
     ship +
     "\n" +
