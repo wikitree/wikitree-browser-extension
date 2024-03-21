@@ -115,7 +115,7 @@ async function ProcessVoyageCategory(cat, sailedOrArrived) {
   const shipCatList = await getShipCategories(ship, theYear);
   const sortKey = format(theDate, "yyyyMMdd");
 
-  parentCategories += "[[Category:" + getDecade(cat) + " Sailings]]\n";
+  parentCategories += "[[Category:" + getDecade(cat) + " Sailings|" + ship + " " + sortKey + "]]\n";
   if (shipCatList.length == 0) {
     parentCategories += "[[Category:<ship name>|" + sortKey + "]]\n";
   }
@@ -207,7 +207,7 @@ async function addGoodShipCats(goodShipCats, needle) {
     const cats = await response.json();
     for (let i = 0; i < cats.length; i++) {
       if (IsShipWithLaunchUnknown(cats[i]) || IsShipWithLaunchKnown(cats[i])) {
-        goodShipCats.push(cats[i].replace("_", " "));
+        goodShipCats.push(cats[i].split("_").join(" "));
       }
     }
   } else {
