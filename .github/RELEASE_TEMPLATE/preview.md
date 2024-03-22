@@ -1,4 +1,4 @@
-**This is a preview build of the extension.**
+**This is the latest preview build of the extension.**
 
 Unless you need these files for development, you should install the extension from your browser's app store:
 - [Chrome](https://chrome.google.com/webstore/detail/wikitree-browser-extensio/ijipjpbjobecdgkkjdfpemcidfdmnkid)
