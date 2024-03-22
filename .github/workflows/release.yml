@@ -14,12 +14,13 @@ jobs:
       - name: Set release flags based on branch
         run: |
           echo "X_SHORT_HASH=`git rev-parse --short HEAD`" >> $GITHUB_ENV
-          echo "X_RELEASE_TAG=${{ github.ref_name == 'development' && 'preview' || startsWith(github.ref_name, '1.') && 'stable' || github.ref_name }}" >> $GITHUB_ENV
+          echo "X_BUILD_MONIKER=${{ github.ref_name == 'development' && 'preview' || startsWith(github.ref_name, '1.') && 'stable' || 'internal' }}" >> $GITHUB_ENV
           grep -Eo 'version.*\.\d+' src/manifest/manifest-chrome.json > ver.tmp
           sed -E 's/[^0-9]*([0-9.]+).*/X_VERSION=\1/' ver.tmp >> $GITHUB_ENV
           # Safari can only use the first 3 digits; we'll trim to 2 if the last digit is 0
           sed -E 's/[^0-9]*([0-9]+\.[0-9]+(\.[1-9][0-9]*)?).*/X_SAFARI_VERSION=\1/' ver.tmp >> $GITHUB_ENV
-          # build number is the number of seconds since 2023-08-01 UTC
+          # build number is the number of seconds since 2023-08-01 UTC (prefixed by a 3 for the version format)
+          # we have to add 300000000 to make it greater than build numbers generated in prior formats
           echo "X_SAFARI_BUILD=$((`date -u +%s`+300000000-1690848000))" >> $GITHUB_ENV
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -40,8 +41,8 @@ jobs:
           cd ..
       - name: Prepare Xcode environment
         env:
-          X_SAFARI_NAME: ${{ env.X_RELEASE_TAG == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension Preview' }}
-          X_SAFARI_PROJECT: xcode/${{ env.X_RELEASE_TAG == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension Preview' }}/${{ env.X_RELEASE_TAG == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension Preview' }}.xcodeproj
+          X_SAFARI_NAME: ${{ env.X_BUILD_MONIKER == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension Preview' }}
+          X_SAFARI_PROJECT: xcode/${{ env.X_BUILD_MONIKER == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension Preview' }}/${{ env.X_BUILD_MONIKER == 'stable' && 'WikiTree Browser Extension' || 'WikiTree Browser Extension Preview' }}.xcodeproj
         run: |
           echo "X_SAFARI_NAME=${{ env.X_SAFARI_NAME }}" >> $GITHUB_ENV
           echo "X_SAFARI_PROJECT=${{ env.X_SAFARI_PROJECT }}" >> $GITHUB_ENV
@@ -55,10 +56,10 @@ jobs:
           P12_DISTRIBUTION: ${{ secrets.P12_DISTRIBUTION }}
           P12_INSTALLATION: ${{ secrets.P12_INSTALLATION }}
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-          PROVISIONING_APP_IOS: ${{ env.X_RELEASE_TAG == 'stable' && secrets.PROVISIONING_STABLE_APP_IOS || secrets.PROVISIONING_PREVIEW_APP_IOS }}
-          PROVISIONING_APP_MACOS: ${{ env.X_RELEASE_TAG == 'stable' && secrets.PROVISIONING_STABLE_APP_MACOS || secrets.PROVISIONING_PREVIEW_APP_MACOS }}
-          PROVISIONING_EXT_IOS: ${{ env.X_RELEASE_TAG == 'stable' && secrets.PROVISIONING_STABLE_EXT_IOS || secrets.PROVISIONING_PREVIEW_EXT_IOS }}
-          PROVISIONING_EXT_MACOS: ${{ env.X_RELEASE_TAG == 'stable' && secrets.PROVISIONING_STABLE_EXT_MACOS || secrets.PROVISIONING_PREVIEW_EXT_MACOS }}
+          PROVISIONING_APP_IOS: ${{ env.X_BUILD_MONIKER == 'stable' && secrets.PROVISIONING_STABLE_APP_IOS || secrets.PROVISIONING_PREVIEW_APP_IOS }}
+          PROVISIONING_APP_MACOS: ${{ env.X_BUILD_MONIKER == 'stable' && secrets.PROVISIONING_STABLE_APP_MACOS || secrets.PROVISIONING_PREVIEW_APP_MACOS }}
+          PROVISIONING_EXT_IOS: ${{ env.X_BUILD_MONIKER == 'stable' && secrets.PROVISIONING_STABLE_EXT_IOS || secrets.PROVISIONING_PREVIEW_EXT_IOS }}
+          PROVISIONING_EXT_MACOS: ${{ env.X_BUILD_MONIKER == 'stable' && secrets.PROVISIONING_STABLE_EXT_MACOS || secrets.PROVISIONING_PREVIEW_EXT_MACOS }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
           # create variables for temporary files
@@ -99,13 +100,13 @@ jobs:
         if: vars.APPLE_SIGNING_ENABLED == 'true'
         run: |
           xcodebuild clean archive -quiet -project "${{ env.X_SAFARI_PROJECT }}" -scheme "${{ env.X_SAFARI_NAME }} (iOS)" -configuration Release -destination generic/platform=iOS -archivePath xcode/build-ios
-          xcodebuild -exportArchive -archivePath xcode/build-ios.xcarchive -exportPath xcode/build-ios.xcexport -exportOptionsPlist xcode/ExportOptions.${{ env.X_RELEASE_TAG == 'stable' && 'stable' || 'preview' }}.ios.plist
+          xcodebuild -exportArchive -archivePath xcode/build-ios.xcarchive -exportPath xcode/build-ios.xcexport -exportOptionsPlist xcode/ExportOptions.${{ env.X_BUILD_MONIKER == 'stable' && 'stable' || 'preview' }}.ios.plist
           cp "xcode/build-ios.xcexport/${{ env.X_SAFARI_NAME }}.ipa" dist-safari-ios.ipa
       - name: Build signed version for Safari (macOS)
         if: vars.APPLE_SIGNING_ENABLED == 'true'
         run: |
           xcodebuild clean archive -quiet -project "${{ env.X_SAFARI_PROJECT }}" -scheme "${{ env.X_SAFARI_NAME }} (macOS)" -configuration Release -destination generic/platform=macOS -archivePath xcode/build-macos
-          xcodebuild -exportArchive -archivePath xcode/build-macos.xcarchive -exportPath xcode/build-macos.xcexport -exportOptionsPlist xcode/ExportOptions.${{ env.X_RELEASE_TAG == 'stable' && 'stable' || 'preview' }}.macos.plist
+          xcodebuild -exportArchive -archivePath xcode/build-macos.xcarchive -exportPath xcode/build-macos.xcexport -exportOptionsPlist xcode/ExportOptions.${{ env.X_BUILD_MONIKER == 'stable' && 'stable' || 'preview' }}.macos.plist
           cp "xcode/build-macos.xcexport/${{ env.X_SAFARI_NAME }}.pkg" dist-safari-macos.pkg
       # if signing is disabled or not configured, build the unsigned version for macOS only (iOS requires signing)
       - name: Build unsigned version for Safari (macOS)
@@ -140,24 +141,30 @@ jobs:
           xcrun altool --upload-app -f dist-safari-ios.ipa -t ios --apiKey $API_KEY_ID --apiIssuer $API_ISSUER_ID
           xcrun altool --upload-app -f dist-safari-macos.pkg -t macos --apiKey $API_KEY_ID --apiIssuer $API_ISSUER_ID
       - name: Rename release assets
+        env:
+          X_DIST_PREFIX: ${{ format('wbe-{0}-{1}-{2}', (env.X_BUILD_MONIKER == 'stable' || env.X_BUILD_MONIKER == 'preview') && env.X_BUILD_MONIKER || format('{0}-{1}', env.X_BUILD_MONIKER, github.ref_name), env.X_VERSION, env.X_SHORT_HASH) }}
         run: |
-          mv dist-chrome.zip wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-chrome.zip
-          mv dist-firefox.zip wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-firefox.zip
-          [ ! -f dist-safari-ios.ipa ] || mv dist-safari-ios.ipa wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-safari-ios.ipa
-          [ ! -f dist-safari-macos.pkg ] || mv dist-safari-macos.pkg wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-safari-macos.pkg
-          [ ! -f dist-safari-macos.zip ] || mv dist-safari-macos.zip wbe-${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}-${{ env.X_SHORT_HASH }}-safari-macos.zip
+          mv dist-chrome.zip "${{ env.X_DIST_PREFIX }}-chrome.zip"
+          mv dist-firefox.zip "${{ env.X_DIST_PREFIX }}-firefox.zip"
+          [ ! -f dist-safari-ios.ipa ] || mv dist-safari-ios.ipa "${{ env.X_DIST_PREFIX }}-safari-ios.ipa"
+          [ ! -f dist-safari-macos.pkg ] || mv dist-safari-macos.pkg "${{ env.X_DIST_PREFIX }}-safari-macos.pkg"
+          [ ! -f dist-safari-macos.zip ] || mv dist-safari-macos.zip "${{ env.X_DIST_PREFIX }}-safari-macos.zip"
       - name: Update release
-        uses: ncipollo/release-action@v1
-        with:
-          token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: ${{ env.X_RELEASE_TAG != 'stable' }}
-          artifacts: |
-            wbe-*.zip
-            wbe-*.ipa
-            wbe-*.pkg
-          tag: "${{ (env.X_RELEASE_TAG == 'stable' || env.X_RELEASE_TAG == 'preview') && env.X_RELEASE_TAG || format('release-{0}', github.ref_name) }}"
-          name: ${{ env.X_RELEASE_TAG }}-${{ env.X_VERSION }}
-          generateReleaseNotes: true
-          allowUpdates: true
-          removeArtifacts: true
-          replacesArtifacts: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          X_GH_RELEASE_TAG: "${{ (env.X_BUILD_MONIKER == 'stable' || env.X_BUILD_MONIKER == 'preview') && env.X_BUILD_MONIKER || format('{0}/{1}', env.X_BUILD_MONIKER, github.ref_name) }}"
+          X_GH_RELEASE_TITLE: ${{ format('--title "{0}-v{1}"', (env.X_BUILD_MONIKER == 'stable' || env.X_BUILD_MONIKER == 'preview') && env.X_BUILD_MONIKER || format('({0}) {1}', env.X_BUILD_MONIKER, github.ref_name), env.X_VERSION) }}
+          X_GH_RELEASE_TYPE: ${{ env.X_BUILD_MONIKER == 'stable' && '--latest' || '--prerelease' }}
+          X_GH_RELEASE_NOTES: ${{ (env.X_BUILD_MONIKER == 'stable' || env.X_BUILD_MONIKER == 'preview') && format('--notes-file ".github/RELEASE_TEMPLATE/{0}.md"', env.X_BUILD_MONIKER) || format('--notes "This {0} build is from the {1} branch. **It is not an official release for public distribution.**"', env.X_BUILD_MONIKER, github.ref_name) }}
+        run: |
+          if gh release delete ${{ env.X_GH_RELEASE_TAG }} --cleanup-tag --yes; then
+            echo previous release '${{ env.X_GH_RELEASE_TAG }}' deleted
+          fi
+          gh release create ${{ env.X_GH_RELEASE_TAG }} --target ${{ github.sha }} ${{ env.X_GH_RELEASE_TITLE }} ${{ env.X_GH_RELEASE_TYPE }} ${{ env.X_GH_RELEASE_NOTES }} wbe-*.zip
+          echo release '${{ env.X_GH_RELEASE_TAG }}' created
+          if gh release upload ${{ env.X_GH_RELEASE_TAG }} wbe-*.ipa --clobber; then
+            echo uploaded iOS assets
+          fi
+          if gh release upload ${{ env.X_GH_RELEASE_TAG }} wbe-*.pkg --clobber; then
+            echo uploaded macOS assets
+          fi
