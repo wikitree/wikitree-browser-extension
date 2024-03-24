@@ -170,12 +170,15 @@ function modifyLinkButtons(options) {
   if (isSpacePage || isSpaceEdit) {
     const button = $("button[aria-label='Copy Wiki Link']");
     const aTitle = document.title.trim();
+    const pageUrlPartEncoded = window.location.href.split("Space:")[1].split("#")[0];
+    const urlPartDecoded = decodeURIComponent(pageUrlPartEncoded).split("_").join(" ");
+
     if (options.spaceLinkFormat == "withParameter") {
       //overwriting partial url encodings of the default server version
-      const withParameter = "[[Space:" + aTitle + "|" + aTitle + "]]";
+      const withParameter = "[[Space:" + urlPartDecoded + "|" + aTitle + "]]";
       button.data("copy-text", withParameter).attr("data-copy-text", withParameter);
     } else {
-      const noParameter = "[[Space:" + aTitle + "]]";
+      const noParameter = "[[Space:" + urlPartDecoded + "]]";
       button.data("copy-text", noParameter).attr("data-copy-text", noParameter);
     }
   }
