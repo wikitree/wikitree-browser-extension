@@ -128,7 +128,8 @@ async function helpScissors() {
       |caption=${aTitle}\n}}`;
 
     let useLink = `[[Image:${fullName}|250px|${aTitle}]]`;
-    copyItems.push({ label: "Link", text: aLink, image: true });
+    copyItems.push({ label: "ID", text: fullName, image: true });
+    copyItems.push({ label: "Link", text: aLink });
     copyItems.push({ label: "URL", text: url });
 
     if (ext != "pdf") {
