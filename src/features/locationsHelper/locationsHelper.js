@@ -565,11 +565,17 @@ async function locationsHelper() {
 
               // Transvaal
               if (theDate >= tRepStart && theDate < boerRepStart) {
-                dText = dText.replace("Transvaal, South Africa", "Transvaal Republic");
+                dText = dText
+                  .replace("Transvaal, South Africa", "Transvaal Republic")
+                  .replace("Tshwane, Gauteng, South Africa", "Transvaal Republic");
               } else if (theDate >= boerRepStart && theDate < boerColonyStart) {
-                dText = dText.replace("Transvaal, South Africa", "Zuid-Afrikaansche Republic");
+                dText = dText
+                  .replace("Transvaal, South Africa", "Zuid-Afrikaansche Republic")
+                  .replace("Tshwane, Gauteng, South Africa", "Zuid-Afrikaansche Republic");
               } else if (theDate >= boerColonyStart && theDate < colonyEnd) {
-                dText = dText.replace("Transvaal, South Africa", "Transvaal Colony");
+                dText = dText
+                  .replace("Transvaal, South Africa", "Transvaal Colony")
+                  .replace("Tshwane, Gauteng, South Africa", "Transvaal Colony");
               }
 
               // Orange Free State
