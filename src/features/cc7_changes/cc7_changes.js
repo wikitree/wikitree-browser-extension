@@ -740,7 +740,7 @@ async function showStoredDeltas(data, container) {
   if (allDetailsSinceLastVisit.size === 0 && allDetailsWithinLastMonth.size === 0) {
     container.append($("<p>No changes since you last checked.</p>"));
   } else {
-    container.append($("<p class='hnote'>Merged profiles are listed as removed and added.</p>"));
+    container.append($("<p class='hnote'>Merged profiles may be listed as removed and added.</p>"));
   }
 
   if (allDetailsSinceLastVisit.size > 0) {
@@ -865,7 +865,7 @@ function appendDetailsToContainer(container, idsByDate, details, headingTail) {
     sortedDeltas.forEach((el) => {
       const person = details.get(el.Id);
       const text = person
-        ? `${person.FullName} ${displayDates(person)}`
+        ? `${person.FullName} ${displayDates(person)}${person.redirectedFrom ? " (merged)" : ""}`
         : `Profile ${el.Name ? el.Name : el.Id} (deleted from WikiTree)`;
       const link = $("<a>").attr("href", `https://www.wikitree.com/wiki/${el.Name}`).text(text);
       const degree = $(
