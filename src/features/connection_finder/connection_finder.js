@@ -330,6 +330,9 @@ function processConnectionList() {
 */
 
 function setupConnectionTools() {
+  if ($("#customActionsContainer").length) {
+    return; // Do not add buttons if they already exist
+  }
   // Add buttons for actions related to names
   const actionsContainer = $("<div/>")
     .attr("id", "customActionsContainer")
@@ -616,7 +619,9 @@ async function connectionFinderThings() {
 
   $("#findButton").on("click", function () {
     // addTrees();
+
     setupConnectionTools();
+
     displayBranchListAutomatically();
   });
 }
