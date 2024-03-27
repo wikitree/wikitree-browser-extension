@@ -8,16 +8,21 @@ import { PersonName } from "../auto_bio/person_name.js";
 import { displayDates } from "../verifyID/verifyID";
 import { goAndLogIn } from "../randomProfile/randomProfile";
 
-// If TESTING is true, we pretend to be user Trompetter-42 (who is long dead and in an unconnected, mostly orphaned branch)
-// and currently has a CC7 of 132. Whenever we retrieve the current CC7, we remove one random profile from each API call
-// result before processing it, so we can get deltas generated. With TESTING true, we also do some extra logging to help
-// with debugging.
-// If you want the TESTING logging, but not use the test user, set TESTING to true and USE_TEST_USER to false.
+// By default, if TESTING is true, we pretend to be user Trompetter-42 (who is long dead and in an unconnected, mostly
+// orphaned branch) and currently has a CC7 of 132. Also, we will not check whether or not the user is logged in.
+// Whenever we retrieve the current CC7, we also remove one random profile from each API call result before processing it,
+// so we can get deltas generated. We also do some extra logging to help with debugging.
+// The above behaviour can be modified by changing the 'true' values to 'false' in the definitions of
+//   USE_TEST_USER - if this is false, Trompetter-42 will not be used as the user, and the standard logic will be followed
+//                   (except for checking for logged in status)
+//   GENERATE_DELTA_FOR_TESTING - if this is flase, no changes will be forced as described above.
+//
 // IMPORTANT: make sure TESTING is false before you commit!!
 const TESTING = false;
-const USE_TEST_USER = true && TESTING;
+const USE_TEST_USER = TESTING && true;
+const GENERATE_DELTA_FOR_TESTING = TESTING && true;
 const TEST_USER_WTID = "Trompetter-42";
-const TEST_USER_ID = 24595942;
+const TEST_USER_ID = 24595942; // make sure to adjust this if TEST_USER_WTID is changed!
 
 const userId = USE_TEST_USER ? TEST_USER_WTID : Cookies.get("wikitree_wtb_UserName");
 const USER_NUM_ID = USE_TEST_USER ? TEST_USER_ID : Cookies.get("wikitree_wtb_UserID");
@@ -559,7 +564,7 @@ async function fetchStoredDeltas() {
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
-    let mostRecentDelta = [];
+    const mostRecentDelta = [];
     const deltasWithinLastMonth = [];
     let removeInitial = true;
 
@@ -628,7 +633,7 @@ async function fetchCC7FromAPI() {
           return restructuredResult[key];
         });
 
-        if (TESTING && arrayOfObjects.length > 1) {
+        if (GENERATE_DELTA_FOR_TESTING && arrayOfObjects.length > 1) {
           // Remove a random profile from the list so we can be assured of a change in the CC7
           // Pick a number between 1 and (number of profiles in the list) - 1
           const i = Math.floor(Math.random() * arrayOfObjects.length - 2) + 1;
@@ -715,100 +720,148 @@ async function showStoredDeltas(data, container) {
     console.log("deltasSinceLastVisit", deltasSinceLastVisit);
     console.log("deltasWithinLastMonth", deltasWithinLastMonth);
   }
-  // getUniqueIds => {added: Map(id => {Id: , Name: , Degree: }), removed: Map(id => {Id: , Name: , Degree: })}
-  const uniqueIdsSinceLastVisit = getUniqueIds(deltasSinceLastVisit);
-  const uniqueIdsWithinLastMonth = getUniqueIds(deltasWithinLastMonth, uniqueIdsSinceLastVisit);
+  // convertToMapsAndExclude returns:
+  // Map(date => {added:   Map(id => {Id: , Name: , Degree: }),
+  //              removed: Map(id => {Id: , Name: , Degree: })})
+  const idsSinceLastVisitByDate = convertToMapsAndExclude(deltasSinceLastVisit);
+  const idsWithinLastMonthByDate = convertToMapsAndExclude(deltasWithinLastMonth, idsSinceLastVisitByDate);
   if (TESTING) {
-    console.log("uniqueIdsSinceLastVisit", uniqueIdsSinceLastVisit);
-    console.log("uniqueIdsWithinLastMonth", uniqueIdsWithinLastMonth);
+    console.log("uniqueIdsSinceLastVisit", idsSinceLastVisitByDate);
+    console.log("uniqueIdsWithinLastMonth", idsWithinLastMonthByDate);
   }
-  const allDetailsSinceLastVisit = await fetchDetailsForUniqueIds(uniqueIdsSinceLastVisit);
-  const allDetailsWithinLastMonth = await fetchDetailsForUniqueIds(uniqueIdsWithinLastMonth);
+  const allDetailsSinceLastVisit = await fetchDetailsForIds(idsSinceLastVisitByDate);
+  const allDetailsWithinLastMonth = await fetchDetailsForIds(idsWithinLastMonthByDate);
   if (TESTING) {
     console.log("allDetailsSinceLastVisit", allDetailsSinceLastVisit.values());
     console.log("allDetailsWithinLastMonth", allDetailsWithinLastMonth.values());
   }
 
   working.remove();
+  if (allDetailsSinceLastVisit.size === 0 && allDetailsWithinLastMonth.size === 0) {
+    container.append($("<p>No changes since you last checked.</p>"));
+  } else {
+    container.append($("<p class='hnote'>Merged profiles are listed as removed and added.</p>"));
+  }
 
   if (allDetailsSinceLastVisit.size > 0) {
-    appendDetailsToContainer(container, uniqueIdsSinceLastVisit, allDetailsSinceLastVisit, "since you last checked: ");
+    appendDetailsToContainer(container, idsSinceLastVisitByDate, allDetailsSinceLastVisit, "since you last checked: ");
   }
   if (allDetailsWithinLastMonth.size > 0) {
-    appendDetailsToContainer(container, uniqueIdsWithinLastMonth, allDetailsWithinLastMonth, "within the last month: ");
-  }
-
-  if (allDetailsSinceLastVisit.size === 0 && allDetailsWithinLastMonth.size === 0) {
-    container.append($("<p>No changes since you last checked.</p"));
+    appendDetailsToContainer(container, idsWithinLastMonthByDate, allDetailsWithinLastMonth, "within the last month: ");
   }
 
   $(CC7_DELTA_CONTAINER_ID).draggable();
   addCloseEventHandlers(container);
 }
 
+// Remove deltas larger than 500 records
 function filterDeltas(deltas) {
   return deltas.filter((delta) => delta.added.length < 500);
 }
 
-// Remove the keys of mapB from mapA, returning the updated mapA
-function removeFrom(mapA, mapB) {
-  for (const id of mapB.keys()) {
-    mapA.delete(id);
-  }
-  return mapA;
-}
-
 /**
- * @param {*} deltas - An array of objects each representing a profile: {Id: number-id, Name: WT-id, Degree: number}
- * @param {*} excludeIds (optional) If present, an object previously returned from this method
- * @returns an object:
- *   {
- *     added: Map(id => {Id: , Name: , Degree: }),
- *     removed: Map(id => {Id: , Name: , Degree: })
- *   }
+ * Convert the arrays in the given deltas to maps while optionally filtering out certain deltas
+ *
+ * @param {*} deltas - Deltas retrieved from the DB: An array of objects:
+ *               [{date: , added: [], removed: []}, ...]
+ *            where
+ *               adedd/removed are arrays of object each representing a profile:
+ *                  {Id: number-id, Name: WT-id, Degree: number}.
+ *               date is when the changes were detected.
+ * @param {*} excludeDeltas (optional) If present, a map previously returned from this method,
+ *            indicating which deltas should be excluded.
+ * @returns a map:
+ *   Map(date => {added:   Map(id => {Id: , Name: , Degree: }),
+ *                removed: Map(id => {Id: , Name: , Degree: })})
  */
-function getUniqueIds(deltas, excludeIds) {
-  if (excludeIds) {
-    return {
-      added: removeFrom(new Map(idsAndObjectsOf("added")), excludeIds.added),
-      removed: removeFrom(new Map(idsAndObjectsOf("removed")), excludeIds.removed),
-    };
-  } else {
-    return {
-      added: new Map(idsAndObjectsOf("added")),
-      removed: new Map(idsAndObjectsOf("removed")),
-    };
+function convertToMapsAndExclude(deltas, excludeDeltas) {
+  return removeFrom(convertDeltasToMaps(), excludeDeltas);
+
+  // For each key of mapB (if present) remove the corresponding key and its value from mapA, returning the updated mapA
+  function removeFrom(mapA, mapB) {
+    if (mapB) {
+      for (const date of mapB.keys()) {
+        mapA.delete(date);
+      }
+    }
+    return mapA;
   }
 
-  function idsAndObjectsOf(what) {
-    return deltas.reduce((acc, delta) => {
-      return acc.concat(delta[what].map((a) => [a.Id, a]));
-    }, []);
+  function convertDeltasToMaps() {
+    return new Map(
+      deltas.map((delta) => {
+        return [delta.date, { added: mapByIds(delta.added), removed: mapByIds(delta.removed) }];
+      })
+    );
+  }
+
+  // Converts [{Id: , Name: , Degree: }, ...] into Map(id => {Id: , Name: , Degree: })
+  function mapByIds(minimalistProfiles) {
+    const idsMap = new Map();
+    for (const p of minimalistProfiles) {
+      idsMap.set(p.Id, p);
+    }
+    return idsMap;
   }
 }
 
 /**
- * @param {*} uniqueIds - {added: Map(id => {Id: , Name: , Degree: }), removed: Map(id => {Id: , Name: , Degree: })}
+ * Returns, for each unique profile id found in the deltas, the required profile data
+ * @param {*} idsByDate - a map:
+ *            Map(date => {added:   Map(id => {Id: , Name: , Degree: }),
+ *                         removed: Map(id => {Id: , Name: , Degree: })})
  * @returns Map(id => WT person object)
  */
-async function fetchDetailsForUniqueIds(uniqueIds) {
+async function fetchDetailsForIds(idsByDate) {
   let result = new Map();
-  const allIds = [...new Set([...uniqueIds.added.keys(), ...uniqueIds.removed.keys()])];
-  for (let i = 0; i < allIds.length; i += 1000) {
-    const detail = await fetchPeopleDetails(allIds.slice(i, i + 1000).join(","));
-    detail.forEach((p) => result.set(p.Id, p));
+  let ids = [];
+  idsByDate.values().forEach((delta) => {
+    ids = delta.added.values().reduce((acc, p) => {
+      acc.push(p.Id);
+      return acc;
+    }, ids);
+    ids = delta.removed.values().reduce((acc, p) => {
+      acc.push(p.Id);
+      return acc;
+    }, ids);
+  });
+
+  const allIdsUnique = [...new Set(ids)];
+  for (let i = 0; i < allIdsUnique.length; i += 1000) {
+    const detail = await fetchPeopleDetails(allIdsUnique.slice(i, i + 1000).join(","));
+    detail.forEach((p) => {
+      result.set(p.Id, p);
+      if (p.redirectedFrom) result.set(p.redirectedFrom, p);
+    });
   }
   return result;
 }
 
-function appendDetailsToContainer(container, uniqueIds, details, headingTail) {
-  if (uniqueIds.added.size > 0) appendDetails("Added", uniqueIds.added);
-  if (uniqueIds.removed.size > 0) appendDetails("Removed", uniqueIds.removed);
+// idsByDate:
+// Map(date => {added:   Map(id => {Id: , Name: , Degree: }),
+//              removed: Map(id => {Id: , Name: , Degree: })})
+function appendDetailsToContainer(container, idsByDate, details, headingTail) {
+  const dateFormatter = new Intl.DateTimeFormat(undefined, {
+    dateStyle: "full",
+    timeStyle: "long",
+  });
+  if (idsNotEmpty(idsByDate)) {
+    const heading = $("<h3>").text(`Changes ${headingTail}`);
+    container.append(heading);
+    idsByDate.forEach((changesOnDate, date) => {
+      if (deltaHasChanges(changesOnDate)) {
+        const dateHeader = $(`<p>Detected on ${dateFormatter.format(new Date(date))}</p>`);
+        container.append(dateHeader);
+        if (changesOnDate.added.size > 0) addChanges("Added:", changesOnDate.added);
+        if (changesOnDate.removed.size > 0) addChanges("Removed:", changesOnDate.removed);
+      }
+    });
+  }
 
-  function appendDetails(what, idMap) {
-    const heading = $("<h3>").text(`${what} ${headingTail}`);
+  function addChanges(what, changes) {
+    const groupHeader = $(`<p class="delta">${what}</p>`);
     const list = $("<ol>");
-    const sortedDeltas = [...idMap.values()].sort((a, b) => a.Degrees - b.Degrees);
+    const sortedDeltas = [...changes.values()].sort((a, b) => a.Degrees - b.Degrees);
     sortedDeltas.forEach((el) => {
       const person = details.get(el.Id);
       const text = person
@@ -821,7 +874,18 @@ function appendDetailsToContainer(container, uniqueIds, details, headingTail) {
       const listItem = $("<li>").append(link, degree);
       list.append(listItem);
     });
-    container.append(heading, list);
+    container.append(groupHeader, list);
+  }
+
+  function deltaHasChanges(delta) {
+    return delta.added.size > 0 || delta.removed.size > 0;
+  }
+
+  function idsNotEmpty(ids) {
+    for (const [key, delta] of ids) {
+      if (deltaHasChanges(delta)) return true;
+    }
+    return false;
   }
 }
 
