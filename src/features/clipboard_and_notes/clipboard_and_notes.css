@@ -131,6 +131,7 @@
   cursor: default;
 }
 
+#clipboard .clipping.clip-selected,
 #clipboard .clipping:hover {
   background: rgb(221, 250, 218);
 }

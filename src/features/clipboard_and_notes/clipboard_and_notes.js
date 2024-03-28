@@ -285,13 +285,14 @@ function renumberClipboardGroup(groupKey) {
 }
 
 function setAddClippingAction(type) {
-  $("#addClipping").off();
-  $("#addClipping").on("click", function (e) {
-    e.preventDefault();
-    if ($("#clippingBox").val() != "") {
-      addClipping(type, e);
-    }
-  });
+  $("#addClipping")
+    .off("click")
+    .on("click", function (e) {
+      e.preventDefault();
+      if ($("#clippingBox").val() != "") {
+        addClipping(type, e);
+      }
+    });
   let word = "clipping";
   if (type == "notes") {
     word = "note";
@@ -329,6 +330,7 @@ function placeClipboard(aClipboard, event) {
 }
 
 async function clipboard(type, e, action = false) {
+  var clippingRow = -1;
   let activeTab = localStorage[currentActiveTabFor(type)] || "";
   if ($("#clipboard").length) {
     activeTab = $("#tab-list .tab.active").data("groupkey");
@@ -373,31 +375,36 @@ async function clipboard(type, e, action = false) {
       }
     }
 
-    $("#clipboard x").off();
-    $("#clipboard x").on("click", function () {
-      $("#clipboard").slideUp();
-    });
-    $("#clipboard h1").on("dblclick", function () {
-      $("#clipboard").slideUp();
-    });
-    $("#reorderTabs").off();
-    $("#reorderTabs").on("click", function (e) {
-      e.preventDefault();
-      localStorage.removeItem(groupsOrderNameFor(type));
-      clipboard(type, e, "edit");
-    });
-    $("#renameGroup").off();
-    $("#renameGroup").on("click", function (e) {
-      e.preventDefault();
-      const newName = groupNameFromInput();
-      const $activeGroup = $("#tab-list .tab.active");
-      if ($activeGroup.length) {
-        const currentKey = $activeGroup.data("groupkey") || "";
-        if (currentKey != makeKeyFrom(newName)) {
-          renameGroup(currentKey, newName, type, e);
+    $("#clipboard x")
+      .off("click")
+      .on("click", function () {
+        $("#clipboard").slideUp();
+      });
+    $("#clipboard h1")
+      .off("dblclick")
+      .on("dblclick", function () {
+        $("#clipboard").slideUp();
+      });
+    $("#reorderTabs")
+      .off("click")
+      .on("click", function (e) {
+        e.preventDefault();
+        localStorage.removeItem(groupsOrderNameFor(type));
+        clipboard(type, e, "edit");
+      });
+    $("#renameGroup")
+      .off("click")
+      .on("click", function (e) {
+        e.preventDefault();
+        const newName = groupNameFromInput();
+        const $activeGroup = $("#tab-list .tab.active");
+        if ($activeGroup.length) {
+          const currentKey = $activeGroup.data("groupkey") || "";
+          if (currentKey != makeKeyFrom(newName)) {
+            renameGroup(currentKey, newName, type, e);
+          }
         }
-      }
-    });
+      });
     if ($("#clipboard").draggable()) {
       $("#clipboard").draggable("destroy");
     }
@@ -424,6 +431,49 @@ async function clipboard(type, e, action = false) {
 
   $("#groupTabs p").remove();
   $("#clippings").html("");
+
+  $(document)
+    .off("keyup")
+    .on("keyup", function (e) {
+      if (!e.shiftKey) return; // we only react to shift-<some key>
+      if (!$("#clipboard").is(":visible")) return; // and only if the clipboard is visible
+      if ($("input, textarea").is(":focus")) return; // and no text input area has the focus
+
+      if (e.code === "ArrowUp" || e.code === "ArrowDown") {
+        e.stopPropagation();
+        const clippings = $(".clipping:visible");
+        if (clippingRow >= 0 && clippingRow < clippings.length) clippings.eq(clippingRow).removeClass("clip-selected");
+        if (e.code === "ArrowDown") {
+          clippingRow = ++clippingRow % clippings.length;
+        } else if (e.code === "ArrowUp") {
+          --clippingRow;
+          if (clippingRow < 0) clippingRow = clippings.length - 1;
+        }
+        clippings.eq(clippingRow).addClass("clip-selected");
+      } else if (e.code === "ArrowRight" || e.code === "ArrowLeft") {
+        e.stopPropagation();
+        let activeTabs = $(".tab.active");
+        let el;
+        if (activeTabs.length) {
+          const activeTab = activeTabs.first();
+          el = e.code === "ArrowRight" ? activeTab.next() : activeTab.prev();
+        } else {
+          activeTabs = $(".tab");
+          el = e.code === "ArrowRight" ? activeTabs.first() : activeTabs.last();
+        }
+        if (el) {
+          $(".clipping").removeClass("clip-selected");
+          clippingRow = -1;
+          el.find(".tab-name").trigger("click");
+        }
+      } else if (e.code === "Enter") {
+        e.stopPropagation();
+        const clippings = $(".clipping:visible");
+        if (clippingRow >= 0 && clippingRow < clippings.length) {
+          const x = $(".clipping.clip-selected").trigger("click");
+        }
+      }
+    });
 
   const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
   clipboardDB.onsuccess = function (event) {
@@ -510,25 +560,28 @@ async function clipboard(type, e, action = false) {
             renumberClipboardGroup(groupKey);
           }
         }
-        $("#tab-list .tab-name").on("click", function (ev) {
-          showGroup($(this).parent(".tab"));
-        });
-        if (type == "clipboard") {
-          $(".clipping").off();
-          $(".clipping").on("click", function () {
-            copyClippingToClipboard($(this).parent().data("original"));
-            $("#clipboard").slideUp();
+        $("#tab-list .tab-name")
+          .off("click")
+          .on("click", function (ev) {
+            showGroup($(this).parent(".tab"));
           });
+        if (type == "clipboard") {
+          $(".clipping")
+            .off("click")
+            .on("click", function () {
+              copyClippingToClipboard($(this).parent().data("original"));
+              $("#clipboard").slideUp();
+            });
         }
 
-        $(".deleteClippingButton").off();
-        $(".deleteClippingButton").on("click", function () {
-          deleteClipping($(this).closest("tr").data("key"), type, $(this).closest("tbody.group"), e);
-        });
+        $(".deleteClippingButton")
+          .off("click")
+          .on("click", function () {
+            deleteClipping($(this).closest("tr").data("key"), type, $(this).closest("tbody.group"), e);
+          });
         $(".editClippingButton").each(function () {
           const aButton = $(this);
-          aButton.off();
-          aButton.on("click", function () {
+          aButton.off("click").on("click", function () {
             if ($(this).closest("tr").hasClass("editing")) {
               $(this).closest("tr").removeClass("editing");
               setAddClippingAction(type);
@@ -543,18 +596,19 @@ async function clipboard(type, e, action = false) {
 
               $("#addClipping").text("Save edit");
 
-              $("#addClipping").off();
-              $("#addClipping").on("click", function (e) {
-                e.preventDefault();
-                editClipping(key, type, e);
+              $("#addClipping")
+                .off("click")
+                .on("click", function (e) {
+                  e.preventDefault();
+                  editClipping(key, type, e);
 
-                var word = "clipping";
-                if (type == "notes") {
-                  word = "note";
-                }
+                  var word = "clipping";
+                  if (type == "notes") {
+                    word = "note";
+                  }
 
-                $("#addClipping").text("Add " + word);
-              });
+                  $("#addClipping").text("Add " + word);
+                });
             }
           });
         });
@@ -681,65 +735,73 @@ async function initClipboard() {
     $(".qa-c-form .theClipboardButtons").addClass("commentForm");
     $("#toolbar + br").remove();
     $(".aClipboardButton").each(function () {
-      $(this).on("click", function (e) {
-        try {
+      $(this)
+        .off("click")
+        .on("click", function (e) {
+          try {
+            e.preventDefault();
+            window.clipboardClicker = $(this);
+            const ccpc = window.clipboardClicker.parent().attr("class");
+            const lccpc = window.lastClipboardClicker.parent().attr("class");
+            if ($("#clipboard").data("type") == "notes") {
+              $("#clipboard").remove();
+              clipboard("clipboard", e);
+            } else if ($("#clipboard").css("display") == "block") {
+              if (ccpc == lccpc || lccpc == undefined) {
+                $("#clipboard").slideUp();
+              }
+              placeClipboard($("#clipboard"), e);
+            } else {
+              clipboard("clipboard", e);
+            }
+            window.lastClipboardClicker = window.clipboardClicker;
+          } catch (e) {
+            console.log(e);
+            extensionContextInvalidatedCheck(e);
+          }
+        });
+    });
+    $(".aNotesButton").each(function () {
+      $(this)
+        .off("click")
+        .on("click", function (e) {
           e.preventDefault();
           window.clipboardClicker = $(this);
           const ccpc = window.clipboardClicker.parent().attr("class");
           const lccpc = window.lastClipboardClicker.parent().attr("class");
-          if ($("#clipboard").data("type") == "notes") {
+
+          if ($("#clipboard").data("type") == "clipboard") {
             $("#clipboard").remove();
-            clipboard("clipboard", e);
+            clipboard("notes", e);
           } else if ($("#clipboard").css("display") == "block") {
             if (ccpc == lccpc || lccpc == undefined) {
               $("#clipboard").slideUp();
             }
             placeClipboard($("#clipboard"), e);
           } else {
-            clipboard("clipboard", e);
+            clipboard("notes", e);
           }
+
           window.lastClipboardClicker = window.clipboardClicker;
-        } catch (e) {
-          console.log(e);
-          extensionContextInvalidatedCheck(e);
-        }
-      });
-    });
-    $(".aNotesButton").each(function () {
-      $(this).on("click", function (e) {
-        e.preventDefault();
-        window.clipboardClicker = $(this);
-        const ccpc = window.clipboardClicker.parent().attr("class");
-        const lccpc = window.lastClipboardClicker.parent().attr("class");
-
-        if ($("#clipboard").data("type") == "clipboard") {
-          $("#clipboard").remove();
-          clipboard("notes", e);
-        } else if ($("#clipboard").css("display") == "block") {
-          if (ccpc == lccpc || lccpc == undefined) {
-            $("#clipboard").slideUp();
-          }
-          placeClipboard($("#clipboard"), e);
-        } else {
-          clipboard("notes", e);
-        }
-
-        window.lastClipboardClicker = window.clipboardClicker;
-      });
+        });
     });
   };
   clipboardReq.onerror = function (event) {
     console.log("error opening clipboard/notes database: " + event.target.errorCode);
   };
 
-  $(".privateMessageLink").on("click", function () {
-    setTimeout(function () {
-      $(".theClipboardButtons").insertAfter("#privateMessage-subject").css("float", "right");
-      $("#privatemessage-modal-close").on("click", function () {
-        $(".theClipboardButtons").appendTo($("#header"));
-      });
-    }, 2500);
-  });
+  $(".privateMessageLink")
+    .off("click")
+    .on("click", function () {
+      setTimeout(function () {
+        $(".theClipboardButtons").insertAfter("#privateMessage-subject").css("float", "right");
+        $("#privatemessage-modal-close")
+          .off("click")
+          .on("click", function () {
+            $(".theClipboardButtons").appendTo($("#header"));
+          });
+      }, 2500);
+    });
 }
 
 function showGroup($tab) {
@@ -766,13 +828,15 @@ function setClipboardText() {
   }
   const clipboardInfo = $("<span id='clipboardInfo'>Enhanced editor " + clipboardInfoText + "</span>");
   $("#addClipping").after(clipboardInfo);
-  $("#clipboardInfo a").on("click", () => {
-    $("#toggleMarkupColor").trigger("click");
-    setClipboardText();
-    if (window.activeTextarea == undefined) {
-      window.activeTextarea = "wpTextbox1";
-    }
-  });
+  $("#clipboardInfo a")
+    .off("click")
+    .on("click", () => {
+      $("#toggleMarkupColor").trigger("click");
+      setClipboardText();
+      if (window.activeTextarea == undefined) {
+        window.activeTextarea = "wpTextbox1";
+      }
+    });
 }
 
 function makeKeyFrom(groupName) {
