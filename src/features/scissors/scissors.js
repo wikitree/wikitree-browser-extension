@@ -164,7 +164,7 @@ function modifyLinkButtons(options) {
   if ((isProfilePage || isProfileEdit) && options.removeDates) {
     const dateless = $("button[aria-label='Copy Wiki Link']")
       .data("copy-text")
-      .replace(/ \([0-9]{3,4}-[0-9]{3,4}\)/, "");
+      .replace(/\s\([^\s]*[0-9]{3,4}.*\)/, ""); //year brackets might contain abt., two years or one, but never a blank
     $("button[aria-label='Copy Wiki Link']").data("copy-text", dateless).attr("data-copy-text", dateless);
   }
 
