@@ -285,3 +285,7 @@ body.qa-body-js-on .deleteClippingButton {
   padding: 0.2em;
   margin: 0;
 }
+
+.qa-body-wrapper td.clipping pre {
+  margin-top: 0 !important;
+}

@@ -57,7 +57,7 @@ shouldInitializeFeature("clipboardAndNotes").then((result) => {
 });
 
 function decodeHTMLEntities(text) {
-  var textArea = document.createElement("textarea");
+  const textArea = document.createElement("textarea");
   textArea.innerHTML = text;
   return textArea.value;
 }
@@ -602,7 +602,7 @@ async function clipboard(type, e, action = false) {
                   e.preventDefault();
                   editClipping(key, type, e);
 
-                  var word = "clipping";
+                  let word = "clipping";
                   if (type == "notes") {
                     word = "note";
                   }
