@@ -64,6 +64,19 @@ const usabilityTweaks = {
       ],
     },
     {
+      id: "myConnections",
+      type: OptionType.GROUP,
+      label: "My Connections",
+      options: [
+        {
+          id: "useHeadlineAsTitle",
+          type: OptionType.CHECKBOX,
+          label: 'Uses the headline of the page as tab title (instead of always displaying "My Connections")',
+          defaultValue: true,
+        },
+      ],
+    },
+    {
       id: "navHomePage",
       type: OptionType.GROUP,
       label: "Navigation Home Page",

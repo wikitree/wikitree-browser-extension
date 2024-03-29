@@ -9,6 +9,7 @@ import {
   isNavHomePage,
   isSpecialTrustedList,
   isProfilePage,
+  isSpecialMyConnections,
 } from "../../core/pageType";
 import "./usability_tweaks.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
@@ -271,6 +272,13 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
       }
       if ((isProfileAddRelative || isAddUnrelatedPerson) && options.saveSearchFormDataButton) {
         addUseSearchFormDataButton();
+      }
+
+      if (isSpecialMyConnections && options.useHeadlineAsTitle) {
+        const h1 = document.getElementsByTagName("h1")[0];
+        if (h1 != null && h1.innerText != null && h1.innerText.length > 0) {
+          document.title = h1.innerText.trim();
+        }
       }
 
       // Open Add/Remove/Replace links in the same tab
