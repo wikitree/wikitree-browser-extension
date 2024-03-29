@@ -6,32 +6,24 @@ import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
 import { isNavHomePage } from "./pageType.js";
-import { shouldInitializeFeature } from "./options/options_storage";
+import { checkIfFeatureEnabled } from "./options/options_storage";
 
 async function checkAnyDataFeature() {
   const features = ["extraWatchlist", "clipboardAndNotes", "customChangeSummaryOptions", "myMenu"];
-  const promises = features.map((feature) => shouldInitializeFeature(feature));
+  const promises = features.map((feature) => checkIfFeatureEnabled(feature));
 
   try {
     const results = await Promise.all(promises);
     // results is an array of booleans. If any is true, initialize this feature.
-
     const anyFeatureToInitialize = results.some((result) => result);
     if (anyFeatureToInitialize) {
-      // Proceed with initialization since at least one feature returned true.
-      console.log("Initializing features based on conditions.");
-      // You can also check which feature(s) should be initialized and act accordingly
       results.forEach((result, index) => {
         if (result) {
-          console.log(`Initializing ${features[index]}`);
           if ($("div#featureDataButtons").length == 0) {
             addDataButtons();
           }
         }
       });
-    } else {
-      // None of the features returned true for initialization.
-      console.log("No features to initialize.");
     }
   } catch (error) {
     console.error("Error checking features to initialize:", error);

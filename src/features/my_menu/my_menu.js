@@ -13,6 +13,7 @@ import {
   goToRandomSpacePage,
 } from "../randomProfile/randomProfile";
 import { doWhatLinksHere } from "../what_links_here/what_links_here";
+import { isNavHomePage } from "../../core/pageType";
 
 shouldInitializeFeature("myMenu").then((result) => {
   if (result) {
@@ -184,7 +185,7 @@ function addCustomMenu() {
     "<ul id='myCustomMenuContainer' class='pureCssMenu pureCssMenum'><li><a class='pureCssMenui' id='myMenuLink'>My Menu</a><ul id='myCustomMenu' class='pureCssMenum'></ul></li></ul>"
   );
   $("div.sixteen.columns.full-width.header,div#HEADER >div").append(outNow);
-  if ($("body.page-Main_Page").length) {
+  if ($("body.page-Main_Page").length || isNavHomePage) {
     outNow.insertAfter($(".pureCssMenu").eq(0));
   }
   let mCustomMenu = "";
