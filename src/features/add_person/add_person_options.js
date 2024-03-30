@@ -21,6 +21,12 @@ const addPersonRedesign = {
       label: "Add additional fields (Prefix, Nicknames, Other Last Names, Suffix, and Biography)",
       defaultValue: false,
     },
+    {
+      id: "categoryPicker",
+      type: OptionType.CHECKBOX,
+      label: "Add a rudimentary category picker",
+      defaultValue: true, //no clue if this is pushed
+    },
   ],
 };
 

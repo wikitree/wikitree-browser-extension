@@ -239,7 +239,7 @@ function IsProfileEditable() {
   return false;
 }
 
-function showResultsOnKeyUp(catTextbox, resultDiv) {
+export function showResultsOnKeyUp(catTextbox, resultDiv) {
   const resList = resultDiv.childNodes[0];
   EmptySuggestionList(resList);
   const typedVal = catTextbox.value;
@@ -344,7 +344,7 @@ function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
   });
 }
 
-function CreateAutoSuggestionDiv(catTextbox) {
+export function CreateAutoSuggestionDiv(catTextbox) {
   const resultAutoTypeDiv = document.createElement("div");
   resultAutoTypeDiv.style.textAlign = "left";
   resultAutoTypeDiv.style.borderWidth = "1px";
@@ -356,7 +356,7 @@ function CreateAutoSuggestionDiv(catTextbox) {
   resultAutoTypeDiv.hidden = true;
   return resultAutoTypeDiv;
 }
-function IsTextInList(suggestionList, val) {
+export function IsTextInList(suggestionList, val) {
   for (let i = 0; i < suggestionList.childNodes.length; i++) {
     if (suggestionList.childNodes[i].innerText == val) {
       return true;
