@@ -16,7 +16,7 @@ import {
   isPlusProfileSearch,
 } from "../../core/pageType";
 import { DeactivateEnhancedEditorIfPresent, ReactivateEnhancedEditorIfNeeded } from "../../core/enhancedEditor";
-
+import("./category_management.css");
 //todo: rename CatALot to Batch cat. or whatever it will be in the end
 
 shouldInitializeFeature("categoryManagement").then((result) => {
@@ -354,6 +354,46 @@ export function CreateAutoSuggestionDiv(catTextbox) {
   resultAutoTypeDiv.append(ul);
 
   resultAutoTypeDiv.hidden = true;
+  catTextbox.addEventListener("keyup", function (e) {
+    const list = resultAutoTypeDiv.childNodes[0];
+
+    const lastIndex = list.childNodes.length - 1;
+    if (e.code == "ArrowDown") {
+      for (let i = 0; i < list.childNodes.length; i++) {
+        if (list.childNodes[i].className == "active" && i < lastIndex) {
+          list.childNodes[i].className = "";
+          list.childNodes[i + 1].className = "active";
+          break;
+        } else if (i == lastIndex) {
+          list.childNodes[0].className = "active";
+          if (lastIndex > 0) {
+            list.childNodes[lastIndex].className = "";
+          }
+        }
+      }
+    } else if (e.code == "ArrowUp") {
+      for (let i = lastIndex; i >= 0; i--) {
+        if (list.childNodes[i].className == "active" && i > 0) {
+          list.childNodes[i].className = "";
+          list.childNodes[i - 1].className = "active";
+          break;
+        } else if (i == 0) {
+          list.childNodes[lastIndex].className = "active";
+          list.childNodes[0].className = "";
+        }
+      }
+    } else if (e.code == "Enter") {
+      e.stopPropagation();
+      for (let i = 0; i < list.childNodes.length; i++) {
+        if (list.childNodes[i].className == "active") {
+          list.parentNode.hidden = true;
+          catTextbox.value = list.childNodes[i].innerText;
+          catTextbox.dispatchEvent(new Event("change"));
+          break;
+        }
+      }
+    }
+  });
   return resultAutoTypeDiv;
 }
 export function IsTextInList(suggestionList, val) {

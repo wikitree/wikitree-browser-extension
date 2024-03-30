@@ -276,10 +276,12 @@ function addCategoryPicker() {
   let timeoutTyping = null;
 
   catTextbox.addEventListener("keyup", (event) => {
-    clearTimeout(timeoutTyping);
-    timeoutTyping = setTimeout(function () {
-      showResultsOnKeyUp(catTextbox, resultAutoTypeDiv);
-    }, 700);
+    if (event.code != "ArrowDown" && event.code != "ArrowUp" && event.code != "Enter") {
+      clearTimeout(timeoutTyping);
+      timeoutTyping = setTimeout(function () {
+        showResultsOnKeyUp(catTextbox, resultAutoTypeDiv);
+      }, 700);
+    }
   });
   catTextbox.addEventListener("change", function () {
     if (IsTextInList(resultAutoTypeDiv.childNodes[0], catTextbox.value)) {
