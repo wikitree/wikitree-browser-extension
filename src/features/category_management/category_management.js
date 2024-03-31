@@ -16,7 +16,7 @@ import {
   isPlusProfileSearch,
 } from "../../core/pageType";
 import { DeactivateEnhancedEditorIfPresent, ReactivateEnhancedEditorIfNeeded } from "../../core/enhancedEditor";
-
+import("./category_management.css");
 //todo: rename CatALot to Batch cat. or whatever it will be in the end
 
 shouldInitializeFeature("categoryManagement").then((result) => {
@@ -32,6 +32,9 @@ shouldInitializeFeature("categoryManagement").then((result) => {
     } else if (isCategoryPage) {
       getFeatureOptions("categoryManagement").then((options) => {
         AddOptionalCategoryPageLinks(options);
+        if (options.addProfileFromCategory) {
+          AddAddProfileToCategory();
+        }
       });
     } else if (isSearchPage) {
       getFeatureOptions("categoryManagement").then((options) => {
@@ -162,6 +165,46 @@ function AddOptionalCategoryPageLinks(options) {
   }
 }
 
+function AddAddProfileToCategory() {
+  const elementToAttach = document.getElementsByTagName("h1")[0].previousSibling;
+  const addDiv = document.createElement("div");
+  addDiv.style.float = "right";
+  addDiv.style.paddingRight = "5px";
+  const addButton = document.createElement("button");
+  addButton.classList.add("small");
+  addButton.classList.add("tight");
+  addButton.innerText = "Add profile";
+  addDiv.appendChild(addButton);
+  elementToAttach.after(addDiv);
+
+  addButton.addEventListener("click", function () {
+    let profileId = prompt("Please enter ID or URL of profile to add to this category");
+
+    if (profileId != null && profileId != "") {
+      let idType = "w";
+      if (profileId.indexOf("http") > -1) {
+        const urlParams = new URLSearchParams(profileId);
+        if (urlParams.has("u")) {
+          profileId = urlParams.get("u");
+          idType = "u";
+        } else if (urlParams.has("w")) {
+          profileId = urlParams.get("w");
+        } else {
+          profileId = profileId.replace("https://www.wikitree.com/wiki/", "");
+        }
+      }
+      window.open(
+        "http://www.wikitree.com/index.php?title=Special:EditPerson&" +
+          idType +
+          "=" +
+          profileId +
+          "&addCat=" +
+          GetThisCategoryNameAndAllAkas()
+      );
+    }
+  });
+}
+
 function AddOptionalCategoryEditPageLinks(options) {
   //to do: check if category exists and hide accordingly
   const editDivs = document.getElementsByClassName("EDIT");
@@ -239,7 +282,7 @@ function IsProfileEditable() {
   return false;
 }
 
-function showResultsOnKeyUp(catTextbox, resultDiv) {
+export function showResultsOnKeyUp(catTextbox, resultDiv) {
   const resList = resultDiv.childNodes[0];
   EmptySuggestionList(resList);
   const typedVal = catTextbox.value;
@@ -256,10 +299,11 @@ function showResultsOnKeyUp(catTextbox, resultDiv) {
 }
 
 function PopulateSuggestions(terms, resList, catTextbox) {
+  /* deactivated since introducing keyboard support
   if (terms.length == 1 && terms[0] == catTextbox.value) {
     resList.parentNode.hidden = true;
     return;
-  }
+  }*/
 
   resList.parentNode.hidden = false;
   for (let i = 0; i < terms.length; i++) {
@@ -283,6 +327,10 @@ function PopulateSuggestions(terms, resList, catTextbox) {
       resList.appendChild(oneSuggestion);
     }
   }
+
+  if (resList.childNodes.length == 1) {
+    resList.childNodes[0].className = "active";
+  }
 }
 
 function EmptySuggestionList(resList) {
@@ -295,6 +343,8 @@ function EmptySuggestionList(resList) {
 }
 
 function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
+  const buttonOk = document.createElement("button");
+
   changeLink.addEventListener("click", () => {
     changeLink.innerText = "";
     const catTextbox = document.createElement("input");
@@ -304,15 +354,18 @@ function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
     let timeoutTyping = null;
 
     catTextbox.addEventListener("keyup", (event) => {
-      clearTimeout(timeoutTyping);
-      timeoutTyping = setTimeout(function () {
-        showResultsOnKeyUp(catTextbox, resultAutoTypeDiv);
-      }, 700);
+      if (isNotArrowOrEnter(event)) {
+        clearTimeout(timeoutTyping);
+        timeoutTyping = setTimeout(function () {
+          showResultsOnKeyUp(catTextbox, resultAutoTypeDiv);
+        }, 700);
+      }
     });
 
     catTextbox.addEventListener("change", function () {
       if (IsTextInList(resultAutoTypeDiv.childNodes[0], catTextbox.value)) {
         enableOk(catTextbox.value);
+        buttonOk.dispatchEvent(new Event("click"));
       } else {
         CheckCategoryExists(catTextbox.value, enableOk);
       }
@@ -325,7 +378,6 @@ function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
         }
       }
 
-      const buttonOk = document.createElement("button");
       buttonOk.innerText = "OK";
       buttonOk.addEventListener("click", function () {
         let url = "http://www.wikitree.com/index.php?title=Special:EditPerson&w=" + profileId + "&addCat=" + catNew;
@@ -344,7 +396,11 @@ function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
   });
 }
 
-function CreateAutoSuggestionDiv(catTextbox) {
+export function isNotArrowOrEnter(event) {
+  return event.code != "ArrowUp" && event.code != "ArrowDown" && event.code != "Enter";
+}
+
+export function CreateAutoSuggestionDiv(catTextbox) {
   const resultAutoTypeDiv = document.createElement("div");
   resultAutoTypeDiv.style.textAlign = "left";
   resultAutoTypeDiv.style.borderWidth = "1px";
@@ -354,9 +410,48 @@ function CreateAutoSuggestionDiv(catTextbox) {
   resultAutoTypeDiv.append(ul);
 
   resultAutoTypeDiv.hidden = true;
+  catTextbox.addEventListener("keyup", function (e) {
+    const list = resultAutoTypeDiv.childNodes[0];
+
+    const lastIndex = list.childNodes.length - 1;
+    if (e.code == "ArrowDown") {
+      for (let i = 0; i < list.childNodes.length; i++) {
+        if (list.childNodes[i].className == "active" && i < lastIndex) {
+          list.childNodes[i].className = "";
+          list.childNodes[i + 1].className = "active";
+          break;
+        } else if (i == lastIndex) {
+          list.childNodes[0].className = "active";
+          if (lastIndex > 0) {
+            list.childNodes[lastIndex].className = "";
+          }
+        }
+      }
+    } else if (e.code == "ArrowUp") {
+      for (let i = lastIndex; i >= 0; i--) {
+        if (list.childNodes[i].className == "active" && i > 0) {
+          list.childNodes[i].className = "";
+          list.childNodes[i - 1].className = "active";
+          break;
+        } else if (i == 0) {
+          list.childNodes[lastIndex].className = "active";
+          list.childNodes[0].className = "";
+        }
+      }
+    } else if (e.code == "Enter") {
+      for (let i = 0; i < list.childNodes.length; i++) {
+        if (list.childNodes[i].className == "active") {
+          list.parentNode.hidden = true;
+          catTextbox.value = list.childNodes[i].innerText;
+          catTextbox.dispatchEvent(new Event("change"));
+          break;
+        }
+      }
+    }
+  });
   return resultAutoTypeDiv;
 }
-function IsTextInList(suggestionList, val) {
+export function IsTextInList(suggestionList, val) {
   for (let i = 0; i < suggestionList.childNodes.length; i++) {
     if (suggestionList.childNodes[i].innerText == val) {
       return true;
@@ -420,9 +515,10 @@ function CreateCopyRenameCatLink() {
 function CreateBatchCatActivationLinkAndSpan() {
   const buttonEnable = document.createElement("a");
   buttonEnable.innerText = "batch categorize";
-  buttonEnable.title = "Change catgories of multiple profiles in this category at once";
+  buttonEnable.title = "Change categories of multiple profiles in this category at once";
   buttonEnable.href = "#0";
   buttonEnable.id = "activate_link";
+  buttonEnable.accessKey = "k";
   buttonEnable.addEventListener("click", ShowCatALot);
   return WrapWithBrackets(buttonEnable);
 }
@@ -521,10 +617,12 @@ function AddCatALotControls(elementToAppendTo) {
   let timeoutTyping = null;
 
   inputCatTyped.addEventListener("keyup", (event) => {
-    clearTimeout(timeoutTyping);
-    timeoutTyping = setTimeout(function () {
-      showResultsOnKeyUp(inputCatTyped, resultAutoTypeDiv);
-    }, 700);
+    if (isNotArrowOrEnter(event)) {
+      clearTimeout(timeoutTyping);
+      timeoutTyping = setTimeout(function () {
+        showResultsOnKeyUp(inputCatTyped, resultAutoTypeDiv);
+      }, 700);
+    }
   });
 
   inputCatTyped.addEventListener("change", function () {
@@ -617,6 +715,7 @@ function AddCatALotControls(elementToAppendTo) {
   catALotDiv.appendChild(inputCatVerified);
   catALotDiv.appendChild(catALotButton);
   elementToAppendTo.appendChild(catALotDiv);
+  inputCatTyped.focus();
 }
 
 function CreateSelectAllResultsLink() {

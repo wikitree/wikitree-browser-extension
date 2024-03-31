@@ -4,6 +4,13 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import {
+  CreateAutoSuggestionDiv,
+  showResultsOnKeyUp,
+  IsTextInList,
+  isNotArrowOrEnter,
+} from "../category_management/category_management";
+import { isProfileEdit } from "../../core/pageType";
 
 function moveSourcesParts() {
   /*
@@ -135,7 +142,13 @@ function scrollTo(el) {
 }
 
 shouldInitializeFeature("addPersonRedesign").then((result) => {
-  if (result && $("h1:contains('Edit Marriage')").length == 0) {
+  if (result && isProfileEdit) {
+    getFeatureOptions("addPersonRedesign").then((options) => {
+      if (options.categoryPicker && document.getElementById("newProfileNote") != null) {
+        moveCategories();
+      }
+    });
+  } else if (result && $("h1:contains('Edit Marriage')").length == 0) {
     import("./add_person.css");
     moveSourcesParts();
     keepBasicDataSectionVisible();
@@ -143,76 +156,10 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
     getFeatureOptions("addPersonRedesign").then((options) => {
       if (options.additionalFields) {
         // Add fields
-        const prefixRow = $(`<tr>
-        <td valign="top" align="right" width="25%">Prefix:</td>
-        <td width="50%">
-        <input class="small" type="text" id="mPrefix" name="mPrefix" value="" size="10" maxlength="60"><a href="/wiki/Help:Name_Fields#Prefix" target="_Help"><img src="/images/icons/help.gif.pagespeed.ce.1TvA_97yy8.gif" border="0" width="11" height="11" alt="Help" title="E.g. Mr., Sir, Sgt. Click here for explanation of Prefix"></a>
-        <span class="small">
-        <label><input type="radio" name="mStatus_Prefix" value="guess">uncertain</label>
-        <label><input type="radio" name="mStatus_Prefix" value="certain">certain</label></span>
-        </td>
-        </tr>`);
-        const nicknamesRow = $(`<tr>
-<td align="right" valign="top">Other Nicknames:</td>
-<td>
-<input class="small" type="text" id="mNicknames" name="mNicknames" value="" size="20"><a href="/wiki/Help:Name_Fields#Other_Nicknames" target="_Help"><img src="/images/icons/help.gif.pagespeed.ce.1TvA_97yy8.gif" border="0" width="11" height="11" alt="Help" title="Explanation of Other Nicknames"></a>
-<span class="SMALL">
-<label><input type="radio" name="mStatus_Nicknames" value="guess">uncertain</label>
-<label><input type="radio" name="mStatus_Nicknames" value="certain">certain</label></span>
-</td>
-</tr>`);
-        const otherLastNamesRow = $(`<tr>
-<td valign="top" align="right">Other Last Name(s):</td>
-<td><input class="small" type="text" id="mLastNameOther" name="mLastNameOther" value="" size="20"><a href="/wiki/Help:Name_Fields#Other_Last_Names" target="_Help"><img src="/images/icons/help.gif.pagespeed.ce.1TvA_97yy8.gif" border="0" width="11" height="11" alt="Help" title="Explanation of Other Last Names"></a>
-<span class="SMALL">
-<label><input type="radio" name="mStatus_LastNameOther" value="guess">uncertain</label>
-<label><input type="radio" name="mStatus_LastNameOther" value="certain">certain</label></span>
-</td>
-</tr>`);
-        const suffixRow = $(`<tr>
-<td valign="top" align="right">Suffix:</td>
-<td>
-<input class="small" type="text" id="mSuffix" name="mSuffix" value="" size="10" maxlength="60"><a href="/wiki/Help:Name_Fields#Suffix" target="_Help"><img src="/images/icons/help.gif.pagespeed.ce.1TvA_97yy8.gif" border="0" width="11" height="11" alt="Help" title="E.g. Jr., III, M.D. Click here for explanation of Suffix"></a>
-<span class="SMALL">
-<label><input type="radio" name="mStatus_Suffix" value="guess">uncertain</label>
-<label><input type="radio" name="mStatus_Suffix" value="certain">certain</label></span>
-</td>
-</tr>`);
-        $("#mFirstName").closest("tr").before(prefixRow);
-        $("#mRealName").closest("tr").after(nicknamesRow);
-        $("#mLastNameCurrent").closest("tr").after(otherLastNamesRow, suffixRow);
-
-        // Change the text
-        const lastNameCurrent = document.querySelector("#mLastNameCurrent").value;
-        const targetElement = document.querySelector('td > a[href="/wiki/Help:Name_Fields#Current_Last_Name"]');
-        if (targetElement) {
-          const newText = "All other info can be entered later.";
-          targetElement.parentNode.innerHTML = targetElement.parentNode.innerHTML.replace(
-            "Name prefix, suffix, and all other info can be entered later.",
-            newText
-          );
-        }
-        document.querySelector("#mLastNameCurrent").value = lastNameCurrent;
-
-        const notesRow = $(`<tr>
-<td align="right" valign="top" id="notesLabel">
-<a title="Added by WBE">Biography</a>:
-</td>
-<td>
-<textarea class="small" id="mBioWithoutSources" name="mBioWithoutSources" rows="5" cols="80" placeholder="Add your biography here or wait until you reach the edit page."></textarea>
-</td>
-</tr>`);
-        if ($(".toggleAdvancedSources").text().match("Basic") == null) {
-          $("#sourcesLabel").closest("tr").before(notesRow);
-        }
-        $(".toggleAdvancedSources").on("click", function () {
-          if ($(".toggleAdvancedSources").text().match("Basic") && $("#notesLabel").length == 0) {
-            console.log(notesRow);
-            $("#sourcesLabel").closest("tr").before(notesRow);
-          } else {
-            $("#notesLabel").closest("tr").remove();
-          }
-        });
+        addAdditionalFields();
+      }
+      if (options.categoryPicker) {
+        addCategoryPicker();
       }
     });
 
@@ -261,3 +208,138 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
     //  ||$("#editAction_connectExisting").prop("checked") == true
   }
 });
+
+function addAdditionalFields() {
+  const prefixRow = $(`<tr>
+        <td valign="top" align="right" width="25%">Prefix:</td>
+        <td width="50%">
+        <input class="small" type="text" id="mPrefix" name="mPrefix" value="" size="10" maxlength="60"><a href="/wiki/Help:Name_Fields#Prefix" target="_Help"><img src="/images/icons/help.gif.pagespeed.ce.1TvA_97yy8.gif" border="0" width="11" height="11" alt="Help" title="E.g. Mr., Sir, Sgt. Click here for explanation of Prefix"></a>
+        <span class="small">
+        <label><input type="radio" name="mStatus_Prefix" value="guess">uncertain</label>
+        <label><input type="radio" name="mStatus_Prefix" value="certain">certain</label></span>
+        </td>
+        </tr>`);
+  const nicknamesRow = $(`<tr>
+<td align="right" valign="top">Other Nicknames:</td>
+<td>
+<input class="small" type="text" id="mNicknames" name="mNicknames" value="" size="20"><a href="/wiki/Help:Name_Fields#Other_Nicknames" target="_Help"><img src="/images/icons/help.gif.pagespeed.ce.1TvA_97yy8.gif" border="0" width="11" height="11" alt="Help" title="Explanation of Other Nicknames"></a>
+<span class="SMALL">
+<label><input type="radio" name="mStatus_Nicknames" value="guess">uncertain</label>
+<label><input type="radio" name="mStatus_Nicknames" value="certain">certain</label></span>
+</td>
+</tr>`);
+  const otherLastNamesRow = $(`<tr>
+<td valign="top" align="right">Other Last Name(s):</td>
+<td><input class="small" type="text" id="mLastNameOther" name="mLastNameOther" value="" size="20"><a href="/wiki/Help:Name_Fields#Other_Last_Names" target="_Help"><img src="/images/icons/help.gif.pagespeed.ce.1TvA_97yy8.gif" border="0" width="11" height="11" alt="Help" title="Explanation of Other Last Names"></a>
+<span class="SMALL">
+<label><input type="radio" name="mStatus_LastNameOther" value="guess">uncertain</label>
+<label><input type="radio" name="mStatus_LastNameOther" value="certain">certain</label></span>
+</td>
+</tr>`);
+  const suffixRow = $(`<tr>
+<td valign="top" align="right">Suffix:</td>
+<td>
+<input class="small" type="text" id="mSuffix" name="mSuffix" value="" size="10" maxlength="60"><a href="/wiki/Help:Name_Fields#Suffix" target="_Help"><img src="/images/icons/help.gif.pagespeed.ce.1TvA_97yy8.gif" border="0" width="11" height="11" alt="Help" title="E.g. Jr., III, M.D. Click here for explanation of Suffix"></a>
+<span class="SMALL">
+<label><input type="radio" name="mStatus_Suffix" value="guess">uncertain</label>
+<label><input type="radio" name="mStatus_Suffix" value="certain">certain</label></span>
+</td>
+</tr>`);
+  $("#mFirstName").closest("tr").before(prefixRow);
+  $("#mRealName").closest("tr").after(nicknamesRow);
+  $("#mLastNameCurrent").closest("tr").after(otherLastNamesRow, suffixRow);
+
+  // Change the text
+  const lastNameCurrent = document.querySelector("#mLastNameCurrent").value;
+  const targetElement = document.querySelector('td > a[href="/wiki/Help:Name_Fields#Current_Last_Name"]');
+  if (targetElement) {
+    const newText = "All other info can be entered later.";
+    targetElement.parentNode.innerHTML = targetElement.parentNode.innerHTML.replace(
+      "Name prefix, suffix, and all other info can be entered later.",
+      newText
+    );
+  }
+  document.querySelector("#mLastNameCurrent").value = lastNameCurrent;
+
+  const notesRow = $(`<tr>
+<td align="right" valign="top" id="notesLabel">
+<a title="Added by WBE">Biography</a>:
+</td>
+<td>
+<textarea class="small" id="mBioWithoutSources" name="mBioWithoutSources" rows="5" cols="80" placeholder="Add your biography here or wait until you reach the edit page."></textarea>
+</td>
+</tr>`);
+  if ($(".toggleAdvancedSources").text().match("Basic") == null) {
+    $("#sourcesLabel").closest("tr").before(notesRow);
+  }
+  $(".toggleAdvancedSources").on("click", function () {
+    if ($(".toggleAdvancedSources").text().match("Basic") && $("#notesLabel").length == 0) {
+      console.log(notesRow);
+      $("#sourcesLabel").closest("tr").before(notesRow);
+    } else {
+      $("#notesLabel").closest("tr").remove();
+    }
+  });
+}
+
+function addCategoryPicker() {
+  const catTextbox = document.createElement("input");
+  catTextbox.value = "";
+  catTextbox.className = "small";
+  catTextbox.accessKey = "k";
+  catTextbox.size = 50;
+  catTextbox.autocomplete = false;
+  catTextbox.placeholder = "Enter text here to select a category";
+  const resultAutoTypeDiv = CreateAutoSuggestionDiv(catTextbox);
+  let timeoutTyping = null;
+
+  catTextbox.addEventListener("keyup", (event) => {
+    if (isNotArrowOrEnter(event)) {
+      clearTimeout(timeoutTyping);
+      timeoutTyping = setTimeout(function () {
+        showResultsOnKeyUp(catTextbox, resultAutoTypeDiv);
+      }, 700);
+    }
+  });
+  catTextbox.addEventListener("keydown", (event) => {
+    if (event.code == "Enter") {
+      //muting body key down handler in add sibling
+      //else screen will scroll to top
+      event.preventDefault();
+    }
+  });
+
+  catTextbox.addEventListener("change", function () {
+    if (IsTextInList(resultAutoTypeDiv.childNodes[0], catTextbox.value)) {
+      const textBoxId = document.getElementById("mBioWithoutSources") != null ? "mBioWithoutSources" : "mSources";
+      const tb = document.getElementById(textBoxId);
+      const oldValue = tb.value == null ? "" : tb.value;
+      tb.value = "[[Category:" + catTextbox.value + "]]\n" + oldValue;
+      catTextbox.value = "";
+    }
+  });
+
+  const attachmentDestination = document.getElementsByClassName("sourcesContent")[0];
+  attachmentDestination.appendChild(catTextbox);
+  attachmentDestination.appendChild(resultAutoTypeDiv);
+}
+
+function moveCategories() {
+  const ta = document.getElementById("wpTextbox1");
+  const parts = ta.value.split("\n");
+  const oldValue = ta.value;
+  let top = "";
+  let bottom = "";
+
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i].indexOf("[[Category") > -1) {
+      top += "\n" + parts[i];
+    } else {
+      bottom += "\n" + parts[i];
+    }
+  }
+  ta.value = top.substring(1) + "\n" + bottom.substring(1);
+  if (oldValue != ta.value) {
+    document.getElementById("wpSummary").value = "Moving categories. ";
+  }
+}
