@@ -17,6 +17,10 @@
   background: white;
   display: none;
   resize: both;
+  user-select: none; /* CSS3 (little to no support) */
+  -ms-user-select: none; /* IE 10+ */
+  -moz-user-select: none; /* Gecko (Firefox) */
+  -webkit-user-select: none; /* Webkit (Safari, Chrome) */
 }
 
 #clipboard.label {
@@ -131,8 +135,13 @@
   cursor: default;
 }
 
+#clipboard .clipping.clip-selected,
 #clipboard .clipping:hover {
   background: rgb(221, 250, 218);
+}
+
+#clipboard .clipping.clip-unselected {
+  background: #FFF !important;
 }
 
 #clipboard[data-type="clipboard"] .clipping:active {
@@ -283,4 +292,8 @@ body.qa-body-js-on .deleteClippingButton {
 #clipboardInfo a {
   padding: 0.2em;
   margin: 0;
+}
+
+.qa-body-wrapper td.clipping pre {
+  margin-top: 0 !important;
 }

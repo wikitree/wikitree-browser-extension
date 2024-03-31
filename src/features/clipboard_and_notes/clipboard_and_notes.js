@@ -9,6 +9,7 @@ import "jquery-ui/ui/widgets/draggable";
 import "./clipboard_and_notes.css";
 import { htmlEntities, extensionContextInvalidatedCheck } from "../../core/common";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { tabs } from "sinon-chrome";
 
 export function appendClipboardButtons(clipboardButtons = $()) {
   if ($("h1:contains('Edit Marriage Information')").length) {
@@ -25,6 +26,8 @@ export function appendClipboardButtons(clipboardButtons = $()) {
 }
 
 const editImage = chrome.runtime.getURL("images/edit.png");
+var clippingRow = -1;
+var keyMode = false; // flags whether the user is using cursor keys or mouse
 
 shouldInitializeFeature("clipboardAndNotes").then((result) => {
   if (result && $(".clipboardButtons").length == 0) {
@@ -57,7 +60,7 @@ shouldInitializeFeature("clipboardAndNotes").then((result) => {
 });
 
 function decodeHTMLEntities(text) {
-  var textArea = document.createElement("textarea");
+  const textArea = document.createElement("textarea");
   textArea.innerHTML = text;
   return textArea.value;
 }
@@ -90,8 +93,8 @@ function groupNameFromInput() {
   return $("#groupInput").val().trim();
 }
 
-function currentActiveTabFor(type) {
-  return localStorage[`clipboard_${type}_active_tab`];
+function activeTabVarNameFor(type) {
+  return `clipboard_${type}_active_tab`;
 }
 
 function focusOnGroup(group) {
@@ -285,13 +288,14 @@ function renumberClipboardGroup(groupKey) {
 }
 
 function setAddClippingAction(type) {
-  $("#addClipping").off();
-  $("#addClipping").on("click", function (e) {
-    e.preventDefault();
-    if ($("#clippingBox").val() != "") {
-      addClipping(type, e);
-    }
-  });
+  $("#addClipping")
+    .off("click")
+    .on("click", function (e) {
+      e.preventDefault();
+      if ($("#clippingBox").val() != "") {
+        addClipping(type, e);
+      }
+    });
   let word = "clipping";
   if (type == "notes") {
     word = "note";
@@ -321,15 +325,19 @@ function placeClipboard(aClipboard, event) {
   }
 
   // Set the position of the clipboard based on the current pointer location.
-  aClipboard.css({
-    position: "absolute",
-    top: mouseY,
-    // left: mouseX,
-  });
+  if (mouseY != 0) {
+    aClipboard.css({
+      position: "absolute",
+      top: mouseY,
+      // left: mouseX,
+    });
+  }
 }
 
 async function clipboard(type, e, action = false) {
-  let activeTab = localStorage[currentActiveTabFor(type)] || "";
+  clippingRow = -1;
+  $("input, textarea").trigger("blur"); // ensure the clipboard has the focus
+  let activeTab = localStorage[activeTabVarNameFor(type)] || "";
   if ($("#clipboard").length) {
     activeTab = $("#tab-list .tab.active").data("groupkey");
     $("#clipboard #clippings").html("");
@@ -373,31 +381,28 @@ async function clipboard(type, e, action = false) {
       }
     }
 
-    $("#clipboard x").off();
-    $("#clipboard x").on("click", function () {
-      $("#clipboard").slideUp();
-    });
-    $("#clipboard h1").on("dblclick", function () {
-      $("#clipboard").slideUp();
-    });
-    $("#reorderTabs").off();
-    $("#reorderTabs").on("click", function (e) {
-      e.preventDefault();
-      localStorage.removeItem(groupsOrderNameFor(type));
-      clipboard(type, e, "edit");
-    });
-    $("#renameGroup").off();
-    $("#renameGroup").on("click", function (e) {
-      e.preventDefault();
-      const newName = groupNameFromInput();
-      const $activeGroup = $("#tab-list .tab.active");
-      if ($activeGroup.length) {
-        const currentKey = $activeGroup.data("groupkey") || "";
-        if (currentKey != makeKeyFrom(newName)) {
-          renameGroup(currentKey, newName, type, e);
+    $("#clipboard x").off("click", closeClipBoard).on("click", closeClipBoard);
+    $("#clipboard h1").off("dblclick", closeClipBoard).on("dblclick", closeClipBoard);
+    $("#reorderTabs")
+      .off("click")
+      .on("click", function (e) {
+        e.preventDefault();
+        localStorage.removeItem(groupsOrderNameFor(type));
+        clipboard(type, e, "edit");
+      });
+    $("#renameGroup")
+      .off("click")
+      .on("click", function (e) {
+        e.preventDefault();
+        const newName = groupNameFromInput();
+        const $activeGroup = $("#tab-list .tab.active");
+        if ($activeGroup.length) {
+          const currentKey = $activeGroup.data("groupkey") || "";
+          if (currentKey != makeKeyFrom(newName)) {
+            renameGroup(currentKey, newName, type, e);
+          }
         }
-      }
-    });
+      });
     if ($("#clipboard").draggable()) {
       $("#clipboard").draggable("destroy");
     }
@@ -424,6 +429,9 @@ async function clipboard(type, e, action = false) {
 
   $("#groupTabs p").remove();
   $("#clippings").html("");
+
+  $(document).off("keydown", keyDownListener).on("keydown", keyDownListener);
+  $(document).off("mousemove", mouseListener).on("mousemove", mouseListener);
 
   const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
   clipboardDB.onsuccess = function (event) {
@@ -510,25 +518,28 @@ async function clipboard(type, e, action = false) {
             renumberClipboardGroup(groupKey);
           }
         }
-        $("#tab-list .tab-name").on("click", function (ev) {
-          showGroup($(this).parent(".tab"));
-        });
-        if (type == "clipboard") {
-          $(".clipping").off();
-          $(".clipping").on("click", function () {
-            copyClippingToClipboard($(this).parent().data("original"));
-            $("#clipboard").slideUp();
+        $("#tab-list .tab-name")
+          .off("click")
+          .on("click", function (ev) {
+            showGroup($(this).parent(".tab"));
           });
+        if (type == "clipboard") {
+          $(".clipping")
+            .off("click")
+            .on("click", function () {
+              copyClippingToClipboard($(this).parent().data("original"));
+              closeClipBoard();
+            });
         }
 
-        $(".deleteClippingButton").off();
-        $(".deleteClippingButton").on("click", function () {
-          deleteClipping($(this).closest("tr").data("key"), type, $(this).closest("tbody.group"), e);
-        });
+        $(".deleteClippingButton")
+          .off("click")
+          .on("click", function () {
+            deleteClipping($(this).closest("tr").data("key"), type, $(this).closest("tbody.group"), e);
+          });
         $(".editClippingButton").each(function () {
           const aButton = $(this);
-          aButton.off();
-          aButton.on("click", function () {
+          aButton.off("click").on("click", function () {
             if ($(this).closest("tr").hasClass("editing")) {
               $(this).closest("tr").removeClass("editing");
               setAddClippingAction(type);
@@ -543,18 +554,19 @@ async function clipboard(type, e, action = false) {
 
               $("#addClipping").text("Save edit");
 
-              $("#addClipping").off();
-              $("#addClipping").on("click", function (e) {
-                e.preventDefault();
-                editClipping(key, type, e);
+              $("#addClipping")
+                .off("click")
+                .on("click", function (e) {
+                  e.preventDefault();
+                  editClipping(key, type, e);
 
-                var word = "clipping";
-                if (type == "notes") {
-                  word = "note";
-                }
+                  let word = "clipping";
+                  if (type == "notes") {
+                    word = "note";
+                  }
 
-                $("#addClipping").text("Add " + word);
-              });
+                  $("#addClipping").text("Add " + word);
+                });
             }
           });
         });
@@ -626,6 +638,116 @@ async function clipboard(type, e, action = false) {
   };
 }
 
+function mouseListener() {
+  if (keyMode) {
+    // The user started to use the mouse after having used the cursor keys
+    keyMode = false;
+    $(".clipping").removeClass("clip-selected clip-unselected");
+  }
+}
+
+function keyDownListener(e) {
+  if (e.code === "Escape") {
+    closeClipBoard();
+    return;
+  }
+  if (!e.shiftKey) return; // we only react to shift-<some key>
+  if (!$("#clipboard").is(":visible")) return; // and only if the clipboard is visible
+  if ($("input, textarea").is(":focus")) return; // and no text input area has the focus
+
+  if (["ArrowDown", "ArrowUp", "PageUp", "PageDown"].includes(e.code)) {
+    e.preventDefault();
+    e.stopPropagation();
+    const clippings = $(".clipping:visible");
+    if (!keyMode) {
+      keyMode = true;
+      const index = clippings.index($(".clipping:hover"));
+      if (index > 0) clippingRow = index;
+    }
+    clippings.addClass("clip-unselected");
+    clippings.removeClass("clip-selected");
+    switch (e.code) {
+      case "ArrowDown":
+        clippingRow = ++clippingRow % clippings.length;
+        break;
+      case "ArrowUp":
+        --clippingRow;
+        if (clippingRow < 0) clippingRow = clippings.length - 1;
+        break;
+      case "PageUp":
+        clippingRow = Math.max(clippingRow - 5, 0);
+        break;
+      case "PageDown":
+        clippingRow = Math.min(clippingRow + 5, clippings.length - 1);
+    }
+    const selectedRow = clippings.eq(clippingRow);
+    selectedRow.addClass("clip-selected").removeClass("clip-unselected");
+    scrollIfRequired(selectedRow);
+  } else if (e.code === "ArrowRight" || e.code === "ArrowLeft") {
+    e.preventDefault();
+    e.stopPropagation();
+    keyMode = true;
+    let activeTabs = $(".tab.active");
+    let el;
+    if (activeTabs.length) {
+      const activeTab = activeTabs.first();
+      el = e.code === "ArrowRight" ? activeTab.next() : activeTab.prev();
+    } else {
+      activeTabs = $(".tab");
+      el = e.code === "ArrowRight" ? activeTabs.first() : activeTabs.last();
+    }
+    if (el) {
+      $(".clipping").removeClass("clip-selected");
+      $(".clipping").addClass("clip-unselected");
+      clippingRow = -1;
+      el.find(".tab-name").trigger("click");
+    }
+  } else if (e.code === "Enter") {
+    e.preventDefault();
+    e.stopPropagation();
+    const clippings = $(".clipping:visible");
+    if (clippingRow >= 0 && clippingRow < clippings.length) {
+      const x = $(".clipping.clip-selected").trigger("click");
+    }
+  }
+}
+
+function scrollIfRequired(selectedRow) {
+  if (selectedRow.length == 0) return;
+
+  // Calculate the position of the next element relative to the scrollable div
+  // FVT = From Viewport Top
+  const containerHeight = $("#clipboard").outerHeight();
+  const divScrollTop = $("#clipboard").scrollTop();
+  const tabsTop = $("#groupTabs").position().top;
+  const tabsHeight = $("#groupTabs").outerHeight();
+  const firstClipStartFVT = tabsTop + tabsHeight;
+  const elementPos = selectedRow.position().top;
+  const elementHeight = selectedRow.outerHeight();
+  const elementTopFVT = firstClipStartFVT + elementPos;
+  const elementBottomFVT = firstClipStartFVT + elementPos + elementHeight;
+
+  // console.log(`--divScrTop=${divScrollTop},divHeight=${containerHeight}`);
+  // console.log(`tabsTop=${tabsTop},tabsHeight=${tabsHeight}`);
+  // console.log(`1stClipFromViewTop=${firstClipStartFVT}`);
+  // console.log(`elPos=${elementPos},elTopFVT=${elementTopFVT},elHeight=${elementHeight},elBotFVT=${elementBottomFVT}`);
+  // console.log(`overhang=${elementBottomFVT - containerHeight}`);
+
+  // Check if the next element is below the bottom of the scrollable div
+  if (elementBottomFVT > containerHeight) {
+    // Scroll to bring the bottom of the next element into view
+    const newScrollTop = divScrollTop + elementBottomFVT - containerHeight;
+    $("#clipboard").animate({ scrollTop: newScrollTop }, 200);
+    // console.log(`newScrollTop=${newScrollTop}`);
+    $("#clipboard").animate({ scrollTop: newScrollTop }, 200);
+  } else if (elementTopFVT < 0) {
+    // Scroll to bring the top of the next element into view
+    const newScrollTop = elementTopFVT;
+    // console.log(`newScrollTop=${newScrollTop}`);
+    $("#clipboard").animate({ scrollTop: newScrollTop }, 200);
+  }
+}
+
 function addGroupTab(groupKey, groupName) {
   const isNoGroup = groupKey == "";
   const tab = $(
@@ -681,65 +803,73 @@ async function initClipboard() {
     $(".qa-c-form .theClipboardButtons").addClass("commentForm");
     $("#toolbar + br").remove();
     $(".aClipboardButton").each(function () {
-      $(this).on("click", function (e) {
-        try {
+      $(this)
+        .off("click")
+        .on("click", function (e) {
+          try {
+            e.preventDefault();
+            window.clipboardClicker = $(this);
+            const ccpc = window.clipboardClicker.parent().attr("class");
+            const lccpc = window.lastClipboardClicker.parent().attr("class");
+            if ($("#clipboard").data("type") == "notes") {
+              $("#clipboard").remove();
+              clipboard("clipboard", e);
+            } else if ($("#clipboard").css("display") == "block") {
+              if (ccpc == lccpc || lccpc == undefined) {
+                closeClipBoard();
+              }
+              placeClipboard($("#clipboard"), e);
+            } else {
+              clipboard("clipboard", e);
+            }
+            window.lastClipboardClicker = window.clipboardClicker;
+          } catch (e) {
+            console.log(e);
+            extensionContextInvalidatedCheck(e);
+          }
+        });
+    });
+    $(".aNotesButton").each(function () {
+      $(this)
+        .off("click")
+        .on("click", function (e) {
           e.preventDefault();
           window.clipboardClicker = $(this);
           const ccpc = window.clipboardClicker.parent().attr("class");
           const lccpc = window.lastClipboardClicker.parent().attr("class");
-          if ($("#clipboard").data("type") == "notes") {
+
+          if ($("#clipboard").data("type") == "clipboard") {
             $("#clipboard").remove();
-            clipboard("clipboard", e);
+            clipboard("notes", e);
           } else if ($("#clipboard").css("display") == "block") {
             if (ccpc == lccpc || lccpc == undefined) {
-              $("#clipboard").slideUp();
+              closeClipBoard();
             }
             placeClipboard($("#clipboard"), e);
           } else {
-            clipboard("clipboard", e);
+            clipboard("notes", e);
           }
+
           window.lastClipboardClicker = window.clipboardClicker;
-        } catch (e) {
-          console.log(e);
-          extensionContextInvalidatedCheck(e);
-        }
-      });
-    });
-    $(".aNotesButton").each(function () {
-      $(this).on("click", function (e) {
-        e.preventDefault();
-        window.clipboardClicker = $(this);
-        const ccpc = window.clipboardClicker.parent().attr("class");
-        const lccpc = window.lastClipboardClicker.parent().attr("class");
-
-        if ($("#clipboard").data("type") == "clipboard") {
-          $("#clipboard").remove();
-          clipboard("notes", e);
-        } else if ($("#clipboard").css("display") == "block") {
-          if (ccpc == lccpc || lccpc == undefined) {
-            $("#clipboard").slideUp();
-          }
-          placeClipboard($("#clipboard"), e);
-        } else {
-          clipboard("notes", e);
-        }
-
-        window.lastClipboardClicker = window.clipboardClicker;
-      });
+        });
     });
   };
   clipboardReq.onerror = function (event) {
     console.log("error opening clipboard/notes database: " + event.target.errorCode);
   };
 
-  $(".privateMessageLink").on("click", function () {
-    setTimeout(function () {
-      $(".theClipboardButtons").insertAfter("#privateMessage-subject").css("float", "right");
-      $("#privatemessage-modal-close").on("click", function () {
-        $(".theClipboardButtons").appendTo($("#header"));
-      });
-    }, 2500);
-  });
+  $(".privateMessageLink")
+    .off("click")
+    .on("click", function () {
+      setTimeout(function () {
+        $(".theClipboardButtons").insertAfter("#privateMessage-subject").css("float", "right");
+        $("#privatemessage-modal-close")
+          .off("click")
+          .on("click", function () {
+            $(".theClipboardButtons").appendTo($("#header"));
+          });
+      }, 2500);
+    });
 }
 
 function showGroup($tab) {
@@ -749,7 +879,7 @@ function showGroup($tab) {
 
   // Show the active tab content
   const groupKey = $tab.data("groupkey") || "";
-  localStorage.setItem(currentActiveTabFor($("#clipboard").data("type")), groupKey);
+  localStorage.setItem(activeTabVarNameFor($("#clipboard").data("type")), groupKey);
   $("#clippings div").hide();
   const groupDiv = $(`#clippings div[data-groupkey="${groupKey}"]`);
   $("#groupInput").val(original2real(groupDiv.data("group")));
@@ -766,13 +896,21 @@ function setClipboardText() {
   }
   const clipboardInfo = $("<span id='clipboardInfo'>Enhanced editor " + clipboardInfoText + "</span>");
   $("#addClipping").after(clipboardInfo);
-  $("#clipboardInfo a").on("click", () => {
-    $("#toggleMarkupColor").trigger("click");
-    setClipboardText();
-    if (window.activeTextarea == undefined) {
-      window.activeTextarea = "wpTextbox1";
-    }
-  });
+  $("#clipboardInfo a")
+    .off("click")
+    .on("click", () => {
+      $("#toggleMarkupColor").trigger("click");
+      setClipboardText();
+      if (window.activeTextarea == undefined) {
+        window.activeTextarea = "wpTextbox1";
+      }
+    });
+}
+
+function closeClipBoard() {
+  $("#clipboard").slideUp();
+  $(document).off("keydown", keyDownListener);
+  $(document).off("mousemove", mouseListener);
 }
 
 function makeKeyFrom(groupName) {

@@ -14,6 +14,7 @@ const vocEnd = new Date("1795-09-17");
 const bataviaStart = new Date("1803-02-21");
 const capeColonyStart = new Date("1806-01-19");
 const colonyEnd = new Date("1910-05-31");
+const newSAStart = new Date("1994-04-27");
 // Transvaal
 const tRepStart = new Date("1844-04-09");
 const boerRepStart = new Date("1852-01-17");
@@ -90,17 +91,14 @@ function highlightSearchWords(activeEl, dText, innerBit) {
   // And match the parts of the text in the location box (#mBirthLocation, etc.) against dText and wrap <span class="autocomplete-suggestion-term"> around them.
   const theLocation = $("#" + activeEl.id);
   const theLocationText = theLocation.val();
-  const theLocationTextMatch = theLocationText.match(/[A-z]+/g);
+  const theLocationTextMatch = theLocationText.match(/[A-z']+/g);
   if (theLocationTextMatch != null) {
     theLocationTextMatch.forEach(function (aWord) {
       if (dText.match(aWord) != null) {
         const theMatch = dText.match(aWord)[0];
         const theMatchRegex = new RegExp(theMatch, "g");
         innerBit.html(
-          innerBit
-            .html()
-            .trim()
-            .replace(theMatchRegex, '<span class="autocomplete-suggestion-term">' + theMatch + "</span>")
+          innerBit.html().trim().replace(theMatchRegex, `<span class="autocomplete-suggestion-term">${theMatch}</span>`)
         );
       }
     });
@@ -561,6 +559,15 @@ async function locationsHelper() {
                   .replace("Cape of Good Hope", "Cape of Good Hope Colony")
                   .replace("Cabo de Goede Hoop", "Cape of Good Hope Colony")
                   .replace("Cape Colony", "Cape of Good Hope Colony");
+              } else if (theDate >= colonyEnd && theDate < newSAStart) {
+                dText = dText
+                  .replace("Cabo de Goede Hoop", "Cape Province, South Africa")
+                  .replace("Cape Colony", "Cape Province, South Africa");
+              } else if (theDate >= newSAStart) {
+                dText = dText
+                  .replace("Cabo de Goede Hoop", "Western Cape, South Africa")
+                  .replace("Cape Colony", "Western Cape, South Africa")
+                  .replace("Cape Province, South Africa", "Western Cape, South Africa");
               }
 
               // Transvaal
@@ -593,6 +600,8 @@ async function locationsHelper() {
                   .replace("Oranje Unie", "Oranjerivierkolonie");
               } else if (theDate >= boerColonyStart && theDate < colonyEnd) {
                 dText = dText.replace("Orange Free State, South Africa", "Oranje Unie");
+              } else if (theDate >= newSAStart) {
+                dText = dText.replace("Orange Free State, South Africa", "Free State, South Africa");
               }
 
               // Natal
