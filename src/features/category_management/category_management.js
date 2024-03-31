@@ -256,10 +256,11 @@ export function showResultsOnKeyUp(catTextbox, resultDiv) {
 }
 
 function PopulateSuggestions(terms, resList, catTextbox) {
+  /* deactivated since introducing keyboard support
   if (terms.length == 1 && terms[0] == catTextbox.value) {
     resList.parentNode.hidden = true;
     return;
-  }
+  }*/
 
   resList.parentNode.hidden = false;
   for (let i = 0; i < terms.length; i++) {
@@ -283,6 +284,10 @@ function PopulateSuggestions(terms, resList, catTextbox) {
       resList.appendChild(oneSuggestion);
     }
   }
+
+  if (resList.childNodes.length == 1) {
+    resList.childNodes[0].className = "active";
+  }
 }
 
 function EmptySuggestionList(resList) {
@@ -295,6 +300,8 @@ function EmptySuggestionList(resList) {
 }
 
 function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
+  const buttonOk = document.createElement("button");
+
   changeLink.addEventListener("click", () => {
     changeLink.innerText = "";
     const catTextbox = document.createElement("input");
@@ -304,15 +311,18 @@ function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
     let timeoutTyping = null;
 
     catTextbox.addEventListener("keyup", (event) => {
-      clearTimeout(timeoutTyping);
-      timeoutTyping = setTimeout(function () {
-        showResultsOnKeyUp(catTextbox, resultAutoTypeDiv);
-      }, 700);
+      if (isNotArrowOrEnter(event)) {
+        clearTimeout(timeoutTyping);
+        timeoutTyping = setTimeout(function () {
+          showResultsOnKeyUp(catTextbox, resultAutoTypeDiv);
+        }, 700);
+      }
     });
 
     catTextbox.addEventListener("change", function () {
       if (IsTextInList(resultAutoTypeDiv.childNodes[0], catTextbox.value)) {
         enableOk(catTextbox.value);
+        buttonOk.dispatchEvent(new Event("click"));
       } else {
         CheckCategoryExists(catTextbox.value, enableOk);
       }
@@ -325,7 +335,6 @@ function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
         }
       }
 
-      const buttonOk = document.createElement("button");
       buttonOk.innerText = "OK";
       buttonOk.addEventListener("click", function () {
         let url = "http://www.wikitree.com/index.php?title=Special:EditPerson&w=" + profileId + "&addCat=" + catNew;
@@ -342,6 +351,10 @@ function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
     catSpan.appendChild(resultAutoTypeDiv);
     catTextbox.focus();
   });
+}
+
+export function isNotArrowOrEnter(event) {
+  return event.code != "ArrowUp" && event.code != "ArrowDown" && event.code != "Enter";
 }
 
 export function CreateAutoSuggestionDiv(catTextbox) {
@@ -383,7 +396,6 @@ export function CreateAutoSuggestionDiv(catTextbox) {
         }
       }
     } else if (e.code == "Enter") {
-      e.stopPropagation();
       for (let i = 0; i < list.childNodes.length; i++) {
         if (list.childNodes[i].className == "active") {
           list.parentNode.hidden = true;
@@ -460,9 +472,10 @@ function CreateCopyRenameCatLink() {
 function CreateBatchCatActivationLinkAndSpan() {
   const buttonEnable = document.createElement("a");
   buttonEnable.innerText = "batch categorize";
-  buttonEnable.title = "Change catgories of multiple profiles in this category at once";
+  buttonEnable.title = "Change categories of multiple profiles in this category at once";
   buttonEnable.href = "#0";
   buttonEnable.id = "activate_link";
+  buttonEnable.accessKey = "k";
   buttonEnable.addEventListener("click", ShowCatALot);
   return WrapWithBrackets(buttonEnable);
 }
@@ -561,10 +574,12 @@ function AddCatALotControls(elementToAppendTo) {
   let timeoutTyping = null;
 
   inputCatTyped.addEventListener("keyup", (event) => {
-    clearTimeout(timeoutTyping);
-    timeoutTyping = setTimeout(function () {
-      showResultsOnKeyUp(inputCatTyped, resultAutoTypeDiv);
-    }, 700);
+    if (isNotArrowOrEnter(event)) {
+      clearTimeout(timeoutTyping);
+      timeoutTyping = setTimeout(function () {
+        showResultsOnKeyUp(inputCatTyped, resultAutoTypeDiv);
+      }, 700);
+    }
   });
 
   inputCatTyped.addEventListener("change", function () {
@@ -657,6 +672,7 @@ function AddCatALotControls(elementToAppendTo) {
   catALotDiv.appendChild(inputCatVerified);
   catALotDiv.appendChild(catALotButton);
   elementToAppendTo.appendChild(catALotDiv);
+  inputCatTyped.focus();
 }
 
 function CreateSelectAllResultsLink() {

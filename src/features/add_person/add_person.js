@@ -4,7 +4,12 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { CreateAutoSuggestionDiv, showResultsOnKeyUp, IsTextInList } from "../category_management/category_management";
+import {
+  CreateAutoSuggestionDiv,
+  showResultsOnKeyUp,
+  IsTextInList,
+  isNotArrowOrEnter,
+} from "../category_management/category_management";
 function moveSourcesParts() {
   /*
 Take p.sourcesContent, table.sourcesContent, 
@@ -277,7 +282,7 @@ function addCategoryPicker(hasAdvancedEnabled) {
   const textBoxId = hasAdvancedEnabled ? "mBioWithoutSources" : "mSources";
 
   catTextbox.addEventListener("keyup", (event) => {
-    if (event.code != "ArrowDown" && event.code != "ArrowUp" && event.code != "Enter") {
+    if (isNotArrowOrEnter(event)) {
       clearTimeout(timeoutTyping);
       timeoutTyping = setTimeout(function () {
         showResultsOnKeyUp(catTextbox, resultAutoTypeDiv);
