@@ -489,7 +489,7 @@ function editTemplate(summaryPrefix) {
       '<tr><td colspan="2" class="wtPlusRequired">Required</td></tr>' +
       '<tr><td colspan="2" class="wtPlusPreferred">Preferred</td></tr>' +
       '<tr><td colspan="2" class="wtPlusOptional">Optional</td></tr>' +
-      '<tr><td><img src="/images/icons/help.gif" border="0" width="22" height="22" alt="Help" /></td><td>Hower for hint</td></tr>' +
+      '<tr><td><img src="/images/icons/help.gif" border="0" width="22" height="22" alt="Help" /></td><td>Hover for hint</td></tr>' +
       '<tr><td><button title="Restore value" class="dlgClick" data-op="onDlgNone">R</button></td><td>Restore value</td></tr>' +
       '<tr><td><button title="Auto value" class="dlgClick" data-op="onDlgNone">A</button></td><td>Auto value</td></tr>' +
       '<tr><td><button title="Open link" class="dlgClick" data-op="onDlgNone">O</button></td><td>Open link</td></tr>' +
@@ -834,12 +834,10 @@ function onDlgSelectTemplateBtn(update) {
   return false;
 }
 
-
 function doSelectCIB(data) {
-  selectCIB(data, isProfileEdit).then((result) =>{
-    result
+  selectCIB(data, isProfileEdit).then((result) => {
+    result;
   });
-
 }
 
 /*********************************/
@@ -1408,9 +1406,7 @@ function initWTPlus() {
   tb.elSummary = document.getElementById("wpSummary");
   tb.elEnhanced = document.getElementById("toggleMarkupColor");
 
-  document
-    .getElementById("toolbar")
-    .insertAdjacentHTML("beforeend", '<dialog id="wtPlusDlg"></dialog>');
+  document.getElementById("toolbar").insertAdjacentHTML("beforeend", '<dialog id="wtPlusDlg"></dialog>');
   tb.elDlg = document.getElementById("wtPlusDlg");
 
   dataTablesLoad("wtPlus");
