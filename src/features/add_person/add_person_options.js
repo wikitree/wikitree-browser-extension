@@ -11,7 +11,7 @@ const addPersonRedesign = {
   description: "Redesigns the Add Person page for the convenience of advanced members.",
   category: "Editing/Add_Person",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
+  contributors: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
   defaultValue: false,
   pages: [isProfileAddRelative, isAddUnrelatedPerson],
   options: [
@@ -24,7 +24,7 @@ const addPersonRedesign = {
     {
       id: "categoryPicker",
       type: OptionType.CHECKBOX,
-      label: "Add a rudimentary category picker",
+      label: "Add a category picker (adds them below Biography, please move them up later)",
       defaultValue: true, //no clue if this is pushed
     },
   ],
