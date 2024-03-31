@@ -224,7 +224,12 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
           showBasicData();
           scrollTo("#matchesContainer");
           if ($("#potentialMatchesContainer").length == 0) {
-            $("#basicDataSection").append($("<div id='noMatches'>No Matches</div>"));
+            if ($("#noMatches").length == 0) {
+              $("#basicDataSection").append($("<div id='noMatches'>No Matches</div>"));
+            } else {
+              // Make $("#noMatches") shake a little.
+              $("#noMatches").animate({ left: "-=10px" }, 100);
+            }
             scrollTo("#noMatches");
           } else {
             $("#noMatches").remove();
