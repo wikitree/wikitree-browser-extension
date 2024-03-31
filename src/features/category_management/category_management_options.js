@@ -92,5 +92,11 @@ registerFeature({
       label: "enable category change in profile",
       defaultValue: true,
     },
+    {
+      id: "addProfileFromCategory",
+      type: OptionType.CHECKBOX,
+      label: "add profile directly from category",
+      defaultValue: true,
+    },
   ],
 });

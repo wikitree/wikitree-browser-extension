@@ -32,6 +32,9 @@ shouldInitializeFeature("categoryManagement").then((result) => {
     } else if (isCategoryPage) {
       getFeatureOptions("categoryManagement").then((options) => {
         AddOptionalCategoryPageLinks(options);
+        if (options.addProfileFromCategory) {
+          AddAddProfileToCategory();
+        }
       });
     } else if (isSearchPage) {
       getFeatureOptions("categoryManagement").then((options) => {
@@ -160,6 +163,46 @@ function AddOptionalCategoryPageLinks(options) {
   if (options.catCopyRename) {
     document.getElementsByClassName("EDIT")[2].appendChild(CreateCopyRenameCatLink());
   }
+}
+
+function AddAddProfileToCategory() {
+  const elementToAttach = document.getElementsByTagName("h1")[0].previousSibling;
+  const addDiv = document.createElement("div");
+  addDiv.style.float = "right";
+  addDiv.style.paddingRight = "5px";
+  const addButton = document.createElement("button");
+  addButton.classList.add("small");
+  addButton.classList.add("tight");
+  addButton.innerText = "Add profile";
+  addDiv.appendChild(addButton);
+  elementToAttach.after(addDiv);
+
+  addButton.addEventListener("click", function () {
+    let profileId = prompt("Please enter ID or URL of profile to add to this category");
+
+    if (profileId != null && profileId != "") {
+      let idType = "w";
+      if (profileId.indexOf("http") > -1) {
+        const urlParams = new URLSearchParams(profileId);
+        if (urlParams.has("u")) {
+          profileId = urlParams.get("u");
+          idType = "u";
+        } else if (urlParams.has("w")) {
+          profileId = urlParams.get("w");
+        } else {
+          profileId = profileId.replace("https://www.wikitree.com/wiki/", "");
+        }
+      }
+      window.open(
+        "http://www.wikitree.com/index.php?title=Special:EditPerson&" +
+          idType +
+          "=" +
+          profileId +
+          "&addCat=" +
+          GetThisCategoryNameAndAllAkas()
+      );
+    }
+  });
 }
 
 function AddOptionalCategoryEditPageLinks(options) {
