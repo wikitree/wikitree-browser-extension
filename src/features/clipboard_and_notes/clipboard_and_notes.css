@@ -140,6 +140,10 @@
   background: rgb(221, 250, 218);
 }
 
+#clipboard .clipping.clip-unselected {
+  background: #FFF !important;
+}
+
 #clipboard[data-type="clipboard"] .clipping:active {
   font-weight: bold;
 }

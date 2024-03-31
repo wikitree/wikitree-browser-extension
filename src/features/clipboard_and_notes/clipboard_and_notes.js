@@ -27,6 +27,7 @@ export function appendClipboardButtons(clipboardButtons = $()) {
 
 const editImage = chrome.runtime.getURL("images/edit.png");
 var clippingRow = -1;
+var keyMode = false; // flags whether the user is using cursor keys or mouse
 
 shouldInitializeFeature("clipboardAndNotes").then((result) => {
   if (result && $(".clipboardButtons").length == 0) {
@@ -335,6 +336,7 @@ function placeClipboard(aClipboard, event) {
 
 async function clipboard(type, e, action = false) {
   clippingRow = -1;
+  $("input, textarea").trigger("blur"); // ensure the clipboard has the focus
   let activeTab = localStorage[activeTabVarNameFor(type)] || "";
   if ($("#clipboard").length) {
     activeTab = $("#tab-list .tab.active").data("groupkey");
@@ -428,7 +430,8 @@ async function clipboard(type, e, action = false) {
   $("#groupTabs p").remove();
   $("#clippings").html("");
 
-  $(document).off("keyup", keyUpListener).on("keyup", keyUpListener);
+  $(document).off("keydown", keyDownListener).on("keydown", keyDownListener);
+  $(document).off("mousemove", mouseListener).on("mousemove", mouseListener);
 
   const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
   clipboardDB.onsuccess = function (event) {
@@ -635,7 +638,15 @@ async function clipboard(type, e, action = false) {
   };
 }
 
-function keyUpListener(e) {
+function mouseListener() {
+  if (keyMode) {
+    // The user started to use the mouse after having used the cursor keys
+    keyMode = false;
+    $(".clipping").removeClass("clip-selected clip-unselected");
+  }
+}
+
+function keyDownListener(e) {
   if (e.code === "Escape") {
     closeClipBoard();
     return;
@@ -648,7 +659,13 @@ function keyUpListener(e) {
     e.preventDefault();
     e.stopPropagation();
     const clippings = $(".clipping:visible");
-    if (clippingRow >= 0 && clippingRow < clippings.length) clippings.eq(clippingRow).removeClass("clip-selected");
+    if (!keyMode) {
+      keyMode = true;
+      const index = clippings.index($(".clipping:hover"));
+      if (index > 0) clippingRow = index;
+    }
+    clippings.addClass("clip-unselected");
+    clippings.removeClass("clip-selected");
     switch (e.code) {
       case "ArrowDown":
         clippingRow = ++clippingRow % clippings.length;
@@ -664,11 +681,12 @@ function keyUpListener(e) {
         clippingRow = Math.min(clippingRow + 5, clippings.length - 1);
     }
     const selectedRow = clippings.eq(clippingRow);
-    selectedRow.addClass("clip-selected");
+    selectedRow.addClass("clip-selected").removeClass("clip-unselected");
     scrollIfRequired(selectedRow);
   } else if (e.code === "ArrowRight" || e.code === "ArrowLeft") {
     e.preventDefault();
     e.stopPropagation();
+    keyMode = true;
     let activeTabs = $(".tab.active");
     let el;
     if (activeTabs.length) {
@@ -680,6 +698,7 @@ function keyUpListener(e) {
     }
     if (el) {
       $(".clipping").removeClass("clip-selected");
+      $(".clipping").addClass("clip-unselected");
       clippingRow = -1;
       el.find(".tab-name").trigger("click");
     }
@@ -890,7 +909,8 @@ function setClipboardText() {
 
 function closeClipBoard() {
   $("#clipboard").slideUp();
-  $(document).off("keyup", keyUpListener);
+  $(document).off("keydown", keyDownListener);
+  $(document).off("mousemove", mouseListener);
 }
 
 function makeKeyFrom(groupName) {
