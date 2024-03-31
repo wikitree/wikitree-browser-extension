@@ -289,6 +289,14 @@ function addCategoryPicker(hasAdvancedEnabled) {
       }, 700);
     }
   });
+  catTextbox.addEventListener("keydown", (event) => {
+    if (event.code == "Enter") {
+      //muting body key down handler in add sibling
+      //else screen will scroll to top
+      event.preventDefault();
+    }
+  });
+
   catTextbox.addEventListener("change", function () {
     if (IsTextInList(resultAutoTypeDiv.childNodes[0], catTextbox.value)) {
       const tb = document.getElementById(textBoxId);
