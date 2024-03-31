@@ -10,6 +10,8 @@ import {
   IsTextInList,
   isNotArrowOrEnter,
 } from "../category_management/category_management";
+import { isProfileEdit } from "../../core/pageType";
+
 function moveSourcesParts() {
   /*
 Take p.sourcesContent, table.sourcesContent, 
@@ -140,7 +142,13 @@ function scrollTo(el) {
 }
 
 shouldInitializeFeature("addPersonRedesign").then((result) => {
-  if (result && $("h1:contains('Edit Marriage')").length == 0) {
+  if (result && isProfileEdit) {
+    getFeatureOptions("addPersonRedesign").then((options) => {
+      if (options.categoryPicker && document.getElementById("newProfileNote") != null) {
+        moveCategories();
+      }
+    });
+  } else if (result && $("h1:contains('Edit Marriage')").length == 0) {
     import("./add_person.css");
     moveSourcesParts();
     keepBasicDataSectionVisible();
@@ -309,4 +317,24 @@ function addCategoryPicker() {
   const attachmentDestination = document.getElementsByClassName("sourcesContent")[0];
   attachmentDestination.appendChild(catTextbox);
   attachmentDestination.appendChild(resultAutoTypeDiv);
+}
+
+function moveCategories() {
+  const ta = document.getElementById("wpTextbox1");
+  const parts = ta.value.split("\n");
+  const oldValue = ta.value;
+  let top = "";
+  let bottom = "";
+
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i].indexOf("[[Category") > -1) {
+      top += "\n" + parts[i];
+    } else {
+      bottom += "\n" + parts[i];
+    }
+  }
+  ta.value = top.substring(1) + "\n" + bottom.substring(1);
+  if (oldValue != ta.value) {
+    document.getElementById("wpSummary").value = "Moving categories. ";
+  }
 }

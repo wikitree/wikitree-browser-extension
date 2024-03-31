@@ -2,7 +2,7 @@
 Created By: Ian Beacall (Beacall-6)
 */
 
-import { isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType";
+import { isProfileAddRelative, isAddUnrelatedPerson, isProfileEdit } from "../../core/pageType";
 import { registerFeature, OptionType } from "../../core/options/options_registry.js";
 
 const addPersonRedesign = {
@@ -13,7 +13,7 @@ const addPersonRedesign = {
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
   defaultValue: false,
-  pages: [isProfileAddRelative, isAddUnrelatedPerson],
+  pages: [isProfileAddRelative, isAddUnrelatedPerson, isProfileEdit],
   options: [
     {
       id: "additionalFields",
@@ -24,8 +24,8 @@ const addPersonRedesign = {
     {
       id: "categoryPicker",
       type: OptionType.CHECKBOX,
-      label: "Add a category picker (adds them below Biography, please move them up later)",
-      defaultValue: true, //no clue if this is pushed
+      label: "Add a category picker",
+      defaultValue: true,
     },
   ],
 };
