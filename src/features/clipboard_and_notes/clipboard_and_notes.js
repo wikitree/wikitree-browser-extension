@@ -644,16 +644,24 @@ function keyUpListener(e) {
   if (!$("#clipboard").is(":visible")) return; // and only if the clipboard is visible
   if ($("input, textarea").is(":focus")) return; // and no text input area has the focus
 
-  if (e.code === "ArrowUp" || e.code === "ArrowDown") {
+  if (["ArrowDown", "ArrowUp", "PageUp", "PageDown"].includes(e.code)) {
     e.preventDefault();
     e.stopPropagation();
     const clippings = $(".clipping:visible");
     if (clippingRow >= 0 && clippingRow < clippings.length) clippings.eq(clippingRow).removeClass("clip-selected");
-    if (e.code === "ArrowDown") {
-      clippingRow = ++clippingRow % clippings.length;
-    } else if (e.code === "ArrowUp") {
-      --clippingRow;
-      if (clippingRow < 0) clippingRow = clippings.length - 1;
+    switch (e.code) {
+      case "ArrowDown":
+        clippingRow = ++clippingRow % clippings.length;
+        break;
+      case "ArrowUp":
+        --clippingRow;
+        if (clippingRow < 0) clippingRow = clippings.length - 1;
+        break;
+      case "PageUp":
+        clippingRow = Math.max(clippingRow - 5, 0);
+        break;
+      case "PageDown":
+        clippingRow = Math.min(clippingRow + 5, clippings.length - 1);
     }
     const selectedRow = clippings.eq(clippingRow);
     selectedRow.addClass("clip-selected");
