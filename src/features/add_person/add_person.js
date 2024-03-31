@@ -146,7 +146,7 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
         addAdditionalFields();
       }
       if (options.categoryPicker) {
-        addCategoryPicker();
+        addCategoryPicker(options.additionalFields);
       }
     });
 
@@ -264,7 +264,7 @@ function addAdditionalFields() {
   });
 }
 
-function addCategoryPicker() {
+function addCategoryPicker(hasAdvancedEnabled) {
   const catTextbox = document.createElement("input");
   catTextbox.value = "";
   catTextbox.className = "small";
@@ -274,6 +274,7 @@ function addCategoryPicker() {
   catTextbox.placeholder = "Enter text here to select a category";
   const resultAutoTypeDiv = CreateAutoSuggestionDiv(catTextbox);
   let timeoutTyping = null;
+  const textBoxId = hasAdvancedEnabled ? "mBioWithoutSources" : "mSources";
 
   catTextbox.addEventListener("keyup", (event) => {
     if (event.code != "ArrowDown" && event.code != "ArrowUp" && event.code != "Enter") {
@@ -285,8 +286,9 @@ function addCategoryPicker() {
   });
   catTextbox.addEventListener("change", function () {
     if (IsTextInList(resultAutoTypeDiv.childNodes[0], catTextbox.value)) {
-      const tb = document.getElementById("mBioWithoutSources");
-      tb.value = "[[Category:" + catTextbox.value + "]]\n" + tb.value;
+      const tb = document.getElementById(textBoxId);
+      const oldValue = tb.value == null ? "" : tb.value;
+      tb.value = "[[Category:" + catTextbox.value + "]]\n" + oldValue;
       catTextbox.value = "";
     }
   });
