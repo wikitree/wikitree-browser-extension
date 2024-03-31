@@ -632,6 +632,8 @@ async function clipboard(type, e, action = false) {
         $(`#tab-list .tab[data-groupkey="${activeTab}"] .tab-name`).trigger("click");
       }
     };
+    //focus on clipboard, so keys won't be caught by textarea
+    window.location.hash = "clipboard";
   };
 }
 
