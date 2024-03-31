@@ -92,8 +92,8 @@ function groupNameFromInput() {
   return $("#groupInput").val().trim();
 }
 
-function currentActiveTabFor(type) {
-  return localStorage[`clipboard_${type}_active_tab`];
+function activeTabVarNameFor(type) {
+  return `clipboard_${type}_active_tab`;
 }
 
 function focusOnGroup(group) {
@@ -335,7 +335,7 @@ function placeClipboard(aClipboard, event) {
 
 async function clipboard(type, e, action = false) {
   clippingRow = -1;
-  let activeTab = localStorage[currentActiveTabFor(type)] || "";
+  let activeTab = localStorage[activeTabVarNameFor(type)] || "";
   if ($("#clipboard").length) {
     activeTab = $("#tab-list .tab.active").data("groupkey");
     $("#clipboard #clippings").html("");
@@ -860,7 +860,7 @@ function showGroup($tab) {
 
   // Show the active tab content
   const groupKey = $tab.data("groupkey") || "";
-  localStorage.setItem(currentActiveTabFor($("#clipboard").data("type")), groupKey);
+  localStorage.setItem(activeTabVarNameFor($("#clipboard").data("type")), groupKey);
   $("#clippings div").hide();
   const groupDiv = $(`#clippings div[data-groupkey="${groupKey}"]`);
   $("#groupInput").val(original2real(groupDiv.data("group")));
