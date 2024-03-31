@@ -151,7 +151,7 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
         addAdditionalFields();
       }
       if (options.categoryPicker) {
-        addCategoryPicker(options.additionalFields);
+        addCategoryPicker();
       }
     });
 
@@ -269,7 +269,7 @@ function addAdditionalFields() {
   });
 }
 
-function addCategoryPicker(hasAdvancedEnabled) {
+function addCategoryPicker() {
   const catTextbox = document.createElement("input");
   catTextbox.value = "";
   catTextbox.className = "small";
@@ -279,7 +279,6 @@ function addCategoryPicker(hasAdvancedEnabled) {
   catTextbox.placeholder = "Enter text here to select a category";
   const resultAutoTypeDiv = CreateAutoSuggestionDiv(catTextbox);
   let timeoutTyping = null;
-  const textBoxId = hasAdvancedEnabled ? "mBioWithoutSources" : "mSources";
 
   catTextbox.addEventListener("keyup", (event) => {
     if (isNotArrowOrEnter(event)) {
@@ -299,6 +298,7 @@ function addCategoryPicker(hasAdvancedEnabled) {
 
   catTextbox.addEventListener("change", function () {
     if (IsTextInList(resultAutoTypeDiv.childNodes[0], catTextbox.value)) {
+      const textBoxId = document.getElementById("mBioWithoutSources") != null ? "mBioWithoutSources" : "mSources";
       const tb = document.getElementById(textBoxId);
       const oldValue = tb.value == null ? "" : tb.value;
       tb.value = "[[Category:" + catTextbox.value + "]]\n" + oldValue;
