@@ -1845,7 +1845,19 @@ function amaTimer() {
         }
         $(`.spouseDetails a[href$="${aSp.Name.replaceAll(/\s/g, "_")}"]`)
           .closest("div")
-          .append($("<span class='marriageAges'>" + bpBit + spBit + "</span>"));
+          .append(
+            $(
+              "<span class='marriageAges'>" +
+                bpBit +
+                spBit +
+                "</span>" +
+                "<a href='https://www.wikitree.com/index.php?title=Special:EditFamily&u=" +
+                window.people[0].Id +
+                "&who=editspouse&s=" +
+                aSpouse[0] +
+                "'>edit</a>"
+            )
+          );
       }
     });
   }
