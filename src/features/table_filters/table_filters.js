@@ -25,7 +25,8 @@ function addDistanceAndRelationColumns() {
   // Add the header cells to the table
 
   const headerCells = $(`<th style="width: 5%; text-align: center; cursor: pointer;">°</th>
-  <th style="width: 15%; text-align: center; cursor: pointer;">Relation</th>`);
+  <th style="width: 15%; text-align: center; cursor: pointer;">Relation</th><th style="width: 10%; text-align: center; cursor: pointer;">Suggestion</th>`);
+
   nameTable.find("tr").eq(0).append(headerCells);
 
   setTimeout(() => {
@@ -77,8 +78,14 @@ function addDistanceAndRelationColumns() {
           relationshipPromises.push(relationshipPromise);
         });
 
+        const suggestionsPromise = GetSuggestions().then((list) => {
+          Object.keys(ids).forEach(function (wtid) {
+            ids[wtid].suggestion = list.indexOf(wtid.split("_").join(" ")) > -1;
+          });
+        });
+
         // Wait for all promises to resolve before initializing DataTable
-        Promise.all([...distancePromises, ...relationshipPromises])
+        Promise.all([...distancePromises, ...relationshipPromises, suggestionsPromise])
           .then(() => {
             nameTable.find("tr").each(function (index) {
               // find the ids item with the property index: index
@@ -87,7 +94,10 @@ function addDistanceAndRelationColumns() {
                 if (id) {
                   const distance = ids[id].distance || "";
                   const relationship = ids[id].relationship || "";
-                  $(this).append(`<td style="text-align: center;">${distance}</td><td>${relationship}</td>`);
+                  const suggestion = ids[id].suggestion ? "X" : "";
+                  $(this).append(
+                    `<td style="text-align: center;">${distance}</td><td>${relationship}</td><td>${suggestion}</td>`
+                  );
                 } else {
                   $(this).append(`<td style="text-align: center;"></td><td></td>`);
                 }
@@ -101,6 +111,22 @@ function addDistanceAndRelationColumns() {
       };
     };
   }, 0);
+}
+
+async function GetSuggestions() {
+  return new Promise((resolve, reject) => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("p")) {
+      fetch("https://plus.wikitree.com/function/WTWebUser/Suggestions.htm?UserID=" + params.get("p"))
+        .then((suggestionsPage) => {
+          const txt = suggestionsPage.text();
+          resolve(txt);
+        })
+        .catch(() => {
+          reject("");
+        });
+    }
+  });
 }
 
 /**
