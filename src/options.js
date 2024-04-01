@@ -803,7 +803,7 @@ function wrapBackupData(key, data) {
 function getBackupLink(wrappedJsonData) {
   let link = document.createElement("a");
   link.title = 'Right-click to "Save as..." at specific location on your device.';
-  let json = JSON.stringify(wrappedJsonData);
+  let json = JSON.stringify(wrappedJsonData, null, 2);
   if (navigatorDetect.browser.Safari) {
     // Safari doesn't handle blobs or the download attribute properly
     link.href = "data:application/octet-stream," + encodeURIComponent(json);
