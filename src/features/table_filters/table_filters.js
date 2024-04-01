@@ -78,9 +78,23 @@ function addDistanceAndRelationColumns() {
           relationshipPromises.push(relationshipPromise);
         });
 
-        const suggestionsPromise = GetSuggestions().then((list) => {
+        const suggestionsPromise = GetSuggestions().then((htmlPage) => {
+          const parser = new DOMParser();
+          const suggestionsDOM = parser.parseFromString(htmlPage, "text/html");
           Object.keys(ids).forEach(function (wtid) {
-            ids[wtid].suggestion = list.indexOf(wtid.split("_").join(" ")) > -1;
+            $(suggestionsDOM)
+              .find("td:contains(" + wtid.split("_").join(" ") + ")")
+              .each(function () {
+                if ($(this).prev().length == 0) {
+                  let parentRow = $(this).parent();
+                  while (parentRow.find("td").attr("rowspan") == undefined) {
+                    parentRow = parentRow.prev();
+                  }
+                  SetOrAdd(wtid, parentRow.find("td"));
+                } else {
+                  SetOrAdd(wtid, $(this).prev());
+                }
+              });
           });
         });
 
@@ -94,7 +108,7 @@ function addDistanceAndRelationColumns() {
                 if (id) {
                   const distance = ids[id].distance || "";
                   const relationship = ids[id].relationship || "";
-                  const suggestion = ids[id].suggestion ? "X" : "";
+                  const suggestion = ids[id].suggestion ? ids[id].suggestion : "";
                   $(this).append(
                     `<td style="text-align: center;">${distance}</td><td>${relationship}</td><td>${suggestion}</td>`
                   );
@@ -111,6 +125,14 @@ function addDistanceAndRelationColumns() {
       };
     };
   }, 0);
+
+  function SetOrAdd(wtid, node) {
+    if (ids[wtid].suggestion != undefined) {
+      ids[wtid].suggestion += "<br />" + node.html();
+    } else {
+      ids[wtid].suggestion = node.html();
+    }
+  }
 }
 
 async function GetSuggestions() {
