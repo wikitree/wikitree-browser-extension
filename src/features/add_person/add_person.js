@@ -311,11 +311,22 @@ function addCategoryPicker() {
 
   catTextbox.addEventListener("change", function () {
     if (IsTextInList(resultAutoTypeDiv.childNodes[0], catTextbox.value)) {
-      const textBoxId = document.getElementById("mBioWithoutSources") != null ? "mBioWithoutSources" : "mSources";
-      const tb = document.getElementById(textBoxId);
+      const catTag = "[[Category:" + catTextbox.value + "]]";
+      const tb = document.getElementById("mSources");
       const oldValue = tb.value == null ? "" : tb.value;
-      tb.value = "[[Category:" + catTextbox.value + "]]\n" + oldValue;
-      catTextbox.value = "";
+      if (oldValue.indexOf(catTag) > -1) {
+        return;
+      }
+      if (document.getElementById("mBioWithoutSources") != null) {
+        //basic sourcing mode, profile will need to be touched afterwards anyway,
+        //so better put them at the end to have the generated bio at least
+        tb.value = oldValue.replace(/\n+$/, "") + "\n" + catTag;
+        //killing trailing newlines to prevent *
+      } else {
+        //advanced mode: put them right where they belong
+        tb.value = catTag + "\n" + oldValue;
+        catTextbox.value = "";
+      }
     }
   });
 
@@ -333,7 +344,7 @@ function moveCategories() {
 
   for (let i = 0; i < parts.length; i++) {
     if (parts[i].indexOf("[[Category") > -1) {
-      top += "\n" + parts[i];
+      top += "\n" + parts[i].replace("* [[Category", "[[Category");
     } else {
       bottom += "\n" + parts[i];
     }
