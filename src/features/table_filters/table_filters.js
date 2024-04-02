@@ -83,10 +83,8 @@ function addDistanceAndRelationColumns() {
             nameTable.find("tr").each(function (index) {
               // find the ids item with the property index: index
 
-              console.log("distance", ids[id]?.distance);
-              console.log("relationship", ids[id]?.relationship);
-
               const id = Object.keys(ids).find((key) => ids[key].index === index - 1);
+
               if ($(this).find("th").length == 0) {
                 if (id) {
                   const distance = ids[id].distance || "";

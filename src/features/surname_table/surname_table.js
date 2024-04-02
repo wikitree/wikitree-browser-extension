@@ -26,28 +26,62 @@ async function replaceDittoMarks() {
   });
 }
 
+function restoreRadioState(groupName, savedValue) {
+  if (!savedValue) return; // If no saved value, do nothing
+
+  const radios = document.querySelectorAll(`input[type="radio"][name="${groupName}"]`);
+  radios.forEach((radio) => {
+    if (radio.value === savedValue) {
+      radio.checked = true;
+    }
+  });
+}
+
+function initSearchOptions() {
+  // Initialize or retrieve the searchOptions object
+  let searchOptions = JSON.parse(localStorage.getItem("searchOptions")) || {};
+
+  // Define an array of the names of your radio button groups
+  const radioButtonGroups = ["gender", "date_spread", "date_include", "last_name_match", "skip_variants", "watchlist"];
+
+  // Restore radio button states for these specific groups
+  radioButtonGroups.forEach((groupName) => {
+    restoreRadioState(groupName, searchOptions[groupName]);
+  });
+
+  // Add change event listeners to all radio buttons in the specified groups
+  document.querySelectorAll('input[type="radio"]').forEach((radio) => {
+    radio.addEventListener("change", function () {
+      // Update the searchOptions object and save it to localStorage
+      searchOptions[this.name] = this.value;
+      localStorage.setItem("searchOptions", JSON.stringify(searchOptions));
+
+      // Log the updated searchOptions
+      console.log("Updated searchOptions:", searchOptions);
+    });
+  });
+}
+
 async function init() {
   const h1 = $("h1");
   window.surnameTableOptions = await getFeatureOptions("surnameTable");
+
   $("table.wt.names tbody tr:first-child").addClass("surnameTableHeaderRow");
-  const moreButton = $("<button id='surnameTableMoreButton' class='small'>More</button>");
+  const moreButton = $("<button id='surnameTableMoreButton' class='small'>More (WBE)</button>");
 
   await replaceDittoMarks();
 
   h1.append(moreButton);
   moreButton.on("click", function () {
-    if (1 == 2) {
-      //
-    } else {
-      initSurnameTableSorting();
-      if (
-        window.surnameTableOptions.ShowYouArePMorTL ||
-        window.surnameTableOptions.ShowMissingParents ||
-        window.surnameTableOptions.ShowProfileImage
-      ) {
-        getBrickWalls();
-      }
+    initSurnameTableSorting();
+    if (
+      window.surnameTableOptions.ShowYouArePMorTL ||
+      window.surnameTableOptions.ShowMissingParents ||
+      window.surnameTableOptions.ShowProfileImage
+    ) {
+      getBrickWalls();
     }
+
     addWideTableButton();
     $(this).fadeOut();
   });
@@ -71,6 +105,13 @@ shouldInitializeFeature("surnameTable").then((result) => {
       isFreeSpaceList == null
     ) {
       init();
+    }
+    if (isSearchPage) {
+      getFeatureOptions("surnameTable").then((options) => {
+        if (options.RememberSearchOptions) {
+          initSearchOptions();
+        }
+      });
     }
   }
 });
@@ -110,13 +151,9 @@ async function initSurnameTableSorting() {
       }
       let birthDate = birthTD.text().match(/.*?[0-9]{3,4}s?\b/);
       let birthYear = "";
-      console.log("birthDate", birthDate);
       if (birthDate) {
-        if (birthDate[0].includes("s")) {
-          birthDate[0] = birthDate[0].replace("s", "");
-        }
+        birthDate[0] = birthDate[0].replace(/s$/, "").replace(/(bef|aft|abt)\s/, "");
         birthDate = convertDate(birthDate[0], "ISO");
-        console.log("birthDate", birthDate);
         birthYear = birthDate.match(/\d{3,4}/);
       }
       if (birthYear) {
@@ -153,10 +190,12 @@ async function initSurnameTableSorting() {
       if (rows.length) {
         rows.slice(1);
         rows.sort(function (a, b) {
+          const managerA = $(a).data("manager") || "";
+          const managerB = $(b).data("manager") || "";
           if (listOrder == "az") {
-            return $(a).data("manager").localeCompare($(b).data("manager"));
+            return managerA.localeCompare(managerB);
           } else {
-            return $(b).data("manager").localeCompare($(a).data("manager"));
+            return managerB.localeCompare(managerA);
           }
         });
         rows.appendTo($("table.wt.names"));
@@ -248,73 +287,6 @@ async function initSurnameTableSorting() {
       birthLocationTD.insertAfter(birthTD);
       deathLocationTD.insertAfter(deathTD);
     });
-
-    /* FIX THIS 
-    $("table.wt.names tr").each(function () {
-      // Add location sorting to surname page.
-      const birthTD = $(this).find("td").eq(1);
-      const cellText = detailsTD.text();
-
-      const cellTextSplit = cellText.split(/\d{4}/);
-      let birthDate = "";
-      let birthLocation = "";
-      let deathDate = "";
-      let deathLocation = "";
-      const birthDate = cellTextSplit[0];
-      const birthBitBits = birthBit.split(/\b[0-9]{3,4}s?\b/);
-
-      const bDateMatch = birthBit.match(/.*?[0-9]{3,4}s?\b/);
-      const bDateTD = $("<td class='birthDate date'></td>");
-      let birthLocation = "";
-      if (bDateMatch != null) {
-        bDateTD.text(bDateMatch[0]);
-      }
-
-      if (birthBitBits.length > 1) {
-        birthLocation = birthBitBits[1].trim();
-      } else {
-        birthLocation = "";
-      }
-
-      const bLocationTD = $("<td class='birthLocation' class='location'>" + birthLocation + "</td>");
-
-      let dLocation = "";
-      let dDate = "";
-
-      if (cellTextSplit[1]) {
-        dDate = cellTextSplit[1];
-        const dDateSplit = cellTextSplit[1].split(/\b[0-9]{3,4}s?\b/);
-        if (dDateSplit[1]) {
-          dLocation = dDateSplit[1];
-          dDate = cellTextSplit[1].match(/.*?[0-9]{3,4}s?\b/);
-          if (dDate != null) {
-            dDate = dDate[0];
-          }
-        }
-      }
-      const dDateTD = $("<td class='deathDate date'>" + dDate + "</td>");
-      const dLocationSpan = $("<span class='dLocation'>" + dLocation.trim() + "</span>");
-      if (dLocationSpan.text() != "") {
-        bLocationTD.append(dLocationSpan);
-        bLocationTD.addClass("isDeath").attr("title", "Death location");
-      }
-
-      detailsTD.text("");
-      detailsTD.append(bDateTD.text());
-
-      bLocationTD.insertAfter(detailsTD);
-      dDateTD.insertAfter(bLocationTD);
-
-      birthLocation = bLocationTD.text();
-
-      $(this).attr("data-birth-location-small2big", birthLocation);
-
-      const blSplit = birthLocation.split(", ");
-      blSplit.reverse();
-      const birthLocationBig2Small = blSplit.join(", ");
-      $(this).attr("data-birth-location-big2small", birthLocationBig2Small);
-    });
-     */
 
     const birthLocationWord = $(
       "<span id='BLWord'><a id='birthLocationWord' title='Sort by birth location. You can sort by country or by town. Note: Only the results on this page will be sorted.' data-order='small2big'>Birth Place</a> <span id='birthLocationWordArrow'></span></span>"
@@ -485,11 +457,6 @@ async function getBrickWalls() {
           }
         }
 
-        $("td").removeClass("active");
-        $(".P-ITEM").removeClass("active");
-        if (finishedBWs == false) {
-          dParentEl.addClass("active");
-        }
         isManager = false;
         isTL = false;
         if (person.Managers) {
@@ -566,7 +533,6 @@ async function getBrickWalls() {
       });
     });
   }
-  $("P-ITEM").removeClass("active");
 }
 
 function makeTableWide(dTable) {
@@ -596,7 +562,7 @@ function makeTableWide(dTable) {
     // Place the container before the closest table
     container.insertBefore(closestTable);
   } else {
-    container.insertBefore($("div.box.green.rounded.row"));
+    container.insertBefore($("div.two.columns.alpha").eq(0).parent());
   }
   container.append(dTable);
 
@@ -609,6 +575,7 @@ function makeTableWide(dTable) {
 
 function makeTableNotWide(dTable) {
   dTable.removeClass("wide");
+  dTable.css("left", "0");
   dTable.find("th").each(function () {
     $(this).css("width", $(this).data("width"));
   });
@@ -652,11 +619,11 @@ function addButtonBox() {
 }
 
 async function addWideTableButton() {
-  const dTable = $("body.page-Special_Surname table.wt.names");
+  const dTable = $("table.wt.names");
   const wideTableButton = $("<button class='button small wideTableButton'>Wide Table</button>");
 
   if ($(".wideTableButton").length == 0) {
-    wideTableButton.insertBefore($("body.page-Special_Surname table.wt.names"));
+    wideTableButton.insertBefore(dTable);
   }
 
   // Retrieve the last state from local storage

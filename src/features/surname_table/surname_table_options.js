@@ -6,9 +6,9 @@ import { registerFeature, OptionType } from "../../core/options/options_registry
 import { isGenealogyPage, isSpecialWatchedList, isSearchPage } from "../../core/pageType";
 
 registerFeature({
-  name: "Surname and Watchlist Table Options",
+  name: "Search and Watchlist Table Options",
   id: "surnameTable",
-  description: "Adds columns and more functionality to surname genealogy and Watchlist pages. Click the More button.",
+  description: "Adds columns and more functionality to Search and Watchlist pages. Click the More button.",
   category: "Other",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
@@ -44,5 +44,6 @@ registerFeature({
       type: OptionType.CHECKBOX,
       label: "Remember display density choice",
     },
+    { id: "RememberSearchOptions", type: OptionType.CHECKBOX, label: "Remember search options", defaultValue: false },
   ],
 });
