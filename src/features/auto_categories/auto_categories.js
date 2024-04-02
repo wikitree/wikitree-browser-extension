@@ -1,6 +1,6 @@
 import $ from "jquery";
 import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
-import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { getFeatureOptions } from "../../core/options/options_storage";
 import { ageAtDeath } from "../my_connections/my_connections";
 import {
   getLocationCategory,
@@ -126,7 +126,7 @@ export async function addAutoCategories() {
   }
 
   // Get the text of the stuff before the bio
-  let stuffBeforeTheBioText = getStuffBeforeTheBioText();
+  let stuffBeforeTheBioText = await getStuffBeforeTheBioText();
 
   // Switch off the enhanced editor if it's on
   let enhanced = false;
