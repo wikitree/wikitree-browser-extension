@@ -349,8 +349,10 @@ function moveCategories() {
       bottom += "\n" + parts[i];
     }
   }
-  ta.value = top.substring(1) + "\n" + bottom.substring(1);
-  if (oldValue != ta.value) {
-    document.getElementById("wpSummary").value = "Moving categories. ";
+  if (top != "") {
+    ta.value = top.substring(1) + bottom;
+    if (oldValue != ta.value) {
+      document.getElementById("wpSummary").value = "Moving categories. ";
+    }
   }
 }
