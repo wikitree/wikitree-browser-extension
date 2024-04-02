@@ -893,7 +893,7 @@ function HackMergeCheckboxes() {
       cbs[i].classList.add("profile_selector");
       cbs[i].name = "cb" + i;
       cbs[i].id = "cb" + i;
-      cbs[i].nextSibling.remove();
+      //cbs[i].nextSibling.remove();
     }
   }
   //remove merge controls and annotations
