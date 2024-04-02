@@ -5332,45 +5332,39 @@ export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading =
   return { text: afterBioHeading, objects: thingsToAddAfterBioHeading };
 }
 
-const templatesJSON = chrome.runtime.getURL("features/wtPlus/templatesExp.json");
-let templatesObject = {};
 export async function getStickersAndBoxes() {
   let afterBioHeading = "";
-  // eslint-disable-next-line no-undef
-  await fetch(templatesJSON)
-    .then((resp) => resp.json())
-    .then(async (jsonData) => {
-      templatesObject = jsonData;
-      const templatesToAdd = ["Sticker", "Navigation Profile Box", "Project Box", "Profile Box"];
-      const beforeHeadingThings = ["Project Box", "Research note box"];
-      let thingsToAddAfterBioHeading = [];
-      let thingsToAddBeforeBioHeading = [];
-      const currentBio = $("#wpTextbox1").val();
-      jsonData.templates.forEach(function (aTemplate) {
-        if (templatesToAdd?.includes(aTemplate.type)) {
-          const newTemplateMatch = currentBio.matchAll(/\{\{[^}]*?\}\}/gs);
-          for (let match of newTemplateMatch) {
-            const re = new RegExp(aTemplate.name, "gs");
-            if (match[0].match(re) && !thingsToAddAfterBioHeading?.includes(match[0])) {
-              if (beforeHeadingThings?.includes(aTemplate.type) || beforeHeadingThings?.includes(aTemplate.group)) {
-                thingsToAddBeforeBioHeading.push(match[0]);
-              } else {
-                thingsToAddAfterBioHeading.push(match[0]);
-              }
-            }
+  templatesObject = await getData("alltemplates");
+  const templatesToAdd = ["Sticker", "Navigation Profile Box", "Project Box", "Profile Box"];
+  const beforeHeadingThings = ["Project Box", "Research note box"];
+  let thingsToAddAfterBioHeading = [];
+  let thingsToAddBeforeBioHeading = [];
+  const currentBio = $("#wpTextbox1").val();
+  templatesObject.templates.forEach(function (aTemplate) {
+    if (templatesToAdd?.includes(aTemplate.type)) {
+      const newTemplateMatch = currentBio.matchAll(/\{\{[^}]*?\}\}/gs);
+      for (let match of newTemplateMatch) {
+        const re = new RegExp(aTemplate.name, "gs");
+        if (match[0].match(re) && !thingsToAddAfterBioHeading?.includes(match[0])) {
+          if (beforeHeadingThings?.includes(aTemplate.type) || beforeHeadingThings?.includes(aTemplate.group)) {
+            thingsToAddBeforeBioHeading.push(match[0]);
+          } else {
+            thingsToAddAfterBioHeading.push(match[0]);
           }
         }
-      });
+      }
+    }
+  });
 
-      thingsToAddBeforeBioHeading.forEach(function (box) {
-        if (!window.sectionsObject.StuffBeforeTheBio.text?.includes(box)) {
-          window.sectionsObject.StuffBeforeTheBio.text.push(box);
-        }
-      });
+  thingsToAddBeforeBioHeading.forEach(function (box) {
+    if (!window.sectionsObject.StuffBeforeTheBio.text?.includes(box)) {
+      window.sectionsObject.StuffBeforeTheBio.text.push(box);
+    }
+  });
 
-      const afterBioHeadingThings = await afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading);
-      afterBioHeading = afterBioHeadingThings.text;
-    });
+  const afterBioHeadingThings = await afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading);
+  afterBioHeading = afterBioHeadingThings.text;
+  //});
   return afterBioHeading;
 }
 
@@ -6038,7 +6032,8 @@ export function addLocationCategoryToStuffBeforeTheBio(location) {
   }
 }
 
-function sortStuffBeforeBio() {
+async function sortStuffBeforeBio() {
+  const templatesObject = await getData("alltemplates");
   const tempStuffObject = {
     categories: [],
     easilyConfused: [],
@@ -6046,6 +6041,7 @@ function sortStuffBeforeBio() {
     projectBoxes: [],
     succession: [],
   };
+  //console.log("templatesObject", templatesObject);
   if (window.sectionsObject["StuffBeforeTheBio"]) {
     const stuff = window.sectionsObject["StuffBeforeTheBio"].text;
     stuff.forEach(function (item) {
@@ -6082,10 +6078,10 @@ function sortStuffBeforeBio() {
   return combinedStuff;
 }
 
-export function getStuffBeforeTheBioText() {
+export async function getStuffBeforeTheBioText() {
   let stuffBeforeTheBioText = "";
 
-  const sortedStuff = sortStuffBeforeBio();
+  const sortedStuff = await sortStuffBeforeBio();
   const filteredStuff = sortedStuff.filter((item) => item !== "");
   if (filteredStuff.length > 0) {
     stuffBeforeTheBioText += filteredStuff.join("\n") + "\n";
@@ -7007,10 +7003,31 @@ async function getSpouseParents2() {
   }
 }
 
+function getStorageData(key) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get([key], function (result) {
+      if (chrome.runtime.lastError) {
+        // If there's an error, reject the promise
+        reject(chrome.runtime.lastError);
+      } else {
+        // Resolve the promise with the result
+        resolve(result[key]);
+      }
+    });
+  });
+}
+
+export async function getData(key) {
+  return await getStorageData(key);
+}
+
+let templatesObject = {};
 let USstatesObjArray;
 export async function generateBio() {
   const module = await import("./us_states.json");
   USstatesObjArray = module.default;
+  templatesObject = await getData("alltemplates");
+  console.log("templatesObject", templatesObject);
 
   try {
     window.autoBioNotes = [];
@@ -7731,7 +7748,7 @@ export async function generateBio() {
     }
 
     // Add stuff before the bio
-    let stuffBeforeTheBioText = getStuffBeforeTheBioText();
+    let stuffBeforeTheBioText = await getStuffBeforeTheBioText();
 
     let outputText = "";
     let timelineText = "";
