@@ -2,6 +2,7 @@ import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import { secondarySort } from "../extra_watchlist/extra_watchlist";
 import "./surname_table.css";
+import { isSearchPage } from "../../core/pageType";
 import { initTableFilters } from "../table_filters/table_filters";
 import { getPeople } from "../dna_table/dna_table";
 import Cookies from "js-cookie";
@@ -10,20 +11,40 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 const USER_WT_ID = Cookies.get("wikitree_wtb_UserName");
 const USER_NUM_ID = Cookies.get("wikitree_wtb_UserID");
 
+async function replaceDittoMarks() {
+  // Replace ditto marks with the value from the previous row
+  $("table.wt.names tbody tr").each(function (index) {
+    const row = $(this);
+    $(this)
+      .find("td")
+      .each(function (i) {
+        if ($(this).find("span[title='Same as above']").length) {
+          $(this).html(row.prev().find("td").eq(i).html());
+        }
+      });
+  });
+}
+
 async function init() {
   const h1 = $("h1");
   window.surnameTableOptions = await getFeatureOptions("surnameTable");
   $("table.wt.names tbody tr:first-child").addClass("surnameTableHeaderRow");
   const moreButton = $("<button id='surnameTableMoreButton' class='small'>More</button>");
+
+  await replaceDittoMarks();
+
   h1.append(moreButton);
   moreButton.on("click", function () {
-    initSurnameTableSorting();
-    if (
-      window.surnameTableOptions.ShowYouArePMorTL ||
-      window.surnameTableOptions.ShowMissingParents ||
-      window.surnameTableOptions.ShowProfileImage
-    ) {
-      getBrickWalls();
+    if (isSearchPage) {
+    } else {
+      initSurnameTableSorting();
+      if (
+        window.surnameTableOptions.ShowYouArePMorTL ||
+        window.surnameTableOptions.ShowMissingParents ||
+        window.surnameTableOptions.ShowProfileImage
+      ) {
+        getBrickWalls();
+      }
     }
     addWideTableButton();
     $(this).fadeOut();
@@ -43,7 +64,7 @@ shouldInitializeFeature("surnameTable").then((result) => {
     // <li class="current">Free-Space Profiles</li>
     const isFreeSpaceList = $("ul.profile-tabs li.current").text().match("Free-Space Profiles");
     if (
-      window.location.href.match(/Special:(Surname|WatchedList)/) &&
+      window.location.href.match(/Special:(Surname|WatchedList|SearchPerson)/) &&
       $("table.wt.names").length &&
       isFreeSpaceList == null
     ) {

@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import { registerFeature, OptionType } from "../../core/options/options_registry";
-import { isGenealogyPage, isSpecialWatchedList } from "../../core/pageType";
+import { isGenealogyPage, isSpecialWatchedList, isSearchPage } from "../../core/pageType";
 
 registerFeature({
   name: "Surname and Watchlist Table Options",
@@ -13,7 +13,7 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
-  pages: [isGenealogyPage, isSpecialWatchedList],
+  pages: [isGenealogyPage, isSpecialWatchedList, isSearchPage],
   options: [
     {
       id: "ShowYouArePMorTL",

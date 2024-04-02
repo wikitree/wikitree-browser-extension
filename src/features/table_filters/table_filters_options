@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import { registerFeature, OptionType } from "../../core/options/options_registry";
-import { isGenealogyPage, isProfilePage, isSpacePage, isSpecialWatchedList } from "../../core/pageType";
+import { isGenealogyPage, isProfilePage, isSpacePage, isSpecialWatchedList, isSearchPage } from "../../core/pageType";
 
 const tableFilters = {
   name: "Table Filters and Sorting",
@@ -14,7 +14,7 @@ const tableFilters = {
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
-  pages: [isProfilePage, isSpacePage, isGenealogyPage, isSpecialWatchedList],
+  pages: [isProfilePage, isSpacePage, isGenealogyPage, isSpecialWatchedList, isSearchPage],
   options: [
     {
       id: "distanceAndRelationship",
