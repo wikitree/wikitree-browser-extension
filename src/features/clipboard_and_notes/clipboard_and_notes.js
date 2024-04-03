@@ -691,6 +691,7 @@ function keyDownListener(e) {
   if (["ArrowDown", "ArrowUp", "PageUp", "PageDown"].includes(e.code)) {
     e.preventDefault();
     e.stopPropagation();
+    $("#clipboard tr").removeClass("editing");
     const clippings = $(".clippingCell:visible");
     if (!keyMode) {
       keyMode = true;
@@ -770,14 +771,14 @@ function scrollIfRequired(selectedRow) {
   if (elementBottomFVT > containerHeight) {
     // Scroll to bring the bottom of the next element into view
     const newScrollTop = divScrollTop + elementBottomFVT - containerHeight;
-    $("#clipboard").animate({ scrollTop: newScrollTop }, 100);
+    $("#clipboard").animate({ scrollTop: newScrollTop }, 50);
     // console.log(`newScrollTop=${newScrollTop}`);
-    $("#clipboard").animate({ scrollTop: newScrollTop }, 100);
+    $("#clipboard").animate({ scrollTop: newScrollTop }, 50);
   } else if (elementTopFVT < 0) {
     // Scroll to bring the top of the next element into view
     const newScrollTop = elementTopFVT;
     // console.log(`newScrollTop=${newScrollTop}`);
-    $("#clipboard").animate({ scrollTop: newScrollTop }, 100);
+    $("#clipboard").animate({ scrollTop: newScrollTop }, 50);
   }
 }
 
