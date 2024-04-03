@@ -83,13 +83,21 @@
   display: none;
 }
 
-#clipboard #groupInput {
-  width: 33%;
+#clipboard #groupInput,
+#clipboard #thingTitle {
+  width: 12em;
   height: 2em;
   min-height: 2em;
   padding: 2pt;
   font-weight: bold;
   margin: 1em 0 0 0.25em;
+}
+#clipboard #thingTitleLabel {
+  display: block;
+}
+#clipboard span.labelWord {
+  display: inline-block;
+  width: 5em;
 }
 
 #clipboard #reorderTabs {
@@ -141,7 +149,7 @@
 }
 
 #clipboard .clipping.clip-unselected {
-  background: #FFF !important;
+  background: #fff !important;
 }
 
 #clipboard[data-type="clipboard"] .clipping:active {
@@ -293,7 +301,13 @@ body.qa-body-js-on .deleteClippingButton {
   padding: 0.2em;
   margin: 0;
 }
+#clipboard .clippingCell .titleSpan {
+  display: block;
+  font-weight: bold;
+  font-size: 1.2em;
+  margin-bottom: 0.5em;
+}
 
-.qa-body-wrapper td.clipping pre {
+.qa-body-wrapper td.clippingCell pre {
   margin-top: 0 !important;
 }

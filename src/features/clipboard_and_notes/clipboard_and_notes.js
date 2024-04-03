@@ -123,12 +123,12 @@ function addClipping(type, e) {
     clipboardDB.result
       .transaction(["Clipboard"], "readwrite")
       .objectStore("Clipboard")
-      .put({ type: type, text: $("#clippingBox").val(), group: group });
+      .put({ type: type, text: $("#clippingBox").val(), group: group, title: $("#thingTitle").val() });
 
     // Add the group button so long so we can mark it active so that focus can be changed to it
     focusOnGroup(group);
     clipboard(type, e, "add");
-    $("#clippingBox").val("");
+    $("#clippingBox,#thingTitle").val("");
   };
 }
 
@@ -168,7 +168,7 @@ function deleteClipping(key, type, groupTBody, e) {
       removeOrderItem(groupsOrderNameFor(type), groupKey);
     }
     clipboard(type, e, "delete");
-    $("#clippingBox").val("");
+    $("#clippingBox,#thingTitle").val("");
   };
 }
 
@@ -207,7 +207,10 @@ function editClipping(key, type, e) {
     clipboardDB.result
       .transaction(["Clipboard"], "readwrite")
       .objectStore("Clipboard")
-      .put({ type: type, text: $("#clippingBox").val(), group: groupNameFromInput() }, +key);
+      .put(
+        { type: type, text: $("#clippingBox").val(), group: groupNameFromInput(), title: $("#thingTitle").val() },
+        +key
+      );
 
     clipboard(type, e, "edit");
     $("#clippingBox").val("");
@@ -361,17 +364,23 @@ async function clipboard(type, e, action = false) {
     const capWord = word.charAt(0).toUpperCase() + word.slice(1);
 
     const aClipboard = $(
-      `<div id='clipboard' data-type='${type}'>` +
-        `<h1>${h1}<x>x</x></h1>` +
-        "<div id='tab-container'><div id='groupTabs'>" +
-        "<button id='reorderTabs' class='small button' title='Reset the tab sort order to the default lexicographic order'>⇅</button>" +
-        "<ul id='tab-list'></ul></div>" +
-        "<section id='clippings'></section></div>" +
-        `<span><label title='${capWord} can be grouped under a label entered here.'>Group:` +
-        "<input id='groupInput' type='text' placeholder='(Optional)'></label>" +
-        "<button id='renameGroup' class='small button' title='Rename the current active group to the value entered at the left'>Rename</button>" +
-        "</span><textarea id='clippingBox'></textarea>" +
-        `<button id='addClipping' class='small button'>Add ${thisWord}</button></div>`
+      `<div id='clipboard' data-type='${type}'>
+        <h1>${h1}<x>x</x></h1>
+        <div id='tab-container'>
+          <div id='groupTabs'>
+            <button id='reorderTabs' class='small button' title='Reset the tab sort order to the default lexicographic order'>⇅</button>
+            <ul id='tab-list'></ul>
+          </div>
+          <section id='clippings'></section>
+        </div>
+        <span>
+          <label title='${capWord} can be grouped under a label entered here.'><span class="labelWord">Group:</span><input id='groupInput' type='text' placeholder='(Optional)'></label>
+          <button id='renameGroup' class='small button' title='Rename the current active group to the value entered at the left'>Rename Group</button>
+          <label id="thingTitleLabel" title='Add an optional title or description for your ${thisWord}.'><span class="labelWord">Title:</span><input id='thingTitle' type='text' placeholder='(Optional)'></label>
+        </span>
+        <textarea id='clippingBox'></textarea>
+        <button id='addClipping' class='small button'>Add ${thisWord}</button>
+      </div>`
     );
 
     placeClipboard(aClipboard, e);
@@ -381,8 +390,8 @@ async function clipboard(type, e, action = false) {
       }
     }
 
-    $("#clipboard x").off("click", closeClipBoard).on("click", closeClipBoard);
-    $("#clipboard h1").off("dblclick", closeClipBoard).on("dblclick", closeClipBoard);
+    $("#clipboard x").off("click", closeClipboard).on("click", closeClipboard);
+    $("#clipboard h1").off("dblclick", closeClipboard).on("dblclick", closeClipboard);
     $("#reorderTabs")
       .off("click")
       .on("click", function (e) {
@@ -490,13 +499,20 @@ async function clipboard(type, e, action = false) {
                 htmlText = htmlText.replaceAll(/(\bhttps?:\/\/.*\b)/g, "<a href='$1'>$1</a>");
               }
 
+              const titleSpan = item.value.title ? `<span class="titleSpan">${item.value.title}</span>` : "";
               const row = $(
-                `<tr data-key="${item.key}" data-original="${oText}" data-group="${groupName}">` +
-                  groupName.replaceAll(/'/g, "'").replaceAll(/"/g, '"') +
-                  `<td class="index">${index}</td>` +
-                  `<td class="clipping"><pre>${htmlText}</pre></td>` +
-                  `<td class="editClipping"><img src="${editImage}" class="button small editClippingButton"></td>` +
-                  `<td class="deleteClipping"><span class="deleteClippingButton button small">X</span></td></tr>`
+                `<tr data-key="${item.key}" data-original="${oText}" data-group="${groupName}" data-title="${
+                  item.value.title
+                }">${groupName.replaceAll(/'/g, "'").replaceAll(/"/g, '"')}">
+                  <td class="index">${index}</td>
+                  <td class="clippingCell">${titleSpan}
+                    <pre class="clipping">${htmlText}</pre>
+                  </td>
+                  <td class="editClipping">
+                    <img src="${editImage}" class="button small editClippingButton">
+                  </td>
+                  <td class="deleteClipping"><span class="deleteClippingButton button small">X</span></td>
+                </tr>`
               );
               grpTable.find("tbody").append(row);
             }
@@ -527,8 +543,8 @@ async function clipboard(type, e, action = false) {
           $(".clipping")
             .off("click")
             .on("click", function () {
-              copyClippingToClipboard($(this).parent().data("original"));
-              closeClipBoard();
+              copyClippingToClipboard($(this).closest("tr").data("original"));
+              closeClipboard();
             });
         }
 
@@ -648,7 +664,7 @@ function mouseListener() {
 
 function keyDownListener(e) {
   if (e.code === "Escape") {
-    closeClipBoard();
+    closeClipboard();
     return;
   }
   if (!e.shiftKey) return; // we only react to shift-<some key>
@@ -816,7 +832,7 @@ async function initClipboard() {
               clipboard("clipboard", e);
             } else if ($("#clipboard").css("display") == "block") {
               if (ccpc == lccpc || lccpc == undefined) {
-                closeClipBoard();
+                closeClipboard();
               }
               placeClipboard($("#clipboard"), e);
             } else {
@@ -843,7 +859,7 @@ async function initClipboard() {
             clipboard("notes", e);
           } else if ($("#clipboard").css("display") == "block") {
             if (ccpc == lccpc || lccpc == undefined) {
-              closeClipBoard();
+              closeClipboard();
             }
             placeClipboard($("#clipboard"), e);
           } else {
@@ -907,7 +923,7 @@ function setClipboardText() {
     });
 }
 
-function closeClipBoard() {
+function closeClipboard() {
   $("#clipboard").slideUp();
   $(document).off("keydown", keyDownListener);
   $(document).off("mousemove", mouseListener);
