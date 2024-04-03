@@ -308,16 +308,17 @@ function setAddClippingAction(type) {
 }
 
 function placeClipboard(aClipboard, event) {
-  // const mouseX = event.pageX;
+  // Get mouseY position from the event
   const mouseY = event.pageY;
 
+  // Insert clipboard logic based on different conditions
   if ($("#privatemessage-modal").css("display") == "block") {
     aClipboard.insertAfter($(".theClipboardButtons"));
   } else if ($("h1:contains('Edit Marriage Information')").length) {
     aClipboard.insertAfter($("#header"));
   } else if ($("body.page-Special_EditPerson").length) {
     aClipboard.insertAfter($("#toolbar,#mEmail"));
-  } else if (window.clipboardClicker != undefined) {
+  } else if (window.clipboardClicker !== undefined) {
     if (window.clipboardClicker.parent().hasClass("answerForm")) {
       aClipboard.insertAfter($("form[name='a_form'] .theClipboardButtons"));
     } else if (window.clipboardClicker.parent().hasClass("commentForm")) {
@@ -327,14 +328,24 @@ function placeClipboard(aClipboard, event) {
     }
   }
 
-  // Set the position of the clipboard based on the current pointer location.
-  if (mouseY != 0) {
-    aClipboard.css({
-      position: "absolute",
-      top: mouseY,
-      // left: mouseX,
-    });
+  // Calculate the necessary adjustments to ensure the clipboard is within the viewport
+  const clipboardHeight = aClipboard.outerHeight();
+  const viewportHeight = $(window).height();
+  const scrollTop = $(window).scrollTop();
+
+  // Calculate optimal top position to ensure clipboard fits in viewport
+  let topPosition = mouseY + scrollTop; // Start with the basic mouseY position adjusted by current scroll
+
+  // Adjust if the clipboard goes beyond the bottom of the viewport
+  if (mouseY + clipboardHeight + scrollTop > viewportHeight + scrollTop) {
+    topPosition = viewportHeight + scrollTop - clipboardHeight;
+    topPosition = Math.max(topPosition, scrollTop); // Ensure it doesn't go above the top of the viewport
   }
+
+  aClipboard.css({
+    position: "absolute",
+    top: topPosition + "px",
+  });
 }
 
 async function clipboard(type, e, action = false) {
