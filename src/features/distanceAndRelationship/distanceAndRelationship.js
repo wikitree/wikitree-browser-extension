@@ -116,6 +116,7 @@ shouldInitializeFeature("distanceAndRelationship").then((result) => {
 
             $("#distanceFromYou").on("click", function (e) {
               e.preventDefault();
+              $("#distanceFromYouTooltip").remove();
               $(this).fadeOut("slow").remove();
               $("#yourRelationshipText").fadeOut("slow").remove();
               initDistanceAndRelationship(userID, profileID, true);
