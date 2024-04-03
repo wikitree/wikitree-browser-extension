@@ -720,6 +720,7 @@ function keyDownListener(e) {
   } else if (e.code === "ArrowRight" || e.code === "ArrowLeft") {
     e.preventDefault();
     e.stopPropagation();
+    $("#clipboard").scrollTop(0);
     keyMode = true;
     let activeTabs = $(".tab.active");
     let el;
