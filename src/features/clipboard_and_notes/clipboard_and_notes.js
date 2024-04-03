@@ -307,6 +307,7 @@ function setAddClippingAction(type) {
   $("#clippingBox,#thingTitle").val("");
 }
 
+/*
 function placeClipboard(aClipboard, event) {
   // Get mouseY position from the event
   const mouseY = event.pageY;
@@ -345,6 +346,55 @@ function placeClipboard(aClipboard, event) {
   aClipboard.css({
     position: "absolute",
     top: topPosition + "px",
+  });
+}
+*/
+
+function placeClipboard(aClipboard, event) {
+  // Base mouseY position on the event
+  const mouseY = event.pageY;
+
+  // Conditional placements not altered
+  if ($("#privatemessage-modal").css("display") == "block") {
+    aClipboard.insertAfter($(".theClipboardButtons"));
+  } else if ($("h1:contains('Edit Marriage Information')").length) {
+    aClipboard.insertAfter($("#header"));
+  } else if ($("body.page-Special_EditPerson").length) {
+    aClipboard.insertAfter($("#toolbar,#mEmail"));
+  } else if (window.clipboardClicker !== undefined) {
+    if (window.clipboardClicker.parent().hasClass("answerForm")) {
+      aClipboard.insertAfter($("form[name='a_form'] .theClipboardButtons"));
+    } else if (window.clipboardClicker.parent().hasClass("commentForm")) {
+      aClipboard.insertAfter($(".qa-c-form .theClipboardButtons"));
+    } else {
+      aClipboard.insertAfter($("#header,.qa-header"));
+    }
+  }
+
+  // Dynamic adjustments to keep clipboard fully on-screen
+  const clipboardHeight = aClipboard.outerHeight();
+  const viewportHeight = $(window).height();
+  const scrollTop = $(window).scrollTop();
+
+  // Initially position clipboard based on mouseY, adjusting for scroll
+  let topPosition = mouseY;
+
+  // If extending beyond the bottom of the viewport, pull it up
+  if (mouseY + clipboardHeight > viewportHeight + scrollTop) {
+    topPosition = viewportHeight + scrollTop - clipboardHeight;
+  }
+
+  // If going above the top of the viewport (after potential pull-up adjustment), push it down
+  if (topPosition < scrollTop) {
+    topPosition = scrollTop;
+  }
+
+  // Apply calculated position, ensuring clipboard stays fully visible
+  aClipboard.css({
+    position: "absolute",
+    top: topPosition + "px",
+    // Adjust left position as needed, uncommenting the following line
+    // left: event.pageX + 'px',
   });
 }
 
