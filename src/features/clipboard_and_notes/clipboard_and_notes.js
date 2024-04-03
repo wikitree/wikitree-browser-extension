@@ -304,7 +304,7 @@ function setAddClippingAction(type) {
     word = "note";
   }
   $("#addClipping").text("Add " + word);
-  $("#clippingBox").val("");
+  $("#clippingBox,#thingTitle").val("");
 }
 
 function placeClipboard(aClipboard, event) {
@@ -565,6 +565,7 @@ async function clipboard(type, e, action = false) {
 
               $("#clippingBox").val(original2real($(this).closest("tr").data("original")));
               $("#groupInput").val(original2real($(this).closest(".tab-content").data("group")));
+              $("#thingTitle").val(original2real($(this).closest("tr").data("title")));
 
               const key = $(this).closest("tr").data("key");
 
