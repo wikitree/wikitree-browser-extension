@@ -140,20 +140,20 @@
   padding: 0.25em;
 }
 
-#clipboard .clipping {
+#clipboard .clippingCell {
   cursor: default;
 }
 
-#clipboard .clipping.clip-selected,
-#clipboard .clipping:hover {
+#clipboard .clippingCell.clip-selected,
+#clipboard .clippingCell:hover {
   background: rgb(221, 250, 218);
 }
 
-#clipboard .clipping.clip-unselected {
+#clipboard .clippingCell.clip-unselected {
   background: #fff !important;
 }
 
-#clipboard[data-type="clipboard"] .clipping:active {
+#clipboard[data-type="clipboard"] .clippingCell:active {
   font-weight: bold;
 }
 

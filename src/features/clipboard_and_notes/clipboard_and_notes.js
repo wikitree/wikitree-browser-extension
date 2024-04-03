@@ -659,7 +659,7 @@ function mouseListener() {
   if (keyMode) {
     // The user started to use the mouse after having used the cursor keys
     keyMode = false;
-    $(".clipping").removeClass("clip-selected clip-unselected");
+    $(".clippingCell").removeClass("clip-selected clip-unselected");
   }
 }
 
@@ -675,10 +675,10 @@ function keyDownListener(e) {
   if (["ArrowDown", "ArrowUp", "PageUp", "PageDown"].includes(e.code)) {
     e.preventDefault();
     e.stopPropagation();
-    const clippings = $(".clipping:visible");
+    const clippings = $(".clippingCell:visible");
     if (!keyMode) {
       keyMode = true;
-      const index = clippings.index($(".clipping:hover"));
+      const index = clippings.index($(".clippingCell:hover"));
       if (index > 0) clippingRow = index;
     }
     clippings.addClass("clip-unselected");
@@ -714,17 +714,17 @@ function keyDownListener(e) {
       el = e.code === "ArrowRight" ? activeTabs.first() : activeTabs.last();
     }
     if (el) {
-      $(".clipping").removeClass("clip-selected");
-      $(".clipping").addClass("clip-unselected");
+      $(".clippingCell").removeClass("clip-selected");
+      $(".clippingCell").addClass("clip-unselected");
       clippingRow = -1;
       el.find(".tab-name").trigger("click");
     }
   } else if (e.code === "Enter") {
     e.preventDefault();
     e.stopPropagation();
-    const clippings = $(".clipping:visible");
+    const clippings = $(".clippingCell:visible");
     if (clippingRow >= 0 && clippingRow < clippings.length) {
-      const x = $(".clipping.clip-selected").trigger("click");
+      const x = $(".clippingCell.clip-selected").trigger("click");
     }
   }
 }
