@@ -97,7 +97,8 @@
 }
 #clipboard span.labelWord {
   display: inline-block;
-  width: 5em;
+  width: 4em;
+  font-weight: bold;
 }
 
 #clipboard #reorderTabs {
