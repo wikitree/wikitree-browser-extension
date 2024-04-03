@@ -373,13 +373,15 @@ async function clipboard(type, e, action = false) {
           </div>
           <section id='clippings'></section>
         </div>
-        <span>
-          <label title='${capWord} can be grouped under a label entered here.'><span class="labelWord">Group:</span><input id='groupInput' type='text' placeholder='(Optional)'></label>
-          <button id='renameGroup' class='small button' title='Rename the current active group to the value entered at the left'>Rename Group</button>
-          <label id="thingTitleLabel" title='Add an optional title or description for your ${thisWord}.'><span class="labelWord">Title:</span><input id='thingTitle' type='text' placeholder='(Optional)'></label>
-        </span>
-        <textarea id='clippingBox'></textarea>
-        <button id='addClipping' class='small button'>Add ${thisWord}</button>
+        <div id="clippingForm">
+          <span>
+            <label title='${capWord} can be grouped under a label entered here.'><span class="labelWord">Group:</span><input id='groupInput' type='text' placeholder='(Optional)'></label>
+            <button id='renameGroup' class='small button' title='Rename the current active group to the value entered at the left'>Rename Group</button>
+            <label id="thingTitleLabel" title='Add an optional title or description for your ${thisWord}.'><span class="labelWord">Title:</span><input id='thingTitle' type='text' placeholder='(Optional)'></label>
+          </span>
+          <textarea id='clippingBox'></textarea>
+          <button id='addClipping' class='small button'>Add ${thisWord}</button>
+        </div>
       </div>`
     );
 
@@ -556,16 +558,30 @@ async function clipboard(type, e, action = false) {
         $(".editClippingButton").each(function () {
           const aButton = $(this);
           aButton.off("click").on("click", function () {
+            // If #clippingForm is not visible, scroll it into view
+            const formOffsetWithinClipboard =
+              $("#clippingForm").offset().top - $("#clipboard").offset().top + $("#clipboard").scrollTop();
+            $("#clipboard").animate(
+              {
+                scrollTop: formOffsetWithinClipboard,
+              },
+              500
+            );
+
             if ($(this).closest("tr").hasClass("editing")) {
               $(this).closest("tr").removeClass("editing");
               setAddClippingAction(type);
             } else {
-              $("#clipboardTable tr").removeClass("editing");
+              $("#clipboard table tr").removeClass("editing");
               $(this).closest("tr").addClass("editing");
 
               $("#clippingBox").val(original2real($(this).closest("tr").data("original")));
               $("#groupInput").val(original2real($(this).closest(".tab-content").data("group")));
-              $("#thingTitle").val(original2real($(this).closest("tr").data("title")));
+              $("#thingTitle").val(
+                $(this).closest("tr").data("title") != "undefined"
+                  ? original2real($(this).closest("tr").data("title"))
+                  : ""
+              );
 
               const key = $(this).closest("tr").data("key");
 
@@ -754,14 +770,14 @@ function scrollIfRequired(selectedRow) {
   if (elementBottomFVT > containerHeight) {
     // Scroll to bring the bottom of the next element into view
     const newScrollTop = divScrollTop + elementBottomFVT - containerHeight;
-    $("#clipboard").animate({ scrollTop: newScrollTop }, 200);
+    $("#clipboard").animate({ scrollTop: newScrollTop }, 100);
     // console.log(`newScrollTop=${newScrollTop}`);
-    $("#clipboard").animate({ scrollTop: newScrollTop }, 200);
+    $("#clipboard").animate({ scrollTop: newScrollTop }, 100);
   } else if (elementTopFVT < 0) {
     // Scroll to bring the top of the next element into view
     const newScrollTop = elementTopFVT;
     // console.log(`newScrollTop=${newScrollTop}`);
-    $("#clipboard").animate({ scrollTop: newScrollTop }, 200);
+    $("#clipboard").animate({ scrollTop: newScrollTop }, 100);
   }
 }
 
