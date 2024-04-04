@@ -33,38 +33,40 @@ shouldInitializeFeature("removeFromWatchlist").then((result) => {
 
     for (let i = 1 /* skip table with sorting links */; i < profileRows.length; i++) {
       const editLink = profileRows[i].getElementsByTagName("a")[3];
-      var urlParams = new URLSearchParams(editLink.href);
-      if (urlParams.has("u")) {
-        //parent of edit link is td
-        const profileId = urlParams.get("u");
-        const checkBox = document.createElement("input");
-        checkBox.type = "checkbox";
-        checkBox.value = profileId;
-        checkBox.id = "cb_" + profileId;
+      if (editLink) {
+        const urlParams = new URLSearchParams(editLink.href);
+        if (urlParams.has("u")) {
+          //parent of edit link is td
+          const profileId = urlParams.get("u");
+          const checkBox = document.createElement("input");
+          checkBox.type = "checkbox";
+          checkBox.value = profileId;
+          checkBox.id = "cb_" + profileId;
 
-        const tdThis = editLink.parentNode;
-        tdThis.insertBefore(checkBox, tdThis.firstChild);
+          const tdThis = editLink.parentNode;
+          tdThis.insertBefore(checkBox, tdThis.firstChild);
 
-        tdThis.addEventListener("click", function (e) {
-          //will also be triggered, when left-clicking on links :(
-          checkBox.checked = checkBox.checked == false;
-          console.log(checkBox.checked);
-        });
-        checkBox.addEventListener("click", function (e) {
-          e.stopPropagation();
-        });
+          tdThis.addEventListener("click", function (e) {
+            //will also be triggered, when left-clicking on links :(
+            checkBox.checked = checkBox.checked == false;
+            console.log(checkBox.checked);
+          });
+          checkBox.addEventListener("click", function (e) {
+            e.stopPropagation();
+          });
 
-        for (let c = 0; c < tdThis.childNodes.length; c++) {
-          const childNode = tdThis.childNodes[c];
-          if (childNode.type != "checkbox") {
-            childNode.addEventListener("click", function (event) {
-              event.stopPropagation();
-            });
+          for (let c = 0; c < tdThis.childNodes.length; c++) {
+            const childNode = tdThis.childNodes[c];
+            if (childNode.type != "checkbox") {
+              childNode.addEventListener("click", function (event) {
+                event.stopPropagation();
+              });
+            }
           }
-        }
 
-        const tdNext = tdThis.nextSibling.nextSibling; //there is a newline in-between the two tds
-        tdNext.innerHTML = '<label for="cb_' + profileId + '">' + tdNext.innerText + "</label>";
+          const tdNext = tdThis.nextSibling.nextSibling; //there is a newline in-between the two tds
+          tdNext.innerHTML = '<label for="cb_' + profileId + '">' + tdNext.innerText + "</label>";
+        }
       }
     }
 
