@@ -25,7 +25,8 @@ function addDistanceAndRelationColumns() {
   // Add the header cells to the table
 
   const headerCells = $(`<th style="width: 5%; text-align: center; cursor: pointer;">°</th>
-  <th style="width: 15%; text-align: center; cursor: pointer;">Relation</th>`);
+  <th style="width: 15%; text-align: center; cursor: pointer;">Relation</th><th style="width: 10%; text-align: center; cursor: pointer;">Suggestion</th>`);
+
   nameTable.find("tr").eq(0).append(headerCells);
 
   setTimeout(() => {
@@ -77,8 +78,36 @@ function addDistanceAndRelationColumns() {
           relationshipPromises.push(relationshipPromise);
         });
 
+        const suggestionsPromise = GetSuggestions().then((htmlPage) => {
+          const parser = new DOMParser();
+          const suggestionsDOM = parser.parseFromString(htmlPage, "text/html");
+          Object.keys(ids).forEach(function (wtid) {
+            $(suggestionsDOM)
+              .find("td:contains(" + wtid.split("_").join(" ") + ")")
+              .each(function () {
+                if ($(this).contents()[0].nodeName != "A") {
+                  //comments table, do nothing
+                } else if ($(this).prev().length == 0) {
+                  let parentRow = $(this).parent();
+                  while (
+                    parentRow.find("td").attr("rowspan") == undefined &&
+                    parentRow.length > 0 &&
+                    parentRow.get(0).tagName == "TR"
+                  ) {
+                    parentRow = parentRow.prev();
+                  }
+                  SetOrAdd(wtid, parentRow.find("td"));
+                } else if ($(this).prev().get(0).firstChild.tagName == "IMG") {
+                  //WT ID only in manager column
+                } else {
+                  SetOrAdd(wtid, $(this).prev());
+                }
+              });
+          });
+        });
+
         // Wait for all promises to resolve before initializing DataTable
-        Promise.all([...distancePromises, ...relationshipPromises])
+        Promise.all([...distancePromises, ...relationshipPromises, suggestionsPromise])
           .then(() => {
             nameTable.find("tr").each(function (index) {
               // find the ids item with the property index: index
@@ -89,7 +118,10 @@ function addDistanceAndRelationColumns() {
                 if (id) {
                   const distance = ids[id].distance || "";
                   const relationship = ids[id].relationship || "";
-                  $(this).append(`<td style="text-align: center;">${distance}</td><td>${relationship}</td>`);
+                  const suggestion = ids[id].suggestion ? ids[id].suggestion : "";
+                  $(this).append(
+                    `<td style="text-align: center;">${distance}</td><td>${relationship}</td><td>${suggestion}</td>`
+                  );
                 } else {
                   $(this).append(`<td style="text-align: center;"></td><td></td>`);
                 }
@@ -103,6 +135,30 @@ function addDistanceAndRelationColumns() {
       };
     };
   }, 0);
+
+  function SetOrAdd(wtid, node) {
+    if (ids[wtid].suggestion != undefined) {
+      ids[wtid].suggestion += "<br />" + node.html();
+    } else {
+      ids[wtid].suggestion = node.html();
+    }
+  }
+}
+
+async function GetSuggestions() {
+  return new Promise((resolve, reject) => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("p")) {
+      fetch("https://plus.wikitree.com/function/WTWebUser/Suggestions.htm?UserID=" + params.get("p"))
+        .then((suggestionsPage) => {
+          const txt = suggestionsPage.text();
+          resolve(txt);
+        })
+        .catch(() => {
+          reject("");
+        });
+    }
+  });
 }
 
 /**
