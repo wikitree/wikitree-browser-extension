@@ -85,8 +85,8 @@ function addDistanceAndRelationColumns() {
             $(suggestionsDOM)
               .find("td:contains(" + wtid.split("_").join(" ") + ")")
               .each(function () {
-                if ($(this).contents().first().nodeType === 3) {
-                  //no link => comment table
+                if ($(this).contents()[0].nodeName != "A") {
+                  //comments table, do nothing
                 } else if ($(this).prev().length == 0) {
                   let parentRow = $(this).parent();
                   while (
