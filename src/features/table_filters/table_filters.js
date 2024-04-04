@@ -85,7 +85,9 @@ function addDistanceAndRelationColumns() {
             $(suggestionsDOM)
               .find("td:contains(" + wtid.split("_").join(" ") + ")")
               .each(function () {
-                if ($(this).prev().length == 0) {
+                if ($(this).contents().first().nodeType === 3) {
+                  //no link => comment table
+                } else if ($(this).prev().length == 0) {
                   let parentRow = $(this).parent();
                   while (
                     parentRow.find("td").attr("rowspan") == undefined &&
@@ -95,6 +97,8 @@ function addDistanceAndRelationColumns() {
                     parentRow = parentRow.prev();
                   }
                   SetOrAdd(wtid, parentRow.find("td"));
+                } else if ($(this).prev().get(0).firstChild.tagName == "IMG") {
+                  //WT ID only in manager column
                 } else {
                   SetOrAdd(wtid, $(this).prev());
                 }
