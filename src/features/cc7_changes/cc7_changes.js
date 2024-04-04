@@ -815,16 +815,14 @@ function convertToMapsAndExclude(deltas, excludeDeltas) {
 async function fetchDetailsForIds(idsByDate) {
   let result = new Map();
   let ids = [];
-  idsByDate.values().forEach((delta) => {
-    ids = delta.added.values().reduce((acc, p) => {
-      acc.push(p.Id);
-      return acc;
-    }, ids);
-    ids = delta.removed.values().reduce((acc, p) => {
-      acc.push(p.Id);
-      return acc;
-    }, ids);
-  });
+  for (const delta of idsByDate.values()) {
+    for (const p of delta.added.values()) {
+      ids.push(p.Id);
+    }
+    for (const p of delta.removed.values()) {
+      ids.push(p.Id);
+    }
+  }
 
   const allIdsUnique = [...new Set(ids)];
   for (let i = 0; i < allIdsUnique.length; i += 1000) {
