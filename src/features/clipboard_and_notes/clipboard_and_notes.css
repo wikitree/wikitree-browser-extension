@@ -283,6 +283,7 @@ body.qa-body-js-on .deleteClippingButton {
   white-space: -o-pre-wrap;
   word-wrap: break-word;
   font: inherit;
+  margin-top: 0;
 }
 
 #toolbar .theClipboardButtons {
