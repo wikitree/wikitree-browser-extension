@@ -1,8 +1,8 @@
 #clipboard {
-  position: absolute;
-  width: auto;
+  position: fixed;
+  width: 80%;
   z-index: 100000000;
-  left: 5%;
+  top: 5%;
   right: 5%;
   padding: 1em;
   border: 2px solid forestgreen;
@@ -12,7 +12,6 @@
   min-width: min-content;
   min-height: min-content;
   overflow: auto;
-  position: absolute;
   box-shadow: 0.1em 0.1em 0.1em 0.1em lightgreen;
   background: white;
   display: none;

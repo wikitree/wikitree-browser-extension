@@ -9,7 +9,6 @@ import "jquery-ui/ui/widgets/draggable";
 import "./clipboard_and_notes.css";
 import { htmlEntities, extensionContextInvalidatedCheck } from "../../core/common";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
-import { isG2G } from "../../core/pageType.js";
 
 export function appendClipboardButtons(clipboardButtons = $()) {
   if ($("h1:contains('Edit Marriage Information')").length) {
@@ -30,6 +29,20 @@ var clippingRow = -1;
 var keyMode = false; // flags whether the user is using cursor keys or mouse
 
 shouldInitializeFeature("clipboardAndNotes").then((result) => {
+  $(".qa-form-light-button-comment,.qa-form-light-button-answer").on("click", function () {
+    $("#clipboard").remove();
+  });
+  $(document).on("click", ".aClipboardButton", function (e) {
+    e.preventDefault();
+    window.clipboardClicker = $(this);
+    handleClipboardClick(e);
+  });
+  $(document).on("click", ".aNotesButton", function (e) {
+    e.preventDefault();
+    window.clipboardClicker = $(this);
+    handleNotesClick(e);
+  });
+
   if (result && $(".clipboardButtons").length == 0) {
     // BEE class
     window.clipboardClicker = $();
@@ -307,63 +320,6 @@ function setAddClippingAction(type) {
   $("#clippingBox,#thingTitle").val("");
 }
 
-function placeClipboard(aClipboard, event) {
-  // Base mouseY position on the event
-  const mouseY = event.pageY;
-
-  // Conditional placements not altered
-  if ($("#privatemessage-modal").css("display") == "block") {
-    aClipboard.insertAfter($(".theClipboardButtons"));
-  } else if ($("h1:contains('Edit Marriage Information')").length) {
-    aClipboard.insertAfter($("#header"));
-  } else if ($("body.page-Special_EditPerson").length) {
-    aClipboard.insertAfter($("#toolbar,#mEmail"));
-  } else if (window.clipboardClicker !== undefined) {
-    if (window.clipboardClicker.parent().hasClass("answerForm")) {
-      console.log("answerForm");
-
-      aClipboard.insertAfter($("form[name='a_form'] .theClipboardButtons"));
-    } else if (window.clipboardClicker.parent().hasClass("commentForm")) {
-      console.log("commentForm");
-
-      aClipboard.insertAfter($(".theClipboardButtons.commentForm"));
-      aClipboard.show();
-    } else {
-      console.log("else");
-
-      aClipboard.insertAfter($("#header,.qa-header"));
-    }
-  }
-
-  // Dynamic adjustments to keep clipboard fully on-screen
-  const clipboardHeight = aClipboard.outerHeight();
-  const viewportHeight = $(window).height();
-  const scrollTop = $(window).scrollTop();
-
-  // Initially position clipboard based on mouseY, adjusting for scroll
-  let topPosition = mouseY;
-
-  // If extending beyond the bottom of the viewport, pull it up
-  if (mouseY + clipboardHeight > viewportHeight + scrollTop) {
-    topPosition = viewportHeight + scrollTop - clipboardHeight;
-  }
-
-  // If going above the top of the viewport (after potential pull-up adjustment), push it down
-  if (topPosition < scrollTop) {
-    topPosition = scrollTop;
-  }
-
-  // Apply calculated position, ensuring clipboard stays fully visible
-  if (!isG2G) {
-    aClipboard.css({
-      position: "absolute",
-      top: topPosition + "px",
-      // Adjust left position as needed, uncommenting the following line
-      // left: event.pageX + 'px',
-    });
-  }
-}
-
 async function clipboard(type, e, action = false) {
   clippingRow = -1;
   $("input, textarea").trigger("blur"); // ensure the clipboard has the focus
@@ -412,8 +368,6 @@ async function clipboard(type, e, action = false) {
       </div>`
     );
 
-    console.log("aClipboard", aClipboard);
-    placeClipboard(aClipboard, e);
     if ($("body.page-Special_EditPerson").length && thisWord == "clipping") {
       if ($("#clipboardInfo").length == 0) {
         setClipboardText();
@@ -453,13 +407,6 @@ async function clipboard(type, e, action = false) {
   }
 
   setAddClippingAction(type);
-
-  /*
-  if ($(e.target).hasClass("aClipboardButton") || $(e.target).hasClass("aNotesButton")) {
-    console.log("aClipboardButton or aNotesButton");
-    placeClipboard($("#clipboard"), e);
-  }
-  */
 
   if (action == false) {
     $("#clipboard").toggle();
@@ -868,60 +815,8 @@ async function initClipboard() {
     $("form[name='a_form'] .theClipboardButtons").addClass("answerForm");
     $(".qa-c-form .theClipboardButtons").addClass("commentForm");
     $("#toolbar + br").remove();
-    $(".aClipboardButton").each(function () {
-      $(this)
-        .off("click")
-        .on("click", function (e) {
-          try {
-            e.preventDefault();
-            window.clipboardClicker = $(this);
-            const ccpc = window.clipboardClicker.parent().attr("class");
-            const lccpc = window.lastClipboardClicker.parent().attr("class");
-            if ($("#clipboard").data("type") == "notes") {
-              $("#clipboard").remove();
-              clipboard("clipboard", e);
-            } else if ($("#clipboard").css("display") == "block") {
-              if (ccpc == lccpc || lccpc == undefined) {
-                closeClipboard();
-              }
-              console.log("placeClipboard");
-              placeClipboard($("#clipboard"), e);
-            } else {
-              clipboard("clipboard", e);
-            }
-            window.lastClipboardClicker = window.clipboardClicker;
-          } catch (e) {
-            console.log(e);
-            extensionContextInvalidatedCheck(e);
-          }
-        });
-    });
-    $(".aNotesButton").each(function () {
-      $(this)
-        .off("click")
-        .on("click", function (e) {
-          e.preventDefault();
-          window.clipboardClicker = $(this);
-          const ccpc = window.clipboardClicker.parent().attr("class");
-          const lccpc = window.lastClipboardClicker.parent().attr("class");
-
-          if ($("#clipboard").data("type") == "clipboard") {
-            $("#clipboard").remove();
-            clipboard("notes", e);
-          } else if ($("#clipboard").css("display") == "block") {
-            if (ccpc == lccpc || lccpc == undefined) {
-              closeClipboard();
-            }
-            console.log("placeClipboard");
-            placeClipboard($("#clipboard"), e);
-          } else {
-            clipboard("notes", e);
-          }
-
-          window.lastClipboardClicker = window.clipboardClicker;
-        });
-    });
   };
+
   clipboardReq.onerror = function (event) {
     console.log("error opening clipboard/notes database: " + event.target.errorCode);
   };
@@ -938,6 +833,52 @@ async function initClipboard() {
           });
       }, 2500);
     });
+}
+
+function handleClipboardClick(e) {
+  try {
+    e.preventDefault();
+    window.clipboardClicker = $(e.target);
+    const ccpc = window.clipboardClicker.parent().attr("class");
+    const lccpc = window.lastClipboardClicker.parent().attr("class");
+    if ($("#clipboard").data("type") == "notes") {
+      $("#clipboard").remove();
+      clipboard("clipboard", e);
+    } else if ($("#clipboard").css("display") == "block") {
+      if (ccpc == lccpc) {
+        closeClipboard();
+      }
+    } else {
+      clipboard("clipboard", e);
+    }
+    window.lastClipboardClicker = window.clipboardClicker;
+  } catch (e) {
+    extensionContextInvalidatedCheck(e);
+  }
+}
+
+function handleNotesClick(e) {
+  e.preventDefault();
+  window.clipboardClicker = $(e.target);
+  const ccpc = window.clipboardClicker.parent().attr("class");
+  const lccpc = window.lastClipboardClicker.parent().attr("class");
+
+  if (
+    $("#clipboard").data("type") == "clipboard" ||
+    $("#clipboard").data("type") == undefined ||
+    $("#clipboard").attr("data-type") == ""
+  ) {
+    $("#clipboard").remove();
+    clipboard("notes", e);
+  } else if ($("#clipboard").css("display") == "block") {
+    if (ccpc == lccpc) {
+      closeClipboard();
+    }
+  } else {
+    clipboard("notes", e);
+  }
+
+  window.lastClipboardClicker = window.clipboardClicker;
 }
 
 function showGroup($tab) {
