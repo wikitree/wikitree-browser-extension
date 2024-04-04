@@ -1,18 +1,17 @@
 #clipboard {
-  position: absolute;
-  width: auto;
+  position: fixed;
+  text-align: left;
   z-index: 100000000;
-  left: 5%;
+  top: 5%;
   right: 5%;
   padding: 1em;
   border: 2px solid forestgreen;
   border-radius: 1em;
   height: 40em;
-  max-width: 70em;
+  max-width: 50em;
   min-width: min-content;
   min-height: min-content;
   overflow: auto;
-  position: absolute;
   box-shadow: 0.1em 0.1em 0.1em 0.1em lightgreen;
   background: white;
   display: none;
@@ -284,6 +283,7 @@ body.qa-body-js-on .deleteClippingButton {
   white-space: -o-pre-wrap;
   word-wrap: break-word;
   font: inherit;
+  margin-top: 0;
 }
 
 #toolbar .theClipboardButtons {
