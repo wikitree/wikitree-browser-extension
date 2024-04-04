@@ -87,7 +87,11 @@ function addDistanceAndRelationColumns() {
               .each(function () {
                 if ($(this).prev().length == 0) {
                   let parentRow = $(this).parent();
-                  while (parentRow.find("td").attr("rowspan") == undefined && parentRow.get(0).tagName == "TR") {
+                  while (
+                    parentRow.find("td").attr("rowspan") == undefined &&
+                    parentRow.length > 0 &&
+                    parentRow.get(0).tagName == "TR"
+                  ) {
                     parentRow = parentRow.prev();
                   }
                   SetOrAdd(wtid, parentRow.find("td"));
