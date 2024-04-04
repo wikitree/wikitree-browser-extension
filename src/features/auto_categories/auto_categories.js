@@ -65,8 +65,6 @@ export async function addAutoCategories() {
 
   await buildFamilyForPrivateProfiles();
 
-  console.log(JSON.parse(JSON.stringify(window.profilePerson)));
-
   // Assign names to the profile person
   assignPersonNames(window.profilePerson);
   window.profilePerson.Pronouns = getPronouns(window.profilePerson);
@@ -138,30 +136,34 @@ export async function addAutoCategories() {
 
   //  const afterBioHeadingThings = await afterBioHeadingTextAndObjects();
   const afterBioHeadingThings = await getStickersAndBoxes();
-  // console.log(afterBioHeadingThings);
+  console.log(afterBioHeadingThings);
   //let afterBioHeading = afterBioHeadingThings.text;
   let afterBioHeading = "";
   if (afterBioHeadingThings) {
     afterBioHeading = "\n" + afterBioHeadingThings;
   }
+  console.log(afterBioHeading);
   if (afterBioHeadingThings) {
     const splitLines = afterBioHeadingThings.split("\n");
-    // Remove the text from the bio.
+    // Remove the text from the bio before adding it back in. This is to prevent duplicate text.
     splitLines.forEach((line) => {
-      currentBio = currentBio.replace(line, "");
+      // regex line + \n to remove the line and the newline character
+      if (line == "") {
+        return;
+      }
+      const regex = new RegExp(line + "\n", "g");
+      currentBio = currentBio.replace(regex, "");
     });
-
-    // Remove and blank lines between the bio and the afterBioHeadingThings
-    currentBio = currentBio.replace(/\n{2,}/g, "\n");
   }
 
   if (stuffBeforeTheBioText || afterBioHeading) {
     if (stuffBeforeTheBioText && stuffBeforeTheBioText.match(/\n$/) == null) {
       stuffBeforeTheBioText += "\n";
     }
+
     currentBio = currentBio.replace(
-      /^(.*?)== Biography ==/s,
-      `${stuffBeforeTheBioText}== Biography ==${afterBioHeading}`
+      /^(.*?)== ?Biography ?==/,
+      `${stuffBeforeTheBioText}== Biography ==${afterBioHeading.replace(/\n+$/, "")}`
     );
   }
   // Add the text to the textarea and switch back to the enhanced editor if it was on
