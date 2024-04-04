@@ -9,7 +9,7 @@ import "jquery-ui/ui/widgets/draggable";
 import "./clipboard_and_notes.css";
 import { htmlEntities, extensionContextInvalidatedCheck } from "../../core/common";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
-import { tabs } from "sinon-chrome";
+import { isG2G } from "../../core/pageType.js";
 
 export function appendClipboardButtons(clipboardButtons = $()) {
   if ($("h1:contains('Edit Marriage Information')").length) {
@@ -307,49 +307,6 @@ function setAddClippingAction(type) {
   $("#clippingBox,#thingTitle").val("");
 }
 
-/*
-function placeClipboard(aClipboard, event) {
-  // Get mouseY position from the event
-  const mouseY = event.pageY;
-
-  // Insert clipboard logic based on different conditions
-  if ($("#privatemessage-modal").css("display") == "block") {
-    aClipboard.insertAfter($(".theClipboardButtons"));
-  } else if ($("h1:contains('Edit Marriage Information')").length) {
-    aClipboard.insertAfter($("#header"));
-  } else if ($("body.page-Special_EditPerson").length) {
-    aClipboard.insertAfter($("#toolbar,#mEmail"));
-  } else if (window.clipboardClicker !== undefined) {
-    if (window.clipboardClicker.parent().hasClass("answerForm")) {
-      aClipboard.insertAfter($("form[name='a_form'] .theClipboardButtons"));
-    } else if (window.clipboardClicker.parent().hasClass("commentForm")) {
-      aClipboard.insertAfter($(".qa-c-form .theClipboardButtons"));
-    } else {
-      aClipboard.insertAfter($("#header,.qa-header"));
-    }
-  }
-
-  // Calculate the necessary adjustments to ensure the clipboard is within the viewport
-  const clipboardHeight = aClipboard.outerHeight();
-  const viewportHeight = $(window).height();
-  const scrollTop = $(window).scrollTop();
-
-  // Calculate optimal top position to ensure clipboard fits in viewport
-  let topPosition = mouseY + scrollTop; // Start with the basic mouseY position adjusted by current scroll
-
-  // Adjust if the clipboard goes beyond the bottom of the viewport
-  if (mouseY + clipboardHeight + scrollTop > viewportHeight + scrollTop) {
-    topPosition = viewportHeight + scrollTop - clipboardHeight;
-    topPosition = Math.max(topPosition, scrollTop); // Ensure it doesn't go above the top of the viewport
-  }
-
-  aClipboard.css({
-    position: "absolute",
-    top: topPosition + "px",
-  });
-}
-*/
-
 function placeClipboard(aClipboard, event) {
   // Base mouseY position on the event
   const mouseY = event.pageY;
@@ -363,10 +320,17 @@ function placeClipboard(aClipboard, event) {
     aClipboard.insertAfter($("#toolbar,#mEmail"));
   } else if (window.clipboardClicker !== undefined) {
     if (window.clipboardClicker.parent().hasClass("answerForm")) {
+      console.log("answerForm");
+
       aClipboard.insertAfter($("form[name='a_form'] .theClipboardButtons"));
     } else if (window.clipboardClicker.parent().hasClass("commentForm")) {
-      aClipboard.insertAfter($(".qa-c-form .theClipboardButtons"));
+      console.log("commentForm");
+
+      aClipboard.insertAfter($(".theClipboardButtons.commentForm"));
+      aClipboard.show();
     } else {
+      console.log("else");
+
       aClipboard.insertAfter($("#header,.qa-header"));
     }
   }
@@ -390,12 +354,14 @@ function placeClipboard(aClipboard, event) {
   }
 
   // Apply calculated position, ensuring clipboard stays fully visible
-  aClipboard.css({
-    position: "absolute",
-    top: topPosition + "px",
-    // Adjust left position as needed, uncommenting the following line
-    // left: event.pageX + 'px',
-  });
+  if (!isG2G) {
+    aClipboard.css({
+      position: "absolute",
+      top: topPosition + "px",
+      // Adjust left position as needed, uncommenting the following line
+      // left: event.pageX + 'px',
+    });
+  }
 }
 
 async function clipboard(type, e, action = false) {
@@ -446,6 +412,7 @@ async function clipboard(type, e, action = false) {
       </div>`
     );
 
+    console.log("aClipboard", aClipboard);
     placeClipboard(aClipboard, e);
     if ($("body.page-Special_EditPerson").length && thisWord == "clipping") {
       if ($("#clipboardInfo").length == 0) {
@@ -487,9 +454,12 @@ async function clipboard(type, e, action = false) {
 
   setAddClippingAction(type);
 
+  /*
   if ($(e.target).hasClass("aClipboardButton") || $(e.target).hasClass("aNotesButton")) {
+    console.log("aClipboardButton or aNotesButton");
     placeClipboard($("#clipboard"), e);
   }
+  */
 
   if (action == false) {
     $("#clipboard").toggle();
@@ -914,6 +884,7 @@ async function initClipboard() {
               if (ccpc == lccpc || lccpc == undefined) {
                 closeClipboard();
               }
+              console.log("placeClipboard");
               placeClipboard($("#clipboard"), e);
             } else {
               clipboard("clipboard", e);
@@ -941,6 +912,7 @@ async function initClipboard() {
             if (ccpc == lccpc || lccpc == undefined) {
               closeClipboard();
             }
+            console.log("placeClipboard");
             placeClipboard($("#clipboard"), e);
           } else {
             clipboard("notes", e);
