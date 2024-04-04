@@ -33,6 +33,18 @@ chrome.runtime.onInstalled.addListener(function () {
       "https://www.wikitree.com/index.php?title=Space:*",
     ], // Only show on WikiTree profile edit and space edit pages
   });
+  chrome.contextMenus.create({
+    id: "clipboardContextMenu",
+    title: "WBE Clipboard",
+    contexts: ["all"],
+    documentUrlPatterns: ["https://www.wikitree.com/*"],
+  });
+  chrome.contextMenus.create({
+    id: "notesContextMenu",
+    title: "WBE Notes",
+    contexts: ["all"],
+    documentUrlPatterns: ["https://www.wikitree.com/*"],
+  });
 });
 
 // Listen for the context menu item click
@@ -40,5 +52,13 @@ chrome.contextMenus.onClicked.addListener(function (info, tab) {
   if (info.menuItemId === "myContextMenu") {
     // Execute script in the content script
     chrome.tabs.sendMessage(tab.id, { action: "launchWikitableWizard" });
+  }
+  if (info.menuItemId === "clipboardContextMenu") {
+    // Execute script in the content script
+    chrome.tabs.sendMessage(tab.id, { action: "showClipboard" });
+  }
+  if (info.menuItemId === "notesContextMenu") {
+    // Execute script in the content script
+    chrome.tabs.sendMessage(tab.id, { action: "showNotes" });
   }
 });

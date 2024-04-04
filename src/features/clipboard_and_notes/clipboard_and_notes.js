@@ -70,6 +70,19 @@ shouldInitializeFeature("clipboardAndNotes").then((result) => {
       });
     }, 1500);
   }
+
+  // Listen for messages from the background script
+  chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+    if (request.action === "showClipboard") {
+      clipboard("clipboard", null, "show");
+      $("#clipboard").show();
+    } else {
+      if (request.action === "showNotes") {
+        clipboard("notes", null, "show");
+        $("#clipboard").show();
+      }
+    }
+  });
 });
 
 function decodeHTMLEntities(text) {
@@ -367,6 +380,8 @@ async function clipboard(type, e, action = false) {
         </div>
       </div>`
     );
+
+    $("body").append(aClipboard);
 
     if ($("body.page-Special_EditPerson").length && thisWord == "clipping") {
       if ($("#clipboardInfo").length == 0) {
