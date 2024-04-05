@@ -80,7 +80,6 @@ export async function addAutoCategories() {
 
   // Generate an array of sources from the bio
   sourcesArray(currentBio);
-  console.log(window.references);
 
   // Get citations from the bio and await because it's an async operation
   await getCitations();
@@ -136,24 +135,18 @@ export async function addAutoCategories() {
 
   //  const afterBioHeadingThings = await afterBioHeadingTextAndObjects();
   const afterBioHeadingThings = await getStickersAndBoxes();
-  console.log(afterBioHeadingThings);
+
+  const afterBioHeadingThingsArray = afterBioHeadingThings.split("\n");
+  const filteredAfterBioHeadingThingsArray = [];
+  afterBioHeadingThingsArray.forEach((line) => {
+    if (currentBio.match(line) == null) {
+      filteredAfterBioHeadingThingsArray.push(line);
+    }
+  });
   //let afterBioHeading = afterBioHeadingThings.text;
   let afterBioHeading = "";
   if (afterBioHeadingThings) {
-    afterBioHeading = "\n" + afterBioHeadingThings;
-  }
-  console.log(afterBioHeading);
-  if (afterBioHeadingThings) {
-    const splitLines = afterBioHeadingThings.split("\n");
-    // Remove the text from the bio before adding it back in. This is to prevent duplicate text.
-    splitLines.forEach((line) => {
-      // regex line + \n to remove the line and the newline character
-      if (line == "") {
-        return;
-      }
-      const regex = new RegExp(line + "\n", "g");
-      currentBio = currentBio.replace(regex, "");
-    });
+    afterBioHeading = "\n" + filteredAfterBioHeadingThingsArray.join("\n");
   }
 
   if (stuffBeforeTheBioText || afterBioHeading) {
@@ -162,7 +155,7 @@ export async function addAutoCategories() {
     }
 
     currentBio = currentBio.replace(
-      /^(.*?)== ?Biography ?==/,
+      /^(.*?)== ?Biography ?==/is,
       `${stuffBeforeTheBioText}== Biography ==${afterBioHeading.replace(/\n+$/, "")}`
     );
   }
