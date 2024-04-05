@@ -84,8 +84,9 @@ table.wt.names.wide th.selected {
   background-color: #25422d;
 }
 table.wt.names span.index {
-  padding: 2px;
+  padding: 1px;
   border-radius: 50%;
+  font-size: 0.8em;
   background: #ffffff;
 }
 
@@ -120,4 +121,6 @@ table.wt.names span.index {
 table.wt.names td .home {
   width: 1em;
   cursor: pointer;
+  color: forestgreen;
+  filter: hue-rotate(40deg) brightness(1.2);
 }

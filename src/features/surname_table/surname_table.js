@@ -56,14 +56,36 @@ function initSearchOptions() {
       // Update the searchOptions object and save it to localStorage
       searchOptions[this.name] = this.value;
       localStorage.setItem("searchOptions", JSON.stringify(searchOptions));
+    });
+  });
+}
 
-      // Log the updated searchOptions
-      console.log("Updated searchOptions:", searchOptions);
+function tableListeners() {
+  $(function () {
+    $("table.wt.names").on("click", "th", function () {
+      dNumbering();
+    });
+
+    $("table.wt.names").on("click.showFamilySheet", "span.home", function (e) {
+      const wtid = $(this).data("wtid");
+      showFamilySheet($(this), wtid);
+      // Get a sibling input with id starting cb_
+      const checkBox = $(this).siblings("input[id^='cb_']");
+      if (checkBox.length) {
+        checkBox.prop("checked", checkBox.prop("checked") ? false : true);
+      }
+    });
+    $("body").on("click.familySheet", "div.familySheet x", function (e) {
+      $(this).parent().fadeOut();
     });
   });
 }
 
 async function init() {
+  $(function () {
+    tableListeners();
+  });
+
   const h1 = $("h1");
   window.surnameTableOptions = await getFeatureOptions("surnameTable");
 
@@ -114,21 +136,35 @@ shouldInitializeFeature("surnameTable").then((result) => {
         }
       });
     }
+    addHomeIcon();
   }
 });
 
-const homeImage = chrome.runtime.getURL("images/Home_icon.png");
+//const homeImage = chrome.runtime.getURL("images/Home_icon.png");
+
+async function addHomeIcon() {
+  const table = $("table.wt.names");
+  if (!table.length) return;
+  table.find("tr").each(function () {
+    const indexCell = $(this).find("td").eq(0);
+    const thisWTID =
+      $(this).find("input[name='mergeany[]']").val() || $(this).find("a").eq(0).attr("href").split("/")?.[2] || "";
+    // let homeImg = $(`<img src='${homeImage}' data-wtid="${thisWTID}" class='home' title='See family group'>`);
+    let homeIcon = $(`<span data-wtid="${thisWTID}" class='home'  title='See family group'>🏠</span>`);
+    if (thisWTID) {
+      indexCell.append(homeIcon);
+    }
+  });
+}
+
 async function dNumbering() {
+  if (!window.surnameTableOptions.NumberTheTable) {
+    return;
+  }
+
   // Remove existing index spans
   $("table.wt.names tr span.index").remove();
   $("table.wt.names tr img.home").remove();
-
-  $("table.wt.names")
-    .off("click.wbe")
-    .on("click.wbe", "img.home", function () {
-      const wtid = $(this).data("wtid");
-      showFamilySheet($(this), wtid);
-    });
 
   // Process each row except the first (header) row
   $("table.wt.names tr").each(function (i) {
@@ -137,13 +173,7 @@ async function dNumbering() {
     let indexCell = $(this).find("td").eq(0);
     indexCell
       .css("position", "relative")
-      .prepend($("<span class='index'>" + i + "</span>").css({ position: "absolute", left: "-2em", top: "0" }));
-
-    const thisWTID = $(this).find("input[name='mergeany[]']").val() || "";
-    let homeImg = $(`<img src='${homeImage}' data-wtid="${thisWTID}" class='home' title='See family group'>`);
-    if (thisWTID) {
-      indexCell.append(homeImg);
-    }
+      .prepend($("<span class='index'>" + i + "</span>").css({ position: "absolute", left: "-0.2em" }));
   });
 }
 
@@ -174,12 +204,10 @@ async function initSurnameTableSorting() {
       let birthYear = "";
       if (birthDate) {
         birthDate[0] = birthDate[0].replace(/s$/, "").replace(/(bef|aft|abt)\s/, "");
-        console.log(birthDate);
         if (birthDate[0].startsWith("- ")) {
           birthDate = "0000-00-00";
         } else {
           birthDate = convertDate(birthDate[0], "ISO");
-          console.log(birthDate);
         }
         birthYear = birthDate.match(/\d{3,4}/);
       }
@@ -190,9 +218,8 @@ async function initSurnameTableSorting() {
       }
     });
 
-    if (window.surnameTableOptions.NumberTheTable) {
-      dNumbering();
-    }
+    dNumbering();
+
     let bLocationHeader;
     let dDateHeader;
     if (isSpecialWatchedList) {
@@ -444,9 +471,8 @@ async function initSurnameTableSorting() {
   }
 
   $("table.wt.names").addClass("ready");
-  if (window.surnameTableOptions.NumberTheTable) {
-    dNumbering();
-  }
+  dNumbering();
+
   // Add filters
   getFeatureOptions("tableFilters").then((options) => {
     if (options) {
@@ -666,8 +692,11 @@ function makeTableWide(dTable) {
 
     // Place the container before the closest table
     container.insertBefore(closestTable);
+  } else if (isSpecialWatchedList) {
+    container.insertAfter($("#surnames_heading"));
   } else {
     container.insertBefore($("div.two.columns.alpha").eq(0).parent());
+    $(".wideTableButton").insertBefore(container);
   }
   container.append(dTable);
 
