@@ -37,6 +37,10 @@ const ID = "Id";
 const CC7_DELTA_CONTAINER = "cc7DeltaContainer";
 const CC7_DELTA_CONTAINER_ID = "#" + CC7_DELTA_CONTAINER;
 const APP_ID = "cc7Changes";
+const DB_RETENTION_DAYS = 45; // max nr of days we keep delta records, other than the most recent one, in the db
+const EARLY_CUTOFF = 500; // max nr of names to display for a single delta
+const CUTOFF_GRACE = 5; // if the actual nr in a delta is within this above cutoff, we display all
+const MAX_TO_DISPLAY_PER_DELTA = EARLY_CUTOFF + CUTOFF_GRACE; // the absolute max nr of names to display for a single delta
 
 let isDBInitialized = false;
 
@@ -557,39 +561,44 @@ function calculateDifferences(newData, oldData) {
 
 async function fetchStoredDeltas() {
   return new Promise((resolve, reject) => {
-    const tx = db.db.transaction(CC7_DELTAS_STORE, READONLY);
+    const tx = db.db.transaction(CC7_DELTAS_STORE, READWRITE);
     const store = tx.objectStore(CC7_DELTAS_STORE);
 
     const getRequest = store.openCursor(null, "prev"); // Get the newest entry first
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    const deleteTime = new Date();
+    deleteTime.setDate(deleteTime.getDate() - DB_RETENTION_DAYS); // we'll delete records older than 45 days
 
     const mostRecentDelta = [];
     const deltasWithinLastMonth = [];
-    let removeInitial = true;
 
     getRequest.onsuccess = function (event) {
+      const usersSeen = new Set();
       const cursor = event.target.result;
       if (cursor) {
         const delta = cursor.value;
-        if (delta.userId == userId) {
-          if (TESTING) console.log("fetched stored delta", delta);
-          if (mostRecentDelta.length == 0) {
-            // Take the first (most recent) entry
-            mostRecentDelta.push(delta);
-          }
-          const date = new Date(delta.date);
-          if (date > oneMonthAgo) {
-            deltasWithinLastMonth.push(delta);
-          } else {
-            removeInitial = false;
+        const date = new Date(delta.date);
+        if (usersSeen.has(delta.userId) && (delta.added.length + delta.removed.length == 0 || date < deleteTime)) {
+          // We remove empty or old deltas, unless it is the most recent one for the user
+          if (TESTING) console.log("Deleting old delta", delta);
+          cursor.delete();
+        } else {
+          usersSeen.add(delta.userId);
+          if (delta.userId == userId) {
+            if (TESTING) console.log("fetched stored delta", delta);
+            if (mostRecentDelta.length == 0) {
+              // Remember the first (most recent) entry
+              mostRecentDelta.push(delta);
+            }
+            if (date >= oneMonthAgo) {
+              deltasWithinLastMonth.push(delta);
+            }
           }
         }
         cursor.continue();
       } else {
-        // We remove the initial load delta (assuming it is the oldest one) because
-        // we do not want to overwhelm the user with all that data.
-        if (removeInitial) deltasWithinLastMonth.pop();
+        // There is no more data.
         if (deltasWithinLastMonth.length == 0) mostRecentDelta.pop();
         resolve({ deltasSinceLastVisit: mostRecentDelta, deltasWithinLastMonth });
       }
@@ -714,8 +723,8 @@ async function fetchPeopleDetails(idString) {
 }
 
 async function showStoredDeltas(data, container) {
-  const deltasSinceLastVisit = filterDeltas(data.deltasSinceLastVisit);
-  const deltasWithinLastMonth = filterDeltas(data.deltasWithinLastMonth);
+  const deltasSinceLastVisit = data.deltasSinceLastVisit;
+  const deltasWithinLastMonth = data.deltasWithinLastMonth;
   if (TESTING) {
     console.log("deltasSinceLastVisit", deltasSinceLastVisit);
     console.log("deltasWithinLastMonth", deltasWithinLastMonth);
@@ -752,11 +761,6 @@ async function showStoredDeltas(data, container) {
 
   $(CC7_DELTA_CONTAINER_ID).draggable();
   addCloseEventHandlers(container);
-}
-
-// Remove deltas larger than 500 records
-function filterDeltas(deltas) {
-  return deltas.filter((delta) => delta.added.length < 500);
 }
 
 /**
@@ -860,7 +864,14 @@ function appendDetailsToContainer(container, idsByDate, details, headingTail) {
     const groupHeader = $(`<p class="delta">${what}</p>`);
     const list = $("<ol>");
     const sortedDeltas = [...changes.values()].sort((a, b) => a.Degrees - b.Degrees);
-    sortedDeltas.forEach((el) => {
+    for (let i = 0; i < sortedDeltas.length; ++i) {
+      const remaining = sortedDeltas.length - i;
+      if ((i == EARLY_CUTOFF && remaining > CUTOFF_GRACE) || i >= MAX_TO_DISPLAY_PER_DELTA) {
+        list.append($(`<li> ... plus ${remaining} more ...</li>`));
+        break;
+      }
+
+      const el = sortedDeltas[i];
       const person = details.get(el.Id);
       const text = person
         ? `${person.FullName} ${displayDates(person)}${person.redirectedFrom ? " (merged)" : ""}`
@@ -871,7 +882,7 @@ function appendDetailsToContainer(container, idsByDate, details, headingTail) {
       );
       const listItem = $("<li>").append(link, degree);
       list.append(listItem);
-    });
+    }
     container.append(groupHeader, list);
   }
 

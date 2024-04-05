@@ -617,7 +617,7 @@ async function clipboard(type, e, action = false) {
           }
           $("#clipboard #clippings").after($("<p>You have no " + word + ".  You can add one below.</p>"));
         }
-        // Make the tabs re-ordable
+        // Make the tabs re-orderable
         const tabList = $("#tab-list");
         if (tabList.find(".tab").length > 1) {
           tabList.sortable({
