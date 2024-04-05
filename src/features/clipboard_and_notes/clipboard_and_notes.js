@@ -735,7 +735,7 @@ function keyDownListener(e) {
     e.stopPropagation();
     const clippings = $(".clippingCell:visible");
     if (clippingRow >= 0 && clippingRow < clippings.length) {
-      const x = $(".clippingCell.clip-selected").trigger("click");
+      $(".clippingCell.clip-selected .clipping").trigger("click");
     }
   }
 }
