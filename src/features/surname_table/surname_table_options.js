@@ -45,5 +45,6 @@ registerFeature({
       label: "Remember display density choice",
     },
     { id: "RememberSearchOptions", type: OptionType.CHECKBOX, label: "Remember search options", defaultValue: false },
+    { id: "AddFamilyGroupSheet", type: OptionType.CHECKBOX, label: "Add Family Group buttons", defaultValue: true },
   ],
 });

@@ -1,5 +1,6 @@
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { getPeople } from "../dna_table/dna_table";
+import $ from "jquery";
 
 shouldInitializeFeature("removeFromWatchlist").then((result) => {
   if (result) {
@@ -56,7 +57,8 @@ shouldInitializeFeature("removeFromWatchlist").then((result) => {
 
         for (let c = 0; c < tdThis.childNodes.length; c++) {
           const childNode = tdThis.childNodes[c];
-          if (childNode.type != "checkbox") {
+          // Is childNode .home?   Exclude it from click event
+          if (childNode.type != "checkbox" && $(childNode).hasClass("home") == false) {
             childNode.addEventListener("click", function (event) {
               event.stopPropagation();
             });

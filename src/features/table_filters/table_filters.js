@@ -271,6 +271,18 @@ export function addFiltersToWikitables(aTable = null) {
     }
   });
 
+  // Add Clear Filters button
+  const clearFiltersButtonJQ = $("<button>")
+    .text("X")
+    .attr("title", "Clear Filters")
+    .attr("id", "clearTableFiltersButton")
+    .css("position", "absolute")
+    .on("click", () => {
+      $(".filter-input").val("");
+      filterFunction();
+      updateClearFiltersButtonVisibility();
+    });
+  const clearFiltersButton = clearFiltersButtonJQ.get(0);
   // Filter function to filter rows based on input
   const filterFunction = () => {
     tables.forEach((table) => {
@@ -338,21 +350,6 @@ export function addFiltersToWikitables(aTable = null) {
       filterFunction();
       updateClearFiltersButtonVisibility();
     });
-  });
-
-  // Add Clear Filters button
-  const clearFiltersButton = document.createElement("button");
-  clearFiltersButton.textContent = "X";
-  clearFiltersButton.title = "Clear Filters";
-  clearFiltersButton.id = "clearTableFiltersButton";
-  clearFiltersButton.style.position = "absolute";
-  clearFiltersButton.addEventListener("click", () => {
-    document.querySelectorAll(".filter-input").forEach((input) => {
-      input.value = "";
-    });
-
-    filterFunction();
-    updateClearFiltersButtonVisibility();
   });
 
   // Position the Clear Filters button

@@ -6,6 +6,7 @@ import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import { getRelatives } from "wikitree-js";
 import { createProfileSubmenuLink, familyArray, isOK, htmlEntities } from "../../core/common";
+import { isSearchPage } from "../../core/pageType";
 
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
@@ -20,7 +21,7 @@ shouldInitializeFeature("familyGroup").then((result) => {
       url: "#n",
     };
     createProfileSubmenuLink(options);
-    $("#" + options.id).click(function (e) {
+    $("#" + options.id).on("click", function (e) {
       e.preventDefault();
       const profileID = $("a.pureCssMenui0 span.person").text();
       showFamilySheet($(this)[0], profileID);
@@ -107,6 +108,25 @@ export function getHighestZindex() {
 }
 
 export async function showFamilySheet(theClicked, profileID) {
+  // Event delegation for closing and wrapping
+  $(document)
+    .off("click.wbe")
+    .on("click.wbe", ".familySheet x", function () {
+      $(this).parent().fadeOut();
+    });
+
+  $(document)
+    .off("click.wbe")
+    .on("click.wbe", ".familySheet w", function () {
+      $(this).parent().toggleClass("wrap");
+    });
+
+  $(document)
+    .off("dblclick.wbe")
+    .on("dblclick.wbe", ".familySheet", function () {
+      $(this).fadeOut();
+      incrementZIndex($(this));
+    });
   // If the table already exists toggle it.
   if ($("#" + profileID.replace(" ", "_") + "_family").length) {
     const thisFamilySheet = $("#" + profileID.replace(" ", "_") + "_family");
@@ -133,15 +153,11 @@ export async function showFamilySheet(theClicked, profileID) {
       familyTable.draggable();
       familyTable.fadeIn();
       incrementZIndex(familyTable);
-      familyTable.on("dblclick", function () {
-        $(this).fadeOut();
-        incrementZIndex(familyTable);
-      });
       familyTable.css("z-index", getHighestZindex() + 1);
 
       let theLeft;
-      console.log(theClicked);
-      if ($("div.ten.columns").length) {
+
+      if ($("div.ten.columns").length && !isSearchPage) {
         theLeft = getOffset($("div.ten.columns")[0]).left;
         familyTable.css({
           top: getOffset(theClicked).top + 50,
@@ -173,15 +189,6 @@ export async function showFamilySheet(theClicked, profileID) {
             });
           }
         }
-      });
-
-      // Event delegation for closing and wrapping
-      $(document).on("click", ".familySheet x", function () {
-        $(this).parent().fadeOut();
-      });
-
-      $(document).on("click", ".familySheet w", function () {
-        $(this).parent().toggleClass("wrap");
       });
     });
   }
