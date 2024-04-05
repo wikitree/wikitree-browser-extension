@@ -2,12 +2,13 @@ import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import { secondarySort } from "../extra_watchlist/extra_watchlist";
 import "./surname_table.css";
-import { isSearchPage } from "../../core/pageType";
+import { isSearchPage, isSpecialWatchedList } from "../../core/pageType";
 import { initTableFilters } from "../table_filters/table_filters";
 import { getPeople } from "../dna_table/dna_table";
 import Cookies from "js-cookie";
 import { convertDate } from "../auto_bio/auto_bio";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { showFamilySheet } from "../familyGroup/familyGroup";
 
 const USER_WT_ID = Cookies.get("wikitree_wtb_UserName");
 const USER_NUM_ID = Cookies.get("wikitree_wtb_UserID");
@@ -116,9 +117,18 @@ shouldInitializeFeature("surnameTable").then((result) => {
   }
 });
 
+const homeImage = chrome.runtime.getURL("images/Home_icon.png");
 async function dNumbering() {
   // Remove existing index spans
   $("table.wt.names tr span.index").remove();
+  $("table.wt.names tr img.home").remove();
+
+  $("table.wt.names")
+    .off("click.wbe")
+    .on("click.wbe", "img.home", function () {
+      const wtid = $(this).data("wtid");
+      showFamilySheet($(this), wtid);
+    });
 
   // Process each row except the first (header) row
   $("table.wt.names tr").each(function (i) {
@@ -128,6 +138,12 @@ async function dNumbering() {
     indexCell
       .css("position", "relative")
       .prepend($("<span class='index'>" + i + "</span>").css({ position: "absolute", left: "-2em", top: "0" }));
+
+    const thisWTID = $(this).find("input[name='mergeany[]']").val() || "";
+    let homeImg = $(`<img src='${homeImage}' data-wtid="${thisWTID}" class='home' title='See family group'>`);
+    if (thisWTID) {
+      indexCell.append(homeImg);
+    }
   });
 }
 
@@ -142,9 +158,14 @@ async function initSurnameTableSorting() {
     headingRow.attr("data-manager", "");
     const rows = $("table.wt.names tr");
     rows.each(function (i, el) {
-      const managerTD = $(this).find("td").eq(3);
-      const birthTD = $(this).find("td").eq(1);
-      //const detailsTD = $(this).find("td").eq(1);
+      let managerTD = $(this).find("td").eq(3);
+      let birthTD = $(this).find("td").eq(1);
+      let editTD = null;
+      if (isSpecialWatchedList) {
+        managerTD = $(this).find("td").eq(2);
+        editTD = $(this).find("td").eq(3);
+      }
+
       if (managerTD.find("a").length) {
         const dManager = managerTD.find("a").attr("href").split("/wiki/")[1];
         $(this).attr("data-manager", dManager);
@@ -153,7 +174,13 @@ async function initSurnameTableSorting() {
       let birthYear = "";
       if (birthDate) {
         birthDate[0] = birthDate[0].replace(/s$/, "").replace(/(bef|aft|abt)\s/, "");
-        birthDate = convertDate(birthDate[0], "ISO");
+        console.log(birthDate);
+        if (birthDate[0].startsWith("- ")) {
+          birthDate = "0000-00-00";
+        } else {
+          birthDate = convertDate(birthDate[0], "ISO");
+          console.log(birthDate);
+        }
         birthYear = birthDate.match(/\d{3,4}/);
       }
       if (birthYear) {
@@ -166,126 +193,203 @@ async function initSurnameTableSorting() {
     if (window.surnameTableOptions.NumberTheTable) {
       dNumbering();
     }
+    let bLocationHeader;
+    let dDateHeader;
+    if (isSpecialWatchedList) {
+      // Check if headers are already adjusted to prevent duplicate headers
+      dDateHeader = $("<th>Death Date</th>");
+      dDateHeader.insertAfter(rows.eq(0).find("th").eq(1));
+    }
 
-    const managerWord = rows.eq(0).find("th").eq(3);
-    managerWord.html(
-      "<a id='managerWord' title='Sort by profile manager. Note: Only the results on this page will be sorted.' data-order='za'>Manager</a> <span id='managerWordArrow'>&darr;</span>"
-    );
-    let listOrder = "za";
-    $("#managerWord").on("click", function () {
-      $(this).closest("tr").find("th").removeClass("selected");
-      $(this).closest("th").addClass("selected");
-      if ($(this).attr("data-order") == "za") {
-        listOrder = "az";
-        $("#managerWordArrow").html("&#8595;");
-        $(this).attr("data-order", "az");
-      } else {
-        listOrder = "za";
-        $("#managerWordArrow").html("&#8593;");
-        $(this).attr("data-order", "za");
-      }
+    if (isSearchPage) {
+      const managerWord = rows.eq(0).find("th").eq(3);
+      managerWord.html(
+        "<a id='managerWord' title='Sort by profile manager. Note: Only the results on this page will be sorted.' data-order='za'>Manager</a> <span id='managerWordArrow'>&darr;</span>"
+      );
+      let listOrder = "za";
+      $("#managerWord").on("click", function () {
+        $(this).closest("tr").find("th").removeClass("selected");
+        $(this).closest("th").addClass("selected");
+        if ($(this).attr("data-order") == "za") {
+          listOrder = "az";
+          $("#managerWordArrow").html("&#8595;");
+          $(this).attr("data-order", "az");
+        } else {
+          listOrder = "za";
+          $("#managerWordArrow").html("&#8593;");
+          $(this).attr("data-order", "za");
+        }
 
-      const headingRow = $("table.wt.names tr:first-child");
-      const rows = $("table.wt.names tr");
-      if (rows.length) {
-        rows.slice(1);
-        rows.sort(function (a, b) {
-          const managerA = $(a).data("manager") || "";
-          const managerB = $(b).data("manager") || "";
-          if (listOrder == "az") {
-            return managerA.localeCompare(managerB);
-          } else {
-            return managerB.localeCompare(managerA);
-          }
-        });
-        rows.appendTo($("table.wt.names"));
-        dNumbering();
+        const headingRow = $("table.wt.names tr:first-child");
+        const rows = $("table.wt.names tr");
+        if (rows.length) {
+          rows.slice(1);
+          rows.sort(function (a, b) {
+            const managerA = $(a).data("manager") || "";
+            const managerB = $(b).data("manager") || "";
+            if (listOrder == "az") {
+              return managerA.localeCompare(managerB);
+            } else {
+              return managerB.localeCompare(managerA);
+            }
+          });
+          rows.appendTo($("table.wt.names"));
+          dNumbering();
 
-        let lastManager = "Me";
-        let tempArr = [lastManager];
-        rows.each(function (index) {
-          if ($(this).data("manager") == lastManager) {
-            tempArr.push($(this));
-          } else {
-            tempArr.sort(function (a, b) {
-              if (listOrder == "az") {
-                return $(b).data("year") - $(a).data("year");
-              } else {
-                return $(a).data("year") - $(b).data("year");
-              }
-            });
-            tempArr.reverse();
+          let lastManager = "Me";
+          let tempArr = [lastManager];
+          rows.each(function (index) {
+            if ($(this).data("manager") == lastManager) {
+              tempArr.push($(this));
+            } else {
+              tempArr.sort(function (a, b) {
+                if (listOrder == "az") {
+                  return $(b).data("year") - $(a).data("year");
+                } else {
+                  return $(a).data("year") - $(b).data("year");
+                }
+              });
+              tempArr.reverse();
 
-            tempArr.forEach(function (item) {
-              if (lastManager != "Me") {
-                item.insertBefore(rows.eq(index));
-              }
-            });
-            tempArr = [$(this)];
-          }
-          lastManager = $(this).data("manager");
-        });
-      }
-      headingRow.prependTo($("table.wt.names"));
-      $("#managerWordArrow").show();
-    }); // end sort by manager
+              tempArr.forEach(function (item) {
+                if (lastManager != "Me") {
+                  item.insertBefore(rows.eq(index));
+                }
+              });
+              tempArr = [$(this)];
+            }
+            lastManager = $(this).data("manager");
+          });
+        }
+        headingRow.prependTo($("table.wt.names"));
+        $("#managerWordArrow").show();
+      }); // end sort by manager
+    }
 
     headingRow.find("th").each(function () {
       $(this).css("width", "");
     });
-    const birthHeader = headingRow.find("th").eq(1);
-    const deathHeader = headingRow.find("th").eq(2);
+
+    let birthHeader = headingRow.find("th").eq(1);
+    let deathHeader = headingRow.find("th").eq(2);
+
+    if (isSpecialWatchedList) {
+      deathHeader = null;
+    }
+
     birthHeader.attr("id", "birthDate");
-    const bLocationHeader = $("<th id='birthLocation'></th>");
-    const dDateHeader = $("<th id='deathLocation'>Death Place</th>");
+    bLocationHeader = $("<th id='birthLocation'></th>");
+    dDateHeader = $("<th id='deathLocation'>Death Place</th>");
     bLocationHeader.insertAfter(birthHeader);
-    dDateHeader.insertAfter(deathHeader);
 
-    const editDateHeader = headingRow.find("th").eq(6);
-    editDateHeader.attr("id", "editDateHeader");
+    if (deathHeader) {
+      dDateHeader.insertAfter(deathHeader);
 
-    const PMHeader = headingRow.find("th").eq(5);
-    PMHeader.attr("id", "PMHeader");
+      const editDateHeader = headingRow.find("th").eq(6);
+      editDateHeader.attr("id", "editDateHeader");
 
-    const nameHeader = headingRow.find("th").eq(0);
-    nameHeader.attr("id", "nameHeader");
+      const PMHeader = headingRow.find("th").eq(5);
+      PMHeader.attr("id", "PMHeader");
+
+      const nameHeader = headingRow.find("th").eq(0);
+      nameHeader.attr("id", "nameHeader");
+    }
 
     $("table.wt.names tr").each(function () {
-      const birthTD = $(this).find("td").eq(1);
-      const deathTD = $(this).find("td").eq(2); // Adjust based on actual column index
+      let birthTD = $(this).find("td").eq(1);
+      let deathTD = $(this).find("td").eq(2); // Adjust based on actual column index
+      let birthLocation = "";
+      if (isSpecialWatchedList) {
+        deathTD = null;
+      }
 
       // Ensuring we have a string to work with
-      const birthText = birthTD.html() || ""; // Fallback to an empty string if undefined
-      const deathText = deathTD.html() || ""; // Fallback to an empty string if undefined
+      let birthText = birthTD.html() || ""; // Fallback to an empty string if undefined
+      if (isSpecialWatchedList) {
+        birthText = birthTD.text();
+      }
+      let deathText = deathTD ? deathTD.html() : ""; // Fallback to an empty string if undefined
 
-      // Define regex patterns outside of the conditional checks
-      const datePattern = /(\d+ \w+ <b>\d{4}<\/b>)/;
-      const locationPattern = /<br>\s*(.+)/;
+      // Adjusting regex patterns for Watchlist table
+      if (isSpecialWatchedList) {
+        let combinedTD = $(this).find("td").eq(1);
+        let combinedText = combinedTD.text().trim() || "";
 
-      // Safely attempt to match the patterns
-      const birthDateMatch = birthText.match(datePattern);
-      const birthLocationMatch = birthText.match(locationPattern);
-      const deathDateMatch = deathText.match(datePattern);
-      const deathLocationMatch = deathText.match(locationPattern);
+        // Define regex for flexible date matching
+        let dateRegex = /((bef|aft|abt)?\s*(\d{1,2}\s)?(\w+\s)?\d{4})/i;
 
-      // Use matches if found, otherwise default to empty string
-      const birthDate = birthDateMatch ? birthDateMatch[0] : "";
-      const birthLocation = birthLocationMatch ? birthLocationMatch[1] : "";
-      $(this).attr("data-birth-location-small2big", birthLocation);
+        // Split the text by " - " and trim to handle leading hyphen for death dates
+        let parts = combinedText.split(/ ?- /).map((part) => part.trim());
+        let birthPart = parts[0];
+        let deathPart = parts[1] || "";
 
-      const deathDate = deathDateMatch ? deathDateMatch[0] : "";
-      const deathLocation = deathLocationMatch ? deathLocationMatch[1] : "";
-      $(this).attr("data-birth-location-small2big", birthLocation);
+        // Initialize variables to store extracted data
+        let birthDate = "";
+        let deathDate = "";
 
-      // Proceed to create and insert new elements as before
-      const birthLocationTD = $("<td class='birthLocation'></td>").html(birthLocation);
-      const deathLocationTD = $("<td class='deathLocation'></td>").html(deathLocation);
+        // Check if the first character is a hyphen indicating no birth data
+        if (combinedText.startsWith("-")) {
+          // Directly extract death date using regex
+          let deathDateMatch = deathPart.match(dateRegex);
+          deathDate = deathDateMatch ? deathDateMatch[0] : "";
+        } else {
+          // Extract birth data and death date (if available)
+          let birthDateMatch = birthPart.match(dateRegex);
+          birthDate = birthDateMatch ? birthDateMatch[0] : "";
+          birthLocation = birthPart.replace(dateRegex, "").trim(); // Remove date from birth part to get location
+          let deathDateMatch = deathPart.match(dateRegex);
+          deathDate = deathDateMatch ? deathDateMatch[0] : "";
+        }
 
-      birthTD.html(birthDate);
-      deathTD.html(deathDate);
+        // Update the table cells with extracted information
+        combinedTD.text(birthDate); // Set the birth date
+        $("<td class='birthLocation'></td>").text(birthLocation).insertAfter(combinedTD); // Insert new TD for birth location
 
-      birthLocationTD.insertAfter(birthTD);
-      deathLocationTD.insertAfter(deathTD);
+        let nextTd = combinedTD.next();
+        if (nextTd.length === 0 || !nextTd.hasClass("deathDate")) {
+          $("<td class='deathDate'></td>").text(deathDate).insertAfter(combinedTD.next());
+        } else {
+          nextTd.text(deathDate); // Update existing death date cell
+        }
+
+        $(this).attr("data-birth-location-small2big", birthLocation);
+      } else {
+        // Define regex patterns outside of the conditional checks
+        const datePattern = /(\d+ \w+ <b>\d{4}<\/b>)/;
+        const locationPattern = /<br>\s*(.+)/;
+
+        // Safely attempt to match the patterns
+        const birthDateMatch = birthText.match(datePattern);
+        const birthLocationMatch = birthText.match(locationPattern);
+        let deathDateMatch = null;
+        let deathLocationMatch = null;
+        if (deathText) {
+          deathDateMatch = deathText.match(datePattern);
+          deathLocationMatch = deathText.match(locationPattern);
+        }
+
+        // Use matches if found, otherwise default to empty string
+        const birthDate = birthDateMatch ? birthDateMatch[0] : "";
+        birthLocation = birthLocationMatch ? birthLocationMatch[1] : "";
+        $(this).attr("data-birth-location-small2big", birthLocation);
+
+        const deathDate = deathDateMatch ? deathDateMatch[0] : "";
+        const deathLocation = deathLocationMatch ? deathLocationMatch[1] : "";
+        $(this).attr("data-death-location-small2big", deathLocation);
+
+        // Proceed to create and insert new elements as before
+        const birthLocationTD = $("<td class='birthLocation'></td>").html(birthLocation);
+        birthTD.html(birthDate);
+        birthLocationTD.insertAfter(birthTD);
+
+        let deathLocationTD = null;
+        if (deathLocation) {
+          deathLocationTD = $("<td class='deathLocation'></td>").html(deathLocation);
+          deathTD.html(deathDate);
+          deathLocationTD.insertAfter(deathTD);
+        }
+      }
+      $(this).attr("data-birth-location-big2small", birthLocation.split(", ").reverse().join(", "));
     });
 
     const birthLocationWord = $(
@@ -293,7 +397,8 @@ async function initSurnameTableSorting() {
     );
     birthLocationWord.appendTo(bLocationHeader);
 
-    $("#birthLocationWord").on("click", function () {
+    $("#birthLocationWord").on("click", function (e) {
+      e.stopPropagation();
       $(this).closest("tr").find("th").removeClass("selected");
       $("#birthLocation").addClass("selected");
       const listOrder = $(this).attr("data-order");

@@ -70,13 +70,15 @@ th#PMHeader {
   position: relative;
 }
 
+table.wt.names {
+  background-color: #ffffff;
+}
 table.wt.names.wide,
-table.wt.names.wide td,
-table.wt.names.wide th {
+table.wt.names.wide th,
+table.wt.names.wide td {
   width: auto !important;
   white-space: nowrap;
   table-layout: auto;
-  background: white;
 }
 table.wt.names.wide th.selected {
   background-color: #25422d;
@@ -113,4 +115,9 @@ table.wt.names span.index {
   position: relative;
   margin: 0;
   padding: 0;
+}
+
+table.wt.names td .home {
+  width: 1em;
+  cursor: pointer;
 }
