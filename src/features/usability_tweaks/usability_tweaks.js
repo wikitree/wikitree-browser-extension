@@ -263,9 +263,29 @@ function removeMe() {
 }
 
 function forwardToSavedSpagePage() {
-  const greenBoxes = document.getElementsByClassName("status green");
-  if (greenBoxes.length == 1 && greenBoxes[0].innerText.indexOf("Changes Saved.") > -1) {
-    window.location = window.location;
+  const boxClass = "status green";
+  const greenBoxes = document.getElementsByClassName(boxClass);
+  const searchParams = new URLSearchParams(window.location.search);
+  const savedParam = "saveRedir";
+
+  if (
+    greenBoxes.length == 1 &&
+    greenBoxes[0].innerText.indexOf("Changes Saved." > -1) &&
+    !searchParams.has(savedParam)
+  ) {
+    searchParams.append(savedParam, "WBE");
+    window.location.search = searchParams;
+  } else if (searchParams.has(savedParam)) {
+    //make sure, scissors are loaded first
+    var delayInMilliseconds = 300;
+    setTimeout(function () {
+      const div = document.createElement("div");
+      div.className = boxClass;
+      div.style.marginTop = "1em";
+      div.innerHTML =
+        "<span class='larger'>Changes Saved.</span> This redirect was proudly brought to you by the <a href='https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension'>WikiTree Browser Extension</a>.";
+      document.getElementsByTagName("h1")[0].appendChild(div);
+    }, delayInMilliseconds);
   }
 }
 
