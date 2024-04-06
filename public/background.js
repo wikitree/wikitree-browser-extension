@@ -35,13 +35,13 @@ chrome.runtime.onInstalled.addListener(function () {
   });
   chrome.contextMenus.create({
     id: "clipboardContextMenu",
-    title: "WBE Clipboard",
+    title: "Clipboard",
     contexts: ["all"],
     documentUrlPatterns: ["https://www.wikitree.com/*"],
   });
   chrome.contextMenus.create({
     id: "notesContextMenu",
-    title: "WBE Notes",
+    title: "Notes",
     contexts: ["all"],
     documentUrlPatterns: ["https://www.wikitree.com/*"],
   });
