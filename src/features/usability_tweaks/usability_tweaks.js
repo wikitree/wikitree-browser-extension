@@ -10,6 +10,7 @@ import {
   isSpecialTrustedList,
   isProfilePage,
   isSpecialMyConnections,
+  isSpacePage,
 } from "../../core/pageType";
 import "./usability_tweaks.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
@@ -261,6 +262,13 @@ function removeMe() {
   }
 }
 
+function forwardToSavedSpagePage() {
+  const greenBoxes = document.getElementsByClassName("status green");
+  if (greenBoxes.length == 1 && greenBoxes[0].innerText.indexOf("Changes Saved.") > -1) {
+    window.location = window.location;
+  }
+}
+
 shouldInitializeFeature("usabilityTweaks").then((result) => {
   if (result) {
     getFeatureOptions("usabilityTweaks").then((options) => {
@@ -454,6 +462,10 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
       if (options.removeMeButton && isSpecialTrustedList) {
         removeMe();
       }
-    });
+
+      if (isSpacePage && options.leaveSpaceEditAfterSave) {
+        forwardToSavedSpagePage();
+      }
+    }); //getFeatureOptions
   }
 });
