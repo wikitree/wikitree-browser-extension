@@ -1843,21 +1843,28 @@ function amaTimer() {
             spBit = "; " + spBit;
           }
         }
-        $(`.spouseDetails a[href$="${aSp.Name.replaceAll(/\s/g, "_")}"]`)
-          .closest("div")
-          .append(
-            $(
-              "<span class='marriageAges'>" +
-                bpBit +
-                spBit +
-                "</span>" +
-                "<a href='https://www.wikitree.com/index.php?title=Special:EditFamily&u=" +
-                window.people[0].Id +
-                "&who=editspouse&s=" +
-                aSpouse[0] +
-                "'>edit</a>"
-            )
+        const marriageDiv = $(`.spouseDetails a[href$="${aSp.Name.replaceAll(/\s/g, "_")}"]`).closest("div");
+
+        marriageDiv.append(
+          $(
+            "<span class='marriageAges'>" + bpBit + spBit + "</span>" /*+
+              "<a href='
+              "'>edit</a>"*/
+          )
+        );
+
+        const marriageId = "marriage_" + aSpouse[0];
+        marriageDiv.get(0).innerHTML = marriageDiv
+          .get(0)
+          .innerHTML.replace(
+            "married",
+            '<span title="Right click to edit marriage" class="clickable" id="' + marriageId + '">married</span>'
           );
+
+        $("#" + marriageId).on("contextmenu", function (e) {
+          e.preventDefault();
+          editMarriage(window.people[0].Id, aSpouse[0]);
+        });
       }
     });
   }
@@ -1866,6 +1873,10 @@ function amaTimer() {
   }
 }
 
+function editMarriage(person, spouse) {
+  window.location =
+    "https://www.wikitree.com/index.php?title=Special:EditFamily&u=" + person + "&who=editspouse&s=" + spouse;
+}
 async function addMarriageAges() {
   window.runningAMA = 0;
   if (window.doneMarriageAges == undefined) {
