@@ -1859,17 +1859,19 @@ function amaTimer() {
         marriageDetails.html(function (index, html) {
           return html.replace(
             "married",
-            '<a href="#" title="Right click to edit marriage" class="clickable" id="' + marriageId + '">married</a>'
+            `<a href="https://www.wikitree.com/index.php?title=Special:EditFamily&u=${window.people[0].Id}&who=editspouse&s=${aSpouse[0]}" target="_blank" title="Right click to edit marriage" class="clickable" id="${marriageId}">married</a>`
           );
         });
 
         // Now wrap the entire content in a single inline-block element due to the CSS grid
         marriageDetails.contents().wrapAll('<div style="inline-block"></div>');
-
+        clearInterval(window.ama);
+        /*
         $("#" + marriageId).on("click", function (e) {
           e.preventDefault();
           editMarriage(window.people[0].Id, aSpouse[0]);
         });
+        */
       }
     });
   }
