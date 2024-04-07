@@ -1845,13 +1845,7 @@ function amaTimer() {
         }
         const marriageDiv = $(`.spouseDetails a[href$="${aSp.Name.replaceAll(/\s/g, "_")}"]`).closest("div");
 
-        marriageDiv.append(
-          $(
-            "<span class='marriageAges'>" + bpBit + spBit + "</span>" /*+
-              "<a href='
-              "'>edit</a>"*/
-          )
-        );
+        marriageDiv.append($("<span class='marriageAges'>" + bpBit + spBit + "</span>"));
 
         const marriageId = "marriage_" + aSpouse[0];
         const marriageDetails = marriageDiv.find(".marriageDetails");
@@ -1866,12 +1860,6 @@ function amaTimer() {
         // Now wrap the entire content in a single inline-block element due to the CSS grid
         marriageDetails.contents().wrapAll('<div style="inline-block"></div>');
         clearInterval(window.ama);
-        /*
-        $("#" + marriageId).on("click", function (e) {
-          e.preventDefault();
-          editMarriage(window.people[0].Id, aSpouse[0]);
-        });
-        */
       }
     });
   }
@@ -1880,10 +1868,6 @@ function amaTimer() {
   }
 }
 
-function editMarriage(person, spouse) {
-  window.location =
-    "https://www.wikitree.com/index.php?title=Special:EditFamily&u=" + person + "&who=editspouse&s=" + spouse;
-}
 async function addMarriageAges() {
   window.runningAMA = 0;
   if (window.doneMarriageAges == undefined) {
