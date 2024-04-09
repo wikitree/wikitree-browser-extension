@@ -42,6 +42,9 @@ module.exports = (env) => ({
     },
   },
   resolve: {
+    alias: {
+      xlsx: path.resolve(__dirname, "..", "libs/xlsx.full.min.js"),
+    },
     extensions: [".js"],
   },
   plugins: [
