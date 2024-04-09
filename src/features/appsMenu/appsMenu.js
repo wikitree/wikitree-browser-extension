@@ -36,6 +36,7 @@ function attachAppsMenu() {
       title: "Genealogietools.nl",
       URL: "https://www.wikitree.com/wiki/Space:Genealogietools.nl_-_WieWasWie_formatter",
     },
+    { title: "Photo Lines", URL: "https://apps.wikitree.com/apps/clarke11007/PhotoLines.php" },
     { title: "Profile Overview", URL: "https://apps.wikitree.com/apps/beacall6/templates.php" },
     { title: "Relative SpiderWebs", URL: "https://apps.wikitree.com/apps/clarke11007/webs.php" },
     { title: "RootsSearch", URL: "https://apps.wikitree.com/apps/york1423/rootssearch/" },
