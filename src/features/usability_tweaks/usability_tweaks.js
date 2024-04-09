@@ -10,6 +10,7 @@ import {
   isSpecialTrustedList,
   isProfilePage,
   isSpecialMyConnections,
+  isSpacePage,
 } from "../../core/pageType";
 import "./usability_tweaks.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
@@ -261,6 +262,177 @@ function removeMe() {
   }
 }
 
+function forwardToSavedSpagePage() {
+  const boxClass = "status green";
+  const greenBoxes = document.getElementsByClassName(boxClass);
+  const searchParams = new URLSearchParams(window.location.search);
+  const savedParam = "saveRedir";
+
+  if (
+    greenBoxes.length == 1 &&
+    greenBoxes[0].innerText.indexOf("Changes Saved." > -1) &&
+    !searchParams.has(savedParam)
+  ) {
+    searchParams.append(savedParam, "WBE");
+    window.location.search = searchParams;
+  } else if (searchParams.has(savedParam)) {
+    //make sure, scissors are loaded first
+    var delayInMilliseconds = 300;
+    setTimeout(function () {
+      const div = document.createElement("div");
+      div.className = boxClass;
+      div.style.marginTop = "1em";
+      div.innerHTML =
+        "<span class='larger'>Changes Saved.</span> This redirect was proudly brought to you by the <a href='https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension'>WikiTree Browser Extension</a>.";
+      document.getElementsByTagName("h1")[0].appendChild(div);
+    }, delayInMilliseconds);
+  }
+}
+
+function triggerRememberTextareaHeight() {
+  window.addEventListener("load", () => {
+    // Call the function on load
+    rememberTextareaHeight();
+
+    // Initialize the observer
+    initObserver();
+
+    // Trigger the button click event twice
+    const enhancedEditorButton = document.getElementById("toggleMarkupColor");
+    if (enhancedEditorButton) {
+      enhancedEditorButton.click();
+      enhancedEditorButton.click();
+    }
+  });
+}
+
+function putFocusOnFirstNameField() {
+  if (isAddUnrelatedPerson) {
+    document.getElementById("mFirstName").focus();
+  } else if (isProfileAddRelative) {
+    var enterBasicDataButton = document.getElementById("actionButton");
+    let timeoutShowBasicData = null;
+    enterBasicDataButton.addEventListener("click", function () {
+      clearTimeout(timeoutShowBasicData);
+      timeoutShowBasicData = setTimeout(function () {
+        document.getElementById("mFirstName").focus();
+      }, 300);
+    });
+  }
+}
+
+function autoClickAddPersonOptions() {
+  setTimeout(function () {
+    const whoValue = new URL(window.location.href).searchParams.get("who");
+    const WBEactionValue = new URL(window.location.href).searchParams.get("WBEaction");
+    if (WBEactionValue) {
+      if (WBEactionValue == "Add") {
+        $("#editAction_createNew").trigger("click");
+      } else if (WBEactionValue == "Connect") {
+        $("#editAction_connectExisting").trigger("click");
+      } else if (WBEactionValue == "Remove") {
+        $("#editAction_remove").trigger("click");
+      }
+      if (WBEactionValue == "Add" || (WBEactionValue == "Remove" && whoValue != "child" && whoValue != "spouse")) {
+        $("#actionButton").trigger("click");
+      }
+    }
+  }, 300);
+}
+
+function replaceAddRemoveReplaceLinks() {
+  if (isProfilePage) {
+    const editFamilyLinks = document.getElementsByClassName("BLANK");
+    for (let i = 0; i < editFamilyLinks.length; i++) {
+      switch (editFamilyLinks[i].innerText) {
+        case "[mother?]":
+        case "[father?]":
+        case "[spouse?]":
+        case "[add spouse?]":
+        case "[add child]":
+        case "[children?]":
+        case "[brothers or sisters?]":
+        case "[add sibling]": {
+          if (editFamilyLinks[i].tagName == "A") {
+            editFamilyLinks[i].href = editFamilyLinks[i].href + "&WBEaction=Add";
+          } else if (editFamilyLinks[i].tagName == "SPAN") {
+            editFamilyLinks[i].firstChild.href = editFamilyLinks[i].firstChild.href + "&WBEaction=Add";
+          }
+
+          break;
+        }
+      }
+    }
+  }
+  if (isProfileEdit) {
+    const hasFather = $("input[name='mStatus_Father']").length;
+    const hasMother = $("input[name='mStatus_Mother']").length;
+    const hasSpouse = $("div.five.columns.omega a:Contains(edit marriage)").length;
+    $("div.five.columns.omega a[href*='&who=']").each(function () {
+      /* Replace one link like this: https://www.wikitree.com/index.php?title=Special:EditFamily&u=23943734&who=father
+       * with three links like this: https://www.wikitree.com/index.php?title=Special:EditFamily&u=23943734&who=father&WBEaction=add (remove, connect)
+       */
+      if ($(this).text().includes("edit marriage") == false) {
+        const href = "https://www.wikitree.com" + $(this).attr("href");
+        const urlObject = new URL(href);
+        const whoValue = urlObject.searchParams.get("who");
+
+        let addText = "Add";
+        let addTitle = "Add a " + whoValue;
+        let removeTitle = "Remove a " + whoValue;
+
+        if (whoValue == "father") {
+          if (hasFather) {
+            addText = "Replace";
+            addTitle = "Replace this father";
+          } else {
+            addText = "Add";
+          }
+        } else if (whoValue == "mother") {
+          if (hasMother) {
+            addText = "Replace";
+            addTitle = "Replace this mother";
+          } else {
+            addText = "Add";
+          }
+        } else if (whoValue == "spouse" && hasSpouse) {
+          removeTitle = "Remove a spouse";
+        } else if (whoValue == "child") {
+          removeTitle = "Remove a child";
+        }
+
+        if (
+          whoValue != "sibling" &&
+          !(whoValue == "father" && hasFather == 0) &&
+          !(whoValue == "mother" && hasMother == 0)
+        ) {
+          const newHref = href + "&WBEaction=Remove";
+          const newLink = $(this).clone();
+          newLink.attr("href", newHref);
+          newLink.text("Remove");
+          $(this).after(newLink);
+          $(this).after(" | ");
+          newLink.attr("title", removeTitle);
+        }
+
+        const newLink2 = $(this).clone();
+        newLink2.attr("href", href + "&WBEaction=Connect");
+        newLink2.text("Connect");
+        $(this).after(newLink2);
+        $(this).after(" | ");
+        newLink2.attr("title", "Connect a " + whoValue + " by ID");
+
+        const newLink3 = $(this).clone();
+        newLink3.attr("href", href + "&WBEaction=Add");
+        newLink3.text(addText);
+        newLink3.attr("title", addTitle);
+        $(this).after(newLink3);
+        $(this).remove();
+      }
+    });
+  }
+}
+
 shouldInitializeFeature("usabilityTweaks").then((result) => {
   if (result) {
     getFeatureOptions("usabilityTweaks").then((options) => {
@@ -288,154 +460,23 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
 
       // Replace Add/Remove/Replace links with Add, Remove, Connect links
       if (options.addRemoveConnectLinks) {
-        if (isProfilePage) {
-          const editFamilyLinks = document.getElementsByClassName("BLANK");
-          for (let i = 0; i < editFamilyLinks.length; i++) {
-            switch (editFamilyLinks[i].innerText) {
-              case "[mother?]":
-              case "[father?]":
-              case "[spouse?]":
-              case "[add spouse?]":
-              case "[add child]":
-              case "[children?]":
-              case "[brothers or sisters?]":
-              case "[add sibling]": {
-                if (editFamilyLinks[i].tagName == "A") {
-                  editFamilyLinks[i].href = editFamilyLinks[i].href + "&WBEaction=Add";
-                } else if (editFamilyLinks[i].tagName == "SPAN") {
-                  editFamilyLinks[i].firstChild.href = editFamilyLinks[i].firstChild.href + "&WBEaction=Add";
-                }
-
-                break;
-              }
-            }
-          }
-        }
-        if (isProfileEdit) {
-          const hasFather = $("input[name='mStatus_Father']").length;
-          const hasMother = $("input[name='mStatus_Mother']").length;
-          const hasSpouse = $("div.five.columns.omega a:Contains(edit marriage)").length;
-          $("div.five.columns.omega a[href*='&who=']").each(function () {
-            /* Replace one link like this: https://www.wikitree.com/index.php?title=Special:EditFamily&u=23943734&who=father
-             * with three links like this: https://www.wikitree.com/index.php?title=Special:EditFamily&u=23943734&who=father&WBEaction=add (remove, connect)
-             */
-            if ($(this).text().includes("edit marriage") == false) {
-              const href = "https://www.wikitree.com" + $(this).attr("href");
-              const urlObject = new URL(href);
-              const whoValue = urlObject.searchParams.get("who");
-
-              let addText = "Add";
-              let addTitle = "Add a " + whoValue;
-              let removeTitle = "Remove a " + whoValue;
-
-              if (whoValue == "father") {
-                if (hasFather) {
-                  addText = "Replace";
-                  addTitle = "Replace this father";
-                } else {
-                  addText = "Add";
-                }
-              } else if (whoValue == "mother") {
-                if (hasMother) {
-                  addText = "Replace";
-                  addTitle = "Replace this mother";
-                } else {
-                  addText = "Add";
-                }
-              } else if (whoValue == "spouse" && hasSpouse) {
-                removeTitle = "Remove a spouse";
-              } else if (whoValue == "child") {
-                removeTitle = "Remove a child";
-              }
-
-              if (
-                whoValue != "sibling" &&
-                !(whoValue == "father" && hasFather == 0) &&
-                !(whoValue == "mother" && hasMother == 0)
-              ) {
-                const newHref = href + "&WBEaction=Remove";
-                const newLink = $(this).clone();
-                newLink.attr("href", newHref);
-                newLink.text("Remove");
-                $(this).after(newLink);
-                $(this).after(" | ");
-                newLink.attr("title", removeTitle);
-              }
-
-              const newLink2 = $(this).clone();
-              newLink2.attr("href", href + "&WBEaction=Connect");
-              newLink2.text("Connect");
-              $(this).after(newLink2);
-              $(this).after(" | ");
-              newLink2.attr("title", "Connect a " + whoValue + " by ID");
-
-              const newLink3 = $(this).clone();
-              newLink3.attr("href", href + "&WBEaction=Add");
-              newLink3.text(addText);
-              newLink3.attr("title", addTitle);
-              $(this).after(newLink3);
-              $(this).remove();
-            }
-          });
-        }
+        replaceAddRemoveReplaceLinks();
       }
 
       if (isProfileAddRelative && options.addRemoveConnectLinks) {
         /* On Add Person page, check the right radio button and maybe click the button.
       Don't click the button when who is child or spouse and WBEaction is Remove.
       */
-        setTimeout(function () {
-          const whoValue = new URL(window.location.href).searchParams.get("who");
-          const WBEactionValue = new URL(window.location.href).searchParams.get("WBEaction");
-          if (WBEactionValue) {
-            if (WBEactionValue == "Add") {
-              $("#editAction_createNew").trigger("click");
-            } else if (WBEactionValue == "Connect") {
-              $("#editAction_connectExisting").trigger("click");
-            } else if (WBEactionValue == "Remove") {
-              $("#editAction_remove").trigger("click");
-            }
-            if (
-              WBEactionValue == "Add" ||
-              (WBEactionValue == "Remove" && whoValue != "child" && whoValue != "spouse")
-            ) {
-              $("#actionButton").trigger("click");
-            }
-          }
-        }, 300);
+        autoClickAddPersonOptions();
       }
 
       // focusFirstNameField
       if (options.focusFirstNameField) {
-        if (isAddUnrelatedPerson) {
-          document.getElementById("mFirstName").focus();
-        } else if (isProfileAddRelative) {
-          var enterBasicDataButton = document.getElementById("actionButton");
-          let timeoutShowBasicData = null;
-          enterBasicDataButton.addEventListener("click", function () {
-            clearTimeout(timeoutShowBasicData);
-            timeoutShowBasicData = setTimeout(function () {
-              document.getElementById("mFirstName").focus();
-            }, 300);
-          });
-        }
+        putFocusOnFirstNameField();
       }
 
       if (isWikiEdit && options.rememberTextareaHeight) {
-        window.addEventListener("load", () => {
-          // Call the function on load
-          rememberTextareaHeight();
-
-          // Initialize the observer
-          initObserver();
-
-          // Trigger the button click event twice
-          const enhancedEditorButton = document.getElementById("toggleMarkupColor");
-          if (enhancedEditorButton) {
-            enhancedEditorButton.click();
-            enhancedEditorButton.click();
-          }
-        });
+        triggerRememberTextareaHeight();
       }
       if (options.fixPrintingBug) {
         if (navigator.userAgent.indexOf("Windows NT 10.0") != -1) {
@@ -454,6 +495,10 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
       if (options.removeMeButton && isSpecialTrustedList) {
         removeMe();
       }
-    });
+
+      if (isSpacePage && options.leaveSpaceEditAfterSave) {
+        forwardToSavedSpagePage();
+      }
+    }); //getFeatureOptions
   }
 });

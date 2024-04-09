@@ -64,6 +64,19 @@ const usabilityTweaks = {
       ],
     },
     {
+      id: "editSpacePage",
+      type: OptionType.GROUP,
+      label: "Free Space Pages",
+      options: [
+        {
+          id: "leaveSpaceEditAfterSave",
+          type: OptionType.CHECKBOX,
+          label: "Leave edit view after saving",
+          defaultValue: true,
+        },
+      ],
+    },
+    {
       id: "myConnections",
       type: OptionType.GROUP,
       label: "My Connections",
