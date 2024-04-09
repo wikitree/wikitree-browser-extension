@@ -38,7 +38,6 @@
     "url": "^0.11.2",
     "util": "^0.12.5",
     "wikitree-js": "^0.4.0",
-    "xlsx": "^0.18.5",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
