@@ -82,11 +82,11 @@ export const wtAPIProfileSearch = (callerID, query, params) => {
 export const wtAPICatCIBSearch = (callerID, cibType, query) =>
   wtAPICall(`wtCatCIBSearch/apiExt${callerID}.json?Query=${query}&cib=${cibType}`);
 
-
 // *******************************************************************
 // Base call to WikiTree+
 // *******************************************************************
 
+/*
 const wtAPICall = (url) => {
   return fetch(`https://plus.wikitree.com/function/${url}&format=json`).then((response) => {
     if (response.ok) {
@@ -95,4 +95,40 @@ const wtAPICall = (url) => {
       throw response.statusText;
     }
   });
+};
+*/
+
+const wtAPICall = (url) => {
+  // Create an instance of AbortController
+  const controller = new AbortController();
+  const signal = controller.signal;
+
+  // Start a timer to abort the request if it takes longer than 8 seconds (8000 milliseconds)
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+  return fetch(`https://plus.wikitree.com/function/${url}&format=json`, { signal })
+    .then((response) => {
+      // Clear the timeout if the request completes in time
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        return response.json();
+      } else {
+        throw new Error(response.statusText);
+      }
+    })
+    .catch((error) => {
+      // Clear the timeout in case of an error
+      clearTimeout(timeoutId);
+
+      if (error.name === "AbortError") {
+        // Handle fetch timeout
+        console.error("The request was aborted due to a timeout.");
+        // Return a custom error object or response to indicate a timeout occurred
+        return { timeout: true, message: "WT+ timeout" };
+      } else {
+        // Handle other errors
+        throw error;
+      }
+    });
 };
