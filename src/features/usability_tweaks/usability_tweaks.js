@@ -282,8 +282,7 @@ function forwardToSavedSpagePage() {
       const div = document.createElement("div");
       div.className = boxClass;
       div.style.marginTop = "1em";
-      div.innerHTML =
-        "<span class='larger'>Changes Saved.</span> This redirect was proudly brought to you by the <a href='https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension'>WikiTree Browser Extension</a>.";
+      div.innerHTML = "<span class='larger'>Changes Saved.</span>";
       document.getElementsByTagName("h1")[0].appendChild(div);
     }, delayInMilliseconds);
   }

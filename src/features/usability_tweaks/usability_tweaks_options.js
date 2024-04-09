@@ -72,7 +72,7 @@ const usabilityTweaks = {
           id: "leaveSpaceEditAfterSave",
           type: OptionType.CHECKBOX,
           label: "Leave edit view after saving",
-          defaultValue: true,
+          defaultValue: false,
         },
       ],
     },
