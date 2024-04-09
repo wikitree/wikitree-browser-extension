@@ -5,7 +5,7 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import { htmlEntities, isOK } from "../../core/common.js";
 import { ordinal } from "../distanceAndRelationship/distanceAndRelationship.js";
-import * as XLSX from "xlsx";
+//import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { timeline } from "../familyTimeline/familyTimeline.js";
 import { addWideTableButton, addLoginButton } from "../my_connections/my_connections.js";
@@ -1228,10 +1228,9 @@ function copyToClipboard(element) {
 
 function connectionFinderTable() {
   setTimeout(() => {
-    const moreDetailsButton =
-      "<button class='downloadLines small' title='Download Excel file'> &darr; </button><button class='small button moreDetails'>Table</button>";
+    const moreDetailsButton = "<button class='small button moreDetails'>Table</button>";
     $("h1:contains(Connection Finder)").append($(moreDetailsButton));
-
+    // <button class='downloadLines small' title='Download Excel file'> &darr; </button>
     if (window.location.href.match("action=connect") != null) {
       $(".moreDetails").show();
     }
@@ -1543,8 +1542,8 @@ function connectionFinderTable() {
 
             reduceRelWordsMore();
             addConnectionText();
-            $(".downloadLines").show();
-            excelOut();
+            // $(".downloadLines").show();
+            // excelOut();
             $(".treeImg").remove();
             addWideTableButton();
 
@@ -1721,7 +1720,7 @@ function showHeritageSocietyBox() {
     $("#heritageSocietyTA").val(hsTextOut);
   }
 }
-
+/*
 function excelOut() {
   const today = new Date().toLocaleDateString(undefined, {
     year: "numeric",
@@ -1878,6 +1877,7 @@ function excelOut() {
     saveAs(new Blob([s2ab(wbout)], { type: "application/octet-stream" }), fileName + ".xlsx");
   });
 }
+*/
 
 function copyRichTextToClipboard(html) {
   // Create a contenteditable div and append it to the body
