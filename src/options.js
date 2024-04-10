@@ -6,7 +6,7 @@ import "./features/register_feature_options";
 import { WBE, isWikiTreeUrl, showAlert, wrapBackupData, getBackupLink } from "./core/common";
 import { restoreOptions, restoreData, sendMessageToContentTab } from "./upload";
 import { navigatorDetect } from "./core/navigatorDetect";
-import { shouldInitializeFeature, getFeatureOptions } from "./core/options/options_storage.js";
+import { shouldInitializeFeature } from "./core/options/options_storage.js";
 
 shouldInitializeFeature("darkMode").then((result) => {
   if (result) {
@@ -419,7 +419,7 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
 }
 
 // when the options page loads, load status of options from storage into the UI elements
-$(document).ready(() => {
+$(() => {
   restore_options();
 });
 

@@ -36,37 +36,16 @@ if (isNavHomePage) {
 }
 
 function downloadFeatureData() {
-  const data = {
-    extension: "WikiTree Browser Extension",
-    features: "1",
-    data: { changeSummaryOptions: "[]", myMenu: "[]", extraWatchlist: "", clipboard: "[]" },
-  };
-  if (localStorage.LSchangeSummaryOptions) {
-    data.data.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
-  }
-  if (localStorage.customMenu) {
-    data.data.myMenu = localStorage.customMenu;
-  }
-  if (localStorage.extraWatchlist) {
-    data.data.extraWatchlist = localStorage.extraWatchlist;
-  }
-  if (localStorage.clipboard) {
-    data.data.clipboard = localStorage.clipboard;
-  }
-  // Download this as a file
-  const file = new Blob([JSON.stringify(data)], { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(file);
-  // Get the date and time for the filename
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = (now.getMonth() + 1).toString().padStart(2, "0");
-  const day = now.getDate().toString().padStart(2, "0");
-  const hours = now.getHours().toString().padStart(2, "0");
-  const minutes = now.getMinutes().toString().padStart(2, "0");
-  const seconds = now.getSeconds().toString().padStart(2, "0");
-  a.download = `${year}-${month}-${day}_${hours}${minutes}${seconds}_WBE_backup_data.json`;
-  a.click();
+  backupData((response) => {
+    if (response && response.ack) {
+      const wrapped = wrapBackupData("data", response.backup);
+      const link = getBackupLink(wrapped);
+      link.click();
+    } else {
+      const err = response?.nak ?? JSON.stringify(response ?? "Backup failed");
+      showFriendlyError(err);
+    }
+  });
 }
 
 export function wrapBackupData(key, data) {
@@ -108,29 +87,30 @@ export function getBackupLink(wrappedJsonData) {
 function importFeatureData() {
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = "application/json";
+  input.accept = "text/plain";
   input.onchange = function () {
     const file = input.files[0];
     const reader = new FileReader();
     reader.onload = function () {
-      const data = JSON.parse(reader.result);
-      if (data.extension.startsWith("WikiTree Browser Extension") && data.features) {
-        if (data.data.changeSummaryOptions) {
-          localStorage.LSchangeSummaryOptions = data.data.changeSummaryOptions;
+      let isValid = false;
+      try {
+        const json = JSON.parse(reader.result);
+        if ((isValid = json.extension && json.extension.indexOf("WikiTree Browser Extension") === 0 && json.data)) {
+          restoreData(json.data, (response) => {
+            if (response && response.ack) {
+              // Reload the page to apply the changes
+              location.reload();
+            } else {
+              const err = response?.nak ?? JSON.stringify(response ?? "Restore failed");
+              showFriendlyError(err);
+            }
+          });
         }
-        if (data.data.myMenu) {
-          localStorage.customMenu = data.data.myMenu;
-        }
-        if (data.data.extraWatchlist) {
-          localStorage.extraWatchlist = data.data.extraWatchlist;
-        }
-        if (data.data.clipboard) {
-          localStorage.clipboard = data.data.clipboard;
-        }
-        // Reload the page to apply the changes
-        location.reload();
-      } else {
-        alert("Invalid file");
+      } catch {
+        /* if JSON parsing failed or some other error, isValid will still be false here */
+      }
+      if (!isValid) {
+        showFriendlyError("Invalid file");
       }
     };
     reader.readAsText(file);
@@ -412,10 +392,10 @@ export async function showDraftList() {
   }
   $("#myDrafts").remove();
   $("body").append($("<div id='myDrafts'><h2>My Drafts</h2><x>x</x><table></table></div>"));
-  $("#myDrafts").dblclick(function () {
+  $("#myDrafts").trigger("dblclick", function () {
     $(this).slideUp();
   });
-  $("#myDrafts x").click(function () {
+  $("#myDrafts x").trigger("click", function () {
     $(this).parent().slideUp();
   });
   $("#myDrafts").draggable();
@@ -615,13 +595,23 @@ export function extensionContextInvalidatedCheck(error) {
   if (error.message.match("Extension context invalidated")) {
     console.log("Extension context invalidated");
     const errorMessage = "WikiTree Browser Extension has been updated. <br>Please reload the page and try again.";
-    // Put the message in a small friendly popup, not an alert(), in the centre of the page, fixed position, with an X to close it.
-    const messageDiv = $(
-      "<div id='errorDiv' class='contextInvalidated'><button id='closeErrorMessageButton'>x</button>" +
-        errorMessage +
-        "</div>"
-    );
-    $("body").append(messageDiv);
+    showFriendlyError(errorMessage);
+  }
+}
+
+export function showFriendlyError(errorMessage, where = "body") {
+  // Put the message in a small friendly popup, not an alert(), in the centre of the page, fixed position, with an X to close it.
+  const messageDiv = $(
+    "<div id='errorDiv' class='contextInvalidated'><button id='closeErrorMessageButton'>x</button>" +
+      errorMessage +
+      "</div>"
+  );
+  $(where).append(messageDiv);
+  if (messageDiv.css("position") !== "fixed") {
+    // fall back to a standard alert if the CSS for #errorDiv has not been imported
+    messageDiv.remove();
+    alert(errorMessage);
+  } else {
     $("#closeErrorMessageButton").on("click", function () {
       $("#errorDiv").slideUp();
       setTimeout(function () {

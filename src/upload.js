@@ -5,6 +5,7 @@ export function openFileChooser(readerCallback, readAs = "text") {
   if (window.FileReader) {
     let chooser = document.createElement("input");
     chooser.type = "file";
+    chooser.accept = "text/plain";
     chooser.addEventListener("change", function (e) {
       if (chooser.files && chooser.files.length > 0) {
         let reader = new FileReader();
@@ -40,7 +41,7 @@ export function restoreOptions(onProcessing) {
       } else {
         let isValid = false;
         try {
-          let json = JSON.parse(this.result);
+          const json = JSON.parse(this.result);
           if (
             (isValid = json.extension && json.extension.indexOf("WikiTree Browser Extension") === 0 && json.features)
           ) {
@@ -49,7 +50,9 @@ export function restoreOptions(onProcessing) {
               resolve();
             });
           }
-        } catch {}
+        } catch {
+          /* if JSON parsing failed or some other error, isValid will still be false here */
+        }
         if (!isValid) {
           reject({ nak: "INVALID_FORMAT", content: this.result });
         }
@@ -85,7 +88,9 @@ export function restoreData(onProcessing) {
               }
             });
           }
-        } catch {}
+        } catch {
+          /* if JSON parsing failed or some other error, isValid will still be false here */
+        }
         if (!isValid) {
           reject({ nak: "INVALID_FORMAT", content: this.result });
         }
@@ -99,7 +104,7 @@ export function sendMessageToContentTab(message, callback) {
   async function _trySendMessageAsync(tabs, message, callback, index) {
     if (tabs && tabs.length && index < tabs.length) {
       const tab = tabs[index];
-      if (tab && tab.url && isWikiTreeUrl(tab.url) && tab.id) {
+      if (tab && tab.url && isWikiTreeUrl(tab.url) && tab.status == "complete" && tab.id) {
         chrome.tabs.sendMessage(tab.id, message, function (response) {
           if (chrome.runtime.lastError) {
             _trySendMessageAsync(tabs, message, callback, index + 1); // try the next tab
