@@ -69,6 +69,42 @@ function downloadFeatureData() {
   a.click();
 }
 
+export function wrapBackupData(key, data) {
+  let now = new Date();
+  let wrapped = {
+    id:
+      Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "medium" }) // sv-SE uses ISO format
+        .format(now)
+        .replace(/:/g, "")
+        .replace(/ /g, "_") +
+      "_WBE_backup_" +
+      key,
+    extension: WBE.name,
+    version: WBE.version,
+    browser: navigator.userAgent,
+    timestamp: now.toISOString(),
+  };
+  wrapped[key] = data;
+  return wrapped;
+}
+
+export function getBackupLink(wrappedJsonData) {
+  let link = document.createElement("a");
+  link.title = 'Right-click to "Save as..." at specific location on your device.';
+  let json = JSON.stringify(wrappedJsonData, null, 2);
+  if (navigatorDetect.browser.Safari) {
+    // Safari doesn't handle blobs or the download attribute properly
+    link.href = "data:application/octet-stream," + encodeURIComponent(json);
+    link.target = "_blank";
+    link.title = link.title.replace("Save as...", "Download Linked File As...");
+  } else {
+    let blob = new Blob([json], { type: "text/plain" });
+    link.href = URL.createObjectURL(blob);
+    link.download = wrappedJsonData.id + ".txt";
+  }
+  return link;
+}
+
 function importFeatureData() {
   const input = document.createElement("input");
   input.type = "file";
@@ -593,6 +629,40 @@ export function extensionContextInvalidatedCheck(error) {
       }, 1000);
     });
   }
+}
+
+export function showAlert(content, title, where = "body") {
+  // replace the browser's alert() method with an HTML-based modal dialog
+  // this is based on the settings dialog from the WBE options window
+  let $title = $("<div></div>").text(title || "WikiTree Browser Extension"); // use || to prevent title from being blank
+  let $content = $("<div></div>").html(content ?? "");
+  if ($content.children().length === 0) {
+    // if they only passed in text without any HTML elements, replace CR/LF with <br> tags
+    $content.html($content.html().replace(/\r?\n/g, "<br /> "));
+  }
+  let $dialog = $('<dialog id="showAlertDialog">').append([
+    $title.addClass("dialog-header").prepend(
+      $('<a href="#" class="close">&#x2715;</a>') // add close button before the title text
+    ),
+    $content.addClass("dialog-content"),
+  ]);
+  $dialog.appendTo($(where).remove("#showAlertDialog")).on("click", function (e) {
+    if (e.target === this) {
+      this.close(); // close modal if the backdrop is clicked
+    }
+  });
+  $dialog
+    .find(".close")
+    .on("auxclick", function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    })
+    .on("click", function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      this.closest("dialog")?.close();
+    });
+  $dialog.get(0).showModal();
 }
 
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
