@@ -596,16 +596,16 @@ export function extensionContextInvalidatedCheck(error) {
 }
 
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-  if (request && request.greeting) {
-    if (request.greeting === "backupData") {
+  if (request && request.action) {
+    if (request.action === "backupData") {
       backupData(sendResponse);
-    } else if (request.greeting === "restoreData") {
-      restoreData(request.data, sendResponse);
+    } else if (request.action === "restoreData") {
+      restoreData(request.payload, sendResponse);
     } else {
-      sendResponse({ nak: `unexpected greeting ${request.greeting}` });
+      sendResponse({ nak: "UNKNOWN_ACTION", action: request.action });
     }
   } else {
-    sendResponse({ nak: "unexpected request" });
+    sendResponse({ nak: "INVALID_MESSAGE" });
   }
   return true; // potentially prevent the "The message port closed before a response was received." error
 });

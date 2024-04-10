@@ -4,7 +4,7 @@ import { features, OptionType } from "./core/options/options_registry";
 import { categorize } from "./features/register_categories";
 import "./features/register_feature_options";
 import { WBE, isWikiTreeUrl } from "./core/common";
-import { restoreOptions, restoreData } from "./upload";
+import { restoreOptions, restoreData, sendMessageToContentTab } from "./upload";
 import { navigatorDetect } from "./core/navigatorDetect";
 import { shouldInitializeFeature, getFeatureOptions } from "./core/options/options_storage.js";
 
@@ -609,8 +609,13 @@ $("#openSettings").on("click", function () {
     } else {
       restoreOptions()
         .then(closeSettings)
-        .catch(() => {
-          alert("The options file was not valid.");
+        .catch((response) => {
+          var err = response?.nak ?? JSON.stringify(response ?? "NO_RESPONSE");
+          if (err == "INVALID_FORMAT") {
+            alert("The options backup file was not valid.");
+          } else {
+            console.error(err);
+          }
         });
     }
   });
@@ -624,8 +629,17 @@ $("#openSettings").on("click", function () {
     } else {
       restoreData()
         .then(closeSettings)
-        .catch(() => {
-          alert("The data file was not valid.");
+        .catch((response) => {
+          var err = response?.nak ?? JSON.stringify(response ?? "NO_RESPONSE");
+          if (err == "INVALID_FORMAT") {
+            alert("The data backup file was not valid.");
+          } else if (err == "NO_TABS") {
+            alert(
+              "Restore failed because no WikiTree tabs responded.\nThis could happen if you closed your tabs or the extension updated.\nOpen a new WikiTree tab or refresh and try again."
+            );
+          } else {
+            console.error(err);
+          }
         });
     }
   });
@@ -833,15 +847,17 @@ function exportOptionsClicked() {
 
 function exportDataClicked() {
   const button = this;
-  chrome.tabs.query({}, function (tabs) {
-    for (let tab of tabs) {
-      if (isWikiTreeUrl(tab.url)) {
-        chrome.tabs.sendMessage(tab.id, { greeting: "backupData" }, function (response) {
-          if (response && response.ack && response.backup) {
-            downloadBackupData("data", response.backup, button);
-          }
-        });
-        break;
+  sendMessageToContentTab({ action: "backupData" }, function (response) {
+    if (response && response.ack && response.backup) {
+      downloadBackupData("data", response.backup, button);
+    } else {
+      var err = response?.nak ?? JSON.stringify(response ?? "NO_RESPONSE");
+      if (err == "NO_TABS") {
+        alert(
+          "Backup failed because no WikiTree tabs responded.\nThis could happen if you closed your tabs or the extension updated.\nOpen a new WikiTree tab or refresh and try again."
+        );
+      } else {
+        console.error(err);
       }
     }
   });
