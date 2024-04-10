@@ -267,8 +267,10 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
   addLink.accessKey = "k";
   addLink.title = "Add a category to this profile";
   AddAddReplaceEventHandler(addLink, lastCatSpan, profileId, "");
-  lastCatSpan.append(" ");
-  lastCatSpan.appendChild(addLink);
+  if (lastCatSpan) {
+    lastCatSpan.append(" ");
+    lastCatSpan.appendChild(addLink);
+  }
 }
 
 function IsProfileEditable() {
