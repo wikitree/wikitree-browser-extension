@@ -35,62 +35,64 @@ if (isNavHomePage) {
   checkAnyDataFeature();
 }
 
-function downloadFeatureData() {
-  const data = {
-    extension: "WikiTree Browser Extension",
-    features: "1",
-    data: { changeSummaryOptions: "[]", myMenu: "[]", extraWatchlist: "", clipboard: "[]" },
+async function downloadFeatureData() {
+  const backupRsp = await backupData();
+  const wrapped = wrapBackupData("data", backupRsp.backup);
+  const link = getBackupLink(wrapped);
+  link.click();
+}
+
+export function wrapBackupData(key, data) {
+  let now = new Date();
+  let wrapped = {
+    id:
+      Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "medium" }) // sv-SE uses ISO format
+        .format(now)
+        .replace(/:/g, "")
+        .replace(/ /g, "_") +
+      "_WBE_backup_" +
+      key,
+    extension: WBE.name,
+    version: WBE.version,
+    browser: navigator.userAgent,
+    timestamp: now.toISOString(),
   };
-  if (localStorage.LSchangeSummaryOptions) {
-    data.data.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
+  wrapped[key] = data;
+  return wrapped;
+}
+
+export function getBackupLink(wrappedJsonData) {
+  let link = document.createElement("a");
+  link.title = 'Right-click to "Save as..." at specific location on your device.';
+  let json = JSON.stringify(wrappedJsonData, null, 2);
+  if (navigatorDetect.browser.Safari) {
+    // Safari doesn't handle blobs or the download attribute properly
+    link.href = "data:application/octet-stream," + encodeURIComponent(json);
+    link.target = "_blank";
+    link.title = link.title.replace("Save as...", "Download Linked File As...");
+  } else {
+    let blob = new Blob([json], { type: "text/plain" });
+    link.href = URL.createObjectURL(blob);
+    link.download = wrappedJsonData.id + ".txt";
   }
-  if (localStorage.customMenu) {
-    data.data.myMenu = localStorage.customMenu;
-  }
-  if (localStorage.extraWatchlist) {
-    data.data.extraWatchlist = localStorage.extraWatchlist;
-  }
-  if (localStorage.clipboard) {
-    data.data.clipboard = localStorage.clipboard;
-  }
-  // Download this as a file
-  const file = new Blob([JSON.stringify(data)], { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(file);
-  // Get the date and time for the filename
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = (now.getMonth() + 1).toString().padStart(2, "0");
-  const day = now.getDate().toString().padStart(2, "0");
-  const hours = now.getHours().toString().padStart(2, "0");
-  const minutes = now.getMinutes().toString().padStart(2, "0");
-  const seconds = now.getSeconds().toString().padStart(2, "0");
-  a.download = `${year}-${month}-${day}_${hours}${minutes}${seconds}_WBE_backup_data.json`;
-  a.click();
+  return link;
 }
 
 function importFeatureData() {
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = "application/json";
+  input.accept = "application/txt";
   input.onchange = function () {
     const file = input.files[0];
     const reader = new FileReader();
-    reader.onload = function () {
-      const data = JSON.parse(reader.result);
-      if (data.extension.startsWith("WikiTree Browser Extension") && data.features) {
-        if (data.data.changeSummaryOptions) {
-          localStorage.LSchangeSummaryOptions = data.data.changeSummaryOptions;
+    reader.onload = async function () {
+      const json = JSON.parse(reader.result);
+      if (json.extension.startsWith("WikiTree Browser Extension") && json.data) {
+        if (json.features) {
+          // old format - convert
+          json.data.clipboard = JSON.stringify(json.data.clipboard);
         }
-        if (data.data.myMenu) {
-          localStorage.customMenu = data.data.myMenu;
-        }
-        if (data.data.extraWatchlist) {
-          localStorage.extraWatchlist = data.data.extraWatchlist;
-        }
-        if (data.data.clipboard) {
-          localStorage.clipboard = data.data.clipboard;
-        }
+        await restoreData(json.data);
         // Reload the page to apply the changes
         location.reload();
       } else {
@@ -105,11 +107,11 @@ function importFeatureData() {
 function addDataButtons() {
   const dataButtons = `
     <div id="featureDataButtons">
-      <button id="downloadFeatureData" 
-      title="Download a backup file for your WikiTree Browser Extension data from the Extra Watchlist, 
+      <button id="downloadFeatureData"
+      title="Download a backup file for your WikiTree Browser Extension data from the Extra Watchlist,
       My Menu, Clipboard and Notes, and Custom Change Summary Options features">Download WBE Feature Data</button>
       <button id="importFeatureData"
-      title="Import/restore data from a backup file for your WikiTree Browser Extension data from the Extra Watchlist, 
+      title="Import/restore data from a backup file for your WikiTree Browser Extension data from the Extra Watchlist,
       My Menu, Clipboard and Notes, and Custom Change Summary Options features">Import WBE Feature Data</button>
     </div>
   `;
@@ -376,10 +378,10 @@ export async function showDraftList() {
   }
   $("#myDrafts").remove();
   $("body").append($("<div id='myDrafts'><h2>My Drafts</h2><x>x</x><table></table></div>"));
-  $("#myDrafts").dblclick(function () {
+  $("#myDrafts").trigger("dblclick", function () {
     $(this).slideUp();
   });
-  $("#myDrafts x").click(function () {
+  $("#myDrafts x").trigger("click", function () {
     $(this).parent().slideUp();
   });
   $("#myDrafts").draggable();
@@ -526,29 +528,106 @@ export function isWikiTreeUrl(url) {
   return false;
 }
 
-function backupData(sendResponse) {
+async function backupData(sendResponse = null) {
+  console.log("backupData called");
   const data = {};
   data.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
   data.myMenu = localStorage.customMenu;
   data.extraWatchlist = localStorage.extraWatchlist;
-  const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
-  clipboardDB.onsuccess = function (event) {
-    let cdb = clipboardDB.result;
-    try {
-      let transaction = cdb.transaction(["Clipboard"]);
-      let req = transaction.objectStore("Clipboard").getAll();
-      req.onsuccess = function (event) {
-        data.clipboard = JSON.stringify(req.result);
-        sendResponse({ ack: "feature data attached", backup: data });
-      };
-    } catch (e) {
-      console.warn(e); // we weren't able to export any clipboard data, but we can still download the rest
-      sendResponse({ ack: "feature data attached", backup: data });
-    }
-  };
+
+  const idb = await getAllData();
+  data.indexedDB = idb.data;
+  const rsp = { ack: "feature data attached", backup: data, errors: idb.errors };
+  console.log("backup response", rsp);
+  if (sendResponse) {
+    sendResponse(rsp);
+  } else {
+    return rsp;
+  }
 }
 
-function restoreData(data, sendResponse) {
+const WBE_DATABASES = ["CC7Database", "Clipboard", "ConnectionFinderWTE", "RelationshipFinderWTE"];
+
+async function getAllData() {
+  const allData = {};
+  const errors = [];
+  console.log("getAllData");
+
+  for (const dbName of WBE_DATABASES) {
+    console.log(`Processing: ${dbName}`);
+    try {
+      console.log(`..awaiting open ${dbName}`);
+      const db = await openDatabase(dbName);
+      console.log(`..awaiting getObjectStores ${dbName}`);
+      const objectStores = await getObjectStores(db);
+      const dbData = {};
+      console.log(`ObjectStores for ${dbName}`, objectStores);
+
+      for (const storeName of objectStores) {
+        console.log(`....awaiting getAllRecords ${dbName}, ${storeName}`);
+        const records = await getAllRecords(db, storeName);
+        console.log(`....retrieved ${records.length} records for ${dbName}, ${storeName}`);
+        dbData[storeName] = JSON.stringify(records);
+      }
+
+      allData[dbName] = dbData;
+      db.close();
+    } catch (error) {
+      console.error(`Error retrieving data for ${dbName}:`, error);
+      errors.push([dbName, error]);
+    }
+  }
+
+  const rsp = { data: allData, errors: errors };
+  console.log("returning allData", rsp);
+  return rsp;
+}
+
+async function openDatabase(dbName) {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(dbName);
+
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+  });
+}
+
+async function getObjectStores(db) {
+  return Array.from(db.objectStoreNames);
+}
+
+async function getAllRecords(db, storeName) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, "readonly");
+    const objectStore = transaction.objectStore(storeName);
+    if (objectStore.autoIncrement) {
+      const records = [];
+
+      transaction.oncomplete = () => {
+        resolve(records);
+      };
+
+      transaction.onerror = () => {
+        reject(transaction.error);
+      };
+
+      objectStore.openCursor().onsuccess = (event) => {
+        const cursor = event.target.result;
+        if (cursor) {
+          records.push({ key: cursor.key, value: cursor.value });
+          cursor.continue();
+        }
+      };
+    } else {
+      const request = objectStore.getAll();
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    }
+  });
+}
+
+async function restoreData(data, sendResponse) {
   if (data.changeSummaryOptions) {
     localStorage.setItem("LSchangeSummaryOptions", data.changeSummaryOptions);
   }
@@ -559,48 +638,206 @@ function restoreData(data, sendResponse) {
     localStorage.setItem("extraWatchlist", data.extraWatchlist);
   }
   if (data.clipboard) {
-    const clipboard = JSON.parse(data.clipboard);
-    clipboard.forEach(function (aClipping) {
-      addToDB("Clipboard", 1, "Clipboard", aClipping);
-    });
-    sendResponse({ ack: "data restored" });
+    await restoreIndexedDB("Clipboard", { Clipboard: data.clipboard });
+  } else if (data.indexedDB) {
+    for (const dbName of WBE_DATABASES) {
+      if (data.indexedDB[dbName]) {
+        await restoreIndexedDB(dbName, data.indexedDB[dbName]);
+      }
+    }
   }
+  if (sendResponse) sendResponse({ ack: "data restored" });
 }
 
-function addToDB(db, dbv, os, obj) {
-  const aDB = window.indexedDB.open(db, dbv);
-  aDB.onsuccess = function (event) {
-    let xdb = aDB.result;
-    let insert = xdb.transaction([os], "readwrite").objectStore(os).put(obj);
+async function restoreIndexedDB(dbName, dbData) {
+  console.log(`Restoring: ${dbName}`);
+  const db = await openDatabase(dbName);
+  console.log(`Opened: ${dbName}`);
+  for (const storeName in dbData) {
+    console.log(`Restoring ${dbName}.${storeName}`);
+    const jsonStr = dbData[storeName];
+    const records = JSON.parse(jsonStr);
+    writeToDB(db, dbName, storeName, records);
+  }
+  db.close();
+}
+
+function writeToDB(db, dbName, storeName, records) {
+  const transaction = db.transaction(storeName, "readwrite");
+
+  transaction.oncomplete = () => {
+    console.log(`Data written for ${dbName}.${storeName}`);
   };
+  transaction.onerror = (event) => {
+    console.error(`Error writing data for ${dbName}.${storeName}`, event.target.error);
+  };
+
+  // Add each record to the object store
+  const objectStore = transaction.objectStore(storeName);
+  records.forEach((record) => {
+    if (record.key) {
+      objectStore.put(record.value, record.key);
+    } else {
+      objectStore.put(record);
+    }
+  });
 }
 
 export function extensionContextInvalidatedCheck(error) {
   if (error.message.match("Extension context invalidated")) {
     console.log("Extension context invalidated");
     const errorMessage = "WikiTree Browser Extension has been updated. <br>Please reload the page and try again.";
-    // Put the message in a small friendly popup, not an alert(), in the centre of the page, fixed position, with an X to close it.
-    const messageDiv = $(
-      "<div id='errorDiv' class='contextInvalidated'><button id='closeErrorMessageButton'>x</button>" +
-        errorMessage +
-        "</div>"
-    );
-    $("body").append(messageDiv);
-    $("#closeErrorMessageButton").on("click", function () {
-      $("#errorDiv").slideUp();
-      setTimeout(function () {
-        $("#errorDiv").remove();
-      }, 1000);
-    });
+    showFriendlyPopup("body", errorMessage);
   }
 }
 
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+export function showFriendlyPopup(where, errorMessage) {
+  // Put the message in a small friendly popup, not an alert(), in the centre of the page, fixed position, with an X to close it.
+  const messageDiv = $(
+    "<div id='errorDiv' class='contextInvalidated'><button id='closeErrorMessageButton'>x</button>" +
+      errorMessage +
+      "</div>"
+  );
+  $(where).append(messageDiv);
+  $("#closeErrorMessageButton").on("click", function () {
+    $("#errorDiv").slideUp();
+    setTimeout(function () {
+      $("#errorDiv").remove();
+    }, 1000);
+  });
+}
+
+// accessAllowed() and releaseAccess() are "semaphore actions" implemented on top of indexedDB for the sole purpose
+// of working around the fact that the onmessage listener at the end of this file gets called twice (for some mysterious
+// reason) when options.js calls sendMessage. All other attempts to prevent double action on save/restore failed because
+// (it seems) that common.js gets loaded twice in completeley independent contexts. Even using localStorage did not help
+// as both calls read the semaphore as being open.
+
+function accessAllowed() {
+  return new Promise((resolve, reject) => {
+    const me = Math.floor(Math.random() * 1000000);
+    const dbName = "BackupAccess";
+    const storeName = "access";
+    const openRequest = indexedDB.open(dbName, 1);
+
+    openRequest.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      console.log(`${me} creating access object store`);
+      db.createObjectStore("access", { keyPath: "accessTime" });
+    };
+
+    openRequest.onsuccess = (event) => {
+      const db = event.target.result;
+
+      // Write an access request record
+      console.log(`${me} writing access request`);
+      const addRecordTran = db.transaction(storeName, "readwrite");
+      const addRecordRequest = addRecordTran
+        .objectStore(storeName)
+        .add({ accessTime: Math.floor(performance.now() * 1000), me: me });
+
+      addRecordRequest.onsuccess = () => {
+        addRecordTran.commit();
+        // We've added our request, check to see if it is the first in the queue
+        // Read all records
+        console.log(`${me} reading all records`);
+        const readAllTran = db.transaction(storeName, "readonly");
+        const readAllRequest = readAllTran.objectStore(storeName).getAll();
+
+        readAllRequest.onsuccess = () => {
+          console.log(`${me} all records read`);
+          const records = readAllRequest.result;
+          console.log(`${me} records:`, records);
+          // Sort records by accessTime
+          records.sort((a, b) => a.accessTime - b.accessTime);
+          // Find index of me
+          const myIdx = records.findIndex((record) => record.me === me);
+          // If me is the first record, we have access
+          resolve(myIdx === 0);
+        };
+
+        readAllRequest.onerror = (event) => {
+          console.error(`${me} getAllRecordsRequest error`, event.target.error);
+          db.close();
+          reject(event.target.error);
+        };
+
+        readAllTran.oncomplete = () => {
+          console.log(`${me} access req: closing db`);
+          db.close();
+        };
+      };
+      addRecordRequest.onerror = (event) => {
+        // If two timestamps are identical, we deny the 2nd one
+        console.error(`${me} Error writing access request, therefore disallowed:`, event.target.error);
+        db.close();
+        resolve(false);
+      };
+    };
+
+    openRequest.onerror = (event) => {
+      reject(event.target.error);
+    };
+  });
+}
+
+async function releaseAccess() {
+  const dbName = "BackupAccess";
+  const storeName = "access";
+
+  const openRequest = indexedDB.open(dbName);
+  openRequest.onsuccess = (event) => {
+    const db = event.target.result;
+    if (db.objectStoreNames.contains(storeName)) {
+      const clearRequest = db.transaction(storeName, "readwrite").objectStore(storeName).clear();
+      clearRequest.onsuccess = () => {
+        console.log("Released access, closing db");
+        db.close();
+      };
+      clearRequest.onerror = (event) => {
+        console.error("error deleting all access records:", event.target.error);
+        db.close();
+      };
+    }
+  };
+  openRequest.onerror = (event) => {
+    console.error("error releasing access:", event.target.error);
+  };
+}
+
+chrome.runtime.onMessage.removeListener(handleOnMessage);
+chrome.runtime.onMessage.addListener(handleOnMessage);
+function handleOnMessage(request, sender, sendResponse) {
   if (request && request.greeting) {
+    console.log(`Received request:`, request, sender);
     if (request.greeting === "backupData") {
-      backupData(sendResponse);
+      accessAllowed()
+        .then(async (allowed) => {
+          if (allowed) {
+            console.log("Backup access allowed");
+            await backupData(sendResponse);
+            releaseAccess();
+          } else {
+            console.log("Backup access NOT allowed");
+          }
+        })
+        .catch((error) => {
+          console.error("Error getting backup access, therefore disallowed:", error);
+        });
     } else if (request.greeting === "restoreData") {
-      restoreData(request.data, sendResponse);
+      accessAllowed()
+        .then(async (allowed) => {
+          if (allowed) {
+            console.log("Restore access allowed");
+            await restoreData(request.data, sendResponse);
+            releaseAccess();
+          } else {
+            console.log("Restore access NOT allowed");
+          }
+        })
+        .catch((error) => {
+          console.error("Error getting restore access, therefore disallowed:", error);
+        });
     } else {
       sendResponse({ nak: `unexpected greeting ${request.greeting}` });
     }
@@ -608,6 +845,5 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     sendResponse({ nak: "unexpected request" });
   }
   return true; // potentially prevent the "The message port closed before a response was received." error
-});
-
+}
 export const treeImageURL = chrome.runtime.getURL("images/tree.gif");

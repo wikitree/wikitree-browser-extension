@@ -3,10 +3,10 @@ import $ from "jquery";
 import { features, OptionType } from "./core/options/options_registry";
 import { categorize } from "./features/register_categories";
 import "./features/register_feature_options";
-import { WBE, isWikiTreeUrl } from "./core/common";
-import { restoreOptions, restoreData } from "./upload";
+import { WBE, isWikiTreeUrl, wrapBackupData, getBackupLink } from "./core/common";
+import { restoreOptions, restoreData, refreshCheck } from "./upload";
 import { navigatorDetect } from "./core/navigatorDetect";
-import { shouldInitializeFeature, getFeatureOptions } from "./core/options/options_storage.js";
+import { shouldInitializeFeature } from "./core/options/options_storage.js";
 
 shouldInitializeFeature("darkMode").then((result) => {
   if (result) {
@@ -419,7 +419,7 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
 }
 
 // when the options page loads, load status of options from storage into the UI elements
-$(document).ready(() => {
+$(() => {
   restore_options();
 });
 
@@ -781,42 +781,6 @@ chrome.storage.onChanged.addListener(function () {
   }
 })((typeof browser !== "undefined" ? browser : chrome).tabs);
 
-function wrapBackupData(key, data) {
-  let now = new Date();
-  let wrapped = {
-    id:
-      Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "medium" }) // sv-SE uses ISO format
-        .format(now)
-        .replace(/:/g, "")
-        .replace(/ /g, "_") +
-      "_WBE_backup_" +
-      key,
-    extension: WBE.name,
-    version: WBE.version,
-    browser: navigator.userAgent,
-    timestamp: now.toISOString(),
-  };
-  wrapped[key] = data;
-  return wrapped;
-}
-
-function getBackupLink(wrappedJsonData) {
-  let link = document.createElement("a");
-  link.title = 'Right-click to "Save as..." at specific location on your device.';
-  let json = JSON.stringify(wrappedJsonData, null, 2);
-  if (navigatorDetect.browser.Safari) {
-    // Safari doesn't handle blobs or the download attribute properly
-    link.href = "data:application/octet-stream," + encodeURIComponent(json);
-    link.target = "_blank";
-    link.title = link.title.replace("Save as...", "Download Linked File As...");
-  } else {
-    let blob = new Blob([json], { type: "text/plain" });
-    link.href = URL.createObjectURL(blob);
-    link.download = wrappedJsonData.id + ".txt";
-  }
-  return link;
-}
-
 function downloadBackupData(key, data, button) {
   const wrapped = wrapBackupData(key, data);
   const link = $(getBackupLink(wrapped)).addClass("button download").text("Download").hide();
@@ -837,8 +801,16 @@ function exportDataClicked() {
     for (let tab of tabs) {
       if (isWikiTreeUrl(tab.url)) {
         chrome.tabs.sendMessage(tab.id, { greeting: "backupData" }, function (response) {
-          if (response && response.ack && response.backup) {
-            downloadBackupData("data", response.backup, button);
+          if (chrome.runtime.lastError) {
+            // Something went wrong
+            console.warn("Whoops.. " + chrome.runtime.lastError.message, response);
+            refreshCheck(chrome.runtime.lastError);
+          }
+          if (response) {
+            if (response.errors) console.log("Backup errors", response.errors);
+            if (response.ack && response.backup) {
+              downloadBackupData("data", response.backup, button);
+            }
           }
         });
         break;

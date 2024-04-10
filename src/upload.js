@@ -1,5 +1,5 @@
 import $ from "jquery";
-import { isWikiTreeUrl } from "./core/common";
+import { isWikiTreeUrl, showFriendlyPopup } from "./core/common";
 
 export function openFileChooser(readerCallback, readAs = "text") {
   if (window.FileReader) {
@@ -81,6 +81,11 @@ export function restoreData(onProcessing) {
               for (let tab of tabs) {
                 if (isWikiTreeUrl(tab.url)) {
                   chrome.tabs.sendMessage(tab.id, { greeting: "restoreData", data: json.data }, function (response) {
+                    if (chrome.runtime.lastError) {
+                      // Something went wrong
+                      console.warn("Whoops.. " + chrome.runtime.lastError.message, response);
+                      refreshCheck(chrome.runtime.lastError);
+                    }
                     if (response) {
                       if (response.nak) {
                         reject(response.nak);
@@ -101,4 +106,14 @@ export function restoreData(onProcessing) {
       }
     });
   });
+}
+
+export function refreshCheck(error) {
+  if (error.message.match("Could not establish connection")) {
+    console.log("Could not establish connection");
+    const errorMessage =
+      "WikiTree Browser Extension has been updated.<br>" +
+      "Please reload ALL the WikiTree tabs or restart you browser and try again.";
+    showFriendlyPopup("#settingsDialog", errorMessage);
+  }
 }
