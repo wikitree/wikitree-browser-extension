@@ -78,6 +78,10 @@ async function predictGender() {
       console.log(gender);
     } else {
       console.log(result?.response);
+      if (result?.response?.simillar){
+        // This is an array of arrays. [name, gender]
+        
+      }
     }
     if (result?.response?.gender?.startsWith("Male")) {
       mGender.val("Male");
