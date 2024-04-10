@@ -5,6 +5,10 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import { fNames, mNames } from "./names.js";
 import { shouldInitializeFeature } from "../../core/options/options_storage.js";
+import { el } from "date-fns/locale";
+let theName = "";
+const mGender = $("select[name='mGender']");
+let wasPredicted = false;
 
 shouldInitializeFeature("genderPredictor").then((result) => {
   if (result && $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
@@ -13,14 +17,31 @@ shouldInitializeFeature("genderPredictor").then((result) => {
   }
 });
 
-async function predictGender() {
-  $("#mGender").on("change", function () {
-    $(this).removeClass("Female Male");
-    $(this).addClass($(this).val());
-    $("#mGenderHelp").remove();
-    $("#mGenderHelpInfo").remove();
-  });
+async function getGenderPrediction(name) {
+  const response = await fetch(
+    `https://plus.wikitree.com/function/WTWebNameDistribution/names.json?FirstName=${name}&Format=json&appId=WBE_genderPredictor`
+  );
+  const data = await response.json();
+  return data;
+}
 
+function setGenderClass(predicted = false) {
+  if (predicted) {
+    wasPredicted = true;
+  } else {
+    wasPredicted = false;
+  }
+  mGender.removeClass("Female Male");
+  mGender.addClass(mGender.val());
+  $("#mGenderHelp").remove();
+  $("#mGenderHelpInfo").remove();
+}
+
+async function predictGender() {
+  mGender.on("change", function () {
+    setGenderClass();
+  });
+  /*
   $("#mFirstName").on("keyup blur", function () {
     let trimd = $(this).val().trim();
     let oFirst = trimd.split(" ")[0].split("-")[0];
@@ -49,5 +70,32 @@ async function predictGender() {
         $(this).attr("title", "");
       });
     }
+  });
+  */
+  function setGender(result) {
+    const gender = result?.response?.gender;
+    if (gender) {
+      console.log(gender);
+    } else {
+      console.log(result?.response);
+    }
+    if (result?.response?.gender?.startsWith("Male")) {
+      mGender.val("Male");
+    } else if (result?.response?.gender?.startsWith("Female")) {
+      mGender.val("Female");
+    } else if (wasPredicted) {
+      mGender.val("");
+    }
+    setGenderClass(true);
+  }
+
+  $("#mFirstName").on("change blur", async function () {
+    const name = $(this).val().trim();
+    if (name == theName || name.length < 2) {
+      return;
+    }
+    theName = name;
+    const result = await getGenderPrediction(name);
+    setGender(result);
   });
 }
