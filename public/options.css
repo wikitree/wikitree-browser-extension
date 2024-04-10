@@ -282,19 +282,19 @@ h1 .toggle-category {
   color: #999;
   text-decoration: none;
 }
-#settingsDialog ul {
+#settingsDialog .dialog-content ul {
   list-style: none;
   margin: 0;
   padding: 0;
 }
-#settingsDialog li {
+#settingsDialog .dialog-content li {
   margin-top: 10px;
 }
-#settingsDialog li:first-child {
+#settingsDialog .dialog-content li:first-child {
   margin-top: 0;
 }
-#settingsDialog button,
-#settingsDialog a.button {
+#settingsDialog .dialog-content button,
+#settingsDialog .dialog-content a.button {
   display: inline-block;
   background-color: #ddd;
   color: #000;
@@ -306,21 +306,21 @@ h1 .toggle-category {
   font-size: 16px;
   text-decoration: none;
 }
-#settingsDialog button:hover,
-#settingsDialog a.button:hover {
+#settingsDialog .dialog-content button:hover,
+#settingsDialog .dialog-content a.button:hover {
   background-color: #8fc641;
   color: #000;
   cursor: pointer;
 }
-#settingsDialog button:active,
-#settingsDialog a.button:active {
+#settingsDialog .dialog-content button:active,
+#settingsDialog .dialog-content a.button:active {
   color: #000;
   box-shadow: 0;
 }
-#settingsDialog a.button.download,
-#settingsDialog a.button.download:active {
+#settingsDialog .dialog-content a.button.download,
+#settingsDialog .dialog-content a.button.download:active {
   background-color: #ffe270;
 }
-#settingsDialog a.button.download:hover {
+#settingsDialog .dialog-content a.button.download:hover {
   background-color: #8fc641;
 }

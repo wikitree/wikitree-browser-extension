@@ -3,10 +3,10 @@ import $ from "jquery";
 import { features, OptionType } from "./core/options/options_registry";
 import { categorize } from "./features/register_categories";
 import "./features/register_feature_options";
-import { WBE, isWikiTreeUrl } from "./core/common";
-import { restoreOptions, restoreData } from "./upload";
+import { WBE, isWikiTreeUrl, showAlert, wrapBackupData, getBackupLink } from "./core/common";
+import { restoreOptions, restoreData, sendMessageToContentTab } from "./upload";
 import { navigatorDetect } from "./core/navigatorDetect";
-import { shouldInitializeFeature, getFeatureOptions } from "./core/options/options_storage.js";
+import { shouldInitializeFeature } from "./core/options/options_storage.js";
 
 shouldInitializeFeature("darkMode").then((result) => {
   if (result) {
@@ -419,7 +419,7 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
 }
 
 // when the options page loads, load status of options from storage into the UI elements
-$(document).ready(() => {
+$(() => {
   restore_options();
 });
 
@@ -609,8 +609,13 @@ $("#openSettings").on("click", function () {
     } else {
       restoreOptions()
         .then(closeSettings)
-        .catch(() => {
-          alert("The options file was not valid.");
+        .catch((response) => {
+          var err = response?.nak ?? JSON.stringify(response ?? "NO_RESPONSE");
+          if (err == "INVALID_FORMAT") {
+            showAlert("The options backup file was not valid.", "Restore Options Failed", "#settingsDialog");
+          } else {
+            console.error(err);
+          }
         });
     }
   });
@@ -624,8 +629,19 @@ $("#openSettings").on("click", function () {
     } else {
       restoreData()
         .then(closeSettings)
-        .catch(() => {
-          alert("The data file was not valid.");
+        .catch((response) => {
+          var err = response?.nak ?? JSON.stringify(response ?? "NO_RESPONSE");
+          if (err == "INVALID_FORMAT") {
+            showAlert("The data backup file was not valid.", "Restore Data Failed", "#settingsDialog");
+          } else if (err == "NO_TABS") {
+            showAlert(
+              "The restore failed because no WikiTree pages responded.\nThis could happen if you closed your tabs or the extension updated.\nOpen a new WikiTree page in your browser, or refresh and try again.",
+              "Restore Data Failed",
+              "#settingsDialog"
+            );
+          } else {
+            console.error(err);
+          }
         });
     }
   });
@@ -781,42 +797,6 @@ chrome.storage.onChanged.addListener(function () {
   }
 })((typeof browser !== "undefined" ? browser : chrome).tabs);
 
-function wrapBackupData(key, data) {
-  let now = new Date();
-  let wrapped = {
-    id:
-      Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "medium" }) // sv-SE uses ISO format
-        .format(now)
-        .replace(/:/g, "")
-        .replace(/ /g, "_") +
-      "_WBE_backup_" +
-      key,
-    extension: WBE.name,
-    version: WBE.version,
-    browser: navigator.userAgent,
-    timestamp: now.toISOString(),
-  };
-  wrapped[key] = data;
-  return wrapped;
-}
-
-function getBackupLink(wrappedJsonData) {
-  let link = document.createElement("a");
-  link.title = 'Right-click to "Save as..." at specific location on your device.';
-  let json = JSON.stringify(wrappedJsonData, null, 2);
-  if (navigatorDetect.browser.Safari) {
-    // Safari doesn't handle blobs or the download attribute properly
-    link.href = "data:application/octet-stream," + encodeURIComponent(json);
-    link.target = "_blank";
-    link.title = link.title.replace("Save as...", "Download Linked File As...");
-  } else {
-    let blob = new Blob([json], { type: "text/plain" });
-    link.href = URL.createObjectURL(blob);
-    link.download = wrappedJsonData.id + ".txt";
-  }
-  return link;
-}
-
 function downloadBackupData(key, data, button) {
   const wrapped = wrapBackupData(key, data);
   const link = $(getBackupLink(wrapped)).addClass("button download").text("Download").hide();
@@ -833,15 +813,19 @@ function exportOptionsClicked() {
 
 function exportDataClicked() {
   const button = this;
-  chrome.tabs.query({}, function (tabs) {
-    for (let tab of tabs) {
-      if (isWikiTreeUrl(tab.url)) {
-        chrome.tabs.sendMessage(tab.id, { greeting: "backupData" }, function (response) {
-          if (response && response.ack && response.backup) {
-            downloadBackupData("data", response.backup, button);
-          }
-        });
-        break;
+  sendMessageToContentTab({ action: "backupData" }, function (response) {
+    if (response && response.ack && response.backup) {
+      downloadBackupData("data", response.backup, button);
+    } else {
+      var err = response?.nak ?? JSON.stringify(response ?? "NO_RESPONSE");
+      if (err == "NO_TABS") {
+        showAlert(
+          "The backup failed because no WikiTree pages responded.\nThis could happen if you closed your tabs or the extension updated.\nOpen a new WikiTree page in your browser, or refresh and try again.",
+          "Backup Data Failed",
+          "#settingsDialog"
+        );
+      } else {
+        console.error(err);
       }
     }
   });
