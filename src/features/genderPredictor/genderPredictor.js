@@ -3,9 +3,8 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { fNames, mNames } from "./names.js";
 import { shouldInitializeFeature } from "../../core/options/options_storage.js";
-import { el } from "date-fns/locale";
+
 let theName = "";
 const mGender = $("select[name='mGender']");
 let wasPredicted = false;
@@ -26,69 +25,67 @@ async function getGenderPrediction(name) {
 }
 
 function setGenderClass(predicted = false) {
-  if (predicted) {
-    wasPredicted = true;
-  } else {
-    wasPredicted = false;
-  }
-  mGender.removeClass("Female Male");
-  mGender.addClass(mGender.val());
-  $("#mGenderHelp").remove();
-  $("#mGenderHelpInfo").remove();
+  setTimeout(() => {
+    if (predicted) {
+      wasPredicted = true;
+    } else {
+      wasPredicted = false;
+    }
+    mGender.removeClass("Female Male");
+    mGender.addClass(mGender.val());
+    $("#mGenderHelp").remove();
+    $("#mGenderHelpInfo").remove();
+  }, 0);
 }
 
 async function predictGender() {
   mGender.on("change", function () {
     setGenderClass();
   });
-  /*
-  $("#mFirstName").on("keyup blur", function () {
-    let trimd = $(this).val().trim();
-    let oFirst = trimd.split(" ")[0].split("-")[0];
-    let oGender = "";
-    if (mNames.includes(oFirst)) {
-      oGender = "Male";
-    } else if (fNames.includes(oFirst)) {
-      oGender = "Female";
-    }
 
-    const mGender = $("select[name='mGender']");
-
-    mGender.val(oGender);
-    mGender.removeClass("Female Male");
-    mGender.addClass(oGender);
-    mGender.parent().css("position", "relative");
-    if ($("#mGenderHelpInfo").length == 0) {
-      mGender
-        .parent()
-        .append(
-          '<img id="mGenderHelp" src="/images/icons/help.gif" border="0" width="11" height="11" title="Predicted based on WikiTree global data"><div id="mGenderHelpInfo">Predicted based on WikiTree global data</div>'
-        );
-      $("#mGenderHelp").hover(function () {
-        $("#mGenderHelpInfo").toggle();
-        $(this).attr("alt", "");
-        $(this).attr("title", "");
-      });
-    }
-  });
-  */
   function setGender(result) {
-    const gender = result?.response?.gender;
-    if (gender) {
-      console.log(gender);
-    } else {
-      console.log(result?.response);
-      if (result?.response?.simillar){
-        // This is an array of arrays. [name, gender]
-        
+    const { gender, similar } = result?.response || {};
+
+    // Helper function to set gender value
+    const setGenderValue = (gender) => mGender.val(gender);
+
+    // Helper function to count and set gender based on counts
+    const countAndSetGender = (maleCount, femaleCount) => {
+      if (maleCount > femaleCount) {
+        setGenderValue("Male");
+      } else if (femaleCount > maleCount) {
+        setGenderValue("Female");
       }
+    };
+
+    // Direct gender assignment if available
+    if (gender && gender !== "Unisex") {
+      console.log(gender);
+      const genderPrefix = gender.split(" ")[0]; // Handles cases like "Male", "Female"
+      if (["Male", "Female"].includes(genderPrefix)) {
+        setGenderValue(genderPrefix);
+      }
+      setGenderClass(true);
+      return; // Exit early if gender is directly available
     }
-    if (result?.response?.gender?.startsWith("Male")) {
-      mGender.val("Male");
-    } else if (result?.response?.gender?.startsWith("Female")) {
-      mGender.val("Female");
+
+    // Handle gender determination based on similar names
+    if (similar?.length) {
+      let maleCount = 0,
+        femaleCount = 0;
+      similar.forEach(({ male, female }) => {
+        maleCount += male;
+        femaleCount += female;
+      });
+      console.log("male:", maleCount, "female:", femaleCount);
+      countAndSetGender(maleCount, femaleCount);
+    } else if (gender === "Unisex") {
+      // Unisex case: decide based on the more common gender
+      const { male: maleCount, female: femaleCount } = result.response;
+      countAndSetGender(maleCount, femaleCount);
+      console.log(result?.response);
     } else if (wasPredicted) {
-      mGender.val("");
+      setGenderValue("");
     }
     setGenderClass(true);
   }
