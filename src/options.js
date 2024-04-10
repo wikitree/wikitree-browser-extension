@@ -798,13 +798,13 @@ function exportOptionsClicked() {
 function exportDataClicked() {
   const button = this;
   chrome.tabs.query({}, function (tabs) {
-    for (let tab of tabs) {
-      if (isWikiTreeUrl(tab.url)) {
+    for (const tab of tabs) {
+      if (isWikiTreeUrl(tab.url) && tab.status == "complete") {
         chrome.tabs.sendMessage(tab.id, { greeting: "backupData" }, function (response) {
           if (chrome.runtime.lastError) {
             // Something went wrong
             console.warn("Whoops.. " + chrome.runtime.lastError.message, response);
-            refreshCheck(chrome.runtime.lastError);
+            refreshCheck(chrome.runtime.lastError, tab.url);
           }
           if (response) {
             if (response.errors) console.log("Backup errors", response.errors);

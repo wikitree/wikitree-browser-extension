@@ -78,13 +78,13 @@ export function restoreData(onProcessing) {
           if ((isValid = json.extension && json.extension.indexOf("WikiTree Browser Extension") === 0 && json.data)) {
             if (onProcessing) onProcessing();
             chrome.tabs.query({}, function (tabs) {
-              for (let tab of tabs) {
-                if (isWikiTreeUrl(tab.url)) {
+              for (const tab of tabs) {
+                if (isWikiTreeUrl(tab.url) && tab.status == "complete") {
                   chrome.tabs.sendMessage(tab.id, { greeting: "restoreData", data: json.data }, function (response) {
                     if (chrome.runtime.lastError) {
                       // Something went wrong
                       console.warn("Whoops.. " + chrome.runtime.lastError.message, response);
-                      refreshCheck(chrome.runtime.lastError);
+                      refreshCheck(chrome.runtime.lastError, tab.url);
                     }
                     if (response) {
                       if (response.nak) {
@@ -108,12 +108,11 @@ export function restoreData(onProcessing) {
   });
 }
 
-export function refreshCheck(error) {
+export function refreshCheck(error, url) {
   if (error.message.match("Could not establish connection")) {
-    console.log("Could not establish connection");
+    console.log(`Could not establish connection to ${url}`);
     const errorMessage =
-      "WikiTree Browser Extension has been updated.<br>" +
-      "Please reload ALL the WikiTree tabs or restart you browser and try again.";
+      "WikiTree Browser Extension has been updated.<br>" + `Find the tab with url ${url} and refresh it.`;
     showFriendlyPopup("#settingsDialog", errorMessage);
   }
 }

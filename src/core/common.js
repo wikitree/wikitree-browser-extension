@@ -529,7 +529,6 @@ export function isWikiTreeUrl(url) {
 }
 
 async function backupData(sendResponse = null) {
-  console.log("backupData called");
   const data = {};
   data.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
   data.myMenu = localStorage.customMenu;
@@ -538,7 +537,6 @@ async function backupData(sendResponse = null) {
   const idb = await getAllData();
   data.indexedDB = idb.data;
   const rsp = { ack: "feature data attached", backup: data, errors: idb.errors };
-  console.log("backup response", rsp);
   if (sendResponse) {
     sendResponse(rsp);
   } else {
@@ -551,22 +549,15 @@ const WBE_DATABASES = ["CC7Database", "Clipboard", "ConnectionFinderWTE", "Relat
 async function getAllData() {
   const allData = {};
   const errors = [];
-  console.log("getAllData");
 
   for (const dbName of WBE_DATABASES) {
-    console.log(`Processing: ${dbName}`);
     try {
-      console.log(`..awaiting open ${dbName}`);
       const db = await openDatabase(dbName);
-      console.log(`..awaiting getObjectStores ${dbName}`);
       const objectStores = await getObjectStores(db);
       const dbData = {};
-      console.log(`ObjectStores for ${dbName}`, objectStores);
 
       for (const storeName of objectStores) {
-        console.log(`....awaiting getAllRecords ${dbName}, ${storeName}`);
         const records = await getAllRecords(db, storeName);
-        console.log(`....retrieved ${records.length} records for ${dbName}, ${storeName}`);
         dbData[storeName] = JSON.stringify(records);
       }
 
@@ -579,7 +570,6 @@ async function getAllData() {
   }
 
   const rsp = { data: allData, errors: errors };
-  console.log("returning allData", rsp);
   return rsp;
 }
 
@@ -650,11 +640,8 @@ async function restoreData(data, sendResponse) {
 }
 
 async function restoreIndexedDB(dbName, dbData) {
-  console.log(`Restoring: ${dbName}`);
   const db = await openDatabase(dbName);
-  console.log(`Opened: ${dbName}`);
   for (const storeName in dbData) {
-    console.log(`Restoring ${dbName}.${storeName}`);
     const jsonStr = dbData[storeName];
     const records = JSON.parse(jsonStr);
     writeToDB(db, dbName, storeName, records);
@@ -722,7 +709,6 @@ function accessAllowed() {
 
     openRequest.onupgradeneeded = (event) => {
       const db = event.target.result;
-      console.log(`${me} creating access object store`);
       db.createObjectStore("access", { keyPath: "accessTime" });
     };
 
@@ -730,7 +716,6 @@ function accessAllowed() {
       const db = event.target.result;
 
       // Write an access request record
-      console.log(`${me} writing access request`);
       const addRecordTran = db.transaction(storeName, "readwrite");
       const addRecordRequest = addRecordTran
         .objectStore(storeName)
@@ -740,14 +725,11 @@ function accessAllowed() {
         addRecordTran.commit();
         // We've added our request, check to see if it is the first in the queue
         // Read all records
-        console.log(`${me} reading all records`);
         const readAllTran = db.transaction(storeName, "readonly");
         const readAllRequest = readAllTran.objectStore(storeName).getAll();
 
         readAllRequest.onsuccess = () => {
-          console.log(`${me} all records read`);
           const records = readAllRequest.result;
-          console.log(`${me} records:`, records);
           // Sort records by accessTime
           records.sort((a, b) => a.accessTime - b.accessTime);
           // Find index of me
@@ -763,13 +745,11 @@ function accessAllowed() {
         };
 
         readAllTran.oncomplete = () => {
-          console.log(`${me} access req: closing db`);
           db.close();
         };
       };
       addRecordRequest.onerror = (event) => {
         // If two timestamps are identical, we deny the 2nd one
-        console.error(`${me} Error writing access request, therefore disallowed:`, event.target.error);
         db.close();
         resolve(false);
       };
@@ -791,7 +771,6 @@ async function releaseAccess() {
     if (db.objectStoreNames.contains(storeName)) {
       const clearRequest = db.transaction(storeName, "readwrite").objectStore(storeName).clear();
       clearRequest.onsuccess = () => {
-        console.log("Released access, closing db");
         db.close();
       };
       clearRequest.onerror = (event) => {
@@ -809,16 +788,12 @@ chrome.runtime.onMessage.removeListener(handleOnMessage);
 chrome.runtime.onMessage.addListener(handleOnMessage);
 function handleOnMessage(request, sender, sendResponse) {
   if (request && request.greeting) {
-    console.log(`Received request:`, request, sender);
     if (request.greeting === "backupData") {
       accessAllowed()
         .then(async (allowed) => {
           if (allowed) {
-            console.log("Backup access allowed");
             await backupData(sendResponse);
             releaseAccess();
-          } else {
-            console.log("Backup access NOT allowed");
           }
         })
         .catch((error) => {
@@ -828,11 +803,8 @@ function handleOnMessage(request, sender, sendResponse) {
       accessAllowed()
         .then(async (allowed) => {
           if (allowed) {
-            console.log("Restore access allowed");
             await restoreData(request.data, sendResponse);
             releaseAccess();
-          } else {
-            console.log("Restore access NOT allowed");
           }
         })
         .catch((error) => {
