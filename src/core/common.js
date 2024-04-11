@@ -1,5 +1,6 @@
 /*
 Created By: Ian Beacall (Beacall-6)
+Contributors: Jonathan Duke (Duke-5773)
 */
 
 import $ from "jquery";
@@ -7,6 +8,65 @@ import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
 import { isNavHomePage } from "./pageType.js";
 import { checkIfFeatureEnabled } from "./options/options_storage";
+
+/* * * * * * * * * * * * * * * * * * * *
+ * Initialization. This section of code should run first.
+ */
+export const WBE = {};
+if (typeof BUILD_INFO !== "undefined") {
+  let buildDate = Date.parse(BUILD_INFO.buildDate);
+  if (!isNaN(buildDate)) WBE.buildDate = new Date(buildDate);
+  if (BUILD_INFO.shortHash) WBE.shortHash = BUILD_INFO.shortHash;
+  if (BUILD_INFO.commitHash) WBE.commitHash = BUILD_INFO.commitHash;
+}
+(function (runtime) {
+  if (runtime) {
+    const manifest = runtime.getManifest();
+    WBE.name = manifest.name;
+    WBE.version = manifest.version;
+    WBE.isDebug = WBE.name.indexOf("(Debug)") > -1; // non-published versions used by developers
+    WBE.isPreview = WBE.isDebug || WBE.name.indexOf("(Preview)") > -1;
+    WBE.isRelease = !WBE.isPreview;
+  }
+})(chrome.runtime);
+
+function getRootWindow(win) {
+  return win == null ? null : win.parent == null || win.parent === win ? win : getRootWindow(win.parent);
+}
+
+function oncePerTab(action) {
+  const rootWindow = getRootWindow(window);
+  const counter =
+    rootWindow == null
+      ? 1
+      : (rootWindow.__wbe_commonCallCount = rootWindow.__wbe_commonCallCount
+          ? rootWindow.__wbe_commonCallCount + 1
+          : 1);
+  if (counter === 1) {
+    if (action) action(rootWindow);
+    return true;
+  }
+  return false;
+}
+
+oncePerTab((rootWindow) => {
+  // Since messages will be target a tab and not a window, we don't want to add multiple listeners if there is an iframe on the page.
+  chrome.runtime.onMessage.addListener(backupRestoreListener);
+
+  if (!WBE.isRelease) {
+    // print the WBE build info in the console for easy debugging
+    console.log(
+      `${WBE.name} ${WBE.version} (${navigatorDetect.browser.name ?? "Unknown"}/${
+        navigatorDetect.os.name ?? "Unknown"
+      })${WBE.shortHash ? " commit " + WBE.shortHash : ""}${WBE.buildDate ? " built " + WBE.buildDate : ""}`
+    );
+  }
+});
+/*
+ * * * * * * * * * * * * * * * * * * * */
+
+// Add wte class to body to let WikiTree BEE know not to add the same functions
+document.querySelector("body").classList.add("wte");
 
 async function checkAnyDataFeature() {
   const features = ["extraWatchlist", "clipboardAndNotes", "customChangeSummaryOptions", "myMenu"];
@@ -133,32 +193,6 @@ function addDataButtons() {
   $("#downloadFeatureData").on("click", downloadFeatureData);
   $("#importFeatureData").on("click", importFeatureData);
 }
-
-// Add wte class to body to let WikiTree BEE know not to add the same functions
-document.querySelector("body").classList.add("wte");
-
-export const WBE = {};
-if (typeof BUILD_INFO !== "undefined") {
-  let buildDate = Date.parse(BUILD_INFO.buildDate);
-  if (!isNaN(buildDate)) WBE.buildDate = new Date(buildDate);
-  if (BUILD_INFO.shortHash) WBE.shortHash = BUILD_INFO.shortHash;
-  if (BUILD_INFO.commitHash) WBE.commitHash = BUILD_INFO.commitHash;
-}
-(function (runtime) {
-  const manifest = runtime.getManifest();
-  WBE.name = manifest.name;
-  WBE.version = manifest.version;
-  WBE.isDebug = WBE.name.indexOf("(Debug)") > -1; // non-published versions used by developers
-  WBE.isPreview = WBE.isDebug || WBE.name.indexOf("(Preview)") > -1;
-  WBE.isRelease = !WBE.isPreview;
-  if (!WBE.isRelease) {
-    console.log(
-      `${WBE.name} ${WBE.version} (${navigatorDetect.browser.name ?? "Unknown"}/${
-        navigatorDetect.os.name ?? "Unknown"
-      })${WBE.shortHash ? " commit " + WBE.shortHash : ""}${WBE.buildDate ? " built " + WBE.buildDate : ""}`
-    );
-  }
-})(chrome.runtime);
 
 /**
  * Creates a new menu item in the Apps dropdown menu.
@@ -655,19 +689,17 @@ export function showAlert(content, title, where = "body") {
   $dialog.get(0).showModal();
 }
 
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+function backupRestoreListener(request, sender, sendResponse) {
   if (request && request.action) {
     if (request.action === "backupData") {
       backupData(sendResponse);
+      return true; // keep the message channel open for async sendResponse
     } else if (request.action === "restoreData") {
       restoreData(request.payload, sendResponse);
-    } else {
-      sendResponse({ nak: "UNKNOWN_ACTION", action: request.action });
+      return true; // keep the message channel open for async sendResponse
     }
-  } else {
-    sendResponse({ nak: "INVALID_MESSAGE" });
   }
-  return true; // potentially prevent the "The message port closed before a response was received." error
-});
+  return false; // this tells Chrome that it can close the channel because no response will be sent
+}
 
 export const treeImageURL = chrome.runtime.getURL("images/tree.gif");
