@@ -282,19 +282,19 @@ h1 .toggle-category {
   color: #999;
   text-decoration: none;
 }
-#settingsDialog ul {
+#settingsDialog .dialog-content ul {
   list-style: none;
   margin: 0;
   padding: 0;
 }
-#settingsDialog li {
+#settingsDialog .dialog-content li {
   margin-top: 10px;
 }
-#settingsDialog li:first-child {
+#settingsDialog .dialog-content li:first-child {
   margin-top: 0;
 }
-#settingsDialog button,
-#settingsDialog a.button {
+#settingsDialog .dialog-content button,
+#settingsDialog .dialog-content a.button {
   display: inline-block;
   background-color: #ddd;
   color: #000;
@@ -306,67 +306,21 @@ h1 .toggle-category {
   font-size: 16px;
   text-decoration: none;
 }
-#settingsDialog button:hover,
-#settingsDialog a.button:hover {
+#settingsDialog .dialog-content button:hover,
+#settingsDialog .dialog-content a.button:hover {
   background-color: #8fc641;
   color: #000;
   cursor: pointer;
 }
-#settingsDialog button:active,
-#settingsDialog a.button:active {
+#settingsDialog .dialog-content button:active,
+#settingsDialog .dialog-content a.button:active {
   color: #000;
   box-shadow: 0;
 }
-#settingsDialog a.button.download,
-#settingsDialog a.button.download:active {
+#settingsDialog .dialog-content a.button.download,
+#settingsDialog .dialog-content a.button.download:active {
   background-color: #ffe270;
 }
-#settingsDialog a.button.download:hover {
+#settingsDialog .dialog-content a.button.download:hover {
   background-color: #8fc641;
-}
-#errorDiv {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border: 3px solid forestgreen;
-  border-radius: 1em;
-  padding: 30px;
-  z-index: 100;
-  -webkit-box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 0.75);
-  -moz-box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 0.75);
-  box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 0.75);
-  font-weight: 700;
-  background-color: #f1e6e7;
-  color: #721c24;
-  padding: 0.75rem 1.25rem;
-  margin-bottom: 1rem;
-  border-radius: 0.25rem;
-}
-
-#errorDiv p {
-  margin: 0;
-  padding: 0;
-}
-
-#errorDiv p b {
-  display: block;
-  font-size: 1.2em;
-}
-
-#errorDiv #closeErrorMessageButton {
-  position: absolute;
-  top: 0;
-  right: 0;
-  border: none;
-  border-radius: 5px;
-  padding: 0 5px;
-  font-size: 1.5rem;
-  font-weight: bold;
-  cursor: pointer;
-  margin: 0;
-}
-
-#errorDiv.contextInvalidated {
-  width: fit-content;
 }

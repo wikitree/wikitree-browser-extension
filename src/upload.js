@@ -1,10 +1,11 @@
 import $ from "jquery";
-import { isWikiTreeUrl, showFriendlyPopup } from "./core/common";
+import { isWikiTreeUrl } from "./core/common";
 
 export function openFileChooser(readerCallback, readAs = "text") {
   if (window.FileReader) {
     let chooser = document.createElement("input");
     chooser.type = "file";
+    chooser.accept = "text/plain";
     chooser.addEventListener("change", function (e) {
       if (chooser.files && chooser.files.length > 0) {
         let reader = new FileReader();
@@ -36,11 +37,11 @@ export function restoreOptions(onProcessing) {
   return new Promise((resolve, reject) => {
     openFileChooser(async function (e) {
       if (!this.result) {
-        reject({ error: "empty" });
+        reject({ nak: "EMPTY_FILE" });
       } else {
         let isValid = false;
         try {
-          let json = JSON.parse(this.result);
+          const json = JSON.parse(this.result);
           if (
             (isValid = json.extension && json.extension.indexOf("WikiTree Browser Extension") === 0 && json.features)
           ) {
@@ -49,9 +50,11 @@ export function restoreOptions(onProcessing) {
               resolve();
             });
           }
-        } catch {}
+        } catch {
+          /* if JSON parsing failed or some other error, isValid will still be false here */
+        }
         if (!isValid) {
-          reject({ error: "invalid", content: this.result });
+          reject({ nak: "INVALID_FORMAT", content: this.result });
         }
       }
     });
@@ -62,7 +65,7 @@ export function restoreData(onProcessing) {
   return new Promise((resolve, reject) => {
     openFileChooser(function (e) {
       if (!this.result) {
-        reject({ error: "empty" });
+        reject({ nak: "EMPTY_FILE" });
       } else {
         let isValid = false;
         try {
@@ -77,42 +80,48 @@ export function restoreData(onProcessing) {
           }
           if ((isValid = json.extension && json.extension.indexOf("WikiTree Browser Extension") === 0 && json.data)) {
             if (onProcessing) onProcessing();
-            chrome.tabs.query({}, function (tabs) {
-              for (const tab of tabs) {
-                if (isWikiTreeUrl(tab.url) && tab.status == "complete") {
-                  chrome.tabs.sendMessage(tab.id, { greeting: "restoreData", data: json.data }, function (response) {
-                    if (chrome.runtime.lastError) {
-                      // Something went wrong
-                      console.warn("Whoops.. " + chrome.runtime.lastError.message, response);
-                      refreshCheck(chrome.runtime.lastError, tab.url);
-                    }
-                    if (response) {
-                      if (response.nak) {
-                        reject(response.nak);
-                      } else if (response.ack) {
-                        resolve();
-                      }
-                    }
-                  });
-                  break;
-                }
+            sendMessageToContentTab({ action: "restoreData", payload: json.data }, function (response) {
+              if (response && response.ack) {
+                resolve();
+              } else {
+                reject(response);
               }
             });
           }
-        } catch {}
+        } catch {
+          /* if JSON parsing failed or some other error, isValid will still be false here */
+        }
         if (!isValid) {
-          reject({ error: "invalid", content: this.result });
+          reject({ nak: "INVALID_FORMAT", content: this.result });
         }
       }
     });
   });
 }
 
-export function refreshCheck(error, url) {
-  if (error.message.match("Could not establish connection")) {
-    console.log(`Could not establish connection to ${url}`);
-    const errorMessage =
-      "WikiTree Browser Extension has been updated.<br>" + `Find the tab with url ${url} and refresh it.`;
-    showFriendlyPopup("#settingsDialog", errorMessage);
+export function sendMessageToContentTab(message, callback) {
+  // emulate this synchronously by checking each tab and waiting for a response to see if an error was thrown by sendMessage
+  async function _trySendMessageAsync(tabs, message, callback, index) {
+    if (tabs && tabs.length && index < tabs.length) {
+      const tab = tabs[index];
+      if (tab && tab.url && isWikiTreeUrl(tab.url) && tab.status == "complete" && tab.id) {
+        chrome.tabs.sendMessage(tab.id, message, function (response) {
+          if (chrome.runtime.lastError) {
+            _trySendMessageAsync(tabs, message, callback, index + 1); // try the next tab
+          } else if (callback) {
+            callback(response);
+          }
+        });
+      } else {
+        _trySendMessageAsync(tabs, message, callback, index + 1); // try the next tab
+      }
+    } else if (callback) {
+      callback({
+        nak: "NO_TABS",
+      });
+    }
   }
+  chrome.tabs.query({}, async function (tabs) {
+    _trySendMessageAsync(tabs, message, callback, 0);
+  });
 }

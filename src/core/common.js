@@ -1,5 +1,6 @@
 /*
 Created By: Ian Beacall (Beacall-6)
+Contributors: Jonathan Duke (Duke-5773)
 */
 
 import $ from "jquery";
@@ -7,6 +8,59 @@ import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
 import { isNavHomePage } from "./pageType.js";
 import { checkIfFeatureEnabled } from "./options/options_storage";
+
+/* * * * * * * * * * * * * * * * * * * *
+ * Initialization. This section of code should run first.
+ */
+export const WBE = {};
+if (typeof BUILD_INFO !== "undefined") {
+  let buildDate = Date.parse(BUILD_INFO.buildDate);
+  if (!isNaN(buildDate)) WBE.buildDate = new Date(buildDate);
+  if (BUILD_INFO.shortHash) WBE.shortHash = BUILD_INFO.shortHash;
+  if (BUILD_INFO.commitHash) WBE.commitHash = BUILD_INFO.commitHash;
+}
+(function (runtime) {
+  if (runtime) {
+    const manifest = runtime.getManifest();
+    WBE.name = manifest.name;
+    WBE.version = manifest.version;
+    WBE.isDebug = WBE.name.indexOf("(Debug)") > -1; // non-published versions used by developers
+    WBE.isPreview = WBE.isDebug || WBE.name.indexOf("(Preview)") > -1;
+    WBE.isRelease = !WBE.isPreview;
+  }
+})(chrome.runtime);
+
+function getRootWindow(win) {
+  return win == null ? null : win.parent == null || win.parent === win ? win : getRootWindow(win.parent);
+}
+
+function oncePerTab(action) {
+  const rootWindow = getRootWindow(window);
+  if (!rootWindow || rootWindow === window) {
+    if (action) action(rootWindow);
+    return true;
+  }
+  return false;
+}
+
+oncePerTab((rootWindow) => {
+  // Since messages will be target a tab and not a window, we don't want to add multiple listeners if there is an iframe on the page.
+  chrome.runtime.onMessage.addListener(backupRestoreListener);
+
+  if (!WBE.isRelease) {
+    // print the WBE build info in the console for easy debugging
+    console.log(
+      `${WBE.name} ${WBE.version} (${navigatorDetect.browser.name ?? "Unknown"}/${
+        navigatorDetect.os.name ?? "Unknown"
+      })${WBE.shortHash ? " commit " + WBE.shortHash : ""}${WBE.buildDate ? " built " + WBE.buildDate : ""}`
+    );
+  }
+});
+/*
+ * * * * * * * * * * * * * * * * * * * */
+
+// Add wte class to body to let WikiTree BEE know not to add the same functions
+document.querySelector("body").classList.add("wte");
 
 async function checkAnyDataFeature() {
   const features = ["extraWatchlist", "clipboardAndNotes", "customChangeSummaryOptions", "myMenu"];
@@ -35,11 +89,17 @@ if (isNavHomePage) {
   checkAnyDataFeature();
 }
 
-async function downloadFeatureData() {
-  const backupRsp = await backupData();
-  const wrapped = wrapBackupData("data", backupRsp.backup);
-  const link = getBackupLink(wrapped);
-  link.click();
+function downloadFeatureData() {
+  backupData(false, (response) => {
+    if (response && response.ack) {
+      const wrapped = wrapBackupData("data", response.backup);
+      const link = getBackupLink(wrapped);
+      link.click();
+    } else {
+      const err = response?.nak ?? JSON.stringify(response ?? "Backup failed");
+      showFriendlyError(err);
+    }
+  });
 }
 
 export function wrapBackupData(key, data) {
@@ -81,22 +141,30 @@ export function getBackupLink(wrappedJsonData) {
 function importFeatureData() {
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = "application/txt";
+  input.accept = "text/plain";
   input.onchange = function () {
     const file = input.files[0];
     const reader = new FileReader();
     reader.onload = async function () {
-      const json = JSON.parse(reader.result);
-      if (json.extension.startsWith("WikiTree Browser Extension") && json.data) {
-        if (json.features) {
-          // old format - convert
-          json.data.clipboard = JSON.stringify(json.data.clipboard);
+      let isValid = false;
+      try {
+        const json = JSON.parse(reader.result);
+        if ((isValid = json.extension && json.extension.indexOf("WikiTree Browser Extension") === 0 && json.data)) {
+          restoreData(json.data, (response) => {
+            if (response && response.ack) {
+              // Reload the page to apply the changes
+              location.reload();
+            } else {
+              const err = response?.nak ?? JSON.stringify(response ?? "Restore failed");
+              showFriendlyError(err);
+            }
+          });
         }
-        await restoreData(json.data);
-        // Reload the page to apply the changes
-        location.reload();
-      } else {
-        alert("Invalid file");
+      } catch {
+        /* if JSON parsing failed or some other error, isValid will still be false here */
+      }
+      if (!isValid) {
+        showFriendlyError("Invalid file");
       }
     };
     reader.readAsText(file);
@@ -119,32 +187,6 @@ function addDataButtons() {
   $("#downloadFeatureData").on("click", downloadFeatureData);
   $("#importFeatureData").on("click", importFeatureData);
 }
-
-// Add wte class to body to let WikiTree BEE know not to add the same functions
-document.querySelector("body").classList.add("wte");
-
-export const WBE = {};
-if (typeof BUILD_INFO !== "undefined") {
-  let buildDate = Date.parse(BUILD_INFO.buildDate);
-  if (!isNaN(buildDate)) WBE.buildDate = new Date(buildDate);
-  if (BUILD_INFO.shortHash) WBE.shortHash = BUILD_INFO.shortHash;
-  if (BUILD_INFO.commitHash) WBE.commitHash = BUILD_INFO.commitHash;
-}
-(function (runtime) {
-  const manifest = runtime.getManifest();
-  WBE.name = manifest.name;
-  WBE.version = manifest.version;
-  WBE.isDebug = WBE.name.indexOf("(Debug)") > -1; // non-published versions used by developers
-  WBE.isPreview = WBE.isDebug || WBE.name.indexOf("(Preview)") > -1;
-  WBE.isRelease = !WBE.isPreview;
-  if (!WBE.isRelease) {
-    console.log(
-      `${WBE.name} ${WBE.version} (${navigatorDetect.browser.name ?? "Unknown"}/${
-        navigatorDetect.os.name ?? "Unknown"
-      })${WBE.shortHash ? " commit " + WBE.shortHash : ""}${WBE.buildDate ? " built " + WBE.buildDate : ""}`
-    );
-  }
-})(chrome.runtime);
 
 /**
  * Creates a new menu item in the Apps dropdown menu.
@@ -528,13 +570,18 @@ export function isWikiTreeUrl(url) {
   return false;
 }
 
-async function backupData(sendResponse = null) {
+const WBE_DATABASES_MINIMAL = ["Clipboard"];
+const WBE_DATABASES_ALL = [...WBE_DATABASES_MINIMAL, "CC7Database", "ConnectionFinderWTE", "RelationshipFinderWTE"];
+
+async function backupData(compactMode, sendResponse) {
   const data = {};
   data.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
   data.myMenu = localStorage.customMenu;
   data.extraWatchlist = localStorage.extraWatchlist;
 
-  const idb = await getAllData();
+  const databases = compactMode ? WBE_DATABASES_MINIMAL : WBE_DATABASES_ALL;
+
+  const idb = await getAllData(databases);
   data.indexedDB = idb.data;
   const rsp = { ack: "feature data attached", backup: data, errors: idb.errors };
   if (sendResponse) {
@@ -544,13 +591,11 @@ async function backupData(sendResponse = null) {
   }
 }
 
-const WBE_DATABASES = ["CC7Database", "Clipboard", "ConnectionFinderWTE", "RelationshipFinderWTE"];
-
-async function getAllData() {
+async function getAllData(databases) {
   const allData = {};
   const errors = [];
 
-  for (const dbName of WBE_DATABASES) {
+  for (const dbName of databases) {
     try {
       const db = await openDatabase(dbName);
       const objectStores = await getObjectStores(db);
@@ -630,7 +675,7 @@ async function restoreData(data, sendResponse) {
   if (data.clipboard) {
     await restoreIndexedDB("Clipboard", { Clipboard: data.clipboard });
   } else if (data.indexedDB) {
-    for (const dbName of WBE_DATABASES) {
+    for (const dbName of WBE_DATABASES_ALL) {
       if (data.indexedDB[dbName]) {
         await restoreIndexedDB(dbName, data.indexedDB[dbName]);
       }
@@ -674,11 +719,11 @@ export function extensionContextInvalidatedCheck(error) {
   if (error.message.match("Extension context invalidated")) {
     console.log("Extension context invalidated");
     const errorMessage = "WikiTree Browser Extension has been updated. <br>Please reload the page and try again.";
-    showFriendlyPopup("body", errorMessage);
+    showFriendlyError(errorMessage);
   }
 }
 
-export function showFriendlyPopup(where, errorMessage) {
+export function showFriendlyError(errorMessage, where = "body") {
   // Put the message in a small friendly popup, not an alert(), in the centre of the page, fixed position, with an X to close it.
   const messageDiv = $(
     "<div id='errorDiv' class='contextInvalidated'><button id='closeErrorMessageButton'>x</button>" +
@@ -686,136 +731,65 @@ export function showFriendlyPopup(where, errorMessage) {
       "</div>"
   );
   $(where).append(messageDiv);
-  $("#closeErrorMessageButton").on("click", function () {
-    $("#errorDiv").slideUp();
-    setTimeout(function () {
-      $("#errorDiv").remove();
-    }, 1000);
-  });
-}
-
-// accessAllowed() and releaseAccess() are "semaphore actions" implemented on top of indexedDB for the sole purpose
-// of working around the fact that the onmessage listener at the end of this file gets called twice (for some mysterious
-// reason) when options.js calls sendMessage. All other attempts to prevent double action on save/restore failed because
-// (it seems) that common.js gets loaded twice in completeley independent contexts. Even using localStorage did not help
-// as both calls read the semaphore as being open.
-
-function accessAllowed() {
-  return new Promise((resolve, reject) => {
-    const me = Math.floor(Math.random() * 1000000);
-    const dbName = "BackupAccess";
-    const storeName = "access";
-    const openRequest = indexedDB.open(dbName, 1);
-
-    openRequest.onupgradeneeded = (event) => {
-      const db = event.target.result;
-      db.createObjectStore("access", { keyPath: "accessTime" });
-    };
-
-    openRequest.onsuccess = (event) => {
-      const db = event.target.result;
-
-      // Write an access request record
-      const addRecordTran = db.transaction(storeName, "readwrite");
-      const addRecordRequest = addRecordTran
-        .objectStore(storeName)
-        .add({ accessTime: Math.floor(performance.now() * 1000), me: me });
-
-      addRecordRequest.onsuccess = () => {
-        addRecordTran.commit();
-        // We've added our request, check to see if it is the first in the queue
-        // Read all records
-        const readAllTran = db.transaction(storeName, "readonly");
-        const readAllRequest = readAllTran.objectStore(storeName).getAll();
-
-        readAllRequest.onsuccess = () => {
-          const records = readAllRequest.result;
-          // Sort records by accessTime
-          records.sort((a, b) => a.accessTime - b.accessTime);
-          // Find index of me
-          const myIdx = records.findIndex((record) => record.me === me);
-          // If me is the first record, we have access
-          resolve(myIdx === 0);
-        };
-
-        readAllRequest.onerror = (event) => {
-          console.error(`${me} getAllRecordsRequest error`, event.target.error);
-          db.close();
-          reject(event.target.error);
-        };
-
-        readAllTran.oncomplete = () => {
-          db.close();
-        };
-      };
-      addRecordRequest.onerror = (event) => {
-        // If two timestamps are identical, we deny the 2nd one
-        db.close();
-        resolve(false);
-      };
-    };
-
-    openRequest.onerror = (event) => {
-      reject(event.target.error);
-    };
-  });
-}
-
-async function releaseAccess() {
-  const dbName = "BackupAccess";
-  const storeName = "access";
-
-  const openRequest = indexedDB.open(dbName);
-  openRequest.onsuccess = (event) => {
-    const db = event.target.result;
-    if (db.objectStoreNames.contains(storeName)) {
-      const clearRequest = db.transaction(storeName, "readwrite").objectStore(storeName).clear();
-      clearRequest.onsuccess = () => {
-        db.close();
-      };
-      clearRequest.onerror = (event) => {
-        console.error("error deleting all access records:", event.target.error);
-        db.close();
-      };
-    }
-  };
-  openRequest.onerror = (event) => {
-    console.error("error releasing access:", event.target.error);
-  };
-}
-
-chrome.runtime.onMessage.removeListener(handleOnMessage);
-chrome.runtime.onMessage.addListener(handleOnMessage);
-function handleOnMessage(request, sender, sendResponse) {
-  if (request && request.greeting) {
-    if (request.greeting === "backupData") {
-      accessAllowed()
-        .then(async (allowed) => {
-          if (allowed) {
-            await backupData(sendResponse);
-            releaseAccess();
-          }
-        })
-        .catch((error) => {
-          console.error("Error getting backup access, therefore disallowed:", error);
-        });
-    } else if (request.greeting === "restoreData") {
-      accessAllowed()
-        .then(async (allowed) => {
-          if (allowed) {
-            await restoreData(request.data, sendResponse);
-            releaseAccess();
-          }
-        })
-        .catch((error) => {
-          console.error("Error getting restore access, therefore disallowed:", error);
-        });
-    } else {
-      sendResponse({ nak: `unexpected greeting ${request.greeting}` });
-    }
+  if (messageDiv.css("position") !== "fixed") {
+    // fall back to a standard alert if the CSS for #errorDiv has not been imported
+    messageDiv.remove();
+    alert(errorMessage);
   } else {
-    sendResponse({ nak: "unexpected request" });
+    $("#closeErrorMessageButton").on("click", function () {
+      $("#errorDiv").slideUp();
+      setTimeout(function () {
+        $("#errorDiv").remove();
+      }, 1000);
+    });
   }
-  return true; // potentially prevent the "The message port closed before a response was received." error
 }
+
+export function showAlert(content, title, where = "body") {
+  // replace the browser's alert() method with an HTML-based modal dialog
+  // this is based on the settings dialog from the WBE options window
+  let $title = $("<div></div>").text(title || "WikiTree Browser Extension"); // use || to prevent title from being blank
+  let $content = $("<div></div>").html(content ?? "");
+  if ($content.children().length === 0) {
+    // if they only passed in text without any HTML elements, replace CR/LF with <br> tags
+    $content.html($content.html().replace(/\r?\n/g, "<br /> "));
+  }
+  let $dialog = $('<dialog id="showAlertDialog">').append([
+    $title.addClass("dialog-header").prepend(
+      $('<a href="#" class="close">&#x2715;</a>') // add close button before the title text
+    ),
+    $content.addClass("dialog-content"),
+  ]);
+  $dialog.appendTo($(where).remove("#showAlertDialog")).on("click", function (e) {
+    if (e.target === this) {
+      this.close(); // close modal if the backdrop is clicked
+    }
+  });
+  $dialog
+    .find(".close")
+    .on("auxclick", function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    })
+    .on("click", function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      this.closest("dialog")?.close();
+    });
+  $dialog.get(0).showModal();
+}
+
+function backupRestoreListener(request, sender, sendResponse) {
+  if (request && request.action) {
+    if (request.action === "backupData") {
+      backupData(true, sendResponse); // backup in compact mode for now, because more than 128 MB cannot be sent back via messaging
+      return true; // keep the message channel open for async sendResponse
+    } else if (request.action === "restoreData") {
+      restoreData(request.payload, sendResponse);
+      return true; // keep the message channel open for async sendResponse
+    }
+  }
+  return false; // this tells Chrome that it can close the channel because no response will be sent
+}
+
 export const treeImageURL = chrome.runtime.getURL("images/tree.gif");
