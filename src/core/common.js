@@ -36,13 +36,7 @@ function getRootWindow(win) {
 
 function oncePerTab(action) {
   const rootWindow = getRootWindow(window);
-  const counter =
-    rootWindow == null
-      ? 1
-      : (rootWindow.__wbe_commonCallCount = rootWindow.__wbe_commonCallCount
-          ? rootWindow.__wbe_commonCallCount + 1
-          : 1);
-  if (counter === 1) {
+  if (!rootWindow || rootWindow === window) {
     if (action) action(rootWindow);
     return true;
   }
