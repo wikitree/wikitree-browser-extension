@@ -90,7 +90,7 @@ if (isNavHomePage) {
 }
 
 function downloadFeatureData() {
-  backupData((response) => {
+  backupData(false, (response) => {
     if (response && response.ack) {
       const wrapped = wrapBackupData("data", response.backup);
       const link = getBackupLink(wrapped);
@@ -145,7 +145,7 @@ function importFeatureData() {
   input.onchange = function () {
     const file = input.files[0];
     const reader = new FileReader();
-    reader.onload = function () {
+    reader.onload = async function () {
       let isValid = false;
       try {
         const json = JSON.parse(reader.result);
@@ -175,11 +175,11 @@ function importFeatureData() {
 function addDataButtons() {
   const dataButtons = `
     <div id="featureDataButtons">
-      <button id="downloadFeatureData" 
-      title="Download a backup file for your WikiTree Browser Extension data from the Extra Watchlist, 
+      <button id="downloadFeatureData"
+      title="Download a backup file for your WikiTree Browser Extension data from the Extra Watchlist,
       My Menu, Clipboard and Notes, and Custom Change Summary Options features">Download WBE Feature Data</button>
       <button id="importFeatureData"
-      title="Import/restore data from a backup file for your WikiTree Browser Extension data from the Extra Watchlist, 
+      title="Import/restore data from a backup file for your WikiTree Browser Extension data from the Extra Watchlist,
       My Menu, Clipboard and Notes, and Custom Change Summary Options features">Import WBE Feature Data</button>
     </div>
   `;
@@ -570,29 +570,99 @@ export function isWikiTreeUrl(url) {
   return false;
 }
 
-function backupData(sendResponse) {
+const WBE_DATABASES_MINIMAL = ["Clipboard"];
+const WBE_DATABASES_ALL = [...WBE_DATABASES_MINIMAL, "CC7Database", "ConnectionFinderWTE", "RelationshipFinderWTE"];
+
+async function backupData(compactMode, sendResponse) {
   const data = {};
   data.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
   data.myMenu = localStorage.customMenu;
   data.extraWatchlist = localStorage.extraWatchlist;
-  const clipboardDB = window.indexedDB.open("Clipboard", window.idbv2);
-  clipboardDB.onsuccess = function (event) {
-    let cdb = clipboardDB.result;
-    try {
-      let transaction = cdb.transaction(["Clipboard"]);
-      let req = transaction.objectStore("Clipboard").getAll();
-      req.onsuccess = function (event) {
-        data.clipboard = JSON.stringify(req.result);
-        sendResponse({ ack: "feature data attached", backup: data });
-      };
-    } catch (e) {
-      console.warn(e); // we weren't able to export any clipboard data, but we can still download the rest
-      sendResponse({ ack: "feature data attached", backup: data });
-    }
-  };
+
+  const databases = compactMode ? WBE_DATABASES_MINIMAL : WBE_DATABASES_ALL;
+
+  const idb = await getAllData(databases);
+  data.indexedDB = idb.data;
+  const rsp = { ack: "feature data attached", backup: data, errors: idb.errors };
+  if (sendResponse) {
+    sendResponse(rsp);
+  } else {
+    return rsp;
+  }
 }
 
-function restoreData(data, sendResponse) {
+async function getAllData(databases) {
+  const allData = {};
+  const errors = [];
+
+  for (const dbName of databases) {
+    try {
+      const db = await openDatabase(dbName);
+      const objectStores = await getObjectStores(db);
+      const dbData = {};
+
+      for (const storeName of objectStores) {
+        const records = await getAllRecords(db, storeName);
+        dbData[storeName] = JSON.stringify(records);
+      }
+
+      allData[dbName] = dbData;
+      db.close();
+    } catch (error) {
+      console.error(`Error retrieving data for ${dbName}:`, error);
+      errors.push([dbName, error]);
+    }
+  }
+
+  const rsp = { data: allData, errors: errors };
+  return rsp;
+}
+
+async function openDatabase(dbName) {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(dbName);
+
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+  });
+}
+
+async function getObjectStores(db) {
+  return Array.from(db.objectStoreNames);
+}
+
+async function getAllRecords(db, storeName) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, "readonly");
+    const objectStore = transaction.objectStore(storeName);
+    if (objectStore.autoIncrement) {
+      const records = [];
+
+      transaction.oncomplete = () => {
+        resolve(records);
+      };
+
+      transaction.onerror = () => {
+        reject(transaction.error);
+      };
+
+      objectStore.openCursor().onsuccess = (event) => {
+        const cursor = event.target.result;
+        if (cursor) {
+          records.push({ key: cursor.key, value: cursor.value });
+          cursor.continue();
+        }
+      };
+    } else {
+      const request = objectStore.getAll();
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    }
+  });
+}
+
+async function restoreData(data, sendResponse) {
   if (data.changeSummaryOptions) {
     localStorage.setItem("LSchangeSummaryOptions", data.changeSummaryOptions);
   }
@@ -603,20 +673,46 @@ function restoreData(data, sendResponse) {
     localStorage.setItem("extraWatchlist", data.extraWatchlist);
   }
   if (data.clipboard) {
-    const clipboard = JSON.parse(data.clipboard);
-    clipboard.forEach(function (aClipping) {
-      addToDB("Clipboard", 1, "Clipboard", aClipping);
-    });
-    sendResponse({ ack: "data restored" });
+    await restoreIndexedDB("Clipboard", { Clipboard: data.clipboard });
+  } else if (data.indexedDB) {
+    for (const dbName of WBE_DATABASES_ALL) {
+      if (data.indexedDB[dbName]) {
+        await restoreIndexedDB(dbName, data.indexedDB[dbName]);
+      }
+    }
   }
+  if (sendResponse) sendResponse({ ack: "data restored" });
 }
 
-function addToDB(db, dbv, os, obj) {
-  const aDB = window.indexedDB.open(db, dbv);
-  aDB.onsuccess = function (event) {
-    let xdb = aDB.result;
-    let insert = xdb.transaction([os], "readwrite").objectStore(os).put(obj);
+async function restoreIndexedDB(dbName, dbData) {
+  const db = await openDatabase(dbName);
+  for (const storeName in dbData) {
+    const jsonStr = dbData[storeName];
+    const records = JSON.parse(jsonStr);
+    writeToDB(db, dbName, storeName, records);
+  }
+  db.close();
+}
+
+function writeToDB(db, dbName, storeName, records) {
+  const transaction = db.transaction(storeName, "readwrite");
+
+  transaction.oncomplete = () => {
+    console.log(`Data written for ${dbName}.${storeName}`);
   };
+  transaction.onerror = (event) => {
+    console.error(`Error writing data for ${dbName}.${storeName}`, event.target.error);
+  };
+
+  // Add each record to the object store
+  const objectStore = transaction.objectStore(storeName);
+  records.forEach((record) => {
+    if (record.key) {
+      objectStore.put(record.value, record.key);
+    } else {
+      objectStore.put(record);
+    }
+  });
 }
 
 export function extensionContextInvalidatedCheck(error) {
@@ -686,7 +782,7 @@ export function showAlert(content, title, where = "body") {
 function backupRestoreListener(request, sender, sendResponse) {
   if (request && request.action) {
     if (request.action === "backupData") {
-      backupData(sendResponse);
+      backupData(true, sendResponse); // backup in compact mode for now, because more than 128 MB cannot be sent back via messaging
       return true; // keep the message channel open for async sendResponse
     } else if (request.action === "restoreData") {
       restoreData(request.payload, sendResponse);
