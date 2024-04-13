@@ -183,7 +183,7 @@ function handleDateInput(dateString, inputElement) {
   }
 
   // Detect if the date string has an ambiguous month abbreviation
-  const ambiguousMonthMatch = dateString.match(/\b(Ju|J|M|Ma|A)\b/i);
+  const ambiguousMonthMatch = dateString.match(/.*(Ju|J|M|Ma|A)(\s|\.|-)/i);
   if (ambiguousMonthMatch) {
     const possibleMonths = getAmbiguousMonths(ambiguousMonthMatch[0]);
     return displayClarificationModal(dateString, ambiguousMonthMatch[0], inputElement, possibleMonths);
@@ -556,7 +556,7 @@ function fixDates() {
     }
 
     // Check for ambiguous month abbreviations
-    const ambiguousMonthMatch = input.match(/\b(Ju|J|M|Ma|A)\b/i);
+    const ambiguousMonthMatch = input.match(/.*(Ju|J|M|Ma|A)(\s|\.|-)/i);
     if (ambiguousMonthMatch) {
       console.log("Found ambiguous month abbreviation:", ambiguousMonthMatch[0]);
 
