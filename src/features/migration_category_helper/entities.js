@@ -296,6 +296,8 @@ export const entities = {
     "Free and Hanseatic City of Hamburg",
     "Free and Hanseatic City of Lübeck",
   ],
+  "German Confederation/German Empire/Holy Roman Empire (delete two)": ["Württemberg" /* wrong, but heavily used*/],
+
   "German Democratic Republic (East Germany)": [
     "Rostock District",
     "Schwerin District",
@@ -478,6 +480,14 @@ export const entities = {
     "Glasgow",
   ],
 
+  "South Africa, Historic Places": [
+    "Cape Colony",
+    "Dutch Cape Colony",
+    "Free State pre 1910" /* currently no migration categories*/,
+    "Natal pre 1910" /* currently no migration categories*/,
+    "South West Africa 1915-1990" /* currently no migration categories*/,
+    "Transvaal pre 1910",
+  ],
   Sweden: [
     "Blekinge County",
     "Gothenburg and Bohus County",
