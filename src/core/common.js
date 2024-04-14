@@ -420,10 +420,10 @@ export async function showDraftList() {
   }
   $("#myDrafts").remove();
   $("body").append($("<div id='myDrafts'><h2>My Drafts</h2><x>x</x><table></table></div>"));
-  $("#myDrafts").trigger("dblclick", function () {
+  $("#myDrafts").on("dblclick", function () {
     $(this).slideUp();
   });
-  $("#myDrafts x").trigger("click", function () {
+  $("#myDrafts x").on("click", function () {
     $(this).parent().slideUp();
   });
   $("#myDrafts").draggable();
