@@ -146,8 +146,6 @@ shouldInitializeFeature("distanceAndRelationship").then((result) => {
               addRelationshipText(aRequest2.result.relationship, aRequest2.result.commonAncestors);
             }
           }
-        } else {
-          doRelationshipText(userID, profileID);
         }
       };
       aRequest2.onerror = (error) => {
