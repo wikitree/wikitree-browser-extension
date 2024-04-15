@@ -90,7 +90,7 @@ export const dataTablesLoad = (callerID) => {
           if (dataTables.dataVersion.getTime() < new Date().getTime() - 6 * 3600 * 1000) {
             //if (dataTables.dataVersion < new Date().getTime() - 6 * 3600 * 1000) {
             // Loading of template definition From Web
-            return fetch(`https://plus.wikitree.com/chrome/templatesExp.json?appid=${callerID}`)
+            return fetch(`https://plus.wikitree.com/chrome/templatesExp.json?appId=${callerID}`)
               .then((resp) => resp.json())
               .then((jsonData) => {
                 const d = new Date(jsonData.version);

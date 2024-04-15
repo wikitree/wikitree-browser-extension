@@ -8,14 +8,14 @@
  */
 
 import { registerFeature, OptionType } from "../../core/options/options_registry";
-import { isCategoryPage, isProfilePage, isSpacePage } from "../../core/pageType";
+import { mainDomain, isCategoryPage, isProfilePage, isSpacePage } from "../../core/pageType";
 
 const readabilityFeature = {
   name: "Readability Options",
   id: "readability",
   description:
     "Enable reading mode to toggle the WikiTree interface on and off when browsing profiles. Configure additional styling options to make profiles more readable.",
-  helpLink: "https://www.wikitree.com/wiki/Space:WikiTree_Readability_Options#Options",
+  helpLink: "https://" + mainDomain + "/wiki/Space:WikiTree_Readability_Options#Options",
   category: "Profile",
   creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   contributors: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],

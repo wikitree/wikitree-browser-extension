@@ -9646,7 +9646,7 @@ class Biography {
     // remove any sources which are just a reference to the gedcom - this is in the change history
     // * WikiTree profile Brockenhuus-1 created through the import of famstieger.GED on Nov 27, 2011
     // by [[Stieger-1 | Paul Stieger]].
-    // See the [http://www.wikitree.com/index.php?title=Special:NetworkFeed&who=Brockenhuus-1 Changes page]
+    // See the [http://wikitree.com/index.php?title=Special:NetworkFeed&who=Brockenhuus-1 Changes page]
     // for the details of edits by Paul and others.
     // * WikiTree profile West-1618 created through the import of Michael John McCook Family Tre.ged on Aug 8, 2011 by [[McCook-17 | Michael McCook]]
     text = text
@@ -9663,7 +9663,7 @@ class Biography {
       )
       .trim();
 
-    // See the [http://www.wikitree.com/index.php?title=Special:NetworkFeed&who=Biddick-9 Changes page] for the details of edits by Dan and others.
+    // See the [http://wikitree.com/index.php?title=Special:NetworkFeed&who=Biddick-9 Changes page] for the details of edits by Dan and others.
     // or
     // See the Changes page for the details of edits by Tom and others.
     text = text.replace(/\s*See the \[[^\]]+\] for the details of edits by [^ ]+ and others\./gi, "").trim();

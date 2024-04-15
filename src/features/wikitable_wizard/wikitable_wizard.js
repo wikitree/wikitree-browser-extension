@@ -7,6 +7,7 @@ import { showCopyMessage } from "../access_keys/access_keys";
 import { analyzeColumns } from "../auto_bio/auto_bio";
 import { stateInfo } from "./us_states.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { mainDomain } from "../../core/pageType";
 
 const colorNameToHex = import("./html_colors.json");
 const headerItems = ["Name", "Age", "Marital Status", "Position", "Occupation", "Birth Place", "Gender"];
@@ -528,7 +529,7 @@ function createwikitableWizardModal() {
           <li>You can move this popup window by dragging the title bar.</li>
           <li>There are four ways to close this Notes section: ?, Escape, 'x', and double-click.</li>
           </ul>
-        <p>Please <a href="https://www.wikitree.com/wiki/Beacall-6">let me know</a> if you find any bugs.</p>
+        <p>Please <a href="https://${mainDomain}/wiki/Beacall-6">let me know</a> if you find any bugs.</p>
         </div>
       <table id="wikitableWizardTable"></table>
       <button id="wikitableWizardGenerateAndCopyTable" class="small">Generate and Copy Table</button>

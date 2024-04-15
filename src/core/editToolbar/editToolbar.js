@@ -8,14 +8,14 @@ import editToolbarCategoryOptions from "./editToolbarCategoryOptions";
 import editToolbarTemplateOptions from "./editToolbarTemplateOptions";
 import editToolbarGenericOptions from "./editToolbarGenericOptions";
 
-import { isCategoryEdit, isProfileEdit, isSpaceEdit, isTemplateEdit, isWikiEdit } from "../pageType";
+import { mainDomain, isCategoryEdit, isProfileEdit, isSpaceEdit, isTemplateEdit, isWikiEdit } from "../pageType";
 import { getEnabledStateForAllFeatures } from "../options/options_storage";
 
 let editToolbarOptions = [];
 
 /* Common events for links */
 export function editToolbarWiki(params) {
-  window.open("https://www.wikitree.com/wiki/" + params.wiki, "_blank");
+  window.open("https://" + mainDomain + "/wiki/" + params.wiki, "_blank");
 }
 
 export function editToolbarApp(params) {

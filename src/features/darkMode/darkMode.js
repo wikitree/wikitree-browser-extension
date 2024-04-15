@@ -4,27 +4,28 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage.js";
+import { mainDomain } from "../../core/pageType";
 
 function removeDarkMode() {
   $("body").removeClass("darkMode");
   $("#content div.SMALL").each(function (index) {
     $(this).removeClass("small_" + index);
   });
-  $("img[src$='images/wikitree-logo-white.png']").attr("src", "https://www.wikitree.com/images/wikitree-logo.png");
-  $("img[src$='wikitree-logo-small-white.png']").attr("src", "https://www.wikitree.com/images/wikitree-small.png");
-  $("img[src$='wikitree-logo-white-G2G.png']").attr("src", "https://www.wikitree.com/images/Wiki-Tree.gif");
-  $("img[src$='G2G-transparent.png']").attr("src", "https://www.wikitree.com/images/G2G.gif");
+  $("img[src$='images/wikitree-logo-white.png']").attr("src", "https://" + mainDomain + "/images/wikitree-logo.png");
+  $("img[src$='wikitree-logo-small-white.png']").attr("src", "https://" + mainDomain + "/images/wikitree-small.png");
+  $("img[src$='wikitree-logo-white-G2G.png']").attr("src", "https://" + mainDomain + "/images/Wiki-Tree.gif");
+  $("img[src$='G2G-transparent.png']").attr("src", "https://" + mainDomain + "/images/G2G.gif");
   $("h1:contains(Connection Finder)")
     .parent()
-    .css("background-image", "url(https://www.wikitree.com/images/projects/Tech-Tree.png)");
+    .css("background-image", "url(https://" + mainDomain + "/images/projects/Tech-Tree.png)");
 
   $("body.page-Special_Relationship")
     .find("h1")
     .parent()
-    .css("background-image", "url(https://www.wikitree.com/images/projects/Tech-Tree.png)");
+    .css("background-image", "url(https://" + mainDomain + "/images/projects/Tech-Tree.png)");
   $("body.page-Main_Page div.sixteen.columns.top").css(
     "background-image",
-    "url(https://www.wikitree.com/images/tree.png)"
+    "url(https://" + mainDomain + "/images/tree.png)"
   );
 }
 

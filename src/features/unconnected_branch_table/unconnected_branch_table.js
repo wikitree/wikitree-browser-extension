@@ -2,6 +2,7 @@ import $ from "jquery";
 import "./unconnected_branch_table.css";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { createProfileSubmenuLink, isOK } from "../../core/common";
+import { mainDomain } from "../../core/pageType";
 import { getPeople } from "../dna_table/dna_table";
 import { showFamilySheet } from "../familyGroup/familyGroup";
 import { assignPersonNames } from "../auto_bio/auto_bio";
@@ -333,7 +334,7 @@ async function unconnectedBranch() {
     const parentKeys = Object.keys(person.Parents);
     parentKeys.forEach((key) => {
       const parent = person.Parents[key];
-      person.parentsText += `<a href="https://www.wikitree.com/wiki/${parent.Name}" target="_blank">${parent.PersonName?.FullName}</a><br>`;
+      person.parentsText += `<a href="https://${mainDomain}/wiki/${parent.Name}" target="_blank">${parent.PersonName?.FullName}</a><br>`;
     });
     // Add each person to the table
     const homeIconHTML = $(
@@ -374,7 +375,7 @@ async function unconnectedBranch() {
     const theRow = $(
       `<tr data-gender="${gender}" data-birth-location="${birthLocation}" data-birth-location-reversed="${birthLocationReversed}" data-death-location="${deathLocation}" data-death-location-reversed='${deathLocationReversed}'>
       <td class='homeRow'></td>
-      <td class='firstNames'><a href="https://www.wikitree.com/wiki/${person.Name}" target="_blank">${
+      <td class='firstNames'><a href="https://${mainDomain}/wiki/${person.Name}" target="_blank">${
         person.PersonName.FirstNames
       }</a></td>
       <td class='lastNameAtBirth'>${person.LastNameAtBirth}</td>

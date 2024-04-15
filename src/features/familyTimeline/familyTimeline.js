@@ -8,6 +8,7 @@ import { getRelatives } from "wikitree-js";
 import { createProfileSubmenuLink, extractRelatives, isOK } from "../../core/common";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getHighestZindex } from "../familyGroup/familyGroup";
+import { mainDomain } from "../../core/pageType";
 
 shouldInitializeFeature("familyTimeline").then((result) => {
   if (result) {
@@ -485,7 +486,7 @@ export function timeline(id = false) {
           fNames = person.FirstName + " and " + aFact.firstName;
           relation = "";
         }
-        const tlFirstName = "<a href='https://www.wikitree.com/wiki/" + aFact.wtId + "'>" + fNames + "</a>";
+        const tlFirstName = "<a href='https://" + mainDomain + "/wiki/" + aFact.wtId + "'>" + fNames + "</a>";
         const tlEventLocation = "<td class='tlEventLocation'>" + aFact.location + "</td>";
 
         if (aPersonBD.Approx == true) {

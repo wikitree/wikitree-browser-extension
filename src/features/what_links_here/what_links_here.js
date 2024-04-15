@@ -7,7 +7,7 @@ import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { getPeople } from "../dna_table/dna_table";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
-import { isWikiPage, isProfilePage, isSpacePage, isMediaWikiPage } from "../../core/pageType";
+import { mainDomain, isWikiPage, isProfilePage, isSpacePage, isMediaWikiPage } from "../../core/pageType";
 
 shouldInitializeFeature("whatLinksHere").then((result) => {
   if (result && $("a.whatLinksHere").length == 0) {
@@ -21,7 +21,7 @@ shouldInitializeFeature("whatLinksHere").then((result) => {
 
 async function fillWhatLinksHereSection() {
   const s = getWhatLinksHereLink(200);
-  const url = new URL(s, "https://www.wikitree.com");
+  const url = new URL(s, "https://" + mainDomain);
   getWikiTreePage("WhatLinksHereSection", url.pathname, url.search).then((data) => {
     const dLinks = $(data).find("#content ul a[href*='/wiki/']");
     const whatLinksHerePages = [];
@@ -142,7 +142,7 @@ export function doWhatLinksHere(e) {
   e.preventDefault();
   const whatLinksHereLink = $(e.currentTarget);
   whatLinksHereLink.text("Working...");
-  const url = new URL(whatLinksHereLink.attr("href"), "https://www.wikitree.com");
+  const url = new URL(whatLinksHereLink.attr("href"), "https://" + mainDomain );
   getWikiTreePage("WhatLinksHereClipboard", url.pathname, url.search).then((data) => {
     const dLinks = $(data).find("#content ul a[href*='/wiki/']");
     if (dLinks.length == 0) {

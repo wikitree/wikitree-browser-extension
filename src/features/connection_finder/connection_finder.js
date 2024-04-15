@@ -12,6 +12,7 @@ import { addWideTableButton, addLoginButton } from "../my_connections/my_connect
 import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup";
 import { showCopyMessage } from "../access_keys/access_keys.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { mainDomain } from "../../core/pageType";
 
 const surnameSummariesButton = $(
   "<button id='surnameSummaries' style='margin:0.5em;' class='small button'>Surname summaries</button>"
@@ -544,7 +545,7 @@ async function addCFsurnameList() {
   let surnamesText = "";
   surnameArr.forEach(function (sur) {
     surnamesText +=
-      "<a href='https://www.wikitree.com/genealogy/" +
+      "<a href='https://" + mainDomain + "/genealogy/" +
       htmlEntities(sur[0]).replaceAll(/_/g, "%20") +
       "'>" +
       htmlEntities(sur[0]).replaceAll(/_/g, " ") +
@@ -559,7 +560,7 @@ async function addCFsurnameList() {
   let surnamesText2 = "";
   surnames.forEach(function (sur) {
     surnamesText2 +=
-      "<a href='https://www.wikitree.com/genealogy/" +
+      "<a href='https://" + mainDomain + "/genealogy/" +
       htmlEntities(sur).replaceAll(/_/g, "%20") +
       "'>" +
       htmlEntities(sur).replaceAll(/_/g, " ") +
@@ -576,7 +577,7 @@ async function addCFsurnameList() {
       surnamesText3 += "<li>Branch " + branch + ": ";
     }
     surnamesText3 +=
-      "<a href='https://www.wikitree.com/genealogy/" +
+      "<a href='https://" + mainDomain + "/genealogy/" +
       htmlEntities(sur[0]).replaceAll(/_/g, "%20") +
       "'>" +
       htmlEntities(sur[0]).replaceAll(/_/g, " ") +
@@ -1010,7 +1011,7 @@ function hsDetails(person, includeLink = 0) {
     pName = "Private";
   }
   if (includeLink == true) {
-    pName = "<a href='https://www.wikitree.com/wiki/" + person.Name + "'>" + pName + "</a>";
+    pName = "<a href='https://" + mainDomain + "/wiki/" + person.Name + "'>" + pName + "</a>";
   }
   let outText = pName + " (" + bDetails + dDetails + ")";
   outText = outText

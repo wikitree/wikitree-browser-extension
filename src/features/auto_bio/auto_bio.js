@@ -20,7 +20,7 @@ import { Biography } from "../bioCheck/Biography.js";
 import { initBioCheck } from "../bioCheck/bioCheck.js";
 import { ageAtDeath } from "../my_connections/my_connections";
 import { bioTimelineFacts, buildTimelineTable, buildTimelineSA } from "./timeline";
-import { isIansProfile } from "../../core/pageType";
+import { mainDomain, isIansProfile } from "../../core/pageType";
 import ONSjson from "./ONS.json";
 import Cookies from "js-cookie";
 
@@ -5785,7 +5785,7 @@ export function addLoginButton() {
             e.preventDefault();
             window.location =
               "https://api.wikitree.com/api.php?action=clientLogin&appId=WBE_auto_bio&returnURL=" +
-              encodeURI("https://www.wikitree.com/wiki/" + $("a.pureCssMenui0 span.person").text());
+              encodeURI("https://" + mainDomain + "/wiki/" + $("a.pureCssMenui0 span.person").text());
           });
         }
       }
@@ -7894,7 +7894,7 @@ export async function generateBio() {
       let errorButton = $("<button id='reportBugButton'>📧 Report bug</button>");
       errorButton.on("click", function () {
         errorDiv.remove();
-        window.open("https://www.wikitree.com/wiki/Beacall-6", "_blank");
+        window.open("https://" + mainDomain + "/wiki/Beacall-6", "_blank");
       });
 
       errorDiv.append(errorButton);

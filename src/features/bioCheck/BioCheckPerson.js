@@ -31,6 +31,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,
  * FirstName,RealName,LastNameCurrent,LastNameAtBirth,Mother,Father,DataStatus,Bio
  */
+import { mainDomain } from "../../core/pageType";
+
 export class BioCheckPerson {
 
   #isApp = false;
@@ -285,7 +287,7 @@ export class BioCheckPerson {
    * @returns {String} link to the WikiTree person
    */
   getWikiTreeLink() {
-    const WIKI_TREE_URI = "https://www.wikitree.com/wiki/";
+    const WIKI_TREE_URI = "https://" + mainDomain + "/wiki/";
     return WIKI_TREE_URI + this.person.wikiTreeId;
   }
 

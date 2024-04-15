@@ -8,6 +8,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { getPerson } from "wikitree-js";
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
 import { treeImageURL } from "../../core/common";
+import { mainDomain } from "../../core/pageType";
 import "jquery-ui/ui/widgets/draggable";
 
 shouldInitializeFeature("randomProfile").then((result) => {
@@ -76,7 +77,7 @@ export async function goToRandomProfile(ourCountry = false) {
       .then((person) => {
         // check to see if the profile is Open
         if (person.Privacy_IsOpen) {
-          const link = `https://www.wikitree.com/wiki/${randomProfileID}`;
+          const link = `https://${mainDomain}/wiki/${randomProfileID}`;
           let inOurCountry = false;
           const locationFields = ["BirthLocation", "DeathLocation"];
           if (ourCountryStripped == "any") {
@@ -109,7 +110,7 @@ export async function goToRandomProfile(ourCountry = false) {
     wtAPIProfileSearch("RandomProfile", ourCountry, { maxProfiles: 100000 }).then((response) => {
       const randomNumber = Math.floor(Math.random() * response.response.found);
       let randomProfileID = response.response.profiles[randomNumber];
-      let aLink = `https://www.wikitree.com/wiki/${randomProfileID}`;
+      let aLink = `https://${mainDomain}/wiki/${randomProfileID}`;
       window.location = aLink;
     });
   }
@@ -261,7 +262,7 @@ async function fetchRandomSpacePage() {
     // Use the specific condition to check if the profile information is sufficient
     if (profileData?.[0]?.profile?.Privacy_IsAtLeastPublic == true) {
       // Navigate to the profile page or do whatever you want with the profile data
-      window.location.href = `https://www.wikitree.com/wiki/Space:${data}`;
+      window.location.href = `https://${mainDomain}/wiki/Space:${data}`;
       return;
     }
 
@@ -409,10 +410,10 @@ export async function goToRandomWatchlistProfile(skipLogin = false) {
       if (inOurCountry == false) {
         goToRandomWatchlistProfile(false);
       } else {
-        window.location.href = "https://www.wikitree.com/wiki/" + theProfileId;
+        window.location.href = "https://${mainDomain}/wiki/" + theProfileId;
       }
     } else {
-      window.location.href = "https://www.wikitree.com/wiki/" + theProfileId;
+      window.location.href = "https://${mainDomain}/wiki/" + theProfileId;
     }
   }
 }

@@ -13,6 +13,8 @@ export let isApiDomain = false;
 export let isPlusDomain = false;
 // *.wikitree.com
 export let isMainDomain = false;
+// 'www.wikitree.com', 'staging.wikitree.com', 'ales.wikitree.com', 'dev-www.wikitree.com'
+export let mainDomain = 'www.wikitree.com';
 
 // Wiki Page variables
 // Any wiki page with pageID
@@ -167,7 +169,9 @@ if (domain.match("apps.wikitree.com")) {
   }
 } else {
   isMainDomain = true;
-
+  // Sets the main domain for web page requests. This way it also works on development domains.
+  mainDomain = domain;
+  
   const path = decodeURI(window.location.pathname); // path
   const uri = decodeURI(window.location.href); // with parameters
   if (
@@ -187,7 +191,7 @@ if (domain.match("apps.wikitree.com")) {
   ) {
     isAddUnrelatedPerson = true;
   } else if (
-    // Profile History Page https://www.wikitree.com/index.php?title=Special:NetworkFeed&who=Trtnik-2
+    // Profile History Page https://wikitree.com/index.php?title=Special:NetworkFeed&who=Trtnik-2
     uri.match(/\/index.php\?title=Special:NetworkFeed&who=.*/g) ||
     uri.match(/\/index.php\?title=Special:NetworkFeed&surname=.*/g)
   ) {
@@ -199,9 +203,9 @@ if (domain.match("apps.wikitree.com")) {
   } else if (uri.match(/index.php\?title=Special:UploadPhoto/)) {
     isUploadPhoto = true;
   } else if (
-    // Profile History Detail Page https://www.wikitree.com/index.php?title=Morgan-14024&diff=53223025&oldid=53223019
-    // or https://www.wikitree.com/index.php?title=Morgan-14024&diff=next&oldid=53223019
-    // or Page https://www.wikitree.com/index.php?title=Morgan-14024&diff=prev&oldid=53223019
+    // Profile History Detail Page https://wikitree.com/index.php?title=Morgan-14024&diff=53223025&oldid=53223019
+    // or https://wikitree.com/index.php?title=Morgan-14024&diff=next&oldid=53223019
+    // or Page https://wikitree.com/index.php?title=Morgan-14024&diff=prev&oldid=53223019
     uri.match(/\/index.php\?title=\p{L}[^:]*-[0-9]+&diff=(\d*|next|prev)&oldid=\d*/gu)
   ) {
     isProfileHistoryDetail = true;
@@ -219,7 +223,7 @@ if (domain.match("apps.wikitree.com")) {
         // Profile of a Logged in User page
         isProfileLoggedInUserPage = true;
       }
-      if (uri.match("https://www.wikitree.com/wiki/Beacall-6")) {
+      if (path.match("/wiki/Beacall-6")) {
         // Ian's Profile
         isIansProfile = true;
       }
@@ -237,7 +241,7 @@ if (domain.match("apps.wikitree.com")) {
   ) {
     isSpacePage = true;
   } else if (
-    // Space History Page https://www.wikitree.com/index.php?title=Special:NetworkFeed&space=41770011
+    // Space History Page https://wikitree.com/index.php?title=Special:NetworkFeed&space=41770011
     uri.match(/\/index.php\?title=Special(:|%3A|%3a)NetworkFeed&space=.*/g)
   ) {
     isSpaceHistory = true;
@@ -251,7 +255,7 @@ if (domain.match("apps.wikitree.com")) {
   ) {
     isCategoryEdit = true;
   } else if (
-    // Category History Page https://www.wikitree.com/index.php?title=Project:Data%20Doctors&action=history
+    // Category History Page https://wikitree.com/index.php?title=Project:Data%20Doctors&action=history
     uri.match(/\/index.php\?title=Category(:|%3A|%3a).*&action=history/g)
   ) {
     isCategoryHistory = true;
@@ -279,7 +283,7 @@ if (domain.match("apps.wikitree.com")) {
   ) {
     isTemplatePage = true;
   } else if (
-    // Template History Page https://www.wikitree.com/index.php?title=Template:Data%20Doctors&action=history
+    // Template History Page https://wikitree.com/index.php?title=Template:Data%20Doctors&action=history
     uri.match(/\/index.php\?title=Template(:|%3A|%3a).*&action=history/g)
   ) {
     isTemplateHistory = true;
@@ -296,7 +300,7 @@ if (domain.match("apps.wikitree.com")) {
   ) {
     isProjectPage = true;
   } else if (
-    // Project History Page https://www.wikitree.com/index.php?title=Project:Data%20Doctors&action=history
+    // Project History Page https://wikitree.com/index.php?title=Project:Data%20Doctors&action=history
     uri.match(/\/index.php\?title=Project(:|%3A|%3a).*&action=history/g)
   ) {
     isProjectHistory = true;
@@ -313,7 +317,7 @@ if (domain.match("apps.wikitree.com")) {
   ) {
     isHelpPage = true;
   } else if (
-    // Help History Page https://www.wikitree.com/index.php?title=Help:Data%20Doctors&action=history
+    // Help History Page https://wikitree.com/index.php?title=Help:Data%20Doctors&action=history
     uri.match(/\/index.php\?title=Help(:|%3A|%3a).*&action=history/g)
   ) {
     isHelpHistory = true;
@@ -374,7 +378,7 @@ if (domain.match("apps.wikitree.com")) {
   ) {
     isOtherEdit = true;
   } else if (
-    // Other History Page https://www.wikitree.com/index.php?title=...:Data%20Doctors&action=history
+    // Other History Page https://wikitree.com/index.php?title=...:Data%20Doctors&action=history
     uri.match(/\/index.php\?title=.*:.*&action=history/g)
   ) {
     isOtherHistory = true;

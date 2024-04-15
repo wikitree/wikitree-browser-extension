@@ -2,6 +2,8 @@
 Created By: Aleš Trtnik (Trtnik-2)
 */
 
+import { mainDomain } from "../pageType";
+
 /********************************************************************
   getWikiTreePage     Retrieve web page from Wikitree using GET
     Parameters:
@@ -18,7 +20,7 @@ export const getWikiTreePage = (callerID, page, params) => {
       (params.startsWith("?") ? "" : "?") +
       params +
       (params == "" ? "" : "&") +
-      "appid=WBE_" +
+      "appId=WBE_" +
       callerID
   );
 };
@@ -151,7 +153,7 @@ export const getWikiTreeJSON = (callerID, page, params, data) => {
       (params.startsWith("?") ? "" : "?") +
       params +
       (params == "" ? "" : "&") +
-      "appid=WBE_" +
+      "appId=WBE_" +
       callerID,
     {
       method: "POST",
@@ -168,7 +170,7 @@ export const getWikiTreeJSON = (callerID, page, params, data) => {
 // *******************************************************************
 
 const wwwWikiTreeGet = (url) => {
-  return fetch(`https://www.wikitree.com${url}`).then((response) => {
+  return fetch(`https://${mainDomain}${url}`).then((response) => {
     if (response.ok) {
       return response.text();
     } else {
@@ -181,7 +183,7 @@ const wwwWikiTreeGet = (url) => {
 // *******************************************************************
 
 const wwwWikiTreePostJSON = (url, data) => {
-  return fetch(`https://www.wikitree.com${url}`, data).then((response) => {
+  return fetch(`https://${mainDomain}${url}`, data).then((response) => {
     if (response.ok) {
       //return response.text().then(JSON.parse)
       return response.json();

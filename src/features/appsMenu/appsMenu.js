@@ -5,6 +5,7 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import Cookies from "js-cookie";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { mainDomain } from "../../core/pageType";
 
 shouldInitializeFeature("appsMenu").then((result) => {
   if (result) {
@@ -34,7 +35,7 @@ function attachAppsMenu() {
     { title: "Feeds -> Excel", URL: "https://apps.wikitree.com/apps/beacall6/contributions.php" },
     {
       title: "Genealogietools.nl",
-      URL: "https://www.wikitree.com/wiki/Space:Genealogietools.nl_-_WieWasWie_formatter",
+      URL: "https://" + mainDomain + "/wiki/Space:Genealogietools.nl_-_WieWasWie_formatter",
     },
     { title: "Photo Lines", URL: "https://apps.wikitree.com/apps/clarke11007/PhotoLines.php" },
     { title: "Profile Overview", URL: "https://apps.wikitree.com/apps/beacall6/templates.php" },
@@ -46,12 +47,12 @@ function attachAppsMenu() {
     { title: "Swedish Reference Creation Tools", URL: "https://apps.wikitree.com/apps/lundholm24/ref-making" },
     { title: "Topola Genealogy Viewer", URL: "https://apps.wikitree.com/apps/wiech13/topola-viewer/" },
     { title: "WikiTree+", URL: "https://plus.wikitree.com/default.htm" },
-    { title: "WikiTree BEE", URL: "https://www.wikitree.com/index.php?title=Space:WikiTree_BEE" },
+    { title: "WikiTree BEE", URL: "https://" + mainDomain + "/index.php?title=Space:WikiTree_BEE" },
     {
       title: "WikiTree Browser Extension",
-      URL: "https://www.wikitree.com/index.php?title=Space:WikiTree_Browser_Extension",
+      URL: "https://" + mainDomain + "/index.php?title=Space:WikiTree_Browser_Extension",
     },
-    { title: "WikiTree Sourcer", URL: "https://www.wikitree.com/wiki/Space:WikiTree_Sourcer" },
+    { title: "WikiTree Sourcer", URL: "https://" + mainDomain + "/wiki/Space:WikiTree_Sourcer" },
   ];
   theMenu.forEach(function (app) {
     const appsLi = $(

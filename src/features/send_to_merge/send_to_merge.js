@@ -1,5 +1,6 @@
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { mainDomain } from "../../core/pageType";
 
 shouldInitializeFeature("sendToMerge").then((result) => {
   if (result) {
@@ -13,7 +14,7 @@ shouldInitializeFeature("sendToMerge").then((result) => {
 function createMergeForm() {
   var form = $("<form>", {
     id: "post-form",
-    action: "https://www.wikitree.com/wiki/Special:MergeEdit",
+    action: "https://" + mainDomain + "/wiki/Special:MergeEdit",
     method: "POST",
     target: "_blank",
   });

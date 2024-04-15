@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { isCategoryPage, isWikiEdit } from "../../core/pageType";
+import { mainDomain, isCategoryPage, isWikiEdit } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 shouldInitializeFeature("accessKeys").then((result) => {
@@ -15,7 +15,7 @@ shouldInitializeFeature("accessKeys").then((result) => {
 
 function addAccessKeys(options) {
   setTimeout(() => {
-    $("body").append("<a style='display:none;' id='G2Grecent' href='https://www.wikitree.com/g2g/activity'></a>");
+    $("body").append("<a style='display:none;' id='G2Grecent' href='https://" + mainDomain + "/g2g/activity'></a>");
     setAccessKeyIfOptionEnabled(options.Preview, "#previewButton", "p", options);
     setAccessKeyIfOptionEnabled(options.G2G, "#G2Grecent", "g", options);
     setAccessKeyIfOptionEnabled(

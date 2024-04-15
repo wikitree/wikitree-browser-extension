@@ -6,6 +6,7 @@
 
 import { getFeatureOptions, shouldInitializeFeature } from "../../core/options/options_storage";
 import {
+  mainDomain,
   isCategoryEdit,
   isCategoryPage,
   isProfileEdit,
@@ -98,7 +99,7 @@ function AddCemeteryReportLinks() {
         addLink.title =
           "Opens the profile for editing, adds the category and lets you review the changes, before saving it.";
         addLink.href =
-          "https://www.wikitree.com/index.php?title=Special:EditPerson&w=" +
+          "https://" + mainDomain + "/index.php?title=Special:EditPerson&w=" +
           encodeURIComponent(wikiTreeId) +
           "&addCat=" +
           encodeURIComponent(cat);
@@ -190,11 +191,11 @@ function AddAddProfileToCategory() {
         } else if (urlParams.has("w")) {
           profileId = urlParams.get("w");
         } else {
-          profileId = profileId.replace("https://www.wikitree.com/wiki/", "");
+          profileId = profileId.replace("https://" + mainDomain + "/wiki/", "");
         }
       }
       window.open(
-        "http://www.wikitree.com/index.php?title=Special:EditPerson&" +
+        "http://" + mainDomain + "/index.php?title=Special:EditPerson&" +
           idType +
           "=" +
           profileId +
@@ -223,7 +224,7 @@ function AddCategoryExitLink(parent) {
   const linkExit = document.createElement("a");
   const urlParams = new URLSearchParams(window.location.search);
 
-  const baseUrl = "https://www.wikitree.com/wiki/" + urlParams.get("title");
+  const baseUrl = "https://" + mainDomain + "/wiki/" + urlParams.get("title");
   linkExit.href = baseUrl;
   linkExit.innerText = "exit";
   linkExit.title = "Leave editing mode without saving";
@@ -289,7 +290,7 @@ export function showResultsOnKeyUp(catTextbox, resultDiv) {
   EmptySuggestionList(resList);
   const typedVal = catTextbox.value;
   let catUrl =
-    "https://www.wikitree.com/index.php?action=ajax&rs=Title%3A%3AajaxCategorySearch&rsargs[]=" +
+    "https://" + mainDomain + "/index.php?action=ajax&rs=Title%3A%3AajaxCategorySearch&rsargs[]=" +
     typedVal +
     "&rsargs[]=0&appID=WBE_categoryManagement";
   let xmlHttp = new XMLHttpRequest();
@@ -382,7 +383,7 @@ function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
 
       buttonOk.innerText = "OK";
       buttonOk.addEventListener("click", function () {
-        let url = "http://www.wikitree.com/index.php?title=Special:EditPerson&w=" + profileId + "&addCat=" + catNew;
+        let url = "http://" + mainDomain + "/index.php?title=Special:EditPerson&w=" + profileId + "&addCat=" + catNew;
         if (catName != "") {
           url += "&remCat=" + catName;
         }
@@ -466,7 +467,7 @@ function CreateDeleteCatLink() {
   const linkDelete = document.createElement("a");
   linkDelete.title = "Empty the category description and add a template for EditBOT to delete the category";
   linkDelete.href =
-    "https://www.wikitree.com/index.php?title=Category:" + GetCurrentCategoryName() + "&catBot=delete&action=edit";
+    "https://" + mainDomain + "/index.php?title=Category:" + GetCurrentCategoryName() + "&catBot=delete&action=edit";
   linkDelete.innerText = "delete";
   return WrapWithBrackets(linkDelete);
 }
@@ -482,7 +483,7 @@ function CreateRenameCatLink() {
     const newCategory = prompt("New name?", currentCategory);
     if (newCategory) {
       let url =
-        "https://www.wikitree.com/index.php?title=Category:" +
+        "https://" + mainDomain + "/index.php?title=Category:" +
         currentCategory +
         "&catBot=rename&newCat=" +
         newCategory +
@@ -503,7 +504,7 @@ function CreateCopyRenameCatLink() {
     const newCategory = prompt("New name?", currentCategory);
     if (newCategory) {
       let url =
-        "https://www.wikitree.com/index.php?title=Category:" +
+        "https://" + mainDomain + "/index.php?title=Category:" +
         currentCategory +
         "&catBot=copyrename&newCat=" +
         newCategory +
@@ -810,7 +811,7 @@ function OnCatALotClicked() {
     addCat = "&addCat=" + document.getElementById("inputCatVerified").innerText;
   }
 
-  const baseEditUrl = "https://www.wikitree.com/index.php?title=Special:EditPerson&w=";
+  const baseEditUrl = "https://" + mainDomain + "/index.php?title=Special:EditPerson&w=";
   const cboxes = document.getElementsByClassName("profile_selector");
 
   for (let i = 0; i < cboxes.length; ++i) {
@@ -926,7 +927,7 @@ function AddCheckboxes() {
 
   for (let i = 0; (profileDiv = profileDivs[i]); i++) {
     try {
-      let profile = profileDiv.childNodes[1].childNodes[0].href.replace("https://www.wikitree.com/wiki/", "");
+      let profile = profileDiv.childNodes[1].childNodes[0].href.replace("https://" + mainDomain + "/wiki/", "");
       profileDiv.innerHTML =
         '<input type="checkbox" id="cb' +
         i +
@@ -1005,7 +1006,7 @@ function ClearCatName(catTyped) {
 function CheckCategoryExists(cat, callbackSuccess) {
   const showError = false;
   let catTyped = ClearCatName(cat);
-  //catUrl = "https://www.wikitree.com/wiki/Category:" + encodeURI(catTyped) + "?appID=WBE_categoryManagement";
+  //catUrl = "https://" + mainDomain + "/wiki/Category:" + encodeURI(catTyped) + "?appID=WBE_categoryManagement";
   const catUrl =
     "https://apps.wikitree.com/apps/straub620/exists.php?page=Category:" +
     encodeURI(catTyped) +
@@ -1026,7 +1027,7 @@ function CheckCategoryExists(cat, callbackSuccess) {
 
 function AddVerifiedCatLink(cat) {
   document.getElementById("inputCatVerified").innerHTML =
-    '<a href="https://www.wikitree.com/wiki/Category:' + cat + '">' + cat + "</a>";
+    '<a href="https://" + mainDomain + "/wiki/Category:' + cat + '">' + cat + "</a>";
   document.getElementById("catALotButton").disabled = false;
   document.getElementById("inputCatTyped").value = cat;
 }
@@ -1105,7 +1106,7 @@ function MarkCategoryForDeletionAndSave() {
   const reason = prompt("reason for deletion?");
   if (reason) {
     //blanking content as requested by Margaret
-    //www.wikitree.com/g2g/1624165/next-batschka-category-banat-is-done?show=1624197#c1624197
+    //wikitree.com/g2g/1624165/next-batschka-category-banat-is-done?show=1624197#c1624197
     https: wpTextbox1.value = "{{Delete Category}} \n" + reason + "--~~~~";
     CheckWhatLinksHereAndSave();
   }
@@ -1130,7 +1131,7 @@ function MarkForRenameOpenNewAndSave(newCategory) {
 function CheckWhatLinksHereAndSave() {
   const category = GetCurrentCategoryName();
   let catUrl =
-    "https://www.wikitree.com/wiki/Special:Whatlinkshere/Category:" +
+    "https://" + mainDomain + "/wiki/Special:Whatlinkshere/Category:" +
     encodeURIComponent(category) +
     "?appID=WBE_categoryManagement";
   let xmlHttp = new XMLHttpRequest();
@@ -1152,7 +1153,7 @@ function CheckWhatLinksHereAndSave() {
             for (let i = 0; i < LIs.length; i++) {
               const page = LIs[i].innerText.split(" (← links)").join("");
               if (!page.startsWith("Automated:")) {
-                const win = window.open("https://www.wikitree.com/index.php?title=" + page + "&action=edit");
+                const win = window.open("https://" + mainDomain + "/index.php?title=" + page + "&action=edit");
               }
             }
           }
@@ -1177,7 +1178,7 @@ function OpenNewCategoryInNewTab(newCategory) {
   var editForm = document.getElementById("editform");
   editForm.target = "_blank";
   const previousAction = editForm.action;
-  editForm.action = "https://www.wikitree.com/index.php?title=Category:" + newCategory + "&action=submit";
+  editForm.action = "https://" + mainDomain + "/index.php?title=Category:" + newCategory + "&action=submit";
   document.getElementById("wpDiff").click();
 }
 

@@ -5,6 +5,7 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import { extractRelatives, displayName } from "../../core/common";
+import { mainDomain } from "../../core/pageType";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 shouldInitializeFeature("verifyID").then((result) => {
@@ -158,7 +159,7 @@ async function checkAttachPersonID() {
               $("#verification").draggable();
               if (person.Created) {
                 ah2 = $(
-                  "<h3><a href='https://www.wikitree.com/wiki/" +
+                  "<h3><a href='https://" + mainDomain + "/wiki/" +
                     person.Name +
                     "' target='_blank'>" +
                     displayName(person)[0] +

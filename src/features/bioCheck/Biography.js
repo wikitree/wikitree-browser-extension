@@ -1461,7 +1461,7 @@ export class Biography {
           this.#messages.styleMessages.push('Heading or subheading before Biography');
         }
       }  else {
-        // See https://www.wikitree.com/wiki/Help:Recommended_Tags
+        // See https://wikitree.com/wiki/Help:Recommended_Tags
         // this might be too aggressive
         if ((line.startsWith('[[')) && (line.endsWith(']]'))) {
           this.#unexpectedLines.push(line);

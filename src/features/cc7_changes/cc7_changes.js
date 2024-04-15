@@ -7,7 +7,8 @@ import { treeImageURL } from "../../core/common";
 import { PersonName } from "../auto_bio/person_name.js";
 import { displayDates } from "../verifyID/verifyID";
 import { goAndLogIn } from "../randomProfile/randomProfile";
-
+import { mainDomain } from "../../core/pageType";
+ 
 // By default, if TESTING is true, we pretend to be user Trompetter-42 (who is long dead and in an unconnected, mostly
 // orphaned branch) and currently has a CC7 of 132. Also, we will not check whether or not the user is logged in.
 // Whenever we retrieve the current CC7, we also remove one random profile from each API call result before processing it,
@@ -876,7 +877,7 @@ function appendDetailsToContainer(container, idsByDate, details, headingTail) {
       const text = person
         ? `${person.FullName} ${displayDates(person)}${person.redirectedFrom ? " (merged)" : ""}`
         : `Profile ${el.Name ? el.Name : el.Id} (deleted from WikiTree)`;
-      const link = $("<a>").attr("href", `https://www.wikitree.com/wiki/${el.Name}`).text(text);
+      const link = $("<a>").attr("href", `https://${mainDomain}/wiki/${el.Name}`).text(text);
       const degree = $(
         `<span title="${what} at ${el.Degrees} degree${el.Degrees > 1 ? "s" : ""}"> [${el.Degrees}]</span>`
       );

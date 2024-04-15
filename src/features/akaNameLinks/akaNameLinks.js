@@ -4,6 +4,8 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from 'jquery';
 import { shouldInitializeFeature } from "../../core/options/options_storage"
+import { mainDomain } from "../../core/pageType";
+
 
 async function akaNames(){
 // Make AKA last names clickable
@@ -17,7 +19,7 @@ async function akaNames(){
             const oAkaNames = akaText.split(",");
             lastStrong.text("");
             oAkaNames.forEach(function(akaName,i){
-                $("<a href='https://www.wikitree.com/genealogy/"+akaName.trim()+"'>"+akaName.trim()+"</a>").appendTo(lastStrong);
+                $("<a href='https://" + mainDomain + "/genealogy/"+akaName.trim()+"'>"+akaName.trim()+"</a>").appendTo(lastStrong);
                 if (i+1<oAkaNames.length){
                     $("<span>, </span>").appendTo(lastStrong);
                 }

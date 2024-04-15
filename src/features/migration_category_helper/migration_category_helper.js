@@ -3,6 +3,7 @@ import { DeactivateEnhancedEditorIfPresent, ReactivateEnhancedEditorIfNeeded } f
 import { tryParseDate } from "../date_fixer/date_fixer";
 import { entities } from "./entities";
 import { format } from "date-fns";
+import { mainDomain } from "../../core/pageType";
 
 shouldInitializeFeature("migrationCategoryHelper").then((result) => {
   if (result) {
@@ -198,7 +199,7 @@ async function getShipCategories(shipName, arrivalYear) {
 
 async function addGoodShipCats(goodShipCats, needle) {
   let catUrl =
-    "https://www.wikitree.com/index.php?action=ajax&rs=Title%3A%3AajaxCategorySearch&rsargs[]=" +
+    "https://" + mainDomain + "/index.php?action=ajax&rs=Title%3A%3AajaxCategorySearch&rsargs[]=" +
     encodeURIComponent(needle) +
     "&rsargs[]=0&appID=WBE_migrationCategoryHelper";
 

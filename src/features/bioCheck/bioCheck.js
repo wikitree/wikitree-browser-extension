@@ -4,6 +4,7 @@ Created By: Kay Knight (Sands-1865)
 
 import { shouldInitializeFeature, checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 import { dataTables, dataTableTemplateFindByName, dataTablesLoad } from "../../core/API/wtPlusData";
+import { mainDomain } from "../../core/pageType";
 import { theSourceRules } from "./SourceRules.js";
 import { Biography } from "./Biography.js";
 import { BioCheckPerson } from "./BioCheckPerson.js";
@@ -316,7 +317,7 @@ function setHelp(parentContainer) {
 
   bioCheckHelpAnchor.appendChild(bioCheckHelpImage);
   bioCheckHelpAnchor.setAttribute("id", "bioCheckHelpAnchor");
-  bioCheckHelpAnchor.setAttribute("href", "https://www.wikitree.com/wiki/Space:BioCheckHelp#Sourced.3F");
+  bioCheckHelpAnchor.setAttribute("href", "https://" + mainDomain + "/wiki/Space:BioCheckHelp#Sourced.3F");
   bioCheckHelpAnchor.setAttribute("target", "_Help");
 
   bioCheckHelpImage.setAttribute("id", "bioCheckHelpImage");

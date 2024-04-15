@@ -6,7 +6,7 @@ Contributors: Jonathan Duke (Duke-5773)
 import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
-import { isNavHomePage } from "./pageType.js";
+import { mainDomain, isNavHomePage } from "./pageType.js";
 import { checkIfFeatureEnabled } from "./options/options_storage";
 
 /* * * * * * * * * * * * * * * * * * * *
@@ -439,13 +439,6 @@ export async function showDraftList() {
         window.draftCalls++;
       } else {
         getWikiTreePage("Drafts", "/index.php", "title=" + theWTID + "&displayDraft=1").then((res) => {
-          /*
-        $.ajax({
-          url: "https://www.wikitree.com/index.php?title=" + theWTID + "&displayDraft=1",
-          type: "GET",
-          dataType: "html", // added data type
-          success: function (res) {
-*/
           window.draftCalls++;
           const dummy = $(res);
           const aWTID = dummy.find("a.pureCssMenui0 span.person").text();
@@ -475,11 +468,11 @@ export async function showDraftList() {
               let dButtons = "<td></td><td></td>";
               if (xDraft[3] != undefined) {
                 dButtons =
-                  "<td><a href='https://www.wikitree.com/index.php?title=Special:EditPerson&u=" +
+                  "<td><a href='https://" + mainDomain + "/index.php?title=Special:EditPerson&u=" +
                   xDraft[3] +
                   "&ud=" +
                   xDraft[4] +
-                  "' class='small button'>USE</a></td><td><a href='https://www.wikitree.com/index.php?title=Special:EditPerson&u=" +
+                  "' class='small button'>USE</a></td><td><a href='https://" + mainDomain + "/index.php?title=Special:EditPerson&u=" +
                   xDraft[3] +
                   "&dd=" +
                   xDraft[4] +
@@ -488,7 +481,7 @@ export async function showDraftList() {
 
               $("#myDrafts table").append(
                 $(
-                  "<tr><td><a href='https://www.wikitree.com/index.php?title=" +
+                  "<tr><td><a href='https://" + mainDomain + "/index.php?title=" +
                     xDraft[0] +
                     "&displayDraft=1'>" +
                     xDraft[2] +
@@ -565,7 +558,7 @@ export async function updateDraftList() {
 
 export function isWikiTreeUrl(url) {
   if (url) {
-    return /^http(s)?:\/+((www|staging)\.)?wikitree\.com\//i.test(url);
+    return /^http(s)?:\/+((www|staging|dev-www)\.)?wikitree\.com\//i.test(url);
   }
   return false;
 }

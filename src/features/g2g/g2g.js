@@ -5,6 +5,7 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import "./g2g_.css";
 import { isOK } from "../../core/common";
+import { mainDomain } from "../../core/pageType";
 import Cookies from "js-cookie";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { addItems, attachScissorsEvent, copyThingToClipboard } from "../scissors/scissors";
@@ -110,7 +111,7 @@ function linkify() {
 function addScissorsToAnswers() {
   const allAnchorNodes = document.getElementsByTagName("a");
   for (let i = 0; i < allAnchorNodes.length; i++) {
-    //https://www.wikitree.com/g2g/1652303/join-the-2nd-germany-research-party-on-wikitree-day?show=1657604#a1657604
+    //https://wikitree.com/g2g/1652303/join-the-2nd-germany-research-party-on-wikitree-day?show=1657604#a1657604
 
     const indexShow = allAnchorNodes[i].href.indexOf("show=");
     const indexHash = allAnchorNodes[i].href.indexOf("#"); //spare the top left menu when show= is used
@@ -175,7 +176,7 @@ async function initG2G() {
   }
 
   if (options.fixHome) {
-    document.getElementsByClassName("pureCssMenui0")[0].href = "https://www.wikitree.com/wiki/Special:Home";
+    document.getElementsByClassName("pureCssMenui0")[0].href = "https://" + mainDomain + "/wiki/Special:Home";
   }
 }
 
@@ -203,7 +204,7 @@ function g2gScissors(alsoInAnswers) {
     const g2gIDmatch = url.match(/\/([0-9]{1,8})\//);
     if (g2gIDmatch != null) {
       window.g2gID = g2gIDmatch[1];
-      const g2gURL = "https://www.wikitree.com/g2g/" + window.g2gID;
+      const g2gURL = "https://" + mainDomain + "/g2g/" + window.g2gID;
       const g2gQuestion = $(".qa-main-heading h1").text();
       $(".qa-sidepanel").prepend(
         $(
@@ -237,13 +238,13 @@ function addG2GButtons() {
     myActivity.appendTo($(".qa-nav-main-list"));
     $("#myActivity a").attr(
       "href",
-      "https://www.wikitree.com/g2g/user/" + Cookies.get("wikitree_wtb_UserName") + "/activity"
+      "https://" + mainDomain + "/g2g/user/" + Cookies.get("wikitree_wtb_UserName") + "/activity"
     );
     $("#myActivity a").text("My Activity");
     $("#myActivity").addClass("awtG2GLink qa-nav-main-item qa-nav-main-ask");
 
     const myFavourites = $(
-      '<li id="myFavourites" class="awtG2GLink qa-nav-main-item qa-nav-main-ask"><a href="https://www.wikitree.com/g2g/favorites" class="qa-nav-main-link">+</a></li>'
+      '<li id="myFavourites" class="awtG2GLink qa-nav-main-item qa-nav-main-ask"><a href="https://' + mainDomain + '/g2g/favorites" class="qa-nav-main-link">+</a></li>'
     );
     myFavourites.appendTo($(".qa-nav-main-list"));
     myFavourites.on("click", function () {
@@ -255,16 +256,16 @@ function addG2GButtons() {
     $(".awtG2GLink a").removeClass("qa-nav-footer-link qa-nav-footer-selected");
     $(".awtG2GLink a").addClass("qa-nav-main-link");
 
-    if (window.location.href == "https://www.wikitree.com/g2g/activity") {
+    if (window.location.href == "https://" + mainDomain + "/g2g/activity") {
       $("#recentActivity a").addClass("qa-nav-main-selected");
     }
     if (
       window.location.href ==
-      "https://www.wikitree.com/g2g/user/" + Cookies.get("wikitree_wtb_UserName") + "/activity"
+      "https://" + mainDomain + "/g2g/user/" + Cookies.get("wikitree_wtb_UserName") + "/activity"
     ) {
       $("#myActivity a").addClass("qa-nav-main-selected");
     }
-    if (window.location.href == "https://www.wikitree.com/g2g/favorites") {
+    if (window.location.href == "https://" + mainDomain + "/g2g/favorites") {
       $("#myFavourites a,li.qa-nav-main-user a").addClass("qa-nav-main-selected");
     }
   }
@@ -290,7 +291,7 @@ function addWikiIDGoBox() {
       ev.preventDefault();
       const thisValue = $("#wtIDgo_id").val().trim();
       if (thisValue.match(/[0-9]/) == null) {
-        window.location = "https://www.wikitree.com/genealogy/" + thisValue;
+        window.location = "https://" + mainDomain + "/genealogy/" + thisValue;
       } else {
         window.location = "https://wikitree.com/wiki/" + thisValue;
       }

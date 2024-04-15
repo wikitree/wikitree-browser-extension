@@ -13,7 +13,7 @@ import {
   goToRandomSpacePage,
 } from "../randomProfile/randomProfile";
 import { doWhatLinksHere } from "../what_links_here/what_links_here";
-import { isNavHomePage } from "../../core/pageType";
+import { mainDomain, isNavHomePage } from "../../core/pageType";
 
 shouldInitializeFeature("myMenu").then((result) => {
   if (result) {
@@ -334,7 +334,7 @@ function addCustomMenu() {
       const myMenuWhatLinksHere = $("#myCustomMenu li a:contains(What Links Here)");
       myMenuWhatLinksHere.attr(
         "href",
-        "https://www.wikitree.com/index.php?title=Special:Whatlinkshere/" + dLink + "&limit=1000"
+        "https://" + mainDomain + "/index.php?title=Special:Whatlinkshere/" + dLink + "&limit=1000"
       );
       myMenuWhatLinksHere.contextmenu(function (e) {
         e.preventDefault();

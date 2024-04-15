@@ -227,7 +227,7 @@ const testProfiles = [
   },
   {
     // Caused issues, see G2G post:
-    // https://www.wikitree.com/g2g/1147239/why-are-people-destroying-profiles-with-wikitreeagc
+    // https://wikitree.com/g2g/1147239/why-are-people-destroying-profiles-with-wikitreeagc
     profileName: "Ballard-630",
     inBirthDate: "16 Nov 1870",
     inBirthDateIsBefore: false,
@@ -3302,7 +3302,7 @@ const testProfiles = [
     refCurrentLastName: "Karr",
   },
   {
-    // From https://www.wikitree.com/wiki/Space:Current_Gedcom_Under_Review
+    // From https://wikitree.com/wiki/Space:Current_Gedcom_Under_Review
     profileName: "Van_Urk-3",
     inBirthDate: "8 Jan 1789",
     inBirthDateIsBefore: false,
@@ -3320,7 +3320,7 @@ const testProfiles = [
     refCurrentLastName: "Van Urk",
   },
   {
-    // From https://www.wikitree.com/wiki/Space:Current_Gedcom_Under_Review
+    // From https://wikitree.com/wiki/Space:Current_Gedcom_Under_Review
     profileName: "Van_Urk-3",
     profileVariant: "a",
     inBirthDate: "8 Jan 1789",
@@ -3464,7 +3464,7 @@ const testProfiles = [
     },
   },
   {
-    // From https://www.wikitree.com/wiki/Space:Current_Gedcom_Under_Review
+    // From https://wikitree.com/wiki/Space:Current_Gedcom_Under_Review
     profileName: "Wheatley-921",
     inBirthDate: "1812",
     inBirthDateIsBefore: false,

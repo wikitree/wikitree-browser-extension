@@ -8,6 +8,7 @@ import "jquery-ui/ui/widgets/draggable";
 import "../../thirdparty/date.format.js";
 import "./extra_watchlist.css";
 import { isOK, htmlEntities } from "../../core/common";
+import { mainDomain } from "../../core/pageType";
 import { appendClipboardButtons } from "../clipboard_and_notes/clipboard_and_notes";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
@@ -146,14 +147,14 @@ function recentChange(person) {
     person.Id = person.PageId;
     person.LongName = person.Title.Text;
 
-    changesLink = "https://www.wikitree.com/index.php?title=Special:NetworkFeed&space=" + htmlEntities(person.PageId);
+    changesLink = "https://" + mainDomain + "/index.php?title=Special:NetworkFeed&space=" + htmlEntities(person.PageId);
   } else {
     if (person.Name == undefined) {
       person.Name = "";
     }
     person.Name = person["Name"].replace(" ", "_");
     bdDates = "(" + bYear + " - " + dYear + ")";
-    changesLink = "https://www.wikitree.com/index.php?title=Special:NetworkFeed&who=" + htmlEntities(person.Id);
+    changesLink = "https://" + mainDomain + "/index.php?title=Special:NetworkFeed&who=" + htmlEntities(person.Id);
   }
   if (!isOK(bYear)) {
     bYear = person?.BirthDateDecade;
@@ -200,7 +201,7 @@ function recentChange(person) {
       pt +
       "\"><td class='wtIDcol'>" +
       person.Name +
-      "</td><td class='personCol'><a href=\"https://www.wikitree.com/wiki/" +
+      "</td><td class='personCol'><a href=\"https://" + mainDomain + "/wiki/" +
       (person.IsSpace ? htmlEntities(person.Name) : htmlEntities(person.Id)) +
       '">' +
       person.LongName +

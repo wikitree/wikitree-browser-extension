@@ -178,60 +178,6 @@ export async function getProfile(id, fields = "*", appId = "WBE") {
   }
 }
 
-/*
-async function getConnectionFinderResult(id1, id2, relatives = 0) {
-  try {
-    const result = await $.ajax({
-      url: "https://www.wikitree.com/index.php",
-      crossDomain: true,
-      xhrFields: { withCredentials: true },
-      data: {
-        title: "Special:Connection",
-        action: "connect",
-        person1Name: id1,
-        person2Name: id2,
-        relation: relatives,
-        ignoreIds: "",
-      },
-      type: "POST",
-      dataType: "json",
-      success: function (data) {},
-      error: function (error) {
-        console.log(error);
-      },
-    });
-    return result;
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-export async function getRelationshipFinderResult(id1, id2) {
-  try {
-    const result = await $.ajax({
-      url: "https://www.wikitree.com/index.php",
-      crossDomain: true,
-      xhrFields: { withCredentials: true },
-      data: {
-        title: "Special:Relationship",
-        action: "getRelationship",
-        person1_name: id1,
-        person2_name: id2,
-      },
-      type: "POST",
-      dataType: "json",
-      success: function (data) {},
-      error: function (error) {
-        console.log(error);
-      },
-    });
-    return result;
-  } catch (error) {
-    console.error(error);
-  }
-}
-*/
-
 function addRelationshipText(oText, commonAncestors) {
   const commonAncestorTextResult = commonAncestorText(commonAncestors);
   let commonAncestorTextOut = commonAncestorTextResult.text;
@@ -282,7 +228,7 @@ function commonAncestorText(commonAncestors) {
     ).toLowerCase();
     if (!ancestorsAdded.includes(commonAncestor.ancestor.mName)) {
       ancestorTextOut +=
-        `<li>Your ${myAncestorType}, <a href="https://www.wikitree.com/wiki/` +
+        `<li>Your ${myAncestorType}, <a href="https://${mainDomain}/wiki/` +
         commonAncestor.ancestor.mName +
         '">' +
         commonAncestor.ancestor.mDerived.LongNameWithDates +

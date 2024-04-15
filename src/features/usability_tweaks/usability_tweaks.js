@@ -1,6 +1,7 @@
 import $ from "jquery";
 import Cookies from "js-cookie";
 import {
+  mainDomain, 
   isSearchPage,
   isProfileEdit,
   isProfileAddRelative,
@@ -368,11 +369,11 @@ function replaceAddRemoveReplaceLinks() {
     const hasMother = $("input[name='mStatus_Mother']").length;
     const hasSpouse = $("div.five.columns.omega a:Contains(edit marriage)").length;
     $("div.five.columns.omega a[href*='&who=']").each(function () {
-      /* Replace one link like this: https://www.wikitree.com/index.php?title=Special:EditFamily&u=23943734&who=father
-       * with three links like this: https://www.wikitree.com/index.php?title=Special:EditFamily&u=23943734&who=father&WBEaction=add (remove, connect)
+      /* Replace one link like this: https://wikitree.com/index.php?title=Special:EditFamily&u=23943734&who=father
+       * with three links like this: https://wikitree.com/index.php?title=Special:EditFamily&u=23943734&who=father&WBEaction=add (remove, connect)
        */
       if ($(this).text().includes("edit marriage") == false) {
-        const href = "https://www.wikitree.com" + $(this).attr("href");
+        const href = "https://" + mainDomain + $(this).attr("href");
         const urlObject = new URL(href);
         const whoValue = urlObject.searchParams.get("who");
 

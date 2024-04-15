@@ -3,6 +3,7 @@ import fs from "fs";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import chrome from "sinon-chrome";
 import { getPerson } from "wikitree-js";
+import { mainDomain } from "../../core/pageType";
 
 jest.mock("wikitree-js");
 jest.mock("../../core/options/options_storage");
@@ -57,6 +58,6 @@ describe("randomProfile", () => {
     // Wait for event to propagate.
     await new Promise(process.nextTick);
 
-    expect(window.location).toBe("https://www.wikitree.com/wiki/36360449");
+    expect(window.location).toBe("https://" + mainDomain + "/wiki/36360449");
   });
 });

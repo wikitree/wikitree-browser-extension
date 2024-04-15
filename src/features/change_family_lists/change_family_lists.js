@@ -9,6 +9,7 @@ import { isOK, htmlEntities, displayName } from "../../core/common";
 import { displayDates } from "../verifyID/verifyID";
 import { getRelatives } from "wikitree-js";
 import "./change_family_lists.css";
+import { mainDomain } from "../../core/pageType";
 
 let options;
 
@@ -1203,7 +1204,7 @@ function list2ol2(person, profPersonName, profileApproxBirthDate) {
     const ddn = document.createTextNode(" " + ddates);
     datesSpan.appendChild(ddn);
     const checkit = encodeURIComponent(pdata["Name"]).replaceAll(/%2C/g, ",");
-    const ana = document.querySelector(`#nVitals a[href="https://www.wikitree.com/wiki/${checkit}"`);
+    const ana = document.querySelector(`#nVitals a[href="https://${mainDomain}/wiki/${checkit}"`);
     if (ana) {
       if (profPersonName && profileApproxBirthDate != "" && isOK(pdata["BirthDate"])) {
         addRelativeAge(ana, profPersonName, profileApproxBirthDate, pdata["BirthDate"]);
@@ -1853,7 +1854,7 @@ function amaTimer() {
         marriageDetails.html(function (index, html) {
           return html.replace(
             "married",
-            `<a href="https://www.wikitree.com/index.php?title=Special:EditFamily&u=${window.people[0].Id}&who=editspouse&s=${aSpouse[0]}" target="_blank" title="Right click to edit marriage" class="clickable" id="${marriageId}">married</a>`
+            `<a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${window.people[0].Id}&who=editspouse&s=${aSpouse[0]}" target="_blank" title="Right click to edit marriage" class="clickable" id="${marriageId}">married</a>`
           );
         });
 

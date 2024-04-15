@@ -1,6 +1,7 @@
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { getPeople } from "../dna_table/dna_table";
 import $ from "jquery";
+import { mainDomain } from "../../core/pageType";
 
 shouldInitializeFeature("removeFromWatchlist").then((result) => {
   if (result) {
@@ -158,7 +159,7 @@ function GetIdsToOrphan() {
 
 async function getMyEmail(myId) {
   return new Promise(function (resolve, reject) {
-    fetch("https://www.wikitree.com/index.php?title=Special:EditPerson&u=" + myId)
+    fetch("https://" + mainDomain + "/index.php?title=Special:EditPerson&u=" + myId)
       .then((response) => response.text())
       .then((text) => {
         const parser = new DOMParser();

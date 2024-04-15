@@ -1,5 +1,6 @@
 import { wtAPICatCIBSearch } from "../../core/API/wtPlusAPI";
 import { tb, wtUpdateEdit } from "./wtPlus";
+import { mainDomain } from "../../core/pageType";
 
 /**************************/
 /* Select category to add */
@@ -41,7 +42,7 @@ export async function selectCIB(data, hideTopLevel) {
               hideTopLevel && item.topLevel
                 ? ""
                 : "<tr>" +
-                  `<td><a target="_blank" href="https://www.wikitree.com/wiki/Category:${item.category}"><img src="${newTabIconURL}"'></a></td>` +
+                  `<td><a target="_blank" href="https://${mainDomain}/wiki/Category:${item.category}"><img src="${newTabIconURL}"'></a></td>` +
                   '<td class="tdSelect" data-op="onDlgSelectCIBTrSel" title="' +
                   (item.name ? "&#10;Name: " + item.name : "") +
                   (item.aka ? "&#10;aka:&#10;&nbsp;&nbsp;" + item.aka.replaceAll(";", "&#10;&nbsp;&nbsp;") : "") +
@@ -166,7 +167,7 @@ export async function selectCIB(data, hideTopLevel) {
     '<div style="min-width: 600px;overflow-y:auto;height: 400px;"><table style="width: 100%;" id="tb">' +
     "</table></div>" +
     '<div style="text-align:right">' +
-    '<a class="button" href="https://www.wikitree.com/wiki/Space:WikiTree_Plus_Chrome_Extension#Add_Template" target="_blank">Help</a>' +
+    '<a class="button" href="https://' + mainDomain + '/wiki/Space:WikiTree_Plus_Chrome_Extension#Add_Template" target="_blank">Help</a>' +
     //OK, Cancel
     '<button style="text-align:right" class="dlgClick" data-op="onDlgSelectCIBBtn" data-id="0">Close</button>' +
     '<button style="text-align:right" class="dlgClick" data-op="onDlgSelectCIBBtn" data-id="1" value="default">Select</button>' +

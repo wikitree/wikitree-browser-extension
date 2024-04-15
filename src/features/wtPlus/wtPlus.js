@@ -2,7 +2,7 @@
 Created By: Aleš Trtnik (Trtnik-2)
 */
 
-import { isWikiEdit, isProfileEdit } from "../../core/pageType";
+import { mainDomain, isWikiEdit, isProfileEdit } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { dataTables, dataTableTemplateFindByName, dataTablesLoad } from "../../core/API/wtPlusData";
 import { selectCIB } from "./wtPlusDialogs";
@@ -160,7 +160,7 @@ const urlMappings = [
   {
     type: "typeWikitreeID",
     placeholder: "Enter profile's WikitreeID",
-    prefixURL: "https://www.wikitree.com/wiki/",
+    prefixURL: "https://" + mainDomain + "/wiki/",
     sufixURL: "",
     emptyURL: "",
     toURL: reformatTexttoWiki,
@@ -169,7 +169,7 @@ const urlMappings = [
   {
     type: "typeUser",
     placeholder: "Enter user's WikitreeID",
-    prefixURL: "https://www.wikitree.com/wiki/",
+    prefixURL: "https://" + mainDomain + "/wiki/",
     sufixURL: "",
     emptyURL: "",
     toURL: reformatTexttoWiki,
@@ -178,7 +178,7 @@ const urlMappings = [
   {
     type: "typePage",
     placeholder: "Enter Page name with Namespace",
-    prefixURL: "https://www.wikitree.com/wiki/",
+    prefixURL: "https://" + mainDomain + "/wiki/",
     sufixURL: "",
     emptyURL: "",
     toURL: reformatTexttoWiki,
@@ -187,7 +187,7 @@ const urlMappings = [
   {
     type: "typeCategory",
     placeholder: "Enter Category on WikiTree",
-    prefixURL: "https://www.wikitree.com/wiki/Category:",
+    prefixURL: "https://" + mainDomain + "/wiki/Category:",
     sufixURL: "",
     emptyURL: "",
     toURL: reformatTexttoWiki,
@@ -203,7 +203,7 @@ const urlMappings = [
   {
     type: "typeProject",
     placeholder: "Enter Project on WikiTree",
-    prefixURL: "https://www.wikitree.com/wiki/Project:",
+    prefixURL: "https://" + mainDomain + "/wiki/Project:",
     sufixURL: "",
     emptyURL: "",
     toURL: reformatTexttoWiki,
@@ -212,7 +212,7 @@ const urlMappings = [
   {
     type: "typeTeam",
     placeholder: "Enter Team of the project on WikiTree",
-    prefixURL: "https://www.wikitree.com/wiki/Space:",
+    prefixURL: "https://" + mainDomain + "/wiki/Space:",
     sufixURL: " Team",
     emptyURL: "",
     toURL: reformatTexttoWiki,
@@ -221,7 +221,7 @@ const urlMappings = [
   {
     type: "typeSpace",
     placeholder: "Enter Space page on WikiTree",
-    prefixURL: "https://www.wikitree.com/wiki/Space:",
+    prefixURL: "https://" + mainDomain + "/wiki/Space:",
     sufixURL: "",
     emptyURL: "",
     toURL: reformatTexttoWiki,
@@ -230,7 +230,7 @@ const urlMappings = [
   {
     type: "typeImage",
     placeholder: "Enter Image name",
-    prefixURL: "https://www.wikitree.com/wiki/Image:",
+    prefixURL: "https://" + mainDomain + "/wiki/Image:",
     sufixURL: "",
     emptyURL: "",
     toURL: reformatTexttoWiki,
@@ -239,7 +239,7 @@ const urlMappings = [
   {
     type: "typeG2G",
     placeholder: "Enter question ID",
-    prefixURL: "https://www.wikitree.com/g2g/",
+    prefixURL: "https://" + mainDomain + "/g2g/",
     sufixURL: "",
     emptyURL: "",
     fromURL: getNumbertoSlash,
@@ -247,7 +247,7 @@ const urlMappings = [
   {
     type: "typeWikiTreeBlog",
     placeholder: "Enter blog name",
-    prefixURL: "https://www.wikitree.com/blog/",
+    prefixURL: "https://" + mainDomain + "/blog/",
     sufixURL: "/",
     emptyURL: "",
   },
@@ -496,7 +496,7 @@ function editTemplate(summaryPrefix) {
       "</table>" +
       "</button>" +
       '<div style="flex:1"></div>' +
-      '<a class="button" href="https://www.wikitree.com/wiki/Space:WikiTree_Plus_Chrome_Extension#Edit_Template" target="_blank">Help</a>' +
+      '<a class="button" href="https://' + mainDomain + '/wiki/Space:WikiTree_Plus_Chrome_Extension#Edit_Template" target="_blank">Help</a>' +
       //OK, Cancel
       '<button style="text-align:right" class="dlgClick" data-op="onDlgEditTemplateBtn" data-id="0">Close</button>' +
       '<button style="text-align:right" class="dlgClick" data-op="onDlgEditTemplateBtn" data-id="1" value="default">Update changes</button>' +
@@ -715,7 +715,7 @@ function onDlgEditTemplateExpCol(gName) {
 
 /* to add autocomplete on category parameter
 function WikiTreeGetCategory(query, fixed) {
-  fetch("https://www.wikitree.com/index.php?action=ajax&rs=Title::ajaxCategorySearch&rsargs[]=" + query + "&rsargs[]=1")
+  fetch("https://" + mainDomain + "/index.php?action=ajax&rs=Title::ajaxCategorySearch&rsargs[]=" + query + "&rsargs[]=1")
     .then((resp) => resp.json())
     .then((jsonData) => {
       console.log("cat: " + jsonData);
@@ -762,7 +762,7 @@ function selectTemplate(data) {
       .join("\n") +
     "</table></div>" +
     '<div style="text-align:right">' +
-    '<a class="button" href="https://www.wikitree.com/wiki/Space:WikiTree_Plus_Chrome_Extension#Add_Template" target="_blank">Help</a>' +
+    '<a class="button" href="https://' + mainDomain + '/wiki/Space:WikiTree_Plus_Chrome_Extension#Add_Template" target="_blank">Help</a>' +
     //OK, Cancel
     '<button style="text-align:right" class="dlgClick" data-op="onDlgSelectTemplateBtn" data-id="0">Close</button>' +
     '<button style="text-align:right" class="dlgClick" data-op="onDlgSelectTemplateBtn" data-id="1" value="default">Select</button>' +
@@ -796,7 +796,7 @@ function onDlgSelectTemplateFlt() {
     .map(
       (item) =>
         '<tr class="trSelect" data-op="onDlgSelectTemplateTrSel">' +
-        `<td><a target="_blank" href="https://www.wikitree.com/wiki/Template:${item.name}"><img src="${newTabIconURL}"'></a></td>` +
+        `<td><a target="_blank" href="https://${mainDomain}/wiki/Template:${item.name}"><img src="${newTabIconURL}"'></a></td>` +
         "<td>" +
         item.name +
         "</td><td>" +
@@ -938,7 +938,7 @@ function AutoUpdate() {
       s2 +
       '<div style="text-align:right">' +
       //OK, Cancel
-      '<a class="button" href="https://www.wikitree.com/wiki/Space:WikiTree_Plus_Chrome_Extension#Profile_Cleanup" target="_blank">Help</a>' +
+      '<a class="button" href="https://' + mainDomain + '/wiki/Space:WikiTree_Plus_Chrome_Extension#Profile_Cleanup" target="_blank">Help</a>' +
       '<button style="text-align:right" class="dlgClick" data-op="onDlgProfileCleanupBtn" data-id="0">Close</button>' +
       '<button style="text-align:right" class="dlgClick" data-op="onDlgProfileCleanupBtn" data-id="1" value="default">Select</button>' +
       "</div>";
@@ -1038,7 +1038,7 @@ function pasteSource() {
     '<textarea class="resultFld" rows="5" cols="80"></textarea>' +
     '<div style="text-align:right">' +
     //OK, Cancel
-    '<a class="button" href="https://www.wikitree.com/wiki/Space:WikiTree_Plus_Chrome_Extension#Paste_Sources" target="_blank">Help</a>' +
+    '<a class="button" href="https://' + mainDomain + '/wiki/Space:WikiTree_Plus_Chrome_Extension#Paste_Sources" target="_blank">Help</a>' +
     '<button style="text-align:right" class="dlgClick" data-op="onDlgPasteSourceBtn" data-id="0">Close</button>' +
     '<button style="text-align:right" class="dlgClick" data-op="onDlgPasteSourceBtn" data-id="1" value="default">Select</button>' +
     "</div>";

@@ -15,6 +15,7 @@ import { ancestorType } from "../distanceAndRelationship/distanceAndRelationship
 import { getPeople } from "../dna_table/dna_table";
 import { addFiltersToWikitables } from "../table_filters/table_filters";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { mainDomain } from "../../core/pageType";
 
 const missingFatherSrc = chrome.runtime.getURL("images/blue_bricks.jpg");
 const missingMotherSrc = chrome.runtime.getURL("images/pink_bricks.jpg");
@@ -555,13 +556,6 @@ async function getMoreConnections() {
     // theWTID is not retrieved when looking at another profile. (&w=Kauković-5)
     if (theWTID !== "") {
       getWikiTreePage("MyConnections", "/wiki/" + theWTID, "").then((res) => {
-        /*
-    $.ajax({
-      url: "https://www.wikitree.com/wiki/" + theWTID,
-      type: "GET",
-      dataType: "html", // added data type
-      success: function (res) {
-*/
         let dummy = $(res);
         let topText = dummy.find(".fourteen.columns.omega").text();
         let connectionsText = topText.match(/[0-9]+\sconnections/);
@@ -611,7 +605,7 @@ async function getMoreConnections() {
   window.nextGenIn = 0;
   const lastButOneOL = ols[parseInt(window.currentDegreeNum) - 1];
   $("#loadNextGenerationButton")
-    .html("Looking for more <img src='https://www.wikitree.com/images/icons/ajax-loader-snake-333-trans.gif'>")
+    .html("Looking for more <img src='https://" + mainDomain + "/images/icons/ajax-loader-snake-333-trans.gif'>")
     .unbind();
   let linksArr = [];
   let count = 0;
@@ -1729,7 +1723,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
         ${ahnenCell}
         ${relCell}
         <td class='connectionsName'  title='${unknownText}'><img class='familyHome' src='${homeIconURL}'><img class='privacyImage' src='${privacy}' title='${privacyTitle}'>${oLink}</td>
-        <td class='lnab'><a href='https://www.wikitree.com/index.php?title=Special:Surname&order=name&layout=table&s=${mPerson.LastNameAtBirth}'>${mPerson.LastNameAtBirth}</a></td><td class='lnc'><a href='https://www.wikitree.com/index.php?title=Special:Surname&order=name&layout=table&s=${mPerson.LastNameCurrent}'>${mPerson.LastNameCurrent}</a></td>
+        <td class='lnab'><a href='https://${mainDomain}/index.php?title=Special:Surname&order=name&layout=table&s=${mPerson.LastNameAtBirth}'>${mPerson.LastNameAtBirth}</a></td><td class='lnc'><a href='https://${mainDomain}/index.php?title=Special:Surname&order=name&layout=table&s=${mPerson.LastNameCurrent}'>${mPerson.LastNameCurrent}</a></td>
         <td class='aDate birthdate'>${birthDate}</td><td class='location birthlocation'>${birthLocation}</td>
         <td  class='aDate deathdate'>${deathDate}</td><td class='location deathlocation'>${deathLocation}</td>
         ${livedToCell}
@@ -2233,7 +2227,7 @@ async function myConnections() {
         $(
           "<a href='#next' data-user-id='" +
             thisIDSplit[1] +
-            "' id='loadNextGenerationButton' class='button small maxed'>Looking for more <img src='https://www.wikitree.com/images/icons/ajax-loader-snake-333-trans.gif'></a>"
+            "' id='loadNextGenerationButton' class='button small maxed'>Looking for more <img src='https://" + mainDomain + "/images/icons/ajax-loader-snake-333-trans.gif'></a>"
         )
       );
     }
@@ -2409,7 +2403,7 @@ function hsDetails(person, includeLink = 0) {
     pName = "Private";
   }
   if (includeLink == true) {
-    pName = "<a href='https://www.wikitree.com/wiki/" + person.Name + "'>" + pName + "</a>";
+    pName = "<a href='https://" + mainDomain + "/wiki/" + person.Name + "'>" + pName + "</a>";
   }
   let outText = pName + " (" + bDetails + dDetails + ")";
   outText = outText
