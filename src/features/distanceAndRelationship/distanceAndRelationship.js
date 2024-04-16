@@ -6,6 +6,7 @@ import $ from "jquery";
 import Cookies from "js-cookie";
 import { getConnectionJSON, getRelationJSON } from "../../core/API/wwwWikiTree";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { mainDomain } from "../../core/pageType";
 
 const fixOrdinalSuffix = (text) => {
   const pattern = /(\d+)(?:st|nd|rd|th)\b/g;
