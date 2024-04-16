@@ -1,6 +1,6 @@
 import { isOK } from "../../core/common";
 import { PersonName } from "./person_name.js";
-import { minimalPlace, formatDate, getYYYYMMDD, isWithinX } from "./auto_bio";
+import { minimalPlace, formatDate, getYYYYMMDD, isWithinX, nameLink } from "./auto_bio";
 // Timeline functions
 export function bioTimelineFacts(marriagesAndCensusesEtc) {
   let bioTimeline = [];
@@ -360,7 +360,19 @@ export function buildTimelineSA(bioTimeline) {
         }
         text += ":Date: " + formattedEventDate + dateSources + "\n";
         text += ":Place: " + eventLocation + " " + placeSources + "\n";
-        if (head == "Marriage") {
+        if (head == "Birth") {
+          dateSources = replaceTags(dateSources);
+          const father = getParent(window.profilePerson.Father);
+          const mother = getParent(window.profilePerson.Mother);
+          if (father) {
+            const fName = nameLink(father);
+            text += "::Father: " + (fName ? fName + dateSources + "\n" : "");
+          }
+          if (mother) {
+            const mName = nameLink(mother);
+            text += "::Mother: " + (mName ? mName + dateSources + "\n" : "");
+          }
+        } else if (head == "Marriage") {
           dateSources = replaceTags(dateSources);
           placeSources = replaceTags(placeSources);
 
@@ -381,6 +393,13 @@ export function buildTimelineSA(bioTimeline) {
     }
   });
   return outText;
+}
+
+function getParent(id) {
+  if (id) {
+    return window.profilePerson.Parents[id];
+  }
+  return undefined;
 }
 
 function replaceTags(text) {

@@ -777,7 +777,7 @@ export function formatDate(date, status, options = { format: "", needOn: false }
   }
 }
 
-function nameLink(person) {
+export function nameLink(person) {
   let theName = person.PersonName.BirthName;
   if (window.autoBioOptions?.fullNameOrBirthName == "FullName") {
     theName = person.PersonName.FullName;
