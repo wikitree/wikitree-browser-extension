@@ -35,16 +35,16 @@ async function CreateMigrationCategory(tb) {
     countryFrom = getRightFromWord("from ", fromPart);
     entityFrom = getRightFromWord("from ", fromPart);
   } else if (cat.indexOf("Emigrants") > -1) {
-    countryFrom = getLeftFromComma(cat);
-    entityFrom = getLeftFromComma(cat);
+    countryFrom = getLeftFromWord(", Emigrants", cat);
+    entityFrom = getLeftFromWord(", Emigrants", cat);
 
     if (cat.indexOf(" to ") > -1) {
       countryTo = getRightFromWord("to ", cat);
       entityTo = getRightFromWord("to ", cat);
     }
   } else if (cat.indexOf("Immigrants") > -1) {
-    countryTo = getLeftFromComma(cat);
-    entityTo = getLeftFromComma(cat);
+    countryTo = getLeftFromWord(", Immigrants", cat);
+    entityTo = getLeftFromWord(", Immigrants", cat);
     if (cat.indexOf(" from ") > -1) {
       countryFrom = getRightFromWord("from ", cat);
       entityFrom = getRightFromWord("from ", cat);
@@ -157,6 +157,11 @@ function getLeftFromComma(cat) {
 function getRightFromWord(word, cat) {
   const indexWord = cat.indexOf(word) + word.length;
   return cat.substring(indexWord).trim();
+}
+
+function getLeftFromWord(word, cat) {
+  const indexWord = cat.indexOf(word);
+  return cat.substring(0, indexWord).trim();
 }
 
 function GetBlankEntityIfIsCountry(entity, entities) {
