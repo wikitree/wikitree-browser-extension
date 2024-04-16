@@ -1024,8 +1024,8 @@ function addReferences(event, spouse = false) {
 
 function matchesWithoutAccents(sourceText, targetText) {
   // Normalize and remove diacritics from both source and target texts
-  var normalizedSource = sourceText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  var normalizedTarget = targetText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const normalizedSource = sourceText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const normalizedTarget = targetText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
   // Check if normalized source text contains the normalized target text
   return normalizedSource.match(normalizedTarget);
