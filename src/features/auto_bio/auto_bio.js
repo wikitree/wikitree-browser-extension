@@ -1021,6 +1021,16 @@ function addReferences(event, spouse = false) {
   }
   return text;
 }
+
+function matchesWithoutAccents(sourceText, targetText) {
+  // Normalize and remove diacritics from both source and target texts
+  var normalizedSource = sourceText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  var normalizedTarget = targetText.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  // Check if normalized source text contains the normalized target text
+  return normalizedSource.match(normalizedTarget);
+}
+
 function isReferenceRelevant(reference, event, spouse) {
   if (!window.profilePerson?.BirthYear && window.profilePerson?.BirthDate) {
     window.profilePerson.BirthYear = window.profilePerson.BirthDate.substring(0, 4);
@@ -1039,7 +1049,7 @@ function isReferenceRelevant(reference, event, spouse) {
     }
   }
   window.profilePerson.NameVariants.forEach(function (name) {
-    if (reference.Text.match(name)) {
+    if (matchesWithoutAccents(reference.Text, name)) {
       sameName = true;
     }
   });
