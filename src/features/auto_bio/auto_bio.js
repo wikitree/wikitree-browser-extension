@@ -3291,7 +3291,53 @@ function buildCensusNarratives() {
         let censusIntro = "In " + reference["Census Year"] + ", ";
         let censusRest = "";
         if (reference.Text.match(/.{0,5}'''\d{4} Census'''/i)) {
-          censusRest += sourcerCensusWithNoTable(reference, nameMatchPattern);
+          const try1 = sourcerCensusWithNoTable(reference, nameMatchPattern);
+          if (try1.match(/^Name:/) == null) {
+            censusRest += try1;
+          } else {
+            // Extracting details using regular expressions
+            const nameMatch = try1.match(/Name:\s+([\w\s.]+)(?=\sbirth|\sresidence|$)/);
+            const birthDateMatch = try1.match(/birth date:\s+(\d{4})/);
+            const birthPlaceMatch = try1.match(/birth place:\s+([\w\s]+)(?=\sresidence|$)/);
+            const residencePlaceMatch = try1.match(/residence place:\s+([\w\s,]+)\./);
+
+            let formattedSentence = "";
+            let details = [];
+
+            // Name
+            if (nameMatch) {
+              formattedSentence += nameMatch[1].trim();
+            }
+
+            // Birth details
+            if (birthDateMatch || birthPlaceMatch) {
+              details.push("born");
+              if (birthDateMatch) {
+                details.push(birthDateMatch[1]);
+              }
+              if (birthPlaceMatch) {
+                details.push(`in ${birthPlaceMatch[1].trim()}`);
+              }
+            }
+
+            // Combine name and birth details if available
+            if (details.length > 0) {
+              formattedSentence += ` (${details.join(" ")})`;
+            }
+
+            // Residence details
+            if (residencePlaceMatch) {
+              const residencePlace = residencePlaceMatch[1].replace(/,\s*United States/, "").trim(); // Removing ', United States' for brevity
+              if (formattedSentence) {
+                formattedSentence += " was living in " + residencePlace + ".";
+              } else {
+                formattedSentence += "Living in " + residencePlace + "."; // In case the name is not mentioned
+              }
+            } else {
+              formattedSentence += "."; // Close the sentence if no residence place
+            }
+            censusRest += formattedSentence;
+          }
         } else if (
           reference.Text.match(/database( with images)?, (<i>|''')?FamilySearch/) ||
           reference.Text.match(/\{\{FamilySearch Record\|.*?\}\}/)
@@ -4479,7 +4525,7 @@ export function sourcesArray(bio) {
       const nameMatch2 = aRef.Text.match(
         /familysearch.*\),\s(.*?),\s\b\d{1,2}\s\w{3}\s\d{4}\b;.*Baptism,\s(.*), (United Kingdom|USA|United States|Canada|Australia|New Zealand)/i
       );
-      const baptismDateMatch = aRef.Text.match(/familysearch.*,.*?\bon\b (.*?\d{4}\b)/i);
+      const baptismDateMatch = aRef.Text.match(/familysearch.*,.*?baptis.*?\bon\b (.*?\d{4}\b)/i);
       const baptismDateMatch2 = aRef.Text.match(/familysearch.*\),.*(\b(\d{1,2}\s)(\w{3}\s)\d{4}\b);/i);
       const birthDateMatch = aRef.Text.match(/familysearch.*,.*?\bborn\b (.*?\d{4}\b)/i);
       const baptismLocationMatch = aRef.Text.match(/familysearch.*,.*?\bin\b (.*?)\./i);
@@ -4569,6 +4615,7 @@ export function sourcesArray(bio) {
       const detailsMatch2 = aRef.Text.match(/\(http.*?\)(.*?image.*?;\s)(.*?)\./);
       const detailsMatch3 = aRef.Text.match(/(.*) marriage to\s(.*?)\s\bon\b\s(.*?)\s\bin\b\s(.*)\./);
       const entryForMatch = aRef.Text.match(/in entry for/);
+
       if (detailsMatch2) {
         if (detailsMatch2) {
           aRef["Marriage Place"] = detailsMatch2[2].replace("Archives", "");
@@ -4605,8 +4652,26 @@ export function sourcesArray(bio) {
         }
       } else if (detailsMatch3) {
         aRef.Couple = [];
-        aRef.Couple.push(detailsMatch3[1].replace(/\(.*?\)/, "").trim());
-        aRef.Couple.push(detailsMatch3[2].replace(/\(.*?\)/, "").trim());
+        let person1AgeMatch = detailsMatch3[1].match(/\d{1,2}( years)?/);
+        let person1Age = "";
+        if (person1AgeMatch) {
+          person1Age = person1AgeMatch[0];
+        }
+
+        const person1 = detailsMatch3[1]
+          .replaceAll(/\(.*?\)/g, "")
+          .trim()
+          .replaceAll(/^.*''/g, "")
+          .trim();
+
+        let person2AgeMatch = detailsMatch3[2].match(/\d{1,2}( years)?/);
+        let person2Age = "";
+        if (person2AgeMatch) {
+          person2Age = person2AgeMatch[0];
+        }
+        const person2 = detailsMatch3[2].replace(/\(.*?\)/, "").trim();
+        aRef.Couple.push(person1);
+        aRef.Couple.push(person2);
         aRef["Marriage Date"] = detailsMatch3[3];
         const refYearMatch = detailsMatch3[3].match(/\d{4}/);
         if (refYearMatch) {
@@ -4618,8 +4683,12 @@ export function sourcesArray(bio) {
         window.profilePerson.NameVariants.forEach((name) => {
           if (name == aRef.Couple[0]) {
             aRef["Spouse Name"] = aRef.Couple[1];
+            aRef["Spouse Age"] = person2Age;
+            aRef["Age"] = person1Age;
           } else if (name == aRef.Couple[1]) {
             aRef["Spouse Name"] = aRef.Couple[0];
+            aRef["Spouse Age"] = person1Age;
+            aRef["Age"] = person2Age;
           }
         });
       } else if (aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/)) {
