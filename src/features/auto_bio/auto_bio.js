@@ -1156,32 +1156,6 @@ export function assignCemeteryFromSources() {
   });
 }
 
-/*
-export function assignCemeteryFromSources() {
-  window.references.forEach(function (source) {
-    if (source["Record Type"].includes("Death")) {
-      let cemeteryMatch = source.Text.match(
-        /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Graveyard)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)|Memorial Park).*?),?.*?(?=[;.])/im
-      );
-      let cemeteryMatch2 = source.Text.match(
-        /,\s([^,]*?Cemetery|Memorial|Cimetière|kyrkogård|temető|Graveyard|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard).*?;/
-      );
-      if (cemeteryMatch && source.Text.match(/Acadian|Wall of Names|sameas=no/) == null) {
-        let cemetery = cemeteryMatch[0].replace("citing ", "").replace("Burial, ", "").trim();
-        window.profilePerson.Cemetery = cemetery;
-      } else if (cemeteryMatch2 && source.Text.match(/Acadian|Wall of Names|sameas=no/) == null) {
-        let cemetery = cemeteryMatch2[1].trim();
-        window.profilePerson.Cemetery = cemetery;
-      }
-      if (window.profilePerson?.Cemetery) {
-        if (window.profilePerson?.Cemetery.match(/record|Find a Grave/)) {
-          window.profilePerson.Cemetery = "";
-        }
-      }
-    }
-  });
-}
-*/
 export function buildDeath(person) {
   if (!isOK(person?.DeathDate) && !isOK(person.DeathDecade) && !isOK(person.DeathLocation)) {
     return false;
@@ -3698,17 +3672,6 @@ function doHousehold(aRef) {
           }
           aMember.Relation = theRelation;
           aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
-          /*
-      if (isOK(aPerson.BirthDate)) {
-        if (isWithinX(getAgeAtCensus(aPerson, data["Year"]), value, 4)) {
-          aMember.Relation = theRelation;
-          aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
-        }
-      } else {
-        aMember.Relation = theRelation;
-        aMember.LastNameAtBirth = aPerson.LastNameAtBirth;
-      }
-      */
         } else if (aRef.Father == aMember.Name && aRef.Age < aMember.Age) {
           aMember.Relation = "Father";
         } else if (aRef.Mother == aMember.Name && aRef.Age < aMember.Age) {
