@@ -8169,7 +8169,7 @@ export async function getLocationCategory(type, location = null) {
           }
         } else if (response?.categories?.length > 1) {
           const locationSplit = location.split(", ");
-          let thisState = findUSState(location); // Assuming findUSState is a function you have
+          let thisState = findUSState(location); // Find the state of the location
 
           response.categories.forEach(function (aCat) {
             if (!aCat.topLevel) {

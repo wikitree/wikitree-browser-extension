@@ -148,12 +148,20 @@
     "NameVariants": ["Ayers", "Ayres"]
   },
   {
-    "Name": "Barnscheidt",
-    "NameVariants": ["Barnscheid", "Bannscheidt", "Bannscheid"]
+    "Name": "Bandy",
+    "NameVariants": ["Bandi"]
   },
   {
-    "Name": "Batte",
-    "NameVariants": ["Batts", "Bates", "Batt", "Battey", "Battie", "Beatty", "Beattie"]
+    "Name": "Barnum",
+    "NameVariants": ["Barnham", "Barnam", "Bernham", "de Bernham"]
+  },
+  {
+    "Name": "Bartee",
+    "NameVariants": ["Bartie", "Barty"]
+  },
+  {
+    "Name": "Bates",
+    "NameVariants": ["Batts", "Batte", "Batt", "Battey", "Battie", "Beatty", "Beattie"]
   },
   {
     "Name": "Beardsley",
@@ -172,6 +180,14 @@
     "NameVariants": ["Blod", "Blode", "Bloode", "Bloud", "Blud", "Blude", "Bludd", "Bludde"]
   },
   {
+    "Name": "Bonar",
+    "NameVariants": ["Boner", "Bonnar", "Bonner", "Boner"]
+  },
+  {
+    "Name": "Bonitz",
+    "NameVariants": ["Ponitz", "Boniz", "Poniz", "Bohnitz", "Boniec", "Bonits"]
+  },
+  {
     "Name": "Bourque",
     "NameVariants": ["Bourg", "Bourc", "Bourck", "Bourgue"]
   },
@@ -181,7 +197,11 @@
   },
   {
     "Name": "Buck",
-    "NameVariants": ["Buch", "Buk"]
+    "NameVariants": ["Buch", "Book"]
+  },
+  {
+    "Name": "Buckle",
+    "NameVariants": ["Buckell", "Buckel"]
   },
   {
     "Name": "Bukáček",
@@ -198,6 +218,10 @@
   {
     "Name": "Chapman",
     "NameVariants": ["Chatman", "Chapmon", "Chatmon", "Chipmon"]
+  },
+  {
+    "Name": "Choate",
+    "NameVariants": ["Choat", "Shote"]
   },
   {
     "Name": "Cook",
@@ -271,6 +295,10 @@
     "NameVariants": ["Fryburghus"]
   },
   {
+    "Name": "Galusha",
+    "NameVariants": ["Galeucia", "Gallutia", "Galutia", "Galluchat"]
+  },
+  {
     "Name": "Garrigues",
     "NameVariants": ["Garrigus", "Garrigue", "Garriques"]
   },
@@ -287,8 +315,28 @@
     "NameVariants": ["Gimblet", "Gimlett", "Gimblette", "Gimlette", "Gimlet"]
   },
   {
+    "Name": "Gutknecht",
+    "NameVariants": [
+      "Guthknecht",
+      "Guttknecht",
+      "Godknecht",
+      "Gothknecht",
+      "Godtknecht",
+      "Gudknecht",
+      "Goodknecht",
+      "Goodknight",
+      "Goodnight",
+      "Godnite",
+      "Goutknecht"
+    ]
+  },
+  {
     "Name": "Hartley",
     "NameVariants": ["Hartly"]
+  },
+  {
+    "Name": "Hellmund",
+    "NameVariants": ["Hellmundt", "Hellmann"]
   },
   {
     "Name": "Hewitt",
@@ -384,6 +432,10 @@
     "NameVariants": ["Marshal", "Marschall", "Marshell"]
   },
   {
+    "Name": "Matlock",
+    "NameVariants": ["Medlock", "Matlack"]
+  },
+  {
     "Name": "McClure",
     "NameVariants": ["MacClure", "MacLure", "MacCloor", "McLeur", "McCloor", "McCluer", "McClewer"]
   },
@@ -408,48 +460,14 @@
     "NameVariants": ["Oates"]
   },
   {
+    "Name": "Oaks",
+    "NameVariants": ["Oakes"]
+  },
+  {
     "Name": "Ostermann",
-    "NameVariants": ["Osterman", "Oosterman", "Östermann", "Österman", "Остерман"]
+    "NameVariants": ["Osterman", "Oosterman", "Östermann", "Österman", "Остерман", "Easterman"]
   },
   { "Name": "Overcast", "NameVariants": ["Overcash", "Oberkirsh", "Oberkirch", "Oberkirsher", "Oberkirsch"] },
-  {
-    "Name": "Parker",
-    "NameVariants": ["Parkhurst", "Parkes", "Parks", "Park", "Parke"]
-  },
-  {
-    "Name": "Patterson",
-    "NameVariants": [
-      "Paterson",
-      "Pattison",
-      "Pattisson",
-      "Pattisson",
-      "Patteson",
-      "Pattinson",
-      "Pattens",
-      "Pattensson",
-      "Pattensonn",
-      "Pattensoun",
-      "Pattenssonn",
-      "Pattensounn",
-      "Pattensonn",
-      "Pattissonn",
-      "Pattissonn",
-      "Pattisonn",
-      "Pattisonn",
-      "Patteson",
-      "Patteson",
-      "Pattinsonn",
-      "Pattinsonn",
-      "Pattensounn",
-      "Pattensounn",
-      "Pattensonn",
-      "Pattensonn",
-      "Pattens",
-      "Pattens",
-      "Pattenssonn",
-      "Pattenssonn"
-    ]
-  },
   {
     "Name": "Pegues",
     "NameVariants": ["Pegus", "Pigue", "Pogue", "Pague"]
@@ -467,12 +485,20 @@
     "NameVariants": ["Pryce", "Preece", "Priess", "Preese", "Prize", "Priesz"]
   },
   {
+    "Name": "Reichstein",
+    "NameVariants": ["Reichstein"]
+  },
+  {
     "Name": "Reilly",
     "NameVariants": ["Riley", "O'Reilly"]
   },
   {
     "Name": "Ripke",
     "NameVariants": ["Ribbke", "Ripcke"]
+  },
+  {
+    "Name": "Rosling",
+    "NameVariants": ["Roslin", "Rosellen"]
   },
   {
     "Name": "Smarzyński",
@@ -523,6 +549,10 @@
     ]
   },
   {
+    "Name": "Starjak",
+    "NameVariants": ["Starjack", "Starjack", "Staryak"]
+  },
+  {
     "Name": "Strozier",
     "NameVariants": ["Strasser", "Strauser", "Strosser", "Storzer", "Stroer"]
   },
@@ -537,6 +567,10 @@
   {
     "Name": "Threlkeld",
     "NameVariants": ["Thrailkeld", "Thrailkill", "Threldkeld", "Threlkel", "Thurlkill"]
+  },
+  {
+    "Name": "Tiffany",
+    "NameVariants": ["Tiffaney", "Tiffney"]
   },
   {
     "Name": "Tilliduff",
@@ -586,6 +620,10 @@
       "Westvael",
       "Van Westphalen"
     ]
+  },
+  {
+    "Name": "Wiborg",
+    "NameVariants": ["Weborg", "Wiberg", "Wieberg", "Weberg", "Viborg", "Weiberg", "Wisborg"]
   },
   {
     "Name": "Wilhite",
