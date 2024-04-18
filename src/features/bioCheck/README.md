@@ -3,7 +3,9 @@ Code to check a WikiTree biography
 
 ## Shared Code
 The following are **identical** classes found in the Bio Check app, in the 
-WikiTree Browser Extension, and in the WikiTree Dynamic Tree.
+WikiTree Browser Extension, and in the WikiTree Dynamic Tree. Please do not
+modify these classes to introduce items that are not available in those
+contexts.
 * Biography.js
 * BioCheckPerson.js
 * SourceRules.js

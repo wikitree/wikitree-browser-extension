@@ -5,7 +5,7 @@ Created By: Kay Knight (Sands-1865)
 /*
 The MIT License (MIT)
 
-Copyright (c) 2023 Kathryn J Knight
+Copyright (c) 2024 Kathryn J Knight
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -24,6 +24,17 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
+
+/* **********************************************************************************
+ * *****************************    WARNING    **************************************
+ *
+ * This class is used in the BioCheck app, in the WikiTree Dynamic Tree and in the 
+ * WikiTree Browser Extension. Ensure that any changes do not bring in components 
+ * that are not supported in each of these environments.
+ *
+ * **********************************************************************************
+ * ******************************************************************************** */
+
 /**
  * Parse and validate a WikiTree biography.
  * Gathers information about style and the parts needed to validate,
@@ -1098,8 +1109,12 @@ export class Biography {
      *
      * but one thing you don't do is check for a name that wasn't defined
      * data entry will find this and you never checked for it previously
+     *
+     * replace the ref to be lower case for matching
+     * even though the Wiki Markup spec is just lower case. Sigh.
     */
-    let refArray = bioLineString.split('<ref');
+    let line = bioLineString.replaceAll(/ref/gi, 'ref');
+    let refArray = line.split('<ref');
     for (let i = 1; i < refArray.length; i++) {
       if (refArray[i].indexOf("/>") < 0) {
         let citeStart = refArray[i].indexOf('>') + 1;
@@ -1461,7 +1476,7 @@ export class Biography {
           this.#messages.styleMessages.push('Heading or subheading before Biography');
         }
       }  else {
-        // See https://wikitree.com/wiki/Help:Recommended_Tags
+        // See https://www.wikitree.com/wiki/Help:Recommended_Tags
         // this might be too aggressive
         if ((line.startsWith('[[')) && (line.endsWith(']]'))) {
           this.#unexpectedLines.push(line);
@@ -1567,7 +1582,6 @@ export class Biography {
                             ;   // TODO
                           } else {
                             if (!this.#isJustCombinedLines(line)) {
-                              // TODO add more logic to eliminate sources as valid by combining ones
                               // TODO is the manager's name a valid source (this is hard)
                               // TODO add logic to check for just the name followed by grave
                               // TODO add logic to strip "information from" from the start

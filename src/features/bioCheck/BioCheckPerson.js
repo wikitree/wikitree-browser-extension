@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2023 Kathryn J Knight
+Copyright (c) 2024 Kathryn J Knight
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -21,6 +21,16 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+/* **********************************************************************************
+ * *****************************    WARNING    **************************************
+ *
+ * This class is used in the BioCheck app, in the WikiTree Dynamic Tree and in the 
+ * WikiTree Browser Extension. Ensure that any changes do not bring in components 
+ * that are not supported in each of these environments.
+ *
+ * **********************************************************************************
+ * ******************************************************************************** */
+
 /**
  * Contains information about a WikiTree Profile.
  * Could be a profile obtained via the API in the app
@@ -31,8 +41,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,
  * FirstName,RealName,LastNameCurrent,LastNameAtBirth,Mother,Father,DataStatus,Bio
  */
-import { mainDomain } from "../../core/pageType";
-
 export class BioCheckPerson {
 
   #isApp = false;
@@ -193,18 +201,6 @@ export class BioCheckPerson {
       if (mustBeOrphan && !this.person.isOrphan) {
           canUseThis = false;
       }
-      /*
-      // Manager will be null due to privacy or 0 if a true orphan)
-      if (mustBeOrphan) {
-        if (profileObj.Manager == null) {   // don't see manager due to privacy
-          canUseThis = false;
-        } else {
-          if (this.person.managerId !== 0) {  // not an orphan
-            canUseThis = false;
-          }
-        }
-      }
-      */
 
       // Do not check the profile for a member
       // TODO not sure that you want to do this, need team guidance
@@ -282,15 +278,6 @@ export class BioCheckPerson {
   getManagerId() {
     return this.person.managerId;
   }
-  /**
-   * Get WikiTree link
-   * @returns {String} link to the WikiTree person
-   */
-  getWikiTreeLink() {
-    const WIKI_TREE_URI = "https://" + mainDomain + "/wiki/";
-    return WIKI_TREE_URI + this.person.wikiTreeId;
-  }
-
   /** 
    * Is profile for a member
    * @returns {Boolean} true if profile for a member
