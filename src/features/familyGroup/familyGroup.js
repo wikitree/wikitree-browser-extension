@@ -115,11 +115,9 @@ export async function showFamilySheet(theClicked, profileID) {
       $(this).parent().fadeOut();
     });
 
-  $(document)
-    .off("click.wbe")
-    .on("click.wbe", ".familySheet w", function () {
-      $(this).parent().toggleClass("wrap");
-    });
+  $(document).on("click.wbe", ".familySheet w", function () {
+    $(this).parent().toggleClass("wrap");
+  });
 
   $(document)
     .off("dblclick.wbe")
@@ -275,7 +273,9 @@ export function peopleToTable(kPeople) {
             kPers.Gender +
             "'><td>" +
             kPers.RelationShow +
-            "</td><td><a href='https://" + mainDomain + "/wiki/" +
+            "</td><td><a href='https://" +
+            mainDomain +
+            "/wiki/" +
             htmlEntities(kPers.Name) +
             "'>" +
             oName +
