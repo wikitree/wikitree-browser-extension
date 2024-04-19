@@ -82,6 +82,51 @@ export const wtAPIProfileSearch = (callerID, query, params) => {
 export const wtAPICatCIBSearch = (callerID, cibType, query) =>
   wtAPICall(`wtCatCIBSearch/apiExt${callerID}.json?Query=${query}&cib=${cibType}`);
 
+/********************************************************************
+  wtAPINameDistribution Retrieve the names gender with counts
+    Parameters:
+      callerID:         Prefarably unique name of the caller: "GenderPredictor"
+      firstNames:       All words of the first name: "Joseph Maria"
+    Returns:            JS object:
+      {
+
+        // For successful single find
+        "response": {
+            "name": "Augusta Justine",
+            "gender": "Female probably",
+            "male": 0,
+            "female": 15
+        }
+
+        // For multiple partial match
+        "response": {
+            "similar": [
+                {
+                    "name": "Kurt Heinrich Sixten",
+                    "gender": "Unknown",
+                    "male": 1,
+                    "female": 0
+                },
+                {
+                    "name": "Kurt Rolf Sixten",
+                    "gender": "Unknown",
+                    "male": 1,
+                    "female": 0
+                }
+            ]
+        },
+
+        // For no match
+        "response": {
+            "error": "FirstName not found"
+        },
+      }
+      gender: Possible values: "Female","Female probably", "Unisex", "Male probably", "Male", "Unknown"
+*******************************************************************/
+
+// https://plus.wikitree.com/function/wtWebNameDistribution/apiExtGenderPredictor.json?FirstName=Ian&Format=json
+export const wtAPINameDistribution = (callerID, firstNames) =>
+  wtAPICall(`wtWebNameDistribution/apiExt${callerID}.json?FirstName=${firstNames}`);
 
 // *******************************************************************
 // Base call to WikiTree+
