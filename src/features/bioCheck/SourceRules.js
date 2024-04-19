@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2023 Kathryn J Knight
+Copyright (c) 2024 Kathryn J Knight
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -20,6 +20,17 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
+
+/* **********************************************************************************
+ * *****************************    WARNING    **************************************
+ *
+ * This class is used in the BioCheck app, in the WikiTree Dynamic Tree and in the 
+ * WikiTree Browser Extension. Ensure that any changes do not bring in components 
+ * that are not supported in each of these environments.
+ *
+ * **********************************************************************************
+ * ******************************************************************************** */
+
 /**
  * Rules for identifying sources in a biography that are not valid.
  * This class is intended to be a singleton and immutable.
@@ -298,11 +309,12 @@ class SourceRules {
     "confirmed by dna match",
     "freereg marriage entry",
     "own family information",
+    "personal contributions",
     "scotlandspeople.gov.uk",
     "family tree on ancestry",
+    "no sources at this time",
     "personal family records",
     "thanks to family search",
-    "no sources at this time",
     "geneanet community trees",
     "https://familysearch.org",
     "ohio marriages 1800-1958",
