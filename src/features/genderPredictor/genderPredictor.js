@@ -4,6 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage.js";
+import { wtAPINameDistribution } from "../../core/API/wtPlusAPI.js";
 
 let theName = "";
 const mGender = $("select[name='mGender']");
@@ -17,11 +18,14 @@ shouldInitializeFeature("genderPredictor").then((result) => {
 });
 
 async function getGenderPrediction(name) {
+  return wtAPINameDistribution('WBE_genderPredictor', name)
+/* old fetch. now uses API
   const response = await fetch(
     `https://plus.wikitree.com/function/WTWebNameDistribution/names.json?FirstName=${name}&Format=json&appId=WBE_genderPredictor`
   );
   const data = await response.json();
   return data;
+*/
 }
 
 function setGenderClass(predicted = false) {
