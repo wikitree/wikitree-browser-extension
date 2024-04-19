@@ -3,9 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { titleCase } from "../familyTimeline/familyTimeline";
 import { isOK } from "../../core/common.js";
-import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 shouldInitializeFeature("sortThemePeople").then((result) => {
@@ -92,185 +90,48 @@ function setThemeTitles(dTitle) {
     theP = $("body.profile div.sixteen.columns div.box.rounded a[href*='Special:Connection']").closest("div");
   }
   const theDiv = theP.closest("div");
-  const ourTitle = "This week's theme: " + dTitle;
-  const ourTableTitle = dTitle + ":<br>Connections to " + $("span[itemprop='givenName']").text();
+  const ourTitle = dTitle + " Connections to " + $("span[itemprop='givenName']").text();
   if ($("h2.thisWeeksTheme").length == 0) {
     theDiv.prepend("<h2 class='thisWeeksTheme'>" + ourTitle + "</h2>");
   }
   if ($("#themeTable").length) {
-    $("#themeTable caption").html(ourTableTitle);
+    $("#themeTable caption").html(ourTitle);
     $("h2.thisWeeksTheme").hide();
   }
 }
 
 async function setConnectionsBanner() {
+  const cfTitle = $("div.x-connections a:first").text();
   let theP = $("body.profile div.sixteen.columns p a[href*='Special:Connection']").closest("p");
   if (theP.length) {
     theP.addClass("cfParagraph");
   } else {
     theP = $("body.profile div.sixteen.columns div.box.rounded a[href*='Special:Connection']").closest("div");
   }
-
-  let dTitle = "";
-  if (!window.noHeading && localStorage.cfTitle) {
-    if (localStorage.cfTitle.match(/\b[A-Z]{2,}\b/) == null) {
-      dTitle = titleCase(localStorage.cfTitle);
-    } else if (localStorage.cfTitle) {
-      dTitle = localStorage.cfTitle;
-    } else if (localStorage.shogenCFTitle) {
-      dTitle = localStorage.shogenCFTitle;
-    }
-    if (!dTitle && $("h2.thisWeeksTheme").length) {
-      dTitle = $("h2.thisWeeksTheme").text().replace("This week's theme: ", "");
-    }
-    if (!dTitle) {
-      dTitle = "Featured Connections";
-    }
-  } else {
-    dTitle = "Featured Connections";
-  }
-
-  const motwLink = theP.find("a:contains(" + localStorage.motw + ")");
-  motwLink.text(motwLink.text().replace(/\bfrom\b/, "from our Member of the Week,"));
-  const mSplits = motwLink.text().split("our Member of the Week");
-  const boldText = document.createElement("b");
-  boldText.append(document.createTextNode("our Member of the Week"));
-  motwLink.text("");
-  motwLink.append(document.createTextNode(mSplits[0]), boldText, document.createTextNode(mSplits[1]));
-
-  const newTitle = localStorage.cfTitle || localStorage.shogenCFTitle || "Featured Connections";
-  setThemeTitles(newTitle);
+  setThemeTitles(cfTitle);
 }
 
 async function connectionsBanner() {
-  getThemeData().then(async (response) => {
-    // Check if there was a change and its date is after the last Sunday
-    const lastThemeChangeDate = localStorage.lastThemeChangeDate ? new Date(localStorage.lastThemeChangeDate) : null;
-    const lastSunday = new Date();
-    lastSunday.setDate(lastSunday.getDate() - lastSunday.getDay());
+  if ($("h2.thisWeeksTheme").length == 0) {
+    if (
+      $(
+        "div.sixteen.columns p a[href*='Special:Connection'],div.sixteen.columns div.box.rounded.row a[href*='Special:Connection']"
+      ).length
+    ) {
+      const firstConnectionHREF = $(
+        "div.sixteen.columns p a[href*='Special:Connection'],div.sixteen.columns div.box.rounded.row a[href*='Special:Connection']"
+      )
+        .eq(0)
+        .attr("href");
 
-    if (lastThemeChangeDate && lastThemeChangeDate > lastSunday) {
-      if ($("h2.thisWeeksTheme").length == 0) {
+      if (isOK(firstConnectionHREF)) {
+        const urlParams = new URLSearchParams(firstConnectionHREF);
+        const firstConnectionWTID = urlParams.get("person1Name");
+        localStorage.setItem("firstConnectionWTID", firstConnectionWTID);
         setConnectionsBanner();
       }
-      return;
     }
-
-    if ($("h2.thisWeeksTheme").length == 0) {
-      if (
-        $(
-          "div.sixteen.columns p a[href*='Special:Connection'],div.sixteen.columns div.box.rounded.row a[href*='Special:Connection']"
-        ).length
-      ) {
-        const firstConnection = $(
-          "div.sixteen.columns p a[href*='Special:Connection'],div.sixteen.columns div.box.rounded.row a[href*='Special:Connection']"
-        )
-          .eq(0)
-          .text()
-          .replace(/[0-9]+ degrees? from /, "");
-
-        const firstConnectionHREF = $(
-          "div.sixteen.columns p a[href*='Special:Connection'],div.sixteen.columns div.box.rounded.row a[href*='Special:Connection']"
-        )
-          .eq(0)
-          .attr("href");
-
-        if (isOK(firstConnectionHREF)) {
-          const urlParams = new URLSearchParams(firstConnectionHREF);
-          const firstConnectionWTID = urlParams.get("person1Name");
-          localStorage.setItem("firstConnectionWTID", firstConnectionWTID);
-          getWikiTreePage("SortTheme", "", "").then((data) => {
-            if ($("h2.thisWeeksTheme").length == 0) {
-              const hpHTML = $(data);
-              let linkText = "";
-              if (isOK(localStorage.shogenCFTitleData)) {
-                linkText = JSON.parse(localStorage.shogenCFTitleData)["linkText"];
-              } else {
-                linkText = "closely-connected";
-              }
-              let cfTitleAs = hpHTML.find("a[href*='" + linkText + "'][title*='G2G post']");
-              let cfTitle = cfTitleAs.eq(0).text();
-              if (cfTitle == "") {
-                cfTitle = cfTitleAs.eq(1).text();
-              }
-
-              let gotFromShogen = false;
-              if (isOK(cfTitle) && isOK(localStorage.shogenCFTitleData)) {
-                const themeData = JSON.parse(localStorage.shogenCFTitleData);
-                if (themeData.theme == "null") {
-                  cfTitle = "";
-                } else if (themeData.theme != "") {
-                  localStorage.shogenCFTitle = themeData.theme;
-                } else {
-                  themeData.themes.forEach(function (aTheme) {
-                    const cfRegExp = new RegExp(aTheme[0], "i");
-                    if (cfTitle.match(cfRegExp) != null) {
-                      cfTitle = aTheme[1];
-                      localStorage.shogenCFTitle = cfTitle;
-                      gotFromShogen = true;
-                    }
-                  });
-                }
-              }
-              if (gotFromShogen == false) {
-                if (isOK(localStorage.shogenCFTitle)) {
-                  cfTitle = localStorage.shogenCFTitle;
-                }
-                if (localStorage.shogenCFTitle == "null") {
-                  cfTitle = "";
-                }
-              }
-              localStorage.setItem("cfTitle", cfTitle);
-              localStorage.setItem("firstConnection", firstConnection);
-              const mow = hpHTML.find("span.large:contains(Member of the Week)");
-              if (mow.length) {
-                localStorage.motw = mow.parent().find("img").attr("alt");
-              }
-              setConnectionsBanner();
-            }
-          });
-        }
-      }
-    } else {
-      setConnectionsBanner();
-    }
-  });
-}
-
-async function getThemeData() {
-  // If localStorage data exist
-  if (localStorage.shogenCFTitle && localStorage.shogenCFTitleData && localStorage.shogenCFDateTime) {
-    const storedDateTime = new Date(localStorage.shogenCFDateTime);
-    const currentDateTime = new Date();
-    const timeDifferenceInHours = Math.abs(currentDateTime - storedDateTime) / 36e5;
-
-    // If the time difference is less than 4 hours, return the stored data
-    if (timeDifferenceInHours < 4) {
-      return true;
-    }
+  } else {
+    setConnectionsBanner();
   }
-
-  // get theme data
-  const beeURL = "https://wikitreebee.com/BEE.php?q=BEE";
-  const result = await $.ajax({
-    url: beeURL,
-    crossDomain: true,
-    xhrFields: { withCredentials: false },
-    type: "POST",
-    dataType: "text",
-    success: function (data) {
-      const mData = JSON.parse(data);
-      localStorage.shogenCFTitle = mData.theme;
-      localStorage.shogenCFTitleData = data;
-      // Store current date and time in localStorage
-      localStorage.shogenCFDateTime = new Date().toISOString();
-    },
-    error: function (jqXHR, textStatus, error) {
-      console.log("error in AJAX call...");
-      console.log("jqXHR:", jqXHR);
-      console.log("textStatus:", textStatus);
-      console.log("error:", error);
-    },
-  });
-  return result;
 }
