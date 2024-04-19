@@ -6,6 +6,7 @@ import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import { getRelatives } from "wikitree-js";
 import { createProfileSubmenuLink, familyArray, isOK, htmlEntities } from "../../core/common";
+import { mainDomain } from "../../core/pageType";
 
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
@@ -107,6 +108,23 @@ export function getHighestZindex() {
 }
 
 export async function showFamilySheet(theClicked, profileID) {
+  // Event delegation for closing and wrapping
+  $(document)
+    .off("click.wbe")
+    .on("click.wbe", ".familySheet x", function () {
+      $(this).parent().fadeOut();
+    });
+
+  $(document).on("click.wbe", ".familySheet w", function () {
+    $(this).parent().toggleClass("wrap");
+  });
+
+  $(document)
+    .off("dblclick.wbe")
+    .on("dblclick.wbe", ".familySheet", function () {
+      $(this).fadeOut();
+      incrementZIndex($(this));
+    });
   // If the table already exists toggle it.
   if ($("#" + profileID.replace(" ", "_") + "_family").length) {
     const thisFamilySheet = $("#" + profileID.replace(" ", "_") + "_family");
@@ -268,7 +286,9 @@ export function peopleToTable(kPeople) {
             kPers.Gender +
             "'><td>" +
             kPers.RelationShow +
-            "</td><td><a href='https://www.wikitree.com/wiki/" +
+            "</td><td><a href='https://" +
+            mainDomain +
+            "/wiki/" +
             htmlEntities(kPers.Name) +
             "'>" +
             oName +
