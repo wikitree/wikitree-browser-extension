@@ -99,7 +99,9 @@ function AddCemeteryReportLinks() {
         addLink.title =
           "Opens the profile for editing, adds the category and lets you review the changes, before saving it.";
         addLink.href =
-          "https://" + mainDomain + "/index.php?title=Special:EditPerson&w=" +
+          "https://" +
+          mainDomain +
+          "/index.php?title=Special:EditPerson&w=" +
           encodeURIComponent(wikiTreeId) +
           "&addCat=" +
           encodeURIComponent(cat);
@@ -195,7 +197,9 @@ function AddAddProfileToCategory() {
         }
       }
       window.open(
-        "http://" + mainDomain + "/index.php?title=Special:EditPerson&" +
+        "http://" +
+          mainDomain +
+          "/index.php?title=Special:EditPerson&" +
           idType +
           "=" +
           profileId +
@@ -290,7 +294,9 @@ export function showResultsOnKeyUp(catTextbox, resultDiv) {
   EmptySuggestionList(resList);
   const typedVal = catTextbox.value;
   let catUrl =
-    "https://" + mainDomain + "/index.php?action=ajax&rs=Title%3A%3AajaxCategorySearch&rsargs[]=" +
+    "https://" +
+    mainDomain +
+    "/index.php?action=ajax&rs=Title%3A%3AajaxCategorySearch&rsargs[]=" +
     typedVal +
     "&rsargs[]=0&appID=WBE_categoryManagement";
   let xmlHttp = new XMLHttpRequest();
@@ -483,7 +489,9 @@ function CreateRenameCatLink() {
     const newCategory = prompt("New name?", currentCategory);
     if (newCategory) {
       let url =
-        "https://" + mainDomain + "/index.php?title=Category:" +
+        "https://" +
+        mainDomain +
+        "/index.php?title=Category:" +
         currentCategory +
         "&catBot=rename&newCat=" +
         newCategory +
@@ -504,7 +512,9 @@ function CreateCopyRenameCatLink() {
     const newCategory = prompt("New name?", currentCategory);
     if (newCategory) {
       let url =
-        "https://" + mainDomain + "/index.php?title=Category:" +
+        "https://" +
+        mainDomain +
+        "/index.php?title=Category:" +
         currentCategory +
         "&catBot=copyrename&newCat=" +
         newCategory +
@@ -1114,13 +1124,16 @@ function MarkCategoryForDeletionAndSave() {
 
 function MarkForRenameOpenNewAndSave(newCategory) {
   const reason = prompt("reason for renaming?");
-
+  if (reason == null) {
+    return;
+  }
+  const cleanNewCategory = newCategory.replace("[[", "").replace("]]", "").replace("Category:", "").trim();
   let wpTextbox1 = window.document.getElementById("wpTextbox1");
-  let toInsert = "{{Rename Category|" + newCategory + "}}\n" + reason + " --~~~~";
+  let toInsert = "{{Rename Category|" + cleanNewCategory + "}}\n" + reason + " --~~~~";
 
   var editForm = document.getElementById("editform");
   const previousAction = editForm.action;
-  OpenNewCategoryInNewTab(newCategory);
+  OpenNewCategoryInNewTab(cleanNewCategory);
   editForm.action = previousAction;
   editForm.target = "";
 
@@ -1131,7 +1144,9 @@ function MarkForRenameOpenNewAndSave(newCategory) {
 function CheckWhatLinksHereAndSave() {
   const category = GetCurrentCategoryName();
   let catUrl =
-    "https://" + mainDomain + "/wiki/Special:Whatlinkshere/Category:" +
+    "https://" +
+    mainDomain +
+    "/wiki/Special:Whatlinkshere/Category:" +
     encodeURIComponent(category) +
     "?appID=WBE_categoryManagement";
   let xmlHttp = new XMLHttpRequest();
