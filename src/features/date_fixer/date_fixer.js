@@ -735,15 +735,18 @@ function fixDates() {
     }
   }
 
-  $("#mBirthDate,#mDeathDate,#mMarriageDate,#photo_date,#mStartDate,#mEndDate").on("change", function () {
-    $("#dateWarning").remove(); // Remove any existing warnings
-    $("#dateClarificationModal").remove(); // Remove any existing date clarification modal
-    const input = $(this).val().trim();
-    const fixedDate = parseDate(input, $(this));
-    if (fixedDate) {
-      $(this).val(fixedDate);
+  $("#mBirthDate,#mDeathDate,#mMarriageDate,#MarriageEndDate,#photo_date,#mStartDate,#mEndDate").on(
+    "change",
+    function () {
+      $("#dateWarning").remove(); // Remove any existing warnings
+      $("#dateClarificationModal").remove(); // Remove any existing date clarification modal
+      const input = $(this).val().trim();
+      const fixedDate = parseDate(input, $(this));
+      if (fixedDate) {
+        $(this).val(fixedDate);
+      }
     }
-  });
+  );
 }
 
 shouldInitializeFeature("dateFixer").then((result) => {
