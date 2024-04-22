@@ -1,7 +1,7 @@
 import $ from "jquery";
 import Cookies from "js-cookie";
 import {
-  mainDomain, 
+  mainDomain,
   isSearchPage,
   isProfileEdit,
   isProfileAddRelative,
@@ -310,14 +310,16 @@ function putFocusOnFirstNameField() {
   if (isAddUnrelatedPerson) {
     document.getElementById("mFirstName").focus();
   } else if (isProfileAddRelative) {
-    var enterBasicDataButton = document.getElementById("actionButton");
+    const enterBasicDataButton = document.getElementById("actionButton");
     let timeoutShowBasicData = null;
-    enterBasicDataButton.addEventListener("click", function () {
-      clearTimeout(timeoutShowBasicData);
-      timeoutShowBasicData = setTimeout(function () {
-        document.getElementById("mFirstName").focus();
-      }, 300);
-    });
+    if (enterBasicDataButton) {
+      enterBasicDataButton.addEventListener("click", function () {
+        clearTimeout(timeoutShowBasicData);
+        timeoutShowBasicData = setTimeout(function () {
+          document.getElementById("mFirstName").focus();
+        }, 300);
+      });
+    }
   }
 }
 
