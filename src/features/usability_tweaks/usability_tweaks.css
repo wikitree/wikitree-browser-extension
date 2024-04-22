@@ -23,3 +23,6 @@ body.page-Special_SearchPerson #onlyMembers.active {
   position: relative;
   bottom: 0.2em;
 }
+body.page-Special_SearchPerson #onlyMembers {
+  cursor: pointer;
+}

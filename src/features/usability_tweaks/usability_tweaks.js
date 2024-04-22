@@ -182,39 +182,32 @@ function addScratchPadButton() {
 }
 
 function toggleNonMembers() {
-  $(".P-ITEM").each(function () {
-    if ($(this).find("img[alt='Active member']").length == 0) {
+  $(".wt.names tr").each(function () {
+    if ($(this).find("a[href*='/wiki/']").length > 0 && $(this).find("img[alt='Active member']").length == 0) {
       $(this).toggle();
     }
   });
-
-  let mPITEMs = $(".P-ITEM");
-  let foundItem = false;
-  let mPITEM;
-  for (let i = 0; i < mPITEMs.length; i++) {
-    mPITEM = mPITEMs.eq(i);
-    if (mPITEM.find("img[alt='Active member']").length == 0) {
-      foundItem = true;
-      break;
-    }
-  }
-  Cookies.set("onlyMembers", 0);
-  if (foundItem == true) {
-    if (mPITEM.css("display") == "none") {
-      Cookies.set("onlyMembers", 1);
-    }
+  $("#onlyMembers").toggleClass("active");
+  if ($("#onlyMembers").hasClass("active")) {
+    Cookies.set("onlyMembers", 1);
+  } else {
+    Cookies.set("onlyMembers", 0);
   }
 }
 
 async function onlyMembers() {
-  $("p").eq(0).append($("<span class='small'>[<a id='onlyMembers'>only active members</a>]</span>"));
+  $("p")
+    .eq(0)
+    .append(
+      $(
+        `<span class='small'>[<a id='onlyMembers' title="Show only the active members on this page">only active members</a>]</span>`
+      )
+    );
   $("#onlyMembers").on("click", function () {
-    $("#onlyMembers").toggleClass("active");
     toggleNonMembers();
     return;
   });
   if (Cookies.get("onlyMembers") == 1) {
-    $("#onlyMembers").toggleClass("active");
     toggleNonMembers();
   }
 }
