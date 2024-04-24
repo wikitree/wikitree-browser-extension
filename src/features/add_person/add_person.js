@@ -144,8 +144,12 @@ function scrollTo(el) {
 shouldInitializeFeature("addPersonRedesign").then((result) => {
   if (result && isProfileEdit) {
     getFeatureOptions("addPersonRedesign").then((options) => {
-      if (options.categoryPicker && document.getElementById("newProfileNote") != null) {
-        moveCategories();
+      const newProfilebox = document.getElementById("newProfileNote");
+      if (newProfilebox != null) {
+        ShowProfileIdInBox(newProfilebox);
+        if (options.categoryPicker) {
+          moveCategories();
+        }
       }
     });
   } else if (result && $("h1:contains('Edit Marriage')").length == 0) {
@@ -208,6 +212,14 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
     //  ||$("#editAction_connectExisting").prop("checked") == true
   }
 });
+
+function ShowProfileIdInBox(newProfilebox) {
+  const linkNew = newProfilebox.getElementsByTagName("a")[0].href;
+  const linkParts = linkNew.split("/");
+  const aNew = '<a href="' + linkNew + '">' + linkParts[linkParts.length - 1] + "<a>";
+  const largerText = newProfilebox.getElementsByClassName("larger")[0];
+  largerText.innerHTML = largerText.innerHTML.replace("Profile ", "Profile " + aNew + " ");
+}
 
 function addAdditionalFields() {
   const prefixRow = $(`<tr>
