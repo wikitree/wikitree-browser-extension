@@ -410,10 +410,10 @@ export async function goToRandomWatchlistProfile(skipLogin = false) {
       if (inOurCountry == false) {
         goToRandomWatchlistProfile(false);
       } else {
-        window.location.href = "https://${mainDomain}/wiki/" + theProfileId;
+        window.location.href = `https://${mainDomain}/wiki/` + theProfileId;
       }
     } else {
-      window.location.href = "https://${mainDomain}/wiki/" + theProfileId;
+      window.location.href = `https://${mainDomain}/wiki/` + theProfileId;
     }
   }
 }
