@@ -6,7 +6,7 @@ import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import { getRelatives } from "wikitree-js";
 import { createProfileSubmenuLink, familyArray, isOK, htmlEntities } from "../../core/common";
-import { mainDomain, isSearchPage } from "../../core/pageType";
+import { isSearchPage } from "../../core/pageType";
 
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
@@ -273,9 +273,7 @@ export function peopleToTable(kPeople) {
             kPers.Gender +
             "'><td>" +
             kPers.RelationShow +
-            "</td><td><a href='https://" +
-            mainDomain +
-            "/wiki/" +
+            "</td><td><a href='https://www.wikitree.com/wiki/" +
             htmlEntities(kPers.Name) +
             "'>" +
             oName +
