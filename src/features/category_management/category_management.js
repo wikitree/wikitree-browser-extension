@@ -22,6 +22,7 @@ import("./category_management.css");
 
 shouldInitializeFeature("categoryManagement").then((result) => {
   if (result) {
+    replaceCategoryPicker();
     if (isProfileEdit) {
       PerformActualProfileChanges();
     } else if (isCategoryEdit) {
@@ -168,6 +169,31 @@ function AddOptionalCategoryPageLinks(options) {
   }
 }
 
+function replaceCategoryPicker() {
+  const buttonNormal = document.getElementById("addCategoryButton");
+  buttonNormal.accessKey = "";
+  $("#addCategoryButton").parent().hide();
+
+  const buttonNew = document.createElement("img");
+  buttonNew.src = "/skins/common/images/category.png";
+  buttonNew.accessKey = "k";
+  buttonNew.addEventListener("click", () => {
+    addCategoryPicker();
+    
+  });
+
+  const linkNew = document.createElement("a");
+  linkNew.appendChild(buttonNew);
+
+  const linkAroundNormalButton = $("#addCategoryButton").parent().get(0);
+  const buttonParent = linkAroundNormalButton.parentNode;
+  alert(buttonParent);
+  buttonParent.insertBefore(linkNew, linkAroundNormalButton);
+
+  
+  // <input class="small" type="text" size="50" id="addCategoryInput" name="addCategoryInput" value="" placeholder="Enter text here to select a category" autocomplete="off" tabindex="-1" style="outline-width: 0px;">
+}
+
 function AddAddProfileToCategory() {
   const elementToAttach = document.getElementsByTagName("h1")[0].previousSibling;
   const addDiv = document.createElement("div");
@@ -276,6 +302,60 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
     lastCatSpan.append(" ");
     lastCatSpan.appendChild(addLink);
   }
+}
+
+function addCategoryPicker() {
+  const catTextbox = document.createElement("input");
+  catTextbox.id = "addCategoryInputNew";
+  catTextbox.value = "";
+  catTextbox.className = "small";
+  catTextbox.accessKey = "k";
+  catTextbox.size = 50;
+  catTextbox.style.outlineWidth = "0px";
+  catTextbox.autocomplete = false;
+  catTextbox.placeholder = "Enter text here to select a category";
+  // catTextbox.style.visibility = "hidden";
+  const resultAutoTypeDiv = CreateAutoSuggestionDiv(catTextbox);
+  let timeoutTyping = null;
+
+  catTextbox.addEventListener("keyup", (event) => {
+    if (isNotArrowOrEnter(event)) {
+      clearTimeout(timeoutTyping);
+      timeoutTyping = setTimeout(function () {
+        showResultsOnKeyUp(catTextbox, resultAutoTypeDiv);
+      }, 700);
+    }
+  });
+  catTextbox.addEventListener("keydown", (event) => {
+    if (event.code == "Enter") {
+      //muting body key down handler in add sibling
+      //else screen will scroll to top
+      event.preventDefault();
+    }
+  });
+
+  catTextbox.addEventListener("change", function () {
+    if (IsTextInList(resultAutoTypeDiv.childNodes[0], catTextbox.value)) {
+      const catTag = "[[Category:" + catTextbox.value + "]]";
+      const tb = document.getElementById("wpTextbox1");
+      const oldValue = tb.value == null ? "" : tb.value;
+      if (oldValue.indexOf(catTag) > -1) {
+        return;
+      }
+
+      //advanced mode: put them right where they belong
+      tb.value = catTag + "\n" + oldValue;
+      catTextbox.value = "";
+    }
+  });
+
+  // const attachmentDestination = document.getElementsByClassName("ten columns alpha")[0];
+  // attachmentDestination.appendChild(catTextbox);
+  // attachmentDestination.appendChild(resultAutoTypeDiv);
+  const oldInputField = document.getElementById("addCategoryInput");
+  oldInputField.style.visibility = "collapse";
+  oldInputField.parentNode.insertBefore(catTextbox, oldInputField);
+  oldInputField.parentNode.insertBefore(resultAutoTypeDiv, oldInputField);
 }
 
 function IsProfileEditable() {
