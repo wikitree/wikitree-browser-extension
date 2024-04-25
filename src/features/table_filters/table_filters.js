@@ -3,11 +3,19 @@ Created By: Ian Beacall (Beacall-6)
 */
 import $ from "jquery";
 import "./table_filters.css";
+import Cookies from "js-cookie";
 import { getYYYYMMDD } from "../auto_bio/auto_bio";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { kinshipValue } from "../anniversaries_table/anniversaries_table";
+import { distRelDbKeyFor } from "../../core/common";
+import {
+  CONNECTION_STORE_NAME,
+  RELATIONSHIP_STORE_NAME,
+  initDistanceAndRelationshipDBs,
+} from "../distanceAndRelationship/distanceAndRelationship";
 
 function addDistanceAndRelationColumns() {
+  const userID = Cookies.get("wikitree_wtb_UserName");
   const ids = {};
   const nameTable = $("table.wt.names");
   // Get the profile IDs from the watchlist
@@ -30,30 +38,31 @@ function addDistanceAndRelationColumns() {
   nameTable.find("tr").eq(0).append(headerCells);
 
   setTimeout(() => {
-    // Open the IndexedDB for RelationshipFinderWTE
-    const requestRelationship = window.indexedDB.open("RelationshipFinderWTE", 1);
-    requestRelationship.onsuccess = function (event) {
-      const dbRelationship = event.target.result;
+    const distancePromises = [];
+    const relationshipPromises = [];
+    const initDb = new Promise((resolve, reject) => {
+      let completedTasks = 0;
 
-      // Open the IndexedDB for ConnectionFinderWTE
-      const requestConnection = window.indexedDB.open("ConnectionFinderWTE", 1);
-      requestConnection.onsuccess = function (event) {
+      // Ensure the distance and relationship databases are present/created/upgraded as necessary
+      initDistanceAndRelationshipDBs(onDistanceSucces, onRelationSuccess);
+
+      function checkCompletion() {
+        completedTasks++;
+
+        if (completedTasks === 2) {
+          // console.log("initDistanceAndRelationshipDBs completed successfully");
+          resolve();
+        }
+      }
+
+      function onDistanceSucces(event) {
+        // The distance table is ready, we can start collecting the distances
         const dbConnection = event.target.result;
-
-        const distanceTransaction = dbConnection.transaction(["distance"], "readonly");
-        const distanceStore = distanceTransaction.objectStore("distance");
-
-        const relationshipTransaction = dbRelationship.transaction(["relationship"], "readonly");
-        const relationshipStore = relationshipTransaction.objectStore("relationship");
-
-        // Create arrays to hold all the promises
-        const distancePromises = [];
-        const relationshipPromises = [];
-
-        // Iterate over each row
+        const distanceTransaction = dbConnection.transaction(CONNECTION_STORE_NAME, "readonly");
+        const distanceStore = distanceTransaction.objectStore(CONNECTION_STORE_NAME);
         Object.keys(ids).forEach(function (wtid) {
           // Request the distance record
-          const getDistance = distanceStore.get(wtid);
+          const getDistance = distanceStore.get(distRelDbKeyFor(wtid, userID));
           const distancePromise = new Promise((resolve, reject) => {
             getDistance.onsuccess = function (event) {
               const distance = event.target.result ? event.target.result.distance + "°" : "";
@@ -64,9 +73,17 @@ function addDistanceAndRelationColumns() {
             };
           });
           distancePromises.push(distancePromise);
+        });
+        checkCompletion();
+      }
 
-          // Request the relationship record
-          const getRelationship = relationshipStore.get(wtid);
+      function onRelationSuccess(event) {
+        // The relationship table is ready, we can start collecting the relationships
+        const dbRelationship = event.target.result;
+        const relationshipTransaction = dbRelationship.transaction(RELATIONSHIP_STORE_NAME, "readonly");
+        const relationshipStore = relationshipTransaction.objectStore(RELATIONSHIP_STORE_NAME);
+        Object.keys(ids).forEach(function (wtid) {
+          const getRelationship = relationshipStore.get(distRelDbKeyFor(wtid, userID));
           const relationshipPromise = new Promise((resolve, reject) => {
             getRelationship.onsuccess = function (event) {
               let relationship =
@@ -77,35 +94,40 @@ function addDistanceAndRelationColumns() {
           });
           relationshipPromises.push(relationshipPromise);
         });
+        checkCompletion();
+      }
+    });
 
-        const suggestionsPromise = GetSuggestions().then((htmlPage) => {
-          const parser = new DOMParser();
-          const suggestionsDOM = parser.parseFromString(htmlPage, "text/html");
-          Object.keys(ids).forEach(function (wtid) {
-            $(suggestionsDOM)
-              .find("td:contains(" + wtid.split("_").join(" ") + ")")
-              .each(function () {
-                if ($(this).contents()[0].nodeName != "A") {
-                  //comments table, do nothing
-                } else if ($(this).prev().length == 0) {
-                  let parentRow = $(this).parent();
-                  while (
-                    parentRow.find("td").attr("rowspan") == undefined &&
-                    parentRow.length > 0 &&
-                    parentRow.get(0).tagName == "TR"
-                  ) {
-                    parentRow = parentRow.prev();
-                  }
-                  SetOrAdd(wtid, parentRow.find("td"));
-                } else if ($(this).prev().get(0).firstChild.tagName == "IMG") {
-                  //WT ID only in manager column
-                } else {
-                  SetOrAdd(wtid, $(this).prev());
-                }
-              });
+    const suggestionsPromise = GetSuggestions().then((htmlPage) => {
+      const parser = new DOMParser();
+      const suggestionsDOM = parser.parseFromString(htmlPage, "text/html");
+      Object.keys(ids).forEach(function (wtid) {
+        $(suggestionsDOM)
+          .find("td:contains(" + wtid.split("_").join(" ") + ")")
+          .each(function () {
+            if ($(this).contents()[0].nodeName != "A") {
+              //comments table, do nothing
+            } else if ($(this).prev().length == 0) {
+              let parentRow = $(this).parent();
+              while (
+                parentRow.find("td").attr("rowspan") == undefined &&
+                parentRow.length > 0 &&
+                parentRow.get(0).tagName == "TR"
+              ) {
+                parentRow = parentRow.prev();
+              }
+              SetOrAdd(wtid, parentRow.find("td"));
+            } else if ($(this).prev().get(0).firstChild.tagName == "IMG") {
+              //WT ID only in manager column
+            } else {
+              SetOrAdd(wtid, $(this).prev());
+            }
           });
-        });
+      });
+    });
 
+    initDb
+      .then(() => {
         // Wait for all promises to resolve before initializing DataTable
         Promise.all([...distancePromises, ...relationshipPromises, suggestionsPromise])
           .then(() => {
@@ -132,8 +154,10 @@ function addDistanceAndRelationColumns() {
           .catch((error) => {
             console.error(error);
           });
-      };
-    };
+      })
+      .catch((error) => {
+        console.error("Error during init of distance and relationship DBs:", error);
+      });
   }, 0);
 
   function SetOrAdd(wtid, node) {

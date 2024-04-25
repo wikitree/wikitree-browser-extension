@@ -3,12 +3,12 @@ import { shouldInitializeFeature } from "../../core/options/options_storage";
 import "jquery-ui/ui/widgets/draggable";
 import { fetchPeople } from "../category_filters/category_filters";
 import Cookies from "js-cookie";
-import { treeImageURL } from "../../core/common";
+import { treeImageURL, getObjectStores, cc7DbKeyFor, oncePerTab } from "../../core/common";
 import { PersonName } from "../auto_bio/person_name.js";
 import { displayDates } from "../verifyID/verifyID";
 import { goAndLogIn } from "../randomProfile/randomProfile";
 import { mainDomain } from "../../core/pageType";
- 
+
 // By default, if TESTING is true, we pretend to be user Trompetter-42 (who is long dead and in an unconnected, mostly
 // orphaned branch) and currently has a CC7 of 132. Also, we will not check whether or not the user is logged in.
 // Whenever we retrieve the current CC7, we also remove one random profile from each API call result before processing it,
@@ -16,7 +16,7 @@ import { mainDomain } from "../../core/pageType";
 // The above behaviour can be modified by changing the 'true' values to 'false' in the definitions of
 //   USE_TEST_USER - if this is false, Trompetter-42 will not be used as the user, and the standard logic will be followed
 //                   (except for checking for logged in status)
-//   GENERATE_DELTA_FOR_TESTING - if this is flase, no changes will be forced as described above.
+//   GENERATE_DELTA_FOR_TESTING - if this is false, no changes will be forced as described above.
 //
 // IMPORTANT: make sure TESTING is false before you commit!!
 const TESTING = false;
@@ -28,22 +28,24 @@ const TEST_USER_ID = 24595942; // make sure to adjust this if TEST_USER_WTID is 
 const userId = USE_TEST_USER ? TEST_USER_WTID : Cookies.get("wikitree_wtb_UserName");
 const USER_NUM_ID = USE_TEST_USER ? TEST_USER_ID : Cookies.get("wikitree_wtb_UserID");
 const working = $("<img id='working' src='" + treeImageURL + "'>");
-const CC7_STORE = "CC7";
+const CC7_DB_NAME = "CC7Database";
+const CC7_STORE = "cc7Profiles";
 const CC7_DELTAS_STORE = "cc7Deltas";
 const READONLY = "readonly";
 const USER_ID = "userId";
 const READWRITE = "readwrite";
 const DATE = "date";
-const ID = "Id";
 const CC7_DELTA_CONTAINER = "cc7DeltaContainer";
 const CC7_DELTA_CONTAINER_ID = "#" + CC7_DELTA_CONTAINER;
 const APP_ID = "cc7Changes";
 const DB_RETENTION_DAYS = 45; // max nr of days we keep delta records, other than the most recent one, in the db
-const EARLY_CUTOFF = 500; // max nr of names to display for a single delta
+const EARLY_CUTOFF = 300; // max nr of names to display for a single delta
 const CUTOFF_GRACE = 5; // if the actual nr in a delta is within this above cutoff, we display all
 const MAX_TO_DISPLAY_PER_DELTA = EARLY_CUTOFF + CUTOFF_GRACE; // the absolute max nr of names to display for a single delta
-
-let isDBInitialized = false;
+// We use "theKey" rather than "key" below as the name of our compound key so we can distinguish our stores from
+// autoincrement and out-of-line key stores in the backup files (which need to be restored differently) since we add
+// "key" as the key for the latter type of stores.
+const KEY = "theKey";
 
 export async function fetchAPI(args) {
   const params = {};
@@ -94,50 +96,97 @@ class Database {
     this.upgradeNeeded = false;
     this.isUpgrading = false; // NEW: flag to track if upgrading is in progress
     this.appId = "cc7Changes";
-    this.initializationPromise = this.initializeDB();
 
     // Store the single instance
     Database.instance = this;
   }
 
-  async handleUpgrade(e, isNeeded = false) {
-    await this.waitForUpgrade(); // Wait if an upgrade is in progress
+  handleUpgrade(event) {
+    console.log("Upgrading CC7 data stores");
+    if (this.isUpgrading) {
+      console.log("Oops! Already upgrading!!!");
+      return;
+    }
 
-    return new Promise((resolve, reject) => {
-      this.isUpgrading = true; // NEW: set the flag
+    this.isUpgrading = true;
+    // console.log(`upgrading DB. Old version=${event.oldVersion}`);
 
-      const db = e.target.result;
+    const db = event.target.result;
 
-      // Delete existing object stores if an upgrade is needed
-      if (isNeeded) {
-        for (let i = 0; i < db.objectStoreNames.length; i++) {
-          db.deleteObjectStore(db.objectStoreNames[i]);
-        }
+    if (event.oldVersion < 3) {
+      // Delete existing object stores
+      for (let i = 0; i < db.objectStoreNames.length; i++) {
+        db.deleteObjectStore(db.objectStoreNames[i]);
       }
-
       // Create new object stores
       this.createObjectStores(db);
+    } else if (event.oldVersion == 3) {
+      const oldStoreName = "CC7";
+      const objStores = getObjectStores(db);
+      if (!objStores.includes(CC7_STORE)) {
+        console.log(`Creating ${CC7_STORE}`);
+        const newCC7Store = db.createObjectStore(CC7_STORE, { keyPath: KEY });
+        newCC7Store.createIndex(USER_ID, USER_ID, { unique: false });
+        if (objStores.includes(oldStoreName)) {
+          console.log(`Converting '${oldStoreName}'`);
 
-      this.db = db;
-      this.initialized = true;
-      this.isUpgrading = false; // NEW: reset the flag
+          const transaction = event.target.transaction;
+          const oldObjectStore = transaction.objectStore(oldStoreName);
 
-      resolve(); // Resolve the Promise since the function is done
-    });
+          // Open a cursor to iterate through the records in the old object store
+          let errCount = 0;
+          const cursorRequest = oldObjectStore.openCursor();
+
+          cursorRequest.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (cursor) {
+              const record = cursor.value;
+              record[KEY] = cc7DbKeyFor(record.Id, record.userId);
+              const addReq = newCC7Store.add(record);
+
+              addReq.onsuccess = () => {
+                cursor.continue(); // Move to the next record
+              };
+
+              addReq.onerror = (error) => {
+                if (++errCount < 5) console.log(`Failed to convert ${record.key}`, error);
+                if (errCount == 5) console.log(`Failed to convert ${record.key}. Not logging any more errors.`, error);
+              };
+            } else {
+              // We're done, delete the old version
+              db.deleteObjectStore(oldStoreName);
+            }
+          };
+
+          cursorRequest.onerror = (error) => {
+            console.log(`Could not open cursor on '${oldStoreName}'`, error);
+          };
+        }
+      }
+    }
+
+    this.db = db;
+    this.initialized = true;
+    this.isUpgrading = false;
   }
 
-  // New method to wait for upgrade to complete
+  // Wait for upgrade to complete
   async waitForUpgrade() {
+    let logit = true;
     while (this.isUpgrading) {
+      if (logit) {
+        console.log("CC7 DB upgrade in progress. Waiting...");
+        logit = false;
+      }
       await new Promise((resolve) => setTimeout(resolve, 100));
+      if (!this.isUpgrading) console.log("Waiting for CC7 DB upgrade over");
     }
   }
 
   async createObjectStores(db) {
-    //await this.waitForUpgrade(); // Wait if an upgrade is in progress
-
+    // console.log("Creating stores");
     if (!db.objectStoreNames.contains(CC7_STORE)) {
-      const cc7Store = db.createObjectStore(CC7_STORE, { keyPath: ID });
+      const cc7Store = db.createObjectStore(CC7_STORE, { keyPath: KEY });
       cc7Store.createIndex(USER_ID, USER_ID, { unique: false });
     }
     if (!db.objectStoreNames.contains(CC7_DELTAS_STORE)) {
@@ -146,98 +195,35 @@ class Database {
     }
   }
 
-  async initializeDB() {
-    if (isDBInitialized) {
+  async initializeDB(onOpenSuccess) {
+    // console.log("initializeDB called");
+    if (this.initialized) {
+      // console.log("DB already initialized");
       return;
     }
-    await this.waitForUpgrade(); // Wait if an upgrade is in progress
+    // await this.waitForUpgrade(); // Wait if an upgrade is in progress
 
-    return new Promise((resolve, reject) => {
-      const openRequest = indexedDB.open("CC7Database", 3);
-      openRequest.onupgradeneeded = async (e) => {
-        await this.handleUpgrade(e); // isNeeded defaults to false
-        resolve();
-      };
+    const openRequest = indexedDB.open(CC7_DB_NAME, 4);
 
-      openRequest.onsuccess = (event) => {
-        this.db = openRequest.result;
-        this.initialized = true;
-        this.isUpgrading = false;
-        resolve(); // resolve the promise
-      };
-
-      openRequest.onerror = (e) => {
-        this.onError(e, reject);
-      };
-      isDBInitialized = true;
-    });
-  }
-
-  async onUpgradeNeeded(e) {
-    await this.waitForUpgrade(); // Wait if an upgrade is in progress
-    this.upgradeNeeded = true;
-
-    this.db = e.target.result;
-    this.db.onversionchange = () => {
-      this.db.close();
+    openRequest.onupgradeneeded = async (e) => {
+      this.handleUpgrade(e); // deleteExisting defaults to false
     };
 
-    let objectStoresToCreateOrUpdate = [CC7_STORE, CC7_DELTAS_STORE];
-
-    objectStoresToCreateOrUpdate.forEach((storeName) => {
-      const keyPath = storeName === CC7_DELTAS_STORE ? DATE : ID;
-
-      // Delete the object store if it exists
-      if (this.db.objectStoreNames.contains(storeName)) {
-        this.db.deleteObjectStore(storeName);
-      }
-
-      // Create the object store
-      const objectStore = this.db.createObjectStore(storeName, { keyPath });
-
-      // Create the index if it does not exist
-      if (!objectStore.indexNames.contains(USER_ID)) {
-        objectStore.createIndex(USER_ID, USER_ID, { unique: false });
-      }
-    });
-
-    const transaction = e.target.transaction;
-
-    // Wrapped it inside a promise
-    return new Promise((resolve, reject) => {
-      transaction.oncomplete = async () => {
-        resolve();
-      };
-
-      transaction.onerror = (error) => {
-        reject(error);
-      };
-    });
-  }
-
-  async onSuccess(e, resolve) {
-    await this.waitForUpgrade(); // Wait if an upgrade is in progress
-    this.db = e.target.result;
-    this.db.onversionchange = () => {
-      this.db.close();
+    openRequest.onsuccess = (event) => {
+      // console.log("dbopen success");
+      this.db = event.target.result;
+      this.initialized = true;
+      this.isUpgrading = false;
+      onOpenSuccess();
     };
-    this.initialized = true; // Set the flag here
-    if (!this.upgradeNeeded) {
-      resolve();
-    } else {
-      console.log("Not resolving the promise due to upgradeNeeded");
-    }
-  }
 
-  onError(e, reject) {
-    console.log("Error initializing DB", e);
-    reject(e);
+    openRequest.onerror = (e) => {
+      console.log("Error initializing CC7 data stores", e);
+    };
   }
 
   async fetchLastStoredCC7() {
-    await this.waitForUpgrade(); // Wait if an upgrade is in progress
-    await this.initializationPromise; // wait for DB to initialize
-
+    // console.log("fetchLastStoredCC7 called");
     try {
       const result = await this.getObjectStoreData(CC7_STORE, "userId", this.userId);
       return result;
@@ -248,8 +234,7 @@ class Database {
   }
 
   async storeCC7Deltas(added, removed) {
-    await this.waitForUpgrade(); // Wait if an upgrade is in progress
-
+    // console.log("storeCC7Deltas called");
     try {
       const date = new Date().toISOString();
       const data = {
@@ -265,22 +250,12 @@ class Database {
     }
   }
 
-  async transaction(storeName, mode) {
-    await this.waitForUpgrade(); // Wait if an upgrade is in progress
-
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction(storeName, mode);
-      tx.oncomplete = () => resolve();
-      tx.onerror = (e) => reject(new Error(`Transaction failed on ${storeName}: ${e.target.error}`));
-    });
-  }
-
   async getObjectStoreData(storeName, indexName, key) {
-    await this.waitForUpgrade(); // NEW: wait if an upgrade is in progress
+    // console.log(`getObjectStoreData on ${storeName} index=${indexName} called`);
+    await this.waitForUpgrade(); // wait if an upgrade is in progress
 
     return new Promise((resolve, reject) => {
       if (this.isUpgrading) {
-        // NEW: check the flag
         return reject(new Error("A version change transaction is in progress."));
       }
 
@@ -294,18 +269,17 @@ class Database {
         resolve(event.target.result || []);
       };
       getRequest.onerror = (event) => {
-        console.log(`Error occurred while fetching data from ${storeName}`);
         reject(new Error(`Error fetching data from ${storeName} object store`));
       };
     });
   }
 
   async putObjectStoreData(storeName, data) {
+    // console.log("putObjectStoreData called");
     await this.waitForUpgrade(); // Wait if an upgrade is in progress
 
     return new Promise((resolve, reject) => {
       if (this.isUpgrading) {
-        // NEW: check the flag
         return reject(new Error("A version change transaction is in progress."));
       }
       const tx = this.db.transaction(storeName, "readwrite");
@@ -326,7 +300,6 @@ Sorry about that.">Log in to initialize WBE CC7 Changes</button>
 </div>`);
 
 let db;
-// Initialize IndexedDB
 
 // Function to check login status
 async function checkLoginStatus() {
@@ -406,13 +379,12 @@ function showError(msg) {
 }
 
 async function initializeCC7Tracking() {
+  // It is assumed db.initializeDB() has already been called at this point
   try {
-    // Try initializing the database first
-    await db.initializeDB();
-
     let shouldCheckLogin = false;
 
     if (db.initialized && !db.upgradeNeeded) {
+      // console.log("initializeCC7Tracking awaiting fetchLastStoredCC7");
       const lastStoredData = await db.fetchLastStoredCC7();
       if (lastStoredData.length === 0) {
         // Database is empty, so we should check for login
@@ -420,7 +392,6 @@ async function initializeCC7Tracking() {
       } else {
         // Database has entries, proceed with normal operation
         addCC7ChangesButton();
-        // await getAndStoreCC7Deltas();
       }
     } else {
       // Database is not initialized or is being upgraded, check for login
@@ -430,7 +401,8 @@ async function initializeCC7Tracking() {
 
     // Check for login and populate the database only if necessary
     if (shouldCheckLogin) {
-      if (TESTING) {
+      if (USE_TEST_USER) {
+        // For the test user we can't check login status, we just proceed
         addCC7ChangesButton();
         await calculateAndStoreCC7Deltas(); // Populate the database
         return;
@@ -469,6 +441,7 @@ export async function calculateAndStoreCC7Deltas() {
       const initStore = initTx.objectStore(CC7_STORE);
       filteredApiData.forEach((person) => {
         person.userId = userId;
+        person[KEY] = cc7DbKeyFor(person.Id, person.userId);
         initStore.put(person);
       });
 
@@ -513,7 +486,7 @@ async function updateCC7Table(added, removed) {
 
     // Remove the 'removed' people
     for (const person of removed) {
-      const request = store.delete(person.Id);
+      const request = store.delete(cc7DbKeyFor(person.Id, userId));
       request.onerror = function () {
         console.error("Error deleting record", person.Id);
         reject(new Error("Couldn't delete record " + person.Id));
@@ -523,6 +496,7 @@ async function updateCC7Table(added, removed) {
     // Add the 'added' people
     for (const person of added) {
       person.userId = db.userId;
+      person[KEY] = cc7DbKeyFor(person.Id, person.userId);
       const request = store.put(person);
       request.onerror = function () {
         console.error("Error adding record", person.Id);
@@ -811,20 +785,27 @@ function convertToMapsAndExclude(deltas, excludeDeltas) {
 }
 
 /**
- * Returns, for each unique profile id found in the deltas, the required profile data
+ * Returns, for each unique profile id found in the deltas, the required profile data.
+ * However, we only take the first MAX_TO_DISPLAY_PER_DELTA, sorted per degree per added or removed
  * @param {*} idsByDate - a map:
  *            Map(date => {added:   Map(id => {Id: , Name: , Degree: }),
  *                         removed: Map(id => {Id: , Name: , Degree: })})
  * @returns Map(id => WT person object)
  */
 async function fetchDetailsForIds(idsByDate) {
-  let result = new Map();
-  let ids = [];
+  const result = new Map();
+  const ids = [];
   for (const delta of idsByDate.values()) {
-    for (const p of delta.added.values()) {
-      ids.push(p.Id);
+    addIds(delta.added);
+    addIds(delta.removed);
+  }
+
+  function addIds(peopleMap) {
+    let people = [...peopleMap.values()];
+    if (people.length > MAX_TO_DISPLAY_PER_DELTA) {
+      people = people.sort((a, b) => a.Degrees - b.Degrees).slice(0, MAX_TO_DISPLAY_PER_DELTA);
     }
-    for (const p of delta.removed.values()) {
+    for (const p of people) {
       ids.push(p.Id);
     }
   }
@@ -916,16 +897,19 @@ function createCC7DeltaContainer() {
 }
 
 function addCloseEventHandlers(container) {
-  $(document).on("keyup", (e) => {
-    if (e.key === "Escape") {
-      closeCC7DeltaContainer();
-    }
-  });
+  $(document).on("keyup", cc7CloseEventHandler);
   container.on("dblclick", closeCC7DeltaContainer);
+}
+
+function cc7CloseEventHandler(e) {
+  if (e.key === "Escape") {
+    closeCC7DeltaContainer();
+  }
 }
 
 function closeCC7DeltaContainer() {
   $(CC7_DELTA_CONTAINER_ID).slideUp();
+  $(document).off("keyup", cc7CloseEventHandler);
   setTimeout(() => {
     $(CC7_DELTA_CONTAINER_ID).remove();
   }, 1000);
@@ -933,8 +917,10 @@ function closeCC7DeltaContainer() {
 
 shouldInitializeFeature("cc7Changes").then(async (result) => {
   if (result) {
-    db = new Database();
-    initializeCC7Tracking().catch((e) => console.log("An error occurred while initializing CC7 tracking:", e));
-    import("./cc7_changes.css");
+    oncePerTab((rootWindow) => {
+      db = new Database();
+      db.initializeDB(initializeCC7Tracking);
+      import("./cc7_changes.css");
+    });
   }
 });

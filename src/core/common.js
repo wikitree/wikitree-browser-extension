@@ -34,7 +34,7 @@ function getRootWindow(win) {
   return win == null ? null : win.parent == null || win.parent === win ? win : getRootWindow(win.parent);
 }
 
-function oncePerTab(action) {
+export function oncePerTab(action) {
   const rootWindow = getRootWindow(window);
   if (!rootWindow || rootWindow === window) {
     if (action) action(rootWindow);
@@ -468,11 +468,15 @@ export async function showDraftList() {
               let dButtons = "<td></td><td></td>";
               if (xDraft[3] != undefined) {
                 dButtons =
-                  "<td><a href='https://" + mainDomain + "/index.php?title=Special:EditPerson&u=" +
+                  "<td><a href='https://" +
+                  mainDomain +
+                  "/index.php?title=Special:EditPerson&u=" +
                   xDraft[3] +
                   "&ud=" +
                   xDraft[4] +
-                  "' class='small button'>USE</a></td><td><a href='https://" + mainDomain + "/index.php?title=Special:EditPerson&u=" +
+                  "' class='small button'>USE</a></td><td><a href='https://" +
+                  mainDomain +
+                  "/index.php?title=Special:EditPerson&u=" +
                   xDraft[3] +
                   "&dd=" +
                   xDraft[4] +
@@ -481,7 +485,9 @@ export async function showDraftList() {
 
               $("#myDrafts table").append(
                 $(
-                  "<tr><td><a href='https://" + mainDomain + "/index.php?title=" +
+                  "<tr><td><a href='https://" +
+                    mainDomain +
+                    "/index.php?title=" +
                     xDraft[0] +
                     "&displayDraft=1'>" +
                     xDraft[2] +
@@ -566,6 +572,14 @@ export function isWikiTreeUrl(url) {
 const WBE_DATABASES_MINIMAL = ["Clipboard"];
 const WBE_DATABASES_ALL = [...WBE_DATABASES_MINIMAL, "CC7Database", "ConnectionFinderWTE", "RelationshipFinderWTE"];
 
+export function distRelDbKeyFor(profileId, userId) {
+  return `${profileId}:${userId}`;
+}
+
+export function cc7DbKeyFor(profileId, userId) {
+  return `${profileId}:${userId}`;
+}
+
 async function backupData(compactMode, sendResponse) {
   const data = {};
   data.changeSummaryOptions = localStorage.LSchangeSummaryOptions;
@@ -591,7 +605,7 @@ async function getAllData(databases) {
   for (const dbName of databases) {
     try {
       const db = await openDatabase(dbName);
-      const objectStores = await getObjectStores(db);
+      const objectStores = getObjectStores(db);
       const dbData = {};
 
       for (const storeName of objectStores) {
@@ -620,15 +634,15 @@ async function openDatabase(dbName) {
   });
 }
 
-async function getObjectStores(db) {
+export function getObjectStores(db) {
   return Array.from(db.objectStoreNames);
 }
 
-async function getAllRecords(db, storeName) {
+export async function getAllRecords(db, storeName) {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(storeName, "readonly");
     const objectStore = transaction.objectStore(storeName);
-    if (objectStore.autoIncrement) {
+    if (objectStore.autoIncrement || objectStore.keyPath === null) {
       const records = [];
 
       transaction.oncomplete = () => {
@@ -687,7 +701,24 @@ async function restoreIndexedDB(dbName, dbData) {
   db.close();
 }
 
-function writeToDB(db, dbName, storeName, records) {
+export function writeToDB(db, dbName, requestedStoreName, records) {
+  // Do some fiddling so we can restore older backups to the new DB versions
+  // CC7, distance, and relationship are the previous versions of those object
+  // stores. The new ones are cc7Profiles, distance2 and relationship2 respectively.
+  // NOTE: we don't check dbName because the storeNames currently are unique
+  let storeName = requestedStoreName;
+  if (requestedStoreName == "CC7") {
+    storeName = "cc7Profiles";
+    records.forEach((record) => {
+      record.theKey = cc7DbKeyFor(record.Id, record.userId);
+    });
+  } else if (requestedStoreName == "distance" || requestedStoreName == "relationship") {
+    storeName = `${requestedStoreName}2`;
+    records.forEach((record) => {
+      record.theKey = distRelDbKeyFor(record.id, record.userId);
+    });
+  }
+
   const transaction = db.transaction(storeName, "readwrite");
 
   transaction.oncomplete = () => {
@@ -699,6 +730,11 @@ function writeToDB(db, dbName, storeName, records) {
 
   // Add each record to the object store
   const objectStore = transaction.objectStore(storeName);
+  if (dbName == "CC7Database") {
+    // It does not make sense to keep previous (or new) CC7 data around when
+    // restoring any store in the CC7Database
+    objectStore.clear();
+  }
   records.forEach((record) => {
     if (record.key) {
       objectStore.put(record.value, record.key);
