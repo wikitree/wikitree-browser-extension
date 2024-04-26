@@ -7,6 +7,14 @@ import Cookies from "js-cookie";
 import { getConnectionJSON, getRelationJSON } from "../../core/API/wwwWikiTree";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain } from "../../core/pageType";
+import { getObjectStores, distRelDbKeyFor } from "../../core/common";
+
+export const CONNECTION_DB_NAME = "ConnectionFinderWTE";
+export const CONNECTION_DB_VERSION = 2;
+export const CONNECTION_STORE_NAME = "distance2";
+export const RELATIONSHIP_DB_NAME = "RelationshipFinderWTE";
+export const RELATIONSHIP_DB_VERSION = 2;
+export const RELATIONSHIP_STORE_NAME = "relationship2";
 
 const fixOrdinalSuffix = (text) => {
   const pattern = /(\d+)(?:st|nd|rd|th)\b/g;
@@ -32,6 +40,63 @@ const fixOrdinalSuffix = (text) => {
   });
 };
 
+export function initDistanceAndRelationshipDBs(onDistanceSuccess, onRelationshipSuccess) {
+  initDb(CONNECTION_DB_NAME, CONNECTION_DB_VERSION, CONNECTION_STORE_NAME, "distance", onDistanceSuccess);
+  initDb(RELATIONSHIP_DB_NAME, RELATIONSHIP_DB_VERSION, RELATIONSHIP_STORE_NAME, "relationship", onRelationshipSuccess);
+
+  function initDb(dbName, dbVersion, storeName, oldStoreName, onSuccess) {
+    const dbOpenReq = window.indexedDB.open(dbName, dbVersion);
+    dbOpenReq.onupgradeneeded = async (event) => {
+      const db = event.target.result;
+      switch (event.oldVersion) {
+        case 0: // there is no old store
+          db.createObjectStore(storeName, { keyPath: "theKey" });
+          break;
+
+        case 1:
+          const objStores = getObjectStores(db);
+          if (!objStores.includes(storeName)) {
+            const newStore = db.createObjectStore(storeName, { keyPath: "theKey" });
+            if (oldStoreName && objStores.includes(oldStoreName)) {
+              console.log(`Converting '${oldStoreName}'`);
+
+              const transaction = event.target.transaction;
+              const oldObjectStore = transaction.objectStore(oldStoreName);
+
+              // Open a cursor to iterate through the records in the old object store
+              const cursorRequest = oldObjectStore.openCursor();
+
+              cursorRequest.onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                  const record = cursor.value;
+                  record.theKey = distRelDbKeyFor(record.id, record.userId);
+                  const addReq = newStore.add(record);
+
+                  addReq.onsuccess = () => {
+                    cursor.continue(); // Move to the next record
+                  };
+
+                  addReq.onerror = (error) => {
+                    console.log(`Failed to convert ${record.theKey}`, error);
+                  };
+                } else {
+                  // We're done
+                  db.deleteObjectStore(oldStoreName);
+                }
+              };
+
+              cursorRequest.onerror = (error) => {
+                console.log(`Could not open cursor on '${oldStoreName}'`, error);
+              };
+            }
+          }
+      }
+    };
+    dbOpenReq.onsuccess = onSuccess;
+  }
+}
+
 shouldInitializeFeature("distanceAndRelationship").then((result) => {
   // define user and profile IDs
 
@@ -39,57 +104,17 @@ shouldInitializeFeature("distanceAndRelationship").then((result) => {
   const userID = Cookies.get("wikitree_wtb_UserName");
   if (result && $("body.profile").length && profileID != userID && profileID != "") {
     import("./distanceAndRelationship.css");
-    // set up databases
-    window.connectionFinderDBVersion = 1;
-    window.relationshipFinderDBVersion = 1;
-    const connectionFinderResultsDBReq = window.indexedDB.open("ConnectionFinderWTE", window.connectionFinderDBVersion);
-    connectionFinderResultsDBReq.addEventListener("upgradeneeded", (event) => {
-      var request = event.target;
-      // @type IDBDatabase
-      var db = request.result;
-      // @type IDBTransaction
-      var txn = request.transaction;
-      if (event.oldVersion < 1) {
-        const objectStore = db.createObjectStore("distance", {
-          keyPath: "id",
-        });
-      } else {
-        // @type IDBObjectStore
-        var store = txn.objectStore("distance");
-        store.createIndex("id");
-      }
-    });
-
-    const relationshipFinderResultsDBReq = window.indexedDB.open(
-      "RelationshipFinderWTE",
-      window.relationshipFinderDBVersion
-    );
-    relationshipFinderResultsDBReq.addEventListener("upgradeneeded", (event) => {
-      var request = event.target;
-      // @type IDBDatabase
-      var db = request.result;
-      // @type IDBTransaction
-      var txn = request.transaction;
-      if (event.oldVersion < 1) {
-        const objectStore = db.createObjectStore("relationship", {
-          keyPath: "id",
-        });
-      } else {
-        // @type IDBObjectStore
-        var store = txn.objectStore("relationship");
-        store.createIndex("id");
-      }
-    });
+    initDistanceAndRelationshipDBs(onDistancesSuccess, onRelationsSuccess);
 
     // Do it
-    connectionFinderResultsDBReq.onsuccess = function (event) {
-      const connectionFinderResultsDB = event.target.result;
-      const aRequest = connectionFinderResultsDB
-        .transaction(["distance"], "readonly")
-        .objectStore("distance")
-        .get(profileID);
-      aRequest.onsuccess = function () {
-        if (aRequest.result == undefined || aRequest.result?.distance < 0) {
+    function onDistancesSuccess(event) {
+      const db = event.target.result;
+      const getDistanceReq = db
+        .transaction(CONNECTION_STORE_NAME, "readonly")
+        .objectStore(CONNECTION_STORE_NAME)
+        .get(distRelDbKeyFor(profileID, userID));
+      getDistanceReq.onsuccess = function () {
+        if (getDistanceReq.result == undefined || getDistanceReq.result?.distance < 0) {
           initDistanceAndRelationship(userID, profileID);
         } else {
           if ($("#distanceFromYou").length == 0 && $("#degreesFromYou").length == 0) {
@@ -97,7 +122,7 @@ shouldInitializeFeature("distanceAndRelationship").then((result) => {
             const profileName = $("h1 span[itemprop='name']").text();
             $("h1").append(
               $(
-                `<span id='distanceFromYou' title='${profileName} is ${aRequest.result.distance} degrees from you. \nClick to refresh.'>${aRequest.result.distance}°</span>`
+                `<span id='distanceFromYou' title='${profileName} is ${getDistanceReq.result.distance} degrees from you. \nClick to refresh.'>${getDistanceReq.result.distance}°</span>`
               )
             );
             // Add a big hover text thing
@@ -125,34 +150,36 @@ shouldInitializeFeature("distanceAndRelationship").then((result) => {
           }
         }
       };
-      aRequest.onerror = (error) => {
-        console.log(error);
+      getDistanceReq.onerror = (error) => {
+        console.log("Error while retrieving distance from DB", error);
       };
-    };
-    relationshipFinderResultsDBReq.onsuccess = function (event) {
-      const relationshipFinderResultsDB = event.target.result;
-      let aRequest2 = relationshipFinderResultsDB
-        .transaction(["relationship"], "readonly")
-        .objectStore("relationship")
-        .get(profileID);
-      aRequest2.onsuccess = function () {
-        if (aRequest2.result != undefined) {
-          if (aRequest2.result.relationship != "") {
+    }
+
+    // relationshipFinderDBOpenReq.onsuccess = function (event) {
+    function onRelationsSuccess(event) {
+      const db = event.target.result;
+      const getRelationReq = db
+        .transaction(RELATIONSHIP_STORE_NAME, "readonly")
+        .objectStore(RELATIONSHIP_STORE_NAME)
+        .get(distRelDbKeyFor(profileID, userID));
+      getRelationReq.onsuccess = function () {
+        if (getRelationReq.result != undefined) {
+          if (getRelationReq.result.relationship != "") {
             if (
               $("#yourRelationshipText").length == 0 &&
               $(".ancestorTextText").length == 0 &&
               $("#ancestorListBox").length == 0
             ) {
               $("#yourRelationshipText").remove();
-              addRelationshipText(aRequest2.result.relationship, aRequest2.result.commonAncestors);
+              addRelationshipText(getRelationReq.result.relationship, getRelationReq.result.commonAncestors);
             }
           }
         }
       };
-      aRequest2.onerror = (error) => {
-        console.log(error);
+      getRelationReq.onerror = (error) => {
+        console.log("Error while retrieving relationship from DB", error);
       };
-    };
+    }
   }
 });
 
@@ -247,7 +274,6 @@ function commonAncestorText(commonAncestors) {
 }
 
 function doRelationshipText(userID, profileID) {
-  //  getRelationshipFinderResult(userID, profileID).then(function (data) {
   getRelationJSON("DistanceAndRelationship_Relationship", userID, profileID).then(function (data) {
     if (data) {
       var out = "";
@@ -331,20 +357,18 @@ function doRelationshipText(userID, profileID) {
         }
       }
 
-      const relationshipFinderResultsDBReq = window.indexedDB.open(
-        "RelationshipFinderWTE",
-        window.relationshipFinderDBVersion
-      );
-      relationshipFinderResultsDBReq.onsuccess = function (event) {
-        var relationshipFinderResultsDB = event.target.result;
+      const relationshipFinderDBOpenReq = window.indexedDB.open(RELATIONSHIP_DB_NAME, RELATIONSHIP_DB_VERSION);
+      relationshipFinderDBOpenReq.onsuccess = function (event) {
+        const relationshipFinderDB = event.target.result;
         const obj = {
+          theKey: distRelDbKeyFor(profileID, userID),
           userId: userID,
           id: profileID,
           distance: window.distance,
           relationship: out,
           commonAncestors: data.commonAncestors,
         };
-        addToDB("RelationshipFinderWTE", window.relationshipFinderDBVersion, "relationship", obj);
+        addToDBAndClose(relationshipFinderDB, RELATIONSHIP_STORE_NAME, obj);
       };
     }
   });
@@ -361,20 +385,21 @@ async function addDistance(data) {
         )
       );
     }
-    const connectionFinderResultsDBReq = window.indexedDB.open("ConnectionFinder", window.connectionFinderDBVersion);
-    connectionFinderResultsDBReq.onsuccess = function (event) {
-      var connectionFinderResultsDB = event.target.result;
+    const connectionFinderDBOpenReq = window.indexedDB.open(CONNECTION_DB_NAME, CONNECTION_DB_VERSION);
+    connectionFinderDBOpenReq.onsuccess = function (event) {
+      const connectionFinderDB = event.target.result;
       const profileID = $("a.pureCssMenui0 span.person").text();
       const userID = Cookies.get("wikitree_wtb_UserName");
       const obj = {
+        theKey: distRelDbKeyFor(profileID, userID),
         userId: userID,
         id: profileID,
         distance: window.distance,
       };
-      addToDB("ConnectionFinderWTE", window.connectionFinderDBVersion, "distance", obj);
+      addToDBAndClose(connectionFinderDB, CONNECTION_STORE_NAME, obj);
     };
-    connectionFinderResultsDBReq.onerror = function (error) {
-      console.log(error);
+    connectionFinderDBOpenReq.onerror = function (error) {
+      console.log("Error while recording distance", error);
     };
   }
 }
@@ -382,7 +407,6 @@ async function addDistance(data) {
 async function getDistance() {
   const id1 = Cookies.get("wikitree_wtb_UserName");
   const id2 = $("a.pureCssMenui0 span.person").text();
-  // const data = await getConnectionFinderResult(id1, id2);
   const data = await getConnectionJSON("DistanceAndRelationship_Distance", id1, id2);
   addDistance(data);
 }
@@ -522,13 +546,9 @@ function initDistanceAndRelationship(userID, profileID, clicked = false) {
   }
 }
 
-function addToDB(db, dbv, os, obj) {
-  var aDB = window.indexedDB.open(db, dbv);
-  aDB.onsuccess = function (event) {
-    const xdb = aDB.result;
-    const transaction = xdb.transaction([os], "readwrite");
-    transaction.oncomplete = function (event) {
-      var insert = xdb.transaction([os], "readwrite").objectStore(os).put(obj);
-    };
+function addToDBAndClose(db, objStore, obj) {
+  const putRequest = db.transaction(objStore, "readwrite").objectStore(objStore).put(obj);
+  putRequest.onsuccess = () => {
+    db.close();
   };
 }

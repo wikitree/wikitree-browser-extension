@@ -1,9 +1,15 @@
 import $ from "jquery";
-import dt from "datatables.net-dt";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "./anniversaries_table.css";
+import Cookies from "js-cookie";
 import { getPeople } from "../dna_table/dna_table";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { distRelDbKeyFor } from "../../core/common";
+import {
+  CONNECTION_STORE_NAME,
+  RELATIONSHIP_STORE_NAME,
+  initDistanceAndRelationshipDBs,
+} from "../distanceAndRelationship/distanceAndRelationship";
 
 let tableData = null;
 const shakingTree = $(
@@ -18,6 +24,7 @@ shouldInitializeFeature("anniversariesTable").then((result) => {
     initAnniversariesTable();
   }
 });
+
 let isTableInitialized = false;
 async function initAnniversariesTable() {
   const anniversariesTableOptions = await getFeatureOptions("anniversariesTable");
@@ -66,6 +73,7 @@ async function anniversariesTable() {
   if ($("#anniversariesTable").length > 0) {
     return;
   }
+  const userID = Cookies.get("wikitree_wtb_UserName");
   shakingTree.appendTo($("h1"));
   bigDiv.show();
   $("#anniversariesTable, #anniversariesTable_wrapper").hide();
@@ -134,37 +142,34 @@ async function anniversariesTable() {
   bigDiv.before(table);
 
   setTimeout(() => {
-    // Open the IndexedDB for RelationshipFinderWTE
-    const requestRelationship = window.indexedDB.open("RelationshipFinderWTE", 1);
-    requestRelationship.onsuccess = function (event) {
-      const dbRelationship = event.target.result;
+    const distancePromises = [];
+    const relationshipPromises = [];
+    const initDb = new Promise((resolve, reject) => {
+      let completedTasks = 0;
 
-      // Open the IndexedDB for ConnectionFinderWTE
-      const requestConnection = window.indexedDB.open("ConnectionFinderWTE", 1);
-      requestConnection.onsuccess = function (event) {
+      // Ensure the distance and relationship databases are present/created/upgraded as necessary
+      initDistanceAndRelationshipDBs(onDistanceSuccess, onRelationSuccess);
+
+      function checkCompletion() {
+        completedTasks++;
+
+        if (completedTasks === 2) {
+          // console.log("initDistanceAndRelationshipDBs completed successfully");
+          resolve();
+        }
+      }
+
+      function onDistanceSuccess(event) {
+        // The distance table is ready, we can start collecting the distances
         const dbConnection = event.target.result;
-
-        const distanceTransaction = dbConnection.transaction(["distance"], "readonly");
-        const distanceStore = distanceTransaction.objectStore("distance");
-
-        const relationshipTransaction = dbRelationship.transaction(["relationship"], "readonly");
-        const relationshipStore = relationshipTransaction.objectStore("relationship");
-
-        // Create arrays to hold all the promises
-        const distancePromises = [];
-        const relationshipPromises = [];
-
-        // Loop through the rows again to fill the distance and relationship columns
-        // Access the DataTable instance
-        // tableData = $("#anniversariesTable").DataTable();
-
-        // Iterate over each row
+        const distanceTransaction = dbConnection.transaction(CONNECTION_STORE_NAME, "readonly");
+        const distanceStore = distanceTransaction.objectStore(CONNECTION_STORE_NAME);
         $("#anniversariesTable tbody tr").each(function () {
           const row = $(this);
           const rowId = row.data("rowId");
 
           // Request the distance record
-          const getDistance = distanceStore.get(rowId);
+          const getDistance = distanceStore.get(distRelDbKeyFor(rowId, userID));
           const distancePromise = new Promise((resolve, reject) => {
             getDistance.onsuccess = function (event) {
               const distance = event.target.result ? event.target.result.distance + "°" : "";
@@ -176,9 +181,19 @@ async function anniversariesTable() {
             };
           });
           distancePromises.push(distancePromise);
+        });
+        checkCompletion();
+      }
 
-          // Request the relationship record
-          const getRelationship = relationshipStore.get(rowId);
+      function onRelationSuccess(event) {
+        // The relationship table is ready, we can start collecting the relationships
+        const dbRelationship = event.target.result;
+        const relationshipTransaction = dbRelationship.transaction(RELATIONSHIP_STORE_NAME, "readonly");
+        const relationshipStore = relationshipTransaction.objectStore(RELATIONSHIP_STORE_NAME);
+        $("#anniversariesTable tbody tr").each(function () {
+          const row = $(this);
+          const rowId = row.data("rowId");
+          const getRelationship = relationshipStore.get(distRelDbKeyFor(rowId, userID));
           const relationshipPromise = new Promise((resolve, reject) => {
             getRelationship.onsuccess = function (event) {
               let relationship =
@@ -213,7 +228,12 @@ async function anniversariesTable() {
           const number = parseFloat(data.replace("°", ""));
           return isNaN(number) ? 0 : number;
         };
+        checkCompletion();
+      }
+    });
 
+    initDb
+      .then(() => {
         // Wait for all promises to resolve before initializing DataTable
         Promise.all([...distancePromises, ...relationshipPromises])
           .then(() => {
@@ -246,8 +266,10 @@ async function anniversariesTable() {
           .catch((error) => {
             console.error(error);
           });
-      };
-    };
+      })
+      .catch((error) => {
+        console.error("Error during init of distance and relationship DBs:", error);
+      });
   }, 0);
 }
 

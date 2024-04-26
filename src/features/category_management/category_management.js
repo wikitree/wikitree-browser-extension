@@ -280,10 +280,12 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
 
 function IsProfileEditable() {
   const tabs = document.getElementsByClassName("profile-tabs")[0];
-  const linksToTabs = tabs.getElementsByTagName("a");
-  for (let i = 0; i < linksToTabs.length; i++) {
-    if (linksToTabs[i].href.indexOf("EditPerson") > -1) {
-      return true;
+  if (tabs) {
+    const linksToTabs = tabs.getElementsByTagName("a");
+    for (let i = 0; i < linksToTabs.length; i++) {
+      if (linksToTabs[i].href.indexOf("EditPerson") > -1) {
+        return true;
+      }
     }
   }
   return false;
@@ -966,7 +968,7 @@ function AddCheckboxesWikiTreePlus() {
     <td><b>Female</b></td>
     <td><img border="0" src="https://www.wikitree.com/images/icons/privacy50.png" height="15"></td>
     <td><a href="https://www.wikitree.com/wiki/3275312" target="_blank">Steinwachs-1</a><br><a href="https://plus.wikitree.com/findmap.htm?aid=3275312&amp;grouptype=M" target="_Tree" title="Managed profiles Map"><img src="https://www.wikitree.com/images/icons/map.gif" border="0" height="11"></a></td>
-    <td>Connected: PublicTree <span style="color: orange;">🟊🟊🟊🟊</span>🟊 256 views</td>	
+    <td>Connected: PublicTree <span style="color: orange;">🟊🟊🟊🟊</span>🟊 256 views</td>
   </tr>
   */
   const firstTable = document.getElementsByTagName("table")[0];
