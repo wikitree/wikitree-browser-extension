@@ -147,6 +147,13 @@ async function getList(functionName) {
   let result;
   let message;
   let spouses;
+
+  if (!window.profilePerson) {
+    message = "No profile found on the apps server. Please try again a little later.";
+    showCopyMessage(message, true);
+    return;
+  }
+
   if (functionName == "death" && !window.references) {
     addWorking();
     window.sectionsObject = splitBioIntoSections();

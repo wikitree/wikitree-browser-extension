@@ -7927,9 +7927,13 @@ export async function generateBio() {
         });
       }
       let errorText = $(
-        "<p><b>Whoops! 🙈</b> Something went wrong with the Auto Bio. <br>Please let us know about it. <br>" +
-          errorExtraMessage +
-          "Thank you!</p>"
+        `<p><b>Whoops! 🙈</b> Something went wrong with the Auto Bio. <br>
+        If you've just created this profile, <br>
+        please try again in a few minutes <br>
+        (it may be a temporary issue).<br>
+        If not, please let us know about it. <br>
+          ${errorExtraMessage}
+          Thank you!</p>`
       );
       errorDiv.append(errorText);
 
