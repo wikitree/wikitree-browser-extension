@@ -428,6 +428,10 @@ function replaceAddRemoveReplaceLinks() {
   }
 }
 
+function removeTurnOffPreviewLinks() {
+  $("head").append("<style>#pausePagePreviewButton,#disablePagePreviewButton{display:none}</style>");
+}
+
 shouldInitializeFeature("usabilityTweaks").then((result) => {
   if (result) {
     getFeatureOptions("usabilityTweaks").then((options) => {
@@ -493,6 +497,10 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
 
       if (isSpacePage && options.leaveSpaceEditAfterSave) {
         forwardToSavedSpagePage();
+      }
+
+      if (options.removeDisablePreviewButtons) {
+        removeTurnOffPreviewLinks();
       }
     }); //getFeatureOptions
   }

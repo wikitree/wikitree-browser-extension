@@ -13,6 +13,20 @@ const usabilityTweaks = {
   pages: [isMainDomain],
   options: [
     {
+      id: "global",
+      type: OptionType.GROUP,
+      label: "Global",
+      options: [
+        {
+          id: "removeDisablePreviewButtons",
+          type: OptionType.CHECKBOX,
+          label: "Remove the 'turn off preview' and 'turn off temporarily' buttons" + 
+          " from the profile previews so that you don't accidentally click them and lose the profile previews.",
+          defaultValue: false,
+        },
+      ],
+    },
+    {
       id: "profilePage",
       type: OptionType.GROUP,
       label: "Profile",
