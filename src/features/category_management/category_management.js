@@ -1195,6 +1195,7 @@ function OpenNewCategoryInNewTab(newCategory) {
   var editForm = document.getElementById("editform");
   editForm.target = "_blank";
   const previousAction = editForm.action;
+  document.getElementById("wpSummary").value = "copied from [[Category:" + GetCurrentCategoryName() + "]]";
   editForm.action = "https://" + mainDomain + "/index.php?title=Category:" + newCategory + "&action=submit";
   document.getElementById("wpDiff").click();
 }
