@@ -308,8 +308,8 @@ h2 button.categoryTablesButton.small,
   background-size: 20px 20px;
   width: 20px; /* Same as background width */
   height: 20px; /* Same as background height */
-  display: inline-block;
   margin-right: 5px;
+  float: inline-end;
 }
 #onlyUnconnected.active {
   background-color: forestgreen;

@@ -25,9 +25,17 @@ async function addCategoryTableButton() {
   );
   $("button.categoryTablesButton").on("click", async function (e) {
     e.preventDefault();
+
+    if ($(this).hasClass("beenClicked")) {
+      $(".tableContainer,.wideTableButton,#buttonBox").slideToggle();
+      $(this).attr("title", "Hide/Show the table");
+      return;
+    }
+    $(this).addClass("beenClicked");
+
     const superIDs = $("a.P-F,a.P-M")
       .map(function () {
-        return $(this).attr("href").split("/wiki/")[1].replace(/ /, "_");
+        return $(this).attr("href").split("/wiki/")[1].replace(/ /g, "_");
       })
       .get();
 

@@ -33,12 +33,16 @@ const pinkBricksURL = chrome.runtime.getURL("images/pink_bricks.jpg");
 const purpleBricksURL = chrome.runtime.getURL("images/purple_bricks.jpg");
 
 export const USstatesObjArray = [
-  { name: "Alabama", abbreviation: "AL", admissionDate: "1819-12-14", former_name: "Alabama Territory",
-former_names: {
-    "Alabama Territory": { start: "1817-10-10", end: "1819-12-13" },
-    "Mississippi Territory": { start: "1798-04-07", end: "1817-10-09" },
-}
- },
+  {
+    name: "Alabama",
+    abbreviation: "AL",
+    admissionDate: "1819-12-14",
+    former_name: "Alabama Territory",
+    former_names: {
+      "Alabama Territory": { start: "1817-10-10", end: "1819-12-13" },
+      "Mississippi Territory": { start: "1798-04-07", end: "1817-10-09" },
+    },
+  },
   {
     name: "Alaska",
     abbreviation: "AK",
@@ -52,11 +56,16 @@ former_names: {
     },
   },
   { name: "American Samoa", abbreviation: "AS" },
-  { name: "Arizona", abbreviation: "AZ", admissionDate: "1912-02-14", former_name: "Arizona Territory",
-former_names: {
-    "Arizona Territory": { start: "1863-02-24", end: "1912-02-13" },
-    "New Mexico Territory": { start: "1850-09-09", end: "1863-02-23" },}
- },
+  {
+    name: "Arizona",
+    abbreviation: "AZ",
+    admissionDate: "1912-02-14",
+    former_name: "Arizona Territory",
+    former_names: {
+      "Arizona Territory": { start: "1863-02-24", end: "1912-02-13" },
+      "New Mexico Territory": { start: "1850-09-09", end: "1863-02-23" },
+    },
+  },
   { name: "Arkansas", abbreviation: "AR", admissionDate: "1836-06-15", former_name: "Arkansas Territory" },
   {
     name: "California",
@@ -842,7 +851,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     // later?
   } else if (tableClass == "category") {
     if ($(".categoryTablesButton").length) {
-      $(".categoryTablesButton").replaceWith(waitingImage);
+      $(".categoryTablesButton").after(waitingImage);
     } else {
       $("#categoryTablePaginationLinks").after(waitingImage);
     }
@@ -1051,18 +1060,29 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
 
     // Sort thePeople by LastNameAtBirth, then by FirstName
     thePeople.sort(function (a, b) {
-      if (a.LastNameAtBirth < b.LastNameAtBirth) {
+      // Ensure last names exist and compare in a case-insensitive manner
+      const lastNameA = (a.LastNameAtBirth || "").toLowerCase();
+      const lastNameB = (b.LastNameAtBirth || "").toLowerCase();
+
+      if (lastNameA < lastNameB) {
         return -1;
       }
-      if (a.LastNameAtBirth > b.LastNameAtBirth) {
+      if (lastNameA > lastNameB) {
         return 1;
       }
-      if (a.FirstName < b.FirstName) {
+
+      // If last names are equal, ensure first names exist and sort by first name
+      const firstNameA = (a.FirstName || "").toLowerCase();
+      const firstNameB = (b.FirstName || "").toLowerCase();
+
+      if (firstNameA < firstNameB) {
         return -1;
       }
-      if (a.FirstName > b.FirstName) {
+      if (firstNameA > firstNameB) {
         return 1;
       }
+
+      // If first names are also equal
       return 0;
     });
 
@@ -2048,7 +2068,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     $("h2").eq(0).append(nameFilterButton);
   }
   if (firstTime == true) {
-    $("#nameFilter").click(function (e) {
+    $("#nameFilter").on("click",function (e) {
       e.preventDefault();
       let LNAB;
       let firstName;
@@ -2227,7 +2247,9 @@ async function myConnections() {
         $(
           "<a href='#next' data-user-id='" +
             thisIDSplit[1] +
-            "' id='loadNextGenerationButton' class='button small maxed'>Looking for more <img src='https://" + mainDomain + "/images/icons/ajax-loader-snake-333-trans.gif'></a>"
+            "' id='loadNextGenerationButton' class='button small maxed'>Looking for more <img src='https://" +
+            mainDomain +
+            "/images/icons/ajax-loader-snake-333-trans.gif'></a>"
         )
       );
     }
