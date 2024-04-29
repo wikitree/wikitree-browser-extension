@@ -1743,7 +1743,8 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
         ${ahnenCell}
         ${relCell}
         <td class='connectionsName'  title='${unknownText}'><img class='familyHome' src='${homeIconURL}'><img class='privacyImage' src='${privacy}' title='${privacyTitle}'>${oLink}</td>
-        <td class='lnab'><a href='https://${mainDomain}/index.php?title=Special:Surname&order=name&layout=table&s=${mPerson.LastNameAtBirth}'>${mPerson.LastNameAtBirth}</a></td><td class='lnc'><a href='https://${mainDomain}/index.php?title=Special:Surname&order=name&layout=table&s=${mPerson.LastNameCurrent}'>${mPerson.LastNameCurrent}</a></td>
+        <td class='lnab'><a href="https://${mainDomain}/index.php?title=Special:Surname&order=name&layout=table&s=${mPerson.LastNameAtBirth}">${mPerson.LastNameAtBirth}</a></td>
+        <td class='lnc'><a href="https://${mainDomain}/index.php?title=Special:Surname&order=name&layout=table&s=${mPerson.LastNameCurrent}">${mPerson.LastNameCurrent}</a></td>
         <td class='aDate birthdate'>${birthDate}</td><td class='location birthlocation'>${birthLocation}</td>
         <td  class='aDate deathdate'>${deathDate}</td><td class='location deathlocation'>${deathLocation}</td>
         ${livedToCell}
@@ -2068,7 +2069,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     $("h2").eq(0).append(nameFilterButton);
   }
   if (firstTime == true) {
-    $("#nameFilter").on("click",function (e) {
+    $("#nameFilter").on("click", function (e) {
       e.preventDefault();
       let LNAB;
       let firstName;
