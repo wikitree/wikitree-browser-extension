@@ -1,4 +1,5 @@
 import $ from "jquery";
+import dt from "datatables.net-dt";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "./anniversaries_table.css";
 import Cookies from "js-cookie";
