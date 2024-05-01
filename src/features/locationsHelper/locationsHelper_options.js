@@ -10,6 +10,7 @@ import {
   isSpaceEdit,
   isNewSpace,
   isUploadPhoto,
+  isImagePage,
 } from "../../core/pageType";
 
 registerFeature({
@@ -29,7 +30,15 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: true,
-  pages: [isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson, isSpaceEdit, isNewSpace, isUploadPhoto],
+  pages: [
+    isProfileEdit,
+    isProfileAddRelative,
+    isAddUnrelatedPerson,
+    isSpaceEdit,
+    isNewSpace,
+    isUploadPhoto,
+    isImagePage,
+  ],
   options: [
     {
       id: "correctLocations",
