@@ -114,9 +114,9 @@ async function ProcessVoyageCategory(cat, sailedOrArrived) {
   const theYear = format(theDate, "yyyy");
   const ship = getLeftFromComma(cat);
   const shipCatList = await getShipCategories(ship, theYear);
-  const sortKey = format(theDate, "yyyyMMdd");
+  const sortKey = ship + " " + format(theDate, "yyyyMMdd");
 
-  parentCategories += "[[Category:" + getDecade(cat) + " Sailings|" + ship + " " + sortKey + "]]\n";
+  parentCategories += "[[Category:" + getDecade(cat) + " Sailings|" +  sortKey + "]]\n";
   if (shipCatList.length == 0) {
     parentCategories += "[[Category:<ship name>|" + sortKey + "]]\n";
   }
