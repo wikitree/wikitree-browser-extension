@@ -843,7 +843,7 @@ function appendDetailsToContainer(container, idsByDate, details, headingTail) {
   }
 
   function addChanges(what, changes) {
-    const groupHeader = $(`<p class="delta">${what}</p>`);
+    const groupHeader = $(`<p class="delta">${what} (${changes.size})</p>`);
     const list = $("<ol>");
     const sortedDeltas = [...changes.values()].sort((a, b) => a.Degrees - b.Degrees);
     for (let i = 0; i < sortedDeltas.length; ++i) {
@@ -858,7 +858,7 @@ function appendDetailsToContainer(container, idsByDate, details, headingTail) {
       const text = person
         ? `${person.FullName} ${displayDates(person)}${person.redirectedFrom ? " (merged)" : ""}`
         : `Profile ${el.Name ? el.Name : el.Id} (deleted from WikiTree)`;
-      const link = $("<a>").attr("href", `https://${mainDomain}/wiki/${el.Name}`).text(text);
+      const link = $("<a>").attr("href", `https://${mainDomain}/wiki/${el.Name}`).attr("target", "_blank").text(text);
       const degree = $(
         `<span title="${what} at ${el.Degrees} degree${el.Degrees > 1 ? "s" : ""}"> [${el.Degrees}]</span>`
       );
