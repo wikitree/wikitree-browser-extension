@@ -91,7 +91,7 @@ function highlightSearchWords(activeEl, dText, innerBit) {
   // And match the parts of the text in the location box (#mBirthLocation, etc.) against dText and wrap <span class="autocomplete-suggestion-term"> around them.
   const theLocation = $("#" + activeEl.id);
   const theLocationText = theLocation.val();
-  const theLocationTextMatch = theLocationText.match(/[A-z']+/g);
+  const theLocationTextMatch = theLocationText.match(/[\p{L}\p{M}']+/gu);
   if (theLocationTextMatch != null) {
     theLocationTextMatch.forEach(function (aWord) {
       if (dText.match(aWord) != null) {
