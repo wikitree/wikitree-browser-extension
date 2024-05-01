@@ -265,6 +265,12 @@ async function locationsHelper() {
               // Brisbane
               dText = dText.replace("Brisbane City, Queensland, Australia", "Brisbane, Queensland, Australia");
 
+              if (dText.match(/Auschwitz-Birkenau/)) {
+                dText =
+                  "Konzentrationslager Auschwitz-Birkenau, Bielitz, Oberschlesien, Preußen, Deutsches Reich (1941 - 1945)";
+              } else if (dText.match(/Auschwitz, Auschwitz/)) {
+                dText = "Konzentrationslager Auschwitz, Bielitz, Oberschlesien, Preußen, Deutsches Reich (1941 - 1945)";
+              }
               // Canadian districts
               if (dText.match(/Canada/)) {
                 const regionalDistricts = [
