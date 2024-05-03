@@ -29,7 +29,8 @@ th#PMHeader {
 .wt.names span.PM,
 .wt.names span.yourAncestor,
 .wt.names span.checkLNC,
-.wt.names span.orphan {
+.wt.names span.orphan,
+.wt.names span.TL {
   border: 2px solid forestgreen;
   border-radius: 1em;
   color: forestgreen;
@@ -40,6 +41,14 @@ th#PMHeader {
   top: 0em;
   font-size: 0.7em;
   z-index: 1000;
+}
+
+.wt.names span.PM.watchlist,
+.wt.names span.TL.watchlist {
+  position: static;
+  left: auto;
+  margin-left: 0.2em;
+  cursor: default;
 }
 
 .wt.names span.orphan {

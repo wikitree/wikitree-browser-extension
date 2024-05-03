@@ -97,6 +97,7 @@ async function init() {
   h1.append(moreButton);
   moreButton.on("click", function () {
     initSurnameTableSorting();
+    console.log(window.surnameTableOptions);
     if (
       window.surnameTableOptions.ShowYouArePMorTL ||
       window.surnameTableOptions.ShowMissingParents ||
@@ -491,24 +492,37 @@ const pinkBricks = $("<img src='" + pinkSRC + "' class='pinkWall' title='Mother 
 const blueBricks = $("<img src='" + blueSRC + "' class='blueWall' title='Father not known.'>");
 
 async function getBrickWalls() {
-  let finishedBWs = false;
-  const mWTID = USER_WT_ID;
   const mWTIDID = USER_NUM_ID;
   const theseKeys = [];
-  $("table.wt.names tbody tr input[name='mergeany[]'],a.P-M,a.P-F").each(function () {
+
+  // Handle input and specific class elements
+  $('table.wt.names tbody tr input[name="mergeany[]"], .P-M, .P-F').each(function () {
     if ($("table.wt.names").length) {
-      theseKeys.push($(this).attr("value"));
+      theseKeys.push($(this).val()); // Use val() for inputs
     } else {
-      theseKeys.push($(this).attr("href").split("/")[2]);
+      // This else might not make sense here as these are not links
+      theseKeys.push("default or error handler");
     }
   });
+
+  // Handle the first link with "/wiki/" in each row separately
+  if (isSpecialWatchedList) {
+    $("table.wt.names tbody tr").each(function () {
+      const firstLink = $(this).find('a[href*="/wiki/"]:first');
+      if (firstLink.length) {
+        theseKeys.push(firstLink.attr("href").split("/")[2]);
+      }
+    });
+  }
   let chunk;
 
   while (theseKeys.length) {
+    console.log(theseKeys);
     chunk = theseKeys.splice(0, 50).join(",");
     const fields =
       "Id,Name,Manager,Mother,Father,Spouses,LastNameAtBirth,LastNameCurrent,Gender,Photo,PhotoData,BirthLocation,DeathLocation,Connected,TrustedList,Privacy";
     getPeople(chunk, 0, 0, 0, 0, 0, fields).then((result) => {
+      console.log(result);
       const peopleKeys = Object.keys(result[0].people);
       peopleKeys.forEach((key) => {
         const person = result[0].people[key];
@@ -518,11 +532,21 @@ async function getBrickWalls() {
         if ($("table.wt.names").length) {
           BWtable = true;
         }
-        if (BWtable == true) {
-          dParentEl = $('table.wt.names tbody tr input[name="mergeany[]"][value="' + thisID + '"]').closest("td");
+        if (BWtable) {
+          dParentEl = $(
+            `table.wt.names tbody tr input[name="mergeany[]"][value="${thisID}"],table.wt.names tbody tr a[href$="${thisID}"]:first`
+          ).closest("td");
+          if (isSpecialWatchedList) {
+            $("table.wt.names tbody tr").each(function () {
+              const firstLink = $(this).find(`a[href$="${thisID}"]:first`);
+              if (firstLink.length) {
+                dParentEl = firstLink.closest("td");
+              }
+            });
+          }
           dParentEl.css({ position: "relative" });
         } else {
-          dParentEl = $('a.P-F[href$="' + thisID + '"],a.P-M[href$="' + thisID + '"]').closest(".P-ITEM");
+          dParentEl = $(`a.P-F[href$="${thisID}"],a.P-M[href$="${thisID}"]`).closest(".P-ITEM");
         }
 
         let hasSpouse = false;
@@ -614,10 +638,23 @@ async function getBrickWalls() {
         }
 
         if (window.surnameTableOptions.ShowYouArePMorTL) {
-          if (dParentEl.find("span.PM").length == 0 && isManager == true) {
-            dParentEl.prepend($("<span class='PM' title='You manage this profile'>PM</span>"));
-          } else if (dParentEl.find("span.PM").length == 0 && isTL == true) {
-            dParentEl.prepend($("<span class='PM' title='You are on the Trusted List'>TL</span>"));
+          const PM = dParentEl.find("span.PM");
+          const TL = dParentEl.find("span.TL");
+          const PMspan = $("<span class='PM' title='You manage this profile'>PM</span>");
+          const TLspan = $("<span class='TL' title='You are on the Trusted List'>TL</span>");
+
+          if (isSpecialWatchedList) {
+            if (PM.length == 0 && isManager == true) {
+              dParentEl.append(PMspan);
+              PMspan.addClass("watchlist");
+            } else if (TL.length == 0 && isTL == true) {
+              dParentEl.append(TLspan);
+              TLspan.addClass("watchlist");
+            }
+          } else if (PM.length == 0 && isManager == true) {
+            dParentEl.prepend(PMspan);
+          } else if (TL.length == 0 && isTL == true) {
+            dParentEl.prepend(TLspan);
           }
         }
 
@@ -626,7 +663,14 @@ async function getBrickWalls() {
             if (BWtable == false) {
               $("a.P-M[href$='" + thisID + "'],a.P-F[href$='" + thisID + "']").after(pinkBricks.clone(true));
             } else {
-              $("a[href$='" + thisID + "']").after(pinkBricks.clone(true));
+              if (isSpecialWatchedList) {
+                $("table.wt.names tr").each(function () {
+                  const firstAnchor = $(this).find(`a[href$="${thisID}"]`).first();
+                  firstAnchor.after(pinkBricks.clone(true));
+                });
+              } else {
+                $(`a[href$="${thisID}"]`).after(pinkBricks.clone(true));
+              }
             }
           }
 
@@ -634,7 +678,14 @@ async function getBrickWalls() {
             if (BWtable == false) {
               $("a.P-M[href$='" + thisID + "'],a.P-F[href$='" + thisID + "']").after(blueBricks.clone(true));
             } else {
-              $("a[href$='" + thisID + "']").after(blueBricks.clone(true));
+              if (isSpecialWatchedList) {
+                $("table.wt.names tr").each(function () {
+                  const firstAnchor = $(this).find(`a[href$="${thisID}"]`).first();
+                  firstAnchor.after(blueBricks.clone(true));
+                });
+              } else {
+                $(`a[href$="${thisID}"]`).after(blueBricks.clone(true));
+              }
             }
           }
         }
@@ -715,8 +766,13 @@ function makeTableNotWide(dTable) {
   });
 
   // Check if the element has the draggable functionality initialized
-  if (dTable.hasClass("ui-draggable")) {
-    dTable.draggable("destroy");
+  try {
+    if (dTable.data("ui-draggable")) {
+      dTable.draggable("destroy");
+    }
+  } catch (error) {
+    console.error("Error destroying draggable:", error);
+    // Optionally initialize draggable here if needed
   }
 
   dTable.insertBefore($("#tableContainer"));
