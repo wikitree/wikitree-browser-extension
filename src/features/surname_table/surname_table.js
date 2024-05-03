@@ -97,7 +97,7 @@ async function init() {
   h1.append(moreButton);
   moreButton.on("click", function () {
     initSurnameTableSorting();
-    console.log(window.surnameTableOptions);
+
     if (
       window.surnameTableOptions.ShowYouArePMorTL ||
       window.surnameTableOptions.ShowMissingParents ||
@@ -517,12 +517,10 @@ async function getBrickWalls() {
   let chunk;
 
   while (theseKeys.length) {
-    console.log(theseKeys);
     chunk = theseKeys.splice(0, 50).join(",");
     const fields =
       "Id,Name,Manager,Mother,Father,Spouses,LastNameAtBirth,LastNameCurrent,Gender,Photo,PhotoData,BirthLocation,DeathLocation,Connected,TrustedList,Privacy";
     getPeople(chunk, 0, 0, 0, 0, 0, fields).then((result) => {
-      console.log(result);
       const peopleKeys = Object.keys(result[0].people);
       peopleKeys.forEach((key) => {
         const person = result[0].people[key];
