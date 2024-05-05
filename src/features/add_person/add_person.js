@@ -216,7 +216,7 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
 function ShowProfileIdInBox(newProfilebox) {
   const linkNew = newProfilebox.getElementsByTagName("a")[0].href;
   const linkParts = linkNew.split("/");
-  const aNew = '<a href="' + linkNew + '">' + linkParts[linkParts.length - 1] + "<a>";
+  const aNew = '<a href="' + linkNew + '">' + decodeURIComponent(linkParts[linkParts.length - 1]) + "<a>";
   const largerText = newProfilebox.getElementsByClassName("larger")[0];
   largerText.innerHTML = largerText.innerHTML.replace("Profile ", "Profile " + aNew + " ");
 }
