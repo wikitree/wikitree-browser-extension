@@ -4,7 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { extractRelatives, familyArray, getRelatives } from "../../core/common";
-import { parsedDateISO } from "../date_fixer/date_fixer";
+import { formISODate } from "../date_fixer/date_fixer";
 import { isSpaceEdit, isNewSpace } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 // import { australian_locations } from "./auto_bio/australian_locations";
@@ -246,19 +246,19 @@ async function locationsHelper() {
           if (window.locationsHelperOptions?.correctLocations || window.locationsHelperOptions?.addUSCounty) {
             const innerBit = $(added_node).find(".autocomplete-suggestion-head");
 
-            let theDate = "";
+            let theDateStr = "";
             if (whichLocation == "Birth") {
-              theDate = $("#mBirthDate").val();
+              theDateStr = $("#mBirthDate").val();
             } else if (whichLocation == "Death") {
-              theDate = $("#mDeathDate").val();
+              theDateStr = $("#mDeathDate").val();
             } else if (whichLocation == "Marriage") {
-              theDate = $("#mMarriageDate").val();
+              theDateStr = $("#mMarriageDate").val();
             } else if (whichLocation == "spaceLocation") {
-              theDate = $("#mStartDate").val();
+              theDateStr = $("#mStartDate").val();
             } else if (whichLocation == "photoLocation") {
-              theDate = $("#photo_date").val();
+              theDateStr = $("#photo_date").val();
             }
-            theDate = new Date(parsedDateISO(theDate));
+            const theDate = new Date(formISODate(theDateStr));
 
             let innerBitText = "";
             if (window.locationsHelperOptions?.correctLocations && goodDate) {
