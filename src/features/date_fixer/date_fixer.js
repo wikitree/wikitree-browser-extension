@@ -203,7 +203,7 @@ function handleDateInput(dateString, inputElement) {
         <p>Please clarify the date:</p>
         <button id="optionEu">${formattedEu}</button>
         <button id="optionUs">${formattedUs}</button>
-          <x>&#215;</x>       
+          <x>&#215;</x>
         </div>
     `);
 
@@ -417,7 +417,7 @@ function getAmbiguousMonths(input) {
 }
 
 function parsedDate(input) {
-  console.log("parsedDateISO", parsedDateISO(input));
+  console.log("formISODate:", formISODate(input));
 
   // Try parsing the date with both European and American formats
   const euParsed = tryParseDate(input, euDateFormats);
@@ -450,7 +450,7 @@ function parsedDate(input) {
   return { eu: euParsed, us: usParsed, iso: isoParsed, validDate: validDate };
 }
 
-export function parsedDateISO(input) {
+export function formISODate(input) {
   // Try parsing the date with both European and American formats
   const euParsed = tryParseDate(input, euDateFormats);
   const usParsed = tryParseDate(input, usDateFormats);
@@ -466,12 +466,12 @@ export function parsedDateISO(input) {
 
   if (yearMonthPattern.test(input) || monthYearPattern.test(input)) {
     // If input is year-month or month-year, format as "MMM yyyy"
-    return { validDate: format(new Date(input), "yyyy-mm-15") };
+    validDate = format(new Date(input), "yyyy-MM-15");
   } else if (yearMonthDayPattern.test(input) || monthYearDayPattern.test(input)) {
     // If input is year-month-day or month-year-day, format as "dd MMM yyyy"
     let parts = input.split(/\s/);
     let newDate = new Date(parts[0], monthNames.indexOf(parts[1]), parts[2] || 1);
-    return { validDate: format(newDate, "yyyy-MM-dd") };
+    validDate = format(newDate, "yyyy-MM-dd");
   } else if (isValid(usParsed)) {
     validDate = format(usParsed, "yyyy-MM-dd");
   } else if (isValid(euParsed)) {
