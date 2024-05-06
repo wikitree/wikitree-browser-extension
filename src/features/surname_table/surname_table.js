@@ -417,7 +417,7 @@ async function initSurnameTableSorting() {
           deathLocationTD.insertAfter(deathTD);
         }
       }
-      $(this).attr("data-birth-location-big2small", birthLocation.split(", ").reverse().join(", "));
+      $(this).attr("data-birth-location-big2small", birthLocation.trim().split(", ").reverse().join(", "));
     });
 
     const birthLocationWord = $(
