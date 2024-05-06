@@ -97,6 +97,9 @@ table.wt.names span.index {
   border-radius: 50%;
   font-size: 0.8em;
   background: #ffffff;
+  position: relative;
+  top: -0.5em;
+  left: -0.5em;
 }
 
 #buttonBox {

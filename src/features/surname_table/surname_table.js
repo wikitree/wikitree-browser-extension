@@ -168,13 +168,17 @@ async function dNumbering() {
   $("table.wt.names tr img.home").remove();
 
   // Process each row except the first (header) row
-  $("table.wt.names tr").each(function (i) {
-    if (i === 0) return; // Skip the header row
 
+  let j = 1;
+  $("table.wt.names tr").each(function (i) {
+    if (i === 0 || $(this).hasClass("filter-row")) {
+      return; // Skip the header row
+    }
     let indexCell = $(this).find("td").eq(0);
     indexCell
       .css("position", "relative")
-      .prepend($("<span class='index'>" + i + "</span>").css({ position: "absolute", left: "-0.2em" }));
+      .prepend($("<span class='index'>" + j + "</span>").css({ position: "absolute", left: "-0.2em" }));
+    j++;
   });
 }
 
