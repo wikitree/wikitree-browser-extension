@@ -368,7 +368,10 @@ if (domain.match("apps.wikitree.com")) {
       isGenealogyPage = true;
     } else if (uri.match(/Special(:|%3A|%3a)Home/)) {
       isNavHomePage = true;
-    } else if (uri.match(/Special(:|%3A|%3a)Connection/)) {
+    } else if (
+      uri.match(/Special(:|%3A|%3a)Connection/) ||
+      uri.match(/\/index.php\?title=Special(:|%3A|%3a)Connection.*/g)
+    ) {
       isConnectionFinder = true;
     } else if (uri.match(/Special(:|%3A|%3a)MergeEdit/)) {
       isMergeEdit = true;
