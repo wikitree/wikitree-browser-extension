@@ -40,7 +40,7 @@ export const wtAPIProfileSearch = (callerID, query, params) => {
     if (params.pageSize) s += "&pageSize=" + params.pageSize;
     if (params.pageIdx) s += "&pageIdx=" + params.pageIdx;
   }
-  return wtAPICall(`WTWebProfileSearch/apiExt${callerID}.json?Query=${query}${s}`);
+  return wtAPICall(`WTWebProfileSearch/apiWBE_${callerID}.json?Query=${query}${s}`);
 };
 
 /********************************************************************
@@ -80,7 +80,7 @@ export const wtAPIProfileSearch = (callerID, query, params) => {
 
 // https://plus.wikitree.com/function/wtCatCIBSearch/apiExtCategoryPicker.json?Query=Oak%20Hill%20Alabama&cib=Cemetery&Format=json
 export const wtAPICatCIBSearch = (callerID, cibType, query) =>
-  wtAPICall(`wtCatCIBSearch/apiExt${callerID}.json?Query=${query}&cib=${cibType}`);
+  wtAPICall(`wtCatCIBSearch/apiWBE_${callerID}.json?cib=${cibType}&Query=${query}`);
 
 /********************************************************************
   wtAPINameDistribution Retrieve the names gender with counts
@@ -126,7 +126,7 @@ export const wtAPICatCIBSearch = (callerID, cibType, query) =>
 
 // https://plus.wikitree.com/function/wtWebNameDistribution/apiExtGenderPredictor.json?FirstName=Ian&Format=json
 export const wtAPINameDistribution = (callerID, firstNames) =>
-  wtAPICall(`wtWebNameDistribution/apiExt${callerID}.json?FirstName=${firstNames}`);
+  wtAPICall(`wtWebNameDistribution/apiWBE_${callerID}.json?FirstName=${firstNames}`);
 
 // *******************************************************************
 // Base call to WikiTree+

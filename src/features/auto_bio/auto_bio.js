@@ -6268,7 +6268,7 @@ export async function getONSstickers() {
     }
     let results;
     try {
-      results = await wtAPICatCIBSearch("WBE_AutoBio_ONS", "nameStudy", aSurname + " name study");
+      results = await wtAPICatCIBSearch("AutoBio_ONS", "nameStudy", aSurname + " name study");
       if (results?.response?.categories) {
         const result = findBestMatch(
           aSurname,
@@ -8155,7 +8155,7 @@ export async function getLocationCategory(type, location = null) {
   const apiPromises = [];
 
   for (const searchLocation of searchLocationsArray) {
-    apiPromises.push(wtAPICatCIBSearch("WBE", categoryType, searchLocation));
+    apiPromises.push(wtAPICatCIBSearch("AutoBio_" + categoryType, categoryType, searchLocation));
   }
 
   const apiResponses = await Promise.allSettled(apiPromises);
