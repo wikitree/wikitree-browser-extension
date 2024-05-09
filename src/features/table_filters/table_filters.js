@@ -173,7 +173,7 @@ async function GetSuggestions() {
   return new Promise((resolve, reject) => {
     const params = new URLSearchParams(window.location.search);
     if (params.has("p")) {
-      fetch("https://plus.wikitree.com/function/WTWebUser/Suggestions.htm?UserID=" + params.get("p"))
+      fetch("https://plus.wikitree.com/function/WTWebUser/WBE_TableFilters.htm?UserID=" + params.get("p"))
         .then((suggestionsPage) => {
           const txt = suggestionsPage.text();
           resolve(txt);
