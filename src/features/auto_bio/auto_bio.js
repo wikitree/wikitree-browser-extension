@@ -5865,40 +5865,6 @@ export function setOrderBirthDate(person) {
 // 5. Find a Grave memorial #123456789
 // Note that if the input is in format 3, it will not parse if the link contains the text "database and images" (the link will be ignored).
 
-/*
-function getFindAGraveLink(text) {
-  // Define the regexes to be used to find the link
-  const match1 = /(https?:\/\/www\.findagrave.com[^\s]+)$/;
-  const match2 = /\[(https?:\/\/www\.findagrave.com[^\s]+)(\s([^\]]+))?\]/;
-  const match3 = /\{\{\s?FindAGrave\s?\|\s?(\d+)(\|.*?)?\s?\}\}/;
-  const match4 = /database and images/;
-  const match5 = /^\s?Find a Grave:?( memorial)? #?(\d+)\.?$/i;
-  const sourcerMatch = /'''.+<br(.*)?>.+<br(.*)?>/;
-
-  // If not sourcerMatch
-  if (!text.match(sourcerMatch)) {
-    // If the input is in format 1, return the link
-    if (text.match(match1)) {
-      return text.match(match1)[1];
-      // If the input is in format 2, return the link
-    } else if (text.match(match2)) {
-      return text.match(match2)[1];
-      // If the input is in format 3, return the link if it doesn't contain "database and images"
-    } else if (text.match(match3) && text.match(match4) == null && text.match(match3)[0].match(/samesas=no/) == null) {
-      return "https://www.findagrave.com/memorial/" + text.match(match3)[1];
-      // If the input is in format 4 or 5, return the link
-    } else if (text.match(match5) && text.match(match5)[0].match(/samesas=no/) == null) {
-      return "https://www.findagrave.com/memorial/" + text.match(match5)[2];
-      // If the input is in none of the above formats, return null
-    } else {
-      return null;
-    }
-  } else {
-    return null;
-  }
-}
-*/
-
 function getFindAGraveLink(text) {
   // Define the regexes to be used to find the link
   const match1 = /(https?:\/\/www\.findagrave.com[^\s]+)$/;
@@ -7063,12 +7029,23 @@ export async function getData(key) {
   return await getStorageData(key);
 }
 
+async function getTemplates() {
+  let templatesObject = await getData("alltemplates");
+  if (!templatesObject) {
+    // Check if templatesObject is null, undefined, or otherwise falsy
+    const templatesJSON = chrome.runtime.getURL("features/wtPlus/templatesExp.json");
+    const response = await fetch(templatesJSON);
+    templatesObject = await response.json(); // Assuming the fetched data is JSON and needs to be parsed
+  }
+  return templatesObject;
+}
+
 let templatesObject = {};
 let USstatesObjArray;
 export async function generateBio() {
   const module = await import("./us_states.json");
   USstatesObjArray = module.default;
-  templatesObject = await getData("alltemplates");
+  templatesObject = await getTemplates();
   console.log("templatesObject", templatesObject);
 
   try {
@@ -7882,7 +7859,7 @@ export async function generateBio() {
           $("#m" + key).val(originalFormData[key]);
         });
 
-        $("#deleteOldBio,#removeAutoBio").remove();
+        $("#deleteOldBio,#removeAutoBio,#deleteOldBioMessage").remove();
       });
       let deleteOldBioButton = $("<button id='deleteOldBio' class='small'>");
       deleteOldBioButton.text("Delete Old Bio");
@@ -7897,10 +7874,17 @@ export async function generateBio() {
         if (enhanced == true) {
           enhancedEditorButton.trigger("click");
         }
-        $("#deleteOldBio").remove();
+        $("#deleteOldBio,#deleteOldBioMessage").remove();
       });
       $("#toolbar").append(removeAutoBioButton);
       $("#toolbar").append(deleteOldBioButton);
+      $("#draftStatus")
+        .before(`<div id="deleteOldBioMessage" class="status"><span class="large" style="display:block; font-weight:bold; margin-bottom:0.3em;">Auto Bio</span>
+      Don't forget to <b>delete the old bio</b> and the Auto Bio message above it.</div>`);
+
+      $("#wpTextbox1").on("blur", removeOldBioMessage);
+      $("body").on("click", removeOldBioMessage);
+      $("#wpSave").on("mouseover", removeOldBioMessage);
     }
   } catch (error) {
     console.log(error);
@@ -7953,6 +7937,19 @@ export async function generateBio() {
 
       $("body").append(errorDiv);
     }
+  }
+}
+
+function removeOldBioMessage() {
+  if ($("#wpTextbox1").length == 0) {
+    return;
+  }
+  if (
+    $("body")
+      .text()
+      .match(/WikiTree Browser Extension Auto Bio/) == null
+  ) {
+    $("#deleteOldBioMessage").remove();
   }
 }
 
@@ -8285,6 +8282,21 @@ shouldInitializeFeature("autoBio").then((result) => {
   }
 });
 
+/**
+ * Converts American English spelling to British English spelling based on the user's locale.
+ * This function checks if the user's browser locale is set to a form of English that typically
+ * uses British spelling (like UK or Australia). If so, it converts American English words
+ * to their British equivalents based on a predefined dictionary of spellings.
+ *
+ * @param {string} text - The text to be converted from American to British spelling.
+ * @returns {string} The text with American spellings converted to British spellings where applicable.
+ *                   If the user's locale is not set to use British English, the original text is returned unchanged.
+ *
+ * The conversion only occurs if the user's locale is set to British English variants (en-GB, en-AU, etc.).
+ * The function splits the input text into words, checks each word against a dictionary of American-to-British
+ * spellings, and replaces them if a match is found. The `matchCase` function is used to preserve the original
+ * word's capitalization style.
+ */
 function spell(text) {
   const americanToBritishSpelling = {
     // A
