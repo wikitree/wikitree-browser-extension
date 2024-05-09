@@ -18,14 +18,7 @@ shouldInitializeFeature("genderPredictor").then((result) => {
 });
 
 async function getGenderPrediction(name) {
-  return wtAPINameDistribution('WBE_genderPredictor', name)
-/* old fetch. now uses API
-  const response = await fetch(
-    `https://plus.wikitree.com/function/WTWebNameDistribution/names.json?FirstName=${name}&Format=json&appId=WBE_genderPredictor`
-  );
-  const data = await response.json();
-  return data;
-*/
+  return wtAPINameDistribution('genderPredictor', name)
 }
 
 function setGenderClass(predicted = false) {

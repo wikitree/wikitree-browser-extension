@@ -18,7 +18,7 @@ export async function selectCIB(data, hideTopLevel) {
     } else {
       // Retrieve categories
       cntr.innerHTML = "Retrieving...";
-      wtAPICatCIBSearch("CIBPicker", s0, s1)
+      wtAPICatCIBSearch("wtPlus_CIBPicker", s0, s1)
         .then((jsonData) => {
           let c = jsonData.response.categories;
           if (!c) {

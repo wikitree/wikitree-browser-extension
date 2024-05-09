@@ -14,7 +14,7 @@ export let isPlusDomain = false;
 // *.wikitree.com
 export let isMainDomain = false;
 // 'www.wikitree.com', 'staging.wikitree.com', 'ales.wikitree.com', 'dev-www.wikitree.com'
-export let mainDomain = 'www.wikitree.com';
+export let mainDomain = "www.wikitree.com";
 
 // Wiki Page variables
 // Any wiki page with pageID
@@ -171,7 +171,7 @@ if (domain.match("apps.wikitree.com")) {
   isMainDomain = true;
   // Sets the main domain for web page requests. This way it also works on development domains.
   mainDomain = domain;
-  
+
   const path = decodeURI(window.location.pathname); // path
   const uri = decodeURI(window.location.href); // with parameters
   if (
@@ -357,14 +357,21 @@ if (domain.match("apps.wikitree.com")) {
       uri.match(/\/index.php\?title=Special(:|%3A|%3a)WatchedList.*/g)
     ) {
       isSpecialWatchedList = true;
-    } else if (uri.match(/\/Special(:|%3A|%3a)SearchPerson/g)) {
+    } else if (
+      uri.match(/\/Special(:|%3A|%3a)SearchPerson/g) ||
+      uri.match(/\/index.php\?title=Special(:|%3A|%3a)SearchPerson.*/g)
+    ) {
+      console.log("SearchPerson");
       // Special:SearchPerson
       isSearchPage = true;
     } else if (uri.match(/Special(:|%3A|%3a)Surname/)) {
       isGenealogyPage = true;
     } else if (uri.match(/Special(:|%3A|%3a)Home/)) {
       isNavHomePage = true;
-    } else if (uri.match(/Special(:|%3A|%3a)Connection/)) {
+    } else if (
+      uri.match(/Special(:|%3A|%3a)Connection/) ||
+      uri.match(/\/index.php\?title=Special(:|%3A|%3a)Connection.*/g)
+    ) {
       isConnectionFinder = true;
     } else if (uri.match(/Special(:|%3A|%3a)MergeEdit/)) {
       isMergeEdit = true;
