@@ -120,12 +120,11 @@ function getWhatLinksHereLink(limit) {
       dLink = "Wiki:" + title;
     }
   } else if (thisURL.split(/\/wiki\//)[1]) {
-    dLink = thisURL.split(/\/wiki\//)[1];
+    dLink = thisURL.split(/\/wiki\//)[1].split("#")[0];
     if (!decodeURIComponent(dLink).match(/.+:.+/)) {
       dLink = "Wiki:" + dLink;
     }
   }
-  alert("dLink" + dLink);
   if (dLink != "") {
     return `/index.php?title=Special:Whatlinkshere/${dLink}&limit=${limit}`;
   }
