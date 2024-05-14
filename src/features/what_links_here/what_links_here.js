@@ -116,7 +116,7 @@ function getWhatLinksHereLink(limit) {
     dLink = "Wiki:" + searchParams.get("title");
   } else if (thisURL.split(/\/wiki\//)[1]) {
     dLink = thisURL.split(/\/wiki\//)[1];
-    if (!dLink.match(/.+:.+/)) {
+    if (!decodeURIComponent(dLink).match(/.+:.+/)) {
       dLink = "Wiki:" + dLink;
     }
   }
@@ -142,7 +142,7 @@ export function doWhatLinksHere(e) {
   e.preventDefault();
   const whatLinksHereLink = $(e.currentTarget);
   whatLinksHereLink.text("Working...");
-  const url = new URL(whatLinksHereLink.attr("href"), "https://" + mainDomain );
+  const url = new URL(whatLinksHereLink.attr("href"), "https://" + mainDomain);
   getWikiTreePage("WhatLinksHereClipboard", url.pathname, url.search).then((data) => {
     const dLinks = $(data).find("#content ul a[href*='/wiki/']");
     if (dLinks.length == 0) {
