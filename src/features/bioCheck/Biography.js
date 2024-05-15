@@ -109,6 +109,8 @@ export class Biography {
       bioMightHaveEmail: false,
       bioHasSearchString: false,
       bioHasBrWithoutEnd: false,
+      bioHasPaternalDnaConf: false,
+      bioHasMaternalDnaConf: false,
   };
   #sources = {
       sourcesFound: false,
@@ -770,6 +772,21 @@ export class Biography {
   hasUnknownSection() {
     return this.#style.bioHasUnknownSectionHeadings;
   }
+  /** 
+   * does bio have paternal Dna confirmation
+   * @returns {Boolean} true if bio has paternal Dna confirmation
+   */
+  hasPaternalDnaConf() {
+    return this.#style.bioHasPaternalDnaConf;
+  }
+  /** 
+   * does bio have maternal Dna confirmation
+   * @returns {Boolean} true if bio has maternal Dna confirmation
+   */
+  hasMaternalDnaConf() {
+    return this.#style.bioHasMaternalDnaConf;
+  }
+  /** 
   /** 
    * Return messages for reporting
    * @returns {Array} sectionMessages[]
@@ -2054,8 +2071,12 @@ export class Biography {
     let isDnaConf = false;
     if ((line.includes('dna')) || (line.includes('23andme')) || (line.includes('gedmatch'))) {
       if (line.includes('confirmed')) {
-        if (line.includes('maternal') || line.includes('mother') || 
-            line.includes('paternal') || line.includes('father')) {
+        if (line.includes('paternal') || line.includes('father')) {
+          this.#style.bioHasPaternalDnaConf = true;
+          isDnaConf = true;
+        }
+        if (line.includes('maternal') || line.includes('mother')) {
+          this.#style.bioHasMaternalDnaConf = true;
           isDnaConf = true;
         }
       }
