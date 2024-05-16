@@ -109,13 +109,18 @@ function getWhatLinksHereLink(limit) {
   const thisURL = window.location.href;
   let dLink = "";
   // Edit page
-  const searchParams = new URLSearchParams(window.location.href);
+  const searchParams = new URLSearchParams(window.location.search);
   if ($("body.page-Special_EditPerson").length) {
     dLink = "Wiki:" + window.profileWTID;
   } else if (searchParams.has("title")) {
-    dLink = "Wiki:" + searchParams.get("title");
+    const title = decodeURIComponent(searchParams.get("title"));
+    if (title.includes(":")) {
+      dLink = title;
+    } else {
+      dLink = "Wiki:" + title;
+    }
   } else if (thisURL.split(/\/wiki\//)[1]) {
-    dLink = thisURL.split(/\/wiki\//)[1];
+    dLink = thisURL.split(/\/wiki\//)[1].split("#")[0];
     if (!decodeURIComponent(dLink).match(/.+:.+/)) {
       dLink = "Wiki:" + dLink;
     }
