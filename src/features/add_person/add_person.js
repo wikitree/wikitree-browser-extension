@@ -365,7 +365,8 @@ function moveCategories() {
     }
   }
   if (top != "") {
-    ta.value = top.substring(1) + bottom;
+    bottom = bottom.replace(/^\n+/, "");
+    ta.value = top.substring(1) + "\n" + bottom;
     if (oldValue != ta.value) {
       document.getElementById("wpSummary").value = "Moving categories. ";
     }
