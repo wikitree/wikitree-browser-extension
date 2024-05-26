@@ -40,6 +40,18 @@ const fixOrdinalSuffix = (text) => {
   });
 };
 
+const cleanCommonAncestors = (commonAncestors) => {
+  if (!commonAncestors) return [];
+  return commonAncestors.map((ancestor) => {
+    const { mDerived, ...cleanedAncestor } = ancestor.ancestor;
+    cleanedAncestor.mDerived = { LongNameWithDates: mDerived.LongNameWithDates };
+    return {
+      ...ancestor,
+      ancestor: cleanedAncestor,
+    };
+  });
+};
+
 export function initDistanceAndRelationshipDBs(onDistanceSuccess, onRelationshipSuccess) {
   initDb(CONNECTION_DB_NAME, CONNECTION_DB_VERSION, CONNECTION_STORE_NAME, "distance", onDistanceSuccess);
   initDb(RELATIONSHIP_DB_NAME, RELATIONSHIP_DB_VERSION, RELATIONSHIP_STORE_NAME, "relationship", onRelationshipSuccess);
@@ -48,13 +60,13 @@ export function initDistanceAndRelationshipDBs(onDistanceSuccess, onRelationship
     const dbOpenReq = window.indexedDB.open(dbName, dbVersion);
     dbOpenReq.onupgradeneeded = async (event) => {
       const db = event.target.result;
+      const objStores = getObjectStores(db);
       switch (event.oldVersion) {
         case 0: // there is no old store
           db.createObjectStore(storeName, { keyPath: "theKey" });
           break;
 
         case 1:
-          const objStores = getObjectStores(db);
           if (!objStores.includes(storeName)) {
             const newStore = db.createObjectStore(storeName, { keyPath: "theKey" });
             if (oldStoreName && objStores.includes(oldStoreName)) {
@@ -99,89 +111,44 @@ export function initDistanceAndRelationshipDBs(onDistanceSuccess, onRelationship
 
 shouldInitializeFeature("distanceAndRelationship").then((result) => {
   // define user and profile IDs
-
   const profileID = $("a.pureCssMenui0 span.person").text();
   const userID = Cookies.get("wikitree_wtb_UserName");
   if (result && $("body.profile").length && profileID != userID && profileID != "") {
     import("./distanceAndRelationship.css");
-    initDistanceAndRelationshipDBs(onDistancesSuccess, onRelationsSuccess);
-
-    // Do it
-    function onDistancesSuccess(event) {
-      const db = event.target.result;
-      const getDistanceReq = db
-        .transaction(CONNECTION_STORE_NAME, "readonly")
-        .objectStore(CONNECTION_STORE_NAME)
-        .get(distRelDbKeyFor(profileID, userID));
-      getDistanceReq.onsuccess = function () {
-        if (getDistanceReq.result == undefined || getDistanceReq.result?.distance < 0) {
-          initDistanceAndRelationship(userID, profileID);
-        } else {
-          if ($("#distanceFromYou").length == 0 && $("#degreesFromYou").length == 0) {
-            // #degreesFromYou is in WT BEE.  If this is showing, don't show this (for now)
-            const profileName = $("h1 span[itemprop='name']").text();
-            $("h1").append(
-              $(
-                `<span id='distanceFromYou' title='${profileName} is ${getDistanceReq.result.distance} degrees from you. \nClick to refresh.'>${getDistanceReq.result.distance}°</span>`
-              )
-            );
-            // Add a big hover text thing
-            $("#distanceFromYou")
-              .on("mouseenter", function () {
-                const offset = $(this).offset();
-                const tooltip = $('<div id="distanceFromYouTooltip">Click to refresh</div>').css({
-                  top: offset.top + $(this).outerHeight() + 5,
-                  left: offset.left,
-                  position: "absolute",
-                });
-                $("body").append(tooltip);
-              })
-              .on("mouseleave", function () {
-                $("#distanceFromYouTooltip").remove();
-              });
-
-            $("#distanceFromYou").on("click", function (e) {
-              e.preventDefault();
-              $("#distanceFromYouTooltip").remove();
-              $(this).fadeOut("slow").remove();
-              $("#yourRelationshipText").fadeOut("slow").remove();
-              initDistanceAndRelationship(userID, profileID, true);
-            });
-          }
-        }
-      };
-      getDistanceReq.onerror = (error) => {
-        console.log("Error while retrieving distance from DB", error);
-      };
-    }
-
-    // relationshipFinderDBOpenReq.onsuccess = function (event) {
-    function onRelationsSuccess(event) {
-      const db = event.target.result;
-      const getRelationReq = db
-        .transaction(RELATIONSHIP_STORE_NAME, "readonly")
-        .objectStore(RELATIONSHIP_STORE_NAME)
-        .get(distRelDbKeyFor(profileID, userID));
-      getRelationReq.onsuccess = function () {
-        if (getRelationReq.result != undefined) {
-          if (getRelationReq.result.relationship != "") {
-            if (
-              $("#yourRelationshipText").length == 0 &&
-              $(".ancestorTextText").length == 0 &&
-              $("#ancestorListBox").length == 0
-            ) {
-              $("#yourRelationshipText").remove();
-              addRelationshipText(getRelationReq.result.relationship, getRelationReq.result.commonAncestors);
-            }
-          }
-        }
-      };
-      getRelationReq.onerror = (error) => {
-        console.log("Error while retrieving relationship from DB", error);
-      };
-    }
+    initDistanceAndRelationshipDBs(
+      (event) => onDistancesSuccess(event, profileID, userID),
+      (event) => onRelationsSuccess(event, profileID, userID)
+    );
   }
 });
+
+function onRelationsSuccess(event, profileID, userID) {
+  const db = event.target.result;
+  const getRelationReq = db
+    .transaction(RELATIONSHIP_STORE_NAME, "readonly")
+    .objectStore(RELATIONSHIP_STORE_NAME)
+    .get(distRelDbKeyFor(profileID, userID));
+  getRelationReq.onsuccess = function () {
+    if (getRelationReq.result != undefined) {
+      if (getRelationReq.result.relationship != "") {
+        if (
+          $("#yourRelationshipText").length == 0 &&
+          $(".ancestorTextText").length == 0 &&
+          $("#ancestorListBox").length == 0
+        ) {
+          $("#yourRelationshipText").remove();
+          addRelationshipText(
+            getRelationReq.result.relationship,
+            cleanCommonAncestors(getRelationReq.result.commonAncestors)
+          );
+        }
+      }
+    }
+  };
+  getRelationReq.onerror = (error) => {
+    console.log("Error while retrieving relationship from DB", error);
+  };
+}
 
 export async function getProfile(id, fields = "*", appId = "WBE") {
   try {
@@ -206,15 +173,77 @@ export async function getProfile(id, fields = "*", appId = "WBE") {
   }
 }
 
+// Do it
+function onDistancesSuccess(event, profileID, userID) {
+  const db = event.target.result;
+  const getDistanceReq = db
+    .transaction(CONNECTION_STORE_NAME, "readonly")
+    .objectStore(CONNECTION_STORE_NAME)
+    .get(distRelDbKeyFor(profileID, userID));
+
+  getDistanceReq.onsuccess = function () {
+    if (getDistanceReq.result == undefined || getDistanceReq.result?.distance < 0) {
+      initDistanceAndRelationship(userID, profileID);
+    } else {
+      if ($("#distanceFromYou").length == 0) {
+        const profileName = $("h1 span[itemprop='name']").text();
+        $("h1").append(
+          $(
+            `<span id='distanceFromYou' title='${profileName} is ${getDistanceReq.result.distance} degrees from you. \nClick to refresh.'>${getDistanceReq.result.distance}°</span>`
+          )
+        );
+        // Add a big hover text thing
+        $("#distanceFromYou")
+          .on("mouseenter", function () {
+            const offset = $(this).offset();
+            const tooltip = $('<div id="distanceFromYouTooltip">Click to refresh</div>').css({
+              top: offset.top + $(this).outerHeight() + 5,
+              left: offset.left,
+              position: "absolute",
+            });
+            $("body").append(tooltip);
+          })
+          .on("mouseleave", function () {
+            $("#distanceFromYouTooltip").remove();
+          });
+
+        $("#distanceFromYou").on("click", function (e) {
+          e.preventDefault();
+          $("#distanceFromYouTooltip").remove();
+          $(this).fadeOut("slow").remove();
+          $("#yourRelationshipText").fadeOut("slow").remove();
+          initDistanceAndRelationship(userID, profileID, true);
+        });
+      }
+
+      // Add distance data to RF DB here
+      const relationshipFinderDBOpenReq = window.indexedDB.open(RELATIONSHIP_DB_NAME, RELATIONSHIP_DB_VERSION);
+      relationshipFinderDBOpenReq.onsuccess = (event) => {
+        const relationshipFinderDB = event.target.result;
+        const obj = {
+          theKey: distRelDbKeyFor(profileID, userID),
+          userId: userID,
+          id: profileID,
+          distance: getDistanceReq.result.distance,
+        };
+        addToDBAndClose(relationshipFinderDB, RELATIONSHIP_STORE_NAME, obj);
+      };
+    }
+  };
+
+  getDistanceReq.onerror = (error) => {
+    console.log("Error while retrieving distance from DB", error);
+  };
+}
+
 function addRelationshipText(oText, commonAncestors) {
   const commonAncestorTextResult = commonAncestorText(commonAncestors);
   let commonAncestorTextOut = commonAncestorTextResult.text;
+  if (!oText) return;
   const cousinText = $(
-    "<div id='yourRelationshipText' title='Click to refresh' class='relationshipFinder'>Your " +
-      oText +
-      "<ul id='yourCommonAncestor' style='white-space:nowrap'>" +
-      commonAncestorTextOut +
-      "</ul></div>"
+    `<div id='yourRelationshipText' title='Click to refresh' class='relationshipFinder'>Your ${oText}
+    <ul id='yourCommonAncestor' style='white-space:nowrap'>${commonAncestorTextOut}</ul>
+    </div>`
   );
   $("h1").after(cousinText);
   if (cousinText.next("span.large").length > 0) {
@@ -255,16 +284,9 @@ function commonAncestorText(commonAncestors) {
       commonAncestor.ancestor.mGender
     ).toLowerCase();
     if (!ancestorsAdded.includes(commonAncestor.ancestor.mName)) {
-      ancestorTextOut +=
-        `<li>Your ${myAncestorType}, <a href="https://${mainDomain}/wiki/` +
-        commonAncestor.ancestor.mName +
-        '">' +
-        commonAncestor.ancestor.mDerived.LongNameWithDates +
-        "</a>, is " +
-        possessiveAdj +
-        " " +
-        thisAncestorType +
-        ".</li>";
+      ancestorTextOut += `<li>Your ${myAncestorType}, 
+      <a href="https://${mainDomain}/wiki/${commonAncestor.ancestor.mName}">${commonAncestor.ancestor.mDerived.LongNameWithDates}</a>, 
+      is ${possessiveAdj} ${thisAncestorType}.</li>`;
       ancestorsAdded.push(commonAncestor.ancestor.mName);
     }
   });
@@ -275,6 +297,7 @@ function commonAncestorText(commonAncestors) {
 
 function doRelationshipText(userID, profileID) {
   getRelationJSON("DistanceAndRelationship_Relationship", userID, profileID).then(function (data) {
+    console.log(data);
     if (data) {
       var out = "";
       var aRelationship = true;
@@ -353,12 +376,12 @@ function doRelationshipText(userID, profileID) {
           $("#ancestorListBox").length == 0
         ) {
           $("#yourRelationshipText").remove();
-          addRelationshipText(out, data.commonAncestors);
+          addRelationshipText(out, cleanCommonAncestors(data.commonAncestors));
         }
       }
 
       const relationshipFinderDBOpenReq = window.indexedDB.open(RELATIONSHIP_DB_NAME, RELATIONSHIP_DB_VERSION);
-      relationshipFinderDBOpenReq.onsuccess = function (event) {
+      relationshipFinderDBOpenReq.onsuccess = (event) => {
         const relationshipFinderDB = event.target.result;
         const obj = {
           theKey: distRelDbKeyFor(profileID, userID),
@@ -366,7 +389,7 @@ function doRelationshipText(userID, profileID) {
           id: profileID,
           distance: window.distance,
           relationship: out,
-          commonAncestors: data.commonAncestors,
+          commonAncestors: cleanCommonAncestors(data.commonAncestors),
         };
         addToDBAndClose(relationshipFinderDB, RELATIONSHIP_STORE_NAME, obj);
       };
@@ -375,6 +398,9 @@ function doRelationshipText(userID, profileID) {
 }
 
 async function addDistance(data) {
+  const profileID = $("a.pureCssMenui0 span.person").text();
+  const userID = Cookies.get("wikitree_wtb_UserName");
+
   if ($("#degreesFromYou").length == 0) {
     window.distance = data.path.length - 1;
     const profileName = $("h1 span[itemprop='name']").text();
@@ -388,8 +414,6 @@ async function addDistance(data) {
     const connectionFinderDBOpenReq = window.indexedDB.open(CONNECTION_DB_NAME, CONNECTION_DB_VERSION);
     connectionFinderDBOpenReq.onsuccess = function (event) {
       const connectionFinderDB = event.target.result;
-      const profileID = $("a.pureCssMenui0 span.person").text();
-      const userID = Cookies.get("wikitree_wtb_UserName");
       const obj = {
         theKey: distRelDbKeyFor(profileID, userID),
         userId: userID,
@@ -400,6 +424,18 @@ async function addDistance(data) {
     };
     connectionFinderDBOpenReq.onerror = function (error) {
       console.log("Error while recording distance", error);
+    };
+    // Add distance data to RF DB here
+    const relationshipFinderDBOpenReq = window.indexedDB.open(RELATIONSHIP_DB_NAME, RELATIONSHIP_DB_VERSION);
+    relationshipFinderDBOpenReq.onsuccess = function (event) {
+      const relationshipFinderDB = event.target.result;
+      const obj = {
+        theKey: distRelDbKeyFor(profileID, userID),
+        userId: userID,
+        id: profileID,
+        distance: window.distance,
+      };
+      addToDBAndClose(relationshipFinderDB, RELATIONSHIP_STORE_NAME, obj);
     };
   }
 }
@@ -450,78 +486,73 @@ export function ancestorType(generation, gender) {
 }
 
 export function ordinalWordToNumberAndSuffix(word) {
-  const ordinalsArray = [
-    ["first", "1st"],
-    ["second", "2nd"],
-    ["third", "3rd"],
-    ["fourth", "4th"],
-    ["fifth", "5th"],
-    ["sixth", "6th"],
-    ["seventh", "7th"],
-    ["eigth", "8th"],
-    ["ninth", "9th"],
-    ["tenth", "10th"],
-    ["eleventh", "11th"],
-    ["twelfth", "12th"],
-    ["thirteenth", "13th"],
-    ["fourteenth", "14th"],
-    ["fifteenth", "15th"],
-    ["sixteenth", "16th"],
-    ["seventeenth", "17th"],
-    ["eighteenth", "18th"],
-    ["nineteenth", "19th"],
-    ["twentieth", "20th"],
-    ["twenty-first", "21st"],
-    ["twenty-second", "22nd"],
-    ["twenty-third", "23rd"],
-    ["twenty-fourth", "24th"],
-    ["twenty-fifth", "25th"],
-    ["twenty-sixth", "26th"],
-    ["twenty-seventh", "27th"],
-    ["twenty-eigth", "28th"],
-    ["twenty-ninth", "29th"],
-    ["thirtieth", "30th"],
-    ["thirty-first", "31st"],
-    ["thirty-second", "32nd"],
-    ["thirty-third", "33rd"],
-    ["thirty-fourth", "34th"],
-    ["thirty-fifth", "35th"],
-    ["thirty-sixth", "36th"],
-    ["thirty-seventh", "37th"],
-    ["thirty-eigth", "38th"],
-    ["thirty-ninth", "39th"],
-    ["fortieth", "40th"],
-    ["forty-first", "41st"],
-    ["forty-second", "42nd"],
-    ["forty-third", "43rd"],
-    ["forty-fourth", "44th"],
-    ["forty-fifth", "45th"],
-    ["forty-sixth", "46th"],
-    ["forty-seventh", "47th"],
-    ["forty-eigth", "48th"],
-    ["forty-ninth", "49th"],
-    ["fiftieth", "50th"],
-    ["fifty-first", "51st"],
-    ["fifty-second", "52nd"],
-    ["fifty-third", "53rd"],
-    ["fifty-fourth", "54th"],
-    ["fifty-fifth", "55th"],
-    ["fifty-sixth", "56th"],
-    ["fifty-seventh", "57th"],
-    ["fifty-eigth", "58th"],
-    ["fifty-ninth", "59th"],
-    ["sixtieth", "60th"],
-    ["sixty-first", "61st"],
-    ["sixty-second", "62nd"],
-    ["sixty-third", "63rd"],
-  ];
-  ordinalsArray.forEach(function (arr) {
-    if (word == arr[0]) {
-      word = arr[1];
-      return arr[1];
-    }
-  });
-  return word;
+  const ordinalsMap = {
+    first: "1st",
+    second: "2nd",
+    third: "3rd",
+    fourth: "4th",
+    fifth: "5th",
+    sixth: "6th",
+    seventh: "7th",
+    eighth: "8th",
+    ninth: "9th",
+    tenth: "10th",
+    eleventh: "11th",
+    twelfth: "12th",
+    thirteenth: "13th",
+    fourteenth: "14th",
+    fifteenth: "15th",
+    sixteenth: "16th",
+    seventeenth: "17th",
+    eighteenth: "18th",
+    nineteenth: "19th",
+    twentieth: "20th",
+    "twenty-first": "21st",
+    "twenty-second": "22nd",
+    "twenty-third": "23rd",
+    "twenty-fourth": "24th",
+    "twenty-fifth": "25th",
+    "twenty-sixth": "26th",
+    "twenty-seventh": "27th",
+    "twenty-eighth": "28th",
+    "twenty-ninth": "29th",
+    thirtieth: "30th",
+    "thirty-first": "31st",
+    "thirty-second": "32nd",
+    "thirty-third": "33rd",
+    "thirty-fourth": "34th",
+    "thirty-fifth": "35th",
+    "thirty-sixth": "36th",
+    "thirty-seventh": "37th",
+    "thirty-eighth": "38th",
+    "thirty-ninth": "39th",
+    fortieth: "40th",
+    "forty-first": "41st",
+    "forty-second": "42nd",
+    "forty-third": "43rd",
+    "forty-fourth": "44th",
+    "forty-fifth": "45th",
+    "forty-sixth": "46th",
+    "forty-seventh": "47th",
+    "forty-eighth": "48th",
+    "forty-ninth": "49th",
+    fiftieth: "50th",
+    "fifty-first": "51st",
+    "fifty-second": "52nd",
+    "fifty-third": "53rd",
+    "fifty-fourth": "54th",
+    "fifty-fifth": "55th",
+    "fifty-sixth": "56th",
+    "fifty-seventh": "57th",
+    "fifty-eighth": "58th",
+    "fifty-ninth": "59th",
+    sixtieth: "60th",
+    "sixty-first": "61st",
+    "sixty-second": "62nd",
+    "sixty-third": "63rd",
+  };
+
+  return ordinalsMap[word] || word;
 }
 
 function initDistanceAndRelationship(userID, profileID, clicked = false) {
