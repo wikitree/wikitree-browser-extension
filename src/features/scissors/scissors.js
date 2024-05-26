@@ -195,7 +195,7 @@ function AddToSections(alsoOnProfilePages) {
     if (allAs[i].getAttribute("name") == null || allAs[i].getAttribute("name") == "" || allAs[i].nextSibling == null) {
       continue;
     }
-    const url = document.location.href.split("#")[0] + "#" + allAs[i].getAttribute("name");
+    const url = document.location.href.split("#")[0].split("?")[0] + "#" + allAs[i].getAttribute("name");
 
     const reg = /\.[A-Z|\d]{2}/gm;
     const section = decodeURIComponent(
