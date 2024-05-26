@@ -1,4 +1,4 @@
-import { isMainDomain } from "../../core/pageType.js";
+import { isMainDomain, isPlusDomain } from "../../core/pageType.js";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 
 // The feature data for the myFeature feature
@@ -8,9 +8,9 @@ const usabilityTweaks = {
   description: "Miscellaneous tweaks.",
   category: "Other",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
+  contributors: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
   defaultValue: true,
-  pages: [isMainDomain],
+  pages: [isMainDomain, isPlusDomain],
   options: [
     {
       id: "global",
@@ -20,8 +20,9 @@ const usabilityTweaks = {
         {
           id: "removeDisablePreviewButtons",
           type: OptionType.CHECKBOX,
-          label: "Remove the 'turn off preview' and 'turn off temporarily' buttons" + 
-          " from the profile previews so that you don't accidentally click them and lose the profile previews.",
+          label:
+            "Remove the 'turn off preview' and 'turn off temporarily' buttons" +
+            " from the profile previews so that you don't accidentally click them and lose the profile previews.",
           defaultValue: false,
         },
       ],
@@ -145,6 +146,12 @@ const usabilityTweaks = {
           type: OptionType.CHECKBOX,
           label: "Fix a known bug in Chrome on Windows 10 that prevents good printing of WikiTree profiles.",
           defaultValue: false,
+        },
+        {
+          id: "enhanceThonPages",
+          type: OptionType.CHECKBOX,
+          label: "Show differences and normalized popup on Thon stats pages.",
+          defaultValue: true,
         },
       ],
     },
