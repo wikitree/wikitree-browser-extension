@@ -6349,7 +6349,8 @@ export function addUnsourced(feature = "autoBio") {
       // Check each part of the birth and death locations for unsourced categories
       const birthPlaces = window.profilePerson.BirthLocation?.split(", ");
       const deathPlaces = window.profilePerson.DeathLocation?.split(", ");
-      const places = birthPlaces.concat(deathPlaces);
+      //const places = birthPlaces.concat(deathPlaces);
+      const places = [birthPlaces, deathPlaces];
       const USstates = [];
       const USbirthState = findUSState(window.profilePerson.BirthLocation);
       if (USbirthState) {
@@ -6380,25 +6381,29 @@ export function addUnsourced(feature = "autoBio") {
         }
       } else {
         let unsourcedTemplateString = "";
-        places.forEach(function (aPlace) {
-          if (
-            unsourcedCategories[aPlace] &&
-            !(["Wales", "Canada", "United States"].includes(aPlace) && unsourcedCategory) &&
-            // Don't add if aPlace is a UK county or city && places does not include UK, England, Scotland, Wales, or Ireland
-            !(
-              places.includes(/(England|Scotland|Wales|Ireland)/) == false &&
-              (EnglandCounties.includes(aPlace) || UKMetropolitanCities.includes(aPlace))
-            )
-          ) {
-            if (addCategory) {
-              unsourcedCategory = `[[Category: ${unsourcedCategories[aPlace]}]]`;
-              if (!window.sectionsObject["StuffBeforeTheBio"].text?.includes(unsourcedCategory)) {
-                window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
+        places.forEach(function (aKind) {
+          let found = false;
+          aKind.forEach(function (aPlace) {
+            if (
+              unsourcedCategories[aPlace] &&
+              !(["Wales", "Canada", "United States"].includes(aPlace) && unsourcedCategory) &&
+              // Don't add if aPlace is a UK county or city && places does not include UK, England, Scotland, Wales, or Ireland
+              !(
+                places.includes(/(England|Scotland|Wales|Ireland)/) == false &&
+                (EnglandCounties.includes(aPlace) || UKMetropolitanCities.includes(aPlace))
+              )
+            ) {
+              if (addCategory) {
+                unsourcedCategory = `[[Category: ${unsourcedCategories[aPlace]}]]`;
+                if (!window.sectionsObject["StuffBeforeTheBio"].text?.includes(unsourcedCategory)) {
+                  window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
+                }
+              } else if (found == false) {
+                unsourcedTemplateString += `|${aPlace}`;
+                found = true;
               }
-            } else {
-              unsourcedTemplateString += `|${aPlace}`;
             }
-          }
+          });
         });
         if (unsourcedTemplateString) {
           unsourcedTemplate = `{{Unsourced${unsourcedTemplateString}}}`;
@@ -8217,7 +8222,9 @@ export async function getLocationCategory(type, location = null) {
       }
     }
   }
-  foundCategory = locationCategoryFilter(foundCategory);
+  if (foundCategory) {
+    foundCategory = locationCategoryFilter(foundCategory);
+  }
   return foundCategory;
 }
 
