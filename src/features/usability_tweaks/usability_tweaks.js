@@ -12,6 +12,7 @@ import {
   isProfilePage,
   isSpecialMyConnections,
   isSpacePage,
+  isPlusDomain,
 } from "../../core/pageType";
 import "./usability_tweaks.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
@@ -432,6 +433,93 @@ function removeTurnOffPreviewLinks() {
   $("head").append("<style>#pausePagePreviewButton,#disablePagePreviewButton{display:none}</style>");
 }
 
+function enhanceThonStats() {
+  if (window.location.toString().includes("TeamAndUser.htm")) {
+    const nameTDs = document.getElementsByClassName("level1 groupC groupL groupR groupT");
+    const pointTDs = document.getElementsByClassName("level1 fieldC fieldR fieldT fieldB");
+    const numMembersTD = document.getElementsByClassName("level2 fieldC fieldL fieldB");
+
+    const points = [];
+    const dict = {};
+    let indexMembers = 0;
+
+    for (let i = 0; i < nameTDs.length; i++) {
+      const tdNode = nameTDs[i];
+      const pointsForThisTeam = parseFloat(pointTDs[i].innerText.replace(".", "").replace(",", ""));
+
+      let numberTeamMembers = 0;
+      if (nameTDs[i].nextSibling.className == "level2 groupC groupL groupR groupT") {
+        numberTeamMembers = 1;
+      } else {
+        numberTeamMembers = parseFloat(numMembersTD[indexMembers].innerText);
+        indexMembers++;
+      }
+
+      let normalizedPoints = pointsForThisTeam / numberTeamMembers;
+      normalizedPoints = Math.round(normalizedPoints * 100) / 100;
+
+      while (normalizedPoints in dict) {
+        if (normalizedPoints.toString().includes(".")) {
+          normalizedPoints += "0";
+        } else {
+          normalizedPoints += ".0";
+        }
+      }
+      dict[normalizedPoints] = tdNode.innerText;
+      console.log(normalizedPoints + "=>" + tdNode.innerText);
+
+      if (i > 0) {
+        const pointsLastTeam = parseFloat(pointTDs[i - 1].innerText.replace(".", "").replace(",", ""));
+        const diffToHigher = pointsLastTeam - pointsForThisTeam;
+        tdNode.innerHTML += "<br>-" + diffToHigher;
+      }
+
+      if (i < nameTDs.length - 1) {
+        const pointsNextTeam = parseFloat(pointTDs[i + 1].innerText.replace(".", "").replace(",", ""));
+        const diffToLower = pointsForThisTeam - pointsNextTeam;
+        tdNode.innerHTML += "<br>+" + diffToLower;
+      }
+
+      points[i] = normalizedPoints;
+    }
+
+    points.sort(function (a, b) {
+      return b - a;
+    });
+
+    let pos = 1;
+
+    let normalizedStats = "";
+    for (let i = 0; i < points.length; i++) {
+      normalizedStats += pos + ".  " + dict[points[i]] + ": " + roundIfNeeded(points[i]);
+      if (i > 0) {
+        const diffToHigher = points[i - 1] - points[i];
+        normalizedStats += " -" + roundIfNeeded(diffToHigher) + "";
+      }
+      if (i < points.length - 1) {
+        const diffToLower = points[i] - points[i + 1];
+        normalizedStats += " +" + roundIfNeeded(diffToLower) + "";
+      }
+      normalizedStats += "\n";
+      pos++;
+    }
+
+    const INDEX_NORMALIZED_COL = 1;
+    const normalizedHeader = document.getElementsByClassName("fieldH")[INDEX_NORMALIZED_COL];
+    const normalizedLink = document.createElement("a");
+    normalizedLink.addEventListener("click", () => {
+      alert(normalizedStats);
+    });
+    normalizedLink.innerText = normalizedHeader.innerText;
+    normalizedHeader.innerHTML = "";
+    normalizedHeader.appendChild(normalizedLink);
+  }
+
+  function roundIfNeeded(diffToLower) {
+    return Math.round(diffToLower * 100) / 100;
+  }
+}
+
 shouldInitializeFeature("usabilityTweaks").then((result) => {
   if (result) {
     getFeatureOptions("usabilityTweaks").then((options) => {
@@ -501,6 +589,10 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
 
       if (options.removeDisablePreviewButtons) {
         removeTurnOffPreviewLinks();
+      }
+
+      if (isPlusDomain && options.enhanceThonPages) {
+        enhanceThonStats();
       }
     }); //getFeatureOptions
   }
