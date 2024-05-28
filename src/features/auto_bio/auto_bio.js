@@ -8114,6 +8114,15 @@ export async function getLocationCategory(type, location = null) {
     }
   }
 
+  function isFirstWordInText(type, category) {
+    // Get first word of category
+    const firstWord = category.split(/[, ]/)[0];
+    // Get text from type
+    const string = $("#m" + type + "Location").val();
+    //  Check if first word is in text
+    return string.match(new RegExp("\\b" + firstWord + "\\b", "i"));
+  }
+
   function sameState(location1, location2) {
     const state1 = findUSState(location1);
     if (!state1) {
@@ -8149,6 +8158,8 @@ export async function getLocationCategory(type, location = null) {
 
   const searchLocationsSet = generateCombinations(searchLocation);
   const searchLocationsArray = Array.from(searchLocationsSet);
+  // Array unique
+  searchLocationsArray.filter((v, i, a) => a.indexOf(v) === i);
   const apiPromises = [];
 
   for (const searchLocation of searchLocationsArray) {
@@ -8173,6 +8184,11 @@ export async function getLocationCategory(type, location = null) {
           let thisState = findUSState(location); // Find the state of the location
 
           response.categories.forEach(function (aCat) {
+            if (["Birth", "Death", "Marriage"].includes(type)) {
+              if (!isFirstWordInText(type, aCat?.category)) {
+                return;
+              }
+            }
             if (!aCat.topLevel) {
               let category = aCat.category;
 
@@ -8201,8 +8217,15 @@ export async function getLocationCategory(type, location = null) {
       }
     }
   }
-
+  foundCategory = locationCategoryFilter(foundCategory);
   return foundCategory;
+}
+
+function locationCategoryFilter(category) {
+  if (category.match(/Co\..*County/)) {
+    return "";
+  }
+  return category;
 }
 
 function addErrorMessage() {
