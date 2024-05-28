@@ -106,7 +106,7 @@ async function helpScissors() {
   }
 
   if (isCategoryPage || isCategoryEdit) {
-    const aTitle = document.title.trim().replace(": ", ":");
+    const aTitle = document.title.trim().replace(": ", ":").replace("Edit ", "");
     const aLink = `[[${aTitle}]]`;
     copyItems.push({ label: "Use", text: aLink });
   }
