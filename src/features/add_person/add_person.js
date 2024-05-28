@@ -355,6 +355,9 @@ function moveCategories() {
   let bottom = "";
 
   for (let i = 0; i < parts.length; i++) {
+    if (parts[i].trim() == "*") {
+      continue;
+    }
     if (parts[i].indexOf("[[Category") > -1) {
       top += "\n" + parts[i].replace("* [[Category", "[[Category");
     } else {
@@ -362,7 +365,8 @@ function moveCategories() {
     }
   }
   if (top != "") {
-    ta.value = top.substring(1) + bottom;
+    bottom = bottom.replace(/^\n+/, "");
+    ta.value = top.substring(1) + "\n" + bottom;
     if (oldValue != ta.value) {
       document.getElementById("wpSummary").value = "Moving categories. ";
     }
