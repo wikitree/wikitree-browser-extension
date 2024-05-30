@@ -56,6 +56,10 @@
     "NameVariants": ["Allbright"]
   },
   {
+    "Name": "Alford",
+    "NameVariants": ["Alferd", "Halford"]
+  },
+  {
     "Name": "Alington",
     "NameVariants": ["Allington", "Alyngton"]
   },
@@ -402,6 +406,10 @@
       "Kurkendall",
       "Kuykendahl"
     ]
+  },
+  {
+    "Name": "Lamberton",
+    "NameVariants": ["Lambertson", "Lomison", "Lammason", "Lamason", "Lammerson", "Lamberson"]
   },
   {
     "Name": "Lancaster",
