@@ -1,4 +1,3 @@
-import { options } from "yargs";
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 import { isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType";
 
@@ -15,7 +14,7 @@ registerFeature({
     {
       id: "diedYoung",
       type: OptionType.CHECKBOX,
-      label: "Add Died Young sticker for people who died aged 16 or younger",
+      label: "Add Died Young sticker",
       defaultValue: false,
     },
     {

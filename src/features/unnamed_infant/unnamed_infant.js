@@ -13,7 +13,8 @@ shouldInitializeFeature("unnamedInfant").then((result) => {
   }
 });
 
-function doUnnamedInfant() {
+async function doUnnamedInfant() {
+  const options = await getFeatureOptions("unnamedInfant");
   const firstName = $("#mFirstName").val();
   const birthDate = $("#mBirthDate").val();
   const deathDate = $("#mDeathDate").val();
@@ -39,27 +40,35 @@ function doUnnamedInfant() {
         }
       });
 
-      let enhanced = false;
-      const enhancedEditorButton = $("#toggleMarkupColor");
-      if (enhancedEditorButton.attr("value") == "Turn Off Enhanced Editor") {
-        enhancedEditorButton.trigger("click");
-        enhanced = true;
-      }
-      const bioBox = $("#wpTextbox1");
-      const bio = bioBox.val();
-      // Search Biography for Died Young sticker
-      if (!bio.includes(diedYoungWithoutEnd)) {
-        // Find /== ?Biography ?==/ and insert Died Young sticker after it.
-        const bioIndex = bio.search(/== ?Biography ?==/);
-        if (bioIndex != -1) {
-          const bioStart = bio.slice(0, bioIndex + 15);
-          const bioEnd = bio.slice(bioIndex + 15);
-          bioBox.val(bioStart + "\n" + diedYoung + "\n" + bioEnd);
-          message += "<br>Died Young sticker added to Biography";
+      if (options.diedYoung) {
+        let enhanced = false;
+        const enhancedEditorButton = $("#toggleMarkupColor");
+        if (enhancedEditorButton.attr("value") == "Turn Off Enhanced Editor") {
+          enhancedEditorButton.trigger("click");
+          enhanced = true;
         }
-      }
-      if (enhanced) {
-        enhancedEditorButton.trigger("click");
+        const bioBox = $("#wpTextbox1");
+        const bio = bioBox.val();
+        // Search Biography for Died Young sticker
+        if (!bio.includes(diedYoungWithoutEnd)) {
+          // Find /== ?Biography ?==/ and insert Died Young sticker after it.
+          const bioIndex = bio.search(/== ?Biography ?==/);
+          if (bioIndex != -1) {
+            let diedYoungTemplate = diedYoung;
+
+            if (options.diedYoungImage && options.diedYoungImage != "Default") {
+              diedYoungTemplate = `{{Died Young|${options.diedYoungImage}}}`;
+            }
+
+            const bioStart = bio.slice(0, bioIndex + 15);
+            const bioEnd = bio.slice(bioIndex + 15);
+            bioBox.val(bioStart + "\n" + diedYoungTemplate + "\n" + bioEnd);
+            message += "<br>Died Young sticker added to Biography";
+          }
+        }
+        if (enhanced) {
+          enhancedEditorButton.trigger("click");
+        }
       }
     }
     // Show message
