@@ -96,6 +96,7 @@ import "./spacepreview/spacepreview_options";
 import "./surname_table/surname_table_options";
 import "./table_filters/table_filters_options";
 import "./unconnected_branch_table/unconnected_branch_table_options";
+import "./unnamed_infant/unnamed_infant_options";
 import "./usability_tweaks/usability_tweaks_options";
 import "./what_links_here/what_links_here_options";
 import "./wikitable_wizard/wikitable_wizard_options";
