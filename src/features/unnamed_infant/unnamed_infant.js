@@ -85,4 +85,7 @@ function initUnnamedInfant() {
       doUnnamedInfant();
     }
   );
+  if (isProfileEdit) {
+    doUnnamedInfant();
+  }
 }
