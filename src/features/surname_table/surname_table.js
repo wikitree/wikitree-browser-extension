@@ -43,7 +43,7 @@ function initSearchOptions() {
   let searchOptions = JSON.parse(localStorage.getItem("searchOptions")) || {};
 
   // Define an array of the names of your radio button groups
-  const radioButtonGroups = ["gender", "date_spread", "date_include", "last_name_match", "skip_variants", "watchlist"];
+  const radioButtonGroups = ["date_spread", "date_include", "last_name_match", "skip_variants"];
 
   // Restore radio button states for these specific groups
   radioButtonGroups.forEach((groupName) => {
