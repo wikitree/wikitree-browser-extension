@@ -406,7 +406,7 @@ async function initSurnameTableSorting() {
         $(this).attr("data-birth-location-small2big", birthLocation);
 
         const deathDate = deathDateMatch ? deathDateMatch[0] : "";
-        const deathLocation = deathLocationMatch ? deathLocationMatch[1] : "";
+        let deathLocation = deathLocationMatch ? deathLocationMatch[1] : "";
         $(this).attr("data-death-location-small2big", deathLocation);
 
         // Proceed to create and insert new elements as before
@@ -415,11 +415,14 @@ async function initSurnameTableSorting() {
         birthLocationTD.insertAfter(birthTD);
 
         let deathLocationTD = null;
-        if (deathLocation) {
-          deathLocationTD = $("<td class='deathLocation'></td>").html(deathLocation);
-          deathTD.html(deathDate);
-          deathLocationTD.insertAfter(deathTD);
+        if (deathLocation == null) {
+          deathLocation = "";
         }
+        //if (deathLocation || deathDate) {
+        deathLocationTD = $("<td class='deathLocation'></td>").html(deathLocation);
+        deathTD.html(deathDate);
+        deathLocationTD.insertAfter(deathTD);
+        //}
       }
       $(this).attr("data-birth-location-big2small", birthLocation.trim().split(", ").reverse().join(", "));
     });
