@@ -8125,6 +8125,9 @@ export async function getLocationCategory(type, location = null) {
     // Get text from type
     const string = $("#m" + type + "Location").val();
     //  Check if first word is in text
+    if (!string) {
+      return false;
+    }
     return string.match(new RegExp("\\b" + firstWord + "\\b", "i"));
   }
 
