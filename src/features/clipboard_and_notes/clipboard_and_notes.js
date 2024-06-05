@@ -82,6 +82,9 @@ shouldInitializeFeature("clipboardAndNotes").then((result) => {
         $("#clipboard").show();
       }
     }
+    if (request.action == "showClipboard" || request.action == "showNotes") {
+      $("body").addClass("modal-open");
+    }
   });
 });
 
@@ -425,8 +428,12 @@ async function clipboard(type, e, action = false) {
 
   if (action == false) {
     $("#clipboard").toggle();
+    if (!$("#clipboard").is(":visible")) {
+      $("body").removeClass("modal-open");
+    }
   } else {
     $("#clipboard").show();
+    $("body").addClass("modal-open");
   }
 
   window.lastClipboardClicker = window.clipboardClicker;
