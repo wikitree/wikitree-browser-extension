@@ -8,6 +8,7 @@
   border: 2px solid forestgreen;
   border-radius: 1em;
   height: 40em;
+  max-height: 80%;
   max-width: 50em;
   min-width: min-content;
   min-height: min-content;
