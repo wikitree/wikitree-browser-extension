@@ -1158,7 +1158,7 @@ export function assignCemeteryFromSources() {
 
 export function buildDeath(person) {
   if (!isOK(person?.DeathDate) && !isOK(person.DeathDecade) && !isOK(person.DeathLocation)) {
-    return false;
+    return "";
   }
   const diedWord = window.autoBioOptions?.diedWord || "died";
   let text = person.PersonName.FirstName + " " + diedWord;
