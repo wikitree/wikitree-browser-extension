@@ -190,6 +190,13 @@ function getSources(person, active = 0) {
       }, 1000);
     }
 
+    // Close reference box on Escape key
+    $(document).on("keydown", function (e) {
+      if (e.key === "Escape") {
+        referenceBox.fadeOut();
+      }
+    });
+
     if (activeSources == 1 && !isProfileAddRelative) {
       $("div.referenceBox div").slideDown("swing");
     }
