@@ -541,8 +541,18 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
       }
 
       // Open Add/Remove/Replace links in the same tab
-      if (isProfileEdit && options.removeTargetsFromEditFamilyLinks) {
-        $("a[href*='&who=']").attr("target", "_self");
+      if (isProfileEdit) {
+        if (options.removeTargetsFromEditFamilyLinks) {
+          $("a[href*='&who=']").attr("target", "_self");
+        }
+
+        if (options.andBetweenParentsExample) {
+          //insert and between the parents in the example
+          var allExamples = document.getElementsByClassName("EXAMPLE");
+          if (allExamples[2].innerHTML != null && allExamples[2].innerHTML.search(/\]\] \[\[/) > -1) {
+            allExamples[2].innerText = allExamples[2].innerHTML.replace("]] [[", "]] and [[").trim();
+          }
+        }
       }
 
       // Replace Add/Remove/Replace links with Add, Remove, Connect links
@@ -594,15 +604,6 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
       if (isPlusDomain && options.enhanceThonPages) {
         enhanceThonStats();
       }
-
-      if (isProfileEdit) {
-        //insert and between the parents in the example
-        var allExamples = document.getElementsByClassName("EXAMPLE");
-        if (allExamples[2].innerHTML != null && allExamples[2].innerHTML.search(/\]\] \[\[/) > -1) {
-          allExamples[2].innerText = allExamples[2].innerHTML.replace("]] [[", "]] and [[").trim();
-        }
-      }
-
     }); //getFeatureOptions
   }
 });

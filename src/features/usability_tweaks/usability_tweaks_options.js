@@ -59,6 +59,12 @@ const usabilityTweaks = {
       label: "Profile edit page",
       options: [
         {
+          id: "andBetweenParentsExample",
+          type: OptionType.CHECKBOX,
+          label: "Insert 'and' between the parents in the wiki code example.",
+          defaultValue: true,
+        },
+        {
           id: "removeTargetsFromEditFamilyLinks",
           type: OptionType.CHECKBOX,
           label: "Open Add/Remove/Replace links in the same tab.",
