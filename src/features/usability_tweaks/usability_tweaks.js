@@ -594,6 +594,15 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
       if (isPlusDomain && options.enhanceThonPages) {
         enhanceThonStats();
       }
+
+      if (isProfileEdit) {
+        //insert and between the parents in the example
+        var allExamples = document.getElementsByClassName("EXAMPLE");
+        if (allExamples[2].innerHTML != null && allExamples[2].innerHTML.search(/\]\] \[\[/) > -1) {
+          allExamples[2].innerText = allExamples[2].innerHTML.replace("]] [[", "]] and [[").trim();
+        }
+      }
+
     }); //getFeatureOptions
   }
 });
