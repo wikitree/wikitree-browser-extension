@@ -169,6 +169,15 @@ function AddOptionalCategoryPageLinks(options) {
 }
 
 function AddAddProfileToCategory() {
+  const hideanons = document.getElementsByClassName("hideanon");
+  if (hideanons.length > 0 && hideanons[0].innerText.includes("high level category")) {
+    return;
+  }
+  const noarticletext = document.getElementsByClassName("noarticletext");
+  if (noarticletext.length > 0) {
+    return;
+  }
+
   const elementToAttach = document.getElementsByTagName("h1")[0].previousSibling;
   const addDiv = document.createElement("div");
   addDiv.style.float = "right";
