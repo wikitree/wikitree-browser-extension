@@ -291,10 +291,10 @@ async function copyfamilyDropdown(box = 0) {
     // Set copied feedback
     const copyFeedback = 'Copied "' + thing + '"';
     $("#familyDropdown").attr("title", copyFeedback + ". (Paste: Ctrl+V)");
-
     // Show copied indicator
     showCopyMessage("Wiki Link");
   }
+  document.getElementById("wpTextbox1").focus();
 }
 
 /**
