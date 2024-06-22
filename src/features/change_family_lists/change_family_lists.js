@@ -447,7 +447,12 @@ function reallyMakeFamLists() {
               }
             }
             addDataToPerson(theSpouse.closest("div"), aPerson);
-            theSpouse.attr("data-gender", aPerson.Gender);
+            theSpouse
+              .attr("data-gender", aPerson.Gender)
+              .attr(
+                "aria-label",
+                aPerson.Gender == "Male" ? "Husband" : aPerson.Gender == "Female" ? "Wife" : "Spouse"
+              );
           }
         });
       });
@@ -517,6 +522,27 @@ async function addHalfsStyle() {
         }
       });
     });
+  }
+}
+
+function addAriaLabel(pData, EL) {
+  const el = $(EL); // Ensure el is a jQuery object
+  let ariaLabel = "";
+
+  // Determine the aria-label based on the closest element
+  if (el.closest("#parentList").length) {
+    ariaLabel = pData.Gender === "Male" ? "Father" : pData.Gender === "Female" ? "Mother" : "Parent";
+  } else if (el.closest("#siblingList").length) {
+    ariaLabel = pData.Gender === "Male" ? "Brother" : pData.Gender === "Female" ? "Sister" : "Sibling";
+  } else if (el.closest("#spouseDetails").length) {
+    ariaLabel = pData.Gender === "Male" ? "Husband" : pData.Gender === "Female" ? "Wife" : "Spouse";
+  } else if (el.closest("#childrenDetails").length) {
+    ariaLabel = pData.Gender === "Male" ? "Son" : pData.Gender === "Female" ? "Daughter" : "Child";
+  }
+
+  // Check if the gender is not "blank"
+  if (pData?.DataStatus?.Gender !== "blank") {
+    el.attr("aria-label", ariaLabel);
   }
 }
 
@@ -669,9 +695,7 @@ function fixNakedPrivates() {
       }
 
       const privateBit = $(
-        '<span itemprop="spouse" itemtype="https://schema.org/Person" data-gender="Female"><a title="" class="spouseLink"><span itemprop="name"><strong>' +
-          fullPrivateText +
-          '</strong></span></a></span>"'
+        `<span itemprop="spouse" itemtype="https://schema.org/Person" data-gender="Female" aria-label="${fullPrivateText}"><a class="spouseLink"><span itemprop="name"><strong>${fullPrivateText}</strong></span></a></span>"`
       );
       privateBit.append($(tNodes[n].nextSibling));
 
@@ -1051,6 +1075,15 @@ function list2ol(items, olid) {
     if (item.getAttribute("data-private")) {
       if (oGender != null) {
         nLi.setAttribute("data-gender", oGender);
+        if (olid == "parentList") {
+          nLi.setAttribute("aria-label", oGender == "Male" ? "Father" : "Mother");
+        }
+        if (olid == "siblingList") {
+          nLi.setAttribute("aria-label", oGender == "Male" ? "Brother" : oGender == "Female" ? "Sister" : "Sibling");
+        }
+        if (olid == "childrenList") {
+          nLi.setAttribute("aria-label", oGender == "Male" ? "Son" : oGender == "Daughter" ? "Daughter" : "Child");
+        }
       }
     }
 
@@ -1149,6 +1182,7 @@ function list2ol2(person, profPersonName, profileApproxBirthDate) {
 
           let dLi = disLink.parentNode.parentNode;
           dLi.setAttribute("data-gender", disGender);
+          //dLi.setAttribute("aria-label", disGender);
 
           const regex3 = /[0-9]{4}/g;
           const dobycheck = disTitle.match(regex3);
@@ -1222,6 +1256,7 @@ function list2ol2(person, profPersonName, profileApproxBirthDate) {
         }
       }
     }
+    addAriaLabel(pdata, ana);
   }
 }
 
@@ -1556,12 +1591,12 @@ function insertInSibList() {
     try {
       if (pPerson.Gender) {
         if (pPerson.Gender == "Male") {
-          $("#profilePerson").attr("data-gender", "male");
+          $("#profilePerson").attr("data-gender", "male").attr("aria-label", "profile person (male)");
         } else if (pPerson.Gender == "Female") {
-          $("#profilePerson").attr("data-gender", "female");
+          $("#profilePerson").attr("data-gender", "female").attr("aria-label", "profile person (female)");
         }
         if (pPerson.DataStatus.Gender == "blank" || pPerson.Gender == "") {
-          $("#profilePerson").attr("data-gender", "");
+          $("#profilePerson").attr("data-gender", "").attr("aria-label", "profile person");
         }
       }
     } catch (err) {
@@ -1814,10 +1849,12 @@ function extraBitsForFamilyLists() {
   $("#childrenDetails").insertAfter($("#spouseDetails"));
   $("span:contains(private son),span:contains(private father),span:contains(private brother)")
     .closest("li")
-    .attr("data-gender", "male");
+    .attr("data-gender", "male")
+    .attr("aria-label", "male");
   $("span:contains(private daughter),span:contains(private sister),span:contains(private mother)")
     .closest("li")
-    .attr("data-gender", "female");
+    .attr("data-gender", "female")
+    .attr("aria-label", "female");
 }
 
 function amaTimer() {
