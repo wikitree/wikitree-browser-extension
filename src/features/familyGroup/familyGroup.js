@@ -126,8 +126,8 @@ export async function showFamilySheet(theClicked, profileID) {
       incrementZIndex($(this));
     });
   // If the table already exists toggle it.
-  if ($("#" + profileID.replace(" ", "_") + "_family").length) {
-    const thisFamilySheet = $("#" + profileID.replace(" ", "_") + "_family");
+  if ($("#" + createValidId(profileID.replace(" ", "_")) + "_family").length) {
+    const thisFamilySheet = $("#" + createValidId(profileID.replace(" ", "_")) + "_family");
     thisFamilySheet.fadeToggle();
     thisFamilySheet.css("z-index", getHighestZindex() + 1);
   } else {
@@ -147,7 +147,7 @@ export async function showFamilySheet(theClicked, profileID) {
       const familyTable = peopleToTable(uPeople);
       // Attach the table to the body, position it and make it draggable and toggleable
       familyTable.prependTo("body");
-      familyTable.attr("id", profileID.replace(" ", "_") + "_family");
+      familyTable.attr("id", createValidId(profileID.replace(" ", "_")) + "_family");
       familyTable.draggable();
       familyTable.fadeIn();
       incrementZIndex(familyTable);
@@ -192,7 +192,15 @@ export async function showFamilySheet(theClicked, profileID) {
   }
 }
 
-// Put a group of people in a table
+function escapeHtml(unsafe) {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export function peopleToTable(kPeople) {
   const kTable = $(
     "<div class='familySheet'><w>↔</w><x>x</x><table><caption></caption><thead><tr><th>Relation</th><th>Name</th><th>Birth Date</th><th>Birth Place</th><th>Death Date</th><th>Death Place</th></tr></thead><tbody></tbody></table></div>"
@@ -262,31 +270,31 @@ export function peopleToTable(kPeople) {
         }
         const aLine = $(
           "<tr data-name='" +
-            kPers.Name +
+            escapeHtml(kPers.Name) +
             "' data-birthdate='" +
             bDate.replaceAll(/-/g, "") +
             "' data-relation='" +
-            kPers.Relation +
+            escapeHtml(kPers.Relation) +
             "' class='" +
             rClass +
             " " +
-            kPers.Gender +
+            escapeHtml(kPers.Gender) +
             "'><td>" +
-            kPers.RelationShow +
+            escapeHtml(kPers.RelationShow) +
             "</td><td><a href='https://" +
             mainDomain +
             "/wiki/" +
             htmlEntities(kPers.Name) +
             "'>" +
-            oName +
+            escapeHtml(oName) +
             "</td><td class='aDate'>" +
-            oBDate +
+            escapeHtml(oBDate) +
             "</td><td>" +
-            kPers.BirthLocation +
+            escapeHtml(kPers.BirthLocation) +
             "</td><td class='aDate'>" +
-            oDDate +
+            escapeHtml(oDDate) +
             "</td><td>" +
-            kPers.DeathLocation +
+            escapeHtml(kPers.DeathLocation) +
             "</td></tr>"
         );
 
@@ -312,11 +320,11 @@ export function peopleToTable(kPeople) {
         }
         const spouseLine = $(
           "<tr class='marriageRow " +
-            kGender +
+            escapeHtml(kGender) +
             "' data-spouse='" +
-            kPers.Name +
+            escapeHtml(kPers.Name) +
             "'><td>&nbsp;</td><td colspan='3'>" +
-            marriageDeets +
+            escapeHtml(marriageDeets) +
             "</td><td></td><td></td></tr>"
         );
         kTable.find("tbody").append(spouseLine);
@@ -329,16 +337,20 @@ export function peopleToTable(kPeople) {
 
   const familyOrder = ["Parent", "Sibling", "Spouse", "Child"];
   familyOrder.forEach(function (relWord) {
-    kTable.find("tr[data-relation='" + relWord + "']").each(function () {
+    kTable.find("tr[data-relation='" + escapeHtml(relWord) + "']").each(function () {
       $(this).appendTo(kTable.find("tbody"));
     });
   });
 
   kTable.find(".marriageRow").each(function () {
-    $(this).insertAfter(kTable.find("tr[data-name='" + $(this).data("spouse") + "']"));
+    $(this).insertAfter(kTable.find("tr[data-name='" + createValidId($(this).data("spouse")) + "']"));
   });
 
   return kTable;
+}
+
+function createValidId(unsafe) {
+  return unsafe.replace(/[^a-zA-Z0-9-_]/g, "_");
 }
 
 // Find good names to display (as the API doesn't return the same fields all profiles)
