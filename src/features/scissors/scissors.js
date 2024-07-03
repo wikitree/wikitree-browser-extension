@@ -81,18 +81,20 @@ async function helpScissors() {
   }
 
   // MediaWiki pages
-  if (isMediaWikiPage) {
+  if (isMediaWikiPage || isCategoryEdit) {
     let aTitle = "";
     if (isProjectPage) {
       aTitle = "Project:" + document.title.replace(" Project", "");
+    } else if (isCategoryPage || isCategoryEdit) {
+      aTitle = document.title.replace("Edit ", "").replace(": ", ":").replace(" :", ":").trim();
     } else {
       aTitle = document.title;
     }
     copyItems.push({ label: "ID", text: aTitle, image: true });
     let aLink = "";
-    if (isCategoryPage) {
+    if (isCategoryPage || isCategoryEdit) {
       if (options.categoryLinkFormat == "withParameter") {
-        aTitle = aTitle + "|" + document.title.replace("Category:", "").trim() + " category";
+        aTitle = aTitle + "|" + aTitle.replace("Category:", "").trim() + " category";
       }
       aLink = `[[:${aTitle}]]`;
     } else if (isTemplatePage) {
@@ -101,14 +103,18 @@ async function helpScissors() {
       aLink = `[[${aTitle}]]`;
     }
     copyItems.push({ label: "Link", text: aLink });
-    const aUrl = window.location.href;
+    let aUrl = window.location.search;
+    /* //this will link to the base page
+    if (!aUrl.includes("/wiki/")) {
+      const params = new URLSearchParams(aUrl);
+      aUrl = "https://www.wikitree.com/wiki/" + params.get("title");
+    }*/
     copyItems.push({ label: "URL", text: aUrl });
-  }
 
-  if (isCategoryPage || isCategoryEdit) {
-    const aTitle = document.title.trim().replace(": ", ":").replace("Edit ", "");
-    const aLink = `[[${aTitle}]]`;
-    copyItems.push({ label: "Use", text: aLink });
+    if (isCategoryPage || isCategoryEdit) {
+      const aLink = `[[${aTitle}]]`;
+      copyItems.push({ label: "Use", text: aLink });
+    }
   }
 
   if (isImagePage) {
