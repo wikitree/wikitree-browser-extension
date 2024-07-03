@@ -289,6 +289,7 @@ class SourceRules {
     "from family records",
     "my heritage records",
     "my tree on ancestry",
+    "oral family history",
     ":'''source list:'''",
     "real estate records",
     "ancestry family site",
@@ -525,6 +526,7 @@ class SourceRules {
     "first hand knowledge",
     "firsthand knowledge",
     "personal recollection",
+    "immediate family member", 
     "as remembered by",
     "selon la mémoire de",
     "zoals herinnerd door",
@@ -723,7 +725,8 @@ class SourceRules {
     "tudor place",
     "vore fælles ahner",
     "tudorplace.com",
-
+    "wikipedia",
+    "wikidata",
   ];
 
   // List of short strings that are not by themselves a valid source
