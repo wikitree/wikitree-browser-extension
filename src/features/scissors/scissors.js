@@ -119,11 +119,11 @@ async function helpScissors() {
 
   if (isImagePage) {
     const aTitle = document.title.trim();
-    const url = window.location.toString();
+    const url = window.location.toString().split("#")[0].split("?")[0];
 
     //wikitree.com/photo/pdf/THE_STORY_OF_MY_YOUTH_AND_EARLY_MARRIED_LIFE_AS_TOLD_TO_LOIS_ELKINTON-1
     const linkParts = url.split("/");
-    const fileName = linkParts[linkParts.length - 1].split("#")[0].split("?")[0];
+    const fileName = linkParts[linkParts.length - 1];
     const ext = linkParts[linkParts.length - 2];
     const fullName = fileName + "." + ext;
     const aLink = `[[:Image:${fullName}|${aTitle}]]`;
