@@ -94,9 +94,11 @@ async function helpScissors() {
     let aLink = "";
     if (isCategoryPage || isCategoryEdit) {
       if (options.categoryLinkFormat == "withParameter") {
-        aTitle = aTitle + "|" + aTitle.replace("Category:", "").trim() + " category";
+        const aTitleWithAlias = aTitle + "|" + aTitle.replace("Category:", "").trim() + " category";
+        aLink = `[[:${aTitleWithAlias}]]`;
+      } else {
+        aLink = `[[:${aTitle}]]`;
       }
-      aLink = `[[:${aTitle}]]`;
     } else if (isTemplatePage) {
       aLink = `{{${aTitle}}}`;
     } else {
