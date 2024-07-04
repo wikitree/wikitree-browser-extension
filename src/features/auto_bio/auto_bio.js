@@ -1332,43 +1332,46 @@ export function minimalPlace(place) {
 }
 
 export function buildSpouses(person) {
+  console.log("buildSpouses called with:", person);
   if (!isObject(person.Spouses)) {
+    console.log("person.Spouses is not an object:", person.Spouses);
     return;
   }
   let spouseKeys = Object.keys(person.Spouses);
+  console.log("Initial spouse keys:", spouseKeys);
   let marriages = [];
   let firstNameAndYear = [];
+
   if (person.Spouses) {
-    // Order the spouses by marriage date
+    // Order the spouses by marriage date or birth date
     spouseKeys.sort(function (a, b) {
-      // Attempt to use marriage_date, if available
       let aMarriageDate = person.Spouses[a].marriage_date ? person.Spouses[a].marriage_date.replaceAll(/-/g, "") : null;
       let bMarriageDate = person.Spouses[b].marriage_date ? person.Spouses[b].marriage_date.replaceAll(/-/g, "") : null;
+      let aBirthDate = person.Spouses[a].BirthDate ? person.Spouses[a].BirthDate.replaceAll(/-/g, "") : "99999999";
+      let bBirthDate = person.Spouses[b].BirthDate ? person.Spouses[b].BirthDate.replaceAll(/-/g, "") : "99999999";
+      console.log(`Comparing marriage dates: ${aMarriageDate} and ${bMarriageDate}`);
 
-      // If both have marriage_dates, compare them
       if (aMarriageDate && bMarriageDate) {
         return parseInt(aMarriageDate, 10) - parseInt(bMarriageDate, 10);
-      }
-
-      // If either does not have a marriage_date, use BirthDate for comparison
-      let aBirthDate = person.Spouses[a].BirthDate ? person.Spouses[a].BirthDate.replaceAll(/-/g, "") : "99999999"; // Fallback to a high value if missing
-      let bBirthDate = person.Spouses[b].BirthDate ? person.Spouses[b].BirthDate.replaceAll(/-/g, "") : "99999999"; // Fallback to a high value if missing
-
-      // Compare using BirthDates if either marriage_date is missing
-      if (!aMarriageDate || !bMarriageDate) {
+      } else if (!aMarriageDate && !bMarriageDate) {
+        console.log(`Comparing birth dates: ${aBirthDate} and ${bBirthDate}`);
         return parseInt(aBirthDate, 10) - parseInt(bBirthDate, 10);
+      } else if (!aMarriageDate) {
+        return parseInt(aBirthDate, 10) - parseInt(bMarriageDate, 10);
+      } else {
+        return parseInt(aMarriageDate, 10) - parseInt(bBirthDate, 10);
       }
-
-      // Fallback return if for some reason both comparisons fail
-      return 0;
     });
 
     spouseKeys.forEach(function (key) {
+      console.log("Processing spouse with key:", key);
       let text = "";
       let spouse = person.Spouses[key];
       let marriageAge = "";
       firstNameAndYear.push({ FirstName: spouse.PersonName.FirstName, Year: spouse.marriage_date?.substring(4) });
       let spouseMarriageAge = "";
+      console.log("Spouse details:", spouse);
+
       if (
         window.profilePerson.BirthDate &&
         isOK(spouse.marriage_date) &&
@@ -1379,13 +1382,13 @@ export function buildSpouses(person) {
           marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, spouse.marriage_date)})`;
         }
       }
+
       if (spouse.BirthDate && isOK(spouse.marriage_date) && window.autoBioOptions?.includeAgesAtMarriage) {
         spouseMarriageAge = ` (${getAgeFromISODates(spouse.BirthDate, spouse.marriage_date)})`;
       }
 
       let spouseDetailsA = "";
       let spouseDetailsB = "";
-      //Spouse details
       const spousePronoun = spouse.Gender == "Male" ? "He" : spouse.Gender == "Female" ? "She" : "";
       if (window.autoBioOptions?.spouseDetails) {
         if (isOK(spouse.BirthDate) || spouse.BirthLocation) {
@@ -1402,7 +1405,6 @@ export function buildSpouses(person) {
           spouseDetailsB += " in " + place;
         }
 
-        //Spouse parent details
         if (window.autoBioOptions?.spouseParentDetails) {
           if (spouse.Father || spouse.Mother) {
             if (spouseDetailsA == "") {
@@ -1460,6 +1462,7 @@ export function buildSpouses(person) {
           spouseDetailsB += ".";
         }
       }
+
       let marriageDatePlace = "";
       if (isOK(spouse.marriage_date)) {
         let dateStatus = spouse.data_status.marriage_date;
@@ -1516,19 +1519,31 @@ export function buildSpouses(person) {
           window.listedSomeChildren = true;
         }
       }
+
+      let orderDate = spouse.marriage_date
+        ? formatDate(spouse.marriage_date, 0, { format: 8 })
+        : spouse.BirthDate
+        ? formatDate(spouse.BirthDate, 0, { format: 8 })
+        : "";
+      if (!orderDate) {
+        orderDate = "99999999"; // Fallback to a high value if missing
+      }
+
       marriages.push({
         Spouse: spouse,
         SpouseChildren: spouseChildren,
         Narrative: text,
-        OrderDate: formatDate(spouse.marriage_date, 0, { format: 8 }),
+        OrderDate: orderDate,
         "Event Date": spouse.marriage_date,
         "Event Year": spouse.marriage_date?.substring(0, 4),
         "Event Type": "Marriage",
       });
     });
   }
+
   if (window.references) {
     window.references.forEach(function (reference, i) {
+      console.log("Processing reference:", reference);
       if (reference["Record Type"].includes("Marriage")) {
         let foundSpouse = false;
         const thisSpouse = reference["Spouse Name"] || reference.Spouse || "";
@@ -1542,6 +1557,7 @@ export function buildSpouses(person) {
           }
         });
         if (foundSpouse == false && thisSpouse) {
+          console.log("Adding reference for missing spouse:", thisSpouse);
           let text = "";
           let marriageDate = "";
           if (reference["Marriage Date"]) {
@@ -1583,6 +1599,37 @@ export function buildSpouses(person) {
       }
     });
   }
+
+  // Adjust OrderDate if duplicates exist
+  marriages.sort((a, b) => parseInt(a.OrderDate) - parseInt(b.OrderDate));
+  for (let i = 1; i < marriages.length; i++) {
+    if (parseInt(marriages[i].OrderDate) === parseInt(marriages[i - 1].OrderDate)) {
+      marriages[i].OrderDate = (parseInt(marriages[i].OrderDate) + 1).toString();
+      console.log(`Adjusted OrderDate of index ${i} to ${marriages[i].OrderDate}`);
+    }
+  }
+
+  // Ensure unique OrderDates even if there are no dates provided
+  let uniqueOrderDate = 1;
+  marriages.forEach((marriage, index) => {
+    console.log(
+      "Checking marriage:",
+      marriage,
+      "at index",
+      index,
+      "with OrderDate",
+      marriage.OrderDate,
+      "and Event Date",
+      marriage["Event Date"]
+    );
+    if (!marriage.OrderDate || marriage.OrderDate?.match(/^0.*0$/)) {
+      marriage.OrderDate = uniqueOrderDate.toString();
+      uniqueOrderDate++;
+      console.log(`Assigned unique OrderDate ${marriage.OrderDate} to marriage at index ${index}`);
+    }
+  });
+
+  console.log("Final marriages array:", marriages);
   return marriages;
 }
 
