@@ -1332,13 +1332,10 @@ export function minimalPlace(place) {
 }
 
 export function buildSpouses(person) {
-  console.log("buildSpouses called with:", person);
   if (!isObject(person.Spouses)) {
-    console.log("person.Spouses is not an object:", person.Spouses);
     return;
   }
   let spouseKeys = Object.keys(person.Spouses);
-  console.log("Initial spouse keys:", spouseKeys);
   let marriages = [];
   let firstNameAndYear = [];
 
@@ -1349,12 +1346,10 @@ export function buildSpouses(person) {
       let bMarriageDate = person.Spouses[b].marriage_date ? person.Spouses[b].marriage_date.replaceAll(/-/g, "") : null;
       let aBirthDate = person.Spouses[a].BirthDate ? person.Spouses[a].BirthDate.replaceAll(/-/g, "") : "99999999";
       let bBirthDate = person.Spouses[b].BirthDate ? person.Spouses[b].BirthDate.replaceAll(/-/g, "") : "99999999";
-      console.log(`Comparing marriage dates: ${aMarriageDate} and ${bMarriageDate}`);
 
       if (aMarriageDate && bMarriageDate) {
         return parseInt(aMarriageDate, 10) - parseInt(bMarriageDate, 10);
       } else if (!aMarriageDate && !bMarriageDate) {
-        console.log(`Comparing birth dates: ${aBirthDate} and ${bBirthDate}`);
         return parseInt(aBirthDate, 10) - parseInt(bBirthDate, 10);
       } else if (!aMarriageDate) {
         return parseInt(aBirthDate, 10) - parseInt(bMarriageDate, 10);
@@ -1364,13 +1359,11 @@ export function buildSpouses(person) {
     });
 
     spouseKeys.forEach(function (key) {
-      console.log("Processing spouse with key:", key);
       let text = "";
       let spouse = person.Spouses[key];
       let marriageAge = "";
       firstNameAndYear.push({ FirstName: spouse.PersonName.FirstName, Year: spouse.marriage_date?.substring(4) });
       let spouseMarriageAge = "";
-      console.log("Spouse details:", spouse);
 
       if (
         window.profilePerson.BirthDate &&
@@ -1520,11 +1513,13 @@ export function buildSpouses(person) {
         }
       }
 
-      let orderDate = spouse.marriage_date
-        ? formatDate(spouse.marriage_date, 0, { format: 8 })
-        : spouse.BirthDate
-        ? formatDate(spouse.BirthDate, 0, { format: 8 })
-        : "";
+      let orderDate =
+        spouse.marriage_date && spouse.marriage_date !== "0000-00-00"
+          ? spouse.marriage_date.replaceAll("-", "")
+          : spouse.BirthDate && spouse.BirthDate !== "0000-00-00"
+          ? spouse.BirthDate.replaceAll("-", "")
+          : "";
+
       if (!orderDate) {
         orderDate = "99999999"; // Fallback to a high value if missing
       }
@@ -1543,7 +1538,6 @@ export function buildSpouses(person) {
 
   if (window.references) {
     window.references.forEach(function (reference, i) {
-      console.log("Processing reference:", reference);
       if (reference["Record Type"].includes("Marriage")) {
         let foundSpouse = false;
         const thisSpouse = reference["Spouse Name"] || reference.Spouse || "";
@@ -1557,7 +1551,6 @@ export function buildSpouses(person) {
           }
         });
         if (foundSpouse == false && thisSpouse) {
-          console.log("Adding reference for missing spouse:", thisSpouse);
           let text = "";
           let marriageDate = "";
           if (reference["Marriage Date"]) {
@@ -1583,7 +1576,7 @@ export function buildSpouses(person) {
             Spouse: { FullName: thisSpouse, marriage_date: marriageDate },
             SpouseChildren: "",
             Narrative: `${text}<ref name="ref_${i}">${reference.Text}</ref>`,
-            OrderDate: formatDate(marriageDate, 0, { format: 8 }),
+            OrderDate: marriageDate.replaceAll("-", ""),
             "Marriage Date": reference["Marriage Date"],
             "Event Type": "Marriage, " + thisSpouse,
             "Marriage Place": reference["Marriage Place"],
@@ -1600,36 +1593,23 @@ export function buildSpouses(person) {
     });
   }
 
+  // Ensure unique OrderDates
+  let uniqueOrderDate = 10000000;
+  marriages.forEach((marriage, index) => {
+    if (!marriage.OrderDate || marriage.OrderDate === "99999999" || marriage.OrderDate === "0000-00-00") {
+      marriage.OrderDate = uniqueOrderDate.toString();
+      uniqueOrderDate++;
+    }
+  });
+
   // Adjust OrderDate if duplicates exist
   marriages.sort((a, b) => parseInt(a.OrderDate) - parseInt(b.OrderDate));
   for (let i = 1; i < marriages.length; i++) {
     if (parseInt(marriages[i].OrderDate) === parseInt(marriages[i - 1].OrderDate)) {
       marriages[i].OrderDate = (parseInt(marriages[i].OrderDate) + 1).toString();
-      console.log(`Adjusted OrderDate of index ${i} to ${marriages[i].OrderDate}`);
     }
   }
 
-  // Ensure unique OrderDates even if there are no dates provided
-  let uniqueOrderDate = 1;
-  marriages.forEach((marriage, index) => {
-    console.log(
-      "Checking marriage:",
-      marriage,
-      "at index",
-      index,
-      "with OrderDate",
-      marriage.OrderDate,
-      "and Event Date",
-      marriage["Event Date"]
-    );
-    if (!marriage.OrderDate || marriage.OrderDate?.match(/^0.*0$/)) {
-      marriage.OrderDate = uniqueOrderDate.toString();
-      uniqueOrderDate++;
-      console.log(`Assigned unique OrderDate ${marriage.OrderDate} to marriage at index ${index}`);
-    }
-  });
-
-  console.log("Final marriages array:", marriages);
   return marriages;
 }
 
@@ -7359,7 +7339,11 @@ export async function generateBio() {
     let previousEventObject;
     marriagesAndCensusesEtc.forEach(function (event) {
       if (!event.Year) {
-        event.Year = event["Event Date"] ? event["Event Date"].split("-")[0] : "0000";
+        if (event.OrderDate) {
+          event.Year = event.OrderDate.slice(0, 4);
+        } else {
+          event.Year = event["Event Date"] ? event["Event Date"].split("-")[0] : "0000";
+        }
       }
       let used = false;
       let thisEvent = event["Event Type"] + " " + event.Year;
@@ -7575,8 +7559,6 @@ export async function generateBio() {
         marriagesAndCensusesText += anEvent.Narrative + "\n\n";
       }
     });
-
-    console.log("marriagesAndCensuses", marriagesAndCensusesEtc);
 
     // Add Military and Obituary subsections
     const subsections = [];
