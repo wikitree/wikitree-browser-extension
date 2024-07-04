@@ -99,8 +99,6 @@ async function helpScissors() {
       } else {
         aLink = `[[:${aTitle}]]`;
       }
-    } else if (isTemplatePage) {
-      aLink = `{{${aTitle}}}`;
     } else {
       aLink = `[[${aTitle}]]`;
     }
@@ -115,6 +113,10 @@ async function helpScissors() {
 
     if (isCategoryPage || isCategoryEdit) {
       const aLink = `[[${aTitle}]]`;
+      copyItems.push({ label: "Use", text: aLink });
+    }
+    if (isTemplatePage) {
+      const aLink = `{{${aTitle.replace("Template:", "")}}}`;
       copyItems.push({ label: "Use", text: aLink });
     }
   }
