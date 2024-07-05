@@ -103,10 +103,11 @@ async function helpScissors() {
       aLink = `[[${aTitle}]]`;
     }
     copyItems.push({ label: "Link", text: aLink });
-    let aUrl = window.location.search;
+    let aUrl = window.location;
+
     /* //this will link to the base page
     if (!aUrl.includes("/wiki/")) {
-      const params = new URLSearchParams(aUrl);
+      const params = new URLSearchParams(window.location.search);
       aUrl = "https://www.wikitree.com/wiki/" + params.get("title");
     }*/
     copyItems.push({ label: "URL", text: aUrl });
