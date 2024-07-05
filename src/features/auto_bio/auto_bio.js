@@ -1831,7 +1831,6 @@ function sourcerCensusWithNoTable(reference, nameMatchPattern) {
             if (familyMembers?.length > 1) {
               reference.Household = familyMembers;
               reference = assignSelf(reference);
-              console.log("reference", logNow(reference));
               reference.Household = updateRelations(reference.Household);
               text += capitalizeFirstLetter(window.profilePerson.Pronouns.subject) + " was living with ";
               const parents = [];
@@ -3143,6 +3142,10 @@ function buildCensusNarratives() {
   const yearRegex = /\b(1[789]\d{2})\b/;
   // getCensusesFromCensusSection();
   window.references.forEach(function (reference) {
+    if (reference.SourcerNarrative) {
+      return;
+    }
+
     let text = "";
     if (reference.Text.match(/census|1939( England and Wales)? Register/i)) {
       reference["Event Type"] = "Census";
@@ -4819,15 +4822,20 @@ export function sourcesArray(bio) {
 
       /* Search bio for "In the [year] census, [person] was living in [place]." */
       const censusBioRegex = new RegExp("In the " + aRef.Year + " census .*? was living in ([^.]+)", "i");
+      const censusBioRegex2 = new RegExp("In the " + aRef.Year + " census .*? was ([^.]+) in ([^.]+)", "i");
       const censusResidenceRegex = aRef.Text.match(
         /\(\d{1,2}\).*? in (.+)(?=(, (United States|United Kingdom|England|Scotland|Wales|Canada|Australia)\.))/
       );
       const censusResidenceRegex2 = aRef.Text.match(/\(\d{1,2}\).*? in (.+)(?=\. Born)/);
       const censusBioMatch = localStorage.previousBio.match(censusBioRegex);
+      const censusBioMatch2 = localStorage.previousBio.match(censusBioRegex2);
       if (censusBioMatch) {
         aRef.Residence = censusBioMatch[1];
-      }
-      if (censusResidenceRegex) {
+        aRef.SourcerNarrative = true;
+      } else if (censusBioMatch2) {
+        aRef.Residence = censusBioMatch2[2];
+        aRef.SourcerNarrative = true;
+      } else if (censusResidenceRegex) {
         aRef.Residence = censusResidenceRegex[1];
       } else if (censusResidenceRegex2) {
         aRef.Residence = censusResidenceRegex2[1];
@@ -4836,6 +4844,8 @@ export function sourcesArray(bio) {
       if (aRef.Residence) {
         if (censusBioMatch) {
           aRef.Narrative = censusBioMatch[0].replace(/In the/, "In").replace(/\scensus/i, ",");
+        } else if (censusBioMatch2) {
+          aRef.Narrative = censusBioMatch2[0].replace(/In the/, "In").replace(/\scensus/i, ",");
         } else if (aRef.Residence) {
           aRef.Narrative =
             "In " +
@@ -4845,6 +4855,13 @@ export function sourcesArray(bio) {
             " was living in " +
             minimalPlace(aRef.Residence) +
             ".";
+        }
+        if (aRef.Narrative) {
+          // Remove United States, United Kingdom, etc. from the end of the place name
+          aRef.Narrative = aRef.Narrative.replace(
+            /, (United States|United Kingdom|England|Wales|Canada|Australia)/,
+            ""
+          );
         }
       }
     }
@@ -4875,6 +4892,7 @@ export function sourcesArray(bio) {
   let birthCitation = false;
   let censusCitation = false;
   let findAGraveCitation = false;
+
   refArr.forEach(function (aRef) {
     if (aRef["Record Type"].includes("Birth")) {
       birthCitation = true;
@@ -5903,8 +5921,6 @@ function getFindAGraveLink(text) {
 
   // Check for sourcerMatch
   if (!text.match(sourcerMatch)) {
-    console.log("sourcerMatch not found, proceeding with other matches...");
-
     // Check each match case and log the outcome
     if (text.match(match1)) {
       return text.match(match1)[1];
@@ -6076,7 +6092,6 @@ async function sortStuffBeforeBio() {
     projectBoxes: [],
     succession: [],
   };
-  //console.log("templatesObject", templatesObject);
   if (window.sectionsObject["StuffBeforeTheBio"]) {
     const stuff = window.sectionsObject["StuffBeforeTheBio"].text;
     stuff.forEach(function (item) {
@@ -6970,7 +6985,6 @@ function minimalPlace2(narrativeBits) {
 export async function getLocationCategoriesForSourcePlaces() {
   // Check if window.profilePerson.referencePlaces exists and is an array
   if (!Array.isArray(window.profilePerson.referencePlaces)) {
-    console.log("sourcePlaces is not an array or does not exist.");
     return;
   }
 
@@ -7078,7 +7092,6 @@ export async function generateBio() {
   const module = await import("./us_states.json");
   USstatesObjArray = module.default;
   templatesObject = await getTemplates();
-  console.log("templatesObject", templatesObject);
 
   try {
     window.autoBioNotes = [];
