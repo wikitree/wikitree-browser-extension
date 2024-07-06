@@ -72,6 +72,27 @@ shouldInitializeFeature("removeFromWatchlist").then((result) => {
     }
 
     const nextButton = document.getElementsByClassName("twelve columns center")[0];
+
+    const checkAllButton = document.createElement("input");
+    checkAllButton.type = "button";
+    checkAllButton.classList.add("small");
+    checkAllButton.value = "check/uncheck all";
+    checkAllButton.style.setProperty("margin-left", "1em", "important");
+    checkAllButton.addEventListener("click", () => {
+      const tableRows = document.getElementsByTagName("tr");
+      for (let i = 0; i < tableRows.length; i++) {
+        if (tableRows[i].style.display != "none") {
+          const checkBoxes = tableRows[i].getElementsByTagName("input");
+          for (let j = 0; j < checkBoxes.length; j++) {
+            if (checkBoxes[j].id.includes("cb_")) {
+              checkBoxes[j].checked = checkBoxes[j].checked == false;
+            }
+          }
+        }
+      }
+    });
+    nextButton.appendChild(checkAllButton);
+
     const orphanButton = document.createElement("input");
     orphanButton.type = "button";
     orphanButton.value = "remove selected from watchlist";
