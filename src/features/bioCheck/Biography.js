@@ -1657,11 +1657,11 @@ export class Biography {
     let foundInvalidPartialSource = this.#sourceRules.isInvalidPartialSource(line);
     if (this.#tooOldToRemember && !foundInvalidPartialSource) {
       foundInvalidPartialSource = this.#sourceRules.isInvalidPartialSourceTooOld(line);
-      if ((this.#isPre1700 || this.#treatAsPre1700) && !foundInvalidPartialSource) {
-        foundInvalidPartialSource = this.#sourceRules.isInvalidPartialSourcePre1700(line);
-      }
-      // TODO add more pre1500 validation
     }
+    if ((this.#isPre1700 || this.#treatAsPre1700) && !foundInvalidPartialSource) {
+      foundInvalidPartialSource = this.#sourceRules.isInvalidPartialSourcePre1700(line);
+    }
+    // TODO add more pre1500 validation
     return foundInvalidPartialSource;
   }
   /*

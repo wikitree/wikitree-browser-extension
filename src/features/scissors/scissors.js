@@ -81,39 +81,50 @@ async function helpScissors() {
   }
 
   // MediaWiki pages
-  if (isMediaWikiPage) {
+  if (isMediaWikiPage || isCategoryEdit) {
     let aTitle = "";
     if (isProjectPage) {
       aTitle = "Project:" + document.title.replace(" Project", "");
+    } else if (isCategoryPage || isCategoryEdit) {
+      aTitle = document.title.replace("Edit ", "").replace(": ", ":").replace(" :", ":").trim();
     } else {
       aTitle = document.title;
     }
     copyItems.push({ label: "ID", text: aTitle, image: true });
     let aLink = "";
-    if (isCategoryPage) {
+    if (isCategoryPage || isCategoryEdit) {
       if (options.categoryLinkFormat == "withParameter") {
-        aTitle = aTitle + "|" + document.title.replace("Category:", "").trim() + " category";
+        const aTitleWithAlias = aTitle + "|" + aTitle.replace("Category:", "").trim() + " category";
+        aLink = `[[:${aTitleWithAlias}]]`;
+      } else {
+        aLink = `[[:${aTitle}]]`;
       }
-      aLink = `[[:${aTitle}]]`;
-    } else if (isTemplatePage) {
-      aLink = `{{${aTitle}}}`;
     } else {
       aLink = `[[${aTitle}]]`;
     }
     copyItems.push({ label: "Link", text: aLink });
-    const aUrl = window.location.href;
-    copyItems.push({ label: "URL", text: aUrl });
-  }
+    let aUrl = window.location;
 
-  if (isCategoryPage || isCategoryEdit) {
-    const aTitle = document.title.trim().replace(": ", ":").replace("Edit ", "");
-    const aLink = `[[${aTitle}]]`;
-    copyItems.push({ label: "Use", text: aLink });
+    /* //this will link to the base page
+    if (!aUrl.includes("/wiki/")) {
+      const params = new URLSearchParams(window.location.search);
+      aUrl = "https://www.wikitree.com/wiki/" + params.get("title");
+    }*/
+    copyItems.push({ label: "URL", text: aUrl });
+
+    if (isCategoryPage || isCategoryEdit) {
+      const aLink = `[[${aTitle}]]`;
+      copyItems.push({ label: "Use", text: aLink });
+    }
+    if (isTemplatePage) {
+      const aLink = `{{${aTitle.replace("Template:", "")}}}`;
+      copyItems.push({ label: "Use", text: aLink });
+    }
   }
 
   if (isImagePage) {
     const aTitle = document.title.trim();
-    const url = window.location.toString();
+    const url = window.location.toString().split("#")[0].split("?")[0];
 
     //wikitree.com/photo/pdf/THE_STORY_OF_MY_YOUTH_AND_EARLY_MARRIED_LIFE_AS_TOLD_TO_LOIS_ELKINTON-1
     const linkParts = url.split("/");
