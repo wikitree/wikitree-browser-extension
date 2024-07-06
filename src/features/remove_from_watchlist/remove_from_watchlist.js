@@ -110,36 +110,52 @@ async function DoOrphan() {
   if (ids.length == 0) {
     return;
   }
+  const promises = [];
   const form = CreateForm();
+
   while (ids.length) {
     let chunk = ids.splice(0, 100).join(",");
-    getPeople(chunk, 0, 0, 0, 0, 0, "id,PageId,Name,TrustedList", "WBE_orphan_watchlist").then((data) => {
-      let theKeys = Object.keys(data[0].people);
-      theKeys.forEach(function (aKey) {
-        let person = data[0].people[aKey];
-        if (person.PageId == undefined) {
-          alert(
-            "removing yourself from private profiles requires API login. Please log in, close the TreeApps tab and try again."
-          );
-          window.open("https://api.wikitree.com/api.php");
-          return;
-        }
-        addInvisibleInput(form, "idlist[]", person.PageId);
-      });
-    });
+    promises.push(
+      new Promise((resolve, reject) => {
+        getPeople(chunk, 0, 0, 0, 0, 0, "id,PageId,Name,TrustedList", "WBE_orphan_watchlist").then((data) => {
+          let theKeys = Object.keys(data[0].people);
+          theKeys.forEach(function (aKey) {
+            let person = data[0].people[aKey];
+            if (person.PageId == undefined) {
+              alert(
+                "removing yourself from private profiles requires API login. Please log in, close the TreeApps tab and try again."
+              );
+              window.open("https://api.wikitree.com/api.php");
+              reject();
+            }
+            addInvisibleInput(form, "idlist[]", person.PageId);
+            // console.log("promise id " + chunk + " done");
+            resolve();
+          });
+        });
+      })
+    );
   }
-  const myId = getMyId();
-  addInvisibleInput(form, "action", "remove");
-  addInvisibleInput(form, "personId", myId);
-  addInvisibleInput(form, "go", "1");
 
-  const submitButton = document.createElement("input");
-  submitButton.type = "submit";
-  submitButton.value = "Continue";
-  form.appendChild(submitButton);
+  promises.push(
+    new Promise((resolve, reject) => {
+      const myId = getMyId();
+      addInvisibleInput(form, "action", "remove");
+      addInvisibleInput(form, "personId", myId);
+      addInvisibleInput(form, "go", "1");
+      getMyEmail(myId).then((myEmail) => {
+        addInvisibleInput(form, "object_email", myEmail);
+        // console.log("promise email done");
+        resolve();
+      });
+    })
+  );
 
-  getMyEmail(myId).then((myEmail) => {
-    addInvisibleInput(form, "object_email", myEmail);
+  Promise.all(promises).then(() => {
+    const submitButton = document.createElement("input");
+    submitButton.type = "submit";
+    submitButton.value = "Continue";
+    form.appendChild(submitButton);
     submitButton.click();
     HideOrphanedLines();
     form.remove();
