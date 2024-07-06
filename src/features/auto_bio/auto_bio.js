@@ -1210,6 +1210,7 @@ export function buildDeath(person) {
   let burialAdded = false;
 
   assignCemeteryFromSources();
+
   window.references.forEach(function (source) {
     if (source["Record Type"].includes("Death")) {
       if (window.profilePerson.Cemetery && !burialAdded) {
@@ -5314,99 +5315,108 @@ function updateRelationForSibling(otherPerson) {
 
 export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading = []) {
   let afterBioHeading = "";
+
   if (window.autoBioOptions?.nameStudyStickers) {
-    const ONSstickers = await getONSstickers();
-    if (ONSstickers) {
-      ONSstickers.forEach(function (ONSsticker) {
-        let isDuplicate = false;
-        for (let sticker of thingsToAddAfterBioHeading) {
-          if (sticker.replace(/\s/g, "") === ONSsticker.replace(/\s/g, "")) {
-            isDuplicate = true;
-            break;
+    try {
+      const ONSstickers = await getONSstickers();
+      if (ONSstickers) {
+        ONSstickers.forEach(function (ONSsticker) {
+          let isDuplicate = false;
+          for (let sticker of thingsToAddAfterBioHeading) {
+            if (sticker.replace(/\s/g, "") === ONSsticker.replace(/\s/g, "")) {
+              isDuplicate = true;
+              break;
+            }
           }
-        }
-        if (!isDuplicate) {
-          if (ONSsticker.match("|category=")) {
-            // If thingsToAdd... includes a plain ONS sticker with the same name but not the category, remove it.
-            thingsToAddAfterBioHeading = thingsToAddAfterBioHeading.filter(function (sticker) {
-              return (
-                sticker
-                  .replace(/\s/g, "")
-                  ?.toLowerCase()
-                  .indexOf(ONSsticker.split("|category=")[0].replace(/\s/g, "")?.toLowerCase()) === -1
-              );
-            });
-            // If stuffBeforeTheBio includes the same category, remove it.
-            window.sectionsObject.StuffBeforeTheBio.text = window.sectionsObject.StuffBeforeTheBio.text.filter(
-              function (categoryLine) {
-                if (ONSsticker?.includes("category=")) {
-                  const categoryInLine = categoryLine.replace("[[Category:", "").replace("]]", "").trim();
-                  const categoryInSticker = ONSsticker.split("category=")[1].replace("}}", "").trim();
-                  return (
-                    categoryInLine.replace(/\s/g, "")?.toLowerCase() !==
-                    categoryInSticker.replace(/\s/g, "")?.toLowerCase()
-                  );
+          if (!isDuplicate) {
+            if (ONSsticker.match("|category=")) {
+              thingsToAddAfterBioHeading = thingsToAddAfterBioHeading.filter(function (sticker) {
+                const result =
+                  sticker
+                    .replace(/\s/g, "")
+                    ?.toLowerCase()
+                    .indexOf(ONSsticker.split("|category=")[0].replace(/\s/g, "")?.toLowerCase()) === -1;
+                return result;
+              });
+              window.sectionsObject.StuffBeforeTheBio.text = window.sectionsObject.StuffBeforeTheBio.text.filter(
+                function (categoryLine) {
+                  if (ONSsticker?.includes("category=")) {
+                    const categoryInLine = categoryLine.replace("[[Category:", "").replace("]]", "").trim();
+                    const categoryInSticker = ONSsticker.split("category=")[1].replace("}}", "").trim();
+                    const result =
+                      categoryInLine.replace(/\s/g, "")?.toLowerCase() !==
+                      categoryInSticker.replace(/\s/g, "")?.toLowerCase();
+                    return result;
+                  }
+                  return true;
                 }
-                return true; // keep the categoryLine in case there's no "category=" in ONSsticker
-              }
-            );
+              );
+            }
+            thingsToAddAfterBioHeading.push(ONSsticker);
           }
-          thingsToAddAfterBioHeading.push(ONSsticker);
-        }
-      });
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching ONSstickers:", error);
     }
   }
+
   if (window.autoBioOptions?.australiaBornStickers) {
-    let australianLocations;
-    if (!window.australianLocations) {
-      australianLocations = await import("./australian_locations.json");
-    } else {
-      australianLocations = window.australianLocations;
-    }
-    const australiaKeys = Object.keys(australianLocations);
-    const birthPlace = window.profilePerson.BirthLocation;
-    if (birthPlace) {
-      let gotBirthSticker = false;
-      australiaKeys.forEach(function (colony) {
-        if (birthPlace.includes(colony) && !gotBirthSticker) {
-          const yearMatch = window.profilePerson.BirthDate?.match(/\d{4}/);
-          if (yearMatch) {
-            const year = parseInt(yearMatch[0]);
-            if (year) {
-              const endYear = australianLocations[colony].yearRange[1] || 3000;
-              if (year >= australianLocations[colony].yearRange[0] && year <= endYear) {
-                if (!thingsToAddAfterBioHeading?.includes(australianLocations[colony].bornInLabel)) {
-                  thingsToAddAfterBioHeading.push(australianLocations[colony].bornInLabel);
-                  gotBirthSticker = true;
+    try {
+      let australianLocations;
+      if (!window.australianLocations) {
+        australianLocations = await import("./australian_locations.json");
+      } else {
+        australianLocations = window.australianLocations;
+      }
+      const australiaKeys = Object.keys(australianLocations);
+      const birthPlace = window.profilePerson.BirthLocation;
+      if (birthPlace) {
+        let gotBirthSticker = false;
+        australiaKeys.forEach(function (colony) {
+          if (birthPlace.includes(colony) && !gotBirthSticker) {
+            const yearMatch = window.profilePerson.BirthDate?.match(/\d{4}/);
+            if (yearMatch) {
+              const year = parseInt(yearMatch[0]);
+              if (year) {
+                const endYear = australianLocations[colony].yearRange[1] || 3000;
+                if (year >= australianLocations[colony].yearRange[0] && year <= endYear) {
+                  if (!thingsToAddAfterBioHeading?.includes(australianLocations[colony].bornInLabel)) {
+                    thingsToAddAfterBioHeading.push(australianLocations[colony].bornInLabel);
+                    gotBirthSticker = true;
+                  }
                 }
               }
             }
           }
-        }
-      });
+        });
+      }
+    } catch (error) {
+      console.error("Error processing Australia born stickers:", error);
     }
   }
 
   if (window.autoBioOptions?.diedYoung) {
-    const deathAge = ageAtDeath(window.profilePerson, false);
-    if (typeof deathAge[0] !== "undefined") {
-      // Check if "thingsToAddAfterBioHeading" already contains any "{{Died Young" entries.
-      const alreadyHasDiedYoungTemplate = thingsToAddAfterBioHeading.some((item) => item.startsWith("{{Died Young"));
+    try {
+      const deathAge = ageAtDeath(window.profilePerson, false);
+      if (typeof deathAge[0] !== "undefined") {
+        const alreadyHasDiedYoungTemplate = thingsToAddAfterBioHeading.some((item) => item.startsWith("{{Died Young"));
 
-      if (deathAge[0] < 17 && !alreadyHasDiedYoungTemplate) {
-        if (window.autoBioOptions?.diedYoungImage != "Default") {
-          thingsToAddAfterBioHeading.push("{{Died Young|" + window.autoBioOptions?.diedYoungImage + "}}");
-        } else {
-          thingsToAddAfterBioHeading.push("{{Died Young}}");
+        if (deathAge[0] < 17 && !alreadyHasDiedYoungTemplate) {
+          if (window.autoBioOptions?.diedYoungImage != "Default") {
+            thingsToAddAfterBioHeading.push("{{Died Young|" + window.autoBioOptions?.diedYoungImage + "}}");
+          } else {
+            thingsToAddAfterBioHeading.push("{{Died Young}}");
+          }
         }
       }
+    } catch (error) {
+      console.error("Error processing diedYoung option:", error);
     }
   }
 
   thingsToAddAfterBioHeading.forEach(function (thing) {
-    console.log("thing", thing);
     afterBioHeading += thing + "\n";
-    // If a sticker is before the bio heading, remove it.
     window.sectionsObject.StuffBeforeTheBio.text.forEach(function (beforeBio) {
       if (thing == beforeBio) {
         window.sectionsObject.StuffBeforeTheBio.text.splice(
@@ -5416,42 +5426,59 @@ export async function afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading =
       }
     });
   });
+
   return { text: afterBioHeading, objects: thingsToAddAfterBioHeading };
 }
 
 export async function getStickersAndBoxes() {
   let afterBioHeading = "";
-  templatesObject = await getData("alltemplates");
+
+  try {
+    templatesObject = await getData("alltemplates");
+  } catch (error) {
+    return afterBioHeading;
+  }
+
   const templatesToAdd = ["Sticker", "Navigation Profile Box", "Project Box", "Profile Box"];
   const beforeHeadingThings = ["Project Box", "Research note box"];
   let thingsToAddAfterBioHeading = [];
   let thingsToAddBeforeBioHeading = [];
+
   const currentBio = $("#wpTextbox1").val();
-  templatesObject.templates.forEach(function (aTemplate) {
-    if (templatesToAdd?.includes(aTemplate.type)) {
-      const newTemplateMatch = currentBio.matchAll(/\{\{[^}]*?\}\}/gs);
-      for (let match of newTemplateMatch) {
-        const re = new RegExp(aTemplate.name, "gs");
-        if (match[0].match(re) && !thingsToAddAfterBioHeading?.includes(match[0])) {
-          if (beforeHeadingThings?.includes(aTemplate.type) || beforeHeadingThings?.includes(aTemplate.group)) {
-            thingsToAddBeforeBioHeading.push(match[0]);
-          } else {
-            thingsToAddAfterBioHeading.push(match[0]);
+
+  try {
+    templatesObject.templates.forEach(function (aTemplate) {
+      if (templatesToAdd.includes(aTemplate.type)) {
+        const newTemplateMatch = currentBio.matchAll(/\{\{[^}]*?\}\}/gs);
+
+        for (let match of newTemplateMatch) {
+          const re = new RegExp(aTemplate.name, "gs");
+
+          if (match[0].match(re)) {
+            if (!thingsToAddAfterBioHeading.includes(match[0])) {
+              if (beforeHeadingThings.includes(aTemplate.type) || beforeHeadingThings.includes(aTemplate.group)) {
+                thingsToAddBeforeBioHeading.push(match[0]);
+              } else {
+                thingsToAddAfterBioHeading.push(match[0]);
+              }
+            }
           }
         }
       }
-    }
-  });
+    });
 
-  thingsToAddBeforeBioHeading.forEach(function (box) {
-    if (!window.sectionsObject.StuffBeforeTheBio.text?.includes(box)) {
-      window.sectionsObject.StuffBeforeTheBio.text.push(box);
-    }
-  });
+    thingsToAddBeforeBioHeading.forEach(function (box) {
+      if (!window.sectionsObject.StuffBeforeTheBio.text.includes(box)) {
+        window.sectionsObject.StuffBeforeTheBio.text.push(box);
+      }
+    });
 
-  const afterBioHeadingThings = await afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading);
-  afterBioHeading = afterBioHeadingThings.text;
-  //});
+    const afterBioHeadingThings = await afterBioHeadingTextAndObjects(thingsToAddAfterBioHeading);
+    afterBioHeading = afterBioHeadingThings.text;
+  } catch (error) {
+    console.error("Error processing templates:", error);
+  }
+
   return afterBioHeading;
 }
 
@@ -6020,6 +6047,7 @@ export async function getCitations() {
     if (aRef.NonSource) {
       window.NonSourceCount++;
     }
+
     let findAGraveLink = getFindAGraveLink(aRef.Text);
     let matriculaLink = getMatriculaLink(aRef.Text);
     let newBrunswickLink = getNewBrunswickLink(aRef.Text);
@@ -6227,6 +6255,18 @@ export function topOfLineOnlyCondition(surname) {
   return isTopOfLineOnly && hasParentWithSameSurname;
 }
 
+// Helper function to add timeout to a promise
+async function promiseWithTimeout(promise, ms) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error("Promise timed out"));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+}
+
 export async function getONSstickers() {
   const excludedSurnames = [
     "Cresap",
@@ -6255,14 +6295,15 @@ export async function getONSstickers() {
   ];
 
   const surnames = [window.profilePerson.PersonName.LastNameAtBirth];
+
   if (window.profilePerson.PersonName.LastNameCurrent != window.profilePerson.PersonName.LastNameAtBirth) {
     surnames.push(window.profilePerson.PersonName.LastNameCurrent);
   }
+
   if (window.profilePerson.LastNameOther) {
-    // split by comma, trim and push to surnames if not already in surnames
     window.profilePerson.LastNameOther.split(",").forEach((item) => {
       item = item.trim();
-      if (!surnames?.includes(item) && !excludedSurnames?.includes(item)) {
+      if (!surnames.includes(item) && !excludedSurnames.includes(item)) {
         surnames.push(item);
       }
     });
@@ -6276,7 +6317,7 @@ export async function getONSstickers() {
     }
     let results;
     try {
-      results = await wtAPICatCIBSearch("AutoBio_ONS", "nameStudy", aSurname + " name study");
+      results = await promiseWithTimeout(wtAPICatCIBSearch("AutoBio_ONS", "nameStudy", aSurname + " name study"), 5000); // 5 seconds timeout
       if (results?.response?.categories) {
         const result = findBestMatch(
           aSurname,
@@ -6341,7 +6382,8 @@ export async function getONSstickers() {
           }
         }
       } else if (isOnONSlist && !topOfLineOnlyCondition(aSurname)) {
-        return `{{One Name Study|name=${aSurname}}}`;
+        const ONSresult = `{{One Name Study|name=${aSurname}}}`;
+        return ONSresult;
       }
     } catch (error) {
       console.log("Error getting ONS categories", error);
@@ -6349,7 +6391,14 @@ export async function getONSstickers() {
     }
   });
 
-  let out = await Promise.all(promises);
+  let out = await Promise.all(
+    promises.map((promise) =>
+      promise.catch((error) => {
+        console.error("Error in promise:", error);
+        return null;
+      })
+    )
+  );
   out = out.filter((item) => item != null); // Remove null values if any
   return out;
 }
@@ -7246,7 +7295,6 @@ export async function generateBio() {
 
     // Stickers and boxes
     const stickersAndBoxes = await getStickersAndBoxes();
-    console.log("stickersAndBoxes", stickersAndBoxes);
     const bioHeaderAndStickers = bioHeader + stickersAndBoxes;
 
     //Add birth
@@ -7306,7 +7354,6 @@ export async function generateBio() {
       };
       marriagesAndCensusesEtc.push(newEvent);
     }
-
     if (window.familySearchFacts) {
       marriagesAndCensusesEtc.push(...window.familySearchFacts);
     }
@@ -7327,6 +7374,7 @@ export async function generateBio() {
         }
       }
     });
+
     if (wars?.length) {
       warRefs.forEach(function (aWar) {
         marriagesAndCensusesEtc.push({
@@ -7762,7 +7810,6 @@ export async function generateBio() {
       }
     }
 
-    console.log("sectionsObject", window.sectionsObject);
     // Add Acknowledgments
     let acknowledgementsText = "";
     if (window.sectionsObject["Acknowledgements"]?.text?.length > 0) {
@@ -7878,8 +7925,6 @@ export async function generateBio() {
       enhancedEditorButton.trigger("click");
       enhanced = true;
     }
-
-    console.log("profilePerson", window.profilePerson);
 
     // Add the text to the textarea and switch back to the enhanced editor if it was on
     $("#wpTextbox1").val(outputText.replace(/(\s\.)(?=\s|$)/g, "") + $("#wpTextbox1").val());
@@ -8131,8 +8176,9 @@ export async function getLocationCategory(type, location = null) {
   let categoryType = "location";
 
   if (["Birth", "Death"].includes(type)) {
-    if ($("#m" + type + "Location").val() != "") {
-      location = $("#m" + type + "Location").val();
+    const inputVal = $("#m" + type + "Location").val();
+    if (inputVal != "") {
+      location = inputVal;
     } else {
       return;
     }
@@ -8162,11 +8208,8 @@ export async function getLocationCategory(type, location = null) {
   }
 
   function isFirstWordInText(type, category) {
-    // Get first word of category
     const firstWord = category.split(/[, ]/)[0];
-    // Get text from type
     const string = $("#m" + type + "Location").val();
-    //  Check if first word is in text
     if (!string) {
       return false;
     }
@@ -8185,36 +8228,33 @@ export async function getLocationCategory(type, location = null) {
     return false;
   }
 
-  // Remove all after 3rd comma
   const locationSplit = location.split(/, /);
   let searchLocation = removeCountryName(location);
 
-  // Change the location for pre-1901 Australian locations
   let australianLocations;
   if (!window.australianLocations) {
     australianLocations = await import("./australian_locations.json");
+    window.australianLocations = australianLocations.default;
   } else {
     australianLocations = window.australianLocations;
   }
+
   const lastElement = locationSplit[locationSplit.length - 1];
   if (australianLocations[lastElement]) {
     if (australianLocations[lastElement]?.["modernName"]) {
-      locationSplit.pop(); // Remove the last element
+      locationSplit.pop();
       const modernLastElement = australianLocations[lastElement]?.["modernName"].replace(/, Australia.*/, "");
-      locationSplit.push(modernLastElement); // Add the new element
+      locationSplit.push(modernLastElement);
       searchLocation = locationSplit.join(", ");
     }
   }
 
   const searchLocationsSet = generateCombinations(searchLocation);
   const searchLocationsArray = Array.from(searchLocationsSet);
-  // Array unique
-  searchLocationsArray.filter((v, i, a) => a.indexOf(v) === i);
-  const apiPromises = [];
 
-  for (const searchLocation of searchLocationsArray) {
-    apiPromises.push(wtAPICatCIBSearch("AutoBio_" + categoryType, categoryType, searchLocation));
-  }
+  const apiPromises = searchLocationsArray.map((searchLocation) => {
+    return promiseWithTimeout(wtAPICatCIBSearch("AutoBio_" + categoryType, categoryType, searchLocation), 5000); // 5 seconds timeout
+  });
 
   const apiResponses = await Promise.allSettled(apiPromises);
 
@@ -8231,8 +8271,7 @@ export async function getLocationCategory(type, location = null) {
           }
         } else if (response?.categories?.length > 1) {
           const locationSplit = location.split(", ");
-          let thisState = findUSState(location); // Find the state of the location
-
+          let thisState = findUSState(location);
           response.categories.forEach(function (aCat) {
             if (["Birth", "Death", "Marriage"].includes(type)) {
               if (!isFirstWordInText(type, aCat?.category)) {
@@ -8241,11 +8280,9 @@ export async function getLocationCategory(type, location = null) {
             }
             if (!aCat.topLevel) {
               let category = aCat.category;
-
               if (type !== "Cemetery" || sameState(window.profilePerson.DeathLocation, aCat.location)) {
                 const [part0, part1, part2] = locationSplit;
                 const suffixes = [thisState, part2];
-
                 const combinations = [`${part0}, ${part1}`, `${part1}, ${part2}`, `${part0}, ${part2}`].flatMap(
                   (pattern) => [
                     pattern,
@@ -8263,13 +8300,16 @@ export async function getLocationCategory(type, location = null) {
           });
         }
       } else if (api.status === "rejected") {
-        console.log("Error getting location category", api.reason);
       }
     }
   }
+
   if (foundCategory) {
     foundCategory = locationCategoryFilter(foundCategory);
+  } else {
+    console.log("No category found.");
   }
+
   return foundCategory;
 }
 
