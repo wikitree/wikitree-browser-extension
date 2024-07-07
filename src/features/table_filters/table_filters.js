@@ -33,7 +33,7 @@ function addDistanceAndRelationColumns() {
   // Add the header cells to the table
 
   const headerCells = $(`<th style="width: 5%; text-align: center; cursor: pointer;">°</th>
-  <th style="width: 15%; text-align: center; cursor: pointer;">Relation</th><th style="width: 10%; text-align: center; cursor: pointer;">Suggestion</th>`);
+  <th style="width: 15%; text-align: center; cursor: pointer;">Relation</th><th style="width: 10%; text-align: center; cursor: pointer;" id="suggestions_header">Suggestion</th>`);
 
   nameTable.find("tr").eq(0).append(headerCells);
 
@@ -126,10 +126,26 @@ function addDistanceAndRelationColumns() {
       });
     });
 
+    const datesPromise = new Promise((resolve, reject) => {
+      fetch("https://plus.wikitree.com/DataDates.json")
+        .then((res) => res.json())
+        .then((dataDates) => {
+          const suggestionHeader = document.getElementById("suggestions_header");
+          const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          const dateParts = dataDates.dataDate.split("-");
+          const actualMonth = parseInt(dateParts[1]) - 1;
+          const suggestionsHelpLink =
+            '<a href="/wiki/Help:Suggestions" title="Click here for an explanation of the suggestions column"><img src="/images/icons/help.gif" border="0" width="11" height="11" alt="Help"></a>';
+          suggestionHeader.innerHTML =
+            "Sugg. " + suggestionsHelpLink + " (" + dateParts[2] + " " + months[actualMonth] + ")";
+          resolve();
+        });
+    });
+
     initDb
       .then(() => {
         // Wait for all promises to resolve before initializing DataTable
-        Promise.all([...distancePromises, ...relationshipPromises, suggestionsPromise])
+        Promise.all([...distancePromises, ...relationshipPromises, suggestionsPromise, datesPromise])
           .then(() => {
             nameTable.find("tr").each(function (index) {
               // find the ids item with the property index: index
