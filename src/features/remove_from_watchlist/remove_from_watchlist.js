@@ -72,6 +72,27 @@ shouldInitializeFeature("removeFromWatchlist").then((result) => {
     }
 
     const nextButton = document.getElementsByClassName("twelve columns center")[0];
+
+    const checkAllButton = document.createElement("input");
+    checkAllButton.type = "button";
+    checkAllButton.classList.add("small");
+    checkAllButton.value = "check/uncheck all";
+    checkAllButton.style.setProperty("margin-left", "1em", "important");
+    checkAllButton.addEventListener("click", () => {
+      const tableRows = document.getElementsByTagName("tr");
+      for (let i = 0; i < tableRows.length; i++) {
+        if (tableRows[i].style.display != "none") {
+          const checkBoxes = tableRows[i].getElementsByTagName("input");
+          for (let j = 0; j < checkBoxes.length; j++) {
+            if (checkBoxes[j].id.includes("cb_")) {
+              checkBoxes[j].checked = checkBoxes[j].checked == false;
+            }
+          }
+        }
+      }
+    });
+    nextButton.appendChild(checkAllButton);
+
     const orphanButton = document.createElement("input");
     orphanButton.type = "button";
     orphanButton.value = "remove selected from watchlist";
@@ -89,36 +110,52 @@ async function DoOrphan() {
   if (ids.length == 0) {
     return;
   }
+  const promises = [];
   const form = CreateForm();
+
   while (ids.length) {
     let chunk = ids.splice(0, 100).join(",");
-    getPeople(chunk, 0, 0, 0, 0, 0, "id,PageId,Name,TrustedList", "WBE_orphan_watchlist").then((data) => {
-      let theKeys = Object.keys(data[0].people);
-      theKeys.forEach(function (aKey) {
-        let person = data[0].people[aKey];
-        if (person.PageId == undefined) {
-          alert(
-            "removing yourself from private profiles requires API login. Please log in, close the TreeApps tab and try again."
-          );
-          window.open("https://api.wikitree.com/api.php");
-          return;
-        }
-        addInvisibleInput(form, "idlist[]", person.PageId);
-      });
-    });
+    promises.push(
+      new Promise((resolve, reject) => {
+        getPeople(chunk, 0, 0, 0, 0, 0, "id,PageId,Name,TrustedList", "WBE_orphan_watchlist").then((data) => {
+          let theKeys = Object.keys(data[0].people);
+          theKeys.forEach(function (aKey) {
+            let person = data[0].people[aKey];
+            if (person.PageId == undefined) {
+              alert(
+                "removing yourself from private profiles requires API login. Please log in, close the TreeApps tab and try again."
+              );
+              window.open("https://api.wikitree.com/api.php");
+              reject();
+            }
+            addInvisibleInput(form, "idlist[]", person.PageId);
+            // console.log("promise id " + chunk + " done");
+            resolve();
+          });
+        });
+      })
+    );
   }
-  const myId = getMyId();
-  addInvisibleInput(form, "action", "remove");
-  addInvisibleInput(form, "personId", myId);
-  addInvisibleInput(form, "go", "1");
 
-  const submitButton = document.createElement("input");
-  submitButton.type = "submit";
-  submitButton.value = "Continue";
-  form.appendChild(submitButton);
+  promises.push(
+    new Promise((resolve, reject) => {
+      const myId = getMyId();
+      addInvisibleInput(form, "action", "remove");
+      addInvisibleInput(form, "personId", myId);
+      addInvisibleInput(form, "go", "1");
+      getMyEmail(myId).then((myEmail) => {
+        addInvisibleInput(form, "object_email", myEmail);
+        // console.log("promise email done");
+        resolve();
+      });
+    })
+  );
 
-  getMyEmail(myId).then((myEmail) => {
-    addInvisibleInput(form, "object_email", myEmail);
+  Promise.all(promises).then(() => {
+    const submitButton = document.createElement("input");
+    submitButton.type = "submit";
+    submitButton.value = "Continue";
+    form.appendChild(submitButton);
     submitButton.click();
     HideOrphanedLines();
     form.remove();
