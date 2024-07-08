@@ -4810,6 +4810,9 @@ export function sourcesArray(bio) {
         aRef.Year = yearMatch2[1];
         aRef["Census Year"] = yearMatch2[1];
       }
+      if (aRef.Year) {
+        aRef.OrderDate = formatDate(aRef.Year, 0, { format: 8 });
+      }
       const placeMatch = aRef.Text.match(/household.*, ([^,]+?, [^,]+?), United States;/);
       if (placeMatch) {
         aRef.Residence = placeMatch[1].trim();
@@ -4825,11 +4828,17 @@ export function sourcesArray(bio) {
       const censusBioRegex = new RegExp("In the " + aRef.Year + " census .*? was living in ([^.]+)", "i");
       const censusBioRegex2 = new RegExp("In the " + aRef.Year + " census .*? was ([^.]+) in ([^.]+)", "i");
       const censusResidenceRegex = aRef.Text.match(
-        /\(\d{1,2}\).*? in (.+)(?=(, (United States|United Kingdom|England|Scotland|Wales|Canada|Australia)\.))/
+        /\(\d{1,2}\).*? in (.+)(?=(, (United States|United Kingdom|England|Scotland|Wales|Canada|Australia)))/
       );
       const censusResidenceRegex2 = aRef.Text.match(/\(\d{1,2}\).*? in (.+)(?=\. Born)/);
       const censusBioMatch = localStorage.previousBio.match(censusBioRegex);
       const censusBioMatch2 = localStorage.previousBio.match(censusBioRegex2);
+
+      console.log(censusBioMatch);
+      console.log(censusBioMatch2);
+      console.log(censusResidenceRegex);
+      console.log(censusResidenceRegex2);
+
       if (censusBioMatch) {
         aRef.Residence = censusBioMatch[1];
         aRef.SourcerNarrative = true;
@@ -4843,6 +4852,9 @@ export function sourcesArray(bio) {
       }
 
       if (aRef.Residence) {
+        if (aRef.Residence.match(" in ")) {
+          aRef.Residence = aRef.Residence.split(" in ")[1];
+        }
         if (censusBioMatch) {
           aRef.Narrative = censusBioMatch[0].replace(/In the/, "In").replace(/\scensus/i, ",");
         } else if (censusBioMatch2) {
@@ -4856,6 +4868,7 @@ export function sourcesArray(bio) {
             " was living in " +
             minimalPlace(aRef.Residence) +
             ".";
+          aRef.SourcerNarrative = true;
         }
         if (aRef.Narrative) {
           // Remove United States, United Kingdom, etc. from the end of the place name
@@ -4865,6 +4878,8 @@ export function sourcesArray(bio) {
           );
         }
       }
+
+      console.log(logNow(aRef));
     }
     if (aRef.Text.match(/citing Burial/)) {
       const burialPersonRegex = new RegExp("Entry for (.*?),", "i");
