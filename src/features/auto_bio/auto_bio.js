@@ -4834,11 +4834,6 @@ export function sourcesArray(bio) {
       const censusBioMatch = localStorage.previousBio.match(censusBioRegex);
       const censusBioMatch2 = localStorage.previousBio.match(censusBioRegex2);
 
-      console.log(censusBioMatch);
-      console.log(censusBioMatch2);
-      console.log(censusResidenceRegex);
-      console.log(censusResidenceRegex2);
-
       if (censusBioMatch) {
         aRef.Residence = censusBioMatch[1];
         aRef.SourcerNarrative = true;
@@ -4878,8 +4873,6 @@ export function sourcesArray(bio) {
           );
         }
       }
-
-      console.log(logNow(aRef));
     }
     if (aRef.Text.match(/citing Burial/)) {
       const burialPersonRegex = new RegExp("Entry for (.*?),", "i");
