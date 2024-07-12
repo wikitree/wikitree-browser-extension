@@ -262,6 +262,8 @@ async function fixLocations() {
       "Seychelles",
       "Trinidad and Tobago",
       "Papua New Guinea",
+      "Guinea",
+      "Tonga",
       "Bosnia and Herzegovina",
       "Spain", // New Spain
       "Canada", // Upper Canada, Lower Canada
