@@ -2011,11 +2011,19 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
       reference.Residence = locationMatch[1]
         .replace(",", "")
         .replace(/(in\s)?(\d{4})?/, "")
+        .replace(/, \d{4}/)
         .trim();
+      console.log("locationMatch", locationMatch, reference.Residence, referenceTempText);
     }
     text += ourText
       .replace(window.profilePerson.LastNameAtBirth + " ", "was ")
       .replace(/in (household of|entry for)/, "in the household of");
+
+    // Remove the year from the residence if it exists
+    reference.Residence = reference.Residence.replace(/\d{4}/, "");
+
+    // If the text contains a reference to a residence, add it to the text
+
     if (reference.Residence) {
       if (text.match(/in the household of/) == null) {
         text += " was living";
