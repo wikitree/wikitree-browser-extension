@@ -1994,7 +1994,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
     "familysearch.+?(.*?, )((['a-zA-Z .-]+, )?['a-zA-Z .-]+,['a-zA-Z ().-]+), (United States|England|Scotland|Canada|Wales|Australia);"
   );
   const countryPatternMatch = countryPattern.exec(reference.Text);
-  //const firstNameMatch = new RegExp(firstName.replace(".", "\\.").replace(/([A-Z])\|/, "$1\b|") + "\\b");
+
   const theFirstNameMatch = nameMatchPattern.exec(reference.Text);
   if (theFirstNameMatch) {
     firstName = theFirstNameMatch[0].trim();
@@ -2010,7 +2010,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
     if (locationMatch) {
       reference.Residence = locationMatch[1]
         .replace(",", "")
-        .replace(/(in\s)?\d{4}/, "")
+        .replace(/(in\s)?(\d{4})?/, "")
         .trim();
     }
     text += ourText
@@ -3267,6 +3267,7 @@ function buildCensusNarratives() {
         if (window.profilePerson.MiddleInitial != "." && window.profilePerson.MiddleInitial) {
           nameVariants.push(window.profilePerson.FirstName + " " + window.profilePerson.MiddleInitial);
           nameVariants.push(window.profilePerson.FirstName + " " + window.profilePerson.MiddleInitial.replace(".", ""));
+          nameVariants.push(window.profilePerson.FirstName.charAt(0) + " " + window.profilePerson.MiddleInitial);
         }
         if (window.profilePerson.RealName) {
           nameVariants.push(window.profilePerson.RealName);
@@ -3355,7 +3356,8 @@ function buildCensusNarratives() {
           }
         } else if (
           reference.Text.match(/database( with images)?, (<i>|''')?FamilySearch/) ||
-          reference.Text.match(/\{\{FamilySearch Record\|.*?\}\}/)
+          reference.Text.match(/\{\{FamilySearch Record\|.*?\}\}/) ||
+          reference.Text.match(/familysearch.org\/ark/i)
         ) {
           let fsCensus = familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMatchPattern);
           reference = fsCensus[1];
