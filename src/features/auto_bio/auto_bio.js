@@ -258,16 +258,17 @@ async function fixLocations() {
     // Countries that may have a north, south, etc.
     const excludeCountries = [
       "Australia",
-      "Solomon Islands",
-      "Seychelles",
-      "Trinidad and Tobago",
-      "Papua New Guinea",
-      "Guinea",
-      "Tonga",
       "Bosnia and Herzegovina",
-      "Spain", // New Spain
       "Canada", // Upper Canada, Lower Canada
       "France", // New France
+      "Guinea",
+      "Islands",
+      "Marshall Islands",
+      "Papua New Guinea","Seychelles",
+      "Solomon Islands",
+      "Spain", // New Spain
+      "Tonga",
+      "Trinidad and Tobago",      
     ];
     countries.forEach(function (country) {
       if (!excludeCountries.includes(country.name)) {
