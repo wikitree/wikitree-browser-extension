@@ -215,19 +215,6 @@ function onDistancesSuccess(event, profileID, userID) {
           initDistanceAndRelationship(userID, profileID, true);
         });
       }
-
-      // Add distance data to RF DB here
-      const relationshipFinderDBOpenReq = window.indexedDB.open(RELATIONSHIP_DB_NAME, RELATIONSHIP_DB_VERSION);
-      relationshipFinderDBOpenReq.onsuccess = (event) => {
-        const relationshipFinderDB = event.target.result;
-        const obj = {
-          theKey: distRelDbKeyFor(profileID, userID),
-          userId: userID,
-          id: profileID,
-          distance: getDistanceReq.result.distance,
-        };
-        addToDBAndClose(relationshipFinderDB, RELATIONSHIP_STORE_NAME, obj);
-      };
     }
   };
 
