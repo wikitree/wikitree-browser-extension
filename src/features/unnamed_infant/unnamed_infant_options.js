@@ -2,9 +2,13 @@ import { registerFeature, OptionType } from "../../core/options/options_registry
 import { isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType";
 
 registerFeature({
-  name: "Unnamed Infant",
+  name: "Childless",
   id: "unnamedInfant",
-  description: "Standardizes the naming of unnamed infants and adds a Died Young sticker to the profile.",
+  description:
+    "Standardizes the naming of unnamed infants and adds a Died Young sticker to the profile; " +
+    "automatically checks 'No spouses' and 'No children' for children under 13; " +
+    "offers to check 'No spouses' and 'No children' for profiles with no children and no spouses, " +
+    "respectively, if the profile was created over 6 months ago.",
   category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
