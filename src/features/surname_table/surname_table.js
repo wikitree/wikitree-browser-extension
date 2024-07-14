@@ -9,6 +9,12 @@ import Cookies from "js-cookie";
 import { convertDate } from "../auto_bio/auto_bio";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { showFamilySheet } from "../familyGroup/familyGroup";
+import { distRelDbKeyFor } from "../../core/common";
+import {
+  CONNECTION_STORE_NAME,
+  RELATIONSHIP_STORE_NAME,
+  initDistanceAndRelationshipDBs,
+} from "../distanceAndRelationship/distanceAndRelationship";
 
 const USER_WT_ID = Cookies.get("wikitree_wtb_UserName");
 const USER_NUM_ID = Cookies.get("wikitree_wtb_UserID");
@@ -121,29 +127,46 @@ async function init() {
 
 shouldInitializeFeature("surnameTable").then((result) => {
   if (result) {
-    // <li class="current">Free-Space Profiles</li>
-    const isFreeSpaceList = $("ul.profile-tabs li.current").text().match("Free-Space Profiles");
-    if (
-      window.location.href.match(/Special:(Surname|WatchedList|SearchPerson)/) &&
-      $("table.wt.names").length &&
-      isFreeSpaceList == null
-    ) {
-      init();
-    }
-    if (isSearchPage) {
-      getFeatureOptions("surnameTable").then((options) => {
+    getFeatureOptions("surnameTable").then((options) => {
+      console.log("done with options");
+      if (options.distanceAndRelationship) {
+        console.log("distance and relationship");
+        if ($("th:contains('°')").length == 0) {
+          console.log("adding relationship");
+          addDistanceAndRelationColumns();
+          console.log("done relationship");
+          $("tr.filter-row").remove();
+          console.log("done removing");
+
+          AddFilters(5);
+          console.log("done add filter trigger timeout");
+        }
+      }
+
+      // <li class="current">Free-Space Profiles</li>
+      const isFreeSpaceList = $("ul.profile-tabs li.current").text().match("Free-Space Profiles");
+      if (
+        window.location.href.match(/Special:(Surname|WatchedList|SearchPerson)/) &&
+        $("table.wt.names").length &&
+        isFreeSpaceList == null
+      ) {
+        init();
+      }
+      if (isSearchPage) {
         if (options.RememberSearchOptions) {
           initSearchOptions();
         }
-      });
-    }
-    addHomeIcon();
+      }
+      addHomeIcon();
+    });
   }
 });
 
 //const homeImage = chrome.runtime.getURL("images/Home_icon.png");
 
 async function addHomeIcon() {
+  console.warn("addHomeIcon deactivated");
+  return;
   const table = $("table.wt.names");
   if (!table.length) return;
   table.find("tr").each(function () {
@@ -183,6 +206,7 @@ async function dNumbering() {
 }
 
 async function initSurnameTableSorting() {
+  console.log("initSurnameTableSorting");
   // Remove filter row
   $(".filterInput").off();
   $("table.wt.names tr.filter-row").remove();
@@ -216,7 +240,12 @@ async function initSurnameTableSorting() {
         } else {
           birthDate = convertDate(birthDate[0], "ISO");
         }
-        birthYear = birthDate.match(/\d{3,4}/);
+        if (birthYear != null) {
+          birthYear = birthDate.match(/\d{3,4}/);
+        } else {
+          console.error("birthYear is null at");
+          birthYear = 2024;
+        }
       }
       if (birthYear) {
         $(this).attr("data-year", birthYear);
@@ -483,12 +512,7 @@ async function initSurnameTableSorting() {
   $("table.wt.names").addClass("ready");
   dNumbering();
 
-  // Add filters
-  getFeatureOptions("tableFilters").then((options) => {
-    if (options) {
-      setTimeout(initTableFilters, 2000);
-    }
-  });
+  AddFilters(2000);
 }
 
 const url = new URL(window.location.href);
@@ -499,6 +523,16 @@ const pinkSRC = chrome.runtime.getURL("images/pink_bricks.jpg");
 const blueSRC = chrome.runtime.getURL("images/blue_bricks.jpg");
 const pinkBricks = $("<img src='" + pinkSRC + "' class='pinkWall' title='Mother not known.'>");
 const blueBricks = $("<img src='" + blueSRC + "' class='blueWall' title='Father not known.'>");
+
+function AddFilters(delay) {
+  shouldInitializeFeature("tableFilters").then((result) => {
+    console.log("tableFitlers active?: " + result);
+    if (result || true) {
+      console.log("triggering initTableFilters");
+      setTimeout(initTableFilters, delay);
+    }
+  });
+}
 
 async function getBrickWalls() {
   const mWTIDID = USER_NUM_ID;
@@ -849,6 +883,195 @@ async function addWideTableButton() {
       makeTableNotWide(dTable);
       wideTableButton.text("Wide Table");
       localStorage.setItem("surnameTableWideTableOption", "false");
+    }
+  });
+}
+
+function addDistanceAndRelationColumns() {
+  const userID = Cookies.get("wikitree_wtb_UserName");
+  const ids = {};
+  const nameTable = $("table.wt.names");
+  // Get the profile IDs from the watchlist
+  // Get first link of first TD of each TR and extract the profile ID from the href (after /wiki/)
+  nameTable.find("tr").each(function (index) {
+    const aLink = $(this).find("td a").eq(0).attr("href");
+    if (aLink) {
+      const profileID = aLink.split("/wiki/");
+      if (profileID[1]) {
+        ids[profileID[1]?.replace(/ /g, "_")] = { WTID: [profileID[1]], index: index };
+      }
+    }
+  });
+
+  // Add the header cells to the table
+
+  const headerCells = $(`<th style="width: 5%; text-align: center; cursor: pointer;">°</th>
+  <th style="width: 15%; text-align: center; cursor: pointer;">Relation</th><th style="width: 10%; text-align: center; cursor: pointer;" id="suggestions_header">Suggestion</th>`);
+
+  nameTable.find("tr").eq(0).append(headerCells);
+
+  setTimeout(() => {
+    const distancePromises = [];
+    const relationshipPromises = [];
+    const initDb = new Promise((resolve, reject) => {
+      let completedTasks = 0;
+
+      // Ensure the distance and relationship databases are present/created/upgraded as necessary
+      initDistanceAndRelationshipDBs(onDistanceSuccess, onRelationSuccess);
+
+      function checkCompletion() {
+        completedTasks++;
+
+        if (completedTasks === 2) {
+          // console.log("initDistanceAndRelationshipDBs completed successfully");
+          resolve();
+        }
+      }
+
+      function onDistanceSuccess(event) {
+        // The distance table is ready, we can start collecting the distances
+        const dbConnection = event.target.result;
+        const distanceTransaction = dbConnection.transaction(CONNECTION_STORE_NAME, "readonly");
+        const distanceStore = distanceTransaction.objectStore(CONNECTION_STORE_NAME);
+        Object.keys(ids).forEach(function (wtid) {
+          // Request the distance record
+          const getDistance = distanceStore.get(distRelDbKeyFor(wtid, userID));
+          const distancePromise = new Promise((resolve, reject) => {
+            getDistance.onsuccess = function (event) {
+              const distance = event.target.result ? event.target.result.distance + "°" : "";
+              if (event.target?.result?.distance > 0) {
+                ids[wtid].distance = distance;
+              }
+              resolve();
+            };
+          });
+          distancePromises.push(distancePromise);
+        });
+        checkCompletion();
+      }
+
+      function onRelationSuccess(event) {
+        // The relationship table is ready, we can start collecting the relationships
+        const dbRelationship = event.target.result;
+        const relationshipTransaction = dbRelationship.transaction(RELATIONSHIP_STORE_NAME, "readonly");
+        const relationshipStore = relationshipTransaction.objectStore(RELATIONSHIP_STORE_NAME);
+        Object.keys(ids).forEach(function (wtid) {
+          const getRelationship = relationshipStore.get(distRelDbKeyFor(wtid, userID));
+          const relationshipPromise = new Promise((resolve, reject) => {
+            getRelationship.onsuccess = function (event) {
+              let relationship =
+                event.target.result && event.target.result.relationship ? event.target.result.relationship : "";
+              ids[wtid].relationship = relationship;
+              resolve();
+            };
+          });
+          relationshipPromises.push(relationshipPromise);
+        });
+        checkCompletion();
+      }
+    });
+
+    const suggestionsPromise = GetSuggestions().then((htmlPage) => {
+      const parser = new DOMParser();
+      const suggestionsDOM = parser.parseFromString(htmlPage, "text/html");
+      Object.keys(ids).forEach(function (wtid) {
+        $(suggestionsDOM)
+          .find("td:contains(" + wtid.split("_").join(" ") + ")")
+          .each(function () {
+            if ($(this).contents()[0].nodeName != "A") {
+              //comments table, do nothing
+            } else if ($(this).prev().length == 0) {
+              let parentRow = $(this).parent();
+              while (
+                parentRow.find("td").attr("rowspan") == undefined &&
+                parentRow.length > 0 &&
+                parentRow.get(0).tagName == "TR"
+              ) {
+                parentRow = parentRow.prev();
+              }
+              SetOrAdd(wtid, parentRow.find("td"));
+            } else if ($(this).prev().get(0).firstChild.tagName == "IMG") {
+              //WT ID only in manager column
+            } else {
+              SetOrAdd(wtid, $(this).prev());
+            }
+          });
+      });
+    });
+
+    const datesPromise = new Promise((resolve, reject) => {
+      fetch("https://plus.wikitree.com/DataDates.json")
+        .then((res) => res.json())
+        .then((dataDates) => {
+          const suggestionHeader = document.getElementById("suggestions_header");
+          const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          const dateParts = dataDates.dataDate.split("-");
+          const actualMonth = parseInt(dateParts[1]) - 1;
+          const suggestionsHelpLink =
+            '<a href="/wiki/Help:Suggestions" title="Click here for an explanation of the suggestions column"><img src="/images/icons/help.gif" border="0" width="11" height="11" alt="Help"></a>';
+          suggestionHeader.innerHTML =
+            "Sugg. " + suggestionsHelpLink + " (" + dateParts[2] + " " + months[actualMonth] + ")";
+          resolve();
+        });
+    });
+
+    initDb
+      .then(() => {
+        // Wait for all promises to resolve before initializing DataTable
+        Promise.all([...distancePromises, ...relationshipPromises, suggestionsPromise, datesPromise])
+          .then(() => {
+            nameTable.find("tr").each(function (index) {
+              // find the ids item with the property index: index
+
+              const id = Object.keys(ids).find((key) => ids[key].index === index - 1);
+              // console.log("id:" + id);
+              if ($(this).find("th").length == 0) {
+                // console.log("th found");
+                if (id) {
+                  const distance = ids[id].distance || "";
+                  const relationship = ids[id].relationship || "";
+                  const suggestion = ids[id].suggestion ? ids[id].suggestion : "";
+                  // console.log("distance " + distance + ", relationship" + relationship + ", suggestion" + suggestion);
+                  $(this).append(
+                    `<td style="text-align: center;">${distance}</td><td>${relationship}</td><td>${suggestion}</td>`
+                  );
+                } else {
+                  $(this).append(`<td style="text-align: center;"></td><td></td>`);
+                }
+              }
+            });
+            /* */
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      })
+      .catch((error) => {
+        console.error("Error during init of distance and relationship DBs:", error);
+      });
+  }, 0); //setTimeout
+
+  function SetOrAdd(wtid, node) {
+    if (ids[wtid].suggestion != undefined) {
+      ids[wtid].suggestion += "<br />" + node.html();
+    } else {
+      ids[wtid].suggestion = node.html();
+    }
+  }
+}
+
+async function GetSuggestions() {
+  return new Promise((resolve, reject) => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("p")) {
+      fetch("https://plus.wikitree.com/function/WTWebUser/WBE_TableFilters.htm?UserID=" + params.get("p"))
+        .then((suggestionsPage) => {
+          const txt = suggestionsPage.text();
+          resolve(txt);
+        })
+        .catch(() => {
+          reject("");
+        });
     }
   });
 }

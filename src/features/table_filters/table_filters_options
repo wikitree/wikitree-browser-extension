@@ -15,14 +15,6 @@ const tableFilters = {
   contributors: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
   defaultValue: false,
   pages: [isProfilePage, isSpacePage, isGenealogyPage, isSpecialWatchedList, isSearchPage],
-  options: [
-    {
-      id: "distanceAndRelationship",
-      type: OptionType.CHECKBOX,
-      label: "Add Distance and Relationship columns to Watchlist and Surname Genealogy tables",
-      default: false,
-    },
-  ],
 };
 
 registerFeature(tableFilters);

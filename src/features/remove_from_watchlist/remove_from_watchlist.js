@@ -35,6 +35,11 @@ shouldInitializeFeature("removeFromWatchlist").then((result) => {
 
     for (let i = 1 /* skip table with sorting links */; i < profileRows.length; i++) {
       const editLink = profileRows[i].getElementsByTagName("a")[3];
+      if (editLink == null)
+      {
+        console.warn("remove from watchlist broken, Flo has to fix it!");
+        continue
+      }
       var urlParams = new URLSearchParams(editLink.href);
       if (urlParams.has("u")) {
         //parent of edit link is td
