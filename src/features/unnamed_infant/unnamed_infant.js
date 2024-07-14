@@ -3,6 +3,8 @@ Created By: Ian Beacall (Beacall-6)
 */
 import $ from "jquery";
 import "jquery-ui/ui/widgets/dialog";
+import "jquery-ui-dist/jquery-ui.css";
+
 import { showCopyMessage } from "../access_keys/access_keys";
 import { isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType";
 import { tryParseDate, euDateFormats, usDateFormats } from "../date_fixer/date_fixer";
@@ -26,10 +28,8 @@ async function getCreatedDate() {
   const urlParams = new URLSearchParams(window.location.search);
   const profileId = urlParams.get("u");
   const api = WikiTreeAPI;
-  console.log(api);
   let person = await api.getPerson("WBE_childless", profileId, ["Created"]);
   person = person._data;
-  console.log("Person", person);
   return person.Created;
 }
 
@@ -92,15 +92,16 @@ async function offerToCheckBoxes(profileId, options) {
     }
   }
 
-  let popupMessage = "This profile is over 6 months old. <br>Would you like to check the ";
-  const spousesChecked = $(`input[name='mStatus_Spouse']`).prop("checked");
-  const childrenChecked = $(`input[name='mNoChildren']`).prop("checked");
+  let popupMessage = "This profile is over 6 months old and there are no <br>";
+  const spousesChecked = $("input[name='mStatus_Spouse']").prop("checked");
+  const childrenChecked = $("input[name='mNoChildren']").prop("checked");
+
   if (!spousesChecked && !childrenChecked) {
-    popupMessage += "'No spouses' and 'No children' boxes?";
+    popupMessage += "spouses and children. Would you like to check the 'No spouses' and 'No children' boxes?";
   } else if (!spousesChecked) {
-    popupMessage += "'No spouses' box?";
-  } else {
-    popupMessage += "'No children' box?";
+    popupMessage += "spouses. Would you like to check the 'No spouses' box?";
+  } else if (!childrenChecked) {
+    popupMessage += "children. Would you like to check the 'No children' box?";
   }
 
   confirmDialog(popupMessage, async function (response, dontShowAgain) {
@@ -120,9 +121,6 @@ async function offerToCheckBoxes(profileId, options) {
 }
 
 function findAge() {
-  console.log("Starting findAge function");
-  console.log(`Birth date: ${birthDate}`);
-  console.log(`Death date: ${deathDate}`);
   if (!birthDate || !deathDate) {
     console.log("No birth or death date");
     return;
@@ -133,32 +131,24 @@ function findAge() {
 
   if (!birthDateParsed) {
     birthDateParsed = tryParseDate(birthDate, euDateFormats);
-    console.log(`Birth date parsed (EU format): ${birthDateParsed}`);
   }
 
   let deathDateParsed = tryParseDate(deathDate, usDateFormats);
-  console.log(`Death date parsed (US format): ${deathDateParsed}`);
 
   if (!deathDateParsed) {
     deathDateParsed = tryParseDate(deathDate, euDateFormats);
-    console.log(`Death date parsed (EU format): ${deathDateParsed}`);
   }
 
   if (!birthDateParsed || !deathDateParsed) {
-    console.log("Failed to parse birth or death date");
     return;
   }
 
   // Calculate age in years, months, and days
   const age = deathDateParsed - birthDateParsed;
-  console.log(`Age in milliseconds: ${age}`);
 
   const years = Math.floor(age / 31536000000);
   const months = Math.floor((age % 31536000000) / 2628000000);
   const days = Math.floor(((age % 31536000000) % 2628000000) / 86400000);
-
-  // Log the age
-  console.log(`Age: ${years} years, ${months}, ${days} days`);
 
   return { years, months, days };
 }
@@ -217,12 +207,8 @@ async function doUnnamedInfant() {
   birthDate = $("#mBirthDate").val();
   deathDate = $("#mDeathDate").val();
   const age = findAge();
-  if (age) {
-    console.log("age", age.years);
-  }
 
   if ((birthDate == "" || deathDate == "") && !isProfileEdit && !isProfileAddRelative && !isAddUnrelatedPerson) {
-    console.log("No birth or death date, or not on a profile edit page.");
     return;
   }
 
