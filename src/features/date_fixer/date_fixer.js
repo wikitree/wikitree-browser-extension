@@ -4,6 +4,7 @@ import { parse, isValid, format } from "date-fns";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 // Function to try parsing a date string with multiple formats
+
 export function tryParseDate(dateString, formats) {
   for (let format of formats) {
     const parsedDate = parse(dateString, format, new Date());
@@ -14,7 +15,7 @@ export function tryParseDate(dateString, formats) {
   return null;
 }
 
-const euDateFormats = [
+export const euDateFormats = [
   "dd-MM-yyyy",
   "d-MM-yyyy",
   "dd-M-yyyy",
@@ -48,9 +49,11 @@ const euDateFormats = [
   "MM.yyyy",
   "MMM.yyyy",
   "MMMM.yyyy",
+  // ISO 8601
+  "yyyy-MM-dd",
 ];
 
-const usDateFormats = [
+export const usDateFormats = [
   "MM-dd-yyyy",
   "M-dd-yyyy",
   "MM-d-yyyy",

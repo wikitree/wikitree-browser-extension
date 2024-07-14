@@ -2,15 +2,25 @@ import { registerFeature, OptionType } from "../../core/options/options_registry
 import { isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType";
 
 registerFeature({
-  name: "Unnamed Infant",
+  name: "Childless",
   id: "unnamedInfant",
-  description: "Standardizes the naming of unnamed infants and adds a Died Young sticker to the profile.",
+  description:
+    "Standardizes the naming of unnamed infants and adds a Died Young sticker to the profile; " +
+    "automatically checks 'No spouses' and 'No children' for children under 13; " +
+    "offers to check 'No spouses' and 'No children' for profiles with no children and no spouses, " +
+    "respectively, if the profile was created over 6 months ago.",
   category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
   pages: [isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson],
   options: [
+    {
+      id: "unnamedInfant",
+      type: OptionType.CHECKBOX,
+      label: "Re-name unnamed infants to 'Unnamed Infant'",
+      defaultValue: true,
+    },
     {
       id: "diedYoung",
       type: OptionType.CHECKBOX,
@@ -72,6 +82,20 @@ registerFeature({
         },
       ],
       defaultValue: "Default",
+    },
+    {
+      id: "autoCheckBoxesUnder13",
+      type: OptionType.CHECKBOX,
+      label: "Automatically check 'No spouses' and 'No children' for children under 13",
+      defaultValue: true,
+    },
+    {
+      id: "offerToCheckBoxes",
+      type: OptionType.CHECKBOX,
+      label:
+        "Offer to check 'No spouses' and 'No children' for profiles " +
+        "with no children and no spouses, respectively, if the profile was created over 6 months ago.",
+      defaultValue: false,
     },
   ],
 });
