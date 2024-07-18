@@ -92,15 +92,26 @@ async function offerToCheckBoxes(profileId, options) {
     }
   }
 
+  const childrenTDparent = $("td:contains(' Children:')").parent();
+  // Look for any likns to /wiki/ in the childrenTDparent
+  const childrenLinks = childrenTDparent.find("li");
+  const spousesTDparent = $("td:contains(' Spouses:')").parent();
+  // Look for any likns to /wiki/ in the spousesTDparent
+  const spousesLinks = spousesTDparent.find("li");
+
   let popupMessage = "This profile is over 6 months old and there are no <br>";
   const spousesChecked = $("input[name='mStatus_Spouse']").prop("checked");
   const childrenChecked = $("input[name='mNoChildren']").prop("checked");
 
-  if (!spousesChecked && !childrenChecked) {
-    popupMessage += "spouses and children. Would you like to check the 'No spouses' and 'No children' boxes?";
-  } else if (!spousesChecked) {
+  if ((childrenLinks.length && spousesLinks.length) || (spousesChecked && childrenChecked)) {
+    return;
+  }
+
+  if (!spousesChecked && spousesLinks.length == 0 && !childrenChecked && childrenLinks.length == 0) {
+    popupMessage += "spouses or children. Would you like to check the 'No spouses' and 'No children' boxes?";
+  } else if (!spousesChecked && spousesLinks.length == 0) {
     popupMessage += "spouses. Would you like to check the 'No spouses' box?";
-  } else if (!childrenChecked) {
+  } else if (!childrenChecked && childrenLinks.length == 0) {
     popupMessage += "children. Would you like to check the 'No children' box?";
   }
 
