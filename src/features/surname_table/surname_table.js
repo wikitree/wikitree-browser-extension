@@ -711,11 +711,13 @@ async function getBrickWalls() {
         if (person.Connected == "0") {
           dParentEl.find("a").each(function () {
             if ($(this).attr("href").match("/wiki/") != null) {
-              dParentEl.css({
-                "border-left": "3px solid gold",
-                "border-right": "4px solid gold",
-              });
-              dParentEl.attr("title", "Unconnected");
+              if (dParentEl.find("img.unconnected").length == 0) {
+                dParentEl.append(
+                  $(
+                    `<img class='unconnected' title='Unconnected' src="https://www.wikitree.com/images/icons/unconnected.png" style="width:16px; height:16px; position: relative; top:3px; margin-left:0.2em;" />`
+                  )
+                );
+              }
             }
           });
         }
