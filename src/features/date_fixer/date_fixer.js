@@ -256,6 +256,11 @@ function displayWarning(inputElement, message) {
 }
 
 function sanitizeInput(input) {
+  const indexBlankIn = input.indexOf(" in");
+  if (indexBlankIn > -1) {
+    //cutting of a location part
+    input = input.substr(0, indexBlankIn);
+  }
   return input
     .replaceAll(/\s+/g, " ") // Replace all occurrences of multiple spaces with a single space
     .replaceAll(/[!"#$%&'()~=]/g, "") // Remove all special characters
