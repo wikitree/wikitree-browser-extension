@@ -255,12 +255,33 @@ function displayWarning(inputElement, message) {
   }, 7000); // Removes the warning after 7 seconds
 }
 
-function sanitizeInput(input) {
-  const indexBlankIn = input.indexOf(" in");
+function splitAndMoveLocationIfPresent(input, inputElement) {
+  const indexBlankIn = input.indexOf(" in ");
   if (indexBlankIn > -1) {
     //cutting of a location part
+    const location = input.substr(indexBlankIn + " in ".length).trim();
     input = input.substr(0, indexBlankIn);
+    if (location.length > 0) {
+      switch (inputElement.attr("id")) {
+        case "mBirthDate": {
+          document.getElementById("mBirthLocation").value = location;
+          break;
+        }
+        case "mDeathDate": {
+          document.getElementById("mDeathLocation").value = location;
+          break;
+        }
+        case "mMarriageDate": {
+          document.getElementById("mMarriageLocation").value = location;
+          break;
+        }
+      }
+    }
   }
+  return input;
+}
+
+function sanitizeInput(input) {
   return input
     .replaceAll(/\s+/g, " ") // Replace all occurrences of multiple spaces with a single space
     .replaceAll(/[!"#$%&'()~=]/g, "") // Remove all special characters
@@ -553,6 +574,10 @@ function fixDates() {
 
     $("#dateWarning").remove(); // Remove any existing warnings
     $("#dateClarificationModal").remove(); // Remove any existing date clarification modal
+
+    if (window.dateFixerOptions["splitLocations"] == true) {
+      input = splitAndMoveLocationIfPresent(input, inputElement);
+    }
 
     input = sanitizeInput(input);
     console.log("After sanitization:", input);

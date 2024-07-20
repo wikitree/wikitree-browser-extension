@@ -47,5 +47,11 @@ registerFeature({
       ],
       defaultValue: false,
     },
+    {
+      id: "splitLocations",
+      type: OptionType.CHECKBOX,
+      label: "chop off locations after 'in' and put them in the corresponding location field",
+      defaultValue: true,
+    },
   ],
 });
