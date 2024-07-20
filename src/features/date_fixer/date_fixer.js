@@ -256,28 +256,33 @@ function displayWarning(inputElement, message) {
 }
 
 function splitAndMoveLocationIfPresent(input, inputElement) {
-  const indexBlankIn = input.indexOf(" in ");
-  if (indexBlankIn > -1) {
-    //cutting of a location part
-    const location = input.substr(indexBlankIn + " in ".length).trim();
-    input = input.substr(0, indexBlankIn);
-    if (location.length > 0) {
-      switch (inputElement.attr("id")) {
-        case "mBirthDate": {
-          document.getElementById("mBirthLocation").value = location;
-          break;
+  const separators = [" in ", "\t"];
+  for (let i = 0; i < separators.length; i++) {
+    const indexBlankIn = input.indexOf(separators[i]);
+    if (indexBlankIn > -1) {
+      //cutting of a location part
+      const location = input.substr(indexBlankIn + separators[i].length).trim();
+      input = input.substr(0, indexBlankIn);
+      if (location.length > 0) {
+        switch (inputElement.attr("id")) {
+          case "mBirthDate": {
+            document.getElementById("mBirthLocation").value = location;
+            break;
+          }
+          case "mDeathDate": {
+            document.getElementById("mDeathLocation").value = location;
+            break;
+          }
+          case "mMarriageDate": {
+            document.getElementById("mMarriageLocation").value = location;
+            break;
+          }
         }
-        case "mDeathDate": {
-          document.getElementById("mDeathLocation").value = location;
-          break;
-        }
-        case "mMarriageDate": {
-          document.getElementById("mMarriageLocation").value = location;
-          break;
-        }
+        break;
       }
     }
   }
+
   return input;
 }
 
