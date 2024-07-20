@@ -211,6 +211,8 @@ async function initSurnameTableSorting() {
         birthDate[0] = birthDate[0].replace(/s$/, "").replace(/(bef|aft|abt)\s/, "");
         if (birthDate[0].startsWith("- ")) {
           birthDate = "0000-00-00";
+        } else if (birthDate[0].match(/^[0-9]{3,4}s?$/)) {
+          birthDate = birthDate[0];
         } else {
           birthDate = convertDate(birthDate[0], "ISO");
         }
@@ -348,7 +350,7 @@ async function initSurnameTableSorting() {
         let combinedText = combinedTD.text().trim() || "";
 
         // Define regex for flexible date matching
-        let dateRegex = /((bef|aft|abt)?\s*(\d{1,2}\s)?(\w+\s)?\d{4})/i;
+        let dateRegex = /((bef|aft|abt)?\s*(\d{1,2}\s)?(\w+\s)?\d{3,4})/i;
 
         // Split the text by " - " and trim to handle leading hyphen for death dates
         let parts = combinedText.split(/ ?- /).map((part) => part.trim());
@@ -387,7 +389,7 @@ async function initSurnameTableSorting() {
         $(this).attr("data-birth-location-small2big", birthLocation);
       } else {
         // Define regex patterns outside of the conditional checks
-        const datePattern = /(\d+ \w+ <b>\d{4}<\/b>)/;
+        const datePattern = /((\d+ )?(\w+ )?(<b>)?\d{4}<\/b>)/;
         const locationPattern = /<br>\s*(.+)/;
 
         // Safely attempt to match the patterns
