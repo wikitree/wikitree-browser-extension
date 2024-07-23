@@ -451,8 +451,6 @@ function getAmbiguousMonths(input) {
 }
 
 function parsedDate(input) {
-  console.log("formISODate:", formISODate(input));
-
   // Try parsing the date with both European and American formats
   const euParsed = tryParseDate(input, euDateFormats);
   const usParsed = tryParseDate(input, usDateFormats);
@@ -485,6 +483,7 @@ function parsedDate(input) {
 }
 
 export function formISODate(input) {
+  input = input.replace(",", "").trim();
   // Try parsing the date with both European and American formats
   const euParsed = tryParseDate(input, euDateFormats);
   const usParsed = tryParseDate(input, usDateFormats);
@@ -718,9 +717,9 @@ function fixDates() {
     }
 
     const validPatterns = [
-      new RegExp(`^(${monthNames.join("|")}) (\\d{1,2}), (\\d{4})$`, "i"), // Month DD, YYYY
-      new RegExp(`^(${monthShortNames.join("|")}) (\\d{1,2}) (\\d{4})$`, "i"), // Mon DD YYYY
-      new RegExp(`^(${monthShortNames.join("|")})\\. (\\d{1,2}), (\\d{4})$`, "i"), // Mon. DD, YYYY
+      new RegExp(`^(${monthNames.join("|")}) (\\d{1,2}),? (\\d{4})$`, "i"), // Month DD, YYYY
+      new RegExp(`^(${monthShortNames.join("|")}) (\\d{1,2}),? (\\d{4})$`, "i"), // Mon DD YYYY
+      new RegExp(`^(${monthShortNames.join("|")})\\. (\\d{1,2}),? (\\d{4})$`, "i"), // Mon. DD, YYYY
       /^(\d{1,2}) ([a-zA-Z]+) (\d{4})$/, // DD Month YYYY
       /^(\d{1,2}) ([a-zA-Z]{3}) (\d{4})$/, // DD Mon YYYY
       /^(\d{4})-(\d{2})-(\d{2})$/, // YYYY-MM-DD
@@ -733,6 +732,7 @@ function fixDates() {
     const AABBYYYY = /^(\d{2})-(\d{2})-(\d{4})$/;
     for (const pattern of validPatterns) {
       if (pattern.test(input)) {
+        input = input.replace(/,/g, "");
         console.log("Pattern matched:", pattern);
         message = "Invalid date";
         if (parsedDate(input)) {
