@@ -74,6 +74,14 @@ function confirmDialog(message, callback) {
         $(this).dialog("close");
       },
     },
+    open: function (event, ui) {
+      $(this).closest(".ui-dialog").css({
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+      });
+    },
     close: function () {
       dialog.remove();
     },
