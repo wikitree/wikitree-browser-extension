@@ -19,7 +19,13 @@
   "web_accessible_resources": [
     {
       "matches": ["https://*.wikitree.com/*", "https://wikitree.sdms.si/*"],
-      "resources": ["images/*", "features/wtPlus/templatesExp.json", "features/darkMode/darkMode.css", "js/*.js"]
+      "resources": [
+        "images/*",
+        "features/wtPlus/templatesExp.json",
+        "features/darkMode/darkMode.css",
+        "js/*.js",
+        "js/images/*"
+      ]
     }
   ],
   "icons": {

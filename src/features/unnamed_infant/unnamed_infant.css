@@ -1,0 +1,59 @@
+/* Custom styles for the dialog container */
+.ui-dialog {
+  background-color: #f0f0f0 !important; /* Light gray background color */
+  border: 2px solid forestgreen !important; /* Green border color */
+  border-radius: 10px !important; /* Rounded corners */
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.7) !important; /* Box shadow */
+}
+
+.ui-dialog p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+/* Custom styles for the dialog header */
+.ui-dialog .ui-dialog-titlebar {
+  background-color: #ffe270 !important; /* Yellow header background color */
+  color: black !important; /* Dark text color */
+  border-bottom: 2px solid forestgreen !important; /* Green bottom border */
+}
+
+/* Custom styles for the dialog title */
+.ui-dialog .ui-dialog-title {
+  font-size: 18px !important; /* Title font size */
+  color: #333 !important; /* Dark text color for the title */
+}
+
+/* Custom styles for the close button */
+.ui-dialog .ui-dialog-titlebar-close {
+  color: #333 !important; /* Dark text color for the close button */
+}
+
+/* Custom styles for the dialog content */
+.ui-dialog .ui-dialog-content {
+  padding: 20px !important; /* Content padding */
+  font-size: 16px !important; /* Content font size */
+  background-color: white !important; /* White background for main text area */
+  color: black !important; /* Black text color */
+  border-top: 1px solid #ccc !important; /* Light gray top border to separate content from header */
+}
+
+/* Custom styles for the dialog buttons */
+.ui-dialog .ui-dialog-buttonpane {
+  background-color: #f0f0f0 !important; /* Light gray background color for button pane */
+  border-top: 1px solid #ccc !important; /* Light gray top border */
+}
+
+.ui-dialog .ui-dialog-buttonpane .ui-button {
+  background-color: forestgreen !important; /* Green button background color */
+  color: #fff !important; /* White text color for buttons */
+  border: none !important; /* Remove button border */
+  border-radius: 5px !important; /* Rounded corners for buttons */
+  padding: 0.5em 1em !important; /* Button padding */
+  margin: 5px !important; /* Margin around buttons */
+}
+
+/* Button hover and active states */
+.ui-dialog .ui-dialog-buttonpane .ui-button:hover,
+.ui-dialog .ui-dialog-buttonpane .ui-button:active {
+  background-color: #3b7f3b !important; /* Darker green background color on hover and active */
+}

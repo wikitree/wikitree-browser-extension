@@ -18,8 +18,9 @@ let message = [];
 
 shouldInitializeFeature("unnamedInfant").then((result) => {
   if (result) {
-    import("./unnamed_infant.css");
-    initUnnamedInfant();
+    import("./unnamed_infant.css").then(() => {
+      initUnnamedInfant();
+    });
   }
 });
 
@@ -99,7 +100,7 @@ async function offerToCheckBoxes(profileId, options) {
   // Look for any likns to /wiki/ in the spousesTDparent
   const spousesLinks = spousesTDparent.find("li");
 
-  let popupMessage = "This profile is over 6 months old and there are no <br>";
+  let popupMessage = "This profile is over 6 months old and there are no ";
   const spousesChecked = $("input[name='mStatus_Spouse']").prop("checked");
   const childrenChecked = $("input[name='mNoChildren']").prop("checked");
 
@@ -119,7 +120,12 @@ async function offerToCheckBoxes(profileId, options) {
     const now = new Date().toISOString();
     if (response) {
       checkBoxes();
-      addDiedYoungSticker(options);
+      // Get age at death (if dead).
+      const age = findAge();
+      // Add Died Young sticker if under 16
+      if (age && age.years < 16) {
+        addDiedYoungSticker(options);
+      }
 
       // Show message
       if (message.length) {
