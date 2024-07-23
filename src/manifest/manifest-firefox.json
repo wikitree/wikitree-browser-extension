@@ -31,7 +31,8 @@
     "images/*",
     "features/wtPlus/templatesExp.json",
     "features/darkMode/darkMode.css",
-    "js/*.js"
+    "js/*.js",
+    "js/images/*"
   ],
   "icons": {
     "128": "images/we128.png"

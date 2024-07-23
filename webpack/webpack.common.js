@@ -6,7 +6,6 @@ const srcDir = path.join(__dirname, "..", "src");
 const buildInfo = { buildDate: new Date(Date.now()).toISOString() };
 
 try {
-  // attempt to get the last commit hash; this will work on GitHub but could fail if git is not in the user's local path
   const gitOutput = require("child_process").execSync('git log -1 --pretty="%h %H"').toString();
   const hashes = gitOutput?.match(/^\s*([0-9a-f]+)\s+([0-9a-f]+)\s*$/);
   if (hashes?.length > 2) {
@@ -73,6 +72,13 @@ module.exports = (env) => ({
       {
         test: /\.css$/i,
         use: ["style-loader", "css-loader"],
+      },
+      {
+        test: /\.(png|jpg|gif|svg)$/i,
+        type: "asset/resource",
+        generator: {
+          filename: "images/[name][ext]",
+        },
       },
     ],
   },
