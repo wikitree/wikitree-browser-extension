@@ -18,7 +18,7 @@ shouldInitializeFeature("genderPredictor").then((result) => {
 });
 
 async function getGenderPrediction(name) {
-  return wtAPINameDistribution('genderPredictor', name)
+  return wtAPINameDistribution("genderPredictor", name);
 }
 
 function setGenderClass(predicted = false) {
@@ -88,7 +88,7 @@ async function predictGender() {
   }
 
   $("#mFirstName").on("change blur", async function () {
-    const name = $(this).val().trim();
+    const name = $(this).val().trim().split(/[\s-]/)[0];
     if (name == theName || name.length < 2) {
       return;
     }
