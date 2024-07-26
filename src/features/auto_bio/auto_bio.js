@@ -59,9 +59,9 @@ function dataStatusWord(status, ISOdate, options = { needOnIn: false, onlyYears:
     : window.autoBioOptions?.dateStatusFormat || "abbreviations";
 
   if (thisStatusFormat == "abbreviations") {
-    statusOut = statusOut.replace("before", "bef.").replace("after", "aft.").replace("about", "abt.");
+    statusOut = statusOut ? statusOut.replace("before", "bef.").replace("after", "aft.").replace("about", "abt.") : "";
   } else if (thisStatusFormat == "symbols") {
-    statusOut = statusOut.replace("before", "<").replace("after", ">").replace("about", "~");
+    statusOut = statusOut ? statusOut.replace("before", "<").replace("after", ">").replace("about", "~") : "";
   }
   if (needOnIn == false && ["on", "in"].includes(statusOut)) {
     return "";
@@ -165,7 +165,7 @@ function getPossibleLocationNames(event, state) {
       }
     });
     if (possibleFormerNames.length == 1) {
-      event.Location = event.Location.replace(lastLocationBit, possibleFormerNames[0]);
+      event.Location = event?.Location ? event.Location.replace(lastLocationBit, possibleFormerNames[0]) : "";
     } else if (possibleFormerNames.length > 1) {
       // If there are multiple possible former names, don't change the location and add a note
       const note = "Possible correct locations for " + event.Event + " are: " + possibleFormerNames.join(", ");
@@ -264,11 +264,12 @@ async function fixLocations() {
       "Guinea",
       "Islands",
       "Marshall Islands",
-      "Papua New Guinea","Seychelles",
+      "Papua New Guinea",
+      "Seychelles",
       "Solomon Islands",
       "Spain", // New Spain
       "Tonga",
-      "Trinidad and Tobago",      
+      "Trinidad and Tobago",
     ];
     countries.forEach(function (country) {
       if (!excludeCountries.includes(country.name)) {
@@ -279,7 +280,7 @@ async function fixLocations() {
       const spaceCountryPattern = new RegExp(`(\\w)\\s${country}$`);
       const thisMatch = event?.Location.match(spaceCountryPattern);
       if (thisMatch) {
-        event.Location = event?.Location.replace(thisMatch[0], thisMatch[1] + ", " + country);
+        event.Location = event?.Location ? event.Location.replace(thisMatch[0], thisMatch[1] + ", " + country) : "";
       }
     });
 
@@ -341,11 +342,15 @@ async function fixLocations() {
           if (originalMatched) {
             // cope with "Australian Colonies"
             const matchedKeyPattern = new RegExp(matchedKey + ".*");
-            event.Location = event.Location.replace(matchedKeyPattern, australianLocations[matchedKey]["previousName"]);
+            event.Location = event?.Location
+              ? event.Location.replace(matchedKeyPattern, australianLocations[matchedKey]["previousName"])
+              : "";
           } else {
-            event.Location = event.Location.replace(lastLocationBit, australianLocations[matchedKey]["previousName"]);
+            event.Location = event?.Location
+              ? event.Location.replace(lastLocationBit, australianLocations[matchedKey]["previousName"])
+              : "";
           }
-        } else if (!originalMatched && matchedKey) {
+        } else if (!originalMatched && matchedKey && event?.Location) {
           // If the location match was found with the addedAustralia search and the event date is within the appropriate timeframe, add matchedKey to the location.
           event.Location = event.Location.replace(lastLocationBit, matchedKey);
         } else if (!australianLocations[matchedKey]["previousName"]) {
@@ -410,7 +415,7 @@ async function fixLocations() {
       });
     }
     if (event) {
-      event.Location = event?.Location.replace(/^, /g, "");
+      event.Location = event?.Location ? event.Location.replace(/^, /g, "") : "";
     }
     if (document.getElementById(event?.ID)?.value != event?.Location) {
       const changeNote =
@@ -422,7 +427,7 @@ async function fixLocations() {
         event.Location +
         "'.";
       window.autoBioNotes?.push(changeNote);
-      const toUpdate = event.ID.replace(/^m/, "");
+      const toUpdate = event?.ID ? event.ID.replace(/^m/, "") : "";
       window.profilePerson[toUpdate] = event.Location;
     }
     if (document.getElementById(event?.ID)) {
@@ -432,11 +437,12 @@ async function fixLocations() {
 }
 
 export function convertDate(dateString, outputFormat, status = "") {
-  dateString = dateString.replaceAll(/-00/g, "");
-  // Split the input date string into components
   if (!dateString) {
     return "";
   }
+  dateString = dateString.replaceAll(/-00/g, "");
+  // Split the input date string into components
+
   let components = dateString.split(/[\s,-]+/);
 
   // Determine the format of the input date string
@@ -552,6 +558,10 @@ export function convertDate(dateString, outputFormat, status = "") {
     } else {
       outputDate = statusOut + " " + outputDate;
     }
+  }
+
+  if (!outputDate) {
+    return "";
   }
 
   outputDate = outputDate.replace(/\s?\b00/, ""); // Remove 00 as a day or month
@@ -902,7 +912,8 @@ function childList(person, spouse) {
   //  || spouse == false
   if (ourChildren?.length == 1) {
     if (ourChildren[0].Father == spouse.Id || ourChildren[0].Mother == spouse.Id || !spouse) {
-      const theDates = personDates(ourChildren[0]).replace(/(in|on)\s/g, "");
+      const oDates = personDates(ourChildren[0]);
+      const theDates = oDates ? oDates.replace(/(in|on)\s/g, "") : "";
       const status = getStatus(ourChildren[0]);
 
       if (window.autoBioOptions?.usePrivate && ourChildren[0]?.Privacy < 30) {
@@ -925,7 +936,8 @@ function childList(person, spouse) {
         childListText += "#";
       }
       const status = getStatus(child);
-      const theDates = personDates(child).replace(/(in|on)\s/g, "");
+      const cDates = personDates(child);
+      const theDates = cDates ? cDates.replace(/(in|on)\s/g, "") : "";
       if (window.autoBioOptions?.usePrivate && child?.Privacy < 30) {
         const childWord = child.Gender == "Male" ? "Son" : child?.Gender == "Female" ? "Daughter" : "Child";
         childListText += "Private " + childWord + "\n";
@@ -966,7 +978,12 @@ export function siblingList() {
         " had a " +
         (siblings[0].Gender == "Male" ? "brother" : siblings[0].Gender == "Female" ? "sister" : "sibling");
       if (!(window.autoBioOptions?.usePrivate && siblings[0]?.Privacy < 30)) {
-        text += ", " + nameLink(siblings[0]) + " " + personDates(siblings[0]).replace(/(in|on)\s/g, "");
+        const sDates = personDates(siblings[0]);
+        if (sDates) {
+          text += ", " + nameLink(siblings[0]) + " " + sDates.replace(/(in|on)\s/g, "");
+        } else {
+          text += ", " + nameLink(siblings[0]);
+        }
       }
       text += ".\n";
     } else if (siblings?.length > 1) {
@@ -2023,7 +2040,7 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
       .replace(/in (household of|entry for)/, "in the household of");
 
     // Remove the year from the residence if it exists
-    reference.Residence = reference.Residence.replace(/\d{4}/, "");
+    reference.Residence = reference?.Residence ? reference.Residence.replace(/\d{4}/, "") : "";
 
     // If the text contains a reference to a residence, add it to the text
 
@@ -2032,7 +2049,9 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
         text += " was living";
       }
       /* Remove country name */
-      const residenceOut = reference.Residence.replace(/, (United States|England|Scotland|Canada|Wales|Australia)/, "");
+      const residenceOut = reference?.Residence
+        ? reference.Residence.replace(/, (United States|England|Scotland|Canada|Wales|Australia)/, "")
+        : "";
       text += " in " + minimalPlace(residenceOut);
     }
 
@@ -2761,7 +2780,6 @@ const placeNameRegExp =
   /\w+(land|shire|mere|acres|bay|beach|bluffs|center|corner|cove|crest|crossing|falls|farms|fields|flats|fork|gardens|gate|glen|green|grove|harbor|heights|hills|hollow|inlet|key|knolls|landing|light|manor|mesa|mills|mount|mountain|orchard|park|passage|pines|point|ranch|ridge|river|runway|shores|sky|springs|terrace|trace|view|village|vista|woods|basin|cape|canyon|delta|forest|glacier|gulf|island|isthmus|lake|mesa|oasis|plain|plateau|prairie|sea|shore|sound|swamp|trail|valley|waterfall|peak|ridge|summit|pass|range|butte|knob|dome|spit|shoals|rapids|falls|bend|junction|spur|switch|fork|cross|field|estate|parkway|boulevard|circle|court|place|avenue|plaza|path|way|alley|borough|city|county|district|municipality|parish|town|township|village|territory|region|state|province|shire|ton|ham|don|wick|ford|bury|port|stadt|stede|burg|burgh|by|ville|beck|dale|holme|hurts|mead|wold|boro|chester|heath|hill|vale|wyke)\b/gi;
 
 export function analyzeColumns(lines) {
-  //lines = lines.map((line) => line.replace(/\|\|/g, "\t")); // convert double pipes to tabs
   const columns = {};
 
   lines.forEach((lineOrParts) => {
@@ -3285,7 +3303,7 @@ function buildCensusNarratives() {
         }
         if (firstNameVariants[window.profilePerson.FirstName]) {
           nameVariants.push(...firstNameVariants[window.profilePerson.FirstName]);
-          if (window.profilePerson.MiddleInitial != ".") {
+          if (window.profilePerson.MiddleInitial && window.profilePerson.MiddleInitial != ".") {
             firstNameVariants[window.profilePerson.FirstName].forEach(function (name) {
               nameVariants.push(name + " " + window.profilePerson.MiddleInitial.replace(".", ""));
             });
@@ -4344,7 +4362,7 @@ function addReferencePlaces() {
   window.profilePerson.referencePlaces = [];
   window.references.forEach(function (aRef, index) {
     // Get the place names from the aRef.Text. First, remove "Born in.*?\.".
-    let refText = aRef.Text.replace(/Born in.*?\.$/, "");
+    let refText = aRef?.Text ? aRef.Text.replace(/Born in.*?\.$/, "") : "";
 
     const placeMatchRegex = /in\s+([A-Z].*?)\.$/;
     const placeMatchRegex2 = /in\s+((?:[A-Z][^,.]*?)(?:,\s*(?![a-z])[A-Z][^,.]*?)*?)(?=\s*,\s*[a-z]|\s*\.[^A-Z])/g;
@@ -5015,7 +5033,6 @@ function getSourcerCensuses() {
   const thisBio = document.getElementById("wpTextbox1").value.replace(/<ref[^>]*\/>/g, "");
   const dummy = document.createElement("div");
   dummy.innerHTML = thisBio;
-  //  dummy.innerHTML = dummy.innerHTML.replace(/<ref[^>]*\/>/g, "");
   const refs = dummy.querySelectorAll("ref");
   refs.forEach((ref) => ref.remove());
   const text = dummy.innerHTML;
@@ -5058,7 +5075,7 @@ function getSourcerCensuses() {
       let year = yearMatch[1];
       let table = tableMatch[0];
 
-      let description = text.replace(table, "").trim();
+      let description = text ? text.replace(table, "").trim() : "";
 
       censusData[year] = {
         description: description,
@@ -5730,22 +5747,6 @@ export function splitBioIntoSections() {
       }
       shouldStartWithAsterisk = line.trim() === "";
       if (line.match(/^See also:/i) == null && line.match("''Add \\[\\[sources\\]\\] here.''") == null) {
-        /*
-        if (!sections["See Also"]) {
-          sections["See Also"] = { originalTitle: "See Also", title: "See Also", text: [], subsections: {} };
-          const seeAlsos = sections.Sources.text.slice(i + 1, 10);
-          seeAlsos.forEach(function (seeAlso) {
-            sections["See Also"].text.push(seeAlso.replace(/^\*\s?/, ""));
-          });
-        } else {
-          const seeAlsos = sections.Sources.text.slice(i + 1, 10);
-          seeAlsos.forEach(function (seeAlso) {
-            sections["See Also"].text.push(seeAlso.replace(/^\*\s?/, ""));
-          });
-        }
-        sections.Sources.text.splice(i, 10);
-        */
-        //} else {
         if (line.match(/This person was created on.* /)) {
           sections.Acknowledgements.text.push(line);
           sections.Sources.text.splice(i, 1);
@@ -7364,7 +7365,7 @@ export async function generateBio() {
       } else {
         eventDate = "0000-00-00";
       }
-      const orderDate = eventDate?.replaceAll(/-/g, "");
+      const orderDate = eventDate ? eventDate.replaceAll(/-/g, "") : "";
       const newEvent = {
         "Record Type": ["ChildList"],
         "Event Type": "Children",
@@ -7489,9 +7490,9 @@ export async function generateBio() {
 
             if (anEvent.Narrative?.match(/\{\|.*\|\}/gs) && anEvent?.Text.match(/\{\|.*\|\}/gs)) {
               if (window.autoBioOptions?.householdTable) {
-                anEvent.Text = anEvent.Text.replace(/\{\|.*\|\}/gs, "");
+                anEvent.Text = anEvent?.Text ? anEvent.Text.replace(/\{\|.*\|\}/gs, "") : "";
               } else {
-                anEvent.Narrative = anEvent.Narrative.replace(/\{\|.*\|\}/gs, "");
+                anEvent.Narrative = anEvent?.Narrative ? anEvent.Narrative.replace(/\{\|.*\|\}/gs, "") : "";
               }
             }
 
@@ -8264,7 +8265,8 @@ export async function getLocationCategory(type, location = null) {
   if (australianLocations[lastElement]) {
     if (australianLocations[lastElement]?.["modernName"]) {
       locationSplit.pop();
-      const modernLastElement = australianLocations[lastElement]?.["modernName"].replace(/, Australia.*/, "");
+      let modernLastElement = australianLocations[lastElement]?.["modernName"];
+      modernLastElement = modernLastElement ? modernLastElement.replace(/, Australia.*/, "") : "";
       locationSplit.push(modernLastElement);
       searchLocation = locationSplit.join(", ");
     }
