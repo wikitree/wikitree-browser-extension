@@ -19,7 +19,7 @@ import { mainDomain } from "../../core/pageType";
 //   GENERATE_DELTA_FOR_TESTING - if this is false, no changes will be forced as described above.
 //
 // IMPORTANT: make sure TESTING is false before you commit!!
-const TESTING = false;
+const TESTING = true;
 const USE_TEST_USER = TESTING && true;
 const GENERATE_DELTA_FOR_TESTING = TESTING && true;
 const TEST_USER_WTID = "Trompetter-42";
