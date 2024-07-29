@@ -4,7 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import "./table_filters.css";
 import { getYYYYMMDD } from "../auto_bio/auto_bio";
-import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { kinshipValue } from "../anniversaries_table/anniversaries_table";
 
 /**
@@ -380,6 +380,7 @@ export async function initTableFilters() {
 
 // Initialize table filters if the feature is enabled
 shouldInitializeFeature("tableFilters").then((result) => {
+  console.log("tableFilters enabled: " + result);
   if (result) {
     if ($(".wikitable,.wt.names").length > 0 /* && !waitForTriggerFromSurnameTables*/) {
       initTableFilters();

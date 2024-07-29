@@ -7,7 +7,7 @@ import { initTableFilters } from "../table_filters/table_filters";
 import { getPeople } from "../dna_table/dna_table";
 import Cookies from "js-cookie";
 import { convertDate } from "../auto_bio/auto_bio";
-import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions, checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { showFamilySheet } from "../familyGroup/familyGroup";
 import { distRelDbKeyFor } from "../../core/common";
 import {
@@ -525,9 +525,8 @@ const pinkBricks = $("<img src='" + pinkSRC + "' class='pinkWall' title='Mother 
 const blueBricks = $("<img src='" + blueSRC + "' class='blueWall' title='Father not known.'>");
 
 function AddFilters(delay) {
-  shouldInitializeFeature("tableFilters").then((result) => {
-    console.log("tableFitlers active?: " + result);
-    if (result || true) {
+  checkIfFeatureEnabled("tableFilters").then((result) => {
+    if (result) {
       console.log("triggering initTableFilters");
       setTimeout(initTableFilters, delay);
     }
