@@ -173,6 +173,12 @@ async function getList(functionName) {
       removeWorking();
       break;
     case "spouseChildList":
+      // For each child in the window.profilePerson.Children object set Displayed to false
+      // so that the child list will be displayed when the user clicks on the spouse
+      // in the Family List.
+      for (const key in window.profilePerson.Children) {
+        window.profilePerson.Children[key].Displayed = false;
+      }
       spouses = buildSpouses(window.profilePerson);
       result = "";
       spouses.forEach(function (spouse, index) {

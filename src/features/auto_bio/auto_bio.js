@@ -942,7 +942,7 @@ function childList(person, spouse) {
         const childWord = child.Gender == "Male" ? "Son" : child?.Gender == "Female" ? "Daughter" : "Child";
         childListText += "Private " + childWord + "\n";
       } else {
-        childListText += nameLink(child) + " " + theDates + " " + status + ".\n";
+        childListText += nameLink(child) + " " + theDates + " " + status + "\n";
         gotChild = true;
       }
     });
