@@ -256,7 +256,7 @@ function displayWarning(inputElement, message) {
 }
 
 function splitAndMoveLocationIfPresent(input, inputElement) {
-  const separators = [" in ", "\t"];
+  const separators = [" in ", "\t", " - ", " • "];
   for (let i = 0; i < separators.length; i++) {
     const indexBlankIn = input.indexOf(separators[i]);
     if (indexBlankIn > -1) {
