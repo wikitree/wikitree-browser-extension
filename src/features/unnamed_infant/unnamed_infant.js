@@ -233,7 +233,7 @@ async function doUnnamedInfant() {
   deathDate = $("#mDeathDate").val();
   const age = findAge();
 
-  if ((birthDate == "" || deathDate == "") && !isProfileEdit && !isProfileAddRelative && !isAddUnrelatedPerson) {
+  if (birthDate == "" || deathDate == "") {
     return;
   }
 
