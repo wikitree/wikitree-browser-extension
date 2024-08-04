@@ -2023,17 +2023,20 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
     let matchedText = match[0];
     const beforeFirstCommaPattern = new RegExp(firstName.trim() + "\\.?\\s?[^,]*");
     const beforeFirstCommaMatch = beforeFirstCommaPattern.exec(matchedText);
-    const ourText = beforeFirstCommaMatch[0].replace(lastNamePattern, "");
-    let locationPattern = /\),[^,]+(.*?)(;|\.$)/;
-    const referenceTempText = reference.Text.replace(/, Jr\.?/, "");
-    let locationMatch = locationPattern.exec(referenceTempText);
-    if (locationMatch) {
-      reference.Residence = locationMatch[1]
-        .replace(",", "")
-        .replace(/(in\s)?(\d{4})?/, "")
-        .replace(/, \d{4}/)
-        .trim();
-      console.log("locationMatch", locationMatch, reference.Residence, referenceTempText);
+    let ourText = matchedText;
+    if (beforeFirstCommaMatch) {
+      ourText = beforeFirstCommaMatch[0].replace(lastNamePattern, "");
+      let locationPattern = /\),[^,]+(.*?)(;|\.$)/;
+      const referenceTempText = reference.Text.replace(/, Jr\.?/, "");
+      let locationMatch = locationPattern.exec(referenceTempText);
+      if (locationMatch) {
+        reference.Residence = locationMatch[1]
+          .replace(",", "")
+          .replace(/(in\s)?(\d{4})?/, "")
+          .replace(/, \d{4}/)
+          .trim();
+        console.log("locationMatch", locationMatch, reference.Residence, referenceTempText);
+      }
     }
     text += ourText
       .replace(window.profilePerson.LastNameAtBirth + " ", "was ")
