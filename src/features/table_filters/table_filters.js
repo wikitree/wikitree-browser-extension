@@ -7,6 +7,7 @@ import Cookies from "js-cookie";
 import { getYYYYMMDD } from "../auto_bio/auto_bio";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { kinshipValue } from "../anniversaries_table/anniversaries_table";
+import { isSpecialWatchedList, isSearchPage } from "../../core/pageType";
 import { distRelDbKeyFor } from "../../core/common";
 import {
   CONNECTION_STORE_NAME,
@@ -467,6 +468,9 @@ function addSortToTables() {
         cell.dataset.sortDir = newSortDirection;
 
         rows.sort((rowA, rowB) => {
+          if (!rowA.children[columnIndex] || !rowB.children[columnIndex]) {
+            return 0;
+          }
           let cellAContent = rowA.children[columnIndex].textContent.trim();
           let cellBContent = rowB.children[columnIndex].textContent.trim();
 
@@ -565,7 +569,7 @@ function addSortToTables() {
 export async function initTableFilters() {
   window.tableFiltersOptions = await getFeatureOptions("tableFilters");
   if (window.tableFiltersOptions.distanceAndRelationship) {
-    if ($("th:contains('°')").length == 0) {
+    if ($("th:contains('°')").length == 0 && (isSpecialWatchedList || isSearchPage)) {
       addDistanceAndRelationColumns();
     }
   }
