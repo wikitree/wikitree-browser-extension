@@ -5,7 +5,7 @@ import "jquery-ui/ui/widgets/droppable";
 import "./wikitable_wizard.css";
 import { showCopyMessage } from "../access_keys/access_keys";
 import { analyzeColumns } from "../auto_bio/auto_bio";
-import { stateInfo } from "./us_states.js";
+import { stateInfo } from "./us_states.js"; // Import the state information
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { mainDomain } from "../../core/pageType";
 
@@ -22,7 +22,7 @@ let globalWikiTableStyles = {
 };
 
 // Parses a single line of the input data
-function parseLine(entry, genderRegex, placeRegex) {
+function parseOneLine(entry, genderRegex, placeRegex) {
   const genderMatch = entry.match(genderRegex);
   const placeMatch = entry.match(placeRegex);
 
@@ -47,7 +47,7 @@ function parseSSVData(data) {
   const placeRegex = /\w+,\s[\w\s]+/;
 
   for (const entry of censusList) {
-    const parsedLine = parseLine(entry, genderRegex, placeRegex);
+    const parsedLine = parseOneLine(entry, genderRegex, placeRegex);
     if (parsedLine) {
       parsedData.push(parsedLine);
     }
@@ -351,43 +351,125 @@ function isCSV(text) {
 }
 
 function isTSV(text) {
-  // Split the text into lines
   const lines = text.split("\n");
 
-  // Function to count tabs
   function countTabs(line) {
     let inQuotes = false;
     let tabCount = 0;
 
     for (let char of line) {
       if (char === '"') {
-        inQuotes = !inQuotes; // Toggle the inQuotes flag
+        inQuotes = !inQuotes;
       } else if (char === "\t" && !inQuotes) {
-        tabCount++; // Count tabs outside of quotes
+        tabCount++;
       }
     }
 
     return tabCount;
   }
 
-  // Count the number of tabs in the first line
   const firstLineTabCount = countTabs(lines[0]);
-
   const singleSpaceCount = (lines[0].match(/(?<!, ) /g) || []).length;
   if (singleSpaceCount - 2 > firstLineTabCount) {
     return false;
   }
 
-  // Check if every line has the same number of tabs
   return lines.every((line) => countTabs(line) === firstLineTabCount);
 }
 
-function countSingleSpaces(str) {
-  const match = str.match(/(?<! ) (?! )/g);
-  return match ? match.length : 0;
+function detectDelimiter(line) {
+  const commaCount = (line.match(/,/g) || []).length;
+  const tabCount = (line.match(/\t/g) || []).length;
+  const fourSpaceCount = (line.match(/ {4}/g) || []).length;
+  const singleSpaceCount = (line.match(/(?<! {3}) (?=\S)/g) || []).length; // Match single spaces not preceded by 3 spaces and followed by non-space characters
+
+  console.log(`Detecting delimiter in line: ${line}`);
+  console.log(
+    `Comma count: ${commaCount}, Tab count: ${tabCount}, Four-space count: ${fourSpaceCount}, Single-space count: ${singleSpaceCount}`
+  );
+
+  if (fourSpaceCount > commaCount && fourSpaceCount > tabCount && fourSpaceCount > singleSpaceCount) return "    ";
+  if (singleSpaceCount > commaCount && singleSpaceCount > tabCount && singleSpaceCount > fourSpaceCount) return " ";
+  if (commaCount > tabCount && commaCount > fourSpaceCount) return ",";
+  if (tabCount > commaCount && tabCount > fourSpaceCount) return "\t";
+  return null;
 }
 
-function splitLineIntoColumns(line, stateInfo) {
+
+function parseTSV(data) {
+  const newlinePlaceholder = "<br>";
+
+  // Replace newlines within quoted cells with a placeholder
+  data = data.replace(/"[^"]*"/g, (match) => match.replace(/\n/g, newlinePlaceholder));
+
+  // Split lines by \n
+  const lines = data.split("\n");
+
+  const parsedData = [];
+  let currentRow = [];
+
+  lines.forEach((line, lineIndex) => {
+    console.log(`Parsing line (TSV) ${lineIndex}: ${line}`);
+    let fields = line.split("\t");
+
+    fields.forEach((field, index) => {
+      console.log(`Field before processing: "${field}"`);
+      // Restore newlines from the placeholder
+      // field = field.replace(newlinePlaceholder, "\n");
+      currentRow.push(field);
+      console.log(`Processed field: ${field}`);
+    });
+
+    if (currentRow.length > 0) {
+      parsedData.push(currentRow);
+      console.log(`Completed row: ${currentRow}`);
+      currentRow = [];
+    }
+  });
+
+  console.log(`Parsed TSV data:`, parsedData);
+  return parsedData;
+}
+
+function parseLine(line, delimiter) {
+  console.log(`Parsing line with delimiter '${delimiter}': ${line}`);
+  line = line.replace(/^[:*#]+/, ""); // Remove any leading colons, asterisks, or hash characters
+
+  if (!delimiter) return [line];
+
+  let fields = line.split(delimiter);
+  fields = fields.map((field) => field.trim());
+  console.log(`Parsed fields:`, fields);
+  return fields;
+}
+
+function parseDelimitedText(data) {
+  const firstLine = data.split("\n")[0];
+  const delimiter = detectDelimiter(firstLine);
+  console.log(`Detected delimiter: ${delimiter}`);
+
+  if (delimiter === "\t") {
+    return parseTSV(data);
+  } else if (delimiter === " ") {
+    const theData = data.split("\n").map((line) => splitLineIntoColumns(line));
+    console.log(`Parsed space-separated data:`, theData);
+    return theData;
+  } else {
+    const parsedData = data.split("\n").map((line) => parseLine(line, delimiter));
+    console.log(`Parsed delimited data:`, parsedData);
+    return parsedData;
+  }
+}
+
+function splitLineIntoColumns(line) {
+  console.log(`Splitting line into columns: ${line}`);
+  const columns = line.split(/\s{2,}/).map((cell) => cell.trim());
+  console.log(`Split columns:`, columns);
+  return columns;
+}
+  */
+
+function splitLineIntoColumns(line) {
   // Remove leading ":: " and split the line by spaces to start analyzing parts
   let cleanLine = line.replace(/^[#*:]+/, "").trim();
   let parts = cleanLine.split(" ");
@@ -426,37 +508,26 @@ function splitLineIntoColumns(line, stateInfo) {
   return [name, relation, maritalStatus, gender, age, occupation, locationIdentified];
 }
 
+
+ // Function to parse a single line
+ function parseLine(line, delimiter) {
+  // Remove any leading colons, asterisks, or hash characters
+  line = line.replace(/^[:*#]+/, "");
+
+  // If the delimiter is null, return the line as a single field
+  if (!delimiter) return [line];
+
+  // Split the line by the delimiter
+  let fields = line.split(delimiter);
+
+  // Trim whitespace from each field
+  fields = fields.map((field) => field.trim());
+  return fields;
+}
+
 function parseDelimitedText(data) {
   // Function to detect delimiter by checking the first line
-  function detectDelimiter(line) {
-    const commaCount = (line.match(/,/g) || []).length;
-    const tabCount = (line.match(/\t/g) || []).length;
-    const fourSpaceCount = (line.match(/ {4}/g) || []).length;
-
-    if (commaCount < 3 && tabCount < 3 && fourSpaceCount < 3 && countSingleSpaces(line) > 4) return " "; // Not enough delimiters to detect a pattern
-
-    if (commaCount > tabCount && commaCount > fourSpaceCount) return ",";
-    if (tabCount > commaCount && tabCount > fourSpaceCount) return "\t";
-    if (fourSpaceCount > commaCount && fourSpaceCount > tabCount) return "    "; // Four spaces
-    return null; // In case of a tie or no clear delimiter
-  }
-
-  // Function to parse a single line
-  function parseLine(line, delimiter) {
-    // Remove any leading colons, asterisks, or hash characters
-    line = line.replace(/^[:*#]+/, "");
-
-    // If the delimiter is null, return the line as a single field
-    if (!delimiter) return [line];
-
-    // Split the line by the delimiter
-    let fields = line.split(delimiter);
-
-    // Trim whitespace from each field
-    fields = fields.map((field) => field.trim());
-    return fields;
-  }
-
+ 
   // Detect the delimiter
   const firstLine = data.split("\n")[0];
   const delimiter = detectDelimiter(firstLine);
@@ -468,6 +539,7 @@ function parseDelimitedText(data) {
   // Split the data into lines and parse each line
   return data.split("\n").map((line) => parseLine(line, delimiter));
 }
+*/
 
 function generateRowHash(row) {
   // Create a string representation of the row data
@@ -571,23 +643,21 @@ function createwikitableWizardModal() {
         .readText()
         .then((text) => {
           console.log("Text retrieved from clipboard.");
+          console.log("Raw text:", text);
 
           text = text.trim();
           theTableBody.empty();
 
           if (text.includes("{|") && text.includes("|-")) {
             console.log("Detected Wikitable format.");
-
             const wikiTableData = parseWikiTableData(text);
-            // console.log("Parsed WikiTable data:", wikiTableData);
-
             parsedData = wikiTableData.data.rows.map((row) => row.cells);
             wikiTableData.data.rows.forEach((row, rowIndex) => {
               let rowHtml = `<tr data-row-hash="${row.hash}">
-              <td class="rowBoldCell"><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"${
-                row.isBold ? " checked" : ""
-              }></td>
-              <td><input type="color" class="rowBgColor" value="${row.bgColor || "#ffffff"}"></td>`;
+            <td class="rowBoldCell"><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"${
+              row.isBold ? " checked" : ""
+            }></td>
+            <td><input type="color" class="rowBgColor" value="${row.bgColor || "#ffffff"}"></td>`;
               row.cells.forEach((cell) => {
                 rowHtml += `<td><input type="text" class="cell" value="${cell}" style="background-color:${
                   row.bgColor || "#ffffff"
@@ -598,12 +668,10 @@ function createwikitableWizardModal() {
             });
 
             if (wikiTableData.data.rows[0]?.isHeader) {
-              // Check the "1st row as headers" checkbox if the first row is a header
               $("#wikitableWizardHeaderRow").prop("checked", true);
               theTableBody.find("tr:first-child").addClass("useHeaderRow");
             }
 
-            // Set other properties
             $("#wikitableWizardSortable").prop("checked", wikiTableData.isSortable);
             $("#wikitableWizardWikitableClass").prop("checked", wikiTableData.isWikitableClass);
             $("#wikitableWizardCellPadding").val(wikiTableData.cellPadding);
@@ -614,30 +682,25 @@ function createwikitableWizardModal() {
             } else {
               $("#wikitableWizardCaption").removeClass("bold");
             }
-            // Set the "Full Width" checkbox based on the value of isFullWidth from the parsed data
             $("#wikitableWizardFullWidth").prop("checked", wikiTableData.isFullWidth);
-
-            // const columnCount = wikiTableData.data.rows.reduce((max, row) => Math.max(max, row.cells.length), 0);
             updateHeaderRow();
           } else {
             console.log(
               "Text does not appear to be in Wikitable format. Checking for CSV, TSV, or space-separated values."
             );
 
-            console.log(text);
-            console.log(isCSV(text));
-            console.log(isTSV(text));
-            if (isCSV(text) || isTSV(text) || / {4}/.test(text)) {
-              //  console.log(isCSV(text));
-              //             parsedData = parseCSVData(text);
+            console.log("isCSV:", isCSV(text));
+            console.log("isTSV:", isTSV(text));
+            if (isCSV(text) || isTSV(text)) {
+              console.log("Detected CSV or TSV format.");
               parsedData = parseDelimitedText(text);
             } else {
-              console.log("Text does not appear to be in CSV, TSV, or 4-space-separated format.");
-              parsedData = parseSSVData(text);
+              console.log("Text does not appear to be in CSV, TSV, or space-separated format.");
+              parsedData = parseDelimitedText(text);
             }
 
-            if (parsedData) {
-              // resetTable();
+            if (parsedData && parsedData.length > 0) {
+              console.log("Parsed Data:", parsedData);
               theTableBody.empty();
               const originalArray = parsedData;
               parsedData = originalArray.map((row) => {
@@ -645,16 +708,13 @@ function createwikitableWizardModal() {
               });
               let columnMapping = analyzeColumns(parsedData);
 
-              // Create an array with the same length as the number of columns
               headerRow = new Array(Object.keys(columnMapping).length).fill("");
 
-              // Populate the array with the column names based on their positions
               for (const [key, value] of Object.entries(columnMapping)) {
                 const formattedKey = formatColumnName(key);
                 headerRow[parseInt(value)] = formattedKey;
               }
 
-              // Checkbox for generating the calculated header row
               $("#addGeneratedHeaders")
                 .off("change")
                 .on("change", function () {
@@ -670,14 +730,13 @@ function createwikitableWizardModal() {
                     if (headerRow && includesAtLeastN(headerItems, headerRow, 3)) {
                       $("#addGeneratedHeadersLabel").show();
                       let rowHtml = `
-                      <tr class='headerRow'>
-                      ${rowBoldCell}
-                      ${rowBgColorCell}
-                        `;
+                    <tr class='headerRow'>
+                    ${rowBoldCell}
+                    ${rowBgColorCell}`;
                       headerRow.forEach((cell) => {
                         rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
                       });
-                      rowHtml += "</tr>\n";
+                      rowHtml += `</tr>\n`;
                       theTableBody.prepend(rowHtml);
                     }
                   } else {
@@ -686,8 +745,8 @@ function createwikitableWizardModal() {
                 });
               parsedData.forEach((row, rowIndex) => {
                 let rowHtml = `<tr>
-                ${rowBoldCell}
-                ${rowBgColorCell}`;
+              ${rowBoldCell}
+              ${rowBgColorCell}`;
                 row.forEach((cell) => {
                   rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
                 });
@@ -695,21 +754,19 @@ function createwikitableWizardModal() {
                 theTableBody.append($(rowHtml));
               });
             }
-            //theTableBody.empty();
 
             const addGeneratedHeaders =
               $("#addGeneratedHeaders").prop("checked") && includesAtLeastN(headerItems, headerRow, 3);
             if (addGeneratedHeaders) {
               $("#addGeneratedHeadersLabel").css("display", "inline-block");
               let rowHtml = `
-              <tr class='headerRow'>
-              ${rowBoldCell}
-              ${rowBgColorCell}
-                `;
+            <tr class='headerRow'>
+            ${rowBoldCell}
+            ${rowBgColorCell}`;
               headerRow.forEach((cell) => {
                 rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
               });
-              rowHtml += "</tr>\n";
+              rowHtml += `</tr>\n`;
               theTableBody.prepend(rowHtml);
             }
 
@@ -739,7 +796,6 @@ function createwikitableWizardModal() {
           console.log("Error reading clipboard: " + err);
         });
 
-      // Clear the textarea
       $("#wikitableWizardWikitable").text("").slideUp();
     });
 
@@ -1674,18 +1730,7 @@ function updateHeaderRow() {
   const currentHeaderCount = theTableHeadRow.find("th").length - 2; // Exclude the first two UI columns
 
   // Add or remove columns to match the data
-  /*
-  if (currentHeaderCount < columnCount) {
-    for (let i = currentHeaderCount + 3; i <= columnCount; i++) {
-      theTableHeadRow.append(`<th>${i}</th>`);
-    }
-  } else if (currentHeaderCount > columnCount) {
-    theTableHeadRow
-      .find("th")
-      .slice(columnCount + 2)
-      .remove();
-  }
-  */
+ 
   const theTableHeadTH = theTableHeadRow.find("th");
   theTableHeadTH.slice(2).remove();
   for (let i = 3; i <= columnCount + 2; i++) {
