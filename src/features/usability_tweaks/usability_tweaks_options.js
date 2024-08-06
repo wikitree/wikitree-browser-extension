@@ -25,6 +25,12 @@ const usabilityTweaks = {
             " from the profile previews so that you don't accidentally click them and lose the profile previews.",
           defaultValue: false,
         },
+        {
+          id: "categoryEditLinks",
+          type: OptionType.CHECKBOX,
+          label: "Add link to create non-existant categories in error messages",
+          defaultValue: true,
+        },
       ],
     },
     {
