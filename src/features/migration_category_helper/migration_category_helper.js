@@ -61,6 +61,11 @@ async function CreateMigrationCategory(tb) {
   } else if (cat.indexOf(", sailed") > -1) {
     tb.value = await ProcessVoyageCategory(cat, "sailed");
     return;
+  } else if (cat.includes(" One Place Study")) {
+    if (IsAllowedOPS()) {
+      tb.value = ProcessOPS(cat);
+    }
+    return;
   } else {
     //no migration category
     return;
@@ -95,6 +100,37 @@ function getDecade(cat) {
   return cat.match(/\d{3}/g)[0] + "0s";
 }
 
+function IsAllowedOPS() {
+  //<li><a class="pureCssMenui" href="/wiki/Straub-620" title="">Profile</a></li>
+  const menuItems = document.getElementsByClassName("pureCssMenui");
+  for (let i = 0; i < menuItems.length; i++) {
+    if ((menuItems[i].innerText = !null && menuItems[i].innerText == "Profile")) {
+      const profile = menuItems[i].href;
+      if (profile.includes("Straub-620") || profile.includes("Craig-4574")) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+  }
+}
+
+function ProcessOPS(cat) {
+  const name = cat.split(" One Place Study")[0];
+  const nameParts = name.split(", ");
+  let template = "{{aka|}}";
+  template += "\n{{CategoryInfoBox OnePlaceStudy";
+  template += "\n|place=" + name;
+  template += "\n|parent=" + nameParts[nameParts.length - 1];
+  template += "\n|location=" + name;
+  template += "\n|type=community";
+  template += "\n|spacepage=" + cat;
+  template += "\n|coordinate="; //37.573056, -81.418056
+  template += "\n|wikidataID=";
+  template += "\n}}";
+  return template;
+}
+
 async function ProcessVoyageCategory(cat, sailedOrArrived) {
   let theDate = "";
   let arrivalText = "";
@@ -116,7 +152,7 @@ async function ProcessVoyageCategory(cat, sailedOrArrived) {
   const shipCatList = await getShipCategories(ship, theYear);
   const sortKey = ship + " " + format(theDate, "yyyyMMdd");
 
-  parentCategories += "[[Category:" + getDecade(cat) + " Sailings|" +  sortKey + "]]\n";
+  parentCategories += "[[Category:" + getDecade(cat) + " Sailings|" + sortKey + "]]\n";
   if (shipCatList.length == 0) {
     parentCategories += "[[Category:<ship name>|" + sortKey + "]]\n";
   }
@@ -204,7 +240,9 @@ async function getShipCategories(shipName, arrivalYear) {
 
 async function addGoodShipCats(goodShipCats, needle) {
   let catUrl =
-    "https://" + mainDomain + "/index.php?action=ajax&rs=Title%3A%3AajaxCategorySearch&rsargs[]=" +
+    "https://" +
+    mainDomain +
+    "/index.php?action=ajax&rs=Title%3A%3AajaxCategorySearch&rsargs[]=" +
     encodeURIComponent(needle) +
     "&rsargs[]=0&appID=WBE_migrationCategoryHelper";
 
