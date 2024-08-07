@@ -395,7 +395,6 @@ function detectDelimiter(line) {
   return null;
 }
 
-
 function parseTSV(data) {
   const newlinePlaceholder = "<br>";
 
@@ -462,14 +461,6 @@ function parseDelimitedText(data) {
 }
 
 function splitLineIntoColumns(line) {
-  console.log(`Splitting line into columns: ${line}`);
-  const columns = line.split(/\s{2,}/).map((cell) => cell.trim());
-  console.log(`Split columns:`, columns);
-  return columns;
-}
-  */
-
-function splitLineIntoColumns(line) {
   // Remove leading ":: " and split the line by spaces to start analyzing parts
   let cleanLine = line.replace(/^[#*:]+/, "").trim();
   let parts = cleanLine.split(" ");
@@ -507,39 +498,6 @@ function splitLineIntoColumns(line) {
   // Assemble and return the structured data
   return [name, relation, maritalStatus, gender, age, occupation, locationIdentified];
 }
-
-
- // Function to parse a single line
- function parseLine(line, delimiter) {
-  // Remove any leading colons, asterisks, or hash characters
-  line = line.replace(/^[:*#]+/, "");
-
-  // If the delimiter is null, return the line as a single field
-  if (!delimiter) return [line];
-
-  // Split the line by the delimiter
-  let fields = line.split(delimiter);
-
-  // Trim whitespace from each field
-  fields = fields.map((field) => field.trim());
-  return fields;
-}
-
-function parseDelimitedText(data) {
-  // Function to detect delimiter by checking the first line
- 
-  // Detect the delimiter
-  const firstLine = data.split("\n")[0];
-  const delimiter = detectDelimiter(firstLine);
-
-  if (delimiter === " ") {
-    const theData = data.split("\n").map((line) => splitLineIntoColumns(line, stateInfo));
-    return theData;
-  }
-  // Split the data into lines and parse each line
-  return data.split("\n").map((line) => parseLine(line, delimiter));
-}
-*/
 
 function generateRowHash(row) {
   // Create a string representation of the row data
@@ -1730,7 +1688,7 @@ function updateHeaderRow() {
   const currentHeaderCount = theTableHeadRow.find("th").length - 2; // Exclude the first two UI columns
 
   // Add or remove columns to match the data
- 
+
   const theTableHeadTH = theTableHeadRow.find("th");
   theTableHeadTH.slice(2).remove();
   for (let i = 3; i <= columnCount + 2; i++) {
