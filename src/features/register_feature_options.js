@@ -194,7 +194,7 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: true,
-  pages: [isProfilePage],
+  pages: [isProfilePage, isProfileEdit],
 });
 
 registerFeature({

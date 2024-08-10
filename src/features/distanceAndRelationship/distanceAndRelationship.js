@@ -6,7 +6,7 @@ import $ from "jquery";
 import Cookies from "js-cookie";
 import { getConnectionJSON, getRelationJSON } from "../../core/API/wwwWikiTree";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
-import { mainDomain } from "../../core/pageType";
+import { mainDomain, isProfileEdit } from "../../core/pageType";
 import { getObjectStores, distRelDbKeyFor } from "../../core/common";
 
 export const CONNECTION_DB_NAME = "ConnectionFinderWTE";
@@ -110,8 +110,19 @@ export function initDistanceAndRelationshipDBs(onDistanceSuccess, onRelationship
 }
 
 shouldInitializeFeature("distanceAndRelationship").then((result) => {
+  if (isProfileEdit) {
+    storeProfileIfCreated(); // First, check if the profile was just created and store it
+    return;
+  }
   // define user and profile IDs
   const profileID = $("a.pureCssMenui0 span.person").text();
+
+  if (checkProfileCreationTime(profileID)) {
+    // Profile was created less than 30 minutes ago, do not initialize feature
+    console.log("Profile was created less than 30 minutes ago, not initializing feature");
+    return;
+  }
+
   const userID = Cookies.get("wikitree_wtb_UserName");
   if (result && $("body.profile").length && profileID != userID && profileID != "") {
     import("./distanceAndRelationship.css");
@@ -427,9 +438,58 @@ async function addDistance(data) {
   }
 }
 
+function storeProfileIfCreated() {
+  setTimeout(() => {
+    // Step 1: Check if the element exists and contains the text "Successfully Created"
+    const profileElement = $(".larger")
+      .filter(function () {
+        return $(this).text().includes("Successfully Created");
+      })
+      .find("a[href*='wiki']");
+    console.log(profileElement);
+
+    if (profileElement.length) {
+      // Step 2: Extract the WT ID
+      const wtId = profileElement.attr("href").split("/").pop();
+
+      // Step 3: Store the WT ID with the current timestamp in localStorage
+      const now = new Date().getTime();
+      let recentlyCreatedProfiles = JSON.parse(localStorage.getItem("recentlyCreatedProfiles")) || {};
+
+      recentlyCreatedProfiles[wtId] = now;
+      localStorage.setItem("recentlyCreatedProfiles", JSON.stringify(recentlyCreatedProfiles));
+
+      // Step 4: Log the stored profile
+      console.log(`Profile ${wtId} successfully created at ${new Date(now).toLocaleString()}`);
+      console.log("Recently created profiles:", recentlyCreatedProfiles);
+    }
+  }, 2000);
+}
+
+function checkProfileCreationTime(wtId) {
+  let recentlyCreatedProfiles = JSON.parse(localStorage.getItem("recentlyCreatedProfiles")) || {};
+  const now = new Date().getTime();
+  const thirtyMinutes = 30 * 60 * 1000;
+
+  if (recentlyCreatedProfiles[wtId]) {
+    const recentlyCreatedTime = recentlyCreatedProfiles[wtId];
+
+    if (now - recentlyCreatedTime < thirtyMinutes) {
+      // Profile was created less than 30 minutes ago
+      return true;
+    } else {
+      // More than 30 minutes have passed, remove the key
+      delete recentlyCreatedProfiles[wtId];
+      localStorage.setItem("recentlyCreatedProfiles", JSON.stringify(recentlyCreatedProfiles));
+    }
+  }
+
+  return false; // Profile was not created within the last 30 minutes
+}
+
 async function getDistance() {
-  const id1 = Cookies.get("wikitree_wtb_UserName");
   const id2 = $("a.pureCssMenui0 span.person").text();
+  const id1 = Cookies.get("wikitree_wtb_UserName");
   const data = await getConnectionJSON("DistanceAndRelationship_Distance", id1, id2);
   addDistance(data);
 }
