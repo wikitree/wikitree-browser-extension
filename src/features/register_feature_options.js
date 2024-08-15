@@ -119,17 +119,6 @@ registerFeature({
 });
 
 registerFeature({
-  name: "Apps Menu",
-  id: "appsMenu",
-  description: "Adds an apps submenu to the Find menu.",
-  category: "Navigation/Find_Menu",
-  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
-  defaultValue: true,
-  pages: [isMainDomain],
-});
-
-registerFeature({
   name: "Bio Check",
   id: "bioCheck",
   description: "Check biography sources and style.",
@@ -330,6 +319,17 @@ registerFeature({
   contributors: [],
   defaultValue: false,
   pages: [isProfilePage],
+});
+
+registerFeature({
+  name: "Submenus",
+  id: "appsMenu",
+  description: "Adds submenus to the Find and Help menus for the Apps, Categories, Projects, and Help items.",
+  category: "Navigation/Find_Menu",
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
+  contributors: [],
+  defaultValue: true,
+  pages: [isMainDomain],
 });
 
 registerFeature({
