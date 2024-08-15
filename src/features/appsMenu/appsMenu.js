@@ -97,9 +97,10 @@ function getAppsMenuItems() {
 }
 
 function getCategoriesMenuItems() {
-  return [
-    { title: "Location Categories", url: "/wiki/Category:Location_Categories" },
-    { title: "Occupation Categories", url: "/wiki/Category:Occupation_Categories" },
-    // ... more categories
-  ];
+  const categories = ["Genealogy Societies", "Notables", "One Name Studies", "One Place Studies"];
+  return categories.map((category) => {
+    const formattedTitle = category;
+    const formattedUrl = `/wiki/Category:${category.replace(/ /g, "_")}`;
+    return { title: formattedTitle, url: formattedUrl };
+  });
 }
