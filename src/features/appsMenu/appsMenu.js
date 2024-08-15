@@ -7,20 +7,79 @@ import Cookies from "js-cookie";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain } from "../../core/pageType";
 
+function getLink(href) {
+  return $(`ul.pureCssMenu.pureCssMenum a[href='/wiki/${href}']`);
+}
+
+const categories = [
+  "Australia",
+  "Cemeteries",
+  "England",
+  "Genealogy Societies",
+  "Germany",
+  "Ireland",
+  "Italy",
+  "Maintenance Categories",
+  "Migration",
+  "Military",
+  "Native Americans",
+  "Notables",
+  "Occupations",
+  "Occupations by Name",
+  "One Name Studies",
+  "One Place Studies",
+];
+const projects = [
+  "Appalachia",
+  "Australia",
+  "Canada",
+  "Cemeteries",
+  "DNA",
+  "England",
+  "Germany",
+  "Global",
+  "Holocaust",
+  "Ireland",
+  "Italy",
+  "Medieval",
+  "Notables",
+  "One Name Studies",
+  "One Place Studies",
+  "Poland",
+  "United States",
+  "US Black Heritage",
+];
+const help = [
+  "Biographies",
+  "Communication Before Editing",
+  "Collaboration",
+  "Customer Service",
+  "Developers",
+  "Discord",
+  "DNA",
+  "Editing Tips",
+  "FAQ",
+  "Living People",
+  "Name Fields",
+  "Ownership and Control",
+  "Pre-1500 Profiles",
+  "Pre-1700 Profiles",
+  "Reliable Sources",
+  "Sources FAQ",
+  "Stickers",
+];
+
 shouldInitializeFeature("appsMenu").then((result) => {
   console.log("Feature check result:", result); // Debugging
   if (result && $("#appsSubMenu").length === 0) {
     console.log("Attaching Menus..."); // Debugging
     attachMenu("Help:Apps", "appsSubMenu", getAppsMenuItems());
-    attachMenu("Category:Categories", "categoriesSubMenu", getCategoriesMenuItems());
+    attachMenu("Category:Categories", "categoriesSubMenu", getMenuItems("/wiki/Category:", categories));
+    attachMenu("Help:Projects", "projectsSubMenu", getMenuItems("/wiki/Project:", projects));
+    attachMenu("Category:WikiTree_Help", "helpSubMenu", getMenuItems("/wiki/Help:", help));
     import("./appsMenu.css");
-    $("ul.pureCssMenu.pureCssMenum a[href='/wiki/Help:Apps']").text("« Apps");
   }
 });
-
-function getLink(href) {
-  return $(`ul.pureCssMenu.pureCssMenum a[href='/wiki/${href}']`);
-}
 
 function attachMenu(anchorHref, submenuId, menuItems) {
   const menuList = $("<menu>", {
@@ -96,11 +155,10 @@ function getAppsMenuItems() {
   ];
 }
 
-function getCategoriesMenuItems() {
-  const categories = ["Genealogy Societies", "Notables", "One Name Studies", "One Place Studies"];
-  return categories.map((category) => {
-    const formattedTitle = category;
-    const formattedUrl = `/wiki/Category:${category.replace(/ /g, "_")}`;
+function getMenuItems(baseUrl, items) {
+  return items.map((item) => {
+    const formattedTitle = item;
+    const formattedUrl = `${baseUrl}${item.replace(/ /g, "_")}`;
     return { title: formattedTitle, url: formattedUrl };
   });
 }
