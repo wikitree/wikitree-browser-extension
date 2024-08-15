@@ -322,17 +322,6 @@ registerFeature({
 });
 
 registerFeature({
-  name: "Submenus",
-  id: "appsMenu",
-  description: "Adds submenus to the Find and Help menus for the Apps, Categories, Projects, and Help items.",
-  category: "Navigation/Find_Menu",
-  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
-  defaultValue: true,
-  pages: [isMainDomain],
-});
-
-registerFeature({
   name: "Sticky Header",
   id: "stickyHeader",
   description: "Makes the WikiTree header stick to the top and more compact on narrow screens.",
@@ -353,6 +342,17 @@ registerFeature({
   contributors: [],
   defaultValue: true,
   pages: [isWikiEdit],
+});
+
+registerFeature({
+  name: "Submenus",
+  id: "appsMenu",
+  description: "Adds submenus to the Find and Help menus for the Apps, Categories, Projects, and Help items.",
+  category: "Navigation/Find_Menu",
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
+  contributors: [],
+  defaultValue: true,
+  pages: [isMainDomain],
 });
 
 registerFeature({
