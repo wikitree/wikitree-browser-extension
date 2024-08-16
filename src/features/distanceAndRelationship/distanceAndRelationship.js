@@ -446,7 +446,6 @@ function storeProfileIfCreated() {
         return $(this).text().includes("Successfully Created");
       })
       .find("a[href*='wiki']");
-    console.log(profileElement);
 
     if (profileElement.length) {
       // Step 2: Extract the WT ID
