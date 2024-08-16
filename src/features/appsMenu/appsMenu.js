@@ -5,11 +5,7 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import Cookies from "js-cookie";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
-import { mainDomain } from "../../core/pageType";
-
-function getLink(href) {
-  return $(`ul.pureCssMenu.pureCssMenum a[href='/wiki/${href}']`);
-}
+import { mainDomain, isG2G } from "../../core/pageType";
 
 const categories = [
   "Australia",
@@ -73,13 +69,21 @@ shouldInitializeFeature("appsMenu").then((result) => {
   console.log("Feature check result:", result); // Debugging
   if (result && $("#appsSubMenu").length === 0) {
     console.log("Attaching Menus..."); // Debugging
+    if (isG2G) {
+      attachMenu("Help:Projects", "projectsSubMenu", getMenuItems("/wiki/Project:", projects));
+    } else {
+      attachMenu("Projects", "projectsSubMenu", getMenuItems("/wiki/Project:", projects));
+    }
+    attachMenu("Category:WikiTree_Help", "helpSubMenu", getMenuItems("/wiki/Help:", help));
     attachMenu("Help:Apps", "appsSubMenu", getAppsMenuItems());
     attachMenu("Category:Categories", "categoriesSubMenu", getMenuItems("/wiki/Category:", categories));
-    attachMenu("Help:Projects", "projectsSubMenu", getMenuItems("/wiki/Project:", projects));
-    attachMenu("Category:WikiTree_Help", "helpSubMenu", getMenuItems("/wiki/Help:", help));
     import("./appsMenu.css");
   }
 });
+
+function getLink(href) {
+  return $(`ul.pureCssMenu a[href='/wiki/${href}'].pureCssMenui`);
+}
 
 function attachMenu(anchorHref, submenuId, menuItems) {
   const menuList = $("<menu>", {
@@ -98,8 +102,13 @@ function attachMenu(anchorHref, submenuId, menuItems) {
 
   // Updated selector to match exact href including "/wiki/"
   const theLink = getLink(anchorHref);
-  theLink.text("« " + theLink.text());
   const menuLink = theLink.parent();
+  if (submenuId == "helpSubMenu") {
+    theLink.html(`<b>« Help</b>`);
+  } else {
+    theLink.html("« " + theLink.text());
+  }
+
   console.log("Attaching to:", menuLink); // Debugging
 
   if (menuLink.length) {
