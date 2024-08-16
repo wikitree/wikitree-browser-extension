@@ -66,9 +66,7 @@ const help = [
 ];
 
 shouldInitializeFeature("appsMenu").then((result) => {
-  console.log("Feature check result:", result); // Debugging
   if (result && $("#appsSubMenu").length === 0) {
-    console.log("Attaching Menus..."); // Debugging
     if (isG2G) {
       attachMenu("Help:Projects", "projectsSubMenu", getMenuItems("/wiki/Project:", projects));
     } else {
@@ -100,7 +98,6 @@ function attachMenu(anchorHref, submenuId, menuItems) {
     menuItemLink.appendTo(menuList);
   });
 
-  // Updated selector to match exact href including "/wiki/"
   const theLink = getLink(anchorHref);
   const menuLink = theLink.parent();
   if (submenuId == "helpSubMenu") {
@@ -109,19 +106,12 @@ function attachMenu(anchorHref, submenuId, menuItems) {
     theLink.html("« " + theLink.text());
   }
 
-  console.log("Attaching to:", menuLink); // Debugging
-
   if (menuLink.length) {
     menuList.appendTo(menuLink);
-
     menuLink.on({
       mouseenter: () => menuList.show(),
       mouseleave: () => menuList.hide(),
     });
-
-    console.log(`Menu ${submenuId} attached successfully.`);
-  } else {
-    console.error(`Menu link for ${anchorHref} not found.`);
   }
 }
 
