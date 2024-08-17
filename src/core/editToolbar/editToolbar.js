@@ -8,7 +8,15 @@ import editToolbarCategoryOptions from "./editToolbarCategoryOptions";
 import editToolbarTemplateOptions from "./editToolbarTemplateOptions";
 import editToolbarGenericOptions from "./editToolbarGenericOptions";
 
-import { mainDomain, isCategoryEdit, isProfileEdit, isSpaceEdit, isTemplateEdit, isWikiEdit } from "../pageType";
+import {
+  mainDomain,
+  isCategoryEdit,
+  isProfileEdit,
+  isSpaceEdit,
+  isSpacePage,
+  isTemplateEdit,
+  isWikiEdit,
+} from "../pageType";
 import { getEnabledStateForAllFeatures } from "../options/options_storage";
 
 let editToolbarOptions = [];
@@ -114,8 +122,10 @@ async function editToolbarCreate(options) {
 
 if (isProfileEdit) {
   editToolbarCreate(editToolbarProfileOptions);
-} else if (isSpaceEdit) {
-  editToolbarCreate(editToolbarSpaceOptions);
+} else if (isSpaceEdit || isSpacePage) {
+  if (document.querySelector("#wpTextbox1")) {
+    editToolbarCreate(editToolbarSpaceOptions);
+  }
 } else if (isCategoryEdit) {
   editToolbarCreate(editToolbarCategoryOptions);
 } else if (isTemplateEdit) {
