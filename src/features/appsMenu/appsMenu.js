@@ -26,10 +26,10 @@ const categories = [
   "One Place Studies",
 ];
 const projects = [
-  "Appalachia",
+  "Acadians",
   "Australia",
   "Canada",
-  "Cemeteries",
+  "Cemeterist",
   "DNA",
   "England",
   "Germany",
@@ -37,11 +37,12 @@ const projects = [
   "Holocaust",
   "Ireland",
   "Italy",
-  "Medieval",
   "Notables",
   "One Name Studies",
   "One Place Studies",
-  "Poland",
+  "Puritan Great Migration",
+  "Quebecois",
+  "Scotland",
   "United States",
   "US Black Heritage",
 ];
