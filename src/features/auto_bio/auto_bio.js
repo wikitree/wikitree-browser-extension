@@ -1597,7 +1597,7 @@ export function buildSpouses(person) {
             Spouse: { FullName: thisSpouse, marriage_date: marriageDate },
             SpouseChildren: "",
             Narrative: `${text}<ref name="ref_${i}">${reference.Text}</ref>`,
-            OrderDate: marriageDate.replaceAll("-", ""),
+            OrderDate: marriageDate?.replaceAll("-", ""),
             "Marriage Date": reference["Marriage Date"],
             "Event Type": "Marriage, " + thisSpouse,
             "Marriage Place": reference["Marriage Place"],
