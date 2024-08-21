@@ -270,7 +270,11 @@ function getSources(person, active = 0) {
           if (selStart > 0) {
             $("#" + box).val(partA + decodeHTMLEntities(theText) + partB);
           } else {
-            $("#" + box).val($("#" + box).val() + "\n" + decodeHTMLEntities(theText) + "\n");
+            let optionalTrailingNewLine = "\n";
+            if ($("#" + box).val() == "") {
+              optionalTrailingNewLine = "";
+            }
+            $("#" + box).val($("#" + box).val() + optionalTrailingNewLine + decodeHTMLEntities(theText) + "\n");
             console.log($("#" + box).val());
           }
         }
