@@ -153,6 +153,11 @@ async function helpScissors() {
   if (isSpacePage || isSpaceEdit) {
     const aTitle = document.title.replace("Editing ", "");
     copyItems.push({ label: "/Title", text: aTitle });
+
+    if (isSpaceEdit) {
+      const aLink = "[[Space:" + aTitle + "]]";
+      copyItems.push({ label: "Link", text: aLink });
+    }
   }
 
   // Profile page
