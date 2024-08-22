@@ -28,7 +28,7 @@ const usabilityTweaks = {
         {
           id: "categoryEditLinks",
           type: OptionType.CHECKBOX,
-          label: "Add link to create non-existant categories in error messages",
+          label: "Add link to create non-existent categories in error messages",
           defaultValue: true,
         },
       ],
