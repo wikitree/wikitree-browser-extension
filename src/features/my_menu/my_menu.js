@@ -126,7 +126,7 @@ function addCustomMenuOptions() {
       if (
         $("#anyLinkLink")
           .val()
-          .match(/^https:\/\//) == null
+          .match(/^https?:\/\//) == null
       ) {
         theLink = "https://" + theLink;
       }
