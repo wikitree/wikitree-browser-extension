@@ -13,6 +13,8 @@ import {
   isSpecialMyConnections,
   isSpacePage,
   isPlusDomain,
+  isSpaceEdit,
+  isCategoryEdit,
 } from "../../core/pageType";
 import "./usability_tweaks.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
@@ -433,6 +435,33 @@ function removeTurnOffPreviewLinks() {
   $("head").append("<style>#pausePagePreviewButton,#disablePagePreviewButton{display:none}</style>");
 }
 
+function addCategoryEditLinks() {
+  if (isProfileEdit || isSpaceEdit || isCategoryEdit) {
+    document.getElementById("wpSave").addEventListener("click", () => {
+      setTimeout(() => {
+        const errorList = document.querySelector("#validationRedErrorList ul");
+        if (errorList != null) {
+          const liTags = errorList.getElementsByTagName("li");
+          for (let i = 0; i < liTags.length; i++) {
+            if (liTags[i].innerText != null && liTags[i].innerText.includes('" does not exist')) {
+              const liParts = liTags[i].innerText.split('"');
+              const link =
+                ' <a href="https://www.wikitree.com/index.php?title=Category:' +
+                liParts[1] +
+                '&action=edit"  class="new" >Category:' +
+                liParts[1].replace("_", " ") +
+                "</a> ";
+              const leftPartWithoutTheWordCategory = liParts[0].substring(0, liParts[0].length - "Category ".length);
+              const rightPart = liParts[2];
+              liTags[i].innerHTML = leftPartWithoutTheWordCategory + link + rightPart;
+            }
+          }
+        }
+      }, 1000);
+    });
+  }
+}
+
 function enhanceThonStats() {
   if (window.location.toString().includes("TeamAndUser.htm")) {
     const nameTDs = document.getElementsByClassName("level1 groupC groupL groupR groupT");
@@ -599,6 +628,10 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
 
       if (options.removeDisablePreviewButtons) {
         removeTurnOffPreviewLinks();
+      }
+
+      if (options.categoryEditLinks) {
+        addCategoryEditLinks();
       }
 
       if (isPlusDomain && options.enhanceThonPages) {
