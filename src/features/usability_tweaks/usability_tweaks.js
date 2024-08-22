@@ -439,7 +439,7 @@ function addCategoryEditLinks() {
   if (isProfileEdit || isSpaceEdit || isCategoryEdit) {
     document.getElementById("wpSave").addEventListener("click", () => {
       setTimeout(() => {
-        const errorList = document.getElementById("validationRedErrorList");
+        const errorList = document.querySelector("#validationRedErrorList ul");
         if (errorList != null) {
           const liTags = errorList.getElementsByTagName("li");
           for (let i = 0; i < liTags.length; i++) {
