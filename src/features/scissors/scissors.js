@@ -155,7 +155,7 @@ async function helpScissors() {
     copyItems.push({ label: "/Title", text: aTitle });
 
     if (isSpaceEdit) {
-      const aLink = "[[Space:" + aTitle + "]]";
+      const aLink = " will be set in modifyLinkButtons";
       copyItems.push({ label: "Link", text: aLink });
     }
   }
@@ -185,9 +185,10 @@ function modifyLinkButtons(options) {
   }
 
   if (isSpacePage || isSpaceEdit) {
-    const button = $("button[aria-label='Copy Wiki Link']");
-    const aTitle = document.title.trim();
-    const pageUrlPartEncoded = window.location.href.split("Space:")[1].split("#")[0].split("?")[0];
+    const buttonQuery = isSpacePage ? "button[aria-label='Copy Wiki Link']" : "button[aria-label='Link']";
+    const button = $(buttonQuery);
+    const aTitle = document.title.replace("Editing ", "").trim();
+    const pageUrlPartEncoded = window.location.href.split("Space:")[1].split("#")[0].split("?")[0].split("&")[0];
     const urlPartDecoded = decodeURIComponent(pageUrlPartEncoded).split("_").join(" ");
 
     if (options.spaceLinkFormat == "withParameter") {
@@ -197,6 +198,17 @@ function modifyLinkButtons(options) {
     } else {
       const noParameter = "[[Space:" + urlPartDecoded + "]]";
       button.data("copy-text", noParameter).attr("data-copy-text", noParameter);
+    }
+
+    if (isSpaceEdit) {
+      //fixing encoded ID part in the default server version
+      const h1s = document.getElementsByTagName("h1");
+      if (h1s.length > 0) {
+        const buttons = h1s[0].getElementsByTagName("button");
+        if (buttons.length > 0 && buttons[0].getAttribute("aria-label") == "Copy ID") {
+          buttons[0].setAttribute("data-copy-text", "Space:" + urlPartDecoded);
+        }
+      }
     }
   }
 }
