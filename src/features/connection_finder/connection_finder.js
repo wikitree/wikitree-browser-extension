@@ -5,8 +5,6 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import { htmlEntities, isOK } from "../../core/common.js";
 import { ordinal } from "../distanceAndRelationship/distanceAndRelationship.js";
-//import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
 import { timeline } from "../familyTimeline/familyTimeline.js";
 import { addWideTableButton, addLoginButton } from "../my_connections/my_connections.js";
 import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup";
@@ -146,190 +144,6 @@ $(document).on("keydown", function (e) {
   }
 });
 
-/*
-function addTrees() {
-  const interval = setInterval(function () {
-    if ($("#connectionList").length) {
-      clearInterval(interval); // Stop polling once the element is found
-
-      const familyCount = [];
-      for (let i = 0; i < 20; i++) {
-        if ($("span.familyCount" + i).length) {
-          familyCount.push($("span.familyCount" + i).length);
-        }
-      }
-      $("#familyTextCount").remove();
-      let familyCountText = "";
-      if (familyCount.length != 0) {
-        familyCountText = $(
-          "<span id='familyTextCount'>: <span>" +
-            familyCount.length +
-            " branch" +
-            (familyCount.length > 1 ? "es" : "") +
-            " (" +
-            familyCount.join("-") +
-            ")</span></span>"
-        );
-        if (window.connectionFinderOptions.branches) {
-          $("h1").eq(0).append(familyCountText);
-        }
-        if (window.connectionFinderOptions.surnameSummaries && $("#surnames1").length == 0) {
-          surnameSummariesButton.fadeIn();
-        }
-      }
-    }
-  }, 500); // Check every 500ms, adjust as needed
-}
-*/
-/*
-function addTrees() {
-  // Select the node that will be observed for mutations
-  const targetNode = document.body; // You might need to adjust this based on your page structure
-
-  // Options for the observer (which mutations to observe)
-  const config = { childList: true, subtree: true };
-
-  // Callback function to execute when mutations are observed
-  const callback = function (mutationsList, observer) {
-    // Use traditional 'for loops' for IE 11
-    for (const mutation of mutationsList) {
-      if (mutation.type === "childList") {
-        if ($("#connectionList").length) {
-          observer.disconnect(); // Stop observing once #connectionList is found
-
-          const familyCount = [];
-          for (let i = 0; i < 20; i++) {
-            if ($("span.familyCount" + i).length) {
-              familyCount.push($("span.familyCount" + i).length);
-            }
-          }
-          $("#familyTextCount").remove();
-          let familyCountText = "";
-          if (familyCount.length != 0) {
-            familyCountText = $(
-              "<span id='familyTextCount'>: <span>" +
-                familyCount.length +
-                " branch" +
-                (familyCount.length > 1 ? "es" : "") +
-                " (" +
-                familyCount.join("-") +
-                ")</span></span>"
-            );
-            if (window.connectionFinderOptions.branches) {
-              $("h1").eq(0).append(familyCountText);
-            }
-            if (window.connectionFinderOptions.surnameSummaries && $("#surnames1").length == 0) {
-              surnameSummariesButton.fadeIn();
-
-              const copyNamesButton = $("<button id='copyNames' class='small button'>Copy names</button>");
-              surnameSummariesButton.after(copyNamesButton);
-              copyNamesButton.on("click", function () {
-                copyNamesToClipboard();
-                showCopyMessage("names to clipboard");
-              });
-
-              const copyFormattedNamesButton = $(
-                "<button id='copyFormattedNames' class='small button'>Copy names and relations</button>"
-              );
-              copyNamesButton.after(copyFormattedNamesButton);
-              copyFormattedNamesButton.on("click", function () {
-                copyFormattedNamesToClipboard();
-                showCopyMessage("names and relations to clipboard");
-              });
-            }
-          }
-          break; // Exit loop after handling the found element
-        }
-      }
-    }
-  };
-
-  // Create an observer instance linked to the callback function
-  const observer = new MutationObserver(callback);
-
-  // Start observing the target node for configured mutations
-  observer.observe(targetNode, config);
-}
-*/
-
-/*
-function addTrees() {
-  // Check if #connectionList already exists
-  if ($("#connectionList").length) {
-    processConnectionList();
-  } else {
-    // Select the node that will be observed for mutations
-    const targetNode = document.body; // You might need to adjust this based on your page structure
-
-    // Options for the observer (which mutations to observe)
-    const config = { childList: true, subtree: true };
-
-    // Callback function to execute when mutations are observed
-    const callback = function (mutationsList, observer) {
-      for (const mutation of mutationsList) {
-        if (mutation.type === "childList") {
-          if ($("#connectionList").length) {
-            observer.disconnect(); // Stop observing once #connectionList is found
-            processConnectionList();
-            break; // Exit loop after handling the found element
-          }
-        }
-      }
-    };
-
-    // Create an observer instance linked to the callback function
-    const observer = new MutationObserver(callback);
-
-    // Start observing the target node for configured mutations
-    observer.observe(targetNode, config);
-  }
-}
-
-function processConnectionList() {
-  const familyCount = [];
-  for (let i = 0; i < 20; i++) {
-    if ($("span.familyCount" + i).length) {
-      familyCount.push($("span.familyCount" + i).length);
-    }
-  }
-  $("#familyTextCount").remove();
-  let familyCountText = "";
-  if (familyCount.length != 0) {
-    familyCountText = $(
-      "<span id='familyTextCount'>: <span>" +
-        familyCount.length +
-        " branch" +
-        (familyCount.length > 1 ? "es" : "") +
-        " (" +
-        familyCount.join("-") +
-        ")</span></span>"
-    );
-    if (window.connectionFinderOptions.branches) {
-      $("h1").eq(0).append(familyCountText);
-    }
-    if (window.connectionFinderOptions.surnameSummaries && $("#surnames1").length == 0) {
-      surnameSummariesButton.fadeIn();
-
-      const copyNamesButton = $("<button id='copyNames' class='small button'>Copy names</button>");
-      surnameSummariesButton.after(copyNamesButton);
-      copyNamesButton.on("click", function () {
-        copyNamesToClipboard();
-        showCopyMessage("names to clipboard");
-      });
-
-      const copyFormattedNamesButton = $(
-        "<button id='copyFormattedNames' class='small button'>Copy names and relations</button>"
-      );
-      copyNamesButton.after(copyFormattedNamesButton);
-      copyFormattedNamesButton.on("click", function () {
-        copyFormattedNamesToClipboard();
-        showCopyMessage("names and relations to clipboard");
-      });
-    }
-  }
-}
-*/
-
 function setupConnectionTools() {
   if ($("#customActionsContainer").length) {
     return; // Do not add buttons if they already exist
@@ -358,8 +172,10 @@ function setupConnectionTools() {
 
 function displayBranchListAutomatically() {
   const checkConnectionListInterval = setInterval(() => {
+    console.log("Checking for connection list");
     if ($("#connectionList").length) {
       clearInterval(checkConnectionListInterval); // Stop checking once #connectionList is found
+      console.log("Connection list found");
       displayBranchList(); // Call function to display the branch list
     }
   }, 100); // Check every 100 milliseconds
@@ -545,7 +361,9 @@ async function addCFsurnameList() {
   let surnamesText = "";
   surnameArr.forEach(function (sur) {
     surnamesText +=
-      "<a href='https://" + mainDomain + "/genealogy/" +
+      "<a href='https://" +
+      mainDomain +
+      "/genealogy/" +
       htmlEntities(sur[0]).replaceAll(/_/g, "%20") +
       "'>" +
       htmlEntities(sur[0]).replaceAll(/_/g, " ") +
@@ -560,7 +378,9 @@ async function addCFsurnameList() {
   let surnamesText2 = "";
   surnames.forEach(function (sur) {
     surnamesText2 +=
-      "<a href='https://" + mainDomain + "/genealogy/" +
+      "<a href='https://" +
+      mainDomain +
+      "/genealogy/" +
       htmlEntities(sur).replaceAll(/_/g, "%20") +
       "'>" +
       htmlEntities(sur).replaceAll(/_/g, " ") +
@@ -577,7 +397,9 @@ async function addCFsurnameList() {
       surnamesText3 += "<li>Branch " + branch + ": ";
     }
     surnamesText3 +=
-      "<a href='https://" + mainDomain + "/genealogy/" +
+      "<a href='https://" +
+      mainDomain +
+      "/genealogy/" +
       htmlEntities(sur[0]).replaceAll(/_/g, "%20") +
       "'>" +
       htmlEntities(sur[0]).replaceAll(/_/g, " ") +
@@ -611,12 +433,18 @@ async function connectionFinderThings() {
     }
   });
 
-  if ($("h1:contains(Degrees)").length) {
-    //addTrees();
-    setupConnectionTools();
-    displayBranchListAutomatically();
-    surnameSummariesButton.fadeIn();
-  }
+  const checkForDegreesHeader = setInterval(function () {
+    console.log("Checking for Degrees header");
+    if ($("h1:contains(Degrees)").length) {
+      clearInterval(checkForDegreesHeader); // Stop checking
+      setupConnectionTools();
+      displayBranchListAutomatically();
+      surnameSummariesButton.fadeIn();
+    } else if ($("h1:contains(No Connection Found)").length) {
+      clearInterval(checkForDegreesHeader); // Stop checking
+      setupConnectionTools();
+    }
+  }, 100);
 
   $("#findButton").on("click", function () {
     // addTrees();
@@ -692,25 +520,16 @@ function addAPrivate(privateMatch) {
   let privacyTitle = "Private";
 
   const aLine = $(
-    "<tr class='" +
-      pPerson.Gender +
-      "'><td>" +
-      pNumber +
-      "</td><td class='relationship " +
-      relationshipColour +
-      "' data-relationship='" +
-      pPerson.Relation +
-      "'><span class='relationshipArrow'>" +
-      pArrow +
-      "</span>" +
-      mRelationOut +
-      "</td><td class='connectionsName'><img class='privacyImage'  src='" +
-      privatePrivacy +
-      "' title='" +
-      privacyTitle +
-      "'><a>" +
-      pPerson.Name +
-      "</a></td><td class='aDate'></td><td></td><td  class='aDate'></td><td></td><td class='aDate'></td><td></td></tr>"
+    `<tr class='${pPerson.Gender}'>
+      <td>${pNumber}</td>
+      <td class='relationship ${relationshipColour}' data-relationship='${pPerson.Relation}'><span class='relationshipArrow'>${pArrow}</span>${mRelationOut}</td>
+      <td class='connectionsName'><img class='privacyImage'  src='${privatePrivacy}' title='${privacyTitle}'><a>${pPerson.Name}</a></td><td class='aDate'></td>
+      <td></td>
+      <td class='aDate'></td>
+      <td></td>
+      <td class='aDate'></td>
+      <td></td>
+    </tr>`
   );
   $("#connectionsTable tbody").append(aLine);
   pNumber++;
@@ -1721,164 +1540,6 @@ function showHeritageSocietyBox() {
     $("#heritageSocietyTA").val(hsTextOut);
   }
 }
-/*
-function excelOut() {
-  const today = new Date().toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  let fileName;
-  if ($("#connectionsTable").length) {
-    fileName = $("#person1Name").val() + "-" + $("#person2Name").val();
-  }
-
-  var wb = XLSX.utils.book_new();
-  wb.Props = {
-    Title: fileName,
-    Subject: fileName,
-    Author: "WikiTree",
-    CreatedDate: new Date(),
-  };
-
-  wb.SheetNames.push(fileName);
-
-  var ws_data = [];
-
-  if ($("#connectionsTable").length) {
-    const ths = $("#connectionsTable th");
-    const thVals = [];
-    ths.each(function () {
-      if ($(this).text() == "Name") {
-        thVals.push("WikiTree ID");
-      }
-      thVals.push($(this).text());
-    });
-
-    thVals.push("IDs", "Date", "Branches");
-    ws_data.push(thVals);
-
-    const rows = $("#connectionsTable tr");
-    rows.each(function () {
-      if ($(this).attr("id") != "connectionsTableNotes") {
-        const texties = [];
-        const tds = $(this).find("td");
-        let td;
-        tds.each(function () {
-          if ($(this).find("img.privacyImage").length) {
-            td = $(this).find("img.privacyImage").attr("title");
-          } else {
-            td = $(this).html();
-            const idMatch = $(this)
-              .html()
-              .match(/\/wiki\/(.*)"/);
-            if (idMatch != null) {
-              const thisID = idMatch[1];
-              const oName = $(this).text();
-              texties.push(thisID);
-              td = oName; //+" ("+thisID+")";
-            }
-
-            if ($(this).text() == "private person") {
-              texties.push("");
-              td = "private person";
-            }
-
-            if ($(this).hasClass("relationship")) {
-              td = $(this).text();
-            }
-          }
-
-          texties.push(td);
-        });
-
-        texties.push($("#person1Name").val() + " & " + $("#person2Name").val());
-        texties.push(today);
-        texties.push($("#familyTextCount").text().replace(" : ", ""));
-
-        ws_data.push(texties);
-      }
-    });
-  } else if ($(".peopleTable.unconnecteds").length) {
-    const ths = $(".peopleTable.unconnecteds th");
-    const thVals = [];
-    ths.each(function () {
-      thVals.push($(this).text());
-    });
-    ws_data.push(thVals);
-
-    const rows = $(".peopleTable.unconnecteds tr");
-    rows.each(function () {
-      const texties = [];
-      const tds = $(this).find("td");
-      tds.each(function () {
-        let td = $(this).html();
-        const idMatch = $(this)
-          .html()
-          .match(/\/wiki\/(.*)"/);
-        if (idMatch != null) {
-          const thisID = idMatch[1];
-          const oName = $(this).text();
-          td = oName + " (" + thisID + ")";
-        }
-        if ($(this).hasClass("relationship")) {
-          td = $(this).text();
-        }
-        if ($(this).find("a").length) {
-          if ($(this).hasClass("lnab") || $(this).hasClass("lnc")) td = $(this).find("a").text();
-        }
-
-        texties.push(td);
-      });
-      ws_data.push(texties);
-    });
-  }
-
-  var ws = XLSX.utils.aoa_to_sheet(ws_data);
-  wb.Sheets[fileName] = ws;
-
-  function s2ab(s) {
-    var buf = new ArrayBuffer(s.length);
-    var view = new Uint8Array(buf);
-    for (var i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xff;
-    return buf;
-  }
-
-  $("#downloadLines, .downloadLines").off();
-  $("#downloadLines, .downloadLines").on("click", function () {
-    if ($("#connectionsTable").length) {
-      $(this).slideUp();
-    }
-    //console.log(ancestralLines);
-    //window.downloadSet = true;
-    if ($("#connectionsTable").length) {
-      var wscols = [
-        { wch: 3 },
-        { wch: 13 },
-        { wch: 10 },
-        { wch: 30 },
-        { wch: 10 },
-        { wch: 30 },
-        { wch: 10 },
-        { wch: 30 },
-        { wch: 10 },
-        { wch: 30 },
-        { wch: 25 },
-        //{wch:15},
-        { wch: 20 },
-      ];
-
-      ws["!cols"] = wscols;
-    }
-
-    var wbout = XLSX.write(wb, { bookType: "xlsx", type: "binary" });
-    saveAs(new Blob([s2ab(wbout)], { type: "application/octet-stream" }), fileName + ".xlsx");
-  });
-}
-*/
 
 function copyRichTextToClipboard(html) {
   // Create a contenteditable div and append it to the body
