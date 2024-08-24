@@ -34,11 +34,10 @@ shouldInitializeFeature("removeFromWatchlist").then((result) => {
     const profileRows = document.getElementsByTagName("tr");
 
     for (let i = 1 /* skip table with sorting links */; i < profileRows.length; i++) {
-      const editLink = profileRows[i].getElementsByTagName("a")[3];
-      if (editLink == null)
-      {
-        console.warn("remove from watchlist broken, Flo has to fix it!");
-        continue
+      let editLink = findEditLink(profileRows, i);
+      if (editLink == null) {
+        console.warn("editLink missing");
+        continue;
       }
       var urlParams = new URLSearchParams(editLink.href);
       if (urlParams.has("u")) {
@@ -107,6 +106,18 @@ shouldInitializeFeature("removeFromWatchlist").then((result) => {
       DoOrphan();
     });
     nextButton.appendChild(orphanButton);
+  }
+
+  function findEditLink(profileRows, i) {
+    const aTags = profileRows[i].getElementsByTagName("a");
+    let editLink = null;
+    for (let j = 0; j < aTags.length; j++) {
+      if (aTags[j].href != null && aTags[j].href.includes("EditPerson")) {
+        editLink = aTags[j];
+        break;
+      }
+    }
+    return editLink;
   }
 });
 
