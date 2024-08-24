@@ -162,18 +162,13 @@ shouldInitializeFeature("surnameTable").then((result) => {
   }
 });
 
-//const homeImage = chrome.runtime.getURL("images/Home_icon.png");
-
 async function addHomeIcon() {
-  console.warn("addHomeIcon deactivated");
-  return;
   const table = $("table.wt.names");
   if (!table.length) return;
   table.find("tr").each(function () {
     const indexCell = $(this).find("td").eq(0);
     const thisWTID =
       $(this).find("input[name='mergeany[]']").val() || $(this).find("a").eq(0).attr("href").split("/")?.[2] || "";
-    // let homeImg = $(`<img src='${homeImage}' data-wtid="${thisWTID}" class='home' title='See family group'>`);
     let homeIcon = $(`<span data-wtid="${thisWTID}" class='home'  title='See family group'>🏠</span>`);
     if (thisWTID) {
       indexCell.append(homeIcon);
