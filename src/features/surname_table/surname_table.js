@@ -132,8 +132,13 @@ shouldInitializeFeature("surnameTable").then((result) => {
       if (options.distanceAndRelationship) {
         console.log("distance and relationship");
         if ($("th:contains('°')").length == 0) {
+          let showSuggestions = false;
+          if (options.suggestions) {
+            showSuggestions = !isSearchPage && !window.location.href.includes("do_s=1") /* space pages watchlist */;
+          }
+
           console.log("adding relationship");
-          addDistanceAndRelationColumns();
+          addDistanceAndRelationColumns(showSuggestions);
           console.log("done relationship");
           $("tr.filter-row").remove();
           console.log("done removing");
@@ -881,7 +886,7 @@ async function addWideTableButton() {
   });
 }
 
-function addDistanceAndRelationColumns() {
+function addDistanceAndRelationColumns(showSuggestions) {
   const userID = Cookies.get("wikitree_wtb_UserName");
   const ids = {};
   const nameTable = $("table.wt.names");
@@ -899,8 +904,11 @@ function addDistanceAndRelationColumns() {
 
   // Add the header cells to the table
 
-  const headerCells = $(`<th style="width: 5%; text-align: center; cursor: pointer;">°</th>
-  <th style="width: 15%; text-align: center; cursor: pointer;">Relation</th><th style="width: 10%; text-align: center; cursor: pointer;" id="suggestions_header">Suggestion</th>`);
+  const headerCellsHtml =
+    '<th style="width: 5%; text-align: center; cursor: pointer;">°</th><th style="width: 15%; text-align: center; cursor: pointer;">Relation</th>';
+  const headerSuggestion =
+    '<th style="width: 10%; text-align: center; cursor: pointer;" id="suggestions_header">Suggestion</th>';
+  const headerCells = showSuggestions ? $(headerCellsHtml + headerSuggestion) : $(headerCellsHtml);
 
   nameTable.find("tr").eq(0).append(headerCells);
 
@@ -965,50 +973,56 @@ function addDistanceAndRelationColumns() {
       }
     });
 
-    const suggestionsPromise = GetSuggestions().then((htmlPage) => {
-      const parser = new DOMParser();
-      const suggestionsDOM = parser.parseFromString(htmlPage, "text/html");
-      Object.keys(ids).forEach(function (wtid) {
-        $(suggestionsDOM)
-          .find("td:contains(" + wtid.split("_").join(" ") + ")")
-          .each(function () {
-            if ($(this).contents()[0].nodeName != "A") {
-              //comments table, do nothing
-            } else if ($(this).prev().length == 0) {
-              let parentRow = $(this).parent();
-              while (
-                parentRow.find("td").attr("rowspan") == undefined &&
-                parentRow.length > 0 &&
-                parentRow.get(0).tagName == "TR"
-              ) {
-                parentRow = parentRow.prev();
+    let suggestionsPromise = Promise.resolve();
+    if (showSuggestions) {
+      suggestionsPromise = GetSuggestions().then((htmlPage) => {
+        const parser = new DOMParser();
+        const suggestionsDOM = parser.parseFromString(htmlPage, "text/html");
+        Object.keys(ids).forEach(function (wtid) {
+          $(suggestionsDOM)
+            .find("td:contains(" + wtid.split("_").join(" ") + ")")
+            .each(function () {
+              if ($(this).contents()[0].nodeName != "A") {
+                //comments table, do nothing
+              } else if ($(this).prev().length == 0) {
+                let parentRow = $(this).parent();
+                while (
+                  parentRow.find("td").attr("rowspan") == undefined &&
+                  parentRow.length > 0 &&
+                  parentRow.get(0).tagName == "TR"
+                ) {
+                  parentRow = parentRow.prev();
+                }
+                SetOrAdd(wtid, parentRow.find("td"));
+              } else if ($(this).prev().get(0).firstChild.tagName == "IMG") {
+                //WT ID only in manager column
+              } else {
+                SetOrAdd(wtid, $(this).prev());
               }
-              SetOrAdd(wtid, parentRow.find("td"));
-            } else if ($(this).prev().get(0).firstChild.tagName == "IMG") {
-              //WT ID only in manager column
-            } else {
-              SetOrAdd(wtid, $(this).prev());
-            }
+            });
+        });
+      });
+    }
+
+    let datesPromise = Promise.resolve();
+
+    if (showSuggestions) {
+      datesPromise = new Promise((resolve, reject) => {
+        fetch("https://plus.wikitree.com/DataDates.json")
+          .then((res) => res.json())
+          .then((dataDates) => {
+            const suggestionHeader = document.getElementById("suggestions_header");
+            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const dateParts = dataDates.dataDate.split("-");
+            const actualMonth = parseInt(dateParts[1]) - 1;
+            const suggestionsHelpLink =
+              '<a href="/wiki/Help:Suggestions" title="Click here for an explanation of the suggestions column"><img src="/images/icons/help.gif" border="0" width="11" height="11" alt="Help"></a>';
+            suggestionHeader.innerHTML =
+              "Sugg. " + suggestionsHelpLink + " (" + dateParts[2] + " " + months[actualMonth] + ")";
+            resolve();
           });
       });
-    });
-
-    const datesPromise = new Promise((resolve, reject) => {
-      fetch("https://plus.wikitree.com/DataDates.json")
-        .then((res) => res.json())
-        .then((dataDates) => {
-          const suggestionHeader = document.getElementById("suggestions_header");
-          const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-          const dateParts = dataDates.dataDate.split("-");
-          const actualMonth = parseInt(dateParts[1]) - 1;
-          const suggestionsHelpLink =
-            '<a href="/wiki/Help:Suggestions" title="Click here for an explanation of the suggestions column"><img src="/images/icons/help.gif" border="0" width="11" height="11" alt="Help"></a>';
-          suggestionHeader.innerHTML =
-            "Sugg. " + suggestionsHelpLink + " (" + dateParts[2] + " " + months[actualMonth] + ")";
-          resolve();
-        });
-    });
-
+    }
     initDb
       .then(() => {
         // Wait for all promises to resolve before initializing DataTable
@@ -1026,8 +1040,12 @@ function addDistanceAndRelationColumns() {
                   const relationship = ids[id].relationship || "";
                   const suggestion = ids[id].suggestion ? ids[id].suggestion : "";
                   // console.log("distance " + distance + ", relationship" + relationship + ", suggestion" + suggestion);
+                  let suggestionCell = "";
+                  if (showSuggestions) {
+                    suggestionCell = `<td>${suggestion}</td>`;
+                  }
                   $(this).append(
-                    `<td style="text-align: center;">${distance}</td><td>${relationship}</td><td>${suggestion}</td>`
+                    `<td style="text-align: center;">${distance}</td><td>${relationship}</td>` + suggestionCell
                   );
                 } else {
                   $(this).append(`<td style="text-align: center;"></td><td></td>`);
