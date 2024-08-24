@@ -18,6 +18,7 @@ import {
 
 const USER_WT_ID = Cookies.get("wikitree_wtb_UserName");
 const USER_NUM_ID = Cookies.get("wikitree_wtb_UserID");
+let suggestionsDateGlobal = "";
 
 async function replaceDittoMarks() {
   // Replace ditto marks with the value from the previous row
@@ -537,6 +538,11 @@ async function getBrickWalls() {
   const mWTIDID = USER_NUM_ID;
   const theseKeys = [];
 
+  const suggestionDateParts = suggestionsDateGlobal.split("-");
+  const suggestYear = suggestionDateParts[0];
+  const suggestMonth = suggestionDateParts[1];
+  const suggestDay = suggestionDateParts[2];
+
   // Handle input and specific class elements
   $('table.wt.names tbody tr input[name="mergeany[]"], .P-M, .P-F').each(function () {
     if ($("table.wt.names").length) {
@@ -561,7 +567,7 @@ async function getBrickWalls() {
   while (theseKeys.length) {
     chunk = theseKeys.splice(0, 50).join(",");
     const fields =
-      "Id,Name,Manager,Mother,Father,Spouses,LastNameAtBirth,LastNameCurrent,Gender,Photo,PhotoData,BirthLocation,DeathLocation,Connected,TrustedList,Privacy";
+      "Id,Name,Manager,Mother,Father,Spouses,LastNameAtBirth,LastNameCurrent,Gender,Photo,PhotoData,BirthLocation,DeathLocation,Connected,TrustedList,Privacy,Touched";
     getPeople(chunk, 0, 0, 0, 0, 0, fields).then((result) => {
       const peopleKeys = Object.keys(result[0].people);
       peopleKeys.forEach((key) => {
@@ -675,6 +681,33 @@ async function getBrickWalls() {
           }
         } else if (person.Manager == "0" && layout != "table") {
           dParentEl.prepend($("<span class='orphan' title='Orphaned profile'>O</span>"));
+        }
+
+        //console.log(person);
+        if (person["Touched"]) {
+          const touchedYear = person["Touched"].substring(0, 4);
+          const touchedMonth = person["Touched"].substring(4, 6);
+          const touchedDay = person["Touched"].substring(6, 8);
+
+          let wasTouchedAfterSuggestionDate = false;
+
+          if (suggestYear == touchedYear) {
+            if (suggestMonth == touchedMonth) {
+              if (suggestDay <= touchedDay) {
+                wasTouchedAfterSuggestionDate = true;
+              }
+            } else if (suggestMonth < touchedMonth) {
+              wasTouchedAfterSuggestionDate = true;
+            }
+          } else if (suggestYear < touchedYear) {
+            wasTouchedAfterSuggestionDate = true;
+          }
+
+          if (wasTouchedAfterSuggestionDate) {
+            //magic to insert "changed later" in the suggestion column
+          }
+          console.log("touched" + person["Touched"] + "=>" + wasTouchedAfterSuggestionDate);
+          
         }
 
         if (window.surnameTableOptions.ShowYouArePMorTL) {
@@ -1004,25 +1037,23 @@ function addDistanceAndRelationColumns(showSuggestions) {
       });
     }
 
-    let datesPromise = Promise.resolve();
+    let datesPromise = new Promise((resolve, reject) => {
+      fetch("https://plus.wikitree.com/DataDates.json")
+        .then((res) => res.json())
+        .then((dataDates) => {
+          const suggestionHeader = document.getElementById("suggestions_header");
+          const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          suggestionsDateGlobal = dataDates.dataDate;
+          const dateParts = dataDates.dataDate.split("-");
+          const actualMonth = parseInt(dateParts[1]) - 1;
+          const suggestionsHelpLink =
+            '<a href="/wiki/Help:Suggestions" title="Click here for an explanation of the suggestions column"><img src="/images/icons/help.gif" border="0" width="11" height="11" alt="Help"></a>';
+          suggestionHeader.innerHTML =
+            "Sugg. " + suggestionsHelpLink + " (" + dateParts[2] + " " + months[actualMonth] + ")";
+          resolve();
+        });
+    });
 
-    if (showSuggestions) {
-      datesPromise = new Promise((resolve, reject) => {
-        fetch("https://plus.wikitree.com/DataDates.json")
-          .then((res) => res.json())
-          .then((dataDates) => {
-            const suggestionHeader = document.getElementById("suggestions_header");
-            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-            const dateParts = dataDates.dataDate.split("-");
-            const actualMonth = parseInt(dateParts[1]) - 1;
-            const suggestionsHelpLink =
-              '<a href="/wiki/Help:Suggestions" title="Click here for an explanation of the suggestions column"><img src="/images/icons/help.gif" border="0" width="11" height="11" alt="Help"></a>';
-            suggestionHeader.innerHTML =
-              "Sugg. " + suggestionsHelpLink + " (" + dateParts[2] + " " + months[actualMonth] + ")";
-            resolve();
-          });
-      });
-    }
     initDb
       .then(() => {
         // Wait for all promises to resolve before initializing DataTable
