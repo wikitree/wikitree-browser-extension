@@ -2,7 +2,7 @@ import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import { secondarySort } from "../extra_watchlist/extra_watchlist";
 import "./surname_table.css";
-import { isSearchPage, isSpecialWatchedList } from "../../core/pageType";
+import { isSearchPage, isSpecialWatchedList, isSpecialWatchedListSpaces } from "../../core/pageType";
 import { initTableFilters } from "../table_filters/table_filters";
 import { getPeople } from "../dna_table/dna_table";
 import Cookies from "js-cookie";
@@ -129,12 +129,12 @@ shouldInitializeFeature("surnameTable").then((result) => {
   if (result) {
     getFeatureOptions("surnameTable").then((options) => {
       console.log("done with options");
-      if (options.distanceAndRelationship) {
+      if (!isSpecialWatchedListSpaces && options.distanceAndRelationship) {
         console.log("distance and relationship");
         if ($("th:contains('°')").length == 0) {
           let showSuggestions = false;
           if (options.suggestions) {
-            showSuggestions = !isSearchPage && !window.location.href.includes("do_s=1") /* space pages watchlist */;
+            showSuggestions = !isSearchPage;
           }
 
           console.log("adding relationship");
