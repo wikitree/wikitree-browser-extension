@@ -15,6 +15,9 @@ function removeDarkMode() {
   $("img[src$='wikitree-logo-small-white.png']").attr("src", "https://" + mainDomain + "/images/wikitree-small.png");
   $("img[src$='wikitree-logo-white-G2G.png']").attr("src", "https://" + mainDomain + "/images/Wiki-Tree.gif");
   $("img[src$='G2G-transparent.png']").attr("src", "https://" + mainDomain + "/images/G2G.gif");
+  $("#filter_name")
+    .closest("div.box")
+    .css("background-image", "https://" + mainDomain + "/images/widgets/DNA.gif");
   $("h1:contains(Connection Finder)")
     .parent()
     .css("background-image", "url(https://" + mainDomain + "/images/projects/Tech-Tree.png)");
@@ -35,6 +38,7 @@ const wikiTreeLogoWhiteG2G = chrome.runtime.getURL("images/wikitree-logo-white-G
 const G2GTransparent = chrome.runtime.getURL("images/G2G-transparent.png");
 const whiteTree = chrome.runtime.getURL("images/tree-white.png");
 const darkModeCSS = chrome.runtime.getURL("features/darkMode/darkMode.css");
+const DNAimage = chrome.runtime.getURL("images/DNA_dark.png");
 
 function doDarkMode() {
   $("body").addClass("darkMode");
@@ -46,6 +50,9 @@ function doDarkMode() {
   $("img[src*='wikitree-small.png']").attr("src", wikiTreeLogoSmallWhite);
   $("img[src*='Wiki-Tree.gif']").attr("src", wikiTreeLogoWhiteG2G);
   $("img[src*='G2G.gif']").attr("src", G2GTransparent);
+  $("#filter_name")
+    .closest("div.box")
+    .css("background-image", "url(" + DNAimage + ")");
   $("h1:contains(Connection Finder)").parent().css("background-image", "");
   $("body.darkMode.page-Main_Page div.sixteen.columns.top").css("background-image", "url(" + whiteTree + ")");
 
