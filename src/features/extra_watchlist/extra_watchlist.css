@@ -31,6 +31,10 @@
   background: white;
 }
 
+#extraWatchlistWindow a.button {
+  color: white;
+}
+
 #extraWatchlistWindow td.wtIDcol {
   width: 10em;
 }
