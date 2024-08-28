@@ -268,6 +268,9 @@ function getSources(person, active = 0) {
           copyToClipboard3($("<a>" + theText + "</a>")[0]);
         } else {
           if (selStart > 0) {
+            if (partA.substr(partA.length - 1) != "\n" && !theText.includes("<ref>")) {
+              theText = "\n" + theText;
+            }
             $("#" + box).val(partA + decodeHTMLEntities(theText) + partB);
           } else {
             let optionalTrailingNewLine = "\n";
