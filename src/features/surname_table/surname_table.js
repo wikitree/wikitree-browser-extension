@@ -174,7 +174,7 @@ async function addHomeIcon() {
   table.find("tr").each(function () {
     const indexCell = $(this).find("td").eq(0);
     const thisWTID =
-      $(this).find("input[name='mergeany[]']").val() || $(this).find("a").eq(0).attr("href").split("/")?.[2] || "";
+      $(this).find("input[name='mergeany[]']").val() || $(this)?.find("a")?.eq(0)?.attr("href")?.split("/")?.[2] || "";
     let homeIcon = $(`<span data-wtid="${thisWTID}" class='home'  title='See family group'>🏠</span>`);
     if (thisWTID) {
       indexCell.append(homeIcon);
@@ -707,7 +707,6 @@ async function getBrickWalls() {
             //magic to insert "changed later" in the suggestion column
           }
           console.log("touched" + person["Touched"] + "=>" + wasTouchedAfterSuggestionDate);
-          
         }
 
         if (window.surnameTableOptions.ShowYouArePMorTL) {
