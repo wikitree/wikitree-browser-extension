@@ -217,12 +217,44 @@ async function onlyMembers() {
   }
 }
 
+function getUserIds() {
+  // Select the submenu containing the links
+  let submenu = $('ul[data-menu="My_WikiTree"]');
+
+  // Initialize variables to store the extracted IDs
+  let Name = null;
+  let Id = null;
+
+  // Check if the submenu exists
+  if (submenu.length) {
+    // Find the Profile link
+    let profileLink = submenu.find('a:contains("Profile")');
+    if (profileLink.length) {
+      // Extract the Profile ID
+      let profileHref = profileLink.attr("href");
+      Name = profileHref.split("/").pop().replace("wiki/", "");
+    }
+
+    // Find the Suggestions link
+    let suggestionsLink = submenu.find('a[href*="WTWebUser/Suggestions.htm"]');
+    if (suggestionsLink.length) {
+      // Extract the User ID from the Suggestions link
+      let suggestionsHref = suggestionsLink.attr("href");
+      let urlParams = new URLSearchParams(suggestionsHref.split("?")[1]);
+      Id = urlParams.get("UserID");
+    }
+  }
+  return { Id: Id, Name: Name };
+}
+
 function addRemoveMeButton() {
   const removeMeButton = $(
     `<button id="removeMeButton" title="Double-click to remove yourself as manager of this profile" class="button small">❌</button>`
   );
-  const thisUserWTID = Cookies.get("wikitree_wtb_UserName");
-  const thisUserId = Cookies.get("wikitree_wtb_UserID");
+  const ids = getUserIds();
+  console.log("ids", ids);
+  const thisUserWTID = ids.Name || Cookies.get("wikitree_wtb_UserName");
+  const thisUserId = ids.Id || Cookies.get("wikitree_wtb_UserID");
 
   // First, select the <span> elements containing 'Profile manager'
   const spanElements = $("span:contains('Profile manager')");
@@ -616,7 +648,9 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
         onlyMembers();
       }
       if (options.removeMeButton && isProfilePage) {
-        addRemoveMeButton();
+        setTimeout(function () {
+          addRemoveMeButton();
+        }, 500);
       }
       if (options.removeMeButton && isSpecialTrustedList) {
         removeMe();
