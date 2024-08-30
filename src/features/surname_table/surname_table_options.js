@@ -34,6 +34,18 @@ registerFeature({
       defaultValue: true,
     },
     {
+      id: "distanceAndRelationship",
+      type: OptionType.CHECKBOX,
+      label: "Add Distance and Relationship columns to Watchlist and Surname Genealogy tables",
+      default: false,
+    },
+    {
+      id: "suggestions",
+      type: OptionType.CHECKBOX,
+      label: "Show Data Doctor suggestions",
+      default: false,
+    },
+    {
       id: "ShowProfileImage",
       type: OptionType.CHECKBOX,
       label: "Show profile image",

@@ -112,6 +112,8 @@ export let isSpecialDNATests = false;
 export let isDNADescendants = false;
 // Special: WatchedList page
 export let isSpecialWatchedList = false;
+// Special: WatchedList page for free space pages
+export let isSpecialWatchedListSpaces = false;
 // Special: TrustedList page
 export let isSpecialTrustedList = false;
 // MergeEdit
@@ -357,6 +359,9 @@ if (domain.match("apps.wikitree.com")) {
       uri.match(/\/index.php\?title=Special(:|%3A|%3a)WatchedList.*/g)
     ) {
       isSpecialWatchedList = true;
+      if (uri.match(/do_s=1/g)) {
+        isSpecialWatchedListSpaces = true;
+      }
     } else if (
       uri.match(/\/Special(:|%3A|%3a)SearchPerson/g) ||
       uri.match(/\/index.php\?title=Special(:|%3A|%3a)SearchPerson.*/g)

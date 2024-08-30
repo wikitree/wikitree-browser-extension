@@ -3,204 +3,9 @@ Created By: Ian Beacall (Beacall-6)
 */
 import $ from "jquery";
 import "./table_filters.css";
-import Cookies from "js-cookie";
 import { getYYYYMMDD } from "../auto_bio/auto_bio";
-import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { kinshipValue } from "../anniversaries_table/anniversaries_table";
-import { isSpecialWatchedList, isSearchPage } from "../../core/pageType";
-import { distRelDbKeyFor } from "../../core/common";
-import {
-  CONNECTION_STORE_NAME,
-  RELATIONSHIP_STORE_NAME,
-  initDistanceAndRelationshipDBs,
-} from "../distanceAndRelationship/distanceAndRelationship";
-
-function addDistanceAndRelationColumns() {
-  const userID = Cookies.get("wikitree_wtb_UserName");
-  const ids = {};
-  const nameTable = $("table.wt.names");
-  // Get the profile IDs from the watchlist
-  // Get first link of first TD of each TR and extract the profile ID from the href (after /wiki/)
-  nameTable.find("tr").each(function (index) {
-    const aLink = $(this).find("td a").eq(0).attr("href");
-    if (aLink) {
-      const profileID = aLink.split("/wiki/");
-      if (profileID[1]) {
-        ids[profileID[1]?.replace(/ /g, "_")] = { WTID: [profileID[1]], index: index };
-      }
-    }
-  });
-
-  // Add the header cells to the table
-
-  const headerCells = $(`<th style="width: 5%; text-align: center; cursor: pointer;">°</th>
-  <th style="width: 15%; text-align: center; cursor: pointer;">Relation</th><th style="width: 10%; text-align: center; cursor: pointer;" id="suggestions_header">Suggestion</th>`);
-
-  nameTable.find("tr").eq(0).append(headerCells);
-
-  setTimeout(() => {
-    const distancePromises = [];
-    const relationshipPromises = [];
-    const initDb = new Promise((resolve, reject) => {
-      let completedTasks = 0;
-
-      // Ensure the distance and relationship databases are present/created/upgraded as necessary
-      initDistanceAndRelationshipDBs(onDistanceSucces, onRelationSuccess);
-
-      function checkCompletion() {
-        completedTasks++;
-
-        if (completedTasks === 2) {
-          // console.log("initDistanceAndRelationshipDBs completed successfully");
-          resolve();
-        }
-      }
-
-      function onDistanceSucces(event) {
-        // The distance table is ready, we can start collecting the distances
-        const dbConnection = event.target.result;
-        const distanceTransaction = dbConnection.transaction(CONNECTION_STORE_NAME, "readonly");
-        const distanceStore = distanceTransaction.objectStore(CONNECTION_STORE_NAME);
-        Object.keys(ids).forEach(function (wtid) {
-          // Request the distance record
-          const getDistance = distanceStore.get(distRelDbKeyFor(wtid, userID));
-          const distancePromise = new Promise((resolve, reject) => {
-            getDistance.onsuccess = function (event) {
-              const distance = event.target.result ? event.target.result.distance + "°" : "";
-              if (event.target?.result?.distance > 0) {
-                ids[wtid].distance = distance;
-              }
-              resolve();
-            };
-          });
-          distancePromises.push(distancePromise);
-        });
-        checkCompletion();
-      }
-
-      function onRelationSuccess(event) {
-        // The relationship table is ready, we can start collecting the relationships
-        const dbRelationship = event.target.result;
-        const relationshipTransaction = dbRelationship.transaction(RELATIONSHIP_STORE_NAME, "readonly");
-        const relationshipStore = relationshipTransaction.objectStore(RELATIONSHIP_STORE_NAME);
-        Object.keys(ids).forEach(function (wtid) {
-          const getRelationship = relationshipStore.get(distRelDbKeyFor(wtid, userID));
-          const relationshipPromise = new Promise((resolve, reject) => {
-            getRelationship.onsuccess = function (event) {
-              let relationship =
-                event.target.result && event.target.result.relationship ? event.target.result.relationship : "";
-              ids[wtid].relationship = relationship;
-              resolve();
-            };
-          });
-          relationshipPromises.push(relationshipPromise);
-        });
-        checkCompletion();
-      }
-    });
-
-    const suggestionsPromise = GetSuggestions().then((htmlPage) => {
-      const parser = new DOMParser();
-      const suggestionsDOM = parser.parseFromString(htmlPage, "text/html");
-      Object.keys(ids).forEach(function (wtid) {
-        $(suggestionsDOM)
-          .find("td:contains(" + wtid.split("_").join(" ") + ")")
-          .each(function () {
-            if ($(this).contents()[0].nodeName != "A") {
-              //comments table, do nothing
-            } else if ($(this).prev().length == 0) {
-              let parentRow = $(this).parent();
-              while (
-                parentRow.find("td").attr("rowspan") == undefined &&
-                parentRow.length > 0 &&
-                parentRow.get(0).tagName == "TR"
-              ) {
-                parentRow = parentRow.prev();
-              }
-              SetOrAdd(wtid, parentRow.find("td"));
-            } else if ($(this).prev().get(0).firstChild.tagName == "IMG") {
-              //WT ID only in manager column
-            } else {
-              SetOrAdd(wtid, $(this).prev());
-            }
-          });
-      });
-    });
-
-    const datesPromise = new Promise((resolve, reject) => {
-      fetch("https://plus.wikitree.com/DataDates.json")
-        .then((res) => res.json())
-        .then((dataDates) => {
-          const suggestionHeader = document.getElementById("suggestions_header");
-          const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-          const dateParts = dataDates.dataDate.split("-");
-          const actualMonth = parseInt(dateParts[1]) - 1;
-          const suggestionsHelpLink =
-            '<a href="/wiki/Help:Suggestions" title="Click here for an explanation of the suggestions column"><img src="/images/icons/help.gif" border="0" width="11" height="11" alt="Help"></a>';
-          suggestionHeader.innerHTML =
-            "Sugg. " + suggestionsHelpLink + " (" + dateParts[2] + " " + months[actualMonth] + ")";
-          resolve();
-        });
-    });
-
-    initDb
-      .then(() => {
-        // Wait for all promises to resolve before initializing DataTable
-        Promise.all([...distancePromises, ...relationshipPromises, suggestionsPromise, datesPromise])
-          .then(() => {
-            nameTable.find("tr").each(function (index) {
-              // find the ids item with the property index: index
-
-              const id = Object.keys(ids).find((key) => ids[key].index === index - 1);
-
-              if ($(this).find("th").length == 0) {
-                if (id) {
-                  const distance = ids[id].distance || "";
-                  const relationship = ids[id].relationship || "";
-                  const suggestion = ids[id].suggestion ? ids[id].suggestion : "";
-                  $(this).append(
-                    `<td style="text-align: center;">${distance}</td><td>${relationship}</td><td>${suggestion}</td>`
-                  );
-                } else {
-                  $(this).append(`<td style="text-align: center;"></td><td></td>`);
-                }
-              }
-            });
-            /* */
-          })
-          .catch((error) => {
-            console.error(error);
-          });
-      })
-      .catch((error) => {
-        console.error("Error during init of distance and relationship DBs:", error);
-      });
-  }, 0);
-
-  function SetOrAdd(wtid, node) {
-    if (ids[wtid].suggestion != undefined) {
-      ids[wtid].suggestion += "<br />" + node.html();
-    } else {
-      ids[wtid].suggestion = node.html();
-    }
-  }
-}
-
-async function GetSuggestions() {
-  return new Promise((resolve, reject) => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.has("p")) {
-      fetch("https://plus.wikitree.com/function/WTWebUser/WBE_TableFilters.htm?UserID=" + params.get("p"))
-        .then((suggestionsPage) => {
-          const txt = suggestionsPage.text();
-          resolve(txt);
-        })
-        .catch(() => {
-          reject("");
-        });
-    }
-  });
-}
 
 /**
  * Repositions the filter row in the table if it isn't already in the right place.
@@ -237,6 +42,7 @@ export function addFiltersToWikitables(aTable = null) {
   // Add filters to each table
   tables.forEach((table) => {
     if ($(table).find(".filter-row").length) {
+      console.log("found filter-row => returning");
       return;
     }
     const hasTbody = table.querySelector("tbody") !== null;
@@ -267,6 +73,7 @@ export function addFiltersToWikitables(aTable = null) {
     filterRow.classList.add("filter-row");
 
     headerCells.forEach((headerCell, i) => {
+      console.log("adding filter for " + headerCell.innerText);
       const filterCell = document.createElement("th");
       if (headerCell) {
         // Check if headerCell is not null or undefined
@@ -444,6 +251,7 @@ function addSortToTables() {
 
     // Add default sort direction indicator to all headers and change cursor to pointer
     headCells.forEach((cell) => {
+      console.log("adding sort for " + cell.innerText);
       // Add an img element for the arrow
       const arrow = document.createElement("img");
       if (arrow) {
@@ -468,9 +276,6 @@ function addSortToTables() {
         cell.dataset.sortDir = newSortDirection;
 
         rows.sort((rowA, rowB) => {
-          if (!rowA.children[columnIndex] || !rowB.children[columnIndex]) {
-            return 0;
-          }
           let cellAContent = rowA.children[columnIndex].textContent.trim();
           let cellBContent = rowB.children[columnIndex].textContent.trim();
 
@@ -562,17 +367,11 @@ function addSortToTables() {
               : "Click to sort";
         });
       });
-    });
+    }); //event listener
   });
 }
 
 export async function initTableFilters() {
-  window.tableFiltersOptions = await getFeatureOptions("tableFilters");
-  if (window.tableFiltersOptions.distanceAndRelationship) {
-    if ($("th:contains('°')").length == 0 && (isSpecialWatchedList || isSearchPage)) {
-      addDistanceAndRelationColumns();
-    }
-  }
   addFiltersToWikitables();
   if ($(".wt.names th#deathDate").length == 0) {
     addSortToTables();
@@ -581,8 +380,9 @@ export async function initTableFilters() {
 
 // Initialize table filters if the feature is enabled
 shouldInitializeFeature("tableFilters").then((result) => {
+  console.log("tableFilters enabled: " + result);
   if (result) {
-    if ($(".wikitable,.wt.names").length > 0) {
+    if ($(".wikitable,.wt.names").length > 0 /* && !waitForTriggerFromSurnameTables*/) {
       initTableFilters();
     }
   }
