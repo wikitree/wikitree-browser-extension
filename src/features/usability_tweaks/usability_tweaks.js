@@ -485,7 +485,7 @@ function addCategoryEditLinks() {
                 "</a> ";
               const leftPartWithoutTheWordCategory = liParts[0].substring(0, liParts[0].length - "Category ".length);
               const rightPart = liParts[2];
-              liTags[i].innerHTML = leftPartWithoutTheWordCategory + link + rightPart;
+              $(liTags[i]).html(leftPartWithoutTheWordCategory + link + rightPart);
             }
           }
         }
