@@ -138,7 +138,6 @@ function getAppsMenuItems() {
     },
     { title: "Photo Lines", url: "https://apps.wikitree.com/apps/clarke11007/PhotoLines.php" },
     { title: "Profile Overview", url: "https://apps.wikitree.com/apps/beacall6/templates.php" },
-    { title: "Relative SpiderWebs", url: "https://apps.wikitree.com/apps/clarke11007/webs.php" },
     { title: "RootsSearch", url: "https://apps.wikitree.com/apps/york1423/rootssearch/" },
     { title: "RSS Feed Maker", url: "https://apps.wikitree.com/apps/beacall6/rss_feed_maker.html" },
     { title: "SixDegrees", url: `https://apps.wikitree.com/apps/clarke11007/SixDegrees.php?id=${userName}` },
