@@ -1155,11 +1155,9 @@ export function assignCemeteryFromSources() {
       let cemeteryMatch = source.Text.match(
         /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Graveyard)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)|Memorial Park).*?),?.*?(?=[;.])/im
       );
-      console.log("cemeteryMatch", cemeteryMatch);
       let cemeteryMatch2 = source.Text.match(
         /,\s([^,]*?Cemetery|Memorial|Cimetière|kyrkogård|temető|Graveyard|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard).*?;/
       );
-      console.log("cemeteryMatch2", cemeteryMatch2);
       if (cemeteryMatch && source.Text.match(/Acadian|Wall of Names|sameas=no/) == null) {
         let cemetery = cemeteryMatch[0].replace("citing ", "").replace("Burial, ", "").trim();
         window.profilePerson.Cemetery = cemetery;
@@ -6106,7 +6104,6 @@ export async function getCitations() {
               if (citation.match(window.profilePerson?.PersonName?.FirstName)) {
                 window.profilePerson.Cemetery = aRef.Cemetery;
               }
-              console.log("Cemetery:", aRef.Cemetery);
             }
           }
         } else {
@@ -8201,7 +8198,6 @@ export async function getLocationCategory(type, location = null) {
       categoryType = "cemetery";
       const cemeteryBits = location.split(/, /);
       cemeteryVariants = generateCombinations(cemeteryBits[0]);
-      console.log("Cemetery location: " + location);
     } else {
       return;
     }
@@ -8268,7 +8264,6 @@ export async function getLocationCategory(type, location = null) {
     for (const api of apiResponses) {
       if (api.status === "fulfilled") {
         const response = api.value.response;
-        console.log(response);
         if (response?.categories?.length === 1) {
           const category = response.categories[0];
           if (!category.topLevel) {
