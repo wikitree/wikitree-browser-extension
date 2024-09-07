@@ -28,8 +28,16 @@ class SpaceDrafts {
   // Toggle CodeMirror on/off while maintaining scroll position
   toggleCodeMirror() {
     const scrollPosition = this.$textArea.scrollTop(); // Store the current scroll position
-    $("#toggleMarkupColor").click();
-    this.$textArea.scrollTop(scrollPosition); // Restore the scroll position
+
+    console.log("Toggling CodeMirror...");
+
+    // Trigger a click event on the toggle button to switch CodeMirror on or off
+    $("#toggleMarkupColor").trigger("click");
+
+    // Restore the scroll position after toggling
+    this.$textArea.scrollTop(scrollPosition);
+
+    console.log("CodeMirror toggled.");
   }
 
   // Get content from the textarea (regardless of CodeMirror)
@@ -63,37 +71,48 @@ class SpaceDrafts {
 
   // Append and configure the drafts button
   setupDraftButton() {
-    if (!$(".theClipboardButtons").length) {
-      console.log("TheClipboardButtons not found, creating...");
-      $("#header").append('<span class="theClipboardButtons"></span>');
-    }
-
     if (!$("#viewDraftsButton").length) {
       console.log("Appending the drafts button...");
-      $(".theClipboardButtons").append(
-        `<img id="viewDraftsButton" class="button small" title="View Draft" src="${SDimg}" accesskey="d" style="display: none;">`
-      );
+      $("#wpSave1")
+        .parent()
+        .before(
+          `<button class="button small" id="viewDraftsButton" title="View Draft" style="display: none;">Draft</button>`
+        );
     }
 
     // Show draft comparison popup when the button is clicked
-    $("#viewDraftsButton").on("click", () => this.showDraftComparison());
+    $("#viewDraftsButton").on("click", (event) => {
+      event.preventDefault();
+      this.showDraftComparison();
+    });
   }
 
   // Check if a draft exists, compare it to current content, and delete if identical
   checkDraftOnLoad() {
     const drafts = this.getDrafts();
     const currentDraft = drafts[this.pageId];
+
     if (currentDraft) {
-      const currentContent = this.getEditorContent();
+      // Get current content and sanitize it
+      let currentContent = this.getEditorContent();
+      currentContent = this.sanitizeContent(currentContent);
+
+      let draftContent = currentDraft.content;
+      draftContent = this.sanitizeContent(draftContent);
+
       console.log("Draft found for this page...");
-      if (currentDraft.content === currentContent) {
-        // If the draft is the same as current content, delete it
+
+      // Compare sanitized current content with the draft
+      if (draftContent === currentContent) {
+        // If identical, delete the draft and hide the draft button
         delete drafts[this.pageId];
         this.saveDrafts(drafts);
         console.log("Draft deleted as it matches the current content.");
+        $("#viewDraftsButton").hide();
       } else {
-        console.log("Showing drafts button...");
-        $("#viewDraftsButton").show(); // Show the button if the draft is different
+        // If the draft is different, show the draft button
+        console.log("Draft is different from current content, showing drafts button...");
+        $("#viewDraftsButton").show();
       }
     } else {
       console.log("No draft found for this page.");
@@ -101,25 +120,28 @@ class SpaceDrafts {
     }
   }
 
+  // Function to sanitize content by removing invisible characters like zero-width spaces and non-breaking spaces
+  sanitizeContent(content) {
+    return content
+      .replace(/[\u200B\u00A0]/g, "") // Remove zero-width and non-breaking spaces
+      .replace(/\r\n|\r|\n/g, "\n") // Normalize line endings to "\n"
+      .replace(/\s+/g, " ") // Replace multiple spaces with a single space
+      .trim(); // Trim leading and trailing whitespace
+  }
+
   // Save the draft to localStorage (only one version per visit)
   saveDraft() {
     let content;
 
-    // Check if CodeMirror is enabled
-    if (this.isCodeMirrorEnabled()) {
-      console.log("CodeMirror is enabled. Toggling off to get content...");
+    // Extract content from div.CodeMirror directly
+    const codeMirrorDiv = document.querySelector("div.CodeMirror");
 
-      // Turn off CodeMirror to access the raw textarea content
-      this.toggleCodeMirror();
-
-      // Now that CodeMirror is turned off, get the content from the textarea
-      content = this.getEditorContent();
-
-      // Turn CodeMirror back on after getting the content
-      this.toggleCodeMirror();
+    if (codeMirrorDiv) {
+      // Extract the visible text content from the div and remove zero-width spaces
+      content = (codeMirrorDiv.innerText || codeMirrorDiv.textContent).replace(/[\u200B]/g, "");
     } else {
-      // If CodeMirror is not enabled, get the content directly from the textarea
-      content = this.getEditorContent();
+      console.log("CodeMirror not available, cannot save draft.");
+      return;
     }
 
     if (!content.trim()) {
@@ -129,7 +151,7 @@ class SpaceDrafts {
 
     const drafts = this.getDrafts();
 
-    // Only save one draft per visit
+    // Save the draft regardless of how many edits there are
     drafts[this.pageId] = {
       content: content,
       timestamp: Date.now(),
@@ -137,7 +159,6 @@ class SpaceDrafts {
 
     // Save the updated drafts object back to localStorage
     this.saveDrafts(drafts);
-    this.hasSavedDraft = true; // Mark that a draft has been saved for this session
     console.log("Draft saved!");
   }
 
@@ -155,13 +176,35 @@ class SpaceDrafts {
   // Set up auto-save with debouncing
   setupAutoSave() {
     const debouncedSaveDraft = this.debounce(() => this.saveDraft(), 2000);
-    this.$textArea.on("input", debouncedSaveDraft);
-    this.$textArea.on("paste", debouncedSaveDraft);
-    this.$textArea.on("cut", debouncedSaveDraft);
 
-    // Only save one draft before unload
+    // Mutation Observer to detect changes in CodeMirror
+    const targetNode = document.querySelector("div.CodeMirror");
+
+    if (targetNode) {
+      const observer = new MutationObserver(() => {
+        console.log("CodeMirror content changed, debouncing save...");
+        debouncedSaveDraft(); // Call the save draft function when changes are observed
+      });
+
+      // Observe changes to the child nodes (where the content resides)
+      observer.observe(targetNode, {
+        childList: true,
+        subtree: true, // Detect changes within all nested elements
+        characterData: true, // Detect changes to the text nodes
+      });
+    } else {
+      console.log("CodeMirror not found, falling back to setInterval auto-save.");
+      // Fall back to a timed auto-save if CodeMirror is not present
+      setInterval(() => {
+        console.log("Auto-saving every 30 seconds...");
+        this.saveDraft();
+      }, 30000); // 30 seconds
+    }
+
+    // Save before the page is unloaded (as a backup)
     $(window).on("beforeunload", () => {
       if (!this.hasSavedDraft) {
+        console.log("Saving draft before page unload...");
         this.saveDraft();
       }
     });
@@ -179,7 +222,13 @@ class SpaceDrafts {
   // Helper to extract page ID from the URL
   getPageId() {
     const urlParams = new URLSearchParams(window.location.search);
-    const pageTitle = urlParams.get("title");
+    let pageTitle = urlParams.get("title");
+    if (!pageTitle) {
+      // Get this: https://www.wikitree.com/wiki/Space:Test_page-1
+      const url = window.location.href;
+      const urlParts = url.split("/Space:");
+      pageTitle = urlParts[urlParts.length - 1];
+    }
     return pageTitle.replace("Space:", "");
   }
 
