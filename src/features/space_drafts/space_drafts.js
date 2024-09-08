@@ -2,8 +2,6 @@ import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import * as JsDiff from "diff"; // Import the diff library
 
-const SDimg = chrome.runtime.getURL("images/space_drafts.png");
-
 class SpaceDrafts {
   constructor() {
     this.pageId = this.getPageId();
@@ -29,7 +27,6 @@ class SpaceDrafts {
     return this.$textArea.val();
   }
 
-  // Set the content in the editor while maintaining scroll position
   setEditorContent(content) {
     if (this.isCodeMirrorEnabled()) {
       $("#toggleMarkupColor").trigger("click"); // Trigger click event
@@ -262,7 +259,7 @@ class SpaceDrafts {
   // Close the draft comparison popup
   closeDraftComparison() {
     $("#spaceDraftComparisonPopup").slideUp(300, function () {
-      $(this).remove(); // 'this' correctly refers to '#spaceDraftComparisonPopup' inside this callback
+      $(this).remove();
     });
   }
 
