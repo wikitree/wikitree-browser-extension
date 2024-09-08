@@ -64,7 +64,7 @@ class SpaceDrafts {
       drafts.forEach((draft, index) => {
         const buttonLabel = drafts.length === 1 ? "Draft" : `Draft ${index + 1}`;
         const buttonHtml = `<button class="button small draft-button" data-index="${index}" title="View Draft">${buttonLabel}</button>`;
-        $("#wpSave1").parent().before(buttonHtml);
+        $("#wpSummaryLabel2").parent().after(buttonHtml);
       });
     }
   }
