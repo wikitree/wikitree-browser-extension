@@ -42,20 +42,20 @@ class SpaceDrafts {
     const drafts = this.getDrafts()[this.pageId] || [];
 
     // Remove existing draft buttons if they already exist
-    $(".draft-button").remove();
+    $(".draft-button").off().remove();
 
     if (drafts.length === 0) {
       console.log("No drafts available.");
       return;
+    } else {
+      // Generate a button for each draft
+      drafts.forEach((draft, index) => {
+        const buttonLabel = drafts.length === 1 ? "Draft" : `Draft ${index + 1}`;
+        const buttonHtml = `<button class="button small draft-button" data-index="${index}" title="View Draft">${buttonLabel}</button>`;
+
+        $("#wpSave1").parent().before(buttonHtml);
+      });
     }
-
-    // Generate a button for each draft
-    drafts.forEach((draft, index) => {
-      const buttonLabel = drafts.length === 1 ? "Draft" : `Draft ${index + 1}`;
-      const buttonHtml = `<button class="button small draft-button" data-index="${index}" title="View Draft">${buttonLabel}</button>`;
-
-      $("#wpSave1").parent().before(buttonHtml);
-    });
   }
 
   // Check if a draft exists, compare it to current content, and delete if identical
@@ -210,14 +210,25 @@ class SpaceDrafts {
   }
 
   // Get all drafts from localStorage
+  // Get all drafts from localStorage, and return drafts for the current page
   getDrafts() {
-    const drafts = localStorage.getItem("spaceDrafts");
-    return drafts ? JSON.parse(drafts) : {};
+    const allDrafts = localStorage.getItem("spaceDrafts");
+    const parsedDrafts = allDrafts ? JSON.parse(allDrafts) : {};
+
+    // Return the drafts for the current page (this.pageId), or an empty array if none exist
+    return parsedDrafts[this.pageId] || [];
   }
 
-  // Save all drafts back to localStorage
+  // Save drafts for the current page (this.pageId) to localStorage, while keeping other page drafts
   saveDrafts(drafts) {
-    localStorage.setItem("spaceDrafts", JSON.stringify(drafts));
+    const allDrafts = localStorage.getItem("spaceDrafts");
+    const parsedDrafts = allDrafts ? JSON.parse(allDrafts) : {};
+
+    // Update the drafts for the current page (this.pageId)
+    parsedDrafts[this.pageId] = drafts;
+
+    // Save the updated object back to localStorage
+    localStorage.setItem("spaceDrafts", JSON.stringify(parsedDrafts));
   }
 
   // Diff logic using the 'diff' library
