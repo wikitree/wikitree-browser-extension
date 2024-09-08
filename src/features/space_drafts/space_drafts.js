@@ -24,7 +24,19 @@ class SpaceDrafts {
 
   // Get content from the textarea (regardless of CodeMirror)
   getEditorContent() {
-    return this.$textArea.val();
+    // If CodeMirror is enabled, fetch the content from CodeMirror
+    if (this.isCodeMirrorEnabled()) {
+      const codeMirrorDiv = document.querySelector("div.CodeMirror");
+      if (codeMirrorDiv) {
+        return (codeMirrorDiv.innerText || codeMirrorDiv.textContent).replace(/[\u200B]/g, ""); // Sanitize and return the content
+      } else {
+        console.log("CodeMirror not available.");
+        return "";
+      }
+    } else {
+      // If CodeMirror is not enabled, get the content from the textarea
+      return this.$textArea.val();
+    }
   }
 
   setEditorContent(content) {
@@ -52,7 +64,6 @@ class SpaceDrafts {
       drafts.forEach((draft, index) => {
         const buttonLabel = drafts.length === 1 ? "Draft" : `Draft ${index + 1}`;
         const buttonHtml = `<button class="button small draft-button" data-index="${index}" title="View Draft">${buttonLabel}</button>`;
-
         $("#wpSave1").parent().before(buttonHtml);
       });
     }
@@ -63,7 +74,7 @@ class SpaceDrafts {
     const drafts = this.getDrafts()[this.pageId] || [];
 
     if (drafts.length > 0) {
-      let currentContent = this.getEditorContent();
+      let currentContent = this.getEditorContent(); // Use the correctly defined function here
       currentContent = this.sanitizeContent(currentContent);
 
       const currentDraft = drafts[drafts.length - 1]; // Get the latest draft
@@ -97,14 +108,31 @@ class SpaceDrafts {
 
     // Handle replace and delete logic, just like before
     $(document).on("click", "#replaceWithDraft", (event) => {
-      const index = $(event.currentTarget).data("index");
-      const drafts = this.getDrafts()[this.pageId] || [];
-      const draft = drafts[index]; // Use the selected draft
-      if (draft) {
-        this.setEditorContent(draft.content);
-        this.sessionId = draft.session; // Maintain the same session ID
-        this.closeDraftComparison();
-        $("html, body").animate({ scrollTop: this.$textArea.offset().top }, 500); // Scroll to textarea
+      let drafts = this.getDrafts()[this.pageId] || [];
+
+      if (drafts.length > 0) {
+        // Replace the content with the selected draft
+        const index = $(event.currentTarget).data("index");
+        const draft = drafts[index]; // Get the selected draft
+        if (draft) {
+          this.setEditorContent(draft.content); // Set the draft content in the editor
+
+          // Clear all drafts for the current page
+          drafts = [];
+          this.saveDrafts({ [this.pageId]: drafts }); // Save updated drafts (empty)
+
+          // Remove all draft buttons
+          $(".draft-button").remove();
+
+          // Close the draft comparison popup
+          this.closeDraftComparison();
+
+          // Reset session ID to start fresh with a new draft
+          this.sessionId = Date.now();
+
+          // Trigger input event to start saving a new draft immediately
+          this.$textArea.trigger("input");
+        }
       }
     });
 
@@ -136,37 +164,27 @@ class SpaceDrafts {
     });
   }
 
+  // Dynamically set up listeners based on whether CodeMirror is enabled or not
   setupDynamicListeners() {
-    // Remove any existing listeners
-    this.$textArea.off("input"); // Remove any listeners on the textarea
+    this.$textArea.off("input"); // Remove any previous listeners from the textarea
+
     const targetNode = document.querySelector("div.CodeMirror");
-    if (targetNode) {
-      const observer = this.codeMirrorObserver;
-      if (observer) {
-        observer.disconnect(); // Disconnect any existing MutationObserver on CodeMirror
-      }
-    }
-
-    // If CodeMirror is enabled, set up MutationObserver
-    if (this.isCodeMirrorEnabled()) {
+    if (targetNode && this.isCodeMirrorEnabled()) {
       console.log("CodeMirror is enabled, setting up MutationObserver...");
-      const codeMirrorDiv = document.querySelector("div.CodeMirror");
-      if (codeMirrorDiv) {
-        const observer = new MutationObserver(() => {
-          console.log("CodeMirror content changed, debouncing save...");
-          this.debounce(() => this.saveDraft(), 2000)(); // Debounced save draft on changes
-        });
+      const observer = new MutationObserver(() => {
+        console.log("CodeMirror content changed, debouncing save...");
+        this.debounce(() => this.saveDraft(), 2000)(); // Debounced save draft on changes
+      });
 
-        observer.observe(codeMirrorDiv, {
-          childList: true,
-          subtree: true, // Detect changes within all nested elements
-          characterData: true, // Detect changes to the text nodes
-        });
+      observer.observe(targetNode, {
+        childList: true,
+        subtree: true, // Detect changes within all nested elements
+        characterData: true, // Detect changes to the text nodes
+      });
 
-        this.codeMirrorObserver = observer; // Store the observer so we can disconnect it later
-      }
+      this.codeMirrorObserver = observer; // Store the observer so we can disconnect it later
     } else {
-      // If CodeMirror is disabled, fall back to observing `#wpTextbox1` directly
+      // If CodeMirror is not enabled, fall back to observing `#wpTextbox1` directly
       console.log("CodeMirror is not enabled, setting up input listener on #wpTextbox1...");
       this.$textArea.on(
         "input",
@@ -186,21 +204,7 @@ class SpaceDrafts {
 
   // Save the draft with versioning to localStorage
   saveDraft() {
-    let content;
-
-    // If CodeMirror is enabled, we grab the content from CodeMirror
-    if (this.isCodeMirrorEnabled()) {
-      const codeMirrorDiv = document.querySelector("div.CodeMirror");
-      if (codeMirrorDiv) {
-        content = (codeMirrorDiv.innerText || codeMirrorDiv.textContent).replace(/[\u200B]/g, "");
-      } else {
-        console.log("CodeMirror not available, cannot save draft.");
-        return;
-      }
-    } else {
-      // If CodeMirror is not enabled, get the content directly from the #wpTextbox1 textarea
-      content = this.getEditorContent();
-    }
+    let content = this.getEditorContent(); // Use the corrected function call
 
     // If the content is empty, skip saving
     if (!content.trim()) {
@@ -246,7 +250,6 @@ class SpaceDrafts {
   }
 
   // Get all drafts from localStorage
-  // Get all drafts from localStorage, and return drafts for the current page
   getDrafts() {
     const allDrafts = localStorage.getItem("spaceDrafts");
     const parsedDrafts = allDrafts ? JSON.parse(allDrafts) : {};
@@ -362,28 +365,6 @@ class SpaceDrafts {
 
     $("body").append(comparisonHtml);
     $("#spaceDraftComparisonPopup").show();
-  }
-
-  // Show the details for a specific draft
-  showDraftDetails(index, drafts) {
-    const draft = drafts[index];
-    const diffResult = this.getDiff(this.getEditorContent(), draft.content);
-
-    const detailsHtml = `
-      <div class="space-drafts-comparison">
-        <div class="space-drafts-column">
-          <h4>Current Text</h4>
-          <div class="space-drafts-diff">${diffResult.currentText}</div>
-        </div>
-        <div class="space-drafts-column">
-          <h4>Draft Text</h4>
-          <div class="space-drafts-diff">${diffResult.draftText}</div>
-        </div>
-      </div>
-      <button id="replaceWithDraft" class="space-drafts-replace-btn">Replace Current Text with Draft</button>
-    `;
-
-    $("#draftDetails").html(detailsHtml);
   }
 }
 
