@@ -27,6 +27,7 @@ const categories = [
 ];
 const projects = [
   "Acadians",
+  "Appalachia",
   "Australia",
   "Canada",
   "Cemeterist",
