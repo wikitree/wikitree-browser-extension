@@ -92,6 +92,7 @@ import "./scissors/scissors_options";
 import "./send_to_merge/send_to_merge_options";
 import "./shareable_sources/shareable_sources_options";
 import "./sourcepreview/sourcepreview_options";
+import "./space_drafts/space_drafts_options";
 import "./spacepreview/spacepreview_options";
 import "./surname_table/surname_table_options";
 import "./table_filters/table_filters_options";

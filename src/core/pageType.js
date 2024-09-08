@@ -231,7 +231,8 @@ if (domain.match("apps.wikitree.com")) {
   } else if (
     // Space Edit Page
     uri.match(/\/index.php\?title=Space(:|%3A|%3a).*&action=edit.*/g) ||
-    uri.match(/\/index.php\?title=Space(:|%3A|%3a).*&action=submit.*/g)
+    uri.match(/\/index.php\?title=Space(:|%3A|%3a).*&action=submit.*/g) ||
+    (path.match(/\/wiki\/Space(:|%3A|%3a).*/gi) && $("#wpTextbox1").length)
   ) {
     isSpaceEdit = true;
   } else if (
