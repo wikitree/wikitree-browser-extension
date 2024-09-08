@@ -52,17 +52,22 @@ class SpaceDrafts {
   setupDraftButton() {
     const drafts = this.getDrafts()[this.pageId] || [];
 
-    // Remove existing draft buttons if they already exist
+    // Clear existing draft buttons before regenerating
     $(".draft-button").off().remove();
 
     if (drafts.length === 0) {
       console.log("No drafts available.");
       return;
     } else {
-      // Generate a button for each draft
-      drafts.forEach((draft, index) => {
-        const buttonLabel = drafts.length === 1 ? "Draft" : `Draft ${index + 1}`;
-        const buttonHtml = `<button class="button small draft-button" data-index="${index}" title="View Draft">${buttonLabel}</button>`;
+      // Reverse the drafts array before rendering buttons
+      const reversedDrafts = drafts.slice().reverse();
+
+      // Generate buttons in ascending order, even for reversed drafts
+      reversedDrafts.forEach((draft, index) => {
+        const buttonLabel = `Draft ${reversedDrafts.length - index}`;
+        const buttonHtml = `<button class="button small draft-button" data-index="${
+          drafts.length - index - 1
+        }" title="View Draft">${buttonLabel}</button>`;
         $("#wpSummaryLabel2").parent().after(buttonHtml);
       });
     }
