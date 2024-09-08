@@ -125,24 +125,53 @@ class SpaceDrafts {
       this.deleteAllDrafts(); // Delete all drafts for this page when saving
     });
 
+    // Initially set listeners based on whether CodeMirror is enabled
+    this.setupDynamicListeners();
+
+    // Listen for CodeMirror being toggled on or off, and re-setup listeners accordingly
+    $(document).on("click", "#toggleMarkupColor", () => {
+      setTimeout(() => {
+        this.setupDynamicListeners(); // Re-setup the listeners after CodeMirror is toggled
+      }, 100); // Slight delay to allow for the CodeMirror toggle to complete
+    });
+  }
+
+  setupDynamicListeners() {
+    // Remove any existing listeners
+    this.$textArea.off("input"); // Remove any listeners on the textarea
     const targetNode = document.querySelector("div.CodeMirror");
     if (targetNode) {
-      const observer = new MutationObserver(() => {
-        console.log("CodeMirror content changed, debouncing save...");
-        this.debounce(() => this.saveDraft(), 2000)(); // Debounced save draft on changes
-      });
+      const observer = this.codeMirrorObserver;
+      if (observer) {
+        observer.disconnect(); // Disconnect any existing MutationObserver on CodeMirror
+      }
+    }
 
-      observer.observe(targetNode, {
-        childList: true,
-        subtree: true, // Detect changes within all nested elements
-        characterData: true, // Detect changes to the text nodes
-      });
+    // If CodeMirror is enabled, set up MutationObserver
+    if (this.isCodeMirrorEnabled()) {
+      console.log("CodeMirror is enabled, setting up MutationObserver...");
+      const codeMirrorDiv = document.querySelector("div.CodeMirror");
+      if (codeMirrorDiv) {
+        const observer = new MutationObserver(() => {
+          console.log("CodeMirror content changed, debouncing save...");
+          this.debounce(() => this.saveDraft(), 2000)(); // Debounced save draft on changes
+        });
+
+        observer.observe(codeMirrorDiv, {
+          childList: true,
+          subtree: true, // Detect changes within all nested elements
+          characterData: true, // Detect changes to the text nodes
+        });
+
+        this.codeMirrorObserver = observer; // Store the observer so we can disconnect it later
+      }
     } else {
-      console.log("CodeMirror not found, falling back to setInterval auto-save.");
-      setInterval(() => {
-        console.log("Auto-saving every 30 seconds...");
-        this.saveDraft();
-      }, 30000); // 30 seconds
+      // If CodeMirror is disabled, fall back to observing `#wpTextbox1` directly
+      console.log("CodeMirror is not enabled, setting up input listener on #wpTextbox1...");
+      this.$textArea.on(
+        "input",
+        this.debounce(() => this.saveDraft(), 2000)
+      ); // Debounced save on input changes
     }
   }
 
@@ -159,14 +188,21 @@ class SpaceDrafts {
   saveDraft() {
     let content;
 
-    const codeMirrorDiv = document.querySelector("div.CodeMirror");
-    if (codeMirrorDiv) {
-      content = (codeMirrorDiv.innerText || codeMirrorDiv.textContent).replace(/[\u200B]/g, "");
+    // If CodeMirror is enabled, we grab the content from CodeMirror
+    if (this.isCodeMirrorEnabled()) {
+      const codeMirrorDiv = document.querySelector("div.CodeMirror");
+      if (codeMirrorDiv) {
+        content = (codeMirrorDiv.innerText || codeMirrorDiv.textContent).replace(/[\u200B]/g, "");
+      } else {
+        console.log("CodeMirror not available, cannot save draft.");
+        return;
+      }
     } else {
-      console.log("CodeMirror not available, cannot save draft.");
-      return;
+      // If CodeMirror is not enabled, get the content directly from the #wpTextbox1 textarea
+      content = this.getEditorContent();
     }
 
+    // If the content is empty, skip saving
     if (!content.trim()) {
       console.log("Content is empty, skipping save.");
       return;
