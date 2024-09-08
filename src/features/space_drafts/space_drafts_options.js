@@ -10,7 +10,7 @@ const spaceDrafts = {
   id: "spaceDrafts",
   description:
     "Automatically saves drafts while editing space pages to prevent data loss in case of unexpected closure.",
-  category: "Other",
+  category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
