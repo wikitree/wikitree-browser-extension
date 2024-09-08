@@ -138,10 +138,25 @@ class SpaceDrafts {
     $(document).on("click", "#deleteDraft", (event) => {
       const index = $(event.currentTarget).data("index");
       let drafts = this.getDrafts()[this.pageId] || [];
+
       drafts.splice(index, 1); // Delete the correct draft by index
+
       this.saveDrafts({ [this.pageId]: drafts }); // Save the updated drafts back to localStorage
-      this.closeDraftComparison(); // Close the popup after deletion
-      $(".draft-button").hide(); // Hide the draft button after deleting the draft
+
+      // Close the draft comparison popup
+      this.closeDraftComparison();
+
+      // Remove the button for the deleted draft
+      $(`.draft-button[data-index="${index}"]`).remove();
+
+      // Re-index the remaining draft buttons
+      $(".draft-button").each(function (buttonIndex) {
+        $(this)
+          .attr("data-index", buttonIndex)
+          .text(`Draft ${buttonIndex + 1}`);
+      });
+
+      console.log(`Draft ${index + 1} deleted.`);
     });
 
     $(document).on("click", ".space-drafts-close-btn", () => {
