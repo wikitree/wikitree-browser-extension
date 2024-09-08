@@ -4,7 +4,7 @@ import * as JsDiff from "diff"; // Import the diff library
 
 class SpaceDrafts {
   constructor() {
-    this.pageId = this.getPageId();
+    this.pageId = this.getPageId(); // Modified to handle sections
     this.sessionId = Date.now(); // Unique session ID for this visit
     this.$textArea = $("#wpTextbox1");
     this.init();
@@ -24,7 +24,6 @@ class SpaceDrafts {
 
   // Get content from the textarea (regardless of CodeMirror)
   getEditorContent() {
-    // If CodeMirror is enabled, fetch the content from CodeMirror
     if (this.isCodeMirrorEnabled()) {
       const codeMirrorDiv = document.querySelector("div.CodeMirror");
       if (codeMirrorDiv) {
@@ -74,13 +73,13 @@ class SpaceDrafts {
     const drafts = this.getDrafts()[this.pageId] || [];
 
     if (drafts.length > 0) {
-      let currentContent = this.getEditorContent(); // Use the correctly defined function here
+      let currentContent = this.getEditorContent();
       currentContent = this.sanitizeContent(currentContent);
 
       const currentDraft = drafts[drafts.length - 1]; // Get the latest draft
       let draftContent = this.sanitizeContent(currentDraft.content);
 
-      console.log("Draft found for this page...");
+      console.log("Draft found for this page/section...");
 
       if (draftContent === currentContent) {
         drafts.pop(); // Remove the latest draft if it's identical
@@ -92,7 +91,7 @@ class SpaceDrafts {
         $("#viewDraftsButton").show();
       }
     } else {
-      console.log("No draft found for this page.");
+      console.log("No draft found for this page/section.");
       $("#viewDraftsButton").hide();
     }
   }
@@ -117,7 +116,7 @@ class SpaceDrafts {
         if (draft) {
           this.setEditorContent(draft.content); // Set the draft content in the editor
 
-          // Clear all drafts for the current page
+          // Clear all drafts for the current page/section
           drafts = [];
           this.saveDrafts({ [this.pageId]: drafts }); // Save updated drafts (empty)
 
@@ -322,16 +321,30 @@ class SpaceDrafts {
     };
   }
 
-  // Helper to extract page ID from the URL
+  // Helper to extract page ID from the URL, now including sections
   getPageId() {
     const urlParams = new URLSearchParams(window.location.search);
     let pageTitle = urlParams.get("title");
+
+    let sectionId = urlParams.get("section"); // Get section if available
+
     if (!pageTitle) {
       const url = window.location.href;
-      const urlParts = url.split("/Space:");
-      pageTitle = urlParts[urlParts.length - 1];
+
+      // Handle URL for viewing a page (e.g., /wiki/Space:...)
+      if (url.includes("/wiki/Space:")) {
+        const urlParts = url.split("/wiki/Space:");
+        pageTitle = urlParts[urlParts.length - 1];
+      }
+      // Handle URL for editing a page without 'title' parameter (e.g., /index.php?action=edit)
+      else if (url.includes("/index.php")) {
+        const urlParts = url.split("Space:");
+        pageTitle = urlParts[urlParts.length - 1];
+      }
     }
-    return pageTitle.replace("Space:", "");
+
+    // Append section to the pageId if available
+    return sectionId ? `${pageTitle}_section_${sectionId}` : pageTitle.replace("Space:", "");
   }
 
   // Show a popup comparing the current text to the draft
