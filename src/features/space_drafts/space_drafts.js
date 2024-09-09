@@ -7,7 +7,18 @@ class SpaceDrafts {
     this.pageId = this.getPageId(); // Modified to handle sections
     this.sessionId = Date.now(); // Unique session ID for this visit
     this.$textArea = $("#wpTextbox1");
+    this.isReload = this.checkIfPageReloaded(); // Detect if the page is reloaded
+    this.isFirefox = typeof InstallTrigger !== "undefined"; // Detect if the browser is Firefox
     this.init();
+  }
+
+  // Detect if the page was refreshed
+  checkIfPageReloaded() {
+    const navigationEntries = performance.getEntriesByType("navigation");
+    if (navigationEntries.length > 0 && navigationEntries[0].type === "reload") {
+      return true; // Page was reloaded
+    }
+    return false;
   }
 
   // Initialization function
@@ -74,6 +85,7 @@ class SpaceDrafts {
   }
 
   // Check if a draft exists, compare it to current content, and delete if identical
+  /*
   checkDraftOnLoad() {
     const drafts = this.getDrafts()[this.pageId] || [];
 
@@ -86,11 +98,47 @@ class SpaceDrafts {
 
       console.log("Draft found for this page/section...");
 
-      if (draftContent === currentContent) {
+      // Skip deletion if this is a page reload in Firefox
+      if (this.isFirefox && this.isReload) {
+        console.log("Page was reloaded in Firefox, keeping the draft.");
+        $("#viewDraftsButton").show(); // Show the drafts button
+      } else if (draftContent === currentContent) {
         drafts.pop(); // Remove the latest draft if it's identical
         this.saveDrafts({ [this.pageId]: drafts });
         console.log("Draft deleted as it matches the current content.");
         $("#viewDraftsButton").hide();
+      } else {
+        console.log("Draft is different from current content, showing drafts button...");
+        $("#viewDraftsButton").show();
+      }
+    } else {
+      console.log("No draft found for this page/section.");
+      $("#viewDraftsButton").hide();
+    }
+  }
+    */
+
+  checkDraftOnLoad() {
+    const drafts = this.getDrafts()[this.pageId] || [];
+
+    if (drafts.length > 0) {
+      let currentContent = this.getEditorContent();
+      currentContent = this.sanitizeContent(currentContent);
+
+      const currentDraft = drafts[drafts.length - 1]; // Get the latest draft
+      let draftContent = this.sanitizeContent(currentDraft.content);
+
+      console.log("Draft found for this page/section...");
+
+      // If it's a page reload in Firefox and the content matches the draft, don't show the draft button
+      if (this.isFirefox && this.isReload && draftContent === currentContent) {
+        console.log("Page was reloaded in Firefox, content matches the draft, no need for the draft button.");
+        $("#viewDraftsButton").hide(); // Hide the drafts button
+      } else if (draftContent === currentContent) {
+        drafts.pop(); // Remove the latest draft if it's identical
+        this.saveDrafts({ [this.pageId]: drafts });
+        console.log("Draft deleted as it matches the current content.");
+        $("#viewDraftsButton").hide(); // Hide the drafts button if it matches
       } else {
         console.log("Draft is different from current content, showing drafts button...");
         $("#viewDraftsButton").show();
@@ -268,17 +316,6 @@ class SpaceDrafts {
     console.log("All drafts deleted for this page.");
   }
 
-  // Get all drafts from localStorage
-  /*
-  getDrafts() {
-    const allDrafts = localStorage.getItem("spaceDrafts");
-    const parsedDrafts = allDrafts ? JSON.parse(allDrafts) : {};
-
-    // Return the drafts for the current page (this.pageId), or an empty array if none exist
-    return parsedDrafts[this.pageId] || [];
-  }
-    */
-
   getDrafts() {
     const allDrafts = localStorage.getItem("spaceDrafts");
     const parsedDrafts = allDrafts ? JSON.parse(allDrafts) : {};
@@ -286,12 +323,11 @@ class SpaceDrafts {
     // Use the cleaned pageId that removes "Space:"
     const cleanedPageId = this.getPageId();
 
-    // Check if there's an old version of the drafts with "Space:" in the key
+    // Only attempt to migrate if the pageId actually needs migration
     const oldPageIdWithSpace = cleanedPageId.replace("_section_", "Space:_section_");
 
-    // Migrate old drafts if they exist and remove the old "Space:" key
-    if (parsedDrafts[oldPageIdWithSpace]) {
-      // Move the draft to the cleaned version (no "Space:")
+    if (oldPageIdWithSpace !== cleanedPageId && parsedDrafts[oldPageIdWithSpace]) {
+      // Migrate old drafts if they exist and remove the old "Space:" key
       parsedDrafts[cleanedPageId] = parsedDrafts[oldPageIdWithSpace];
 
       // Remove the old key that contains "Space:"
@@ -301,7 +337,12 @@ class SpaceDrafts {
       localStorage.setItem("spaceDrafts", JSON.stringify(parsedDrafts));
 
       console.log(`Migrated drafts from "${oldPageIdWithSpace}" to "${cleanedPageId}".`);
+    } else {
+      console.log(`No migration needed for pageId: "${cleanedPageId}".`);
     }
+
+    // Add logging for debugging
+    console.log(`Drafts retrieved for pageId: "${cleanedPageId}":`, parsedDrafts[cleanedPageId]);
 
     // Return the drafts for the current page (cleanedPageId), or an empty array if none exist
     return parsedDrafts[cleanedPageId] || [];
@@ -315,8 +356,14 @@ class SpaceDrafts {
     // Update the drafts for the current page (this.pageId)
     parsedDrafts[this.pageId] = drafts;
 
+    // Add logging for debugging
+    console.log(`Saving drafts for pageId: "${this.pageId}":`, drafts);
+
     // Save the updated object back to localStorage
     localStorage.setItem("spaceDrafts", JSON.stringify(parsedDrafts));
+
+    // Log the updated localStorage for verification
+    console.log("Drafts saved to localStorage:", JSON.stringify(parsedDrafts));
   }
 
   // Diff logic using the 'diff' library
@@ -372,33 +419,6 @@ class SpaceDrafts {
   }
 
   // Helper to extract page ID from the URL, now including sections
-  /*
-  getPageId() {
-    const urlParams = new URLSearchParams(window.location.search);
-    let pageTitle = urlParams.get("title");
-
-    let sectionId = urlParams.get("section"); // Get section if available
-
-    if (!pageTitle) {
-      const url = window.location.href;
-
-      // Handle URL for viewing a page (e.g., /wiki/Space:...)
-      if (url.includes("/wiki/Space:")) {
-        const urlParts = url.split("/wiki/Space:");
-        pageTitle = urlParts[urlParts.length - 1];
-      }
-      // Handle URL for editing a page without 'title' parameter (e.g., /index.php?action=edit)
-      else if (url.includes("/index.php")) {
-        const urlParts = url.split("Space:");
-        pageTitle = urlParts[urlParts.length - 1];
-      }
-    }
-
-    // Append section to the pageId if available
-    return sectionId ? `${pageTitle.replace("Space:", "")}_section_${sectionId}` : pageTitle.replace("Space:", "");
-  }
-    */
-
   getPageId() {
     const urlParams = new URLSearchParams(window.location.search);
     let pageTitle = urlParams.get("title");
