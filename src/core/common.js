@@ -412,110 +412,7 @@ export function htmlEntities(str) {
     .replaceAll(/'/g, "&apos;");
 }
 
-// Used in Draft List and My Menu
-/*
 export async function showDraftList() {
-  if (localStorage.drafts) {
-    await updateDraftList();
-  }
-  $("#myDrafts").remove();
-  $("body").append($("<div id='myDrafts'><h2>My Drafts</h2><x>x</x><table></table></div>"));
-  $("#myDrafts").on("dblclick", function () {
-    $(this).slideUp();
-  });
-  $("#myDrafts x").on("click", function () {
-    $(this).parent().slideUp();
-  });
-  $("#myDrafts").draggable();
-
-  if (localStorage.drafts != undefined && localStorage.drafts != "[]") {
-    window.drafts = JSON.parse(localStorage.drafts);
-    window.draftCalls = 0;
-    window.tempDraftArr = [];
-    window.drafts.forEach(function (draft, index) {
-      const theWTID = draft[0];
-      if (!isOK(theWTID)) {
-        delete window.drafts[index];
-        window.draftCalls++;
-      } else {
-        getWikiTreePage("Drafts", "/index.php", "title=" + theWTID + "&displayDraft=1").then((res) => {
-          window.draftCalls++;
-          const dummy = $(res);
-          const aWTID = dummy.find("a.pureCssMenui0 span.person").text();
-          if (dummy.find("div.status:contains('You have an uncommitted')").length) {
-            window.tempDraftArr.push(aWTID);
-            const useLink = dummy.find("a:contains(Use the Draft)").attr("href");
-            if (useLink != undefined) {
-              const personID = useLink.match(/&u=[0-9]+/)[0].replace("&u=", "");
-              const draftID = useLink.match(/&ud=[0-9]+/)[0].replace("&ud=", "");
-              window.drafts.forEach(function (yDraft) {
-                if (yDraft[0] == aWTID) {
-                  yDraft[3] = personID;
-                  yDraft[4] = draftID;
-                }
-              });
-            }
-          }
-          if (window.draftCalls == window.drafts.length) {
-            window.newDraftArr = [];
-            window.drafts.forEach(function (aDraft) {
-              if (window.tempDraftArr.includes(aDraft[0]) && isOK(aDraft[0])) {
-                window.newDraftArr.push(aDraft);
-              }
-            });
-
-            window.newDraftArr.forEach(function (xDraft) {
-              let dButtons = "<td></td><td></td>";
-              if (xDraft[3] != undefined) {
-                dButtons =
-                  "<td><a href='https://" +
-                  mainDomain +
-                  "/index.php?title=Special:EditPerson&u=" +
-                  xDraft[3] +
-                  "&ud=" +
-                  xDraft[4] +
-                  "' class='small button'>USE</a></td><td><a href='https://" +
-                  mainDomain +
-                  "/index.php?title=Special:EditPerson&u=" +
-                  xDraft[3] +
-                  "&dd=" +
-                  xDraft[4] +
-                  "' class='small button'>DISCARD</a></td>";
-              }
-
-              $("#myDrafts table").append(
-                $(
-                  "<tr><td><a href='https://" +
-                    mainDomain +
-                    "/index.php?title=" +
-                    xDraft[0] +
-                    "&displayDraft=1'>" +
-                    xDraft[2] +
-                    "</a></td>" +
-                    dButtons +
-                    "</tr>"
-                )
-              );
-            });
-            $("#myDrafts").slideDown();
-            if (window.newDraftArr.length == 0) {
-              $("#myDrafts").append($("<p>No drafts!</p>"));
-            }
-            localStorage.setItem("drafts", JSON.stringify(window.newDraftArr));
-          }
-        });
-      }
-    });
-  } else {
-    $("#myDrafts").append($("<p>No drafts!</p>"));
-    $("#myDrafts").slideDown();
-  }
-}
-*/
-
-export async function showDraftList() {
-  const mainDomain = "wikitree.com"; // Cache the main domain
-
   if (localStorage.drafts) {
     await updateDraftList();
   }
@@ -531,12 +428,13 @@ export async function showDraftList() {
   `);
 
   // Bind draggable, close actions, and double-click
-  $("#myDrafts")
-    .draggable()
-    .on("dblclick", function () {
-      $(this).slideUp();
-    })
-    .slideDown();
+  $("#myDrafts").on("dblclick", function () {
+    $(this).slideUp();
+  });
+
+  setTimeout(() => {
+    $("#myDrafts").slideDown();
+  }, 1000);
 
   $("#myDrafts x").on("click", function () {
     $(this).parent().slideUp();

@@ -59,7 +59,7 @@ class SpaceDrafts {
     }
   }
 
-  // Append and configure the drafts button
+  // Append and configure the drafts button(s)
   setupDraftButton() {
     const drafts = this.getDrafts()[this.pageId] || [];
 
@@ -81,43 +81,15 @@ class SpaceDrafts {
         }" title="View Draft">${buttonLabel}</button>`;
         $("#wpSummaryLabel2").parent().after(buttonHtml);
       });
+      //
+      // Add a button to delete all drafts for this page
+      const deleteButtonText = drafts.length > 1 ? "Delete These Drafts" : "Delete Draft";
+      const deleteAllButtonHtml = `<button class="button small delete-all-drafts" title="${deleteButtonText}">${deleteButtonText}</button>`;
+      $(".draft-button").last().after(deleteAllButtonHtml);
     }
   }
 
   // Check if a draft exists, compare it to current content, and delete if identical
-  /*
-  checkDraftOnLoad() {
-    const drafts = this.getDrafts()[this.pageId] || [];
-
-    if (drafts.length > 0) {
-      let currentContent = this.getEditorContent();
-      currentContent = this.sanitizeContent(currentContent);
-
-      const currentDraft = drafts[drafts.length - 1]; // Get the latest draft
-      let draftContent = this.sanitizeContent(currentDraft.content);
-
-      console.log("Draft found for this page/section...");
-
-      // Skip deletion if this is a page reload in Firefox
-      if (this.isFirefox && this.isReload) {
-        console.log("Page was reloaded in Firefox, keeping the draft.");
-        $("#viewDraftsButton").show(); // Show the drafts button
-      } else if (draftContent === currentContent) {
-        drafts.pop(); // Remove the latest draft if it's identical
-        this.saveDrafts({ [this.pageId]: drafts });
-        console.log("Draft deleted as it matches the current content.");
-        $("#viewDraftsButton").hide();
-      } else {
-        console.log("Draft is different from current content, showing drafts button...");
-        $("#viewDraftsButton").show();
-      }
-    } else {
-      console.log("No draft found for this page/section.");
-      $("#viewDraftsButton").hide();
-    }
-  }
-    */
-
   checkDraftOnLoad() {
     const drafts = this.getDrafts()[this.pageId] || [];
 
@@ -209,6 +181,15 @@ class SpaceDrafts {
           .text(`Draft ${buttonIndex + 1}`);
       });
 
+      // Ensure the "Delete These Drafts" button is removed if there are no drafts left
+      // Otherwise, update the button text based on the remaining drafts
+      if (drafts.length === 0) {
+        $(".delete-all-drafts").remove();
+      } else {
+        const deleteButtonText = drafts.length > 1 ? "Delete These Drafts" : "Delete Draft";
+        $(".delete-all-drafts").text(deleteButtonText);
+      }
+
       console.log(`Draft ${index + 1} deleted.`);
     });
 
@@ -228,6 +209,13 @@ class SpaceDrafts {
       setTimeout(() => {
         this.setupDynamicListeners(); // Re-setup the listeners after CodeMirror is toggled
       }, 100); // Slight delay to allow for the CodeMirror toggle to complete
+    });
+
+    // Handle click event for the "Delete All Drafts" button
+    $(document).on("click", ".delete-all-drafts", () => {
+      this.deleteAllDrafts(); // Delete all drafts for this page
+      $(".draft-button").remove(); // Remove all draft buttons
+      console.log("All drafts deleted.");
     });
   }
 
