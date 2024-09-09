@@ -212,7 +212,8 @@ class SpaceDrafts {
     });
 
     // Handle click event for the "Delete All Drafts" button
-    $(document).on("click", ".delete-all-drafts", () => {
+    $(document).on("click", ".delete-all-drafts", function (e) {
+      e.preventDefault();
       this.deleteAllDrafts(); // Delete all drafts for this page
       $(".draft-button").remove(); // Remove all draft buttons
       console.log("All drafts deleted.");
