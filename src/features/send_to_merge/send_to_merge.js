@@ -1,6 +1,6 @@
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
-import { mainDomain } from "../../core/pageType";
+import { mainDomain, isMergeEdit } from "../../core/pageType";
 
 shouldInitializeFeature("sendToMerge").then((result) => {
   if (result) {
@@ -9,6 +9,29 @@ shouldInitializeFeature("sendToMerge").then((result) => {
     createMergeForm();
   }
 });
+
+function moveSources() {
+  const text = $("#newUser_mBio").val();
+  // Split at == Sources ==
+  const splitText = text.split("== Sources ==");
+  // Trim the first part
+  const sources = [];
+  const trimmed = splitText[0].trim();
+  // Find sources art the end of the text.  They are preceded by an asterisk.
+  // Split lines by newline and look at the last lines for sources. If the line starts with an asterisk, it is a source.
+  const lines = trimmed.split("\n");
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (lines[i].startsWith("*")) {
+      sources.unshift(lines[i]);
+    } else {
+      break;
+    }
+  }
+  // Remove these lines from the text and put them at the end.
+  const newText =
+    splitText[0].replace(sources.join("\n"), "") + "== Sources ==\n" + splitText[1] + "\n" + sources.join("\n");
+  $("#newUser_mBio").val(newText);
+}
 
 // Function to create the form dynamically
 function createMergeForm() {
@@ -28,12 +51,15 @@ function createMergeForm() {
 }
 
 function initSendToMerge() {
+  if (isMergeEdit) {
+    moveSources();
+  }
   // Callback function to execute when mutations are observed
   const callback = function (mutationsList, observer) {
     for (let mutation of mutationsList) {
       if (mutation.type === "childList") {
         // Use jQuery to select all matching elements
-        const buttons = $("button[data-action='setAsWho']");
+        const buttons = $("button[data-action='setAsWho'],button[data-action='view']");
 
         buttons.each(function () {
           // Check if the new button has already been added

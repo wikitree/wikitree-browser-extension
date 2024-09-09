@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import { registerFeature, OptionType } from "../../core/options/options_registry";
-import { isAddUnrelatedPerson, isProfileAddRelative } from "../../core/pageType";
+import { isAddUnrelatedPerson, isMergeEdit, isProfileAddRelative } from "../../core/pageType";
 
 registerFeature({
   name: "Send to Merge",
@@ -15,5 +15,5 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: false,
-  pages: [isProfileAddRelative, isAddUnrelatedPerson],
+  pages: [isProfileAddRelative, isAddUnrelatedPerson, isMergeEdit],
 });
