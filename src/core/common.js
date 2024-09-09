@@ -71,7 +71,7 @@ async function checkAnyDataFeature() {
     // results is an array of booleans. If any is true, initialize this feature.
     const anyFeatureToInitialize = results.some((result) => result);
     if (anyFeatureToInitialize) {
-      results.forEach((result, index) => {
+      results.forEach((result) => {
         if (result) {
           if ($("div#featureDataButtons").length == 0) {
             addDataButtons();
@@ -196,7 +196,6 @@ export function createTopMenuItem(options) {
   let title = options.title;
   let name = options.name;
   let id = options.id;
-  let url = options.url;
 
   $("#wte-topMenu").append(`<li>
         <a id="${id}" class="pureCssMenui" title="${title}">${name}</a>
@@ -414,6 +413,7 @@ export function htmlEntities(str) {
 }
 
 // Used in Draft List and My Menu
+/*
 export async function showDraftList() {
   if (localStorage.drafts) {
     await updateDraftList();
@@ -503,10 +503,6 @@ export async function showDraftList() {
             }
             localStorage.setItem("drafts", JSON.stringify(window.newDraftArr));
           }
-          /*
-          },
-          error: function (res) {},
-*/
         });
       }
     });
@@ -515,6 +511,234 @@ export async function showDraftList() {
     $("#myDrafts").slideDown();
   }
 }
+*/
+
+export async function showDraftList() {
+  const mainDomain = "wikitree.com"; // Cache the main domain
+
+  if (localStorage.drafts) {
+    await updateDraftList();
+  }
+
+  // Remove existing draft list and re-append the container
+  $("#myDrafts").remove();
+  $("body").append(`
+    <div id='myDrafts' style="display: none;">
+      <h2>My Drafts</h2>
+      <x>x</x>
+      <table></table>
+    </div>
+  `);
+
+  // Bind draggable, close actions, and double-click
+  $("#myDrafts")
+    .draggable()
+    .on("dblclick", function () {
+      $(this).slideUp();
+    })
+    .slideDown();
+
+  $("#myDrafts x").on("click", function () {
+    $(this).parent().slideUp();
+  });
+
+  // Process person drafts
+  if (localStorage.drafts && localStorage.drafts !== "[]") {
+    try {
+      const drafts = JSON.parse(localStorage.drafts);
+      processPersonDrafts(drafts);
+    } catch (e) {
+      console.error("Error parsing person drafts:", e);
+    }
+  } else {
+    // Handle space drafts if no person drafts exist
+    handleSpaceDrafts();
+  }
+
+  function processPersonDrafts(drafts) {
+    let draftCalls = 0;
+    const tempDraftArr = [];
+
+    drafts.forEach((draft, index) => {
+      const theWTID = draft[0];
+      if (!isOK(theWTID)) {
+        delete drafts[index];
+        draftCalls++;
+      } else {
+        getWikiTreePage("Drafts", "/index.php", `title=${theWTID}&displayDraft=1`).then((res) => {
+          draftCalls++;
+          const dummy = $(res);
+          let aWTID = dummy.find("a.pureCssMenui0 span.person").text();
+
+          // Check if 'aWTID' ends with ' User' and remove it if present
+          if (aWTID.endsWith(" User")) {
+            aWTID = aWTID.replace(/ User$/, ""); // Remove ' User' at the end
+          }
+
+          if (dummy.find("div.status:contains('You have an uncommitted')").length) {
+            tempDraftArr.push(aWTID);
+            const useLink = dummy.find("a:contains(Use the Draft)").attr("href");
+
+            if (useLink) {
+              const personID = useLink.match(/&u=[0-9]+/)[0].replace("&u=", "");
+              const draftID = useLink.match(/&ud=[0-9]+/)[0].replace("&ud=", "");
+              drafts.forEach((yDraft) => {
+                if (yDraft[0] === aWTID) {
+                  yDraft[3] = personID;
+                  yDraft[4] = draftID;
+                }
+              });
+            }
+          }
+
+          if (draftCalls === drafts.length) {
+            updateDraftTable(drafts, tempDraftArr);
+          }
+        });
+      }
+    });
+  }
+
+  function updateDraftTable(drafts, tempDraftArr) {
+    const newDraftArr = drafts.filter((aDraft) => tempDraftArr.includes(aDraft[0]) && isOK(aDraft[0]));
+
+    // Clear the table before rendering to prevent duplicates
+    $("#myDrafts table").empty();
+
+    if (!newDraftArr.length && !localStorage.spaceDrafts) {
+      $("#myDrafts").append("<p>No drafts!</p>");
+    }
+
+    newDraftArr.forEach((xDraft) => {
+      const useButton = xDraft[3]
+        ? `
+           <td><a href='https://${mainDomain}/index.php?title=Special:EditPerson&u=${xDraft[3]}&ud=${xDraft[4]}' class='small button'>USE</a></td>
+           <td><a href='https://${mainDomain}/index.php?title=Special:EditPerson&u=${xDraft[3]}&dd=${xDraft[4]}' class='small button'>DISCARD</a></td>`
+        : "<td></td><td></td>";
+
+      $("#myDrafts table").append(`
+        <tr>
+          <td><a href='https://${mainDomain}/index.php?title=${xDraft[0]}&displayDraft=1'>${xDraft[2]}</a></td>
+          ${useButton}
+        </tr>
+      `);
+    });
+
+    $("#myDrafts").slideDown();
+    localStorage.setItem("drafts", JSON.stringify(newDraftArr));
+
+    // Now handle space drafts
+    handleSpaceDrafts();
+  }
+
+  // Function to handle space drafts
+  function handleSpaceDrafts() {
+    removeKeysStartingWithSpace(); // Remove any keys starting with "Space:"
+    const spaceDrafts = JSON.parse(localStorage.spaceDrafts || "{}");
+    const spaceDraftKeys = Object.keys(spaceDrafts);
+
+    if (spaceDraftKeys.length > 0) {
+      spaceDraftKeys.forEach((key) => {
+        const spaceDraft = spaceDrafts[key];
+        const keyParts = key.split("_section_"); // Split to check if it's a section draft
+        const spaceDraftPage = keyParts[0].replace(/_/g, " "); // Get the page title, remove underscores
+        const sectionId = keyParts[1]; // Get section ID if present
+
+        // Generate the link for editing the page or section
+        const editLink = sectionId
+          ? `https://${mainDomain}/index.php?title=Space:${keyParts[0]}&action=edit&section=${sectionId}`
+          : `https://${mainDomain}/index.php?title=Space:${keyParts[0]}&action=edit`;
+
+        // Append the draft row to the table
+        $("#myDrafts table").append(`
+          <tr>
+            <td><a href="${editLink}">${spaceDraftPage}</a></td>
+            <td>${sectionId ? "Section " + sectionId : "Full Page"}</td>
+            <td><button class='small button delete-space-draft' data-key="${key}">DISCARD</button></td>
+          </tr>
+        `);
+      });
+
+      // Add action buttons for deleting space drafts
+      $("#myDrafts").append(`
+        <div id="spaceDraftActions">
+          <button id="deleteAllSpaceDrafts" class="small button">Delete All Space Drafts</button>
+        </div>
+      `);
+    } else {
+      $("#myDrafts").append("<p>No space drafts!</p>");
+    }
+  }
+}
+
+function removeKeysStartingWithSpace() {
+  const spaceDrafts = JSON.parse(localStorage.getItem("spaceDrafts") || "{}");
+
+  // Iterate through the keys of spaceDrafts
+  Object.keys(spaceDrafts).forEach((key) => {
+    if (key.startsWith("Space:")) {
+      // Remove the key from the object
+      delete spaceDrafts[key];
+    }
+  });
+
+  // Save the updated spaceDrafts back to localStorage
+  localStorage.setItem("spaceDrafts", JSON.stringify(spaceDrafts));
+
+  console.log("Removed all keys starting with 'Space:'.");
+}
+
+// Event listeners for space drafts actions
+$(document).on("click", ".delete-space-draft", function () {
+  const key = $(this).data("key");
+  const spaceDrafts = JSON.parse(localStorage.spaceDrafts || "{}");
+  delete spaceDrafts[key];
+  localStorage.setItem("spaceDrafts", JSON.stringify(spaceDrafts));
+  showDraftList(); // Refresh the draft list
+});
+
+$(document).on("click", "#deleteAllSpaceDrafts", function () {
+  localStorage.removeItem("spaceDrafts");
+  showDraftList(); // Refresh the draft list
+});
+
+$(document).on("click", "#deleteSpaceDraftsForPage", function () {
+  const pageId = window.location.href.split("/index.php?title=")[1]?.split("&")[0] || "";
+  const spaceDrafts = JSON.parse(localStorage.spaceDrafts || "{}");
+  Object.keys(spaceDrafts).forEach((key) => {
+    if (spaceDrafts[key].pageId === pageId) {
+      delete spaceDrafts[key];
+    }
+  });
+  localStorage.setItem("spaceDrafts", JSON.stringify(spaceDrafts));
+  showDraftList(); // Refresh the draft list after deleting page-specific drafts
+});
+
+// Event listeners for space drafts actions
+$(document).on("click", ".delete-space-draft", function () {
+  const key = $(this).data("key");
+  const spaceDrafts = JSON.parse(localStorage.spaceDrafts || "{}");
+  delete spaceDrafts[key];
+  localStorage.setItem("spaceDrafts", JSON.stringify(spaceDrafts));
+  showDraftList(); // Refresh the draft list
+});
+
+$(document).on("click", "#deleteAllSpaceDrafts", function () {
+  localStorage.removeItem("spaceDrafts");
+  showDraftList(); // Refresh the draft list
+});
+
+$(document).on("click", "#deleteSpaceDraftsForPage", function () {
+  const pageId = window.location.href.split("/index.php?title=")[1]?.split("&")[0] || "";
+  const spaceDrafts = JSON.parse(localStorage.spaceDrafts || "{}");
+  Object.keys(spaceDrafts).forEach((key) => {
+    if (spaceDrafts[key].pageId === pageId) {
+      delete spaceDrafts[key];
+    }
+  });
+  localStorage.setItem("spaceDrafts", JSON.stringify(spaceDrafts));
+  showDraftList(); // Refresh the draft list after deleting page-specific drafts
+});
 
 // Used in saveDraftList (above)
 export async function updateDraftList() {
@@ -527,7 +751,14 @@ export async function updateDraftList() {
     .text()
     .replace("Edit Profile of ", "")
     .replaceAll(/\//g, "")
-    .replaceAll(/ID|LINK|URL/g, "");
+    .replaceAll(/ID|LINK|URL/g, "")
+    .trim();
+
+  // Check if the name ends with " User" and remove it if necessary
+  if (theName.endsWith(" User")) {
+    theName = theName.replace(/ User$/, ""); // Remove the trailing ' User'
+  }
+
   if ($("#draftStatus:contains(saved),#status:contains(Starting with previous)").length) {
     addDraft = true;
   } else if ($("body.page-Special_EditPerson").length) {
@@ -540,6 +771,7 @@ export async function updateDraftList() {
     drafts.forEach(function (draft) {
       if (!draftsArrIDs.includes(draft[0])) {
         if ((addDraft == false || window.fullSave == true) && draft[0] == profileWTID && isEditPage == true) {
+          // Do nothing
         } else {
           if (draft[1] > lastWeek) {
             draftsArr.push(draft);

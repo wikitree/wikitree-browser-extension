@@ -24,7 +24,7 @@ function saveDraftList() {
   $("#wpSave").on("click", function () {
     window.fullSave = true;
   });
-  window.addEventListener("beforeunload", (event) => {
+  window.addEventListener("beforeunload", () => {
     updateDraftList();
   });
   $("#wpSaveDraft").on("click", function () {
@@ -37,7 +37,7 @@ function addDraftsToFindMenu() {
   const connectionLi = $("li a.pureCssMenui[href='/wiki/Special:Connection']");
   const newLi = $("<li><a class='pureCssMenui drafts' id='draftsLink' title='See your uncommitted drafts'>Drafts</li>");
   newLi.insertAfter(connectionLi.parent());
-  $("li a.drafts").click(function (e) {
+  $(document).on("click", "ul.pureCssMenu li a.drafts", function (e) {
     e.preventDefault();
     showDraftList();
   });

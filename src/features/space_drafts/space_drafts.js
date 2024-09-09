@@ -269,12 +269,42 @@ class SpaceDrafts {
   }
 
   // Get all drafts from localStorage
+  /*
   getDrafts() {
     const allDrafts = localStorage.getItem("spaceDrafts");
     const parsedDrafts = allDrafts ? JSON.parse(allDrafts) : {};
 
     // Return the drafts for the current page (this.pageId), or an empty array if none exist
     return parsedDrafts[this.pageId] || [];
+  }
+    */
+
+  getDrafts() {
+    const allDrafts = localStorage.getItem("spaceDrafts");
+    const parsedDrafts = allDrafts ? JSON.parse(allDrafts) : {};
+
+    // Use the cleaned pageId that removes "Space:"
+    const cleanedPageId = this.getPageId();
+
+    // Check if there's an old version of the drafts with "Space:" in the key
+    const oldPageIdWithSpace = cleanedPageId.replace("_section_", "Space:_section_");
+
+    // Migrate old drafts if they exist and remove the old "Space:" key
+    if (parsedDrafts[oldPageIdWithSpace]) {
+      // Move the draft to the cleaned version (no "Space:")
+      parsedDrafts[cleanedPageId] = parsedDrafts[oldPageIdWithSpace];
+
+      // Remove the old key that contains "Space:"
+      delete parsedDrafts[oldPageIdWithSpace];
+
+      // Save the updated drafts back to localStorage after migration
+      localStorage.setItem("spaceDrafts", JSON.stringify(parsedDrafts));
+
+      console.log(`Migrated drafts from "${oldPageIdWithSpace}" to "${cleanedPageId}".`);
+    }
+
+    // Return the drafts for the current page (cleanedPageId), or an empty array if none exist
+    return parsedDrafts[cleanedPageId] || [];
   }
 
   // Save drafts for the current page (this.pageId) to localStorage, while keeping other page drafts
@@ -342,6 +372,7 @@ class SpaceDrafts {
   }
 
   // Helper to extract page ID from the URL, now including sections
+  /*
   getPageId() {
     const urlParams = new URLSearchParams(window.location.search);
     let pageTitle = urlParams.get("title");
@@ -364,7 +395,36 @@ class SpaceDrafts {
     }
 
     // Append section to the pageId if available
-    return sectionId ? `${pageTitle}_section_${sectionId}` : pageTitle.replace("Space:", "");
+    return sectionId ? `${pageTitle.replace("Space:", "")}_section_${sectionId}` : pageTitle.replace("Space:", "");
+  }
+    */
+
+  getPageId() {
+    const urlParams = new URLSearchParams(window.location.search);
+    let pageTitle = urlParams.get("title");
+
+    let sectionId = urlParams.get("section"); // Get section if available
+
+    if (!pageTitle) {
+      const url = window.location.href;
+
+      // Handle URL for viewing a page (e.g., /wiki/Space:...)
+      if (url.includes("/wiki/Space:")) {
+        const urlParts = url.split("/wiki/Space:");
+        pageTitle = urlParts[urlParts.length - 1];
+      }
+      // Handle URL for editing a page without 'title' parameter (e.g., /index.php?action=edit)
+      else if (url.includes("/index.php")) {
+        const urlParts = url.split("Space:");
+        pageTitle = urlParts[urlParts.length - 1];
+      }
+    }
+
+    // Clean both pageTitle and sectionId (remove "Space:" from both)
+    const cleanedPageTitle = pageTitle.replace("Space:", "");
+
+    // Append section to the pageId if available, also cleaned
+    return sectionId ? `${cleanedPageTitle}_section_${sectionId}` : cleanedPageTitle;
   }
 
   // Show a popup comparing the current text to the draft

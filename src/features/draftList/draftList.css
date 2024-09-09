@@ -1,64 +1,69 @@
 #myDrafts {
-	position: absolute;
-	top: 100px;
-	left: 50%;
-	z-index: 11000;
-	background: white;
-	border: 2px solid forestgreen;
-	border-radius: 1em;
-	box-shadow: 0.1em 0.1em 0.1em 0.1em lightgreen;
-	padding: 1em;
-	display: none;
-	text-align: left;
+  position: absolute;
+  top: 100px;
+  left: 50%;
+  z-index: 11000;
+  background: white;
+  border: 2px solid forestgreen;
+  border-radius: 1em;
+  box-shadow: 0.1em 0.1em 0.1em 0.1em lightgreen;
+  padding: 1em;
+  display: none;
+  text-align: left;
 }
 
 #myDrafts x {
-	font-weight: bold;
-	position: absolute;
-	top: 0;
-	right: 0.2em;
-	cursor: pointer;
+  font-weight: bold;
+  position: absolute;
+  top: 0;
+  right: 0.2em;
+  cursor: pointer;
 }
 
 #myDrafts h2 {
-	margin: 0.5em;
+  margin: 0.5em;
 }
 
 #myDrafts table td {
-	padding: 0.5em;
-	list-style: none;
-	white-space: nowrap;
+  padding: 0.5em;
+  list-style: none;
+  white-space: nowrap;
 }
 
 #myDrafts a {
-	margin: 0.2em 0.5em;
+  margin: 0.2em 0.5em;
 }
 
 #myDrafts a.button:active {
-	color: gold;
-	background: rgb(0, 100, 0);
+  color: gold;
+  background: rgb(0, 100, 0);
 }
 
 #myDrafts p {
-	text-align: center;
+  text-align: center;
 }
 
 #myDrafts h2 {
-	padding: 0.5em;
+  padding: 0.5em;
 }
 
 body.qa-body-js-on .button.small {
-	padding: 7px 15px;
-	background: #25422d;
-	border: 0;
-	outline: none;
-	cursor: pointer;
-	text-align: center;
-	text-transform: uppercase;
-	border-radius: 5px;
-	color: #fff;
-	font-weight: normal;
-	text-decoration: none !important;
-	cursor: pointer;
-	line-height: normal;
+  padding: 7px 15px;
+  background: #25422d;
+  border: 0;
+  outline: none;
+  cursor: pointer;
+  text-align: center;
+  text-transform: uppercase;
+  border-radius: 5px;
+  color: #fff;
+  font-weight: normal;
+  text-decoration: none !important;
+  cursor: pointer;
+  line-height: normal;
+}
+
+#spaceDraftActions {
+  text-align: center;
+  margin-top: 1em;
 }
