@@ -15,7 +15,6 @@ const spaceDrafts = {
   contributors: [],
   defaultValue: false,
   pages: [isSpaceEdit],
-  options: [],
 };
 
 // Register the feature
