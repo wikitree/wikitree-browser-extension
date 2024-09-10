@@ -39,8 +39,9 @@ class SpaceDrafts {
     this.addListeners(); // Attach all event listeners and observe changes
   }
 
-  setEditorContent(content) {
-    if (isCodeMirrorEnabled()) {
+  async setEditorContent(content) {
+    const _isCodeMirrorEnabled = await isCodeMirrorEnabled();
+    if (_isCodeMirrorEnabled) {
       $("#toggleMarkupColor").trigger("click"); // Trigger click event
       this.$textArea.val(content); // Set content
       $("#toggleMarkupColor").trigger("click"); // Trigger click event
@@ -80,11 +81,11 @@ class SpaceDrafts {
   }
 
   // Check if a draft exists, compare it to current content, and delete if identical
-  checkDraftOnLoad() {
+  async checkDraftOnLoad() {
     const drafts = this.getDrafts()[this.pageId] || [];
 
     if (drafts.length > 0) {
-      let currentContent = getEditorContent();
+      let currentContent = await getEditorContent();
       currentContent = sanitizeContent(currentContent);
 
       const currentDraft = drafts[drafts.length - 1]; // Get the latest draft
@@ -226,43 +227,13 @@ class SpaceDrafts {
     });
   }
 
-  // Dynamically set up listeners based on whether CodeMirror is enabled or not
-  /*
-  setupDynamicListeners() {
-    this.$textArea.off("input.spaceDrafts"); // Remove any previous listeners from the textarea
-
-    const targetNode = document.querySelector("div.CodeMirror");
-    if (targetNode && this.isCodeMirrorEnabled()) {
-      console.log("CodeMirror is enabled, setting up MutationObserver...");
-      const observer = new MutationObserver(() => {
-        console.log("CodeMirror content changed, debouncing save...");
-        debounce(() => this.saveDraft(), 2000)(); // Debounced save draft on changes
-      });
-
-      observer.observe(targetNode, {
-        childList: true,
-        subtree: true, // Detect changes within all nested elements
-        characterData: true, // Detect changes to the text nodes
-      });
-
-      this.codeMirrorObserver = observer; // Store the observer so we can disconnect it later
-    } else {
-      // If CodeMirror is not enabled, fall back to observing `#wpTextbox1` directly
-      console.log("CodeMirror is not enabled, setting up input listener on #wpTextbox1...");
-      this.$textArea.on(
-        "input.spaceDrafts",
-        debounce(() => this.saveDraft(), 2000)
-      ); // Debounced save on input changes
-    }
-  }
-    */
-
-  setupDynamicListeners() {
+  async setupDynamicListeners() {
     // Remove any previously attached input listener to avoid duplication
     this.$textArea.off("input.spaceDrafts");
 
     const targetNode = document.querySelector("div.CodeMirror");
-    if (targetNode && isCodeMirrorEnabled()) {
+    const _isCodeMirrorEnabled = await isCodeMirrorEnabled();
+    if (targetNode && _isCodeMirrorEnabled) {
       console.log("CodeMirror is enabled, setting up MutationObserver...");
 
       // Clear previous observer if it exists
@@ -292,8 +263,8 @@ class SpaceDrafts {
   }
 
   // Save the draft with versioning to localStorage
-  saveDraft() {
-    let content = getEditorContent(); // Use the corrected function call
+  async saveDraft() {
+    let content = await getEditorContent(); // Use the corrected function call
 
     // If the content is empty, skip saving
     if (!content.trim()) {
@@ -408,12 +379,13 @@ class SpaceDrafts {
     return sectionId ? `${cleanedPageTitle}_section_${sectionId}` : cleanedPageTitle;
   }
 
-  showDraftComparison(index) {
+  async showDraftComparison(index) {
     const drafts = this.getDrafts()[this.pageId] || [];
     if (drafts.length === 0) return;
 
     const draft = drafts[index]; // Use the selected draft, not the latest one
-    const diffResult = getDiff(getEditorContent(), draft.content); // Swap the arguments
+    const editorContent = await getEditorContent(); // Get the current content
+    const diffResult = getDiff(editorContent, draft.content); // Swap the arguments
 
     const comparisonHtml = $(`
     <div class="diff-popup space-drafts-popup">

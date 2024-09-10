@@ -1,6 +1,5 @@
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
-//import * as JsDiff from "diff"; // Import the diff library
 import {
   getDiff,
   getEditorContent,
@@ -12,41 +11,16 @@ import {
 class ShowEdits {
   constructor() {
     this.$textArea = $("#wpTextbox1");
-    this.originalContent = getEditorContent(); // Capture content on page load
     this.isFirefox = typeof InstallTrigger !== "undefined"; // Detect if the browser is Firefox
     this.init();
   }
 
   // Initialization function
-  init() {
+  async init() {
     this.setupDiffButton(); // Set up the diff button (always visible for now)
     this.addListeners(); // Attach all event listeners and observe changes
+    this.originalContent = await getEditorContent(); // Capture content on page load
   }
-
-  // Check if CodeMirror is enabled by inspecting the toggle button's value
-  /*
-  isCodeMirrorEnabled() {
-    return $("#toggleMarkupColor").val() === "Turn Off Enhanced Editor";
-  }
-  */
-
-  // Get content from the textarea (regardless of CodeMirror)
-  /*
-  getEditorContent() {
-    return this.$textArea.val().trim(); // Trim to avoid false positives
-  }
-    */
-
-  // Sanitize content by normalizing spaces and removing invisible characters
-  /*
-  sanitizeContent(content) {
-    return content
-      .replace(/[\u200B\u00A0]/g, "") // Remove zero-width and non-breaking spaces
-      .replace(/\r\n|\r|\n/g, "\n") // Normalize line endings to "\n"
-      .replace(/\s+/g, " ") // Replace multiple spaces with a single space
-      .trim(); // Trim leading and trailing whitespace
-  }
-      */
 
   // Append and configure the diff button, initially visible for testing
   setupDiffButton() {
@@ -55,33 +29,14 @@ class ShowEdits {
   }
 
   // Add all event listeners
-  /*
-  addListeners() {
-    // Listen for changes in the textarea (plain text mode)
-    $(document).on("input", "#wpTextbox1", () => this.checkForChanges());
-
-    // Show diff when the button is clicked
-    $(document).on("click", "#showDiffButton", (event) => {
-      event.preventDefault();
-      this.showDiff();
-    });
-
-    // Close the diff popup
-    $(document).on("click", ".diff-close-btn", (e) => {
-      const popup = $(e.target).closest(".diff-popup");
-      closeDiffPopup(popup);
-    });
-  }
-    */
-
-  // Add all event listeners
-  addListeners() {
+  async addListeners() {
     // First, remove any previously attached listeners
     this.$textArea.off("input.showEdits");
     $(document).off("click.showEdits");
 
     // Check if CodeMirror is enabled
-    if (isCodeMirrorEnabled()) {
+    const _isCodeMirrorEnabled = await isCodeMirrorEnabled();
+    if (_isCodeMirrorEnabled) {
       console.log("CodeMirror is enabled, setting up MutationObserver...");
 
       // Create and attach the MutationObserver for CodeMirror
@@ -133,8 +88,8 @@ class ShowEdits {
   }
 
   // Check if there are changes and show/hide the button accordingly
-  checkForChanges() {
-    const currentContent = getEditorContent();
+  async checkForChanges() {
+    const currentContent = await getEditorContent();
     const diffResult = getDiff(sanitizeContent(this.originalContent), sanitizeContent(currentContent));
     // If the content has changed, show the button, otherwise hide it
     if (diffResult.originalText !== diffResult.newText) {
@@ -145,14 +100,14 @@ class ShowEdits {
   }
 
   // Show the diff between the loaded content and current content (from SpaceDrafts)
-  showDiff() {
-    const currentContent = getEditorContent();
+  async showDiff() {
+    const currentContent = await getEditorContent();
     const diffResult = getDiff(this.originalContent, currentContent);
 
     const diffHtml = `
       <div class="diff-popup show-edits-popup">
         <button class="diff-close-btn">&times;</button>
-        <h3>Edits Comparison</h3>
+        <h3>Edits</h3>
         <div class="diff-comparison">
           <div class="diff-column">
             <h4>Original Text</h4>

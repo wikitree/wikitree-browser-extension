@@ -2,14 +2,36 @@
 import * as JsDiff from "diff";
 import $ from "jquery";
 
-// Function to check if CodeMirror is enabled
-export function isCodeMirrorEnabled() {
-  return $("#toggleMarkupColor").val() === "Turn Off Enhanced Editor";
+export function waitForCodeMirror() {
+  return new Promise((resolve, reject) => {
+    const checkInterval = 100; // Check every 100ms
+    const timeout = 2000; // Maximum wait time of 5 seconds
+    let elapsedTime = 0;
+
+    const intervalId = setInterval(() => {
+      if ($(".CodeMirror").length > 0) {
+        clearInterval(intervalId); // Stop checking once CodeMirror is found
+        resolve(true); // Resolve the promise if CodeMirror is found
+      } else if (elapsedTime >= timeout) {
+        console.log("CodeMirror not detected (timeout)");
+        clearInterval(intervalId); // Stop checking after timeout
+        resolve(false); // Resolve with false if it times out
+      } else {
+        elapsedTime += checkInterval; // Increase elapsed time
+      }
+    }, checkInterval);
+  });
+}
+
+export async function isCodeMirrorEnabled() {
+  const isEnabled = await waitForCodeMirror();
+  return isEnabled;
 }
 
 // Function to get content from the editor (handles both plain text and CodeMirror)
-export function getEditorContent() {
-  if (isCodeMirrorEnabled()) {
+export async function getEditorContent() {
+  const _isCodeMirrorEnabled = await isCodeMirrorEnabled();
+  if (_isCodeMirrorEnabled) {
     const codeMirrorDiv = document.querySelector("div.CodeMirror");
     if (codeMirrorDiv) {
       return (codeMirrorDiv.innerText || codeMirrorDiv.textContent).replace(/[\u200B]/g, ""); // Sanitize and return the content
@@ -35,7 +57,6 @@ export function sanitizeContent(content) {
 // Exported function to get the diff
 export function getDiff(originalText, newText) {
   const diffResult = JsDiff.diffLines(originalText, newText);
-  console.log(diffResult); // Debugging output
   let originalTextWithDiff = "";
   let newTextWithDiff = "";
 
