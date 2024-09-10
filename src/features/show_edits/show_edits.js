@@ -1,12 +1,18 @@
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 //import * as JsDiff from "diff"; // Import the diff library
-import { getDiff, getEditorContent, sanitizeContent } from "../../core/lib/diff_utils"; // Import the utility functions
+import {
+  getDiff,
+  getEditorContent,
+  sanitizeContent,
+  closeDiffPopup,
+  isCodeMirrorEnabled,
+} from "../../core/lib/diff_utils"; // Import the utility functions
 
 class ShowEdits {
   constructor() {
     this.$textArea = $("#wpTextbox1");
-    this.originalContent = sanitizeContent(getEditorContent()); // Capture content on page load
+    this.originalContent = getEditorContent(); // Capture content on page load
     this.isFirefox = typeof InstallTrigger !== "undefined"; // Detect if the browser is Firefox
     this.init();
   }
@@ -44,11 +50,12 @@ class ShowEdits {
 
   // Append and configure the diff button, initially visible for testing
   setupDiffButton() {
-    const buttonHtml = `<button id="showDiffButton" class="button small" style="display:block;">Show Edits</button>`; // Make visible for testing
+    const buttonHtml = `<button id="showDiffButton" class="button small">Show Edits</button>`; // Make visible for testing
     $('a[href="/wiki/Help:Enhanced_Editor"]').after(buttonHtml);
   }
 
   // Add all event listeners
+  /*
   addListeners() {
     // Listen for changes in the textarea (plain text mode)
     $(document).on("input", "#wpTextbox1", () => this.checkForChanges());
@@ -60,23 +67,77 @@ class ShowEdits {
     });
 
     // Close the diff popup
-    $(document).on("click", ".show-edits-close-btn", () => {
-      this.closeDiffPopup();
+    $(document).on("click", ".diff-close-btn", (e) => {
+      const popup = $(e.target).closest(".diff-popup");
+      closeDiffPopup(popup);
+    });
+  }
+    */
+
+  // Add all event listeners
+  addListeners() {
+    // First, remove any previously attached listeners
+    this.$textArea.off("input.showEdits");
+    $(document).off("click.showEdits");
+
+    // Check if CodeMirror is enabled
+    if (isCodeMirrorEnabled()) {
+      console.log("CodeMirror is enabled, setting up MutationObserver...");
+
+      // Create and attach the MutationObserver for CodeMirror
+      const targetNode = document.querySelector("div.CodeMirror");
+      if (targetNode) {
+        if (this.codeMirrorObserver) {
+          this.codeMirrorObserver.disconnect(); // Disconnect previous observer if it exists
+        }
+
+        const observer = new MutationObserver(() => {
+          console.log("CodeMirror content changed, detecting changes...");
+          this.checkForChanges(); // Check for changes when CodeMirror content changes
+        });
+
+        observer.observe(targetNode, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+        });
+
+        this.codeMirrorObserver = observer; // Store the observer for later disconnecting if needed
+      }
+    } else {
+      // Fallback for plain textarea mode
+      console.log("CodeMirror is not enabled, setting up input listener on #wpTextbox1...");
+
+      // Listen for changes in the textarea (plain text mode)
+      this.$textArea.on("input.showEdits", () => this.checkForChanges());
+    }
+
+    // Show diff when the button is clicked
+    $(document).on("click.showEdits", "#showDiffButton", (event) => {
+      event.preventDefault();
+      this.showDiff();
+    });
+
+    // Close the diff popup
+    $(document).on("click.showEdits", ".diff-close-btn", (e) => {
+      const popup = $(e.target).closest(".diff-popup");
+      closeDiffPopup(popup);
+    });
+
+    // Re-setup listeners when CodeMirror is toggled
+    $(document).on("click.showEdits", "#toggleMarkupColor", () => {
+      setTimeout(() => {
+        this.addListeners(); // Re-setup listeners after CodeMirror toggle
+      }, 100);
     });
   }
 
   // Check if there are changes and show/hide the button accordingly
   checkForChanges() {
-    const currentContent = sanitizeContent(getEditorContent());
-    const diffResult = getDiff(this.originalContent, currentContent);
-
-    // Debugging output
-    console.log("Original content:", this.originalContent);
-    console.log("Current content:", currentContent);
-    console.log("Diff result:", diffResult);
-
+    const currentContent = getEditorContent();
+    const diffResult = getDiff(sanitizeContent(this.originalContent), sanitizeContent(currentContent));
     // If the content has changed, show the button, otherwise hide it
-    if (diffResult.currentText !== diffResult.draftText) {
+    if (diffResult.originalText !== diffResult.newText) {
       $("#showDiffButton").show();
     } else {
       $("#showDiffButton").hide();
@@ -85,7 +146,7 @@ class ShowEdits {
 
   // Show the diff between the loaded content and current content (from SpaceDrafts)
   showDiff() {
-    const currentContent = sanitizeContent(getEditorContent());
+    const currentContent = getEditorContent();
     const diffResult = getDiff(this.originalContent, currentContent);
 
     const diffHtml = `
@@ -108,55 +169,13 @@ class ShowEdits {
     $("body").append(diffHtml);
     $("#showEditsPopup").show();
   }
-
-  // Diff logic using the 'diff' library (from SpaceDrafts)
-  /*
-  getDiff(currentText, originalText) {
-    const diffResult = JsDiff.diffWords(originalText, currentText);
-    let originalTextWithDiff = "";
-    let currentTextWithDiff = "";
-
-    diffResult.forEach((part) => {
-      const escapedText = this.escapeHtml(part.value);
-      if (part.added) {
-        currentTextWithDiff += `<span class="diff-added">${escapedText.replace(/\n/g, "<br>")}</span>`;
-      } else if (part.removed) {
-        originalTextWithDiff += `<span class="diff-removed">${escapedText.replace(/\n/g, "<br>")}</span>`;
-      } else {
-        currentTextWithDiff += escapedText.replace(/\n/g, "<br>");
-        originalTextWithDiff += escapedText.replace(/\n/g, "<br>");
-      }
-    });
-
-    return {
-      currentText: currentTextWithDiff,
-      draftText: originalTextWithDiff,
-    };
-  }
-    */
-
-  // Escape HTML to prevent rendering issues
-  /*
-  escapeHtml(text) {
-    return text.replace(/[&<>"']/g, (match) => {
-      const escape = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" };
-      return escape[match];
-    });
-  }
-    */
-
-  // Close the diff popup (from SpaceDrafts)
-  closeDiffPopup() {
-    $("#showEditsPopup").slideUp(300, function () {
-      $(this).remove();
-    });
-  }
 }
 
 // Initialize the feature only when "showEdits" is enabled
 shouldInitializeFeature("showEdits").then((result) => {
   if (result) {
     import("../space_drafts/space_drafts.css"); // Import CSS for this feature
+    import("./show_edits.css"); // Import CSS for this feature
     window.showEdits = new ShowEdits(); // Initialize ShowEdits class
   }
 });

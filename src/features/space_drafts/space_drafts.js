@@ -1,7 +1,13 @@
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
-import * as JsDiff from "diff"; // Import the diff library
-import { getDiff, debounce, closeDiffPopup, getEditorContent, sanitizeContent } from "../../core/lib/diff_utils"; // Import the getDiff function from diff_utils.js
+import {
+  getDiff,
+  debounce,
+  closeDiffPopup,
+  getEditorContent,
+  sanitizeContent,
+  isCodeMirrorEnabled,
+} from "../../core/lib/diff_utils"; // Import the getDiff function from diff_utils.js
 
 class SpaceDrafts {
   constructor() {
@@ -10,6 +16,10 @@ class SpaceDrafts {
     this.$textArea = $("#wpTextbox1");
     this.isReload = this.checkIfPageReloaded(); // Detect if the page is reloaded
     this.isFirefox = typeof InstallTrigger !== "undefined"; // Detect if the browser is Firefox
+
+    // Create the debounced saveDraft function once in the constructor
+    this.debouncedSaveDraft = debounce(() => this.saveDraft(), 2000);
+
     this.init();
   }
 
@@ -29,31 +39,8 @@ class SpaceDrafts {
     this.addListeners(); // Attach all event listeners and observe changes
   }
 
-  // Check if CodeMirror is enabled by inspecting the toggle button's value
-  isCodeMirrorEnabled() {
-    return $("#toggleMarkupColor").val() === "Turn Off Enhanced Editor";
-  }
-
-  // Get content from the textarea (regardless of CodeMirror)
-  /*
-  getEditorContent() {
-    if (this.isCodeMirrorEnabled()) {
-      const codeMirrorDiv = document.querySelector("div.CodeMirror");
-      if (codeMirrorDiv) {
-        return (codeMirrorDiv.innerText || codeMirrorDiv.textContent).replace(/[\u200B]/g, ""); // Sanitize and return the content
-      } else {
-        console.log("CodeMirror not available.");
-        return "";
-      }
-    } else {
-      // If CodeMirror is not enabled, get the content from the textarea
-      return this.$textArea.val();
-    }
-  }
-    */
-
   setEditorContent(content) {
-    if (this.isCodeMirrorEnabled()) {
+    if (isCodeMirrorEnabled()) {
       $("#toggleMarkupColor").trigger("click"); // Trigger click event
       this.$textArea.val(content); // Set content
       $("#toggleMarkupColor").trigger("click"); // Trigger click event
@@ -240,8 +227,9 @@ class SpaceDrafts {
   }
 
   // Dynamically set up listeners based on whether CodeMirror is enabled or not
+  /*
   setupDynamicListeners() {
-    this.$textArea.off("input"); // Remove any previous listeners from the textarea
+    this.$textArea.off("input.spaceDrafts"); // Remove any previous listeners from the textarea
 
     const targetNode = document.querySelector("div.CodeMirror");
     if (targetNode && this.isCodeMirrorEnabled()) {
@@ -262,22 +250,46 @@ class SpaceDrafts {
       // If CodeMirror is not enabled, fall back to observing `#wpTextbox1` directly
       console.log("CodeMirror is not enabled, setting up input listener on #wpTextbox1...");
       this.$textArea.on(
-        "input",
+        "input.spaceDrafts",
         debounce(() => this.saveDraft(), 2000)
       ); // Debounced save on input changes
     }
   }
+    */
 
-  // Function to sanitize content by removing invisible characters like zero-width spaces and non-breaking spaces
-  /*
-  sanitizeContent(content) {
-    return content
-      .replace(/[\u200B\u00A0]/g, "") // Remove zero-width and non-breaking spaces
-      .replace(/\r\n|\r|\n/g, "\n") // Normalize line endings to "\n"
-      .replace(/\s+/g, " ") // Replace multiple spaces with a single space
-      .trim(); // Trim leading and trailing whitespace
+  setupDynamicListeners() {
+    // Remove any previously attached input listener to avoid duplication
+    this.$textArea.off("input.spaceDrafts");
+
+    const targetNode = document.querySelector("div.CodeMirror");
+    if (targetNode && isCodeMirrorEnabled()) {
+      console.log("CodeMirror is enabled, setting up MutationObserver...");
+
+      // Clear previous observer if it exists
+      if (this.codeMirrorObserver) {
+        this.codeMirrorObserver.disconnect();
+      }
+
+      const observer = new MutationObserver(() => {
+        console.log("CodeMirror content changed, debouncing save...");
+        this.debouncedSaveDraft(); // Call the debounced function
+      });
+
+      observer.observe(targetNode, {
+        childList: true,
+        subtree: true, // Detect changes within all nested elements
+        characterData: true, // Detect changes to the text nodes
+      });
+
+      this.codeMirrorObserver = observer; // Store the observer for later disconnection
+    } else {
+      // If CodeMirror is not enabled, fall back to observing `#wpTextbox1` directly
+      console.log("CodeMirror is not enabled, setting up input listener on #wpTextbox1...");
+
+      // Re-attach the debounced listener to the text area
+      this.$textArea.on("input.spaceDrafts", this.debouncedSaveDraft);
+    }
   }
-      */
 
   // Save the draft with versioning to localStorage
   saveDraft() {
@@ -346,13 +358,10 @@ class SpaceDrafts {
       // Save the updated drafts back to localStorage after migration
       localStorage.setItem("spaceDrafts", JSON.stringify(parsedDrafts));
 
-      console.log(`Migrated drafts from "${oldPageIdWithSpace}" to "${cleanedPageId}".`);
+      //   console.log(`Migrated drafts from "${oldPageIdWithSpace}" to "${cleanedPageId}".`);
     } else {
-      console.log(`No migration needed for pageId: "${cleanedPageId}".`);
+      //  console.log(`No migration needed for pageId: "${cleanedPageId}".`);
     }
-
-    // Add logging for debugging
-    console.log(`Drafts retrieved for pageId: "${cleanedPageId}":`, parsedDrafts[cleanedPageId]);
 
     // Return the drafts for the current page (cleanedPageId), or an empty array if none exist
     return parsedDrafts[cleanedPageId] || [];
@@ -366,73 +375,9 @@ class SpaceDrafts {
     // Update the drafts for the current page (this.pageId)
     parsedDrafts[this.pageId] = drafts;
 
-    // Add logging for debugging
-    console.log(`Saving drafts for pageId: "${this.pageId}":`, drafts);
-
     // Save the updated object back to localStorage
     localStorage.setItem("spaceDrafts", JSON.stringify(parsedDrafts));
-
-    // Log the updated localStorage for verification
-    console.log("Drafts saved to localStorage:", JSON.stringify(parsedDrafts));
   }
-
-  // Diff logic using the 'diff' library
-  /*
-  getDiff(currentText, draftText) {
-    if (!currentText || !draftText) {
-      return { currentText: "", draftText: "" };
-    }
-
-    const diffResult = JsDiff.diffWords(currentText, draftText);
-    let currentTextWithDiff = "";
-    let draftTextWithDiff = "";
-
-    diffResult.forEach((part) => {
-      const escapedText = this.escapeHtml(part.value);
-      if (part.added) {
-        draftTextWithDiff += `<span class="diff-added">${escapedText}</span>`;
-      } else if (part.removed) {
-        currentTextWithDiff += `<span class="diff-removed">${escapedText}</span>`;
-      } else {
-        currentTextWithDiff += escapedText;
-        draftTextWithDiff += escapedText;
-      }
-    });
-
-    return {
-      currentText: currentTextWithDiff,
-      draftText: draftTextWithDiff,
-    };
-  }
-    */
-
-  // Escape HTML to prevent rendering issues
-  escapeHtml(text) {
-    return text.replace(/[&<>"']/g, (match) => {
-      const escape = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" };
-      return escape[match];
-    });
-  }
-
-  // Close the draft comparison popup
-  /*
-  closeDraftComparison() {
-    $("#spaceDraftComparisonPopup").slideUp(300, function () {
-      $(this).remove();
-    });
-  }
-    */
-
-  // Utility function for debouncing
-  /*
-  debounce(func, delay) {
-    let timeout;
-    return function (...args) {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func.apply(this, args), delay);
-    };
-  }
-    */
 
   // Helper to extract page ID from the URL, now including sections
   getPageId() {
@@ -463,59 +408,25 @@ class SpaceDrafts {
     return sectionId ? `${cleanedPageTitle}_section_${sectionId}` : cleanedPageTitle;
   }
 
-  // Show a popup comparing the current text to the draft
-  /*
   showDraftComparison(index) {
     const drafts = this.getDrafts()[this.pageId] || [];
     if (drafts.length === 0) return;
 
     const draft = drafts[index]; // Use the selected draft, not the latest one
-    const diffResult = getDiff(this.getEditorContent(), draft.content);
+    const diffResult = getDiff(getEditorContent(), draft.content); // Swap the arguments
 
-    const comparisonHtml = `
-      <div id="spaceDraftComparisonPopup" class="space-drafts-popup">
-        <button class="space-drafts-close-btn">&times;</button>
-        <h3>Draft Comparison</h3>
-        <div class="space-drafts-comparison">
-          <div class="space-drafts-column">
-            <h4>Current Text</h4>
-            <div class="space-drafts-diff">${diffResult.currentText}</div>
-          </div>
-          <div class="space-drafts-column">
-            <h4>Draft Text</h4>
-            <div class="space-drafts-diff">${diffResult.draftText}</div>
-          </div>
-        </div>
-        <div id="draftActions">
-            <button id="replaceWithDraft" class="space-drafts-replace-btn small" data-index="${index}">Replace Current Text with Draft</button>
-            <button id="deleteDraft" class="space-drafts-delete-btn small" data-index="${index}">Delete Draft</button>
-        </div>
-      </div>
-    `;
-
-    $("body").append(comparisonHtml);
-    $("#spaceDraftComparisonPopup").show();
-  }
-    */
-  showDraftComparison(index) {
-    const drafts = this.getDrafts()[this.pageId] || [];
-    if (drafts.length === 0) return;
-
-    const draft = drafts[index]; // Use the selected draft, not the latest one
-    const diffResult = getDiff(draft.content, getEditorContent()); // Swap the arguments
-
-    const comparisonHtml = `
+    const comparisonHtml = $(`
     <div class="diff-popup space-drafts-popup">
       <button class="diff-close-btn">&times;</button>
       <h3>Draft Comparison</h3>
       <div class="diff-comparison">
         <div class="diff-column">
           <h4>Current Text</h4>
-          <div class="diff-content">${diffResult.newText}</div>
+          <div class="diff-content">${diffResult.originalText}</div>          
         </div>
         <div class="diff-column">
           <h4>Draft Text</h4>
-          <div class="diff-content">${diffResult.originalText}</div>
+          <div class="diff-content">${diffResult.newText}</div>
         </div>
       </div>
       <div id="draftActions">
@@ -523,10 +434,10 @@ class SpaceDrafts {
           <button id="deleteDraft" class="space-drafts-delete-btn small" data-index="${index}">Delete Draft</button>
       </div>
     </div>
-  `;
+  `).hide();
 
     $("body").append(comparisonHtml);
-    $("#spaceDraftComparisonPopup").show();
+    comparisonHtml.slideDown(300);
   }
 }
 

@@ -34,12 +34,13 @@ export function sanitizeContent(content) {
 
 // Exported function to get the diff
 export function getDiff(originalText, newText) {
-  const diffResult = JsDiff.diffWords(originalText, newText);
+  const diffResult = JsDiff.diffLines(originalText, newText);
+  console.log(diffResult); // Debugging output
   let originalTextWithDiff = "";
   let newTextWithDiff = "";
 
   diffResult.forEach((part) => {
-    const escapedText = escapeHtml(part.value); // Ensure HTML is escaped
+    const escapedText = escapeHtml(part.value).replace(/\n/g, "<br>"); // Ensure HTML is escaped
     if (part.added) {
       newTextWithDiff += `<span class="diff-added">${escapedText}</span>`;
     } else if (part.removed) {
