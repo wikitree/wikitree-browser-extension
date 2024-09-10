@@ -2,19 +2,29 @@
 import * as JsDiff from "diff";
 import $ from "jquery";
 
+let codeMirrorWaitDone = false; // Flag to track if the wait has been done once
+
 export function waitForCodeMirror() {
   return new Promise((resolve, reject) => {
+    if (codeMirrorWaitDone) {
+      // If the wait has been done, check immediately without waiting
+      resolve($(".CodeMirror").length > 0);
+      return;
+    }
+
     const checkInterval = 100; // Check every 100ms
-    const timeout = 2000; // Maximum wait time of 5 seconds
+    const timeout = 2000; // Maximum wait time of 2 seconds
     let elapsedTime = 0;
 
     const intervalId = setInterval(() => {
       if ($(".CodeMirror").length > 0) {
         clearInterval(intervalId); // Stop checking once CodeMirror is found
+        codeMirrorWaitDone = true; // Mark that the first wait is done
         resolve(true); // Resolve the promise if CodeMirror is found
       } else if (elapsedTime >= timeout) {
         console.log("CodeMirror not detected (timeout)");
         clearInterval(intervalId); // Stop checking after timeout
+        codeMirrorWaitDone = true; // Even if timed out, mark that we waited once
         resolve(false); // Resolve with false if it times out
       } else {
         elapsedTime += checkInterval; // Increase elapsed time
@@ -24,6 +34,7 @@ export function waitForCodeMirror() {
 }
 
 export async function isCodeMirrorEnabled() {
+  // Check or wait for CodeMirror depending on whether we've done the wait before
   const isEnabled = await waitForCodeMirror();
   return isEnabled;
 }
