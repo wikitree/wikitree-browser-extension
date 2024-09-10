@@ -296,10 +296,9 @@ function forwardToSavedSpagePage() {
   const greenBoxes = document.getElementsByClassName(boxClass);
   const searchParams = new URLSearchParams(window.location.search);
   const savedParam = "saveRedir";
-
   if (
     greenBoxes.length == 1 &&
-    greenBoxes[0].innerText.indexOf("Changes Saved." > -1) &&
+    greenBoxes[0].innerText.indexOf("Changes Saved.") > -1 &&
     !searchParams.has(savedParam)
   ) {
     searchParams.append(savedParam, "WBE");
@@ -656,7 +655,7 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
         removeMe();
       }
 
-      if (isSpacePage && options.leaveSpaceEditAfterSave) {
+      if (isSpaceEdit && options.leaveSpaceEditAfterSave) {
         forwardToSavedSpagePage();
       }
 
