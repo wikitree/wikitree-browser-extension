@@ -9,19 +9,85 @@ import "jquery-ui/ui/widgets/draggable";
 import "./clipboard_and_notes.css";
 import { htmlEntities, extensionContextInvalidatedCheck } from "../../core/common";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { isAddUnrelatedPerson, isProfileAddRelative, isSpaceEdit, isProfileEdit } from "../../core/pageType";
 
+/*
 export function appendClipboardButtons(clipboardButtons = $()) {
   if ($("h1:contains('Edit Marriage Information')").length) {
     $("#header").append(clipboardButtons, $("span.theClipboardButtons"));
-  } else if ($("body.page-Special_EditPerson").length) {
+  } else if ((isSpaceEdit || isAddUnrelatedPerson || isProfileAddRelative, isProfileEdit)) {
     if ($("#editToolbarExt").length) {
       $("#editToolbarExt").append(clipboardButtons, $("span.theClipboardButtons"));
-    } else {
+    } else if ($("#toolbar").length) {
       $("#toolbar").append(clipboardButtons, $("span.theClipboardButtons"));
+    } else {
+      $("a.toggleAdvancedSources").before(clipboardButtons, $("span.theClipboardButtons"));
     }
   } else {
     $("#header,#HEADER").append(clipboardButtons, $("span.theClipboardButtons"));
   }
+}
+  */
+
+export function appendClipboardButtons(clipboardButtons = $()) {
+  // Append buttons initially to the header
+  const clipboardContainer = $("<span>").addClass("clipboardContainer");
+  $("#header,#HEADER").append(clipboardContainer.append(clipboardButtons));
+
+  let hasEditorToolbar = null;
+  let position = null;
+
+  // Determine where the editor toolbar is based on the conditions
+  if ($("h1:contains('Edit Marriage Information')").length) {
+    position = $("#header");
+  } else if (isSpaceEdit || isAddUnrelatedPerson || isProfileAddRelative || isProfileEdit) {
+    if ($("#editToolbarExt").length) {
+      position = $("#editToolbarExt");
+      hasEditorToolbar = true;
+    } else if ($("#toolbar").length) {
+      position = $("#toolbar");
+      hasEditorToolbar = true;
+    } else if ($("a.toggleAdvancedSources").length) {
+      position = $("a.toggleAdvancedSources").parent();
+    }
+  }
+
+  // Check if an editor toolbar exists
+  if (!position || !position.length) {
+    return; // Exit if no toolbar is found
+  }
+
+  // Function to check if the header is visible
+  function isHeaderVisible() {
+    const header = $("#header,#HEADER");
+    const headerBottom = header.offset().top + header.outerHeight();
+    return $(window).scrollTop() < headerBottom;
+  }
+
+  // Function to handle moving clipboard buttons between header and editor
+  function handleScroll() {
+    if (!isHeaderVisible()) {
+      // Move buttons to the editor toolbar if the header is not visible and they're not already there
+      if (!clipboardButtons.parent().is(position)) {
+        if (hasEditorToolbar) {
+          clipboardButtons.detach().appendTo(position);
+        } else {
+          clipboardButtons.detach().prependTo(position);
+        }
+      }
+    } else {
+      // Move buttons back to the header if the header is visible and the buttons are not already in the header
+      if (!clipboardButtons.parent().is(clipboardContainer)) {
+        clipboardButtons.detach().appendTo(clipboardContainer);
+      }
+    }
+  }
+
+  // Attach scroll listener to window
+  $(window).on("scroll", handleScroll);
+
+  // Trigger scroll function initially in case user is already scrolled
+  handleScroll();
 }
 
 const editImage = chrome.runtime.getURL("images/edit.png");
