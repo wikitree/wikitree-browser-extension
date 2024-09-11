@@ -1243,14 +1243,14 @@ export function buildDeath(person) {
             " " +
             capitalizeFirstLetter(person.Pronouns.subject) +
             " is commemorated at " +
-            removeCountryName(window.profilePerson.Cemetery) +
+            removeCountryName(window.profilePerson.Cemetery.replace(/_/g, " ")) +
             ".";
         } else {
           text +=
             " " +
             capitalizeFirstLetter(person.Pronouns.subject) +
             " was buried in " +
-            removeCountryName(window.profilePerson.Cemetery) +
+            removeCountryName(window.profilePerson.Cemetery.replace(/_/g, " ")) +
             ".";
         }
         burialAdded = true;
@@ -1283,7 +1283,7 @@ export function buildDeath(person) {
       " " +
       capitalizeFirstLetter(person.Pronouns.subject) +
       " was buried in " +
-      removeCountryName(window.profilePerson["Burial Place"]) +
+      removeCountryName(window.profilePerson["Burial Place"].replace(/_/g, " ")) +
       ".";
     text += addReferences("Burial");
   }
@@ -7131,6 +7131,66 @@ async function getTemplates() {
 
 let templatesObject = {};
 let USstatesObjArray;
+
+function addUniqueRefNames(records) {
+  const refNameCounter = {};
+  let genericRefCounter = 1;
+
+  records.forEach((record, index) => {
+    let eventType = "";
+    let year = "";
+
+    // Safely check if 'Event Type' is a non-empty string
+    if (typeof record["Event Type"] === "string" && record["Event Type"].trim() !== "") {
+      eventType = record["Event Type"].replace(/\s+/g, "_"); // Replace spaces with underscores
+    }
+    // If 'Event Type' is missing or empty, check if 'Record Type' array exists and has valid entries
+    else if (
+      Array.isArray(record["Record Type"]) &&
+      record["Record Type"].length > 0 &&
+      typeof record["Record Type"][0] === "string"
+    ) {
+      eventType = record["Record Type"][0].replace(/\s+/g, "_"); // Use the first item in 'Record Type'
+    }
+
+    // Safely check if 'Year' exists and is a valid string or number
+    if (typeof record.Year === "string" || typeof record.Year === "number") {
+      year = String(record.Year).trim();
+    }
+
+    // Proceed if we have an event type and a valid year
+    if (eventType && year) {
+      // Create a key for tracking duplicates
+      const key = `${eventType}_${year}`;
+
+      // Initialize counter for this key if not already done
+      if (!refNameCounter[key]) {
+        refNameCounter[key] = 0;
+      }
+
+      // Increment the counter to handle duplicates
+      refNameCounter[key]++;
+
+      // Assign a unique RefName if it's missing or empty
+      if (!record.RefName || record.RefName.trim() === "") {
+        if (refNameCounter[key] === 1) {
+          record.RefName = `${eventType}_${year}`;
+        } else {
+          record.RefName = `${eventType}_${year}_${refNameCounter[key]}`;
+        }
+      }
+    }
+    // If both 'Event Type' and 'Record Type' are missing or invalid, assign a generic ref_01, ref_02, etc.
+    else {
+      if (!record.RefName || record.RefName.trim() === "") {
+        const refName = `ref_${String(genericRefCounter).padStart(2, "0")}`;
+        record.RefName = refName;
+        genericRefCounter++;
+      }
+    }
+  });
+}
+
 export async function generateBio() {
   const module = await import("./us_states.json");
   USstatesObjArray = module.default;
@@ -7384,6 +7444,7 @@ export async function generateBio() {
     }
 
     marriagesAndCensusesEtc.sort((a, b) => parseInt(a.OrderDate) - parseInt(b.OrderDate));
+    addUniqueRefNames(marriagesAndCensusesEtc);
 
     // Output marriages, censuses, military things, etc. in order
     // Create a map to store the narratives for each census year
