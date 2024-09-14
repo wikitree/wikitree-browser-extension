@@ -26,13 +26,15 @@ function parseOneLine(entry, genderRegex, placeRegex) {
   const genderMatch = entry.match(genderRegex);
   const placeMatch = entry.match(placeRegex);
 
-  if (genderMatch) {
+  if (genderMatch && placeMatch) {
     const genderIndex = genderMatch.index;
-    const name = entry.substring(0, genderIndex).trim();
-    const rest = entry.substring(genderIndex).trim().split(" ");
+    const placeIndex = placeMatch.index;
+
+    const name = (entry.substring(0, genderIndex) + " ").trim();
+    const rest = (entry.substring(genderIndex, placeIndex) + " ").trim().split(" ");
 
     const [gender, age, maritalStatus, position, ...remainingArray] = rest;
-    const remaining = remainingArray.join(" ").replace(placeMatch[0], "").trim();
+    const remaining = (remainingArray.join(" ") + " ").trim();
 
     return [name, gender, age, maritalStatus, position, remaining, placeMatch[0]];
   }
@@ -40,6 +42,7 @@ function parseOneLine(entry, genderRegex, placeRegex) {
   return null;
 }
 
+/*
 function parseSSVData(data) {
   parsedData = [];
   const censusList = data.split("\n").map((line) => line.replace(/^[:#]+/, "").trim());
@@ -55,10 +58,14 @@ function parseSSVData(data) {
 
   return parsedData;
 }
+  */
 
 function parseWikiTableData(data) {
   // Split the data by lines
-  const lines = data.split("\n").map((line) => line.trim());
+  const lines = data
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
 
   const propertiesObj = {};
   const tableData = {
@@ -99,8 +106,8 @@ function parseWikiTableData(data) {
     } else if (line.startsWith("|+")) {
       const captionLine = line.match(/\|\+.*/);
       if (captionLine) {
-        const captionText = captionLine[0].substring(2).trim();
-        tableData.caption = captionText.replace(/'''/g, "").trim();
+        const captionText = (captionLine[0].substring(2) + " ").trim();
+        tableData.caption = (captionText.replace(/'''/g, "") + " ").trim();
         // Check for bold
         tableData.isCaptionBold = /'''/.test(captionText);
         $("#wikitableWizardCaptionBold").prop("checked", tableData.isCaptionBold);
@@ -156,6 +163,8 @@ function parseWikiTableData(data) {
         currentRow.cells.push(...line.split("!!").map((cell) => cell.trim().replace(/^!/, "").trim()));
       } else if (line.includes("||")) {
         currentRow.cells.push(...line.split("||").map((cell) => cell.trim().replace(/^!/, "").trim()));
+      } else {
+        currentRow.cells.push((line.trim().replace(/^!/, "") + " ").trim());
       }
     } else if (line.startsWith("|")) {
       const cells = line.split("||").map((cell) =>
@@ -166,7 +175,7 @@ function parseWikiTableData(data) {
       );
 
       // Check if the entire row is bold (excluding empty cells)
-      if (cells.every((cell) => cell.trim() === "" || (cell.match(/^\s*'''/) && cell.match(/'''\s*$/)))) {
+      if (cells.every((cell) => (cell + " ").trim() === "" || (cell.match(/^\s*'''/) && cell.match(/'''\s*$/)))) {
         currentRow.isBold = true;
 
         console.log("Current row is bold:", currentRow.isBold);
@@ -232,7 +241,10 @@ function formatColumnName(name) {
   if (name === "originalRelation") {
     return "Relation";
   }
-  return name.replace(/([A-Z])/g, " $1").trim();
+  if (typeof name !== "string") {
+    return name;
+  }
+  return (name.replace(/([A-Z])/g, " $1") + " ").trim();
 }
 
 // Stack to keep track of deleted rows and columns
@@ -437,7 +449,7 @@ function parseLine(line, delimiter) {
   if (!delimiter) return [line];
 
   let fields = line.split(delimiter);
-  fields = fields.map((field) => field.trim());
+  fields = fields.map((field) => (field || "").trim());
   console.log(`Parsed fields:`, fields);
   return fields;
 }
@@ -454,7 +466,10 @@ function parseDelimitedText(data) {
     console.log(`Parsed space-separated data:`, theData);
     return theData;
   } else {
-    const parsedData = data.split("\n").map((line) => parseLine(line, delimiter));
+    const parsedData = data
+      .split("\n")
+      .filter((line) => typeof line === "string" && line.trim() !== "")
+      .map((line) => parseLine(line, delimiter));
     console.log(`Parsed delimited data:`, parsedData);
     return parsedData;
   }
@@ -462,7 +477,8 @@ function parseDelimitedText(data) {
 
 function splitLineIntoColumns(line) {
   // Remove leading ":: " and split the line by spaces to start analyzing parts
-  let cleanLine = line.replace(/^[#*:]+/, "").trim();
+  if (!line || typeof line !== "string") return [];
+  let cleanLine = (line.replace(/^[#*:]+/, "") + " ").trim();
   let parts = cleanLine.split(" ");
 
   // Find the index where gender (M or F) is present
@@ -493,8 +509,10 @@ function splitLineIntoColumns(line) {
   }
 
   // Extract occupation by removing the location from the remaining string
-  let occupation = remainingString.replace(locationIdentified, "").trim();
-
+  let occupation = "";
+  if (remainingString) {
+    occupation = (remainingString.replace(locationIdentified, "") + " ").trim();
+  }
   // Assemble and return the structured data
   return [name, relation, maritalStatus, gender, age, occupation, locationIdentified];
 }
@@ -603,7 +621,12 @@ function createwikitableWizardModal() {
           console.log("Text retrieved from clipboard.");
           console.log("Raw text:", text);
 
-          text = text.trim();
+          if (text && typeof text === "string") {
+            text = text.trim();
+          } else {
+            showCopyMessage("The clipboard is empty...", 1);
+            return;
+          }
           theTableBody.empty();
 
           if (text.includes("{|") && text.includes("|-")) {
@@ -662,7 +685,12 @@ function createwikitableWizardModal() {
               theTableBody.empty();
               const originalArray = parsedData;
               parsedData = originalArray.map((row) => {
-                return row.map((cell) => cell.replace(/"/g, ""));
+                return row.map((cell) => {
+                  if (typeof cell === "string") {
+                    return cell.replace(/"/g, "");
+                  }
+                  return cell;
+                });
               });
               let columnMapping = analyzeColumns(parsedData);
 
@@ -834,7 +862,7 @@ function createwikitableWizardModal() {
     const emptyColumns = new Set(Array.from({ length: data[0].length }, (_, i) => i));
     data.forEach((row) => {
       row.forEach((cell, index) => {
-        if (cell.trim() !== "") {
+        if (typeof cell === "string" && (cell + " ").trim() !== "") {
           emptyColumns.delete(index);
         }
       });
@@ -842,8 +870,13 @@ function createwikitableWizardModal() {
 
     // Find the last non-empty row index
     let lastNonEmptyRowIndex = data.length - 1;
-    while (lastNonEmptyRowIndex >= 0 && data[lastNonEmptyRowIndex].every((cell) => cell.trim() === "")) {
-      lastNonEmptyRowIndex--;
+    while (lastNonEmptyRowIndex >= 0) {
+      const row = data[lastNonEmptyRowIndex];
+      if (Array.isArray(row) && row.every((cell) => typeof cell === "string" && (cell + " ").trim() === "")) {
+        lastNonEmptyRowIndex--;
+      } else {
+        break;
+      }
     }
 
     data.forEach((row, rowIndex) => {
@@ -1804,7 +1837,7 @@ function selectToLaunchWikiTableWizard() {
         clearTimeout(selectionTimeout);
         selectionTimeout = setTimeout(function () {
           const selection = window.getSelection();
-          const selectedText = selection.toString().trim();
+          const selectedText = selection ? (selection.toString() + " ").trim() : "";
 
           if (selectedText.length > 0) {
             const currentBio = $("#wpTextbox1").val();
