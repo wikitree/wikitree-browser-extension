@@ -8,7 +8,7 @@ import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
 import { mainDomain, isNavHomePage } from "./pageType.js";
 import { checkIfFeatureEnabled } from "./options/options_storage";
-
+import Cookies from "js-cookie";
 /* * * * * * * * * * * * * * * * * * * *
  * Initialization. This section of code should run first.
  */
@@ -952,3 +952,44 @@ function backupRestoreListener(request, sender, sendResponse) {
 }
 
 export const treeImageURL = chrome.runtime.getURL("images/tree.gif");
+
+async function addLogInLogOutMessage() {
+  const theUser = Cookies.get("wikitree_wtb_UserName");
+  if (!theUser) {
+    const theFeatures = {
+      cc7Changes: "CC7 Changes",
+      distanceAndRelationship: "Distance and Relationship",
+    };
+    const theFeaturesKeys = Object.keys(theFeatures);
+    const theFeaturesArray = [];
+
+    for (const feature of theFeaturesKeys) {
+      const featureEnabled = await checkIfFeatureEnabled(feature);
+      if (featureEnabled) {
+        theFeaturesArray.push(theFeatures[feature]);
+        console.log(`Feature ${feature} is enabled.`);
+      }
+    }
+
+    let featuresMessage;
+    if (theFeaturesArray.length > 1) {
+      featuresMessage = theFeaturesArray.slice(0, -1).join(", ") + " and " + theFeaturesArray.slice(-1);
+    } else {
+      featuresMessage = theFeaturesArray[0];
+    }
+
+    const message = $(
+      `<div id='logOutAndBackInMessage'>WBE: Please log in (or log out and back in) for <span id="theFeatures">${featuresMessage}</span> to work.</div>`
+    );
+    $("body").append(message);
+    console.log("User is not logged in. Displaying message:", message.text());
+    // Display the message for a few seconds
+    setTimeout(function () {
+      message.remove();
+      console.log("Message removed.");
+    }, 3000);
+  }
+}
+setTimeout(() => {
+  addLogInLogOutMessage();
+}, 5000);

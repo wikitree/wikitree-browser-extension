@@ -124,6 +124,7 @@ shouldInitializeFeature("distanceAndRelationship").then((result) => {
   }
 
   const userID = Cookies.get("wikitree_wtb_UserName");
+
   if (result && $("body.profile").length && profileID != userID && profileID != "") {
     import("./distanceAndRelationship.css");
     initDistanceAndRelationshipDBs(

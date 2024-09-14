@@ -916,6 +916,10 @@ function closeCC7DeltaContainer() {
 }
 
 shouldInitializeFeature("cc7Changes").then(async (result) => {
+  if (!userId) {
+    console.log("User not logged in. CC7 Changes will not be initialized.");
+    return;
+  }
   if (result) {
     oncePerTab((rootWindow) => {
       db = new Database();
