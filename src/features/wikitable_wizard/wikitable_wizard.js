@@ -398,6 +398,42 @@ function isTSV(text) {
 
   return lines.every((line) => countTabs(line) === firstLineTabCount);
 }
+
+function parseTSV(data) {
+  const newlinePlaceholder = "<br>";
+
+  // Replace newlines within quoted cells with a placeholder
+  data = data.replace(/"[^"]*"/g, (match) => match.replace(/\n/g, newlinePlaceholder));
+
+  // Split lines by \n
+  const lines = data.split("\n");
+
+  const parsedData = [];
+  let currentRow = [];
+
+  lines.forEach((line, lineIndex) => {
+    console.log(`Parsing line (TSV) ${lineIndex}: ${line}`);
+    let fields = line.split("\t");
+
+    fields.forEach((field, index) => {
+      console.log(`Field before processing: "${field}"`);
+      // Restore newlines from the placeholder
+      // field = field.replace(newlinePlaceholder, "\n");
+      currentRow.push(field);
+      console.log(`Processed field: ${field}`);
+    });
+
+    if (currentRow.length > 0) {
+      parsedData.push(currentRow);
+      console.log(`Completed row: ${currentRow}`);
+      currentRow = [];
+    }
+  });
+
+  console.log(`Parsed TSV data:`, parsedData);
+  return parsedData;
+}
+
 /*
 function detectDelimiter(line) {
   const commaCount = (line.match(/,/g) || []).length;
@@ -447,41 +483,6 @@ function detectDelimiter(data) {
   }
 
   return null; // Fallback in case no clear delimiter is found
-}
-
-function parseTSV(data) {
-  const newlinePlaceholder = "<br>";
-
-  // Replace newlines within quoted cells with a placeholder
-  data = data.replace(/"[^"]*"/g, (match) => match.replace(/\n/g, newlinePlaceholder));
-
-  // Split lines by \n
-  const lines = data.split("\n");
-
-  const parsedData = [];
-  let currentRow = [];
-
-  lines.forEach((line, lineIndex) => {
-    console.log(`Parsing line (TSV) ${lineIndex}: ${line}`);
-    let fields = line.split("\t");
-
-    fields.forEach((field, index) => {
-      console.log(`Field before processing: "${field}"`);
-      // Restore newlines from the placeholder
-      // field = field.replace(newlinePlaceholder, "\n");
-      currentRow.push(field);
-      console.log(`Processed field: ${field}`);
-    });
-
-    if (currentRow.length > 0) {
-      parsedData.push(currentRow);
-      console.log(`Completed row: ${currentRow}`);
-      currentRow = [];
-    }
-  });
-
-  console.log(`Parsed TSV data:`, parsedData);
-  return parsedData;
 }
 
 function parseLine(line, delimiter) {
