@@ -10,7 +10,17 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { mainDomain } from "../../core/pageType";
 
 const colorNameToHex = import("./html_colors.json");
-const headerItems = ["Name", "Age", "Marital Status", "Position", "Occupation", "Birth Place", "Gender"];
+const headerItems = [
+  "Name",
+  "Age",
+  "Marital Status",
+  "Position",
+  "Occupation",
+  "Birth Place",
+  "Gender",
+  "Link",
+  "Burial Place",
+];
 let parsedData = [];
 const rowBoldCell = `<td class="rowBoldCell"><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"></td>`;
 const rowBgColorCell = `<td><input type="color" class="rowBgColor" value="#ffffff"></td>`;
@@ -388,7 +398,7 @@ function isTSV(text) {
 
   return lines.every((line) => countTabs(line) === firstLineTabCount);
 }
-
+/*
 function detectDelimiter(line) {
   const commaCount = (line.match(/,/g) || []).length;
   const tabCount = (line.match(/\t/g) || []).length;
@@ -405,6 +415,38 @@ function detectDelimiter(line) {
   if (commaCount > tabCount && commaCount > fourSpaceCount) return ",";
   if (tabCount > commaCount && tabCount > fourSpaceCount) return "\t";
   return null;
+}
+  */
+
+function detectDelimiter(data) {
+  // Split the data by lines and trim whitespace
+  const lines = data.split("\n").map((line) => line.trim());
+
+  // Define how many lines you want to check for consistency
+  const linesToCheck = 3;
+
+  // Check if the first few lines have a consistent number of tabs
+  const tabCounts = lines.slice(0, linesToCheck).map((line) => (line.match(/\t/g) || []).length);
+
+  const allTabsConsistent = tabCounts.every((count) => count === tabCounts[0] && count > 0);
+  if (allTabsConsistent) {
+    return "\t"; // Return tab as the detected delimiter
+  }
+
+  // Now fallback to checking other delimiters (comma, four spaces, single space, etc.)
+  const commaCount = (lines[0].match(/,/g) || []).length;
+  const fourSpaceCount = (lines[0].match(/ {4}/g) || []).length;
+  const singleSpaceCount = (lines[0].match(/(?<! {3}) (?=\S)/g) || []).length;
+
+  if (fourSpaceCount > commaCount && fourSpaceCount > singleSpaceCount) {
+    return "    "; // Four-space delimiter
+  } else if (singleSpaceCount > commaCount) {
+    return " "; // Single space delimiter
+  } else if (commaCount > 0) {
+    return ","; // Comma delimiter
+  }
+
+  return null; // Fallback in case no clear delimiter is found
 }
 
 function parseTSV(data) {
@@ -609,6 +651,7 @@ function createwikitableWizardModal() {
     updateRowBold($(this));
   });
 
+  /*
   $("#wikitableWizardPaste")
     .off("click")
     .on("click", function (e) {
@@ -619,8 +662,6 @@ function createwikitableWizardModal() {
         .readText()
         .then((text) => {
           console.log("Text retrieved from clipboard.");
-          console.log("Raw text:", text);
-
           if (text && typeof text === "string") {
             text = text.trim();
           } else {
@@ -782,6 +823,238 @@ function createwikitableWizardModal() {
           console.log("Error reading clipboard: " + err);
         });
 
+      $("#wikitableWizardWikitable").text("").slideUp();
+    });
+    
+
+  $("#wikitableWizardPaste")
+    .off()
+    .on("click", function (e) {
+      e.preventDefault();
+
+      const theTableBody = $("#wikitableWizardTable tbody");
+      let headerRow = [];
+
+      navigator.clipboard
+        .readText()
+        .then((text) => {
+          if (text && typeof text === "string") {
+            text = text.trim();
+          } else {
+            showCopyMessage("The clipboard is empty...", 1);
+            return;
+          }
+          theTableBody.empty();
+
+          let parsedData;
+          // If the text includes wikitable syntax, handle it as a wikitable
+          if (text.includes("{|") && text.includes("|-")) {
+            const wikiTableData = parseWikiTableData(text);
+            parsedData = wikiTableData.data.rows.map((row) => row.cells);
+          } else {
+            // Otherwise, treat it as delimited text (CSV/TSV/etc.)
+            parsedData = parseDelimitedText(text);
+          }
+
+          if (parsedData && parsedData.length > 0) {
+            // Analyze the columns
+            let columnMapping = analyzeColumns(parsedData);
+            console.log("Column mapping:", columnMapping);
+
+            // Generate the header row from the column mapping
+            headerRow = new Array(Object.keys(columnMapping).length).fill("");
+            for (const [key, value] of Object.entries(columnMapping)) {
+              const formattedKey = formatColumnName(key);
+              headerRow[parseInt(value)] = formattedKey;
+            }
+
+            // Check if headers should be added
+            if ($("#addGeneratedHeaders").prop("checked") && includesAtLeastN(headerItems, headerRow, 3)) {
+              $("#addGeneratedHeadersLabel").show();
+              let rowHtml = `<tr class='headerRow'>${rowBoldCell}${rowBgColorCell}`;
+              headerRow.forEach((cell) => {
+                rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
+              });
+              rowHtml += `</tr>\n`;
+              theTableBody.prepend(rowHtml); // Add the generated header row to the table
+              console.log("Generated headers added:", headerRow);
+
+              $("#addGeneratedHeaders")
+                .off("change")
+                .on("change", function () {
+                  if ($(this).prop("checked")) {
+                    let columnMapping = analyzeColumns(parsedData);
+                    const headerRow = new Array(Object.keys(columnMapping).length).fill("");
+
+                    for (const [key, value] of Object.entries(columnMapping)) {
+                      const formattedKey = formatColumnName(key);
+                      headerRow[parseInt(value)] = formattedKey;
+                    }
+
+                    if (headerRow && includesAtLeastN(headerItems, headerRow, 3)) {
+                      $("#addGeneratedHeadersLabel").css("display", "inline-block");
+                      let rowHtml = `
+                    <tr class='headerRow'>
+                    ${rowBoldCell}
+                    ${rowBgColorCell}`;
+                      headerRow.forEach((cell) => {
+                        rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
+                      });
+                      rowHtml += `</tr>\n`;
+                      theTableBody.prepend(rowHtml);
+                    }
+                  } else {
+                    $("#wikitableWizardTable tr.headerRow").remove();
+                  }
+                });
+            } else {
+              console.log("Generated headers not added. Headers:", headerRow);
+            }
+
+            // Add data rows to the table
+            parsedData.forEach((row) => {
+              let rowHtml = `<tr>${rowBoldCell}${rowBgColorCell}`;
+              row.forEach((cell) => {
+                rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
+              });
+              rowHtml += `</tr>\n`;
+              theTableBody.append($(rowHtml));
+            });
+
+            console.log("Parsed data added to the table.");
+          }
+
+          // Ensure table sorting and other setups are applied
+          updateHeaderRow();
+          setupSorting();
+        })
+        .catch((err) => {
+          console.log("Error reading clipboard: " + err);
+        });
+    });
+*/
+
+  $("#wikitableWizardPaste")
+    .off("click")
+    .on("click", function (e) {
+      e.preventDefault();
+
+      const theTableBody = $("#wikitableWizardTable tbody");
+      let headerRow = [];
+
+      navigator.clipboard
+        .readText()
+        .then((text) => {
+          if (text && typeof text === "string") {
+            text = text.trim();
+          } else {
+            showCopyMessage("The clipboard is empty...", 1);
+            return;
+          }
+
+          // Clear previous table data
+          theTableBody.empty();
+
+          let parsedData;
+          // Detect if it's a Wikitable format
+          if (text.includes("{|") && text.includes("|-")) {
+            console.log("Detected Wikitable format.");
+            const wikiTableData = parseWikiTableData(text);
+            parsedData = wikiTableData.data.rows.map((row) => row.cells);
+
+            // Render Wikitable
+            wikiTableData.data.rows.forEach((row) => {
+              let rowHtml = `<tr data-row-hash="${row.hash}">
+              <td class="rowBoldCell"><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"${
+                row.isBold ? " checked" : ""
+              }></td>
+              <td><input type="color" class="rowBgColor" value="${row.bgColor || "#ffffff"}"></td>`;
+              row.cells.forEach((cell) => {
+                rowHtml += `<td><input type="text" class="cell" value="${cell}" style="background-color:${
+                  row.bgColor || "#ffffff"
+                };${row.isBold ? "font-weight:bold;" : ""}"></td>\n`;
+              });
+              rowHtml += `</tr>\n`;
+              theTableBody.append($(rowHtml));
+            });
+
+            if (wikiTableData.data.rows[0]?.isHeader) {
+              $("#wikitableWizardHeaderRow").prop("checked", true);
+              theTableBody.find("tr:first-child").addClass("useHeaderRow");
+            }
+
+            // Apply additional properties
+            $("#wikitableWizardSortable").prop("checked", wikiTableData.isSortable);
+            $("#wikitableWizardWikitableClass").prop("checked", wikiTableData.isWikitableClass);
+            $("#wikitableWizardCellPadding").val(wikiTableData.cellPadding);
+            $("#wikitableWizardCaption").val(wikiTableData.data.caption);
+            $("#wikitableWizardCaptionBold").prop("checked", wikiTableData.data.isCaptionBold);
+            if (wikiTableData.data.isCaptionBold) {
+              $("#wikitableWizardCaption").addClass("bold");
+            } else {
+              $("#wikitableWizardCaption").removeClass("bold");
+            }
+            $("#wikitableWizardFullWidth").prop("checked", wikiTableData.isFullWidth);
+            updateHeaderRow();
+          } else {
+            // Handle CSV, TSV, or space-separated text
+            console.log("Checking for CSV, TSV, or space-separated values.");
+            parsedData = parseDelimitedText(text);
+
+            if (parsedData && parsedData.length > 0) {
+              // Analyze the columns
+              let columnMapping = analyzeColumns(parsedData);
+              headerRow = new Array(Object.keys(columnMapping).length).fill("");
+
+              for (const [key, value] of Object.entries(columnMapping)) {
+                const formattedKey = formatColumnName(key);
+                headerRow[parseInt(value)] = formattedKey;
+              }
+
+              // Check if headers should be generated
+              if ($("#addGeneratedHeaders").prop("checked") && includesAtLeastN(headerItems, headerRow, 3)) {
+                $("#addGeneratedHeadersLabel").show();
+                let rowHtml = `<tr class='headerRow'>${rowBoldCell}${rowBgColorCell}`;
+                headerRow.forEach((cell) => {
+                  rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
+                });
+                rowHtml += `</tr>\n`;
+                theTableBody.prepend(rowHtml); // Add header row
+              }
+
+              // Render data rows
+              parsedData.forEach((row) => {
+                let rowHtml = `<tr>${rowBoldCell}${rowBgColorCell}`;
+                row.forEach((cell) => {
+                  rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
+                });
+                rowHtml += `</tr>\n`;
+                theTableBody.append($(rowHtml));
+              });
+            }
+          }
+
+          // Ensure table is properly rendered and events are attached
+          updateHeaderRow();
+          setupSorting();
+
+          // Attach event listeners to the newly added inputs (check for color and boldness)
+          $("#wikitableWizardTable input").each(function () {
+            const inputType = $(this).attr("type");
+            if (inputType === "checkbox") {
+              $(this).data("previousValue", $(this).prop("checked"));
+            } else {
+              $(this).data("previousValue", $(this).val());
+            }
+          });
+
+          console.log("Table update complete.");
+        })
+        .catch((err) => {
+          console.log("Error reading clipboard: " + err);
+        });
+
+      // Reset the textarea for Wikitable after Paste
       $("#wikitableWizardWikitable").text("").slideUp();
     });
 

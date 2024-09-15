@@ -2787,6 +2787,7 @@ citiesCountiesStates.push(...UKMetropolitanCities);
 const placeNameRegExp =
   /\w+(land|shire|mere|acres|bay|beach|bluffs|center|corner|cove|crest|crossing|falls|farms|fields|flats|fork|gardens|gate|glen|green|grove|harbor|heights|hills|hollow|inlet|key|knolls|landing|light|manor|mesa|mills|mount|mountain|orchard|park|passage|pines|point|ranch|ridge|river|runway|shores|sky|springs|terrace|trace|view|village|vista|woods|basin|cape|canyon|delta|forest|glacier|gulf|island|isthmus|lake|mesa|oasis|plain|plateau|prairie|sea|shore|sound|swamp|trail|valley|waterfall|peak|ridge|summit|pass|range|butte|knob|dome|spit|shoals|rapids|falls|bend|junction|spur|switch|fork|cross|field|estate|parkway|boulevard|circle|court|place|avenue|plaza|path|way|alley|borough|city|county|district|municipality|parish|town|township|village|territory|region|state|province|shire|ton|ham|don|wick|ford|bury|port|stadt|stede|burg|burgh|by|ville|beck|dale|holme|hurts|mead|wold|boro|chester|heath|hill|vale|wyke)\b/gi;
 
+/*
 export function analyzeColumns(lines) {
   const columns = {};
 
@@ -2892,6 +2893,130 @@ export function analyzeColumns(lines) {
     } else {
       minCount = 2; // For 3 or more people, require at least 2 matches
     }
+    if (maxScoreIndex !== null && maxScore >= minCount) {
+      columnMapping[columnName] = maxScoreIndex;
+      assignedColumnNames.add(columnName);
+    }
+  }
+
+  return columnMapping;
+}
+  */
+
+export function analyzeColumns(lines) {
+  const columns = {};
+
+  lines.forEach((lineOrParts) => {
+    let parts;
+    if (Array.isArray(lineOrParts)) {
+      parts = lineOrParts;
+    } else {
+      lineOrParts = lineOrParts.replace(/\|\|/g, "\t"); // convert double pipes to tabs
+      parts = lineOrParts.split(/ {4}|\t/);
+    }
+
+    parts.forEach((part, index) => {
+      part = part.trim(); // Trim whitespace
+      if (!columns[index]) {
+        columns[index] = {
+          Name: 0,
+          Gender: 0,
+          originalRelation: 0,
+          Age: 0,
+          BirthPlace: 0,
+          Occupation: 0,
+          MaritalStatus: 0,
+          Link: 0,
+          BurialPlace: 0,
+        };
+      }
+      let matched = false;
+
+      // Name and Date recognition with support for non-Latin scripts
+      const nameAndDatePattern = /^[\p{L}\p{M}\s]+ \(\d{4}-\d{4}\)$/u; // Match name and date in any script
+      const isValidName = /[\p{L}\p{M}]{2}/u.test(part) && !/^\d+$/.test(part); // At least 2 letters in any script, not only numbers
+
+      if (index === 0 && part.match(nameAndDatePattern)) {
+        columns[index].Name++;
+        matched = true;
+      }
+
+      // Check if it's likely to be a valid name (not just a number, at least two characters in any script)
+      if (index === 0 && !matched && isValidName) {
+        columns[index].Name++;
+        matched = true;
+      }
+
+      if (!matched && part.match(/(?:M|F|Male|Female)\b/i)) {
+        columns[index].Gender++;
+        matched = true;
+      }
+
+      if (!matched && part.match(/married|widowed|single/i)) {
+        columns[index].MaritalStatus++;
+        matched = true;
+      }
+
+      if (!matched && part.match(/\b(Head|Wife|Son|Daughter|Father|Mother)\b/i)) {
+        columns[index].originalRelation++;
+        matched = true;
+      }
+
+      const ageMatch = part.match(/^(\d{1,3})( ?y| ?years| ?months| ?mo\.)?$/);
+      if (ageMatch && Number(ageMatch[1]) < 130) {
+        columns[index].Age++;
+        matched = true;
+      }
+
+      if (!matched && part.match(/Plot|Buried|Churchyard/i)) {
+        columns[index].BurialPlace++;
+        matched = true;
+      }
+
+      if (!matched && part.match(/https?:\/\/www.wikitree.com/i)) {
+        columns[index].Link++;
+        matched = true;
+      }
+
+      // If nothing else matched, assume it's a place name
+      if (!matched && part !== "") {
+        columns[index].BirthPlace++;
+      }
+    });
+  });
+
+  // Prioritize columns by these common headers
+  const columnPriority = [
+    "Name",
+    "Gender",
+    "originalRelation",
+    "Age",
+    "BirthPlace",
+    "Occupation",
+    "MaritalStatus",
+    "Link",
+    "BurialPlace",
+  ];
+  const assignedColumnNames = new Set();
+  const columnMapping = {};
+
+  for (const columnName of columnPriority) {
+    let maxScore = 0;
+    let maxScoreIndex = null;
+
+    for (const [index, column] of Object.entries(columns)) {
+      if (!Object.values(columnMapping).includes(index) && column) {
+        const score = column[columnName];
+        if (!assignedColumnNames.has(columnName) && score > maxScore) {
+          maxScore = score;
+          maxScoreIndex = index;
+        }
+      }
+    }
+
+    // Minimum matches required to consider a column as being mapped
+    const minCount = lines.length <= 2 ? 1 : 2; // For 1-2 rows, allow column assignment with a single match
+
     if (maxScoreIndex !== null && maxScore >= minCount) {
       columnMapping[columnName] = maxScoreIndex;
       assignedColumnNames.add(columnName);
