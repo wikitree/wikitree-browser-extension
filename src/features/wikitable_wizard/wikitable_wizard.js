@@ -434,26 +434,6 @@ function parseTSV(data) {
   return parsedData;
 }
 
-/*
-function detectDelimiter(line) {
-  const commaCount = (line.match(/,/g) || []).length;
-  const tabCount = (line.match(/\t/g) || []).length;
-  const fourSpaceCount = (line.match(/ {4}/g) || []).length;
-  const singleSpaceCount = (line.match(/(?<! {3}) (?=\S)/g) || []).length; // Match single spaces not preceded by 3 spaces and followed by non-space characters
-
-  console.log(`Detecting delimiter in line: ${line}`);
-  console.log(
-    `Comma count: ${commaCount}, Tab count: ${tabCount}, Four-space count: ${fourSpaceCount}, Single-space count: ${singleSpaceCount}`
-  );
-
-  if (fourSpaceCount > commaCount && fourSpaceCount > tabCount && fourSpaceCount > singleSpaceCount) return "    ";
-  if (singleSpaceCount > commaCount && singleSpaceCount > tabCount && singleSpaceCount > fourSpaceCount) return " ";
-  if (commaCount > tabCount && commaCount > fourSpaceCount) return ",";
-  if (tabCount > commaCount && tabCount > fourSpaceCount) return "\t";
-  return null;
-}
-  */
-
 function detectDelimiter(data) {
   // Split the data by lines and trim whitespace
   const lines = data.split("\n").map((line) => line.trim());
