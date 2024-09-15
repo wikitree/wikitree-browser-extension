@@ -6,7 +6,7 @@ Contributors: Jonathan Duke (Duke-5773)
 import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
-import { mainDomain, isNavHomePage } from "./pageType.js";
+import { mainDomain, isNavHomePage, isMainDomain } from "./pageType.js";
 import { checkIfFeatureEnabled } from "./options/options_storage";
 import Cookies from "js-cookie";
 /* * * * * * * * * * * * * * * * * * * *
@@ -981,15 +981,20 @@ async function addLogInLogOutMessage() {
     const message = $(
       `<div id='logOutAndBackInMessage'>WBE: Please log in (or log out and back in) for <span id="theFeatures">${featuresMessage}</span> to work.</div>`
     );
-    $("body").append(message);
-    console.log("User is not logged in. Displaying message:", message.text());
-    // Display the message for a few seconds
-    setTimeout(function () {
-      message.remove();
-      console.log("Message removed.");
-    }, 3000);
+    if (theFeaturesArray.length > 0) {
+      $("body").append(message);
+      console.log("User is not logged in. Displaying message:", message.text());
+      // Display the message for a few seconds
+      setTimeout(function () {
+        message.remove();
+        console.log("Message removed.");
+      }, 3000);
+    }
   }
 }
-setTimeout(() => {
-  addLogInLogOutMessage();
-}, 5000);
+
+if (isMainDomain) {
+  setTimeout(() => {
+    addLogInLogOutMessage();
+  }, 5000);
+}

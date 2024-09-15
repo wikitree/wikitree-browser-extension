@@ -11,25 +11,9 @@ import { htmlEntities, extensionContextInvalidatedCheck } from "../../core/commo
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { isAddUnrelatedPerson, isProfileAddRelative, isSpaceEdit, isProfileEdit } from "../../core/pageType";
 
-/*
-export function appendClipboardButtons(clipboardButtons = $()) {
-  if ($("h1:contains('Edit Marriage Information')").length) {
-    $("#header").append(clipboardButtons, $("span.theClipboardButtons"));
-  } else if ((isSpaceEdit || isAddUnrelatedPerson || isProfileAddRelative, isProfileEdit)) {
-    if ($("#editToolbarExt").length) {
-      $("#editToolbarExt").append(clipboardButtons, $("span.theClipboardButtons"));
-    } else if ($("#toolbar").length) {
-      $("#toolbar").append(clipboardButtons, $("span.theClipboardButtons"));
-    } else {
-      $("a.toggleAdvancedSources").before(clipboardButtons, $("span.theClipboardButtons"));
-    }
-  } else {
-    $("#header,#HEADER").append(clipboardButtons, $("span.theClipboardButtons"));
-  }
-}
-  */
+export async function appendClipboardButtons(clipboardButtons = $()) {
+  const isStickyHeader = await shouldInitializeFeature("stickyHeader");
 
-export function appendClipboardButtons(clipboardButtons = $()) {
   // Append buttons initially to the header
   const clipboardContainer = $("<span>").addClass("clipboardContainer");
   $("#header,#HEADER").append(clipboardContainer.append(clipboardButtons));
@@ -40,7 +24,7 @@ export function appendClipboardButtons(clipboardButtons = $()) {
   // Determine where the editor toolbar is based on the conditions
   if ($("h1:contains('Edit Marriage Information')").length) {
     position = $("#header");
-  } else if (isSpaceEdit || isAddUnrelatedPerson || isProfileAddRelative || isProfileEdit) {
+  } else if ((isSpaceEdit || isAddUnrelatedPerson || isProfileAddRelative || isProfileEdit) && !isStickyHeader) {
     if ($("#editToolbarExt").length) {
       position = $("#editToolbarExt");
       hasEditorToolbar = true;
