@@ -216,3 +216,16 @@ a.wikitable-context-option:active {
 .dragging {
   visibility: hidden;
 }
+
+#wikitableWizardFileDropZone {
+  border: 2px dashed #ccc;
+  border-radius: 0.5em;
+  background-color: darkolivegreen;
+}
+#wikitableWizardFileDropZone.dragover {
+  background-color: darkseagreen;
+}
+#wikitableWizardFileDropZone:hover {
+  cursor: default;
+  background-color: darkolivegreen;
+}

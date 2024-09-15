@@ -3,6 +3,8 @@ import "jquery-ui/ui/widgets/draggable";
 import "jquery-ui/ui/widgets/sortable";
 import "jquery-ui/ui/widgets/droppable";
 import "./wikitable_wizard.css";
+import * as XLSX from "xlsx";
+import JSZip from "jszip";
 import { showCopyMessage } from "../access_keys/access_keys";
 import { analyzeColumns } from "../auto_bio/auto_bio";
 import { stateInfo } from "./us_states.js"; // Import the state information
@@ -30,6 +32,208 @@ let globalWikiTableStyles = {
   tableStyle: "",
   rowStyles: [],
 };
+
+// Event listeners for drop zone using jQuery delegation
+$(document).on("dragover", "#wikitableWizardFileDropZone", function (e) {
+  e.preventDefault();
+  $(this).addClass("dragover");
+});
+
+$(document).on("dragleave", "#wikitableWizardFileDropZone", function (e) {
+  $(this).removeClass("dragover");
+});
+
+$(document).on("drop", "#wikitableWizardFileDropZone", function (e) {
+  e.preventDefault();
+  $(this).removeClass("dragover");
+  const file = e.originalEvent.dataTransfer.files[0];
+  handleFile(file); // Call your file handling logic
+});
+
+// Trigger file input when drop zone is clicked
+$(document).on("click", "#wikitableWizardFileDropZone", function () {
+  $("#wikitableWizardFileInput").trigger("click");
+});
+
+// Handle file input change event
+$(document).on("change", "#wikitableWizardFileInput", function (e) {
+  const file = e.target.files[0];
+  handleFile(file); // Call your file handling logic
+});
+
+function handleFile(file) {
+  const reader = new FileReader();
+
+  reader.onload = function (e) {
+    const fileData = e.target.result;
+    const fileName = file.name.toLowerCase();
+
+    // Handle different file types
+    if (fileName.endsWith(".xlsx")) {
+      processXlsxFile(fileData); // XLSX handler
+    } else if (fileName.endsWith(".ods")) {
+      processOdsFile(fileData); // ODS handler
+    } else if (fileName.endsWith(".csv") || fileName.endsWith(".txt")) {
+      processCsvOrTxtFile(fileData); // CSV or plain text handler
+    } else {
+      console.log("Unsupported file type: " + fileName);
+    }
+  };
+
+  // Use readAsText() for CSV and TXT files
+  if (file.name.toLowerCase().endsWith(".csv") || file.name.toLowerCase().endsWith(".txt")) {
+    reader.readAsText(file);
+  } else {
+    reader.readAsArrayBuffer(file); // For XLSX and ODS
+  }
+}
+
+// CSV or TXT file processor
+function processCsvOrTxtFile(fileData) {
+  const parsedData = parseDelimitedText(fileData); // Use your existing parsing logic
+
+  renderTableFromData(parsedData); // Render the parsed data into your table
+}
+
+// XLSX handler
+function processXlsxFile(fileData) {
+  // Use xlsx.js to process XLSX and pass data to renderTableFromData
+  const workbook = XLSX.read(fileData, { type: "array" });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const parsedData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+  renderTableFromData(parsedData); // Render parsed data
+}
+
+function processOdsFile(fileData) {
+  const zip = new JSZip();
+  zip
+    .loadAsync(fileData)
+    .then(function (zip) {
+      zip
+        .file("content.xml")
+        .async("string")
+        .then(function (contentXml) {
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(contentXml, "application/xml");
+
+          // Use `getElementsByTagNameNS` to handle namespaces for extracting table rows
+          const rows = xmlDoc.getElementsByTagNameNS("*", "table-row");
+          const parsedData = [];
+
+          Array.from(rows).forEach((row) => {
+            const cells = row.getElementsByTagNameNS("*", "table-cell");
+            const rowData = [];
+            Array.from(cells).forEach((cell) => {
+              const cellValue = cell.textContent || "";
+              rowData.push(cellValue);
+            });
+            parsedData.push(rowData);
+          });
+
+          renderTableFromData(parsedData); // Use your render function to display the parsed data
+        });
+    })
+    .catch(function (err) {
+      console.error("Error reading ODS file:", err);
+    });
+}
+
+function renderTableFromData(parsedData, wikiTableData = null) {
+  const theTableBody = $("#wikitableWizardTable tbody");
+  let headerRow = [];
+
+  // Clear previous table data
+  theTableBody.empty();
+
+  // Handle Wikitable format
+  if (wikiTableData) {
+    console.log("Rendering Wikitable format.");
+    wikiTableData.data.rows.forEach((row) => {
+      let rowHtml = `<tr data-row-hash="${row.hash}">
+    <td class="rowBoldCell"><span class='handle'>&#8214;</span><input type="checkbox" class="rowBold"${
+      row.isBold ? " checked" : ""
+    }></td>
+    <td><input type="color" class="rowBgColor" value="${row.bgColor || "#ffffff"}"></td>`;
+      row.cells.forEach((cell) => {
+        rowHtml += `<td><input type="text" class="cell" value="${cell}" style="background-color:${
+          row.bgColor || "#ffffff"
+        };${row.isBold ? "font-weight:bold;" : ""}"></td>\n`;
+      });
+      rowHtml += `</tr>\n`;
+      theTableBody.append($(rowHtml));
+    });
+
+    if (wikiTableData.data.rows[0]?.isHeader) {
+      $("#wikitableWizardHeaderRow").prop("checked", true);
+      theTableBody.find("tr:first-child").addClass("useHeaderRow");
+    }
+
+    // Apply additional properties
+    $("#wikitableWizardSortable").prop("checked", wikiTableData.isSortable);
+    $("#wikitableWizardWikitableClass").prop("checked", wikiTableData.isWikitableClass);
+    $("#wikitableWizardCellPadding").val(wikiTableData.cellPadding);
+    $("#wikitableWizardCaption").val(wikiTableData.data.caption);
+    $("#wikitableWizardCaptionBold").prop("checked", wikiTableData.data.isCaptionBold);
+    if (wikiTableData.data.isCaptionBold) {
+      $("#wikitableWizardCaption").addClass("bold");
+    } else {
+      $("#wikitableWizardCaption").removeClass("bold");
+    }
+    $("#wikitableWizardFullWidth").prop("checked", wikiTableData.isFullWidth);
+  } else {
+    // Handle CSV, TSV, or space-separated text
+    console.log("Rendering CSV, TSV, or space-separated format.");
+
+    if (parsedData && parsedData.length > 0) {
+      // Analyze the columns
+      let columnMapping = analyzeColumns(parsedData);
+      headerRow = new Array(Object.keys(columnMapping).length).fill("");
+
+      for (const [key, value] of Object.entries(columnMapping)) {
+        const formattedKey = formatColumnName(key);
+        headerRow[parseInt(value)] = formattedKey;
+      }
+
+      // Check if headers should be generated
+      if ($("#addGeneratedHeaders").prop("checked") && includesAtLeastN(headerItems, headerRow, 3)) {
+        $("#addGeneratedHeadersLabel").show();
+        let rowHtml = `<tr class='headerRow'>${rowBoldCell}${rowBgColorCell}`;
+        headerRow.forEach((cell) => {
+          rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
+        });
+        rowHtml += `</tr>\n`;
+        theTableBody.prepend(rowHtml); // Add header row
+      }
+
+      // Render data rows
+      parsedData.forEach((row) => {
+        let rowHtml = `<tr>${rowBoldCell}${rowBgColorCell}`;
+        row.forEach((cell) => {
+          rowHtml += `<td><input type="text" class="cell" value="${cell}"></td>\n`;
+        });
+        rowHtml += `</tr>\n`;
+        theTableBody.append($(rowHtml));
+      });
+    }
+  }
+
+  // Ensure table is properly rendered and events are attached
+  updateHeaderRow();
+  setupSorting();
+
+  // Attach event listeners to the newly added inputs (check for color and boldness)
+  $("#wikitableWizardTable input").each(function () {
+    const inputType = $(this).attr("type");
+    if (inputType === "checkbox") {
+      $(this).data("previousValue", $(this).prop("checked"));
+    } else {
+      $(this).data("previousValue", $(this).val());
+    }
+  });
+
+  console.log("Table update complete.");
+}
 
 // Parses a single line of the input data
 function parseOneLine(entry, genderRegex, placeRegex) {
@@ -593,6 +797,7 @@ function createwikitableWizardModal() {
       <span id="wikitableWizardHelpButton"><img src="/images/icons/help.gif" alt="More information"></span>
       <x class="wikitable-wizard-close">X</x>
       <button id="wikitableWizardPaste" class="small" title="Copy a wikitable or a census list created by Sourcer, and click here to edit it and produce a new table">Paste Table or List</button>
+      <span class="small button" id="wikitableWizardFileDropZone">Drop a file here</span><input type="file" id="wikitableWizardFileInput" style="display:none;">
       <button id="wikitableWizardAddRow" class="small">Add Row</button>
       <button id="wikitableWizardAddColumn" class="small">Add Column</button>
       <label for="wikitableWizardHeaderRow">
@@ -949,6 +1154,47 @@ function createwikitableWizardModal() {
     .on("click", function (e) {
       e.preventDefault();
 
+      navigator.clipboard
+        .readText()
+        .then((text) => {
+          if (text && typeof text === "string") {
+            text = text.trim();
+          } else {
+            showCopyMessage("The clipboard is empty...", 1);
+            return;
+          }
+
+          let parsedData;
+          let wikiTableData = null;
+
+          // Detect if it's a Wikitable format
+          if (text.includes("{|") && text.includes("|-")) {
+            console.log("Detected Wikitable format.");
+            wikiTableData = parseWikiTableData(text);
+            parsedData = wikiTableData.data.rows.map((row) => row.cells);
+          } else {
+            // Handle CSV, TSV, or space-separated text
+            console.log("Checking for CSV, TSV, or space-separated values.");
+            parsedData = parseDelimitedText(text);
+          }
+
+          // Render the table with parsed data
+          renderTableFromData(parsedData, wikiTableData);
+        })
+        .catch((err) => {
+          console.log("Error reading clipboard: " + err);
+        });
+
+      // Reset the textarea for Wikitable after Paste
+      $("#wikitableWizardWikitable").text("").slideUp();
+    });
+
+  /*
+  $("#wikitableWizardPaste")
+    .off("click")
+    .on("click", function (e) {
+      e.preventDefault();
+
       const theTableBody = $("#wikitableWizardTable tbody");
       let headerRow = [];
 
@@ -1067,6 +1313,7 @@ function createwikitableWizardModal() {
       // Reset the textarea for Wikitable after Paste
       $("#wikitableWizardWikitable").text("").slideUp();
     });
+*/
 
   function generateTable() {
     const nonEmptyCells = $(".cell").filter(function () {

@@ -2916,7 +2916,12 @@ export function analyzeColumns(lines) {
     }
 
     parts.forEach((part, index) => {
-      part = part.trim(); // Trim whitespace
+      // Check if the part exists and is a string before trimming
+      if (typeof part === "string") {
+        part = part.trim(); // Trim whitespace
+      } else {
+        part = ""; // Assign empty string to avoid further issues if part is undefined
+      }
       if (!columns[index]) {
         columns[index] = {
           Name: 0,
@@ -2931,6 +2936,13 @@ export function analyzeColumns(lines) {
         };
       }
       let matched = false;
+
+      // RegExp of cities, counties, states
+      const bigPlacesMatch = new RegExp("\\b" + citiesCountiesStates.join("|") + "\\b", "i");
+      const occupationMatch = new RegExp(
+        "\\b" + occupationList.join("|") + "|" + occupationList2.join("|") + "\\b",
+        "i"
+      );
 
       // Name and Date recognition with support for non-Latin scripts
       const nameAndDatePattern = /^[\p{L}\p{M}\s]+ \(\d{4}-\d{4}\)$/u; // Match name and date in any script
@@ -2957,7 +2969,12 @@ export function analyzeColumns(lines) {
         matched = true;
       }
 
-      if (!matched && part.match(/\b(Head|Wife|Son|Daughter|Father|Mother)\b/i)) {
+      if (
+        !matched &&
+        part.match(
+          /\b(Head|Wife|Son|Daughter|Mother|Father|Brother|Sister|Grand(?:mother|father)|Uncle|Aunt|Niece|Nephew|Cousin|(Father|Mother|Brother|Sister|Son|Daughter)-in-law|Step(?:son|daughter|brother|sister|mother|father)|Visitor|Lodger|Boarder)\b/i
+        )
+      ) {
         columns[index].originalRelation++;
         matched = true;
       }
@@ -2965,6 +2982,15 @@ export function analyzeColumns(lines) {
       const ageMatch = part.match(/^(\d{1,3})( ?y| ?years| ?months| ?mo\.)?$/);
       if (ageMatch && Number(ageMatch[1]) < 130) {
         columns[index].Age++;
+        matched = true;
+      }
+
+      if (part.match(/,/) || part.match(bigPlacesMatch) || part.match(placeNameRegExp)) {
+        columns[index].BirthPlace++;
+        matched = true;
+      }
+      if (part.match(occupationMatch)) {
+        columns[index].Occupation++;
         matched = true;
       }
 
