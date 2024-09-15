@@ -443,22 +443,46 @@ function detectDelimiter(data) {
 
   // Check if the first few lines have a consistent number of tabs
   const tabCounts = lines.slice(0, linesToCheck).map((line) => (line.match(/\t/g) || []).length);
-
   const allTabsConsistent = tabCounts.every((count) => count === tabCounts[0] && count > 0);
+
   if (allTabsConsistent) {
+    console.log("Detected tab delimiter");
     return "\t"; // Return tab as the detected delimiter
   }
 
-  // Now fallback to checking other delimiters (comma, four spaces, single space, etc.)
+  // Function to count the parts after splitting by sequences of 4 spaces or non-breaking spaces
+  function countPartsAfterSplitting(line) {
+    console.log(`Counting parts after splitting line: "${line}"`);
+
+    // Regular expression to match sequences of exactly 4 spaces or non-breaking spaces
+    const parts = line.split(/[\s\u00A0]{4}/);
+
+    console.log(`Parts after splitting:`, parts);
+    return parts.length; // Return the number of parts
+  }
+
+  // Check if the first few lines have a consistent number of parts when split by sequences of 4 spaces
+  const fourSpaceCounts = lines.slice(0, linesToCheck).map(countPartsAfterSplitting);
+  console.log(`Four-space counts for the first ${linesToCheck} lines:`, fourSpaceCounts);
+  const allFourSpacesConsistent = fourSpaceCounts.every((count) => count === fourSpaceCounts[0] && count > 1);
+  console.log(`All four-space counts consistent: ${allFourSpacesConsistent}`);
+
+  if (allFourSpacesConsistent) {
+    console.log("Detected four-space delimiter");
+    return "    "; // Return four-space delimiter
+  }
+
+  // Now fallback to checking other delimiters (comma, single space, etc.)
   const commaCount = (lines[0].match(/,/g) || []).length;
-  const fourSpaceCount = (lines[0].match(/ {4}/g) || []).length;
   const singleSpaceCount = (lines[0].match(/(?<! {3}) (?=\S)/g) || []).length;
 
-  if (fourSpaceCount > commaCount && fourSpaceCount > singleSpaceCount) {
-    return "    "; // Four-space delimiter
-  } else if (singleSpaceCount > commaCount) {
+  console.log(`Comma count: ${commaCount}, Single-space count: ${singleSpaceCount}`);
+
+  if (singleSpaceCount > commaCount) {
+    console.log("Detected single-space delimiter");
     return " "; // Single space delimiter
   } else if (commaCount > 0) {
+    console.log("Detected comma delimiter");
     return ","; // Comma delimiter
   }
 
@@ -470,8 +494,13 @@ function parseLine(line, delimiter) {
   line = line.replace(/^[:*#]+/, ""); // Remove any leading colons, asterisks, or hash characters
 
   if (!delimiter) return [line];
-
-  let fields = line.split(delimiter);
+  let fields;
+  if (delimiter === "    ") {
+    // Special case for four-space delimiter: split by exactly four spaces or non-breaking spaces
+    fields = line.split(/[\s\u00A0]{4}/);
+  } else {
+    fields = line.split(delimiter);
+  }
   fields = fields.map((field) => (field || "").trim());
   console.log(`Parsed fields:`, fields);
   return fields;
