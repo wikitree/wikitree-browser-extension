@@ -201,7 +201,9 @@ function recentChange(person) {
       pt +
       "\"><td class='wtIDcol'>" +
       person.Name +
-      "</td><td class='personCol'><a href=\"https://" + mainDomain + "/wiki/" +
+      "</td><td class='personCol'><a href=\"https://" +
+      mainDomain +
+      "/wiki/" +
       (person.IsSpace ? htmlEntities(person.Name) : htmlEntities(person.Id)) +
       '">' +
       person.LongName +
@@ -418,7 +420,7 @@ async function extraWatchlist() {
   );
   if ($("span.theClipboardButtons").length == 0) {
     const clipboardButtons = $("<span class='theClipboardButtons'></span>");
-    appendClipboardButtons(clipboardButtons);
+    await appendClipboardButtons(clipboardButtons);
   }
   $("span.theClipboardButtons").append(binocularsImage);
   if ($("body.profile").length) {
