@@ -89,6 +89,8 @@ export const usDateFormats = [
 ];
 
 const isoDateFormats = [
+  "yyyyMMdd",
+  "yyyMMdd",
   "yyyy-MM-dd",
   "yyyy-M-d",
   "yyyy-MM-d",
