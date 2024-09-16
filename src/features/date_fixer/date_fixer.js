@@ -3,137 +3,76 @@ import Fuse from "fuse.js";
 import { parse, isValid, format } from "date-fns";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
-// Function to try parsing a date string with multiple formats
-
+// Function to sanitize and standardize the date string
 export function tryParseDate(dateString, formats) {
+  // Ensure separators are handled without affecting valid date parts
+  const sanitizedDateString = dateString
+    .trim() // Remove leading/trailing spaces
+    .replace(/[\.,\/]/g, "-") // Replace dots, commas, and slashes with hyphens
+    .replace(/\s*-\s*/g, "-") // Remove spaces around hyphens
+    .replace(/\s+/g, " "); // Preserve single spaces between parts of the date
+
+  // Step 2: Try parsing the sanitized date string using date-fns
   for (let format of formats) {
-    const parsedDate = parse(dateString, format, new Date());
+    const parsedDate = parse(sanitizedDateString, format, new Date());
     if (isValid(parsedDate)) {
       return parsedDate;
     }
   }
-  return null;
+
+  return null; // Return null if no valid date is found
 }
 
+// Date format arrays
 export const euDateFormats = [
-  // Full Date - Day, Month, Year
   "dd-MM-yyyy",
   "d-MM-yyyy",
   "dd-M-yyyy",
   "d-M-yyyy",
-  "dd MMM yyyy",
-  "d MMM yyyy",
-  "dd MMMM yyyy",
-  "dd. MMMM yyyy",
-  "d MMMM yyyy",
-  "dd.MM.yyyy",
-  "d.MM.yyyy",
-  "dd,MM,yyyy",
-  "d,MM,yyyy",
-  "dd.M.yyyy",
-  "d.M.yyyy",
-  "dd,M,yyyy",
-  "d,M,yyyy",
-  "dd/MM/yyyy",
-  "d/MM/yyyy",
-  "dd/M/yyyy",
-  "d/M/yyyy",
-  // Spaces
-  "dd MM yyyy",
-  "d MM yyyy",
-  "dd m yyyy",
-  "d m yyyy",
-  // Year only
-  "yyyy",
-  // Year and month only
-  "M yyyy",
-  "MM yyyy",
-  "MMM yyyy",
-  "MMMM yyyy",
-  "M.yyyy",
-  "MM.yyyy",
-  "MMM.yyyy",
-  "MMMM.yyyy",
+  "dd-MMM-yyyy",
+  "d-MMM-yyyy",
+  "dd-MMMM-yyyy",
+  "d-MMMM-yyyy",
+  "yyyy", // Year only
+  "M-yyyy",
+  "MM-yyyy",
+  "MMM-yyyy",
+  "MMMM-yyyy", // Year and month only
 ];
 
 export const usDateFormats = [
-  // Full Date - Month, Day, Year
   "MM-dd-yyyy",
   "M-dd-yyyy",
   "MM-d-yyyy",
   "M-d-yyyy",
-  "MMM dd yyyy",
-  "MMM d yyyy",
-  "MMMM dd yyyy",
-  "MMMM d yyyy",
-  "MM.dd.yyyy",
-  "M.dd.yyyy",
-  "MM.d.yyyy",
-  "M.d.yyyy",
-  "MM/dd/yyyy",
-  "M/dd/yyyy",
-  "MM/d/yyyy",
-  "M/d/yyyy",
-  // Spaces
-  "MM dd yyyy",
-  "M dd yyyy",
-  "MM d yyyy",
-  "M d yyyy",
-  // Year only
-  "yyyy",
-  // Year and month only
-  "M yyyy",
-  "MM yyyy",
-  "MMM yyyy",
-  "MMMM yyyy",
-  "M.yyyy",
-  "MM.yyyy",
-  "MMM.yyyy",
-  "MMMM.yyyy",
+  "MMM-dd-yyyy",
+  "MMM-d-yyyy",
+  "MMMM-dd-yyyy",
+  "MMMM-d-yyyy",
+  "yyyy", // Year only
+  "M-yyyy",
+  "MM-yyyy",
+  "MMM-yyyy",
+  "MMMM-yyyy", // Year and month only
 ];
 
+// Not necessarily ISO formats, but formats that are unambiguous
 export const isoDateFormats = [
-  // Full Date - Year, Month, Day
-  "yyyyMMdd",
-  "yyyMMdd",
-  "yyyy-MM-dd",
-  "yyyy-M-d",
-  "yyyy-MM-d",
-  "yyyy-M-dd",
-  "yyyy/MM/dd",
-  "yyyy/M/d",
-  "yyyy/MM/d",
-  "yyyy/M/dd",
-  "yyyy.MM.dd",
-  "yyyy.M.d",
-  "yyyy.MM.d",
-  "yyyy.M.dd",
-  "yyyy MM dd",
-  "yyyy M d",
-  "yyyy MM d",
-  "yyyy M dd",
-  "yyyy MMMM dd",
-  "yyyy MMM dd",
-  "yyyy MMMM d",
-  "yyyy MMM d",
-  // Spaces
-  "yyyy MM dd",
-  "yyyy M dd",
-  "yyyy MM d",
-  "yyyy M d",
-  // Year only
-  "yyyy",
-  // Year and month only
-  "yyyy-MM",
-  "yyyy MM",
-  "yyyy/MM",
-  "yyyy.MM",
-  "yyyy-M",
-  "yyyy M",
-  "yyyy/M",
-  "yyyy.M",
-  "yyyy MMMM",
-  "yyyy MMM",
+  "yyyy MMM d", // Handles "1900 May 5"
+  "yyyy MMMM d", // Handles "1900 November 5"
+  "yyyy MMM", // Handles "1900 May"
+  "yyyy MMMM", // Handles "1900 November"
+  "MMM yyyy", // Handles "May 1900"
+  "MMMM yyyy", // Handles "November 1900"
+  "MMM yyyy d", // Handles "May 1900 5"
+  "MMMM yyyy d", // Handles "November 1900 5"
+  "yyyyMMdd", // Handles compact formats like "20230915"
+  "yyyMMdd", // Handles compact three-digit year formats like "9891001"
+  "yyyy-MM-dd", // Standard ISO formats
+  "yyyy-M-d", // Handles "1900-5-5"
+  "yyyy-MM", // Handles "1900-05"
+  "yyyy-M", // Handles "1900-5"
+  "yyyy", // Year only
 ];
 
 function displayClarificationModal(dateString, ambiguousMonth, inputElement, possibleMonths) {
