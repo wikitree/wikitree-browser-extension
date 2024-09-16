@@ -6,8 +6,9 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 // Function to try parsing a date string with multiple formats
 
 export function tryParseDate(dateString, formats) {
+  const sanitizedDateString = dateString.replace(/[/.,]/g, "-").replace(/- /g, "-");
   for (let format of formats) {
-    const parsedDate = parse(dateString, format, new Date());
+    const parsedDate = parse(sanitizedDateString, format, new Date());
     if (isValid(parsedDate)) {
       return parsedDate;
     }
@@ -24,20 +25,7 @@ export const euDateFormats = [
   "dd MMM yyyy",
   "d MMM yyyy",
   "dd MMMM yyyy",
-  "dd. MMMM yyyy",
   "d MMMM yyyy",
-  "dd.MM.yyyy",
-  "d.MM.yyyy",
-  "dd,MM,yyyy",
-  "d,MM,yyyy",
-  "dd.M.yyyy",
-  "d.M.yyyy",
-  "dd,M,yyyy",
-  "d,M,yyyy",
-  "dd/MM/yyyy",
-  "d/MM/yyyy",
-  "dd/M/yyyy",
-  "d/M/yyyy",
   // Spaces
   "dd MM yyyy",
   "d MM yyyy",
@@ -66,14 +54,6 @@ export const usDateFormats = [
   "MMM d yyyy",
   "MMMM dd yyyy",
   "MMMM d yyyy",
-  "MM.dd.yyyy",
-  "M.dd.yyyy",
-  "MM.d.yyyy",
-  "M.d.yyyy",
-  "MM/dd/yyyy",
-  "M/dd/yyyy",
-  "MM/d/yyyy",
-  "M/d/yyyy",
   // Spaces
   "MM dd yyyy",
   "M dd yyyy",
@@ -100,14 +80,6 @@ export const isoDateFormats = [
   "yyyy-M-d",
   "yyyy-MM-d",
   "yyyy-M-dd",
-  "yyyy/MM/dd",
-  "yyyy/M/d",
-  "yyyy/MM/d",
-  "yyyy/M/dd",
-  "yyyy.MM.dd",
-  "yyyy.M.d",
-  "yyyy.MM.d",
-  "yyyy.M.dd",
   "yyyy MM dd",
   "yyyy M d",
   "yyyy MM d",
@@ -126,12 +98,8 @@ export const isoDateFormats = [
   // Year and month only
   "yyyy-MM",
   "yyyy MM",
-  "yyyy/MM",
-  "yyyy.MM",
   "yyyy-M",
   "yyyy M",
-  "yyyy/M",
-  "yyyy.M",
   "yyyy MMMM",
   "yyyy MMM",
 ];
