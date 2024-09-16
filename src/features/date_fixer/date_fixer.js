@@ -16,6 +16,7 @@ export function tryParseDate(dateString, formats) {
 }
 
 export const euDateFormats = [
+  // Full Date - Day, Month, Year
   "dd-MM-yyyy",
   "d-MM-yyyy",
   "dd-M-yyyy",
@@ -27,13 +28,17 @@ export const euDateFormats = [
   "d MMMM yyyy",
   "dd.MM.yyyy",
   "d.MM.yyyy",
-  "dd.MM.yyyy",
-  "d.MM.yyyy",
+  "dd,MM,yyyy",
+  "d,MM,yyyy",
+  "dd.M.yyyy",
+  "d.M.yyyy",
+  "dd,M,yyyy",
+  "d,M,yyyy",
   "dd/MM/yyyy",
   "d/MM/yyyy",
   "dd/M/yyyy",
   "d/M/yyyy",
-  // spaces
+  // Spaces
   "dd MM yyyy",
   "d MM yyyy",
   "dd m yyyy",
@@ -49,17 +54,18 @@ export const euDateFormats = [
   "MM.yyyy",
   "MMM.yyyy",
   "MMMM.yyyy",
-  // ISO 8601
-  "yyyy-MM-dd",
 ];
 
 export const usDateFormats = [
+  // Full Date - Month, Day, Year
   "MM-dd-yyyy",
   "M-dd-yyyy",
   "MM-d-yyyy",
   "M-d-yyyy",
   "MMM dd yyyy",
   "MMM d yyyy",
+  "MMMM dd yyyy",
+  "MMMM d yyyy",
   "MM.dd.yyyy",
   "M.dd.yyyy",
   "MM.d.yyyy",
@@ -68,9 +74,7 @@ export const usDateFormats = [
   "M/dd/yyyy",
   "MM/d/yyyy",
   "M/d/yyyy",
-  "MMMM d yyyy",
-  "MMMM dd yyyy",
-  // spaces
+  // Spaces
   "MM dd yyyy",
   "M dd yyyy",
   "MM d yyyy",
@@ -88,9 +92,9 @@ export const usDateFormats = [
   "MMMM.yyyy",
 ];
 
-const isoDateFormats = [
+export const isoDateFormats = [
+  // Full Date - Year, Month, Day
   "yyyyMMdd",
-  "yyyMMdd",
   "yyyy-MM-dd",
   "yyyy-M-d",
   "yyyy-MM-d",
@@ -111,7 +115,7 @@ const isoDateFormats = [
   "yyyy MMM dd",
   "yyyy MMMM d",
   "yyyy MMM d",
-  // spaces
+  // Spaces
   "yyyy MM dd",
   "yyyy M dd",
   "yyyy MM d",
