@@ -95,6 +95,7 @@ export const usDateFormats = [
 export const isoDateFormats = [
   // Full Date - Year, Month, Day
   "yyyyMMdd",
+  "yyyMMdd",
   "yyyy-MM-dd",
   "yyyy-M-d",
   "yyyy-MM-d",
