@@ -546,7 +546,20 @@ function addAriaLabel(pData, EL) {
   }
 }
 
+function appendParentStatus(el, parentId, profilePersonId, status) {
+  const STATUS_UNCERTAIN = 10;
+  const STATUS_NON_BIOLOGICAL = 5;
+  const statusText =
+    status == STATUS_UNCERTAIN ? "[Uncertain]" : status == STATUS_NON_BIOLOGICAL ? "[Non-biological]" : null;
+
+  if (statusText && profilePersonId == parentId) {
+    el.find("span[itemprop='name']").after($("<span class='parentStatus'>").text(` ${statusText}`));
+  }
+}
+
 function addDataToPerson(el, pData) {
+  const profilePerson = window.people[0];
+  const profilePersonId = profilePerson.Id;
   if (pData) {
     let oGender = "";
     if (!(pData?.DataStatus?.Gender == "blank" || !pData.Gender)) {
@@ -555,12 +568,21 @@ function addDataToPerson(el, pData) {
     el.attr("data-gender", oGender);
     el.attr("data-id", pData.Id);
     el.attr("data-father", pData.Father);
-    if (pData?.DataStatus?.Father) {
-      el.attr("data-father-status", pData.DataStatus.Father);
-    }
-    el.attr("data-mother", pData.Mother);
-    if (pData?.DataStatus?.Mother) {
-      el.attr("data-mother-status", pData.DataStatus.Mother);
+
+    if (pData?.DataStatus) {
+      const { Father: fatherStatus, Mother: motherStatus } = pData.DataStatus;
+
+      if (fatherStatus) {
+        el.attr("data-father-status", fatherStatus);
+        appendParentStatus(el, pData.Father, profilePersonId, fatherStatus);
+      }
+
+      el.attr("data-mother", pData.Mother);
+
+      if (motherStatus) {
+        el.attr("data-mother-status", motherStatus);
+        appendParentStatus(el, pData.Mother, profilePersonId, motherStatus);
+      }
     }
   }
 }

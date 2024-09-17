@@ -659,6 +659,16 @@ div.familyList span.relAge {
 .x-cfl-show-heading .columns.six #nVitals .sidebar-heading {
   display: block;
 }
+
+div.VITALS li span.parentStatus {
+  font-size: 0.8em;
+  display: inline-block;
+  margin-left: 0.5em;
+}
+div.VITALS li span[itemprop="name"] {
+  display: inline-block;
+}
+
 @media only print {
   .print-content-only #nVitals .sidebar-heading {
     display: block;
