@@ -8,11 +8,11 @@ import "jquery-ui/ui/widgets/sortable";
 import "jquery-ui/ui/widgets/draggable";
 import "./clipboard_and_notes.css";
 import { htmlEntities, extensionContextInvalidatedCheck } from "../../core/common";
-import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { shouldInitializeFeature, checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { isAddUnrelatedPerson, isProfileAddRelative, isSpaceEdit, isProfileEdit } from "../../core/pageType";
 
 export async function appendClipboardButtons(clipboardButtons = $()) {
-  const isStickyHeader = await shouldInitializeFeature("stickyHeader");
+  const isStickyHeader = await checkIfFeatureEnabled("stickyHeader");
 
   // Append buttons initially to the header
   const clipboardContainer = $("<span>").addClass("clipboardContainer");
