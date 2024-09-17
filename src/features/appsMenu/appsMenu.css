@@ -4,19 +4,36 @@ menu.subMenu {
   top: 0;
   background-color: white !important;
   overflow: visible;
+  width: 0.2em;
+  padding: 0;
 }
 menu.subMenu a {
-  margin-left: -19.1em;
   background-color: white !important;
+}
+menu.subMenu > a {
+  margin-left: -19em;
   border: 1px solid #ccc;
   width: 18em;
   display: block;
   padding: 5px;
   float: none;
+  border-radius: 0 !important;
+}
+menu#treeAppsSubMenu a {
+  margin-left: -38em;
 }
 body.qa-body-js-on menu.subMenu a {
-  margin-left: -22.8em;
+  margin-left: -19em;
 }
+body.qa-body-js-on menu#treeAppsSubMenu a {
+  margin-left: -38em;
+}
+
+menu.subMenu a[href="https://www.wikitree.com/wiki/Help:Tree_Apps"]
+{
+  background-color: #ffe270 !important;
+}
+
 body.qa-body-js-on menu.subMenu {
   background-color: transparent !important;
 }

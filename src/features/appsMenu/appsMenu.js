@@ -67,6 +67,32 @@ const help = [
   "Stickers",
 ];
 
+const treeApps = [
+  { text: "Ahnentafel Ancestor List", id: "ahnentafel" },
+  { text: "Ancestor Lines Explorer", id: "ale" },
+  { text: "Ancestor Webs", id: "webs" },
+  { text: "CC7 Views", id: "cc7" },
+  { text: "Compact Couples Tree", id: "cctree" },
+  { text: "Couples Dynamic Tree", id: "couples" },
+  { text: "Descendants", id: "descendants" },
+  { text: "Dynamic Tree", id: "wt-dynamic-tree" },
+  { text: "Family Calendar", id: "calendar" },
+  { text: "Family Group App", id: "familyGroupApp" },
+  { text: "Family Group View", id: "familygroup" },
+  { text: "Family Portraits", id: "portraits" },
+  { text: "Family Timeline", id: "timeline" },
+  { text: "Fan Chart", id: "fanchart" },
+  { text: "FanDoku game", id: "fandoku" },
+  { text: "Fractal Tree", id: "fractal" },
+  { text: "Generational Statistics", id: "stats" },
+  { text: "One Name Trees", id: "oneNameTrees" },
+  { text: "Printer Friendly", id: "printer-friendly" },
+  { text: "Super Tree", id: "superbig" },
+  { text: "Surnames List", id: "surnames" },
+  { text: "WT+ Maps", id: "wtPlusMaps" },
+  { text: "X Family Tree", id: "xtree" },
+];
+
 shouldInitializeFeature("appsMenu").then((result) => {
   if (result && $("#appsSubMenu").length === 0) {
     if (isG2G) {
@@ -77,12 +103,13 @@ shouldInitializeFeature("appsMenu").then((result) => {
     attachMenu("Category:WikiTree_Help", "helpSubMenu", getMenuItems("/wiki/Help:", help));
     attachMenu("Help:Apps", "appsSubMenu", getAppsMenuItems());
     attachMenu("Category:Categories", "categoriesSubMenu", getMenuItems("/wiki/Category:", categories));
+    attachMenu("Help:Tree_Apps", "treeAppsSubMenu", getTreeAppsMenuItems());
     import("./appsMenu.css");
   }
 });
 
 function getLink(href) {
-  return $(`ul.pureCssMenu a[href='/wiki/${href}'].pureCssMenui`);
+  return $(`ul.pureCssMenu a[href$='/wiki/${href}'].pureCssMenui`);
 }
 
 function attachMenu(anchorHref, submenuId, menuItems) {
@@ -121,6 +148,7 @@ function getAppsMenuItems() {
   const userName = Cookies.get("wikitree_wtb_UserName");
   const profileID = $("a.pureCssMenui0 span.person").text();
   return [
+    { title: "Tree Apps", url: "https://www.wikitree.com/wiki/Help:Tree_Apps" },
     { title: "Ancestor Explorer", url: "https://apps.wikitree.com/apps/ashley1950/ancestorexplorer" },
     { title: "Ancestry Citation Builder", url: "https://apps.wikitree.com/apps/clarke11007/ancite.php" },
     { title: "Antenati Citation Builder", url: "https://apps.wikitree.com/apps/clarke11007/antenati.php" },
@@ -159,6 +187,16 @@ function getMenuItems(baseUrl, items) {
   return items.map((item) => {
     const formattedTitle = item;
     const formattedUrl = `${baseUrl}${item.replace(/ /g, "_")}`;
+    return { title: formattedTitle, url: formattedUrl };
+  });
+}
+
+function getTreeAppsMenuItems() {
+  const theId = $("a.pureCssMenui0 span.person").text() || Cookies.get("wikitree_wtb_UserName") || "";
+  return treeApps.map((item) => {
+    const formattedTitle = item.text;
+    // https://www.wikitree.com/apps/Kubičík-26#name=Kubičík-26&view=couples
+    const formattedUrl = `https://www.wikitree.com/apps/${theId}#${theId}&view=${item.id}`;
     return { title: formattedTitle, url: formattedUrl };
   });
 }
