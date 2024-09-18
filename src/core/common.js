@@ -959,6 +959,7 @@ async function addLogInLogOutMessage() {
     const theFeatures = {
       cc7Changes: "CC7 Changes",
       distanceAndRelationship: "Distance and Relationship",
+      extraWatchlist: "Extra Watchlist",
     };
     const theFeaturesKeys = Object.keys(theFeatures);
     const theFeaturesArray = [];
