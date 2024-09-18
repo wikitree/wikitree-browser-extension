@@ -5,8 +5,9 @@ Contributors: Jonathan Duke (Duke-5773)
 
 import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
+import { WikiTreeAPI } from "./API/wikiTreeAPI";
 import { navigatorDetect } from "./navigatorDetect";
-import { mainDomain, isNavHomePage, isMainDomain } from "./pageType.js";
+import { mainDomain, isNavHomePage, isMainDomain, isSpacePage, isProfilePage } from "./pageType.js";
 import { checkIfFeatureEnabled } from "./options/options_storage";
 import Cookies from "js-cookie";
 /* * * * * * * * * * * * * * * * * * * *

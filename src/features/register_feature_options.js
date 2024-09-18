@@ -81,6 +81,7 @@ import "./locationsHelper/locationsHelper_options";
 import "./g2g/g2g_options";
 import "./genderPredictor/gender_predictor_options";
 import "./hide_my_contributions/hide_my_contributions_options";
+import "./image_table/image_table_options";
 import "./image_zoom/image_zoom_options";
 import "./language_setting/language_setting_options";
 import "./printerfriendly/printerfriendly_options";

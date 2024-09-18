@@ -1,0 +1,77 @@
+/* Photo Table */
+#photoPopup {
+  display: none; /* Hidden by default */
+  position: fixed;
+  z-index: 9999;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7); /* Black background with transparency */
+}
+
+#photoPopup .popup-content {
+  background-color: white;
+  margin: 6em auto;
+  padding: 20px;
+  border: 1px solid #888;
+  width: 80%;
+  max-height: 80%; /* Limit height */
+  overflow-y: scroll; /* Make content scrollable */
+}
+
+#photoPopup .photo-table img {
+  cursor: pointer;
+  width: 75px; /* Thumbnail size */
+  height: auto;
+}
+
+#largeImagePopup {
+  display: block;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10000; /* Ensure the large image popup is above everything */
+  max-width: 90%; /* Limits width to 90% of the viewport */
+  max-height: 90%; /* Limits height to 90% of the viewport */
+  background-color: rgba(0, 0, 0, 0.8); /* Optional: adds a background behind the image */
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5); /* Optional: adds a shadow for better visibility */
+}
+
+#largeImagePopup img {
+  width: auto; /* Set width to auto to respect the image’s natural dimensions */
+  height: auto; /* Set height to auto to respect the image’s natural dimensions */
+  max-width: 100%; /* Ensure the image doesn't exceed the popup's width */
+  max-height: 100%; /* Ensure the image doesn't exceed the popup's height */
+}
+
+#photoPopup .close {
+  position: absolute;
+  top: 10px;
+  right: 25px;
+  color: #aaa;
+  font-size: 30px;
+  font-weight: bold;
+}
+
+#photoPopup .close:hover,
+#photoPopup .close:focus {
+  color: black;
+  cursor: pointer;
+}
+
+#photoPopup .titleCell {
+  font-weight: bold;
+  padding-left: 2em;
+}
+
+#loadingGif img {
+  border: 2px solid forestgreen;
+  border-radius: 50%;
+  display: block;
+  margin: auto;
+  width: 100px;
+}
