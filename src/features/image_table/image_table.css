@@ -22,7 +22,7 @@
 
 #photoPopup .photo-table img {
   cursor: pointer;
-  width: 75px; /* Thumbnail size */
+  width: 75px !important; /* Thumbnail size */
   height: auto;
 }
 
