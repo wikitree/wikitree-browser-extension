@@ -90,6 +90,7 @@ import "./features/cc7_changes/cc7_changes";
 import "./features/edit_family_data/edit_family_data";
 import "./features/editor_expander/editor_expander";
 import "./features/draftList/draftList";
+import "./features/image_table/image_table";
 import "./features/randomProfile/randomProfile";
 import "./features/what_links_here/what_links_here";
 
