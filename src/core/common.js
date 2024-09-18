@@ -5,8 +5,9 @@ Contributors: Jonathan Duke (Duke-5773)
 
 import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
+import { WikiTreeAPI } from "./API/wikiTreeAPI";
 import { navigatorDetect } from "./navigatorDetect";
-import { mainDomain, isNavHomePage, isMainDomain } from "./pageType.js";
+import { mainDomain, isNavHomePage, isMainDomain, isSpacePage, isProfilePage } from "./pageType.js";
 import { checkIfFeatureEnabled } from "./options/options_storage";
 import Cookies from "js-cookie";
 /* * * * * * * * * * * * * * * * * * * *
@@ -998,4 +999,143 @@ if (isMainDomain) {
   setTimeout(() => {
     addLogInLogOutMessage();
   }, 5000);
+}
+
+async function getPhotos() {
+  let allPhotos = [];
+  let start = 0;
+  const limit = 100;
+  const profileIdBits = window.location.href.split("/");
+  const profileId = profileIdBits[profileIdBits.length - 1];
+  let morePhotos = true;
+
+  do {
+    const url = `https://api.wikitree.com/api.php?action=getPhotos&key=${profileId}&start=${start}&limit=${limit}`;
+
+    try {
+      const response = await fetch(url, {
+        credentials: "include", // Include credentials (cookies/session info)
+      });
+
+      const photoData = await response.json();
+
+      if (photoData && photoData[0] && photoData[0].photos && photoData[0].photos.length > 0) {
+        allPhotos = allPhotos.concat(photoData[0].photos); // Append the current batch of photos
+        start += limit; // Move to the next batch
+      } else {
+        morePhotos = false; // No more photos, exit the loop
+      }
+    } catch (error) {
+      console.error("An error occurred while fetching photos:", error);
+      morePhotos = false; // Exit the loop on error
+    }
+  } while (morePhotos);
+
+  return allPhotos; // Return all collected photos
+}
+
+function initPhotoPopup() {
+  if ($("#photoPopup").length === 0) {
+    // Create the popup and append it to the body
+    const popupLink = $('<li class="viewsi" id="openPopup"><a class="viewsi">View Photos</a></li>');
+    const popup = $(`<div id="photoPopup" class="popup">
+      <div class="popup-content">
+        <span class="close">&times;</span>
+        <div id="loadingGif"></div>
+        <div id="photoTable" class="photo-table"></div>
+      </div>
+    </div>`);
+
+    $("body").append(popup); // Append the popup to the body
+    $("ul.views.viewsm").eq(0).append(popupLink); // Append the link to the menu
+
+    // Set up click handlers for the popup
+    $("#openPopup").on("click", async function () {
+      const loadingGifUrl = treeImageURL; // Get the loading gif from the extension
+      $("#loadingGif").html(`<img style='width:300px; margin:auto' src="${loadingGifUrl}" alt="Loading..." />`); // Show the shaking tree gif
+      $("#photoPopup").show(); // Show the popup
+
+      const photos = await getPhotos(); // Fetch the photos
+      $("#loadingGif").hide(); // Hide the loading gif once photos are fetched
+      createPhotoTable(photos); // Build the table with the fetched photos
+    });
+
+    // Close the popup and clear the table when the close button is clicked
+    $(".popup .close").on("click", function () {
+      $("#photoPopup").hide(); // Hide the popup
+      $("#photoTable").empty(); // Clear the table when closing
+      $("#loadingGif").empty(); // Clear the loading gif when closing
+    });
+
+    // Close the popup when clicking outside the content area
+    $(window).on("click", function (event) {
+      if ($(event.target).is("#photoPopup")) {
+        $("#photoPopup").hide(); // Hide the popup
+        $("#photoTable").empty(); // Clear the table when closing
+        $("#loadingGif").empty(); // Clear the loading gif when closing
+      }
+    });
+  }
+}
+
+function createPhotoTable(photos) {
+  const table = $("<table></table>");
+
+  photos.forEach((photo) => {
+    const row = $("<tr></tr>");
+
+    // Thumbnail cell
+    const thumbCell = $("<td></td>");
+    const thumbImg = $(`<img src="https://www.wikitree.com${photo.URL_75}" alt="${photo.Title}" />`);
+    thumbImg.on("click", function () {
+      showLargeImage(photo); // Show large image when clicked
+    });
+    thumbCell.append(thumbImg);
+    row.append(thumbCell);
+
+    // Title cell with link to the photo page
+    const titleCell = $("<td class='titleCell'></td>");
+    const titleLink = $(`<a href="https://www.wikitree.com${photo.URL}">${photo.Title}</a>`);
+    titleCell.append(titleLink);
+    row.append(titleCell);
+
+    // Additional information (Location, Date, Type, Size, Dimensions)
+    const infoCell = $("<td></td>").html(`
+      <strong>Location:</strong> ${photo.Location || "N/A"}<br>
+      <strong>Date:</strong> ${photo.Date || "N/A"}<br>
+      <strong>Type:</strong> ${photo.Type || "N/A"}<br>
+      <strong>Dimensions:</strong> ${photo.Width} x ${photo.Height}
+    `);
+    row.append(infoCell);
+
+    table.append(row); // Append the row to the table
+  });
+
+  $("#photoTable").append(table); // Append the table to the popup
+}
+
+function showLargeImage(photo) {
+  // Extract the "d/db" part from the thumbnail URL (URL_75)
+  const thumbnailParts = photo.URL_75.split("/thumb/")[1].split("/"); // Splits the URL at "/thumb/" and "/"
+  const imagePath = `${thumbnailParts[0]}/${thumbnailParts[1]}`; // Extracts "d/db"
+
+  // Full-size image URL
+  const fullImageUrl = `https://www.wikitree.com/photo.php/${imagePath}/${photo.ImageName}`;
+
+  // Create a div to display the large image
+  const largeImageDiv = $('<div id="largeImagePopup" class="large-image"></div>');
+  const largeImg = $(`<img src="${fullImageUrl}" />`);
+
+  largeImageDiv.append(largeImg);
+  $("body").append(largeImageDiv);
+
+  // Remove the large image popup when clicked
+  largeImageDiv.on("click", function () {
+    largeImageDiv.remove();
+  });
+}
+
+// Initialize the photo popup on page load
+if (isSpacePage || isProfilePage) {
+  initPhotoPopup();
 }
