@@ -1000,3 +1000,258 @@ if (isMainDomain) {
     addLogInLogOutMessage();
   }, 5000);
 }
+
+// content_script.js
+// content_script.js
+
+// Ensure that jQuery and js-cookie are included in your extension
+// You can include them in the manifest or inject them dynamically
+
+$(document).ready(function () {
+  // Function to extract Person A's ID and Name
+  function getPersonAInfo() {
+    const id = $("a.pureCssMenui0 span.person").text().trim();
+    const name = $("h1 span[itemprop='name']").text().trim();
+
+    if (id && name) {
+      return { name: name, id: id };
+    } else {
+      console.error("Unable to parse Person A's name and ID.");
+      return null;
+    }
+  }
+
+  // Function to extract the 12 notables' IDs and Names from themeTable
+  function getNotablesFromThemeTable() {
+    var notables = [];
+
+    // Check if the themeTable exists
+    if ($("#themeTable").length === 0) {
+      console.error("themeTable not found on this page.");
+      return null;
+    }
+
+    // Iterate through each row of the themeTable
+    $("#themeTable tbody tr").each(function () {
+      var link = $(this).find("td:nth-child(1) a"); // First <td> contains the notable's link
+      var href = link.attr("href");
+      var name = link.text().trim();
+
+      if (href && name) {
+        // Extract wikitree_id from href (e.g., "/wiki/Streisand-1" => "Streisand-1")
+        var parts = href.split("/");
+        var wikitree_id = parts.pop(); // Handle potential trailing slash
+
+        if (wikitree_id) {
+          notables.push({ wikitree_id: wikitree_id, name: name });
+        }
+      }
+    });
+
+    // Ensure exactly 12 notables are extracted
+    if (notables.length !== 12) {
+      console.log("Expected 12 notables, but found " + notables.length + ".");
+    }
+
+    return notables;
+  }
+
+  // Function to build the match-up table for general users
+  function buildMatchupTable(data) {
+    if (!data || !data.matchups || data.matchups.length === 0) {
+      console.error("No matchup data available.");
+      return;
+    }
+
+    // Create table elements
+    var table = $("<table>").addClass("matchup-table").css({
+      "border-collapse": "collapse",
+      width: "100%",
+      "margin-top": "20px",
+    });
+
+    // Add table headers
+    var headerRow = $("<tr>");
+    headerRow.append($("<th>").text("Participant 1").css({ border: "1px solid #ddd", padding: "8px" }));
+    headerRow.append($("<th>").text("Participant 2").css({ border: "1px solid #ddd", padding: "8px" }));
+    headerRow.append($("<th>").text("Score").css({ border: "1px solid #ddd", padding: "8px" }));
+    table.append(headerRow);
+
+    // Iterate through matchups
+    $.each(data.matchups, function (index, details) {
+      var row = $("<tr>");
+      row.append($("<td>").text(details.person1).css({ border: "1px solid #ddd", padding: "8px" }));
+      row.append($("<td>").text(details.person2).css({ border: "1px solid #ddd", padding: "8px" }));
+      row.append($("<td>").text(details.score).css({ border: "1px solid #ddd", padding: "8px" }));
+      table.append(row);
+    });
+
+    // Append table to the DOM
+    var container = $("#matchup-container");
+    if (container.length === 0) {
+      container = $("<div>").attr("id", "matchup-container").css({ "margin-top": "20px" });
+      $("body").append(container);
+    }
+    container.html(table);
+  }
+
+  // Function to fetch bulk matchups from WB (Beacall-6)
+  function fetchBulkMatchups(notables) {
+    $.ajax({
+      url: "https://wikitreebee.com/notables/bulk_get_matchups.php", // Updated URL
+      method: "POST",
+      data: {
+        ids: notables, // Array of notable objects
+      },
+      dataType: "json",
+      xhrFields: {
+        withCredentials: true, // This enables sending cookies
+      },
+      success: function (response) {
+        if (response.error) {
+          console.error("Error:", response.error);
+          $("#matchup-container").html('<p style="color:red;">' + response.error + "</p>");
+          return;
+        }
+
+        // Inform the user of success
+        $("#matchup-container").html('<p style="color:green;">Bulk matchups fetched and stored successfully.</p>');
+      },
+      error: function (xhr, status, error) {
+        console.error("AJAX Error:", error);
+        $("#matchup-container").html('<p style="color:red;">An error occurred while fetching bulk matchups.</p>');
+      },
+    });
+  }
+
+  // Function to fetch matchups for general users
+  function fetchMatchups(personAId, personAName) {
+    $.ajax({
+      url: "https://wikitreebee.com/notables/get_matchups.php", // Updated URL with 'notables' directory
+      method: "POST",
+      data: {
+        id: personAId,
+        name: personAName,
+        // Removed api_key as per your earlier message
+      },
+      dataType: "json",
+      xhrFields: {
+        withCredentials: true, // This enables sending cookies
+      },
+      success: function (response) {
+        if (response.error) {
+          console.error("Error:", response.error);
+          $("#matchup-container").html('<p style="color:red;">' + response.error + "</p>");
+          return;
+        }
+
+        // Store in localStorage
+        localStorage.setItem("matchups_" + personAId, JSON.stringify(response));
+
+        // Build the table
+        buildMatchupTable(response);
+      },
+      error: function (xhr, status, error) {
+        console.error("AJAX Error:", error);
+        $("#matchup-container").html('<p style="color:red;">An error occurred while fetching matchups.</p>');
+      },
+    });
+  }
+
+  // Function to handle double-click event (Beacall-6)
+  function handleDoubleClick(event) {
+    // Prevent default action
+    event.preventDefault();
+
+    // Check if the user is 'Beacall-6'
+    var username = Cookies.get("wikitree_wtb_UserName");
+    if (username !== "Beacall-6") {
+      console.warn("Unauthorized user.");
+      return;
+    }
+
+    // Extract the 12 notables' IDs and Names from themeTable
+    var notables = getNotablesFromThemeTable();
+
+    if (!notables) {
+      console.warn("Notables information could not be extracted.");
+      return;
+    }
+
+    // Fetch bulk matchups
+    fetchBulkMatchups(notables);
+  }
+
+  // Function to handle general user button click
+  function handleButtonClick() {
+    // Extract Person A's ID and Name from the DOM
+    var personAInfo = getPersonAInfo();
+
+    if (!personAInfo) {
+      console.warn("Person A's information could not be extracted.");
+      return;
+    }
+
+    var personAId = personAInfo.id;
+    var personAName = personAInfo.name;
+
+    // Check localStorage for cached data
+    var cachedData = localStorage.getItem("matchups_" + personAId);
+    if (cachedData) {
+      var data = JSON.parse(cachedData);
+      buildMatchupTable(data);
+    } else {
+      // Fetch from WB
+      fetchMatchups(personAId, personAName);
+    }
+  }
+
+  // Function to create and attach a button for general users
+  function createButton() {
+    var button = $("<button>")
+      .text("Get Matchups")
+      .css({
+        position: "fixed",
+        bottom: "20px",
+        right: "20px",
+        padding: "10px 20px",
+        "background-color": "#3498db",
+        color: "#fff",
+        border: "none",
+        "border-radius": "5px",
+        cursor: "pointer",
+        "z-index": "1000",
+      })
+      .on("click", handleButtonClick);
+
+    $("body").append(button);
+  }
+
+  // Initialize the extension
+  function initialize() {
+    createButton();
+
+    // Attach double-click event listener to the document for Beacall-6
+    $(document).on("dblclick", handleDoubleClick);
+
+    // Optional: Clear localStorage weekly
+    var cacheExpiryKey = "matchups_cache_expiry";
+    var cacheExpiry = localStorage.getItem(cacheExpiryKey);
+    var now = Date.now();
+
+    if (!cacheExpiry || now > parseInt(cacheExpiry)) {
+      // Clear all matchup data
+      $.each(localStorage, function (key, value) {
+        if (key.startsWith("matchups_")) {
+          localStorage.removeItem(key);
+        }
+      });
+      // Set new cache expiry (e.g., 7 days from now)
+      var oneWeek = 7 * 24 * 60 * 60 * 1000;
+      localStorage.setItem(cacheExpiryKey, now + oneWeek);
+    }
+  }
+
+  // Run initialization
+  initialize();
+});
