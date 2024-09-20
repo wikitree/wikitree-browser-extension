@@ -22,3 +22,36 @@
 h2.thisWeeksTheme {
   display: none;
 }
+
+/* Styles for the comprehensive table */
+#comprehensiveTable th,
+#comprehensiveTable td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+}
+
+#comprehensiveTable th {
+  background-color: #f2f2f2;
+}
+
+/* Styles for the matchup table */
+.matchup-table th,
+.matchup-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+}
+
+.matchup-table th {
+  background-color: #f9f9f9;
+}
+
+/* Styles for the popup */
+#matchup-popup {
+  /* Already styled via JS, but additional styles can be added here */
+}
+
+#matchup-popup table {
+  width: 100%;
+}
