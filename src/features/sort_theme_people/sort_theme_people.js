@@ -92,6 +92,10 @@ function createButton() {
 
 // Handles the button click to fetch and build the comprehensive matchup table
 async function handleButtonClick() {
+  // Fetch the profile person's name dynamically from the DOM
+  const profilePersonName = $("h1 span[itemprop='name']").text().trim();
+  console.log("Profile person name:", profilePersonName);
+
   const data = getThemeAndNotables();
   if (!data) {
     console.warn("Theme and notables information could not be extracted.");
@@ -99,37 +103,46 @@ async function handleButtonClick() {
   }
 
   const { theme_title, notables } = data;
-  const personAInfo = getPersonAInfo();
+  const personAInfo = getPersonAInfo(); // Get profile person info, like ID
   if (!personAInfo) return;
 
   const personAId = personAInfo.id;
 
-  // Check localStorage for cached data
   const cachedData = localStorage.getItem("matchups_" + personAId);
   if (cachedData) {
     const parsedData = JSON.parse(cachedData);
     if (parsedData.theme_title === theme_title) {
+      // Build table with the cached data and profile person's name
       const combinedData = combineNotablesWithMatchups(notables, parsedData.matchups, personAId);
-      buildComprehensiveMatchupTable(combinedData); // Build only the comprehensive table
+      buildComprehensiveMatchupTable(combinedData, profilePersonName); // Pass profile person's name
       return;
     } else {
-      // Remove the cached data if it's for a different theme
       localStorage.removeItem("matchups_" + personAId);
     }
   }
 
-  // Fetch from WB and then build the comprehensive table
-  fetchMatchups(theme_title);
+  // Fetch from WB and build the table with the profile person's name
+  fetchMatchups(theme_title).then((combinedData) => {
+    buildComprehensiveMatchupTable(combinedData, profilePersonName);
+  });
 }
 
 // Fetches matchups from WB and the page, and combines them
 async function fetchMatchups(themeTitle) {
   try {
-    const degreesArray = getDegreesFromPage(); // Get matchups from the page
-    const themeDegrees = await getThemeDegrees(themeTitle); // Fetch matchups from WB
-    const combinedDegrees = degreesArray.concat(themeDegrees.matchups); // Combine both sets of matchups
+    console.log("Fetching matchups for theme:", themeTitle);
 
-    buildComprehensiveMatchupTable(combinedDegrees); // Build the comprehensive table directly
+    const { results: degreesArray } = getDegreesFromPage();
+    console.log("Degrees from page:", degreesArray);
+
+    const themeDegrees = await getThemeDegrees(themeTitle);
+    console.log("Matchups fetched from WB:", themeDegrees);
+
+    // Combine the two arrays directly
+    const combinedDegrees = degreesArray.concat(themeDegrees);
+    console.log("Combined matchups (page + WB):", combinedDegrees);
+
+    buildComprehensiveMatchupTable(combinedDegrees);
   } catch (error) {
     console.error("Error fetching matchups:", error);
   }
@@ -139,30 +152,33 @@ async function fetchMatchups(themeTitle) {
 function buildComprehensiveMatchupTable(combinedData) {
   console.log("Starting buildComprehensiveMatchupTable...");
 
-  // Log the initial combined data
-  console.log("Initial Combined Data:", combinedData);
-
   if (!combinedData || combinedData.length === 0) {
     console.error("No combined data available.");
     return;
   }
 
-  // Filter out null or undefined entries
-  const validData = combinedData.filter((entry, index) => {
-    const isValid = entry && entry.wikitree_id_a && entry.name_a;
-    if (!isValid) {
-      console.warn(`Entry at index ${index} is invalid:`, entry);
+  // Collect all unique notables (including the profile person)
+  const notablesMap = new Map();
+
+  combinedData.forEach((entry) => {
+    if (entry.wikitree_id_a && entry.name_a) {
+      notablesMap.set(entry.wikitree_id_a, entry.name_a);
     }
-    return isValid;
+    if (entry.wikitree_id_b && entry.name_b) {
+      notablesMap.set(entry.wikitree_id_b, entry.name_b);
+    }
   });
 
-  // Log after filtering invalid entries
-  console.log("Valid Combined Data after filtering:", validData);
+  const notablesArray = Array.from(notablesMap, ([wikitree_id, name]) => ({ wikitree_id, name }));
 
-  if (validData.length === 0) {
-    console.error("No valid data after filtering. Aborting table creation.");
-    return;
-  }
+  console.log("Notables Array:", notablesArray);
+
+  // Build a map for quick lookup of scores
+  const scoresMap = {};
+  combinedData.forEach((entry) => {
+    const key = `${entry.wikitree_id_a}-${entry.wikitree_id_b}`;
+    scoresMap[key] = entry.score;
+  });
 
   // Create the table
   const table = $("<table>").attr("id", "comprehensiveTable").css({
@@ -177,37 +193,32 @@ function buildComprehensiveMatchupTable(combinedData) {
   });
   table.append(caption);
 
-  // Create table header (log each notable name)
+  // Create table header
   const headerRow = $("<tr>");
-  headerRow.append("<th></th>"); // First empty cell
-  validData.forEach((notable, index) => {
-    console.log(`Adding header for notable ${index}:`, notable.name_a);
-    headerRow.append(`<th>${notable.name_a}</th>`);
+  headerRow.append("<th></th>"); // Empty corner cell
+  notablesArray.forEach((notable) => {
+    headerRow.append(`<th>${notable.name}</th>`);
   });
   table.append($("<thead>").append(headerRow));
 
-  // Create table body (log rows and columns)
-  validData.forEach((rowNotable, rowIndex) => {
-    console.log(`Creating row for notable ${rowIndex}:`, rowNotable.name_a);
+  // Create table body
+  notablesArray.forEach((rowNotable) => {
     const row = $("<tr>");
-    row.append(`<td>${rowNotable.name_a}</td>`); // Row label with name
+    row.append(`<td>${rowNotable.name}</td>`);
 
-    validData.forEach((colNotable, colIndex) => {
-      console.log(`Processing cell [${rowIndex}, ${colIndex}] between ${rowNotable.name_a} and ${colNotable.name_a}`);
-      const connectionScore = connectionsMap[`${rowNotable.wikitree_id_a}-${colNotable.wikitree_id_a}`] || "N/A";
-      console.log(
-        `Connection score between ${rowNotable.wikitree_id_a} and ${colNotable.wikitree_id_a}: ${connectionScore}`
-      );
-      row.append(`<td>${connectionScore}</td>`);
+    notablesArray.forEach((colNotable) => {
+      const key = `${rowNotable.wikitree_id}-${colNotable.wikitree_id}`;
+      const reverseKey = `${colNotable.wikitree_id}-${rowNotable.wikitree_id}`;
+
+      // Try both combinations since the data might not be ordered
+      const score = scoresMap[key] || scoresMap[reverseKey] || "N/A";
+      row.append(`<td>${score}</td>`);
     });
 
     table.append(row);
   });
 
-  // Log final table structure
-  console.log("Table structure complete.");
-
-  // Show the table in a popup
+  // Display the table in a popup
   const popup = $("<div>").attr("id", "matchup-popup").css({
     position: "fixed",
     top: "50%",
@@ -246,6 +257,8 @@ function buildComprehensiveMatchupTable(combinedData) {
 // Extract the degrees from the page (profile person matchups)
 function getDegreesFromPage() {
   const results = [];
+  const idNameMap = {};
+
   const themeLinks = $(`p:contains("This week's featured connections") a[href*='Special:Connection']`);
 
   themeLinks.each(function (index) {
@@ -258,20 +271,28 @@ function getDegreesFromPage() {
     const linkText = $(this).text();
     const degrees = parseInt(linkText.split(" degrees from ")[0]);
 
-    // Capture the name from the text, too
-    const name_a = linkText.split(" degrees from ")[1]; // Extract name of `person1`
+    const name_a = linkText.split(" degrees from ")[1];
+    const name_b = $("h1 span[itemprop='name']").text().trim(); // Profile person's name
+
+    // Build ID-to-Name mapping
+    idNameMap[wikitree_id_a] = name_a;
+    idNameMap[wikitree_id_b] = name_b;
 
     if (!isNaN(degrees)) {
       results.push({
         score: degrees,
-        wikitree_id_a: wikitree_id_a,
-        name_a: name_a, // Capture name from page
-        wikitree_id_b: wikitree_id_b,
+        wikitree_id_a,
+        name_a,
+        wikitree_id_b,
+        name_b,
       });
     }
   });
 
-  return results;
+  console.log("Degrees from page:", results);
+  console.log("ID-to-Name Map from page:", idNameMap);
+
+  return { results, idNameMap };
 }
 
 // Extract the notables and the theme title from the page
@@ -375,23 +396,29 @@ function initializeBannerClick() {
 
 function getThemeDegrees(themeTitle) {
   return new Promise((resolve, reject) => {
+    console.log("Fetching matchups from WB for theme:", themeTitle);
+
     $.ajax({
       url: "https://wikitreebee.com/notables/get_matchups.php",
       method: "POST",
       data: { theme_title: themeTitle },
       dataType: "json",
-      xhrFields: { withCredentials: true }, // To send cookies if necessary
+      xhrFields: { withCredentials: true },
       success: function (response) {
+        console.log("Received matchups from WB:", response);
+
         if (response.error) {
           console.error("Error fetching theme matchups:", response.error);
-          reject(response.error); // Reject the promise if there's an error
+          reject(response.error);
           return;
         }
-        resolve(response); // Resolve the promise with the response
+
+        // Assuming the response already includes names, we proceed directly
+        resolve(response); // Resolve with the response if no error
       },
       error: function (xhr, status, error) {
         console.error("AJAX Error:", error);
-        reject(error); // Reject the promise on AJAX error
+        reject(error);
       },
     });
   });
