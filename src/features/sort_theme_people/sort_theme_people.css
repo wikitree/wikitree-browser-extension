@@ -25,13 +25,16 @@ h2.thisWeeksTheme {
 
 /* Styles for the comprehensive table */
 #comprehensiveTable th,
-#comprehensiveTable td {
+#comprehensiveTable td,
+td.notableName {
   border: 1px solid #ddd;
   padding: 8px;
   text-align: center;
+  font-weight: bold;
 }
 
-#comprehensiveTable th {
+#comprehensiveTable th,
+td.notableName {
   background-color: #f2f2f2;
 }
 
