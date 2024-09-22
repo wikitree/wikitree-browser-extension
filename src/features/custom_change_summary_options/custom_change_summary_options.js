@@ -81,6 +81,7 @@ async function addMovingSaveBox() {
     saveStuff.append($("#wpSummary").parent());
     saveStuff.append($("#wpSaveDraft").parent());
     saveStuff.append($("#draftStatus"));
+    saveStuff.append($("#suggestionContainer"));
     const suggestionItems = $("li.suggestion-item");
 
     const changeSummaryGears =
