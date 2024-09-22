@@ -313,18 +313,6 @@ registerFeature({
 });
 
 registerFeature({
-  name: "Sort Theme People",
-  id: "sortThemePeople",
-  description:
-    "Replaces the Connection Finder (theme of the week) section on Profile pages with a table sorted by degree of closeness to the profile person.",
-  category: "Profile",
-  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
-  defaultValue: false,
-  pages: [isProfilePage],
-});
-
-registerFeature({
   name: "Sticky Header",
   id: "stickyHeader",
   description: "Makes the WikiTree header stick to the top and more compact on narrow screens.",
