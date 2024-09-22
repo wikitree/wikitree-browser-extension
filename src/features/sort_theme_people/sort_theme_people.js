@@ -313,7 +313,6 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
 
   // Collect all unique notables (including the profile person)
   const notablesMap = new Map();
-
   combinedData.forEach((entry) => {
     if (entry.wikitree_id_a && entry.name_a) {
       notablesMap.set(entry.wikitree_id_a, entry.name_a);
@@ -384,7 +383,9 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
   headerRow.append("<th></th>"); // Empty corner cell
   notablesArray.forEach((notable) => {
     const profileLink = `https://wikitree.com/wiki/${notable.wikitree_id}`;
-    headerRow.append(`<th><a href="${profileLink}" target="_blank">${notable.name}</a></th>`);
+    headerRow.append(
+      `<th><a href="${profileLink}" target="_blank" style="color: green; text-decoration: none;">${notable.name}</a></th>`
+    );
   });
   table.append($("<thead>").append(headerRow));
 
@@ -392,23 +393,30 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
   notablesArray.forEach((rowNotable) => {
     const row = $("<tr>");
     const profileLink = `https://wikitree.com/wiki/${rowNotable.wikitree_id}`;
-    row.append(`<td class="notableName"><a href="${profileLink}" target="_blank">${rowNotable.name}</a></td>`);
+    row.append(
+      `<td class="notableName"><a href="${profileLink}" target="_blank" style="color: green; text-decoration: none;">${rowNotable.name}</a></td>`
+    );
 
     notablesArray.forEach((colNotable) => {
       const key = `${rowNotable.wikitree_id}-${colNotable.wikitree_id}`;
       const reverseKey = `${colNotable.wikitree_id}-${rowNotable.wikitree_id}`;
-
-      // Try both combinations since the data might not be ordered
       const score = scoresMap[key] || scoresMap[reverseKey] || "";
 
-      if (score !== "N/A") {
+      if (score !== "" && score !== "N/A") {
         const connectionFinderLink = `https://www.wikitree.com/index.php?title=Special:Connection&action=connect&person1Name=${rowNotable.wikitree_id}&person2Name=${colNotable.wikitree_id}`;
-        row.append(`<td><a href="${connectionFinderLink}" target="_blank">${score}</a></td>`);
+        const cell = $(`<td style="cursor: pointer; color: green; text-decoration: none;">${score}</td>`);
+
+        // Make the entire cell clickable
+        cell.on("click", () => {
+          window.open(connectionFinderLink, "_blank");
+        });
+
+        row.append(cell);
       } else {
+        // Empty or non-clickable cell (no cursor and no event)
         row.append(`<td>${score}</td>`);
       }
     });
-
     table.append(row);
   });
 
