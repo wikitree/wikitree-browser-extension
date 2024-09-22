@@ -6,7 +6,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 // Function to try parsing a date string with multiple formats
 
 export function tryParseDate(dateString, formats) {
-  const sanitizedDateString = dateString.replace(/[/.,]/g, "-").replace(/- /g, "-");
+  const sanitizedDateString = dateString.replace(/\. /g, " ").replace(/[/.,]/g, "-").replace(/- /g, "-");
   for (let format of formats) {
     const parsedDate = parse(sanitizedDateString, format, new Date());
     if (isValid(parsedDate)) {
