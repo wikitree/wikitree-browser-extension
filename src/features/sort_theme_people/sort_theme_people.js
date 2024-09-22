@@ -4,46 +4,42 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { isOK } from "../../core/common.js";
-import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+
+let featuredConnectionsParagraph = $(`p:contains("This week's featured connections")`);
+if (!featuredConnectionsParagraph.length) {
+  featuredConnectionsParagraph = $(`div.sixteen div.box:contains(This week's featured connections)`);
+}
+const profilePersonInfo = getProfilePersonInfo();
+const profilePersonName = profilePersonInfo ? profilePersonInfo.name : null;
+const profilePersonId = profilePersonInfo ? profilePersonInfo.id : null;
 
 shouldInitializeFeature("sortThemePeople").then((result) => {
-  if (
-    result &&
-    $("body.profile").length &&
-    $(".sixteen p a:contains(degrees from), .sixteen div.box.rounded.row a:contains(degrees from)").length
-  ) {
-    import("./sort_theme_people.css");
-    connectionsBanner();
-    themePeopleTable();
-
-    // After defining the thisWeeksTheme element
-    const themeHeader = $("#themeTable caption");
-    themeHeader.css("cursor", "pointer");
-    themeHeader.attr("title", "Click to refresh the heading");
-    // Add a click event handler to the header
-    themeHeader.on("click", function () {
-      // Clear the localStorage values
-      localStorage.removeItem("lastThemeChangeDate");
-      localStorage.removeItem("cfTitle");
-      localStorage.removeItem("shogenCFTitle");
-      localStorage.removeItem("shogenCFTitleData");
-      localStorage.removeItem("shogenCFDateTime");
-      localStorage.removeItem("firstConnectionWTID");
-      localStorage.removeItem("firstConnection");
-      localStorage.removeItem("motw");
-      window.noHeading = false;
-
-      // Call the function to refresh data
-      connectionsBanner();
-    });
-
-    // Add double-click event handler for Beacall-6
-    attachDoubleClickHandler();
-
-    // Add a button to trigger the comprehensive matchup table
-    addComprehensiveMatchupButton();
+  if (result && $("body.profile").length && featuredConnectionsParagraph.length) {
+    init();
   }
 });
+
+async function init() {
+  import("./sort_theme_people.css");
+
+  const options = await getFeatureOptions("sortThemePeople");
+  if (options.AddTable) {
+    connectionsBanner();
+    themePeopleTable();
+  }
+
+  // Add double-click event handler for Beacall-6
+  attachDoubleClickHandler();
+
+  // Add a button to trigger the comprehensive matchup table
+  if (options.AddButtonForBigTable) {
+    setTimeout(addComprehensiveMatchupButton, 1000);
+  }
+  console.log("Comprehensive Matchup Button added.");
+  console.log("featuredConnectionsParagraph:", featuredConnectionsParagraph);
+  console.log("options.AddButtonForBigTable:", options.AddButtonForBigTable);
+}
 
 // Function to attach the double-click event handler for 'Beacall-6'
 function attachDoubleClickHandler() {
@@ -52,9 +48,7 @@ function attachDoubleClickHandler() {
   if (username === "Beacall-6") {
     // Attach to #themeTable
     $("#themeTable").on("dblclick", handleDoubleClick);
-
-    // Attach to paragraph containing "This week's featured connections"
-    $('p:contains("This week\'s featured connections")').on("dblclick", handleDoubleClick);
+    featuredConnectionsParagraph.on("dblclick", handleDoubleClick);
   }
 }
 
@@ -118,12 +112,11 @@ function handleDoubleClick(event) {
 
 // Function to extract theme title and notables
 function getThemeAndNotables() {
-  const paragraph = $("p:contains('featured connections')");
   let themeTitle = "";
   const notables = [];
 
-  if (paragraph.length) {
-    const links = paragraph.find("a");
+  if (featuredConnectionsParagraph.length) {
+    const links = featuredConnectionsParagraph.find("a");
     if (links.length) {
       // The first link is the theme link
       const themeLink = links.first();
@@ -177,8 +170,12 @@ function addComprehensiveMatchupButton() {
     })
     .addClass("small")
     .on("click", handleButtonClick);
-
-  $("#themeTable").after(button);
+  const themeTable = $("#themeTable");
+  if (themeTable.length) {
+    themeTable.after(button);
+  } else {
+    featuredConnectionsParagraph.after(button);
+  }
 }
 
 // Function to handle the button click event
@@ -194,11 +191,8 @@ async function handleButtonClick() {
   }
 
   const { theme_title, notables } = data;
-  const personAInfo = getPersonAInfo(); // Get profile person info, like ID and name
-  if (!personAInfo) return;
-
-  const personAId = personAInfo.id;
-  const personAName = personAInfo.name;
+  const profilePersonInfo = getProfilePersonInfo(); // Get profile person info, like ID and name
+  if (!profilePersonInfo) return;
 
   // Fetch matchups and build the table
   fetchMatchups(theme_title).then((combinedData) => {
@@ -207,7 +201,7 @@ async function handleButtonClick() {
 }
 
 // Function to get profile person ID and name
-function getPersonAInfo() {
+function getProfilePersonInfo() {
   // Extract the profile person's WikiTree ID from the URL
   const urlParts = window.location.pathname.split("/");
   const personAId = urlParts[urlParts.length - 1];
@@ -404,7 +398,11 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
 
       if (score !== "" && score !== "N/A") {
         const connectionFinderLink = `https://www.wikitree.com/index.php?title=Special:Connection&action=connect&person1Name=${rowNotable.wikitree_id}&person2Name=${colNotable.wikitree_id}`;
-        const cell = $(`<td style="cursor: pointer; color: green; text-decoration: none;">${score}</td>`);
+        const className =
+          rowNotable.wikitree_id === profilePersonId || colNotable.wikitree_id === profilePersonId ? "profileCell" : "";
+        const cell = $(
+          `<td class="${className}" style="cursor: pointer; color: green; text-decoration: none;">${score}</td>`
+        );
 
         // Make the entire cell clickable
         cell.on("click", () => {
@@ -479,7 +477,7 @@ function themePeopleTable() {
     });
 
     // Extract the theme title
-    let themeTitle = $("p:contains('This week's featured connections') a:first").text().trim();
+    let themeTitle = featuredConnectionsParagraph.find("a:first").text().trim();
     if (!themeTitle) {
       themeTitle = $("h2.thisWeeksTheme").text().trim();
     }

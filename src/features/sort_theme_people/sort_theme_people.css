@@ -58,3 +58,7 @@ td.notableName {
 #matchup-popup table {
   width: 100%;
 }
+
+#matchup-popup table td.profileCell {
+  background-color: #fff5e0;
+}
