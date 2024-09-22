@@ -19,6 +19,9 @@ body.page-Special_EditFamilySteps #wpSave {
 #saveStuff label {
   display: inline-block;
 }
+#saveStuff #suggestionContainer ol {
+  margin-left: 2em;
+}
 
 #wpSummaryTextArea {
   display: none;
