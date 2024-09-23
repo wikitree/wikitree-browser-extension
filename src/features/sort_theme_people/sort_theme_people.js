@@ -44,7 +44,7 @@ async function init() {
 // Function to attach the double-click event handler for 'Beacall-6'
 function attachDoubleClickHandler() {
   // Check if the user is 'Beacall-6'
-  var username = getCookie("wikitree_wtb_UserName");
+  const username = getCookie("wikitree_wtb_UserName");
   if (username === "Beacall-6") {
     // Attach to #themeTable
     $("#themeTable").on("dblclick", handleDoubleClick);
@@ -65,27 +65,29 @@ function handleDoubleClick(event) {
   event.preventDefault();
 
   // Check if the user is 'Beacall-6'
-  var username = getCookie("wikitree_wtb_UserName");
+  const username = getCookie("wikitree_wtb_UserName");
   if (username !== "Beacall-6") {
     console.warn("Unauthorized user.");
     return;
   }
 
   // Extract the theme title and the featured connections
-  var data = getThemeAndNotables();
+  const data = getThemeAndNotables();
   if (!data) {
     console.warn("Theme and notables information could not be extracted.");
     return;
   }
 
-  var themeTitle = data.theme_title;
-  var notables = data.notables; // Array of { wikitree_id, name }
+  const themeTitle = data.theme_title;
+  const notables = data.notables; // Array of { wikitree_id, name }
 
   // Send data to bulk_get_matchups.php
-  var postData = {
+  const postData = {
     theme_title: themeTitle,
     ids: notables,
+    profile_person_id: profilePersonId,
   };
+  console.log("Post Data:", postData);
 
   $.ajax({
     url: "https://wikitreebee.com/notables/bulk_get_matchups.php",
@@ -97,15 +99,12 @@ function handleDoubleClick(event) {
     success: function (response) {
       if (response.error) {
         console.error("Error in bulk_get_matchups:", response.error);
-        alert("Error in bulk_get_matchups: " + response.error);
       } else {
         console.log("Bulk matchups fetched and stored successfully.");
-        alert("Bulk matchups fetched and stored successfully.");
       }
     },
     error: function (xhr, status, error) {
       console.error("AJAX Error:", error);
-      alert("AJAX Error: " + error);
     },
   });
 }
@@ -115,8 +114,10 @@ function getThemeAndNotables() {
   let themeTitle = "";
   const notables = [];
 
+  // Extract the title and notables from the featuredConnectionsParagraph
   if (featuredConnectionsParagraph.length) {
     const links = featuredConnectionsParagraph.find("a");
+
     if (links.length) {
       // The first link is the theme link
       const themeLink = links.first();
@@ -127,34 +128,41 @@ function getThemeAndNotables() {
         if (index === 0) return; // Skip the first link (theme link)
         const link = $(this);
         const href = link.attr("href");
-        const wikitree_id = href.replace("/wiki/", "").trim();
-        const name = link.text().trim();
-        notables.push({ wikitree_id, name });
+
+        // Extract person1Name (wikitree_id) from the URL
+        const wikitree_id = extractWikiTreeId(href); // Call the function to extract wikitree_id
+
+        // Extract the name by removing the " degrees from " part
+        const fullText = link.text().trim();
+        const name = extractNameFromText(fullText); // Extract just the name
+
+        // If wikitree_id and name are valid, add to the notables array
+        if (wikitree_id && name) {
+          notables.push({ wikitree_id, name });
+        }
       });
     }
   }
 
-  // If themeTitle or notables are empty, try to get from #themeTable
-  if (!themeTitle || notables.length === 0) {
-    // Try to get themeTitle from the caption of #themeTable
-    themeTitle = $("#themeTable caption").text().trim();
-
-    // Get notables from the table rows
-    $("#themeTable tbody tr").each(function () {
-      const link = $(this).find("td:first-child a");
-      const name = link.text().trim();
-      const href = link.attr("href");
-      const wikitree_id = href.replace("/wiki/", "").trim();
-      notables.push({ wikitree_id, name });
-    });
-  }
-
+  // Check if the theme title and notables were successfully extracted
   if (!themeTitle || notables.length === 0) {
     console.error("Could not extract theme title or notables.");
     return null;
   }
 
   return { theme_title: themeTitle, notables };
+}
+
+// Function to extract WikiTree ID (person1Name) from URL
+function extractWikiTreeId(url) {
+  const urlParams = new URLSearchParams(url.split("?")[1]);
+  return urlParams.get("person1Name"); // Return the person1Name parameter
+}
+
+// Function to extract just the name (remove the " degrees from " part)
+function extractNameFromText(fullText) {
+  const parts = fullText.split(" degrees from ");
+  return parts.length > 1 ? parts[1] : fullText; // Return the name part
 }
 
 // Function to add the comprehensive matchup button
@@ -207,7 +215,6 @@ function getProfilePersonInfo() {
   const personAId = urlParts[urlParts.length - 1];
   const personAName = $("h1 span[itemprop='name']").text().trim();
   if (!personAId || !personAName) {
-    console.error("Could not extract profile person ID or name.");
     return null;
   }
   return { id: personAId, name: personAName };
@@ -240,11 +247,18 @@ function getDegreesFromPage() {
   const results = [];
   const themeLinks = $(".sixteen p a:contains(degrees from), .sixteen div.box.rounded.row a:contains(degrees from)");
   themeLinks.each(function () {
+    // Extract IDs directly from the query parameters in the connection URL
     const connectionURL = $(this).attr("href");
-    const urlParams = new URLSearchParams(connectionURL.split("?")[1]);
+    const url = new URL(connectionURL, window.location.origin);
+    const wikitree_id_a = url.searchParams.get("person1Name");
+    const wikitree_id_b = url.searchParams.get("person2Name");
 
-    const wikitree_id_a = urlParams.get("person1Name");
-    const wikitree_id_b = urlParams.get("person2Name");
+    // Validate that these IDs are correct
+    if (!wikitree_id_a || !wikitree_id_b) {
+      console.error("Invalid WikiTree IDs extracted from the URL:", connectionURL);
+    } else {
+      console.log("Extracted IDs:", wikitree_id_a, wikitree_id_b);
+    }
 
     const linkText = $(this).text();
     const degrees = parseInt(linkText.split(" degrees from ")[0]);
@@ -296,6 +310,27 @@ function getThemeDegrees(themeTitle) {
   });
 }
 
+function getColorForScore(score, minScore, maxScore) {
+  // Normalize the score to a ratio between 0 and 1
+  let ratio = (score - minScore) / (maxScore - minScore);
+  ratio = Math.min(Math.max(ratio, 0), 1); // Clamp ratio between 0 and 1
+
+  // Fixed hue for green
+  let hue = 120; // Hue for green in HSL color space
+
+  // Interpolate lightness from fully saturated to almost fully unsaturated
+  let saturation = 10 + (1 - ratio) * 90; // Full saturation for vivid colors
+
+  // Interpolate lightness from dark to very pale
+  let lightness = 30 + ratio * 60; // Lightness from 30% (dark green) to 90% (very pale green)
+
+  // Return both the background color and lightness for text color determination
+  return {
+    bgColor: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
+    lightness: lightness,
+  };
+}
+
 // Function to build the comprehensive matchup table
 function buildComprehensiveMatchupTable(combinedData, themeTitle) {
   console.log("Starting buildComprehensiveMatchupTable...");
@@ -321,8 +356,6 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
     name,
   }));
 
-  console.log("Notables Array before sorting:", notablesArray);
-
   // Build a map for quick lookup of scores
   const scoresMap = {};
   combinedData.forEach((entry) => {
@@ -347,19 +380,22 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
     totalScores[notable.wikitree_id] = total;
   });
 
-  console.log("Total Scores:", totalScores);
-
-  // Sort the notables based on total scores from lowest to highest
+  // Sort the notables based on total scores from lowest to highest for rows
   notablesArray.sort((a, b) => {
     const totalA = totalScores[a.wikitree_id];
     const totalB = totalScores[b.wikitree_id];
     return totalA - totalB;
   });
 
-  console.log("Notables Array after sorting:", notablesArray);
+  // Create a reversed copy of notablesArray for columns (highest to lowest)
+  const columnArray = [...notablesArray].reverse();
+
+  // Set custom min and max scores if desired
+  let minScore = 10;
+  let maxScore = 40;
 
   // Create the table
-  const table = $("<table>").attr("id", "comprehensiveTable").css({
+  const table = $("<table>").attr("id", "comprehensiveTable").addClass("comprehensiveTable").css({
     "border-collapse": "collapse",
     width: "100%",
   });
@@ -369,39 +405,74 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
     "font-weight": "bold",
     "margin-bottom": "10px",
     "font-size": "1.5em",
+    "text-align": "center",
   });
   table.append(caption);
 
-  // Create table header
+  // Create table header using columnArray
   const headerRow = $("<tr>");
   headerRow.append("<th></th>"); // Empty corner cell
-  notablesArray.forEach((notable) => {
+
+  columnArray.forEach((notable) => {
+    const isProfileColumn = notable.wikitree_id === profilePersonId;
+    const thClass = isProfileColumn ? "profileColumnCell" : "";
     const profileLink = `https://wikitree.com/wiki/${notable.wikitree_id}`;
     headerRow.append(
-      `<th><a href="${profileLink}" target="_blank" style="color: green; text-decoration: none;">${notable.name}</a></th>`
+      `<th class="${thClass}"><a href="${profileLink}" target="_blank" style="color: green; text-decoration: none;">${notable.name}</a></th>`
     );
   });
   table.append($("<thead>").append(headerRow));
 
   // Create table body
-  notablesArray.forEach((rowNotable) => {
-    const row = $("<tr>");
+  const tbody = $("<tbody>");
+  notablesArray.forEach((rowNotable, rowIndex) => {
+    const isProfileRow = rowNotable.wikitree_id === profilePersonId;
+    const rowClass = isProfileRow ? "profileRow" : "";
+
+    const row = $("<tr>").addClass(rowClass);
     const profileLink = `https://wikitree.com/wiki/${rowNotable.wikitree_id}`;
+    const rowHeaderClass = isProfileRow ? "profileRowCell" : "";
     row.append(
-      `<td class="notableName"><a href="${profileLink}" target="_blank" style="color: green; text-decoration: none;">${rowNotable.name}</a></td>`
+      `<td class="notableName ${rowHeaderClass}">
+        <a href="${profileLink}" target="_blank" style="color: green; text-decoration: none;">${rowNotable.name}</a>
+      </td>`
     );
 
-    notablesArray.forEach((colNotable) => {
+    // Determine how many cells to display in this row
+    const totalNotables = columnArray.length;
+    const cellsToDisplay = totalNotables - rowIndex;
+
+    columnArray.forEach((colNotable, colIndex) => {
+      if (colIndex >= cellsToDisplay) {
+        // Do not create this cell to maintain the descending pattern
+        return;
+      }
+
+      const isProfileColumn = colNotable.wikitree_id === profilePersonId;
+      const cellClasses = [];
+      if (isProfileRow) cellClasses.push("profileRowCell");
+      if (isProfileColumn) cellClasses.push("profileColumnCell");
+
       const key = `${rowNotable.wikitree_id}-${colNotable.wikitree_id}`;
       const reverseKey = `${colNotable.wikitree_id}-${rowNotable.wikitree_id}`;
       const score = scoresMap[key] || scoresMap[reverseKey] || "";
 
       if (score !== "" && score !== "N/A") {
         const connectionFinderLink = `https://www.wikitree.com/index.php?title=Special:Connection&action=connect&person1Name=${rowNotable.wikitree_id}&person2Name=${colNotable.wikitree_id}`;
-        const className =
-          rowNotable.wikitree_id === profilePersonId || colNotable.wikitree_id === profilePersonId ? "profileCell" : "";
+
+        // Compute the background color and lightness for the score
+        const colorInfo = getColorForScore(parseInt(score), minScore, maxScore);
+        const bgColor = colorInfo.bgColor;
+        const lightness = colorInfo.lightness;
+
+        // Determine text color based on lightness for readability
+        const textColor = "#000"; // Black text for white background
+
+        // Create the cell with the background color and classes
         const cell = $(
-          `<td class="${className}" style="cursor: pointer; color: green; text-decoration: none;">${score}</td>`
+          `<td class="${cellClasses.join(" ")}" style="background-color: ${bgColor};">
+            <span class="score-span">${score}</span>
+          </td>`
         );
 
         // Make the entire cell clickable
@@ -411,12 +482,14 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
 
         row.append(cell);
       } else {
-        // Empty or non-clickable cell (no cursor and no event)
-        row.append(`<td>${score}</td>`);
+        // Empty or non-clickable cell
+        row.append(`<td class="${cellClasses.join(" ")}"></td>`);
       }
     });
-    table.append(row);
+
+    tbody.append(row);
   });
+  table.append(tbody);
 
   // Display the table in a popup
   const popup = $("<div>").attr("id", "matchup-popup").css({
@@ -453,6 +526,55 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
   $("body").append(popup);
 
   console.log("Popup table displayed.");
+
+  // Hide empty rows and columns
+  hideEmptyRowsAndColumns(table);
+}
+
+// Function to hide empty rows and columns
+function hideEmptyRowsAndColumns(table) {
+  // Hide empty rows (rows where all data cells are empty)
+  table.find("tbody tr").each(function () {
+    const isEmpty =
+      $(this)
+        .find("td")
+        .not(".notableName") // Exclude the row header
+        .filter(function () {
+          return $(this).text().trim() !== "";
+        }).length === 0;
+
+    if (isEmpty) {
+      $(this).hide();
+    }
+  });
+
+  // Determine the number of columns (excluding the header corner)
+  const numCols = table.find("thead th").length;
+
+  // Iterate through each column index
+  for (let colIndex = 1; colIndex < numCols; colIndex++) {
+    let isEmpty = true;
+
+    // Check each row in the tbody for the current column
+    table.find("tbody tr").each(function () {
+      const cell = $(this).find("td").eq(colIndex);
+      if (cell && cell.text().trim() !== "") {
+        isEmpty = false;
+        return false; // Exit the loop early
+      }
+    });
+
+    // If the column is empty, hide it
+    if (isEmpty) {
+      // Hide header cell
+      table.find("thead th").eq(colIndex).hide();
+
+      // Hide each cell in this column
+      table.find("tbody tr").each(function () {
+        $(this).find("td").eq(colIndex).hide();
+      });
+    }
+  }
 }
 
 // Function to build the theme people table

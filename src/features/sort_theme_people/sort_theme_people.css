@@ -59,6 +59,107 @@ td.notableName {
   width: 100%;
 }
 
-#matchup-popup table td.profileCell {
-  background-color: #fff5e0;
+#matchup-popup table td.profileRowCell {
+  border-top: 5px gold solid;
+  border-bottom: 5px gold solid;
+}
+
+#matchup-popup table td.profileColumnCell {
+  border-left: 5px gold solid;
+  border-right: 5px gold solid;
+}
+
+/* Comprehensive Matchup Table Styles */
+#comprehensiveTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* Ensures equal column widths */
+}
+
+#comprehensiveTable caption {
+  font-weight: bold;
+  margin-bottom: 10px;
+  font-size: 1.5em;
+  text-align: center;
+}
+
+#comprehensiveTable th,
+#comprehensiveTable td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: center; /* Horizontally centers content */
+  vertical-align: middle; /* Vertically centers content */
+  white-space: normal; /* Allows text to wrap */
+  word-break: keep-all; /* Prevents breaking within words */
+  overflow-wrap: break-word; /* Allows words to break only at allowed break points */
+}
+
+#comprehensiveTable th {
+  background-color: #f2f2f2;
+}
+
+/* Optional: Set minimum width for cells to accommodate names */
+#comprehensiveTable th,
+#comprehensiveTable td {
+  min-width: 100px; /* Adjust as needed */
+}
+
+/* Styling for the score spans */
+.score-span {
+  background-color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block; /* Allows proper alignment */
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.3); /* Optional: Adds a subtle shadow */
+}
+
+/* Styling for the profile person's row and column */
+.profileRowCell {
+  border-top: 2px solid red;
+  border-bottom: 2px solid red;
+  background-color: rgba(0, 128, 0, 0.1); /* Light green background for the row */
+}
+
+.profileColumnCell {
+  border-left: 2px solid red;
+  border-right: 2px solid red;
+  background-color: rgba(0, 128, 0, 0.1); /* Light green background for the column */
+}
+
+.profileRowCell.profileColumnCell {
+  border: 2px solid red;
+  background-color: rgba(0, 128, 0, 0.2); /* Slightly darker background for the intersection */
+}
+
+/* Optional: Hover effects for interactivity */
+#comprehensiveTable td:hover {
+  background-color: rgba(0, 128, 0, 0.15); /* Slightly darker on hover */
+  transition: background-color 0.3s ease;
+}
+
+/* Enable horizontal scrolling if table exceeds popup width */
+#matchup-popup {
+  overflow-x: auto;
+}
+
+/* Responsive Design Adjustments */
+@media (max-width: 768px) {
+  #comprehensiveTable th,
+  #comprehensiveTable td {
+    padding: 6px;
+    font-size: 0.9em;
+    white-space: normal; /* Allows text to wrap */
+    word-break: keep-all; /* Prevents breaking within words */
+    overflow-wrap: break-word; /* Allows words to break only at allowed break points */
+  }
+
+  .score-span {
+    padding: 2px 4px;
+    font-size: 0.85em;
+  }
+
+  /* Allow horizontal scrolling on smaller screens */
+  #matchup-popup {
+    overflow-x: auto;
+  }
 }
