@@ -315,14 +315,14 @@ function getColorForScore(score, minScore, maxScore) {
   let ratio = (score - minScore) / (maxScore - minScore);
   ratio = Math.min(Math.max(ratio, 0), 1); // Clamp ratio between 0 and 1
 
-  // Fixed hue for green
-  let hue = 120; // Hue for green in HSL color space
+  // Interpolate from green (minScore) to blue (maxScore)
+  let hue = 120 + (230 - 120) * ratio;
 
-  // Interpolate lightness from fully saturated to almost fully unsaturated
-  let saturation = 10 + (1 - ratio) * 90; // Full saturation for vivid colors
+  // Interpolate saturation from fully saturated (minScore) to almost fully unsaturated (maxScore)
+  let saturation = 10 + (1 - ratio) * 90;
 
-  // Interpolate lightness from dark to very pale
-  let lightness = 30 + ratio * 60; // Lightness from 30% (dark green) to 90% (very pale green)
+  // Interpolate lightness from dark (minScore) to very pale (maxScore)
+  let lightness = 10 + ratio * 80;
 
   // Return both the background color and lightness for text color determination
   return {
