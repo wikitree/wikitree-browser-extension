@@ -6,7 +6,7 @@ import { registerFeature, OptionType } from "../../core/options/options_registry
 import { isProfilePage } from "../../core/pageType";
 
 registerFeature({
-  name: "Featured Connections Table",
+  name: "Featured Connections Tables",
   id: "sortThemePeople",
   description: "Creates sorted tables for the featured connections.",
   category: "Profile",
@@ -25,7 +25,7 @@ registerFeature({
     {
       id: "AddButtonForBigTable",
       type: OptionType.CHECKBOX,
-      label: "Add a button to show the full table of connections between all of the featured people.",
+      label: "Add a button to show a full table of connections between each of the featured people.",
       defaultValue: true,
     },
   ],
