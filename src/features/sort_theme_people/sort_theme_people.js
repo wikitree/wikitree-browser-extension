@@ -10,6 +10,7 @@ let featuredConnectionsParagraph = $(`p:contains("This week's featured connectio
 if (!featuredConnectionsParagraph.length) {
   featuredConnectionsParagraph = $(`div.sixteen div.box:contains(This week's featured connections)`);
 }
+
 const profilePersonInfo = getProfilePersonInfo();
 const profilePersonName = profilePersonInfo ? profilePersonInfo.name : null;
 const profilePersonId = profilePersonInfo ? profilePersonInfo.id : null;
@@ -29,9 +30,6 @@ async function init() {
     themePeopleTable();
   }
 
-  // Add double-click event handler for Beacall-6
-  attachDoubleClickHandler();
-
   // Add a button to trigger the comprehensive matchup table
   if (options.AddButtonForBigTable) {
     setTimeout(addComprehensiveMatchupButton, 1000);
@@ -39,74 +37,6 @@ async function init() {
   console.log("Comprehensive Matchup Button added.");
   console.log("featuredConnectionsParagraph:", featuredConnectionsParagraph);
   console.log("options.AddButtonForBigTable:", options.AddButtonForBigTable);
-}
-
-// Function to attach the double-click event handler for 'Beacall-6'
-function attachDoubleClickHandler() {
-  // Check if the user is 'Beacall-6'
-  const username = getCookie("wikitree_wtb_UserName");
-  if (username === "Beacall-6") {
-    // Attach to #themeTable
-    $("#themeTable").on("dblclick", handleDoubleClick);
-    featuredConnectionsParagraph.on("dblclick", handleDoubleClick);
-  }
-}
-
-// Function to get cookie value
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(";").shift();
-}
-
-// Function to handle double-click event
-function handleDoubleClick(event) {
-  // Prevent default action
-  event.preventDefault();
-
-  // Check if the user is 'Beacall-6'
-  const username = getCookie("wikitree_wtb_UserName");
-  if (username !== "Beacall-6") {
-    console.warn("Unauthorized user.");
-    return;
-  }
-
-  // Extract the theme title and the featured connections
-  const data = getThemeAndNotables();
-  if (!data) {
-    console.warn("Theme and notables information could not be extracted.");
-    return;
-  }
-
-  const themeTitle = data.theme_title;
-  const notables = data.notables; // Array of { wikitree_id, name }
-
-  // Send data to bulk_get_matchups.php
-  const postData = {
-    theme_title: themeTitle,
-    ids: notables,
-    profile_person_id: profilePersonId,
-  };
-  console.log("Post Data:", postData);
-
-  $.ajax({
-    url: "https://wikitreebee.com/notables/bulk_get_matchups.php",
-    method: "POST",
-    data: JSON.stringify(postData),
-    contentType: "application/json",
-    dataType: "json",
-    xhrFields: { withCredentials: true },
-    success: function (response) {
-      if (response.error) {
-        console.error("Error in bulk_get_matchups:", response.error);
-      } else {
-        console.log("Bulk matchups fetched and stored successfully.");
-      }
-    },
-    error: function (xhr, status, error) {
-      console.error("AJAX Error:", error);
-    },
-  });
 }
 
 // Function to extract theme title and notables
@@ -188,64 +118,93 @@ function addComprehensiveMatchupButton() {
 
 // Function to handle the button click event
 async function handleButtonClick() {
-  // Fetch the profile person's name dynamically from the DOM
-  const profilePersonName = $("h1 span[itemprop='name']").text().trim();
-  console.log("Profile person name:", profilePersonName);
+  const popup = $("#matchup-popup");
+  const button = $("#showAllDegreesButton");
 
-  const data = getThemeAndNotables();
-  if (!data) {
-    console.warn("Theme and notables information could not be extracted.");
-    return;
+  if (popup.length) {
+    // Popup already exists, toggle its visibility
+    popup.slideToggle(); // Shows the popup if hidden, hides if visible
+
+    // Update button text based on popup visibility
+    if (popup.is(":visible")) {
+      button.text("Hide All Degrees");
+    } else {
+      button.text("Show All Degrees");
+    }
+  } else {
+    // Fetch and combine matchups
+    const combinedMatchups = await fetchAndCombineMatchups();
+
+    if (combinedMatchups.length === 0) {
+      console.warn("No matchups available to display.");
+      return;
+    }
+
+    // Build the comprehensive matchup table
+    const themeTitle = getThemeTitle(); // Dynamically retrieve the theme title
+    buildComprehensiveMatchupTable(combinedMatchups, themeTitle);
+
+    // After building, update button text
+    button.text("Hide All Degrees");
   }
+}
 
-  const { theme_title, notables } = data;
-  const profilePersonInfo = getProfilePersonInfo(); // Get profile person info, like ID and name
-  if (!profilePersonInfo) return;
-
-  // Fetch matchups and build the table
-  fetchMatchups(theme_title).then((combinedData) => {
-    buildComprehensiveMatchupTable(combinedData, theme_title);
-  });
+// Function to get theme title dynamically
+function getThemeTitle() {
+  // Extract the theme title from the featuredConnectionsParagraph or other sources
+  const data = getThemeAndNotables();
+  return data ? data.theme_title : "Featured Connections";
 }
 
 // Function to get profile person ID and name
 function getProfilePersonInfo() {
   // Extract the profile person's WikiTree ID from the URL
   const urlParts = window.location.pathname.split("/");
-  const personAId = urlParts[urlParts.length - 1];
-  const personAName = $("h1 span[itemprop='name']").text().trim();
-  if (!personAId || !personAName) {
+  let personId = urlParts[urlParts.length - 1];
+  if (!personId) {
+    personId = $("a.pureCssMenui0 span.person").text().trim();
+  }
+  const personName = $("h1 span[itemprop='name']").text().trim();
+  if (!personId || !personName) {
     return null;
   }
-  return { id: personAId, name: personAName };
+  return { id: personId, name: personName };
 }
 
-// Function to fetch matchups
-async function fetchMatchups(themeTitle) {
+// Function to fetch and combine matchups from page and FeaturedMatrix
+async function fetchAndCombineMatchups() {
   try {
-    console.log("Fetching matchups for theme:", themeTitle);
-
-    const { results: degreesArray } = getDegreesFromPage();
+    console.log("Fetching existing matchups from the page...");
+    const { results: degreesArray, idToNameMap } = getDegreesFromPage();
     console.log("Degrees from page:", degreesArray);
+    console.log("ID to Name Map:", idToNameMap);
 
-    const themeDegrees = await getThemeDegrees(themeTitle);
-    console.log("Matchups fetched from WB:", themeDegrees);
+    console.log("Fetching new matchups from FeaturedMatrix...");
+    const matrixData = await fetchFeaturedMatrix();
+    console.log("Transforming FeaturedMatrix data...");
+    const featuredMatchups = transformMatrixToMatchups(matrixData, idToNameMap);
+    console.log("Featured matchups transformed:", featuredMatchups);
 
-    // Combine the two arrays directly
-    const combinedDegrees = degreesArray.concat(themeDegrees);
-    console.log("Combined matchups (page + WB):", combinedDegrees);
+    console.log("Combining existing and new matchups...");
+    const combinedDegrees = degreesArray.concat(featuredMatchups);
+    console.log("Combined matchups:", combinedDegrees);
 
-    // Return the combined data
     return combinedDegrees;
   } catch (error) {
-    console.error("Error fetching matchups:", error);
+    console.error("Error fetching and combining matchups:", error);
+    return []; // Return an empty array on error to prevent further issues
   }
 }
 
-// Function to get degrees from the page
+// Function to get degrees from the page and build idToNameMap
 function getDegreesFromPage() {
   const results = [];
-  const themeLinks = $(".sixteen p a:contains(degrees from), .sixteen div.box.rounded.row a:contains(degrees from)");
+  const idToNameMap = {};
+
+  const themeLinks = $(
+    ".sixteen p a:contains('degrees from'), .sixteen div.box.rounded.row a:contains('degrees from')"
+  );
+
   themeLinks.each(function () {
     // Extract IDs directly from the query parameters in the connection URL
     const connectionURL = $(this).attr("href");
@@ -256,14 +215,15 @@ function getDegreesFromPage() {
     // Validate that these IDs are correct
     if (!wikitree_id_a || !wikitree_id_b) {
       console.error("Invalid WikiTree IDs extracted from the URL:", connectionURL);
+      return; // Skip this iteration if IDs are invalid
     } else {
       console.log("Extracted IDs:", wikitree_id_a, wikitree_id_b);
     }
 
     const linkText = $(this).text();
-    const degrees = parseInt(linkText.split(" degrees from ")[0]);
-
-    const name_a = linkText.split(" degrees from ")[1];
+    const degreesPart = linkText.split(" degrees from ");
+    const degrees = parseInt(degreesPart[0]);
+    const name_a = degreesPart[1];
     const name_b = $("h1 span[itemprop='name']").text().trim(); // Profile person's name
 
     if (!isNaN(degrees)) {
@@ -274,42 +234,97 @@ function getDegreesFromPage() {
         wikitree_id_b,
         name_b,
       });
+
+      // Populate the mapping
+      idToNameMap[wikitree_id_a] = name_a;
+      idToNameMap[wikitree_id_b] = name_b;
     }
   });
 
-  return { results };
+  return { results, idToNameMap };
 }
 
-// Function to get theme degrees from WB
-function getThemeDegrees(themeTitle) {
-  return new Promise((resolve, reject) => {
-    console.log("Fetching matchups from WB for theme:", themeTitle);
-
-    $.ajax({
-      url: "https://wikitreebee.com/notables/get_matchups.php",
-      method: "POST",
-      data: { theme_title: themeTitle },
-      dataType: "json",
-      xhrFields: { withCredentials: true },
-      success: function (response) {
-        console.log("Received matchups from WB:", response);
-
-        if (response.error) {
-          console.error("Error fetching theme matchups:", response.error);
-          reject(response.error);
-          return;
-        }
-
-        resolve(response); // Resolve with the response if no error
-      },
-      error: function (xhr, status, error) {
-        console.error("AJAX Error:", error);
-        reject(error);
-      },
-    });
-  });
+// Function to fetch FeaturedMatrix JSON
+async function fetchFeaturedMatrix() {
+  try {
+    console.log("Fetching FeaturedMatrix data...");
+    const response = await fetch("https://plus.wikitree.com/FeaturedMatrix.json?appID=Ian");
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    const matrixData = await response.json();
+    console.log("FeaturedMatrix data fetched:", matrixData);
+    return matrixData;
+  } catch (error) {
+    console.error("Error fetching FeaturedMatrix data:", error);
+    throw error; // Propagate the error to be handled by the caller
+  }
 }
 
+/**
+ * Function to transform matrix data into matchup objects
+ * @param {Array} matrix - The matrix data fetched from FeaturedMatrix.json
+ * @param {Object} idToNameMap - Mapping from wikitree_id to names
+ * @returns {Array} - Array of matchup objects
+ */
+function transformMatrixToMatchups(matrix, idToNameMap) {
+  const matchups = [];
+
+  // Extract the list of notables from the matrix (first column of each row)
+  const notables = matrix.map((row) => row[0]);
+
+  for (let i = 0; i < matrix.length; i++) {
+    const row = matrix[i];
+    const idA = row[0];
+    const nameA = idToNameMap[idA] || extractNameFromID(idA);
+
+    for (let j = 1; j < row.length; j++) {
+      const idB = notables[j - 1]; // Correctly map the score to the notable
+
+      // **Skip self-matchups and ensure unique pairs**
+      if (j - 1 <= i) continue; // Ensures each pair is processed only once
+
+      const score = row[j];
+
+      if (score > 0) {
+        // Only consider positive scores
+        const nameB = idToNameMap[idB] || extractNameFromID(idB);
+
+        matchups.push({
+          score: score,
+          wikitree_id_a: idA,
+          name_a: nameA,
+          wikitree_id_b: idB,
+          name_b: nameB,
+        });
+      }
+    }
+  }
+
+  return matchups;
+}
+
+/**
+ * Helper function to extract name from wikitree_id if name not in map
+ * @param {string} wikitree_id
+ * @returns {string} - Extracted name or 'Unknown'
+ */
+function extractNameFromID(wikitree_id) {
+  if (!wikitree_id) {
+    console.warn("extractNameFromID called with undefined or null wikitree_id");
+    return "Unknown";
+  }
+  // Example: "Adriaenszoon-1" -> "Adriaenszoon"
+  return wikitree_id.split("-")[0];
+}
+
+/**
+ * Function to map a score to a color gradient
+ * @param {number} score
+ * @param {number} minScore
+ * @param {number} maxScore
+ * @returns {Object} - { bgColor: string, lightness: number }
+ */
 function getColorForScore(score, minScore, maxScore) {
   // Normalize the score to a ratio between 0 and 1
   let ratio = (score - minScore) / (maxScore - minScore);
@@ -319,20 +334,26 @@ function getColorForScore(score, minScore, maxScore) {
   let hue = 120 + (230 - 120) * ratio;
 
   // Interpolate saturation from fully saturated (minScore) to almost fully unsaturated (maxScore)
-  let saturation = 10 + (1 - ratio) * 90;
+  let saturation = 10 + (1 - ratio) + 90;
 
   // Interpolate lightness from dark (minScore) to very pale (maxScore)
-  let lightness = 10 + ratio * 80;
+  const lightness = 10 + ratio * 80;
 
-  // Return both the background color and lightness for text color determination
   return {
     bgColor: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
-    lightness: lightness,
   };
 }
 
-// Function to build the comprehensive matchup table
+/**
+ * Function to build the comprehensive matchup table
+ * @param {Array} combinedData - Combined array of matchup objects
+ * @param {string} themeTitle - Title for the matchup table
+ */
 function buildComprehensiveMatchupTable(combinedData, themeTitle) {
+  if ($("#matchup-popup").length) {
+    $("#matchup-popup").slideDown();
+    return;
+  }
   console.log("Starting buildComprehensiveMatchupTable...");
 
   if (!combinedData || combinedData.length === 0) {
@@ -351,7 +372,7 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
     }
   });
 
-  let notablesArray = Array.from(notablesMap, ([wikitree_id, name]) => ({
+  const notablesArray = Array.from(notablesMap, ([wikitree_id, name]) => ({
     wikitree_id,
     name,
   }));
@@ -380,6 +401,17 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
     totalScores[notable.wikitree_id] = total;
   });
 
+  // Compute average scores for each notable
+  const averageScores = {};
+  notablesArray.forEach((notable) => {
+    const total = totalScores[notable.wikitree_id];
+    const count = notablesArray.length - 1; // Exclude self
+    const average = count > 0 ? (total / count).toFixed(2) : 0;
+    averageScores[notable.wikitree_id] = average;
+  });
+
+  console.log("Average Scores:", averageScores);
+
   // Sort the notables based on total scores from lowest to highest for rows
   notablesArray.sort((a, b) => {
     const totalA = totalScores[a.wikitree_id];
@@ -390,9 +422,12 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
   // Create a reversed copy of notablesArray for columns (highest to lowest)
   const columnArray = [...notablesArray].reverse();
 
+  // Define the profile person ID (ensure this is correctly set)
+  const currentProfilePersonId = profilePersonId || "Gibson-24697"; // Ensure profilePersonId is correctly set
+
   // Set custom min and max scores if desired
-  let minScore = 10;
-  let maxScore = 40;
+  const minScore = 10;
+  const maxScore = 40;
 
   // Create the table
   const table = $("<table>").attr("id", "comprehensiveTable").addClass("comprehensiveTable").css({
@@ -414,11 +449,15 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
   headerRow.append("<th></th>"); // Empty corner cell
 
   columnArray.forEach((notable) => {
-    const isProfileColumn = notable.wikitree_id === profilePersonId;
+    const isProfileColumn = notable.wikitree_id === currentProfilePersonId;
     const thClass = isProfileColumn ? "profileColumnCell" : "";
     const profileLink = `https://wikitree.com/wiki/${notable.wikitree_id}`;
     headerRow.append(
-      `<th class="${thClass}"><a href="${profileLink}" target="_blank" style="color: green; text-decoration: none;">${notable.name}</a></th>`
+      `<th class="${thClass}">
+        <a href="${profileLink}" target="_blank" style="color: green; text-decoration: none;" title="${notable.name}">
+          ${notable.name}
+        </a>
+      </th>`
     );
   });
   table.append($("<thead>").append(headerRow));
@@ -426,7 +465,7 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
   // Create table body
   const tbody = $("<tbody>");
   notablesArray.forEach((rowNotable, rowIndex) => {
-    const isProfileRow = rowNotable.wikitree_id === profilePersonId;
+    const isProfileRow = rowNotable.wikitree_id === currentProfilePersonId;
     const rowClass = isProfileRow ? "profileRow" : "";
 
     const row = $("<tr>").addClass(rowClass);
@@ -434,56 +473,74 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
     const rowHeaderClass = isProfileRow ? "profileRowCell" : "";
     row.append(
       `<td class="notableName ${rowHeaderClass}">
-        <a href="${profileLink}" target="_blank" style="color: green; text-decoration: none;">${rowNotable.name}</a>
+        <a href="${profileLink}" target="_blank" style="color: green; text-decoration: none;" title="${rowNotable.name}">
+          ${rowNotable.name}
+        </a>
       </td>`
     );
 
-    // Determine how many cells to display in this row
-    const totalNotables = columnArray.length;
-    const cellsToDisplay = totalNotables - rowIndex;
+    // Find the column index where the diagonal cell should be
+    const diagonalColIndex = columnArray.findIndex((col) => col.wikitree_id === rowNotable.wikitree_id);
 
     columnArray.forEach((colNotable, colIndex) => {
-      if (colIndex >= cellsToDisplay) {
-        // Do not create this cell to maintain the descending pattern
-        return;
-      }
-
-      const isProfileColumn = colNotable.wikitree_id === profilePersonId;
+      const isProfileColumn = colNotable.wikitree_id === currentProfilePersonId;
       const cellClasses = [];
       if (isProfileRow) cellClasses.push("profileRowCell");
       if (isProfileColumn) cellClasses.push("profileColumnCell");
 
-      const key = `${rowNotable.wikitree_id}-${colNotable.wikitree_id}`;
-      const reverseKey = `${colNotable.wikitree_id}-${rowNotable.wikitree_id}`;
-      const score = scoresMap[key] || scoresMap[reverseKey] || "";
+      if (colIndex === diagonalColIndex) {
+        // Diagonal cell: Display average score
+        const averageScore = averageScores[rowNotable.wikitree_id] || "N/A";
+        const bgColor = "#f0f0f0"; // Light gray background for average scores
+        const textColor = "#000"; // Black text for readability
 
-      if (score !== "" && score !== "N/A") {
-        const connectionFinderLink = `https://www.wikitree.com/index.php?title=Special:Connection&action=connect&person1Name=${rowNotable.wikitree_id}&person2Name=${colNotable.wikitree_id}`;
-
-        // Compute the background color and lightness for the score
-        const colorInfo = getColorForScore(parseInt(score), minScore, maxScore);
-        const bgColor = colorInfo.bgColor;
-        const lightness = colorInfo.lightness;
-
-        // Determine text color based on lightness for readability
-        const textColor = "#000"; // Black text for white background
-
-        // Create the cell with the background color and classes
         const cell = $(
-          `<td class="${cellClasses.join(" ")}" style="background-color: ${bgColor};">
-            <span class="score-span">${score}</span>
+          `<td title="Average distance from the others" class="${cellClasses.join(
+            " "
+          )}" style="background-color: ${bgColor}; color: ${textColor}; text-align: center; font-weight: bold;">
+            ${averageScore}
           </td>`
         );
 
-        // Make the entire cell clickable
-        cell.on("click", () => {
-          window.open(connectionFinderLink, "_blank");
-        });
-
         row.append(cell);
+      } else if (colIndex < diagonalColIndex) {
+        // Regular matchup cell
+        const key = `${rowNotable.wikitree_id}-${colNotable.wikitree_id}`;
+        const reverseKey = `${colNotable.wikitree_id}-${rowNotable.wikitree_id}`;
+        const score = scoresMap[key] || scoresMap[reverseKey] || "";
+
+        if (score !== "" && score !== "N/A") {
+          const connectionFinderLink = `https://www.wikitree.com/index.php?title=Special:Connection&action=connect&person1Name=${rowNotable.wikitree_id}&person2Name=${colNotable.wikitree_id}`;
+
+          // Compute the background color based on the score
+          const colorInfo = getColorForScore(parseInt(score), minScore, maxScore);
+          const bgColorScore = colorInfo.bgColor;
+          const lightness = parseFloat(colorInfo.lightness);
+          const textColor = lightness < 50 ? "#fff" : "#000"; // White text for dark backgrounds, black for light
+
+          // Create the cell with the background color and classes
+          const cell = $(
+            `<td class="${cellClasses.join(
+              " "
+            )}" style="background-color: ${bgColorScore}; color: ${textColor}; text-align: center;">
+              <span class="score-span">${score}</span>
+            </td>`
+          );
+
+          // Make the entire cell clickable
+          cell.css("cursor", "pointer");
+          cell.on("click", () => {
+            window.open(connectionFinderLink, "_blank");
+          });
+
+          row.append(cell);
+        } else {
+          // Empty or non-clickable cell
+          row.append(`<td class="${cellClasses.join(" ")} empty"></td>`);
+        }
       } else {
-        // Empty or non-clickable cell
-        row.append(`<td class="${cellClasses.join(" ")}"></td>`);
+        // Cells to the right of the diagonal: Leave empty
+        row.append(`<td class="${cellClasses.join(" ")} empty"></td>`);
       }
     });
 
@@ -518,75 +575,38 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
     })
     .addClass("small")
     .on("click", function () {
-      popup.remove();
+      popup.slideUp(); // Hide the popup instead of removing it
+      $("#showAllDegreesButton").text("Show All Degrees"); // Reset button text if necessary
     });
+
+  $(document).on("keydown", function (e) {
+    if (e.key === "Escape") {
+      popup.slideUp();
+      $("#showAllDegreesButton").text("Show All Degrees");
+    }
+  });
 
   popup.append(closeBtn);
   popup.append(table);
   $("body").append(popup);
 
   console.log("Popup table displayed.");
-
-  // Hide empty rows and columns
-  hideEmptyRowsAndColumns(table);
 }
 
-// Function to hide empty rows and columns
-function hideEmptyRowsAndColumns(table) {
-  // Hide empty rows (rows where all data cells are empty)
-  table.find("tbody tr").each(function () {
-    const isEmpty =
-      $(this)
-        .find("td")
-        .not(".notableName") // Exclude the row header
-        .filter(function () {
-          return $(this).text().trim() !== "";
-        }).length === 0;
-
-    if (isEmpty) {
-      $(this).hide();
-    }
-  });
-
-  // Determine the number of columns (excluding the header corner)
-  const numCols = table.find("thead th").length;
-
-  // Iterate through each column index
-  for (let colIndex = 1; colIndex < numCols; colIndex++) {
-    let isEmpty = true;
-
-    // Check each row in the tbody for the current column
-    table.find("tbody tr").each(function () {
-      const cell = $(this).find("td").eq(colIndex);
-      if (cell && cell.text().trim() !== "") {
-        isEmpty = false;
-        return false; // Exit the loop early
-      }
-    });
-
-    // If the column is empty, hide it
-    if (isEmpty) {
-      // Hide header cell
-      table.find("thead th").eq(colIndex).hide();
-
-      // Hide each cell in this column
-      table.find("tbody tr").each(function () {
-        $(this).find("td").eq(colIndex).hide();
-      });
-    }
-  }
-}
-
-// Function to build the theme people table
+/**
+ * Function to build the theme people table
+ */
 function themePeopleTable() {
   if ($("#themeTable").length) {
     $("#themeTable").toggle();
     $("h2.thisWeeksTheme").toggle();
     $("p.cfParagraph").toggle();
-    $(".sixteen a:contains(degrees from)").closest("div.box.rounded.row").toggle();
+    $(".sixteen a:contains('degrees from')").closest("div.box.rounded.row").toggle();
   } else {
     const linksArray = [];
-    const themeLinks = $(".sixteen p a:contains(degrees from), .sixteen div.box.rounded.row a:contains(degrees from)");
+    const themeLinks = $(
+      ".sixteen p a:contains('degrees from'), .sixteen div.box.rounded.row a:contains('degrees from')"
+    );
     themeLinks.each(function () {
       let aThemePerson = {};
       aThemePerson.connectionURL = $(this).attr("href");
@@ -633,7 +653,10 @@ function themePeopleTable() {
   }
 }
 
-// Function to set theme titles
+/**
+ * Function to set theme titles
+ * @param {string} dTitle - The title to set
+ */
 function setThemeTitles(dTitle) {
   let theP = $("body.profile div.sixteen.columns p a[href*='Special:Connection']").closest("p");
   if (theP.length) {
@@ -652,7 +675,9 @@ function setThemeTitles(dTitle) {
   }
 }
 
-// Function to set the connections banner
+/**
+ * Function to set the connections banner
+ */
 async function setConnectionsBanner() {
   const cfTitle = $("div.x-connections a:first").text();
   let theP = $("body.profile div.sixteen.columns p a[href*='Special:Connection']").closest("p");
@@ -664,7 +689,9 @@ async function setConnectionsBanner() {
   setThemeTitles(cfTitle);
 }
 
-// Function to initialize the connections banner
+/**
+ * Function to initialize the connections banner
+ */
 async function connectionsBanner() {
   if ($("h2.thisWeeksTheme").length == 0) {
     if (

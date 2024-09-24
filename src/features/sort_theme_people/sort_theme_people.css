@@ -28,7 +28,7 @@ h2.thisWeeksTheme {
 #comprehensiveTable td,
 td.notableName {
   border: 1px solid #ddd;
-  padding: 8px;
+  padding: 0.2em;
   text-align: center;
   font-weight: bold;
 }
@@ -64,7 +64,8 @@ td.notableName {
   border-bottom: 5px gold solid;
 }
 
-#matchup-popup table td.profileColumnCell {
+#matchup-popup table td.profileColumnCell,
+#matchup-popup table th.profileColumnCell {
   border-left: 5px gold solid;
   border-right: 5px gold solid;
 }
@@ -86,12 +87,17 @@ td.notableName {
 #comprehensiveTable th,
 #comprehensiveTable td {
   border: 1px solid #ddd;
-  padding: 10px;
-  text-align: center; /* Horizontally centers content */
-  vertical-align: middle; /* Vertically centers content */
-  white-space: normal; /* Allows text to wrap */
-  word-break: keep-all; /* Prevents breaking within words */
-  overflow-wrap: break-word; /* Allows words to break only at allowed break points */
+  text-align: center;
+  vertical-align: middle;
+  white-space: normal;
+  word-break: keep-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#comprehensiveTable th a,
+#comprehensiveTable td.notableName a {
+  word-wrap: normal;
 }
 
 #comprehensiveTable th {
@@ -140,6 +146,10 @@ td.notableName {
 /* Enable horizontal scrolling if table exceeds popup width */
 #matchup-popup {
   overflow-x: auto;
+}
+#comprehensiveTable td.empty {
+  background-color: #fff;
+  border: none !important;
 }
 
 /* Responsive Design Adjustments */
