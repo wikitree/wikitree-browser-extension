@@ -8,11 +8,25 @@ import { isProfilePage } from "../../core/pageType";
 registerFeature({
   name: "Featured Connections Table",
   id: "sortThemePeople",
-  description:
-    "Replaces the Featured Connections section on profile pages with a table sorted by degree of closeness to the profile person.",
+  description: "Creates sorted tables for the featured connections.",
   category: "Profile",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
-  defaultValue: false,
+  defaultValue: true,
   pages: [isProfilePage],
+  options: [
+    {
+      id: "AddTable",
+      type: OptionType.CHECKBOX,
+      label:
+        "Replace the Featured Connections section with a table, sorted in order of closeness to the profile person.",
+      defaultValue: false,
+    },
+    {
+      id: "AddButtonForBigTable",
+      type: OptionType.CHECKBOX,
+      label: "Add a button to show the full table of connections between all of the featured people.",
+      defaultValue: true,
+    },
+  ],
 });
