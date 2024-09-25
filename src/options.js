@@ -35,7 +35,40 @@ import("./core/toggleCheckbox.css");
 // Build the tree of categories with features under them
 const rootCategory = categorize(features);
 
-$("h1").first().after('<div id="categoryBar"><ul></ul></div>');
+$("h1").first().after('<div id="categoryBar"><ul><li><input id="optionSearch" type="search" placeholder="Search"></li></ul></div>');
+
+const textField = document.getElementById('optionSearch');
+
+function checkText() {
+  const textToCheck = textField.value.trim().toLowerCase();
+  const categorySections = document.querySelectorAll('.section.category');
+
+  categorySections.forEach((categorySection) => {
+    const featureSections = categorySection.querySelectorAll('.section.feature');
+    let hasVisibleFeature = false;
+
+    featureSections.forEach((featureSection) => {
+      const featureText = featureSection.textContent.toLowerCase();
+
+      if (featureText.includes(textToCheck)) {
+        featureSection.style.display = 'block';
+        hasVisibleFeature = true;
+      } else {
+        featureSection.style.display = 'none';
+      }
+    });
+
+    if (hasVisibleFeature) {
+      categorySection.querySelector('.section-header').style.display = 'block';
+      categorySection.querySelector('.section-content').style.display = 'block';
+    } else {
+      categorySection.querySelector('.section-header').style.display = 'none';
+      categorySection.querySelector('.section-content').style.display = 'none';
+    }
+  });
+}
+
+textField.addEventListener('input', checkText);
 
 // NOTE: This is called recursively
 function fillOptionsDataFromUiElements(feature, options, optionsData) {
