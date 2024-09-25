@@ -101,129 +101,137 @@ export class BioCheckPerson {
    */
   canUse(profileObj, mustBeOpen, mustBeOrphan, ignorePre1500, userId) {
     // TODO do you want to check and if !this.#isApp just bail?
-    let canUseThis = true;
-    if (profileObj.BirthDate != null) {
-      this.#birthDateString = profileObj.BirthDate;
-      this.#birthDate = this.#getDateFromString(this.#birthDateString);
-    } else {
-      if (profileObj.BirthDateDecade != null) {
-        this.#birthDateString = profileObj.BirthDateDecade.slice(0, -1);
+    let canUseThis = false;
+    if (this.#isApp) {
+      canUseThis = true;
+      if (profileObj.BirthDate != null) {
+        this.#birthDateString = profileObj.BirthDate;
         this.#birthDate = this.#getDateFromString(this.#birthDateString);
+      } else {
+        if (profileObj.BirthDateDecade != null) {
+          this.#birthDateString = profileObj.BirthDateDecade.slice(0, -1);
+          this.#birthDate = this.#getDateFromString(this.#birthDateString);
+        }
       }
-    }
-    if (this.#lastDateCheckedEmpty) {
-      this.#hasBirthDate = false;
-    }
-    if (profileObj.DeathDate != null) {
-      this.#deathDateString = profileObj.DeathDate;
-      this.#deathDate = this.#getDateFromString(this.#deathDateString);
-    } else {
-      if (profileObj.DeathDateDecade != null) {
-        this.#deathDateString = profileObj.DeathDateDecade.slice(0, -1);
+      if (this.#lastDateCheckedEmpty) {
+        this.#hasBirthDate = false;
+      }
+      if (profileObj.DeathDate != null) {
+        this.#deathDateString = profileObj.DeathDate;
         this.#deathDate = this.#getDateFromString(this.#deathDateString);
+      } else {
+        if (profileObj.DeathDateDecade != null) {
+          this.#deathDateString = profileObj.DeathDateDecade.slice(0, -1);
+          this.#deathDate = this.#getDateFromString(this.#deathDateString);
+        }
       }
-    }
-    if (this.#lastDateCheckedEmpty) {
-      this.#hasDeathDate = false;
-    }
-    // Go ahead and see if pre1500, pre1700 or too old
-    this.#checkEarlyDates();
+      if (this.#lastDateCheckedEmpty) {
+        this.#hasDeathDate = false;
+      }
+      // Go ahead and see if pre1500, pre1700 or too old
+      this.#checkEarlyDates();
 
-    this.person.profileId = profileObj.Id;
-    this.person.firstName = "";
-    this.person.lastName = "";
-    this.person.bio = "";
-    // Even if something returned, we can't process it without a Name
-    if (profileObj.Name != null) {
-      this.person.wikiTreeId = profileObj.Name;
-      this.person.hasName = true;
-      if (profileObj.Manager != null) {
-        this.person.managerId = profileObj.Manager;
-      }
-      if (profileObj.Privacy != null) {
-        this.person.privacyLevel = profileObj.Privacy;
-      }
-      if (profileObj.IsMember != null) {
-        if (profileObj.IsMember === 1) {
-          this.person.isMember = true;
+      this.person.profileId = profileObj.Id;
+      this.person.firstName = "";
+      this.person.lastName = "";
+      this.person.bio = "";
+      // Even if something returned, we can't process it without a Name
+      if (profileObj.Name != null) {
+        this.person.wikiTreeId = profileObj.Name;
+        this.person.hasName = true;
+        if (profileObj.Manager != null) {
+          this.person.managerId = profileObj.Manager;
         }
-      }
-      if (profileObj.bio != null) {
-        this.person.bio = profileObj.bio;
-        this.person.hasBio = true;
-        // TODO this is a HACK 
-        // to see if resolveRedirect was not honored by the API
-        // look for a bio content that starts with 
-        // and if so set hasBio false to force a call to the getBio API
-        if (profileObj.bio.startsWith('#REDIRECT')) {
-          this.person.hasBio = false;
+        if (profileObj.Privacy != null) {
+          this.person.privacyLevel = profileObj.Privacy;
         }
-      }
-      if (profileObj.FirstName != null) {
-        this.person.firstName = profileObj.FirstName;
-      } else {
-        if (profileObj.RealName != null) {
-          this.person.firstName = profileObj.RealName;
-        }
-      }
-      if (profileObj.LastNameCurrent != null) {
-        this.person.lastName = profileObj.LastNameCurrent;
-      } else {
-        if (profileObj.LastNameAtBirth != null) {
-          this.person.lastName = profileObj.LastNameAtBirth;
-        }
-      }
-      if (profileObj.DataStatus != null) { 
-        if (profileObj.DataStatus.Father != null) {
-          if (profileObj.DataStatus.Father == BioCheckPerson.CONF_WITH_DNA_STATUS) {
-            this.person.fatherDnaConfirmed = true;
+        if (profileObj.IsMember != null) {
+          if (profileObj.IsMember === 1) {
+            this.person.isMember = true;
           }
         }
-        if (profileObj.DataStatus.Mother != null) {
-          if (profileObj.DataStatus.Mother == BioCheckPerson.CONF_WITH_DNA_STATUS) {
-            this.person.motherDnaConfirmed = true;
-          }
-        }
-      }
-      // can use if logged in user is the same as Manager
-      if (this.person.privacyLevel < BioCheckPerson.MIN_PRIVACY) {
-        if (userId === 0) {
-          canUseThis = false; // user not logged in
+        if (profileObj.FirstName != null) {
+          this.person.firstName = profileObj.FirstName;
         } else {
-          if (this.person.managerId !== userId) {
-            canUseThis = false;
+          if (profileObj.RealName != null) {
+            this.person.firstName = profileObj.RealName;
           }
         }
-      }
-      if ((profileObj.Manager !== null) && (profileObj.Manager === 0)) {
-        this.person.isOrphan = true;
-      }
-      if (mustBeOrphan && !this.person.isOrphan) {
-          canUseThis = false;
-      }
-
-      // Do not check the profile for a member
-      // TODO not sure that you want to do this, need team guidance
-      /*
-      if (this.person.isMember) {
-        canUseThis = false;
-      }
-      */
-      if (mustBeOpen && this.person.privacyLevel < BioCheckPerson.OPEN_PRIVACY) {
-        canUseThis = false;
-      }
-      if (!canUseThis) {
-        this.person.uncheckedDueToPrivacy = true;
-      } else {
-        // check for birth/death date before 1500
-        if (ignorePre1500 && this.#isPre1500) {
-          canUseThis = false;
-          this.person.uncheckedDueToDate = true;
+        if (profileObj.LastNameCurrent != null) {
+          this.person.lastName = profileObj.LastNameCurrent;
+        } else {
+          if (profileObj.LastNameAtBirth != null) {
+            this.person.lastName = profileObj.LastNameAtBirth;
+          }
         }
+        if (profileObj.DataStatus != null) { 
+          if (profileObj.DataStatus.Father != null) {
+            if (profileObj.DataStatus.Father == BioCheckPerson.CONF_WITH_DNA_STATUS) {
+              this.person.fatherDnaConfirmed = true;
+            }
+          }
+          if (profileObj.DataStatus.Mother != null) {
+            if (profileObj.DataStatus.Mother == BioCheckPerson.CONF_WITH_DNA_STATUS) {
+              this.person.motherDnaConfirmed = true;
+            }
+          }
+        }
+        // can use if logged in user is the same as Manager
+        if (this.person.privacyLevel < BioCheckPerson.MIN_PRIVACY) {
+          if (userId === 0) {
+            canUseThis = false; // user not logged in
+          } else {
+            if (this.person.managerId !== userId) {
+              canUseThis = false;
+            }
+          }
+        }
+        if (profileObj.bio == null) {
+          canUseThis = false;
+        }
+        if ((profileObj.Manager !== null) && (profileObj.Manager === 0)) {
+          this.person.isOrphan = true;
+        }
+        if (mustBeOrphan && !this.person.isOrphan) {
+          canUseThis = false;
+        }
+
+        // Do not check the profile for a member
+        // TODO not sure that you want to do this, need team guidance
+        /*
+        if (this.person.isMember) {
+          canUseThis = false;
+        }
+        */
+        if (mustBeOpen && this.person.privacyLevel < BioCheckPerson.OPEN_PRIVACY) {
+          canUseThis = false;
+        }
+        if (!canUseThis) {
+          this.person.uncheckedDueToPrivacy = true;
+        } else {
+          // check for birth/death date before 1500
+          if (ignorePre1500 && this.#isPre1500) {
+            canUseThis = false;
+            this.person.uncheckedDueToDate = true;
+          }
+        }
+        // Don't bother with REDIRECT unless you can use the profile anyway
+        if (canUseThis && (profileObj.bio != null)) {
+          this.person.bio = profileObj.bio;
+          this.person.hasBio = true;
+          // TODO this is a HACK 
+          // to see if resolveRedirect was not honored by the API
+          // look for a bio content that starts with 
+          // and if so set hasBio false to force a call to the getBio API
+          if (profileObj.bio.startsWith('#REDIRECT')) {
+            console.log('BioCheck biography starts with #REDIRECT for profile Id ' + profileObj.Id);
+            this.person.hasBio = false;
+          }
+        }
+      } else {
+        // this might be a living person or a deleted account or a space page
+        canUseThis = false;
       }
-    } else {
-      // this might be a living person or a deleted account or a space page
-      canUseThis = false;
     }
     return canUseThis;
   }
