@@ -152,6 +152,14 @@ td.notableName {
   border: none !important;
 }
 
+#closePopupButton {
+  width: 2em;
+  text-align: center;
+}
+#comprehensiveTable.fullWidth {
+  width: auto !important;
+}
+
 /* Responsive Design Adjustments */
 @media (max-width: 768px) {
   #comprehensiveTable th,

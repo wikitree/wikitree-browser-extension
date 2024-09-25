@@ -124,6 +124,8 @@ async function handleButtonClick() {
   if (popup.length) {
     // Popup already exists, toggle its visibility
     popup.slideToggle(); // Shows the popup if hidden, hides if visible
+    $(".aPopupButton").toggle(); // Toggle visibility of all popup buttons
+    setTimeout(() => positionCloseButton(popup, $("#closePopupButton"), $("#widthPopupButton")), 500); // Position the close button after the slide animation
 
     // Update button text based on popup visibility
     if (popup.is(":visible")) {
@@ -352,6 +354,7 @@ function getColorForScore(score, minScore, maxScore) {
 function buildComprehensiveMatchupTable(combinedData, themeTitle) {
   if ($("#matchup-popup").length) {
     $("#matchup-popup").slideDown();
+    $(".aPopupButton").show();
     return;
   }
   console.log("Starting buildComprehensiveMatchupTable...");
@@ -566,31 +569,87 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
 
   const closeBtn = $("<button>")
     .html("&times;")
+    .prop("id", "closePopupButton")
+    .addClass("aPopupButton")
+    .attr("title", "Close all degrees table")
     .css({
-      position: "absolute",
+      position: "fixed",
       top: "0.5em",
       right: "0",
       padding: "5px 10px",
       cursor: "pointer",
+      "box-shadow": "0 0 5px rgba(0,0,0,0.5)",
     })
     .addClass("small")
     .on("click", function () {
       popup.slideUp(); // Hide the popup instead of removing it
+      $(".aPopupButton").hide(); // Hide all popup buttons
       $("#showAllDegreesButton").text("Show All Degrees"); // Reset button text if necessary
+    });
+
+  const widthButton = $("<button>")
+    .html("&#10231;")
+    .addClass("aPopupButton")
+    .prop("id", "widthPopupButton")
+    .attr("title", "Change width of all degrees table")
+    .css({
+      position: "fixed",
+      top: "0.5em",
+      left: "0",
+      padding: "5px 10px",
+      cursor: "pointer",
+      "box-shadow": "0 0 5px rgba(0,0,0,0.5)",
+    })
+    .addClass("small")
+    .on("click", function () {
+      const table = popup.find("table");
+      table.toggleClass("fullWidth");
+      positionCloseButton(popup, closeBtn, widthButton);
     });
 
   $(document).on("keydown", function (e) {
     if (e.key === "Escape") {
       popup.slideUp();
+      $(".aPopupButton").hide();
       $("#showAllDegreesButton").text("Show All Degrees");
     }
   });
 
-  popup.append(closeBtn);
+  $("body").append(closeBtn, widthButton);
   popup.append(table);
   $("body").append(popup);
 
   console.log("Popup table displayed.");
+
+  // Initially position the close button
+  positionCloseButton(popup, closeBtn, widthButton);
+
+  // Re-position the close button when the window is resized
+  $(window).on("resize", function () {
+    positionCloseButton(popup, closeBtn, widthButton);
+  });
+
+  // Optional: If popup content might change its size dynamically
+  // e.g., when loading images or dynamic content, you can also trigger the function based on certain events.
+  popup.on("DOMSubtreeModified", function () {
+    positionCloseButton(popup, closeBtn, widthButton);
+  });
+}
+
+function positionCloseButton($popup, $button, $widthButton) {
+  // Get the position and dimensions of the popup
+  const popupOffset = $popup.position();
+  const popupWidth = $popup.outerWidth();
+
+  // Position the close button just above the popup
+  $button.css({
+    top: popupOffset.top - 30 + "px", // 20px above the popup
+    left: popupOffset.left + popupWidth - 30 + "px", // Align the button with the right edge of the popup
+  });
+  $widthButton.css({
+    top: popupOffset.top - 30 + "px", // 20px above the popup
+    left: popupOffset.left + "px", // Align the button with the left edge of the popup
+  });
 }
 
 /**
