@@ -8242,11 +8242,23 @@ function removeOldBioMessage() {
   if ($("#wpTextbox1").length == 0) {
     return;
   }
-  if (
-    $("body")
-      .text()
+  let remove = false;
+  if ($(".CodeMirror").length) {
+    if (
+      $(".CodeMirror")
+        .text()
+        .match(/WikiTree Browser Extension Auto Bio/) == null
+    ) {
+      remove = true;
+    }
+  } else if (
+    $("#wpTextbox1")
+      .val()
       .match(/WikiTree Browser Extension Auto Bio/) == null
   ) {
+    remove = true;
+  }
+  if (remove) {
     $("#deleteOldBioMessage").remove();
   }
 }
