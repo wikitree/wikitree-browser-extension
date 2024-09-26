@@ -992,6 +992,7 @@ function closeClipboard() {
   $("#clipboard").slideUp();
   $(document).off("keydown", keyDownListener);
   $(document).off("mousemove", mouseListener);
+  $("body").removeClass("modal-open");
 }
 
 function makeKeyFrom(groupName) {

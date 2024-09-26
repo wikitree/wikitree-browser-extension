@@ -11,7 +11,6 @@
   max-height: 80%;
   max-width: 50em;
   min-width: min-content;
-  min-height: min-content;
   overflow: auto;
   box-shadow: 0.1em 0.1em 0.1em 0.1em lightgreen;
   background: white;
@@ -23,7 +22,6 @@
   -webkit-user-select: none;
   -webkit-overflow-scrolling: touch; /* Ensures smooth scrolling on iOS */
 }
-
 
 body.modal-open {
   overflow: hidden; /* Additional class to prevent body scrolling */
