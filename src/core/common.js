@@ -982,6 +982,9 @@ async function addLogInLogOutMessage() {
     const message = $(
       `<div id='logOutAndBackInMessage'>WBE: Please log in (or log out and back in) for <span id="theFeatures">${featuresMessage}</span> to work.</div>`
     );
+    message.on("click", function () {
+      $(this).remove();
+    });
     if (theFeaturesArray.length > 0) {
       $("body").append(message);
       console.log("User is not logged in. Displaying message:", message.text());
@@ -997,5 +1000,5 @@ async function addLogInLogOutMessage() {
 if (isMainDomain) {
   setTimeout(() => {
     addLogInLogOutMessage();
-  }, 5000);
+  }, 10000);
 }
