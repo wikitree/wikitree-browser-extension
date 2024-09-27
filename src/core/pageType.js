@@ -4,6 +4,8 @@ Created By: Aleš Trtnik (Trtnik-2)
 
 import $ from "jquery";
 
+export let isAncestry = false;
+
 // Wiki domain variables
 // apps.wikitree.com
 export let isAppsDomain = false;
@@ -148,7 +150,9 @@ if (window.location.href.match("Special(:|%3A|%3a)NetworkFeed")) {
 // log
 console.log("domain: " + domain);
 
-if (domain.match("apps.wikitree.com")) {
+if (domain.match("ancestry.com")) {
+  isAncestry = true;
+} else if (domain.match("apps.wikitree.com")) {
   isAppsDomain = true;
 } else if (domain.match("api.wikitree.com")) {
   isApiDomain = true;

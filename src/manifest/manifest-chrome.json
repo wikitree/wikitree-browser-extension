@@ -5,10 +5,10 @@
   "manifest_version": 3,
   "options_page": "options.html",
   "permissions": ["storage", "clipboardRead", "clipboardWrite", "contextMenus", "activeTab"],
-  "host_permissions": ["https://*.wikitree.com/*", "https://wikitree.sdms.si/*"],
+  "host_permissions": ["https://*.wikitree.com/*", "https://wikitree.sdms.si/*", "https://*.ancestry.com/*"],
   "content_scripts": [
     {
-      "matches": ["https://*.wikitree.com/*", "https://wikitree.sdms.si/*"],
+      "matches": ["https://*.wikitree.com/*", "https://wikitree.sdms.si/*", "https://*.ancestry.com/*"],
       "js": ["js/vendor.js", "js/content.js"],
       "all_frames": true
     }

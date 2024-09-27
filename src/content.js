@@ -102,6 +102,8 @@ import "./features/debugProfileClasses/debugProfileClasses";
 
 import "./core/editToolbar/editToolbar";
 
+import "./features/ancestry_match/ancestry_match";
+
 //createTopMenu();
 
 window.setTimeout(function () {
