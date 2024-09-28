@@ -41,7 +41,6 @@ async function getAncestryData() {
     .then((response) => response.text())
     .then((data) => {
       // Handle the data
-      console.log("Received people data:", data);
       console.log("Received people data:", JSON.parse(data));
     })
     .catch((error) => {
