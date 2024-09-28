@@ -50,7 +50,9 @@ async function getAncestryData() {
 
 async function getPeople(personId) {
   // Fetch the result from your PHP server
-  fetch(`https://apps.wikitree.com/apps/beacall6/api/get_people.php?id=${personId}&ancestors=5&descendants=5`)
+  fetch(
+    `https://apps.wikitree.com/apps/beacall6/api/get_people.php?id=${personId}&ancestors=5&descendants=5&siblings=1`
+  )
     .then((response) => response.json())
     .then((data) => {
       // Handle the data
