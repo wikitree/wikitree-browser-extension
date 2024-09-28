@@ -42,6 +42,7 @@ import "./features/redir_ext_links/redir_ext_links";
 import "./features/scissors/scissors";
 import "./features/send_to_merge/send_to_merge";
 import "./features/shareable_sources/shareable_sources";
+import "./features/show_suggestions/show_suggestions";
 import "./features/smooth_scrolling/smooth_scrolling";
 import "./features/sortBadges/sortBadges";
 import "./features/sort_theme_people/sort_theme_people";
