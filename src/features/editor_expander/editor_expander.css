@@ -50,7 +50,6 @@ textarea#wpTextbox1.expanded {
   margin: 0;
   display: inline;
   position: relative;
-  top: -7px;
 }
 
 #editorExpanderFixedDiv textarea.expanded {
