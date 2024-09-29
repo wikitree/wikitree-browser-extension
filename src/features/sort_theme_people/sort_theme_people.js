@@ -552,20 +552,7 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
   table.append(tbody);
 
   // Display the table in a popup
-  const popup = $("<div>").attr("id", "matchup-popup").css({
-    position: "fixed",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    "background-color": "#fff",
-    padding: "0.5em",
-    "box-shadow": "0 0 10px rgba(0,0,0,0.5)",
-    "z-index": "10000",
-    "max-height": "80%",
-    "overflow-y": "auto",
-    width: "90%",
-    "max-width": "1200px",
-  });
+  const popup = $("<div>").attr("id", "matchup-popup");
 
   const closeBtn = $("<button>")
     .html("&times;")
@@ -619,6 +606,13 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
   popup.append(table);
   $("body").append(popup);
 
+  popup.find("caption").on("dblclick", function () {
+    popup.find("table").toggleClass("fullWidth");
+  });
+  popup.find("td.empty").on("dblclick", function () {
+    closePopup();
+  });
+
   console.log("Popup table displayed.");
 
   // Initially position the close button
@@ -634,6 +628,12 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
   popup.on("DOMSubtreeModified", function () {
     positionCloseButton(popup, closeBtn, widthButton);
   });
+}
+
+function closePopup() {
+  $("#matchup-popup").slideUp();
+  $(".aPopupButton").hide();
+  $("#showAllDegreesButton").text("Show All Degrees");
 }
 
 function positionCloseButton($popup, $button, $widthButton) {
