@@ -81,6 +81,6 @@ For Firefox:
 
 For a full list of features, visit the [WikiTree Browser Extension](https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension) page on WikiTree.
 
-If you would like to contribute, see [contributing.md](docs/contributing.md).
+If you would like to contribute, see [contributing.md](docs/contributing.md) or [tutorial.md](docs/tutorial.md).
 
 If you have an idea for a new feature, post in [WikiTree G2G](https://www.wikitree.com/g2g) using the `wt_apps` and `improvements` tags.
