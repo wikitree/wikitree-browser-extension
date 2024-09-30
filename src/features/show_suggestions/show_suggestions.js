@@ -176,6 +176,13 @@ function initSuggestionsPopup() {
       popup.style.display = "none";
     }
   });
+
+  // Close the popup when the Escape key is pressed
+  window.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") {
+      popup.style.display = "none";
+    }
+  });
 }
 
 function getSuggestionsText(numberOfSuggestions) {
