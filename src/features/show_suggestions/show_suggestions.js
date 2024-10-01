@@ -176,12 +176,19 @@ function initSuggestionsPopup() {
       popup.style.display = "none";
     }
   });
+
+  // Close the popup when the Escape key is pressed
+  window.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") {
+      popup.style.display = "none";
+    }
+  });
 }
 
 function getSuggestionsText(numberOfSuggestions) {
   switch (numberOfSuggestions) {
     case undefined:
-      return `The suggestions could not be retrieved. This is an unlisted profile.`;
+      return `The suggestions could not be retrieved. This is an unlisted or private profile.`;
     case "0":
       return `There are 0 Suggestions. <span class="green-check">✓</span>`;
     case "1":
