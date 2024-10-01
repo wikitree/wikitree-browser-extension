@@ -12,7 +12,7 @@ This tutorial assumes you have the following:
 
 _Optional:_ If you prefer using a graphical interface for Git operations, install [GitHub Desktop](https://desktop.github.com/).
 
-## Forking the repository
+## Forking the Repository
 
 Sign into your GitHub account.
 
@@ -22,9 +22,11 @@ Click the "Fork" button at the top right. This will take you to a page titled "C
 
 You should now have a copy of the repository saved to your GitHub account.
 
-### Using GitHub Desktop
+## Downloading the Code
 
-If you prefer to use GitHub Desktop for Git operations, follow these steps:
+Once you have forked the repository, you need to download the code to your local machine. You can do this using either **GitHub Desktop**, the **Terminal**, or **Visual Studio Code**. Choose the method you're most comfortable with.
+
+### Using GitHub Desktop
 
 1. **Open GitHub Desktop** and sign in if prompted.
 2. **Go to your forked repository** on GitHub, click the green "Code" button, and select "Open with GitHub Desktop".
@@ -32,22 +34,20 @@ If you prefer to use GitHub Desktop for Git operations, follow these steps:
 4. After cloning, GitHub Desktop will ask how you plan to use this fork. Choose "To contribute to the parent project".
 5. Click "Open in Visual Studio Code" to start working on the code.
 
-### Using the terminal
+### Using the Terminal
 
-If you prefer to use the terminal, follow these steps:
-
-1. Go to your code repository on GitHub, click the green "Code" button, and copy the HTTPS link that is shown.
-2. Open your terminal and run the following command to clone the repository:
+1. **Go to your code repository on GitHub**, click the green "Code" button, and copy the HTTPS link that is shown.
+2. **Open your terminal** and run the following command to clone the repository:
    ```bash
    git clone https://github.com/your-username/wikitree-browser-extension.git
    ```
    Replace `your-username` with your actual GitHub username.
-3. Navigate to the directory where the repository was cloned:
+3. **Navigate to the directory** where the repository was cloned:
    ```bash
    cd wikitree-browser-extension
    ```
 
-## Downloading the code
+### Using Visual Studio Code
 
 Upon opening Visual Studio Code, you should be brought to a "Welcome" page. If you don't see this page, you can access it by going to `Help > Welcome` in the menu.
 
@@ -61,17 +61,25 @@ After it has been cloned, select "Open" in VS Code.
 
 You should now see the code files in the left-hand sidebar.
 
-You will want to open a terminal so you can run Git commands. You can do this in VS Code by selecting `Terminal > New Terminal` in the menu.
+### Installing Dependencies
+
+You will need to install the project’s dependencies using NPM.
 
 WBE uses a package manager called [NPM](https://www.npmjs.com/) (Node Package Manager). If you have never used it before, you will need to install it. The instructions for installing it can be found at [the npm website](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm).
 
-After npm is installed on your computer, type `npm install` into the terminal so all the dependencies for WBE get downloaded and installed.
+Once npm is installed on your computer, open a terminal in VS Code by selecting `Terminal > New Terminal` from the menu.
+
+Then, type the following command to install the necessary dependencies for WBE:
+
+```bash
+npm install
+```
 
 ## Testing WBE locally
 
 You should now have a copy of the extension code on your computer.
 
-You will have to build the browser extension before you can test the extension.
+You will have to build the browser extension before you can test it.
 
 In the terminal, type:
 
@@ -97,12 +105,12 @@ To test in Firefox, follow these steps:
    ```bash
    npm run build-firefox-dev
    ```
-2. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`.
+2. **Open Firefox and navigate to** `about:debugging#/runtime/this-firefox`.
 3. Click on "Load Temporary Add-on...".
 4. Navigate to the `wikitree-browser-extension/dist` folder and select the `manifest.json` file.
 5. The extension should now be listed under "Temporary Extensions".
 
-_Note:_ Temporary extensions will be removed when Firefox is closed. For persistent testing, consider using Firefox Developer Edition.
+**Note:** Temporary extensions will be removed when Firefox is closed. For persistent testing, consider using Firefox Developer Edition.
 
 ## Setting up a new feature
 
@@ -221,6 +229,8 @@ Now that your feature is finished, you want that feature to be added to the shar
 In the terminal, type:
 
 ```bash
+
+
 git status
 ```
 
