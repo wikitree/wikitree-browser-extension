@@ -928,7 +928,8 @@ function childList(person, spouse) {
     }
   } else {
     let gotChild = false;
-    ourChildren.sort((a, b) => a.OrderBirthDate.replaceAll(/-/g, "") - b.OrderBirthDate.replaceAll(/-/g, ""));
+    sortPeopleByBirthDate(ourChildren);
+
     ourChildren.forEach(function (child) {
       if (window.autoBioOptions?.familyListStyle == "bullets") {
         childListText += "* ";
@@ -961,6 +962,32 @@ function childList(person, spouse) {
   return text;
 }
 
+function sortPeopleByBirthDate(people) {
+  people.sort((a, b) => {
+    // First, compare by OrderBirthDate (removing dashes)
+    const dateComparison = a.OrderBirthDate.replaceAll(/-/g, "") - b.OrderBirthDate.replaceAll(/-/g, "");
+
+    if (dateComparison !== 0) {
+      return dateComparison; // If dates are different, return the result of this comparison
+    }
+
+    // If OrderBirthDate is the same, compare by DataStatus.BirthDate
+    const birthDatePriority = {
+      before: 1,
+      certain: 2,
+      guess: 3,
+      after: 4,
+      "": 99, // Blank values or missing DataStatus.BirthDate should be sorted last
+    };
+
+    // Extract the status or use an empty string if missing
+    const aBirthStatus = birthDatePriority[a?.DataStatus?.BirthDate || ""] || 99;
+    const bBirthStatus = birthDatePriority[b?.DataStatus?.BirthDate || ""] || 99;
+
+    return aBirthStatus - bBirthStatus; // Sort by priority with 'before' first and 'after' last
+  });
+}
+
 export function siblingList() {
   let text = "";
   const siblings = [];
@@ -988,7 +1015,8 @@ export function siblingList() {
       text += ".\n";
     } else if (siblings?.length > 1) {
       text += capitalizeFirstLetter(window.profilePerson.Pronouns.possessiveAdjective) + " siblings were:\n";
-      siblings.sort((a, b) => a.OrderBirthDate.replaceAll(/-/g, "") - b.OrderBirthDate.replaceAll(/-/g, ""));
+
+      sortPeopleByBirthDate(siblings);
       siblings.forEach(function (sibling) {
         if (window.autoBioOptions?.familyListStyle == "bullets") {
           text += "* ";
