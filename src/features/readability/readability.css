@@ -95,6 +95,10 @@ sup.reference {
     display: none !important;
   }
 
+  .hide-g2g-appreciation .x-g2g-appreciation {
+    display: none !important;
+  }
+
   .hide-sidebar-dna .x-sidebar-dna,
   .hide-dna-no-carriers .x-dna-no-carriers {
     display: none !important;
