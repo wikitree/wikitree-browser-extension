@@ -84,7 +84,8 @@
 }
 
 #errorMessages,
-#warningMessages {
+#warningMessages,
+#hintMessages {
   background-color: #f0f0f0;
   padding: 10px;
   border: 1px solid #ddd;
@@ -95,7 +96,8 @@
 }
 
 #errorMessages p,
-#warningMessages p {
+#warningMessages p,
+#hintMessages p {
   font-size: 20px;
   font-weight: bold;
   margin-bottom: 20px;
@@ -136,6 +138,26 @@
   font-size: 18px;
   font-weight: bold;
   color: #ff9900;
+  background-color: #fff;
+  padding: 5px 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+#hintMessages {
+  background-color: #add8e6;
+  border-color: #a5b5d8;
+  color: #00008b;
+}
+
+#hintMessages::before {
+  content: "Hints";
+  position: absolute;
+  top: -15px;
+  left: 10px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #00008b;
   background-color: #fff;
   padding: 5px 10px;
   border: 1px solid #ddd;
