@@ -921,7 +921,8 @@ function childList(person, spouse) {
           ourChildren[0].Gender == "Male" ? "Son" : ourChildren[0]?.Gender == "Female" ? "Daughter" : "Child";
         childListText += "Private " + childWord + ".\n";
       } else {
-        childListText += nameLink(ourChildren[0]) + " " + theDates + " " + status + ".\n";
+        const refText = addRefsToRelation(window.references, ourChildren[0], "children");
+        childListText += nameLink(ourChildren[0]) + " " + theDates + " " + status + "." + refText + "\n";
       }
     } else {
       text = "";
@@ -943,7 +944,8 @@ function childList(person, spouse) {
         const childWord = child.Gender == "Male" ? "Son" : child?.Gender == "Female" ? "Daughter" : "Child";
         childListText += "Private " + childWord + "\n";
       } else {
-        childListText += nameLink(child) + " " + theDates + " " + status + "\n";
+        const refText = addRefsToRelation(window.references, child, "children");
+        childListText += nameLink(child) + " " + theDates + " " + status + refText + "\n";
         gotChild = true;
       }
     });
@@ -1010,6 +1012,7 @@ export function siblingList() {
           text += ", " + nameLink(siblings[0]) + " " + sDates.replace(/(in|on)\s/g, "");
         } else {
           text += ", " + nameLink(siblings[0]);
+          text += addRefsToRelation(window.references, siblings[0], "siblings");
         }
       }
       text += ".\n";
@@ -1028,13 +1031,11 @@ export function siblingList() {
             sibling?.Gender == "Male" ? "Brother" : sibling?.Gender == "Female" ? "Sister" : "Sibling";
           text += "Private " + siblingWord + "\n";
         } else {
-          text += nameLink(sibling) + " " + personDates(sibling).replace(/(in|on)\s/g, "") + "\n";
+          const refText = addRefsToRelation(window.references, sibling, "siblings");
+          text += nameLink(sibling) + " " + personDates(sibling).replace(/(in|on)\s/g, "") + refText + "\n";
         }
       });
     }
-  }
-  if (text) {
-    text += "\n";
   }
   return text;
 }
@@ -1050,7 +1051,7 @@ function addReferences(event, spouse = false) {
   let text = "";
   if (window.references) {
     window.references.forEach(function (reference) {
-      if (isReferenceRelevant(reference, event, spouse)) {
+      if (isReferenceRelevant(reference, event, spouse) && !reference.Relation) {
         refCount++;
         if (reference.Used || window.refNames.includes(reference.RefName)) {
           text += `<ref name="${reference.RefName}" /> `;
@@ -1264,7 +1265,7 @@ export function buildDeath(person) {
   assignCemeteryFromSources();
 
   window.references.forEach(function (source) {
-    if (source["Record Type"].includes("Death")) {
+    if (source["Record Type"].includes("Death") && !source.Relation) {
       if (window.profilePerson.Cemetery && !burialAdded) {
         if (window.profilePerson.Cemetery.match("Memorial")) {
           text +=
@@ -1319,6 +1320,60 @@ export function buildDeath(person) {
   return text;
 }
 
+const relationRefCount = {
+  children: 0,
+  spouse: 0,
+  father: 0,
+  mother: 0,
+  siblings: 0,
+};
+
+function addRefsToRelation(refs, person, relation) {
+  let text = "";
+  if (refs) {
+    console.log(`Processing references for relation: ${relation}`);
+    // filter references for the relation Relation: relation
+    let theseRelations = [];
+    if (relation == "children") {
+      theseRelations = ["child", "son", "daughter"];
+    } else if (relation == "spouse") {
+      theseRelations = ["spouse", "husband", "wife"];
+    } else if (relation == "father") {
+      theseRelations = ["father"];
+    } else if (relation == "mother") {
+      theseRelations = ["mother"];
+    } else if (relation == "siblings") {
+      theseRelations = ["sibling", "brother", "sister"];
+    }
+
+    let relationRefs = refs.filter((ref) => theseRelations.includes(ref.Relation));
+    console.log(`Found ${relationRefs.length} references for relation: ${relation}`);
+
+    relationRefs.forEach(function (reference) {
+      if (["siblings", "children", "spouse"].includes(relation)) {
+        const nameVariants = getNameVariants(person);
+        console.log(`Checking reference name ${reference.Name} against name variants: ${nameVariants}`);
+        if (!isSameName(reference.Name, nameVariants)) {
+          console.log(`Reference name ${reference.Name} does not match any name variants.`);
+          return;
+        }
+      }
+      if (reference.Used || window.refNames.includes(reference.RefName)) {
+        text += `<ref name="${reference.RefName}" /> `;
+        console.log(`Using existing reference: ${reference.RefName}`);
+      } else {
+        relationRefCount[relation]++;
+        reference.RefName = relation + "_" + relationRefCount[relation];
+        text += `<ref name="${reference.RefName}">${reference.Text}</ref> `;
+        reference.Used = true;
+        window.refNames.push(reference.RefName);
+        console.log(`Created new reference: ${reference.RefName}`);
+      }
+    });
+  }
+  return text;
+}
+
 export function buildParents(person) {
   let text = "child of ";
   if (person.Gender == "Male") {
@@ -1338,6 +1393,7 @@ export function buildParents(person) {
           text += " " + formatDates(father);
         }
       }
+      text += addRefsToRelation(window.references, father, "father");
     }
     if (person.Father && person.Mother) {
       text += " and ";
@@ -1352,6 +1408,7 @@ export function buildParents(person) {
           text += " " + formatDates(mother);
         }
       }
+      text += addRefsToRelation(window.references, mother, "mother");
     }
   }
   return text;
@@ -1526,6 +1583,7 @@ export function buildSpouses(person) {
         const spouseWord = spouse.Gender == "Male" ? "Husband" : spouse?.Gender == "Female" ? "Wife" : "Spouse";
         spouseName = "Private " + spouseWord;
       }
+      const refText = addRefsToRelation(window.references, spouse, "spouse");
 
       const marriageFormatA =
         person.PersonName?.FirstName +
@@ -1533,6 +1591,7 @@ export function buildSpouses(person) {
         " married " +
         boldBit +
         spouseName +
+        refText +
         boldBit +
         spouseMarriageAge +
         spouseDetailsA +
@@ -1544,6 +1603,7 @@ export function buildSpouses(person) {
         " and " +
         boldBit +
         spouseName +
+        refText +
         boldBit +
         spouseMarriageAge +
         " were married" +
@@ -4688,8 +4748,22 @@ export function sourcesArray(bio) {
     }
   });
 
+  function whoseCitation(aRef) {
+    // Match pattern '''Birth|Baptism|Marriage||Burial|Death of (child|son|daughter|husband|wife|father|mother|brother|sister|sibling) (.*?)'''
+    const whoseCitationPattern =
+      /'''(Birth|Baptism|Marriage|Burial|Death) of (child|son|daughter|husband|wife|father|mother|brother|sister|sibling) (.*?)'''/i;
+    const whoseCitationMatch = aRef.Text.match(whoseCitationPattern);
+    if (whoseCitationMatch) {
+      const relation = whoseCitationMatch[2];
+      const name = whoseCitationMatch[3];
+      aRef.Relation = relation;
+      aRef.Name = name;
+    }
+  }
+
   refArr.forEach(function (aRef) {
     if (aRef.Text) {
+      whoseCitation(aRef);
       const tableMatch = aRef.Text.match(/\{\|[^}]*Name.[^}]*Age[^}]*\|\}/gs);
       if (tableMatch) {
         const table = tableMatch[0];
