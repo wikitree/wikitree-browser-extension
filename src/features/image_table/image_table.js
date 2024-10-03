@@ -74,12 +74,18 @@ function initPhotoPopup() {
     // Close the popup and clear the table when the close button is clicked
     $(".popup .close").on("click", function () {
       $("#photoPopup").hide(); // Hide the popup
+      if ($("#largeImagePopup").length > 0) {
+        $("#largeImagePopup").remove(); // Close the large image popup if it exists
+      }
     });
 
     // Close the popup when clicking outside the content area
     $(window).on("click", function (event) {
       if ($(event.target).is("#photoPopup")) {
         $("#photoPopup").hide(); // Hide the popup
+        if ($("#largeImagePopup").length > 0) {
+          $("#largeImagePopup").remove(); // Close the large image popup if it exists
+        }
       }
     });
   }
