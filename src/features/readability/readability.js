@@ -374,6 +374,9 @@ async function initReadability() {
     if (isToggled(options.hideForumPosts)) {
       $("html").toggleClass("hide-sidebar-posts");
     }
+    if (isToggled(options.hideAppreciationPosts)) {
+      $("html").toggleClass("hide-g2g-appreciation");
+    }
     if (isToggled(options.hideDNAConnections, 2)) {
       $("html").toggleClass("hide-dna-no-carriers");
     } else if (isToggled(options.hideDNAConnections)) {

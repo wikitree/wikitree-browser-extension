@@ -118,6 +118,11 @@ export function ensureProfileClasses() {
       } else if (el.find("a[href^='/g2g/']").length > 0) {
         // G2G posts
         el.addClass("x-sidebar-posts");
+        const appreciation = ["Wonderful WikiTreer", "Congratulations", "G2G points", "new pilot", "awesome WikiTreer"];
+        const appreciationPosts = el.find("a[href^='/g2g/']").filter(function () {
+          return appreciation.some((app) => new RegExp(app, "i").test($(this).text()));
+        });
+        appreciationPosts.parent().addClass("x-g2g-appreciation");
       } else {
         // flag other sections even if not recognized
         el.addClass("x-sidebar-unknown");

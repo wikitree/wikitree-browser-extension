@@ -411,6 +411,26 @@ const readabilityFeature = {
               defaultValue: 1,
             },
             {
+              id: "hideAppreciationPosts",
+              type: OptionType.SELECT,
+              label: "Hide G2G appreciation posts",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 1,
+            },
+            {
               id: "hideDNAConnections",
               type: OptionType.SELECT,
               label: "Hide DNA connections",
