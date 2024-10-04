@@ -3,13 +3,14 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import Cookies from "js-cookie";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { getPerson } from "wikitree-js";
 import { wtAPIProfileSearch } from "../../core/API/wtPlusAPI";
-import { treeImageURL } from "../../core/common";
+import { treeImageURL, getUserNumId, isLoggedIntoAPI } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
 import "jquery-ui/ui/widgets/draggable";
+
+const APP_ID = "WBE_randomProfile";
 
 shouldInitializeFeature("randomProfile").then((result) => {
   if (result) {
@@ -292,19 +293,6 @@ async function postToAPI(postData) {
   return ajax;
 }
 
-export async function checkLogin() {
-  const userID = Cookies.get("wikitree_wtb_UserID");
-
-  console.log("userID:", userID);
-
-  const postData = { action: "clientLogin", checkLogin: userID };
-  const checkLoginResult = await postToAPI(postData);
-
-  console.log("checkLoginResult:", checkLoginResult);
-
-  return checkLoginResult;
-}
-
 export function goAndLogIn(returnURL = null) {
   // Create the form and its elements
   const $form = $("<form>", {
@@ -340,7 +328,6 @@ export function goAndLogIn(returnURL = null) {
 }
 
 export async function doLogin() {
-  const login = await checkLogin();
   const u = new URLSearchParams(window.location.search);
   const authcode = u?.get("authcode");
   if (typeof authcode != "undefined" && authcode != null && authcode != "") {
@@ -350,10 +337,8 @@ export async function doLogin() {
       showWorking();
       goToRandomWatchlistProfile(true);
     }
-  } else if (login?.clientLogin?.result) {
-    if (login.clientLogin.result == "error") {
-      goAndLogIn();
-    }
+  } else if (!(await isLoggedIntoAPI(getUserNumId(), APP_ID))) {
+    goAndLogIn();
   }
 }
 

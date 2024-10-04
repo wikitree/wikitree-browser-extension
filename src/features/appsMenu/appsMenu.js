@@ -3,9 +3,9 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import Cookies from "js-cookie";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain, isG2G } from "../../core/pageType";
+import { getUserWtId } from "../../core/common";
 
 const categories = [
   "Australia",
@@ -145,7 +145,7 @@ function attachMenu(anchorHref, submenuId, menuItems) {
 }
 
 function getAppsMenuItems() {
-  const userName = Cookies.get("wikitree_wtb_UserName");
+  const userName = getUserWtId();
   const profileID = $("a.pureCssMenui0 span.person").text();
   return [
     { title: "Tree Apps", url: "https://www.wikitree.com/wiki/Help:Tree_Apps" },
@@ -192,7 +192,7 @@ function getMenuItems(baseUrl, items) {
 }
 
 function getTreeAppsMenuItems() {
-  const theId = $("a.pureCssMenui0 span.person").text() || Cookies.get("wikitree_wtb_UserName") || "";
+  const theId = $("a.pureCssMenui0 span.person").text() || getUserWtId() || "";
   return treeApps.map((item) => {
     const formattedTitle = item.text;
     // https://www.wikitree.com/apps/Kubičík-26#name=Kubičík-26&view=couples

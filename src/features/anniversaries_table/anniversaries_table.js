@@ -2,10 +2,9 @@ import $ from "jquery";
 import dt from "datatables.net-dt";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "./anniversaries_table.css";
-import Cookies from "js-cookie";
 import { getPeople } from "../dna_table/dna_table";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { distRelDbKeyFor } from "../../core/common";
+import { distRelDbKeyFor, getUserWtId } from "../../core/common";
 import {
   CONNECTION_STORE_NAME,
   RELATIONSHIP_STORE_NAME,
@@ -74,7 +73,7 @@ async function anniversariesTable() {
   if ($("#anniversariesTable").length > 0) {
     return;
   }
-  const userID = Cookies.get("wikitree_wtb_UserName");
+  const userID = getUserWtId();
   shakingTree.appendTo($("h1"));
   bigDiv.show();
   $("#anniversariesTable, #anniversariesTable_wrapper").hide();

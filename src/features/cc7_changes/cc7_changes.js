@@ -10,7 +10,7 @@ import {
   oncePerTab,
   getUserNumId,
   getUserWtId,
-  isLoggedInAPI,
+  isLoggedIntoAPI,
 } from "../../core/common";
 import { PersonName } from "../auto_bio/person_name.js";
 import { displayDates } from "../verifyID/verifyID";
@@ -322,7 +322,7 @@ function showLoginPopup() {
     const userId = getTheUsersWtId();
     const userNumId = getTheUsersNumId();
     if (userId && userNumId) {
-      if (await isLoggedInAPI(userNumId, APP_ID)) {
+      if (await isLoggedIntoAPI(userNumId, APP_ID)) {
         db.setUserIds(userId);
         await initializeCC7Tracking();
       } else {
@@ -362,7 +362,7 @@ export async function addCC7ChangesButton() {
 
     if (!TESTING || !USE_TEST_USER) {
       // Check login status
-      const isLoggedIn = await isLoggedInAPI(db.userNumId, APP_ID);
+      const isLoggedIn = await isLoggedIntoAPI(db.userNumId, APP_ID);
       if (!isLoggedIn) {
         showLoginPopup();
         // Not logged in, redirect to login
@@ -419,7 +419,7 @@ async function initializeCC7Tracking() {
         return;
       }
 
-      const isLoggedIn = await isLoggedInAPI(db.userNumId, APP_ID);
+      const isLoggedIn = await isLoggedIntoAPI(db.userNumId, APP_ID);
       if (!isLoggedIn) {
         // Show login popup if login failed
         showLoginPopup();

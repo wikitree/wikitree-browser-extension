@@ -3,11 +3,10 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import Cookies from "js-cookie";
 import { getConnectionJSON, getRelationJSON } from "../../core/API/wwwWikiTree";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain, isProfileEdit } from "../../core/pageType";
-import { getObjectStores, distRelDbKeyFor } from "../../core/common";
+import { getObjectStores, distRelDbKeyFor, getUserWtId } from "../../core/common";
 
 export const CONNECTION_DB_NAME = "ConnectionFinderWTE";
 export const CONNECTION_DB_VERSION = 2;
@@ -123,7 +122,7 @@ shouldInitializeFeature("distanceAndRelationship").then((result) => {
     return;
   }
 
-  const userID = Cookies.get("wikitree_wtb_UserName");
+  const userID = getUserWtId();
 
   if (result && $("body.profile").length && profileID != userID && profileID != "") {
     import("./distanceAndRelationship.css");
@@ -250,7 +249,7 @@ function addRelationshipText(oText, commonAncestors) {
   }
   $("#yourRelationshipText").on("click", function (e) {
     e.stopPropagation();
-    let id1 = Cookies.get("wikitree_wtb_UserName");
+    let id1 = getUserWtId();
     let id2 = $("a.pureCssMenui0 span.person").text();
     initDistanceAndRelationship(id1, id2, true);
   });
@@ -283,8 +282,8 @@ function commonAncestorText(commonAncestors) {
       commonAncestor.ancestor.mGender
     ).toLowerCase();
     if (!ancestorsAdded.includes(commonAncestor.ancestor.mName)) {
-      ancestorTextOut += `<li>Your ${myAncestorType}, 
-      <a href="https://${mainDomain}/wiki/${commonAncestor.ancestor.mName}">${commonAncestor.ancestor.mDerived.LongNameWithDates}</a>, 
+      ancestorTextOut += `<li>Your ${myAncestorType},
+      <a href="https://${mainDomain}/wiki/${commonAncestor.ancestor.mName}">${commonAncestor.ancestor.mDerived.LongNameWithDates}</a>,
       is ${possessiveAdj} ${thisAncestorType}.</li>`;
       ancestorsAdded.push(commonAncestor.ancestor.mName);
     }
@@ -398,7 +397,7 @@ function doRelationshipText(userID, profileID) {
 
 async function addDistance(data) {
   const profileID = $("a.pureCssMenui0 span.person").text();
-  const userID = Cookies.get("wikitree_wtb_UserName");
+  const userID = getUserWtId();
 
   if ($("#degreesFromYou").length == 0) {
     window.distance = data.path.length - 1;
@@ -489,7 +488,7 @@ function checkProfileCreationTime(wtId) {
 
 async function getDistance() {
   const id2 = $("a.pureCssMenui0 span.person").text();
-  const id1 = Cookies.get("wikitree_wtb_UserName");
+  const id1 = getUserWtId();
   const data = await getConnectionJSON("DistanceAndRelationship_Distance", id1, id2);
   addDistance(data);
 }

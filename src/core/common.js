@@ -8,7 +8,7 @@ import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
 import { mainDomain, isNavHomePage, isMainDomain } from "./pageType.js";
 import { checkIfFeatureEnabled } from "./options/options_storage";
-import Cookies from "js-cookie";
+
 /* * * * * * * * * * * * * * * * * * * *
  * Initialization. This section of code should run first.
  */
@@ -953,55 +953,56 @@ function backupRestoreListener(request, sender, sendResponse) {
 
 export const treeImageURL = chrome.runtime.getURL("images/tree.gif");
 
-async function addLogInLogOutMessage() {
-  const theUser = Cookies.get("wikitree_wtb_UserName");
-  if (!theUser) {
-    const theFeatures = {
-      cc7Changes: "CC7 Changes",
-      distanceAndRelationship: "Distance and Relationship",
-      extraWatchlist: "Extra Watchlist",
-    };
-    const theFeaturesKeys = Object.keys(theFeatures);
-    const theFeaturesArray = [];
+// async function addLogInLogOutMessage() {
+//   const theUser = getUserWtId();
 
-    for (const feature of theFeaturesKeys) {
-      const featureEnabled = await checkIfFeatureEnabled(feature);
-      if (featureEnabled) {
-        theFeaturesArray.push(theFeatures[feature]);
-        console.log(`Feature ${feature} is enabled.`);
-      }
-    }
+//   if (!theUser) {
+//     const theFeatures = {
+//       cc7Changes: "CC7 Changes",
+//       distanceAndRelationship: "Distance and Relationship",
+//       extraWatchlist: "Extra Watchlist",
+//     };
+//     const theFeaturesKeys = Object.keys(theFeatures);
+//     const theFeaturesArray = [];
 
-    let featuresMessage;
-    if (theFeaturesArray.length > 1) {
-      featuresMessage = theFeaturesArray.slice(0, -1).join(", ") + " and " + theFeaturesArray.slice(-1);
-    } else {
-      featuresMessage = theFeaturesArray[0];
-    }
+//     for (const feature of theFeaturesKeys) {
+//       const featureEnabled = await checkIfFeatureEnabled(feature);
+//       if (featureEnabled) {
+//         theFeaturesArray.push(theFeatures[feature]);
+//         console.log(`Feature ${feature} is enabled.`);
+//       }
+//     }
 
-    const message = $(
-      `<div id='logOutAndBackInMessage'>WBE: Please log in (or log out and back in) for <span id="theFeatures">${featuresMessage}</span> to work.</div>`
-    );
-    message.on("click", function () {
-      $(this).remove();
-    });
-    if (theFeaturesArray.length > 0) {
-      $("body").append(message);
-      console.log("User is not logged in. Displaying message:", message.text());
-      // Display the message for a few seconds
-      setTimeout(function () {
-        message.remove();
-        console.log("Message removed.");
-      }, 3000);
-    }
-  }
-}
+//     let featuresMessage;
+//     if (theFeaturesArray.length > 1) {
+//       featuresMessage = theFeaturesArray.slice(0, -1).join(", ") + " and " + theFeaturesArray.slice(-1);
+//     } else {
+//       featuresMessage = theFeaturesArray[0];
+//     }
 
-if (isMainDomain) {
-  setTimeout(() => {
-    addLogInLogOutMessage();
-  }, 10000);
-}
+//     const message = $(
+//       `<div id='logOutAndBackInMessage'>WBE: Please log in (or log out and back in) for <span id="theFeatures">${featuresMessage}</span> to work.</div>`
+//     );
+//     message.on("click", function () {
+//       $(this).remove();
+//     });
+//     if (theFeaturesArray.length > 0) {
+//       $("body").append(message);
+//       console.log("User is not logged in. Displaying message:", message.text());
+//       // Display the message for a few seconds
+//       setTimeout(function () {
+//         message.remove();
+//         console.log("Message removed.");
+//       }, 3000);
+//     }
+//   }
+// }
+
+// if (isMainDomain) {
+//   setTimeout(() => {
+//     addLogInLogOutMessage();
+//   }, 10000);
+// }
 
 export function getUserNumId() {
   const href = $('body a[href*="Special:Badges"]').attr("href");
@@ -1053,10 +1054,12 @@ export async function fetchAPI(args) {
 }
 
 // Function to check login status
-export async function isLoggedInAPI(userNumId, appId) {
+export async function isLoggedIntoAPI(userNumId, appId) {
+  if (!userNumId) return false;
+
   const args = { action: "clientLogin", checkLogin: userNumId, appId: appId };
-  const loginStatus = await fetchAPI(args); // your checkLogin function
+  const loginStatus = await fetchAPI(args);
   console.log("API Login Status: ", loginStatus);
 
-  return loginStatus.clientLogin.result !== "error";
+  return loginStatus?.clientLogin?.result == "ok";
 }

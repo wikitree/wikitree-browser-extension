@@ -8,7 +8,7 @@ import { getYYYYMMDD } from "../auto_bio/auto_bio";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { kinshipValue } from "../anniversaries_table/anniversaries_table";
 import { isSpecialWatchedList, isSearchPage } from "../../core/pageType";
-import { distRelDbKeyFor } from "../../core/common";
+import { distRelDbKeyFor, getUserWtId } from "../../core/common";
 import {
   CONNECTION_STORE_NAME,
   RELATIONSHIP_STORE_NAME,
@@ -16,7 +16,7 @@ import {
 } from "../distanceAndRelationship/distanceAndRelationship";
 
 function addDistanceAndRelationColumns() {
-  const userID = Cookies.get("wikitree_wtb_UserName");
+  const userID = getUserWtId();
   const ids = {};
   const nameTable = $("table.wt.names");
   // Get the profile IDs from the watchlist

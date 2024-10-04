@@ -18,6 +18,7 @@ import {
 } from "../../core/pageType";
 import "./usability_tweaks.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { getUserWtId, getUserNumId } from "../../core/common";
 import "../../core/common.css";
 
 function addSaveSearchFormDataButton() {
@@ -253,8 +254,8 @@ function addRemoveMeButton() {
   );
   const ids = getUserIds();
   console.log("ids", ids);
-  const thisUserWTID = ids.Name || Cookies.get("wikitree_wtb_UserName");
-  const thisUserId = ids.Id || Cookies.get("wikitree_wtb_UserID");
+  const thisUserWTID = ids.Name || getUserWtId();
+  const thisUserId = ids.Id || getUserNumId();
 
   // First, select the <span> elements containing 'Profile manager'
   const spanElements = $("span:contains('Profile manager')");

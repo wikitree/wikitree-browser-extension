@@ -9,9 +9,9 @@ import Cookies from "js-cookie";
 import { convertDate } from "../auto_bio/auto_bio";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { showFamilySheet } from "../familyGroup/familyGroup";
+import { getUserNumId } from "../../core/common";
 
-const USER_WT_ID = Cookies.get("wikitree_wtb_UserName");
-const USER_NUM_ID = Cookies.get("wikitree_wtb_UserID");
+const USER_NUM_ID = getUserNumId();
 
 async function replaceDittoMarks() {
   // Replace ditto marks with the value from the previous row

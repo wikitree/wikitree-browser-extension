@@ -9,7 +9,7 @@ import { occupationList } from "./occupation_list";
 import { occupationList2 } from "./occupation_list_2";
 import { unsourcedCategories } from "./unsourced_categories.js";
 import { firstNameVariants } from "./first_name_variants.js";
-import { isOK, familyArray, treeImageURL } from "../../core/common";
+import { isOK, familyArray, treeImageURL, getUserNumId } from "../../core/common";
 import { getAge } from "../change_family_lists/change_family_lists";
 import { titleCase } from "../familyTimeline/familyTimeline";
 import { wtAPICatCIBSearch } from "../../core/API/wtPlusAPI";
@@ -22,7 +22,6 @@ import { ageAtDeath } from "../my_connections/my_connections";
 import { bioTimelineFacts, buildTimelineTable, buildTimelineSA } from "./timeline";
 import { mainDomain, isIansProfile } from "../../core/pageType";
 import ONSjson from "./ONS.json";
-import Cookies from "js-cookie";
 
 let bugReportMore = "";
 
@@ -6162,7 +6161,7 @@ export function addLoginButton() {
     }
   }
 
-  let userID = Cookies.get("wikitree_wtb_UserID");
+  const userID = getUserNumId();
   $.ajax({
     url: "https://api.wikitree.com/api.php?action=clientLogin&appId=WBE_auto_bio&checkLogin=" + userID,
     crossDomain: true,

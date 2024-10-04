@@ -4,9 +4,8 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import "./g2g_.css";
-import { isOK } from "../../core/common";
+import { isOK, getUserWtId } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
-import Cookies from "js-cookie";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { addItems, attachScissorsEvent, copyThingToClipboard } from "../scissors/scissors";
 
@@ -236,15 +235,15 @@ function addG2GButtons() {
     const myActivity = $(".qa-nav-footer-item:has(a[href*='activity'])").eq(0).clone();
     myActivity.attr("id", "myActivity");
     myActivity.appendTo($(".qa-nav-main-list"));
-    $("#myActivity a").attr(
-      "href",
-      "https://" + mainDomain + "/g2g/user/" + Cookies.get("wikitree_wtb_UserName") + "/activity"
-    );
+    const myActivityURL = "https://" + mainDomain + "/g2g/user/" + getUserWtId() + "/activity";
+    $("#myActivity a").attr("href", myActivityURL);
     $("#myActivity a").text("My Activity");
     $("#myActivity").addClass("awtG2GLink qa-nav-main-item qa-nav-main-ask");
 
     const myFavourites = $(
-      '<li id="myFavourites" class="awtG2GLink qa-nav-main-item qa-nav-main-ask"><a href="https://' + mainDomain + '/g2g/favorites" class="qa-nav-main-link">+</a></li>'
+      '<li id="myFavourites" class="awtG2GLink qa-nav-main-item qa-nav-main-ask"><a href="https://' +
+        mainDomain +
+        '/g2g/favorites" class="qa-nav-main-link">+</a></li>'
     );
     myFavourites.appendTo($(".qa-nav-main-list"));
     myFavourites.on("click", function () {
@@ -259,10 +258,7 @@ function addG2GButtons() {
     if (window.location.href == "https://" + mainDomain + "/g2g/activity") {
       $("#recentActivity a").addClass("qa-nav-main-selected");
     }
-    if (
-      window.location.href ==
-      "https://" + mainDomain + "/g2g/user/" + Cookies.get("wikitree_wtb_UserName") + "/activity"
-    ) {
+    if (window.location.href == myActivityURL) {
       $("#myActivity a").addClass("qa-nav-main-selected");
     }
     if (window.location.href == "https://" + mainDomain + "/g2g/favorites") {

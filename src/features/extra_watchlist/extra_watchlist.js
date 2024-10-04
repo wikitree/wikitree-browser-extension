@@ -7,7 +7,7 @@ import Cookies from "js-cookie";
 import "jquery-ui/ui/widgets/draggable";
 import "../../thirdparty/date.format.js";
 import "./extra_watchlist.css";
-import { isOK, htmlEntities } from "../../core/common";
+import { isOK, htmlEntities, getUserWtId, getUserNumId } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
 import { appendClipboardButtons } from "../clipboard_and_notes/clipboard_and_notes";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
@@ -119,7 +119,7 @@ function recentChange(person) {
   } else {
     ptOut = "";
   }
-  const userID = Cookies.get("wikitree_wtb_UserID");
+  const userID = getUserNumId();
   let dClass;
   if (person.Manager != userID) {
     dClass = 'class="notManager"';
@@ -343,9 +343,10 @@ function addToExtraWatchlist(person) {
 window.extraWatchlistTouched = [];
 window.addedToExtraWatchlist = [];
 function doExtraWatchlist() {
-  if (Cookies.get("wikitree_wtb_UserName")) {
-    window.userName = Cookies.get("wikitree_wtb_UserName");
-    window.userID = Cookies.get("wikitree_wtb_UserID");
+  const userWtId = getUserWtId();
+  if (userWtId) {
+    window.userName = userWtId;
+    window.userID = getUserNumId();
     if (localStorage.extraWatchlist != null) {
       let bits = localStorage.extraWatchlist.split(/[@,]/);
       console.log("bits", bits);
