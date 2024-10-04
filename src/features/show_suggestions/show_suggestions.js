@@ -25,6 +25,7 @@ let numberOfSuggestions;
 let dateOfData;
 const errorMessages = [];
 const warningMessages = [];
+const hintMessages = [];
 let suggestionsTabElement;
 
 function initSuggestionsTab() {
@@ -111,11 +112,13 @@ function getDateOfData() {
 }
 
 function getErrorMessages() {
-  // Get the error & warning messages from the returned html string
+  // Get the error, warning & hint messages from the returned html string
   const regex1 = /<td bgcolor="#FFDDDD">([a-zA-Z]+ \d+: .*?) <a href=/g; // Errors
   const regex2 = /<td bgcolor="#FFFFDD">([a-zA-Z]+ \d+: .*?) <a href=/g; // Warnings
+  const regex3 = /<td bgcolor="#DDDDFF">([a-zA-Z]+ \d+: .*?) <a href=/g; // Hints
   const matches1 = Array.from(htmlString.matchAll(regex1));
   const matches2 = Array.from(htmlString.matchAll(regex2));
+  const matches3 = Array.from(htmlString.matchAll(regex3));
 
   for (const match of matches1) {
     errorMessages.push(match[1]);
@@ -123,6 +126,10 @@ function getErrorMessages() {
 
   for (const match of matches2) {
     warningMessages.push(match[1]);
+  }
+
+  for (const match of matches3) {
+    hintMessages.push(match[1]);
   }
 }
 
@@ -147,6 +154,7 @@ function initSuggestionsPopup() {
         <h2>${suggestionsText}</h2>
         <div id="errorMessages"></div>
         <div id="warningMessages"></div>
+        <div id="hintMessages"></div>
         <p>The latest suggestions report update was: <strong>${dateOfData}</strong></p>
         <p>View the report on <a href="${wtpLink}" target="_blank" title="WikiTree Plus Report">WikiTree Plus</a></p>
       </div>
@@ -159,6 +167,7 @@ function initSuggestionsPopup() {
   // Add the Error and Warning messages to the popup
   displayMessages(errorMessages, "errorMessages");
   displayMessages(warningMessages, "warningMessages");
+  displayMessages(hintMessages, "hintMessages");
 
   // Set up click handlers for the popup
   document.getElementById("suggestionsTab").addEventListener("click", function () {
@@ -202,7 +211,7 @@ function displayMessages(messages, containerId) {
   const container = document.getElementById(containerId);
   messages.forEach((message) => {
     const p = document.createElement("p");
-    p.textContent = message;
+    p.innerHTML = message;
     container.appendChild(p);
   });
   if (!messages.length) {
@@ -232,6 +241,7 @@ async function getSuggestions() {
     console.log("Date of Data: ", dateOfData);
     console.log("Error Messages: ", errorMessages);
     console.log("Warning Messages: ", warningMessages);
+    console.log("Hint Messages:", hintMessages);
   }
   //logSuggestionsData();
 

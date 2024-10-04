@@ -84,7 +84,8 @@
 }
 
 #errorMessages,
-#warningMessages {
+#warningMessages,
+#hintMessages {
   background-color: #f0f0f0;
   padding: 10px;
   border: 1px solid #ddd;
@@ -95,49 +96,58 @@
 }
 
 #errorMessages p,
-#warningMessages p {
+#warningMessages p,
+#hintMessages p {
   font-size: 20px;
   font-weight: bold;
   margin-bottom: 20px;
   margin-left: 50px;
 }
 
-#errorMessages {
-  background-color: #f2dede;
-  border-color: #ebccd1;
-  color: #dc143c;
+#errorMessages::before,
+#warningMessages::before,
+#hintMessages::before {
+  position: absolute;
+  top: -15px;
+  left: 10px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #888;
+  background-color: #fdfdfd;
+  padding: 5px 10px;
+  border: 1px solid #888;
+  border-radius: 5px;
 }
 
 #errorMessages::before {
   content: "Errors";
-  position: absolute;
-  top: -15px;
-  left: 10px;
-  font-size: 18px;
-  font-weight: bold;
   color: #dc143c;
-  background-color: #fff;
-  padding: 5px 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-}
-
-#warningMessages {
-  background-color: #fcf8e3;
-  border-color: #fbeed5;
-  color: #ff9900;
 }
 
 #warningMessages::before {
   content: "Warnings";
-  position: absolute;
-  top: -15px;
-  left: 10px;
-  font-size: 18px;
-  font-weight: bold;
   color: #ff9900;
-  background-color: #fff;
-  padding: 5px 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
+}
+
+#hintMessages::before {
+  content: "Hints";
+  color: #00008b;
+}
+
+#errorMessages {
+  background-color: rgba(255, 221, 221, 0.6);
+  border-color: #ccc;
+  color: #444;
+}
+
+#warningMessages {
+  background-color: rgba(255, 255, 221, 0.6);
+  border-color: #ccc;
+  color: #444;
+}
+
+#hintMessages {
+  background-color: rgba(221, 221, 255, 0.6);
+  border-color: #ccc;
+  color: #444;
 }
