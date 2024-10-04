@@ -5,10 +5,10 @@ const options = await getFeatureOptions("showSuggestions");
 
 // Extract data from the pageData element on each profile page
 const pageData = document.getElementById("pageData");
-const wikiTreeID = pageData.getAttribute("data-mnamedb");
-const userID = pageData.getAttribute("data-mid");
-const firstName = pageData.getAttribute("data-mfirstname") || "Unlisted";
-const lastName = pageData.getAttribute("data-mlastnameatbirth");
+const wikiTreeID = pageData?.getAttribute("data-mnamedb");
+const userID = pageData?.getAttribute("data-mid");
+const firstName = pageData?.getAttribute("data-mfirstname") || "Unlisted";
+const lastName = pageData?.getAttribute("data-mlastnameatbirth");
 const wtpLink = `https://plus.wikitree.com/function/WTWeb/Suggestions.htm?UserID=${userID}&generations=0`;
 
 // Logging for testing purposes
@@ -257,7 +257,7 @@ async function getSuggestions() {
 
 // Initialize the suggestions on page load
 shouldInitializeFeature("showSuggestions").then((result) => {
-  if (result) {
+  if (result && wikiTreeID) {
     // Setup the suggestions tab
     initSuggestionsTab();
 
