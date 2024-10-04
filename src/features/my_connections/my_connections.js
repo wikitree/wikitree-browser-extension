@@ -8,8 +8,7 @@ import "./my_connections.css";
 import "jquery-ui/ui/widgets/draggable";
 import { getAge } from "../change_family_lists/change_family_lists";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
-import { isOK, htmlEntities, extractRelatives, treeImageURL } from "../../core/common";
-import Cookies from "js-cookie";
+import { isOK, htmlEntities, extractRelatives, treeImageURL, getUserNumId, isLoggedIntoAPI } from "../../core/common";
 import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup";
 import { ancestorType } from "../distanceAndRelationship/distanceAndRelationship";
 import { getPeople } from "../dna_table/dna_table";
@@ -249,50 +248,40 @@ export function addLoginButton(appId = "WBE") {
       }
     }
   }
-  let userID = Cookies.get("wikitree_wtb_UserID");
-  $.ajax({
-    url: "https://api.wikitree.com/api.php?action=clientLogin&appId=" + appId + "&checkLogin=" + userID,
-    crossDomain: true,
-    xhrFields: { withCredentials: true },
-    type: "POST",
-    dataType: "JSON",
-    success: function (data) {
-      if (data) {
-        console.log(data);
-        if (data?.clientLogin?.result == "error") {
-          let loginButton = $(
-            "<button title='Log in to the apps server for better Missing Connections results' class='small button' id='myConnectionsLoginButton'>Apps Login</button>"
-          );
-          loginButton.appendTo($("span[title^='This is your Connection Count']"));
-          let returnURL = encodeURI(window.location.href.split("?")[0]);
-          if (appId == "WBE_connection_finder_options") {
-            loginButton.attr("id", "connectionFinderLoginButton");
-            loginButton.attr("title", "Log in to the apps server for better Connection Finder Table results");
-            loginButton.appendTo($("h1:contains('Connection Finder')"));
-            returnURL = encodeURI(window.location.href.replace(/&action=connect/, ""));
-          } else if (appId == "WBE_category_filters") {
-            console.log("here");
-            loginButton.attr("id", "categoryFiltersLoginButton");
-            loginButton.attr(
-              "title",
-              "Log in to the apps server for profiles that you are on the trusted list of to be included in the filtering"
-            );
-            loginButton.appendTo($("#categoryFilterButtonsContainer"));
-            returnURL = encodeURI(window.location.href);
-            console.log(returnURL);
-          }
-          loginButton.on("click", function (e) {
-            e.preventDefault();
-            if (appId == "WBE_connection_finder_options") {
-              const currentPeople = { person1Name: $("#person1Name").val(), person2Name: $("#person2Name").val() };
-              localStorage.setItem("connectionFinderLogin", JSON.stringify(currentPeople));
-            }
-            window.location =
-              "https://api.wikitree.com/api.php?action=clientLogin&appId=" + appId + "&returnURL=" + returnURL;
-          });
-        }
+  const userID = getUserNumId();
+  isLoggedIntoAPI(userID, appId).then((loggedIn) => {
+    if (!loggedIn) {
+      let loginButton = $(
+        "<button title='Log in to the apps server for better Missing Connections results' class='small button' id='myConnectionsLoginButton'>Apps Login</button>"
+      );
+      loginButton.appendTo($("span[title^='This is your Connection Count']"));
+      let returnURL = encodeURI(window.location.href.split("?")[0]);
+      if (appId == "WBE_connection_finder_options") {
+        loginButton.attr("id", "connectionFinderLoginButton");
+        loginButton.attr("title", "Log in to the apps server for better Connection Finder Table results");
+        loginButton.appendTo($("h1:contains('Connection Finder')"));
+        returnURL = encodeURI(window.location.href.replace(/&action=connect/, ""));
+      } else if (appId == "WBE_category_filters") {
+        console.log("here");
+        loginButton.attr("id", "categoryFiltersLoginButton");
+        loginButton.attr(
+          "title",
+          "Log in to the apps server for profiles that you are on the trusted list of to be included in the filtering"
+        );
+        loginButton.appendTo($("#categoryFilterButtonsContainer"));
+        returnURL = encodeURI(window.location.href);
+        console.log(returnURL);
       }
-    },
+      loginButton.on("click", function (e) {
+        e.preventDefault();
+        if (appId == "WBE_connection_finder_options") {
+          const currentPeople = { person1Name: $("#person1Name").val(), person2Name: $("#person2Name").val() };
+          localStorage.setItem("connectionFinderLogin", JSON.stringify(currentPeople));
+        }
+        window.location =
+          "https://api.wikitree.com/api.php?action=clientLogin&appId=" + appId + "&returnURL=" + returnURL;
+      });
+    }
   });
 }
 

@@ -4,7 +4,7 @@
  */
 
 import $ from "jquery";
-import { displayName } from "../../core/common.js";
+import { displayName, getUserNumId } from "../../core/common.js";
 import "jquery-ui/ui/widgets/draggable";
 import { displayDates } from "../verifyID/verifyID";
 import { getRelatives, getPerson } from "wikitree-js";
@@ -13,7 +13,6 @@ import "./family_dropdown_pre.css";
 import { isProfileEdit } from "../../core/pageType";
 import { showCopyMessage } from "../access_keys/access_keys.js";
 import "../../core/common.css";
-import Cookies from "js-cookie";
 
 /**
  * Check if familyDropdown feature is enabled.
@@ -202,7 +201,7 @@ async function doFamilyDropdown() {
 
   // Add 'Me' option if enabled
   if (window.familyDropdownOptions.addMeLink) {
-    const userId = Cookies.get("wikitree_wtb_UserID");
+    const userId = getUserNumId();
     const user = await getPerson(userId, { fields: ["Name", "FirstName", "LastNameCurrent"] });
     if (user) {
       let userName = "Me";

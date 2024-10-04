@@ -3,11 +3,11 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import * as $ from "jquery";
-import Cookies from "js-cookie";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { getUserWtId, getUserNumId } from "../../core/common.js";
 
 shouldInitializeFeature("sortBadges").then((result) => {
-  if (result && $("a.pureCssMenui0 span.person").text() == Cookies.get("wikitree_wtb_UserName")) {
+  if (result && $("a.pureCssMenui0 span.person").text() == getUserWtId()) {
     import("./sortBadges.css");
     const queryString = window.location.search;
     const urlParams = new URLSearchParams(queryString);
@@ -41,14 +41,14 @@ shouldInitializeFeature("sortBadges").then((result) => {
     if (
       $("body.profile").length &&
       window.location.href.match("Space:") == null &&
-      $("a.pureCssMenui0 span.person").text() == Cookies.get("wikitree_wtb_UserName")
+      $("a.pureCssMenui0 span.person").text() == getUserWtId()
     ) {
       $("a:contains('view/edit')")
         .parent()
         .after(
           $(
             '<span class="SMALL" style="background: none;" id="hideClubBadgesLink">[<a href="/index.php?title=Special:Badges&amp;u=' +
-              Cookies.get("wikitree_wtb_UserID") +
+              getUserNumId() +
               '&badgeAction=hideClubBadges">hide Club badges</a>] </span>'
           )
         );
