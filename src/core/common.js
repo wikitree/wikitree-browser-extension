@@ -1002,3 +1002,61 @@ if (isMainDomain) {
     addLogInLogOutMessage();
   }, 10000);
 }
+
+export function getUserNumId() {
+  const href = $('body a[href*="Special:Badges"]').attr("href");
+  if (!href) return null;
+  const m = href.match(/u=(\d+)/);
+  return m ? m[1] : null;
+}
+
+export function getUserWtId() {
+  const href = $('a[href*="Special:Contributions"]').attr("href");
+  if (!href) return null;
+  const m = href.match(/who=([^&]+)/);
+  return m ? m[1] : null;
+}
+
+export async function fetchAPI(args) {
+  const params = {};
+  // Iterate over the args object and add any non-null values to the params object
+  for (const [key, value] of Object.entries(args)) {
+    if (value !== null) {
+      params[key] = value;
+    }
+  }
+
+  // Create a new URLSearchParams object with the updated params object
+  const searchParams = new URLSearchParams(params);
+
+  return fetch("https://api.wikitree.com/api.php", {
+    method: "POST",
+    mode: "cors",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: searchParams,
+  })
+    .then(async (response) => {
+      if (response.status !== 200) {
+        console.log("Looks like there was a problem. Status Code: " + response.status);
+        return null;
+      }
+      const data = await response.json();
+      return data;
+    })
+    .catch((error) => {
+      console.log("Fetch Error:", error);
+      return null;
+    });
+}
+
+// Function to check login status
+export async function isLoggedInAPI(userNumId, appId) {
+  const args = { action: "clientLogin", checkLogin: userNumId, appId: appId };
+  const loginStatus = await fetchAPI(args); // your checkLogin function
+  console.log("API Login Status: ", loginStatus);
+
+  return loginStatus.clientLogin.result !== "error";
+}
