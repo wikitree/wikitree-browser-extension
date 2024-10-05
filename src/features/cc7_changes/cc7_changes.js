@@ -323,7 +323,7 @@ function showLoginPopup() {
     const userNumId = getTheUsersNumId();
     if (userId && userNumId) {
       if (await isLoggedIntoAPI(userNumId, APP_ID)) {
-        db.setUserIds(userId);
+        db.setUserIds(userId, userNumId);
         await initializeCC7Tracking();
       } else {
         console.error(
