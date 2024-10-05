@@ -878,7 +878,7 @@ function appendDetailsToContainer(container, idsByDate, details, headingTail) {
       const person = details.get(el.Id);
       const text = person
         ? `${person.FullName} ${displayDates(person)}${person.redirectedFrom ? " (merged)" : ""}`
-        : `Profile ${el.Name ? el.Name : el.Id} (deleted from WikiTree)`;
+        : `Profile ${el.Name ? el.Name : el.Id} (Private, or deleted from WikiTree)`;
       const link = $("<a>").attr("href", `https://${mainDomain}/wiki/${el.Name}`).attr("target", "_blank").text(text);
       const degree = $(
         `<span title="${what} at ${el.Degrees} degree${el.Degrees > 1 ? "s" : ""}"> [${el.Degrees}]</span>`
