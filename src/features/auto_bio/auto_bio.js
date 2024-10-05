@@ -23,6 +23,41 @@ import { bioTimelineFacts, buildTimelineTable, buildTimelineSA } from "./timelin
 import { mainDomain, isIansProfile } from "../../core/pageType";
 import ONSjson from "./ONS.json";
 
+const irishCounties = [
+  "Antrim",
+  "Armagh",
+  "Carlow",
+  "Cavan",
+  "Clare",
+  "Cork",
+  "Londonderry",
+  "Donegal",
+  "Down",
+  "Dublin",
+  "Fermanagh",
+  "Galway",
+  "Kerry",
+  "Kildare",
+  "Kilkenny",
+  "Laois",
+  "Leitrim",
+  "Limerick",
+  "Longford",
+  "Louth",
+  "Mayo",
+  "Meath",
+  "Monaghan",
+  "Offaly",
+  "Roscommon",
+  "Sligo",
+  "Tipperary",
+  "Tyrone",
+  "Waterford",
+  "Westmeath",
+  "Wexford",
+  "Wicklow",
+];
+
 let bugReportMore = "";
 
 /**
@@ -8486,6 +8521,26 @@ function generateCombinations(location) {
   return Array.from(resultSet);
 }
 
+// Function to check and replace the county name before 'Ireland'
+function addCountyForIreland(locations) {
+  return locations.map((location) => {
+    const parts = location.split(",").map((part) => part.trim()); // Split by commas and trim parts
+
+    // Check if the last part is "Ireland" and there are at least 2 parts
+    if (parts.length >= 2 && parts[parts.length - 1] === "Ireland") {
+      let county = parts[parts.length - 2]; // Get the part before "Ireland"
+
+      // Check if this part is a known county and doesn't start with "County"
+      if (irishCounties.includes(county) && !county.startsWith("County")) {
+        county = `County ${county}`; // Prepend "County"
+        parts[parts.length - 2] = county; // Update the location part
+      }
+    }
+
+    return parts.join(", "); // Reassemble the location
+  });
+}
+
 export async function getLocationCategory(type, location = null) {
   if (!USstatesObjArray) {
     const module = await import("./us_states.json");
@@ -8571,8 +8626,8 @@ export async function getLocationCategory(type, location = null) {
     }
   }
 
-  const searchLocationsSet = generateCombinations(searchLocation);
-  const searchLocationsArray = Array.from(searchLocationsSet);
+  let searchLocationsSet = generateCombinations(searchLocation);
+  const searchLocationsArray = addCountyForIreland(Array.from(searchLocationsSet));
   if (cemeteryVariants.length > 0) {
     searchLocationsArray.push(...cemeteryVariants);
   }
