@@ -8268,6 +8268,9 @@ export async function generateBio() {
       enhanced = true;
     }
 
+    const gptResponse = await gpt(outputText);
+    console.log("gptResponse", gptResponse);
+
     // Add the text to the textarea and switch back to the enhanced editor if it was on
     $("#wpTextbox1").val(outputText.replace(/(\s\.)(?=\s|$)/g, "") + $("#wpTextbox1").val());
     if (enhanced == true) {
@@ -8371,6 +8374,31 @@ export async function generateBio() {
 
       $("body").append(errorDiv);
     }
+  }
+}
+
+async function gpt(message) {
+  try {
+    const response = await fetch("https://wikitreebee.com/bio_gpt", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: message,
+      }),
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      return data.result;
+    } else {
+      console.error("API error: ", data);
+      return "GPT result unavailable";
+    }
+  } catch (error) {
+    console.error("Error fetching GPT result: ", error);
+    return "GPT result unavailable";
   }
 }
 
