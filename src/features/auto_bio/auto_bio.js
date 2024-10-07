@@ -432,7 +432,7 @@ async function fixLocations() {
               window.autoBioNotes?.push(aNote);
             }
           }
-          if (!isSameDateOrAfter(event.Date, country.date)) {
+          if (!isSameDateOrAfter(event.Date, country.date) && country.name != "Ireland") {
             aNote =
               "The country of " +
               event.Event +
