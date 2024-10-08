@@ -8268,11 +8268,12 @@ export async function generateBio() {
       enhanced = true;
     }
 
-    const gptResponse = await gpt(outputText);
+    const out = outputText.replace(/(\s\.)(?=\s|$)/g, "");
+    const gptResponse = await gpt(out);
     console.log("gptResponse", gptResponse);
 
     // Add the text to the textarea and switch back to the enhanced editor if it was on
-    $("#wpTextbox1").val(outputText.replace(/(\s\.)(?=\s|$)/g, "") + $("#wpTextbox1").val());
+    $("#wpTextbox1").val(out + $("#wpTextbox1").val());
     if (enhanced == true) {
       enhancedEditorButton.trigger("click");
     }
