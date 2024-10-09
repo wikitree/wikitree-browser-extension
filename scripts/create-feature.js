@@ -142,19 +142,18 @@ const updateRegisterOptionsFile = () => {
     const lines = content.split(/\r?\n/);
     const startIndex = lines.findIndex((line) => line === marker);
 
-    // Extract the top-level imports (before the marker) and the feature imports (after the marker)
-    const topLevelImports = lines.slice(0, startIndex + 1);
-    const featureImports = lines.slice(startIndex + 1).filter((line) => line.startsWith("import ./"));
+    // Extract existing feature imports following the marker
+    let featureImports = lines.slice(startIndex + 1).filter((line) => line.startsWith("import "));
 
     // Add the new feature import and sort alphabetically
     featureImports.push(importStatement);
     featureImports.sort((a, b) => a.localeCompare(b));
 
-    // Combine all the parts back together
+    // Combine all the parts back together, keeping the rest of the file intact
     const newContent = [
-      ...topLevelImports,
+      ...lines.slice(0, startIndex + 1),
       ...featureImports,
-      ...lines.slice(startIndex + featureImports.length + 1),
+      ...lines.slice(startIndex + 1 + featureImports.length - 1),
     ].join("\n");
 
     fs.writeFileSync(registerOptionsFile, newContent);
