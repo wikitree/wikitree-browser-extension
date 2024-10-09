@@ -95,6 +95,8 @@ import "./features/image_table/image_table";
 import "./features/randomProfile/randomProfile";
 import "./features/what_links_here/what_links_here";
 
+/* MARKER: Default place for new features. Move these to a more appropriate place.*/
+
 /*
  * debugging features for development only
  *
