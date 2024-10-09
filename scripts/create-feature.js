@@ -168,3 +168,34 @@ createFeatureFiles();
 updateContentFile();
 updateRegisterOptionsFile();
 console.log("Feature creation complete.");
+/**
+ * How to use this script
+ *
+ * This script automates the creation of a new feature in the project by generating the necessary files and updating relevant configuration files.
+ *
+ * Steps to use:
+ * 1. Run the script using Node.js from the command line with the required arguments:
+ *    ```
+ *    node createFeature.js -f new_feature_name -a "Author Name" -i AuthorID -c "Feature Category" -p "PageType1, PageType2"
+ *    ```
+ *
+ *    Arguments:
+ *    - `-f` or `--featureName`: The name of the new feature in snake_case (e.g., `new_feature_name`).
+ *    - `-a` or `--authorName`: The name of the author creating the feature (e.g., `Jane Doe`).
+ *    - `-i` or `--authorId`: The ID of the author (e.g., `Doe-123`).
+ *    - `-c` or `--category`: The category for the feature (e.g., `Profile`).
+ *    - `-p` or `--pageTypes`: A comma-separated list of page types this feature applies to (e.g., `isProfilePage, isSpacePage`).
+ *
+ * What the script does:
+ * - Creates a directory for the new feature under `src/features`.
+ * - Generates three files for the feature:
+ *   - `featureName.js`: The main script file for the feature.
+ *   - `featureName_options.js`: The options file to register the feature.
+ *   - `featureName.css`: The CSS file for the feature styles.
+ * - Updates `content.js` by adding an import statement for the new feature.
+ * - Updates `register_feature_options.js` by adding an import statement for the feature options in alphabetical order.
+ *
+ * Notes:
+ * - Ensure the script is run from the correct directory so that relative paths are resolved correctly.
+ * - Markers are used in `content.js` and `register_feature_options.js` to determine where new imports should be added.
+ */
