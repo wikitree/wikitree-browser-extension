@@ -6,23 +6,28 @@ import $ from "jquery";
 import { isOK } from "../../core/common.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
-let featuredConnectionsParagraph = $(`p:contains("This week's ")`);
-if (!featuredConnectionsParagraph.length) {
-  featuredConnectionsParagraph = $(`div.sixteen div.box:contains(This week's )`);
-}
+let featuredConnectionsParagraph;
 
 const profilePersonInfo = getProfilePersonInfo();
 const profilePersonName = profilePersonInfo ? profilePersonInfo.name : null;
 const profilePersonId = profilePersonInfo ? profilePersonInfo.id : null;
 
 shouldInitializeFeature("sortThemePeople").then((result) => {
-  if (result && $("body.profile").length && featuredConnectionsParagraph.length) {
-    init();
+  if (result && $("body.profile").length) {
+    setTimeout(init, 1000);
   }
 });
 
 async function init() {
   import("./sort_theme_people.css");
+
+  featuredConnectionsParagraph = $(`div.x-connections > p`);
+  if (!featuredConnectionsParagraph.length) {
+    featuredConnectionsParagraph = $(`div.x-connections > div.box`);
+  }
+  if (!featuredConnectionsParagraph.length) {
+    return;
+  }
 
   const options = await getFeatureOptions("sortThemePeople");
   if (options.AddTable) {
