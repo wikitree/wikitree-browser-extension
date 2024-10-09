@@ -8220,8 +8220,7 @@ export async function generateBio() {
         useItemsText +
         researchNotesText +
         sourcesText +
-        acknowledgementsText +
-        extensionNotes;
+        acknowledgementsText;
     } else if (window.autoBioOptions?.deathPosition) {
       outputText =
         stuffBeforeTheBioText +
@@ -8235,8 +8234,7 @@ export async function generateBio() {
         timelineText +
         researchNotesText +
         sourcesText +
-        acknowledgementsText +
-        extensionNotes;
+        acknowledgementsText;
     } else {
       outputText =
         stuffBeforeTheBioText +
@@ -8250,8 +8248,7 @@ export async function generateBio() {
         timelineText +
         researchNotesText +
         sourcesText +
-        acknowledgementsText +
-        extensionNotes;
+        acknowledgementsText;
     }
 
     // Remove inline citations if not wanted
@@ -8268,12 +8265,15 @@ export async function generateBio() {
       enhanced = true;
     }
 
-    const out = outputText.replace(/(\s\.)(?=\s|$)/g, "");
-    const gptResponse = await gpt(out);
+    outputText = outputText.replace(/(\s\.)(?=\s|$)/g, "");
+    const out = outputText + extensionNotes;
+    const oldBio = $("#wpTextbox1").val();
+
+    const gptResponse = await gpt(outputText, oldBio);
     console.log("gptResponse", gptResponse);
 
     // Add the text to the textarea and switch back to the enhanced editor if it was on
-    $("#wpTextbox1").val(out + $("#wpTextbox1").val());
+    $("#wpTextbox1").val(out + oldBio);
     if (enhanced == true) {
       enhancedEditorButton.trigger("click");
     }
@@ -8378,7 +8378,7 @@ export async function generateBio() {
   }
 }
 
-async function gpt(message) {
+async function gpt(newBio, oldBio) {
   try {
     const response = await fetch("https://wikitreebee.com/bio_gpt", {
       method: "POST",
@@ -8386,7 +8386,8 @@ async function gpt(message) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        message: message,
+        oldBio: oldBio,
+        newBio: newBio,
       }),
     });
 
