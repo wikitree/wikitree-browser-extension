@@ -6,9 +6,9 @@ import $ from "jquery";
 import { isOK } from "../../core/common.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
-let featuredConnectionsParagraph = $(`p:contains("This week's featured connections")`);
+let featuredConnectionsParagraph = $(`p:contains("This week's ")`);
 if (!featuredConnectionsParagraph.length) {
-  featuredConnectionsParagraph = $(`div.sixteen div.box:contains(This week's featured connections)`);
+  featuredConnectionsParagraph = $(`div.sixteen div.box:contains(This week's )`);
 }
 
 const profilePersonInfo = getProfilePersonInfo();
