@@ -19,7 +19,7 @@ async function init() {
 
   const filters = ["Pre-1500", "Pre-1700", "Not Open"];
   const filterButtons = filters.map((filter) => {
-    const isActive = savedFilters.includes(filter) ? "filtered" : "";
+    const isActive = activeFilters.has(filter.replace(/ /g, "_")) ? "filtered" : "";
     return `<button class="small ${isActive}" id="filter-${filter.replace(/ /g, "_")}">${filter}</button>`;
   });
   const filterContainer = `<div id="pendingMergesFilterButtons" class="d-flex flex-wrap"><span>Hide: </span>${filterButtons.join(
