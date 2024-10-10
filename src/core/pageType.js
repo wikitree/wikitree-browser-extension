@@ -132,6 +132,8 @@ export let isUploadPhoto = false;
 
 // Special:NetworkFeed
 export let isNetworkFeed = false;
+// Special:BrowseMatches
+export let isBrowseMatches = false;
 
 // WikiTree Plus variables
 // Profile Search results
@@ -378,6 +380,8 @@ if (domain.match("apps.wikitree.com")) {
       isMergeEdit = true;
     } else if (uri.match(/Special(:|%3A|%3a)TrustedList/)) {
       isSpecialTrustedList = true;
+    } else if (uri.match(/Special(:|%3A|%3a)BrowseMatches/)) {
+      isBrowseMatches = true;
     }
   } else if (
     // Other Edit Page

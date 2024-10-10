@@ -1,0 +1,23 @@
+/* Styles for pendingMergesFilters feature */
+body.page-Special_BrowseMatches ol br {
+  display: none;
+}
+body.page-Special_BrowseMatches ol li br {
+  display: block;
+}
+body.page-Special_BrowseMatches ol li {
+  padding-bottom: 2em;
+}
+body.page-Special_BrowseMatches #pendingMergesFilterButtons {
+  margin: 1em auto;
+}
+body.page-Special_BrowseMatches #pendingMergesFilterButtons button.filtered {
+  background-color: #f0f0f0;
+  color: forestgreen;
+}
+
+body.page-Special_BrowseMatches #pendingMergesFilterButtons span {
+  margin-right: 1em;
+  font-weight: 600;
+  color: #25422d;
+}
