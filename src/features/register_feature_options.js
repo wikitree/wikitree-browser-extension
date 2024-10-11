@@ -80,6 +80,7 @@ import "./family_dropdown/family_dropdown_options";
 import "./family_lists/family_lists_options";
 import "./g2g/g2g_options";
 import "./genderPredictor/gender_predictor_options";
+import "./help/help_options";
 import "./hide_my_contributions/hide_my_contributions_options";
 import "./image_table/image_table_options";
 import "./image_zoom/image_zoom_options";
