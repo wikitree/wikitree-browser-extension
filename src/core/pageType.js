@@ -129,6 +129,8 @@ export let isConnectionFinder = false;
 export let isIansProfile = false;
 // Upload Photo (index.php?title=Special:UploadPhoto)
 export let isUploadPhoto = false;
+// WikiTree Browser Extension Space
+export let isWBESpace = false;
 
 // Special:NetworkFeed
 export let isNetworkFeed = false;
@@ -243,6 +245,12 @@ if (domain.match("apps.wikitree.com")) {
     uri.match(/\/index.php\?title=Space(:|%3A|%3a).*/gi)
   ) {
     isSpacePage = true;
+    if (
+      path.match(/\/wiki\/Space:WikiTree_Browser_Extension$/g) ||
+      path.match(/\/wiki\/Space:WikiTree_Browser_Extension#/g)
+    ) {
+      isWBESpace = true;
+    }
   } else if (
     // Space History Page https://wikitree.com/index.php?title=Special:NetworkFeed&space=41770011
     uri.match(/\/index.php\?title=Special(:|%3A|%3a)NetworkFeed&space=.*/g)

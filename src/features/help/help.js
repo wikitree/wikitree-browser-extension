@@ -10,8 +10,9 @@ shouldInitializeFeature("help").then((result) => {
   if (result) {
     // Ensure we are on the correct Space page
     if (window.location.href.includes("/Space:WikiTree_Browser_Extension")) {
-      import("./help.css");
-      initializeFeatureSettingsOnHelpPage();
+      import("./help.css").then(() => {
+        initializeFeatureSettingsOnHelpPage();
+      });
     }
   }
 });
@@ -28,82 +29,129 @@ function injectFeatureSettings(feature) {
   const $featureSpan = $(`span#${feature.id}`);
 
   if ($featureSpan.length) {
-    // Find the closest heading element (h4 or h5) that follows the feature span
     const $headingElement = $featureSpan.closest("p").nextAll("h4, h5").first();
 
     if ($headingElement.length) {
-      // Modify the heading to include the feature toggle checkbox
-      const headingHTML = $headingElement.html();
-
-      // Create the checkbox HTML
+      // Create the toggle switch
       const checkboxHTML = `
         <input type="checkbox" id="${feature.id}Toggle" class="feature-toggle" data-feature-id="${feature.id}" data-option-id="enabled">
         <label for="${feature.id}Toggle"></label>
       `;
 
-      // Update the heading HTML
-      $headingElement.html(checkboxHTML + headingHTML);
-
-      // Add a class to the heading for styling
-      $headingElement.addClass("wbe-settings-heading");
-
-      // Create the settings container
-      const $settingsContainer = $("<div>", {
-        class: "wbe-settings-container",
-        html: generateSettingsHTML(feature),
+      // Create the feature title
+      const $featureTitle = $("<label>", {
+        text: feature.name,
+        class: "feature-title",
       });
 
-      // Hide the settings container initially
-      $settingsContainer.hide();
+      // Create the settings container and hide it initially
+      const $settingsContainer = $("<div>", {
+        class: "wbe-settings-container",
+      });
+
+      // Header for the settings container (including the switch and button)
+      const $settingsHeader = $("<div>", {
+        class: "wbe-settings-heading",
+      }).append(checkboxHTML, $featureTitle);
+
+      // Handle Creator(s) logic
+      let creatorHTML = "";
+      if (feature.creators && feature.creators.length > 0) {
+        const creatorLabel = feature.creators.length > 1 ? "Creators" : "Creator";
+        creatorHTML = `${creatorLabel}: ${feature.creators
+          .map(
+            (creator) =>
+              `<a href="https://www.wikitree.com/wiki/${creator.wikitreeid}" target="_blank">${creator.name}</a>`
+          )
+          .join(", ")}`;
+      }
+
+      // Handle Contributor(s) logic
+      let contributorHTML = "";
+      if (feature.contributors && feature.contributors.length > 0) {
+        const contributorLabel = feature.contributors.length > 1 ? "Contributors" : "Contributor";
+        contributorHTML = `${contributorLabel}: ${feature.contributors
+          .map(
+            (contributor) =>
+              `<a href="https://www.wikitree.com/wiki/${contributor.wikitreeid}" target="_blank">${contributor.name}</a>`
+          )
+          .join(", ")}`;
+      }
+
+      // Create Creator and Contributor divs only if they exist
+      const $creatorsAndContributors = $("<div>", {
+        class: "wbe-creators-and-contributors",
+      });
+
+      if (creatorHTML) {
+        $creatorsAndContributors.append(
+          $("<div>", {
+            class: "wbe-creators",
+            html: creatorHTML,
+          })
+        );
+      }
+
+      if (contributorHTML) {
+        $creatorsAndContributors.append(
+          $("<div>", {
+            class: "wbe-contributors",
+            html: contributorHTML,
+          })
+        );
+      }
+
+      // Create the options container that will be toggled
+      const $optionsContainer = $("<div>", {
+        class: "options-container",
+        html: generateSettingsHTML(feature), // This will contain the options for the feature
+      });
+
+      // Only show the 'Show Options' button if there are options
+      if (feature.options && feature.options.length > 0) {
+        const $toggleButton = $("<button>", {
+          class: "wbe-toggle-button",
+          text: "Show Options",
+          click: function () {
+            $optionsContainer.toggle();
+            // Change the button text
+            if ($optionsContainer.is(":visible")) {
+              $(this).text("Hide Options");
+            } else {
+              $(this).text("Show Options");
+            }
+          },
+        });
+
+        // Append the toggle button to the header if options exist
+        $settingsHeader.append($toggleButton);
+      }
+      const $flexSpacer = $("<div>", {
+        class: "flex-spacer",
+      });
+
+      $settingsHeader.append($flexSpacer, $creatorsAndContributors);
+
+      // Append the header and options into the settings container
+      $settingsContainer.append($settingsHeader, $optionsContainer);
 
       // Append the settings container after the heading element
       $headingElement.after($settingsContainer);
 
-      // Create the 'Show Options' button
-      const $toggleButton = $("<button>", {
-        class: "wbe-toggle-button",
-        text: "Show Options",
-        click: function () {
-          $settingsContainer.toggle();
-          // Change the button text
-          if ($settingsContainer.is(":visible")) {
-            $(this).text("Hide Options");
-          } else {
-            $(this).text("Show Options");
-          }
-        },
-      }).css({
-        padding: "5px 10px",
-        fontSize: "0.7em",
-        cursor: "pointer",
-        color: "#393a3c",
-        backgroundColor: "#e0e0e0",
-        borderRadius: "15px",
-        transition: "background-color 0.2s, border-color 0.2s",
-        margin: "0.3em",
-        textTransform: "none",
-      });
-
-      // Append the toggle button after the heading element
-      $headingElement.append($toggleButton);
-
       // Load the current setting values into the UI
-      loadFeatureSettings(feature, $settingsContainer);
+      loadFeatureSettings(feature, $optionsContainer);
 
       // Hide the image that shows the settings from the options page
       const $imageTable = $headingElement.nextAll("table").first();
-
       if ($imageTable.length) {
-        // Get the caption
-        const $caption = $imageTable.find("td");
-        if ($caption.length) {
-          const captionText = $caption.text().trim();
-
-          // Check if the caption ends with 'feature'
-          if (captionText.toLowerCase().match(/feature|settings\.?/)) {
-            // Hide the table
-            $imageTable.hide();
-          }
+        const $caption = $imageTable.find("td").last();
+        if (
+          $caption
+            .text()
+            .trim()
+            .match(/feature|settings\.?$/)
+        ) {
+          $imageTable.hide();
         }
       }
     }
@@ -182,7 +230,7 @@ function generateOptionHTML(featureId, option) {
 
     case "GROUP":
       optionHTML = `<div class="option-group">
-        <h5>${option.label}</h5>`;
+        <div class="option-group-heading">${option.label}:</div>`;
       if (option.options) {
         option.options.forEach((subOption) => {
           optionHTML += generateOptionHTML(featureId, subOption);
