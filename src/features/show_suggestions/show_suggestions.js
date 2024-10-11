@@ -150,8 +150,8 @@ function initSuggestionsPopup() {
     <div class="popup-content">
       <span class="close">&times;</span>
       <div id="suggestionsTable" class="suggestions-table">
-        <h1>Suggestions for ${firstName} ${lastName} (${wikiTreeID})</h1>
-        <h2>${suggestionsText}</h2>
+        <h2 id="suggestionsHeader">Suggestions for ${firstName} ${lastName} (${wikiTreeID})</h2>
+        <h2 id="suggestionsText">${suggestionsText}</h2>
         <div id="errorMessages"></div>
         <div id="warningMessages"></div>
         <div id="hintMessages"></div>
@@ -197,7 +197,7 @@ function initSuggestionsPopup() {
 function getSuggestionsText(numberOfSuggestions) {
   switch (numberOfSuggestions) {
     case undefined:
-      return `The suggestions could not be retrieved. This is an unlisted or private profile.`;
+      return `The suggestions could not be retrieved.<br>This is a New, Unlisted or Private profile.`;
     case "0":
       return `There are 0 Suggestions. <span class="green-check">✓</span>`;
     case "1":

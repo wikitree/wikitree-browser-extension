@@ -44,14 +44,14 @@
   position: relative;
 }
 
-.suggestions-table h1 {
+#suggestionsHeader {
   margin-top: 0;
   font-weight: bold;
   font-size: 22px;
   margin-bottom: 12px;
 }
 
-.suggestions-table h2 {
+#suggestionsText {
   font-size: 20px;
   margin-bottom: 26px;
   font-weight: normal;
