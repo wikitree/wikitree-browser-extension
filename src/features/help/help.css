@@ -1,0 +1,104 @@
+/* Style the feature toggle checkbox as a switch */
+.wbe-settings-heading .feature-toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 50px;
+  height: 26px;
+  background: #ccc;
+  border-radius: 26px;
+  position: relative;
+  outline: none;
+  cursor: pointer;
+  margin-right: 10px;
+  transition: background 0.3s;
+}
+
+.wbe-settings-heading .feature-toggle:checked {
+  background: #66bb6a;
+}
+
+.wbe-settings-heading .feature-toggle::after {
+  content: "";
+  width: 22px;
+  height: 22px;
+  background: #fff;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: left 0.3s;
+}
+
+.wbe-settings-heading .feature-toggle:checked::after {
+  left: 26px;
+}
+
+/* Style the option toggle checkboxes as smaller switches */
+.option-checkbox .option-toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 40px;
+  height: 20px;
+  background: #ccc;
+  border-radius: 20px;
+  position: relative;
+  outline: none;
+  cursor: pointer;
+  margin-right: 10px;
+  transition: background 0.3s;
+}
+
+.option-checkbox .option-toggle:checked {
+  background: #66bb6a;
+}
+
+.option-checkbox .option-toggle::after {
+  content: "";
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border-radius: 50%;
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  transition: left 0.3s;
+}
+
+.option-checkbox .option-toggle:checked::after {
+  left: 21px;
+}
+.feature-toggle,
+.option-toggle {
+  top: 0.5em;
+}
+/* Style the 'Show Options' button */
+.wbe-toggle-button {
+  padding: 5px 10px;
+  font-size: 0.7em;
+  cursor: pointer;
+  color: #393a3c;
+  background-color: #e0e0e0;
+  border-radius: 15px;
+  transition: background-color 0.2s, border-color 0.2s;
+  margin: 0.3em;
+  text-transform: none;
+}
+
+.wbe-toggle-button:hover {
+  background-color: #d0d0d0;
+  border-color: #a0a0a0;
+}
+
+.wbe-settings-container h5 {
+  margin: 0.2em;
+}
+
+.wbe-settings-container {
+  padding: 0.5em;
+  border-radius: 1em;
+  background-color: #f8f8f8;
+  margin: 0.5em;
+  border: 1px solid #d0d0d0;
+}
