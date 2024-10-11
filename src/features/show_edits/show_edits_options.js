@@ -11,6 +11,8 @@ const showEdits = {
   description:
     "Adds a button to show the differences between the loaded content and the current content in the text area while editing.",
   category: "Editing",
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
+  contributors: [],
   defaultValue: false,
   pages: [isProfileEdit, isSpaceEdit], // Apply to both profile and space pages
 };

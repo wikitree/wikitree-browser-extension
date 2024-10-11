@@ -10,6 +10,8 @@ const imageTable = {
   id: "imageTable",
   description: "Displays a table of images uploaded to the profile or space page.",
   category: "Profile",
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
+  contributors: [],
   defaultValue: true,
   pages: [isProfilePage, isSpacePage], // Apply to both profile and space pages
 };
