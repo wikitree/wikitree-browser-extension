@@ -8,6 +8,7 @@ import "./features/register_feature_options";
 import "./features/visitedLinks/visitedLinks";
 import "./features/darkMode/darkMode";
 import "./features/enhanced_editor_style/enhanced_editor_style";
+import "./features/help/help";
 import "./features/readability/readability";
 import "./features/custom_style/custom_style";
 
@@ -92,14 +93,12 @@ import "./features/edit_family_data/edit_family_data";
 import "./features/editor_expander/editor_expander";
 import "./features/draftList/draftList";
 import "./features/image_table/image_table";
+import "./features/pending_merges_filters/pending_merges_filters";
 import "./features/randomProfile/randomProfile";
 import "./features/what_links_here/what_links_here";
 
 /* MARKER: Default place for new features. Move these to a more appropriate place.*/
-import "./features/help/help";
-
-import "./features/pending_merges_filters/pending_merges_filters";
-
+import "./features/collapsible_profiles/collapsible_profiles";
 
 /*
  * debugging features for development only
