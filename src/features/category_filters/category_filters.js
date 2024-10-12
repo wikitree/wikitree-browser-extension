@@ -13,9 +13,10 @@ shouldInitializeFeature("categoryFilters").then((result) => {
 });
 
 function combinedFilter() {
-  const filterInput = $("#categoryFiltersTextFilter").val().toLowerCase(); // Retrieve the current state of the text filter
+  const includeFilterInput = $("#categoryFiltersTextFilter").val().toLowerCase(); // Include filter
+  const excludeFilterInput = $("#categoryFiltersNotFilter").val().toLowerCase(); // Exclude filter
 
-  if (filterMode === "only" && filterInput.length > 0) {
+  if (filterMode === "only" && (includeFilterInput.length > 0 || excludeFilterInput.length > 0)) {
     // Deactivate all button filters in 'only' mode when text is entered
     $(".categoryFilterButton").removeClass("active");
     activeFilters = [];
@@ -23,33 +24,43 @@ function combinedFilter() {
 
   profiles.each(function () {
     const profileDiv = $(this).closest(".P-ITEM");
-    let shouldShowByText = filterInput.length > 0 ? applyTextFilter(profileDiv) : null; // If text filter is empty, set to null
-    let shouldShowByButton = activeFilters.length > 0 ? shouldShowProfile(this) : null; // If no buttons are active, set to null
+    let shouldShowByInclude =
+      includeFilterInput.length > 0 ? applyTextFilter(profileDiv, includeFilterInput, "include") : null;
+    let shouldShowByExclude =
+      excludeFilterInput.length > 0 ? applyTextFilter(profileDiv, excludeFilterInput, "exclude") : null;
+    let shouldShowByButton = activeFilters.length > 0 ? shouldShowProfile(this) : null;
 
     let shouldShow;
 
     if (filterMode === "and") {
       shouldShow =
-        (shouldShowByText !== null ? shouldShowByText : true) &&
+        (shouldShowByInclude !== null ? shouldShowByInclude : true) &&
+        (shouldShowByExclude !== null ? shouldShowByExclude : true) &&
         (shouldShowByButton !== null ? shouldShowByButton : true);
     } else if (filterMode === "or") {
-      if (shouldShowByText === null && shouldShowByButton === null) {
+      if (shouldShowByInclude === null && shouldShowByExclude === null && shouldShowByButton === null) {
         shouldShow = true; // If no filters are active, show by default
       } else {
         shouldShow =
-          (shouldShowByText !== null ? shouldShowByText : false) ||
+          (shouldShowByInclude !== null ? shouldShowByInclude : false) ||
+          (shouldShowByExclude !== null ? shouldShowByExclude : false) ||
           (shouldShowByButton !== null ? shouldShowByButton : false);
       }
     } else if (filterMode === "only") {
-      if (shouldShowByText === null && shouldShowByButton === null) {
+      if (shouldShowByInclude === null && shouldShowByExclude === null && shouldShowByButton === null) {
         shouldShow = true; // If no filters are active, show by default
       } else {
-        if (filterInput.length > 0 && activeFilters.length === 0) {
-          shouldShow = shouldShowByText; // If only text filter is active, use its result
-        } else if (filterInput.length === 0 && activeFilters.length === 1) {
-          shouldShow = shouldShowByButton !== null ? shouldShowByButton : false; // If only one button filter is active, use its result
+        if (includeFilterInput.length > 0 && excludeFilterInput.length > 0 && activeFilters.length === 0) {
+          // **New Condition:** Both include and exclude filters are active
+          shouldShow = shouldShowByInclude && shouldShowByExclude;
+        } else if (includeFilterInput.length > 0 && excludeFilterInput.length === 0 && activeFilters.length === 0) {
+          shouldShow = shouldShowByInclude; // If only include filter is active
+        } else if (excludeFilterInput.length > 0 && includeFilterInput.length === 0 && activeFilters.length === 0) {
+          shouldShow = shouldShowByExclude; // If only exclude filter is active
+        } else if (activeFilters.length === 1 && includeFilterInput.length === 0 && excludeFilterInput.length === 0) {
+          shouldShow = shouldShowByButton !== null ? shouldShowByButton : false; // If only one button filter is active
         } else {
-          shouldShow = false; // If more than one filter is active or none, don't show any profile
+          shouldShow = false; // If multiple filters are active or none
         }
       }
     }
@@ -62,14 +73,19 @@ function combinedFilter() {
   });
 }
 
-function applyTextFilter(profileDiv) {
-  const filterInput = $("#categoryFiltersTextFilter").val().toLowerCase();
+function applyTextFilter(profileDiv, filterInput, filterType) {
   let filters = [];
 
-  if (filterInput.startsWith("!")) {
-    filters = filterInput.split("|").map((f) => (f.startsWith("!") ? f : "!" + f));
-  } else {
-    filters = filterInput.split("|");
+  if (filterType === "include") {
+    // For include filter, handle '!' as part of the input if necessary
+    if (filterInput.startsWith("!")) {
+      filters = filterInput.split("|").map((f) => (f.startsWith("!") ? f : "!" + f));
+    } else {
+      filters = filterInput.split("|");
+    }
+  } else if (filterType === "exclude") {
+    // For exclude filter, treat all terms as exclusions
+    filters = filterInput.split("|").map((f) => "!" + f);
   }
 
   const text = profileDiv.text().toLowerCase();
@@ -183,10 +199,20 @@ function initCategoryFilters() {
     "Show only profiles missing a parent",
     "Missing Parent"
   );
+  const categoryFilterButtons = $("<div>").prop("id", "categoryFilterButtons");
+  categoryFilterButtons.append(unconnectedButton, orphanedButton, missingParentButton);
 
-  const textFilter = $("<input type='text' id='categoryFiltersTextFilter' placeholder='Text filter'>");
+  const textFilter = $(
+    "<label id='withLabel'>with: <input type='text' id='categoryFiltersTextFilter' placeholder='Include filter'></label>"
+  );
+  const notTextFilter = $(
+    "<label id='notLabel'>without: <input type='text' id='categoryFiltersNotFilter' placeholder='Exclude filter'></label>"
+  ); // New "not" filter input
+  const textFilters = $("<div id='textFilters'></div>");
+  textFilters.append(textFilter, notTextFilter);
+
   filterButtonsContainer.appendTo(personProfilesh2);
-  filterButtonsContainer.append(unconnectedButton, orphanedButton, missingParentButton);
+  filterButtonsContainer.append(categoryFilterButtons);
   addLoginButton("WBE_category_filters");
 
   // Data for the radio buttons
@@ -212,9 +238,13 @@ function initCategoryFilters() {
   // Create and append the radio buttons
   const radios = createRadioButtons(radioData, "categoryFilterRadios", "andOrOnly");
 
-  filterButtonsContainer.append(radios, textFilter);
+  filterButtonsContainer.append(radios, textFilters); // Append the filters
 
-  // Event listener for radio buttons
+  // Debounce Setup using the debounce utility function
+  const debounceDelay = 300; // milliseconds
+  const debouncedCombinedFilter = debounce(combinedFilter, debounceDelay);
+
+  // Event listeners for radio buttons
   $("input[name='andOrOnly']").on("change", function () {
     const newFilterMode = $(this).attr("id").replace("Radio", "");
 
@@ -235,9 +265,8 @@ function initCategoryFilters() {
     combinedFilter(); // Call combinedFilter when radio buttons change
   });
 
-  $(textFilter).on("keyup", function () {
-    combinedFilter(); // Call combinedFilter when radio buttons change
-  });
+  // Event listeners for include and exclude text filters with debounce
+  $("#categoryFiltersTextFilter, #categoryFiltersNotFilter").on("keyup", debouncedCombinedFilter);
 
   $(".categoryFilterButton").on("click", function (e) {
     e.preventDefault();
@@ -255,8 +284,9 @@ function initCategoryFilters() {
       if (filterMode === "only") {
         $(".categoryFilterButton").removeClass("active");
         activeFilters = [];
-        // Clear the text box
+        // Clear the text boxes
         $("#categoryFiltersTextFilter").val("");
+        $("#categoryFiltersNotFilter").val("");
       }
       // Activate this button
       $(this).addClass("active");
@@ -264,18 +294,33 @@ function initCategoryFilters() {
     }
 
     filterCategoryProfiles(activeFilters);
-    combinedFilter(); // Call combinedFilter when radio buttons change
+    combinedFilter(); // Call combinedFilter when buttons change
   });
+}
+
+// Debounce Utility Function
+function debounce(func, delay) {
+  let timer;
+  return function (...args) {
+    const context = this;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      func.apply(context, args);
+    }, delay);
+  };
 }
 
 let filterData = null;
 const waitingImage = $("<img id='tree' class='waiting' src='" + treeImageURL + "'>");
 
 async function filterCategoryProfiles() {
-  // If no filters are active, show all profiles and return
-  if (activeFilters.length === 0) {
+  // If no filters are active and no text is entered, show all profiles and return
+  if (
+    activeFilters.length === 0 &&
+    $("#categoryFiltersTextFilter").val().length === 0 &&
+    $("#categoryFiltersNotFilter").val().length === 0
+  ) {
     profiles.closest(".P-ITEM").show();
-    applyTextFilter(); // Apply text filter even if no button filters are active
     return;
   }
 
@@ -292,9 +337,8 @@ async function filterCategoryProfiles() {
     const people = await fetchPeople({ keys, fields, appId });
     filterData = people?.[0]?.people;
   }
-  // Get Connected and Orphaned data from filterData
-  // Add data-connected and data-orphaned attributes to each $("a.P-F,a.P-M")
-  // Then filter the table based on those attributes
+
+  // Add data attributes to profiles
   profiles.each(function () {
     const key = $(this).attr("href").split("/wiki/")[1].replace(/ /g, "_");
     // Find the person in filterData (person.Name == key)
