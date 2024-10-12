@@ -165,6 +165,80 @@ Run `npm run build-dev` to rebuild the extension with your changes. If you would
 
 Click on the WBE icon in your browser, and you should see a feature listed called "Hello World". Make sure to toggle it to "on".
 
+### Setting Up a New Feature Using the Automation Script
+
+We now have a script that can automate much of the setup process for a new feature. Instead of manually creating files and adding entries to existing files, you can use this script to quickly scaffold everything.
+
+#### **Before Using the Script**
+
+There are a few things you need to understand before using the feature creation script:
+
+- **Page Types**: These are used to specify where the feature should be applied. Some common page types include:
+
+  - `isProfilePage`
+  - `isProfileEdit`
+  - `isSpacePage`
+  - `isSpaceEdit`
+  - `isMainDomain`
+  - ... and more.
+
+  To see the full list of available page types, you can look at the file `src/core/page_type.js`.
+
+- **Categories**: The categories are used to classify the feature within the extension. The available categories are:
+  - `Global`
+  - `Global/Style`
+  - `Profile`
+  - `Editing`
+  - `Editing/Add_Person`
+  - `Editing/Edit_Profile`
+  - `Navigation`
+  - `Navigation/Find_Menu`
+  - `Community`
+
+#### **Running the Script**
+
+To create a new feature, navigate to the root directory of the project in your terminal and run:
+
+```bash
+node scripts/createFeature.js -f hello_world -a "Author Name" -i AuthorID -c Profile -p isProfilePage
+```
+
+**Arguments**:
+
+- `-f` or `--featureName`: The name of the new feature in snake_case (e.g., `new_feature_name`).
+- `-a` or `--authorName`: The name of the author creating the feature (e.g., `Jane Doe`).
+- `-i` or `--authorId`: The ID of the author (e.g., `Doe-123`).
+- `-c` or `--category`: The category for the feature (from the list above).
+- `-p` or `--pageTypes`: A comma-separated list of page types this feature applies to (e.g., `isProfilePage, isSpacePage`).
+
+#### **What the Script Does**
+
+- **Generates Feature Files**: The script will create a new folder in `src/features` with the name of the new feature. In that folder, it will create:
+
+  - `featureName.js`: The main script for your feature.
+  - `featureName_options.js`: The options file where the feature is registered.
+  - `featureName.css`: A CSS file for any styles that the feature may need.
+
+- **Updates Configuration Files**:
+  - Adds an import statement to `content.js` for the new feature.
+  - Adds an import statement to `register_feature_options.js` in alphabetical order, ensuring the new feature's options are correctly registered.
+
+#### **Continuing With Your Feature Development**
+
+Once you've run the script, you can continue developing your feature. Open the generated `featureName.js` file to add the specific functionality you want your feature to have. Here’s an example of what it might look like after the script has created it:
+
+```javascript
+import { shouldInitializeFeature } from "../../core/options/options_storage";
+
+shouldInitializeFeature("newFeatureName").then((result) => {
+  if (result) {
+    init();
+  }
+});
+```
+
+This ensures that your feature will only initialize if it has been enabled by the user in the options menu.
+
 ## Writing your feature code
 
 Open the `hello_world.js` file you created earlier.
