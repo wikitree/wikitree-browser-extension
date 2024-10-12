@@ -186,7 +186,7 @@ function initCategoryFilters() {
 
   const textFilter = $("<input type='text' id='categoryFiltersTextFilter' placeholder='Text filter'>");
   filterButtonsContainer.appendTo(personProfilesh2);
-  filterButtonsContainer.append(unconnectedButton, orphanedButton, missingParentButton, textFilter);
+  filterButtonsContainer.append(unconnectedButton, orphanedButton, missingParentButton);
   addLoginButton("WBE_category_filters");
 
   // Data for the radio buttons
@@ -212,7 +212,7 @@ function initCategoryFilters() {
   // Create and append the radio buttons
   const radios = createRadioButtons(radioData, "categoryFilterRadios", "andOrOnly");
 
-  filterButtonsContainer.append(radios);
+  filterButtonsContainer.append(radios, textFilter);
 
   // Event listener for radio buttons
   $("input[name='andOrOnly']").on("change", function () {
