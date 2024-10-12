@@ -6,6 +6,7 @@
   font-size: 0.6em !important;
   border-radius: 0.5em;
   float: right;
+  margin: 0.3em 0.2em;
 }
 
 .collapse-toggle:hover {
