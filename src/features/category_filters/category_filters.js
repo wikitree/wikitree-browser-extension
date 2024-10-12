@@ -3,195 +3,35 @@ import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { treeImageURL } from "../../core/common";
 import { addLoginButton } from "../my_connections/my_connections";
 
+// Initial filter mode
 let filterMode = "only"; // Default filter mode
 
+// Array to store active filter button IDs
+let activeFilters = [];
+
+// Variable to store fetched filter data
+let filterData = null;
+
+// Loading indicator
+const waitingImage = $("<img id='tree' class='waiting' src='" + treeImageURL + "'>");
+
+// Select all relevant profile links
+const profiles = $("div.Persons div.P-ITEM a[href*='/wiki/']");
+
+// Initialize the category filters feature
 shouldInitializeFeature("categoryFilters").then((result) => {
   if (result) {
-    import("./category_filters.css");
-    initCategoryFilters();
+    import("./category_filters.css"); // Import CSS dynamically if the feature is enabled
+    initCategoryFilters(); // Initialize the filter UI and logic
   }
 });
 
-function combinedFilter() {
-  const includeFilterInput = $("#categoryFiltersTextFilter").val().toLowerCase(); // Include filter
-  const excludeFilterInput = $("#categoryFiltersNotFilter").val().toLowerCase(); // Exclude filter
-
-  if (filterMode === "only" && (includeFilterInput.length > 0 || excludeFilterInput.length > 0)) {
-    // Deactivate all button filters in 'only' mode when text is entered
-    $(".categoryFilterButton").removeClass("active");
-    activeFilters = [];
-  }
-
-  profiles.each(function () {
-    const profileDiv = $(this).closest(".P-ITEM");
-    let shouldShowByInclude =
-      includeFilterInput.length > 0 ? applyTextFilter(profileDiv, includeFilterInput, "include") : null;
-    let shouldShowByExclude =
-      excludeFilterInput.length > 0 ? applyTextFilter(profileDiv, excludeFilterInput, "exclude") : null;
-    let shouldShowByButton = activeFilters.length > 0 ? shouldShowProfile(this) : null;
-
-    let shouldShow;
-
-    if (filterMode === "and") {
-      shouldShow =
-        (shouldShowByInclude !== null ? shouldShowByInclude : true) &&
-        (shouldShowByExclude !== null ? shouldShowByExclude : true) &&
-        (shouldShowByButton !== null ? shouldShowByButton : true);
-    } else if (filterMode === "or") {
-      if (shouldShowByInclude === null && shouldShowByExclude === null && shouldShowByButton === null) {
-        shouldShow = true; // If no filters are active, show by default
-      } else {
-        shouldShow =
-          (shouldShowByInclude !== null ? shouldShowByInclude : false) ||
-          (shouldShowByExclude !== null ? shouldShowByExclude : false) ||
-          (shouldShowByButton !== null ? shouldShowByButton : false);
-      }
-    } else if (filterMode === "only") {
-      if (shouldShowByInclude === null && shouldShowByExclude === null && shouldShowByButton === null) {
-        shouldShow = true; // If no filters are active, show by default
-      } else {
-        if (includeFilterInput.length > 0 && excludeFilterInput.length > 0 && activeFilters.length === 0) {
-          // **New Condition:** Both include and exclude filters are active
-          shouldShow = shouldShowByInclude && shouldShowByExclude;
-        } else if (includeFilterInput.length > 0 && excludeFilterInput.length === 0 && activeFilters.length === 0) {
-          shouldShow = shouldShowByInclude; // If only include filter is active
-        } else if (excludeFilterInput.length > 0 && includeFilterInput.length === 0 && activeFilters.length === 0) {
-          shouldShow = shouldShowByExclude; // If only exclude filter is active
-        } else if (activeFilters.length === 1 && includeFilterInput.length === 0 && excludeFilterInput.length === 0) {
-          shouldShow = shouldShowByButton !== null ? shouldShowByButton : false; // If only one button filter is active
-        } else {
-          shouldShow = false; // If multiple filters are active or none
-        }
-      }
-    }
-
-    if (shouldShow) {
-      profileDiv.show();
-    } else {
-      profileDiv.hide();
-    }
-  });
-}
-
-function applyTextFilter(profileDiv, filterInput, filterType) {
-  let filters = [];
-
-  if (filterType === "include") {
-    // For include filter, handle '!' as part of the input if necessary
-    if (filterInput.startsWith("!")) {
-      filters = filterInput.split("|").map((f) => (f.startsWith("!") ? f : "!" + f));
-    } else {
-      filters = filterInput.split("|");
-    }
-  } else if (filterType === "exclude") {
-    // For exclude filter, treat all terms as exclusions
-    filters = filterInput.split("|").map((f) => "!" + f);
-  }
-
-  const text = profileDiv.text().toLowerCase();
-  let shouldShow = filterMode === "and" ? true : false; // Default based on mode
-
-  for (const filter of filters) {
-    let currentFilterResult = false; // Result for the current iteration
-
-    // Your existing filter logic for special characters and normal text
-    if (filter.startsWith("<") || filter.startsWith(">") || filter.startsWith("=")) {
-      if (filter.length === 5) {
-        const filterNumber = parseInt(filter.slice(1));
-        const birthYearMatch = text.match(/\d{4}/);
-        if (birthYearMatch) {
-          const birthYear = parseInt(birthYearMatch[0]);
-          if (filter.startsWith("<") && birthYear < filterNumber) {
-            currentFilterResult = true;
-          } else if (filter.startsWith(">") && birthYear > filterNumber) {
-            currentFilterResult = true;
-          } else if (filter.startsWith("=") && birthYear === filterNumber) {
-            currentFilterResult = true;
-          }
-        }
-      }
-    } else if (filter.startsWith("!")) {
-      const exclusion = filter.substring(1);
-      currentFilterResult = !text.includes(exclusion);
-    } else {
-      currentFilterResult = text.includes(filter);
-    }
-
-    if (filterMode === "and") {
-      shouldShow = shouldShow && currentFilterResult;
-    } else if (filterMode === "or") {
-      if (currentFilterResult) {
-        shouldShow = true;
-        break; // Exit loop if one condition is met
-      }
-    } else if (filterMode === "only") {
-      shouldShow = currentFilterResult; // Only this condition matters
-      break; // Exit loop
-    }
-  }
-
-  return shouldShow;
-}
-
-function shouldShowProfile(profile) {
-  const isConnected = $(profile).attr("data-connected") == 0;
-  const isOrphaned = $(profile).attr("data-managers") === "none";
-  const isMissingParent = $(profile).attr("data-missing-parent") === "true";
-
-  if (filterMode === "and") {
-    return activeFilters.every((filter) => {
-      if (filter === "unconnectedButton") return isConnected;
-      if (filter === "orphanedButton") return isOrphaned;
-      if (filter === "missingParentButton") return isMissingParent;
-      return false;
-    });
-  } else if (filterMode === "or") {
-    return activeFilters.some((filter) => {
-      if (filter === "unconnectedButton") return isConnected;
-      if (filter === "orphanedButton") return isOrphaned;
-      if (filter === "missingParentButton") return isMissingParent;
-      return false;
-    });
-  } else if (filterMode === "only") {
-    if (activeFilters.length !== 1) return false; // If more than one filter is active, don't show any profile
-    const filter = activeFilters[0]; // The only active filter
-    if (filter === "unconnectedButton") return isConnected;
-    if (filter === "orphanedButton") return isOrphaned;
-    if (filter === "missingParentButton") return isMissingParent;
-  }
-
-  return false; // If no conditions match, return false
-}
-
-function createButton(id, title, text) {
-  return $(`<button class="categoryFilterButton small" id="${id}" title="${title}">${text}</button>`);
-}
-
-// Create a single radio button
-function createRadioButton(id, title, text, name, defaultChecked = false) {
-  const radio = $(`<label><input type="radio" id="${id}" name="${name}" title="${title}">${text}</input></label>`);
-  if (defaultChecked) {
-    radio.find("input").prop("checked", true);
-  }
-  return radio;
-}
-
-// Create a set of radio buttons
-function createRadioButtons(radioData, containerId, name) {
-  const container = $(`<div id="${containerId}"></div>`);
-  radioData.forEach((data) => {
-    const radio = createRadioButton(data.id, data.title, data.text, name, data.defaultChecked);
-    container.append(radio);
-  });
-  return container;
-}
-
-const personProfilesh2 = $("h2:contains(Person Profiles)");
-let profiles = $("div.Persons div.P-ITEM a[href*='/wiki/']");
-let activeFilters = []; // An array to store the IDs of active buttons
-
+// Function to initialize category filters UI and event listeners
 function initCategoryFilters() {
+  const personProfilesh2 = $("h2:contains(Person Profiles)");
   const filterButtonsContainer = $("<div id='categoryFilterButtonsContainer'></div>");
+
+  // Create filter buttons
   const unconnectedButton = createButton("unconnectedButton", "Show only unconnected profiles", "Unconnected");
   const orphanedButton = createButton("orphanedButton", "Show only orphaned profiles", "Orphaned");
   const missingParentButton = createButton(
@@ -199,23 +39,29 @@ function initCategoryFilters() {
     "Show only profiles missing a parent",
     "Missing Parent"
   );
+
+  // Container for filter buttons
   const categoryFilterButtons = $("<div>").prop("id", "categoryFilterButtons");
   categoryFilterButtons.append(unconnectedButton, orphanedButton, missingParentButton);
 
+  // Create text filters with labels
   const textFilter = $(
-    "<label id='withLabel'>with: <input type='text' id='categoryFiltersTextFilter' placeholder='Include filter'></label>"
+    "<label for='categoryFiltersTextFilter'>with: <input type='text' id='categoryFiltersTextFilter' placeholder='Include filter'></label>"
   );
   const notTextFilter = $(
-    "<label id='notLabel'>without: <input type='text' id='categoryFiltersNotFilter' placeholder='Exclude filter'></label>"
-  ); // New "not" filter input
+    "<label for='categoryFiltersNotFilter'>without: <input type='text' id='categoryFiltersNotFilter' placeholder='Exclude filter'></label>"
+  );
   const textFilters = $("<div id='textFilters'></div>");
   textFilters.append(textFilter, notTextFilter);
 
+  // Append buttons and text filters to the container
+  filterButtonsContainer.append(categoryFilterButtons, textFilters);
   filterButtonsContainer.appendTo(personProfilesh2);
-  filterButtonsContainer.append(categoryFilterButtons);
+
+  // Add login button if necessary
   addLoginButton("WBE_category_filters");
 
-  // Data for the radio buttons
+  // Data for the radio buttons (filter modes)
   const radioData = [
     {
       id: "andRadio",
@@ -235,44 +81,44 @@ function initCategoryFilters() {
     },
   ];
 
-  // Create and append the radio buttons
+  // Create and append the radio buttons for filter modes
   const radios = createRadioButtons(radioData, "categoryFilterRadios", "andOrOnly");
-
-  filterButtonsContainer.append(radios, textFilters); // Append the filters
+  filterButtonsContainer.append(radios); // Append radio buttons to the container
 
   // Debounce Setup using the debounce utility function
   const debounceDelay = 300; // milliseconds
-  const debouncedCombinedFilter = debounce(combinedFilter, debounceDelay);
+  const debouncedApplyFilters = debounce(applyFilters, debounceDelay);
 
-  // Event listeners for radio buttons
+  // Event listeners for radio buttons (filter modes)
   $("input[name='andOrOnly']").on("change", function () {
     const newFilterMode = $(this).attr("id").replace("Radio", "");
 
     if (newFilterMode === "only") {
-      // Keep only the most recently clicked button active
-      if (activeFilters.length > 0) {
+      // If switching to 'only', keep only the most recently clicked button active
+      if (activeFilters.length > 1) {
         const mostRecentlyClicked = activeFilters[activeFilters.length - 1];
         $(".categoryFilterButton").removeClass("active");
         $("#" + mostRecentlyClicked).addClass("active");
         activeFilters = [mostRecentlyClicked];
       }
     }
-    // No special action needed for "and" or "or" modes, activeFilters remains the same
 
+    // Update the filter mode
     filterMode = newFilterMode;
-    // Trigger re-filtering based on the new mode
-    filterCategoryProfiles(activeFilters);
-    combinedFilter(); // Call combinedFilter when radio buttons change
+
+    // Re-apply filters based on the new mode
+    applyFilters();
   });
 
   // Event listeners for include and exclude text filters with debounce
-  $("#categoryFiltersTextFilter, #categoryFiltersNotFilter").on("keyup", debouncedCombinedFilter);
+  $("#categoryFiltersTextFilter, #categoryFiltersNotFilter").on("keyup", debouncedApplyFilters);
 
+  // Event listeners for filter buttons
   $(".categoryFilterButton").on("click", function (e) {
     e.preventDefault();
     const buttonID = $(this).attr("id");
 
-    // If this button is already active, deactivate it
+    // Toggle active state of the button
     if ($(this).hasClass("active")) {
       $(this).removeClass("active");
       const index = activeFilters.indexOf(buttonID);
@@ -280,11 +126,10 @@ function initCategoryFilters() {
         activeFilters.splice(index, 1);
       }
     } else {
-      // If we are in 'only' mode, deactivate all other buttons
+      // If in 'only' mode, deactivate all other buttons and clear text filters
       if (filterMode === "only") {
         $(".categoryFilterButton").removeClass("active");
         activeFilters = [];
-        // Clear the text boxes
         $("#categoryFiltersTextFilter").val("");
         $("#categoryFiltersNotFilter").val("");
       }
@@ -293,9 +138,103 @@ function initCategoryFilters() {
       activeFilters.push(buttonID);
     }
 
-    filterCategoryProfiles(activeFilters);
-    combinedFilter(); // Call combinedFilter when buttons change
+    // Re-apply filters based on the current active filters
+    applyFilters();
   });
+}
+
+// Unified Filtering Function
+async function applyFilters() {
+  // Determine if any filter buttons are active
+  const buttonsActive = activeFilters.length > 0;
+
+  // If buttons are active, ensure data is fetched
+  if (buttonsActive) {
+    await fetchAndSetFilterData();
+  }
+
+  const includeFilterInput = $("#categoryFiltersTextFilter").val().toLowerCase().trim(); // Include filter
+  const excludeFilterInput = $("#categoryFiltersNotFilter").val().toLowerCase().trim(); // Exclude filter
+
+  profiles.each(function () {
+    const profileDiv = $(this).closest(".P-ITEM");
+    const text = profileDiv.text().toLowerCase();
+
+    // Determine if profile matches include filter
+    let matchesInclude = true;
+    if (includeFilterInput.length > 0) {
+      const includeTerms = includeFilterInput.split("|").map((term) => term.trim());
+      matchesInclude = includeTerms.every((term) => text.includes(term));
+    }
+
+    // Determine if profile matches exclude filter
+    let matchesExclude = true;
+    if (excludeFilterInput.length > 0) {
+      const excludeTerms = excludeFilterInput.split("|").map((term) => term.trim());
+      matchesExclude = excludeTerms.every((term) => !text.includes(term));
+    }
+
+    // Determine if profile matches active filter buttons
+    let matchesButtons = true;
+    if (buttonsActive) {
+      matchesButtons = activeFilters.every((filterID) => shouldShowButtonFilter(filterID, this));
+    }
+
+    // Combine all conditions based on filter mode
+    let shouldShow = false;
+    if (filterMode === "and") {
+      shouldShow = matchesInclude && matchesExclude && matchesButtons;
+    } else if (filterMode === "or") {
+      shouldShow = matchesInclude || matchesExclude || matchesButtons;
+    } else if (filterMode === "only") {
+      // In 'only' mode, profiles must satisfy all active filters
+      shouldShow = matchesInclude && matchesExclude && matchesButtons;
+    }
+
+    // Show or hide the profile based on the evaluation
+    if (shouldShow) {
+      profileDiv.show();
+    } else {
+      profileDiv.hide();
+    }
+  });
+}
+
+// Helper Function to Evaluate Button Filters
+function shouldShowButtonFilter(filterID, profileElement) {
+  const isConnected = $(profileElement).attr("data-connected") == 0;
+  const isOrphaned = $(profileElement).attr("data-managers") === "none";
+  const isMissingParent = $(profileElement).attr("data-missing-parent") === "true";
+
+  if (filterID === "unconnectedButton") return isConnected;
+  if (filterID === "orphanedButton") return isOrphaned;
+  if (filterID === "missingParentButton") return isMissingParent;
+
+  return false;
+}
+
+// Function to Create Filter Buttons
+function createButton(id, title, text) {
+  return $(`<button class="categoryFilterButton small" id="${id}" title="${title}">${text}</button>`);
+}
+
+// Function to Create a Single Radio Button
+function createRadioButton(id, title, text, name, defaultChecked = false) {
+  const radio = $(`<label><input type="radio" id="${id}" name="${name}" title="${title}">${text}</input></label>`);
+  if (defaultChecked) {
+    radio.find("input").prop("checked", true);
+  }
+  return radio;
+}
+
+// Function to Create Multiple Radio Buttons
+function createRadioButtons(radioData, containerId, name) {
+  const container = $(`<div id="${containerId}"></div>`);
+  radioData.forEach((data) => {
+    const radio = createRadioButton(data.id, data.title, data.text, name, data.defaultChecked);
+    container.append(radio);
+  });
+  return container;
 }
 
 // Debounce Utility Function
@@ -310,21 +249,10 @@ function debounce(func, delay) {
   };
 }
 
-let filterData = null;
-const waitingImage = $("<img id='tree' class='waiting' src='" + treeImageURL + "'>");
-
-async function filterCategoryProfiles() {
-  // If no filters are active and no text is entered, show all profiles and return
-  if (
-    activeFilters.length === 0 &&
-    $("#categoryFiltersTextFilter").val().length === 0 &&
-    $("#categoryFiltersNotFilter").val().length === 0
-  ) {
-    profiles.closest(".P-ITEM").show();
-    return;
-  }
-
+// Function to Fetch and Set Filter Data
+async function fetchAndSetFilterData() {
   if (filterData === null) {
+    const personProfilesh2 = $("h2:contains(Person Profiles)");
     personProfilesh2.append(waitingImage);
     const keysArray = $("a.P-F,a.P-M")
       .map(function () {
@@ -336,55 +264,42 @@ async function filterCategoryProfiles() {
     const appId = "WBE_categoryFilters";
     const people = await fetchPeople({ keys, fields, appId });
     filterData = people?.[0]?.people;
-  }
 
-  // Add data attributes to profiles
-  profiles.each(function () {
-    const key = $(this).attr("href").split("/wiki/")[1].replace(/ /g, "_");
-    // Find the person in filterData (person.Name == key)
-    const person = Object.values(filterData).find((person) => person.Name === key);
-    if (person) {
-      $(this).attr("data-connected", person.Connected);
-      const managersArray = [];
-      let managersString = "";
-      if (person?.Managers?.length > 0) {
-        person.Managers.forEach(function (manager) {
-          managersArray.push(manager.Name);
-        });
-        managersString = managersArray.join(",");
-      } else if (person.Manager === 0) {
-        managersString = "none";
-      } else if (person.Manager === null) {
-        managersString = "null";
-      }
-
-      $(this).attr("data-managers", managersString || "null");
-
-      if (person?.Father === 0 || person?.Mother === 0) {
-        $(this).attr("data-missing-parent", "true");
-      } else if (!person?.Father) {
-        $(this).attr("data-missing-parent", "null");
+    // Assign data attributes to profiles
+    profiles.each(function () {
+      const key = $(this).attr("href").split("/wiki/")[1].replace(/ /g, "_");
+      const person = Object.values(filterData).find((person) => person.Name === key);
+      if (person) {
+        $(this).attr("data-connected", person.Connected);
+        const managersArray = person?.Managers?.map((manager) => manager.Name) || [];
+        let managersString = "";
+        if (managersArray.length > 0) {
+          managersString = managersArray.join(",");
+        } else if (person.Manager === 0) {
+          managersString = "none";
+        } else if (person.Manager === null) {
+          managersString = "null";
+        }
+        $(this).attr("data-managers", managersString || "null");
+        if (person?.Father === 0 || person?.Mother === 0) {
+          $(this).attr("data-missing-parent", "true");
+        } else if (!person?.Father) {
+          $(this).attr("data-missing-parent", "null");
+        } else {
+          $(this).attr("data-missing-parent", "false");
+        }
       } else {
-        $(this).attr("data-missing-parent", "false");
+        $(this).attr("data-connected", "null");
+        $(this).attr("data-managers", "null");
+        $(this).attr("data-missing-parent", "null");
       }
-    } else {
-      $(this).attr("data-connected", "null");
-      $(this).attr("data-managers", "null");
-      $(this).attr("data-missing-parent", "null");
-    }
-  });
+    });
 
-  waitingImage.remove();
-
-  profiles.closest(".P-ITEM").hide();
-  profiles
-    .filter(function () {
-      return shouldShowProfile(this);
-    })
-    .closest(".P-ITEM")
-    .show();
+    waitingImage.remove();
+  }
 }
 
+// Function to Fetch People Data from API
 export async function fetchPeople(args) {
   const params = {
     action: "getPeople",
