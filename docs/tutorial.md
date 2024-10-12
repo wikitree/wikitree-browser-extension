@@ -230,7 +230,7 @@ Once you've run the script, you can continue developing your feature. Open the g
 ```javascript
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
-shouldInitializeFeature("newFeatureName").then((result) => {
+shouldInitializeFeature("helloWorld").then((result) => {
   if (result) {
     init();
   }
