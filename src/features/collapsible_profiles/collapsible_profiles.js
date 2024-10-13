@@ -19,7 +19,7 @@ shouldInitializeFeature("collapsibleProfiles").then(async (result) => {
         init(options); // Pass options to init if needed
       }
     } else {
-      const submenu = $("#views-wrap ul.views.viewsm");
+      const submenu = $("#views-wrap ul.views.viewsm").eq(0);
       const menuItem = $(
         `<li class="viewsi">
         <a class="viewsi" title="Collapse sections" id='collapsibleProfilesMenuItem'>Collapse&nbsp;</a>
