@@ -3,7 +3,6 @@ Created By: Ian Beacall (Beacall-6)
 */
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import "./collapsible_profiles.css";
 
 shouldInitializeFeature("collapsibleProfiles").then(async (result) => {
   if (result) {
@@ -40,18 +39,20 @@ shouldInitializeFeature("collapsibleProfiles").then(async (result) => {
 });
 
 function init(options) {
-  createCollapsibleSections();
-  addCollapsibleButtons();
-  addCollapseAllButton();
-  addNavigationClickHandler(); // Updated Function Call
-  setTimeout(() => {
-    addToggleButtonsToTOC();
-    2000;
+  import("./collapsible_profiles.css").then(() => {
+    createCollapsibleSections();
+    addCollapsibleButtons();
+    addCollapseAllButton();
+    addNavigationClickHandler(); // Updated Function Call
+    setTimeout(() => {
+      addToggleButtonsToTOC();
+      2000;
+    });
+    if (options.autoCollapse) {
+      $(".collapse-all-toggle").trigger("click");
+      collapseTOCAll();
+    }
   });
-  if (options.autoCollapse) {
-    $(".collapse-all-toggle").trigger("click");
-    collapseTOCAll();
-  }
 }
 
 function createCollapsibleSections() {
