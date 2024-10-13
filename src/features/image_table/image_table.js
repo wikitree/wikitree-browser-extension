@@ -40,7 +40,7 @@ async function getPhotos() {
 function initPhotoPopup() {
   if ($("#photoPopup").length === 0) {
     // Create the popup and append it to the body
-    const popupLink = $('<li class="viewsi" id="openPopup"><a class="viewsi">Image Table</a></li>');
+    const popupLink = $('<li class="viewsi" id="openPopup"><a class="viewsi">Image Table&nbsp;</a></li>');
     const popup = $(`<div id="photoPopup" class="popup">
         <div class="popup-content">
           <span class="close">&times;</span>

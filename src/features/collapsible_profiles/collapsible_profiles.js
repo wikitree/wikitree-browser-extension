@@ -2,25 +2,44 @@
 Created By: Ian Beacall (Beacall-6)
 */
 import $ from "jquery";
-import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import "./collapsible_profiles.css";
-import { set } from "date-fns";
 
-shouldInitializeFeature("collapsibleProfiles").then((result) => {
+shouldInitializeFeature("collapsibleProfiles").then(async (result) => {
   if (result) {
-    if (
-      window.location.href.match(/WikiTree_Browser_Extension$/) ||
-      window.location.href.match(/WikiTree_Browser_Extension#/)
-    ) {
-      console.log("Collapsible Profiles: Waiting for page to load...");
-      setTimeout(init, 8000);
+    const options = await getFeatureOptions("collapsibleProfiles");
+    if (options.automaticallyAddButtons) {
+      if (
+        window.location.href.match(/WikiTree_Browser_Extension$/) ||
+        window.location.href.match(/WikiTree_Browser_Extension#/)
+      ) {
+        console.log("Collapsible Profiles: Waiting for page to load...");
+        setTimeout(() => init(options), 8000); // Pass options to init if needed
+      } else {
+        init(options); // Pass options to init if needed
+      }
     } else {
-      init();
+      const submenu = $("ul.views.viewsm");
+      const menuItem = $(
+        `<li class="viewsi">
+        <a class="viewsi" title="Collapse sections" id='collapsibleProfilesMenuItem'>Collapse&nbsp;</a>
+        </li>`
+      );
+      submenu.append(menuItem);
+      $("#collapsibleProfilesMenuItem").on("click", function (e) {
+        e.preventDefault();
+        options.autoCollapse = true;
+        console.log("Collapsible Profiles: collapsing all sections...");
+        init(options); // Pass options to init if needed
+        $(this).fadeOut(1000, function () {
+          $(this).remove();
+        });
+      });
     }
   }
 });
 
-function init() {
+function init(options) {
   createCollapsibleSections();
   addCollapsibleButtons();
   addCollapseAllButton();
@@ -29,6 +48,10 @@ function init() {
     addToggleButtonsToTOC();
     2000;
   });
+  if (options.autoCollapse) {
+    $(".collapse-all-toggle").trigger("click");
+    collapseTOCAll();
+  }
 }
 
 function createCollapsibleSections() {
@@ -134,44 +157,55 @@ function addCollapseAllButton() {
 function addToggleButtonsToTOC() {
   const $toc = $("#toc ul");
   $toc.css("list-style-type", "none");
-  $(document).on("click", "#toc ul .collapse-toggle", function () {
+  $(document).on("click", "#toc ul .collapse-toc-toggle", function () {
     const $button = $(this);
+    console.log("TOC Toggle Clicked:", $button.text());
+
     const $li = $button.closest("li");
     const $section = $li.children("ul");
     const isExpanded = $button.text() === "−";
+    console.log(`Button text: ${$button.text()}`);
+
+    console.log(`TOC Toggle Clicked: ${isExpanded ? "Collapsing" : "Expanding"} section`);
 
     if (isExpanded) {
       $section.slideUp();
       $button.text("+");
+      console.log("Section collapsed");
     } else {
       $section.slideDown();
       $button.text("−");
+      console.log("Section expanded");
     }
   });
-  $(document).on("click", "#toc h2 .collapse-toggle", function () {
-    // collapse all
-    const $button = $(this);
-    setTimeout(() => {
-      const buttons = $toc.find("button.collapse-toggle");
-      const uls = $toc.find("ul");
 
-      if ($button.text() === "−") {
-        buttons.text("−");
-        uls.slideDown();
-      } else {
-        buttons.text("+");
-        uls.slideUp();
-      }
-    }, 100);
-  });
+  $(document).on("click", "#toc h2 .collapse-toggle", collapseTOCAll);
 
   // Find all LIs with a nested UL (i.e., sections with subsections)
   $toc.find("li:has(ul)").each(function () {
     const $li = $(this);
     $li.css("position", "relative"); // Ensure that the button is positioned correctly
-    const $button = $('<button class="collapse-toggle">−</button>'); // Use actual minus sign
+    const $button = $('<button class="collapse-toc-toggle">−</button>'); // Use actual minus sign
     $li.prepend($button);
   });
+}
+
+function collapseTOCAll() {
+  // collapse all sections in the TOC
+  const $toc = $("#toc ul");
+  const $button = $("#toc h2 .collapse-toggle");
+  setTimeout(() => {
+    const buttons = $toc.find("button.collapse-toc-toggle");
+    const uls = $toc.find("ul");
+
+    if ($button.text() === "−") {
+      buttons.text("−");
+      uls.slideDown();
+    } else {
+      buttons.text("+");
+      uls.slideUp();
+    }
+  }, 100);
 }
 
 // **Updated Function: Add Navigation Click Handler**

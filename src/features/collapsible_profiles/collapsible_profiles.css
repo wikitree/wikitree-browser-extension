@@ -1,5 +1,6 @@
 .collapse-toggle,
-.collapse-all-toggle {
+.collapse-all-toggle,
+.collapse-toc-toggle {
   cursor: pointer;
   border: 1px solid #ccc;
   padding: 2px 5px !important;
@@ -22,11 +23,13 @@ h1 .collapse-all-toggle {
   left: -1.5em;
 }
 
-.collapse-toggle:hover {
+.collapse-toggle:hover,
+.collapse-all-toggle:hover,
+.collapse-toc-toggle:hover {
   background-color: #e0e0e0;
 }
 
-#toc ul .collapse-toggle {
+#toc ul .collapse-toc-toggle {
   margin: 0;
   top: auto;
   left: -3em;

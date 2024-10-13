@@ -15,4 +15,12 @@ registerFeature({
   contributors: [],
   defaultValue: false,
   pages: [isSpacePage, isProfilePage],
+  options: [
+    {
+      id: "automaticallyAddButtons",
+      type: OptionType.CHECKBOX,
+      label: "Automatically add toggle buttons",
+      defaultValue: false,
+    },
+  ],
 });
