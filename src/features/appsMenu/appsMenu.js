@@ -87,6 +87,7 @@ const treeApps = [
   { text: "Generational Statistics", id: "stats" },
   { text: "One Name Trees", id: "oneNameTrees" },
   { text: "Printer Friendly", id: "printer-friendly" },
+  { text: "Slippy Tree", id: "slippyTree" },
   { text: "Super Tree", id: "superbig" },
   { text: "Surnames List", id: "surnames" },
   { text: "WT+ Maps", id: "wtPlusMaps" },
