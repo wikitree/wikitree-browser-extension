@@ -21,9 +21,9 @@ shouldInitializeFeature("sortThemePeople").then((result) => {
 async function init() {
   import("./sort_theme_people.css");
 
-  featuredConnectionsParagraph = $(`div.x-connections > p`);
+  featuredConnectionsParagraph = $("div.sixteen p:contains('This week')");
   if (!featuredConnectionsParagraph.length) {
-    featuredConnectionsParagraph = $(`div.x-connections > div.box`);
+    featuredConnectionsParagraph = $("div.sixteen div.box:contains('This week')");
   }
   if (!featuredConnectionsParagraph.length) {
     return;
