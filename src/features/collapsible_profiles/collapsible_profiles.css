@@ -1,0 +1,33 @@
+.collapse-toggle,
+.collapse-all-toggle {
+  cursor: pointer;
+  border: 1px solid #ccc;
+  padding: 2px 5px !important;
+  font-size: 0.6em !important;
+  border-radius: 0.5em;
+  position: absolute;
+  top: 0;
+  left: -2em;
+  margin: 0.3em 0.2em;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  position: relative;
+}
+h1 .collapse-all-toggle {
+  left: -1.5em;
+}
+
+.collapse-toggle:hover {
+  background-color: #e0e0e0;
+}
+
+#toc ul .collapse-toggle {
+  margin: 0;
+  top: auto;
+  left: -3em;
+}

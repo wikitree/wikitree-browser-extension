@@ -9,7 +9,10 @@ import { features } from "../../core/options/options_registry";
 shouldInitializeFeature("help").then((result) => {
   if (result) {
     // Ensure we are on the correct Space page
-    if (window.location.href.includes("/Space:WikiTree_Browser_Extension")) {
+    if (
+      window.location.href.match(/Space:WikiTree_Browser_Extension/) ||
+      window.location.href.match(/Space:WikiTree_Browser_Extension#/)
+    ) {
       import("./help.css").then(() => {
         initializeFeatureSettingsOnHelpPage();
       });
