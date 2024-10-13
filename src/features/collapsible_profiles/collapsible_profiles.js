@@ -4,6 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import "./collapsible_profiles.css";
+import { set } from "date-fns";
 
 shouldInitializeFeature("collapsibleProfiles").then((result) => {
   if (result) {
@@ -20,41 +21,38 @@ shouldInitializeFeature("collapsibleProfiles").then((result) => {
 });
 
 function init() {
-  $(document).ready(() => {
-    createCollapsibleSections();
-    addCollapsibleButtons();
-    addCollapseAllButton();
-    addNavigationClickHandler(); // Updated Function Call
+  createCollapsibleSections();
+  addCollapsibleButtons();
+  addCollapseAllButton();
+  addNavigationClickHandler(); // Updated Function Call
+  setTimeout(() => {
+    addToggleButtonsToTOC();
+    2000;
   });
 }
 
 function createCollapsibleSections() {
-  // Wrap content between <h2> headings in collapsible divs
-  $("h2").each(function () {
-    const $h2 = $(this);
-    const $sectionDiv = $('<div class="collapsible-section"></div>');
-    $h2.nextUntil("h2").wrapAll($sectionDiv);
-  });
+  // Define the heading levels to process
+  const headingLevels = [2, 3, 4, 5, 6];
 
-  // Wrap content between <h3> headings in nested collapsible divs
-  $("h3").each(function () {
-    const $h3 = $(this);
-    const $subSectionDiv = $('<div class="collapsible-subsection"></div>');
-    $h3.nextUntil("h3, h2").wrapAll($subSectionDiv);
-  });
+  headingLevels.forEach((level, index) => {
+    const currentSelector = `h${level}`;
+    // For h2, use 'collapsible-section'; for others, use 'collapsible-subsection'
+    const wrapClass = level === 2 ? "collapsible-section" : "collapsible-subsection";
 
-  // Wrap content between <h4> headings in nested collapsible divs
-  $("h4").each(function () {
-    const $h4 = $(this);
-    const $subSectionDiv = $('<div class="collapsible-subsection"></div>');
-    $h4.nextUntil("h4, h3, h2").wrapAll($subSectionDiv);
-  });
+    // Determine which heading levels should stop the wrapping
+    const stopLevels = headingLevels
+      .slice(0, index + 1)
+      .map((l) => `h${l}`)
+      .join(", ");
 
-  // Wrap content between <h5> headings in nested collapsible divs
-  $("h5").each(function () {
-    const $h5 = $(this);
-    const $subSectionDiv = $('<div class="collapsible-subsection"></div>');
-    $h5.nextUntil("h5, h4, h3, h2").wrapAll($subSectionDiv);
+    $(currentSelector).each(function () {
+      const $currentHeading = $(this);
+      const $content = $currentHeading.nextUntil(stopLevels);
+      if ($content.length) {
+        $content.wrapAll(`<div class="${wrapClass}"></div>`);
+      }
+    });
   });
 }
 
@@ -98,38 +96,81 @@ function addCollapsibleButtons() {
     const ariaLabel = isExpanded ? "Collapse section" : "Expand section";
 
     const $button = $(
-      `<button class="collapse-toggle" aria-expanded="${ariaExpanded}" aria-label="${ariaLabel}">${buttonText}</button>`
+      `<button class="collapse-toggle" aria-expanded="${ariaExpanded}" aria-label="${ariaLabel}">
+        ${buttonText}
+      </button>`
     );
     $heading.append($button);
   });
 }
 
 function addCollapseAllButton() {
-  $(document).ready(function () {
-    $("h1").each(function () {
-      const $h1 = $(this);
-      const $button = $('<button class="collapse-all-toggle">−</button>'); // Use actual minus sign
+  $("h1").each(function () {
+    const $h1 = $(this);
+    const $button = $('<button class="collapse-all-toggle">−</button>'); // Use actual minus sign
 
-      $button.on("click", function () {
-        const $allSections = $(".collapsible-section, .collapsible-subsection");
-        if ($button.text() === "−") {
-          $allSections.slideUp();
-          $button.text("+");
-          $(".collapse-toggle").each(function () {
-            $(this).text("+").attr("aria-expanded", "false").attr("aria-label", "Expand section");
-          });
-        } else {
-          $allSections.slideDown();
-          $button.text("−");
-          $(".collapse-toggle").each(function () {
-            $(this).text("−").attr("aria-expanded", "true").attr("aria-label", "Collapse section");
-          });
-        }
-      });
-
-      $button.addClass("small-button");
-      $h1.append($button);
+    $button.on("click", function () {
+      const $allSections = $(".collapsible-section, .collapsible-subsection");
+      if ($button.text() === "−") {
+        $allSections.slideUp();
+        $button.text("+");
+        $(".collapse-toggle").each(function () {
+          $(this).text("+").attr("aria-expanded", "false").attr("aria-label", "Expand section");
+        });
+      } else {
+        $allSections.slideDown();
+        $button.text("−");
+        $(".collapse-toggle").each(function () {
+          $(this).text("−").attr("aria-expanded", "true").attr("aria-label", "Collapse section");
+        });
+      }
     });
+
+    $button.addClass("small-button");
+    $h1.append($button);
+  });
+}
+
+function addToggleButtonsToTOC() {
+  const $toc = $("#toc ul");
+  $toc.css("list-style-type", "none");
+  $(document).on("click", "#toc ul .collapse-toggle", function () {
+    const $button = $(this);
+    const $li = $button.closest("li");
+    const $section = $li.children("ul");
+    const isExpanded = $button.text() === "−";
+
+    if (isExpanded) {
+      $section.slideUp();
+      $button.text("+");
+    } else {
+      $section.slideDown();
+      $button.text("−");
+    }
+  });
+  $(document).on("click", "#toc h2 .collapse-toggle", function () {
+    // collapse all
+    const $button = $(this);
+    setTimeout(() => {
+      const buttons = $toc.find("button.collapse-toggle");
+      const uls = $toc.find("ul");
+
+      if ($button.text() === "−") {
+        buttons.text("−");
+        uls.slideDown();
+      } else {
+        buttons.text("+");
+        uls.slideUp();
+      }
+    }, 100);
+  });
+
+  // Find all LIs with a nested UL (i.e., sections with subsections)
+  $toc.find("li:has(ul)").each(function () {
+    const $li = $(this);
+    $li.css("position", "relative"); // Ensure that the button is positioned correctly
+    const $button = $('<button class="collapse-toggle">−</button>'); // Use actual minus sign
+    $li.prepend($button);
   });
 }
 
