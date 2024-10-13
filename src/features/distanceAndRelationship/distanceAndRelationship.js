@@ -197,12 +197,14 @@ function onDistancesSuccess(event, profileID, userID) {
       initDistanceAndRelationship(userID, profileID);
     } else {
       if ($("#distanceFromYou").length == 0) {
-        const profileName = $("h1.x-heading-title span[itemprop='name']").text();
-        $("h1.x-heading-title").append(
-          $(
-            `<span id='distanceFromYou' title='${profileName} is ${getDistanceReq.result.distance} degrees from you. \nClick to refresh.'>${getDistanceReq.result.distance}°</span>`
-          )
-        );
+        const profileName = $("h1").first().find("span[itemprop='name']").text();
+        $("h1")
+          .first()
+          .append(
+            $(
+              `<span id='distanceFromYou' title='${profileName} is ${getDistanceReq.result.distance} degrees from you. \nClick to refresh.'>${getDistanceReq.result.distance}°</span>`
+            )
+          );
         // Add a big hover text thing
         $("#distanceFromYou")
           .on("mouseenter", function () {
@@ -243,7 +245,7 @@ function addRelationshipText(oText, commonAncestors) {
     <ul id='yourCommonAncestor' style='white-space:nowrap'>${commonAncestorTextOut}</ul>
     </div>`
   );
-  $("h1.x-heading-title").after(cousinText);
+  $("h1").first().after(cousinText);
   if (cousinText.next("span.large").length > 0) {
     cousinText.after($("<br>"));
   }
@@ -401,9 +403,9 @@ async function addDistance(data) {
 
   if ($("#degreesFromYou").length == 0) {
     window.distance = data.path.length - 1;
-    const profileName = $("h1.x-heading-title span[itemprop='name']").text();
+    const profileName = $("h1").first().find("span[itemprop='name']").text();
     if (window.distance > 0 && $("#degreesFromYou").length == 0) {
-      $("h1.x-heading-title").append(
+      $("h1").first().append(
         $(
           `<span id='distanceFromYou' title='${profileName} is ${window.distance} degrees from you.'>${window.distance}°</span>`
         )
