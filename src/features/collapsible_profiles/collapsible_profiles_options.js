@@ -13,7 +13,7 @@ registerFeature({
   category: "Profile",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
-  defaultValue: false,
+  defaultValue: true,
   pages: [isSpacePage, isProfilePage],
   options: [
     {
