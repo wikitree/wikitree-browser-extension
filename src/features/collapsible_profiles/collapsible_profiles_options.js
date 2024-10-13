@@ -9,7 +9,8 @@ import "./collapsible_profiles.css";
 registerFeature({
   name: "Collapsible Profiles",
   id: "collapsibleProfiles",
-  description: "",
+  description:
+    "Adds a button to the submenu of profile and space pages to collapse all sections and make them togglable.",
   category: "Profile",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
