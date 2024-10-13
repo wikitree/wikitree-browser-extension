@@ -32,7 +32,7 @@ shouldInitializeFeature("scissors").then((result) => {
 async function helpScissors() {
   const options = await getFeatureOptions("scissors");
   let copyItems = [];
-  let copyPosition = $("h1");
+  let copyPosition = $("h1").first();
 
   // Network feed
   if (isNetworkFeed || isProfileHistoryDetail) {
@@ -42,7 +42,7 @@ async function helpScissors() {
       feedID = urlParams.get("title");
     }
     const feedURL = window.location.href;
-    let feedTitle = $("h1").text();
+    let feedTitle = $("h1").first().text();
     const feedName = $('span.HISTORY-ITEM a[href*="wiki/' + feedID + '"')
       .eq(0)
       .text();
