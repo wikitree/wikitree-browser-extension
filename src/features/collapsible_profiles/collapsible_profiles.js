@@ -160,8 +160,6 @@ function createCollapsibleSections() {
     const stopLevelsSelector = stopLevels.join(", ");
 
     document.querySelectorAll(currentSelector).forEach(function (currentHeading) {
-      // Skip the "Contents" heading
-      console.log(currentHeading.textContent.trim());
       if (currentHeading.textContent.trim() == "Contents") {
         return;
       }
@@ -431,27 +429,11 @@ function addNavigationClickHandler() {
   // Define selectors for navigational links: TOC, WBEnav, footnote references, and back-references
   const navSelectors = "#toc a:not(#togglelink), .WBEnav a, sup.reference a, a.a11y-back-ref";
 
-  // Ensure that navigational links exist on the page
-  if ($(navSelectors).length === 0) {
-    console.warn("No navigational links found with selectors:", navSelectors);
-    return;
-  }
-
   // Use the global headingLevels variable
   const headingSelectors = headingLevels.map((level) => `h${level}`).join(", ");
 
-  // Attach click event listener to all navigational <a> tags
-  $(navSelectors).on("click", function (e) {
-    e.preventDefault(); // Prevent default anchor behavior
-    console.log("Navigation link clicked:", this);
-
-    const href = $(this).attr("href");
-    if (!href || !href.startsWith("#")) {
-      console.warn("Clicked navigational link does not have a valid href:", href);
-      return; // Not an internal link
-    }
-
-    const targetId = decodeURIComponent(href.substring(1)); // Remove the '#' character and decode
+  // Function to handle navigation to a target ID
+  function navigateTo(targetId) {
     const targetElement = document.getElementById(targetId);
 
     if (!targetElement) {
@@ -535,5 +517,36 @@ function addNavigationClickHandler() {
         500
       );
     })();
+  }
+
+  // Attach click event listener to all navigational <a> tags
+  $(document).on("click", navSelectors, function (e) {
+    const href = $(this).attr("href");
+    if (!href || !href.startsWith("#")) {
+      return; // Not an internal link
+    }
+
+    // Allow the default action to proceed (don't preventDefault)
+
+    // Delay handling to allow the browser to update the URL hash
+    setTimeout(() => {
+      const targetId = decodeURIComponent(href.substring(1)); // Remove the '#' character and decode
+      navigateTo(targetId);
+    }, 0);
   });
+
+  // Handle hashchange event for back/forward navigation
+  $(window).on("hashchange", function () {
+    const targetId = location.hash.substring(1);
+    if (targetId) {
+      navigateTo(decodeURIComponent(targetId));
+    }
+  });
+
+  // If there's an initial hash when the page loads, handle it
+
+  const initialHash = location.hash.substring(1);
+  if (initialHash) {
+    navigateTo(decodeURIComponent(initialHash));
+  }
 }
