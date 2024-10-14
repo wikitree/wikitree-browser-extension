@@ -74,6 +74,7 @@ function init(options) {
     addNavigationClickHandler();
     setTimeout(() => {
       addToggleButtonsToTOC();
+      addToggleAllToTOC();
     }, 2000);
 
     // Check if auto-collapse is enabled
@@ -95,7 +96,7 @@ function init(options) {
       collapseAllSections();
       // Set the collapse-all-toggle button to '+'
       $(".collapse-all-toggle").text("+");
-      collapseTOCAll(true); // Collapse the TOC
+      toggleTOCAll(true); // Collapse the TOC
     }
 
     // Always collapse specific sections based on options
@@ -159,6 +160,11 @@ function createCollapsibleSections() {
     const stopLevelsSelector = stopLevels.join(", ");
 
     document.querySelectorAll(currentSelector).forEach(function (currentHeading) {
+      // Skip the "Contents" heading
+      console.log(currentHeading.textContent.trim());
+      if (currentHeading.textContent.trim() == "Contents") {
+        return;
+      }
       // Wrap content until the next heading of the same or higher level
       const content = [];
       let sibling = currentHeading.nextSibling;
@@ -188,7 +194,7 @@ function addCollapsibleButtons() {
   const headingSelectors = headingLevels.map((level) => `h${level}`).join(", ");
 
   // Attach a single event listener to the document for all toggle buttons (Event Delegation)
-  $(document).on("click", ".collapse-toggle", function () {
+  $(document).on("click", ".collapse-toggle:not(#Contents)", function () {
     const $button = $(this);
     const $heading = $button.closest(headingSelectors);
     const $section = $heading.next(".collapsible-section, .collapsible-subsection");
@@ -232,6 +238,7 @@ function addCollapsibleButtons() {
     );
     $heading.append($button);
   });
+  $("#toc h2 .collapse-toggle").prop("id", "Contents");
 }
 
 function addCollapseAllButton() {
@@ -247,14 +254,14 @@ function addCollapseAllButton() {
         $(".collapse-toggle").each(function () {
           $(this).text("+").attr("aria-expanded", "false").attr("aria-label", "Expand section");
         });
-        collapseTOCAll(true); // Collapse the TOC
+        toggleTOCAll(true); // Collapse the TOC
       } else {
         $allSections.slideDown();
         $button.text("−");
         $(".collapse-toggle").each(function () {
           $(this).text("−").attr("aria-expanded", "true").attr("aria-label", "Collapse section");
         });
-        collapseTOCAll(false); // Expand the TOC
+        toggleTOCAll(false); // Expand the TOC
       }
     });
 
@@ -386,24 +393,43 @@ function addToggleButtonsToTOC() {
   });
 }
 
-function collapseTOCAll(collapse = true) {
+function toggleTOCAll(collapse = true) {
   const $toc = $("#toc ul");
   const buttons = $toc.find("button.collapse-toc-toggle");
   const uls = $toc.find("ul");
 
   if (collapse) {
     buttons.text("+");
-    uls.hide(); // Immediately hide
+    uls.slideUp();
   } else {
     buttons.text("−");
-    uls.show(); // Immediately show
+    uls.slideDown();
   }
 }
 
-// **Function: Add Navigation Click Handler**
+function addToggleAllToTOC() {
+  const contentsToggler = $("#toctitle h2 .collapse-toggle");
+  if (contentsToggler.length) {
+    $(document).on("click", "#toctitle h2 .collapse-toggle", function () {
+      const $button = $(this);
+      const isExpanded = $button.text() === "−";
+
+      if (isExpanded) {
+        $button.text("+");
+        $button.attr("aria-expanded", "false");
+        toggleTOCAll(true);
+      } else {
+        $button.text("−");
+        $button.attr("aria-expanded", "true");
+        toggleTOCAll(false);
+      }
+    });
+  }
+}
+
 function addNavigationClickHandler() {
-  // Define selectors for navigational links: TOC and WBEnav
-  const navSelectors = "#toc a, .WBEnav a";
+  // Define selectors for navigational links: TOC, WBEnav, footnote references, and back-references
+  const navSelectors = "#toc a:not(#togglelink), .WBEnav a, sup.reference a, a.a11y-back-ref";
 
   // Ensure that navigational links exist on the page
   if ($(navSelectors).length === 0) {
@@ -417,6 +443,7 @@ function addNavigationClickHandler() {
   // Attach click event listener to all navigational <a> tags
   $(navSelectors).on("click", function (e) {
     e.preventDefault(); // Prevent default anchor behavior
+    console.log("Navigation link clicked:", this);
 
     const href = $(this).attr("href");
     if (!href || !href.startsWith("#")) {
@@ -425,48 +452,61 @@ function addNavigationClickHandler() {
     }
 
     const targetId = decodeURIComponent(href.substring(1)); // Remove the '#' character and decode
-    const headingElement = document.getElementById(targetId);
+    const targetElement = document.getElementById(targetId);
 
-    if (!headingElement) {
-      console.warn(`Heading with id '${targetId}' not found.`);
+    if (!targetElement) {
+      console.warn(`Element with id '${targetId}' not found.`);
       return;
     }
 
-    const $heading = $(headingElement);
+    const $target = $(targetElement);
 
-    const $section = $heading.next(".collapsible-section, .collapsible-subsection");
+    // Expand all collapsed parent sections
+    const $parentSections = $target.parents(".collapsible-section, .collapsible-subsection").get().reverse();
 
-    if ($section.length === 0) {
-      console.warn(`No collapsible section found after heading: "${$heading.text()}"`);
-      // Even if there's no collapsible section, proceed to scroll
-    } else {
-      // Expand all parent sections first
-      const $parentSections = $heading.parents(".collapsible-section, .collapsible-subsection").get().reverse();
-
-      $($parentSections).each(function () {
-        const $parentSection = $(this);
-        if ($parentSection.is(":hidden")) {
-          const $parentHeading = $parentSection.prev(headingSelectors);
-          const $parentToggle = $parentHeading.find(".collapse-toggle");
-          if ($parentToggle.length) {
-            // Expand the parent section
-            $parentSection.show();
-            $parentToggle.text("−").attr("aria-expanded", "true").attr("aria-label", "Collapse section");
-          }
+    $($parentSections).each(function () {
+      const $parentSection = $(this);
+      if ($parentSection.is(":hidden")) {
+        const $parentHeading = $parentSection.prev(headingSelectors);
+        const $parentToggle = $parentHeading.find(".collapse-toggle");
+        if ($parentToggle.length) {
+          // Expand the parent section
+          $parentSection.show();
+          $parentToggle.text("−").attr("aria-expanded", "true").attr("aria-label", "Collapse section");
         }
-      });
+      }
+    });
 
-      // Now, expand the target section if it's collapsed
+    // If the target is a heading, expand its section
+    if ($target.is(headingSelectors)) {
+      const $section = $target.next(".collapsible-section, .collapsible-subsection");
       if ($section.length && $section.is(":hidden")) {
-        $section.show(); // Show the section
-        const $toggleButton = $heading.find(".collapse-toggle");
+        // Expand the section
+        $section.show();
+        // Update the toggle button
+        const $toggleButton = $target.find(".collapse-toggle");
         if ($toggleButton.length) {
           $toggleButton.text("−").attr("aria-expanded", "true").attr("aria-label", "Collapse section");
         }
       }
+    } else {
+      // If the target is within a collapsed section, expand that section
+      const $closestSection = $target.closest(".collapsible-section, .collapsible-subsection");
+      if ($closestSection.length && $closestSection.is(":hidden")) {
+        const $sectionHeading = $closestSection.prev(headingSelectors);
+        if ($sectionHeading.length) {
+          // Expand the section
+          $closestSection.show();
+          // Update the toggle button
+          const $toggleButton = $sectionHeading.find(".collapse-toggle");
+          if ($toggleButton.length) {
+            $toggleButton.text("−").attr("aria-expanded", "true").attr("aria-label", "Collapse section");
+          }
+        }
+      }
     }
 
-    // Smoothly scroll to the heading
+    // Smoothly scroll to the target element
     (function () {
       let headerHeight = 0;
       const $header = $("#header");
@@ -476,20 +516,21 @@ function addNavigationClickHandler() {
 
         if (headerPosition === "fixed" || headerPosition === "sticky") {
           // Get the total height of the header, including margins
-          headerHeight = $header.outerHeight();
-
-          // Include sub-headers or additional elements if necessary
-          const $subHeader = $header.find(".sub-header");
-          if ($subHeader.length) {
-            headerHeight += $subHeader.outerHeight();
-          }
+          headerHeight = $header.outerHeight(true); // 'true' includes margins
         }
       }
 
-      // Adjust scrollTop by subtracting headerHeight
+      // Adjust for any additional fixed or sticky elements if necessary
+      let additionalOffset = 0;
+      // Add code here if you have other elements to consider
+
+      // Total offset to subtract
+      const totalOffset = headerHeight + additionalOffset;
+
+      // Adjust scrollTop by subtracting totalOffset
       $("html, body").animate(
         {
-          scrollTop: $heading.offset().top - headerHeight - 50,
+          scrollTop: $target.offset().top - totalOffset,
         },
         500
       );
