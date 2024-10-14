@@ -36,6 +36,9 @@ h5,
 h6 {
   position: relative;
 }
+h1 {
+  margin-right: 3em;
+}
 h1 .collapse-all-toggle {
   left: -1.5em;
 }
