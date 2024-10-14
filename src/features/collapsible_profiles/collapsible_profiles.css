@@ -24,7 +24,10 @@
   margin: 0;
   padding: 2px 8px;
 }
-
+.x-privacy {
+  position: relative;
+  z-index: 1000;
+}
 h1,
 h2,
 h3,
