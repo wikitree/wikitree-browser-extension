@@ -4,12 +4,35 @@
   cursor: pointer;
   border: 1px solid #ccc;
   padding: 2px 5px !important;
-  font-size: 0.6em !important;
+  font-size: 0.8em !important;
   border-radius: 0.5em;
   position: absolute;
-  top: 0;
-  left: -2em;
-  margin: 0.3em 0.2em;
+  top: 50%;
+  left: -1.8em;
+  transform: translateY(-50%);
+  margin: 0;
+  padding: 2px 10px;
+  font-family: monospace;
+  background-color: #eee;
+  color: #333;
+}
+.collapse-toc-toggle {
+  position: absolute;
+  top: 50%;
+  left: -1.3em;
+  transform: translateY(-50%);
+  margin: 0;
+  padding: 2px 8px;
+  top: 1.8em !important;
+}
+.toclevel-2 .collapse-toc-toggle,
+.toclevel-3 .collapse-toc-toggle,
+.toclevel-4 .collapse-toc-toggle,
+.toclevel-5 .collapse-toc-toggle,
+.toclevel-6 .collapse-toc-toggle,
+.toclevel-7 .collapse-toc-toggle,
+.toclevel-8 .collapse-toc-toggle {
+  top: -1.2em !important;
 }
 h1,
 h2,
@@ -33,4 +56,7 @@ h1 .collapse-all-toggle {
   margin: 0;
   top: auto;
   left: -3em;
+}
+#toc {
+  width: 100%;
 }

@@ -3,33 +3,61 @@ Created By: Ian Beacall (Beacall-6)
 */
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { isProfilePage, isSpacePage } from "../../core/pageType";
+
+// Global variable for heading levels
+const headingLevels = [2, 3, 4, 5, 6, 7, 8, 9]; // Include h2 to h9
 
 shouldInitializeFeature("collapsibleProfiles").then(async (result) => {
   if (result) {
     const options = await getFeatureOptions("collapsibleProfiles");
-    if (options.automaticallyAddButtons) {
+
+    let automaticallyAddButtons = false;
+
+    if (isProfilePage) {
+      automaticallyAddButtons = options.automaticallyAddButtonsProfiles;
+    } else if (isSpacePage) {
+      automaticallyAddButtons = options.automaticallyAddButtonsSpaces;
+    }
+
+    // Check if any of the auto-collapse options are selected
+    const autoCollapseOptionsSelected =
+      (isProfilePage &&
+        (options.collapseProfilesAllSections ||
+          options.collapseProfilesBiography ||
+          options.collapseProfilesResearchNotes ||
+          options.collapseProfilesSources ||
+          options.collapseProfilesAcknowledgments)) ||
+      (isSpacePage &&
+        (options.collapseSpacesAllSections ||
+          options.collapseSpacesResearchNotes ||
+          options.collapseSpacesSources ||
+          options.collapseSpacesAcknowledgments));
+
+    if (automaticallyAddButtons || autoCollapseOptionsSelected) {
       if (
         window.location.href.match(/WikiTree_Browser_Extension$/) ||
         window.location.href.match(/WikiTree_Browser_Extension#/)
       ) {
         console.log("Collapsible Profiles: Waiting for page to load...");
-        setTimeout(() => init(options), 8000); // Pass options to init if needed
+        setTimeout(() => init(options), 8000);
       } else {
-        init(options); // Pass options to init if needed
+        init(options);
       }
     } else {
+      // Add the "Collapse" menu item to the submenu
       const submenu = $("#views-wrap ul.views.viewsm").eq(0);
       const menuItem = $(
         `<li class="viewsi">
-        <a class="viewsi" title="Collapse sections" id='collapsibleProfilesMenuItem'>Collapse&nbsp;</a>
-        </li>`
+            <a class="viewsi" title="Collapse sections" id='collapsibleProfilesMenuItem'>Collapse&nbsp;</a>
+          </li>`
       );
       submenu.append(menuItem);
       $("#collapsibleProfilesMenuItem").on("click", function (e) {
         e.preventDefault();
         options.autoCollapse = true;
         console.log("Collapsible Profiles: collapsing all sections...");
-        init(options); // Pass options to init if needed
+        init(options);
         $(this).fadeOut(1000, function () {
           $(this).remove();
         });
@@ -43,48 +71,123 @@ function init(options) {
     createCollapsibleSections();
     addCollapsibleButtons();
     addCollapseAllButton();
-    addNavigationClickHandler(); // Updated Function Call
+    addNavigationClickHandler();
     setTimeout(() => {
       addToggleButtonsToTOC();
-      2000;
-    });
-    if (options.autoCollapse) {
-      $(".collapse-all-toggle").trigger("click");
-      collapseTOCAll();
+    }, 2000);
+
+    // Check if auto-collapse is enabled
+    let autoCollapse = options.autoCollapse || false;
+
+    if (!autoCollapse) {
+      if (isProfilePage) {
+        if (options.collapseProfilesAllSections) {
+          autoCollapse = true;
+        }
+      } else if (isSpacePage) {
+        if (options.collapseSpacesAllSections) {
+          autoCollapse = true;
+        }
+      }
     }
+
+    if (autoCollapse) {
+      collapseAllSections();
+      // Set the collapse-all-toggle button to '+'
+      $(".collapse-all-toggle").text("+");
+      collapseTOCAll(true); // Collapse the TOC
+    }
+
+    // Always collapse specific sections based on options
+    collapseSpecificSections(options);
   });
 }
 
 function createCollapsibleSections() {
-  // Define the heading levels to process
-  const headingLevels = [2, 3, 4, 5, 6];
+  // Use the global headingLevels variable
 
-  headingLevels.forEach((level, index) => {
+  // **First Pass:** Assign IDs to headings based on preceding <a> tags
+  headingLevels.forEach((level) => {
     const currentSelector = `h${level}`;
-    // For h2, use 'collapsible-section'; for others, use 'collapsible-subsection'
+    document.querySelectorAll(currentSelector).forEach(function (currentHeading) {
+      let anchor = null;
+      let prevNode = currentHeading.previousSibling;
+
+      // Loop backwards through previous siblings, including text nodes
+      while (prevNode) {
+        if (prevNode.nodeType === Node.ELEMENT_NODE) {
+          if (/^H[1-9]$/.test(prevNode.tagName)) {
+            // Reached another heading, stop searching
+            break;
+          }
+          if (prevNode.tagName.toLowerCase() === "a" && prevNode.hasAttribute("name")) {
+            anchor = prevNode;
+            break;
+          }
+        }
+        prevNode = prevNode.previousSibling;
+      }
+
+      // If no anchor found before the heading, check inside the heading
+      if (!anchor) {
+        anchor = currentHeading.querySelector("a[name]");
+      }
+
+      if (anchor) {
+        const nameAttr = anchor.getAttribute("name");
+        if (nameAttr) {
+          currentHeading.id = nameAttr;
+          anchor.parentNode.removeChild(anchor); // Remove the anchor after assigning the id
+        }
+      }
+    });
+  });
+
+  // **Second Pass:** Wrap content into collapsible sections
+  headingLevels.reverse().forEach((level) => {
+    const currentSelector = `h${level}`;
     const wrapClass = level === 2 ? "collapsible-section" : "collapsible-subsection";
 
     // Determine which heading levels should stop the wrapping
-    const stopLevels = headingLevels
-      .slice(0, index + 1)
-      .map((l) => `h${l}`)
-      .join(", ");
+    const stopLevels = [];
+    for (let l = 1; l <= level; l++) {
+      stopLevels.push(`h${l}`);
+    }
+    const stopLevelsSelector = stopLevels.join(", ");
 
-    $(currentSelector).each(function () {
-      const $currentHeading = $(this);
-      const $content = $currentHeading.nextUntil(stopLevels);
-      if ($content.length) {
-        $content.wrapAll(`<div class="${wrapClass}"></div>`);
+    document.querySelectorAll(currentSelector).forEach(function (currentHeading) {
+      // Wrap content until the next heading of the same or higher level
+      const content = [];
+      let sibling = currentHeading.nextSibling;
+      while (sibling) {
+        if (sibling.nodeType === Node.ELEMENT_NODE && sibling.matches(stopLevelsSelector)) {
+          break;
+        }
+        let nextSibling = sibling.nextSibling;
+        content.push(sibling);
+        sibling = nextSibling;
+      }
+
+      if (content.length > 0) {
+        const wrapper = document.createElement("div");
+        wrapper.className = wrapClass;
+        currentHeading.parentNode.insertBefore(wrapper, content[0]);
+        content.forEach((node) => {
+          wrapper.appendChild(node);
+        });
       }
     });
   });
 }
 
 function addCollapsibleButtons() {
+  // Use the global headingLevels variable
+  const headingSelectors = headingLevels.map((level) => `h${level}`).join(", ");
+
   // Attach a single event listener to the document for all toggle buttons (Event Delegation)
   $(document).on("click", ".collapse-toggle", function () {
     const $button = $(this);
-    const $heading = $button.closest("h2, h3, h4, h5");
+    const $heading = $button.closest(headingSelectors);
     const $section = $heading.next(".collapsible-section, .collapsible-subsection");
     const isExpanded = $button.attr("aria-expanded") === "true";
 
@@ -111,7 +214,7 @@ function addCollapsibleButtons() {
   });
 
   // Initialize toggle buttons based on initial state
-  $("h2, h3, h4, h5").each(function () {
+  $(headingSelectors).each(function () {
     const $heading = $(this);
     const $section = $heading.next(".collapsible-section, .collapsible-subsection");
     const isExpanded = $section.is(":visible");
@@ -121,8 +224,8 @@ function addCollapsibleButtons() {
 
     const $button = $(
       `<button class="collapse-toggle" aria-expanded="${ariaExpanded}" aria-label="${ariaLabel}">
-        ${buttonText}
-      </button>`
+          ${buttonText}
+        </button>`
     );
     $heading.append($button);
   });
@@ -141,12 +244,14 @@ function addCollapseAllButton() {
         $(".collapse-toggle").each(function () {
           $(this).text("+").attr("aria-expanded", "false").attr("aria-label", "Expand section");
         });
+        collapseTOCAll(true); // Collapse the TOC
       } else {
         $allSections.slideDown();
         $button.text("−");
         $(".collapse-toggle").each(function () {
           $(this).text("−").attr("aria-expanded", "true").attr("aria-label", "Collapse section");
         });
+        collapseTOCAll(false); // Expand the TOC
       }
     });
 
@@ -155,61 +260,119 @@ function addCollapseAllButton() {
   });
 }
 
+function collapseAllSections() {
+  const $allSections = $(".collapsible-section, .collapsible-subsection");
+  $allSections.hide(); // Immediately hide sections
+  // Set all toggle buttons to '+', aria-expanded='false', aria-label='Expand section'
+  $(".collapse-toggle").each(function () {
+    $(this).text("+").attr("aria-expanded", "false").attr("aria-label", "Expand section");
+  });
+}
+
+function collapseSpecificSections(options) {
+  if (isProfilePage) {
+    if (options.collapseProfilesAllSections) {
+      // Already handled in autoCollapse
+      return;
+    }
+    if (options.collapseProfilesBiography) {
+      collapseSectionByHeadingId("Biography");
+    }
+    if (options.collapseProfilesResearchNotes) {
+      collapseSectionByHeadingId("Research_Notes");
+    }
+    if (options.collapseProfilesSources) {
+      collapseSectionByHeadingId("Sources");
+    }
+    if (options.collapseProfilesAcknowledgments) {
+      collapseSectionByHeadingId("Acknowledgements");
+      collapseSectionByHeadingId("Acknowledgments");
+    }
+  } else if (isSpacePage) {
+    if (options.collapseSpacesAllSections) {
+      // Already handled in autoCollapse
+      return;
+    }
+    if (options.collapseSpacesResearchNotes) {
+      collapseSectionByHeadingId("Research_Notes");
+    }
+    if (options.collapseSpacesSources) {
+      collapseSectionByHeadingId("Sources");
+    }
+    if (options.collapseSpacesAcknowledgments) {
+      collapseSectionByHeadingId("Acknowledgements");
+      collapseSectionByHeadingId("Acknowledgments");
+    }
+  }
+}
+
+function collapseSectionByHeadingId(headingId) {
+  const $heading = $(`#${headingId}`);
+  if ($heading.length) {
+    const $section = $heading.next(".collapsible-section, .collapsible-subsection");
+    if ($section.length && $section.is(":visible")) {
+      $section.hide(); // Immediately hide section
+      // Set the toggle button to '+', aria-expanded='false', aria-label='Expand section'
+      const $toggleButton = $heading.find(".collapse-toggle");
+      if ($toggleButton.length) {
+        $toggleButton.text("+").attr("aria-expanded", "false").attr("aria-label", "Expand section");
+      }
+    }
+  } else {
+    console.warn(`Heading with ID '${headingId}' not found.`);
+  }
+}
+
 function addToggleButtonsToTOC() {
   const $toc = $("#toc ul");
   $toc.css("list-style-type", "none");
+
+  // Remove any existing event handlers to prevent duplicate bindings
+  $(document).off("click", "#toc ul .collapse-toc-toggle");
+
   $(document).on("click", "#toc ul .collapse-toc-toggle", function () {
     const $button = $(this);
-    console.log("TOC Toggle Clicked:", $button.text());
 
     const $li = $button.closest("li");
     const $section = $li.children("ul");
     const isExpanded = $button.text() === "−";
-    console.log(`Button text: ${$button.text()}`);
-
-    console.log(`TOC Toggle Clicked: ${isExpanded ? "Collapsing" : "Expanding"} section`);
 
     if (isExpanded) {
       $section.slideUp();
       $button.text("+");
-      console.log("Section collapsed");
     } else {
       $section.slideDown();
       $button.text("−");
-      console.log("Section expanded");
     }
   });
-
-  $(document).on("click", "#toc h2 .collapse-toggle", collapseTOCAll);
 
   // Find all LIs with a nested UL (i.e., sections with subsections)
   $toc.find("li:has(ul)").each(function () {
     const $li = $(this);
     $li.css("position", "relative"); // Ensure that the button is positioned correctly
-    const $button = $('<button class="collapse-toc-toggle">−</button>'); // Use actual minus sign
+    const $section = $li.children("ul");
+    const isExpanded = $section.is(":visible");
+    const buttonText = isExpanded ? "−" : "+";
+    const $button = $(`<button class="collapse-toc-toggle">${buttonText}</button>`);
     $li.prepend($button);
   });
 }
 
-function collapseTOCAll() {
-  // collapse all sections in the TOC
+function collapseTOCAll(collapse = true) {
   const $toc = $("#toc ul");
-  const $button = $("#toc h2 .collapse-toggle");
-  setTimeout(() => {
-    const buttons = $toc.find("button.collapse-toc-toggle");
-    const uls = $toc.find("ul");
+  const buttons = $toc.find("button.collapse-toc-toggle");
+  const uls = $toc.find("ul");
 
-    if ($button.text() === "−") {
-      buttons.text("−");
-      uls.slideDown();
-    } else {
-      buttons.text("+");
-      uls.slideUp();
-    }
-  }, 100);
+  if (collapse) {
+    buttons.text("+");
+    uls.hide(); // Immediately hide
+  } else {
+    buttons.text("−");
+    uls.show(); // Immediately show
+  }
 }
 
-// **Updated Function: Add Navigation Click Handler**
+// **Function: Add Navigation Click Handler**
 function addNavigationClickHandler() {
   // Define selectors for navigational links: TOC and WBEnav
   const navSelectors = "#toc a, .WBEnav a";
@@ -219,6 +382,9 @@ function addNavigationClickHandler() {
     console.warn("No navigational links found with selectors:", navSelectors);
     return;
   }
+
+  // Use the global headingLevels variable
+  const headingSelectors = headingLevels.map((level) => `h${level}`).join(", ");
 
   // Attach click event listener to all navigational <a> tags
   $(navSelectors).on("click", function (e) {
@@ -230,23 +396,15 @@ function addNavigationClickHandler() {
       return; // Not an internal link
     }
 
-    const targetId = href.substring(1); // Remove the '#' character
-    const $anchor = $(`a[name="${targetId}"]`); // Find <a> with matching name attribute
+    const targetId = decodeURIComponent(href.substring(1)); // Remove the '#' character and decode
+    const headingElement = document.getElementById(targetId);
 
-    if ($anchor.length === 0) {
-      console.warn(`Anchor with name '${targetId}' not found.`);
+    if (!headingElement) {
+      console.warn(`Heading with id '${targetId}' not found.`);
       return;
     }
 
-    // <a> is within a collapsed subsection
-    let $heading = $anchor.closest(".collapsible-subsection").nextAll("h2, h3, h4, h5").first();
-    if ($heading.length === 0) {
-      $heading = $anchor.closest(".collapsible-section").nextAll("h2, h3, h4, h5").first();
-    }
-    if ($heading.length === 0) {
-      console.warn(`No heading found after anchor with name '${targetId}'.`);
-      return;
-    }
+    const $heading = $(headingElement);
 
     const $section = $heading.next(".collapsible-section, .collapsible-subsection");
 
@@ -255,34 +413,58 @@ function addNavigationClickHandler() {
       // Even if there's no collapsible section, proceed to scroll
     } else {
       // Expand all parent sections first
-      const $parentSections = $heading.parents(".collapsible-section, .collapsible-subsection").get().reverse(); // Reverse to expand from top to bottom
+      const $parentSections = $heading.parents(".collapsible-section, .collapsible-subsection").get().reverse();
 
       $($parentSections).each(function () {
         const $parentSection = $(this);
         if ($parentSection.is(":hidden")) {
-          const $parentHeading = $parentSection.prev("h2, h3, h4, h5");
+          const $parentHeading = $parentSection.prev(headingSelectors);
           const $parentToggle = $parentHeading.find(".collapse-toggle");
           if ($parentToggle.length) {
-            $parentToggle.trigger("click"); // Trigger the toggle to expand
+            // Expand the parent section
+            $parentSection.show();
+            $parentToggle.text("−").attr("aria-expanded", "true").attr("aria-label", "Collapse section");
           }
         }
       });
 
       // Now, expand the target section if it's collapsed
       if ($section.length && $section.is(":hidden")) {
+        $section.show(); // Show the section
         const $toggleButton = $heading.find(".collapse-toggle");
         if ($toggleButton.length) {
-          $toggleButton.trigger("click"); // Trigger the toggle to expand
+          $toggleButton.text("−").attr("aria-expanded", "true").attr("aria-label", "Collapse section");
         }
       }
     }
 
     // Smoothly scroll to the heading
-    $("html, body").animate(
-      {
-        scrollTop: $heading.offset().top,
-      },
-      500
-    ); // Adjust the duration as needed (500ms)
+    (function () {
+      let headerHeight = 0;
+      const $header = $("#header");
+
+      if ($header.length) {
+        const headerPosition = $header.css("position");
+
+        if (headerPosition === "fixed" || headerPosition === "sticky") {
+          // Get the total height of the header, including margins
+          headerHeight = $header.outerHeight();
+
+          // Include sub-headers or additional elements if necessary
+          const $subHeader = $header.find(".sub-header");
+          if ($subHeader.length) {
+            headerHeight += $subHeader.outerHeight();
+          }
+        }
+      }
+
+      // Adjust scrollTop by subtracting headerHeight
+      $("html, body").animate(
+        {
+          scrollTop: $heading.offset().top - headerHeight - 50,
+        },
+        500
+      );
+    })();
   });
 }
