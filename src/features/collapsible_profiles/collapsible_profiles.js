@@ -100,6 +100,9 @@ function init(options) {
 
     // Always collapse specific sections based on options
     collapseSpecificSections(options);
+
+    // Update toggle buttons to match current visibility of sections
+    updateToggleButtons();
   });
 }
 
@@ -306,17 +309,42 @@ function collapseSpecificSections(options) {
   }
 }
 
+function updateToggleButtons() {
+  const headingSelectors = headingLevels.map((level) => `h${level}`).join(", ");
+  $(headingSelectors).each(function () {
+    const $heading = $(this);
+    const $section = $heading.next(".collapsible-section, .collapsible-subsection");
+    if ($section.length) {
+      const isExpanded = $section.is(":visible");
+      const $toggleButton = $heading.find(".collapse-toggle");
+      if ($toggleButton.length) {
+        const buttonText = isExpanded ? "−" : "+";
+        const ariaExpanded = isExpanded ? "true" : "false";
+        const ariaLabel = isExpanded ? "Collapse section" : "Expand section";
+        $toggleButton.text(buttonText).attr("aria-expanded", ariaExpanded).attr("aria-label", ariaLabel);
+      }
+    }
+  });
+}
+
 function collapseSectionByHeadingId(headingId) {
   const $heading = $(`#${headingId}`);
   if ($heading.length) {
     const $section = $heading.next(".collapsible-section, .collapsible-subsection");
-    if ($section.length && $section.is(":visible")) {
-      $section.hide(); // Immediately hide section
-      // Set the toggle button to '+', aria-expanded='false', aria-label='Expand section'
+    if ($section.length) {
+      // Hide the section and all nested sections
+      $section.find(".collapsible-section, .collapsible-subsection").addBack().hide();
+
+      // Update the toggle button of the heading
       const $toggleButton = $heading.find(".collapse-toggle");
       if ($toggleButton.length) {
         $toggleButton.text("+").attr("aria-expanded", "false").attr("aria-label", "Expand section");
       }
+
+      // Update the toggle buttons of all nested headings within $section
+      $section.find(".collapse-toggle").each(function () {
+        $(this).text("+").attr("aria-expanded", "false").attr("aria-label", "Expand section");
+      });
     }
   } else {
     console.warn(`Heading with ID '${headingId}' not found.`);
