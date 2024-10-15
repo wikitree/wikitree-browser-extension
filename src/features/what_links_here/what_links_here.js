@@ -28,7 +28,17 @@ async function fillWhatLinksHereSection() {
     const whatLinksHereWikiTreeIDs = [];
     const whatLinksHereProfiles = [];
     if (dLinks.length == 0) {
-      $("#What_Links_Here").after("<div id='whatLinksHere'><dl><dd>Nothing links here yet.</dd></dl></div>");
+      const nextElement = $("#What_Links_Here").next();
+      const $whatLinksHere = $("<div id='whatLinksHere'><dl><dd>Nothing links here yet.</dd></dl></div>");
+      if (nextElement.hasClass("collapsible-section")) {
+        nextElement.prepend($whatLinksHere);
+        if ($("#What_Links_Here").find("button.collapse-toggle").text() == "+") {
+          $("#What_Links_Here").find("button.collapse-toggle").trigger("click");
+          $("span.toggle-whl").fadeOut(500);
+        }
+      } else {
+        $("#What_Links_Here").after($whatLinksHere);
+      }
       return;
     }
     dLinks.sort(function (a, b) {
@@ -244,6 +254,13 @@ async function whatLinksHereLink() {
       } else {
         $("#content .ten").append(theSection);
       }
+      // Add a link to the TOC
+      const toclevel1Count = $("#toc ul:first li.toclevel-1").length;
+      const newToclevel1Count = toclevel1Count + 1;
+
+      $("#toc ul:first").append(
+        `<li class="toclevel-1"><a href="#What_Links_Here" title=""><span class="tocnumber">${newToclevel1Count}</span> <span class="toctext">What Links Here</span></a></li>`
+      );
     } else if (isMediaWikiPage) {
       $("#content > .sixteen").append(theSection);
     }

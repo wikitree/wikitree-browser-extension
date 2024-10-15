@@ -8,21 +8,21 @@
   border-radius: 0.5em;
   position: absolute;
   top: 50%;
-  left: -1.8em;
   transform: translateY(-50%);
   margin: 0;
   padding: 2px 10px;
   font-family: monospace;
   background-color: #eee;
   color: #333;
+  left: -1.7em;
 }
 .collapse-toc-toggle {
   position: absolute;
   top: auto;
-  left: -1.3em;
   transform: none;
   margin: 0;
   padding: 2px 8px;
+  left: -1.1em;
 }
 .x-privacy,
 .x-sticker {
@@ -41,7 +41,7 @@ h1 {
   margin-right: 3em;
 }
 h1 .collapse-all-toggle {
-  left: -1.5em;
+  left: -1.2em;
 }
 
 .collapse-toggle:hover,
@@ -53,7 +53,7 @@ h1 .collapse-all-toggle {
 #toc ul .collapse-toc-toggle {
   margin: 0;
   top: auto;
-  left: -3em;
+  left: -2.2em;
 }
 #toc {
   width: 100%;
