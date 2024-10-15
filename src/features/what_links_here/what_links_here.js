@@ -28,7 +28,7 @@ async function fillWhatLinksHereSection() {
     const whatLinksHereWikiTreeIDs = [];
     const whatLinksHereProfiles = [];
     if (dLinks.length == 0) {
-      $("#whatLinksHereSection").append("<div><dl><dd>Nothing links here yet.</dd></dl></div>");
+      $("#What_Links_Here").after("<div><dl><dd>Nothing links here yet.</dd></dl></div>");
       return;
     }
     dLinks.sort(function (a, b) {
@@ -87,7 +87,7 @@ async function fillWhatLinksHereSection() {
             wlhContainers += "<div><ul id='whatLinksHereLinksPages' class='star'></ul></div>";
           }
           wlhContainers = '<div style="display: flex;">' + wlhContainers + "</div>";
-          $("#whatLinksHereSection").append(wlhContainers);
+          $("#What_Links_Here").after(wlhContainers);
 
           whatLinksHerePages.forEach(function (aLink) {
             let anLi = $("<li></li>");
@@ -102,6 +102,9 @@ async function fillWhatLinksHereSection() {
         }
       );
     }
+    $("#whatLinksHereMore").fadeOut(200, function () {
+      $(this).remove();
+    });
   });
 }
 
@@ -214,11 +217,10 @@ async function whatLinksHereLink() {
   const options = await getFeatureOptions("whatLinksHere");
   if (options.whatLinksHereSection && isWikiPage) {
     const theSection = $(
-      '<section id="whatLinksHereSection">' +
-        "<h2>What Links Here " +
-        '<span class="toggle toggle-whl">' +
-        '<input type="checkbox" id="whatLinksHereMore">' +
-        '<label for="whatLinksHereMore"></label></span></h2></section>'
+      `<h2 id='What_Links_Here'>What Links Here
+        <span class="toggle toggle-whl">
+        <input type="checkbox" id="whatLinksHereMore">
+        <label for="whatLinksHereMore"></label></span></h2>`
     );
     if (isProfilePage || isSpacePage) {
       if ($("#content .ten > div.EDIT").length) {
