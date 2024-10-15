@@ -194,7 +194,7 @@ function generateOptionHTML(featureId, option) {
       optionHTML = `<div class="option-radio"><span>${option.label}:</span>`;
       option.values.forEach((value) => {
         const radioId = `${fullOptionElementId}_${value.value}`;
-        const labelText = value.label !== undefined ? value.label : value.value;
+        const labelText = value.label !== undefined ? value.label : value.text;
         optionHTML += `
           <div>
             <input type="radio" name="${fullOptionElementId}" id="${radioId}" value="${value.value}" data-feature-id="${featureId}" data-option-id="${option.id}">
@@ -212,7 +212,7 @@ function generateOptionHTML(featureId, option) {
           <select id="${fullOptionElementId}" data-feature-id="${featureId}" data-option-id="${option.id}">
       `;
       option.values.forEach((value) => {
-        const labelText = value.label !== undefined ? value.label : value.value;
+        const labelText = value.label !== undefined ? value.label : value.text;
         optionHTML += `<option value="${value.value}">${labelText}</option>`;
       });
       optionHTML += `</select></div>`;
