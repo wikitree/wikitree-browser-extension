@@ -104,6 +104,14 @@ function init(options) {
 
     // Update toggle buttons to match current visibility of sections
     updateToggleButtons();
+
+    const initialHash = window.location.hash.substring(1);
+    if (initialHash) {
+      // Delay to ensure all sections are initialized
+      setTimeout(() => {
+        navigateTo(decodeURIComponent(initialHash));
+      }, 500); // Adjust the delay as needed
+    }
   });
 }
 
@@ -418,99 +426,99 @@ function addToggleAllToTOC() {
   }
 }
 
-function addNavigationClickHandler() {
-  // Define selectors for navigational links: TOC, WBEnav, footnote references, and back-references
-  const navSelectors = "#toc a:not(#togglelink), .WBEnav a, sup.reference a, a.a11y-back-ref";
-
+// Function to handle navigation to a target ID
+function navigateTo(targetId) {
   // Use the global headingLevels variable
   const headingSelectors = headingLevels.map((level) => `h${level}`).join(", ");
 
-  // Function to handle navigation to a target ID
-  function navigateTo(targetId) {
-    const targetElement = document.getElementById(targetId);
+  const targetElement = document.getElementById(targetId);
 
-    if (!targetElement) {
-      console.warn(`Element with id '${targetId}' not found.`);
-      return;
-    }
+  if (!targetElement) {
+    console.warn(`Element with id '${targetId}' not found.`);
+    return;
+  }
 
-    const $target = $(targetElement);
+  const $target = $(targetElement);
 
-    // Expand all collapsed parent sections
-    const $parentSections = $target.parents(".collapsible-section, .collapsible-subsection").get().reverse();
+  // Expand all collapsed parent sections
+  const $parentSections = $target.parents(".collapsible-section, .collapsible-subsection").get().reverse();
 
-    $($parentSections).each(function () {
-      const $parentSection = $(this);
-      if ($parentSection.is(":hidden")) {
-        const $parentHeading = $parentSection.prev(headingSelectors);
-        const $parentToggle = $parentHeading.find(".collapse-toggle");
-        if ($parentToggle.length) {
-          // Expand the parent section
-          $parentSection.show();
-          $parentToggle.text("−").attr("aria-expanded", "true").attr("aria-label", "Collapse section");
-        }
+  $($parentSections).each(function () {
+    const $parentSection = $(this);
+    if ($parentSection.is(":hidden")) {
+      const $parentHeading = $parentSection.prev(headingSelectors);
+      const $parentToggle = $parentHeading.find(".collapse-toggle");
+      if ($parentToggle.length) {
+        // Expand the parent section
+        $parentSection.show();
+        $parentToggle.text("−").attr("aria-expanded", "true").attr("aria-label", "Collapse section");
       }
-    });
+    }
+  });
 
-    // If the target is a heading, expand its section
-    if ($target.is(headingSelectors)) {
-      const $section = $target.next(".collapsible-section, .collapsible-subsection");
-      if ($section.length && $section.is(":hidden")) {
+  // If the target is a heading, expand its section
+  if ($target.is(headingSelectors)) {
+    const $section = $target.next(".collapsible-section, .collapsible-subsection");
+    if ($section.length && $section.is(":hidden")) {
+      // Expand the section
+      $section.show();
+      // Update the toggle button
+      const $toggleButton = $target.find(".collapse-toggle");
+      if ($toggleButton.length) {
+        $toggleButton.text("−").attr("aria-expanded", "true").attr("aria-label", "Collapse section");
+      }
+    }
+  } else {
+    // If the target is within a collapsed section, expand that section
+    const $closestSection = $target.closest(".collapsible-section, .collapsible-subsection");
+    if ($closestSection.length && $closestSection.is(":hidden")) {
+      const $sectionHeading = $closestSection.prev(headingSelectors);
+      if ($sectionHeading.length) {
         // Expand the section
-        $section.show();
+        $closestSection.show();
         // Update the toggle button
-        const $toggleButton = $target.find(".collapse-toggle");
+        const $toggleButton = $sectionHeading.find(".collapse-toggle");
         if ($toggleButton.length) {
           $toggleButton.text("−").attr("aria-expanded", "true").attr("aria-label", "Collapse section");
         }
       }
-    } else {
-      // If the target is within a collapsed section, expand that section
-      const $closestSection = $target.closest(".collapsible-section, .collapsible-subsection");
-      if ($closestSection.length && $closestSection.is(":hidden")) {
-        const $sectionHeading = $closestSection.prev(headingSelectors);
-        if ($sectionHeading.length) {
-          // Expand the section
-          $closestSection.show();
-          // Update the toggle button
-          const $toggleButton = $sectionHeading.find(".collapse-toggle");
-          if ($toggleButton.length) {
-            $toggleButton.text("−").attr("aria-expanded", "true").attr("aria-label", "Collapse section");
-          }
-        }
+    }
+  }
+
+  // Smoothly scroll to the target element
+  (function () {
+    let headerHeight = 0;
+    const $header = $("#header");
+
+    if ($header.length) {
+      const headerPosition = $header.css("position");
+
+      if (headerPosition === "fixed" || headerPosition === "sticky") {
+        // Get the total height of the header, including margins
+        headerHeight = $header.outerHeight(true); // 'true' includes margins
       }
     }
 
-    // Smoothly scroll to the target element
-    (function () {
-      let headerHeight = 0;
-      const $header = $("#header");
+    // Adjust for any additional fixed or sticky elements if necessary
+    let additionalOffset = 0;
+    // Add code here if you have other elements to consider
 
-      if ($header.length) {
-        const headerPosition = $header.css("position");
+    // Total offset to subtract
+    const totalOffset = headerHeight + additionalOffset;
 
-        if (headerPosition === "fixed" || headerPosition === "sticky") {
-          // Get the total height of the header, including margins
-          headerHeight = $header.outerHeight(true); // 'true' includes margins
-        }
-      }
+    // Adjust scrollTop by subtracting totalOffset
+    $("html, body").animate(
+      {
+        scrollTop: $target.offset().top - totalOffset,
+      },
+      500
+    );
+  })();
+}
 
-      // Adjust for any additional fixed or sticky elements if necessary
-      let additionalOffset = 0;
-      // Add code here if you have other elements to consider
-
-      // Total offset to subtract
-      const totalOffset = headerHeight + additionalOffset;
-
-      // Adjust scrollTop by subtracting totalOffset
-      $("html, body").animate(
-        {
-          scrollTop: $target.offset().top - totalOffset,
-        },
-        500
-      );
-    })();
-  }
+function addNavigationClickHandler() {
+  // Define selectors for navigational links: TOC, WBEnav, footnote references, and back-references
+  const navSelectors = "#toc a:not(#togglelink), .WBEnav a, sup.reference a, a.a11y-back-ref";
 
   // Attach click event listener to all navigational <a> tags
   $(document).on("click", navSelectors, function (e) {
