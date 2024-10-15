@@ -22,7 +22,6 @@ shouldInitializeFeature("help").then((result) => {
 
 async function initializeFeatureSettingsOnHelpPage() {
   for (const feature of features) {
-    console.log(feature);
     injectFeatureSettings(feature);
   }
 }
