@@ -210,9 +210,6 @@ function addCollapsibleButtons() {
       $button.text("−");
       $button.attr("aria-expanded", "true");
       $button.attr("aria-label", "Collapse section");
-
-      // Ensure that all nested toggle buttons remain in the collapsed state
-      $section.find(".collapse-toggle").text("+").attr("aria-expanded", "false").attr("aria-label", "Expand section");
     }
   });
 
