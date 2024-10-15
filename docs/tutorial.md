@@ -1,4 +1,4 @@
-# Creating a new feature example
+# Creating a new feature
 
 This tutorial will walk you through creating a simple feature for the WikiTree Browser Extension (WBE).
 
