@@ -28,7 +28,7 @@ async function fillWhatLinksHereSection() {
     const whatLinksHereWikiTreeIDs = [];
     const whatLinksHereProfiles = [];
     if (dLinks.length == 0) {
-      $("#What_Links_Here").after("<div><dl><dd>Nothing links here yet.</dd></dl></div>");
+      $("#What_Links_Here").after("<div id='whatLinksHere'><dl><dd>Nothing links here yet.</dd></dl></div>");
       return;
     }
     dLinks.sort(function (a, b) {
@@ -86,8 +86,20 @@ async function fillWhatLinksHereSection() {
           if (whatLinksHerePages.length) {
             wlhContainers += "<div><ul id='whatLinksHereLinksPages' class='star'></ul></div>";
           }
-          wlhContainers = '<div style="display: flex;">' + wlhContainers + "</div>";
-          $("#What_Links_Here").after(wlhContainers);
+          wlhContainers = '<div id="whatLinksHere" style="display: flex;">' + wlhContainers + "</div>";
+
+          // If the element after #What_Links_Here is a .collapsible-section, append the new content to it.
+          // If #What_Links_Here button.collapse-toggle text() == "−", toggle the section open.
+          // Otherwise, append the new content after #What_Links_Here.
+
+          if ($("#What_Links_Here").next().hasClass("collapsible-section")) {
+            $("#What_Links_Here").next().prepend(wlhContainers);
+            if ($("#What_Links_Here").find("button.collapse-toggle").text() == "+") {
+              $("#What_Links_Here").find("button.collapse-toggle").trigger("click");
+            }
+          } else {
+            $("#What_Links_Here").after(wlhContainers);
+          }
 
           whatLinksHerePages.forEach(function (aLink) {
             let anLi = $("<li></li>");

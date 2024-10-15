@@ -24,7 +24,8 @@
   margin: 0;
   padding: 2px 8px;
 }
-.x-privacy {
+.x-privacy,
+.x-sticker {
   position: relative;
   z-index: 1000;
 }
