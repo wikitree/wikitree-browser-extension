@@ -204,10 +204,6 @@ function addCollapsibleButtons() {
       $button.text("+");
       $button.attr("aria-expanded", "false");
       $button.attr("aria-label", "Expand section");
-
-      // Also collapse all nested sections within this section
-      $section.find(".collapsible-section, .collapsible-subsection").slideUp();
-      $section.find(".collapse-toggle").text("+").attr("aria-expanded", "false").attr("aria-label", "Expand section");
     } else {
       // Currently collapsed, so expand it
       $section.slideDown();
