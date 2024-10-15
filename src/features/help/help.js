@@ -22,7 +22,7 @@ shouldInitializeFeature("help").then((result) => {
 
 async function initializeFeatureSettingsOnHelpPage() {
   for (const feature of features) {
-    // console.log(feature);
+    console.log(feature);
     injectFeatureSettings(feature);
   }
 }
@@ -104,6 +104,8 @@ function injectFeatureSettings(feature) {
         );
       }
 
+      const $descriptionHTML = feature.description ? `<div class="wbe-description">${feature.description}</div>` : "";
+
       // Create the options container that will be toggled
       const $optionsContainer = $("<div>", {
         class: "options-container",
@@ -136,7 +138,7 @@ function injectFeatureSettings(feature) {
       $settingsHeader.append($flexSpacer, $creatorsAndContributors);
 
       // Append the header and options into the settings container
-      $settingsContainer.append($settingsHeader, $optionsContainer);
+      $settingsContainer.append($settingsHeader, $descriptionHTML, $optionsContainer);
 
       // Append the settings container after the heading element
       $headingElement.after($settingsContainer);
