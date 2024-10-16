@@ -88,6 +88,12 @@ const g2g = {
       label: "Make 'My WikiTree' link work like on other pages",
       defaultValue: true,
     },
+    {
+      id: "removeAds",
+      type: OptionType.CHECKBOX,
+      label: "Remove Ads",
+      defaultValue: true,
+    },
   ],
 };
 

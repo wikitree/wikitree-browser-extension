@@ -2,7 +2,7 @@
 Created By: Ian Beacall (Beacall-6)
 */
 
-import $ from "jquery";
+import $, { get } from "jquery";
 import "./g2g_.css";
 import { isOK, getUserWtId } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
@@ -142,6 +142,10 @@ function addScissorsToAnswers() {
 
 async function initG2G() {
   const options = await getFeatureOptions("g2g");
+  if (options.removeAds && getUserWtId()) {
+    console.log(getUserWtId());
+    import("./remove_ad.css");
+  }
   if (options.checkMarks) {
     g2gCheckmarks();
   }
