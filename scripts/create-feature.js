@@ -186,6 +186,19 @@ console.log("Feature creation complete.");
  *    - `-c` or `--category`: The category for the feature (e.g., `Profile`).
  *    - `-p` or `--pageTypes`: A comma-separated list of page types this feature applies to (e.g., `isProfilePage, isSpacePage`).
  *
+ * **Important Notes**
+ * - **Page Types**: These are used to specify where the feature should be applied. Some important page types include `isProfilePage`, `isProfileEdit`, `isSpacePage`, `isSpaceEdit`, `isMainDomain`, etc. For more available page types, see `src/core/page_type.js`.
+ * - **Categories**: The category helps to classify the feature in the extension. The available categories are:
+ *   - `Global`
+ *   - `Global/Style`
+ *   - `Profile`
+ *   - `Editing`
+ *   - `Editing/Add_Person`
+ *   - `Editing/Edit_Profile`
+ *   - `Navigation`
+ *   - `Navigation/Find_Menu`
+ *   - `Community`
+ *
  * What the script does:
  * - Creates a directory for the new feature under `src/features`.
  * - Generates three files for the feature:

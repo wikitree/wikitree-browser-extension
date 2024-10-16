@@ -1,4 +1,4 @@
-# Creating a new feature example
+# Creating a New Feature
 
 This tutorial will walk you through creating a simple feature for the WikiTree Browser Extension (WBE).
 
@@ -128,60 +128,81 @@ If you are using GitHub Desktop, follow these steps:
 2. **Create a new branch** by clicking on the "Current Branch" dropdown and selecting "New Branch".
 3. Enter `helloWorld` as the branch name and click "Create Branch".
 
-Now that you are on the new branch, continue with the steps below to set up your feature.
+Now that you are on the new branch, use the create-feature script to set up your files.
 
-There are a few setup steps to do so the code knows about your feature.
+### Setting Up a New Feature Using the Automation Script
 
-Find and open the file `src/features/register_feature_options.js`.
+We now have a script that can automate much of the setup process for a new feature. Instead of manually creating files and adding entries to existing files, you can use this script to quickly scaffold everything.
 
-Add this code to that file and save:
+#### **Before Using the Script**
 
-```js
-registerFeature({
-  name: "Hello World",
-  id: "helloWorld",
-  description: "This is an example feature.",
-  category: "Global",
-  creators: [{ name: "Bob Smith", wikitreeid: "Smith-123" }],
-  contributors: [],
-  defaultValue: false,
-  pages: [isProfilePage],
-});
+There are a few things you need to understand before using the feature creation script:
+
+- **Page Types**: These are used to specify where the feature should be applied. Some common page types include:
+
+  - `isProfilePage`
+  - `isProfileEdit`
+  - `isSpacePage`
+  - `isSpaceEdit`
+  - `isMainDomain`
+  - ... and more.
+
+  To see the full list of available page types, you can look at the file `src/core/page_type.js`.
+
+- **Categories**: The categories are used to classify the feature within the extension. The available categories are:
+  - `Global`
+  - `Global/Style`
+  - `Profile`
+  - `Editing`
+  - `Editing/Add_Person`
+  - `Editing/Edit_Profile`
+  - `Navigation`
+  - `Navigation/Find_Menu`
+  - `Community`
+
+#### **Running the Script**
+
+To create a new feature, navigate to the root directory of the project in your terminal and run:
+
+```bash
+node scripts/create-feature.js -f hello_world -a "Author Name" -i AuthorID -c Profile -p isProfilePage
 ```
 
-The `isProfilePage` keyword tells the extension that this feature should only run on profile pages.
+**Arguments**:
 
-Create a new folder under `src/features` and name it `hello_world`.
+- `-f` or `--featureName`: The name of the new feature in snake_case (e.g., `new_feature_name`).
+- `-a` or `--authorName`: The name of the author creating the feature (e.g., `Jane Doe`).
+- `-i` or `--authorId`: The ID of the author (e.g., `Doe-123`).
+- `-c` or `--category`: The category for the feature (from the list above).
+- `-p` or `--pageTypes`: A comma-separated list of page types this feature applies to (e.g., `isProfilePage, isSpacePage`).
 
-Inside of that folder, create a file called `hello_world.js`. This is where you will write your feature code. We will come back to it in a bit.
+#### **What the Script Does**
 
-The last step for setting up your feature is to go to `src/content.js` and add this to the code:
+- **Generates Feature Files**: The script will create a new folder in `src/features` with the name of the new feature. In that folder, it will create:
 
-```js
-import "./features/hello_world/hello_world";
-```
+  - `hello_world.js`: The main script for your feature.
+  - `hello_world_options.js`: The options file where the feature is registered.
+  - `hello_world.css`: A CSS file for any styles that the feature may need.
 
-Run `npm run build-dev` to rebuild the extension with your changes. If you would rather it automatically rebuild after every change, type `npm run watch`.
-
-Click on the WBE icon in your browser, and you should see a feature listed called "Hello World". Make sure to toggle it to "on".
+- **Updates Configuration Files**:
+  - Adds an import statement to `content.js` for the new feature.
+  - Adds an import statement to `register_feature_options.js` in alphabetical order, ensuring the new feature's options are correctly registered.
 
 ## Writing your feature code
 
-Open the `hello_world.js` file you created earlier.
+Once you've run the script, you can continue developing your feature. Open the generated `hello_world.js` file (in src/features/hello_world/) to add the specific functionality you want your feature to have. Here’s an example of what it might look like after the script has created it:
 
-The first thing you want to do is make sure WBE knows if the user has enabled your feature.
-
-Add this to your file:
-
-```js
-import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+```javascript
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 shouldInitializeFeature("helloWorld").then((result) => {
   if (result) {
-    // TODO
+    init();
   }
 });
 ```
+
+This ensures that your feature will only initialize if it has been enabled by the user in the options menu.
 
 Now it's time to write the feature code!
 
