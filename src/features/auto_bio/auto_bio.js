@@ -1071,7 +1071,7 @@ export function siblingList() {
       });
     }
   }
-  return text;
+  return text ? text + "\n" : "";
 }
 
 window.marriageCitations = 1;
