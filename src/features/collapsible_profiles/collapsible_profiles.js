@@ -178,6 +178,22 @@ function createCollapsibleSections() {
         if (sibling.nodeType === Node.ELEMENT_NODE && sibling.matches(stopLevelsSelector)) {
           break;
         }
+
+        // Additional stopping conditions:
+        // 1. Button with text "Invite others"
+        // 2. Element with class "br.x-memories"
+        if (sibling.nodeType === Node.ELEMENT_NODE) {
+          // Check for button with exact text "Invite others"
+          if (sibling.tagName.toLowerCase() === "a" && sibling.textContent.trim() === "invite others") {
+            break;
+          }
+
+          // Check for element with class "x-memories"
+          if (sibling.classList.contains("x-memories")) {
+            break;
+          }
+        }
+
         let nextSibling = sibling.nextSibling;
         content.push(sibling);
         sibling = nextSibling;
