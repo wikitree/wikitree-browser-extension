@@ -98,5 +98,11 @@ registerFeature({
       label: "add profile directly from category",
       defaultValue: true,
     },
+    {
+      id: "customChangeSummary",
+      type: OptionType.TEXT,
+      label: "Custom change summary (add text after the default summary)",
+      defaultValue: "",
+    },
   ],
 });

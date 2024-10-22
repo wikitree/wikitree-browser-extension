@@ -20,10 +20,14 @@ import { DeactivateEnhancedEditorIfPresent, ReactivateEnhancedEditorIfNeeded } f
 import("./category_management.css");
 //todo: rename CatALot to Batch cat. or whatever it will be in the end
 
+let categoryManagementOptions = null;
 shouldInitializeFeature("categoryManagement").then((result) => {
   if (result) {
     if (isProfileEdit) {
-      PerformActualProfileChanges();
+      getFeatureOptions("categoryManagement").then((options) => {
+        categoryManagementOptions = options;
+        PerformActualProfileChanges();
+      });
     } else if (isCategoryEdit) {
       getFeatureOptions("categoryManagement").then((options) => {
         AddOptionalCategoryEditPageLinks(options);
@@ -1067,6 +1071,10 @@ function PerformActualProfileChanges() {
     cat = urlParams.get("addCat");
     AddCat(wpTextbox1, cat);
     summary = "adding " + "'" + cat + "'";
+    console.log("categoryManagementOptions: " + categoryManagementOptions);
+    if (categoryManagementOptions?.customChangeSummary) {
+      summary += " " + categoryManagementOptions.customChangeSummary;
+    }
   }
   if (bHasRem) {
     //because replace only replaces first occurrence

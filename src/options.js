@@ -35,40 +35,42 @@ import("./core/toggleCheckbox.css");
 // Build the tree of categories with features under them
 const rootCategory = categorize(features);
 
-$("h1").first().after('<div id="categoryBar"><ul><li><input id="optionSearch" type="search" placeholder="Search"></li></ul></div>');
+$("h1")
+  .first()
+  .after('<div id="categoryBar"><ul><li><input id="optionSearch" type="search" placeholder="Search"></li></ul></div>');
 
-const textField = document.getElementById('optionSearch');
+const textField = document.getElementById("optionSearch");
 
 function checkText() {
   const textToCheck = textField.value.trim().toLowerCase();
-  const categorySections = document.querySelectorAll('.section.category');
+  const categorySections = document.querySelectorAll(".section.category");
 
   categorySections.forEach((categorySection) => {
-    const featureSections = categorySection.querySelectorAll('.section.feature');
+    const featureSections = categorySection.querySelectorAll(".section.feature");
     let hasVisibleFeature = false;
 
     featureSections.forEach((featureSection) => {
       const featureText = featureSection.textContent.toLowerCase();
 
       if (featureText.includes(textToCheck)) {
-        featureSection.style.display = 'block';
+        featureSection.style.display = "block";
         hasVisibleFeature = true;
       } else {
-        featureSection.style.display = 'none';
+        featureSection.style.display = "none";
       }
     });
 
     if (hasVisibleFeature) {
-      categorySection.querySelector('.section-header').style.display = 'block';
-      categorySection.querySelector('.section-content').style.display = 'block';
+      categorySection.querySelector(".section-header").style.display = "block";
+      categorySection.querySelector(".section-content").style.display = "block";
     } else {
-      categorySection.querySelector('.section-header').style.display = 'none';
-      categorySection.querySelector('.section-content').style.display = 'none';
+      categorySection.querySelector(".section-header").style.display = "none";
+      categorySection.querySelector(".section-content").style.display = "none";
     }
   });
 }
 
-textField.addEventListener('input', checkText);
+textField.addEventListener("input", checkText);
 
 // NOTE: This is called recursively
 function fillOptionsDataFromUiElements(feature, options, optionsData) {
@@ -403,6 +405,18 @@ function addOptionsForFeature(featureData, optionsContainerElement, options) {
       optionElement = document.createElement("input");
       optionElement.type = "color";
       optionElement.className = "optionNumber";
+
+      let labelElement = document.createElement("label");
+
+      const textElement = createTextElementForLabel(option, false, true);
+      labelElement.appendChild(textElement);
+
+      labelElement.appendChild(optionElement);
+      optionDivElement.appendChild(labelElement);
+    } else if (option.type == OptionType.TEXT) {
+      optionElement = document.createElement("input");
+      optionElement.type = "text";
+      optionElement.className = "option-text";
 
       let labelElement = document.createElement("label");
 

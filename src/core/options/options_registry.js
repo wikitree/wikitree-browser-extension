@@ -4,8 +4,7 @@ Created By: Rob Pavey (Pavey-429)
 
 // an array of information about features and their options
 // This is constructed by the features registering their options in register_feature_options.js
-const features = [
-];
+const features = [];
 
 function registerFeature(featureData) {
   features.push(featureData);
@@ -27,12 +26,11 @@ const OptionType = {
   SELECT: "select",
   NUMBER: "number",
   COLOR: "color",
-}
+  TEXT: "text",
+};
 
 function fillDefaultValuesForOptions(defaultValues, options, useTestDefaults) {
-
   for (let option of options) {
-
     if (option.type == OptionType.GROUP) {
       if (option.options) {
         fillDefaultValuesForOptions(defaultValues, option.options, useTestDefaults);
@@ -40,7 +38,6 @@ function fillDefaultValuesForOptions(defaultValues, options, useTestDefaults) {
     } else if (option.type == OptionType.TEXT_LINE) {
       // no defaultValues property wanted for these
     } else {
-
       if (option.id) {
         let defaultValue = option.defaultValue;
 
@@ -57,7 +54,6 @@ function fillDefaultValuesForOptions(defaultValues, options, useTestDefaults) {
 }
 
 function getDefaultOptionValuesForFeature(featureId, useTestDefaults = false) {
-
   const feature = getFeatureData(featureId);
 
   if (!feature) {
