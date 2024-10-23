@@ -2137,9 +2137,10 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
   const pattern = new RegExp(firstName + "[^;,]+");
   const match = pattern.exec(reference.Text);
   const countryPattern = new RegExp(
-    "familysearch.+?(.*?, )((['a-zA-Z .-]+, )?['a-zA-Z .-]+,['a-zA-Z ().-]+), (United States|England|Scotland|Canada|Wales|Australia);"
+    "familysearch.+?(.*?, )((['a-zA-Z .-]+, )?['a-zA-Z .-]+,['a-zA-Z ().-]+), (United States|England|Scotland|Canada|Wales|Australia)"
   );
   const countryPatternMatch = countryPattern.exec(reference.Text);
+  console.log("countryPatternMatch", countryPatternMatch);
 
   const theFirstNameMatch = nameMatchPattern.exec(reference.Text);
   if (theFirstNameMatch) {
@@ -2195,15 +2196,22 @@ function familySearchCensusWithNoTable(reference, firstName, ageAtCensus, nameMa
     if (text.match(firstName) && ageAtCensus) {
       text = text.replace(firstName, firstName + ageBit + " ").replaceAll(/'''/g, "");
     }
-  } else if (countryPatternMatch) {
+  }
+
+  if (countryPatternMatch) {
     //if we have a match on the country pattern
     if (countryPatternMatch[2]) {
       const thisLocation = countryPatternMatch[2].replace(/.*household of.*,\s/, "");
-      text +=
-        window.profilePerson.PersonName?.FirstName + ageBit + " was living in " + minimalPlace(thisLocation) + ".";
+      const thisMinimalPlace = minimalPlace(thisLocation);
+      if (!text) {
+        text += window.profilePerson.PersonName?.FirstName + ageBit + " was living in " + thisMinimalPlace + ".";
+      } else if (text.match(thisMinimalPlace) == null) {
+        text = text.replace(/\.$/, " ") + "in " + thisMinimalPlace + ".";
+      }
     }
   }
-  text = getHouseholdOfRelationAndName(text);
+  text = getHouseholdOfRelationAndName(text, reference);
+  text = text.replace(/ +/g, " ");
   return [text, reference];
 }
 
@@ -2211,20 +2219,26 @@ function isObject(thing) {
   return Object.prototype.toString.call(thing) === "[object Object]";
 }
 
-function getHouseholdOfRelationAndName(text) {
+function getHouseholdOfRelationAndName(text, reference = null) {
   let householdHeadMatch = text.match(/household\sof\s(.+?)((\s[a-z])|\.|,)/);
+  if (householdHeadMatch == null && reference) {
+    householdHeadMatch = reference.Text.match(/household\sof\s(.+?)((\s[a-z])|\.|,)/);
+  }
   if (householdHeadMatch) {
     let householdHeadFirstName = householdHeadMatch[1].split(" ")[0];
     ["Parents", "Siblings", "Spouses", "Children"].forEach(function (relation) {
       if (window.profilePerson[relation] && isObject(window.profilePerson[relation])) {
+        console.log("relation", relation);
         let relationSingular = relation.slice(0, -1);
         if (relationSingular == "Childre") {
           relationSingular = "Child";
         }
-        let keys = Object.keys(window.profilePerson[relation] && isObject(window.profilePerson[relation]));
+        let keys = isObject(window.profilePerson[relation]) ? Object.keys(window.profilePerson[relation]) : [];
+
         keys.forEach(function (key) {
           let oNameVariants = getNameVariants(window.profilePerson[relation][key]);
           oNameVariants = [householdHeadFirstName];
+
           if (firstNameVariants[householdHeadFirstName]) {
             oNameVariants = firstNameVariants[householdHeadFirstName];
           }
@@ -5189,7 +5203,7 @@ export function sourcesArray(bio) {
             " was living in " +
             minimalPlace(aRef.Residence) +
             ".";
-          aRef.SourcerNarrative = true;
+          // aRef.SourcerNarrative = true;
         }
         if (aRef.Narrative) {
           // Remove United States, United Kingdom, etc. from the end of the place name
