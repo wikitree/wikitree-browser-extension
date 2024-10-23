@@ -4857,6 +4857,8 @@ export function sourcesArray(bio) {
         aRef.OrderDate = formatDate(aRef["Birth Date"], 0, { format: 8 });
       }
     }
+
+    // FamilySearch baptism
     if (
       aRef["Baptism Date"] ||
       aRef["Christening Date"] ||
@@ -4938,6 +4940,23 @@ export function sourcesArray(bio) {
         }
       }
     }
+
+    // FamilySearch birth
+    if (aRef.Text.match(/familysearch.*\bborn\b/i)) {
+      aRef["Record Type"].push("Birth");
+      const detailsPattern1 = /familysearch.*\bborn\b\s(on )?(.*?), ((son|daughter) of (.*?), )?(in (.*))(\.|$)/i;
+      const detailsPattern1Match = aRef.Text.match(detailsPattern1);
+      if (detailsPattern1Match) {
+        aRef["Birth Date"] = detailsPattern1Match[2];
+        const yearMatch = detailsPattern1Match[2].match(/\d{4}/);
+        if (yearMatch) {
+          aRef.Year = yearMatch[0];
+        }
+        aRef["Birth Place"] = detailsPattern1Match[7];
+        aRef["Parents"] = detailsPattern1Match[5];
+      }
+    }
+
     if (
       aRef.Text.match(
         /NZBDM MARRIAGE|(New Zealand Department.*Marriage Registration)|Marriages? Index|Huwelijk|Trouwen|'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage (Registration )?Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage -|citing.*Marriage|> Marriages/
