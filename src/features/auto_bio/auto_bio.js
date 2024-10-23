@@ -829,7 +829,11 @@ export function nameLink(person) {
   if (window.autoBioOptions?.fullNameOrBirthName == "FullName") {
     theName = person.PersonName?.FullName;
   }
-  return "[[" + person.Name + "|" + (theName || person.FullName) + "]]";
+  if (person.Name) {
+    return "[[" + person.Name + "|" + (theName || person.FullName) + "]]";
+  } else {
+    return theName || person.FullName;
+  }
 }
 
 function personDates(person) {
@@ -5282,6 +5286,182 @@ export function sourcesArray(bio) {
   window.references = refArr;
   buildCensusNarratives();
   addReferencePlaces();
+  getFamilyFromCitations();
+}
+
+function getFamilySearchBirthDetails(aRef) {
+  const detailsPattern1 = /familysearch.*\bborn\b\s(on )?(.*?), ((son|daughter) of (.*?), )?(in (.*))(\.|$)/i;
+  const detailsPattern1Match = aRef.Text.match(detailsPattern1);
+  if (detailsPattern1Match) {
+    aRef["Birth Date"] = detailsPattern1Match[2];
+    const yearMatch = detailsPattern1Match[2].match(/\d{4}/);
+    if (yearMatch) {
+      aRef.Year = yearMatch[0];
+    }
+    aRef["Birth Place"] = detailsPattern1Match[7];
+    aRef["Parents"] = detailsPattern1Match[5];
+  }
+
+  const aRefText = aRef.Text.replace(/''+/g, "");
+  const birthOfChildPattern = /Birth of (son|daughter) (.*?):/;
+  if (aRefText.match(birthOfChildPattern)) {
+    const birthOfChildMatch = aRefText.match(birthOfChildPattern);
+    aRef["Relation"] = birthOfChildMatch[1];
+    aRef["Name"] = birthOfChildMatch[2];
+  }
+  const detailsPattern2 = /familysearch.*\bborn\b\sto\s(.*?) ((on|in) (.*?))(\bin\b (.*?))(\.|$)/i;
+  const detailsPattern2Match = aRefText.match(detailsPattern2);
+  console.log(detailsPattern2Match);
+  if (detailsPattern2Match != null) {
+    aRef["Birth Date"] = detailsPattern2Match[4].replace(/(on|in) /, "");
+    const yearMatch = detailsPattern2Match[4].match(/\d{4}/);
+    if (yearMatch) {
+      aRef.Year = yearMatch[0];
+    }
+    aRef["Birth Place"] = detailsPattern2Match[6];
+    aRef["Parents"] = detailsPattern2Match[1];
+  }
+  console.log(aRef);
+}
+
+function getFamilySearchDeathDetails(aRef) {
+  const detailsPattern = /familysearch.*in death record of (son|daughter).*?(d+.*\d\s) in (.*?)(\.|$)/i;
+  const detailsPatternMatch = aRef.Text.match(detailsPattern);
+  if (detailsPatternMatch) {
+    aRef["Death Date"] = detailsPatternMatch[2];
+    const yearMatch = detailsPatternMatch[2].match(/\d{4}/);
+    if (yearMatch) {
+      aRef.Year = yearMatch[0];
+    }
+    aRef["Death Place"] = detailsPatternMatch[3];
+
+    const deathOfChildPattern = /Death of (son|daughter) (.*?):/;
+    if (aRef.Text.match(deathOfChildPattern)) {
+      const deathOfChildMatch = aRef.Text.match(deathOfChildPattern);
+      aRef["Relation"] = deathOfChildMatch[1];
+      aRef["Name"] = deathOfChildMatch[2];
+    }
+  }
+}
+
+function compareLastName(name, person) {
+  console.log("Comparing last name for:", name, person);
+  const nameParts = name.split(" ");
+  console.log("Name parts:", nameParts);
+  let LastNameAtBirth = "";
+  let FirstName = "";
+  for (let i = nameParts.length - 1; i >= 0; i--) {
+    console.log("Checking name part:", nameParts[i]);
+    if (nameParts[i] == person.LastNameAtBirth) {
+      LastNameAtBirth = nameParts[i];
+      FirstName = nameParts.slice(0, i).join(" ");
+      console.log("Match found with LastNameAtBirth:", LastNameAtBirth, "FirstName:", FirstName);
+      break;
+    }
+  }
+  if (!LastNameAtBirth) {
+    console.log("No match found with LastNameAtBirth, checking with person directly");
+    for (let i = nameParts.length - 1; i >= 0; i--) {
+      console.log("Checking name part:", nameParts[i]);
+      if (nameParts[i] == person) {
+        LastNameAtBirth = nameParts[i];
+        FirstName = nameParts.slice(0, i).join(" ");
+        console.log("Match found with person:", LastNameAtBirth, "FirstName:", FirstName);
+        break;
+      }
+    }
+  }
+  console.log("Final result:", { FirstName: FirstName, LastNameAtBirth: LastNameAtBirth, Name: name });
+  return { FirstName: FirstName, LastNameAtBirth: LastNameAtBirth, Name: name };
+}
+
+function getFamilyFromCitations() {
+  const refs = window.references;
+  const children = Object.values(window.profilePerson.Children);
+  // Extract children to array of objects
+  console.log(children);
+  refs.forEach(function (aRef) {
+    const newChild = {
+      DataStatus: { BirthDate: "guess", BirthLocation: "guess", DeathDate: "guess", DeathLocation: "guess" },
+    };
+    if (aRef.Text.match(/Birth of (son|daughter)/i)) {
+      getFamilySearchBirthDetails(aRef);
+      // Split the name by " ".
+      // Compare the last name to the profile person's LastNameAtBirth and LastNameCurrent
+      // If there's a match, add the name as LastNameAtBirth to newChild.
+      // If not join the last two names and try again.
+      // After finding the last name, add the rest of the names to FirstName.
+      let lastNameCompare = compareLastName(aRef.Name, window.profilePerson);
+      if (!lastNameCompare.LastNameAtBirth) {
+        lastNameCompare = compareLastName(aRef.Name, window.profilePerson.LastNameCurrent);
+      }
+      if (!lastNameCompare.LastNameAtBirth) {
+        const spouses = Object.values(window.profilePerson.Spouses);
+        spouses.forEach(function (aSpouse) {
+          lastNameCompare = compareLastName(aRef.Name, aSpouse);
+          if (lastNameCompare.LastNameAtBirth) {
+            return;
+          }
+          console.log(lastNameCompare);
+        });
+      }
+      if (!lastNameCompare.LastNameAtBirth) {
+        const nameParts = aRef.Name.split(" ");
+        newChild.FirstName = nameParts.slice(0, nameParts.length - 1).join(" ");
+        newChild.LastNameAtBirth = nameParts[nameParts.length - 1];
+        newChild.FullName = aRef.Name;
+      } else {
+        newChild.FirstName = lastNameCompare.FirstName;
+        newChild.LastNameAtBirth = lastNameCompare.LastNameAtBirth;
+        newChild.FullName = lastNameCompare.Name;
+      }
+      if (!newChild.FirstName) {
+        newChild.FirstName = lastNameCompare.FirstName;
+        newChild.LastNameAtBirth = lastNameCompare.LastNameAtBirth;
+        newChild.FullName = lastNameCompare.Name;
+      }
+      newChild.BirthDate = getYYYYMMDD(aRef["Birth Date"]);
+      newChild.OrderBirthDate = newChild.BirthDate.replace(/-/g, "");
+      newChild.BirthLocation = aRef["Birth Place"];
+      newChild.DeathDate = "0000-00-00";
+      newChild.DeathLocation = "";
+
+      // Check if the child is already in the profile
+      let childExists = false;
+      children.forEach(function (aChild) {
+        if (isSameName(newChild.FirstName, getNameVariants(aChild))) {
+          childExists = true;
+        }
+      });
+      if (!childExists) {
+        children.push(newChild);
+        window.profilePerson.Children[newChild.FullName] = newChild;
+      }
+
+      console.log(aRef);
+    }
+    if (aRef.Text.match(/Death of (son|daughter)/i)) {
+      getFamilySearchDeathDetails(aRef);
+      // Split the name by " ".
+      // Compare the first name to any of the profile person's children.
+      // If there's a match, add the death details to the child.
+
+      let childMatch = false;
+      children.forEach(function (aChild) {
+        if (isSameName(aRef.Name, getNameVariants(aChild))) {
+          childMatch = aChild;
+        }
+
+        if (childMatch) {
+          childMatch.DeathDate = getYYYYMMDD(aRef["Death Date"]);
+          childMatch.OrderDeathDate = childMatch.DeathDate.replace(/-/g, "");
+          childMatch.DeathLocation = aRef["Death Place"];
+        }
+
+        console.log(aRef);
+      });
+    }
+  });
 }
 
 function addRelationsToSourcerCensuses(censuses) {
@@ -7241,6 +7421,7 @@ export async function buildFamilyForPrivateProfiles() {
   }
 
   console.log("profile person now", logNow(window.profilePerson));
+  console.log(window.profilePerson);
 
   // Update the main profile with the new family members' names
   assignPersonNames(window.profilePerson);
