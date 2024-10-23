@@ -1369,7 +1369,7 @@ const relationRefCount = {
 function addRefsToRelation(refs, person, relation) {
   let text = "";
   if (refs) {
-    console.log(`Processing references for relation: ${relation}`);
+    // console.log(`Processing references for relation: ${relation}`);
     // filter references for the relation Relation: relation
     let theseRelations = [];
     if (relation == "children") {
@@ -1385,27 +1385,27 @@ function addRefsToRelation(refs, person, relation) {
     }
 
     let relationRefs = refs.filter((ref) => theseRelations.includes(ref.Relation));
-    console.log(`Found ${relationRefs.length} references for relation: ${relation}`);
+    // console.log(`Found ${relationRefs.length} references for relation: ${relation}`);
 
     relationRefs.forEach(function (reference) {
       if (["siblings", "children", "spouse"].includes(relation)) {
         const nameVariants = getNameVariants(person);
-        console.log(`Checking reference name ${reference.Name} against name variants: ${nameVariants}`);
+        //  console.log(`Checking reference name ${reference.Name} against name variants: ${nameVariants}`);
         if (!isSameName(reference.Name, nameVariants)) {
-          console.log(`Reference name ${reference.Name} does not match any name variants.`);
+          //  console.log(`Reference name ${reference.Name} does not match any name variants.`);
           return;
         }
       }
       if (reference.Used || window.refNames.includes(reference.RefName)) {
         text += `<ref name="${reference.RefName}" /> `;
-        console.log(`Using existing reference: ${reference.RefName}`);
+        // console.log(`Using existing reference: ${reference.RefName}`);
       } else {
         relationRefCount[relation]++;
         reference.RefName = relation + "_" + relationRefCount[relation];
         text += `<ref name="${reference.RefName}">${reference.Text}</ref> `;
         reference.Used = true;
         window.refNames.push(reference.RefName);
-        console.log(`Created new reference: ${reference.RefName}`);
+        //  console.log(`Created new reference: ${reference.RefName}`);
       }
     });
   }
@@ -1702,6 +1702,7 @@ export function buildSpouses(person) {
           }
         });
         if (foundSpouse == false && thisSpouse) {
+          console.log({ thisSpouse, firstNameAndYear });
           let text = "";
           let marriageDate = "";
           if (reference["Marriage Date"]) {
@@ -4960,7 +4961,7 @@ export function sourcesArray(bio) {
         aRef["Parents"] = detailsPattern1Match[5];
       }
     }
-
+    /*
     if (
       aRef.Text.match(
         /NZBDM MARRIAGE|(New Zealand Department.*Marriage Registration)|Marriages? Index|Huwelijk|Trouwen|'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage (Registration )?Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage -|citing.*Marriage|> Marriages/
@@ -5065,6 +5066,151 @@ export function sourcesArray(bio) {
       }
       aRef.OrderDate = formatDate(aRef["Marriage Date"], 0, { format: 8 });
     }
+*/
+
+    if (
+      aRef.Text.match(
+        /NZBDM MARRIAGE|(New Zealand Department.*Marriage Registration)|Marriages? Index|Huwelijk|Trouwen|'''Marriage'''|Marriage Notice|Marriage Certificate|Marriage (Registration )?Index|Actes de mariage|Marriage Records|[A-Z][a-z]+ Marriages|^Marriage -|citing.*Marriage|> Marriages/
+      ) ||
+      aRef["Marriage Date"]
+    ) {
+      console.log("Marriage reference found or Marriage Date exists.");
+
+      const dateMatch = aRef.Text.match(/\b\d{1,2}\s\w{3}\s1[6789]\d{2}\b/);
+      const dateMatch2 = aRef.Text.match(/\s(1[6789]\d{2})\b(?!-)/);
+      console.log("Date match:", dateMatch);
+      console.log("Secondary date match:", dateMatch2);
+
+      aRef["Record Type"].push("Marriage");
+
+      if (dateMatch) {
+        aRef["Marriage Date"] = dateMatch[0];
+        aRef.Year = dateMatch[0].match(/\d{4}/)[0];
+        console.log("Marriage Date set from dateMatch:", aRef["Marriage Date"]);
+        console.log("Year set from dateMatch:", aRef.Year);
+      } else if (dateMatch2) {
+        aRef["Marriage Date"] = dateMatch2[1];
+        aRef.Year = dateMatch2[1];
+        console.log("Marriage Date set from dateMatch2:", aRef["Marriage Date"]);
+        console.log("Year set from dateMatch2:", aRef.Year);
+      }
+
+      const detailsMatch = aRef.Text.match(/(\d{4}\),\s)(.+?),\s(\d+\s\w+\s\d+)/);
+      const detailsMatch2 = aRef.Text.match(/\(http.*?\)(.*?image.*?;\s)(.*?)\./);
+      const detailsMatch3 = aRef.Text.match(/[>;)]([A-z\s-]*) marriage to\s(.*?)\s\bon\b\s(.*?)\s\bin\b\s(.*)\./);
+      const entryForMatch = aRef.Text.match(/in entry for/);
+
+      console.log("detailsMatch:", detailsMatch);
+      console.log("detailsMatch2:", detailsMatch2);
+      console.log("detailsMatch3:", detailsMatch3);
+      console.log("entryForMatch:", entryForMatch);
+
+      if (detailsMatch2) {
+        aRef["Marriage Place"] = detailsMatch2[2].replace("Archives", "");
+        console.log("Marriage Place set from detailsMatch2:", aRef["Marriage Place"]);
+      } else if (detailsMatch) {
+        if (entryForMatch == null) {
+          aRef["Marriage Date"] = detailsMatch[3].trim();
+          const couple = detailsMatch[2].split(/\band\b/);
+          aRef["Couple"] = couple.map((item) => item.trim());
+          console.log("Couple found:", aRef["Couple"]);
+
+          let person1 = [couple[0].trim().split(" ")[0]];
+          if (firstNameVariants[person1]) {
+            person1 = firstNameVariants[person1[0]];
+            console.log("Person 1 name variant:", person1);
+          }
+          if (couple[1]) {
+            let person2 = [couple[1].trim().split(" ")[0]];
+            if (firstNameVariants[person2]) {
+              person2 = firstNameVariants[person2[0]];
+              console.log("Person 2 name variant:", person2);
+            }
+          }
+          if (!isSameName(window.profilePerson.FirstName, person1)) {
+            aRef["Spouse Name"] = aRef["Couple"][0];
+            console.log("Spouse name set to Couple[0]:", aRef["Spouse Name"]);
+          } else {
+            aRef["Spouse Name"] = aRef["Couple"][1];
+            console.log("Spouse name set to Couple[1]:", aRef["Spouse Name"]);
+          }
+          const marriageYearMatch = aRef["Marriage Date"].match(/\d{4}/);
+          if (marriageYearMatch) {
+            aRef.Year = marriageYearMatch[0];
+            console.log("Marriage Year found and set:", aRef.Year);
+          }
+          const weddingLocationMatch = aRef.Text.match(/citing Marriage,?(.*?), United States/);
+          if (weddingLocationMatch) {
+            aRef["Marriage Place"] = weddingLocationMatch[1].trim();
+            console.log("Marriage Place set from weddingLocationMatch:", aRef["Marriage Place"]);
+          }
+        }
+      } else if (detailsMatch3) {
+        aRef.Couple = [];
+        let person1AgeMatch = detailsMatch3[1].match(/\d{1,2}( years)?/);
+        let person1Age = "";
+        if (person1AgeMatch) {
+          person1Age = person1AgeMatch[0];
+        }
+        console.log("Person 1 Age:", person1Age);
+
+        const person1 = detailsMatch3[1]
+          .replaceAll(/\(.*?\)/g, "")
+          .trim()
+          .replaceAll(/^.*''/g, "")
+          .trim();
+
+        let person2AgeMatch = detailsMatch3[2].match(/\d{1,2}( years)?/);
+        let person2Age = "";
+        if (person2AgeMatch) {
+          person2Age = person2AgeMatch[0];
+        }
+        console.log("Person 2 Age:", person2Age);
+
+        const person2 = detailsMatch3[2].replace(/\(.*?\)/, "").trim();
+        aRef.Couple.push(person1);
+        aRef.Couple.push(person2);
+        console.log("Couple set from detailsMatch3:", aRef.Couple);
+
+        aRef["Marriage Date"] = detailsMatch3[3];
+        console.log("Marriage Date set from detailsMatch3:", aRef["Marriage Date"]);
+
+        const refYearMatch = detailsMatch3[3].match(/\d{4}/);
+        if (refYearMatch) {
+          aRef.Year = detailsMatch3[3].match(/\d{4}/)[0];
+          console.log("Year set from refYearMatch:", aRef.Year);
+        } else {
+          aRef.Year = "";
+          console.log("Year not found in detailsMatch3, set to empty string.");
+        }
+        aRef["Marriage Place"] = detailsMatch3[4].trim();
+        console.log("Marriage Place set from detailsMatch3:", aRef["Marriage Place"]);
+
+        window.profilePerson.NameVariants.forEach((name) => {
+          if (name == aRef.Couple[0]) {
+            aRef["Spouse Name"] = aRef.Couple[1];
+            aRef["Spouse Age"] = person2Age;
+            aRef["Age"] = person1Age;
+            console.log("Spouse Name and Age set:", aRef["Spouse Name"], aRef["Spouse Age"]);
+          } else if (name == aRef.Couple[1]) {
+            aRef["Spouse Name"] = aRef.Couple[0];
+            aRef["Spouse Age"] = person1Age;
+            aRef["Age"] = person2Age;
+            console.log("Spouse Name and Age set:", aRef["Spouse Name"], aRef["Spouse Age"]);
+          }
+        });
+      } else if (aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/)) {
+        const details = aRef.Text.match(/GRO Reference.*?(\d{4}).*\bin\b\s(.*)Volume/);
+        aRef.Year = details[1];
+        aRef["Marriage Place"] = details[2].trim();
+        console.log("GRO Reference found, Year set:", aRef.Year);
+        console.log("Marriage Place set from GRO Reference:", aRef["Marriage Place"]);
+      }
+
+      aRef.OrderDate = formatDate(aRef["Marriage Date"], 0, { format: 8 });
+      console.log("OrderDate set:", aRef.OrderDate);
+    }
+
     if (aRef.Text.match(/Divorce Records/) && aRef.Text.match(/Marriage and/) == null) {
       aRef["Record Type"].push("Divorce");
       const divorceDetails = aRef.Text.match(
@@ -5311,7 +5457,7 @@ function getFamilySearchBirthDetails(aRef) {
   }
   const detailsPattern2 = /familysearch.*\bborn\b\sto\s(.*?) ((on|in) (.*?))(\bin\b (.*?))(\.|$)/i;
   const detailsPattern2Match = aRefText.match(detailsPattern2);
-  console.log(detailsPattern2Match);
+  // console.log(detailsPattern2Match);
   if (detailsPattern2Match != null) {
     aRef["Birth Date"] = detailsPattern2Match[4].replace(/(on|in) /, "");
     const yearMatch = detailsPattern2Match[4].match(/\d{4}/);
@@ -5321,12 +5467,16 @@ function getFamilySearchBirthDetails(aRef) {
     aRef["Birth Place"] = detailsPattern2Match[6];
     aRef["Parents"] = detailsPattern2Match[1];
   }
-  console.log(aRef);
+  // console.log(aRef);
 }
 
 function getFamilySearchDeathDetails(aRef) {
-  const detailsPattern = /familysearch.*in death record of (son|daughter).*?(d+.*\d\s) in (.*?)(\.|$)/i;
+  const detailsPattern = /familysearch.*in death record for (son|daughter).*?(\d+.*?\d) in (.*?)(\.|$)/i;
   const detailsPatternMatch = aRef.Text.match(detailsPattern);
+  if (detailsPatternMatch == null) {
+    return;
+  }
+  console.log(detailsPatternMatch);
   if (detailsPatternMatch) {
     aRef["Death Date"] = detailsPatternMatch[2];
     const yearMatch = detailsPatternMatch[2].match(/\d{4}/);
@@ -5335,9 +5485,10 @@ function getFamilySearchDeathDetails(aRef) {
     }
     aRef["Death Place"] = detailsPatternMatch[3];
 
+    const aRefText = aRef.Text.replace(/''+/g, "");
     const deathOfChildPattern = /Death of (son|daughter) (.*?):/;
-    if (aRef.Text.match(deathOfChildPattern)) {
-      const deathOfChildMatch = aRef.Text.match(deathOfChildPattern);
+    if (aRefText.match(deathOfChildPattern)) {
+      const deathOfChildMatch = aRefText.match(deathOfChildPattern);
       aRef["Relation"] = deathOfChildMatch[1];
       aRef["Name"] = deathOfChildMatch[2];
     }
@@ -5345,9 +5496,9 @@ function getFamilySearchDeathDetails(aRef) {
 }
 
 function compareLastName(name, person) {
-  console.log("Comparing last name for:", name, person);
+  // console.log("Comparing last name for:", name, person);
   const nameParts = name.split(" ");
-  console.log("Name parts:", nameParts);
+  // console.log("Name parts:", nameParts);
   let LastNameAtBirth = "";
   let FirstName = "";
   for (let i = nameParts.length - 1; i >= 0; i--) {
@@ -5355,18 +5506,18 @@ function compareLastName(name, person) {
     if (nameParts[i] == person.LastNameAtBirth) {
       LastNameAtBirth = nameParts[i];
       FirstName = nameParts.slice(0, i).join(" ");
-      console.log("Match found with LastNameAtBirth:", LastNameAtBirth, "FirstName:", FirstName);
+      // console.log("Match found with LastNameAtBirth:", LastNameAtBirth, "FirstName:", FirstName);
       break;
     }
   }
   if (!LastNameAtBirth) {
     console.log("No match found with LastNameAtBirth, checking with person directly");
     for (let i = nameParts.length - 1; i >= 0; i--) {
-      console.log("Checking name part:", nameParts[i]);
+      // console.log("Checking name part:", nameParts[i]);
       if (nameParts[i] == person) {
         LastNameAtBirth = nameParts[i];
         FirstName = nameParts.slice(0, i).join(" ");
-        console.log("Match found with person:", LastNameAtBirth, "FirstName:", FirstName);
+        //  console.log("Match found with person:", LastNameAtBirth, "FirstName:", FirstName);
         break;
       }
     }
@@ -5379,7 +5530,7 @@ function getFamilyFromCitations() {
   const refs = window.references;
   const children = Object.values(window.profilePerson.Children);
   // Extract children to array of objects
-  console.log(children);
+  // console.log(children);
   refs.forEach(function (aRef) {
     const newChild = {
       DataStatus: { BirthDate: "guess", BirthLocation: "guess", DeathDate: "guess", DeathLocation: "guess" },
@@ -5438,28 +5589,27 @@ function getFamilyFromCitations() {
         window.profilePerson.Children[newChild.FullName] = newChild;
       }
 
-      console.log(aRef);
+      // console.log(aRef);
     }
+  });
+  refs.forEach(function (aRef) {
     if (aRef.Text.match(/Death of (son|daughter)/i)) {
       getFamilySearchDeathDetails(aRef);
-      // Split the name by " ".
-      // Compare the first name to any of the profile person's children.
-      // If there's a match, add the death details to the child.
 
-      let childMatch = false;
-      children.forEach(function (aChild) {
-        if (isSameName(aRef.Name, getNameVariants(aChild))) {
-          childMatch = aChild;
-        }
+      const refFirstName = aRef.Name.split(" ")[0];
+      // Find window.profilePerson.Children[...] where key starts with refFirstName
+      // How?
+      const childMatch = Object.keys(window.profilePerson.Children).filter((key) => key.startsWith(refFirstName));
+      // console.log(aRef);
+      // console.log(window.profilePerson.Children);
+      // console.log("childMatch", childMatch);
 
-        if (childMatch) {
-          childMatch.DeathDate = getYYYYMMDD(aRef["Death Date"]);
-          childMatch.OrderDeathDate = childMatch.DeathDate.replace(/-/g, "");
-          childMatch.DeathLocation = aRef["Death Place"];
-        }
+      if (childMatch.length) {
+        window.profilePerson.Children[childMatch[0]].DeathDate = getYYYYMMDD(aRef["Death Date"]);
+        window.profilePerson.Children[childMatch[0]].DeathLocation = aRef["Death Place"];
+      }
 
-        console.log(aRef);
-      });
+      //console.log(aRef);
     }
   });
 }
