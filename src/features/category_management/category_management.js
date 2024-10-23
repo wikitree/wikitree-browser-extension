@@ -1067,10 +1067,15 @@ function PerformActualProfileChanges() {
   const bHasRem = urlParams.has("remCat");
   let summary = "";
   let cat = "";
+  const cat2 = urlParams.get("addCat2") || "";
   if (bHasAdd) {
     cat = urlParams.get("addCat");
     AddCat(wpTextbox1, cat);
+    AddCat(wpTextbox1, cat2);
     summary = "adding " + "'" + cat + "'";
+    if (cat2) {
+      summary += " and " + "'" + cat2 + "'";
+    }
     console.log("categoryManagementOptions: " + categoryManagementOptions);
     if (categoryManagementOptions?.customChangeSummary) {
       summary += " " + categoryManagementOptions.customChangeSummary;
