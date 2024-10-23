@@ -174,9 +174,7 @@ function createCollapsibleSections() {
       // Wrap content until the next heading of the same or higher level
       const content = [];
       let sibling = currentHeading.nextSibling;
-      let siblingCount = 0;
       while (sibling) {
-        siblingCount++;
         if (sibling.nodeType === Node.ELEMENT_NODE && sibling.matches(stopLevelsSelector)) {
           break;
         }
@@ -192,11 +190,6 @@ function createCollapsibleSections() {
 
           // Check for element with class "x-memories"
           if (sibling.classList.contains("x-memories")) {
-            break;
-          }
-
-          // Check for element with class "WBEnav"
-          if (sibling.classList.contains("WBEnav") && siblingCount > 5) {
             break;
           }
         }
