@@ -6619,7 +6619,7 @@ export function setOrderBirthDate(person) {
 
 function getFindAGraveLink(text) {
   // Define the regexes to be used to find the link
-  const match1 = /(https?:\/\/www\.findagrave.com[^\s]+)$/;
+  const match1 = /(https?:\/\/www\.findagrave.com[^\s);.,<]+)/;
   const match2 = /\[(https?:\/\/www\.findagrave.com[^\s]+)(\s([^\]]+))?\]/;
   const match3 = /\{\{\s?FindAGrave\s?\|\s?(\d+)(\|.*?)?\s?\}\}/;
   const match4 = /database and images/;
