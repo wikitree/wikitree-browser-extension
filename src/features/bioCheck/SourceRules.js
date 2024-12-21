@@ -525,7 +525,6 @@ class SourceRules {
   #invalidPartialSourceListTooOld = [
     "first hand knowledge",
     "firsthand knowledge",
-    "personal recollection",
     "immediate family member", 
     "as remembered by",
     "selon la mémoire de",
