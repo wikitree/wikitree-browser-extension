@@ -691,5 +691,9 @@
   {
     "Name": "Zanre",
     "NameVariants": ["Zanre", "Zanretis", "Zanré", "Zanrré", "Zanrre"]
+  },
+  {
+    "Name": "Łojszczyk",
+    "NameVariants": ["Lojszczyk", "Loszczyk", "Wojszczyk", "Woyszczyk", "Loyszczyk", "Łosczyk"]
   }
 ]
