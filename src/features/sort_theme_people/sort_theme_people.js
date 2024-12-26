@@ -21,9 +21,9 @@ shouldInitializeFeature("sortThemePeople").then((result) => {
 async function init() {
   import("./sort_theme_people.css");
 
-  featuredConnectionsParagraph = $("div.sixteen p:contains('This week')");
+  featuredConnectionsParagraph = $("div.sixteen p:contains('degrees from')");
   if (!featuredConnectionsParagraph.length) {
-    featuredConnectionsParagraph = $("div.sixteen div.box:contains('This week')");
+    featuredConnectionsParagraph = $("div.sixteen div.box:contains('degrees from')");
   }
   if (!featuredConnectionsParagraph.length) {
     return;
@@ -610,9 +610,23 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
 
   // Optional: If popup content might change its size dynamically
   // e.g., when loading images or dynamic content, you can also trigger the function based on certain events.
-  popup.on("DOMSubtreeModified", function () {
-    positionCloseButton(popup, closeBtn, widthButton);
+  // Create a MutationObserver instance
+  const observer = new MutationObserver(function (mutations) {
+    // Check if there is any modification to the popup
+    mutations.forEach(function (mutation) {
+      // Call your function when the popup is modified
+      positionCloseButton(popup, closeBtn, widthButton);
+    });
   });
+
+  // Set observer configuration
+  const config = { childList: true, subtree: true };
+
+  // Start observing the popup for changes
+  observer.observe(popup, config);
+
+  // Optional: Stop observing when you no longer need it
+  // observer.disconnect();
 }
 
 function closePopup() {
