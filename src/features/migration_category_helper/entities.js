@@ -81,6 +81,19 @@ export const entities = {
     "Labrador",
   ],
 
+  "Congress Poland": [
+    "Kalisz Governorate",
+    "Kielce Governorate",
+    "Lublin Governorate",
+    "Piotrków Governorate",
+    "Płock Governorate",
+    "Radom Governorate",
+    "Siedlce Governorate",
+    "Suwałki Governorate",
+    "Warsaw Governorate",
+    "Łomża Governorate",
+  ],
+
   England: [
     "Bedfordshire",
     "Berkshire",
