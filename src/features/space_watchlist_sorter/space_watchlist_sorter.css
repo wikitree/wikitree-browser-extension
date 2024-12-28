@@ -1,5 +1,5 @@
 /* Styles for spaceWatchlistSorter feature */
-.spaceWatchlistSorter-popup {
+#spaceWatchlistSorter-popup {
   position: fixed;
   top: 10%;
   left: 10%;
@@ -9,6 +9,8 @@
   padding: 20px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
   z-index: 1000;
+  max-height: 80%;
+  overflow: auto;
 }
 
 .spaceWatchlistSorter-header {

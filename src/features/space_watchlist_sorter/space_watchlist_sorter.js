@@ -8,10 +8,10 @@ import "jquery-ui/ui/widgets/sortable";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 const spaceWatchlistSorterHTML = `
-<div id="spaceWatchlistSorterPopup" class="spaceWatchlistSorter-popup" style="display: none;">
+<div id="spaceWatchlistSorter-popup" class="spaceWatchlistSorter-popup" style="display: none;">
   <div class="spaceWatchlistSorter-header">
     <h2>Organize Space Watchlist</h2>
-    <button id="spaceWatchlistSorterClosePopup">Close</button>
+    <button class="small" id="spaceWatchlistSorterClosePopup">&times;</button>
   </div>
   <div id="spaceWatchlistSorterUnorganizedContainer">
     <h3>Unorganized Space Pages</h3>
@@ -22,9 +22,6 @@ const spaceWatchlistSorterHTML = `
 </div>
 `;
 
-console.log("Popup HTML initialized.");
-
-// Load Space Watchlist
 async function loadSpaceWatchlist() {
   console.log("Fetching space watchlist...");
   const appId = "WBE-SpaceSorter";
@@ -34,44 +31,108 @@ async function loadSpaceWatchlist() {
   try {
     const watchlist = await WikiTreeAPI.getSpaceWatchlist(appId, limit, fields);
     console.log("Watchlist fetched:", watchlist);
-
-    if (watchlist && watchlist.length > 0) {
-      watchlist.forEach((space) => {
-        $("#spaceWatchlistSorterUnorganizedItems").append(
-          `<li data-id="${space.page_id}">
-            <a href="https://www.wikitree.com/wiki/${space.page_name}" target="_blank">
-              ${space.name}
-            </a>
-          </li>`
-        );
-      });
-    } else {
-      console.warn("No space pages found in the watchlist.");
-    }
+    return watchlist;
   } catch (error) {
     console.error("Error fetching space watchlist:", error);
+    return [];
   }
 }
 
-// Add Folder
-function addFolder() {
-  console.log("Adding a new folder...");
-  const folderId = `spaceWatchlistSorterFolder-${Date.now()}`;
-  $("#spaceWatchlistSorterFolderContainer").append(`
-    <div id="${folderId}" class="spaceWatchlistSorter-folder">
-      <h3 contenteditable="true">New Folder</h3>
-      <button class="spaceWatchlistSorter-removeFolder">Remove Folder</button>
-      <ul class="spaceWatchlistSorter-sortable"></ul>
-    </div>
-  `);
+function loadWatchlistFromDB() {
+  console.log("Loading watchlist from IndexedDB...");
+  return new Promise((resolve) => {
+    const dbRequest = indexedDB.open("SpaceWatchlistDB", 2);
 
-  $(`#${folderId} .spaceWatchlistSorter-sortable`).sortable({
-    connectWith: ".spaceWatchlistSorter-sortable",
-    placeholder: "ui-state-highlight",
+    dbRequest.onupgradeneeded = function () {
+      const db = dbRequest.result;
+      if (!db.objectStoreNames.contains("watchlist")) {
+        console.log("Creating object store...");
+        db.createObjectStore("watchlist", { keyPath: "id" });
+      }
+    };
+
+    dbRequest.onsuccess = function () {
+      const db = dbRequest.result;
+      const tx = db.transaction("watchlist", "readonly");
+      const store = tx.objectStore("watchlist");
+      const getRequest = store.get("categorization");
+
+      getRequest.onsuccess = function () {
+        const result = getRequest.result || { unorganizedItems: [], folders: [] };
+        console.log("Watchlist loaded from IndexedDB:", result);
+        resolve(result);
+      };
+
+      getRequest.onerror = function (e) {
+        console.error("Error reading from IndexedDB:", e.target.error);
+        resolve({ unorganizedItems: [], folders: [] });
+      };
+    };
+
+    dbRequest.onerror = function (e) {
+      console.error("Error opening IndexedDB:", e.target.error);
+      resolve({ unorganizedItems: [], folders: [] });
+    };
   });
 }
 
-// Save Watchlist to IndexedDB
+async function populateInterface() {
+  const apiWatchlist = await loadSpaceWatchlist();
+  const dbWatchlist = await loadWatchlistFromDB();
+
+  const apiIds = new Set(apiWatchlist.map((space) => space?.Title?.Text));
+
+  // Place existing items into their folders
+  dbWatchlist.folders.forEach((folder) => {
+    const folderId = `spaceWatchlistSorterFolder-${Date.now()}`;
+    $("#spaceWatchlistSorterFolderContainer").append(`
+      <div id="${folderId}" class="spaceWatchlistSorter-folder">
+        <h3 contenteditable="true">${folder.name}</h3>
+        <button class="spaceWatchlistSorter-removeFolder">Remove Folder</button>
+        <ul class="spaceWatchlistSorter-sortable"></ul>
+      </div>
+    `);
+
+    const folderList = $(`#${folderId} .spaceWatchlistSorter-sortable`);
+    folder.items.forEach((id) => {
+      const space = apiWatchlist.find((s) => s?.Title?.Text === id);
+      if (space) {
+        folderList.append(`
+          <li data-id="${space?.Title?.Text}">
+            <a href="https://www.wikitree.com/${space?.Title?.LocalURL}" target="_blank">
+              ${space?.Title?.Text}
+            </a>
+          </li>
+        `);
+        apiIds.delete(space?.Title?.Text); // Remove from API list
+      }
+    });
+
+    folderList.sortable({
+      connectWith: ".spaceWatchlistSorter-sortable",
+      placeholder: "ui-state-highlight",
+    });
+  });
+
+  // Add unorganized items
+  apiWatchlist.forEach((space) => {
+    if (apiIds.has(space?.Title?.Text)) {
+      $("#spaceWatchlistSorterUnorganizedItems").append(`
+        <li data-id="${space?.Title?.Text}">
+          <a href="https://www.wikitree.com/${space?.Title?.LocalURL}" target="_blank">
+            ${space?.Title?.Text}
+          </a>
+        </li>
+      `);
+    }
+  });
+
+  // Sort unorganized items
+  $("#spaceWatchlistSorterUnorganizedItems li")
+    .sort((a, b) => $(a).text().localeCompare($(b).text()))
+    .appendTo("#spaceWatchlistSorterUnorganizedItems");
+}
+
 function saveWatchlistToDB() {
   console.log("Saving watchlist to IndexedDB...");
   const categorization = [];
@@ -95,14 +156,6 @@ function saveWatchlistToDB() {
     .get();
 
   const dbRequest = indexedDB.open("SpaceWatchlistDB", 2);
-  dbRequest.onupgradeneeded = function () {
-    const db = dbRequest.result;
-    if (!db.objectStoreNames.contains("watchlist")) {
-      console.log("Creating object store...");
-      db.createObjectStore("watchlist", { keyPath: "id" });
-    }
-  };
-
   dbRequest.onsuccess = function () {
     const db = dbRequest.result;
     const tx = db.transaction("watchlist", "readwrite");
@@ -113,71 +166,6 @@ function saveWatchlistToDB() {
     };
     tx.onerror = function (e) {
       console.error("Error saving to IndexedDB:", e.target.error);
-    };
-  };
-
-  dbRequest.onerror = function (e) {
-    console.error("Error opening IndexedDB:", e.target.error);
-  };
-}
-
-// Load Watchlist from IndexedDB
-function loadWatchlistFromDB() {
-  console.log("Loading watchlist from IndexedDB...");
-  const dbRequest = indexedDB.open("SpaceWatchlistDB", 2);
-
-  dbRequest.onupgradeneeded = function () {
-    const db = dbRequest.result;
-    if (!db.objectStoreNames.contains("watchlist")) {
-      console.log("Creating object store...");
-      db.createObjectStore("watchlist", { keyPath: "id" });
-    }
-  };
-
-  dbRequest.onsuccess = function () {
-    const db = dbRequest.result;
-    const tx = db.transaction("watchlist", "readonly");
-    const store = tx.objectStore("watchlist");
-    const getRequest = store.get("categorization");
-
-    getRequest.onsuccess = function () {
-      const result = getRequest.result;
-      if (result) {
-        console.log("Watchlist loaded:", result);
-
-        // Populate unorganized items
-        result.unorganizedItems.forEach((id) => {
-          const item = $(`[data-id='${id}']`);
-          $("#spaceWatchlistSorterUnorganizedItems").append(item);
-        });
-
-        // Populate folders
-        result.folders.forEach((folder) => {
-          const folderId = `spaceWatchlistSorterFolder-${Date.now()}`;
-          $("#spaceWatchlistSorterFolderContainer").append(`
-            <div id="${folderId}" class="spaceWatchlistSorter-folder">
-              <h3 contenteditable="true">${folder.name}</h3>
-              <button class="spaceWatchlistSorter-removeFolder">Remove Folder</button>
-              <ul class="spaceWatchlistSorter-sortable"></ul>
-            </div>
-          `);
-
-          const folderList = $(`#${folderId} .spaceWatchlistSorter-sortable`);
-          folder.items.forEach((id) => {
-            const item = $(`[data-id='${id}']`);
-            folderList.append(item);
-          });
-
-          folderList.sortable({
-            connectWith: ".spaceWatchlistSorter-sortable",
-            placeholder: "ui-state-highlight",
-          });
-        });
-      }
-    };
-
-    getRequest.onerror = function (e) {
-      console.error("Error reading from IndexedDB:", e.target.error);
     };
   };
 
@@ -203,26 +191,61 @@ function addButton() {
 
     sorterButton.on("click", function () {
       console.log("Sorter button clicked. Showing popup...");
-      if ($("#spaceWatchlistSorterPopup").length === 0) {
+      if ($("#spaceWatchlistSorter-popup").length === 0) {
         console.log("Appending popup to body...");
         $("body").append(spaceWatchlistSorterHTML);
-        loadSpaceWatchlist();
 
-        $("#spaceWatchlistSorterPopup").draggable({ handle: ".spaceWatchlistSorter-header" });
+        populateInterface();
+
+        $("#spaceWatchlistSorter-popup").draggable({ handle: ".spaceWatchlistSorter-header" });
       }
 
-      $("#spaceWatchlistSorterPopup").show();
+      $("#spaceWatchlistSorter-popup").show();
     });
   } else {
     console.log("Sorter button already exists.");
   }
 }
 
-// Initialize Feature
+function addFolder() {
+  console.log("Adding a new folder...");
+  const folderId = `spaceWatchlistSorterFolder-${Date.now()}`;
+  $("#spaceWatchlistSorterFolderContainer").append(`
+    <div id="${folderId}" class="spaceWatchlistSorter-folder">
+      <h3 contenteditable="true">New Folder</h3>
+      <button class="spaceWatchlistSorter-removeFolder">Remove Folder</button>
+      <ul class="spaceWatchlistSorter-sortable"></ul>
+    </div>
+  `);
+
+  // Make the new folder sortable
+  $(`#${folderId} .spaceWatchlistSorter-sortable`).sortable({
+    connectWith: ".spaceWatchlistSorter-sortable",
+    placeholder: "ui-state-highlight",
+  });
+
+  console.log(`Folder added with ID: ${folderId}`);
+}
+
 shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
   if (result) {
     console.log("Feature initialized.");
+    // import css
+    import("./space_watchlist_sorter.css");
     addButton();
+    $(document).on("click", "#spaceWatchlistSorterAddFolder", function () {
+      addFolder();
+    });
+    $(document).on("click", "#spaceWatchlistSorterClosePopup", function () {
+      saveWatchlistToDB();
+      $("#spaceWatchlistSorter-popup").hide();
+      console.log("Popup closed and data saved.");
+    });
+    $(document).on("click", ".spaceWatchlistSorter-removeFolder", function () {
+      const folderId = $(this).closest(".spaceWatchlistSorter-folder").attr("id");
+      console.log(`Removing folder with ID: ${folderId}`);
+      $(this).closest(".spaceWatchlistSorter-folder").remove();
+    });
   } else {
     console.warn("Feature not initialized.");
   }
