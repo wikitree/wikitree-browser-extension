@@ -1,0 +1,31 @@
+/* Styles for spaceWatchlistSorter feature */
+.spaceWatchlistSorter-popup {
+  position: fixed;
+  top: 10%;
+  left: 10%;
+  width: 80%;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 20px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+}
+
+.spaceWatchlistSorter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.spaceWatchlistSorter-folder {
+  border: 1px solid #ccc;
+  margin: 10px 0;
+  padding: 10px;
+}
+
+.spaceWatchlistSorter-sortable {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  min-height: 20px;
+}

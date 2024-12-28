@@ -176,7 +176,7 @@ console.log("Feature creation complete.");
  * Steps to use:
  * 1. Run the script using Node.js from the command line with the required arguments:
  *    ```
- *    node createFeature.js -f new_feature_name -a "Author Name" -i AuthorID -c "Feature Category" -p "PageType1, PageType2"
+ *    node create-feature.js -f new_feature_name -a "Author Name" -i AuthorID -c "Feature Category" -p "PageType1, PageType2"
  *    ```
  *
  *    Arguments:

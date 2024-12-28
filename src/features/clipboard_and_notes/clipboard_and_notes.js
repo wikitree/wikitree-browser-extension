@@ -15,8 +15,7 @@ export async function appendClipboardButtons(clipboardButtons = $()) {
   const isStickyHeader = await checkIfFeatureEnabled("stickyHeader");
 
   // Append buttons initially to the header
-  const clipboardContainer = $("<span>").addClass("clipboardContainer");
-  $("#header,#HEADER").append(clipboardContainer.append(clipboardButtons));
+  const clipboardContainer = $(".clipboardContainer").append(clipboardButtons);
 
   let hasEditorToolbar = null;
   let position = null;

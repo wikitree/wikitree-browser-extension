@@ -85,6 +85,31 @@ async function checkAnyDataFeature() {
   }
 }
 
+async function checkButtonFeatures() {
+  const features = ["extraWatchlist", "clipboardAndNotes", "spaceWatchlistSorter"];
+  const promises = features.map((feature) => checkIfFeatureEnabled(feature));
+
+  try {
+    const results = await Promise.all(promises);
+    // results is an array of booleans. If any is true, initialize this feature.
+    const anyFeatureToInitialize = results.some((result) => result);
+    if (anyFeatureToInitialize) {
+      results.forEach((result) => {
+        if (result) {
+          if ($(".clipboardContainer").length == 0) {
+            const clipboardContainer = $("<span>").addClass("clipboardContainer");
+            $("#header,#HEADER").append(clipboardContainer);
+          }
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Error checking features to initialize:", error);
+  }
+}
+
+await checkButtonFeatures();
+
 // Add buttons to download or import the feature data (My Menu, Change Summary Options, Extra Watchlist, Clipboard)
 if (isNavHomePage) {
   checkAnyDataFeature();

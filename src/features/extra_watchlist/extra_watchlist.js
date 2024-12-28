@@ -419,14 +419,9 @@ async function extraWatchlist() {
       binocularsURL +
       "'>"
   );
-  if ($("span.theClipboardButtons").length == 0) {
-    const clipboardButtons = $("<span class='theClipboardButtons'></span>");
-    await appendClipboardButtons(clipboardButtons);
-  }
-  $("span.theClipboardButtons").append(binocularsImage);
-  if ($("body.profile").length) {
-    $("span.theClipboardButtons").append(plusImage);
-  }
+  const clipboardContainer = $(".clipboardContainer");
+  clipboardContainer.append(plusImage);
+  clipboardContainer.append(binocularsImage);
 
   $("#viewExtraWatchlist").on("click", function (e) {
     e.preventDefault();

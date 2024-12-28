@@ -249,7 +249,7 @@ WikiTreeAPI.Person = class Person {
  * An API call is made and the promise will store the result (if successful)
  * in the cache (if enabled) before it is returned.
  *
- * @param {*} appId An application id (any string). 'TA-' will be prepended to denotes it as a "Tree App"
+ * @param {*} appId An application id (any string). 'WBE-' will be prepended to denotes it as a "Tree App"
  * @param {*} id The WikiTree ID of the person to retrieve
  * @param {*} fields An array of field names to retrieve for the given person
  * @returns a Person object
@@ -282,7 +282,7 @@ WikiTreeAPI.getPerson = async function (appId, id, fields) {
  *     --> what you get is the promise object - NOT the array of ancestors you might expect.
  * You HAVE to use the .then() with embedded function, or await, to wait and process the results
  *
- * @param {*} appId An application id (any string). 'TA-' will be prepended to denotes it as a "Tree App"
+ * @param {*} appId An application id (any string). 'WBE-' will be prepended to denotes it as a "Tree App"
  * @param {*} id
  * @param {*} depth
  * @param {*} fields
@@ -326,7 +326,7 @@ WikiTreeAPI.getAncestors = async function (appId, id, depth, fields) {
  *
  * WARNING:  See note above about what you get if you don't use the .then() ....
  *
- * @param {*} appId An application id (any string). 'TA-' will be prepended to denotes it as a "Tree App"
+ * @param {*} appId An application id (any string). 'WBE-' will be prepended to denotes it as a "Tree App"
  * @param {*} IDs can be a single string, with a single ID or a set of comma separated IDs. OR it can be an array of IDs
  * @param {*} fields an array of fields to return for each profile (same as for getPerson or getProfile)
  * @param {*} options an option object which can contain these key-value pairs
@@ -392,7 +392,7 @@ WikiTreeAPI.getRelatives = async function (appId, IDs, fields, options = {}) {
  *
  * WARNING:  See note above about what you get if you don't use the .then() ....
  *
- * @param {*} appId An application id (any string). 'TA-' will be prepended to denotes it as a "Tree App"
+ * @param {*} appId An application id (any string). 'WBE-' will be prepended to denotes it as a "Tree App"
  * @param {*} IDs can be a single string, with a single ID or a set of comma separated IDs. OR it can be an array of IDs
  * @param {*} fields an array of fields to return for each profile (almost the same as for getPerson or getProfile)
  *       - Can include Mother, Father, Spouses (which will include marriage data), but ignores fields Children,Parents, Siblings --> use options to get those people included
@@ -446,7 +446,7 @@ WikiTreeAPI.getPeople = async function (appId, IDs, fields, options = {}) {
  *    // where "result" is the JSON that was returned from the API call.
  * });
  *
- * @param {*} appId An application id (any string). 'TA-' will be prepended to denotes it as a "Tree App"
+ * @param {*} appId An application id (any string). 'WBE-' will be prepended to denotes it as a "Tree App"
  * @param {*} limit
  * @param {*} getPerson
  * @param {*} getSpace
@@ -461,6 +461,19 @@ WikiTreeAPI.getWatchlist = async function (appId, limit, getPerson, getSpace, fi
     getPerson: getPerson,
     getSpace: getSpace,
     fields: fields.join(","),
+    resolveRedirect: 1,
+  });
+  return result[0].watchlist;
+};
+
+WikiTreeAPI.getSpaceWatchlist = async function (appId, limit, fields) {
+  const result = await WikiTreeAPI.postToAPI({
+    appId: appId,
+    action: "getWatchlist",
+    limit: limit,
+    getPerson: 0, // Exclude person profiles
+    getSpace: 1, // Include space profiles
+    fields: fields.join(","), // Fields to fetch
     resolveRedirect: 1,
   });
   return result[0].watchlist;
@@ -485,8 +498,8 @@ WikiTreeAPI.postToAPI = async function (postData, signal) {
 
   let formData = new FormData();
   for (var key in postData) {
-    // We prepend 'TA-' to any appId to indicate the app is run as part of the "Tree Apps"
-    const value = key == "appId" ? `TA-${postData[key]}` : postData[key];
+    // We prepend 'WBE-' to any appId to indicate the app is run as part of the "Tree Apps"
+    const value = key == "appId" ? `WBE-${postData[key]}` : postData[key];
     formData.append(key, value);
   }
 

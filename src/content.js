@@ -97,6 +97,8 @@ import "./features/randomProfile/randomProfile";
 import "./features/what_links_here/what_links_here";
 
 /* MARKER: Default place for new features. Move these to a more appropriate place.*/
+import "./features/space_watchlist_sorter/space_watchlist_sorter";
+
 import "./features/help/help";
 
 import "./features/pending_merges_filters/pending_merges_filters";

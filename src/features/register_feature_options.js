@@ -101,6 +101,7 @@ import "./show_suggestions/show_suggestions_options";
 import "./sort_theme_people/sort_theme_people_options";
 import "./sourcepreview/sourcepreview_options";
 import "./space_drafts/space_drafts_options";
+import "./space_watchlist_sorter/space_watchlist_sorter_options";
 import "./spacepreview/spacepreview_options";
 import "./surname_table/surname_table_options";
 import "./table_filters/table_filters_options";
