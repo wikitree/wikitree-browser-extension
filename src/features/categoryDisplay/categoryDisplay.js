@@ -27,7 +27,8 @@ async function moveCategories() {
         return `<div id="categories"><ol class="star">${listCats}</ol></div>`;
       });
       $("#categories span").replaceWith(function () {
-        return `<li>${this.innerHTML}</li>`;
+        //span needed for feature Category Management to find the categories within the div
+        return `<li><span>${this.innerHTML}</span></li>`;
       });
       break;
   }
