@@ -108,7 +108,7 @@ async function checkButtonFeatures() {
   }
 }
 
-await checkButtonFeatures();
+checkButtonFeatures();
 
 // Add buttons to download or import the feature data (My Menu, Change Summary Options, Extra Watchlist, Clipboard)
 if (isNavHomePage) {
