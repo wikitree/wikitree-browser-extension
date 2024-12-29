@@ -726,7 +726,7 @@ export function isWikiTreeUrl(url) {
   return false;
 }
 
-const WBE_DATABASES_MINIMAL = ["Clipboard"];
+const WBE_DATABASES_MINIMAL = ["Clipboard", "SpaceWatchlistDB"];
 const WBE_DATABASES_ALL = [...WBE_DATABASES_MINIMAL, "CC7Database", "ConnectionFinderWTE", "RelationshipFinderWTE"];
 
 export function distRelDbKeyFor(profileId, userId) {

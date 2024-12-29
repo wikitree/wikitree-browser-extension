@@ -6,7 +6,6 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import "./my_connections.css";
 import "jquery-ui/ui/widgets/draggable";
-import { getAge } from "../change_family_lists/change_family_lists";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import {
   ageAtDeath,

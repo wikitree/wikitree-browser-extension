@@ -13,10 +13,22 @@
   overflow: auto;
 }
 
-.spaceWatchlistSorter-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+#spaceWatchlistSorter-popup li {
+  cursor: move;
+}
+
+#spaceWatchlistSorter-popup li a {
+  cursor: pointer;
+}
+
+#spaceWatchlistSorter-popup h3 {
+  margin: 0.2em;
+  font-size: 1.2em;
+  text-align: center;
+}
+
+#spaceWatchlistSorter-popup h2 {
+  text-align: center;
 }
 
 .spaceWatchlistSorter-folder {
@@ -25,9 +37,107 @@
   padding: 10px;
 }
 
+spaceWatchlistSorter-removeFolder {
+  cursor: pointer;
+  float: right;
+}
+
 .spaceWatchlistSorter-sortable {
   list-style: none;
   padding: 0;
   margin: 0;
   min-height: 20px;
+}
+
+#spaceWatchlistSorter-popup ul {
+  margin-left: 2em;
+}
+
+.spaceWatchlistSorter-folder {
+  border: 1px solid #ccc;
+  margin: 10px 0;
+  padding: 5px;
+}
+
+.spaceWatchlistSorter-folderHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #f9f9f9;
+  padding: 5px;
+  cursor: pointer;
+}
+
+.spaceWatchlistSorter-toggleFolder {
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.spaceWatchlistSorter-sortable {
+  margin: 0;
+  padding: 10px;
+}
+
+#spaceWatchlistSorterUnorganizedItems li {
+  border: 1px solid #ccc;
+  margin: 0.2em;
+  padding: 0.2em;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+}
+
+#spaceWatchlistSorterClosePopup {
+  position: absolute;
+  top: 1em;
+  right: -1em;
+  padding: 0.2em 0.4em;
+  cursor: pointer;
+}
+
+.spaceWatchlistSorter-loading {
+  display: none; /* Hidden by default */
+  z-index: 1000; /* Make sure it appears above everything */
+}
+.spaceWatchlistSorter-loading img {
+  width: 150px;
+  height: 150px;
+  border: 3px solid forestgreen;
+  border-radius: 50%;
+}
+
+#spaceWatchlistSorter-popup li.selected {
+  background-color: #d0f0c0; /* Light green */
+  border: 1px solid #90ee90; /* Highlight border */
+}
+
+#spaceWatchlistSorter-popup .drag-helper {
+  background-color: rgba(200, 200, 200, 0.9);
+  padding: 10px;
+  border: 1px dashed #ccc;
+  list-style: none;
+  z-index: 1000;
+}
+#spaceWatchlistSorter-popup .drag-helper li {
+  margin: 5px 0;
+}
+
+#spaceWatchlistContextMenu {
+  position: absolute;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  min-width: 150px;
+  display: none;
+}
+
+#spaceWatchlistContextMenu .context-menu-item {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+#spaceWatchlistContextMenu .context-menu-item:hover {
+  background-color: #f0f0f0;
 }

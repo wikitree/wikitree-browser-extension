@@ -6,7 +6,6 @@
 
 import $ from "jquery";
 import "../../thirdparty/jquery.hoverDelay";
-import { WBE } from "../../core/common";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { mainDomain, isPlusDomain } from "../../core/pageType.js";
@@ -15,7 +14,7 @@ import "../../core/navigatorDetect"; // needed for CSS classes
 let previewClasses = "x-page-preview";
 
 function onHoverIn($element) {
-  if ($element.get(0).xCancelHover) {
+  if ($element.get(0).xCancelHover || $element.hasClass("noPreview")) {
     // if they already clicked on the link, don't pop up the preview
     return false;
   }
@@ -71,7 +70,7 @@ function onHoverIn($element) {
           $(this).attr("href", $(this).attr("href").replace(/^#/, "#_xPagePreview_"));
         }
       });
-/*
+      /*
       if (isPlusDomain) {
         //correct image path to Main domain
         $popup.find('img[src^="/"]').each(function () {
@@ -123,7 +122,9 @@ function onHoverIn($element) {
           .append(
             ' <button aria-label="Copy ID" class="copyWidget" data-copy-text="' +
               decodeURIComponent(match[1]).replace(/_/g, " ") +
-              '" style="color:#8fc641;"><img src="https://' + mainDomain + '/images/icons/scissors.png">ID</button><button aria-label="Copy Wiki Link" class="copyWidget" data-copy-label="Copy Wiki Link" data-copy-text="[[:' +
+              '" style="color:#8fc641;"><img src="https://' +
+              mainDomain +
+              '/images/icons/scissors.png">ID</button><button aria-label="Copy Wiki Link" class="copyWidget" data-copy-label="Copy Wiki Link" data-copy-text="[[:' +
               decodeURIComponent(match[1]).replace(/_/g, " ") +
               ']]" style="color:#8fc641;">/Link</button><button aria-label="Copy URL" class="copyWidget" data-copy-label="Copy URL" data-copy-text="' +
               (window.location.href.match(/^.*\/{2,}.*?(?=\/)/) ?? "") +
@@ -203,11 +204,11 @@ function parsePageContent(response) {
     body: "<div></div>",
   };
   // Since $("<div></div>").html(content.body); in parseCategoryContent queues images for request they have to be corrected before.
-  if (isPlusDomain) {    
+  if (isPlusDomain) {
     //correct image path to Main domain
-    content.documentHTML = content.documentHTML.replaceAll('src="/', 'src="https://' + mainDomain + '/',);
+    content.documentHTML = content.documentHTML.replaceAll('src="/', 'src="https://' + mainDomain + "/");
     //correct links to Main domain
-    content.documentHTML = content.documentHTML.replaceAll('href="/', 'href="https://' + mainDomain + '/');
+    content.documentHTML = content.documentHTML.replaceAll('href="/', 'href="https://' + mainDomain + "/");
   }
   let $content = parseDocument(content.documentHTML);
   content.title = (

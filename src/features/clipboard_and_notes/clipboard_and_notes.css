@@ -258,7 +258,6 @@ button.addToMyPlaces {
 
 .qa-header .theClipboardButtons {
   z-index: 1000;
-  position: absolute;
   top: 1em;
   right: 1em;
 }
