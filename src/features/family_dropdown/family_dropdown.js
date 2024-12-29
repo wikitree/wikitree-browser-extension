@@ -218,6 +218,8 @@ async function doFamilyDropdown() {
     }
   }
 
+  $("#familyDropdown").prop("selectedIndex", 1);
+
   // Copy on change handler
   $("#familyDropdown").on("change", function () {
     copyfamilyDropdown();

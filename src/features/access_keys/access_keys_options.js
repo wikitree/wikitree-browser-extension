@@ -212,6 +212,12 @@ registerFeature({
           label: "Add any template (Access key: t)",
           defaultValue: true,
         },
+        {
+          id: "FamilyDropdown",
+          type: OptionType.CHECKBOX,
+          label: "Open Family Dropdown (Access key: y; needs space to open drop-down)",
+          defaultValue: true,
+        },
       ],
     },
   ],
