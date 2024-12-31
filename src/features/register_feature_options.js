@@ -98,6 +98,7 @@ import "./send_to_merge/send_to_merge_options";
 import "./shareable_sources/shareable_sources_options";
 import "./show_edits/show_edits_options";
 import "./show_suggestions/show_suggestions_options";
+import "./sibling_status_sync/sibling_status_sync_options";
 import "./sort_theme_people/sort_theme_people_options";
 import "./sourcepreview/sourcepreview_options";
 import "./space_drafts/space_drafts_options";

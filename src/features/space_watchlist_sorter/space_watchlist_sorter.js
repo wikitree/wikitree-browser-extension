@@ -196,7 +196,7 @@ async function loadSpaceWatchlist() {
       });
 
       if (response?.clientLogin?.result === "Success") {
-        console.log("Login successful:", response.clientLogin);
+        //console.log("Login successful:", response.clientLogin);
         // Remove the authcode from the URL to clean it up
         const cleanURL = window.location.href.split("?")[0];
         window.history.replaceState({}, document.title, cleanURL);
@@ -217,7 +217,7 @@ async function loadSpaceWatchlist() {
     const watchlist = await WikiTreeAPI.getSpaceWatchlist(appId, limit, fields);
 
     if (watchlist.length === 0) {
-      console.log("No watchlist data. Redirecting to login...");
+      //console.log("No watchlist data. Redirecting to login...");
       // Set redirecting flag in localStorage
       localStorage.setItem("spaceWatchlistSorterRedirecting", "true");
 
@@ -262,18 +262,18 @@ async function loadWatchlistFromDB() {
 
       getRequest.onsuccess = function () {
         const result = getRequest.result || { unorganizedItems: [], folders: [] };
-        console.log("Watchlist loaded from IndexedDB:", result);
+        // console.log("Watchlist loaded from IndexedDB:", result);
         resolve(result);
       };
 
       getRequest.onerror = function (e) {
-        console.error("Error reading from IndexedDB:", e.target.error);
+        // console.error("Error reading from IndexedDB:", e.target.error);
         resolve({ unorganizedItems: [], folders: [] });
       };
     };
 
     dbRequest.onerror = function (e) {
-      console.error("Error opening IndexedDB:", e.target.error);
+      //console.error("Error opening IndexedDB:", e.target.error);
       resolve({ unorganizedItems: [], folders: [] });
     };
   });
@@ -281,7 +281,7 @@ async function loadWatchlistFromDB() {
 
 async function populateInterface() {
   try {
-    console.log("Populating interface...");
+    //console.log("Populating interface...");
     const apiWatchlist = await loadSpaceWatchlist();
     const dbWatchlist = await loadWatchlistFromDB();
 
@@ -350,7 +350,7 @@ async function populateInterface() {
 }
 
 async function saveWatchlistToDB() {
-  console.log("Saving watchlist to IndexedDB...");
+  //console.log("Saving watchlist to IndexedDB...");
   const userId = await getUserWtId(); // Fetch the logged-in user's ID
   if (!userId) {
     console.error("Unable to fetch user ID. Cannot save watchlist.");
@@ -401,7 +401,7 @@ function addButton() {
   console.log("Adding the sorter button...");
   const clipboardContainer = $(".clipboardContainer");
   if (clipboardContainer.find(".spaceWatchlistSorterButton").length === 0) {
-    console.log("Adding Space Watchlist Sorter button...");
+    //console.log("Adding Space Watchlist Sorter button...");
     const sorterButton = $("<img>", {
       title: "Space Watchlist Sorter",
       class: "button small spaceWatchlistSorterButton",
@@ -412,10 +412,10 @@ function addButton() {
     clipboardContainer.append(sorterButton);
 
     sorterButton.on("click", async function () {
-      console.log("Sorter button clicked.");
+      //console.log("Sorter button clicked.");
       const $popup = $("#spaceWatchlistSorter-popup");
       if ($popup.length === 0) {
-        console.log("Appending popup and loading screen to body...");
+        //console.log("Appending popup and loading screen to body...");
         $("body").append(` 
           <div id="spaceWatchlistSorter-loading" class="spaceWatchlistSorter-loading">
             <img src="${chrome.runtime.getURL("images/tree.gif")}" alt="Loading..." />
@@ -460,7 +460,7 @@ function addButton() {
 }
 
 function addFolder() {
-  console.log("Adding a new folder...");
+  // console.log("Adding a new folder...");
   const folderId = `spaceWatchlistSorterFolder-${Date.now()}`;
   $("#spaceWatchlistSorterFolderContainer").append(`
     <div id="${folderId}" class="spaceWatchlistSorter-folder">
@@ -476,7 +476,7 @@ function addFolder() {
   initializeSortable(); // Reinitialize sortable for the new folder
   initializeDroppable(); // Initialize droppable for the new folder
 
-  console.log(`Folder added with ID: ${folderId}`);
+  // console.log(`Folder added with ID: ${folderId}`);
 }
 
 function initializeDroppable() {
@@ -506,7 +506,7 @@ function initializeDroppable() {
 
 shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
   if (result) {
-    console.log("Feature initialized.");
+    // console.log("Feature initialized.");
     // Import CSS
     import("./space_watchlist_sorter.css");
 
@@ -535,11 +535,11 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
     $(document).on("click", "#spaceWatchlistSorterClosePopup", function () {
       saveWatchlistToDB();
       $("#spaceWatchlistSorter-popup").hide();
-      console.log("Popup closed and data saved.");
+      // console.log("Popup closed and data saved.");
     });
     $(document).on("click", ".spaceWatchlistSorter-removeFolder", function () {
       const folderId = $(this).closest(".spaceWatchlistSorter-folder").attr("id");
-      console.log(`Removing folder with ID: ${folderId}`);
+      // console.log(`Removing folder with ID: ${folderId}`);
       $(this).closest(".spaceWatchlistSorter-folder").remove();
     });
     $(document).on("click", ".spaceWatchlistSorter-toggleFolder", function () {

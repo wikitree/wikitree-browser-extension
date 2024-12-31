@@ -187,7 +187,7 @@ console.log("Feature creation complete.");
  *    - `-p` or `--pageTypes`: A comma-separated list of page types this feature applies to (e.g., `isProfilePage, isSpacePage`).
  *
  * **Important Notes**
- * - **Page Types**: These are used to specify where the feature should be applied. Some important page types include `isProfilePage`, `isProfileEdit`, `isSpacePage`, `isSpaceEdit`, `isMainDomain`, etc. For more available page types, see `src/core/page_type.js`.
+ * - **Page Types**: These are used to specify where the feature should be applied. Some important page types include `isProfilePage`, `isProfileEdit`, `isSpacePage`, `isSpaceEdit`, `isMainDomain`, etc. For more available page types, see `src/core/pageType.js`.
  * - **Categories**: The category helps to classify the feature in the extension. The available categories are:
  *   - `Global`
  *   - `Global/Style`
