@@ -279,6 +279,7 @@ async function populateInterface() {
       // Add folder containers
       folderContainer.append(`
         <div id="spaceWatchlistSorterFolder-${folderId}" class="spaceWatchlistSorter-folder" style="display: none;">
+          <button class="sort-alphabetically-button small" data-folder-id="${folderId}">A-Z</button>
           <ul class="spaceWatchlistSorter-sortable">
             ${folder.items
               .filter((item) => {
@@ -289,7 +290,7 @@ async function populateInterface() {
               .map(
                 (item) => `
                   <li data-id="${item}">
-                    <a href="https://www.wikitree.com/${item}" target="_blank">${item}</a>
+                    <a href="https://www.wikitree.com/wiki/Space:${item}" target="_blank">${item}</a>
                   </li>`
               )
               .join("")}
@@ -333,6 +334,24 @@ async function populateInterface() {
   } catch (error) {
     console.error("Error populating interface:", error);
   }
+}
+
+function sortFolderAlphabetically(folderId) {
+  const $folder = $(`#spaceWatchlistSorterFolder-${folderId}`);
+  const $list = $folder.find(".spaceWatchlistSorter-sortable");
+
+  const $items = $list.children("li");
+  $items.sort((a, b) => {
+    const textA = $(a).text().trim().toLowerCase();
+    const textB = $(b).text().trim().toLowerCase();
+    return textA.localeCompare(textB);
+  });
+
+  $list.empty().append($items);
+
+  // Save the updated folder state
+  const updatedFolders = getUpdatedFolders();
+  debounceSaveWatchlistToDB(updatedFolders);
 }
 
 async function saveWatchlistToDB(folders = []) {
@@ -381,7 +400,7 @@ async function saveWatchlistToDB(folders = []) {
     console.error("Error in saveWatchlistToDB:", error);
   }
 }
-const sImgSRC = chrome.runtime.getURL("images/s.png");
+const sImgSRC = chrome.runtime.getURL("images/S.png");
 
 // Add Button to Page
 function addButton() {
@@ -624,7 +643,7 @@ function addUnorganizedFolder(apiWatchlist, apiIds) {
     if (!apiIds.has(space?.Title?.Text)) {
       unorganizedItems.push(`
         <li data-id="${space?.Title?.Text}">
-          <a href="https://www.wikitree.com/${space?.Title?.LocalURL}" target="_blank">
+          <a href="https://www.wikitree.com/wiki/Space:${space?.Title?.LocalURL}" target="_blank">
             ${space?.Title?.Text}
           </a>
         </li>
@@ -903,6 +922,10 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
           $tab.trigger("blur");
         }
       });
+    });
+    $(document).on("click", ".sort-alphabetically-button", function () {
+      const folderId = $(this).data("folder-id");
+      sortFolderAlphabetically(folderId);
     });
   } else {
     console.warn("Feature not initialized.");

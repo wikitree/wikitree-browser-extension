@@ -175,3 +175,14 @@ spaceWatchlistSorter-removeFolder {
 .spaceWatchlistSorter-add-tab:hover {
   background-color: #e0e0e0;
 }
+
+#spaceWatchlistSorterFolderContainer {
+  position: relative;
+}
+
+#spaceWatchlistSorterFolderContainer .sort-alphabetically-button {
+  position: absolute;
+  right: 0;
+  top: 0;
+  padding: 0.5em 1em;
+}
