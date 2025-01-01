@@ -57,6 +57,7 @@ spaceWatchlistSorter-removeFolder {
   border: 1px solid #ccc;
   margin: 10px 0;
   padding: 5px;
+  background-color: #f9f9f9;
 }
 
 .spaceWatchlistSorter-folderHeader {
@@ -65,7 +66,7 @@ spaceWatchlistSorter-removeFolder {
   justify-content: space-between;
   background-color: #f9f9f9;
   padding: 5px;
-  cursor: pointer;
+  cursor: move;
 }
 
 .spaceWatchlistSorter-toggleFolder {

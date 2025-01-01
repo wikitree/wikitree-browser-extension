@@ -19,9 +19,20 @@ const spaceWatchlistSorterHTML = `
     <ul id="spaceWatchlistSorterUnorganizedItems" class="spaceWatchlistSorter-sortable"></ul>
   </div>
   <div id="spaceWatchlistSorterFolderContainer"></div>
-  <button id="spaceWatchlistSorterAddFolder" class="small">Add Folder</button>
+  <button id="spaceWatchlistSorterAddFolder" class="small">Add Group</button>
 </div>
 `;
+
+function initializeFolderSortable() {
+  $("#spaceWatchlistSorterFolderContainer").sortable({
+    handle: ".spaceWatchlistSorter-folderHeader", // Allow sorting by dragging the folder header
+    placeholder: "ui-state-highlight",
+    stop: function () {
+      console.log("Folders reordered");
+      saveWatchlistToDB(); // Save the updated order of folders
+    },
+  });
+}
 
 function initializeSortable() {
   $(".spaceWatchlistSorter-sortable")
@@ -342,6 +353,7 @@ async function populateInterface() {
 
     initializeSortable();
     initializeDroppable();
+    initializeFolderSortable(); // Initialize folder sorting
 
     console.log("Interface populated.");
   } catch (error) {
@@ -351,7 +363,7 @@ async function populateInterface() {
 
 async function saveWatchlistToDB() {
   //console.log("Saving watchlist to IndexedDB...");
-  const userId = await getUserWtId(); // Fetch the logged-in user's ID
+  const userId = getUserWtId(); // Fetch the logged-in user's ID
   if (!userId) {
     console.error("Unable to fetch user ID. Cannot save watchlist.");
     return;
@@ -475,24 +487,46 @@ function addFolder() {
 
   initializeSortable(); // Reinitialize sortable for the new folder
   initializeDroppable(); // Initialize droppable for the new folder
+  initializeFolderSortable(); // Reinitialize folder sorting
 
   // console.log(`Folder added with ID: ${folderId}`);
 }
 
 function initializeDroppable() {
+  let expandTimer; // Timer for delayed folder expansion
+
   $(".spaceWatchlistSorter-droppable").droppable({
     accept: ".spaceWatchlistSorter-sortable li",
     hoverClass: "ui-state-highlight",
+    tolerance: "pointer", // Trigger drop when pointer is over the target
+    over: function (event, ui) {
+      const folderHeader = $(this);
+      const folder = folderHeader.closest(".spaceWatchlistSorter-folder");
+      const folderContent = folder.find(".spaceWatchlistSorter-sortable");
+
+      // Start a timer to expand the folder after a delay
+      expandTimer = setTimeout(() => {
+        if (!folderContent.is(":visible")) {
+          folderContent.slideDown(); // Expand the folder
+          folderHeader.find(".spaceWatchlistSorter-toggleFolder").text("−"); // Update toggle button text
+        }
+      }, 500); // Delay of 500ms
+    },
+    out: function () {
+      // Clear the timer if the user moves away before the delay is over
+      clearTimeout(expandTimer);
+    },
     drop: function (event, ui) {
       const folderHeader = $(this);
       const folder = folderHeader.closest(".spaceWatchlistSorter-folder");
+      const folderContent = folder.find(".spaceWatchlistSorter-sortable");
       const $selected = ui.draggable.data("selectedItems") || $(ui.draggable);
 
       console.log(`Items dropped on folder: ${folderHeader.text().trim()}`);
 
       // Move the selected items to the folder's list
       $selected.each(function () {
-        folder.find(".spaceWatchlistSorter-sortable").append($(this));
+        folderContent.append($(this));
       });
 
       // Reinitialize sortable for the updated list
@@ -534,7 +568,7 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
     });
     $(document).on("click", "#spaceWatchlistSorterClosePopup", function () {
       saveWatchlistToDB();
-      $("#spaceWatchlistSorter-popup").hide();
+      $("#spaceWatchlistSorter-popup").slideUp();
       // console.log("Popup closed and data saved.");
     });
     $(document).on("click", ".spaceWatchlistSorter-removeFolder", function () {
@@ -647,6 +681,13 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
     // Hide the context menu on scroll
     $(document).on("scroll", function () {
       $("#spaceWatchlistContextMenu").hide();
+    });
+
+    $(document).on("click", function (event) {
+      // Close the popup with the Escape key
+      if (event.key === "Escape") {
+        $("#spaceWatchlistSorterClosePopup").trigger("click");
+      }
     });
   } else {
     console.warn("Feature not initialized.");
