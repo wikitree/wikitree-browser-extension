@@ -899,6 +899,8 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
       }
     });
     $(document).on("dblclick", ".spaceWatchlistSorter-tab", function (event) {
+      event.stopPropagation(); // Prevent event propagation
+
       const $tab = $(this);
       const currentText = $tab.text().trim();
       $tab.prop("contenteditable", true).trigger("focus");
@@ -922,6 +924,13 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
           $tab.trigger("blur");
         }
       });
+
+      // Ensure all text is selected when double-clicked
+      const range = document.createRange();
+      const selection = window.getSelection();
+      range.selectNodeContents($tab[0]);
+      selection.removeAllRanges();
+      selection.addRange(range);
     });
     $(document).on("click", ".sort-alphabetically-button", function () {
       const folderId = $(this).data("folder-id");
