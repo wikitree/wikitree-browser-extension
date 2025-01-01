@@ -337,6 +337,9 @@ async function populateInterface() {
 }
 
 function sortFolderAlphabetically(folderId) {
+  console.log(`Sorting folder with ID: ${folderId} alphabetically...`);
+  folderId = folderId.replace("spaceWatchlistSorterFolder-", "");
+
   const $folder = $(`#spaceWatchlistSorterFolder-${folderId}`);
   const $list = $folder.find(".spaceWatchlistSorter-sortable");
 
@@ -491,6 +494,7 @@ function addFolder() {
   // Add the new folder container
   $("#spaceWatchlistSorterFolderContainer").append(`
     <div id="${folderId}" class="spaceWatchlistSorter-folder" style="display: none;">
+    <button class="sort-alphabetically-button small" data-folder-id="${folderId}">A-Z</button>
       <ul class="spaceWatchlistSorter-sortable"></ul>
     </div>
   `);
@@ -933,7 +937,7 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
       selection.addRange(range);
     });
     $(document).on("click", ".sort-alphabetically-button", function () {
-      const folderId = $(this).data("folder-id");
+      const folderId = $(this).data("folder-id") || $(this).attr("data-folder-id");
       sortFolderAlphabetically(folderId);
     });
   } else {
