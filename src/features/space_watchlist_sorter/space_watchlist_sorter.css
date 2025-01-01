@@ -142,3 +142,49 @@ spaceWatchlistSorter-removeFolder {
 #spaceWatchlistContextMenu .context-menu-item:hover {
   background-color: #f0f0f0;
 }
+
+.spaceWatchlistSorter-removeFolder {
+  cursor: pointer;
+  float: right;
+  visibility: visible; /* Ensure it appears even for the Unorganized folder */
+}
+
+.spaceWatchlistSorter-folderName[data-is-unorganized="true"] + .spaceWatchlistSorter-removeFolder {
+  visibility: hidden; /* Hide the X button for the Unorganized folder */
+}
+
+.spaceWatchlistSorter-tabs {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 10px;
+}
+
+.spaceWatchlistSorter-tab {
+  padding: 10px 15px;
+  border: 1px solid #ccc;
+  border-bottom: none;
+  cursor: pointer;
+  background-color: #f9f9f9;
+  margin-right: 5px;
+}
+
+.spaceWatchlistSorter-tab.active {
+  background-color: #fff;
+  font-weight: bold;
+}
+
+.spaceWatchlistSorter-add-tab {
+  font-weight: bold;
+  text-align: center;
+  cursor: pointer;
+  padding: 5px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+  margin-left: 5px;
+  display: inline-block;
+}
+
+.spaceWatchlistSorter-add-tab:hover {
+  background-color: #e0e0e0;
+}
