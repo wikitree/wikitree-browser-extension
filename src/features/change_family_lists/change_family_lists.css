@@ -668,6 +668,9 @@ div.VITALS li span.parentStatus {
 div.VITALS li span[itemprop="name"] {
   display: inline-block;
 }
+div.VITALS a.ancestor {
+  border: 1px solid red;
+}
 
 @media only print {
   .print-content-only #nVitals .sidebar-heading {

@@ -40,6 +40,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
         addChildrenCount();
       }
       await getWindowPeople();
+
       if (options.agesAtMarriages) {
         addMarriageAges();
       }
@@ -78,6 +79,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
         addRelativeAges(parentPerson);
       }
     }
+
     if (options.changeHeaders) {
       setTimeout(function () {
         siblingsHeader(true);
@@ -106,6 +108,8 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
         moveFamilyLists(true);
       }
     };
+
+    // Execute the function
   }
 });
 
@@ -160,6 +164,9 @@ async function addAddLinksToHeadings() {
         });
       }
     });
+  }
+  if (options.highlightAncestors) {
+    getAncestorsOnPage().catch(console.error);
   }
 }
 
@@ -399,6 +406,68 @@ function loadRelatives(profileWTID, onSuccess) {
       },
     });
   }
+}
+
+async function getAncestorsOnPage() {
+  const dbName = "RelationshipFinderWTE";
+  const storeName = "relationship2";
+
+  // Open IndexedDB
+  const dbPromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open(dbName, 2); // Ensure you use the correct version
+    request.onsuccess = (event) => resolve(event.target.result);
+    request.onerror = (event) => reject(event.target.error);
+  });
+
+  const db = await dbPromise;
+
+  // Get ancestor IDs based on the relationship filter
+  const ancestorsPromise = new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, "readonly");
+    const store = transaction.objectStore(storeName);
+    const allItemsRequest = store.getAll();
+
+    allItemsRequest.onsuccess = () => {
+      const items = allItemsRequest.result;
+      const ancestorKeys = items
+        .filter((item) => {
+          // console.log(item);
+          const relationship = item?.relationship?.toLowerCase();
+          //console.log(relationship);
+          if (!relationship) return false;
+          return relationship.match(/father|mother/) != null;
+        })
+        .map((item) => item.id); // Extract only ancestor IDs
+      resolve(ancestorKeys);
+    };
+
+    allItemsRequest.onerror = (event) => reject(event.target.error);
+  });
+
+  const ancestorKeys = await ancestorsPromise;
+  //console.log("Ancestor keys:", ancestorKeys);
+
+  // Cross-reference with window.people
+  const peopleOnPage = window.people;
+  //console.log("People on the page:", peopleOnPage);
+  const ancestorsOnPage = peopleOnPage.filter((person) => ancestorKeys.includes(person.Name));
+  // console.log("Ancestors on the page:", ancestorsOnPage);
+
+  // Highlight ancestors on the page
+  ancestorsOnPage.forEach((ancestor) => {
+    const element = $(`div.VITALS a[href$="/wiki/${ancestor.Name}"]`);
+    if (element) {
+      element.addClass("ancestor");
+      element.attr("aria-label", "Ancestor");
+      element.attr("title", "Ancestor");
+    }
+  });
+
+  console.log(
+    "Ancestors on the page:",
+    ancestorsOnPage.map((a) => a.Name)
+  );
+  return ancestorsOnPage.map((a) => a.Name); // Return the array of ancestor WT IDs
 }
 
 function reallyMakeFamLists() {
