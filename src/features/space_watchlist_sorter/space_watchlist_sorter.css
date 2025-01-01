@@ -31,12 +31,6 @@
   text-align: center;
 }
 
-.spaceWatchlistSorter-folder {
-  border: 1px solid #ccc;
-  margin: 10px 0;
-  padding: 10px;
-}
-
 spaceWatchlistSorter-removeFolder {
   cursor: pointer;
   float: right;
@@ -49,15 +43,9 @@ spaceWatchlistSorter-removeFolder {
   min-height: 20px;
 }
 
-#spaceWatchlistSorter-popup ul {
-  margin-left: 2em;
-}
-
 .spaceWatchlistSorter-folder {
   border: 1px solid #ccc;
-  margin: 10px 0;
   padding: 5px;
-  background-color: #f9f9f9;
 }
 
 .spaceWatchlistSorter-folderHeader {
@@ -81,12 +69,13 @@ spaceWatchlistSorter-removeFolder {
   padding: 10px;
 }
 
-#spaceWatchlistSorterUnorganizedItems li {
+#spaceWatchlistSorterUnorganizedItems li,
+#spaceWatchlistSorterFolderContainer li {
   border: 1px solid #ccc;
   margin: 0.2em;
   padding: 0.2em;
   border-radius: 5px;
-  background-color: #f9f9f9;
+  background-color: #fff;
 }
 
 #spaceWatchlistSorterClosePopup {
@@ -156,7 +145,6 @@ spaceWatchlistSorter-removeFolder {
 .spaceWatchlistSorter-tabs {
   display: flex;
   justify-content: flex-start;
-  margin-bottom: 10px;
 }
 
 .spaceWatchlistSorter-tab {
@@ -177,7 +165,6 @@ spaceWatchlistSorter-removeFolder {
   font-weight: bold;
   text-align: center;
   cursor: pointer;
-  padding: 5px 10px;
   border: 1px solid #ccc;
   border-radius: 4px;
   background-color: #f9f9f9;

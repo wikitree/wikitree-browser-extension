@@ -275,11 +275,17 @@ async function populateInterface() {
         <div id="${tabId}" class="spaceWatchlistSorter-tab">${folder.name}</div>
       `);
 
+      const uniqueItems = new Set();
       // Add folder containers
       folderContainer.append(`
         <div id="spaceWatchlistSorterFolder-${folderId}" class="spaceWatchlistSorter-folder" style="display: none;">
           <ul class="spaceWatchlistSorter-sortable">
             ${folder.items
+              .filter((item) => {
+                if (uniqueItems.has(item)) return false; // Skip duplicates
+                uniqueItems.add(item); // Track unique item
+                return true;
+              })
               .map(
                 (item) => `
                   <li data-id="${item}">
@@ -320,6 +326,8 @@ async function populateInterface() {
     });
 
     $("#spaceWatchlistSorterTabs").append(addGroupTab);
+
+    initializeSortable(); // Ensure sortable is re-initialized after DOM update
 
     console.log("Interface populated with tabs and folders.");
   } catch (error) {
@@ -373,6 +381,7 @@ async function saveWatchlistToDB(folders = []) {
     console.error("Error in saveWatchlistToDB:", error);
   }
 }
+const sImgSRC = chrome.runtime.getURL("images/s.png");
 
 // Add Button to Page
 function addButton() {
@@ -383,7 +392,7 @@ function addButton() {
     const sorterButton = $("<img>", {
       title: "Space Watchlist Sorter",
       class: "button small spaceWatchlistSorterButton",
-      src: chrome.runtime.getURL("images/s.png"),
+      src: sImgSRC,
       accesskey: "s",
     });
 
@@ -447,14 +456,17 @@ function addFolder() {
     .map((_, tab) => $(tab).text().trim())
     .get();
 
-  if (existingTabs.includes("New Folder")) {
-    console.warn("A 'New Folder' already exists. Rename it before adding another.");
-    return;
+  let newFolderName = "New Group";
+  let count = 1;
+
+  while (existingTabs.includes(newFolderName)) {
+    count++;
+    newFolderName = `New Group ${count}`;
   }
 
   // Add the new folder tab BEFORE the "+" tab
   $("#spaceWatchlistSorterTabs .spaceWatchlistSorter-add-tab").before(`
-    <div id="${tabId}" class="spaceWatchlistSorter-tab">New Folder</div>
+    <div id="${tabId}" class="spaceWatchlistSorter-tab">${newFolderName}</div>
   `);
 
   // Add the new folder container
@@ -515,23 +527,21 @@ function addFolder() {
 // Helper to calculate folder state
 function getUpdatedFolders() {
   const updatedFolders = [];
-  $("#spaceWatchlistSorterFolderContainer .spaceWatchlistSorter-folder").each(function () {
-    const folderId = $(this).attr("id")?.replace("spaceWatchlistSorterFolder-", "");
-    const folderName = $(`#spaceWatchlistSorterTabs .spaceWatchlistSorter-tab#spaceWatchlistSorterTab-${folderId}`)
-      .text()
-      .trim();
-    const items = $(this)
-      .find("li")
-      .map(function () {
-        return $(this).data("id");
-      })
-      .get();
+  $("#spaceWatchlistSorterTabs .spaceWatchlistSorter-tab").each(function () {
+    const tabId = $(this).attr("id");
+    if (tabId && !$(this).hasClass("spaceWatchlistSorter-add-tab")) {
+      const folderId = tabId.replace("spaceWatchlistSorterTab-", "");
+      const folderName = $(this).text().trim();
+      const folderItems = $(`#spaceWatchlistSorterFolder-${folderId} .spaceWatchlistSorter-sortable li`)
+        .map(function () {
+          return $(this).data("id");
+        })
+        .get();
 
-    if (folderId && folderName) {
       updatedFolders.push({
         id: folderId,
         name: folderName,
-        items: items,
+        items: folderItems,
       });
     }
   });
@@ -669,15 +679,18 @@ function initializeSortable() {
     })
     .disableSelection();
 
-  $(".spaceWatchlistSorter-tab").sortable({
-    axis: "x",
-    items: ".spaceWatchlistSorter-tab:not(.spaceWatchlistSorter-add-tab)", // Exclude the Add Group tab
-    stop: function () {
-      const updatedFolders = getUpdatedFolders();
-      console.log("Tab reorder triggered save:", updatedFolders);
-      debounceSaveWatchlistToDB(updatedFolders);
-    },
-  });
+  // Apply sortable to the tabs
+  $("#spaceWatchlistSorterTabs")
+    .sortable({
+      axis: "x",
+      items: ".spaceWatchlistSorter-tab:not(.spaceWatchlistSorter-add-tab)", // Exclude the "+" tab
+      stop: function () {
+        const updatedFolders = getUpdatedFolders();
+        console.log("Tab reorder triggered save:", updatedFolders);
+        debounceSaveWatchlistToDB(updatedFolders); // Save updated tab order
+      },
+    })
+    .disableSelection();
 }
 
 shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
@@ -860,7 +873,7 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
       $("#spaceWatchlistContextMenu").hide();
     });
 
-    $(document).on("click", function (event) {
+    $(document).on("keydown", function (event) {
       // Close the popup with the Escape key
       if (event.key === "Escape") {
         $("#spaceWatchlistSorterClosePopup").trigger("click");
