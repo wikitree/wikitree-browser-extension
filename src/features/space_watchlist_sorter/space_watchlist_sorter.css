@@ -31,12 +31,6 @@
   text-align: center;
 }
 
-.spaceWatchlistSorter-folder {
-  border: 1px solid #ccc;
-  margin: 10px 0;
-  padding: 10px;
-}
-
 spaceWatchlistSorter-removeFolder {
   cursor: pointer;
   float: right;
@@ -49,13 +43,8 @@ spaceWatchlistSorter-removeFolder {
   min-height: 20px;
 }
 
-#spaceWatchlistSorter-popup ul {
-  margin-left: 2em;
-}
-
 .spaceWatchlistSorter-folder {
   border: 1px solid #ccc;
-  margin: 10px 0;
   padding: 5px;
 }
 
@@ -65,7 +54,7 @@ spaceWatchlistSorter-removeFolder {
   justify-content: space-between;
   background-color: #f9f9f9;
   padding: 5px;
-  cursor: pointer;
+  cursor: move;
 }
 
 .spaceWatchlistSorter-toggleFolder {
@@ -80,12 +69,13 @@ spaceWatchlistSorter-removeFolder {
   padding: 10px;
 }
 
-#spaceWatchlistSorterUnorganizedItems li {
+#spaceWatchlistSorterUnorganizedItems li,
+#spaceWatchlistSorterFolderContainer li {
   border: 1px solid #ccc;
   margin: 0.2em;
   padding: 0.2em;
   border-radius: 5px;
-  background-color: #f9f9f9;
+  background-color: #fff;
 }
 
 #spaceWatchlistSorterClosePopup {
@@ -140,4 +130,59 @@ spaceWatchlistSorter-removeFolder {
 
 #spaceWatchlistContextMenu .context-menu-item:hover {
   background-color: #f0f0f0;
+}
+
+.spaceWatchlistSorter-removeFolder {
+  cursor: pointer;
+  float: right;
+  visibility: visible; /* Ensure it appears even for the Unorganized folder */
+}
+
+.spaceWatchlistSorter-folderName[data-is-unorganized="true"] + .spaceWatchlistSorter-removeFolder {
+  visibility: hidden; /* Hide the X button for the Unorganized folder */
+}
+
+.spaceWatchlistSorter-tabs {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.spaceWatchlistSorter-tab {
+  padding: 10px 15px;
+  border: 1px solid #ccc;
+  border-bottom: none;
+  cursor: pointer;
+  background-color: #f9f9f9;
+  margin-right: 5px;
+}
+
+.spaceWatchlistSorter-tab.active {
+  background-color: #fff;
+  font-weight: bold;
+}
+
+.spaceWatchlistSorter-add-tab {
+  font-weight: bold;
+  text-align: center;
+  cursor: pointer;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+  margin-left: 5px;
+  display: inline-block;
+}
+
+.spaceWatchlistSorter-add-tab:hover {
+  background-color: #e0e0e0;
+}
+
+#spaceWatchlistSorterFolderContainer {
+  position: relative;
+}
+
+#spaceWatchlistSorterFolderContainer .sort-alphabetically-button {
+  position: absolute;
+  right: 0;
+  top: 0;
+  padding: 0.5em 1em;
 }

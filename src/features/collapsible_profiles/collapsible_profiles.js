@@ -369,7 +369,7 @@ function collapseSectionByHeadingId(headingId) {
       });
     }
   } else {
-    console.warn(`Heading with ID '${headingId}' not found.`);
+    //console.warn(`Heading with ID '${headingId}' not found.`);
   }
 }
 
