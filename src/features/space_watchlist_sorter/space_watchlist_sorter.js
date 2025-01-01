@@ -643,7 +643,7 @@ function addUnorganizedFolder(apiWatchlist, apiIds) {
     if (!apiIds.has(space?.Title?.Text)) {
       unorganizedItems.push(`
         <li data-id="${space?.Title?.Text}">
-          <a href="https://www.wikitree.com/wiki/Space:${space?.Title?.LocalURL}" target="_blank">
+          <a href="https://www.wikitree.com/${space?.Title?.LocalURL}" target="_blank">
             ${space?.Title?.Text}
           </a>
         </li>
