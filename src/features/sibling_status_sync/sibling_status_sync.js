@@ -35,7 +35,7 @@ function getUserIdFromPage() {
 
 // Fetch sibling data using the WikiTree API
 async function fetchSiblings(userId) {
-  const fields = ["Id", "Father", "Mother", "Name", "FirstName", "RealName", "mNoSiblings"];
+  const fields = ["Id", "Father", "Mother", "Name", "FirstName", "RealName"];
   const options = { nuclear: 1 };
 
   const result = await WikiTreeAPI.getPeople("WBE-siblingStatusSync", [userId], fields, options);
@@ -99,7 +99,7 @@ async function updateSiblingPageWithIframe(sibling, isChecked) {
 
     const processIframe = () => {
       const iframeDoc = iframe.contentWindow?.document;
-      if (!iframeDoc){
+      if (!iframeDoc) {
         return;
       }
       const checkbox = iframeDoc.querySelector("input[name='mNoSiblings']");
