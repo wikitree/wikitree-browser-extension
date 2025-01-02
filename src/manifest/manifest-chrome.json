@@ -9,8 +9,7 @@
   "content_scripts": [
     {
       "matches": ["https://*.wikitree.com/*", "https://wikitree.sdms.si/*"],
-      "js": ["js/vendor.js", "js/content.js"],
-      "all_frames": true
+      "js": ["js/vendor.js", "js/content.js"]
     }
   ],
   "background": {

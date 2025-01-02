@@ -221,12 +221,11 @@ async function loadWatchlistFromDB() {
     };
   });
 }
-let watchlistReady = false;
+
 async function populateInterface() {
   try {
     const apiWatchlist = await loadSpaceWatchlist();
     const dbWatchlist = await loadWatchlistFromDB();
-    watchlistReady = false;
 
     const tabsContainer = $("#spaceWatchlistSorterTabs");
     const folderContainer = $("#spaceWatchlistSorterFolderContainer");
@@ -313,7 +312,6 @@ async function populateInterface() {
       $(".spaceWatchlistSorter-folder").hide();
       $(`#${targetFolderId}`).show();
     });
-    watchlistReady = true;
 
     // Add the "Add Group" tab dynamically
     const addGroupTab = $(`
@@ -590,95 +588,6 @@ async function debounceSaveWatchlistToDB(folders = []) {
   }, 300); // Delay of 300ms
 }
 
-function initializeDroppable() {
-  let expandTimer; // Timer for delayed folder expansion
-
-  $(".spaceWatchlistSorter-droppable").droppable({
-    accept: ".spaceWatchlistSorter-sortable li",
-    hoverClass: "ui-state-highlight",
-    tolerance: "pointer", // Trigger drop when pointer is over the target
-    over: function (event, ui) {
-      const folderHeader = $(this);
-      const folder = folderHeader.closest(".spaceWatchlistSorter-folder");
-      const folderContent = folder.find(".spaceWatchlistSorter-sortable");
-
-      // Start a timer to expand the folder after a delay
-      expandTimer = setTimeout(() => {
-        if (!folderContent.is(":visible")) {
-          folderContent.slideDown(); // Expand the folder
-          folderHeader.find(".spaceWatchlistSorter-toggleFolder").text("−"); // Update toggle button text
-        }
-      }, 500); // Delay of 500ms
-    },
-    out: function () {
-      // Clear the timer if the user moves away before the delay is over
-      clearTimeout(expandTimer);
-    },
-    drop: function (event, ui) {
-      const folderHeader = $(this);
-      const folder = folderHeader.closest(".spaceWatchlistSorter-folder");
-      const folderContent = folder.find(".spaceWatchlistSorter-sortable");
-      const $selected = ui.draggable.data("selectedItems") || $(ui.draggable);
-
-      console.log(`Items dropped on folder: ${folderHeader.text().trim()}`);
-
-      // Move the selected items to the folder's list
-      $selected.each(function () {
-        folderContent.append($(this));
-      });
-
-      // Reinitialize sortable for the updated list
-      initializeSortable();
-
-      const updatedFolders = getUpdatedFolders();
-      debounceSaveWatchlistToDB(updatedFolders); // Debounced save
-    },
-  });
-}
-
-function addUnorganizedFolder(apiWatchlist, apiIds) {
-  if ($("#spaceWatchlistSorterTab-unorganized").length > 0) {
-    console.log("Unorganized folder already exists.");
-    return; // Skip adding if it already exists
-  }
-
-  const unorganizedItems = [];
-  apiWatchlist.forEach((space) => {
-    if (!apiIds.has(space?.Title?.Text)) {
-      unorganizedItems.push(`
-        <li data-id="${space?.Title?.Text}">
-          <a href="https://www.wikitree.com/${space?.Title?.LocalURL}" target="_blank">
-            ${space?.Title?.Text}
-          </a>
-        </li>
-      `);
-    }
-  });
-
-  if (unorganizedItems.length > 0) {
-    $("#spaceWatchlistSorterTabs").append(`
-      <div id="spaceWatchlistSorterTab-unorganized" class="spaceWatchlistSorter-tab">Unorganized</div>
-    `);
-
-    $("#spaceWatchlistSorterFolderContainer").append(`
-      <div id="spaceWatchlistSorterFolder-unorganized" class="spaceWatchlistSorter-folder" style="display: none;">
-        <ul class="spaceWatchlistSorter-sortable">
-          ${unorganizedItems.join("")}
-        </ul>
-      </div>
-    `);
-
-    // Tab switching logic for Unorganized folder
-    $("#spaceWatchlistSorterTab-unorganized").on("click", function () {
-      $(".spaceWatchlistSorter-tab").removeClass("active");
-      $(this).addClass("active");
-
-      $(".spaceWatchlistSorter-folder").hide();
-      $("#spaceWatchlistSorterFolder-unorganized").show();
-    });
-  }
-}
-
 function initializeSortable() {
   $(".spaceWatchlistSorter-sortable")
     .sortable({
@@ -940,7 +849,5 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
       const folderId = $(this).data("folder-id") || $(this).attr("data-folder-id");
       sortFolderAlphabetically(folderId);
     });
-  } else {
-    console.warn("Feature not initialized.");
   }
 });
