@@ -98,8 +98,10 @@ async function updateSiblingPageWithIframe(sibling, isChecked) {
     };
 
     const processIframe = () => {
-      const iframeDoc = iframe.contentWindow.document;
-
+      const iframeDoc = iframe.contentWindow?.document;
+      if (!iframeDoc){
+        return;
+      }
       const checkbox = iframeDoc.querySelector("input[name='mNoSiblings']");
       const summaryField = iframeDoc.querySelector("#wpSummary");
       const saveButton = iframeDoc.querySelector("#wpSave");
