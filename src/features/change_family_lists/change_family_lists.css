@@ -668,8 +668,12 @@ div.VITALS li span.parentStatus {
 div.VITALS li span[itemprop="name"] {
   display: inline-block;
 }
-div.VITALS a.ancestor {
-  border: 1px solid red;
+#nVitals div.VITALS a:link.ancestor,
+#nVitals div.VITALS a:visited.ancestor,
+#nVitals div.VITALS a:visited.ancestor strong {
+  color: white !important;
+  background: forestgreen;
+  font-weight: bold;
 }
 
 @media only print {
