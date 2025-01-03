@@ -10,6 +10,7 @@ import { shouldInitializeFeature } from "../../core/options/options_storage";
 // Initialize the feature conditionally
 shouldInitializeFeature("siblingStatusSync").then((result) => {
   if (result) {
+    import("./sibling_status_sync.css");
     init();
   }
 });
@@ -52,12 +53,18 @@ async function fetchSiblings(userId) {
   const parentIds = [currentPerson.Father, currentPerson.Mother];
 
   return Object.values(peopleList).filter(
-    (person) => person.Father === parentIds[0] && person.Mother === parentIds[1] && person.Id !== userId
+    (person) => person.Father === parentIds[0] && person.Mother === parentIds[1] && person.Id != userId
   );
 }
 
+const shakingTreeSRC = chrome.runtime.getURL("images/tree.gif");
 // Process siblings sequentially
 async function updateSiblingsSequentially(siblings, isChecked) {
+  // Show tree shaking gif while processing in the cntre of the screen
+  const $shakingTree = $(`<img id='shakingTree' src='${shakingTreeSRC}'  />`);
+  $("body").append($shakingTree);
+  $("#wpSummary").val(isChecked ? "Checked 'No more siblings'" : "Unchecked 'No more siblings'");
+
   for (const sibling of siblings) {
     try {
       //console.log(`Processing sibling ${sibling.Id}...`);
@@ -67,6 +74,9 @@ async function updateSiblingsSequentially(siblings, isChecked) {
       //console.error(`Failed to update sibling ${sibling.Id}:`, error);
     }
   }
+
+  // Remove the tree shaking gif
+  $shakingTree.remove();
 }
 
 // Update a sibling's edit page using an iframe

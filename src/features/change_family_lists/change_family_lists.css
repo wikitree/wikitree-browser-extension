@@ -668,12 +668,64 @@ div.VITALS li span.parentStatus {
 div.VITALS li span[itemprop="name"] {
   display: inline-block;
 }
-#nVitals div.VITALS a:link.ancestor,
-#nVitals div.VITALS a:visited.ancestor,
-#nVitals div.VITALS a:visited.ancestor strong {
-  color: white !important;
-  background: forestgreen;
-  font-weight: bold;
+
+#nVitals div.VITALS a:link.ancestor::before,
+#nVitals div.VITALS a:visited.ancestor::before,
+#nVitals div.VITALS a:visited.ancestor strong::before {
+  content: "A";
+  color: #fff;
+  font-size: 0.8em;
+  padding: 0 0.6em 0.1em;
+  border-radius: 50%;
+  background-color: #25422d;
+}
+#nVitals div.VITALS a:link.ancestor::before:hover::after,
+#nVitals div.VITALS a:visited.ancestor::before:hover::after,
+#nVitals div.VITALS a:visited.ancestor strong::before:hover::after {
+  content: "Your ancestor"; /* Tooltip text */
+  position: absolute;
+  top: 120%; /* Position below the icon */
+  left: 0;
+  background-color: #333;
+  color: #fff;
+  padding: 0.3em 0.5em;
+  border-radius: 4px;
+  white-space: nowrap;
+  font-size: 0.8em;
+  z-index: 100;
+  opacity: 1;
+  transition: opacity 0.3s ease-in-out;
+}
+
+#nVitals.vertical div.VITALS a:link.ancestor::before,
+#nVitals.vertical div.VITALS a:visited.ancestor::before,
+#nVitals.vertical div.VITALS a:visited.ancestor strong::before {
+  content: "A";
+  left: -2.4em;
+  position: absolute;
+  color: #fff;
+  font-size: 0.8em;
+  vertical-align: top;
+  padding: 0 0.6em 0.1em;
+  border-radius: 50%;
+  background-color: #25422d;
+}
+#nVitals.vertical div.VITALS a:link.ancestor::before:hover::after,
+#nVitals.vertical div.VITALS a:visited.ancestor::before:hover::after,
+#nVitals.vertical div.VITALS a:visited.ancestor strong::before:hover::after {
+  content: "Your ancestor"; /* Tooltip text */
+  position: absolute;
+  top: 120%; /* Position below the icon */
+  left: 0;
+  background-color: #333;
+  color: #fff;
+  padding: 0.3em 0.5em;
+  border-radius: 4px;
+  white-space: nowrap;
+  font-size: 0.8em;
+  z-index: 100;
+  opacity: 1;
+  transition: opacity 0.3s ease-in-out;
 }
 
 @media only print {
