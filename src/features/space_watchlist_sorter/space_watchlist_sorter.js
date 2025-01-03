@@ -119,7 +119,7 @@ function moveToFolder($items, folderName) {
       $(this).removeClass("selected"); // Remove the selectable class
     });
 
-    console.log(`Moved items to folder "${folderName}"`);
+    // console.log(`Moved items to folder "${folderName}"`);
     const updatedFolders = getUpdatedFolders();
     debounceSaveWatchlistToDB(updatedFolders); // Debounced save
   } else {
@@ -132,7 +132,7 @@ async function loadSpaceWatchlist() {
   const fields = ["Title"]; // Fields to fetch
 
   try {
-    console.log("Checking user login status");
+    // console.log("Checking user login status");
     const userNumId = getUserNumId();
     if (!userNumId || !(await isLoggedIntoAPI(userNumId, APP_ID))) {
       showLoginPopup();
@@ -140,7 +140,7 @@ async function loadSpaceWatchlist() {
     }
 
     // The user is logged in at WikiTree and the Apps server - Fetch their space watchlist
-    console.log(`Fetching Watchlist, userWtid=${getUserWtId()}, numId=${userNumId}`);
+    //console.log(`Fetching Watchlist, userWtid=${getUserWtId()}, numId=${userNumId}`);
     const watchlist = await WikiTreeAPI.getSpaceWatchlist(APP_ID, limit, fields);
 
     if (watchlist.length > 0) {
@@ -174,7 +174,7 @@ function showLoginPopup() {
       if (userId && userNumId) {
         if (await isLoggedIntoAPI(userNumId, APP_ID)) {
           $("#login-popup").remove();
-          console.log(`Logged in: userId='${userId}', userNumId='${userNumId}'`);
+          // console.log(`Logged in: userId='${userId}', userNumId='${userNumId}'`);
         } else {
           console.error(
             `userId='${userId}', userNumId='${userNumId}', but even after API login, user is not logged in to API`
@@ -192,7 +192,7 @@ function showLoginPopup() {
 
 async function loadWatchlistFromDB() {
   const userId = getUserWtId(); // Fetch the logged-in user's ID
-  console.log(`Loading watchlist for ${userId} from IndexedDB`);
+  // console.log(`Loading watchlist for ${userId} from IndexedDB`);
   if (!userId) {
     console.error("Unable to fetch user ID. Cannot load watchlist.");
     return { folders: [] };
@@ -204,7 +204,7 @@ async function loadWatchlistFromDB() {
     dbRequest.onupgradeneeded = function () {
       const db = dbRequest.result;
       if (!db.objectStoreNames.contains("watchlist")) {
-        console.log("Creating object store...");
+        // console.log("Creating object store...");
         db.createObjectStore("watchlist", { keyPath: "id" });
       }
     };
@@ -408,7 +408,7 @@ async function populateInterface() {
 
     initializeSortable(); // Ensure sortable is re-initialized after DOM update
 
-    console.log("Interface populated with tabs and folders.");
+    // console.log("Interface populated with tabs and folders.");
     return { status: true };
   } catch (error) {
     console.error("Error populating interface:", error);
@@ -420,7 +420,7 @@ async function populateInterface() {
 }
 
 function sortFolderAlphabetically(folderId) {
-  console.log(`Sorting folder with ID: ${folderId} alphabetically...`);
+  // console.log(`Sorting folder with ID: ${folderId} alphabetically...`);
 
   const $folder = $(`#spaceWatchlistSorterFolder-${folderId}`);
   const $list = $folder.find(".spaceWatchlistSorter-sortable");
@@ -496,7 +496,7 @@ const sImgSRC = chrome.runtime.getURL("images/S.png");
 
 // Add Button to Page
 function addButton() {
-  console.log("Adding the sorter button...");
+  //  console.log("Adding the sorter button...");
   const clipboardContainer = $(".clipboardContainer");
   if (clipboardContainer.find(".spaceWatchlistSorterButton").length === 0) {
     //console.log("Adding Space Watchlist Sorter button...");
@@ -550,12 +550,12 @@ function addButton() {
         }
         $("#spaceWatchlistSorter-popup").show();
       } else {
-        console.log("Popup already exists.");
+        // console.log("Popup already exists.");
         $popup.show();
       }
     });
   } else {
-    console.log("Sorter button already exists.");
+    // console.log("Sorter button already exists.");
   }
 }
 
@@ -760,7 +760,7 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
             !$(this).hasClass("spaceWatchlistSorter-add-tab") && // Exclude the "+" tab
             $(this).text().trim() !== UNORGANIZED_FOLDER_NAME // Exclude the "Unorganized" tab
           ) {
-            console.log(`Removing empty tab and folder: ${$(this).text().trim()}`);
+            // console.log(`Removing empty tab and folder: ${$(this).text().trim()}`);
             $(this).remove(); // Remove the tab
             $folder.remove(); // Remove the corresponding folder
           }
@@ -807,8 +807,8 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
     $(document)
       .off("blur", ".spaceWatchlistSorter-folderName")
       .on("blur", ".spaceWatchlistSorter-folderName", function () {
-        const folderName = $(this).text().trim();
-        console.log(`Folder name updated to: ${folderName}`);
+        // const folderName = $(this).text().trim();
+        // console.log(`Folder name updated to: ${folderName}`);
         // Update the folders after renaming
         const updatedFolders = getUpdatedFolders();
         debounceSaveWatchlistToDB(updatedFolders); // Debounced save
