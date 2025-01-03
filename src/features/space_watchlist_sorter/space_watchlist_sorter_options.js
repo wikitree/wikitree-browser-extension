@@ -11,7 +11,7 @@ registerFeature({
   description: "",
   category: "Global",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
+  contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: false,
   pages: [isMainDomain],
 });

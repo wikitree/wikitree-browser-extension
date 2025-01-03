@@ -997,7 +997,7 @@ export function getUserNumId() {
  */
 export function getUserWtId() {
   // We retrieve the WtID from the "My WikiTree/Contributions" menu item present when the user is logged in on any WT page.
-  const href = $('a[href*="Special:Contributions"]').attr("href");
+  const href = $('.pureCssMenu a[href*="Special:Contributions"]:not(#myCustomMenu a)').attr("href");
   if (!href) return null;
   const m = href.match(/who=([^&]+)/);
   return m ? m[1] : null;
