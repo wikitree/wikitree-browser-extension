@@ -985,7 +985,7 @@ export const treeImageURL = chrome.runtime.getURL("images/tree.gif");
  */
 export function getUserNumId() {
   // We retrieve the ID from the "My WikiTree/Badges" menu item present when the user is logged in on any WT page.
-  const href = $('body a[href*="Special:Badges"]').attr("href");
+  const href = $('body .pureCssMenu a[href*="Special:Badges"]').attr("href");
   if (!href) return null;
   const m = href.match(/u=(\d+)/);
   return m ? m[1] : null;
