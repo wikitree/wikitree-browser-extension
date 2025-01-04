@@ -37,7 +37,7 @@ function getUserIdFromPage() {
 
 // Fetch sibling data using the WikiTree API
 async function fetchSiblingsAndParents(userId) {
-  const fields = ["Id", "Father", "Mother", "Name", "FirstName", "RealName", "NoChildren"];
+  const fields = ["Id", "Father", "Mother", "Name", "FirstName", "RealName", "NoChildren", "BirthDate"];
   const options = { nuclear: 1 };
 
   const result = await WikiTreeAPI.getPeople("WBE-siblingStatusSync", [userId], fields, options);
@@ -53,11 +53,19 @@ async function fetchSiblingsAndParents(userId) {
   currentPerson = peopleList[userId];
   const parentIds = [currentPerson.Father, currentPerson.Mother];
 
-  return Object.values(peopleList).filter(
+  const siblingsAndParents = Object.values(peopleList).filter(
     (person) =>
       (person.Father === parentIds[0] && person.Mother === parentIds[1] && person.Id != userId) ||
       parentIds.includes(person.Id)
   );
+
+  siblingsAndParents.sort((a, b) => {
+    if (!a.BirthDate) return 1;
+    if (!b.BirthDate) return -1;
+    return new Date(a.BirthDate) - new Date(b.BirthDate);
+  });
+
+  return siblingsAndParents;
 }
 
 const shakingTreeSRC = chrome.runtime.getURL("images/tree.gif");
