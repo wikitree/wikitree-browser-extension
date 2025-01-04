@@ -880,7 +880,7 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
 
     $(document).on("keydown", function (event) {
       // Close the popup with the Escape key
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && $("#spaceWatchlistSorter-popup").is(":visible")) {
         $("#spaceWatchlistSorterClosePopup").trigger("click");
       }
     });
