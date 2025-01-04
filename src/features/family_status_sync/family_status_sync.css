@@ -1,4 +1,4 @@
-/* Styles for siblingStatusSync feature */
+/* Styles for familyStatusSync feature */
 #shakingTree {
   width: 150px;
   height: 150px;
@@ -21,4 +21,9 @@
   padding: 10px;
   border: 1px solid #ccc;
   border-radius: 5px;
+  z-index: 1000000;
+}
+
+#statusSyncNotification p {
+  margin: 0.2em;
 }
