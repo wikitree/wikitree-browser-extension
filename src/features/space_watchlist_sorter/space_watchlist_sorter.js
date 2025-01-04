@@ -596,7 +596,7 @@ function addFolder() {
       $tab.off("keydown").on("keydown", function (e) {
         if (e.key === "Enter") {
           e.preventDefault();
-          $tab.blur();
+          $tab.trigger("blur");
         }
       });
     });
