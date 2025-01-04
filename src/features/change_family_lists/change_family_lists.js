@@ -435,7 +435,7 @@ async function getAncestorsOnPage() {
           const relationship = item?.relationship?.toLowerCase();
           //console.log(relationship);
           if (!relationship) return false;
-          return relationship.match(/father|mother/) != null;
+          return relationship.match(/father|mother/i) != null;
         })
         .map((item) => item.id); // Extract only ancestor IDs
       resolve(ancestorKeys);
