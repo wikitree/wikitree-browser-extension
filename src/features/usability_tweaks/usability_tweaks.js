@@ -681,11 +681,11 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
         // Add style to the head:
         const style = document.createElement("style");
         style.innerHTML = `
-          input[type='checkbox'],input[type='radio'] {
+          input[type='checkbox']:not(.feature-toggle),input[type='radio'] {
             transform: scale(1.75);
             margin: 0.75em !important;
           }
-          input[type='checkbox']:hover,input[type='radio']:hover {
+          input[type='checkbox']:not(.feature-toggle):hover,input[type='radio']:hover {
             transform: scale(2.5);
           }
         `;
