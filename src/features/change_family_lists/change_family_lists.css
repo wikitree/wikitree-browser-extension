@@ -678,6 +678,7 @@ div.VITALS li span[itemprop="name"] {
   padding: 0 0.6em 0.1em;
   border-radius: 50%;
   background-color: #25422d;
+  font-weight: bold;
 }
 #nVitals div.VITALS a:link.ancestor::before:hover::after,
 #nVitals div.VITALS a:visited.ancestor::before:hover::after,
