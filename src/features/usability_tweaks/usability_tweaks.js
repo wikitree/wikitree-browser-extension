@@ -678,7 +678,18 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
       }
 
       if (options.biggerCheckboxesAndRadios) {
-        $("input[type='checkbox'],input[type='radio']").addClass("biggerCheckbox");
+        // Add style to the head:
+        const style = document.createElement("style");
+        style.innerHTML = `
+          input[type='checkbox'],input[type='radio'] {
+            transform: scale(1.75);
+            margin: 0.75em !important;
+          }
+          input[type='checkbox']:hover,input[type='radio']:hover {
+            transform: scale(2.5);
+          }
+        `;
+        document.head.appendChild(style);
       }
     }); //getFeatureOptions
   }
