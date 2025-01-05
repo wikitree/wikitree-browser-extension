@@ -54,7 +54,7 @@ const changeFamilyLists = {
       id: "highlightAncestors",
       type: OptionType.CHECKBOX,
       label: "Highlight ancestors",
-      defaultValue: true,
+      defaultValue: false,
     },
     {
       id: "changeHeaders",

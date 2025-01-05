@@ -8,6 +8,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { isOK, htmlEntities, displayName } from "../../core/common";
 import { displayDates } from "../verifyID/verifyID";
 import { getRelatives } from "wikitree-js";
+import { getUserWtId } from "../../core/common";
 import "./change_family_lists.css";
 import { mainDomain } from "../../core/pageType";
 
@@ -96,8 +97,21 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     $("span.showHideTree").eq(1).remove();
     setTimeout(function () {
       const openPadlock = $("img[title='Privacy Level: Open']");
-      if (openPadlock.length) {
+      const user = getUserWtId();
+      //console.log("User:", user);
+      const currentProfile = window.people?.[0];
+      let userOnTrustedList = false;
+      if (user && currentProfile) {
+        // Find user on Trusted List (Name)
+        const trustedList = currentProfile.TrustedList;
+        const trustedListNames = trustedList.map((item) => item.Name);
+        userOnTrustedList = trustedListNames.includes(user);
+      }
+      if (openPadlock.length || userOnTrustedList) {
         addAddLinksToHeadings();
+      }
+      if (options.highlightAncestors) {
+        getAncestorsOnPage().catch(console.error);
       }
     }, 3000);
 
@@ -164,9 +178,6 @@ async function addAddLinksToHeadings() {
         });
       }
     });
-  }
-  if (options.highlightAncestors) {
-    getAncestorsOnPage().catch(console.error);
   }
 }
 
@@ -253,6 +264,7 @@ async function getWindowPeople() {
       window.people = Object.values(getPeopleResult[0].people);
     }
   }
+  console.log("People:", window.people);
   return true;
 }
 
@@ -267,6 +279,7 @@ async function getFamilyPeople(args) {
     resolveRedirect: 1,
     nuclear: 1,
   });
+  console.log("getFamilyPeople result:", result);
   return result;
 }
 
@@ -364,7 +377,7 @@ function loadRelatives(profileWTID, onSuccess) {
         getChildren: "1",
         getSiblings: "1",
         fields:
-          "BirthDate,BirthLocation,BirthName,BirthDateDecade,DeathDate,DeathDateDecade,DeathLocation,IsLiving,Father,FirstName,Gender,Id,LastNameAtBirth,LastNameCurrent,Prefix,Suffix,LastNameOther,Derived.LongName,Derived.LongNamePrivate,Manager,MiddleName,Mother,Name,Photo,RealName,ShortName,Touched,Connected,DataStatus",
+          "BirthDate,BirthLocation,BirthName,BirthDateDecade,DeathDate,DeathDateDecade,DeathLocation,IsLiving,Father,FirstName,Gender,Id,LastNameAtBirth,LastNameCurrent,Prefix,Suffix,LastNameOther,Derived.LongName,Derived.LongNamePrivate,Manager,MiddleName,Mother,Name,Photo,RealName,ShortName,Touched,Connected,DataStatus,TrustedList",
         format: "json",
         appId: "WBE_change_family_lists",
       },
@@ -399,6 +412,7 @@ function loadRelatives(profileWTID, onSuccess) {
             }
           }
         });
+        // console.log("People:", window.people);
         if (onSuccess) onSuccess();
       },
       error: function (xhr, status) {
@@ -455,7 +469,7 @@ async function getAncestorsOnPage() {
 
   // Highlight ancestors on the page
   ancestorsOnPage.forEach((ancestor) => {
-    const element = $(`div.VITALS a[href$="/wiki/${ancestor.Name}"]`);
+    const element = $(`div.VITALS a[href$="/wiki/${ancestor.Name}"],div.VITALS a[data-wtid="${ancestor.Name}"]`);
     if (element) {
       element.addClass("ancestor");
       element.attr("aria-label", "Ancestor");
@@ -463,24 +477,18 @@ async function getAncestorsOnPage() {
     }
   });
 
+  /*
   console.log(
     "Ancestors on the page:",
     ancestorsOnPage.map((a) => a.Name)
   );
+  */
   return ancestorsOnPage.map((a) => a.Name); // Return the array of ancestor WT IDs
 }
 
 function reallyMakeFamLists() {
   if ($("body.profile").length && $("body[class*=page-Space_]").length == 0) {
     const profileWTID = $("a.pureCssMenui0 span.person").text();
-    if ($("ul.pureCssMenu.pureCssMenum li:nth-child(2) li:contains('Edit')").length) {
-      /*
-      const profileID = $("ul.pureCssMenu.pureCssMenum li:nth-child(2) li:contains('Edit')")
-        .find("a")
-        .attr("href")
-        .split("&u=")[1];
-        */
-    }
     loadRelatives(profileWTID, () => {
       const profilePerson = findPerson(profileWTID);
       const profileApproxBirthDate = getApproxBirthDate(profilePerson);
@@ -1634,15 +1642,11 @@ function insertInSibList() {
         let inserter = "";
         if ($("#siblingList li").length) {
           inserter = $(
-            '<li id="profilePerson"><span itemprop="sibling" itemtype="http://schema.org/Person" data-private="0"><a href="#n" class="activeProfile">' +
-              displayName(pPerson)[0] +
-              '</a><span class="bdDates" data-birth-year="' +
-              pPerson.bYear +
-              '" data-death-year="' +
-              pPerson.dYear +
-              '">' +
-              displayDates(pPerson) +
-              "</span></span></li>"
+            `<li id="profilePerson"><span itemprop="sibling" itemtype="http://schema.org/Person" data-private="0"><a href="#n" class="activeProfile" data-wtid="${
+              pPerson.Name
+            }">${displayName(pPerson)[0]}</a><span class="bdDates" data-birth-year="${
+              pPerson.bYear
+            }" data-death-year="${pPerson.dYear}">${displayDates(pPerson)}</span></span></li>`
           );
         }
 
