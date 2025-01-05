@@ -745,3 +745,7 @@ div.VITALS li span[itemprop="name"] {
     font-size: 8pt;
   }
 }
+
+div.VITALS a:link .addedPrefix {
+  display: inline !important;
+}

@@ -113,6 +113,9 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
       if (options.highlightAncestors) {
         getAncestorsOnPage().catch(console.error);
       }
+      if (options.addPrefixes) {
+        addPrefixes();
+      }
     }, 3000);
 
     addParentStatus();
@@ -126,6 +129,23 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     // Execute the function
   }
 });
+
+function addPrefixes() {
+  const links = $("div.VITALS a[href*='/wiki/']");
+  // Find prefixes in window.people and add them.
+  links.each(function () {
+    const link = $(this);
+    // Get wtid from link
+    const wtid = link.attr("href").split("/").pop();
+    const person = window.people.find((p) => p.Name === wtid);
+    if (person) {
+      const prefix = person.Prefix;
+      if (prefix) {
+        link.prepend(`<span class="addedPrefix">${prefix}</span>`);
+      }
+    }
+  });
+}
 
 async function addAddLinksToHeadings() {
   $("div.VITALS:contains([children unknown])").attr("id", "childrenUnknownHeading");
@@ -459,30 +479,37 @@ async function getAncestorsOnPage() {
   });
 
   const ancestorKeys = await ancestorsPromise;
-  //console.log("Ancestor keys:", ancestorKeys);
 
-  // Cross-reference with window.people
-  const peopleOnPage = window.people;
-  //console.log("People on the page:", peopleOnPage);
-  const ancestorsOnPage = peopleOnPage.filter((person) => ancestorKeys.includes(person.Name));
-  // console.log("Ancestors on the page:", ancestorsOnPage);
+  const familyLinks = $("div.VITALS a[href*='/wiki/']");
+  // Make array of wtids
+  const peopleOnPage = familyLinks
+    .map(function () {
+      const link = $(this);
+      const href = link.attr("href");
+      if (href) {
+        const wtid = href.split("/").pop();
+        return wtid;
+      }
+    })
+    .get();
+  // Add the profile person
+  const profilePerson = $(`div.VITALS a[data-wtid]`);
+  peopleOnPage.push(profilePerson.attr("data-wtid"));
+  console.log("People on the page:", peopleOnPage);
+
+  const ancestorsOnPage = peopleOnPage.filter((person) => ancestorKeys.includes(person));
+  console.log("Ancestors on the page:", ancestorsOnPage);
 
   // Highlight ancestors on the page
   ancestorsOnPage.forEach((ancestor) => {
-    const element = $(`div.VITALS a[href$="/wiki/${ancestor.Name}"],div.VITALS a[data-wtid="${ancestor.Name}"]`);
-    if (element) {
+    const element = $(`div.VITALS a[href$="/wiki/${ancestor}"],div.VITALS a[data-wtid="${ancestor}"]`);
+    if (element.length) {
       element.addClass("ancestor");
       element.attr("aria-label", "Ancestor");
       element.attr("title", "Ancestor");
     }
   });
 
-  /*
-  console.log(
-    "Ancestors on the page:",
-    ancestorsOnPage.map((a) => a.Name)
-  );
-  */
   return ancestorsOnPage.map((a) => a.Name); // Return the array of ancestor WT IDs
 }
 
