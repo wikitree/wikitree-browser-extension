@@ -150,6 +150,9 @@ x.closeBioPopup {
 }
 
 input.biggerCheckbox {
-  transform: scale(2);
-  margin: 0.5em;
+  transform: scale(1.75);
+  margin: 0.75em !important;
+}
+input.biggerCheckbox:hover {
+  transform: scale(2.5);
 }
