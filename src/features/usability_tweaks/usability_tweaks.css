@@ -148,3 +148,8 @@ x.closeBioPopup {
   border-radius: 5px;
   margin: 0.2em;
 }
+
+input.biggerCheckbox {
+  transform: scale(2);
+  margin: 0.5em;
+}
