@@ -8,6 +8,7 @@ import "jquery-ui/ui/widgets/sortable";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getUserWtId, getUserNumId, isLoggedIntoAPI } from "../../core/common";
 import { goAndLogIn } from "../randomProfile/randomProfile";
+import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
 
 const APP_ID = "WBE-SpaceSorter";
 
@@ -30,6 +31,20 @@ Sorry about that.">Log in to use Space Watchlist Sorter</button>
 
 const UNORGANIZED_FOLDER_NAME = "Unorganized";
 const UNORGANIZED_GROUP_NAME = "group-0";
+const SPWL_DB_NAME = "SpaceWatchlistDB";
+const SPWL_DB_VERSION = 2;
+const SPWL_DB_STORE = "watchlist";
+const dbHelper = new IndexedDBHelper(SPWL_DB_NAME, SPWL_DB_VERSION);
+
+async function initializeDatabase() {
+  if (!dbHelper.db) {
+    await dbHelper.openDB((db, fromVersion, toVersion) => {
+      // This code will need to change whnever we have to change the version number (SPWL_DB_VERSION)
+      IndexedDBHelper.createObjectStore(db, SPWL_DB_STORE, { keyPath: "id" });
+    });
+  }
+  return dbHelper;
+}
 
 function initializeContextMenu() {
   const $contextMenu = $("<div>", { id: "spaceWatchlistContextMenu", class: "context-menu" }).hide();
@@ -143,10 +158,7 @@ async function loadSpaceWatchlist() {
     //console.log(`Fetching Watchlist, userWtid=${getUserWtId()}, numId=${userNumId}`);
     const watchlist = await WikiTreeAPI.getSpaceWatchlist(APP_ID, limit, fields);
 
-    if (watchlist.length > 0) {
-      // console.log("Watchlist fetched:", watchlist);
-      return watchlist;
-    }
+    return watchlist || [];
   } catch (error) {
     console.error("Error fetching space watchlist:", error);
     return [];
@@ -198,39 +210,14 @@ async function loadWatchlistFromDB() {
     return { folders: [] };
   }
 
-  return new Promise((resolve) => {
-    const dbRequest = indexedDB.open("SpaceWatchlistDB", 2);
-
-    dbRequest.onupgradeneeded = function () {
-      const db = dbRequest.result;
-      if (!db.objectStoreNames.contains("watchlist")) {
-        // console.log("Creating object store...");
-        db.createObjectStore("watchlist", { keyPath: "id" });
-      }
-    };
-
-    dbRequest.onsuccess = function () {
-      const db = dbRequest.result;
-      const tx = db.transaction("watchlist", "readonly");
-      const store = tx.objectStore("watchlist");
-      const getRequest = store.get(`categorization-${userId}`);
-
-      getRequest.onsuccess = function () {
-        const result = getRequest.result || { folders: [] };
-        resolve(result);
-      };
-
-      getRequest.onerror = function (e) {
-        console.error("Error reading from IndexedDB:", e.target.error);
-        resolve({ folders: [] });
-      };
-    };
-
-    dbRequest.onerror = function (e) {
-      console.error("Error opening IndexedDB:", e.target.error);
-      resolve({ folders: [] });
-    };
-  });
+  try {
+    const dbh = await initializeDatabase();
+    const dbWatchList = await dbh.getData(SPWL_DB_STORE, `categorization-${userId}`);
+    return dbWatchList ? dbWatchList : { folders: [] };
+  } catch (error) {
+    console.error(`Get watchlist "categorization-${userId}" failed:`, error);
+    return { folders: [] };
+  }
 }
 
 async function populateInterface() {
@@ -258,7 +245,7 @@ async function populateInterface() {
     if (apiWatchlist.length == 0) {
       return {
         status: false,
-        msg: `We could not find any Free Space pages for user ${getUserWtId()} (${numId}}) currently logged into the API server.`,
+        msg: `We could not find any Free Space pages for user ${getUserWtId()} (${userNumId}}) currently logged into the API server.`,
       };
       // Should we clear any pages from the db but keeping the folders?
       // It's not strictly necessary other than saving a bit of space.
@@ -467,27 +454,11 @@ async function saveWatchlistToDB(folders = []) {
 
     //console.log("Saving the following categorization:", JSON.stringify(categorization, null, 2)); // Debugging output
 
-    const dbRequest = indexedDB.open("SpaceWatchlistDB", 2);
-
-    dbRequest.onsuccess = function () {
-      const db = dbRequest.result;
-      const tx = db.transaction("watchlist", "readwrite");
-      const store = tx.objectStore("watchlist");
-
-      store.put({ id: `categorization-${userId}`, folders: categorization });
-
-      tx.oncomplete = function () {
-        console.log("Watchlist saved successfully!");
-      };
-
-      tx.onerror = function (e) {
-        console.error("Error saving to IndexedDB:", e.target.error);
-      };
-    };
-
-    dbRequest.onerror = function (e) {
-      console.error("Error opening IndexedDB:", e.target.error);
-    };
+    const dbh = await initializeDatabase();
+    const dbWatchList = await dbh.putData(SPWL_DB_STORE, {
+      id: `categorization-${userId}`,
+      folders: categorization,
+    });
   } catch (error) {
     console.error("Error in saveWatchlistToDB:", error);
   }
@@ -585,7 +556,7 @@ function addFolder() {
   // Add the new folder container
   $("#spaceWatchlistSorterFolderContainer").append(`
     <div id="${folderId}" class="spaceWatchlistSorter-folder" style="display: none;">
-    <button class="sort-alphabetically-button small" data-folder-id="${folderId}">A-Z</button>
+    <button class="sort-alphabetically-button small" data-folder-id="${timestamp}">A-Z</button>
       <ul class="spaceWatchlistSorter-sortable"></ul>
     </div>
   `);
@@ -625,7 +596,7 @@ function addFolder() {
       $tab.off("keydown").on("keydown", function (e) {
         if (e.key === "Enter") {
           e.preventDefault();
-          $tab.blur();
+          $tab.trigger("blur");
         }
       });
     });
@@ -909,7 +880,7 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
 
     $(document).on("keydown", function (event) {
       // Close the popup with the Escape key
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && $("#spaceWatchlistSorter-popup").is(":visible")) {
         $("#spaceWatchlistSorterClosePopup").trigger("click");
       }
     });

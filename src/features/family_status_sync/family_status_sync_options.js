@@ -6,9 +6,10 @@ import { registerFeature, OptionType } from "../../core/options/options_registry
 import { isProfileEdit } from "../../core/pageType";
 
 registerFeature({
-  name: "Sibling Status Sync",
-  id: "siblingStatusSync",
-  description: "Check or uncheck 'No more siblings' and have it apply to all siblings.",
+  name: "Family Status Sync",
+  id: "familyStatusSync",
+  description:
+    "Check or uncheck 'No more siblings' or 'No more children' and have this update to all relevant profiles.",
   category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],

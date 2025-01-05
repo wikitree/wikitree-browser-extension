@@ -2,6 +2,42 @@
 Created By: Kay Knight (Sands-1865)
 */
 
+/*
+* The following external components are referenced. As of 03 January 2025
+* Any element created by this feature has an id that starts with bioCheck
+* 
+* Looks in document.body.classList for
+*    page-Special_EditPerson
+*    page-Special_EditFamily
+*    page-Special_WatchedList
+* Looks for ElementById
+*    wpSaveDraft
+*    wpSave
+*    mSources
+*    addNewPersonButton
+*    saveStuff
+*    wpTextbox1
+*    suggestionContainer
+*    validationContainer
+*    editAction_connectExisting
+*    mSources
+*    useAdvancedSources
+*    addNewPersonButton
+* Does a document.QuerySelector for table.sourcesContent
+*
+* On the Watchlist pages looks for ElementById
+*    views-outer
+*    views-inner
+*
+* In BioCheckPerson.js
+*    checks if window.location.hostname.includes('apps.wikitree.com'
+*    Looks for ElementById
+*        mBirthDate
+*        mStatus_Father
+*        mStatus_Mother
+*        mEmail
+*/
+
 import { shouldInitializeFeature, checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 import { dataTables, dataTableTemplateFindByName, dataTablesLoad } from "../../core/API/wtPlusData";
 import { mainDomain } from "../../core/pageType";

@@ -172,10 +172,10 @@ function addScratchPadButton() {
     }
   });
 
-  saveButton.click(function () {
+  saveButton.on("click", function () {
     if (!isProgrammaticClick) {
       isProgrammaticClick = true;
-      $("input[value='Save Scratch Pad Changes']:not(#clonedSaveButton)").click();
+      $("input[value='Save Scratch Pad Changes']:not(#clonedSaveButton)").trigger("click");
       setTimeout(updateButtonVisibility, 1000);
       isProgrammaticClick = false;
     }
@@ -675,6 +675,10 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
 
       if (isPlusDomain && options.enhanceThonPages) {
         enhanceThonStats();
+      }
+
+      if (options.biggerCheckboxesAndRadios) {
+        $("input[type='checkbox'],input[type='radio']").addClass("biggerCheckbox");
       }
     }); //getFeatureOptions
   }

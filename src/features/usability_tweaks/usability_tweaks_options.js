@@ -31,6 +31,12 @@ const usabilityTweaks = {
           label: "Add link to create non-existent categories in error messages",
           defaultValue: true,
         },
+        {
+          id: "biggerCheckboxesAndRadios",
+          type: OptionType.CHECKBOX,
+          label: "Bigger checkboxes and radio buttons",
+          defaultValue: false,
+        },
       ],
     },
     {
