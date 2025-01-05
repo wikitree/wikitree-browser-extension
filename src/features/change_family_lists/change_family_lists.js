@@ -495,10 +495,8 @@ async function getAncestorsOnPage() {
   // Add the profile person
   const profilePerson = $(`div.VITALS a[data-wtid]`);
   peopleOnPage.push(profilePerson.attr("data-wtid"));
-  console.log("People on the page:", peopleOnPage);
 
   const ancestorsOnPage = peopleOnPage.filter((person) => ancestorKeys.includes(person));
-  console.log("Ancestors on the page:", ancestorsOnPage);
 
   // Highlight ancestors on the page
   ancestorsOnPage.forEach((ancestor) => {
