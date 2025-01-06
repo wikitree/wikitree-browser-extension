@@ -1,4 +1,4 @@
-import $, { get } from "jquery";
+import $ from "jquery";
 import Cookies from "js-cookie";
 import {
   mainDomain,
@@ -27,6 +27,7 @@ import { theSourceRules } from "../bioCheck/SourceRules.js";
 import { BioCheckPerson } from "../bioCheck/BioCheckPerson.js";
 import { Biography } from "../bioCheck/Biography.js";
 import { initBioCheck } from "../bioCheck/bioCheck.js";
+import draggable from "jquery-ui/ui/widgets/draggable";
 
 function addSaveSearchFormDataButton() {
   const searchResultsP = $("span.large:contains('Search Results')").parent();
@@ -678,18 +679,7 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
       }
 
       if (options.biggerCheckboxesAndRadios) {
-        // Add style to the head:
-        const style = document.createElement("style");
-        style.innerHTML = `
-          input[type='checkbox']:not(.feature-toggle,.option-toggle),input[type='radio'] {
-            transform: scale(1.75);
-            margin: 0.75em !important;
-          }
-          input[type='checkbox']:not(.feature-toggle,.option-toggle):hover,input[type='radio']:hover {
-            transform: scale(2.5);
-          }
-        `;
-        document.head.appendChild(style);
+        $("input[type='checkbox'],input[type='radio']").addClass("biggerCheckbox");
       }
     }); //getFeatureOptions
   }
@@ -787,6 +777,7 @@ class RangeringTool {
     this.currentConfig = this.getCurrentConfig();
     this.rangersButtons = $("<div id='rangersButtons'></div>").appendTo($("#content p:first"));
     this.init();
+    this.excludedNames = [];
   }
 
   init() {
@@ -908,41 +899,140 @@ class RangeringTool {
     return date && date != "0000-00-00" && date != "null";
   }
 
+  async loadExcludedNames() {
+    // Check if excludedNames is already in sessionStorage
+    const storedExcludedNames = sessionStorage.getItem("excludedNames");
+    if (storedExcludedNames) {
+      this.excludedNames = JSON.parse(storedExcludedNames);
+    } else {
+      // Fetch excluded names and store them in sessionStorage
+      this.excludedNames = await this.fetchExcludedNames();
+
+      // Add additional names manually
+      this.excludedNames.push("Bech-2", "Whitten-1");
+
+      // Store in sessionStorage
+      sessionStorage.setItem("excludedNames", JSON.stringify(this.excludedNames));
+    }
+
+    console.log("Excluded Names (from sessionStorage or fetched):", this.excludedNames);
+  }
+
   async checkForAnomalies() {
+    console.log("checkForAnomalies called"); // Debugging log
+    await this.loadExcludedNames();
+
     const WTIDs = [];
-    const historyItems = $("span.HISTORY-ITEM");
+    const historyItems = $("span.HISTORY-ITEM").not(".HISTORY-HIDDEN"); // Exclude HISTORY-HIDDEN
+    const userMergeTimes = {}; // Track timestamps of merges by each user
+    const warningsShown = JSON.parse(sessionStorage.getItem("warningsShown")) || {}; // Track shown warnings
+    const processedPairs = new Set(); // Track processed ID pairs
+    let anomalyCount = 0;
+
+    // Step 1: Extract merge data and user timestamps
+    const mergeData = this.extractMergeData(historyItems, userMergeTimes);
+    console.log("Extracted mergeData:", mergeData); // Debugging log
+
+    // Step 2: Highlight rapid merges (but do not count as anomalies)
+    if (!this.isNotFirstPage()) {
+      console.log("Highlighting rapid merges (not counted as anomalies)"); // Debugging log
+      this.detectRapidMerges(userMergeTimes, warningsShown);
+    } else {
+      console.log("Skipping rapid merge highlighting (not on the first page)"); // Debugging log
+    }
+
+    // Step 3: Add WTIDs for further checks
+    this.collectWTIDsFromMergeData(mergeData, WTIDs);
+
+    // Step 4: Fetch profile data
+    const uniqueWTIDs = [...new Set(WTIDs)];
+    const people = await this.getThePeople(uniqueWTIDs);
+
+    // Step 5: Perform gender and date anomaly checks (counted as anomalies)
+    anomalyCount += this.detectGenderAndDateAnomalies(historyItems, people, processedPairs);
+
+    // Step 6: Display anomaly results
+    this.displayAnomalyResults(anomalyCount);
+
+    // Save warnings to sessionStorage
+    sessionStorage.setItem("warningsShown", JSON.stringify(warningsShown));
+
+    // console.log("Merge data:", mergeData); // Debugging log
+  }
+
+  /**
+   * Checks if the current page is not the first page of the merge feed.
+   */
+  isNotFirstPage() {
+    const params = new URLSearchParams(window.location.search);
+    const p = params.get("p");
+    const isNotFirst = p && p !== "1"; // If there's a "p" and it's not "1", it's not the first page
+    console.log("isNotFirstPage:", isNotFirst); // Debugging log
+    return isNotFirst;
+  }
+
+  /**
+   * Extracts merge data and user timestamps from the history items.
+   */
+  extractMergeData(historyItems, userMergeTimes) {
     const mergeData = [];
-    const processedPairs = new Set(); // To track unique ID pairs processed
-    const self = this;
 
-    // First pass: Extract all WikiTree IDs (Names) from the HISTORY-ITEM spans
     historyItems.each(function () {
-      const links = $(this).find("a[href*='/wiki/']").slice(1);
-      links.each(function () {
-        const href = $(this).attr("href");
-        const match = href.match(/\/wiki\/([A-Za-z0-9_-]+)/);
+      const WTIDs = [];
+      let userID = null;
+      let timestamp = null;
 
-        if (match && !$(this).text().includes("merged") && !$(this).text().includes("thank")) {
-          WTIDs.push(match[1]);
+      // Parse timestamp from history item text
+      const text = $(this).text();
+      const timeMatch = text.match(/(\d{2}:\d{2})/);
+      if (timeMatch) {
+        const [hour, minute] = timeMatch[0].split(":").map(Number);
+        timestamp = new Date();
+        timestamp.setHours(hour, minute, 0, 0);
+      }
+
+      // Parse user ID and WTIDs
+      const links = $(this).find("a[href*='/wiki/']");
+      links.each(function (index) {
+        const href = $(this).attr("href");
+        const match = href.match(/\/wiki\/([\p{L}\p{M}0-9'_-]+-[0-9]+)$/u);
+
+        if (match) {
+          if (index === 0) {
+            userID = match[1];
+          } else if (!$(this).text().includes("merged") && !$(this).text().includes("thank")) {
+            WTIDs.push(match[1]);
+          }
         }
       });
+
+      // Track user merge times
+      if (userID && timestamp) {
+        if (!userMergeTimes[userID]) {
+          userMergeTimes[userID] = [];
+        }
+        userMergeTimes[userID].push({ timestamp, element: this });
+      }
+
+      // Add merge data if valid
       if (WTIDs.length >= 2) {
-        mergeData.push({ mergeID1: WTIDs[0], mergeID2: WTIDs[1] });
+        mergeData.push({ mergeID1: WTIDs[0], mergeID2: WTIDs[1], mergedBy: userID, timestamp, element: this });
       }
     });
 
-    // Remove duplicates from WTIDs for efficient lookup
-    const uniqueWTIDs = [...new Set(WTIDs)];
+    return mergeData;
+  }
 
-    // Store the merge data in sessionStorage
-    sessionStorage.setItem(this.mergesStorageKey, JSON.stringify(mergeData));
-    this.mergesData = mergeData;
+  collectWTIDsFromMergeData(mergeData, WTIDs) {
+    mergeData.forEach((data) => {
+      WTIDs.push(data.mergeID1, data.mergeID2);
+    });
+  }
 
-    // Fetch people data
-    const people = await this.getThePeople(uniqueWTIDs);
-
-    // Second pass: Compare data for anomalies and highlight items
+  detectGenderAndDateAnomalies(historyItems, people, processedPairs) {
+    const self = this; // Save the class context
     let anomalyCount = 0;
+
     historyItems.each(function () {
       const links = $(this).find("a[href*='/wiki/']").slice(1);
       const ids = [];
@@ -966,7 +1056,6 @@ class RangeringTool {
         const person2 = Object.values(people).find((person) => person.Name === ids[1]);
 
         if (person1 && person2) {
-          // Create a unique identifier for the ID pair
           const pairKey = [ids[0], ids[1]].sort().join("_");
 
           // Check if this pair has already been processed
@@ -977,12 +1066,10 @@ class RangeringTool {
             const birthDifferenceOver10Years =
               self.okDate(person1.BirthDate) &&
               self.okDate(person2.BirthDate) &&
-              person2.BirthDate != "0000-00-00" &&
               Math.abs(new Date(person1.BirthDate) - new Date(person2.BirthDate)) > 315569520000;
             const deathDifferenceOver10Years =
               self.okDate(person1.DeathDate) &&
               self.okDate(person2.DeathDate) &&
-              person2.DeathDate != "0000-00-00" &&
               Math.abs(new Date(person1.DeathDate) - new Date(person2.DeathDate)) > 315569520000;
 
             if (differentGender || birthDifferenceOver10Years || deathDifferenceOver10Years) {
@@ -1010,32 +1097,196 @@ class RangeringTool {
       }
     });
 
-    // Flash up a message with the number of anomalies found
+    return anomalyCount;
+  }
+
+  displayAnomalyResults(anomalyCount) {
     const anomalyWord = anomalyCount === 1 ? "anomaly" : "anomalies";
     const messageText = anomalyCount > 0 ? `${anomalyCount} ${anomalyWord} found` : `No anomalies found`;
-    const message = $(`<div id='anomalyMessage' class='flashMessage'>${messageText}</div>`);
-    message.appendTo("body");
-    setTimeout(() => message.remove(), 3000);
+    this.showAnomaliesPopup(messageText);
+  }
 
-    // Add some CSS for the flash message
-    const style = `
-      <style>
-      .flashMessage {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background-color: rgba(0, 0, 0, 0.8);
-        color: white;
-        padding: 20px;
-        border-radius: 10px;
-        z-index: 1000;
-        text-align: center;
-        font-size: 1.2em;
+  /**
+   * Detects users who performed 3 merges within 5 minutes and shows warnings.
+   * Returns the count of anomalies found.
+   */
+  async detectRapidMerges(userMergeTimes, warningsShown) {
+    const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+    // Load excluded names from sessionStorage or fetch them if not present
+    let excludedNames = sessionStorage.getItem("excludedNames");
+    if (!excludedNames) {
+      excludedNames = await this.fetchExcludedNames();
+      excludedNames.push("Bech-2", "Whitten-1"); // Add additional names
+      sessionStorage.setItem("excludedNames", JSON.stringify(excludedNames));
+    } else {
+      excludedNames = JSON.parse(excludedNames);
+    }
+
+    console.log("Excluded Names (from sessionStorage):", excludedNames);
+
+    for (const userID in userMergeTimes) {
+      // Skip if the user is in the excluded names list
+      if (excludedNames.includes(userID)) {
+        console.log(`Skipping rapid merge detection for excluded user: ${userID}`);
+        continue;
       }
-      </style>
-    `;
-    $("head").append(style);
+
+      const times = userMergeTimes[userID].sort((a, b) => a.timestamp - b.timestamp);
+
+      let currentSequence = []; // Track current sequence of merges
+      for (let i = 0; i < times.length; i++) {
+        const currentMerge = times[i];
+
+        // Start a new sequence if currentSequence is empty or the time gap exceeds 5 minutes
+        if (currentSequence.length === 0 || currentMerge.timestamp - currentSequence[0].timestamp > fiveMinutes) {
+          // Highlight the previous sequence if it's valid
+          if (currentSequence.length >= 3) {
+            this.flagRapidMerges(userID, currentSequence, warningsShown);
+          }
+          currentSequence = [currentMerge]; // Start a new sequence
+        } else {
+          currentSequence.push(currentMerge);
+        }
+      }
+
+      // Highlight the last sequence for the user
+      if (currentSequence.length >= 3) {
+        this.flagRapidMerges(userID, currentSequence, warningsShown);
+      }
+    }
+
+    console.log("Rapid merges highlighted (excluding excluded users).");
+  }
+
+  async fetchExcludedNames() {
+    const url = "https://apps.wikitree.com/apps/beacall6/notables/json/projects.json";
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.error(`Failed to fetch JSON: ${response.status}`);
+      return [];
+    }
+    const data = await response.json();
+
+    // Extract all names from `allNames`
+    const excludedNames = [];
+    for (const key in data) {
+      if (data[key].Leadership && data[key].Leadership.allNames) {
+        excludedNames.push(...data[key].Leadership.allNames);
+      }
+    }
+
+    console.log("Excluded Names:", excludedNames); // Debugging log
+    return excludedNames;
+  }
+
+  /**
+   * Flags a sequence of rapid merges by a user and shows a popup.
+   */
+  flagRapidMerges(userID, mergeSequence, warningsShown) {
+    const firstMergeTime = mergeSequence[0].timestamp;
+    const lastMergeTime = mergeSequence[mergeSequence.length - 1].timestamp;
+
+    // Create a unique key for this sequence to avoid duplicate warnings
+    const sequenceKey = `${userID}-${firstMergeTime.getTime()}-${lastMergeTime.getTime()}`;
+    if (!warningsShown[sequenceKey]) {
+      warningsShown[sequenceKey] = true;
+
+      // Highlight the history items and show a warning popup
+      const historyItemsToHighlight = mergeSequence.map((merge) => merge.element);
+      const message = `${userID} performed ${mergeSequence.length} merges within 5 minutes. <br>Please review their activity.`;
+      this.showRapidMergePopup(message, historyItemsToHighlight);
+    }
+  }
+
+  /**
+   * Performs other anomaly checks on the history items.
+   * Returns the count of anomalies found.
+   */
+  detectOtherAnomalies(historyItems, mergeData) {
+    let anomalyCount = 0;
+
+    historyItems.each(function () {
+      const hasAnomaly = !mergeData.find((data) => data.mergedBy);
+      if (hasAnomaly) {
+        $(this).addClass("anomaly").attr("title", "Potential issue detected.");
+        anomalyCount++;
+      }
+    });
+
+    console.log("Other anomalies detected:", anomalyCount); // Debugging log
+    return anomalyCount;
+  }
+
+  /**
+   * Creates a popup for anomalies (e.g., no anomalies found).
+   */
+  showAnomaliesPopup(message) {
+    console.log("showAnomaliesPopup called with message:", message);
+
+    const popup = $(`<div class="anomalies-popup">${message}</div>`);
+
+    $("body").append(popup);
+
+    // Automatically fade out after 5 seconds
+    setTimeout(() => {
+      popup.fadeOut(500, function () {
+        $(this).remove();
+      });
+    }, 5000);
+  }
+
+  showRapidMergePopup(message, historyItemsToHighlight) {
+    console.log("showRapidMergePopup called with message:", message);
+
+    // Find the highest existing popup
+    let highestPopupBottom = 10; // Default bottom offset
+    $(".rapid-merge-popup").each(function () {
+      const currentBottom = parseFloat($(this).css("bottom"));
+      if (currentBottom > highestPopupBottom) {
+        highestPopupBottom = currentBottom;
+      }
+    });
+
+    // Set the new popup position slightly above the highest existing popup
+    let newPopupBottom = 10;
+    if ($(".rapid-merge-popup").length > 0) {
+      newPopupBottom = highestPopupBottom + 120;
+    }
+    const popup = $(`
+      <div class="rapid-merge-popup" style="bottom: ${newPopupBottom}px;">
+        ${message}
+        <span class="close-popup">&times;</span>
+        <button class="highlight-btn small">Highlight</button>
+      </div>
+    `);
+
+    $("body").append(popup);
+
+    popup.draggable(); // Make the popup draggable
+
+    // Close button logic
+    popup.find(".close-popup").on("click", function () {
+      popup.fadeOut(300, function () {
+        $(this).remove();
+
+        // Recalculate positions for remaining popups
+        let currentBottom = 10; // Reset starting position
+        $(".rapid-merge-popup").each(function () {
+          $(this).css("bottom", `${currentBottom}px`);
+          currentBottom += 120; // Maintain spacing
+        });
+      });
+    });
+
+    // Highlight button logic
+    popup.find(".highlight-btn").on("click", function () {
+      historyItemsToHighlight.forEach((item) => {
+        $(item).addClass("highlight");
+        // Scroll to the highlighted item
+        item.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
   }
 
   addMergesButtons() {

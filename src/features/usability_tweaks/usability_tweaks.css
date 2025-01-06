@@ -156,3 +156,69 @@ input.biggerCheckbox {
 input.biggerCheckbox:hover {
   transform: scale(2.5);
 }
+
+/* Ranger styles */
+/* For "No anomalies found" popup */
+.anomalies-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 20px;
+  border-radius: 10px;
+  z-index: 1000;
+  text-align: center;
+  font-size: 1.2em;
+  animation: fade-in 0.5s ease-in-out, fade-out 5s ease-in-out forwards;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+/* For rapid merge warning popups */
+.rapid-merge-popup {
+  position: fixed;
+  left: 10px;
+  height: 4em;
+  background-color: #f8d7da;
+  color: #000;
+  font-weight: bold;
+  padding: 15px;
+  border-radius: 5px;
+  border: 1px solid red;
+  z-index: 1000;
+  font-size: 14px;
+  width: 30em;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+.rapid-merge-popup .close-popup {
+  margin-left: 15px;
+  cursor: pointer;
+  font-weight: bold;
+  position: absolute;
+  top: 0;
+  right: 1em;
+  font-size: 1em;
+}
+
+span.HISTORY-ITEM.highlight {
+  border: 2px solid forestgreen;
+  background-color: cornsilk;
+  padding: 0.2em 0.5em;
+  border-radius: 5px;
+}
