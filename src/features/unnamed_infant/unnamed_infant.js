@@ -269,8 +269,13 @@ async function doUnnamedInfant() {
     }
   } else if (options.offerToCheckBoxes && isProfileEdit && isMoreThanSixMonthsOld(await getCreatedDate())) {
     offerToCheckBoxes(profileId, options);
-  } else {
-      addDiedYoungSticker(options);
+  } else if (age && age.years < 13) {
+    addDiedYoungSticker(options);
+    // Show message
+    if (message.length) {
+      const messageText = message.join("<br>");
+      showCopyMessage(messageText, true);
+    }
   }
 }
 
