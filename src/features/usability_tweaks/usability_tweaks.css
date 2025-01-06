@@ -149,14 +149,6 @@ x.closeBioPopup {
   margin: 0.2em;
 }
 
-input.biggerCheckbox {
-  transform: scale(1.75);
-  margin: 0.75em !important;
-}
-input.biggerCheckbox:hover {
-  transform: scale(2.5);
-}
-
 /* Ranger styles */
 /* For "No anomalies found" popup */
 .anomalies-popup {
