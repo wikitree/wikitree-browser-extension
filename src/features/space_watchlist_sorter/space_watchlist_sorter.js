@@ -275,7 +275,10 @@ async function populateInterface() {
 
     const apiItems = new Map(
       apiWatchlist.map((space) => {
-        return [space.Title?.DBkey, { key: space.Title?.DBkey, text: space.Title?.Text, url: space.Title?.FullURL }];
+        return [
+          space.Title?.DBkey,
+          { key: space.Title?.DBkey, text: space.Title?.Text, url: space.Title?.FullURL?.replace(/\/api\./, "/www.") },
+        ];
       })
     );
     const updatedFolderMap = new Map();
@@ -354,7 +357,7 @@ async function populateInterface() {
               .map(
                 (item) => `
                   <li data-id="${item.key}">
-                    <a href="${item.url}" target="_blank">${item.text}</a>
+                    <a href="${item.url.replace(/\/api\./, "/www")}" target="_blank">${item.text}</a>
                   </li>`
               )
               .join("")}
