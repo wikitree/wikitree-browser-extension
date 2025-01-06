@@ -27,7 +27,7 @@ import { theSourceRules } from "../bioCheck/SourceRules.js";
 import { BioCheckPerson } from "../bioCheck/BioCheckPerson.js";
 import { Biography } from "../bioCheck/Biography.js";
 import { initBioCheck } from "../bioCheck/bioCheck.js";
-import draggable from "jquery-ui/ui/widgets/draggable";
+//import draggable from "jquery-ui/ui/widgets/draggable";
 
 function addSaveSearchFormDataButton() {
   const searchResultsP = $("span.large:contains('Search Results')").parent();
@@ -533,7 +533,7 @@ function enhanceThonStats() {
         }
       }
       dict[normalizedPoints] = tdNode.innerText;
-      console.log(normalizedPoints + "=>" + tdNode.innerText);
+      // console.log(normalizedPoints + "=>" + tdNode.innerText);
 
       if (i > 0) {
         const pointsLastTeam = parseFloat(pointTDs[i - 1].innerText.replace(".", "").replace(",", ""));
@@ -915,11 +915,11 @@ class RangeringTool {
       sessionStorage.setItem("excludedNames", JSON.stringify(this.excludedNames));
     }
 
-    console.log("Excluded Names (from sessionStorage or fetched):", this.excludedNames);
+    //("Excluded Names (from sessionStorage or fetched):", this.excludedNames);
   }
 
   async checkForAnomalies() {
-    console.log("checkForAnomalies called"); // Debugging log
+    //console.log("checkForAnomalies called"); // Debugging log
     await this.loadExcludedNames();
 
     const WTIDs = [];
@@ -931,14 +931,14 @@ class RangeringTool {
 
     // Step 1: Extract merge data and user timestamps
     const mergeData = this.extractMergeData(historyItems, userMergeTimes);
-    console.log("Extracted mergeData:", mergeData); // Debugging log
+    // console.log("Extracted mergeData:", mergeData); // Debugging log
 
     // Step 2: Highlight rapid merges (but do not count as anomalies)
     if (!this.isNotFirstPage()) {
-      console.log("Highlighting rapid merges (not counted as anomalies)"); // Debugging log
+      // console.log("Highlighting rapid merges (not counted as anomalies)"); // Debugging log
       this.detectRapidMerges(userMergeTimes, warningsShown);
     } else {
-      console.log("Skipping rapid merge highlighting (not on the first page)"); // Debugging log
+      //console.log("Skipping rapid merge highlighting (not on the first page)"); // Debugging log
     }
 
     // Step 3: Add WTIDs for further checks
@@ -967,7 +967,7 @@ class RangeringTool {
     const params = new URLSearchParams(window.location.search);
     const p = params.get("p");
     const isNotFirst = p && p !== "1"; // If there's a "p" and it's not "1", it's not the first page
-    console.log("isNotFirstPage:", isNotFirst); // Debugging log
+    // console.log("isNotFirstPage:", isNotFirst); // Debugging log
     return isNotFirst;
   }
 
@@ -1123,12 +1123,12 @@ class RangeringTool {
       excludedNames = JSON.parse(excludedNames);
     }
 
-    console.log("Excluded Names (from sessionStorage):", excludedNames);
+    //console.log("Excluded Names (from sessionStorage):", excludedNames);
 
     for (const userID in userMergeTimes) {
       // Skip if the user is in the excluded names list
       if (excludedNames.includes(userID)) {
-        console.log(`Skipping rapid merge detection for excluded user: ${userID}`);
+        //  console.log(`Skipping rapid merge detection for excluded user: ${userID}`);
         continue;
       }
 
@@ -1156,7 +1156,7 @@ class RangeringTool {
       }
     }
 
-    console.log("Rapid merges highlighted (excluding excluded users).");
+    // console.log("Rapid merges highlighted (excluding excluded users).");
   }
 
   async fetchExcludedNames() {
@@ -1176,7 +1176,7 @@ class RangeringTool {
       }
     }
 
-    console.log("Excluded Names:", excludedNames); // Debugging log
+    // console.log("Excluded Names:", excludedNames); // Debugging log
     return excludedNames;
   }
 
@@ -1214,7 +1214,7 @@ class RangeringTool {
       }
     });
 
-    console.log("Other anomalies detected:", anomalyCount); // Debugging log
+    //console.log("Other anomalies detected:", anomalyCount); // Debugging log
     return anomalyCount;
   }
 
@@ -1222,7 +1222,7 @@ class RangeringTool {
    * Creates a popup for anomalies (e.g., no anomalies found).
    */
   showAnomaliesPopup(message) {
-    console.log("showAnomaliesPopup called with message:", message);
+    //console.log("showAnomaliesPopup called with message:", message);
 
     const popup = $(`<div class="anomalies-popup">${message}</div>`);
 
@@ -1237,7 +1237,7 @@ class RangeringTool {
   }
 
   showRapidMergePopup(message, historyItemsToHighlight) {
-    console.log("showRapidMergePopup called with message:", message);
+    // console.log("showRapidMergePopup called with message:", message);
 
     // Find the highest existing popup
     let highestPopupBottom = 10; // Default bottom offset
@@ -1413,7 +1413,7 @@ class RangeringTool {
 
     // Display getBio buttons for all profiles
     this.displayBioButtons();
-    console.log("people", this.people);
+    // console.log("people", this.people);
   }
 
   displayBioButtons() {

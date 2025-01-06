@@ -1,12 +1,13 @@
 /*
 Created By: Ian Beacall (Beacall-6)
-Feature: Sibling Status Sync
+Feature: Family Status Sync
 */
 
 import $ from "jquery";
-import Swal from "sweetalert2"; // For custom confirm dialogs
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+//import "jquery-ui/themes/base/all.css"; // Optional: Import default theme
+import "jquery-ui/ui/widgets/dialog"; // Import dialog widget
 
 let currentPerson;
 const shakingTreeSRC = chrome.runtime.getURL("images/tree.gif");
@@ -345,8 +346,8 @@ async function handleNoChildrenCheck(userId) {
       if (!spouseProfile.NoChildren) {
         const spouseName = spouseProfile.FirstName || spouseProfile.RealName || spouseProfile.Name;
         const wantsToSet = await confirmAction(
-          `Would you like to set "No more children" on spouse ${spouseName}?
-Then we will set "No more siblings" on all the children.`
+          `Would you like to set "No more children" on spouse ${spouseName}?<br>
+            Then we will set "No more siblings" on all the children.`
         );
         if (wantsToSet) {
           spousesToUpdate.push(spouseProfile);
@@ -403,14 +404,29 @@ async function ensureProfileFetched(personId, fields) {
 /* -----------------------------------------------------------------------
    CUSTOM CONFIRM DIALOG (SweetAlert2)
 ---------------------------------------------------------------------- */
+/* -----------------------------------------------------------------------
+   CUSTOM CONFIRM DIALOG (jQuery UI)
+---------------------------------------------------------------------- */
 async function confirmAction(message) {
-  const { isConfirmed } = await Swal.fire({
-    title: "Confirm",
-    text: message,
-    icon: "question",
-    showCancelButton: true,
-    confirmButtonText: "OK",
-    cancelButtonText: "Cancel",
+  return new Promise((resolve) => {
+    const $dialog = $("<div>")
+      .html(message)
+      .dialog({
+        title: "Confirm",
+        modal: true,
+        buttons: {
+          OK: function () {
+            resolve(true);
+            $(this).dialog("close");
+          },
+          Cancel: function () {
+            resolve(false);
+            $(this).dialog("close");
+          },
+        },
+        close: function () {
+          $(this).dialog("destroy").remove();
+        },
+      });
   });
-  return isConfirmed;
 }
