@@ -347,7 +347,7 @@ async function handleNoChildrenCheck(userId) {
         const spouseName = spouseProfile.FirstName || spouseProfile.RealName || spouseProfile.Name;
         const wantsToSet = await confirmAction(
           `Would you like to set "No more children" on spouse ${spouseName}?<br>
-            Then we will set "No more siblings" on all the children.`
+            Then, we will set "No more siblings" on all the children.`
         );
         if (wantsToSet) {
           spousesToUpdate.push(spouseProfile);

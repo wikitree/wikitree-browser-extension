@@ -1513,7 +1513,7 @@ export function buildParents(person) {
   if (parents) {
     if (person.Father) {
       let father = person.Parents[person.Father];
-      if (window.autoBioOptions?.usePrivate && father?.Privacy < 30) {
+      if ((window.autoBioOptions?.usePrivate && father?.Privacy < 30) || !father) {
         text += "Private Father";
       } else {
         text += nameLink(father);
@@ -1528,7 +1528,7 @@ export function buildParents(person) {
     }
     if (person.Mother) {
       let mother = person.Parents[person.Mother];
-      if (window.autoBioOptions?.usePrivate && mother?.Privacy < 30) {
+      if ((window.autoBioOptions?.usePrivate && mother?.Privacy < 30) || !mother) {
         text += "Private Mother";
       } else {
         text += nameLink(mother);
@@ -8038,6 +8038,7 @@ export async function generateBio() {
         setOrderBirthDate(member);
       }
     });
+
     fixLocations();
 
     if (!window.autoBioNotes) {
@@ -8097,6 +8098,7 @@ export async function generateBio() {
     const bioHeaderAndStickers = bioHeader + stickersAndBoxes;
 
     //Add birth
+    console.log(JSON.parse(JSON.stringify(window.profilePerson)));
     const birthText = buildBirth(window.profilePerson) + "\n\n";
 
     // Add death
