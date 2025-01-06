@@ -832,7 +832,7 @@ function addGroupTab(groupKey, groupName) {
 
 async function initClipboard() {
   try {
-    const dbh = await initializeDatabase();
+    await initializeDatabase();
 
     let clipboardButtons = $();
     const clipboardButton = $(

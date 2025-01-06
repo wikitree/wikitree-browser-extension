@@ -11,6 +11,7 @@ import { getRelatives } from "wikitree-js";
 import { getUserWtId } from "../../core/common";
 import "./change_family_lists.css";
 import { mainDomain } from "../../core/pageType";
+import { initRelationshipDB, RELATIONSHIP_STORE_NAME } from "../distanceAndRelationship/distanceAndRelationship.js";
 
 let options;
 
@@ -443,14 +444,9 @@ function loadRelatives(profileWTID, onSuccess) {
 }
 
 async function getAncestorsOnPage() {
-  const dbName = "RelationshipFinderWTE";
-  const storeName = "relationship2";
-
-  // Open IndexedDB
+  const storeName = RELATIONSHIP_STORE_NAME;
   const dbPromise = new Promise((resolve, reject) => {
-    const request = indexedDB.open(dbName, 2); // Ensure you use the correct version
-    request.onsuccess = (event) => resolve(event.target.result);
-    request.onerror = (event) => reject(event.target.error);
+    initRelationshipDB((event) => resolve(event.target.result));
   });
 
   const db = await dbPromise;

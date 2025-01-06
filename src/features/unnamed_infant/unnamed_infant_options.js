@@ -11,7 +11,7 @@ registerFeature({
     "respectively, if the profile was created over 6 months ago.",
   category: "Editing",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
+  contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: true,
   pages: [isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson],
   options: [

@@ -5,12 +5,21 @@ export class IndexedDBHelper {
     this.db = null;
   }
 
+  // Note:  Order of Events in openDB() Call:
+  // 1. The openDB() method in IndexedDBHelper is called.
+  // 2. Inside the openDB() logic:
+  //    * If a version mismatch is detected, the onupgradeneeded event fires first.
+  //    * After onupgradeneeded completes, onsuccess is triggered for the current request.
+  //    * Simultaneously, any other open connections receive onversionchange (whose handlers
+  //      should have been set on the event.target.result received in the onSuccess of the open).
+  //    * If those connections don’t close, the onblocked event fires.
+
   /**
-   * Open or create (and open) the database
-   * @param {*} onUpgradeNeeded A callback with parameters (db, fromVersion, toVersion) to execute
-   *              if the database version provided in the constructor is higher than that of the
-   *              existing database, or the database does not exist yet. In the latter case
-   *              the static methof, createObjectStore, below is typically called.
+   * Open (or create and open) the database
+   * @param {*} onUpgradeNeeded A callback that takes parameters (db, fromVersion, toVersion, event)
+   *              that will be called if the database version provided in the constructor is higher
+   *              than that of the existing database, or the database does not exist yet. In the
+   *              latter case the static method, createObjectStore, below should typically be called.
    * @returns a Promise that will resolve with a reference to the database object on success
    */
   openDB(onUpgradeNeeded) {
@@ -26,7 +35,7 @@ export class IndexedDBHelper {
         this.db.onversionchange = () => {
           console.warn(`Database version change detected. Closing database ${self.dbName}.`);
           this.db.close(); // Close the database to allow the upgrade
-          alert(`The IndexedDB database ${self.dbName} needs to be updated. Please refresh the page.`);
+          alert(`The IndexedDB database ${self.dbName} had a version change. Please refresh this page.`);
         };
 
         resolve(this.db);
@@ -40,7 +49,7 @@ export class IndexedDBHelper {
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
         if (typeof onUpgradeNeeded === "function") {
-          onUpgradeNeeded(db, event.oldVersion, event.newVersion);
+          onUpgradeNeeded(db, event.oldVersion, event.newVersion, event);
         }
       };
 
