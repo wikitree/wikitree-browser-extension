@@ -1443,7 +1443,7 @@ class RangeringTool {
 
         // Find the bio with the same Name as the profileID
         const person = Object.values(this.people[2]).find(
-          (person) => person.Name.toLowerCase() === profileID.toLowerCase()
+          (person) => person.Name?.toLowerCase() === profileID?.toLowerCase()
         );
 
         if (person) {
