@@ -4,7 +4,7 @@ Contributors: Jonathan Duke (Duke-5773)
 */
 
 import $ from "jquery";
-import { shouldInitializeFeature, getFeatureOptions, checkIfFeatureEnabled } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isOK, htmlEntities, displayName } from "../../core/common";
 import { displayDates } from "../verifyID/verifyID";
 import { getRelatives } from "wikitree-js";
@@ -16,122 +16,125 @@ import { getProfilePersonInfo } from "../sort_theme_people/sort_theme_people.js"
 
 let options;
 const user = getUserWtId();
-const profilePersonName = getProfilePersonInfo().id;
+let profilePersonName;
 
 shouldInitializeFeature("changeFamilyLists").then(async (result) => {
-  const ancestorsButton = $("span.showHideTree").eq(0);
-  const descendantsButton = $("span#showHideDescendants");
   if (result) {
-    options = await getFeatureOptions("changeFamilyLists");
-    window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
-    await prepareFamilyLists();
-    if (options.moveToRight) {
-      moveFamilyLists(true);
-    }
-    if (options.showSidebarHeading) {
-      $("html").addClass("x-cfl-show-heading");
-    }
-    if (options.highlightActiveProfile) {
-      $("html").addClass("x-cfl-highlight-active");
-    }
-    if (options.verticalLists) {
-      $("#nVitals").addClass("vertical");
-      reallyMakeFamLists();
-    }
-    if (!options.verticalLists) {
-      $("body").addClass("WTEsibHeaders");
-      prepareHeadings();
-      if (options.siblingAndChildCount) {
-        addChildrenCount();
-      }
-      await getWindowPeople();
-
-      if (options.agesAtMarriages) {
-        addMarriageAges();
-      }
-      // Find the name from the element
-      // const nameToFind = $("a.pureCssMenui0 span.person").text();
-
-      const parentPerson = window.people?.[0];
-      const oChildren = parentPerson?.Children;
-      let children = [];
-      if (oChildren) {
-        children = Object.values(oChildren);
-      }
-
-      if (parentPerson) {
-        // Get the parent's Id
-        const parentId = parentPerson.Id;
-        // Iterate through the people to find children with the matching parent Id
-        children.forEach((person) => {
-          let addDNAconfirmed = false;
-          if (person.Mother == parentId && person.DataStatus?.Mother == 30) {
-            addDNAconfirmed = true;
-          } else if (person.Father == parentId && person.DataStatus?.Father == 30) {
-            addDNAconfirmed = true;
-          }
-          person.NameWithSpaces = person.Name.replace(/_/g, " ");
-          if (addDNAconfirmed) {
-            $(`.VITALS a[href$="${person.Name}"],.VITALS a[href$="${person.NameWithSpaces}"]`).after(
-              $(
-                `<img class="DNAConfirmed" src="/images/icons/dna/DNA-confirmed.gif" border="0" width="38" height="12" alt="DNA confirmed" title="Confirmed with DNA testing">`
-              )
-            );
-          }
-        });
-      }
-      if (isOK(parentPerson?.BirthDate) && (options?.parentAges || options?.ageDifferences)) {
-        addRelativeAges(parentPerson);
-      }
-    }
-
-    if (options.changeHeaders) {
-      setTimeout(function () {
-        siblingsHeader(true);
-      }, 5000);
-    }
-
-    if (!options.verticalLists) {
-      $("#parentDetails").before(ancestorsButton);
-      $("#childrenDetails").before(descendantsButton);
-    } else {
-      $("#parentDetails").prepend(ancestorsButton);
-      $("#childrenDetails").prepend(descendantsButton);
-    }
-    $("span.showHideTree").eq(1).remove();
-    setTimeout(function () {
-      const openPadlock = $("img[title='Privacy Level: Open']");
-      //console.log("User:", user);
-      const currentProfile = window.people?.[0];
-      let userOnTrustedList = false;
-      if (user && currentProfile) {
-        // Find user on Trusted List (Name)
-        const trustedList = currentProfile.TrustedList;
-        const trustedListNames = trustedList.map((item) => item.Name);
-        userOnTrustedList = trustedListNames.includes(user);
-      }
-      if (openPadlock.length || userOnTrustedList) {
-        addAddLinksToHeadings();
-      }
-      if (options.highlightAncestors) {
-        setTimeout(function () {
-          getAncestorsOnPage().catch(console.error);
-        }, 1000);
-      }
-      if (options.addPrefixes) {
-        addPrefixes();
-      }
-    }, 3000);
-
-    addParentStatus();
-
-    window.onresize = function () {
-      if ($("body.profile").length && window.location.href.match("Space:") == null) {
+    profilePersonName = getProfilePersonInfo().id;
+    const ancestorsButton = $("span.showHideTree").eq(0);
+    const descendantsButton = $("span#showHideDescendants");
+    if (result) {
+      options = await getFeatureOptions("changeFamilyLists");
+      window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
+      await prepareFamilyLists();
+      if (options.moveToRight) {
         moveFamilyLists(true);
       }
-    };
+      if (options.showSidebarHeading) {
+        $("html").addClass("x-cfl-show-heading");
+      }
+      if (options.highlightActiveProfile) {
+        $("html").addClass("x-cfl-highlight-active");
+      }
+      if (options.verticalLists) {
+        $("#nVitals").addClass("vertical");
+        reallyMakeFamLists();
+      }
+      if (!options.verticalLists) {
+        $("body").addClass("WTEsibHeaders");
+        prepareHeadings();
+        if (options.siblingAndChildCount) {
+          addChildrenCount();
+        }
+        await getWindowPeople();
 
-    // Execute the function
+        if (options.agesAtMarriages) {
+          addMarriageAges();
+        }
+        // Find the name from the element
+        // const nameToFind = $("a.pureCssMenui0 span.person").text();
+
+        const parentPerson = window.people?.[0];
+        const oChildren = parentPerson?.Children;
+        let children = [];
+        if (oChildren) {
+          children = Object.values(oChildren);
+        }
+
+        if (parentPerson) {
+          // Get the parent's Id
+          const parentId = parentPerson.Id;
+          // Iterate through the people to find children with the matching parent Id
+          children.forEach((person) => {
+            let addDNAconfirmed = false;
+            if (person.Mother == parentId && person.DataStatus?.Mother == 30) {
+              addDNAconfirmed = true;
+            } else if (person.Father == parentId && person.DataStatus?.Father == 30) {
+              addDNAconfirmed = true;
+            }
+            person.NameWithSpaces = person.Name.replace(/_/g, " ");
+            if (addDNAconfirmed) {
+              $(`.VITALS a[href$="${person.Name}"],.VITALS a[href$="${person.NameWithSpaces}"]`).after(
+                $(
+                  `<img class="DNAConfirmed" src="/images/icons/dna/DNA-confirmed.gif" border="0" width="38" height="12" alt="DNA confirmed" title="Confirmed with DNA testing">`
+                )
+              );
+            }
+          });
+        }
+        if (isOK(parentPerson?.BirthDate) && (options?.parentAges || options?.ageDifferences)) {
+          addRelativeAges(parentPerson);
+        }
+      }
+
+      if (options.changeHeaders) {
+        setTimeout(function () {
+          siblingsHeader(true);
+        }, 5000);
+      }
+
+      if (!options.verticalLists) {
+        $("#parentDetails").before(ancestorsButton);
+        $("#childrenDetails").before(descendantsButton);
+      } else {
+        $("#parentDetails").prepend(ancestorsButton);
+        $("#childrenDetails").prepend(descendantsButton);
+      }
+      $("span.showHideTree").eq(1).remove();
+      setTimeout(function () {
+        const openPadlock = $("img[title='Privacy Level: Open']");
+        //console.log("User:", user);
+        const currentProfile = window.people?.[0];
+        let userOnTrustedList = false;
+        if (user && currentProfile) {
+          // Find user on Trusted List (Name)
+          const trustedList = currentProfile.TrustedList;
+          const trustedListNames = trustedList.map((item) => item.Name);
+          userOnTrustedList = trustedListNames.includes(user);
+        }
+        if (openPadlock.length || userOnTrustedList) {
+          addAddLinksToHeadings();
+        }
+        if (options.highlightAncestors) {
+          setTimeout(function () {
+            getAncestorsOnPage().catch(console.error);
+          }, 1000);
+        }
+        if (options.addPrefixes) {
+          addPrefixes();
+        }
+      }, 3000);
+
+      addParentStatus();
+
+      window.onresize = function () {
+        if ($("body.profile").length && window.location.href.match("Space:") == null) {
+          moveFamilyLists(true);
+        }
+      };
+
+      // Execute the function
+    }
   }
 });
 
