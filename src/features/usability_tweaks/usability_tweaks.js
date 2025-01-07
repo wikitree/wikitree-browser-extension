@@ -777,6 +777,11 @@ class RangeringTool {
         inURL: "merge=1",
         actions: [() => this.addMergesButtons(), () => this.addControlButtons()],
       },
+      pre1500: {
+        name: "Pre-1500",
+        inURL: "pre1500=1",
+        actions: [() => this.addControlButtons()],
+      },
     };
     this.people = null;
     this.bioCheckResults = {};
@@ -1605,6 +1610,16 @@ class RangeringTool {
     });
   }
 
+  addGetBiosButton() {
+    const getBiosButton = $(
+      `<button id="getBios" title="Get the bios of all these profiles" class="button small">Get bios</button>`
+    );
+    $(document).on("click", "#getBios", () => {
+      this.getBios();
+    });
+    this.rangersButtons.append(getBiosButton);
+  }
+
   addControlButtons() {
     if (this.currentConfig.name === "Pre-1700") {
       const onlyNewestBadgesButton = $(
@@ -1612,13 +1627,10 @@ class RangeringTool {
       );
       this.rangersButtons.append(onlyNewestBadgesButton);
 
-      const getBiosButton = $(
-        "<button id='getBios' title='Get the bios of all these profiles' class='button small'>Get bios</button>"
-      );
-      $(document).on("click", "#getBios", () => {
-        this.getBios();
-      });
-      this.rangersButtons.append(getBiosButton);
+      this.addGetBiosButton();
+    }
+    if (this.currentConfig.name === "Pre-1500") {
+      this.addGetBiosButton();
     }
     if (this.currentConfig.name === "Merges") {
       const onlyNewtsButton = $(
