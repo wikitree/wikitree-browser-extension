@@ -4,7 +4,7 @@ Contributors: Jonathan Duke (Duke-5773)
 */
 
 import $ from "jquery";
-import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { shouldInitializeFeature, getFeatureOptions, checkIfFeatureEnabled } from "../../core/options/options_storage";
 import { isOK, htmlEntities, displayName } from "../../core/common";
 import { displayDates } from "../verifyID/verifyID";
 import { getRelatives } from "wikitree-js";
@@ -12,8 +12,11 @@ import { getUserWtId } from "../../core/common";
 import "./change_family_lists.css";
 import { mainDomain } from "../../core/pageType";
 import { initRelationshipDB, RELATIONSHIP_STORE_NAME } from "../distanceAndRelationship/distanceAndRelationship.js";
+import { getProfilePersonInfo } from "../sort_theme_people/sort_theme_people.js";
 
 let options;
+const user = getUserWtId();
+const profilePersonName = getProfilePersonInfo().id;
 
 shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   const ancestorsButton = $("span.showHideTree").eq(0);
@@ -98,7 +101,6 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     $("span.showHideTree").eq(1).remove();
     setTimeout(function () {
       const openPadlock = $("img[title='Privacy Level: Open']");
-      const user = getUserWtId();
       //console.log("User:", user);
       const currentProfile = window.people?.[0];
       let userOnTrustedList = false;
@@ -112,7 +114,9 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
         addAddLinksToHeadings();
       }
       if (options.highlightAncestors) {
-        getAncestorsOnPage().catch(console.error);
+        setTimeout(function () {
+          getAncestorsOnPage().catch(console.error);
+        }, 1000);
       }
       if (options.addPrefixes) {
         addPrefixes();
@@ -285,7 +289,6 @@ async function getWindowPeople() {
       window.people = Object.values(getPeopleResult[0].people);
     }
   }
-  console.log("People:", window.people);
   return true;
 }
 
@@ -300,7 +303,6 @@ async function getFamilyPeople(args) {
     resolveRedirect: 1,
     nuclear: 1,
   });
-  console.log("getFamilyPeople result:", result);
   return result;
 }
 
@@ -489,8 +491,7 @@ async function getAncestorsOnPage() {
     })
     .get();
   // Add the profile person
-  const profilePerson = $(`div.VITALS a[data-wtid]`);
-  peopleOnPage.push(profilePerson.attr("data-wtid"));
+  peopleOnPage.push(profilePersonName);
 
   const ancestorsOnPage = peopleOnPage.filter((person) => ancestorKeys.includes(person));
 
@@ -498,13 +499,97 @@ async function getAncestorsOnPage() {
   ancestorsOnPage.forEach((ancestor) => {
     const element = $(`div.VITALS a[href$="/wiki/${ancestor}"],div.VITALS a[data-wtid="${ancestor}"]`);
     if (element.length) {
-      element.addClass("ancestor");
-      element.attr("aria-label", "Ancestor");
-      element.attr("title", "Ancestor");
+      addAncestorLabels(element);
     }
   });
 
+  if (ancestorsOnPage.includes(profilePersonName)) {
+    // Add ancestor labels for the parents of the profile person
+    // a[arial-label="Father"], a[aria-label="Mother"]
+    const fatherElement = $(`div.VITALS a[aria-label="Father"]`);
+    const motherElement = $(`div.VITALS a[aria-label="Mother"]`);
+    if (fatherElement.length) {
+      addAncestorLabels(fatherElement);
+    }
+    if (motherElement.length) {
+      addAncestorLabels(motherElement);
+    }
+    if ($("#childrenList").length && $("#childrenList").find("a.ancestor").length == 0) {
+      // Call WT+ API to get the children of the ancestor of the user
+      // https://plus.wikitree.com/function/WTPath/Path.htm?WikiTreeID1=${profilePersonName}&WikiTreeID2=${user}&relatives=1
+      // Fetch this, then find the a in the 2nd td of the third tr of the table (of the results)
+      // This will be an ancestor of the user.
+
+      const connectionName = await getAncestorConnection(profilePersonName, user);
+
+      if (connectionName) {
+        const connectionElement = $(
+          `div.VITALS a[href$="/wiki/${connectionName}"],div.VITALS a[data-wtid="${connectionName}"]`
+        );
+        if (connectionElement.length) {
+          addAncestorLabels(connectionElement);
+        }
+      }
+    }
+
+    // Highlight the ancestor child's parent (the right spouse of the profilePerson).
+    if ($("#childrenList a.ancestor").length && $(".spouseDetails a.ancestor").length == 0) {
+      const connectionElement = $("#childrenList a.ancestor");
+      // Get spouse_x class of closest li
+      const thisClass = connectionElement.closest("li").attr("class");
+      // Find the spouse of the profile person with the same class
+      // There may be more than one class. We need to find the one that starts with "spouse_" (if there is one).
+      const spouseClass = thisClass.split(" ").find((c) => c.startsWith("spouse_"));
+      if (spouseClass) {
+        const spouseA = $(`.spouseDetails.${spouseClass} span a.spouseLink`);
+        if (spouseA.length) {
+          addAncestorLabels(spouseA);
+        }
+      } else {
+        // If there is no spouse class, find the first spouse link
+        const spouseA = $(`a.spouseLink`);
+        if (spouseA.length) {
+          addAncestorLabels(spouseA);
+        }
+      }
+    }
+  } else if ($("#siblingList a.ancestor").length) {
+    const closestLi = $("#siblingList a.ancestor").closest("li");
+    const fatherId = closestLi.data("father");
+    const motherId = closestLi.data("mother");
+    const fatherElement = $(`div.VITALS li[data-id="${fatherId}"] a`);
+    const motherElement = $(`div.VITALS li[data-id="${motherId}"] a`);
+    if (fatherElement.length) {
+      addAncestorLabels(fatherElement);
+    }
+    if (motherElement.length) {
+      addAncestorLabels(motherElement);
+    }
+  }
+
   return ancestorsOnPage.map((a) => a.Name); // Return the array of ancestor WT IDs
+}
+
+async function getAncestorConnection(ancestor, user) {
+  const url = `https://plus.wikitree.com/function/WTPath/Path.htm?WikiTreeID1=${ancestor}&WikiTreeID2=${user}&relatives=1`;
+  return fetch(url)
+    .then((response) => response.text())
+    .then((html) => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      const table = doc.querySelector("table");
+      const rows = table.querySelectorAll("tr");
+      const ancestorLink = rows[2].querySelector("td:nth-child(2) a");
+      if (ancestorLink) {
+        return ancestorLink.href.split("/").pop();
+      }
+    });
+}
+
+// element is a jQuery object
+function addAncestorLabels(element) {
+  element.addClass("ancestor");
+  element.attr("title", "Ancestor");
 }
 
 function reallyMakeFamLists() {
