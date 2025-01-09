@@ -109,8 +109,10 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
         if (user && currentProfile) {
           // Find user on Trusted List (Name)
           const trustedList = currentProfile.TrustedList;
-          const trustedListNames = trustedList.map((item) => item.Name);
-          userOnTrustedList = trustedListNames.includes(user);
+          if (trustedList) {
+            const trustedListNames = trustedList.map((item) => item.Name);
+            userOnTrustedList = trustedListNames.includes(user);
+          }
         }
         if (openPadlock.length || userOnTrustedList) {
           addAddLinksToHeadings();
