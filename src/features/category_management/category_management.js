@@ -60,6 +60,7 @@ shouldInitializeFeature("categoryManagement").then((result) => {
         }
       });
     } else if (isPlusProfileSearch) {
+      console.log("isPlusProfileSearch");
       getFeatureOptions("categoryManagement").then((options) => {
         if (options.catALotWikiTreePlus) {
           AddWikiTreePlusLinks();
@@ -119,6 +120,8 @@ function AddCemeteryReportLinks() {
 }
 
 function AddWikiTreePlusLinks() {
+  console.log("AddWikiTreePlusLinks");
+
   /*
   const iframes = document.getElementsByTagName("iframe");
   if (iframes.length == 1) {
@@ -1272,4 +1275,83 @@ function DoSave(summary) {
   document.getElementById("wpSummary").value = summary;
   const saveButton = document.getElementById("wpSave");
   saveButton.disabled = false;
+}
+
+// Added to deal with iframe
+
+// Function to monitor iframe content and interact with it
+// Function to monitor iframe content and interact with it
+function monitorIframeContent(iframe) {
+  console.log("Monitoring iframe content...");
+  try {
+    // Ensure the iframe's document is accessible
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+    if (!iframeDoc) {
+      console.warn("Iframe document not accessible. Possible cross-origin issue.");
+      return;
+    }
+
+    // Check if the iframe's content is empty
+    if (iframeDoc.readyState === "complete" && iframeDoc.body.innerHTML.trim() === "") {
+      console.log("Iframe is loaded but its content is empty. Monitoring for updates...");
+    }
+
+    // Use MutationObserver to monitor changes in the iframe's body
+    const observer = new MutationObserver(() => {
+      const table = iframeDoc.querySelector("table");
+      console.log("Checking iframe content for table...");
+      if (table) {
+        console.log("Table detected in iframe. Injecting link...");
+        injectLinkInIframe(table);
+        observer.disconnect(); // Stop observing once the content is found
+      }
+    });
+
+    // Start observing the iframe's body for content changes
+    const iframeBody = iframeDoc.body;
+    if (iframeBody) {
+      observer.observe(iframeBody, { childList: true, subtree: true });
+      console.log("Monitoring iframe content changes...");
+    } else {
+      console.warn("Iframe body is not accessible.");
+    }
+  } catch (error) {
+    console.error("Error accessing iframe content:", error);
+  }
+}
+
+// Function to inject a link into the iframe's content
+function injectLinkInIframe(table) {
+  const link = document.createElement("a");
+  link.innerText = "batch categorize";
+  link.title = "Change categories of multiple profiles in this category at once";
+  link.href = "#0";
+  link.id = "activate_link";
+  link.addEventListener("click", () => {
+    console.log("Batch categorize link clicked!");
+  });
+
+  // Insert the link before the table in the iframe
+  table.parentNode.insertBefore(link, table);
+  console.log("Link successfully injected into iframe.");
+}
+
+// Initialize monitoring when the iframe is loaded
+
+const iframe = document.querySelector("iframe#tabela");
+if (iframe) {
+  console.log("Iframe found. Monitoring for content...");
+  iframe.addEventListener("load", () => {
+    console.log("Iframe load event triggered. Monitoring its content...");
+    monitorIframeContent(iframe);
+  });
+
+  // If the iframe is already loaded and its content is accessible
+  if (iframe.contentDocument && iframe.contentDocument.readyState === "complete") {
+    console.log("Iframe is already loaded. Monitoring its content...");
+    monitorIframeContent(iframe);
+  }
+} else {
+  console.warn("Iframe with ID 'tabela' not found.");
 }
