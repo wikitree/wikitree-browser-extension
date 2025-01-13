@@ -502,7 +502,12 @@ async function getAncestorsOnPage() {
 
   // Highlight ancestors on the page
   ancestorsOnPage.forEach((ancestor) => {
-    const element = $(`div.VITALS a[href$="/wiki/${ancestor}"],div.VITALS a[data-wtid="${ancestor}"]`);
+    const element = $(
+      `div.VITALS a[href$="/wiki/${ancestor.replace(/ /g, "_")}"], 
+       div.VITALS a[data-wtid="${ancestor.replace(/ /g, "_")}"], 
+       div.VITALS a[href$="/wiki/${ancestor.replace(/_/g, " ")}"], 
+       div.VITALS a[data-wtid="${ancestor.replace(/_/g, " ")}"]`
+    );
     if (element.length) {
       addAncestorLabels(element);
     }
@@ -529,7 +534,10 @@ async function getAncestorsOnPage() {
 
       if (connectionName) {
         const connectionElement = $(
-          `div.VITALS a[href$="/wiki/${connectionName}"],div.VITALS a[data-wtid="${connectionName}"]`
+          `div.VITALS a[href$="/wiki/${connectionName.replace(/ /g, "_")}"],
+           div.VITALS a[data-wtid="${connectionName.replace(/ /g, "_")}"],
+           div.VITALS a[href$="/wiki/${connectionName.replace(/_/g, " ")}"],
+           div.VITALS a[data-wtid="${connectionName.replace(/_/g, " ")}"]`
         );
         if (connectionElement.length) {
           addAncestorLabels(connectionElement);
