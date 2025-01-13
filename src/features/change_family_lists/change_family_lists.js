@@ -516,7 +516,7 @@ async function getAncestorsOnPage() {
        div.VITALS a[href$="/wiki/${ancestor.replace(/_/g, " ")}"], 
        div.VITALS a[data-wtid="${ancestor.replace(/_/g, " ")}"]`
     );
-    if (element.length) {
+    if (element.length && element.data("status") != 5) {
       addAncestorLabels(element);
     }
   });
