@@ -522,10 +522,10 @@ async function getAncestorsOnPage() {
     // a[arial-label="Father"], a[aria-label="Mother"]
     const fatherElement = $(`div.VITALS a[aria-label="Father"]`);
     const motherElement = $(`div.VITALS a[aria-label="Mother"]`);
-    if (fatherElement.length) {
+    if (fatherElement.length && fatherElement.data("status") != 5) {
       addAncestorLabels(fatherElement);
     }
-    if (motherElement.length) {
+    if (motherElement.length && motherElement.data("status") != 5) {
       addAncestorLabels(motherElement);
     }
     if ($("#childrenList").length && $("#childrenList").find("a.ancestor").length == 0) {
@@ -1045,6 +1045,18 @@ function makeFamLists() {
     });
     if (dparentsText.match(noMotherPublic)) {
       $("<li id='motherUnknown'>[mother unknown]</li>").appendTo($("#parentList"));
+    }
+  }
+
+  // Add parent status to parent links
+  const dataStatus = window.people[0]?.DataStatus;
+  if (dataStatus) {
+    const { Father: fatherStatus, Mother: motherStatus } = dataStatus;
+    if (fatherStatus) {
+      $("a[aria-label='Father']").attr("data-status", fatherStatus);
+    }
+    if (motherStatus) {
+      $("a[aria-label='Mother']").attr("data-status", motherStatus);
     }
   }
 
