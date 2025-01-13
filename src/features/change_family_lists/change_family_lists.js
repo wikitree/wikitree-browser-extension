@@ -576,10 +576,10 @@ async function getAncestorsOnPage() {
     const motherId = closestLi.data("mother");
     const fatherElement = $(`div.VITALS li[data-id="${fatherId}"] a`);
     const motherElement = $(`div.VITALS li[data-id="${motherId}"] a`);
-    if (fatherElement.length) {
+    if (fatherElement.length && fatherElement.data("status") != 5) {
       addAncestorLabels(fatherElement);
     }
-    if (motherElement.length) {
+    if (motherElement.length && motherElement.data("status") != 5) {
       addAncestorLabels(motherElement);
     }
   }
