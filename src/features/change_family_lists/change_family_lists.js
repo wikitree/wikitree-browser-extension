@@ -87,6 +87,10 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
         }
       }
 
+      if (window.people) {
+        addParentStatusDataAttribute();
+      }
+
       if (options.changeHeaders) {
         setTimeout(function () {
           siblingsHeader(true);
@@ -941,6 +945,29 @@ function fixNakedPrivates() {
   }
 }
 
+function addParentStatusDataAttribute() {
+  // Add parent status to parent links
+  const dataStatus = window.people[0]?.DataStatus;
+  const profilePerson = window.people[0];
+  if (profilePerson?.Father) {
+    const fatherName = profilePerson.Parents?.[profilePerson.Father]?.Name;
+    const fatherLink = $(`div.VITALS a[href$="${fatherName}"]`);
+
+    const motherName = profilePerson.Parents?.[profilePerson.Mother]?.Name;
+    const motherLink = $(`div.VITALS a[href$="${motherName}"]`);
+
+    if (dataStatus) {
+      const { Father: fatherStatus, Mother: motherStatus } = dataStatus;
+      if (fatherStatus) {
+        fatherLink.attr("data-status", fatherStatus);
+      }
+      if (motherStatus) {
+        motherLink.attr("data-status", motherStatus);
+      }
+    }
+  }
+}
+
 function makeFamLists() {
   const dparents = document.querySelectorAll('[itemprop="parent"]');
   const addSibling = $("a:contains('[add sibling]')");
@@ -1045,18 +1072,6 @@ function makeFamLists() {
     });
     if (dparentsText.match(noMotherPublic)) {
       $("<li id='motherUnknown'>[mother unknown]</li>").appendTo($("#parentList"));
-    }
-  }
-
-  // Add parent status to parent links
-  const dataStatus = window.people[0]?.DataStatus;
-  if (dataStatus) {
-    const { Father: fatherStatus, Mother: motherStatus } = dataStatus;
-    if (fatherStatus) {
-      $("a[aria-label='Father']").attr("data-status", fatherStatus);
-    }
-    if (motherStatus) {
-      $("a[aria-label='Mother']").attr("data-status", motherStatus);
     }
   }
 
