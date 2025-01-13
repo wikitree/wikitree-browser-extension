@@ -498,7 +498,11 @@ async function getAncestorsOnPage() {
   // Add the profile person
   peopleOnPage.push(profilePersonName);
 
-  const ancestorsOnPage = peopleOnPage.filter((person) => ancestorKeys.includes(person));
+  const ancestorsOnPage = peopleOnPage.filter((person) => {
+    const personWithUnderscores = person.replace(/ /g, "_");
+    const personWithSpaces = person.replace(/_/g, " ");
+    return ancestorKeys.includes(personWithUnderscores) || ancestorKeys.includes(personWithSpaces);
+  });
 
   // Highlight ancestors on the page
   ancestorsOnPage.forEach((ancestor) => {
