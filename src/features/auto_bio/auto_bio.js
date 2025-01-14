@@ -190,13 +190,15 @@ function getPossibleLocationNames(event, state) {
     // state.former_names is an object with keys of the former name and values of the start and end dates
     let possibleFormerNames = [];
     const formerNames = Object.keys(state.former_names);
-    formerNames.forEach(function (name) {
-      const startDate = state.former_names[name].start;
-      const endDate = state.former_names[name].end;
-      if (isSameDateOrAfter(event.Date, startDate) && (!endDate || !isSameDateOrAfter(event.Date, endDate))) {
-        possibleFormerNames.push(name);
-      }
-    });
+    if (formerNames) {
+      formerNames.forEach(function (name) {
+        const startDate = state.former_names[name].start;
+        const endDate = state.former_names[name].end;
+        if (isSameDateOrAfter(event.Date, startDate) && (!endDate || !isSameDateOrAfter(event.Date, endDate))) {
+          possibleFormerNames.push(name);
+        }
+      });
+    }
     if (possibleFormerNames.length == 1) {
       event.Location = event?.Location ? event.Location.replace(lastLocationBit, possibleFormerNames[0]) : "";
     } else if (possibleFormerNames.length > 1) {
@@ -896,28 +898,30 @@ function childList(person, spouse) {
   let text = "";
   let ourChildren = [];
   if (!isObject(person.Children)) {
-    bugReportMore += "person.Children is not an object.\n ";
+    bugReportMore += " person.Children is not an object.\n ";
   }
   let childrenKeys = Object.keys(person.Children);
-  childrenKeys.forEach(function (key) {
-    if (spouse == false && !person.Children[key].Displayed) {
-      ourChildren.push(person.Children[key]);
-    } else if (
-      (person.Children[key].Father == spouse.Id || person.Children[key].Mother == spouse.Id) &&
-      !person.Children[key].Displayed
-    ) {
-      ourChildren.push(person.Children[key]);
-      person.Children[key].Displayed = true;
-    } else if (
-      !person.Children[key].Displayed &&
-      spouse == "other" &&
-      ((person.Children[key].Father == person.Id && person.Children[key].Mother == 0) ||
-        (person.Children[key].Mother == person.Id && person.Children[key].Father == 0))
-    ) {
-      ourChildren.push(person.Children[key]);
-      person.Children[key].Displayed = true;
-    }
-  });
+  if (childrenKeys) {
+    childrenKeys.forEach(function (key) {
+      if (spouse == false && !person.Children[key].Displayed) {
+        ourChildren.push(person.Children[key]);
+      } else if (
+        (person.Children[key].Father == spouse.Id || person.Children[key].Mother == spouse.Id) &&
+        !person.Children[key].Displayed
+      ) {
+        ourChildren.push(person.Children[key]);
+        person.Children[key].Displayed = true;
+      } else if (
+        !person.Children[key].Displayed &&
+        spouse == "other" &&
+        ((person.Children[key].Father == person.Id && person.Children[key].Mother == 0) ||
+          (person.Children[key].Mother == person.Id && person.Children[key].Father == 0))
+      ) {
+        ourChildren.push(person.Children[key]);
+        person.Children[key].Displayed = true;
+      }
+    });
+  }
   let possessive;
   if (spouse == false || spouse == "other") {
     possessive = capitalizeFirstLetter(person.Pronouns.possessiveAdjective);
