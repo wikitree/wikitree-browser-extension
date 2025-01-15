@@ -161,16 +161,20 @@ if (domain.match("apps.wikitree.com")) {
   isApiDomain = true;
 } else if (domain.match("plus.wikitree.com") || domain.match("wikitree.sdms.si")) {
   isPlusDomain = true;
+  console.log("Plus Domain");
 
   const path = decodeURI(window.location.pathname); // path
+  console.log("path: " + path);
   if (
     // Profile Search result
-    path.match(/\/(function|f)\/WTWebProfileSearch\/.*\.htm/gi)
+    path.match(/\/(function|f)\/WTWebProfileSearch\/.*\.htm/gi) ||
+    window.location.href.match(/report=srch1/)
   ) {
     isPlusProfileSearch = true;
   } else if (
     // Profile Search result
-    path.match(/\/(function|f)\/WTWebProfileSearchTree\/.*\.htm/gi)
+    path.match(/\/(function|f)\/WTWebProfileSearchTree\/.*\.htm/gi) ||
+    window.location.href.match(/report=srch2/)
   ) {
     isPlusProfileTree = true;
   }
