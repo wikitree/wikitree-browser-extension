@@ -582,7 +582,7 @@ async function clipboard(type, e, action = false) {
       showGroup($(this).parent(".tab"));
     });
   if (type == "clipboard") {
-    $(".clipping")
+    $(".clippingCell")
       .off("click")
       .on("click", function () {
         copyClippingToClipboard($(this).closest("tr").data("original"));
