@@ -118,7 +118,7 @@ export class IndexedDBHelper {
     const self = this;
     return new Promise((resolve, reject) => {
       try {
-        const transaction = this.db.transaction(storeName, mode);
+        const transaction = this.db.transaction(storeName, "readwrite");
         const store = transaction.objectStore(storeName);
 
         for (const { key: key, value: value } of records) {
