@@ -20,6 +20,11 @@ import { DeactivateEnhancedEditorIfPresent, ReactivateEnhancedEditorIfNeeded } f
 import("./category_management.css");
 //todo: rename CatALot to Batch cat. or whatever it will be in the end
 
+const isFramePage = window.location.href.match(/report=srch/);
+let $document = document;
+if (isFramePage) {
+  $document = $document.querySelector("iframe#tabela").contentDocument;
+}
 let categoryManagementOptions = null;
 shouldInitializeFeature("categoryManagement").then((result) => {
   if (result) {
@@ -32,7 +37,7 @@ shouldInitializeFeature("categoryManagement").then((result) => {
       getFeatureOptions("categoryManagement").then((options) => {
         AddOptionalCategoryEditPageLinks(options);
         PerformActualCategoryChanges();
-        AddCategoryExitLink(document.getElementsByClassName("EDIT")[0]);
+        AddCategoryExitLink($document.getElementsByClassName("EDIT")[0]);
       });
     } else if (isCategoryPage) {
       getFeatureOptions("categoryManagement").then((options) => {
@@ -44,13 +49,13 @@ shouldInitializeFeature("categoryManagement").then((result) => {
     } else if (isSearchPage) {
       getFeatureOptions("categoryManagement").then((options) => {
         if (options.catALotSearchResults) {
-          document.getElementsByTagName("p")[0].appendChild(CreateBatchCatActivationLinkAndSpan());
+          $document.getElementsByTagName("p")[0].appendChild(CreateBatchCatActivationLinkAndSpan());
         }
       });
     } else if (isCategoryHistory) {
       getFeatureOptions("categoryManagement").then((options) => {
         if (options.showExitLinks) {
-          AddCategoryExitLink(document.getElementsByTagName("h1")[0]);
+          AddCategoryExitLink($document.getElementsByTagName("h1")[0]);
         }
       });
     } else if (isProfilePage && IsProfileEditable()) {
@@ -60,6 +65,7 @@ shouldInitializeFeature("categoryManagement").then((result) => {
         }
       });
     } else if (isPlusProfileSearch) {
+      console.log("isPlusProfileSearch");
       getFeatureOptions("categoryManagement").then((options) => {
         if (options.catALotWikiTreePlus) {
           AddWikiTreePlusLinks();
@@ -81,7 +87,7 @@ shouldInitializeFeature("categoryManagement").then((result) => {
 });
 
 function AddCemeteryReportLinks() {
-  const tableHeadings = document.getElementsByTagName("th");
+  const tableHeadings = $document.getElementsByTagName("th");
   for (let i = 0; i < tableHeadings.length; i++) {
     if (tableHeadings[i].innerText.trim() == "No Category") {
       const parentTable = tableHeadings[i].parentNode.parentNode;
@@ -97,7 +103,7 @@ function AddCemeteryReportLinks() {
       for (let j = 0; j < profileDivs.length; j++) {
         /* <div><a href="https://www.wikitree.com/wiki/33039864" target="_blank">Adams-56427</a> (<a href="https://www.findagrave.com/memorial/26206407" target="_blank">26206407</a>)</div> */
         const wikiTreeId = profileDivs[j].firstChild.innerText;
-        const addLink = document.createElement("a");
+        const addLink = $document.createElement("a");
 
         addLink.innerText = "add";
         addLink.title =
@@ -118,9 +124,39 @@ function AddCemeteryReportLinks() {
   }
 }
 
+let isWikiTreePlusLinksAdded = false;
+
 function AddWikiTreePlusLinks() {
+  if (isWikiTreePlusLinksAdded) {
+    console.log("AddWikiTreePlusLinks already executed. Skipping.");
+    return;
+  }
+  isWikiTreePlusLinksAdded = true;
+  console.log("AddWikiTreePlusLinks");
+
+  // Look for the iframe
+  const iframe = document.querySelector("iframe#tabela");
+  if (iframe) {
+    console.log("Iframe found. Setting up monitoring...");
+
+    // Set up an event listener for the iframe's load event
+    iframe.addEventListener("load", () => {
+      $document = document.querySelector("iframe#tabela").contentDocument;
+      console.log("Iframe load event triggered. Monitoring its content...");
+      monitorIframeContent(iframe);
+    });
+
+    // Check if the iframe is already loaded and monitor its content immediately
+    if (iframe.contentDocument && iframe.contentDocument.readyState === "complete") {
+      console.log("Iframe is already loaded. Monitoring its content...");
+      monitorIframeContent(iframe);
+    }
+  } else {
+    console.warn("Iframe with ID 'tabela' not found.");
+  }
+
   /*
-  const iframes = document.getElementsByTagName("iframe");
+  const iframes =$document.getElementsByTagName("iframe");
   if (iframes.length == 1) {
     iframes[0].addEventListener("load", function () {
       iframes[0].contentDocument
@@ -128,26 +164,26 @@ function AddWikiTreePlusLinks() {
         .parentNode.appendChild(CreateBatchCatActivationLinkAndSpan());
     });
   } else {
-    document.getElementsByTagName("form")[0].appendChild(CreateBatchCatActivationLinkAndSpan());
+   $document.getElementsByTagName("form")[0].appendChild(CreateBatchCatActivationLinkAndSpan());
   }
 */
-  const aTable = document.getElementsByTagName("table")[0];
+  const aTable = $document.getElementsByTagName("table")[0];
   if (aTable != null && aTable.parentNode != null) {
     aTable.parentNode.insertBefore(CreateBatchCatActivationLinkAndSpan(), aTable);
   }
 }
 
 function GetOrCreateCategoriesDiv() {
-  let categoriesDiv = document.getElementById("categories");
+  let categoriesDiv = $document.getElementById("categories");
   if (categoriesDiv == null) {
-    categoriesDiv = document.createElement("div");
+    categoriesDiv = $document.createElement("div");
     categoriesDiv.className = "box green rounded row x-categories";
     categoriesDiv.id = "categories";
     categoriesDiv.style.textAlign = "left";
 
     categoriesDiv.innerHTML =
       '<a href="/wiki/Category:Categories" title="Browse and learn about categories">Categories</a>: <span dir="ltr"></span>';
-    const ps = document.getElementsByTagName("p");
+    const ps = $document.getElementsByTagName("p");
     for (let i = 0; i < ps.length; i++) {
       if (ps[i].align == "center") {
         ps[i].appendChild(categoriesDiv);
@@ -159,34 +195,34 @@ function GetOrCreateCategoriesDiv() {
 
 function AddOptionalCategoryPageLinks(options) {
   if (options.catALotCategory) {
-    document.getElementsByClassName("EDIT")[2].appendChild(CreateBatchCatActivationLinkAndSpan());
+    $document.getElementsByClassName("EDIT")[2].appendChild(CreateBatchCatActivationLinkAndSpan());
   }
   if (options.catMarkDelete) {
-    document.getElementsByClassName("EDIT")[2].appendChild(CreateDeleteCatLink());
+    $document.getElementsByClassName("EDIT")[2].appendChild(CreateDeleteCatLink());
   }
   if (options.catMarkRename) {
-    document.getElementsByClassName("EDIT")[2].appendChild(CreateRenameCatLink());
+    $document.getElementsByClassName("EDIT")[2].appendChild(CreateRenameCatLink());
   }
   if (options.catCopyRename) {
-    document.getElementsByClassName("EDIT")[2].appendChild(CreateCopyRenameCatLink());
+    $document.getElementsByClassName("EDIT")[2].appendChild(CreateCopyRenameCatLink());
   }
 }
 
 function AddAddProfileToCategory() {
-  const hideanons = document.getElementsByClassName("hideanon");
+  const hideanons = $document.getElementsByClassName("hideanon");
   if (hideanons.length > 0 && hideanons[0].innerText.includes("high level category")) {
     return;
   }
-  const noarticletext = document.getElementsByClassName("noarticletext");
+  const noarticletext = $document.getElementsByClassName("noarticletext");
   if (noarticletext.length > 0) {
     return;
   }
 
-  const elementToAttach = document.getElementsByTagName("h1")[0].previousSibling;
-  const addDiv = document.createElement("div");
+  const elementToAttach = $document.getElementsByTagName("h1")[0].previousSibling;
+  const addDiv = $document.createElement("div");
   addDiv.style.float = "right";
   addDiv.style.paddingRight = "5px";
-  const addButton = document.createElement("button");
+  const addButton = $document.createElement("button");
   addButton.classList.add("small");
   addButton.classList.add("tight");
   addButton.innerText = "Add profile";
@@ -225,7 +261,7 @@ function AddAddProfileToCategory() {
 
 function AddOptionalCategoryEditPageLinks(options) {
   //to do: check if category exists and hide accordingly
-  const editDivs = document.getElementsByClassName("EDIT");
+  const editDivs = $document.getElementsByClassName("EDIT");
   if (options.catMarkDelete) {
     editDivs[editDivs.length - 1].appendChild(CreateDeleteCatLinkEditPage());
   }
@@ -238,19 +274,19 @@ function AddOptionalCategoryEditPageLinks(options) {
 }
 
 function AddCategoryExitLink(parent) {
-  const linkExit = document.createElement("a");
+  const linkExit = $document.createElement("a");
   const urlParams = new URLSearchParams(window.location.search);
 
   const baseUrl = "https://" + mainDomain + "/wiki/" + urlParams.get("title");
   linkExit.href = baseUrl;
   linkExit.innerText = "exit";
   linkExit.title = "Leave editing mode without saving";
-  parent.appendChild(document.createElement("br"));
+  parent.appendChild($document.createElement("br"));
   parent.appendChild(WrapWithBrackets(linkExit));
 }
 
 function AddCategoryChangeLinksOnProfile(categoryDiv) {
-  const profileId = document.getElementsByClassName("person")[0].innerText;
+  const profileId = $document.getElementsByClassName("person")[0].innerText;
   const catSpans = categoryDiv.getElementsByTagName("span");
   let lastCatSpan = null;
   for (let i = 0; i < catSpans.length /* not for [top] */; i++) {
@@ -259,7 +295,7 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
     }
 
     const catName = catSpans[i].innerText;
-    const delLink = document.createElement("a");
+    const delLink = $document.createElement("a");
     delLink.innerText = "(–)";
     delLink.style.textDecoration = "none";
     delLink.title = "Remove category '" + catName + "' without further input";
@@ -268,7 +304,7 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
     catSpans[i].append(" ");
     catSpans[i].appendChild(delLink);
 
-    const changeLink = document.createElement("a");
+    const changeLink = $document.createElement("a");
     changeLink.innerText = "(±)";
     // changeLink.innerText = "(🖉)";
     changeLink.style.textDecoration = "none";
@@ -279,7 +315,7 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
     lastCatSpan = catSpans[i];
   }
 
-  const addLink = document.createElement("a");
+  const addLink = $document.createElement("a");
   addLink.innerText = "(+)";
   addLink.style.textDecoration = "none";
   addLink.accessKey = "k";
@@ -292,7 +328,7 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
 }
 
 function IsProfileEditable() {
-  const tabs = document.getElementsByClassName("profile-tabs")[0];
+  const tabs = $document.getElementsByClassName("profile-tabs")[0];
   if (tabs) {
     const linksToTabs = tabs.getElementsByTagName("a");
     for (let i = 0; i < linksToTabs.length; i++) {
@@ -341,7 +377,7 @@ function PopulateSuggestions(terms, resList, catTextbox) {
     }
 
     if (!bFound) {
-      const oneSuggestion = document.createElement("li");
+      const oneSuggestion = $document.createElement("li");
       oneSuggestion.innerText = suggestionWithoutUnderscores;
       oneSuggestion.addEventListener("click", function () {
         catTextbox.value = suggestionWithoutUnderscores;
@@ -367,11 +403,11 @@ function EmptySuggestionList(resList) {
 }
 
 function AddAddReplaceEventHandler(changeLink, catSpan, profileId, catName) {
-  const buttonOk = document.createElement("button");
+  const buttonOk = $document.createElement("button");
 
   changeLink.addEventListener("click", () => {
     changeLink.innerText = "";
-    const catTextbox = document.createElement("input");
+    const catTextbox = $document.createElement("input");
     catTextbox.value = catName;
     catTextbox.autocomplete = false;
     const resultAutoTypeDiv = CreateAutoSuggestionDiv(catTextbox);
@@ -425,12 +461,12 @@ export function isNotArrowOrEnter(event) {
 }
 
 export function CreateAutoSuggestionDiv(catTextbox) {
-  const resultAutoTypeDiv = document.createElement("div");
+  const resultAutoTypeDiv = $document.createElement("div");
   resultAutoTypeDiv.id = "categoryManagementCatSuggestion";
   resultAutoTypeDiv.style.textAlign = "left";
   resultAutoTypeDiv.style.borderWidth = "1px";
   resultAutoTypeDiv.style.borderStyle = "solid";
-  const ul = document.createElement("ul");
+  const ul = $document.createElement("ul");
   ul.style.listStyleType = "none";
   resultAutoTypeDiv.append(ul);
 
@@ -486,7 +522,7 @@ export function IsTextInList(suggestionList, val) {
 }
 
 function CreateDeleteCatLink() {
-  const linkDelete = document.createElement("a");
+  const linkDelete = $document.createElement("a");
   linkDelete.title = "Empty the category description and add a template for EditBOT to delete the category";
   linkDelete.href =
     "https://" + mainDomain + "/index.php?title=Category:" + GetCurrentCategoryName() + "&catBot=delete&action=edit";
@@ -495,7 +531,7 @@ function CreateDeleteCatLink() {
 }
 
 function CreateRenameCatLink() {
-  const linkRename = document.createElement("a");
+  const linkRename = $document.createElement("a");
   linkRename.href = "#1";
   linkRename.innerText = "rename";
   linkRename.title =
@@ -519,7 +555,7 @@ function CreateRenameCatLink() {
 }
 
 function CreateCopyRenameCatLink() {
-  const linkRename = document.createElement("a");
+  const linkRename = $document.createElement("a");
   linkRename.href = "#1";
   linkRename.innerText = "copy & rename";
   linkRename.title = "Ask for new category name, open it for editing with the content of this one filled-in already";
@@ -542,7 +578,7 @@ function CreateCopyRenameCatLink() {
 }
 
 function CreateBatchCatActivationLinkAndSpan() {
-  const buttonEnable = document.createElement("a");
+  const buttonEnable = $document.createElement("a");
   buttonEnable.innerText = "batch categorize";
   buttonEnable.title = "Change categories of multiple profiles in this category at once";
   buttonEnable.href = "#0";
@@ -553,7 +589,7 @@ function CreateBatchCatActivationLinkAndSpan() {
 }
 
 function WrapWithBrackets(buttonEnable) {
-  const spanEnable = document.createElement("span");
+  const spanEnable = $document.createElement("span");
   spanEnable.append(" [");
   spanEnable.appendChild(buttonEnable);
   spanEnable.append("] ");
@@ -562,7 +598,7 @@ function WrapWithBrackets(buttonEnable) {
 }
 
 function CreateDeleteCatLinkEditPage(disable) {
-  const linkDelete = document.createElement("a");
+  const linkDelete = $document.createElement("a");
   linkDelete.innerText = "delete";
   linkDelete.title = "Empty the category description and add a template for EditBOT to delete the category";
   linkDelete.href = "#0";
@@ -573,7 +609,7 @@ function CreateDeleteCatLinkEditPage(disable) {
 }
 
 function CreateRenameCatLinkEditPage(disable) {
-  const linkDelete = document.createElement("a");
+  const linkDelete = $document.createElement("a");
   linkDelete.innerText = "rename";
   linkDelete.title =
     "Ask for new category name and open it for editing, empty the description of this category and add a template for EditBOT to move the content to the new one";
@@ -587,7 +623,7 @@ function CreateRenameCatLinkEditPage(disable) {
 }
 
 function CreateCopyRenameCatLinkEditPage(label) {
-  const linkDelete = document.createElement("a");
+  const linkDelete = $document.createElement("a");
   linkDelete.innerText = label;
   linkDelete.title = "Ask for new category name, open it for editing with the content of this one filled-in already";
   linkDelete.href = "#0";
@@ -601,19 +637,19 @@ function CreateCopyRenameCatLinkEditPage(label) {
 
 function ShowCatALot() {
   if (isSearchPage) {
-    AddCatALotControls(document.getElementsByTagName("p")[0]);
+    AddCatALotControls($document.getElementsByTagName("p")[0]);
     HackMergeCheckboxes();
-    document.getElementsByClassName("large")[0].appendChild(CreateSelectAllResultsLink());
+    $document.getElementsByClassName("large")[0].appendChild(CreateSelectAllResultsLink());
   } else if (isCategoryPage) {
     AddCheckboxes();
     AddSubcatLinks();
     AddSelectAllPersonsInCategoryLink();
     AddLetterlinks();
-    AddCatALotControls(document.getElementById("categories"));
+    AddCatALotControls($document.getElementById("categories"));
   } else if (isPlusDomain) {
     if (isPlusProfileSearch) {
-      const aTable = document.getElementsByTagName("table")[0];
-      //      const div = document.createElement("div");
+      const aTable = $document.getElementsByTagName("table")[0];
+      //      const div =$document.createElement("div");
       //      aTable.parentNode.insertBefore(div, aTable);
       AddCheckboxesWikiTreePlus();
       let row = aTable.insertRow(1);
@@ -628,15 +664,15 @@ function ShowCatALot() {
 }
 
 function AddCatALotControls(elementToAppendTo) {
-  if (document.getElementById("catALotButton") != null) {
+  if ($document.getElementById("catALotButton") != null) {
     return;
   }
 
-  document.getElementById("activate_link").hidden = true;
-  document.getElementById("activate_link").previousSibling.textContent = "";
-  document.getElementById("activate_link").nextSibling.textContent = "";
+  $document.getElementById("activate_link").hidden = true;
+  $document.getElementById("activate_link").previousSibling.textContent = "";
+  $document.getElementById("activate_link").nextSibling.textContent = "";
 
-  const inputCatTyped = document.createElement("input");
+  const inputCatTyped = $document.createElement("input");
   inputCatTyped.id = "inputCatTyped";
   inputCatTyped.accessKey = "k";
   inputCatTyped.placeholder = "category add/move";
@@ -662,53 +698,53 @@ function AddCatALotControls(elementToAppendTo) {
     }
   });
 
-  const inputCatVerified = document.createElement("div");
+  const inputCatVerified = $document.createElement("div");
   inputCatVerified.readOnly = true;
   inputCatVerified.id = "inputCatVerified";
 
-  let radioMove = document.createElement("input");
+  let radioMove = $document.createElement("input");
   radioMove.type = "radio";
   radioMove.id = "radioMove";
   radioMove.value = "move";
   radioMove.name = "catAction";
   radioMove.addEventListener("click", function () {
-    document.getElementById("catALotButton").disabled = document.getElementById("inputCatVerified").innerHTML == "";
+    $document.getElementById("catALotButton").disabled = $document.getElementById("inputCatVerified").innerHTML == "";
   });
 
-  let labelMove = document.createElement("label");
+  let labelMove = $document.createElement("label");
   labelMove.appendChild(radioMove);
   labelMove.append("Move");
   labelMove.title = "Remove this category from selected profile and add category from input field instead";
 
-  const radioAdd = document.createElement("input");
+  const radioAdd = $document.createElement("input");
   radioAdd.type = "radio";
   radioAdd.id = "radioAdd";
   radioAdd.value = "Add";
   radioAdd.name = "catAction";
   radioAdd.addEventListener("click", function () {
-    document.getElementById("catALotButton").disabled = document.getElementById("inputCatVerified").innerHTML == "";
+    $document.getElementById("catALotButton").disabled = $document.getElementById("inputCatVerified").innerHTML == "";
   });
 
-  const labelAdd = document.createElement("label");
+  const labelAdd = $document.createElement("label");
   labelAdd.appendChild(radioAdd);
   labelAdd.append("Add");
   labelAdd.title = "Add category from input field to selected profiles";
 
-  const radioRemove = document.createElement("input");
+  const radioRemove = $document.createElement("input");
   radioRemove.type = "radio";
   radioRemove.id = "radioRemove";
   radioRemove.value = "Remove";
   radioRemove.name = "catAction";
   radioRemove.addEventListener("click", function () {
-    document.getElementById("catALotButton").disabled = false;
+    $document.getElementById("catALotButton").disabled = false;
   });
 
-  const labelRemove = document.createElement("label");
+  const labelRemove = $document.createElement("label");
   labelRemove.appendChild(radioRemove);
   labelRemove.append("Remove");
   labelRemove.title = "Remove this category from selected profiles";
 
-  const catALotButton = document.createElement("input");
+  const catALotButton = $document.createElement("input");
   catALotButton.type = "button";
   catALotButton.value = "Cat a lot";
   catALotButton.id = "catALotButton";
@@ -717,7 +753,7 @@ function AddCatALotControls(elementToAppendTo) {
   catALotButton.disabled = true;
   catALotButton.addEventListener("click", OnCatALotClicked);
 
-  let catALotDiv = document.createElement("div");
+  let catALotDiv = $document.createElement("div");
   if (isPlusDomain) {
     catALotDiv.style = "display: flex;justify-content: space-between;";
   } else {
@@ -738,7 +774,7 @@ function AddCatALotControls(elementToAppendTo) {
   catALotDiv.appendChild(inputCatTyped);
   catALotDiv.appendChild(resultAutoTypeDiv);
   if (!isPlusDomain) {
-    catALotDiv.appendChild(document.createElement("br"));
+    catALotDiv.appendChild($document.createElement("br"));
   }
   catALotDiv.append(" destination: ");
   catALotDiv.appendChild(inputCatVerified);
@@ -748,10 +784,10 @@ function AddCatALotControls(elementToAppendTo) {
 }
 
 function CreateSelectAllResultsLink() {
-  let newLink = document.createElement("a");
+  let newLink = $document.createElement("a");
   newLink.innerText = "[✓]";
   newLink.addEventListener("click", function () {
-    const cboxes = document.getElementsByClassName("profile_selector");
+    const cboxes = $document.getElementsByClassName("profile_selector");
 
     for (let i = 0; i < cboxes.length; ++i) {
       if (cboxes[i].parentNode.parentNode.style.display != "none") {
@@ -763,10 +799,10 @@ function CreateSelectAllResultsLink() {
 }
 
 function AddSelectAllPersonsInCategoryLink() {
-  let newLink = document.createElement("a");
+  let newLink = $document.createElement("a");
   newLink.innerText = "[✓]";
   newLink.addEventListener("click", function () {
-    const cboxes = document.getElementsByClassName("profile_selector");
+    const cboxes = $document.getElementsByClassName("profile_selector");
 
     for (let i = 0; i < cboxes.length; ++i) {
       if (cboxes[i].parentNode.style.display != "none") {
@@ -775,7 +811,7 @@ function AddSelectAllPersonsInCategoryLink() {
     }
   });
 
-  let h2s = document.getElementsByTagName("h2");
+  let h2s = $document.getElementsByTagName("h2");
   for (let i = 0; i < h2s.length; i++) {
     if (h2s[i].innerText.indexOf("Person Profiles") > -1) {
       h2s[i].appendChild(newLink);
@@ -784,11 +820,11 @@ function AddSelectAllPersonsInCategoryLink() {
 }
 
 function AddLetterlinks() {
-  let letterHeadlines = document.getElementsByTagName("h3");
+  let letterHeadlines = $document.getElementsByTagName("h3");
   if (letterHeadlines != null) {
     for (let i = 0; i < letterHeadlines.length; i++) {
       if (letterHeadlines[i].innerText.length == 1 || letterHeadlines[i].innerText.indexOf("cont.") > -1) {
-        let newLink = document.createElement("a");
+        let newLink = $document.createElement("a");
         newLink.innerText = "[✓]";
         newLink.addEventListener("click", function () {
           if (letterHeadlines[i].nextSibling != null) {
@@ -807,14 +843,14 @@ function AddLetterlinks() {
 }
 
 function AddSubcatLinks() {
-  let subCatDiv = document.getElementsByClassName("row Subcategories");
+  let subCatDiv = $document.getElementsByClassName("row Subcategories");
 
   if (subCatDiv != null && subCatDiv.length > 0) {
     let subCatLinks = subCatDiv[0].getElementsByClassName("P-X");
     const reg = /\(\d+,\s\d+,\s\d+\)/;
 
     for (let i = 0; i < subCatLinks.length; ++i) {
-      let newLink = document.createElement("a");
+      let newLink = $document.createElement("a");
       newLink.title = "Set this subcategory as target for add or move";
       newLink.innerText = "here";
       newLink.addEventListener("click", function () {
@@ -829,22 +865,22 @@ function AddSubcatLinks() {
 function OnCatALotClicked() {
   let remCat = "";
   let addCat = "";
-  if (document.getElementById("radioMove").checked || document.getElementById("radioRemove").checked) {
+  if ($document.getElementById("radioMove").checked || $document.getElementById("radioRemove").checked) {
     remCat = "&remCat=" + GetThisCategoryNameAndAllAkas();
   }
 
-  if (document.getElementById("radioMove").checked || document.getElementById("radioAdd").checked) {
-    addCat = "&addCat=" + document.getElementById("inputCatVerified").innerText;
+  if ($document.getElementById("radioMove").checked || $document.getElementById("radioAdd").checked) {
+    addCat = "&addCat=" + $document.getElementById("inputCatVerified").innerText;
   }
 
   const baseEditUrl = "https://" + mainDomain + "/index.php?title=Special:EditPerson&w=";
-  const cboxes = document.getElementsByClassName("profile_selector");
+  const cboxes = $document.getElementsByClassName("profile_selector");
 
   for (let i = 0; i < cboxes.length; ++i) {
     if (cboxes[i].checked) {
       let url = baseEditUrl + cboxes[i].value + addCat + remCat;
       let parentToHide = null;
-      if (!document.getElementById("radioAdd").checked) {
+      if (!$document.getElementById("radioAdd").checked) {
         if (isCategoryPage) {
           parentToHide = cboxes[i].parentNode;
         }
@@ -864,7 +900,7 @@ async function OpenProfileForEditing(url, checkbox, parentToHide) {
 }
 function GetThisCategoryNameAndAllAkas() {
   let currentCategory = GetCurrentCategoryName();
-  const orangeBoxes = document.getElementsByClassName("orange box row");
+  const orangeBoxes = $document.getElementsByClassName("orange box row");
   if (
     orangeBoxes != null &&
     orangeBoxes[0] != null &&
@@ -883,7 +919,7 @@ function GetThisCategoryNameAndAllAkas() {
 }
 
 function GetCurrentCategoryName() {
-  const headline = document.getElementsByTagName("h1")[0];
+  const headline = $document.getElementsByTagName("h1")[0];
   let currentCategory = headline.innerText;
   const indexScissors = headline.innerHTML.indexOf("<");
   if (indexScissors > -1) {
@@ -905,7 +941,7 @@ function HackMergeCheckboxes() {
   // <a href="/wiki/Seib-21#Ancestors" target="_blank" title=""><img src="/images/icons/pedigree.gif.pagespeed.ce.4kSwuvQoBH.gif" border="0" width="8" height="11" alt="ancestors" title="Go to Family Tree"></a>
   // </span>
   // </div>
-  let cbs = document.getElementsByTagName("input");
+  let cbs = $document.getElementsByTagName("input");
 
   for (let i = 0; i < cbs.length; i++) {
     if (cbs[i].type == "checkbox" && cbs[i].name == "mergeany[]") {
@@ -917,12 +953,12 @@ function HackMergeCheckboxes() {
     }
   }
   //remove merge controls and annotations
-  document.getElementsByClassName("mergeany")[0].parentNode.href = "#";
-  document.getElementsByClassName("mergeany")[0].parentNode.style.display = "none";
-  document.getElementsByClassName("mergeany")[0].parentNode.previousSibling.textContent = ""; //[
-  document.getElementsByClassName("mergeany")[0].parentNode.nextSibling.textContent = ""; //]
-  document.getElementsByClassName("mergeany")[0].style.display = "none";
-  document.getElementsByClassName("mergeany")[1].style.display = "none";
+  $document.getElementsByClassName("mergeany")[0].parentNode.href = "#";
+  $document.getElementsByClassName("mergeany")[0].parentNode.style.display = "none";
+  $document.getElementsByClassName("mergeany")[0].parentNode.previousSibling.textContent = ""; //[
+  $document.getElementsByClassName("mergeany")[0].parentNode.nextSibling.textContent = ""; //]
+  $document.getElementsByClassName("mergeany")[0].style.display = "none";
+  $document.getElementsByClassName("mergeany")[1].style.display = "none";
 }
 function AddCheckboxes() {
   //category
@@ -937,7 +973,7 @@ function AddCheckboxes() {
   // <small></small>
   // </div>
 
-  const personDivs = document.getElementsByClassName("row Persons ");
+  const personDivs = $document.getElementsByClassName("row Persons ");
   const indexProfiles = personDivs.length == 1 ? 0 : 1;
   let profileDivs = personDivs[indexProfiles].getElementsByClassName("P-ITEM");
   let profileDiv;
@@ -976,7 +1012,8 @@ function AddCheckboxesWikiTreePlus() {
     <td>Connected: PublicTree <span style="color: orange;">🟊🟊🟊🟊</span>🟊 256 views</td>
   </tr>
   */
-  const firstTable = document.getElementsByTagName("table")[0];
+
+  const firstTable = $document.getElementsByTagName("table")[0];
   const tableRows = firstTable.getElementsByTagName("tr");
   const goodLineToken = "\n<td><b><a href=";
   for (let i = 0; i < tableRows.length; i++) {
@@ -1043,10 +1080,10 @@ function CheckCategoryExists(cat, callbackSuccess) {
 }
 
 function AddVerifiedCatLink(cat) {
-  document.getElementById("inputCatVerified").innerHTML =
+  $document.getElementById("inputCatVerified").innerHTML =
     '<a href="https://" + mainDomain + "/wiki/Category:' + cat + '">' + cat + "</a>";
-  document.getElementById("catALotButton").disabled = false;
-  document.getElementById("inputCatTyped").value = cat;
+  $document.getElementById("catALotButton").disabled = false;
+  $document.getElementById("inputCatTyped").value = cat;
 }
 
 function PerformActualProfileChanges() {
@@ -1111,7 +1148,7 @@ function PerformActualProfileChanges() {
     const currentBio = wpTextbox1.value;
     if (previousBio == currentBio) {
       if (confirm("Nothing changed. Closing edit mode?")) {
-        document.getElementById("deleteDraftLinkContainer").childNodes[1].click();
+        $document.getElementById("deleteDraftLinkContainer").childNodes[1].click();
       }
     }
   }
@@ -1160,14 +1197,14 @@ function MarkForRenameOpenNewAndSave(newCategory) {
   let wpTextbox1 = window.document.getElementById("wpTextbox1");
   let toInsert = "{{Rename Category|" + cleanNewCategory + "}}\n" + reason + " --~~~~";
 
-  var editForm = document.getElementById("editform");
+  var editForm = $document.getElementById("editform");
   const previousAction = editForm.action;
   OpenNewCategoryInNewTab(cleanNewCategory);
   editForm.action = previousAction;
   editForm.target = "";
 
   wpTextbox1.value = toInsert;
-  document.getElementById("wpSave").click();
+  $document.getElementById("wpSave").click();
 }
 
 function CheckWhatLinksHereAndSave() {
@@ -1203,7 +1240,7 @@ function CheckWhatLinksHereAndSave() {
           }
         }
       }
-      document.getElementById("wpSave").click();
+      $document.getElementById("wpSave").click();
     } else {
       alert("Error while checking whatlinkshere: " + xmlHttp.status);
     }
@@ -1219,12 +1256,12 @@ function CopyAndRenameCategory(newCategory) {
 }
 
 function OpenNewCategoryInNewTab(newCategory) {
-  var editForm = document.getElementById("editform");
+  var editForm = $document.getElementById("editform");
   editForm.target = "_blank";
   const previousAction = editForm.action;
-  document.getElementById("wpSummary").value = "copied from [[Category:" + GetCurrentCategoryName() + "]]";
+  $document.getElementById("wpSummary").value = "copied from [[Category:" + GetCurrentCategoryName() + "]]";
   editForm.action = "https://" + mainDomain + "/index.php?title=Category:" + newCategory + "&action=submit";
-  document.getElementById("wpDiff").click();
+  $document.getElementById("wpDiff").click();
 }
 
 function GetActualAkaCategoryUsedInProfile(wpTextbox1, cats) {
@@ -1269,7 +1306,62 @@ function RemoveCat(wpTextbox1, cat) {
 }
 
 function DoSave(summary) {
-  document.getElementById("wpSummary").value = summary;
-  const saveButton = document.getElementById("wpSave");
+  $document.getElementById("wpSummary").value = summary;
+  const saveButton = $document.getElementById("wpSave");
   saveButton.disabled = false;
+}
+
+// Added to deal with iframe
+
+// Function to monitor iframe content and interact with it
+function monitorIframeContent(iframe) {
+  console.log("Monitoring iframe content...");
+  try {
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+    if (!iframeDoc) {
+      console.warn("Iframe$document not accessible. Possible cross-origin issue.");
+      return;
+    }
+
+    console.log("Initial iframe content:", iframeDoc.body.innerHTML);
+
+    if (iframeDoc.body.querySelector("table")) {
+      console.log("Table detected in iframe. Injecting link...");
+      injectLinkInIframe(iframeDoc.body.querySelector("table"));
+    } else {
+      const observer = new MutationObserver(() => {
+        console.log("Mutation observed in iframe content.");
+        const table = iframeDoc.querySelector("table");
+        if (table) {
+          console.log("Table detected in iframe. Injecting link...");
+          injectLinkInIframe(table);
+          observer.disconnect(); // Stop observing
+        }
+      });
+
+      const iframeBody = iframeDoc.body;
+      if (iframeBody) {
+        observer.observe(iframeBody, { childList: true, subtree: true });
+        console.log("MutationObserver attached to iframe body.");
+      } else {
+        console.warn("Iframe body is not accessible.");
+      }
+    }
+  } catch (error) {
+    console.error("Error monitoring iframe content:", error);
+  }
+}
+
+// Function to inject a link into the iframe's content
+function injectLinkInIframe(table) {
+  if (table.querySelector("#activate_link")) {
+    console.log("Link already injected into iframe.");
+    return;
+  }
+  const link = CreateBatchCatActivationLinkAndSpan();
+
+  // Insert the link before the table in the iframe
+  table.parentNode.insertBefore(link, table);
+  console.log("Link successfully injected into iframe.");
 }

@@ -88,6 +88,12 @@ const changeFamilyLists = {
       label: "Add sibling and child counts",
       defaultValue: true,
     },
+    {
+      id: "addPrefixes",
+      type: OptionType.CHECKBOX,
+      label: "Add prefixes to family lists",
+      defaultValue: false,
+    },
   ],
 };
 

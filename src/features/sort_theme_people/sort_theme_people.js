@@ -161,7 +161,7 @@ function getThemeTitle() {
 }
 
 // Function to get profile person ID and name
-function getProfilePersonInfo() {
+export function getProfilePersonInfo() {
   // Extract the profile person's WikiTree ID from the URL
   const urlParts = window.location.pathname.split("/");
   let personId = urlParts[urlParts.length - 1];

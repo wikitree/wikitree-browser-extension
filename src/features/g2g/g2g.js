@@ -362,19 +362,13 @@ function addG2GCategoryCheckboxes() {
             }
 
             let aCheckbox = $(
-              "<input class='catCheck' type='checkbox' id='" +
-                dCat +
-                "Check' value='1' data-category='" +
-                dCat +
-                "' " +
-                dChecked +
-                ">"
+              `<input class='catCheck' type='checkbox' style='margin:0 !important; float:right' id='${dCat}Check' value='1' data-category='${dCat}' ${dChecked}>`
             );
             aCheckbox.insertAfter($(this));
           }
         }
       });
-      $(".catCheck").change(function () {
+      $(".catCheck").on("change", function () {
         g2gCategoriesSync();
       });
       doG2GCategories();

@@ -1517,7 +1517,7 @@ export function buildParents(person) {
   if (parents) {
     if (person.Father) {
       let father = person.Parents[person.Father];
-      if (window.autoBioOptions?.usePrivate && father?.Privacy < 30) {
+      if ((window.autoBioOptions?.usePrivate && father?.Privacy < 30) || !father) {
         text += "Private Father";
       } else {
         text += nameLink(father);
@@ -1532,7 +1532,7 @@ export function buildParents(person) {
     }
     if (person.Mother) {
       let mother = person.Parents[person.Mother];
-      if (window.autoBioOptions?.usePrivate && mother?.Privacy < 30) {
+      if ((window.autoBioOptions?.usePrivate && mother?.Privacy < 30) || !mother) {
         text += "Private Mother";
       } else {
         text += nameLink(mother);
@@ -5563,10 +5563,11 @@ function getFamilySearchDeathDetails(aRef) {
   const detailsPattern = /familysearch.*in death record for (son|daughter).*?(\d+.*?\d) in (.*?)(\.|$)/i;
   // "North Carolina Deaths, 1931-1994", , FamilySearch (https://www.familysearch.org/ark:/61903/1:1:FGNQ-J7Z : Mon Oct 07 21:48:25 UTC 2024), Entry for Mitchell Arthur Cagle and Henry Cagle, 1942. Death of son.
   const detailsPattern2 = /(.*?) Deaths.*?familysearch\.org.*?Entry for (.+?) and (.+?), (.*?)\. Death of (.*?)\./i;
-
+  const detailsPattern3 = /familysearch.*?, (.*?) in entry for (.*?), (.*?);/i;
   const detailsPatternMatch = aRef.Text.match(detailsPattern);
   const detailsPatternMatch2 = aRef.Text.match(detailsPattern2);
-  if (detailsPatternMatch == null && detailsPatternMatch2 == null) {
+  const detailsPatternMatch3 = aRef.Text.match(detailsPattern3);
+  if (detailsPatternMatch == null && detailsPatternMatch2 == null && detailsPatternMatch3 == null) {
     return;
   }
   if (detailsPatternMatch) {
@@ -5593,6 +5594,13 @@ function getFamilySearchDeathDetails(aRef) {
     aRef["Death Place"] = detailsPatternMatch2[1];
     aRef["Parents"] = detailsPatternMatch2[3];
     aRef["Name"] = detailsPatternMatch2[2];
+  } else if (detailsPatternMatch3) {
+    aRef["Death Date"] = detailsPatternMatch3[3];
+    const yearMatch = detailsPatternMatch3[3].match(/\d{4}/);
+    if (yearMatch) {
+      aRef.Year = yearMatch[0];
+    }
+    aRef["Name"] = detailsPatternMatch3[1];
   }
 }
 
@@ -5700,7 +5708,10 @@ function getFamilyFromCitations() {
   refs.forEach(function (aRef) {
     if (aRef.Text.match(/Death of (son|daughter)/i)) {
       getFamilySearchDeathDetails(aRef);
-      const refFirstName = aRef.Name.split(" ")[0];
+      let refFirstName;
+      if (aRef.Name) {
+        refFirstName = aRef.Name?.split(" ")[0];
+      }
       // Find window.profilePerson.Children[...] where key starts with refFirstName
       const childMatch = Object.keys(window.profilePerson.Children).filter((key) => key.startsWith(refFirstName));
 
@@ -8042,6 +8053,7 @@ export async function generateBio() {
         setOrderBirthDate(member);
       }
     });
+
     fixLocations();
 
     if (!window.autoBioNotes) {
@@ -8101,6 +8113,7 @@ export async function generateBio() {
     const bioHeaderAndStickers = bioHeader + stickersAndBoxes;
 
     //Add birth
+    console.log(JSON.parse(JSON.stringify(window.profilePerson)));
     const birthText = buildBirth(window.profilePerson) + "\n\n";
 
     // Add death

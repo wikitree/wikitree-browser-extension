@@ -841,6 +841,8 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     combinedPeople = singleCall[0]?.people;
   }
 
+  // console.log(combinedPeople);
+
   const tablePeople = [];
   const peopleKeys = Object.keys(combinedPeople);
 
@@ -1849,7 +1851,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       $("h2").eq(0).append(locationFilterButton);
     }
     if (firstTime == true) {
-      $("#locationFilter").click(function (e) {
+      $("#locationFilter").on("click", function (e) {
         e.preventDefault();
         if ($(this).text() == "Remove Location Filter") {
           $("tr.locationFilteredOut").removeClass("locationFilteredOut");
@@ -2134,14 +2136,11 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     $(".toHide").fadeOut().removeClass("toHide");
     setTimeout(function () {
       $("#tree").remove();
-      $("#ahnen").click();
+      $("#ahnen").trigger("click");
     }, 2000);
   }
-  /*
-    },
-  });
-  */
-  addFiltersToWikitables();
+
+  addFiltersToWikitables(aTable[0]);
 }
 
 async function myConnections() {

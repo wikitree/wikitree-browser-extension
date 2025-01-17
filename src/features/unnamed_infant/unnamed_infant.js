@@ -257,7 +257,7 @@ async function doUnnamedInfant() {
       const messageText = message.join("<br>");
       showCopyMessage(messageText, true);
     }
-  } else if (age && age.years < 13 && options.autoCheckboxesUnder13) {
+  } else if (age && age.years < 13 && options.autoCheckBoxesUnder13) {
     if (isProfileEdit) {
       checkBoxes();
       addDiedYoungSticker(options);
@@ -269,6 +269,13 @@ async function doUnnamedInfant() {
     }
   } else if (options.offerToCheckBoxes && isProfileEdit && isMoreThanSixMonthsOld(await getCreatedDate())) {
     offerToCheckBoxes(profileId, options);
+  } else if (age && age.years < 13) {
+    addDiedYoungSticker(options);
+    // Show message
+    if (message.length) {
+      const messageText = message.join("<br>");
+      showCopyMessage(messageText, true);
+    }
   }
 }
 

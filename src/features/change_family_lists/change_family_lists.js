@@ -11,121 +11,155 @@ import { getRelatives } from "wikitree-js";
 import { getUserWtId } from "../../core/common";
 import "./change_family_lists.css";
 import { mainDomain } from "../../core/pageType";
+import { initRelationshipDB, RELATIONSHIP_STORE_NAME } from "../distanceAndRelationship/distanceAndRelationship.js";
+import { getProfilePersonInfo } from "../sort_theme_people/sort_theme_people.js";
 
 let options;
+const user = getUserWtId();
+let profilePersonName;
 
 shouldInitializeFeature("changeFamilyLists").then(async (result) => {
-  const ancestorsButton = $("span.showHideTree").eq(0);
-  const descendantsButton = $("span#showHideDescendants");
   if (result) {
-    options = await getFeatureOptions("changeFamilyLists");
-    window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
-    await prepareFamilyLists();
-    if (options.moveToRight) {
-      moveFamilyLists(true);
-    }
-    if (options.showSidebarHeading) {
-      $("html").addClass("x-cfl-show-heading");
-    }
-    if (options.highlightActiveProfile) {
-      $("html").addClass("x-cfl-highlight-active");
-    }
-    if (options.verticalLists) {
-      $("#nVitals").addClass("vertical");
-      reallyMakeFamLists();
-    }
-    if (!options.verticalLists) {
-      $("body").addClass("WTEsibHeaders");
-      prepareHeadings();
-      if (options.siblingAndChildCount) {
-        addChildrenCount();
-      }
-      await getWindowPeople();
-
-      if (options.agesAtMarriages) {
-        addMarriageAges();
-      }
-      // Find the name from the element
-      // const nameToFind = $("a.pureCssMenui0 span.person").text();
-
-      const parentPerson = window.people?.[0];
-      const oChildren = parentPerson?.Children;
-      let children = [];
-      if (oChildren) {
-        children = Object.values(oChildren);
-      }
-
-      if (parentPerson) {
-        // Get the parent's Id
-        const parentId = parentPerson.Id;
-        // Iterate through the people to find children with the matching parent Id
-        children.forEach((person) => {
-          let addDNAconfirmed = false;
-          if (person.Mother == parentId && person.DataStatus?.Mother == 30) {
-            addDNAconfirmed = true;
-          } else if (person.Father == parentId && person.DataStatus?.Father == 30) {
-            addDNAconfirmed = true;
-          }
-          person.NameWithSpaces = person.Name.replace(/_/g, " ");
-          if (addDNAconfirmed) {
-            $(`.VITALS a[href$="${person.Name}"],.VITALS a[href$="${person.NameWithSpaces}"]`).after(
-              $(
-                `<img class="DNAConfirmed" src="/images/icons/dna/DNA-confirmed.gif" border="0" width="38" height="12" alt="DNA confirmed" title="Confirmed with DNA testing">`
-              )
-            );
-          }
-        });
-      }
-      if (isOK(parentPerson?.BirthDate) && (options?.parentAges || options?.ageDifferences)) {
-        addRelativeAges(parentPerson);
-      }
-    }
-
-    if (options.changeHeaders) {
-      setTimeout(function () {
-        siblingsHeader(true);
-      }, 5000);
-    }
-
-    if (!options.verticalLists) {
-      $("#parentDetails").before(ancestorsButton);
-      $("#childrenDetails").before(descendantsButton);
-    } else {
-      $("#parentDetails").prepend(ancestorsButton);
-      $("#childrenDetails").prepend(descendantsButton);
-    }
-    $("span.showHideTree").eq(1).remove();
-    setTimeout(function () {
-      const openPadlock = $("img[title='Privacy Level: Open']");
-      const user = getUserWtId();
-      //console.log("User:", user);
-      const currentProfile = window.people?.[0];
-      let userOnTrustedList = false;
-      if (user && currentProfile) {
-        // Find user on Trusted List (Name)
-        const trustedList = currentProfile.TrustedList;
-        const trustedListNames = trustedList.map((item) => item.Name);
-        userOnTrustedList = trustedListNames.includes(user);
-      }
-      if (openPadlock.length || userOnTrustedList) {
-        addAddLinksToHeadings();
-      }
-      if (options.highlightAncestors) {
-        getAncestorsOnPage().catch(console.error);
-      }
-    }, 3000);
-
-    addParentStatus();
-
-    window.onresize = function () {
-      if ($("body.profile").length && window.location.href.match("Space:") == null) {
+    profilePersonName = getProfilePersonInfo().id;
+    const ancestorsButton = $("span.showHideTree").eq(0);
+    const descendantsButton = $("span#showHideDescendants");
+    if (result) {
+      options = await getFeatureOptions("changeFamilyLists");
+      window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
+      await prepareFamilyLists();
+      if (options.moveToRight) {
         moveFamilyLists(true);
       }
-    };
+      if (options.showSidebarHeading) {
+        $("html").addClass("x-cfl-show-heading");
+      }
+      if (options.highlightActiveProfile) {
+        $("html").addClass("x-cfl-highlight-active");
+      }
+      if (options.verticalLists) {
+        $("#nVitals").addClass("vertical");
+        reallyMakeFamLists();
+      }
+      if (!options.verticalLists) {
+        $("body").addClass("WTEsibHeaders");
+        prepareHeadings();
+        if (options.siblingAndChildCount) {
+          addChildrenCount();
+        }
+        await getWindowPeople();
 
-    // Execute the function
+        if (options.agesAtMarriages) {
+          addMarriageAges();
+        }
+        // Find the name from the element
+        // const nameToFind = $("a.pureCssMenui0 span.person").text();
+
+        const parentPerson = window.people?.[0];
+        const oChildren = parentPerson?.Children;
+        let children = [];
+        if (oChildren) {
+          children = Object.values(oChildren);
+        }
+
+        if (parentPerson) {
+          // Get the parent's Id
+          const parentId = parentPerson.Id;
+          // Iterate through the people to find children with the matching parent Id
+          children.forEach((person) => {
+            let addDNAconfirmed = false;
+            if (person.Mother == parentId && person.DataStatus?.Mother == 30) {
+              addDNAconfirmed = true;
+            } else if (person.Father == parentId && person.DataStatus?.Father == 30) {
+              addDNAconfirmed = true;
+            }
+            person.NameWithSpaces = person.Name.replace(/_/g, " ");
+            if (addDNAconfirmed) {
+              $(`.VITALS a[href$="${person.Name}"],.VITALS a[href$="${person.NameWithSpaces}"]`).after(
+                $(
+                  `<img class="DNAConfirmed" src="/images/icons/dna/DNA-confirmed.gif" border="0" width="38" height="12" alt="DNA confirmed" title="Confirmed with DNA testing">`
+                )
+              );
+            }
+          });
+        }
+        if (isOK(parentPerson?.BirthDate) && (options?.parentAges || options?.ageDifferences)) {
+          addRelativeAges(parentPerson);
+        }
+      }
+
+      if (window.people) {
+        addParentStatusDataAttribute();
+      }
+
+      if (options.changeHeaders) {
+        setTimeout(function () {
+          siblingsHeader(true);
+        }, 5000);
+      }
+
+      if (!options.verticalLists) {
+        $("#parentDetails").before(ancestorsButton);
+        $("#childrenDetails").before(descendantsButton);
+      } else {
+        $("#parentDetails").prepend(ancestorsButton);
+        $("#childrenDetails").prepend(descendantsButton);
+      }
+      $("span.showHideTree").eq(1).remove();
+      setTimeout(function () {
+        const openPadlock = $("img[title='Privacy Level: Open']");
+        //console.log("User:", user);
+        const currentProfile = window.people?.[0];
+        let userOnTrustedList = false;
+        if (user && currentProfile) {
+          // Find user on Trusted List (Name)
+          const trustedList = currentProfile.TrustedList;
+          if (trustedList) {
+            const trustedListNames = trustedList.map((item) => item.Name);
+            userOnTrustedList = trustedListNames.includes(user);
+          }
+        }
+        if (openPadlock.length || userOnTrustedList) {
+          addAddLinksToHeadings();
+        }
+        if (options.highlightAncestors) {
+          setTimeout(function () {
+            getAncestorsOnPage().catch(console.error);
+          }, 1000);
+        }
+        if (options.addPrefixes) {
+          addPrefixes();
+        }
+      }, 3000);
+
+      addParentStatus();
+
+      window.onresize = function () {
+        if ($("body.profile").length && window.location.href.match("Space:") == null) {
+          moveFamilyLists(true);
+        }
+      };
+
+      // Execute the function
+    }
   }
 });
+
+function addPrefixes() {
+  const links = $("div.VITALS a[href*='/wiki/']");
+  // Find prefixes in window.people and add them.
+  links.each(function () {
+    const link = $(this);
+    // Get wtid from link
+    const wtid = link.attr("href").split("/").pop();
+    const person = window.people.find((p) => p.Name === wtid);
+    if (person) {
+      const prefix = person.Prefix;
+      if (prefix) {
+        link.prepend(`<span class="addedPrefix">${prefix}</span>`);
+      }
+    }
+  });
+}
 
 async function addAddLinksToHeadings() {
   $("div.VITALS:contains([children unknown])").attr("id", "childrenUnknownHeading");
@@ -264,7 +298,6 @@ async function getWindowPeople() {
       window.people = Object.values(getPeopleResult[0].people);
     }
   }
-  console.log("People:", window.people);
   return true;
 }
 
@@ -279,7 +312,6 @@ async function getFamilyPeople(args) {
     resolveRedirect: 1,
     nuclear: 1,
   });
-  console.log("getFamilyPeople result:", result);
   return result;
 }
 
@@ -423,14 +455,9 @@ function loadRelatives(profileWTID, onSuccess) {
 }
 
 async function getAncestorsOnPage() {
-  const dbName = "RelationshipFinderWTE";
-  const storeName = "relationship2";
-
-  // Open IndexedDB
+  const storeName = RELATIONSHIP_STORE_NAME;
   const dbPromise = new Promise((resolve, reject) => {
-    const request = indexedDB.open(dbName, 2); // Ensure you use the correct version
-    request.onsuccess = (event) => resolve(event.target.result);
-    request.onerror = (event) => reject(event.target.error);
+    initRelationshipDB((event) => resolve(event.target.result));
   });
 
   const db = await dbPromise;
@@ -449,7 +476,7 @@ async function getAncestorsOnPage() {
           const relationship = item?.relationship?.toLowerCase();
           //console.log(relationship);
           if (!relationship) return false;
-          return relationship.match(/father|mother/i) != null;
+          return relationship.match(/father|mother/i) != null && item.userId === user;
         })
         .map((item) => item.id); // Extract only ancestor IDs
       resolve(ancestorKeys);
@@ -459,31 +486,131 @@ async function getAncestorsOnPage() {
   });
 
   const ancestorKeys = await ancestorsPromise;
-  //console.log("Ancestor keys:", ancestorKeys);
 
-  // Cross-reference with window.people
-  const peopleOnPage = window.people;
-  //console.log("People on the page:", peopleOnPage);
-  const ancestorsOnPage = peopleOnPage.filter((person) => ancestorKeys.includes(person.Name));
-  // console.log("Ancestors on the page:", ancestorsOnPage);
+  const familyLinks = $("div.VITALS a[href*='/wiki/']");
+  // Make array of wtids
+  const peopleOnPage = familyLinks
+    .map(function () {
+      const link = $(this);
+      const href = link.attr("href");
+      if (href) {
+        const wtid = href.split("/").pop();
+        return wtid;
+      }
+    })
+    .get();
+  // Add the profile person
+  peopleOnPage.push(profilePersonName);
+
+  const ancestorsOnPage = peopleOnPage.filter((person) => {
+    const personWithUnderscores = person.replace(/ /g, "_");
+    const personWithSpaces = person.replace(/_/g, " ");
+    return ancestorKeys.includes(personWithUnderscores) || ancestorKeys.includes(personWithSpaces);
+  });
 
   // Highlight ancestors on the page
   ancestorsOnPage.forEach((ancestor) => {
-    const element = $(`div.VITALS a[href$="/wiki/${ancestor.Name}"],div.VITALS a[data-wtid="${ancestor.Name}"]`);
-    if (element) {
-      element.addClass("ancestor");
-      element.attr("aria-label", "Ancestor");
-      element.attr("title", "Ancestor");
+    const element = $(
+      `div.VITALS a[href$="/wiki/${ancestor.replace(/ /g, "_")}"], 
+       div.VITALS a[data-wtid="${ancestor.replace(/ /g, "_")}"], 
+       div.VITALS a[href$="/wiki/${ancestor.replace(/_/g, " ")}"], 
+       div.VITALS a[data-wtid="${ancestor.replace(/_/g, " ")}"]`
+    );
+    if (element.length && element.data("status") != 5) {
+      addAncestorLabels(element);
     }
   });
 
-  /*
-  console.log(
-    "Ancestors on the page:",
-    ancestorsOnPage.map((a) => a.Name)
-  );
-  */
+  if (ancestorsOnPage.includes(profilePersonName)) {
+    // Add ancestor labels for the parents of the profile person
+    // a[arial-label="Father"], a[aria-label="Mother"]
+    const fatherElement = $(`div.VITALS a[aria-label="Father"]`);
+    const motherElement = $(`div.VITALS a[aria-label="Mother"]`);
+    if (fatherElement.length && fatherElement.data("status") != 5) {
+      addAncestorLabels(fatherElement);
+    }
+    if (motherElement.length && motherElement.data("status") != 5) {
+      addAncestorLabels(motherElement);
+    }
+    if ($("#childrenList").length && $("#childrenList").find("a.ancestor").length == 0) {
+      // Call WT+ API to get the children of the ancestor of the user
+      // https://plus.wikitree.com/function/WTPath/Path.htm?WikiTreeID1=${profilePersonName}&WikiTreeID2=${user}&relatives=1
+      // Fetch this, then find the a in the 2nd td of the third tr of the table (of the results)
+      // This will be an ancestor of the user.
+
+      const connectionName = await getAncestorConnection(profilePersonName, user);
+
+      if (connectionName) {
+        const connectionElement = $(
+          `div.VITALS a[href$="/wiki/${connectionName.replace(/ /g, "_")}"],
+           div.VITALS a[data-wtid="${connectionName.replace(/ /g, "_")}"],
+           div.VITALS a[href$="/wiki/${connectionName.replace(/_/g, " ")}"],
+           div.VITALS a[data-wtid="${connectionName.replace(/_/g, " ")}"]`
+        );
+        if (connectionElement.length) {
+          addAncestorLabels(connectionElement);
+        }
+      }
+    }
+
+    // Highlight the ancestor child's parent (the right spouse of the profilePerson).
+    if ($("#childrenList a.ancestor").length && $(".spouseDetails a.ancestor").length == 0) {
+      const connectionElement = $("#childrenList a.ancestor");
+      // Get spouse_x class of closest li
+      const thisClass = connectionElement.closest("li").attr("class");
+      // Find the spouse of the profile person with the same class
+      // There may be more than one class. We need to find the one that starts with "spouse_" (if there is one).
+      const spouseClass = thisClass.split(" ").find((c) => c.startsWith("spouse_"));
+      if (spouseClass) {
+        const spouseA = $(`.spouseDetails.${spouseClass} span a.spouseLink`);
+        if (spouseA.length) {
+          addAncestorLabels(spouseA);
+        }
+      } else {
+        // If there is no spouse class, find the first spouse link
+        const spouseA = $(`a.spouseLink`);
+        if (spouseA.length) {
+          addAncestorLabels(spouseA);
+        }
+      }
+    }
+  } else if ($("#siblingList a.ancestor").length) {
+    const closestLi = $("#siblingList a.ancestor").closest("li");
+    const fatherId = closestLi.data("father");
+    const motherId = closestLi.data("mother");
+    const fatherElement = $(`div.VITALS li[data-id="${fatherId}"] a`);
+    const motherElement = $(`div.VITALS li[data-id="${motherId}"] a`);
+    if (fatherElement.length && fatherElement.data("status") != 5) {
+      addAncestorLabels(fatherElement);
+    }
+    if (motherElement.length && motherElement.data("status") != 5) {
+      addAncestorLabels(motherElement);
+    }
+  }
+
   return ancestorsOnPage.map((a) => a.Name); // Return the array of ancestor WT IDs
+}
+
+async function getAncestorConnection(ancestor, user) {
+  const url = `https://plus.wikitree.com/function/WTPath/Path.htm?WikiTreeID1=${ancestor}&WikiTreeID2=${user}&relatives=1`;
+  return fetch(url)
+    .then((response) => response.text())
+    .then((html) => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      const table = doc.querySelector("table");
+      const rows = table.querySelectorAll("tr");
+      const ancestorLink = rows[2].querySelector("td:nth-child(2) a");
+      if (ancestorLink) {
+        return ancestorLink.href.split("/").pop();
+      }
+    });
+}
+
+// element is a jQuery object
+function addAncestorLabels(element) {
+  element.addClass("ancestor");
+  element.attr("title", "Ancestor");
 }
 
 function reallyMakeFamLists() {
@@ -813,6 +940,29 @@ function fixNakedPrivates() {
       let nSpan = createPrivateAndDates(tNodes[n], tNodes[n].nextSibling, ip);
       if (tNodes[n].parentNode) {
         tNodes[n].parentNode.insertBefore(nSpan, tNodes[n]);
+      }
+    }
+  }
+}
+
+function addParentStatusDataAttribute() {
+  // Add parent status to parent links
+  const dataStatus = window.people[0]?.DataStatus;
+  const profilePerson = window.people[0];
+  if (profilePerson?.Father) {
+    const fatherName = profilePerson.Parents?.[profilePerson.Father]?.Name;
+    const fatherLink = $(`div.VITALS a[href$="${fatherName}"]`);
+
+    const motherName = profilePerson.Parents?.[profilePerson.Mother]?.Name;
+    const motherLink = $(`div.VITALS a[href$="${motherName}"]`);
+
+    if (dataStatus) {
+      const { Father: fatherStatus, Mother: motherStatus } = dataStatus;
+      if (fatherStatus) {
+        fatherLink.attr("data-status", fatherStatus);
+      }
+      if (motherStatus) {
+        motherLink.attr("data-status", motherStatus);
       }
     }
   }

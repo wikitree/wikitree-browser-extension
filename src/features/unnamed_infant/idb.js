@@ -1,55 +1,28 @@
 // idb.js
-export function openDatabase() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open("childless", 1);
+import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
 
-    request.onupgradeneeded = function (event) {
-      const db = event.target.result;
-      db.createObjectStore("profiles", { keyPath: "id" });
-    };
+const CL_DB_NAME = "childless";
+const CL_DB_VERSION = 1;
+const CL_DB_STORE = "profiles";
+const dbHelper = new IndexedDBHelper(CL_DB_NAME, CL_DB_VERSION);
 
-    request.onsuccess = function (event) {
-      resolve(event.target.result);
-    };
-
-    request.onerror = function (event) {
-      reject(event.target.error);
-    };
-  });
+async function initializeDatabase() {
+  if (!dbHelper.db) {
+    await dbHelper.openDB((db, fromVersion, toVersion) => {
+      // This code needs to change whenever we have to change the version number (CL_DB_VERSION)
+      IndexedDBHelper.createObjectStore(db, CL_DB_STORE, { keyPath: "id" });
+    });
+  }
+  return dbHelper;
 }
 
-export function saveProfile(id, dontShowAgain, lastShown) {
-  return openDatabase().then((db) => {
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(["profiles"], "readwrite");
-      const store = transaction.objectStore("profiles");
-      store.put({ id: id, dontShowAgain: dontShowAgain, lastShown: lastShown });
-
-      transaction.oncomplete = function () {
-        resolve();
-      };
-
-      transaction.onerror = function (event) {
-        reject(event.target.error);
-      };
-    });
-  });
+export async function saveProfile(id, dontShowAgain, lastShown) {
+  const dbh = await initializeDatabase();
+  await dbh.putData(CL_DB_STORE, { id: id, dontShowAgain: dontShowAgain, lastShown: lastShown });
 }
 
-export function hasProfile(id) {
-  return openDatabase().then((db) => {
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(["profiles"]);
-      const store = transaction.objectStore("profiles");
-      const request = store.get(id);
-
-      request.onsuccess = function (event) {
-        resolve(event.target.result);
-      };
-
-      request.onerror = function (event) {
-        reject(event.target.error);
-      };
-    });
-  });
+export async function hasProfile(id) {
+  const dbh = await initializeDatabase();
+  const item = await dbh.getData(CL_DB_STORE, id);
+  return item;
 }

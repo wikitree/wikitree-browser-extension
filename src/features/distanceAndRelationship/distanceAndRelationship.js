@@ -51,61 +51,89 @@ const cleanCommonAncestors = (commonAncestors) => {
   });
 };
 
-export function initDistanceAndRelationshipDBs(onDistanceSuccess, onRelationshipSuccess) {
+export function initDistanceDB(onDistanceSuccess) {
   initDb(CONNECTION_DB_NAME, CONNECTION_DB_VERSION, CONNECTION_STORE_NAME, "distance", onDistanceSuccess);
+}
+export function initRelationshipDB(onRelationshipSuccess) {
   initDb(RELATIONSHIP_DB_NAME, RELATIONSHIP_DB_VERSION, RELATIONSHIP_STORE_NAME, "relationship", onRelationshipSuccess);
+}
+export function initDistanceAndRelationshipDBs(onDistanceSuccess, onRelationshipSuccess) {
+  initDistanceDB(onDistanceSuccess);
+  initRelationshipDB(onRelationshipSuccess);
+}
 
-  function initDb(dbName, dbVersion, storeName, oldStoreName, onSuccess) {
-    const dbOpenReq = window.indexedDB.open(dbName, dbVersion);
-    dbOpenReq.onupgradeneeded = async (event) => {
-      const db = event.target.result;
-      const objStores = getObjectStores(db);
-      switch (event.oldVersion) {
-        case 0: // there is no old store
-          db.createObjectStore(storeName, { keyPath: "theKey" });
-          break;
+function initDb(dbName, dbVersion, storeName, oldStoreName, onSuccess) {
+  const dbOpenReq = window.indexedDB.open(dbName, dbVersion);
+  dbOpenReq.onupgradeneeded = async (event) => {
+    const db = event.target.result;
+    const objStores = getObjectStores(db);
+    switch (event.oldVersion) {
+      case 0: // there is no old store
+        db.createObjectStore(storeName, { keyPath: "theKey" });
+        break;
 
-        case 1:
-          if (!objStores.includes(storeName)) {
-            const newStore = db.createObjectStore(storeName, { keyPath: "theKey" });
-            if (oldStoreName && objStores.includes(oldStoreName)) {
-              console.log(`Converting '${oldStoreName}'`);
+      case 1:
+        if (!objStores.includes(storeName)) {
+          const newStore = db.createObjectStore(storeName, { keyPath: "theKey" });
+          if (oldStoreName && objStores.includes(oldStoreName)) {
+            console.log(`Converting '${oldStoreName}'`);
 
-              const transaction = event.target.transaction;
-              const oldObjectStore = transaction.objectStore(oldStoreName);
+            const transaction = event.target.transaction;
+            const oldObjectStore = transaction.objectStore(oldStoreName);
 
-              // Open a cursor to iterate through the records in the old object store
-              const cursorRequest = oldObjectStore.openCursor();
+            // Open a cursor to iterate through the records in the old object store
+            const cursorRequest = oldObjectStore.openCursor();
 
-              cursorRequest.onsuccess = (event) => {
-                const cursor = event.target.result;
-                if (cursor) {
-                  const record = cursor.value;
-                  record.theKey = distRelDbKeyFor(record.id, record.userId);
-                  const addReq = newStore.add(record);
+            cursorRequest.onsuccess = (event) => {
+              const cursor = event.target.result;
+              if (cursor) {
+                const record = cursor.value;
+                record.theKey = distRelDbKeyFor(record.id, record.userId);
+                const addReq = newStore.add(record);
 
-                  addReq.onsuccess = () => {
-                    cursor.continue(); // Move to the next record
-                  };
+                addReq.onsuccess = () => {
+                  cursor.continue(); // Move to the next record
+                };
 
-                  addReq.onerror = (error) => {
-                    console.log(`Failed to convert ${record.theKey}`, error);
-                  };
-                } else {
-                  // We're done
-                  db.deleteObjectStore(oldStoreName);
-                }
-              };
+                addReq.onerror = (error) => {
+                  console.log(`Failed to convert ${record.theKey}`, error);
+                };
+              } else {
+                // We're done
+                db.deleteObjectStore(oldStoreName);
+              }
+            };
 
-              cursorRequest.onerror = (error) => {
-                console.log(`Could not open cursor on '${oldStoreName}'`, error);
-              };
-            }
+            cursorRequest.onerror = (error) => {
+              console.log(`Could not open cursor on '.${dbName}.${oldStoreName}'`, error);
+            };
           }
-      }
+        }
+    }
+  };
+
+  dbOpenReq.onsuccess = (event) => {
+    const db = event.target.result;
+
+    // Handle the version change event - this is triggered when another thread opened the
+    // database with a new (higher) version number and executed their onupgradeneeded event
+    db.onversionchange = () => {
+      console.warn(`Database version change detected. Closing database ${dbName}.`);
+      db.close(); // Close the database to allow the upgrade
+      alert(`The IndexedDB database ${dbName} had a version change. Please refresh this page.`);
     };
-    dbOpenReq.onsuccess = onSuccess;
-  }
+
+    onSuccess(event);
+  };
+
+  dbOpenReq.onerror = (event) => {
+    console.error(`Error opening IndexedDB ${dbName}.${storeName}:`, event.target.error);
+  };
+
+  dbOpenReq.onblocked = () => {
+    console.warn(`IndexedDB database ${dbName}.${storeName} upgrade blocked by another open connection.`);
+    alert(`Please close other WikiTree tabs, or restart your browser to allow the database ${dbName} to be upgraded.`);
+  };
 }
 
 shouldInitializeFeature("distanceAndRelationship").then((result) => {
@@ -297,7 +325,7 @@ function commonAncestorText(commonAncestors) {
 
 function doRelationshipText(userID, profileID) {
   getRelationJSON("DistanceAndRelationship_Relationship", userID, profileID).then(function (data) {
-    console.log(data);
+    // console.log(data);
     if (data) {
       var out = "";
       var aRelationship = true;
@@ -380,8 +408,7 @@ function doRelationshipText(userID, profileID) {
         }
       }
 
-      const relationshipFinderDBOpenReq = window.indexedDB.open(RELATIONSHIP_DB_NAME, RELATIONSHIP_DB_VERSION);
-      relationshipFinderDBOpenReq.onsuccess = (event) => {
+      initRelationshipDB((event) => {
         const relationshipFinderDB = event.target.result;
         const obj = {
           theKey: distRelDbKeyFor(profileID, userID),
@@ -392,7 +419,7 @@ function doRelationshipText(userID, profileID) {
           commonAncestors: cleanCommonAncestors(data.commonAncestors),
         };
         addToDBAndClose(relationshipFinderDB, RELATIONSHIP_STORE_NAME, obj);
-      };
+      });
     }
   });
 }
@@ -413,8 +440,7 @@ async function addDistance(data) {
           )
         );
     }
-    const connectionFinderDBOpenReq = window.indexedDB.open(CONNECTION_DB_NAME, CONNECTION_DB_VERSION);
-    connectionFinderDBOpenReq.onsuccess = function (event) {
+    initDistanceDB((event) => {
       const connectionFinderDB = event.target.result;
       const obj = {
         theKey: distRelDbKeyFor(profileID, userID),
@@ -423,13 +449,10 @@ async function addDistance(data) {
         distance: window.distance,
       };
       addToDBAndClose(connectionFinderDB, CONNECTION_STORE_NAME, obj);
-    };
-    connectionFinderDBOpenReq.onerror = function (error) {
-      console.log("Error while recording distance", error);
-    };
+    });
+
     // Add distance data to RF DB here
-    const relationshipFinderDBOpenReq = window.indexedDB.open(RELATIONSHIP_DB_NAME, RELATIONSHIP_DB_VERSION);
-    relationshipFinderDBOpenReq.onsuccess = function (event) {
+    initRelationshipDB((event) => {
       const relationshipFinderDB = event.target.result;
       const obj = {
         theKey: distRelDbKeyFor(profileID, userID),
@@ -438,7 +461,7 @@ async function addDistance(data) {
         distance: window.distance,
       };
       addToDBAndClose(relationshipFinderDB, RELATIONSHIP_STORE_NAME, obj);
-    };
+    });
   }
 }
 
