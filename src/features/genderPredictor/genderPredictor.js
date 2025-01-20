@@ -13,7 +13,11 @@ let wasPredicted = false;
 shouldInitializeFeature("genderPredictor").then((result) => {
   if (result && $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
     import("./genderPredictor.css");
-    predictGender();
+    setTimeout(() => {
+      if (mGender.length && mGender.val() === "") {
+        predictGender();
+      }
+    }, 500);
   }
 });
 
