@@ -202,7 +202,7 @@ async function doFamilyDropdown() {
   // Add 'Me' option if enabled
   if (window.familyDropdownOptions.addMeLink) {
     const userId = getUserNumId();
-    const user = await getPerson(userId, { fields: ["Name", "FirstName", "LastNameCurrent"] });
+    const user = await getPerson(userId, { fields: ["Name", "FirstName", "LastNameCurrent", "Bio"] });
     if (user) {
       let userName = "Me";
       if (user.FirstName) {
@@ -227,7 +227,7 @@ async function doFamilyDropdown() {
 }
 
 async function getDataAndMakeWikilink(id) {
-  const person = await getPerson(id, { fields: ["Name", "FirstName", "LastNameCurrent"] });
+  const person = await getPerson(id, { fields: ["Name", "FirstName", "LastNameCurrent", "Bio"] });
   if (person) {
     let personName = "";
     if (person.FirstName) {

@@ -165,11 +165,11 @@ function getSources(person, active = 0) {
 
     // Add source buttons
     refArr.forEach(function (aRef, index) {
-      let button1 = "<button data-ref=" + index + " class='small paste'>Add to Sources</button>";
+      let button1 = `<button data-ref=${index} class='small paste'>Add to Sources</button>`;
 
-      let button2 = "<button data-ref=" + index + " class='small inline'>Add Inline Citation</button>";
+      let button2 = `<button data-ref=${index} class='small inline'>Add Inline Citation</button>`;
 
-      let button3 = "<button data-ref='" + index + "' class='small copyInline'>Copy Inline Citation</button>";
+      let button3 = `<button data-ref='${index}' class='small copyInline'>Copy Inline Citation</button>`;
 
       if (enhanced == true) {
         button2 = button3;
@@ -225,7 +225,7 @@ function getSources(person, active = 0) {
         let ref = $(this).data("ref");
         let thePerson = $(this).closest("div.referenceBox").data("id");
 
-        let theTextarea = $(".referenceBox[data-id='" + thePerson + "'] textarea[data-ref=" + ref + "]");
+        let theTextarea = $(`.referenceBox[data-id="${thePerson}"] textarea[data-ref="${ref}"]`);
         let theText = theTextarea.html();
 
         let box;
@@ -310,11 +310,9 @@ function getSources(person, active = 0) {
 
     // Create biography element
     const relativeBiography = $(
-      "<div id='relativeBiography'><h3 id='relBioh3'>" +
-        displayName(efProfile)[0] +
-        "'s Bio</h3><x class='small button'>x</x><textarea id='relativeBioContent'>" +
-        efBio +
-        "</textarea></div>"
+      `<div id='relativeBiography'><h3 id='relBioh3'>${
+        displayName(efProfile)[0]
+      }'s Bio</h3><x class='small button'>x</x><textarea id='relativeBioContent'>${efBio}</textarea></div>`
     );
 
     relativeBiography.insertBefore($(".referenceBox"));
