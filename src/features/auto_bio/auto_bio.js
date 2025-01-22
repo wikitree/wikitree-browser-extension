@@ -6239,7 +6239,7 @@ export async function getStickersAndBoxes() {
   let afterBioHeading = "";
 
   try {
-    templatesObject = await getData("alltemplates");
+    templatesObject = await getTemplates();
   } catch (error) {
     return afterBioHeading;
   }
@@ -6901,7 +6901,7 @@ export function addLocationCategoryToStuffBeforeTheBio(location) {
 }
 
 async function sortStuffBeforeBio() {
-  const templatesObject = await getData("alltemplates");
+  const templatesObject = await getTemplates();
   const tempStuffObject = {
     categories: [],
     easilyConfused: [],
