@@ -594,7 +594,7 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
 
       // Open all links in a new tab
       if (options.linksInNewTab) {
-        $("a").attr("target", "_blank");
+        $("a:not([target])").attr("target", "_blank");
       }
 
       // Add save form button
