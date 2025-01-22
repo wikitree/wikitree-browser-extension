@@ -592,6 +592,11 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
     getFeatureOptions("usabilityTweaks").then((options) => {
       window.usabilityTweaksOptions = options;
 
+      // Open all links in a new tab
+      if (options.linksInNewTab) {
+        $("a").attr("target", "_blank");
+      }
+
       // Add save form button
       if (isSearchPage && options.saveSearchFormDataButton) {
         addSaveSearchFormDataButton();

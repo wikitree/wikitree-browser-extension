@@ -17,6 +17,7 @@ const usabilityTweaks = {
       type: OptionType.GROUP,
       label: "Global",
       options: [
+        { id: "linksInNewTab", type: OptionType.CHECKBOX, label: "Open all links in a new tab", defaultValue: false },
         {
           id: "removeDisablePreviewButtons",
           type: OptionType.CHECKBOX,
