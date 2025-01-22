@@ -594,7 +594,13 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
 
       // Open all links in a new tab
       if (options.linksInNewTab) {
-        $("a:not([target])").attr("target", "_blank");
+        $("a:not([target])").each(function () {
+          const href = $(this).attr("href");
+          // Skip links that are anchors on the same page or empty href
+          if (href && !href.startsWith("#") && href !== "") {
+            $(this).attr("target", "_blank");
+          }
+        });
       }
 
       // Add save form button
