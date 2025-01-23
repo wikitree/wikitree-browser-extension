@@ -597,7 +597,7 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
         $("a:not([target])").each(function () {
           const href = $(this).attr("href");
           // Skip links that are anchors on the same page or empty href
-          if (href && !href.startsWith("#") && href !== "") {
+          if (href && !href.startsWith("#") && href !== "" && $(this).closest("ul.profile-tabs").length === 0) {
             $(this).attr("target", "_blank");
           }
         });
