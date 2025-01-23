@@ -11,14 +11,6 @@ function linksToNewTabs(options) {
     const href = $(this).attr("href");
     // Skip links that are anchors on the same page or empty href
 
-    console.log(options);
-
-    console.log("href: ", href);
-    console.log("this: ", this);
-    console.log("this.closest profile-tabs: ", $(this).closest(".profile-tabs").length);
-    console.log("this.closest qa-nav: ", $(this).closest("div.qa-nav-main,div.qa-nav-footer").length);
-    console.log("this.closest pureCss: ", $(this).closest("ul.pureCssMenum").length);
-
     const isProfileTab = $(this).closest(".profile-tabs").length > 0;
     const isG2GTab = $(this).closest("div.qa-nav-main,div.qa-nav-footer").length > 0;
     const isTopMenu = $(this).closest("ul.pureCssMenum").length > 0;
