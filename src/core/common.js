@@ -1478,3 +1478,19 @@ if (
     $("#wpSummary").val("Updated table");
   });
 }
+
+// Add email to Trusted List
+export async function addEmailToTrustedList(email) {
+  $("input[name='add_email']").val(email);
+  $("input[type='submit'][value='Add this Person']").trigger("click");
+}
+
+if (window.location.href.includes("TrustedList") && window.location.href.includes("AddEmail")) {
+  // Get email from the URL
+  const email = new URLSearchParams(window.location.search).get("AddEmail");
+  if (email) {
+    addEmailToTrustedList(email);
+  }
+}
+
+////////// End of Notables Project things
