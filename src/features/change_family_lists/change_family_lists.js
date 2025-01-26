@@ -1734,7 +1734,7 @@ function createPrivateAndDates(aNode, nextSib, ip) {
 }
 
 function fixPrivates(thing1, thing2) {
-  const ds = document.querySelectorAll(".VITALS span[title^='" + thing1 + "']");
+  const ds = document.querySelectorAll(`.VITALS span[title^='${thing1}\\b']`);
   ds.forEach(function (aSpan) {
     $(aSpan).attr("itemprop", thing2);
     const oTextNodes = textNodesUnder(aSpan);
