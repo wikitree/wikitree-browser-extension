@@ -157,7 +157,6 @@ function getAppsMenuItems() {
       title: "Bio Check",
       url: `https://apps.wikitree.com/apps/sands1865/biocheck/?action=checkProfile&profileId=${profileID}`,
     },
-    { title: "Check Stickers", url: "https://apps.wikitree.com/apps/anderson23510/stickers/" },
     { title: "Cemetery Mapping", url: "https://apps.wikitree.com/apps/harris5439/cemeteries/" },
     { title: "DNA Confirmation Citation Maker", url: "https://apps.wikitree.com/apps/clarke11007/DNAconf.php" },
     { title: "FamilySearch Matches", url: "https://apps.wikitree.com/apps/york1423/fs-match" },
