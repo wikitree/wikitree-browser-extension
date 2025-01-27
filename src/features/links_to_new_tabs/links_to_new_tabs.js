@@ -8,12 +8,22 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 
 function linksToNewTabs(options) {
   $("a:not([target])").each(function () {
-    const href = $(this).attr("href");
+    const $link = $(this);
+    const href = $link.attr("href");
     // Skip links that are anchors on the same page or empty href
 
-    const isProfileTab = $(this).closest(".profile-tabs").length > 0;
-    const isG2GTab = $(this).closest("div.qa-nav-main,div.qa-nav-footer").length > 0;
-    const isTopMenu = $(this).closest("ul.pureCssMenum").length > 0;
+    // Check if the link contains a button with "Next Change" or "Previous Change"
+    const isNextChangeButton = $link.find("button:contains('Next Change')").length > 0;
+    const isPreviousChangeButton = $link.find("button:contains('Previous Change')").length > 0;
+
+    // Skip links that contain these buttons
+    if (isNextChangeButton || isPreviousChangeButton) {
+      return;
+    }
+
+    const isProfileTab = $link.closest(".profile-tabs").length > 0;
+    const isG2GTab = $link.closest("div.qa-nav-main,div.qa-nav-footer").length > 0;
+    const isTopMenu = $link.closest("ul.pureCssMenum").length > 0;
 
     // Check for the conditions to exclude the link
     if (
@@ -23,7 +33,7 @@ function linksToNewTabs(options) {
     ) {
       return;
     } else if (href && !href.startsWith("#") && href !== "") {
-      $(this).attr("target", "_blank");
+      $link.attr("target", "_blank");
     }
   });
 }
