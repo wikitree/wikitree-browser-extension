@@ -1485,11 +1485,26 @@ export async function addEmailToTrustedList(email) {
   $("input[type='submit'][value='Add this Person']").trigger("click");
 }
 
+// Remove email from Trusted List
+export async function removeEmailFromTrustedList(email) {
+  const theLink = $("a:contains('" + email + "')");
+  const checkbox = theLink.closest("tr").find("input[type='checkbox']");
+  checkbox.prop("checked", true);
+  $("input[type='submit'][value='Remove Selected People']").trigger("click");
+}
+
 if (window.location.href.includes("TrustedList") && window.location.href.includes("AddEmail")) {
   // Get email from the URL
   const email = new URLSearchParams(window.location.search).get("AddEmail");
   if (email) {
     addEmailToTrustedList(email);
+  }
+}
+if (window.location.href.includes("TrustedList") && window.location.href.includes("RemoveEmail")) {
+  // Get email from the URL
+  const email = new URLSearchParams(window.location.search).get("RemoveEmail");
+  if (email) {
+    removeEmailFromTrustedList(email);
   }
 }
 
