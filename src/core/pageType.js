@@ -258,7 +258,10 @@ if (domain.match("apps.wikitree.com")) {
     ) {
       isWBESpace = true;
     }
-    if (path.match(/\/wiki\/Space.*Notables.*/g) && path.match(/\/wiki\/Space.*Unconnected.*/g)) {
+    if (
+      path.match(/\/wiki\/Space.*Notables.*/g) &&
+      (path.match(/\/wiki\/Space.*Unconnected.*/g) || path.match(/Profiles_Needing_Family_Member/))
+    ) {
       isUnconnectedNotables = true;
     }
   } else if (

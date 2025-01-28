@@ -1471,7 +1471,9 @@ async function replaceWikitableFromClipboard(done) {
 
 if (
   window.location.href ===
-  "https://www.wikitree.com/index.php?title=Space:Notables_Project_Unconnected_Profiles&action=edit&WBEaction=UpdateTable"
+    "https://www.wikitree.com/index.php?title=Space:Notables_Project_Unconnected_Profiles&action=edit&WBEaction=UpdateTable" ||
+  window.location.href ===
+    "https://www.wikitree.com/index.php?title=Space:Notables_Project_Profiles_Needing_Family_Member&action=edit&WBEaction=UpdateTable"
 ) {
   toggleEnhancedEditor((done) => {
     replaceWikitableFromClipboard(done);
