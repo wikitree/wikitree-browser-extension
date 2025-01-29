@@ -13,11 +13,13 @@ function linksToNewTabs(options) {
     // Skip links that are anchors on the same page or empty href
 
     // Check if the link contains a button with "Next Change" or "Previous Change"
-    const isNextChangeButton = $link.find("button:contains('Next Change')").length > 0;
-    const isPreviousChangeButton = $link.find("button:contains('Previous Change')").length > 0;
+    const isNextOrPreviousChangeButton =
+      $link.find(
+        "button:contains('Next Change'),button:contains('Previous Change'),button:contains('Previous'),button:contains('Next')"
+      ).length > 0;
 
     // Skip links that contain these buttons
-    if (isNextChangeButton || isPreviousChangeButton) {
+    if (isNextOrPreviousChangeButton) {
       return;
     }
 
