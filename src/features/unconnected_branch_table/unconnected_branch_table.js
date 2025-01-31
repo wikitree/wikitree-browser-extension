@@ -81,17 +81,18 @@ async function doNotablesSpace() {
   const people = await getPeople(ids.join(","), 0, 0, 0, 0, 0, "Name,Connected", "WBE_unconnected_branch");
   const oPeople = people[0].people;
   // Add class to rows of any connected people
-  $table.find("tr").each(function () {
-    const link = $(this).find("a:first");
-
-    if (link.length && link.attr("href").includes("wiki/")) {
-      const id = link.attr("href").split("/").pop();
-      const person = Object.values(oPeople).find((p) => p.Name == id);
-      if (person?.Connected) {
-        $(this).addClass("connected");
+  if (oPeople) {
+    $table.find("tr").each(function () {
+      const link = $(this).find("a:first");
+      if (link.length && link.attr("href").includes("wiki/")) {
+        const id = link.attr("href").split("/").pop();
+        const person = Object.values(oPeople).find((p) => p.Name == id);
+        if (person?.Connected) {
+          $(this).addClass("connected");
+        }
       }
-    }
-  });
+    });
+  }
 
   setTimeout(function () {
     $(".x-sidebar").remove();
