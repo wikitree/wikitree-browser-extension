@@ -5,7 +5,7 @@ Created By: Kay Knight (Sands-1865)
 /*
 The MIT License (MIT)
 
-Copyright (c) 2024 Kathryn J Knight
+Copyright (c) 2025 Kathryn J Knight
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -298,6 +298,7 @@ export class Biography {
             // handle case of template on multiple lines
             let j = line.indexOf(Biography.#TEMPLATE_END);
             let combinedLine = line;
+            let combinedLineMixedCase = line;
             let nextIndex = currentIndex + 1;
             let foundEnd = true;
             if (j < 0) {
@@ -306,6 +307,7 @@ export class Biography {
             while (!foundEnd && nextIndex < lineCount) {
               if (nextIndex < lineCount) {
                 combinedLine = combinedLine + this.#bioLines[nextIndex].toLowerCase().trim();
+                combinedLineMixedCase = combinedLineMixedCase + this.#bioLines[nextIndex];
                 nextIndex++;
                 linesToSkip++;
               }
@@ -325,6 +327,49 @@ export class Biography {
               }
               partialLine = line.substring(2, j).trim().toLowerCase();
               partialMixedCaseLine = this.#bioLines[currentIndex].substring(2, j).trim();
+
+              // Check that none of the template parameters are duplicated
+              /*
+               * remove any external links from the parameters (they may contain |)
+               * find the start of a parameter name following the |
+               * find the end of the parameter name before the =
+               * trim the parameter name * add it to the set of unique names, and complain if its already found 
+               */
+               // you can test using Vandever-161
+
+              combinedLine = this.#swallowLink(combinedLine);
+              combinedLineMixedCase = this.#swallowLink(combinedLineMixedCase);
+              foundEnd = false;
+              let paramEnd = 0;
+              let paramNameSet = new Set();
+              while (!foundEnd) {
+                let paramStart = combinedLine.indexOf('|', paramEnd);
+                if (paramStart < 0) {
+                  foundEnd = true;
+                } else {
+                  paramStart++;
+                  paramEnd = combinedLine.indexOf('=', paramStart);
+                  //paramEnd--;
+                  if (paramEnd > 0) {
+                    let paramName=combinedLine.substring(paramStart, paramEnd).trim();
+                    if (paramNameSet.has(paramName)) {
+                      let dupName = combinedLineMixedCase.substring(paramStart, paramEnd).trim();
+                      let msg = partialMixedCaseLine + ' template has duplicate parameter ' + dupName;
+                      this.#messages.styleMessages.push(msg);
+                      this.#style.bioHasStyleIssues = true;
+                    } else {
+                      paramNameSet.add(paramName);
+                    }
+                    paramEnd++;
+                    if (paramEnd > combinedLine.length) {
+                      foundEnd = true;
+                    }
+                    // check for duplicate 
+                  } else {
+                    foundEnd = true;
+                  }
+                }
+              }
             }
 
             /* 
@@ -333,7 +378,8 @@ export class Biography {
              *  Placement: The code should be placed directly below any categories. It belongs above all other 
              *             Profile Boxes, including Research Note Boxes and Project Boxes. 
              * Succession:
-             *  They should be placed directly above the Biography headline, below any Research Note Boxes and Project Boxes. 
+             *  They should be placed directly above the Biography headline, below any Research Note Boxes 
+             *  and Project Boxes. 
              *
              * and since you are confusing the Successsion and Succession box and the later are deprecated, check for
              * that first
@@ -898,6 +944,40 @@ export class Biography {
         ((str.indexOf(Biography.#END_BRACKET) < 0) ||
          (str.indexOf(Biography.#END_BRACKET) < startPos))) {
       this.#style.bioHasBrWithoutEnd = true;
+    }
+    return outStr;
+  }
+  /*
+   * Swallow external link in style [[ stuff here ]]
+   * @param {String} inStr
+   * @returns {String} string with link removed
+   */
+  #swallowLink(inStr) {
+    // remove anything that is inside link [[ and ]] brackets
+    let outStr = "";
+    let pos = 0;
+    let endPos = 0; 
+    let len = inStr.length; 
+    pos = inStr.indexOf('[[');
+    if (pos < 0) {
+      outStr = inStr; 
+    }
+    while (pos < len && pos >= 0) {
+      if (pos > 0) {
+      outStr = outStr + inStr.substring(endPos, pos);
+      }
+      // Find end of link
+      endPos = inStr.indexOf(']]', pos);
+      if (endPos > 0) {
+        pos = endPos + 2; // skip the ]] and move starting position there
+        endPos = endPos + 2;
+        if (pos <= len) {
+          pos = inStr.indexOf('[[', pos); // find next 
+          if (pos < 1) {
+            outStr += inStr.substring(endPos);
+          }
+        }
+      }
     }
     return outStr;
   }
