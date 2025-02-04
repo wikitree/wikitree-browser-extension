@@ -16,7 +16,9 @@ function linksToNewTabs(options) {
     const isNextOrPreviousChangeButton =
       $link.find(
         "button:contains('Next Change'),button:contains('Previous Change'),button:contains('Previous'),button:contains('Next')"
-      ).length > 0;
+      ).length > 0 ||
+      ["next »", "« prev"].includes($link.text()) ||
+      $link.closest("li.qa-page-links-item");
 
     // Skip links that contain these buttons
     if (isNextOrPreviousChangeButton) {
@@ -24,13 +26,13 @@ function linksToNewTabs(options) {
     }
 
     const isProfileTab = $link.closest(".profile-tabs").length > 0;
-    const isG2GTab = $link.closest("div.qa-nav-main,div.qa-nav-footer").length > 0;
+    const isG2GTabOrLinks = $link.closest("div.qa-nav-main,div.qa-nav-footer,div.qa-page-links").length > 0;
     const isTopMenu = $link.closest("ul.pureCssMenum").length > 0;
 
     // Check for the conditions to exclude the link
     if (
       (options.excludeProfileTabs && isProfileTab) ||
-      (options.excludeG2GTabs && isG2GTab) ||
+      (options.excludeG2GTabs && isG2GTabOrLinks) ||
       (options.excludeTopMenus && isTopMenu)
     ) {
       return;
