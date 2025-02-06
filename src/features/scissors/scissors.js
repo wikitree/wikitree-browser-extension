@@ -265,10 +265,8 @@ function AddToSections(alsoOnProfilePages) {
 
 export function addItems(copyItems, copyPosition, isNew = false) {
   if (isNew) {
-    console.log("new");
     const aUL = $('<ul class="copy--buttons mono-b scissors"></ul>');
     const imageLI = $("<li></li>");
-    // <img src="/images/icons/icon-copy.svg" alt="Copy icon">
     const image = $('<img src="/images/icons/icon-copy.svg" alt="Copy icon">');
     imageLI.append(image);
     aUL.append(imageLI);

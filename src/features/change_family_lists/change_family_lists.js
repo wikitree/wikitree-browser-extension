@@ -31,7 +31,6 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     $("#familyVitals-tab").trigger("click");
 
     FAMILY_VITALS = $("#familyVitals");
-    console.log("Change Family Lists feature is enabled");
     window.people = getWindowPeople();
 
     options = await getFeatureOptions("changeFamilyLists");
@@ -731,8 +730,7 @@ function reallyMakeFamLists() {
 
       fixAllPrivates();
 
-      // cleaning up
-      /*if ($("span.large:contains(Family Member)").length == 0)*/ {
+      if ($("span.large:contains(Family Member)").length == 0) {
         makeFamLists();
         $(".familyList li").each(function () {
           if (

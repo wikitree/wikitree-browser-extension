@@ -305,7 +305,6 @@ async function sortExtraWatchlist() {
 }
 
 function addToExtraWatchlist(person) {
-  console.log("person", person);
   let thead = $(
     "<thead><tr><th id='wtIDcol' class='wtIDcol'>ID</th><th id='nameCol'>Name</th><th id='recentChangeCol'>Changed</th><th></th><th></th></tr></thead>"
   );
@@ -344,12 +343,8 @@ function doExtraWatchlist() {
     window.userID = getUserNumId();
     if (localStorage.extraWatchlist != null) {
       let bits = localStorage.extraWatchlist.split(/[@,]/);
-      console.log("bits", bits);
       const spacePages = bits.filter((x) => x.match("Space:"));
       const personPages = bits.filter((x) => !x.match("Space:"));
-      //let filteredArray = bits.filter((x) => !window.addedToExtraWatchlist.includes(x));
-      //console.log("filteredArray", filteredArray);
-      console.log("window.addedToExtraWatchlist", window.addedToExtraWatchlist);
       let keys;
       if (personPages.length > 0) {
         while (personPages.length) {
@@ -359,7 +354,6 @@ function doExtraWatchlist() {
           getPeople(keys, 0, 0, 0, 0, 0, 0, "*").then((data) => {
             let people = data[0].people;
             let peopleKeys = Object.keys(people);
-            console.log("people", people);
             peopleKeys.forEach(function (aKey) {
               addToExtraWatchlist(people[aKey]);
             });
@@ -532,11 +526,9 @@ async function extraWatchlist() {
     if (ids.includes(thisID)) {
       // If the ID is found, remove it from the array.
       ids = ids.filter((id) => id !== thisID);
-      console.log(thisID + " removed from the extraWatchlist.");
     } else {
       // If the ID is not found, add it to the array.
       ids.push(thisID);
-      console.log(thisID + " added to the extraWatchlist.");
     }
 
     // Join the array back into a string and save it to localStorage.
@@ -561,26 +553,21 @@ async function extraWatchlist() {
 
 function setPlusButton() {
   const thisID = getThisID().toString(); // Ensure thisID is a string.
-  console.log("Setting plus button for ID:", thisID); // Logging the ID being processed.
 
   if (localStorage.getItem("extraWatchlist")) {
     const ids = localStorage.getItem("extraWatchlist").split(",");
-    console.log("Current extraWatchlist IDs:", ids); // Logging the current list of IDs.
 
     if (ids.includes(String(thisID))) {
       // Use String(thisID) to ensure comparison as strings
       $("#addToExtraWatchlistButton").addClass("onList");
       $("#addToExtraWatchlistButton").attr("title", "On your Extra Watchlist (click to remove)");
-      console.log("ID is on the Extra Watchlist."); // Logging if the ID is on the watchlist.
     } else {
       $("#addToExtraWatchlistButton").removeClass("onList");
       $("#addToExtraWatchlistButton").attr("title", "Add to your Extra Watchlist");
-      console.log("ID is not on the Extra Watchlist."); // Logging if the ID is not on the watchlist.
     }
   } else {
     $("#addToExtraWatchlistButton").removeClass("onList");
     $("#addToExtraWatchlistButton").attr("title", "Add to your Extra Watchlist");
-    console.log("No extraWatchlist found in localStorage."); // Logging if no watchlist is found.
   }
 }
 
