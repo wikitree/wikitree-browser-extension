@@ -18,13 +18,23 @@ import {
   isNetworkFeed,
   isCategoryEdit,
 } from "../../core/pageType";
+import { getProfilePersonInfo } from "../sort_theme_people/sort_theme_people.js";
+import { showCopyMessage } from "../access_keys/access_keys.js";
 
+let profilePerson;
 shouldInitializeFeature("scissors").then((result) => {
   if (result) {
+    profilePerson = getProfilePersonInfo();
     import("./scissors.css");
+    $(document).on("click", ".copy--buttons button", function () {
+      const text = $(this).data("copy-text");
+      showCopyMessage(text);
+    });
+
     if ($("#helpScissors").length == 0) {
       helpScissors();
-      setTimeout(removeWhitespaceBeforeCopyUserID, 2000);
+
+      // setTimeout(removeWhitespaceBeforeCopyUserID, 2000);
     }
   }
 });
@@ -32,7 +42,7 @@ shouldInitializeFeature("scissors").then((result) => {
 async function helpScissors() {
   const options = await getFeatureOptions("scissors");
   let copyItems = [];
-  let copyPosition = $("h1").first();
+  let copyPosition = $("#person ul.copy--buttons");
 
   // Network feed
   if (isNetworkFeed || isProfileHistoryDetail) {
@@ -244,62 +254,91 @@ function AddToSections(alsoOnProfilePages) {
     let wikiLink = "[[" + title + "#" + section + "]]";
 
     if (isProfilePage) {
-      const profileID =
-        $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
+      const profileID = profilePerson.Name;
       wikiLink = `[[${profileID}#${section}|${title.replace(" - WikiTree Profile", "")}: ${section}]]`;
     }
     const wikiLinkItem = { label: "Link", text: wikiLink, image: true };
     const urlLinkItem = { label: "URL", text: url, image: false };
-    addItems([wikiLinkItem, urlLinkItem], $(allAs[i].nextSibling));
+    addItems([wikiLinkItem, urlLinkItem], $(allAs[i].nextSibling), true);
   }
 }
 
-export function addItems(copyItems, copyPosition) {
-  for (let i = 0; i < copyItems.length; i++) {
-    const item = copyItems[i];
-    let button = document.createElement("button");
-    button.setAttribute("aria-label", item.label);
-    button.setAttribute("title", item.text);
-    button.setAttribute("data-copy-label", `Copy ${item.label}`);
-    button.setAttribute("class", "copyWidget helpScissors");
-    button.setAttribute("data-copy-text", item.text);
-    button.setAttribute("style", "color:#8fc641;");
+export function addItems(copyItems, copyPosition, isNew = false) {
+  if (isNew) {
+    console.log("new");
+    const aUL = $('<ul class="copy--buttons mono-b scissors"></ul>');
+    const imageLI = $("<li></li>");
+    // <img src="/images/icons/icon-copy.svg" alt="Copy icon">
+    const image = $('<img src="/images/icons/icon-copy.svg" alt="Copy icon">');
+    imageLI.append(image);
+    aUL.append(imageLI);
+    copyPosition.append(aUL);
+    copyItems.forEach((item, index) => {
+      const aLI = $("<li></li>");
+      const button = $(`
+          <button class="copyWidget helpScissors mono-b" data-copy-label="Copy ${item.label}" 
+              data-copy-text="${item.text}" data-bs-toggle="tooltip" 
+              data-bs-title="Copy ${item.label}" style="color:#8fc641;">
+              ${item.label}
+          </button>
+      `);
 
-    if (item.image) {
-      button.innerHTML = '<img src="/images/icons/scissors.png">';
+      button.attr("aria-label", item.label);
+      button.attr("title", item.text);
+      button.attr("data-bs-title", "Copy User ID");
+      button.attr("style", "color:#8fc641;");
+
+      // Add text node separator if index > 0
+      if (index > 0) {
+        aLI.append(document.createTextNode(" / "));
+      } else {
+        aLI.append(document.createTextNode(" "));
+      }
+
+      aLI.append(button);
+      aUL.append(aLI);
+    });
+
+    copyPosition.append(aUL);
+  } else {
+    for (let i = 0; i < copyItems.length; i++) {
+      const item = copyItems[i];
+      let button = document.createElement("button");
+      button.setAttribute("aria-label", item.label);
+      button.setAttribute("title", item.text);
+      button.setAttribute("data-copy-label", `Copy ${item.label}`);
+      button.setAttribute("class", "copyWidget helpScissors mono-b");
+      button.setAttribute("data-copy-text", item.text);
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-title", "Copy User ID");
+      button.setAttribute("style", "color:#8fc641;");
+
+      if (item.image) {
+        button.innerHTML = '<img src="/images/icons/scissors.png">';
+      }
+      button.innerHTML += item.label.replace("/", "");
+
+      if (item.label == "UserID") {
+        const li = document.createElement("li");
+        li.append(document.createTextNode(" / "));
+        li.append(button);
+        copyPosition.append(li);
+      } else {
+        copyPosition.append(button);
+      }
     }
-    button.innerHTML += item.label;
-    if (i < copyItems.length - 1) {
-      button.innerHTML += "/";
-    }
-    copyPosition.append(button);
-  }
-}
-
-function removeWhitespaceBeforeCopyUserID() {
-  // Remove the space before "UserID"
-  const jqueryCopyID = $('button:contains("UserID")');
-  const copyID = jqueryCopyID[0];
-
-  if (copyID) {
-    let previousSibling = copyID.previousSibling;
-
-    while (previousSibling && previousSibling.nodeType === 3 && /^\s*$/.test(previousSibling.nodeValue)) {
-      const toRemove = previousSibling;
-      previousSibling = previousSibling.previousSibling;
-      toRemove.parentNode.removeChild(toRemove);
-    }
-    // Prepend the button text with a slash
-    copyID.textContent = `/${copyID.textContent}`;
   }
 }
 
 export function copyThingToClipboard(thing) {
-  const $temp = $("<input>");
-  $("body").prepend($temp);
-  $temp.val(thing).select();
-  document.execCommand("copy");
-  $temp.remove();
+  navigator.clipboard
+    .writeText(thing)
+    .then(() => {
+      console.log("Text copied to clipboard");
+    })
+    .catch((err) => {
+      console.error("Could not copy text: ", err);
+    });
 }
 
 export function attachScissorsEvent() {

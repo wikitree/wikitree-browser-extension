@@ -47,7 +47,7 @@ const changeFamilyLists = {
     {
       id: "highlightActiveProfile",
       type: OptionType.CHECKBOX,
-      label: "Highlight the active profile when listed vertically",
+      label: "Highlight the active profile",
       defaultValue: false,
     },
     {

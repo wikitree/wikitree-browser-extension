@@ -9,8 +9,8 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 let featuredConnectionsParagraph;
 
 const profilePersonInfo = getProfilePersonInfo();
-const profilePersonName = profilePersonInfo ? profilePersonInfo.name : null;
-const profilePersonId = profilePersonInfo ? profilePersonInfo.id : null;
+const profilePersonName = profilePersonInfo ? profilePersonInfo.FullName : null;
+const profilePersonId = profilePersonInfo ? profilePersonInfo.Name : null;
 
 shouldInitializeFeature("sortThemePeople").then((result) => {
   if (result && $("body.profile").length) {
@@ -162,17 +162,56 @@ function getThemeTitle() {
 
 // Function to get profile person ID and name
 export function getProfilePersonInfo() {
-  // Extract the profile person's WikiTree ID from the URL
-  const urlParts = window.location.pathname.split("/");
-  let personId = urlParts[urlParts.length - 1];
-  if (!personId) {
-    personId = $("a.pureCssMenui0 span.person").text().trim();
-  }
-  const personName = $("h1 span[itemprop='name']").text().trim();
-  if (!personId || !personName) {
+  const person = {};
+  const pageData = $("#pageData").data();
+  if (!pageData) {
     return null;
   }
-  return { id: personId, name: personName };
+  person.Name = pageData.mnamedb;
+  person.FullName = $("h1 span[itemprop='name']").text().trim();
+  person.Id = pageData.mid;
+  person.LastNameAtBirth = pageData.mlastnameatbirth;
+  person.FirstName = pageData.mfirstname;
+  person.Gender = pageData.mgender;
+  person.Dates = $("h1 small.lifespan").text().trim();
+  // Lifespan is like this: (bef. 1890 - aft. 1936) (for example)
+  // Parse this to get the birth and death years and status
+  // Split the lifespan into parts based on the dash.
+  const lifespanParts = person.Dates.split(" - ");
+  const extractYear = (dateString) => {
+    // Extract the year from the date string
+    const yearMatch = dateString.match(/\d{4}/);
+    return yearMatch ? parseInt(yearMatch[0]) : null;
+  };
+  if (lifespanParts.length === 2) {
+    // Extract the birth and death years
+    person.BirthYear = extractYear(lifespanParts[0]);
+    person.DeathYear = extractYear(lifespanParts[1]);
+  }
+
+  const extractStatus = (dateString) => {
+    if (!dateString) {
+      return null;
+    }
+    // Look for status keywords in the date string
+    if (dateString.includes("bef.")) {
+      return "bef.";
+    } else if (dateString.includes("aft.")) {
+      return "aft.";
+    } else if (dateString.includes("abt.")) {
+      return "abt.";
+    } else {
+      return null;
+    }
+  };
+  // Get birth and death status (bef., aft., abt.)
+  person.BirthStatus = extractStatus(lifespanParts[0]);
+  person.DeathStatus = extractStatus(lifespanParts[1]);
+
+  if (!person.Id || !person.Name) {
+    return null;
+  }
+  return person;
 }
 
 // Function to fetch and combine matchups from page and FeaturedMatrix

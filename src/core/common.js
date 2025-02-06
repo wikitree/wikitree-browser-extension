@@ -985,7 +985,7 @@ export const treeImageURL = chrome.runtime.getURL("images/tree.gif");
  */
 export function getUserNumId() {
   // We retrieve the ID from the "My WikiTree/Badges" menu item present when the user is logged in on any WT page.
-  const href = $('body .pureCssMenu a[href*="Special:Badges"]').attr("href");
+  const href = $('nav[aria-label="My WikiTree Navigation"] a[href*="Special:Badges"]').attr("href");
   if (!href) return null;
   const m = href.match(/u=(\d+)/);
   return m ? m[1] : null;
@@ -997,7 +997,9 @@ export function getUserNumId() {
  */
 export function getUserWtId() {
   // We retrieve the WtID from the "My WikiTree/Contributions" menu item present when the user is logged in on any WT page.
-  const href = $('.pureCssMenu a[href*="Special:Contributions"]:not(#myCustomMenu a)').attr("href");
+  const href = $('nav[aria-label="My WikiTree Navigation"] a[href*="Special:Contributions"]:not(#myCustomMenu a)').attr(
+    "href"
+  );
   if (!href) return null;
   const m = href.match(/who=([^&]+)/);
   return m ? m[1] : null;
