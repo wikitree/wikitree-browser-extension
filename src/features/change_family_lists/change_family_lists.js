@@ -170,7 +170,7 @@ async function addAddLinksToHeadings() {
   $("p.VITALS:contains([sibling(s) unknown])").attr("id", "siblingsUnknownHeading");
   $("p.VITALS:contains([spouse(s) unknown])").attr("id", "spousesUnknownHeading");
 
-  const linkBase = $("a.pureCssMenui:contains(Edit)").attr("href").replace("Person", "Family");
+  const linkBase = `https://${mainDomain}.wikitree.com/index.php?title=Special:EditFamily&u=${profilePersonInfo.Id}`;
   const headings = [
     ["#siblingsHeader", "sibling"],
     ["#siblingsUnknownHeading", "sibling"],
@@ -1841,7 +1841,7 @@ function insertInSibList() {
 
   if (!window.people || window.inserted) return;
 
-  console.log(window.people);
+  //console.log(window.people);
 
   const pPerson = window.people.find((p) => p.Id == profilePersonInfo.Id); // Find profile person in data
   if (!pPerson) return;
@@ -1864,7 +1864,7 @@ function insertInSibList() {
       ? parseInt(pPerson.DeathDateDecade.replace("s", "")) + 5
       : null;
 
-  console.log(`Profile Person: ${pPerson.Name}, Birth Year: ${birthYear}, Death Year: ${deathYear}`);
+  //console.log(`Profile Person: ${pPerson.Name}, Birth Year: ${birthYear}, Death Year: ${deathYear}`);
 
   // Create the profile person list item
   let inserter = $(`
@@ -1931,7 +1931,7 @@ function insertInSibList() {
   // Stop retrying after 9 attempts
   if (window.triedInsertSib > 9) {
     clearInterval(window.insertInterval);
-    console.log("Cleared interval after 9 tries");
+    //console.log("Cleared interval after 9 tries");
   }
 }
 
