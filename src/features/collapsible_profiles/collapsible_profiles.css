@@ -14,7 +14,7 @@
   font-family: monospace;
   background-color: #eee;
   color: #333;
-  left: -1.7em;
+  left: -1.2em;
 }
 .collapse-toc-toggle {
   position: absolute;
@@ -41,7 +41,8 @@ h1 {
   margin-right: 3em;
 }
 h1 .collapse-all-toggle {
-  left: -1.2em;
+  left: -0.9em;
+  font-size: 0.7em !important;
 }
 
 .collapse-toggle:hover,
