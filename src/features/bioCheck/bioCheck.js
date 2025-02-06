@@ -3,7 +3,7 @@ Created By: Kay Knight (Sands-1865)
 */
 
 /*
-* The following external components are referenced. As of 03 Februrary 2025
+* The following external components are referenced. As of 06 Februrary 2025
 * Any element created by this feature has an id that starts with bioCheck
 * 
 * Looks in document.body.classList for
