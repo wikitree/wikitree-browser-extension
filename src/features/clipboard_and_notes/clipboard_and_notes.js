@@ -31,7 +31,7 @@ export async function appendClipboardButtons(clipboardButtons = $()) {
   const isStickyHeader = await checkIfFeatureEnabled("stickyHeader");
 
   // Append buttons initially to the header
-  const clipboardContainer = $(".clipboardContainer").append(clipboardButtons);
+  const clipboardContainer = $(".clipboardContainer");
 
   let hasEditorToolbar = null;
   let position = null;
@@ -833,7 +833,7 @@ function addGroupTab(groupKey, groupName) {
 async function initClipboard() {
   try {
     await initializeDatabase();
-
+/*
     let clipboardButtons = $();
     const clipboardButton = $(
       "<img title='Clipboard' class='button small aClipboardButton'  src='" +
@@ -856,6 +856,7 @@ async function initClipboard() {
     }
 
     appendClipboardButtons(clipboardButtons);
+*/
 
     const clipboardButtons2 = $(".theClipboardButtons").clone(true);
     $(".qa-a-form .qa-form-tall-table,.qa-c-form .qa-form-tall-table").before(clipboardButtons2);

@@ -9,6 +9,7 @@ import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getUserWtId, getUserNumId, isLoggedIntoAPI } from "../../core/common";
 import { goAndLogIn } from "../randomProfile/randomProfile";
 import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
+import { add } from "date-fns";
 
 const APP_ID = "WBE-SpaceSorter";
 
@@ -469,68 +470,53 @@ async function saveWatchlistToDB(folders = []) {
 const sImgSRC = chrome.runtime.getURL("images/S.png");
 
 // Add Button to Page
-function addButton() {
-  //  console.log("Adding the sorter button...");
-  const clipboardContainer = $(".clipboardContainer");
-  if (clipboardContainer.find(".spaceWatchlistSorterButton").length === 0) {
-    //console.log("Adding Space Watchlist Sorter button...");
-    const sorterButton = $("<img>", {
-      title: "Space Watchlist Sorter",
-      class: "button small spaceWatchlistSorterButton",
-      src: sImgSRC,
-      accesskey: "s",
-    });
-
-    clipboardContainer.append(sorterButton);
-
-    sorterButton.on("click", async function () {
-      //console.log("Sorter button clicked.");
-      const $popup = $("#spaceWatchlistSorter-popup");
-      if ($popup.length === 0 || $popup.hasClass("needsRefresh")) {
-        //console.log("Appending popup and loading screen to body...");
-        $popup.remove();
-        $("body").append(`
+function addListener() {
+  $(document).on("click", "#spaceWatchlistButton", async function (e) {
+    e.preventDefault();
+    //console.log("Sorter button clicked.");
+    const $popup = $("#spaceWatchlistSorter-popup");
+    if ($popup.length === 0 || $popup.hasClass("needsRefresh")) {
+      //console.log("Appending popup and loading screen to body...");
+      $popup.remove();
+      $("body").append(`
           <div id="spaceWatchlistSorter-loading" class="spaceWatchlistSorter-loading">
             <img src="${chrome.runtime.getURL("images/tree.gif")}" alt="Loading..." />
           </div>
           ${spaceWatchlistSorterHTML}
         `);
 
-        // Show loading screen
-        $("#spaceWatchlistSorter-loading").css({
-          position: "fixed",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: "200px",
-          height: "200px",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: "rgba(255, 255, 255, 0.8)",
-          borderRadius: "50%",
-        });
+      // Show loading screen
+      $("#spaceWatchlistSorter-loading").css({
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: "200px",
+        height: "200px",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "rgba(255, 255, 255, 0.8)",
+        borderRadius: "50%",
+      });
 
-        // Fetch data and populate interface
-        const result = await populateInterface();
+      // Fetch data and populate interface
+      const result = await populateInterface();
 
-        // Hide loading screen and show popup
-        $("#spaceWatchlistSorter-loading").remove();
-        $("#spaceWatchlistSorter-popup").draggable({ handle: ".spaceWatchlistSorter-header" });
-        if (!result.status) {
-          $("#spaceWatchlistSorter-popup")
-            .addClass("needsRefresh")
-            .append($(`<p>${result.msg}</p>`));
-        }
-        $("#spaceWatchlistSorter-popup").show();
-      } else {
-        // console.log("Popup already exists.");
-        $popup.show();
+      // Hide loading screen and show popup
+      $("#spaceWatchlistSorter-loading").remove();
+      $("#spaceWatchlistSorter-popup").draggable({ handle: ".spaceWatchlistSorter-header" });
+      if (!result.status) {
+        $("#spaceWatchlistSorter-popup")
+          .addClass("needsRefresh")
+          .append($(`<p>${result.msg}</p>`));
       }
-    });
-  } else {
-    // console.log("Sorter button already exists.");
-  }
+      $("#spaceWatchlistSorter-popup").show();
+    } else {
+      // console.log("Popup already exists.");
+      $popup.show();
+    }
+  });
 }
 
 function addFolder() {
@@ -705,9 +691,7 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
     // Import CSS
     import("./space_watchlist_sorter.css");
 
-    if ($(".qa-body-wrapper").length == 0) {
-      addButton();
-    }
+    addListener();
 
     // Call context menu initialization
     initializeContextMenu();
