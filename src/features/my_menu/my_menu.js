@@ -19,10 +19,12 @@ import { getProfilePersonInfo } from "../sort_theme_people/sort_theme_people";
 let profilePerson;
 shouldInitializeFeature("myMenu").then((result) => {
   if (result) {
+    console.log("My Menu feature is enabled");
     profilePerson = getProfilePersonInfo();
-    import("./my_menu.css");
-    const profileWTID = profilePerson.Name;
+    const profileWTID = profilePerson?.Name;
     window.profileWTID = profileWTID;
+    import("./my_menu.css");
+    console.log("My Menu feature is enabled");
     addCustomMenu();
     if (!window.randomProfileOptions) {
       window.randomProfileOptions = getFeatureOptions("randomProfile");
@@ -250,6 +252,7 @@ function addCustomMenu() {
       <img id="myMenuGears" src="${myMenuGearsSrc}" alt="My Menu Settings" title="My Menu Settings">
       <ul id='myCustomMenu' class='dropdown-menu'></ul>
     </div>`);
+  console.log(outNow);
   $("header nav[aria-label='Main Navigation']").append(outNow);
 
   // Update the My Menu contents from localStorage.
