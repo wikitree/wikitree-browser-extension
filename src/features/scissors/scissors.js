@@ -273,11 +273,12 @@ export function addItems(copyItems, copyPosition, isNew = false) {
     copyPosition.append(aUL);
     copyItems.forEach((item, index) => {
       const aLI = $("<li></li>");
+      let theLabel = item.label == "UserID" ? "User ID" : item.label;
       const button = $(`
           <button class="copyWidget helpScissors mono-b" data-copy-label="Copy ${item.label}" 
               data-copy-text="${item.text}" data-bs-toggle="tooltip" 
               data-bs-title="Copy ${item.label}" style="color:#8fc641;">
-              ${item.label}
+              ${theLabel}
           </button>
       `);
 
@@ -287,7 +288,7 @@ export function addItems(copyItems, copyPosition, isNew = false) {
       button.attr("style", "color:#8fc641;");
 
       // Add text node separator if index > 0
-      if (index > 0) {
+      if (index > 0 || item.label == "Title") {
         aLI.append(document.createTextNode(" / "));
       } else {
         aLI.append(document.createTextNode(" "));
@@ -314,9 +315,12 @@ export function addItems(copyItems, copyPosition, isNew = false) {
       if (item.image) {
         button.innerHTML = '<img src="/images/icons/scissors.png">';
       }
+      if (item.label == "UserID") {
+        item.label = "User ID";
+      }
       button.innerHTML += item.label.replace("/", "");
 
-      if (item.label == "UserID") {
+      if (item.label == "User ID" || item.label.match("Title")) {
         const li = document.createElement("li");
         li.append(document.createTextNode(" / "));
         li.append(button);
