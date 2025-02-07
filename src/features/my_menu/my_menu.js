@@ -274,7 +274,7 @@ function addCustomMenu() {
   });
 
   // Additional click handlers for special links in "My Menu":
-  $("#myCustomMenu li a:contains(Random Profile)").on("click", (e) => {
+  $(document).on("click", "#myCustomMenu li a:contains(Random Profile)", (e) => {
     e.preventDefault();
     const working = $("<img id='working' src='" + treeImageURL + "'>");
     working.appendTo("body").css({
@@ -288,7 +288,7 @@ function addCustomMenu() {
       goToRandomProfile();
     }
   });
-  $("#myCustomMenu li a:contains(Random Profile)").on("contextmenu", (e) => {
+  $(document).on("contextmenu", "#myCustomMenu li a:contains(Random Profile)", (e) => {
     e.preventDefault();
     addRandomProfileLocationBox(e);
   });
