@@ -277,7 +277,7 @@ export function addItems(copyItems, copyPosition, isNew = false) {
       const button = $(`
           <button class="copyWidget helpScissors mono-b" data-copy-label="Copy ${item.label}" 
               data-copy-text="${item.text}" data-bs-toggle="tooltip" 
-              data-bs-title="Copy ${item.label}" style="color:#8fc641;">
+              data-bs-title="Copy ${item.label}">
               ${theLabel}
           </button>
       `);
@@ -285,7 +285,6 @@ export function addItems(copyItems, copyPosition, isNew = false) {
       button.attr("aria-label", item.label);
       button.attr("title", item.text);
       button.attr("data-bs-title", "Copy User ID");
-      button.attr("style", "color:#8fc641;");
 
       // Add text node separator if index > 0
       if (index > 0 || item.label == "Title") {
@@ -310,7 +309,6 @@ export function addItems(copyItems, copyPosition, isNew = false) {
       button.setAttribute("data-copy-text", item.text);
       button.setAttribute("data-bs-toggle", "tooltip");
       button.setAttribute("data-bs-title", "Copy User ID");
-      button.setAttribute("style", "color:#8fc641;");
 
       if (item.image) {
         button.innerHTML = '<img src="/images/icons/scissors.png">';
