@@ -273,15 +273,12 @@ export function addItems(copyItems, copyPosition, isNew = false) {
     copyPosition.append(aUL);
     copyItems.forEach((item, index) => {
       const aLI = $("<li></li>");
-      let theText = item.text;
-      if (item.label == "UserID") {
-        theText = "User ID";
-      }
+      let theLabel = item.label == "UserID" ? "User ID" : item.label;
       const button = $(`
           <button class="copyWidget helpScissors mono-b" data-copy-label="Copy ${item.label}" 
               data-copy-text="${item.text}" data-bs-toggle="tooltip" 
               data-bs-title="Copy ${item.label}" style="color:#8fc641;">
-              ${theText}
+              ${theLabel}
           </button>
       `);
 
