@@ -122,3 +122,16 @@ html input[name="q_docomment"].bigButton {
 input[name$="_docomment"].bigButton:hover {
   color: white;
 }
+
+#wtIDgo_label {
+  white-space: nowrap;
+}
+#wtIDgo_id {
+  width: 6em;
+}
+
+.qa-header header nav.nav {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+}

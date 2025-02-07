@@ -2,12 +2,12 @@
 Created By: Ian Beacall (Beacall-6)
 */
 
-import $, { get } from "jquery";
+import $ from "jquery";
 import "./g2g_.css";
 import { isOK, getUserWtId } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { addItems, attachScissorsEvent, copyThingToClipboard } from "../scissors/scissors";
+import { addItems, attachScissorsEvent } from "../scissors/scissors";
 
 function text2Link(element, text, link) {
   const childNodes = element.childNodes;
@@ -228,58 +228,48 @@ function g2gScissors(alsoInAnswers) {
   }
 }
 
+function createG2GButton(id, url, text) {
+  const button = $('<span class="awtG2GLink nav-link qa-nav-main-item-opp"></span>');
+  const link = $('<a class="qa-nav-main-link"></a>').attr("href", url).text(text);
+  return button.attr("id", id).append(link);
+}
+
 function addG2GButtons() {
-  if ($("#recentActivity").length == 0) {
-    const recentActivity = $(".qa-nav-footer-item:has(a[href*='activity'])").eq(0).clone();
-    recentActivity.attr("id", "recentActivity");
-    recentActivity.appendTo($(".qa-nav-main-list"));
+  if ($("#recentActivity").length === 0) {
+    const mainList = $(".qa-nav-main-list");
+    const mainDomainURL = "https://" + mainDomain;
+    const userActivityURL = `${mainDomainURL}/g2g/user/${getUserWtId()}/activity`;
 
-    $("#recentActivity").addClass("awtG2GLink qa-nav-main-item");
+    const recentActivity = createG2GButton(
+      "recentActivity",
+      `${mainDomainURL}/g2g/activity`,
+      "Recent Activity"
+    ).appendTo(mainList);
+    const myActivity = createG2GButton("myActivity", userActivityURL, "My Activity").appendTo(mainList);
+    const myFavourites = createG2GButton("myFavourites", `${mainDomainURL}/g2g/favorites`, "+").appendTo(mainList);
 
-    const myActivity = $(".qa-nav-footer-item:has(a[href*='activity'])").eq(0).clone();
-    myActivity.attr("id", "myActivity");
-    myActivity.appendTo($(".qa-nav-main-list"));
-    const myActivityURL = "https://" + mainDomain + "/g2g/user/" + getUserWtId() + "/activity";
-    $("#myActivity a").attr("href", myActivityURL);
-    $("#myActivity a").text("My Activity");
-    $("#myActivity").addClass("awtG2GLink qa-nav-main-item qa-nav-main-ask");
+    myFavourites.on("click", () => $("li.qa-nav-sub-favorites a").trigger("click"));
 
-    const myFavourites = $(
-      '<li id="myFavourites" class="awtG2GLink qa-nav-main-item qa-nav-main-ask"><a href="https://' +
-        mainDomain +
-        '/g2g/favorites" class="qa-nav-main-link">+</a></li>'
-    );
-    myFavourites.appendTo($(".qa-nav-main-list"));
-    myFavourites.on("click", function () {
-      $("li.qa-nav-sub-favorites a").trigger("click");
+    // Highlight the selected tab based on the current URL
+    const currentURL = window.location.href;
+    [recentActivity, myActivity, myFavourites].forEach((button) => {
+      if (currentURL === button.find("a").attr("href")) {
+        button.find("a").addClass("qa-nav-main-selected");
+      }
     });
-
-    $(".awtG2GLink").removeClass("qa-nav-footer-item qa-nav-footer-custom-3");
-
-    $(".awtG2GLink a").removeClass("qa-nav-footer-link qa-nav-footer-selected");
-    $(".awtG2GLink a").addClass("qa-nav-main-link");
-
-    if (window.location.href == "https://" + mainDomain + "/g2g/activity") {
-      $("#recentActivity a").addClass("qa-nav-main-selected");
-    }
-    if (window.location.href == myActivityURL) {
-      $("#myActivity a").addClass("qa-nav-main-selected");
-    }
-    if (window.location.href == "https://" + mainDomain + "/g2g/favorites") {
-      $("#myFavourites a,li.qa-nav-main-user a").addClass("qa-nav-main-selected");
-    }
   }
 }
 
 function addWikiIDGoBox() {
-  const dHeader = $("#HEADER");
+  const WTIDgo = $(`
+    <div class="nav-item" id="wtIDgo_label">
+      <input type="text" id="wtIDgo_id" placeholder="WikiTree ID">
+      <input type="submit" class="button small" id="wtIDgo_go" value="GO">
+    </div>`);
+
   const dClass = "g2g";
   if ($("#wtIDgo_label").length == 0) {
-    dHeader.append(
-      '<fieldset class="' +
-        dClass +
-        '" id="wtIDgo_label">WikiTree ID: <input type="text" id="wtIDgo_id"><input type="submit" class="button small" id="wtIDgo_go" value="GO"></fieldset>'
-    );
+    $("header nav.nav").prepend(WTIDgo);
 
     $("#wtIDgo_id").on("keyup", function (up) {
       if (up.key == "Enter") {
