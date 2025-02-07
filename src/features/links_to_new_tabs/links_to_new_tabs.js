@@ -27,7 +27,7 @@ function linksToNewTabs(options) {
 
     const isProfileTab = $link.closest(".profile-tabs").length > 0;
     const isG2GTabOrLinks = $link.closest("div.qa-nav-main,div.qa-nav-footer,div.qa-page-links").length > 0;
-    const isTopMenu = $link.closest("ul.pureCssMenum").length > 0;
+    const isTopMenu = $link.closest("nav").length > 0;
 
     // Check for the conditions to exclude the link
     if (
