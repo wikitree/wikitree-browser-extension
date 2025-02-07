@@ -9,7 +9,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 let featuredConnectionsParagraph;
 
 const profilePersonInfo = getProfilePersonInfo();
-const profilePersonName = profilePersonInfo ? profilePersonInfo.FullName : null;
+export const profilePerson = profilePersonInfo;
 const profilePersonId = profilePersonInfo ? profilePersonInfo.Name : null;
 
 shouldInitializeFeature("sortThemePeople").then((result) => {
