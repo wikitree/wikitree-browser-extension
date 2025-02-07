@@ -14,272 +14,264 @@ import {
 } from "../randomProfile/randomProfile";
 import { doWhatLinksHere } from "../what_links_here/what_links_here";
 import { mainDomain, isNavHomePage } from "../../core/pageType";
+import { getProfilePersonInfo } from "../sort_theme_people/sort_theme_people";
 
+let profilePerson;
 shouldInitializeFeature("myMenu").then((result) => {
   if (result) {
+    profilePerson = getProfilePersonInfo();
     import("./my_menu.css");
-    const profileWTID = $("a.pureCssMenui0 span.person").text();
+    const profileWTID = profilePerson.Name;
     window.profileWTID = profileWTID;
     addCustomMenu();
     if (!window.randomProfileOptions) {
       window.randomProfileOptions = getFeatureOptions("randomProfile");
     }
   }
+
+  // Prevent closing when clicking inside the popup
+  $("#customMenuOptions").on("click", (e) => e.stopPropagation());
+
+  // Close popup when clicking outside or pressing Escape
+  $(document).on("click", () => {
+    if ($("#customMenuOptions").is(":visible")) $("#customMenuOptions").slideUp();
+  });
+  $(document).on("keyup", (e) => {
+    if (e.key === "Escape" && $("#customMenuOptions").is(":visible")) $("#customMenuOptions").slideUp();
+  });
+
+  // Prevent default navigation on any links inside the popup
+  $("#customMenuOptions a").on("click", (e) => e.preventDefault());
+  $(document).on("click", "#customMenuOptions", (e) => e.stopPropagation());
 });
 
-// My Menu functions
+//////////////////////////////////////
+// My Menu Functions (final version)
+//////////////////////////////////////
 
+// Build the popup options (left: source menus; right: "My Menu")
 function addCustomMenuOptions() {
   $("#customMenuOptions").remove();
-  const subMenus = [];
-  $(".subMenu").each(function () {
-    const listTitle = $(this).prev().clone();
-    const listTitleText = listTitle.text();
-    const theBigLi = $("<li></li>");
-    theBigLi.append(listTitle);
-    const theList = $("<ul id='" + listTitleText + "_Menu'></ul>");
-    const theListAs = $(this).find("a");
-    theListAs.each(function () {
-      let anLi = $("<li date-menu='" + listTitle.text() + "'></li>");
-      anLi.append($(this));
-      theList.append(anLi);
-    });
-    theBigLi.append(theList);
-    subMenus.push(theBigLi);
-  });
   const customMenuOptions = $("<div id='customMenuOptions' class='no-link-preview'><x>x</x></div>");
-  customMenuOptions.appendTo($("body"));
-  const menuClone = $("ul.pureCssMenu:contains(My WikiTree)").clone();
-  menuClone.attr("id", "menuClone");
-  menuClone.appendTo(customMenuOptions);
-  subMenus.forEach(function (aMenu) {
-    menuClone.append(aMenu);
-  });
-  menuClone.removeClass("pureCssMenum").removeClass("pureCssMenu");
-  menuClone.find("> li > ul").each(function (index) {
-    $(this).attr("id", $(this).closest("li").find(">a").text().replace(" ", "_") + "_Menu");
-    let menuName = $(this).closest("li").find(">a").text().replace(" ", "_");
-    if (menuName.match(/-[0-9]+$/) != null) {
-      menuName = "Profile";
-      $(this).closest("li").find(">a").text("Profile");
-    }
-    $(this).find("li").attr("data-menu", menuName);
-    if ($("#HEADER").length) {
-      $(this).find("li").attr("data-g2gmenu", index);
-    }
-  });
-  $("#menuClone menu").remove();
+  customMenuOptions.appendTo("body");
 
-  let customMenu = $("<div id='customMenuContainer'><label>My Menu</label><ul id='customMenu'></ul></div>");
-  const customMenuInfo = $(
-    "<ul id='customMenuInfo'><li>Click a link to add it to (or remove it from) the custom menu ('My Menu').</li><li>Re-order the menu by dragging the links.</li></ul>"
-  );
-  customMenuOptions.prepend(customMenuInfo);
-  customMenu.prependTo(customMenuOptions);
+  // Left column: cloned navigation menus
+  const customMenuLeft = $("<div id='customMenuLeft'></div>");
+  const customMenuHeader = $("<div id='customMenuHeader'></div>");
+  const customMenuInfo = $(`
+    <ul id='customMenuInfo'>
+      <li>Click a link to add it to (or remove it from) "My Menu".</li>
+      <li>Re-order the menu by dragging the links.</li>
+    </ul>`);
+  customMenuHeader.append(customMenuInfo);
+  customMenuLeft.append(customMenuHeader);
+
+  // Clone the main nav, remove duplicate IDs, and exclude "My Menu"
+  const menuClone = $("header nav[aria-label='Main Navigation']").clone();
+  menuClone.removeAttr("id").find("[id]").removeAttr("id");
+  menuClone.find(".btn-group:has(button:contains('My Menu'))").remove();
+  menuClone.addClass("menuClone");
+
+  // ***** CONVERT BUTTONS TO LABELS *****
+  menuClone.find("button").each(function () {
+    const btnText = $(this).text();
+    // Create a label with the same text; you can also copy classes if needed
+    const labelEl = $("<label>").text(btnText);
+    // Copy classes
+    labelEl.attr("class", $(this).attr("class"));
+    $(this).replaceWith(labelEl);
+  });
+  // ****************************************
+
+  customMenuLeft.append(menuClone);
+
+  customMenuOptions.append(customMenuLeft);
+
+  // Right column: "My Menu" container plus Add-Link form
+  const customMenuContainer = $(`
+    <div id='customMenuContainer'>
+      <label>My Menu</label>
+      <ul id='customMenu'></ul>
+    </div>`);
+  const addLinkForm = $(`
+    <form id='addLinkForm'>
+      <label>Add any link:<input type='text' id='anyLinkLink'></label>
+      <label>Link text:<input type='text' id='anyLinkText'></label>
+      <button id='addLinkFormButton' class='small button'>Go</button>
+    </form>`);
+  customMenuContainer.append(addLinkForm);
+  customMenuOptions.append(customMenuContainer);
+
+  // Close button: hide popup and refresh main menu
   $("#customMenuOptions x").on("click", function () {
     $(this).parent().slideToggle();
     addCustomMenu();
   });
-  let mCustomMenu = "";
-  if (localStorage.customMenu) {
-    mCustomMenu = localStorage.customMenu;
-  }
+
+  // Load stored custom menu items from localStorage
+  let mCustomMenu = localStorage.getItem("customMenu");
   if (isOK(mCustomMenu)) {
-    const storedCustomMenu = JSON.parse(mCustomMenu);
-    storedCustomMenu.arr.forEach(function (aLink) {
-      let anLi = $(`<li data-menu="${aLink.Menu}"><a href="${aLink.Link}">${aLink.LinkText}</a></li>`);
+    JSON.parse(mCustomMenu).arr.forEach((aLink) => {
+      const anLi = $(`<li data-menu="${aLink.Menu}"><a href="${aLink.Link}">${aLink.LinkText}</a></li>`);
       $("#customMenu").append(anLi);
-      anLi.find("a").on("click", function () {
-        returnToMenu($(this).parent());
-        return false;
-      });
     });
   }
-  $("#menuClone a,#customMenu a").each(function () {
-    $(this)[0].onclick = "";
-  });
-  $("#menuClone a,#customMenu a").on("click", function (e) {
+
+  // Prevent default link behavior inside the popup
+  $("#menuClone a, #customMenuOptions a").on("click", (e) => e.preventDefault());
+
+  // Delegate: left-column items add to "My Menu"
+  $("#customMenuLeft").on("click", "li", (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    addToCustomMenu($(e.currentTarget));
   });
 
-  $("#menuClone li ul li,#customMenu li").on("click", function (e) {
+  // Delegate: right-column ("My Menu") items remove back to source
+  $("#customMenu").on("click", "li", (e) => {
     e.preventDefault();
-    addToCustomMenu($(this));
+    e.stopPropagation();
+    returnToMenu($(e.currentTarget));
   });
 
-  $("#customMenu").sortable({
-    update: function () {
-      storeCustomMenu();
-    },
-  });
+  // Enable sorting in "My Menu"
+  $("#customMenu").sortable({ update: storeCustomMenu });
 
-  const addLinkForm = $(
-    "<form id='addLinkForm'><label>Add any link:<input type='text' id='anyLinkLink'></label><label>Link text:<input type='text' id='anyLinkText'></label><button id='addLinkFormButton' class='small button'>Go</button></form>"
-  );
-  $("#customMenuContainer").append(addLinkForm);
-  $("#addLinkFormButton").on("click", function (e) {
+  // Handle adding a custom link via the form
+  $("#addLinkFormButton").on("click", (e) => {
     e.preventDefault();
-    const regex = /[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/;
-
-    if ($("#anyLinkLink").val().match(regex) != null && $("#anyLinkText").val() != "") {
-      let theLink = $("#anyLinkLink").val();
-      if (
-        $("#anyLinkLink")
-          .val()
-          .match(/^https?:\/\//) == null
-      ) {
-        theLink = "https://" + theLink;
-      }
-      let linkText = htmlEntities($("#anyLinkText").val());
-
-      const anyLi = $(
-        '<li data-menu="AnyLink" class="ui-sortable-handle"><a href="' + theLink + '">' + linkText + "</a></li>"
-      );
-      anyLi.on("click", function (e) {
+    const linkValue = $("#anyLinkLink").val().trim();
+    const textValue = htmlEntities($("#anyLinkText").val().trim());
+    const validURL = /^https?:\/\/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}(\/\S*)?$/.test(linkValue);
+    if (validURL && textValue) {
+      const anyLi = $(`<li data-menu="AnyLink"><a href="${linkValue}">${textValue}</a></li>`);
+      anyLi.on("click", (e) => {
         e.preventDefault();
-        $(this).remove();
+        anyLi.remove();
+        storeCustomMenu();
       });
-      $("#anyLinkLink").val("");
-      $("#anyLinkText").val("");
-      anyLi.appendTo($("#customMenu"));
+      $("#customMenu").append(anyLi);
+      $("#anyLinkLink, #anyLinkText").val("");
       storeCustomMenu();
-    } else {
-      if ($("#anyLinkLink").val().match(regex) == null) {
-        $("#addLinkForm").append($("<span class='checkAnyLink'>Please check your link.</span>"));
-      }
-      if ($("#anyLinkText").val() == "") {
-        $("#addLinkForm").append($("<span class='checkAnyLink'>Please add some link text.</span>"));
-      }
-      setTimeout(function () {
-        $(".checkAnyLink").fadeOut();
-      }, 5000);
-    }
-  });
-
-  const numberOnes = ["Thank-Yous:", "Contributions:", "Badges:"];
-  numberOnes.forEach(function (word) {
-    const numLink = $("#customMenu a:contains(" + word + ")");
-    if (numLink.length) {
-      let numLink2 = $(".pureCssMenu")
-        .eq(0)
-        .find("a:contains(" + word + ")");
-      const numMatchy = numLink2.text().match(/[0-9]+/);
-      if (numMatchy != null) {
-        numLink.text(word + " " + numMatchy[0]);
-      }
     }
   });
 }
 
+// Build the "My Menu" button (and load stored items from localStorage)
+const myMenuGearsSrc = chrome.runtime.getURL("images/settings30.png");
+// Updates the top navigation "My Menu" (the <ul id="myCustomMenu">)
+// by reading the stored custom menu from localStorage.
+function updateMyCustomMenu() {
+  let mCustomMenu = localStorage.customMenu || "";
+  const $myCustomMenu = $("#myCustomMenu");
+  if ($myCustomMenu.length) {
+    $myCustomMenu.empty();
+    if (isOK(mCustomMenu)) {
+      const storedCustomMenu = JSON.parse(mCustomMenu);
+      storedCustomMenu.arr.forEach((aLink) => {
+        let dText = aLink.LinkText;
+        let newLinkHREF = "";
+        let newLinkText = "";
+        const standardMenus = ["Profile", "Find", "Add", "Help", "My WikiTree"];
+        // If the stored menu isn't one of the standard ones,
+        // look up its corresponding link from the nav dropdown.
+        if (isOK(aLink.Menu)) {
+          if (aLink.Menu.match(/-[0-9]+$/) || !standardMenus.includes(aLink.Menu)) {
+            const sameOneLink = $("nav div.btn-group button:contains('" + aLink.Menu + "')")
+              .closest(".btn-group")
+              .find("ul.dropdown-menu li a")
+              .filter(function () {
+                return $(this).text() === dText;
+              });
+            newLinkHREF = sameOneLink.attr("href") || "";
+            aLink.Menu = "Profile";
+          }
+        }
+        // If the text contains certain keywords, normalize it.
+        const numMatch = dText.match(/^(Contributions)|(Badges)|(Thank-Yous)/);
+        if (numMatch != null) {
+          dText = numMatch[0];
+        }
+        // If we haven't found a new link, look up the link by text in the nav dropdowns.
+        const findLink = $(`nav div.btn-group ul.dropdown-menu li a:contains('${dText.replace('"', "$quot;")}')`);
+        if (!newLinkHREF) {
+          findLink.each(function () {
+            if (!newLinkHREF) {
+              if (dText.match(/^Contributions/) && $(this).text() !== "Surname Contributions") {
+                newLinkText = $(this).text();
+                newLinkHREF = $(this).attr("href");
+              } else if ($(this).text() === aLink.LinkText) {
+                newLinkHREF = $(this).attr("href");
+              } else if (numMatch != null) {
+                newLinkText = $(this).text();
+                newLinkHREF = $(this).attr("href");
+              }
+            }
+          });
+        }
+        let dLink = newLinkHREF || aLink.Link;
+        let dLinkText = newLinkText || aLink.LinkText;
+        const newItem = $(
+          `<li data-menu="${aLink.Menu}"><a class="dropdown-item" href="${dLink}">${dLinkText}</a></li>`
+        );
+        $myCustomMenu.append(newItem);
+      });
+    }
+  }
+}
+
+// Builds (or rebuilds) the "My Menu" button in the top navigation.
+// If the button already exists, it simply calls updateMyCustomMenu() so that
+// any changes are immediately reflected.
 function addCustomMenu() {
-  $(".pureCssMenu ul").each(function () {
-    let menuTitle = $(this).prev().text().replace(" ", "_");
-    if (menuTitle.match(/-[0-9]+$/) != null) {
+  // If the "My Menu" button already exists, update its contents.
+  if ($("#myMenuLink").length) {
+    updateMyCustomMenu();
+    return;
+  }
+
+  // Set data-menu attributes on nav buttons based on their text (normalize spaces to underscores)
+  $("header nav div.btn-group").each(function () {
+    let menuTitle = $(this).find("button").text().replace(" ", "_");
+    if (menuTitle.match(/-[0-9]+$/)) {
       menuTitle = "Profile";
     }
     $(this).attr("data-menu", menuTitle);
   });
 
+  // Remove any old container and create the My Menu button.
   $("#myCustomMenuContainer").remove();
-  const outNow = $(
-    "<ul id='myCustomMenuContainer' class='pureCssMenu pureCssMenum'><li><a class='pureCssMenui' id='myMenuLink'>My Menu</a><ul id='myCustomMenu' class='pureCssMenum'></ul></li></ul>"
-  );
-  $("div.sixteen.columns.full-width.header,div#HEADER >div").append(outNow);
-  if ($("body.page-Main_Page").length || isNavHomePage) {
-    outNow.insertAfter($(".pureCssMenu").eq(0));
-  }
-  let mCustomMenu = "";
+  const myMenuGearsSrc = chrome.runtime.getURL("images/settings30.png");
+  const outNow = $(`
+    <div class='btn-group'>
+      <button id="myMenuLink" class="btn btn-link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+        My Menu
+      </button>
+      <img id="myMenuGears" src="${myMenuGearsSrc}" alt="My Menu Settings" title="My Menu Settings">
+      <ul id='myCustomMenu' class='dropdown-menu'></ul>
+    </div>`);
+  $("header nav[aria-label='Main Navigation']").append(outNow);
 
-  if (localStorage.customMenu) {
-    mCustomMenu = localStorage.customMenu;
-  }
-  if (isOK(mCustomMenu)) {
-    const storedCustomMenu = JSON.parse(mCustomMenu);
-    storedCustomMenu.arr.forEach(function (aLink) {
-      let dText = aLink.LinkText;
-      let newLink = "";
-      let newLinkHREF = "";
-      let newLinkText = "";
-      if (isOK(aLink.Menu)) {
-        if (aLink.Menu.match(/-[0-9]+$/) != null || aLink.Menu == "Profile") {
-          const sameOne = $(".pureCssMenum[data-menu='Profile']")
-            .contents()
-            .filter(function () {
-              return this.textContent == dText;
-            });
-          newLinkHREF = sameOne.find("a").attr("href");
-          aLink.Menu = "Profile";
-        }
-      }
-      const numMatch = dText.match(/^(Contributions)|(Badges)|(Thank-Yous)/);
-      if (numMatch != null) {
-        dText = numMatch[0];
-      }
+  // Update the My Menu contents from localStorage.
+  updateMyCustomMenu();
 
-      const findLink = $(
-        "div.sixteen.columns.full-width.header ul.pureCssMenu li ul li:contains('" +
-          dText.replace('"', "$quot;") +
-          "'),div#HEADER  ul.pureCssMenu li ul li:contains('" +
-          dText.replace('"', "$quot;") +
-          "'),body.page-Main_Page  ul.pureCssMenu li ul li:contains('" +
-          dText.replace('"', "$quot;") +
-          "')"
-      );
-
-      if (newLinkHREF == "") {
-        findLink.each(function () {
-          if (newLink == "") {
-            if (dText.match(/^Contributions/) != null) {
-              if ($(this).text() != "Surname Contributions") {
-                newLinkText = $(this).find("a").text();
-                newLinkHREF = $(this).find("a").attr("href");
-              }
-            } else if (findLink.text() == aLink.LinkText) {
-              newLinkHREF = $(this).find("a").attr("href");
-            } else if (numMatch != null) {
-              newLinkText = $(this).find("a").text();
-              newLinkHREF = $(this).find("a").attr("href");
-            }
-          }
-        });
-      }
-      if (newLink == "" || aLink.LinkText == "Suggestions") {
-        let dLink = "";
-
-        if (newLinkHREF != "") {
-          dLink = newLinkHREF;
-        } else {
-          dLink = aLink.Link;
-        }
-        let dLinkText = "";
-        if (newLinkText != "") {
-          dLinkText = newLinkText;
-        } else {
-          dLinkText = aLink.LinkText;
-        }
-
-        newLink = $(`<li data-menu="${aLink.Menu}"><a class="pureCssMenui0" href="${dLink}">${dLinkText}</a></li>`);
-      }
-      $("#myCustomMenu").append(newLink);
-    });
-  }
-  $("#myMenuLink").on("click", function () {
-    if ($("#customMenuOptions").css("display") == "block") {
-      $("#customMenuOptions").slideToggle();
+  // Wire up the gear icon so that when clicked it toggles the popup options.
+  $(document).on("click", "#myMenuGears", function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if ($("#customMenuOptions").is(":visible")) {
+      $("#customMenuOptions").slideUp();
+      updateMyCustomMenu(); // Update the top nav when the popup closes.
     } else {
-      addCustomMenuOptions();
-      $("#customMenuOptions").slideToggle();
-    }
-    addCustomMenu();
-  });
-
-  $("#myMenuLink").on("hover", function () {
-    if ($("#myCustomMenu li").length == 0 && !window.menuHovered) {
-      window.menuHovered == true;
+      if (!$("#customMenuOptions").length) {
+        addCustomMenuOptions(); // (Assumes addCustomMenuOptions() is defined elsewhere.)
+      }
+      $("#customMenuOptions").slideDown();
     }
   });
 
-  $("#myCustomMenu li a:contains(Random Profile)").on("click", function (e) {
+  // Additional click handlers for special links in "My Menu":
+  $("#myCustomMenu li a:contains(Random Profile)").on("click", (e) => {
     e.preventDefault();
     const working = $("<img id='working' src='" + treeImageURL + "'>");
     working.appendTo("body").css({
@@ -293,16 +285,15 @@ function addCustomMenu() {
       goToRandomProfile();
     }
   });
-  $("#myCustomMenu li a:contains(Random Profile)").on("contextmenu", function (e) {
+  $("#myCustomMenu li a:contains(Random Profile)").on("contextmenu", (e) => {
     e.preventDefault();
     addRandomProfileLocationBox(e);
   });
-  $("#myCustomMenu li a:contains(Printer Friendly Bio)").on("click", function (e) {
+  $("#myCustomMenu li a:contains(Printer Friendly Bio)").on("click", (e) => {
     e.preventDefault();
     $("#wte-tm-printer-friendly").trigger("click");
   });
-
-  $("#myCustomMenu li a:contains(Random Space Page)").on("click", function (e) {
+  $("#myCustomMenu li a:contains(Random Space Page)").on("click", (e) => {
     e.preventDefault();
     const working = $("<img id='working' src='" + treeImageURL + "'>");
     working.appendTo("body").css({
@@ -310,14 +301,11 @@ function addCustomMenu() {
       left: `${e.pageX - 150}px`,
       top: e.pageY + "px",
     });
-
     goToRandomSpacePage();
   });
-
   if ($("#myCustomMenu li a:contains(What Links Here)").length) {
     const thisURL = window.location.href;
     let dLink = "";
-    // Edit page
     const searchParams = new URLSearchParams(window.location.href);
     if ($("body.page-Special_EditPerson").length) {
       dLink = "Wiki:" + window.profileWTID;
@@ -325,112 +313,103 @@ function addCustomMenu() {
       dLink = "Wiki:" + searchParams.get("title");
     } else if (thisURL.split(/\/wiki\//)[1]) {
       dLink = thisURL.split(/\/wiki\//)[1];
-      if (thisURL.match(/Space:/) == null) {
+      if (!thisURL.match(/Space:/)) {
         dLink = "Wiki:" + dLink;
       }
     }
-
     if (dLink) {
       const myMenuWhatLinksHere = $("#myCustomMenu li a:contains(What Links Here)");
       myMenuWhatLinksHere.attr(
         "href",
         "https://" + mainDomain + "/index.php?title=Special:Whatlinkshere/" + dLink + "&limit=1000"
       );
-      myMenuWhatLinksHere.contextmenu(function (e) {
+      myMenuWhatLinksHere.on("contextmenu", (e) => {
         e.preventDefault();
         doWhatLinksHere(e);
       });
     }
   }
-
-  $("#myCustomMenu li a:contains(Drafts)").on("click", function (e) {
+  $("#myCustomMenu li a:contains(Drafts)").on("click", (e) => {
     e.preventDefault();
     showDraftList();
   });
 }
 
+// Store custom menu items in localStorage
 async function storeCustomMenu() {
   const arr = [];
-  $("#customMenu a").each(function () {
-    let menuName = $(this).parent().data("menu");
-    if (menuName.match(/-[0-9]+$/) != null) {
-      menuName = "Profile";
+  $("#customMenu li").each(function () {
+    let $li = $(this);
+    let menuName = $li.data("menu") || $li.closest(".btn-group").attr("data-menu");
+    if (!menuName) {
+      console.warn("Menu item missing data-menu:", $li);
+      menuName = "Uncategorized";
     }
-    const theText = $(this)
+    const linkHref = $li.find("a").attr("href");
+    const linkText = $li
+      .find("a")
       .text()
+      .trim()
       .replace(/Suggestions.*?\b/, "Suggestions")
       .replace(/^Contributions.*?\b/, "Contributions")
       .replace(/Badges.*?\b/, "Badges")
       .replace(/Thank-Yous.*?/, "Thank-Yous");
-    arr.push({ Link: $(this).attr("href"), LinkText: theText, Menu: menuName });
+    arr.push({ Link: linkHref, LinkText: linkText, Menu: menuName });
   });
-  const myCustomMenu = { arr };
-  const toStore = JSON.stringify(myCustomMenu);
-  localStorage.setItem("customMenu", toStore);
-
-  $("#customMenu li a").on("click", function () {
-    $(this)
-      .find("a")
-      .each(function () {
-        returnToMenu($(this).parent());
-        return false;
-      });
-  });
+  localStorage.setItem("customMenu", JSON.stringify({ arr }));
+  $("#customMenu li a")
+    .off("click")
+    .on("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      returnToMenu($(this).closest("li"));
+    });
 }
 
-function sortMenu(dMenu) {
-  const rows = dMenu.find("li");
-  rows.sort(function (a, b) {
-    return $(a).text().localeCompare($(b).text());
-  });
-  rows.appendTo(dMenu);
-}
-
+// Moves a menu item back to its original menu (or removes duplicate)
 function returnToMenu(jq) {
-  let dMenu = "";
-  if ($("#" + jq.data("menu") + "_Menu").length) {
-    dMenu = $("#" + jq.data("menu") + "_Menu");
-  } else {
-    dMenu = $("#My_WikiTree_Menu");
+  let menuName = jq.data("menu");
+  if (!menuName) {
+    console.warn("Menu item missing data-menu:", jq);
+    return;
   }
-
-  if (jq.text() == "Logout") {
-    if (dMenu.find("a:contains(Logout)").length < 2) {
-      jq.appendTo(dMenu);
-      sortMenu(dMenu);
-    } else {
-      jq.remove();
-    }
-  } else if (dMenu.find(`a[href="${jq.find("a").attr("href")}"]`).length < 1) {
-    jq.appendTo(dMenu);
-    sortMenu(dMenu);
+  let menuSelector = `[data-menu='${menuName}'] ul.dropdown-menu`;
+  let dMenu = $(menuSelector);
+  if (!dMenu.length) {
+    console.warn("Menu not found for:", menuSelector);
+    jq.remove();
+    storeCustomMenu();
+    return;
+  }
+  let linkHref = jq.find("a").attr("href");
+  if (dMenu.find(`a[href='${linkHref}']`).length === 0) {
+    dMenu.append(jq);
   } else {
+    console.warn("Skipping duplicate menu item:", jq.find("a").text());
     jq.remove();
   }
-  jq.click(function () {
-    addToCustomMenu($(this));
-  });
   storeCustomMenu();
 }
 
+// Adds a clicked item (assumed to be an <a>) to "My Menu"
 function addToCustomMenu(jq) {
-  jq.appendTo($("#customMenu"));
-  jq.click(function () {
-    returnToMenu($(this));
+  let linkHref = jq.find("a").attr("href");
+  let linkText = jq.find("a").text().trim();
+  if ($("#customMenu a[href='" + linkHref + "']").length > 0) {
+    console.warn("Skipping duplicate menu item:", linkText);
+    return;
+  }
+  let menuName = jq.closest(".btn-group").attr("data-menu") || jq.data("menu");
+  if (!menuName) {
+    console.warn("Unable to determine menu name for:", jq);
+    return;
+  }
+  let newItem = $("<li>").attr("data-menu", menuName).append($("<a>").attr("href", linkHref).text(linkText));
+  $("#customMenu").append(newItem);
+  newItem.on("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    returnToMenu($(newItem));
   });
   storeCustomMenu();
-  $("#menuClone a,#customMenu a").each(function () {
-    if ($(this).attr("href")) {
-      if (
-        $(this)
-          .attr("href")
-          .match(/javascript/) != null
-      ) {
-        $(this).attr("href", "#n");
-      }
-    }
-    $(this)[0].onclick = "";
-  });
 }
-
-// end My Menu functions
