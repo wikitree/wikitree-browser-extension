@@ -259,18 +259,18 @@ function AddToSections(alsoOnProfilePages) {
     }
     const wikiLinkItem = { label: "Link", text: wikiLink, image: true };
     const urlLinkItem = { label: "URL", text: url, image: false };
-    addItems([wikiLinkItem, urlLinkItem], $(allAs[i].nextSibling), true);
+    addItems([wikiLinkItem, urlLinkItem], $(allAs[i].nextSibling), { isNew: true });
   }
 }
 
-export function addItems(copyItems, copyPosition, isNew = false) {
-  if (isNew) {
+export function addItems(copyItems, copyPosition, options = { isNew: false }) {
+  if (options.isNew) {
     const aUL = $('<ul class="copy--buttons mono-b scissors"></ul>');
     const imageLI = $("<li></li>");
     const image = $('<img src="/images/icons/icon-copy.svg" alt="Copy icon">');
     imageLI.append(image);
     aUL.append(imageLI);
-    copyPosition.append(aUL);
+
     copyItems.forEach((item, index) => {
       const aLI = $("<li></li>");
       let theLabel = item.label == "UserID" ? "User ID" : item.label;
@@ -297,7 +297,21 @@ export function addItems(copyItems, copyPosition, isNew = false) {
       aUL.append(aLI);
     });
 
-    copyPosition.append(aUL);
+    if (options.style) {
+      const splitStyle = options.style.split(";");
+      splitStyle.forEach((style) => {
+        const split = style.split(":");
+        aUL.css(split[0], split[1]);
+      });
+    }
+
+    if (options.positioning == "before") {
+      copyPosition.before(aUL);
+    } else if (options.positioning == "prepend") {
+      copyPosition.prepend(aUL);
+    } else {
+      copyPosition.append(aUL);
+    }
   } else {
     for (let i = 0; i < copyItems.length; i++) {
       const item = copyItems[i];

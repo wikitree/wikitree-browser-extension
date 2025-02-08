@@ -135,7 +135,7 @@ function addScissorsToAnswers() {
         text: allAnchorNodes[i].href,
       };
 
-      addItems([previewLinkItem, urlItem], $(allAnchorNodes[i].parentNode));
+      addItems([previewLinkItem, urlItem], $(allAnchorNodes[i].parentNode), { isNew: true });
     }
   }
 }
@@ -158,15 +158,16 @@ async function initG2G() {
   if (options.moreTabs) {
     addG2GButtons();
   }
-  if (options.scissors) {
-    g2gScissors(options.scissors_answers);
-  }
+
   if (options.backToTop) {
     g2gBackToTop();
   }
   if (options.filter) {
     addG2GCategoryCheckboxes();
     doG2GCategories();
+  }
+  if (options.scissors) {
+    g2gScissors(options.scissors_answers);
   }
   if (options.bigButtons) {
     bigG2GButtons();
@@ -179,7 +180,8 @@ async function initG2G() {
   }
 
   if (options.fixHome) {
-    document.getElementsByClassName("pureCssMenui0")[0].href = "https://" + mainDomain + "/wiki/Special:Home";
+    // Temp: This won't work until G2G has the top menus.
+    // document.getElementsByClassName("pureCssMenui0")[0].href = "https://" + mainDomain + "/wiki/Special:Home";
   }
 }
 
@@ -209,6 +211,8 @@ function g2gScissors(alsoInAnswers) {
       window.g2gID = g2gIDmatch[1];
       const g2gURL = "https://" + mainDomain + "/g2g/" + window.g2gID;
       const g2gQuestion = $(".qa-main-heading h1").text();
+
+      /*
       $(".qa-sidepanel").prepend(
         $(
           '<span id="g2gScissors"><button aria-label="Copy ID" title="Copy ID" data-copy-label="Copy ID" class="copyWidget" data-copy-text="' +
@@ -220,6 +224,32 @@ function g2gScissors(alsoInAnswers) {
             '" style="color:#8fc641;">/Question</button></span>'
         )
       );
+      */
+
+      const position = $(".qa-sidepanel");
+
+      const IDItem = {
+        label: "ID",
+        text: window.g2gID,
+        image: true,
+      };
+
+      const urlItem = {
+        label: "URL",
+        text: g2gURL,
+      };
+
+      const questionItem = {
+        label: "Question",
+        text: g2gQuestion.replaceAll('"', "“").replaceAll("\n", "").trim(),
+      };
+
+      addItems([IDItem, urlItem, questionItem], position, {
+        isNew: true,
+        positioning: "prepend",
+        style: "margin-bottom: 1em",
+      });
+
       if (alsoInAnswers) {
         addScissorsToAnswers();
       }
