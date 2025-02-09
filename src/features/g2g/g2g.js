@@ -212,20 +212,6 @@ function g2gScissors(alsoInAnswers) {
       const g2gURL = "https://" + mainDomain + "/g2g/" + window.g2gID;
       const g2gQuestion = $(".qa-main-heading h1").text();
 
-      /*
-      $(".qa-sidepanel").prepend(
-        $(
-          '<span id="g2gScissors"><button aria-label="Copy ID" title="Copy ID" data-copy-label="Copy ID" class="copyWidget" data-copy-text="' +
-            window.g2gID +
-            '" style="color:#8fc641;"><img src="/images/icons/scissors.png">ID</button><button aria-label="Copy URL" title="Copy URL" data-copy-label="Copy URL" class="copyWidget" data-copy-text="' +
-            g2gURL +
-            '" style="color:#8fc641;">/URL</button><button aria-label="Copy Question" title="Copy Question" data-copy-label="Copy Question" class="copyWidget" data-copy-text="' +
-            g2gQuestion.replaceAll('"', "“").replaceAll("\n", "").trim() +
-            '" style="color:#8fc641;">/Question</button></span>'
-        )
-      );
-      */
-
       const position = $(".qa-sidepanel");
 
       const IDItem = {

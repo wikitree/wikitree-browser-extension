@@ -157,13 +157,11 @@ function addCustomMenuOptions() {
   });
 }
 
-// Build the "My Menu" button (and load stored items from localStorage)
-const myMenuGearsSrc = chrome.runtime.getURL("images/settings30.png");
 // Updates the top navigation "My Menu" (the <ul id="myCustomMenu">)
 // by reading the stored custom menu from localStorage.
 function updateMyCustomMenu() {
   let mCustomMenu = localStorage.customMenu || "";
-  const $myCustomMenu = $("#myCustomMenu");
+  const $myCustomMenu = $(".myCustomMenu");
   if ($myCustomMenu.length) {
     $myCustomMenu.empty();
     if (isOK(mCustomMenu)) {
@@ -225,7 +223,7 @@ function updateMyCustomMenu() {
 // any changes are immediately reflected.
 function addCustomMenu() {
   // If the "My Menu" button already exists, update its contents.
-  if ($("#myMenuLink").length) {
+  if ($(".myMenuLink").length) {
     updateMyCustomMenu();
     return;
   }
@@ -244,19 +242,19 @@ function addCustomMenu() {
   const myMenuGearsSrc = chrome.runtime.getURL("images/settings30.png");
   const outNow = $(`
     <div class='btn-group'>
-      <button id="myMenuLink" class="btn btn-link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+      <button class="myMenuLink btn btn-link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
         My Menu
       </button>
-      <img id="myMenuGears" src="${myMenuGearsSrc}" alt="My Menu Settings" title="My Menu Settings">
-      <ul id='myCustomMenu' class='dropdown-menu'></ul>
+      <img class="myMenuGears" src="${myMenuGearsSrc}" alt="My Menu Settings" title="My Menu Settings">
+      <ul class='myCustomMenu dropdown-menu'></ul>
     </div>`);
-  $("header nav[aria-label='Main Navigation']").append(outNow);
+  $("nav[aria-label='Main Navigation']").append(outNow);
 
   // Update the My Menu contents from localStorage.
   updateMyCustomMenu();
 
   // Wire up the gear icon so that when clicked it toggles the popup options.
-  $(document).on("click", "#myMenuGears", function (e) {
+  $(document).on("click", ".myMenuGears", function (e) {
     e.preventDefault();
     e.stopPropagation();
     if ($("#customMenuOptions").is(":visible")) {
@@ -318,7 +316,7 @@ function addCustomMenu() {
       }
     }
     if (dLink) {
-      const myMenuWhatLinksHere = $("#myCustomMenu li a:contains(What Links Here)");
+      const myMenuWhatLinksHere = $(".myCustomMenu li a:contains(What Links Here)");
       myMenuWhatLinksHere.attr(
         "href",
         "https://" + mainDomain + "/index.php?title=Special:Whatlinkshere/" + dLink + "&limit=1000"
@@ -329,7 +327,7 @@ function addCustomMenu() {
       });
     }
   }
-  $("#myCustomMenu li a:contains(Drafts)").on("click", (e) => {
+  $(".myCustomMenu li a:contains(Drafts)").on("click", (e) => {
     e.preventDefault();
     showDraftList();
   });
