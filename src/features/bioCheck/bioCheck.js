@@ -212,7 +212,6 @@ function buildReportLines(container, bioStatus, biography, isPre1700) {
       }
     }
     bioResultItem.appendChild(sourcesListElement);
-
   }
   let messages = biography.getSectionMessages();
   for (let i=0; i<messages.length; i++) {
@@ -228,6 +227,7 @@ function buildReportLines(container, bioStatus, biography, isPre1700) {
   }
 }
 
+/*
 function buildSourcesList(biography) {
   let sourcesListElement = document.createElement('ul');
   let numLines = biography.getInvalidSources().length;
@@ -240,6 +240,7 @@ function buildSourcesList(biography) {
   }
   return sourcesListElement;
 }
+*/
 
 function reportResults(biography, isPre1700, bioStatus) {
   
@@ -298,22 +299,9 @@ function checkSources() {
 
   // TODO this cannot be completed until the add relation portion of core is done
   let addingNewProfile = true;
-  /*
-console.log('adding new profile');
-  if (document.getElementById('editAction_connectExisting')) {
-console.log('check for existing' + document.getElementById('editAction_connnectExisting'));
-console.log('createNew ' + document.getElementById('editAction_createNew'));
-let e = document.getElementById('editAction_createNew');
-console.log('e ' + JSON.stringify(e, "", 3));
-console.log('value ' + document.getElementById('editAction_createNew.value'));
-e = document.getElementById('editAction_connectExisting');
-console.log('e ' + e);
-console.log('e ' + JSON.stringify(e, "", 3));
-  */
 
-    if (document.getElementById('editAction_connectExisting').checked) {
-      addingNewProfile = false;
-    }
+  if (document.getElementById('editAction_connectExisting').checked) {
+    addingNewProfile = false;
   }
   if (addingNewProfile) {
     let thePerson = new BioCheckPerson();
@@ -337,6 +325,7 @@ console.log('e ' + JSON.stringify(e, "", 3));
     reportSources(isValid, biography, thePerson.isPre1700());
   }
 }
+
 
 /*
  * report sources for profile where the input lines are either
