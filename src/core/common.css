@@ -67,3 +67,12 @@ form[name="a_form"] {
   position: absolute;
   right: 0;
 }
+
+.wbe-button span {
+  background: transparent left no-repeat;
+  background-size: contain;
+  display: inline-block;
+  height: 25px;
+  position: relative;
+  width: 26px;
+}

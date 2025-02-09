@@ -91,17 +91,57 @@ async function checkButtonFeatures() {
 
   try {
     const results = await Promise.all(promises);
-    // results is an array of booleans. If any is true, initialize this feature.
-    const anyFeatureToInitialize = results.some((result) => result);
-    if (anyFeatureToInitialize) {
-      results.forEach((result) => {
-        if (result) {
-          if ($(".clipboardContainer").length == 0) {
-            const clipboardContainer = $("<span>").addClass("clipboardContainer");
-            $("#header,#HEADER").append(clipboardContainer);
-          }
-        }
-      });
+
+    // If no features are enabled, exit early
+    if (!results.some((result) => result)) return;
+
+    // Ensure clipboardContainer exists before appending buttons
+    if ($(".clipboardContainer").length === 0) {
+      const clipboardContainer = $("<span>").addClass("clipboardContainer");
+      $(".profile--actions.float-end").append(clipboardContainer);
+    }
+
+    // Fetch image URLs
+    const extraWatchlistImg = chrome.runtime.getURL("images/extra-watchlist.svg");
+    const addToExtraWatchlistImg = chrome.runtime.getURL("images/plus.svg");
+    const clipboardImg = chrome.runtime.getURL("images/clipboard2.svg");
+    const notesImg = chrome.runtime.getURL("images/notepad2.svg");
+    const spaceWatchlistImg = chrome.runtime.getURL("images/s.svg");
+
+    // Button creation function
+    const createButton = (id, title, img) => {
+      const button = $("<a>")
+        .attr("id", id)
+        .attr("title", title)
+        .addClass(`${id} wbe-button`)
+        .attr("data-bs-title", title)
+        .attr("data-bs-toggle", "tooltip");
+
+      // Append icon span with only background-image (CSS handles the rest)
+      button.append(
+        $("<span>")
+          .addClass(`icon--${id.replace("Button", "")}`)
+          .css("background-image", `url(${img})`) // Only set background image
+      );
+
+      return button;
+    };
+
+    // Append buttons conditionally
+    if (results[0]) {
+      $(".clipboardContainer").append(
+        createButton("extraWatchlistButton", "Extra Watchlist", extraWatchlistImg),
+        createButton("addToExtraWatchlistButton", "Add to Extra Watchlist", addToExtraWatchlistImg)
+      );
+    }
+    if (results[1]) {
+      $(".clipboardContainer").append(
+        createButton("aClipboardButton", "Clipboard", clipboardImg),
+        createButton("aNotesButton", "Notes", notesImg)
+      );
+    }
+    if (results[2]) {
+      $(".clipboardContainer").append(createButton("spaceWatchlistButton", "Space Watchlist", spaceWatchlistImg));
     }
   } catch (error) {
     console.error("Error checking features to initialize:", error);

@@ -165,17 +165,6 @@ registerFeature({
 });
 
 registerFeature({
-  name: "Collapsible Descendants Tree",
-  id: "collapsibleDescendantsTree",
-  description: "Makes the descendants tree on profile pages collapsible.",
-  creators: [{ name: "Julian Laffey", wikitreeid: "Laffey-98" }],
-  contributors: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  category: "Profile",
-  defaultValue: true,
-  pages: [isProfilePage, isDNADescendants],
-});
-
-registerFeature({
   name: "Confirm Thank Yous",
   id: "confirmThankYous",
   description: "Adds a confirmation to 'Thank you' links.",

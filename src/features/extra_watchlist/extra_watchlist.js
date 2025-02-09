@@ -9,8 +9,8 @@ import "../../thirdparty/date.format.js";
 import "./extra_watchlist.css";
 import { isOK, htmlEntities, getUserWtId, getUserNumId } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
-import { appendClipboardButtons } from "../clipboard_and_notes/clipboard_and_notes";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { getProfilePersonInfo } from "../sort_theme_people/sort_theme_people";
 
 shouldInitializeFeature("extraWatchlist").then((result) => {
   if (
@@ -28,18 +28,13 @@ shouldInitializeFeature("extraWatchlist").then((result) => {
   }
 });
 
-const favoritePlusOn = chrome.runtime.getURL("images/favorite-plus-on.png");
-const favoritePlusWhite = chrome.runtime.getURL("images/favorite-plus-white.png");
-const binocularsURL = chrome.runtime.getURL("images/binoculars.png");
-const thisID = getThisID();
-
 function getThisID() {
   let spaceMatch = window.location.href.match(/Space:.*$/);
   let thisID;
   if (spaceMatch != null) {
     thisID = spaceMatch[0];
   } else {
-    thisID = $("a.pureCssMenui0 span.person").text();
+    thisID = getProfilePersonInfo().Name;
   }
   return thisID;
 }
@@ -310,7 +305,6 @@ async function sortExtraWatchlist() {
 }
 
 function addToExtraWatchlist(person) {
-  console.log("person", person);
   let thead = $(
     "<thead><tr><th id='wtIDcol' class='wtIDcol'>ID</th><th id='nameCol'>Name</th><th id='recentChangeCol'>Changed</th><th></th><th></th></tr></thead>"
   );
@@ -349,12 +343,8 @@ function doExtraWatchlist() {
     window.userID = getUserNumId();
     if (localStorage.extraWatchlist != null) {
       let bits = localStorage.extraWatchlist.split(/[@,]/);
-      console.log("bits", bits);
       const spacePages = bits.filter((x) => x.match("Space:"));
       const personPages = bits.filter((x) => !x.match("Space:"));
-      //let filteredArray = bits.filter((x) => !window.addedToExtraWatchlist.includes(x));
-      //console.log("filteredArray", filteredArray);
-      console.log("window.addedToExtraWatchlist", window.addedToExtraWatchlist);
       let keys;
       if (personPages.length > 0) {
         while (personPages.length) {
@@ -364,7 +354,6 @@ function doExtraWatchlist() {
           getPeople(keys, 0, 0, 0, 0, 0, 0, "*").then((data) => {
             let people = data[0].people;
             let peopleKeys = Object.keys(people);
-            console.log("people", people);
             peopleKeys.forEach(function (aKey) {
               addToExtraWatchlist(people[aKey]);
             });
@@ -396,40 +385,19 @@ async function extraWatchlist() {
       onExtraWatchlist = true;
     }
   }
-  let imageColour = "white";
-  let titleText = "Add to your Extra Watchlist";
+  const theButton = $("#addToExtraWatchlistButton");
   if (onExtraWatchlist == true) {
-    imageColour = "on";
-    titleText = "Remove from your Extra Watchlist";
-  }
-  let plusImageURL = favoritePlusWhite;
-  if (imageColour == "on") {
-    plusImageURL = favoritePlusOn;
+    theButton.attr("title", "Remove from your Extra Watchlist");
+    theButton.addClass("onList");
   }
 
-  const plusImage = $(
-    "<img id='addToExtraWatchlistButton' class='button small extraWatchlistButton' title='" +
-      titleText +
-      "' src='" +
-      plusImageURL +
-      "'>"
-  );
-  const binocularsImage = $(
-    "<img id='viewExtraWatchlist' class='button small extraWatchlistButton' title='See your Extra Watchlist' src='" +
-      binocularsURL +
-      "'>"
-  );
-  const clipboardContainer = $(".clipboardContainer");
-  clipboardContainer.append(plusImage);
-  clipboardContainer.append(binocularsImage);
-
-  $("#viewExtraWatchlist").on("click", function (e) {
+  $("#extraWatchlistButton").on("click", function (e) {
     e.preventDefault();
 
     if ($("#extraWatchlistWindow").length == 0) {
       const mouseY = e.pageY;
       const eww = $("<div id='extraWatchlistWindow' class='ui-widget-content'></div>");
-      eww.insertAfter($("#views-wrap"));
+      eww.insertAfter($("#tabs"));
       eww.css({
         position: "absolute",
         top: mouseY,
@@ -442,7 +410,7 @@ async function extraWatchlist() {
         '<h2>Extra Watchlist</h2><p id=\'ewlEmpty\'>Empty?</p><table id="touchedList"  class="all"></table>'
       );
 
-      $("<x id='closeWatchlistWindow'>X</x>").prependTo($("#extraWatchlistWindow"));
+      $("<button id='closeWatchlistWindow' class='small'>X</button>").prependTo($("#extraWatchlistWindow"));
 
       $("#closeWatchlistWindow").on("click", function () {
         $(this).parent().slideUp("swing");
@@ -539,11 +507,11 @@ async function extraWatchlist() {
     if (ids.includes(thisID)) {
       $("#addToExtraWatchlistButton").addClass("onList");
       $("#addToExtraWatchlistButton").attr("title", "On your Extra Watchlist (click to remove)");
-      $("#addToExtraWatchlistButton").prop("src", favoritePlusOn);
     }
   }
 
-  $("#addToExtraWatchlistButton").on("click", function () {
+  $("#addToExtraWatchlistButton").on("click", function (e) {
+    e.preventDefault();
     const thisID = getThisID(); // Ensure this gets the current ID correctly.
 
     // Initialize extraWatchlist if it doesn't exist.
@@ -558,11 +526,9 @@ async function extraWatchlist() {
     if (ids.includes(thisID)) {
       // If the ID is found, remove it from the array.
       ids = ids.filter((id) => id !== thisID);
-      console.log(thisID + " removed from the extraWatchlist.");
     } else {
       // If the ID is not found, add it to the array.
       ids.push(thisID);
-      console.log(thisID + " added to the extraWatchlist.");
     }
 
     // Join the array back into a string and save it to localStorage.
@@ -586,24 +552,22 @@ async function extraWatchlist() {
 }
 
 function setPlusButton() {
-  // Assuming getThisID() correctly retrieves the ID as a string. If not, make sure to convert or ensure it's a string.
   const thisID = getThisID().toString(); // Ensure thisID is a string.
 
   if (localStorage.getItem("extraWatchlist")) {
     const ids = localStorage.getItem("extraWatchlist").split(",");
 
-    // Ensure thisID is treated as a string for comparison. If there's any chance it might not be,
-    // explicitly converting it to a string can help avoid unexpected behavior.
     if (ids.includes(String(thisID))) {
       // Use String(thisID) to ensure comparison as strings
       $("#addToExtraWatchlistButton").addClass("onList");
       $("#addToExtraWatchlistButton").attr("title", "On your Extra Watchlist (click to remove)");
-      $("#addToExtraWatchlistButton").prop("src", favoritePlusOn);
     } else {
       $("#addToExtraWatchlistButton").removeClass("onList");
       $("#addToExtraWatchlistButton").attr("title", "Add to your Extra Watchlist");
-      $("#addToExtraWatchlistButton").prop("src", favoritePlusWhite);
     }
+  } else {
+    $("#addToExtraWatchlistButton").removeClass("onList");
+    $("#addToExtraWatchlistButton").attr("title", "Add to your Extra Watchlist");
   }
 }
 

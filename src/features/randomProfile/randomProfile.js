@@ -194,18 +194,19 @@ export function addRandomProfileLocationBox(e) {
 // add random option to 'Find'
 export async function addRandomToFindMenu() {
   window.randomProfileOptions = await getFeatureOptions("randomProfile");
-  // Existing button
-  const relationshipLi = $("li a.pureCssMenui[href='/wiki/Special:Relationship']");
-  const randomProfileLi = $(
-    "<li><a class='pureCssMenui randomProfile' title='Go to a random profile; Right-click to choose a location'>Random Profile</li>"
-  );
-  randomProfileLi.insertBefore(relationshipLi.parent());
 
-  // New button
-  const randomSpaceLi = $(
-    "<li><a class='pureCssMenui randomSpace' title='Go to a random space page'>Random Space Page</li>"
+  // Random Profile Button
+  const relationshipLiA = $("div[data-menu='Find'] li a[href$='/wiki/Special:Relationship']");
+  const randomProfileLi = $(
+    "<li><a href='#n' class='randomProfile dropdown-item' title='Go to a random profile; Right-click to choose a location'>Random Profile</li>"
   );
-  randomSpaceLi.insertBefore(relationshipLi.parent());
+  randomProfileLi.insertBefore(relationshipLiA.parent());
+
+  // Random Space Page Button
+  const randomSpaceLi = $(
+    "<li><a href='#n' class='randomSpace dropdown-item' title='Go to a random space page'>Random Space Page</li>"
+  );
+  randomSpaceLi.insertBefore(relationshipLiA.parent());
 
   // Event listeners for existing button
   $(".randomProfile").on("click", async function (e) {

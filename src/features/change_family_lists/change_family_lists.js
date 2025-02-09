@@ -31,7 +31,6 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     $("#familyVitals-tab").trigger("click");
 
     FAMILY_VITALS = $("#familyVitals");
-    console.log("Change Family Lists feature is enabled");
     window.people = getWindowPeople();
 
     options = await getFeatureOptions("changeFamilyLists");
@@ -731,8 +730,7 @@ function reallyMakeFamLists() {
 
       fixAllPrivates();
 
-      // cleaning up
-      /*if ($("span.large:contains(Family Member)").length == 0)*/ {
+      if ($("span.large:contains(Family Member)").length == 0) {
         makeFamLists();
         $(".familyList li").each(function () {
           if (
@@ -1107,7 +1105,7 @@ function makeFamLists() {
   if ($("#parentDetails").length) {
     const parentsNodes = $("#parentDetails")[0].childNodes;
     parentsNodes.forEach(function (aNode) {
-      if (aNode.textContent == noParentsPublic) {
+      if (aNode.textContent.trim() == noParentsPublic.trim()) {
         aNode.remove();
         $("<li id='fatherUnknown'>[father unknown]</li><li id='motherUnknown'>[mother unknown]</li>").appendTo(
           $("#parentList")
@@ -2362,9 +2360,9 @@ function siblingOf() {
           }
 
           if (
-            node.textContent == "Mother of " ||
+            node.textContent.trim() == "Mother of" ||
             node.textContent == "Mother of\n" ||
-            node.textContent == "Father of " ||
+            node.textContent.trim() == "Father of" ||
             node.textContent == "Father of\n"
           ) {
             let nSpan = document.createElement("span");

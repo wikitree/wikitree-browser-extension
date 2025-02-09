@@ -1,17 +1,18 @@
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
-import { getProfilePersonInfo } from "../sort_theme_people/sort_theme_people.js";
+import { profilePerson } from "../sort_theme_people/sort_theme_people.js";
 
 shouldInitializeFeature("connectorImage").then((result) => {
   if (result) {
-    const name = $("h1 span[itemprop='name']").text().trim();
-    const hasCFProfiles = $("div.sixteen.columns a[href*='Special:Connection']").length > 8;
-    const hasJigsawMan = $("h1 img[src*='/images/icons/unconnected.png']").length > 0;
-    const id = getProfilePersonInfo().Name;
+    const name = profilePerson.FullName;
+    const hasCFProfiles = $("section.connections").length > 0;
+    const hasJigsawMan = $("div.page--title span.icon--unconnected").length > 0;
+    const id = profilePerson.Name;
     if (!hasCFProfiles && !hasJigsawMan) {
-      const jigsawMan = `<a href="https://apps.wikitree.com/apps/nelson3486/connections/index.html?ID=${id}&amp;steps=3" target="_blank" style="margin-right:0.2em">
-    <img src="/images/icons/unconnected.png" border="0" width="16" height="20" alt="unconnected" title="${name} is not connected to our global tree; click to see missing links"></a>`;
-      $(`h1 button[aria-label="Copy ID"]`).before(jigsawMan);
+      const jigsawMan = $(
+        `<a id="jigsawMan" href="https://apps.wikitree.com/apps/nelson3486/connections/index.html?ID=${id}&steps=3" target="_blank" title="${name} is not connected to our global tree; click to see missing links"><span class="icon--unconnected"></span></a>`
+      );
+      $(`div.page--title span.privacy`).before(jigsawMan);
     }
   }
 });

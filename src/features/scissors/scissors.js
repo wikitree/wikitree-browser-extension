@@ -259,37 +259,35 @@ function AddToSections(alsoOnProfilePages) {
     }
     const wikiLinkItem = { label: "Link", text: wikiLink, image: true };
     const urlLinkItem = { label: "URL", text: url, image: false };
-    addItems([wikiLinkItem, urlLinkItem], $(allAs[i].nextSibling), true);
+    addItems([wikiLinkItem, urlLinkItem], $(allAs[i].nextSibling), { isNew: true });
   }
 }
 
-export function addItems(copyItems, copyPosition, isNew = false) {
-  if (isNew) {
-    console.log("new");
+export function addItems(copyItems, copyPosition, options = { isNew: false }) {
+  if (options.isNew) {
     const aUL = $('<ul class="copy--buttons mono-b scissors"></ul>');
     const imageLI = $("<li></li>");
-    // <img src="/images/icons/icon-copy.svg" alt="Copy icon">
     const image = $('<img src="/images/icons/icon-copy.svg" alt="Copy icon">');
     imageLI.append(image);
     aUL.append(imageLI);
-    copyPosition.append(aUL);
+
     copyItems.forEach((item, index) => {
       const aLI = $("<li></li>");
+      let theLabel = item.label == "UserID" ? "User ID" : item.label;
       const button = $(`
           <button class="copyWidget helpScissors mono-b" data-copy-label="Copy ${item.label}" 
               data-copy-text="${item.text}" data-bs-toggle="tooltip" 
-              data-bs-title="Copy ${item.label}" style="color:#8fc641;">
-              ${item.label}
+              data-bs-title="Copy ${item.label}">
+              ${theLabel}
           </button>
       `);
 
       button.attr("aria-label", item.label);
       button.attr("title", item.text);
       button.attr("data-bs-title", "Copy User ID");
-      button.attr("style", "color:#8fc641;");
 
       // Add text node separator if index > 0
-      if (index > 0) {
+      if (index > 0 || item.label == "Title") {
         aLI.append(document.createTextNode(" / "));
       } else {
         aLI.append(document.createTextNode(" "));
@@ -299,7 +297,21 @@ export function addItems(copyItems, copyPosition, isNew = false) {
       aUL.append(aLI);
     });
 
-    copyPosition.append(aUL);
+    if (options.style) {
+      const splitStyle = options.style.split(";");
+      splitStyle.forEach((style) => {
+        const split = style.split(":");
+        aUL.css(split[0], split[1]);
+      });
+    }
+
+    if (options.positioning == "before") {
+      copyPosition.before(aUL);
+    } else if (options.positioning == "prepend") {
+      copyPosition.prepend(aUL);
+    } else {
+      copyPosition.append(aUL);
+    }
   } else {
     for (let i = 0; i < copyItems.length; i++) {
       const item = copyItems[i];
@@ -311,14 +323,16 @@ export function addItems(copyItems, copyPosition, isNew = false) {
       button.setAttribute("data-copy-text", item.text);
       button.setAttribute("data-bs-toggle", "tooltip");
       button.setAttribute("data-bs-title", "Copy User ID");
-      button.setAttribute("style", "color:#8fc641;");
 
       if (item.image) {
         button.innerHTML = '<img src="/images/icons/scissors.png">';
       }
+      if (item.label == "UserID") {
+        item.label = "User ID";
+      }
       button.innerHTML += item.label.replace("/", "");
 
-      if (item.label == "UserID") {
+      if (item.label == "User ID" || item.label.match("Title")) {
         const li = document.createElement("li");
         li.append(document.createTextNode(" / "));
         li.append(button);

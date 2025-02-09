@@ -9,7 +9,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 let featuredConnectionsParagraph;
 
 const profilePersonInfo = getProfilePersonInfo();
-const profilePersonName = profilePersonInfo ? profilePersonInfo.FullName : null;
+export const profilePerson = profilePersonInfo;
 const profilePersonId = profilePersonInfo ? profilePersonInfo.Name : null;
 
 shouldInitializeFeature("sortThemePeople").then((result) => {
@@ -168,7 +168,10 @@ export function getProfilePersonInfo() {
     return null;
   }
   person.Name = pageData.mnamedb;
-  person.FullName = $("h1 span[itemprop='name']").text().trim();
+  // Clone h1, remove all children and trim the text.
+  const $h1 = $("h1").clone();
+  $h1.children().remove();
+  person.FullName = $h1.text().trim();
   person.Id = pageData.mid;
   person.LastNameAtBirth = pageData.mlastnameatbirth;
   person.FirstName = pageData.mfirstname;

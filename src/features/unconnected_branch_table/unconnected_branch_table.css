@@ -129,3 +129,11 @@ body.page-Space_Notables_Project_Unconnected_Profiles table.wikitable tr.even,
 body.page-Space_Notables_Project_Profiles_Needing_Family_Member table.wikitable tr.even {
   background-color: #f9f9f9;
 }
+
+#unconnectedBranchButton span {
+  top: 0 !important;
+}
+
+#unconnectedBranchTable table {
+  caption-side: top;
+}
