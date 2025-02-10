@@ -390,7 +390,7 @@ export function timeline(id = false) {
       }
       // Make a table
       const aTimeline = $(
-        `<div class='wrap' class='timeline' data-wtid='${person.Name}'><w>↔</w><x>x</x><table class='timelineTable'>` +
+        `<div class='wrap' class='timeline' data-wtid='${person.Name}'><w>↔</w><x>x</x><table class='timelineTable table-borderless'>` +
           `<caption>Events in the life of ${person.FirstName}'s family</caption><thead><th class='tlDate'>Date</th>` +
           `<th class='tlBioAge'>Age</th><th class='tlEventDescription'>Event</th><th class='tlEventLocation'>Location</th>` +
           `</thead><tbody></tbody></table></div>`
