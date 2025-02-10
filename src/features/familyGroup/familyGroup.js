@@ -205,7 +205,7 @@ function escapeHtml(unsafe) {
 
 export function peopleToTable(kPeople) {
   const kTable = $(
-    "<div class='familySheet'><w>↔</w><x>x</x><table><caption></caption><thead><tr><th>Relation</th><th>Name</th><th>Birth Date</th><th>Birth Place</th><th>Death Date</th><th>Death Place</th></tr></thead><tbody></tbody></table></div>"
+    "<div class='familySheet'><w>↔</w><x>x</x><table class='table-borderless'><caption></caption><thead><tr><th>Relation</th><th>Name</th><th>Birth Date</th><th>Birth Place</th><th>Death Date</th><th>Death Place</th></tr></thead><tbody></tbody></table></div>"
   );
   kPeople.forEach(function (kPers) {
     if (kPers) {
