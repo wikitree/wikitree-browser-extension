@@ -59,7 +59,7 @@ function addNewPersonToH1() {
 }
 
 shouldInitializeFeature("suggestedMatchesFilters").then((result) => {
-  if (result && $("body.page-Special_EditFamily").length) {
+  if (result) {
     $("#enterBasicDataButton").on("click", function () {
       setTimeout(function () {
         checkReady();
