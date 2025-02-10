@@ -280,7 +280,7 @@ function addRelationshipText(oText, commonAncestors) {
   $("#yourRelationshipText").on("click", function (e) {
     e.stopPropagation();
     let id1 = getUserWtId();
-    let id2 = $("a.pureCssMenui0 span.person").text();
+    let id2 = profilePerson.Name;
     initDistanceAndRelationship(id1, id2, true);
   });
   if (commonAncestorTextResult.count > 2) {
@@ -343,7 +343,7 @@ function doRelationshipText(userID, profileID) {
       }
 
       if (hasRelationship) {
-        const firstP = doc.querySelector("p");
+        const firstP = doc.querySelector("h3");
         if (firstP) {
           let firstPText = firstP.textContent.replace(/[\t\n]/g, "").trim();
           let boldText = doc.querySelector("b")?.textContent || "";
