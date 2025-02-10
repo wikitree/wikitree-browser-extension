@@ -37,7 +37,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
     await prepareFamilyLists();
     if (options.moveToRight) {
-      moveFamilyLists(true);
+      moveFamilyLists();
     }
     if (options.showSidebarHeading) {
       $("html").addClass("x-cfl-show-heading");
@@ -139,7 +139,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
 
     window.onresize = function () {
       if ($("body.profile").length && window.location.href.match("Space:") == null) {
-        moveFamilyLists(true);
+        moveFamilyLists();
       }
     };
 
@@ -337,60 +337,30 @@ function postToAPI(postData) {
   return ajax;
 }
 
-async function moveFamilyLists(firstTime = false) {
-  const rightHandColumn = $("div.six").eq(0).prop("id", "rightColumn");
+async function moveFamilyLists() {
   const familyLists = $("#nVitals");
 
-  if (firstTime == false) {
-    let right;
-    if (window.innerWidth < 767 || rightHandColumn.find(familyLists).length) {
-      familyLists.fadeOut("slow", function () {
-        familyLists.removeClass("row");
-        familyLists.insertAfter($("#birthDetails, #profileName").last());
-        familyLists.fadeIn("slow");
-      });
-      right = false;
-    } else {
-      familyLists.fadeOut("slow", function () {
-        familyLists.addClass("row");
-        if ($("a[href='/wiki/Project_protection']").length) {
-          familyLists.insertBefore($("a[href='/wiki/Project_protection']").closest("div"));
-        } else if ($("#geneticfamily").length) {
-          let $before = $("#geneticfamily");
-          if ($before.prev().is('a[name="DNA"]')) {
-            $before = $before.prev();
-          }
-          familyLists.insertBefore($before);
-        } else {
-          rightHandColumn.prepend(familyLists);
-        }
-        familyLists.fadeIn("slow");
-      });
-      right = true;
-    }
-    getFeatureOptions("changeFamilyLists").then((optionsData) => {
-      optionsData.moveToRight = options.moveToRight = right;
-      const storageName = "changeFamilyLists_options";
-      chrome.storage.sync.set({
-        [storageName]: optionsData,
-      });
-    });
-  } else {
-    if (window.innerWidth < 992) {
-      familyLists.removeClass("row").insertAfter($("#birthDetails, #profileName").last());
-    } else if (options.moveToRight) {
-      familyLists.addClass("row");
-      if ($("div.six a[href='/wiki/Project_protection']").length) {
-        familyLists.insertAfter($("div.six a[href='/wiki/Project_protection']").closest("div"));
-      } else if ($("#geneticfamily").length) {
-        let $before = $("#geneticfamily");
-        if ($before.prev().is('a[name="DNA"]')) {
-          $before = $before.prev();
-        }
-        familyLists.insertBefore($before);
-      } else {
-        rightHandColumn.prepend(familyLists);
+  if (window.innerWidth < 992) {
+    familyLists.removeClass("row").insertAfter($("#birthDetails, #profileName").last());
+  } else if (options.moveToRight) {
+    familyLists.addClass("row");
+
+    let $before;
+    if (options.familyListPosition == "before") {
+      $before = $("#Photos");
+      if (!$before.length) {
+        $before = $("#geneticfamily");
       }
+    } else {
+      $before = $("#geneticfamily");
+    }
+    if (!$before.length) {
+      $before = $("#DNA");
+    }
+    if ($before.length) {
+      familyLists.insertBefore($before);
+    } else {
+      familyLists.insertBefore($("div.col-lg-4 aside"));
     }
   }
 }
@@ -513,9 +483,9 @@ async function getAncestorsOnPage() {
   // Highlight ancestors on the page
   ancestorsOnPage.forEach((ancestor) => {
     const element = $(
-      `p.VITALS a[href$="/wiki/${ancestor.replace(/ /g, "_")}"], 
-       p.VITALS a[data-wtid="${ancestor.replace(/ /g, "_")}"], 
-       p.VITALS a[href$="/wiki/${ancestor.replace(/_/g, " ")}"], 
+      `p.VITALS a[href$="/wiki/${ancestor.replace(/ /g, "_")}"],
+       p.VITALS a[data-wtid="${ancestor.replace(/ /g, "_")}"],
+       p.VITALS a[href$="/wiki/${ancestor.replace(/_/g, " ")}"],
        p.VITALS a[data-wtid="${ancestor.replace(/_/g, " ")}"]`
     );
     if (element.length && element.data("status") != 5) {
