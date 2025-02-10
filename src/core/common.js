@@ -270,19 +270,19 @@ export function createTopMenuItem(options) {
 
 // Add a link to the short list of links below the tabs
 export function createProfileSubmenuLink(options) {
-  $("ul.views.viewsm")
+  $("#jump-nav")
     .eq(0)
     .append(
       $(
         `<li class='viewsi'><a title='${options.title}' href='${options.url}' id='${options.id}'>${options.text}</a></li>`
       )
     );
-  let links = $("ul.views.viewsm:first li");
+  let links = $("#jump-nav li");
   // Re-sort the links into alphabetical order
   links.sort(function (a, b) {
     return $(a).text().localeCompare($(b).text());
   });
-  $("ul.views.viewsm").eq(0).append(links);
+  $("#jump-nav").eq(0).append(links);
 }
 
 export function createTopMenu() {
@@ -439,8 +439,7 @@ export function displayName(fPerson) {
               fName3 += "(" + fPerson["LastNameAtBirth"] + ") ";
             }
           } else if (dCheck == "RealName") {
-            if (typeof fPerson["FirstName"] != "undefined") {
-            } else {
+            if (typeof fPerson["FirstName"] == "undefined") {
               fName3 += fPerson["RealName"] + " ";
             }
           } else {

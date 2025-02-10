@@ -69,3 +69,14 @@ th.tlEventLocation {
   margin: auto;
   background-color: white;
 }
+
+.familySheet th,
+.timeline th,
+.familySheet td,
+.timeline td {
+  padding: 0.2em;
+}
+
+.timeline table {
+  caption-side: top;
+}
