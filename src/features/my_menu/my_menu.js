@@ -67,24 +67,29 @@ function addCustomMenuOptions() {
   customMenuLeft.append(customMenuHeader);
 
   // Clone the main nav, remove duplicate IDs, and exclude "My Menu"
-  const menuClone = $("header nav[aria-label='Main Navigation']").clone();
-  menuClone.removeAttr("id").find("[id]").removeAttr("id");
-  menuClone.find(".btn-group:has(button:contains('My Menu'))").remove();
-  menuClone.addClass("menuClone");
+  const menus = $("header nav[aria-label='Main Navigation'], header nav[aria-label='My WikiTree Navigation']");
+  const navsContainer = $("<div id='navsContainer'></div>");
+  menus.each(function () {
+    const menuClone = $(this).clone();
+    menuClone.removeAttr("id").find("[id]").removeAttr("id");
+    menuClone.find(".btn-group:has(button:contains('My Menu'))").remove();
+    menuClone.addClass("menuClone");
 
-  // ***** CONVERT BUTTONS TO LABELS *****
-  menuClone.find("button").each(function () {
-    const btnText = $(this).text();
-    // Create a label with the same text; you can also copy classes if needed
-    const labelEl = $("<label>").text(btnText);
-    // Copy classes
-    labelEl.attr("class", $(this).attr("class"));
-    $(this).replaceWith(labelEl);
+    // ***** CONVERT BUTTONS TO LABELS *****
+    menuClone.find("button").each(function () {
+      const btnText = $(this).text();
+      // Create a label with the same text; you can also copy classes if needed
+      const labelEl = $("<label>").text(btnText);
+      // Copy classes
+      labelEl.attr("class", $(this).attr("class"));
+      $(this).replaceWith(labelEl);
+    });
+    // ****************************************
+
+    navsContainer.append(menuClone);
   });
-  // ****************************************
 
-  customMenuLeft.append(menuClone);
-
+  customMenuLeft.append(navsContainer);
   customMenuOptions.append(customMenuLeft);
 
   // Right column: "My Menu" container plus Add-Link form
@@ -170,12 +175,12 @@ function updateMyCustomMenu() {
         let dText = aLink.LinkText;
         let newLinkHREF = "";
         let newLinkText = "";
-        const standardMenus = ["Profile", "Find", "Add", "Help", "My WikiTree"];
+        const standardMenus = ["Profile", "Find", "Add", "Help", "My_WikiTree"];
         // If the stored menu isn't one of the standard ones,
         // look up its corresponding link from the nav dropdown.
         if (isOK(aLink.Menu)) {
           if (aLink.Menu.match(/-[0-9]+$/) || !standardMenus.includes(aLink.Menu)) {
-            const sameOneLink = $("nav div.btn-group button:contains('" + aLink.Menu + "')")
+            const sameOneLink = $("nav div.btn-group[data-menu='" + aLink.Menu + "']")
               .closest(".btn-group")
               .find("ul.dropdown-menu li a")
               .filter(function () {
@@ -269,7 +274,7 @@ function addCustomMenu() {
   });
 
   // Additional click handlers for special links in "My Menu":
-  $(document).on("click", "#myCustomMenu li a:contains(Random Profile)", (e) => {
+  $(document).on("click", ".myCustomMenu li a:contains(Random Profile)", (e) => {
     e.preventDefault();
     const working = $("<img id='working' src='" + treeImageURL + "'>");
     working.appendTo("body").css({
@@ -283,15 +288,15 @@ function addCustomMenu() {
       goToRandomProfile();
     }
   });
-  $(document).on("contextmenu", "#myCustomMenu li a:contains(Random Profile)", (e) => {
+  $(document).on("contextmenu", ".myCustomMenu li a:contains(Random Profile)", (e) => {
     e.preventDefault();
     addRandomProfileLocationBox(e);
   });
-  $("#myCustomMenu li a:contains(Printer Friendly Bio)").on("click", (e) => {
+  $(".myCustomMenu li a:contains(Printer Friendly Bio)").on("click", (e) => {
     e.preventDefault();
     $("#wte-tm-printer-friendly").trigger("click");
   });
-  $("#myCustomMenu li a:contains(Random Space Page)").on("click", (e) => {
+  $(".myCustomMenu li a:contains(Random Space Page)").on("click", (e) => {
     e.preventDefault();
     const working = $("<img id='working' src='" + treeImageURL + "'>");
     working.appendTo("body").css({
@@ -301,7 +306,7 @@ function addCustomMenu() {
     });
     goToRandomSpacePage();
   });
-  if ($("#myCustomMenu li a:contains(What Links Here)").length) {
+  if ($(".myCustomMenu li a:contains(What Links Here)").length) {
     const thisURL = window.location.href;
     let dLink = "";
     const searchParams = new URLSearchParams(window.location.href);

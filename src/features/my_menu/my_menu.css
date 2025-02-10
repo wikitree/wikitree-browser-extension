@@ -174,34 +174,38 @@ added.addedText {
   overflow: auto;
   display: none;
   text-align: left;
-  max-width: 1000px;
-  min-width: 750px;
+  max-width: 1300px;
+  min-width: 1025px;
   display: flex;
-  gap: 2em;
+  gap: 1em;
   padding-left: 0;
 }
 
 /* Left side: Header + Menus */
 #customMenuLeft {
   width: 80%;
-  min-width: 450px;
+  min-width: 650px;
   display: flex;
   flex-direction: column;
   gap: 1em;
+}
+
+#navsContainer {
+  display: flex;
+}
+#navsContainer div.btn-group {
+  min-width: 10em;
 }
 
 /* Right side: My Menu */
 #customMenuContainer {
   width: 20%;
   min-width: 150px;
-  border-left: 2px solid gray;
   padding-left: 1em;
 }
 
 /* Header: Info + Form */
 #customMenuHeader {
-  border-bottom: 2px solid gray;
-  padding-bottom: 1em;
   margin-bottom: 1em;
 }
 
@@ -211,12 +215,12 @@ added.addedText {
   border-radius: 1em;
   background: white;
   width: 100%;
-  margin-left: 1em 0.2em;
+  margin-left: 1em auto;
 }
 
 /* Ensure menus stay vertical */
 .menuClone ul,
-#customMenu ul {
+#customMenu {
   list-style-type: none;
   padding-left: 0;
   margin-left: 0;
@@ -285,10 +289,4 @@ nav.menuClone div.btn-group ul li {
 nav.menuClone div.btn-group ul li a {
   text-decoration: none;
   display: block;
-}
-
-#customMenuContainer ul {
-  list-style: none;
-  padding: 0;
-  margin-left: 0.2em;
 }

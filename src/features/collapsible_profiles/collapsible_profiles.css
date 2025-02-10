@@ -59,3 +59,16 @@ h1 .collapse-all-toggle {
 #toc {
   width: 100%;
 }
+
+button.collapse-toggle[data-target-id="nVitals"] {
+  top: 1em;
+  transform: none;
+}
+
+@media (max-width: 980px) {
+  h1 .collapse-all-toggle,
+  .collapse-toggle {
+    left: -1.5em;
+    font-size: 0.7em !important;
+  }
+}
