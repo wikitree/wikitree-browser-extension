@@ -354,11 +354,13 @@ async function moveFamilyLists() {
     } else {
       $before = $("#geneticfamily");
     }
-
+    if (!$before.length) {
+      $before = $("#DNA");
+    }
     if ($before.length) {
       familyLists.insertBefore($before);
     } else {
-      familyLists.insertBefore($("#DNA"));
+      familyLists.insertBefore($("div.col-lg-4 aside"));
     }
   }
 }
