@@ -56,10 +56,16 @@ function getThemeAndNotables() {
       // The first link is the theme link
       const themeLink = links.first();
       themeTitle = themeLink.text().trim();
+      let firstLinkIsDegrees = themeTitle.includes(" degrees from ");
+      if (themeTitle.includes(" degrees from ")) {
+        themeTitle = "Featured Connections"; // Fallback to a generic title if necessary
+      }
 
       // The remaining links are the featured connections
       links.each(function (index) {
-        if (index === 0) return; // Skip the first link (theme link)
+        if (!firstLinkIsDegrees) {
+          if (index === 0) return; // Skip the first link (theme link)
+        }
         const link = $(this);
         const href = link.attr("href");
 
@@ -672,8 +678,9 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
   const config = { childList: true, subtree: true };
 
   // Start observing the popup for changes
-  observer.observe(popup, config);
-
+  if (popup.length) {
+    observer.observe(popup.get(0), config);
+  }
   // Optional: Stop observing when you no longer need it
   // observer.disconnect();
 }
@@ -766,14 +773,12 @@ function themePeopleTable() {
  * @param {string} dTitle - The title to set
  */
 function setThemeTitles(dTitle) {
-  let theP = $("body.profile div.sixteen.columns p a[href*='Special:Connection']").closest("p");
+  let theP = $("body.profile div.connections p a[href*='Special:Connection']").closest("p");
   if (theP.length) {
     theP.addClass("cfParagraph");
-  } else {
-    theP = $("body.profile div.sixteen.columns div.box.rounded a[href*='Special:Connection']").closest("div");
   }
   const theDiv = theP.closest("div");
-  const ourTitle = dTitle + " Connections to " + $("span[itemprop='givenName']").text();
+  const ourTitle = dTitle + " Connections to " + profilePerson.FullName;
   if ($("h2.thisWeeksTheme").length == 0) {
     theDiv.prepend("<h2 class='thisWeeksTheme'>" + ourTitle + "</h2>");
   }
@@ -788,11 +793,9 @@ function setThemeTitles(dTitle) {
  */
 async function setConnectionsBanner() {
   const cfTitle = $("div.x-connections a:first").text();
-  let theP = $("body.profile div.sixteen.columns p a[href*='Special:Connection']").closest("p");
+  let theP = $("body.profile div.connections p a[href*='Special:Connection']").closest("p");
   if (theP.length) {
     theP.addClass("cfParagraph");
-  } else {
-    theP = $("body.profile div.sixteen.columns div.box.rounded a[href*='Special:Connection']").closest("div");
   }
   setThemeTitles(cfTitle);
 }

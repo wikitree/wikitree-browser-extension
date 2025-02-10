@@ -60,6 +60,9 @@ td.notableName {
 td.notableName {
   background-color: #f2f2f2;
 }
+#comprehensiveTable {
+  margin-bottom: 0;
+}
 
 /* Styles for the matchup table */
 .matchup-table th,
