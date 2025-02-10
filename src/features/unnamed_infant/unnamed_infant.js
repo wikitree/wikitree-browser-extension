@@ -6,7 +6,7 @@ import "jquery-ui/ui/widgets/dialog";
 import "jquery-ui-dist/jquery-ui.css";
 
 import { showCopyMessage } from "../access_keys/access_keys";
-import { isProfileEdit, isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType";
+import { isProfileEdit } from "../../core/pageType";
 import { tryParseDate, euDateFormats, usDateFormats } from "../date_fixer/date_fixer";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
@@ -257,7 +257,12 @@ async function doUnnamedInfant() {
       const messageText = message.join("<br>");
       showCopyMessage(messageText, true);
     }
-  } else if (age && age.years < 13 && options.autoCheckBoxesUnder13) {
+  } else if (
+    age &&
+    age.years < 13 &&
+    $("#mStatus_DeathDate_after").prop("checked") == false &&
+    options.autoCheckBoxesUnder13
+  ) {
     if (isProfileEdit) {
       checkBoxes();
       addDiedYoungSticker(options);
