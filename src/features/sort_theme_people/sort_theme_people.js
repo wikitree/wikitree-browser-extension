@@ -21,10 +21,12 @@ shouldInitializeFeature("sortThemePeople").then((result) => {
 async function init() {
   import("./sort_theme_people.css");
 
-  featuredConnectionsParagraph = $("div.sixteen p:contains('degrees from')");
+  featuredConnectionsParagraph = $("section.connections p:contains('degrees from')");
+  /*
   if (!featuredConnectionsParagraph.length) {
     featuredConnectionsParagraph = $("div.sixteen div.box:contains('degrees from')");
   }
+    */
   if (!featuredConnectionsParagraph.length) {
     return;
   }
@@ -706,12 +708,10 @@ function themePeopleTable() {
     $("#themeTable").toggle();
     $("h2.thisWeeksTheme").toggle();
     $("p.cfParagraph").toggle();
-    $(".sixteen a:contains('degrees from')").closest("div.box.rounded.row").toggle();
+    //$("section.connections a:contains('degrees from')").closest("div.box.rounded.row").toggle();
   } else {
     const linksArray = [];
-    const themeLinks = $(
-      ".sixteen p a:contains('degrees from'), .sixteen div.box.rounded.row a:contains('degrees from')"
-    );
+    const themeLinks = $("section.connections p a:contains('degrees from')");
     themeLinks.each(function () {
       let aThemePerson = {};
       aThemePerson.connectionURL = $(this).attr("href");
@@ -725,6 +725,9 @@ function themePeopleTable() {
 
     // Extract the theme title
     let themeTitle = featuredConnectionsParagraph.find("a:first").text().trim();
+    if (themeTitle.includes(" degrees from ")) {
+      themeTitle = null;
+    }
     if (!themeTitle) {
       themeTitle = $("h2.thisWeeksTheme").text().trim();
     }
@@ -751,7 +754,7 @@ function themePeopleTable() {
     });
     linksArray.forEach(function (aPerson) {
       let aRow = $(
-        `<tr><td><a href="/wiki/${aPerson.WTID}">${aPerson.name}</a></td><td><a href="${aPerson.connectionURL}">${aPerson.degrees} degrees</a></td><td></td></tr>`
+        `<tr><td><a href="/wiki/${aPerson.WTID}">${aPerson.name}</a></td><td><a href="${aPerson.connectionURL}">${aPerson.degrees} degrees</a></td></tr>`
       );
       themeTable.find("tbody").append(aRow);
     });
@@ -799,16 +802,8 @@ async function setConnectionsBanner() {
  */
 async function connectionsBanner() {
   if ($("h2.thisWeeksTheme").length == 0) {
-    if (
-      $(
-        "div.sixteen.columns p a[href*='Special:Connection'], div.sixteen.columns div.box.rounded.row a[href*='Special:Connection']"
-      ).length
-    ) {
-      const firstConnectionHREF = $(
-        "div.sixteen.columns p a[href*='Special:Connection'], div.sixteen.columns div.box.rounded.row a[href*='Special:Connection']"
-      )
-        .eq(0)
-        .attr("href");
+    if ($("section.connections p a[href*='Special:Connection']").length) {
+      const firstConnectionHREF = $("section.connections p a[href*='Special:Connection']").eq(0).attr("href");
 
       if (isOK(firstConnectionHREF)) {
         const urlParams = new URLSearchParams(firstConnectionHREF);
