@@ -7,8 +7,13 @@ Contains modified code from Steven's WikiTree Toolkit
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { ensureProfileClasses } from "../../core/profileClasses";
+import { profilePerson } from "../sort_theme_people/sort_theme_people";
 
 shouldInitializeFeature("printerFriendly").then((result) => {
+  // DISABLED for the moment, as it's not working as expected.
+
+  return; // Remove this to ENABLE the feature.
+
   if (result) {
     import("./printerfriendly.css");
     initPrinterFriendly();
@@ -42,14 +47,24 @@ async function initPrinterFriendly() {
   }
 
   if (options.addMenuItem !== false) {
+    let theMenu = null;
+    if (profilePerson.LastNameAtBirth) {
+      // Find a div.btn-group[data-menu] value that contains both profilePerson.LastNameAtBirth and ProfilePerson.FirstName
+      theMenu = $(
+        `div.btn-group[data-menu*="${profilePerson.LastNameAtBirth}"][data-menu*="${profilePerson.FirstName}"]`
+      );
+    }
+    if (!theMenu || theMenu.length === 0) {
+      // It's probably a space page, so add the button to the Find menu.
+      theMenu = $("div.btn-group[data-menu='Find']");
+    }
     // Add link to WT ID menu
-    $("body.profile a.pureCssMenui0 span.person")
-      .closest("li")
-      .find("a:contains(Printable Tree)")
+    theMenu
+      .find("a:contains(Privacy / Trusted List),a:contains(Projects)")
       .parent()
-      .after(
+      .before(
         $(
-          "<li><a id='wte-tm-printer-friendly' title='Changes the format to a printer-friendly one'>Printer Friendly Bio</a></li>"
+          "<li><a id='wte-tm-printer-friendly' class='dropdown-item' title='Changes the format to a printer-friendly one'>Printer Friendly Bio</a></li>"
         )
       );
 
