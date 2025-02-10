@@ -27,6 +27,22 @@ const changeFamilyLists = {
       defaultValue: false,
     },
     {
+      id: "familyListPosition",
+      type: OptionType.RADIO,
+      label: "Position in right-hand column",
+      values: [
+        {
+          value: "before",
+          text: "Before",
+        },
+        {
+          value: "after",
+          text: "After the photos",
+        },
+      ],
+      defaultValue: "before",
+    },
+    {
       id: "showSidebarHeading",
       type: OptionType.CHECKBOX,
       label: "Add heading when displayed on the right",
