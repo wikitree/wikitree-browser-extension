@@ -272,11 +272,7 @@ export function createTopMenuItem(options) {
 export function createProfileSubmenuLink(options) {
   $("#jump-nav")
     .eq(0)
-    .append(
-      $(
-        `<li class='viewsi'><a title='${options.title}' href='${options.url}' id='${options.id}'>${options.text}</a></li>`
-      )
-    );
+    .append($(`<li><a title='${options.title}' href='${options.url}' id='${options.id}'>${options.text}</a></li>`));
   let links = $("#jump-nav li");
   // Re-sort the links into alphabetical order
   links.sort(function (a, b) {

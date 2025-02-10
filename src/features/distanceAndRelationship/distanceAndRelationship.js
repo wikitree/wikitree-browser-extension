@@ -15,7 +15,7 @@ export const CONNECTION_STORE_NAME = "distance2";
 export const RELATIONSHIP_DB_NAME = "RelationshipFinderWTE";
 export const RELATIONSHIP_DB_VERSION = 2;
 export const RELATIONSHIP_STORE_NAME = "relationship2";
-const profileID = profilePerson.Name;
+const profileID = profilePerson?.Name;
 
 const fixOrdinalSuffix = (text) => {
   const pattern = /(\d+)(?:st|nd|rd|th)\b/g;
@@ -325,7 +325,6 @@ function commonAncestorText(commonAncestors) {
 
 function doRelationshipText(userID, profileID) {
   getRelationJSON("DistanceAndRelationship_Relationship", userID, profileID).then(function (data) {
-
     if (data) {
       let relationshipText = "";
       let hasRelationship = true;
