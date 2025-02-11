@@ -17,7 +17,7 @@ import {
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getHighestZindex } from "../familyGroup/familyGroup";
 import { mainDomain } from "../../core/pageType";
-import { profilePerson } from "../sort_theme_people/sort_theme_people";
+import { profilePerson } from "../../core/common";
 
 shouldInitializeFeature("familyTimeline").then((result) => {
   if (result) {

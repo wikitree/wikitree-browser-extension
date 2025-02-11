@@ -7,7 +7,7 @@ Contains modified code from Steven's WikiTree Toolkit
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { ensureProfileClasses } from "../../core/profileClasses";
-import { profilePerson } from "../sort_theme_people/sort_theme_people";
+import { profilePerson } from "../../core/common";
 
 shouldInitializeFeature("printerFriendly").then((result) => {
   // DISABLED for the moment, as it's not working as expected.

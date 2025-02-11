@@ -5,7 +5,7 @@ Created By: Ian Beacall (Beacall-6)
 import * as $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getUserWtId, getUserNumId } from "../../core/common.js";
-import { profilePerson } from "../sort_theme_people/sort_theme_people";
+import { profilePerson } from "../../core/common";
 import { isSpecialBadges, isProfileLoggedInUserPage } from "../../core/pageType";
 
 shouldInitializeFeature("sortBadges").then((result) => {

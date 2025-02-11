@@ -5,7 +5,7 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import "jquery-ui/ui/widgets/sortable";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { isOK, htmlEntities, showDraftList, treeImageURL } from "../../core/common";
+import { isOK, htmlEntities, showDraftList, treeImageURL, profilePerson } from "../../core/common";
 import {
   goToRandomProfile,
   addRandomProfileLocationBox,
@@ -14,13 +14,10 @@ import {
 } from "../randomProfile/randomProfile";
 import { doWhatLinksHere } from "../what_links_here/what_links_here";
 import { mainDomain } from "../../core/pageType";
-import { getProfilePersonInfo } from "../sort_theme_people/sort_theme_people";
 import "./my_menu.css";
 
-let profilePerson;
 shouldInitializeFeature("myMenu").then((result) => {
   if (result) {
-    profilePerson = getProfilePersonInfo();
     const profileWTID = profilePerson?.Name;
     window.profileWTID = profileWTID;
     addCustomMenu();

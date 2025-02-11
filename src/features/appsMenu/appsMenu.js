@@ -6,7 +6,7 @@ import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain, isG2G } from "../../core/pageType";
 import { getUserWtId } from "../../core/common";
-import { profilePerson } from "../sort_theme_people/sort_theme_people";
+import { profilePerson } from "../../core/common";
 
 const categories = [
   "Australia",

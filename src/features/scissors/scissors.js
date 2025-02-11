@@ -18,13 +18,11 @@ import {
   isNetworkFeed,
   isCategoryEdit,
 } from "../../core/pageType";
-import { getProfilePersonInfo } from "../sort_theme_people/sort_theme_people.js";
+import { profilePerson } from "../../core/common";
 import { showCopyMessage } from "../access_keys/access_keys.js";
 
-let profilePerson;
 shouldInitializeFeature("scissors").then((result) => {
   if (result) {
-    profilePerson = getProfilePersonInfo();
     import("./scissors.css");
     $(document).on("click", ".copy--buttons button", function () {
       const text = $(this).data("copy-text");

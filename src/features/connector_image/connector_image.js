@@ -1,6 +1,6 @@
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
-import { profilePerson } from "../sort_theme_people/sort_theme_people.js";
+import { profilePerson } from "../../core/common";
 
 shouldInitializeFeature("connectorImage").then((result) => {
   if (result) {

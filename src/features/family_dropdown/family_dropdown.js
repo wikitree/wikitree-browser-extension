@@ -12,7 +12,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import "./family_dropdown_pre.css";
 import { isProfileEdit } from "../../core/pageType";
 import { showCopyMessage } from "../access_keys/access_keys.js";
-import { profilePerson } from "../sort_theme_people/sort_theme_people";
+import { profilePerson } from "../../core/common";
 import "../../core/common.css";
 
 /**

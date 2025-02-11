@@ -1,16 +1,13 @@
 import $ from "jquery";
-import { createProfileSubmenuLink, treeImageURL } from "../../core/common.js";
+import { createProfileSubmenuLink, treeImageURL, profilePerson } from "../../core/common.js";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "datatables.net";
-import { profilePerson } from "../sort_theme_people/sort_theme_people.js";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 async function getPhotos() {
   let allPhotos = [];
   let start = 0;
   const limit = 100;
-  const profileIdBits = window.location.href.split("/");
-  const profileId = profileIdBits[profileIdBits.length - 1];
   let morePhotos = true;
 
   do {

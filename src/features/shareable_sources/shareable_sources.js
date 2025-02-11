@@ -7,7 +7,7 @@ import { displayName } from "../../core/common.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isProfileEdit, isProfileAddRelative } from "../../core/pageType";
 import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
-import { profilePerson } from "../sort_theme_people/sort_theme_people";
+import { profilePerson } from "../../core/common";
 
 let enhanced = false;
 let theID = profilePerson.Name; // Get profile ID

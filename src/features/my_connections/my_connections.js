@@ -22,7 +22,7 @@ import { getPeople } from "../dna_table/dna_table";
 import { addFiltersToWikitables } from "../table_filters/table_filters";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain } from "../../core/pageType";
-import { profilePerson } from "../sort_theme_people/sort_theme_people";
+import { profilePerson } from "../../core/common";
 
 const missingFatherSrc = chrome.runtime.getURL("images/blue_bricks.jpg");
 const missingMotherSrc = chrome.runtime.getURL("images/pink_bricks.jpg");

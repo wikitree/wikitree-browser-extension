@@ -6,7 +6,7 @@ import $ from "jquery";
 import { getConnectionJSON, getRelationJSON } from "../../core/API/wwwWikiTree";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain, isProfileEdit } from "../../core/pageType";
-import { profilePerson } from "../sort_theme_people/sort_theme_people";
+import { profilePerson } from "../../core/common";
 import { getObjectStores, distRelDbKeyFor, getUserWtId } from "../../core/common";
 
 export const CONNECTION_DB_NAME = "ConnectionFinderWTE";

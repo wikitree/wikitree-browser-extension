@@ -8,7 +8,7 @@ import { formISODate } from "../date_fixer/date_fixer";
 import { isSpaceEdit, isNewSpace, isProfileAddRelative, isProfileEdit } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 // import { australian_locations } from "./auto_bio/australian_locations";
-import { profilePerson } from "../sort_theme_people/sort_theme_people";
+import { profilePerson } from "../../core/common";
 
 //Cape
 const vocEnd = new Date("1795-09-17");

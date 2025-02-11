@@ -8,7 +8,7 @@ import { showFamilySheet } from "../familyGroup/familyGroup";
 import { assignPersonNames } from "../auto_bio/auto_bio";
 import { addFiltersToWikitables, repositionFilterRow } from "../table_filters/table_filters";
 import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
-import { profilePerson } from "../sort_theme_people/sort_theme_people";
+import { profilePerson } from "../../core/common";
 import { isOK } from "../../core/common";
 import "jquery-ui/ui/widgets/draggable";
 

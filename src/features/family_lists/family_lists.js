@@ -4,7 +4,7 @@ import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
 import { getPeople } from "../dna_table/dna_table";
 import { showCopyMessage } from "../access_keys/access_keys";
 import "../../core/common.css";
-import { profilePerson } from "../sort_theme_people/sort_theme_people";
+import { profilePerson } from "../../core/common";
 import {
   getFormData,
   addLoginButton,

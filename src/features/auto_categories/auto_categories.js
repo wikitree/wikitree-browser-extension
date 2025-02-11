@@ -2,7 +2,7 @@ import $ from "jquery";
 import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
 import { getFeatureOptions } from "../../core/options/options_storage";
 import { ageAtDeath } from "../../core/common";
-import { profilePerson } from "../sort_theme_people/sort_theme_people";
+import { profilePerson } from "../../core/common";
 import {
   getLocationCategory,
   getLocationCategoriesForSourcePlaces,

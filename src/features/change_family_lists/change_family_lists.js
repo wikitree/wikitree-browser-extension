@@ -12,14 +12,13 @@ import { getUserWtId } from "../../core/common";
 import "./change_family_lists.css";
 // import { mainDomain } from "../../core/pageType";
 import { initRelationshipDB, RELATIONSHIP_STORE_NAME } from "../distanceAndRelationship/distanceAndRelationship.js";
-import { getProfilePersonInfo, profilePerson } from "../sort_theme_people/sort_theme_people.js";
+import { profilePerson } from "../../core/common";
 
 // temp
 const mainDomain = "dev-2025.wikitree.com";
 
 let options;
 const user = getUserWtId();
-const profilePersonInfo = getProfilePersonInfo();
 window.people = null;
 let FAMILY_VITALS;
 let profileApproxBirthDate;
@@ -169,7 +168,7 @@ async function addAddLinksToHeadings() {
   $("p.VITALS:contains([sibling(s) unknown])").attr("id", "siblingsUnknownHeading");
   $("p.VITALS:contains([spouse(s) unknown])").attr("id", "spousesUnknownHeading");
 
-  const linkBase = `https://${mainDomain}.wikitree.com/index.php?title=Special:EditFamily&u=${profilePersonInfo.Id}`;
+  const linkBase = `https://${mainDomain}.wikitree.com/index.php?title=Special:EditFamily&u=${profilePerson.Id}`;
   const headings = [
     ["#siblingsHeader", "sibling"],
     ["#siblingsUnknownHeading", "sibling"],
@@ -279,7 +278,7 @@ async function prepareFamilyLists() {
 }
 
 async function getWindowPeople() {
-  const id = profilePersonInfo.Name;
+  const id = profilePerson.Name;
   const aResult = await getRelatives(
     [id],
     {
@@ -304,7 +303,7 @@ async function getWindowPeople() {
 }
 
 async function getFamilyPeople(args) {
-  const keys = args?.keys || profilePersonInfo.Id;
+  const keys = args?.keys || profilePerson.Id;
   const fields = args?.fields || "*";
   const result = await postToAPI({
     action: "getPeople",
@@ -472,7 +471,7 @@ async function getAncestorsOnPage() {
     })
     .get();
   // Add the profile person
-  peopleOnPage.push(profilePersonInfo.FullName);
+  peopleOnPage.push(profilePerson.FullName);
 
   const ancestorsOnPage = peopleOnPage.filter((person) => {
     const personWithUnderscores = person.replace(/ /g, "_");
@@ -493,7 +492,7 @@ async function getAncestorsOnPage() {
     }
   });
 
-  if (ancestorsOnPage.includes(profilePersonInfo.Name)) {
+  if (ancestorsOnPage.includes(profilePerson.Name)) {
     // Add ancestor labels for the parents of the profile person
     // a[arial-label="Father"], a[aria-label="Mother"]
     const fatherElement = $(`p.VITALS a[aria-label="Father"]`);
@@ -510,7 +509,7 @@ async function getAncestorsOnPage() {
       // Fetch this, then find the a in the 2nd td of the third tr of the table (of the results)
       // This will be an ancestor of the user.
 
-      const connectionName = await getAncestorConnection(profilePersonInfo.Name, user);
+      const connectionName = await getAncestorConnection(profilePerson.Name, user);
 
       if (connectionName) {
         const connectionElement = $(
@@ -669,7 +668,7 @@ function formatSpouses() {
     vitalsP.prepend(spouseButton);
 
     const editButton = $(
-      `<span class="EDIT" data-bs-toggle="tooltip" data-bs-title="Add/Edit Spouses"><a href="/index.php?title=Special:EditFamily&amp;u=${profilePersonInfo.Id}&amp;who=spouse">add/edit spouses</a></span>`
+      `<span class="EDIT" data-bs-toggle="tooltip" data-bs-title="Add/Edit Spouses"><a href="/index.php?title=Special:EditFamily&amp;u=${profilePerson.Id}&amp;who=spouse">add/edit spouses</a></span>`
     );
     vitalsP.append(editButton);
   }
@@ -684,7 +683,7 @@ function formatSpouses() {
 
 function reallyMakeFamLists() {
   if ($("body.profile").length && $("body[class*=page-Space_]").length == 0) {
-    const profileWTID = profilePersonInfo.Name;
+    const profileWTID = profilePerson.Name;
     //  console.log("Profile WTID:", profileWTID);
     loadRelatives(profileWTID, () => {
       const profilePerson = findPerson(profileWTID);
@@ -1811,7 +1810,7 @@ function insertInSibList() {
 
   //console.log(window.people);
 
-  const pPerson = window.people.find((p) => p.Id == profilePersonInfo.Id); // Find profile person in data
+  const pPerson = window.people.find((p) => p.Id == profilePerson.Id); // Find profile person in data
   if (!pPerson) return;
 
   // Extract birth year from JSON data
@@ -2132,7 +2131,7 @@ function amaTimer() {
         marriageDetails.html(function (index, html) {
           return html.replace(
             "married",
-            `<a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePersonInfo.Id}&who=editspouse&s=${spouseEntry[0]}" target="_blank" title="Right click to edit marriage" class="clickable" id="${marriageId}">married</a>`
+            `<a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=editspouse&s=${spouseEntry[0]}" target="_blank" title="Right click to edit marriage" class="clickable" id="${marriageId}">married</a>`
           );
         });
 

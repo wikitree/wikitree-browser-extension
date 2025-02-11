@@ -7,7 +7,7 @@ import "jquery-ui/ui/widgets/draggable";
 import { getRelatives } from "wikitree-js";
 import { createProfileSubmenuLink, familyArray, isOK, htmlEntities, setAdjustedDates } from "../../core/common";
 import { mainDomain, isSearchPage } from "../../core/pageType";
-import { profilePerson } from "../sort_theme_people/sort_theme_people";
+import { profilePerson } from "../../core/common";
 
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
