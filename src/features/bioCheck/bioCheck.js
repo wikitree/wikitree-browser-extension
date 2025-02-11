@@ -109,12 +109,16 @@ async function bioCheckSetup() {
         saveButton = document.getElementById('addNewPersonButton');
       }
       if (saveButton) {
-        // listening to the save button click seemed to interfere with
-        // the actual save, so it was removed
-        saveButton.addEventListener("mouseover", checkSourcesAtInterval);
-        saveButton.addEventListener("touchstart", checkSourcesAtInterval);
-        setInterval(checkSourcesAtInterval, 30000);
-        checkSources();
+
+        let continueButton= document.getElementById('actionButton');
+        if (continueButton) {
+          continueButton.onclick = function () {
+            saveButton.addEventListener("mouseover", checkSourcesAtInterval);
+            saveButton.addEventListener("touchstart", checkSourcesAtInterval);
+            setInterval(checkSourcesAtInterval, 30000);
+            checkSources();
+          };
+        }
       }
     } else {
       // DEPRECATE watchlist. New design eliminates the buttons
@@ -293,17 +297,18 @@ function reportResults(biography, isPre1700, bioStatus) {
 function checkSources() {
 
   // Don't check if just connecting existing profile
-  // on second thought, why not check the existing profile? Can they edit that profile
-  // when connecting it? nope. that's probably why we dont' report it.
-  // and this checkbox is not on add unrelated person
 
-  // TODO this cannot be completed until the add relation portion of core is done
-  let addingNewProfile = true;
+  // just in case we have been here before, gone back, and changed setting
+  let bioCheckSourcesContainer = document.getElementById("bioCheckSourcesContainer");
 
   if (document.getElementById('editAction_connectExisting').checked) {
-    addingNewProfile = false;
-  }
-  if (addingNewProfile) {
+    if (bioCheckSourcesContainer) {
+      bioCheckSourcesContainer.setAttribute('style', 'display:none');
+    }
+  } else {
+    if (bioCheckSourcesContainer) {
+      bioCheckSourcesContainer.setAttribute('style', 'display');
+    }
     let thePerson = new BioCheckPerson();
     // get the bio text and person dates to check
     let sourcesStr = document.getElementById("mSources").value;
