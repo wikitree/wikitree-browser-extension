@@ -1507,6 +1507,7 @@ function addRefsToRelation(refs, person, relation) {
   return text;
 }
 
+/*
 export function buildParents(person) {
   let text = "child of ";
   if (person.Gender == "Male") {
@@ -1544,6 +1545,98 @@ export function buildParents(person) {
       text += addRefsToRelation(window.references, mother, "mother");
     }
   }
+  return text;
+}
+  */
+
+export function buildParents(person) {
+  let option = window.autoBioOptions?.firstSentences || "of"; // Default to "of"
+  let text = "";
+  let parents = person.Parents;
+
+  if (!parents) {
+    return text;
+  }
+
+  let fatherText = "";
+  let motherText = "";
+
+  if (person.Father) {
+    let father = person.Parents[person.Father];
+    if ((window.autoBioOptions?.usePrivate && father?.Privacy < 30) || !father) {
+      fatherText = "Private Father";
+    } else {
+      fatherText = nameLink(father);
+      if (window.autoBioOptions?.includeParentsDates) {
+        fatherText += " " + formatDates(father);
+      }
+    }
+    fatherText += addRefsToRelation(window.references, father, "father");
+  }
+
+  if (person.Mother) {
+    let mother = person.Parents[person.Mother];
+    if ((window.autoBioOptions?.usePrivate && mother?.Privacy < 30) || !mother) {
+      motherText = "Private Mother";
+    } else {
+      motherText = nameLink(mother);
+      if (window.autoBioOptions?.includeParentsDates) {
+        motherText += " " + formatDates(mother);
+      }
+    }
+    motherText += addRefsToRelation(window.references, mother, "mother");
+  }
+
+  if (fatherText && motherText) {
+    if (option === "of") {
+      text =
+        (person.Gender === "Male" ? "son of " : person.Gender === "Female" ? "daughter of " : "child of ") +
+        fatherText +
+        " and " +
+        motherText;
+    } else if (option === "to") {
+      text = "to " + fatherText + " and " + motherText;
+    } else if (option === "parentsWere") {
+      text =
+        (person.Gender === "Male"
+          ? "His parents were "
+          : person.Gender === "Female"
+          ? "Her parents were "
+          : "Their parents were ") +
+        fatherText +
+        " and " +
+        motherText;
+    }
+  } else if (fatherText) {
+    if (option === "of") {
+      text =
+        (person.Gender === "Male" ? "son of " : person.Gender === "Female" ? "daughter of " : "child of ") + fatherText;
+    } else if (option === "to") {
+      text = "to " + fatherText;
+    } else if (option === "parentsWere") {
+      text =
+        (person.Gender === "Male"
+          ? "His parent was "
+          : person.Gender === "Female"
+          ? "Her parent was "
+          : "Their parent was ") + fatherText;
+    }
+  } else if (motherText) {
+    if (option === "of") {
+      text =
+        (person.Gender === "Male" ? "son of " : person.Gender === "Female" ? "daughter of " : "child of ") + motherText;
+    } else if (option === "to") {
+      text = "to " + motherText;
+    } else if (option === "parentsWere") {
+      text =
+        (person.Gender === "Male"
+          ? "His parent was "
+          : person.Gender === "Female"
+          ? "Her parent was "
+          : "Their parent was ") + motherText;
+    }
+  }
+
   return text;
 }
 

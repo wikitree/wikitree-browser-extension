@@ -1,7 +1,5 @@
 document?.documentElement?.removeAttribute("data-wbe-conflict");
 
-//import { createTopMenu } from "./core/common";
-
 import "./features/register_feature_options";
 
 // First are loaded modules that change the wikitree appearence by altering css style

@@ -10,7 +10,7 @@ import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
 import { profilePerson } from "../../core/common";
 
 let enhanced = false;
-let theID = profilePerson.Name; // Get profile ID
+let theID;
 
 const fields = // Fields to fetch
   "Name,FirstName,Gender,LastNameAtBirth,LastNameCurrent,Bio,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,DataStatus,Id";
@@ -44,6 +44,7 @@ async function addOptionsToWindow(feature) {
  */
 shouldInitializeFeature("shareableSources").then((result) => {
   if (result) {
+    theID = profilePerson.Name;
     import("./shareable_sources.css");
     window.shareableSourcesEnabled = true;
 
