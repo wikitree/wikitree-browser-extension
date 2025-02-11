@@ -12,7 +12,7 @@ import { getUserWtId } from "../../core/common";
 import "./change_family_lists.css";
 // import { mainDomain } from "../../core/pageType";
 import { initRelationshipDB, RELATIONSHIP_STORE_NAME } from "../distanceAndRelationship/distanceAndRelationship.js";
-import { getProfilePersonInfo } from "../sort_theme_people/sort_theme_people.js";
+import { getProfilePersonInfo, profilePerson } from "../sort_theme_people/sort_theme_people.js";
 
 // temp
 const mainDomain = "dev-2025.wikitree.com";
@@ -2420,7 +2420,7 @@ function addParentStatus() {
 
 function addDNAstatusToChildren() {
   // Find the name from the element
-  const nameToFind = $("a.pureCssMenui0 span.person").text();
+  const nameToFind = profilePerson.Name;
 
   // Find the person whose Name matches
   const parentPerson = window.people?.find((person) => person.Name === nameToFind);

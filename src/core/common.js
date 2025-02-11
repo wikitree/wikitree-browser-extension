@@ -8,6 +8,7 @@ import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
 import { mainDomain, isNavHomePage, isMainDomain } from "./pageType.js";
 import { checkIfFeatureEnabled } from "./options/options_storage";
+import { profilePerson } from "./sort_theme_people/sort_theme_people";
 
 /* * * * * * * * * * * * * * * * * * * *
  * Initialization. This section of code should run first.
@@ -281,17 +282,6 @@ export function createProfileSubmenuLink(options) {
   $("#jump-nav").eq(0).append(links);
 }
 
-export function createTopMenu() {
-  const newUL = $("<ul class='pureCssMenu' id='wte-topMenuUL'></ul>");
-  $("ul.pureCssMenu").eq(0).after(newUL);
-  newUL.append(`<li>
-        <a class="pureCssMenui0">
-            <span>App Features</span>
-        </a>
-        <ul class="pureCssMenum" id="wte-topMenu"></ul>
-    </li>`);
-}
-
 // Used in familyTimeline, familyGroup, locationsHelper
 export async function getRelatives(id, fields = "*", appId = "WBE") {
   try {
@@ -559,6 +549,64 @@ export async function showDraftList() {
     });
   }
 
+  /*
+
+  TRY THIS (but update the pureCssMenui0 bit)
+
+  async function processPersonDrafts(drafts) {
+    let draftCalls = 0;
+    const tempDraftArr = [];
+
+    for (const [index, draft] of drafts.entries()) {
+        const theWTID = draft[0];
+        if (!isOK(theWTID)) {
+            delete drafts[index];
+            draftCalls++;
+        } else {
+            try {
+                const res = await getWikiTreePage("Drafts", "/index.php", `title=${theWTID}&displayDraft=1`);
+                draftCalls++;
+
+                // Parse response using DOMParser
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(res, "text/html");
+
+                let aWTID = doc.querySelector("a.pureCssMenui0 span.person")?.textContent.trim() || "";
+
+                // Remove ' User' suffix if present
+                if (aWTID.endsWith(" User")) {
+                    aWTID = aWTID.slice(0, -" User".length);
+                }
+
+                if (doc.querySelector("div.status")?.textContent.includes("You have an uncommitted")) {
+                    tempDraftArr.push(aWTID);
+                    const useLinkElement = [...doc.querySelectorAll("a")].find(a => a.textContent.includes("Use the Draft"));
+
+                    if (useLinkElement) {
+                        const useLink = useLinkElement.getAttribute("href");
+                        const personID = useLink.match(/&u=(\d+)/)?.[1] || "";
+                        const draftID = useLink.match(/&ud=(\d+)/)?.[1] || "";
+
+                        drafts.forEach(yDraft => {
+                            if (yDraft[0] === aWTID) {
+                                yDraft[3] = personID;
+                                yDraft[4] = draftID;
+                            }
+                        });
+                    }
+                }
+
+                if (draftCalls === drafts.length) {
+                    updateDraftTable(drafts, tempDraftArr);
+                }
+            } catch (error) {
+                console.error("Error processing draft:", error);
+            }
+        }
+    }
+}
+    */
+
   function updateDraftTable(drafts, tempDraftArr) {
     const newDraftArr = drafts.filter((aDraft) => tempDraftArr.includes(aDraft[0]) && isOK(aDraft[0]));
 
@@ -702,7 +750,7 @@ $(document).on("click", "#deleteSpaceDraftsForPage", function () {
 
 // Used in saveDraftList (above)
 export async function updateDraftList() {
-  const profileWTID = $("a.pureCssMenui0 span.person").text();
+  const profileWTID = profilePerson.Name;
   let addDraft = false;
   let timeNow = Date.now();
   let lastWeek = timeNow - 604800000;

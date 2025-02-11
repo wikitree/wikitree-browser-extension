@@ -22,6 +22,7 @@ import { getPeople } from "../dna_table/dna_table";
 import { addFiltersToWikitables } from "../table_filters/table_filters";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain } from "../../core/pageType";
+import { profilePerson } from "../sort_theme_people/sort_theme_people";
 
 const missingFatherSrc = chrome.runtime.getURL("images/blue_bricks.jpg");
 const missingMotherSrc = chrome.runtime.getURL("images/pink_bricks.jpg");
@@ -482,7 +483,7 @@ async function myConnectionsMore() {
 
 async function getMoreConnections() {
   if (window.CC7 == false) {
-    const theWTID = $(".pureCssMenui0 span.person").text();
+    const theWTID = profilePerson.WTID;
     // theWTID is not retrieved when looking at another profile. (&w=Kauković-5)
     if (theWTID !== "") {
       getWikiTreePage("MyConnections", "/wiki/" + theWTID, "").then((res) => {

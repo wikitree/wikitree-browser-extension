@@ -12,6 +12,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import "./family_dropdown_pre.css";
 import { isProfileEdit } from "../../core/pageType";
 import { showCopyMessage } from "../access_keys/access_keys.js";
+import { profilePerson } from "../sort_theme_people/sort_theme_people";
 import "../../core/common.css";
 
 /**
@@ -27,7 +28,7 @@ shouldInitializeFeature("familyDropdown").then((result) => {
   }
 });
 
-let theID = $("a.pureCssMenui0 span.person").text(); // Get profile ID
+let theID = profilePerson.Name; // Get profile ID
 
 /** @type {Object} Main profile person object */
 window.profilePersonNuclear;

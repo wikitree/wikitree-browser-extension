@@ -2,6 +2,7 @@ import $ from "jquery";
 import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
 import { getFeatureOptions } from "../../core/options/options_storage";
 import { ageAtDeath } from "../../core/common";
+import { profilePerson } from "../sort_theme_people/sort_theme_people";
 import {
   getLocationCategory,
   getLocationCategoriesForSourcePlaces,
@@ -51,7 +52,7 @@ export async function addAutoCategories() {
   const formData = getFormData();
 
   // Get the text of the profile ID from the page
-  const profileId = $("a.pureCssMenui0 span.person").text();
+  const profileId = profilePerson.Name;
 
   // Get the profile of the person based on the profile ID, and await because it's an async operation
   window.profilePerson = await getProfile(

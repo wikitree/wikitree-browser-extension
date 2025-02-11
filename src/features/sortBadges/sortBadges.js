@@ -5,14 +5,16 @@ Created By: Ian Beacall (Beacall-6)
 import * as $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getUserWtId, getUserNumId } from "../../core/common.js";
+import { profilePerson } from "../sort_theme_people/sort_theme_people";
+import { isSpecialBadges, isProfileLoggedInUserPage } from "../../core/pageType";
 
 shouldInitializeFeature("sortBadges").then((result) => {
-  if (result && $("a.pureCssMenui0 span.person").text() == getUserWtId()) {
+  if (result && profilePerson.Name == getUserWtId()) {
     import("./sortBadges.css");
     const queryString = window.location.search;
     const urlParams = new URLSearchParams(queryString);
-    if ($("body.page-Special_Badges").length && (urlParams.has("u") || localStorage.savedBadges)) {
-      $("div.sixteen.columns p")
+    if (isSpecialBadges && (urlParams.has("u") || localStorage.savedBadges)) {
+      $("h1")
         .eq(0)
         .append(
           $(
@@ -30,7 +32,7 @@ shouldInitializeFeature("sortBadges").then((result) => {
 
       if (localStorage.savedBadges) {
         localStorage.removeItem("savedBadges");
-        window.location = $("a.pureCssMenui0 span.person").parent().attr("href");
+        window.location = `http://www.wikitree.com/wiki/${profilePerson.Name}`;
       }
       if (urlParams.has("badgeAction")) {
         localStorage.setItem("savedBadges", 1);
@@ -39,9 +41,9 @@ shouldInitializeFeature("sortBadges").then((result) => {
       }
     }
     if (
-      $("body.profile").length &&
+      isProfileLoggedInUserPage &&
       window.location.href.match("Space:") == null &&
-      $("a.pureCssMenui0 span.person").text() == getUserWtId()
+      profilePerson.Name == getUserWtId()
     ) {
       $("a:contains('view/edit')")
         .parent()
