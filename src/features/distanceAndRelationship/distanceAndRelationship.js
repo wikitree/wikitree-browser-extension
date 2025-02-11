@@ -6,6 +6,7 @@ import $ from "jquery";
 import { getConnectionJSON, getRelationJSON } from "../../core/API/wwwWikiTree";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain, isProfileEdit } from "../../core/pageType";
+import { profilePerson } from "../../core/common";
 import { getObjectStores, distRelDbKeyFor, getUserWtId } from "../../core/common";
 
 export const CONNECTION_DB_NAME = "ConnectionFinderWTE";
@@ -14,6 +15,7 @@ export const CONNECTION_STORE_NAME = "distance2";
 export const RELATIONSHIP_DB_NAME = "RelationshipFinderWTE";
 export const RELATIONSHIP_DB_VERSION = 2;
 export const RELATIONSHIP_STORE_NAME = "relationship2";
+const profileID = profilePerson?.Name;
 
 const fixOrdinalSuffix = (text) => {
   const pattern = /(\d+)(?:st|nd|rd|th)\b/g;
@@ -141,8 +143,6 @@ shouldInitializeFeature("distanceAndRelationship").then((result) => {
     storeProfileIfCreated(); // First, check if the profile was just created and store it
     return;
   }
-  // define user and profile IDs
-  const profileID = $("a.pureCssMenui0 span.person").text();
 
   if (checkProfileCreationTime(profileID)) {
     // Profile was created less than 30 minutes ago, do not initialize feature
@@ -225,7 +225,7 @@ function onDistancesSuccess(event, profileID, userID) {
       initDistanceAndRelationship(userID, profileID);
     } else {
       if ($("#distanceFromYou").length == 0) {
-        const profileName = $("h1").first().find("span[itemprop='name']").text();
+        const profileName = profilePerson.FirstName;
         $("h1")
           .first()
           .append(
@@ -280,7 +280,7 @@ function addRelationshipText(oText, commonAncestors) {
   $("#yourRelationshipText").on("click", function (e) {
     e.stopPropagation();
     let id1 = getUserWtId();
-    let id2 = $("a.pureCssMenui0 span.person").text();
+    let id2 = profilePerson.Name;
     initDistanceAndRelationship(id1, id2, true);
   });
   if (commonAncestorTextResult.count > 2) {
@@ -325,89 +325,88 @@ function commonAncestorText(commonAncestors) {
 
 function doRelationshipText(userID, profileID) {
   getRelationJSON("DistanceAndRelationship_Relationship", userID, profileID).then(function (data) {
-    // console.log(data);
     if (data) {
-      var out = "";
-      var aRelationship = true;
-      let dummy = $("<html></html>");
-      dummy.append($(data.html));
-      if (dummy.find("h1").length) {
-        if (dummy.find("h1").eq(0).text() == "No Relationship Found") {
-          aRelationship = false;
-          console.log("No Relationship Found");
-        }
+      let relationshipText = "";
+      let hasRelationship = true;
+
+      // Parse the returned HTML
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(data.html, "text/html");
+
+      console.log(doc);
+
+      // Check for "No Relationship Found"
+      const h2Element = doc.querySelector("h2");
+      if (h2Element && h2Element.textContent.trim() === "No Relationship Found") {
+        hasRelationship = false;
+        console.log("No Relationship Found");
       }
-      if (dummy.find("h2").length && aRelationship == true) {
-        let oh2 = dummy
-          .find("h2")
-          .eq(0)
-          .text()
-          .replaceAll(/[\t\n]/g, "");
-        out = dummy.find("b").text();
-        const outOuterHTML = dummy.find("b")[0].outerHTML;
-        let secondName = dummy.find("b").parent().html().split(outOuterHTML)[1];
-        let lastLink = dummy.find("#imageContainer > p > span:last-of-type a").attr("href");
-        const userFirstName = dummy.find(`p a[href$='${userID}']`).eq(0).text().split(" ")[0];
-        const profileFirstName = $("h1 span[itemprop='name']").text().split(" ")[0];
-        if (data.commonAncestors.length == 0) {
-          out = dummy.find("b").text();
-          if (secondName.match(profileFirstName) && lastLink.match(profileID) == null) {
-            out = dummy.find("h2").text().replace("(DNA Confirmed)", "").trim();
-          }
-        } else {
-          const profileGender = $("body").find("meta[itemprop='gender']").attr("content");
-          if (oh2.match("is the")) {
-            out = oh2.split("is the ")[1].split(" of")[0];
-          } else if (oh2.match(" are ")) {
-            out = oh2
-              .split("are ")[1]
-              .replace(/cousins/, "cousin")
-              .replace(/siblings/, "sibling");
-          }
-          if (out.match(/nephew|niece/)) {
-            if (out.match(/(nephew|niece) or (nephew|niece)/)) {
-              out = out.replace(/nephew/, "uncle");
-              out = out.replace(/niece/, "aunt");
-            } else {
-              if (profileGender == "male") {
-                out = out.replace(/nephew|niece/, "uncle");
-              } else if (profileGender == "female") {
-                out = out.replace(/nephew|niece/, "aunt");
+
+      if (hasRelationship) {
+        const firstP = doc.querySelector("h3");
+        if (firstP) {
+          let firstPText = firstP.textContent.replace(/[\t\n]/g, "").trim();
+          let boldText = doc.querySelector("b")?.textContent || "";
+          let boldParentHTML = doc.querySelector("b")?.parentElement.innerHTML || "";
+          let lastLink = doc.querySelector("#imageContainer > p > span:last-of-type a")?.href || "";
+
+          const userFirstName = doc.querySelector(`p a[href$='${userID}']`)?.textContent.split(" ")[0] || "";
+          const profileFirstName = profilePerson.FirstName;
+
+          if (data.commonAncestors.length === 0) {
+            relationshipText = boldText;
+            if (boldParentHTML.includes(profileFirstName) && !lastLink.includes(profileID)) {
+              relationshipText = firstPText.replace("(DNA Confirmed)", "").trim();
+            }
+          } else {
+            const profileGender = document.querySelector("meta[itemprop='gender']")?.content || "";
+
+            if (firstPText.includes("is the")) {
+              relationshipText = firstPText.split("is the ")[1].split(" of")[0];
+            } else if (firstPText.includes(" are ")) {
+              relationshipText = firstPText
+                .split("are ")[1]
+                .replace(/cousins/, "cousin")
+                .replace(/siblings/, "sibling");
+            }
+
+            if (/nephew|niece/.test(relationshipText)) {
+              if (/(nephew|niece) or (nephew|niece)/.test(relationshipText)) {
+                relationshipText = relationshipText.replace(/nephew/, "uncle").replace(/niece/, "aunt");
               } else {
-                out = out.replace(/nephew|niece/, "uncle or aunt");
+                relationshipText =
+                  profileGender === "male"
+                    ? relationshipText.replace(/nephew|niece/, "uncle")
+                    : profileGender === "female"
+                    ? relationshipText.replace(/nephew|niece/, "aunt")
+                    : relationshipText.replace(/nephew|niece/, "uncle or aunt");
               }
             }
+
+            if (firstPText.includes(`${userFirstName}'s`)) {
+              relationshipText = firstPText.split(`${userFirstName}'s`)[1].trim();
+            }
           }
+
+          // Convert ordinal words to numbers
+          let relationshipParts = relationshipText.split(" ");
+          relationshipParts[0] = ordinalWordToNumberAndSuffix(relationshipParts[0]);
+          relationshipText = fixOrdinalSuffix(relationshipParts.join(" "));
+          console.log(relationshipText);
+
+          // Insert relationship text
           if (
-            dummy
-              .find("h2")
-              .eq(0)
-              .text()
-              .match(userFirstName + "'s")
+            !document.querySelector("#yourRelationshipText") &&
+            !document.querySelector(".ancestorTextText") &&
+            !document.querySelector("#ancestorListBox")
           ) {
-            out = dummy
-              .find("h2")
-              .eq(0)
-              .text()
-              .split(userFirstName + "'s")[1]
-              .trim();
+            document.querySelector("#yourRelationshipText")?.remove();
+            addRelationshipText(relationshipText, cleanCommonAncestors(data.commonAncestors));
           }
-        }
-        let outSplit = out.split(" ");
-        outSplit[0] = ordinalWordToNumberAndSuffix(outSplit[0]);
-        out = outSplit.join(" ");
-        out = fixOrdinalSuffix(out);
-        console.log(out);
-        if (
-          $("#yourRelationshipText").length == 0 &&
-          $(".ancestorTextText").length == 0 &&
-          $("#ancestorListBox").length == 0
-        ) {
-          $("#yourRelationshipText").remove();
-          addRelationshipText(out, cleanCommonAncestors(data.commonAncestors));
         }
       }
 
+      // Save to the database
       initRelationshipDB((event) => {
         const relationshipFinderDB = event.target.result;
         const obj = {
@@ -415,7 +414,7 @@ function doRelationshipText(userID, profileID) {
           userId: userID,
           id: profileID,
           distance: window.distance,
-          relationship: out,
+          relationship: relationshipText,
           commonAncestors: cleanCommonAncestors(data.commonAncestors),
         };
         addToDBAndClose(relationshipFinderDB, RELATIONSHIP_STORE_NAME, obj);
@@ -425,12 +424,12 @@ function doRelationshipText(userID, profileID) {
 }
 
 async function addDistance(data) {
-  const profileID = $("a.pureCssMenui0 span.person").text();
+  const profileID = profilePerson.Name;
   const userID = getUserWtId();
 
   if ($("#degreesFromYou").length == 0) {
     window.distance = data.path.length - 1;
-    const profileName = $("h1").first().find("span[itemprop='name']").text();
+    const profileName = profilePerson.FirstName;
     if (window.distance > 0 && $("#degreesFromYou").length == 0) {
       $("h1")
         .first()
@@ -514,7 +513,7 @@ function checkProfileCreationTime(wtId) {
 }
 
 async function getDistance() {
-  const id2 = $("a.pureCssMenui0 span.person").text();
+  const id2 = profileID;
   const id1 = getUserWtId();
   const data = await getConnectionJSON("DistanceAndRelationship_Distance", id1, id2);
   addDistance(data);

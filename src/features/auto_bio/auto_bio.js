@@ -20,6 +20,7 @@ import { Biography } from "../bioCheck/Biography.js";
 import { initBioCheck } from "../bioCheck/bioCheck.js";
 import { bioTimelineFacts, buildTimelineTable, buildTimelineSA } from "./timeline";
 import { mainDomain, isIansProfile } from "../../core/pageType";
+import { profilePerson } from "../../core/common";
 import ONSjson from "./ONS.json";
 
 const irishCounties = [
@@ -6688,7 +6689,7 @@ export function addLoginButton() {
             e.preventDefault();
             window.location =
               "https://api.wikitree.com/api.php?action=clientLogin&appId=WBE_auto_bio&returnURL=" +
-              encodeURI("https://" + mainDomain + "/wiki/" + $("a.pureCssMenui0 span.person").text());
+              encodeURI(window.location.href);
           });
         }
       }
@@ -7995,14 +7996,19 @@ export async function generateBio() {
     window.sectionsObject = splitBioIntoSections();
 
     window.usedPlaces = [];
-    let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
+    let profileID = profilePerson.Name;
     window.profileID = profileID;
-    window.biographyPeople = await getProfile(
+    window.profilePerson = await getProfile(
       profileID,
-      "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix,BirthDate,DeathDate,BirthLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren,NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings",
+      "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix,BirthDate,DeathDate,BirthLocation,DeathLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren,NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings",
       "AutoBio"
     );
-    window.profilePerson = window.biographyPeople;
+    if (!window.profilePerson?.DeathLocation) {
+      window.profilePerson.DeathLocation = "";
+    }
+
+    // log now
+    console.log("profile person now", logNow(window.profilePerson));
 
     const originalFormData = getFormData();
 

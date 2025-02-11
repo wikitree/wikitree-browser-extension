@@ -12,6 +12,71 @@ import { checkIfFeatureEnabled } from "./options/options_storage";
 /* * * * * * * * * * * * * * * * * * * *
  * Initialization. This section of code should run first.
  */
+
+// Function to get profile person ID and name
+export function getProfilePersonInfo() {
+  const person = {};
+  const pageData = $("#pageData").data();
+  if (!pageData) {
+    return null;
+  }
+  if (window.location.href.includes("/Space:")) {
+    // For space pages, the profile person is the space page itself
+    person.Name = window.location.href.split("/wiki/")[1].split("#")[0];
+    return person;
+  }
+  person.Name = pageData.mnamedb;
+  // Clone h1, remove all children and trim the text.
+  const $h1 = $("h1").clone();
+  $h1.children().remove();
+  person.FullName = $h1.text().trim();
+  person.Id = pageData.mid;
+  person.LastNameAtBirth = pageData.mlastnameatbirth;
+  person.FirstName = pageData.mfirstname;
+  person.Gender = pageData.mgender;
+  person.Dates = $("h1 small.lifespan").text().trim();
+  // Lifespan is like this: (bef. 1890 - aft. 1936) (for example)
+  // Parse this to get the birth and death years and status
+  // Split the lifespan into parts based on the dash.
+  const lifespanParts = person.Dates.split(" - ");
+  const extractYear = (dateString) => {
+    // Extract the year from the date string
+    const yearMatch = dateString.match(/\d{4}/);
+    return yearMatch ? parseInt(yearMatch[0]) : null;
+  };
+  if (lifespanParts.length === 2) {
+    // Extract the birth and death years
+    person.BirthYear = extractYear(lifespanParts[0]);
+    person.DeathYear = extractYear(lifespanParts[1]);
+  }
+
+  const extractStatus = (dateString) => {
+    if (!dateString) {
+      return null;
+    }
+    // Look for status keywords in the date string
+    if (dateString.includes("bef.")) {
+      return "bef.";
+    } else if (dateString.includes("aft.")) {
+      return "aft.";
+    } else if (dateString.includes("abt.")) {
+      return "abt.";
+    } else {
+      return null;
+    }
+  };
+  // Get birth and death status (bef., aft., abt.)
+  person.BirthStatus = extractStatus(lifespanParts[0]);
+  person.DeathStatus = extractStatus(lifespanParts[1]);
+
+  if (!person.Id || !person.Name) {
+    return null;
+  }
+  return person;
+}
+
+export const profilePerson = getProfilePersonInfo();
+
 export const WBE = {};
 if (typeof BUILD_INFO !== "undefined") {
   let buildDate = Date.parse(BUILD_INFO.buildDate);
@@ -270,30 +335,15 @@ export function createTopMenuItem(options) {
 
 // Add a link to the short list of links below the tabs
 export function createProfileSubmenuLink(options) {
-  $("ul.views.viewsm")
+  $("#jump-nav")
     .eq(0)
-    .append(
-      $(
-        `<li class='viewsi'><a title='${options.title}' href='${options.url}' id='${options.id}'>${options.text}</a></li>`
-      )
-    );
-  let links = $("ul.views.viewsm:first li");
+    .append($(`<li><a title='${options.title}' href='${options.url}' id='${options.id}'>${options.text}</a></li>`));
+  let links = $("#jump-nav li");
   // Re-sort the links into alphabetical order
   links.sort(function (a, b) {
     return $(a).text().localeCompare($(b).text());
   });
-  $("ul.views.viewsm").eq(0).append(links);
-}
-
-export function createTopMenu() {
-  const newUL = $("<ul class='pureCssMenu' id='wte-topMenuUL'></ul>");
-  $("ul.pureCssMenu").eq(0).after(newUL);
-  newUL.append(`<li>
-        <a class="pureCssMenui0">
-            <span>App Features</span>
-        </a>
-        <ul class="pureCssMenum" id="wte-topMenu"></ul>
-    </li>`);
+  $("#jump-nav").eq(0).append(links);
 }
 
 // Used in familyTimeline, familyGroup, locationsHelper
@@ -439,8 +489,7 @@ export function displayName(fPerson) {
               fName3 += "(" + fPerson["LastNameAtBirth"] + ") ";
             }
           } else if (dCheck == "RealName") {
-            if (typeof fPerson["FirstName"] != "undefined") {
-            } else {
+            if (typeof fPerson["FirstName"] == "undefined") {
               fName3 += fPerson["RealName"] + " ";
             }
           } else {
@@ -563,6 +612,64 @@ export async function showDraftList() {
       }
     });
   }
+
+  /*
+
+  TRY THIS (but update the pureCssMenui0 bit)
+
+  async function processPersonDrafts(drafts) {
+    let draftCalls = 0;
+    const tempDraftArr = [];
+
+    for (const [index, draft] of drafts.entries()) {
+        const theWTID = draft[0];
+        if (!isOK(theWTID)) {
+            delete drafts[index];
+            draftCalls++;
+        } else {
+            try {
+                const res = await getWikiTreePage("Drafts", "/index.php", `title=${theWTID}&displayDraft=1`);
+                draftCalls++;
+
+                // Parse response using DOMParser
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(res, "text/html");
+
+                let aWTID = doc.querySelector("a.pureCssMenui0 span.person")?.textContent.trim() || "";
+
+                // Remove ' User' suffix if present
+                if (aWTID.endsWith(" User")) {
+                    aWTID = aWTID.slice(0, -" User".length);
+                }
+
+                if (doc.querySelector("div.status")?.textContent.includes("You have an uncommitted")) {
+                    tempDraftArr.push(aWTID);
+                    const useLinkElement = [...doc.querySelectorAll("a")].find(a => a.textContent.includes("Use the Draft"));
+
+                    if (useLinkElement) {
+                        const useLink = useLinkElement.getAttribute("href");
+                        const personID = useLink.match(/&u=(\d+)/)?.[1] || "";
+                        const draftID = useLink.match(/&ud=(\d+)/)?.[1] || "";
+
+                        drafts.forEach(yDraft => {
+                            if (yDraft[0] === aWTID) {
+                                yDraft[3] = personID;
+                                yDraft[4] = draftID;
+                            }
+                        });
+                    }
+                }
+
+                if (draftCalls === drafts.length) {
+                    updateDraftTable(drafts, tempDraftArr);
+                }
+            } catch (error) {
+                console.error("Error processing draft:", error);
+            }
+        }
+    }
+}
+    */
 
   function updateDraftTable(drafts, tempDraftArr) {
     const newDraftArr = drafts.filter((aDraft) => tempDraftArr.includes(aDraft[0]) && isOK(aDraft[0]));
@@ -707,7 +814,7 @@ $(document).on("click", "#deleteSpaceDraftsForPage", function () {
 
 // Used in saveDraftList (above)
 export async function updateDraftList() {
-  const profileWTID = $("a.pureCssMenui0 span.person").text();
+  const profileWTID = profilePerson.Name;
   let addDraft = false;
   let timeNow = Date.now();
   let lastWeek = timeNow - 604800000;

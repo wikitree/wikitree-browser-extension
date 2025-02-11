@@ -24,6 +24,7 @@
   "dependencies": {
     "assert": "^2.1.0",
     "axios": "^1.4.0",
+    "bootstrap": "^5.3.3",
     "cookiejs": "^2.1.2",
     "datatables.net-dt": "^1.13.5",
     "date-fns": "^2.30.0",

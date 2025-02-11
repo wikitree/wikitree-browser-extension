@@ -12,14 +12,13 @@ import { getUserWtId } from "../../core/common";
 import "./change_family_lists.css";
 // import { mainDomain } from "../../core/pageType";
 import { initRelationshipDB, RELATIONSHIP_STORE_NAME } from "../distanceAndRelationship/distanceAndRelationship.js";
-import { getProfilePersonInfo } from "../sort_theme_people/sort_theme_people.js";
+import { profilePerson } from "../../core/common";
 
 // temp
 const mainDomain = "dev-2025.wikitree.com";
 
 let options;
 const user = getUserWtId();
-const profilePersonInfo = getProfilePersonInfo();
 window.people = null;
 let FAMILY_VITALS;
 let profileApproxBirthDate;
@@ -37,7 +36,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
     await prepareFamilyLists();
     if (options.moveToRight) {
-      moveFamilyLists(true);
+      moveFamilyLists();
     }
     if (options.showSidebarHeading) {
       $("html").addClass("x-cfl-show-heading");
@@ -139,7 +138,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
 
     window.onresize = function () {
       if ($("body.profile").length && window.location.href.match("Space:") == null) {
-        moveFamilyLists(true);
+        moveFamilyLists();
       }
     };
 
@@ -169,7 +168,7 @@ async function addAddLinksToHeadings() {
   $("p.VITALS:contains([sibling(s) unknown])").attr("id", "siblingsUnknownHeading");
   $("p.VITALS:contains([spouse(s) unknown])").attr("id", "spousesUnknownHeading");
 
-  const linkBase = `https://${mainDomain}.wikitree.com/index.php?title=Special:EditFamily&u=${profilePersonInfo.Id}`;
+  const linkBase = `https://${mainDomain}.wikitree.com/index.php?title=Special:EditFamily&u=${profilePerson.Id}`;
   const headings = [
     ["#siblingsHeader", "sibling"],
     ["#siblingsUnknownHeading", "sibling"],
@@ -279,7 +278,7 @@ async function prepareFamilyLists() {
 }
 
 async function getWindowPeople() {
-  const id = profilePersonInfo.Name;
+  const id = profilePerson.Name;
   const aResult = await getRelatives(
     [id],
     {
@@ -304,7 +303,7 @@ async function getWindowPeople() {
 }
 
 async function getFamilyPeople(args) {
-  const keys = args?.keys || profilePersonInfo.Id;
+  const keys = args?.keys || profilePerson.Id;
   const fields = args?.fields || "*";
   const result = await postToAPI({
     action: "getPeople",
@@ -337,60 +336,30 @@ function postToAPI(postData) {
   return ajax;
 }
 
-async function moveFamilyLists(firstTime = false) {
-  const rightHandColumn = $("div.six").eq(0).prop("id", "rightColumn");
+async function moveFamilyLists() {
   const familyLists = $("#nVitals");
 
-  if (firstTime == false) {
-    let right;
-    if (window.innerWidth < 767 || rightHandColumn.find(familyLists).length) {
-      familyLists.fadeOut("slow", function () {
-        familyLists.removeClass("row");
-        familyLists.insertAfter($("#birthDetails, #profileName").last());
-        familyLists.fadeIn("slow");
-      });
-      right = false;
-    } else {
-      familyLists.fadeOut("slow", function () {
-        familyLists.addClass("row");
-        if ($("a[href='/wiki/Project_protection']").length) {
-          familyLists.insertBefore($("a[href='/wiki/Project_protection']").closest("div"));
-        } else if ($("#geneticfamily").length) {
-          let $before = $("#geneticfamily");
-          if ($before.prev().is('a[name="DNA"]')) {
-            $before = $before.prev();
-          }
-          familyLists.insertBefore($before);
-        } else {
-          rightHandColumn.prepend(familyLists);
-        }
-        familyLists.fadeIn("slow");
-      });
-      right = true;
-    }
-    getFeatureOptions("changeFamilyLists").then((optionsData) => {
-      optionsData.moveToRight = options.moveToRight = right;
-      const storageName = "changeFamilyLists_options";
-      chrome.storage.sync.set({
-        [storageName]: optionsData,
-      });
-    });
-  } else {
-    if (window.innerWidth < 992) {
-      familyLists.removeClass("row").insertAfter($("#birthDetails, #profileName").last());
-    } else if (options.moveToRight) {
-      familyLists.addClass("row");
-      if ($("div.six a[href='/wiki/Project_protection']").length) {
-        familyLists.insertAfter($("div.six a[href='/wiki/Project_protection']").closest("div"));
-      } else if ($("#geneticfamily").length) {
-        let $before = $("#geneticfamily");
-        if ($before.prev().is('a[name="DNA"]')) {
-          $before = $before.prev();
-        }
-        familyLists.insertBefore($before);
-      } else {
-        rightHandColumn.prepend(familyLists);
+  if (window.innerWidth < 992) {
+    familyLists.removeClass("row").insertAfter($("#birthDetails, #profileName").last());
+  } else if (options.moveToRight) {
+    familyLists.addClass("row");
+
+    let $before;
+    if (options.familyListPosition == "before") {
+      $before = $("#Photos");
+      if (!$before.length) {
+        $before = $("#geneticfamily");
       }
+    } else {
+      $before = $("#geneticfamily");
+    }
+    if (!$before.length) {
+      $before = $("#DNA");
+    }
+    if ($before.length) {
+      familyLists.insertBefore($before);
+    } else {
+      familyLists.insertBefore($("div.col-lg-4 aside"));
     }
   }
 }
@@ -502,7 +471,7 @@ async function getAncestorsOnPage() {
     })
     .get();
   // Add the profile person
-  peopleOnPage.push(profilePersonInfo.FullName);
+  peopleOnPage.push(profilePerson.FullName);
 
   const ancestorsOnPage = peopleOnPage.filter((person) => {
     const personWithUnderscores = person.replace(/ /g, "_");
@@ -513,9 +482,9 @@ async function getAncestorsOnPage() {
   // Highlight ancestors on the page
   ancestorsOnPage.forEach((ancestor) => {
     const element = $(
-      `p.VITALS a[href$="/wiki/${ancestor.replace(/ /g, "_")}"], 
-       p.VITALS a[data-wtid="${ancestor.replace(/ /g, "_")}"], 
-       p.VITALS a[href$="/wiki/${ancestor.replace(/_/g, " ")}"], 
+      `p.VITALS a[href$="/wiki/${ancestor.replace(/ /g, "_")}"],
+       p.VITALS a[data-wtid="${ancestor.replace(/ /g, "_")}"],
+       p.VITALS a[href$="/wiki/${ancestor.replace(/_/g, " ")}"],
        p.VITALS a[data-wtid="${ancestor.replace(/_/g, " ")}"]`
     );
     if (element.length && element.data("status") != 5) {
@@ -523,7 +492,7 @@ async function getAncestorsOnPage() {
     }
   });
 
-  if (ancestorsOnPage.includes(profilePersonInfo.Name)) {
+  if (ancestorsOnPage.includes(profilePerson.Name)) {
     // Add ancestor labels for the parents of the profile person
     // a[arial-label="Father"], a[aria-label="Mother"]
     const fatherElement = $(`p.VITALS a[aria-label="Father"]`);
@@ -540,7 +509,7 @@ async function getAncestorsOnPage() {
       // Fetch this, then find the a in the 2nd td of the third tr of the table (of the results)
       // This will be an ancestor of the user.
 
-      const connectionName = await getAncestorConnection(profilePersonInfo.Name, user);
+      const connectionName = await getAncestorConnection(profilePerson.Name, user);
 
       if (connectionName) {
         const connectionElement = $(
@@ -699,7 +668,7 @@ function formatSpouses() {
     vitalsP.prepend(spouseButton);
 
     const editButton = $(
-      `<span class="EDIT" data-bs-toggle="tooltip" data-bs-title="Add/Edit Spouses"><a href="/index.php?title=Special:EditFamily&amp;u=${profilePersonInfo.Id}&amp;who=spouse">add/edit spouses</a></span>`
+      `<span class="EDIT" data-bs-toggle="tooltip" data-bs-title="Add/Edit Spouses"><a href="/index.php?title=Special:EditFamily&amp;u=${profilePerson.Id}&amp;who=spouse">add/edit spouses</a></span>`
     );
     vitalsP.append(editButton);
   }
@@ -714,7 +683,7 @@ function formatSpouses() {
 
 function reallyMakeFamLists() {
   if ($("body.profile").length && $("body[class*=page-Space_]").length == 0) {
-    const profileWTID = profilePersonInfo.Name;
+    const profileWTID = profilePerson.Name;
     //  console.log("Profile WTID:", profileWTID);
     loadRelatives(profileWTID, () => {
       const profilePerson = findPerson(profileWTID);
@@ -1841,7 +1810,7 @@ function insertInSibList() {
 
   //console.log(window.people);
 
-  const pPerson = window.people.find((p) => p.Id == profilePersonInfo.Id); // Find profile person in data
+  const pPerson = window.people.find((p) => p.Id == profilePerson.Id); // Find profile person in data
   if (!pPerson) return;
 
   // Extract birth year from JSON data
@@ -2162,7 +2131,7 @@ function amaTimer() {
         marriageDetails.html(function (index, html) {
           return html.replace(
             "married",
-            `<a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePersonInfo.Id}&who=editspouse&s=${spouseEntry[0]}" target="_blank" title="Right click to edit marriage" class="clickable" id="${marriageId}">married</a>`
+            `<a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=editspouse&s=${spouseEntry[0]}" target="_blank" title="Right click to edit marriage" class="clickable" id="${marriageId}">married</a>`
           );
         });
 
@@ -2450,7 +2419,7 @@ function addParentStatus() {
 
 function addDNAstatusToChildren() {
   // Find the name from the element
-  const nameToFind = $("a.pureCssMenui0 span.person").text();
+  const nameToFind = profilePerson.Name;
 
   // Find the person whose Name matches
   const parentPerson = window.people?.find((person) => person.Name === nameToFind);

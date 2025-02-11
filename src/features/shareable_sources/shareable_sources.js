@@ -7,9 +7,10 @@ import { displayName } from "../../core/common.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isProfileEdit, isProfileAddRelative } from "../../core/pageType";
 import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
+import { profilePerson } from "../../core/common";
 
 let enhanced = false;
-let theID = $("a.pureCssMenui0 span.person").text(); // Get profile ID
+let theID = profilePerson.Name; // Get profile ID
 
 const fields = // Fields to fetch
   "Name,FirstName,Gender,LastNameAtBirth,LastNameCurrent,Bio,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,DataStatus,Id";

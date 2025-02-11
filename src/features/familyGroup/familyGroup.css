@@ -64,6 +64,11 @@
   border-left: 5px pink solid !important;
 }
 
-.familySheet thead tr{
-  border:2px solid forestgreen;
+.familySheet thead tr {
+  border: 2px solid forestgreen;
+}
+
+.familySheet th,
+.familySheet td {
+  padding: 0.2em;
 }

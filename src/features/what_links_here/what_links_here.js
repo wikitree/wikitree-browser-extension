@@ -7,11 +7,12 @@ import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { getPeople } from "../dna_table/dna_table";
 import { getWikiTreePage } from "../../core/API/wwwWikiTree";
+import { profilePerson } from "../../core/common";
 import { mainDomain, isWikiPage, isProfilePage, isSpacePage, isMediaWikiPage } from "../../core/pageType";
 
 shouldInitializeFeature("whatLinksHere").then((result) => {
   if (result && $("a.whatLinksHere").length == 0) {
-    const profileWTID = $("a.pureCssMenui0 span.person").text();
+    const profileWTID = profilePerson.Name;
     window.profileWTID = profileWTID;
     import("../../core/toggleCheckbox.css");
     import("./what_links_here.css");

@@ -6,6 +6,7 @@ import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain, isG2G } from "../../core/pageType";
 import { getUserWtId } from "../../core/common";
+import { profilePerson } from "../../core/common";
 
 const categories = [
   "Australia",
@@ -147,7 +148,7 @@ function attachMenu(anchorHref, submenuId, menuItems) {
 
 function getAppsMenuItems() {
   const userName = getUserWtId();
-  const profileID = $("a.pureCssMenui0 span.person").text();
+  const profileID = profilePerson.Name;
   return [
     { title: "Tree Apps", url: "https://www.wikitree.com/wiki/Help:Tree_Apps" },
     { title: "Ancestor Explorer", url: "https://apps.wikitree.com/apps/ashley1950/ancestorexplorer" },
@@ -193,7 +194,7 @@ function getMenuItems(baseUrl, items) {
 }
 
 function getTreeAppsMenuItems() {
-  const theId = $("a.pureCssMenui0 span.person").text() || getUserWtId() || "";
+  const theId = profilePerson.Name;
   return treeApps.map((item) => {
     const formattedTitle = item.text;
     // https://www.wikitree.com/apps/Kubičík-26#name=Kubičík-26&view=couples

@@ -678,7 +678,7 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
         enhanceThonStats();
       }
 
-      if (options.biggerCheckboxesAndRadios) {
+      if (options.biggerCheckboxesAndRadios && !isPlusDomain) {
         // Add style to the head:
         const style = document.createElement("style");
         style.innerHTML = `

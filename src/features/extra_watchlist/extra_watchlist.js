@@ -10,7 +10,7 @@ import "./extra_watchlist.css";
 import { isOK, htmlEntities, getUserWtId, getUserNumId } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { getProfilePersonInfo } from "../sort_theme_people/sort_theme_people";
+import { profilePerson } from "../../core/common";
 
 shouldInitializeFeature("extraWatchlist").then((result) => {
   if (
@@ -34,7 +34,7 @@ function getThisID() {
   if (spaceMatch != null) {
     thisID = spaceMatch[0];
   } else {
-    thisID = getProfilePersonInfo().Name;
+    thisID = profilePerson.Name;
   }
   return thisID;
 }

@@ -4,6 +4,7 @@ import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
 import { getPeople } from "../dna_table/dna_table";
 import { showCopyMessage } from "../access_keys/access_keys";
 import "../../core/common.css";
+import { profilePerson } from "../../core/common";
 import {
   getFormData,
   addLoginButton,
@@ -27,7 +28,7 @@ import { isOK, familyArray } from "../../core/common";
 async function getFamily() {
   let profileID;
   if (!window.profileID) {
-    profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
+    profileID = profilePerson.Name;
     window.profileID = profileID;
   }
   if (!window.profilePerson) {
