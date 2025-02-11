@@ -8,7 +8,7 @@ import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
 import { mainDomain, isNavHomePage, isMainDomain } from "./pageType.js";
 import { checkIfFeatureEnabled } from "./options/options_storage";
-import { profilePerson } from "./sort_theme_people/sort_theme_people";
+import { profilePerson } from "../features/sort_theme_people/sort_theme_people";
 
 /* * * * * * * * * * * * * * * * * * * *
  * Initialization. This section of code should run first.
