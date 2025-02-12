@@ -5,6 +5,7 @@ Created By: Ian Beacall (Beacall-6)
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 import { isProfileEdit } from "../../core/pageType";
 
+/*
 registerFeature({
   name: "Family Status Sync",
   id: "familyStatusSync",
@@ -16,3 +17,4 @@ registerFeature({
   defaultValue: false,
   pages: [isProfileEdit],
 });
+*/
