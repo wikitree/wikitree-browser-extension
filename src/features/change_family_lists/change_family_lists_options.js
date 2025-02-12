@@ -32,15 +32,19 @@ const changeFamilyLists = {
       label: "Position in right-hand column",
       values: [
         {
-          value: "before",
-          text: "Before",
+          value: "beforeManager",
+          text: "Before Manager",
         },
         {
-          value: "after",
-          text: "After the photos",
+          value: "beforePhotos",
+          text: "Before Photos",
+        },
+        {
+          value: "afterPhotos",
+          text: "After photos",
         },
       ],
-      defaultValue: "before",
+      defaultValue: "beforePhotos",
     },
     {
       id: "showSidebarHeading",

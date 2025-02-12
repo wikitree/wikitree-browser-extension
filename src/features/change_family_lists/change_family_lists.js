@@ -345,11 +345,13 @@ async function moveFamilyLists() {
     familyLists.addClass("row");
 
     let $before;
-    if (options.familyListPosition == "before") {
+    if (options.familyListPosition == "beforePhotos") {
       $before = $("#Photos");
       if (!$before.length) {
         $before = $("#geneticfamily");
       }
+    } else if (options.familyListPosition == "beforeManager") {
+      $before = $("div.col-lg-4 aside.footnote");
     } else {
       $before = $("#geneticfamily");
     }
@@ -359,7 +361,7 @@ async function moveFamilyLists() {
     if ($before.length) {
       familyLists.insertBefore($before);
     } else {
-      familyLists.insertBefore($("div.col-lg-4 aside"));
+      familyLists.insertBefore($("div.col-lg-4 aside").not(".footnote"));
     }
   }
 }
