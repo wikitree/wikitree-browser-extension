@@ -104,20 +104,27 @@ async function bioCheckSetup() {
 
     let saveButton = null;
     if (document.getElementById("mSources")) {
-      if ((document.body.classList.contains("edit_relation")) ||
-          (document.body.classList.contains("add_unrelated"))) {
+      if (document.body.classList.contains("add_unrelated")) {
         saveButton = document.getElementById('addNewPersonButton');
+        if (saveButton) {
+          saveButton.addEventListener("mouseover", checkSourcesAtInterval);
+          saveButton.addEventListener("touchstart", checkSourcesAtInterval);
+          setInterval(checkSourcesAtInterval, 30000);
+          checkSources();
+        }
       }
-      if (saveButton) {
-
-        let continueButton= document.getElementById('actionButton');
-        if (continueButton) {
-          continueButton.onclick = function () {
-            saveButton.addEventListener("mouseover", checkSourcesAtInterval);
-            saveButton.addEventListener("touchstart", checkSourcesAtInterval);
-            setInterval(checkSourcesAtInterval, 30000);
-            checkSources();
-          };
+      if (document.body.classList.contains("edit_relation")) {
+        saveButton = document.getElementById('addNewPersonButton');
+        if (saveButton) {
+          let continueButton= document.getElementById('actionButton');
+          if (continueButton) {
+            continueButton.onclick = function () {
+              saveButton.addEventListener("mouseover", checkSourcesAtInterval);
+              saveButton.addEventListener("touchstart", checkSourcesAtInterval);
+              setInterval(checkSourcesAtInterval, 30000);
+              checkSources();
+            };
+          }
         }
       }
     } else {
@@ -297,15 +304,20 @@ function reportResults(biography, isPre1700, bioStatus) {
 function checkSources() {
 
   // Don't check if just connecting existing profile
+  let connectExisting = false;
 
   // just in case we have been here before, gone back, and changed setting
   let bioCheckSourcesContainer = document.getElementById("bioCheckSourcesContainer");
-
-  if (document.getElementById('editAction_connectExisting').checked) {
-    if (bioCheckSourcesContainer) {
-      bioCheckSourcesContainer.setAttribute('style', 'display:none');
+  let e = document.getElementById('editAction_connectExisting');
+  if (e) {
+    if (document.getElementById('editAction_connectExisting').checked) {
+      connectExisting = true;
+      if (bioCheckSourcesContainer) {
+        bioCheckSourcesContainer.setAttribute('style', 'display:none');
+      }
     }
-  } else {
+  }
+  if (!connectExisting) {
     if (bioCheckSourcesContainer) {
       bioCheckSourcesContainer.setAttribute('style', 'display');
     }
