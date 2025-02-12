@@ -4,7 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 import { isProfileEdit, isSpaceEdit } from "../../core/pageType";
-
+/*
 registerFeature({
   name: "Save Buttons Style Options",
   id: "saveButtonsStyleOptions",
@@ -28,3 +28,4 @@ registerFeature({
     },
   ],
 });
+*/

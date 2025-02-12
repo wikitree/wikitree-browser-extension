@@ -11,7 +11,7 @@
   white-space: pre-wrap;
 }
 
-body.page-Special_EditPerson .referenceBox {
+body.edit-person .referenceBox {
   width: 30em;
   z-index: 9000;
   background: white;
@@ -66,7 +66,7 @@ button.seeBiography {
   font-size: 0.7em;
   position: absolute !important;
   padding: 5px;
-  top: 0;
+  top: 3em;
   left: 0;
 }
 

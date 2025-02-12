@@ -5,8 +5,7 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain, isG2G } from "../../core/pageType";
-import { getUserWtId } from "../../core/common";
-import { profilePerson } from "../../core/common";
+import { getUserWtId, getProfilePersonInfo } from "../../core/common";
 
 const categories = [
   "Australia",
@@ -94,8 +93,11 @@ const treeApps = [
   { text: "WT+ Maps", id: "wtPlusMaps" },
   { text: "X Family Tree", id: "xtree" },
 ];
-
+let profilePerson;
 shouldInitializeFeature("appsMenu").then((result) => {
+  profilePerson = getProfilePersonInfo();
+  console.log("userWtId", getUserWtId());
+  console.log("profilePerson", profilePerson);
   if (result && $("#appsSubMenu").length === 0) {
     if (isG2G) {
       attachMenu("Help:Projects", "projectsSubMenu", getMenuItems("/wiki/Project:", projects));
@@ -148,7 +150,7 @@ function attachMenu(anchorHref, submenuId, menuItems) {
 
 function getAppsMenuItems() {
   const userName = getUserWtId();
-  const profileID = profilePerson.Name;
+  const profileID = profilePerson?.Name;
   return [
     { title: "Tree Apps", url: "https://www.wikitree.com/wiki/Help:Tree_Apps" },
     { title: "Ancestor Explorer", url: "https://apps.wikitree.com/apps/ashley1950/ancestorexplorer" },
@@ -194,7 +196,7 @@ function getMenuItems(baseUrl, items) {
 }
 
 function getTreeAppsMenuItems() {
-  const theId = profilePerson.Name;
+  const theId = profilePerson?.Name;
   return treeApps.map((item) => {
     const formattedTitle = item.text;
     // https://www.wikitree.com/apps/Kubičík-26#name=Kubičík-26&view=couples

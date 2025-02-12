@@ -9,7 +9,7 @@ import { shouldInitializeFeature } from "../../core/options/options_storage";
 shouldInitializeFeature("stickyToolbar").then((result) => {
   if (
     result &&
-    ($("body.page-Special_EditPerson").length ||
+    ($("body.edit-person").length ||
       (window.location.href.match(/Project:|Category:|Space:/) && $("#toolbar").length))
   ) {
     $("body").addClass("stickyToolbar");

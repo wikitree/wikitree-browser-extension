@@ -7,10 +7,9 @@ import Cookies from "js-cookie";
 import "jquery-ui/ui/widgets/draggable";
 import "../../thirdparty/date.format.js";
 import "./extra_watchlist.css";
-import { isOK, htmlEntities, getUserWtId, getUserNumId } from "../../core/common";
+import { isOK, htmlEntities, getUserWtId, getUserNumId, profilePerson } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { profilePerson } from "../../core/common";
 
 shouldInitializeFeature("extraWatchlist").then((result) => {
   if (

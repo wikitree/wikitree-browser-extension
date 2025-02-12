@@ -41,6 +41,7 @@
 .ui-dialog .ui-dialog-buttonpane {
   background-color: #f0f0f0 !important; /* Light gray background color for button pane */
   border-top: 1px solid #ccc !important; /* Light gray top border */
+  font-size: 0.9em !important; /* Button font size */
 }
 
 .ui-dialog .ui-dialog-buttonpane .ui-button {

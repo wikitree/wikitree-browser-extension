@@ -1,7 +1,5 @@
 document?.documentElement?.removeAttribute("data-wbe-conflict");
 
-//import { createTopMenu } from "./core/common";
-
 import "./features/register_feature_options";
 
 // First are loaded modules that change the wikitree appearence by altering css style
@@ -67,7 +65,7 @@ import "./features/locationsHelper/locationsHelper";
 import "./features/make_radio_buttons_deselectable/make_radio_buttons_deselectable";
 import "./features/migration_category_helper/migration_category_helper";
 import "./features/remove_from_watchlist/remove_from_watchlist";
-import "./features/save_buttons_style_options/save_buttons_style_options";
+//import "./features/save_buttons_style_options/save_buttons_style_options"; // Disabled for now
 import "./features/show_edits/show_edits";
 import "./features/space_drafts/space_drafts";
 import "./features/sticky_toolbar/sticky_toolbar";
@@ -98,7 +96,7 @@ import "./features/what_links_here/what_links_here";
 /* MARKER: Default place for new features. Move these to a more appropriate place.*/
 import "./features/links_to_new_tabs/links_to_new_tabs";
 
-import "./features/family_status_sync/family_status_sync";
+//import "./features/family_status_sync/family_status_sync"; // Disabled for now
 
 import "./features/space_watchlist_sorter/space_watchlist_sorter";
 

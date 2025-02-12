@@ -4,7 +4,7 @@
  */
 
 import $ from "jquery";
-import { displayName, getUserNumId } from "../../core/common.js";
+import { displayName, getUserNumId, profilePerson, getProfilePersonInfo } from "../../core/common";
 import "jquery-ui/ui/widgets/draggable";
 import { displayDates } from "../verifyID/verifyID";
 import { getRelatives, getPerson } from "wikitree-js";
@@ -12,23 +12,22 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import "./family_dropdown_pre.css";
 import { isProfileEdit } from "../../core/pageType";
 import { showCopyMessage } from "../access_keys/access_keys.js";
-import { profilePerson } from "../../core/common";
 import "../../core/common.css";
 
 /**
  * Check if familyDropdown feature is enabled.
  * If so, import CSS and initialize.
  */
+let theID;
 shouldInitializeFeature("familyDropdown").then((result) => {
   if (result) {
+    theID = profilePerson.Name;
     import("./family_dropdown.css");
     if ($("#peopleBox").length === 0) {
       initFamilyDropdown();
     }
   }
 });
-
-let theID = profilePerson.Name; // Get profile ID
 
 /** @type {Object} Main profile person object */
 window.profilePersonNuclear;
