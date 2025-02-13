@@ -284,10 +284,13 @@ function addRelationshipText(oText, commonAncestors) {
     initDistanceAndRelationship(id1, id2, true);
   });
   if (commonAncestorTextResult.count > 2) {
-    $("#yourRelationshipText").append($("<button class='small' id='showMoreAncestors'>More</button>"));
+    $("#yourRelationshipText").append($("<button class='btn btn-pill-sm' id='showMoreAncestors'>More</button>"));
     $("#showMoreAncestors").on("click", function (e) {
       e.preventDefault();
       e.stopPropagation();
+      $(this).text(function (_, text) {
+        return text === "More" ? "Less" : "More";
+      });
       $("#yourCommonAncestor li:nth-child(n+3)").toggle();
     });
   }
@@ -306,12 +309,12 @@ function commonAncestorText(commonAncestors) {
   }
   let ancestorsAdded = [];
   commonAncestors.forEach(function (commonAncestor) {
-    const myAncestorType = ancestorType(commonAncestor.path1Length - 1, commonAncestor.ancestor.mGender).toLowerCase();
+    const myAncestorType = ancestorType(commonAncestor.path1Length - 1, commonAncestor.ancestor.mGender)?.toLowerCase();
     const thisAncestorType = ancestorType(
       commonAncestor.path2Length - 1,
       commonAncestor.ancestor.mGender
     )?.toLowerCase();
-    if (thisAncestorType && !ancestorsAdded.includes(commonAncestor.ancestor.mName)) {
+    if (myAncestorType && thisAncestorType && !ancestorsAdded.includes(commonAncestor.ancestor.mName)) {
       ancestorTextOut += `<li>Your ${myAncestorType},
       <a href="https://${mainDomain}/wiki/${commonAncestor.ancestor.mName}">${commonAncestor.ancestor.mDerived.LongNameWithDates}</a>,
       is ${possessiveAdj} ${thisAncestorType}.</li>`;
@@ -345,18 +348,18 @@ function doRelationshipText(userID, profileID) {
       if (hasRelationship) {
         const firstP = doc.querySelector("h3");
         if (firstP) {
-          let firstPText = firstP.textContent.replace(/[\t\n]/g, "").trim();
-          let boldText = doc.querySelector("b")?.textContent || "";
-          let boldParentHTML = doc.querySelector("b")?.parentElement.innerHTML || "";
-          let lastLink = doc.querySelector("#imageContainer > p > span:last-of-type a")?.href || "";
-
-          const userFirstName = doc.querySelector(`p a[href$='${userID}']`)?.textContent.split(" ")[0] || "";
+          const firstPText = firstP.textContent.replace(/[\t\n]/g, " ").trim();
+          const lastLink = decodeURIComponent(
+            doc.querySelector("#imageContainer > p > span:last-of-type a")?.href || ""
+          ).replace(" ", "_");
           const profileFirstName = profilePerson.FirstName;
 
           if (data.commonAncestors.length === 0) {
-            relationshipText = boldText;
+            const bold = doc.querySelector("b");
+            const boldParentHTML = bold?.parentElement.innerHTML || "";
+            relationshipText = bold?.textContent || "";
             if (boldParentHTML.includes(profileFirstName) && !lastLink.includes(profileID)) {
-              relationshipText = firstPText.replace("(DNA Confirmed)", "").trim();
+              relationshipText = firstPText.replace("(DNA Confirmed)", "").replace("(Confident)", "").trim();
             }
           } else {
             const profileGender = document.querySelector("meta[itemprop='gender']")?.content || "";
@@ -382,6 +385,13 @@ function doRelationshipText(userID, profileID) {
                     : relationshipText.replace(/nephew|niece/, "uncle or aunt");
               }
             }
+
+            const userFirstName =
+              doc
+                .querySelector(`span.ancestor_1`)
+                ?.textContent.replace(/[\t\n ]+/g, " ")
+                .trim()
+                .split(" ")[1] || "";
 
             if (firstPText.includes(`${userFirstName}'s`)) {
               relationshipText = firstPText.split(`${userFirstName}'s`)[1].trim();

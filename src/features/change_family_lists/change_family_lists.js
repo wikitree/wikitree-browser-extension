@@ -222,7 +222,7 @@ async function prepareFamilyLists() {
     const ourVitals = $("#familyVitals p.VITALS");
     const familyLists = $(
       '<div id="nVitals" style="display: none;">' +
-        '<div class="large sidebar-heading" style="margin-bottom:0.5em"><strong>Family Relationships</strong></div>' +
+        '<h2 class="mt-5 sidebar-heading">Family Relationships</h2>' +
         "</div>"
     );
 
@@ -345,11 +345,13 @@ async function moveFamilyLists() {
     familyLists.addClass("row");
 
     let $before;
-    if (options.familyListPosition == "before") {
+    if (options.familyListPosition == "beforePhotos") {
       $before = $("#Photos");
       if (!$before.length) {
         $before = $("#geneticfamily");
       }
+    } else if (options.familyListPosition == "beforeManager") {
+      $before = $("div.col-lg-4 aside.footnote");
     } else {
       $before = $("#geneticfamily");
     }
@@ -359,7 +361,7 @@ async function moveFamilyLists() {
     if ($before.length) {
       familyLists.insertBefore($before);
     } else {
-      familyLists.insertBefore($("div.col-lg-4 aside"));
+      familyLists.insertBefore($("div.col-lg-4 aside").not(".footnote"));
     }
   }
 }
