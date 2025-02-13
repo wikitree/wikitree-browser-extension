@@ -41,7 +41,7 @@ const changeFamilyLists = {
         },
         {
           value: "afterPhotos",
-          text: "After photos",
+          text: "After Photos",
         },
       ],
       defaultValue: "beforePhotos",
