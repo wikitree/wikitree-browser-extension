@@ -261,6 +261,9 @@ function onErrorCloseButtonClicked() {
 function displayErrorDialog(editBioMessage) {
   // display error message in an orange popup window
   var errorMessage = "WikiTree AGC did not change the profile due to the following error: " + editBioMessage;
+console.log('displayErrorDialgo ' + editBioMessage);
+  // TODO this is not working in the redesign can be tested with Richardson-424
+  // profile that doesn't have errors would be Doughty-177
 
   /*
   Used to do this but it gets a warning on Firefox:
@@ -353,9 +356,9 @@ async function doEditBio() {
 
   // Get Wiki ID from the "person" span item
   var profileWikiId = undefined;
-  const personElements = document.getElementsByClassName("person");
-  if (personElements.length == 1) {
-    profileWikiId = personElements.item(0).textContent;
+  let pageData = document.getElementById('pageData');
+  if (pageData) {
+    profileWikiId = pageData.getAttribute('data-mnamedb');
   }
 
   // Get Date object for today's date
