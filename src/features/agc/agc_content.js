@@ -27,6 +27,8 @@ Created By: Rob Pavey (Pavey-429)
 */
 
 import { WBE } from "../../core/common";
+import { Toast } from "bootstrap";
+import "bootstrap/dist/css/bootstrap.min.css"; // Ensure Bootstrap styles are loaded
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 const undoImageURL = chrome.runtime.getURL("images/agc_undo.png");
@@ -254,60 +256,39 @@ function removeErrorDialog() {
   }
 }
 
-function onErrorCloseButtonClicked() {
-  removeErrorDialog();
-}
-
 function displayErrorDialog(editBioMessage) {
-  // display error message in an orange popup window
-  var errorMessage = "WikiTree AGC did not change the profile due to the following error: " + editBioMessage;
-console.log('displayErrorDialgo ' + editBioMessage);
-  // TODO this is not working in the redesign can be tested with Richardson-424
-  // profile that doesn't have errors would be Doughty-177
+  const errorMessage = `WikiTree AGC did not change the profile due to the following error: ${editBioMessage}`;
+  console.log("displayErrorDialog:", errorMessage);
 
-  /*
-  Used to do this but it gets a warning on Firefox:
+  // Remove any existing toast
+  let existingToast = document.getElementById("agc-toast");
+  if (existingToast) existingToast.remove();
 
-  var template = document.createElement('template');
-  var html = '<div id="toast-container" class="toast-top-right">';
-  html += '<div class="toast toast-info" aria-live="polite" style="display: block;">';
-  html += '<button type="button" id="agc-close-error-button" class="toast-close-button" role="button">×</button>';
-  html += '<div class="toast-message">' + errorMessage + '</div></div></div>';
-  template.innerHTML = html;
-  errorDialog = document.body.appendChild(template.content.firstChild);
-*/
+  // Create Bootstrap toast container
+  let toastContainer = document.createElement("div");
+  toastContainer.id = "agc-toast";
+  toastContainer.className = "toast-container position-fixed top-0 end-0 p-3";
+  toastContainer.style.zIndex = "99999"; // Ensure it's on top
 
-  var toastContainer = document.createElement("div");
-  toastContainer.id = "toast-container";
-  toastContainer.className = "toast-top-right";
+  // Create the actual toast
+  toastContainer.innerHTML = `
+      <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header bg-info">
+          <strong class="me-auto">AGC Information</strong>
+          <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body">${errorMessage}</div>
+      </div>
+    `;
 
-  var toastInfo = document.createElement("div");
-  toastInfo.className = "toast toast-info";
-  //toastInfo.className = "toast-info";
-  toastInfo.ariaLive = "polite";
-  //toastInfo.setAttribute("style", "display: block;");
-  //toastInfo.style = "display: block;";
-  toastInfo.style = "z-index: 10000000 !important;";
+  document.body.appendChild(toastContainer);
 
-  toastInfo.style.display = "block";
-  toastContainer.appendChild(toastInfo);
+  // Select the toast element
+  let toastElement = toastContainer.querySelector(".toast");
 
-  var closeButton = document.createElement("button");
-  closeButton.setAttribute("type", "button");
-  closeButton.id = "agc-close-error-button";
-  closeButton.className = "toast-close-button";
-  closeButton.setAttribute("role", "button");
-  closeButton.textContent = "×";
-  toastInfo.appendChild(closeButton);
-
-  var toastMessage = document.createElement("div");
-  toastMessage.className = "toast-message";
-  toastMessage.textContent = errorMessage;
-  toastInfo.appendChild(toastMessage);
-
-  errorDialog = document.body.appendChild(toastContainer);
-
-  closeButton.addEventListener("click", onErrorCloseButtonClicked, false);
+  // Initialize and show the toast using Bootstrap's Toast component
+  let toastInstance = new Toast(toastElement, { delay: 5000 });
+  toastInstance.show();
 }
 
 /*
@@ -356,9 +337,9 @@ async function doEditBio() {
 
   // Get Wiki ID from the "person" span item
   var profileWikiId = undefined;
-  let pageData = document.getElementById('pageData');
+  let pageData = document.getElementById("pageData");
   if (pageData) {
-    profileWikiId = pageData.getAttribute('data-mnamedb');
+    profileWikiId = pageData.getAttribute("data-mnamedb");
   }
 
   // Get Date object for today's date
@@ -550,6 +531,7 @@ function initAgc() {
 
 shouldInitializeFeature("agc").then((result) => {
   if (result) {
+    import("./agc.css");
     initAgc();
   }
 });
