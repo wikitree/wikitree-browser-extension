@@ -104,7 +104,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
 
     if (options.changeHeaders) {
       setTimeout(function () {
-        siblingsHeader(true);
+        changeFamilyHeaders(true);
       }, 5000);
     }
 
@@ -241,33 +241,17 @@ async function prepareFamilyLists() {
       } else if ($(this).text().match(/^Died/)) {
         $(this).prop("id", "deathDetails");
       } else {
-        if (
-          $(this)
-            .text()
-            .match(/(^Son|^Daughter|^\[?Child\b)\sof/i)
-        ) {
-          $(this).prop("id", "parentDetails").addClass("familyList");
+        if ($(this).prop("id") == "Parents") {
+          $(this).addClass("familyList");
         }
-        if (
-          $(this)
-            .text()
-            .match(/(^Sister|^Brother|^\[?Sibling)\sof/i)
-        ) {
-          $(this).prop("id", "siblingDetails").addClass("familyList");
+        if ($(this).prop("id") == "Siblings") {
+          $(this).addClass("familyList");
         }
-        if (
-          $(this)
-            .text()
-            .match(/(^\s?Wife|^\s?Husband|^\[?Spouse)\sof/i)
-        ) {
-          $(this).addClass("spouseDetails").addClass("familyList");
+        if ($(this).prop("id") == "Spouses") {
+          $(this).addClass("spouseDetails familyList");
         }
-        if (
-          $(this)
-            .text()
-            .match(/(^\[?Father|^\[?Mother|^\[?Parent|^\[Children)\sof/i)
-        ) {
-          $(this).prop("id", "childrenDetails").addClass("familyList");
+        if ($(this).prop("id") == "Children") {
+          $(this).addClass("familyList");
         }
         $(this).appendTo(familyLists);
       }
@@ -770,7 +754,7 @@ function addAriaLabel(pData, EL) {
     ariaLabel = pData.Gender === "Male" ? "Brother" : pData.Gender === "Female" ? "Sister" : "Sibling";
   } else if (el.closest("#spouseDetails").length) {
     ariaLabel = pData.Gender === "Male" ? "Husband" : pData.Gender === "Female" ? "Wife" : "Spouse";
-  } else if (el.closest("#childrenDetails").length) {
+  } else if (el.closest("#Children").length) {
     ariaLabel = pData.Gender === "Male" ? "Son" : pData.Gender === "Female" ? "Daughter" : "Child";
   }
 
@@ -821,7 +805,7 @@ function addDataToPerson(el, pData) {
   }
 }
 
-function siblingsHeader(first = false) {
+function changeFamilyHeaders(first = false) {
   const els = [".spouseText", "#siblingsHeader", "#parentsHeader", "#childrenHeader"];
   els.forEach(function (elo) {
     let el = $(elo);
@@ -909,7 +893,7 @@ function fixNakedPrivates() {
         );
         $(borsofText).replaceWith(sibsHeader);
         $("#siblingsHeader").on("click", function () {
-          siblingsHeader();
+          changeFamilyHeaders();
         });
       }
       ip = "sibling";
@@ -1062,7 +1046,7 @@ function makeFamLists() {
       }
     }
   } else {
-    $("<ol id='parentList' class='nameList'></ol>").appendTo($("#parentDetails"));
+    $("<ol id='parentList' class='nameList'></ol>").appendTo($("#Parents"));
     if ($("#parentList").length) {
       if ($("#parentList")[0].previousSibling.textContent == "\nand\n") {
         $("#parentList")[0].previousSibling.remove();
@@ -1073,8 +1057,8 @@ function makeFamLists() {
     }
   }
 
-  if ($("#parentDetails").length) {
-    const parentsNodes = $("#parentDetails")[0].childNodes;
+  if ($("#Parents").length) {
+    const parentsNodes = $("#Parents")[0].childNodes;
     parentsNodes.forEach(function (aNode) {
       if (aNode.textContent.trim() == noParentsPublic.trim()) {
         aNode.remove();
@@ -1099,14 +1083,14 @@ function makeFamLists() {
     let siblingVITALS = nVitals.find(
       ".VITALS:contains(sibling),.VITALS:contains(Sibling),.VITALS:contains(brothers),.VITALS:contains(brother),.VITALS:contains(sister)"
     );
-    siblingVITALS.attr("id", "siblingDetails");
-    $("<ol id='siblingList' class='nameList'></ol>").appendTo($("#siblingDetails"));
+    siblingVITALS.attr("id", "Siblings");
+    $("<ol id='siblingList' class='nameList'></ol>").appendTo($("#Siblings"));
   }
   // console.log("Siblings:", sibs);
 
   let noSiblingsPublic = "[sibling(s) unknown]";
-  if ($("#siblingDetails").length) {
-    let sNodes = $("#siblingDetails")[0].childNodes;
+  if ($("#Siblings").length) {
+    let sNodes = $("#Siblings")[0].childNodes;
     sNodes.forEach(function (aNode) {
       if (aNode.textContent == noSiblingsPublic && aNode.nodeType == 3) {
         aNode.remove();
@@ -1124,9 +1108,9 @@ function makeFamLists() {
           let sibHeader = $(
             `<span id="siblingsHeader" class="clickable" data-replace-text="Siblings: " data-this-text="${sibWord} of " data-alt-text="Siblings: " data-original-text="${sibWord} of ">${sibWord} of </span>`
           );
-          $(sibHeader).prependTo($("#siblingDetails"));
+          $(sibHeader).prependTo($("#Siblings"));
           $("#siblingsHeader").on("click", function () {
-            siblingsHeader();
+            changeFamilyHeaders();
           });
         }
       }
@@ -1140,7 +1124,7 @@ function makeFamLists() {
 
   addHalfsStyle();
   setUpMarriedOrSpouse();
-  siblingOf();
+  convertParentSiblingChildrenHeadings();
   extraBitsForFamilyLists();
   //spouseToSpouses();
 
@@ -1160,8 +1144,8 @@ function makeFamLists() {
       let spouseDetails = $(
         '<div class="VITALS familyList" id="spouseDetails" data-family-vitals="1" style="display: block;"></div>'
       );
-      if ($("#childrenDetails").length) {
-        spouseDetails.insertBefore($("#childrenDetails"));
+      if ($("#Children").length) {
+        spouseDetails.insertBefore($("#Children"));
       }
     }
     if ($("a.addSpouse").length == 0) {
@@ -1643,10 +1627,10 @@ function textNodesUnder(el) {
 async function addChildrenCount() {
   if ($("#childrenCount").length == 0) {
     const siblingLength = $("#nVitals .VITALS span[itemprop='sibling']").length;
-    $("#siblingDetails").append($("<span id='siblingCount'>[" + siblingLength + "]</span>"));
+    $("#Siblings").append($("<span id='siblingCount'>[" + siblingLength + "]</span>"));
 
     const childrenLength = $("#nVitals .VITALS span[itemprop='children']").length;
-    $("#childrenDetails").append($("<span id='childrenCount'>[" + childrenLength + "]</span>"));
+    $("#Children").append($("<span id='childrenCount'>[" + childrenLength + "]</span>"));
   }
 }
 
@@ -1687,57 +1671,43 @@ async function prepareHeadings() {
 
   // Assign headers and text replacements
   $(".familyListHeading").each(function () {
+    const $this = $(this);
+    const id = $this.parent().attr("id");
     let altText;
     let thisID;
     let thisClass;
 
-    if (
-      $(this)
-        .text()
-        .match(/\bSon\b|Daughter/)
-    ) {
+    if (id == "Parents") {
       altText = "Parents: ";
       thisID = "parentsHeader";
     }
-    if (
-      $(this)
-        .text()
-        .match(/\bBrother\b|Sister/)
-    ) {
+    if (id == "Siblings") {
       altText = "Siblings: ";
       thisID = "siblingsHeader";
     }
-    if (
-      $(this)
-        .text()
-        .match(/\bHusband\b|Wife/)
-    ) {
+    if (id == "Spouses") {
       altText = "Spouse: ";
       thisClass = "spouseText";
     }
-    if (
-      $(this)
-        .text()
-        .match(/Father|Mother/)
-    ) {
+    if (id == "Children") {
       altText = "Children: ";
       thisID = "childrenHeader";
     }
 
     if (thisClass) {
-      $(this).addClass(thisClass);
+      $this.addClass(thisClass);
     }
     if (thisID) {
-      $(this).prop("id", thisID);
+      $this.prop("id", thisID);
     }
 
-    $(this)
-      .attr("data-original-text", $(this).text())
+    $this
+      .attr("data-original-text", $this.text())
+      .attr("data-this-text", $this.text())
       .attr("data-replace-text", altText)
       .attr("data-alt-text", altText)
-      .attr("data-this-text", $(this).text())
       .on("click", function () {
-        siblingsHeader();
+        changeFamilyHeaders();
       });
   });
 }
@@ -1846,13 +1816,13 @@ function insertInSibList() {
   `);
 
   const profilePersonLi = $("<li id='profilePerson'></li>");
-  let elToFind = "#siblingDetails li";
+  let elToFind = "#Siblings li";
   let closestEl = "li";
   if (options.verticalLists) {
     profilePersonLi.append(inserter);
     inserter = profilePersonLi;
   } else {
-    elToFind = "#siblingDetails span[itemprop='sibling']";
+    elToFind = "#Siblings span[itemprop='sibling']";
     closestEl = "span[itemprop='sibling']";
   }
 
@@ -1954,7 +1924,7 @@ function setUpMarriedOrSpouse() {
 
     //$(".spouseText").eq(0).prependTo("#spouseDetails");
     $(".spouseText").on("click", function () {
-      siblingsHeader();
+      changeFamilyHeaders();
     });
     spouseToSpouses();
   }
@@ -1962,25 +1932,25 @@ function setUpMarriedOrSpouse() {
 
 function extraBitsForFamilyLists() {
   let noSiblingsPublic = "[sibling(s) unknown]";
-  let privateSibsUnknown = $("#siblingDetails").find("a.BLANK");
+  let privateSibsUnknown = $("#Siblings").find("a.BLANK");
   let noSpouseSpan = $("<span id='spousesUnknown'></span>");
   if (privateSibsUnknown.length) {
     let sibsUnknown = $("<span id='siblingsUnknown'></span>");
     sibsUnknown.append(privateSibsUnknown);
-    sibsUnknown.appendTo("#siblingDetails");
+    sibsUnknown.appendTo("#Siblings");
     $("#siblingList").remove();
-    $("#parentDetails").prependTo("#nVitals");
+    $("#Parents").prependTo("#nVitals");
     $("#nVitals > .sidebar-heading").prependTo("#nVitals"); // prevent the sections from being re-added above the heading
-    $("#siblingDetails").insertAfter("#parentDetails");
-  } else if ($("#siblingDetails").length) {
-    let sNodes = $("#siblingDetails")[0].childNodes;
+    $("#Siblings").insertAfter("#Parents");
+  } else if ($("#Siblings").length) {
+    let sNodes = $("#Siblings")[0].childNodes;
     sNodes.forEach(function (aNode) {
       if (aNode.textContent == noSiblingsPublic && aNode.nodeType == 3) {
         aNode.remove();
         let sibsUnknown = $("<li id='siblingsUnknown'>[sibling(s) unknown]</li>");
         if ($("#siblingList").length == 0) {
           sibsUnknown = $("<span id='siblingsUnknown'> [sibling(s) unknown]</span>");
-          $("#siblingDetails").append(sibsUnknown);
+          $("#Siblings").append(sibsUnknown);
         }
 
         $("#siblingList").append(sibsUnknown);
@@ -2001,7 +1971,7 @@ function extraBitsForFamilyLists() {
               sibWord +
               ' of">Siblings: </span>'
           );
-          $(sibHeader).prependTo($("#siblingDetails"));
+          $(sibHeader).prependTo($("#Siblings"));
         }
       }
     });
@@ -2010,13 +1980,13 @@ function extraBitsForFamilyLists() {
   let noChildrenPublic = "[children unknown]";
   let childrenVITALS = FAMILY_VITALS.find(".VITALS:contains(children)");
   let noChildrenVITALS = FAMILY_VITALS.find(".VITALS:contains('[children unknown]')");
-  childrenVITALS.attr("id", "childrenDetails");
-  if ($("#childrenDetails").length && noChildrenVITALS.length) {
+  childrenVITALS.attr("id", "Children");
+  if ($("#Children").length && noChildrenVITALS.length) {
     let noKids = childrenVITALS.contents().filter(function () {
       return this.textContent == noChildrenPublic;
     });
     let noKidsSpan = $("<span id='childrenUnknown'></span>");
-    noKidsSpan.appendTo($("#childrenDetails"));
+    noKidsSpan.appendTo($("#Children"));
     $("#childrenUnknown").append($(noKids));
   }
 
@@ -2042,12 +2012,12 @@ function extraBitsForFamilyLists() {
       if (noSpouse.length) {
         noSpouseSpan.appendTo($(this));
         $("#spousesUnknown").append($(noSpouse));
-        $("#spouseDetails").insertAfter($("#siblingDetails"));
+        $("#spouseDetails").insertAfter($("#Siblings"));
         if ($("#spouseDetails").length == 0) {
-          if ($("#siblingDetails").length == 0) {
-            $("<div class='VITALS' id='spouseDetails'></div>").insertAfter($("#parentDetails"));
+          if ($("#Siblings").length == 0) {
+            $("<div class='VITALS' id='spouseDetails'></div>").insertAfter($("#Parents"));
           } else {
-            $("<div class='VITALS' id='spouseDetails'></div>").insertAfter($("#siblingDetails"));
+            $("<div class='VITALS' id='spouseDetails'></div>").insertAfter($("#Siblings"));
           }
         }
       }
@@ -2066,10 +2036,10 @@ function extraBitsForFamilyLists() {
       let spouseDetails = $(
         '<div class="VITALS familyList" id="spouseDetails" data-family-vitals="1" style="display: block;"></div>'
       );
-      if ($("#siblingDetails").length) {
-        spouseDetails.insertAfter($("#siblingDetails"));
-      } else if ($("#parentDetails").length) {
-        spouseDetails.insertAfter($("#parentDetails"));
+      if ($("#Siblings").length) {
+        spouseDetails.insertAfter($("#Siblings"));
+      } else if ($("#Parents").length) {
+        spouseDetails.insertAfter($("#Parents"));
       }
     }
     noSpouseSpan.appendTo($("#spouseDetails"));
@@ -2079,16 +2049,16 @@ function extraBitsForFamilyLists() {
       let spouseDetails = $(
         '<div class="VITALS familyList" id="spouseDetails" data-family-vitals="1" style="display: block;"></div>'
       );
-      if ($("#siblingDetails").length) {
-        spouseDetails.insertAfter($("#siblingDetails"));
-      } else if ($("#parentDetails").length) {
-        spouseDetails.insertAfter($("#parentDetails"));
+      if ($("#Siblings").length) {
+        spouseDetails.insertAfter($("#Siblings"));
+      } else if ($("#Parents").length) {
+        spouseDetails.insertAfter($("#Parents"));
       }
     }
     noSpouseSpan.appendTo($("#spouseDetails"));
     //$("a:contains([spouse?])").appendTo(noSpouseSpan);
   }
-  $("#childrenDetails").insertAfter($("#spouseDetails"));
+  $("#Children").insertAfter($("#spouseDetails"));
   $("span:contains(private son),span:contains(private father),span:contains(private brother)")
     .closest("li")
     .attr("data-gender", "male")
@@ -2281,82 +2251,58 @@ function isLeapYear(year) {
   return year % 100 === 0 ? year % 400 === 0 : year % 4 === 0;
 }
 
-function siblingOf() {
-  if (FAMILY_VITALS.find(".VITALS").length) {
-    FAMILY_VITALS.find(".VITALS").each(function () {
-      let elem = $(this)[0];
-      for (var nodes = elem.childNodes, i = nodes.length; i--; ) {
-        var node = nodes[i],
-          nodeType = node.nodeType;
-        if (nodeType == 3) {
-          if (node.textContent == "Sister of\n" || node.textContent == "Brother of\n") {
-            let nSpan = document.createElement("span");
-            nSpan.id = "siblingsHeader";
-            nSpan.setAttribute("data-replace-text", "Siblings: ");
-            nSpan.setAttribute("data-alt-text", "Siblings: ");
-            nSpan.setAttribute("data-original-text", node.textContent.replace("\n", " "));
-            $(nSpan).addClass("clickable");
-            nSpan.setAttribute("data-this-text", node.textContent.replace("\n", " "));
-            nSpan.append(node.textContent);
-            node.replaceWith(nSpan);
-            $("#siblingsHeader").on("click", function () {
-              siblingsHeader();
-            });
-          }
+function convertParentSiblingChildrenHeadings() {
+  const famVitals = $("#nVitals").find(".VITALS");
+  if (famVitals.length) {
+    famVitals.each(function () {
+      const $this = $(this);
+      const id = $this.attr("id");
+      let altText;
+      let spanID;
 
-          if (node.textContent == "Daughter" || node.textContent == "Son" || node.textContent == "Child") {
-            let nSpan = document.createElement("span");
-            nSpan.id = "parentsHeader";
-            nSpan.className = "clickable";
-            nSpan.setAttribute("data-replace-text", "Parents: ");
-            nSpan.setAttribute("data-alt-text", "Parents: ");
-            nSpan.setAttribute("data-original-text", node.textContent + " of ");
-            nSpan.setAttribute("data-this-text", node.textContent + " of ");
+      if (id == "Parents") {
+        altText = "Parents: ";
+        spanID = "parentsHeader";
+      } else if (id == "Siblings") {
+        altText = "Siblings: ";
+        spanID = "siblingsHeader";
+      } else if (id == "Children") {
+        altText = "Children: ";
+        spanID = "childrenHeader";
+      }
 
-            nSpan.append(node.textContent);
-            node.replaceWith(nSpan);
-
-            $("#parentsHeader").on("click", function () {
-              siblingsHeader();
-            });
-            $("#parentsHeader").text($("#parentsHeader").attr("data-this-text"));
-
-            let ofNode = $("#parentsHeader")
-              .parent()
-              .contents()
-              .filter(function () {
-                return this.textContent == " of " || this.textContent == " of\n";
-              });
-            ofNode.remove();
-          }
-
-          if (
-            node.textContent.trim() == "Mother of" ||
-            node.textContent == "Mother of\n" ||
-            node.textContent.trim() == "Father of" ||
-            node.textContent == "Father of\n"
-          ) {
-            let nSpan = document.createElement("span");
-            nSpan.id = "childrenHeader";
-            nSpan.className = "clickable";
-            let cWord;
-            if ($("span[itemprop='children']").length > 1) {
-              cWord = "Children:\n";
-            } else {
-              cWord = "Child:\n";
+      if (spanID) {
+        // Extract the text before the first child element (e.g., "Son of", "Brother of")
+        // We find all text nodes before the <ol> element take their text and remove them
+        let textContent = "";
+        $(this)
+          .contents()
+          .each(function () {
+            if (this.nodeType === 3) {
+              textContent += this.nodeValue.trim() + " ";
+              $(this).remove(); // Remove the original text node
             }
+            if (this.nodeName.toLowerCase() === "ol") {
+              return false; // Stop once we reach the <ol> element
+            }
+          });
+        textContent = textContent.trim();
 
-            nSpan.append(node.textContent);
-            node.replaceWith(nSpan);
-            nSpan.setAttribute("data-replace-text", cWord);
-            nSpan.setAttribute("data-alt-text", cWord);
-            nSpan.setAttribute("data-original-text", node.textContent);
-            nSpan.setAttribute("data-this-text", node.textContent);
-            $("#childrenHeader").on("click", function () {
-              siblingsHeader();
-            });
-          }
-        }
+        // Create the span element
+        const span = $("<span>")
+          .prop("id", spanID)
+          .addClass("clickable familyListHeading")
+          .attr("data-original-text", textContent)
+          .attr("data-this-text", textContent)
+          .attr("data-replace-text", altText)
+          .attr("data-alt-text", altText)
+          .text(textContent)
+          .on("click", function () {
+            changeFamilyHeaders();
+          });
+
+        // Replace the text node with the new span
+        $(this).prepend(span);
       }
     });
   }

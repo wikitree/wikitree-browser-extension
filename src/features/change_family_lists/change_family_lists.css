@@ -467,14 +467,14 @@ p.VITALS a.clickable {
 }
 
 .vertical #spouseDetails.inline,
-.vertical #childrenDetails.inline,
-.vertical #siblingDetails.inline {
+.vertical #Children.inline,
+.vertical #Siblings.inline {
   display: inline;
 }
 
 .vertical #spouseDetails.block,
-.vertical #childrenDetails.block,
-.vertical #siblingDetails.block {
+.vertical #Children.block,
+.vertical #Siblings.block {
   display: block;
 }
 .vertical #siblingList li {
