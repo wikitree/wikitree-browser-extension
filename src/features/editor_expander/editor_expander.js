@@ -4,8 +4,9 @@ import { isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType"
 
 shouldInitializeFeature("editorExpander").then((result) => {
   if (result) {
-    import("./editor_expander.css");
-    initEditorExpander();
+    import("./editor_expander.css").then(() => {
+      initEditorExpander();
+    });
   }
 });
 
@@ -19,7 +20,7 @@ function returnEditorToNormal() {
 }
 
 function initEditorExpander() {
-  const imgURL = chrome.runtime.getURL("images/icons.png");
+  const imgURL = chrome.runtime.getURL("images/expand.svg");
   const expandButton = $(
     `<img id="expandTextareaButton" src="${imgURL}" class="mw-toolbar-editbutton" title="Expand text box" />`
   );
