@@ -1,11 +1,13 @@
 #expandTextareaButton,
 .expandTextareaButton {
   display: inline-block;
-  width: 16px;
-  height: 20px;
+  width: 16px !important;
+  height: 20px !important;
+  /*
   background-position: 5px -644px;
   background-repeat: no-repeat;
   background-image: url("https://www.wikitree.com/g2g/qa-plugin/wysiwyg-editor/ckeditor/plugins/icons.png?t=K5H9");
+  */
   line-height: 25px;
   height: 15px;
   border: 1px solid grey;

@@ -19,7 +19,10 @@ function returnEditorToNormal() {
 }
 
 function initEditorExpander() {
-  const expandButton = $(`<span id="expandTextareaButton" title="Expand text box"></span>`);
+  const imgURL = chrome.runtime.getURL("images/icons.png");
+  const expandButton = $(
+    `<img id="expandTextareaButton" src="${imgURL}" class="mw-toolbar-editbutton" title="Expand text box" />`
+  );
   $("#toolbar").append(expandButton);
   expandButton.on("click", function () {
     if ($("#toolbar").hasClass("expanded")) {
