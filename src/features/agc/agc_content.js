@@ -28,7 +28,6 @@ Created By: Rob Pavey (Pavey-429)
 
 import { WBE } from "../../core/common";
 import { Toast } from "bootstrap";
-import "bootstrap/dist/css/bootstrap.min.css"; // Ensure Bootstrap styles are loaded
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 const undoImageURL = chrome.runtime.getURL("images/agc_undo.png");
