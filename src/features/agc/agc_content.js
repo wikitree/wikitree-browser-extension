@@ -27,8 +27,7 @@ Created By: Rob Pavey (Pavey-429)
 */
 
 import { WBE } from "../../core/common";
-import toastr from "toastr";
-import "toastr/build/toastr.min.css";
+
 
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
