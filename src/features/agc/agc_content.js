@@ -27,7 +27,9 @@ Created By: Rob Pavey (Pavey-429)
 */
 
 import { WBE } from "../../core/common";
-import { Toast } from "bootstrap";
+import toastr from "toastr";
+import "toastr/build/toastr.min.css";
+
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 const undoImageURL = chrome.runtime.getURL("images/agc_undo.png");
@@ -255,39 +257,54 @@ function removeErrorDialog() {
   }
 }
 
-function displayErrorDialog(editBioMessage) {
-  const errorMessage = `WikiTree AGC did not change the profile due to the following error: ${editBioMessage}`;
-  console.log("displayErrorDialog:", errorMessage);
+function displayErrorDialog(infoMessage) {
+  const toastId = "wbe-info-toast";
+  let existingToast = document.getElementById(toastId);
 
-  // Remove any existing toast
-  let existingToast = document.getElementById("agc-toast");
-  if (existingToast) existingToast.remove();
+  // Remove any existing toast to prevent duplicates
+  if (existingToast) {
+    existingToast.remove();
+  }
 
-  // Create Bootstrap toast container
+  // Create Bootstrap-styled toast container
   let toastContainer = document.createElement("div");
-  toastContainer.id = "agc-toast";
-  toastContainer.className = "toast-container position-fixed top-0 end-0 p-3";
-  toastContainer.style.zIndex = "99999"; // Ensure it's on top
+  toastContainer.id = toastId;
+  toastContainer.className = "toast position-fixed top-0 end-0 m-3 border-0 shadow";
+  toastContainer.role = "alert";
+  toastContainer.ariaLive = "assertive";
+  toastContainer.ariaAtomic = "true";
+  toastContainer.style = "z-index: 9999; background-color: white !important; border-radius: 5px; overflow: hidden;";
 
-  // Create the actual toast
+  // Inner toast structure with a header that has the yellow background
   toastContainer.innerHTML = `
-      <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-        <div class="toast-header bg-info">
-          <strong class="me-auto">AGC Information</strong>
-          <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-        <div class="toast-body">${errorMessage}</div>
-      </div>
-    `;
+    <div class="toast-header" style="background-color: #ffc107 !important; color: black; font-weight: bold;">
+      <strong class="me-auto">AGC Information</strong>
+      <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+    <div class="toast-body">
+      ${infoMessage}
+    </div>
+  `;
 
   document.body.appendChild(toastContainer);
 
-  // Select the toast element
-  let toastElement = toastContainer.querySelector(".toast");
+  // Automatically remove toast after 5 seconds
+  setTimeout(() => {
+    toastContainer.classList.remove("show");
+    setTimeout(() => toastContainer.remove(), 300); // Give time for fade-out
+  }, 5000);
 
-  // Initialize and show the toast using Bootstrap's Toast component
-  let toastInstance = new Toast(toastElement, { delay: 5000 });
-  toastInstance.show();
+  // Show toast by adding Bootstrap's 'show' class
+  setTimeout(() => toastContainer.classList.add("show"), 10);
+}
+
+function displaySuccessToast(message) {
+  toastr.success(message, "Success", {
+    timeOut: 3000,
+    closeButton: true,
+    progressBar: true,
+    positionClass: "toast-top-right",
+  });
 }
 
 /*

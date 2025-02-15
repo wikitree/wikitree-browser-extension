@@ -24,7 +24,6 @@
   "dependencies": {
     "assert": "^2.1.0",
     "axios": "^1.4.0",
-    "bootstrap": "^5.3.3",
     "cookiejs": "^2.1.2",
     "datatables.net-dt": "^1.13.5",
     "date-fns": "^2.30.0",
@@ -39,6 +38,7 @@
     "jszip": "^3.10.1",
     "path-browserify": "^1.0.1",
     "sheetjs": "^2.0.0",
+    "toastr": "^2.1.4",
     "url": "^0.11.2",
     "util": "^0.12.5",
     "wikitree-js": "^0.4.0",
