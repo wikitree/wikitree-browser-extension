@@ -23,14 +23,30 @@ window.people = null;
 let FAMILY_VITALS;
 let profileApproxBirthDate;
 let profPersonName;
+let spouseData;
 
 shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   if (result) {
     // temp for testing
+
     $("#familyVitals-tab").trigger("click");
+
+    spouseData = parseSpouseData();
+    console.log("Spouse Data:", spouseData);
 
     FAMILY_VITALS = $("#familyVitals");
     window.people = getWindowPeople();
+
+    FAMILY_VITALS.find(".VITALS").each(function () {
+      // Change tagname to div
+      $(this).replaceWith(function () {
+        return $("<div />", {
+          html: $(this).html(),
+          class: $(this).attr("class"),
+          id: $(this).attr("id"),
+        });
+      });
+    });
 
     options = await getFeatureOptions("changeFamilyLists");
     window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
@@ -62,9 +78,6 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
       if (options.agesAtMarriages) {
         addMarriageAges();
       }
-      // Find the name from the element
-      // const nameToFind = $("a.pureCssMenui0 span.person").text();
-
       const parentPerson = window.people?.[0];
       const oChildren = parentPerson?.Children;
       let children = [];
@@ -141,13 +154,116 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
         moveFamilyLists();
       }
     };
-
-    // Execute the function
   }
 });
 
+function parseSpouseData() {
+  const spouseElem = document.getElementById("Spouses");
+  if (!spouseElem) return null;
+
+  const result = { spouses: [] };
+  let currentSpouse = null;
+  // A flag indicating that we’re in the midst of capturing marriage details.
+  let expectingMarriageDetails = false;
+
+  const nodes = spouseElem.childNodes;
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+
+    // Process text nodes
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent.trim();
+      if (!text) continue;
+
+      // Detect the start of a new spouse block (e.g. "Husband of", "Wife of", or "Spouse of")
+      const roleMatch = text.match(/^(Husband|Wife|Spouse)\s+of\b/i);
+      if (roleMatch) {
+        // If there's a block already in progress, push it before starting a new one.
+        if (currentSpouse) {
+          result.spouses.push(currentSpouse);
+        }
+        currentSpouse = { role: roleMatch[1] };
+        // Reset any marriage details flag.
+        expectingMarriageDetails = false;
+        continue;
+      }
+
+      // If the text contains "married", begin capturing marriage details.
+      if (text.toLowerCase().includes("married")) {
+        expectingMarriageDetails = true;
+        // Initialize marriageDetails with the current text.
+        if (currentSpouse) {
+          currentSpouse.marriageDetails = text;
+        }
+        continue;
+      }
+
+      // If we are capturing marriage details, then:
+      if (expectingMarriageDetails && currentSpouse) {
+        // If the text starts with "in ", treat it as the location.
+        if (text.toLowerCase().startsWith("in ")) {
+          currentSpouse.marriageLocation = text.replace(/^in\s+/i, "");
+          currentSpouse.marriageDetails += " " + text;
+          // We’re done with marriage details for this block.
+          expectingMarriageDetails = false;
+        } else {
+          // Otherwise, treat this as the marriage date.
+          currentSpouse.marriageDate = text;
+          currentSpouse.marriageDetails += " " + text;
+          // Do not clear the flag yet in case the next text node provides the location.
+          continue;
+        }
+      }
+    }
+
+    // Process element nodes
+    else if (node.nodeType === Node.ELEMENT_NODE) {
+      // Capture the spouse’s name and wiki link
+      if (node.tagName === "SPAN" && node.getAttribute("itemprop") === "spouse") {
+        if (currentSpouse) {
+          const a = node.querySelector("a");
+          if (a) {
+            currentSpouse.spouseWikiLink = a.getAttribute("href");
+            const nameSpan = a.querySelector("span[itemprop='name']");
+            if (nameSpan) {
+              currentSpouse.spouseName = nameSpan.textContent.trim();
+            }
+          }
+        }
+      }
+      // Capture the map link (if the href contains "maps.google.com")
+      else if (
+        node.tagName === "A" &&
+        node.getAttribute("href") &&
+        node.getAttribute("href").includes("maps.google.com")
+      ) {
+        if (currentSpouse) {
+          currentSpouse.mapLink = node.getAttribute("href");
+        }
+      }
+      // Capture the edit link and complete the current spouse block
+      else if (node.tagName === "SPAN" && node.classList.contains("EDIT")) {
+        const editA = node.querySelector("a");
+        if (editA && currentSpouse) {
+          currentSpouse.editLink = editA.getAttribute("href");
+        }
+        if (currentSpouse) {
+          result.spouses.push(currentSpouse);
+          currentSpouse = null;
+          expectingMarriageDetails = false;
+        }
+      }
+    }
+  }
+  // In case a spouse block is still in progress at the end.
+  if (currentSpouse) {
+    result.spouses.push(currentSpouse);
+  }
+  return result;
+}
+
 function addPrefixes() {
-  const links = $("p.VITALS a[href*='/wiki/']");
+  const links = $(".VITALS a[href*='/wiki/']");
   // Find prefixes in window.people and add them.
   links.each(function () {
     const link = $(this);
@@ -164,9 +280,9 @@ function addPrefixes() {
 }
 
 async function addAddLinksToHeadings() {
-  $("p.VITALS:contains([children unknown])").attr("id", "childrenUnknownHeading");
-  $("p.VITALS:contains([sibling(s) unknown])").attr("id", "siblingsUnknownHeading");
-  $("p.VITALS:contains([spouse(s) unknown])").attr("id", "spousesUnknownHeading");
+  $(".VITALS:contains([children unknown])").attr("id", "childrenUnknownHeading");
+  $(".VITALS:contains([sibling(s) unknown])").attr("id", "siblingsUnknownHeading");
+  $(".VITALS:contains([spouse(s) unknown])").attr("id", "spousesUnknownHeading");
 
   const linkBase = `https://${mainDomain}.wikitree.com/index.php?title=Special:EditFamily&u=${profilePerson.Id}`;
   const headings = [
@@ -219,7 +335,7 @@ async function addAddLinksToHeadings() {
 
 async function prepareFamilyLists() {
   if ($("body.profile").length && window.location.href.match("Space:") == null && $("#nVitals").length == 0) {
-    const ourVitals = $("#familyVitals p.VITALS");
+    const ourVitals = $("#familyVitals .VITALS");
     const familyLists = $(
       '<div id="nVitals" style="display: none;">' +
         '<h2 class="mt-5 sidebar-heading">Family Relationships</h2>' +
@@ -444,7 +560,7 @@ async function getAncestorsOnPage() {
 
   const ancestorKeys = await ancestorsPromise;
 
-  const familyLinks = $("p.VITALS a[href*='/wiki/']");
+  const familyLinks = $(".VITALS a[href*='/wiki/']");
   // Make array of wtids
   const peopleOnPage = familyLinks
     .map(function () {
@@ -468,10 +584,10 @@ async function getAncestorsOnPage() {
   // Highlight ancestors on the page
   ancestorsOnPage.forEach((ancestor) => {
     const element = $(
-      `p.VITALS a[href$="/wiki/${ancestor.replace(/ /g, "_")}"],
-       p.VITALS a[data-wtid="${ancestor.replace(/ /g, "_")}"],
-       p.VITALS a[href$="/wiki/${ancestor.replace(/_/g, " ")}"],
-       p.VITALS a[data-wtid="${ancestor.replace(/_/g, " ")}"]`
+      `.VITALS a[href$="/wiki/${ancestor.replace(/ /g, "_")}"],
+       .VITALS a[data-wtid="${ancestor.replace(/ /g, "_")}"],
+       .VITALS a[href$="/wiki/${ancestor.replace(/_/g, " ")}"],
+       .VITALS a[data-wtid="${ancestor.replace(/_/g, " ")}"]`
     );
     if (element.length && element.data("status") != 5) {
       addAncestorLabels(element);
@@ -481,8 +597,8 @@ async function getAncestorsOnPage() {
   if (ancestorsOnPage.includes(profilePerson.Name)) {
     // Add ancestor labels for the parents of the profile person
     // a[arial-label="Father"], a[aria-label="Mother"]
-    const fatherElement = $(`p.VITALS a[aria-label="Father"]`);
-    const motherElement = $(`p.VITALS a[aria-label="Mother"]`);
+    const fatherElement = $(`.VITALS a[aria-label="Father"]`);
+    const motherElement = $(`.VITALS a[aria-label="Mother"]`);
     if (fatherElement.length && fatherElement.data("status") != 5) {
       addAncestorLabels(fatherElement);
     }
@@ -499,10 +615,10 @@ async function getAncestorsOnPage() {
 
       if (connectionName) {
         const connectionElement = $(
-          `p.VITALS a[href$="/wiki/${connectionName.replace(/ /g, "_")}"],
-           p.VITALS a[data-wtid="${connectionName.replace(/ /g, "_")}"],
-           p.VITALS a[href$="/wiki/${connectionName.replace(/_/g, " ")}"],
-           p.VITALS a[data-wtid="${connectionName.replace(/_/g, " ")}"]`
+          `.VITALS a[href$="/wiki/${connectionName.replace(/ /g, "_")}"],
+           .VITALS a[data-wtid="${connectionName.replace(/ /g, "_")}"],
+           .VITALS a[href$="/wiki/${connectionName.replace(/_/g, " ")}"],
+           .VITALS a[data-wtid="${connectionName.replace(/_/g, " ")}"]`
         );
         if (connectionElement.length) {
           addAncestorLabels(connectionElement);
@@ -535,8 +651,8 @@ async function getAncestorsOnPage() {
     const closestLi = $("#siblingList a.ancestor").closest("li");
     const fatherId = closestLi.data("father");
     const motherId = closestLi.data("mother");
-    const fatherElement = $(`p.VITALS li[data-id="${fatherId}"] a`);
-    const motherElement = $(`p.VITALS li[data-id="${motherId}"] a`);
+    const fatherElement = $(`.VITALS li[data-id="${fatherId}"] a`);
+    const motherElement = $(`.VITALS li[data-id="${motherId}"] a`);
     if (fatherElement.length && fatherElement.data("status") != 5) {
       addAncestorLabels(fatherElement);
     }
@@ -571,7 +687,7 @@ function addAncestorLabels(element) {
 }
 
 function formatSpouses() {
-  let vitalsP = $("#nVitals.vertical .VITALS span[itemprop='spouse']").closest("p.VITALS");
+  let vitalsP = $("#nVitals.vertical .VITALS span[itemprop='spouse']").closest(".VITALS");
 
   if (vitalsP.length) {
     let htmlContent = vitalsP.html();
@@ -627,6 +743,30 @@ function formatSpouses() {
           );
           spouseGrid.append(spouseSpan).append(spouseDateSpan);
           spouseDiv.append(spouseGrid);
+          // Add the marriage dates and map link from spouseData to spouseDiv. Use the marriageDetails field;
+          if (spouseData) {
+            const spouse = spouseData.spouses.find((s) => s.spouseWikiLink === spouseSpan.find("a").attr("href"));
+            if (spouse) {
+              // Use the marriageDetails field.
+              let marriageDetailsSpan;
+              if (spouse.marriageDetails) {
+                const marriageDetails = spouse.marriageDetails;
+                marriageDetailsSpan = $(`<span class='marriageDetails'>${marriageDetails}</span>`);
+                spouseDiv.append(marriageDetailsSpan);
+              }
+              // Use the mapLink field.
+              if (spouse.mapLink) {
+                // Maplink example:
+                /*
+<a href="https://maps.google.com/maps?q=Launceston, Cornwall, England" data-bs-toggle="tooltip" data-bs-title="Marriage Location on Map" target="_map"><img src="/images/icons/icon-map-pin.svg" alt="map icon"></a>
+                */
+                const mapLink = $(
+                  `<a href="${spouse.mapLink}" data-bs-toggle="tooltip" data-bs-title="Marriage Location on Map" target="_map"><img src="/images/icons/icon-map-pin.svg" alt="map icon"></a>`
+                );
+                marriageDetailsSpan.append(mapLink);
+              }
+            }
+          }
 
           if (options.ageDifferences && isOK(personData?.["BirthDate"])) {
             const relAgeSpan = addRelativeAge(
@@ -949,10 +1089,10 @@ function addParentStatusDataAttribute() {
   const profilePerson = window.people[0];
   if (profilePerson?.Father) {
     const fatherName = profilePerson.Parents?.[profilePerson.Father]?.Name;
-    const fatherLink = $(`p.VITALS a[href$="${fatherName}"]`);
+    const fatherLink = $(`.VITALS a[href$="${fatherName}"]`);
 
     const motherName = profilePerson.Parents?.[profilePerson.Mother]?.Name;
-    const motherLink = $(`p.VITALS a[href$="${motherName}"]`);
+    const motherLink = $(`.VITALS a[href$="${motherName}"]`);
 
     if (dataStatus) {
       const { Father: fatherStatus, Mother: motherStatus } = dataStatus;
@@ -2023,14 +2163,14 @@ function extraBitsForFamilyLists() {
       }
       //$(this).appendTo($("#spouseDetails"));
     });
-  } else if (FAMILY_VITALS.find("p.VITALS:contains([spouse(s) unknown])").length) {
-    let noSpouse = FAMILY_VITALS.find("p.VITALS:contains([spouse(s) unknown])")
+  } else if (FAMILY_VITALS.find(".VITALS:contains([spouse(s) unknown])").length) {
+    let noSpouse = FAMILY_VITALS.find(".VITALS:contains([spouse(s) unknown])")
       .contents()
       .filter(function () {
         return this.textContent == noSpousePublic;
       });
     let noSpouseSpan = $("<span id='spousesUnknown'></span>");
-    noSpouseSpan.appendTo(FAMILY_VITALS.find("p.VITALS:contains([spouse(s) unknown])"));
+    noSpouseSpan.appendTo(FAMILY_VITALS.find(".VITALS:contains([spouse(s) unknown])"));
     $("#spousesUnknown").append($(noSpouse));
     if ($("#spouseDetails").length == 0) {
       let spouseDetails = $(
