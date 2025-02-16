@@ -445,23 +445,22 @@ async function moveFamilyLists() {
     familyLists.addClass("row");
 
     let $before;
-    if (options.familyListPosition == "beforePhotos") {
+    if (options.familyListPosition == "beforeManager") {
+      $before = $("#Profile-Data");
+    } else if (options.familyListPosition == "beforePhotos") {
       $before = $("#Photos");
-      if (!$before.length) {
-        $before = $("#geneticfamily");
-      }
-    } else if (options.familyListPosition == "beforeManager") {
-      $before = $("div.col-lg-4 aside.footnote");
-    } else {
-      $before = $("#geneticfamily");
     }
     if (!$before.length) {
-      $before = $("#DNA");
+      $before = $("#geneticfamily");
+      if (!$before.length) {
+        $before = $("#DNA");
+        if (!$before.length) {
+          $before = $("#Research");
+        }
+      }
     }
     if ($before.length) {
       familyLists.insertBefore($before);
-    } else {
-      familyLists.insertBefore($("div.col-lg-4 aside").not(".footnote"));
     }
   }
 }
@@ -956,11 +955,11 @@ function changeFamilyHeaders(first = false) {
     el.attr("data-replace-text", tDataText);
     el.addClass("clickable");
   });
-  let isOn = false;
-  if ($("#parentsHeader").text().match("Parents: ")) {
-    isOn = true;
-  }
   if (first == false) {
+    let isOn = false;
+    if ($("#parentsHeader").text().match("Parents: ")) {
+      isOn = true;
+    }
     getFeatureOptions("changeFamilyLists").then((optionsData) => {
       optionsData.changeHeaders = options.changeHeaders = isOn;
       const storageName = "changeFamilyLists_options";
@@ -2072,17 +2071,19 @@ function setUpMarriedOrSpouse() {
 
 function extraBitsForFamilyLists() {
   let noSiblingsPublic = "[sibling(s) unknown]";
-  let privateSibsUnknown = $("#Siblings").find("a.BLANK");
+  let privateSibsUnknown = $("#nVitals #Siblings").find("a.BLANK");
   let noSpouseSpan = $("<span id='spousesUnknown'></span>");
   if (privateSibsUnknown.length) {
     let sibsUnknown = $("<span id='siblingsUnknown'></span>");
     sibsUnknown.append(privateSibsUnknown);
-    sibsUnknown.appendTo("#Siblings");
-    $("#siblingList").remove();
-    $("#Parents").prependTo("#nVitals");
+    const s = $("#nVitals #Siblings");
+    sibsUnknown.appendTo(s);
+    // sibsUnknown.appendTo("#Siblings");
+    // $("#nVitals #siblingList").remove();
+    // $("#Parents").prependTo("#nVitals");
     $("#nVitals > .sidebar-heading").prependTo("#nVitals"); // prevent the sections from being re-added above the heading
     $("#Siblings").insertAfter("#Parents");
-  } else if ($("#Siblings").length) {
+  } else if ($("#nVitals #Siblings").length) {
     let sNodes = $("#Siblings")[0].childNodes;
     sNodes.forEach(function (aNode) {
       if (aNode.textContent == noSiblingsPublic && aNode.nodeType == 3) {
@@ -2391,59 +2392,61 @@ function isLeapYear(year) {
   return year % 100 === 0 ? year % 400 === 0 : year % 4 === 0;
 }
 
+const headingMap = {
+  Parents: { "no-gender": "Child of: ", male: "Son of: ", female: "Daughter of: " },
+  Siblings: { "no-gender": "Sibling of: ", male: "Brother of: ", female: "Sister of: " },
+  Children: { "no-gender": "Parent of: ", male: "Father of: ", female: "Mother of: " },
+};
+
 function convertParentSiblingChildrenHeadings() {
+  const gender = $("#nVitals #Parents").find('meta[itemprop="gender"]').attr("content") || "no-gender";
   const famVitals = $("#nVitals").find(".VITALS");
   if (famVitals.length) {
     famVitals.each(function () {
       const $this = $(this);
       const id = $this.attr("id");
-      let altText;
-      let spanID;
 
-      if (id == "Parents") {
-        altText = "Parents: ";
-        spanID = "parentsHeader";
-      } else if (id == "Siblings") {
-        altText = "Siblings: ";
-        spanID = "siblingsHeader";
-      } else if (id == "Children") {
-        altText = "Children: ";
-        spanID = "childrenHeader";
+      const h = headingMap[id];
+      if (!h) return;
+
+      const altText = `${id}: `;
+      const spanId = `${id.toLowerCase()}Header`;
+
+      // Extract the text before the first child element (e.g., "Son of", "Brother of")
+      // We find all text nodes before the <ol> element, copy their text and then remove them
+      let textContent = "";
+      $(this)
+        .contents()
+        .each(function () {
+          if (this.nodeType === 3) {
+            textContent += this.nodeValue.trim() + " ";
+            $(this).remove(); // Remove the original text node
+          }
+          if (this.nodeName.toLowerCase() === "ol") {
+            return false; // Stop once we reach the <ol> element
+          }
+        });
+      textContent = textContent.trim();
+
+      if (textContent == "") {
+        textContent = h[gender] || h["no-gender"];
       }
 
-      if (spanID) {
-        // Extract the text before the first child element (e.g., "Son of", "Brother of")
-        // We find all text nodes before the <ol> element take their text and remove them
-        let textContent = "";
-        $(this)
-          .contents()
-          .each(function () {
-            if (this.nodeType === 3) {
-              textContent += this.nodeValue.trim() + " ";
-              $(this).remove(); // Remove the original text node
-            }
-            if (this.nodeName.toLowerCase() === "ol") {
-              return false; // Stop once we reach the <ol> element
-            }
-          });
-        textContent = textContent.trim();
+      // Create the span element
+      const span = $("<span>")
+        .prop("id", spanId)
+        .addClass("clickable familyListHeading")
+        .attr("data-original-text", textContent)
+        .attr("data-this-text", textContent)
+        .attr("data-replace-text", altText)
+        .attr("data-alt-text", altText)
+        .text(textContent)
+        .on("click", function () {
+          changeFamilyHeaders();
+        });
 
-        // Create the span element
-        const span = $("<span>")
-          .prop("id", spanID)
-          .addClass("clickable familyListHeading")
-          .attr("data-original-text", textContent)
-          .attr("data-this-text", textContent)
-          .attr("data-replace-text", altText)
-          .attr("data-alt-text", altText)
-          .text(textContent)
-          .on("click", function () {
-            changeFamilyHeaders();
-          });
-
-        // Replace the text node with the new span
-        $(this).prepend(span);
-      }
+      // Replace the text node with the new span
+      $(this).prepend(span);
     });
   }
 }
