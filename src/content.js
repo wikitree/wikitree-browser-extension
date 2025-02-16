@@ -103,7 +103,7 @@ import "./features/space_watchlist_sorter/space_watchlist_sorter";
 import "./features/help/help";
 
 import "./features/pending_merges_filters/pending_merges_filters";
-
+import "./features/enumerate_image_detail/enumerate_image_detail.js";
 /*
  * debugging features for development only
  *
