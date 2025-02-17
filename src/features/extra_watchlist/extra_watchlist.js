@@ -12,10 +12,7 @@ import { mainDomain } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 shouldInitializeFeature("extraWatchlist").then((result) => {
-  if (
-    result &&
-    $("body.page-Special_EditFamily,body.page-Special_EditPerson,body.page-Special_EditFamilySteps").length == 0
-  ) {
+  if (result && $("body.edit-family,body.edit-person").length == 0) {
     if (localStorage.getItem("extraWatchlist")) {
       if (!localStorage.getItem("extraWatchlist").includes(",") && !localStorage.getItem("extraWatchlistBackUp")) {
         localStorage.setItem("extraWatchlistBackUp", localStorage.getItem("extraWatchlist"));
@@ -33,7 +30,7 @@ function getThisID() {
   if (spaceMatch != null) {
     thisID = spaceMatch[0];
   } else {
-    thisID = profilePerson.Name;
+    thisID = profilePerson?.Name;
   }
   return thisID;
 }
@@ -551,7 +548,9 @@ async function extraWatchlist() {
 }
 
 function setPlusButton() {
-  const thisID = getThisID().toString(); // Ensure thisID is a string.
+  const id = getThisID();
+  if (!id) return;
+  const thisID = id.toString(); // Ensure thisID is a string.
 
   if (localStorage.getItem("extraWatchlist")) {
     const ids = localStorage.getItem("extraWatchlist").split(",");

@@ -12,7 +12,7 @@ import { mainDomain, isWikiPage, isProfilePage, isSpacePage, isMediaWikiPage } f
 
 shouldInitializeFeature("whatLinksHere").then((result) => {
   if (result && $("a.whatLinksHere").length == 0) {
-    const profileWTID = profilePerson.Name;
+    const profileWTID = profilePerson?.Name;
     window.profileWTID = profileWTID;
     import("../../core/toggleCheckbox.css");
     import("./what_links_here.css");
@@ -24,7 +24,7 @@ async function fillWhatLinksHereSection() {
   const s = getWhatLinksHereLink(200);
   const url = new URL(s, "https://" + mainDomain);
   getWikiTreePage("WhatLinksHereSection", url.pathname, url.search).then((data) => {
-    const dLinks = $(data).find("#content ul a[href*='/wiki/']");
+    const dLinks = $(data).find("div.page--content ul a[href*='/wiki/']");
     const whatLinksHerePages = [];
     const whatLinksHereWikiTreeIDs = [];
     const whatLinksHereProfiles = [];
@@ -136,7 +136,7 @@ function getWhatLinksHereLink(limit) {
   let dLink = "";
   // Edit page
   const searchParams = new URLSearchParams(window.location.search);
-  if ($("body.page-Special_EditPerson").length) {
+  if ($("body.edit-person").length) {
     dLink = "Wiki:" + window.profileWTID;
   } else if (searchParams.has("title")) {
     const title = decodeURIComponent(searchParams.get("title"));
@@ -158,12 +158,12 @@ function getWhatLinksHereLink(limit) {
 
 function addWhatLinksHereLink() {
   // Add link after 'Watchlist' on edit, profile, and space pages
-  const findMatchesLi = $('li a.pureCssMenui[href="/wiki/Special:WatchedList"]');
+  const findMatchesLi = $('nav li a[href*="title=Category:Unsourced"]').eq(0);
   const dLink = getWhatLinksHereLink(1000);
   if (dLink != "") {
     // Add the link
     const newLi = $(
-      `<li><a class="pureCssMenui whatLinksHere" href="${dLink}" title="See what links to this page&#10;Right click: Copy to Clopboard" id="whatLinksHere">What Links Here</li>`
+      `<li><a class="dropdown-item whatLinksHere" href="${dLink}" title="See what links to this page&#10;Right click: Copy to Clipboard" id="whatLinksHere">What Links Here</li>`
     );
     newLi.insertAfter(findMatchesLi.parent());
   }
@@ -246,12 +246,12 @@ async function whatLinksHereLink() {
         <label for="whatLinksHereMore"></label></span></h2>`
     );
     if (isProfilePage || isSpacePage) {
-      if ($("#content .ten > div.EDIT").length) {
+      if ($("#Memories").length) {
         // if possible, place it below the bio but before the edit link, memories, etc.
-        $("#content .ten > div.EDIT").before(theSection);
-      } else if ($("#content .ten > br + br:last-child")) {
+        $("#Memories").before(theSection);
+      } else if ($("div.box.orange.rounded h3")) {
         // on private pages, put it above the orange box and any stray <br> tags from the memories code
-        $("#content .ten > br:last-child").prevUntil(":not(br, .box.orange)").last().before(theSection);
+        $("div.box.orange.rounded h3").closest("div.box").before(theSection);
       } else {
         $("#content .ten").append(theSection);
       }
@@ -262,8 +262,8 @@ async function whatLinksHereLink() {
       $("#toc ul:first").append(
         `<li class="toclevel-1"><a href="#What_Links_Here" title=""><span class="tocnumber">${newToclevel1Count}</span> <span class="toctext">What Links Here</span></a></li>`
       );
-    } else if (isMediaWikiPage) {
-      $("#content > .sixteen").append(theSection);
+    } else {
+      $("main div.container div.page--content").last().append(theSection);
     }
     $("#whatLinksHereMore").on("change", function () {
       if (!this.xWhatLinksHerePopulated) {
@@ -273,24 +273,21 @@ async function whatLinksHereLink() {
       $(this).closest("section").toggleClass("expand-whl");
     });
   }
-  $("a.whatLinksHere").contextmenu(function (e) {
+  $("a.whatLinksHere").on("contextmenu", function (e) {
     doWhatLinksHere(e);
   });
 }
 
 export function copyToClipboard3(element, refs = 1) {
-  var $temp = $("<textarea>");
-  var brRegex = /<br\s*[/]?>/gi;
-  $("body").append($temp);
-  let ref1 = "";
-  let ref2 = "";
-  if (refs == 1) {
-    ref1 = "<ref>";
-    ref2 = "</ref>";
-  }
-  $temp.val(ref1 + decodeHTMLEntities($(element).html().replace(brRegex, "\r\n")) + ref2).select();
-  document.execCommand("copy");
-  $temp.remove();
+  const brRegex = /<br\s*[/]?>/gi;
+  const ref1 = refs === 1 ? "<ref>" : "";
+  const ref2 = refs === 1 ? "</ref>" : "";
+
+  const text = ref1 + decodeHTMLEntities(element.innerHTML.replace(brRegex, "\r\n")) + ref2;
+
+  navigator.clipboard.writeText(text).catch((err) => {
+    console.error("Failed to copy text: ", err);
+  });
 }
 
 function decodeHTMLEntities(text) {
