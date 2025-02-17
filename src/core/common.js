@@ -582,7 +582,7 @@ export async function showDraftList() {
         getWikiTreePage("Drafts", "/index.php", `title=${theWTID}&displayDraft=1`).then((res) => {
           draftCalls++;
           const dummy = $(res);
-          let aWTID = dummy.find("a.pureCssMenui0 span.person").text();
+          let aWTID = dummy.find("#pageData").attr("data-mnamedb") || "";
 
           // Check if 'aWTID' ends with ' User' and remove it if present
           if (aWTID.endsWith(" User")) {

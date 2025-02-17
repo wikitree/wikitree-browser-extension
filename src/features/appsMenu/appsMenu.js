@@ -113,7 +113,7 @@ shouldInitializeFeature("appsMenu").then((result) => {
 });
 
 function getLink(href) {
-  return $(`ul.pureCssMenu a[href$='/wiki/${href}'].pureCssMenui`);
+  return $(`nav a[href$='/wiki/${href}']`).eq(0);
 }
 
 function attachMenu(anchorHref, submenuId, menuItems) {
@@ -124,7 +124,7 @@ function attachMenu(anchorHref, submenuId, menuItems) {
 
   menuItems.forEach((item) => {
     const menuItemLink = $("<a>", {
-      class: "pureCssMenui",
+      class: "dropdown-item",
       href: item.url,
       text: item.title,
     });

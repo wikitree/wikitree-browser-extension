@@ -353,14 +353,14 @@ export async function addCC7ChangesButton() {
   $("li a.dropdown-item[href='/wiki/Category:Categories']").each(function () {
     const categoryLI = $(this);
     const fetchAndReportLi = $(
-      "<li><a class='dropdown-item cc7Tracker' title='Find CC7 changes since you last checked'>CC7 Changes</li>"
+      `<li><a href="#n" class='dropdown-item cc7Tracker' title='Find CC7 changes since you last checked'>CC7 Changes</li>`
     );
     fetchAndReportLi.insertBefore(categoryLI.parent());
     fetchAndReportLi.on("click", (e) => cc7ChangesClick(e));
 
     const reportOnlyLi = $(
-      "<li><a class='dropdown-item cc7Tracker' " +
-        "title='Show the CC7 changes report again without fetching your latest CC7'>CC7 Report Only</li>"
+      `<li><a href="#n" class='dropdown-item cc7Tracker' " +
+        "title='Show the CC7 changes report again without fetching your latest CC7'>CC7 Report Only</li>`
     );
     reportOnlyLi.insertBefore(categoryLI.parent());
     reportOnlyLi.on("click", (e) => cc7ChangesClick(e, true));

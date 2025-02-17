@@ -23,6 +23,7 @@ shouldInitializeFeature("customChangeSummaryOptions").then(async (result) => {
   if (result) {
     // Set a 2 second wait to do the function
     setTimeout(async function () {
+      console.log("Initializing Custom Change Summary Options...");
       $("#save").closest("div.page--content").prop("id", "saveButtons");
       if (isSpaceEdit) {
         const options = await getFeatureOptions("customChangeSummaryOptions");

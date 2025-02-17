@@ -187,7 +187,8 @@ if (domain.match("apps.wikitree.com")) {
   const uri = decodeURI(window.location.href); // with parameters
   if (
     // Profile Edit Page
-    uri.match(/\/index.php\?title=Special(:|%3A|%3a)EditPerson&.*/g)
+    uri.match(/\/index.php\?title=Special(:|%3A|%3a)EditPerson&.*/g) ||
+    uri.match(/\/wiki\/Special(:|%3A|%3a)EditPerson/g)
   ) {
     isProfileEdit = true;
   } else if (
