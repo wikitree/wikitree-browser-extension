@@ -1,14 +1,16 @@
+import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 shouldInitializeFeature("enumerateImageDetail").then((result) => {
   if (result) {
+    import("./enumerate_image_detail.css");
     $("ul.STYLED")
       .has("li.BULLET60 span[itemprop='about']")
       .each(function () {
         let $ul = $(this);
 
         // Convert <ul> to <ol>
-        let $ol = $("<ol>").html($ul.html()).attr("class", $ul.attr("class"));
+        let $ol = $("<ol>").html($ul.html()).attr("class", $ul.attr("class")).addClass("enumerated");
 
         // Get all <li> elements and sort them based on the text inside the <span itemprop="about">
         let $sortedLis = $ol.children("li.BULLET60").sort(function (a, b) {
