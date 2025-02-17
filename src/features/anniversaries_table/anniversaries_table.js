@@ -18,7 +18,7 @@ const shakingTree = $(
     chrome.runtime.getURL("images/tree.gif") +
     "'>"
 );
-const bigDiv = $(".box.orange.rounded.row");
+const bigDiv = $(".box.rounded");
 shouldInitializeFeature("anniversariesTable").then((result) => {
   if (result) {
     initAnniversariesTable();
@@ -48,13 +48,9 @@ async function initAnniversariesTable() {
       return;
     }
   }
-  $("div.row")
+  $("div.page--title h1")
     .eq(0)
-    .after(
-      $("<button id='toggleAnniversariesTableButton' class='small'>Switch Format</button>").css({
-        "margin-bottom": "1em",
-      })
-    );
+    .append($("<button id='toggleAnniversariesTableButton' class='small'>Switch Format</button>"));
   $("#toggleAnniversariesTableButton").on("click", function (e) {
     e.preventDefault();
     anniversariesTable().then(() => {
@@ -86,7 +82,7 @@ async function anniversariesTable() {
     )
   );
 
-  $(".box.orange.rounded.row div").each(function () {
+  $(".box.rounded div").each(function () {
     const row = $("<tr>");
     const div = $(this);
     const dateExp = /(\d{2}) (\w{3}) (\d{4})/;
@@ -118,23 +114,13 @@ async function anniversariesTable() {
     row.attr("data-event", event);
 
     row.append(
-      "<td>" +
-        date +
-        "</td>" +
-        "<td>" +
-        names.eq(0).prop("outerHTML") +
-        (names.length > 1 ? " " + spans.eq(0).prop("outerHTML") : "") +
-        "</td>" +
-        "<td>" +
-        event +
-        "</td>" +
-        "<td>" +
-        (names.length > 1
+      `<td>${date}</td><td>${names.eq(0).prop("outerHTML")}${
+        names.length > 1 ? " " + spans.eq(0).prop("outerHTML") : ""
+      }</td><td>${event}</td><td>${
+        names.length > 1
           ? names.eq(1).prop("outerHTML") + " " + spans.eq(1).prop("outerHTML")
-          : spans.eq(0).prop("outerHTML")) +
-        "</td>" +
-        "<td class='distance-cell'></td>" +
-        "<td class='relationship-cell'></td>"
+          : spans.eq(0).prop("outerHTML")
+      }</td><td class='distance-cell'></td><td class='relationship-cell'></td>`
     );
     table.find("tbody").append(row);
   });
