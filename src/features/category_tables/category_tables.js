@@ -10,8 +10,8 @@ shouldInitializeFeature("categoryTables").then((result) => {
 });
 
 function getPageType() {
-  if ($("body.page-Category_Supercentenarians").length) return "superCentenarians";
-  if ($("body.page-Category_Centenarians").length) return "centenarians";
+  if (window.location.href.match(/Category:Supercentenarians/)) return "superCentenarians";
+  if (window.location.href.match(/Category:Centenarians/)) return "centenarians";
   return "category";
 }
 
@@ -33,7 +33,7 @@ async function addCategoryTableButton() {
     }
     $(this).addClass("beenClicked");
 
-    const superIDs = $("a.P-F,a.P-M")
+    const superIDs = $("div.P-ITEM a")
       .map(function () {
         return $(this).attr("href").split("/wiki/")[1].replace(/ /g, "_");
       })

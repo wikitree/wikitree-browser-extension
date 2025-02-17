@@ -39,6 +39,12 @@ const blueBricksURL = chrome.runtime.getURL("images/blue_bricks.jpg");
 const pinkBricksURL = chrome.runtime.getURL("images/pink_bricks.jpg");
 const purpleBricksURL = chrome.runtime.getURL("images/purple_bricks.jpg");
 
+const unconnectedNotablesMatch = window.location.href.match(/Space:Unconnected_Notables/);
+const specialUnconnecteMatch = window.location.href.match(/Special:Unconnected/);
+const spaceLargestUnconnectedBranchesMatch = window.location.href.match(/Space:Largest_Unconnected_Branches/);
+const specialMyConnectionsMatch = window.location.href.match(/Special:MyConnections/);
+const specialSearchPersonMatch = window.location.href.match(/Special:SearchPerson/);
+
 export const USstatesObjArray = [
   {
     name: "Alabama",
@@ -749,24 +755,25 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
   if ($(".searchResultsButton").length) {
     $(".searchResultsButton").show();
   }
-  if ($("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
+  if ($("body.edit-family").length) {
     $("#suggestedMatches").prepend($("<img id='tree' src='" + treeImageURL + "'>"));
     tableClass = "suggestedMatches";
   }
-  if ($("body.page-Special_FindMatches").length) {
+  if ($("body.find-matches").length) {
     tableClass = "suggestedMatches";
   }
   window.isUnconnecteds = false;
   window.isMyUnconnecteds = false;
   const waitingImage = $("<img id='tree' class='waiting' src='" + treeImageURL + "'>");
+
   if (
-    $(
-      "body.page-Space_Unconnected_Notables,body.page-Special_Unconnected,body.page-Space_Largest_Unconnected_Branches,body.unconnected"
-    ).length
+    unconnectedNotablesMatch != null ||
+    specialUnconnecteMatch != null ||
+    spaceLargestUnconnectedBranchesMatch != null
   ) {
     window.isUnconnecteds = true;
     tableClass = "unconnecteds";
-    if ($("body.page-Special_Unconnected").length) {
+    if (specialUnconnecteMatch) {
       window.isMyUnconnecteds = true;
     }
   } else if (tableID == "profileAncestors") {
@@ -777,7 +784,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     } else {
       $("#categoryTablePaginationLinks").after(waitingImage);
     }
-  } else if ($("body.page-Special_MyConnections").length) {
+  } else if (specialMyConnectionsMatch != null) {
     $(waitingImage).insertAfter($("button.myConnectionsTableButton.clicked"));
   } else {
     $("h1").append(waitingImage);
@@ -792,13 +799,13 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       let thisP = thisPLinkSplit[1];
     }
   } else {
-    if ($("body.page-Special_SearchPerson").length) {
+    if (specialSearchPersonMatch != null) {
       tableClass = "searchResults";
       thisP = false;
     } else if ($(".unconnectedButton.clicked").length) {
       thisP = $(".unconnectedButton.clicked").data("wtid");
     } else if (
-      $("body.page-Special_EditFamily h1,body.page-Special_EditFamilySteps")
+      $("body.edit-family h1")
         .text()
         .match(/Unrelated/) != null
     ) {
@@ -945,7 +952,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     let missingMother = "";
     let missingSpouse = "";
     let missingChildren = "";
-    if ($("body.page-Special_MyConnections").length) {
+    if (specialMyConnectionsMatch != null) {
       missingFather = "<th id='missing-father'>F</th>";
       missingMother = "<th id='missing-mother'>M</th>";
       missingSpouse = "<th id='missing-spouse'>Sp</th>";
@@ -965,7 +972,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       insAfter = $("h2").eq(0);
     }
 
-    if ($(".peopleTable").length && $("body.page-Special_MyConnections").length == 0) {
+    if ($(".peopleTable").length && !specialMyConnectionsMatch) {
       if (tableClass == "category") {
         $(".peopleTable").hide();
         $(".peopleTable").eq(0).before(aTable);
@@ -1096,9 +1103,11 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       let mParents = extractRelatives(mPerson.Parents, mPerson, "Parent");
       mPerson.Parent = mParents;
       isMain = false;
+      const spaceUnconnectedNotablesMatch = window.location.href.match(/Space:Unconnected_Notables/);
+      const spaceLargestUnconnectedBranchesMatch = window.location.href.match(/Space:Largest_Unconnected_Branches/);
       if (mPerson.Name) {
         if (thisP == mPerson?.Name.replaceAll(/ /g, "_")) {
-          if ($("body.page-Space_Unconnected_Notables,body.page-Space_Largest_Unconnected_Branches").length) {
+          if (spaceLargestUnconnectedBranchesMatch || spaceUnconnectedNotablesMatch) {
             captionText = mPerson.LongName + ": " + (thePeople.length - 1) + " Connections";
           }
 
@@ -1497,7 +1506,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
         isUnconnecteds == true &&
         index == 0 &&
         isMyUnconnecteds == false &&
-        $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length == 0
+        $("body.edit-family").length == 0
       ) {
         aClass = "notable";
       }
@@ -1836,12 +1845,13 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     addWideTableButton();
   }
   let firstTime = true;
-  if ($("body.page-Special_SearchPerson").length == 0 && tableClass != "category" && tableID != "profileAncestors") {
+
+  if (!specialSearchPersonMatch && tableClass != "category" && tableID != "profileAncestors") {
     const locationFilterButton = $(
       "<button class='button small searchResultsButton' id='locationFilter'>Filter by location</button>"
     );
 
-    if ($("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
+    if ($("body.edit-family").length) {
       if ($("#locationFilter").length) {
         firstTime = false;
         $("#locationFilter").show();
@@ -1937,7 +1947,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       locationFilterSP.insertBefore($(".peopleTable"));
     }
     $("#moreSearchDetails").hide();
-    $("#spLocationFilterButton").click(function (e) {
+    $("#spLocationFilterButton").on("click", function (e) {
       e.preventDefault();
       if ($(this).text() == "Remove Location Filter" || $("#spLocationFilter").val() == "") {
         $(this).text("Filter By Location");
@@ -1980,10 +1990,7 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
   const nameFilterButton = $(
     "<button class='button small searchResultsButton' id='nameFilter'>Filter by name</button>"
   );
-  if (
-    $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length ||
-    $("body.page-Special_SearchPerson").length
-  ) {
+  if ($("body.edit-family").length || specialSearchPersonMatch) {
     if ($("#nameFilter").length) {
       $("#nameFilter").show();
     } else {
@@ -2363,28 +2370,28 @@ function hsDetails(person, includeLink = 0) {
 
 export async function addWideTableButton() {
   if (
-    $("body.page-Special_Surname table.wt.names").length ||
+    $("table.wt.names").length ||
     $("#connectionsTable").length ||
     $(".peopleTable").length ||
-    $("body.page-Special_WatchedList").length
+    $("body.watchlist").length
   ) {
     $(".wideTableButton").show();
     let dTable;
     const wideTableButton = $("<button class='button small wideTableButton'>Wide Table</button>");
     if ($(".wideTableButton").length == 0 || ($("body.page-Special_MyConnections").length && $("#gen0").length)) {
-      if ($("body.page-Special_Surname table.wt.names").length) {
-        dTable = $("body.page-Special_Surname table.wt.names");
-        wideTableButton.insertBefore($("body.page-Special_Surname table.wt.names"));
+      if ($("table.wt.names").length) {
+        dTable = $("table.wt.names");
+        wideTableButton.insertBefore($("table.wt.names"));
       } else {
         if ($(".peopleTable").length) {
           dTable = $(".peopleTable");
-        } else if ($("body.page-Special_WatchedList").length) {
+        } else if ($("body.watchlist").length) {
           dTable = $("table.wt.names").eq(0);
         } else {
           dTable = $("#connectionsTable");
         }
 
-        if ($("body.page-Special_MyConnections").length) {
+        if (specialMyConnectionsMatch) {
           $(".wideTableButton").remove();
         }
 
@@ -2393,13 +2400,13 @@ export async function addWideTableButton() {
 
       $(".wideTableButton").on("click", function (e) {
         e.preventDefault();
-        if ($("body.page-Special_Surname table.wt.names").length) {
-          dTable = $("body.page-Special_Surname table.wt.names");
-        } else if ($("body.page-Special_MyConnections").length) {
+        if ($("table.wt.names").length) {
+          dTable = $("table.wt.names");
+        } else if (specialMyConnectionsMatch) {
           dTable = $(".peopleTable");
         } else if ($(".peopleTable").length) {
           dTable = $(".peopleTable").eq(0);
-        } else if ($("body.page-Special_WatchedList").length) {
+        } else if ($("body.watchlist").length) {
           dTable = $("table.wt.names").eq(0);
         } else {
           dTable = $("#connectionsTable");
@@ -2418,7 +2425,7 @@ export async function addWideTableButton() {
             }
             dTable.css({ left: "0" });
 
-            if ($("body.page-Special_MyConnections").length) {
+            if (specialMyConnectionsMatch) {
               dTable.each(function () {
                 let tableContainer;
                 if ($(this).parent().attr("class") == "tableContainer") {
@@ -2433,7 +2440,7 @@ export async function addWideTableButton() {
 
             $("#buttonBox").hide();
             $(".wideTableButton").text("Wide table");
-            if ($("body.page-Space_Largest_Unconnected_Branches").length) {
+            if (spaceLargestUnconnectedBranchesMatch) {
               $("#lubRule").remove();
             }
           }, 1000);
@@ -2449,7 +2456,7 @@ export async function addWideTableButton() {
               container = $("<div class='tableContainer'></div>");
             }
 
-            if ($("body.page-Special_MyConnections").length) {
+            if (specialMyConnectionsMatch) {
               dTable.each(function () {
                 let aContainer;
                 if ($(this).parent().hasClass("tableContainer") == false) {
@@ -2467,7 +2474,7 @@ export async function addWideTableButton() {
               dTable.addClass("wide");
             }
 
-            if ($("body.page-Space_Largest_Unconnected_Branches").length) {
+            if (spaceLargestUnconnectedBranchesMatch) {
               $("body").append($("<style id='lubRule'>div.ten.columns{width:97% !important;}</style>"));
             }
 
@@ -2496,7 +2503,7 @@ export async function addWideTableButton() {
                   },
                   "slow"
                 );
-                if ($("body.page-Special_MyConnections").length) {
+                if (specialMyConnectionsMatch) {
                   $(".tableContainer").each(function () {
                     $(this).animate(
                       {
@@ -2516,7 +2523,7 @@ export async function addWideTableButton() {
                   },
                   "slow"
                 );
-                if ($("body.page-Special_MyConnections").length) {
+                if (specialMyConnectionsMatch) {
                   $(".tableContainer").each(function () {
                     $(this).animate(
                       {
