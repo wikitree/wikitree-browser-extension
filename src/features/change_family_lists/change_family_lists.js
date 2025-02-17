@@ -632,7 +632,7 @@ async function getAncestorsOnPage() {
       const thisClass = connectionElement.closest("li").attr("class");
       // Find the spouse of the profile person with the same class
       // There may be more than one class. We need to find the one that starts with "spouse_" (if there is one).
-      const spouseClass = thisClass.split(" ").find((c) => c.startsWith("spouse_"));
+      const spouseClass = thisClass?.split(" ").find((c) => c.startsWith("spouse_"));
       if (spouseClass) {
         const spouseA = $(`.spouseDetails.${spouseClass} span a.spouseLink`);
         if (spouseA.length) {
