@@ -572,7 +572,7 @@ async function getAncestorsOnPage() {
     })
     .get();
   // Add the profile person
-  peopleOnPage.push(profilePerson.FullName);
+  peopleOnPage.push(profilePerson.Name);
 
   const ancestorsOnPage = peopleOnPage.filter((person) => {
     const personWithUnderscores = person.replace(/ /g, "_");
