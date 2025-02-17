@@ -297,16 +297,22 @@ export function addLoginButton(appId = "WBE") {
   });
 }
 
+function addIDsToOLs() {
+  // Find all h3[id^="gen"]; get the id number; add id={h3id}_list to the following ol
+  const h3s = document.querySelectorAll("div.page--content h3[id*='gen']");
+  h3s.forEach(function (aH3) {
+    const h3ID = $(aH3).attr("id");
+    const followingOL = $(aH3).next();
+    followingOL.attr("id", h3ID + "_list");
+  });
+}
+
 shouldInitializeFeature("myConnections").then((result) => {
-  if (
-    result &&
-    $("body.page-Special_MyConnections").length &&
-    $("#gen0").length &&
-    window.doingMyConnections == undefined
-  ) {
+  if (result && $("body.my-connections").length && $("#gen0").length && window.doingMyConnections == undefined) {
     addLoginButton("WBE_my_connections");
     $("body").addClass("wbeMyConnections");
     window.doingMyConnections = true;
+    addIDsToOLs();
     myConnections();
   }
 });
@@ -358,7 +364,7 @@ function myConnectionsCountPt2(lastH3, ols, degreeCountTable) {
   }
 
   degreeCountTable.insertBefore($("#gen0"));
-  degreeCountTable.clone().insertBefore($("div.container").eq(1));
+  degreeCountTable.clone().insertBefore($("#subfooter"));
 }
 
 async function centreNumbersInTable(jqTable) {
@@ -377,12 +383,12 @@ async function centreNumbersInTable(jqTable) {
 async function myConnectionsCount() {
   setTimeout(function () {
     $(".degreeCount").remove();
-    const ols = document.querySelectorAll(".wrapper ol[id*='gen']");
+    const ols = document.querySelectorAll("div.page--content ol[id*='gen']");
     const degreeCountTable = $(
       "<table class='degreeCount'><thead><tr><th>Degree</th></tr></thead><tbody><tr class='countRow'><th>Count</th></tr><tr class='subTotalRow'><th>Total</th></tr></tbody></table>"
     );
 
-    const allH3s = document.querySelectorAll(".wrapper h3[id*='gen']");
+    const allH3s = document.querySelectorAll("div.page--content h3[id*='gen']");
     const lastH3El = allH3s[allH3s.length - 1];
     //try{
     const lastH3 = lastH3El.textContent.match(/[0-9]+/)[0];
@@ -393,8 +399,8 @@ async function myConnectionsCount() {
 
 window.myConnectionsCompletedMore = [];
 async function myConnectionsMore() {
-  $(".wrapper h3").each(function (index) {
-    let dOL = $(".wrapper ol[id='" + $(this).attr("id") + "_list']");
+  $("div.page--content h3").each(function (index) {
+    let dOL = $("div.page--content ol[id='" + $(this).attr("id") + "_list']");
     let visibility = "";
     if (index < 4 && dOL.find("a").length == 0) {
       visibility = "hidden";
@@ -517,13 +523,7 @@ async function getMoreConnections() {
     const nextDegreeNum = parseInt(window.currentDegreeNum) + 1;
     window.currentDegreeNum = nextDegreeNum;
     $(
-      "<h3 id='gen" +
-        window.currentDegreeNum +
-        "'>Degree " +
-        window.currentDegreeNum +
-        "</h3><ol id='gen" +
-        window.currentDegreeNum +
-        "_list'></ol>"
+      `<h3 id='gen${window.currentDegreeNum}'>Degree ${window.currentDegreeNum}</h3><ol id='gen${window.currentDegreeNum}_list'></ol>`
     ).insertAfter($(lastOL));
   }
   window.allLinkIDs = [];
@@ -662,9 +662,9 @@ async function getMoreConnections() {
                     ")</a></li>"
                 );
               }
-              let theOLs = document.querySelectorAll(".wrapper ol[id*='gen']");
+              let theOLs = document.querySelectorAll("ol[id*='gen']");
               let lastList = theOLs[parseInt(window.currentDegreeNum)];
-              lastList = document.querySelector(".wrapper ol[id*='gen" + window.currentDegreeNum + "_list']");
+              lastList = document.querySelector("ol[id*='gen" + window.currentDegreeNum + "_list']");
               $(lastList).append(aLine);
               let listLength = $(lastList).find("li").length;
               let maxPlusPlus = "";
@@ -955,8 +955,8 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
     if (specialMyConnectionsMatch != null) {
       missingFather = "<th id='missing-father'>F</th>";
       missingMother = "<th id='missing-mother'>M</th>";
-      missingSpouse = "<th id='missing-spouse'>Sp</th>";
-      missingChildren = "<th id='missing-children'>Ch</th>";
+      missingSpouse = ""; // "<th id='missing-spouse'>Sp</th>";
+      missingChildren = ""; // "<th id='missing-children'>Ch</th>";
     }
 
     let tableIDBit = "";
@@ -1017,17 +1017,18 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
       return 0;
     });
 
+    console.log("thePeople", thePeople);
     thePeople.forEach(function (mPerson, index) {
       let noBorDdate = false;
       let missingFatherCell = "";
       let missingMotherCell = "";
       let missingSpouseCell = "";
       let missingChildrenCell = "";
-      if ($("body.page-Special_MyConnections").length) {
+      if ($("body.my-connections").length) {
         missingFatherCell = "<td class='missingPersonCell'></td>";
         missingMotherCell = "<td class='missingPersonCell'></td>";
-        missingSpouseCell = "<td class='missingPersonCell'></td>";
-        missingChildrenCell = "<td class='missingPersonCell'></td>";
+        missingSpouseCell = ""; // "<td class='missingPersonCell'></td>";
+        missingChildrenCell = ""; // "<td class='missingPersonCell'></td>";
         const deathAge = ageAtDeath(mPerson);
         if (mPerson?.Name) {
           let thisLink = $("ol[id*='gen'] a[href='/wiki/" + htmlEntities(mPerson.Name) + "']");

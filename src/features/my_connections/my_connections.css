@@ -2,25 +2,25 @@ body.page-Special_Connection .wideTableButton {
   float: left;
 }
 
-body.page-Special_MyConnections #tree.waiting {
+body.my-connections #tree.waiting {
   position: absolute;
   height: 50px;
   border-radius: 50%;
   border: 2px solid forestgreen;
 }
 
-body.page-Special_MyConnections .degreeCount {
+body.my-connections .degreeCount {
   border-collapse: collapse;
   border: 1px solid forestgreen;
   margin: 1em;
 }
 
-body.page-Special_MyConnections .degreeCount th {
+body.my-connections .degreeCount th {
   text-align: left;
   padding: 0.5em 1em;
 }
 
-body.page-Special_MyConnections .degreeCount td {
+body.my-connections .degreeCount td {
   padding: 0.5em 1em;
   text-align: center;
 }
@@ -48,40 +48,40 @@ body.page-Special_Connection .tableContainer {
   width: 100%;
 }
 
-body.page-Special_MyConnections .tableContainer {
+body.my-connections .tableContainer {
   padding-left: 4em;
 }
 
-body.page-Special_MyConnections table.wt.names.compact.wide,
-body.page-Special_MyConnections .tableContainer table.wide {
+body.my-connections table.wt.names.compact.wide,
+body.my-connections .tableContainer table.wide {
   white-space: nowrap;
   table-layout: auto;
 }
 
-body.page-Special_MyConnections .peopleTable {
+body.my-connections .peopleTable {
   clear: both;
 }
 
-body.page-Special_MyConnections .peopleTable tr {
+body.my-connections .peopleTable tr {
   border: 1px solid gray;
   border-radius: 0.5em;
 }
 
-body.page-Special_MyConnections .peopleTable td {
+body.my-connections .peopleTable td {
   padding: 5px;
 }
 
-body.page-Special_MyConnections .peopleTable .aDate,
-body.page-Special_MyConnections .familySheet .aDate {
+body.my-connections .peopleTable .aDate,
+body.my-connections .familySheet .aDate {
   white-space: nowrap;
 }
 
-body.page-Special_MyConnections .peopleTable .aDate {
+body.my-connections .peopleTable .aDate {
   border-right: 2px solid white;
   border-left: 2px solid white;
 }
 
-body.page-Special_MyConnections .peopleTable tbody .privacyImage {
+body.my-connections .peopleTable tbody .privacyImage {
   float: right;
   background-color: white;
   border-radius: 1em;
@@ -94,14 +94,14 @@ body.page-Special_MyConnections .peopleTable tbody .privacyImage {
   text-align: center;
 }
 
-body.page-Special_MyConnections .peopleTable tbody .privacyImage {
+body.my-connections .peopleTable tbody .privacyImage {
   border: none;
   position: relative;
   float: right;
 }
 
-body.page-Special_MyConnections .peopleTable a:link,
-body.page-Special_MyConnections .peopleTable a:visited {
+body.my-connections .peopleTable a:link,
+body.my-connections .peopleTable a:visited {
   text-decoration: none;
 }
 
@@ -117,68 +117,68 @@ button.myConnectionsTableButton.small.hidden {
   visibility: hidden;
 }
 
-body.page-Special_MyConnections img.missingPerson {
+body.my-connections img.missingPerson {
   height: 15px;
   width: 15px;
   position: absolute;
 }
 
-body.page-Special_MyConnections img.myConnectionsNoFather {
+body.my-connections img.myConnectionsNoFather {
   left: -0.5em;
   border-radius: 50%;
   border: 2px solid blue;
 }
 
-body.page-Special_MyConnections img.myConnectionsNoMother {
+body.my-connections img.myConnectionsNoMother {
   left: 0.5em;
   border-radius: 50%;
   border: 2px solid pink;
 }
 
-body.page-Special_MyConnections img.myConnectionsNoSpouse {
+body.my-connections img.myConnectionsNoSpouse {
   left: 1.5em;
 }
 
-body.page-Special_MyConnections .peopleTable #created,
-body.page-Special_MyConnections .peopleTable #edited,
-body.page-Special_MyConnections .peopleTable td.created,
-body.page-Special_MyConnections .peopleTable td.edited {
+body.my-connections .peopleTable #created,
+body.my-connections .peopleTable #edited,
+body.my-connections .peopleTable td.created,
+body.my-connections .peopleTable td.edited {
   display: none;
 }
 
-body.page-Special_MyConnections .peopleTable.wide #created,
-body.page-Special_MyConnections .peopleTable.wide #edited,
-body.page-Special_MyConnections .peopleTable.wide td.created,
-body.page-Special_MyConnections .peopleTable.wide td.edited {
+body.my-connections .peopleTable.wide #created,
+body.my-connections .peopleTable.wide #edited,
+body.my-connections .peopleTable.wide td.created,
+body.my-connections .peopleTable.wide td.edited {
   display: table-cell;
 }
 
-body.page-Special_MyConnections .peopleTable tr.notable {
+body.my-connections .peopleTable tr.notable {
   font-weight: bold;
   border-top: 2px solid forestgreen;
   border-bottom: 2px solid forestgreen;
   border-right: 2px solid forestgreen;
 }
 
-body.page-Special_MyConnections .peopleTable caption {
+body.my-connections .peopleTable caption {
   font-weight: bold;
   text-align: left;
   font-size: 1.3em;
 }
 
-body.page-Special_MyConnections .peopleTable .Female,
-body.page-Special_MyConnections .Female {
+body.my-connections .peopleTable .Female,
+body.my-connections .Female {
   background-color: #fff8f7;
   border-left: 5px pink solid;
 }
 
-body.page-Special_MyConnections .peopleTable .Male,
-body.page-Special_MyConnections .Male {
+body.my-connections .peopleTable .Male,
+body.my-connections .Male {
   background-color: #f4fefe;
   border-left: 5px blue solid;
 }
 
-body.page-Special_MyConnections .peopleTable {
+body.my-connections .peopleTable {
   clear: both;
 }
 
@@ -187,31 +187,31 @@ body.page-Special_MyConnections .peopleTable {
   border-left: 2px solid white;
 }
 
-body.page-Special_MyConnections .peopleTable .aRelation {
+body.my-connections .peopleTable .aRelation {
   display: none;
   margin-bottom: 0.5em;
 }
 
-body.page-Special_MyConnections .peopleTable .gotRels {
+body.my-connections .peopleTable .gotRels {
   background: #ffffe0;
   cursor: pointer;
 }
 
-body.page-Special_MyConnections .peopleTable .gotRels.show .aRelation {
+body.my-connections .peopleTable .gotRels.show .aRelation {
   display: block;
 }
 
-body.page-Special_MyConnections .peopleTable th[id] {
+body.my-connections .peopleTable th[id] {
   cursor: pointer;
 }
 
-body.page-Special_MyConnections .peopleTable tr.main {
+body.my-connections .peopleTable tr.main {
   border: 5px solid forestgreen;
   margin-bottom: 1em;
   border-radius: 1em;
 }
 
-body.page-Special_MyConnections .peopleTable .familyHome {
+body.my-connections .peopleTable .familyHome {
   height: 20px;
   position: absolute;
   left: -2em;
@@ -220,18 +220,18 @@ body.page-Special_MyConnections .peopleTable .familyHome {
   cursor: pointer;
 }
 
-body.page-Special_MyConnections .peopleTable .familyHome:hover {
+body.my-connections .peopleTable .familyHome:hover {
   background: gold;
   border-radius: 50%;
   box-shadow: 0.3em 0.3em 0.3em #ccc;
 }
 
-body.page-Special_MyConnections .peopleTable .familyHome:active {
+body.my-connections .peopleTable .familyHome:active {
   box-shadow: 0.1em 0.1em 0.1em #ccc;
   background: forestgreen;
 }
 
-body.page-Special_MyConnections .familySheet {
+body.my-connections .familySheet {
   position: absolute;
   white-space: nowrap;
   background: white;
@@ -243,32 +243,32 @@ body.page-Special_MyConnections .familySheet {
   padding: 1em;
 }
 
-body.page-Special_MyConnections .familySheet.wrap {
+body.my-connections .familySheet.wrap {
   white-space: normal;
 }
 
-body.page-Special_MyConnections .familySheet .self {
+body.my-connections .familySheet .self {
   font-weight: bold;
 }
 
-body.page-Special_MyConnections .familySheet td {
+body.my-connections .familySheet td {
   padding: 0.2em;
 }
 
-body.page-Special_MyConnections .familySheet thead,
-body.page-Special_MyConnections .peopleTable thead {
+body.my-connections .familySheet thead,
+body.my-connections .peopleTable thead {
   text-align: left;
 }
 
-body.page-Special_MyConnections #buttonBox {
+body.my-connections #buttonBox {
   position: fixed;
   z-index: 5000;
   top: 45%;
   right: -0.5em;
 }
 
-body.page-Special_MyConnections #leftButton,
-body.page-Special_MyConnections #rightButton {
+body.my-connections #leftButton,
+body.my-connections #rightButton {
   width: 30px;
   padding: 0;
   background: forestgreen;
@@ -279,7 +279,7 @@ body.page-Special_MyConnections #rightButton {
   margin-top: 0.2em;
 }
 
-body.page-Special_MyConnections .familySheet x {
+body.my-connections .familySheet x {
   position: absolute;
   top: 0;
   right: 0.5em;
@@ -287,27 +287,27 @@ body.page-Special_MyConnections .familySheet x {
   cursor: pointer;
 }
 
-body.page-Special_MyConnections td.connectionsName .privacyImage {
+body.my-connections td.connectionsName .privacyImage {
   position: absolute;
   left: -2em;
 }
 
-body.page-Special_MyConnections .peopleTable .privacyImage {
+body.my-connections .peopleTable .privacyImage {
   margin-top: 0.5em;
 }
 
-body.page-Special_MyConnections .tableContainer {
+body.my-connections .tableContainer {
   overflow-x: auto;
 }
 
-body.page-Special_MyConnections .familyTH,
-body.page-Special_MyConnections .familyTD {
+body.my-connections .familyTH,
+body.my-connections .familyTD {
   display: none;
 }
-body.page-Special_MyConnections .missingPersonCell {
+body.my-connections .missingPersonCell {
   width: 0.5em;
 }
-body.page-Special_MyConnections .missingPersonZero {
+body.my-connections .missingPersonZero {
   background-color: white;
   border: 1px solid forestgreen;
 }
