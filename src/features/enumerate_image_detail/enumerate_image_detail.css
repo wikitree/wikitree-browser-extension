@@ -55,3 +55,7 @@ ol li.BULLET60::before {
   height: 12px;
   width: 12px;
 }
+
+#Details .copyButton {
+  float: right;
+}
