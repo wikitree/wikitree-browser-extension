@@ -76,17 +76,27 @@ function createCollapsibleSections() {
 
       while (
         sibling &&
-        (sibling.nodeType !== 1 || // Ensure it's an element node
+        (sibling.nodeType !== 1 || // Only process element nodes
+          !sibling.matches || // Ensure matches() is callable
           (!sibling.matches(headingLevels.map((l) => `h${l}`).join(", ")) &&
-            !sibling.classList.contains("box") && // Stop before .box
+            !sibling.classList.contains("box") &&
             !sibling.classList.contains("orange") &&
             !sibling.classList.contains("rounded") &&
-            !sibling.closest("#Collaboration"))) // Stop before #Collaboration
+            !sibling.closest("#Collaboration")))
       ) {
-        if (sibling.nodeType === 1 && !sibling.closest("#Matches")) {
+        if (!sibling.closest || !sibling.closest("#Matches")) {
           content.push(sibling);
         }
         sibling = sibling.nextSibling;
+      }
+
+      // Preserve inline text content next to the heading
+      const inlineText =
+        heading.nextSibling && heading.nextSibling.nodeType === 3 ? heading.nextSibling.textContent.trim() : "";
+
+      if (inlineText) {
+        const textNode = document.createTextNode(inlineText);
+        content.unshift(textNode);
       }
 
       if (content.length > 0) {
@@ -94,8 +104,16 @@ function createCollapsibleSections() {
         wrapper.className = "collapsible-section";
         wrapper.id = heading.id + "-content";
         wrapper.style.display = "block"; // Start expanded
-        heading.parentNode.insertBefore(wrapper, content[0]);
-        content.forEach((node) => wrapper.appendChild(node));
+
+        // Ensure content[0] is a valid child of heading.parentNode
+        if (content[0].parentNode === heading.parentNode) {
+          heading.parentNode.insertBefore(wrapper, content[0]);
+          content.forEach((node) => wrapper.appendChild(node));
+        } else {
+          // Fallback: Append the wrapper after the heading if structure is inconsistent
+          heading.after(wrapper);
+          content.forEach((node) => wrapper.appendChild(node));
+        }
       }
     });
   });
