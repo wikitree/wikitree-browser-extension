@@ -450,16 +450,16 @@ async function moveFamilyLists() {
     } else if (options.familyListPosition == "beforePhotos") {
       $before = $("#Photos");
     }
-    if (!$before.length) {
+    if (!$before?.length) {
       $before = $("#geneticfamily");
-      if (!$before.length) {
+      if (!$before?.length) {
         $before = $("#DNA");
-        if (!$before.length) {
+        if (!$before?.length) {
           $before = $("#Research");
         }
       }
     }
-    if ($before.length) {
+    if ($before?.length) {
       familyLists.insertBefore($before);
     }
   }
