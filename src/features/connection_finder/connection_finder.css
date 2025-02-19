@@ -1,4 +1,4 @@
-body.page-Special_Connection .tableContainer {
+body.connection .tableContainer {
   float: left;
   width: 100%;
 }
@@ -59,27 +59,27 @@ body.page-Special_Connection .tableContainer {
 }
 
 /* Connection Finder */
-body.page-Special_Connection button.small.moreDetails,
-body.page-Special_Connection h1 button.downloadLines.small,
-body.page-Special_Connection #connectionFinderLoginButton,
-body.page-Special_Connection #copyList {
+body.connection button.small.moreDetails,
+body.connection h1 button.downloadLines.small,
+body.connection #connectionFinderLoginButton,
+body.connection #copyList {
   float: right;
   font-size: 12px;
   display: none;
 }
 
-body.page-Special_Connection #copyList {
+body.connection #copyList {
   display: inline;
 }
-body.page-Special_Connection #connectionFinderLoginButton {
+body.connection #connectionFinderLoginButton {
   display: inline;
 }
 
-body.page-Special_Connection button.smaller {
+body.connection button.smaller {
   font-size: 12px;
 }
 
-body.page-Special_Connection button.small.moreDetailsButton {
+body.connection button.small.moreDetailsButton {
   float: right;
   font-size: 12px;
 }
@@ -265,19 +265,19 @@ body.page-Special_Connection button.small.moreDetailsButton {
   position: relative;
 }
 
-body.page-Special_Connection .whiteText {
+body.connection .whiteText {
   color: white;
 }
 
-body.page-Special_Connection .clickable {
+body.connection .clickable {
   cursor: pointer;
 }
 
-body.page-Special_Connection h1 {
+body.connection h1 {
   position: relative;
 }
 
-body.page-Special_Connection .treeImg {
+body.connection .treeImg {
   height: 2.5em;
   display: block;
   position: absolute;
@@ -297,29 +297,29 @@ body.page-Special_Connection .treeImg {
   display: none;
   background-color: white;
 }
-body.page-Special_Connection #buttonBox {
+body.connection #buttonBox {
   display: none !important;
 }
 
-body.page-Special_Connection .surnames {
+body.connection .surnames {
   border: 1px solid forestgreen;
   padding: 0.5em;
   border-radius: 1em;
   margin: 1em;
 }
 
-body.page-Special_Connection #surnames3 ul {
+body.connection #surnames3 ul {
   list-style: none;
   margin: 1em;
 }
 
-body.page-Special_Connection #familyTextCount span {
+body.connection #familyTextCount span {
   display: inline-block;
 }
 
-body.page-Special_Connection #connectionsTable .familyHome,
-body.page-Special_Connection #connectionsTable .privacyImage,
-body.page-Special_Connection #connectionsTable .timelineButton {
+body.connection #connectionsTable .familyHome,
+body.connection #connectionsTable .privacyImage,
+body.connection #connectionsTable .timelineButton {
   position: relative;
   float: none !important;
   left: auto;
@@ -327,9 +327,10 @@ body.page-Special_Connection #connectionsTable .timelineButton {
   right: auto;
   margin: 0;
 }
-body.page-Special_Connection #connectionsTable td.buttonsCell {
+body.connection #connectionsTable td.buttonsCell {
   white-space: nowrap;
 }
-body.page-Special_Connection #connectionsTable td.buttonsCell img {
-  display: inline-block !important;
+body.connection #connectionsTable td.buttonsCell img {
+  display: block !important;
+  max-width: none;
 }

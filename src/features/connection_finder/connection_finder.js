@@ -125,6 +125,8 @@ const unlisted = chrome.runtime.getURL("images/unlisted.png");
 const timeLineImg = chrome.runtime.getURL("images/timeline.png");
 const homeImg = chrome.runtime.getURL("images/Home_icon.png");
 
+let connectionNames = [];
+
 $(document).on("keydown", function (e) {
   if (e.key === "Escape") {
     // Find .timeline or .familySheet with highest z-index and fadeOut()
@@ -182,33 +184,55 @@ function displayBranchListAutomatically() {
 }
 
 function displayBranchList() {
-  // Logic to display the branch list
-  const familyCount = [];
-  for (let i = 0; i < 20; i++) {
-    if ($("span.familyCount" + i).length) {
-      familyCount.push($("span.familyCount" + i).length);
-    }
+  // We'll collect how many items are in each branch.
+  const branchCounts = [];
+
+  let currentClass = null; // Will hold "odd" or "even"
+  let currentCount = 0;
+
+  // Select all children that have either of the two classes:
+  $("#connectionList")
+    .children("div.family-count-odd, div.family-count-even")
+    .each(function () {
+      // Identify if this is an odd or even element
+      const thisClass = $(this).hasClass("family-count-odd") ? "odd" : "even";
+
+      // If it's the first item or it matches the current branch class, increment
+      if (!currentClass || thisClass === currentClass) {
+        currentClass = thisClass;
+        currentCount++;
+      } else {
+        // We've hit a different class, so the previous branch ends
+        branchCounts.push(currentCount);
+
+        // Start a new count for the new class
+        currentClass = thisClass;
+        currentCount = 1;
+      }
+    });
+
+  // If there was at least one match, we need to push the last count
+  if (currentCount > 0) {
+    branchCounts.push(currentCount);
   }
-  $("#familyTextCount").remove(); // Remove existing count if any
-  let familyCountText = "";
-  if (familyCount.length != 0) {
-    familyCountText =
-      "<span id='familyTextCount'>: <span>" +
-      familyCount.length +
-      " branch" +
-      (familyCount.length > 1 ? "es" : "") +
-      " (" +
-      familyCount.join("-") +
-      ")</span></span>";
-    if (window.connectionFinderOptions && window.connectionFinderOptions.branches) {
-      $("h1").eq(0).append($(familyCountText)); // Append to a suitable element
-    }
+
+  // Clean up existing count display if any
+  $("#familyTextCount").remove();
+
+  // If we found any branches, show them
+  if (branchCounts.length) {
+    const familyCountText = `<span id='familyTextCount'>:
+      <span>${branchCounts.length} branch${branchCounts.length > 1 ? "es" : ""}
+      (${branchCounts.join("-")})</span></span>`;
+
+    // “Degrees” is still presumably an <h2> with that text
+    $("h2:contains('Degrees')").eq(0).append($(familyCountText));
   }
 }
 
 function copyFormattedNamesToClipboard() {
   let branchIndex = 0; // Index to keep track of the current branch color
-  let formattedNamesHtml = $("#connectionList li")
+  let formattedNamesHtml = $("#connectionList div.connection-box")
     .map(function (index) {
       const linkElement = $(this).find("a").first();
       const name = linkElement.text();
@@ -251,7 +275,7 @@ function copyFormattedNamesToClipboard() {
 function copyNamesToClipboard() {
   let branchIndex = 0; // Initialize branch index
 
-  let namesHtml = $("#connectionList li")
+  let namesHtml = $("#connectionList div.connection-box")
     .map(function () {
       const linkElement = $(this).find("a").first();
       const name = linkElement.text();
@@ -296,7 +320,7 @@ function copyNamesToClipboard() {
 }
 
 async function addCFsurnameList() {
-  const list = $("#connectionList li");
+  const list = $("#connectionList div.connection-box");
   const surnames = [];
   const surnameArr = [];
   let lastName = "";
@@ -435,12 +459,21 @@ async function connectionFinderThings() {
 
   const checkForDegreesHeader = setInterval(function () {
     console.log("Checking for Degrees header");
-    if ($("h1:contains(Degrees)").length) {
+    // Example text:
+    //connectionText = [
+    // "Ian Beacall is \n        22 Degrees from\n        Joseph Harnois"
+    //]
+    if ($("h2:contains('Degrees')").length) {
+      // Get text of first and last links in #connectionList
+      const firstLink = $("#connectionList a").first().text();
+      const lastLink = $("#connectionList a").last().text();
+      connectionNames = [firstLink, lastLink];
+
       clearInterval(checkForDegreesHeader); // Stop checking
       setupConnectionTools();
       displayBranchListAutomatically();
       surnameSummariesButton.fadeIn();
-    } else if ($("h1:contains(No Connection Found)").length) {
+    } else if ($("h2:contains('No Connection Found')").length) {
       clearInterval(checkForDegreesHeader); // Stop checking
       setupConnectionTools();
     }
@@ -994,12 +1027,9 @@ async function addConnectionText(num = 0) {
   if (num == 1) {
     arr = window.relWords;
   }
-  const h1Names = $("h1")
-    .eq(0)
-    .text()
-    .split(/\s\bis\b.*from\s/);
-  const h1Name = h1Names[1].split(":")[0] + " ".trim();
-  let relMessage = h1Name.replaceAll(/(↓)|(More)|(Table)/g, "").trim() + " is " + h1Names[0] + "&apos;s ";
+
+  let relMessage =
+    connectionNames[1].replaceAll(/(↓)|(More)|(Table)/g, "").trim() + " is " + connectionNames[0] + "&apos;s ";
 
   arr.forEach(function (aRel, i) {
     let addApos;
@@ -1425,10 +1455,9 @@ function showHeritageSocietyBox() {
   if (window.relWords.some((subArray) => subArray[0].startsWith("half"))) {
     return;
   }
-  if ($("span.familyCount2").length == 0) {
+  if ($("div.family-count-even").length == 0) {
     const hsText = [];
     window.heritageSociety.forEach(function (aCouple, i) {
-      let oHSout = "";
       let oText = [];
 
       let pText = hsDetails(aCouple[0]);
