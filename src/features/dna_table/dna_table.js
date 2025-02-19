@@ -15,7 +15,7 @@ function getBirthplaces() {
     }
   });
   setTimeout(function () {
-    const theTable = $("table.wt.names");
+    const theTable = $("table.table");
     let rows = theTable.find("tr");
     const tHead = $("<thead></thead>");
     tHead.prependTo(theTable);
@@ -88,11 +88,11 @@ function getBirthplaces() {
 }
 
 shouldInitializeFeature("dnaTable").then((result) => {
-  if (result && $("body.page-Special_DNATests").length) {
+  if (result) {
     import("./dna_table.css");
-    $("table.wt.names").addClass("wbe");
+    $("table.table").addClass("wbe");
     $("<button class='button small tight' id='showBirthplacesButton'>Add birthplaces</button>").prependTo(
-      $("#surnames_heading")
+      $("a.density-on").parent()
     );
     $("#showBirthplacesButton").on("click", function (e) {
       e.preventDefault();
