@@ -130,8 +130,9 @@ function moveToFolder($items, folderName) {
     const $targetList = $targetFolder.find(".spaceWatchlistSorter-sortable");
 
     $items.each(function () {
-      $(this).appendTo($targetList); // Move the item
-      $(this).removeClass("selected"); // Remove the selectable class
+      const clonedItem = $(this).clone(true);
+      clonedItem.appendTo($targetList);
+      $(this).remove();
     });
 
     // console.log(`Moved items to folder "${folderName}"`);
@@ -156,10 +157,11 @@ async function loadSpaceWatchlist() {
 
     // The user is logged in at WikiTree and the Apps server - Fetch their space watchlist
     //console.log(`Fetching Watchlist, userWtid=${getUserWtId()}, numId=${userNumId}`);
-    const watchlist = await WikiTreeAPI.getSpaceWatchlist(APP_ID, limit, fields);
-    const clonedWatchlist = JSON.parse(JSON.stringify(watchlist)); // Clone the object for Firefox
-    console.log("Watchlist fetched:", clonedWatchlist);
-    return clonedWatchlist;
+    const rawWatchlist = await WikiTreeAPI.getSpaceWatchlist(APP_ID, limit, fields);
+    const watchlist = structuredClone(rawWatchlist); // Safe deep clone for modern browsers
+    console.log("Watchlist fetched:", watchlist);
+
+    return watchlist;
   } catch (error) {
     console.error("Error fetching space watchlist:", error);
     return [];
@@ -274,14 +276,17 @@ async function populateInterface() {
     tabsContainer.empty();
     folderContainer.empty();
 
+    const clonedWatchlist = structuredClone(apiWatchlist); // For Firefox
+
     const apiItems = new Map(
-      apiWatchlist.map((space) => {
+      clonedWatchlist.map((space) => {
         return [
           space.Title?.DBkey,
           { key: space.Title?.DBkey, text: space.Title?.Text, url: space.Title?.FullURL?.replace(/\/api\./, "/www.") },
         ];
       })
     );
+
     const updatedFolderMap = new Map();
 
     // Recreate the folder structure while sorting api items that we had before
@@ -402,7 +407,7 @@ async function populateInterface() {
     // console.log("Interface populated with tabs and folders.");
     return { status: true };
   } catch (error) {
-    console.error("Error populating interface:", error);
+    console.error("Error populating interface:", error, error.stack);
     return {
       status: false,
       msg: `An error occured while retrieving Free Space pages for the user (${getUserNumId()}: ${error.message}).`,
@@ -459,15 +464,8 @@ async function saveWatchlistToDB(folders = []) {
     //console.log("Saving the following categorization:", JSON.stringify(categorization, null, 2)); // Debugging output
 
     const dbh = await initializeDatabase();
-    const dbWatchList = await dbh.putData(
-      SPWL_DB_STORE,
-      JSON.parse(
-        JSON.stringify({
-          id: `categorization-${userId}`,
-          folders: categorization,
-        })
-      )
-    ); // Deep clone for Firefox
+    const safeData = structuredClone(categorization);
+    await dbh.putData(SPWL_DB_STORE, { id: `categorization-${userId}`, folders: safeData });
   } catch (error) {
     console.error("Error in saveWatchlistToDB:", error);
   }
