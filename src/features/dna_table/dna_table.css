@@ -1,26 +1,28 @@
-body.page-Special_DNATests table.wt.names.wbe thead th,
-body.page-Special_DNATests table.wt.names.wbe {
+body.dnatests table.wbe thead th,
+body.dnatests table.wbe {
   width: auto !important;
-  background-color: #fff;
 }
-.browser-safari body.page-Special_DNATests table.wt.names.wbe {
+.browser-safari body.dnatests table.wbe {
   min-width: 100%; /* auto doesn't seem to work on Safari, so we have to force it to stretch the table */
 }
-body.page-Special_DNATests table.wt.names.wbe th.selected {
+body.dnatests table.wbe th.selected {
   background-color: #25422d;
 }
-body.page-Special_DNATests table.wt.names.wbe td {
+body.dnatests table.wbe td {
   white-space: nowrap;
 }
-body.page-Special_DNATests #birthplace {
+body.dnatests #birthplace {
   cursor: pointer;
   text-decoration: underline;
 }
-body.page-Special_DNATests #birthplace:hover {
+body.dnatests #birthplace:hover {
   text-decoration: none;
 }
 #showBirthplacesButton[disabled],
 #showBirthplacesButton[disabled]:hover,
 #showBirthplacesButton[disabled]:active {
   background-color: gray;
+}
+#showBirthplacesButton {
+  float: left;
 }
