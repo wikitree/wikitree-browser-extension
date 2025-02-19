@@ -186,3 +186,10 @@ spaceWatchlistSorter-removeFolder {
   top: 0;
   padding: 0.5em 1em;
 }
+
+div.spaceWatchlistSorter-header {
+  cursor: grab;
+}
+div.spaceWatchlistSorter-header:active {
+  cursor: grabbing;
+}

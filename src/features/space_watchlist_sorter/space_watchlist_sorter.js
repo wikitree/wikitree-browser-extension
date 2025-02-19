@@ -157,8 +157,9 @@ async function loadSpaceWatchlist() {
     // The user is logged in at WikiTree and the Apps server - Fetch their space watchlist
     //console.log(`Fetching Watchlist, userWtid=${getUserWtId()}, numId=${userNumId}`);
     const watchlist = await WikiTreeAPI.getSpaceWatchlist(APP_ID, limit, fields);
-
-    return watchlist || [];
+    const clonedWatchlist = JSON.parse(JSON.stringify(watchlist)); // Clone the object for Firefox
+    console.log("Watchlist fetched:", clonedWatchlist);
+    return clonedWatchlist;
   } catch (error) {
     console.error("Error fetching space watchlist:", error);
     return [];
@@ -458,10 +459,15 @@ async function saveWatchlistToDB(folders = []) {
     //console.log("Saving the following categorization:", JSON.stringify(categorization, null, 2)); // Debugging output
 
     const dbh = await initializeDatabase();
-    const dbWatchList = await dbh.putData(SPWL_DB_STORE, {
-      id: `categorization-${userId}`,
-      folders: categorization,
-    });
+    const dbWatchList = await dbh.putData(
+      SPWL_DB_STORE,
+      JSON.parse(
+        JSON.stringify({
+          id: `categorization-${userId}`,
+          folders: categorization,
+        })
+      )
+    ); // Deep clone for Firefox
   } catch (error) {
     console.error("Error in saveWatchlistToDB:", error);
   }
