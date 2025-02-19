@@ -59,12 +59,6 @@ const changeFamilyLists = {
       defaultValue: false,
     },
     {
-      id: "moveToEnd",
-      type: OptionType.CHECKBOX,
-      label: "Re-order: Born, Died, Family Relationships",
-      defaultValue: false,
-    },
-    {
       id: "highlightActiveProfile",
       type: OptionType.CHECKBOX,
       label: "Highlight the active profile",
