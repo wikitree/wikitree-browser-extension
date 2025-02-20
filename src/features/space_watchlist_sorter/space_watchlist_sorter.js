@@ -130,9 +130,8 @@ function moveToFolder($items, folderName) {
     const $targetList = $targetFolder.find(".spaceWatchlistSorter-sortable");
 
     $items.each(function () {
-      const clonedItem = $(this).clone(true);
-      clonedItem.appendTo($targetList);
-      $(this).remove();
+      $(this).appendTo($targetList); // Move the item
+      $(this).removeClass("selected"); // Remove the selectable class
     });
 
     // console.log(`Moved items to folder "${folderName}"`);
@@ -157,11 +156,9 @@ async function loadSpaceWatchlist() {
 
     // The user is logged in at WikiTree and the Apps server - Fetch their space watchlist
     //console.log(`Fetching Watchlist, userWtid=${getUserWtId()}, numId=${userNumId}`);
-    const rawWatchlist = await WikiTreeAPI.getSpaceWatchlist(APP_ID, limit, fields);
-    const watchlist = structuredClone(rawWatchlist); // Safe deep clone for modern browsers
-    console.log("Watchlist fetched:", watchlist);
+    const watchlist = await WikiTreeAPI.getSpaceWatchlist(APP_ID, limit, fields);
 
-    return watchlist;
+    return watchlist || [];
   } catch (error) {
     console.error("Error fetching space watchlist:", error);
     return [];
@@ -225,72 +222,49 @@ async function loadWatchlistFromDB() {
 
 async function populateInterface() {
   try {
-    console.log("🔹 Starting populateInterface()...");
-
     const userWtId = getUserWtId();
     if (!userWtId) {
-      console.warn("⚠️ User not logged into WikiTree.");
       return {
         status: false,
         msg: "You have to be logged in to WikiTree to use the Space Watchlist Sorter. Please log in and try again.",
       };
     }
-
     const userNumId = getUserNumId();
     if (!userNumId || !(await isLoggedIntoAPI(userNumId, APP_ID))) {
-      console.warn("⚠️ User not logged into Apps server.");
       showLoginPopup();
       return {
         status: false,
-        msg: "You are not logged into the APP server. Please use the button at the bottom of the page to log in and then try again.",
+        msg:
+          "You are not logged into the APP server. " +
+          "Please use the button at the bottom of the page to log in and then try again",
       };
     }
 
-    console.log("✅ User is logged in. Fetching Space Watchlist...");
-
-    // 🔍 Fetch API watchlist
-    let apiWatchlist;
-    try {
-      apiWatchlist = await loadSpaceWatchlist();
-      console.log("✅ API Watchlist fetched:", apiWatchlist);
-    } catch (err) {
-      console.error("❌ Error fetching API watchlist:", err);
-      return { status: false, msg: "Failed to load Space Watchlist from API." };
-    }
-
-    if (apiWatchlist.length === 0) {
-      console.warn("⚠️ No Free Space pages found.");
+    // Get the wathclist from the API
+    const apiWatchlist = await loadSpaceWatchlist();
+    if (apiWatchlist.length == 0) {
       return {
         status: false,
         msg: `We could not find any Free Space pages for user ${getUserWtId()} (${userNumId}}) currently logged into the API server.`,
       };
+      // Should we clear any pages from the db but keeping the folders?
+      // It's not strictly necessary other than saving a bit of space.
     }
 
-    // 🔍 Fetch DB watchlist **before** using it!
-    let dbWatchlist;
-    try {
-      dbWatchlist = await loadWatchlistFromDB();
-      console.log("✅ Loaded watchlist from IndexedDB:", dbWatchlist);
-    } catch (err) {
-      console.error("❌ Error fetching DB watchlist:", err);
-      return { status: false, msg: "Failed to load Watchlist from local storage." };
+    // Get the watchlist we saved in the DB and convert it if it is still old style
+    const dbWatchlist = await loadWatchlistFromDB();
+    if (dbWatchlist.folders?.length > 0) {
+      const items = dbWatchlist.folders[0].items;
+      if (items && typeof items[0] === "string") {
+        // old format - attempt to convert to new
+        dbWatchlist.folders.forEach((f) => {
+          f.items = f.items.map((i) => {
+            const key = i.trim().replaceAll(" ", "_");
+            return { key: key, text: i, url: `https://www.wikitree.com/wiki/Space:${key}` };
+          });
+        });
+      }
     }
-
-    // Ensure `dbWatchlist` is defined, even if empty
-    if (!dbWatchlist || !dbWatchlist.folders) {
-      dbWatchlist = { folders: [] };
-    }
-
-    console.log("🔄 Cloning API Watchlist to avoid cross-origin issues...");
-    let clonedWatchlist;
-    try {
-      clonedWatchlist = structuredClone(apiWatchlist);
-    } catch (err) {
-      console.error("❌ structuredClone() failed. Using manual deep copy.", err);
-      clonedWatchlist = JSON.parse(JSON.stringify(apiWatchlist)); // Manual deep copy
-    }
-
-    console.log("✅ Cloned Watchlist:", clonedWatchlist);
 
     const tabsContainer = $("#spaceWatchlistSorterTabs");
     const folderContainer = $("#spaceWatchlistSorterFolderContainer");
@@ -299,125 +273,138 @@ async function populateInterface() {
     tabsContainer.empty();
     folderContainer.empty();
 
-    let apiItems;
-    try {
-      apiItems = new Map(
-        clonedWatchlist.map((space) => [
+    const apiItems = new Map(
+      apiWatchlist.map((space) => {
+        return [
           space.Title?.DBkey,
-          {
-            key: space.Title?.DBkey,
-            text: space.Title?.Text,
-            url: space.Title?.FullURL?.replace(/\/api\./, "/www."),
-          },
-        ])
-      );
-      console.log("✅ Processed API items:", apiItems);
-    } catch (err) {
-      console.error("❌ Error processing API watchlist into a map:", err);
-      return { status: false, msg: "Failed to process API watchlist." };
-    }
+          { key: space.Title?.DBkey, text: space.Title?.Text, url: space.Title?.FullURL?.replace(/\/api\./, "/www.") },
+        ];
+      })
+    );
+    const updatedFolderMap = new Map();
 
-    let updatedFolderMap = new Map();
+    // Recreate the folder structure while sorting api items that we had before
+    (dbWatchlist.folders || []).forEach((oldFolder) => {
+      // Collect api items that are already present in the DB for this folder
+      const items = [];
+      oldFolder.items.forEach((oldItem) => {
+        const newItem = apiItems.get(oldItem.key);
+        if (newItem) {
+          apiItems.delete(oldItem.key);
+          items.push(newItem);
+        }
+      });
 
-    // 🔄 Recreate the folder structure while sorting API items
-    try {
-      (dbWatchlist.folders || []).forEach((oldFolder, pos) => {
-        const items = [];
-        oldFolder.items.forEach((oldItem) => {
-          const newItem = apiItems.get(oldItem.key);
-          if (newItem) {
-            apiItems.delete(oldItem.key);
-            items.push(newItem);
-          }
+      // Place the above collected items in their correct folder. Their order is preserved
+      // du to the order in which we added them to the array.
+      // We keep folders here even if they are empty, except for the unorganized one.
+      // Empty folders will eventually be deleted (if they are still empty) during the save operation.
+      const id = oldFolder.id || `group-${pos}`;
+      if (id != UNORGANIZED_GROUP_NAME || items.length > 0) {
+        // We ensure position start at 1 so we can add the unorganised folder at the front
+        // if we have to create a new one
+        const pos = updatedFolderMap.size + 1;
+        updatedFolderMap.set(id, {
+          id: oldFolder.id || `group-${pos}`,
+          name: oldFolder.name || `Group ${pos}`,
+          items: items,
+          pos: pos, // this ensures we can recreate the folders order
         });
-
-        const id = oldFolder.id || `group-${pos}`;
-        if (id !== UNORGANIZED_GROUP_NAME || items.length > 0) {
-          updatedFolderMap.set(id, {
-            id: id,
-            name: oldFolder.name || `Group ${pos + 1}`,
-            items: items,
-            pos: pos + 1,
-          });
-        }
-      });
-
-      if (apiItems.size > 0) {
-        const unorganizedGroup = updatedFolderMap.get(UNORGANIZED_GROUP_NAME);
-        if (unorganizedGroup) {
-          unorganizedGroup.items.splice(0, 0, ...apiItems.values());
-        } else {
-          updatedFolderMap.set(UNORGANIZED_GROUP_NAME, {
-            id: UNORGANIZED_GROUP_NAME,
-            name: UNORGANIZED_FOLDER_NAME,
-            items: [...apiItems.values()],
-            pos: 0,
-          });
-        }
       }
+    });
 
-      console.log("✅ Folder structure updated:", updatedFolderMap);
-    } catch (err) {
-      console.error("❌ Error reconstructing folder structure:", err);
-      return { status: false, msg: "Failed to organize folders." };
+    if (apiItems.size > 0) {
+      // There are new items, not categorised, so add them to the unorganized folder
+      // (creating one if it does not exist)
+      const unorganizedGroup = updatedFolderMap.get(UNORGANIZED_GROUP_NAME);
+      if (unorganizedGroup) {
+        // New unorganised items go at the start of the list, so it's easier for the user to spot them
+        unorganizedGroup.items.splice(0, 0, ...apiItems.values());
+      } else {
+        updatedFolderMap.set(UNORGANIZED_GROUP_NAME, {
+          id: UNORGANIZED_GROUP_NAME,
+          name: UNORGANIZED_FOLDER_NAME,
+          items: [...apiItems.values()],
+          pos: 0, // When creating a new unorganised group, we put it first
+        });
+      }
     }
 
-    // 🔄 Populate UI
-    try {
-      const updatedFolders = [...updatedFolderMap.values()].sort((a, b) => a.pos - b.pos);
-      updatedFolders.forEach((folder) => {
-        delete folder.pos;
-        const folderId = folder.id;
-        const tabId = `spaceWatchlistSorterTab-${folderId}`;
+    // Populate UI
+    const updatedFolders = [...updatedFolderMap.values()].sort((a, b) => a.pos - b.pos);
+    updatedFolders.forEach((folder) => {
+      delete folder.pos;
+      const folderId = folder.id;
+      const tabId = `spaceWatchlistSorterTab-${folderId}`;
 
-        tabsContainer.append(`<div id="${tabId}" class="spaceWatchlistSorter-tab">${folder.name}</div>`);
+      // Add tabs
+      tabsContainer.append(`
+        <div id="${tabId}" class="spaceWatchlistSorter-tab">${folder.name}</div>
+      `);
 
-        const uniqueItems = new Set();
-        folderContainer.append(`
-          <div id="spaceWatchlistSorterFolder-${folderId}" class="spaceWatchlistSorter-folder" style="display: none;">
-            <button class="sort-alphabetically-button small" data-folder-id="${folderId}">A-Z</button>
-            <ul class="spaceWatchlistSorter-sortable">
-              ${folder.items
-                .filter((item) => {
-                  if (uniqueItems.has(item.key)) return false;
-                  uniqueItems.add(item.key);
-                  return true;
-                })
-                .map(
-                  (item) => `
-                    <li data-id="${item.key}">
-                      <a href="${item.url.replace(/\/api\./, "/www")}" target="_blank">${item.text}</a>
-                    </li>`
-                )
-                .join("")}
-            </ul>
-          </div>
-        `);
+      const uniqueItems = new Set();
+      // Add folder containers
+      folderContainer.append(`
+        <div id="spaceWatchlistSorterFolder-${folderId}" class="spaceWatchlistSorter-folder" style="display: none;">
+          <button class="sort-alphabetically-button small" data-folder-id="${folderId}">A-Z</button>
+          <ul class="spaceWatchlistSorter-sortable">
+            ${folder.items
+              .filter((item) => {
+                if (uniqueItems.has(item.key)) return false; // Skip duplicates
+                uniqueItems.add(item.key); // Track unique item
+                return true;
+              })
+              .map(
+                (item) => `
+                  <li data-id="${item.key}">
+                    <a href="${item.url.replace(/\/api\./, "/www")}" target="_blank">${item.text}</a>
+                  </li>`
+              )
+              .join("")}
+          </ul>
+        </div>
+      `);
+    });
+
+    // Show only the first folder by default
+    $(".spaceWatchlistSorter-folder").first().show();
+    $(".spaceWatchlistSorter-tab").first().addClass("active");
+
+    saveWatchlistToDB(updatedFolders); // Save updated folders to database
+
+    $(".spaceWatchlistSorter-tab")
+      .off("click")
+      .on("click", function () {
+        $(".spaceWatchlistSorter-tab").removeClass("active");
+        $(this).addClass("active");
+
+        const targetFolderId = $(this).attr("id").replace("Tab", "Folder");
+        $(".spaceWatchlistSorter-folder").hide();
+        $(`#${targetFolderId}`).show();
       });
 
-      $(".spaceWatchlistSorter-folder").first().show();
-      $(".spaceWatchlistSorter-tab").first().addClass("active");
+    // Add the "Add Group" tab dynamically
+    const addGroupTab = $(`
+      <div id="spaceWatchlistSorterAddFolderTab" class="spaceWatchlistSorter-tab spaceWatchlistSorter-add-tab">
+        <strong>+</strong>
+      </div>
+    `);
 
-      console.log("✅ UI populated successfully.");
-    } catch (err) {
-      console.error("❌ Error populating UI:", err);
-      return { status: false, msg: "Failed to populate UI with folders." };
-    }
+    addGroupTab.on("click", function () {
+      addFolder();
+    });
 
-    // 🔄 Save updated folders
-    try {
-      saveWatchlistToDB([...updatedFolderMap.values()]);
-      console.log("✅ Watchlist saved to database.");
-    } catch (err) {
-      console.error("❌ Error saving watchlist:", err);
-    }
+    $("#spaceWatchlistSorterTabs").append(addGroupTab);
 
+    initializeSortable(); // Ensure sortable is re-initialized after DOM update
+
+    // console.log("Interface populated with tabs and folders.");
     return { status: true };
   } catch (error) {
-    console.error("❌ Unexpected error in populateInterface():", error);
+    console.error("Error populating interface:", error);
     return {
       status: false,
-      msg: `An error occurred while retrieving Free Space pages for the user (${getUserNumId()}: ${error.message}).`,
+      msg: `An error occured while retrieving Free Space pages for the user (${getUserNumId()}: ${error.message}).`,
     };
   }
 }
@@ -471,8 +458,10 @@ async function saveWatchlistToDB(folders = []) {
     //console.log("Saving the following categorization:", JSON.stringify(categorization, null, 2)); // Debugging output
 
     const dbh = await initializeDatabase();
-    const safeData = structuredClone(categorization);
-    await dbh.putData(SPWL_DB_STORE, { id: `categorization-${userId}`, folders: safeData });
+    const dbWatchList = await dbh.putData(SPWL_DB_STORE, {
+      id: `categorization-${userId}`,
+      folders: categorization,
+    });
   } catch (error) {
     console.error("Error in saveWatchlistToDB:", error);
   }
