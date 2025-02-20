@@ -769,7 +769,7 @@ function makeVerticalFamLists() {
     fixAllPrivates();
 
     if ($("span.large:contains(Family Member)").length == 0) {
-      makeFamLists();
+      reallyMakeVerticalFamLists();
       $(".familyList li").each(function () {
         if (
           $(this)
@@ -1047,7 +1047,7 @@ function addParentStatusDataAttribute() {
   }
 }
 
-function makeFamLists() {
+function reallyMakeVerticalFamLists() {
   const nVitals = $("#nVitals");
   const dparents = document.querySelectorAll('#nVitals span[itemprop="parent"]');
   const addSibling = $("a:contains('[add sibling]')");
@@ -1169,7 +1169,7 @@ function makeFamLists() {
   }
   // console.log("Siblings:", sibs);
 
-  let noSiblingsPublic = "[sibling(s) unknown]";
+  const noSiblingsPublic = "[brothers or sisters?]";
   if ($("#Siblings").length) {
     let sNodes = $("#Siblings")[0].childNodes;
     sNodes.forEach(function (aNode) {
@@ -1206,7 +1206,7 @@ function makeFamLists() {
   addHalfsStyle();
   setUpMarriedOrSpouse();
   prepareHeadingsForVertical();
-  extraBitsForFamilyLists();
+  extraBitsForVerticalFamilyLists();
   //spouseToSpouses();
 
   if (addSibling.length) {
@@ -2008,8 +2008,8 @@ function setUpMarriedOrSpouse() {
   }
 }
 
-function extraBitsForFamilyLists() {
-  let noSiblingsPublic = "[sibling(s) unknown]";
+function extraBitsForVerticalFamilyLists() {
+  let noSiblingsPublic = "[brothers or sisters?]";
   let privateSibsUnknown = $("#nVitals #Siblings").find("a.BLANK");
   let noSpouseSpan = $("<span id='spousesUnknown'></span>");
   if (privateSibsUnknown.length) {
@@ -2017,11 +2017,7 @@ function extraBitsForFamilyLists() {
     sibsUnknown.append(privateSibsUnknown);
     const s = $("#nVitals #Siblings");
     sibsUnknown.appendTo(s);
-    // sibsUnknown.appendTo("#Siblings");
-    // $("#nVitals #siblingList").remove();
-    // $("#Parents").prependTo("#nVitals");
-    $("#nVitals > .sidebar-heading").prependTo("#nVitals"); // prevent the sections from being re-added above the heading
-    $("#Siblings").insertAfter("#Parents");
+    $("#nVitals > .sidebar-heading").prependTo("#nVitals"); // make sure the heading is still at the top
   } else if ($("#nVitals #Siblings").length) {
     let sNodes = $("#Siblings")[0].childNodes;
     sNodes.forEach(function (aNode) {
