@@ -1127,7 +1127,7 @@ function reallyMakeVerticalFamLists() {
       }
     }
   } else {
-    $("<ol id='parentList' class='nameList'></ol>").appendTo($("#Parents"));
+    $("<ol id='parentList' class='nameList'></ol>").appendTo($("#nVitals #Parents"));
     if ($("#parentList").length) {
       if ($("#parentList")[0].previousSibling.textContent == "\nand\n") {
         $("#parentList")[0].previousSibling.remove();
@@ -1138,15 +1138,16 @@ function reallyMakeVerticalFamLists() {
     }
   }
 
-  if ($("#Parents").length) {
-    const parentsNodes = $("#Parents")[0].childNodes;
+  if ($("#nVitals #Parents").length) {
+    const parentsNodes = $("#nVitals #Parents")[0].childNodes;
     parentsNodes.forEach(function (aNode) {
-      if (aNode.textContent.trim() == noParentsPublic.trim()) {
+      const txtContent = aNode.textContent.replaceAll("\n", " ").trim();
+      if (txtContent == noParentsPublic.trim()) {
         aNode.remove();
         $("<li id='fatherUnknown'>[father unknown]</li><li id='motherUnknown'>[mother unknown]</li>").appendTo(
           $("#parentList")
         );
-      } else if (aNode.textContent.match(noFatherPublic)) {
+      } else if (txtContent.match(noFatherPublic)) {
         aNode.remove();
         $("<li id='fatherUnknown'>[father unknown]</li>").prependTo($("#parentList"));
       }
@@ -1154,6 +1155,7 @@ function reallyMakeVerticalFamLists() {
     if (dparentsText.match(noMotherPublic)) {
       $("<li id='motherUnknown'>[mother unknown]</li>").appendTo($("#parentList"));
     }
+    $("#nVitals #Parents .EDIT").appendTo($("#nVitals #Parents"));
   }
 
   let sibs = document.querySelectorAll('#nVitals span[itemprop="sibling"]');
@@ -1170,8 +1172,8 @@ function reallyMakeVerticalFamLists() {
   // console.log("Siblings:", sibs);
 
   const noSiblingsPublic = "[brothers or sisters?]";
-  if ($("#Siblings").length) {
-    let sNodes = $("#Siblings")[0].childNodes;
+  if ($("#nVitals #Siblings").length) {
+    let sNodes = $("#nVitals #Siblings")[0].childNodes;
     sNodes.forEach(function (aNode) {
       if (aNode.textContent == noSiblingsPublic && aNode.nodeType == 3) {
         aNode.remove();
