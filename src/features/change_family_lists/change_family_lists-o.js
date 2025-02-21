@@ -2,7 +2,7 @@
 Created By: Ian Beacall (Beacall-6)
 Contributors: Jonathan Duke (Duke-5773)
 */
-
+ 
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isOK, htmlEntities, displayName } from "../../core/common";
