@@ -196,7 +196,7 @@ export async function addRandomToFindMenu() {
   window.randomProfileOptions = await getFeatureOptions("randomProfile");
 
   // Random Profile Button
-  const relationshipLiA = $("div[data-menu='Find'] li a[href$='/wiki/Special:Relationship']");
+  const relationshipLiA = $("nav[aria-label='Main Navigation'] li a[href$='/wiki/Special:Relationship']");
   const randomProfileLi = $(
     "<li><a href='#n' class='randomProfile dropdown-item' title='Go to a random profile; Right-click to choose a location'>Random Profile</li>"
   );
