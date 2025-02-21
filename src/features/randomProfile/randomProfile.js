@@ -317,7 +317,7 @@ export function goAndLogIn(returnURL = null) {
 
   const $submitButton = $("<input>", {
     type: "submit",
-    class: "button small",
+    class: "btn btn-primary btn-sm",
     value: "Client Login",
   });
 
