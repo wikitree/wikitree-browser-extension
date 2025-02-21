@@ -89,7 +89,6 @@ export async function appendClipboardButtons(clipboardButtons = $()) {
   handleScroll();
 }
 
-const editImage = chrome.runtime.getURL("images/edit.png");
 var clippingRow = -1;
 var keyMode = false; // flags whether the user is using cursor keys or mouse
 
@@ -389,6 +388,15 @@ async function clipboard(type, e, action = false) {
   clippingRow = -1;
   $("input, textarea").trigger("blur"); // ensure the clipboard has the focus
   let activeTab = localStorage[activeTabVarNameFor(type)] || "";
+  let word = "";
+  if (type == "clipboard") {
+    word = "clippings";
+  } else {
+    word = type;
+  }
+  const thisWord = word.slice(0, -1);
+  const capWord = word.charAt(0).toUpperCase() + word.slice(1);
+
   if ($("#clipboard").length) {
     activeTab = $("#tab-list .tab.active").data("groupkey");
     $("#clipboard #clippings").html("");
@@ -401,22 +409,13 @@ async function clipboard(type, e, action = false) {
     if (type == "notes") {
       h1 = "Notes";
     }
-    let word = "";
-    if (type == "clipboard") {
-      word = "clippings";
-    } else {
-      word = type;
-    }
-
-    const thisWord = word.slice(0, -1);
-    const capWord = word.charAt(0).toUpperCase() + word.slice(1);
 
     const aClipboard = $(
       `<div id='clipboard' data-type='${type}'>
         <h1>${h1}<x>x</x></h1>
         <div id='tab-container'>
           <div id='groupTabs'>
-            <button id='reorderTabs' class='small button' title='Reset the tab sort order to the default lexicographic order'>⇅</button>
+            <button id='reorderTabs' class='btn btn-secondary btn-sm' title='Reset the tab sort order to the default lexicographic order'>⇅</button>
             <ul id='tab-list'></ul>
           </div>
           <section id='clippings'></section>
@@ -424,11 +423,11 @@ async function clipboard(type, e, action = false) {
         <div id="clippingForm">
           <span>
             <label title='${capWord} can be grouped under a label entered here.'><span class="labelWord">Group:</span><input id='groupInput' type='text' placeholder='(Optional)'></label>
-            <button id='renameGroup' class='small button' title='Rename the current active group to the value entered at the left'>Rename Group</button>
+            <button id='renameGroup' class='btn btn-secondary btn-sm' title='Rename the current active group to the value entered at the left'>Rename Group</button>
             <label id="thingTitleLabel" title='Add an optional title or description for your ${thisWord}.'><span class="labelWord">Title:</span><input id='thingTitle' type='text' placeholder='(Optional)'></label>
           </span>
           <textarea id='clippingBox'></textarea>
-          <button id='addClipping' class='small button'>Add ${thisWord}</button>
+          <button id='addClipping' class='btn btn-secondary btn-sm'>Add ${thisWord}</button>
         </div>
       </div>`
     );
@@ -550,10 +549,12 @@ async function clipboard(type, e, action = false) {
                   <td class="clippingCell">${titleSpan}
                     <pre class="clipping">${htmlText}</pre>
                   </td>
-                  <td class="editClipping">
-                    <img src="${editImage}" class="button small editClippingButton">
+                  <td class="editClipping" title="Edit this ${thisWord}">
+                    <span class="icon--edit-alt editClippingButton"></span>
                   </td>
-                  <td class="deleteClipping"><span class="deleteClippingButton button small">X</span></td>
+                  <td class="deleteClipping" title="Delete this ${thisWord}">
+                    <span class="icon--close deleteClippingButton"></span>
+                  </td>
                 </tr>`
         );
         grpTable.find("tbody").append(row);
@@ -833,30 +834,6 @@ function addGroupTab(groupKey, groupName) {
 async function initClipboard() {
   try {
     await initializeDatabase();
-/*
-    let clipboardButtons = $();
-    const clipboardButton = $(
-      "<img title='Clipboard' class='button small aClipboardButton'  src='" +
-        chrome.runtime.getURL("images/clipboard.png") +
-        "'>"
-    );
-    const notesButton = $(
-      "<img title='Notes' class='button small aNotesButton' src='" + chrome.runtime.getURL("images/notes.png") + "'>"
-    );
-    if ($("span.theClipboardButtons").length && $(".aClipboardButton").length == 0) {
-      $("span.theClipboardButtons").prepend(clipboardButton, notesButton);
-    } else {
-      clipboardButtons = $(
-        "<span class='theClipboardButtons'><img title='Clipboard' class='button small aClipboardButton'  src='" +
-          chrome.runtime.getURL("images/clipboard.png") +
-          "'><img  title='Notes' class='button small aNotesButton'  src='" +
-          chrome.runtime.getURL("images/notes.png") +
-          "'></span>"
-      );
-    }
-
-    appendClipboardButtons(clipboardButtons);
-*/
 
     const clipboardButtons2 = $(".theClipboardButtons").clone(true);
     $(".qa-a-form .qa-form-tall-table,.qa-c-form .qa-form-tall-table").before(clipboardButtons2);
@@ -945,9 +922,10 @@ function setClipboardText() {
   $("#clipboardInfo").remove();
   let clipboardInfoText = "";
   if ($("#toggleMarkupColor").val().match("Turn Off")) {
-    clipboardInfoText = "<a class='button small'>ON</a>: Click a clipping to copy it to your system's clipboard.";
+    clipboardInfoText =
+      "<a class='btn btn-secondary btn-sm'>ON</a>: Click a clipping to copy it to your system's clipboard.";
   } else {
-    clipboardInfoText = "<a class='button small'>OFF</a>: Click a clipping to paste it into the textbox.";
+    clipboardInfoText = "<a class='btn btn-secondary btn-sm'>OFF</a>: Click a clipping to paste it into the textbox.";
   }
   const clipboardInfo = $("<span id='clipboardInfo'>Enhanced editor " + clipboardInfoText + "</span>");
   $("#addClipping").after(clipboardInfo);

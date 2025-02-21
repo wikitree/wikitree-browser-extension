@@ -306,15 +306,15 @@ function importFeatureData() {
 function addDataButtons() {
   const dataButtons = `
     <div id="featureDataButtons">
-      <button id="downloadFeatureData"
+      <button id="downloadFeatureData" class="btn btn-secondary btn-sm"
       title="Download a backup file for your WikiTree Browser Extension data from the Extra Watchlist,
       My Menu, Clipboard and Notes, and Custom Change Summary Options features">Download WBE Feature Data</button>
-      <button id="importFeatureData"
+      <button id="importFeatureData" class="btn btn-secondary btn-sm"
       title="Import/restore data from a backup file for your WikiTree Browser Extension data from the Extra Watchlist,
       My Menu, Clipboard and Notes, and Custom Change Summary Options features">Import WBE Feature Data</button>
     </div>
   `;
-  $(".eight.columns.alpha").last().after(dataButtons);
+  $(".masonry-wrapper").after(dataButtons);
   $("#downloadFeatureData").on("click", downloadFeatureData);
   $("#importFeatureData").on("click", importFeatureData);
 }
