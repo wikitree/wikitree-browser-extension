@@ -347,7 +347,7 @@ async function populateInterface() {
       // Add folder containers
       folderContainer.append(`
         <div id="spaceWatchlistSorterFolder-${folderId}" class="spaceWatchlistSorter-folder" style="display: none;">
-          <button class="sort-alphabetically-button small" data-folder-id="${folderId}">A-Z</button>
+          <button class="sort-alphabetically-button btn btn-pill-sm" data-folder-id="${folderId}">A-Z</button>
           <ul class="spaceWatchlistSorter-sortable">
             ${folder.items
               .filter((item) => {
@@ -545,7 +545,7 @@ function addFolder() {
   // Add the new folder container
   $("#spaceWatchlistSorterFolderContainer").append(`
     <div id="${folderId}" class="spaceWatchlistSorter-folder" style="display: none;">
-    <button class="sort-alphabetically-button small" data-folder-id="${timestamp}">A-Z</button>
+    <button class="sort-alphabetically-button btn btn-pill-sm" data-folder-id="${timestamp}">A-Z</button>
       <ul class="spaceWatchlistSorter-sortable"></ul>
     </div>
   `);
