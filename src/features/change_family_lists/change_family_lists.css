@@ -532,6 +532,7 @@ body.darkMode .vertical .nameList span.bdDates.parent_2 {
   border-left: 5px #fcb815 solid !important;
 }
 
+.vertical .nameList li[data-gender="Female"],
 .vertical .nameList li[data-gender="female"],
 .vertical .nameList span[data-gender="Female"],
 .spouseGrid[data-gender="Female"] {
@@ -539,6 +540,7 @@ body.darkMode .vertical .nameList span.bdDates.parent_2 {
   border-left: 5px #ffcccc solid !important;
 }
 
+.vertical .nameList li[data-gender="Male"],
 .vertical .nameList li[data-gender="male"],
 .vertical .nameList span[data-gender="Male"],
 .spouseGrid[data-gender="Male"] {
@@ -785,4 +787,23 @@ div.VITALS li span[itemprop="name"] {
 
 div.VITALS a:link .addedPrefix {
   display: inline !important;
+}
+
+.editSpouseIcon {
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.spouseGrid,
+.childGrid {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  align-items: center;
+  gap: 0.5em;
+}
+
+/* Ensure .bdDates has no extra margin when blank */
+.bdDates:empty {
+  display: none;
 }

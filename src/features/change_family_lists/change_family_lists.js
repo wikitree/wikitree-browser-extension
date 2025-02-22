@@ -2,11 +2,16 @@
 Created By: Ian Beacall (Beacall-6)
 Contributors: Jonathan Duke (Duke-5773)
 
-This version builds the family lists with the following features:
-• No Opera-specific attributes (like bis_skin_checked) or data-family-vitals.
-• For spouses and children, if no data is available, an “unknown” block is output.
-• The spouse block uses a grid layout so that the name and dates are separate and the name remains clickable.
-• A Unicode pencil (✎) icon is appended for editing spouses.
+This version builds the family lists with these features:
+• Uses the full getAge/isLeapYear implementation for marriage age calculations.
+• If dates are not available (or are “unknown”), no date text is shown.
+• Parsed records like “[children?]” or “[spouse?]” are rendered as clickable links—
+  using their parsed link if available, or a default edit URL using the profile’s ID.
+• Each record (parent, sibling, child) is wrapped in a schema.org container using itemprop attributes,
+  with date spans placed in grid cells to the right of the name.
+• The spouse header is a span.
+• Relative ages for siblings/children are calculated and inserted.
+• Marriage ages are calculated and appended.
 */
 
 import $ from "jquery";
@@ -54,6 +59,7 @@ function newFamilyData() {
   };
 }
 
+// When processing an element (with a link or small span) use this function.
 function parseItempropElement(el) {
   const record = newPersonRecord();
   const linkEl = el.querySelector("a[itemprop='url'], a[href*='/wiki/']");
@@ -76,6 +82,7 @@ function parseItempropElement(el) {
   }
   const fullText = el.textContent.trim();
   if (!record.FullName) {
+    // If there is bracketed text, try to extract dates.
     const bracketMatch = fullText.match(/\[([^\]]+)\]/);
     if (bracketMatch) {
       record.UnknownText = bracketMatch[0].trim();
@@ -86,7 +93,8 @@ function parseItempropElement(el) {
         record.BirthDate = b?.trim() || "";
         record.DeathDate = d?.trim() || "";
       }
-      const noDates = inner.replace(/\([^)]*\)/, "").trim();
+      // Remove any parenthesized date from the name.
+      const noDates = inner.replace(/\s*\([^)]*\)/, "").trim();
       record.Name = noDates;
     } else {
       record.Name = fullText;
@@ -95,10 +103,22 @@ function parseItempropElement(el) {
   return record;
 }
 
+// For bracketed text that comes from blocks (e.g. [children?]) we want to try to split off any date range.
 function newPersonFromBracket(bracketText, link = "") {
   const record = newPersonRecord();
-  record.UnknownText = bracketText.trim();
-  record.Name = bracketText.trim();
+  const trimmed = bracketText.trim();
+  record.UnknownText = trimmed;
+  // If the text contains a parenthesized date range, extract it.
+  const dateRangeMatch = trimmed.match(/\(([^)]+)\)/);
+  if (dateRangeMatch) {
+    const [b, d] = dateRangeMatch[1].split(/\s*-\s*/);
+    record.BirthDate = b?.trim() || "";
+    record.DeathDate = d?.trim() || "";
+    // Remove the parenthesized part from the displayed name.
+    record.Name = trimmed.replace(/\s*\([^)]*\)/, "").trim();
+  } else {
+    record.Name = trimmed;
+  }
   record.Link = link;
   return record;
 }
@@ -219,7 +239,7 @@ function parseInitialData() {
 }
 
 // ============================================================
-// 2. Build DOM Structure (Matching Your Goal Output)
+// 2. Build DOM Structure
 // ============================================================
 
 function buildFamilyListsFromData(familyData) {
@@ -234,13 +254,11 @@ function buildFamilyListsFromData(familyData) {
 
   container.appendChild(buildParentsSection(familyData.parents));
   container.appendChild(buildSiblingsSection(familyData.siblings));
-  // For spouses: if there’s no data, output the unknown block.
   if (familyData.spouses.length === 0) {
     container.appendChild(buildSpousesUnknown());
   } else {
     container.appendChild(buildSpousesSection(familyData.spouses));
   }
-  // Similarly for children:
   if (familyData.children.length === 0) {
     container.appendChild(buildChildrenUnknown());
   } else {
@@ -274,45 +292,30 @@ function buildParentsSection(parents) {
   const ol = document.createElement("ol");
   ol.id = "parentList";
   ol.className = "nameList";
+  ol.style.listStyle = "none";
   if (parents.length === 0) {
-    const liFather = document.createElement("li");
-    liFather.id = "fatherUnknown";
-    liFather.title = "Right click to add a father";
-    liFather.style.cursor = "pointer";
-    liFather.textContent = "[father unknown]";
-    ol.appendChild(liFather);
-    const liMother = document.createElement("li");
-    liMother.id = "motherUnknown";
-    liMother.title = "Right click to add a mother";
-    liMother.style.cursor = "pointer";
-    liMother.textContent = "[mother unknown]";
-    ol.appendChild(liMother);
+    ol.innerHTML = `
+      <li id="fatherUnknown" title="Right click to add a father" style="cursor:pointer;">
+        <a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=father" class="BLANK">[father?]</a>
+      </li>
+      <li id="motherUnknown" title="Right click to add a mother" style="cursor:pointer;">
+        <a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=mother" class="BLANK">[mother?]</a>
+      </li>
+    `;
   } else {
     parents.forEach((p) => {
       const li = document.createElement("li");
       li.dataset.parseName = p.Name;
-      if (p.UnknownText.match(/father unknown/i)) {
-        li.id = "fatherUnknown";
-        li.title = "Right click to add a father";
-        li.style.cursor = "pointer";
-        li.textContent = p.UnknownText;
-      } else if (p.UnknownText.match(/mother unknown/i)) {
-        li.id = "motherUnknown";
-        li.title = "Right click to add a mother";
-        li.style.cursor = "pointer";
-        li.textContent = p.UnknownText;
+      if (/^\[.*\?\]$/.test(p.Name)) {
+        li.innerHTML = `<a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=parent" class="BLANK">${p.Name}</a>`;
       } else {
-        if (p.Link) {
-          const a = document.createElement("a");
-          a.href = p.Link;
-          a.textContent = p.FullName || p.Name;
-          li.appendChild(a);
-        } else {
-          li.textContent = p.FullName || p.Name;
-        }
-        const bdSpan = document.createElement("span");
-        bdSpan.className = "bdDates";
-        li.appendChild(bdSpan);
+        li.innerHTML = `<span itemprop="parent" itemscope itemtype="https://schema.org/Person">
+          <a href="${p.Link}" itemprop="url" title="" aria-label="Parent">
+            <span itemprop="name">${p.FullName || p.Name}</span>
+          </a>
+          <span class="bdDates" data-birth-year="" data-death-year=""></span>
+          <span class="relAge"></span>
+          </span>`;
       }
       ol.appendChild(li);
     });
@@ -323,16 +326,15 @@ function buildParentsSection(parents) {
 
 function buildSiblingsSection(siblings) {
   const div = document.createElement("div");
-  // Use id "siblingDetails" as in your goal.
   div.className = "VITALS familyList";
   div.id = "siblingDetails";
 
   const heading = document.createElement("span");
   heading.id = "siblingsHeader";
   heading.className = "clickable";
-  heading.setAttribute("data-replace-text", "Sister of ");
+  heading.setAttribute("data-replace-text", "Siblings: ");
   heading.setAttribute("data-alt-text", "Siblings: ");
-  heading.setAttribute("data-original-text", "Sister of ");
+  heading.setAttribute("data-original-text", "Siblings: ");
   heading.setAttribute("data-this-text", "Siblings: ");
   heading.title = "Right click to add a sibling";
   heading.style.cursor = "pointer";
@@ -342,28 +344,28 @@ function buildSiblingsSection(siblings) {
   const ol = document.createElement("ol");
   ol.id = "siblingList";
   ol.className = "nameList hasRelAge";
+  ol.style.listStyle = "none";
   if (siblings.length === 0) {
-    const li = document.createElement("li");
-    li.id = "siblingsUnknown";
-    li.textContent = "[sibling(s) unknown]";
-    ol.appendChild(li);
+    ol.innerHTML = `<li id="siblingsUnknown">
+      <a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=sibling" class="BLANK">[siblings?]</a>
+      </li>`;
   } else {
     siblings.forEach((s) => {
       const li = document.createElement("li");
       li.dataset.parseName = s.Name;
-      if (s.Link) {
-        const a = document.createElement("a");
-        a.href = s.Link;
-        a.textContent = s.FullName || s.Name;
-        li.appendChild(a);
-        const bdSpan = document.createElement("span");
-        bdSpan.className = "bdDates";
-        li.appendChild(bdSpan);
+      if (/^\[.*\?\]$/.test(s.Name)) {
+        li.innerHTML = `<a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=sibling" class="BLANK">${s.Name}</a>`;
       } else {
-        li.textContent = s.FullName || s.Name;
-        const bdSpan = document.createElement("span");
-        bdSpan.className = "bdDates";
-        li.appendChild(bdSpan);
+        li.innerHTML = `<span itemprop="sibling" itemscope itemtype="https://schema.org/Person">
+          <a href="${s.Link}" itemprop="url" title="" aria-label="Sibling">
+            <span itemprop="name">${s.FullName || s.Name}</span>
+          </a>
+          <span class="bdDates" data-birth-year="" data-death-year=""></span>
+          <span class="relAge"></span>
+          </span>`;
+        li.setAttribute("data-gender", s.Gender || "male");
+        if (s.Father) li.setAttribute("data-father", s.Father);
+        if (s.Mother) li.setAttribute("data-mother", s.Mother);
       }
       ol.appendChild(li);
     });
@@ -373,46 +375,37 @@ function buildSiblingsSection(siblings) {
 }
 
 function buildSpousesSection(spouses) {
-  // Build the spouse section when data is present.
   const div = document.createElement("div");
   div.className = "VITALS spouseDetails familyList aSpouse";
-  // Attach a parse name so API data (like dates) is merged.
   if (spouses.length > 0) {
     div.dataset.parseName = spouses[0].Name;
     div.setAttribute("data-id", spouses[0].Id || "600485");
     div.setAttribute("data-gender", spouses[0].Gender || "Female");
   }
+  const headerSpan = document.createElement("span");
+  headerSpan.id = "spousesHeader";
+  headerSpan.className = "clickable";
+  headerSpan.setAttribute("data-replace-text", "Spouses: ");
+  headerSpan.setAttribute("data-alt-text", "Spouses: ");
+  headerSpan.setAttribute("data-original-text", "Spouses: ");
+  headerSpan.setAttribute("data-this-text", "Spouses: ");
+  headerSpan.title = "Right click to add a spouse";
+  headerSpan.style.cursor = "pointer";
+  headerSpan.textContent = "Spouses: ";
+  div.appendChild(headerSpan);
 
-  const aSpouse = document.createElement("a");
-  aSpouse.className = "spouseText clickable";
-  aSpouse.setAttribute("data-replace-text", "Husband of ");
-  aSpouse.setAttribute("data-alt-text", "Spouse: ");
-  aSpouse.setAttribute("data-original-text", "Husband of ");
-  aSpouse.setAttribute("data-this-text", "Spouse: ");
-  aSpouse.title = "Right click to add a spouse";
-  aSpouse.style.cursor = "pointer";
-  aSpouse.textContent = "Spouse: ";
-  div.appendChild(aSpouse);
-
-  // Use a grid container to separate name and dates.
   const spouseGrid = document.createElement("div");
   spouseGrid.className = "spouseGrid";
-
   const spouseEntry = document.createElement("span");
   spouseEntry.className = "spouseEntry";
   spouseEntry.setAttribute("itemprop", "spouse");
   spouseEntry.setAttribute("itemscope", "");
   spouseEntry.setAttribute("itemtype", "https://schema.org/Person");
+  spouseEntry.setAttribute("data-gender", spouses[0].Gender || "Female");
   if (spouses.length > 0 && spouses[0].Link) {
-    const a = document.createElement("a");
-    a.href = spouses[0].Link;
-    a.className = "spouseLink";
-    a.setAttribute("itemprop", "url");
-    const nameSpan = document.createElement("span");
-    nameSpan.setAttribute("itemprop", "name");
-    nameSpan.innerHTML = `<strong>${spouses[0].FullName || spouses[0].Name}</strong>`;
-    a.appendChild(nameSpan);
-    spouseEntry.appendChild(a);
+    spouseEntry.innerHTML = `<a href="${spouses[0].Link}" itemprop="url" title="" class="spouseLink">
+      <span itemprop="name"><strong>${spouses[0].FullName || spouses[0].Name}</strong></span>
+      </a>`;
   } else {
     spouseEntry.textContent = spouses.length > 0 ? spouses[0].FullName || spouses[0].Name : "";
   }
@@ -429,49 +422,36 @@ function buildSpousesSection(spouses) {
 
   const marriageDetails = document.createElement("span");
   marriageDetails.className = "marriageDetails";
-  let detailsText = "";
+  let detailsText = spouses.length > 0 ? spouses[0].MarriageDetails || "" : "";
+  // If there are no details, do not output any "- married" text.
+  marriageDetails.textContent = detailsText !== "" ? "— married " + detailsText : "";
+  // Only add the edit link if there is a spouse (and if details exist or you want the icon regardless)
   if (spouses.length > 0) {
-    detailsText = spouses[0].MarriageDetails || "";
+    const editLink = document.createElement("a");
+    editLink.href = `https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=spouse`;
+    editLink.className = "editSpouseIcon";
+    editLink.title = "Add/Edit Spouses";
+    editLink.style.cursor = "pointer";
+    editLink.textContent = " ✎";
+    editLink.style.position = "relative";
+    editLink.style.zIndex = "10";
+    marriageDetails.appendChild(editLink);
   }
-  detailsText = detailsText.trim();
-  detailsText = detailsText
-    .replace(/^(—\s*married\s*)+/i, "")
-    .replace(/add\/edit spouses/i, "")
-    .trim();
-  if (!detailsText.includes("[date unknown]")) {
-    detailsText += " [date unknown]";
-  }
-  if (!detailsText.includes("[location unknown]")) {
-    detailsText += " [location unknown]";
-  }
-  marriageDetails.textContent = "— married " + detailsText;
-
-  // Append the edit icon.
-  const editLink = document.createElement("a");
-  editLink.href = `https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=spouse`;
-  editLink.className = "editSpouseIcon";
-  editLink.title = "Add/Edit Spouses";
-  editLink.style.cursor = "pointer";
-  editLink.textContent = " ✎";
-  editLink.style.position = "relative";
-  editLink.style.zIndex = "10";
-  marriageDetails.appendChild(editLink);
-
   div.appendChild(marriageDetails);
   return div;
 }
 
 function buildSpousesUnknown() {
-  // When no spouse data exists, output the unknown block.
   const div = document.createElement("div");
   div.className = "VITALS familyList";
   div.id = "spousesUnknownHeading";
   div.title = "Right click to add a spouse";
   div.style.cursor = "pointer";
-  const span = document.createElement("span");
-  span.id = "spousesUnknown";
-  span.textContent = "[spouse(s) unknown]";
-  div.appendChild(span);
+  const a = document.createElement("a");
+  a.href = `https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=spouse`;
+  a.className = "BLANK";
+  a.textContent = "[spouse?]";
+  div.appendChild(a);
   return div;
 }
 
@@ -495,55 +475,34 @@ function buildChildrenSection(children) {
   const ol = document.createElement("ol");
   ol.id = "childrenList";
   ol.className = "nameList hasRelAge";
+  ol.style.listStyle = "none";
   children.forEach((c) => {
     const li = document.createElement("li");
     li.dataset.parseName = c.Name;
-    if (c.Link) {
-      const spanChild = document.createElement("span");
-      spanChild.setAttribute("itemprop", "children");
-      spanChild.setAttribute("itemscope", "");
-      spanChild.setAttribute("itemtype", "https://schema.org/Person");
-      const a = document.createElement("a");
-      a.href = c.Link.startsWith("http") ? c.Link : "https://www.wikitree.com" + c.Link;
-      a.className = "childLink";
-      a.setAttribute("itemprop", "url");
-      a.title = "";
-      a.setAttribute("aria-label", "Son");
-      const nameSpan = document.createElement("span");
-      nameSpan.setAttribute("itemprop", "name");
-      nameSpan.textContent = c.FullName || c.Name;
-      a.appendChild(nameSpan);
-      spanChild.appendChild(a);
-      const bdSpan = document.createElement("span");
-      bdSpan.className = "bdDates";
-      let bYear = "";
-      let dYear = "";
-      if (c.BirthDate && c.BirthDate !== "0000-00-00") {
-        bYear = c.BirthDate.split("-")[0];
-      } else if (c.BirthDateDecade) {
-        bYear = c.BirthDateDecade;
-      }
-      if (c.DeathDate && c.DeathDate !== "0000-00-00") {
-        dYear = c.DeathDate.split("-")[0];
-      } else if (c.DeathDateDecade) {
-        dYear = "~" + c.DeathDateDecade;
-      }
-      bdSpan.setAttribute("data-birth-year", bYear);
-      bdSpan.setAttribute("data-death-year", dYear);
-      bdSpan.textContent = bYear || dYear ? ` (${bYear} - ${dYear})` : "";
-      spanChild.appendChild(bdSpan);
-      const relAgeSpan = document.createElement("span");
-      relAgeSpan.className = "relAge";
-      relAgeSpan.title = `${c.FullName || c.Name} was born ? years after Andrew`;
-      spanChild.appendChild(relAgeSpan);
-      li.appendChild(spanChild);
+    if (/^\[.*\?\]$/.test(c.Name)) {
+      const link = c.Link || `https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=child`;
+      li.innerHTML = `<a href="${link}" class="BLANK">${c.Name}</a>`;
+    } else if (c.Link) {
+      li.innerHTML = `<span itemprop="children" itemscope itemtype="https://schema.org/Person">
+        <div class="childGrid">
+          <a href="${
+            c.Link.startsWith("http") ? c.Link : "https://www.wikitree.com" + c.Link
+          }" itemprop="url" title="" aria-label="Son" class="childLink">
+            <span itemprop="name">${c.FullName || c.Name}</span>
+          </a>
+          <span class="bdDates" data-birth-year="" data-death-year=""></span>
+        </div>
+        <span class="relAge"></span>
+        </span>`;
     } else {
       li.textContent = c.FullName || c.Name;
       const bdSpan = document.createElement("span");
       bdSpan.className = "bdDates";
       li.appendChild(bdSpan);
     }
-    li.setAttribute("data-gender", c.Gender || "male");
+    if (!/^\[.*\?\]$/.test(c.Name)) {
+      li.setAttribute("data-gender", c.Gender || "male");
+    }
     if (c.Father) li.setAttribute("data-father", c.Father);
     if (c.Mother) li.setAttribute("data-mother", c.Mother);
     ol.appendChild(li);
@@ -558,17 +517,17 @@ function buildChildrenUnknown() {
   div.id = "childrenUnknownHeading";
   div.title = "Right click to add a child";
   div.style.cursor = "pointer";
-  const span = document.createElement("span");
-  span.id = "childrenUnknown";
-  span.textContent = "[children unknown]";
-  div.appendChild(span);
+  const a = document.createElement("a");
+  a.href = `https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=child`;
+  a.className = "BLANK";
+  a.textContent = "[children?]";
+  div.appendChild(a);
   return div;
 }
 
 // ============================================================
 // 3. API Data and Utility Functions
 // ============================================================
-
 async function getWindowPeople() {
   const result = await $.ajax({
     url: "https://api.wikitree.com/api.php",
@@ -610,6 +569,8 @@ function fillBirthDeathDates($el, p) {
   } else if (p.DeathDateDecade) {
     dYear = "~" + p.DeathDateDecade;
   }
+  if (bYear.trim().toLowerCase() === "unknown" || bYear.trim().toLowerCase() === "~unknown") bYear = "";
+  if (dYear.trim().toLowerCase() === "unknown" || dYear.trim().toLowerCase() === "~unknown") dYear = "";
   const finalText = bYear || dYear ? ` (${bYear} - ${dYear})` : "";
   $el.find(".bdDates, .spouseDates").each(function () {
     $(this).text(finalText);
@@ -679,17 +640,199 @@ function addAncestorLabels(element) {
   element.attr("title", "Ancestor");
 }
 
+// ============================================================
+// Marriage Age Functions (Consolidated)
+// ============================================================
 export function getAge(start, end = false) {
-  return [0, 0, 0];
+  let start_day, start_month, start_year, end_day, end_month, end_year;
+  if (typeof start === "object") {
+    start_day = parseInt(start.start.date);
+    start_month = parseInt(start.start.month);
+    start_year = parseInt(start.start.year);
+    end_day = parseInt(start.end.date);
+    end_month = parseInt(start.end.month);
+    end_year = parseInt(start.end.year);
+  } else {
+    const startSplit = start.split("-");
+    start_day = parseInt(startSplit[2]);
+    start_month = parseInt(startSplit[1]);
+    start_year = parseInt(startSplit[0]);
+    const endSplit = end.split("-");
+    end_day = parseInt(endSplit[2]);
+    end_month = parseInt(endSplit[1]);
+    end_year = parseInt(endSplit[0]);
+  }
+  const month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (isLeapYear(start_year)) {
+    month[1] = 29;
+  }
+  const firstMonthDays = month[start_month - 1] - start_day;
+  let restOfYearDays = 0;
+  for (let i = start_month; i < 12; i++) {
+    restOfYearDays += month[i];
+  }
+  const firstYearDays = firstMonthDays + restOfYearDays;
+  let fullYears = end_year - (start_year + 1);
+  let lastYearMonthDays = 0;
+  if (isLeapYear(end_year)) {
+    month[1] = 29;
+  } else {
+    month[1] = 28;
+  }
+  for (let i = 0; i < end_month - 1; i++) {
+    lastYearMonthDays += month[i];
+  }
+  let lastYearDaysTotal = end_day + lastYearMonthDays;
+  let totalExtraDays = lastYearDaysTotal + firstYearDays;
+  let andDays;
+  if (totalExtraDays > 364) {
+    fullYears++;
+    let yearDays = 365;
+    if (isLeapYear(start_year) && start_month < 3) {
+      yearDays++;
+    }
+    if (isLeapYear(end_year) && end_month > 3) {
+      yearDays++;
+    }
+    andDays = totalExtraDays - yearDays;
+  } else {
+    andDays = totalExtraDays;
+    if (isLeapYear(start_year) && start_month < 3) {
+      totalExtraDays--;
+    }
+    if (isLeapYear(end_year) && end_month > 3) {
+      totalExtraDays--;
+    }
+  }
+  const totalDays = Math.round(fullYears * 365.25) + andDays;
+  return [fullYears, andDays, totalDays];
+}
+
+function isLeapYear(year) {
+  return year % 100 === 0 ? year % 400 === 0 : year % 4 === 0;
+}
+
+function getMarriageAge(d1, d2, mPerson) {
+  const bDate = getApproxDate(d1);
+  const mDate = getApproxDate(d2);
+  let approx = "";
+  if (
+    bDate.Approx === true ||
+    mDate.Approx === true ||
+    (mPerson?.DataStatus?.BirthDate !== "certain" && mPerson?.DataStatus?.BirthDate !== "")
+  ) {
+    approx = "~";
+  }
+  const dt1 = bDate.Date;
+  const dt2 = mDate.Date;
+  const ageAtMarriage = getAge(dt1, dt2);
+  return approx + ageAtMarriage[0];
+}
+
+function getApproxDate(theDate) {
+  let approx = false;
+  let aDate;
+  if (typeof theDate === "object") return theDate;
+  if (theDate.match(/0s$/) != null) {
+    aDate = theDate.replace(/0s/, "5");
+    approx = true;
+  } else {
+    const bits = theDate.split("-");
+    if (theDate.match(/00-00$/) != null || !bits[1]) {
+      aDate = bits[0] + "-07-02";
+      approx = true;
+    } else if (theDate.match(/-00$/) != null) {
+      aDate = bits[0] + "-" + bits[1] + "-16";
+      approx = true;
+    } else {
+      aDate = theDate;
+    }
+  }
+  return { Date: aDate, Approx: approx };
+}
+
+function amaTimer() {
+  window.runningAMA++;
+  const pagePerson = getPerson(profilePerson.Id);
+  if (pagePerson?.Spouses != undefined) {
+    window.doneMarriageAges = true;
+    const oSpouses = Object.entries(pagePerson.Spouses);
+    oSpouses.forEach(function (spouseEntry) {
+      const marData = spouseEntry[1];
+      const spouse = getPerson(marData.Id);
+      if (isOK(marData.MarriageDate)) {
+        let profileMarriageAge;
+        if (!window.excludeValues.includes(pagePerson.BirthDate)) {
+          profileMarriageAge = getMarriageAge(pagePerson.BirthDate, marData.MarriageDate, pagePerson);
+        }
+        const spouseMarriageAge = getMarriageAge(spouse?.BirthDate, marData.MarriageDate, spouse);
+        let profileAgeText = "";
+        let spouseAgeText = "";
+        if (profileMarriageAge) {
+          profileAgeText = pagePerson.FirstName + " (" + profileMarriageAge + ")";
+        }
+        if (isOK(spouse?.BirthDate)) {
+          spouseAgeText = spouse.FirstName + " (" + spouseMarriageAge + ")";
+          if (profileMarriageAge) {
+            spouseAgeText = "; " + spouseAgeText;
+          }
+        }
+        const marriageDiv = $(`.spouseDetails a.spouseLink`).closest(".aSpouse");
+        marriageDiv.append($("<span class='marriageAges'>" + profileAgeText + spouseAgeText + "</span>"));
+        const marriageId = "marriage_" + spouseEntry[0];
+        const marriageDetails = marriageDiv.find(".marriageDetails");
+        marriageDetails.html(function (index, html) {
+          return html.replace(
+            "married",
+            `<a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=editspouse&s=${spouseEntry[0]}" target="_blank" title="Right click to edit marriage" class="clickable" id="${marriageId}">married</a>`
+          );
+        });
+        marriageDetails.contents().wrapAll('<div style="display:inline-block"></div>');
+        clearInterval(window.ama);
+      }
+    });
+  }
+  if (window.runningAMA > 10 || window.doneMarriageAges === true) {
+    clearInterval(window.ama);
+  }
+}
+
+async function addMarriageAges() {
+  window.runningAMA = 0;
+  if (window.doneMarriageAges === undefined) {
+    window.ama = setInterval(amaTimer, 2000);
+    window.doneMarriageAges = false;
+  }
+}
+
+// ============================================================
+// Relative Ages Function (for siblings and children)
+// ============================================================
+function addRelativeAges() {
+  const profileBirth = getPerson(profilePerson.Id)?.BirthDate;
+  if (!profileBirth || profileBirth === "0000-00-00") return;
+  $("#siblingList li span[itemprop='sibling'], #childrenList li span[itemprop='children']").each(function () {
+    const $container = $(this);
+    const nameAnchor = $container.find("a");
+    if (!nameAnchor.length) return;
+    const personHref = nameAnchor.attr("href");
+    if (!personHref) return;
+    const wtId = personHref.split("/").pop();
+    const personData = getPersonByWtID(wtId);
+    if (!personData || !personData.BirthDate || personData.BirthDate === "0000-00-00") return;
+    const diff = getAge(profileBirth, personData.BirthDate);
+    const relText = diff[0] !== 0 ? (diff[0] > 0 ? "(+" + diff[0] + ")" : "(" + diff[0] + ")") : "";
+    $container.find(".relAge").text(relText);
+  });
 }
 
 // ============================================================
 // 4. Vertical/Horizontal Adjustments and Heading Toggles
 // ============================================================
-
 function makeVerticalFamLists() {
   setTimeout(() => {
     addHalfsStyle();
+    addRelativeAges();
   }, 1000);
 }
 
@@ -703,8 +846,12 @@ function addHalfsStyle() {
     $("#siblingList li").each(function () {
       const father = $(this).attr("data-father");
       const mother = $(this).attr("data-mother");
-      if (father === p1) $(this).addClass("parent_1");
-      if (mother === p2) $(this).addClass("parent_2");
+      if (father === p1) {
+        $(this).addClass("parent_1");
+      }
+      if (mother === p2) {
+        $(this).addClass("parent_2");
+      }
     });
   }
 }
@@ -746,8 +893,12 @@ export function changeFamilyHeaders(first = false) {
   ];
   const p = getPerson(profilePerson.Id);
   let gen = "neutral";
-  if (p?.Gender === "Male") gen = "male";
-  if (p?.Gender === "Female") gen = "female";
+  if (p?.Gender === "Male") {
+    gen = "male";
+  }
+  if (p?.Gender === "Female") {
+    gen = "female";
+  }
   const parentsEl = document.querySelector("#parentsHeader");
   if (!parentsEl) return;
   let headingsAreAlt = false;
@@ -758,9 +909,13 @@ export function changeFamilyHeaders(first = false) {
     const el = document.querySelector(obj.sel);
     if (!el) return;
     if (headingsAreAlt) {
-      if (gen === "male") el.textContent = obj.male;
-      else if (gen === "female") el.textContent = obj.female;
-      else el.textContent = obj.neutral;
+      if (gen === "male") {
+        el.textContent = obj.male;
+      } else if (gen === "female") {
+        el.textContent = obj.female;
+      } else {
+        el.textContent = obj.neutral;
+      }
     } else {
       el.textContent = obj.alt;
     }
@@ -770,9 +925,7 @@ export function changeFamilyHeaders(first = false) {
     getFeatureOptions("changeFamilyLists").then((optionsData) => {
       optionsData.changeHeaders = newState;
       const storageName = "changeFamilyLists_options";
-      chrome.storage.sync.set({
-        [storageName]: optionsData,
-      });
+      chrome.storage.sync.set({ [storageName]: optionsData });
     });
   }
 }
@@ -809,9 +962,8 @@ function attachHeadingEvents() {
 }
 
 // ============================================================
-// 5. Main Hook: Initialize, Replace DOM, and Attach Events
+// Main Hook: Initialize, Replace DOM, and Attach Events
 // ============================================================
-
 shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   if (!result) return;
   const familyData = parseInitialData();
@@ -837,7 +989,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     highlightAncestorsOnPage().catch(console.error);
   }
   if (options.agesAtMarriages) {
-    // Implement addMarriageAges if required.
+    addMarriageAges();
   }
   console.log("change_family_lists: Script loaded with updated structure.");
 });
