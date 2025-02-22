@@ -27,6 +27,13 @@ export function getProfilePersonInfo() {
   }
   person.Name = pageData.mnamedb;
   // Clone h1, remove all children and trim the text.
+
+  const extractYear = (dateString) => {
+    // Extract the year from the date string
+    const yearMatch = dateString.match(/\d{4}/);
+    return yearMatch ? parseInt(yearMatch[0]) : null;
+  };
+
   const $h1 = $("h1").clone();
   $h1.children().remove();
   person.FullName = $h1.text().trim();
@@ -34,21 +41,27 @@ export function getProfilePersonInfo() {
   person.LastNameAtBirth = pageData.mlastnameatbirth;
   person.FirstName = pageData.mfirstname;
   person.Gender = pageData.mgender;
-  person.Dates = $("h1 small.lifespan").text().trim();
-  // Lifespan is like this: (bef. 1890 - aft. 1936) (for example)
-  // Parse this to get the birth and death years and status
-  // Split the lifespan into parts based on the dash.
-  const lifespanParts = person.Dates.split(" - ");
-  const extractYear = (dateString) => {
-    // Extract the year from the date string
-    const yearMatch = dateString.match(/\d{4}/);
-    return yearMatch ? parseInt(yearMatch[0]) : null;
-  };
-  if (lifespanParts.length === 2) {
-    // Extract the birth and death years
-    person.BirthYear = extractYear(lifespanParts[0]);
-    person.DeathYear = extractYear(lifespanParts[1]);
-  }
+  person.BirthDate = $("div.page--title div.VITALS:contains('Born')")
+    .text()
+    .replace("Born ", "")
+    .replace(".", "")
+    .trim();
+  person.DeathDate = $("div.page--title div.VITALS:contains('Died')")
+    .text()
+    .replace("Died ", "")
+    .replace(".", "")
+    .trim();
+  person.BirthYear = person.BirthDate
+    ? person.BirthDate.includes("s")
+      ? person.BirthDate
+      : extractYear(person.BirthDate)
+    : null;
+  person.DeathYear = person.DeathDate
+    ? person.DeathDate.includes("s")
+      ? person.DeathDate
+      : extractYear(person.DeathDate)
+    : null;
+  person.Dates = person.BirthDate + " - " + person.DeathDate;
 
   const extractStatus = (dateString) => {
     if (!dateString) {
@@ -66,8 +79,8 @@ export function getProfilePersonInfo() {
     }
   };
   // Get birth and death status (bef., aft., abt.)
-  person.BirthStatus = extractStatus(lifespanParts[0]);
-  person.DeathStatus = extractStatus(lifespanParts[1]);
+  person.BirthStatus = extractStatus(person.BirthDate);
+  person.DeathStatus = extractStatus(person.DeathDate);
 
   if (!person.Id || !person.Name) {
     return null;

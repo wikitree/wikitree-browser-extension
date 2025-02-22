@@ -403,7 +403,7 @@ body.darkMode .vertical .nameList li.spouse_51 {
 .vertical #siblingsUnknown {
   margin-left: 0em;
 }
-
+/*
 .vertical #siblingsUnknown a.BLANK,
 .vertical #spousesUnknown a.BLANK {
   margin-left: 0.7em;
@@ -416,7 +416,7 @@ body.darkMode .vertical .nameList li.spouse_51 {
 .vertical .aSpouse > a.BLANK {
   margin-left: 3.6em;
 }
-
+*/
 .vertical #addChild,
 .vertical #addSibling,
 .vertical .addSpouse {
@@ -604,15 +604,19 @@ span[itemprop="sibling"]:has(.activeProfile) {
 
 .vertical .nameList li span[itemprop="sibling"],
 .vertical .nameList li span[itemprop="children"],
-.vertical .nameList li span[itemprop="parent"] {
+.vertical .nameList li span[itemprop="parent"],
+.vertical .nameList li span[itemprop="Father"],
+.vertical .nameList li span[itemprop="Mother"] {
   display: grid;
   grid-template-columns: 2fr 1fr;
   grid-template-areas: "name dates";
 }
 
-.vertical .nameList.hasRelAge li span[itemprop="sibling"],
-.vertical .nameList.hasRelAge li span[itemprop="children"],
-.vertical .nameList.hasRelAge li span[itemprop="parent"] {
+.vertical.hasRelAge li span[itemprop="sibling"],
+.vertical.hasRelAge li span[itemprop="children"],
+.vertical.hasRelAge li span[itemprop="parent"],
+.vertical.hasRelAge li span[itemprop="Father"],
+.vertical.hasRelAge li span[itemprop="Mother"] {
   display: grid;
   grid-template-columns: 5fr 2.3fr 1fr;
   grid-template-areas: "name dates age";
@@ -795,8 +799,7 @@ div.VITALS a:link .addedPrefix {
   pointer-events: auto;
 }
 
-.spouseGrid,
-.childGrid {
+.spouseGrid {
   display: grid;
   grid-template-columns: auto auto auto;
   align-items: center;
@@ -806,4 +809,17 @@ div.VITALS a:link .addedPrefix {
 /* Ensure .bdDates has no extra margin when blank */
 .bdDates:empty {
   display: none;
+}
+
+.VITALS.spouseUnknown a {
+  margin-left: 1.3em;
+}
+
+#nVitals span.EDIT {
+  float: right;
+  height: 0.8em;
+}
+
+#nVitals span.EDIT a {
+  background-size: 1.3em;
 }
