@@ -237,9 +237,22 @@ function parseInitialData() {
   // Siblings
   const siblingsBlock = container.querySelector("#Siblings");
   if (siblingsBlock) {
+    // Get the siblings from itemprop elements
     let parsedSiblings = parseBlock(siblingsBlock, "sibling").filter(
       (r) => r.Name && !/^(add sibling)$/i.test(r.Name) && !/^\[half\]$/i.test(r.Name)
     );
+    // Also grab bracketed unknown siblings (which include the [private ...] entries)
+    const bracketed = parseBracketedUnknownInBlock(siblingsBlock).filter((b) => {
+      return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
+    });
+    // Merge them in—always add the ones starting with "[private"
+    bracketed.forEach((b) => {
+      if (b.Name.trim().toLowerCase().startsWith("[private")) {
+        parsedSiblings.push(b);
+      } else if (!parsedSiblings.some((m) => m.Link === b.Link || m.Name === b.Name)) {
+        parsedSiblings.push(b);
+      }
+    });
     familyData.siblings = parsedSiblings;
   }
 
