@@ -274,6 +274,19 @@ function parseInitialData() {
   const childrenBlock = container.querySelector("#Children");
   if (childrenBlock) {
     let parsedChildren = parseBlock(childrenBlock, "children").filter((r) => r.Name && !/^(add child)$/i.test(r.Name));
+    // Also add any bracketed unknown children that aren't already in parsedChildren.
+    const bracketed = parseBracketedUnknownInBlock(childrenBlock).filter((b) => {
+      return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
+    });
+    bracketed.forEach((b) => {
+      // If the record is a private child, add it regardless of duplicates.
+      if (b.Name.trim().toLowerCase().startsWith("[private")) {
+        parsedChildren.push(b);
+      } else if (!parsedChildren.some((m) => m.Link === b.Link || m.Name === b.Name)) {
+        parsedChildren.push(b);
+      }
+    });
+
     familyData.children = parsedChildren;
   }
 
@@ -310,14 +323,21 @@ function buildFamilyListsFromData(familyData) {
 }
 
 function getDatesFromFamilyData(p) {
-  if (p.BirthDate || p.DeathDate) {
-    const birthYear = isOK(p.BirthDate) ? (p.BirthDate.includes("s") ? p.BirthDate : p.BirthDate.split("-")[0]) : "";
-    const deathYear = isOK(p.DeathDate) ? (p.DeathDate.includes("s") ? p.DeathDate : p.DeathDate.split("-")[0]) : "";
-    const dates = ` (${birthYear} - ${deathYear})`;
-    return { birthYear, deathYear, dates };
-  } else {
-    return {};
+  // Only use the value if it is not blank, not "0000-00-00", and not "unknown"
+  const getYear = (dateStr) => {
+    if (dateStr && dateStr !== "0000-00-00" && dateStr.toLowerCase() !== "unknown") {
+      return dateStr.includes("s") ? dateStr : dateStr.split("-")[0];
+    }
+    return "";
+  };
+
+  const birthYear = getYear(p.BirthDate);
+  const deathYear = getYear(p.DeathDate);
+
+  if (birthYear || deathYear) {
+    return { birthYear, deathYear, dates: ` (${birthYear} - ${deathYear})` };
   }
+  return {};
 }
 
 // --- Helper Functions ---
@@ -502,6 +522,7 @@ function buildSpousesSection(spouses) {
     entry.setAttribute("itemscope", "");
     entry.setAttribute("itemtype", "https://schema.org/Person");
     entry.setAttribute("data-gender", spouse.Gender || "Female");
+    const theDates = getDatesFromFamilyData(spouse);
     if (spouse.Link) {
       entry.innerHTML = `<a href="${spouse.Link}" itemprop="url" title="" class="spouseLink">
         <span itemprop="name"><strong>${spouse.FullName || spouse.Name}</strong></span>
@@ -512,6 +533,9 @@ function buildSpousesSection(spouses) {
     grid.appendChild(entry);
     const dates = document.createElement("span");
     dates.className = "spouseDates bdDates";
+    dates.setAttribute("data-birth-year", theDates.birthYear || "");
+    dates.setAttribute("data-death-year", theDates.deathYear || "");
+    dates.textContent = theDates.dates || "";
     if (spouse.Name) {
       const idName = (spouse.Name || "").replace(/\s/g, "-");
       dates.id = idName + "-bdDates";
@@ -559,30 +583,29 @@ function buildChildrenSection(children) {
     const dates = getDatesFromFamilyData(c);
     const li = document.createElement("li");
     li.dataset.parseName = c.Name;
-    if (/^\[.*\?\]$/.test(c.Name)) {
-      const link = c.Link || `https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=child`;
-      li.innerHTML = `<a href="${link}" class="BLANK">${c.Name}</a>`;
-      ol.style.listStyle = "none";
-    } else if (c.Link) {
+    if (c.Link) {
       li.innerHTML = `<span itemprop="children" itemscope itemtype="https://schema.org/Person">
-
-            <a href="${
-              c.Link.startsWith("http") ? c.Link : `https://${mainDomain}` + c.Link
-            }" itemprop="url" title="" aria-label="Child" class="childLink">
-              <span itemprop="name">${c.FullName || c.Name}</span>
-            </a>
-            <span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
-        dates.deathYear || ""
-      }">${dates.dates || ""}</span>
-
+        <a href="${
+          c.Link.startsWith("http") ? c.Link : `https://${mainDomain}` + c.Link
+        }" itemprop="url" title="" aria-label="Child" class="childLink">
+          <span itemprop="name">${c.FullName || c.Name}</span>
+        </a>
+        <span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${dates.deathYear || ""}">${
+        dates.dates || ""
+      }</span>
+        <span class="relAge"></span>
+        </span>`;
+    } else {
+      // Even without a link, output a span that shows the name and the dates.
+      li.innerHTML = `<span itemprop="children" itemscope itemtype="https://schema.org/Person">
+          <span itemprop="name">${c.FullName || c.Name}</span>
+          <span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${dates.deathYear || ""}">${
+        dates.dates || ""
+      }</span>
           <span class="relAge"></span>
           </span>`;
-    } else {
-      li.textContent = c.FullName || c.Name;
-      const bdSpan = document.createElement("span");
-      bdSpan.className = "bdDates";
-      li.appendChild(bdSpan);
     }
+
     if (!/^\[.*\?\]$/.test(c.Name)) {
       li.setAttribute("data-gender", c.Gender || "male");
     }
@@ -635,6 +658,7 @@ function getPersonByWtID(wtId) {
   return window.peopleByWtID?.get(wtId);
 }
 
+/*
 function fillBirthDeathDates($el, p) {
   let bYear = "";
   let dYear = "";
@@ -655,6 +679,48 @@ function fillBirthDeathDates($el, p) {
     dYear = "";
   }
   const finalText = bYear || dYear ? ` (${bYear} - ${dYear})` : "";
+  $el.find(".bdDates, .spouseDates").each(function () {
+    $(this).text(finalText);
+    $(this).attr("data-birth-year", bYear);
+    $(this).attr("data-death-year", dYear);
+  });
+}
+  */
+
+function fillBirthDeathDates($el, p) {
+  let bYear = "";
+  let dYear = "";
+  if (isOK(p.BirthDate)) {
+    bYear = p.BirthDate.split("-")[0];
+  } else if (p.BirthDateDecade) {
+    bYear = p.BirthDateDecade;
+  }
+  if (isOK(p.DeathDate)) {
+    dYear = p.DeathDate.split("-")[0];
+  } else if (p.DeathDateDecade) {
+    dYear = "~" + p.DeathDateDecade;
+  }
+  // If the value is "unknown" (or "~unknown"), blank it out.
+  if (bYear.trim().toLowerCase() === "unknown" || bYear.trim().toLowerCase() === "~unknown") {
+    bYear = "";
+  }
+  if (dYear.trim().toLowerCase() === "unknown" || dYear.trim().toLowerCase() === "~unknown") {
+    dYear = "";
+  }
+
+  // Build finalText:
+  // If both dates are available, show as (birth - death).
+  // If only one is available, show just that one in parentheses.
+  // If neither is available, show nothing.
+  let finalText = "";
+  if (bYear && dYear) {
+    finalText = ` (${bYear} - ${dYear})`;
+  } else if (bYear) {
+    finalText = ` (${bYear})`;
+  } else if (dYear) {
+    finalText = ` (${dYear})`;
+  }
+
   $el.find(".bdDates, .spouseDates").each(function () {
     $(this).text(finalText);
     $(this).attr("data-birth-year", bYear);
