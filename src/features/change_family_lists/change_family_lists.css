@@ -3,16 +3,6 @@
   font-size: 1rem;
 }
 
-#nVitals .nameList li,
-#nVitals .nameList ol {
-  display: inline;
-}
-
-#nVitals.vertical .nameList li,
-#nVitals.vertical .nameList ol {
-  display: block;
-}
-
 #nVitals.vertical #childrenUnknown.vanilla,
 #nVitals.vertical #spousesUnknown.vanilla,
 .aSpouse.vanilla a {
@@ -566,16 +556,34 @@ body.darkMode .vertical .nameList span.bdDates.parent_2 {
   background-color: #eeedff !important;
   border-left: 5px blue solid !important;
 }
-.vanilla div.spouseDetails {
-  margin-bottom: 1em;
-}
 
 span[itemprop="sibling"]:has(.activeProfile) {
-  background-color: #ffee99;
   padding-left: 0.5em;
   padding-right: 0.5em;
   margin-left: 0.2em;
   margin-right: 0.2em;
+}
+
+.activeProfile {
+  background-color: #ffee99;
+}
+
+.vanilla span[itemprop="sibling"]:has(.activeProfile) {
+  padding: 0;
+  margin: 0;
+}
+
+.vanilla .marriageDetails {
+  margin-left: 0.5em;
+}
+.vanilla #nVitals .activeProfile {
+  margin-right: 0.5em;
+}
+.vanilla .marriageAges {
+  display: inline;
+}
+.vanilla .aSpouse {
+  margin-right: 0.5em;
 }
 
 .clickable {
@@ -832,4 +840,83 @@ div.VITALS a:link .addedPrefix {
 
 #nVitals span.EDIT a {
   background-size: 1.3em;
+}
+
+.vanilla .familyList > div,
+.vanilla ol.nameList,
+.vanilla ol.nameList li {
+  display: inline;
+  padding-left: 0;
+}
+.vanilla .spouseGrid {
+  display: inline;
+}
+
+.vanilla .familyList,
+.vanilla #spousesUnknownHeading {
+  margin-bottom: 1em;
+}
+
+.vanilla #spousesUnknownHeading a {
+  margin: 0;
+}
+
+.vanilla span.EDIT {
+  position: absolute;
+  left: -1em;
+}
+
+/* Style for elements with a tooltip */
+#nVitals [data-tooltip] {
+  cursor: pointer;
+}
+
+/* Tooltip styling */
+#nVitals [data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 125%; /* position above the element */
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-in-out;
+  z-index: 1000;
+  background-color: #fcb815;
+  color: #25422d;
+  font-family: "Roboto Mono", monospace;
+  font-optical-sizing: auto;
+  font-weight: 500;
+  font-size: 0.75rem;
+  font-style: normal;
+  max-width: 400px !important;
+}
+
+/* Show tooltip on hover */
+#nVitals [data-tooltip]:hover::after {
+  opacity: 1;
+}
+
+/* Optional: add an arrow */
+#nVitals [data-tooltip]::before {
+  content: "";
+  position: absolute;
+  bottom: 115%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: rgba(0, 0, 0, 0.75) transparent transparent transparent;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  z-index: 1000;
+}
+
+#nVitals [data-tooltip]:hover::before {
+  opacity: 1;
 }
