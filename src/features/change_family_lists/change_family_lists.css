@@ -875,7 +875,7 @@ div.VITALS a:link .addedPrefix {
 #nVitals [data-tooltip]::after {
   content: attr(data-tooltip);
   position: absolute;
-  bottom: 125%; /* position above the element */
+  bottom: 2em; /* position above the element */
   left: 50%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.75);
@@ -906,12 +906,12 @@ div.VITALS a:link .addedPrefix {
 #nVitals [data-tooltip]::before {
   content: "";
   position: absolute;
-  bottom: 115%;
+  bottom: 0.6em;
   left: 50%;
   transform: translateX(-50%);
-  border-width: 5px;
+  border-width: 7px;
   border-style: solid;
-  border-color: rgba(0, 0, 0, 0.75) transparent transparent transparent;
+  border-color: #fcb815 transparent transparent transparent;
   opacity: 0;
   transition: opacity 0.2s ease-in-out;
   z-index: 1000;

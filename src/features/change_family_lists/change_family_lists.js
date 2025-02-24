@@ -120,7 +120,7 @@ function newPersonFromBracket(bracketText, link = "") {
   const trimmed = bracketText.trim();
   record.UnknownText = trimmed;
   const dateRangeMatch = trimmed.match(/\(([^)]+)\)/);
-  if (dateRangeMatch) {
+  if (dateRangeMatch && dateRangeMatch[1] != "s") {
     const [b, d] = dateRangeMatch[1].split(/\s*-\s*/);
     record.BirthDate = b?.trim() || "";
     record.DeathDate = d?.trim() || "";
@@ -639,6 +639,7 @@ function buildSpousesSection(spouses) {
     // Append map link if available.
     if (spouse.MarriageMapLink) {
       const mapLink = document.createElement("a");
+      mapLink.style.position = "relative";
       mapLink.href = spouse.MarriageMapLink;
       mapLink.setAttribute("data-bs-toggle", "tooltip");
       mapLink.setAttribute("data-bs-title", "Marriage Location on Map");
@@ -648,7 +649,7 @@ function buildSpousesSection(spouses) {
       mapIcon.src = "/images/icons/icon-map-pin.svg";
       mapIcon.alt = "map icon";
       mapLink.appendChild(mapIcon);
-      spouseDiv.appendChild(mapLink);
+      details.appendChild(mapLink);
     }
 
     ol.appendChild(spouseDiv);
@@ -700,9 +701,9 @@ function buildChildrenSection(children) {
       li.innerHTML = `<span itemprop="children" itemscope itemtype="https://schema.org/Person">
           <a href="${
             c.Link.startsWith("http") ? c.Link : "https://" + mainDomain + c.Link
-          }" itemprop="url" title="" aria-label="Child" class="childLink">
-            <span itemprop="name">${c.FullName || c.Name}</span>
-          </a>
+          }" itemprop="url" title="" aria-label="Child" class="childLink"><span itemprop="name">${
+        c.FullName || c.Name
+      }</span></a>
           <span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${dates.deathYear || ""}">
             ${dates.dates || ""}</span> <span class="relAge"></span></span>`;
     } else {
@@ -1185,8 +1186,14 @@ function moveFamilyLists() {
 /**
  * Changes the headers based on the toggle state.
  */
-export function changeFamilyHeaders() {
-  useAltHeadings = !useAltHeadings;
+export function changeFamilyHeaders(setIt = false) {
+  if (setIt == "Y") {
+    useAltHeadings = false;
+  } else if (setIt == "N") {
+    useAltHeadings = true;
+  } else {
+    useAltHeadings = !useAltHeadings;
+  }
   const ofText = $("#nVitals").hasClass("vanilla") ? "of" : "of:";
   const headings = [
     {
@@ -1234,10 +1241,15 @@ export function changeFamilyHeaders() {
       el.textContent = obj.alt;
     }
   });
-  getFeatureOptions("changeFamilyLists").then((optionsData) => {
-    optionsData.changeHeaders = useAltHeadings;
-    chrome.storage.sync.set({ changeFamilyLists_options: optionsData });
-  });
+  if (!setIt) {
+    getFeatureOptions("changeFamilyLists").then((optionsData) => {
+      optionsData.changeHeaders = !useAltHeadings;
+      const storageName = "changeFamilyLists_options";
+      chrome.storage.sync.set({
+        [storageName]: optionsData,
+      });
+    });
+  }
 }
 
 /**
@@ -1573,7 +1585,7 @@ function countItems(elements) {
   let count = 0;
   elements.each(function () {
     const text = $(this).text();
-    if (!/\?|\bunknown\b/i.test(text)) {
+    if (!/\?|\bunknown\b/.test(text) && !$(this).find(".activeProfile").length) {
       count++;
     }
   });
@@ -1662,9 +1674,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   treePersonBit.append(newVitals);
   attachApiData();
   window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
-  if (options.changeHeaders) {
-    changeFamilyHeaders(true);
-  }
+
   if (options.moveToRight) {
     moveFamilyLists();
   }
@@ -1687,9 +1697,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   if (options.highlightAncestors) {
     getAncestorsOnPage().catch(console.error);
   }
-  if (options.siblingAndChildCount) {
-    addChildrenSiblingCount();
-  }
+
   const pagePerson = getPerson(profilePerson.Id);
   let isPrivate = false;
   if (!pagePerson?.Name) {
@@ -1705,6 +1713,9 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   }
   if (!options.verticalLists) {
     fixVanilla();
+    if (options.siblingAndChildCount) {
+      addChildrenSiblingCount();
+    }
   } else {
     $("#siblingList, #childrenList, #spouseList").each(function () {
       if ($(this).find("li").length > 1) {
@@ -1712,4 +1723,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
       }
     });
   }
+
+  const setHeaders = options.changeHeaders ? "Y" : "N";
+  changeFamilyHeaders(setHeaders);
 });
