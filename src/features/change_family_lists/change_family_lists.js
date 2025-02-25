@@ -1694,9 +1694,6 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   if (options.agesAtMarriages) {
     addMarriageAges();
   }
-  if (options.highlightAncestors) {
-    getAncestorsOnPage().catch(console.error);
-  }
 
   const pagePerson = getPerson(profilePerson.Id);
   let isPrivate = false;
@@ -1724,6 +1721,14 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     });
   }
 
+  // Set the family relationship headers to the right option
   const setHeaders = options.changeHeaders ? "Y" : "N";
   changeFamilyHeaders(setHeaders);
+
+  // Wait until Distance and Relationship feature has loaded (hopefully)
+  if (options.highlightAncestors) {
+    setTimeout(() => {
+      getAncestorsOnPage().catch(console.error);
+    }, 4000);
+  }
 });
