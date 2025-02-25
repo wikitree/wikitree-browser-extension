@@ -29,7 +29,7 @@ const user = getUserWtId();
 let familyData;
 // Global variable to track the header toggle state.
 let useAltHeadings = false;
-const treePersonBit = $("#nav-familyContent #familyVitals div.tree--person");
+const treePersonBit = $("#nav-familyContent #Family-pane div.tree--person");
 
 const getPeopleFields =
   "BirthDate,BirthDateDecade,BirthLocation,BirthName,Connected,DataStatus,DeathDate,DeathDateDecade,DeathLocation," +
@@ -1665,7 +1665,7 @@ function fixVanilla() {
 shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   if (!result) return;
   const familyData = parseInitialData();
-  const treePerson = $("#familyVitals div.tree--person");
+  const treePerson = $("#Family-pane div.tree--person");
   // Retain only the first .VITALS element.
   treePerson.children().not(":first").remove();
   options = await getFeatureOptions("changeFamilyLists");
