@@ -9,6 +9,8 @@ import { navigatorDetect } from "./navigatorDetect";
 import { mainDomain, isNavHomePage, isMainDomain } from "./pageType.js";
 import { checkIfFeatureEnabled } from "./options/options_storage";
 
+import Cookies from "js-cookie";
+
 /* * * * * * * * * * * * * * * * * * * *
  * Initialization. This section of code should run first.
  */
@@ -1162,9 +1164,14 @@ export function getUserWtId() {
   const href = $('nav[aria-label="My WikiTree Navigation"] a[href*="Special:Contributions"]:not(#myCustomMenu a)').attr(
     "href"
   );
-  if (!href) return null;
-  const m = href.match(/who=([^&]+)/);
-  return m ? m[1] : null;
+  let m;
+  if (href) {
+    m = href.match(/who=([^&]+)/);
+    return m ? m[1] : null;
+  } else {
+    // (Temporary) Fallback to cookies if the menu item is not present
+    return Cookies.get("wikitree_wtb_UserName");
+  }
 }
 
 export async function fetchAPI(args) {
