@@ -270,7 +270,7 @@ function addG2GButtons() {
     const currentURL = window.location.href;
     [recentActivity, myActivity, myFavourites].forEach((button) => {
       if (currentURL === button.find("a").attr("href")) {
-        button.find("a").addClass("qa-nav-main-selected");
+        button.find("a").parent().addClass("qa-nav-main-selected").addClass("active");
       }
     });
   }
