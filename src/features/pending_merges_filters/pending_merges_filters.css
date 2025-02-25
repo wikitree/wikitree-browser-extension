@@ -1,22 +1,22 @@
 /* Styles for pendingMergesFilters feature */
-body.page-Special_BrowseMatches ol br {
+body.browse-matches ol br {
   display: none;
 }
-body.page-Special_BrowseMatches ol li br {
+body.browse-matches ol li br {
   display: block;
 }
-body.page-Special_BrowseMatches ol li {
+body.browse-matches ol li {
   padding-bottom: 2em;
 }
-body.page-Special_BrowseMatches #pendingMergesFilterButtons {
+body.browse-matches #pendingMergesFilterButtons {
   margin: 1em auto;
 }
-body.page-Special_BrowseMatches #pendingMergesFilterButtons button.filtered {
-  background-color: #f0f0f0;
-  color: forestgreen;
+body.browse-matches #pendingMergesFilterButtons button.filtered {
+  color: #f0f0f0;
+  background-color: forestgreen;
 }
 
-body.page-Special_BrowseMatches #pendingMergesFilterButtons span {
+body.browse-matches #pendingMergesFilterButtons span {
   margin-right: 1em;
   font-weight: 600;
   color: #25422d;

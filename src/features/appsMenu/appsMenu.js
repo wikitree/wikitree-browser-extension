@@ -196,11 +196,11 @@ function getMenuItems(baseUrl, items) {
 }
 
 function getTreeAppsMenuItems() {
-  const theId = profilePerson?.Name;
+  const theId = profilePerson?.Name || getUserWtId();
   return treeApps.map((item) => {
     const formattedTitle = item.text;
     // https://www.wikitree.com/apps/Kubičík-26#name=Kubičík-26&view=couples
-    const formattedUrl = `https://www.wikitree.com/apps/${theId}#${theId}&view=${item.id}`;
+    const formattedUrl = `https://www.wikitree.com/apps/${theId}#name=${theId}&view=${item.id}`;
     return { title: formattedTitle, url: formattedUrl };
   });
 }
