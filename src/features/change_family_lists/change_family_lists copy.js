@@ -37,10 +37,11 @@ const getPeopleFields =
   "LastNameAtBirth,LastNameCurrent,LastNameOther,Manager,MiddleName,Mother,Name,Prefix,RealName,ShortName," +
   "Spouses,Suffix,TrustedList";
 
-/**
- * Creates a new person record object with default values.
- * @returns {Object} A person record object.
- */
+// ============================================================
+// 1. Data Record Shapes and Parsing Functions
+// ============================================================
+
+// --- Helper record functions ---
 function newPersonRecord() {
   return {
     Name: "",
@@ -55,19 +56,11 @@ function newPersonRecord() {
   };
 }
 
-/**
- * Creates a new family data object.
- * @returns {Object} A family data object with empty arrays for each relationship.
- */
 function newFamilyData() {
   return { parents: [], siblings: [], spouses: [], children: [] };
 }
 
-/**
- * Parses an element that has an itemprop attribute and returns a person record.
- * @param {HTMLElement} el - The DOM element containing person data.
- * @returns {Object} A person record object.
- */
+// --- Parsing functions ---
 function parseItempropElement(el) {
   const record = newPersonRecord();
   const linkEl = el.querySelector("a[itemprop='url'], a[href*='/wiki/']");
@@ -109,18 +102,12 @@ function parseItempropElement(el) {
   return record;
 }
 
-/**
- * Creates a new person record from a bracketed text.
- * @param {string} bracketText - The bracketed text containing person data.
- * @param {string} [link=""] - An optional link for the record.
- * @returns {Object} A person record.
- */
 function newPersonFromBracket(bracketText, link = "") {
   const record = newPersonRecord();
   const trimmed = bracketText.trim();
   record.UnknownText = trimmed;
   const dateRangeMatch = trimmed.match(/\(([^)]+)\)/);
-  if (dateRangeMatch && dateRangeMatch[1] != "s") {
+  if (dateRangeMatch) {
     const [b, d] = dateRangeMatch[1].split(/\s*-\s*/);
     record.BirthDate = b?.trim() || "";
     record.DeathDate = d?.trim() || "";
@@ -132,12 +119,6 @@ function newPersonFromBracket(bracketText, link = "") {
   return record;
 }
 
-/**
- * Parses bracketed unknown entries (for example, "[private son (1900s - unknown)]")
- * within a block element.
- * @param {HTMLElement} blockEl - The container element.
- * @returns {Object[]} An array of person records parsed from bracketed text.
- */
 function parseBracketedUnknownInBlock(blockEl) {
   const results = [];
   const anchors = blockEl.querySelectorAll("a");
@@ -172,12 +153,6 @@ function parseBracketedUnknownInBlock(blockEl) {
   return results;
 }
 
-/**
- * Parses a block element for items with a given itemprop attribute.
- * @param {HTMLElement} blockEl - The container element.
- * @param {string} itempropName - The itemprop value to search for.
- * @returns {Object[]} An array of person records.
- */
 function parseBlock(blockEl, itempropName) {
   const records = [];
   const itempropEls = blockEl.querySelectorAll(`[itemprop="${itempropName}"]`);
@@ -195,39 +170,47 @@ function parseBlock(blockEl, itempropName) {
   return records;
 }
 
-/**
- * Parses a spouses block and returns an array of spouse records.
- * @param {HTMLElement} spousesEl - The element containing spouse data.
- * @returns {Object[]} Array of spouse person records.
- */
+// --- Spouse-specific parsing ---
 function parseSpousesBlock(spousesEl) {
   const records = [];
-  // Split the innerHTML by markers (e.g., "Husband of", "Wife of", etc.)
+  // Split the entire innerHTML by the marker.
+  // Adjust the regex if you have other labels (e.g. "Wife of", "Spouse of")
   const chunks = spousesEl.innerHTML.split(/(?:Husband|Wife|Spouse)\s+of/i);
-  // Remove the first chunk (content before the first spouse).
+  // The first chunk is anything before the first spouse – ignore it.
   chunks.shift();
   chunks.forEach((chunk) => {
+    // Create a temporary container to parse this chunk.
     const temp = document.createElement("div");
     temp.innerHTML = chunk;
+    // The first spouse element in this chunk should be our target.
     const spouseEl = temp.querySelector('[itemprop="spouse"]');
     if (spouseEl) {
+      // Parse the basic spouse record.
       const rec = parseItempropElement(spouseEl);
+      // Remove the spouse element so that remaining text represents marriage details.
       spouseEl.remove();
+      // Get the remaining text, clean it up, and assign as MarriageDetails.
       let details = temp.textContent || "";
       details = details.replace(/\s{2,}/g, " ").trim();
+      // Remove any unwanted substring (e.g., an "add/edit spouses" text if present).
       details = details.replace(/add\/edit spouses/gi, "").trim();
       rec.MarriageDetails = details;
+      // (If there is a Google Maps link for the marriage, you might try to extract that too.)
+      // Look for a link in the chunk that points to maps.google.
       const mapLinkEl = temp.querySelector('a[href*="maps.google"]');
       if (mapLinkEl) {
         rec.MarriageMapLink = mapLinkEl.getAttribute("href") || "";
       }
+      // Do not mark this record for merging—each chunk becomes its own record.
       rec.merge = false;
+      // Only push if we have a valid name.
       if (rec.Name && rec.Name.trim()) {
         rec.Name = rec.Name.trim();
         records.push(rec);
       }
     }
   });
+  // Also add any bracketed unknown spouse records that aren’t duplicates.
   const bracketed = parseBracketedUnknownInBlock(spousesEl).filter(
     (b) => b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google")
   );
@@ -239,23 +222,24 @@ function parseSpousesBlock(spousesEl) {
   return records;
 }
 
-/**
- * Parses the initial family data from the DOM.
- * @returns {Object} The family data object with arrays for parents, siblings, spouses, and children.
- */
 function parseInitialData() {
   const excludeBrackets = ["[date unknown]", "[location unknown]", "[uncertain]"];
   const container = document.querySelector("#nav-familyContent div.tree--person");
   familyData = newFamilyData();
 
-  // Parse parents
+  // Parents
   const parentsBlock = container.querySelector("#Parents");
   if (parentsBlock) {
+    // First, get the standard parsed parent records.
     let parsedParents = parseBlock(parentsBlock, "parent").filter((r) => r.Name && !/^(edit)$/i.test(r.Name));
+    // Next, get the bracketed unknown entries.
     const bracketed = parseBracketedUnknownInBlock(parentsBlock).filter((b) => {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
+    // Merge bracketed entries into parsedParents.
+    // We always want to include bracketed ones that mention "unknown" or "private".
     bracketed.forEach((b) => {
+      // If there isn’t already an entry with the same Name (or UnknownText) (case-insensitive), add it.
       if (
         !parsedParents.some((m) => {
           return (
@@ -267,6 +251,7 @@ function parseInitialData() {
         parsedParents.push(b);
       }
     });
+    // Now deduplicate: if two entries share the same Link (or, if missing, the same UnknownText), keep only the first.
     parsedParents = parsedParents.filter((parent, index, self) => {
       if (parent.Link) {
         return index === self.findIndex((p) => p.Link === parent.Link);
@@ -277,15 +262,18 @@ function parseInitialData() {
     familyData.parents = parsedParents;
   }
 
-  // Parse siblings
+  // Siblings
   const siblingsBlock = container.querySelector("#Siblings");
   if (siblingsBlock) {
+    // Get the siblings from itemprop elements
     let parsedSiblings = parseBlock(siblingsBlock, "sibling").filter(
       (r) => r.Name && !/^(add sibling)$/i.test(r.Name) && !/^\[half\]$/i.test(r.Name)
     );
+    // Also grab bracketed unknown siblings (which include the [private ...] entries)
     const bracketed = parseBracketedUnknownInBlock(siblingsBlock).filter((b) => {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
+    // Merge them in—always add the ones starting with "[private"
     bracketed.forEach((b) => {
       if (b.Name.trim().toLowerCase().startsWith("[private")) {
         parsedSiblings.push(b);
@@ -296,18 +284,22 @@ function parseInitialData() {
     familyData.siblings = parsedSiblings;
   }
 
-  // Parse spouses
+  // Spouses
   const spousesBlock = container.querySelector("#Spouses");
   if (spousesBlock) {
+    // Get spouse entries (each one should already contain its own MarriageDetails)
     let spouseEntries = parseSpousesBlock(spousesBlock);
+    // Filter out entries with no valid name or with the unwanted "[date unknown]" value.
     spouseEntries = spouseEntries.filter(
-      (r) => r.Name && r.Name.trim() && excludeBrackets.includes(r.Name.trim().toLowerCase()) === false
+      (r) => r.Name && r.Name.trim() && excludeBrackets.includes(r.Name.trim().toLowerCase()) == false
     );
+    // Also add any bracketed unknown spouse records that aren’t duplicates,
+    // but filter out any that have "[date unknown]" as the name.
     const bracketed = parseBracketedUnknownInBlock(spousesBlock).filter((b) => {
       return (
         b.Name &&
         b.Name.trim() &&
-        excludeBrackets.includes(b.Name.trim().toLowerCase()) === false &&
+        excludeBrackets.includes(b.Name.trim().toLowerCase()) == false &&
         !b.Link.startsWith("https://maps.google")
       );
     });
@@ -319,20 +311,23 @@ function parseInitialData() {
     familyData.spouses = spouseEntries;
   }
 
-  // Parse children
+  // Children
   const childrenBlock = container.querySelector("#Children");
   if (childrenBlock) {
     let parsedChildren = parseBlock(childrenBlock, "children").filter((r) => r.Name && !/^(add child)$/i.test(r.Name));
+    // Also add any bracketed unknown children that aren't already in parsedChildren.
     const bracketed = parseBracketedUnknownInBlock(childrenBlock).filter((b) => {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
     bracketed.forEach((b) => {
+      // If the record is a private child, add it regardless of duplicates.
       if (b.Name.trim().toLowerCase().startsWith("[private")) {
         parsedChildren.push(b);
       } else if (!parsedChildren.some((m) => m.Link === b.Link || m.Name === b.Name)) {
         parsedChildren.push(b);
       }
     });
+
     familyData.children = parsedChildren;
   }
 
@@ -340,11 +335,9 @@ function parseInitialData() {
   return familyData;
 }
 
-/**
- * Builds the complete family lists DOM structure.
- * @param {Object} familyData - The family data object.
- * @returns {HTMLElement} The DOM element containing the family lists.
- */
+// ============================================================
+// 2. Build DOM Structure
+// ============================================================
 function buildFamilyListsFromData(familyData) {
   const container = document.createElement("div");
   container.id = "nVitals";
@@ -370,12 +363,8 @@ function buildFamilyListsFromData(familyData) {
   return container;
 }
 
-/**
- * Extracts date information from a person record.
- * @param {Object} p - The person record.
- * @returns {Object} An object containing birthYear, deathYear, and a formatted dates string.
- */
 function getDatesFromFamilyData(p) {
+  // Only use the value if it is not blank, not "0000-00-00", and not "unknown"
   const getYear = (dateStr) => {
     if (dateStr && dateStr !== "0000-00-00" && dateStr.toLowerCase() !== "unknown") {
       return dateStr.includes("s") ? dateStr : dateStr.split("-")[0];
@@ -392,13 +381,9 @@ function getDatesFromFamilyData(p) {
   return {};
 }
 
-/**
- * Creates a header element.
- * @param {string} label - The header label.
- * @param {string} headerId - The element ID.
- * @param {string} tooltip - The tooltip text.
- * @returns {HTMLElement} The header span element.
- */
+// --- Helper Functions ---
+
+// Create a header element with consistent data attributes.
 function createHeader(label, headerId, tooltip) {
   const span = document.createElement("span");
   span.id = headerId;
@@ -413,13 +398,7 @@ function createHeader(label, headerId, tooltip) {
   return span;
 }
 
-/**
- * Creates an edit button element.
- * @param {string} href - The link URL.
- * @param {string} tooltip - The tooltip text.
- * @param {string} [text="edit"] - The text for the button.
- * @returns {HTMLElement} The edit button span element.
- */
+// Create an edit button (a span containing a link)
 function createEditButton(href, tooltip, text = "edit") {
   const span = document.createElement("span");
   span.className = "EDIT";
@@ -430,12 +409,7 @@ function createEditButton(href, tooltip, text = "edit") {
   return span;
 }
 
-/**
- * Creates a default link for an unknown entry.
- * @param {string} section - The family section (e.g. "father", "child").
- * @param {string} defaultText - The default link text.
- * @returns {HTMLElement} The default link element.
- */
+// Create a default link for an unknown entry in a section.
 function createDefaultLink(section, defaultText) {
   const a = document.createElement("a");
   a.href = `https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=${section}`;
@@ -444,13 +418,7 @@ function createDefaultLink(section, defaultText) {
   return a;
 }
 
-/**
- * Creates an ordered list element.
- * @param {string} id - The element ID.
- * @param {string} [className="nameList"] - The class name.
- * @param {string} [listStyle="none"] - The CSS list-style value.
- * @returns {HTMLElement} The ol element.
- */
+// Create an ordered list element.
 function createListElement(id, className = "nameList", listStyle = "none") {
   const ol = document.createElement("ol");
   ol.id = id;
@@ -459,11 +427,9 @@ function createListElement(id, className = "nameList", listStyle = "none") {
   return ol;
 }
 
-/**
- * Builds the Parents section DOM.
- * @param {Object[]} parents - Array of parent records.
- * @returns {HTMLElement} The parents section element.
- */
+// --- Section Builders ---
+
+// Parents Section
 function buildParentsSection(parents) {
   const container = document.createElement("div");
   container.className = "VITALS familyList";
@@ -504,9 +470,8 @@ function buildParentsSection(parents) {
         p.FullName || p.Name
       }</span></a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
         dates.deathYear || ""
-      }">
-            ${dates.dates || ""}</span>
-          <span class="relAge"></span></span>`;
+      }">${dates.dates || ""}</span> <span class="relAge"></span></span>`;
+
       ol.appendChild(li);
     });
   }
@@ -514,11 +479,7 @@ function buildParentsSection(parents) {
   return container;
 }
 
-/**
- * Builds the Siblings section DOM.
- * @param {Object[]} siblings - Array of sibling records.
- * @returns {HTMLElement} The siblings section element.
- */
+// Siblings Section
 function buildSiblingsSection(siblings) {
   const container = document.createElement("div");
   container.className = "VITALS familyList";
@@ -542,20 +503,21 @@ function buildSiblingsSection(siblings) {
       const li = document.createElement("li");
       li.dataset.parseName = s.Name;
       const dates = getDatesFromFamilyData(s);
+      // If the record is private, output plain text.
       const isPrivate = s.Name.trim().toLowerCase().startsWith("[private");
       if (isPrivate) {
-        li.innerHTML = `<span itemprop="sibling" itemscope itemtype="https://schema.org/Person">
-          <span itemprop="name">${s.FullName || s.Name}</span>
-          <span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${dates.deathYear || ""}">
-            ${dates.dates || ""}</span>
-          <span class="relAge"></span></span>`;
+        li.innerHTML = `<span itemprop="sibling" itemscope itemtype="https://schema.org/Person"><span itemprop="name">${
+          s.FullName || s.Name
+        }</span><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+          dates.deathYear || ""
+        }">${dates.dates || ""}</span> <span class="relAge"></span></span>`;
       } else {
         li.innerHTML = `<span itemprop="sibling" itemscope itemtype="https://schema.org/Person">
-          <a href="${s.Link}" itemprop="url" title="" aria-label="Sibling">
-            <span itemprop="name">${s.FullName || s.Name}</span></a>
-          <span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${dates.deathYear || ""}">
-            ${dates.dates || ""}</span>
-          <span class="relAge"></span></span>`;
+          <a href="${s.Link}" itemprop="url" title="" aria-label="Sibling"><span itemprop="name">${
+          s.FullName || s.Name
+        }</span></a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+          dates.deathYear || ""
+        }">${dates.dates || ""}</span> <span class="relAge"></span></span>`;
         li.setAttribute("data-gender", s.Gender || "male");
         if (s.Father) li.setAttribute("data-father", s.Father);
         if (s.Mother) li.setAttribute("data-mother", s.Mother);
@@ -567,11 +529,8 @@ function buildSiblingsSection(siblings) {
   return container;
 }
 
-/**
- * Builds the Spouses section DOM.
- * @param {Object[]} spouses - Array of spouse records.
- * @returns {HTMLElement} The spouses section element.
- */
+// Spouses Section
+
 function buildSpousesSection(spouses) {
   if (spouses.length === 1 && spouses[0].Name === "[spouse?]") {
     return buildSpousesUnknown();
@@ -589,7 +548,7 @@ function buildSpousesSection(spouses) {
   headerDiv.appendChild(createHeader("Spouses: ", "spousesHeader", ""));
   container.appendChild(headerDiv);
 
-  // Create an ordered list for spouses.
+  // Add OL
   const ol = createListElement("spouseList");
   container.appendChild(ol);
 
@@ -609,11 +568,16 @@ function buildSpousesSection(spouses) {
     entry.setAttribute("itemtype", "https://schema.org/Person");
     entry.setAttribute("data-gender", spouse.Gender);
     const theDates = getDatesFromFamilyData(spouse);
+    // Check if spouse is private.
     const isPrivate = spouse.Name.trim().toLowerCase().startsWith("[private");
     if (spouse.Link && !isPrivate) {
-      entry.innerHTML = `<a href="${spouse.Link}" itemprop="url" title="" class="spouseLink">
-        <span itemprop="name"><strong>${spouse.FullName || spouse.Name}</strong></span></a>`;
+      entry.innerHTML = `<a href="${
+        spouse.Link
+      }" itemprop="url" title="" class="spouseLink"><span itemprop="name"><strong>${
+        spouse.FullName || spouse.Name
+      }</strong></span></a>`;
     } else {
+      // Output plain text without a link.
       entry.innerHTML = `<span itemprop="name"><strong>${spouse.FullName || spouse.Name}</strong></span>`;
     }
     grid.appendChild(entry);
@@ -636,10 +600,12 @@ function buildSpousesSection(spouses) {
     details.textContent = detailsText;
     spouseDiv.appendChild(details);
 
-    // Append map link if available.
+    // If there's a mapLink, add that.
+    /* Example:
+<a href="https://maps.google.com/maps?q=Aurelius, Cayuga, New York, United States" data-bs-toggle="tooltip" data-bs-title="Marriage Location on Map" target="_map"><img src="/images/icons/icon-map-pin.svg" alt="map icon"></a>
+*/
     if (spouse.MarriageMapLink) {
       const mapLink = document.createElement("a");
-      mapLink.style.position = "relative";
       mapLink.href = spouse.MarriageMapLink;
       mapLink.setAttribute("data-bs-toggle", "tooltip");
       mapLink.setAttribute("data-bs-title", "Marriage Location on Map");
@@ -649,7 +615,7 @@ function buildSpousesSection(spouses) {
       mapIcon.src = "/images/icons/icon-map-pin.svg";
       mapIcon.alt = "map icon";
       mapLink.appendChild(mapIcon);
-      details.appendChild(mapLink);
+      spouseDiv.appendChild(mapLink);
     }
 
     ol.appendChild(spouseDiv);
@@ -657,10 +623,6 @@ function buildSpousesSection(spouses) {
   return container;
 }
 
-/**
- * Builds the unknown spouses section.
- * @returns {HTMLElement} The unknown spouses element.
- */
 function buildSpousesUnknown() {
   const container = document.createElement("div");
   container.className = "VITALS spouseUnknown";
@@ -668,16 +630,11 @@ function buildSpousesUnknown() {
   container.style.cursor = "pointer";
 
   container.appendChild(createHeader("Spouses: ", "spousesHeader", ""));
-  container.appendChild(document.createElement("br"));
   container.appendChild(createDefaultLink("spouse", "[spouse?]"));
   return container;
 }
 
-/**
- * Builds the Children section DOM.
- * @param {Object[]} children - Array of children records.
- * @returns {HTMLElement} The children section element.
- */
+// Children Section
 function buildChildrenSection(children) {
   const container = document.createElement("div");
   container.className = "VITALS familyList";
@@ -696,21 +653,23 @@ function buildChildrenSection(children) {
     const dates = getDatesFromFamilyData(c);
     const li = document.createElement("li");
     li.dataset.parseName = c.Name;
+    // Check if the child's name indicates a private record.
     const isPrivate = c.Name.trim().toLowerCase().startsWith("[private");
     if (c.Link && !isPrivate) {
-      li.innerHTML = `<span itemprop="children" itemscope itemtype="https://schema.org/Person">
-          <a href="${
-            c.Link.startsWith("http") ? c.Link : "https://" + mainDomain + c.Link
-          }" itemprop="url" title="" aria-label="Child" class="childLink"><span itemprop="name">${
+      li.innerHTML = `<span itemprop="children" itemscope itemtype="https://schema.org/Person"><a href="${
+        c.Link.startsWith("http") ? c.Link : "https://" + mainDomain + c.Link
+      }" itemprop="url" title="" aria-label="Child" class="childLink"><span itemprop="name">${
         c.FullName || c.Name
-      }</span></a>
-          <span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${dates.deathYear || ""}">
-            ${dates.dates || ""}</span> <span class="relAge"></span></span>`;
+      }</span></a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+        dates.deathYear || ""
+      }">${dates.dates || ""}</span> <span class="relAge"></span></span>`;
     } else {
-      li.innerHTML = `<span itemprop="children" itemscope itemtype="https://schema.org/Person">
-            <span itemprop="name">${c.FullName || c.Name}</span>
-            <span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${dates.deathYear || ""}">
-              ${dates.dates || ""}</span> <span class="relAge"></span></span>`;
+      // For private children or if there's no link, just output plain text.
+      li.innerHTML = `<span itemprop="children" itemscope itemtype="https://schema.org/Person"><span itemprop="name">${
+        c.FullName || c.Name
+      }</span><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+        dates.deathYear || ""
+      }">${dates.dates || ""}</span> <span class="relAge"></span></span>`;
     }
     if (!/^\[.*\?\]$/.test(c.Name)) {
       li.setAttribute("data-gender", c.Gender || "male");
@@ -723,10 +682,6 @@ function buildChildrenSection(children) {
   return container;
 }
 
-/**
- * Builds the unknown children section.
- * @returns {HTMLElement} The unknown children element.
- */
 function buildChildrenUnknown() {
   const container = document.createElement("div");
   container.className = "VITALS";
@@ -737,10 +692,9 @@ function buildChildrenUnknown() {
   return container;
 }
 
-/**
- * Retrieves people data from the API and stores it in global Maps.
- * @returns {Promise<void>}
- */
+// ============================================================
+// 3. API Data and Utility Functions
+// ============================================================
 async function getWindowPeople() {
   const result = await $.ajax({
     url: "https://api.wikitree.com/api.php",
@@ -761,29 +715,14 @@ async function getWindowPeople() {
   window.peopleByWtID = new Map(arr.map((p) => [p.Name, p]));
 }
 
-/**
- * Returns the person object corresponding to the given ID.
- * @param {string|number} id - The person ID.
- * @returns {Object|undefined} The person object.
- */
 function getPerson(id) {
   return window.people?.get(String(id));
 }
 
-/**
- * Returns the person object corresponding to the given WikiTree ID.
- * @param {string} wtId - The WikiTree ID.
- * @returns {Object|undefined} The person object.
- */
 function getPersonByWtID(wtId) {
   return window.peopleByWtID?.get(wtId);
 }
 
-/**
- * Fills in the birth and death date information into the given element.
- * @param {jQuery} $el - A jQuery-wrapped element.
- * @param {Object} p - The person record.
- */
 function fillBirthDeathDates($el, p) {
   let bYear = "";
   let dYear = "";
@@ -797,12 +736,18 @@ function fillBirthDeathDates($el, p) {
   } else if (p.DeathDateDecade) {
     dYear = "~" + p.DeathDateDecade;
   }
+  // If the value is "unknown" (or "~unknown"), blank it out.
   if (bYear.trim().toLowerCase() === "unknown" || bYear.trim().toLowerCase() === "~unknown") {
     bYear = "";
   }
   if (dYear.trim().toLowerCase() === "unknown" || dYear.trim().toLowerCase() === "~unknown") {
     dYear = "";
   }
+
+  // Build finalText:
+  // If both dates are available, show as (birth - death).
+  // If only one is available, show just that one in parentheses.
+  // If neither is available, show nothing.
   let finalText = "";
   if (bYear && dYear) {
     finalText = ` (${bYear} - ${dYear})`;
@@ -811,6 +756,7 @@ function fillBirthDeathDates($el, p) {
   } else if (dYear) {
     finalText = ` (${dYear})`;
   }
+
   $el.find(".bdDates, .spouseDates").each(function () {
     $(this).text(finalText);
     $(this).attr("data-birth-year", bYear);
@@ -818,14 +764,12 @@ function fillBirthDeathDates($el, p) {
   });
 }
 
-/**
- * Attaches API data to the DOM elements.
- */
 function attachApiData() {
   $("#nVitals li, #nVitals div.aSpouse").each(function () {
     const parseName = $(this).data("parseName");
     if (!parseName) return;
     const p = getPersonByWtID(parseName);
+    //console.log(p);
     if (!p) return;
     $(this).attr("data-id", p.Id);
     if (p.Gender) {
@@ -841,12 +785,9 @@ function attachApiData() {
   });
 }
 
-/**
- * Calculates the age difference between two dates.
- * @param {string|Object} start - The start date in "YYYY-MM-DD" format or an object with date parts.
- * @param {string|Object} end - The end date in "YYYY-MM-DD" format or an object with date parts.
- * @returns {number[]} An array: [fullYears, extraDays, totalDays].
- */
+// ============================================================
+// Marriage Age Functions (Consolidated)
+// ============================================================
 export function getAge(start, end = false) {
   let start_day, start_month, start_year, end_day, end_month, end_year;
   if (typeof start === "object") {
@@ -912,22 +853,10 @@ export function getAge(start, end = false) {
   return [fullYears, andDays, totalDays];
 }
 
-/**
- * Checks whether the given year is a leap year.
- * @param {number} year - The year to check.
- * @returns {boolean} True if leap year, false otherwise.
- */
 function isLeapYear(year) {
   return year % 100 === 0 ? year % 400 === 0 : year % 4 === 0;
 }
 
-/**
- * Calculates the marriage age given two dates.
- * @param {string} d1 - The birth date.
- * @param {string} d2 - The marriage date.
- * @param {Object} mPerson - The person record.
- * @returns {string} The marriage age (with an approximate marker if needed).
- */
 function getMarriageAge(d1, d2, mPerson) {
   const bDate = getApproxDate(d1);
   const mDate = getApproxDate(d2);
@@ -945,11 +874,6 @@ function getMarriageAge(d1, d2, mPerson) {
   return approx + ageAtMarriage[0];
 }
 
-/**
- * Adjusts a date string for approximation.
- * @param {string} theDate - A date string.
- * @returns {Object} An object with the adjusted Date string and a Boolean flag for approximation.
- */
 function getApproxDate(theDate) {
   let approx = false;
   let aDate;
@@ -972,20 +896,22 @@ function getApproxDate(theDate) {
   return { Date: aDate, Approx: approx };
 }
 
-/**
- * Calculates and displays marriage ages for spouse entries.
- */
 function addMarriageAges() {
   window.runningAMA++;
   const pagePerson = getPerson(profilePerson.Id);
   if (pagePerson?.Spouses != undefined) {
     window.doneMarriageAges = true;
+    // Get the API spouses as an array; we assume the order here matches your parsed spouse records.
     const apiSpouses = Object.entries(pagePerson.Spouses);
     apiSpouses.forEach((spouseEntry, idx) => {
       const marData = spouseEntry[1];
+      // Find the corresponding spouse div in the DOM by index.
       const marriageDiv = $(".aSpouse").eq(idx);
       if (!marriageDiv.length) return;
+
+      // Only process if we have a valid marriage date.
       if (isOK(marData.MarriageDate)) {
+        // Calculate marriage ages.
         let profileMarriageAge = "";
         if (!window.excludeValues.includes(pagePerson.BirthDate)) {
           profileMarriageAge = getMarriageAge(pagePerson.BirthDate, marData.MarriageDate, pagePerson);
@@ -1000,20 +926,26 @@ function addMarriageAges() {
         if (profileAgeText && spouseAgeText) {
           spouseAgeText = "; " + spouseAgeText;
         }
+
+        // Find (or create) a dedicated container for marriage ages in this spouse div.
         let marriageAgesSpan = marriageDiv.find(".marriageAges");
         if (!marriageAgesSpan.length) {
           marriageAgesSpan = $("<span class='marriageAges'></span>");
           marriageDiv.append(marriageAgesSpan);
         }
         marriageAgesSpan.text(profileAgeText + spouseAgeText);
+
+        // Now update this spouse div’s marriage details.
         let marriageDetailsSpan = marriageDiv.find(".marriageDetails");
         if (marriageDetailsSpan.length) {
+          // Replace any "— married" text with an edit link.
           let html = marriageDetailsSpan.html();
           html = html.replace(
             /—\s*married\s*/i,
             `<a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=editspouse&s=${idx}" target="_blank" title="Edit marriage" class="clickable">married</a> `
           );
           marriageDetailsSpan.html(html);
+          // Wrap the contents in an inline container.
           marriageDetailsSpan.contents().wrapAll('<div style="display:inline-block"></div>');
         }
       }
@@ -1024,9 +956,19 @@ function addMarriageAges() {
   }
 }
 
-/**
- * Calculates and displays relative ages for family members.
- */
+/*
+async function addMarriageAges() {
+  window.runningAMA = 0;
+  if (window.doneMarriageAges === undefined) {
+    window.ama = setInterval(amaTimer, 2000);
+    window.doneMarriageAges = false;
+  }
+}
+  */
+
+// ============================================================
+// Relative Ages Function (for siblings and children)
+// ============================================================
 function addRelativeAges() {
   const profileBirth = getPerson(profilePerson.Id)?.BirthDate;
   if (!profileBirth || profileBirth === "0000-00-00") return;
@@ -1039,6 +981,7 @@ function addRelativeAges() {
   if (options.ageDifferences) {
     selectors += `#siblingList li span[itemprop='sibling'], #childrenList li span[itemprop='children'], `;
   }
+  // Remove final comma and space.
   selectors = selectors.slice(0, -2);
   container.find(selectors).each(function () {
     const $container = $(this);
@@ -1055,9 +998,9 @@ function addRelativeAges() {
   });
 }
 
-/**
- * Adjusts layout for vertical family lists.
- */
+// ============================================================
+// Vertical/Horizontal Adjustments and Heading Toggles
+// ============================================================
 function makeVerticalFamLists() {
   setTimeout(() => {
     addHalfsStyle();
@@ -1065,11 +1008,12 @@ function makeVerticalFamLists() {
   }, 1000);
 }
 
-/**
- * Assigns CSS classes to spouse and child elements based on parent IDs.
- */
 function assignSpouseAndChildClasses() {
+  // Only proceed if there are children.
   if ($("#childrenList li").length === 0) return;
+
+  // Determine which parent's data field to check.
+  // Default is "mother"; if the first spouse is male then we use "father".
   let checkParent = "mother";
   if ($(".aSpouse").length > 0) {
     const firstSpouseGender = $(".aSpouse").first().data("gender");
@@ -1077,6 +1021,8 @@ function assignSpouseAndChildClasses() {
       checkParent = "father";
     }
   }
+
+  // Gather unique parent IDs from the children.
   let uniqueParentIDs = [];
   $("#childrenList li").each(function () {
     const pid = $(this).data(checkParent);
@@ -1084,11 +1030,19 @@ function assignSpouseAndChildClasses() {
       uniqueParentIDs.push(pid);
     }
   });
+
+  // Only run the assignment if there is more than one spouse
+  // or if the children come from more than one parent.
   if ($(".aSpouse").length > 1 || uniqueParentIDs.length > 1) {
     $(".aSpouse").each(function (index) {
       const className = "spouse_" + (index + 1);
+      // Add the class to the spouse element.
       $(this).addClass(className);
+
+      // Get the spouse's ID.
       const spouseID = $(this).data("id");
+
+      // For each child, if its mother or father matches this spouse's ID, add the class.
       $("#childrenList li").each(function () {
         const childMother = $(this).data("mother");
         const childFather = $(this).data("father");
@@ -1100,11 +1054,33 @@ function assignSpouseAndChildClasses() {
   }
 }
 
-/**
- * Adds half-sibling CSS classes if parents differ.
- */
+/*
+function addHalfsStyle() {
+  const pList = $("#parentList li");
+  if (pList.length >= 2) {
+    const p1 = pList.eq(0).attr("data-id");
+    const p2 = pList.eq(1).attr("data-id");
+    pList.eq(0).addClass("parent_1");
+    pList.eq(1).addClass("parent_2");
+    $("#siblingList li").each(function () {
+      const father = $(this).attr("data-father");
+      const mother = $(this).attr("data-mother");
+      if (father === p1) {
+        $(this).addClass("parent_1");
+      }
+      if (mother === p2) {
+        $(this).addClass("parent_2");
+      }
+    });
+  }
+}
+  */
+
 function addHalfsStyle() {
   const siblings = $("#siblingList li");
+  // Get all the parents from the siblings i.e. data-father and data-mother
+  // Find if any of the siblings have a different father or a different mother
+  // If they don't, return.
   const fathers = siblings
     .map(function () {
       return $(this).attr("data-father");
@@ -1120,13 +1096,19 @@ function addHalfsStyle() {
   if (uniqueFathers.length < 2 && uniqueMothers.length < 2) {
     return;
   }
+
   const pList = $("#parentList li");
   if (pList.length >= 2) {
+    // Get the parent's IDs (which should have been set by attachApiData)
     const p1 = pList.eq(0).attr("data-id");
     const p2 = pList.eq(1).attr("data-id");
+    // Only assign classes if the two parent IDs differ (i.e. half‑siblings situation)
     if (p1 && p2 && p1 !== p2) {
       pList.eq(0).addClass("parent_1");
       pList.eq(1).addClass("parent_2");
+
+      // For each sibling, if its data-father equals p1, add class "parent_1".
+      // Similarly, if its data-mother equals p2, add class "parent_2".
       $("#siblingList li").each(function () {
         const father = String($(this).attr("data-father") || "");
         const mother = String($(this).attr("data-mother") || "");
@@ -1137,6 +1119,9 @@ function addHalfsStyle() {
           $(this).addClass("parent_2");
         }
       });
+
+      // Also, if there is more than one spouse, add a class to each so that children
+      // can later be linked to the corresponding spouse.
       if ($(".aSpouse").length > 1) {
         $(".aSpouse").each(function (index) {
           $(this).addClass("spouse_" + (index + 1));
@@ -1146,9 +1131,6 @@ function addHalfsStyle() {
   }
 }
 
-/**
- * Moves the family lists to a different part of the page based on options.
- */
 function moveFamilyLists() {
   const $nVitals = $("#nVitals");
   const sidebarHeading = $nVitals.find(".sidebar-heading");
@@ -1159,6 +1141,7 @@ function moveFamilyLists() {
     if (options.showSidebarHeading) {
       sidebarHeading.show();
     }
+
     $nVitals.addClass("row");
     let $before;
     if (options.familyListPosition === "beforeManager") {
@@ -1183,17 +1166,11 @@ function moveFamilyLists() {
   }
 }
 
-/**
- * Changes the headers based on the toggle state.
- */
-export function changeFamilyHeaders(setIt = false) {
-  if (setIt == "Y") {
-    useAltHeadings = false;
-  } else if (setIt == "N") {
-    useAltHeadings = true;
-  } else {
-    useAltHeadings = !useAltHeadings;
-  }
+export function changeFamilyHeaders() {
+  // Toggle the state.
+  useAltHeadings = !useAltHeadings;
+
+  // Define what each header should show in both states.
   const ofText = $("#nVitals").hasClass("vanilla") ? "of" : "of:";
   const headings = [
     {
@@ -1225,6 +1202,8 @@ export function changeFamilyHeaders(setIt = false) {
       neutral: `Parent ${ofText} `,
     },
   ];
+
+  // Get the profile person's gender.
   const p = getPerson(profilePerson.Id);
   let gen = "neutral";
   if (p?.Gender === "Male") {
@@ -1232,6 +1211,8 @@ export function changeFamilyHeaders(setIt = false) {
   } else if (p?.Gender === "Female") {
     gen = "female";
   }
+
+  // Update each header based on the current toggle state.
   headings.forEach((obj) => {
     const el = document.querySelector(obj.sel);
     if (!el) return;
@@ -1241,39 +1222,32 @@ export function changeFamilyHeaders(setIt = false) {
       el.textContent = obj.alt;
     }
   });
-  if (!setIt) {
-    getFeatureOptions("changeFamilyLists").then((optionsData) => {
-      optionsData.changeHeaders = !useAltHeadings;
-      const storageName = "changeFamilyLists_options";
-      chrome.storage.sync.set({
-        [storageName]: optionsData,
-      });
-    });
-  }
+
+  // Optionally, save the new state to storage.
+  getFeatureOptions("changeFamilyLists").then((optionsData) => {
+    optionsData.changeHeaders = useAltHeadings;
+    chrome.storage.sync.set({ changeFamilyLists_options: optionsData });
+  });
 }
 
-/**
- * Attaches click event handlers to header elements.
- */
 function attachHeadingEvents() {
   const headingIds = ["parentsHeader", "siblingsHeader", "spousesHeader", "childrenHeader"];
   headingIds.forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
+    // On click, simply call our toggle function.
     el.addEventListener("click", () => {
       changeFamilyHeaders();
     });
   });
 }
 
-/**
- * Inserts the profile person into the sibling list based on birth year.
- */
 function insertInSibList() {
   if (!window.people) {
     console.log("No API people data available.");
     return;
   }
+  // Use API data if available; if missing Name, fall back to page data.
   let pPerson = getPerson(profilePerson.Id) || profilePerson;
   if (!pPerson) {
     console.log("Profile person data is missing.");
@@ -1281,6 +1255,11 @@ function insertInSibList() {
   }
   console.log("Profile person for insertion:", pPerson);
 
+  // Helper: extract a numeric birth year.
+  // If BirthDate is available:
+  //   - if it ends with "s" (e.g. "1960s"), return mid-decade (e.g. 1960 + 5 = 1965)
+  //   - otherwise, extract the year.
+  // Else, try to extract from UnknownText, or use BirthDateDecade.
   const getBirthYear = (person) => {
     if (person.BirthDate && person.BirthDate !== "0000-00-00") {
       if (person.BirthDate.match(/s$/)) {
@@ -1311,6 +1290,7 @@ function insertInSibList() {
   };
 
   const profileBirthYear = getBirthYear(pPerson);
+  // console.log("Profile person birth year:", profileBirthYear);
   const birthYear = profileBirthYear;
   const deathYear =
     pPerson.DeathDate && pPerson.DeathDate !== "0000-00-00"
@@ -1321,6 +1301,7 @@ function insertInSibList() {
       ? parseInt(pPerson.DeathDateDecade) + 5
       : null;
 
+  // Create the profile person element.
   let inserter = $(`
       <span itemprop="sibling" itemtype="http://schema.org/Person" data-private="0">
         <a href="#n" class="activeProfile" data-wtid="${pPerson.Name}">${displayName(pPerson)[0]}</a>
@@ -1329,6 +1310,7 @@ function insertInSibList() {
       </span>
     `);
 
+  // Wrap in a <li> if vertical layout is enabled.
   const profilePersonLi = $("<li id='profilePerson'></li>");
   let elToFind = "#Siblings li";
   let closestEl = "li";
@@ -1340,6 +1322,7 @@ function insertInSibList() {
     closestEl = "span[itemprop='sibling']";
   }
 
+  // Build sibling list from API data.
   let apiSiblings = [...window.people.values()]
     .filter((p) => p.Id !== pPerson.Id)
     .map((p) => {
@@ -1347,6 +1330,7 @@ function insertInSibList() {
         p.Name = p.UnknownText;
       }
       const sibBirthYear = getBirthYear(p);
+      //    console.log(`API sibling '${p.Name}' (ID: ${p.Id}) birth year:`, sibBirthYear);
       return {
         element: $(`${elToFind} a[href$="${p.Name}"]`).closest(closestEl),
         birthYear: sibBirthYear,
@@ -1355,6 +1339,7 @@ function insertInSibList() {
     })
     .filter((s) => s.element.length && s.birthYear !== null);
 
+  // Build fallback sibling list from the DOM.
   let domSiblings = [];
   $("#siblingList li").each(function () {
     let $li = $(this);
@@ -1370,16 +1355,25 @@ function insertInSibList() {
     }
     if (sibBirthYear !== null) {
       domSiblings.push({ element: $li, birthYear: sibBirthYear, id: $li.data("parseName") });
+      //    console.log("DOM sibling", $li.data("parseName"), "birth year:", sibBirthYear);
     }
   });
 
+  // Combine both sources, preferring API data if available.
   let siblingList = apiSiblings.length > 0 ? apiSiblings : domSiblings;
   siblingList.sort((a, b) => (a.birthYear || 9999) - (b.birthYear || 9999));
 
+  // Insert the profile person element before the first sibling with a later birth year.
   let inserted = false;
   for (let i = 0; i < siblingList.length; i++) {
     if (birthYear !== null && siblingList[i].birthYear !== null) {
+      /*
+        console.log(
+          `Comparing profile birth year ${birthYear} with sibling ${siblingList[i].id} birth year ${siblingList[i].birthYear}`
+        );
+        */
       if (birthYear < siblingList[i].birthYear) {
+        console.log(`Inserting profile person before sibling ${siblingList[i].id}`);
         inserter.insertBefore(siblingList[i].element);
         inserted = true;
         break;
@@ -1387,61 +1381,71 @@ function insertInSibList() {
     }
   }
   if (!inserted) {
+    // console.log("Appending profile person at the end of the sibling list.");
     $("#siblingList").append(inserter);
   }
+
+  // Propagate parent classes if present.
   if ($(".parent_1").length) {
     $("#profilePerson span[itemprop='sibling']").addClass("parent_1");
   }
   if ($(".parent_2").length) {
     $("#profilePerson").addClass("parent_2");
   }
+
+  // Set gender attributes.
   if (pPerson?.Gender) {
     const genderLabel = pPerson.Gender === "Male" ? "male" : pPerson.Gender === "Female" ? "female" : "";
     const ariaLabel = genderLabel ? `profile person (${genderLabel})` : "profile person";
     $("#profilePerson").attr("data-gender", genderLabel).attr("aria-label", ariaLabel);
   }
+
+  // Move the "Add Sibling" link to the end.
   $("#addSibling").appendTo($("#addSibling").parent());
 }
 
-/**
- * Adds an "ancestor" CSS class and title attribute to the given element.
- * @param {jQuery|HTMLElement} element - The element to modify.
- */
 function addAncestorLabels(element) {
-  $(element).addClass("ancestor");
-  $(element).attr("title", "Ancestor");
+  element.addClass("ancestor");
+  element.attr("title", "Ancestor");
 }
 
-/**
- * Retrieves ancestor WikiTree IDs from the relationship database and highlights ancestors on the page.
- * @returns {Promise<string[]>} A promise that resolves with an array of ancestor WikiTree IDs.
- */
 async function getAncestorsOnPage() {
   const storeName = RELATIONSHIP_STORE_NAME;
   const dbPromise = new Promise((resolve, reject) => {
     initRelationshipDB((event) => resolve(event.target.result));
   });
+
   const db = await dbPromise;
+
+  // Get ancestor IDs based on the relationship filter
   const ancestorsPromise = new Promise((resolve, reject) => {
     const transaction = db.transaction(storeName, "readonly");
     const store = transaction.objectStore(storeName);
     const allItemsRequest = store.getAll();
+
     allItemsRequest.onsuccess = () => {
       const items = allItemsRequest.result;
       const ancestorKeys = items
         .filter((item) => {
+          // console.log(item);
           const relationship = item?.relationship?.toLowerCase();
+          //console.log(relationship);
           if (!relationship) return false;
           return relationship.match(/father|mother/i) != null && item.userId === user;
         })
-        .map((item) => item.id);
+        .map((item) => item.id); // Extract only ancestor IDs
       resolve(ancestorKeys);
     };
+
     allItemsRequest.onerror = (event) => reject(event.target.error);
   });
+
   const ancestorKeys = await ancestorsPromise;
+
   console.log("Ancestor keys:", ancestorKeys);
+
   const familyLinks = $(".VITALS a[href*='/wiki/']");
+  // Make array of wtids
   const peopleOnPage = familyLinks
     .map(function () {
       const link = $(this);
@@ -1452,13 +1456,18 @@ async function getAncestorsOnPage() {
       }
     })
     .get();
+  // Add the profile person
   peopleOnPage.push(profilePerson.Name);
+
   console.log("People on page:", peopleOnPage);
+
   const ancestorsOnPage = peopleOnPage.filter((person) => {
     const personWithUnderscores = person.replace(/ /g, "_");
     const personWithSpaces = person.replace(/_/g, " ");
     return ancestorKeys.includes(personWithUnderscores) || ancestorKeys.includes(personWithSpaces);
   });
+
+  // Highlight ancestors on the page
   ancestorsOnPage.forEach((ancestor) => {
     const element = $(
       `#nVitals .VITALS a[href$="/wiki/${ancestor.replace(/ /g, "_")}"],
@@ -1471,12 +1480,15 @@ async function getAncestorsOnPage() {
       addAncestorLabels(element);
     }
   });
+
   if (
     ancestorsOnPage.includes(profilePerson.Name) ||
     $("#yourRelationshipText")
       .text()
       ?.match(/father|mother/)
   ) {
+    // Add ancestor labels for the parents of the profile person
+    // a[arial-label="Father"], a[aria-label="Mother"]
     const fatherElement = $(`#nVitals .VITALS span[itemprop="Father"] a[aria-label="Parent"]`);
     const motherElement = $(`#nVitals .VITALS span[itemprop="Mother"] a[aria-label="Parent"]`);
     if (fatherElement.length && fatherElement.data("status") != 5) {
@@ -1486,7 +1498,13 @@ async function getAncestorsOnPage() {
       addAncestorLabels(motherElement);
     }
     if ($("#childrenList").length && $("#childrenList").find("a.ancestor").length == 0) {
+      // Call WT+ API to get the children of the ancestor of the user
+      // https://plus.wikitree.com/function/WTPath/Path.htm?WikiTreeID1=${profilePersonName}&WikiTreeID2=${user}&relatives=1
+      // Fetch this, then find the a in the 2nd td of the third tr of the table (of the results)
+      // This will be an ancestor of the user.
+
       const connectionName = await getAncestorConnection(profilePerson.Name, user);
+
       if (connectionName) {
         const connectionElement = $(
           `#nVitals .VITALS a[href$="/wiki/${connectionName.replace(/ /g, "_")}"],
@@ -1499,9 +1517,14 @@ async function getAncestorsOnPage() {
         }
       }
     }
+
+    // Highlight the ancestor child's parent (the right spouse of the profilePerson).
     if ($("#childrenList a.ancestor").length && $(".spouseDetails a.ancestor").length == 0) {
       const connectionElement = $("#childrenList a.ancestor");
+      // Get spouse_x class of closest li
       const thisClass = connectionElement.closest("li").attr("class");
+      // Find the spouse of the profile person with the same class
+      // There may be more than one class. We need to find the one that starts with "spouse_" (if there is one).
       const spouseClass = thisClass?.split(" ").find((c) => c.startsWith("spouse_"));
       if (spouseClass) {
         const spouseA = $(`.spouseDetails.${spouseClass} span a.spouseLink`);
@@ -1509,6 +1532,7 @@ async function getAncestorsOnPage() {
           addAncestorLabels(spouseA);
         }
       } else {
+        // If there is no spouse class, find the first spouse link
         const spouseA = $(`a.spouseLink`);
         if (spouseA.length) {
           addAncestorLabels(spouseA);
@@ -1528,15 +1552,10 @@ async function getAncestorsOnPage() {
       addAncestorLabels(motherElement);
     }
   }
-  return ancestorsOnPage.map((a) => a.Name);
+
+  return ancestorsOnPage.map((a) => a.Name); // Return the array of ancestor WT IDs
 }
 
-/**
- * Retrieves an ancestor connection from the WT+ API.
- * @param {string} ancestor - The ancestor WikiTree ID.
- * @param {string|number} user - The current user ID.
- * @returns {Promise<string|undefined>} A promise that resolves with the connection WikiTree ID.
- */
 async function getAncestorConnection(ancestor, user) {
   const url = `https://plus.wikitree.com/function/WTPath/Path.htm?WikiTreeID1=${ancestor}&WikiTreeID2=${user}&relatives=1`;
   return fetch(url)
@@ -1553,22 +1572,21 @@ async function getAncestorConnection(ancestor, user) {
     });
 }
 
-/**
- * Adds sibling and child counts to the DOM.
- */
 function addChildrenSiblingCount() {
   if ($("#childrenCount").length === 0) {
     const nVitals = $("#nVitals");
+
     const siblingCount = countItems(nVitals.find("span[itemprop='sibling']"));
     nVitals
       .find("#siblingDetails")
       .append(
         $(
           `<span id="siblingCount" class="familyCount" title="${profilePerson.FirstName} has ${siblingCount} sibling${
-            siblingCount !== 1 ? "s" : ""
+            siblingCount != 1 ? "s" : ""
           }">[${siblingCount}]</span>`
         )
       );
+
     const childrenCount = countItems(nVitals.find("span[itemprop='children']"));
     nVitals
       .find("#childrenDetails")
@@ -1576,43 +1594,40 @@ function addChildrenSiblingCount() {
   }
 }
 
-/**
- * Counts the number of elements that do not contain "?" or "unknown" in their text.
- * @param {jQuery} elements - A jQuery collection of elements.
- * @returns {number} The count of valid items.
- */
 function countItems(elements) {
   let count = 0;
   elements.each(function () {
     const text = $(this).text();
-    if (!/\?|\bunknown\b/.test(text) && !$(this).find(".activeProfile").length) {
+    if (!/\?|\bunknown\b/.test(text)) {
       count++;
     }
   });
   return count;
 }
 
-/**
- * Formats list items by inserting commas and the word "and" appropriately.
- * @param {string} selector - The CSS selector for the list items.
- * @param {string} [position="outside"] - Where to place the comma ("inside" or "outside").
- */
 function formatListItems(selector, position = "outside") {
+  // Get an array of elements from the selector.
   const items = Array.from(document.querySelectorAll(selector));
   const count = items.length;
   if (count <= 1) return;
+
+  // For exactly two items, prepend "and " to the second item.
   if (count === 2) {
     const second = items[1];
     if (
       !second.firstChild ||
       second.firstChild.nodeType !== Node.TEXT_NODE ||
-      !second.firstChild.textContent.trim().startsWith(" and ")
+      !second.firstChild.textContent.trim().startsWith("and ")
     ) {
-      second.insertAdjacentText("afterbegin", " and ");
+      // Insert "and " at the beginning inside the element
+      second.insertAdjacentText("afterbegin", "and ");
     }
   } else {
+    // For more than two items:
+    // For each item except the last, insert a comma.
     items.slice(0, count - 1).forEach((item) => {
       if (position === "inside") {
+        // Append the comma inside the element (at the end)
         if (
           !item.lastChild ||
           item.lastChild.nodeType !== Node.TEXT_NODE ||
@@ -1621,6 +1636,7 @@ function formatListItems(selector, position = "outside") {
           item.insertAdjacentText("beforeend", ", ");
         }
       } else {
+        // Insert the comma outside the element (after it)
         if (
           !item.nextSibling ||
           item.nextSibling.nodeType !== Node.TEXT_NODE ||
@@ -1630,22 +1646,22 @@ function formatListItems(selector, position = "outside") {
         }
       }
     });
+    // For the last item, prepend "and " to its text.
     const last = items[count - 1];
     if (
       !last.firstChild ||
       last.firstChild.nodeType !== Node.TEXT_NODE ||
-      !last.firstChild.textContent.trim().startsWith(" and ")
+      !last.firstChild.textContent.trim().startsWith("and ")
     ) {
-      last.insertAdjacentText("afterbegin", " and ");
+      last.insertAdjacentText("afterbegin", "and ");
     }
   }
 }
 
-/**
- * Makes adjustments for the vanilla layout (non-vertical).
- */
 function fixVanilla() {
   const $nVitals = $("#nVitals");
+
+  // Remove any colons from headers that include "of:"
   $nVitals.find("span.clickable").each(function () {
     const $header = $(this);
     const headerText = $header.text();
@@ -1653,28 +1669,33 @@ function fixVanilla() {
       $header.text(headerText.replace(":", ""));
     }
   });
+
   formatListItems("#nVitals span[itemprop='parent'],#nVitals span[itemprop='Father'],#nVitals span[itemprop='Mother']");
   formatListItems("#nVitals span[itemprop='sibling']");
   formatListItems("#nVitals span[itemprop='children']");
   formatListItems("#nVitals li.aSpouse", "inside");
 }
 
-/* ========================================================================
-   Main Hook: Initialize, Replace DOM, and Attach Events
-   ======================================================================== */
+// ============================================================
+// Main Hook: Initialize, Replace DOM, and Attach Events
+// ============================================================
 shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   if (!result) return;
   const familyData = parseInitialData();
   const treePerson = $("#familyVitals div.tree--person");
-  // Retain only the first .VITALS element.
+  // Empty all of treePerson except for the first .VITALS (keep that)
   treePerson.children().not(":first").remove();
   options = await getFeatureOptions("changeFamilyLists");
   await getWindowPeople();
   const newVitals = buildFamilyListsFromData(familyData);
   treePersonBit.append(newVitals);
+  // Run API dependent functions
   attachApiData();
-  window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
 
+  window.excludeValues = ["", null, "null", "0000-00-00", "unknown", "undefined", undefined, NaN, "NaN"];
+  if (options.changeHeaders) {
+    changeFamilyHeaders(true);
+  }
   if (options.moveToRight) {
     moveFamilyLists();
   }
@@ -1685,14 +1706,24 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     $("#nVitals,div.tree--person").addClass("vanilla");
   }
   attachHeadingEvents();
+
+  // Re-run moveToRight on window resize.
   if (options.moveToRight) {
     window.addEventListener("resize", moveFamilyLists);
   }
+
   if (options.ageDifferences || options.parentAges) {
     addRelativeAges();
   }
   if (options.agesAtMarriages) {
     addMarriageAges();
+  }
+  if (options.highlightAncestors) {
+    getAncestorsOnPage().catch(console.error);
+  }
+
+  if (options.siblingAndChildCount) {
+    addChildrenSiblingCount();
   }
 
   const pagePerson = getPerson(profilePerson.Id);
@@ -1702,33 +1733,21 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   }
   if (
     !isPrivate &&
-    $("li#profilePerson").length === 0 &&
+    $("li#profilePerson").length == 0 &&
     familyData.siblings.length &&
     familyData.siblings[0].FullName
   ) {
     insertInSibList();
   }
+
   if (!options.verticalLists) {
     fixVanilla();
-    if (options.siblingAndChildCount) {
-      addChildrenSiblingCount();
-    }
   } else {
+    // Add numbers to lists where necessary.
     $("#siblingList, #childrenList, #spouseList").each(function () {
       if ($(this).find("li").length > 1) {
         $(this).css("list-style", "number");
       }
     });
-  }
-
-  // Set the family relationship headers to the right option
-  const setHeaders = options.changeHeaders ? "Y" : "N";
-  changeFamilyHeaders(setHeaders);
-
-  // Wait until Distance and Relationship feature has loaded (hopefully)
-  if (options.highlightAncestors) {
-    setTimeout(() => {
-      getAncestorsOnPage().catch(console.error);
-    }, 4000);
   }
 });
