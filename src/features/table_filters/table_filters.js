@@ -3,7 +3,6 @@ Created By: Ian Beacall (Beacall-6)
 */
 import $ from "jquery";
 import "./table_filters.css";
-import Cookies from "js-cookie";
 import { getYYYYMMDD } from "../auto_bio/auto_bio";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { kinshipValue } from "../anniversaries_table/anniversaries_table";
@@ -231,7 +230,7 @@ export function addFiltersToWikitables(aTable = null) {
   if (aTable) {
     tables = [aTable];
   } else {
-    tables = document.querySelectorAll(".wikitable,.wt.names,.category");
+    tables = document.querySelectorAll(".wikitable,#Sort-Table,.category");
   }
 
   // Add filters to each table

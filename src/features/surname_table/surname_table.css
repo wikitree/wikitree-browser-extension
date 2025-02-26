@@ -6,8 +6,10 @@
 body.page-Special_Surname h1 {
   width: auto;
 }
-table.wt.names .pinkWall,
-table.wt.names .blueWall {
+#Sort-Table .pinkWall,
+body.watchlist table.wt.table .pinkWall,
+#Sort-Table .blueWall,
+body.watchlist table.wt.table .blueWall {
   height: 1.5em;
   width: 10px;
   float: right;
@@ -26,11 +28,16 @@ th#PMHeader {
   width: 7em;
 }
 
-.wt.names span.PM,
-.wt.names span.yourAncestor,
-.wt.names span.checkLNC,
-.wt.names span.orphan,
-.wt.names span.TL {
+#Sort-Table span.PM,
+#Sort-Table span.yourAncestor,
+#Sort-Table span.checkLNC,
+#Sort-Table span.orphan,
+#Sort-Table span.TL,
+body.watchlist table.wt.table span.PM,
+body.watchlist table.wt.table span.yourAncestor,
+body.watchlist table.wt.table span.checkLNC,
+body.watchlist table.wt.table span.orphan,
+body.watchlist table.wt.table span.TL {
   border: 2px solid forestgreen;
   border-radius: 1em;
   color: forestgreen;
@@ -43,15 +50,18 @@ th#PMHeader {
   z-index: 1000;
 }
 
-.wt.names span.PM.watchlist,
-.wt.names span.TL.watchlist {
+#Sort-Table span.PM.watchlist,
+#Sort-Table span.TL.watchlist,
+body.watchlist table.wt.table span.PM.watchlist,
+body.watchlist table.wt.table span.TL.watchlist {
   position: static;
   left: auto;
   margin-left: 0.2em;
   cursor: default;
 }
 
-.wt.names span.orphan {
+#Sort-Table span.orphan,
+body.watchlist table.wt.table span.orphan {
   background-color: lightblue;
   font-weight: bold;
   color: navy;
@@ -59,7 +69,8 @@ th#PMHeader {
   border-radius: 50%;
 }
 
-.wt.names span.checkLNC {
+#Sort-Table span.checkLNC,
+body.watchlist table.wt.table span.checkLNC {
   left: -5.2em;
   border-radius: 50%;
   background: blue;
@@ -68,31 +79,36 @@ th#PMHeader {
   font-weight: bold;
 }
 
-.wt.names span.yourAncestor {
+#Sort-Table span.yourAncestor,
+body.watchlist table.wt.table span.yourAncestor {
   left: -4em;
   border-radius: 50%;
   background: forestgreen;
   color: white;
   padding: 0.2em 0.5em;
 }
-.wt.names tr[data-manager] td {
+#Sort-Table tr[data-manager] td,
+body.watchlist table.wt.table tr[data-manager] td {
   position: relative;
 }
 
-table.wt.names {
+#Sort-Table,
+body.watchlist table.wt.table {
   background-color: #ffffff;
 }
-table.wt.names.wide,
-table.wt.names.wide th,
-table.wt.names.wide td {
+#Sort-Table.wide,
+#Sort-Table.wide th,
+#Sort-Table.wide td,
+body.watchlist table.wt.table.wide,
+body.watchlist table.wt.table.wide th,
+body.watchlist table.wt.table.wide td {
   width: auto !important;
   white-space: nowrap;
   table-layout: auto;
 }
-table.wt.names.wide th.selected {
-  background-color: #25422d;
-}
-table.wt.names span.index {
+
+#Sort-Table span.index,
+body.watchlist table.wt.table span.index {
   padding: 1px;
   border-radius: 50%;
   font-size: 0.8em;
@@ -106,14 +122,13 @@ table.wt.names span.index {
   position: fixed;
   z-index: 5000;
   top: 45%;
-  right: -0.5em;
+  right: 1em;
 }
 
 #leftButton,
 #rightButton {
   width: 30px;
   padding: 0;
-  background: forestgreen;
   border: 2px solid green;
   box-shadow: 2px 2px 2px navy;
   height: 50px;
@@ -130,7 +145,8 @@ table.wt.names span.index {
   padding: 0;
 }
 
-table.wt.names td .home {
+#Sort-Table td .home,
+body.watchlist table.wt.table td .home {
   width: 1em;
   cursor: pointer;
   color: forestgreen;
