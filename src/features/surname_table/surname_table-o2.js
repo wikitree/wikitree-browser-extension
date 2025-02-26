@@ -17,14 +17,8 @@ let headerRow;
 let theTbody;
 let theRows;
 
-/**
- * Replaces ditto marks with the value from the previous row.
- * Iterates over each table row in the tbody and updates any cell that contains
- * a ditto mark (span with title "Same as above") with the corresponding cell's content from the previous row.
- *
- * @returns {Promise<void>} Resolves when the replacement is complete.
- */
 async function replaceDittoMarks() {
+  // Replace ditto marks with the value from the previous row
   theTable.find("tbody tr").each(function (index) {
     const row = $(this);
     $(this)
@@ -37,13 +31,6 @@ async function replaceDittoMarks() {
   });
 }
 
-/**
- * Restores the checked state of radio buttons based on a saved value.
- *
- * @param {string} groupName - The name attribute of the radio button group.
- * @param {string} savedValue - The value that should be checked.
- * @returns {void}
- */
 function restoreRadioState(groupName, savedValue) {
   if (!savedValue) return; // If no saved value, do nothing
 
@@ -55,13 +42,8 @@ function restoreRadioState(groupName, savedValue) {
   });
 }
 
-/**
- * Initializes search options by retrieving the saved options from localStorage,
- * restoring the state of radio buttons, and attaching change event listeners to update the saved state.
- *
- * @returns {void}
- */
 function initSearchOptions() {
+  // Initialize or retrieve the searchOptions object
   let searchOptions = JSON.parse(localStorage.getItem("searchOptions")) || {};
 
   // Define an array of the names of your radio button groups
@@ -82,11 +64,6 @@ function initSearchOptions() {
   });
 }
 
-/**
- * Attaches various event listeners for table interactions such as column sorting and family sheet display.
- *
- * @returns {void}
- */
 function tableListeners() {
   $(function () {
     theTable.on("click", "th", function () {
@@ -96,7 +73,7 @@ function tableListeners() {
     theTable.on("click.showFamilySheet", "span.home", function (e) {
       const wtid = $(this).data("wtid");
       showFamilySheet($(this), wtid);
-      // Get a sibling input with id starting with cb_
+      // Get a sibling input with id starting cb_
       const checkBox = $(this).siblings("input[id^='cb_']");
       if (checkBox.length) {
         checkBox.prop("checked", checkBox.prop("checked") ? false : true);
@@ -108,12 +85,6 @@ function tableListeners() {
   });
 }
 
-/**
- * Initializes the surname table functionality by setting up event listeners,
- * appending UI elements, and initializing other features like table sorting and brick walls.
- *
- * @returns {Promise<void>} Resolves when initialization is complete.
- */
 async function init() {
   $(function () {
     tableListeners();
@@ -152,16 +123,44 @@ async function init() {
   }
 }
 
-/**
- * Adds a home icon (representing the family group) to each row in the table.
- *
- * @returns {Promise<void>} Resolves when the home icons have been added.
- */
+shouldInitializeFeature("surnameTable").then((result) => {
+  if (result) {
+    if ($("#Sort-Table").length || $("body.watchlist table.wt.table").length) {
+      theTable = $("#Sort-Table");
+      headerRow = theTable.find("thead tr:first-child");
+      if ($("body.watchlist table.wt.table").length) {
+        theTable = $("body.watchlist table.wt.table");
+        headerRow = theTable.find("tr:first-child");
+      }
+      theTbody = theTable.find("tbody");
+      theRows = theTbody.find("tr");
+    } else {
+      return;
+    }
+    // <li class="current">Free-Space Profiles</li>
+    const isFreeSpaceList = $("ul.profile-tabs li.current").text().match("Free-Space Profiles");
+    if (window.location.href.match(/Special:(Surname|WatchedList|SearchPerson)/) && isFreeSpaceList == null) {
+      init();
+    }
+    if (isSearchPage) {
+      getFeatureOptions("surnameTable").then((options) => {
+        if (options.RememberSearchOptions) {
+          initSearchOptions();
+        }
+      });
+    }
+    addHomeIcon();
+  }
+});
+
+//const homeImage = chrome.runtime.getURL("images/Home_icon.png");
+
 async function addHomeIcon() {
   theTable.find("tr").each(function () {
     const indexCell = $(this).find("td").eq(0);
     const thisWTID =
       $(this).find("input[name='mergeany[]']").val() || $(this).find("a").eq(0).attr("href").split("/")?.[2] || "";
+    // let homeImg = $(`<img src='${homeImage}' data-wtid="${thisWTID}" class='home' title='See family group'>`);
     let homeIcon = $(`<span data-wtid="${thisWTID}" class='home'  title='See family group'>🏠</span>`);
     if (thisWTID) {
       indexCell.append(homeIcon);
@@ -169,25 +168,21 @@ async function addHomeIcon() {
   });
 }
 
-/**
- * Re-numbers the table rows if the "NumberTheTable" option is enabled.
- * It prepends an index number to the first cell of each non-header row.
- *
- * @returns {Promise<void>} Resolves when numbering is complete.
- */
 async function dNumbering() {
   if (!window.surnameTableOptions.NumberTheTable) {
     return;
   }
 
-  // Remove existing index spans and home images
+  // Remove existing index spans
   theTable.find("tr span.index").remove();
   theTable.find("tr img.home").remove();
+
+  // Process each row except the first (header) row
 
   let j = 1;
   theTable.find("tr").each(function (i) {
     if (i === 0 || $(this).hasClass("filter-row") || $(this).hasClass("surnameTableHeaderRow")) {
-      return; // Skip the header and filter rows
+      return; // Skip the header row
     }
     let indexCell = $(this).find("td").eq(0);
     indexCell
@@ -197,14 +192,13 @@ async function dNumbering() {
   });
 }
 
+//////////////////////////////
+// 1) STRING COMPARISON
+//////////////////////////////
+
 /**
- * Compares two strings for sorting purposes.
- * Blanks are pushed to the bottom. Comparison can be in ascending or descending order.
- *
- * @param {string} aVal - The first string value to compare.
- * @param {string} bVal - The second string value to compare.
- * @param {string} direction - The sort direction ("asc" or "desc").
- * @returns {number} A negative number if aVal comes before bVal, a positive number if after, or zero if equal.
+ * Compare two strings for sorting, with blanks at the bottom,
+ * and either ascending (A–Z) or descending (Z–A).
  */
 function compareStrings(aVal, bVal, direction) {
   const aEmpty = !aVal || !aVal.trim();
@@ -223,21 +217,19 @@ function compareStrings(aVal, bVal, direction) {
   }
 }
 
-/**
- * Attaches a click handler to a table header cell to enable sorting.
- *
- * @param {Object} opts - Options for configuring the column sorter.
- * @param {string} opts.thSelector - jQuery selector for the header cell.
- * @param {string} opts.linkId - The ID for the clickable link that triggers sorting.
- * @param {string} opts.arrowId - The ID for the arrow element indicating sort direction.
- * @param {boolean} opts.isLocation - If true, sorting uses location data attributes.
- * @param {string} [opts.dataAttrSmall] - The data attribute for small-to-big location sorting.
- * @param {string} [opts.dataAttrBig] - The data attribute for big-to-small location sorting.
- * @param {string} [opts.managerAttr] - The data attribute for manager sorting (non-location).
- * @param {string} opts.linkText - The text to display for the sortable header.
- * @param {string} opts.title - The title attribute for the link.
- * @returns {void}
- */
+//////////////////////////////
+// 2) GLOBAL STATE
+//////////////////////////////
+
+// Track the last location column we sorted, if any, plus the direction (asc/desc).
+// Also track whether location text is flipped (big->small) or normal (small->big).
+window.lastSortedColumnId = null; // e.g. "birthLocationWord", "deathLocationWord"
+window.lastSortDirection = "asc"; // "asc" or "desc"
+window.locationFlipped = false; // false => show small->big text, true => show big->small text
+
+//////////////////////////////
+// 3) ATTACH SORTING HANDLER
+//////////////////////////////
 function attachColumnSorter(opts) {
   const {
     thSelector,
@@ -317,12 +309,9 @@ function attachColumnSorter(opts) {
   });
 }
 
-/**
- * Initializes the surname table sorting functionality.
- * Sets up data attributes, header adjustments, and attaches sorting handlers for various columns.
- *
- * @returns {Promise<void>} Resolves when the table sorting is fully initialized.
- */
+//////////////////////////////
+// 4) MAIN INIT FUNCTION
+//////////////////////////////
 async function initSurnameTableSorting() {
   // Remove old filter row/arrows
   $(".filterInput").off();
@@ -440,6 +429,7 @@ async function initSurnameTableSorting() {
           lastManager = $(this).data("manager");
         });
       }
+      //headerRow.prependTo($("table.wt.names"));
       $("#managerWordArrow").show();
     });
   }
@@ -611,6 +601,7 @@ async function initSurnameTableSorting() {
       window.locationFlipped = !window.locationFlipped;
 
       // Update displayed text for ALL rows, for BOTH birthLocation & deathLocation cells.
+      // E.g. if locationFlipped is now true, we show big2small. Otherwise, small2big.
       const $allRows = theTable.find("tbody tr:not(.filter-row,.surnameTableHeaderRow)");
       $allRows.each(function () {
         const bS = $(this).data("birth-location-small2big") || "";
@@ -627,6 +618,8 @@ async function initSurnameTableSorting() {
 
       // If the last sorted column was a location column, re-sort it so the new text is in correct order.
       if (window.lastSortedColumnId === "birthLocationWord" || window.lastSortedColumnId === "deathLocationWord") {
+        // We have a known last direction. So let's re-sort the same column with the same direction,
+        // now reading the newly flipped data.
         const dir = window.lastSortDirection; // "asc" or "desc"
         const isBirth = window.lastSortedColumnId === "birthLocationWord";
         const dataS = isBirth ? "birth-location-small2big" : "death-location-small2big";
@@ -665,12 +658,6 @@ const blueSRC = chrome.runtime.getURL("images/blue_bricks.jpg");
 const pinkBricks = $("<img src='" + pinkSRC + "' class='pinkWall' title='Mother not known.'>");
 const blueBricks = $("<img src='" + blueSRC + "' class='blueWall' title='Father not known.'>");
 
-/**
- * Fetches additional data ("brick walls") for each person in the table and updates the UI.
- * This includes checking for missing parents, adding profile images, and other visual cues.
- *
- * @returns {Promise<void>} Resolves when brick wall data has been processed and applied.
- */
 async function getBrickWalls() {
   const mWTIDID = USER_NUM_ID;
   const theseKeys = [];
@@ -678,8 +665,9 @@ async function getBrickWalls() {
   // Handle input and specific class elements
   theTbody.find('tr input[name="mergeany[]"], .P-M, .P-F').each(function () {
     if (theTable.length) {
-      theseKeys.push($(this).val());
+      theseKeys.push($(this).val()); // Use val() for inputs
     } else {
+      // This else might not make sense here as these are not links
       theseKeys.push("default or error handler");
     }
   });
@@ -756,6 +744,8 @@ async function getBrickWalls() {
             if (theTable.length) {
               if (deathLocation != null) {
                 dParentEl.closest("tr").find(".deathLocation").text(deathLocation);
+
+                // add death location to the row data
                 deathLocation = deathLocation
                   .replaceAll(/,([A-Z])/g, ", $1")
                   .replaceAll(/, ,/g, "")
@@ -881,9 +871,9 @@ async function getBrickWalls() {
             if ($(this).attr("href").match("/wiki/") != null) {
               if (dParentEl.find("img.unconnected").length == 0) {
                 dParentEl.append(
-                  $(`
-                    <img class='unconnected' title='Unconnected' src="https://www.wikitree.com/images/icons/unconnected.png" style="width:16px; height:16px; position: relative; top:3px; margin-left:0.2em;" />
-                  `)
+                  $(
+                    `<img class='unconnected' title='Unconnected' src="https://www.wikitree.com/images/icons/unconnected.png" style="width:16px; height:16px; position: relative; top:3px; margin-left:0.2em;" />`
+                  )
                 );
               }
             }
@@ -894,13 +884,6 @@ async function getBrickWalls() {
   }
 }
 
-/**
- * Makes the provided table element wide by adding a CSS class,
- * enabling horizontal dragging, and moving it into a container.
- *
- * @param {JQuery} dTable - The table element to make wide.
- * @returns {void}
- */
 function makeTableWide(dTable) {
   dTable.addClass("wide");
   dTable.draggable({
@@ -919,8 +902,13 @@ function makeTableWide(dTable) {
 
   // Ensure there are at least two such elements
   if (targetTDs.length >= 2) {
+    // Select the second instance
     let secondTD = targetTDs.eq(1);
+
+    // Find the closest table to this <td>
     let closestTable = secondTD.closest("table");
+
+    // Place the container before the closest table
     container.insertBefore(closestTable);
   } else {
     container.insertAfter($("#flipLocationsButton"));
@@ -935,13 +923,6 @@ function makeTableWide(dTable) {
   }
 }
 
-/**
- * Reverts the table element to its normal width by removing the wide class,
- * resetting styles, and destroying the draggable functionality.
- *
- * @param {JQuery} dTable - The table element to revert.
- * @returns {void}
- */
 function makeTableNotWide(dTable) {
   dTable.removeClass("wide");
   dTable.css("left", "0");
@@ -949,24 +930,20 @@ function makeTableNotWide(dTable) {
     $(this).css("width", $(this).data("width"));
   });
 
-  // Destroy draggable functionality if it exists
+  // Check if the element has the draggable functionality initialized
   try {
     if (dTable.data("ui-draggable")) {
       dTable.draggable("destroy");
     }
   } catch (error) {
     console.error("Error destroying draggable:", error);
+    // Optionally initialize draggable here if needed
   }
 
   dTable.insertBefore($("#tableContainer"));
   $("#buttonBox").hide();
 }
 
-/**
- * Adds a button box with left and right scroll buttons for the table container if not already present.
- *
- * @returns {void}
- */
 function addButtonBox() {
   if ($("#buttonBox").length == 0) {
     const leftButton = $("<button id='leftButton'>&larr;</button>");
@@ -996,12 +973,6 @@ function addButtonBox() {
   }
 }
 
-/**
- * Adds a button to toggle between wide and normal table display.
- * Saves the state to localStorage so that the preference is retained.
- *
- * @returns {Promise<void>} Resolves when the wide table button is added and its event handler is attached.
- */
 async function addWideTableButton() {
   const wideTableButton = $("<button class='button small wideTableButton'>Wide Table</button>");
 
@@ -1014,6 +985,7 @@ async function addWideTableButton() {
 
   // Check if there was a saved state and apply it
   if (surnameTableWideTableOption === "true") {
+    // Make sure to compare with a string, since localStorage stores everything as strings
     makeTableWide(theTable);
     wideTableButton.text("Normal Table");
   } else {
@@ -1041,33 +1013,3 @@ async function addWideTableButton() {
     }
   });
 }
-
-shouldInitializeFeature("surnameTable").then((result) => {
-  if (result) {
-    import("../familyGroup/familyGroup.css");
-    if ($("#Sort-Table").length || $("body.watchlist table.wt.table").length) {
-      theTable = $("#Sort-Table");
-      headerRow = theTable.find("thead tr:first-child");
-      if ($("body.watchlist table.wt.table").length) {
-        theTable = $("body.watchlist table.wt.table");
-        headerRow = theTable.find("tr:first-child");
-      }
-      theTbody = theTable.find("tbody");
-      theRows = theTbody.find("tr");
-    } else {
-      return;
-    }
-    const isFreeSpaceList = $("ul.profile-tabs li.current").text().match("Free-Space Profiles");
-    if (window.location.href.match(/Special:(Surname|WatchedList|SearchPerson)/) && isFreeSpaceList == null) {
-      init();
-    }
-    if (isSearchPage) {
-      getFeatureOptions("surnameTable").then((options) => {
-        if (options.RememberSearchOptions) {
-          initSearchOptions();
-        }
-      });
-    }
-    addHomeIcon();
-  }
-});
