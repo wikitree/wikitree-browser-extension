@@ -1,5 +1,6 @@
-body.page-Special_SearchPerson #saveSearchFormButton {
+body.search-person #saveSearchFormButton {
   float: right;
+  width: fit-content;
 }
 
 @media print {
@@ -9,7 +10,7 @@ body.page-Special_SearchPerson #saveSearchFormButton {
   }
 }
 
-body.page-Special_SearchPerson #onlyMembers.active {
+body.search-person #onlyMembers.active {
   border: 2px solid forestgreen;
   padding: 0.2em 0.5em;
   background: peachpuff;
@@ -23,7 +24,7 @@ body.page-Special_SearchPerson #onlyMembers.active {
   position: relative;
   bottom: 0.2em;
 }
-body.page-Special_SearchPerson #onlyMembers {
+body.search-person #onlyMembers {
   cursor: pointer;
 }
 

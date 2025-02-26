@@ -4,6 +4,80 @@ import $ from "jquery";
 import { mainDomain } from "../../core/pageType";
 import { getUserNumId } from "../../core/common";
 
+function init() {
+  const profileRows = document.getElementsByTagName("tr");
+
+  for (let i = 1 /* skip table with sorting links */; i < profileRows.length; i++) {
+    const editLink = $(profileRows[i]).find("a[href*='Special:EditPerson']")[0];
+    var urlParams = new URLSearchParams(editLink.href);
+    if (urlParams.has("u")) {
+      //parent of edit link is td
+      const profileId = urlParams.get("u");
+      const checkBox = document.createElement("input");
+      checkBox.type = "checkbox";
+      checkBox.value = profileId;
+      checkBox.id = "cb_" + profileId;
+
+      const tdThis = editLink.parentNode;
+      tdThis.insertBefore(checkBox, tdThis.firstChild);
+
+      tdThis.addEventListener("click", function (e) {
+        //will also be triggered, when left-clicking on links :(
+        checkBox.checked = checkBox.checked == false;
+        console.log(checkBox.checked);
+      });
+      checkBox.addEventListener("click", function (e) {
+        e.stopPropagation();
+      });
+
+      for (let c = 0; c < tdThis.childNodes.length; c++) {
+        const childNode = tdThis.childNodes[c];
+        // Is childNode .home?   Exclude it from click event
+        if (childNode.type != "checkbox" && $(childNode).hasClass("home") == false) {
+          childNode.addEventListener("click", function (event) {
+            event.stopPropagation();
+          });
+        }
+      }
+
+      const tdNext = tdThis.nextSibling.nextSibling; //there is a newline in-between the two tds
+      tdNext.innerHTML = '<label for="cb_' + profileId + '">' + tdNext.innerText + "</label>";
+    }
+  }
+
+  const nextButton = $("button:contains('Next'):first").closest("div")[0];
+
+  const checkAllButton = document.createElement("input");
+  checkAllButton.type = "button";
+  checkAllButton.classList.add("small");
+  checkAllButton.value = "check/uncheck all";
+  checkAllButton.style.setProperty("margin-left", "1em", "important");
+  checkAllButton.addEventListener("click", () => {
+    const tableRows = document.getElementsByTagName("tr");
+    for (let i = 0; i < tableRows.length; i++) {
+      if (tableRows[i].style.display != "none") {
+        const checkBoxes = tableRows[i].getElementsByTagName("input");
+        for (let j = 0; j < checkBoxes.length; j++) {
+          if (checkBoxes[j].id.includes("cb_")) {
+            checkBoxes[j].checked = checkBoxes[j].checked == false;
+          }
+        }
+      }
+    }
+  });
+  nextButton.appendChild(checkAllButton);
+
+  const orphanButton = document.createElement("input");
+  orphanButton.type = "button";
+  orphanButton.value = "remove selected from watchlist";
+  orphanButton.classList.add("small");
+  orphanButton.style.setProperty("margin-left", "1em", "important");
+  orphanButton.addEventListener("click", () => {
+    DoOrphan();
+  });
+  nextButton.appendChild(orphanButton);
+}
+
 /**
  * Initializes the removeFromWatchlist feature.
  * If the feature is enabled, adds checkboxes to each profile row for removal,
@@ -14,77 +88,7 @@ import { getUserNumId } from "../../core/common";
  */
 shouldInitializeFeature("removeFromWatchlist").then((result) => {
   if (result) {
-    const profileRows = document.getElementsByTagName("tr");
-
-    for (let i = 1 /* skip table with sorting links */; i < profileRows.length; i++) {
-      const editLink = $(profileRows[i]).find("a[href*='Special:EditPerson']")[0];
-      var urlParams = new URLSearchParams(editLink.href);
-      if (urlParams.has("u")) {
-        //parent of edit link is td
-        const profileId = urlParams.get("u");
-        const checkBox = document.createElement("input");
-        checkBox.type = "checkbox";
-        checkBox.value = profileId;
-        checkBox.id = "cb_" + profileId;
-
-        const tdThis = editLink.parentNode;
-        tdThis.insertBefore(checkBox, tdThis.firstChild);
-
-        tdThis.addEventListener("click", function (e) {
-          //will also be triggered, when left-clicking on links :(
-          checkBox.checked = checkBox.checked == false;
-          console.log(checkBox.checked);
-        });
-        checkBox.addEventListener("click", function (e) {
-          e.stopPropagation();
-        });
-
-        for (let c = 0; c < tdThis.childNodes.length; c++) {
-          const childNode = tdThis.childNodes[c];
-          // Is childNode .home?   Exclude it from click event
-          if (childNode.type != "checkbox" && $(childNode).hasClass("home") == false) {
-            childNode.addEventListener("click", function (event) {
-              event.stopPropagation();
-            });
-          }
-        }
-
-        const tdNext = tdThis.nextSibling.nextSibling; //there is a newline in-between the two tds
-        tdNext.innerHTML = '<label for="cb_' + profileId + '">' + tdNext.innerText + "</label>";
-      }
-    }
-
-    const nextButton = $("button:contains('Next'):first").closest("div")[0];
-
-    const checkAllButton = document.createElement("input");
-    checkAllButton.type = "button";
-    checkAllButton.classList.add("small");
-    checkAllButton.value = "check/uncheck all";
-    checkAllButton.style.setProperty("margin-left", "1em", "important");
-    checkAllButton.addEventListener("click", () => {
-      const tableRows = document.getElementsByTagName("tr");
-      for (let i = 0; i < tableRows.length; i++) {
-        if (tableRows[i].style.display != "none") {
-          const checkBoxes = tableRows[i].getElementsByTagName("input");
-          for (let j = 0; j < checkBoxes.length; j++) {
-            if (checkBoxes[j].id.includes("cb_")) {
-              checkBoxes[j].checked = checkBoxes[j].checked == false;
-            }
-          }
-        }
-      }
-    });
-    nextButton.appendChild(checkAllButton);
-
-    const orphanButton = document.createElement("input");
-    orphanButton.type = "button";
-    orphanButton.value = "remove selected from watchlist";
-    orphanButton.classList.add("small");
-    orphanButton.style.setProperty("margin-left", "1em", "important");
-    orphanButton.addEventListener("click", () => {
-      DoOrphan();
-    });
-    nextButton.appendChild(orphanButton);
+    setTimeout(init, 3000);
   }
 });
 

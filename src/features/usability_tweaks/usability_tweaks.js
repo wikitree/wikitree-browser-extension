@@ -30,7 +30,7 @@ import { initBioCheck } from "../bioCheck/bioCheck.js";
 //import draggable from "jquery-ui/ui/widgets/draggable";
 
 function addSaveSearchFormDataButton() {
-  const searchResultsP = $("span.large:contains('Search Results')").parent();
+  const searchResultsP = $("p:contains('Search Results')").closest(".row");
   if (searchResultsP.length > 0) {
     searchResultsP.append(
       '<button id="saveSearchFormButton" title="Save the person details in this form to populate the fields of the Add Person edit form" class="button small">Save person details</button>'
@@ -196,8 +196,8 @@ function addScratchPadButton() {
 }
 
 function toggleNonMembers() {
-  $(".wt.names tr").each(function () {
-    if ($(this).find("a[href*='/wiki/']").length > 0 && $(this).find("img[alt='Active member']").length == 0) {
+  $("#Sort-Table tbody tr").each(function () {
+    if ($(this).find("a[href*='/wiki/']").length > 0 && $(this).find("span:contains('ACTIVE')").length == 0) {
       $(this).toggle();
     }
   });
@@ -210,11 +210,11 @@ function toggleNonMembers() {
 }
 
 async function onlyMembers() {
-  $("p")
+  $("#jump-nav")
     .eq(0)
     .append(
       $(
-        `<span class='small'>[<a id='onlyMembers' title="Show only the active members on this page">only active members</a>]</span>`
+        `<li><a href="#n" id='onlyMembers' title="Show only the active members on this page">Only Active Members</a></li>`
       )
     );
   $("#onlyMembers").on("click", function () {
