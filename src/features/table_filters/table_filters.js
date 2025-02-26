@@ -14,10 +14,17 @@ import {
   initDistanceAndRelationshipDBs,
 } from "../distanceAndRelationship/distanceAndRelationship";
 
+/**
+ * Adds distance and relationship columns to the watchlist table.
+ * Retrieves profile IDs from the watchlist table, initializes the distance and relationship
+ * databases, and then populates the table with distance, relationship, and suggestion information.
+ *
+ * @returns {void}
+ */
 function addDistanceAndRelationColumns() {
   const userID = getUserWtId();
   const ids = {};
-  const nameTable = $("table.wt.names");
+  const nameTable = $("body.watchlist table.table.wt");
   // Get the profile IDs from the watchlist
   // Get first link of first TD of each TR and extract the profile ID from the href (after /wiki/)
   nameTable.find("tr").each(function (index) {
@@ -31,21 +38,29 @@ function addDistanceAndRelationColumns() {
   });
 
   // Add the header cells to the table
-
   const headerCells = $(`<th style="width: 5%; text-align: center; cursor: pointer;">°</th>
   <th style="width: 15%; text-align: center; cursor: pointer;">Relation</th><th style="width: 10%; text-align: center; cursor: pointer;" id="suggestions_header">Suggestion</th>`);
-
   nameTable.find("tr").eq(0).append(headerCells);
 
   setTimeout(() => {
     const distancePromises = [];
     const relationshipPromises = [];
+    /**
+     * Initializes the distance and relationship databases and tracks completion.
+     *
+     * @returns {Promise<void>} A promise that resolves when both databases have been initialized.
+     */
     const initDb = new Promise((resolve, reject) => {
       let completedTasks = 0;
 
       // Ensure the distance and relationship databases are present/created/upgraded as necessary
       initDistanceAndRelationshipDBs(onDistanceSucces, onRelationSuccess);
 
+      /**
+       * Increments the completed tasks counter and resolves the initDb promise when both tasks complete.
+       *
+       * @returns {void}
+       */
       function checkCompletion() {
         completedTasks++;
 
@@ -55,6 +70,13 @@ function addDistanceAndRelationColumns() {
         }
       }
 
+      /**
+       * Callback for successful initialization of the distance database.
+       * Retrieves distance information for each profile ID and pushes a promise into distancePromises.
+       *
+       * @param {Event} event - The event containing the database connection result.
+       * @returns {void}
+       */
       function onDistanceSucces(event) {
         // The distance table is ready, we can start collecting the distances
         const dbConnection = event.target.result;
@@ -77,6 +99,13 @@ function addDistanceAndRelationColumns() {
         checkCompletion();
       }
 
+      /**
+       * Callback for successful initialization of the relationship database.
+       * Retrieves relationship information for each profile ID and pushes a promise into relationshipPromises.
+       *
+       * @param {Event} event - The event containing the database connection result.
+       * @returns {void}
+       */
       function onRelationSuccess(event) {
         // The relationship table is ready, we can start collecting the relationships
         const dbRelationship = event.target.result;
@@ -149,9 +178,7 @@ function addDistanceAndRelationColumns() {
           .then(() => {
             nameTable.find("tr").each(function (index) {
               // find the ids item with the property index: index
-
               const id = Object.keys(ids).find((key) => ids[key].index === index - 1);
-
               if ($(this).find("th").length == 0) {
                 if (id) {
                   const distance = ids[id].distance || "";
@@ -174,17 +201,28 @@ function addDistanceAndRelationColumns() {
       .catch((error) => {
         console.error("Error during init of distance and relationship DBs:", error);
       });
-  }, 0);
-
-  function SetOrAdd(wtid, node) {
-    if (ids[wtid].suggestion != undefined) {
-      ids[wtid].suggestion += "<br />" + node.html();
-    } else {
-      ids[wtid].suggestion = node.html();
+    /**
+     * Sets or appends suggestion HTML content for a given profile ID.
+     *
+     * @param {string} wtid - The profile ID.
+     * @param {JQuery} node - The jQuery node containing suggestion HTML.
+     * @returns {void}
+     */
+    function SetOrAdd(wtid, node) {
+      if (ids[wtid].suggestion != undefined) {
+        ids[wtid].suggestion += "<br />" + node.html();
+      } else {
+        ids[wtid].suggestion = node.html();
+      }
     }
-  }
+  }, 0);
 }
 
+/**
+ * Retrieves the suggestions HTML page from a remote URL based on query parameters.
+ *
+ * @returns {Promise<string>} A promise that resolves with the suggestions HTML text.
+ */
 async function GetSuggestions() {
   return new Promise((resolve, reject) => {
     const params = new URLSearchParams(window.location.search);
@@ -203,7 +241,9 @@ async function GetSuggestions() {
 
 /**
  * Repositions the filter row in the table if it isn't already in the right place.
+ *
  * @param {HTMLTableElement} table - The table whose filter row needs repositioning.
+ * @returns {void}
  */
 export function repositionFilterRow(table) {
   const hasTbody = table.querySelector("tbody") !== null;
@@ -223,14 +263,16 @@ export function repositionFilterRow(table) {
 
 /**
  * Adds filter functionality to all wikitable elements or to the table passed as a parameter.
+ *
  * @param {HTMLTableElement|null} aTable - The table to add filters to. If null, filters will be added to all wikitable elements.
+ * @returns {void}
  */
 export function addFiltersToWikitables(aTable = null) {
   let tables;
   if (aTable) {
     tables = [aTable];
   } else {
-    tables = document.querySelectorAll(".wikitable,#Sort-Table,.category");
+    tables = document.querySelectorAll(".wikitable,#Sort-Table,.category,table.wt.table");
   }
 
   // Add filters to each table
@@ -393,7 +435,7 @@ export function addFiltersToWikitables(aTable = null) {
   });
 
   // Position the Clear Filters button
-  const filterRow = tables[0].querySelector(".filter-row");
+  const filterRow = tables[0] ? tables[0].querySelector(".filter-row") : null;
   const filterRowRect = filterRow.getBoundingClientRect();
 
   // If the table has a caption, place the button within the caption, on the right, before an 'x' element if it exists
@@ -432,9 +474,11 @@ export function addFiltersToWikitables(aTable = null) {
 
 /**
  * Adds sort functionality to all wikitable elements that are not already sortable.
+ *
+ * @returns {void}
  */
 function addSortToTables() {
-  const tables = document.querySelectorAll(".wikitable:not(.sortable),.wt.names:not(.sortable)");
+  const tables = document.querySelectorAll(".wikitable:not(.sortable),.wt.table:not(.sortable)");
 
   // Add sort functionality to each table
   tables.forEach((table) => {
@@ -565,6 +609,12 @@ function addSortToTables() {
   });
 }
 
+/**
+ * Initializes table filters and sorting functionalities based on feature options.
+ * Adds distance/relationship columns if applicable, and sets up filters and sorting on tables.
+ *
+ * @returns {Promise<void>} A promise that resolves when initialization is complete.
+ */
 export async function initTableFilters() {
   window.tableFiltersOptions = await getFeatureOptions("tableFilters");
   if (window.tableFiltersOptions.distanceAndRelationship) {
@@ -573,7 +623,7 @@ export async function initTableFilters() {
     }
   }
   addFiltersToWikitables();
-  if ($(".wt.names th#deathDate").length == 0) {
+  if ($("table.wt.table th#deathDate").length == 0) {
     addSortToTables();
   }
 }
@@ -581,8 +631,10 @@ export async function initTableFilters() {
 // Initialize table filters if the feature is enabled
 shouldInitializeFeature("tableFilters").then((result) => {
   if (result) {
-    if ($(".wikitable,.wt.names").length > 0) {
-      initTableFilters();
-    }
+    setTimeout(() => {
+      if ($(".wikitable,table.wt.table").length > 0) {
+        initTableFilters();
+      }
+    }, 1000);
   }
 });
