@@ -2,6 +2,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { getPeople } from "../dna_table/dna_table";
 import $ from "jquery";
 import { mainDomain } from "../../core/pageType";
+import { getUserNumId } from "../../core/common";
 
 shouldInitializeFeature("removeFromWatchlist").then((result) => {
   if (result) {
@@ -34,7 +35,7 @@ shouldInitializeFeature("removeFromWatchlist").then((result) => {
     const profileRows = document.getElementsByTagName("tr");
 
     for (let i = 1 /* skip table with sorting links */; i < profileRows.length; i++) {
-      const editLink = profileRows[i].getElementsByTagName("a")[3];
+      const editLink = $(profileRows[i]).find("a[href*='Special:EditPerson']")[0];
       var urlParams = new URLSearchParams(editLink.href);
       if (urlParams.has("u")) {
         //parent of edit link is td
@@ -71,7 +72,7 @@ shouldInitializeFeature("removeFromWatchlist").then((result) => {
       }
     }
 
-    const nextButton = document.getElementsByClassName("twelve columns center")[0];
+    const nextButton = $("button:contains('Next'):first").closest("div")[0];
 
     const checkAllButton = document.createElement("input");
     checkAllButton.type = "button";
@@ -139,7 +140,7 @@ async function DoOrphan() {
 
   promises.push(
     new Promise((resolve, reject) => {
-      const myId = getMyId();
+      const myId = getUserNumId();
       addInvisibleInput(form, "action", "remove");
       addInvisibleInput(form, "personId", myId);
       addInvisibleInput(form, "go", "1");
@@ -205,16 +206,6 @@ async function getMyEmail(myId) {
         resolve(myEmail);
       });
   });
-}
-
-function getMyId() {
-  const menuLinks = document.getElementsByClassName("pureCssMenui");
-  for (let i = 0; i < menuLinks.length; i++) {
-    const indexU = menuLinks[i].href.indexOf("&u=");
-    if (indexU > -1) {
-      return menuLinks[i].href.substr(indexU + "&u=".length);
-    }
-  }
 }
 
 function addInvisibleInput(parent, name, value) {
