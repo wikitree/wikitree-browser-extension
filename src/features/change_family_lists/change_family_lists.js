@@ -591,6 +591,9 @@ function buildSpousesSection(spouses) {
 
   // Create an ordered list for spouses.
   const ol = createListElement("spouseList");
+  if (options.oneSpousePerLine && spouses.length > 1) {
+    ol.className += " oneSpousePerLine";
+  }
   container.appendChild(ol);
 
   spouses.forEach((spouse) => {
@@ -1014,7 +1017,7 @@ function addMarriageAges() {
             `<a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=editspouse&s=${idx}" target="_blank" title="Edit marriage" class="clickable">married</a> `
           );
           marriageDetailsSpan.html(html);
-          marriageDetailsSpan.contents().wrapAll('<div style="display:inline-block"></div>');
+          marriageDetailsSpan.contents().wrapAll('<div class="marriageDetailsInner"></div>');
         }
       }
     });

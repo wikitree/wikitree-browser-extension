@@ -865,3 +865,18 @@ div.VITALS a:link .addedPrefix {
   position: absolute;
   left: -1em;
 }
+
+.vanilla #spouseList.oneSpousePerLine,
+.vanilla #spouseList.oneSpousePerLine li {
+  display: block;
+}
+.vanilla #spouseList.oneSpousePerLine li {
+  margin-bottom: 0;
+}
+.marriageDetailsInner {
+  display: inline-block;
+}
+
+.vanilla .marriageDetailsInner {
+  display: inline;
+}
