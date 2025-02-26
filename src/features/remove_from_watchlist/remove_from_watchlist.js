@@ -4,34 +4,16 @@ import $ from "jquery";
 import { mainDomain } from "../../core/pageType";
 import { getUserNumId } from "../../core/common";
 
+/**
+ * Initializes the removeFromWatchlist feature.
+ * If the feature is enabled, adds checkboxes to each profile row for removal,
+ * and appends "check/uncheck all" and "remove selected from watchlist" buttons.
+ * Also sets up event listeners for toggling checkboxes.
+ *
+ * @returns {void}
+ */
 shouldInitializeFeature("removeFromWatchlist").then((result) => {
   if (result) {
-    /**
-    <tr><td bgcolor="#eef" title="Male">
-<a href="/wiki/Adler-1746" target="_blank">Berthold Adler</a> 
-<a href="/wiki/Adler-1746#Ancestors" target="_blank">
-    <img src="/images/icons/pedigree.gif.pagespeed.ce.4kSwuvQoBH.gif" border="0" width="8" height="11" alt="ancestors" title="Ancestor Pedigree Chart">
-</a> 
-<a href="/index.php?title=Special:Relationship&action=calculate&person1Name=Adler-1746&person2Name=Straub-620" target="_blank">
-    <img src="/images/icons/relationship.gif.pagespeed.ce.Bp6vm0XjUu.gif" border="0" width="13" height="11" alt="Find Relationship" title="Find Relationship">
-</a> 
-<a href="/index.php?title=Special:EditPerson&u=39387513" target="_blank"><img src="/images/icons/edit.gif.pagespeed.ce.fe79TrdOz8.gif" border="0" width="11" height="11" alt="edit" title="Edit Profile"></a>
-</td>
-<td>
-20 Dec 1911 Berlin, Provinz Brandenburg, Preußen, Deutsches Reich - 10 Jun 1990	</td>
-<td>
-<a href="/wiki/Help:Profile_Manager" title="Managed by you"><img src="/images/icons/M.gif.pagespeed.ce.UgS-kJInMD.gif" width="9" height="9" alt="Managed by You" border="0"/></a> 
-<a href="/index.php?title=Special:Surname&s=Adler&limit=5000&order=name&u=23097626" title="View all Adler profiles on your Watchlist" target="_blank">Adler</a>
-<span title="WikiTree ID Adler-1746">-1746</span> 
-<button aria-label="Copy ID" class="copyWidget" data-copy-text="Adler-1746"><img src="/images/icons/copy.png.pagespeed.ce.0gdC2H4hZP.png"></button>
-</td>
-<td><a href="/index.php?title=Special:NetworkFeed&who=Adler-1746" title="Last Changes" target="_blank">Jul 16, 2023</a></td>
-<td>
-<img class="privacy_dots" src="/images/icons/bullet60.gif.pagespeed.ce.rUBRf7PHZA.gif" width="10" height="10" title="Privacy Level: Open" alt="Privacy Level: Open (White)"/>
-<img class="privacy_locks" src="/images/icons/privacy60.png.pagespeed.ce.40ChhYgHYM.png" title="Privacy Level: Open" alt="Privacy Level: Open (White)"/>
-</td></tr>
-    **/
-
     const profileRows = document.getElementsByTagName("tr");
 
     for (let i = 1 /* skip table with sorting links */; i < profileRows.length; i++) {
@@ -106,6 +88,13 @@ shouldInitializeFeature("removeFromWatchlist").then((result) => {
   }
 });
 
+/**
+ * Processes the removal of selected profiles from the watchlist.
+ * Gathers profile IDs to remove, creates a form, and submits a removal request.
+ *
+ * @async
+ * @returns {Promise<void>} Resolves when the removal process is complete.
+ */
 async function DoOrphan() {
   const ids = GetIdsToOrphan();
   if (ids.length == 0) {
@@ -163,6 +152,11 @@ async function DoOrphan() {
   });
 }
 
+/**
+ * Creates and appends a new form element for submitting the watchlist removal request.
+ *
+ * @returns {HTMLFormElement} The created form element.
+ */
 function CreateForm() {
   const form = document.createElement("form");
   form.id = "editform";
@@ -175,6 +169,12 @@ function CreateForm() {
   return form;
 }
 
+/**
+ * Hides the table rows corresponding to orphaned (removed) profiles.
+ * Unchecks the checkboxes and sets the row visibility to "collapse".
+ *
+ * @returns {void}
+ */
 function HideOrphanedLines() {
   const checkBoxes = document.getElementsByTagName("input");
   for (let i = 0; i < checkBoxes.length; i++) {
@@ -184,6 +184,12 @@ function HideOrphanedLines() {
     }
   }
 }
+
+/**
+ * Retrieves the list of profile IDs for which the corresponding checkboxes are checked.
+ *
+ * @returns {string[]} An array of profile IDs marked for removal.
+ */
 function GetIdsToOrphan() {
   const ids = [];
   const checkBoxes = document.getElementsByTagName("input");
@@ -195,6 +201,14 @@ function GetIdsToOrphan() {
   return ids;
 }
 
+/**
+ * Retrieves the email address of the current user.
+ * Fetches the edit page for the user and parses the email from the returned HTML.
+ *
+ * @async
+ * @param {string} myId - The user number ID.
+ * @returns {Promise<string>} A promise that resolves to the user's email address.
+ */
 async function getMyEmail(myId) {
   return new Promise(function (resolve, reject) {
     fetch("https://" + mainDomain + "/index.php?title=Special:EditPerson&u=" + myId)
@@ -208,6 +222,15 @@ async function getMyEmail(myId) {
   });
 }
 
+/**
+ * Creates an invisible input element with the given name and value,
+ * and appends it to the specified parent element.
+ *
+ * @param {HTMLElement} parent - The parent element to which the input is appended.
+ * @param {string} name - The name attribute for the input element.
+ * @param {string} value - The value attribute for the input element.
+ * @returns {void}
+ */
 function addInvisibleInput(parent, name, value) {
   const inputGo = document.createElement("input");
   inputGo.name = name;
