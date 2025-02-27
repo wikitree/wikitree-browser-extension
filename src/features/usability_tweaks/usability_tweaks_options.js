@@ -18,7 +18,7 @@ const usabilityTweaks = {
       label: "Global",
       options: [
         {
-          id: "removeDisablePreviewButtons",
+          id: "removeDisablePreviewLinks",
           type: OptionType.CHECKBOX,
           label:
             "Remove the 'turn off preview' and 'turn off temporarily' buttons" +
@@ -159,12 +159,6 @@ const usabilityTweaks = {
       type: OptionType.GROUP,
       label: "Other",
       options: [
-        {
-          id: "fixPrintingBug",
-          type: OptionType.CHECKBOX,
-          label: "Fix a known bug in Chrome on Windows 10 that prevents good printing of WikiTree profiles.",
-          defaultValue: false,
-        },
         {
           id: "enhanceThonPages",
           type: OptionType.CHECKBOX,
