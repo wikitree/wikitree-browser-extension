@@ -283,7 +283,7 @@ function addRemoveMeButton() {
       $(`a[data-who='${thisUserId}']:contains(send)`).text("email");
       removeMeButton.on("dblclick", function (e) {
         e.preventDefault();
-        const privacyTab = $(`a[title="View Privacy Settings and Trusted List"]`);
+        const privacyTab = $(`.profile--actions span.icon--privacy-open`).parent();
         privacyTab.attr("href", privacyTab.attr("href") + "&WBEaction=RemoveMe");
         window.location = privacyTab.attr("href");
       });
@@ -403,8 +403,9 @@ function replaceAddRemoveReplaceLinks() {
   if (isProfileEdit) {
     const hasFather = $("input[name='mStatus_Father']").length;
     const hasMother = $("input[name='mStatus_Mother']").length;
-    const hasSpouse = $("div.five.columns.omega a:Contains(edit marriage)").length;
-    $("div.five.columns.omega a[href*='&who=']").each(function () {
+    const hasSpouse = $(".tree--person a.btn-utility:contains('edit marriage')").length;
+    $(".container.edit--sidebar a[href*='&who=']").each(function () {
+      console.log($(this));
       /* Replace one link like this: https://wikitree.com/index.php?title=Special:EditFamily&u=23943734&who=father
        * with three links like this: https://wikitree.com/index.php?title=Special:EditFamily&u=23943734&who=father&WBEaction=add (remove, connect)
        */
