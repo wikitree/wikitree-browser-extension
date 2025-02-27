@@ -404,8 +404,8 @@ function replaceAddRemoveReplaceLinks() {
     const hasFather = $("input[name='mStatus_Father']").length;
     const hasMother = $("input[name='mStatus_Mother']").length;
     const hasSpouse = $(".tree--person a.btn-utility:contains('edit marriage')").length;
+
     $(".container.edit--sidebar a[href*='&who=']").each(function () {
-      console.log($(this));
       /* Replace one link like this: https://wikitree.com/index.php?title=Special:EditFamily&u=23943734&who=father
        * with three links like this: https://wikitree.com/index.php?title=Special:EditFamily&u=23943734&who=father&WBEaction=add (remove, connect)
        */
@@ -471,7 +471,11 @@ function replaceAddRemoveReplaceLinks() {
 }
 
 function removeTurnOffPreviewLinks() {
-  $("head").append("<style>#pausePagePreviewButton,#disablePagePreviewButton{display:none}</style>");
+  $("head").append(
+    $(
+      "<style id='removeDisablePreviewsLinks'>#pausePagePreviewButton,#disablePagePreviewButton{display:none !important}</style>"
+    )
+  );
 }
 
 function addCategoryEditLinks() {
@@ -625,7 +629,9 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
 
       // Replace Add/Remove/Replace links with Add, Remove, Connect links
       if (options.addRemoveConnectLinks) {
-        replaceAddRemoveReplaceLinks();
+        setTimeout(function () {
+          replaceAddRemoveReplaceLinks();
+        }, 1000);
       }
 
       if (isProfileAddRelative && options.addRemoveConnectLinks) {
@@ -642,11 +648,6 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
 
       if (isWikiEdit && options.rememberTextareaHeight) {
         triggerRememberTextareaHeight();
-      }
-      if (options.fixPrintingBug) {
-        if (navigator.userAgent.indexOf("Windows NT 10.0") != -1) {
-          $("body").addClass("w10");
-        }
       }
       if (options.addScratchPadButton && isNavHomePage && $("#clonedScratchPadButton").length == 0) {
         addScratchPadButton();
@@ -667,7 +668,7 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
         forwardToSavedSpagePage();
       }
 
-      if (options.removeDisablePreviewButtons) {
+      if (options.removeDisablePreviewLinks) {
         removeTurnOffPreviewLinks();
       }
 
