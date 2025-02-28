@@ -4,7 +4,7 @@ import { secondarySort } from "../extra_watchlist/extra_watchlist.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 function wills() {
-  if (window.location.href.match(/https:\/\/www\.wikitree\.com\/wiki\/Category:.*?_Wills_and_Estates/) != null) {
+  if (window.location.href.match(/wikitree\.com\/wiki\/Category:.*?_Wills_and_Estates/) != null) {
     const items = $("div.P-ITEM");
     const itemsArr = [];
     items.each(function () {
