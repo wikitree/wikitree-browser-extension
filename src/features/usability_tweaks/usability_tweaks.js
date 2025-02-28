@@ -793,7 +793,8 @@ class RangeringTool {
     this.fetchedProfilesStorageKey = "fetchedProfiles";
     this.memberDataStorageKey = "memberData";
     this.currentConfig = this.getCurrentConfig();
-    this.rangersButtons = $("<div id='rangersButtons'></div>").appendTo($("#content p:first"));
+    this.rangersButtons = $("<div id='rangersButtons'></div>");
+    $(".page--title h1").after(this.rangersButtons);
     this.init();
     this.excludedNames = [];
   }
@@ -1311,7 +1312,7 @@ class RangeringTool {
     const anomaliesButton = $(
       `<button id='anomaliesButton' class='button small' 
       title='Check for \n1) Different genders \n2) A 10-year difference in birth dates \n3) A 10-year difference in death dates'>
-      Check for Anomalies
+      Check for anomalies
       </button>`
     ).appendTo(this.rangersButtons);
     anomaliesButton.on("click", () => this.checkForAnomalies());
@@ -1377,7 +1378,7 @@ class RangeringTool {
     this.bioCheckResults = storedBioCheckResults ? JSON.parse(storedBioCheckResults) : {};
 
     // Find all links in span.HISTORY-ITEM that include a year in the text content
-    const theLinks = $("span.HISTORY-ITEM a");
+    const theLinks = $("span.feed-item a");
     const bioLinks = [];
 
     // Collect profile IDs to fetch
@@ -1435,8 +1436,8 @@ class RangeringTool {
   }
 
   displayBioButtons() {
-    // Find all links in span.HISTORY-ITEM that include a year in the text content
-    const theLinks = $("span.HISTORY-ITEM a");
+    // Find all links in span.feed-item that include a year in the text content
+    const theLinks = $("span.feed-item a");
 
     // For each bio Name, find it in a link and add a button
     theLinks.each((index, element) => {
@@ -1515,15 +1516,7 @@ class RangeringTool {
       if (p2.includes('<span class="ref-tag">')) {
         return match; // Return unchanged if there's already highlighted content
       }
-      return (
-        '<span class="reference"><span class="ref-tag">' +
-        p1 +
-        "</span>" +
-        p2 +
-        '<span class="ref-tag">' +
-        p3 +
-        "</span></span>"
-      );
+      return `<span class="reference"><span class="ref-tag">${p1}</span>${p2}<span class="ref-tag">${p3}</span></span>`;
     });
 
     // Highlight lines starting with '*' in the '== Sources ==' section, including the '*'
@@ -1564,7 +1557,7 @@ class RangeringTool {
       const bio = this.people[2][bioId]; // Access the bio using the string key
       if (bio && bio.bio) {
         const highlightedBio = this.highlightMarkup(bio.bio).replace(/\n/g, "<br>");
-        $("#content").prepend(
+        $("main#main").prepend(
           `<div class="bioPopup" data-id="${bioId}">
             <x class="closeBioPopup">&times;</x>
             ${highlightedBio}

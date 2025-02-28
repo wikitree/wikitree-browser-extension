@@ -38,7 +38,19 @@ a.newt {
   margin-left: 0.5em;
 }
 
-/* styles.css */
+/* Rangering styles.css */
+#rangersButtons button {
+  margin: 0.5em;
+  font-size: 1.2em;
+  border-radius: 5px;
+  cursor: pointer;
+}
+#rangersButtons button:hover {
+  background-color: #f0f0f0;
+}
+#rangersButtons button:active {
+  background-color: #e6e6e6;
+}
 
 /* Style for the bio popup */
 div.bioPopup {
@@ -135,7 +147,7 @@ x.closeBioPopup {
   border: 1px solid black;
 }
 
-.HISTORY-ITEM.anomaly {
+.feed-item.anomaly {
   background-color: #fff2e6;
   border: 1px solid #ff6600;
   padding: 0.1em 0.3em;
@@ -209,7 +221,7 @@ x.closeBioPopup {
   font-size: 1em;
 }
 
-span.HISTORY-ITEM.highlight {
+span.feed-item.highlight {
   border: 2px solid forestgreen;
   background-color: cornsilk;
   padding: 0.2em 0.5em;
