@@ -61,10 +61,15 @@ class CustomStyle {
       let backgroundColor = this.hexToRgb(selectedBackgroundColor);
       let chosenTextColor = this.hexToRgb(theValue);
       const contrastRatio = this.contrastRatio(backgroundColor, chosenTextColor);
+      console.log(
+        `Background color: ${selectedBackgroundColor}, Text color: ${theValue}, Contrast ratio: ${contrastRatio}`
+      );
       if (contrastRatio >= contrastRatioThreshold) {
         textColor = theValue;
+        console.log(`Contrast ratio is sufficient. Using chosen text color: ${textColor}`);
       } else {
         textColor = this.isLight(backgroundColor) ? "#000000" : "#ffffff";
+        console.log(`Contrast ratio is insufficient. Using calculated text color: ${textColor}`);
       }
     }
     return textColor || theValue;
@@ -76,11 +81,6 @@ class CustomStyle {
 
   handleRoundedCorners() {
     return `
-  div.ten.columns table,
-  ul.views.viewsm a.viewsi,
-  ul.views.viewsm li.viewsi a,
-  .HISTORY-DATE,
-  .THANKYOU-DATE,
   .qa-voting,
   .qa-a-count,
   input.qa-form-tall-text,
@@ -93,9 +93,6 @@ class CustomStyle {
   .qa-page-prev,
   .qa-page-next,
   div.status,
-  .pureCssMenui,
-  .profile div.sixteen.columns p a[href*="Special:Connection"],
-  .profile div.sixteen.columns .box.rounded a[href*="Special:Connection"],
   h2, h3, h4, h5, h6,
   .qa-form-tall-table,
   ul.qa-nav-cat-list a {
@@ -129,36 +126,30 @@ class CustomStyle {
       headings:
         "h1,h2:not(#view-container h2),h3:not(#view-container h3),h4:not(#view-container h4),h5:not(#view-container h5),h6:not(#view-container h6),#themeTable caption",
       headingLinks:
-        "h1 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
-        "h1 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
-        "h2 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
-        "h2 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
-        "h3 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
-        "h3 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
-        "h4 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
-        "h4 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
-        "h5 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
-        "h5 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
-        "h6 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), " +
-        "h6 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a)",
-      dateHeadings: "span.HISTORY-DATE:not(body.profile .HISTORY-DATE),span.THANKYOU-DATE",
-      color1: "ul.profile-tabs li,\n.ten.columns div.SMALL[style='background-color:#e1f0b4;']",
-      color2: "ul.profile-tabs li.current,\ndiv.SMALL[style='background-color:#ffe183;']",
-      color3: "div.SMALL[style='background-color:#ffe183;']",
-      color4: "div.SMALL[style='background-color:#eee;']",
-      link: "a:link:not(#jump-nav a,.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a,a.qa-tag-link,a.new,.wt.names th a,#editToolbarExt a,#view-container a)",
+        "h1 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h1 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h2 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h2 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h3 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h3 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h4 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h4 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h5 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h5 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h6 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
+        "h6 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a)",
+      color1:
+        "button.nav-link:not(.active),a.nav-link:not(.active),footer#footer ul.nav a.nav-link:not(.active),footer#footer p a:link,header,footer,div.tabs--wrapper,div.category--links",
+      color2: ".nav-link.active,.nav-link.active a,button.button",
+      color3: "aside",
+      color4: "div.box.rounded,aside.box.rounded",
+      link: "a:link:not(#jump-nav a,.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,a.qa-tag-link,a.new,.wt.table th a,#editToolbarExt a,#view-container a)",
       tag: ".qa-q-item-tag-item a:link",
       tagHover: ".qa-q-item-tag-item a:link:hover,.qa-q-item-tag-item a:visited:hover",
-      scissorsText: "button.copyWidget",
       visitedLink:
-        "a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a,.wt.names th a,#editToolbarExt a,#view-container a)",
-      g2gtab: ".qa-voting,a.qa-nav-main-link:link,a.qa-nav-main-link:visited",
-      g2gtabHover: "a.qa-nav-main-link:hover,a.qa-nav-main-link:link:hover,a.qa-nav-main-link:visited:hover",
-      g2gtabSelected:
-        "a.qa-nav-main-selected," +
-        "a.qa-nav-main-selected.qa-nav-main-link:link," +
-        "a.qa-nav-main-selected.qa-nav-main-link:visited",
-      count: ".qa-a-count",
+        "a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,.wt.table th a,#editToolbarExt a,#view-container a)",
+      voteCount: ".green.box:has(.qa-voting)",
+      answerCount: ".orange.box:has(.qa-a-count)",
       editor: "div.CodeMirror,#wpTextbox1",
     };
 
@@ -224,7 +215,7 @@ class CustomStyle {
     const headingBgColor = this.options["headings_background-color"];
 
     if (headingLinksSelectors && headingBgColor) {
-      ["link_color", "scissorsText_color", "visitedLink_color"].forEach((linkColorOption) => {
+      ["link_color", "visitedLink_color"].forEach((linkColorOption) => {
         let linkColor = this.options[linkColorOption];
         let contrastRatio = this.contrastRatio(this.hexToRgb(linkColor), this.hexToRgb(headingBgColor));
         if (contrastRatio < 4.5) {

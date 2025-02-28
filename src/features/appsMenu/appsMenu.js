@@ -109,8 +109,26 @@ shouldInitializeFeature("appsMenu").then((result) => {
     attachMenu("Category:Categories", "categoriesSubMenu", getMenuItems("/wiki/Category:", categories));
     attachMenu("Help:Tree_Apps", "treeAppsSubMenu", getTreeAppsMenuItems());
     import("./appsMenu.css");
+    //setWidth();
   }
 });
+
+function setWidth() {
+  $(".subMenu").each(function () {
+    const submenu = $(this);
+    // Get width of UL. This is the width of the widest LI.
+    const ulWidth = submenu.closest("ul").width();
+    // Set width of submenu to be the same as the UL
+    const submenuWidth = ulWidth - 10;
+
+    const submenuChildren = submenu.children("a");
+    submenuChildren.width(submenuWidth);
+    // Set the margin-left to be negative the same as the UL
+    submenuChildren.css("margin-left", -submenuWidth);
+    // Set the margin-left of #treeAppsSubMenu to be negative UL * 2
+    $("#treeAppsSubMenu").css("margin-left", -(submenuWidth * 2));
+  });
+}
 
 function getLink(href) {
   return $(`nav a[href$='/wiki/${href}']`).eq(0);
