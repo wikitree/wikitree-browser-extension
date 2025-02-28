@@ -140,10 +140,10 @@ class CustomStyle {
         "h6 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a)",
       color1:
         "button.nav-link:not(.active),a.nav-link:not(.active),footer#footer ul.nav a.nav-link:not(.active),footer#footer p a:link,header,footer,div.tabs--wrapper,div.category--links",
-      color2: ".nav-link.active,.nav-link.active a,button.button",
+      color2: ".nav-link.active,.nav-link.active a,button.button, a.btn-pill-sm",
       color3: "aside",
       color4: "div.box.rounded,aside.box.rounded",
-      link: "a:link:not(#jump-nav a,.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,a.qa-tag-link,a.new,.wt.table th a,#editToolbarExt a,#view-container a)",
+      link: "a:link:not(#jump-nav a,.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,a.qa-tag-link,a.new,.wt.table th a,#editToolbarExt a,#view-container a,.btn-pill-sm)",
       tag: ".qa-q-item-tag-item a:link",
       tagHover: ".qa-q-item-tag-item a:link:hover,.qa-q-item-tag-item a:visited:hover",
       visitedLink:
