@@ -835,7 +835,7 @@ class RangeringTool {
 
   async getMemberCreatedDates() {
     const memberCreatedDates = {};
-    const historyItems = $("span.HISTORY-ITEM");
+    const historyItems = $("span.feed-item");
     const memberProfileIDs = [];
     const self = this;
     // Get ID from first /wiki/ link in each HISTORY-ITEM span
@@ -1742,7 +1742,7 @@ const rangers = [
   "Whitten-1",
 ];
 
-if (isNetworkFeed && rangers.includes(getUserWtId())) {
+if (isNetworkFeed && rangers.includes(getUserWtId()) && window.location.href.match(/Pre-1700|Pre-1500|merge=1/)) {
   initBioCheck();
   rangeringTool = new RangeringTool();
 }
