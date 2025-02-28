@@ -14,7 +14,7 @@ export let isPlusDomain = false;
 // *.wikitree.com
 export let isMainDomain = false;
 // 'www.wikitree.com', 'staging.wikitree.com', 'ales.wikitree.com', 'dev-www.wikitree.com'
-export let mainDomain = "www.wikitree.com";
+export let mainDomain = window.location.href.match(/dev-2025/) ? "dev-2025.wikitree.com" : "www.wikitree.com";
 
 // Wiki Page variables
 // Any wiki page with pageID

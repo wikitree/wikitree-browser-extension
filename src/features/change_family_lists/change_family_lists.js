@@ -22,8 +22,8 @@ import { getUserWtId } from "../../core/common";
 import "./change_family_lists.css";
 import { initRelationshipDB, RELATIONSHIP_STORE_NAME } from "../distanceAndRelationship/distanceAndRelationship.js";
 import { profilePerson } from "../../core/common";
+import { mainDomain } from "../../core/pageType";
 
-const mainDomain = "dev-2025.wikitree.com";
 let options;
 const user = getUserWtId();
 let familyData;

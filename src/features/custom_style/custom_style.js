@@ -146,7 +146,7 @@ class CustomStyle {
       color2: "ul.profile-tabs li.current,\ndiv.SMALL[style='background-color:#ffe183;']",
       color3: "div.SMALL[style='background-color:#ffe183;']",
       color4: "div.SMALL[style='background-color:#eee;']",
-      link: "a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a,a.qa-tag-link,a.new,.wt.names th a,#editToolbarExt a,#view-container a)",
+      link: "a:link:not(#jump-nav a,.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a,a.qa-tag-link,a.new,.wt.names th a,#editToolbarExt a,#view-container a)",
       tag: ".qa-q-item-tag-item a:link",
       tagHover: ".qa-q-item-tag-item a:link:hover,.qa-q-item-tag-item a:visited:hover",
       scissorsText: "button.copyWidget",

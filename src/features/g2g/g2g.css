@@ -125,9 +125,17 @@ input[name$="_docomment"].bigButton:hover {
 
 #wtIDgo_label {
   white-space: nowrap;
+  float: right;
+  margin-right: 0.5em;
+  margin-top: 0.5em;
 }
 #wtIDgo_id {
   width: 6em;
+}
+
+#favouritesTabImage {
+  width: 1em;
+  height: 1em;
 }
 
 .qa-header header nav.nav {

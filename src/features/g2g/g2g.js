@@ -262,7 +262,9 @@ function addG2GButtons() {
       "Recent Activity"
     ).appendTo(mainList);
     const myActivity = createG2GButton("myActivity", userActivityURL, "My Activity").appendTo(mainList);
+    const favouritesSRC = `${mainDomainURL}/images/icons/icon-save.svg`;
     const myFavourites = createG2GButton("myFavourites", `${mainDomainURL}/g2g/favorites`, "+").appendTo(mainList);
+    myFavourites.find("a").html(`<img src="${favouritesSRC}" alt="Bookmarked" id="favouritesTabImage" />`);
 
     myFavourites.on("click", () => $("li.qa-nav-sub-favorites a").trigger("click"));
 
@@ -283,9 +285,8 @@ function addWikiIDGoBox() {
       <input type="submit" class="button small" id="wtIDgo_go" value="GO">
     </div>`);
 
-  const dClass = "g2g";
   if ($("#wtIDgo_label").length == 0) {
-    $("header nav.nav").prepend(WTIDgo);
+    $("#heading").prepend(WTIDgo);
 
     $("#wtIDgo_id").on("keyup", function (up) {
       if (up.key == "Enter") {
@@ -299,7 +300,7 @@ function addWikiIDGoBox() {
       if (thisValue.match(/[0-9]/) == null) {
         window.location = "https://" + mainDomain + "/genealogy/" + thisValue;
       } else {
-        window.location = "https://wikitree.com/wiki/" + thisValue;
+        window.location = "https://www.wikitree.com/wiki/" + thisValue;
       }
     });
   }
