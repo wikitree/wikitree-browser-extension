@@ -399,6 +399,9 @@ async function populateInterface() {
     initializeSortable(); // Ensure sortable is re-initialized after DOM update
 
     // console.log("Interface populated with tabs and folders.");
+    // Call the initializer after your interface is populated
+    initLongPressContextMenu();
+
     return { status: true };
   } catch (error) {
     console.error("Error populating interface:", error);
@@ -660,6 +663,61 @@ async function debounceSaveWatchlistToDB(folders = []) {
       console.warn("Skipping save: no valid folder data to save.");
     }
   }, 300); // Delay of 300ms
+}
+
+// Initialize long-press detection for touch devices
+function initLongPressContextMenu() {
+  let pressTimer;
+
+  $(document)
+    .on("touchstart", ".spaceWatchlistSorter-sortable li", function (e) {
+      const $this = $(this);
+      pressTimer = window.setTimeout(function () {
+        showCustomContextMenu(e, $this);
+      }, 600); // Adjust duration as needed (600ms here)
+    })
+    .on("touchmove touchend", ".spaceWatchlistSorter-sortable li", function (e) {
+      clearTimeout(pressTimer);
+    });
+}
+
+// Display your custom context menu at the touch position
+function showCustomContextMenu(event, $item) {
+  event.preventDefault();
+  const $contextMenu = $("#spaceWatchlistContextMenu");
+  $contextMenu.empty(); // Clear any existing menu items
+
+  // Gather folder options from your tabs
+  const folderOptions = $("#spaceWatchlistSorterTabs .spaceWatchlistSorter-tab")
+    .map(function () {
+      return $(this).text().trim();
+    })
+    .get();
+
+  if (folderOptions.length === 0) {
+    $contextMenu.append("<div class='context-menu-item'>No folders available</div>");
+  } else {
+    folderOptions.forEach(function (folderName) {
+      $("<div>", { class: "context-menu-item", text: folderName })
+        .on("click", function () {
+          moveToFolder($item, folderName);
+          $contextMenu.hide();
+        })
+        .appendTo($contextMenu);
+    });
+  }
+
+  // Use the first touch point to position the context menu
+  const touch = event.originalEvent.touches[0];
+  const posX = touch.pageX;
+  const posY = touch.pageY;
+
+  $contextMenu.css({
+    top: posY + "px",
+    left: posX + "px",
+    display: "block",
+    zIndex: 9999,
+  });
 }
 
 function initializeSortable() {
