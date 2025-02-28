@@ -12,7 +12,10 @@ function removeDarkMode() {
     $(this).removeClass("small_" + index);
   });
   $("img[src$='images/wikitree-logo-white.png']").attr("src", "https://" + mainDomain + "/images/wikitree-logo.png");
-  $("img[src$='wikitree-logo-small-white.png']").attr("src", "https://" + mainDomain + "/images/wikitree-small.png");
+  $("img[src$='wikitree-logo-small-white.png'],img[src*='wikitree-logo-tagline.png']").attr(
+    "src",
+    "https://" + mainDomain + "/images/wikitree-small.png"
+  );
   $("img[src$='wikitree-logo-white-G2G.png']").attr("src", "https://" + mainDomain + "/images/Wiki-Tree.gif");
   $("img[src$='G2G-transparent.png']").attr("src", "https://" + mainDomain + "/images/G2G.gif");
   $("#filter_name")
@@ -47,7 +50,7 @@ function doDarkMode() {
   });
 
   $("img[src*='wikitree-logo.png']").attr("src", wikiTreeLogoWhite);
-  $("img[src*='wikitree-small.png']").attr("src", wikiTreeLogoSmallWhite);
+  $("img[src*='wikitree-small.png'],img[src*='wikitree-logo-tagline.png']").attr("src", wikiTreeLogoSmallWhite);
   $("img[src*='Wiki-Tree.gif']").attr("src", wikiTreeLogoWhiteG2G);
   $("img[src*='G2G.gif']").attr("src", G2GTransparent);
   $("#filter_name")

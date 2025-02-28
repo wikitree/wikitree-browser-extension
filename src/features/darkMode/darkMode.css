@@ -128,8 +128,18 @@ html body.darkMode header a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link
 
   body.darkMode h1 span,
   body.darkMode button.copyWidget,
-  body.darkMode .qa-form-tall-label label {
+  body.darkMode .qa-form-tall-label label,
+  body.darkMode button.btn-link,
+  body.darkMode button.btn-link img,
+  body.darkMode a.icon--top,
+  body.darkMode a.icon--bottom {
     color: white !important;
+  }
+
+  body.darkMode a.icon--top,
+  body.darkMode a.icon--bottom {
+    color: white !important;
+    background-color: white;
   }
 
   body.darkMode div.pad form button,
