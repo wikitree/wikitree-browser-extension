@@ -720,6 +720,46 @@ function showCustomContextMenu(event, $item) {
   });
 }
 
+// New long-press handler for touch devices (iPad)
+$(document).on("touchstart", ".spaceWatchlistSorter-tab", function (e) {
+  const $tab = $(this);
+  // Start a timer for long-press (600ms)
+  const pressTimer = setTimeout(() => {
+    const currentText = $tab.text().trim();
+    $tab.prop("contenteditable", true).trigger("focus");
+
+    $tab.one("blur", function () {
+      $tab.prop("contenteditable", false);
+      const newText = $tab.text().trim();
+      if (!newText) {
+        $tab.text(currentText);
+      } else {
+        const updatedFolders = getUpdatedFolders();
+        debounceSaveWatchlistToDB(updatedFolders);
+      }
+    });
+
+    $tab.on("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        $tab.trigger("blur");
+      }
+    });
+
+    // Automatically select all text in the tab
+    const range = document.createRange();
+    const selection = window.getSelection();
+    range.selectNodeContents($tab[0]);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }, 600); // Adjust the threshold as needed
+
+  // If the touch ends or moves before the threshold, cancel the timer
+  $tab.one("touchend touchmove", function () {
+    clearTimeout(pressTimer);
+  });
+});
+
 function initializeSortable() {
   $(".spaceWatchlistSorter-sortable")
     .sortable({
