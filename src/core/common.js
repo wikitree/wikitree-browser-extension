@@ -36,7 +36,7 @@ export function getProfilePersonInfo() {
     return yearMatch ? parseInt(yearMatch[0]) : null;
   };
 
-  const $h1 = $("h1").clone();
+  const $h1 = $("h1").eq(0).clone();
   $h1.children().remove();
   person.FullName = $h1.text().trim();
   person.Id = pageData.mid;
