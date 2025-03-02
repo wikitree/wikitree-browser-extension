@@ -101,10 +101,10 @@ async function offerToCheckBoxes(profileId, options) {
     }
   }
 
-  const childrenTDparent = $("td:contains(' Children:')").parent();
-  // Look for any likns to /wiki/ in the childrenTDparent
+  const childrenTDparent = $("#editform #Children");
+  // Look for any links to /wiki/ in the childrenTDparent
   const childrenLinks = childrenTDparent.find("li");
-  const spousesTDparent = $("td:contains(' Spouses:')").parent();
+  const spousesTDparent = $("#editform #Spouses");
   // Look for any likns to /wiki/ in the spousesTDparent
   const spousesLinks = spousesTDparent.find("li");
 

@@ -13,6 +13,9 @@
   white-space: nowrap;
   color: black;
 }
+body.darkMode #themeTable caption {
+  color: #dcddde;
+}
 #themeTable {
   caption-side: top;
 }
