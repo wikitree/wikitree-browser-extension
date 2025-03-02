@@ -8,6 +8,7 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 import { profilePerson } from "../../core/common";
 
 let featuredConnectionsParagraph;
+let hasSection = true;
 
 const profilePersonId = profilePerson ? profilePerson.Name : null;
 
@@ -21,6 +22,10 @@ async function init() {
   import("./sort_theme_people.css");
 
   featuredConnectionsParagraph = $("section.connections p:contains('degrees from')");
+  if (!featuredConnectionsParagraph.length) {
+    featuredConnectionsParagraph = $("div.container p:contains('degrees from')");
+    hasSection = false;
+  }
   /*
   if (!featuredConnectionsParagraph.length) {
     featuredConnectionsParagraph = $("div.sixteen div.box:contains('degrees from')");
@@ -651,11 +656,19 @@ function themePeopleTable() {
   if ($("#themeTable").length) {
     $("#themeTable").toggle();
     $("h2.thisWeeksTheme").toggle();
+    if ($("p.cfParagraph").length == 0) {
+      if (!hasSection) {
+        featuredConnectionsParagraph.addClass("cfParagraph");
+      }
+    }
     $("p.cfParagraph").toggle();
     //$("section.connections a:contains('degrees from')").closest("div.box.rounded.row").toggle();
   } else {
     const linksArray = [];
-    const themeLinks = $("section.connections p a:contains('degrees from')");
+    let themeLinks = $("section.connections p a:contains('degrees from')");
+    if (!themeLinks.length) {
+      themeLinks = $("div.container p a:contains('degrees from')");
+    }
     themeLinks.each(function () {
       let aThemePerson = {};
       aThemePerson.connectionURL = $(this).attr("href");

@@ -1,17 +1,35 @@
 @media not print {
-  body.darkMode html body,
+  body.darkMode, 
+  body.darkMode h1,
+  body.darkMode h2,
+  body.darkMode h2,
+  body.darkMode h3,
+  body.darkMode h4,
+  body.darkMode h5,
+  body.darkMode h6,
+  body.darkMode h1 a:link,
+  body.darkMode h2 a:link,
+  body.darkMode h3 a:link,
+  body.darkMode h4 a:link,
+  body.darkMode h5 a:link,
+  body.darkMode h6 a:link,
+  body.darkMode h1 a:visited,
+  body.darkMode h2 a:visited,
+  body.darkMode h3 a:visited,
+  body.darkMode h4 a:visited,
+  body.darkMode h5 a:visited,
+  body.darkMode h6 a:visited,
+  body.darkMode p,
+  body.darkMode button.btn-utility,
   body.darkMode .wrapper,
-  body.darkMode div:not(.cke_inner.cke_reset, .cke_a_content, .large),
-  body.darkMode a:link:not(.cke_button, .cke_combo_button),
-  body.darkMode a:visited:not(.cke_button, .cke_combo_button),
+  body.darkMode div:not(.tabs--wrapper, .tabs--wrapper div, .large,header div,footer div, .qa-nav-main, .qa-nav-sub, .qa-footer, .qa-footer a, .qa-footer a:link, .qa-footer a:visited, .qa-footer a:hover, .qa-q-item-stats, .qa-q-item-stats *,.qa-q-view-stats, .qa-q-view-stats *, .qa-q-view-stats .green.rounded, .qa-q-view-stats .green.rounded *, .qa-part-q-view, .qa-part-q-view *, .qa-part-q-view .green.rounded.box),
+  body.darkMode a:link:not(span.EDIT a:link,aside a:link,.tabs--wrapper a:link,h1 a,h2 a, h3 a, h4 a, h5 a, h6 a, .qa-nav-main-link, .qa-nav-sub-link, .qa-nav-footer-link, .pureCssMenu a, #footer a,.qa-q-item-tag-item a),
+  body.darkMode a:visited:not(span.EDIT a:visited,aside a:visited,.tabs--wrapper a:visited, h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited, h5 a:visited, h6 a:visited, .qa-nav-main-link, .qa-nav-sub-link, .qa-nav-footer-link, #footer a, .qa-q-item-tag-item a),
   body.darkMode .small,
   body.darkMode strong,
   body.darkMode .strong,
   body.darkMode p.status,
-  body.darkMode b,
-  body.darkMode input,
-  body.darkMode a.viewsi,
-  body.darkMode ul.views a,
+  body.darkMode input:not(.qa-form-tall-data input, .qa-vote-buttons input),
   body.darkMode a:link.activeProfile,
   body.darkMode a:hover.activeProfile,
   body.darkMode a:visited.activeProfile a:active.activeProfile,
@@ -19,9 +37,7 @@
   body.darkMode body.blackLinks strong,
   body.darkMode menu#appsSubMenu a,
   body.darkMode div.stripes-1,
-  body.darkMode div.box.rounded,
-  body.darkMode,
-  body.darkMode span.qa-a-count,
+  body.darkMode div.box.rounded:not(.qa-q-item-stats .box, .qa-q-view-stats .box, .qa-part-q-view .box),
   body.darkMode #appsSubMenu,
   body.darkMode table,
   body.darkMode table td,
@@ -29,27 +45,19 @@
   body.darkMode.page-Special_FamilyTree table td,
   body.darkMode table.wt th,
   body.darkMode table.wt td,
-  body.darkMode ul.pureCssMenum li,
-  body.darkMode ul.pureCssMenum li a,
   body.darkMode div.CodeMirror pre,
   body.darkMode div.CodeMirror span,
   body.darkMode div.qa-ask-box td.qa-form-tall-label,
   body.darkMode #awtSearch,
   body.darkMode #content header,
   body.darkMode #content main,
-  body.darkMode .googleSearch,
-  body.darkMode #helpSearchBox.helpSearch,
   html body.darkMode .qa-main .qa-q-item-title a:link,
   html body.darkMode .qa-main .qa-q-item-title a:visited,
-  html body.darkMode .qa-main .qa-q-item-tags a:link,
-  html body.darkMode .qa-main .qa-q-item-tags a:visited,
-  html body.darkMode ul.pureCssMenu a:link,
-  html body.darkMode ul.pureCssMenu a:visited,
   html body.darkMode ul.profile-tabs a:link,
   html body.darkMode ul.profile-tabs a:visited,
   html body.darkMode div#views-wrap a:link,
   html body.darkMode div#views-wrap a:visited,
-  body.darkMode span[style^="color:#000000"],
+  body.darkMode span[style*="color"],
   body.darkMode a[style*="color: rgb(0, 102, 0)"],
   body.darkMode ol[style*="color:#000000"],
   body.darkMode ul[style*="color:#000000"],
@@ -60,32 +68,89 @@
   /* Options */ 
   body.wte#options,
   body.wte#options #categoryBar,
-  body.wte#options dialog#settingsDialog {
+  body.wte#options dialog#settingsDialog,
+  body.darkMode blockquote,
+  body.darkMode section.searchBar,
+  body.darkMode button img,
+  html body.darkMode div.CodeMirror span[role='presentation'],
+  body.darkMode label[style*="color"],
+  body.darkMode #helpSearchBox:not(footer #helpSearchBox),
+  body.darkMode .googleSearch:not(footer .googleSearch),
+  body.darkMode ul.views li,
+  body.darkMode ul.views li a {
     background-color: #36393f !important;
-    color: #dcddde !important;
+    color: #dedecb !important;
+  }
+
+  body.darkMode .qa-q-item-tag-item,
+  body.darkMode .qa-q-item-tag-item a:link,
+  body.darkMode .qa-q-item-tag-item a:visited,
+  body.darkMode .qa-q-item-tag-item a:hover {
+    background-color: #e1f0b4 !important;
+    color: #333 !important;
   }
 
   body.darkMode .qa-a-item-selected {
     border-color: gold;
   }
 
-  html body.darkMode .ten a:link,
-  html body.darkMode .six a:link,
-  html body.darkMode .sixteen a:link:not(.new),
-  html body.darkMode .five a:link,
-  html body.darkMode .qa-main a:link {
-    color: #98fb98 !important;
+  body.darkMode .icon--help {
+    filter: hue-rotate(340deg) saturate(7.5);
   }
-  html body.darkMode .sixteen a:link.new {
-    color: red !important;
+  body.darkMode button.btn-search {
+    filter: hue-rotate(340deg) saturate(40.5);
   }
-  html body.darkMode .ten a:visited,
-  html body.darkMode .six a:visited,
-  html body.darkMode .sixteen a:visited,
-  html body.darkMode .five a:visited,
-  html body.darkMode .qa-main a:visited {
-    color: #50c878 !important;
+  body.darkMode #favoriting {
+    filter: hue-rotate(340deg) saturate(20.5);
   }
+
+  body.darkMode .profile--actions a span,
+  body.darkMode span.EDIT a:link,
+  body.darkMode span.EDIT a:visited,
+  body.darkMode .icon--pedigree:not(#Ancestors-tab span),
+  body.darkMode .icon--email,
+  body.darkMode .icon--edit,
+  body.darkMode .icon--connect,
+  body.darkMode .icon--inline,
+  body.darkMode .icon--descendants:not(#Descendants-tab span),
+  body.darkMode span[class*="icon--"]:not(.icon--help),
+  body.darkMode span.editsection a:link,
+  body.darkMode span.editsection a:visited,
+  body.darkMode ul.copy--buttons img {
+    filter: hue-rotate(340deg) saturate(30.5);
+  }
+  body.darkMode #distanceFromYou {
+    border-color: #ffffff;
+  }
+  body.darkMode img.myMenuGears {
+    filter: invert(1);
+  }
+
+  body.darkMode #jump-nav a[data-bs-target] {
+    border-left: none;
+    border-right: none;
+  }
+  body.darkMode aside {
+    background-color: #393a3c;
+    color: #dedecb !important;
+  }
+  body.darkMode aside#Research,
+  body.darkMode aside#Research a:link,
+  body.darkMode aside#Research a:visited {
+    background-color: #fcb815;
+    color: #36393f !important;
+  }
+
+  body.darkMode aside a:link:not(.btn-tag),
+  body.darkMode aside a:visited:not(.btn-tag),
+  body.darkMode #googleSearchBox,
+  body.darkMode #helpSearchBox {
+    color: #8fc641 !important;
+  }
+  body.darkMode a.btn-pill {
+    border-color: #8fc641 !important;
+  }
+
   html body.darkMode .sixteen h1 a:link,
 /* Tree Apps */  
 html body.darkMode header a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), html body.darkMode header a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), html body.darkMode .cc7Table a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a),
@@ -128,7 +193,9 @@ html body.darkMode header a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link
 
   body.darkMode h1 span,
   body.darkMode button.copyWidget,
-  body.darkMode .qa-form-tall-label label {
+  body.darkMode .qa-form-tall-label label,
+  body.darkMode button.btn-link,
+  body.darkMode button.btn-link img {
     color: white !important;
   }
 
@@ -156,10 +223,7 @@ html body.darkMode header a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link
   body.darkMode menu#appsSubMenu a:hover {
     background: navy !important;
   }
-  body.darkMode ul.profile-tabs li {
-    font-weight: bold;
-    border: 1px solid white;
-  }
+
   body.darkMode ul.pureCssMenu ul li a:hover {
     background-color: navy !important;
   }
@@ -226,19 +290,6 @@ html body.darkMode header a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link
     border-radius: 50%;
   }
 
-  body.darkMode h2,
-  body.darkMode h1,
-  body.darkMode h3,
-  body.darkMode h4,
-  body.darkMode h5,
-  body.darkMode h2 span,
-  body.darkMode h1 span {
-    background-color: forestgreen !important;
-    border-radius: 5px;
-    padding: 3px;
-    color: #dcddde;
-  }
-
   /* Template:Green */
   body.darkMode span[style="color:#006800"] {
     color: #98fb98 !important;
@@ -277,16 +328,11 @@ html body.darkMode header a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link
   body.darkMode #header,
   body.darkMode div.logo,
   body.darkMode div.logo *,
-  body.darkMode ul.pureCssMenu,
-  body.darkMode ul.pureCssMenu a,
-  body.darkMode .pureCssMenum,
-  body.darkMode .pureCssMenum,
   body.darkMode .home,
   body.darkMode .person,
   body.darkMode .add,
   body.darkMode .find,
-  body.darkMode .help,
-  body.darkMode a.pureCssMenui {
+  body.darkMode .help {
     background-color: #2f3137 !important;
   }
 
@@ -302,11 +348,12 @@ html body.darkMode header a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link
   body.darkMode.profile input[name="wpSearch"] {
     border: 0 !important;
   }
-
+  /*
   body.darkMode form div.qa-q-list-item.qa-q-list-item-featured,
   body.darkMode form div.qa-q-list-item.qa-q-list-item-featured * {
     background-color: #42454d !important;
   }
+  */
   body.darkMode form div.qa-q-list-item.qa-q-list-item-featured,
   body.darkMode #header {
     border: 2px solid #ffe183;
@@ -398,20 +445,20 @@ html body.darkMode header a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link
     background-color: #607d8b !important;
   }
 
-  body.darkMode.page-Special_EditPerson div.five table tr:nth-child(1) div,
-  body.darkMode.page-Special_EditPerson div.five table tr:nth-child(1) div a:link,
-  body.darkMode.page-Special_EditPerson div.five table tr:nth-child(1) div a:visited,
-  body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#eef;"],
-  body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#eef;"] a:link,
-  body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#eef;"] a:visited {
+  body.darkMode.edit-person div.five table tr:nth-child(1) div,
+  body.darkMode.edit-person div.five table tr:nth-child(1) div a:link,
+  body.darkMode.edit-person div.five table tr:nth-child(1) div a:visited,
+  body.darkMode.edit-person div.five table ol li[style="background-color:#eef;"],
+  body.darkMode.edit-person div.five table ol li[style="background-color:#eef;"] a:link,
+  body.darkMode.edit-person div.five table ol li[style="background-color:#eef;"] a:visited {
     background-color: #191970 !important;
   }
-  body.darkMode.page-Special_EditPerson div.five table tr:nth-child(2) div,
-  body.darkMode.page-Special_EditPerson div.five table tr:nth-child(2) div a:link,
-  body.darkMode.page-Special_EditPerson div.five table tr:nth-child(2) div a:visited,
-  body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#fee;"],
-  body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#fee;"] a:link,
-  body.darkMode.page-Special_EditPerson div.five table ol li[style="background-color:#fee;"] a:visited {
+  body.darkMode.edit-person div.five table tr:nth-child(2) div,
+  body.darkMode.edit-person div.five table tr:nth-child(2) div a:link,
+  body.darkMode.edit-person div.five table tr:nth-child(2) div a:visited,
+  body.darkMode.edit-person div.five table ol li[style="background-color:#fee;"],
+  body.darkMode.edit-person div.five table ol li[style="background-color:#fee;"] a:link,
+  body.darkMode.edit-person div.five table ol li[style="background-color:#fee;"] a:visited {
     background-color: #5f0126 !important;
   }
   body.darkMode .qa-nav-sub {
@@ -553,5 +600,20 @@ html body.darkMode header a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link
   }
   body.wte#options #categoryBar {
     border-bottom: #e1efbb 1px solid;
+  }
+
+  body.darkMode header,
+  body.darkMode header *,
+  body.darkMode header div.container,
+  body.darkMode header div *,
+  body.darkMode .tabs--wrapper,
+  body.darkMode .tabs--wrapper *:not(.badge),
+  body.darkMode footer,
+  body.darkMode footer *,
+  html body.darkMode .tabs--wrapper ul.profile-tabs a:link,
+  html body.darkMode .tabs--wrapper ul.profile-tabs a:visited,
+  html body.darkMode footer a:link,
+  html body.darkMode footer a:visited {
+    background-color: #666666 !important;
   }
 }

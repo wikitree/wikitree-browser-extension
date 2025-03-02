@@ -13,6 +13,10 @@
   border: 3px solid #8fc741;
   margin: 0.5em 0;
 }
+#googleSearchBox div.row {
+  margin-left: 1em;
+  margin-right: 1em;
+}
 
 #form-wrapper label.searchBoxLabel {
   font-weight: bold;

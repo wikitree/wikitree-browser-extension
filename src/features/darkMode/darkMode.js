@@ -12,7 +12,10 @@ function removeDarkMode() {
     $(this).removeClass("small_" + index);
   });
   $("img[src$='images/wikitree-logo-white.png']").attr("src", "https://" + mainDomain + "/images/wikitree-logo.png");
-  $("img[src$='wikitree-logo-small-white.png']").attr("src", "https://" + mainDomain + "/images/wikitree-small.png");
+  $("img[src$='wikitree-logo-small-white.png'],img[src*='wikitree-logo-tagline.png']").attr(
+    "src",
+    "https://" + mainDomain + "/images/wikitree-small.png"
+  );
   $("img[src$='wikitree-logo-white-G2G.png']").attr("src", "https://" + mainDomain + "/images/Wiki-Tree.gif");
   $("img[src$='G2G-transparent.png']").attr("src", "https://" + mainDomain + "/images/G2G.gif");
   $("#filter_name")
@@ -46,8 +49,14 @@ function doDarkMode() {
     $(this).addClass("small_" + index);
   });
 
+  getFeatureOptions("darkMode").then((options) => {
+    if (options.headingBackgroundsOn) {
+      addHeadingBackgrounds(options.headingBackgroundColor);
+    }
+  });
+
   $("img[src*='wikitree-logo.png']").attr("src", wikiTreeLogoWhite);
-  $("img[src*='wikitree-small.png']").attr("src", wikiTreeLogoSmallWhite);
+  $("img[src*='wikitree-small.png'],img[src*='wikitree-logo-tagline.png']").attr("src", wikiTreeLogoSmallWhite);
   $("img[src*='Wiki-Tree.gif']").attr("src", wikiTreeLogoWhiteG2G);
   $("img[src*='G2G.gif']").attr("src", G2GTransparent);
   $("#filter_name")
@@ -78,6 +87,26 @@ function doDarkMode() {
       });
     }, 700);
   }
+}
+
+function addHeadingBackgrounds(color) {
+  const style = document.createElement("style");
+  style.id = "headingBackgrounds";
+  style.innerHTML = `
+    body.darkMode h2,
+    body.darkMode h1,
+    body.darkMode h3,
+    body.darkMode h4,
+    body.darkMode h5,
+    body.darkMode h2 span,
+    body.darkMode h1 span {
+      background-color:${color} !important;
+      border-radius: 5px;
+      padding: 3px;
+      color: #dcddde;
+    }
+  `;
+  document.head.appendChild(style);
 }
 
 async function initDarkMode() {
