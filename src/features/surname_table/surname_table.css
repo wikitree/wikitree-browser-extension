@@ -17,6 +17,14 @@ body.watchlist table.wt.table .blueWall {
   margin: 0;
   border-radius: 0;
 }
+#Sort-Table span.index {
+  width: 2em;
+  display: inline-block;
+  text-align: center;
+}
+body.darkMode #Sort-Table span.index {
+  color: #333333;
+}
 tr.surnameTableHeaderRow #birthLocation {
   cursor: pointer;
 }
@@ -47,7 +55,6 @@ body.watchlist table.wt.table span.TL {
   background: white;
   top: 0em;
   font-size: 0.7em;
-  z-index: 1000;
 }
 
 #Sort-Table span.PM.watchlist,
@@ -62,6 +69,10 @@ body.watchlist table.wt.table span.TL.watchlist {
 
 #Sort-Table span.orphan,
 body.watchlist table.wt.table span.orphan {
+  display: inline-block;
+  position: absolute;
+  left: -2.2em;
+  top: 1em;
   background-color: lightblue;
   font-weight: bold;
   color: navy;
@@ -113,9 +124,9 @@ body.watchlist table.wt.table span.index {
   border-radius: 50%;
   font-size: 0.8em;
   background: #ffffff;
-  position: relative;
+  position: absolute;
   top: -0.5em;
-  left: -0.5em;
+  left: -2em;
 }
 
 #buttonBox {

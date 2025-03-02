@@ -190,9 +190,7 @@ async function dNumbering() {
       return; // Skip the header and filter rows
     }
     let indexCell = $(this).find("td").eq(0);
-    indexCell
-      .css("position", "relative")
-      .prepend($("<span class='index'>" + j + "</span>").css({ position: "absolute", left: "-1.2em" }));
+    indexCell.css("position", "relative").prepend($("<span class='index'>" + j + "</span>"));
     j++;
   });
 }
@@ -603,7 +601,8 @@ async function initSurnameTableSorting() {
   // This flips all location columns' displayed text between small->big and big->small,
   // and re-sorts if the last-sorted column was a location column.
   if (!$("#flipLocationsButton").length) {
-    const $flipBtn = $("<button id='flipLocationsButton' class='small'>Flip Locations</button>");
+    const titleText = "Flip all birth/death locations between small->big and big->small.";
+    const $flipBtn = $(`<button id='flipLocationsButton' title="${titleText}" class='small'>Flip Locations</button>`);
     $flipBtn.insertBefore(theTable);
 
     $flipBtn.on("click", function () {
@@ -879,12 +878,8 @@ async function getBrickWalls() {
         if (person.Connected == "0") {
           dParentEl.find("a").each(function () {
             if ($(this).attr("href").match("/wiki/") != null) {
-              if (dParentEl.find("img.unconnected").length == 0) {
-                dParentEl.append(
-                  $(`
-                    <img class='unconnected' title='Unconnected' src="https://www.wikitree.com/images/icons/unconnected.png" style="width:16px; height:16px; position: relative; top:3px; margin-left:0.2em;" />
-                  `)
-                );
+              if (dParentEl.find(".icon--unconnected").length == 0) {
+                dParentEl.append($(`<span class="icon--unconnected"></span>`));
               }
             }
           });
