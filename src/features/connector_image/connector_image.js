@@ -5,7 +5,7 @@ import { profilePerson } from "../../core/common";
 shouldInitializeFeature("connectorImage").then((result) => {
   if (result) {
     const name = profilePerson.FullName;
-    const hasCFProfiles = $("section.connections").length > 0;
+    const hasCFProfiles = $("section.connections").length > 0 || $("div.container p a:contains('degrees from')").length;
     const hasJigsawMan = $("div.page--title span.icon--unconnected").length > 0;
     const id = profilePerson.Name;
     if (!hasCFProfiles && !hasJigsawMan) {

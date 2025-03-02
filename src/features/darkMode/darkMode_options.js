@@ -30,6 +30,18 @@ const darkModeFeature = {
       ],
       defaultValue: "always",
     },
+    {
+      id: "headingBackgroundsOn",
+      type: OptionType.CHECKBOX,
+      label: "Heading Backgrounds",
+      defaultValue: false,
+    },
+    {
+      id: "headingBackgroundColor",
+      type: OptionType.COLOR,
+      label: "Heading Background Color",
+      defaultValue: "#008000",
+    },
   ],
 };
 

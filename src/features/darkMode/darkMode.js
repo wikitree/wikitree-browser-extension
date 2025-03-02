@@ -49,6 +49,12 @@ function doDarkMode() {
     $(this).addClass("small_" + index);
   });
 
+  getFeatureOptions("darkMode").then((options) => {
+    if (options.headingBackgroundsOn) {
+      addHeadingBackgrounds(options.headingBackgroundColor);
+    }
+  });
+
   $("img[src*='wikitree-logo.png']").attr("src", wikiTreeLogoWhite);
   $("img[src*='wikitree-small.png'],img[src*='wikitree-logo-tagline.png']").attr("src", wikiTreeLogoSmallWhite);
   $("img[src*='Wiki-Tree.gif']").attr("src", wikiTreeLogoWhiteG2G);
@@ -81,6 +87,26 @@ function doDarkMode() {
       });
     }, 700);
   }
+}
+
+function addHeadingBackgrounds(color) {
+  const style = document.createElement("style");
+  style.id = "headingBackgrounds";
+  style.innerHTML = `
+    body.darkMode h2,
+    body.darkMode h1,
+    body.darkMode h3,
+    body.darkMode h4,
+    body.darkMode h5,
+    body.darkMode h2 span,
+    body.darkMode h1 span {
+      background-color:${color} !important;
+      border-radius: 5px;
+      padding: 3px;
+      color: #dcddde;
+    }
+  `;
+  document.head.appendChild(style);
 }
 
 async function initDarkMode() {
