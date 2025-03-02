@@ -1,6 +1,7 @@
 /*
 Created By: Ian Beacall (Beacall-6)
 */
+
 import $ from "jquery";
 import "jquery-ui/ui/widgets/dialog";
 import "jquery-ui-dist/jquery-ui.css";
@@ -16,6 +17,12 @@ let birthDate = "";
 let deathDate = "";
 let message = [];
 
+/**
+ * Initializes the unnamedInfant feature by dynamically importing the CSS
+ * and then calling initUnnamedInfant().
+ *
+ * @returns {void}
+ */
 shouldInitializeFeature("unnamedInfant").then((result) => {
   if (result) {
     import("./unnamed_infant.css").then(() => {
@@ -24,6 +31,12 @@ shouldInitializeFeature("unnamedInfant").then((result) => {
   }
 });
 
+/**
+ * Retrieves the "Created" date for the current profile using the WikiTree API.
+ *
+ * @async
+ * @returns {Promise<string>} A promise that resolves to the created date string.
+ */
 async function getCreatedDate() {
   // get u parameter from URL
   const urlParams = new URLSearchParams(window.location.search);
@@ -34,6 +47,12 @@ async function getCreatedDate() {
   return person.Created;
 }
 
+/**
+ * Determines whether a date (in YYYYMMDD format) is more than six months old.
+ *
+ * @param {string} dateString - The date string in YYYYMMDD format.
+ * @returns {boolean} True if the date is more than six months old; otherwise, false.
+ */
 function isMoreThanSixMonthsOld(dateString) {
   // Extract the date parts from the input string
   const year = parseInt(dateString.substring(0, 4), 10);
@@ -53,6 +72,14 @@ function isMoreThanSixMonthsOld(dateString) {
   return diffMonths > 6 || (diffMonths === 6 && now.getDate() >= day);
 }
 
+/**
+ * Creates and displays a confirmation dialog with the specified message.
+ * Calls the callback with parameters indicating the user's choice.
+ *
+ * @param {string} message - The message to display in the dialog.
+ * @param {Function} callback - A function called with (confirmed: boolean, dontShowAgain: boolean).
+ * @returns {void}
+ */
 function confirmDialog(message, callback) {
   const dialog = $("<div id='dialog-confirm' title='Check boxes?'><p>" + message + "</p></div>");
   dialog.dialog({
@@ -88,6 +115,15 @@ function confirmDialog(message, callback) {
   });
 }
 
+/**
+ * Offers to check the "No spouses" and "No children" boxes if appropriate.
+ * Uses profile data to decide whether to show the prompt.
+ *
+ * @async
+ * @param {string} profileId - The current profile ID.
+ * @param {Object} options - Feature options for unnamedInfant.
+ * @returns {Promise<void>} Resolves when processing is complete.
+ */
 async function offerToCheckBoxes(profileId, options) {
   const profileData = await hasProfile(profileId);
 
@@ -105,7 +141,7 @@ async function offerToCheckBoxes(profileId, options) {
   // Look for any links to /wiki/ in the childrenTDparent
   const childrenLinks = childrenTDparent.find("li");
   const spousesTDparent = $("#editform #Spouses");
-  // Look for any likns to /wiki/ in the spousesTDparent
+  // Look for any links to /wiki/ in the spousesTDparent
   const spousesLinks = spousesTDparent.find("li");
 
   let popupMessage = "This profile is over 6 months old and there are no ";
@@ -145,6 +181,11 @@ async function offerToCheckBoxes(profileId, options) {
   });
 }
 
+/**
+ * Calculates the age based on the global birthDate and deathDate variables.
+ *
+ * @returns {{years: number, months: number, days: number}|undefined} An object with age in years, months, and days, or undefined if dates are missing.
+ */
 function findAge() {
   if (!birthDate || !deathDate) {
     console.log("No birth or death date");
@@ -167,9 +208,8 @@ function findAge() {
     return;
   }
 
-  // Calculate age in years, months, and days
+  // Calculate age in milliseconds
   const age = deathDateParsed - birthDateParsed;
-
   const years = Math.floor(age / 31536000000);
   const months = Math.floor((age % 31536000000) / 2628000000);
   const days = Math.floor(((age % 31536000000) % 2628000000) / 86400000);
@@ -177,6 +217,11 @@ function findAge() {
   return { years, months, days };
 }
 
+/**
+ * Checks and triggers the "No spouses" and "No children" checkboxes if not already checked.
+ *
+ * @returns {Array<string>} An array of messages describing the changes made.
+ */
 function checkBoxes() {
   $("input[name='mStatus_Spouse'],input[name='mNoChildren']").each(function () {
     if ($(this).prop("checked") == false) {
@@ -191,6 +236,13 @@ function checkBoxes() {
   return message;
 }
 
+/**
+ * Adds a "Died Young" sticker to the Biography field if appropriate.
+ * Optionally uses a custom image if specified in options.
+ *
+ * @param {Object} options - Feature options for unnamedInfant.
+ * @returns {Array<string>} The updated message array.
+ */
 function addDiedYoungSticker(options) {
   const diedYoung = "{{Died Young}}";
   const diedYoungWithoutEnd = "{{Died Young";
@@ -205,15 +257,13 @@ function addDiedYoungSticker(options) {
     const bio = bioBox.val();
     // Search Biography for Died Young sticker
     if (!bio.includes(diedYoungWithoutEnd)) {
-      // Find /== ?Biography ?==/ and insert Died Young sticker after it.
+      // Find the Biography section and insert the sticker after it.
       const bioIndex = bio.search(/== ?Biography ?==/);
       if (bioIndex != -1) {
         let diedYoungTemplate = diedYoung;
-
         if (options.diedYoungImage && options.diedYoungImage != "Default") {
           diedYoungTemplate = `{{Died Young|${options.diedYoungImage}}}`;
         }
-
         const bioStart = bio.slice(0, bioIndex + 15);
         const bioEnd = bio.slice(bioIndex + 15);
         bioBox.val(bioStart + "\n" + diedYoungTemplate + "\n" + bioEnd);
@@ -227,6 +277,13 @@ function addDiedYoungSticker(options) {
   return message;
 }
 
+/**
+ * Processes the unnamed infant logic.
+ * Checks birth and death dates, applies feature options, and updates the profile as needed.
+ *
+ * @async
+ * @returns {Promise<void>} Resolves when processing is complete.
+ */
 async function doUnnamedInfant() {
   birthDate = $("#mBirthDate").val();
   deathDate = $("#mDeathDate").val();
@@ -242,7 +299,7 @@ async function doUnnamedInfant() {
 
   const standardName = "Unnamed Infant";
 
-  // Unnamed Infant
+  // Unnamed Infant: if first name matches unnamed/unknown and birthDate equals deathDate, and feature enabled.
   if (firstName.match(/unnamed|unknown/i) && birthDate == deathDate && options.unnamedInfant) {
     if (firstName != standardName) {
       $("#mFirstName,#mRealName").val(standardName);
@@ -252,7 +309,7 @@ async function doUnnamedInfant() {
       checkBoxes();
       addDiedYoungSticker(options);
     }
-    // Show message
+    // Show message if any changes were made.
     if (message.length) {
       const messageText = message.join("<br>");
       showCopyMessage(messageText, true);
@@ -267,7 +324,6 @@ async function doUnnamedInfant() {
       checkBoxes();
       addDiedYoungSticker(options);
     }
-    // Show message
     if (message.length) {
       const messageText = message.join("<br>");
       showCopyMessage(messageText, true);
@@ -276,7 +332,6 @@ async function doUnnamedInfant() {
     offerToCheckBoxes(profileId, options);
   } else if (age && age.years < 13) {
     addDiedYoungSticker(options);
-    // Show message
     if (message.length) {
       const messageText = message.join("<br>");
       showCopyMessage(messageText, true);
@@ -284,6 +339,12 @@ async function doUnnamedInfant() {
   }
 }
 
+/**
+ * Initializes the unnamed infant feature.
+ * Sets up event listeners on various buttons so that the doUnnamedInfant logic is triggered.
+ *
+ * @returns {void}
+ */
 function initUnnamedInfant() {
   $("#addNewPersonButton,#dismissMatchesButton,#enterBasicDataButton,#wpSaveDraft,#wpSave").on(
     "mouseenter",
