@@ -5,7 +5,15 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage.js";
 import { mainDomain } from "../../core/pageType";
+import "./darkMode.css";
 
+/**
+ * Removes dark mode styles from the page.
+ * Removes the "darkMode" class from the body, resets background images,
+ * and updates logo image sources to their non-dark versions.
+ *
+ * @returns {void}
+ */
 function removeDarkMode() {
   $("body").removeClass("darkMode");
   $("#content div.SMALL").each(function (index) {
@@ -43,6 +51,13 @@ const whiteTree = chrome.runtime.getURL("images/tree-white.png");
 const darkModeCSS = chrome.runtime.getURL("features/darkMode/darkMode.css");
 const DNAimage = chrome.runtime.getURL("images/DNA_dark.png");
 
+/**
+ * Applies dark mode styles to the page.
+ * Adds the "darkMode" class to the body and associated elements, updates image sources
+ * to dark mode versions, and applies additional style changes. Also adds dark mode styling to iframes on the MergePerson page.
+ *
+ * @returns {void}
+ */
 function doDarkMode() {
   $("body").addClass("darkMode");
   $("#content div.SMALL").each(function (index) {
@@ -89,6 +104,14 @@ function doDarkMode() {
   }
 }
 
+/**
+ * Adds heading backgrounds for dark mode.
+ * Creates a style element that sets the background color, border radius, padding, and text color
+ * for heading elements in dark mode.
+ *
+ * @param {string} color - The background color to apply to headings.
+ * @returns {void}
+ */
 function addHeadingBackgrounds(color) {
   const style = document.createElement("style");
   style.id = "headingBackgrounds";
@@ -109,6 +132,14 @@ function addHeadingBackgrounds(color) {
   document.head.appendChild(style);
 }
 
+/**
+ * Initializes dark mode based on user options.
+ * Retrieves dark mode options and applies dark mode if the mode is set to "system" and the system prefers dark,
+ * or directly if the mode is not "system".
+ *
+ * @async
+ * @returns {Promise<void>} Resolves when dark mode initialization is complete.
+ */
 async function initDarkMode() {
   const options = await getFeatureOptions("darkMode");
   if (options.mode == "system") {
@@ -130,7 +161,7 @@ async function initDarkMode() {
 
 shouldInitializeFeature("darkMode").then((result) => {
   if (result) {
-    import("./darkMode.css");
+    // import("./darkMode.css");
     initDarkMode();
   }
 });
