@@ -290,3 +290,10 @@ nav.menuClone div.btn-group ul li a {
   text-decoration: none;
   display: block;
 }
+
+body.darkMode #customMenuInfo,
+body.darkMode #customMenuContainer #addLinkForm {
+  background-color: #36393f !important;
+  color: #dedecb !important;
+  border: 2px solid #e1f0b4;
+}

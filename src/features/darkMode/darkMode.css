@@ -83,7 +83,8 @@
   body.darkMode .googleSearch:not(footer .googleSearch),
   body.darkMode ul.views li,
   body.darkMode ul.views li a,
-  body.darkMode #distanceFromYou {
+  body.darkMode #distanceFromYou,
+  body.darkMode #searchBar {
     background-color: #36393f !important;
     color: #dedecb !important;
   }
