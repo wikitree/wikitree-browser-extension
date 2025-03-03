@@ -24,6 +24,51 @@ shouldInitializeFeature("myMenu").then((result) => {
     if (!window.randomProfileOptions) {
       window.randomProfileOptions = getFeatureOptions("randomProfile");
     }
+
+    let resizeTimeout;
+
+    window.onresize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        const theWidth = window.innerWidth;
+        console.log("Window width:", theWidth);
+
+        const menuGroup = document.getElementById("myMenuGroup");
+        const nav = document.querySelector("nav[aria-label='Main Navigation']");
+
+        if (!menuGroup) {
+          console.warn("Menu group not found!");
+          return;
+        }
+
+        if (theWidth < 992) {
+          if (!menuGroup.classList.contains("fixed")) {
+            console.log("Moving menu to body as fixed");
+            menuGroup.classList.add("fixed");
+            document.body.appendChild(menuGroup);
+          }
+        } else {
+          if (menuGroup.classList.contains("fixed")) {
+            console.log("Moving menu back to main navigation");
+
+            // Remove ALL extra instances from body to prevent duplication
+            document.querySelectorAll("body #myMenuGroup").forEach((el) => el.remove());
+
+            // Ensure it is only appended once
+            if (!nav.querySelector("#myMenuGroup")) {
+              console.log("Appending back to navigation");
+              menuGroup.classList.remove("fixed");
+              nav.appendChild(menuGroup);
+            } else {
+              console.warn("Menu is already in navigation, skipping append");
+            }
+          }
+        }
+      }, 50); // Debounce time
+    };
+
+    // Ensure correct placement on page load
+    window.addEventListener("load", window.onresize);
   }
 
   // Prevent closing when clicking inside the popup
@@ -243,7 +288,7 @@ function addCustomMenu() {
   $("#myCustomMenuContainer").remove();
   const myMenuGearsSrc = chrome.runtime.getURL("images/settings30.png");
   const outNow = $(`
-    <div class='btn-group'>
+    <div class='btn-group' id="myMenuGroup">
       <button class="myMenuLink btn btn-link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
         My Menu
       </button>

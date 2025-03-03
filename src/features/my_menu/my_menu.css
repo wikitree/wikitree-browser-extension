@@ -297,3 +297,20 @@ body.darkMode #customMenuContainer #addLinkForm {
   color: #dedecb !important;
   border: 2px solid #e1f0b4;
 }
+
+body.darkMode #myMenuGroup.fixed,
+body.darkMode .myCustomMenu {
+  background-color: #666666 !important;
+}
+
+#myMenuGroup.fixed {
+  position: fixed;
+  top: 1em;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10em;
+  padding-top: 0;
+  z-index: 1000;
+  padding-bottom: 0;
+  border: 0;
+}
