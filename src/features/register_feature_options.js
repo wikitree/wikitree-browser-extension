@@ -89,6 +89,7 @@ import "./image_zoom/image_zoom_options";
 import "./language_setting/language_setting_options";
 import "./links_to_new_tabs/links_to_new_tabs_options";
 import "./locationsHelper/locationsHelper_options";
+import "./menu_hover/menu_hover_options";
 import "./pending_merges_filters/pending_merges_filters_options";
 import "./printerfriendly/printerfriendly_options";
 import "./randomProfile/randomProfile_options";

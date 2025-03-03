@@ -176,8 +176,9 @@ console.log("Feature creation complete.");
  * Steps to use:
  * 1. Run the script using Node.js from the command line with the required arguments:
  *    ```
- *    node create-feature.js -f new_feature_name -a "Author Name" -i AuthorID -c "Feature Category" -p "PageType1, PageType2"
+ *    node scripts/create-feature.js -f new_feature_name -a "Author Name" -i AuthorID -c "Feature Category" -p "PageType1, PageType2"
  *    ```
+ *    e.g. node scripts/create-feature.js -f menu_hover -a "Ian Beacall" -i Beacall-6 -c "Global" -p "isMainDomain"
  *
  *    Arguments:
  *    - `-f` or `--featureName`: The name of the new feature in snake_case (e.g., `new_feature_name`).

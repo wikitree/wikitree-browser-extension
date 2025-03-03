@@ -94,6 +94,8 @@ import "./features/randomProfile/randomProfile";
 import "./features/what_links_here/what_links_here";
 
 /* MARKER: Default place for new features. Move these to a more appropriate place.*/
+import "./features/menu_hover/menu_hover";
+
 import "./features/links_to_new_tabs/links_to_new_tabs";
 
 //import "./features/family_status_sync/family_status_sync"; // Disabled for now

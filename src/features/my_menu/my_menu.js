@@ -288,7 +288,7 @@ function addCustomMenu() {
   $("#myCustomMenuContainer").remove();
   const myMenuGearsSrc = chrome.runtime.getURL("images/settings30.png");
   const outNow = $(`
-    <div class='btn-group' id="myMenuGroup">
+    <div class='btn-group' id="myMenuGroup" data-menu="MyMenu">
       <button class="myMenuLink btn btn-link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
         My Menu
       </button>
