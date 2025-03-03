@@ -5,7 +5,6 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage.js";
 import { mainDomain } from "../../core/pageType";
-import "./darkMode.css";
 
 /**
  * Removes dark mode styles from the page.
@@ -164,7 +163,7 @@ async function initDarkMode() {
 
 shouldInitializeFeature("darkMode").then((result) => {
   if (result) {
-    // import("./darkMode.css");
+    import("./darkMode.css");
     initDarkMode();
   }
 });
