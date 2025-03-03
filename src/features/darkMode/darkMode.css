@@ -20,7 +20,7 @@
   body.darkMode h5 a:visited,
   body.darkMode h6 a:visited,
   body.darkMode p,
-  body.darkMode b,
+  body.darkMode b:not(.menu-style .dropdown-menu a b),
   body.darkMode i,
   body.darkMode em,
   body.darkMode strong,
@@ -28,8 +28,7 @@
   body.darkMode button.btn-utility,
   body.darkMode .wrapper,
   body.darkMode div:not(.tabs--wrapper, .tabs--wrapper div, .large,header div,footer div, .qa-nav-main, .qa-nav-sub, .qa-footer, .qa-footer a, .qa-footer a:link, .qa-footer a:visited, .qa-footer a:hover, .qa-q-item-stats, .qa-q-item-stats *,.qa-q-view-stats, .qa-q-view-stats *, .qa-q-view-stats .green.rounded, .qa-q-view-stats .green.rounded *, .qa-part-q-view, .qa-part-q-view *, .qa-part-q-view .green.rounded.box, .ui-dialog, .ui-dialog *),
-  body.darkMode a:link:not(span.EDIT a:link,aside a:link,.tabs--wrapper a:link,h1 a,h2 a, h3 a, h4 a, h5 a, h6 a, .qa-nav-main-link, .qa-nav-sub-link, .qa-nav-footer-link, .pureCssMenu a, #footer a,.qa-q-item-tag-item a, .surnameTableHeaderRow a),
-  body.darkMode a:visited:not(span.EDIT a:visited,aside a:visited,.tabs--wrapper a:visited, h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited, h5 a:visited, h6 a:visited, .qa-nav-main-link, .qa-nav-sub-link, .qa-nav-footer-link, #footer a, .qa-q-item-tag-item a, .surnameTableHeaderRow a),
+  body.darkMode a:visited:not(.menu-style .dropdown-menu a:visited,span.EDIT a:visited,aside a:visited,.tabs--wrapper a:visited, h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited, h5 a:visited, h6 a:visited, .qa-nav-main-link, .qa-nav-sub-link, .qa-nav-footer-link, #footer a, .qa-q-item-tag-item a, .surnameTableHeaderRow a),
   body.darkMode .small,
   body.darkMode strong,
   body.darkMode .strong,
@@ -87,6 +86,12 @@
   body.darkMode #searchBar {
     background-color: #36393f !important;
     color: #dedecb !important;
+  }
+  body.darkMode
+    a:link:not(.menu-style .dropdown-menu a:link, span.EDIT a:link, aside a:link, .tabs--wrapper a:link, h1 a, h2 a, h3
+      a, h4 a, h5 a, h6 a, .qa-nav-main-link, .qa-nav-sub-link, .qa-nav-footer-link, .pureCssMenu a, #footer
+      a, .qa-q-item-tag-item a, .surnameTableHeaderRow a) {
+    color: #ffee99 !important;
   }
 
   body.darkmode #distanceFromYou {
@@ -162,21 +167,51 @@
     border-color: #8fc641 !important;
   }
 
-  html body.darkMode .sixteen h1 a:link,
-/* Tree Apps */  
-html body.darkMode header a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), html body.darkMode header a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), html body.darkMode .cc7Table a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a),
- html body.darkMode .cc7Table a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), html body.darkMode header a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a), html body.darkMode .cc7Table a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,ul.pureCssMenu a,#footer a) {
+  /* Tree Apps */
+  html
+    body.darkMode
+    header
+    a:link:not(.menu-style .dropdown-menu a, .qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, #footer
+      a),
+  html
+    body.darkMode
+    header
+    a:visited:not(.menu-style
+      .dropdown-menu
+      a, .qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a),
+  html
+    body.darkMode
+    .cc7Table
+    a:visited:not(.qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a),
+  html
+    body.darkMode
+    .cc7Table
+    a:link:not(.qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, #footer a),
+  html
+    body.darkMode
+    header
+    a:visited:not(.menu-style
+      .dropdown-menu
+      a, .qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a),
+  html
+    body.darkMode
+    .cc7Table
+    a:visited:not(.qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a) {
     color: #f3b51b !important;
   }
-  html body.darkMode .sixteen h1 a:visited,
+
   html
     body.darkMode
     header
-    a:visited:not(.qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a),
+    a:visited:not(.menu-style
+      .dropdown-menu
+      a, .qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, #footer a),
   html
     body.darkMode
     header
-    a:visited:not(.qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a),
+    a:visited:not(.menu-style
+      .dropdown-menu
+      a, .qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a),
   html
     body.darkMode
     .cc7Table
@@ -188,7 +223,9 @@ html body.darkMode header a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link
   html
     body.darkMode
     header
-    a:visited:not(.qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a),
+    a:visited:not(.menu-style
+      .dropdown-menu
+      a, .qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a),
   html
     body.darkMode
     .cc7Table

@@ -118,6 +118,10 @@ export async function goToRandomProfile(ourCountry = false) {
 }
 
 export function addRandomProfileLocationBox(e) {
+  if ($("#randomProfilePopup").length > 0) {
+    return;
+  }
+
   let otherRandomProfileOptionButtonText = "Watchlist";
   let goButtonText = "All";
   if (window?.randomProfileOptions?.constrainToWatchlist) {
