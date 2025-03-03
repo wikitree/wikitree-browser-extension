@@ -31,13 +31,11 @@ shouldInitializeFeature("myMenu").then((result) => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
         const theWidth = window.innerWidth;
-        console.log("Window width:", theWidth);
 
         const menuGroup = document.getElementById("myMenuGroup");
         const nav = document.querySelector("nav[aria-label='Main Navigation']");
 
         if (!menuGroup) {
-          console.warn("Menu group not found!");
           return;
         }
 
