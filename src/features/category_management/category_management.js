@@ -1316,8 +1316,11 @@ function RemoveCat(wpTextbox1, cat) {
 }
 
 function DoSave(summary) {
-  $document.getElementById("wpSummary").value = summary;
-  alert("val" + $document.getElementById("wpSummary").value);
+  setTimeout(() => {
+    $document.getElementById("wpSummary").value = summary;
+    //alert("val" + $document.getElementById("wpSummary").value);
+  }, 5000);
+
   //todo: wpSummary
   const saveButton = $document.getElementById("wpSave");
   saveButton.disabled = false;
