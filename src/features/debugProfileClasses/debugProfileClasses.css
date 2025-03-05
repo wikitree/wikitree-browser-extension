@@ -1,29 +1,20 @@
-/* already easily-identifiable elements */
-
-/* page-header */
-#header {
+.x-header {
   border-bottom: 5px solid #000 !important;
   opacity: 0.5;
 }
 
-/* page-footer */
-#footer {
+.x-footer {
   border-top: 5px solid #000 !important;
   opacity: 0.5;
 }
 
-/* toc */
-.x-content .toc {
-  background: rgba(240, 255, 240, 0.5) !important;
+.x-layout-v2 body {
+  border-top: 7px solid lime;
 }
 
-/* status box */
-.x-content .status {
-  border: 5px dashed #c30 !important;
-  opacity: 0.5;
+.x-layout-v1 body {
+  border-top: 7px solid orange;
 }
-
-/* elements that need to be identified manually */
 
 .x-profile {
   border: 3px dashed #999;
@@ -33,12 +24,22 @@
   background: #ff9 !important;
 }
 
+.x-toc {
+  background: rgba(240, 255, 240, 0.5) !important;
+}
+
+.x-status {
+  border: 5px dashed #c30 !important;
+  opacity: 0.5;
+}
+
 .x-sidebar {
   background: #9ab !important;
 }
 
-.x-sidebar > div[class*="x-sidebar-"] {
-  border: 2px dashed #666;
+.x-sidebar > div[class*="x-sidebar-"],
+.x-sidebar .x-sidebar-section {
+    border: 2px dashed #666;
 }
 
 .x-sidebar-status {
@@ -65,6 +66,10 @@
 
 .x-sidebar-collaboration {
   border-color: #09f !important;
+}
+
+.x-callout-collaboration {
+  border: 2px dashed #09f !important;
 }
 
 .x-sidebar-research {
@@ -220,4 +225,20 @@ br.x-memories {
 
 .x-categories #categories {
   background: #ecf !important;
+}
+
+.x-breadcrumbs {
+  background: #d9f !important;
+}
+
+.x-member-section {
+  background: #999 !important;
+}
+
+.x-callout {
+  opacity: 0.5 !important;
+}
+
+.x-banner {
+  opacity: 0.25 !important;
 }

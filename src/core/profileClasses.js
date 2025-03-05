@@ -11,8 +11,11 @@ export let hasProfileClasses = false;
 export function ensureProfileClasses() {
   // only apply once per load by tracking the status in hasProfileClasses
   if (!hasProfileClasses) {
-    // at the moment, WikiTree puts two different elements with id="content" on person pages (the heading and tabs are separate from the rest of the profile)
-    $("div[id='content']")
+    $("header").addClass("x-header");
+    $("footer").addClass("x-footer");
+
+    // there can be multiple sections with profile content (the heading and tabs are separate from the rest of the profile)
+    $("main, section#person, section#heading")
       .addClass("x-profile")
       .addClass(
         isProfilePage
@@ -24,100 +27,77 @@ export function ensureProfileClasses() {
           : ""
       );
 
-    // mark the CSS element to apply a custom background image
-    $("style")
-      .filter(function () {
-        let css = $(this).text();
-        let i1 = css.indexOf("BODY");
-        return i1 >= 0 && css.indexOf("background-image:") > i1;
-      })
-      .addClass("x-style-bg");
+    // mark the content section (on the left of the sidebar) which contains the biography, sources, etc. up to where the comments section starts; for categories, the content is all in the root section
+    $(".x-profile .body-text, .x-profile .tab-content, .x-profile-category .page--content").addClass("x-content");
 
-    // mark the heading content (the h1 beside the thumbnail image and the privacy status, which includes the scissors inside) *** varies by profile type
-    $(".x-profile-person > .row h1, .x-profile-space > .row h1").first().addClass("x-heading-title");
+    // mark the CSS element to apply a custom background image
+    $(".has--bg_img").addClass("x-style-bg");
+
+    // mark the heading content
+    $("section.x-profile h1").first().addClass("x-heading-title");
     $(".x-heading-title").closest(".row").addClass("x-heading");
-    $(".x-profile-category > .sixteen.columns h1").first().addClass("x-heading x-heading-title");
 
     // mark the thumbnail image container based on the heading
-    $(".x-heading > .alpha").first().addClass("x-thumbnail");
+    $(".x-heading .img-profile").first().addClass("x-thumbnail");
     $(
       ".x-thumbnail img[alt*='upload photo'], .x-thumbnail img[alt*='upload image'], .x-thumbnail img[alt*='no photo'], .x-thumbnail img[alt*='no image']"
     )
       .closest(".x-thumbnail")
       .addClass("x-thumbnail-default");
 
-    // mark the widgets (including the scissors container) inside the h1 tag, plus the green buttons like showHideTree
-    $(".x-heading-title button, .showHideTree, #showHideDescendants, #distanceFromYou").addClass("x-widget");
-    $(".x-profile-category .x-heading")
-      .prevAll()
-      .filter(function () {
-        return $(this).css("float") == "right" && $(this).has("a, button");
-      })
-      .addClass("x-widget");
-    $(function () {
-      // some extensions add these differently based on the type of profile, so we need to reapply these after the page is loaded and other extensions have made their updates
-      window.setTimeout(function () {
-        // .copyWidget seems mostly standard, but other extensions put their widgets in identified span tags (helpScissors, distanceFromYou, yourRelationshipText, etc.)
-        $(
-          ".x-heading-title button, .copyWidget, .x-heading-title span[id], .x-heading-title:not(.x-heading) ~ *[id]"
-        ).addClass("x-widget");
-      }, 500);
-    });
+    // mark the widgets (scissors, buttons, etc.)
+    $(".copy--buttons, .x-heading .btn-utility, .x-content .btn-utility").addClass("x-widget");
+    $(".x-profile-category .page--content > div.clearfix:first-child, .x-profile-category nav#bottm-nav").addClass("x-widget");
+
+    // relationships (family members, ancestor tree, descendants tree), including the tabs (which were buttons and considered widgets in the past)
+    $(".tree--header").addClass("x-widget");
+    $(".tree--header, .tree--header + .tab-content").addClass("x-relationships");
 
     // mark the privacy status container at the right of the heading
-    $(".x-heading a.nohover").parent().addClass("x-privacy");
+    $(".x-heading .privacy").parent().addClass("x-privacy");
 
-    // mark the content section (on the left of the sidebar) which contains the biography, sources, etc. up to where the comments section starts; for categories, the content is all in the root section
-    $(".x-profile > .ten.columns, .x-profile-category > .columns").first().addClass("x-content");
+    // special content elements
+    $(".x-content .toc").addClass("x-toc");
+    $(".x-content .status").addClass("x-status");
+
+    // PPP was in the sidebar on v1, so we'll maintain that cass just in case it was used anywhere, but also with additional classes
+    $(".protected--profile").closest(".row").addClass("x-sidebar-status x-status-ppp");
 
     // mark alert boxes (like research notes, orphaned profile, etc.)
+    $(
+      ".x-content > .status, .x-status-ppp, .x-content > .projectbox, .x-content > a[name]:last-of-type ~ .box.orange, .x-content:not(* > a[name]) > .box.orange"
+    ).addClass("x-alert");
+
     $(
       ".x-content > .status, .x-content > .projectbox, .x-content > a[name]:last-of-type ~ .box.orange, .x-content:not(* > a[name]) > .box.orange"
     ).addClass("x-alert");
 
     // mark the sidebar to the right (with DNA connections, images, collaboration, etc.)
-    $(".x-profile > .six.columns").first().addClass("x-sidebar");
+    $(".x-profile .container .col-lg-8 ~ .col-lg-4").addClass("x-sidebar");
 
     // mark the individual sections of the sidebar (based on content)
-    $(".x-sidebar div.row").each(function () {
+    $(".x-sidebar > section, .x-sidebar > aside").each(function () {
       let el = $(this);
-      if (el.attr("align") === "center" && el.has("a[href^='/wiki/']")) {
-        // status (like project protected)
-        el.addClass("x-sidebar-status");
-      } else if (
-        // Research
-        el.find(".large strong").filter(function () {
-          return $(this).text().replace(/\s/g, "") === "Research";
-        }).length > 0
-      ) {
-        el.addClass("x-sidebar-research");
-      } else if (
-        // Collaboration
-        el.find(".large strong").filter(function () {
-          return $(this).text().replace(/\s/g, "") === "Collaboration";
-        }).length > 0
-      ) {
-        el.addClass("x-sidebar-collaboration");
-      } else if (
+      el.addClass("x-sidebar-section");
+      if (el.is("#Profile-Data") || el.is("aside:first-child")) {
+        // Profile Data (also .x-audit, which was not in the sidebar in v1)
+        el.addClass("x-sidebar-profile");
+      } else if (el.is("#Photos")) {
         // Images
-        el.find(".large strong").filter(function () {
-          return $(this).text().replace(/\s/g, "").indexOf("Images") === 0;
-        }).length > 0
-      ) {
-        el.addClass("x-sidebar-images");
-      } else if (
+        el.addClass("x-photos x-sidebar-images");
+      } else if (el.is("#DNA-Connections")) {
         // DNA connections
-        el.find(".large strong").filter(function () {
-          return $(this).text().replace(/\s/g, "").indexOf("DNA") === 0;
-        }).length > 0
-      ) {
-        el.addClass("x-sidebar-dna");
+        el.addClass("x-dna-connections x-sidebar-dna");
         if (!el.find("ul").length > 0) {
+          // This section doesn't seem to be displayed if there are no carriers now, but keeping this logic just in case
           el.addClass("x-dna-no-carriers");
         }
-      } else if (el.find("a[href^='/g2g/']").length > 0) {
+      } else if (el.is("#Research")) {
+        // Research
+        el.addClass("x-callout-research x-sidebar-research");
+      } else if (el.is("#G2G")) {
         // G2G posts
-        el.addClass("x-sidebar-posts");
+        el.addClass("x-g2g-posts x-sidebar-posts");
         const appreciation = ["Wonderful WikiTreer", "Congratulations", "G2G points", "new pilot", "awesome WikiTreer"];
         const appreciationPosts = el.find("a[href^='/g2g/']").filter(function () {
           return appreciation.some((app) => new RegExp(app, "i").test($(this).text()));
@@ -129,27 +109,24 @@ export function ensureProfileClasses() {
       }
     });
 
-    // mark the tabs, including the main tabs at the top (which link to different pages) and the buttons below them (which jump to different views)
-    $(".x-profile .profile-tabs").addClass("x-tabs-page");
-    $(".x-profile #views-wrap").addClass("x-tabs-view");
-    $(".x-tabs-page, .x-tabs-view").first().closest(".columns").addClass("x-tabs"); // this includes the div containing both sets of tabs
+    // mark the tabs section and the buttons within it
+    $(".tabs--wrapper, .x-profile-category nav.x-widget").addClass("x-tabs");
+    $(".x-tabs .profile--actions").addClass("x-tabs-page");
+    $(".x-tabs #jump-nav").addClass("x-tabs-view");
 
     // mark any kind of edit links or buttons like [edit], [add spouse], Invite Others, etc.
-    $(".x-content div.EDIT, .x-content a.BLANK, .x-content .editsection, .x-content a[href$='#additions']").addClass(
+    $(".x-content .EDIT, .x-heading .EDIT, .x-content .editsection").addClass(
       "x-edit"
     );
+    $(".x-content .icon--edit").closest("a").addClass("x-edit");
 
-    // mark the audit lines in the profile that show the manager, last modified, how many times the page has been accessed, etc.
-    $(".x-content > div.SMALL").addClass("x-audit");
-    $(".x-content p.SMALL")
-      .filter(function () {
-        let txt = $(this).text();
-        return txt.indexOf("last modified") > -1 && txt.indexOf("been accessed") > -1;
-      })
-      .addClass("x-audit"); // category pages are displayed this way
+    // mark the audit section of the profile that show the manager, last modified, how many times the page has been accessed, etc.
+    // this also includes the "Problems or Questions?"" button
+    $(".x-sidebar .x-sidebar-profile, .x-profile-category nav + aside.footnote").addClass("x-audit");
+    $("button[data-bs-target='#privacyModal']").closest("span").addClass("x-audit");
 
     // mark the sources link in the table of contents
-    $(".x-content .toc a[href='#Sources']").closest("li").addClass("x-toc-sources");
+    $(".x-toc a[href='#Sources']").closest("li").addClass("x-toc-sources");
 
     // mark stickers inside the content
     $(".x-content > div")
@@ -200,8 +177,15 @@ export function ensureProfileClasses() {
       .addClass("x-section");
 
     // mark memories section (only at the bottom of certain profiles)
-    $("a[name='Memories']").prev().addClass("x-memories").nextAll().addClass("x-memories");
-    $(".x-memories, .x-content > br:last-child").addClass("x-memories").prevUntil("*:not(br)").addClass("x-memories"); // memories are usually preceded by a couple of line breaks, sometimes present at the end of content even if the memories block is missing
+    $("section#Memories").addClass("x-memories");
+
+    // mark collaboration section (was in the sidebar in the past)
+    $(".x-content.body-text ~ .box.rounded")
+      .filter(function () {
+        return $(this).find("h3 ~ ul").length > 0;
+      })
+      .last()
+      .addClass("x-callout-collaboration x-sidebar-collaboration");
 
     // mark elements related to certain sections (including header, lists, and any other root elements) up until the next section *** dependent on x-memories being set
     $(".x-content a[name].x-root-section, .x-content a[name].x-section").each(function () {
@@ -211,7 +195,7 @@ export function ensureProfileClasses() {
       }
       $(this)
         .first()
-        .nextUntil(".x-root-section, div.EDIT, .x-memories, br[clear] + div.SMALL")
+        .nextUntil(".x-root-section, .x-edit, .x-memories, br[clear] + div.SMALL")
         .addBack()
         .addClass(className)
         .each(function () {
@@ -245,30 +229,38 @@ export function ensureProfileClasses() {
     $("ul.x-sources > li, ol.x-sources > li").addClass("x-src");
 
     // mark comments section, including the form components
-    $("#comments, .comment-form-container").addClass("x-comments");
+    $("section#Comments").addClass("x-comments");
 
     // mark merges section, including pending and rejected matches
-    $(".x-profile-person a[name='matches']").parent().addClass("x-merges").nextAll(".five").addClass("x-merges");
+    $("section#Matches").addClass("x-merges");
 
     // mark connections to famous people
-    $(".x-profile-person > div:last-child")
+    $(".x-profile-person > section:last-child")
       .filter(function () {
         return $(this).text().indexOf("degrees from") > -1 && $(this).has("a[href*='Special:Connect']");
       })
-      .last()
       .addClass("x-connections");
 
-    // mark the container for the categories box, including the breadcrumbs at the bottom of profiles (ie. S > Smith > John Smith) and the top of the category profile
-    $(".x-profile-category .x-content > p > a:first-of-type[href$='/Category:Categories']")
-      .parent()
-      .addClass("x-categories");
+    // mark the categories section, including the breadcrumbs at the bottom of profiles (ie. S > Smith > John Smith) for backward compatibility
+    $("main ~ .category--links, main > .category--links:first-child").addClass("x-categories");
     $("#categories").closest(".container").addClass("x-categories");
     $("#categories").addClass("x-categories");
-    $("#footer").prev().addClass("x-categories");
+    $("main ~ #subfooter").addClass("x-categories x-breadcrumbs");
 
-    // mark the member section and the show/hide link for it
-    $("#memberSection").addClass("x-member-section");
-    $(".toggleMemberSection").parentsUntil(".columns").last().addClass("x-member-section");
+    // mark the member section and the header/button for it
+    $(".genealogical--interests, section#memberSection").addClass("x-member-section");
+
+    // new callout banner for member status or notables
+    $("aside.callout").addClass("x-callout");
+    $(".x-callout.notable--connection").addClass("x-callout-notable");
+    $(".x-callout:not(.notable--connection)")
+      .filter(function () {
+        return $(this).find(".is--verified").length > 0;
+      })
+      .addClass("x-callout-verified");
+
+    // mark the banner that sometimes is displayed above the header
+    $("body > #banner").addClass("x-banner");
 
     // prevent this from running more than once per page
     hasProfileClasses = true;
