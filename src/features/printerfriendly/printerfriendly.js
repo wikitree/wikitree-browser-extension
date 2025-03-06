@@ -10,10 +10,6 @@ import { ensureProfileClasses } from "../../core/profileClasses";
 import { profilePerson } from "../../core/common";
 
 shouldInitializeFeature("printerFriendly").then((result) => {
-  
-  // DISABLED for the moment, as it's not working as expected.
-  return; // Remove this to ENABLE the feature.
-
   if (result) {
     import("./printerfriendly.css");
     initPrinterFriendly();
@@ -24,26 +20,17 @@ async function initPrinterFriendly() {
   ensureProfileClasses();
   const options = await getFeatureOptions("printerFriendly");
 
-  const fontSizeOption = $(
-    `<style id="fontSizeOption">
-    @media print {
-      .print-content-only body{ 
-        font-size: ${options.fontSize}pt; 
+  if (options.fontSize) {
+    $(`<style id="printerFriendly_fontSize">
+      :root {
+        --x-print-font-size: ${options.fontSize}pt;
       }
-      .print-content-only li { 
-        line-height: 1em !important; 
-      }
-      .print-content-only * { 
-        max-width:100%; 
-      }
-    }
-    </style>`
-  );
+    </style>`).appendTo("head");
+  }
 
   if (!!options.onBrowserPrint) {
     // this will force the browser to always print only the biography content, whether the menu link is used or not
     $("html").addClass("print-content-only");
-    fontSizeOption.appendTo("head");
   }
 
   if (options.addMenuItem !== false) {
@@ -72,12 +59,10 @@ async function initPrinterFriendly() {
     $(`.wte-tm-printer-friendly`).on("click", () => {
       if (!options.onBrowserPrint) {
         $("html").addClass("print-content-only");
-        fontSizeOption.appendTo("head");
       }
       window.print();
       if (!options.onBrowserPrint) {
         $("html").removeClass("print-content-only");
-        fontSizeOption.remove();
       }
     });
   }
@@ -99,13 +84,4 @@ async function initPrinterFriendly() {
   if (!!options.excludeSources) {
     $("html").addClass("no-print-sources");
   }
-
-  let $heading = $('<span class="printable-title"></span>').html($("h1.x-heading-title").html());
-  $heading.find(":not(span), *[id], .x-widget, button").remove();
-  $heading.text($heading.text()?.replace(/(^\s+)|(\s+$)/g, ""));
-  $(".x-profile")
-    .last()
-    .prepend(
-      $('<div class="printable-heading" style="display: none;">').append($(".x-thumbnail img").clone()).append($heading)
-    );
 }
