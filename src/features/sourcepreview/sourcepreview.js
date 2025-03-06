@@ -11,8 +11,9 @@ let removeBackReferences = true;
 
 function onHoverIn($element) {
   hideActivePreview();
-  let x = $element.children("a").get(0).offsetLeft;
-  x = x < 425 ? 0 : x - 425;
+  const $a = $element.children("a");
+  let x = $a.offset().left - $a.closest(".container").offset().left;
+  x = x < 425 ? 0 : -440;
   let $popup = $(
     '<div id="activeSourcePreview" class="x-source-preview no-link-preview" style="display: none; left: ' +
       x +
@@ -86,7 +87,7 @@ async function initFeature() {
   removeBackReferences = options.removeBackReferences !== false;
 
   $(() => {
-    const $root = $('*[id="content"]').last();
+    const $root = $("main > .container").last();
     if ($root.length > 0) {
       const target = $root.get(0);
       new MutationObserver(function (mutations) {
