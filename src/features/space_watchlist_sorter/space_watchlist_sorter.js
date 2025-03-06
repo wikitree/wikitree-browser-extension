@@ -681,6 +681,8 @@ function initLongPressContextMenu() {
     });
 }
 
+let contextMenuHideTimer;
+
 // Display your custom context menu at the touch position
 function showCustomContextMenu(event, $item) {
   event.preventDefault();
@@ -718,47 +720,54 @@ function showCustomContextMenu(event, $item) {
     display: "block",
     zIndex: 9999,
   });
+
+  if (contextMenuHideTimer) clearTimeout(contextMenuHideTimer);
+  contextMenuHideTimer = setTimeout(() => {
+    $contextMenu.hide();
+  }, 7000);
 }
 
 // New long-press handler for touch devices (iPad)
-$(document).on("touchstart", ".spaceWatchlistSorter-tab", function (e) {
-  const $tab = $(this);
-  // Start a timer for long-press (600ms)
-  const pressTimer = setTimeout(() => {
-    const currentText = $tab.text().trim();
-    $tab.prop("contenteditable", true).trigger("focus");
-
-    $tab.one("blur", function () {
-      $tab.prop("contenteditable", false);
-      const newText = $tab.text().trim();
-      if (!newText) {
-        $tab.text(currentText);
-      } else {
-        const updatedFolders = getUpdatedFolders();
-        debounceSaveWatchlistToDB(updatedFolders);
-      }
-    });
-
-    $tab.on("keydown", function (e) {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        $tab.trigger("blur");
-      }
-    });
-
-    // Automatically select all text in the tab
-    const range = document.createRange();
-    const selection = window.getSelection();
-    range.selectNodeContents($tab[0]);
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }, 600); // Adjust the threshold as needed
-
-  // If the touch ends or moves before the threshold, cancel the timer
-  $tab.one("touchend touchmove", function () {
-    clearTimeout(pressTimer);
+$(document)
+  .on("touchstart", ".spaceWatchlistSorter-tab", function (e) {
+    const $tab = $(this);
+    // Skip long-press for the add-tab (if you have one)
+    if ($tab.hasClass("spaceWatchlistSorter-add-tab")) return;
+    const pressTimer = setTimeout(() => {
+      // Enable editing mode for long-press
+      const currentText = $tab.text().trim();
+      $tab.prop("contenteditable", true).trigger("focus").data("editing", true);
+      $tab.one("blur", function () {
+        $tab.prop("contenteditable", false).data("editing", false);
+        const newText = $tab.text().trim();
+        if (!newText) {
+          $tab.text(currentText);
+        } else {
+          const updatedFolders = getUpdatedFolders();
+          debounceSaveWatchlistToDB(updatedFolders);
+        }
+      });
+      $tab.on("keydown", function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          $tab.trigger("blur");
+        }
+      });
+      const range = document.createRange();
+      const selection = window.getSelection();
+      range.selectNodeContents($tab[0]);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }, 600); // Long-press threshold in milliseconds
+    $tab.data("longpressTimer", pressTimer);
+  })
+  .on("touchend touchmove", ".spaceWatchlistSorter-tab", function (e) {
+    const timer = $(this).data("longpressTimer");
+    if (timer) {
+      clearTimeout(timer);
+      $(this).removeData("longpressTimer");
+    }
   });
-});
 
 function initializeSortable() {
   $(".spaceWatchlistSorter-sortable")
