@@ -34,7 +34,7 @@ export function ensureProfileClasses() {
     $(".has--bg_img").addClass("x-style-bg");
 
     // mark the heading content
-    $("section.x-profile h1").first().addClass("x-heading-title");
+    $("section.x-profile h1").addClass("x-heading-title");
     $(".x-heading-title").closest(".row").addClass("x-heading");
 
     // mark the thumbnail image container based on the heading
@@ -54,7 +54,7 @@ export function ensureProfileClasses() {
     $(".tree--header, .tree--header + .tab-content").addClass("x-relationships");
 
     // mark the privacy status container at the right of the heading
-    $(".x-heading .privacy").parent().addClass("x-privacy");
+    $(".x-heading .privacy").closest("div").addClass("x-privacy");
 
     // special content elements
     $(".x-content .toc").addClass("x-toc");
@@ -94,7 +94,7 @@ export function ensureProfileClasses() {
         }
       } else if (el.is("#Research")) {
         // Research
-        el.addClass("x-callout-research x-sidebar-research");
+        el.addClass("x-callout x-callout-research x-sidebar-research");
       } else if (el.is("#G2G")) {
         // G2G posts
         el.addClass("x-g2g-posts x-sidebar-posts");
@@ -119,6 +119,7 @@ export function ensureProfileClasses() {
       "x-edit"
     );
     $(".x-content .icon--edit").closest("a").addClass("x-edit");
+    $(".VITALS a[href*='Special:Edit']").parent().addClass("x-edit");
 
     // mark the audit section of the profile that show the manager, last modified, how many times the page has been accessed, etc.
     // this also includes the "Problems or Questions?"" button
@@ -185,7 +186,7 @@ export function ensureProfileClasses() {
         return $(this).find("h3 ~ ul").length > 0;
       })
       .last()
-      .addClass("x-callout-collaboration x-sidebar-collaboration");
+      .addClass("x-callout x-callout-collaboration x-sidebar-collaboration");
 
     // mark elements related to certain sections (including header, lists, and any other root elements) up until the next section *** dependent on x-memories being set
     $(".x-content a[name].x-root-section, .x-content a[name].x-section").each(function () {
