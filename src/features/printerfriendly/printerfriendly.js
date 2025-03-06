@@ -7,7 +7,6 @@ Contains modified code from Steven's WikiTree Toolkit
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { ensureProfileClasses } from "../../core/profileClasses";
-import { profilePerson } from "../../core/common";
 
 shouldInitializeFeature("printerFriendly").then((result) => {
   if (result) {
@@ -34,29 +33,17 @@ async function initPrinterFriendly() {
   }
 
   if (options.addMenuItem !== false) {
-    let theMenu = null;
-    if (profilePerson.LastNameAtBirth) {
-      // Find a div.btn-group[data-menu] value that contains both profilePerson.LastNameAtBirth and ProfilePerson.FirstName
-      theMenu = $(
-        `div.btn-group:has(button.btn.btn-link.dropdown-toggle:contains("${profilePerson.FullName}"))`
-
+    $(
+      "nav a.dropdown-item[href*='Special:TrustedList']:contains('Privacy & Trusted List'), nav a.dropdown-item[href*='Help:Projects']:contains('Projects')"
+    ).each(function () {
+      const menuItem = $(
+        "<li><a href='#n' class='dropdown-item wte-tm-printer-friendly' title='Changes the format to a printer-friendly one'>Printer Friendly Bio</a></li>"
       );
-    }
-    if (!theMenu || theMenu.length === 0) {
-      // It's probably a space page, so add the button to the Find menu.
-      theMenu = $("div.btn-group:has(button.btn.btn-link.dropdown-toggle:contains('Find'))");
-    }
-    // Add link to WT ID menu
-    theMenu
-      .find("a:contains(Privacy & Trusted List),a:contains(Projects)")
-      .parent()
-      .before(
-        $(
-          "<li><a class='dropdown-item wte-tm-printer-friendly' title='Changes the format to a printer-friendly one'>Printer Friendly Bio</a></li>"
-        )
-      );
+      $(this).closest("li").before(menuItem);
+    });
 
-    $(`.wte-tm-printer-friendly`).on("click", () => {
+    $(`.wte-tm-printer-friendly`).on("click", (e) => {
+      e.preventDefault();
       if (!options.onBrowserPrint) {
         $("html").addClass("print-content-only");
       }

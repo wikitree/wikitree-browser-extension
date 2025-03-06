@@ -70,18 +70,6 @@ function onHoverIn($element) {
           $(this).attr("href", $(this).attr("href").replace(/^#/, "#_xPagePreview_"));
         }
       });
-      /*
-      if (isPlusDomain) {
-        //correct image path to Main domain
-        $popup.find('img[src^="/"]').each(function () {
-          $(this).attr("src", $(this).attr("src").replace(/^\//, "https://" + mainDomain + "/"));
-        });  
-        //correct links to Main domain
-        $popup.find('a[href^="/"]').each(function () {
-          $(this).attr("href", $(this).attr("href").replace(/^\//, "https://" + mainDomain + "/"));
-        });  
-      }
-*/
       if (previewClasses.indexOf("show-toc") > -1) {
         let toggleElement = $(
           '<span class="toggle toggle-toc"><input type="checkbox" id="_xPagePreview_toc_checkbox"' +
@@ -116,22 +104,18 @@ function onHoverIn($element) {
           .addClass("preview-audit"); // this text is displayed at the bottom on other content pages
       }
       addCloseButton($popup);
+      const copyLink = decodeURIComponent(match[1]).replace(/_/g, " ");
       $popup.prepend(
-        $('<h2 class="preview-title"></h2>')
-          .append($("<a></a>").attr("href", $element[0].href).text(content.title))
-          .append(
-            ' <button aria-label="Copy ID" class="copyWidget" data-copy-text="' +
-              decodeURIComponent(match[1]).replace(/_/g, " ") +
-              '" style="color:#8fc641;"><img src="https://' +
-              mainDomain +
-              '/images/icons/scissors.png">ID</button><button aria-label="Copy Wiki Link" class="copyWidget" data-copy-label="Copy Wiki Link" data-copy-text="[[:' +
-              decodeURIComponent(match[1]).replace(/_/g, " ") +
-              ']]" style="color:#8fc641;">/Link</button><button aria-label="Copy URL" class="copyWidget" data-copy-label="Copy URL" data-copy-text="' +
-              (window.location.href.match(/^.*\/{2,}.*?(?=\/)/) ?? "") +
-              "/wiki/" +
-              match[1] +
-              '" style="color:#8fc641;">/URL</button>'
-          )
+        $('<h2 class="preview-title"></h2>').append($("<a></a>").attr("href", $element[0].href).text(content.title))
+          .append(`
+<ul class="copy--buttons mono-b" style="display: inline-block !important">
+<li><img src="/images/icons/icon-copy.svg" alt="Copy icon"></li>
+<li><button aria-label="Copy ID" class="copyWidget mono-b text-capitalize" data-copy-text="${copyLink}" data-bs-toggle="tooltip" data-bs-title="Copy ${copyLink}">ID</button></li>
+<li><button aria-label="Copy Wiki Link" class="copyWidget mono-b" data-copy-label="Copy Wiki Link" data-copy-text="[[${copyLink}|${copyLink}]]" data-bs-toggle="tooltip" data-bs-title="Copy Link">Link</button></li>
+<li><button aria-label="Copy URL" class="copyWidget mono-b" data-copy-label="Copy URL" data-copy-text="${
+          (window.location.href.match(/^.*\/{2,}.*?(?=\/)/) ?? "") + "/wiki/" + match[1]
+        }" data-bs-toggle="tooltip" data-bs-title="Copy URL">URL</button></li>
+</ul>`)
       );
       let visibleElements = $popup.children().filter(function () {
         if ($(this).css("visibility") !== "hidden") {
@@ -214,99 +198,14 @@ function parsePageContent(response) {
   content.title = (
     $content.find("h1").first().clone().children().remove().end().text() ?? $content.find("title").first().text()
   )?.replace(/(^\s+)|(\s+$)/g, "");
-  if ($content && ($content = $content.find("h1").first())) {
-    let $keep = $content.next();
-    $content.prevAll().addBack().remove();
-    content.body = $keep.parent().html();
+  if ($content && ($content = $content.find(".page--content, .body-text")).length > 0) {
+    content.body = $content.last().prop("outerHTML");
   }
   return content;
 }
 
 function parseSpaceContent(response) {
   let content = parsePageContent(response);
-  let $content = parseDocument(content.documentHTML);
-  let $categories = $content.find("#categories");
-  $content = $content.find(".columns.ten");
-  // flag the colored audit box plus the div below it to clear the float
-  $content
-    .find(
-      '.SMALL[style*="background-color"] + div[style*="clear"], ' +
-        '.SMALL[style*="background-color"]:contains("page has been accessed")'
-    )
-    .last()
-    .prevAll()
-    .addBack()
-    .addClass("preview-audit");
-  // mark all elements above the TOC or first heading as part of the header
-  let head = $content.children("h2, .toc").first();
-  if (head.length === 0) head = $content.children(".preview-audit").last();
-  if (head.length === 0) {
-    head = $content
-      .children('.SMALL[style*="background-color"]')
-      .first()
-      .nextAll('.SMALL[style*="background-color"]')
-      .addBack()
-      .addClass("preview-audit")
-      .last();
-  }
-  if (head.length > 0) {
-    head = head.get(0).previousSibling;
-    while (head) {
-      let node = head;
-      head = head.previousSibling;
-      if (node.nodeType === 3 && /\S/.test(node.textContent)) {
-        $(node).wrap('<span class="preview-header"></span>');
-      } else if (node.nodeType === 1) {
-        let $node = $(node);
-        if ($node.is('.SMALL[style*="background-color"]')) {
-          $node.addClass("preview-audit");
-        } else {
-          $node.removeClass("preview-audit").addClass("preview-header");
-        }
-      }
-    }
-    $content.find(".preview-audit ~ .preview-header").removeClass("preview-header").addClass("preview-other");
-    $content
-      .find('.preview-other > a[href*="/wiki/Space:"]')
-      .closest(".preview-other")
-      .filter(function () {
-        return /^\s*(Other):/.test($(this).text());
-      })
-      .removeClass("preview-other")
-      .addClass("preview-links");
-    // move category links directly below the audit section
-    $content.find(".preview-audit").last().after($('<p class="preview-links"></p>').html($categories.html()));
-    let $header = $content.find(".preview-header");
-    if ($header.length > 0) {
-      // put all the header items together in a gray box container
-      $content.prepend(
-        ($header = $('<div class="box rounded preview-header"></div>').append($header.removeClass("preview-header")))
-      );
-      $header.find(":not(br)").first().prevAll().remove();
-      $header.children(":not(:last-child)").after("\n");
-    }
-  }
-  // if the first h2 matches the page title (as many pages do), hide it if the title is shown
-  $content
-    .children("h2")
-    .first()
-    .filter(function () {
-      let heading = ($(this).find(".mw-headline").text() ?? "").replace(/(^\s+)|(\s+$)/g, "");
-      return heading && heading === content.title;
-    })
-    .addClass("same-title");
-  // remove memories
-  let $memories = $content.find("a[name='Memories']");
-  $memories.prev().nextAll().addBack().remove();
-  // remove <br> tags and the invite button from the bottom
-  [].reverse.call($content.children()).each(function (index, element) {
-    if ($(element).is("br, a.button")) {
-      element.remove();
-      return true;
-    }
-    return false;
-  });
-  content.body = $content.html();
   return content;
 }
 
@@ -316,16 +215,14 @@ function parseCategoryContent(response) {
     content.title = content.title.replace(/^\s*Category\s*:\s*/, "");
   }
   let $content = $("<div></div>").html(content.body);
-  $content.find('p > a[href$="/wiki/Category:Categories"]:first-child').closest("p").addClass("preview-links");
-  let $subs = $content
-    .children(".SMALL")
-    .filter(function () {
-      return $(this).has("a.toggleSection");
+  $content.find(".toggleSection").closest(".container").remove();
+  content.body = $content
+    .find("section")
+    .map(function () {
+      return $(this).prop("outerHTML");
     })
-    .first();
-  $subs.prev("br").remove();
-  $subs.nextAll().addBack().remove();
-  content.body = $content.html();
+    .get()
+    .join("\n");
   return content;
 }
 

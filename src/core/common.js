@@ -885,7 +885,7 @@ export async function updateDraftList() {
 
 export function isWikiTreeUrl(url) {
   if (url) {
-    return /^http(s)?:\/+((www|staging|dev-www)\.)?wikitree\.com\//i.test(url);
+    return /^http(s)?:\/+((www|staging|dev-www|dev-2025)\.)?wikitree\.com\//i.test(url);
   }
   return false;
 }

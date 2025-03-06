@@ -302,17 +302,6 @@ registerFeature({
 });
 
 registerFeature({
-  name: "Smooth Scrolling",
-  id: "smoothScrolling",
-  description: "Scroll the window smoothly when linking to specific sections of the page.",
-  category: "Global/Style",
-  creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
-  contributors: [],
-  defaultValue: false,
-  pages: [isMainDomain],
-});
-
-registerFeature({
   name: "Sort Badges",
   id: "sortBadges",
   description: "Buttons to move or hide your Club 100/1000 badges.",
