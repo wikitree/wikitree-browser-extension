@@ -218,4 +218,13 @@ sup.reference {
   .hide-categories #categories {
     display: none !important;
   }
+
+  .hide-background .has--bg_img {
+    background-image: none !important;
+    padding: unset !important;
+  }
+
+  .hide-background .has--bg_img .page--title {
+    border: none !important;
+  }
 }

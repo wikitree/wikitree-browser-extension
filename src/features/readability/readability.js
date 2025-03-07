@@ -541,11 +541,6 @@ async function initReadability() {
     });
   })(["Sources", "ResearchNotes"]);
 
-  if (options.hideBackground) {
-    let bgStyle = $(".x-style-bg");
-    bgStyle.text(bgStyle.text().replace(/\b(BODY\s*{)/is, "html:not(.hide-background) $1"));
-  }
-
   setHiddenElements(); // initialize with the saved setting
 
   // this only controls whether the toggle button for reading mode is on the screen
