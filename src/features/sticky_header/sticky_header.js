@@ -7,10 +7,13 @@ import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { isAppsDomain, isAppsPage } from "../../core/pageType";
 
 async function initStickyHeader() {
-  let headerHeight = $("#header, .qa-header").first().css("height");
-  let subHeight = $(".qa-nav-sub").first().css("height");
+  let bannerHeight = $("body > #banner").first().css("height");
+  if (bannerHeight) {
+    document.documentElement.style.setProperty("--x-sticky-banner-height", bannerHeight);
+  }
+  let headerHeight = $("body > header, .qa-header").first().css("height");
   if (headerHeight) {
-    document.documentElement.style.setProperty("--header-height", headerHeight);
+    document.documentElement.style.setProperty("--x-sticky-header-height", headerHeight);
     if (!$("body").is(".home")) {
       $("html").addClass("sticky-header");
       if (window.location.hash) {
@@ -29,13 +32,16 @@ async function initStickyHeader() {
           }
         }
         if (target) {
-          target.scrollIntoView({ behavior: "smooth", block: "start" });
+          window.setTimeout(() => {
+            target.scrollIntoView();
+          }, 0);
         }
       }
     }
   }
-  if (subHeight) {
-    document.documentElement.style.setProperty("--header-sub-height", subHeight);
+  let toolbarHeight = $("body > .tabs--wrapper").first().css("height");
+  if (toolbarHeight) {
+    document.documentElement.style.setProperty("--x-sticky-toolbar-height", toolbarHeight);
   }
 }
 
