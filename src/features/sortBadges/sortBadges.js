@@ -5,9 +5,10 @@ Created By: Ian Beacall (Beacall-6)
 import * as $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getUserWtId, getUserNumId } from "../../core/common.js";
-import { profilePerson } from "../../core/common";
-import { isSpecialBadges, isProfileLoggedInUserPage } from "../../core/pageType";
+import { getProfilePersonInfo } from "../../core/common";
+import { isSpecialBadges, isProfileLoggedInUserPage, mainDomain } from "../../core/pageType";
 
+const profilePerson = getProfilePersonInfo();
 shouldInitializeFeature("sortBadges").then((result) => {
   if (result && profilePerson.Name == getUserWtId()) {
     import("./sortBadges.css");
@@ -32,7 +33,7 @@ shouldInitializeFeature("sortBadges").then((result) => {
 
       if (localStorage.savedBadges) {
         localStorage.removeItem("savedBadges");
-        window.location = `http://www.wikitree.com/wiki/${profilePerson.Name}`;
+        window.location = `http://${mainDomain}/wiki/${profilePerson.Name}`;
       }
       if (urlParams.has("badgeAction")) {
         localStorage.setItem("savedBadges", 1);
@@ -40,20 +41,22 @@ shouldInitializeFeature("sortBadges").then((result) => {
         localStorage.removeItem("sortBadges");
       }
     }
+    console.log(isProfileLoggedInUserPage);
+    console.log(window.location.href.match("Space:"));
+    console.log(profilePerson.Name);
+    console.log(getUserWtId());
     if (
       isProfileLoggedInUserPage &&
       window.location.href.match("Space:") == null &&
       profilePerson.Name == getUserWtId()
     ) {
-      $("a:contains('view/edit')")
-        .parent()
-        .after(
-          $(
-            '<span class="SMALL" style="background: none;" id="hideClubBadgesLink">[<a href="/index.php?title=Special:Badges&amp;u=' +
-              getUserNumId() +
-              '&badgeAction=hideClubBadges">hide Club badges</a>] </span>'
-          )
-        );
+      $(`aside#badges a.btn[href*="Special:Badges"]`).after(
+        $(
+          '<span class="btn btn-utility" style="background: none;" id="hideClubBadgesLink"><a href="/index.php?title=Special:Badges&amp;u=' +
+            getUserNumId() +
+            '&badgeAction=hideClubBadges">Hide Club badges</a></span>'
+        )
+      );
     }
   }
 });
