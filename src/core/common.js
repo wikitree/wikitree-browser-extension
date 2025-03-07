@@ -38,7 +38,7 @@ export function getProfilePersonInfo() {
 
   const $h1 = $("h1").eq(0).clone();
   $h1.children().remove();
-  person.FullName = $h1.text().trim();
+  person.FullName = $h1.text().replace("Edit Profile of ", "").trim();
   person.Id = pageData.mid;
   person.LastNameAtBirth = pageData.mlastnameatbirth;
   person.FirstName = pageData.mfirstname;
@@ -576,66 +576,85 @@ export async function showDraftList() {
   // Process person drafts
   if (localStorage.drafts && localStorage.drafts !== "[]") {
     try {
-      console.log("Parsing person drafts from localStorage");
       const drafts = JSON.parse(localStorage.drafts);
-      console.log("Person drafts parsed successfully:", drafts);
       processPersonDrafts(drafts);
     } catch (e) {
       console.error("Error parsing person drafts:", e);
     }
   } else {
-    console.log("No person drafts found, handling space drafts");
     // Handle space drafts if no person drafts exist
     handleSpaceDrafts();
   }
 
+  /**
+   * Processes a list of drafts by checking for uncommitted drafts and extracting relevant information.
+   * Updates the drafts array with associated user and draft IDs when available.
+   *
+   * @param {Array} drafts - An array of draft entries, where each draft is expected to have at least one element: the WikiTree ID.
+   */
   function processPersonDrafts(drafts) {
-    let draftCalls = 0;
-    const tempDraftArr = [];
+    let draftCalls = 0; // Counter to track the number of processed drafts
+    const tempDraftArr = []; // Temporary array to store drafts that are uncommitted
 
     drafts.forEach((draft, index) => {
-      const theWTID = draft[0];
-      console.log(`Checking draft for profile ${theWTID}`);
-      console.log(`Draft index: ${index}`);
-      console.log(`Draft data: ${draft}`);
-      console.log(`Drafts array: ${drafts}`);
-      console.log(`Drafts length: ${drafts.length}`);
-      console.log(`isOK`, isOK(theWTID));
-      if (!isOK(theWTID)) {
-        delete drafts[index];
-        draftCalls++;
-      } else {
-        getWikiTreePage("Drafts", "/index.php", `title=${theWTID}&displayDraft=1`).then((res) => {
-          draftCalls++;
-          const dummy = $(res);
-          let aWTID = dummy.find("#pageData").attr("data-mnamedb") || "";
+      const theWTID = draft[0]; // Extract the WikiTree ID for the draft
 
-          console.log(`Checking draft for profile ${aWTID}`);
-          console.log(`Draft index: ${index}`);
-          console.log(`Draft data: ${draft}`);
-          console.log(`dummy`, dummy);
+      // Skip processing if the ID is not valid
+      if (!isOK(theWTID)) {
+        delete drafts[index]; // Remove invalid draft entry
+        draftCalls++; // Increment the counter for processed drafts
+      } else {
+        // Fetch the draft page data for the given WikiTree ID
+        getWikiTreePage("Drafts", "/index.php", `title=${theWTID}&displayDraft=1`).then((res) => {
+          draftCalls++; // Increment the counter for processed drafts
+
+          // Parse the HTML response using DOMParser
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(res, "text/html");
+
+          // Extract the profile ID (WTID) from the page data
+          let aWTID = doc.querySelector("#pageData")?.getAttribute("data-mnamedb") || "";
 
           // Check if 'aWTID' ends with ' User' and remove it if present
           if (aWTID.endsWith(" User")) {
             aWTID = aWTID.replace(/ User$/, ""); // Remove ' User' at the end
           }
 
-          if (dummy.find("div.status").text().includes("You have an uncommitted")) {
+          // Search for an element indicating an uncommitted draft
+          const statusDiv = Array.from(doc.querySelectorAll("div.status")).find((el) =>
+            el.textContent.includes("You have an uncommitted")
+          );
+
+          if (statusDiv) {
+            // If an uncommitted draft is found, store the profile ID
             tempDraftArr.push(aWTID);
-            const useLink = dummy.find("a:contains(Use the Draft)").attr("href");
+
+            // Locate the 'Use the Draft' link and extract its href
+            const useLink = Array.from(doc.querySelectorAll("a"))
+              .find((el) => el.textContent.includes("Use the Draft"))
+              ?.getAttribute("href");
 
             if (useLink) {
-              const personID = useLink.match(/&u=[0-9]+/)[0].replace("&u=", "");
-              const draftID = useLink.match(/&ud=[0-9]+/)[0].replace("&ud=", "");
-              drafts.forEach((yDraft) => {
-                if (yDraft[0] === aWTID) {
-                  yDraft[3] = personID;
-                  yDraft[4] = draftID;
-                }
-              });
+              // Extract person and draft IDs from the URL parameters
+              const personIDMatch = useLink.match(/&u=([0-9]+)/);
+              const draftIDMatch = useLink.match(/&ud=([0-9]+)/);
+
+              if (personIDMatch && draftIDMatch) {
+                const personID = personIDMatch[1];
+                const draftID = draftIDMatch[1];
+
+                // Update the corresponding draft entry with extracted IDs
+                drafts.forEach((yDraft) => {
+                  if (yDraft[0] === aWTID) {
+                    yDraft[3] = personID;
+                    yDraft[4] = draftID;
+                  }
+                });
+              }
             }
           }
 
+          // If all drafts have been processed, update the draft table
           if (draftCalls === drafts.length) {
             updateDraftTable(drafts, tempDraftArr);
           }
