@@ -38,48 +38,6 @@ shouldInitializeFeature("myMenu").then((result) => {
     }
 
     let resizeTimeout;
-    /*
-    window.onresize = () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => {
-        const theWidth = window.innerWidth;
-
-        const menuGroup = document.getElementById("myMenuGroup");
-        const nav = document.querySelector("nav[aria-label='Main Navigation']");
-
-        if (!menuGroup) {
-          return;
-        }
-
-        if (theWidth < 992) {
-          if (!menuGroup.classList.contains("fixed") && !document.querySelector(".tabs--wrapper #myMenuGroup")) {
-            //  console.log("Moving menu to body as fixed");
-            menuGroup.classList.add("fixed");
-            document.querySelector(".tabs--wrapper nav").appendChild(menuGroup);
-          }
-        } else {
-          const theMenuGroup = document.querySelector("#myMenuGroup");
-          console.log("theMenuGroup", theMenuGroup);
-          if (theMenuGroup.classList.contains("fixed")) {
-            console.log("Moving menu back to main navigation");
-            // Remove ALL extra instances from body to prevent duplication
-
-            // Ensure it is only appended once
-            if (!nav.querySelector("#myMenuGroup")) {
-              console.log("Appending back to navigation");
-              theMenuGroup.classList.remove("fixed");
-              nav.appendChild(theMenuGroup);
-              document.querySelectorAll(".tabs--wrapper #myMenuGroup").forEach((el) => el.remove());
-            } else {
-              console.warn("Menu is already in navigation, skipping append");
-            }
-          }
-        }
-      }, 50); // Debounce time
-    };
-*/
-
-    //  let resizeTimeout;
 
     window.onresize = () => {
       clearTimeout(resizeTimeout);
@@ -91,29 +49,22 @@ shouldInitializeFeature("myMenu").then((result) => {
         const tabsWrapperNav = document.querySelector(".tabs--wrapper nav");
 
         if (!menuGroup || !nav) {
-          console.warn("Menu or Navigation not found.");
           return;
         }
 
         if (theWidth < 992) {
           if (!menuGroup.classList.contains("fixed") && !tabsWrapperNav.contains(menuGroup)) {
-            console.log("Moving menu to body as fixed");
             menuGroup.classList.add("fixed");
             tabsWrapperNav.appendChild(menuGroup);
           }
         } else {
           if (menuGroup.classList.contains("fixed")) {
-            console.log("Moving menu back to main navigation");
-
             // Remove fixed class before appending back
             menuGroup.classList.remove("fixed");
 
             // Prevent duplication
             if (!nav.contains(menuGroup)) {
-              console.log("Appending menu back to main navigation");
               nav.appendChild(menuGroup);
-            } else {
-              console.warn("Menu is already in navigation, skipping append");
             }
 
             // Remove any extra instances of #myMenuGroup in .tabs--wrapper
