@@ -47,7 +47,9 @@ export function ensureProfileClasses() {
 
     // mark the widgets (scissors, buttons, etc.)
     $(".copy--buttons, .x-heading .btn-utility, .x-content .btn-utility").addClass("x-widget");
-    $(".x-profile-category .page--content > div.clearfix:first-child, .x-profile-category nav#bottm-nav").addClass("x-widget");
+    $(".x-profile-category .page--content > div.clearfix:first-child, .x-profile-category nav#bottm-nav").addClass(
+      "x-widget"
+    );
 
     // relationships (family members, ancestor tree, descendants tree), including the tabs (which were buttons and considered widgets in the past)
     $(".tree--header").addClass("x-widget");
@@ -115,11 +117,9 @@ export function ensureProfileClasses() {
     $(".x-tabs #jump-nav").addClass("x-tabs-view");
 
     // mark any kind of edit links or buttons like [edit], [add spouse], Invite Others, etc.
-    $(".x-content .EDIT, .x-heading .EDIT, .x-content .editsection").addClass(
-      "x-edit"
-    );
+    $(".x-content .EDIT, .x-heading .EDIT, .x-content .editsection").addClass("x-edit");
     $(".x-content .icon--edit").closest("a").addClass("x-edit");
-    $(".VITALS a[href*='Special:Edit']").parent().addClass("x-edit");
+    $(".VITALS a[href*='Special:Edit']").addClass("x-edit");
 
     // mark the audit section of the profile that show the manager, last modified, how many times the page has been accessed, etc.
     // this also includes the "Problems or Questions?"" button
@@ -262,6 +262,9 @@ export function ensureProfileClasses() {
 
     // mark the banner that sometimes is displayed above the header
     $("body > #banner").addClass("x-banner");
+
+    // mark the leaders-only section above the footer
+    $("main ~ #subfooter + div:not(#footer)").addClass("x-leaders");
 
     // prevent this from running more than once per page
     hasProfileClasses = true;
