@@ -61,7 +61,7 @@ function menuHover() {
       if (!dropdownMenu.is(":hover") && !clickToggledMenus.has(this)) {
         dropdownMenu.removeClass("show");
       }
-    }, 300); // 300ms delay to allow moving to menu
+    }, 100); // 300ms delay to allow moving to menu
   });
 
   // Hide menu when leaving dropdown, unless it was clicked open

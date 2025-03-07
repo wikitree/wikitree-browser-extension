@@ -336,7 +336,7 @@ function parseInitialData() {
     familyData.children = parsedChildren;
   }
 
-  console.log("Parsed familyData:", familyData);
+  //console.log("Parsed familyData:", familyData);
   return familyData;
 }
 
@@ -1282,7 +1282,7 @@ function insertInSibList() {
     console.log("Profile person data is missing.");
     return;
   }
-  console.log("Profile person for insertion:", pPerson);
+  // console.log("Profile person for insertion:", pPerson);
 
   const getBirthYear = (person) => {
     if (person.BirthDate && person.BirthDate !== "0000-00-00") {
@@ -1443,7 +1443,7 @@ async function getAncestorsOnPage() {
     allItemsRequest.onerror = (event) => reject(event.target.error);
   });
   const ancestorKeys = await ancestorsPromise;
-  console.log("Ancestor keys:", ancestorKeys);
+  //console.log("Ancestor keys:", ancestorKeys);
   const familyLinks = $(".VITALS a[href*='/wiki/']");
   const peopleOnPage = familyLinks
     .map(function () {
@@ -1456,7 +1456,7 @@ async function getAncestorsOnPage() {
     })
     .get();
   peopleOnPage.push(profilePerson.Name);
-  console.log("People on page:", peopleOnPage);
+  // console.log("People on page:", peopleOnPage);
   const ancestorsOnPage = peopleOnPage.filter((person) => {
     const personWithUnderscores = person.replace(/ /g, "_");
     const personWithSpaces = person.replace(/_/g, " ");
@@ -1470,7 +1470,7 @@ async function getAncestorsOnPage() {
        #nVitals .VITALS a[data-wtid="${ancestor.replace(/_/g, " ")}"]`
     );
     if (element.length && element.data("status") != 5) {
-      console.log("Adding ancestor label to", ancestor, element);
+      // console.log("Adding ancestor label to", ancestor, element);
       addAncestorLabels(element);
     }
   });
