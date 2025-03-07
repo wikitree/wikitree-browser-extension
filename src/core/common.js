@@ -610,12 +610,17 @@ export async function showDraftList() {
           const dummy = $(res);
           let aWTID = dummy.find("#pageData").attr("data-mnamedb") || "";
 
+          console.log(`Checking draft for profile ${aWTID}`);
+          console.log(`Draft index: ${index}`);
+          console.log(`Draft data: ${draft}`);
+          console.log(`dummy`, dummy);
+
           // Check if 'aWTID' ends with ' User' and remove it if present
           if (aWTID.endsWith(" User")) {
             aWTID = aWTID.replace(/ User$/, ""); // Remove ' User' at the end
           }
 
-          if (dummy.find("div.status:contains('You have an uncommitted')").length) {
+          if (dummy.find("div.status").text().includes("You have an uncommitted")) {
             tempDraftArr.push(aWTID);
             const useLink = dummy.find("a:contains(Use the Draft)").attr("href");
 
