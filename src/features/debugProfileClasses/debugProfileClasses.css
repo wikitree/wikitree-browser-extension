@@ -39,7 +39,7 @@
 
 .x-sidebar > div[class*="x-sidebar-"],
 .x-sidebar .x-sidebar-section {
-    border: 2px dashed #666;
+  border: 2px dashed #666;
 }
 
 .x-sidebar-status {
@@ -241,4 +241,8 @@ br.x-memories {
 
 .x-banner {
   opacity: 0.25 !important;
+}
+
+.x-leaders {
+  background: #ff0 !important;
 }

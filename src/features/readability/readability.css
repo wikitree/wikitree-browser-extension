@@ -55,23 +55,50 @@ sup.reference {
   text-decoration: none;
 }
 
-.toggle.reading-mode {
-  position: relative;
-  float: right;
-  clear: right;
-  padding: 4px 0;
+.wbe-icon-glasses {
+  /* https://www.streamlinehq.com/icons/download/glasses--29194 */
+  background-image: url(data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgaWQ9IkdsYXNzZXMtLVN0cmVhbWxpbmUtU29sYXItQXIiPjxkZXNjPkdsYXNzZXMgU3RyZWFtbGluZSBJY29uOiBodHRwczovL3N0cmVhbWxpbmVocS5jb208L2Rlc2M+PHBhdGggc3Ryb2tlPSIjMjU0MjJkIiBkPSJNMTQgMTZhNCA0IDAgMSAwIDggMCA0IDQgMCAxIDAgLTggMCIgc3Ryb2tlLXdpZHRoPSIxLjUiPjwvcGF0aD48cGF0aCBzdHJva2U9IiMyNTQyMmQiIGQ9Ik0yIDE2YTQgNCAwIDEgMCA4IDAgNCA0IDAgMSAwIC04IDAiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+PHBhdGggZD0ibTE0IDE2LjIxMzUgLTAuNjU1OSAtMC4yMzRjLTAuODY5MiAtMC4zMTAxIC0xLjgxODkgLTAuMzEwMSAtMi42ODgyIDBsLTAuNjU1OSAwLjIzNCIgc3Ryb2tlPSIjMjU0MjJkIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+PHBhdGggZD0ibTIgMTYgMC43NjMxNSAtOC4zOTQ2OGMwLjExNDkyIC0xLjI2NDExIDAuMTcyMzggLTEuODk2MTYgMC41NDIzOSAtMi4zNjMzMyAwLjM3IC0wLjQ2NzE3IDAuOTcyMDkgLTAuNjY3ODcgMi4xNzYyNyAtMS4wNjkyNkw2IDQiIHN0cm9rZT0iIzI1NDIyZCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2Utd2lkdGg9IjEuNSI+PC9wYXRoPjxwYXRoIGQ9Im0yMiAxNiAtMC43NjMyIC04LjM5NDY4Yy0wLjExNDkgLTEuMjY0MTEgLTAuMTcyMyAtMS44OTYxNiAtMC41NDIzIC0yLjM2MzMzIC0wLjM3IC0wLjQ2NzE3IC0wLjk3MjEgLTAuNjY3ODcgLTIuMTc2MyAtMS4wNjkyNkwxOCA0IiBzdHJva2U9IiMyNTQyMmQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIxLjUiPjwvcGF0aD48L3N2Zz4=) !important;
+  background-repeat: no-repeat;
 }
 
-.toggle.toggle-section {
-  position: relative;
-  top: -2px;
-  margin-left: 8px;
+.wbe-icon-forbidden {
+  /* https://www.streamlinehq.com/icons/download/forbidden-circle--29194 */
+  background-image: url(data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSItMSAtMSAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiBpZD0iRm9yYmlkZGVuLUNpcmNsZS0tU3RyZWFtbGluZS1Tb2xhci1BciI+PGRlc2M+Rm9yYmlkZGVuIENpcmNsZSBTdHJlYW1saW5lIEljb246IGh0dHBzOi8vc3RyZWFtbGluZWhxLmNvbTwvZGVzYz48cGF0aCBkPSJNMTYuOTU4MzMzMzMzMzMzMzMyIDUuMDQxNjY2NjY2NjY2NjY2IDUuMDQxNjg1IDE2Ljk1ODE1IiBzdHJva2U9IiMyNTQyMmQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyIj48L3BhdGg+PHBhdGggc3Ryb2tlPSIjMjU0MjJkIiBkPSJNMS44MzMzMzMzMzMzMzMzMzMzIDExYTkuMTY2NjY2NjY2NjY2NjY2IDkuMTY2NjY2NjY2NjY2NjY2IDAgMSAwIDE4LjMzMzMzMzMzMzMzMzMzMiAwIDkuMTY2NjY2NjY2NjY2NjY2IDkuMTY2NjY2NjY2NjY2NjY2IDAgMSAwIC0xOC4zMzMzMzMzMzMzMzMzMzIgMCIgc3Ryb2tlLXdpZHRoPSIyIj48L3BhdGg+PC9zdmc+) !important;
+  background-repeat: no-repeat;
+}
+
+.x-heading .action--reading-mode {
+  float: right;
+  width: 30px;
+  height: 38px;
+  background-position: top center;
+  cursor: pointer;
+}
+
+.x-heading .action--reading-mode > span {
+  display: inline-block;
+  width: 100%;
+  height: 100%;
+}
+
+.action--reading-mode > span {
+  background-position: top center !important;
+  background-size: 50% !important;
+  opacity: 0.5;
   visibility: hidden;
 }
 
+.action--reading-mode.toggled-on > span {
+  visibility: visible;
+}
+
+.toggle.toggle-section {
+  margin-left: 0.6rem;
+}
+
 @media only print {
-  .toggle.reading-mode,
-  .toggle.toggle.toggle-section {
+  .action--reading-mode,
+  .toggle.toggle-section {
     display: none;
   }
 }
@@ -125,10 +152,6 @@ sup.reference {
     display: none !important;
   }
 
-  .hide-page-tabs .x-tabs-page {
-    display: none !important;
-  }
-
   .hide-view-tabs .x-tabs-view {
     display: none !important;
   }
@@ -178,6 +201,10 @@ sup.reference {
     display: none !important;
   }
 
+  .hide-heading-extras .x-widget.x-relationships + #nav-familyContent {
+    margin-top: 16px;
+  }
+
   .hide-edits .x-edit,
   .hide-edits .x-alert:not(.status) {
     display: none !important;
@@ -190,5 +217,14 @@ sup.reference {
   .hide-categories .x-categories,
   .hide-categories #categories {
     display: none !important;
+  }
+
+  .hide-background .has--bg_img {
+    background-image: none !important;
+    padding: unset !important;
+  }
+
+  .hide-background .has--bg_img .page--title {
+    border: none !important;
   }
 }

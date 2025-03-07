@@ -464,7 +464,7 @@ async function initReadability() {
         $("html").toggleClass("collapse-sidebar-if-empty");
       } else if (isToggled(options.hideSidebar)) {
         $("html").toggleClass("collapse-sidebar");
-        $sb.prev().toggleClass("ten").toggleClass("sixteen");
+        $sb.prev().toggleClass("col-lg-8").toggleClass("col-lg-12");
       }
       if (options.hideSidebar / 1 === 3 || options.hideSidebar / 1 === 253) {
         $sb.removeClass("no-visible-content");
@@ -484,9 +484,9 @@ async function initReadability() {
           window.setTimeout(
             function () {
               if (!$sb.is(":visible")) {
-                $sb.prev().addClass("sixteen").removeClass("ten");
+                $sb.prev().addClass("col-lg-12").removeClass("col-lg-8");
               } else {
-                $sb.prev().removeClass("sixteen").addClass("ten");
+                $sb.prev().removeClass("col-lg-12").addClass("col-lg-8");
               }
             },
             toggleValue === undefined ? 1000 : 0 // delay a little extra on the initial load
@@ -541,11 +541,6 @@ async function initReadability() {
     });
   })(["Sources", "ResearchNotes"]);
 
-  if (options.hideBackground) {
-    let bgStyle = $(".x-style-bg");
-    bgStyle.text(bgStyle.text().replace(/\b(BODY\s*{)/is, "html:not(.hide-background) $1"));
-  }
-
   setHiddenElements(); // initialize with the saved setting
 
   // this only controls whether the toggle button for reading mode is on the screen
@@ -566,18 +561,29 @@ async function initReadability() {
     };
 
     // add the toggle to turn reading mode on/off while viewing the page instead of having to go into the extension for it
-    let toggleElement = $(
-      '<div style="--font-px:11" class="toggle label-left reading-mode .x-widget"><input type="checkbox" id="reading_mode_checkbox"' +
-        (options.readingMode_toggle ? " checked" : "") +
-        '><label for="reading_mode_checkbox">Reading Mode</label>'
-    );
-    toggleElement.find("input").on("change", function () {
-      setHiddenElements(this.checked);
-      setToggleValue(this.checked);
+    let toggleElement = $(`
+        <a class="action--reading-mode wbe-button wbe-icon-glasses${
+          options.readingMode_toggle ? " toggled-on" : ""
+        }" data-tooltip="Reading Mode" title="Reading Mode">
+          <span class="wbe-icon-forbidden"></span>
+        </a>
+    `);
+    toggleElement.on("click", function (e) {
+      e.preventDefault();
+      const isToggledOn = $(this).toggleClass("toggled-on").is(".toggled-on");
+      setHiddenElements(isToggledOn);
+      setToggleValue(isToggledOn);
     });
     // add the toggle button at the top of the page content
-    //$(".x-profile").first().prepend(toggleElement);
-    $("#header .pureCssMenu").first().after(toggleElement);
+    const container = $("#heading .text-end, .profile--actions.float-end").last();
+    if (container.closest("#heading").length > 0) {
+      container.prepend(toggleElement);
+      toggleElement.removeClass("wbe-button");
+      toggleElement.removeAttr("data-tooltip");
+    } else {
+      container.append(toggleElement);
+      toggleElement.removeAttr("title");
+    }
   }
 }
 

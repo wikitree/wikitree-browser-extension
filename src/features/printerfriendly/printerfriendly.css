@@ -7,6 +7,10 @@
     display: unset !important;
   }
 
+  .no-print {
+    display: none !important;
+  }
+
   .print-content-only a,
   .print-content-only a,
   .print-content-only a {
@@ -91,6 +95,7 @@
   .print-content-only .x-footer,
   .print-content-only .x-g2g-posts,
   .print-content-only .x-header,
+  .print-content-only .x-leaders,
   .print-content-only .x-memories,
   .print-content-only .x-merges,
   .print-content-only .x-photos,

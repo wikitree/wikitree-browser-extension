@@ -8,14 +8,14 @@
  */
 
 import { registerFeature, OptionType } from "../../core/options/options_registry";
-import { mainDomain, isCategoryPage, isProfilePage, isSpacePage } from "../../core/pageType";
+import { isCategoryPage, isProfilePage, isSpacePage } from "../../core/pageType";
 
 const readabilityFeature = {
   name: "Readability Options",
   id: "readability",
   description:
     "Enable reading mode to toggle the WikiTree interface on and off when browsing profiles. Configure additional styling options to make profiles more readable.",
-  helpLink: "https://" + mainDomain + "/wiki/Space:WikiTree_Readability_Options#Options",
+  helpLink: "https://www.wikitree.com/wiki/Space:WikiTree_Readability_Options#Options",
   category: "Profile",
   creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   contributors: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
@@ -573,29 +573,9 @@ const readabilityFeature = {
               defaultValue: 0,
             },
             {
-              id: "hidePageTabs",
-              type: OptionType.SELECT,
-              label: "Hide the tabs at the top of the profile",
-              values: [
-                {
-                  value: 0,
-                  text: "never",
-                },
-                {
-                  value: 1,
-                  text: "in reading mode",
-                },
-                {
-                  value: 255,
-                  text: "always",
-                },
-              ],
-              defaultValue: 1,
-            },
-            {
               id: "hideViewTabs",
               type: OptionType.SELECT,
-              label: "Hide the navigation buttons under the tabs",
+              label: "Hide the navigation links in the toolbar",
               values: [
                 {
                   value: 0,
