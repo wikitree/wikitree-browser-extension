@@ -53,7 +53,7 @@ shouldInitializeFeature("myMenu").then((result) => {
 
         if (theWidth < 992) {
           if (!menuGroup.classList.contains("fixed")) {
-            console.log("Moving menu to body as fixed");
+            //  console.log("Moving menu to body as fixed");
             menuGroup.classList.add("fixed");
             document.querySelector(".tabs--wrapper nav").appendChild(menuGroup);
           }
