@@ -304,15 +304,15 @@ body.darkMode .myCustomMenu {
 }
 
 #myMenuGroup.fixed {
-  position: fixed;
-  top: 1em;
+  /*  position: fixed; */
+  float: right;
+  /*top: 1em;
   left: 50%;
-  transform: translateX(-50%);
-  width: 10em;
+  transform: translateX(-50%);*/
+  width: 7em;
   padding-top: 0;
   z-index: 1000;
   padding-bottom: 0;
   border: 0;
+  margin-right: 1em;
 }
-
-

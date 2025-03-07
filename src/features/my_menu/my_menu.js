@@ -21,6 +21,18 @@ shouldInitializeFeature("myMenu").then((result) => {
     const profileWTID = profilePerson?.Name;
     window.profileWTID = profileWTID;
     addCustomMenu();
+
+    /*
+    // Get scrollTop of header in case there's a banner
+    const header = document.querySelector("header");
+    const headerTop = header.offsetTop;
+    // Add style element to head
+    const style = document.createElement("style");
+    //  #myMenuGroup.fixed {top: calc(1em + headerTop);} // 1em plus headerTop
+    style.innerHTML = ` #myMenuGroup.fixed {top: calc(1em + ${headerTop}px);}`;
+    document.head.appendChild(style);
+    */
+
     if (!window.randomProfileOptions) {
       window.randomProfileOptions = getFeatureOptions("randomProfile");
     }
@@ -43,7 +55,7 @@ shouldInitializeFeature("myMenu").then((result) => {
           if (!menuGroup.classList.contains("fixed")) {
             console.log("Moving menu to body as fixed");
             menuGroup.classList.add("fixed");
-            document.body.appendChild(menuGroup);
+            document.querySelector(".tabs--wrapper nav").appendChild(menuGroup);
           }
         } else {
           if (menuGroup.classList.contains("fixed")) {
