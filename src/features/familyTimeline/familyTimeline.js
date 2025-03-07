@@ -17,6 +17,7 @@ import {
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getHighestZindex } from "../familyGroup/familyGroup";
 import { mainDomain } from "../../core/pageType";
+import { profilePerson } from "../../core/common";
 
 shouldInitializeFeature("familyTimeline").then((result) => {
   if (result) {
@@ -161,8 +162,8 @@ function capitalizeFirstLetter(string) {
 export function timeline(id = false) {
   let doit = true;
   if (id) {
-    if ($(".timeline[data-wtid='" + id + "']").length) {
-      const thisTimeline = $(".timeline[data-wtid='" + id + "']");
+    if ($(`.timeline[data-wtid="${id}"]`).length) {
+      const thisTimeline = $(`.timeline[data-wtid="${id}"]`);
       thisTimeline.slideToggle();
       thisTimeline.css("z-index", getHighestZindex() + 1);
       doit = false;
@@ -205,7 +206,7 @@ export function timeline(id = false) {
       "Templates",
     ];
     if (!id) {
-      id = $("a.pureCssMenui0 span.person").text();
+      id = profilePerson.Name;
     }
     getRelatives(
       [id],
@@ -349,37 +350,6 @@ export function timeline(id = false) {
                 });
               }
 
-              // aTemp = aTemp.replaceAll(/[{}]/g, "");
-              // const bits = aTemp.split("|");
-              // const templateTitle = bits[0].replaceAll(/\n/g, "").trim();
-              // bits.forEach(function (aBit) {
-              //   const aBitBits = aBit.split("=");
-              //   const aBitField = aBitBits[0].trim();
-              //   if (aBitBits[1]) {
-              //     const aBitFact = aBitBits[1].trim().replaceAll(/\n/g, "");
-              //     if (warTemplates.includes(templateTitle) && isOK(aBitFact)) {
-              //       if (aBitField == "startdate") {
-              //         evDateStart = dateToYMD(aBitFact);
-              //         evStart = "joined " + templateTitle;
-              //       }
-              //       if (aBitField == "enddate") {
-              //         evDateEnd = dateToYMD(aBitFact);
-              //         evEnd = "left " + templateTitle;
-              //       }
-              //       if (aBitField == "enlisted") {
-              //         evDateStart = dateToYMD(aBitFact);
-              //         evStart = "enlisted for " + templateTitle.replace("american", "American");
-              //       }
-              //       if (aBitField == "discharged") {
-              //         evDateEnd = dateToYMD(aBitFact);
-              //         evEnd = "discharged from " + templateTitle.replace("american", "American");
-              //       }
-              //       if (aBitField == "branch") {
-              //         evLocation = aBitFact;
-              //       }
-              //     }
-              //   }
-              // });
               if (evDateStart && isOK(evDateStart.date)) {
                 familyFacts.push({
                   eventDate: evDateStart,
@@ -420,7 +390,7 @@ export function timeline(id = false) {
       }
       // Make a table
       const aTimeline = $(
-        `<div class='wrap' class='timeline' data-wtid='${person.Name}'><w>↔</w><x>x</x><table class='timelineTable'>` +
+        `<div class='wrap' class='timeline' data-wtid='${person.Name}'><w>↔</w><x>x</x><table class='timelineTable table-borderless'>` +
           `<caption>Events in the life of ${person.FirstName}'s family</caption><thead><th class='tlDate'>Date</th>` +
           `<th class='tlBioAge'>Age</th><th class='tlEventDescription'>Event</th><th class='tlEventLocation'>Location</th>` +
           `</thead><tbody></tbody></table></div>`
@@ -428,9 +398,9 @@ export function timeline(id = false) {
       // Attach the table to the container div
       let theContainer = $("div.container.full-width");
       if (theContainer.prop("id") == "memberSection") {
-        $("#views-wrap").after(aTimeline);
+        $("div.tabs--wrapper").after(aTimeline);
       } else {
-        aTimeline.prependTo(theContainer);
+        $("div.tabs--wrapper").after(aTimeline);
       }
       if ($("#connectionList").length) {
         aTimeline.prependTo($("#content"));

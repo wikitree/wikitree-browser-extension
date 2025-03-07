@@ -27,6 +27,8 @@ Created By: Rob Pavey (Pavey-429)
 */
 
 import { WBE } from "../../core/common";
+
+
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 const undoImageURL = chrome.runtime.getURL("images/agc_undo.png");
@@ -254,57 +256,54 @@ function removeErrorDialog() {
   }
 }
 
-function onErrorCloseButtonClicked() {
-  removeErrorDialog();
+function displayErrorDialog(infoMessage) {
+  const toastId = "wbe-info-toast";
+  let existingToast = document.getElementById(toastId);
+
+  // Remove any existing toast to prevent duplicates
+  if (existingToast) {
+    existingToast.remove();
+  }
+
+  // Create Bootstrap-styled toast container
+  let toastContainer = document.createElement("div");
+  toastContainer.id = toastId;
+  toastContainer.className = "toast position-fixed top-0 end-0 m-3 border-0 shadow";
+  toastContainer.role = "alert";
+  toastContainer.ariaLive = "assertive";
+  toastContainer.ariaAtomic = "true";
+  toastContainer.style = "z-index: 9999; background-color: white !important; border-radius: 5px; overflow: hidden;";
+
+  // Inner toast structure with a header that has the yellow background
+  toastContainer.innerHTML = `
+    <div class="toast-header" style="background-color: #ffc107 !important; color: black; font-weight: bold;">
+      <strong class="me-auto">AGC Information</strong>
+      <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+    <div class="toast-body">
+      ${infoMessage}
+    </div>
+  `;
+
+  document.body.appendChild(toastContainer);
+
+  // Automatically remove toast after 5 seconds
+  setTimeout(() => {
+    toastContainer.classList.remove("show");
+    setTimeout(() => toastContainer.remove(), 300); // Give time for fade-out
+  }, 5000);
+
+  // Show toast by adding Bootstrap's 'show' class
+  setTimeout(() => toastContainer.classList.add("show"), 10);
 }
 
-function displayErrorDialog(editBioMessage) {
-  // display error message in an orange popup window
-  var errorMessage = "WikiTree AGC did not change the profile due to the following error: " + editBioMessage;
-
-  /*
-  Used to do this but it gets a warning on Firefox:
-
-  var template = document.createElement('template');
-  var html = '<div id="toast-container" class="toast-top-right">';
-  html += '<div class="toast toast-info" aria-live="polite" style="display: block;">';
-  html += '<button type="button" id="agc-close-error-button" class="toast-close-button" role="button">×</button>';
-  html += '<div class="toast-message">' + errorMessage + '</div></div></div>';
-  template.innerHTML = html;
-  errorDialog = document.body.appendChild(template.content.firstChild);
-*/
-
-  var toastContainer = document.createElement("div");
-  toastContainer.id = "toast-container";
-  toastContainer.className = "toast-top-right";
-
-  var toastInfo = document.createElement("div");
-  toastInfo.className = "toast toast-info";
-  //toastInfo.className = "toast-info";
-  toastInfo.ariaLive = "polite";
-  //toastInfo.setAttribute("style", "display: block;");
-  //toastInfo.style = "display: block;";
-  toastInfo.style = "z-index: 10000000 !important;";
-
-  toastInfo.style.display = "block";
-  toastContainer.appendChild(toastInfo);
-
-  var closeButton = document.createElement("button");
-  closeButton.setAttribute("type", "button");
-  closeButton.id = "agc-close-error-button";
-  closeButton.className = "toast-close-button";
-  closeButton.setAttribute("role", "button");
-  closeButton.textContent = "×";
-  toastInfo.appendChild(closeButton);
-
-  var toastMessage = document.createElement("div");
-  toastMessage.className = "toast-message";
-  toastMessage.textContent = errorMessage;
-  toastInfo.appendChild(toastMessage);
-
-  errorDialog = document.body.appendChild(toastContainer);
-
-  closeButton.addEventListener("click", onErrorCloseButtonClicked, false);
+function displaySuccessToast(message) {
+  toastr.success(message, "Success", {
+    timeOut: 3000,
+    closeButton: true,
+    progressBar: true,
+    positionClass: "toast-top-right",
+  });
 }
 
 /*
@@ -353,9 +352,9 @@ async function doEditBio() {
 
   // Get Wiki ID from the "person" span item
   var profileWikiId = undefined;
-  const personElements = document.getElementsByClassName("person");
-  if (personElements.length == 1) {
-    profileWikiId = personElements.item(0).textContent;
+  let pageData = document.getElementById("pageData");
+  if (pageData) {
+    profileWikiId = pageData.getAttribute("data-mnamedb");
   }
 
   // Get Date object for today's date
@@ -547,6 +546,7 @@ function initAgc() {
 
 shouldInitializeFeature("agc").then((result) => {
   if (result) {
+    import("./agc.css");
     initAgc();
   }
 });

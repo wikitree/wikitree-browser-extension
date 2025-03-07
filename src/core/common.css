@@ -67,3 +67,83 @@ form[name="a_form"] {
   position: absolute;
   right: 0;
 }
+
+.wbe-button {
+  position: relative;
+}
+.wbe-button span {
+  background: transparent left no-repeat;
+  background-size: contain;
+  display: inline-block;
+  height: 25px;
+  position: relative;
+  width: 26px;
+  cursor: pointer;
+}
+
+/* Emulate/replicate the new tooltip style */
+/* Style for elements with a tooltip */
+[data-tooltip] {
+  cursor: pointer;
+}
+
+/* Tooltip styling */
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 2em; /* position above the element */
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-in-out;
+  z-index: 1000;
+  background-color: #fcb815;
+  color: #25422d;
+  font-family: "Roboto Mono", monospace;
+  font-optical-sizing: auto;
+  font-weight: 500;
+  font-size: 0.75rem;
+  font-style: normal;
+  max-width: 400px !important;
+}
+.wbe-button::after {
+  bottom: 3em;
+}
+
+/* Show tooltip on hover */
+[data-tooltip]:hover::after {
+  opacity: 1;
+}
+
+/* Add an arrow */
+[data-tooltip]::before {
+  content: "";
+  position: absolute;
+  bottom: 0.7em;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 7px;
+  border-style: solid;
+  border-color: #fcb815 transparent transparent transparent;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  z-index: 1000;
+}
+.wbe-button::before {
+  bottom: 1.6em;
+}
+
+[data-tooltip]:hover::before {
+  opacity: 1;
+}
+
+.float-end {
+  z-index: 10;
+  position: relative;
+}

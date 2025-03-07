@@ -1,7 +1,5 @@
 document?.documentElement?.removeAttribute("data-wbe-conflict");
 
-//import { createTopMenu } from "./core/common";
-
 import "./features/register_feature_options";
 
 // First are loaded modules that change the wikitree appearence by altering css style
@@ -22,7 +20,6 @@ import "./features/categoryFinderPins/categoryFinderPins";
 import "./features/connector_image/connector_image";
 import "./features/change_family_lists/change_family_lists";
 import "./features/clipboard_and_notes/clipboard_and_notes";
-import "./features/collapsibleDescendantsTree/collapsibleDescendantsTree";
 import "./features/confirm_thank_yous/confirm_thank_yous";
 import "./features/connection_finder/connection_finder";
 import "./features/copy_bio_changes/copy_bio_changes";
@@ -44,7 +41,6 @@ import "./features/scissors/scissors";
 import "./features/send_to_merge/send_to_merge";
 import "./features/shareable_sources/shareable_sources";
 import "./features/show_suggestions/show_suggestions";
-import "./features/smooth_scrolling/smooth_scrolling";
 import "./features/sortBadges/sortBadges";
 import "./features/sort_theme_people/sort_theme_people";
 import "./features/sourcepreview/sourcepreview";
@@ -68,7 +64,7 @@ import "./features/locationsHelper/locationsHelper";
 import "./features/make_radio_buttons_deselectable/make_radio_buttons_deselectable";
 import "./features/migration_category_helper/migration_category_helper";
 import "./features/remove_from_watchlist/remove_from_watchlist";
-import "./features/save_buttons_style_options/save_buttons_style_options";
+//import "./features/save_buttons_style_options/save_buttons_style_options"; // Disabled for now
 import "./features/show_edits/show_edits";
 import "./features/space_drafts/space_drafts";
 import "./features/sticky_toolbar/sticky_toolbar";
@@ -97,9 +93,13 @@ import "./features/randomProfile/randomProfile";
 import "./features/what_links_here/what_links_here";
 
 /* MARKER: Default place for new features. Move these to a more appropriate place.*/
+import "./features/menu_style/menu_style";
+
+import "./features/menu_hover/menu_hover";
+
 import "./features/links_to_new_tabs/links_to_new_tabs";
 
-import "./features/family_status_sync/family_status_sync";
+//import "./features/family_status_sync/family_status_sync"; // Disabled for now
 
 import "./features/space_watchlist_sorter/space_watchlist_sorter";
 

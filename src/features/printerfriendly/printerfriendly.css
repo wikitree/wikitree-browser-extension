@@ -7,15 +7,70 @@
     display: unset !important;
   }
 
-  .print-content-only body {
-    background: white;
+  .print-content-only a,
+  .print-content-only a,
+  .print-content-only a {
+    color: #008000 !important;
   }
 
-  .print-content-only .columns,
-  .print-content-only .ten,
-  .print-content-only .container .columns,
-  .print-content-only .container .six.columns,
-  .print-content-only .container .ten.columns {
+  .print-content-only body {
+    width: unset !important;
+    height: unset !important;
+    font-size: var(--x-print-font-size) !important;
+  }
+
+  .print-content-only .SMALL {
+    font-size: calc(0.8 * var(--x-print-font-size)) !important;
+  }
+
+  .print-content-only h1 {
+    font-size: calc(2.2 * var(--x-print-font-size)) !important;
+  }
+
+  .print-content-only h2 {
+    font-size: calc(1.5 * var(--x-print-font-size)) !important;
+  }
+
+  .print-content-only h3 {
+    font-size: calc(1.2 * var(--x-print-font-size)) !important;
+  }
+
+  .print-content-only h4,
+  .print-content-only h5,
+  .print-content-only h6,
+  .print-content-only .tree--person {
+    font-size: var(--x-print-font-size) !important;
+  }
+
+  .print-content-only .container {
+    width: unset !important;
+    max-width: unset !important;
+    margin: unset !important;
+    padding: unset !important;
+  }
+
+  .print-content-only .x-style-bg,
+  .print-content-only .x-relationships .tree--person {
+    background: none !important;
+    background: none !important;
+    margin: unset !important;
+    padding: unset !important;
+  }
+
+  .print-content-only .x-relationships .row,
+  .print-content-only .x-relationships .col,
+  .print-content-only .x-heading {
+    margin: unset !important;
+    padding: unset !important;
+  }
+
+  .print-content-only .x-heading {
+    border: unset !important;
+    padding-bottom: 2rem !important;
+  }
+
+  .print-content-only .x-sidebar,
+  .print-content-only .col-lg-8 {
     float: left;
     clear: left;
     display: initial;
@@ -24,83 +79,33 @@
     margin-right: unset;
   }
 
-  .print-content-only a[target="_Help"],
-  .print-content-only span[title*="for the profile and"],
-  .print-content-only div[style="background-color:#e1efbb;"],
-  .print-content-only div[style="background-color:#eee;"],
-  .print-content-only a[href^="/treewidget/"],
-  .print-content-only a[href="/g2g/"],
-  .print-content-only a[class="nohover"],
-  .print-content-only.no-print-vitals .VITALS,
-  .print-content-only.no-print-vitals #nVitals,
-  .print-content-only.no-print-research-notes .section-researchnotes,
-  .print-content-only.no-print-dna .section-dnaconfirmations,
+  .print-content-only .page--divider,
+  .print-content-only .x-audit,
+  .print-content-only .x-banner,
+  .print-content-only .x-callout,
+  .print-content-only .x-categories,
+  .print-content-only .x-comments,
+  .print-content-only .x-connections,
+  .print-content-only .x-dna-connections,
+  .print-content-only .x-edit,
+  .print-content-only .x-footer,
+  .print-content-only .x-g2g-posts,
+  .print-content-only .x-header,
+  .print-content-only .x-memories,
+  .print-content-only .x-merges,
+  .print-content-only .x-photos,
+  .print-content-only .x-privacy,
+  .print-content-only .x-tabs,
+  .print-content-only .x-toc,
+  .print-content-only .x-widget,
+  .print-content-only a[target="_map"],
   .print-content-only.no-print-dna *[class*="section-dnaconfirmations"],
+  .print-content-only.no-print-dna .section-dnaconfirmations,
+  .print-content-only.no-print-research-notes .section-researchnotes,
   .print-content-only.no-print-sources .section-sources,
   .print-content-only.no-print-sources sup.reference,
-  .print-content-only .star,
-  .print-content-only .profile-tabs,
-  .print-content-only .showhidetree,
-  .print-content-only .row:not(#nVitals),
-  .print-content-only .button,
-  .print-content-only :not(.VITALS, #nVitals) > .large,
-  .print-content-only a[target="_map"] > img[alt="map"],
-  .print-content-only .sixteen,
-  .print-content-only .five,
-  .print-content-only .editsection,
-  .print-content-only .EDIT,
-  .print-content-only .x-edit,
-  .print-content-only .comment-absent,
-  .print-content-only .box,
-  .print-content-only #views-wrap,
-  .print-content-only #footer,
-  .print-content-only #commentPostDiv,
-  .print-content-only #comments,
-  .print-content-only #commentEditDiv,
-  .print-content-only #commentG2GDiv,
-  .print-content-only #header,
-  .print-content-only #showHideDescendants,
-  .print-content-only #ancestorTreeContainer,
-  .print-content-only #descendantsContainer,
-  .print-content-only #categories,
-  .print-content-only #toc,
-  .print-content-only #whatLinksHereSection,
-  .print-content-only .x-heading,
-  .print-content-only .x-widget,
-  .print-content-only .x-audit,
-  .print-content-only .x-memories,
-  .print-content-only .x-comments,
-  .print-content-only .x-merges,
-  .print-content-only .x-connections,
-  .print-content-only .x-categories {
+  .print-content-only.no-print-vitals #nVitals,
+  .print-content-only.no-print-vitals .VITALS {
     display: none !important;
   }
-
-  .print-content-only .printable-heading {
-    display: initial !important;
-  }
-
-  .print-content-only #nVitals .sidebar-heading {
-    display: block !important;
-  }
-}
-
-.print-content-only .printable-heading {
-  margin-bottom: 2em;
-  clear: both;
-}
-
-.print-content-only .printable-heading > img {
-  float: left;
-  margin-right: 50px;
-  margin-bottom: 1em;
-  vertical-align: top;
-}
-
-.print-content-only .printable-title {
-  display: inline-block;
-  font-size: 2.1429em;
-  line-height: 1.4em;
-  font-weight: bold;
-  width: calc(100% - 125px);
 }

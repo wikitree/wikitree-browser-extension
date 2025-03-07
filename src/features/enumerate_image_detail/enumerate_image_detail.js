@@ -1,14 +1,16 @@
-import { shouldInitializeFeature } from "../../core/options/options_storage";
 import $ from "jquery";
 import { showCopyMessage } from "../access_keys/access_keys";
+import { shouldInitializeFeature } from "../../core/options/options_storage";
 
-shouldInitializeFeature("enumerateImageDetail").then((result) => {
+shouldInitializeFeature("enumerateImageDetail").then(async (result) => {
   if (result) {
+    await import("./enumerate_image_detail.css");
+
     $(document).on("click", ".copyButton", function () {
       let text = "";
       $(this)
         .closest("div")
-        .find("ol.STYLED li")
+        .find("ol.enumerated li")
         .each(function () {
           const link = $(this).find(`a[itemprop="url"]`);
           const personName = link.text().trim();
@@ -25,9 +27,9 @@ shouldInitializeFeature("enumerateImageDetail").then((result) => {
         let $ul = $(this);
 
         // Convert <ul> to <ol>
-        let $ol = $("<ol>").html($ul.html()).attr("class", $ul.attr("class"));
-        const copyButton = $("<button>").addClass("small button copyButton").text("Copy list").css("float", "right");
-        $(this).parent().find(`p:Contains("In this image")`).append(copyButton);
+        let $ol = $("<ol>").html($ul.html()).attr("class", $ul.attr("class")).addClass("enumerated");
+        const copyButton = $("<button>").addClass("small button copyButton").text("Copy list");
+        $(this).parent().find(`a[data-bs-title="Edit Identified Profiles"]`).after(copyButton);
 
         // Get all <li> elements and sort them based on the text inside the <span itemprop="about">
         let $sortedLis = $ol.children("li.BULLET60").sort(function (a, b) {

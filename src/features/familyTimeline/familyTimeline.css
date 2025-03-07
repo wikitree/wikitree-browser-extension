@@ -22,7 +22,7 @@
   padding: 0.3em;
 }
 .timelineTable caption {
-  font-size: 1.5em;
+  font-size: 100%;
   font-weight: bold;
 }
 .tlBioAge {
@@ -68,4 +68,15 @@ th.tlEventLocation {
   width: 98%;
   margin: auto;
   background-color: white;
+}
+
+.familySheet th,
+.timeline th,
+.familySheet td,
+.timeline td {
+  padding: 0.2em;
+}
+
+.timeline table {
+  caption-side: top;
 }

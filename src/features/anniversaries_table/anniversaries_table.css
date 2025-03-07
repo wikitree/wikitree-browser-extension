@@ -36,3 +36,7 @@
   position: fixed;
   margin-left: 2em;
 }
+
+#toggleAnniversariesTableButton {
+  float: right;
+}

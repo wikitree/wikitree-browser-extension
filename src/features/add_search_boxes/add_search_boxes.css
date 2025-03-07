@@ -5,12 +5,17 @@
   height: 10em;
   width: 42em;
   margin: auto;
+  color: #25422d;
 }
 
 #googleSearchBox,
 #helpSearchBox {
   border: 3px solid #8fc741;
   margin: 0.5em 0;
+}
+#googleSearchBox div.row {
+  margin-left: 1em;
+  margin-right: 1em;
 }
 
 #form-wrapper label.searchBoxLabel {
@@ -72,6 +77,8 @@
   display: flex;
   align-items: stretch; /* This ensures the forms have equal height */
   gap: 20px; /* Optional: adjust this for desired space between the forms */
+  justify-content: center;
+  color: #25422d;
 }
 
 #form-wrapper input[type="text"] {

@@ -2,12 +2,12 @@
 Created By: Ian Beacall (Beacall-6)
 */
 
-import $, { get } from "jquery";
+import $ from "jquery";
 import "./g2g_.css";
 import { isOK, getUserWtId } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { addItems, attachScissorsEvent, copyThingToClipboard } from "../scissors/scissors";
+import { addItems, attachScissorsEvent } from "../scissors/scissors";
 
 function text2Link(element, text, link) {
   const childNodes = element.childNodes;
@@ -135,7 +135,7 @@ function addScissorsToAnswers() {
         text: allAnchorNodes[i].href,
       };
 
-      addItems([previewLinkItem, urlItem], $(allAnchorNodes[i].parentNode));
+      addItems([previewLinkItem, urlItem], $(allAnchorNodes[i].parentNode), { isNew: true });
     }
   }
 }
@@ -158,15 +158,16 @@ async function initG2G() {
   if (options.moreTabs) {
     addG2GButtons();
   }
-  if (options.scissors) {
-    g2gScissors(options.scissors_answers);
-  }
+
   if (options.backToTop) {
     g2gBackToTop();
   }
   if (options.filter) {
     addG2GCategoryCheckboxes();
     doG2GCategories();
+  }
+  if (options.scissors) {
+    g2gScissors(options.scissors_answers);
   }
   if (options.bigButtons) {
     bigG2GButtons();
@@ -179,7 +180,8 @@ async function initG2G() {
   }
 
   if (options.fixHome) {
-    document.getElementsByClassName("pureCssMenui0")[0].href = "https://" + mainDomain + "/wiki/Special:Home";
+    // Temp: This won't work until G2G has the top menus.
+    // document.getElementsByClassName("pureCssMenui0")[0].href = "https://" + mainDomain + "/wiki/Special:Home";
   }
 }
 
@@ -209,17 +211,31 @@ function g2gScissors(alsoInAnswers) {
       window.g2gID = g2gIDmatch[1];
       const g2gURL = "https://" + mainDomain + "/g2g/" + window.g2gID;
       const g2gQuestion = $(".qa-main-heading h1").text();
-      $(".qa-sidepanel").prepend(
-        $(
-          '<span id="g2gScissors"><button aria-label="Copy ID" title="Copy ID" data-copy-label="Copy ID" class="copyWidget" data-copy-text="' +
-            window.g2gID +
-            '" style="color:#8fc641;"><img src="/images/icons/scissors.png">ID</button><button aria-label="Copy URL" title="Copy URL" data-copy-label="Copy URL" class="copyWidget" data-copy-text="' +
-            g2gURL +
-            '" style="color:#8fc641;">/URL</button><button aria-label="Copy Question" title="Copy Question" data-copy-label="Copy Question" class="copyWidget" data-copy-text="' +
-            g2gQuestion.replaceAll('"', "“").replaceAll("\n", "").trim() +
-            '" style="color:#8fc641;">/Question</button></span>'
-        )
-      );
+
+      const position = $(".qa-sidepanel");
+
+      const IDItem = {
+        label: "ID",
+        text: window.g2gID,
+        image: true,
+      };
+
+      const urlItem = {
+        label: "URL",
+        text: g2gURL,
+      };
+
+      const questionItem = {
+        label: "Question",
+        text: g2gQuestion.replaceAll('"', "“").replaceAll("\n", "").trim(),
+      };
+
+      addItems([IDItem, urlItem, questionItem], position, {
+        isNew: true,
+        positioning: "prepend",
+        style: "margin-bottom: 1em",
+      });
+
       if (alsoInAnswers) {
         addScissorsToAnswers();
       }
@@ -228,58 +244,49 @@ function g2gScissors(alsoInAnswers) {
   }
 }
 
+function createG2GButton(id, url, text) {
+  const button = $('<span class="awtG2GLink nav-link qa-nav-main-item-opp"></span>');
+  const link = $('<a class="qa-nav-main-link"></a>').attr("href", url).text(text);
+  return button.attr("id", id).append(link);
+}
+
 function addG2GButtons() {
-  if ($("#recentActivity").length == 0) {
-    const recentActivity = $(".qa-nav-footer-item:has(a[href*='activity'])").eq(0).clone();
-    recentActivity.attr("id", "recentActivity");
-    recentActivity.appendTo($(".qa-nav-main-list"));
+  if ($("#recentActivity").length === 0) {
+    const mainList = $(".qa-nav-main-list");
+    const mainDomainURL = "https://" + mainDomain;
+    const userActivityURL = `${mainDomainURL}/g2g/user/${getUserWtId()}/activity`;
 
-    $("#recentActivity").addClass("awtG2GLink qa-nav-main-item");
+    const recentActivity = createG2GButton(
+      "recentActivity",
+      `${mainDomainURL}/g2g/activity`,
+      "Recent Activity"
+    ).appendTo(mainList);
+    const myActivity = createG2GButton("myActivity", userActivityURL, "My Activity").appendTo(mainList);
+    const favouritesSRC = `${mainDomainURL}/images/icons/icon-save.svg`;
+    const myFavourites = createG2GButton("myFavourites", `${mainDomainURL}/g2g/favorites`, "+").appendTo(mainList);
+    myFavourites.find("a").html(`<img src="${favouritesSRC}" alt="Bookmarked" id="favouritesTabImage" />`);
 
-    const myActivity = $(".qa-nav-footer-item:has(a[href*='activity'])").eq(0).clone();
-    myActivity.attr("id", "myActivity");
-    myActivity.appendTo($(".qa-nav-main-list"));
-    const myActivityURL = "https://" + mainDomain + "/g2g/user/" + getUserWtId() + "/activity";
-    $("#myActivity a").attr("href", myActivityURL);
-    $("#myActivity a").text("My Activity");
-    $("#myActivity").addClass("awtG2GLink qa-nav-main-item qa-nav-main-ask");
+    myFavourites.on("click", () => $("li.qa-nav-sub-favorites a").trigger("click"));
 
-    const myFavourites = $(
-      '<li id="myFavourites" class="awtG2GLink qa-nav-main-item qa-nav-main-ask"><a href="https://' +
-        mainDomain +
-        '/g2g/favorites" class="qa-nav-main-link">+</a></li>'
-    );
-    myFavourites.appendTo($(".qa-nav-main-list"));
-    myFavourites.on("click", function () {
-      $("li.qa-nav-sub-favorites a").trigger("click");
+    // Highlight the selected tab based on the current URL
+    const currentURL = window.location.href;
+    [recentActivity, myActivity, myFavourites].forEach((button) => {
+      if (currentURL === button.find("a").attr("href")) {
+        button.find("a").parent().addClass("qa-nav-main-selected").addClass("active");
+      }
     });
-
-    $(".awtG2GLink").removeClass("qa-nav-footer-item qa-nav-footer-custom-3");
-
-    $(".awtG2GLink a").removeClass("qa-nav-footer-link qa-nav-footer-selected");
-    $(".awtG2GLink a").addClass("qa-nav-main-link");
-
-    if (window.location.href == "https://" + mainDomain + "/g2g/activity") {
-      $("#recentActivity a").addClass("qa-nav-main-selected");
-    }
-    if (window.location.href == myActivityURL) {
-      $("#myActivity a").addClass("qa-nav-main-selected");
-    }
-    if (window.location.href == "https://" + mainDomain + "/g2g/favorites") {
-      $("#myFavourites a,li.qa-nav-main-user a").addClass("qa-nav-main-selected");
-    }
   }
 }
 
 function addWikiIDGoBox() {
-  const dHeader = $("#HEADER");
-  const dClass = "g2g";
+  const WTIDgo = $(`
+    <div class="nav-item" id="wtIDgo_label">
+      <input type="text" id="wtIDgo_id" placeholder="WikiTree ID">
+      <input type="submit" class="button small" id="wtIDgo_go" value="GO">
+    </div>`);
+
   if ($("#wtIDgo_label").length == 0) {
-    dHeader.append(
-      '<fieldset class="' +
-        dClass +
-        '" id="wtIDgo_label">WikiTree ID: <input type="text" id="wtIDgo_id"><input type="submit" class="button small" id="wtIDgo_go" value="GO"></fieldset>'
-    );
+    $("#heading").prepend(WTIDgo);
 
     $("#wtIDgo_id").on("keyup", function (up) {
       if (up.key == "Enter") {
@@ -293,7 +300,7 @@ function addWikiIDGoBox() {
       if (thisValue.match(/[0-9]/) == null) {
         window.location = "https://" + mainDomain + "/genealogy/" + thisValue;
       } else {
-        window.location = "https://wikitree.com/wiki/" + thisValue;
+        window.location = "https://www.wikitree.com/wiki/" + thisValue;
       }
     });
   }

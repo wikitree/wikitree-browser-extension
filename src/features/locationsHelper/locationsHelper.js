@@ -5,9 +5,10 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import { extractRelatives, familyArray, getRelatives } from "../../core/common";
 import { formISODate } from "../date_fixer/date_fixer";
-import { isSpaceEdit, isNewSpace } from "../../core/pageType";
+import { isSpaceEdit, isNewSpace, isProfileAddRelative, isProfileEdit } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 // import { australian_locations } from "./auto_bio/australian_locations";
+import { profilePerson } from "../../core/common";
 
 //Cape
 const vocEnd = new Date("1795-09-17");
@@ -129,10 +130,8 @@ async function locationsHelper() {
   }
 
   let theID;
-  if ($("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
-    theID = $("a.pureCssMenui0 span.person").text();
-  } else if (!(isSpaceEdit || isNewSpace)) {
-    theID = $("a.pureCssMenui:Contains(Edit)").attr("href").split("u=")[1];
+  if (!(isSpaceEdit || isNewSpace)) {
+    profilePerson.Id;
   }
   if (theID) {
     getRelatives(theID, undefined, "WBE_locationsHelper").then((result) => {

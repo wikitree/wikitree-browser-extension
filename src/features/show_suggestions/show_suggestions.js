@@ -1,4 +1,6 @@
+import { createProfileSubmenuLink } from "../../core/common";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import $ from "jquery";
 
 // Check the options settings
 const options = await getFeatureOptions("showSuggestions");
@@ -29,31 +31,19 @@ const hintMessages = [];
 let suggestionsTabElement;
 
 function initSuggestionsTab() {
-  // Create the suggestions tab
-  const suggestionsTab = document.createElement("li");
-  suggestionsTab.className = "viewsi";
-  suggestionsTab.id = "suggestionsTab";
-
-  // Create the anchor element
-  const anchor = document.createElement("a");
-  anchor.className = "viewsi";
-  anchor.textContent = "Suggestions ";
+  // Create the suggestions tab in the profile submenu
+  createProfileSubmenuLink({
+    title: "View Suggestions",
+    url: "#n",
+    id: "suggestionsTab",
+    text: "Suggestions ",
+  });
 
   // Create the span element for the hint
   const suggestionsHint = document.createElement("span");
   suggestionsHint.id = "suggestionsHint";
 
-  // Append the span to the anchor
-  anchor.appendChild(suggestionsHint);
-
-  // Append the anchor to the suggestions tab
-  suggestionsTab.appendChild(anchor);
-
-  // Append the suggestions tab to the menu
-  const viewsList = document.querySelector("ul.views.viewsm");
-  if (viewsList) {
-    viewsList.appendChild(suggestionsTab);
-  }
+  $("#suggestionsTab").append($(suggestionsHint));
 }
 
 async function fetchSuggestions() {

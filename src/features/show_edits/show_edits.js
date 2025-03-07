@@ -45,7 +45,6 @@ class ShowEdits {
         }
 
         const observer = new MutationObserver(() => {
-          console.log("CodeMirror content changed, detecting changes...");
           this.checkForChanges(); // Check for changes when CodeMirror content changes
         });
 

@@ -30,7 +30,7 @@ import { initBioCheck } from "../bioCheck/bioCheck.js";
 //import draggable from "jquery-ui/ui/widgets/draggable";
 
 function addSaveSearchFormDataButton() {
-  const searchResultsP = $("span.large:contains('Search Results')").parent();
+  const searchResultsP = $("p:contains('Search Results')").closest(".row");
   if (searchResultsP.length > 0) {
     searchResultsP.append(
       '<button id="saveSearchFormButton" title="Save the person details in this form to populate the fields of the Add Person edit form" class="button small">Save person details</button>'
@@ -196,8 +196,8 @@ function addScratchPadButton() {
 }
 
 function toggleNonMembers() {
-  $(".wt.names tr").each(function () {
-    if ($(this).find("a[href*='/wiki/']").length > 0 && $(this).find("img[alt='Active member']").length == 0) {
+  $("#Sort-Table tbody tr").each(function () {
+    if ($(this).find("a[href*='/wiki/']").length > 0 && $(this).find("span:contains('ACTIVE')").length == 0) {
       $(this).toggle();
     }
   });
@@ -210,11 +210,11 @@ function toggleNonMembers() {
 }
 
 async function onlyMembers() {
-  $("p")
+  $("#jump-nav")
     .eq(0)
     .append(
       $(
-        `<span class='small'>[<a id='onlyMembers' title="Show only the active members on this page">only active members</a>]</span>`
+        `<li><a href="#n" id='onlyMembers' title="Show only the active members on this page">Only Active Members</a></li>`
       )
     );
   $("#onlyMembers").on("click", function () {
@@ -283,7 +283,7 @@ function addRemoveMeButton() {
       $(`a[data-who='${thisUserId}']:contains(send)`).text("email");
       removeMeButton.on("dblclick", function (e) {
         e.preventDefault();
-        const privacyTab = $(`a[title="View Privacy Settings and Trusted List"]`);
+        const privacyTab = $(`.profile--actions span.icon--privacy-open`).parent();
         privacyTab.attr("href", privacyTab.attr("href") + "&WBEaction=RemoveMe");
         window.location = privacyTab.attr("href");
       });
@@ -403,8 +403,9 @@ function replaceAddRemoveReplaceLinks() {
   if (isProfileEdit) {
     const hasFather = $("input[name='mStatus_Father']").length;
     const hasMother = $("input[name='mStatus_Mother']").length;
-    const hasSpouse = $("div.five.columns.omega a:Contains(edit marriage)").length;
-    $("div.five.columns.omega a[href*='&who=']").each(function () {
+    const hasSpouse = $(".tree--person a.btn-utility:contains('edit marriage')").length;
+
+    $(".container.edit--sidebar a[href*='&who=']").each(function () {
       /* Replace one link like this: https://wikitree.com/index.php?title=Special:EditFamily&u=23943734&who=father
        * with three links like this: https://wikitree.com/index.php?title=Special:EditFamily&u=23943734&who=father&WBEaction=add (remove, connect)
        */
@@ -470,7 +471,11 @@ function replaceAddRemoveReplaceLinks() {
 }
 
 function removeTurnOffPreviewLinks() {
-  $("head").append("<style>#pausePagePreviewButton,#disablePagePreviewButton{display:none}</style>");
+  $("head").append(
+    $(
+      "<style id='removeDisablePreviewsLinks'>#pausePagePreviewButton,#disablePagePreviewButton{display:none !important}</style>"
+    )
+  );
 }
 
 function addCategoryEditLinks() {
@@ -624,7 +629,9 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
 
       // Replace Add/Remove/Replace links with Add, Remove, Connect links
       if (options.addRemoveConnectLinks) {
-        replaceAddRemoveReplaceLinks();
+        setTimeout(function () {
+          replaceAddRemoveReplaceLinks();
+        }, 1000);
       }
 
       if (isProfileAddRelative && options.addRemoveConnectLinks) {
@@ -641,11 +648,6 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
 
       if (isWikiEdit && options.rememberTextareaHeight) {
         triggerRememberTextareaHeight();
-      }
-      if (options.fixPrintingBug) {
-        if (navigator.userAgent.indexOf("Windows NT 10.0") != -1) {
-          $("body").addClass("w10");
-        }
       }
       if (options.addScratchPadButton && isNavHomePage && $("#clonedScratchPadButton").length == 0) {
         addScratchPadButton();
@@ -666,7 +668,7 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
         forwardToSavedSpagePage();
       }
 
-      if (options.removeDisablePreviewButtons) {
+      if (options.removeDisablePreviewLinks) {
         removeTurnOffPreviewLinks();
       }
 
@@ -678,7 +680,7 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
         enhanceThonStats();
       }
 
-      if (options.biggerCheckboxesAndRadios) {
+      if (options.biggerCheckboxesAndRadios && !isPlusDomain) {
         // Add style to the head:
         const style = document.createElement("style");
         style.innerHTML = `
@@ -791,7 +793,8 @@ class RangeringTool {
     this.fetchedProfilesStorageKey = "fetchedProfiles";
     this.memberDataStorageKey = "memberData";
     this.currentConfig = this.getCurrentConfig();
-    this.rangersButtons = $("<div id='rangersButtons'></div>").appendTo($("#content p:first"));
+    this.rangersButtons = $("<div id='rangersButtons'></div>");
+    $(".page--title h1").after(this.rangersButtons);
     this.init();
     this.excludedNames = [];
   }
@@ -832,7 +835,7 @@ class RangeringTool {
 
   async getMemberCreatedDates() {
     const memberCreatedDates = {};
-    const historyItems = $("span.HISTORY-ITEM");
+    const historyItems = $("span.feed-item");
     const memberProfileIDs = [];
     const self = this;
     // Get ID from first /wiki/ link in each HISTORY-ITEM span
@@ -1309,7 +1312,7 @@ class RangeringTool {
     const anomaliesButton = $(
       `<button id='anomaliesButton' class='button small' 
       title='Check for \n1) Different genders \n2) A 10-year difference in birth dates \n3) A 10-year difference in death dates'>
-      Check for Anomalies
+      Check for anomalies
       </button>`
     ).appendTo(this.rangersButtons);
     anomaliesButton.on("click", () => this.checkForAnomalies());
@@ -1375,7 +1378,7 @@ class RangeringTool {
     this.bioCheckResults = storedBioCheckResults ? JSON.parse(storedBioCheckResults) : {};
 
     // Find all links in span.HISTORY-ITEM that include a year in the text content
-    const theLinks = $("span.HISTORY-ITEM a");
+    const theLinks = $("span.feed-item a");
     const bioLinks = [];
 
     // Collect profile IDs to fetch
@@ -1433,8 +1436,8 @@ class RangeringTool {
   }
 
   displayBioButtons() {
-    // Find all links in span.HISTORY-ITEM that include a year in the text content
-    const theLinks = $("span.HISTORY-ITEM a");
+    // Find all links in span.feed-item that include a year in the text content
+    const theLinks = $("span.feed-item a");
 
     // For each bio Name, find it in a link and add a button
     theLinks.each((index, element) => {
@@ -1513,15 +1516,7 @@ class RangeringTool {
       if (p2.includes('<span class="ref-tag">')) {
         return match; // Return unchanged if there's already highlighted content
       }
-      return (
-        '<span class="reference"><span class="ref-tag">' +
-        p1 +
-        "</span>" +
-        p2 +
-        '<span class="ref-tag">' +
-        p3 +
-        "</span></span>"
-      );
+      return `<span class="reference"><span class="ref-tag">${p1}</span>${p2}<span class="ref-tag">${p3}</span></span>`;
     });
 
     // Highlight lines starting with '*' in the '== Sources ==' section, including the '*'
@@ -1562,7 +1557,7 @@ class RangeringTool {
       const bio = this.people[2][bioId]; // Access the bio using the string key
       if (bio && bio.bio) {
         const highlightedBio = this.highlightMarkup(bio.bio).replace(/\n/g, "<br>");
-        $("#content").prepend(
+        $("main#main").prepend(
           `<div class="bioPopup" data-id="${bioId}">
             <x class="closeBioPopup">&times;</x>
             ${highlightedBio}
@@ -1747,7 +1742,7 @@ const rangers = [
   "Whitten-1",
 ];
 
-if (isNetworkFeed && rangers.includes(getUserWtId())) {
+if (isNetworkFeed && rangers.includes(getUserWtId()) && window.location.href.match(/Pre-1700|Pre-1500|merge=1/)) {
   initBioCheck();
   rangeringTool = new RangeringTool();
 }

@@ -118,6 +118,23 @@ const autoBio = {
           defaultValue: "BirthName",
         },
         {
+          id: "firstSentences",
+          type: OptionType.RADIO,
+          label: "First sentence(s)",
+          values: [
+            {
+              value: "of",
+              text: "X was born on ... in ..., son/daughter of ... and ...",
+            },
+            {
+              value: "to",
+              text: "X was born on ... in ... to ... and ...",
+            },
+            { value: "parentsWere", text: "X was born on ... in ... His/Her parents were ... and ..." },
+          ],
+          defaultValue: "of",
+        },
+        {
           id: "marriageFormat",
           type: OptionType.RADIO,
           label: "Marriage Format",

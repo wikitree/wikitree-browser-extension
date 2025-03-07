@@ -27,6 +27,27 @@ const changeFamilyLists = {
       defaultValue: false,
     },
     {
+      id: "familyListPosition",
+      type: OptionType.RADIO,
+      label: "Position in right-hand column",
+      values: [
+        {
+          value: "beforeManager",
+          text: "Before Manager",
+        },
+        {
+          value: "beforePhotos",
+          text: "Before Photos",
+        },
+        {
+          value: "afterPhotos",
+          text: "After Photos",
+        },
+      ],
+      defaultValue: "beforePhotos",
+    },
+    {id:"oneSpousePerLine", type: OptionType.CHECKBOX, label: "One spouse per line", defaultValue: false},
+    {
       id: "showSidebarHeading",
       type: OptionType.CHECKBOX,
       label: "Add heading when displayed on the right",
@@ -39,15 +60,9 @@ const changeFamilyLists = {
       defaultValue: false,
     },
     {
-      id: "moveToEnd",
-      type: OptionType.CHECKBOX,
-      label: "Re-order: Born, Died, Family Relationships",
-      defaultValue: false,
-    },
-    {
       id: "highlightActiveProfile",
       type: OptionType.CHECKBOX,
-      label: "Highlight the active profile when listed vertically",
+      label: "Highlight the active profile",
       defaultValue: false,
     },
     {

@@ -25,7 +25,7 @@ async function init() {
   const filterContainer = `<div id="pendingMergesFilterButtons" class="d-flex flex-wrap"><span>Hide: </span>${filterButtons.join(
     ""
   )}</div>`;
-  const theForm = $("input[type='submit'][value='go']").closest("form");
+  const theForm = $("button[type='submit']:contains('Go')").closest("form");
   theForm.after(filterContainer);
   const buttons = $("#pendingMergesFilterButtons").find("button");
   buttons.on("click", function (e) {
@@ -49,7 +49,7 @@ function saveFilters() {
 }
 
 function applyFilters() {
-  const listItems = $("#content ol li");
+  const listItems = $("section ol li.mb-5");
   listItems.show(); // Start by showing all items
 
   if (activeFilters.size === 0) {
@@ -60,15 +60,15 @@ function applyFilters() {
     const item = $(this);
     let hideItem = false;
 
-    if (activeFilters.has("Pre-1500") && item.find("span.HIGHLIGHT:contains('Pre-1500')").length > 0) {
+    if (activeFilters.has("Pre-1500") && item.find("mark a:contains('Pre-1500')").length > 0) {
       hideItem = true;
     }
 
-    if (activeFilters.has("Pre-1700") && item.find("span.HIGHLIGHT:contains('Pre-1700')").length > 0) {
+    if (activeFilters.has("Pre-1700") && item.find("mark a:contains('Pre-1700')").length > 0) {
       hideItem = true;
     }
 
-    if (activeFilters.has("Not_Open") && item.find(`img[alt="Privacy Level 60"]`).length !== 2) {
+    if (activeFilters.has("Not_Open") && item.find(`span.privacy--60`).length !== 2) {
       hideItem = true;
     }
 

@@ -37,6 +37,15 @@ body.page-Special_EditFamilySteps #wpSave {
   top: 1em;
   right: 1em;
   height: 1em;
+  z-index: 10;
+}
+#saveButtons {
+  position: relative;
+}
+
+span.float-end {
+  position: relative;
+  z-index: 10;
 }
 
 #changeSummaryOptions {
@@ -50,6 +59,9 @@ body.page-Special_EditFamilySteps #wpSave {
   z-index: 1000;
   right: 1em;
 }
+#changeSummaryOptions h3 {
+  display: inline-block;
+}
 
 #changeSummaryOptions li {
   display: inline-block;
@@ -61,12 +73,21 @@ body.page-Special_EditFamilySteps #wpSave {
   top: 0.5em;
   right: 0.5em;
   cursor: pointer;
+  z-index: 10000;
 }
 
 #currentOptions {
   background: white;
   cursor: pointer;
   margin: 1em;
+}
+
+#currentOptions li {
+  display: inline-block;
+  padding: 0.2em;
+  border: 1px solid forestgreen;
+  margin: 0.2em;
+  white-space: nowrap;
 }
 
 #newOption {
@@ -81,7 +102,22 @@ body.page-Special_EditFamilySteps #wpSave {
 
 .deleteOption {
   padding: 0.2em;
-  border: 1px solid forestgreen;
-  border-radius: 1em;
   margin: 0.2em;
+}
+
+/* For the sortable */
+
+/* Ensure the helper is visible and styled */
+.ui-sortable-helper {
+  background: #fff;
+  opacity: 0.9;
+  z-index: 1500; /* higher than most page elements */
+  padding: 0.5em;
+}
+
+/* Optional: style the placeholder so the user sees where the item will go */
+.ui-sortable-placeholder {
+  background: #f0f0f0;
+  border: 1px dashed #ccc;
+  visibility: visible !important;
 }

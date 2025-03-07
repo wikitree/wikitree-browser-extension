@@ -1,14 +1,14 @@
 #cc7DeltaContainer {
   position: absolute;
   top: 200px;
-  left: 30%;
+  left: 20%;
   border: 1px solid forestgreen;
   border-radius: 5px;
   padding: 20px;
   background-color: #fff;
   box-shadow: 1em 1em 1em #ccc;
   z-index: 1000;
-  width: 500px;
+  width: 700px;
   max-height: 600px;
   overflow: auto;
   cursor: move;

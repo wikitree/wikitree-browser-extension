@@ -80,10 +80,13 @@ spaceWatchlistSorter-removeFolder {
 
 #spaceWatchlistSorterClosePopup {
   position: absolute;
-  top: 1em;
-  right: -1em;
+  top: 0;
+  right: 0;
   padding: 0.2em 0.4em;
   cursor: pointer;
+  border-radius: 0.5em;
+  color: white;
+  background-color: #25422d;
 }
 
 .spaceWatchlistSorter-loading {

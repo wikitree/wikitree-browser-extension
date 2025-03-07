@@ -89,6 +89,8 @@ import "./image_zoom/image_zoom_options";
 import "./language_setting/language_setting_options";
 import "./links_to_new_tabs/links_to_new_tabs_options";
 import "./locationsHelper/locationsHelper_options";
+import "./menu_hover/menu_hover_options";
+import "./menu_style/menu_style_options";
 import "./pending_merges_filters/pending_merges_filters_options";
 import "./printerfriendly/printerfriendly_options";
 import "./randomProfile/randomProfile_options";
@@ -162,17 +164,6 @@ registerFeature({
   contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: false,
   pages: [isMainDomain],
-});
-
-registerFeature({
-  name: "Collapsible Descendants Tree",
-  id: "collapsibleDescendantsTree",
-  description: "Makes the descendants tree on profile pages collapsible.",
-  creators: [{ name: "Julian Laffey", wikitreeid: "Laffey-98" }],
-  contributors: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  category: "Profile",
-  defaultValue: true,
-  pages: [isProfilePage, isDNADescendants],
 });
 
 registerFeature({
@@ -308,17 +299,6 @@ registerFeature({
   contributors: [],
   defaultValue: true,
   pages: [isSpecialWatchedList],
-});
-
-registerFeature({
-  name: "Smooth Scrolling",
-  id: "smoothScrolling",
-  description: "Scroll the window smoothly when linking to specific sections of the page.",
-  category: "Global/Style",
-  creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
-  contributors: [],
-  defaultValue: false,
-  pages: [isMainDomain],
 });
 
 registerFeature({

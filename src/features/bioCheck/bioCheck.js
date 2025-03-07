@@ -3,7 +3,7 @@ Created By: Kay Knight (Sands-1865)
 */
 
 /*
-* The following external components are referenced. As of 03 January 2025
+* The following external components are referenced. As of 06 Februrary 2025
 * Any element created by this feature has an id that starts with bioCheck
 * 
 * Looks in document.body.classList for
@@ -75,7 +75,7 @@ async function bioCheckSetup() {
    */
 
   // Look at the type of page and take appropriate action
-  if (document.body.classList.contains("page-Special_EditPerson")) {
+  if (document.body.classList.contains("edit-person")) {
     // If custom change summary options enabled, wait for the saveStuff to be created
     // It seems that the check is long enough to wait but just in case there are slower machines
     checkIfFeatureEnabled("customChangeSummaryOptions").then((result) => {
@@ -104,20 +104,35 @@ async function bioCheckSetup() {
 
     let saveButton = null;
     if (document.getElementById("mSources")) {
-      if (document.body.classList.contains("page-Special_EditFamily")) {
+      if (document.body.classList.contains("add_unrelated")) {
         saveButton = document.getElementById('addNewPersonButton');
+        if (saveButton) {
+          saveButton.addEventListener("mouseover", checkSourcesAtInterval);
+          saveButton.addEventListener("touchstart", checkSourcesAtInterval);
+          setInterval(checkSourcesAtInterval, 30000);
+          checkSources();
+        }
       }
-      if (saveButton) {
-        // listening to the save button click seemed to interfere with
-        // the actual save, so it was removed
-        saveButton.addEventListener("mouseover", checkSourcesAtInterval);
-        saveButton.addEventListener("touchstart", checkSourcesAtInterval);
-        setInterval(checkSourcesAtInterval, 30000);
+      if (document.body.classList.contains("edit_relation")) {
+        saveButton = document.getElementById('addNewPersonButton');
+        if (saveButton) {
+          let continueButton= document.getElementById('actionButton');
+          if (continueButton) {
+            continueButton.onclick = function () {
+              saveButton.addEventListener("mouseover", checkSourcesAtInterval);
+              saveButton.addEventListener("touchstart", checkSourcesAtInterval);
+              setInterval(checkSourcesAtInterval, 30000);
+              checkSources();
+            };
+          }
+        }
       }
     } else {
-      if (document.body.classList.contains("page-Special_WatchedList")) {
-        checkWatchlist();
-      }
+      // DEPRECATE watchlist. New design eliminates the buttons
+      ;
+      //if (document.body.classList.contains("page-Special_WatchedList")) {
+      //  checkWatchlist();
+      //}
     }
   }
 }
@@ -171,70 +186,100 @@ function checkBio() {
   biography.parse(bioString, thePerson, "");
   let bioStatus = biography.validate();
   // now report from biography results by adding a list to the page
-  reportResults(getReportLines(bioStatus, biography, thePerson.isPre1700()));
+  if (biography.hasStyleIssues()) {
+    bioStatus = false;
+  }
+  reportResults(biography, thePerson.isPre1700(), bioStatus);
 }
 
-function getReportLines(bioStatus, biography, isPre1700) {
+function buildReportLines(container, bioStatus, biography, isPre1700) {
 
-  let profileReportLines = [];
-  if (biography.hasSources()) {
-    profileReportLines.push("Profile appears to have sources");
-  } else {
-    if (!biography.isMarkedUnsourced()) {
-      profileReportLines.push("Profile may be unsourced");
-    }
+  let bioResultItem = document.createElement("li");
+  let msg = "Profile appears to have sources";
+  if (!biography.hasSources()) {
+    msg = "Profile may be unsourced";
   }
-  let numLines = biography.getInvalidSources().length;
+  bioResultItem.appendChild(document.createTextNode(msg));
+  container.appendChild(bioResultItem);
+  
+  let numBadSources = biography.getInvalidSources().length;
   if (biography.getInvalidSources().length > 0) {
-    let msg = "Bio Check found sources that are not ";
+    let bioResultItem = document.createElement("li");
+    msg = "Bio Check found sources that are not ";
     if (isPre1700) {
-      msg += "reliable or ";
+        msg += "reliable or ";
     }
-    msg += "clearly identified: \u00A0\u00A0"; // TODO use style?
-    profileReportLines.push(msg);
-    for (let i=0; i<biography.getInvalidSources().length; i++) {
-      let msg = '\xa0\xa0\xa0' + biography.getInvalidSources()[i];
-      profileReportLines.push(msg);
+    msg += "clearly identified";
+    bioResultItem.appendChild(document.createTextNode(msg));
+    container.appendChild(bioResultItem);
+
+    let sourcesListElement = document.createElement('ul');
+    let numLines = biography.getInvalidSources().length;
+    if (biography.getInvalidSources().length > 0) {
+      for (let i=0; i<biography.getInvalidSources().length; i++) {
+        let bioResultItem = document.createElement("li");
+        bioResultItem.appendChild(document.createTextNode(biography.getInvalidSources()[i]));
+        sourcesListElement.appendChild(bioResultItem);
+      }
     }
+    bioResultItem.appendChild(sourcesListElement);
   }
   let messages = biography.getSectionMessages();
   for (let i=0; i<messages.length; i++) {
-    profileReportLines.push(messages[i]);
+    let bioResultItem = document.createElement("li");
+    bioResultItem.appendChild(document.createTextNode(messages[i]));
+    container.appendChild(bioResultItem);
   }
   messages = biography.getStyleMessages();
   for (let i=0; i<messages.length; i++) {
-    profileReportLines.push(messages[i]);
+    let bioResultItem = document.createElement("li");
+    bioResultItem.appendChild(document.createTextNode(messages[i]));
+    container.appendChild(bioResultItem);
   }
-  return profileReportLines;
 }
 
-function reportResults(reportLines) {
+/*
+function buildSourcesList(biography) {
+  let sourcesListElement = document.createElement('ul');
+  let numLines = biography.getInvalidSources().length;
+  if (biography.getInvalidSources().length > 0) {
+    for (let i=0; i<biography.getInvalidSources().length; i++) {
+      let bioResultItem = document.createElement("li");
+      bioResultItem.appendChild(document.createTextNode(biography.getInvalidSources()[i]));
+      sourcesListElement.appendChild(bioResultItem);
+    }
+  }
+  return sourcesListElement;
+}
+*/
+
+function reportResults(biography, isPre1700, bioStatus) {
   
   // If you have been here before get and remove the old list of results
   let previousResults = document.getElementById("bioCheckResultsList");
   let bioCheckResultsContainer = document.getElementById("bioCheckResultsContainer");
   if (!bioCheckResultsContainer) {
     bioCheckResultsContainer = document.createElement("div");
-    bioCheckResultsContainer.setAttribute("id", "biocheckContainer");
-    // if the status class is too much, a big yellow box take out following line
-    bioCheckResultsContainer.setAttribute('class', 'status');
-
+    bioCheckResultsContainer.setAttribute("id", "bioCheckResultsContainer");
     let bioCheckTitle = document.createElement("div");
-    bioCheckTitle.innerText = "Bio Check results\u00A0\u00A0"; // TODO use style?
+    bioCheckTitle.innerText = "Bio Check results: "; 
     bioCheckResultsContainer.appendChild(bioCheckTitle);
     setHelp(bioCheckTitle);
   }
+  // turn off display in case you are changing the class to make it change
+  bioCheckResultsContainer.setAttribute('style', 'display:none');
+  if (bioStatus) {
+    bioCheckResultsContainer.setAttribute('class', "status green");
+  } else {
+    bioCheckResultsContainer.setAttribute('class', "status");
+  }
+  bioCheckResultsContainer.setAttribute('style', 'display');
 
   // need a new set of results
   let bioResultsList = document.createElement("ul");
   bioResultsList.setAttribute("id", "bioCheckResultsList");
-
-  let numLines = reportLines.length;
-  for (let i = 0; i < numLines; ++i) {
-    let bioResultItem = document.createElement("li");
-    bioResultItem.appendChild(document.createTextNode(reportLines[i]));
-    bioResultsList.appendChild(bioResultItem);
-  }
+  buildReportLines(bioResultsList, bioStatus, biography, isPre1700);
+  
   // Add or replace the results
   if (previousResults) {
     previousResults.replaceWith(bioResultsList);
@@ -259,14 +304,23 @@ function reportResults(reportLines) {
 function checkSources() {
 
   // Don't check if just connecting existing profile
-  // and this checkbox is not on add unrelated person
-  let addingNewProfile = true;
-  if (document.getElementById('editAction_connectExisting')) {
+  let connectExisting = false;
+
+  // just in case we have been here before, gone back, and changed setting
+  let bioCheckSourcesContainer = document.getElementById("bioCheckSourcesContainer");
+  let e = document.getElementById('editAction_connectExisting');
+  if (e) {
     if (document.getElementById('editAction_connectExisting').checked) {
-      addingNewProfile = false;
+      connectExisting = true;
+      if (bioCheckSourcesContainer) {
+        bioCheckSourcesContainer.setAttribute('style', 'display:none');
+      }
     }
   }
-  if (addingNewProfile) {
+  if (!connectExisting) {
+    if (bioCheckSourcesContainer) {
+      bioCheckSourcesContainer.setAttribute('style', 'display');
+    }
     let thePerson = new BioCheckPerson();
     // get the bio text and person dates to check
     let sourcesStr = document.getElementById("mSources").value;
@@ -285,9 +339,10 @@ function checkSources() {
     } else {
       isValid = biography.validateSourcesStr(sourcesStr, thePerson);
     }
-    reportSources(getReportLines(isValid, biography, thePerson.isPre1700()), isValid);
+    reportSources(isValid, biography, thePerson.isPre1700());
   }
 }
+
 
 /*
  * report sources for profile where the input lines are either
@@ -295,35 +350,29 @@ function checkSources() {
  * or
  * the lines of a full biocheck report
 */
-function reportSources(invalidSourceLines, isValid) {
-  let numLines = invalidSourceLines.length;
+function reportSources(isValid, biography, isPre1700) {
+  let numLines = biography.getInvalidSources().length;
   let previousSources = document.getElementById("bioCheckSourcesList");
   let bioCheckSourcesContainer = document.getElementById("bioCheckSourcesContainer");
   let bioCheckTitle = document.getElementById("bioCheckTitle");
+
   // If you have been here before get and remove the old list of results
   if (!bioCheckSourcesContainer) {
     if (!isValid || numLines > 0) {
       bioCheckSourcesContainer = document.createElement("div");
       bioCheckSourcesContainer.setAttribute("id", "bioCheckSourcesContainer");
-      // if the status class is too much, a big yellow box take out following line
       bioCheckSourcesContainer.setAttribute('class', 'status');
-
       bioCheckTitle = document.createElement("div");
       bioCheckTitle.setAttribute("id", "bioCheckTitle");
-      bioCheckTitle.innerText = "Bio Check results:\u00A0\u00A0";
+      bioCheckTitle.innerText = "Bio Check results: ";
       bioCheckSourcesContainer.appendChild(bioCheckTitle);
       setHelp(bioCheckTitle);
     }
   }
 
-  // need a new set of results
   let bioSourcesList = document.createElement("ul");
   bioSourcesList.setAttribute("id", "bioCheckSourcesList");
-  for (let i = 0; i < numLines; ++i) {
-    let bioSourceItem = document.createElement("li");
-    bioSourceItem.appendChild(document.createTextNode(invalidSourceLines[i]));
-    bioSourcesList.appendChild(bioSourceItem);
-  }
+  buildReportLines(bioSourcesList, isValid, biography, isPre1700);
 
   // Add or replace the results
   if ((numLines > 0) || !isValid) {
@@ -349,23 +398,17 @@ function reportSources(invalidSourceLines, isValid) {
  */
 function setHelp(parentContainer) {
   let bioCheckHelpAnchor = document.createElement("a");
-  let bioCheckHelpImage = document.createElement("img");
-
-  bioCheckHelpAnchor.appendChild(bioCheckHelpImage);
   bioCheckHelpAnchor.setAttribute("id", "bioCheckHelpAnchor");
   bioCheckHelpAnchor.setAttribute("href", "https://" + mainDomain + "/wiki/Space:BioCheckHelp#Sourced.3F");
   bioCheckHelpAnchor.setAttribute("target", "_Help");
-
-  bioCheckHelpImage.setAttribute("id", "bioCheckHelpImage");
-  bioCheckHelpImage.setAttribute("src", "/images/icons/help.gif");
-  bioCheckHelpImage.setAttribute("alt", "Help");
-  bioCheckHelpImage.setAttribute("title", "Bio Check Help");
-
+  bioCheckHelpAnchor.setAttribute("class", "icon--help");
   parentContainer.appendChild(bioCheckHelpAnchor);
 }
 
 /**
  * Add a button for BioCheck to the Watchlist page
+ *
+ * DEPRECATED. The new design eliminates nav buttons here
  */
 function checkWatchlist() {
   // Test for Person Profiles and not Free Space Profiles

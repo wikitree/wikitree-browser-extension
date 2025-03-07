@@ -5,12 +5,12 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import { isOK } from "../../core/common.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+import { profilePerson } from "../../core/common";
 
 let featuredConnectionsParagraph;
+let hasSection = true;
 
-const profilePersonInfo = getProfilePersonInfo();
-const profilePersonName = profilePersonInfo ? profilePersonInfo.name : null;
-const profilePersonId = profilePersonInfo ? profilePersonInfo.id : null;
+const profilePersonId = profilePerson ? profilePerson.Name : null;
 
 shouldInitializeFeature("sortThemePeople").then((result) => {
   if (result && $("body.profile").length) {
@@ -21,10 +21,16 @@ shouldInitializeFeature("sortThemePeople").then((result) => {
 async function init() {
   import("./sort_theme_people.css");
 
-  featuredConnectionsParagraph = $("div.sixteen p:contains('degrees from')");
+  featuredConnectionsParagraph = $("section.connections p:contains('degrees from')");
+  if (!featuredConnectionsParagraph.length) {
+    featuredConnectionsParagraph = $("div.container p:contains('degrees from')");
+    hasSection = false;
+  }
+  /*
   if (!featuredConnectionsParagraph.length) {
     featuredConnectionsParagraph = $("div.sixteen div.box:contains('degrees from')");
   }
+    */
   if (!featuredConnectionsParagraph.length) {
     return;
   }
@@ -54,10 +60,16 @@ function getThemeAndNotables() {
       // The first link is the theme link
       const themeLink = links.first();
       themeTitle = themeLink.text().trim();
+      let firstLinkIsDegrees = themeTitle.includes(" degrees from ");
+      if (themeTitle.includes(" degrees from ")) {
+        themeTitle = "Featured Connections"; // Fallback to a generic title if necessary
+      }
 
       // The remaining links are the featured connections
       links.each(function (index) {
-        if (index === 0) return; // Skip the first link (theme link)
+        if (!firstLinkIsDegrees) {
+          if (index === 0) return; // Skip the first link (theme link)
+        }
         const link = $(this);
         const href = link.attr("href");
 
@@ -158,21 +170,6 @@ function getThemeTitle() {
   // Extract the theme title from the featuredConnectionsParagraph or other sources
   const data = getThemeAndNotables();
   return data ? data.theme_title : "Featured Connections";
-}
-
-// Function to get profile person ID and name
-export function getProfilePersonInfo() {
-  // Extract the profile person's WikiTree ID from the URL
-  const urlParts = window.location.pathname.split("/");
-  let personId = urlParts[urlParts.length - 1];
-  if (!personId) {
-    personId = $("a.pureCssMenui0 span.person").text().trim();
-  }
-  const personName = $("h1 span[itemprop='name']").text().trim();
-  if (!personId || !personName) {
-    return null;
-  }
-  return { id: personId, name: personName };
 }
 
 // Function to fetch and combine matchups from page and FeaturedMatrix
@@ -623,8 +620,9 @@ function buildComprehensiveMatchupTable(combinedData, themeTitle) {
   const config = { childList: true, subtree: true };
 
   // Start observing the popup for changes
-  observer.observe(popup, config);
-
+  if (popup.length) {
+    observer.observe(popup.get(0), config);
+  }
   // Optional: Stop observing when you no longer need it
   // observer.disconnect();
 }
@@ -658,13 +656,19 @@ function themePeopleTable() {
   if ($("#themeTable").length) {
     $("#themeTable").toggle();
     $("h2.thisWeeksTheme").toggle();
+    if ($("p.cfParagraph").length == 0) {
+      if (!hasSection) {
+        featuredConnectionsParagraph.addClass("cfParagraph");
+      }
+    }
     $("p.cfParagraph").toggle();
-    $(".sixteen a:contains('degrees from')").closest("div.box.rounded.row").toggle();
+    //$("section.connections a:contains('degrees from')").closest("div.box.rounded.row").toggle();
   } else {
     const linksArray = [];
-    const themeLinks = $(
-      ".sixteen p a:contains('degrees from'), .sixteen div.box.rounded.row a:contains('degrees from')"
-    );
+    let themeLinks = $("section.connections p a:contains('degrees from')");
+    if (!themeLinks.length) {
+      themeLinks = $("div.container p a:contains('degrees from')");
+    }
     themeLinks.each(function () {
       let aThemePerson = {};
       aThemePerson.connectionURL = $(this).attr("href");
@@ -678,6 +682,9 @@ function themePeopleTable() {
 
     // Extract the theme title
     let themeTitle = featuredConnectionsParagraph.find("a:first").text().trim();
+    if (themeTitle.includes(" degrees from ")) {
+      themeTitle = null;
+    }
     if (!themeTitle) {
       themeTitle = $("h2.thisWeeksTheme").text().trim();
     }
@@ -704,7 +711,7 @@ function themePeopleTable() {
     });
     linksArray.forEach(function (aPerson) {
       let aRow = $(
-        `<tr><td><a href="/wiki/${aPerson.WTID}">${aPerson.name}</a></td><td><a href="${aPerson.connectionURL}">${aPerson.degrees} degrees</a></td><td></td></tr>`
+        `<tr><td><a href="/wiki/${aPerson.WTID}">${aPerson.name}</a></td><td><a href="${aPerson.connectionURL}">${aPerson.degrees} degrees</a></td></tr>`
       );
       themeTable.find("tbody").append(aRow);
     });
@@ -716,14 +723,12 @@ function themePeopleTable() {
  * @param {string} dTitle - The title to set
  */
 function setThemeTitles(dTitle) {
-  let theP = $("body.profile div.sixteen.columns p a[href*='Special:Connection']").closest("p");
+  let theP = $("body.profile div.connections p a[href*='Special:Connection']").closest("p");
   if (theP.length) {
     theP.addClass("cfParagraph");
-  } else {
-    theP = $("body.profile div.sixteen.columns div.box.rounded a[href*='Special:Connection']").closest("div");
   }
   const theDiv = theP.closest("div");
-  const ourTitle = dTitle + " Connections to " + $("span[itemprop='givenName']").text();
+  const ourTitle = dTitle + " Connections to " + profilePerson.FullName;
   if ($("h2.thisWeeksTheme").length == 0) {
     theDiv.prepend("<h2 class='thisWeeksTheme'>" + ourTitle + "</h2>");
   }
@@ -738,11 +743,9 @@ function setThemeTitles(dTitle) {
  */
 async function setConnectionsBanner() {
   const cfTitle = $("div.x-connections a:first").text();
-  let theP = $("body.profile div.sixteen.columns p a[href*='Special:Connection']").closest("p");
+  let theP = $("body.profile div.connections p a[href*='Special:Connection']").closest("p");
   if (theP.length) {
     theP.addClass("cfParagraph");
-  } else {
-    theP = $("body.profile div.sixteen.columns div.box.rounded a[href*='Special:Connection']").closest("div");
   }
   setThemeTitles(cfTitle);
 }
@@ -752,16 +755,8 @@ async function setConnectionsBanner() {
  */
 async function connectionsBanner() {
   if ($("h2.thisWeeksTheme").length == 0) {
-    if (
-      $(
-        "div.sixteen.columns p a[href*='Special:Connection'], div.sixteen.columns div.box.rounded.row a[href*='Special:Connection']"
-      ).length
-    ) {
-      const firstConnectionHREF = $(
-        "div.sixteen.columns p a[href*='Special:Connection'], div.sixteen.columns div.box.rounded.row a[href*='Special:Connection']"
-      )
-        .eq(0)
-        .attr("href");
+    if ($("section.connections p a[href*='Special:Connection']").length) {
+      const firstConnectionHREF = $("section.connections p a[href*='Special:Connection']").eq(0).attr("href");
 
       if (isOK(firstConnectionHREF)) {
         const urlParams = new URLSearchParams(firstConnectionHREF);

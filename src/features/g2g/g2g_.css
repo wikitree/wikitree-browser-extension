@@ -45,3 +45,8 @@ span.qa-q-item-meta a.qa-q-item-what:visited .checkmark {
 span.qa-q-item-meta a.qa-q-item-what:visited .checkmark {
   margin-left: -1em;
 }
+
+#favouritesTabImage {
+  width: 1em;
+  height: 1em;
+}

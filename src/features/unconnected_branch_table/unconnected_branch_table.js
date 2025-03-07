@@ -1,17 +1,19 @@
 import $ from "jquery";
 import "./unconnected_branch_table.css";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
-import { createProfileSubmenuLink, isOK } from "../../core/common";
 import { mainDomain, isUnconnectedNotables } from "../../core/pageType";
 import { getPeople } from "../dna_table/dna_table";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { showFamilySheet } from "../familyGroup/familyGroup";
 import { assignPersonNames } from "../auto_bio/auto_bio";
 import { addFiltersToWikitables, repositionFilterRow } from "../table_filters/table_filters";
 import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
+import { profilePerson } from "../../core/common";
+import { isOK } from "../../core/common";
 import "jquery-ui/ui/widgets/draggable";
 
 async function initUnconnectedBranch() {
-  const profileID = $("a.pureCssMenui0 span.person").text();
+  const profileID = profilePerson.Id;
   const profile = await getProfile(profileID, "Id,Created,Name", "WBE_UnconnectedBranch");
   if (profile.Created) {
     if (!isLessThan24HoursAgo(profile.Created)) {
@@ -22,8 +24,15 @@ async function initUnconnectedBranch() {
         url: "#n",
       };
       if (!isUnconnectedNotables) {
-        createProfileSubmenuLink(options);
+        // Add a button to the profile page
+        const $unconnectedButton = $(
+          `<a href="#n" id="unconnectedBranchButton" title="Unconnected Branch Table"><span class="icon--unconnected"></span></a>`
+        );
+        $unconnectedButton.attr("href", "#n");
+        $unconnectedButton.appendTo(".profile--actions.float-end");
+
         $("#unconnectedBranchButton").on("click", function (event) {
+          event.preventDefault();
           if ($("#unconnectedBranchTable").length == 0) {
             addShakingTree(event);
             unconnectedBranch();
@@ -353,16 +362,8 @@ function makeTableSortable(table) {
 
 const homeIcon = chrome.runtime.getURL("images/Home_icon.png");
 
-async function unconnectedBranch(e) {
-  console.log(e);
-  const button = e?.target;
-  let profileID;
-  if (button) {
-    profileID = $(button).data("id");
-  }
-  if (!profileID) {
-    profileID = $("a.pureCssMenui0 span.person").text();
-  }
+async function unconnectedBranch() {
+  const profileID = profilePerson.Id;
 
   // Initialize the cache object if it doesn't exist
   if (!window.unconnectedBranch) {
@@ -376,12 +377,21 @@ async function unconnectedBranch(e) {
   const now = Date.now();
 
   const cachedData = window.unconnectedBranch[profileID];
-
+  console.log("Cached data:", cachedData);
+  let people = {};
   if (!cachedData || now - cachedData.timestamp > CACHE_TTL) {
     const fields =
       "FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,LastNameOther,RealName,BirthDate,BirthLocation,DeathDate,DeathLocation,BirthDateDecade,DeathDateDecade,Touched,Created,Gender,Father,Mother,Id,Name,Privacy,DataStatus,ShortName,Derived.BirthNamePrivate,Derived.BirthName,LongNamePrivate,Connected";
-    const people = await getPeople(profileID, 0, 0, 0, 10, 0, fields, "WBE_unconnected_branch");
+    // As an array
+    const fieldsArray = fields.split(",");
+
+    //const people = await getPeople(profileID, 0, 0, 0, 10, 0, fields, "WBE_unconnected_branch");
+
+    const result = await WikiTreeAPI.getPeople("WBE_unconnected_branch", profileID, fieldsArray, { nuclear: 10 });
+    people = result[2];
+    // WikiTree.getPeople(appId, nextIDsToLoad, ["Id", "Name", "LastNameAtBirth"]
     // Store the data in the cache with timestamp
+    console.log("People:", people);
     window.unconnectedBranch[profileID] = {
       data: people,
       timestamp: now,
@@ -401,11 +411,10 @@ async function unconnectedBranch(e) {
       window.unconnectedBranchCacheOrder.push(profileID);
     }
   }
-  const data = window.unconnectedBranch[profileID].data;
-  let peopleArray = Object.values(data[0].people);
+  let peopleArray = Object.values(people);
   const isConnected = peopleArray[0].Connected;
   const branchText = isConnected ? "Connected! Connections" : "Unconnected Branch";
-  const realName = $(button).data("realName") || $("h1.span[itemprop='name']").text() || "";
+  const realName = profilePerson.FullName;
   const theTable = $(
     `<div id='unconnectedBranchTable'>
     <table>
@@ -447,8 +456,8 @@ async function unconnectedBranch(e) {
     person.parentsText = "";
     ["Mother", "Father"].forEach((parent) => {
       if (person[parent]) {
-        if (data[0].people[person[parent]]) {
-          let aParent = data[0].people[person[parent]];
+        if (people[person[parent]]) {
+          let aParent = people[person[parent]];
           person.Parents[person[parent]] = aParent;
         }
       }
@@ -528,13 +537,9 @@ async function unconnectedBranch(e) {
   });
   let buttonPosition;
   let buttonHeight;
-  if (button) {
-    buttonPosition = $(button).offset();
-    buttonHeight = $(button).height();
-  } else {
-    buttonPosition = $("#unconnectedBranchButton").offset();
-    buttonHeight = $("#unconnectedBranchButton").height();
-  }
+  buttonPosition = $("#unconnectedBranchButton").offset();
+  buttonHeight = $("#unconnectedBranchButton").height();
+
   const tablePosition = {
     top: buttonPosition.top + buttonHeight + 10,
   };

@@ -1,15 +1,24 @@
 #nVitals {
   margin-top: 0.2em;
+  font-size: 1rem;
 }
+
 #nVitals.vertical #childrenUnknown.vanilla,
 #nVitals.vertical #spousesUnknown.vanilla,
 .aSpouse.vanilla a {
   margin: auto;
 }
 
+#nVitals.vertical {
+  padding: 0.3em;
+  background-color: white;
+  border-radius: 6px;
+}
+
 .vertical .aSpouse {
   padding-right: 3px;
-  margin-bottom: 3px;
+  margin-bottom: 0.5em;
+  padding-left: 0.3em;
 }
 .vertical .aSpouse a.spouseText:hover {
   background: transparent;
@@ -320,35 +329,43 @@ body.darkMode .vertical .nameList li.spouse_51 {
   border-right: 3px solid #868a08;
 }
 
-.vertical span[itemprop="spouse"] {
-  margin-left: 60px;
+.marriageDetails {
+  margin-top: 5px;
+  font-style: italic;
+}
+
+.marriageAges {
+  margin-top: 3px;
+}
+
+.spouseGrid {
   display: grid;
   grid-template-columns: 2fr 1fr;
   grid-template-areas: "name dates";
+  text-align: left;
+  align-items: center;
+  gap: 0.5em;
 }
 
-.vertical span[itemprop="spouse"].hasRelAge {
+.vertical .spouseGrid.hasRelAge {
   display: grid;
   grid-template-columns: 5fr 2.3fr 1fr;
   grid-template-areas: "name dates age";
 }
 
-.vertical span[itemprop="spouse"].vanilla {
+.vertical span[itemprop="spouse"].vanilla,
+.vertical .spouseGrid.vanilla {
   display: inline;
   margin: auto;
-}
-
-.vertical .spouseLink {
-  grid-area: name;
 }
 
 .vertical .spouseDates {
   grid-area: dates;
 }
 
-.vertical span[itemprop="spouse"] span.relAge {
+#nVitals.vertical .spouseGrid span.relAge {
   grid-area: age;
-  font-size: smaller;
+  font-size: smaller !important;
   text-align: right;
 }
 
@@ -356,6 +373,7 @@ body.darkMode .vertical .nameList li.spouse_51 {
   display: block;
 }
 
+/*
 #nVitals.vertical ol.nameList,
 .vertical .marriageDetails,
 .vertical span[itemprop="spouse"],
@@ -363,13 +381,17 @@ body.darkMode .vertical .nameList li.spouse_51 {
 .vertical #childrenUnknown {
   margin-left: 2em;
 }
+*/
+.VITALS a.clickable {
+  text-decoration: none;
+}
 
 .marriageAges {
   display: block;
 }
 .vertical .marriageDetails,
 .vertical .marriageAges {
-  margin-left: 2.9em;
+  margin-left: 0.5em;
 }
 
 .vertical #spousesUnknown,
@@ -382,6 +404,10 @@ body.darkMode .vertical .nameList li.spouse_51 {
   margin-left: 0em;
 }
 
+.vertical li[data-parse-name="[brothers or sisters?]"] {
+  padding-left: 0.5em;
+}
+/*
 .vertical #siblingsUnknown a.BLANK,
 .vertical #spousesUnknown a.BLANK {
   margin-left: 0.7em;
@@ -393,6 +419,11 @@ body.darkMode .vertical .nameList li.spouse_51 {
 
 .vertical .aSpouse > a.BLANK {
   margin-left: 3.6em;
+}
+*/
+
+.vertical div.aSpouse {
+  margin-left: 1.3em;
 }
 
 .vertical #addChild,
@@ -420,9 +451,14 @@ body.darkMode .vertical .nameList li.spouse_51 {
   color: #060;
 }
 
+.vertical .aSpouse span span {
+  margin-left: 0em;
+}
+
 #nVitals.vertical span[itemprop] a:link,
 #nVitals.vertical span[itemprop] a:visited {
   text-decoration: none;
+  padding-left: 0.2em;
 }
 
 .vertical #spouseDetails.vanilla {
@@ -440,14 +476,14 @@ body.darkMode .vertical .nameList li.spouse_51 {
 }
 
 .vertical #spouseDetails.inline,
-.vertical #childrenDetails.inline,
-.vertical #siblingDetails.inline {
+.vertical #Children.inline,
+.vertical #Siblings.inline {
   display: inline;
 }
 
 .vertical #spouseDetails.block,
-.vertical #childrenDetails.block,
-.vertical #siblingDetails.block {
+.vertical #Children.block,
+.vertical #Siblings.block {
   display: block;
 }
 .vertical #siblingList li {
@@ -479,7 +515,7 @@ body.darkMode .vertical .nameList li {
 }
 
 .vertical .nameList li.parent_1,
-.vertical .nameList li span[itemprop="sibling"].parent_1,
+.vertical .nameList li.parent_1 span[itemprop="sibling"],
 body.darkMode .vertical .nameList li.parent_1,
 body.darkMode .vertical .nameList span[itemprop="sibling"].parent_1 {
   border-right: 3px solid indigo;
@@ -495,8 +531,7 @@ body.darkMode .vertical .nameList span.bdDates.parent_2 {
   background: none;
 }
 
-.vertical .nameList li:not([id*="Unknown"]):not(.x-edit),
-.vertical .spouseDetails > span:first-of-type {
+.vertical .nameList li:not([id*="Unknown"]):not(.x-edit) {
   background-color: #efe;
   border-left: 5px green solid;
 }
@@ -506,18 +541,49 @@ body.darkMode .vertical .nameList span.bdDates.parent_2 {
   border-left: 5px #fcb815 solid !important;
 }
 
+.vertical .nameList li[data-gender="Female"],
 .vertical .nameList li[data-gender="female"],
 .vertical .nameList span[data-gender="Female"],
-.vertical .spouseDetails span[data-gender="Female"] {
-  background-color: #fee !important;
-  border-left: 5px pink solid !important;
+.vertical .aSpouse[data-gender="Female"] {
+  background-color: #ffeeee !important;
+  border-left: 5px #ffcccc solid !important;
 }
 
+.vertical .nameList li[data-gender="Male"],
 .vertical .nameList li[data-gender="male"],
 .vertical .nameList span[data-gender="Male"],
-.vertical .spouseDetails span[data-gender="Male"] {
-  background-color: #eef !important;
+.vertical .aSpouse[data-gender="Male"] {
+  background-color: #eeedff !important;
   border-left: 5px blue solid !important;
+}
+
+span[itemprop="sibling"]:has(.activeProfile) {
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+  margin-left: 0.2em;
+  margin-right: 0.2em;
+}
+
+.activeProfile {
+  background-color: #ffee99;
+}
+
+.vanilla span[itemprop="sibling"]:has(.activeProfile) {
+  padding: 0;
+  margin: 0;
+}
+
+.vanilla .marriageDetails {
+  margin-left: 0.5em;
+}
+.vanilla #nVitals .activeProfile {
+  margin-right: 0.5em;
+}
+.vanilla .marriageAges {
+  display: inline;
+}
+.vanilla .aSpouse {
+  margin-right: 0.5em;
 }
 
 .clickable {
@@ -534,14 +600,10 @@ body.darkMode .vertical .nameList span.bdDates.parent_2 {
 }
 
 .vertical div.spouseDetails span {
-  margin-top: 4px;
-  margin-bottom: 4px;
   position: relative;
-  padding-left: 5px;
 }
 .vertical #profilePerson a.activeProfile,
 .vertical div.familyList li span,
-.vertical div.spouseDetails span,
 .vertical li#siblingsUnknown,
 .vertical li#fatherUnknown,
 .vertical span#childrenUnknown,
@@ -550,9 +612,7 @@ body.darkMode .vertical .nameList span.bdDates.parent_2 {
   padding-left: 3px;
   display: block;
 }
-.vertical div.spouseDetails span {
-  display: grid;
-}
+
 .vertical span#childrenUnknownQ a,
 .vertical a.BLANK.addSpouse,
 .vertical #spousesUnknown a.BLANK {
@@ -568,15 +628,19 @@ body.darkMode .vertical .nameList span.bdDates.parent_2 {
 
 .vertical .nameList li span[itemprop="sibling"],
 .vertical .nameList li span[itemprop="children"],
-.vertical .nameList li span[itemprop="parent"] {
+.vertical .nameList li span[itemprop="parent"],
+.vertical .nameList li span[itemprop="Father"],
+.vertical .nameList li span[itemprop="Mother"] {
   display: grid;
   grid-template-columns: 2fr 1fr;
   grid-template-areas: "name dates";
 }
 
-.vertical .nameList.hasRelAge li span[itemprop="sibling"],
-.vertical .nameList.hasRelAge li span[itemprop="children"],
-.vertical .nameList.hasRelAge li span[itemprop="parent"] {
+.vertical.hasRelAge li span[itemprop="sibling"],
+.vertical.hasRelAge li span[itemprop="children"],
+.vertical.hasRelAge li span[itemprop="parent"],
+.vertical.hasRelAge li span[itemprop="Father"],
+.vertical.hasRelAge li span[itemprop="Mother"] {
   display: grid;
   grid-template-columns: 5fr 2.3fr 1fr;
   grid-template-areas: "name dates age";
@@ -597,11 +661,16 @@ body.darkMode .vertical .nameList span.bdDates.parent_2 {
   font-size: smaller;
 }
 
+.vertical span.spouseEntry {
+  grid-area: name;
+}
+
 div.familyList span.relAge {
   font-size: smaller;
 }
 
-.vertical div.familyList li span.relAge {
+.vertical div.familyList li span.relAge,
+.vertical p.familyList li span.relAge {
   grid-area: age;
   font-size: smaller;
   text-align: right;
@@ -651,13 +720,11 @@ div.familyList span.relAge {
 }
 .vertical ol {
   clear: both;
+  margin-left: 0;
 }
 
 #nVitals .sidebar-heading {
   display: none;
-}
-.x-cfl-show-heading .columns.six #nVitals .sidebar-heading {
-  display: block;
 }
 
 div.VITALS li span.parentStatus {
@@ -749,4 +816,67 @@ div.VITALS li span[itemprop="name"] {
 
 div.VITALS a:link .addedPrefix {
   display: inline !important;
+}
+
+.editSpouseIcon {
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+/* Ensure .bdDates has no extra margin when blank */
+.bdDates:empty {
+  display: none;
+}
+
+.VITALS.spouseUnknown a {
+  margin-left: 1.3em;
+}
+
+#nVitals span.EDIT {
+  float: right;
+  height: 0.8em;
+}
+
+#nVitals span.EDIT a {
+  background-size: 1.3em;
+}
+
+.vanilla .familyList > div,
+.vanilla ol.nameList,
+.vanilla ol.nameList li {
+  display: inline;
+  padding-left: 0;
+}
+.vanilla .spouseGrid {
+  display: inline;
+}
+
+.vanilla .familyList,
+.vanilla #spousesUnknownHeading {
+  margin-bottom: 1em;
+}
+
+.vanilla #spousesUnknownHeading a {
+  margin: 0;
+}
+
+.vanilla span.EDIT {
+  position: absolute;
+  left: -1em;
+}
+
+.vanilla #spouseList.oneSpousePerLine,
+.vanilla #spouseList.oneSpousePerLine li {
+  display: block;
+}
+.vanilla #spouseList.oneSpousePerLine li {
+  margin-bottom: 0;
+}
+.marriageDetailsInner {
+  display: inline-block;
+}
+
+.vanilla .marriageDetailsInner {
+  display: inline;
 }

@@ -5,6 +5,8 @@
  */
 
 import { getFeatureOptions, shouldInitializeFeature } from "../../core/options/options_storage";
+import { getProfilePersonInfo } from "../../core/common";
+
 import {
   mainDomain,
   isCategoryEdit,
@@ -174,11 +176,15 @@ function AddWikiTreePlusLinks() {
 }
 
 function GetOrCreateCategoriesDiv() {
-  let categoriesDiv = $document.getElementById("categories");
+  let categoriesDiv = $document.getElementById("Categories");
+  if (categoriesDiv == null) {
+    //fallback for classic design
+    categoriesDiv = $document.getElementById("categories");
+  }
   if (categoriesDiv == null) {
     categoriesDiv = $document.createElement("div");
     categoriesDiv.className = "box green rounded row x-categories";
-    categoriesDiv.id = "categories";
+    categoriesDiv.id = "Categories";
     categoriesDiv.style.textAlign = "left";
 
     categoriesDiv.innerHTML =
@@ -286,7 +292,8 @@ function AddCategoryExitLink(parent) {
 }
 
 function AddCategoryChangeLinksOnProfile(categoryDiv) {
-  const profileId = $document.getElementsByClassName("person")[0].innerText;
+  const profileId = getProfilePersonInfo().Name;
+
   const catSpans = categoryDiv.getElementsByTagName("span");
   let lastCatSpan = null;
   for (let i = 0; i < catSpans.length /* not for [top] */; i++) {
@@ -315,6 +322,7 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
     lastCatSpan = catSpans[i];
   }
 
+  //todo fix add link
   const addLink = $document.createElement("a");
   addLink.innerText = "(+)";
   addLink.style.textDecoration = "none";
@@ -328,6 +336,8 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
 }
 
 function IsProfileEditable() {
+  return true;
+  //todo: IsEditable
   const tabs = $document.getElementsByClassName("profile-tabs")[0];
   if (tabs) {
     const linksToTabs = tabs.getElementsByTagName("a");
@@ -1306,7 +1316,12 @@ function RemoveCat(wpTextbox1, cat) {
 }
 
 function DoSave(summary) {
-  $document.getElementById("wpSummary").value = summary;
+  setTimeout(() => {
+    $document.getElementById("wpSummary").value = summary;
+    //alert("val" + $document.getElementById("wpSummary").value);
+  }, 5000);
+
+  //todo: wpSummary
   const saveButton = $document.getElementById("wpSave");
   saveButton.disabled = false;
 }

@@ -11,14 +11,12 @@ const mGender = $("select[name='mGender']");
 let wasPredicted = false;
 
 shouldInitializeFeature("genderPredictor").then((result) => {
-  if (result && $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
-    import("./genderPredictor.css");
-    setTimeout(() => {
-      if (mGender.length && mGender.val() === "") {
-        predictGender();
-      }
-    }, 500);
-  }
+  import("./genderPredictor.css");
+  setTimeout(() => {
+    if (mGender.length && mGender.val() === "") {
+      predictGender();
+    }
+  }, 500);
 });
 
 async function getGenderPrediction(name) {

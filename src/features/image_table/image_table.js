@@ -1,5 +1,5 @@
 import $ from "jquery";
-import { treeImageURL } from "../../core/common.js";
+import { createProfileSubmenuLink, treeImageURL, profilePerson } from "../../core/common.js";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "datatables.net";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
@@ -8,12 +8,10 @@ async function getPhotos() {
   let allPhotos = [];
   let start = 0;
   const limit = 100;
-  const profileIdBits = window.location.href.split("/");
-  const profileId = profileIdBits[profileIdBits.length - 1];
   let morePhotos = true;
 
   do {
-    const url = `https://api.wikitree.com/api.php?action=getPhotos&key=${profileId}&start=${start}&limit=${limit}`;
+    const url = `https://api.wikitree.com/api.php?action=getPhotos&key=${profilePerson.Name}&start=${start}&limit=${limit}`;
 
     try {
       const response = await fetch(url, {
@@ -39,8 +37,14 @@ async function getPhotos() {
 
 function initPhotoPopup() {
   if ($("#photoPopup").length === 0) {
-    // Create the popup and append it to the body
-    const popupLink = $('<li class="viewsi" id="openPopup"><a class="viewsi">Image Table&nbsp;</a></li>');
+    const options = {
+      title: "View Image Table",
+      url: "#",
+      id: "openPopup",
+      text: "Image Table",
+    };
+    createProfileSubmenuLink(options);
+
     const popup = $(`<div id="photoPopup" class="popup">
         <div class="popup-content">
           <span class="close">&times;</span>
@@ -50,7 +54,6 @@ function initPhotoPopup() {
       </div>`);
 
     $("body").append(popup); // Append the popup to the body
-    $("ul.views.viewsm").eq(0).append(popupLink); // Append the link to the menu
 
     // Set up click handlers for the popup
     $("#openPopup").on("click", async function () {

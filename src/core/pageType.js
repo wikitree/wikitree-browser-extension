@@ -4,6 +4,16 @@ Created By: Aleš Trtnik (Trtnik-2)
 
 import $ from "jquery";
 
+function getUserNumId() {
+  // We retrieve the ID from the "My WikiTree/Badges" menu item present when the user is logged in on any WT page.
+  const href = $('nav[aria-label="My WikiTree Navigation"] a[href*="Special:Badges"]').attr("href");
+  if (!href) return null;
+  const m = href.match(/u=(\d+)/);
+  return m ? m[1] : null;
+}
+
+const profileId = $("#pageData").data("mid");
+
 // Wiki domain variables
 // apps.wikitree.com
 export let isAppsDomain = false;
@@ -14,7 +24,7 @@ export let isPlusDomain = false;
 // *.wikitree.com
 export let isMainDomain = false;
 // 'www.wikitree.com', 'staging.wikitree.com', 'ales.wikitree.com', 'dev-www.wikitree.com'
-export let mainDomain = "www.wikitree.com";
+export let mainDomain = window.location.href.match(/dev-2025/) ? "dev-2025.wikitree.com" : "www.wikitree.com";
 
 // Wiki Page variables
 // Any wiki page with pageID
@@ -187,7 +197,8 @@ if (domain.match("apps.wikitree.com")) {
   const uri = decodeURI(window.location.href); // with parameters
   if (
     // Profile Edit Page
-    uri.match(/\/index.php\?title=Special(:|%3A|%3a)EditPerson&.*/g)
+    uri.match(/\/index.php\?title=Special(:|%3A|%3a)EditPerson&.*/g) ||
+    uri.match(/\/wiki\/Special(:|%3A|%3a)EditPerson/g)
   ) {
     isProfileEdit = true;
   } else if (
@@ -227,10 +238,10 @@ if (domain.match("apps.wikitree.com")) {
       !uri.match(/\/index.php\?title=(Special|Space|Category|Template|Help|Project)/g))
   ) {
     isProfilePage = true;
-    if ($(".toggleMemberSection").length) {
+    if ($("#memberSection").length) {
       // Profile of a User page
       isProfileUserPage = true;
-      if ($("a[href$='/wiki/Special:Genealogist").length) {
+      if (profileId == getUserNumId()) {
         // Profile of a Logged in User page
         isProfileLoggedInUserPage = true;
       }

@@ -52,6 +52,8 @@ class SpaceDrafts {
 
   // Append and configure the drafts button(s)
   setupDraftButton() {
+    const buttonContainer = $("<div id='draftButtons'></div>");
+    $("#text").before(buttonContainer); // Insert the button container before the editor
     const drafts = this.getDrafts()[this.pageId] || [];
 
     // Clear existing draft buttons before regenerating
@@ -61,15 +63,13 @@ class SpaceDrafts {
       return;
     } else {
       // Reverse the drafts array before rendering buttons
-      const reversedDrafts = drafts.slice().reverse();
+      // const reversedDrafts = drafts.slice().reverse();
 
       // Generate buttons in ascending order, even for reversed drafts
-      reversedDrafts.forEach((draft, index) => {
-        const buttonLabel = `Draft ${reversedDrafts.length - index}`;
-        const buttonHtml = `<button class="button small draft-button" data-index="${
-          drafts.length - index - 1
-        }" title="View Draft">${buttonLabel}</button>`;
-        $("#wpSummaryLabel2").parent().after(buttonHtml);
+      drafts.forEach((draft, index) => {
+        const buttonLabel = `Draft ${index + 1}`;
+        const buttonHtml = `<button class="button small draft-button" data-index="${index}" title="View Draft">${buttonLabel}</button>`;
+        buttonContainer.append(buttonHtml);
       });
       //
       // Add a button to delete all drafts for this page

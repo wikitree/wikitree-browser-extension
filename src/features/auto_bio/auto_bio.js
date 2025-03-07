@@ -20,6 +20,7 @@ import { Biography } from "../bioCheck/Biography.js";
 import { initBioCheck } from "../bioCheck/bioCheck.js";
 import { bioTimelineFacts, buildTimelineTable, buildTimelineSA } from "./timeline";
 import { mainDomain, isIansProfile } from "../../core/pageType";
+import { profilePerson } from "../../core/common";
 import ONSjson from "./ONS.json";
 
 const irishCounties = [
@@ -1506,6 +1507,7 @@ function addRefsToRelation(refs, person, relation) {
   return text;
 }
 
+/*
 export function buildParents(person) {
   let text = "child of ";
   if (person.Gender == "Male") {
@@ -1543,6 +1545,98 @@ export function buildParents(person) {
       text += addRefsToRelation(window.references, mother, "mother");
     }
   }
+  return text;
+}
+  */
+
+export function buildParents(person) {
+  let option = window.autoBioOptions?.firstSentences || "of"; // Default to "of"
+  let text = "";
+  let parents = person.Parents;
+
+  if (!parents) {
+    return text;
+  }
+
+  let fatherText = "";
+  let motherText = "";
+
+  if (person.Father) {
+    let father = person.Parents[person.Father];
+    if ((window.autoBioOptions?.usePrivate && father?.Privacy < 30) || !father) {
+      fatherText = "Private Father";
+    } else {
+      fatherText = nameLink(father);
+      if (window.autoBioOptions?.includeParentsDates) {
+        fatherText += " " + formatDates(father);
+      }
+    }
+    fatherText += addRefsToRelation(window.references, father, "father");
+  }
+
+  if (person.Mother) {
+    let mother = person.Parents[person.Mother];
+    if ((window.autoBioOptions?.usePrivate && mother?.Privacy < 30) || !mother) {
+      motherText = "Private Mother";
+    } else {
+      motherText = nameLink(mother);
+      if (window.autoBioOptions?.includeParentsDates) {
+        motherText += " " + formatDates(mother);
+      }
+    }
+    motherText += addRefsToRelation(window.references, mother, "mother");
+  }
+
+  if (fatherText && motherText) {
+    if (option === "of") {
+      text =
+        (person.Gender === "Male" ? "son of " : person.Gender === "Female" ? "daughter of " : "child of ") +
+        fatherText +
+        " and " +
+        motherText;
+    } else if (option === "to") {
+      text = "to " + fatherText + " and " + motherText;
+    } else if (option === "parentsWere") {
+      text =
+        (person.Gender === "Male"
+          ? "His parents were "
+          : person.Gender === "Female"
+          ? "Her parents were "
+          : "Their parents were ") +
+        fatherText +
+        " and " +
+        motherText;
+    }
+  } else if (fatherText) {
+    if (option === "of") {
+      text =
+        (person.Gender === "Male" ? "son of " : person.Gender === "Female" ? "daughter of " : "child of ") + fatherText;
+    } else if (option === "to") {
+      text = "to " + fatherText;
+    } else if (option === "parentsWere") {
+      text =
+        (person.Gender === "Male"
+          ? "His parent was "
+          : person.Gender === "Female"
+          ? "Her parent was "
+          : "Their parent was ") + fatherText;
+    }
+  } else if (motherText) {
+    if (option === "of") {
+      text =
+        (person.Gender === "Male" ? "son of " : person.Gender === "Female" ? "daughter of " : "child of ") + motherText;
+    } else if (option === "to") {
+      text = "to " + motherText;
+    } else if (option === "parentsWere") {
+      text =
+        (person.Gender === "Male"
+          ? "His parent was "
+          : person.Gender === "Female"
+          ? "Her parent was "
+          : "Their parent was ") + motherText;
+    }
+  }
+
   return text;
 }
 
@@ -6688,7 +6782,7 @@ export function addLoginButton() {
             e.preventDefault();
             window.location =
               "https://api.wikitree.com/api.php?action=clientLogin&appId=WBE_auto_bio&returnURL=" +
-              encodeURI("https://" + mainDomain + "/wiki/" + $("a.pureCssMenui0 span.person").text());
+              encodeURI(window.location.href);
           });
         }
       }
@@ -7995,14 +8089,19 @@ export async function generateBio() {
     window.sectionsObject = splitBioIntoSections();
 
     window.usedPlaces = [];
-    let profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
+    let profileID = profilePerson.Name;
     window.profileID = profileID;
-    window.biographyPeople = await getProfile(
+    window.profilePerson = await getProfile(
       profileID,
-      "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix,BirthDate,DeathDate,BirthLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren,NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings",
+      "Id,Name,FirstName,MiddleName,MiddleInitial,LastNameAtBirth,LastNameCurrent,Nicknames,LastNameOther,RealName,Prefix,Suffix,BirthDate,DeathDate,BirthLocation,DeathLocation,BirthDateDecade,DeathDateDecade,Gender,IsLiving,Privacy,Father,Mother,HasChildren,NoChildren,DataStatus,Connected,ShortName,Derived.BirthName,Derived.BirthNamePrivate,LongName,LongNamePrivate,Parents,Children,Spouses,Siblings",
       "AutoBio"
     );
-    window.profilePerson = window.biographyPeople;
+    if (!window.profilePerson?.DeathLocation) {
+      window.profilePerson.DeathLocation = "";
+    }
+
+    // log now
+    console.log("profile person now", logNow(window.profilePerson));
 
     const originalFormData = getFormData();
 

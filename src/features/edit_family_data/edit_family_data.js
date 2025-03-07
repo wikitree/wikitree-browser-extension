@@ -10,7 +10,6 @@ import { isOK } from "../../core/common";
 shouldInitializeFeature("editFamilyData").then((result) => {
   if (
     result &&
-    $("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length &&
     $("#EFdates").length == 0 &&
     $("h1:contains(Edit Marriage),h1:contains(Add an Unrelated Person)").length == 0
   ) {

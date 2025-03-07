@@ -254,7 +254,7 @@ async function fetchAndSetFilterData() {
   if (filterData === null) {
     const personProfilesh2 = $("h2:contains(Person Profiles)");
     personProfilesh2.append(waitingImage);
-    const keysArray = $("a.P-F,a.P-M")
+    const keysArray = $("div.P-ITEM a")
       .map(function () {
         return $(this).attr("href").split("/wiki/")[1];
       })

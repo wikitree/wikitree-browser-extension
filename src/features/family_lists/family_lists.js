@@ -4,6 +4,7 @@ import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
 import { getPeople } from "../dna_table/dna_table";
 import { showCopyMessage } from "../access_keys/access_keys";
 import "../../core/common.css";
+import { profilePerson } from "../../core/common";
 import {
   getFormData,
   addLoginButton,
@@ -27,7 +28,7 @@ import { isOK, familyArray } from "../../core/common";
 async function getFamily() {
   let profileID;
   if (!window.profileID) {
-    profileID = $("a.pureCssMenui0 span.person").text() || $("h1 button[aria-label='Copy ID']").data("copy-text");
+    profileID = profilePerson.Name;
     window.profileID = profileID;
   }
   if (!window.profilePerson) {
@@ -147,6 +148,7 @@ async function getList(functionName) {
   let result;
   let message;
   let spouses;
+  let otherMessage = false;
 
   if (!window.profilePerson) {
     message = "No profile found on the apps server. Please try again a little later.";
@@ -181,10 +183,15 @@ async function getList(functionName) {
       }
       spouses = buildSpouses(window.profilePerson);
       result = "";
-      spouses.forEach(function (spouse, index) {
-        result += spouse.Narrative + "\n" + (index + 1 < spouses.length ? "\n" : "");
-      });
-      message = "Spouse and Child Details";
+      if (spouses) {
+        spouses.forEach(function (spouse, index) {
+          result += spouse.Narrative + "\n" + (index + 1 < spouses.length ? "\n" : "");
+        });
+        message = "Spouse and Child Details";
+      } else {
+        message = "No spouse or children found.";
+        otherMessage = true;
+      }
       for (const key in window.profilePerson.Children) {
         window.profilePerson.Children[key].Displayed = false;
       }
@@ -200,7 +207,7 @@ async function getList(functionName) {
   if (document.querySelector("#toggleMarkupColor").value == "Turn On Enhanced Editor") {
     pasteResult();
   } else {
-    showCopyMessage(message);
+    showCopyMessage(message, otherMessage);
   }
 }
 export async function getFamilyList(args) {

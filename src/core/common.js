@@ -9,9 +9,89 @@ import { navigatorDetect } from "./navigatorDetect";
 import { mainDomain, isNavHomePage, isMainDomain } from "./pageType.js";
 import { checkIfFeatureEnabled } from "./options/options_storage";
 
+import Cookies from "js-cookie";
+
 /* * * * * * * * * * * * * * * * * * * *
  * Initialization. This section of code should run first.
  */
+
+// Function to get profile person ID and name
+export function getProfilePersonInfo() {
+  const person = {};
+  const pageData = $("#pageData").data();
+  if (!pageData) {
+    return null;
+  }
+  if (window.location.href.includes("/Space:")) {
+    // For space pages, the profile person is the space page itself
+    person.Name = window.location.href.split("/wiki/")[1].split("#")[0];
+    return person;
+  }
+  person.Name = pageData.mnamedb;
+  // Clone h1, remove all children and trim the text.
+
+  const extractYear = (dateString) => {
+    // Extract the year from the date string
+    const yearMatch = dateString.match(/\d{4}/);
+    return yearMatch ? parseInt(yearMatch[0]) : null;
+  };
+
+  const $h1 = $("h1").eq(0).clone();
+  $h1.children().remove();
+  person.FullName = $h1.text().replace("Edit Profile of ", "").trim();
+  person.Id = pageData.mid;
+  person.LastNameAtBirth = pageData.mlastnameatbirth;
+  person.FirstName = pageData.mfirstname;
+  person.Gender = pageData.mgender;
+  person.BirthDate = $("div.page--title div.VITALS:contains('Born')")
+    .text()
+    .replace("Born ", "")
+    .replace(".", "")
+    .trim();
+  person.DeathDate = $("div.page--title div.VITALS:contains('Died')")
+    .text()
+    .replace("Died ", "")
+    .replace(".", "")
+    .trim();
+  person.BirthYear = person.BirthDate
+    ? person.BirthDate.includes("s")
+      ? person.BirthDate
+      : extractYear(person.BirthDate)
+    : null;
+  person.DeathYear = person.DeathDate
+    ? person.DeathDate.includes("s")
+      ? person.DeathDate
+      : extractYear(person.DeathDate)
+    : null;
+  person.Dates = person.BirthDate + " - " + person.DeathDate;
+
+  const extractStatus = (dateString) => {
+    if (!dateString) {
+      return null;
+    }
+    // Look for status keywords in the date string
+    if (dateString.includes("bef.")) {
+      return "bef.";
+    } else if (dateString.includes("aft.")) {
+      return "aft.";
+    } else if (dateString.includes("abt.")) {
+      return "abt.";
+    } else {
+      return null;
+    }
+  };
+  // Get birth and death status (bef., aft., abt.)
+  person.BirthStatus = extractStatus(person.BirthDate);
+  person.DeathStatus = extractStatus(person.DeathDate);
+
+  if (!person.Id || !person.Name) {
+    return null;
+  }
+  return person;
+}
+
+export const profilePerson = getProfilePersonInfo();
+
 export const WBE = {};
 if (typeof BUILD_INFO !== "undefined") {
   let buildDate = Date.parse(BUILD_INFO.buildDate);
@@ -91,17 +171,58 @@ async function checkButtonFeatures() {
 
   try {
     const results = await Promise.all(promises);
-    // results is an array of booleans. If any is true, initialize this feature.
-    const anyFeatureToInitialize = results.some((result) => result);
-    if (anyFeatureToInitialize) {
-      results.forEach((result) => {
-        if (result) {
-          if ($(".clipboardContainer").length == 0) {
-            const clipboardContainer = $("<span>").addClass("clipboardContainer");
-            $("#header,#HEADER").append(clipboardContainer);
-          }
-        }
-      });
+
+    // If no features are enabled, exit early
+    if (!results.some((result) => result)) return;
+
+    // Ensure clipboardContainer exists before appending buttons
+    if ($(".clipboardContainer").length === 0) {
+      const clipboardContainer = $("<span>").addClass("clipboardContainer");
+      $(".profile--actions.float-end").append(clipboardContainer);
+    }
+
+    // Fetch image URLs
+    const extraWatchlistImg = chrome.runtime.getURL("images/extra-watchlist.svg");
+    const addToExtraWatchlistImg = chrome.runtime.getURL("images/plus.svg");
+    const clipboardImg = chrome.runtime.getURL("images/clipboard2.svg");
+    const notesImg = chrome.runtime.getURL("images/notepad2.svg");
+    const spaceWatchlistImg = chrome.runtime.getURL("images/s.svg");
+
+    // Button creation function
+    const createButton = (id, title, img) => {
+      const button = $("<a>")
+        .attr("id", id)
+        .attr("title", title)
+        .addClass(`${id} wbe-button`)
+        .attr("data-bs-title", title)
+        .attr("data-bs-toggle", "tooltip")
+        .attr(`data-tooltip`, title);
+
+      // Append icon span with only background-image (CSS handles the rest)
+      button.append(
+        $("<span>")
+          .addClass(`icon--${id.replace("Button", "")}`)
+          .css("background-image", `url(${img})`) // Only set background image
+      );
+
+      return button;
+    };
+
+    // Append buttons conditionally
+    if (results[0]) {
+      $(".clipboardContainer").append(
+        createButton("extraWatchlistButton", "Extra Watchlist", extraWatchlistImg),
+        createButton("addToExtraWatchlistButton", "Add to Extra Watchlist", addToExtraWatchlistImg)
+      );
+    }
+    if (results[1]) {
+      $(".clipboardContainer").append(
+        createButton("aClipboardButton", "Clipboard", clipboardImg),
+        createButton("aNotesButton", "Notes", notesImg)
+      );
+    }
+    if (results[2]) {
+      $(".clipboardContainer").append(createButton("spaceWatchlistButton", "Space Watchlist", spaceWatchlistImg));
     }
   } catch (error) {
     console.error("Error checking features to initialize:", error);
@@ -199,17 +320,18 @@ function importFeatureData() {
 }
 
 function addDataButtons() {
+  const commonText =
+    "for your WikiTree Browser Extension data from the Extra Watchlist, " +
+    "My Menu, Clipboard and Notes, and Custom Change Summary Options features";
   const dataButtons = `
     <div id="featureDataButtons">
-      <button id="downloadFeatureData"
-      title="Download a backup file for your WikiTree Browser Extension data from the Extra Watchlist,
-      My Menu, Clipboard and Notes, and Custom Change Summary Options features">Download WBE Feature Data</button>
-      <button id="importFeatureData"
-      title="Import/restore data from a backup file for your WikiTree Browser Extension data from the Extra Watchlist,
-      My Menu, Clipboard and Notes, and Custom Change Summary Options features">Import WBE Feature Data</button>
+      <button id="downloadFeatureData" class="btn btn-secondary btn-sm"
+      title="Download a backup file ${commonText}.">Download WBE Feature Data</button>
+      <button id="importFeatureData" class="btn btn-secondary btn-sm"
+      title="Import/restore data from a backup file ${commonText}.">Import WBE Feature Data</button>
     </div>
   `;
-  $(".eight.columns.alpha").last().after(dataButtons);
+  $(".masonry-wrapper").after(dataButtons);
   $("#downloadFeatureData").on("click", downloadFeatureData);
   $("#importFeatureData").on("click", importFeatureData);
 }
@@ -230,30 +352,15 @@ export function createTopMenuItem(options) {
 
 // Add a link to the short list of links below the tabs
 export function createProfileSubmenuLink(options) {
-  $("ul.views.viewsm")
+  $("#jump-nav")
     .eq(0)
-    .append(
-      $(
-        `<li class='viewsi'><a title='${options.title}' href='${options.url}' id='${options.id}'>${options.text}</a></li>`
-      )
-    );
-  let links = $("ul.views.viewsm:first li");
+    .append($(`<li><a title='${options.title}' href='${options.url}' id='${options.id}'>${options.text}</a></li>`));
+  let links = $("#jump-nav li");
   // Re-sort the links into alphabetical order
   links.sort(function (a, b) {
     return $(a).text().localeCompare($(b).text());
   });
-  $("ul.views.viewsm").eq(0).append(links);
-}
-
-export function createTopMenu() {
-  const newUL = $("<ul class='pureCssMenu' id='wte-topMenuUL'></ul>");
-  $("ul.pureCssMenu").eq(0).after(newUL);
-  newUL.append(`<li>
-        <a class="pureCssMenui0">
-            <span>App Features</span>
-        </a>
-        <ul class="pureCssMenum" id="wte-topMenu"></ul>
-    </li>`);
+  $("#jump-nav").eq(0).append(links);
 }
 
 // Used in familyTimeline, familyGroup, locationsHelper
@@ -399,8 +506,7 @@ export function displayName(fPerson) {
               fName3 += "(" + fPerson["LastNameAtBirth"] + ") ";
             }
           } else if (dCheck == "RealName") {
-            if (typeof fPerson["FirstName"] != "undefined") {
-            } else {
+            if (typeof fPerson["FirstName"] == "undefined") {
               fName3 += fPerson["RealName"] + " ";
             }
           } else {
@@ -480,42 +586,75 @@ export async function showDraftList() {
     handleSpaceDrafts();
   }
 
+  /**
+   * Processes a list of drafts by checking for uncommitted drafts and extracting relevant information.
+   * Updates the drafts array with associated user and draft IDs when available.
+   *
+   * @param {Array} drafts - An array of draft entries, where each draft is expected to have at least one element: the WikiTree ID.
+   */
   function processPersonDrafts(drafts) {
-    let draftCalls = 0;
-    const tempDraftArr = [];
+    let draftCalls = 0; // Counter to track the number of processed drafts
+    const tempDraftArr = []; // Temporary array to store drafts that are uncommitted
 
     drafts.forEach((draft, index) => {
-      const theWTID = draft[0];
+      const theWTID = draft[0]; // Extract the WikiTree ID for the draft
+
+      // Skip processing if the ID is not valid
       if (!isOK(theWTID)) {
-        delete drafts[index];
-        draftCalls++;
+        delete drafts[index]; // Remove invalid draft entry
+        draftCalls++; // Increment the counter for processed drafts
       } else {
+        // Fetch the draft page data for the given WikiTree ID
         getWikiTreePage("Drafts", "/index.php", `title=${theWTID}&displayDraft=1`).then((res) => {
-          draftCalls++;
-          const dummy = $(res);
-          let aWTID = dummy.find("a.pureCssMenui0 span.person").text();
+          draftCalls++; // Increment the counter for processed drafts
+
+          // Parse the HTML response using DOMParser
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(res, "text/html");
+
+          // Extract the profile ID (WTID) from the page data
+          let aWTID = doc.querySelector("#pageData")?.getAttribute("data-mnamedb") || "";
 
           // Check if 'aWTID' ends with ' User' and remove it if present
           if (aWTID.endsWith(" User")) {
             aWTID = aWTID.replace(/ User$/, ""); // Remove ' User' at the end
           }
 
-          if (dummy.find("div.status:contains('You have an uncommitted')").length) {
+          // Search for an element indicating an uncommitted draft
+          const statusDiv = Array.from(doc.querySelectorAll("div.status")).find((el) =>
+            el.textContent.includes("You have an uncommitted")
+          );
+
+          if (statusDiv) {
+            // If an uncommitted draft is found, store the profile ID
             tempDraftArr.push(aWTID);
-            const useLink = dummy.find("a:contains(Use the Draft)").attr("href");
+
+            // Locate the 'Use the Draft' link and extract its href
+            const useLink = Array.from(doc.querySelectorAll("a"))
+              .find((el) => el.textContent.includes("Use the Draft"))
+              ?.getAttribute("href");
 
             if (useLink) {
-              const personID = useLink.match(/&u=[0-9]+/)[0].replace("&u=", "");
-              const draftID = useLink.match(/&ud=[0-9]+/)[0].replace("&ud=", "");
-              drafts.forEach((yDraft) => {
-                if (yDraft[0] === aWTID) {
-                  yDraft[3] = personID;
-                  yDraft[4] = draftID;
-                }
-              });
+              // Extract person and draft IDs from the URL parameters
+              const personIDMatch = useLink.match(/&u=([0-9]+)/);
+              const draftIDMatch = useLink.match(/&ud=([0-9]+)/);
+
+              if (personIDMatch && draftIDMatch) {
+                const personID = personIDMatch[1];
+                const draftID = draftIDMatch[1];
+
+                // Update the corresponding draft entry with extracted IDs
+                drafts.forEach((yDraft) => {
+                  if (yDraft[0] === aWTID) {
+                    yDraft[3] = personID;
+                    yDraft[4] = draftID;
+                  }
+                });
+              }
             }
           }
 
+          // If all drafts have been processed, update the draft table
           if (draftCalls === drafts.length) {
             updateDraftTable(drafts, tempDraftArr);
           }
@@ -667,61 +806,75 @@ $(document).on("click", "#deleteSpaceDraftsForPage", function () {
 
 // Used in saveDraftList (above)
 export async function updateDraftList() {
-  const profileWTID = $("a.pureCssMenui0 span.person").text();
-  let addDraft = false;
-  let timeNow = Date.now();
-  let lastWeek = timeNow - 604800000;
-  let isEditPage = false;
-  let theName = $("h1")
-    .text()
-    .replace("Edit Profile of ", "")
-    .replaceAll(/\//g, "")
-    .replaceAll(/ID|LINK|URL/g, "")
-    .trim();
+  setTimeout(() => {
+    console.log("Starting updateDraftList function");
+    const profileWTID = profilePerson.Name;
+    let addDraft = false;
+    let timeNow = Date.now();
+    let lastWeek = timeNow - 604800000;
+    let isEditPage = false;
+    const theName = profilePerson.FullName;
 
-  // Check if the name ends with " User" and remove it if necessary
-  if (theName.endsWith(" User")) {
-    theName = theName.replace(/ User$/, ""); // Remove the trailing ' User'
-  }
+    console.log($("#draftStatus:contains('saved'),#status:contains('Starting with previous')").length);
 
-  if ($("#draftStatus:contains(saved),#status:contains(Starting with previous)").length) {
-    addDraft = true;
-  } else if ($("body.page-Special_EditPerson").length) {
-    isEditPage = true;
-  }
-  if (localStorage.drafts) {
-    let draftsArr = [];
-    let draftsArrIDs = [];
-    let drafts = JSON.parse(localStorage.drafts);
-    drafts.forEach(function (draft) {
-      if (!draftsArrIDs.includes(draft[0])) {
-        if ((addDraft == false || window.fullSave == true) && draft[0] == profileWTID && isEditPage == true) {
-          // Do nothing
-        } else {
-          if (draft[1] > lastWeek) {
-            draftsArr.push(draft);
-            draftsArrIDs.push(draft[0]);
+    if ($("#draftStatus:contains('saved'),#status:contains('Starting with previous')").length) {
+      addDraft = true;
+      console.log("Draft status indicates a saved draft or starting with previous draft");
+    } else if ($("body.edit-person").length) {
+      isEditPage = true;
+      console.log("This is an edit-person page");
+    }
+
+    if (localStorage.drafts) {
+      let draftsArr = [];
+      let draftsArrIDs = [];
+      let drafts = JSON.parse(localStorage.drafts);
+      console.log(`drafts`, drafts);
+      drafts.forEach(function (draft) {
+        if (!draftsArrIDs.includes(draft[0])) {
+          if ((addDraft == false || window.fullSave == true) && draft[0] == profileWTID && isEditPage == true) {
+            console.log(`Skipping draft for profile ${profileWTID} as it is being fully saved`);
+          } else {
+            console.log(`Processing draft for profile ${draft[0]}`);
+            console.log(`Last saved: ${draft[1]}, last week: ${lastWeek}`);
+            if (draft[1] > lastWeek) {
+              draftsArr.push(draft);
+              console.log(`Adding draft for profile ${draft[0]} to draftsArr`);
+              draftsArrIDs.push(draft[0]);
+              console.log(`draftsArrIDs: ${draftsArrIDs}`);
+              console.log(`Adding draft for profile ${draft[0]} to draftsArr`);
+            }
           }
         }
+      });
+
+      console.log("Finished processing existing drafts");
+      console.log(`Profile ${profileWTID} is being ${addDraft == true ? "saved" : "not saved"}`);
+      if (!draftsArrIDs.includes(profileWTID) && addDraft == true) {
+        draftsArr.push([profileWTID, timeNow, theName]);
+        console.log(`Adding new draft for profile ${profileWTID}`);
       }
-    });
 
-    if (!draftsArrIDs.includes(profileWTID) && addDraft == true) {
-      draftsArr.push([profileWTID, timeNow, theName]);
+      console.log(draftsArr);
+      const newDraftsArray = JSON.stringify(draftsArr);
+      console.log(newDraftsArray);
+      localStorage.setItem("drafts", newDraftsArray);
+      console.log(localStorage.drafts);
+      console.log("Updated drafts in localStorage");
+    } else {
+      if (addDraft == true && window.fullSave != true) {
+        localStorage.setItem("drafts", JSON.stringify([[profileWTID, timeNow, theName]]));
+        console.log(`Created new drafts array in localStorage with profile ${profileWTID}`);
+      }
     }
-
-    localStorage.setItem("drafts", JSON.stringify(draftsArr));
-  } else {
-    if (addDraft == true && window.fullSave != true) {
-      localStorage.setItem("drafts", JSON.stringify([[profileWTID, timeNow, theName]]));
-    }
-  }
-  return true;
+    console.log("Finished updateDraftList function");
+    return true;
+  }, 1000);
 }
 
 export function isWikiTreeUrl(url) {
   if (url) {
-    return /^http(s)?:\/+((www|staging|dev-www)\.)?wikitree\.com\//i.test(url);
+    return /^http(s)?:\/+((www|staging|dev-www|dev-2025)\.)?wikitree\.com\//i.test(url);
   }
   return false;
 }
@@ -985,7 +1138,7 @@ export const treeImageURL = chrome.runtime.getURL("images/tree.gif");
  */
 export function getUserNumId() {
   // We retrieve the ID from the "My WikiTree/Badges" menu item present when the user is logged in on any WT page.
-  const href = $('body .pureCssMenu a[href*="Special:Badges"]').attr("href");
+  const href = $('nav[aria-label="My WikiTree Navigation"] a[href*="Special:Badges"]').attr("href");
   if (!href) return null;
   const m = href.match(/u=(\d+)/);
   return m ? m[1] : null;
@@ -997,10 +1150,17 @@ export function getUserNumId() {
  */
 export function getUserWtId() {
   // We retrieve the WtID from the "My WikiTree/Contributions" menu item present when the user is logged in on any WT page.
-  const href = $('.pureCssMenu a[href*="Special:Contributions"]:not(#myCustomMenu a)').attr("href");
-  if (!href) return null;
-  const m = href.match(/who=([^&]+)/);
-  return m ? m[1] : null;
+  const href = $('nav[aria-label="My WikiTree Navigation"] a[href*="Special:Contributions"]:not(#myCustomMenu a)').attr(
+    "href"
+  );
+  let m;
+  if (href) {
+    m = href.match(/who=([^&]+)/);
+    return m ? m[1] : null;
+  } else {
+    // (Temporary) Fallback to cookies if the menu item is not present
+    return Cookies.get("wikitree_wtb_UserName");
+  }
 }
 
 export async function fetchAPI(args) {

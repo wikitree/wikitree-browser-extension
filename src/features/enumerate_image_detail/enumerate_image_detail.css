@@ -1,0 +1,61 @@
+body.edit-photo ol.STYLED.enumerated li {
+  list-style: auto;
+}
+ol li.BULLET10,
+ol li.BULLET20,
+ol li.BULLET30,
+ol li.BULLET35,
+ol li.BULLET40,
+ol li.BULLET50,
+ol li.BULLET60 {
+  list-style: none;
+  padding-left: 20px;
+  position: relative;
+}
+
+ol li.BULLET10::before,
+ol li.BULLET20::before,
+ol li.BULLET30::before,
+ol li.BULLET35::before,
+ol li.BULLET40::before,
+ol li.BULLET50::before,
+ol li.BULLET60::before {
+  background-color: transparent;
+  border-radius: 50%;
+  content: "";
+  display: block;
+  height: 12px;
+  left: 0;
+  position: absolute;
+  top: 8px;
+  width: 12px;
+}
+
+ol li.BULLET10::before {
+  background-color: #25422d;
+}
+ol li.BULLET20::before {
+  background-color: #cc0000;
+}
+ol li.BULLET30::before {
+  background-color: #fcb815;
+}
+ol li.BULLET35::before {
+  background-color: #fad158;
+}
+ol li.BULLET40::before {
+  background-color: #ffe270;
+}
+ol li.BULLET50::before {
+  background-color: #8fc641;
+}
+ol li.BULLET60::before {
+  background-color: #fff;
+  border: 1px solid #25422d;
+  height: 12px;
+  width: 12px;
+}
+
+#Details .copyButton {
+  float: right;
+}

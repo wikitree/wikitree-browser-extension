@@ -1,6 +1,6 @@
 #toolbar.sticky {
   position: sticky;
-  top: 0;
+  top: 5.5vh;
   background: white;
   z-index: 19;
 }

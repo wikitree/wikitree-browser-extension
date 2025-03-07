@@ -13,7 +13,7 @@ shouldInitializeFeature("draftList").then((result) => {
     if ($("a.drafts").length == 0) {
       addDraftsToFindMenu();
     }
-    if ($("body.page-Special_EditPerson").length && $("a.drafts").length) {
+    if ($("body.edit-person").length && $("a.drafts").length) {
       saveDraftList();
     }
   }
@@ -34,10 +34,12 @@ function saveDraftList() {
 }
 
 function addDraftsToFindMenu() {
-  const connectionLi = $("li a.pureCssMenui[href='/wiki/Special:Connection']");
-  const newLi = $("<li><a class='pureCssMenui drafts' id='draftsLink' title='See your uncommitted drafts'>Drafts</li>");
+  const connectionLi = $("div[data-menu='Find'] li a[href='/wiki/Special:Connection']");
+  const newLi = $(
+    `<li><a href="#n" class='dropdown-item drafts' id='draftsLink' title='See your uncommitted drafts'>Drafts</li>`
+  );
   newLi.insertAfter(connectionLi.parent());
-  $(document).on("click", "ul.pureCssMenu li a.drafts", function (e) {
+  $(document).on("click", "#draftsLink", function (e) {
     e.preventDefault();
     showDraftList();
   });

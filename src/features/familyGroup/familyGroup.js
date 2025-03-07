@@ -7,6 +7,7 @@ import "jquery-ui/ui/widgets/draggable";
 import { getRelatives } from "wikitree-js";
 import { createProfileSubmenuLink, familyArray, isOK, htmlEntities, setAdjustedDates } from "../../core/common";
 import { mainDomain, isSearchPage } from "../../core/pageType";
+import { profilePerson } from "../../core/common";
 
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
@@ -23,7 +24,7 @@ shouldInitializeFeature("familyGroup").then((result) => {
     createProfileSubmenuLink(options);
     $("#" + options.id).on("click", function (e) {
       e.preventDefault();
-      const profileID = $("a.pureCssMenui0 span.person").text();
+      const profileID = profilePerson.Name;
       showFamilySheet($(this)[0], profileID);
     });
 
@@ -155,8 +156,9 @@ export async function showFamilySheet(theClicked, profileID) {
 
       let theLeft;
 
-      if ($("div.ten.columns").length && !isSearchPage) {
-        theLeft = getOffset($("div.ten.columns")[0]).left;
+      console.log(theClicked);
+      if ($("div.profile--actions").length && !isSearchPage) {
+        theLeft = getOffset($("div.profile--actions")[0]).left;
         familyTable.css({
           top: getOffset(theClicked).top + 50,
           left: theLeft,
@@ -203,7 +205,7 @@ function escapeHtml(unsafe) {
 
 export function peopleToTable(kPeople) {
   const kTable = $(
-    "<div class='familySheet'><w>↔</w><x>x</x><table><caption></caption><thead><tr><th>Relation</th><th>Name</th><th>Birth Date</th><th>Birth Place</th><th>Death Date</th><th>Death Place</th></tr></thead><tbody></tbody></table></div>"
+    "<div class='familySheet'><w>↔</w><x>x</x><table class='table-borderless'><caption></caption><thead><tr><th>Relation</th><th>Name</th><th>Birth Date</th><th>Birth Place</th><th>Death Date</th><th>Death Place</th></tr></thead><tbody></tbody></table></div>"
   );
   kPeople.forEach(function (kPers) {
     if (kPers) {

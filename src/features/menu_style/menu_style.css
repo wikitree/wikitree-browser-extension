@@ -1,0 +1,32 @@
+/* Styles for menuStyle feature */
+body.menu-style .dropdown-menu,
+body.menu-style .dropdown-menu a:link,
+body.menu-style .dropdown-menu a:visited {
+  background-color: #ffffff;
+  color: #393a3c !important;
+  text-decoration: none !important;
+}
+body.menu-style .dropdown-menu a:hover {
+  background-color: #fcb815;
+  color: #333333 !important;
+}
+body.menu-style .dropdown-menu a:active {
+  background-color: #ffee99;
+  color: #666666 !important;
+}
+
+body.menu-style.darkMode .dropdown-menu,
+body.menu-style.darkMode .dropdown-menu a:link,
+body.menu-style.darkMode .dropdown-menu a:visited {
+  background-color: #666666;
+  color: #ffffff !important;
+  text-decoration: none !important;
+}
+body.menu-style.darkMode .dropdown-menu a:hover {
+  background-color: #dedecb;
+  color: #fcb815 !important;
+}
+body.menu-style.darkMode .dropdown-menu a:active {
+  background-color: #dedecb;
+  color: #fad158 !important;
+}

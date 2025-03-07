@@ -39,6 +39,11 @@
   width: 10em;
 }
 
+#addToExtraWatchlistButton.onList span {
+  filter: invert(59%) sepia(29%) saturate(370%) hue-rotate(60deg);
+  /*filter: invert(23%) sepia(99%) saturate(543%) hue-rotate(190deg);*/
+}
+
 #touchedList a,
 #touchedList {
   color: black;
@@ -140,16 +145,16 @@ div.eight.columns.alpha .xCol,
 
 #closeWatchlistWindow {
   position: absolute;
-  top: 0.3em;
-  right: 0.3em;
+  top: 0;
+  right: 0;
   cursor: pointer;
   display: inline-block;
   font-weight: bold;
   background: #25422d;
   color: white;
-  padding: 0.5em;
+  padding: 0.2em 0.4em;
   border-radius: 0.5em;
-  box-shadow: 0.1em 0.1em 0.1em 0.1em gray;
+  z-index: 1000;
 }
 #closeWatchlistWindow:active {
   box-shadow: 0;

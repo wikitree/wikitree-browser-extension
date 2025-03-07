@@ -1,14 +1,23 @@
 #themeTable {
   margin: auto;
+  background-color: #fff;
 }
 #themeTable caption {
   background: #e1f0b4;
   box-shadow: green 0px 2px 2px 0px;
-  border-radius: 1em;
+  border-radius: 0.5em;
   font-weight: bold;
   font-size: 1.2em;
   padding: 0.2em;
   margin-bottom: 0.7em;
+  white-space: nowrap;
+  color: black;
+}
+body.darkMode #themeTable caption {
+  color: #dcddde;
+}
+#themeTable {
+  caption-side: top;
 }
 #themeTable td {
   padding: 0.2em;
@@ -53,6 +62,9 @@ td.notableName {
 #comprehensiveTable th,
 td.notableName {
   background-color: #f2f2f2;
+}
+#comprehensiveTable {
+  margin-bottom: 0;
 }
 
 /* Styles for the matchup table */

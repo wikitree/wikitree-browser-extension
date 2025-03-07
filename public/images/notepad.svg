@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg width="800px" height="800px" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <clipPath id="clip-notepad">
+      <rect width="32" height="32"/>
+    </clipPath>
+  </defs>
+  <g id="notepad" clip-path="url(#clip-notepad)">
+    <g id="Group_3042" data-name="Group 3042" transform="translate(-260 -156)">
+      <g id="Group_3024" data-name="Group 3024">
+        <g id="Group_3023" data-name="Group 3023">
+          <g id="Group_3022" data-name="Group 3022">
+            <g id="Group_3021" data-name="Group 3021">
+              <path id="Path_3967" data-name="Path 3967" d="M287.632,157.923h-3.559v-.757a1,1,0,0,0-2,0v.757h-2.721v-.757a1,1,0,1,0-2,0v.757h-2.721v-.757a1,1,0,0,0-2,0v.757H269.91v-.757a1,1,0,0,0-2,0v.757h-3.542a1,1,0,0,0-1,1v27.911a1,1,0,0,0,1,1h23.264a1,1,0,0,0,1-1V158.923A1,1,0,0,0,287.632,157.923Zm-1,27.911H265.368V159.923h2.542v.756a1,1,0,0,0,2,0v-.756h2.721v.756a1,1,0,0,0,2,0v-.756h2.721v.756a1,1,0,0,0,2,0v-.756h2.721v.756a1,1,0,0,0,2,0v-.756h2.559Z" fill="#344952"/>
+            </g>
+          </g>
+        </g>
+      </g>
+      <g id="Group_3041" data-name="Group 3041">
+        <g id="Group_3028" data-name="Group 3028">
+          <g id="Group_3027" data-name="Group 3027">
+            <g id="Group_3026" data-name="Group 3026">
+              <g id="Group_3025" data-name="Group 3025">
+                <path id="Path_3968" data-name="Path 3968" d="M283.646,167.92H268.354a1,1,0,0,1,0-2h15.292a1,1,0,0,1,0,2Z" fill="#344952"/>
+              </g>
+            </g>
+          </g>
+        </g>
+        <g id="Group_3032" data-name="Group 3032">
+          <g id="Group_3031" data-name="Group 3031">
+            <g id="Group_3030" data-name="Group 3030">
+              <g id="Group_3029" data-name="Group 3029">
+                <path id="Path_3969" data-name="Path 3969" d="M283.646,171.92H268.354a1,1,0,0,1,0-2h15.292a1,1,0,0,1,0,2Z" fill="#344952"/>
+              </g>
+            </g>
+          </g>
+        </g>
+        <g id="Group_3036" data-name="Group 3036">
+          <g id="Group_3035" data-name="Group 3035">
+            <g id="Group_3034" data-name="Group 3034">
+              <g id="Group_3033" data-name="Group 3033">
+                <path id="Path_3970" data-name="Path 3970" d="M283.646,175.92H268.354a1,1,0,0,1,0-2h15.292a1,1,0,0,1,0,2Z" fill="#344952"/>
+              </g>
+            </g>
+          </g>
+        </g>
+        <g id="Group_3040" data-name="Group 3040">
+          <g id="Group_3039" data-name="Group 3039">
+            <g id="Group_3038" data-name="Group 3038">
+              <g id="Group_3037" data-name="Group 3037">
+                <path id="Path_3971" data-name="Path 3971" d="M275.823,179.92h-7.469a1,1,0,0,1,0-2h7.469a1,1,0,0,1,0,2Z" fill="#344952"/>
+              </g>
+            </g>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

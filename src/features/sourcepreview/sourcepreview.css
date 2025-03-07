@@ -14,9 +14,10 @@
   width: 450px;
   margin-top: -0.8em;
   white-space: normal;
-  font-size: 14px;
+  font-size: 0.875rem; /* about 14pt on the new design */
   font-style: normal;
   font-weight: normal;
+  line-height: normal !important;
 }
 
 .x-source-preview > div {

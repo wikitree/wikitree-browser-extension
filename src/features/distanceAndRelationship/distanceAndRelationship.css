@@ -1,10 +1,11 @@
-#distanceFromYou {
+.distanceFromYou {
   font-size: 0.5em;
   font-weight: bold;
   padding: 0.2em;
   border: 2px solid forestgreen;
   border-radius: 50%;
-  width: 3em;
+  width: 2em;
+  display: inline-block;
   text-align: center;
   background: white;
   opacity: 0.8;
@@ -12,6 +13,7 @@
   cursor: default;
   margin-left: 1em;
   position: relative;
+  top: -0.4em;
 }
 #distanceFromYouTooltip {
   display: block;

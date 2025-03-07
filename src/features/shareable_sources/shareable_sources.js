@@ -7,9 +7,10 @@ import { displayName } from "../../core/common.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isProfileEdit, isProfileAddRelative } from "../../core/pageType";
 import { getProfile } from "../distanceAndRelationship/distanceAndRelationship";
+import { profilePerson } from "../../core/common";
 
 let enhanced = false;
-let theID = $("a.pureCssMenui0 span.person").text(); // Get profile ID
+let theID;
 
 const fields = // Fields to fetch
   "Name,FirstName,Gender,LastNameAtBirth,LastNameCurrent,Bio,BirthDate,DeathDate,BirthDateDecade,DeathDateDecade,DataStatus,Id";
@@ -43,6 +44,7 @@ async function addOptionsToWindow(feature) {
  */
 shouldInitializeFeature("shareableSources").then((result) => {
   if (result) {
+    theID = profilePerson.Name;
     import("./shareable_sources.css");
     window.shareableSourcesEnabled = true;
 
@@ -180,7 +182,7 @@ function getSources(person, active = 0) {
       );
     });
 
-    if ($("body.page-Special_EditPerson").length) {
+    if (isProfileEdit) {
       referenceBox.prependTo($("b:contains('How to Add Sources')").closest("div"));
       referenceBox.draggable();
     } else {
@@ -245,7 +247,7 @@ function getSources(person, active = 0) {
           theText = "<ref>" + theText + "</ref>";
         }
 
-        if ($("body.page-Special_EditPerson").length) {
+        if (isProfileEdit) {
           // Enhanced editor enabled?
           if (enhanced == true) {
             enhancedEditorButton.trigger("click");
@@ -282,7 +284,7 @@ function getSources(person, active = 0) {
           }
         }
 
-        if ($("body.page-Special_EditPerson").length && enhanced == true) {
+        if (isProfileEdit && enhanced == true) {
           enhancedEditorButton.trigger("click");
         }
       }
@@ -304,9 +306,7 @@ function getSources(person, active = 0) {
     });
 
     // Insert save button on edit family page
-    $("body.page-Special_EditFamily #wpSave,body.page-Special_EditFamilySteps #wpSave")
-      .not('[value="Go"]')
-      .insertAfter($("#mSources"));
+    $("#wpSave").not('[value="Go"]').insertAfter($("#mSources"));
 
     // Create biography element
     const relativeBiography = $(

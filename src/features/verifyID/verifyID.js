@@ -10,10 +10,8 @@ import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 shouldInitializeFeature("verifyID").then((result) => {
   if (result) {
-    if ($("body.page-Special_EditFamily,body.page-Special_EditFamilySteps").length) {
-      import("./verifyID.css");
-      checkAttachPersonID();
-    }
+    import("./verifyID.css");
+    checkAttachPersonID();
   }
 });
 
@@ -124,7 +122,7 @@ function addRelativeArraysToPerson(zPerson) {
 
 // Show some details of the profile entered in the "Add parent/etc." box
 async function checkAttachPersonID() {
-  $("body.page-Special_EditFamily #mName,body.page-Special_EditFamilySteps #mName").on("keyup", function () {
+  $("#mName").on("input", function () {
     $("#verification").remove();
     if (window.timeoutId) {
       clearTimeout(window.timeoutId);
@@ -159,7 +157,9 @@ async function checkAttachPersonID() {
               $("#verification").draggable();
               if (person.Created) {
                 ah2 = $(
-                  "<h3><a href='https://" + mainDomain + "/wiki/" +
+                  "<h3><a href='https://" +
+                    mainDomain +
+                    "/wiki/" +
                     person.Name +
                     "' target='_blank'>" +
                     displayName(person)[0] +

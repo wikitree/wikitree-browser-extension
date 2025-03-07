@@ -64,7 +64,7 @@ function getTheUsersNumId() {
 function getCC7Total() {
   // We retrieve the actual CC7 Total from the "My WikiTree/Connections" menu item, present when the user is logged in
   // and on any WT page except G2G.
-  const connText = $('a[href*="Special:MyConnections"].pureCssMenui').text();
+  const connText = $('nav[aria-label="My WikiTree Navigation"] a[href*="Special:MyConnections"]').text();
   if (!connText) return null;
   const m = connText.match(/\d+/);
   return m ? +m[0] : null;
@@ -350,18 +350,21 @@ function showLoginPopup() {
 }
 
 export async function addCC7ChangesButton() {
-  const categoryLI = $("li a.pureCssMenui[href='/wiki/Category:Categories']");
-  const fetchAndReportLi = $(
-    "<li><a class='pureCssMenui cc7Tracker' title='Find CC7 changes since you last checked'>CC7 Changes</li>"
-  );
-  fetchAndReportLi.insertBefore(categoryLI.parent());
-  fetchAndReportLi.on("click", cc7ChangesClick);
+  $("li a.dropdown-item[href='/wiki/Category:Categories']").each(function () {
+    const categoryLI = $(this);
+    const fetchAndReportLi = $(
+      `<li><a href="#n" class='dropdown-item cc7Tracker' title='Find CC7 changes since you last checked'>CC7 Changes</li>`
+    );
+    fetchAndReportLi.insertBefore(categoryLI.parent());
+    fetchAndReportLi.on("click", (e) => cc7ChangesClick(e));
 
-  const reportOnlyLi = $(
-    "<li><a class='pureCssMenui cc7Tracker' title='Show the CC7 changes report again without fetching your latest CC7'>CC7 Report Only</li>"
-  );
-  reportOnlyLi.insertBefore(categoryLI.parent());
-  reportOnlyLi.on("click", (e) => cc7ChangesClick(e, true));
+    const reportOnlyLi = $(
+      `<li><a href="#n" class='dropdown-item cc7Tracker' " +
+        "title='Show the CC7 changes report again without fetching your latest CC7'>CC7 Report Only</li>`
+    );
+    reportOnlyLi.insertBefore(categoryLI.parent());
+    reportOnlyLi.on("click", (e) => cc7ChangesClick(e, true));
+  });
 
   async function cc7ChangesClick(e, reportOnly = false) {
     e.preventDefault();
