@@ -142,3 +142,8 @@ form[name="a_form"] {
 [data-tooltip]:hover::before {
   opacity: 1;
 }
+
+.float-end {
+  z-index: 10;
+  position: relative;
+}
