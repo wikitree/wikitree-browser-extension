@@ -576,12 +576,15 @@ export async function showDraftList() {
   // Process person drafts
   if (localStorage.drafts && localStorage.drafts !== "[]") {
     try {
+      console.log("Parsing person drafts from localStorage");
       const drafts = JSON.parse(localStorage.drafts);
+      console.log("Person drafts parsed successfully:", drafts);
       processPersonDrafts(drafts);
     } catch (e) {
       console.error("Error parsing person drafts:", e);
     }
   } else {
+    console.log("No person drafts found, handling space drafts");
     // Handle space drafts if no person drafts exist
     handleSpaceDrafts();
   }
@@ -592,6 +595,12 @@ export async function showDraftList() {
 
     drafts.forEach((draft, index) => {
       const theWTID = draft[0];
+      console.log(`Checking draft for profile ${theWTID}`);
+      console.log(`Draft index: ${index}`);
+      console.log(`Draft data: ${draft}`);
+      console.log(`Drafts array: ${drafts}`);
+      console.log(`Drafts length: ${drafts.length}`);
+      console.log(`isOK`, isOK(theWTID));
       if (!isOK(theWTID)) {
         delete drafts[index];
         draftCalls++;
@@ -773,46 +782,70 @@ $(document).on("click", "#deleteSpaceDraftsForPage", function () {
 
 // Used in saveDraftList (above)
 export async function updateDraftList() {
-  const profileWTID = profilePerson.Name;
-  let addDraft = false;
-  let timeNow = Date.now();
-  let lastWeek = timeNow - 604800000;
-  let isEditPage = false;
-  const theName = profilePerson.FullName;
+  setTimeout(() => {
+    console.log("Starting updateDraftList function");
+    const profileWTID = profilePerson.Name;
+    let addDraft = false;
+    let timeNow = Date.now();
+    let lastWeek = timeNow - 604800000;
+    let isEditPage = false;
+    const theName = profilePerson.FullName;
 
-  if ($("#draftStatus:contains(saved),#status:contains(Starting with previous)").length) {
-    addDraft = true;
-  } else if ($("body.edit-person").length) {
-    isEditPage = true;
-  }
-  if (localStorage.drafts) {
-    let draftsArr = [];
-    let draftsArrIDs = [];
-    let drafts = JSON.parse(localStorage.drafts);
-    drafts.forEach(function (draft) {
-      if (!draftsArrIDs.includes(draft[0])) {
-        if ((addDraft == false || window.fullSave == true) && draft[0] == profileWTID && isEditPage == true) {
-          // Do nothing
-        } else {
-          if (draft[1] > lastWeek) {
-            draftsArr.push(draft);
-            draftsArrIDs.push(draft[0]);
+    console.log($("#draftStatus:contains('saved'),#status:contains('Starting with previous')").length);
+
+    if ($("#draftStatus:contains('saved'),#status:contains('Starting with previous')").length) {
+      addDraft = true;
+      console.log("Draft status indicates a saved draft or starting with previous draft");
+    } else if ($("body.edit-person").length) {
+      isEditPage = true;
+      console.log("This is an edit-person page");
+    }
+
+    if (localStorage.drafts) {
+      let draftsArr = [];
+      let draftsArrIDs = [];
+      let drafts = JSON.parse(localStorage.drafts);
+      console.log(`drafts`, drafts);
+      drafts.forEach(function (draft) {
+        if (!draftsArrIDs.includes(draft[0])) {
+          if ((addDraft == false || window.fullSave == true) && draft[0] == profileWTID && isEditPage == true) {
+            console.log(`Skipping draft for profile ${profileWTID} as it is being fully saved`);
+          } else {
+            console.log(`Processing draft for profile ${draft[0]}`);
+            console.log(`Last saved: ${draft[1]}, last week: ${lastWeek}`);
+            if (draft[1] > lastWeek) {
+              draftsArr.push(draft);
+              console.log(`Adding draft for profile ${draft[0]} to draftsArr`);
+              draftsArrIDs.push(draft[0]);
+              console.log(`draftsArrIDs: ${draftsArrIDs}`);
+              console.log(`Adding draft for profile ${draft[0]} to draftsArr`);
+            }
           }
         }
+      });
+
+      console.log("Finished processing existing drafts");
+      console.log(`Profile ${profileWTID} is being ${addDraft == true ? "saved" : "not saved"}`);
+      if (!draftsArrIDs.includes(profileWTID) && addDraft == true) {
+        draftsArr.push([profileWTID, timeNow, theName]);
+        console.log(`Adding new draft for profile ${profileWTID}`);
       }
-    });
 
-    if (!draftsArrIDs.includes(profileWTID) && addDraft == true) {
-      draftsArr.push([profileWTID, timeNow, theName]);
+      console.log(draftsArr);
+      const newDraftsArray = JSON.stringify(draftsArr);
+      console.log(newDraftsArray);
+      localStorage.setItem("drafts", newDraftsArray);
+      console.log(localStorage.drafts);
+      console.log("Updated drafts in localStorage");
+    } else {
+      if (addDraft == true && window.fullSave != true) {
+        localStorage.setItem("drafts", JSON.stringify([[profileWTID, timeNow, theName]]));
+        console.log(`Created new drafts array in localStorage with profile ${profileWTID}`);
+      }
     }
-
-    localStorage.setItem("drafts", JSON.stringify(draftsArr));
-  } else {
-    if (addDraft == true && window.fullSave != true) {
-      localStorage.setItem("drafts", JSON.stringify([[profileWTID, timeNow, theName]]));
-    }
-  }
-  return true;
+    console.log("Finished updateDraftList function");
+    return true;
+  }, 1000);
 }
 
 export function isWikiTreeUrl(url) {

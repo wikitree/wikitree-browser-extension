@@ -224,38 +224,34 @@ function onDistancesSuccess(event, profileID, userID) {
     if (getDistanceReq.result == undefined || getDistanceReq.result?.distance < 0) {
       initDistanceAndRelationship(userID, profileID);
     } else {
-      if ($("#distanceFromYou").length == 0) {
-        const profileName = profilePerson.FirstName;
-        $("h1")
-          .first()
-          .append(
-            $(
-              `<span id='distanceFromYou' title='${profileName} is ${getDistanceReq.result.distance} degrees from you. \nClick to refresh.'>${getDistanceReq.result.distance}°</span>`
-            )
-          );
-        // Add a big hover text thing
-        $("#distanceFromYou")
-          .on("mouseenter", function () {
-            const offset = $(this).offset();
-            const tooltip = $('<div id="distanceFromYouTooltip">Click to refresh</div>').css({
-              top: offset.top + $(this).outerHeight() + 5,
-              left: offset.left,
-              position: "absolute",
-            });
-            $("body").append(tooltip);
-          })
-          .on("mouseleave", function () {
-            $("#distanceFromYouTooltip").remove();
+      const profileName = profilePerson.FirstName;
+      $("#person h1").append(
+        $(
+          `<span class='distanceFromYou' title='${profileName} is ${getDistanceReq.result.distance} degrees from you. \nClick to refresh.'>${getDistanceReq.result.distance}°</span>`
+        )
+      );
+      // Add a big hover text thing
+      $(".distanceFromYou")
+        .on("mouseenter", function () {
+          const offset = $(this).offset();
+          const tooltip = $('<div id="distanceFromYouTooltip">Click to refresh</div>').css({
+            top: offset.top + $(this).outerHeight() + 5,
+            left: offset.left,
+            position: "absolute",
           });
-
-        $("#distanceFromYou").on("click", function (e) {
-          e.preventDefault();
+          $("body").append(tooltip);
+        })
+        .on("mouseleave", function () {
           $("#distanceFromYouTooltip").remove();
-          $(this).fadeOut("slow").remove();
-          $("#yourRelationshipText").fadeOut("slow").remove();
-          initDistanceAndRelationship(userID, profileID, true);
         });
-      }
+
+      $("#distanceFromYou").on("click", function (e) {
+        e.preventDefault();
+        $("#distanceFromYouTooltip").remove();
+        $(this).fadeOut("slow").remove();
+        $("#yourRelationshipText").fadeOut("slow").remove();
+        initDistanceAndRelationship(userID, profileID, true);
+      });
     }
   };
 
@@ -439,13 +435,11 @@ async function addDistance(data) {
     window.distance = data.path.length - 1;
     const profileName = profilePerson.FirstName;
     if (window.distance > 0 && $("#degreesFromYou").length == 0) {
-      $("h1")
-        .first()
-        .append(
-          $(
-            `<span id='distanceFromYou' title='${profileName} is ${window.distance} degrees from you.'>${window.distance}°</span>`
-          )
-        );
+      $("#person h1").append(
+        $(
+          `<span class='distanceFromYou' title='${profileName} is ${window.distance} degrees from you.'>${window.distance}°</span>`
+        )
+      );
     }
     initDistanceDB((event) => {
       const connectionFinderDB = event.target.result;
@@ -636,7 +630,7 @@ export function ordinalWordToNumberAndSuffix(word) {
 }
 
 function initDistanceAndRelationship(userID, profileID, clicked = false) {
-  $("#distanceFromYou").fadeOut().remove();
+  $(".distanceFromYou").fadeOut().remove();
   $("#yourRelationshipText").fadeOut().remove();
   if (clicked == true) {
     getDistance();
