@@ -630,64 +630,6 @@ export async function showDraftList() {
     });
   }
 
-  /*
-
-  TRY THIS (but update the pureCssMenui0 bit)
-
-  async function processPersonDrafts(drafts) {
-    let draftCalls = 0;
-    const tempDraftArr = [];
-
-    for (const [index, draft] of drafts.entries()) {
-        const theWTID = draft[0];
-        if (!isOK(theWTID)) {
-            delete drafts[index];
-            draftCalls++;
-        } else {
-            try {
-                const res = await getWikiTreePage("Drafts", "/index.php", `title=${theWTID}&displayDraft=1`);
-                draftCalls++;
-
-                // Parse response using DOMParser
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(res, "text/html");
-
-                let aWTID = doc.querySelector("a.pureCssMenui0 span.person")?.textContent.trim() || "";
-
-                // Remove ' User' suffix if present
-                if (aWTID.endsWith(" User")) {
-                    aWTID = aWTID.slice(0, -" User".length);
-                }
-
-                if (doc.querySelector("div.status")?.textContent.includes("You have an uncommitted")) {
-                    tempDraftArr.push(aWTID);
-                    const useLinkElement = [...doc.querySelectorAll("a")].find(a => a.textContent.includes("Use the Draft"));
-
-                    if (useLinkElement) {
-                        const useLink = useLinkElement.getAttribute("href");
-                        const personID = useLink.match(/&u=(\d+)/)?.[1] || "";
-                        const draftID = useLink.match(/&ud=(\d+)/)?.[1] || "";
-
-                        drafts.forEach(yDraft => {
-                            if (yDraft[0] === aWTID) {
-                                yDraft[3] = personID;
-                                yDraft[4] = draftID;
-                            }
-                        });
-                    }
-                }
-
-                if (draftCalls === drafts.length) {
-                    updateDraftTable(drafts, tempDraftArr);
-                }
-            } catch (error) {
-                console.error("Error processing draft:", error);
-            }
-        }
-    }
-}
-    */
-
   function updateDraftTable(drafts, tempDraftArr) {
     const newDraftArr = drafts.filter((aDraft) => tempDraftArr.includes(aDraft[0]) && isOK(aDraft[0]));
 
@@ -836,21 +778,11 @@ export async function updateDraftList() {
   let timeNow = Date.now();
   let lastWeek = timeNow - 604800000;
   let isEditPage = false;
-  let theName = $("h1")
-    .text()
-    .replace("Edit Profile of ", "")
-    .replaceAll(/\//g, "")
-    .replaceAll(/ID|LINK|URL/g, "")
-    .trim();
-
-  // Check if the name ends with " User" and remove it if necessary
-  if (theName.endsWith(" User")) {
-    theName = theName.replace(/ User$/, ""); // Remove the trailing ' User'
-  }
+  const theName = profilePerson.FullName;
 
   if ($("#draftStatus:contains(saved),#status:contains(Starting with previous)").length) {
     addDraft = true;
-  } else if ($("body.page-Special_EditPerson").length) {
+  } else if ($("body.edit-person").length) {
     isEditPage = true;
   }
   if (localStorage.drafts) {

@@ -336,8 +336,6 @@ function doRelationshipText(userID, profileID) {
       const parser = new DOMParser();
       const doc = parser.parseFromString(data.html, "text/html");
 
-      console.log(doc);
-
       // Check for "No Relationship Found"
       const h2Element = doc.querySelector("h2");
       if (h2Element && h2Element.textContent.trim() === "No Relationship Found") {
