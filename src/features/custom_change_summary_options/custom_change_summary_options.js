@@ -23,7 +23,6 @@ shouldInitializeFeature("customChangeSummaryOptions").then(async (result) => {
   if (result) {
     // Set a 2 second wait to do the function
     setTimeout(async function () {
-      console.log("Initializing Custom Change Summary Options...");
       $("#save").closest("div.page--content").prop("id", "saveButtons");
       if (isSpaceEdit) {
         const options = await getFeatureOptions("customChangeSummaryOptions");
@@ -55,20 +54,15 @@ shouldInitializeFeature("customChangeSummaryOptions").then(async (result) => {
 // We empty the original .form-check (if any) and set its id to "summaryOptionsContainer".
 //
 function initializeSummaryOptionsContainer() {
-  console.log("Initializing Summary Options Container...");
   const saveButtons = $("#saveButtons");
   let $container = saveButtons.find("#summaryOptionsContainer");
   if (!$container.length) {
     $container = saveButtons.find(".form-check");
     if ($container.length) {
-      console.log("Found existing .form-check, emptying and setting id to summaryOptionsContainer.");
       $container.empty().attr("id", "summaryOptionsContainer");
     } else {
-      console.log("No existing .form-check found, creating new summaryOptionsContainer.");
       saveButtons.append(`<div id="summaryOptionsContainer" class="form-check" style="margin-top:1em;"></div>`);
     }
-  } else {
-    console.log("summaryOptionsContainer already exists.");
   }
 }
 

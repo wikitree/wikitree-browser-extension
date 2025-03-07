@@ -15,17 +15,13 @@ class CustomStyle {
 
   getTextColor(backgroundColor, chosenTextColor) {
     const contrastRatio = this.contrastRatio(backgroundColor, chosenTextColor);
-    console.log(`Contrast ratio: ${contrastRatio}`);
 
     if (contrastRatio >= 4.5) {
-      console.log(`Sufficient contrast ratio. Returning chosen text color: ${chosenTextColor}`);
       return chosenTextColor;
     } else {
       const isLightBackground = this.isLight(backgroundColor);
-      console.log(`Insufficient contrast ratio. Background is light: ${isLightBackground}`);
 
       const textColor = isLightBackground ? "#000000" : "#ffffff";
-      console.log(`Setting text color to: ${textColor}`);
 
       return textColor;
     }
@@ -61,15 +57,11 @@ class CustomStyle {
       let backgroundColor = this.hexToRgb(selectedBackgroundColor);
       let chosenTextColor = this.hexToRgb(theValue);
       const contrastRatio = this.contrastRatio(backgroundColor, chosenTextColor);
-      console.log(
-        `Background color: ${selectedBackgroundColor}, Text color: ${theValue}, Contrast ratio: ${contrastRatio}`
-      );
+
       if (contrastRatio >= contrastRatioThreshold) {
         textColor = theValue;
-        console.log(`Contrast ratio is sufficient. Using chosen text color: ${textColor}`);
       } else {
         textColor = this.isLight(backgroundColor) ? "#000000" : "#ffffff";
-        console.log(`Contrast ratio is insufficient. Using calculated text color: ${textColor}`);
       }
     }
     return textColor || theValue;
@@ -274,9 +266,6 @@ class CustomStyle {
 
         // Calculate the new font size
         const newFontSize = parseInt(currentFontSize) + ($(this).prop("id") === "fontIncreaseButton" ? 10 : -10);
-
-        // Debug: Log the new font size
-        console.log("New font size calculated: " + newFontSize);
 
         // Update the customStyle options
         options["editor_font-size"] = newFontSize;

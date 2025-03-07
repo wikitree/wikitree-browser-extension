@@ -96,8 +96,6 @@ const treeApps = [
 let profilePerson;
 shouldInitializeFeature("appsMenu").then((result) => {
   profilePerson = getProfilePersonInfo();
-  console.log("userWtId", getUserWtId());
-  console.log("profilePerson", profilePerson);
   if (result && $("#appsSubMenu").length === 0) {
     if (isG2G) {
       attachMenu("Help:Projects", "projectsSubMenu", getMenuItems("/wiki/Project:", projects));
@@ -112,23 +110,6 @@ shouldInitializeFeature("appsMenu").then((result) => {
     //setWidth();
   }
 });
-
-function setWidth() {
-  $(".subMenu").each(function () {
-    const submenu = $(this);
-    // Get width of UL. This is the width of the widest LI.
-    const ulWidth = submenu.closest("ul").width();
-    // Set width of submenu to be the same as the UL
-    const submenuWidth = ulWidth - 10;
-
-    const submenuChildren = submenu.children("a");
-    submenuChildren.width(submenuWidth);
-    // Set the margin-left to be negative the same as the UL
-    submenuChildren.css("margin-left", -submenuWidth);
-    // Set the margin-left of #treeAppsSubMenu to be negative UL * 2
-    $("#treeAppsSubMenu").css("margin-left", -(submenuWidth * 2));
-  });
-}
 
 function getLink(href) {
   return $(`nav a[href$='/wiki/${href}']`).eq(0);

@@ -37,6 +37,7 @@ body.page-Special_EditFamilySteps #wpSave {
   top: 1em;
   right: 1em;
   height: 1em;
+  z-index: 10;
 }
 #saveButtons {
   position: relative;
