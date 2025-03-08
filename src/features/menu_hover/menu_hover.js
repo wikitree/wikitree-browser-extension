@@ -9,7 +9,7 @@ function menuHover() {
   let clickToggledMenus = new Set(); // Store menus that should stay open after click
   const style = document.createElement("style");
   style.innerHTML = `
-    .btn-group .dropdown-menu.show {
+    header .btn-group .dropdown-menu.show {
       display: block;
       position: absolute;
       inset: 0px auto auto 0px;
@@ -20,13 +20,13 @@ function menuHover() {
   document.head.appendChild(style);
 
   // Show dropdown on hover
-  $(document).on("mouseenter", ".btn-group[data-menu]", function () {
+  $(document).on("mouseenter", "header .btn-group[data-menu]", function () {
     const dropdownMenu = $(this).find(".dropdown-menu");
     dropdownMenu.addClass("show hovered");
   });
 
   // Handle click: toggle menu staying open
-  $(document).on("click", ".btn-group[data-menu]", function (e) {
+  $(document).on("click", "header .btn-group[data-menu]", function (e) {
     e.stopPropagation(); // Prevent closing when clicking inside
     const dropdownMenu = $(this).find(".dropdown-menu");
 
@@ -50,12 +50,12 @@ function menuHover() {
   });
 
   // Keep menu open when hovering inside the dropdown
-  $(document).on("mouseenter", ".dropdown-menu", function () {
+  $(document).on("mouseenter", "header .dropdown-menu", function () {
     $(this).addClass("show hovered");
   });
 
   // Delay hiding when leaving button (smooth transition to menu)
-  $(document).on("mouseleave", ".btn-group[data-menu]", function () {
+  $(document).on("mouseleave", "header .btn-group[data-menu]", function () {
     const dropdownMenu = $(this).find(".dropdown-menu");
     setTimeout(() => {
       if (!dropdownMenu.is(":hover") && !clickToggledMenus.has(this)) {
@@ -65,7 +65,7 @@ function menuHover() {
   });
 
   // Hide menu when leaving dropdown, unless it was clicked open
-  $(document).on("mouseleave", ".dropdown-menu", function () {
+  $(document).on("mouseleave", "header .dropdown-menu", function () {
     const parentMenu = $(this).closest(".btn-group[data-menu]");
     if (!clickToggledMenus.has(parentMenu[0])) {
       $(this).removeClass("show hovered");

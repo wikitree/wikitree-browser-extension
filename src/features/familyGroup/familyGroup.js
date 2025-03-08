@@ -2,17 +2,20 @@
 Created By: Ian Beacall (Beacall-6)
 */
 
+// Import required modules and components
 import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import { getRelatives } from "wikitree-js";
 import { createProfileSubmenuLink, familyArray, isOK, htmlEntities, setAdjustedDates } from "../../core/common";
-import { mainDomain, isSearchPage } from "../../core/pageType";
+import { mainDomain, isSearchPage, isProfilePage } from "../../core/pageType";
 import { profilePerson } from "../../core/common";
 
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
+// Initialize the familyGroup feature if enabled and if on a profile page
 shouldInitializeFeature("familyGroup").then((result) => {
   if (result && $("body.profile").length) {
+    // Dynamically import the CSS for familyTimeline
     import("../familyTimeline/familyTimeline.css");
     // Add a link to the short list of links below the tabs
     const options = {
@@ -28,11 +31,18 @@ shouldInitializeFeature("familyGroup").then((result) => {
       showFamilySheet($(this)[0], profileID);
     });
 
-    // Get the position of an element
+    // Get the position of an element (comment placeholder)
   }
 });
 
+/**
+ * Get the offset position of an element relative to the document.
+ *
+ * @param {HTMLElement} el - The element to calculate the offset for.
+ * @returns {Object} An object containing the left and top offsets.
+ */
 export function getOffset(el) {
+  if (!el) return;
   const rect = el.getBoundingClientRect();
   return {
     left: rect.left + window.scrollX,
@@ -40,7 +50,12 @@ export function getOffset(el) {
   };
 }
 
-// Convert dates to ISO format (YYYY-MM-DD)
+/**
+ * Converts a given date string to ISO format (YYYY-MM-DD).
+ *
+ * @param {string} date - The date string to convert.
+ * @returns {string} The date in ISO format, or an empty string if input is invalid.
+ */
 export function ymdFix(date) {
   let outDate;
   if (date == undefined || date == "") {
@@ -48,6 +63,7 @@ export function ymdFix(date) {
   } else {
     const dateBits1 = date.split(" ");
     if (dateBits1[2]) {
+      // Define short and long month names for conversion
       const sMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       const lMonths = [
         "January",
@@ -78,6 +94,7 @@ export function ymdFix(date) {
       const dYearNum = dYear[0];
       return dYearNum + "-" + dMonthNum + "-" + dDateNum;
     } else {
+      // If date is already in a hyphenated format, handle special cases
       const dateBits = date.split("-");
       outDate = date;
       if (dateBits[1] == "00" && dateBits[2] == "00") {
@@ -94,11 +111,21 @@ export function ymdFix(date) {
 
 let zIndexCounter = 1000; // Initial z-index value
 
+/**
+ * Increments the global z-index counter and sets it on the given jQuery object.
+ *
+ * @param {jQuery} jqObject - The jQuery object whose z-index will be updated.
+ */
 export function incrementZIndex(jqObject) {
   zIndexCounter++;
   jqObject.css("z-index", zIndexCounter);
 }
 
+/**
+ * Finds the highest z-index value among all elements in the document.
+ *
+ * @returns {number} The highest z-index value.
+ */
 export function getHighestZindex() {
   let highest = 0;
   $("*").each(function () {
@@ -108,8 +135,36 @@ export function getHighestZindex() {
   return highest;
 }
 
+/**
+ * Positions the family sheet table based on the clicked element and scroll position.
+ *
+ * @param {HTMLElement|jQuery} theClicked - The element that was clicked.
+ * @param {jQuery} thisFamilySheet - The jQuery object representing the family sheet table.
+ */
+function positionTable(theClicked, thisFamilySheet) {
+  const theScroll = $(window).scrollTop();
+  const offsetTop = $(theClicked).offset().top;
+  const headerHeight = $(theClicked).closest(".tabs--wrapper").outerHeight() || 0; // Adjust if your header has a different class
+
+  let topPosition = offsetTop + 50 - theScroll;
+
+  // If the clicked element is stuck to the top, place the table below the sticky header
+  if (offsetTop < theScroll + headerHeight) {
+    topPosition = theScroll + headerHeight + 10; // 10px spacing
+  }
+
+  thisFamilySheet.css("top", topPosition);
+}
+
+/**
+ * Displays the family sheet table for the given profile.
+ *
+ * @param {HTMLElement|jQuery} theClicked - The element that triggered the display.
+ * @param {string} profileID - The profile identifier.
+ * @returns {Promise<void>}
+ */
 export async function showFamilySheet(theClicked, profileID) {
-  // Event delegation for closing and wrapping
+  // Set up event delegation for closing and wrapping the family sheet
   $(document)
     .off("click.wbe")
     .on("click.wbe", ".familySheet x", function () {
@@ -126,13 +181,17 @@ export async function showFamilySheet(theClicked, profileID) {
       $(this).fadeOut();
       incrementZIndex($(this));
     });
-  // If the table already exists toggle it.
+  // If the table already exists, toggle its visibility.
   if ($("#" + createValidId(profileID.replace(" ", "_")) + "_family").length) {
     const thisFamilySheet = $("#" + createValidId(profileID.replace(" ", "_")) + "_family");
     thisFamilySheet.fadeToggle();
+    if (isProfilePage) {
+      positionTable(theClicked, thisFamilySheet);
+    }
+
     thisFamilySheet.css("z-index", getHighestZindex() + 1);
   } else {
-    // Make the table and do other things
+    // If the table doesn't exist, create it by fetching relatives data.
     getRelatives(
       [profileID],
       {
@@ -144,7 +203,7 @@ export async function showFamilySheet(theClicked, profileID) {
       { appId: "WBE_familyGroup" }
     ).then((person) => {
       const uPeople = familyArray(person[0]);
-      // Make the table
+      // Create the table using the family data
       const familyTable = peopleToTable(uPeople);
       // Attach the table to the body, position it and make it draggable and toggleable
       familyTable.prependTo("body");
@@ -155,8 +214,6 @@ export async function showFamilySheet(theClicked, profileID) {
       familyTable.css("z-index", getHighestZindex() + 1);
 
       let theLeft;
-
-      console.log(theClicked);
       if ($("div.profile--actions").length && !isSearchPage) {
         theLeft = getOffset($("div.profile--actions")[0]).left;
         familyTable.css({
@@ -169,6 +226,10 @@ export async function showFamilySheet(theClicked, profileID) {
           top: getOffset(theClicked[0]).top + 50,
           left: theLeft,
         });
+      }
+
+      if (isProfilePage) {
+        positionTable(theClicked, familyTable);
       }
 
       // Adjust the position of the table on window resize
@@ -189,11 +250,20 @@ export async function showFamilySheet(theClicked, profileID) {
             });
           }
         }
+        if (isProfilePage) {
+          positionTable(theClicked, familyTable);
+        }
       });
     });
   }
 }
 
+/**
+ * Escapes HTML special characters in a string to prevent XSS.
+ *
+ * @param {string} unsafe - The string to escape.
+ * @returns {string} The escaped string.
+ */
 function escapeHtml(unsafe) {
   return unsafe
     .replace(/&/g, "&amp;")
@@ -203,9 +273,19 @@ function escapeHtml(unsafe) {
     .replace(/'/g, "&#039;");
 }
 
+/**
+ * Creates a jQuery table element representing the family data.
+ *
+ * @param {Array} kPeople - An array of people objects representing family members.
+ * @returns {jQuery} The jQuery table element containing family data.
+ */
 export function peopleToTable(kPeople) {
+  const oPerson = kPeople[0];
+  const captionText = `${
+    oPerson.ShortName || oPerson.LongName || oPerson.RealName || oPerson.FirstName
+  }'s Family Group`;
   const kTable = $(
-    "<div class='familySheet'><w>↔</w><x>x</x><table class='table-borderless'><caption></caption><thead><tr><th>Relation</th><th>Name</th><th>Birth Date</th><th>Birth Place</th><th>Death Date</th><th>Death Place</th></tr></thead><tbody></tbody></table></div>"
+    `<div class='familySheet'><w>↔</w><x>x</x><table class='table-borderless'><caption>${captionText}</caption><thead><tr><th>Relation</th><th>Name</th><th>Birth Date</th><th>Birth Place</th><th>Death Date</th><th>Death Place</th></tr></thead><tbody></tbody></table></div>`
   );
   kPeople.forEach(function (kPers) {
     if (kPers) {
@@ -305,10 +385,12 @@ export function peopleToTable(kPeople) {
       }
     }
   });
+  // Sort rows by birthdate (data attribute)
   const rows = kTable.find("tbody tr");
   rows.sort((a, b) => ($(b).data("birthdate") < $(a).data("birthdate") ? 1 : -1));
   kTable.find("tbody").append(rows);
 
+  // Reorder rows by family order
   const familyOrder = ["Parent", "Sibling", "Spouse", "Child"];
   familyOrder.forEach(function (relWord) {
     kTable.find("tr[data-relation='" + escapeHtml(relWord) + "']").each(function () {
@@ -316,6 +398,7 @@ export function peopleToTable(kPeople) {
     });
   });
 
+  // Insert marriage rows after corresponding spouse rows
   kTable.find(".marriageRow").each(function () {
     $(this).insertAfter(kTable.find("tr[data-name='" + createValidId($(this).data("spouse")) + "']"));
   });
@@ -323,11 +406,22 @@ export function peopleToTable(kPeople) {
   return kTable;
 }
 
+/**
+ * Creates a valid HTML element ID from a given string by replacing invalid characters.
+ *
+ * @param {string} unsafe - The string to convert.
+ * @returns {string} The valid ID string.
+ */
 function createValidId(unsafe) {
   return unsafe.replace(/[^a-zA-Z0-9-_]/g, "_");
 }
 
-// Find good names to display (as the API doesn't return the same fields all profiles)
+/**
+ * Determines the best display name and short name for a person.
+ *
+ * @param {Object} fPerson - The person object containing various name properties.
+ * @returns {Array} An array where the first element is the full name and the second is the short name.
+ */
 export function displayName(fPerson) {
   if (fPerson != undefined) {
     let fName1 = "";

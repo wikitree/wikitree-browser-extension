@@ -7,8 +7,6 @@ import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain } from "../../core/pageType";
 
 async function akaNames() {
-  console.log("akaNames function called");
-
   // Ensure we are on a profile page
   if ($("body.profile").length) {
     const vitalsSection = document.querySelector("#familyVitals p.VITALS");
