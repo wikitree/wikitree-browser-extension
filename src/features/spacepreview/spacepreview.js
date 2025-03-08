@@ -206,6 +206,17 @@ function parsePageContent(response) {
 
 function parseSpaceContent(response) {
   let content = parsePageContent(response);
+  if (previewClasses.indexOf("show-audit") > -1) {
+    console.log(content.body);
+    let $audit = $("<div></div>").html(response.replace(/(<\/?)(?=(script|style|link))/g, "$1no"));
+    $audit = $audit.find("aside > #Manager").first().closest("aside");
+    if ($audit.length > 0) {
+      const aside = $audit.prop("outerHTML");
+      if (aside) {
+        content.body = `${aside}\n${content.body}`;
+      }
+    }
+  }
   return content;
 }
 
@@ -292,7 +303,7 @@ function attachHover(target) {
           // do not apply to certain links
           if (
             $(this).closest(
-              ".no-link-preview, .reference, #header, #footer, .profile-tabs, #views-wrap, .pureCssMenu, #customMenuOptions, .button"
+              ".no-link-preview, .reference, header, footer, .tabs--wrapper, .dropdown-item, #customMenuOptions, .btn, .button"
             ).length > 0
           ) {
             return false;
@@ -334,8 +345,6 @@ async function initFeature() {
 
   if (options.showTitle !== false) previewClasses += " show-title";
   if (options.showScissors !== false) previewClasses += " show-scissors";
-  if (options.showHeader !== false) previewClasses += " show-header";
-  if (options.showLinks !== false) previewClasses += " show-links";
   if (!!options.showAudit) previewClasses += " show-audit";
   if (!!options.showEdit) previewClasses += " show-edit";
   if (options.tocDisplay % 2 === 1) {

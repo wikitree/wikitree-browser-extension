@@ -1,15 +1,16 @@
 .x-page-preview {
   position: absolute;
-  left: 2%;
   z-index: 9999;
   background-color: #fff;
-  border: 2px solid #ccc;
+  border: 2px solid #000;
+  margin: 0 2rem;
+  box-sizing: border-box;
   padding: 10px;
   -webkit-border-radius: 1em;
   -moz-border-radius: 1em;
   border-radius: 1em;
-  min-width: min(min(98vw, 94%), max(50vw, 50%, 800px));
-  max-width: min(98vw, 94%);
+  min-width: min(min(98vw, 94%), 400px);
+  max-width: min(98vw, 94%, 1200px);
   max-height: min(90vh, 450px);
   overflow: scroll !important;
   overflow-x: auto !important;
@@ -20,6 +21,12 @@
   text-decoration: none;
   text-align: left;
   line-height: normal;
+  scrollbar-width: 0;
+}
+
+.x-page-preview::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 /* special handling for previews on pins inside WT+ modal dialogs and autocomplete suggestions */
@@ -47,18 +54,21 @@ body > .x-page-preview {
   right: 0;
   top: 0;
   display: inline-block;
-  padding: 0 7px;
-  font-size: 14px;
+  margin: 7px;
+  font-size: 10px;
+  border-radius: 100%;
+  box-sizing: border-box;
+  width: 17px;
+  height: 17px;
+  line-height: 17px;
+  text-align: center;
+  vertical-align: middle;
 }
 .x-preview-close,
 .x-preview-close:visited,
 .x-preview-close:active {
-  color: #000;
-  text-decoration: none !important;
-}
-.x-preview-close:hover {
-  color: #fff;
-  background-color: #8fc641;
+  color: #fff !important;
+  background-color: #25422d;
   text-decoration: none !important;
 }
 
@@ -74,37 +84,24 @@ body > .x-page-preview {
   text-decoration: none !important;
 }
 
-.x-page-preview .preview-header.box,
-.x-page-preview .preview-links.box {
+.x-page-preview aside.footnote {
   float: right;
   clear: right;
+  z-index: 1;
   box-sizing: border-box;
   padding: 0.75em;
   margin: 0 0.25em 0.5em 0.25em;
   margin-top: 0;
-  max-width: max(50%, min(380px, 100%));
-}
-@media (max-width: 767px) {
-  .x-page-preview .preview-header.box,
-  .x-page-preview .preview-links.box {
-    min-width: 98%;
-  }
-}
-.x-page-preview .preview-links > p {
-  margin: 0 auto;
-}
-.x-page-preview .preview-links > p + p {
-  margin-top: 0.5em;
-}
-.x-page-preview .TAG {
-  line-height: 1.5;
+  max-width: min(450px, 100%);
 }
 
-.x-page-preview > .toc {
-  margin-top: 1em;
+.x-page-preview .toc td,
+.x-page-preview .toc td > div > h2 {
+  margin-top: 0;
 }
-.x-page-preview > .toc td > div > h2,
-.x-page-preview > .toc td > ul {
+.x-page-preview .toc,
+.x-page-preview .toc td > div > h2,
+.x-page-preview .toc td > ul {
   margin-bottom: 0;
 }
 
@@ -117,9 +114,7 @@ body > .x-page-preview {
 .x-page-preview:not(.show-title) > .preview-title,
 .x-page-preview:not(.show-scissors) > .preview-title .copy--buttons,
 .x-page-preview.show-title > .same-title,
-.x-page-preview:not(.show-header) > .preview-header,
 .x-page-preview:not(.show-audit) .preview-audit,
-.x-page-preview:not(.show-links) > .preview-links,
 .x-page-preview:not(.show-edit) .EDIT,
 .x-page-preview:not(.show-edit) .BLANK,
 .x-page-preview:not(.show-edit) .preview-links .SMALL,
