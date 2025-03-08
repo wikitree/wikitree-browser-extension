@@ -42,6 +42,7 @@ shouldInitializeFeature("familyGroup").then((result) => {
  * @returns {Object} An object containing the left and top offsets.
  */
 export function getOffset(el) {
+  if (!el) return;
   const rect = el.getBoundingClientRect();
   return {
     left: rect.left + window.scrollX,
@@ -213,8 +214,6 @@ export async function showFamilySheet(theClicked, profileID) {
       familyTable.css("z-index", getHighestZindex() + 1);
 
       let theLeft;
-
-      console.log(theClicked);
       if ($("div.profile--actions").length && !isSearchPage) {
         theLeft = getOffset($("div.profile--actions")[0]).left;
         familyTable.css({
@@ -281,8 +280,12 @@ function escapeHtml(unsafe) {
  * @returns {jQuery} The jQuery table element containing family data.
  */
 export function peopleToTable(kPeople) {
+  const oPerson = kPeople[0];
+  const captionText = `${
+    oPerson.ShortName || oPerson.LongName || oPerson.RealName || oPerson.FirstName
+  }'s Family Group`;
   const kTable = $(
-    "<div class='familySheet'><w>↔</w><x>x</x><table class='table-borderless'><caption></caption><thead><tr><th>Relation</th><th>Name</th><th>Birth Date</th><th>Birth Place</th><th>Death Date</th><th>Death Place</th></tr></thead><tbody></tbody></table></div>"
+    `<div class='familySheet'><w>↔</w><x>x</x><table class='table-borderless'><caption>${captionText}</caption><thead><tr><th>Relation</th><th>Name</th><th>Birth Date</th><th>Birth Place</th><th>Death Date</th><th>Death Place</th></tr></thead><tbody></tbody></table></div>`
   );
   kPeople.forEach(function (kPers) {
     if (kPers) {

@@ -5,6 +5,10 @@
   width: 80%;
   white-space: normal;
 }
+.familySheet caption {
+  caption-side: top !important;
+  font-size: 1.5em;
+}
 .familySheet x {
   position: absolute;
   top: 0;
