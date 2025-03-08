@@ -565,7 +565,7 @@ async function initReadability() {
         <a class="action--reading-mode wbe-button wbe-icon-glasses${
           options.readingMode_toggle ? " toggled-on" : ""
         }" data-tooltip="Reading Mode" title="Reading Mode">
-          <span class="wbe-icon-forbidden"></span>
+          <span class="wbe-icon-sunglasses"></span>
         </a>
     `);
     toggleElement.on("click", function (e) {
