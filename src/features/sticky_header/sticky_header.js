@@ -50,5 +50,17 @@ shouldInitializeFeature("stickyHeader").then((result) => {
     import("./sticky_header.css");
     // wait a second for other items to adjust the page layout
     window.setTimeout(initStickyHeader, 1000);
+
+    // Go again on resize with debounce
+    window.addEventListener("resize", debounce(initStickyHeader, 200));
   }
 });
+
+// Debounce function to limit the rate at which a function can fire
+function debounce(func, wait) {
+  let timeout;
+  return function (...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+}
