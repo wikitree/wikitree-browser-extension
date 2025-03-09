@@ -33,8 +33,8 @@ export function addTab(id, options = {}) {
   // Add spaces for text display: "FamilyGroup" -> "Family Group"
   const displayText = id.replace(/([A-Z])/g, " $1").trim();
   const button = $(
-    `<button class="nav-link wbe-tab" id="${id}-tab" title="${displayText}" data-long-text="${displayText}" data-very-short-text="${tabVeryShortText}" data-short-text="${tabShortText}" data-bs-toggle="tab" data-data-bs-target="#${id}-pane" type="button" role="tab" aria-controls="${id}" aria-selected="false" tabindex="-1">
-    <span class="displayText">${displayText}</span> 
+    `<button class="nav-link wbe-tab" id="${id}-tab" title="${displayText}" data-long-text="${displayText}" data-very-short-text="${tabVeryShortText}" data-short-text="${tabShortText}" data-bs-toggle="tab" data-bs-target="#${id}-pane" type="button" role="tab" aria-controls="${id}" aria-selected="false" tabindex="-1">
+    <span class="displayText">${displayText}</span>
       <span class="icon--${id} icon--inline" data-bs-toggle="tooltip" data-bs-title="${id}">
       </span>
     </button>`
