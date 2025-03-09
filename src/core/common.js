@@ -6,7 +6,7 @@ Contributors: Jonathan Duke (Duke-5773)
 import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
-import { mainDomain, isNavHomePage, isMainDomain } from "./pageType.js";
+import { mainDomain, isNavHomePage, isMainDomain, isProfilePage } from "./pageType.js";
 import { checkIfFeatureEnabled } from "./options/options_storage";
 
 import Cookies from "js-cookie";
@@ -20,19 +20,21 @@ import Cookies from "js-cookie";
  *
  * @param {string} id - The ID to be used for the new tab and pane.
  */
-export function addTab(id) {
+export function addTab(id, options = {}) {
   /*
   Example:
 
   <button class="nav-link" id="Descendants-tab" data-bs-toggle="tab" data-bs-target="#Descendants-pane" type="button" role="tab" aria-controls="Descendants" aria-selected="false" tabindex="-1">Descendants <span class="icon--descendants icon--inline" data-bs-toggle="tooltip" data-bs-title="Descendants"></span></button>
  */
 
+  const tabShortText = options.shortText || "";
+  const tabVeryShortText = options.veryShortText || "";
   const treeTabs = $("nav div.tree-tabs");
   // Add spaces for text display: "FamilyGroup" -> "Family Group"
-  const displayString = id.replace(/([A-Z])/g, " $1").trim();
+  const displayText = id.replace(/([A-Z])/g, " $1").trim();
   const button = $(
-    `<button class="nav-link" id="${id}-tab" data-bs-toggle="tab" data-bs-target="#${id}-pane" type="button" role="tab" aria-controls="${id}" aria-selected="false" tabindex="-1">
-    ${displayString} 
+    `<button class="nav-link wbe-tab" id="${id}-tab" title="${displayText}" data-long-text="${displayText}" data-very-short-text="${tabVeryShortText}" data-short-text="${tabShortText}" data-bs-toggle="tab" data-bs-target="#${id}-pane" type="button" role="tab" aria-controls="${id}" aria-selected="false" tabindex="-1">
+    <span class="displayText">${displayText}</span>
       <span class="icon--${id} icon--inline" data-bs-toggle="tooltip" data-bs-title="${id}">
       </span>
     </button>`
@@ -50,6 +52,52 @@ export function addTab(id) {
   $("section#nav-familyContent").append(pane);
 
   return { tab: $(`#${id}-tab`), section: $(`section.tree--${id}`) }; // Return the tab and section
+}
+
+export function setTabText() {
+  // Under 992px, show short text; under 768px, use veryshortText
+
+  const width = $(window).width();
+  $(".wbe-tab").each(function () {
+    const tab = $(this);
+    let text = tab.data("long-text");
+    if (width < 1200) {
+      text = tab.data("short-text") || text;
+    }
+    if (width < 992) {
+      text = tab.data("shorter-text") || text;
+    }
+    if (width < 768) {
+      text = tab.data("very-short-text") || text;
+    }
+    tab.find(".displayText").text(text);
+  });
+
+  const navLinks = $("nav div.tree-tabs .nav-link");
+  // switch 1200, 992, 768, 576
+  switch (width) {
+    case width < 1200:
+      navLinks.css("padding-left", "0.3em").css("padding-right", "0.3em");
+      break;
+    case width < 992:
+      navLinks.css("padding-left", "0.3em").css("padding-right", "0.2em");
+      break;
+    case width < 768:
+      navLinks.css("padding-left", "0.2em").css("padding-right", "0.2em");
+      break;
+    case width < 576:
+      navLinks.css("padding-left", "0.1em").css("padding-right", "0.1em");
+      break;
+    default:
+      navLinks.css("padding-left", "0.7em").css("padding-right", "0.7em");
+  }
+}
+
+// Set the tab text on page load and window resize
+if (isProfilePage) {
+  setTimeout(setTabText, 2000);
+  setTabText();
+  $(window).on("resize", setTabText);
 }
 
 // Function to get profile person ID and name

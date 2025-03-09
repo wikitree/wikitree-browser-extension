@@ -198,7 +198,8 @@ let theTab, theSection;
 // Initialize the photo popup on page load
 shouldInitializeFeature("imageTable").then((result) => {
   if (result & $("#wt-photos").length) {
-    const tab = addTab("ImageTable");
+    // unicode camera  📷
+    const tab = addTab("ImageTable", { shortText: "Images", shorterText: "Img.", veryShortText: "📷" });
     theTab = tab.tab;
     theSection = tab.section;
     initPhotoPopup();

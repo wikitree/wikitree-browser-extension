@@ -33,7 +33,7 @@ let suggestionsTabElement;
 let theTab, theSection;
 function initSuggestionsTab() {
   // Create the suggestions tab in the profile submenu
-  const tab = addTab("Suggestions");
+  const tab = addTab("Suggestions", { shortText: "Sugg.", shorterText: "Sugg.", veryShortText: "!" });
   theTab = tab.tab;
   theSection = tab.section;
   // Create the span element for the hint
