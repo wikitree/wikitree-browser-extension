@@ -243,29 +243,31 @@ export async function showFamilySheet(theClicked, profileID) {
       }
 
       // Adjust the position of the table on window resize
-      $(window).on("resize", function () {
-        if (familyTable.length) {
-          let theLeft;
-          if ($("div.ten.columns").length) {
-            theLeft = getOffset($("div.ten.columns")[0]).left;
-            familyTable.css({
-              top: getOffset(theClicked).top + 50,
-              left: theLeft,
-            });
-          } else {
-            if (theClicked[0] != undefined) {
-              theLeft = getOffset(theClicked[0]).left + 50;
+      if (!isProfilePage) {
+        $(window).on("resize", function () {
+          if (familyTable.length) {
+            let theLeft;
+            if ($("div.ten.columns").length) {
+              theLeft = getOffset($("div.ten.columns")[0]).left;
               familyTable.css({
-                top: getOffset(theClicked[0]).top + 50,
+                top: getOffset(theClicked).top + 50,
                 left: theLeft,
               });
+            } else {
+              if (theClicked[0] != undefined) {
+                theLeft = getOffset(theClicked[0]).left + 50;
+                familyTable.css({
+                  top: getOffset(theClicked[0]).top + 50,
+                  left: theLeft,
+                });
+              }
             }
           }
-        }
-        if (isProfilePage) {
-          positionTable(theClicked, familyTable);
-        }
-      });
+          if (isProfilePage) {
+            positionTable(theClicked, familyTable);
+          }
+        });
+      }
     });
   }
 }

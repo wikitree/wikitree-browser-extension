@@ -154,3 +154,12 @@ form[name="a_form"] {
 .icon--ImageTable {
   display: none;
 }
+
+#FamilyGroup-pane,
+#FamilyTimeline-pane {
+  overflow: auto;
+}
+
+.familySheet w {
+  cursor: pointer;
+}

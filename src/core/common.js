@@ -75,21 +75,16 @@ export function setTabText() {
 
   const navLinks = $("nav div.tree-tabs .nav-link");
   // switch 1200, 992, 768, 576
-  switch (width) {
-    case width < 1200:
-      navLinks.css("padding-left", "0.3em").css("padding-right", "0.3em");
-      break;
-    case width < 992:
-      navLinks.css("padding-left", "0.3em").css("padding-right", "0.2em");
-      break;
-    case width < 768:
-      navLinks.css("padding-left", "0.2em").css("padding-right", "0.2em");
-      break;
-    case width < 576:
-      navLinks.css("padding-left", "0.1em").css("padding-right", "0.1em");
-      break;
-    default:
-      navLinks.css("padding-left", "0.7em").css("padding-right", "0.7em");
+  if (width < 576) {
+    navLinks.css("padding-left", "0.1em").css("padding-right", "0.1em");
+  } else if (width < 768) {
+    navLinks.css("padding-left", "0.2em").css("padding-right", "0.2em");
+  } else if (width < 992) {
+    navLinks.css("padding-left", "0.3em").css("padding-right", "0.2em");
+  } else if (width < 1200) {
+    navLinks.css("padding-left", "0.3em").css("padding-right", "0.3em");
+  } else {
+    navLinks.css("padding-left", "0.7em").css("padding-right", "0.7em");
   }
 }
 
