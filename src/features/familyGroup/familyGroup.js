@@ -35,7 +35,7 @@ shouldInitializeFeature("familyGroup").then((result) => {
 
     // Get the position of an element (comment placeholder)
 
-    addTab("FamilyGroup");
+    addTab("FamilyGroup", { shortText: "Group", shorterText: "F.G", veryShortText: "G" });
   }
 });
 
