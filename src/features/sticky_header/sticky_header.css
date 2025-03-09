@@ -37,6 +37,13 @@
     top: calc(var(--x-sticky-banner-height) + var(--x-sticky-header-height)) !important;
   }
 
+  /* keep the sticky help search box below all header elements */
+  .sticky-header .sticky-lg-top {
+    top: calc(
+      1vh + var(--x-sticky-banner-height) + var(--x-sticky-header-height) + var(--x-sticky-toolbar-height)
+    ) !important;
+  }
+
   /* the preview container and content for merges by WikiTree needs to be adjusted if sticky header is used */
   .sticky-header #previewContainer {
     z-index: 9999999;
@@ -48,6 +55,7 @@
     z-index: 10000000 !important;
   }
 
+  /* adjust custom tooltips within the page toolbar */
   .sticky-header .wbe-button::before {
     bottom: auto;
     top: 1.6em;

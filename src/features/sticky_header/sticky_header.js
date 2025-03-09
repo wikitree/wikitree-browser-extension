@@ -7,54 +7,53 @@ import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { isAppsDomain, isAppsPage } from "../../core/pageType";
 
 async function initStickyHeader() {
-  let bannerHeight = $("body > #banner").first().css("height");
-  if (bannerHeight) {
-    document.documentElement.style.setProperty("--x-sticky-banner-height", bannerHeight);
-  }
-  let headerHeight = $("body > header, .qa-header").first().css("height");
-  if (headerHeight) {
-    document.documentElement.style.setProperty("--x-sticky-header-height", headerHeight);
-    if (!$("body").is(".home")) {
-      $("html").addClass("sticky-header");
-      if (window.location.hash) {
-        let target = document.getElementById(window.location.hash.substring(1));
+  // initialize sticky header dimensions
+  setStickyHeights();
+
+  // re-scroll to the hash anchor after the sticky header dimensions have been set
+  if (!$("body").is(".home")) {
+    $("html").addClass("sticky-header");
+    if (window.location.hash) {
+      let target = document.getElementById(window.location.hash.substring(1));
+      if (!target) {
+        let byName = document.getElementsByName(window.location.hash.substring(1));
+        if (byName.length > 0) {
+          target = byName[0];
+        }
         if (!target) {
-          let byName = document.getElementsByName(window.location.hash.substring(1));
-          if (byName.length > 0) {
-            target = byName[0];
-          }
-          if (!target) {
-            if (window.location.hash == "#Ancestors") {
-              target = document.getElementById("ancestorTreeContainer");
-            } else if (window.location.hash == "#Descendants") {
-              target = document.getElementById("descendantsContainer");
-            }
+          if (window.location.hash == "#Ancestors") {
+            target = document.getElementById("ancestorTreeContainer");
+          } else if (window.location.hash == "#Descendants") {
+            target = document.getElementById("descendantsContainer");
           }
         }
-        if (target) {
-          window.setTimeout(() => {
-            target.scrollIntoView();
-          }, 0);
-        }
+      }
+      if (target) {
+        window.setTimeout(() => {
+          target.scrollIntoView();
+        }, 0);
       }
     }
   }
-  let toolbarHeight = $("body > .tabs--wrapper").first().css("height");
+
+  // reset sticky header dimensions on resize
+  window.addEventListener("resize", debounce(setStickyHeights, 200));
+}
+
+function setStickyHeights() {
+  const bannerHeight = $("body > #banner").first().css("height");
+  if (bannerHeight) {
+    document.documentElement.style.setProperty("--x-sticky-banner-height", bannerHeight);
+  }
+  const headerHeight = $("body > header, .qa-header").first().css("height");
+  if (headerHeight) {
+    document.documentElement.style.setProperty("--x-sticky-header-height", headerHeight);
+  }
+  const toolbarHeight = $("body > .tabs--wrapper").first().css("height");
   if (toolbarHeight) {
     document.documentElement.style.setProperty("--x-sticky-toolbar-height", toolbarHeight);
   }
 }
-
-shouldInitializeFeature("stickyHeader").then((result) => {
-  if (result && !isAppsDomain && !isAppsPage) {
-    import("./sticky_header.css");
-    // wait a second for other items to adjust the page layout
-    window.setTimeout(initStickyHeader, 1000);
-
-    // Go again on resize with debounce
-    window.addEventListener("resize", debounce(initStickyHeader, 200));
-  }
-});
 
 // Debounce function to limit the rate at which a function can fire
 function debounce(func, wait) {
@@ -64,3 +63,11 @@ function debounce(func, wait) {
     timeout = setTimeout(() => func.apply(this, args), wait);
   };
 }
+
+shouldInitializeFeature("stickyHeader").then((result) => {
+  if (result && !isAppsDomain && !isAppsPage) {
+    import("./sticky_header.css");
+    // wait a second for other items to adjust the page layout
+    window.setTimeout(initStickyHeader, 1000);
+  }
+});
