@@ -47,4 +47,21 @@
   #toast-container {
     z-index: 10000000 !important;
   }
+
+  .sticky-header .wbe-button::before {
+    bottom: auto;
+    top: 1.6em;
+    border-color: transparent transparent #fcb815 transparent;
+    z-index: 100000;
+  }
+
+  .sticky-header .wbe-button::after {
+    bottom: auto;
+    top: 3em;
+    z-index: 100000;
+  }
+
+  .sticky-header div.bs-tooltip-auto {
+    z-index: 10000000;
+  }
 }
