@@ -1594,7 +1594,6 @@ shouldInitializeFeature("connectionFinderOptions").then((result) => {
     getFeatureOptions("connectionFinderOptions").then((options) => {
       window.connectionFinderOptions = options;
       import("./connection_finder.css");
-      import("../familyGroup/familyGroup.css");
       import("../familyTimeline/familyTimeline.css");
       connectionFinderTable();
       connectionFinderThings();

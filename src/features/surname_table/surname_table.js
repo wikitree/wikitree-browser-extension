@@ -1039,7 +1039,7 @@ async function addWideTableButton() {
 
 shouldInitializeFeature("surnameTable").then((result) => {
   if (result) {
-    import("../familyGroup/familyGroup.css");
+    import("../familyTimeline/familyTimeline.css");
     if ($("#Sort-Table").length || $("body.watchlist table.wt.table").length) {
       theTable = $("#Sort-Table");
       headerRow = theTable.find("thead tr:first-child");
