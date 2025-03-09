@@ -284,13 +284,6 @@ export function addItems(copyItems, copyPosition, options = { isNew: false }) {
       button.attr("title", item.text);
       button.attr("data-bs-title", "Copy User ID");
 
-      // Add text node separator if index > 0
-      if (index > 0 || item.label == "Title") {
-        aLI.append(document.createTextNode(" / "));
-      } else {
-        aLI.append(document.createTextNode(" "));
-      }
-
       aLI.append(button);
       aUL.append(aLI);
     });
@@ -332,7 +325,6 @@ export function addItems(copyItems, copyPosition, options = { isNew: false }) {
 
       if (item.label == "User ID" || item.label.match("Title")) {
         const li = document.createElement("li");
-        li.append(document.createTextNode(" / "));
         li.append(button);
         copyPosition.append(li);
       } else {
