@@ -147,3 +147,10 @@ form[name="a_form"] {
   z-index: 10;
   position: relative;
 }
+
+.icon--FamilyTimeline,
+.icon--FamilyGroup,
+.icon--Suggestions,
+.icon--ImageTable {
+  display: none;
+}

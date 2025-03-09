@@ -253,11 +253,13 @@ export async function showFamilySheet(theClicked, profileID) {
               left: theLeft,
             });
           } else {
-            theLeft = getOffset(theClicked[0]).left + 50;
-            familyTable.css({
-              top: getOffset(theClicked[0]).top + 50,
-              left: theLeft,
-            });
+            if (theClicked[0] != undefined) {
+              theLeft = getOffset(theClicked[0]).left + 50;
+              familyTable.css({
+                top: getOffset(theClicked[0]).top + 50,
+                left: theLeft,
+              });
+            }
           }
         }
         if (isProfilePage) {
