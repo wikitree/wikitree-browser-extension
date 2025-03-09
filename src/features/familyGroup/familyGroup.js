@@ -6,9 +6,9 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
 import { getRelatives } from "wikitree-js";
-import { createProfileSubmenuLink, familyArray, isOK, htmlEntities, setAdjustedDates } from "../../core/common";
+import { familyArray, isOK, htmlEntities, setAdjustedDates } from "../../core/common";
 import { mainDomain, isSearchPage, isProfilePage } from "../../core/pageType";
-import { profilePerson } from "../../core/common";
+import { profilePerson, addTab } from "../../core/common";
 
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
@@ -24,14 +24,18 @@ shouldInitializeFeature("familyGroup").then((result) => {
       text: "Family Group",
       url: "#n",
     };
-    createProfileSubmenuLink(options);
-    $("#" + options.id).on("click", function (e) {
+    //createProfileSubmenuLink(options);
+
+    $(document).on("click", "#" + options.id + ",#FamilyGroup-tab", function (e) {
       e.preventDefault();
+      console.log("Family Group button clicked");
       const profileID = profilePerson.Name;
       showFamilySheet($(this)[0], profileID);
     });
 
     // Get the position of an element (comment placeholder)
+
+    addTab("FamilyGroup");
   }
 });
 
@@ -109,7 +113,7 @@ export function ymdFix(date) {
   return outDate;
 }
 
-let zIndexCounter = 1000; // Initial z-index value
+let zIndexCounter = 900; // Initial z-index value
 
 /**
  * Increments the global z-index counter and sets it on the given jQuery object.
@@ -177,19 +181,24 @@ export async function showFamilySheet(theClicked, profileID) {
 
   $(document)
     .off("dblclick.wbe")
-    .on("dblclick.wbe", ".familySheet", function () {
+    .on("dblclick.wbe", ".familySheet:not(.profile .familySheet)", function () {
       $(this).fadeOut();
       incrementZIndex($(this));
     });
   // If the table already exists, toggle its visibility.
   if ($("#" + createValidId(profileID.replace(" ", "_")) + "_family").length) {
+    // If profile page, return
+    if (isProfilePage) {
+      return;
+    }
+
     const thisFamilySheet = $("#" + createValidId(profileID.replace(" ", "_")) + "_family");
     thisFamilySheet.fadeToggle();
     if (isProfilePage) {
       positionTable(theClicked, thisFamilySheet);
+    } else {
+      thisFamilySheet.css("z-index", getHighestZindex() + 1);
     }
-
-    thisFamilySheet.css("z-index", getHighestZindex() + 1);
   } else {
     // If the table doesn't exist, create it by fetching relatives data.
     getRelatives(
@@ -207,29 +216,30 @@ export async function showFamilySheet(theClicked, profileID) {
       const familyTable = peopleToTable(uPeople);
       // Attach the table to the body, position it and make it draggable and toggleable
       familyTable.prependTo("body");
+      if (isProfilePage) {
+        familyTable.prependTo("section.tree--FamilyGroup");
+      }
       familyTable.attr("id", createValidId(profileID.replace(" ", "_")) + "_family");
-      familyTable.draggable();
+      if (!isProfilePage) {
+        familyTable.draggable();
+        familyTable.css("z-index", getHighestZindex() + 1);
+        incrementZIndex(familyTable);
+      }
       familyTable.fadeIn();
-      incrementZIndex(familyTable);
-      familyTable.css("z-index", getHighestZindex() + 1);
 
       let theLeft;
-      if ($("div.profile--actions").length && !isSearchPage) {
+      if ($("div.profile--actions").length && !isSearchPage && !isProfilePage) {
         theLeft = getOffset($("div.profile--actions")[0]).left;
         familyTable.css({
           top: getOffset(theClicked).top + 50,
           left: theLeft,
         });
-      } else {
+      } else if (!isProfilePage) {
         theLeft = getOffset(theClicked[0]).left + 50;
         familyTable.css({
           top: getOffset(theClicked[0]).top + 50,
           left: theLeft,
         });
-      }
-
-      if (isProfilePage) {
-        positionTable(theClicked, familyTable);
       }
 
       // Adjust the position of the table on window resize

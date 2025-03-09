@@ -10,12 +10,18 @@
   background-color: rgba(0, 0, 0, 0.7); /* Black background with transparency */
 }
 
+body.profile #photoPopup {
+  position: relative;
+  z-index: inherit;
+  left: auto;
+  top: auto;
+}
+
 #photoPopup .popup-content {
   background-color: white;
-  margin: 6em auto;
+  margin: auto;
   padding: 20px;
   border: 1px solid #888;
-  width: 80%;
   max-height: 80%; /* Limit height */
   overflow-y: scroll; /* Make content scrollable */
 }

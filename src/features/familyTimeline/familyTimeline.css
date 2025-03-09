@@ -82,3 +82,20 @@ th.tlEventLocation {
 .timeline table {
   caption-side: top;
 }
+
+body.profile .familySheet,
+body.profile .timeline {
+  position: relative !important;
+  left: auto;
+  width: fit-content;
+  margin: auto;
+  top: auto;
+  bottom: auto;
+  cursor: auto;
+  z-index: 100;
+  box-shadow: none;
+}
+body.profile .familySheet x,
+body.profile .timeline x {
+  display: none;
+}

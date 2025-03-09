@@ -1,7 +1,8 @@
 import $ from "jquery";
-import { createProfileSubmenuLink, treeImageURL, profilePerson } from "../../core/common.js";
+import { treeImageURL, profilePerson, addTab } from "../../core/common.js";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "datatables.net";
+import { isProfilePage } from "../../core/pageType";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 async function getPhotos() {
@@ -37,29 +38,22 @@ async function getPhotos() {
 
 function initPhotoPopup() {
   if ($("#photoPopup").length === 0) {
-    const options = {
-      title: "View Image Table",
-      url: "#",
-      id: "openPopup",
-      text: "Image Table",
-    };
-    createProfileSubmenuLink(options);
-
     const popup = $(`<div id="photoPopup" class="popup">
         <div class="popup-content">
-          <span class="close">&times;</span>
           <div id="loadingGif"><img src="${treeImageURL}" alt="Loading..." /></div>
           <div id="photoTable" class="photo-table"></div>
         </div>
       </div>`);
 
-    $("body").append(popup); // Append the popup to the body
-
+    if (!isProfilePage) {
+      $("body").append(popup); // Append the popup to the body
+    } else {
+      theSection.append(popup);
+    }
     // Set up click handlers for the popup
-    $("#openPopup").on("click", async function () {
+    $(document).on("click", theTab, async function () {
       // If popup is already visible, hide it
       if ($("#photoPopup").is(":visible")) {
-        $("#photoPopup").hide();
         return;
       }
       // If photos are already loaded, show the popup
@@ -71,24 +65,6 @@ function initPhotoPopup() {
         const photos = await getPhotos(); // Fetch the photos
         $("#loadingGif").hide(); // Hide the loading gif once photos are fetched
         createPhotoTable(photos); // Build the table with the fetched photos
-      }
-    });
-
-    // Close the popup and clear the table when the close button is clicked
-    $(".popup .close").on("click", function () {
-      $("#photoPopup").hide(); // Hide the popup
-      if ($("#largeImagePopup").length > 0) {
-        $("#largeImagePopup").remove(); // Close the large image popup if it exists
-      }
-    });
-
-    // Close the popup when clicking outside the content area
-    $(window).on("click", function (event) {
-      if ($(event.target).is("#photoPopup")) {
-        $("#photoPopup").hide(); // Hide the popup
-        if ($("#largeImagePopup").length > 0) {
-          $("#largeImagePopup").remove(); // Close the large image popup if it exists
-        }
       }
     });
   }
@@ -218,9 +194,13 @@ function escapeButton() {
   });
 }
 
+let theTab, theSection;
 // Initialize the photo popup on page load
 shouldInitializeFeature("imageTable").then((result) => {
-  if (result) {
+  if (result & $("#wt-photos").length) {
+    const tab = addTab("ImageTable");
+    theTab = tab.tab;
+    theSection = tab.section;
     initPhotoPopup();
     import("./image_table.css");
     escapeButton();

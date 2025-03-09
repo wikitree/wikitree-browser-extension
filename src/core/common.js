@@ -15,6 +15,43 @@ import Cookies from "js-cookie";
  * Initialization. This section of code should run first.
  */
 
+/**
+ * Adds a new tab to the tree-tabs navigation and a corresponding pane to the family content section.
+ *
+ * @param {string} id - The ID to be used for the new tab and pane.
+ */
+export function addTab(id) {
+  /*
+  Example:
+
+  <button class="nav-link" id="Descendants-tab" data-bs-toggle="tab" data-bs-target="#Descendants-pane" type="button" role="tab" aria-controls="Descendants" aria-selected="false" tabindex="-1">Descendants <span class="icon--descendants icon--inline" data-bs-toggle="tooltip" data-bs-title="Descendants"></span></button>
+ */
+
+  const treeTabs = $("nav div.tree-tabs");
+  // Add spaces for text display: "FamilyGroup" -> "Family Group"
+  const displayString = id.replace(/([A-Z])/g, " $1").trim();
+  const button = $(
+    `<button class="nav-link" id="${id}-tab" data-bs-toggle="tab" data-bs-target="#${id}-pane" type="button" role="tab" aria-controls="${id}" aria-selected="false" tabindex="-1">
+    ${displayString} 
+      <span class="icon--${id} icon--inline" data-bs-toggle="tooltip" data-bs-title="${id}">
+      </span>
+    </button>`
+  );
+  treeTabs.append(button);
+
+  // Add div to section#nav-familyContent
+  const pane = $(
+    `<div id="${id}-pane" class="tab-pane fade" role="tabpanel" aria-labelledby="nav-${id}" tabindex="0" bis_skin_checked="1">
+    <section class="tree--${id}">
+
+    </section>
+    </div>`
+  );
+  $("section#nav-familyContent").append(pane);
+
+  return { tab: $(`#${id}-tab`), section: $(`section.tree--${id}`) }; // Return the tab and section
+}
+
 // Function to get profile person ID and name
 export function getProfilePersonInfo() {
   const person = {};
