@@ -41,6 +41,7 @@ checkIfFeatureEnabled("hideMyContributions").then((isEnabled) => {
         }
       } else {
         const href = theShowHideLink.attr("href");
+        if (!href) return;
         const newHref = href.replaceAll(/hideown=0/g, "hideown=1");
         theShowHideLink.text("hide my contributions");
         theShowHideLink.attr("href", newHref);
