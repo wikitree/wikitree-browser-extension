@@ -266,7 +266,7 @@ function AddAddProfileToCategory() {
 }
 
 function AddOptionalCategoryEditPageLinks(options) {
-  //to do: check if category exists and hide accordingly
+  //todo: check if category exists and hide accordingly
   const editDivs = $document.getElementsByClassName("EDIT");
   if (options.catMarkDelete) {
     editDivs[editDivs.length - 1].appendChild(CreateDeleteCatLinkEditPage());
@@ -296,8 +296,12 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
 
   const catSpans = categoryDiv.getElementsByTagName("span");
   let lastCatSpan = null;
-  for (let i = 0; i < catSpans.length /* not for [top] */; i++) {
-    if (catSpans[i].innerText == "[top]" || catSpans[i].innerText == "[edit]") {
+  for (let i = 0; i < catSpans.length /* legacy: not for [top] and [edit] */; i++) {
+    if (
+      catSpans[i].innerText == "[top]" ||
+      catSpans[i].innerText == "[edit]" ||
+      catSpans[i].className == "icon--edit icon--inline ms-2"
+    ) {
       continue;
     }
 
@@ -940,7 +944,7 @@ function GetCurrentCategoryName() {
 }
 
 function HackMergeCheckboxes() {
-  //to do: batch categorize on search page
+  //todo: batch categorize on search page
   //   <div class="P-ITEM">
   // <span class="mergeany"><input type="checkbox" name="mergeany[]" id="mergeany-Seib-21" value="Seib-21" onchange="tagMergeAny(&quot;Seib-21&quot;)">Seib-21</span>
   // <a class="P-F" href="/wiki/Seib-21" target="_blank" title="">Elisabeth Seib</a>
