@@ -1323,21 +1323,26 @@ function RemoveCat(wpTextbox1, cat) {
 }
 
 function DoSave(summary) {
-  setTimeout(() => {
-    $document.getElementById("wpSummary").value = summary;
-    //alert("val" + $document.getElementById("wpSummary").value);
-  }, 5000);
-
-  //todo: wpSummary
-  const saveButton = $document.getElementById("wpSave");
-  saveButton.disabled = false;
+  //wpSummary button not present directly after loading, wait for it to appear
+  const saveButtonsSection = document.getElementById("saveButtons");
+  const config = { attributes: false, childList: true, subtree: true };
+  const observer = new MutationObserver((mutationList, observer) => {
+    for (const mutation of mutationList) {
+      mutation.addedNodes.forEach((node) => {
+        if (node.id == "changeSummaryGears") {
+          $document.getElementById("wpSummary").value = summary;
+          const saveButton = $document.getElementById("wpSave");
+          saveButton.disabled = false;
+          observer.disconnect();
+        }
+      });
+    }
+  });
+  observer.observe(saveButtonsSection, config);
 }
 
-// Added to deal with iframe
-
-// Function to monitor iframe content and interact with it
 function monitorIframeContent(iframe) {
-  console.log("Monitoring iframe content...");
+  console.log("Monitoring iframe content and interact with it...");
   try {
     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 
