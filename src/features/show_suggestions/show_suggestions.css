@@ -1,20 +1,14 @@
 #suggestionsPopup {
-  display: none; /* Hidden by default */
-  position: fixed;
-  z-index: 9999;
-  left: 0;
-  top: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.7); /* Black background with transparency */
 }
 
 #suggestionsPopup .popup-content {
   background-color: white;
-  margin: 6em auto;
   padding: 20px;
   border: 1px solid #888;
   width: 80%;
+  margin: auto;
   max-width: 750px;
   max-height: 80%; /* Limit height */
   overflow-y: auto; /* Make content scrollable only when needed */

@@ -59,26 +59,14 @@ const pagePreviewFeature = {
         {
           id: "showScissors",
           type: OptionType.CHECKBOX,
-          label: "Show scissors beside the title to copy the ID or link",
-          defaultValue: true,
-        },
-        {
-          id: "showHeader",
-          type: OptionType.CHECKBOX,
-          label: "Show header information (date, location, tags/surnames)",
+          label: "Show copy links beside the title",
           defaultValue: true,
         },
         {
           id: "showAudit",
           type: OptionType.CHECKBOX,
-          label: "Show page manager, times accessed, etc.",
+          label: "Show the box with the page profile, manager, etc.",
           defaultValue: false,
-        },
-        {
-          id: "showLinks",
-          type: OptionType.CHECKBOX,
-          label: 'Show "Categories:" and "Other:" links at the top',
-          defaultValue: true,
         },
         {
           id: "showEdit",

@@ -8,12 +8,12 @@ import "jquery-ui/ui/widgets/draggable";
 import { getRelatives } from "wikitree-js";
 import {
   ageAtEvent,
-  createProfileSubmenuLink,
   extractRelatives,
   formAdjustedDate,
   isOK,
   setAdjustedDates,
   statusOfDiff,
+  addTab,
 } from "../../core/common";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getHighestZindex } from "../familyGroup/familyGroup";
@@ -45,9 +45,19 @@ function positionTable(thisTimeline) {
 }
 
 // Initialize the familyTimeline feature if enabled and if on a profile page
+let theTab, theSection;
 shouldInitializeFeature("familyTimeline").then((result) => {
   if (result) {
     if (result && $("body.profile").length) {
+      // unicode clock:   &#x1F551;
+      const tab = addTab("FamilyTimeline", {
+        shortText: "Timeline",
+        shorterText: "Time",
+        veryShortText: "&#x1F551;",
+        icon: "timeline.svg",
+      });
+      theTab = tab.tab;
+      theSection = tab.section;
       // Dynamically import the CSS for the family timeline
       import("./familyTimeline.css");
       // Define options for the profile submenu link
@@ -57,10 +67,8 @@ shouldInitializeFeature("familyTimeline").then((result) => {
         text: "Family Timeline",
         url: "#n",
       };
-      // Create the submenu link using the provided options
-      createProfileSubmenuLink(options);
       // Attach click event to toggle the timeline display
-      $("#" + options.id).on("click", function (e) {
+      $(document).on("click", "#" + options.id + ",#FamilyTimeline-tab", function (e) {
         e.preventDefault();
         timeline();
       });
@@ -244,6 +252,9 @@ export function timeline(id = false) {
   if (id) {
     if ($(`.timeline[data-wtid="${id}"]`).length) {
       const thisTimeline = $(`.timeline[data-wtid="${id}"]`);
+      if (isProfilePage) {
+        return;
+      }
       thisTimeline.slideToggle();
       thisTimeline.css("z-index", getHighestZindex() + 1);
       doit = false;
@@ -252,8 +263,10 @@ export function timeline(id = false) {
   } else if ($(".timeline").length) {
     // If any timeline exists, toggle it and reposition
     const thisTimeline = $(".timeline");
-    thisTimeline.slideToggle();
-    positionTable(thisTimeline);
+    if (!isProfilePage) {
+      thisTimeline.slideToggle();
+      positionTable(thisTimeline);
+    }
     doit = false;
     return;
   }
@@ -495,8 +508,8 @@ export function timeline(id = false) {
       // Attach the timeline to the appropriate container based on the page type
       let theContainer = $("div.container.full-width");
       if (isProfilePage) {
-        $("div.tabs--wrapper").after(aTimeline);
-        positionTable(aTimeline);
+        aTimeline.prependTo(theSection);
+        //positionTable(aTimeline);
       } else {
         theContainer = $("div.container");
         aTimeline.prependTo(theContainer);
@@ -615,7 +628,9 @@ export function timeline(id = false) {
         aTimeline.toggleClass("wrap");
       });
       // Make the timeline draggable using jQuery UI
-      aTimeline.draggable();
+      if (!isProfilePage) {
+        aTimeline.draggable();
+      }
       // Hide the timeline on double-click with an animation
       aTimeline.on("dblclick", function () {
         $(this).slideUp("swing");

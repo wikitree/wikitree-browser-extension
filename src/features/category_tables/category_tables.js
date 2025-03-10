@@ -70,7 +70,7 @@ async function addCategoryTableButton() {
       let highestZIndex = 0;
       let lastFamilySheet = null;
 
-      $(".familySheet:visible").each(function () {
+      $(".familySheet:visible:not(body.profile .familySheet)").each(function () {
         const zIndex = parseInt($(this).css("z-index"), 10);
         if (zIndex > highestZIndex) {
           highestZIndex = zIndex;

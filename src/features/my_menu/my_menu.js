@@ -53,7 +53,7 @@ shouldInitializeFeature("myMenu").then((result) => {
         }
 
         if (theWidth < 992) {
-          if (!menuGroup.classList.contains("fixed") && !tabsWrapperNav.contains(menuGroup)) {
+          if (!menuGroup.classList.contains("fixed") && tabsWrapperNav && !tabsWrapperNav?.contains(menuGroup)) {
             menuGroup.classList.add("fixed");
             tabsWrapperNav.appendChild(menuGroup);
           }

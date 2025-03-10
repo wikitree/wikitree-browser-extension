@@ -201,16 +201,16 @@ function GetOrCreateCategoriesDiv() {
 
 function AddOptionalCategoryPageLinks(options) {
   if (options.catALotCategory) {
-    $document.getElementsByClassName("EDIT")[2].appendChild(CreateBatchCatActivationLinkAndSpan());
+    $document.getElementsByClassName("views")[0].appendChild(CreateBatchCatActivationLinkAndSpan());
   }
   if (options.catMarkDelete) {
-    $document.getElementsByClassName("EDIT")[2].appendChild(CreateDeleteCatLink());
+    $document.getElementsByClassName("views")[0].appendChild(CreateDeleteCatLink());
   }
   if (options.catMarkRename) {
-    $document.getElementsByClassName("EDIT")[2].appendChild(CreateRenameCatLink());
+    $document.getElementsByClassName("views")[0].appendChild(CreateRenameCatLink());
   }
   if (options.catCopyRename) {
-    $document.getElementsByClassName("EDIT")[2].appendChild(CreateCopyRenameCatLink());
+    $document.getElementsByClassName("views")[0].appendChild(CreateCopyRenameCatLink());
   }
 }
 
@@ -266,7 +266,7 @@ function AddAddProfileToCategory() {
 }
 
 function AddOptionalCategoryEditPageLinks(options) {
-  //to do: check if category exists and hide accordingly
+  //todo: check if category exists and hide accordingly
   const editDivs = $document.getElementsByClassName("EDIT");
   if (options.catMarkDelete) {
     editDivs[editDivs.length - 1].appendChild(CreateDeleteCatLinkEditPage());
@@ -296,8 +296,12 @@ function AddCategoryChangeLinksOnProfile(categoryDiv) {
 
   const catSpans = categoryDiv.getElementsByTagName("span");
   let lastCatSpan = null;
-  for (let i = 0; i < catSpans.length /* not for [top] */; i++) {
-    if (catSpans[i].innerText == "[top]" || catSpans[i].innerText == "[edit]") {
+  for (let i = 0; i < catSpans.length /* legacy: not for [top] and [edit] */; i++) {
+    if (
+      catSpans[i].innerText == "[top]" ||
+      catSpans[i].innerText == "[edit]" ||
+      catSpans[i].className == "icon--edit icon--inline ms-2"
+    ) {
       continue;
     }
 
@@ -655,7 +659,7 @@ function ShowCatALot() {
     AddSubcatLinks();
     AddSelectAllPersonsInCategoryLink();
     AddLetterlinks();
-    AddCatALotControls($document.getElementById("categories"));
+    AddCatALotControls($document.getElementsByClassName("category--links py-2")[1]);
   } else if (isPlusDomain) {
     if (isPlusProfileSearch) {
       const aTable = $document.getElementsByTagName("table")[0];
@@ -940,6 +944,7 @@ function GetCurrentCategoryName() {
 }
 
 function HackMergeCheckboxes() {
+  //todo: batch categorize on search page
   //   <div class="P-ITEM">
   // <span class="mergeany"><input type="checkbox" name="mergeany[]" id="mergeany-Seib-21" value="Seib-21" onchange="tagMergeAny(&quot;Seib-21&quot;)">Seib-21</span>
   // <a class="P-F" href="/wiki/Seib-21" target="_blank" title="">Elisabeth Seib</a>
@@ -972,17 +977,23 @@ function HackMergeCheckboxes() {
 }
 function AddCheckboxes() {
   //category
-  // <div class="P-ITEM">
-  // <span itemscope="" itemtype="https://schema.org/Person">
-  //       <a class="P-M" href="/wiki/Schilling-1881" target="_blank" itemprop="url" title="">
-  //         <span itemprop="name">Johann Karl Wilhelm Schilling
-  //         </span>
-  //       </a>
-  //  </span>
-  //  31 Mar 1796 Tilleda, Amt Kelbra, Schwarzburg-Rudolstadt, Heiliges Römisches Reich - 17 Oct 1852
-  // <small></small>
+  //   <div class="ms-4 mb-1 border-bottom P-ITEM" itemprop="itemListElement" itemscope="" itemtype="https://schema.org/ListItem">
+  // <meta itemprop="position" content="23">
+  // <div itemprop="item" itemscope="" itemtype="https://schema.org/Person">
+  // <p class="m-0">
+  // <a class="background--gender-male" href="/wiki/Fensel-3" target="_blank" itemprop="url" title=""><span itemprop="name">Johann Leonhard Conrad Fensel</span></a>
+  // <span itemprop="birthDate" content="1780-09-22">
+  // 22 Sep 1780
+  // </span>
+  // <span itemprop="birthPlace" itemscope="" itemtype="https://schema.org/Place">
+  // <span itemprop="name">Habersdorf, Kurfürstentum Bayern, Heiliges Römisches Reich</span>
+  // </span>
+  // -
+  // <span itemprop="deathDate" content="1859-06-07">
+  // 07 Jun 1859
+  // </span>
+  // </p>
   // </div>
-
   const personDivs = $document.getElementsByClassName("row Persons ");
   const indexProfiles = personDivs.length == 1 ? 0 : 1;
   let profileDivs = personDivs[indexProfiles].getElementsByClassName("P-ITEM");
@@ -990,7 +1001,7 @@ function AddCheckboxes() {
 
   for (let i = 0; (profileDiv = profileDivs[i]); i++) {
     try {
-      let profile = profileDiv.childNodes[1].childNodes[0].href.replace("https://" + mainDomain + "/wiki/", "");
+      let profile = profileDiv.getElementsByTagName("a")[0].href.replace("https://" + mainDomain + "/wiki/", "");
       profileDiv.innerHTML =
         '<input type="checkbox" id="cb' +
         i +
@@ -1316,21 +1327,26 @@ function RemoveCat(wpTextbox1, cat) {
 }
 
 function DoSave(summary) {
-  setTimeout(() => {
-    $document.getElementById("wpSummary").value = summary;
-    //alert("val" + $document.getElementById("wpSummary").value);
-  }, 5000);
-
-  //todo: wpSummary
-  const saveButton = $document.getElementById("wpSave");
-  saveButton.disabled = false;
+  //wpSummary button not present directly after loading, wait for it to appear
+  const saveButtonsSection = document.getElementById("saveButtons");
+  const config = { attributes: false, childList: true, subtree: true };
+  const observer = new MutationObserver((mutationList, observer) => {
+    for (const mutation of mutationList) {
+      mutation.addedNodes.forEach((node) => {
+        if (node.id == "changeSummaryGears") {
+          $document.getElementById("wpSummary").value = summary;
+          const saveButton = $document.getElementById("wpSave");
+          saveButton.disabled = false;
+          observer.disconnect();
+        }
+      });
+    }
+  });
+  observer.observe(saveButtonsSection, config);
 }
 
-// Added to deal with iframe
-
-// Function to monitor iframe content and interact with it
 function monitorIframeContent(iframe) {
-  console.log("Monitoring iframe content...");
+  console.log("Monitoring iframe content and interact with it...");
   try {
     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 

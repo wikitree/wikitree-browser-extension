@@ -10,7 +10,7 @@ import { addWideTableButton, addLoginButton } from "../my_connections/my_connect
 import { ymdFix, showFamilySheet, displayName } from "../familyGroup/familyGroup";
 import { showCopyMessage } from "../access_keys/access_keys.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { mainDomain } from "../../core/pageType";
+import { mainDomain, isProfilePage } from "../../core/pageType";
 
 const surnameSummariesButton = $(
   "<button id='surnameSummaries' style='margin:0.5em;' class='small button'>Surname summaries</button>"
@@ -126,25 +126,6 @@ const timeLineImg = chrome.runtime.getURL("images/timeline.png");
 const homeImg = chrome.runtime.getURL("images/Home_icon.png");
 
 let connectionNames = [];
-
-$(document).on("keydown", function (e) {
-  if (e.key === "Escape") {
-    // Find .timeline or .familySheet with highest z-index and fadeOut()
-    const popups = $(".timeline, .familySheet");
-    let highestZIndex = 0;
-    let highestPopup;
-    popups.each(function () {
-      const zIndex = parseInt($(this).css("z-index"));
-      if (zIndex > highestZIndex && $(this).is(":visible")) {
-        highestZIndex = zIndex;
-        highestPopup = $(this);
-      }
-    });
-    if (highestPopup) {
-      highestPopup.fadeOut();
-    }
-  }
-});
 
 function setupConnectionTools() {
   if ($("#customActionsContainer").length) {
@@ -1613,7 +1594,6 @@ shouldInitializeFeature("connectionFinderOptions").then((result) => {
     getFeatureOptions("connectionFinderOptions").then((options) => {
       window.connectionFinderOptions = options;
       import("./connection_finder.css");
-      import("../familyGroup/familyGroup.css");
       import("../familyTimeline/familyTimeline.css");
       connectionFinderTable();
       connectionFinderThings();
@@ -1633,5 +1613,26 @@ shouldInitializeFeature("connectionFinderOptions").then((result) => {
         localStorage.removeItem("connectionFinderLogin");
       }
     });
+
+    if (!isProfilePage) {
+      $(document).on("keydown", function (e) {
+        if (e.key === "Escape") {
+          // Find .timeline or .familySheet with highest z-index and fadeOut()
+          const popups = $(".timeline, .familySheet");
+          let highestZIndex = 0;
+          let highestPopup;
+          popups.each(function () {
+            const zIndex = parseInt($(this).css("z-index"));
+            if (zIndex > highestZIndex && $(this).is(":visible")) {
+              highestZIndex = zIndex;
+              highestPopup = $(this);
+            }
+          });
+          if (highestPopup) {
+            highestPopup.fadeOut();
+          }
+        }
+      });
+    }
   }
 });

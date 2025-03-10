@@ -165,8 +165,10 @@ function addDistanceAndRelationColumns() {
           const actualMonth = parseInt(dateParts[1]) - 1;
           const suggestionsHelpLink =
             '<a href="/wiki/Help:Suggestions" title="Click here for an explanation of the suggestions column"><img src="/images/icons/help.gif" border="0" width="11" height="11" alt="Help"></a>';
-          suggestionHeader.innerHTML =
-            "Sugg. " + suggestionsHelpLink + " (" + dateParts[2] + " " + months[actualMonth] + ")";
+          if (suggestionHeader) {
+            suggestionHeader.innerHTML =
+              "Sugg. " + suggestionsHelpLink + " (" + dateParts[2] + " " + months[actualMonth] + ")";
+          }
           resolve();
         });
     });

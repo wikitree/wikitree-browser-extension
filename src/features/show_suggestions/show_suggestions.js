@@ -1,4 +1,4 @@
-import { createProfileSubmenuLink } from "../../core/common";
+import { addTab } from "../../core/common";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import $ from "jquery";
 
@@ -30,20 +30,22 @@ const warningMessages = [];
 const hintMessages = [];
 let suggestionsTabElement;
 
+let theTab, theSection;
 function initSuggestionsTab() {
   // Create the suggestions tab in the profile submenu
-  createProfileSubmenuLink({
-    title: "View Suggestions",
-    url: "#n",
-    id: "suggestionsTab",
-    text: "Suggestions ",
+  const tab = addTab("Suggestions", {
+    shortText: "Suggestions",
+    shorterText: "Sugg.",
+    veryShortText: "!",
+    icon: "suggestions.svg",
   });
-
+  theTab = tab.tab;
+  theSection = tab.section;
   // Create the span element for the hint
   const suggestionsHint = document.createElement("span");
   suggestionsHint.id = "suggestionsHint";
 
-  $("#suggestionsTab").append($(suggestionsHint));
+  theTab.append($(suggestionsHint));
 }
 
 async function fetchSuggestions() {
@@ -133,7 +135,6 @@ function initSuggestionsPopup() {
   const popup = document.createElement("div");
   popup.id = "suggestionsPopup";
   popup.className = "popup";
-  popup.style.display = "none"; // Set initial display to none
 
   // Create the popup content and insert data
   popup.innerHTML = `
@@ -152,7 +153,7 @@ function initSuggestionsPopup() {
   `;
 
   // Append the popup to the body
-  document.body.appendChild(popup);
+  theSection.append($(popup));
 
   // Add the Error and Warning messages to the popup
   displayMessages(errorMessages, "errorMessages");
@@ -160,27 +161,8 @@ function initSuggestionsPopup() {
   displayMessages(hintMessages, "hintMessages");
 
   // Set up click handlers for the popup
-  document.getElementById("suggestionsTab").addEventListener("click", function () {
-    popup.style.display = popup.style.display === "none" ? "block" : "none";
-  });
-
-  // Close the popup when the close button is clicked
-  popup.querySelector(".close").addEventListener("click", function () {
-    popup.style.display = "none";
-  });
-
-  // Close the popup when clicking outside the content area
-  window.addEventListener("click", function (event) {
-    if (event.target === popup) {
-      popup.style.display = "none";
-    }
-  });
-
-  // Close the popup when the Escape key is pressed
-  window.addEventListener("keydown", function (event) {
-    if (event.key === "Escape") {
-      popup.style.display = "none";
-    }
+  $(document).on("click", theTab.prop("id"), function () {
+    $("#suggestionsPopup").css("display", "block");
   });
 }
 
@@ -238,7 +220,7 @@ async function getSuggestions() {
   // Disable getSuggestions event listener after single use
   // Only applies when AutoSuggestions are off
   if (!options.AutoSuggestions) {
-    suggestionsTabElement.removeEventListener("click", getSuggestions);
+    theTab.off("click", getSuggestions);
   }
 
   // Prepare the Suggestions Popup
@@ -260,7 +242,7 @@ shouldInitializeFeature("showSuggestions").then((result) => {
     } else {
       // Create the event listener to check for suggestions
       suggestionsTabElement = document.getElementById("suggestionsTab");
-      suggestionsTabElement.addEventListener("click", getSuggestions);
+      theTab.on("click", getSuggestions);
     }
   }
 });

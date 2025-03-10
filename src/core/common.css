@@ -147,3 +147,12 @@ form[name="a_form"] {
   z-index: 10;
   position: relative;
 }
+
+#FamilyGroup-pane,
+#FamilyTimeline-pane {
+  overflow: auto;
+}
+
+.familySheet w {
+  cursor: pointer;
+}

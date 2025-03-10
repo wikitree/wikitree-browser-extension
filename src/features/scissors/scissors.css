@@ -1,3 +1,6 @@
 .scissors {
   font-size: 1rem;
 }
+ul.scissors li {
+  margin-right: 0.7rem;
+}
