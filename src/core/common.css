@@ -156,3 +156,7 @@ form[name="a_form"] {
 .familySheet w {
   cursor: pointer;
 }
+
+.tabs--wrapper {
+  z-index: 99; /*Allow the dropdowns to appear above the tabs*/
+}
