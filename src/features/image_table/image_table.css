@@ -63,11 +63,12 @@ body.profile #photoPopup {
 
 #photoPopup .close {
   position: absolute;
-  top: 10px;
-  right: 25px;
+  top: -5px;
+  right: 15px;
   color: #aaa;
   font-size: 30px;
   font-weight: bold;
+  z-index: 10000; /* Ensure the close button is above everything */
 }
 
 #photoPopup .close:hover,
