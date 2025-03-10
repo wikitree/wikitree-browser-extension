@@ -72,13 +72,6 @@ function initPhotoPopup() {
     // Append the popup to the appropriate container
     if (!isProfilePage) {
       $("body").append(popup);
-
-      // Add listener to close popup when clicking outside the popup
-      $(document).on("click", function (event) {
-        if ($(event.target).closest("#photoPopup").length === 0) {
-          $("#photoPopup").hide();
-        }
-      });
     } else {
       theSection.append(popup);
     }
@@ -257,7 +250,7 @@ function addProfileAction(details) {
 
 // Initialize the photo popup and related actions on page load if the feature is enabled
 shouldInitializeFeature("imageTable").then((result) => {
-  if (result & $("#wt-photos").length) {
+  if (result && $("#wt-photos").length) {
     // Dynamically import the CSS for the image table
     import("./image_table.css");
     if (isProfilePage) {
