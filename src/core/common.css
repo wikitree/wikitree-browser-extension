@@ -148,13 +148,6 @@ form[name="a_form"] {
   position: relative;
 }
 
-.icon--FamilyTimeline,
-.icon--FamilyGroup,
-.icon--Suggestions,
-.icon--ImageTable {
-  display: none;
-}
-
 #FamilyGroup-pane,
 #FamilyTimeline-pane {
   overflow: auto;

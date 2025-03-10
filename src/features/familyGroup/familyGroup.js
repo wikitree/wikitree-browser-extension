@@ -35,7 +35,7 @@ shouldInitializeFeature("familyGroup").then((result) => {
 
     // Get the position of an element (comment placeholder)
 
-    addTab("FamilyGroup", { shortText: "Group", shorterText: "F.G", veryShortText: "G" });
+    addTab("FamilyGroup", { shortText: "Group", shorterText: "F.G", veryShortText: "G", icon: "family_group.svg" });
   }
 });
 

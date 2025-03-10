@@ -50,7 +50,12 @@ shouldInitializeFeature("familyTimeline").then((result) => {
   if (result) {
     if (result && $("body.profile").length) {
       // unicode clock:   &#x1F551;
-      const tab = addTab("FamilyTimeline", { shortText: "Timeline", shorterText: "Time", veryShortText: "&#x1F551;" });
+      const tab = addTab("FamilyTimeline", {
+        shortText: "Timeline",
+        shorterText: "Time",
+        veryShortText: "&#x1F551;",
+        icon: "timeline.svg",
+      });
       theTab = tab.tab;
       theSection = tab.section;
       // Dynamically import the CSS for the family timeline

@@ -30,13 +30,16 @@ export function addTab(id, options = {}) {
   const tabShortText = options.shortText || "";
   const tabShorterText = options.shorterText || "";
   const tabVeryShortText = options.veryShortText || "";
+  const iconSRC = options.icon ? chrome.runtime.getURL(`images/${options.icon}`) : "";
+  const iconStyle = iconSRC ? `background-image: url(${iconSRC});` : "";
+  const dataIcon = iconSRC ? `data-has-icon="1"` : "";
   const treeTabs = $("nav div.tree-tabs");
   // Add spaces for text display: "FamilyGroup" -> "Family Group"
   const displayText = id.replace(/([A-Z])/g, " $1").trim();
   const button = $(
     `<button class="nav-link wbe-tab" id="${id}-tab" title="${displayText}" data-long-text="${displayText}" data-very-short-text="${tabVeryShortText}" data-shorter-text="${tabShorterText}" data-short-text="${tabShortText}" data-bs-toggle="tab" data-bs-target="#${id}-pane" type="button" role="tab" aria-controls="${id}" aria-selected="false" tabindex="-1">
     <span class="displayText">${displayText}</span>
-      <span class="icon--${id} icon--inline" data-bs-toggle="tooltip" data-bs-title="${id}">
+      <span class="icon--${id} icon--inline" ${dataIcon} data-bs-toggle="tooltip" data-bs-title="${id}" style="${iconStyle}">
       </span>
     </button>`
   );
@@ -63,7 +66,11 @@ export function setTabText() {
     const tab = $(this);
     let text = tab.data("long-text");
     if (width < 768) {
-      text = tab.data("very-short-text") || text;
+      if ($(this).find(".icon--inline[data-has-icon]").length) {
+        text = "";
+      } else {
+        text = tab.data("very-short-text") || text;
+      }
     } else if (width < 992) {
       text = tab.data("shorter-text") || text;
     } else if (width < 1200) {

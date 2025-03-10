@@ -199,11 +199,20 @@ let theTab, theSection;
 shouldInitializeFeature("imageTable").then((result) => {
   if (result & $("#wt-photos").length) {
     // unicode camera  📷
-    const tab = addTab("ImageTable", { shortText: "Images", shorterText: "Img.", veryShortText: "📷" });
+    const tab = addTab("ImageTable", {
+      shortText: "Images",
+      shorterText: "Img.",
+      veryShortText: "📷",
+      icon: "images.svg",
+    });
     theTab = tab.tab;
     theSection = tab.section;
-    initPhotoPopup();
+    theTab.on("click", function () {
+      initPhotoPopup();
+    });
     import("./image_table.css");
-    escapeButton();
+    if (!isProfilePage) {
+      escapeButton();
+    }
   }
 });
