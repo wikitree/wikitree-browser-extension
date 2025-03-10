@@ -166,6 +166,11 @@ $("body")
   // When any checkbox in the merged options container is toggled, update the change summary.
   .on("click", "#summaryOptionsContainer input.summary-suggestion", (e) => {
     updateChangeSummary();
+    if ($("#wpSummary").val() !== "") {
+      $("#wpSave").prop("disabled", false);
+    } else {
+      $("#wpSave").prop("disabled", true);
+    }
   });
 
 //

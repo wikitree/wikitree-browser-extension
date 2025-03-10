@@ -27,7 +27,7 @@
 .x-privacy,
 .x-sticker {
   position: relative;
-  z-index: 1000;
+  z-index: 100;
 }
 h1,
 h2,

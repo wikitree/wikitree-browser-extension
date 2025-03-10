@@ -16,16 +16,19 @@
     scroll-margin-top: var(--x-sticky-header-offset) !important;
   }
 
-  .sticky-header body > #banner {
+  .sticky-header body > #banner,
+  .sticky-header body > header,
+  .sticky-header .qa-body-wrapper .qa-header {
     position: sticky;
-    z-index: 9555554; /* above GEDCOMpare (99999) but below compare draft modal (9999999) */
+    z-index: 999; /* same as .tabs--wrapper to place them under modals */
+  }
+
+  .sticky-header body > #banner {
     top: 0;
   }
 
   .sticky-header body > header,
   .sticky-header .qa-body-wrapper .qa-header {
-    position: sticky;
-    z-index: 9555555; /* above GEDCOMpare (99999) but below compare draft modal (9999999) */
     top: var(--x-sticky-banner-height);
   }
 
@@ -42,17 +45,6 @@
     top: calc(
       1vh + var(--x-sticky-banner-height) + var(--x-sticky-header-height) + var(--x-sticky-toolbar-height)
     ) !important;
-  }
-
-  /* the preview container and content for merges by WikiTree needs to be adjusted if sticky header is used */
-  .sticky-header #previewContainer {
-    z-index: 9999999;
-  }
-  .sticky-header #previewContainer #previewContent {
-    top: calc(var(--x-sticky-header-offset) + 20px) !important;
-  }
-  #toast-container {
-    z-index: 10000000 !important;
   }
 
   /* adjust custom tooltips within the page toolbar */

@@ -93,6 +93,8 @@ import "./features/randomProfile/randomProfile";
 import "./features/what_links_here/what_links_here";
 
 /* MARKER: Default place for new features. Move these to a more appropriate place.*/
+import "./features/show_search/show_search";
+
 import "./features/menu_style/menu_style";
 
 import "./features/menu_hover/menu_hover";
