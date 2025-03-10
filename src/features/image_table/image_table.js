@@ -73,10 +73,10 @@ function initPhotoPopup() {
     if (!isProfilePage) {
       $("body").append(popup);
 
-      // Add listener to close popup when clicking outside the popup-content
-      popup.on("click", function (event) {
-        if ($(event.target).closest(".popup-content").length === 0) {
-          $(this).hide();
+      // Add listener to close popup when clicking outside the popup
+      $(document).on("click", function (event) {
+        if ($(event.target).closest("#photoPopup").length === 0) {
+          $("#photoPopup").hide();
         }
       });
     } else {
