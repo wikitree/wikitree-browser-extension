@@ -58,12 +58,12 @@ function initPhotoPopup() {
     let closeButton = "";
     // For non-profile pages, add a close button to the popup
     if (!isProfilePage) {
-      closeButton = `<span class="close">&times;</span>`;
+      closeButton = `<div id="closeWrapper"><span class="close">&times;</span></div>`;
     }
     // Create the popup element with necessary structure and content
     const popup = $(`<div id="photoPopup" class="popup">
+       ${closeButton}
         <div class="popup-content">
-          ${closeButton}
           <div id="loadingGif"><img src="${treeImageURL}" alt="Loading..." /></div>
           <div id="photoTable" class="photo-table"></div>
         </div>
@@ -72,6 +72,13 @@ function initPhotoPopup() {
     // Append the popup to the appropriate container
     if (!isProfilePage) {
       $("body").append(popup);
+
+      // Add listener to close popup when clicking outside the popup-content
+      popup.on("click", function (event) {
+        if ($(event.target).closest(".popup-content").length === 0) {
+          $(this).hide();
+        }
+      });
     } else {
       theSection.append(popup);
     }

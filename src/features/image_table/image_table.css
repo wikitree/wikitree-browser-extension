@@ -2,16 +2,24 @@
 #photoPopup {
   display: none; /* Hidden by default */
   position: fixed;
-  left: 0;
+  left: 5%;
+  right: 5%;
   top: 0;
-  width: 100%;
-  height: 100%;
+  bottom: 5%;
+  width: 90%;
+  padding: 1em;
+  border: 2px solid #666;
+  box-shadow: #aaa 0 0 10px;
   overflow: auto; /* Enable scroll if needed */
   z-index: 9999;
   background-color: rgba(0, 0, 0, 0.7); /* Black background with transparency */
 }
 .sticky-header #photoPopup {
   top: 140px;
+}
+#photoPopup #closeWrapper {
+  position: sticky;
+  top: 0;
 }
 
 body.profile #photoPopup {
@@ -27,10 +35,6 @@ body.profile #photoPopup {
   padding: 20px;
   border: 1px solid #888;
   overflow-y: scroll; /* Make content scrollable */
-}
-
-.sticky-header #photoPopup .popup-content {
-  max-height: calc(100% - 140px);
 }
 
 #photoPopup .photo-table img {
