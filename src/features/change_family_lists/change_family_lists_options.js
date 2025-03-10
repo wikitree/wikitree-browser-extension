@@ -1,6 +1,7 @@
 /*
 Created By: Ian Beacall (Beacall-6)
-Contributors: Jonathan Duke (Duke-5773)
+Contributors: Jonathan Duke (Duke-5773), Riël Smit (Smit-641)
+Description: Change the position and/or appearance of family lists (parents, siblings, spouses, and children)
 */
 
 import { isProfilePage } from "../../core/pageType";
@@ -46,7 +47,7 @@ const changeFamilyLists = {
       ],
       defaultValue: "beforePhotos",
     },
-    {id:"oneSpousePerLine", type: OptionType.CHECKBOX, label: "One spouse per line", defaultValue: false},
+    { id: "oneSpousePerLine", type: OptionType.CHECKBOX, label: "One spouse per line", defaultValue: false },
     {
       id: "showSidebarHeading",
       type: OptionType.CHECKBOX,

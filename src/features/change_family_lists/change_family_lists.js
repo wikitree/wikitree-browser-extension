@@ -1,6 +1,6 @@
 /*
 Created By: Ian Beacall (Beacall-6)
-Contributors: Jonathan Duke (Duke-5773)
+Contributors: Jonathan Duke (Duke-5773), Riël Smit (Smit-641)
 
 This version builds the family lists with these features:
 • Uses the full getAge/isLeapYear implementation for marriage age calculations.
@@ -986,7 +986,8 @@ function addMarriageAges() {
     const apiSpouses = Object.entries(pagePerson.Spouses);
     apiSpouses.forEach((spouseEntry, idx) => {
       const marData = spouseEntry[1];
-      const marriageDiv = $(".aSpouse").eq(idx);
+      const spouseId = marData.Id;
+      const marriageDiv = $(`.aSpouse[data-id='${spouseId}']`);
       if (!marriageDiv.length) return;
       if (isOK(marData.MarriageDate)) {
         let profileMarriageAge = "";
