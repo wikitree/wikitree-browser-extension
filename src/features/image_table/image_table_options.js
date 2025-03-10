@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import { registerFeature } from "../../core/options/options_registry";
-import { isSpacePage, isProfilePage } from "../../core/pageType"; // Import the page type check
+import { isSpacePage, isProfilePage, isProfileEdit, isSpaceEdit } from "../../core/pageType"; // Import the page type check
 
 const imageTable = {
   name: "Image Table",
@@ -13,7 +13,7 @@ const imageTable = {
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
-  pages: [isProfilePage, isSpacePage], // Apply to both profile and space pages
+  pages: [isProfilePage, isSpacePage, isProfileEdit, isSpaceEdit], // Apply to both profile and space pages
 };
 
 // Register the feature
