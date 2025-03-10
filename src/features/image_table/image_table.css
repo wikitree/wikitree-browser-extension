@@ -45,7 +45,7 @@ body.profile #photoPopup {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 10000; /* Ensure the large image popup is above everything */
+  z-index: 100000000; /* Ensure the large image popup is above everything */
   max-width: 90%; /* Limits width to 90% of the viewport */
   max-height: 90%; /* Limits height to 90% of the viewport */
   background-color: rgba(0, 0, 0, 0.8); /* Optional: adds a background behind the image */
