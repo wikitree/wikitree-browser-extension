@@ -212,9 +212,11 @@ async function initReadability() {
                 }
                 // only update if there would be some content after the bold text
                 if (/\S/.test(rest || "") || $(this).nextAll().length > 0) {
-                  this.textContent = rest;
-                  let segment = $('<span class="a11y-src-first"></span>');
-                  segment.text(first).insertBefore(this);
+                  if (rest !== undefined && first !== undefined) {
+                    this.textContent = rest;
+                    let segment = $('<span class="a11y-src-first"></span>');
+                    segment.text(first).insertBefore(this);
+                  }
                 }
               }
             } else if (state > 3) {
@@ -468,8 +470,7 @@ async function initReadability() {
       }
       if (options.hideSidebar / 1 === 3 || options.hideSidebar / 1 === 253) {
         $sb.removeClass("no-visible-content");
-        // wait for the CSS to apply so that we can determine visibility
-        window.setTimeout(function () {
+        function updateContentWidth(hasLoaded) {
           if (
             $sb.children(":visible").filter(function () {
               // some elements may technically be visible but have no content, like anchors and #geneticfamily
@@ -489,9 +490,15 @@ async function initReadability() {
                 $sb.prev().removeClass("col-lg-12").addClass("col-lg-8");
               }
             },
-            toggleValue === undefined ? 1000 : 0 // delay a little extra on the initial load
+            !hasLoaded ? 500 : 0 // delay a little extra on the initial load
           );
-        }, 0);
+        }
+        // wait for the CSS to apply so that we can determine visibility
+        toggleValue === undefined
+          ? $(function () {
+              window.setTimeout(updateContentWidth, 500);
+            })
+          : updateContentWidth(true); // no delay necessary
       }
     }
   }

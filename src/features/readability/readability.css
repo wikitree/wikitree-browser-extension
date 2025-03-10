@@ -16,8 +16,9 @@
   margin-bottom: var(--a11y-li-spacing);
 }
 
-.a11y-src-bold .a11y-src-first {
-  font-weight: bold;
+.a11y-src-bold .a11y-src-first,
+.a11y-src-bold .a11y-src-first > i {
+  font-weight: bold !important;
 }
 
 :root:not(.hide-src-label) .a11y-src-label + .a11y-src-first {
