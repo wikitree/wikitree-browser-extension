@@ -146,7 +146,8 @@ function parseBracketedUnknownInBlock(blockEl) {
     // Skip known placeholders.
     if (
       /^\[half\]$/i.test(text) ||
-      /^(edit|add sibling|add\/edit spouses)$/i.test(text) ||
+      /^add\b/i.test(text) ||
+      /^edit\b/i.test(text) ||
       text === "[date unknown]" ||
       text === "[location unknown]" ||
       text === "[uncertain]"
@@ -158,7 +159,7 @@ function parseBracketedUnknownInBlock(blockEl) {
   let raw = blockEl.innerText;
   anchors.forEach((a) => {
     const t = a.textContent.trim();
-    if (/^\[half\]$/i.test(t) || /^(edit|add sibling|add\/edit spouses)$/i.test(t)) {
+    if (/^\[half\]$/i.test(t) || /^add\b/i.test(t) || /^edit\b/i.test(t)) {
       return;
     }
     raw = raw.replace(t, "");
@@ -166,7 +167,7 @@ function parseBracketedUnknownInBlock(blockEl) {
   const bracketRegex = /\[[^\]]*\]/g;
   const bracketed = raw.match(bracketRegex) || [];
   bracketed.forEach((b) => {
-    if (/^\[half\]$/i.test(b) || /^(edit|add sibling)$/i.test(b)) return;
+    if (/^\[half\]$/i.test(b) || /^add\b/i.test(b) || /^edit\b/i.test(b)) return;
     results.push(newPersonFromBracket(b));
   });
   return results;
@@ -244,7 +245,13 @@ function parseSpousesBlock(spousesEl) {
  * @returns {Object} The family data object with arrays for parents, siblings, spouses, and children.
  */
 function parseInitialData() {
-  const excludeBrackets = ["[date unknown]", "[location unknown]", "[uncertain]"];
+  const excludeBrackets = [
+    "[date unknown]",
+    "[location unknown]",
+    "[uncertain]",
+    "[marriage location?]",
+    "[marriage date?]",
+  ];
   const container = document.querySelector("#nav-familyContent div.tree--person");
   familyData = newFamilyData();
 
@@ -322,7 +329,10 @@ function parseInitialData() {
   // Parse children
   const childrenBlock = container.querySelector("#Children");
   if (childrenBlock) {
-    let parsedChildren = parseBlock(childrenBlock, "children").filter((r) => r.Name && !/^(add child)$/i.test(r.Name));
+    let parsedChildren = parseBlock(childrenBlock, "children");
+    parsedChildren = parsedChildren.filter(
+      (r) => r.Name && !/\b(add|edit)\b/i.test(r.Name) && r.Name.toLowerCase() !== "add/edit children"
+    );
     const bracketed = parseBracketedUnknownInBlock(childrenBlock).filter((b) => {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
@@ -597,11 +607,11 @@ function buildSpousesSection(spouses) {
   container.appendChild(ol);
 
   spouses.forEach((spouse) => {
-    const spouseDiv = document.createElement("li");
-    spouseDiv.className = "aSpouse";
-    spouseDiv.dataset.parseName = spouse.Name;
-    spouseDiv.setAttribute("data-id", spouse.Id);
-    spouseDiv.setAttribute("data-gender", spouse.Gender);
+    const spouseLI = document.createElement("li");
+    spouseLI.className = "aSpouse";
+    spouseLI.dataset.parseName = spouse.Name;
+    spouseLI.setAttribute("data-id", spouse.Id);
+    spouseLI.setAttribute("data-gender", spouse.Gender);
 
     const grid = document.createElement("div");
     grid.className = "spouseGrid";
@@ -630,14 +640,14 @@ function buildSpousesSection(spouses) {
       datesEl.id = idName + "-bdDates";
     }
     grid.appendChild(datesEl);
-    spouseDiv.appendChild(grid);
+    spouseLI.appendChild(grid);
 
     const details = document.createElement("span");
     details.className = "marriageDetails";
     let detailsText = spouse.MarriageDetails || "";
     detailsText = detailsText.replace(/add\/edit spouses/gi, "").trim();
     details.textContent = detailsText;
-    spouseDiv.appendChild(details);
+    spouseLI.appendChild(details);
 
     // Append map link if available.
     if (spouse.MarriageMapLink) {
@@ -654,8 +664,11 @@ function buildSpousesSection(spouses) {
       mapLink.appendChild(mapIcon);
       details.appendChild(mapLink);
     }
-
-    ol.appendChild(spouseDiv);
+    if (spouseLI.dataset.parseName.includes("?")) {
+      spouseLI.classList.add("editAction");
+      spouseLI.classList.remove("aSpouse");
+    }
+    ol.appendChild(spouseLI);
   });
   return container;
 }
@@ -720,6 +733,16 @@ function buildChildrenSection(children) {
     }
     if (c.Father) li.setAttribute("data-father", c.Father);
     if (c.Mother) li.setAttribute("data-mother", c.Mother);
+    if (c.Link?.includes("EditFamily")) {
+      li.classList.add("editAction");
+      li.setAttribute("data-gender", "");
+      // Remove all classes that start with "spouse_"
+      li.classList.forEach((className) => {
+        if (className.startsWith("spouse_")) {
+          li.classList.remove(className);
+        }
+      });
+    }
     ol.appendChild(li);
   });
   container.appendChild(ol);
@@ -1684,6 +1707,9 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     makeVerticalFamLists();
   } else {
     $("#nVitals,div.tree--person").addClass("vanilla");
+    if (!options.showDates) {
+      $("#nVitals").addClass("noDates");
+    }
   }
   attachHeadingEvents();
   if (options.moveToRight) {
@@ -1716,7 +1742,13 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     }
   } else {
     $("#siblingList, #childrenList, #spouseList").each(function () {
-      if ($(this).find("li").length > 1) {
+      // Count actual people by excluding "?" and "edit" entries
+      const count = $(this).find("li").length;
+      // Find any items with a ? or 'edit' in the text
+      const unknown = $(this).find("li:contains('?'), li:contains('edit')").length;
+      const realCount = count - unknown;
+
+      if (realCount > 1) {
         $(this).css("list-style", "number");
       }
     });

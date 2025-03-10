@@ -60,6 +60,7 @@ const changeFamilyLists = {
       label: "Vertical family lists with dates",
       defaultValue: false,
     },
+    { id: "showDates", type: OptionType.CHECKBOX, label: "Show dates in horizontal lists", defaultValue: false },
     {
       id: "highlightActiveProfile",
       type: OptionType.CHECKBOX,

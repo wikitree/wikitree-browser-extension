@@ -880,3 +880,13 @@ div.VITALS a:link .addedPrefix {
 .vanilla .marriageDetailsInner {
   display: inline;
 }
+
+.vanilla.noDates .bdDates {
+  display: none;
+}
+
+#nVitals .editAction {
+  list-style: none;
+  background-color: none;
+  border: #fff;
+}
