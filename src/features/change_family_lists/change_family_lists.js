@@ -1170,12 +1170,9 @@ function moveFamilyLists() {
       $before = $("#Photos");
     }
     if (!$before?.length) {
-      $before = $("#geneticfamily");
+      $before = $("#DNA-Connections");
       if (!$before.length) {
-        $before = $("#DNA");
-        if (!$before.length) {
-          $before = $("#Research");
-        }
+        $before = $("#Research");
       }
     }
     if ($before.length) {
