@@ -204,7 +204,7 @@ async function getList(functionName) {
       break;
   }
   copyToClipboardAPI(result);
-  if (document.querySelector("#toggleMarkupColor").value == "Turn On Enhanced Editor") {
+  if (document.querySelector("#toggleMarkupColor").value == "turn on enhanced editor") {
     pasteResult();
   } else {
     showCopyMessage(message, otherMessage);
