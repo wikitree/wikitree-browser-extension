@@ -389,7 +389,7 @@ registerFeature({
   creators: [{ name: "Aleš Trtnik", wikitreeid: "Trtnik-2" }],
   contributors: [],
   defaultValue: false,
-  pages: [isMainDomain],
+  pages: [isMainDomain, isG2G],
   options: [
     {
       id: "color",
