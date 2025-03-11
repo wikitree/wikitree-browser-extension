@@ -4,8 +4,10 @@
 }
 
 #g2gScissors {
-  position: absolute;
-  top: 0;
+  margin: 0.5em;
+}
+.g2gScissors {
+  margin-top: 0.5em;
 }
 
 .g2gPlus {

@@ -24,7 +24,9 @@ import { showCopyMessage } from "../access_keys/access_keys.js";
 shouldInitializeFeature("scissors").then((result) => {
   if (result) {
     import("./scissors.css");
-    $(document).on("click", ".copy--buttons button", function () {
+    $(document).on("click", ".copy--buttons button", function (e) {
+      e.preventDefault();
+      copyThingToClipboard($(this).data("copy-text"));
       const text = $(this).data("copy-text");
       showCopyMessage(text);
     });
@@ -346,8 +348,9 @@ export function copyThingToClipboard(thing) {
 }
 
 export function attachScissorsEvent() {
-  $("#g2gScissors button").on("click", function (e) {
+  $(document).on("click", "#g2gScissors button,.g2gScissors button", function (e) {
     e.preventDefault();
     copyThingToClipboard($(this).attr("data-copy-text"));
+    showCopyMessage($(this).attr("data-copy-text"));
   });
 }
