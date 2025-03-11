@@ -43,7 +43,7 @@ async function helpScissors() {
   const options = await getFeatureOptions("scissors");
   let copyItems = [];
   let copyPosition = $("#person ul.copy--buttons");
-
+  let useIsNew = false;
   // Network feed
   if (isNetworkFeed || isProfileHistoryDetail) {
     const urlParams = new URLSearchParams(window.location.search);
@@ -133,6 +133,8 @@ async function helpScissors() {
   }
 
   if (isImagePage) {
+    copyPosition = $("#jump-nav");
+    useIsNew = true;
     const aTitle = document.title.trim();
     const url = window.location.toString().split("#")[0].split("?")[0];
 
@@ -176,7 +178,7 @@ async function helpScissors() {
     copyItems.push({ label: "UserID", text: userID });
   }
 
-  addItems(copyItems, copyPosition);
+  addItems(copyItems, copyPosition, { isNew: useIsNew });
 
   modifyLinkButtons(options);
 
