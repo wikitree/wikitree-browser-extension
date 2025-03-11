@@ -75,6 +75,8 @@ function menuHover() {
 
 shouldInitializeFeature("menuHover").then((result) => {
   if (result) {
+    $("header .btn-group[data-menu='AddFindHelp']").removeAttr("data-menu");
+
     menuHover();
   }
 });
