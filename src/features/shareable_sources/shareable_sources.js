@@ -183,7 +183,7 @@ function getSources(person, active = 0) {
     });
 
     if (isProfileEdit) {
-      referenceBox.prependTo($("b:contains('How to Add Sources')").closest("div"));
+      referenceBox.prependTo($("h3:contains('How to Add Sources')").closest("div"));
       referenceBox.draggable();
     } else {
       referenceBox.insertAfter($("#mSources").closest("table"));
