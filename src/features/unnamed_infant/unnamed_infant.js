@@ -249,7 +249,7 @@ function addDiedYoungSticker(options) {
   if (options.diedYoung) {
     let enhanced = false;
     const enhancedEditorButton = $("#toggleMarkupColor");
-    if (enhancedEditorButton.attr("value") == "Turn Off Enhanced Editor") {
+    if (enhancedEditorButton.attr("value") == "turn off enhanced editor") {
       enhancedEditorButton.trigger("click");
       enhanced = true;
     }

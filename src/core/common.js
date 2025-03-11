@@ -1653,7 +1653,7 @@ function showPopupMessage(message) {
 
 function toggleEnhancedEditor(callback) {
   const toggleButton = $("#toggleMarkupColor");
-  const isEnhancedEditorOn = toggleButton.val() === "Turn Off Enhanced Editor";
+  const isEnhancedEditorOn = toggleButton.val() === "turn off enhanced editor";
 
   if (isEnhancedEditorOn) {
     // Trigger click to turn off CodeMirror
@@ -1661,7 +1661,7 @@ function toggleEnhancedEditor(callback) {
 
     // Wait until Enhanced Editor is fully off
     const intervalId = setInterval(() => {
-      if (toggleButton.val() !== "Turn Off Enhanced Editor") {
+      if (toggleButton.val() !== "turn off enhanced editor") {
         clearInterval(intervalId); // Stop checking
 
         // Execute the callback after toggling off

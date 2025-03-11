@@ -121,7 +121,7 @@ function getSources(person, active = 0) {
 
   let enhancedEditorButton = $("#toggleMarkupColor");
   enhanced = false;
-  if (enhancedEditorButton.attr("value") == "Turn Off Enhanced Editor") {
+  if (enhancedEditorButton.attr("value") == "turn off enhanced editor") {
     enhanced = true;
   }
 
@@ -129,7 +129,7 @@ function getSources(person, active = 0) {
 
   enhancedEditorButton.on("click", function () {
     setTimeout(function () {
-      if (enhancedEditorButton.attr("value") == "Turn Off Enhanced Editor") {
+      if (enhancedEditorButton.attr("value") == "turn off enhanced editor") {
         enhanced = true;
       } else {
         enhanced = false;
