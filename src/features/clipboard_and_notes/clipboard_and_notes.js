@@ -310,6 +310,7 @@ function copyClippingToClipboard(element) {
   const enhancedEditorButton = $("#toggleMarkupColor");
   if (
     enhancedEditorButton.attr("value") == "turn on enhanced editor" ||
+    enhancedEditorButton.attr("value") == "Turn On Enhanced Editor" || //toggles once used
     $("#mBioWithoutSources").length ||
     $("#photo_upload").length ||
     $("body.profile").length ||
