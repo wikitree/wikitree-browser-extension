@@ -28,6 +28,7 @@ Created By: Rob Pavey (Pavey-429)
 
 import { WBE } from "../../core/common";
 
+
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 const undoImageURL = chrome.runtime.getURL("images/agc_undo.png");
@@ -316,7 +317,7 @@ async function doEditBio() {
   // Need to check if the enhanced editor is enabled and if so turn it off
   var enhancedEditorButton = document.getElementById("toggleMarkupColor");
   var enhancedEditorWasOn = false;
-  if (enhancedEditorButton != undefined && enhancedEditorButton.value == "turn off enhanced editor") {
+  if (enhancedEditorButton != undefined && enhancedEditorButton.value == "Turn Off Enhanced Editor") {
     enhancedEditorButton.click();
     enhancedEditorWasOn = true;
   }
@@ -475,7 +476,7 @@ function undoEditBio() {
   // Need to check if the enhanced editor is enabled and if so turn it off
   var enhancedEditorButton = document.getElementById("toggleMarkupColor");
   var enhancedEditorWasOn = false;
-  if (enhancedEditorButton != undefined && enhancedEditorButton.value == "turn off enhanced editor") {
+  if (enhancedEditorButton != undefined && enhancedEditorButton.value == "Turn Off Enhanced Editor") {
     enhancedEditorButton.click();
     enhancedEditorWasOn = true;
   }

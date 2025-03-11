@@ -1073,7 +1073,7 @@ function createwikitableWizardModal() {
       // Switch off the Enhanced Editor if it's on
       let enhanced = false;
       let enhancedEditorButton = $("#toggleMarkupColor");
-      if (enhancedEditorButton.attr("value") == "turn off enhanced editor") {
+      if (enhancedEditorButton.attr("value") == "Turn Off Enhanced Editor") {
         enhancedEditorButton.trigger("click");
         enhanced = true;
       }
