@@ -12,6 +12,7 @@ import "./features/custom_style/custom_style";
 
 // followed by the rest
 import "./features/access_keys/access_keys";
+import "./features/add_fs_id/add_fs_id";
 import "./features/add_search_boxes/add_search_boxes";
 import "./features/akaNameLinks/akaNameLinks";
 import "./features/anniversaries_table/anniversaries_table";
