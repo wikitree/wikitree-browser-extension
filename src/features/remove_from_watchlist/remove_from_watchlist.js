@@ -4,12 +4,12 @@ import $ from "jquery";
 import { mainDomain } from "../../core/pageType";
 import { getUserNumId } from "../../core/common";
 
+let editLink;
 function init() {
   const profileRows = document.getElementsByTagName("tr");
 
   for (let i = 1 /* skip table with sorting links */; i < profileRows.length; i++) {
-    if(editLink == null)
-    {
+    if (!editLink) {
       continue;
     }
     var urlParams = new URLSearchParams(editLink.href);

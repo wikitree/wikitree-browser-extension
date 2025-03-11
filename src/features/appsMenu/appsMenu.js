@@ -198,8 +198,16 @@ function getTreeAppsMenuItems() {
   const theId = profilePerson?.Name || getUserWtId();
   return treeApps.map((item) => {
     const formattedTitle = item.text;
-    // https://www.wikitree.com/apps/Kubičík-26#name=Kubičík-26&view=couples
-    const formattedUrl = `https://www.wikitree.com/apps/${theId}#name=${theId}&view=${item.id}`;
+
+    // Build the raw hash string, e.g. "name=Smith-123&view=ahnentafel"
+    const rawHashString = `name=${theId}&view=${item.id}`;
+
+    // Encode it so we get "name%3DSmith-123%26view%3Dahnentafel"
+    const encodedHashString = encodeURIComponent(rawHashString);
+
+    // Then form the final URL with # plus the encoded string
+    const formattedUrl = `https://www.wikitree.com/apps/${theId}#${encodedHashString}`;
+
     return { title: formattedTitle, url: formattedUrl };
   });
 }
