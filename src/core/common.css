@@ -160,3 +160,7 @@ form[name="a_form"] {
 .tabs--wrapper {
   z-index: 99; /*Allow the dropdowns to appear above the tabs*/
 }
+
+ul.scissors li {
+  margin-right: 0.5em;
+}

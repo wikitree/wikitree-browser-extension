@@ -205,7 +205,8 @@ function g2gPageLinksAtTop() {
 
 function g2gScissors(alsoInAnswers) {
   if ($("body.qa-template-question.qa-body-js-on").length && $("#g2gScissors").length == 0) {
-    document.getElementsByClassName("container-md my-5")[0].id="g2gScissors";
+    const g2gScissors = $("<div id='g2gScissors'></div>");
+    $(".qa-sidepanel").prepend(g2gScissors);
     const url = window.location.href.replaceAll(/%2C/g, ",");
     const g2gIDmatch = url.match(/\/([0-9]{1,8})\//);
     if (g2gIDmatch != null) {
