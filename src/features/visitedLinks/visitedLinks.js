@@ -8,7 +8,7 @@ shouldInitializeFeature("visitedLinks").then((result) => {
   if (result) {
     getFeatureOptions("visitedLinks").then((options) => {
       const style = document.createElement("style");
-      style.textContent = "a:visited{color:" + options.color + " !important;}";
+      style.textContent = "body a:visited{color:" + options.color + " !important;}";
       document.head.appendChild(style);
 
       const clone = style.cloneNode(true);
