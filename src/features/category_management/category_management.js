@@ -267,7 +267,7 @@ function AddAddProfileToCategory() {
 
 function AddOptionalCategoryEditPageLinks(options) {
   //todo: check if category exists and hide accordingly
-  const editDivs = $document.getElementsByClassName("EDIT");
+  const editDivs = $document.getElementsByClassName("editButtons");
   if (options.catMarkDelete) {
     editDivs[editDivs.length - 1].appendChild(CreateDeleteCatLinkEditPage());
   }
