@@ -2,7 +2,7 @@
 span[style="color:#006800"] {
   color: #006800 !important;
 }
- 
+
 /* Template:Red */
 span[style="color:#b60000"] {
   color: #b60000 !important;
@@ -59,8 +59,8 @@ span[style="color:#c07fee"] {
 
 .fontSizeButton {
   display: inline-block;
-  width: 16px;
-  height: 20px;
+  width: 25px !important;
+  height: 25px !important;
   background-position: 5px -644px;
   background-repeat: no-repeat;
   line-height: 25px;
