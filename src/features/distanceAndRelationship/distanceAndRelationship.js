@@ -170,12 +170,8 @@ function onRelationsSuccess(event, profileID, userID) {
   getRelationReq.onsuccess = function () {
     if (getRelationReq.result != undefined) {
       if (getRelationReq.result.relationship != "") {
-        if (
-          $("#yourRelationshipText").length == 0 &&
-          $(".ancestorTextText").length == 0 &&
-          $("#ancestorListBox").length == 0
-        ) {
-          $("#yourRelationshipText").remove();
+        if ($(".yourRelationshipText").length < 2) {
+          $(".yourRelationshipText").remove();
           addRelationshipText(
             getRelationReq.result.relationship,
             cleanCommonAncestors(getRelationReq.result.commonAncestors)
@@ -245,11 +241,11 @@ function onDistancesSuccess(event, profileID, userID) {
           $("#distanceFromYouTooltip").remove();
         });
 
-      $("#distanceFromYou").on("click", function (e) {
+      $(".distanceFromYou").on("click", function (e) {
         e.preventDefault();
         $("#distanceFromYouTooltip").remove();
         $(this).fadeOut("slow").remove();
-        $("#yourRelationshipText").fadeOut("slow").remove();
+        $(".yourRelationshipText").fadeOut("slow").remove();
         initDistanceAndRelationship(userID, profileID, true);
       });
     }
@@ -265,29 +261,29 @@ function addRelationshipText(oText, commonAncestors) {
   let commonAncestorTextOut = commonAncestorTextResult.text;
   if (!oText) return;
   const cousinText = $(
-    `<div id='yourRelationshipText' title='Click to refresh' class='relationshipFinder'>Your ${oText}
-    <ul id='yourCommonAncestor' style='white-space:nowrap'>${commonAncestorTextOut}</ul>
+    `<div class='yourRelationshipText' title='Click to refresh' class='relationshipFinder'>Your ${oText}
+    <ul class='yourCommonAncestor' style='white-space:nowrap'>${commonAncestorTextOut}</ul>
     </div>`
   );
   $("h1[itemprop='name']").after(cousinText);
   if (cousinText.next("span.large").length > 0) {
     cousinText.after($("<br>"));
   }
-  $("#yourRelationshipText").on("click", function (e) {
+  $(".yourRelationshipText").on("click", function (e) {
     e.stopPropagation();
     let id1 = getUserWtId();
     let id2 = profilePerson.Name;
     initDistanceAndRelationship(id1, id2, true);
   });
   if (commonAncestorTextResult.count > 2) {
-    $("#yourRelationshipText").append($("<button class='btn btn-pill-sm' id='showMoreAncestors'>More</button>"));
-    $("#showMoreAncestors").on("click", function (e) {
+    $(".yourRelationshipText").append($("<button class='btn btn-pill-sm showMoreAncestors'>More</button>"));
+    $(".showMoreAncestors").on("click", function (e) {
       e.preventDefault();
       e.stopPropagation();
       $(this).text(function (_, text) {
         return text === "More" ? "Less" : "More";
       });
-      $("#yourCommonAncestor li:nth-child(n+3)").toggle();
+      $(".yourCommonAncestor li:nth-child(n+3)").toggle();
     });
   }
 }
@@ -399,12 +395,8 @@ function doRelationshipText(userID, profileID) {
           console.log(relationshipText);
 
           // Insert relationship text
-          if (
-            !document.querySelector("#yourRelationshipText") &&
-            !document.querySelector(".ancestorTextText") &&
-            !document.querySelector("#ancestorListBox")
-          ) {
-            document.querySelector("#yourRelationshipText")?.remove();
+          if (!document.querySelector(".yourRelationshipText")) {
+            document.querySelector(".yourRelationshipText")?.remove();
             addRelationshipText(relationshipText, cleanCommonAncestors(data.commonAncestors));
           }
         }
@@ -431,10 +423,10 @@ async function addDistance(data) {
   const profileID = profilePerson.Name;
   const userID = getUserWtId();
 
-  if ($("#degreesFromYou").length == 0) {
+  if ($(".distanceFromYou").length < 2) {
     window.distance = data.path.length - 1;
     const profileName = profilePerson.FirstName;
-    if (window.distance > 0 && $("#degreesFromYou").length == 0) {
+    if (window.distance > 0) {
       $("#person h1").append(
         $(
           `<span class='distanceFromYou' title='${profileName} is ${window.distance} degrees from you.'>${window.distance}°</span>`
@@ -631,7 +623,7 @@ export function ordinalWordToNumberAndSuffix(word) {
 
 function initDistanceAndRelationship(userID, profileID, clicked = false) {
   $(".distanceFromYou").fadeOut().remove();
-  $("#yourRelationshipText").fadeOut().remove();
+  $(".yourRelationshipText").fadeOut().remove();
   if (clicked == true) {
     getDistance();
     doRelationshipText(userID, profileID);
@@ -640,7 +632,7 @@ function initDistanceAndRelationship(userID, profileID, clicked = false) {
       .then((person) => {
         if (person.Privacy > 29 && person.Connected == 1) {
           getDistance();
-          if ($("#yourRelationshipText").length == 0) {
+          if ($(".yourRelationshipText").length == 0) {
             doRelationshipText(userID, profileID);
           }
         }
