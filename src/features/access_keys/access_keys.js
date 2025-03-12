@@ -20,7 +20,7 @@ function addAccessKeys(options) {
     setAccessKeyIfOptionEnabled(options.G2G, "#G2Grecent", "g", options);
     setAccessKeyIfOptionEnabled(
       options.Edit,
-      "a[title='Edit Profile and Family Relationships'],a[title='Edit this Profile'], input[value='Edit Scratch Pad']",
+      "a[title='Edit Profile and Family Relationships'],a[data-bs-title='Edit Person Profile'], input[value='Edit Scratch Pad']",
       "e",
       options
     );
