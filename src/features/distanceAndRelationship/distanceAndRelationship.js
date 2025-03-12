@@ -269,7 +269,7 @@ function addRelationshipText(oText, commonAncestors) {
     <ul id='yourCommonAncestor' style='white-space:nowrap'>${commonAncestorTextOut}</ul>
     </div>`
   );
-  $("h1").first().after(cousinText);
+  $("h1[itemprop='name']").after(cousinText);
   if (cousinText.next("span.large").length > 0) {
     cousinText.after($("<br>"));
   }
