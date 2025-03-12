@@ -123,9 +123,9 @@ import "./wtPlus/wtPlus_options";
 ////////////////////////////////////////////////////////////////////////////////
 
 registerFeature({
-  name: "Add Family Search ID",
+  name: "Add FamilySearch ID",
   id: "addFSId",
-  description: "Add a button to easily add a Family Search ID to a profile.",
+  description: "Add a button to easily add a FamilySearch ID to a profile.",
   category: "Profile",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],

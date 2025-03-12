@@ -174,6 +174,8 @@ async function searchFSRecords() {
     goToFS += "&q.deathLikeDate.from=" + dYearFrom;
     goToFS += "&q.deathLikeDate.to=" + dYearTo;
   }
+  let oSpouses;
+  let oParents;
   if (window.BioSpouses) {
     oSpouses = window.BioSpouses;
     oSpouses.forEach(function (oSp, i) {
