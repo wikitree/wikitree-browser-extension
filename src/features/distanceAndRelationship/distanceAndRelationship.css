@@ -30,7 +30,7 @@ button.copyWidget {
   z-index: 10;
 }
 
-#yourRelationshipText {
+.yourRelationshipText {
   display: inline-block;
   border: 1px solid green;
   border-bottom: 2px solid forestgreen;
@@ -40,24 +40,24 @@ button.copyWidget {
   margin: 0.1em 1em 1em;
   font-weight: bold;
 }
-#yourCommonAncestor {
+.yourCommonAncestor {
   margin: auto;
   padding: 0;
 }
-#yourRelationshipText #yourCommonAncestor > li {
+.yourRelationshipText .yourCommonAncestor > li {
   display: block;
   margin: auto;
   padding: auto;
   list-style: none;
 }
-#yourRelationshipText #yourCommonAncestor > li:nth-child(n + 3) {
+.yourRelationshipText .yourCommonAncestor > li:nth-child(n + 3) {
   display: none;
 }
-#yourRelationshipText {
+.yourRelationshipText {
   position: relative;
   background: whitesmoke;
 }
-#showMoreAncestors {
+.showMoreAncestors {
   position: absolute;
   font-size: 0.8em;
   padding: 0.5em;
