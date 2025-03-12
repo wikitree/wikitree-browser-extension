@@ -1,10 +1,23 @@
-/*
-Created By: Steve Harris (Harris-5439)
-*/
+/**
+ * @file categoryDisplay.js
+ * @description
+ *   Manages how categories are displayed on WikiTree profiles. Depending on user options,
+ *   this feature can:
+ *     - Transform the #Categories element into a list (while preserving original spans and their event handlers).
+ *     - Apply border styling (none, gray, default, orange).
+ *     - Relocate the #Categories block (sidebar, top, or leave at default).
+ *   In "list" mode, if a heading link is present (e.g. an <a> with text "Categories"), it is extracted
+ *   and placed before the ordered list (<ol>) to comply with HTML rules.
+ *
+ * Created By: Steve Harris (Harris-5439)
+ */
 
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
+/**
+ * Checks if the categoryDisplay feature is enabled. If so, loads the CSS and calls moveCategories().
+ */
 shouldInitializeFeature("categoryDisplay").then((result) => {
   if (result) {
     import("./category_display.css").then(() => {
@@ -13,29 +26,91 @@ shouldInitializeFeature("categoryDisplay").then((result) => {
   }
 });
 
+/**
+ * Transforms and relocates the #Categories element based on user options.
+ *
+ * Steps:
+ *   1. Fetch display options.
+ *   2. If displayType is "list":
+ *       - Remove any <span class="SMALL"> elements.
+ *       - Create a new <ol> container.
+ *       - Iterate over the child nodes of #Categories:
+ *           • If a node is an anchor with text "Categories", treat it as the heading.
+ *           • If a node is a <span>, wrap it in an <li> (preserving the node and its event handlers).
+ *           • Clean unwanted text nodes (removing "|" and non-breaking spaces).
+ *       - Empty #Categories and insert the heading (if found) before the <ol>.
+ *   3. Apply the selected border styling.
+ *   4. Relocate #Categories (to sidebar, top, or leave it in place).
+ *
+ * Using this in-place transformation preserves the original <span> nodes so that event listeners,
+ * such as those on the replace buttons, remain intact.
+ *
+ * @async
+ * @function moveCategories
+ * @returns {Promise<void>}
+ */
 async function moveCategories() {
   const options = await getFeatureOptions("categoryDisplay");
-  // Determine the display type
-  const $categories = $("#Categories");
+  let $categories = $("#Categories");
+  if (!$categories.length) return;
+
+  // Transform the structure if "list" display is selected.
   switch (options.displayType) {
     case "default":
+      // No transformation needed.
       break;
+
     case "list":
-      $categories.find('span[class="SMALL"]').remove();
-      $categories.replaceWith(function () {
-        var listCats = $categories
-          .html()
-          .replace(/\|/g, "")
-          .replace(/&nbsp;/g, "");
-        return `<div id="Categories"><ol class="star">${listCats}</ol></div>`;
+      // Remove any <span class="SMALL"> elements.
+      $categories.find("span.SMALL").remove();
+
+      // Create a new ordered list container.
+      const $ol = $('<ol class="star"></ol>');
+      let $heading = null; // Will store the heading link if found.
+
+      // Iterate over each child node of #Categories.
+      $categories.contents().each(function () {
+        // For text nodes, remove unwanted characters.
+        if (this.nodeType === Node.TEXT_NODE) {
+          const cleanText = this.nodeValue
+            .replace(/\|/g, "") // Remove literal "|" characters.
+            .replace(/\u00A0/g, "") // Remove non-breaking spaces.
+            .trim();
+          // Ignore empty text or solitary colon.
+          if (cleanText && cleanText !== ":") {
+            // Optionally handle non-empty text nodes if needed.
+          }
+        } else if (this.nodeType === Node.ELEMENT_NODE) {
+          const $elem = $(this);
+          // If the element is an <a> and its text is "Categories", treat it as the heading.
+          if ($elem.is("a") && $elem.text().trim() === "Categories") {
+            $heading = $elem;
+          } else if ($elem.is("span")) {
+            // Wrap the existing <span> in an <li> (preserving the node and its event handlers).
+            const $li = $("<li></li>");
+            $li.append($elem);
+            $ol.append($li);
+          } else {
+            // Append any other element directly into the ordered list.
+            $ol.append($elem);
+          }
+        }
       });
-      $categories.find("span").replaceWith(function () {
-        //span needed for feature Category Management to find the categories within the div
-        return `<li><span>${this.innerHTML}</span></li>`;
-      });
+
+      // Clear the original #Categories content.
+      $categories.empty();
+      // If a heading was found, insert it above the ordered list.
+      if ($heading) {
+        $categories.append($heading);
+        // Optionally, add a space or separator.
+        $categories.append(" ");
+      }
+      // Append the new ordered list.
+      $categories.append($ol);
       break;
   }
-  // Determine the border color
+
+  // Apply border styling based on the selected option.
   switch (options.borderColor) {
     case "none":
       $categories.css({
@@ -54,19 +129,19 @@ async function moveCategories() {
       $categories.attr("class", "box orange rounded row").css("margin-top", "10px");
       break;
   }
-  // Determine the category placement
-  let $biography = $("#Biography");
-  let $sidebar = $("#Profile-Data").closest("div");
+
+  // Relocate the #Categories element if required.
+  const $biography = $("#Biography");
+  const $sidebar = $("#Profile-Data").closest("div");
+
   switch (options.categoryLocation) {
     case "sidebar":
-      $categories.addClass("row").find('span[class="SMALL"]').remove();
-
-      if ($sidebar.length > 0) {
-        // space pages don't have a DNA section, so we just need to find the first section element
+      // Optionally remove any remaining <span class="SMALL">.
+      $categories.addClass("row").find("span.SMALL").remove();
+      if ($sidebar.length) {
         $sidebar.prepend($categories);
-        // if it's in list form (with no border box)...
+        // Optionally, add a heading for categories if not already present.
         $("#Categories:not(.box) > ol")
-          // ... reformat the heading match the rest of the sidebar ...
           .closest("div")
           .removeAttr("style")
           .prepend('<div class="large" style="margin-bottom:0.5em"><strong>Categories</strong></div>')
@@ -74,18 +149,21 @@ async function moveCategories() {
           .first()
           .contents()
           .each(function (index, element) {
+            // Remove extraneous text nodes.
             if (element.nodeType === 1 && element.nodeName === "LI") return false;
-            $(element).remove(); // ... and remove the "Categories:" link and content before the list items
+            $(element).remove();
           });
       } else {
-        $('a[name="DNA"]').last().before($("#categories"));
+        // Fallback: insert before the DNA section if sidebar is not found.
+        $('a[name="DNA"]').last().before($categories);
       }
       break;
     case "top":
-      $categories.find('span[class="SMALL"]').remove();
+      $categories.find("span.SMALL").remove();
       $biography.before($categories);
       break;
     case "default":
+      // Leave the element in its original position.
       break;
   }
 }
