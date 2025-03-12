@@ -101,7 +101,23 @@ if (isProfilePage) {
   $(window).on("resize", setTabText);
 }
 
-// Function to get profile person ID and name
+/**
+ * Function to get profile person detail. The returned object contains the following properties
+ * (if available on the profile page). For a Space page,only Name is returned.:
+ *   BirthDate
+ *   BirthStatus
+ *   BirthYear
+ *   Dates
+ *   DeathDate
+ *   DeathStatus
+ *   DeathYear
+ *   FirstName
+ *   FullName
+ *   Gender
+ *   Id
+ *   LastNameAtBirth
+ *   Name (e.g. Smith-1234)
+ */
 export function getProfilePersonInfo() {
   const person = {};
   const pageData = $("#pageData").data();

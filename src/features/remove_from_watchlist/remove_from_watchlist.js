@@ -4,11 +4,14 @@ import $ from "jquery";
 import { mainDomain } from "../../core/pageType";
 import { getUserNumId } from "../../core/common";
 
+let editLink;
 function init() {
   const profileRows = document.getElementsByTagName("tr");
 
   for (let i = 1 /* skip table with sorting links */; i < profileRows.length; i++) {
-    const editLink = $(profileRows[i]).find("a[href*='Special:EditPerson']")[0];
+    if (!editLink) {
+      continue;
+    }
     var urlParams = new URLSearchParams(editLink.href);
     if (urlParams.has("u")) {
       //parent of edit link is td

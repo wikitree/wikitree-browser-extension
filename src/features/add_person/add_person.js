@@ -19,8 +19,14 @@ div.refsBox, and table#summaryTable and put them in a new div named '#sourceBits
 Place #sourceBits before #backToActionButton.
 */
   const sourceBits = $("<div id='sourceBits'></div>");
-  sourceBits.insertAfter($("#basicDataSection table"));
-  $("p.sourcesContent, table.sourcesContent, div.refsBox, table#summaryTable").appendTo(sourceBits);
+  sourceBits.appendTo($("#basicDataSection"));
+  $("div.sourcesContent, table.sourcesContent, div.refsBox, table#summaryTable").appendTo(sourceBits);
+  /*
+  const sourcesSection = $("#sourcesSection");
+  if (sourcesSection.length) {
+    sourcesSection.appendTo(sourceBits);
+  }
+    */
 }
 
 function showBasicData() {

@@ -71,6 +71,7 @@ function checkText() {
 }
 
 textField.addEventListener("input", checkText);
+textField.focus();
 
 // NOTE: This is called recursively
 function fillOptionsDataFromUiElements(feature, options, optionsData) {

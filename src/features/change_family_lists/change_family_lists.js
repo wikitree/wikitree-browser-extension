@@ -282,6 +282,8 @@ function parseInitialData() {
       }
     });
     familyData.parents = parsedParents;
+  } else {
+    delete familyData.parents;
   }
 
   // Parse siblings
@@ -301,6 +303,8 @@ function parseInitialData() {
       }
     });
     familyData.siblings = parsedSiblings;
+  } else {
+    delete familyData.siblings;
   }
 
   // Parse spouses
@@ -324,6 +328,8 @@ function parseInitialData() {
       }
     });
     familyData.spouses = spouseEntries;
+  } else {
+    delete familyData.spouses;
   }
 
   // Parse children
@@ -344,6 +350,8 @@ function parseInitialData() {
       }
     });
     familyData.children = parsedChildren;
+  } else {
+    delete familyData.children;
   }
 
   //console.log("Parsed familyData:", familyData);
@@ -365,17 +373,25 @@ function buildFamilyListsFromData(familyData) {
   headerDiv.innerHTML = "<strong>Family Relationships</strong>";
   container.appendChild(headerDiv);
 
-  container.appendChild(buildParentsSection(familyData.parents));
-  container.appendChild(buildSiblingsSection(familyData.siblings));
-  if (familyData.spouses.length === 0) {
-    container.appendChild(buildSpousesUnknown());
-  } else {
-    container.appendChild(buildSpousesSection(familyData.spouses));
+  if (familyData.parents !== undefined) {
+    container.appendChild(buildParentsSection(familyData.parents));
   }
-  if (familyData.children.length === 0) {
-    container.appendChild(buildChildrenUnknown());
-  } else {
-    container.appendChild(buildChildrenSection(familyData.children));
+  if (familyData.siblings !== undefined) {
+    container.appendChild(buildSiblingsSection(familyData.siblings));
+  }
+  if (familyData.spouses !== undefined) {
+    if (familyData.spouses.length === 0) {
+      container.appendChild(buildSpousesUnknown());
+    } else {
+      container.appendChild(buildSpousesSection(familyData.spouses));
+    }
+  }
+  if (familyData.children !== undefined) {
+    if (familyData.children.length === 0) {
+      container.appendChild(buildChildrenUnknown());
+    } else {
+      container.appendChild(buildChildrenSection(familyData.children));
+    }
   }
   return container;
 }
@@ -1181,7 +1197,7 @@ function moveFamilyLists() {
   const sidebarHeading = $nVitals.find(".sidebar-heading");
   if (window.innerWidth < 992) {
     sidebarHeading.hide();
-    $nVitals.removeClass("row").prependTo(treePersonBit);
+    $nVitals.removeClass("row").appendTo(treePersonBit);
   } else if (options.moveToRight) {
     if (options.showSidebarHeading) {
       sidebarHeading.show();
@@ -1730,6 +1746,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   if (
     !isPrivate &&
     $("li#profilePerson").length === 0 &&
+    familyData.siblings &&
     familyData.siblings.length &&
     familyData.siblings[0].FullName
   ) {

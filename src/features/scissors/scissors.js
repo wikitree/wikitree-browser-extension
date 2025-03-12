@@ -24,7 +24,9 @@ import { showCopyMessage } from "../access_keys/access_keys.js";
 shouldInitializeFeature("scissors").then((result) => {
   if (result) {
     import("./scissors.css");
-    $(document).on("click", ".copy--buttons button", function () {
+    $(document).on("click", ".copy--buttons button", function (e) {
+      e.preventDefault();
+      copyThingToClipboard($(this).data("copy-text"));
       const text = $(this).data("copy-text");
       showCopyMessage(text);
     });
@@ -41,7 +43,7 @@ async function helpScissors() {
   const options = await getFeatureOptions("scissors");
   let copyItems = [];
   let copyPosition = $("#person ul.copy--buttons");
-
+  let useIsNew = false;
   // Network feed
   if (isNetworkFeed || isProfileHistoryDetail) {
     const urlParams = new URLSearchParams(window.location.search);
@@ -131,6 +133,8 @@ async function helpScissors() {
   }
 
   if (isImagePage) {
+    copyPosition = $("#jump-nav");
+    useIsNew = true;
     const aTitle = document.title.trim();
     const url = window.location.toString().split("#")[0].split("?")[0];
 
@@ -174,7 +178,7 @@ async function helpScissors() {
     copyItems.push({ label: "UserID", text: userID });
   }
 
-  addItems(copyItems, copyPosition);
+  addItems(copyItems, copyPosition, { isNew: useIsNew });
 
   modifyLinkButtons(options);
 
@@ -346,8 +350,9 @@ export function copyThingToClipboard(thing) {
 }
 
 export function attachScissorsEvent() {
-  $("#g2gScissors button").on("click", function (e) {
+  $(document).on("click", "#g2gScissors button,.g2gScissors button", function (e) {
     e.preventDefault();
     copyThingToClipboard($(this).attr("data-copy-text"));
+    showCopyMessage($(this).attr("data-copy-text"));
   });
 }

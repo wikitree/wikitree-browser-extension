@@ -123,6 +123,17 @@ import "./wtPlus/wtPlus_options";
 ////////////////////////////////////////////////////////////////////////////////
 
 registerFeature({
+  name: "Add FamilySearch ID",
+  id: "addFSId",
+  description: "Add a button to easily add a FamilySearch ID to a profile.",
+  category: "Profile",
+  creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
+  contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
+  defaultValue: false,
+  pages: [isProfilePage],
+});
+
+registerFeature({
   name: "AKA Name Links",
   id: "akaNameLinks",
   description: 'Adds surname page links to the "aka" names on the profile page.',
@@ -389,7 +400,7 @@ registerFeature({
   creators: [{ name: "Aleš Trtnik", wikitreeid: "Trtnik-2" }],
   contributors: [],
   defaultValue: false,
-  pages: [isMainDomain],
+  pages: [isMainDomain, isG2G],
   options: [
     {
       id: "color",

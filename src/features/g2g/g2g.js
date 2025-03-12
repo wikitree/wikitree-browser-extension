@@ -108,7 +108,7 @@ function linkify() {
 }
 
 function addScissorsToAnswers() {
-  const allAnchorNodes = document.getElementsByTagName("a");
+  const allAnchorNodes = document.querySelectorAll("a:not(header a)");
   for (let i = 0; i < allAnchorNodes.length; i++) {
     //https://wikitree.com/g2g/1652303/join-the-2nd-germany-research-party-on-wikitree-day?show=1657604#a1657604
 
@@ -135,7 +135,10 @@ function addScissorsToAnswers() {
         text: allAnchorNodes[i].href,
       };
 
-      addItems([previewLinkItem, urlItem], $(allAnchorNodes[i].parentNode), { isNew: true });
+      const g2gScissorsClassDiv = $("<div class='g2gScissors'></div>");
+      g2gScissorsClassDiv.insertAfter(allAnchorNodes[i].parentNode);
+
+      addItems([previewLinkItem, urlItem], g2gScissorsClassDiv, { isNew: true });
     }
   }
 }
@@ -205,6 +208,8 @@ function g2gPageLinksAtTop() {
 
 function g2gScissors(alsoInAnswers) {
   if ($("body.qa-template-question.qa-body-js-on").length && $("#g2gScissors").length == 0) {
+    const g2gScissors = $("<div id='g2gScissors'></div>");
+    $(".qa-sidepanel").prepend(g2gScissors);
     const url = window.location.href.replaceAll(/%2C/g, ",");
     const g2gIDmatch = url.match(/\/([0-9]{1,8})\//);
     if (g2gIDmatch != null) {
@@ -212,7 +217,7 @@ function g2gScissors(alsoInAnswers) {
       const g2gURL = "https://" + mainDomain + "/g2g/" + window.g2gID;
       const g2gQuestion = $(".qa-main-heading h1").text();
 
-      const position = $(".qa-sidepanel");
+      const position = $("#g2gScissors");
 
       const IDItem = {
         label: "ID",

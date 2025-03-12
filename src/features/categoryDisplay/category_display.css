@@ -6,3 +6,9 @@
   padding-left: 0 !important;
   padding-right: 0 !important;
 }
+#Categories ol.star li {
+  margin-left: 1em !important;
+}
+#Categories a {
+  cursor: pointer;
+}
