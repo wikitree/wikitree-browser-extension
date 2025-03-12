@@ -20,7 +20,7 @@
   body.darkMode h5 a:visited:not(.icon--help),
   body.darkMode h6 a:visited:not(.icon--help),
   body.darkMode p,
-  body.darkMode b:not(.dropdown-menu a b,.btn-pill-sm b),
+  body.darkMode b:not(.btn-pill-sm b),
   body.darkMode i,
   body.darkMode em,
   body.darkMode strong,
@@ -99,6 +99,10 @@
 
   body.darkmode #distanceFromYou {
     border-color: #ffffff;
+  }
+
+  body.darkMode .dropdown-menu a {
+    text-decoration: none;
   }
 
   body.darkMode .qa-q-item-tag-item,
@@ -181,14 +185,12 @@
   html
     body.darkMode
     header
-    a:link:not(.menu-style .dropdown-menu a, .qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, #footer
-      a),
+    a:link:not(.dropdown-menu a, .qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, #footer a),
   html
     body.darkMode
     header
-    a:visited:not(.menu-style
-      .dropdown-menu
-      a, .qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a),
+    a:visited:not(.dropdown-menu a, .qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu
+      a, #footer a),
   html
     body.darkMode
     .cc7Table
@@ -200,9 +202,8 @@
   html
     body.darkMode
     header
-    a:visited:not(.menu-style
-      .dropdown-menu
-      a, .qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a),
+    a:visited:not(.dropdown-menu a, .qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu
+      a, #footer a),
   html
     body.darkMode
     .cc7Table
@@ -213,15 +214,12 @@
   html
     body.darkMode
     header
-    a:visited:not(.menu-style
-      .dropdown-menu
-      a, .qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, #footer a),
+    a:visited:not(.dropdown-menu a, .qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, #footer a),
   html
     body.darkMode
     header
-    a:visited:not(.menu-style
-      .dropdown-menu
-      a, .qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a),
+    a:visited:not(.dropdown-menu a, .qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu
+      a, #footer a),
   html
     body.darkMode
     .cc7Table
@@ -233,9 +231,8 @@
   html
     body.darkMode
     header
-    a:visited:not(.menu-style
-      .dropdown-menu
-      a, .qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu a, #footer a),
+    a:visited:not(.dropdown-menu a, .qa-nav-main-link, a.button, .qa-nav-sub-link, .qa-nav-footer-link, ul.pureCssMenu
+      a, #footer a),
   html
     body.darkMode
     .cc7Table
