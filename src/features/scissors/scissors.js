@@ -123,6 +123,9 @@ async function helpScissors() {
     copyItems.push({ label: "URL", text: aUrl });
 
     if (isCategoryPage || isCategoryEdit) {
+      copyPosition = $("h1");
+      useIsNew = true;
+
       const aLink = `[[${aTitle}]]`;
       copyItems.push({ label: "Use", text: aLink });
     }
