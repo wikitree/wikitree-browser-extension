@@ -423,10 +423,10 @@ async function addDistance(data) {
   const profileID = profilePerson.Name;
   const userID = getUserWtId();
 
-  if ($("#degreesFromYou").length == 0) {
+  if ($(".distanceFromYou").length < 2) {
     window.distance = data.path.length - 1;
     const profileName = profilePerson.FirstName;
-    if (window.distance > 0 && $("#degreesFromYou").length == 0) {
+    if (window.distance > 0) {
       $("#person h1").append(
         $(
           `<span class='distanceFromYou' title='${profileName} is ${window.distance} degrees from you.'>${window.distance}°</span>`
