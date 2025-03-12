@@ -161,9 +161,105 @@ async function initDarkMode() {
   }
 }
 
+/**
+ * Replace fill color in SVG text using DOMParser for robust parsing.
+ * @param {string} svgText - The original SVG content.
+ * @param {string} newFillColor - The new fill color (e.g. "#FFFFFF").
+ * @returns {string} - The modified SVG content.
+ */
+function svgFillReplace(svgText, newFillColor) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgText, "image/svg+xml");
+  // Update every element that has a fill attribute.
+  doc.querySelectorAll("[fill]").forEach((el) => {
+    el.setAttribute("fill", newFillColor);
+  });
+  const serializer = new XMLSerializer();
+  return serializer.serializeToString(doc);
+}
+
+/**
+ * Cache object to store modified SVG blob URLs keyed by their original URL.
+ */
+const svgCache = {};
+
+/**
+ * Fetch the SVG from the provided URL, replace its fill, and return a blob URL.
+ * @param {string} url - The URL of the SVG file.
+ * @param {string} newFillColor - The desired fill color.
+ * @returns {Promise<string>} - A promise that resolves to the blob URL.
+ */
+async function fetchAndModifySVG(url, newFillColor) {
+  if (svgCache[url]) return svgCache[url];
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+  const svgText = await response.text();
+  const modifiedSVG = svgFillReplace(svgText, newFillColor);
+  const blob = new Blob([modifiedSVG], { type: "image/svg+xml" });
+  const blobUrl = URL.createObjectURL(blob);
+  svgCache[url] = blobUrl;
+  return blobUrl;
+}
+
+/**
+ * Replace fill color in all SVG background images on the page.
+ * This function scans every element, and if its computed background-image contains an SVG URL,
+ * it updates that background image with the modified SVG.
+ *
+ * @param {string} newFillColor - The desired fill color.
+ */
+async function replaceAllSVGBackgrounds(newFillColor = "#FFFFFF") {
+  const elements = document.querySelectorAll("*");
+  for (const el of elements) {
+    const bgImage = window.getComputedStyle(el).getPropertyValue("background-image");
+    if (bgImage && bgImage !== "none" && bgImage.includes("url(")) {
+      const match = /url\(["']?(.*?)["']?\)/.exec(bgImage);
+      if (match && match[1] && match[1].endsWith(".svg")) {
+        try {
+          const blobUrl = await fetchAndModifySVG(match[1], newFillColor);
+          el.style.backgroundImage = `url(${blobUrl})`;
+        } catch (error) {
+          console.error("Error processing SVG background:", match[1], error);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Replace fill color in all SVG <img> elements on the page.
+ * This function finds each <img> whose src ends with '.svg', fetches and modifies the SVG,
+ * and then updates the src attribute with the new blob URL.
+ *
+ * @param {string} newFillColor - The desired fill color.
+ */
+async function replaceAllSVGImages(newFillColor = "#FFFFFF") {
+  const images = document.querySelectorAll("img");
+  for (const img of images) {
+    const src = img.getAttribute("src");
+    if (src && src.endsWith(".svg")) {
+      try {
+        const blobUrl = await fetchAndModifySVG(src, newFillColor);
+        img.setAttribute("src", blobUrl);
+        // Delay revoking the blob URL to ensure the image loads correctly.
+        img.addEventListener("load", function () {
+          setTimeout(() => {
+            URL.revokeObjectURL(blobUrl);
+          }, 1000); // Adjust the delay as needed.
+        });
+      } catch (error) {
+        console.error("Error processing SVG image:", src, error);
+      }
+    }
+  }
+}
+
 shouldInitializeFeature("darkMode").then((result) => {
   if (result) {
     import("./darkMode.css");
     initDarkMode();
+    replaceAllSVGBackgrounds("#a5d167");
+    // Modify <img> tag SVGs.
+    replaceAllSVGImages("#a5d167");
   }
 });

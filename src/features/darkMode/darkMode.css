@@ -25,11 +25,12 @@
   body.darkMode em,
   body.darkMode strong,
   body.darkMode small,
-  body.darkMode span:not(.icon--help,.badge,.btn-pill .icon--inline),
+  body.darkMode span:not(.privacy,.icon--help,.badge,.btn-pill, .icon--inline,.qa-netvote-count-data,.qa-netvote-count-pad),
   body.darkMode button.btn-utility,
   body.darkMode .wrapper,
   body.darkMode div:not(.tabs--wrapper, .tabs--wrapper div, .large,header div,footer div, .qa-nav-main, .qa-nav-sub, .qa-footer, .qa-footer a, .qa-footer a:link, .qa-footer a:visited, .qa-footer a:hover, .qa-q-item-stats, .qa-q-item-stats *,.qa-q-view-stats, .qa-q-view-stats *, .qa-q-view-stats .green.rounded, .qa-q-view-stats .green.rounded *, .qa-part-q-view, .qa-part-q-view *, .qa-part-q-view .green.rounded.box, .ui-dialog, .ui-dialog *),
-  body.darkMode a:visited:not(.dropdown-menu a:visited,span.EDIT a:visited,aside a:visited,.tabs--wrapper a:visited, h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited, h5 a:visited, h6 a:visited, .qa-nav-main-link, .qa-nav-sub-link, .qa-nav-footer-link, #footer a, .qa-q-item-tag-item a, .surnameTableHeaderRow a),
+  body.darkMode a:link:not(.tabs--wrapper a,span.EDIT a:visited,aside a:visited, h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited, h5 a:visited, h6 a:visited, #footer a, .qa-q-item-tag-item a, .surnameTableHeaderRow a),
+  body.darkMode a:visited:not(.tabs--wrapper a,span.EDIT a:visited,aside a:visited, h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited, h5 a:visited, h6 a:visited, #footer a, .qa-q-item-tag-item a, .surnameTableHeaderRow a),
   body.darkMode .small,
   body.darkMode strong,
   body.darkMode .strong,
@@ -112,6 +113,7 @@
     border-color: gold;
   }
 
+  /*
   body.darkMode .icon--help {
     filter: hue-rotate(340deg) saturate(7.5);
   }
@@ -121,6 +123,7 @@
   body.darkMode #favoriting {
     filter: hue-rotate(340deg) saturate(20.5);
   }
+*/
 
   body.darkMode .profile--actions a span,
   body.darkMode span.EDIT a:link,
@@ -135,7 +138,9 @@
   body.darkMode span.editsection a:link,
   body.darkMode span.editsection a:visited,
   body.darkMode ul.copy--buttons img {
+    /*
     filter: hue-rotate(340deg) saturate(30.5);
+    */
   }
   body.darkMode #distanceFromYou {
     border-color: #ffffff;
@@ -461,7 +466,9 @@
   body.darkMode .familyCount14,
   body.darkMode .familyCount15,
   body.darkMode span.HISTORY-DATE,
-  body.darkMode span.THANKYOU-DATE {
+  body.darkMode span.THANKYOU-DATE,
+  body.darkMode .qa-netvote-count-data,
+  body.darkMode .qa-netvote-count-pad {
     color: #36393f !important;
   }
   body.profile.darkMode div.small_0 {
