@@ -15,7 +15,7 @@ shouldInitializeFeature("visitedLinks").then((result) => {
       // Put it in the head of the iframe
       const iframes = document.querySelectorAll("iframe");
       iframes.forEach((iframe) => {
-        iframe.contentDocument.head.appendChild(clone);
+        iframe.contentDocument?.head?.appendChild(clone);
       });
     });
   }
