@@ -9,6 +9,7 @@ function init() {
   const profileRows = document.getElementsByTagName("tr");
 
   for (let i = 1 /* skip table with sorting links */; i < profileRows.length; i++) {
+    const editLink = $(profileRows[i]).find("a[href*='Special:EditPerson']")[0];
     if (!editLink) {
       continue;
     }

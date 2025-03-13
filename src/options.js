@@ -603,9 +603,10 @@ $("#openSettings").on("click", function () {
       '<li title="This will pop up a dialog to select the backup file for your feature options. This will overwrite your current options."><button id="btnImportOptions">Restore Options</button> Restore the feature options from a previous backup.</li>' +
       '<li title="Resets all feature options to the defaults. This does not include data stored on WikiTree by features like My Menu, Extra Watchlist, etc."><button id="btnClearOptions">Reset Options</button> Reset all options to the defaults.</li>' +
       '<li class="hide-on-wikitree" style="font-size: 10pt; font-style: italic; color: #bbb; text-align: center;">For more data options, access this from the <a href="https://www.wikitree.com/" style="color: #bbb;" target="_blank">WikiTree</a> site.</li>' +
-      '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Data from My Menu, Change Summary Options, Extra Watchlist, Clipboard and Notes, etc.</li>' +
-      '<li class="hide-unless-wikitree" title="This will download a backup file with your current feature data."><button id="btnExportData">Back Up Data</button> Back up your feature data from WikiTree.</li>' +
-      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select your feature data backup file."><button id="btnImportData">Restore Data</button> Restore your feature data on WikiTree.</li>' +
+      '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Backup feature data associated with the following subset of features: Change Summary Options, Clipboard and Notes, Extra Watchlist, My Menu, and Space Watchlist Sorter.</li>' +
+      '<li class="hide-unless-wikitree" title="This will download a backup file with your current feature data."><button id="btnExportData">Back Up Data</button> Back up above subset of your feature data from WikiTree.</li>' +
+      '<li class="hide-unless-wikitree" title="This will pop up a dialog to select your feature data backup file."><button id="btnImportData">Restore Data</button> Restore above subset of your feature data on WikiTree.</li>' +
+      '<li class="hide-unless-wikitree" style="font-size: 10pt; font-weight: bold; margin-top: 20px;">Use the save/restore buttons on your <a href="https://www.wikitree.com/wiki/Special:Home#downloadFeatureData" style="color: #060;" target="_blank">WikiTree Navigation Home Page</a> to save/restore all feature data.</li>' +
       "</ul></div></dialog>"
   )
     .appendTo($(document.body).remove("#settingsDialog"))
@@ -846,7 +847,7 @@ chrome.storage.onChanged.addListener(function () {
 })((typeof browser !== "undefined" ? browser : chrome).tabs);
 
 function downloadBackupData(key, data, button) {
-  const wrapped = wrapBackupData(key, data);
+  const wrapped = wrapBackupData(key, data, key == "data");
   const link = $(getBackupLink(wrapped)).addClass("button download").text("Download").hide();
   $(button).hide().parent().append(" ").append(link);
   link.fadeIn();

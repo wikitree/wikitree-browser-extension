@@ -246,21 +246,24 @@ oncePerTab((rootWindow) => {
 document.querySelector("body").classList.add("wte");
 
 async function checkAnyDataFeature() {
-  const features = ["extraWatchlist", "clipboardAndNotes", "customChangeSummaryOptions", "myMenu"];
-  const promises = features.map((feature) => checkIfFeatureEnabled(feature));
+  const dataFeatures = [
+    "clipboardAndNotes",
+    "customChangeSummaryOptions",
+    "distanceAndRelationship",
+    "extraWatchlist",
+    "myMenu",
+    "spaceWatchlistSorter",
+  ];
+  const promises = dataFeatures.map((feature) => checkIfFeatureEnabled(feature));
 
   try {
     const results = await Promise.all(promises);
     // results is an array of booleans. If any is true, initialize this feature.
-    const anyFeatureToInitialize = results.some((result) => result);
-    if (anyFeatureToInitialize) {
-      results.forEach((result) => {
-        if (result) {
-          if ($("div#featureDataButtons").length == 0) {
-            addDataButtons();
-          }
-        }
-      });
+    const anyDataFeatureActive = results.some((result) => result);
+    if (anyDataFeatureActive) {
+      if ($("div#featureDataButtons").length == 0) {
+        addDataButtons();
+      }
     }
   } catch (error) {
     console.error("Error checking features to initialize:", error);
@@ -351,7 +354,7 @@ function downloadFeatureData() {
   });
 }
 
-export function wrapBackupData(key, data) {
+export function wrapBackupData(key, data, isDataSubset = false) {
   let now = new Date();
   let wrapped = {
     id:
@@ -360,7 +363,8 @@ export function wrapBackupData(key, data) {
         .replace(/:/g, "")
         .replace(/ /g, "_") +
       "_WBE_backup_" +
-      key,
+      key +
+      (key == "data" ? (isDataSubset ? "_subset" : "_all") : ""),
     extension: WBE.name,
     version: WBE.version,
     browser: navigator.userAgent,
@@ -423,12 +427,13 @@ function importFeatureData() {
 
 function addDataButtons() {
   const commonText =
-    "for your WikiTree Browser Extension data from the Extra Watchlist, " +
-    "My Menu, Clipboard and Notes, and Custom Change Summary Options features";
+    "of all data associated with features of WikiTree Browser Extension. This includes data for Change Summary " +
+    "Options, Clipboard and Notes, Distance and Relationships, Extra Watchlist, My Menu, and Space Watchlist " +
+    "Sorter";
   const dataButtons = `
     <div id="featureDataButtons">
       <button id="downloadFeatureData" class="btn btn-secondary btn-sm"
-      title="Download a backup file ${commonText}.">Download WBE Feature Data</button>
+      title="Create and download a backup file ${commonText}.">Download all WBE Feature Data</button>
       <button id="importFeatureData" class="btn btn-secondary btn-sm"
       title="Import/restore data from a backup file ${commonText}.">Import WBE Feature Data</button>
     </div>

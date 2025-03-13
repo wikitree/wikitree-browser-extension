@@ -4,11 +4,14 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { showDraftList, updateDraftList } from "../../core/common";
+import { addDataMenuAttributes } from "../my_menu/my_menu";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 shouldInitializeFeature("draftList").then((result) => {
   if (result) {
     import("./draftList.css");
+    addDataMenuAttributes();
+
     // Check that WikiTree BEE hasn't added this already
     if ($("a.drafts").length == 0) {
       addDraftsToFindMenu();

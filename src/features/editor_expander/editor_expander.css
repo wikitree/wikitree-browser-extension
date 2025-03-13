@@ -25,7 +25,8 @@ textarea#wpTextbox1.expanded {
   resize: none;
 }
 
-#toolbar.expanded {
+#toolbar.expanded,
+#toolbar.sticky.expanded {
   position: fixed !important;
   top: 5%; /* 5% from the top */
   left: 5%;

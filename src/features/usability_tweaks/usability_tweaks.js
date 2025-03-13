@@ -877,8 +877,9 @@ class RangeringTool {
         sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
         if (createdDate > sixMonthsAgo) {
           // Add the "newt" class to the HISTORY-ITEM span
+            //.closest("span.HISTORY-ITEM")
           $("a[href*='/wiki/" + profileID + "']")
-            .closest("span.HISTORY-ITEM")
+            .closest("span.feed-item")
             .addClass("newt");
           // Add the "newt" class to the first /wiki/ link in the HISTORY-ITEM span
           $("a[href*='/wiki/" + profileID + "']").addClass("newt");
@@ -942,7 +943,7 @@ class RangeringTool {
     await this.loadExcludedNames();
 
     const WTIDs = [];
-    const historyItems = $("span.HISTORY-ITEM").not(".HISTORY-HIDDEN"); // Exclude HISTORY-HIDDEN
+    const historyItems = $("span.feed-item").not(".HISTORY-HIDDEN"); // Exclude HISTORY-HIDDEN
     const userMergeTimes = {}; // Track timestamps of merges by each user
     const warningsShown = JSON.parse(sessionStorage.getItem("warningsShown")) || {}; // Track shown warnings
     const processedPairs = new Set(); // Track processed ID pairs
@@ -1080,17 +1081,23 @@ class RangeringTool {
           // Check if this pair has already been processed
           if (!processedPairs.has(pairKey)) {
             processedPairs.add(pairKey); // Mark this pair as processed
-
             const differentGender = person1.Gender && person2.Gender && person1.Gender !== person2.Gender;
-            const birthDifferenceOver10Years =
-              self.okDate(person1.BirthDate) &&
-              self.okDate(person2.BirthDate) &&
-              Math.abs(new Date(person1.BirthDate) - new Date(person2.BirthDate)) > 315569520000;
-            const deathDifferenceOver10Years =
-              self.okDate(person1.DeathDate) &&
-              self.okDate(person2.DeathDate) &&
-              Math.abs(new Date(person1.DeathDate) - new Date(person2.DeathDate)) > 315569520000;
-
+            let birthDifferenceOver10Years = false;
+            let deathDifferenceOver10Years = false
+            if (self.okDate(person1.BirthDate) && self.okDate(person2.BirthDate)) {
+              let b = person1.BirthDate.replace('-00-00', '');
+              let d1 = new Date(b);
+              b = person2.BirthDate.replace('-00-00', '');
+              let d2 = new Date(b);
+              birthDifferenceOver10Years = Math.abs(d1 - d2) > 315569520000;
+            }
+            if (self.okDate(person1.DeathDate) && self.okDate(person2.DeathDate)) {
+              let b = person1.DeathDate.replace('-00-00', '');
+              let d1 = new Date(b);
+              b = person2.DeathDate.replace('-00-00', '');
+              let d2 = new Date(b);
+              deathDifferenceOver10Years = Math.abs(d1 - d2) > 315569520000;
+            }
             if (differentGender || birthDifferenceOver10Years || deathDifferenceOver10Years) {
               $(this).addClass("anomaly");
               let titleText = "";
@@ -1168,7 +1175,6 @@ class RangeringTool {
           currentSequence.push(currentMerge);
         }
       }
-
       // Highlight the last sequence for the user
       if (currentSequence.length >= 3) {
         this.flagRapidMerges(userID, currentSequence, warningsShown);
@@ -1590,7 +1596,7 @@ class RangeringTool {
 
     $(document).on("click", "#onlyNewestBadges,#onlyNewts", async function () {
       // Find all span.HISTORY-ITEM rows not containing links with the class newestPre1700s and toggle them
-      const allItems = $("span.HISTORY-ITEM:not(.HISTORY-HIDDEN)");
+      const allItems = $("span.feed-item:not(.HISTORY-HIDDEN)");
       if (self.currentConfig.name === "Merges" && Object.keys(self.memberData).length == 0) {
         await self.getMemberCreatedDates();
       }
@@ -1742,7 +1748,7 @@ const rangers = [
   "Whitten-1",
 ];
 
-if (isNetworkFeed && rangers.includes(getUserWtId()) && window.location.href.match(/Pre-1700|Pre-1500|merge=1/)) {
+if (isNetworkFeed && rangers.includes(getUserWtId()) && window.location.href.match(/pre1700|pre1500|merge=1/)) {
   initBioCheck();
   rangeringTool = new RangeringTool();
 }

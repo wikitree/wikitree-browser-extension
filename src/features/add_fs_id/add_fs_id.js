@@ -3,7 +3,10 @@ import { profilePerson, isOK } from "../../core/common";
 import $ from "jquery";
 
 shouldInitializeFeature("addFSId").then((result) => {
-  addFamilySearchIDLink();
+  if (result) {
+    import("./add_fs_id.css");
+    addFamilySearchIDLink();
+  }
 });
 
 async function addFamilySearchIDLink() {

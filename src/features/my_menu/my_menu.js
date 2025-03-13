@@ -16,6 +16,19 @@ import { doWhatLinksHere } from "../what_links_here/what_links_here";
 import { mainDomain } from "../../core/pageType";
 import "./my_menu.css";
 
+export function addDataMenuAttributes() {
+  if (!$("html").hasClass("dataMenuAttribute")) {
+    $("html").addClass("dataMenuAttribute");
+    $("header nav div.btn-group").each(function () {
+      let menuTitle = $(this).find("button").text().replace(" ", "_");
+      if (menuTitle.match(/-[0-9]+$/)) {
+        menuTitle = "Profile";
+      }
+      $(this).attr("data-menu", menuTitle);
+    });
+  }
+}
+
 shouldInitializeFeature("myMenu").then((result) => {
   if (result) {
     const profileWTID = profilePerson?.Name;
@@ -285,13 +298,7 @@ function addCustomMenu() {
   }
 
   // Set data-menu attributes on nav buttons based on their text (normalize spaces to underscores)
-  $("header nav div.btn-group").each(function () {
-    let menuTitle = $(this).find("button").text().replace(" ", "_");
-    if (menuTitle.match(/-[0-9]+$/)) {
-      menuTitle = "Profile";
-    }
-    $(this).attr("data-menu", menuTitle);
-  });
+  addDataMenuAttributes();
 
   // Remove any old container and create the My Menu button.
   $("#myCustomMenuContainer").remove();

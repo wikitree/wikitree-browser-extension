@@ -7,6 +7,10 @@
   border: 1px solid #d0d0d0;
 }
 
+.wbe-hidden-image {
+  display: none;
+}
+
 /* Settings header (feature toggle, title, show/hide button) */
 .wbe-settings-heading {
   display: flex;
