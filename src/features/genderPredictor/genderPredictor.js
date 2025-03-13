@@ -11,12 +11,14 @@ const mGender = $("select[name='mGender']");
 let wasPredicted = false;
 
 shouldInitializeFeature("genderPredictor").then((result) => {
-  import("./genderPredictor.css");
-  setTimeout(() => {
-    if (mGender.length && mGender.val() === "") {
-      predictGender();
-    }
-  }, 500);
+  if (result) {
+    import("./genderPredictor.css");
+    setTimeout(() => {
+      if (mGender.length && mGender.val() === "") {
+        predictGender();
+      }
+    }, 500);
+  }
 });
 
 async function getGenderPrediction(name) {
