@@ -51,7 +51,7 @@ shouldInitializeFeature("categoryManagement").then((result) => {
     } else if (isSearchPage) {
       getFeatureOptions("categoryManagement").then((options) => {
         if (options.catALotSearchResults) {
-          $document.getElementsByTagName("p")[0].appendChild(CreateBatchCatActivationLinkAndSpan());
+          $document.getElementsByTagName("p")[2].appendChild(CreateBatchCatActivationLinkAndSpan());
         }
       });
     } else if (isCategoryHistory) {
