@@ -341,7 +341,7 @@ function doRelationshipText(userID, profileID) {
           const firstPText = firstP.textContent.replace(/[\t\n]/g, " ").trim();
           const lastLink = decodeURIComponent(
             doc.querySelector("#imageContainer > p > span:last-of-type a")?.href || ""
-          ).replace(" ", "_");
+          ).replaceAll(" ", "_");
           const profileFirstName = profilePerson.FirstName;
 
           if (data.commonAncestors.length === 0) {
