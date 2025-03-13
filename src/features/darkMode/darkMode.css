@@ -24,7 +24,7 @@
   body.darkMode em,
   body.darkMode strong,
   body.darkMode small,
-  body.darkMode span:not(.privacy,.icon--help,.badge,.btn-pill, .icon--inline,.qa-netvote-count-data,.qa-netvote-count-pad),
+  body.darkMode span:not(.privacy,.icon--help,.badge,.btn-pill, .icon--inline,.qa-netvote-count-data,.qa-netvote-count-pad,.qa-netvote-count,.qa-a-count,.qa-a-count-data,.qa-a-count-pad),
   body.darkMode button.btn-utility,
   body.darkMode .wrapper,
   body.darkMode div:not(.tabs--wrapper, .tabs--wrapper div, .large,header div,footer div, .qa-nav-main, .qa-nav-sub, .qa-footer, .qa-footer a, .qa-footer a:link, .qa-footer a:visited, .qa-footer a:hover, .qa-q-item-stats, .qa-q-item-stats *,.qa-q-view-stats, .qa-q-view-stats *, .qa-q-view-stats .green.rounded, .qa-q-view-stats .green.rounded *, .qa-part-q-view, .qa-part-q-view *, .qa-part-q-view .green.rounded.box, .ui-dialog, .ui-dialog *),
