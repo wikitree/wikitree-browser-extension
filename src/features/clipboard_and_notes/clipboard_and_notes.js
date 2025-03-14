@@ -324,7 +324,7 @@ function copyClippingToClipboard(element) {
       el = $("#wpUploadDescription");
     } else if ($("h1:contains('Edit Marriage Information')").length) {
       el = $("#wpSummary");
-    } else if ($("#postNewCommentButton").css("display") == "none") {
+    } else if ($("#commentPostDiv").css("display") == "block") {
       el = $("#commentPostText");
     } else if ($(".memoriesFormToggle").css("display") == "block") {
       el = $("textarea[name='wpText']");
