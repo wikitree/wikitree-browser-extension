@@ -199,7 +199,7 @@ x.closeBioPopup {
 .rapid-merge-popup {
   position: fixed;
   left: 10px;
-  height: 4em;
+  height: 5.5em;
   background-color: #f8d7da;
   color: #000;
   font-weight: bold;
