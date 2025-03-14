@@ -548,213 +548,189 @@ function fixMonthTypos(input) {
   return input;
 }
 
-function fixDates() {
-  function parseDate(input, inputElement) {
-    console.log("Original input:", input);
+function parseDate(input, inputElement) {
+  // ---- Initial Cleanup and Sanitization ----
+  console.log("Original input:", input);
+  if (input.trim() === "") {
+    return "";
+  }
+  $("#dateWarning").remove();
+  $("#dateClarificationModal").remove();
 
-    // Check for empty input
-    if (input.trim() === "") {
-      // If input is empty, just return
-      return "";
-    }
+  if (window.dateFixerOptions["splitLocations"] === true) {
+    input = splitAndMoveLocationIfPresent(input, inputElement);
+  }
+  input = sanitizeInput(input);
+  console.log("After sanitization:", input);
 
-    $("#dateWarning").remove(); // Remove any existing warnings
-    $("#dateClarificationModal").remove(); // Remove any existing date clarification modal
+  // ---- Special Case: YYYY-00-00 Format ----
+  if (/^\d{4}-00-00$/.test(input)) {
+    console.log("Detected YYYY-00-00 format; accepting without clarification.");
+    return input;
+  }
 
-    if (window.dateFixerOptions["splitLocations"] == true) {
-      input = splitAndMoveLocationIfPresent(input, inputElement);
-    }
+  // ---- Handle Input That Is Just a Year ----
+  if (/^\d{4}$/.test(input)) {
+    return input;
+  }
 
-    input = sanitizeInput(input);
-    console.log("After sanitization:", input);
-
-    // Check if the input is just a year and convertDD-MM-YYYY option is not 'always'
-    if (/^\d{4}$/.test(input)) {
-      // If it's just a year, return the year as it is
-      return input;
-    }
-
-    // Check for ambiguous month abbreviations
-    const ambiguousMonthMatch = input.match(/.*(Ju|J|M|Ma|A)(\s|\.|-)/i);
-    if (ambiguousMonthMatch) {
-      console.log("Found ambiguous month abbreviation:", ambiguousMonthMatch[0]);
-
-      const possibleMonths = getAmbiguousMonths(ambiguousMonthMatch[0]);
-      if (possibleMonths && possibleMonths.length > 1) {
-        displayClarificationModal(input, ambiguousMonthMatch[0], inputElement, possibleMonths);
-        return;
-      }
-    }
-
-    input = fixMonthTypos(input);
-    console.log("After fixing typos:", input);
-
-    // Use parsedDate function to get parsed dates
-    const parsed = parsedDate(input);
-    console.log("Parsed date result:", parsed);
-
-    // Check if the date is ambiguous (both EU and US formats are valid)
-    if (parsed) {
-      if (isValid(parsed.eu) && isValid(parsed.us)) {
-        console.log("Ambiguous date detected");
-
-        if (window.dateFixerOptions["convertDD-MM-YYYY"] == "askMe") {
-          // Trigger the clarification modal for ambiguous dates
-          return handleDateInput(input, inputElement);
-        } else if (window.dateFixerOptions["convertDD-MM-YYYY"] == "always") {
-          // If the option is set to always, choose a format (here, we choose the EU format)
-          return format(parsed.eu, "dd MMM yyyy");
-        } else {
-          return format(parsed.us, "dd MMM yyyy");
-        }
-        // If the option is set to never, no action is taken (you can add logic here if needed)
-      } else {
-        // If the date is not ambiguous, return the valid format
-        return parsed.validDate;
-      }
-    }
-
-    // Updated regex pattern to accommodate starting with a month or year
-    const dateLikePattern =
-      /\b((\d{1,4})|(\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)))([\/.-](\d{1,2}|\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)))?([\/.-]\d{1,4})?\b/;
-    if (!dateLikePattern.test(input)) {
-      displayWarning(inputElement, "Invalid date format");
-      return "";
-    }
-
-    let isValidDate = false; // Flag to track if a valid date pattern is found
-
-    const patterns = [
-      /^(\d{1,2})\s(\d{1,2})\s(\d{4})$/,
-      /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
-      /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/,
-    ];
-    for (const pattern of patterns) {
-      if (pattern.test(input)) {
-        console.log("Pattern matched:", pattern);
-
-        isValidDate = true; // Valid date pattern found
-        const [, day, month, year] = pattern.exec(input);
-        return `${String(day).padStart(2, "0")} ${monthShortNames[parseInt(month, 10) - 1]} ${year}`;
-      }
-    }
-
-    // Define a pattern for "YYYY MMM DD"
-    const yearFirstPattern = /^(\d{4}) (\p{L}+) (\d{1,2})$/;
-    if (yearFirstPattern.test(input)) {
-      const [, year, month, day] = yearFirstPattern.exec(input);
-
-      // Convert non-English month names to English
-      let correctedMonth = month;
-      if (nonEnglishMonthNames[month.toLowerCase()]) {
-        correctedMonth = nonEnglishMonthNames[month.toLowerCase()];
-      }
-
-      // Convert to "DD MMM YYYY" format
-      return `${String(day).padStart(2, "0")} ${correctedMonth} ${year}`;
-    }
-
-    // Fix typos in month names
-    const monthTypoPattern = /^(\d{1,2})?\s*(\p{L}+)\s*(\d{1,2})?,?\s*(\d{4})$/u;
-
-    if (monthTypoPattern.test(input)) {
-      // input = fixMonthTypos(input);
-
-      const [, day, month, year] = monthTypoPattern.exec(input);
-
-      // Convert non-English month names to English
-      let correctedMonth = month;
-      if (nonEnglishMonthNames[month.toLowerCase()]) {
-        correctedMonth = nonEnglishMonthNames[month.toLowerCase()];
-      }
-
-      const fuseMonthFull = new Fuse(monthNames, {
-        includeScore: true,
-        threshold: 0.4, // Adjust the threshold to control the similarity
-      });
-      const fuseMonthShort = new Fuse(monthShortNames, {
-        includeScore: true,
-        threshold: 0.4, // Adjust the threshold to control the similarity
-      });
-
-      if (month.length <= 3) {
-        correctedMonth = fuseMonthShort.search(correctedMonth)[0]?.item || correctedMonth;
-      } else {
-        const correctedMonthFull = fuseMonthFull.search(correctedMonth)[0]?.item;
-        correctedMonth = correctedMonthFull || correctedMonth;
-      }
-
-      input = input.replace(month, correctedMonth);
-    }
-
-    // Define a pattern for ambiguous dates (e.g., 01-02-1900)
-    const ambiguousDatePattern = /^(\d{2})-(\d{2})-(\d{4})$/;
-    // Check if the date is ambiguous first
-    if (ambiguousDatePattern.test(input)) {
-      // Handle the ambiguous date
-      const formattedDate = handleDateInput(input, inputElement);
-      if (formattedDate !== "Ambiguous date") {
-        return formattedDate;
-      }
-    }
-
-    const validPatterns = [
-      new RegExp(`^(${monthNames.join("|")}) (\\d{1,2}),? (\\d{4})$`, "i"), // Month DD, YYYY
-      new RegExp(`^(${monthShortNames.join("|")}) (\\d{1,2}),? (\\d{4})$`, "i"), // Mon DD YYYY
-      new RegExp(`^(${monthShortNames.join("|")})\\. (\\d{1,2}),? (\\d{4})$`, "i"), // Mon. DD, YYYY
-      /^(\d{1,2}) ([a-zA-Z]+) (\d{4})$/, // DD Month YYYY
-      /^(\d{1,2}) ([a-zA-Z]{3}) (\d{4})$/, // DD Mon YYYY
-      /^(\d{4})-(\d{2})-(\d{2})$/, // YYYY-MM-DD
-      //
-      new RegExp(`^(${monthNames.join("|")}) (\\d{4})$`, "i"), // Month YYYY
-      /^(\d{4})$/, // YYYY
-    ];
-
-    let message = "Invalid date format";
-    const AABBYYYY = /^(\d{2})-(\d{2})-(\d{4})$/;
-    for (const pattern of validPatterns) {
-      if (pattern.test(input)) {
-        input = input.replace(/,/g, "");
-        console.log("Pattern matched:", pattern);
-        message = "Invalid date";
-        if (parsedDate(input)) {
-          console.log("Parsed date:", parsedDate(input));
-          isValidDate = true; // Valid date pattern found
-          return parsedDate(input).validDate;
-        }
-      }
-    }
-
-    if (!isValidDate) {
-      displayWarning(inputElement, message);
-      return "";
-    }
-
-    let firstBitIsDay = false;
-
-    if (window.dateFixerOptions["convertDD-MM-YYYY"] == "askMe") {
-      handleDateInput(input, inputElement);
-    }
-
-    if (AABBYYYY.test(input) && !window.dateFixerOptions["convertDD-MM-YYYY"] == "always") {
-      const firstBit = input.split("-")[0];
-      if (parseInt(firstBit) > 12 && firstBit.length < 3) {
-        firstBitIsDay = true;
-      } else {
-        return input;
-      }
-    }
-    if (window.dateFixerOptions["convertDD-MM-YYYY"] == "always" || firstBitIsDay) {
-      patterns.push(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
-    }
-
-    // If no valid pattern is found, display a warning
-    if (!isValidDate) {
-      displayWarning(inputElement, "Invalid date format");
-      return "";
+  // ---- Check for Ambiguous Month Abbreviations ----
+  const ambiguousMonthMatch = input.match(/.*(Ju|J|M|Ma|A)(\s|\.|-)/i);
+  if (ambiguousMonthMatch) {
+    console.log("Found ambiguous month abbreviation:", ambiguousMonthMatch[0]);
+    const possibleMonths = getAmbiguousMonths(ambiguousMonthMatch[0]);
+    if (possibleMonths && possibleMonths.length > 1) {
+      displayClarificationModal(input, ambiguousMonthMatch[0], inputElement, possibleMonths);
+      return;
     }
   }
 
+  // ---- Fix Month Typos ----
+  input = fixMonthTypos(input);
+  console.log("After fixing typos:", input);
+
+  // ---- Parse Date Using ParsedDate Function ----
+  const parsed = parsedDate(input);
+  console.log("Parsed date result:", parsed);
+  if (parsed) {
+    if (isValid(parsed.eu) && isValid(parsed.us)) {
+      console.log("Ambiguous date detected");
+      if (window.dateFixerOptions["convertDD-MM-YYYY"] === "askMe") {
+        return handleDateInput(input, inputElement);
+      } else if (window.dateFixerOptions["convertDD-MM-YYYY"] === "always") {
+        return format(parsed.eu, "dd MMM yyyy");
+      } else {
+        return format(parsed.us, "dd MMM yyyy");
+      }
+    } else {
+      return parsed.validDate;
+    }
+  }
+
+  // ---- Fallback: Check for General Date-like Patterns ----
+  const dateLikePattern =
+    /\b((\d{1,4})|(\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)))([\/.-](\d{1,2}|\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)))?([\/.-]\d{1,4})?\b/;
+  if (!dateLikePattern.test(input)) {
+    displayWarning(inputElement, "Invalid date format");
+    return "";
+  }
+
+  // ---- Try Specific Regex Patterns for Day/Month/Year Formats ----
+  let isValidDate = false;
+  const patterns = [
+    /^(\d{1,2})\s(\d{1,2})\s(\d{4})$/,
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,
+    /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/,
+  ];
+  for (const pattern of patterns) {
+    if (pattern.test(input)) {
+      console.log("Pattern matched:", pattern);
+      isValidDate = true;
+      const [, day, month, year] = pattern.exec(input);
+      return `${String(day).padStart(2, "0")} ${monthShortNames[parseInt(month, 10) - 1]} ${year}`;
+    }
+  }
+
+  // ---- Check for "YYYY MMM DD" Format ----
+  const yearFirstPattern = /^(\d{4}) (\p{L}+) (\d{1,2})$/;
+  if (yearFirstPattern.test(input)) {
+    const [, year, month, day] = yearFirstPattern.exec(input);
+    let correctedMonth = month;
+    if (nonEnglishMonthNames[month.toLowerCase()]) {
+      correctedMonth = nonEnglishMonthNames[month.toLowerCase()];
+    }
+    return `${String(day).padStart(2, "0")} ${correctedMonth} ${year}`;
+  }
+
+  // ---- Fix Typos in Month Names Using Fuse.js ----
+  const monthTypoPattern = /^(\d{1,2})?\s*(\p{L}+)\s*(\d{1,2})?,?\s*(\d{4})$/u;
+  if (monthTypoPattern.test(input)) {
+    const [, day, month, year] = monthTypoPattern.exec(input);
+    let correctedMonth = month;
+    if (nonEnglishMonthNames[month.toLowerCase()]) {
+      correctedMonth = nonEnglishMonthNames[month.toLowerCase()];
+    }
+    const fuseMonthFull = new Fuse(monthNames, {
+      includeScore: true,
+      threshold: 0.4,
+    });
+    const fuseMonthShort = new Fuse(monthShortNames, {
+      includeScore: true,
+      threshold: 0.4,
+    });
+    if (month.length <= 3) {
+      correctedMonth = fuseMonthShort.search(correctedMonth)[0]?.item || correctedMonth;
+    } else {
+      const correctedMonthFull = fuseMonthFull.search(correctedMonth)[0]?.item;
+      correctedMonth = correctedMonthFull || correctedMonth;
+    }
+    input = input.replace(month, correctedMonth);
+  }
+
+  // ---- Check for Ambiguous Date Format (e.g., 01-02-1900) ----
+  const ambiguousDatePattern = /^(\d{2})-(\d{2})-(\d{4})$/;
+  if (ambiguousDatePattern.test(input)) {
+    const formattedDate = handleDateInput(input, inputElement);
+    if (formattedDate !== "Ambiguous date") {
+      return formattedDate;
+    }
+  }
+
+  // ---- Final Fallback: Check Against a List of Valid Patterns ----
+  const validPatterns = [
+    new RegExp(`^(${monthNames.join("|")}) (\\d{1,2}),? (\\d{4})$`, "i"),
+    new RegExp(`^(${monthShortNames.join("|")}) (\\d{1,2}),? (\\d{4})$`, "i"),
+    new RegExp(`^(${monthShortNames.join("|")})\\. (\\d{1,2}),? (\\d{4})$`, "i"),
+    /^(\d{1,2}) ([a-zA-Z]+) (\d{4})$/,
+    /^(\d{1,2}) ([a-zA-Z]{3}) (\d{4})$/,
+    /^(\d{4})-(\d{2})-(\d{2})$/,
+    new RegExp(`^(${monthNames.join("|")}) (\\d{4})$`, "i"),
+    /^(\d{4})$/,
+  ];
+  let message = "Invalid date format";
+  const AABBYYYY = /^(\d{2})-(\d{2})-(\d{4})$/;
+  for (const pattern of validPatterns) {
+    if (pattern.test(input)) {
+      input = input.replace(/,/g, "");
+      console.log("Pattern matched:", pattern);
+      message = "Invalid date";
+      if (parsedDate(input)) {
+        console.log("Parsed date:", parsedDate(input));
+        isValidDate = true;
+        return parsedDate(input).validDate;
+      }
+    }
+  }
+
+  if (!isValidDate) {
+    displayWarning(inputElement, message);
+    return "";
+  }
+
+  // ---- Additional Checks for DD-MM-YYYY Conversion ----
+  let firstBitIsDay = false;
+  if (window.dateFixerOptions["convertDD-MM-YYYY"] === "askMe") {
+    handleDateInput(input, inputElement);
+  }
+  if (AABBYYYY.test(input) && !(window.dateFixerOptions["convertDD-MM-YYYY"] === "always")) {
+    const firstBit = input.split("-")[0];
+    if (parseInt(firstBit) > 12 && firstBit.length < 3) {
+      firstBitIsDay = true;
+    } else {
+      return input;
+    }
+  }
+  if (window.dateFixerOptions["convertDD-MM-YYYY"] === "always" || firstBitIsDay) {
+    patterns.push(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  }
+
+  if (!isValidDate) {
+    displayWarning(inputElement, "Invalid date format");
+    return "";
+  }
+}
+
+function fixDates() {
   $("#mBirthDate,#mDeathDate,#mMarriageDate,#MarriageEndDate,#photo_date,#mStartDate,#mEndDate").on(
     "change",
     function () {
