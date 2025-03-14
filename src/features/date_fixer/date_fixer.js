@@ -6,6 +6,13 @@ import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/o
 // Function to try parsing a date string with multiple formats
 
 export function tryParseDate(dateString, formats) {
+  // Allow dates like "1700-00-00" to pass validation
+  if (/^\d{4}-00-00$/.test(dateString)) {
+    // Extract the year and create a Date object using a default month/day (e.g., January 1)
+    const year = parseInt(dateString.substring(0, 4), 10);
+    return new Date(year, 0, 1);
+  }
+
   const sanitizedDateString = dateString.replace(/\. /g, " ").replace(/[/.,]/g, "-").replace(/- /g, "-");
   for (let format of formats) {
     const parsedDate = parse(sanitizedDateString, format, new Date());

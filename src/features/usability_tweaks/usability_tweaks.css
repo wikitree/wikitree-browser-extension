@@ -145,6 +145,7 @@ x.closeBioPopup {
 #rangersButtons button.active {
   background-color: forestgreen;
   border: 1px solid black;
+  color: #f0f0eb;
 }
 
 .feed-item.anomaly {
