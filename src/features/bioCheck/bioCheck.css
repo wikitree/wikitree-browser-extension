@@ -1,0 +1,4 @@
+#bioCheckResultsContainer *::selection {
+  background-color: #999999;
+  color: gold;
+}
