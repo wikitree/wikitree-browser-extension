@@ -1699,11 +1699,20 @@ function fixVanilla() {
   formatListItems("#nVitals li.aSpouse", "inside");
 }
 
+function moveMetaGender() {
+  const vitalsElement = document.querySelector(".tree-person p.VITALS");
+  if (vitalsElement && !vitalsElement.querySelector('meta[itemprop="gender"]')) {
+    const genderMeta = $("meta[itemprop='gender']").eq(0);
+    vitalsElement.append(genderMeta);
+  }
+}
+
 /* ========================================================================
    Main Hook: Initialize, Replace DOM, and Attach Events
    ======================================================================== */
 shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   if (!result) return;
+  moveMetaGender();
   const familyData = parseInitialData();
   const treePerson = $("#Family-pane div.tree--person");
   // Retain only the first .VITALS element.
