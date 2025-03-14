@@ -4,7 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage.js";
-import { mainDomain } from "../../core/pageType";
+import { isG2G, mainDomain } from "../../core/pageType";
 
 /**
  * Removes dark mode styles from the page.
@@ -106,6 +106,40 @@ function doDarkMode() {
   }
 }
 
+function addDarkModeToIframe() {
+  const iframe = document.querySelector("iframe"); // Adjust selector as needed
+
+  if (!iframe) {
+    console.log("Iframe not found.");
+    return;
+  }
+
+  const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+  if (!iframeDoc) {
+    console.warn("Could not access iframe document. Possibly cross-origin.");
+    return;
+  }
+
+  if (iframeDoc.getElementById("darkMode")) {
+    console.log("Dark mode already applied to iframe.");
+    return;
+  }
+
+  const style = iframeDoc.createElement("style");
+  style.id = "darkMode";
+  const css = `
+    body {
+      background-color: #1e1e1e !important;
+      color: #dcddde !important;
+    }
+  `;
+  style.innerHTML = css;
+
+  iframeDoc.head.appendChild(style);
+  console.log("Dark mode CSS applied to iframe.");
+}
+
 /**
  * Adds heading backgrounds for dark mode.
  * Creates a style element that sets the background color, border radius, padding, and text color
@@ -143,6 +177,18 @@ function addHeadingBackgrounds(color) {
  * @returns {Promise<void>} Resolves when dark mode initialization is complete.
  */
 async function initDarkMode() {
+  if (isG2G) {
+    $(document).on(
+      "click",
+      "input[title='Reply to this comment'], input[title='Add a comment on this answer'], input#q_doanswer",
+      function () {
+        setTimeout(function () {
+          addDarkModeToIframe();
+        }, 2000);
+      }
+    );
+  }
+
   const options = await getFeatureOptions("darkMode");
   if (options.mode == "system") {
     const darkModePreference = window.matchMedia("(prefers-color-scheme: dark)");

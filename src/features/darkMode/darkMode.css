@@ -28,8 +28,8 @@
   body.darkMode button.btn-utility,
   body.darkMode .wrapper,
   body.darkMode div:not(.tabs--wrapper, .tabs--wrapper div, .large,header div,footer div, .qa-nav-main, .qa-nav-sub, .qa-footer, .qa-footer a, .qa-footer a:link, .qa-footer a:visited, .qa-footer a:hover, .qa-q-item-stats, .qa-q-item-stats *,.qa-q-view-stats, .qa-q-view-stats *, .qa-q-view-stats .green.rounded, .qa-q-view-stats .green.rounded *, .qa-part-q-view, .qa-part-q-view *, .qa-part-q-view .green.rounded.box, .ui-dialog, .ui-dialog *),
-  body.darkMode a:link:not(.tabs--wrapper a,span.EDIT a:visited,aside a:visited, h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited, h5 a:visited, h6 a:visited, #footer a, .qa-q-item-tag-item a, .surnameTableHeaderRow a),
-  body.darkMode a:visited:not(.tabs--wrapper a,span.EDIT a:visited,aside a:visited, h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited, h5 a:visited, h6 a:visited, #footer a, .qa-q-item-tag-item a, .surnameTableHeaderRow a),
+  body.darkMode a:link:not(.qa-part-a-form a,.qa-c-form a,.tabs--wrapper a,span.EDIT a:visited,aside a:visited, h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited, h5 a:visited, h6 a:visited, #footer a, .qa-q-item-tag-item a, .surnameTableHeaderRow a),
+  body.darkMode a:visited:not(.qa-part-a-form a,.qa-c-form a,.tabs--wrapper a,span.EDIT a:visited,aside a:visited, h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited, h5 a:visited, h6 a:visited, #footer a, .qa-q-item-tag-item a, .surnameTableHeaderRow a),
   body.darkMode .small,
   body.darkMode strong,
   body.darkMode .strong,
@@ -89,6 +89,14 @@
   body.darkMode .table>:not(caption)>*>* {
     background-color: #36393f !important;
     color: #dedecb !important;
+  }
+
+  body.darkMode .qa-part-a-form:not(#dummyID),
+  body.darkMode .qa-part-a-form *:not(#dummyID),
+  body.darkMode .qa-c-form:not(#dummyID),
+  body.darkMode .qa-c-form *:not(#dummyID) {
+    background-color: #cccccc !important;
+    color: #36393f !important;
   }
 
   body.darkMode

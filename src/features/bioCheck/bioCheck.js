@@ -3,40 +3,40 @@ Created By: Kay Knight (Sands-1865)
 */
 
 /*
-* The following external components are referenced. As of 06 Februrary 2025
-* Any element created by this feature has an id that starts with bioCheck
-* 
-* Looks in document.body.classList for
-*    page-Special_EditPerson
-*    page-Special_EditFamily
-*    page-Special_WatchedList
-* Looks for ElementById
-*    wpSaveDraft
-*    wpSave
-*    mSources
-*    addNewPersonButton
-*    saveStuff
-*    wpTextbox1
-*    suggestionContainer
-*    validationContainer
-*    editAction_connectExisting
-*    mSources
-*    useAdvancedSources
-*    addNewPersonButton
-* Does a document.QuerySelector for table.sourcesContent
-*
-* On the Watchlist pages looks for ElementById
-*    views-outer
-*    views-inner
-*
-* In BioCheckPerson.js
-*    checks if window.location.hostname.includes('apps.wikitree.com'
-*    Looks for ElementById
-*        mBirthDate
-*        mStatus_Father
-*        mStatus_Mother
-*        mEmail
-*/
+ * The following external components are referenced. As of 06 Februrary 2025
+ * Any element created by this feature has an id that starts with bioCheck
+ *
+ * Looks in document.body.classList for
+ *    page-Special_EditPerson
+ *    page-Special_EditFamily
+ *    page-Special_WatchedList
+ * Looks for ElementById
+ *    wpSaveDraft
+ *    wpSave
+ *    mSources
+ *    addNewPersonButton
+ *    saveStuff
+ *    wpTextbox1
+ *    suggestionContainer
+ *    validationContainer
+ *    editAction_connectExisting
+ *    mSources
+ *    useAdvancedSources
+ *    addNewPersonButton
+ * Does a document.QuerySelector for table.sourcesContent
+ *
+ * On the Watchlist pages looks for ElementById
+ *    views-outer
+ *    views-inner
+ *
+ * In BioCheckPerson.js
+ *    checks if window.location.hostname.includes('apps.wikitree.com'
+ *    Looks for ElementById
+ *        mBirthDate
+ *        mStatus_Father
+ *        mStatus_Mother
+ *        mEmail
+ */
 
 import { shouldInitializeFeature, checkIfFeatureEnabled, getFeatureOptions } from "../../core/options/options_storage";
 import { dataTables, dataTableTemplateFindByName, dataTablesLoad } from "../../core/API/wtPlusData";
@@ -50,6 +50,7 @@ var isInit = false;
 
 shouldInitializeFeature("bioCheck").then(async (result) => {
   if (result) {
+    import("./bioCheck.css");
     await bioCheckSetup();
   }
 });
@@ -99,13 +100,11 @@ async function bioCheckSetup() {
       }
       checkBio();
     });
-
   } else {
-
     let saveButton = null;
     if (document.getElementById("mSources")) {
       if (document.body.classList.contains("add_unrelated")) {
-        saveButton = document.getElementById('addNewPersonButton');
+        saveButton = document.getElementById("addNewPersonButton");
         if (saveButton) {
           saveButton.addEventListener("mouseover", checkSourcesAtInterval);
           saveButton.addEventListener("touchstart", checkSourcesAtInterval);
@@ -114,9 +113,9 @@ async function bioCheckSetup() {
         }
       }
       if (document.body.classList.contains("edit_relation")) {
-        saveButton = document.getElementById('addNewPersonButton');
+        saveButton = document.getElementById("addNewPersonButton");
         if (saveButton) {
-          let continueButton= document.getElementById('actionButton');
+          let continueButton = document.getElementById("actionButton");
           if (continueButton) {
             continueButton.onclick = function () {
               saveButton.addEventListener("mouseover", checkSourcesAtInterval);
@@ -129,7 +128,6 @@ async function bioCheckSetup() {
       }
     } else {
       // DEPRECATE watchlist. New design eliminates the buttons
-      ;
       //if (document.body.classList.contains("page-Special_WatchedList")) {
       //  checkWatchlist();
       //}
@@ -139,9 +137,10 @@ async function bioCheckSetup() {
 
 // Initalize - load templates into source rules
 export async function initBioCheck() {
-  if (!isInit) {  // we may be called from outside, but only want to load once
+  if (!isInit) {
+    // we may be called from outside, but only want to load once
     isInit = true;
-    await dataTablesLoad('wbeBioCheck');  // using an id of bioCheck gives a CORS error
+    await dataTablesLoad("wbeBioCheck"); // using an id of bioCheck gives a CORS error
     if (dataTables.templates) {
       theSourceRules.loadTemplates(dataTables.templates);
     }
@@ -193,7 +192,6 @@ function checkBio() {
 }
 
 function buildReportLines(container, bioStatus, biography, isPre1700) {
-
   let bioResultItem = document.createElement("li");
   let msg = "Profile appears to have sources";
   if (!biography.hasSources()) {
@@ -201,22 +199,22 @@ function buildReportLines(container, bioStatus, biography, isPre1700) {
   }
   bioResultItem.appendChild(document.createTextNode(msg));
   container.appendChild(bioResultItem);
-  
+
   let numBadSources = biography.getInvalidSources().length;
   if (biography.getInvalidSources().length > 0) {
     let bioResultItem = document.createElement("li");
     msg = "Bio Check found sources that are not ";
     if (isPre1700) {
-        msg += "reliable or ";
+      msg += "reliable or ";
     }
     msg += "clearly identified";
     bioResultItem.appendChild(document.createTextNode(msg));
     container.appendChild(bioResultItem);
 
-    let sourcesListElement = document.createElement('ul');
+    let sourcesListElement = document.createElement("ul");
     let numLines = biography.getInvalidSources().length;
     if (biography.getInvalidSources().length > 0) {
-      for (let i=0; i<biography.getInvalidSources().length; i++) {
+      for (let i = 0; i < biography.getInvalidSources().length; i++) {
         let bioResultItem = document.createElement("li");
         bioResultItem.appendChild(document.createTextNode(biography.getInvalidSources()[i]));
         sourcesListElement.appendChild(bioResultItem);
@@ -225,13 +223,13 @@ function buildReportLines(container, bioStatus, biography, isPre1700) {
     bioResultItem.appendChild(sourcesListElement);
   }
   let messages = biography.getSectionMessages();
-  for (let i=0; i<messages.length; i++) {
+  for (let i = 0; i < messages.length; i++) {
     let bioResultItem = document.createElement("li");
     bioResultItem.appendChild(document.createTextNode(messages[i]));
     container.appendChild(bioResultItem);
   }
   messages = biography.getStyleMessages();
-  for (let i=0; i<messages.length; i++) {
+  for (let i = 0; i < messages.length; i++) {
     let bioResultItem = document.createElement("li");
     bioResultItem.appendChild(document.createTextNode(messages[i]));
     container.appendChild(bioResultItem);
@@ -254,7 +252,6 @@ function buildSourcesList(biography) {
 */
 
 function reportResults(biography, isPre1700, bioStatus) {
-  
   // If you have been here before get and remove the old list of results
   let previousResults = document.getElementById("bioCheckResultsList");
   let bioCheckResultsContainer = document.getElementById("bioCheckResultsContainer");
@@ -262,24 +259,24 @@ function reportResults(biography, isPre1700, bioStatus) {
     bioCheckResultsContainer = document.createElement("div");
     bioCheckResultsContainer.setAttribute("id", "bioCheckResultsContainer");
     let bioCheckTitle = document.createElement("div");
-    bioCheckTitle.innerText = "Bio Check results: "; 
+    bioCheckTitle.innerText = "Bio Check results: ";
     bioCheckResultsContainer.appendChild(bioCheckTitle);
     setHelp(bioCheckTitle);
   }
   // turn off display in case you are changing the class to make it change
-  bioCheckResultsContainer.setAttribute('style', 'display:none');
+  bioCheckResultsContainer.setAttribute("style", "display:none");
   if (bioStatus) {
-    bioCheckResultsContainer.setAttribute('class', "status green");
+    bioCheckResultsContainer.setAttribute("class", "status green");
   } else {
-    bioCheckResultsContainer.setAttribute('class', "status");
+    bioCheckResultsContainer.setAttribute("class", "status");
   }
-  bioCheckResultsContainer.setAttribute('style', 'display');
+  bioCheckResultsContainer.setAttribute("style", "display");
 
   // need a new set of results
   let bioResultsList = document.createElement("ul");
   bioResultsList.setAttribute("id", "bioCheckResultsList");
   buildReportLines(bioResultsList, bioStatus, biography, isPre1700);
-  
+
   // Add or replace the results
   if (previousResults) {
     previousResults.replaceWith(bioResultsList);
@@ -302,24 +299,23 @@ function reportResults(biography, isPre1700, bioStatus) {
 }
 
 function checkSources() {
-
   // Don't check if just connecting existing profile
   let connectExisting = false;
 
   // just in case we have been here before, gone back, and changed setting
   let bioCheckSourcesContainer = document.getElementById("bioCheckSourcesContainer");
-  let e = document.getElementById('editAction_connectExisting');
+  let e = document.getElementById("editAction_connectExisting");
   if (e) {
-    if (document.getElementById('editAction_connectExisting').checked) {
+    if (document.getElementById("editAction_connectExisting").checked) {
       connectExisting = true;
       if (bioCheckSourcesContainer) {
-        bioCheckSourcesContainer.setAttribute('style', 'display:none');
+        bioCheckSourcesContainer.setAttribute("style", "display:none");
       }
     }
   }
   if (!connectExisting) {
     if (bioCheckSourcesContainer) {
-      bioCheckSourcesContainer.setAttribute('style', 'display');
+      bioCheckSourcesContainer.setAttribute("style", "display");
     }
     let thePerson = new BioCheckPerson();
     // get the bio text and person dates to check
@@ -327,8 +323,8 @@ function checkSources() {
     thePerson.build();
     let biography = new Biography(theSourceRules);
     let useAdvanced = false;
-    if (document.getElementById('useAdvancedSources') != null) {
-      useAdvanced = document.getElementById('useAdvancedSources').value;
+    if (document.getElementById("useAdvancedSources") != null) {
+      useAdvanced = document.getElementById("useAdvancedSources").value;
     }
     // Either check the sources box or advanced sourcing like a bio
     // So you either report just like checkBio or just the list of sources
@@ -343,13 +339,12 @@ function checkSources() {
   }
 }
 
-
 /*
  * report sources for profile where the input lines are either
- * a list of invalid sources 
+ * a list of invalid sources
  * or
  * the lines of a full biocheck report
-*/
+ */
 function reportSources(isValid, biography, isPre1700) {
   let numLines = biography.getInvalidSources().length;
   let previousSources = document.getElementById("bioCheckSourcesList");
@@ -361,7 +356,7 @@ function reportSources(isValid, biography, isPre1700) {
     if (!isValid || numLines > 0) {
       bioCheckSourcesContainer = document.createElement("div");
       bioCheckSourcesContainer.setAttribute("id", "bioCheckSourcesContainer");
-      bioCheckSourcesContainer.setAttribute('class', 'status');
+      bioCheckSourcesContainer.setAttribute("class", "status");
       bioCheckTitle = document.createElement("div");
       bioCheckTitle.setAttribute("id", "bioCheckTitle");
       bioCheckTitle.innerText = "Bio Check results: ";
@@ -375,13 +370,13 @@ function reportSources(isValid, biography, isPre1700) {
   buildReportLines(bioSourcesList, isValid, biography, isPre1700);
 
   // Add or replace the results
-  if ((numLines > 0) || !isValid) {
+  if (numLines > 0 || !isValid) {
     if (previousSources != null) {
       previousSources.replaceWith(bioSourcesList);
     } else {
       bioCheckSourcesContainer.appendChild(bioSourcesList);
-      // Add after the Sources table 
-      let saveButton = document.getElementById('addNewPersonButton');
+      // Add after the Sources table
+      let saveButton = document.getElementById("addNewPersonButton");
       if (saveButton) {
         document.querySelector("table.sourcesContent").after(bioCheckSourcesContainer);
       }
