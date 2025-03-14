@@ -22,7 +22,7 @@ shouldInitializeFeature("enumerateImageDetail").then(async (result) => {
     });
 
     $("ul.STYLED")
-      .has("li.BULLET60 span[itemprop='about']")
+      .has("li[class^='BULLET'] span[itemprop='about']")
       .each(function () {
         let $ul = $(this);
 
@@ -32,7 +32,7 @@ shouldInitializeFeature("enumerateImageDetail").then(async (result) => {
         $(this).parent().find(`a[data-bs-title="Edit Identified Profiles"]`).after(copyButton);
 
         // Get all <li> elements and sort them based on the text inside the <span itemprop="about">
-        let $sortedLis = $ol.children("li.BULLET60").sort(function (a, b) {
+        let $sortedLis = $ol.children("li[class^='BULLET']").sort(function (a, b) {
           let textA = $(a).find("span[itemprop='about']").text().trim().toLowerCase();
           let textB = $(b).find("span[itemprop='about']").text().trim().toLowerCase();
           return textA.localeCompare(textB); // Sort alphabetically
