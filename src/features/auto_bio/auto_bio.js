@@ -1507,48 +1507,6 @@ function addRefsToRelation(refs, person, relation) {
   return text;
 }
 
-/*
-export function buildParents(person) {
-  let text = "child of ";
-  if (person.Gender == "Male") {
-    text = "son of ";
-  } else if (person.Gender == "Female") {
-    text = "daughter of ";
-  }
-  let parents = person.Parents;
-  if (parents) {
-    if (person.Father) {
-      let father = person.Parents[person.Father];
-      if ((window.autoBioOptions?.usePrivate && father?.Privacy < 30) || !father) {
-        text += "Private Father";
-      } else {
-        text += nameLink(father);
-        if (window.autoBioOptions?.includeParentsDates) {
-          text += " " + formatDates(father);
-        }
-      }
-      text += addRefsToRelation(window.references, father, "father");
-    }
-    if (person.Father && person.Mother) {
-      text += " and ";
-    }
-    if (person.Mother) {
-      let mother = person.Parents[person.Mother];
-      if ((window.autoBioOptions?.usePrivate && mother?.Privacy < 30) || !mother) {
-        text += "Private Mother";
-      } else {
-        text += nameLink(mother);
-        if (window.autoBioOptions?.includeParentsDates) {
-          text += " " + formatDates(mother);
-        }
-      }
-      text += addRefsToRelation(window.references, mother, "mother");
-    }
-  }
-  return text;
-}
-  */
-
 export function buildParents(person) {
   let option = window.autoBioOptions?.firstSentences || "of"; // Default to "of"
   let text = "";

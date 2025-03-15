@@ -5,6 +5,7 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage.js";
 import { isG2G, mainDomain } from "../../core/pageType";
+import { set } from "date-fns";
 
 /**
  * Removes dark mode styles from the page.
@@ -306,8 +307,10 @@ shouldInitializeFeature("darkMode").then((result) => {
   if (result) {
     import("./darkMode.css");
     initDarkMode();
-    replaceAllSVGBackgrounds("#a5d167");
-    // Modify <img> tag SVGs.
-    replaceAllSVGImages("#a5d167");
+    setTimeout(() => {
+      replaceAllSVGBackgrounds("#a5d167");
+      // Modify <img> tag SVGs.
+      replaceAllSVGImages("#a5d167");
+    }, 2500);
   }
 });

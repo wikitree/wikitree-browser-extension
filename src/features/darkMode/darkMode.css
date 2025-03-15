@@ -26,12 +26,12 @@
   body.darkMode textarea,
   body.darkMode strong,
   body.darkMode small,
-  body.darkMode span:not(.privacy,.icon--help,.badge,.btn-pill, .icon--inline,.qa-netvote-count-data,.qa-netvote-count-pad,.qa-netvote-count,.qa-a-count,.qa-a-count-data,.qa-a-count-pad),
+  body.darkMode span:not(.nav-link span,.privacy,.icon--help,.badge,.btn-pill, .icon--inline,.qa-netvote-count-data,.qa-netvote-count-pad,.qa-netvote-count,.qa-a-count,.qa-a-count-data,.qa-a-count-pad),
   body.darkMode button.btn-utility,
   body.darkMode .wrapper,
   body.darkMode div:not(.tabs--wrapper, .tabs--wrapper div, .large,header div,footer div, .qa-nav-main, .qa-nav-sub, .qa-footer, .qa-footer a, .qa-footer a:link, .qa-footer a:visited, .qa-footer a:hover, .qa-q-item-stats, .qa-q-item-stats *,.qa-q-view-stats, .qa-q-view-stats *, .qa-q-view-stats .green.rounded, .qa-q-view-stats .green.rounded *, .qa-part-q-view, .qa-part-q-view *, .qa-part-q-view .green.rounded.box, .ui-dialog, .ui-dialog *),
-  body.darkMode a:link:not(.dropdown-menu a:hover,.qa-part-a-form a,.qa-c-form a,.tabs--wrapper a,span.EDIT a:visited,aside a:visited, h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited, h5 a:visited, h6 a:visited, #footer a, .qa-q-item-tag-item a, .surnameTableHeaderRow a),
-  body.darkMode a:visited:not(.dropdown-menu a:hover,.qa-part-a-form a,.qa-c-form a,.tabs--wrapper a,span.EDIT a:visited,aside a:visited, h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited, h5 a:visited, h6 a:visited, #footer a, .qa-q-item-tag-item a, .surnameTableHeaderRow a),
+  body.darkMode a:link:not(.myCustomMenu a,.dropdown-menu a:hover,.qa-part-a-form a,.qa-c-form a,.tabs--wrapper a,span.EDIT a:visited,aside a:visited, h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited, h5 a:visited, h6 a:visited, #footer a, .qa-q-item-tag-item a, .surnameTableHeaderRow a),
+  body.darkMode a:visited:not(.myCustomMenu a,.dropdown-menu a:hover,.qa-part-a-form a,.qa-c-form a,.tabs--wrapper a,span.EDIT a:visited,aside a:visited, h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited, h5 a:visited, h6 a:visited, #footer a, .qa-q-item-tag-item a, .surnameTableHeaderRow a),
   body.darkMode .small,
   body.darkMode strong,
   body.darkMode .strong,
@@ -88,7 +88,9 @@
   body.darkMode #distanceFromYou,
   body.darkMode #searchBar,
   body.darkMode aside#memoryContainer,
-  body.darkMode .table>:not(caption)>*>* {
+  body.darkMode .table>:not(caption)>*>*,
+  body.darkMode .vertical .nameList li[data-gender],
+  body.darkMode .myCustomMenu {
     background-color: #36393f !important;
     color: #dedecb !important;
   }
@@ -118,8 +120,12 @@
     border-color: #ffffff;
   }
 
-  body.darkMode .dropdown-menu a {
+  body.darkMode .dropdown-menu a:not(#dummyID) {
     text-decoration: none;
+    color: #eeeeee !important;
+  }
+  body.darkMode .dropdown-menu a:hover:not(#dummyID) {
+    color: #36393f !important;
   }
 
   body.darkMode .qa-q-item-tag-item,
