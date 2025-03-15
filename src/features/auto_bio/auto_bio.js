@@ -1626,10 +1626,13 @@ export function minimalPlace(place) {
 }
 
 export function buildSpouses(person) {
+  console.log("[buildSpouses] Called for person:", person?.PersonName?.FullName || person);
   if (!isObject(person.Spouses)) {
+    console.warn("[buildSpouses] person.Spouses is not an object. Exiting.");
     return;
   }
   let spouseKeys = Object.keys(person.Spouses);
+  console.log("[buildSpouses] Found spouse keys:", spouseKeys);
   let marriages = [];
   let firstNameAndYear = [];
 
@@ -1641,6 +1644,23 @@ export function buildSpouses(person) {
       let aBirthDate = person.Spouses[a].BirthDate ? person.Spouses[a].BirthDate.replaceAll(/-/g, "") : "99999999";
       let bBirthDate = person.Spouses[b].BirthDate ? person.Spouses[b].BirthDate.replaceAll(/-/g, "") : "99999999";
 
+      // Debug log for each comparison (comment out if too verbose)
+      console.debug(
+        "[buildSpouses][sort] Comparing key",
+        a,
+        "and",
+        b,
+        "with values:",
+        "aMarriageDate:",
+        aMarriageDate,
+        "bMarriageDate:",
+        bMarriageDate,
+        "aBirthDate:",
+        aBirthDate,
+        "bBirthDate:",
+        bBirthDate
+      );
+
       if (aMarriageDate && bMarriageDate) {
         return parseInt(aMarriageDate, 10) - parseInt(bMarriageDate, 10);
       } else if (!aMarriageDate && !bMarriageDate) {
@@ -1651,8 +1671,10 @@ export function buildSpouses(person) {
         return parseInt(aMarriageDate, 10) - parseInt(bBirthDate, 10);
       }
     });
+    console.log("[buildSpouses] Sorted spouse keys:", spouseKeys);
 
     spouseKeys.forEach(function (key) {
+      console.log(`[buildSpouses] Processing spouse key: ${key}`);
       let text = "";
       let spouse = person.Spouses[key];
       let marriageAge = "";
@@ -1666,7 +1688,7 @@ export function buildSpouses(person) {
       ) {
         let age = getAgeFromISODates(window.profilePerson.BirthDate, spouse.marriage_date);
         if (isOK(age)) {
-          marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, spouse.marriage_date)})`;
+          marriageAge = ` (${age})`;
         }
       }
 
@@ -1694,11 +1716,7 @@ export function buildSpouses(person) {
 
         if (window.autoBioOptions?.spouseParentDetails) {
           if (spouse.Father || spouse.Mother) {
-            if (spouseDetailsA == "") {
-              spouseDetailsA += ", ";
-            } else {
-              spouseDetailsA += "; ";
-            }
+            spouseDetailsA += spouseDetailsA === "" ? ", " : "; ";
             spouseDetailsB += ". " + (spousePronoun || spouse.PersonName?.FirstName) + " was the ";
             spouseDetailsA += spouse.Gender == "Male" ? "son" : spouse.Gender == "Female" ? "daughter" : "child";
             spouseDetailsA += " of ";
@@ -1816,7 +1834,6 @@ export function buildSpouses(person) {
           : spouse.BirthDate && spouse.BirthDate !== "0000-00-00"
           ? spouse.BirthDate.replaceAll("-", "")
           : "";
-
       if (!orderDate) {
         orderDate = "99999999"; // Fallback to a high value if missing
       }
@@ -1829,6 +1846,12 @@ export function buildSpouses(person) {
         "Event Date": spouse.marriage_date,
         "Event Year": spouse.marriage_date?.substring(0, 4),
         "Event Type": "Marriage",
+      });
+
+      console.log(`[buildSpouses] Processed spouse key: ${key}`, {
+        Spouse: spouse,
+        Narrative: text,
+        OrderDate: orderDate,
       });
     });
   }
@@ -1848,7 +1871,7 @@ export function buildSpouses(person) {
           }
         });
         if (foundSpouse == false && thisSpouse) {
-          console.log({ thisSpouse, firstNameAndYear });
+          console.log("[buildSpouses] Unmatched reference for spouse:", { thisSpouse, firstNameAndYear });
           let text = "";
           let marriageDate = "";
           if (reference["Marriage Date"]) {
@@ -1859,7 +1882,7 @@ export function buildSpouses(person) {
           let age = getAgeFromISODates(window.profilePerson.BirthDate, marriageDate);
           let marriageAge = "";
           if (isOK(age)) {
-            marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, marriageDate)})`;
+            marriageAge = ` (${age})`;
           }
           text += person.PersonName?.FirstName + marriageAge + " married " + thisSpouse;
           if (reference["Marriage Place"]) {
@@ -1884,6 +1907,7 @@ export function buildSpouses(person) {
           });
           reference.Used = true;
           reference.RefName = "ref_" + i;
+          console.info("[buildSpouses] Processed reference-based spouse:", reference);
 
           addToNeedsProfilesCreated({ Name: thisSpouse, MarriageDate: marriageDate, Relation: "Spouse" });
         }
@@ -1908,6 +1932,7 @@ export function buildSpouses(person) {
     }
   }
 
+  console.log("[buildSpouses] Final marriages array:", marriages);
   return marriages;
 }
 
@@ -7492,6 +7517,13 @@ export async function buildFamilyForPrivateProfiles() {
       object.LastNameAtBirth = nameParts.pop();
       object.FirstName = nameParts.join(" ");
     }
+    // Create a PersonName object for consistent output
+    object.PersonName = {
+      FirstName: object.FirstName,
+      // Prefer LastNameCurrent if available; otherwise, use LastNameAtBirth
+      FullName: object.FirstName + " " + (object.LastNameCurrent || object.LastNameAtBirth),
+    };
+    console.debug("[parseName] Parsed name:", object.PersonName.FullName);
   }
 
   /**
