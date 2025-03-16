@@ -362,15 +362,11 @@ function parseInitialData() {
     // Check siblingsArray for half. If half and !halfMarker in parsedSiblings, create halfMarker:
     // <span class="SMALL" title="${profilePerson.FullName} and sibling share one parent.">[half]</span>
     parsedSiblings.forEach((siblingObj) => {
-      console.log("Processing sibling:", siblingObj);
       const siblingName = siblingObj.FullName || siblingObj.Name;
-      console.log("Sibling name:", siblingName);
       const sibling = theSiblingsArray.find((s) => s.name == siblingName && s.BirthDate == siblingObj.BirthDate);
-      console.log("Matching sibling in array:", sibling);
       if (sibling) {
         if (sibling.half && !siblingObj.halfMarker) {
           siblingObj.halfMarker = `<span class="SMALL" title="${profilePerson.FullName} and sibling share one parent.">[half]</span>`;
-          console.log("Added half marker to sibling:", siblingObj);
         }
       }
     });
