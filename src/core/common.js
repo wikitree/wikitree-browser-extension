@@ -855,8 +855,6 @@ function removeKeysStartingWithSpace() {
 
   // Save the updated spaceDrafts back to localStorage
   localStorage.setItem("spaceDrafts", JSON.stringify(spaceDrafts));
-
-  console.log("Removed all keys starting with 'Space:'.");
 }
 
 // Event listeners for space drafts actions
@@ -914,7 +912,6 @@ $(document).on("click", "#deleteSpaceDraftsForPage", function () {
 // Used in saveDraftList (above)
 export async function updateDraftList() {
   setTimeout(() => {
-    console.log("Starting updateDraftList function");
     const profileWTID = profilePerson.Name;
     let addDraft = false;
     let timeNow = Date.now();
@@ -922,21 +919,16 @@ export async function updateDraftList() {
     let isEditPage = false;
     const theName = profilePerson.FullName;
 
-    console.log($("#draftStatus:contains('saved'),#status:contains('Starting with previous')").length);
-
     if ($("#draftStatus:contains('saved'),#status:contains('Starting with previous')").length) {
       addDraft = true;
-      console.log("Draft status indicates a saved draft or starting with previous draft");
     } else if ($("body.edit-person").length) {
       isEditPage = true;
-      console.log("This is an edit-person page");
     }
 
     if (localStorage.drafts) {
       let draftsArr = [];
       let draftsArrIDs = [];
       let drafts = JSON.parse(localStorage.drafts);
-      console.log(`drafts`, drafts);
       drafts.forEach(function (draft) {
         if (!draftsArrIDs.includes(draft[0])) {
           if ((addDraft == false || window.fullSave == true) && draft[0] == profileWTID && isEditPage == true) {
@@ -948,33 +940,22 @@ export async function updateDraftList() {
               draftsArr.push(draft);
               console.log(`Adding draft for profile ${draft[0]} to draftsArr`);
               draftsArrIDs.push(draft[0]);
-              console.log(`draftsArrIDs: ${draftsArrIDs}`);
-              console.log(`Adding draft for profile ${draft[0]} to draftsArr`);
             }
           }
         }
       });
 
-      console.log("Finished processing existing drafts");
-      console.log(`Profile ${profileWTID} is being ${addDraft == true ? "saved" : "not saved"}`);
       if (!draftsArrIDs.includes(profileWTID) && addDraft == true) {
         draftsArr.push([profileWTID, timeNow, theName]);
-        console.log(`Adding new draft for profile ${profileWTID}`);
       }
 
-      console.log(draftsArr);
       const newDraftsArray = JSON.stringify(draftsArr);
-      console.log(newDraftsArray);
       localStorage.setItem("drafts", newDraftsArray);
-      console.log(localStorage.drafts);
-      console.log("Updated drafts in localStorage");
     } else {
       if (addDraft == true && window.fullSave != true) {
         localStorage.setItem("drafts", JSON.stringify([[profileWTID, timeNow, theName]]));
-        console.log(`Created new drafts array in localStorage with profile ${profileWTID}`);
       }
     }
-    console.log("Finished updateDraftList function");
     return true;
   }, 1000);
 }
