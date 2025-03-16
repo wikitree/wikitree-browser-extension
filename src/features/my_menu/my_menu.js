@@ -349,11 +349,11 @@ function addCustomMenu() {
     e.preventDefault();
     addRandomProfileLocationBox(e);
   });
-  $(".myCustomMenu li a:contains(Printer Friendly Bio)").on("click", (e) => {
+  $(document).on("click", ".myCustomMenu li a:contains(Printer Friendly Bio)", (e) => {
     e.preventDefault();
     $("#wte-tm-printer-friendly").trigger("click");
   });
-  $(".myCustomMenu li a:contains(Random Space Page)").on("click", (e) => {
+  $(document).on("click", ".myCustomMenu li a:contains('Random Space Page')", (e) => {
     e.preventDefault();
     const working = $("<img id='working' src='" + treeImageURL + "'>");
     working.appendTo("body").css({
@@ -389,7 +389,7 @@ function addCustomMenu() {
       });
     }
   }
-  $(".myCustomMenu li a:contains(Drafts)").on("click", (e) => {
+  $(document).on("click", ".myCustomMenu li a:contains('Drafts')", (e) => {
     e.preventDefault();
     showDraftList();
   });
@@ -455,10 +455,17 @@ function returnToMenu(jq) {
 function addToCustomMenu(jq) {
   let linkHref = jq.find("a").attr("href");
   let linkText = jq.find("a").text().trim();
-  if ($("#customMenu a[href='" + linkHref + "']").length > 0) {
+
+  // Check both text and href before skipping
+  if (
+    $("#customMenu a").filter((i, el) => {
+      return $(el).attr("href") === linkHref && $(el).text() === linkText;
+    }).length > 0
+  ) {
     console.warn("Skipping duplicate menu item:", linkText);
     return;
   }
+
   let menuName = jq.closest(".btn-group").attr("data-menu") || jq.data("menu");
   if (!menuName) {
     console.warn("Unable to determine menu name for:", jq);
