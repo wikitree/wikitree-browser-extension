@@ -66,7 +66,7 @@ registerFeature({
           id: "JumpNavHints",
           type: OptionType.CHECKBOX,
           label: "Show hints on Jump Navigation",
-          defaultValue: true,
+          defaultValue: false,
         },
       ],
     },
