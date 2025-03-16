@@ -110,18 +110,18 @@ function setJumpNavAccessKeys(options) {
       const aTags = jumpNavigation.getElementsByTagName("a");
 
       for (let i = 0; i < aTags.length; i++) {
-        if (!aTags[i].innerHTML.includes("<span") && currentAccessKey < 10) {
+        if (aTags[i].querySelector("span:not(.badge)") === null && currentAccessKey < 10) {
           aTags[i].accessKey = "" + currentAccessKey;
 
           if (isProfileEdit || isSpaceEdit) {
             if (aTags[i].href.toLowerCase().includes("#text")) {
               aTags[i].addEventListener("click", () => {
-                document.getElementById("wpTextbox1").focus();
+          document.getElementById("wpTextbox1").focus();
               });
             }
             if (aTags[i].href.toLowerCase().includes("#save")) {
               aTags[i].addEventListener("click", () => {
-                document.getElementById("wpSummary").focus();
+          document.getElementById("wpSummary").focus();
               });
             }
           }
