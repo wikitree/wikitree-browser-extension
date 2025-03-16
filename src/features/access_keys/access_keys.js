@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import $ from "jquery";
-import { mainDomain, isCategoryPage, isWikiEdit } from "../../core/pageType";
+import { mainDomain, isCategoryPage, isWikiEdit, isProfileEdit, isSpaceEdit } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 shouldInitializeFeature("accessKeys").then((result) => {
@@ -62,6 +62,9 @@ function addAccessKeys(options) {
       setButtonAccessKeyAndClickEvent(options.Notes, ".aNotesButton", "n");
     }, 3000);
   }, 1000);
+  setTimeout(() => {
+    setJumpNavAccessKeys(options);
+  }, 500);
 }
 
 export function setAccessKeyIfOptionEnabled(option, selector, key, options, additionalCondition = () => true) {
@@ -91,6 +94,45 @@ function setButtonAccessKeyAndClickEvent(option, selector, key) {
     const button = $(selector);
     if (button.length) {
       button[0].accessKey = key;
+    }
+  }
+}
+
+function setJumpNavAccessKeys(options) {
+  if (options.JumpNav) {
+    let currentAccessKey = 2;
+    if (!options.NavHomePage) {
+      currentAccessKey = 1;
+    }
+
+    const jumpNavigation = document.getElementById("jump-nav");
+    if (jumpNavigation != null) {
+      const aTags = jumpNavigation.getElementsByTagName("a");
+
+      for (let i = 0; i < aTags.length; i++) {
+        if (aTags[i].querySelector("span:not(.badge)") === null && currentAccessKey < 10) {
+          aTags[i].accessKey = "" + currentAccessKey;
+
+          if (isProfileEdit || isSpaceEdit) {
+            if (aTags[i].href.toLowerCase().includes("#text")) {
+              aTags[i].addEventListener("click", () => {
+          document.getElementById("wpTextbox1").focus();
+              });
+            }
+            if (aTags[i].href.toLowerCase().includes("#save")) {
+              aTags[i].addEventListener("click", () => {
+          document.getElementById("wpSummary").focus();
+              });
+            }
+          }
+          if (options.JumpNavHints) {
+            const hint = document.createElement("sup");
+            hint.innerText = currentAccessKey;
+            aTags[i].parentNode.insertBefore(hint, aTags[i].nextSibling);
+          }
+          currentAccessKey++;
+        }
+      }
     }
   }
 }

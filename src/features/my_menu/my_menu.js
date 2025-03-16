@@ -56,19 +56,18 @@ shouldInitializeFeature("myMenu").then((result) => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
         const theWidth = window.innerWidth;
-
         const menuGroup = document.getElementById("myMenuGroup");
+        const headerRight = document.querySelector("header .justify-content-end:nth-of-type(2)");
         const nav = document.querySelector("nav[aria-label='Main Navigation']");
-        const tabsWrapperNav = document.querySelector(".tabs--wrapper nav");
 
         if (!menuGroup || !nav) {
           return;
         }
 
         if (theWidth < 992) {
-          if (!menuGroup.classList.contains("fixed") && tabsWrapperNav && !tabsWrapperNav?.contains(menuGroup)) {
+          if (!menuGroup.classList.contains("fixed") && headerRight && !headerRight?.contains(menuGroup)) {
             menuGroup.classList.add("fixed");
-            tabsWrapperNav.appendChild(menuGroup);
+            headerRight.prepend(menuGroup);
           }
         } else {
           if (menuGroup.classList.contains("fixed")) {
@@ -81,7 +80,7 @@ shouldInitializeFeature("myMenu").then((result) => {
             }
 
             // Remove any extra instances of #myMenuGroup in .tabs--wrapper
-            document.querySelectorAll(".tabs--wrapper #myMenuGroup").forEach((el) => {
+            document.querySelectorAll("header .justify-content-end #myMenuGroup").forEach((el) => {
               if (el !== menuGroup) el.remove();
             });
           }
@@ -350,11 +349,11 @@ function addCustomMenu() {
     e.preventDefault();
     addRandomProfileLocationBox(e);
   });
-  $(".myCustomMenu li a:contains(Printer Friendly Bio)").on("click", (e) => {
+  $(document).on("click", ".myCustomMenu li a:contains(Printer Friendly Bio)", (e) => {
     e.preventDefault();
     $("#wte-tm-printer-friendly").trigger("click");
   });
-  $(".myCustomMenu li a:contains(Random Space Page)").on("click", (e) => {
+  $(document).on("click", ".myCustomMenu li a:contains('Random Space Page')", (e) => {
     e.preventDefault();
     const working = $("<img id='working' src='" + treeImageURL + "'>");
     working.appendTo("body").css({
@@ -390,7 +389,7 @@ function addCustomMenu() {
       });
     }
   }
-  $(".myCustomMenu li a:contains(Drafts)").on("click", (e) => {
+  $(document).on("click", ".myCustomMenu li a:contains('Drafts')", (e) => {
     e.preventDefault();
     showDraftList();
   });
@@ -456,10 +455,17 @@ function returnToMenu(jq) {
 function addToCustomMenu(jq) {
   let linkHref = jq.find("a").attr("href");
   let linkText = jq.find("a").text().trim();
-  if ($("#customMenu a[href='" + linkHref + "']").length > 0) {
+
+  // Check both text and href before skipping
+  if (
+    $("#customMenu a").filter((i, el) => {
+      return $(el).attr("href") === linkHref && $(el).text() === linkText;
+    }).length > 0
+  ) {
     console.warn("Skipping duplicate menu item:", linkText);
     return;
   }
+
   let menuName = jq.closest(".btn-group").attr("data-menu") || jq.data("menu");
   if (!menuName) {
     console.warn("Unable to determine menu name for:", jq);
