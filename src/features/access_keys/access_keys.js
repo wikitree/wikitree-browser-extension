@@ -105,29 +105,33 @@ function setJumpNavAccessKeys(options) {
       currentAccessKey = 1;
     }
 
-    const aTags = document.getElementById("jump-nav").getElementsByTagName("a");
-    for (let i = 0; i < aTags.length; i++) {
-      if (!aTags[i].innerHTML.includes("<span") && currentAccessKey < 10) {
-        aTags[i].accessKey = "" + currentAccessKey;
+    const jumpNavigation = document.getElementById("jump-nav");
+    if (jumpNavigation != null) {
+      const aTags = jumpNavigation.getElementsByTagName("a");
 
-        if (isProfileEdit || isSpaceEdit) {
-          if (aTags[i].href.toLowerCase().includes("#text")) {
-            aTags[i].addEventListener("click", () => {
-              document.getElementById("wpTextbox1").focus();
-            });
+      for (let i = 0; i < aTags.length; i++) {
+        if (!aTags[i].innerHTML.includes("<span") && currentAccessKey < 10) {
+          aTags[i].accessKey = "" + currentAccessKey;
+
+          if (isProfileEdit || isSpaceEdit) {
+            if (aTags[i].href.toLowerCase().includes("#text")) {
+              aTags[i].addEventListener("click", () => {
+                document.getElementById("wpTextbox1").focus();
+              });
+            }
+            if (aTags[i].href.toLowerCase().includes("#save")) {
+              aTags[i].addEventListener("click", () => {
+                document.getElementById("wpSummary").focus();
+              });
+            }
           }
-          if (aTags[i].href.toLowerCase().includes("#save")) {
-            aTags[i].addEventListener("click", () => {
-              document.getElementById("wpSummary").focus();
-            });
+          if (options.JumpNavHints) {
+            const hint = document.createElement("sup");
+            hint.innerText = currentAccessKey;
+            aTags[i].parentNode.insertBefore(hint, aTags[i].nextSibling);
           }
+          currentAccessKey++;
         }
-        if (options.JumpNavHints) {
-          const hint = document.createElement("sup");
-          hint.innerText = currentAccessKey;
-          aTags[i].parentNode.insertBefore(hint, aTags[i].nextSibling);
-        }
-        currentAccessKey++;
       }
     }
   }
