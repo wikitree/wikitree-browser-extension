@@ -1288,6 +1288,7 @@ export function buildBirth(person) {
 function buildBirthDate(person) {
   let birthDateBit = "";
   if (person.BirthDate) {
+    console.log("status", person.mStatus_BirthDate);
     birthDateBit = " " + formatDate(person.BirthDate, person.mStatus_BirthDate || "", { needOn: true });
   }
   return birthDateBit;
@@ -7810,8 +7811,6 @@ export async function buildFamilyForPrivateProfiles() {
       }
     }
   }
-
-  console.log("Final window.profilePerson:", JSON.stringify(window.profilePerson, null, 2));
 }
 
 function minimalPlace2(narrativeBits) {
