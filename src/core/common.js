@@ -6,7 +6,7 @@ Contributors: Jonathan Duke (Duke-5773)
 import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
-import { mainDomain, isNavHomePage, isMainDomain, isProfilePage } from "./pageType.js";
+import { mainDomain, isNavHomePage, isMainDomain, isProfilePage, isWikiEdit } from "./pageType.js";
 import { checkIfFeatureEnabled } from "./options/options_storage";
 
 import Cookies from "js-cookie";
@@ -274,6 +274,11 @@ async function checkButtonFeatures() {
   const features = ["extraWatchlist", "clipboardAndNotes", "spaceWatchlistSorter"];
   const promises = features.map((feature) => checkIfFeatureEnabled(feature));
 
+  let buttonContainer2 = $("<div>").addClass("wbe-button-container2");
+  if (isWikiEdit) {
+    $("#toolbar").append(buttonContainer2);
+  }
+
   try {
     const results = await Promise.all(promises);
 
@@ -294,11 +299,13 @@ async function checkButtonFeatures() {
     const spaceWatchlistImg = chrome.runtime.getURL("images/s.svg");
 
     // Button creation function
-    const createButton = (id, title, img) => {
+    const createButton = (options) => {
+      // Break out options
+      const { id, title, aClass, img } = options;
       const button = $("<a>")
         .attr("id", id)
         .attr("title", title)
-        .addClass(`${id} wbe-button`)
+        .addClass(`${aClass} wbe-button`)
         .attr("data-bs-title", title)
         .attr("data-bs-toggle", "tooltip")
         .attr(`data-tooltip`, title);
@@ -316,18 +323,46 @@ async function checkButtonFeatures() {
     // Append buttons conditionally
     if (results[0]) {
       $(".clipboardContainer").append(
-        createButton("extraWatchlistButton", "Extra Watchlist", extraWatchlistImg),
-        createButton("addToExtraWatchlistButton", "Add to Extra Watchlist", addToExtraWatchlistImg)
+        createButton({
+          id: "extraWatchlistButton",
+          aClass: "extraWatchlistButton",
+          title: "Extra Watchlist",
+          img: extraWatchlistImg,
+        }),
+        createButton({
+          id: "addToExtraWatchlistButton",
+          aClass: "addToExtraWatchlistButton",
+          title: "Add to Extra Watchlist",
+          img: addToExtraWatchlistImg,
+        })
       );
     }
     if (results[1]) {
       $(".clipboardContainer").append(
-        createButton("aClipboardButton", "Clipboard", clipboardImg),
-        createButton("aNotesButton", "Notes", notesImg)
+        createButton({ id: "clipboardButton", aClass: "aClipboardButton", title: "Clipboard", img: clipboardImg }),
+        createButton({ id: "notesButton", aClass: "aNotesButton", title: "Notes", img: notesImg })
       );
+      if (isWikiEdit) {
+        buttonContainer2.append(
+          createButton({
+            id: "anotherClipboardButton",
+            aClass: "aClipboardButton",
+            title: "Clipboard",
+            img: clipboardImg,
+          }),
+          createButton({ id: "anotherNotesButton", aClass: "aNotesButton", title: "Notes", img: notesImg })
+        );
+      }
     }
     if (results[2]) {
-      $(".clipboardContainer").append(createButton("spaceWatchlistButton", "Space Watchlist", spaceWatchlistImg));
+      $(".clipboardContainer").append(
+        createButton({
+          id: "spaceWatchlistButton",
+          aClass: "spaceWatchlistButton",
+          title: "Space Watchlist",
+          img: spaceWatchlistImg,
+        })
+      );
     }
   } catch (error) {
     console.error("Error checking features to initialize:", error);
@@ -837,7 +872,9 @@ export async function showDraftList() {
         </div>
       `);
     } else {
-      $("#myDrafts").append("<p>No space drafts!</p>");
+      if ($("#noSpaceDrafts").length === 0) {
+        $("#myDrafts").append("<p id='noSpaceDrafts'>No space drafts!</p>");
+      }
     }
   }
 }

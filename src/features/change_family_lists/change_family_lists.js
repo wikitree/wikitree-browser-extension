@@ -1757,7 +1757,8 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
     $("li#profilePerson").length === 0 &&
     familyData.siblings &&
     familyData.siblings.length &&
-    familyData.siblings[0].FullName
+    familyData.siblings[0].FullName &&
+    options.addProfilePersonToSiblingList
   ) {
     insertInSibList();
   }
