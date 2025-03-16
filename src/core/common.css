@@ -181,3 +181,10 @@ ul.scissors li {
 div.bs-tooltip-auto {
   z-index: 10000000;
 }
+
+div.wbe-button-container2 {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  float: right;
+}

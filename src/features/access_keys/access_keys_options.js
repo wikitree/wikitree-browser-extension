@@ -56,6 +56,18 @@ registerFeature({
           label: "Open Nav Home Page (Access key: 1)",
           defaultValue: true,
         },
+        {
+          id: "JumpNav",
+          type: OptionType.CHECKBOX,
+          label: "Jump Navigation (Access keys: 1/2-9)",
+          defaultValue: true,
+        },
+        {
+          id: "JumpNavHints",
+          type: OptionType.CHECKBOX,
+          label: "Show hints on Jump Navigation",
+          defaultValue: false,
+        },
       ],
     },
     // 2. Information Management Keys

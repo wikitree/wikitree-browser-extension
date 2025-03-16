@@ -19,17 +19,19 @@
   body.darkMode h5 a:visited:not(.icon--help,#dummyID),
   body.darkMode h6 a:visited:not(.icon--help,#dummyID),
   body.darkMode p,
-  body.darkMode b:not(.btn-pill-sm b),
+  body.darkMode b:not(.btn-pill-sm b,.dropdown-menu a:hover b),
   body.darkMode i,
   body.darkMode em,
+  body.darkMode u,
+  body.darkMode textarea,
   body.darkMode strong,
   body.darkMode small,
-  body.darkMode span:not(.privacy,.icon--help,.badge,.btn-pill, .icon--inline,.qa-netvote-count-data,.qa-netvote-count-pad,.qa-netvote-count,.qa-a-count,.qa-a-count-data,.qa-a-count-pad),
+  body.darkMode span:not(.nav-link span,.privacy,.icon--help,.badge,.btn-pill, .icon--inline,.qa-netvote-count-data,.qa-netvote-count-pad,.qa-netvote-count,.qa-a-count,.qa-a-count-data,.qa-a-count-pad),
   body.darkMode button.btn-utility,
   body.darkMode .wrapper,
   body.darkMode div:not(.tabs--wrapper, .tabs--wrapper div, .large,header div,footer div, .qa-nav-main, .qa-nav-sub, .qa-footer, .qa-footer a, .qa-footer a:link, .qa-footer a:visited, .qa-footer a:hover, .qa-q-item-stats, .qa-q-item-stats *,.qa-q-view-stats, .qa-q-view-stats *, .qa-q-view-stats .green.rounded, .qa-q-view-stats .green.rounded *, .qa-part-q-view, .qa-part-q-view *, .qa-part-q-view .green.rounded.box, .ui-dialog, .ui-dialog *),
-  body.darkMode a:link:not(.qa-part-a-form a,.qa-c-form a,.tabs--wrapper a,span.EDIT a:visited,aside a:visited, h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited, h5 a:visited, h6 a:visited, #footer a, .qa-q-item-tag-item a, .surnameTableHeaderRow a),
-  body.darkMode a:visited:not(.qa-part-a-form a,.qa-c-form a,.tabs--wrapper a,span.EDIT a:visited,aside a:visited, h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited, h5 a:visited, h6 a:visited, #footer a, .qa-q-item-tag-item a, .surnameTableHeaderRow a),
+  body.darkMode a:link:not(.myCustomMenu a,.dropdown-menu a:hover,.qa-part-a-form a,.qa-c-form a,.tabs--wrapper a,span.EDIT a:visited,aside a:visited, h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited, h5 a:visited, h6 a:visited, #footer a, .qa-q-item-tag-item a, .surnameTableHeaderRow a),
+  body.darkMode a:visited:not(.myCustomMenu a,.dropdown-menu a:hover,.qa-part-a-form a,.qa-c-form a,.tabs--wrapper a,span.EDIT a:visited,aside a:visited, h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited, h5 a:visited, h6 a:visited, #footer a, .qa-q-item-tag-item a, .surnameTableHeaderRow a),
   body.darkMode .small,
   body.darkMode strong,
   body.darkMode .strong,
@@ -86,7 +88,9 @@
   body.darkMode #distanceFromYou,
   body.darkMode #searchBar,
   body.darkMode aside#memoryContainer,
-  body.darkMode .table>:not(caption)>*>* {
+  body.darkMode .table>:not(caption)>*>*,
+  body.darkMode .vertical .nameList li[data-gender],
+  body.darkMode .myCustomMenu {
     background-color: #36393f !important;
     color: #dedecb !important;
   }
@@ -100,18 +104,28 @@
   }
 
   body.darkMode
-    a:link:not(.btn-tag, .menu-style .dropdown-menu a:link, span.EDIT a:link, aside a:link, .tabs--wrapper a:link, h1
-      a, h2 a, h3 a, h4 a, h5 a, h6 a, .qa-nav-main-link, .qa-nav-sub-link, .qa-nav-footer-link, .pureCssMenu a, #footer
-      a, .qa-q-item-tag-item a, .surnameTableHeaderRow a, a.btn-pill-sm, a.btn-pill) {
+    a:link:not(.dropdown-menu a:hover, .btn-tag, .menu-style .dropdown-menu a:link, span.EDIT a:link, aside
+      a:link, .tabs--wrapper a:link, h1 a, h2 a, h3 a, h4 a, h5 a, h6
+      a, .qa-nav-main-link, .qa-nav-sub-link, .qa-nav-footer-link, .pureCssMenu a, #footer a, .qa-q-item-tag-item
+      a, .surnameTableHeaderRow a, a.btn-pill-sm, a.btn-pill) {
     color: #ffee99 !important;
+  }
+
+  body.darkMode .dropdown-menu a:hover {
+    color: #36393f !important;
+    background-color: #ffee99 !important;
   }
 
   body.darkmode #distanceFromYou {
     border-color: #ffffff;
   }
 
-  body.darkMode .dropdown-menu a {
+  body.darkMode .dropdown-menu a:not(#dummyID) {
     text-decoration: none;
+    color: #eeeeee !important;
+  }
+  body.darkMode .dropdown-menu a:hover:not(#dummyID) {
+    color: #36393f !important;
   }
 
   body.darkMode .qa-q-item-tag-item,
@@ -124,36 +138,6 @@
 
   body.darkMode .qa-a-item-selected {
     border-color: gold;
-  }
-
-  /*
-  body.darkMode .icon--help {
-    filter: hue-rotate(340deg) saturate(7.5);
-  }
-  body.darkMode button.btn-search {
-    filter: hue-rotate(340deg) saturate(40.5);
-  }
-  body.darkMode #favoriting {
-    filter: hue-rotate(340deg) saturate(20.5);
-  }
-*/
-
-  body.darkMode .profile--actions a span,
-  body.darkMode span.EDIT a:link,
-  body.darkMode span.EDIT a:visited,
-  body.darkMode .icon--pedigree:not(#Ancestors-tab span),
-  body.darkMode .icon--email,
-  body.darkMode .icon--edit,
-  body.darkMode .icon--connect,
-  body.darkMode .icon--inline:not(.btn-pill .icon--inline),
-  body.darkMode .icon--descendants:not(#Descendants-tab span),
-  body.darkMode span[class*="icon--"]:not(.icon--help, .btn-pill .icon--inline),
-  body.darkMode span.editsection a:link,
-  body.darkMode span.editsection a:visited,
-  body.darkMode ul.copy--buttons img {
-    /*
-    filter: hue-rotate(340deg) saturate(30.5);
-    */
   }
   body.darkMode #distanceFromYou {
     border-color: #ffffff;

@@ -62,6 +62,12 @@ const changeFamilyLists = {
     },
     { id: "showDates", type: OptionType.CHECKBOX, label: "Show dates in horizontal lists", defaultValue: false },
     {
+      id: "addProfilePersonToSiblingList",
+      type: OptionType.CHECKBOX,
+      label: "Add the profile person to the sibling list to show their birth order position",
+      defaultValue: true,
+    },
+    {
       id: "highlightActiveProfile",
       type: OptionType.CHECKBOX,
       label: "Highlight the active profile",

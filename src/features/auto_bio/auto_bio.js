@@ -153,7 +153,7 @@ const unsourced =
 // Function to get the person's data from the form fields
 export function getFormData() {
   let formData = {};
-  $("#editform table input[id]").each(function () {
+  $("#editform input[id]").each(function () {
     if ($(this).attr("type") === "radio") {
       if ($(this).is(":checked")) {
         formData[$(this).attr("name")] = $(this).val();
@@ -1288,6 +1288,7 @@ export function buildBirth(person) {
 function buildBirthDate(person) {
   let birthDateBit = "";
   if (person.BirthDate) {
+    console.log("status", person.mStatus_BirthDate);
     birthDateBit = " " + formatDate(person.BirthDate, person.mStatus_BirthDate || "", { needOn: true });
   }
   return birthDateBit;
@@ -1507,48 +1508,6 @@ function addRefsToRelation(refs, person, relation) {
   return text;
 }
 
-/*
-export function buildParents(person) {
-  let text = "child of ";
-  if (person.Gender == "Male") {
-    text = "son of ";
-  } else if (person.Gender == "Female") {
-    text = "daughter of ";
-  }
-  let parents = person.Parents;
-  if (parents) {
-    if (person.Father) {
-      let father = person.Parents[person.Father];
-      if ((window.autoBioOptions?.usePrivate && father?.Privacy < 30) || !father) {
-        text += "Private Father";
-      } else {
-        text += nameLink(father);
-        if (window.autoBioOptions?.includeParentsDates) {
-          text += " " + formatDates(father);
-        }
-      }
-      text += addRefsToRelation(window.references, father, "father");
-    }
-    if (person.Father && person.Mother) {
-      text += " and ";
-    }
-    if (person.Mother) {
-      let mother = person.Parents[person.Mother];
-      if ((window.autoBioOptions?.usePrivate && mother?.Privacy < 30) || !mother) {
-        text += "Private Mother";
-      } else {
-        text += nameLink(mother);
-        if (window.autoBioOptions?.includeParentsDates) {
-          text += " " + formatDates(mother);
-        }
-      }
-      text += addRefsToRelation(window.references, mother, "mother");
-    }
-  }
-  return text;
-}
-  */
-
 export function buildParents(person) {
   let option = window.autoBioOptions?.firstSentences || "of"; // Default to "of"
   let text = "";
@@ -1668,10 +1627,13 @@ export function minimalPlace(place) {
 }
 
 export function buildSpouses(person) {
+  console.log("[buildSpouses] Called for person:", person?.PersonName?.FullName || person);
   if (!isObject(person.Spouses)) {
+    console.warn("[buildSpouses] person.Spouses is not an object. Exiting.");
     return;
   }
   let spouseKeys = Object.keys(person.Spouses);
+  console.log("[buildSpouses] Found spouse keys:", spouseKeys);
   let marriages = [];
   let firstNameAndYear = [];
 
@@ -1683,6 +1645,23 @@ export function buildSpouses(person) {
       let aBirthDate = person.Spouses[a].BirthDate ? person.Spouses[a].BirthDate.replaceAll(/-/g, "") : "99999999";
       let bBirthDate = person.Spouses[b].BirthDate ? person.Spouses[b].BirthDate.replaceAll(/-/g, "") : "99999999";
 
+      // Debug log for each comparison (comment out if too verbose)
+      console.debug(
+        "[buildSpouses][sort] Comparing key",
+        a,
+        "and",
+        b,
+        "with values:",
+        "aMarriageDate:",
+        aMarriageDate,
+        "bMarriageDate:",
+        bMarriageDate,
+        "aBirthDate:",
+        aBirthDate,
+        "bBirthDate:",
+        bBirthDate
+      );
+
       if (aMarriageDate && bMarriageDate) {
         return parseInt(aMarriageDate, 10) - parseInt(bMarriageDate, 10);
       } else if (!aMarriageDate && !bMarriageDate) {
@@ -1693,8 +1672,10 @@ export function buildSpouses(person) {
         return parseInt(aMarriageDate, 10) - parseInt(bBirthDate, 10);
       }
     });
+    console.log("[buildSpouses] Sorted spouse keys:", spouseKeys);
 
     spouseKeys.forEach(function (key) {
+      console.log(`[buildSpouses] Processing spouse key: ${key}`);
       let text = "";
       let spouse = person.Spouses[key];
       let marriageAge = "";
@@ -1708,7 +1689,7 @@ export function buildSpouses(person) {
       ) {
         let age = getAgeFromISODates(window.profilePerson.BirthDate, spouse.marriage_date);
         if (isOK(age)) {
-          marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, spouse.marriage_date)})`;
+          marriageAge = ` (${age})`;
         }
       }
 
@@ -1736,11 +1717,7 @@ export function buildSpouses(person) {
 
         if (window.autoBioOptions?.spouseParentDetails) {
           if (spouse.Father || spouse.Mother) {
-            if (spouseDetailsA == "") {
-              spouseDetailsA += ", ";
-            } else {
-              spouseDetailsA += "; ";
-            }
+            spouseDetailsA += spouseDetailsA === "" ? ", " : "; ";
             spouseDetailsB += ". " + (spousePronoun || spouse.PersonName?.FirstName) + " was the ";
             spouseDetailsA += spouse.Gender == "Male" ? "son" : spouse.Gender == "Female" ? "daughter" : "child";
             spouseDetailsA += " of ";
@@ -1858,7 +1835,6 @@ export function buildSpouses(person) {
           : spouse.BirthDate && spouse.BirthDate !== "0000-00-00"
           ? spouse.BirthDate.replaceAll("-", "")
           : "";
-
       if (!orderDate) {
         orderDate = "99999999"; // Fallback to a high value if missing
       }
@@ -1871,6 +1847,12 @@ export function buildSpouses(person) {
         "Event Date": spouse.marriage_date,
         "Event Year": spouse.marriage_date?.substring(0, 4),
         "Event Type": "Marriage",
+      });
+
+      console.log(`[buildSpouses] Processed spouse key: ${key}`, {
+        Spouse: spouse,
+        Narrative: text,
+        OrderDate: orderDate,
       });
     });
   }
@@ -1890,7 +1872,7 @@ export function buildSpouses(person) {
           }
         });
         if (foundSpouse == false && thisSpouse) {
-          console.log({ thisSpouse, firstNameAndYear });
+          console.log("[buildSpouses] Unmatched reference for spouse:", { thisSpouse, firstNameAndYear });
           let text = "";
           let marriageDate = "";
           if (reference["Marriage Date"]) {
@@ -1901,7 +1883,7 @@ export function buildSpouses(person) {
           let age = getAgeFromISODates(window.profilePerson.BirthDate, marriageDate);
           let marriageAge = "";
           if (isOK(age)) {
-            marriageAge = ` (${getAgeFromISODates(window.profilePerson.BirthDate, marriageDate)})`;
+            marriageAge = ` (${age})`;
           }
           text += person.PersonName?.FirstName + marriageAge + " married " + thisSpouse;
           if (reference["Marriage Place"]) {
@@ -1926,6 +1908,7 @@ export function buildSpouses(person) {
           });
           reference.Used = true;
           reference.RefName = "ref_" + i;
+          console.info("[buildSpouses] Processed reference-based spouse:", reference);
 
           addToNeedsProfilesCreated({ Name: thisSpouse, MarriageDate: marriageDate, Relation: "Spouse" });
         }
@@ -1950,6 +1933,7 @@ export function buildSpouses(person) {
     }
   }
 
+  console.log("[buildSpouses] Final marriages array:", marriages);
   return marriages;
 }
 
@@ -7481,6 +7465,8 @@ export async function buildFamilyForPrivateProfiles() {
     return; // Exit the function early
   }
 
+  console.log("Initial window.profilePerson:", JSON.stringify(window.profilePerson, null, 2));
+
   // Construct BirthName if it doesn't exist
   if (!window.profilePerson.BirthName) {
     window.profilePerson.BirthName =
@@ -7534,16 +7520,20 @@ export async function buildFamilyForPrivateProfiles() {
       object.LastNameAtBirth = nameParts.pop();
       object.FirstName = nameParts.join(" ");
     }
+    // Create a PersonName object for consistent output
+    object.PersonName = {
+      FirstName: object.FirstName,
+      // Prefer LastNameCurrent if available; otherwise, use LastNameAtBirth
+      FullName: object.FirstName + " " + (object.LastNameCurrent || object.LastNameAtBirth),
+    };
+    console.debug("[parseName] Parsed name:", object.PersonName.FullName);
   }
 
-  // jsdoc
   /**
    * Helper function to decode accents in a string.
    * @param {string} str - The string to decode.
    * @returns {string} The decoded string.
-   * @example decodeAccents("%C3%A0") // returns "à"
-   * @example decodeAccents("%C3%A1") // returns "á"
-   **/
+   */
   function decodeAccents(str) {
     try {
       return decodeURIComponent(str);
@@ -7569,117 +7559,92 @@ export async function buildFamilyForPrivateProfiles() {
     return null;
   }
 
-  // Locate family members in the page
-  const familyColumn = $("a[name='family']").closest("div");
-  if (familyColumn && familyColumn.length > 0) {
-    const familyTable = familyColumn.find("table");
-    const familyTableRows = familyTable.find("tr");
-    let fatherTr, motherTr, siblingsTr, spousesTr, childrenTr;
-    familyTableRows.each(function (index, row) {
-      const cellText = $(this).find("td").eq(0).text();
-      if (cellText.includes("Father")) fatherTr = row;
-      else if (cellText.includes("Mother")) motherTr = row;
-      else if (cellText.includes("Siblings")) siblingsTr = row;
-      else if (cellText.includes("Spouses")) spousesTr = row;
-      else if (cellText.includes("Children")) childrenTr = row;
-    });
-
-    // Initialize Parents if not already done
-    if (!window.profilePerson.Parents) {
-      window.profilePerson.Parents = {};
-    }
-
-    // Process father's data if available
-    if (fatherTr) {
-      const fatherLinks = fatherTr.querySelectorAll("a");
-      const fatherLink = findFamilyPersonLink(fatherLinks);
-      if (fatherLink) {
-        const fatherId = decodeAccents(fatherLink.href.split("/").pop());
-        const fatherObject = {
-          Name: fatherId,
-        };
-        const fatherName = fatherLink.textContent;
-        parseName(fatherName, fatherObject);
-        if (window.profilePerson.Father) {
-          if (!window.profilePerson.Parents[window.profilePerson.Father]) {
-            fatherObject.Id = window.profilePerson.Father;
-            window.profilePerson.Parents[window.profilePerson.Father] = fatherObject;
-          } else if (!window.profilePerson.Parents[window.profilePerson.Father]?.Name) {
-            window.profilePerson.Parents[window.profilePerson.Father].assign(fatherObject);
-          }
-        } else {
-          window.profilePerson.Parents[1] = fatherObject;
-          window.profilePerson.Father = 1;
-        }
-      }
-    }
-
-    // Process mother's data if available
-    if (motherTr) {
-      const motherLinks = motherTr.querySelectorAll("a");
-      const motherLink = findFamilyPersonLink(motherLinks);
-      if (motherLink) {
-        const motherId = decodeAccents(motherLink.href.split("/").pop());
-        const motherObject = {
-          Name: motherId,
-        };
-        const motherName = motherLink.textContent;
-        parseName(motherName, motherObject);
-        if (window.profilePerson.Mother) {
-          if (!window.profilePerson.Parents[window.profilePerson.Mother]) {
-            motherObject.Id = window.profilePerson.Mother;
-            window.profilePerson.Parents[window.profilePerson.Mother] = motherObject;
-          } else if (!window.profilePerson.Parents[window.profilePerson.Mother]?.Name) {
-            window.profilePerson.Parents[window.profilePerson.Mother].assign(motherObject);
-          }
-        } else {
-          window.profilePerson.Parents[2] = motherObject;
-          window.profilePerson.Mother = 2;
-        }
-      }
-    }
-
-    // Process and initialize Siblings, Spouses, and Children data
-    const familyLists = ["Siblings", "Spouses", "Children"];
-    familyLists.forEach((familyList) => {
-      window.profilePerson[familyList] = {};
-      const familyTr = familyList === "Siblings" ? siblingsTr : familyList === "Spouses" ? spousesTr : childrenTr;
-      if (familyTr) {
-        const familyTd = $(familyTr).find("td").eq(1)[0];
-        if (familyTd) {
-          const familyOl = familyTd.firstElementChild;
-          if (familyOl) {
-            const family = familyOl.children;
-            if (family) {
-              for (let i = 0; i < family.length; i++) {
-                const familyMember = family[i];
-                const familyMemberLinks = familyMember.querySelectorAll("a");
-                const familyMemberLink = findFamilyPersonLink(familyMemberLinks);
-                if (familyMemberLink) {
-                  const familyMemberId = decodeAccents(familyMemberLink.href.split("/").pop());
-                  const familyMemberObject = {
-                    Name: familyMemberId,
-                    BirthDate: "0000-00-00",
-                  };
-                  if (familyList == "Spouses") {
-                    familyMemberObject["marriage_date"] = "0000-00-00";
-                  }
-                  const familyMemberName = familyMemberLink.textContent;
-                  parseName(familyMemberName, familyMemberObject);
-                  window.profilePerson[familyList][i] = familyMemberObject;
-                }
-              }
-            }
-          }
-        }
-      }
-      if (Object.keys(window.profilePerson[familyList])?.length === 0) {
-        window.profilePerson[familyList] = [];
-      }
-    });
+  // --------------------------
+  // Process Parent Data
+  // --------------------------
+  if (!window.profilePerson.Parents) {
+    window.profilePerson.Parents = {};
   }
 
-  // Collate all the family members' names for subsequent fetch
+  // Process Father's data using the new #Father container
+  const fatherDiv = $("#Father");
+  if (fatherDiv.length) {
+    const fatherLink = fatherDiv.find(".tree--person a").first();
+    if (fatherLink.length) {
+      const fatherId = decodeAccents(fatherLink.attr("href").split("/").pop());
+      const fatherObject = { Name: fatherId };
+      const fatherName = fatherLink.text().trim();
+      parseName(fatherName, fatherObject);
+      if (window.profilePerson.Father) {
+        if (!window.profilePerson.Parents[window.profilePerson.Father]) {
+          fatherObject.Id = window.profilePerson.Father;
+          window.profilePerson.Parents[window.profilePerson.Father] = fatherObject;
+        } else if (!window.profilePerson.Parents[window.profilePerson.Father]?.Name) {
+          window.profilePerson.Parents[window.profilePerson.Father].assign(fatherObject);
+        }
+      } else {
+        window.profilePerson.Parents[1] = fatherObject;
+        window.profilePerson.Father = 1;
+      }
+    }
+  }
+
+  // Process Mother's data using the new #Mother container
+  const motherDiv = $("#Mother");
+  if (motherDiv.length) {
+    const motherLink = motherDiv.find(".tree--person a").first();
+    if (motherLink.length) {
+      const motherId = decodeAccents(motherLink.attr("href").split("/").pop());
+      const motherObject = { Name: motherId };
+      const motherName = motherLink.text().trim();
+      parseName(motherName, motherObject);
+      if (window.profilePerson.Mother) {
+        if (!window.profilePerson.Parents[window.profilePerson.Mother]) {
+          motherObject.Id = window.profilePerson.Mother;
+          window.profilePerson.Parents[window.profilePerson.Mother] = motherObject;
+        } else if (!window.profilePerson.Parents[window.profilePerson.Mother]?.Name) {
+          window.profilePerson.Parents[window.profilePerson.Mother].assign(motherObject);
+        }
+      } else {
+        window.profilePerson.Parents[2] = motherObject;
+        window.profilePerson.Mother = 2;
+      }
+    }
+  }
+
+  // --------------------------
+  // Process Siblings, Spouses, and Children
+  // --------------------------
+  const familyTypes = ["Siblings", "Spouses", "Children"];
+  familyTypes.forEach((type) => {
+    window.profilePerson[type] = {};
+    const container = $(`#${type}`);
+    if (container.length) {
+      // Assuming each container has a <ul> with <li> items for each family member.
+      const familyItems = container.find("ol > li");
+      for (let i = 0; i < familyItems.length; i++) {
+        const item = $(familyItems[i]);
+        const link = item.find("a").first();
+        if (link.length) {
+          const memberId = decodeAccents(link.attr("href").split("/").pop());
+          const memberObject = { Name: memberId, BirthDate: "0000-00-00" };
+          if (type === "Spouses") {
+            memberObject["marriage_date"] = "0000-00-00";
+          }
+          const memberName = link.text().trim();
+          parseName(memberName, memberObject);
+          window.profilePerson[type][i] = memberObject;
+        }
+      }
+      if (Object.keys(window.profilePerson[type]).length === 0) {
+        window.profilePerson[type] = [];
+      }
+    }
+  });
+
+  // --------------------------
+  // Collate All Family Member Names for Fetching Data
+  // --------------------------
   const ids = [];
   ["Parents", "Siblings", "Spouses", "Children"].forEach(function (familyList) {
     if (window.profilePerson[familyList] && typeof window.profilePerson[familyList] === "object") {
@@ -7692,8 +7657,9 @@ export async function buildFamilyForPrivateProfiles() {
     }
   });
 
-  // Fetch family profiles data
-
+  // --------------------------
+  // Fetch Family Profiles Data
+  // --------------------------
   const theFields = [
     "BirthDate",
     "BirthDateDecade",
@@ -7726,7 +7692,8 @@ export async function buildFamilyForPrivateProfiles() {
   let familyProfiles = [];
   if (ids.length > 0) {
     try {
-      const familyProfiles = await getPeople(ids.join(","), 0, 0, 0, 0, 0, theFields.join(","), "WBE_auto_bio");
+      familyProfiles = await getPeople(ids.join(","), 0, 0, 0, 0, 0, theFields.join(","), "WBE_auto_bio");
+      console.log("Fetched familyProfiles:", JSON.stringify(familyProfiles, null, 2));
       if (!familyProfiles || !familyProfiles[0]) {
         console.error("Failed to fetch family profiles");
       } else {
@@ -7773,13 +7740,12 @@ export async function buildFamilyForPrivateProfiles() {
     }
   }
 
-  console.log("profile person now", logNow(window.profilePerson));
-  console.log(window.profilePerson);
-
   // Update the main profile with the new family members' names
   assignPersonNames(window.profilePerson);
 
-  // Further refinement of the family tree based on fetched data
+  // --------------------------
+  // Further Refinement of the Family Tree
+  // --------------------------
   for (let i = -10; i < 0; i++) {
     if (familyProfiles?.[0]?.people[i]) {
       const thisPerson = familyProfiles[0].people[i];
@@ -8212,7 +8178,6 @@ export async function generateBio() {
     const bioHeaderAndStickers = bioHeader + stickersAndBoxes;
 
     //Add birth
-    console.log(JSON.parse(JSON.stringify(window.profilePerson)));
     const birthText = buildBirth(window.profilePerson) + "\n\n";
 
     // Add death

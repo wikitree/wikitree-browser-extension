@@ -6,7 +6,7 @@ Contributors: Jonathan Duke (Duke-5773)
 import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
-import { mainDomain, isNavHomePage, isMainDomain, isProfilePage } from "./pageType.js";
+import { mainDomain, isNavHomePage, isMainDomain, isProfilePage, isWikiEdit } from "./pageType.js";
 import { checkIfFeatureEnabled } from "./options/options_storage";
 
 import Cookies from "js-cookie";
@@ -274,6 +274,11 @@ async function checkButtonFeatures() {
   const features = ["extraWatchlist", "clipboardAndNotes", "spaceWatchlistSorter"];
   const promises = features.map((feature) => checkIfFeatureEnabled(feature));
 
+  let buttonContainer2 = $("<div>").addClass("wbe-button-container2");
+  if (isWikiEdit) {
+    $("#toolbar").append(buttonContainer2);
+  }
+
   try {
     const results = await Promise.all(promises);
 
@@ -294,11 +299,13 @@ async function checkButtonFeatures() {
     const spaceWatchlistImg = chrome.runtime.getURL("images/s.svg");
 
     // Button creation function
-    const createButton = (id, title, img) => {
+    const createButton = (options) => {
+      // Break out options
+      const { id, title, aClass, img } = options;
       const button = $("<a>")
         .attr("id", id)
         .attr("title", title)
-        .addClass(`${id} wbe-button`)
+        .addClass(`${aClass} wbe-button`)
         .attr("data-bs-title", title)
         .attr("data-bs-toggle", "tooltip")
         .attr(`data-tooltip`, title);
@@ -316,18 +323,46 @@ async function checkButtonFeatures() {
     // Append buttons conditionally
     if (results[0]) {
       $(".clipboardContainer").append(
-        createButton("extraWatchlistButton", "Extra Watchlist", extraWatchlistImg),
-        createButton("addToExtraWatchlistButton", "Add to Extra Watchlist", addToExtraWatchlistImg)
+        createButton({
+          id: "extraWatchlistButton",
+          aClass: "extraWatchlistButton",
+          title: "Extra Watchlist",
+          img: extraWatchlistImg,
+        }),
+        createButton({
+          id: "addToExtraWatchlistButton",
+          aClass: "addToExtraWatchlistButton",
+          title: "Add to Extra Watchlist",
+          img: addToExtraWatchlistImg,
+        })
       );
     }
     if (results[1]) {
       $(".clipboardContainer").append(
-        createButton("aClipboardButton", "Clipboard", clipboardImg),
-        createButton("aNotesButton", "Notes", notesImg)
+        createButton({ id: "clipboardButton", aClass: "aClipboardButton", title: "Clipboard", img: clipboardImg }),
+        createButton({ id: "notesButton", aClass: "aNotesButton", title: "Notes", img: notesImg })
       );
+      if (isWikiEdit) {
+        buttonContainer2.append(
+          createButton({
+            id: "anotherClipboardButton",
+            aClass: "aClipboardButton",
+            title: "Clipboard",
+            img: clipboardImg,
+          }),
+          createButton({ id: "anotherNotesButton", aClass: "aNotesButton", title: "Notes", img: notesImg })
+        );
+      }
     }
     if (results[2]) {
-      $(".clipboardContainer").append(createButton("spaceWatchlistButton", "Space Watchlist", spaceWatchlistImg));
+      $(".clipboardContainer").append(
+        createButton({
+          id: "spaceWatchlistButton",
+          aClass: "spaceWatchlistButton",
+          title: "Space Watchlist",
+          img: spaceWatchlistImg,
+        })
+      );
     }
   } catch (error) {
     console.error("Error checking features to initialize:", error);
@@ -837,7 +872,9 @@ export async function showDraftList() {
         </div>
       `);
     } else {
-      $("#myDrafts").append("<p>No space drafts!</p>");
+      if ($("#noSpaceDrafts").length === 0) {
+        $("#myDrafts").append("<p id='noSpaceDrafts'>No space drafts!</p>");
+      }
     }
   }
 }
@@ -855,8 +892,6 @@ function removeKeysStartingWithSpace() {
 
   // Save the updated spaceDrafts back to localStorage
   localStorage.setItem("spaceDrafts", JSON.stringify(spaceDrafts));
-
-  console.log("Removed all keys starting with 'Space:'.");
 }
 
 // Event listeners for space drafts actions
@@ -914,7 +949,6 @@ $(document).on("click", "#deleteSpaceDraftsForPage", function () {
 // Used in saveDraftList (above)
 export async function updateDraftList() {
   setTimeout(() => {
-    console.log("Starting updateDraftList function");
     const profileWTID = profilePerson.Name;
     let addDraft = false;
     let timeNow = Date.now();
@@ -922,21 +956,16 @@ export async function updateDraftList() {
     let isEditPage = false;
     const theName = profilePerson.FullName;
 
-    console.log($("#draftStatus:contains('saved'),#status:contains('Starting with previous')").length);
-
     if ($("#draftStatus:contains('saved'),#status:contains('Starting with previous')").length) {
       addDraft = true;
-      console.log("Draft status indicates a saved draft or starting with previous draft");
     } else if ($("body.edit-person").length) {
       isEditPage = true;
-      console.log("This is an edit-person page");
     }
 
     if (localStorage.drafts) {
       let draftsArr = [];
       let draftsArrIDs = [];
       let drafts = JSON.parse(localStorage.drafts);
-      console.log(`drafts`, drafts);
       drafts.forEach(function (draft) {
         if (!draftsArrIDs.includes(draft[0])) {
           if ((addDraft == false || window.fullSave == true) && draft[0] == profileWTID && isEditPage == true) {
@@ -948,33 +977,22 @@ export async function updateDraftList() {
               draftsArr.push(draft);
               console.log(`Adding draft for profile ${draft[0]} to draftsArr`);
               draftsArrIDs.push(draft[0]);
-              console.log(`draftsArrIDs: ${draftsArrIDs}`);
-              console.log(`Adding draft for profile ${draft[0]} to draftsArr`);
             }
           }
         }
       });
 
-      console.log("Finished processing existing drafts");
-      console.log(`Profile ${profileWTID} is being ${addDraft == true ? "saved" : "not saved"}`);
       if (!draftsArrIDs.includes(profileWTID) && addDraft == true) {
         draftsArr.push([profileWTID, timeNow, theName]);
-        console.log(`Adding new draft for profile ${profileWTID}`);
       }
 
-      console.log(draftsArr);
       const newDraftsArray = JSON.stringify(draftsArr);
-      console.log(newDraftsArray);
       localStorage.setItem("drafts", newDraftsArray);
-      console.log(localStorage.drafts);
-      console.log("Updated drafts in localStorage");
     } else {
       if (addDraft == true && window.fullSave != true) {
         localStorage.setItem("drafts", JSON.stringify([[profileWTID, timeNow, theName]]));
-        console.log(`Created new drafts array in localStorage with profile ${profileWTID}`);
       }
     }
-    console.log("Finished updateDraftList function");
     return true;
   }, 1000);
 }

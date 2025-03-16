@@ -22,10 +22,12 @@ body.menu-style.darkMode .dropdown-menu a:visited {
   color: #ffffff !important;
   text-decoration: none !important;
 }
+
 body.menu-style.darkMode .dropdown-menu a:hover {
-  background-color: #dedecb;
-  color: #fcb815 !important;
+  background-color: gold;
+  color: #666666 !important;
 }
+
 body.menu-style.darkMode .dropdown-menu a:active {
   background-color: #dedecb;
   color: #fad158 !important;

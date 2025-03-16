@@ -317,3 +317,7 @@ body.darkMode .myCustomMenu {
   margin-right: 1em;
   margin-top: -0.5em;
 }
+
+header .justify-content-end #myMenuGroup.fixed {
+  margin-top: 0.1em;
+}
