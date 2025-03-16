@@ -52,6 +52,7 @@ function newPersonRecord() {
     MarriageDetails: "",
     MarriageMapLink: "",
     merge: false, // flag for mergeable records
+    halfMarker: false, // contains the complete SMALL span containing [half], if present
   };
 }
 
@@ -87,6 +88,10 @@ function parseItempropElement(el) {
       const [b, d] = dateMatch[1].split(/\s*-\s*/);
       record.BirthDate = b?.trim() || "";
       record.DeathDate = d?.trim() || "";
+    }
+    const halfMatch = smallSpan.textContent.match(/\[half\]/i);
+    if (halfMatch) {
+      record.halfMarker = smallSpan;
     }
   }
   const fullText = el.textContent.trim();
@@ -184,6 +189,12 @@ function parseBlock(blockEl, itempropName) {
   const itempropEls = blockEl.querySelectorAll(`[itemprop="${itempropName}"]`);
   itempropEls.forEach((el) => {
     const rec = parseItempropElement(el);
+    if (itempropName == "sibling" && !rec.halfMarker) {
+      const smallSpan = $(el).next(".SMALL");
+      if (smallSpan.length && smallSpan.text().match(/\[half\]/i)) {
+        rec.halfMarker = smallSpan.prop("outerHTML");
+      }
+    }
     if (rec.Name || rec.FullName || rec.UnknownText) {
       records.push(rec);
     }
@@ -289,9 +300,9 @@ function parseInitialData() {
   // Parse siblings
   const siblingsBlock = container.querySelector("#Siblings");
   if (siblingsBlock) {
-    let parsedSiblings = parseBlock(siblingsBlock, "sibling").filter(
-      (r) => r.Name && !/^(add sibling)$/i.test(r.Name) && !/^\[half\]$/i.test(r.Name)
-    );
+    // const parsedSiblings = parseBlock(siblingsBlock, "sibling");.filter(
+    const x = parseBlock(siblingsBlock, "sibling");
+    const parsedSiblings = x.filter((r) => r.Name && !/^(add sibling)$/i.test(r.Name) && !/^\[half\]$/i.test(r.Name));
     const bracketed = parseBracketedUnknownInBlock(siblingsBlock).filter((b) => {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
@@ -583,6 +594,10 @@ function buildSiblingsSection(siblings) {
             ${dates.dates || ""}</span>
           <span class="relAge"></span></span>`;
         li.setAttribute("data-gender", s.Gender || "male");
+        if (s.halfMarker) {
+          $(li).find(".bdDates").before(s.halfMarker);
+        }
+
         if (s.Father) li.setAttribute("data-father", s.Father);
         if (s.Mother) li.setAttribute("data-mother", s.Mother);
       }
@@ -1711,7 +1726,10 @@ function moveMetaGender() {
    Main Hook: Initialize, Replace DOM, and Attach Events
    ======================================================================== */
 shouldInitializeFeature("changeFamilyLists").then(async (result) => {
-  if (!result) return;
+  if (!result) {
+    // parseSiblings();
+    return;
+  }
   moveMetaGender();
   const familyData = parseInitialData();
   const treePerson = $("#Family-pane div.tree--person");
