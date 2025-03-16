@@ -7464,6 +7464,8 @@ export async function buildFamilyForPrivateProfiles() {
     return; // Exit the function early
   }
 
+  console.log("Initial window.profilePerson:", JSON.stringify(window.profilePerson, null, 2));
+
   // Construct BirthName if it doesn't exist
   if (!window.profilePerson.BirthName) {
     window.profilePerson.BirthName =
@@ -7618,7 +7620,7 @@ export async function buildFamilyForPrivateProfiles() {
     const container = $(`#${type}`);
     if (container.length) {
       // Assuming each container has a <ul> with <li> items for each family member.
-      const familyItems = container.find("ul li");
+      const familyItems = container.find("ol > li");
       for (let i = 0; i < familyItems.length; i++) {
         const item = $(familyItems[i]);
         const link = item.find("a").first();
@@ -7690,7 +7692,7 @@ export async function buildFamilyForPrivateProfiles() {
   if (ids.length > 0) {
     try {
       familyProfiles = await getPeople(ids.join(","), 0, 0, 0, 0, 0, theFields.join(","), "WBE_auto_bio");
-      console.log("familyProfiles", familyProfiles);
+      console.log("Fetched familyProfiles:", JSON.stringify(familyProfiles, null, 2));
       if (!familyProfiles || !familyProfiles[0]) {
         console.error("Failed to fetch family profiles");
       } else {
@@ -7736,9 +7738,6 @@ export async function buildFamilyForPrivateProfiles() {
       console.error("Error fetching family profiles", err);
     }
   }
-
-  console.log("profile person now", logNow(window.profilePerson));
-  console.log(window.profilePerson);
 
   // Update the main profile with the new family members' names
   assignPersonNames(window.profilePerson);
@@ -7811,6 +7810,8 @@ export async function buildFamilyForPrivateProfiles() {
       }
     }
   }
+
+  console.log("Final window.profilePerson:", JSON.stringify(window.profilePerson, null, 2));
 }
 
 function minimalPlace2(narrativeBits) {
@@ -8178,7 +8179,6 @@ export async function generateBio() {
     const bioHeaderAndStickers = bioHeader + stickersAndBoxes;
 
     //Add birth
-    console.log(JSON.parse(JSON.stringify(window.profilePerson)));
     const birthText = buildBirth(window.profilePerson) + "\n\n";
 
     // Add death
