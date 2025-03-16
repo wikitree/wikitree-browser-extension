@@ -58,6 +58,19 @@ span.float-end {
   background: white;
   z-index: 1000;
   right: 1em;
+
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 1em;
+  z-index: 1000;
+  width: fit-content;
+  max-height: 80%;
+  overflow: auto;
 }
 #changeSummaryOptions h3 {
   display: inline-block;
@@ -120,4 +133,87 @@ span.float-end {
   background: #f0f0f0;
   border: 1px dashed #ccc;
   visibility: visible !important;
+}
+
+/* Modal container */
+#changeSummaryOptions {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border: 1px solid #ccc;
+  z-index: 1000;
+  width: fit-content;
+  max-height: 80%;
+  overflow: hidden;
+}
+
+/* Header (non-scrolling) */
+#changeSummaryOptions .modal-header {
+  position: relative;
+  padding: 0.5em 1em;
+  border-bottom: 1px solid #ccc;
+  background: #fff;
+}
+
+/* Centered heading */
+#changeSummaryOptions .modal-header h3 {
+  margin: 0;
+  text-align: center;
+  color: #000;
+}
+
+/* Close button fixed in the header */
+#changeSummaryOptions #closeChangeSummaryOptions {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: bold;
+  color: #000;
+}
+
+#changeSummaryOptions div.modal-header {
+  display: block;
+  justify-content: space-between;
+}
+
+/* Add option row inside header */
+#changeSummaryOptions .modal-header .add-option-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1em;
+}
+
+#changeSummaryOptions .modal-header .add-option-container label {
+  margin: 0;
+  padding: 0;
+}
+
+#changeSummaryOptions .modal-header .add-option-container input {
+  width: 70%;
+  margin-left: 10px;
+}
+
+#changeSummaryOptions .modal-header .add-option-container button {
+  margin-left: 10px;
+}
+
+/* Scrollable body for the options list */
+#changeSummaryOptions .modal-body {
+  overflow: auto;
+  max-height: calc(80vh - 120px); /* Adjust this value if needed */
+  padding: 1em;
+}
+
+/* Options list styling */
+#changeSummaryOptions .modal-body ul {
+  list-style: none;
+  padding-left: 0;
+  margin-top: 0.5em;
+  color: #000;
 }
