@@ -375,7 +375,7 @@ function parseInitialData() {
       if (siblingObj) {
         Object.assign(sibling, siblingObj);
         if (sibling.half && !siblingObj.halfMarker) {
-          sibling.halfMarker = `<span class="SMALL" title="${profilePerson.FullName} and sibling share one parent.">[half]</span>`;
+          sibling.halfMarker = ` <span class="SMALL" title="${profilePerson.FullName} and sibling share one parent.">[half]</span>`;
         }
       } else {
         console.log(`Sibling not found in parsedSiblings: ${sibling.FullName}`);
