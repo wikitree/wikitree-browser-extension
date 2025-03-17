@@ -47,9 +47,9 @@ function addAccessKeys(options) {
     setCopyButtonAccessKeyAndClickEvent(options.CopyUserID, "Copy UserID", "j");
     setCopyButtonAccessKeyAndClickEvent(options.CopyLink, "Copy Wiki Link", "l");
     setCopyButtonAccessKeyAndClickEvent(options.CopyURL, "Copy URL", "u");
-    setAccessKeyIfOptionEnabled(options.TreeApps, "ul.profile-tabs li:contains('Tree Apps')", "t", options);
-    setAccessKeyIfOptionEnabled(options.Ancestors, ".showHideTree", "a", options);
-    setAccessKeyIfOptionEnabled(options.Descendants, "#showHideDescendants", "d", options);
+    setAccessKeyIfOptionEnabled(options.TreeApps, "a.tree--apps_link", "t", options);
+    setAccessKeyIfOptionEnabled(options.Ancestors, "#Ancestors-tab", "a", options);
+    setAccessKeyIfOptionEnabled(options.Descendants, "#Descendants-tab", "d", options);
     setAccessKeyIfOptionEnabled(options.Watchlist, "a[href*='Special:WatchedList']", "w", options);
     setAccessKeyIfOptionEnabled(options.Search, "a[href*='Special:SearchPerson']", "f", options);
 
