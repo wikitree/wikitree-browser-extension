@@ -289,6 +289,10 @@ async function checkButtonFeatures() {
     if ($(".clipboardContainer").length === 0) {
       const clipboardContainer = $("<span>").addClass("clipboardContainer");
       $(".profile--actions.float-end").append(clipboardContainer);
+      const readingModeIcon = $(".profile--actions a.action--reading-mode");
+      if (readingModeIcon.length) {
+        clipboardContainer.insertBefore(readingModeIcon);
+      }
     }
 
     // Fetch image URLs
