@@ -915,7 +915,7 @@ li.fl-half-tooltip::after {
   bottom: 30%; /* Show above the element */
   left: -2rem;
   transform: translateX(-50%);
-  background-color: rgba(240, 240, 235, 0.3);
+  background-color: rgba(240, 240, 235, 0.5);
   color: black;
   padding: 5px 10px;
   border-radius: 5px;
