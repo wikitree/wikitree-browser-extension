@@ -1054,7 +1054,7 @@ function addMarriageAges() {
           let html = marriageDetailsSpan.html();
           html = html.replace(
             /—\s*married\s*/i,
-            `<a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=editspouse&s=${idx}" target="_blank" title="Edit marriage" class="clickable">married</a> `
+            `<a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=editspouse&s=${spouseId}" target="_blank" title="Edit marriage" class="clickable">married</a> `
           );
           marriageDetailsSpan.html(html);
           marriageDetailsSpan.contents().wrapAll('<div class="marriageDetailsInner"></div>');
