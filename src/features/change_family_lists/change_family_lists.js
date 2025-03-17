@@ -631,7 +631,7 @@ function buildParentsSection(parents) {
         p.FullName || p.Name
       }</span>${status || ""}</a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
         dates.deathYear || ""
-      }">${dates.dates ? " " + dates.dates : ""}/span><span class="relAge"></span></span>`;
+      }">${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
       ol.appendChild(li);
     });
   }
