@@ -618,6 +618,11 @@ span[itemprop="sibling"]:has(.activeProfile) {
   padding-left: 3px;
   display: block;
 }
+.vertical div.familyList li span.dataStatus {
+  font-size: 0.8em;
+  display: inline-block;
+  margin-left: 0.5em;
+}
 
 .vertical span#childrenUnknownQ a,
 .vertical a.BLANK.addSpouse,

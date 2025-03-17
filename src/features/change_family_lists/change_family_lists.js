@@ -304,7 +304,6 @@ function siblingsTextArray() {
  */
 function parseInitialData() {
   const theSiblingsArray = siblingsTextArray();
-  console.log("theSiblingsArray", theSiblingsArray);
 
   const excludeBrackets = [
     "[date unknown]",
@@ -374,19 +373,14 @@ function parseInitialData() {
           s.DeathDate == sibling.DeathDate
       );
       if (siblingObj) {
-        console.log(`Updating sibling: ${sibling.FullName}`);
         Object.assign(sibling, siblingObj);
         if (sibling.half && !siblingObj.halfMarker) {
           sibling.halfMarker = `<span class="SMALL" title="${profilePerson.FullName} and sibling share one parent.">[half]</span>`;
-          console.log(`Added halfMarker for sibling: ${sibling.FullName}`);
         }
       } else {
         console.log(`Sibling not found in parsedSiblings: ${sibling.FullName}`);
       }
     });
-
-    console.log("parsedSiblings", parsedSiblings);
-    console.log("theSiblingsArray", theSiblingsArray);
 
     //    familyData.siblings = parsedSiblings;
     familyData.siblings = theSiblingsArray;
@@ -619,14 +613,23 @@ function buildParentsSection(parents) {
       console.log(profilePersonData);
       if (status) {
         console.log("status", status);
-        const statusWord = status == 5 ? "non-biological" : status == 10 ? "uncertain" : status == 20 ? "certain" : "";
-        status = ` <span class="dataStatus" title="${statusWord}">[${statusWord}]</span>`;
+        const statusWord =
+          status == 5
+            ? "[non-biological]"
+            : status == 10
+            ? "[uncertain]"
+            : status == 20
+            ? "[certain]"
+            : status == 30
+            ? "<span class='icon--dna-checked' style='background-size:40px 20px !important; width:40px !important'></span>"
+            : "";
+        status = ` <span class="dataStatus" title="">${statusWord}</span>`;
       }
       li.innerHTML = `<span itemprop="${
         p.relationship || "parent"
       }" itemscope itemtype="https://schema.org/Person"><a ${hrefBit} itemprop="url" title="" aria-label="Parent"><span itemprop="name">${
         p.FullName || p.Name
-      }</span></a>${status}<span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+      }</span>${status || ""}</a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
         dates.deathYear || ""
       }">
             ${dates.dates || ""}</span>
@@ -1265,8 +1268,6 @@ function addHalfsStyle() {
     .get();
   const uniqueFathers = [...new Set(fathers)];
   const uniqueMothers = [...new Set(mothers)];
-  console.log("Unique fathers:", uniqueFathers);
-  console.log("Unique mothers:", uniqueMothers);
 
   const cond1 = uniqueFathers.length == 1 && uniqueFathers[0] == profilePersonData.Father;
   const cond2 = uniqueFathers.length == 0 && !profilePersonData.Father;
@@ -1508,8 +1509,6 @@ function insertInSibList() {
       ? parseInt(pPerson.DeathDateDecade) + 5
       : null;
 
-  console.log("Inserting profile person into sibling list...");
-
   const fatherId = pPerson.Father;
   const motherId = pPerson.Mother;
 
@@ -1524,11 +1523,9 @@ function insertInSibList() {
   });
   if (diffMother.length || diffFather.length) {
     if (profilePersonData.Father) {
-      console.log("Profile person has a father.");
       parentClasses += "parent_1 ";
     }
     if (profilePersonData.Mother) {
-      console.log("Profile person has a mother.");
       parentClasses += "parent_2";
     }
   }
