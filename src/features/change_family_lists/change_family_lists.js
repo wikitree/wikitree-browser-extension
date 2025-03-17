@@ -274,7 +274,7 @@ function siblingsTextArray() {
     const name1 = s
       .replace("[half]", "")
       .trim()
-      .replace(/(Brother|Sister) of\n/, "")
+      .replace(/(Brother|Sister|Sibling) of\n/, "")
       .replace(/\nadd sibling/, "")
       .trim();
     let BirthDate;
