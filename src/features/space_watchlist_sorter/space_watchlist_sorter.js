@@ -36,6 +36,7 @@ const SPWL_DB_NAME = "SpaceWatchlistDB";
 const SPWL_DB_VERSION = 2;
 const SPWL_DB_STORE = "watchlist";
 const dbHelper = new IndexedDBHelper(SPWL_DB_NAME, SPWL_DB_VERSION);
+let loadedDataVersion = 1;
 
 async function initializeDatabase() {
   if (!dbHelper.db) {
@@ -203,6 +204,14 @@ function showLoginPopup() {
   });
 }
 
+function versionId(userId) {
+  return `data-version-${userId}`;
+}
+
+function dataId(userId) {
+  return `categorization-${userId}`;
+}
+
 async function loadWatchlistFromDB() {
   const userId = getUserWtId(); // Fetch the logged-in user's ID
   // console.log(`Loading watchlist for ${userId} from IndexedDB`);
@@ -213,7 +222,9 @@ async function loadWatchlistFromDB() {
 
   try {
     const dbh = await initializeDatabase();
-    const dbWatchList = await dbh.getData(SPWL_DB_STORE, `categorization-${userId}`);
+    const dbDataVersion = await dbh.getData(SPWL_DB_STORE, versionId(userId));
+    const dbWatchList = await dbh.getData(SPWL_DB_STORE, dataId(userId));
+    loadedDataVersion = dbDataVersion?.timestamp || 1;
     return dbWatchList ? dbWatchList : { folders: [] };
   } catch (error) {
     console.error(`Get watchlist "categorization-${userId}" failed:`, error);
@@ -462,10 +473,29 @@ async function saveWatchlistToDB(folders = []) {
     //console.log("Saving the following categorization:", JSON.stringify(categorization, null, 2)); // Debugging output
 
     const dbh = await initializeDatabase();
-    const dbWatchList = await dbh.putData(SPWL_DB_STORE, {
-      id: `categorization-${userId}`,
-      folders: categorization,
-    });
+    const tsId = versionId(userId);
+    const dbDataVersion = await dbh.getData(SPWL_DB_STORE, tsId);
+    let proceed = true;
+    if (dbDataVersion && dbDataVersion.timestamp > loadedDataVersion) {
+      proceed = confirm(
+        "The data in the database is newer than the data you are trying to save. " +
+          "Did you make changes to the watchlist groups in another tab or window? " +
+          "You can see what is in the database by opening the watchlist sorter in a new window. " +
+          "Do you want to save the data anyway and overwrite what is in the database?"
+      );
+    }
+    if (proceed) {
+      const ourTimestamp = Date.now();
+      await dbh.putData(SPWL_DB_STORE, {
+        id: tsId,
+        timestamp: ourTimestamp,
+      });
+      await dbh.putData(SPWL_DB_STORE, {
+        id: dataId(userId),
+        folders: categorization,
+      });
+      loadedDataVersion = ourTimestamp;
+    }
   } catch (error) {
     console.error("Error in saveWatchlistToDB:", error);
   }
@@ -570,7 +600,7 @@ function addFolder() {
     .on("dblclick", function () {
       const $tab = $(this);
       const currentText = $tab.text().trim();
-      $tab.prop("contenteditable", true).focus();
+      $tab.prop("contenteditable", true).trigger("focus");
 
       $tab.off("blur").on("blur", function () {
         $tab.prop("contenteditable", false);
@@ -841,7 +871,7 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
         }
 
         // Hide the popup
-        $("#spaceWatchlistSorter-popup").slideUp();
+        $("#spaceWatchlistSorter-popup").remove();
       });
 
     $(document)
