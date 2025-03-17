@@ -46,13 +46,6 @@ form[name="a_form"] {
   position: relative;
 }
 
-.qa-a-form .clipboardContainer {
-  position: absolute;
-  top: -1em;
-  display: inline-block;
-  margin-top: 0;
-}
-
 .clipboardContainer img.button.small,
 .clipboardContainer img.button.small {
   height: 1em;

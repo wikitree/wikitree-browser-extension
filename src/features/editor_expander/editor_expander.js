@@ -18,9 +18,8 @@ function returnEditorToNormal() {
   $("#familyDropdown").insertBefore("#toolbar").removeClass("expanded");
   $(document).off("keyup");
 }
-
+const imgURL = chrome.runtime.getURL("images/expand.svg");
 function initEditorExpander() {
-  const imgURL = chrome.runtime.getURL("images/expand.svg");
   const expandButton = $(
     `<img id="expandTextareaButton" src="${imgURL}" class="mw-toolbar-editbutton" title="Expand text box" />`
   );
@@ -51,7 +50,7 @@ function initEditorExpander() {
     const labelIds = ["notesLabel", "sourcesLabel"];
 
     for (let i = 0; i < labelIds.length; i++) {
-      const expandButton = $('<span class="expandTextareaButton" title="Expand text box"></span>');
+      const expandButton = $(`<img class="expandTextareaButton" src="${imgURL}" title="Expand text box"></img>`);
       const labelTd = $(`#${labelIds[i]}`);
       const textareaTd = labelTd.next("td");
       const textarea = textareaTd.find("textarea");
