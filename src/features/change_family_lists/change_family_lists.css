@@ -529,7 +529,7 @@ body.darkMode .vertical .nameList span.bdDates.parent_2 {
   border-right: 3px solid orange;
 }
 
-#nVitals.vertical .nameList span.SMALL {
+#nVitals.vertical .nameList span.SMALL:not(li[data-parse-name*="private"] span.SMALL) {
   display: none !important;
 }
 

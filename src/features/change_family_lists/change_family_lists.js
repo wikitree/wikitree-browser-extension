@@ -631,9 +631,7 @@ function buildParentsSection(parents) {
         p.FullName || p.Name
       }</span>${status || ""}</a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
         dates.deathYear || ""
-      }">
-            ${dates.dates || ""}</span>
-          <span class="relAge"></span></span>`;
+      }">${dates.dates ? " " + dates.dates : ""}/span><span class="relAge"></span></span>`;
       ol.appendChild(li);
     });
   }
@@ -674,17 +672,18 @@ function buildSiblingsSection(siblings) {
       const isPrivate = s.Name.trim().toLowerCase().startsWith("[private");
       if (isPrivate) {
         li.innerHTML = `<span itemprop="sibling" itemscope itemtype="https://schema.org/Person">
-          <span itemprop="name">${s.FullName || s.Name}</span>
-          ${s.halfMarker || ""}
-          <span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${dates.deathYear || ""}">
-            ${dates.dates || ""}</span> <span class="relAge"></span></span>`;
+          <span itemprop="name">${s.FullName || s.Name} ${
+          s.halfMarker || ""
+        }</span><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+          dates.deathYear || ""
+        }">${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
       } else {
         li.innerHTML = `<span itemprop="sibling" itemscope itemtype="https://schema.org/Person">
           <a href="${s.Link}" itemprop="url" title="" aria-label="Sibling"><span itemprop="name">${
           s.FullName || s.Name
-        }</span></a>
-          <span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${dates.deathYear || ""}">
-            ${dates.dates || ""}</span><span class="relAge"></span></span>`;
+        }</span></a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+          dates.deathYear || ""
+        }">${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
         li.setAttribute("data-gender", s.Gender || "male");
         if (s.halfMarker) {
           $(li).find(".bdDates").before(s.halfMarker);
@@ -757,7 +756,7 @@ function buildSpousesSection(spouses) {
     datesEl.className = "spouseDates bdDates";
     datesEl.setAttribute("data-birth-year", theDates.birthYear || "");
     datesEl.setAttribute("data-death-year", theDates.deathYear || "");
-    datesEl.textContent = theDates.dates || "";
+    datesEl.textContent = theDates.dates ? " " + theDates.dates : "";
     if (spouse.Name) {
       const idName = (spouse.Name || "").replace(/\s/g, "-");
       datesEl.id = idName + "-bdDates";
@@ -842,14 +841,16 @@ function buildChildrenSection(children) {
             c.Link.startsWith("http") ? c.Link : "https://" + mainDomain + c.Link
           }" itemprop="url" title="" aria-label="Child" class="childLink"><span itemprop="name">${
         c.FullName || c.Name
-      }</span></a>
-          <span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${dates.deathYear || ""}">
-            ${dates.dates || ""}</span> <span class="relAge"></span></span>`;
+      }</span></a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+        dates.deathYear || ""
+      }">
+            ${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
     } else {
       li.innerHTML = `<span itemprop="children" itemscope itemtype="https://schema.org/Person">
-            <span itemprop="name">${c.FullName || c.Name}</span>
-            <span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${dates.deathYear || ""}">
-              ${dates.dates || ""}</span> <span class="relAge"></span></span>`;
+            <span itemprop="name">${c.FullName || c.Name}</span><span class="bdDates" data-birth-year="${
+        dates.birthYear || ""
+      }" data-death-year="${dates.deathYear || ""}">
+             ${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
     }
     if (!/^\[.*\?\]$/.test(c.Name)) {
       li.setAttribute("data-gender", c.Gender || "male");
@@ -1202,7 +1203,7 @@ function addRelativeAges() {
     if (!personData || !personData.BirthDate || personData.BirthDate === "0000-00-00") return;
     const diff = getAge(profileBirth, personData.BirthDate);
     const relText = diff[0] !== 0 ? (diff[0] > 0 ? "(+" + diff[0] + ")" : "(" + Math.abs(diff[0]) + ")") : "";
-    $container.find(".relAge").text(relText);
+    $container.find(".relAge").text(" " + relText);
   });
 }
 
@@ -1534,12 +1535,11 @@ function insertInSibList() {
   }
 
   let inserter = $(`
-      <span itemprop="sibling" itemtype="http://schema.org/Person" data-private="0" class="${parentClasses}">
-        <a href="#n" class="activeProfile" data-wtid="${pPerson.Name}">${displayName(pPerson)[0]}</a>
-        <span class="bdDates" data-birth-year="${birthYear || ""}" data-death-year="${deathYear || ""}">
-          ${displayDates(pPerson).trim()}</span>
-      </span>
-    `);
+      <span itemprop="sibling" itemtype="http://schema.org/Person" data-private="0" class="${parentClasses}"><a href="#n" class="activeProfile" data-wtid="${
+    pPerson.Name
+  }">${displayName(pPerson)[0]}</a><span class="bdDates" data-birth-year="${birthYear || ""}" data-death-year="${
+    deathYear || ""
+  }"> ${displayDates(pPerson).trim()}</span></span>`);
 
   const profilePersonLi = $(`<li id='profilePerson' class="${parentClasses}"></li>`);
   let elToFind = "#Siblings li";
