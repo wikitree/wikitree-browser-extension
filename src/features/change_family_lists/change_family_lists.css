@@ -901,3 +901,35 @@ div.VITALS a:link .addedPrefix {
   background-color: none;
   border: #fff;
 }
+
+li.fl-half-tooltip {
+  position: relative; /* Required for absolute positioning of the fl-half-tooltip */
+  list-style: inherit; /* Preserve bullet points */
+  display: list-item; /* Keep default <li> behavior */
+}
+
+/* fl-half-tooltip styling */
+li.fl-half-tooltip::after {
+  content: attr(data-title); /* Use data-title instead of title */
+  position: absolute;
+  bottom: 30%; /* Show above the element */
+  left: -2rem;
+  transform: translateX(-50%);
+  background-color: rgba(240, 240, 235, 0.3);
+  color: black;
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: 1px solid green;
+  white-space: nowrap;
+  font-size: 14px;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none; /* Prevent fl-half-tooltip from interfering with clicks */
+}
+
+/* Show fl-half-tooltip on hover */
+li.fl-half-tooltip:hover::after {
+  visibility: visible;
+  opacity: 1;
+}

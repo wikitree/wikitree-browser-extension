@@ -1326,6 +1326,9 @@ function addHalfsStyle() {
       if (theirMother === motherID) {
         $(this).addClass("parent_2");
       }
+      if ($(this).text().includes("[half]")) {
+        $(this).addClass("fl-half-tooltip").attr("data-title", "[half]");
+      }
     });
 
     // If there are multiple .aSpouse elements, assign them spouse_1, spouse_2, etc.
