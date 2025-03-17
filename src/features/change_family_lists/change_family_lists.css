@@ -582,9 +582,6 @@ span[itemprop="sibling"]:has(.activeProfile) {
 .vanilla .marriageDetails {
   margin-left: 0.5em;
 }
-.vanilla #nVitals .activeProfile {
-  margin-right: 0.5em;
-}
 .vanilla .marriageAges {
   display: inline;
 }
