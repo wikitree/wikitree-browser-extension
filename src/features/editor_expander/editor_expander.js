@@ -24,7 +24,7 @@ function initEditorExpander() {
   const expandButton = $(
     `<img id="expandTextareaButton" src="${imgURL}" class="mw-toolbar-editbutton" title="Expand text box" />`
   );
-  $("#toolbar").append(expandButton);
+  $("#toolbar").prepend(expandButton);
   expandButton.on("click", function () {
     if ($("#toolbar").hasClass("expanded")) {
       returnEditorToNormal();
