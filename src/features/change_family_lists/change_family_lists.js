@@ -433,7 +433,7 @@ function parseInitialData() {
     delete familyData.children;
   }
 
-  console.log("Parsed familyData:", familyData);
+  // console.log("Parsed familyData:", familyData);
   return familyData;
 }
 
@@ -610,9 +610,9 @@ function buildParentsSection(parents) {
       } else if (profilePersonData.DataStatus?.Mother && p.relationship == "Mother") {
         status = profilePersonData.DataStatus.Mother;
       }
-      console.log(profilePersonData);
+      // console.log(profilePersonData);
       if (status) {
-        console.log("status", status);
+        // console.log("status", status);
         const statusWord =
           status == 5
             ? "[non-biological]"
@@ -649,7 +649,7 @@ function buildSiblingsSection(siblings) {
   container.className = "VITALS familyList";
   container.id = "siblingDetails";
 
-  console.log("siblings", siblings);
+  // console.log("siblings", siblings);
 
   const headerDiv = document.createElement("div");
   headerDiv.appendChild(createHeader("Siblings: ", "siblingsHeader", ""));
@@ -669,7 +669,7 @@ function buildSiblingsSection(siblings) {
       const li = document.createElement("li");
       li.dataset.parseName = s.Name;
       const dates = getDatesFromFamilyData(s);
-      const isPrivate = s.Name.trim().toLowerCase().startsWith("[private");
+      const isPrivate = s.Name?.trim().toLowerCase().startsWith("[private");
       if (isPrivate) {
         li.innerHTML = `<span itemprop="sibling" itemscope itemtype="https://schema.org/Person">
           <span itemprop="name">${s.FullName || s.Name} ${
