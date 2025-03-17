@@ -516,8 +516,10 @@ body.darkMode .vertical .nameList li {
 
 .vertical .nameList li.parent_1,
 .vertical .nameList li.parent_1 span[itemprop="sibling"],
+.vertical .nameList li span[itemprop="children"].parent_1,
 body.darkMode .vertical .nameList li.parent_1,
-body.darkMode .vertical .nameList span[itemprop="sibling"].parent_1 {
+body.darkMode .vertical .nameList span[itemprop="sibling"].parent_1,
+body.darkMode .vertical .nameList span[itemprop="children"].parent_1 {
   border-right: 3px solid indigo;
 }
 
@@ -525,6 +527,10 @@ body.darkMode .vertical .nameList span[itemprop="sibling"].parent_1 {
 body.darkMode .vertical .nameList li.parent_2,
 body.darkMode .vertical .nameList span.bdDates.parent_2 {
   border-right: 3px solid orange;
+}
+
+#nVitals.vertical .nameList span.SMALL:not(li[data-parse-name*="private"] span.SMALL) {
+  display: none !important;
 }
 
 .vertical a.privateSpouse:hover {
@@ -611,6 +617,11 @@ span[itemprop="sibling"]:has(.activeProfile) {
 .vertical li#motherUnknown {
   padding-left: 3px;
   display: block;
+}
+.vertical div.familyList li span.dataStatus {
+  font-size: 0.8em;
+  display: inline-block;
+  margin-left: 0.5em;
 }
 
 .vertical span#childrenUnknownQ a,
@@ -889,4 +900,36 @@ div.VITALS a:link .addedPrefix {
   list-style: none;
   background-color: none;
   border: #fff;
+}
+
+li.fl-half-tooltip {
+  position: relative; /* Required for absolute positioning of the fl-half-tooltip */
+  list-style: inherit; /* Preserve bullet points */
+  display: list-item; /* Keep default <li> behavior */
+}
+
+/* fl-half-tooltip styling */
+li.fl-half-tooltip::after {
+  content: attr(data-title); /* Use data-title instead of title */
+  position: absolute;
+  bottom: 30%; /* Show above the element */
+  left: -2rem;
+  transform: translateX(-50%);
+  background-color: rgba(240, 240, 235, 0.5);
+  color: black;
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: 1px solid green;
+  white-space: nowrap;
+  font-size: 14px;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none; /* Prevent fl-half-tooltip from interfering with clicks */
+}
+
+/* Show fl-half-tooltip on hover */
+li.fl-half-tooltip:hover::after {
+  visibility: visible;
+  opacity: 1;
 }
