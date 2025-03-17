@@ -35,7 +35,7 @@ function addAccessKeys(options) {
     setAccessKeyIfOptionEnabled(options.EnhancedEditor, "#toggleMarkupColor", "e", options, () => isWikiEdit);
     setAccessKeyIfOptionEnabled(options.Save, "#wpSave, input[value='Save Scratch Pad Changes']", "s", options);
     setAccessKeyIfOptionEnabled(options.Category, "#addCategoryButton", "k", options);
-    setAccessKeyIfOptionEnabled(options.RandomProfile, "a.pureCssMenui.randomProfile", "r", options);
+    setAccessKeyIfOptionEnabled(options.RandomProfile, "a.dropdown-item.randomProfile", "r", options);
     setAccessKeyIfOptionEnabled(options.NavHomePage, "a[href$='/wiki/Special:Home']", "1", options);
     setAccessKeyIfOptionEnabled(options.HelpSearch, "a[href$='/wiki/Special:SearchPages']", "h", options);
     setAccessKeyIfOptionEnabled(options.ReturnProfileDeleteDraft, "#deleteDraftLinkContainer a", "q", options);
@@ -57,7 +57,7 @@ function addAccessKeys(options) {
       setAccessKeyIfOptionEnabled(options.AGC, "img[title='Automatic GEDCOM Cleanup']", "a", options);
       setButtonAccessKeyAndClickEvent(options.ZoomInPlace, "#toggleZoomInPlace", "z");
       setButtonAccessKeyAndClickEvent(options.Magnifier, "#toggleMagnifier", "m");
-      setButtonAccessKeyAndClickEvent(options.ExtraWatchlist, "#viewExtraWatchlist", "x");
+      setButtonAccessKeyAndClickEvent(options.ExtraWatchlist, "#extraWatchlistButton", "x");
       setButtonAccessKeyAndClickEvent(options.Clipboard, ".aClipboardButton", "v");
       setButtonAccessKeyAndClickEvent(options.Notes, ".aNotesButton", "n");
     }, 3000);
@@ -116,12 +116,12 @@ function setJumpNavAccessKeys(options) {
           if (isProfileEdit || isSpaceEdit) {
             if (aTags[i].href.toLowerCase().includes("#text")) {
               aTags[i].addEventListener("click", () => {
-          document.getElementById("wpTextbox1").focus();
+                document.getElementById("wpTextbox1").focus();
               });
             }
             if (aTags[i].href.toLowerCase().includes("#save")) {
               aTags[i].addEventListener("click", () => {
-          document.getElementById("wpSummary").focus();
+                document.getElementById("wpSummary").focus();
               });
             }
           }
