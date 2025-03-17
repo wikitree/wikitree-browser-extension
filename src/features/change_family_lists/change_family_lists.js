@@ -609,24 +609,24 @@ function buildParentsSection(parents) {
       if (isPrivate) {
         hrefBit = "";
       }
-      let confidence;
+      let status;
 
       if (profilePersonData.DataStatus?.Father && p.relationship == "Father") {
-        confidence = profilePersonData.DataStatus?.Father;
+        status = profilePersonData.DataStatus?.Father;
       } else if (profilePersonData.DataStatus?.Mother && p.relationship == "Mother") {
-        confidence = profilePersonData.DataStatus.Mother;
+        status = profilePersonData.DataStatus.Mother;
       }
       console.log(profilePersonData);
-      if (confidence) {
-        const confidenceWord =
-          confidence == 5 ? "non-biological" : confidence == 10 ? "uncertain" : confidence == 20 ? "certain" : "";
-        confidence = ` <span class="confidence" title="${confidenceWord}">[${confidenceWord}]</span>`;
+      if (status) {
+        console.log("status", status);
+        const statusWord = status == 5 ? "non-biological" : status == 10 ? "uncertain" : status == 20 ? "certain" : "";
+        status = ` <span class="dataStatus" title="${statusWord}">[${statusWord}]</span>`;
       }
       li.innerHTML = `<span itemprop="${
         p.relationship || "parent"
       }" itemscope itemtype="https://schema.org/Person"><a ${hrefBit} itemprop="url" title="" aria-label="Parent"><span itemprop="name">${
         p.FullName || p.Name
-      }</span></a>${confidence}<span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+      }</span></a>${status}<span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
         dates.deathYear || ""
       }">
             ${dates.dates || ""}</span>
@@ -1265,10 +1265,19 @@ function addHalfsStyle() {
     .get();
   const uniqueFathers = [...new Set(fathers)];
   const uniqueMothers = [...new Set(mothers)];
-  if (uniqueFathers.length < 2 && uniqueMothers.length < 2) {
+  console.log("Unique fathers:", uniqueFathers);
+  console.log("Unique mothers:", uniqueMothers);
+
+  const cond1 = uniqueFathers.length == 1 && uniqueFathers[0] == profilePersonData.Father;
+  const cond2 = uniqueFathers.length == 0 && !profilePersonData.Father;
+  const cond3 = uniqueMothers.length == 1 && uniqueMothers[0] == profilePersonData.Mother;
+  const cond4 = uniqueMothers.length == 0 && !profilePersonData.Mother;
+  if ((cond1 || cond2) && (cond3 || cond4)) {
     return;
   }
+
   const pList = $("#parentList li");
+  /*
   if (pList.length >= 2) {
     const p1 = pList.eq(0).attr("data-id");
     const p2 = pList.eq(1).attr("data-id");
@@ -1290,6 +1299,39 @@ function addHalfsStyle() {
           $(this).addClass("spouse_" + (index + 1));
         });
       }
+    }
+  }
+    */
+
+  // Grab the <li> elements for father and mother based on data-gender
+  const fatherLi = pList.filter('[data-gender="Male"]').first();
+  const motherLi = pList.filter('[data-gender="Female"]').first();
+
+  if (fatherLi.length && motherLi.length) {
+    const fatherID = fatherLi.attr("data-id");
+    const motherID = motherLi.attr("data-id");
+
+    // Assign classes to the parent <li> elements
+    fatherLi.addClass("parent_1");
+    motherLi.addClass("parent_2");
+
+    // Go through siblings and see who shares father/mother
+    $("#siblingList li").each(function () {
+      const theirFather = String($(this).attr("data-father") || "");
+      const theirMother = String($(this).attr("data-mother") || "");
+      if (theirFather === fatherID) {
+        $(this).addClass("parent_1");
+      }
+      if (theirMother === motherID) {
+        $(this).addClass("parent_2");
+      }
+    });
+
+    // If there are multiple .aSpouse elements, assign them spouse_1, spouse_2, etc.
+    if ($(".aSpouse").length > 1) {
+      $(".aSpouse").each(function (index) {
+        $(this).addClass("spouse_" + (index + 1));
+      });
     }
   }
 }
@@ -1466,15 +1508,40 @@ function insertInSibList() {
       ? parseInt(pPerson.DeathDateDecade) + 5
       : null;
 
+  console.log("Inserting profile person into sibling list...");
+
+  const fatherId = pPerson.Father;
+  const motherId = pPerson.Mother;
+
+  let parentClasses = "";
+  // Are there any siblings with different parents?
+  const siblings = $("#siblingList li");
+  const diffFather = siblings.filter(function () {
+    return $(this).data("father") !== fatherId;
+  });
+  const diffMother = siblings.filter(function () {
+    return $(this).data("mother") !== motherId;
+  });
+  if (diffMother.length || diffFather.length) {
+    if (profilePersonData.Father) {
+      console.log("Profile person has a father.");
+      parentClasses += "parent_1 ";
+    }
+    if (profilePersonData.Mother) {
+      console.log("Profile person has a mother.");
+      parentClasses += "parent_2";
+    }
+  }
+
   let inserter = $(`
-      <span itemprop="sibling" itemtype="http://schema.org/Person" data-private="0">
+      <span itemprop="sibling" itemtype="http://schema.org/Person" data-private="0" class="${parentClasses}">
         <a href="#n" class="activeProfile" data-wtid="${pPerson.Name}">${displayName(pPerson)[0]}</a>
         <span class="bdDates" data-birth-year="${birthYear || ""}" data-death-year="${deathYear || ""}">
           ${displayDates(pPerson).trim()}</span>
       </span>
     `);
 
-  const profilePersonLi = $("<li id='profilePerson'></li>");
+  const profilePersonLi = $(`<li id='profilePerson' class="${parentClasses}"></li>`);
   let elToFind = "#Siblings li";
   let closestEl = "li";
   if (options && options.verticalLists) {
