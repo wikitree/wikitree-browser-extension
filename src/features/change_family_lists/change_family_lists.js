@@ -31,6 +31,7 @@ let familyData;
 let useAltHeadings = false;
 const treePersonBit = $("#nav-familyContent #Family-pane div.tree--person");
 const profilePerson = getProfilePersonInfo();
+let profilePersonData;
 
 const getPeopleFields =
   "BirthDate,BirthDateDecade,BirthLocation,BirthName,Connected,DataStatus,DeathDate,DeathDateDecade,DeathLocation," +
@@ -274,20 +275,24 @@ function siblingsTextArray() {
       .replace("[half]", "")
       .trim()
       .replace(/(Brother|Sister) of\n/, "")
+      .replace(/\nadd sibling/, "")
       .trim();
     let BirthDate;
+    let DeathDate;
     let name;
     // Find the name and birthdate
     // [private sister (1950s - unknown)] --> name: [private sister], BirthDate: '1950s'
     if (name1.match(/\d{4}/)) {
       name = name1.replace(/ \(\d{4}s - .*?\)/, "").trim();
       BirthDate = name1.match(/\d{4}s/) ? name1.match(/\d{4}s/)[0] : "";
+      DeathDate = name1.match(/\d{4}s - (.*?)\)/) ? name1.match(/\d{4}s - (.*?)\)/)[1] : "";
     } else {
       name = name1;
     }
-    obj.name = name;
+    obj.FullName = name;
     obj.half = half;
     obj.BirthDate = BirthDate || "";
+    obj.DeathDate = DeathDate || "";
     siblingsArray.push(obj);
   });
   return siblingsArray;
@@ -305,6 +310,8 @@ function parseInitialData() {
     "[date unknown]",
     "[location unknown]",
     "[uncertain]",
+    "[confident]",
+    "[non-biological]",
     "[marriage location?]",
     "[marriage date?]",
   ];
@@ -352,28 +359,37 @@ function parseInitialData() {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
     bracketed.forEach((b) => {
-      if (b.Name.trim().toLowerCase().startsWith("[private")) {
-        parsedSiblings.push(b);
-      } else if (!parsedSiblings.some((m) => m.Link === b.Link || m.Name === b.Name)) {
+      if (!parsedSiblings.some((m) => m.Link === b.Link || m.Name === b.Name)) {
         parsedSiblings.push(b);
       }
     });
     // name in siblingsArray == FullName in parsedSiblings
     // Check siblingsArray for half. If half and !halfMarker in parsedSiblings, create halfMarker:
     // <span class="SMALL" title="${profilePerson.FullName} and sibling share one parent.">[half]</span>
-    parsedSiblings.forEach((siblingObj) => {
-      const siblingName = siblingObj.FullName || siblingObj.Name;
-      const sibling = theSiblingsArray.find((s) => s.name == siblingName && s.BirthDate == siblingObj.BirthDate);
-      if (sibling) {
+    theSiblingsArray.forEach((sibling) => {
+      const siblingObj = parsedSiblings.find(
+        (s) =>
+          (s.FullName == sibling.FullName || s.Name == sibling.FullName) &&
+          s.BirthDate == sibling.BirthDate &&
+          s.DeathDate == sibling.DeathDate
+      );
+      if (siblingObj) {
+        console.log(`Updating sibling: ${sibling.FullName}`);
+        Object.assign(sibling, siblingObj);
         if (sibling.half && !siblingObj.halfMarker) {
-          siblingObj.halfMarker = `<span class="SMALL" title="${profilePerson.FullName} and sibling share one parent.">[half]</span>`;
+          sibling.halfMarker = `<span class="SMALL" title="${profilePerson.FullName} and sibling share one parent.">[half]</span>`;
+          console.log(`Added halfMarker for sibling: ${sibling.FullName}`);
         }
+      } else {
+        console.log(`Sibling not found in parsedSiblings: ${sibling.FullName}`);
       }
     });
 
     console.log("parsedSiblings", parsedSiblings);
+    console.log("theSiblingsArray", theSiblingsArray);
 
-    familyData.siblings = parsedSiblings;
+    //    familyData.siblings = parsedSiblings;
+    familyData.siblings = theSiblingsArray;
   } else {
     delete familyData.siblings;
   }
@@ -414,9 +430,7 @@ function parseInitialData() {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
     bracketed.forEach((b) => {
-      if (b.Name.trim().toLowerCase().startsWith("[private")) {
-        parsedChildren.push(b);
-      } else if (!parsedChildren.some((m) => m.Link === b.Link || m.Name === b.Name)) {
+      if (!parsedChildren.some((m) => m.Link === b.Link || m.Name === b.Name)) {
         parsedChildren.push(b);
       }
     });
@@ -425,7 +439,7 @@ function parseInitialData() {
     delete familyData.children;
   }
 
-  //console.log("Parsed familyData:", familyData);
+  console.log("Parsed familyData:", familyData);
   return familyData;
 }
 
@@ -595,11 +609,24 @@ function buildParentsSection(parents) {
       if (isPrivate) {
         hrefBit = "";
       }
+      let confidence;
+
+      if (profilePersonData.DataStatus?.Father && p.relationship == "Father") {
+        confidence = profilePersonData.DataStatus?.Father;
+      } else if (profilePersonData.DataStatus?.Mother && p.relationship == "Mother") {
+        confidence = profilePersonData.DataStatus.Mother;
+      }
+      console.log(profilePersonData);
+      if (confidence) {
+        const confidenceWord =
+          confidence == 5 ? "non-biological" : confidence == 10 ? "uncertain" : confidence == 20 ? "certain" : "";
+        confidence = ` <span class="confidence" title="${confidenceWord}">[${confidenceWord}]</span>`;
+      }
       li.innerHTML = `<span itemprop="${
         p.relationship || "parent"
       }" itemscope itemtype="https://schema.org/Person"><a ${hrefBit} itemprop="url" title="" aria-label="Parent"><span itemprop="name">${
         p.FullName || p.Name
-      }</span></a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+      }</span></a>${confidence}<span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
         dates.deathYear || ""
       }">
             ${dates.dates || ""}</span>
@@ -647,7 +674,7 @@ function buildSiblingsSection(siblings) {
           <span itemprop="name">${s.FullName || s.Name}</span>
           ${s.halfMarker || ""}
           <span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${dates.deathYear || ""}">
-            ${dates.dates || ""}</span><span class="relAge"></span></span>`;
+            ${dates.dates || ""}</span> <span class="relAge"></span></span>`;
       } else {
         li.innerHTML = `<span itemprop="sibling" itemscope itemtype="https://schema.org/Person">
           <a href="${s.Link}" itemprop="url" title="" aria-label="Sibling"><span itemprop="name">${
@@ -878,6 +905,7 @@ async function getWindowPeople() {
   window.people = new Map(Object.entries(people));
   const arr = Object.values(people);
   window.peopleByWtID = new Map(arr.map((p) => [p.Name, p]));
+  profilePersonData = people[profilePerson.Id];
 }
 
 /**
