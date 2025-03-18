@@ -9,7 +9,13 @@ import "jquery-ui/ui/widgets/draggable";
 import "./clipboard_and_notes.css";
 import { htmlEntities, extensionContextInvalidatedCheck } from "../../core/common";
 import { shouldInitializeFeature, checkIfFeatureEnabled } from "../../core/options/options_storage";
-import { isAddUnrelatedPerson, isProfileAddRelative, isSpaceEdit, isProfileEdit } from "../../core/pageType";
+import {
+  isAddUnrelatedPerson,
+  isProfileAddRelative,
+  isSpaceEdit,
+  isProfileEdit,
+  isWikiEdit,
+} from "../../core/pageType";
 import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
 
 const CB_DB_NAME = "Clipboard";
@@ -435,7 +441,7 @@ async function clipboard(type, e, action = false) {
 
     $("body").append(aClipboard);
 
-    if ($("body.page-Special_EditPerson").length && thisWord == "clipping") {
+    if (isWikiEdit && thisWord == "clipping") {
       if ($("#clipboardInfo").length == 0) {
         setClipboardText();
       }

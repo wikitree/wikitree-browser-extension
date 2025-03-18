@@ -14,6 +14,7 @@ shouldInitializeFeature("saveButtonsStyleOptions").then((result) => {
         changeLinksToButtons();
       }, 1000);
     });
+
     if (!isSpaceEdit) {
       setTimeout(function () {
         changeLinksToButtons();
@@ -28,29 +29,32 @@ shouldInitializeFeature("saveButtonsStyleOptions").then((result) => {
 });
 
 async function changeLinksToButtons() {
-  let container = $("#deleteDraftLinkContainer").closest("div");
+  let container = $("section#saveButtons");
   if (isSpaceEdit) {
     let firstSaveButton = $("#wpSave").eq(0);
     firstSaveButton.prop("id", "wpSave1");
     container = $("#wpSave").closest("div");
   }
-  container.prop("id", "saveButtons");
-  const spans = container.find("span");
-  spans.each(function () {
-    const link = $(this).find("a");
-    link.addClass("button");
-    $(this).html("").append(link);
+  //  container.prop("id", "saveButtons");
+  const theLinks = [$("a.viewDiffButton").parent(), $("#deleteDraftLinkContainer a").parent()];
+  theLinks.forEach((link) => {
+    link.find("a").addClass("btn btn-secondary button small");
   });
-  const options = await getFeatureOptions("saveButtonsStyleOptions");
-  if (options.buttonSize === "allSmall") {
-    container.find("a,button").each(function () {
-      $(this).addClass("small");
+
+  if ($("#utilityButtons").length == 0) {
+    const buttonContainer = $("<div></div>").prop("id", "utilityButtons");
+    theLinks.forEach((link) => {
+      buttonContainer.append(link);
     });
-  } else if (options.buttonSize === "halfSmall") {
-    container.find("p a").each(function () {
-      $(this).addClass("small");
-    });
+    buttonContainer.insertBefore($("#validationContainer"));
   }
+
+  const saveButtonsWrapper = $("div.form-buttons");
+  const buttonContainer = $("#utilityButtons");
+
+  const options = await getFeatureOptions("saveButtonsStyleOptions");
+  $("#saveButtons").addClass(options.buttonSize); 
+
   if (isSpaceEdit) {
     const saveButton = $("#wpSave");
     const saveDraftButton = $("#saveButtons").find("a").eq(0);

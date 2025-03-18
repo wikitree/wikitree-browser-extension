@@ -281,7 +281,7 @@ class CustomStyle {
       });
     });
 
-    $("#toolbar").append(fontIncreaseButton, fontDecreaseButton);
+    $("#toolbar").prepend(fontIncreaseButton, fontDecreaseButton);
   }
 }
 

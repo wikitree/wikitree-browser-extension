@@ -4,7 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import { registerFeature, OptionType } from "../../core/options/options_registry";
 import { isProfileEdit, isSpaceEdit } from "../../core/pageType";
-/*
+
 registerFeature({
   name: "Save Buttons Style Options",
   id: "saveButtonsStyleOptions",
@@ -21,11 +21,11 @@ registerFeature({
       label: "Button Size",
       values: [
         { value: "allSmall", text: "All Small" },
-        { value: "halfSmall", text: "Small Compare and Return (Delete Draft) Buttons" },
+        { value: "halfSmall", text: "Small Save Buttons" },
+        { value: "halfSmall2", text: "Small Compare and Return (Delete Draft) Buttons" },
         { value: "large", text: "All Large" },
       ],
       defaultValue: "halfSmall",
     },
   ],
 });
-*/
