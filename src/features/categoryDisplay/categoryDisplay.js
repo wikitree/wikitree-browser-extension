@@ -52,6 +52,8 @@ shouldInitializeFeature("categoryDisplay").then((result) => {
 async function moveCategories() {
   const options = await getFeatureOptions("categoryDisplay");
   let $categories = $("#Categories");
+  $categories.addClass("x-categories");
+  $("a[name='Categories']").remove();
   if (!$categories.length) return;
 
   // Transform the structure if "list" display is selected.
