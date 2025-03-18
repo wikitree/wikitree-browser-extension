@@ -27,8 +27,12 @@ export function ensureProfileClasses() {
           : ""
       );
 
-    // mark the content section (on the left of the sidebar) which contains the biography, sources, etc. up to where the comments section starts; for categories, the content is all in the root section
-    $(".x-profile .body-text, .x-profile .tab-content, .x-profile-category .page--content").addClass("x-content");
+    // mark the content section (on the left of the sidebar) which contains the biography, sources, etc. up to where the comments section starts
+    // for person profiles with user accounts, there is no body-text, but the content follows a page--divider
+    // for category profiles, the content is all in the root section
+    $(
+      ".x-profile .body-text, .x-profile .tab-content, .x-profile-person .page--divider + .container > .mt-3 > .col-lg-8, .x-profile-category .page--content"
+    ).addClass("x-content");
 
     // mark the CSS element to apply a custom background image
     $(".has--bg_img").addClass("x-style-bg");
