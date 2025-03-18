@@ -6,7 +6,7 @@ on:
 jobs:
   latest-release:
     name: "Latest Release"
-    runs-on: macos-14
+    runs-on: macos-15
 
     steps:
       - name: Check out code
