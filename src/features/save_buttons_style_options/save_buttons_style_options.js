@@ -14,6 +14,7 @@ shouldInitializeFeature("saveButtonsStyleOptions").then((result) => {
         changeLinksToButtons();
       }, 1000);
     });
+
     if (!isSpaceEdit) {
       setTimeout(function () {
         changeLinksToButtons();
@@ -28,51 +29,44 @@ shouldInitializeFeature("saveButtonsStyleOptions").then((result) => {
 });
 
 async function changeLinksToButtons() {
-  let container = $("#deleteDraftLinkContainer").closest("div");
+  let container = $("section#saveButtons");
   if (isSpaceEdit) {
     let firstSaveButton = $("#wpSave").eq(0);
     firstSaveButton.prop("id", "wpSave1");
     container = $("#wpSave").closest("div");
   }
-  container.prop("id", "saveButtons");
-  const spans = container.find("span");
-  spans.each(function () {
-    const link = $(this).find("a");
-    link.addClass("button");
-    $(this).html("").append(link);
+  //  container.prop("id", "saveButtons");
+  const theLinks = [$("a.viewDiffButton").parent(), $("#deleteDraftLinkContainer a").parent()];
+  theLinks.forEach((link) => {
+    link.find("a").addClass("btn btn-secondary button small");
   });
-  const options = await getFeatureOptions("saveButtonsStyleOptions");
-  if (options.buttonSize === "allSmall") {
-    container.find("a,button").each(function () {
-      $(this).addClass("small");
+
+  if ($("#utilityButtons").length == 0) {
+    const buttonContainer = $("<div></div>").prop("id", "utilityButtons");
+    theLinks.forEach((link) => {
+      buttonContainer.append(link);
     });
-  } else if (options.buttonSize === "halfSmall") {
-    container.find("p a").each(function () {
-      $(this).addClass("small");
-    });
+    buttonContainer.insertBefore($("#validationContainer"));
   }
+
+  const options = await getFeatureOptions("saveButtonsStyleOptions");
+  $("#saveButtons").addClass(options.buttonSize);
+
   if (isSpaceEdit) {
-    const saveButton = $("#wpSave");
-    const saveDraftButton = $("#saveButtons").find("a").eq(0);
-    const container = saveDraftButton.closest("div");
-    saveDraftButton.text(saveDraftButton.text() + " without saving");
-    saveDraftButton.addClass("button");
-    $("#saveButtons").html("");
-    $("#saveButtons").append(saveButton, saveDraftButton);
-    container.find("a,input").each(function () {
-      $(this).addClass("button");
-    });
-    if (options.buttonSize === "allSmall") {
-      container.find("a,input").each(function () {
-        $(this).addClass("small");
+    setTimeout(function () {
+      const utilityButtons = $("a.btn-utility");
+      // Find the link that contains the text "return to.*" and change it to a button
+      let returnToButton = utilityButtons.filter(function () {
+        return $(this)
+          .text()
+          .match(/return to/i);
       });
-    } else if (options.buttonSize === "halfSmall") {
-      container.find("a").addClass("small");
-      container.find("input").addClass("big");
-    } else if (options.buttonSize === "large") {
-      container.find("a,input").each(function () {
-        $(this).addClass("big");
-      });
-    }
+      returnToButton.addClass("btn btn-secondary button");
+      returnToButton.prop("id", "returnToButton");
+
+      if (options.buttonSize == "halfSmall" || options.buttonSize == "large") {
+        returnToButton.addClass("large");
+      }
+    }, 3000);
   }
 }
