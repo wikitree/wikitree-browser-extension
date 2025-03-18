@@ -480,7 +480,7 @@ function removeTurnOffPreviewLinks() {
 
 function addCategoryEditLinks() {
   if (isProfileEdit || isSpaceEdit || isCategoryEdit) {
-    document.getElementById("wpSave").addEventListener("click", () => {
+    $(document).on("click", "#wpSave,#wpSave1", function () {
       setTimeout(() => {
         const errorList = document.querySelector("#validationRedErrorList ul");
         if (errorList != null) {
@@ -877,7 +877,7 @@ class RangeringTool {
         sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
         if (createdDate > sixMonthsAgo) {
           // Add the "newt" class to the HISTORY-ITEM span
-            //.closest("span.HISTORY-ITEM")
+          //.closest("span.HISTORY-ITEM")
           $("a[href*='/wiki/" + profileID + "']")
             .closest("span.feed-item")
             .addClass("newt");
@@ -1083,18 +1083,18 @@ class RangeringTool {
             processedPairs.add(pairKey); // Mark this pair as processed
             const differentGender = person1.Gender && person2.Gender && person1.Gender !== person2.Gender;
             let birthDifferenceOver10Years = false;
-            let deathDifferenceOver10Years = false
+            let deathDifferenceOver10Years = false;
             if (self.okDate(person1.BirthDate) && self.okDate(person2.BirthDate)) {
-              let b = person1.BirthDate.replace('-00-00', '');
+              let b = person1.BirthDate.replace("-00-00", "");
               let d1 = new Date(b);
-              b = person2.BirthDate.replace('-00-00', '');
+              b = person2.BirthDate.replace("-00-00", "");
               let d2 = new Date(b);
               birthDifferenceOver10Years = Math.abs(d1 - d2) > 315569520000;
             }
             if (self.okDate(person1.DeathDate) && self.okDate(person2.DeathDate)) {
-              let b = person1.DeathDate.replace('-00-00', '');
+              let b = person1.DeathDate.replace("-00-00", "");
               let d1 = new Date(b);
-              b = person2.DeathDate.replace('-00-00', '');
+              b = person2.DeathDate.replace("-00-00", "");
               let d2 = new Date(b);
               deathDifferenceOver10Years = Math.abs(d1 - d2) > 315569520000;
             }

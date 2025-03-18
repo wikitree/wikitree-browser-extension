@@ -35,7 +35,7 @@ function addAccessKeys(options) {
     setAccessKeyIfOptionEnabled(options.EnhancedEditor, "#toggleMarkupColor", "e", options, () => isWikiEdit);
     setAccessKeyIfOptionEnabled(options.Save, "#wpSave, input[value='Save Scratch Pad Changes']", "s", options);
     setAccessKeyIfOptionEnabled(options.Category, "#addCategoryButton", "k", options);
-    setAccessKeyIfOptionEnabled(options.RandomProfile, "a.pureCssMenui.randomProfile", "r", options);
+    setAccessKeyIfOptionEnabled(options.RandomProfile, "a.dropdown-item.randomProfile", "r", options);
     setAccessKeyIfOptionEnabled(options.NavHomePage, "a[href$='/wiki/Special:Home']", "1", options);
     setAccessKeyIfOptionEnabled(options.HelpSearch, "a[href$='/wiki/Special:SearchPages']", "h", options);
     setAccessKeyIfOptionEnabled(options.ReturnProfileDeleteDraft, "#deleteDraftLinkContainer a", "q", options);
@@ -47,9 +47,9 @@ function addAccessKeys(options) {
     setCopyButtonAccessKeyAndClickEvent(options.CopyUserID, "Copy UserID", "j");
     setCopyButtonAccessKeyAndClickEvent(options.CopyLink, "Copy Wiki Link", "l");
     setCopyButtonAccessKeyAndClickEvent(options.CopyURL, "Copy URL", "u");
-    setAccessKeyIfOptionEnabled(options.TreeApps, "ul.profile-tabs li:contains('Tree Apps')", "t", options);
-    setAccessKeyIfOptionEnabled(options.Ancestors, ".showHideTree", "a", options);
-    setAccessKeyIfOptionEnabled(options.Descendants, "#showHideDescendants", "d", options);
+    setAccessKeyIfOptionEnabled(options.TreeApps, "a.tree--apps_link", "t", options);
+    setAccessKeyIfOptionEnabled(options.Ancestors, "#Ancestors-tab", "a", options);
+    setAccessKeyIfOptionEnabled(options.Descendants, "#Descendants-tab", "d", options);
     setAccessKeyIfOptionEnabled(options.Watchlist, "a[href*='Special:WatchedList']", "w", options);
     setAccessKeyIfOptionEnabled(options.Search, "a[href*='Special:SearchPerson']", "f", options);
 
@@ -57,7 +57,7 @@ function addAccessKeys(options) {
       setAccessKeyIfOptionEnabled(options.AGC, "img[title='Automatic GEDCOM Cleanup']", "a", options);
       setButtonAccessKeyAndClickEvent(options.ZoomInPlace, "#toggleZoomInPlace", "z");
       setButtonAccessKeyAndClickEvent(options.Magnifier, "#toggleMagnifier", "m");
-      setButtonAccessKeyAndClickEvent(options.ExtraWatchlist, "#viewExtraWatchlist", "x");
+      setButtonAccessKeyAndClickEvent(options.ExtraWatchlist, "#extraWatchlistButton", "x");
       setButtonAccessKeyAndClickEvent(options.Clipboard, ".aClipboardButton", "v");
       setButtonAccessKeyAndClickEvent(options.Notes, ".aNotesButton", "n");
     }, 3000);
@@ -105,29 +105,33 @@ function setJumpNavAccessKeys(options) {
       currentAccessKey = 1;
     }
 
-    const aTags = document.getElementById("jump-nav").getElementsByTagName("a");
-    for (let i = 0; i < aTags.length; i++) {
-      if (!aTags[i].innerHTML.includes("<span") && currentAccessKey < 10) {
-        aTags[i].accessKey = "" + currentAccessKey;
+    const jumpNavigation = document.getElementById("jump-nav");
+    if (jumpNavigation != null) {
+      const aTags = jumpNavigation.getElementsByTagName("a");
 
-        if (isProfileEdit || isSpaceEdit) {
-          if (aTags[i].href.toLowerCase().includes("#text")) {
-            aTags[i].addEventListener("click", () => {
-              document.getElementById("wpTextbox1").focus();
-            });
+      for (let i = 0; i < aTags.length; i++) {
+        if (aTags[i].querySelector("span:not(.badge)") === null && currentAccessKey < 10) {
+          aTags[i].accessKey = "" + currentAccessKey;
+
+          if (isProfileEdit || isSpaceEdit) {
+            if (aTags[i].href.toLowerCase().includes("#text")) {
+              aTags[i].addEventListener("click", () => {
+                document.getElementById("wpTextbox1").focus();
+              });
+            }
+            if (aTags[i].href.toLowerCase().includes("#save")) {
+              aTags[i].addEventListener("click", () => {
+                document.getElementById("wpSummary").focus();
+              });
+            }
           }
-          if (aTags[i].href.toLowerCase().includes("#save")) {
-            aTags[i].addEventListener("click", () => {
-              document.getElementById("wpSummary").focus();
-            });
+          if (options.JumpNavHints) {
+            const hint = document.createElement("sup");
+            hint.innerText = currentAccessKey;
+            aTags[i].parentNode.insertBefore(hint, aTags[i].nextSibling);
           }
+          currentAccessKey++;
         }
-        if (options.JumpNavHints) {
-          const hint = document.createElement("sup");
-          hint.innerText = currentAccessKey;
-          aTags[i].parentNode.insertBefore(hint, aTags[i].nextSibling);
-        }
-        currentAccessKey++;
       }
     }
   }

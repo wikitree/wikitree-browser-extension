@@ -21,7 +21,7 @@ import { displayDates } from "../verifyID/verifyID";
 import { getUserWtId } from "../../core/common";
 import "./change_family_lists.css";
 import { initRelationshipDB, RELATIONSHIP_STORE_NAME } from "../distanceAndRelationship/distanceAndRelationship.js";
-import { profilePerson } from "../../core/common";
+import { getProfilePersonInfo } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
 
 let options;
@@ -30,6 +30,8 @@ let familyData;
 // Global variable to track the header toggle state.
 let useAltHeadings = false;
 const treePersonBit = $("#nav-familyContent #Family-pane div.tree--person");
+const profilePerson = getProfilePersonInfo();
+let profilePersonData;
 
 const getPeopleFields =
   "BirthDate,BirthDateDecade,BirthLocation,BirthName,Connected,DataStatus,DeathDate,DeathDateDecade,DeathLocation," +
@@ -52,6 +54,7 @@ function newPersonRecord() {
     MarriageDetails: "",
     MarriageMapLink: "",
     merge: false, // flag for mergeable records
+    halfMarker: false, // contains the complete SMALL span containing [half], if present
   };
 }
 
@@ -87,6 +90,10 @@ function parseItempropElement(el) {
       const [b, d] = dateMatch[1].split(/\s*-\s*/);
       record.BirthDate = b?.trim() || "";
       record.DeathDate = d?.trim() || "";
+    }
+    const halfMatch = smallSpan.textContent.match(/\[half\]/i);
+    if (halfMatch) {
+      record.halfMarker = smallSpan;
     }
   }
   const fullText = el.textContent.trim();
@@ -184,6 +191,12 @@ function parseBlock(blockEl, itempropName) {
   const itempropEls = blockEl.querySelectorAll(`[itemprop="${itempropName}"]`);
   itempropEls.forEach((el) => {
     const rec = parseItempropElement(el);
+    if (itempropName == "sibling" && !rec.halfMarker) {
+      const smallSpan = $(el).next(".SMALL");
+      if (smallSpan.length && smallSpan.text().match(/\[half\]/i)) {
+        rec.halfMarker = smallSpan.prop("outerHTML");
+      }
+    }
     if (rec.Name || rec.FullName || rec.UnknownText) {
       records.push(rec);
     }
@@ -241,14 +254,63 @@ function parseSpousesBlock(spousesEl) {
 }
 
 /**
+ * Parses the siblings text from the treePersonBit element and returns an array of sibling objects.
+ * Each sibling object contains the name, half-sibling status, and birth date (if available).
+ *
+ * @returns {Array<Object>} An array of sibling objects.
+ * @returns {string} siblingsArray[].name - The name of the sibling.
+ * @returns {boolean} siblingsArray[].half - Indicates if the sibling is a half-sibling.
+ * @returns {string} siblingsArray[].BirthDate - The birth date of the sibling, if available.
+ */
+function siblingsTextArray() {
+  const siblingsArray = [];
+  const siblingsText = treePersonBit.find("#Siblings").text();
+  // Split by commas or "and".
+  const siblings = siblingsText.split(/, |\sand\s/).map((s) => s.trim());
+
+  siblings.forEach((s) => {
+    const obj = {};
+    const half = s.includes("[half]");
+    const name1 = s
+      .replace("[half]", "")
+      .trim()
+      .replace(/(Brother|Sister|Sibling) of\n/, "")
+      .replace(/\nadd sibling/, "")
+      .trim();
+    let BirthDate;
+    let DeathDate;
+    let name;
+    // Find the name and birthdate
+    // [private sister (1950s - unknown)] --> name: [private sister], BirthDate: '1950s'
+    if (name1.match(/\d{4}/)) {
+      name = name1.replace(/ \(\d{4}s - .*?\)/, "").trim();
+      BirthDate = name1.match(/\d{4}s/) ? name1.match(/\d{4}s/)[0] : "";
+      DeathDate = name1.match(/\d{4}s - (.*?)\)/) ? name1.match(/\d{4}s - (.*?)\)/)[1] : "";
+    } else {
+      name = name1;
+    }
+    obj.FullName = name;
+    obj.half = half;
+    obj.BirthDate = BirthDate || "";
+    obj.DeathDate = DeathDate || "";
+    siblingsArray.push(obj);
+  });
+  return siblingsArray;
+}
+
+/**
  * Parses the initial family data from the DOM.
  * @returns {Object} The family data object with arrays for parents, siblings, spouses, and children.
  */
 function parseInitialData() {
+  const theSiblingsArray = siblingsTextArray();
+
   const excludeBrackets = [
     "[date unknown]",
     "[location unknown]",
     "[uncertain]",
+    "[confident]",
+    "[non-biological]",
     "[marriage location?]",
     "[marriage date?]",
   ];
@@ -289,20 +351,39 @@ function parseInitialData() {
   // Parse siblings
   const siblingsBlock = container.querySelector("#Siblings");
   if (siblingsBlock) {
-    let parsedSiblings = parseBlock(siblingsBlock, "sibling").filter(
-      (r) => r.Name && !/^(add sibling)$/i.test(r.Name) && !/^\[half\]$/i.test(r.Name)
-    );
+    // const parsedSiblings = parseBlock(siblingsBlock, "sibling");.filter(
+    const x = parseBlock(siblingsBlock, "sibling");
+    const parsedSiblings = x.filter((r) => r.Name && !/^(add sibling)$/i.test(r.Name) && !/^\[half\]$/i.test(r.Name));
     const bracketed = parseBracketedUnknownInBlock(siblingsBlock).filter((b) => {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
     bracketed.forEach((b) => {
-      if (b.Name.trim().toLowerCase().startsWith("[private")) {
-        parsedSiblings.push(b);
-      } else if (!parsedSiblings.some((m) => m.Link === b.Link || m.Name === b.Name)) {
+      if (!parsedSiblings.some((m) => m.Link === b.Link || m.Name === b.Name)) {
         parsedSiblings.push(b);
       }
     });
-    familyData.siblings = parsedSiblings;
+    // name in siblingsArray == FullName in parsedSiblings
+    // Check siblingsArray for half. If half and !halfMarker in parsedSiblings, create halfMarker:
+    // <span class="SMALL" title="${profilePerson.FullName} and sibling share one parent.">[half]</span>
+    theSiblingsArray.forEach((sibling) => {
+      const siblingObj = parsedSiblings.find(
+        (s) =>
+          (s.FullName == sibling.FullName || s.Name == sibling.FullName) &&
+          s.BirthDate == sibling.BirthDate &&
+          s.DeathDate == sibling.DeathDate
+      );
+      if (siblingObj) {
+        Object.assign(sibling, siblingObj);
+        if (sibling.half && !siblingObj.halfMarker) {
+          sibling.halfMarker = `<span class="SMALL" title="${profilePerson.FullName} and sibling share one parent."> [half]</span>`;
+        }
+      } else {
+        console.log(`Sibling not found in parsedSiblings: ${sibling.FullName}`);
+      }
+    });
+
+    //    familyData.siblings = parsedSiblings;
+    familyData.siblings = theSiblingsArray;
   } else {
     delete familyData.siblings;
   }
@@ -343,9 +424,7 @@ function parseInitialData() {
       return b.Name && b.Name.trim() && !b.Link.startsWith("https://maps.google");
     });
     bracketed.forEach((b) => {
-      if (b.Name.trim().toLowerCase().startsWith("[private")) {
-        parsedChildren.push(b);
-      } else if (!parsedChildren.some((m) => m.Link === b.Link || m.Name === b.Name)) {
+      if (!parsedChildren.some((m) => m.Link === b.Link || m.Name === b.Name)) {
         parsedChildren.push(b);
       }
     });
@@ -354,7 +433,7 @@ function parseInitialData() {
     delete familyData.children;
   }
 
-  //console.log("Parsed familyData:", familyData);
+  // console.log("Parsed familyData:", familyData);
   return familyData;
 }
 
@@ -524,15 +603,35 @@ function buildParentsSection(parents) {
       if (isPrivate) {
         hrefBit = "";
       }
+      let status;
+
+      if (profilePersonData.DataStatus?.Father && p.relationship == "Father") {
+        status = profilePersonData.DataStatus?.Father;
+      } else if (profilePersonData.DataStatus?.Mother && p.relationship == "Mother") {
+        status = profilePersonData.DataStatus.Mother;
+      }
+      // console.log(profilePersonData);
+      if (status) {
+        // console.log("status", status);
+        const statusWord =
+          status == 5
+            ? "[non-biological]"
+            : status == 10
+            ? "[uncertain]"
+            : status == 20
+            ? "[certain]"
+            : status == 30
+            ? "<span class='icon--dna-checked' style='background-size:40px 20px !important; width:40px !important'></span>"
+            : "";
+        status = ` <span class="dataStatus" title="">${statusWord}</span>`;
+      }
       li.innerHTML = `<span itemprop="${
         p.relationship || "parent"
       }" itemscope itemtype="https://schema.org/Person"><a ${hrefBit} itemprop="url" title="" aria-label="Parent"><span itemprop="name">${
         p.FullName || p.Name
-      }</span></a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+      }</span>${status || ""}</a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
         dates.deathYear || ""
-      }">
-            ${dates.dates || ""}</span>
-          <span class="relAge"></span></span>`;
+      }">${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
       ol.appendChild(li);
     });
   }
@@ -549,6 +648,8 @@ function buildSiblingsSection(siblings) {
   const container = document.createElement("div");
   container.className = "VITALS familyList";
   container.id = "siblingDetails";
+
+  // console.log("siblings", siblings);
 
   const headerDiv = document.createElement("div");
   headerDiv.appendChild(createHeader("Siblings: ", "siblingsHeader", ""));
@@ -568,21 +669,26 @@ function buildSiblingsSection(siblings) {
       const li = document.createElement("li");
       li.dataset.parseName = s.Name;
       const dates = getDatesFromFamilyData(s);
-      const isPrivate = s.Name.trim().toLowerCase().startsWith("[private");
+      const isPrivate = s.Name?.trim().toLowerCase().startsWith("[private");
       if (isPrivate) {
         li.innerHTML = `<span itemprop="sibling" itemscope itemtype="https://schema.org/Person">
-          <span itemprop="name">${s.FullName || s.Name}</span>
-          <span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${dates.deathYear || ""}">
-            ${dates.dates || ""}</span>
-          <span class="relAge"></span></span>`;
+          <span itemprop="name">${s.FullName || s.Name} ${
+          s.halfMarker || ""
+        }</span><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+          dates.deathYear || ""
+        }">${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
       } else {
         li.innerHTML = `<span itemprop="sibling" itemscope itemtype="https://schema.org/Person">
-          <a href="${s.Link}" itemprop="url" title="" aria-label="Sibling">
-            <span itemprop="name">${s.FullName || s.Name}</span></a>
-          <span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${dates.deathYear || ""}">
-            ${dates.dates || ""}</span>
-          <span class="relAge"></span></span>`;
+          <a href="${s.Link}" itemprop="url" title="" aria-label="Sibling"><span itemprop="name">${
+          s.FullName || s.Name
+        }</span></a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+          dates.deathYear || ""
+        }">${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
         li.setAttribute("data-gender", s.Gender || "male");
+        if (s.halfMarker) {
+          $(li).find(".bdDates").before(s.halfMarker);
+        }
+
         if (s.Father) li.setAttribute("data-father", s.Father);
         if (s.Mother) li.setAttribute("data-mother", s.Mother);
       }
@@ -650,7 +756,7 @@ function buildSpousesSection(spouses) {
     datesEl.className = "spouseDates bdDates";
     datesEl.setAttribute("data-birth-year", theDates.birthYear || "");
     datesEl.setAttribute("data-death-year", theDates.deathYear || "");
-    datesEl.textContent = theDates.dates || "";
+    datesEl.textContent = theDates.dates ? " " + theDates.dates : "";
     if (spouse.Name) {
       const idName = (spouse.Name || "").replace(/\s/g, "-");
       datesEl.id = idName + "-bdDates";
@@ -735,14 +841,16 @@ function buildChildrenSection(children) {
             c.Link.startsWith("http") ? c.Link : "https://" + mainDomain + c.Link
           }" itemprop="url" title="" aria-label="Child" class="childLink"><span itemprop="name">${
         c.FullName || c.Name
-      }</span></a>
-          <span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${dates.deathYear || ""}">
-            ${dates.dates || ""}</span> <span class="relAge"></span></span>`;
+      }</span></a><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
+        dates.deathYear || ""
+      }">
+            ${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
     } else {
       li.innerHTML = `<span itemprop="children" itemscope itemtype="https://schema.org/Person">
-            <span itemprop="name">${c.FullName || c.Name}</span>
-            <span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${dates.deathYear || ""}">
-              ${dates.dates || ""}</span> <span class="relAge"></span></span>`;
+            <span itemprop="name">${c.FullName || c.Name}</span><span class="bdDates" data-birth-year="${
+        dates.birthYear || ""
+      }" data-death-year="${dates.deathYear || ""}">
+             ${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
     }
     if (!/^\[.*\?\]$/.test(c.Name)) {
       li.setAttribute("data-gender", c.Gender || "male");
@@ -801,6 +909,7 @@ async function getWindowPeople() {
   window.people = new Map(Object.entries(people));
   const arr = Object.values(people);
   window.peopleByWtID = new Map(arr.map((p) => [p.Name, p]));
+  profilePersonData = people[profilePerson.Id];
 }
 
 /**
@@ -1054,7 +1163,7 @@ function addMarriageAges() {
           let html = marriageDetailsSpan.html();
           html = html.replace(
             /—\s*married\s*/i,
-            `<a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=editspouse&s=${idx}" target="_blank" title="Edit marriage" class="clickable">married</a> `
+            `<a href="https://${mainDomain}/index.php?title=Special:EditFamily&u=${profilePerson.Id}&who=editspouse&s=${spouseId}" target="_blank" title="Edit marriage" class="clickable">married</a> `
           );
           marriageDetailsSpan.html(html);
           marriageDetailsSpan.contents().wrapAll('<div class="marriageDetailsInner"></div>');
@@ -1094,7 +1203,7 @@ function addRelativeAges() {
     if (!personData || !personData.BirthDate || personData.BirthDate === "0000-00-00") return;
     const diff = getAge(profileBirth, personData.BirthDate);
     const relText = diff[0] !== 0 ? (diff[0] > 0 ? "(+" + diff[0] + ")" : "(" + Math.abs(diff[0]) + ")") : "";
-    $container.find(".relAge").text(relText);
+    $container.find(".relAge").text(" " + relText);
   });
 }
 
@@ -1160,10 +1269,17 @@ function addHalfsStyle() {
     .get();
   const uniqueFathers = [...new Set(fathers)];
   const uniqueMothers = [...new Set(mothers)];
-  if (uniqueFathers.length < 2 && uniqueMothers.length < 2) {
+
+  const cond1 = uniqueFathers.length == 1 && uniqueFathers[0] == profilePersonData.Father;
+  const cond2 = uniqueFathers.length == 0 && !profilePersonData.Father;
+  const cond3 = uniqueMothers.length == 1 && uniqueMothers[0] == profilePersonData.Mother;
+  const cond4 = uniqueMothers.length == 0 && !profilePersonData.Mother;
+  if ((cond1 || cond2) && (cond3 || cond4)) {
     return;
   }
+
   const pList = $("#parentList li");
+  /*
   if (pList.length >= 2) {
     const p1 = pList.eq(0).attr("data-id");
     const p2 = pList.eq(1).attr("data-id");
@@ -1185,6 +1301,42 @@ function addHalfsStyle() {
           $(this).addClass("spouse_" + (index + 1));
         });
       }
+    }
+  }
+    */
+
+  // Grab the <li> elements for father and mother based on data-gender
+  const fatherLi = pList.filter('[data-gender="Male"]').first();
+  const motherLi = pList.filter('[data-gender="Female"]').first();
+
+  if (fatherLi.length && motherLi.length) {
+    const fatherID = fatherLi.attr("data-id");
+    const motherID = motherLi.attr("data-id");
+
+    // Assign classes to the parent <li> elements
+    fatherLi.addClass("parent_1");
+    motherLi.addClass("parent_2");
+
+    // Go through siblings and see who shares father/mother
+    $("#siblingList li").each(function () {
+      const theirFather = String($(this).attr("data-father") || "");
+      const theirMother = String($(this).attr("data-mother") || "");
+      if (theirFather === fatherID) {
+        $(this).addClass("parent_1");
+      }
+      if (theirMother === motherID) {
+        $(this).addClass("parent_2");
+      }
+      if ($(this).text().includes("[half]")) {
+        $(this).addClass("fl-half-tooltip").attr("data-title", "[half]");
+      }
+    });
+
+    // If there are multiple .aSpouse elements, assign them spouse_1, spouse_2, etc.
+    if ($(".aSpouse").length > 1) {
+      $(".aSpouse").each(function (index) {
+        $(this).addClass("spouse_" + (index + 1));
+      });
     }
   }
 }
@@ -1361,15 +1513,35 @@ function insertInSibList() {
       ? parseInt(pPerson.DeathDateDecade) + 5
       : null;
 
-  let inserter = $(`
-      <span itemprop="sibling" itemtype="http://schema.org/Person" data-private="0">
-        <a href="#n" class="activeProfile" data-wtid="${pPerson.Name}">${displayName(pPerson)[0]}</a>
-        <span class="bdDates" data-birth-year="${birthYear || ""}" data-death-year="${deathYear || ""}">
-          ${displayDates(pPerson).trim()}</span>
-      </span>
-    `);
+  const fatherId = pPerson.Father;
+  const motherId = pPerson.Mother;
 
-  const profilePersonLi = $("<li id='profilePerson'></li>");
+  let parentClasses = "";
+  // Are there any siblings with different parents?
+  const siblings = $("#siblingList li");
+  const diffFather = siblings.filter(function () {
+    return $(this).data("father") !== fatherId;
+  });
+  const diffMother = siblings.filter(function () {
+    return $(this).data("mother") !== motherId;
+  });
+  if (diffMother.length || diffFather.length) {
+    if (profilePersonData.Father) {
+      parentClasses += "parent_1 ";
+    }
+    if (profilePersonData.Mother) {
+      parentClasses += "parent_2";
+    }
+  }
+
+  let inserter = $(`
+      <span itemprop="sibling" itemtype="http://schema.org/Person" data-private="0" class="${parentClasses}"><a href="#n" class="activeProfile" data-wtid="${
+    pPerson.Name
+  }">${displayName(pPerson)[0]}</a><span class="bdDates" data-birth-year="${birthYear || ""}" data-death-year="${
+    deathYear || ""
+  }"> ${displayDates(pPerson).trim()}</span></span>`);
+
+  const profilePersonLi = $(`<li id='profilePerson' class="${parentClasses}"></li>`);
   let elToFind = "#Siblings li";
   let closestEl = "li";
   if (options && options.verticalLists) {
@@ -1711,7 +1883,10 @@ function moveMetaGender() {
    Main Hook: Initialize, Replace DOM, and Attach Events
    ======================================================================== */
 shouldInitializeFeature("changeFamilyLists").then(async (result) => {
-  if (!result) return;
+  if (!result) {
+    // parseSiblings();
+    return;
+  }
   moveMetaGender();
   const familyData = parseInitialData();
   const treePerson = $("#Family-pane div.tree--person");

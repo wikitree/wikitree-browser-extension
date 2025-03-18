@@ -1,12 +1,29 @@
 /*
 Created By: Ian Beacall (Beacall-6)
 Contributors: Jonathan Duke (Duke-5773)
+
+export let isProfileAddRelative = false;
+// Add unrelated person
+export let isAddUnrelatedPerson = false;
+
 */
 
 import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
-import { mainDomain, isNavHomePage, isMainDomain, isProfilePage, isWikiEdit } from "./pageType.js";
+import {
+  mainDomain,
+  isNavHomePage,
+  isMainDomain,
+  isProfilePage,
+  isWikiEdit,
+  isProfileEdit,
+  isSpaceEdit,
+  isProfileLoggedInUserPage,
+  isProfileAddRelative,
+  isAddUnrelatedPerson,
+  isG2G,
+} from "./pageType.js";
 import { checkIfFeatureEnabled } from "./options/options_storage";
 
 import Cookies from "js-cookie";
@@ -288,7 +305,18 @@ async function checkButtonFeatures() {
     // Ensure clipboardContainer exists before appending buttons
     if ($(".clipboardContainer").length === 0) {
       const clipboardContainer = $("<span>").addClass("clipboardContainer");
-      $(".profile--actions.float-end").append(clipboardContainer);
+      if (isAddUnrelatedPerson || isProfileAddRelative) {
+        $("#sourcesLabel").append(clipboardContainer);
+      } else if (isG2G) {
+        $("#anew h2").prepend(clipboardContainer);
+        clipboardContainer.css("float", "right");
+      } else {
+        $(".profile--actions.float-end").append(clipboardContainer);
+        const readingModeIcon = $(".profile--actions a.action--reading-mode");
+        if (readingModeIcon.length) {
+          clipboardContainer.insertBefore(readingModeIcon);
+        }
+      }
     }
 
     // Fetch image URLs

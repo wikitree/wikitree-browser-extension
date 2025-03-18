@@ -9,7 +9,13 @@ import "jquery-ui/ui/widgets/draggable";
 import "./clipboard_and_notes.css";
 import { htmlEntities, extensionContextInvalidatedCheck } from "../../core/common";
 import { shouldInitializeFeature, checkIfFeatureEnabled } from "../../core/options/options_storage";
-import { isAddUnrelatedPerson, isProfileAddRelative, isSpaceEdit, isProfileEdit } from "../../core/pageType";
+import {
+  isAddUnrelatedPerson,
+  isProfileAddRelative,
+  isSpaceEdit,
+  isProfileEdit,
+  isWikiEdit,
+} from "../../core/pageType";
 import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
 
 const CB_DB_NAME = "Clipboard";
@@ -435,7 +441,7 @@ async function clipboard(type, e, action = false) {
 
     $("body").append(aClipboard);
 
-    if ($("body.page-Special_EditPerson").length && thisWord == "clipping") {
+    if (isWikiEdit && thisWord == "clipping") {
       if ($("#clipboardInfo").length == 0) {
         setClipboardText();
       }
@@ -833,28 +839,23 @@ function addGroupTab(groupKey, groupName) {
 }
 
 async function initClipboard() {
+  let clipboardButtons2;
   try {
     await initializeDatabase();
 
-    const clipboardButtons2 = $(".theClipboardButtons").clone(true);
-    $(".qa-a-form .qa-form-tall-table,.qa-c-form .qa-form-tall-table").before(clipboardButtons2);
-    $("form[name='a_form'] .theClipboardButtons").addClass("answerForm");
-    $(".qa-c-form .theClipboardButtons").addClass("commentForm");
-    $("#toolbar + br").remove();
+    clipboardButtons2 = $(".clipboardContainer").clone(true);
+    clipboardButtons2.find("#extraWatchlistButton,#addToExtraWatchlistButton,#spaceWatchlistButton").remove();
+    clipboardButtons2.find("#clipboardButton").prop("id", "clipboardButton2");
+    clipboardButtons2.find("#notesButton").prop("id", "notesButton2");
   } catch (error) {
     console.error(`Failed to open clipboard db`, error);
   }
 
-  $(".privateMessageLink")
-    .off("click")
-    .on("click", function () {
+  $(document)
+    .off("click.pm")
+    .on("click.pm", ".privateMessageLink", function () {
       setTimeout(function () {
-        $(".theClipboardButtons").insertAfter("#privateMessage-subject").css("float", "right");
-        $("#privatemessage-modal-close")
-          .off("click")
-          .on("click", function () {
-            $(".theClipboardButtons").appendTo($("#header"));
-          });
+        clipboardButtons2.insertAfter("#privateMessage-subject").css("float", "right");
       }, 2500);
     });
 }

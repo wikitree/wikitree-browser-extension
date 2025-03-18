@@ -59,16 +59,15 @@ span[style="color:#c07fee"] {
 
 .fontSizeButton {
   display: inline-block;
-  width: 25px !important;
-  height: 25px !important;
+  width: 28px !important;
+  height: 28px !important;
   background-position: 5px -644px;
   background-repeat: no-repeat;
-  line-height: 25px;
-  height: 15px;
+  line-height: 28px;
   border: 1px solid grey;
   padding: 5px;
   position: relative;
-  top: -1px;
+  top: 0;
   border-radius: 3px;
   background-color: #eee;
   margin-right: 2px;

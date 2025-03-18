@@ -169,14 +169,11 @@ function onRelationsSuccess(event, profileID, userID) {
     .get(distRelDbKeyFor(profileID, userID));
   getRelationReq.onsuccess = function () {
     if (getRelationReq.result != undefined) {
-      if (getRelationReq.result.relationship != "") {
-        if ($(".yourRelationshipText").length < 2) {
-          $(".yourRelationshipText").remove();
-          addRelationshipText(
-            getRelationReq.result.relationship,
-            cleanCommonAncestors(getRelationReq.result.commonAncestors)
-          );
-        }
+      if ($(".yourRelationshipText").length < 2) {
+        addRelationshipText(
+          getRelationReq.result.relationship,
+          cleanCommonAncestors(getRelationReq.result.commonAncestors)
+        );
       }
     }
   };
@@ -257,9 +254,10 @@ function onDistancesSuccess(event, profileID, userID) {
 }
 
 function addRelationshipText(oText, commonAncestors) {
+  $(".yourRelationshipText")?.remove();
+  if (!oText) return;
   const commonAncestorTextResult = commonAncestorText(commonAncestors);
   let commonAncestorTextOut = commonAncestorTextResult.text;
-  if (!oText) return;
   const cousinText = $(
     `<div class='yourRelationshipText' title='Click to refresh' class='relationshipFinder'>Your ${oText}
     <ul class='yourCommonAncestor' style='white-space:nowrap'>${commonAncestorTextOut}</ul>
@@ -395,10 +393,7 @@ function doRelationshipText(userID, profileID) {
           console.log(relationshipText);
 
           // Insert relationship text
-          if (!document.querySelector(".yourRelationshipText")) {
-            document.querySelector(".yourRelationshipText")?.remove();
-            addRelationshipText(relationshipText, cleanCommonAncestors(data.commonAncestors));
-          }
+          addRelationshipText(relationshipText, cleanCommonAncestors(data.commonAncestors));
         }
       }
 
@@ -632,9 +627,7 @@ function initDistanceAndRelationship(userID, profileID, clicked = false) {
       .then((person) => {
         if (person.Privacy > 29 && person.Connected == 1) {
           getDistance();
-          if ($(".yourRelationshipText").length == 0) {
-            doRelationshipText(userID, profileID);
-          }
+          doRelationshipText(userID, profileID);
         }
       })
       .catch((error) => {

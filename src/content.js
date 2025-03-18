@@ -65,7 +65,7 @@ import "./features/locationsHelper/locationsHelper";
 import "./features/make_radio_buttons_deselectable/make_radio_buttons_deselectable";
 import "./features/migration_category_helper/migration_category_helper";
 import "./features/remove_from_watchlist/remove_from_watchlist";
-//import "./features/save_buttons_style_options/save_buttons_style_options"; // Disabled for now
+import "./features/save_buttons_style_options/save_buttons_style_options"; // Disabled for now
 import "./features/show_edits/show_edits";
 import "./features/space_drafts/space_drafts";
 import "./features/sticky_toolbar/sticky_toolbar";

@@ -584,7 +584,7 @@ async function initReadability() {
     // add the toggle button at the top of the page content
     const container = $("#heading .text-end, .profile--actions.float-end").last();
     if (container.closest("#heading").length > 0) {
-      container.prepend(toggleElement);
+      container.append(toggleElement);
       toggleElement.removeClass("wbe-button");
       toggleElement.removeAttr("data-tooltip");
     } else {
