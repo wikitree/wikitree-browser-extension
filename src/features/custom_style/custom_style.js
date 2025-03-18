@@ -135,11 +135,11 @@ class CustomStyle {
       color2: ".nav-link.active,.nav-link.active a,button.button, a.btn-pill-sm",
       color3: "aside",
       color4: "div.box.rounded,aside.box.rounded",
-      link: "a:link:not(.btn-secondary,#jump-nav a,.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,a.qa-tag-link,a.new,.wt.table th a,#editToolbarExt a,#view-container a,.btn-pill-sm,.menu-style .dropdown-menu a)",
+      link: "a:link:not(.btn-secondary,#jump-nav a,.qa-nav-main-link,a.button,a.new,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,a.qa-tag-link,a.new,.wt.table th a,#editToolbarExt a,#view-container a,.btn-pill-sm,.menu-style .dropdown-menu a)",
       tag: ".qa-q-item-tag-item a:link",
       tagHover: ".qa-q-item-tag-item a:link:hover,.qa-q-item-tag-item a:visited:hover",
       visitedLink:
-        "a:visited:not(.btn-secondary,.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,.wt.table th a,#editToolbarExt a,#view-container a,.menu-style .dropdown-menu a,.qa-page-next,.qa-page-prev,.qa-page-selected,.qa-page-link,.qa-tag-link,.qa-tag-link:hover,.qa-tag-link:visited,.qa-tag-link:visited:hover,.qa-tag-link:visited,.qa-tag-link:visited:hover)",
+        "a:visited:not(.btn-secondary,.qa-nav-main-link,a.button,a.new,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,.wt.table th a,#editToolbarExt a,#view-container a,.menu-style .dropdown-menu a,.qa-page-next,.qa-page-prev,.qa-page-selected,.qa-page-link,.qa-tag-link,.qa-tag-link:hover,.qa-tag-link:visited,.qa-tag-link:visited:hover,.qa-tag-link:visited,.qa-tag-link:visited:hover)",
       voteCount: ".green.box:has(.qa-voting)",
       answerCount: ".orange.box:has(.qa-a-count)",
       editor: "div.CodeMirror,#wpTextbox1",
