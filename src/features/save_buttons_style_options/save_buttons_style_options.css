@@ -16,3 +16,40 @@
 #saveButtons p .button:first-child {
   margin-bottom: 10px !important;
 }
+
+#saveButtons #utilityButtons,
+#saveButtons div.form-buttons.allSmall,
+#saveButtons div.form-buttons.halfSmall {
+  margin: 1em auto;
+  text-align: center;
+  display: flex;
+  justify-content: space-evenly;
+  gap: 1em;
+}
+
+#saveButtons #utilityButtons.halfSmall {
+  display: block;
+}
+#saveButtons #utilityButtons.halfSmall button {
+  margin: 1em auto;
+  display: block;
+  width: fit-content;
+  padding: 0.5em 1em;
+}
+
+#saveButtons div.form-buttons button {
+  margin: auto !important;
+}
+
+#saveButtons #utilityButtons p {
+  display: inline-block;
+}
+#utilityButtons a {
+  width: 100%;
+  margin: 0 !important;
+  border-radius: 0.5em;
+}
+#utilityButtons a:hover {
+  background-color: green !important;
+  color: #ffffff !important;
+}
