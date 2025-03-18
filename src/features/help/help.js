@@ -9,30 +9,47 @@ import { features } from "../../core/options/options_registry";
 shouldInitializeFeature("help").then((result) => {
   if (result) {
     // Ensure we are on the correct Space page
-    if (
-      window.location.href.match(/Space:WikiTree_Browser_Extension/) ||
-      window.location.href.match(/Space:WikiTree_Browser_Extension#/)
-    ) {
+    const match = window.location.href.match(/Space:(WikiTree_Browser_Extension|WikiTree_Readability_Options)[#?&]?/);
+    if (match) {
       import("./help.css").then(() => {
-        initializeFeatureSettingsOnHelpPage();
+        initializeFeatureSettingsOnHelpPage(match[1]);
       });
     }
   }
 });
 
-async function initializeFeatureSettingsOnHelpPage() {
-  for (const feature of features) {
-    injectFeatureSettings(feature);
+async function initializeFeatureSettingsOnHelpPage(space) {
+  if (space === "WikiTree_Browser_Extension") {
+    for (const feature of features) {
+      injectFeatureSettings(feature);
+    }
+  } else if (space === "WikiTree_Readability_Options") {
+    const feature = features.find((feature) => feature.id === "readability");
+    if (feature) {
+      const $optionsSpan = $(`a#Options`);
+      if ($optionsSpan.length) {
+        const $headingElement = $optionsSpan.nextAll("h2").first();
+        if ($headingElement.length) {
+          $headingElement.nextAll("p").first().remove();
+          $headingElement.nextAll("table").first().wrap("<p></p>");
+          injectFeatureSettings(feature, $headingElement);
+        }
+      }
+    }
   }
 }
 
-function injectFeatureSettings(feature) {
-  // Find the <span> element that has the feature ID
-  const $featureSpan = $(`span#${feature.id}`);
+function injectFeatureSettings(feature, $headingElement) {
+  // Certain features with their own help pages may have a different way of identifying the header element
+  if (!$headingElement) {
+    // By default, find the <span> element that has the feature ID
+    const $featureSpan = $(`span#${feature.id}`);
+    if ($featureSpan.length) {
+      $headingElement = $featureSpan.closest("p").nextAll("h4, h5").first();
+    }
+  }
 
-  if ($featureSpan.length) {
-    const $headingElement = $featureSpan.closest("p").nextAll("h4, h5").first();
-
+  if ($headingElement) {
     if ($headingElement.length) {
       // Create the toggle switch
       const checkboxHTML = `
