@@ -42,7 +42,7 @@ export function ensureProfileClasses() {
     $(".x-heading-title").closest(".row").addClass("x-heading");
 
     // mark the thumbnail image container based on the heading
-    $(".x-heading .img-profile").first().addClass("x-thumbnail");
+    $(".x-heading .img-profile").first().parent().addClass("x-thumbnail");
     $(
       ".x-thumbnail img[alt*='upload photo'], .x-thumbnail img[alt*='upload image'], .x-thumbnail img[alt*='no photo'], .x-thumbnail img[alt*='no image']"
     )
