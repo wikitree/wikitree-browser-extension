@@ -49,34 +49,24 @@ async function changeLinksToButtons() {
     buttonContainer.insertBefore($("#validationContainer"));
   }
 
-  const saveButtonsWrapper = $("div.form-buttons");
-  const buttonContainer = $("#utilityButtons");
-
   const options = await getFeatureOptions("saveButtonsStyleOptions");
-  $("#saveButtons").addClass(options.buttonSize); 
+  $("#saveButtons").addClass(options.buttonSize);
 
   if (isSpaceEdit) {
-    const saveButton = $("#wpSave");
-    const saveDraftButton = $("#saveButtons").find("a").eq(0);
-    const container = saveDraftButton.closest("div");
-    saveDraftButton.text(saveDraftButton.text() + " without saving");
-    saveDraftButton.addClass("button");
-    $("#saveButtons").html("");
-    $("#saveButtons").append(saveButton, saveDraftButton);
-    container.find("a,input").each(function () {
-      $(this).addClass("button");
-    });
-    if (options.buttonSize === "allSmall") {
-      container.find("a,input").each(function () {
-        $(this).addClass("small");
+    setTimeout(function () {
+      const utilityButtons = $("a.btn-utility");
+      // Find the link that contains the text "return to.*" and change it to a button
+      let returnToButton = utilityButtons.filter(function () {
+        return $(this)
+          .text()
+          .match(/return to/i);
       });
-    } else if (options.buttonSize === "halfSmall") {
-      container.find("a").addClass("small");
-      container.find("input").addClass("big");
-    } else if (options.buttonSize === "large") {
-      container.find("a,input").each(function () {
-        $(this).addClass("big");
-      });
-    }
+      returnToButton.addClass("btn btn-secondary button");
+      returnToButton.prop("id", "returnToButton");
+
+      if (options.buttonSize == "halfSmall" || options.buttonSize == "large") {
+        returnToButton.addClass("large");
+      }
+    }, 3000);
   }
 }

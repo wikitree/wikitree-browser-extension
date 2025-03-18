@@ -54,7 +54,8 @@
   margin: 0 !important;
   border-radius: 0.5em;
 }
-#utilityButtons a:hover {
+#utilityButtons a:hover,
+#returnToButton:hover {
   background-color: green !important;
   color: #ffffff !important;
 }
@@ -87,4 +88,15 @@
 }
 #saveButtons.large #utilityButtons a {
   padding: 1em auto;
+}
+
+#returnToButton {
+  display: block;
+  width: 100%;
+  margin: 1em auto;
+  padding: 0.5em 1em;
+  border-radius: 0.5em;
+}
+#returnToButton.large {
+  padding: 1em 2em;
 }
