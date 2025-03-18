@@ -83,6 +83,11 @@
     margin-right: unset;
   }
 
+  .print-content-only .x-edit.x-no-hide {
+    color: unset !important;
+    text-decoration: none !important;
+  }
+
   .print-content-only .page--divider,
   .print-content-only .x-audit,
   .print-content-only .x-banner,
@@ -91,7 +96,7 @@
   .print-content-only .x-comments,
   .print-content-only .x-connections,
   .print-content-only .x-dna-connections,
-  .print-content-only .x-edit,
+  .print-content-only .x-edit:not(.x-no-hide),
   .print-content-only .x-footer,
   .print-content-only .x-g2g-posts,
   .print-content-only .x-header,

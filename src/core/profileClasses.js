@@ -120,6 +120,13 @@ export function ensureProfileClasses() {
     $(".x-content .EDIT, .x-heading .EDIT, .x-content .editsection").addClass("x-edit");
     $(".x-content .icon--edit").closest("a").addClass("x-edit");
     $(".VITALS a[href*='Special:Edit']").addClass("x-edit");
+    // some edits, like [father?] might be part of the narrative and don't need to be hidden (this seems to happen mainly on trusted or managed profiles)
+    $("a.x-edit")
+      .filter(function () {
+        const text = $(this).text();
+        return /^\s*\[(uncertain|.*\?)\]\s*$/.test(text);
+      })
+      .addClass("x-no-hide");
 
     // mark the audit section of the profile that show the manager, last modified, how many times the page has been accessed, etc.
     // this also includes the "Problems or Questions?"" button
