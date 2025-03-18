@@ -27,8 +27,12 @@ export function ensureProfileClasses() {
           : ""
       );
 
-    // mark the content section (on the left of the sidebar) which contains the biography, sources, etc. up to where the comments section starts; for categories, the content is all in the root section
-    $(".x-profile .body-text, .x-profile .tab-content, .x-profile-category .page--content").addClass("x-content");
+    // mark the content section (on the left of the sidebar) which contains the biography, sources, etc. up to where the comments section starts
+    // for person profiles with user accounts, there is no body-text, but the content follows a page--divider
+    // for category profiles, the content is all in the root section
+    $(
+      ".x-profile .body-text, .x-profile .tab-content, .x-profile-person .page--divider + .container > .mt-3 > .col-lg-8, .x-profile-category .page--content"
+    ).addClass("x-content");
 
     // mark the CSS element to apply a custom background image
     $(".has--bg_img").addClass("x-style-bg");
@@ -38,7 +42,7 @@ export function ensureProfileClasses() {
     $(".x-heading-title").closest(".row").addClass("x-heading");
 
     // mark the thumbnail image container based on the heading
-    $(".x-heading .img-profile").first().addClass("x-thumbnail");
+    $(".x-heading .img-profile").first().parent().addClass("x-thumbnail");
     $(
       ".x-thumbnail img[alt*='upload photo'], .x-thumbnail img[alt*='upload image'], .x-thumbnail img[alt*='no photo'], .x-thumbnail img[alt*='no image']"
     )
@@ -120,6 +124,13 @@ export function ensureProfileClasses() {
     $(".x-content .EDIT, .x-heading .EDIT, .x-content .editsection").addClass("x-edit");
     $(".x-content .icon--edit").closest("a").addClass("x-edit");
     $(".VITALS a[href*='Special:Edit']").addClass("x-edit");
+    // some edits, like [father?] might be part of the narrative and don't need to be hidden (this seems to happen mainly on trusted or managed profiles)
+    $("a.x-edit")
+      .filter(function () {
+        const text = $(this).text();
+        return /^\s*\[(uncertain|.*\?)\]\s*$/.test(text);
+      })
+      .addClass("x-no-hide");
 
     // mark the audit section of the profile that show the manager, last modified, how many times the page has been accessed, etc.
     // this also includes the "Problems or Questions?"" button
