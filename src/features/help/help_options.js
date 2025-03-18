@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import { registerFeature } from "../../core/options/options_registry";
-import { isWBESpace } from "../../core/pageType";
+import { isSpacePage, isWBESpace } from "../../core/pageType";
 
 registerFeature({
   name: "Help",
@@ -13,5 +13,5 @@ registerFeature({
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   contributors: [],
   defaultValue: true,
-  pages: [isWBESpace],
+  pages: [isWBESpace, isSpacePage],
 });
