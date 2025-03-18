@@ -18,8 +18,8 @@
 }
 
 #saveButtons #utilityButtons,
-#saveButtons div.form-buttons.allSmall,
-#saveButtons div.form-buttons.halfSmall {
+#saveButtons.allSmall div.form-buttons,
+#saveButtons.halfSmall div.form-buttons {
   margin: 1em auto;
   text-align: center;
   display: flex;
@@ -27,14 +27,14 @@
   gap: 1em;
 }
 
-#saveButtons #utilityButtons.halfSmall {
+#saveButtons.halfSmall #utilityButtons {
   display: block;
 }
-#saveButtons #utilityButtons.halfSmall button {
-  margin: 1em auto;
+#saveButtons.halfSmall #utilityButtons button,
+#saveButtons.halfSmall #utilityButtons p {
+  margin: 0.5em auto;
   display: block;
   width: fit-content;
-  padding: 0.5em 1em;
 }
 
 #saveButtons div.form-buttons button {
@@ -44,6 +44,11 @@
 #saveButtons #utilityButtons p {
   display: inline-block;
 }
+#saveButtons.allSmall #utilityButtons p,
+#saveButtons.halfSmall div.form-buttons p {
+  display: block;
+  width: 100%;
+}
 #utilityButtons a {
   width: 100%;
   margin: 0 !important;
@@ -52,4 +57,34 @@
 #utilityButtons a:hover {
   background-color: green !important;
   color: #ffffff !important;
+}
+
+#saveButtons.halfSmall2 #utilityButtons {
+  display: flex;
+  justify-content: space-evenly;
+  gap: 1em;
+}
+#saveButtons.halfSmall2 #utilityButtons p {
+  display: block;
+  width: 100%;
+}
+#saveButtons.halfSmall2 div.form-buttons {
+  display: block;
+  width: 100%;
+}
+#saveButtons.halfSmall2 div.form-buttons button,
+#saveButtons.large div.form-buttons button {
+  width: 100%;
+  padding: 0.5em 1em;
+  margin: 0.5em auto !important;
+}
+
+#saveButtons.large #utilityButtons {
+  display: block;
+}
+#saveButtons.large #utilityButtons p {
+  width: 100%;
+}
+#saveButtons.large #utilityButtons a {
+  padding: 1em auto;
 }

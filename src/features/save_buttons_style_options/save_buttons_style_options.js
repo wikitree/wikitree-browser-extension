@@ -53,8 +53,7 @@ async function changeLinksToButtons() {
   const buttonContainer = $("#utilityButtons");
 
   const options = await getFeatureOptions("saveButtonsStyleOptions");
-  saveButtonsWrapper.addClass(options.buttonSize);
-  buttonContainer.addClass(options.buttonSize);
+  $("#saveButtons").addClass(options.buttonSize); 
 
   if (isSpaceEdit) {
     const saveButton = $("#wpSave");

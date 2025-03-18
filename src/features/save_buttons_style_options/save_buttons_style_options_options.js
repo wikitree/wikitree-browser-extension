@@ -21,7 +21,8 @@ registerFeature({
       label: "Button Size",
       values: [
         { value: "allSmall", text: "All Small" },
-        { value: "halfSmall", text: "Small Compare and Return (Delete Draft) Buttons" },
+        { value: "halfSmall", text: "Small Save Buttons" },
+        { value: "halfSmall2", text: "Small Compare and Return (Delete Draft) Buttons" },
         { value: "large", text: "All Large" },
       ],
       defaultValue: "halfSmall",
