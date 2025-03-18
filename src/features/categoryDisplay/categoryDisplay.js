@@ -131,7 +131,7 @@ async function moveCategories() {
   }
 
   // Relocate the #Categories element if required.
-  const $biography = $("#Biography");
+  const $privacyModal = $("#privacyModal");
   const $sidebar = $("#Profile-Data").closest("div");
 
   switch (options.categoryLocation) {
@@ -160,7 +160,7 @@ async function moveCategories() {
       break;
     case "top":
       $categories.find("span.SMALL").remove();
-      $biography.before($categories);
+      $privacyModal.before($categories);
       break;
     case "default":
       // Leave the element in its original position.
