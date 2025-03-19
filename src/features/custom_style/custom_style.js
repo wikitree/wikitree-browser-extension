@@ -116,7 +116,7 @@ class CustomStyle {
     let idToSelectorMapping = {
       header: ".sticky-header body:not(.darkMode) .wrapper #header::before,#header",
       headings:
-        "h1,h2:not(#view-container h2),h3:not(#view-container h3),h4:not(#view-container h4),h5:not(#view-container h5),h6:not(#view-container h6),#themeTable caption",
+        "h1,h2:not(#view-container h2),h3:not(#view-container h3),h4:not(#view-container h4),h5:not(#view-container h5),h6:not(#view-container h6,.tree--placement h6),#themeTable caption",
       headingLinks:
         "h1 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
         "h1 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
