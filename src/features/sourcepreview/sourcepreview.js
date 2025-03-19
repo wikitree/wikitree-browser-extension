@@ -1,10 +1,15 @@
 /**
  * @file sourcepreview.js
- * Provides hover-based source previews for reference links (both on the main page and in Bootstrap modals)
- * with a 400 ms delay before showing the preview.
+ * @description
+ *   Provides hover-based source previews for reference links (both on the main page and in Bootstrap modals)
+ *   with a 400 ms delay before showing the preview.
+ *
+ * Created By: Steve Harris (Harris-5439)
+ * Contributors: Jonathan Duke (Duke-5773)
  */
 
 import $ from "jquery";
+import "../../thirdparty/jquery.hoverDelay";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 /** Whether to remove back-reference links or leave them in place. */
@@ -38,23 +43,23 @@ function hideActivePreview() {
 }
 
 /**
- * Show the popup for a hovered reference link, positioning it relative
+ * Show the popup for a hovered reference, positioning it relative
  * to either a main-page container or a modal content area.
  *
- * @param {JQuery<HTMLElement>} $link - The jQuery-wrapped <a> element inside .reference.
+ * @param {JQuery<HTMLElement>} $reference - The jQuery-wrapped .reference element containing a <a> citation link.
  * @returns {void}
  */
-function showPreview($link) {
+function onHoverIn($reference) {
   // Hide any currently active preview first
   hideActivePreview();
 
-  // The .reference element containing this link
-  const $reference = $link.parent();
+  // The link element under this .reference
+  const $link = $reference.children("a");
 
   // Figure out the container for offset (modal-content -> container -> body).
   const $parent = $link.closest(".modal-content, .container, body");
 
-  // Calculate offsets (they might be undefined if the element isn’t in the layout yet)
+  // Calculate offsets (they might be undefined if the element isn't in the layout yet)
   const offsetLink = $link.offset();
   const offsetParent = $parent.offset();
   let x = 0;
@@ -85,24 +90,51 @@ function showPreview($link) {
     $popup.append($("<div></div>").html(noteEl.innerHTML));
   }
 
-  // Optionally remove back-reference links
+  // Optionally remove back-reference links (based on readability.js:54)
   if (removeBackReferences) {
     $popup
       .children()
       .contents()
       .each(function () {
-        const el = $(this);
-        if (
-          el.is(".a11y-back-ref, sup, a[href^='#_ref']:first-of-type, span:empty, a[name]:empty") ||
-          (this.nodeValue && /^[*\s\u2191]*$/.test(this.nodeValue))
-        ) {
-          el.remove();
+        const $el = $(this);
+        if ($el.is(".a11y-back-ref, sup, a[href^='#_ref']:first-of-type, span:empty, a[name]:empty")) {
+          $el.remove();
+          return true; // remove back-reference links
         }
+        if (this.nodeValue && /^[*\s\u2191]*$/.test(this.nodeValue)) {
+          $el.remove();
+          return true; // remove whitespace and the up arrow
+        }
+        return false;
       });
   }
 
   // Add to DOM and fade in
   $popup.appendTo($reference).fadeIn("fast");
+}
+
+function onHoverOut($element) {
+  hidePreview($element.closest(".reference").find(".x-source-preview").addClass("x-preview-hiding"));
+}
+
+function attachHover(target) {
+  $(target)
+    .find(".reference > a")
+    .filter(function () {
+      // make sure each element is only wired up once
+      if (!this.xHasSourceHover) {
+        this.xHasSourceHover = true;
+        return true;
+      }
+      return false;
+    })
+    .parent() // attach to the enclosing .reference, not the link itself
+    .hoverDelay({
+      delayIn: HOVER_IN_DELAY,
+      delayOut: 0,
+      handlerIn: onHoverIn,
+      handlerOut: onHoverOut,
+    });
 }
 
 /**
@@ -112,39 +144,20 @@ function showPreview($link) {
  * @returns {void}
  */
 function initDelegatedHovers() {
-  /**
-   * We’ll store the timer ID on each link element via jQuery’s `.data()`.
-   * That way, if the user moves the mouse away before 400 ms,
-   * we can clear the timer and avoid showing the preview.
-   */
-
-  // Mouse enters: start a 400 ms timer to show the preview
-  $(document).on("mouseenter", ".reference > a", function () {
-    const $link = $(this);
-
-    // Clear any leftover timer (just in case)
-    clearTimeout($link.data("hoverInTimer"));
-
-    // Set a new timer to call showPreview
-    const timerId = setTimeout(() => {
-      showPreview($link);
-    }, HOVER_IN_DELAY);
-
-    // Store the timer ID so we can cancel if the user leaves early
-    $link.data("hoverInTimer", timerId);
-  });
-
-  // Mouse leaves: cancel any pending "show" timer and hide the preview immediately
-  $(document).on("mouseleave", ".reference > a", function () {
-    const $link = $(this);
-    const timerId = $link.data("hoverInTimer");
-
-    if (timerId) {
-      clearTimeout(timerId);
-      $link.removeData("hoverInTimer");
+  $(() => {
+    const $root = $(document);
+    if ($root.length > 0) {
+      const target = $root.get(0);
+      new MutationObserver(function (mutations) {
+        for (const mutation of mutations) {
+          if (mutation.type === "childList") {
+            attachHover(target);
+            break;
+          }
+        }
+      }).observe(target, { childList: true, subtree: true });
+      attachHover(target);
     }
-
-    hideActivePreview();
   });
 }
 
