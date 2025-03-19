@@ -93,6 +93,7 @@ sup.reference {
 
 .toggle.toggle-section {
   margin-left: 0.6rem;
+  visibility: hidden;
 }
 
 @media only print {
