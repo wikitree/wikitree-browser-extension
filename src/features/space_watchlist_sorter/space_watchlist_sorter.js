@@ -129,7 +129,7 @@ function moveToFolder($items, folderName) {
     .filter((_, tab) => $(tab).text().trim() === folderName)
     .attr("id");
 
-  const folderId = tabId.split("-")[1];
+  const folderId = tabId.substring(tabId.indexOf("-") + 1);
   const $targetFolder = $(`#spaceWatchlistSorterFolder-${folderId}`);
 
   if ($targetFolder.length) {
