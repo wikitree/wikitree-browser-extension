@@ -1,5 +1,5 @@
 #editToolbarExt {
-  display: inline-block!important;
+  display: inline-block !important;
   width: 100%;
 }
 
@@ -26,7 +26,7 @@
   display: none;
   position: absolute;
   top: -1px;
-  left: 161px;
+  left: 105px;
   width: 160px;
   list-style: none;
   padding: 1;
@@ -51,7 +51,7 @@
   display: none;
   position: absolute;
   top: -1px;
-  left: 161px;
+  left: 125px;
   width: 160px;
   list-style: none;
   padding: 1;
