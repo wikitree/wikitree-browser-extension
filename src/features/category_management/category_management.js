@@ -182,19 +182,30 @@ function GetOrCreateCategoriesDiv() {
     categoriesDiv = $document.getElementById("categories");
   }
   if (categoriesDiv == null) {
-    categoriesDiv = $document.createElement("div");
-    categoriesDiv.className = "box green rounded row x-categories";
+    categoriesDiv = $document.createElement("p");
+
+    categoriesDiv.className = "mb-0";
     categoriesDiv.id = "Categories";
-    categoriesDiv.style.textAlign = "left";
+
+    const div0 = $document.createElement("div");
+    div0.className = "category--links py-2 x-categories";
+    const div1 = $document.createElement("div");
+    div1.className = "container";
+    const div2 = $document.createElement("div");
+    div2.className = "row";
+    const div3 = $document.createElement("div");
+    div3.className = "col";
 
     categoriesDiv.innerHTML =
       '<a href="/wiki/Category:Categories" title="Browse and learn about categories">Categories</a>: <span dir="ltr"></span>';
-    const ps = $document.getElementsByTagName("p");
-    for (let i = 0; i < ps.length; i++) {
-      if (ps[i].align == "center") {
-        ps[i].appendChild(categoriesDiv);
-      }
-    }
+
+    div0.appendChild(div1);
+    div1.appendChild(div2);
+    div2.appendChild(div3);
+    div3.appendChild(categoriesDiv);
+
+    const subFooter = $document.getElementById("subfooter");
+    subFooter.parentNode.insertBefore(div0, subFooter);
   }
   return categoriesDiv;
 }
