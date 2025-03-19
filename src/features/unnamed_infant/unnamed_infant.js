@@ -24,7 +24,7 @@ let message = [];
  * @returns {void}
  */
 shouldInitializeFeature("unnamedInfant").then((result) => {
-  if (result) {
+  if (result && $("body.edit_spouse").length == 0) {
     import("./unnamed_infant.css").then(() => {
       initUnnamedInfant();
     });
