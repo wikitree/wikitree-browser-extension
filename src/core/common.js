@@ -163,6 +163,11 @@ export function getProfilePersonInfo() {
   person.LastNameAtBirth = pageData.mlastnameatbirth;
   person.FirstName = pageData.mfirstname;
   person.Gender = pageData.mgender;
+
+  if (!person.Gender) {
+    person.Gender = $("div.tree--person_m").length ? "Male" : $("div.tree--person_f").length ? "Female" : "";
+  }
+
   person.BirthDate = $("div.page--title div.VITALS:contains('Born')")
     .text()
     .replace("Born ", "")

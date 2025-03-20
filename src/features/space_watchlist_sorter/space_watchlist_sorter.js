@@ -9,9 +9,11 @@ import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getUserWtId, getUserNumId, isLoggedIntoAPI } from "../../core/common";
 import { goAndLogIn } from "../randomProfile/randomProfile";
 import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
-import { add } from "date-fns";
+
+const CryptoJS = require("crypto-js");
 
 const APP_ID = "WBE-SpaceSorter";
+const browserAPI = typeof browser !== "undefined" ? browser : chrome;
 
 const spaceWatchlistSorterHTML = `
 <div id="spaceWatchlistSorter-popup" class="spaceWatchlistSorter-popup" style="display: none;">
@@ -37,6 +39,8 @@ const SPWL_DB_VERSION = 2;
 const SPWL_DB_STORE = "watchlist";
 const dbHelper = new IndexedDBHelper(SPWL_DB_NAME, SPWL_DB_VERSION);
 let loadedDataVersion = 1;
+let md5AtLoad = "";
+let userId;
 
 async function initializeDatabase() {
   if (!dbHelper.db) {
@@ -121,12 +125,12 @@ function initializeContextMenu() {
 }
 
 function moveToFolder($items, folderName) {
-  const $targetFolder = $("#spaceWatchlistSorterFolderContainer .spaceWatchlistSorter-folder").filter(function () {
-    const tabIndex = $("#spaceWatchlistSorterTabs .spaceWatchlistSorter-tab")
-      .filter((_, tab) => $(tab).text().trim() === folderName)
-      .index();
-    return $(this).index() === tabIndex; // Match by index
-  });
+  const tabId = $("#spaceWatchlistSorterTabs .spaceWatchlistSorter-tab")
+    .filter((_, tab) => $(tab).text().trim() === folderName)
+    .attr("id");
+
+  const folderId = tabId.substring(tabId.indexOf("-") + 1);
+  const $targetFolder = $(`#spaceWatchlistSorterFolder-${folderId}`);
 
   if ($targetFolder.length) {
     const $targetList = $targetFolder.find(".spaceWatchlistSorter-sortable");
@@ -183,7 +187,7 @@ function showLoginPopup() {
       goAndLogIn(window.location.href);
 
       // After successful login, hide the popup and callback onSuccess
-      const userId = getUserWtId();
+      userId = getUserWtId();
       const userNumId = getUserNumId();
       if (userId && userNumId) {
         if (await isLoggedIntoAPI(userNumId, APP_ID)) {
@@ -204,16 +208,16 @@ function showLoginPopup() {
   });
 }
 
-function versionId(userId) {
+function versionId() {
   return `data-version-${userId}`;
 }
 
-function dataId(userId) {
+function dataId() {
   return `categorization-${userId}`;
 }
 
 async function loadWatchlistFromDB() {
-  const userId = getUserWtId(); // Fetch the logged-in user's ID
+  userId = getUserWtId(); // Fetch the logged-in user's ID
   // console.log(`Loading watchlist for ${userId} from IndexedDB`);
   if (!userId) {
     console.error("Unable to fetch user ID. Cannot load watchlist.");
@@ -222,12 +226,28 @@ async function loadWatchlistFromDB() {
 
   try {
     const dbh = await initializeDatabase();
-    const dbDataVersion = await dbh.getData(SPWL_DB_STORE, versionId(userId));
-    const dbWatchList = await dbh.getData(SPWL_DB_STORE, dataId(userId));
+    const dbDataVersion = await dbh.getData(SPWL_DB_STORE, versionId());
+    let dbWatchList = await dbh.getData(SPWL_DB_STORE, dataId());
     loadedDataVersion = dbDataVersion?.timestamp || 1;
-    return dbWatchList ? dbWatchList : { folders: [] };
+    dbWatchList = dbWatchList ? dbWatchList : { folders: [] };
+    md5AtLoad = md5Of(dbWatchList.folders);
+
+    // convert the watchlist if it is still old style
+    if (dbWatchList.folders?.length > 0) {
+      const items = dbWatchList.folders[0].items;
+      if (items && typeof items[0] === "string") {
+        // old format - attempt to convert to new
+        dbWatchList.folders.forEach((f) => {
+          f.items = f.items.map((i) => {
+            const key = i.trim().replaceAll(" ", "_");
+            return { key: key, text: i, url: `https://www.wikitree.com/wiki/Space:${key}` };
+          });
+        });
+      }
+    }
+    return dbWatchList;
   } catch (error) {
-    console.error(`Get watchlist "categorization-${userId}" failed:`, error);
+    console.error(`Get watchlist ${dataId()}" failed:`, error);
     return { folders: [] };
   }
 }
@@ -265,25 +285,6 @@ async function populateInterface() {
 
     // Get the watchlist we saved in the DB and convert it if it is still old style
     const dbWatchlist = await loadWatchlistFromDB();
-    if (dbWatchlist.folders?.length > 0) {
-      const items = dbWatchlist.folders[0].items;
-      if (items && typeof items[0] === "string") {
-        // old format - attempt to convert to new
-        dbWatchlist.folders.forEach((f) => {
-          f.items = f.items.map((i) => {
-            const key = i.trim().replaceAll(" ", "_");
-            return { key: key, text: i, url: `https://www.wikitree.com/wiki/Space:${key}` };
-          });
-        });
-      }
-    }
-
-    const tabsContainer = $("#spaceWatchlistSorterTabs");
-    const folderContainer = $("#spaceWatchlistSorterFolderContainer");
-
-    // Clear existing tabs and folders
-    tabsContainer.empty();
-    folderContainer.empty();
 
     const apiItems = new Map(
       apiWatchlist.map((space) => {
@@ -293,126 +294,9 @@ async function populateInterface() {
         ];
       })
     );
-    const updatedFolderMap = new Map();
 
-    // Recreate the folder structure while sorting api items that we had before
-    (dbWatchlist.folders || []).forEach((oldFolder) => {
-      // Collect api items that are already present in the DB for this folder
-      const items = [];
-      oldFolder.items.forEach((oldItem) => {
-        const newItem = apiItems.get(oldItem.key);
-        if (newItem) {
-          apiItems.delete(oldItem.key);
-          items.push(newItem);
-        }
-      });
-
-      // Place the above collected items in their correct folder. Their order is preserved
-      // du to the order in which we added them to the array.
-      // We keep folders here even if they are empty, except for the unorganized one.
-      // Empty folders will eventually be deleted (if they are still empty) during the save operation.
-      const id = oldFolder.id || `group-${pos}`;
-      if (id != UNORGANIZED_GROUP_NAME || items.length > 0) {
-        // We ensure position start at 1 so we can add the unorganised folder at the front
-        // if we have to create a new one
-        const pos = updatedFolderMap.size + 1;
-        updatedFolderMap.set(id, {
-          id: oldFolder.id || `group-${pos}`,
-          name: oldFolder.name || `Group ${pos}`,
-          items: items,
-          pos: pos, // this ensures we can recreate the folders order
-        });
-      }
-    });
-
-    if (apiItems.size > 0) {
-      // There are new items, not categorised, so add them to the unorganized folder
-      // (creating one if it does not exist)
-      const unorganizedGroup = updatedFolderMap.get(UNORGANIZED_GROUP_NAME);
-      if (unorganizedGroup) {
-        // New unorganised items go at the start of the list, so it's easier for the user to spot them
-        unorganizedGroup.items.splice(0, 0, ...apiItems.values());
-      } else {
-        updatedFolderMap.set(UNORGANIZED_GROUP_NAME, {
-          id: UNORGANIZED_GROUP_NAME,
-          name: UNORGANIZED_FOLDER_NAME,
-          items: [...apiItems.values()],
-          pos: 0, // When creating a new unorganised group, we put it first
-        });
-      }
-    }
-
-    // Populate UI
-    const updatedFolders = [...updatedFolderMap.values()].sort((a, b) => a.pos - b.pos);
-    updatedFolders.forEach((folder) => {
-      delete folder.pos;
-      const folderId = folder.id;
-      const tabId = `spaceWatchlistSorterTab-${folderId}`;
-
-      // Add tabs
-      tabsContainer.append(`
-        <div id="${tabId}" class="spaceWatchlistSorter-tab">${folder.name}</div>
-      `);
-
-      const uniqueItems = new Set();
-      // Add folder containers
-      folderContainer.append(`
-        <div id="spaceWatchlistSorterFolder-${folderId}" class="spaceWatchlistSorter-folder" style="display: none;">
-          <button class="sort-alphabetically-button btn btn-pill-sm" data-folder-id="${folderId}">A-Z</button>
-          <ul class="spaceWatchlistSorter-sortable">
-            ${folder.items
-              .filter((item) => {
-                if (uniqueItems.has(item.key)) return false; // Skip duplicates
-                uniqueItems.add(item.key); // Track unique item
-                return true;
-              })
-              .map(
-                (item) => `
-                  <li data-id="${item.key}">
-                    <a href="${item.url.replace(/\/api\./, "/www")}" target="_blank">${item.text}</a>
-                  </li>`
-              )
-              .join("")}
-          </ul>
-        </div>
-      `);
-    });
-
-    // Show only the first folder by default
-    $(".spaceWatchlistSorter-folder").first().show();
-    $(".spaceWatchlistSorter-tab").first().addClass("active");
-
-    saveWatchlistToDB(updatedFolders); // Save updated folders to database
-
-    $(".spaceWatchlistSorter-tab")
-      .off("click")
-      .on("click", function () {
-        $(".spaceWatchlistSorter-tab").removeClass("active");
-        $(this).addClass("active");
-
-        const targetFolderId = $(this).attr("id").replace("Tab", "Folder");
-        $(".spaceWatchlistSorter-folder").hide();
-        $(`#${targetFolderId}`).show();
-      });
-
-    // Add the "Add Group" tab dynamically
-    const addGroupTab = $(`
-      <div id="spaceWatchlistSorterAddFolderTab" class="spaceWatchlistSorter-tab spaceWatchlistSorter-add-tab">
-        <strong>+</strong>
-      </div>
-    `);
-
-    addGroupTab.on("click", function () {
-      addFolder();
-    });
-
-    $("#spaceWatchlistSorterTabs").append(addGroupTab);
-
-    initializeSortable(); // Ensure sortable is re-initialized after DOM update
-
-    // console.log("Interface populated with tabs and folders.");
-    // Call the initializer after your interface is populated
-    initLongPressContextMenu();
+    const updatedFolderMap = mergeFolders(dbWatchlist, apiItems);
+    populateUI(updatedFolderMap);
 
     return { status: true };
   } catch (error) {
@@ -422,6 +306,148 @@ async function populateInterface() {
       msg: `An error occured while retrieving Free Space pages for the user (${getUserNumId()}: ${error.message}).`,
     };
   }
+}
+
+function mergeFolders(dbWatchlist, apiItems = null) {
+  const updatedFolderMap = new Map();
+
+  if (apiItems == null) {
+    // This is as result of a storage update notification, so we just want to refresh the UI from the DB.
+    // We did not retrieve items from the API, so we just return the folders we have in the DB as a map.
+    (dbWatchlist.folders || []).forEach((oldFolder) => {
+      oldFolder.pos = updatedFolderMap.size;
+      updatedFolderMap.set(oldFolder.id, oldFolder);
+    });
+    return updatedFolderMap;
+  }
+
+  // We have to merge the API items with the DB folders
+
+  // Recreate the folder structure while sorting api items that we had before
+  (dbWatchlist.folders || []).forEach((oldFolder) => {
+    // Collect api items that are already present in the DB for this folder
+    const items = [];
+    oldFolder.items.forEach((oldItem) => {
+      const newItem = apiItems.get(oldItem.key);
+      if (newItem) {
+        apiItems.delete(oldItem.key);
+        items.push(newItem);
+      }
+    });
+
+    // Place the above collected items in their correct folder. Their order is preserved
+    // due to the order in which we added them to the array.
+    // We keep folders here even if they are empty, except for the unorganized one.
+    // Empty folders will eventually be deleted (if they are still empty) during the save operation.
+    const id = oldFolder.id || `group-${pos}`;
+    if (id != UNORGANIZED_GROUP_NAME || items.length > 0) {
+      // We ensure position start at 1 so we can add the unorganised folder at the front
+      // if we have to create a new one
+      const pos = updatedFolderMap.size + 1;
+      updatedFolderMap.set(id, {
+        id: oldFolder.id || `group-${pos}`,
+        name: oldFolder.name || `Group ${pos}`,
+        items: items,
+        pos: pos, // this ensures we can recreate the folders order
+      });
+    }
+  });
+
+  if (apiItems.size > 0) {
+    // There are new items, not categorised, so add them to the unorganized folder
+    // (creating one if it does not exist)
+    const unorganizedGroup = updatedFolderMap.get(UNORGANIZED_GROUP_NAME);
+    if (unorganizedGroup) {
+      // New unorganised items go at the start of the list, so it's easier for the user to spot them
+      unorganizedGroup.items.splice(0, 0, ...apiItems.values());
+    } else {
+      updatedFolderMap.set(UNORGANIZED_GROUP_NAME, {
+        id: UNORGANIZED_GROUP_NAME,
+        name: UNORGANIZED_FOLDER_NAME,
+        items: [...apiItems.values()],
+        pos: 0, // When creating a new unorganised group, we put it first
+      });
+    }
+  }
+  return updatedFolderMap;
+}
+
+function populateUI(folderMap) {
+  const tabsContainer = $("#spaceWatchlistSorterTabs");
+  const folderContainer = $("#spaceWatchlistSorterFolderContainer");
+
+  // Clear existing tabs and folders
+  tabsContainer.empty();
+  folderContainer.empty();
+
+  const folders = [...folderMap.values()].sort((a, b) => a.pos - b.pos);
+  folders.forEach((folder) => {
+    delete folder.pos;
+    const folderId = folder.id;
+    const tabId = `spaceWatchlistSorterTab-${folderId}`;
+
+    // Add tabs
+    tabsContainer.append(`<div id="${tabId}" class="spaceWatchlistSorter-tab">${folder.name}</div>`);
+
+    const uniqueItems = new Set();
+    // Add folder containers
+    folderContainer.append(`
+      <div id="spaceWatchlistSorterFolder-${folderId}" class="spaceWatchlistSorter-folder" style="display: none;">
+        <button class="sort-alphabetically-button btn btn-pill-sm" data-folder-id="${folderId}">A-Z</button>
+        <ul class="spaceWatchlistSorter-sortable">
+          ${folder.items
+            .filter((item) => {
+              if (uniqueItems.has(item.key)) return false; // Skip duplicates
+              uniqueItems.add(item.key); // Track unique item
+              return true;
+            })
+            .map(
+              (item) => `
+                <li data-id="${item.key}">
+                  <a href="${item.url.replace(/\/api\./, "/www")}" target="_blank">${item.text}</a>
+                </li>`
+            )
+            .join("")}
+        </ul>
+      </div>
+    `);
+  });
+
+  // Show only the first folder by default
+  $(".spaceWatchlistSorter-folder").first().show();
+  $(".spaceWatchlistSorter-tab").first().addClass("active");
+
+  saveWatchlistToDB(folders); // Save updated folders to database
+
+  $(".spaceWatchlistSorter-tab")
+    .off("click")
+    .on("click", function () {
+      $(".spaceWatchlistSorter-tab").removeClass("active");
+      $(this).addClass("active");
+
+      const targetFolderId = $(this).attr("id").replace("Tab", "Folder");
+      $(".spaceWatchlistSorter-folder").hide();
+      $(`#${targetFolderId}`).show();
+    });
+
+  // Add the "Add Group" tab dynamically
+  const addGroupTab = $(`
+    <div id="spaceWatchlistSorterAddFolderTab" class="spaceWatchlistSorter-tab spaceWatchlistSorter-add-tab">
+      <strong>+</strong>
+    </div>
+  `);
+
+  addGroupTab.on("click", function () {
+    addFolder();
+  });
+
+  $("#spaceWatchlistSorterTabs").append(addGroupTab);
+
+  initializeSortable(); // Ensure sortable is re-initialized after DOM update
+
+  // console.log("Interface populated with tabs and folders.");
+  // Call the initializer after your interface is populated
+  initLongPressContextMenu();
 }
 
 function sortFolderAlphabetically(folderId) {
@@ -458,7 +484,7 @@ async function saveWatchlistToDB(folders = []) {
     // (Just don't forget to comment the line out again!!)
     // if (folders[0]?.items.length > 2) folders[0].items.splice(2, 1);
 
-    const userId = getUserWtId();
+    userId = getUserWtId();
     if (!userId) {
       console.error("Unable to fetch user ID. Cannot save watchlist.");
       return;
@@ -469,11 +495,16 @@ async function saveWatchlistToDB(folders = []) {
       name: folder.name,
       items: folder.items,
     }));
+    const foldersMd5 = md5Of(categorization);
+    if (foldersMd5 === md5AtLoad) {
+      // console.log("No changes to save.");
+      return;
+    }
 
     //console.log("Saving the following categorization:", JSON.stringify(categorization, null, 2)); // Debugging output
 
     const dbh = await initializeDatabase();
-    const tsId = versionId(userId);
+    const tsId = versionId();
     const dbDataVersion = await dbh.getData(SPWL_DB_STORE, tsId);
     let proceed = true;
     if (dbDataVersion && dbDataVersion.timestamp > loadedDataVersion) {
@@ -485,38 +516,44 @@ async function saveWatchlistToDB(folders = []) {
       );
     }
     if (proceed) {
-      const ourTimestamp = Date.now();
+      const dId = dataId();
+      loadedDataVersion = Date.now();
+      md5AtLoad = foldersMd5;
       await dbh.putData(SPWL_DB_STORE, {
         id: tsId,
-        timestamp: ourTimestamp,
+        timestamp: loadedDataVersion,
       });
       await dbh.putData(SPWL_DB_STORE, {
-        id: dataId(userId),
+        id: dId,
         folders: categorization,
       });
-      loadedDataVersion = ourTimestamp;
+      browserAPI.storage.local.set({ [dId]: loadedDataVersion });
     }
   } catch (error) {
     console.error("Error in saveWatchlistToDB:", error);
   }
 }
-const sImgSRC = chrome.runtime.getURL("images/S.png");
 
-// Add Button to Page
-function addListener() {
+function md5Of(obj) {
+  const str = JSON.stringify(obj);
+  return CryptoJS.MD5(str).toString();
+}
+
+// Add Button listener to Page.
+// If the button is clicked, a storage change listener will also be added
+function addListeners() {
   $(document).on("click", "#spaceWatchlistButton", async function (e) {
     e.preventDefault();
     //console.log("Sorter button clicked.");
     const $popup = $("#spaceWatchlistSorter-popup");
     if ($popup.length === 0 || $popup.hasClass("needsRefresh")) {
       //console.log("Appending popup and loading screen to body...");
-      $popup.remove();
+      resetWatchlistPopUp();
       $("body").append(`
-          <div id="spaceWatchlistSorter-loading" class="spaceWatchlistSorter-loading">
-            <img src="${chrome.runtime.getURL("images/tree.gif")}" alt="Loading..." />
-          </div>
-          ${spaceWatchlistSorterHTML}
-        `);
+        <div id="spaceWatchlistSorter-loading" class="spaceWatchlistSorter-loading">
+          <img src="${chrome.runtime.getURL("images/tree.gif")}" alt="Loading..." />
+        </div>
+      `);
 
       // Show loading screen
       $("#spaceWatchlistSorter-loading").css({
@@ -538,18 +575,54 @@ function addListener() {
 
       // Hide loading screen and show popup
       $("#spaceWatchlistSorter-loading").remove();
-      $("#spaceWatchlistSorter-popup").draggable({ handle: ".spaceWatchlistSorter-header" });
       if (!result.status) {
         $("#spaceWatchlistSorter-popup")
           .addClass("needsRefresh")
           .append($(`<p>${result.msg}</p>`));
       }
+      // Make sure we have only one storage change listener
+      browserAPI.storage.onChanged.removeListener(storageChangeListener);
+      browserAPI.storage.onChanged.addListener(storageChangeListener);
       $("#spaceWatchlistSorter-popup").show();
     } else {
       // console.log("Popup already exists.");
       $popup.show();
     }
   });
+}
+
+function resetWatchlistPopUp() {
+  const $popup = $("#spaceWatchlistSorter-popup");
+  if ($popup.length > 0) {
+    $popup.remove();
+  }
+  $("body").append(spaceWatchlistSorterHTML);
+  $("#spaceWatchlistSorter-popup").draggable({ handle: ".spaceWatchlistSorter-header" });
+}
+
+// Listening function for storage changes
+function storageChangeListener(changes, namespace) {
+  const dataVersion = dataId();
+  if (namespace === "local" && changes[dataVersion]) {
+    const newVersion = changes[dataVersion].newValue;
+    // console.log(`Storage change. Current version: ${loadedDataVersion} New version: ${newVersion}`);
+    if (+newVersion !== +loadedDataVersion) {
+      // console.log("Updating UI after storage change...");
+      updateUI();
+    }
+  }
+}
+
+// Function to update the UI (only if the element exists)
+async function updateUI() {
+  const element = document.querySelector("#spaceWatchlistSorter-popup");
+  if (element) {
+    resetWatchlistPopUp();
+    const dbWatchlist = await loadWatchlistFromDB();
+    const updatedFolderMap = mergeFolders(dbWatchlist);
+    populateUI(updatedFolderMap);
+    $("#spaceWatchlistSorter-popup").show();
+  }
 }
 
 function addFolder() {
@@ -828,7 +901,7 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
     // Import CSS
     import("./space_watchlist_sorter.css");
 
-    addListener();
+    addListeners();
 
     // Call context menu initialization
     initializeContextMenu();
@@ -861,7 +934,9 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
           }
         });
 
-        // Save the updated folders to storage
+        // Save the updated folders to storage, but first remove the storage change listener
+        // so we try to process our own save yet again.
+        browserAPI.storage.onChanged.removeListener(storageChangeListener);
         if (updatedFolders.length > 0) {
           // console.log("Saving updated folders to storage:", updatedFolders);
           saveWatchlistToDB(updatedFolders);
@@ -870,12 +945,12 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
           saveWatchlistToDB([]); // Save an empty list if all folders are removed
         }
 
-        // Hide the popup
+        // Remove the popup
         $("#spaceWatchlistSorter-popup").remove();
       });
 
     $(document)
-      .off("click", ".spaceWatchlistSorter-removeFolder")
+      .off("click", ".spaceWatchlistSorter-removeFolder") // ⊗
       .on("click", ".spaceWatchlistSorter-removeFolder", function () {
         const folderId = $(this).closest(".spaceWatchlistSorter-folder").attr("id");
         // console.log(`Removing folder with ID: ${folderId}`);

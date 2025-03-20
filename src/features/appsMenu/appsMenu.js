@@ -197,10 +197,7 @@ function getMenuItems(baseUrl, items) {
 function getTreeAppsMenuItems() {
   const theId = profilePerson?.Name || getUserWtId();
   return treeApps.map((item) => {
-    // Turn "name=Mann-11544&view=ahnentafel" into "name-Mann-11544-view-ahnentafel"
-    const rawHashString = `name=${theId}&view=${item.id}`.replace(/=|&/g, "-");
-    // e.g. "name-Mann-11544-view-ahnentafel"
-
+    const rawHashString = `name=${theId}&view=${item.id}`; //.replace(/=|&/g, "-");
     const formattedUrl = `https://www.wikitree.com/apps/${theId}#${rawHashString}`;
     return { title: item.text, url: formattedUrl };
   });

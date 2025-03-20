@@ -2,7 +2,7 @@
 body.hiddenSidebar #wpTextbox1,
 body.hiddenSidebar div.CodeMirror,
 body.hiddenSidebar #editform .col-lg-8 {
-  width: auto !important;
+  width: 100% !important;
 }
 body.hiddenSidebar #Lower-Sidebar,
 body.hiddenSidebar.edit-space div.edit--sidebar {
@@ -25,4 +25,8 @@ body.hiddenSidebar #toggleTipsColumn .plus {
 }
 body.hiddenSidebar #toggleTipsColumn .minus {
   display: none;
+}
+
+body.enhancedEditorChosen #toggleTipsColumn::after {
+  left: -10em;
 }
