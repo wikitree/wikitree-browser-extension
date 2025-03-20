@@ -30,8 +30,8 @@ let familyData;
 // Global variable to track the header toggle state.
 let useAltHeadings = false;
 const treePersonBit = $("#nav-familyContent #Family-pane div.tree--person");
-const profilePerson = getProfilePersonInfo();
-let profilePersonData;
+const profilePerson = getProfilePersonInfo(); // from the page
+let profilePersonData; // from API
 
 const getPeopleFields =
   "BirthDate,BirthDateDecade,BirthLocation,BirthName,Connected,DataStatus,DeathDate,DeathDateDecade,DeathLocation," +
@@ -433,7 +433,7 @@ function parseInitialData() {
     delete familyData.children;
   }
 
-  // console.log("Parsed familyData:", familyData);
+  console.log("Parsed familyData:", familyData);
   return familyData;
 }
 
@@ -605,9 +605,9 @@ function buildParentsSection(parents) {
       }
       let status;
 
-      if (profilePersonData.DataStatus?.Father && p.relationship == "Father") {
+      if (profilePersonData?.DataStatus?.Father && p.relationship == "Father") {
         status = profilePersonData.DataStatus?.Father;
-      } else if (profilePersonData.DataStatus?.Mother && p.relationship == "Mother") {
+      } else if (profilePersonData?.DataStatus?.Mother && p.relationship == "Mother") {
         status = profilePersonData.DataStatus.Mother;
       }
       // console.log(profilePersonData);
@@ -1417,7 +1417,11 @@ export function changeFamilyHeaders(setIt = false) {
       neutral: `Parent ${ofText} `,
     },
   ];
-  const p = getPerson(profilePerson.Id);
+  const p = getPerson(profilePerson.Id) || profilePerson;
+  if (!p.Gender) {
+    p.Gender = profilePerson.Gender;
+  }
+  console.log("ProfilePerson:", p);
   let gen = "neutral";
   if (p?.Gender === "Male") {
     gen = "male";
