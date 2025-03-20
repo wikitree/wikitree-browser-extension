@@ -11,6 +11,7 @@ export let isAddUnrelatedPerson = false;
 import $ from "jquery";
 import { getWikiTreePage } from "./API/wwwWikiTree";
 import { navigatorDetect } from "./navigatorDetect";
+import draggable from "jquery-ui/ui/widgets/draggable";
 import {
   mainDomain,
   isNavHomePage,
@@ -162,6 +163,11 @@ export function getProfilePersonInfo() {
   person.LastNameAtBirth = pageData.mlastnameatbirth;
   person.FirstName = pageData.mfirstname;
   person.Gender = pageData.mgender;
+
+  if (!person.Gender) {
+    person.Gender = $("div.tree--person_m").length ? "Male" : $("div.tree--person_f").length ? "Female" : "";
+  }
+
   person.BirthDate = $("div.page--title div.VITALS:contains('Born')")
     .text()
     .replace("Born ", "")
@@ -292,6 +298,7 @@ async function checkButtonFeatures() {
   const promises = features.map((feature) => checkIfFeatureEnabled(feature));
 
   let buttonContainer2 = $("<div>").addClass("wbe-button-container2");
+  const isMarriageInfo = $("h1:contains('Edit Marriage Information')").length;
   if (isWikiEdit) {
     $("#toolbar").append(buttonContainer2);
   }
@@ -305,7 +312,10 @@ async function checkButtonFeatures() {
     // Ensure clipboardContainer exists before appending buttons
     if ($(".clipboardContainer").length === 0) {
       const clipboardContainer = $("<span>").addClass("clipboardContainer");
-      if (isAddUnrelatedPerson || isProfileAddRelative) {
+      if (isMarriageInfo) {
+        $("h1").eq(0).after(clipboardContainer);
+        clipboardContainer.draggable();
+      } else if (isAddUnrelatedPerson || isProfileAddRelative) {
         $("#sourcesLabel").append(clipboardContainer);
       } else if (isG2G) {
         $("#anew h2").prepend(clipboardContainer);

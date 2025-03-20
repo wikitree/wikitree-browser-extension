@@ -93,6 +93,7 @@ sup.reference {
 
 .toggle.toggle-section {
   margin-left: 0.6rem;
+  visibility: hidden;
 }
 
 @media only print {
@@ -204,7 +205,11 @@ sup.reference {
     margin-top: 16px;
   }
 
-  .hide-edits .x-edit,
+  .hide-edits .x-edit.x-no-hide {
+    text-decoration: none !important;
+  }
+
+  .hide-edits .x-edit:not(.x-no-hide),
   .hide-edits .x-alert:not(.status) {
     display: none !important;
   }

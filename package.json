@@ -25,6 +25,7 @@
     "assert": "^2.1.0",
     "axios": "^1.4.0",
     "cookiejs": "^2.1.2",
+    "crypto-js": "^4.2.0",
     "datatables.net-dt": "^1.13.5",
     "date-fns": "^2.30.0",
     "diff": "^7.0.0",

@@ -1,0 +1,28 @@
+/* Styles for hidePhotoColumn feature */
+body.hiddenSidebar #wpTextbox1,
+body.hiddenSidebar div.CodeMirror,
+body.hiddenSidebar #editform .col-lg-8 {
+  width: 100% !important;
+}
+body.hiddenSidebar #Lower-Sidebar,
+body.hiddenSidebar.edit-space div.edit--sidebar {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+body.hiddenSidebar div.container:has(h2#Photo),
+body.hiddenSidebar.edit-space div.row:has(div.photo--wrapper) {
+  position: relative;
+}
+#toggleTipsColumn {
+  float: right;
+}
+body #toggleTipsColumn .plus {
+  display: none;
+}
+body.hiddenSidebar #toggleTipsColumn .plus {
+  display: block;
+}
+body.hiddenSidebar #toggleTipsColumn .minus {
+  display: none;
+}

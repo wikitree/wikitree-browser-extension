@@ -116,7 +116,7 @@ class CustomStyle {
     let idToSelectorMapping = {
       header: ".sticky-header body:not(.darkMode) .wrapper #header::before,#header",
       headings:
-        "h1,h2:not(#view-container h2),h3:not(#view-container h3),h4:not(#view-container h4),h5:not(#view-container h5),h6:not(#view-container h6),#themeTable caption",
+        "h1,h2:not(#view-container h2),h3:not(#view-container h3),h4:not(#view-container h4),h5:not(#view-container h5),h6:not(#view-container h6,.tree--placement h6),#themeTable caption",
       headingLinks:
         "h1 a:link:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
         "h1 a:visited:not(.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a), " +
@@ -135,11 +135,11 @@ class CustomStyle {
       color2: ".nav-link.active,.nav-link.active a,button.button, a.btn-pill-sm",
       color3: "aside",
       color4: "div.box.rounded,aside.box.rounded",
-      link: "a:link:not(.btn-secondary,#jump-nav a,.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,a.qa-tag-link,a.new,.wt.table th a,#editToolbarExt a,#view-container a,.btn-pill-sm,.menu-style .dropdown-menu a)",
+      link: "a:link:not(.btn-secondary,#jump-nav a,.qa-nav-main-link,a.button,a.new,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,a.qa-tag-link,a.new,.wt.table th a,#editToolbarExt a,#view-container a,.btn-pill-sm,.menu-style .dropdown-menu a)",
       tag: ".qa-q-item-tag-item a:link",
       tagHover: ".qa-q-item-tag-item a:link:hover,.qa-q-item-tag-item a:visited:hover",
       visitedLink:
-        "a:visited:not(.btn-secondary,.qa-nav-main-link,a.button,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,.wt.table th a,#editToolbarExt a,#view-container a,.menu-style .dropdown-menu a,.qa-page-next,.qa-page-prev,.qa-page-selected,.qa-page-link,.qa-tag-link,.qa-tag-link:hover,.qa-tag-link:visited,.qa-tag-link:visited:hover,.qa-tag-link:visited,.qa-tag-link:visited:hover)",
+        "a:visited:not(.btn-secondary,.qa-nav-main-link,a.button,a.new,.qa-nav-sub-link,.qa-nav-footer-link,#footer a,.wt.table th a,#editToolbarExt a,#view-container a,.menu-style .dropdown-menu a,.qa-page-next,.qa-page-prev,.qa-page-selected,.qa-page-link,.qa-tag-link,.qa-tag-link:hover,.qa-tag-link:visited,.qa-tag-link:visited:hover,.qa-tag-link:visited,.qa-tag-link:visited:hover)",
       voteCount: ".green.box:has(.qa-voting)",
       answerCount: ".orange.box:has(.qa-a-count)",
       editor: "div.CodeMirror,#wpTextbox1",

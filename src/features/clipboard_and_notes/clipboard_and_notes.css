@@ -320,3 +320,22 @@ body.qa-body-js-on .deleteClippingButton {
 .qa-body-wrapper td.clippingCell pre {
   margin-top: 0 !important;
 }
+
+body.edit_spouse .clipboardContainer {
+  float: right;
+}
+.clipboardContainer.ui-draggable {
+  z-index: 100000000;
+  width: auto;
+  height: auto;
+  border-bottom: 10px solid #25422d;
+  background: white;
+  cursor: grab;
+}
+.clipboardContainer.ui-draggable:active {
+  cursor: grabbing;
+}
+
+body.darkMode .clipboardContainer {
+  border-bottom: 10px solid #f0f0eb;
+}

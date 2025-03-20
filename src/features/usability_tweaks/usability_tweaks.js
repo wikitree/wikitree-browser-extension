@@ -92,15 +92,17 @@ function rememberTextareaHeight() {
   const textarea = document.getElementById("wpTextbox1");
   const enhancedEditorButton = document.getElementById("toggleMarkupColor");
   const storedHeight = localStorage.getItem("textareaHeight");
-  const storedWidth = localStorage.getItem("textareaWidth");
+  let storedWidth = localStorage.getItem("textareaWidth");
 
   if (textarea) {
     if (storedHeight) {
       textarea.style.height = storedHeight + "px";
     }
+    /*
     if (storedWidth) {
       textarea.style.width = storedWidth + "px";
     }
+    */
 
     textarea.addEventListener("mouseup", function () {
       localStorage.setItem("textareaHeight", textarea.offsetHeight);
@@ -108,6 +110,7 @@ function rememberTextareaHeight() {
     });
   }
 
+  storedWidth = null;
   if (enhancedEditorButton) {
     enhancedEditorButton.addEventListener("click", function () {
       waitForCodeMirror(function () {

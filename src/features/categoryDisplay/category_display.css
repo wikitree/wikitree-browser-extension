@@ -12,3 +12,6 @@
 #Categories a {
   cursor: pointer;
 }
+#Categories a.new {
+  color: red !important;
+}
