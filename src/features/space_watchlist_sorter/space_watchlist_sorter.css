@@ -57,13 +57,6 @@ spaceWatchlistSorter-removeFolder {
   cursor: move;
 }
 
-.spaceWatchlistSorter-toggleFolder {
-  border: none;
-  font-size: 14px;
-  cursor: pointer;
-  margin-right: 10px;
-}
-
 .spaceWatchlistSorter-sortable {
   margin: 0;
   padding: 10px;
@@ -135,14 +128,22 @@ spaceWatchlistSorter-removeFolder {
   background-color: #f0f0f0;
 }
 
-.spaceWatchlistSorter-removeFolder {
-  cursor: pointer;
-  float: right;
-  visibility: visible; /* Ensure it appears even for the Unorganized folder */
+#spaceWatchlistSorterFolder-group-0 .spaceWatchlistSorter-removeFolder {
+  display: none; /* Hide the X button for the Unorganized folder */
 }
 
-.spaceWatchlistSorter-folderName[data-is-unorganized="true"] + .spaceWatchlistSorter-removeFolder {
-  visibility: hidden; /* Hide the X button for the Unorganized folder */
+#spaceWatchlistSorterFolderContainer .sort-container {
+  cursor: pointer;
+  float: right;
+  display: flex;
+  gap: 0.2em; /* Space between buttons */
+}
+.sort-container.sort-alphabetically-button,
+.sort-container.spaceWatchlistSorter-removeFolder {
+  padding: 0.5em 1em;
+}
+.sort-container.spaceWatchlistSorter-removeFolder {
+  font-size: 1.5rem;
 }
 
 .spaceWatchlistSorter-tabs {
@@ -181,13 +182,6 @@ spaceWatchlistSorter-removeFolder {
 
 #spaceWatchlistSorterFolderContainer {
   position: relative;
-}
-
-#spaceWatchlistSorterFolderContainer .sort-alphabetically-button {
-  position: absolute;
-  right: 0;
-  top: 0;
-  padding: 0.5em 1em;
 }
 
 div.spaceWatchlistSorter-header {

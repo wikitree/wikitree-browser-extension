@@ -33,7 +33,7 @@ Sorry about that.">Log in to use Space Watchlist Sorter</button>
 </div>`);
 
 const UNORGANIZED_FOLDER_NAME = "Unorganized";
-const UNORGANIZED_GROUP_NAME = "group-0";
+const UNORGANIZED_GROUP_ID = "group-0";
 const SPWL_DB_NAME = "SpaceWatchlistDB";
 const SPWL_DB_VERSION = 2;
 const SPWL_DB_STORE = "watchlist";
@@ -50,78 +50,6 @@ async function initializeDatabase() {
     });
   }
   return dbHelper;
-}
-
-function initializeContextMenu() {
-  const $contextMenu = $("<div>", { id: "spaceWatchlistContextMenu", class: "context-menu" }).hide();
-
-  if (!$("#spaceWatchlistContextMenu").length) {
-    $("body").append($contextMenu);
-  }
-
-  $(document)
-    .off("contextmenu", ".spaceWatchlistSorter-sortable li")
-    .on("contextmenu", ".spaceWatchlistSorter-sortable li", function (event) {
-      event.preventDefault();
-
-      const $rightClickedItem = $(this);
-      const $selectedItems = $(".spaceWatchlistSorter-sortable li.selected");
-      const itemsToMove = $selectedItems.length > 0 ? $selectedItems : $rightClickedItem;
-
-      // Get all folder names from tabs
-      const folderOptions = $(".spaceWatchlistSorter-tab")
-        .map(function () {
-          return $(this).text().trim();
-        })
-        .get();
-
-      $contextMenu.empty();
-
-      if (folderOptions.length === 0) {
-        console.warn("No folders available for context menu.");
-        $contextMenu.append("<div class='context-menu-item'>No folders available</div>").css({
-          top: event.pageY + "px",
-          left: event.pageX + "px",
-          display: "block",
-          zIndex: 9999,
-        });
-        return;
-      }
-
-      // Populate the context menu with folder options
-      folderOptions.forEach((folderName) => {
-        $("<div>", { class: "context-menu-item", text: folderName })
-          .off("click")
-          .on("click", function () {
-            moveToFolder(itemsToMove, folderName);
-            $contextMenu.hide();
-          })
-          .appendTo($contextMenu);
-      });
-
-      // Position the context menu
-      const menuHeight = $contextMenu.outerHeight();
-      const menuWidth = $contextMenu.outerWidth();
-      const viewportHeight = $(window).height();
-      const viewportWidth = $(window).width();
-
-      let top = event.pageY;
-      let left = event.pageX;
-
-      if (top + menuHeight > viewportHeight) top -= menuHeight;
-      if (left + menuWidth > viewportWidth) left -= menuWidth;
-
-      $contextMenu.css({
-        top: `${top}px`,
-        left: `${left}px`,
-        display: "block",
-        zIndex: 9999,
-      });
-    });
-
-  $(document).on("click scroll", function () {
-    $contextMenu.hide();
-  });
 }
 
 function moveToFolder($items, folderName) {
@@ -141,8 +69,7 @@ function moveToFolder($items, folderName) {
     });
 
     // console.log(`Moved items to folder "${folderName}"`);
-    const updatedFolders = getUpdatedFolders();
-    debounceSaveWatchlistToDB(updatedFolders); // Debounced save
+    debounceSaveWatchlistToDB();
   } else {
     console.error(`Folder "${folderName}" not found.`);
   }
@@ -340,7 +267,7 @@ function mergeFolders(dbWatchlist, apiItems = null) {
     // We keep folders here even if they are empty, except for the unorganized one.
     // Empty folders will eventually be deleted (if they are still empty) during the save operation.
     const id = oldFolder.id || `group-${pos}`;
-    if (id != UNORGANIZED_GROUP_NAME || items.length > 0) {
+    if (id != UNORGANIZED_GROUP_ID || items.length > 0) {
       // We ensure position start at 1 so we can add the unorganised folder at the front
       // if we have to create a new one
       const pos = updatedFolderMap.size + 1;
@@ -356,13 +283,13 @@ function mergeFolders(dbWatchlist, apiItems = null) {
   if (apiItems.size > 0) {
     // There are new items, not categorised, so add them to the unorganized folder
     // (creating one if it does not exist)
-    const unorganizedGroup = updatedFolderMap.get(UNORGANIZED_GROUP_NAME);
+    const unorganizedGroup = updatedFolderMap.get(UNORGANIZED_GROUP_ID);
     if (unorganizedGroup) {
       // New unorganised items go at the start of the list, so it's easier for the user to spot them
       unorganizedGroup.items.splice(0, 0, ...apiItems.values());
     } else {
-      updatedFolderMap.set(UNORGANIZED_GROUP_NAME, {
-        id: UNORGANIZED_GROUP_NAME,
+      updatedFolderMap.set(UNORGANIZED_GROUP_ID, {
+        id: UNORGANIZED_GROUP_ID,
         name: UNORGANIZED_FOLDER_NAME,
         items: [...apiItems.values()],
         pos: 0, // When creating a new unorganised group, we put it first
@@ -370,6 +297,19 @@ function mergeFolders(dbWatchlist, apiItems = null) {
     }
   }
   return updatedFolderMap;
+}
+
+function makeFolder(folderId, folderItems = "") {
+  return $(`
+      <div id="spaceWatchlistSorterFolder-${folderId}" class="spaceWatchlistSorter-folder" style="display: none;">
+      <div class="sort-container">
+        <button class="spaceWatchlistSorter-removeFolder btn btn-pill-sm" data-folder-id="${folderId}"
+          title="Remove this group and move its content to Unorganized.">x</button>
+        <button class="sort-alphabetically-button btn btn-pill-sm" data-folder-id="${folderId}"
+          title="Sort the content of this group alphabetically.">A-Z</button>
+      </div>
+        <ul class="spaceWatchlistSorter-sortable">${folderItems}</ul>
+      </div>`);
 }
 
 function populateUI(folderMap) {
@@ -391,26 +331,24 @@ function populateUI(folderMap) {
 
     const uniqueItems = new Set();
     // Add folder containers
-    folderContainer.append(`
-      <div id="spaceWatchlistSorterFolder-${folderId}" class="spaceWatchlistSorter-folder" style="display: none;">
-        <button class="sort-alphabetically-button btn btn-pill-sm" data-folder-id="${folderId}">A-Z</button>
-        <ul class="spaceWatchlistSorter-sortable">
-          ${folder.items
-            .filter((item) => {
-              if (uniqueItems.has(item.key)) return false; // Skip duplicates
-              uniqueItems.add(item.key); // Track unique item
-              return true;
-            })
-            .map(
-              (item) => `
-                <li data-id="${item.key}">
-                  <a href="${item.url.replace(/\/api\./, "/www")}" target="_blank">${item.text}</a>
-                </li>`
-            )
-            .join("")}
-        </ul>
-      </div>
-    `);
+    folderContainer.append(
+      makeFolder(
+        folderId,
+        folder.items
+          .filter((item) => {
+            if (uniqueItems.has(item.key)) return false; // Skip duplicates
+            uniqueItems.add(item.key); // Track unique item
+            return true;
+          })
+          .map(
+            (item) => `
+          <li data-id="${item.key}">
+            <a href="${item.url.replace(/\/api\./, "/www")}" target="_blank">${item.text}</a>
+          </li>`
+          )
+          .join("")
+      )
+    );
   });
 
   // Show only the first folder by default
@@ -422,12 +360,7 @@ function populateUI(folderMap) {
   $(".spaceWatchlistSorter-tab")
     .off("click")
     .on("click", function () {
-      $(".spaceWatchlistSorter-tab").removeClass("active");
-      $(this).addClass("active");
-
-      const targetFolderId = $(this).attr("id").replace("Tab", "Folder");
-      $(".spaceWatchlistSorter-folder").hide();
-      $(`#${targetFolderId}`).show();
+      setActiveTab($(this).attr("id"));
     });
 
   // Add the "Add Group" tab dynamically
@@ -466,8 +399,7 @@ function sortFolderAlphabetically(folderId) {
   $list.empty().append($items);
 
   // Save the updated folder state
-  const updatedFolders = getUpdatedFolders();
-  debounceSaveWatchlistToDB(updatedFolders);
+  debounceSaveWatchlistToDB();
 }
 
 async function saveWatchlistToDB(folders = []) {
@@ -649,22 +581,13 @@ function addFolder() {
   `);
 
   // Add the new folder container
-  $("#spaceWatchlistSorterFolderContainer").append(`
-    <div id="${folderId}" class="spaceWatchlistSorter-folder" style="display: none;">
-    <button class="sort-alphabetically-button btn btn-pill-sm" data-folder-id="${timestamp}">A-Z</button>
-      <ul class="spaceWatchlistSorter-sortable"></ul>
-    </div>
-  `);
+  $("#spaceWatchlistSorterFolderContainer").append(makeFolder(timestamp));
 
   // Tab switching logic
   $(`#${tabId}`)
     .off("click")
     .on("click", function () {
-      $(".spaceWatchlistSorter-tab").removeClass("active");
-      $(this).addClass("active");
-
-      $(".spaceWatchlistSorter-folder").hide();
-      $(`#${folderId}`).show();
+      setActiveTab($(this).attr("id"));
     });
 
   // Enable renaming for the new folder
@@ -683,8 +606,7 @@ function addFolder() {
         if (!newText || existingTabs.includes(newText)) {
           $tab.text(currentText);
         } else {
-          const updatedFolders = getUpdatedFolders();
-          debounceSaveWatchlistToDB(updatedFolders);
+          debounceSaveWatchlistToDB();
         }
       });
 
@@ -697,15 +619,11 @@ function addFolder() {
     });
 
   // Automatically switch to the new tab
-  $(".spaceWatchlistSorter-tab").removeClass("active");
-  $(`#${tabId}`).addClass("active");
-  $(".spaceWatchlistSorter-folder").hide();
-  $(`#${folderId}`).show();
-
+  setActiveTab(tabId);
   initializeSortable(); // Reinitialize sortable
 
   // Save the new folder state
-  debounceSaveWatchlistToDB(getUpdatedFolders());
+  debounceSaveWatchlistToDB();
 }
 
 // Helper to calculate folder state
@@ -743,7 +661,8 @@ function getUpdatedFolders() {
 
 // Debounced save function
 let saveTimer;
-async function debounceSaveWatchlistToDB(folders = []) {
+async function debounceSaveWatchlistToDB() {
+  const folders = getUpdatedFolders();
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     if (Array.isArray(folders) && folders.length > 0) {
@@ -778,6 +697,7 @@ function showCustomContextMenu(event, $item) {
   const $contextMenu = $("#spaceWatchlistContextMenu");
   $contextMenu.empty(); // Clear any existing menu items
 
+  console.log("context 2");
   // Gather folder options from your tabs
   const folderOptions = $("#spaceWatchlistSorterTabs .spaceWatchlistSorter-tab")
     .map(function () {
@@ -832,8 +752,7 @@ $(document)
         if (!newText) {
           $tab.text(currentText);
         } else {
-          const updatedFolders = getUpdatedFolders();
-          debounceSaveWatchlistToDB(updatedFolders);
+          debounceSaveWatchlistToDB();
         }
       });
       $tab.on("keydown", function (e) {
@@ -874,9 +793,7 @@ function initializeSortable() {
         ui.item.data("selectedItems", $selected.length ? $selected : ui.item);
       },
       stop: function () {
-        const updatedFolders = getUpdatedFolders();
-        // console.log("Updated folders after sorting:", updatedFolders);
-        debounceSaveWatchlistToDB(updatedFolders);
+        debounceSaveWatchlistToDB();
       },
     })
     .disableSelection();
@@ -887,30 +804,114 @@ function initializeSortable() {
       axis: "x",
       items: ".spaceWatchlistSorter-tab:not(.spaceWatchlistSorter-add-tab)", // Exclude the "+" tab
       stop: function () {
-        const updatedFolders = getUpdatedFolders();
-        // console.log("Tab reorder triggered save:", updatedFolders);
-        debounceSaveWatchlistToDB(updatedFolders); // Save updated tab order
+        debounceSaveWatchlistToDB(); // Save updated tab order
       },
     })
     .disableSelection();
 }
 
+function setActiveTab(tabId) {
+  $(".spaceWatchlistSorter-tab").removeClass("active");
+  $(`#${tabId}`).addClass("active");
+  const targetFolderId = tabId.replace("Tab", "Folder");
+  $(".spaceWatchlistSorter-folder").hide();
+  $(`#${targetFolderId}`).show();
+}
+
+// function initializeContextMenu() {
+//   const $contextMenu = $("<div>", { id: "spaceWatchlistContextMenu", class: "context-menu" }).hide();
+
+//   if (!$("#spaceWatchlistContextMenu").length) {
+//     $("body").append($contextMenu);
+//   }
+
+//   $(document)
+//     .off("contextmenu", ".spaceWatchlistSorter-sortable li")
+//     .on("contextmenu", ".spaceWatchlistSorter-sortable li", function (event) {
+//       event.preventDefault();
+//       console.log("context 1");
+//       const $rightClickedItem = $(this);
+//       const $selectedItems = $(".spaceWatchlistSorter-sortable li.selected");
+//       const itemsToMove = $selectedItems.length > 0 ? $selectedItems : $rightClickedItem;
+
+//       // Get all folder names from tabs
+//       const folderOptions = $(".spaceWatchlistSorter-tab")
+//         .map(function () {
+//           return $(this).text().trim();
+//         })
+//         .get();
+
+//       $contextMenu.empty();
+
+//       if (folderOptions.length === 0) {
+//         console.warn("No folders available for context menu.");
+//         $contextMenu.append("<div class='context-menu-item'>No folders available</div>").css({
+//           top: event.pageY + "px",
+//           left: event.pageX + "px",
+//           display: "block",
+//           zIndex: 9999,
+//         });
+//         return;
+//       }
+
+//       // Populate the context menu with folder options
+//       folderOptions.forEach((folderName) => {
+//         $("<div>", { class: "context-menu-item", text: folderName })
+//           .off("click")
+//           .on("click", function () {
+//             moveToFolder(itemsToMove, folderName);
+//             $contextMenu.hide();
+//           })
+//           .appendTo($contextMenu);
+//       });
+
+//       // Position the context menu
+//       const menuHeight = $contextMenu.outerHeight();
+//       const menuWidth = $contextMenu.outerWidth();
+//       const viewportHeight = $(window).height();
+//       const viewportWidth = $(window).width();
+
+//       let top = event.pageY;
+//       let left = event.pageX;
+
+//       if (top + menuHeight > viewportHeight) top -= menuHeight;
+//       if (left + menuWidth > viewportWidth) left -= menuWidth;
+
+//       $contextMenu.css({
+//         top: `${top}px`,
+//         left: `${left}px`,
+//         display: "block",
+//         zIndex: 9999,
+//       });
+//     });
+
+//   $(document).on("click scroll", function () {
+//     $contextMenu.hide();
+//   });
+// }
+
 shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
   if (result) {
-    // console.log("Feature initialized.");
     // Import CSS
     import("./space_watchlist_sorter.css");
 
     addListeners();
 
     // Call context menu initialization
-    initializeContextMenu();
+    // initializeContextMenu();
+    const $contextMenu = $("<div>", { id: "spaceWatchlistContextMenu", class: "context-menu" }).hide();
+    if (!$("#spaceWatchlistContextMenu").length) {
+      $("body").append($contextMenu);
+    }
 
+    // Add folder handler
     $(document)
       .off("click", "#spaceWatchlistSorterAddFolder")
       .on("click", "#spaceWatchlistSorterAddFolder", function () {
         addFolder();
       });
+
+    // Close popup handler
     $(document)
       .off("click", "#spaceWatchlistSorterClosePopup")
       .on("click", "#spaceWatchlistSorterClosePopup", function () {
@@ -949,30 +950,26 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
         $("#spaceWatchlistSorter-popup").remove();
       });
 
+    // Delete folder handler
     $(document)
-      .off("click", ".spaceWatchlistSorter-removeFolder") // ⊗
+      .off("click", ".spaceWatchlistSorter-removeFolder")
       .on("click", ".spaceWatchlistSorter-removeFolder", function () {
-        const folderId = $(this).closest(".spaceWatchlistSorter-folder").attr("id");
-        // console.log(`Removing folder with ID: ${folderId}`);
-        $(this).closest(".spaceWatchlistSorter-folder").remove();
-      });
-    $(document)
-      .off("click", ".spaceWatchlistSorter-toggleFolder")
-      .on("click", ".spaceWatchlistSorter-toggleFolder", function () {
-        const folder = $(this).closest(".spaceWatchlistSorter-folder");
-        const folderContent = folder.find(".spaceWatchlistSorter-sortable");
+        const sourceId = $(this).data("folder-id") || $(this).attr("data-folder-id");
+        const srcFolderId = `spaceWatchlistSorterFolder-${sourceId}`;
+        const srcTabId = `spaceWatchlistSorterTab-${sourceId}`;
+        const targetFolderId = `spaceWatchlistSorterFolder-${UNORGANIZED_GROUP_ID}`;
+        const targetTabId = `spaceWatchlistSorterTab-${UNORGANIZED_GROUP_ID}`;
+        let $sourceUl = $(`#${srcFolderId} .spaceWatchlistSorter-sortable`);
+        let $targetUl = $(`#${targetFolderId} .spaceWatchlistSorter-sortable`);
 
-        if (folderContent.is(":visible")) {
-          folderContent.slideUp();
-          $(this).text("+");
-          localStorage.removeItem("lastExpandedFolder");
-        } else {
-          $(".spaceWatchlistSorter-folder .spaceWatchlistSorter-sortable").slideUp();
-          $(".spaceWatchlistSorter-toggleFolder").text("+");
-          folderContent.slideDown();
-          $(this).text("−");
-          localStorage.setItem("lastExpandedFolder", folder.attr("id"));
+        if ($sourceUl.length && $targetUl.length) {
+          // Move all items to the start of the target <ul>
+          $targetUl.prepend($sourceUl.children());
         }
+        setActiveTab(targetTabId);
+        $(`#${srcFolderId}`).remove();
+        $(`#${srcTabId}`).remove();
+        debounceSaveWatchlistToDB();
       });
     $(document)
       .off("blur", ".spaceWatchlistSorter-folderName")
@@ -980,9 +977,10 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
         // const folderName = $(this).text().trim();
         // console.log(`Folder name updated to: ${folderName}`);
         // Update the folders after renaming
-        const updatedFolders = getUpdatedFolders();
-        debounceSaveWatchlistToDB(updatedFolders); // Debounced save
+        debounceSaveWatchlistToDB(); // Debounced save
       });
+
+    // Selection handler
     $(document)
       .off("click", ".spaceWatchlistSorter-sortable li")
       .on("click", ".spaceWatchlistSorter-sortable li", function (event) {
@@ -1003,6 +1001,8 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
           $(this).addClass("selected");
         }
       });
+
+    // Context menu handler
     $(document)
       .off("contextmenu", ".spaceWatchlistSorter-sortable li")
       .on("contextmenu", ".spaceWatchlistSorter-sortable li", function (event) {
@@ -1015,6 +1015,7 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
         // Get the name of the active/current tab
         const currentTabName = $(".spaceWatchlistSorter-tab.active").text().trim();
 
+        console.log("context 3");
         // Get all folder names from tabs, excluding the current tab and the "+" tab
         const folderOptions = $("#spaceWatchlistSorterTabs .spaceWatchlistSorter-tab")
           .map(function () {
@@ -1100,8 +1101,7 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
             // Revert to the original name if blank
             $tab.text(currentText);
           } else {
-            const updatedFolders = getUpdatedFolders();
-            debounceSaveWatchlistToDB(updatedFolders); // Debounced save
+            debounceSaveWatchlistToDB(); // Debounced save
           }
         });
 
