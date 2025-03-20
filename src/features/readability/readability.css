@@ -2,6 +2,65 @@
   --a11y-li-spacing: 1em;
   --a11y-citation-size: 100%;
   --a11y-citation-spacing: 0em;
+  /* preserve default bootstrap values as fallback and to prevent circular references */
+  --x-bs-body-line-height: 1.5;
+  --x-bs-body-font-size: 1rem;
+}
+
+/* override bootstrap variables based on feature settings */
+:root.a11y-line-height {
+  --bs-body-line-height: calc(var(--a11y-line-height, 1) * var(--x-bs-body-line-height, 1.5));
+}
+
+html.a11y-font-size {
+  font-size: calc(var(--a11y-font-size, 1) * 100%);
+}
+
+/* the WT stylesheets override the bootstrap settings on these elements to make them larger */
+html.a11y-font-size body,
+html.a11y-font-size .status {
+  font-size: calc(1.125 * var(--bs-body-font-size, var(--x-bs-body-font-size, 1rem)));
+}
+
+.a11y-form-spacing #editform .mb-4 {
+  margin-bottom: calc(0.25rem * (1 + var(--a11y-form-spacing, 0))) !important;
+}
+
+.a11y-form-contrast .form-control,
+.a11y-form-contrast .form-control-plaintext,
+.a11y-form-contrast .form-select {
+  border-left-width: calc(3px * var(--a11y-form-contrast, 0.33));
+  border-bottom-width: calc(3px * var(--a11y-form-contrast, 0.33));
+  border-color: rgba(0, 0, 0, var(--a11y-form-contrast, 0.33));
+}
+
+.a11y-form-contrast body.darkMode .form-control,
+.a11y-form-contrast body.darkMode .form-control-plaintext,
+.a11y-form-contrast body.darkMode .form-select {
+  border-color: rgba(255, 255, 255, var(--a11y-form-contrast, 0.33)) !important;
+}
+
+.a11y-form-contrast .input-group-text {
+  border-bottom-width: calc(3px * var(--a11y-form-contrast, 0.33));
+  border-color: rgba(0, 0, 0, var(--a11y-form-contrast, 0.33));
+}
+
+.a11y-form-contrast body.darkMode .input-group-text {
+  border-color: rgba(255, 255, 255, var(--a11y-form-contrast, 0.33)) !important;
+}
+
+.a11y-form-contrast .form-control-plaintext + .input-group-text {
+  border-width: var(--bs-border-width);
+  border-bottom-width: calc(3px * var(--a11y-form-contrast, 0.33));
+  border-style: solid;
+}
+
+.a11y-form-contrast .form-control-plaintext {
+  background-color: rgba(192, 192, 192, var(--a11y-form-contrast, 0.33));
+}
+
+.a11y-form-contrast body.darkMode .form-control-plaintext {
+  background-color: rgba(128, 128, 128, var(--a11y-form-contrast, 0.33)) !important;
 }
 
 .a11y-list-spacing .x-content > ol > li,

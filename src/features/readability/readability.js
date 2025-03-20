@@ -9,11 +9,31 @@
 
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage.js";
+import { isCategoryPage, isProfilePage, isSpacePage } from "../../core/pageType";
 import { ensureProfileClasses } from "../../core/profileClasses";
 
-async function initReadability() {
+async function initAccessibility(options) {
+  // accessibility options for the whole site, including edit pages
+  if (options.formFieldContrast && options.formFieldContrast !== "default") {
+    document.documentElement.style.setProperty("--a11y-form-contrast", `${options.formFieldContrast / 100}`);
+    $("html").addClass("a11y-form-contrast");
+  }
+  if (options.formFieldSpacing && options.formFieldSpacing !== "default") {
+    document.documentElement.style.setProperty("--a11y-form-spacing", `${options.formFieldSpacing / 1}`);
+    $("html").addClass("a11y-form-spacing");
+  }
+  if (options.textLineHeight && options.textLineHeight !== "default") {
+    document.documentElement.style.setProperty("--a11y-line-height", `${options.textLineHeight / 100}`);
+    $("html").addClass("a11y-line-height");
+  }
+  if (options.fontSizeAdjust && options.fontSizeAdjust !== "default") {
+    document.documentElement.style.setProperty("--a11y-font-size", `${options.fontSizeAdjust / 100}`);
+    $("html").addClass("a11y-font-size");
+  }
+}
+
+async function initReadability(options) {
   ensureProfileClasses();
-  const options = await getFeatureOptions("readability");
   // options related to sources and accessibility
   if (options.listItemSpacing && options.listItemSpacing !== "default") {
     document.documentElement.style.setProperty("--a11y-li-spacing", (1.5 * options.listItemSpacing) / 100 + "em"); // this is based on the normal paragraph margin being 1.5em
@@ -594,10 +614,15 @@ async function initReadability() {
   }
 }
 
-shouldInitializeFeature("readability").then((result) => {
+shouldInitializeFeature("readability").then(async (result) => {
   if (result) {
     import("../../core/toggleCheckbox.css");
     import("./readability.css");
-    initReadability();
+    const options = await getFeatureOptions("readability");
+    const isReadablePage = isCategoryPage || isProfilePage || isSpacePage;
+    await initAccessibility(options);
+    if (isReadablePage) {
+      await initReadability(options);
+    }
   }
 });
