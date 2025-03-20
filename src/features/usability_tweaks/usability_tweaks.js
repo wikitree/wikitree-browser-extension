@@ -362,18 +362,29 @@ function putFocusOnFirstNameField() {
 
 function autoClickAddPersonOptions() {
   setTimeout(function () {
+    console.debug("autoc 1");
     const whoValue = new URL(window.location.href).searchParams.get("who");
     const WBEactionValue = new URL(window.location.href).searchParams.get("WBEaction");
+    console.debug("autoc 2");
     if (WBEactionValue) {
+      console.debug("autoc 3");
       if (WBEactionValue == "Add") {
+        console.debug("autoc 4a");
         $("#editAction_createNew").trigger("click");
       } else if (WBEactionValue == "Connect") {
+        console.debug("autoc 4b");
         $("#editAction_connectExisting").trigger("click");
       } else if (WBEactionValue == "Remove") {
+        console.debug("autoc 4c");
         $("#editAction_remove").trigger("click");
       }
+      console.debug("autoc 5");
       if (WBEactionValue == "Add" || (WBEactionValue == "Remove" && whoValue != "child" && whoValue != "spouse")) {
-        $("#actionButton").trigger("click");
+        console.debug("autoc 6");
+        const but = document.getElementById("actionButton");
+        console.debug("autoc 7" + but);
+        // $("#actionButton").trigger("click");
+        but.click();
       }
     }
   }, 300);
@@ -381,21 +392,23 @@ function autoClickAddPersonOptions() {
 
 function replaceAddRemoveReplaceLinks() {
   if (isProfilePage) {
-    const editFamilyLinks = document.getElementsByClassName("BLANK");
+    console.debug("addfam init");
+    const editFamilyLinks = document.getElementsByClassName("EDIT");
     for (let i = 0; i < editFamilyLinks.length; i++) {
+      console.debug("addfam i" + i);
+      console.debug("addfam text" + editFamilyLinks[i].innerHTML);
+
       switch (editFamilyLinks[i].innerText) {
-        case "[mother?]":
-        case "[father?]":
-        case "[spouse?]":
-        case "[add spouse?]":
-        case "[add child]":
-        case "[children?]":
-        case "[brothers or sisters?]":
-        case "[add sibling]": {
+        case "add/edit children":
+        case "add sibling":
+        case "add/edit spouses": {
           if (editFamilyLinks[i].tagName == "A") {
             editFamilyLinks[i].href = editFamilyLinks[i].href + "&WBEaction=Add";
+            console.debug("addfam a");
           } else if (editFamilyLinks[i].tagName == "SPAN") {
+            console.debug("addfam span: " + editFamilyLinks[i].firstChild.href);
             editFamilyLinks[i].firstChild.href = editFamilyLinks[i].firstChild.href + "&WBEaction=Add";
+            console.debug("addfam span after: " + editFamilyLinks[i].firstChild.href);
           }
 
           break;
