@@ -697,7 +697,7 @@ function showCustomContextMenu(event, $item) {
   const $contextMenu = $("#spaceWatchlistContextMenu");
   $contextMenu.empty(); // Clear any existing menu items
 
-  console.log("context 2");
+  // console.log("context 2");
   // Gather folder options from your tabs
   const folderOptions = $("#spaceWatchlistSorterTabs .spaceWatchlistSorter-tab")
     .map(function () {
@@ -817,78 +817,6 @@ function setActiveTab(tabId) {
   $(".spaceWatchlistSorter-folder").hide();
   $(`#${targetFolderId}`).show();
 }
-
-// function initializeContextMenu() {
-//   const $contextMenu = $("<div>", { id: "spaceWatchlistContextMenu", class: "context-menu" }).hide();
-
-//   if (!$("#spaceWatchlistContextMenu").length) {
-//     $("body").append($contextMenu);
-//   }
-
-//   $(document)
-//     .off("contextmenu", ".spaceWatchlistSorter-sortable li")
-//     .on("contextmenu", ".spaceWatchlistSorter-sortable li", function (event) {
-//       event.preventDefault();
-//       console.log("context 1");
-//       const $rightClickedItem = $(this);
-//       const $selectedItems = $(".spaceWatchlistSorter-sortable li.selected");
-//       const itemsToMove = $selectedItems.length > 0 ? $selectedItems : $rightClickedItem;
-
-//       // Get all folder names from tabs
-//       const folderOptions = $(".spaceWatchlistSorter-tab")
-//         .map(function () {
-//           return $(this).text().trim();
-//         })
-//         .get();
-
-//       $contextMenu.empty();
-
-//       if (folderOptions.length === 0) {
-//         console.warn("No folders available for context menu.");
-//         $contextMenu.append("<div class='context-menu-item'>No folders available</div>").css({
-//           top: event.pageY + "px",
-//           left: event.pageX + "px",
-//           display: "block",
-//           zIndex: 9999,
-//         });
-//         return;
-//       }
-
-//       // Populate the context menu with folder options
-//       folderOptions.forEach((folderName) => {
-//         $("<div>", { class: "context-menu-item", text: folderName })
-//           .off("click")
-//           .on("click", function () {
-//             moveToFolder(itemsToMove, folderName);
-//             $contextMenu.hide();
-//           })
-//           .appendTo($contextMenu);
-//       });
-
-//       // Position the context menu
-//       const menuHeight = $contextMenu.outerHeight();
-//       const menuWidth = $contextMenu.outerWidth();
-//       const viewportHeight = $(window).height();
-//       const viewportWidth = $(window).width();
-
-//       let top = event.pageY;
-//       let left = event.pageX;
-
-//       if (top + menuHeight > viewportHeight) top -= menuHeight;
-//       if (left + menuWidth > viewportWidth) left -= menuWidth;
-
-//       $contextMenu.css({
-//         top: `${top}px`,
-//         left: `${left}px`,
-//         display: "block",
-//         zIndex: 9999,
-//       });
-//     });
-
-//   $(document).on("click scroll", function () {
-//     $contextMenu.hide();
-//   });
-// }
 
 shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
   if (result) {
@@ -1015,7 +943,7 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
         // Get the name of the active/current tab
         const currentTabName = $(".spaceWatchlistSorter-tab.active").text().trim();
 
-        console.log("context 3");
+        // console.log("context 3");
         // Get all folder names from tabs, excluding the current tab and the "+" tab
         const folderOptions = $("#spaceWatchlistSorterTabs .spaceWatchlistSorter-tab")
           .map(function () {
