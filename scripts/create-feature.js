@@ -5,7 +5,7 @@ const yargs = require("yargs");
 // Configuration
 const featuresDir = path.join(__dirname, "../src/features");
 const srcDir = path.join(__dirname, "../src");
-const contentFile = path.join(srcDir, "content.js");
+const contentFile = path.join(srcDir, "init.js");
 const registerOptionsFile = path.join(featuresDir, "register_feature_options.js");
 
 // User Inputs using yargs
