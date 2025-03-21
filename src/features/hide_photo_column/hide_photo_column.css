@@ -27,6 +27,6 @@ body.hiddenSidebar #toggleTipsColumn .minus {
   display: none;
 }
 
-body #toggleTipsColumn::after {
-  left: -5em;
+body.enhancedEditorChosen #toggleTipsColumn::after {
+  left: -10em;
 }

@@ -28,9 +28,8 @@ const photoParent = photoH2.parent();
 // Button tooltip titles.
 const buttonTitleHide = "Hide the photo column";
 const buttonTitleShow = "Show the photo column";
-// Remove EE warnings – use the same titles regardless of EE state.
-const buttonTitleEESHide = "Hide the photo column";
-const buttonTitleEEShow = "Show the photo column";
+const buttonTitleEESHide = "Turn off enhanced editor and hide the photo column";
+const buttonTitleEEShow = "Turn on enhanced editor and show the photo column";
 const minusURL = chrome.runtime.getURL("images/minus-toggler.svg");
 const plusURL = chrome.runtime.getURL("images/plus-toggler.svg");
 
@@ -76,24 +75,6 @@ function setButtonTitle() {
 }
 
 /**
- * Programmatically toggles the enhanced editor state.
- * This bypasses the isTrusted check so that it can be used during the photo column toggle.
- */
-function toggleEnhancedEditorState() {
-  const current = enhancedEditor.val();
-  if (current.toLowerCase() === "turn off enhanced editor") {
-    // Turn off EE.
-    enhancedEditor.val("Turn on enhanced editor");
-    $("body").removeClass("enhancedEditorChosen");
-  } else {
-    // Turn on EE.
-    enhancedEditor.val("Turn off enhanced editor");
-    $("body").addClass("enhancedEditorChosen");
-  }
-  setButtonTitle();
-}
-
-/**
  * Initializes the hidePhotoColumn feature.
  * Appends the toggle button and binds its event listener.
  */
@@ -125,28 +106,25 @@ async function init() {
 
 /**
  * Toggles the photo column and related UI elements.
- * If the enhanced editor is on, it will be temporarily turned off,
- * the photo column toggled, and then the enhanced editor turned back on.
  */
 function toggleTipsColumn() {
-  const eeWasOn = isEnhancedEditorOn();
-  if (eeWasOn) {
-    // Temporarily turn off the enhanced editor.
-    toggleEnhancedEditorState();
+  const condition1 = $("body").hasClass("hiddenSidebar") && enhancedEditorChosen && !isEnhancedEditorOn();
+  const condition2 = !$("body").hasClass("hiddenSidebar") && isEnhancedEditorOn();
+
+  if (condition1) {
+    enhancedEditorChosen = true;
+  }
+  if (condition1 || condition2) {
+    // Trigger click on enhancedEditor programmatically if conditions are met.
+    $("#toggleMarkupColor").trigger("click");
   }
   setTimeout(() => {
     // Toggle visibility of all children except the photo elements.
     photoParent.children("*").not("#Photo,#photo").toggle();
     $("body").toggleClass("hiddenSidebar");
-    // Update tooltip to use standard titles (without EE warnings).
-    if ($("body").hasClass("hiddenSidebar")) {
-      $("#toggleTipsColumn").attr("data-tooltip", buttonTitleShow);
-    } else {
-      $("#toggleTipsColumn").attr("data-tooltip", buttonTitleHide);
+    if (enhancedEditorChosen) {
+      $("body").addClass("enhancedEditorChosen");
     }
-    // After toggling, if EE was originally on, turn it back on.
-    if (eeWasOn) {
-      toggleEnhancedEditorState();
-    }
+    setButtonTitle();
   }, 100);
 }
