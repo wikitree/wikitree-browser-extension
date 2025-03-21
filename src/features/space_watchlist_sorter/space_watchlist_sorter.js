@@ -21,10 +21,13 @@ const spaceWatchlistSorterHTML = `
     <h2>Space Watchlist</h2>
     <button class="small" id="spaceWatchlistSorterClosePopup">&times;</button>
   </div>
-  <div id="spaceWatchlistSorterTabs" class="spaceWatchlistSorter-tabs"></div> <!-- Tabs container -->
-  <div id="spaceWatchlistSorterFolderContainer" class="spaceWatchlistSorter-folderContainer"></div> <!-- Folders container -->
+  <div class="spaceWatchlistSorter-content">
+    <div id="spaceWatchlistSorterTabs" class="spaceWatchlistSorter-tabs"></div>
+    <div id="spaceWatchlistSorterFolderContainer" class="spaceWatchlistSorter-folderContainer"></div>
+  </div>
 </div>
 `;
+
 const loginPopup = $(`<div id="login-popup">
 <button id="login-btn" title="You need to be logged in to the apps server to use Space Watchlist Sorter.
 It's possible that the login will fail and you'll see this button again.
@@ -300,13 +303,15 @@ function mergeFolders(dbWatchlist, apiItems = null) {
 }
 
 function makeFolder(folderId, folderItems = "") {
+  const azURL = chrome.runtime.getURL("images/az.svg");
+  const closeURL = chrome.runtime.getURL("images/close.svg");
   return $(`
       <div id="spaceWatchlistSorterFolder-${folderId}" class="spaceWatchlistSorter-folder" style="display: none;">
       <div class="sort-container">
         <button class="spaceWatchlistSorter-removeFolder btn btn-pill-sm" data-folder-id="${folderId}"
-          title="Remove this group and move its content to Unorganized.">x</button>
+          title="Remove this group and move its content to Unorganized." style="background-image:url(${closeURL}"></button>
         <button class="sort-alphabetically-button btn btn-pill-sm" data-folder-id="${folderId}"
-          title="Sort the content of this group alphabetically.">A-Z</button>
+          title="Sort the content of this group alphabetically." style="background-image:url(${azURL})"></button>
       </div>
         <ul class="spaceWatchlistSorter-sortable">${folderItems}</ul>
       </div>`);
@@ -875,7 +880,10 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
         }
 
         // Remove the popup
-        $("#spaceWatchlistSorter-popup").remove();
+        // Fade then remove the popup
+        $("#spaceWatchlistSorter-popup").fadeOut(300, function () {
+          $(this).remove();
+        });
       });
 
     // Delete folder handler

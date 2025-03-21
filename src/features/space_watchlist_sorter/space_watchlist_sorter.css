@@ -1,4 +1,5 @@
 /* Styles for spaceWatchlistSorter feature */
+/* Updated popup container with a fixed header and scrollable content */
 #spaceWatchlistSorter-popup {
   position: fixed;
   top: 10%;
@@ -6,11 +7,41 @@
   width: 80%;
   background: #fff;
   border: 1px solid #ccc;
-  padding: 20px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
   z-index: 1000;
   max-height: 80%;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Prevents header from scrolling */
+  padding: 0; /* Remove padding from the outer container */
+}
+
+.spaceWatchlistSorter-header {
+  padding: 20px;
+  background: #fff;
+  border-bottom: 1px solid #ccc;
+  position: relative;
+  flex-shrink: 0; /* Keep the header at a fixed size */
+}
+
+.spaceWatchlistSorter-content {
+  overflow-y: auto; /* Scrollable content */
+  padding: 20px;
+  flex-grow: 1;
+}
+
+/* Adjust the close button to be inside the header */
+#spaceWatchlistSorterClosePopup {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 0.5em;
+  color: white;
+  background-color: #25422d;
+  width: 2em;
+  font-size: large;
 }
 
 #spaceWatchlistSorter-popup li {
@@ -69,17 +100,6 @@ spaceWatchlistSorter-removeFolder {
   padding: 0.2em;
   border-radius: 5px;
   background-color: #fff;
-}
-
-#spaceWatchlistSorterClosePopup {
-  position: absolute;
-  top: 0;
-  right: 0;
-  padding: 0.2em 0.4em;
-  cursor: pointer;
-  border-radius: 0.5em;
-  color: white;
-  background-color: #25422d;
 }
 
 .spaceWatchlistSorter-loading {
@@ -189,4 +209,12 @@ div.spaceWatchlistSorter-header {
 }
 div.spaceWatchlistSorter-header:active {
   cursor: grabbing;
+}
+
+div.spaceWatchlistSorter-folder button {
+  width: 3em;
+  height: 3em;
+  display: inline-block;
+  background-size: 3em;
+  background-position: center;
 }
