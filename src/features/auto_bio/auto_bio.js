@@ -7136,6 +7136,7 @@ async function promiseWithTimeout(promise, ms) {
 
 export async function getONSstickers() {
   const excludedSurnames = [
+    "Beasley",
     "Cresap",
     "Crippen",
     "Ebbans",
