@@ -186,7 +186,7 @@ function getSources(person, active = 0) {
       referenceBox.prependTo($("h3:contains('How to Add Sources')").closest("div"));
       referenceBox.draggable();
     } else {
-      referenceBox.insertAfter($("#mSources").closest("table"));
+      referenceBox.appendTo($("#sourcesLabel"));
       setTimeout(function () {
         referenceBox.find("h3").trigger("click");
       }, 1000);
