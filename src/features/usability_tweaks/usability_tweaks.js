@@ -724,7 +724,7 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
                   break;
               }
             }
-          }, 500);
+          }, 1000);
         }
       }
       if (options.onlyMembers && isSearchPage && $("#onlyMembers").length == 0) {
