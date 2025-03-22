@@ -930,3 +930,8 @@ li.fl-half-tooltip:hover::after {
   visibility: visible;
   opacity: 1;
 }
+
+#nVitals .wbe-icon {
+   background-size:20px 20px !important; 
+   width:20px !important; 
+}

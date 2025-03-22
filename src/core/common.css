@@ -61,10 +61,12 @@ form[name="a_form"] {
   right: 0;
 }
 
-.wbe-button {
+.wbe-button,
+.wbe-icon {
   position: relative;
 }
-.wbe-button span {
+.wbe-button span,
+.wbe-icon span {
   background: transparent left no-repeat;
   background-size: contain;
   display: inline-block;
@@ -105,7 +107,8 @@ form[name="a_form"] {
   font-style: normal;
   max-width: 400px !important;
 }
-.wbe-button::after {
+.wbe-button::after,
+.wbe-icon::after {
   bottom: 3em;
 }
 
@@ -128,7 +131,8 @@ form[name="a_form"] {
   transition: opacity 0.2s ease-in-out;
   z-index: 1000;
 }
-.wbe-button::before {
+.wbe-button::before,
+.wbe-icon::before {
   bottom: 1.6em;
 }
 
@@ -158,14 +162,16 @@ ul.scissors li {
   margin-right: 0.5em;
 }
 
-.wbe-button::before {
+.wbe-button::before,
+.wbe-icon::before {
   bottom: auto;
   top: 1.6em;
   border-color: transparent transparent #fcb815 transparent;
   z-index: 100000;
 }
 
-.wbe-button::after {
+.wbe-button::after,
+.wbe-icon::after {
   bottom: auto;
   top: 3em;
   z-index: 100000;

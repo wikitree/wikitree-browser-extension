@@ -610,18 +610,30 @@ function buildParentsSection(parents) {
       } else if (profilePersonData?.DataStatus?.Mother && p.relationship == "Mother") {
         status = profilePersonData.DataStatus.Mother;
       }
+      let theStatusWord;
       // console.log(profilePersonData);
       if (status) {
         // console.log("status", status);
+
+        theStatusWord =
+          status == 5
+            ? "Non-biological"
+            : status == 10
+            ? "Uncertain"
+            : status == 20
+            ? "Certain"
+            : status == 30
+            ? "DNA confirmed"
+            : "";
         const statusWord =
           status == 5
-            ? "[non-biological]"
+            ? "<span class='icon--dna-none wbe-icon' data-tooltip='Non-biological'></span>"
             : status == 10
-            ? "[uncertain]"
+            ? "<span class='icon--uncertain wbe-icon' data-tooltip='Uncertain'></span>"
             : status == 20
-            ? "[certain]"
+            ? "<span class='icon--confident wbe-icon' data-tooltip='Certain'></span>"
             : status == 30
-            ? "<span class='icon--dna-checked' style='background-size:40px 20px !important; width:40px !important'></span>"
+            ? "<span class='icon--dna-checked wbe-icon' style='background-size:40px 20px !important; width:40px !important'></span>"
             : "";
         status = ` <span class="dataStatus" title="">${statusWord}</span>`;
       }
@@ -633,6 +645,17 @@ function buildParentsSection(parents) {
         dates.deathYear || ""
       }">${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
       ol.appendChild(li);
+      const tip =
+        status == "5"
+          ? "Non-biological"
+          : status == "10"
+          ? "Uncertain"
+          : status == "20"
+          ? "Certain"
+          : status == "30"
+          ? "DNA confirmed"
+          : "";
+      $(li).data("tooltip", theStatusWord).data("bs-tooltip", tip);
     });
   }
   container.appendChild(ol);
