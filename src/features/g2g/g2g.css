@@ -146,6 +146,6 @@ input[name$="_docomment"].bigButton:hover {
   flex-wrap: nowrap;
 }
 
-.checkmark {
+.qa-q-item-title .checkmark {
   position: relative !important;
 }
