@@ -981,11 +981,11 @@ function fillBirthDeathDates($el, p) {
   }
   let finalText = "";
   if (bYear && dYear) {
-    finalText = ` (${bYear} - ${dYear})`;
+    finalText = ` (${bYear}–${dYear})`;
   } else if (bYear) {
     finalText = ` (${bYear})`;
   } else if (dYear) {
-    finalText = ` (${dYear})`;
+    finalText = ` ( –${dYear})`;
   }
   $el.find(".bdDates, .spouseDates").each(function () {
     $(this).text(finalText);
