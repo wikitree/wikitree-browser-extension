@@ -8,7 +8,10 @@ const usabilityTweaks = {
   description: "Miscellaneous tweaks.",
   category: "Other",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
+  contributors: [
+    { name: "Florian Straub", wikitreeid: "Straub-620" },
+    { name: "Riël Smit", wikitreeid: "Smit-641" },
+  ],
   defaultValue: true,
   pages: [isMainDomain, isPlusDomain],
   options: [
