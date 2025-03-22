@@ -133,6 +133,30 @@ const usabilityTweaks = {
           label: "Add an Edit/Save button above the Scratch Pad.",
           defaultValue: true,
         },
+        {
+          id: "scratchPadPosition",
+          type: OptionType.RADIO,
+          label: "Scratch Pad Position",
+          values: [
+            {
+              value: false,
+              text: "WikiTree Default",
+            },
+            {
+              value: "topLeft",
+              text: "Top Left",
+            },
+            {
+              value: "topRight",
+              text: "Top Right",
+            },
+            {
+              value: "secondLeft",
+              text: "2nd in Left Column",
+            },
+          ],
+          defaultValue: false,
+        },
       ],
     },
     {
