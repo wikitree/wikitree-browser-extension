@@ -60,6 +60,7 @@
 
 #spaceWatchlistSorter-popup h2 {
   text-align: center;
+  margin: 0;
 }
 
 spaceWatchlistSorter-removeFolder {
@@ -211,10 +212,10 @@ div.spaceWatchlistSorter-header:active {
   cursor: grabbing;
 }
 
-div.spaceWatchlistSorter-folder button {
+/* div.spaceWatchlistSorter-folder button {
   width: 3em;
   height: 3em;
   display: inline-block;
   background-size: 3em;
   background-position: center;
-}
+} */

@@ -80,7 +80,7 @@ function parseItempropElement(el) {
     record.FullName = linkEl.textContent.trim();
     const match = record.Link.match(/\/wiki\/([^#]+)/);
     if (match) {
-      record.Name = match[1];
+      record.Name = match[1]?.replace(/ /g, "_");
     }
   }
   const smallSpan = el.querySelector("span.SMALL");
@@ -304,6 +304,7 @@ function siblingsTextArray() {
  */
 function parseInitialData() {
   const theSiblingsArray = siblingsTextArray();
+  console.log("theSiblingsArray", theSiblingsArray);
 
   const excludeBrackets = [
     "[date unknown]",
@@ -338,6 +339,7 @@ function parseInitialData() {
     });
     parsedParents = parsedParents.filter((parent, index, self) => {
       if (parent.Link) {
+        parent.Link = parent.Link.replace(/ /g, "_");
         return index === self.findIndex((p) => p.Link === parent.Link);
       } else {
         return index === self.findIndex((p) => p.UnknownText === parent.UnknownText);
@@ -1221,7 +1223,7 @@ function addRelativeAges() {
     if (!nameAnchor.length) return;
     const personHref = nameAnchor.attr("href");
     if (!personHref) return;
-    const wtId = personHref.split("/").pop();
+    const wtId = personHref.split("/").pop().replace(/ /g, "_");
     const personData = getPersonByWtID(wtId);
     if (!personData || !personData.BirthDate || personData.BirthDate === "0000-00-00") return;
     const diff = getAge(profileBirth, personData.BirthDate);

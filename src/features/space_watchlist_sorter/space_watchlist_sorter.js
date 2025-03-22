@@ -303,15 +303,13 @@ function mergeFolders(dbWatchlist, apiItems = null) {
 }
 
 function makeFolder(folderId, folderItems = "") {
-  const azURL = chrome.runtime.getURL("images/az.svg");
-  const closeURL = chrome.runtime.getURL("images/close.svg");
   return $(`
       <div id="spaceWatchlistSorterFolder-${folderId}" class="spaceWatchlistSorter-folder" style="display: none;">
       <div class="sort-container">
         <button class="spaceWatchlistSorter-removeFolder btn btn-pill-sm" data-folder-id="${folderId}"
-          title="Remove this group and move its content to Unorganized." style="background-image:url(${closeURL}"></button>
+          title="Remove this group and move its content to Unorganized.">x</button>
         <button class="sort-alphabetically-button btn btn-pill-sm" data-folder-id="${folderId}"
-          title="Sort the content of this group alphabetically." style="background-image:url(${azURL})"></button>
+          title="Sort the content of this group alphabetically.">A-Z</button>
       </div>
         <ul class="spaceWatchlistSorter-sortable">${folderItems}</ul>
       </div>`);
@@ -564,7 +562,6 @@ async function updateUI() {
 
 function addFolder() {
   const timestamp = Date.now();
-  const folderId = `spaceWatchlistSorterFolder-${timestamp}`;
   const tabId = `spaceWatchlistSorterTab-${timestamp}`;
 
   // Ensure no duplicate or empty tabs
@@ -599,28 +596,7 @@ function addFolder() {
   $(`#${tabId}`)
     .off("dblclick")
     .on("dblclick", function () {
-      const $tab = $(this);
-      const currentText = $tab.text().trim();
-      $tab.prop("contenteditable", true).trigger("focus");
-
-      $tab.off("blur").on("blur", function () {
-        $tab.prop("contenteditable", false);
-        const newText = $tab.text().trim();
-
-        // Revert to original name if blank or duplicate
-        if (!newText || existingTabs.includes(newText)) {
-          $tab.text(currentText);
-        } else {
-          debounceSaveWatchlistToDB();
-        }
-      });
-
-      $tab.off("keydown").on("keydown", function (e) {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          $tab.trigger("blur");
-        }
-      });
+      renameFolder($(this));
     });
 
   // Automatically switch to the new tab
@@ -629,6 +605,40 @@ function addFolder() {
 
   // Save the new folder state
   debounceSaveWatchlistToDB();
+}
+
+function renameFolder($tab) {
+  const currentText = $tab.text().trim();
+  $tab.prop("contenteditable", true).trigger("focus");
+
+  $tab.off("blur").on("blur", function () {
+    $tab.prop("contenteditable", false);
+    const newText = $tab.text().trim();
+
+    if (!newText) {
+      // Revert to the original name if blank
+      $tab.text(currentText);
+    } else {
+      if ($tab.attr("id") == `spaceWatchlistSorterTab-${UNORGANIZED_GROUP_ID}`) {
+        // We have renamed Unorganized - it's id (and all references to it) now need to change
+        const timestamp = Date.now();
+        $tab.attr("id", `spaceWatchlistSorterTab-${timestamp}`);
+        $(`#spaceWatchlistSorterFolder-${UNORGANIZED_GROUP_ID} .sort-container button`).attr(
+          "data-folder-id",
+          timestamp
+        );
+        $(`#spaceWatchlistSorterFolder-${UNORGANIZED_GROUP_ID}`).attr("id", `spaceWatchlistSorterFolder-${timestamp}`);
+      }
+      debounceSaveWatchlistToDB(); // Debounced save
+    }
+  });
+
+  $tab.off("keydown").on("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      $tab.trigger("blur");
+    }
+  });
 }
 
 // Helper to calculate folder state
@@ -748,6 +758,12 @@ $(document)
     // Skip long-press for the add-tab (if you have one)
     if ($tab.hasClass("spaceWatchlistSorter-add-tab")) return;
     const pressTimer = setTimeout(() => {
+      //
+      // TODO - REMOVE THIS DUPLICATION OF CODE by calling renameFolder()
+      // (if we can get rid of the $tab.one and the fact that renameFolder does not contain the
+      //      .data("editing", true/false);
+      // that is here.
+      //
       // Enable editing mode for long-press
       const currentText = $tab.text().trim();
       $tab.prop("contenteditable", true).trigger("focus").data("editing", true);
@@ -757,6 +773,19 @@ $(document)
         if (!newText) {
           $tab.text(currentText);
         } else {
+          if ($tab.attr("id") == `spaceWatchlistSorterTab-${UNORGANIZED_GROUP_ID}`) {
+            // We have renamed Unorganized - it's id (and all references to it) now need to change
+            const timestamp = Date.now();
+            $tab.attr("id", `spaceWatchlistSorterTab-${timestamp}`);
+            $(`#spaceWatchlistSorterFolder-${UNORGANIZED_GROUP_ID} .sort-container button`).attr(
+              "data-folder-id",
+              timestamp
+            );
+            $(`#spaceWatchlistSorterFolder-${UNORGANIZED_GROUP_ID}`).attr(
+              "id",
+              `spaceWatchlistSorterFolder-${timestamp}`
+            );
+          }
           debounceSaveWatchlistToDB();
         }
       });
@@ -821,6 +850,20 @@ function setActiveTab(tabId) {
   const targetFolderId = tabId.replace("Tab", "Folder");
   $(".spaceWatchlistSorter-folder").hide();
   $(`#${targetFolderId}`).show();
+}
+
+function createUnorganizedTabAndFolder() {
+  // Create the Unorganized folder
+  const tabId = `spaceWatchlistSorterTab-${UNORGANIZED_GROUP_ID}`;
+  $("#spaceWatchlistSorterTabs").prepend(`
+    <div id="${tabId}" class="spaceWatchlistSorter-tab">${UNORGANIZED_FOLDER_NAME}</div>
+  `);
+  $("#spaceWatchlistSorterFolderContainer").prepend(makeFolder(UNORGANIZED_GROUP_ID));
+  $(`#${tabId}`)
+    .off("click")
+    .on("click", function () {
+      setActiveTab($(this).attr("id"));
+    });
 }
 
 shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
@@ -893,16 +936,40 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
         const sourceId = $(this).data("folder-id") || $(this).attr("data-folder-id");
         const srcFolderId = `spaceWatchlistSorterFolder-${sourceId}`;
         const srcTabId = `spaceWatchlistSorterTab-${sourceId}`;
-        const targetFolderId = `spaceWatchlistSorterFolder-${UNORGANIZED_GROUP_ID}`;
-        const targetTabId = `spaceWatchlistSorterTab-${UNORGANIZED_GROUP_ID}`;
-        let $sourceUl = $(`#${srcFolderId} .spaceWatchlistSorter-sortable`);
-        let $targetUl = $(`#${targetFolderId} .spaceWatchlistSorter-sortable`);
+        const unorgFolderId = `spaceWatchlistSorterFolder-${UNORGANIZED_GROUP_ID}`;
+        let newActiveTabId = `spaceWatchlistSorterTab-${UNORGANIZED_GROUP_ID}`;
 
-        if ($sourceUl.length && $targetUl.length) {
-          // Move all items to the start of the target <ul>
-          $targetUl.prepend($sourceUl.children());
+        const $sourceUl = $(`#${srcFolderId} .spaceWatchlistSorter-sortable`);
+        let $unorgUl = $(`#${unorgFolderId} .spaceWatchlistSorter-sortable`);
+
+        if ($sourceUl.length && $sourceUl.children().length > 0) {
+          // The source folder is not empty, so we move its content to Unorganized and
+          // set the active tab to Unorganized
+          if ($unorgUl.length == 0) {
+            // Unorganized does not exist, creaate a new Unorganized tab and folder
+            createUnorganizedTabAndFolder();
+            $unorgUl = $(`#${unorgFolderId} .spaceWatchlistSorter-sortable`);
+          }
+          // Move all items to the start of the Unorganized <ul>
+          $unorgUl.prepend($sourceUl.children());
+        } else {
+          // The source folder (which cannot be Unorganized) is empty,
+          // set the active tab to the  one immediately after the source folder
+          let $nextTab = $(`#${srcTabId}`).next();
+          if (!$nextTab.length || $nextTab.hasClass("spaceWatchlistSorter-add-tab")) {
+            // There is no tab after the source tab, pick the one before it
+            $nextTab = $(`#${srcTabId}`).prev();
+            if (!$nextTab.length) {
+              // There are no tabs before or after the source tab, create a new Unorganized tab and folder
+              // and make it the active tab
+              createUnorganizedTabAndFolder();
+              $nextTab = $(`#${newActiveTabId}`);
+            }
+          }
+          newActiveTabId = $nextTab.attr("id");
         }
-        setActiveTab(targetTabId);
+
+        setActiveTab(newActiveTabId);
         $(`#${srcFolderId}`).remove();
         $(`#${srcTabId}`).remove();
         debounceSaveWatchlistToDB();
@@ -1014,39 +1081,21 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
       $("#spaceWatchlistContextMenu").hide();
     });
 
+    // Close the popup with the Escape key
     $(document).on("keydown", function (event) {
-      // Close the popup with the Escape key
       if (event.key === "Escape" && $("#spaceWatchlistSorter-popup").is(":visible")) {
         $("#spaceWatchlistSorterClosePopup").trigger("click");
       }
     });
+
+    // Rename a group
     $(document)
       .off("dblclick", ".spaceWatchlistSorter-tab")
       .on("dblclick", ".spaceWatchlistSorter-tab", function (event) {
         event.stopPropagation(); // Prevent event propagation
 
         const $tab = $(this);
-        const currentText = $tab.text().trim();
-        $tab.prop("contenteditable", true).trigger("focus");
-
-        $tab.off("blur").on("blur", function () {
-          $tab.prop("contenteditable", false);
-          const newText = $tab.text().trim();
-
-          if (!newText) {
-            // Revert to the original name if blank
-            $tab.text(currentText);
-          } else {
-            debounceSaveWatchlistToDB(); // Debounced save
-          }
-        });
-
-        $tab.off("keydown").on("keydown", function (e) {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            $tab.trigger("blur");
-          }
-        });
+        renameFolder($tab);
 
         // Ensure all text is selected when double-clicked
         const range = document.createRange();
