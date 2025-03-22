@@ -610,7 +610,6 @@ span[itemprop="sibling"]:has(.activeProfile) {
   position: relative;
 }
 .vertical #profilePerson a.activeProfile,
-.vertical div.familyList li span,
 .vertical li#siblingsUnknown,
 .vertical li#fatherUnknown,
 .vertical span#childrenUnknown,
@@ -745,7 +744,7 @@ div.VITALS li span.parentStatus {
   margin-left: 0.5em;
 }
 div.VITALS li span[itemprop="name"] {
-  display: inline-block;
+  display: inline;
 }
 
 #nVitals div.VITALS a:link.ancestor::before,
