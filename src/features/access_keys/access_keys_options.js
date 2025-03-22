@@ -145,6 +145,12 @@ registerFeature({
           defaultValue: true,
         },
         {
+          id: "DiscardDraft",
+          type: OptionType.CHECKBOX,
+          label: "Discard draft (Access key: e)",
+          defaultValue: false,
+        },
+        {
           id: "TreeApps",
           type: OptionType.CHECKBOX,
           label: "Open Tree Apps (Access key: t)",
