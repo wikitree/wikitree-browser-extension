@@ -532,7 +532,7 @@ function createEditButton(href, tooltip, text = "edit") {
   span.className = "EDIT";
   span.setAttribute("data-bs-toggle", "tooltip");
   span.setAttribute("data-bs-title", tooltip);
-  span.setAttribute("data-tooltip", tooltip);
+  span.setAttribute("title", tooltip);
   span.innerHTML = `<a href="${href}">${text}</a>`;
   return span;
 }
@@ -629,11 +629,11 @@ function buildParentsSection(parents) {
             : "";
         const statusWord =
           status == 5
-            ? "<span class='icon--dna-none wbe-icon' data-tooltip='Non-biological'></span>"
+            ? "<span class='icon--dna-none wbe-icon' title='Non-biological'></span>"
             : status == 10
-            ? "<span class='icon--uncertain wbe-icon' data-tooltip='Uncertain'></span>"
+            ? "<span class='icon--uncertain wbe-icon' title='Uncertain'></span>"
             : status == 20
-            ? "<span class='icon--confident wbe-icon' data-tooltip='Certain'></span>"
+            ? "<span class='icon--confident wbe-icon' title='Certain'></span>"
             : status == 30
             ? "<span class='icon--dna-checked wbe-icon' style='background-size:40px 20px !important; width:40px !important'></span>"
             : "";
@@ -1568,7 +1568,7 @@ function insertInSibList() {
     pPerson.Name
   }">${displayName(pPerson)[0]}</a><span class="bdDates" data-birth-year="${birthYear || ""}" data-death-year="${
     deathYear || ""
-  }"> ${displayDates(pPerson).trim()}</span></span>`);
+  }"> ${displayDates(pPerson).trim().replace(/ - /, "–")}</span></span>`);
 
   const profilePersonLi = $(`<li id='profilePerson' class="${parentClasses}"></li>`);
   let elToFind = "#Siblings li";
