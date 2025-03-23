@@ -595,6 +595,39 @@ function enhanceThonStats() {
   }
 }
 
+// Ignoring the Scratch item, find the first item in parent that wil push the right-hand column height
+// past that of the first item in the left-hand column.
+function findItemByCumulativeSpan($parent) {
+  const items = $parent.children();
+  if (items.length < 2) return null; // Need at least two items
+
+  let firstSpan = null;
+  let total = 0;
+  let foundItem = null;
+
+  items.each(function () {
+    if ($(this).attr("id") == "Scratch") return; // Ignore the Scratch item
+
+    const span = parseInt(
+      $(this)
+        .attr("style")
+        .match(/grid-row-end:\s*span\s*(\d+)/)[1]
+    );
+    if (firstSpan == null) {
+      firstSpan = span;
+    } else {
+      total += span;
+
+      if (total >= firstSpan) {
+        foundItem = $(this);
+        return false; // Break the loop
+      }
+    }
+  });
+
+  return foundItem;
+}
+
 shouldInitializeFeature("usabilityTweaks").then((result) => {
   if (result) {
     getFeatureOptions("usabilityTweaks").then((options) => {
@@ -652,8 +685,47 @@ shouldInitializeFeature("usabilityTweaks").then((result) => {
       if (isWikiEdit && options.rememberTextareaHeight) {
         triggerRememberTextareaHeight();
       }
-      if (options.addScratchPadButton && isNavHomePage && $("#clonedScratchPadButton").length == 0) {
-        addScratchPadButton();
+      if (isNavHomePage) {
+        if (options.addScratchPadButton && $("#clonedScratchPadButton").length == 0) {
+          addScratchPadButton();
+        }
+
+        if (options.scratchPadPosition) {
+          setTimeout(function () {
+            // Find the scratch pad
+            const scratch = $("#Scratch");
+            if (scratch.length) {
+              const parent = scratch.parent();
+              // The scratch pad is a sibling of the masonry items. The standard layout packs them effectively in
+              // two columns inside their container, filling up the 2 columns equally height-wise from left to right
+              // and from top to bottom.
+              switch (options.scratchPadPosition) {
+                case "topLeft":
+                  // Make the scratch pad the first child of its parent
+                  scratch.detach().prependTo(parent);
+                  break;
+                case "topRight":
+                  // Make the scratch pad the second child of its parent
+                  if (parent.children().length > 1) {
+                    scratch.detach().insertBefore(parent.children().eq(1));
+                  }
+                  break;
+                case "secondLeft":
+                  // Find the first element that makes the right column higher than the left column
+                  // containing the first element (ignoring the scratch element itself).
+                  const tgtItem = findItemByCumulativeSpan(parent);
+                  if (tgtItem) {
+                    scratch.detach().insertAfter(tgtItem);
+                  } else {
+                    // There is no such element, so put scratch first in the lleft column since we take
+                    // being in the left column as more important than being there in 2nd place
+                    scratch.detach().prependTo(parent);
+                  }
+                  break;
+              }
+            }
+          }, 1000);
+        }
       }
       if (options.onlyMembers && isSearchPage && $("#onlyMembers").length == 0) {
         onlyMembers();

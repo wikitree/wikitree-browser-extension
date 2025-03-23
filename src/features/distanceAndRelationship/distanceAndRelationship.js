@@ -6,7 +6,7 @@ import $ from "jquery";
 import { getConnectionJSON, getRelationJSON } from "../../core/API/wwwWikiTree";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { mainDomain, isProfileEdit } from "../../core/pageType";
-import { profilePerson } from "../../core/common";
+import { getProfilePersonInfo } from "../../core/common";
 import { getObjectStores, distRelDbKeyFor, getUserWtId } from "../../core/common";
 
 export const CONNECTION_DB_NAME = "ConnectionFinderWTE";
@@ -15,7 +15,8 @@ export const CONNECTION_STORE_NAME = "distance2";
 export const RELATIONSHIP_DB_NAME = "RelationshipFinderWTE";
 export const RELATIONSHIP_DB_VERSION = 2;
 export const RELATIONSHIP_STORE_NAME = "relationship2";
-const profileID = profilePerson?.Name;
+let profilePerson;
+let profileID;
 
 const fixOrdinalSuffix = (text) => {
   const pattern = /(\d+)(?:st|nd|rd|th)\b/g;
@@ -143,7 +144,8 @@ shouldInitializeFeature("distanceAndRelationship").then((result) => {
     storeProfileIfCreated(); // First, check if the profile was just created and store it
     return;
   }
-
+  profilePerson = getProfilePersonInfo();
+  profileID = profilePerson?.Name;
   if (checkProfileCreationTime(profileID)) {
     // Profile was created less than 30 minutes ago, do not initialize feature
     console.log("Profile was created less than 30 minutes ago, not initializing feature");
@@ -289,12 +291,12 @@ function addRelationshipText(oText, commonAncestors) {
 function commonAncestorText(commonAncestors) {
   let result = {};
   let ancestorTextOut = "";
-  const profileGender = $("body").find("meta[itemprop='gender']").attr("content");
+  const profileGender = profilePerson.Gender;
   let possessiveAdj = "their";
-  if (profileGender == "male") {
+  if (profileGender == "Male") {
     possessiveAdj = "his";
   }
-  if (profileGender == "female") {
+  if (profileGender == "Female") {
     possessiveAdj = "her";
   }
   let ancestorsAdded = [];
@@ -366,9 +368,9 @@ function doRelationshipText(userID, profileID) {
                 relationshipText = relationshipText.replace(/nephew/, "uncle").replace(/niece/, "aunt");
               } else {
                 relationshipText =
-                  profileGender === "male"
+                  profileGender === "Male"
                     ? relationshipText.replace(/nephew|niece/, "uncle")
-                    : profileGender === "female"
+                    : profileGender === "Female"
                     ? relationshipText.replace(/nephew|niece/, "aunt")
                     : relationshipText.replace(/nephew|niece/, "uncle or aunt");
               }

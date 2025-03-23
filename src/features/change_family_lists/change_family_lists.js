@@ -80,7 +80,7 @@ function parseItempropElement(el) {
     record.FullName = linkEl.textContent.trim();
     const match = record.Link.match(/\/wiki\/([^#]+)/);
     if (match) {
-      record.Name = match[1];
+      record.Name = match[1]?.replace(/ /g, "_");
     }
   }
   const smallSpan = el.querySelector("span.SMALL");
@@ -304,6 +304,7 @@ function siblingsTextArray() {
  */
 function parseInitialData() {
   const theSiblingsArray = siblingsTextArray();
+  console.log("theSiblingsArray", theSiblingsArray);
 
   const excludeBrackets = [
     "[date unknown]",
@@ -338,6 +339,7 @@ function parseInitialData() {
     });
     parsedParents = parsedParents.filter((parent, index, self) => {
       if (parent.Link) {
+        parent.Link = parent.Link.replace(/ /g, "_");
         return index === self.findIndex((p) => p.Link === parent.Link);
       } else {
         return index === self.findIndex((p) => p.UnknownText === parent.UnknownText);
@@ -530,7 +532,7 @@ function createEditButton(href, tooltip, text = "edit") {
   span.className = "EDIT";
   span.setAttribute("data-bs-toggle", "tooltip");
   span.setAttribute("data-bs-title", tooltip);
-  span.setAttribute("data-tooltip", tooltip);
+  span.setAttribute("title", tooltip);
   span.innerHTML = `<a href="${href}">${text}</a>`;
   return span;
 }
@@ -610,18 +612,30 @@ function buildParentsSection(parents) {
       } else if (profilePersonData?.DataStatus?.Mother && p.relationship == "Mother") {
         status = profilePersonData.DataStatus.Mother;
       }
+      let theStatusWord;
       // console.log(profilePersonData);
       if (status) {
         // console.log("status", status);
+
+        theStatusWord =
+          status == 5
+            ? "Non-biological"
+            : status == 10
+            ? "Uncertain"
+            : status == 20
+            ? "Certain"
+            : status == 30
+            ? "DNA confirmed"
+            : "";
         const statusWord =
           status == 5
-            ? "[non-biological]"
+            ? "<span class='icon--dna-none wbe-icon' title='Non-biological'></span>"
             : status == 10
-            ? "[uncertain]"
+            ? "<span class='icon--uncertain wbe-icon' title='Uncertain'></span>"
             : status == 20
-            ? "[certain]"
+            ? "<span class='icon--confident wbe-icon' title='Certain'></span>"
             : status == 30
-            ? "<span class='icon--dna-checked' style='background-size:40px 20px !important; width:40px !important'></span>"
+            ? "<span class='icon--dna-checked wbe-icon' style='background-size:40px 20px !important; width:40px !important'></span>"
             : "";
         status = ` <span class="dataStatus" title="">${statusWord}</span>`;
       }
@@ -633,6 +647,17 @@ function buildParentsSection(parents) {
         dates.deathYear || ""
       }">${dates.dates ? " " + dates.dates : ""}</span><span class="relAge"></span></span>`;
       ol.appendChild(li);
+      const tip =
+        status == "5"
+          ? "Non-biological"
+          : status == "10"
+          ? "Uncertain"
+          : status == "20"
+          ? "Certain"
+          : status == "30"
+          ? "DNA confirmed"
+          : "";
+      $(li).data("tooltip", theStatusWord).data("bs-tooltip", tip);
     });
   }
   container.appendChild(ol);
@@ -722,7 +747,7 @@ function buildSpousesSection(spouses) {
   container.appendChild(headerDiv);
 
   // Create an ordered list for spouses.
-  const ol = createListElement("spouseList");
+  const ol = createListElement("Spouses");
   if (options.oneSpousePerLine && spouses.length > 1) {
     ol.className += " oneSpousePerLine";
   }
@@ -730,7 +755,7 @@ function buildSpousesSection(spouses) {
 
   spouses.forEach((spouse) => {
     const spouseLI = document.createElement("li");
-    spouseLI.className = "aSpouse";
+    spouseLI.className = "spouse";
     spouseLI.dataset.parseName = spouse.Name;
     spouseLI.setAttribute("data-id", spouse.Id);
     spouseLI.setAttribute("data-gender", spouse.Gender);
@@ -747,7 +772,7 @@ function buildSpousesSection(spouses) {
     const isPrivate = spouse.Name.trim().toLowerCase().startsWith("[private");
     if (spouse.Link && !isPrivate) {
       entry.innerHTML = `<a href="${spouse.Link}" itemprop="url" title="" class="spouseLink">
-        <span itemprop="name"><strong>${spouse.FullName || spouse.Name}</strong></span></a>`;
+        <span itemprop="name" class="spouse-name">${spouse.FullName || spouse.Name}</span></a>`;
     } else {
       entry.innerHTML = `<span itemprop="name"><strong>${spouse.FullName || spouse.Name}</strong></span>`;
     }
@@ -768,7 +793,29 @@ function buildSpousesSection(spouses) {
     details.className = "marriageDetails";
     let detailsText = spouse.MarriageDetails || "";
     detailsText = detailsText.replace(/add\/edit spouses/gi, "").trim();
-    details.textContent = detailsText;
+
+    // Match date (optional day, month, required year)
+    const dateRegex = /(\d{1,2}\s)?([A-Z][a-z]+\s)?\d{4}/;
+    const dateMatch = detailsText.match(dateRegex);
+
+    // Wrap the date in a span if found
+    if (dateMatch) {
+      detailsText = detailsText.replace(dateRegex, `<span class="marriage-date">${dateMatch[0].trim()}</span>`);
+    }
+
+    // Match location after "in"
+    const locationRegex = /\bin\s+(.+)$/i;
+    const locationMatch = detailsText.match(locationRegex);
+
+    // Wrap the location in a span if found
+    if (locationMatch) {
+      detailsText = detailsText.replace(
+        locationRegex,
+        `in <span class="marriage-location">${locationMatch[1].trim()}</span>`
+      );
+    }
+
+    details.innerHTML = detailsText;
     spouseLI.appendChild(details);
 
     // Append map link if available.
@@ -788,7 +835,7 @@ function buildSpousesSection(spouses) {
     }
     if (spouseLI.dataset.parseName.includes("?")) {
       spouseLI.classList.add("editAction");
-      spouseLI.classList.remove("aSpouse");
+      spouseLI.classList.remove("spouse");
     }
     ol.appendChild(spouseLI);
   });
@@ -956,11 +1003,11 @@ function fillBirthDeathDates($el, p) {
   }
   let finalText = "";
   if (bYear && dYear) {
-    finalText = ` (${bYear} - ${dYear})`;
+    finalText = ` (${bYear}–${dYear})`;
   } else if (bYear) {
     finalText = ` (${bYear})`;
   } else if (dYear) {
-    finalText = ` (${dYear})`;
+    finalText = ` ( –${dYear})`;
   }
   $el.find(".bdDates, .spouseDates").each(function () {
     $(this).text(finalText);
@@ -973,7 +1020,7 @@ function fillBirthDeathDates($el, p) {
  * Attaches API data to the DOM elements.
  */
 function attachApiData() {
-  $("#nVitals li, #nVitals div.aSpouse").each(function () {
+  $("#nVitals li, #nVitals div.spouse").each(function () {
     const parseName = $(this).data("parseName");
     if (!parseName) return;
     const p = getPersonByWtID(parseName);
@@ -1135,7 +1182,7 @@ function addMarriageAges() {
     apiSpouses.forEach((spouseEntry, idx) => {
       const marData = spouseEntry[1];
       const spouseId = marData.Id;
-      const marriageDiv = $(`.aSpouse[data-id='${spouseId}']`);
+      const marriageDiv = $(`.spouse[data-id='${spouseId}']`);
       if (!marriageDiv.length) return;
       if (isOK(marData.MarriageDate)) {
         let profileMarriageAge = "";
@@ -1198,7 +1245,7 @@ function addRelativeAges() {
     if (!nameAnchor.length) return;
     const personHref = nameAnchor.attr("href");
     if (!personHref) return;
-    const wtId = personHref.split("/").pop();
+    const wtId = personHref.split("/").pop().replace(/ /g, "_");
     const personData = getPersonByWtID(wtId);
     if (!personData || !personData.BirthDate || personData.BirthDate === "0000-00-00") return;
     const diff = getAge(profileBirth, personData.BirthDate);
@@ -1223,8 +1270,8 @@ function makeVerticalFamLists() {
 function assignSpouseAndChildClasses() {
   if ($("#childrenList li").length === 0) return;
   let checkParent = "mother";
-  if ($(".aSpouse").length > 0) {
-    const firstSpouseGender = $(".aSpouse").first().data("gender");
+  if ($("#nVitals .spouse").length > 0) {
+    const firstSpouseGender = $("#nVitals .spouse").first().data("gender");
     if (firstSpouseGender === "male") {
       checkParent = "father";
     }
@@ -1236,8 +1283,8 @@ function assignSpouseAndChildClasses() {
       uniqueParentIDs.push(pid);
     }
   });
-  if ($(".aSpouse").length > 1 || uniqueParentIDs.length > 1) {
-    $(".aSpouse").each(function (index) {
+  if ($("#nVitals .spouse").length > 1 || uniqueParentIDs.length > 1) {
+    $("#nVitals .spouse").each(function (index) {
       const className = "spouse_" + (index + 1);
       $(this).addClass(className);
       const spouseID = $(this).data("id");
@@ -1279,31 +1326,6 @@ function addHalfsStyle() {
   }
 
   const pList = $("#parentList li");
-  /*
-  if (pList.length >= 2) {
-    const p1 = pList.eq(0).attr("data-id");
-    const p2 = pList.eq(1).attr("data-id");
-    if (p1 && p2 && p1 !== p2) {
-      pList.eq(0).addClass("parent_1");
-      pList.eq(1).addClass("parent_2");
-      $("#siblingList li").each(function () {
-        const father = String($(this).attr("data-father") || "");
-        const mother = String($(this).attr("data-mother") || "");
-        if (father === p1) {
-          $(this).addClass("parent_1");
-        }
-        if (mother === p2) {
-          $(this).addClass("parent_2");
-        }
-      });
-      if ($(".aSpouse").length > 1) {
-        $(".aSpouse").each(function (index) {
-          $(this).addClass("spouse_" + (index + 1));
-        });
-      }
-    }
-  }
-    */
 
   // Grab the <li> elements for father and mother based on data-gender
   const fatherLi = pList.filter('[data-gender="Male"]').first();
@@ -1332,9 +1354,9 @@ function addHalfsStyle() {
       }
     });
 
-    // If there are multiple .aSpouse elements, assign them spouse_1, spouse_2, etc.
-    if ($(".aSpouse").length > 1) {
-      $(".aSpouse").each(function (index) {
+    // If there are multiple .spouse elements, assign them spouse_1, spouse_2, etc.
+    if ($("#nVitals .spouse").length > 1) {
+      $("#nVitals .spouse").each(function (index) {
         $(this).addClass("spouse_" + (index + 1));
       });
     }
@@ -1543,7 +1565,7 @@ function insertInSibList() {
     pPerson.Name
   }">${displayName(pPerson)[0]}</a><span class="bdDates" data-birth-year="${birthYear || ""}" data-death-year="${
     deathYear || ""
-  }"> ${displayDates(pPerson).trim()}</span></span>`);
+  }"> ${displayDates(pPerson).trim().replace(/ - /, "–")}</span></span>`);
 
   const profilePersonLi = $(`<li id='profilePerson' class="${parentClasses}"></li>`);
   let elToFind = "#Siblings li";
@@ -1872,7 +1894,7 @@ function fixVanilla() {
   formatListItems("#nVitals span[itemprop='parent'],#nVitals span[itemprop='Father'],#nVitals span[itemprop='Mother']");
   formatListItems("#nVitals span[itemprop='sibling']");
   formatListItems("#nVitals span[itemprop='children']");
-  formatListItems("#nVitals li.aSpouse", "inside");
+  formatListItems("#nVitals li.spouse", "inside");
 }
 
 function moveMetaGender() {

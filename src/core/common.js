@@ -1009,11 +1009,8 @@ export async function updateDraftList() {
           if ((addDraft == false || window.fullSave == true) && draft[0] == profileWTID && isEditPage == true) {
             console.log(`Skipping draft for profile ${profileWTID} as it is being fully saved`);
           } else {
-            console.log(`Processing draft for profile ${draft[0]}`);
-            console.log(`Last saved: ${draft[1]}, last week: ${lastWeek}`);
             if (draft[1] > lastWeek) {
               draftsArr.push(draft);
-              console.log(`Adding draft for profile ${draft[0]} to draftsArr`);
               draftsArrIDs.push(draft[0]);
             }
           }
@@ -1300,11 +1297,9 @@ export const treeImageURL = chrome.runtime.getURL("images/tree.gif");
  * @returns The numeric ID (i.e. the profile.Id field obtained from the API) of the currently logged in user
  */
 export function getUserNumId() {
-  // We retrieve the ID from the "My WikiTree/Badges" menu item present when the user is logged in on any WT page.
-  const href = $('nav[aria-label="My WikiTree Navigation"] a[href*="Special:Badges"]').attr("href");
-  if (!href) return null;
-  const m = href.match(/u=(\d+)/);
-  return m ? m[1] : null;
+  const id = $("button:contains('My WikiTree')").eq(0).data("user-user-id");
+  if (!id) return null;
+  return id || null;
 }
 
 /**

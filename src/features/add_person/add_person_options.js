@@ -30,4 +30,4 @@ const addPersonRedesign = {
   ],
 };
 
-registerFeature(addPersonRedesign);
+//registerFeature(addPersonRedesign);

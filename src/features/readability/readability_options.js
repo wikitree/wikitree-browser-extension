@@ -8,7 +8,7 @@
  */
 
 import { registerFeature, OptionType } from "../../core/options/options_registry";
-import { isCategoryPage, isProfilePage, isSpacePage } from "../../core/pageType";
+import { isMainDomain } from "../../core/pageType";
 
 const readabilityFeature = {
   name: "Readability Options",
@@ -20,7 +20,7 @@ const readabilityFeature = {
   creators: [{ name: "Jonathan Duke", wikitreeid: "Duke-5773" }],
   contributors: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
   defaultValue: false,
-  pages: [isProfilePage, isSpacePage, isCategoryPage],
+  pages: [isMainDomain],
 
   options: [
     {
@@ -39,6 +39,140 @@ const readabilityFeature = {
           type: OptionType.CHECKBOX,
           label: "Show the reading mode toggle switch",
           defaultValue: true,
+        },
+      ],
+    },
+    {
+      type: OptionType.GROUP,
+      label: "Accessibility Options",
+      options: [
+        {
+          id: "formFieldContrast",
+          type: OptionType.SELECT,
+          label: "Adjust contrast of form fields",
+          values: [
+            {
+              value: "default",
+              text: "WikiTree default",
+            },
+            {
+              value: 33,
+              text: "low",
+            },
+            {
+              value: 67,
+              text: "medium",
+            },
+            {
+              value: 100,
+              text: "high",
+            },
+          ],
+          defaultValue: "default",
+        },
+        {
+          id: "formFieldSpacing",
+          type: OptionType.SELECT,
+          label: "Adjust spacing between form fields",
+          values: [
+            {
+              value: "default",
+              text: "WikiTree default",
+            },
+            {
+              value: 0,
+              text: "minimal",
+            },
+          ],
+          defaultValue: "default",
+        },
+        {
+          id: "textLineHeight",
+          type: OptionType.SELECT,
+          label: "Adjust spacing between lines of text",
+          values: [
+            {
+              value: 70,
+              text: "70%",
+            },
+            {
+              value: 80,
+              text: "80%",
+            },
+            {
+              value: 90,
+              text: "90%",
+            },
+            {
+              value: "default",
+              text: "WikiTree default",
+            },
+            {
+              value: 110,
+              text: "110%",
+            },
+            {
+              value: 120,
+              text: "120%",
+            },
+            {
+              value: 130,
+              text: "130%",
+            },
+          ],
+          defaultValue: "default",
+        },
+        {
+          id: "fontSizeAdjust",
+          type: OptionType.SELECT,
+          label: "Font size adjustment",
+          values: [
+            {
+              value: 50,
+              text: "50%",
+            },
+            {
+              value: 60,
+              text: "60%",
+            },
+            {
+              value: 70,
+              text: "70%",
+            },
+            {
+              value: 80,
+              text: "80%",
+            },
+            {
+              value: 90,
+              text: "90%",
+            },
+            {
+              value: "default",
+              text: "WikiTree default",
+            },
+            {
+              value: 110,
+              text: "110%",
+            },
+            {
+              value: 120,
+              text: "120%",
+            },
+            {
+              value: 130,
+              text: "130%",
+            },
+            {
+              value: 140,
+              text: "140%",
+            },
+            {
+              value: 150,
+              text: "150%",
+            },
+          ],
+          defaultValue: "default",
         },
       ],
     },

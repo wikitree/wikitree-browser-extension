@@ -74,7 +74,7 @@ import "./features/wikitable_wizard/wikitable_wizard";
 import "./features/bioCheck/bioCheck";
 
 // Edit mode Add Person addons are even later
-import "./features/add_person/add_person";
+// import "./features/add_person/add_person";
 import "./features/unnamed_infant/unnamed_infant";
 import "./features/genderPredictor/genderPredictor";
 import "./features/suggested_matches_filters/suggested_matches_filters";

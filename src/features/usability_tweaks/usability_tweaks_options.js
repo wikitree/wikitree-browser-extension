@@ -8,7 +8,10 @@ const usabilityTweaks = {
   description: "Miscellaneous tweaks.",
   category: "Other",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [{ name: "Florian Straub", wikitreeid: "Straub-620" }],
+  contributors: [
+    { name: "Florian Straub", wikitreeid: "Straub-620" },
+    { name: "Riël Smit", wikitreeid: "Smit-641" },
+  ],
   defaultValue: true,
   pages: [isMainDomain, isPlusDomain],
   options: [
@@ -132,6 +135,30 @@ const usabilityTweaks = {
           type: OptionType.CHECKBOX,
           label: "Add an Edit/Save button above the Scratch Pad.",
           defaultValue: true,
+        },
+        {
+          id: "scratchPadPosition",
+          type: OptionType.RADIO,
+          label: "Scratch Pad Position",
+          values: [
+            {
+              value: false,
+              text: "WikiTree Default",
+            },
+            {
+              value: "topLeft",
+              text: "Top Left",
+            },
+            {
+              value: "topRight",
+              text: "Top Right",
+            },
+            {
+              value: "secondLeft",
+              text: "2nd in Left Column",
+            },
+          ],
+          defaultValue: false,
         },
       ],
     },

@@ -18,14 +18,7 @@ function addAccessKeys(options) {
     $("body").append("<a style='display:none;' id='G2Grecent' href='https://" + mainDomain + "/g2g/activity'></a>");
     setAccessKeyIfOptionEnabled(options.Preview, "#previewButton", "p", options);
     setAccessKeyIfOptionEnabled(options.G2G, "#G2Grecent", "g", options);
-    setAccessKeyIfOptionEnabled(
-      options.Edit,
-      "a[data-bs-title='Edit Person Profile'],a[data-bs-title='Edit Free-Space Profile'],input[value='Edit Scratch Pad']",
-      //removed this one, because it comes from the old design - no clue from which page it came from:
-      //a[title='Edit Profile and Family Relationships'],
-      "e",
-      options
-    );
+    setEditAndDiscardDraftAccessKeys(options);
     setAccessKeyIfOptionEnabled(
       options.Edit && isCategoryPage,
       "div.EDIT a[title='Edit the text on this category page']",
@@ -134,6 +127,21 @@ function setJumpNavAccessKeys(options) {
         }
       }
     }
+  }
+}
+
+function setEditAndDiscardDraftAccessKeys(options) {
+  const discardLink = $('a[href*="&dd="]');
+  if (options.DiscardDraft && discardLink.length) {
+    discardLink[0].accessKey = "e";
+    discardLink[0].style.backgroundColor = "#fcb815";
+  } else {
+    setAccessKeyIfOptionEnabled(
+      options.Edit,
+      "a[data-bs-title='Edit Person Profile'],a[data-bs-title='Edit Free-Space Profile'],input[value='Edit Scratch Pad']",
+      "e",
+      options
+    );
   }
 }
 
