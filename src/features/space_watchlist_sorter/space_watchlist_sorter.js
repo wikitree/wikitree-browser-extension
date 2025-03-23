@@ -542,7 +542,9 @@ function resetWatchlistPopUp() {
       response(
         results.map((match) => ({
           label: `${match.item.text} (${match.id})`,
-          value: match.id,
+          value: match.item.text,
+          tabId: match.id,
+          url: match.url,
         }))
       );
     },
