@@ -222,26 +222,42 @@ div.spaceWatchlistSorter-header:active {
   background-position: center;
 } */
 
+/* Container for search input */
 .search-wrapper {
   position: relative;
-  display: inline-flex;
+  width: 95%; /* 95% of the header */
+  display: flex;
   align-items: center;
+  margin: 0 auto; /* Center it if needed */
 }
 
-/* Position the clear (X) button */
+/* Input styling */
+#searchFSP {
+  width: 100%; /* Fill the search wrapper */
+  padding-right: 30px; /* Leave space for the clear (X) button */
+  box-sizing: border-box; /* Prevent overflow due to padding */
+}
+
+/* Clear button (X) */
 .clear-input {
   position: absolute;
   right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   cursor: pointer;
   font-size: 20px;
-  line-height: 1;
   color: #888;
-  display: none;
   padding: 5px;
   user-select: none;
+  display: none;
 }
 
-/* Show the clear button when there is input */
+/* Show clear button when there is input */
 #searchFSP:not(:placeholder-shown) ~ .clear-input {
   display: inline;
+}
+
+/* Optional: Hover effect */
+.clear-input:hover {
+  color: #555;
 }
