@@ -5,6 +5,7 @@ Created By: Ian Beacall (Beacall-6)
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import $ from "jquery";
 import "jquery-ui/ui/widgets/sortable";
+import "jquery-ui/ui/widgets/autocomplete";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
 import { getUserWtId, getUserNumId, isLoggedIntoAPI } from "../../core/common";
 import { goAndLogIn } from "../randomProfile/randomProfile";
@@ -19,6 +20,7 @@ const spaceWatchlistSorterHTML = `
 <div id="spaceWatchlistSorter-popup" class="spaceWatchlistSorter-popup" style="display: none;">
   <div class="spaceWatchlistSorter-header">
     <h2>Space Watchlist</h2>
+   <label for='searchFSP'><span class="icon--search"></span><input type="text" id='searchFSP' placeholder='Search'></label>
     <button class="small" id="spaceWatchlistSorterClosePopup">&times;</button>
   </div>
   <div class="spaceWatchlistSorter-content">
@@ -44,6 +46,7 @@ const dbHelper = new IndexedDBHelper(SPWL_DB_NAME, SPWL_DB_VERSION);
 let loadedDataVersion = 1;
 let md5AtLoad = "";
 let userId;
+let currentFolders = [];
 
 async function initializeDatabase() {
   if (!dbHelper.db) {
@@ -425,18 +428,18 @@ async function saveWatchlistToDB(folders = []) {
       return;
     }
 
-    const categorization = folders.map((folder) => ({
+    currentFolders = folders.map((folder) => ({
       id: folder.id,
       name: folder.name,
       items: folder.items,
     }));
-    const foldersMd5 = md5Of(categorization);
+    const foldersMd5 = md5Of(currentFolders);
     if (foldersMd5 === md5AtLoad) {
       // console.log("No changes to save.");
       return;
     }
 
-    //console.log("Saving the following categorization:", JSON.stringify(categorization, null, 2)); // Debugging output
+    //console.log("Saving the following folders:", JSON.stringify(currentFolders, null, 2)); // Debugging output
 
     const dbh = await initializeDatabase();
     const tsId = versionId();
@@ -460,7 +463,7 @@ async function saveWatchlistToDB(folders = []) {
       });
       await dbh.putData(SPWL_DB_STORE, {
         id: dId,
-        folders: categorization,
+        folders: currentFolders,
       });
       browserAPI.storage.local.set({ [dId]: loadedDataVersion });
     }
@@ -533,6 +536,35 @@ function resetWatchlistPopUp() {
   }
   $("body").append(spaceWatchlistSorterHTML);
   $("#spaceWatchlistSorter-popup").draggable({ handle: ".spaceWatchlistSorter-header" });
+  $("#searchFSP").autocomplete({
+    source: function (request, response) {
+      let results = findPages(request.term.toLowerCase());
+      response(
+        results.map((match) => ({
+          label: `${match.item.text} (${match.id})`,
+          value: match.id,
+        }))
+      );
+    },
+    minLength: 2,
+    select: function (event, ui) {
+      event.preventDefault();
+      $("#searchFSP").val(ui.item.value);
+      // return false;
+    },
+  });
+}
+
+function findPages(term) {
+  let matches = [];
+  currentFolders.forEach((folder) => {
+    folder.items.forEach((item) => {
+      if (item.text.toLowerCase().includes(term)) {
+        matches.push({ id: folder.id, item: item });
+      }
+    });
+  });
+  return matches;
 }
 
 // Listening function for storage changes
