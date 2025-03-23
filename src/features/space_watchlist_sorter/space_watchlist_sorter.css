@@ -211,7 +211,9 @@ div.spaceWatchlistSorter-header {
 div.spaceWatchlistSorter-header:active {
   cursor: grabbing;
 }
-
+#spaceWatchlistSorter-popup ul.ui-autocomplete {
+  z-index: 1000;
+}
 /* div.spaceWatchlistSorter-folder button {
   width: 3em;
   height: 3em;
@@ -219,3 +221,27 @@ div.spaceWatchlistSorter-header:active {
   background-size: 3em;
   background-position: center;
 } */
+
+.search-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Position the clear (X) button */
+.clear-input {
+  position: absolute;
+  right: 10px;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  color: #888;
+  display: none;
+  padding: 5px;
+  user-select: none;
+}
+
+/* Show the clear button when there is input */
+#searchFSP:not(:placeholder-shown) ~ .clear-input {
+  display: inline;
+}

@@ -20,7 +20,11 @@ const spaceWatchlistSorterHTML = `
 <div id="spaceWatchlistSorter-popup" class="spaceWatchlistSorter-popup" style="display: none;">
   <div class="spaceWatchlistSorter-header">
     <h2>Space Watchlist</h2>
-   <label for='searchFSP'><span class="icon--search"></span><input type="text" id='searchFSP' placeholder='Search'></label>
+    <label for="searchFSP" class="search-wrapper">
+      <span class="icon--search"></span>
+      <input type="text" id="searchFSP" placeholder="Search">
+      <span class="clear-input" id="clearSearchFSP">&times;</span>
+    </label>
     <button class="small" id="spaceWatchlistSorterClosePopup">&times;</button>
   </div>
   <div class="spaceWatchlistSorter-content">
@@ -46,7 +50,27 @@ const dbHelper = new IndexedDBHelper(SPWL_DB_NAME, SPWL_DB_VERSION);
 let loadedDataVersion = 1;
 let md5AtLoad = "";
 let userId;
-let currentFolders = [];
+let currentGroups = [];
+
+function tabId(groupId) {
+  return `spaceWatchlistSorterTab-${groupId}`;
+}
+
+function tabIdOf(folderId) {
+  return folderId.replace("Folder", "Tab");
+}
+
+function folderId(groupId) {
+  return `spaceWatchlistSorterFolder-${groupId}`;
+}
+
+function folderIdOf(tabId) {
+  return tabId.replace("Tab", "Folder");
+}
+
+function grouIdOf(elId) {
+  return elId.substring(elId.indexOf("-") + 1);
+}
 
 async function initializeDatabase() {
   if (!dbHelper.db) {
@@ -59,12 +83,10 @@ async function initializeDatabase() {
 }
 
 function moveToFolder($items, folderName) {
-  const tabId = $("#spaceWatchlistSorterTabs .spaceWatchlistSorter-tab")
+  const srcTabId = $("#spaceWatchlistSorterTabs .spaceWatchlistSorter-tab")
     .filter((_, tab) => $(tab).text().trim() === folderName)
     .attr("id");
-
-  const folderId = tabId.substring(tabId.indexOf("-") + 1);
-  const $targetFolder = $(`#spaceWatchlistSorterFolder-${folderId}`);
+  const $targetFolder = $(`#${folderIdOf(srcTabId)}`);
 
   if ($targetFolder.length) {
     const $targetList = $targetFolder.find(".spaceWatchlistSorter-sortable");
@@ -305,13 +327,13 @@ function mergeFolders(dbWatchlist, apiItems = null) {
   return updatedFolderMap;
 }
 
-function makeFolder(folderId, folderItems = "") {
+function makeFolder(groupId, folderItems = "") {
   return $(`
-      <div id="spaceWatchlistSorterFolder-${folderId}" class="spaceWatchlistSorter-folder" style="display: none;">
+      <div id="${folderId(groupId)}" class="spaceWatchlistSorter-folder" style="display: none;">
       <div class="sort-container">
-        <button class="spaceWatchlistSorter-removeFolder btn btn-pill-sm" data-folder-id="${folderId}"
+        <button class="spaceWatchlistSorter-removeFolder btn btn-pill-sm" data-folder-id="${groupId}"
           title="Remove this group and move its content to Unorganized.">x</button>
-        <button class="sort-alphabetically-button btn btn-pill-sm" data-folder-id="${folderId}"
+        <button class="sort-alphabetically-button btn btn-pill-sm" data-folder-id="${groupId}"
           title="Sort the content of this group alphabetically.">A-Z</button>
       </div>
         <ul class="spaceWatchlistSorter-sortable">${folderItems}</ul>
@@ -326,21 +348,21 @@ function populateUI(folderMap) {
   tabsContainer.empty();
   folderContainer.empty();
 
-  const folders = [...folderMap.values()].sort((a, b) => a.pos - b.pos);
-  folders.forEach((folder) => {
-    delete folder.pos;
-    const folderId = folder.id;
-    const tabId = `spaceWatchlistSorterTab-${folderId}`;
+  const groups = [...folderMap.values()].sort((a, b) => a.pos - b.pos);
+  groups.forEach((group) => {
+    delete group.pos;
+    const groupId = group.id;
+    const tId = tabId(groupId);
 
     // Add tabs
-    tabsContainer.append(`<div id="${tabId}" class="spaceWatchlistSorter-tab">${folder.name}</div>`);
+    tabsContainer.append(`<div id="${tId}" class="spaceWatchlistSorter-tab">${group.name}</div>`);
 
     const uniqueItems = new Set();
     // Add folder containers
     folderContainer.append(
       makeFolder(
-        folderId,
-        folder.items
+        groupId,
+        group.items
           .filter((item) => {
             if (uniqueItems.has(item.key)) return false; // Skip duplicates
             uniqueItems.add(item.key); // Track unique item
@@ -361,7 +383,7 @@ function populateUI(folderMap) {
   $(".spaceWatchlistSorter-folder").first().show();
   $(".spaceWatchlistSorter-tab").first().addClass("active");
 
-  saveWatchlistToDB(folders); // Save updated folders to database
+  saveWatchlistToDB(groups); // Save updated folders to database
 
   $(".spaceWatchlistSorter-tab")
     .off("click")
@@ -389,10 +411,10 @@ function populateUI(folderMap) {
   initLongPressContextMenu();
 }
 
-function sortFolderAlphabetically(folderId) {
-  // console.log(`Sorting folder with ID: ${folderId} alphabetically...`);
+function sortFolderAlphabetically(groupId) {
+  // console.log(`Sorting group with ID: ${groupId} alphabetically...`);
 
-  const $folder = $(`#spaceWatchlistSorterFolder-${folderId}`);
+  const $folder = $(`#${folderId(groupId)}`);
   const $list = $folder.find(".spaceWatchlistSorter-sortable");
 
   const $items = $list.children("li");
@@ -428,12 +450,12 @@ async function saveWatchlistToDB(folders = []) {
       return;
     }
 
-    currentFolders = folders.map((folder) => ({
+    currentGroups = folders.map((folder) => ({
       id: folder.id,
       name: folder.name,
       items: folder.items,
     }));
-    const foldersMd5 = md5Of(currentFolders);
+    const foldersMd5 = md5Of(currentGroups);
     if (foldersMd5 === md5AtLoad) {
       // console.log("No changes to save.");
       return;
@@ -463,7 +485,7 @@ async function saveWatchlistToDB(folders = []) {
       });
       await dbh.putData(SPWL_DB_STORE, {
         id: dId,
-        folders: currentFolders,
+        folders: currentGroups,
       });
       browserAPI.storage.local.set({ [dId]: loadedDataVersion });
     }
@@ -536,15 +558,23 @@ function resetWatchlistPopUp() {
   }
   $("body").append(spaceWatchlistSorterHTML);
   $("#spaceWatchlistSorter-popup").draggable({ handle: ".spaceWatchlistSorter-header" });
+  $("#searchFSP")
+    .off("input")
+    .on("input", function () {
+      // Show or hide the clear button based on input length
+      const hasValue = $(this).val().length > 0;
+      $("#clearSearchFSP").toggle(hasValue);
+    });
   $("#searchFSP").autocomplete({
     source: function (request, response) {
       let results = findPages(request.term.toLowerCase());
       response(
         results.map((match) => ({
-          label: `${match.item.text} (${match.id})`,
+          label: `${match.item.text} (${match.folderName})`,
           value: match.item.text,
-          tabId: match.id,
-          url: match.url,
+          groupId: match.groupId,
+          itemIdx: match.itemIdx,
+          url: match.item.url,
         }))
       );
     },
@@ -552,17 +582,31 @@ function resetWatchlistPopUp() {
     select: function (event, ui) {
       event.preventDefault();
       $("#searchFSP").val(ui.item.value);
-      // return false;
+      setActiveTab(tabId(ui.item.groupId));
+      $(`#${folderId(ui.item.groupId)} li`)
+        .eq(ui.item.itemIdx)
+        .addClass("selected");
+      $("#clearSearchFSP").show();
     },
+    appendTo: "#spaceWatchlistSorter-popup",
+  });
+  $("#clearSearchFSP").on("click", function () {
+    $("#searchFSP").val("").trigger("focus");
+    $(this).hide(); // Hide the clear button
   });
 }
 
 function findPages(term) {
   let matches = [];
-  currentFolders.forEach((folder) => {
-    folder.items.forEach((item) => {
+  currentGroups.forEach((group) => {
+    group.items.forEach((item, idx) => {
       if (item.text.toLowerCase().includes(term)) {
-        matches.push({ id: folder.id, item: item });
+        matches.push({
+          groupId: group.id,
+          folderName: group.name,
+          itemIdx: idx,
+          item: item,
+        });
       }
     });
   });
@@ -596,7 +640,7 @@ async function updateUI() {
 
 function addFolder() {
   const timestamp = Date.now();
-  const tabId = `spaceWatchlistSorterTab-${timestamp}`;
+  const tId = tabId(timestamp);
 
   // Ensure no duplicate or empty tabs
   const existingTabs = $(".spaceWatchlistSorter-tab")
@@ -613,28 +657,28 @@ function addFolder() {
 
   // Add the new folder tab BEFORE the "+" tab
   $("#spaceWatchlistSorterTabs .spaceWatchlistSorter-add-tab").before(`
-    <div id="${tabId}" class="spaceWatchlistSorter-tab">${newFolderName}</div>
+    <div id="${tId}" class="spaceWatchlistSorter-tab">${newFolderName}</div>
   `);
 
   // Add the new folder container
   $("#spaceWatchlistSorterFolderContainer").append(makeFolder(timestamp));
 
   // Tab switching logic
-  $(`#${tabId}`)
+  $(`#${tId}`)
     .off("click")
     .on("click", function () {
       setActiveTab($(this).attr("id"));
     });
 
   // Enable renaming for the new folder
-  $(`#${tabId}`)
+  $(`#${tId}`)
     .off("dblclick")
     .on("dblclick", function () {
       renameFolder($(this));
     });
 
   // Automatically switch to the new tab
-  setActiveTab(tabId);
+  setActiveTab(tId);
   initializeSortable(); // Reinitialize sortable
 
   // Save the new folder state
@@ -653,15 +697,13 @@ function renameFolder($tab) {
       // Revert to the original name if blank
       $tab.text(currentText);
     } else {
-      if ($tab.attr("id") == `spaceWatchlistSorterTab-${UNORGANIZED_GROUP_ID}`) {
+      if ($tab.attr("id") == tabId(UNORGANIZED_GROUP_ID)) {
         // We have renamed Unorganized - it's id (and all references to it) now need to change
         const timestamp = Date.now();
-        $tab.attr("id", `spaceWatchlistSorterTab-${timestamp}`);
-        $(`#spaceWatchlistSorterFolder-${UNORGANIZED_GROUP_ID} .sort-container button`).attr(
-          "data-folder-id",
-          timestamp
-        );
-        $(`#spaceWatchlistSorterFolder-${UNORGANIZED_GROUP_ID}`).attr("id", `spaceWatchlistSorterFolder-${timestamp}`);
+        const unorgFolderId = folderId(UNORGANIZED_GROUP_ID);
+        $tab.attr("id", tabId(timestamp));
+        $(`#${unorgFolderId} .sort-container button`).attr("data-folder-id", timestamp);
+        $(`#${unorgFolderId}`).attr("id", folderId(timestamp));
       }
       debounceSaveWatchlistToDB(); // Debounced save
     }
@@ -679,11 +721,11 @@ function renameFolder($tab) {
 function getUpdatedFolders() {
   const updatedFolders = [];
   $("#spaceWatchlistSorterTabs .spaceWatchlistSorter-tab").each(function () {
-    const tabId = $(this).attr("id");
-    if (tabId && !$(this).hasClass("spaceWatchlistSorter-add-tab")) {
-      const folderId = tabId.replace("spaceWatchlistSorterTab-", "");
+    const tId = $(this).attr("id");
+    if (tId && !$(this).hasClass("spaceWatchlistSorter-add-tab")) {
+      const groupId = grouIdOf(tId);
       const folderName = $(this).text().trim();
-      const folderItems = $(`#spaceWatchlistSorterFolder-${folderId} .spaceWatchlistSorter-sortable li`)
+      const folderItems = $(`#${folderId(groupId)} .spaceWatchlistSorter-sortable li`)
         .map(function () {
           const $li = $(this);
           const key = $li.data("id");
@@ -693,7 +735,7 @@ function getUpdatedFolders() {
         .get();
 
       updatedFolders.push({
-        id: folderId,
+        id: groupId,
         name: folderName,
         items: folderItems,
       });
@@ -807,18 +849,13 @@ $(document)
         if (!newText) {
           $tab.text(currentText);
         } else {
-          if ($tab.attr("id") == `spaceWatchlistSorterTab-${UNORGANIZED_GROUP_ID}`) {
+          if ($tab.attr("id") == tabId(UNORGANIZED_GROUP_ID)) {
             // We have renamed Unorganized - it's id (and all references to it) now need to change
             const timestamp = Date.now();
-            $tab.attr("id", `spaceWatchlistSorterTab-${timestamp}`);
-            $(`#spaceWatchlistSorterFolder-${UNORGANIZED_GROUP_ID} .sort-container button`).attr(
-              "data-folder-id",
-              timestamp
-            );
-            $(`#spaceWatchlistSorterFolder-${UNORGANIZED_GROUP_ID}`).attr(
-              "id",
-              `spaceWatchlistSorterFolder-${timestamp}`
-            );
+            const unorgFolderId = folderId(UNORGANIZED_GROUP_ID);
+            $tab.attr("id", tabId(timestamp));
+            $(`#${unorgFolderId} .sort-container button`).attr("data-folder-id", timestamp);
+            $(`#${unorgFolderId}`).attr("id", folderId(timestamp));
           }
           debounceSaveWatchlistToDB();
         }
@@ -880,20 +917,22 @@ function initializeSortable() {
 
 function setActiveTab(tabId) {
   $(".spaceWatchlistSorter-tab").removeClass("active");
+  $(".spaceWatchlistSorter-sortable li").removeClass("selected");
+
   $(`#${tabId}`).addClass("active");
-  const targetFolderId = tabId.replace("Tab", "Folder");
+  const targetFolderId = folderIdOf(tabId);
   $(".spaceWatchlistSorter-folder").hide();
   $(`#${targetFolderId}`).show();
 }
 
 function createUnorganizedTabAndFolder() {
   // Create the Unorganized folder
-  const tabId = `spaceWatchlistSorterTab-${UNORGANIZED_GROUP_ID}`;
+  const tId = tabId(UNORGANIZED_GROUP_ID);
   $("#spaceWatchlistSorterTabs").prepend(`
-    <div id="${tabId}" class="spaceWatchlistSorter-tab">${UNORGANIZED_FOLDER_NAME}</div>
+    <div id="${tId}" class="spaceWatchlistSorter-tab">${UNORGANIZED_FOLDER_NAME}</div>
   `);
   $("#spaceWatchlistSorterFolderContainer").prepend(makeFolder(UNORGANIZED_GROUP_ID));
-  $(`#${tabId}`)
+  $(`#${tId}`)
     .off("click")
     .on("click", function () {
       setActiveTab($(this).attr("id"));
@@ -930,9 +969,8 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
 
         // Remove empty tabs and corresponding folders from the UI
         $(".spaceWatchlistSorter-tab").each(function () {
-          const tabId = $(this).attr("id");
-          const folderId = tabId.replace("Tab", "Folder");
-          const $folder = $(`#${folderId}`);
+          const tId = $(this).attr("id");
+          const $folder = $(`#${folderIdOf(tId)}`);
 
           if (
             $folder.find("li").length === 0 && // Check if the folder is empty
@@ -967,11 +1005,11 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
     $(document)
       .off("click", ".spaceWatchlistSorter-removeFolder")
       .on("click", ".spaceWatchlistSorter-removeFolder", function () {
-        const sourceId = $(this).data("folder-id") || $(this).attr("data-folder-id");
-        const srcFolderId = `spaceWatchlistSorterFolder-${sourceId}`;
-        const srcTabId = `spaceWatchlistSorterTab-${sourceId}`;
-        const unorgFolderId = `spaceWatchlistSorterFolder-${UNORGANIZED_GROUP_ID}`;
-        let newActiveTabId = `spaceWatchlistSorterTab-${UNORGANIZED_GROUP_ID}`;
+        const srcGroupId = $(this).data("folder-id") || $(this).attr("data-folder-id");
+        const srcFolderId = folderId(srcGroupId);
+        const srcTabId = tabId(srcGroupId);
+        const unorgFolderId = folderId(UNORGANIZED_GROUP_ID);
+        let newActiveTabId = tabId(UNORGANIZED_GROUP_ID);
 
         const $sourceUl = $(`#${srcFolderId} .spaceWatchlistSorter-sortable`);
         let $unorgUl = $(`#${unorgFolderId} .spaceWatchlistSorter-sortable`);
@@ -1141,8 +1179,8 @@ shouldInitializeFeature("spaceWatchlistSorter").then((result) => {
     $(document)
       .off("click", ".sort-alphabetically-button")
       .on("click", ".sort-alphabetically-button", function () {
-        const folderId = $(this).data("folder-id") || $(this).attr("data-folder-id");
-        sortFolderAlphabetically(folderId);
+        const groupId = $(this).data("folder-id") || $(this).attr("data-folder-id");
+        sortFolderAlphabetically(groupId);
       });
   }
 });
