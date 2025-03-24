@@ -85,23 +85,23 @@ class CustomStyle {
   .qa-page-prev,
   .qa-page-next,
   div.status,
-  h2, h3, h4, h5, h6,
+  h1, h2, h3, h4, h5, h6,
   .qa-form-tall-table,
   ul.qa-nav-cat-list a {
-    border-radius: 1em;
+    border-radius: 1em !important;
   }
   ul.profile-tabs li,
   ul.qa-nav-main-list li a,
   ul.qa-nav-sub-list li a,
   ul.qa-nav-footer-list li a {
-    border-radius: 1em 1em 0 0;
+    border-radius: 1em 1em 0 0 !important;
   }
   ul.qa-nav-sub-list li a,
   ul.qa-nav-footer-list li a {
-    border-radius: 0 0 1em 1em;
+    border-radius: 0 0 1em 1em !important;
   }
   img[src*="images/badge"] {
-    border-radius: 50%;
+    border-radius: 50% !important;
   }`;
   }
 
