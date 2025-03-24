@@ -186,7 +186,7 @@ class CustomStyle {
         }
       } else if (key === "headingLinks_color") {
         theValue = this.options["headings_color"];
-      } else if (key === "editor_font-size") {
+      } else if (key.includes("font-size")) {
         theValue += "%";
       }
 
