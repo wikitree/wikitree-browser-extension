@@ -556,6 +556,7 @@ function resetWatchlistPopUp() {
   if ($popup.length > 0) {
     $popup.remove();
   }
+  const gotoImg = chrome.runtime.getURL("images/top-right-svgrepo-com.svg");
   $("body").append(spaceWatchlistSorterHTML);
   $("#spaceWatchlistSorter-popup").draggable({ handle: ".spaceWatchlistSorter-header" });
   $("#searchFSP")
@@ -565,31 +566,54 @@ function resetWatchlistPopUp() {
       const hasValue = $(this).val().length > 0;
       $("#clearSearchFSP").toggle(hasValue);
     });
-  $("#searchFSP").autocomplete({
-    source: function (request, response) {
-      let results = findPages(request.term.toLowerCase());
-      response(
-        results.map((match) => ({
-          label: `${match.item.text} (${match.folderName})`,
-          value: match.item.text,
-          groupId: match.groupId,
-          itemIdx: match.itemIdx,
-          url: match.item.url,
-        }))
-      );
-    },
-    minLength: 2,
-    select: function (event, ui) {
-      event.preventDefault();
-      $("#searchFSP").val(ui.item.value);
-      setActiveTab(tabId(ui.item.groupId));
-      $(`#${folderId(ui.item.groupId)} li`)
-        .eq(ui.item.itemIdx)
-        .addClass("selected");
-      $("#clearSearchFSP").show();
-    },
-    appendTo: "#spaceWatchlistSorter-popup",
-  });
+  $("#searchFSP")
+    .autocomplete({
+      source: function (request, response) {
+        let results = findPages(request.term.toLowerCase());
+        response(
+          results.map((match) => ({
+            label: `${match.item.text} (${match.folderName})`,
+            value: match.item.text,
+            groupId: match.groupId,
+            itemIdx: match.itemIdx,
+            url: match.item.url,
+          }))
+        );
+      },
+      minLength: 2,
+      select: function (event, ui) {
+        event.preventDefault();
+        $("#searchFSP").val(ui.item.value);
+        setActiveTab(tabId(ui.item.groupId));
+        $(`#${folderId(ui.item.groupId)} li`)
+          .eq(ui.item.itemIdx)
+          .addClass("selected");
+        $("#clearSearchFSP").show();
+      },
+      appendTo: "#spaceWatchlistSorter-popup",
+    })
+    .autocomplete("instance")._renderItem = function (ul, item) {
+    // Custom HTML with two clickable areas
+    let $li = $("<li>")
+      .append(
+        `<div class="autocomplete-item">
+            <button class="goto-fsp" data-url="${item.url}" style="background-image:url(${gotoImg})"
+              title="Open this page in a new tab."></button>
+            <span title="Go to this entry's folder and highlight the entry.">${item.label}</span>
+          </div>`
+      )
+      .appendTo(ul);
+
+    return $li;
+  };
+
+  $("#spaceWatchlistSorter-popup")
+    .off("click", ".goto-fsp")
+    .on("click", ".goto-fsp", function () {
+      const url = $(this).data("url");
+      if (url) window.open(url, "_blank");
+    });
+
   $("#clearSearchFSP").on("click", function () {
     $("#searchFSP").val("").trigger("focus");
     $(this).hide(); // Hide the clear button

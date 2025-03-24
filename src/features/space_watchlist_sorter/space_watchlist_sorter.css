@@ -223,7 +223,7 @@ div.spaceWatchlistSorter-header:active {
 } */
 
 /* Container for search input */
-.search-wrapper {
+#spaceWatchlistSorter-popup .search-wrapper {
   position: relative;
   width: 95%; /* 95% of the header */
   display: flex;
@@ -239,7 +239,7 @@ div.spaceWatchlistSorter-header:active {
 }
 
 /* Clear button (X) */
-.clear-input {
+#spaceWatchlistSorter-popup .clear-input {
   position: absolute;
   right: 10px;
   top: 50%;
@@ -258,6 +258,15 @@ div.spaceWatchlistSorter-header:active {
 }
 
 /* Optional: Hover effect */
-.clear-input:hover {
+#spaceWatchlistSorter-popup .clear-input:hover {
   color: #555;
+}
+
+#spaceWatchlistSorter-popup button.goto-fsp {
+  width: 1em;
+  height: 1em;
+  border: 1pt solid;
+  display: inline-block;
+  background-size: 1em;
+  background-position: center;
 }
