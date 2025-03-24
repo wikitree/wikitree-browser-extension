@@ -356,7 +356,7 @@ function doRelationshipText(userID, profileID) {
                 .toLowerCase();
             }
           } else {
-            const profileGender = document.querySelector("meta[itemprop='gender']")?.content || "";
+            const profileGender = profilePerson.Gender;
 
             if (firstPText.includes("is the")) {
               relationshipText = firstPText.split("is the ")[1].split(" of")[0];
