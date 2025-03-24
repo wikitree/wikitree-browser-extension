@@ -42,15 +42,6 @@ const myCustomStyle = {
           defaultValue: "'Roboto', sans-serif",
         },
         {
-          id: "global_font-size",
-          type: "number",
-          label: "Font size (%)",
-          defaultValue: "100",
-          min: "50",
-          max: "200",
-          step: "1",
-        },
-        {
           id: "roundedCorners",
           type: OptionType.CHECKBOX,
           label: "Rounded corners",
