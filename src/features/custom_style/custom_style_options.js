@@ -16,6 +16,31 @@ const myCustomStyle = {
       type: OptionType.GROUP,
       label: "Global",
       options: [
+        { id: "global_background-color", type: "color", label: "Background color", defaultValue: "#ffffff" },
+        {
+          id: "global_color",
+          type: "color",
+          label: "Font color",
+          defaultValue: "#393a3c",
+        },
+        {
+          id: "global_font-family",
+          type: OptionType.SELECT,
+          label: "Font family",
+          values: [
+            { value: "Arial, sans-serif", text: "Arial" },
+            { value: "'Comic Sans MS', cursive", text: "Comic Sans MS" },
+            { value: "'Courier New', monospace", text: "Courier New" },
+            { value: "Georgia, serif", text: "Georgia" },
+            { value: "'Lucida Console', monospace", text: "Lucida Console" },
+            { value: "'Roboto', sans-serif", text: "Roboto" },
+            { value: "Tahoma, sans-serif", text: "Tahoma" },
+            { value: "'Times New Roman', serif", text: "Times New Roman" },
+            { value: "'Trebuchet MS', sans-serif", text: "Trebuchet MS" },
+            { value: "Verdana, sans-serif", text: "Verdana" },
+          ],
+          defaultValue: "'Roboto', sans-serif",
+        },
         {
           id: "roundedCorners",
           type: OptionType.CHECKBOX,
