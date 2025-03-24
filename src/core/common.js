@@ -267,7 +267,7 @@ oncePerTab((rootWindow) => {
 
 if ($("#ebWBE").length == 0) {
   $('a img[alt="WikiTree: Where genealogists collaborate"]').parent("a")
-    .after(`<br><span id="ebWBE" style="font-size: small;"><a style="color: inherit !important; text-decoration: none;"
+    .after(`<span id="ebWBE"><a style="color: inherit !important; text-decoration: none;"
         href="/wiki/Space:WikiTree_Browser_Extension">Enhanced by the WikiTree Browser Extension</a></span>`);
 }
 

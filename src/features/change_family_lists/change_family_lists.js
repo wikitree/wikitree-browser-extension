@@ -1570,13 +1570,13 @@ function insertInSibList() {
   }
 
   let inserter = $(`
-      <span itemprop="sibling" itemtype="http://schema.org/Person" data-private="0" class="${parentClasses}"><a href="#n" class="activeProfile" data-wtid="${
-    pPerson.Name
-  }">${displayName(pPerson)[0]}</a><span class="bdDates" data-birth-year="${birthYear || ""}" data-death-year="${
+      <span itemprop="sibling" itemtype="http://schema.org/Person" data-private="0"><a href="#n" class="activeProfile" data-wtid="${
+        pPerson.Name
+      }">${displayName(pPerson)[0]}</a><span class="bdDates" data-birth-year="${birthYear || ""}" data-death-year="${
     deathYear || ""
   }"> ${displayDates(pPerson).trim().replace(/ - /, "–")}</span></span>`);
 
-  const profilePersonLi = $(`<li id='profilePerson' class="${parentClasses}"></li>`);
+  const profilePersonLi = $(`<li id='profilePerson'></li>`);
   let elToFind = "#Siblings li";
   let closestEl = "li";
   if (options && options.verticalLists) {

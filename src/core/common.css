@@ -187,3 +187,22 @@ div.wbe-button-container2 {
   align-items: center;
   float: right;
 }
+
+#ebWBE {
+  font-size: small;
+  display: block;
+  margin-top: 1em;
+  min-width: max-content;
+}
+@media (max-width: 600px) {
+  #ebWBE {
+    font-size: x-small;
+    margin-left: 1em;
+  }
+}
+@media (min-width: 992px) and (max-width: 1200px) {
+  #ebWBE {
+    font-size: x-small;
+    margin-left: 1em;
+  }
+}
