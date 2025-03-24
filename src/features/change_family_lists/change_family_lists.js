@@ -174,9 +174,18 @@ function parseBracketedUnknownInBlock(blockEl) {
   const bracketRegex = /\[[^\]]*\]/g;
   const bracketed = raw.match(bracketRegex) || [];
   bracketed.forEach((b) => {
-    if (/^\[half\]$/i.test(b) || /^add\b/i.test(b) || /^edit\b/i.test(b)) return;
+    const trimmed = b.trim().toLowerCase();
+    if (
+      /^\[half\]$/i.test(b) ||
+      /^add\b/i.test(b) ||
+      /^edit\b/i.test(b) ||
+      ["[uncertain]", "[certain]", "[non-biological]"].includes(trimmed)
+    ) {
+      return;
+    }
     results.push(newPersonFromBracket(b));
   });
+
   return results;
 }
 
