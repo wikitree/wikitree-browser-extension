@@ -1,7 +1,7 @@
 {
   "name": "WikiTree Browser Extension (Preview)",
   "description": "The official WikiTree browser extension.",
-  "version": "2.0.10.2",
+  "version": "2.0.10.3",
   "manifest_version": 3,
   "options_page": "options.html",
   "permissions": ["storage", "clipboardRead", "clipboardWrite", "contextMenus", "activeTab"],
@@ -24,7 +24,9 @@
         "features/darkMode/darkMode.css",
         "js/*.js",
         "js/images/*",
-        "fonts/*"
+        "fonts/*.woff2",
+        "fonts/*.woff",
+        "fonts/*.ttf"
       ]
     }
   ],
