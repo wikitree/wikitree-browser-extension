@@ -275,6 +275,29 @@ class CustomStyle {
     span.qa-q-item-meta a.qa-q-item-what:link .checkmark {
       color: ${this.options["global_background-color"]};   
     }`; // Checkmark color
+    if (this.options["global_font-family"] == "OpenDyslexic") {
+      rules += `
+      @font-face {
+        font-family: 'OpenDyslexic';
+        src: url('fonts/OpenDyslexic-Regular.woff2') format('woff2');
+        font-weight: normal;
+        font-style: normal;
+      }
+
+      @font-face {
+        font-family: 'OpenDyslexic';
+        src: url('fonts/OpenDyslexic-Bold.woff2') format('woff2');
+        font-weight: bold;
+        font-style: normal;
+      }
+
+      @font-face {
+        font-family: 'OpenDyslexic';
+        src: url('fonts/OpenDyslexic-Italic.woff2') format('woff2');
+        font-weight: normal;
+        font-style: italic;
+      }`; // OpenDyslexic font
+    }
 
     return rules;
   }

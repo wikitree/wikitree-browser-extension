@@ -23,7 +23,8 @@
         "features/wtPlus/templatesExp.json",
         "features/darkMode/darkMode.css",
         "js/*.js",
-        "js/images/*"
+        "js/images/*",
+        "fonts/*"
       ]
     }
   ],
