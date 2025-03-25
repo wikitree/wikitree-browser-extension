@@ -275,35 +275,6 @@ class CustomStyle {
     span.qa-q-item-meta a.qa-q-item-what:link .checkmark {
       color: ${this.options["global_background-color"]};   
     }`; // Checkmark color
-
-    // OpenDyslexic font
-    const regularFontURL = chrome.runtime.getURL("fonts/OpenDyslexic-Regular.woff2");
-    const boldFontURL = chrome.runtime.getURL("fonts/OpenDyslexic-Bold.woff2");
-    const italicFontURL = chrome.runtime.getURL("fonts/OpenDyslexic-Italic.woff2");
-    if (this.options["global_font-family"] == "OpenDyslexic") {
-      rules += `
-      @font-face {
-        font-family: 'OpenDyslexic';
-        src: url(${regularFontURL}) format('woff2');
-        font-weight: normal;
-        font-style: normal;
-      }
-
-      @font-face {
-        font-family: 'OpenDyslexic';
-        src: url(${boldFontURL}) format('woff2');
-        font-weight: bold;
-        font-style: normal;
-      }
-
-      @font-face {
-        font-family: 'OpenDyslexic';
-        src: url(${italicFontURL}) format('woff2');
-        font-weight: normal;
-        font-style: italic;
-      }`; // OpenDyslexic font
-    }
-
     return rules;
   }
 

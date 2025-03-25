@@ -1,5 +1,53 @@
 document?.documentElement?.removeAttribute("data-wbe-conflict");
 
+chrome.storage.sync.get(["customStyle_options"], (result) => {
+  const fontFamily = result.customStyle_options?.["global_font-family"];
+
+  if (fontFamily === "OpenDyslexic") {
+    const regular = chrome.runtime.getURL("fonts/OpenDyslexic-Regular.woff2");
+    const bold = chrome.runtime.getURL("fonts/OpenDyslexic-Bold.woff2");
+    const italic = chrome.runtime.getURL("fonts/OpenDyslexic-Italic.woff2");
+    const boldItalic = chrome.runtime.getURL("fonts/OpenDyslexic-Bold-Italic.woff2");
+
+    const style = document.createElement("style");
+    style.textContent = `
+      @font-face {
+        font-family: 'OpenDyslexic';
+        src: url('${regular}') format('woff2');
+        font-weight: normal;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: 'OpenDyslexic';
+        src: url('${bold}') format('woff2');
+        font-weight: bold;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: 'OpenDyslexic';
+        src: url('${italic}') format('woff2');
+        font-weight: normal;
+        font-style: italic;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: 'OpenDyslexic';
+        src: url('${boldItalic}') format('woff2');
+        font-weight: bold;
+        font-style: italic;
+        font-display: swap;
+      }
+    `;
+    document.head.appendChild(style);
+
+    document.fonts.load("1rem OpenDyslexic").then(() => {
+      document.documentElement.classList.add("dyslexic-font");
+    });
+  }
+});
+
 import "./features/register_feature_options";
 
 // First are loaded modules that change the wikitree appearence by altering css style
