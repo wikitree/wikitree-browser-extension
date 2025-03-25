@@ -47,85 +47,9 @@ const readabilityFeature = {
       label: "Accessibility Options",
       options: [
         {
-          id: "formFieldContrast",
-          type: OptionType.SELECT,
-          label: "Adjust contrast of form fields",
-          values: [
-            {
-              value: "default",
-              text: "WikiTree default",
-            },
-            {
-              value: 33,
-              text: "low",
-            },
-            {
-              value: 67,
-              text: "medium",
-            },
-            {
-              value: 100,
-              text: "high",
-            },
-          ],
-          defaultValue: "default",
-        },
-        {
-          id: "formFieldSpacing",
-          type: OptionType.SELECT,
-          label: "Adjust spacing between form fields",
-          values: [
-            {
-              value: "default",
-              text: "WikiTree default",
-            },
-            {
-              value: 0,
-              text: "minimal",
-            },
-          ],
-          defaultValue: "default",
-        },
-        {
-          id: "textLineHeight",
-          type: OptionType.SELECT,
-          label: "Adjust spacing between lines of text",
-          values: [
-            {
-              value: 70,
-              text: "70%",
-            },
-            {
-              value: 80,
-              text: "80%",
-            },
-            {
-              value: 90,
-              text: "90%",
-            },
-            {
-              value: "default",
-              text: "WikiTree default",
-            },
-            {
-              value: 110,
-              text: "110%",
-            },
-            {
-              value: 120,
-              text: "120%",
-            },
-            {
-              value: 130,
-              text: "130%",
-            },
-          ],
-          defaultValue: "default",
-        },
-        {
           id: "fontSizeAdjust",
           type: OptionType.SELECT,
-          label: "Font size adjustment",
+          label: "Adjust font sizes",
           values: [
             {
               value: 50,
@@ -170,6 +94,82 @@ const readabilityFeature = {
             {
               value: 150,
               text: "150%",
+            },
+          ],
+          defaultValue: "default",
+        },
+        {
+          id: "textLineHeight",
+          type: OptionType.SELECT,
+          label: "Adjust vertical spacing between lines of text",
+          values: [
+            {
+              value: 70,
+              text: "70%",
+            },
+            {
+              value: 80,
+              text: "80%",
+            },
+            {
+              value: 90,
+              text: "90%",
+            },
+            {
+              value: "default",
+              text: "WikiTree default",
+            },
+            {
+              value: 110,
+              text: "110%",
+            },
+            {
+              value: 120,
+              text: "120%",
+            },
+            {
+              value: 130,
+              text: "130%",
+            },
+          ],
+          defaultValue: "default",
+        },
+        {
+          id: "formFieldSpacing",
+          type: OptionType.SELECT,
+          label: "Adjust spacing between data entry fields",
+          values: [
+            {
+              value: "default",
+              text: "WikiTree default",
+            },
+            {
+              value: 0,
+              text: "minimal",
+            },
+          ],
+          defaultValue: "default",
+        },
+        {
+          id: "formFieldContrast",
+          type: OptionType.SELECT,
+          label: "Adjust contrast of data entry fields",
+          values: [
+            {
+              value: "default",
+              text: "WikiTree default",
+            },
+            {
+              value: 33,
+              text: "low",
+            },
+            {
+              value: 67,
+              text: "medium",
+            },
+            {
+              value: 100,
+              text: "high",
             },
           ],
           defaultValue: "default",
@@ -613,26 +613,6 @@ const readabilityFeature = {
               defaultValue: 1,
             },
             {
-              id: "hideCollaborationLinks",
-              type: OptionType.SELECT,
-              label: "Hide collaboration links",
-              values: [
-                {
-                  value: 0,
-                  text: "never",
-                },
-                {
-                  value: 1,
-                  text: "in reading mode",
-                },
-                {
-                  value: 255,
-                  text: "always",
-                },
-              ],
-              defaultValue: 1,
-            },
-            {
               id: "hideResearch",
               type: OptionType.SELECT,
               label: "Hide the research section",
@@ -922,6 +902,26 @@ const readabilityFeature = {
           type: OptionType.GROUP,
           label: "Bottom Section",
           options: [
+            {
+              id: "hideCollaborationLinks",
+              type: OptionType.SELECT,
+              label: "Hide collaboration links",
+              values: [
+                {
+                  value: 0,
+                  text: "never",
+                },
+                {
+                  value: 1,
+                  text: "in reading mode",
+                },
+                {
+                  value: 255,
+                  text: "always",
+                },
+              ],
+              defaultValue: 1,
+            },
             {
               id: "hideComments",
               type: OptionType.SELECT,

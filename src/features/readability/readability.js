@@ -407,9 +407,6 @@ async function initReadability(options) {
     if (isToggled(options.hideSidebarImages)) {
       $("html").toggleClass("hide-sidebar-images");
     }
-    if (isToggled(options.hideCollaborationLinks)) {
-      $("html").toggleClass("hide-sidebar-collaboration");
-    }
     if (isToggled(options.hideResearch)) {
       $("html").toggleClass("hide-sidebar-research");
     }
@@ -455,6 +452,9 @@ async function initReadability(options) {
     }
     if (isToggled(options.hideInlineImages)) {
       $("html").toggleClass("hide-inline-images");
+    }
+    if (isToggled(options.hideCollaborationLinks)) {
+      $("html").toggleClass("hide-collaboration");
     }
     if (isToggled(options.hideComments)) {
       $("html").toggleClass("hide-comments");
