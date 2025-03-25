@@ -70,7 +70,7 @@ async function helpScissors() {
 
     // Profiles change details page
     if (isProfileHistoryDetail) {
-      const historyItem = $("span.HISTORY-ITEM");
+      const historyItem = $("span.feed-item");
       const theAct = historyItem.find("a:contains(created),a:contains(imported the data)");
       const createDetail = theAct.length ? ` at creation of WikiTree profile ${theAct[0].title}` : "";
       const fromGedcom = theAct.length ? historyItem.find('a[title*="UploadGedcom"]') : undefined;
