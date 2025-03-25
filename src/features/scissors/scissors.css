@@ -4,3 +4,12 @@
 ul.scissors li {
   margin-right: 0.7rem;
 }
+h1 ul.scissors,
+h2 ul.scissors,
+h3 ul.scissors,
+h4 ul.scissors,
+h5 ul.scissors,
+h6 ul.scissors {
+  display: inline-block;
+  margin-bottom: 0.3em;
+}
