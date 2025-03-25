@@ -306,7 +306,11 @@ const doExtraWatchlist = () => {
     window.userID = getUserNumId();
     const extraList = localStorage.getItem("extraWatchlist");
     if (extraList) {
-      let bits = extraList.split(/[@,]/);
+      let bits = extraList
+        .split(/[@,]/)
+        .map((id) => id.trim())
+        .filter((id) => id !== "");
+
       const spacePages = bits.filter((x) => x.match("Space:"));
       const personPages = bits.filter((x) => !x.match("Space:"));
       if (personPages.length > 0) {
@@ -534,7 +538,8 @@ const createWatchlistPopup = (mouseY) => {
         const file = fileChooser.files[0];
         const reader = new FileReader();
         reader.onload = (ev) => {
-          const textData = ev.target.result.replace(/@/g, ",");
+          let textData = ev.target.result.replace(/@/g, ",");
+          textData = textData.replace(/,+\s*$/, "");
           localStorage.setItem("extraWatchlist", textData);
           $popup.remove();
           $("#viewExtraWatchlist").trigger("click");
