@@ -1,40 +1,38 @@
 document?.documentElement?.removeAttribute("data-wbe-conflict");
 
+// Add OpenDyslexic font
 chrome.storage.sync.get(["customStyle_options"], (result) => {
   const fontFamily = result.customStyle_options?.["global_font-family"];
 
   if (fontFamily === "OpenDyslexic") {
-    const regular = chrome.runtime.getURL("fonts/OpenDyslexic-Regular.woff2");
-    const bold = chrome.runtime.getURL("fonts/OpenDyslexic-Bold.woff2");
-    const italic = chrome.runtime.getURL("fonts/OpenDyslexic-Italic.woff2");
-    const boldItalic = chrome.runtime.getURL("fonts/OpenDyslexic-Bold-Italic.woff2");
+    const base = (name) => chrome.runtime.getURL(`fonts/OpenDyslexic-${name}.woff2`);
 
     const style = document.createElement("style");
     style.textContent = `
       @font-face {
         font-family: 'OpenDyslexic';
-        src: url('${regular}') format('woff2');
+        src: url('${base("Regular")}') format('woff2');
         font-weight: normal;
         font-style: normal;
         font-display: swap;
       }
       @font-face {
         font-family: 'OpenDyslexic';
-        src: url('${bold}') format('woff2');
+        src: url('${base("Bold")}') format('woff2');
         font-weight: bold;
         font-style: normal;
         font-display: swap;
       }
       @font-face {
         font-family: 'OpenDyslexic';
-        src: url('${italic}') format('woff2');
+        src: url('${base("Italic")}') format('woff2');
         font-weight: normal;
         font-style: italic;
         font-display: swap;
       }
       @font-face {
         font-family: 'OpenDyslexic';
-        src: url('${boldItalic}') format('woff2');
+        src: url('${base("Bold-Italic")}') format('woff2');
         font-weight: bold;
         font-style: italic;
         font-display: swap;
@@ -42,8 +40,22 @@ chrome.storage.sync.get(["customStyle_options"], (result) => {
     `;
     document.head.appendChild(style);
 
-    document.fonts.load("1rem OpenDyslexic").then(() => {
+    // 👇 Explicitly load each variation
+    Promise.all([
+      document.fonts.load("normal 1rem OpenDyslexic"),
+      document.fonts.load("bold 1rem OpenDyslexic"),
+      document.fonts.load("italic 1rem OpenDyslexic"),
+      document.fonts.load("bold italic 1rem OpenDyslexic"),
+    ]).then(() => {
       document.documentElement.classList.add("dyslexic-font");
+
+      // 👇 Optional Safari nudge
+      const nudge = document.createElement("span");
+      nudge.textContent = ".";
+      nudge.style.fontFamily = "OpenDyslexic";
+      nudge.style.opacity = "0";
+      document.body.appendChild(nudge);
+      requestAnimationFrame(() => nudge.remove());
     });
   }
 });
