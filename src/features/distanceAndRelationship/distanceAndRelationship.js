@@ -349,10 +349,14 @@ function doRelationshipText(userID, profileID) {
             const boldParentHTML = bold?.parentElement.innerHTML || "";
             relationshipText = bold?.textContent || "";
             if (boldParentHTML.includes(profileFirstName) && !lastLink.includes(profileID)) {
-              relationshipText = firstPText.replace("(DNA Confirmed)", "").replace("(Confident)", "").trim();
+              relationshipText = firstPText
+                .replace("(DNA Confirmed)", "")
+                .replace("(Confident)", "")
+                .trim()
+                .toLowerCase();
             }
           } else {
-            const profileGender = document.querySelector("meta[itemprop='gender']")?.content || "";
+            const profileGender = profilePerson.Gender;
 
             if (firstPText.includes("is the")) {
               relationshipText = firstPText.split("is the ")[1].split(" of")[0];

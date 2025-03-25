@@ -7358,8 +7358,11 @@ export function addUnsourced(feature = "autoBio") {
                   window.sectionsObject["StuffBeforeTheBio"].text.push(unsourcedCategory);
                 }
               } else if (found == false) {
-                unsourcedTemplateString += `|${aPlace}`;
-                found = true;
+                if (!unsourcedTemplateString.includes(aPlace)) {
+                  unsourcedTemplateString += `|${aPlace}`;
+                  found = true;
+                  return;
+                }
               }
             }
           });

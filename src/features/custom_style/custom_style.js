@@ -85,23 +85,52 @@ class CustomStyle {
   .qa-page-prev,
   .qa-page-next,
   div.status,
-  h2, h3, h4, h5, h6,
+  h1:not(#dummyID h1), 
+  h2:not(#dummyID h2), 
+  h3:not(#dummyID h3), 
+  h4:not(#dummyID h4), 
+  h5:not(#dummyID h5), 
+  h6:not(#dummyID h6),
   .qa-form-tall-table,
   ul.qa-nav-cat-list a {
-    border-radius: 1em;
+    border-radius: 0.5em !important;
+  }
+ .qa-voting,
+  .qa-a-count,
+  input.qa-form-tall-text,
+  input[type="text"],
+  input[type="submit"],
+  .qa-q-list-item-featured,
+  .qa-tag-link,
+  .qa-page-link,
+  .qa-page-selected,
+  .qa-page-prev,
+  .qa-page-next,
+  h1:not(#dummyID h1), 
+  h2:not(#dummyID h2), 
+  h3:not(#dummyID h3), 
+  h4:not(#dummyID h4), 
+  h5:not(#dummyID h5), 
+  h6:not(#dummyID h6),
+  .qa-form-tall-table,
+  ul.qa-nav-cat-list a {
+        padding: 0.2em !important;
   }
   ul.profile-tabs li,
   ul.qa-nav-main-list li a,
   ul.qa-nav-sub-list li a,
   ul.qa-nav-footer-list li a {
-    border-radius: 1em 1em 0 0;
+    border-radius: 0.5em 0.5em 0 0 !important;
+    padding: 0.2em !important;
   }
   ul.qa-nav-sub-list li a,
   ul.qa-nav-footer-list li a {
-    border-radius: 0 0 1em 1em;
+    border-radius: 0 0 0.5em 0.5em !important;
+    padding: 0.2em !important;
   }
   img[src*="images/badge"] {
-    border-radius: 50%;
+    border-radius: 0.5em !important;
+    padding: 0.2em !important;
   }`;
   }
 
@@ -114,6 +143,7 @@ class CustomStyle {
 
   getSelectors(bits) {
     let idToSelectorMapping = {
+      global: "body:not(.darkMode)",
       header: ".sticky-header body:not(.darkMode) .wrapper #header::before,#header",
       headings:
         "h1,h2:not(#view-container h2),h3:not(#view-container h3),h4:not(#view-container h4),h5:not(#view-container h5),h6:not(#view-container h6,.tree--placement h6),#themeTable caption",
@@ -239,7 +269,12 @@ class CustomStyle {
     if (this.options["roundedCorners"]) {
       rules += this.handleRoundedCorners();
     }
-
+    // Handle G2G checkmarks
+    rules += `
+    div.qa-body-wrapper a:link span.checkmark,
+    span.qa-q-item-meta a.qa-q-item-what:link .checkmark {
+      color: ${this.options["global_background-color"]};   
+    }`; // Checkmark color
     return rules;
   }
 

@@ -27,3 +27,8 @@ table tr.filter-row input[type="text"] {
   margin-right: 0.1em;
   position: relative !important;
 }
+body.watchlist .surnameTableHeaderRow a[title*="by name"] + img.sort-arrow,
+body.watchlist .surnameTableHeaderRow a[title*="by birth date"] + img.sort-arrow,
+body.watchlist .surnameTableHeaderRow a[title*="by last edit"] + img.sort-arrow {
+  display: none;
+}

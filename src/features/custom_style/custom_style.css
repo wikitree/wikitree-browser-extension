@@ -73,3 +73,9 @@ span[style="color:#c07fee"] {
   margin-right: 2px;
   cursor: pointer;
 }
+
+body.profile div.body-text table:has(a.image),
+body.space div.body-text table:has(a.image) {
+  z-index: 100;
+  position: relative;
+}

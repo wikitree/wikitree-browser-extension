@@ -1,5 +1,65 @@
 document?.documentElement?.removeAttribute("data-wbe-conflict");
 
+// Add OpenDyslexic font
+chrome.storage.sync.get(["customStyle_options"], (result) => {
+  const fontFamily = result.customStyle_options?.["global_font-family"];
+
+  if (fontFamily === "OpenDyslexic") {
+    const base = (name) => chrome.runtime.getURL(`fonts/OpenDyslexic-${name}.woff2`);
+
+    const style = document.createElement("style");
+    style.textContent = `
+      @font-face {
+        font-family: 'OpenDyslexic';
+        src: url('${base("Regular")}') format('woff2');
+        font-weight: normal;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: 'OpenDyslexic';
+        src: url('${base("Bold")}') format('woff2');
+        font-weight: bold;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: 'OpenDyslexic';
+        src: url('${base("Italic")}') format('woff2');
+        font-weight: normal;
+        font-style: italic;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: 'OpenDyslexic';
+        src: url('${base("Bold-Italic")}') format('woff2');
+        font-weight: bold;
+        font-style: italic;
+        font-display: swap;
+      }
+    `;
+    document.head.appendChild(style);
+
+    // 👇 Explicitly load each variation
+    Promise.all([
+      document.fonts.load("normal 1rem OpenDyslexic"),
+      document.fonts.load("bold 1rem OpenDyslexic"),
+      document.fonts.load("italic 1rem OpenDyslexic"),
+      document.fonts.load("bold italic 1rem OpenDyslexic"),
+    ]).then(() => {
+      document.documentElement.classList.add("dyslexic-font");
+
+      // 👇 Optional Safari nudge
+      const nudge = document.createElement("span");
+      nudge.textContent = ".";
+      nudge.style.fontFamily = "OpenDyslexic";
+      nudge.style.opacity = "0";
+      document.body.appendChild(nudge);
+      requestAnimationFrame(() => nudge.remove());
+    });
+  }
+});
+
 import "./features/register_feature_options";
 
 // First are loaded modules that change the wikitree appearence by altering css style

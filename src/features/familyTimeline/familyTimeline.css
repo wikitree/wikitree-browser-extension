@@ -58,6 +58,7 @@ th.tlEventLocation {
   font-weight: bold;
   cursor: pointer;
 }
+.familySheet .self,
 .timeline .BioPerson,
 .timeline .marriage {
   font-weight: bold;
@@ -66,6 +67,10 @@ th.tlEventLocation {
   border-top: 1px solid forestgreen;
 }
 .timeline tr.BioPerson.Death {
+  border-bottom: 1px solid forestgreen;
+}
+.familySheet tr.self {
+  border-top: 1px solid forestgreen;
   border-bottom: 1px solid forestgreen;
 }
 .timelineTable {

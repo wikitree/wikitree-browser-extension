@@ -21,6 +21,7 @@
   width: auto;
   max-width: 60em;
   padding: 1em;
+  padding-top: 0;
   border: 2px solid forestgreen;
   border-radius: 1em;
   max-height: 40em;
@@ -94,12 +95,7 @@ body.profile #extraWatchlistWindow td.xCol {
 
 #importExtraWatchlist,
 #exportExtraWatchlist {
-  float: right;
   margin: 0.3em;
-}
-
-#importExtraWatchlist {
-  margin-right: 2em;
 }
 
 #touchedList thead th[id],
@@ -159,4 +155,32 @@ div.eight.columns.alpha .xCol,
 #closeWatchlistWindow:active {
   box-shadow: 0;
   padding: 0.4em;
+}
+
+#extraWatchlistWindow #importExportButtons {
+  z-index: 1000;
+  position: absolute;
+  top: 0;
+  right: 2em;
+}
+
+#extraWatchlistWindow #importExportButtons a {
+  color: white;
+  background: #25422d;
+  padding: 0.2em 0.4em;
+  border-radius: 0.5em;
+  margin-left: 0.5em;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+#extraWatchlistTabs li.ui-tabs-active,
+#extraWatchlistTabs li.ui-tabs-active a:not(#dummyID) {
+  background-color: #fcb815;
+  color: black !important;
+  font-weight: bold;
+}
+
+#extraWatchlistTabs th {
+  cursor: pointer;
 }

@@ -1,7 +1,7 @@
 {
   "name": "WikiTree Browser Extension",
   "description": "The official WikiTree browser extension.",
-  "version": "2.0.10",
+  "version": "2.0.10.6",
   "manifest_version": 2,
   "options_ui": {
     "page": "options.html",
@@ -30,7 +30,10 @@
     "features/wtPlus/templatesExp.json",
     "features/darkMode/darkMode.css",
     "js/*.js",
-    "js/images/*"
+    "js/images/*",
+    "fonts/*.woff2",
+    "fonts/*.woff",
+    "fonts/*.ttf"
   ],
   "icons": {
     "128": "images/we128.png"
