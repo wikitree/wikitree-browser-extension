@@ -485,12 +485,44 @@ const createWatchlistPopup = (mouseY) => {
   $("#closeWatchlistWindow").on("click", () => $popup.slideUp("swing"));
 
   // Setup export functionality.
-  const dStr = strDate();
-  let ewText = localStorage.getItem("extraWatchlist")?.replace(/@/g, ",") || "";
-  $("#exportExtraWatchlist").attr({
-    href: makeTextFile(ewText),
-    download: `extraWatchlist_${dStr}.txt`,
-  });
+  $("#exportExtraWatchlist")
+    .off()
+    .on("click", function (e) {
+      e.preventDefault();
+
+      const ewText = localStorage.getItem("extraWatchlist")?.replace(/@/g, ",") || "";
+      const dStr = strDate();
+      const blob = new Blob([ewText], { type: "text/plain" });
+
+      // For Safari: use FileReader to create a data URI
+      if (
+        typeof window.navigator !== "undefined" &&
+        window.navigator.userAgent.includes("Safari") &&
+        !window.navigator.userAgent.includes("Chrome")
+      ) {
+        const reader = new FileReader();
+        reader.onloadend = function () {
+          const tempLink = document.createElement("a");
+          tempLink.href = reader.result;
+          tempLink.download = `extraWatchlist_${dStr}.txt`;
+          document.body.appendChild(tempLink);
+          tempLink.click();
+          document.body.removeChild(tempLink);
+        };
+        reader.readAsDataURL(blob);
+      } else {
+        // Other browsers: use Blob URL
+        const blobUrl = window.URL.createObjectURL(blob);
+        const tempLink = document.createElement("a");
+        tempLink.href = blobUrl;
+        tempLink.download = `extraWatchlist_${dStr}.txt`;
+        document.body.appendChild(tempLink);
+        tempLink.click();
+        document.body.removeChild(tempLink);
+        window.URL.revokeObjectURL(blobUrl); // cleanup
+      }
+    });
+
   // Setup import functionality.
   $("#importExtraWatchlist")
     .off()
