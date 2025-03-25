@@ -47,13 +47,16 @@ async function helpScissors() {
   // Network feed
   if (isNetworkFeed || isProfileHistoryDetail) {
     const urlParams = new URLSearchParams(window.location.search);
+    useIsNew = true;
+    $("h1").first().parent().append(`<div id="wbe-copy" class="col-auto col-lg-12 text-lg-end"></div>`);
+    copyPosition = $("#wbe-copy");
     let feedID = urlParams.get("who");
     if (isProfileHistoryDetail) {
       feedID = urlParams.get("title");
     }
     const feedURL = window.location.href;
     let feedTitle = $("h1").first().text();
-    const feedName = $('span.HISTORY-ITEM a[href*="wiki/' + feedID + '"')
+    const feedName = $('span.feed-item a[href*="wiki/' + feedID + '"')
       .eq(0)
       .text();
     if (isProfileHistoryDetail) {
