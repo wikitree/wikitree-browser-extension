@@ -80,6 +80,13 @@ module.exports = (env) => ({
           filename: "images/[name][ext]",
         },
       },
+      {
+        test: /\.woff2?$/,
+        type: "asset/resource",
+        generator: {
+          filename: "fonts/[name][ext]",
+        },
+      },
     ],
   },
 });
