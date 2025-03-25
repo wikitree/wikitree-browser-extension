@@ -40,6 +40,13 @@
     top: calc(var(--x-sticky-banner-height) + var(--x-sticky-header-height)) !important;
   }
 
+  /* make the collapsible search section stick under the header, but on top of the page toolbar */
+  .sticky-header #searchBar {
+    position: sticky;
+    top: calc(var(--x-sticky-banner-height) + var(--x-sticky-header-height)) !important;
+    z-index: 1000;
+  }
+
   /* keep the sticky help search box below all header elements */
   .sticky-header .sticky-lg-top {
     top: calc(
