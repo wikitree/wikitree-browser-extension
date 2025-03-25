@@ -313,7 +313,6 @@ function siblingsTextArray() {
  */
 function parseInitialData() {
   const theSiblingsArray = siblingsTextArray();
-  console.log("theSiblingsArray", theSiblingsArray);
 
   const excludeBrackets = [
     "[date unknown]",
@@ -444,7 +443,6 @@ function parseInitialData() {
     delete familyData.children;
   }
 
-  console.log("Parsed familyData:", familyData);
   return familyData;
 }
 
@@ -1452,7 +1450,6 @@ export function changeFamilyHeaders(setIt = false) {
   if (!p.Gender) {
     p.Gender = profilePerson.Gender;
   }
-  console.log("ProfilePerson:", p);
   let gen = "neutral";
   if (p?.Gender === "Male") {
     gen = "male";
