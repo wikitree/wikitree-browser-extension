@@ -5,7 +5,7 @@
   z-index: 19;
 }
 .sticky-header #toolbar.sticky {
-  top: calc(0px + var(--x-sticky-banner-height) + var(--x-sticky-header-height) + var(--x-sticky-toolbar-height));
+  top: calc(0px + var(--x-sticky-header-bottom));
 }
 body[class*="page-Space_"].stickyToolbar #wpSave.small {
   margin-top: -2em !important;
