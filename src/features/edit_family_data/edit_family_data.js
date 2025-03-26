@@ -3,7 +3,7 @@ Created By: Ian Beacall (Beacall-6)
 */
 
 import * as $ from "jquery";
-import { getPerson } from "wikitree-js";
+import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isOK } from "../../core/common";
 
@@ -18,10 +18,12 @@ shouldInitializeFeature("editFamilyData").then((result) => {
   }
 });
 async function addInfoAboutOtherPerson() {
-  const uIDbutton = $("h1 > button").first();
-  const uID = uIDbutton.attr("data-copy-text");
-  getPerson(uID, undefined, { appId: "WBE_edit_family_data" }).then((data) => {
-    const efProfile = data;
+  const h1Link = $("#addEditHeadline a:first");
+  const wtid = h1Link.attr("href").split("/").pop();
+  const fields = ["Id", "Name", "BirthDate", "BirthLocation", "DeathDate", "DeathLocation"];
+  console.log("Fetching person data for wtid:", wtid);
+  WikiTreeAPI.getPerson("WBE_edit_family_data", wtid, fields).then((data) => {
+    const efProfile = data._data;
     let efBdate = "";
     let efBlocation = "";
     let efDdate = "";
@@ -31,23 +33,26 @@ async function addInfoAboutOtherPerson() {
         if (efProfile.BirthDate != "" && efProfile.BirthDate != "0000-00-00") {
           efBdate = efProfile.BirthDate;
         }
-        if (isOK(efProfile.BirthLocation)) {
-          efBlocation = efProfile.BirthLocation;
-        }
-        if (isOK(efProfile.DeathDate)) {
-          efDdate = efProfile.DeathDate;
-        }
-        if (isOK(efProfile.DeathLocation)) {
-          efDlocation = efProfile.DeathLocation;
-        }
-        const efHTML =
-          "<ul id='EFdates'>" +
-          (isOK(efBdate) || isOK(efBlocation) ? "<li>b." + " " + efBdate + " " + efBlocation + "</li>" : "") +
-          (efDdate != "" || efDlocation != "" ? "<li>d." + " " + efDdate + " " + efDlocation + "</li>" : "") +
-          "</ul>";
-        $("h1").append(efHTML);
       }
+      if (isOK(efProfile.BirthLocation)) {
+        efBlocation = efProfile.BirthLocation;
+      }
+      if (isOK(efProfile.DeathDate)) {
+        efDdate = efProfile.DeathDate;
+      }
+      if (isOK(efProfile.DeathLocation)) {
+        efDlocation = efProfile.DeathLocation;
+      }
+      const efHTML =
+        "<ul id='EFdates'>" +
+        (isOK(efBdate) || isOK(efBlocation) ? "<li>b." + " " + efBdate + " " + efBlocation + "</li>" : "") +
+        (efDdate != "" || efDlocation != "" ? "<li>d." + " " + efDdate + " " + efDlocation + "</li>" : "") +
+        "</ul>";
+      $("h1").append(efHTML);
+    } else {
+      console.log("No profile data found for wtid:", wtid);
     }
+
     getFeatureOptions("editFamilyData").then((options) => {
       if (options.patronymic) {
         if ($("#mLastNameAtBirth").val()) {
