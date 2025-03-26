@@ -40,7 +40,7 @@ const pinkBricksURL = chrome.runtime.getURL("images/pink_bricks.jpg");
 const purpleBricksURL = chrome.runtime.getURL("images/purple_bricks.jpg");
 
 const unconnectedNotablesMatch = window.location.href.match(/Space:Unconnected_Notables/);
-const specialUnconnecteMatch = window.location.href.match(/Special:Unconnected/);
+const specialUnconnectedMatch = window.location.href.match(/Special:Unconnected/);
 const spaceLargestUnconnectedBranchesMatch = window.location.href.match(/Space:Largest_Unconnected_Branches/);
 const specialMyConnectionsMatch = window.location.href.match(/Special:MyConnections/);
 const specialSearchPersonMatch = window.location.href.match(/Special:SearchPerson/);
@@ -768,12 +768,12 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
 
   if (
     unconnectedNotablesMatch != null ||
-    specialUnconnecteMatch != null ||
+    specialUnconnectedMatch != null ||
     spaceLargestUnconnectedBranchesMatch != null
   ) {
     window.isUnconnecteds = true;
     tableClass = "unconnecteds";
-    if (specialUnconnecteMatch) {
+    if (specialUnconnectedMatch) {
       window.isMyUnconnecteds = true;
     }
   } else if (tableID == "profileAncestors") {

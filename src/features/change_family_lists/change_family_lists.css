@@ -942,3 +942,7 @@ li.fl-half-tooltip:hover::after {
   background-size: 20px 20px !important;
   width: 20px !important;
 }
+
+#nVitals span.wbe-icon {
+  margin-left: 0.5em;
+}
