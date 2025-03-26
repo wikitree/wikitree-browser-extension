@@ -33,6 +33,24 @@ body.page-Special_EditFamilySteps table {
   border: 2px solid rgb(216, 216, 216);
   background-color: #f0f0eb;
 }
+
+/* Darker tones for death 
+#393A3C
+ 
+#666666
+ 
+#dedecb */
+#potentialMatchesSection td span.deathLocationMatchSpan {
+  border: 2px solid darkgrey;
+  background-color: #25422d;
+  color: #dedecb;
+}
+#potentialMatchesSection td span.partialDeathLocationMatchSpan {
+  border: 2px solid darkgrey;
+  background-color: #393a3c;
+  color: #dedecb;
+}
+
 #potentialMatchesSection td span.birthDateMatchSpan {
   border: 2px solid #fcb815;
   background-color: #fad158;
