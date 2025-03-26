@@ -1911,6 +1911,47 @@ function moveMetaGender() {
   }
 }
 
+function addDNAConfirmedToFamily() {
+  if (!window.people || !(window.people instanceof Map)) {
+    console.warn("window.people is not a Map or is missing.");
+    return;
+  }
+
+  const parentId = profilePersonData?.Id;
+  const parentPerson = window.people.get(String(parentId));
+
+  if (!parentPerson) {
+    console.warn(`No person found in window.people for ID: ${parentId}`);
+    return;
+  }
+
+  console.log("window.people:", window.people);
+  console.log("profilePersonData:", profilePersonData);
+  console.log("Parent Person:", parentPerson);
+
+  for (const person of window.people.values()) {
+    let addDNAconfirmed = false;
+
+    if (person.Mother == parentId && person.DataStatus?.Mother == "30") {
+      addDNAconfirmed = true;
+    } else if (person.Father == parentId && person.DataStatus?.Father == "30") {
+      addDNAconfirmed = true;
+    }
+
+    if (addDNAconfirmed) {
+      const name = person.Name;
+      const nameWithSpaces = name?.replace(/_/g, " ");
+      console.log(`Adding DNA confirmed icon for: ${name}`);
+
+      $(`.VITALS a[href$="${name}"],.VITALS a[href$="${nameWithSpaces}"]`).append(
+        $(
+          `<span class='icon--dna-checked wbe-icon' title='Confirmed with DNA testing' style='background-size:40px 20px !important; width:40px !important'></span>`
+        )
+      );
+    }
+  }
+}
+
 /* ========================================================================
    Main Hook: Initialize, Replace DOM, and Attach Events
    ======================================================================== */
@@ -1991,6 +2032,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   // Set the family relationship headers to the right option
   const setHeaders = options.changeHeaders ? "Y" : "N";
   changeFamilyHeaders(setHeaders);
+  addDNAConfirmedToFamily();
 
   // Wait until Distance and Relationship feature has loaded (hopefully)
   if (options.highlightAncestors) {

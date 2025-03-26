@@ -194,10 +194,6 @@ sup.reference {
     display: none !important;
   }
 
-  .hide-sidebar-collaboration .x-sidebar-collaboration {
-    display: none !important;
-  }
-
   .hide-sidebar-research .x-sidebar-research {
     display: none !important;
   }
@@ -241,6 +237,10 @@ sup.reference {
   }
 
   .hide-inline-tables .x-inline-table {
+    display: none !important;
+  }
+
+  .hide-collaboration .x-callout-collaboration {
     display: none !important;
   }
 

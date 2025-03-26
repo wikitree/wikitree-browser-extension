@@ -33,7 +33,7 @@ async function addCategoryTableButton() {
     }
     $(this).addClass("beenClicked");
 
-    const superIDs = $("div.Persons a")
+    const superIDs = $("#profile-list a")
       .map(function () {
         return $(this).attr("href").split("/wiki/")[1].replace(/ /g, "_");
       })

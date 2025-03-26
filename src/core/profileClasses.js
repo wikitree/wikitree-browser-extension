@@ -78,7 +78,7 @@ export function ensureProfileClasses() {
       ".x-content > .status, .x-content > .projectbox, .x-content > a[name]:last-of-type ~ .box.orange, .x-content:not(* > a[name]) > .box.orange"
     ).addClass("x-alert");
 
-    // mark the sidebar to the right (with DNA connections, images, collaboration, etc.)
+    // mark the sidebar to the right (with DNA connections, images, research, etc.)
     $(".x-profile .container .col-lg-8 ~ .col-lg-4").addClass("x-sidebar");
 
     // mark the individual sections of the sidebar (based on content)
@@ -197,7 +197,8 @@ export function ensureProfileClasses() {
         return $(this).find("h3 ~ ul").length > 0;
       })
       .last()
-      .addClass("x-callout x-callout-collaboration x-sidebar-collaboration");
+      .addClass("x-callout x-callout-collaboration")
+      .removeClass("x-alert");
 
     // mark elements related to certain sections (including header, lists, and any other root elements) up until the next section *** dependent on x-memories being set
     $(".x-content a[name].x-root-section, .x-content a[name].x-section").each(function () {

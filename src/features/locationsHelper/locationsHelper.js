@@ -5,7 +5,13 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import { extractRelatives, familyArray, getRelatives } from "../../core/common";
 import { formISODate } from "../date_fixer/date_fixer";
-import { isSpaceEdit, isNewSpace, isProfileAddRelative, isProfileEdit } from "../../core/pageType";
+import {
+  isSpaceEdit,
+  isNewSpace,
+  isProfileAddRelative,
+  isProfileEdit,
+  isAddUnrelatedPerson,
+} from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 // import { australian_locations } from "./auto_bio/australian_locations";
 import { profilePerson } from "../../core/common";
@@ -130,7 +136,7 @@ async function locationsHelper() {
   }
 
   let theID;
-  if (!(isSpaceEdit || isNewSpace)) {
+  if (!(isSpaceEdit || isNewSpace || isAddUnrelatedPerson)) {
     profilePerson.Id;
   }
   if (theID) {

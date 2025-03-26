@@ -40,7 +40,7 @@ const pinkBricksURL = chrome.runtime.getURL("images/pink_bricks.jpg");
 const purpleBricksURL = chrome.runtime.getURL("images/purple_bricks.jpg");
 
 const unconnectedNotablesMatch = window.location.href.match(/Space:Unconnected_Notables/);
-const specialUnconnecteMatch = window.location.href.match(/Special:Unconnected/);
+const specialUnconnectedMatch = window.location.href.match(/Special:Unconnected/);
 const spaceLargestUnconnectedBranchesMatch = window.location.href.match(/Space:Largest_Unconnected_Branches/);
 const specialMyConnectionsMatch = window.location.href.match(/Special:MyConnections/);
 const specialSearchPersonMatch = window.location.href.match(/Special:SearchPerson/);
@@ -382,6 +382,8 @@ async function centreNumbersInTable(jqTable) {
 
 async function myConnectionsCount() {
   setTimeout(function () {
+    // Add id="gen{number}_list" to all ols following h3s with id="gen{number}"
+    addIDsToOLs();
     $(".degreeCount").remove();
     const ols = document.querySelectorAll("div.page--content ol[id*='gen']");
     const degreeCountTable = $(
@@ -510,13 +512,13 @@ async function getMoreConnections() {
       });
     }
   }
-  const allH3s = document.querySelectorAll(".wrapper h3[id*='gen']");
+  const allH3s = document.querySelectorAll(".page--content h3[id*='gen']");
   const lastH3 = allH3s[allH3s.length - 1];
   const degreeNum = lastH3.textContent.match(/[0-9]+/)[0];
   if (degreeNum > window.currentDegreeNum) {
     window.currentDegreeNum = degreeNum;
   }
-  const ols = document.querySelectorAll(".wrapper ol[id*='gen']");
+  const ols = document.querySelectorAll(".page--content  ol[id*='gen']");
   if ($("#loadNextGenerationButton.finished").length) {
     const lastOL = ols[ols.length - 1];
 
@@ -527,7 +529,7 @@ async function getMoreConnections() {
     ).insertAfter($(lastOL));
   }
   window.allLinkIDs = [];
-  document.querySelectorAll(".wrapper ol[id*='gen'] a").forEach(function (anA) {
+  document.querySelectorAll(".page--content  ol[id*='gen'] a").forEach(function (anA) {
     const oLinkHREF = $(anA).attr("href");
     if (oLinkHREF != undefined) {
       let oLinkSplit = oLinkHREF.split("/wiki/");
@@ -733,12 +735,13 @@ async function getMoreConnections() {
           });
           myConnectionsCount();
 
-          $("#loadNextGenerationButton").unbind();
-          $("#loadNextGenerationButton").on("click", function () {
-            getMoreConnections();
-            myConnectionsMore();
-            myConnectionsCount();
-          });
+          $("#loadNextGenerationButton")
+            .off("click.myConnections")
+            .on("click.myConnections", function () {
+              getMoreConnections();
+              myConnectionsMore();
+              myConnectionsCount();
+            });
         }
       },
       error: function (xhr, ajaxOptions, thrownError) {
@@ -768,12 +771,12 @@ export async function addPeopleTable(IDstring, tableID, insAfter, tableClass = "
 
   if (
     unconnectedNotablesMatch != null ||
-    specialUnconnecteMatch != null ||
+    specialUnconnectedMatch != null ||
     spaceLargestUnconnectedBranchesMatch != null
   ) {
     window.isUnconnecteds = true;
     tableClass = "unconnecteds";
-    if (specialUnconnecteMatch) {
+    if (specialUnconnectedMatch) {
       window.isMyUnconnecteds = true;
     }
   } else if (tableID == "profileAncestors") {
@@ -2160,7 +2163,7 @@ async function myConnections() {
   setTimeout(function () {
     myConnectionsCount();
   }, 2000);
-  $(".wrapper ol").each(function (index) {
+  $(".page--content  ol").each(function (index) {
     $(this).attr("id", "gen" + index + "_list");
   });
   myConnectionsMore();
@@ -2193,7 +2196,7 @@ async function myConnections() {
         $(".myConnectionsMoreButton,.myConnectionsTableButton").remove();
         myConnectionsMore();
         myConnectionsCount();
-        $(".wrapper h3 + ol, .wrapper .peopleTable + ol").each(function (index) {
+        $(".page--content  h3 + ol, .page--content  .peopleTable + ol").each(function (index) {
           $(this).attr("id", "gen" + index + "_list");
         });
       }, 3000);
@@ -2494,7 +2497,7 @@ export async function addWideTableButton() {
               const rightButton = $("<button id='rightButton'>&rarr;</button>");
               const buttonBox = $("<div id='buttonBox'></div>");
               buttonBox.append(leftButton, rightButton);
-              $("div.wrapper").prepend(buttonBox);
+              $("div.page--content ").prepend(buttonBox);
 
               $("#rightButton").on("click", function (event) {
                 event.preventDefault();

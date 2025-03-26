@@ -18,3 +18,9 @@
   font-weight: bold;
   text-align: center;
 }
+
+#enterBasicDataButton,
+#dismissMatchesButton,
+#addNewPersonButton {
+  float: right;
+}
