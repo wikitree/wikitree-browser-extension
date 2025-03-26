@@ -9,6 +9,8 @@ import { isAppsDomain, isAppsPage } from "../../core/pageType";
 async function initStickyHeader() {
   // initialize sticky header dimensions
   setStickyHeights();
+  // give the "show search" feature enough time to kick in, if enabled
+  window.setTimeout(debouncedResizeHandler, 1000);
 
   // re-scroll to the hash anchor after the sticky header dimensions have been set
   if (!$("body").is(".home")) {
@@ -37,8 +39,10 @@ async function initStickyHeader() {
   }
 
   // reset sticky header dimensions on resize
-  window.addEventListener("resize", debounce(setStickyHeights, 200));
+  window.addEventListener("resize", debouncedResizeHandler);
 }
+
+const debouncedResizeHandler = debounce(setStickyHeights, 200);
 
 function setStickyHeights() {
   const bannerHeight = $("body > #banner").first().css("height");
@@ -48,6 +52,10 @@ function setStickyHeights() {
   const headerHeight = $("body > header, .qa-header").first().css("height");
   if (headerHeight) {
     document.documentElement.style.setProperty("--x-sticky-header-height", headerHeight);
+  }
+  const searchHeight = $("#searchBar.showSearch.show").first().css("height");
+  if (searchHeight) {
+    document.documentElement.style.setProperty("--x-sticky-search-height", `${Math.floor(parseFloat(searchHeight))}px`);
   }
   const toolbarHeight = $("body > .tabs--wrapper").first().css("height");
   if (toolbarHeight) {

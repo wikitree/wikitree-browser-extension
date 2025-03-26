@@ -1,14 +1,17 @@
 :root {
   --x-sticky-banner-height: 0px;
   --x-sticky-header-height: 0px;
+  --x-sticky-search-height: 0px;
   --x-sticky-toolbar-height: 0px;
 }
 
 @media screen {
   .sticky-header {
-    --x-sticky-header-offset: calc(
-      20px + var(--x-sticky-banner-height) + var(--x-sticky-header-height) + var(--x-sticky-toolbar-height)
+    --x-sticky-header-bottom: calc(
+      var(--x-sticky-banner-height) + var(--x-sticky-header-height) + var(--x-sticky-search-height) +
+        var(--x-sticky-toolbar-height)
     );
+    --x-sticky-header-offset: calc(20px + var(--x-sticky-header-bottom));
   }
 
   .sticky-header a[name],
@@ -37,7 +40,7 @@
   }
 
   .sticky-header body > .tabs--wrapper {
-    top: calc(var(--x-sticky-banner-height) + var(--x-sticky-header-height)) !important;
+    top: calc(var(--x-sticky-banner-height) + var(--x-sticky-header-height) + var(--x-sticky-search-height)) !important;
     z-index: 997;
   }
 

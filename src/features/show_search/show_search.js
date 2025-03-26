@@ -20,6 +20,10 @@ shouldInitializeFeature("showSearch").then((result) => {
       showSearch();
       $("nav button.btn-search").one("click", () => {
         $("#searchBar").removeClass("showSearch show");
+        // un-stick it once collapsed if the sticky header feature is enabled
+        if ($(".sticky-header").length > 0) {
+          document.documentElement.style.setProperty("--x-sticky-search-height", "0px");
+        }
       });
     });
   }
