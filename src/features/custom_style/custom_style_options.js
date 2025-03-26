@@ -33,7 +33,7 @@ const myCustomStyle = {
             { value: "'Courier New', monospace", text: "Courier New" },
             { value: "Georgia, serif", text: "Georgia" },
             { value: "'Lucida Console', monospace", text: "Lucida Console" },
-            { value: "OpenDyslexic", text: "OpenDyslexic" },
+            { value: "OpenDyslexic, 'Comic Sans MS'", text: "OpenDyslexic" },
             { value: "'Roboto', sans-serif", text: "Roboto" },
             { value: "Tahoma, sans-serif", text: "Tahoma" },
             { value: "'Times New Roman', serif", text: "Times New Roman" },
