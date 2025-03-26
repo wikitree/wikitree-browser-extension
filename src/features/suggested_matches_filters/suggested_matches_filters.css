@@ -6,36 +6,40 @@
 #filterButtons {
   float: right;
 }
+#filterButtons button {
+  margin-left: 0.5em;
+}
 body.page-Special_EditFamilySteps table {
   clear: both;
 }
-#potentialMatchesSection td.nameMatch a:first-child {
+#potentialMatchesSection td span.nameMatchSpan {
   border: 2px solid forestgreen;
+  background-color: #8fc641;
   padding: 0.2em;
 }
 #potentialMatchesSection td span.birthLocationMatchSpan {
   border: 2px solid forestgreen;
-  background-color: lightgreen;
+  background-color: #a5d167;
 }
 #potentialMatchesSection td span.partialBirthLocationMatchSpan {
-  border: 2px solid lightgreen;
+  border: 2px solid #e1f0b4;
   background-color: rgb(196, 245, 196);
 }
 #potentialMatchesSection td span.deathDateMatchSpan {
   border: 2px solid darkgrey;
-  background-color: rgb(216, 216, 216);
+  background-color: #dedecb;
 }
 #potentialMatchesSection td span.deathYearMatchSpan {
   border: 2px solid rgb(216, 216, 216);
-  background-color: rgb(237, 235, 235);
+  background-color: #f0f0eb;
 }
 #potentialMatchesSection td span.birthDateMatchSpan {
-  border: 2px solid navy;
-  background-color: lightblue;
+  border: 2px solid #fcb815;
+  background-color: #fad158;
 }
 #potentialMatchesSection td span.birthYearMatchSpan {
-  border: 2px solid rgb(194, 194, 253);
-  background-color: rgb(187, 233, 248);
+  border: 2px solid #fcb815;
+  background-color: #ffe270;
 }
 #potentialMatchesSection td span.matchSpan {
   margin: 0.2em;

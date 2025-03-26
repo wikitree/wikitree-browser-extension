@@ -5,14 +5,13 @@ Created By: Ian Beacall (Beacall-6)
 import $ from "jquery";
 import "./suggested_matches_filters.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
-import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
+import { getRelatives } from "wikitree-js";
 import { isOK } from "../../core/common";
 import { getPeople } from "../dna_table/dna_table";
 import { convertDate } from "../auto_bio/auto_bio";
 import { countries } from "../auto_bio/countries";
 
 const newPerson = {};
-const suggestedMatches = [];
 
 function addNewPersonToH1() {
   $("#newPersonSummary").remove();
@@ -47,10 +46,11 @@ function addNewPersonToH1() {
     " " +
     (isOK(newPerson.MiddleName) ? newPerson.MiddleName + " " : "") +
     (isOK(newPerson.LastNameCurrent) && newPerson.LastNameCurrent != newPerson.LastNameAtBirth
-      ? "(" + newPerson.LastNameAtBirth + ") "
+      ? "(" + newPerson.LastNameAtBirth + ") " + ""
       : "") +
     (isOK(newPerson.LastNameCurrent) ? newPerson.LastNameCurrent : newPerson.LastNameAtBirth) +
-    " (" +
+    " " +
+    "(" +
     newPerson.BirthYear +
     " - " +
     newPerson.DeathYear +
@@ -68,8 +68,7 @@ shouldInitializeFeature("suggestedMatchesFilters").then((result) => {
     });
   }
 });
-
-let checked = 0;
+var checked = 0;
 function checkReady() {
   if ($("#potentialMatchesSection table").length) {
     initSuggestedMatchesFilters();
@@ -80,28 +79,30 @@ function checkReady() {
     }, 2000);
   }
 }
-
 async function getLocations(WTID) {
-  let relatives;
-  const APP_ID = "WBE_suggested_matches_filters";
-  if (WTID) {
-    relatives = await WikiTreeAPI.getRelatives(APP_ID, [WTID], ["BirthLocation,DeathLocation"], {
+  const relatives = await getRelatives(
+    [WTID],
+    {
       getSpouses: true,
       getChildren: true,
       getParents: true,
       getSiblings: true,
-    });
-  }
+      fields: ["BirthLocation,DeathLocation"],
+    },
+    { appId: "WBE_suggested_matches_filters" }
+  );
   const locations = [relatives?.[0]?.BirthLocation, relatives?.[0]?.DeathLocation];
   const relativeTypes = ["Parents", "Siblings", "Spouses", "Children"];
   let keys, aPerson;
   relativeTypes.forEach(function (relativeType) {
-    if (relatives?.[0] && relatives[0][relativeType]) {
-      keys = Object.keys(relatives[0][relativeType]);
-      keys.forEach(function (aKey) {
-        aPerson = relatives[0][relativeType][aKey];
-        locations.push(aPerson.BirthLocation, aPerson.DeathLocation);
-      });
+    if (relatives?.[0]) {
+      if (relatives?.[0][relativeType]) {
+        keys = Object.keys(relatives?.[0][relativeType]);
+        keys.forEach(function (aKey) {
+          aPerson = relatives?.[0][relativeType][aKey];
+          locations.push(aPerson.BirthLocation, aPerson.DeathLocation);
+        });
+      }
     }
   });
   const filteredLocations = [];
@@ -111,9 +112,7 @@ async function getLocations(WTID) {
       aLocationBits = aLocation.split(",");
       aLocationBits.forEach(function (aBit) {
         trimmedBit = aBit.trim();
-        if (!filteredLocations.includes(trimmedBit) && isOK(trimmedBit)) {
-          filteredLocations.push(trimmedBit);
-        }
+        if (!filteredLocations.includes(trimmedBit) && isOK(trimmedBit)) filteredLocations.push(trimmedBit);
       });
     }
   });
@@ -138,7 +137,7 @@ function locationFilter(person, filteredLocations, newPerson) {
   let thisTR = $(`a[href$="${person.WTID}"]`).closest("tr");
   let matchCount = 0;
   person.locations.forEach(function (aLocation) {
-    if (isOK(aLocation) && filteredLocations.includes(aLocation)) {
+    if (filteredLocations.includes(aLocation)) {
       if (!(countryList.includes(aLocation) && filteredLocations.length > 1)) {
         matchCount++;
       }
@@ -147,28 +146,27 @@ function locationFilter(person, filteredLocations, newPerson) {
       }
     }
   });
-  if (matchCount === 0) {
+  if (matchCount == 0) {
     thisTR.addClass("locationFiltered");
   }
   if (matchCount > 2) {
     thisTR.prependTo(thisTR.parent());
   }
-  if (newPerson.locations.length && newPerson.locations[0]) {
+  if (newPerson.locations.length) {
     if (person.locations.includes(newPerson.locations[0])) {
       thisTR.prependTo(thisTR.parent());
     }
   }
   suggestedMatches.forEach(function (aMatch) {
-    if (aMatch.WTID === person.WTID) {
+    if (aMatch.WTID == person.WTID) {
       aMatch = person;
     }
   });
 }
-
 const peopleIDs = [];
 async function nameFilter(level) {
   let peopleData;
-  if (peopleIDs.length === 0) {
+  if (peopleIDs.length == 0) {
     suggestedMatches.forEach(function (person) {
       if (person.WTID) {
         peopleIDs.push(person.WTID);
@@ -197,21 +195,21 @@ async function nameFilter(level) {
       person.MiddleName = thisPerson.MiddleName;
     }
     let thisTR = $(`a[href$="${person.WTID}"]`).closest("tr");
-    if ($("#mStatus_MiddleName_blank").prop("checked") === true) {
+    if ($("#mStatus_MiddleName_blank").prop("checked") == true) {
       if (person.MiddleName) {
         thisTR.addClass("nameFiltered");
       }
-    } else if (isOK(person.MiddleName) && person.MiddleName !== $("#mMiddleName").val().trim()) {
+    } else if (isOK(person.MiddleName) && person.MiddleName != $("#mMiddleName").val().trim()) {
       thisTR.addClass("nameFiltered");
     }
-    if (level === 2) {
-      if (isOK(person.FirstName) && person.FirstName !== $("#mFirstName").val().trim()) {
+    if (level == 2) {
+      if (person.FirstName != $("#mFirstName").val().trim()) {
         thisTR.addClass("nameFiltered");
       }
-      if (isOK(person.LastNameAtBirth) && person.LastNameAtBirth !== $("#mLastNameAtBirth").val().trim()) {
+      if (person.LastNameAtBirth != $("#mLastNameAtBirth").val().trim()) {
         thisTR.addClass("nameFiltered");
       }
-      if (isOK($("#mLastNameCurrent").val()) && person.LastNameCurrent !== $("#mLastNameCurrent").val()) {
+      if (isOK($("#mLastNameCurrent").val()) && person.LastNameCurrent != $("#mLastNameCurrent").val()) {
         thisTR.addClass("nameFiltered");
       }
     }
@@ -219,15 +217,22 @@ async function nameFilter(level) {
 }
 
 function dateFilter(level, newPerson) {
-  let yearsOut = level === 1 ? 1 : 0;
+  let yearsOut;
+  if (level == 1) {
+    yearsOut = 1;
+  }
+  if (level == 2) {
+    yearsOut = 0;
+  }
   let personYear3, newPersonYear3, filterOut;
   suggestedMatches.forEach(function (person) {
     filterOut = false;
     let thisTR = $(`a[href$="${person.WTID}"]`).closest("tr");
-    if (isOK(person.BirthYear) && isOK(newPerson.BirthYear)) {
+    if (person.BirthYear) {
       if (person.BirthYear.match("s")) {
         personYear3 = person.BirthYear.substring(0, 3);
         newPersonYear3 = newPerson.BirthYear.substring(0, 3);
+
         if (
           !(
             parseInt(newPersonYear3 - 1) > parseInt(personYear3) || parseInt(newPersonYear3 + 1) < parseInt(personYear3)
@@ -241,7 +246,7 @@ function dateFilter(level, newPerson) {
       ) {
         filterOut = true;
       }
-      if (filterOut === true) {
+      if (filterOut == true) {
         thisTR.addClass("dateFiltered");
       }
     } else {
@@ -250,243 +255,22 @@ function dateFilter(level, newPerson) {
   });
 }
 
-// Helper to parse date and location from a cell's HTML
-function parseDateAndLocation(cellHtml) {
-  if (typeof cellHtml !== "string" || cellHtml.trim() === "") {
-    return { date: "", year: "", locations: [] };
-  }
-  const parts = cellHtml
-    .split("<br>")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  const result = { date: "", year: "", locations: [] };
-
-  if (parts.length === 1) {
-    const dateMatch = parts[0].match(/.*?([0-9]{4})s?/);
-    if (dateMatch) {
-      result.date = parts[0];
-      result.year = dateMatch[1];
-    } else {
-      result.locations = parts[0].split(/\s*,\s*/);
-    }
-  } else {
-    const dateMatch = parts[0].match(/.*?([0-9]{4})s?/);
-    if (dateMatch) {
-      result.date = parts[0];
-      result.year = dateMatch[1];
-    }
-    result.locations = parts[1]
-      .split(/\s*,\s*/)
-      .map((loc) => loc.trim())
-      .filter(Boolean);
-  }
-  return result;
-}
-
-// Single function to extract person data from a table row
-function extractPersonFromRow(rowElement) {
-  const $row = $(rowElement);
-  const tds = $row.find("td");
-  const aMatch = {};
-
-  // Name extraction from the first cell
-  const nameLink = tds.eq(0).find("a").first();
-  aMatch.WTID = nameLink.attr("href").split("wiki/")[1];
-  aMatch.fullName = nameLink.text().trim();
-  const nameParts = aMatch.fullName.split(/\s+/);
-  aMatch.FirstName = nameParts[0];
-  aMatch.LastName = nameParts[nameParts.length - 1];
-  if (nameParts.length > 2) {
-    aMatch.MiddleName = nameParts.slice(1, -1).join(" ");
-  }
-
-  // Birth data extraction from the second cell
-  const birthData = parseDateAndLocation(tds.eq(1).html());
-  aMatch.BirthDate = birthData.date || "";
-  aMatch.BirthYear = birthData.year || "";
-  aMatch.BirthLocation = (birthData.locations || []).join(", ");
-
-  // Death data extraction from the third cell
-  const deathData = parseDateAndLocation(tds.eq(2).html());
-  aMatch.DeathDate = deathData.date || "";
-  aMatch.DeathYear = deathData.year || "";
-  aMatch.DeathLocation = (deathData.locations || []).join(", ");
-
-  // Combined locations for later use
-  aMatch.locations = [];
-  if (isOK(aMatch.BirthLocation)) aMatch.locations.push(aMatch.BirthLocation);
-  if (isOK(aMatch.DeathLocation)) aMatch.locations.push(aMatch.DeathLocation);
-
-  return aMatch;
-}
-
-function findAlternativeCountryName(countryName) {
-  for (const country of countries) {
-    if (country.name === countryName || country.nativeName === countryName) {
-      return country.name === countryName ? country.nativeName : country.name;
-    }
-  }
-  return null;
-}
-
-// Break down a location string into components
-function dissectLocation(location) {
-  const parts = location.split(",").map((part) => part.trim());
-  return {
-    country: parts[parts.length - 1] || "",
-    state: parts[parts.length - 2] || "",
-    county: parts[parts.length - 3] || "",
-    town: parts[0] || "",
-  };
-}
-
-function highlightMatches() {
-  const people = $("table#matchesTable tr[id^=potentialMatch]");
-
-  people.each(function () {
-    const extractedData = extractPersonFromRow(this);
-    let matchCount = 0;
-    let exactLocationMatch = false;
-    const $row = $(this);
-    const theNameCell = $row.find("td").eq(0);
-    const theBirthCell = $row.find("td").eq(1);
-    const theDeathCell = $row.find("td").eq(2);
-
-    const isOnlyYear = (date) => /^\d{4}$/.test(date);
-    const extractedBirthYear = extractedData.BirthDate ? extractedData.BirthDate.match(/\d{4}/) : null;
-    const newPersonBirthYear = newPerson.BirthDate ? newPerson.BirthDate.match(/\d{4}/) : null;
-
-    // Only compare birth dates if both values exist
-    if (
-      extractedData.BirthDate &&
-      newPerson.BirthDate &&
-      extractedData.BirthDate === convertDate(newPerson.BirthDate, "ISO")
-    ) {
-      if (isOnlyYear(extractedData.BirthDate) && isOnlyYear(newPerson.BirthDate)) {
-        if (theBirthCell.find(".birthYearMatchSpan").length === 0) {
-          theBirthCell.append($("<span class='birthYearMatchSpan matchSpan'>Birth Year Match</span>"));
-        }
-        matchCount += 0.5;
-      } else {
-        if (theBirthCell.find(".birthDateMatchSpan").length === 0) {
-          theBirthCell.append($("<span class='birthDateMatchSpan matchSpan'>Birth Date Match</span>"));
-        }
-        matchCount++;
-      }
-    } else if (extractedBirthYear && newPersonBirthYear && extractedBirthYear[0] === newPersonBirthYear[0]) {
-      if (theBirthCell.find(".birthYearMatchSpan").length === 0) {
-        theBirthCell.append($("<span class='birthYearMatchSpan matchSpan'>Birth Year Match</span>"));
-      }
-      matchCount += 0.5;
-    }
-
-    // Only compare death dates if both exist
-    const extractedDeathYear = extractedData.DeathDate ? extractedData.DeathDate.match(/\d{4}/) : null;
-    const newPersonDeathYear = newPerson.DeathDate ? newPerson.DeathDate.match(/\d{4}/) : null;
-    if (
-      extractedData.DeathDate &&
-      newPerson.DeathDate &&
-      extractedData.DeathDate === convertDate(newPerson.DeathDate, "ISO")
-    ) {
-      if (isOnlyYear(extractedData.DeathDate) && isOnlyYear(newPerson.DeathDate)) {
-        if (theDeathCell.find(".deathYearMatchSpan").length === 0) {
-          theDeathCell.append($("<span class='deathYearMatchSpan matchSpan'>Death Year Match</span>"));
-        }
-        matchCount += 0.5;
-      } else {
-        if (theDeathCell.find(".deathDateMatchSpan").length === 0) {
-          theDeathCell.append($("<span class='deathDateMatchSpan matchSpan'>Death Date Match</span>"));
-        }
-        matchCount++;
-      }
-    } else if (extractedDeathYear && newPersonDeathYear && extractedDeathYear[0] === newPersonDeathYear[0]) {
-      if (theDeathCell.find(".deathYearMatchSpan").length === 0) {
-        theDeathCell.append($("<span class='deathYearMatchSpan matchSpan'>Death Year Match</span>"));
-      }
-      matchCount += 0.5;
-    }
-
-    // Only compare names if both exist
-    if (extractedData.fullName && newPerson.FullName && extractedData.fullName === newPerson.FullName) {
-      if (theNameCell.find(".nameMatchSpan").length === 0) {
-        theNameCell.append($("<span class='nameMatchSpan matchSpan'>Name Match</span>"));
-      }
-      matchCount++;
-    }
-
-    // Remove UK variants for location matching then compare birth locations
-    if (isOK(extractedData.BirthLocation) && isOK(newPerson.BirthLocation)) {
-      const cleanExtractedBirth = extractedData.BirthLocation.replace(/, (United Kingdom|UK|U.K.)$/g, "");
-      const cleanNewBirth = newPerson.BirthLocation.replace(/, (United Kingdom|UK|U.K.)$/g, "");
-      if (cleanExtractedBirth === cleanNewBirth) {
-        if (theBirthCell.find(".birthLocationMatchSpan").length === 0) {
-          theBirthCell.append($("<span class='birthLocationMatchSpan matchSpan'>Birth Location Match</span>"));
-        }
-        matchCount++;
-        exactLocationMatch = true;
-      }
-    }
-
-    // Partial location matching if there was no exact match
-    if (!exactLocationMatch && isOK(newPerson.BirthLocation) && isOK(extractedData.BirthLocation)) {
-      const newPersonLocation = dissectLocation(newPerson.BirthLocation);
-      const extractedLocation = dissectLocation(extractedData.BirthLocation);
-      const newPersonAltCountry = findAlternativeCountryName(newPersonLocation.country);
-      const extractedAltCountry = findAlternativeCountryName(extractedLocation.country);
-
-      let partialLocationMatchCount = 0;
-      if (
-        newPersonLocation.country &&
-        extractedLocation.country &&
-        (newPersonLocation.country === extractedLocation.country ||
-          newPersonAltCountry === extractedLocation.country ||
-          newPersonLocation.country === extractedAltCountry)
-      ) {
-        partialLocationMatchCount += 0.25;
-      }
-      if (newPersonLocation.state && newPersonLocation.state === extractedLocation.state) {
-        partialLocationMatchCount += 0.25;
-      }
-      if (newPersonLocation.county && newPersonLocation.county === extractedLocation.county) {
-        partialLocationMatchCount += 0.25;
-      }
-      if (newPersonLocation.town && newPersonLocation.town === extractedLocation.town) {
-        partialLocationMatchCount += 0.25;
-      }
-      if (partialLocationMatchCount > 0) {
-        matchCount += partialLocationMatchCount;
-      }
-    }
-
-    $row.data("match-count", matchCount);
-  });
-
-  // Reorder rows by match count (highest matches first)
-  const rowsArray = $("table#matchesTable tr[id^=potentialMatch]").get();
-  rowsArray.sort(function (a, b) {
-    const matchCountA = $(a).data("match-count") || 0;
-    const matchCountB = $(b).data("match-count") || 0;
-    return matchCountB - matchCountA;
-  });
-  const tableBody = $("table#matchesTable tbody");
-  tableBody.empty();
-  rowsArray.forEach(function (row) {
-    tableBody.append(row);
-  });
-}
-
+const suggestedMatches = [];
 async function initSuggestedMatchesFilters() {
   const WTID = $("h1 button[aria-label='Copy ID']").data("copy-text");
-  console.log(WTID);
   let relatives;
-  const APP_ID = "WBE_suggested_matches_filters";
   if (WTID) {
-    relatives = await WikiTreeAPI.getRelatives(APP_ID, [WTID], ["BirthLocation,DeathLocation"], {
-      getSpouses: true,
-      getChildren: true,
-      getParents: true,
-      getSiblings: true,
-    });
+    relatives = await getRelatives(
+      [WTID],
+      {
+        getSpouses: true,
+        getChildren: true,
+        getParents: true,
+        getSiblings: true,
+        fields: ["BirthLocation,DeathLocation"],
+      },
+      { appId: "WBE_suggested_matches_filters" }
+    );
   }
   const locations = [
     relatives?.[0]?.BirthLocation,
@@ -495,31 +279,29 @@ async function initSuggestedMatchesFilters() {
     $("#mDeathLocation").val(),
   ];
 
-  // Populate newPerson.locations from both birth and death locations
-  ["Birth", "Death"].forEach(function (bd) {
+  let birthDeath = ["Birth", "Death"];
+  birthDeath.forEach(function (bd) {
     $("#m" + bd + "Location")
       .val()
       .split(",")
       .forEach(function (aBit) {
-        const trimmed = aBit.trim();
-        if (isOK(trimmed)) {
-          newPerson.locations.push(trimmed);
-        }
+        newPerson.locations.push(aBit.trim());
       });
   });
   const relativeTypes = ["Parents", "Siblings", "Spouses", "Children"];
   let keys, aPerson;
   if (relatives?.[0]) {
     relativeTypes.forEach(function (relativeType) {
-      if (relatives[0][relativeType]) {
-        keys = Object.keys(relatives[0][relativeType]);
+      if (relatives?.[0][relativeType]) {
+        keys = Object.keys(relatives?.[0][relativeType]);
         keys.forEach(function (aKey) {
-          aPerson = relatives[0][relativeType][aKey];
+          aPerson = relatives?.[0][relativeType][aKey];
           locations.push(aPerson.BirthLocation, aPerson.DeathLocation);
         });
       }
     });
   }
+
   const filteredLocations = [];
   let trimmedBit, aLocationBits;
   locations.forEach(function (aLocation) {
@@ -527,30 +309,82 @@ async function initSuggestedMatchesFilters() {
       aLocationBits = aLocation.split(",");
       aLocationBits.forEach(function (aBit) {
         trimmedBit = aBit.trim();
-        if (!filteredLocations.includes(trimmedBit) && isOK(trimmedBit)) {
-          filteredLocations.push(trimmedBit);
-        }
+        if (!filteredLocations.includes(trimmedBit) && isOK(trimmedBit)) filteredLocations.push(trimmedBit);
       });
     }
   });
 
-  // Use the extraction helper to get person data from each row
   $("tr[id^=potentialMatch]").each(function () {
-    const aMatch = extractPersonFromRow(this);
+    const aMatch = {};
+    const tds = $(this).find("td");
+
+    // Helper function to parse dates and locations from HTML content
+    function parseDateAndLocation(cellHtml) {
+      const parts = cellHtml
+        .split("<br>")
+        .map((part) => part.trim())
+        .filter(Boolean);
+      let result = { locations: [] };
+
+      if (parts.length === 1) {
+        const dateMatch = parts[0].match(/.*?([0-9]{4})s?/);
+        if (dateMatch) {
+          result.year = dateMatch[1];
+        } else {
+          result.locations = parts[0].split(/\s*,\s*/); // split by comma for multiple locations
+        }
+      } else {
+        const dateMatch = parts[0].match(/.*?([0-9]{4})s?/);
+        if (dateMatch) {
+          result.date = parts[0];
+          result.year = dateMatch[1];
+        }
+        result.locations = parts[1]
+          .split(/\s*,\s*/)
+          .map((loc) => loc.trim())
+          .filter((loc) => loc !== "");
+      }
+
+      return result;
+    }
+
+    // Name extraction
+    const nameLink = tds.eq(0).find("a").eq(0);
+    aMatch.WTID = nameLink.attr("href").split("wiki/")[1];
+    aMatch.name = nameLink.text().trim();
+
+    const nameParts = aMatch.name.split(/\s+/);
+    aMatch.FirstName = nameParts[0];
+    aMatch.LastName = nameParts[nameParts.length - 1];
+    if (nameParts.length > 2) {
+      aMatch.MiddleName = nameParts.slice(1, -1).join(" ");
+    }
+
+    // Parse birth and death data
+    const birthData = parseDateAndLocation(tds.eq(1).html());
+    if (birthData.date) aMatch.BirthDate = birthData.date;
+    if (birthData.year) aMatch.BirthYear = birthData.year;
+    if (birthData.locations.length) aMatch.BirthLocations = birthData.locations;
+
+    const deathData = parseDateAndLocation(tds.eq(2).html());
+    if (deathData.date) aMatch.DeathDate = deathData.date;
+    if (deathData.year) aMatch.DeathYear = deathData.year;
+    if (deathData.locations.length) aMatch.DeathLocations = deathData.locations;
+
     suggestedMatches.push(aMatch);
   });
 
   const filterButtons = $(
     "<div id='filterButtons'><label>Filters: </label>" +
-      "<button class='btn btn-secondary' id='locationFilterButton'>location</button>" +
-      "<button class='btn btn-secondary' id='nameFilterButton'>name</button>" +
-      "<button class='btn btn-secondary' id='dateFilterButton'>date</button></div>"
+      "<button class='small button' id='locationFilterButton'>Location</button>" +
+      "<button class='small button' id='nameFilterButton'>Name</button>" +
+      "<button class='small button' id='dateFilterButton'>Date</button></div>"
   );
-  if ($("#filterButtons").length === 0) {
+  if ($("#filterButtons").length == 0) {
     filterButtons.appendTo($("#matchesStatusBox p:first-child"));
   }
 
-  // Highlight matches if the option is set
+  // Highlighting
   getFeatureOptions("suggestedMatchesFilters").then((options) => {
     if (options.highlightMatches) {
       highlightMatches();
@@ -559,15 +393,18 @@ async function initSuggestedMatchesFilters() {
 
   $("#nameFilterButton").on("click", function (e) {
     e.preventDefault();
-    if ($(this).attr("data-level") === "2") {
+    if ($(this).attr("data-level") == "2") {
       $(".nameFiltered").removeClass("nameFiltered");
-      $(this).attr("data-level", "0").text("name");
+      $(this).attr("data-level", "0");
+      $(this).text("name");
     } else {
-      if ($(this).attr("data-level") === "1") {
-        $(this).attr("data-level", "2").text("name 2");
+      if ($(this).attr("data-level") == "1") {
+        $(this).attr("data-level", "2");
+        $(this).text("name 2");
         nameFilter(2);
       } else {
-        $(this).attr("data-level", "1").text("name 1");
+        $(this).attr("data-level", "1");
+        $(this).text("name 1");
         nameFilter(1);
       }
     }
@@ -575,20 +412,25 @@ async function initSuggestedMatchesFilters() {
 
   $("#dateFilterButton").on("click", function (e) {
     e.preventDefault();
-    if ($(this).attr("data-level") === "2") {
+    if ($(this).attr("data-level") == "2") {
       $(".dateFiltered").removeClass("dateFiltered");
-      $(this).attr("data-level", "0").text("date");
+      $(this).attr("data-level", "0");
+      $(this).text("date");
     } else {
-      let nextLevel = $(this).attr("data-level") === "1" ? 2 : 1;
-      $(this)
-        .attr("data-level", nextLevel)
-        .text("date " + nextLevel);
+      let nextLevel;
+      if ($(this).attr("data-level") == "1") {
+        nextLevel = 2;
+      } else {
+        nextLevel = 1;
+      }
+      $(this).attr("data-level", nextLevel);
+      $(this).text("date " + nextLevel);
       dateFilter(nextLevel, newPerson);
     }
   });
 
   suggestedMatches.forEach(function (person) {
-    if (person.locations.length === 0) {
+    if (person.locations.length == 0) {
       getLocations(person.WTID).then((oLocations) => {
         person.locations = oLocations;
         let thisTD = $(`a[href$="${person.WTID}"]`).closest("td");
@@ -596,6 +438,7 @@ async function initSuggestedMatchesFilters() {
         if (person.locations.length) {
           thisTD.append("<div>Family location words: " + locationWords + "</div>");
         }
+
         person = addUSVariants(person);
       });
     }
@@ -603,14 +446,17 @@ async function initSuggestedMatchesFilters() {
 
   $("#locationFilterButton").on("click", function (e) {
     e.preventDefault();
-    if ($(this).attr("data-level") === "2") {
-      $(this).attr("data-level", "0").text("location");
+    if ($(this).attr("data-level") == "2") {
+      $(this).attr("data-level", "0");
+      $(this).text("location");
       $(".locationFiltered").removeClass("locationFiltered");
     } else {
-      if ($(this).attr("data-level") === "1") {
-        $(this).attr("data-level", "2").text("location 2");
+      if ($(this).attr("data-level") == "1") {
+        $(this).attr("data-level", "2");
+        $(this).text("location 2");
       } else {
-        $(this).attr("data-level", "1").text("location 1");
+        $(this).attr("data-level", "1");
+        $(this).text("location 1");
       }
       suggestedMatches.forEach(function (person) {
         locationFilter(person, filteredLocations, newPerson);
@@ -1032,3 +878,201 @@ const countryList = [
   "Zambie",
   "Zimbabwe",
 ];
+
+function parseDateAndLocation(cellHtml) {
+  const parts = cellHtml
+    .split("<br>")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const result = { locations: [] };
+
+  if (parts.length === 1) {
+    const dateMatch = parts[0].match(/.*?([0-9]{4})s?/);
+    if (dateMatch) {
+      result.date = parts[0];
+      result.year = dateMatch[1];
+    } else {
+      result.locations = parts[0].split(/\s*,\s*/);
+    }
+  } else {
+    const dateMatch = parts[0].match(/.*?([0-9]{4})s?/);
+    if (dateMatch) {
+      result.date = parts[0];
+      result.year = dateMatch[1];
+    }
+    result.locations = parts[1]
+      .split(/\s*,\s*/)
+      .map((loc) => loc.trim())
+      .filter((loc) => loc !== "");
+  }
+
+  return result;
+}
+
+function extractPersonFromRow(rowElement) {
+  const $row = $(rowElement);
+  const tds = $row.find("td");
+  const aMatch = {};
+
+  // Name
+  const nameLink = tds.eq(0).find("a").eq(0);
+  aMatch.WTID = nameLink.attr("href").split("wiki/")[1];
+  aMatch.fullName = nameLink.text().trim();
+
+  const nameParts = aMatch.fullName.split(/\s+/);
+  aMatch.FirstName = nameParts[0];
+  aMatch.LastName = nameParts[nameParts.length - 1];
+  if (nameParts.length > 2) {
+    aMatch.MiddleName = nameParts.slice(1, -1).join(" ");
+  }
+
+  // Birth
+  const birthData = parseDateAndLocation(tds.eq(1).html());
+  aMatch.BirthDate = birthData.date || "";
+  aMatch.BirthYear = birthData.year || "";
+  aMatch.BirthLocation = (birthData.locations || []).join(", ");
+
+  // Death
+  const deathData = parseDateAndLocation(tds.eq(2).html());
+  aMatch.DeathDate = deathData.date || "";
+  aMatch.DeathYear = deathData.year || "";
+  aMatch.DeathLocation = (deathData.locations || []).join(", ");
+
+  return aMatch;
+}
+
+function findAlternativeCountryName(countryName) {
+  for (const country of countries) {
+    if (country.name === countryName || country.nativeName === countryName) {
+      return country.name === countryName ? country.nativeName : country.name;
+    }
+  }
+  return null; // Return null if no match found
+}
+
+// Utility function to break down location into its components
+function dissectLocation(location) {
+  const parts = location.split(",").map((part) => part.trim());
+  return {
+    country: parts[parts.length - 1] || "",
+    state: parts[parts.length - 2] || "",
+    county: parts[parts.length - 3] || "",
+    town: parts[0] || "",
+  };
+}
+
+function highlightMatches() {
+  const people = $("table#matchesTable tr[id^=potentialMatch]");
+
+  people.each(function () {
+    const extractedData = extractPersonFromRow(this);
+    let matchCount = 0;
+    let exactLocationMatch = false;
+
+    // Date matching logic
+    const isOnlyYear = (date) => /^\d{4}$/.test(date);
+    const extractedBirthYear = extractedData.birthDate.match(/\d{4}/);
+    const newPersonBirthYear = newPerson.BirthDate.match(/\d{4}/);
+
+    if (extractedData.birthDate === convertDate(newPerson.BirthDate, "ISO")) {
+      if (isOnlyYear(extractedData.birthDate) && isOnlyYear(newPerson.BirthDate)) {
+        $(this).addClass("birthYearMatch");
+        $(this).append($("<span class='birthYearMatchSpan matchSpan'>Birth Year Match</span>"));
+        matchCount += 0.5;
+      } else {
+        $(this).addClass("birthDateMatch");
+        $(this).append($("<span class='birthDateMatchSpan matchSpan'>Birth Date Match</span>"));
+        matchCount++;
+      }
+    } else if (extractedBirthYear && newPersonBirthYear && extractedBirthYear[0] === newPersonBirthYear[0]) {
+      $(this).addClass("birthYearMatch");
+      $(this).append($("<span class='birthYearMatchSpan matchSpan'>Birth Year Match</span>"));
+      matchCount += 0.5;
+    }
+
+    // Additional logic for deathDate
+    const extractedDeathYear = extractedData.deathDate.match(/\d{4}/);
+    const newPersonDeathYear = newPerson.DeathDate.match(/\d{4}/);
+
+    if (extractedData.deathDate === convertDate(newPerson.DeathDate, "ISO") && extractedData.deathDate) {
+      console.log(extractedData.deathDate, convertDate(newPerson.DeathDate, "ISO"));
+      if (isOnlyYear(extractedData.deathDate) && isOnlyYear(newPerson.DeathDate)) {
+        $(this).addClass("deathYearMatch");
+        $(this).append($("<span class='deathYearMatchSpan matchSpan'>Death Year Match</span>"));
+        matchCount += 0.5;
+      } else {
+        $(this).addClass("deathDateMatch");
+        $(this).append($("<span class='deathDateMatchSpan matchSpan'>Death Date Match</span>"));
+        matchCount++;
+      }
+    } else if (extractedDeathYear && newPersonDeathYear && extractedDeathYear[0] === newPersonDeathYear[0]) {
+      $(this).addClass("deathYearMatch");
+      $(this).append($("<span class='deathYearMatchSpan matchSpan'>Death Year Match</span>"));
+      matchCount += 0.5;
+    }
+
+    if (extractedData.fullName === newPerson.FullName) {
+      $(this).addClass("nameMatch");
+      matchCount++;
+    }
+
+    // Strip UK from the end of the location to match England, Scotland, Wales
+    extractedData.birthLocation = extractedData.birthLocation.replace(/, (United Kingdom|UK|U.K.)$/g, "");
+    newPerson.BirthLocation = newPerson.BirthLocation.replace(/, (United Kingdom|UK|U.K.)$/g, "");
+
+    if (extractedData.birthLocation === newPerson.BirthLocation) {
+      $(this).addClass("birthLocationMatch");
+      $(this).append($("<span class='birthLocationMatchSpan matchSpan'>Birth Location Match</span>"));
+      matchCount++;
+      exactLocationMatch = true;
+    }
+
+    // Only do partial matching if there's no exact match
+    if (!exactLocationMatch) {
+      const newPersonLocation = dissectLocation(newPerson.BirthLocation);
+      const extractedLocation = dissectLocation(extractedData.birthLocation);
+
+      // Find alternative names for both the newPerson's country and the extracted country
+      const newPersonAltCountry = findAlternativeCountryName(newPersonLocation.country, countries);
+      const extractedAltCountry = findAlternativeCountryName(extractedLocation.country, countries);
+
+      let partialLocationMatchCount = 0;
+      if (
+        newPersonLocation.country === extractedLocation.country ||
+        newPersonAltCountry === extractedLocation.country ||
+        newPersonLocation.country === extractedAltCountry
+      ) {
+        partialLocationMatchCount += 0.25;
+      }
+      if (newPersonLocation.state && newPersonLocation.state === extractedLocation.state) {
+        partialLocationMatchCount += 0.25;
+      }
+      if (newPersonLocation.county && newPersonLocation.county === extractedLocation.county) {
+        partialLocationMatchCount += 0.25;
+      }
+      if (newPersonLocation.town && newPersonLocation.town === extractedLocation.town) {
+        partialLocationMatchCount += 0.25;
+      }
+
+      if (partialLocationMatchCount > 0) {
+        $(this).addClass("partialBirthLocationMatch");
+        $(this).append($("<span class='partialBirthLocationMatchSpan matchSpan'>Partial Birth Location Match</span>"));
+        matchCount += partialLocationMatchCount;
+      }
+    }
+
+    $(this).data("match-count", matchCount);
+  });
+
+  // Sort the rows based on match-count
+  people
+    .sort(function (a, b) {
+      const matchCountA = $(a).data("match-count");
+      const matchCountB = $(b).data("match-count");
+      return matchCountA - matchCountB;
+    })
+    .each(function () {
+      const thisTR = $(this).closest("tr");
+      thisTR.prependTo(thisTR.parent());
+    });
+}

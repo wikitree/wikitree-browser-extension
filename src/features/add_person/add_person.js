@@ -186,6 +186,7 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
 
     $("#enterBasicDataButton,#saveWithoutCorrection").on("click", function () {
       setTimeout(() => {
+        $("#dismissMatchesButton").show();
         console.log($("#matchesContainer").length, $("#validationContainer").length);
         if ($("#matchesContainer").length == 0 && $("#validationContainer").length == 0) {
           $("#sourcesSection,#basicDataSection").show();
@@ -202,6 +203,9 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
           } else {
             $("#noMatches").remove();
           }
+        }
+        if ($("#validationContainer").length) {
+          $("#dismissMatchesButton").hide();
         }
       }, 3000);
     });
