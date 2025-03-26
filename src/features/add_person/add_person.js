@@ -147,6 +147,7 @@ function scrollTo(el) {
   }
 }
 
+let hasHitContinue = false;
 shouldInitializeFeature("addPersonRedesign").then((result) => {
   if (result && isProfileEdit) {
     getFeatureOptions("addPersonRedesign").then((options) => {
@@ -170,6 +171,16 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
       }
       if (options.categoryPicker) {
         addCategoryPicker();
+      }
+    });
+
+    $("#enterBasicDataButton").insertAfter($("#mSources"));
+    $("#enterBasicDataButton").on("click", function () {
+      hasHitContinue = true;
+    });
+    $(document).on("input", "input, textarea", function () {
+      if (hasHitContinue) {
+        $("#enterBasicDataButton").show();
       }
     });
 
