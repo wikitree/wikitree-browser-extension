@@ -65,7 +65,9 @@ function initSendToMerge() {
           // Check if the new button has already been added
           if (!$(this).next().hasClass("sendToMerge")) {
             // Create a new button using jQuery
-            const newButton = $('<button class="sendToMerge efmButton matchActionButton">Send to merge</button>');
+            const newButton = $(
+              '<button class="btn btn-secondary sendToMerge efmButton matchActionButton">Send to merge</button>'
+            );
 
             // Insert the new button after the current button in the loop
             newButton.insertAfter(this);
