@@ -1,6 +1,7 @@
 import $ from "jquery";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { isProfileAddRelative, isAddUnrelatedPerson } from "../../core/pageType";
+import { isEnhancedEditorOn } from "../hide_photo_column/hide_photo_column";
 
 shouldInitializeFeature("editorExpander").then((result) => {
   if (result) {
@@ -12,11 +13,21 @@ shouldInitializeFeature("editorExpander").then((result) => {
 
 function returnEditorToNormal() {
   $("#addCategoryInput").insertAfter("#toolbar");
+
+  let eeWasOn = false;
+  if (isEnhancedEditorOn()) {
+    $("#toggleMarkupColor").trigger("click");
+    eeWasOn = true;
+  }
   $("div.CodeMirror").removeClass("expanded").insertAfter("#wpTextbox1");
   $("textarea#wpTextbox1").removeClass("expanded").insertAfter("#addCategoryInput");
   $("#toolbar").removeClass("expanded");
   $("#familyDropdown").insertBefore("#toolbar").removeClass("expanded");
   $(document).off("keyup");
+  if (eeWasOn) {
+    $("#toggleMarkupColor").trigger("click");
+  }
+  $("#expandTextareaButton").attr("title", "Expand text box");
 }
 const imgURL = chrome.runtime.getURL("images/expand.svg");
 function initEditorExpander() {
