@@ -49,15 +49,21 @@ function setStickyHeights() {
   if (bannerHeight) {
     document.documentElement.style.setProperty("--x-sticky-banner-height", bannerHeight);
   }
-  const headerHeight = $("body > header, .qa-header").first().css("height");
+  const headerHeight = $("body > header, .qa-header > header").first().css("height");
   if (headerHeight) {
     document.documentElement.style.setProperty("--x-sticky-header-height", headerHeight);
   }
   const searchHeight = $("#searchBar.showSearch.show").first().css("height");
   if (searchHeight) {
+    // this is only set when "Show Search" feature is enabled and showing by default; upon collapsing, it should reset to 0px
     document.documentElement.style.setProperty("--x-sticky-search-height", `${Math.floor(parseFloat(searchHeight))}px`);
   }
-  const toolbarHeight = $("body > .tabs--wrapper").first().css("height");
+  const headingHeight = $(".qa-header > #heading").first().css("height");
+  if (headingHeight) {
+    // right now, this is only considered on G2G where the heading is part of the entire header block
+    document.documentElement.style.setProperty("--x-sticky-heading-height", headingHeight);
+  }
+  const toolbarHeight = $("body > .tabs--wrapper, .qa-header > .qa-nav-main").first().css("height");
   if (toolbarHeight) {
     document.documentElement.style.setProperty("--x-sticky-toolbar-height", toolbarHeight);
   }

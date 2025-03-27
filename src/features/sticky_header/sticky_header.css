@@ -2,6 +2,7 @@
   --x-sticky-banner-height: 0px;
   --x-sticky-header-height: 0px;
   --x-sticky-search-height: 0px;
+  --x-sticky-heading-height: 0px;
   --x-sticky-toolbar-height: 0px;
 }
 
@@ -9,7 +10,7 @@
   .sticky-header {
     --x-sticky-header-bottom: calc(
       var(--x-sticky-banner-height) + var(--x-sticky-header-height) + var(--x-sticky-search-height) +
-        var(--x-sticky-toolbar-height)
+        var(--x-sticky-heading-height) + var(--x-sticky-toolbar-height)
     );
     --x-sticky-header-offset: calc(20px + var(--x-sticky-header-bottom));
   }
@@ -53,9 +54,7 @@
 
   /* keep the sticky help search box below all header elements */
   .sticky-header .sticky-lg-top {
-    top: calc(
-      1vh + var(--x-sticky-banner-height) + var(--x-sticky-header-height) + var(--x-sticky-toolbar-height)
-    ) !important;
+    top: calc(1vh + var(--x-sticky-header-bottom)) !important;
   }
 
   /* adjust custom tooltips within the page toolbar */
