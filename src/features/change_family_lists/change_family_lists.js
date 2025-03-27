@@ -262,48 +262,85 @@ function parseSpousesBlock(spousesEl) {
   return records;
 }
 
-/**
- * Parses the siblings text from the treePersonBit element and returns an array of sibling objects.
- * Each sibling object contains the name, half-sibling status, and birth date (if available).
- *
- * @returns {Array<Object>} An array of sibling objects.
- * @returns {string} siblingsArray[].name - The name of the sibling.
- * @returns {boolean} siblingsArray[].half - Indicates if the sibling is a half-sibling.
- * @returns {string} siblingsArray[].BirthDate - The birth date of the sibling, if available.
- */
-function siblingsTextArray() {
+let siblingCounter = 0;
+function improvedSiblingsArray() {
   const siblingsArray = [];
-  const siblingsText = treePersonBit.find("#Siblings").text();
-  // Split by commas or "and".
-  const siblings = siblingsText.split(/, |\sand\s/).map((s) => s.trim());
+  const siblingsContainer = document.getElementById("Siblings");
+  if (!siblingsContainer) return siblingsArray;
 
-  siblings.forEach((s) => {
-    const obj = {};
-    const half = s.includes("[half]");
-    const name1 = s
-      .replace("[half]", "")
-      .trim()
-      .replace(/(Brother|Sister|Sibling) of\n/, "")
-      .replace(/\nadd sibling/, "")
-      .trim();
-    let BirthDate;
-    let DeathDate;
-    let name;
-    // Find the name and birthdate
-    // [private sister (1950s - unknown)] --> name: [private sister], BirthDate: '1950s'
-    if (name1.match(/\d{4}/)) {
-      name = name1.replace(/ \(\d{4}s - .*?\)/, "").trim();
-      BirthDate = name1.match(/\d{4}s/) ? name1.match(/\d{4}s/)[0] : "";
-      DeathDate = name1.match(/\d{4}s - (.*?)\)/) ? name1.match(/\d{4}s - (.*?)\)/)[1] : "";
-    } else {
-      name = name1;
+  // --- Step 1: Extract structured sibling entries ---
+  const structuredSiblings = siblingsContainer.querySelectorAll("span[itemprop='sibling']");
+  structuredSiblings.forEach((elem) => {
+    let nameElem = elem.querySelector("span[itemprop='name']");
+    let rawText = nameElem ? nameElem.textContent.trim() : elem.textContent.trim();
+    let BirthDate = "";
+    let DeathDate = "";
+    const dateMatch = rawText.match(/\(([^)]*\d{4}[^)]*)\)/);
+    if (dateMatch) {
+      const [b, d] = dateMatch[1].split(/\s*-\s*/);
+      BirthDate = b ? b.trim() : "";
+      DeathDate = d ? d.trim() : "";
+      rawText = rawText.replace(/\s*\([^)]*\)/, "").trim();
     }
-    obj.FullName = name;
-    obj.half = half;
-    obj.BirthDate = BirthDate || "";
-    obj.DeathDate = DeathDate || "";
-    siblingsArray.push(obj);
+    let half = /\[half\]/i.test(rawText);
+    rawText = rawText.replace(/\[half\]/gi, "").trim();
+    rawText = rawText.replace(/^\[|\]$/g, "").trim();
+
+    // Assign a unique ID
+    siblingsArray.push({
+      uniqueId: siblingCounter++,
+      FullName: rawText,
+      half: half,
+      BirthDate: BirthDate,
+      DeathDate: DeathDate,
+    });
   });
+
+  // --- Step 2: Fallback for bracketed/unstructured entries ---
+  let remainingText = siblingsContainer.innerText;
+  structuredSiblings.forEach((elem) => {
+    let text = elem.textContent.trim();
+    remainingText = remainingText.replace(text, "");
+  });
+  const bracketRegex = /\[[^\]]+\]/g;
+  const bracketMatches = remainingText.match(bracketRegex) || [];
+  const placeholders = new Set([
+    "[date unknown]",
+    "[location unknown]",
+    "[uncertain]",
+    "[confident]",
+    "[non-biological]",
+    "[marriage location?]",
+    "[marriage date?]",
+    "[half]",
+  ]);
+  bracketMatches.forEach((bracketText) => {
+    const normalized = bracketText.trim().toLowerCase();
+    if (placeholders.has(normalized)) return;
+    const temp = document.createElement("div");
+    temp.innerHTML = bracketText;
+    let textContent = temp.textContent.trim();
+    let BirthDate = "";
+    let DeathDate = "";
+    const dateMatch = textContent.match(/\(([^)]*\d{4}[^)]*)\)/);
+    if (dateMatch) {
+      const [b, d] = dateMatch[1].split(/\s*-\s*/);
+      BirthDate = b ? b.trim() : "";
+      DeathDate = d ? d.trim() : "";
+      textContent = textContent.replace(/\s*\([^)]*\)/, "").trim();
+    }
+    let half = /\[half\]/i.test(textContent);
+    textContent = textContent.replace(/\[half\]/gi, "").trim();
+    //textContent = textContent.replace(/^\[|\]$/g, "").trim();
+    siblingsArray.push({
+      uniqueId: siblingCounter++,
+      FullName: textContent,
+      half: half,
+      BirthDate: BirthDate,
+      DeathDate: DeathDate,
+    });
+  });
+
   return siblingsArray;
 }
 
@@ -312,7 +349,7 @@ function siblingsTextArray() {
  * @returns {Object} The family data object with arrays for parents, siblings, spouses, and children.
  */
 function parseInitialData() {
-  const theSiblingsArray = siblingsTextArray();
+  const theSiblingsArray = improvedSiblingsArray();
 
   const excludeBrackets = [
     "[date unknown]",
@@ -375,14 +412,18 @@ function parseInitialData() {
     // name in siblingsArray == FullName in parsedSiblings
     // Check siblingsArray for half. If half and !halfMarker in parsedSiblings, create halfMarker:
     // <span class="SMALL" title="${profilePerson.FullName} and sibling share one parent.">[half]</span>
+    // Make a copy of parsedSiblings so we can remove matches as they are found.
+    const parsedSiblingsCopy = parsedSiblings.slice();
+
     theSiblingsArray.forEach((sibling) => {
-      const siblingObj = parsedSiblings.find(
+      const index = parsedSiblingsCopy.findIndex(
         (s) =>
-          (s.FullName == sibling.FullName || s.Name == sibling.FullName) &&
-          s.BirthDate == sibling.BirthDate &&
-          s.DeathDate == sibling.DeathDate
+          (s.FullName === sibling.FullName || s.Name === sibling.FullName) &&
+          s.BirthDate === sibling.BirthDate &&
+          s.DeathDate === sibling.DeathDate
       );
-      if (siblingObj) {
+      if (index !== -1) {
+        const siblingObj = parsedSiblingsCopy.splice(index, 1)[0];
         Object.assign(sibling, siblingObj);
         if (sibling.half && !siblingObj.halfMarker) {
           sibling.halfMarker = `<span class="SMALL" title="${profilePerson.FullName} and sibling share one parent."> [half]</span>`;
@@ -501,11 +542,11 @@ function getDatesFromFamilyData(p) {
   const deathYear = getYear(p.DeathDate);
 
   if (birthYear || deathYear) {
-    return { birthYear, deathYear, dates: ` (${birthYear} - ${deathYear})` };
+    return { birthYear, deathYear, dates: ` (${birthYear}–${deathYear})` };
   }
   return {};
 }
-
+// en dash character: &#8211; or &ndash; or " - "
 /**
  * Creates a header element.
  * @param {string} label - The header label.
@@ -701,9 +742,10 @@ function buildSiblingsSection(siblings) {
       const li = document.createElement("li");
       li.dataset.parseName = s.Name;
       const dates = getDatesFromFamilyData(s);
-      const isPrivate = s.Name?.trim().toLowerCase().startsWith("[private");
+      s.Name = s.Name.trim();
+      const isPrivate = s.Name.toLowerCase()?.startsWith("[private");
       if (isPrivate) {
-        li.innerHTML = `<span itemprop="sibling" itemscope itemtype="https://schema.org/Person">
+        li.innerHTML = `<span itemprop="sibling" class="privateSibling" itemtype="https://schema.org/Person">
           <span itemprop="name">${s.FullName || s.Name} ${
           s.halfMarker || ""
         }</span><span class="bdDates" data-birth-year="${dates.birthYear || ""}" data-death-year="${
@@ -1962,6 +2004,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   }
   moveMetaGender();
   const familyData = parseInitialData();
+  console.log("Family data:", familyData);
   const treePerson = $("#Family-pane div.tree--person");
   // Retain only the first .VITALS element.
   treePerson.children().not(":first").remove();
