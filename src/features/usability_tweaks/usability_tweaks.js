@@ -1466,9 +1466,11 @@ class RangeringTool {
     theLinks.each((index, element) => {
       if ($(element).text().match(/\d{4}/)) {
         const profileID = decodeURIComponent($(element).attr("href").split("/").pop());
-        // If the profile is not already stored, add to bioLinks to fetch
-        if (!this.fetchedProfiles[profileID]) {
-          bioLinks.push(profileID);
+        if (profileID.match(/^[^-\d]*-\d+$/)) {
+          // If the profile is not already stored, add to bioLinks to fetch
+          if (!this.fetchedProfiles[profileID]) {
+            bioLinks.push(profileID);
+          }
         }
       }
     });
@@ -1821,6 +1823,7 @@ const rangers = [
   "Bech-2",
   "Langholf-2",
   "Whitten-1",
+  "Trtnik-2",
 ];
 
 if (isNetworkFeed && rangers.includes(getUserWtId()) && window.location.href.match(/pre1700|pre1500|merge=1/)) {

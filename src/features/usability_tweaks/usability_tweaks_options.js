@@ -11,6 +11,7 @@ const usabilityTweaks = {
   contributors: [
     { name: "Florian Straub", wikitreeid: "Straub-620" },
     { name: "Riël Smit", wikitreeid: "Smit-641" },
+    { name: "Aleš Trtnik", wikitreeid: "Trtnik-2" },
   ],
   defaultValue: true,
   pages: [isMainDomain, isPlusDomain],
