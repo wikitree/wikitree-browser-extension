@@ -1089,7 +1089,7 @@ function connectionFinderTable() {
 
         $.ajax({
           url:
-            "https://api.wikitree.com/api.php?action=getRelatives&getSpouses=1&getParents=1&getSiblings=1&getChildren=1&keys=" +
+            "https://api.wikitree.com/api.php?action=getRelatives&appID=WBE-connectionFinder&getSpouses=1&getParents=1&getSiblings=1&getChildren=1&keys=" +
             IDstring,
           crossDomain: true,
           xhrFields: { withCredentials: true },
@@ -1413,7 +1413,7 @@ function cfTimeline(jq) {
   }
   $.ajax({
     url:
-      "https://api.wikitree.com/api.php?action=getRelatives&getSpouses=true&getParents=true&getSiblings=true&getChildren=true&fields=BirthDate,BirthLocation,BirthName,BirthDateDecade,DeathDate,DeathDateDecade,DeathLocation,IsLiving,Father,FirstName,Gender,Id,LastNameAtBirth,LastNameCurrent,Prefix,Suffix,LastNameOther,Derived.LongName,Derived.LongNamePrivate,Manager,MiddleName,Mother,Name,Photo,RealName,ShortName,Touched,DataStatus,Derived.BirthName,Bio&keys=" +
+      "https://api.wikitree.com/api.php?action=getRelatives&appID=WBE-connectionFinder&getSpouses=true&getParents=true&getSiblings=true&getChildren=true&fields=BirthDate,BirthLocation,BirthName,BirthDateDecade,DeathDate,DeathDateDecade,DeathLocation,IsLiving,Father,FirstName,Gender,Id,LastNameAtBirth,LastNameCurrent,Prefix,Suffix,LastNameOther,Derived.LongName,Derived.LongNamePrivate,Manager,MiddleName,Mother,Name,Photo,RealName,ShortName,Touched,DataStatus,Derived.BirthName,Bio&keys=" +
       ID,
     crossDomain: true,
     xhrFields: { withCredentials: true },
@@ -1447,7 +1447,7 @@ function showHeritageSocietyBox() {
         pText = hsDetails(aCouple[1]);
 
         $.ajax({
-          url: "https://api.wikitree.com/api.php?action=getRelatives&getParents=true&keys=" + aCouple[1].Name,
+          url: "https://api.wikitree.com/api.php?action=getRelatives&appID=WBE-connectionFinder&getParents=true&keys=" + aCouple[1].Name,
           crossDomain: true,
           xhrFields: { withCredentials: true },
           type: "POST",
