@@ -66,7 +66,7 @@ form[name="a_form"] {
   position: relative;
 }
 .wbe-button span,
-.wbe-icon span {
+.wbe-icon:not(.WBEHelpIcon) span {
   background: transparent left no-repeat;
   background-size: contain;
   display: inline-block;
@@ -78,7 +78,9 @@ form[name="a_form"] {
 
 /* Emulate/replicate the new tooltip style */
 /* Style for elements with a tooltip */
+/* Start tooltip stuff */
 [data-tooltip] {
+  position: relative;
   cursor: pointer;
 }
 
@@ -139,6 +141,27 @@ form[name="a_form"] {
 [data-tooltip]:hover::before {
   opacity: 1;
 }
+
+/* Tooltip for the WBE help icon */
+.WBEHelpIcon {
+  text-indent: 0 !important;
+  text-decoration: none !important;
+}
+.WBEHelpIcon span.icon--help {
+  background-size: 22px 22px !important;
+  background-position: center !important;
+  filter: invert(57%) sepia(98%) saturate(563%) hue-rotate(2deg) brightness(93%) contrast(95%);
+}
+
+.WBEHelpIcon::before {
+  top: -0.55em !important;
+  bottom: auto !important;
+  border-color: #fcb815 transparent transparent transparent !important;
+}
+.WBEHelpIcon::after {
+  top: -3em !important;
+}
+/* End tooltip stuff */
 
 .float-end {
   z-index: 10;

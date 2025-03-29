@@ -97,7 +97,7 @@ async function fetchSiblingsAndParents(userId) {
   const options = { nuclear: 1 };
 
   const result = await WikiTreeAPI.getPeople(
-    "WBE-familyStatusSync",
+    "familyStatusSync",
     [userId], // must be an array
     fields,
     options
@@ -298,7 +298,7 @@ async function handleNoChildrenCheck(userId) {
     const fields = ["Id", "Father", "Mother", "NoChildren", "Name", "FirstName", "RealName", "BirthDate"];
     const options = { nuclear: 1 };
 
-    const result = await WikiTreeAPI.getPeople("WBE-familyStatusSync", [userId], fields, options);
+    const result = await WikiTreeAPI.getPeople("familyStatusSync", [userId], fields, options);
     const statusText = result[0];
     const peopleList = result[2];
 
@@ -391,7 +391,7 @@ async function handleNoChildrenCheck(userId) {
 ---------------------------------------------------------------------- */
 async function ensureProfileFetched(personId, fields) {
   try {
-    const result = await WikiTreeAPI.getPeople("WBE-familyStatusSync", [personId], fields, { nuclear: 1 });
+    const result = await WikiTreeAPI.getPeople("familyStatusSync", [personId], fields, { nuclear: 1 });
     const statusText = result[0];
     if (statusText) {
       console.error(`Error fetching profile ${personId}:`, statusText);

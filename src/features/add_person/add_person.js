@@ -157,6 +157,9 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
         if (options.categoryPicker) {
           moveCategories();
         }
+        if (options.sourceHints) {
+          removeSourceHints();
+        }
       }
     });
   } else if (result && $("h1:contains('Edit Marriage')").length == 0) {
@@ -171,6 +174,9 @@ shouldInitializeFeature("addPersonRedesign").then((result) => {
       }
       if (options.categoryPicker) {
         addCategoryPicker();
+      }
+      if (options.sourceHints) {
+        removeSourceHints();
       }
     });
 
@@ -391,5 +397,12 @@ function moveCategories() {
     if (oldValue != ta.value) {
       document.getElementById("wpSummary").value = "Moving categories. ";
     }
+  }
+}
+
+function removeSourceHints() {
+  const sourceHints = document.getElementsByClassName("col-lg-5 sourcesContent")[0];
+  if (sourceHints != null) {
+    sourceHints.remove();
   }
 }

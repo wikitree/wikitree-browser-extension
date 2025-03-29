@@ -348,11 +348,11 @@ async function checkButtonFeatures() {
       const { id, title, aClass, img } = options;
       const button = $("<a>")
         .attr("id", id)
-        .attr("title", title)
+        // .attr("title", title)
         .addClass(`${aClass} wbe-button`)
         .attr("data-bs-title", title)
         .attr("data-bs-toggle", "tooltip")
-        .attr(`data-tooltip`, title);
+        .attr("data-tooltip", title);
 
       // Append icon span with only background-image (CSS handles the rest)
       button.append(
@@ -1695,6 +1695,25 @@ function dateObject(dateStr) {
     parts[1] = 0;
   }
   return new Date(Date.UTC(...parts));
+}
+
+/**
+ * Create a help icon for the WikiTree Browser Extension.
+ * @param {Object} settings - The settings object containing the help URL and tooltip.
+ * @param {string} settings.url - The URL to the help page.
+ * @param {string} settings.feature - The tooltip text for the help icon.
+ * @return {jQuery} - A jQuery object representing the help icon.
+ * */
+export function WBEHelpIcon(settings) {
+  const tooltip = `Read about WBE's ${settings.feature}`;
+  const helpIcon = $(
+    `<a href="${settings.url}" target="Help" class="WBEHelpIcon wbe-icon" data-tooltip="${tooltip}">
+      <span class="icon--help">  
+        <span class="visually-hidden">${settings.tooltip}</span>
+      </span>
+    </a>`
+  );
+  return helpIcon;
 }
 
 //////////////////// For Notables Project

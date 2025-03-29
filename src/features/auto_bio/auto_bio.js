@@ -1216,6 +1216,10 @@ function matchesWithoutAccents(sourceText, targetText) {
 }
 
 function isReferenceRelevant(reference, event, spouse) {
+  if (event === "Death" && /Acadian|Wall of Names|sameas=no/i.test(reference.Text)) {
+    return false;
+  }
+
   if (!window.profilePerson?.BirthYear && window.profilePerson?.BirthDate) {
     window.profilePerson.BirthYear = window.profilePerson.BirthDate.substring(0, 4);
   }
@@ -1310,36 +1314,39 @@ function buildBirthLocation(person) {
 }
 
 export function assignCemeteryFromSources() {
-  // Check if the references array is present and log its length
+  // Clear any existing cemetery data.
+  window.profilePerson.Cemetery = "";
+  window.profilePerson.CemeteryFull = "";
+
   if (!(window.references && Array.isArray(window.references))) {
     return; // Exit if no references to process
   }
 
   window.references.forEach(function (source, index) {
+    // Immediately skip any reference whose text contains the excluded terms.
+    if (/Acadian|Wall of Names|sameas=no/i.test(source.Text)) {
+      return;
+    }
+
     if (source["Record Type"].includes("Death")) {
       let cemeteryMatch = source.Text.match(
         /citing(.*?((Cemetery)|(Memorial)|(Cimetière)|(kyrkogård)|(temető)|(Graveyard)|(Churchyard)|(Burial)|(Crematorium)|(Erebegraafplaats)|(Cementerio)|(Cimitero)|(Friedhof)|(Burying)|(begravningsplats)|(Begraafplaats)|(Mausoleum)|(Chapelyard)|Memorial Park).*?),?.*?(?=[;.])/im
       );
       let cemeteryMatch2 = source.Text.match(
-        /,\s([^,]*?Cemetery|Memorial|Cimetière|kyrkogård|temető|Graveyard|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard).*?;/
+        /,\s((?:(?!Acadian|Wall of Names|sameas=no)[^,])*(?:Cemetery|Memorial|Cimetière|kyrkogård|temető|Graveyard|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard)).*?;/i
       );
-      if (cemeteryMatch && source.Text.match(/Acadian|Wall of Names|sameas=no/) == null) {
+
+      if (cemeteryMatch) {
         let cemetery = cemeteryMatch[0].replace("citing ", "").replace("Burial, ", "").trim();
         window.profilePerson.Cemetery = cemetery;
-        window.profilePerson.CemeteryFull = cemeteryMatch[0]
-          .trim()
-          .replace("citing ", "")
-          .replace("Burial, ", "")
-          .trim();
-      } else if (cemeteryMatch2 && source.Text.match(/Acadian|Wall of Names|sameas=no/) == null) {
+        window.profilePerson.CemeteryFull = cemetery;
+      } else if (cemeteryMatch2) {
         let cemetery = cemeteryMatch2[1].trim();
         window.profilePerson.Cemetery = cemetery;
       }
 
-      if (window.profilePerson?.Cemetery) {
-        if (window.profilePerson?.Cemetery.match(/record|Find a Grave/)) {
-          window.profilePerson.Cemetery = "";
-        }
+      if (window.profilePerson?.Cemetery && window.profilePerson?.Cemetery.match(/record|Find a Grave/i)) {
+        window.profilePerson.Cemetery = "";
       }
     }
   });
@@ -1399,7 +1406,11 @@ export function buildDeath(person) {
   assignCemeteryFromSources();
 
   window.references.forEach(function (source) {
-    if (source["Record Type"].includes("Death") && !source.Relation) {
+    if (
+      source["Record Type"].includes("Death") &&
+      !source.Relation &&
+      !source.Text.match(/Acadian|Wall of Names|sameas=no/i)
+    ) {
       if (window.profilePerson.Cemetery && !burialAdded) {
         if (window.profilePerson.Cemetery.match("Memorial")) {
           text +=
@@ -1426,19 +1437,20 @@ export function buildDeath(person) {
       /Category:\s?((.*Cemetery|Memorial|Cimetière|kyrkogård|temető|Grave|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard).*?)\]\]/
     );
     if (cemeteryCategoryMatch) {
-      window.profilePerson.Cemetery = cemeteryCategoryMatch[1].trim();
-      if (cemeteryCategoryMatch[1].match("Memorial") && burialAdded == false) {
-        text +=
-          " " +
-          capitalizeFirstLetter(person.Pronouns.subject) +
-          " is commemorated at " +
-          cemeteryCategoryMatch[1].trim() +
-          ".";
-      } else {
-        window.profilePerson["Burial Place"] = cemeteryCategoryMatch[1].trim();
+      const cemeteryCategory = cemeteryCategoryMatch[1].trim();
+      // Only assign if the category does NOT contain the excluded terms
+      if (!cemeteryCategory.match(/Acadian|Wall of Names|sameas=no/i)) {
+        window.profilePerson.Cemetery = cemeteryCategory;
+        if (cemeteryCategory.match(/Memorial/i) && burialAdded === false) {
+          text +=
+            " " + capitalizeFirstLetter(person.Pronouns.subject) + " is commemorated at " + cemeteryCategory + ".";
+        } else {
+          window.profilePerson["Burial Place"] = cemeteryCategory;
+        }
       }
     }
   });
+
   text += addReferences("Death");
 
   if (window.profilePerson["Burial Place"] && !burialAdded) {
@@ -7469,8 +7481,6 @@ export async function buildFamilyForPrivateProfiles() {
     return; // Exit the function early
   }
 
-  console.log("Initial window.profilePerson:", JSON.stringify(window.profilePerson, null, 2));
-
   // Construct BirthName if it doesn't exist
   if (!window.profilePerson.BirthName) {
     window.profilePerson.BirthName =
@@ -7530,7 +7540,6 @@ export async function buildFamilyForPrivateProfiles() {
       // Prefer LastNameCurrent if available; otherwise, use LastNameAtBirth
       FullName: object.FirstName + " " + (object.LastNameCurrent || object.LastNameAtBirth),
     };
-    console.debug("[parseName] Parsed name:", object.PersonName.FullName);
   }
 
   /**
@@ -7697,7 +7706,6 @@ export async function buildFamilyForPrivateProfiles() {
   if (ids.length > 0) {
     try {
       familyProfiles = await getPeople(ids.join(","), 0, 0, 0, 0, 0, theFields.join(","), "WBE_auto_bio");
-      console.log("Fetched familyProfiles:", JSON.stringify(familyProfiles, null, 2));
       if (!familyProfiles || !familyProfiles[0]) {
         console.error("Failed to fetch family profiles");
       } else {

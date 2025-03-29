@@ -460,7 +460,8 @@ body.darkMode .vertical .nameList li.spouse_51 {
 }
 
 #nVitals.vertical span[itemprop] a:link,
-#nVitals.vertical span[itemprop] a:visited {
+#nVitals.vertical span[itemprop] a:visited,
+#nVitals.vertical span[itemprop] a {
   text-decoration: none;
   padding-left: 0.2em;
 }
@@ -518,10 +519,10 @@ body.darkMode .vertical .nameList li {
   border-right-color: #36393f;
 }
 
-.vertical .nameList li.parent_1,
+.vertical #parentList li.parent_1,
+body.darkMode .vertical #parentList li.parent_1,
 .vertical .nameList li.parent_1 span[itemprop="sibling"],
 .vertical .nameList li span[itemprop="children"].parent_1,
-body.darkMode .vertical .nameList li.parent_1,
 body.darkMode .vertical .nameList span[itemprop="sibling"].parent_1,
 body.darkMode .vertical .nameList span[itemprop="children"].parent_1 {
   border-right: 3px solid indigo;
@@ -649,6 +650,9 @@ span[itemprop="sibling"]:has(.activeProfile) {
   display: grid;
   grid-template-columns: 2fr 1fr;
   grid-template-areas: "name dates";
+}
+.vertical span.privateSibling {
+  padding-left: 0.2em;
 }
 
 .vertical.hasRelAge li span[itemprop="sibling"],

@@ -27,6 +27,12 @@ const addPersonRedesign = {
       label: "Add a category picker",
       defaultValue: true,
     },
+    {
+      id: "sourceHints",
+      type: OptionType.CHECKBOX,
+      label: "Remove source hints",
+      defaultValue: false,
+    },
   ],
 };
 

@@ -6,9 +6,8 @@ import $ from "jquery";
 import "./suggested_matches_filters.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
-import { isOK } from "../../core/common";
+import { isOK, WBEHelpIcon } from "../../core/common";
 import { getPeople } from "../dna_table/dna_table";
-import { convertDate } from "../auto_bio/auto_bio"; // Not used now for exact date matching.
 import { countries } from "../auto_bio/countries";
 
 const newPerson = {};
@@ -247,31 +246,52 @@ async function nameFilter(level) {
 }
 
 function dateFilter(level, newPerson) {
-  let yearsOut = level === 1 ? 1 : 0;
+  // If level=1, allow ±1 year difference; if level=2, allow 0 difference
+  const yearsOut = level === 1 ? 1 : 0;
+
   suggestedMatches.forEach(function (person) {
-    let thisTR = $(`a[href$="${person.WTID}"]`).closest("tr");
-    // Compare dates using Date objects
-    const extractedBirthDate = new Date(extractedDataSafe(person.BirthDate));
-    const newBirthDate = new Date(extractedDataSafe(newPerson.BirthDate));
-    let birthMatch = 0;
-    if (!isNaN(extractedBirthDate) && !isNaN(newBirthDate)) {
-      if (extractedBirthDate.getTime() === newBirthDate.getTime()) {
-        birthMatch = 1; // Full match
-      } else if (extractedBirthDate.getFullYear() === newBirthDate.getFullYear()) {
-        birthMatch = 0.5; // Year match only
+    const thisTR = $(`a[href$="${person.WTID}"]`).closest("tr");
+
+    // Use extractedDataSafe() to strip "abt/bef/aft" (or anything else),
+    // then pull the year from the cleaned string.
+    const extractedBirthYear = getYear(extractedDataSafe(person.BirthDate));
+    const newBirthYear = getYear(extractedDataSafe(newPerson.BirthDate));
+
+    let filtered = false;
+
+    if (extractedBirthYear && newBirthYear) {
+      if (Math.abs(extractedBirthYear - newBirthYear) > yearsOut) {
+        filtered = true;
       }
+    } else {
+      // e.g., filter out if either side has no year
+      filtered = true;
     }
-    if (birthMatch < 1) {
+
+    if (filtered) {
       thisTR.addClass("dateFiltered");
+    } else {
+      thisTR.removeClass("dateFiltered");
     }
-    // You can similarly compare death dates if needed.
-    // For brevity, we only demonstrate birth date matching here.
   });
+}
+
+// A small helper that extracts a 4-digit year from a string like "abt 1855" or "07 Dec 1855".
+// Returns 0 if no 4-digit year is found.
+function getYear(dateString) {
+  if (!dateString) return 0;
+  const match = dateString.match(/\b(\d{4})\b/);
+  if (match) {
+    return parseInt(match[1], 10);
+  }
+  return 0;
 }
 
 // A small helper to return a string even if the value is empty.
 function extractedDataSafe(val) {
-  return isOK(val) ? val : "";
+  if (!isOK(val)) return "";
+  // Remove abt/bef/aft plus optional trailing spaces
+  return val.replace(/^(?:abt|bef|aft)\s*/i, "");
 }
 
 // Helper to parse date and location from a cell's HTML
@@ -560,13 +580,19 @@ async function initSuggestedMatchesFilters() {
   });
 
   const filterButtons = $(
-    "<div id='filterButtons'><label>Filters: </label>" +
-      "<button class='btn btn-secondary' id='locationFilterButton'>location</button>" +
-      "<button class='btn btn-secondary' id='nameFilterButton'>name</button>" +
-      "<button class='btn btn-secondary' id='dateFilterButton'>date</button></div>"
+    `<div id='filterButtons'><label>Filters: </label>
+      <button class='btn btn-secondary' id='locationFilterButton'>location</button>
+      <button class='btn btn-secondary' id='nameFilterButton'>name</button>
+      <button class='btn btn-secondary' id='dateFilterButton'>date</button>
+    </div>`
   );
   if ($("#filterButtons").length === 0) {
     filterButtons.appendTo($("#matchesStatusBox p:first-child"));
+    const helpIcon = WBEHelpIcon({
+      url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#suggestedMatchesFilters",
+      feature: "Suggested Matches Filters",
+    });
+    filterButtons.prepend(helpIcon);
   }
 
   // Highlight matches if the option is set

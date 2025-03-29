@@ -738,9 +738,15 @@ function keyDownListener(e) {
     const clippings = $(".clippingCell:visible");
     if (!keyMode) {
       keyMode = true;
-      const index = clippings.index($(".clippingCell:hover"));
-      if (index > 0) clippingRow = index;
+      const hoveredEl = document.querySelector(".clippingCell:hover");
+      if (hoveredEl) {
+        const index = clippings.index($(hoveredEl));
+        if (index > 0) {
+          clippingRow = index;
+        }
+      }
     }
+
     clippings.addClass("clip-unselected");
     clippings.removeClass("clip-selected");
     switch (e.code) {

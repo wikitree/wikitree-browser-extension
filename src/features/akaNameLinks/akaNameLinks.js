@@ -9,7 +9,7 @@ import { mainDomain } from "../../core/pageType";
 async function akaNames() {
   // Ensure we are on a profile page
   if ($("body.profile").length) {
-    const vitalsSection = document.querySelector("#familyVitals p.VITALS");
+    const vitalsSection = document.querySelector("#Family-pane p.VITALS");
     if (!vitalsSection) {
       return;
     }

@@ -278,7 +278,8 @@ sup.reference {
   }
 
   .hide-categories .x-categories,
-  .hide-categories #categories {
+  .hide-categories #categories,
+  .hide-categories #Categories {
     display: none !important;
   }
 

@@ -87,7 +87,7 @@ async function initReadability(options) {
   }
   if (options.indentSrcPlainText) {
     $(".x-sources.x-text-only")
-      .wrapInner('<dl class="section-sources x-sources x-text-only"><dd></dd></dl>')
+      .wrapInner('<ul class="section-sources x-sources x-text-only colon-indent"><li></li></ul>')
       .children()
       .unwrap();
   }

@@ -37,7 +37,7 @@ const plusURL = chrome.runtime.getURL("images/plus-toggler.svg");
  * Checks if the enhanced editor is active.
  * @returns {boolean} True if the enhanced editor is on, false otherwise.
  */
-function isEnhancedEditorOn() {
+export function isEnhancedEditorOn() {
   return $("#toggleMarkupColor").val().toLowerCase() === "turn off enhanced editor";
 }
 
