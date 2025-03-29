@@ -65,24 +65,6 @@
   margin-bottom: 0.2em;
 }
 
-#extraWatchlistWindow .touchedCol {
-  width: 10em;
-  color: black !important;
-}
-
-#extraWatchlistWindow .changesCol {
-  width: 7em;
-}
-
-#extraWatchlistWindow .changesCol a {
-  display: inline-block;
-  white-space: nowrap;
-}
-
-body.profile #extraWatchlistWindow td.xCol {
-  width: 1em;
-}
-
 #ewlEmpty {
   display: none;
   color: black;
@@ -106,29 +88,6 @@ body.profile #extraWatchlistWindow td.xCol {
 #touchedList thead,
 #extraWatchlistWindow thead {
   text-align: left;
-}
-
-div.eight.columns.alpha .nameCol,
-#extraWatchlistWindow .nameCol {
-  width: 60%;
-}
-
-div.eight.columns.alpha .touchedCol,
-#extraWatchlistWindow .touchedCol {
-  width: 15%;
-}
-
-div.eight.columns.alpha .changesCol,
-#extraWatchlistWindow .changesCol {
-  width: 15%;
-  min-width: 4em;
-}
-
-div.eight.columns.alpha .xCol,
-#extraWatchlistWindow .xCol {
-  width: 1em;
-  color: black !important;
-  font-weight: bold;
 }
 
 #views-wrap {
@@ -183,4 +142,8 @@ div.eight.columns.alpha .xCol,
 
 #extraWatchlistTabs th {
   cursor: pointer;
+}
+
+#extraWatchlistTabs table.dataTable tbody td {
+  padding: 0;
 }

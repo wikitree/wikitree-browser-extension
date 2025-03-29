@@ -13,6 +13,12 @@ import { isOK, htmlEntities, getUserWtId, getUserNumId, profilePerson } from "..
 import { mainDomain } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
+const ONE_HOUR = 60 * 60 * 1000; // ms
+const browserAPI = typeof browser !== "undefined" ? browser : chrome;
+let ewData = [];
+let peopleTable;
+let spaceTable;
+
 // ====================================================================
 // INITIALIZATION
 // ====================================================================
@@ -27,13 +33,99 @@ shouldInitializeFeature("extraWatchlist").then((result) => {
 // Normalize localStorage: replace "@" with commas and back up if needed.
 const normalizeLocalStorage = () => {
   const extraWatchlist = localStorage.getItem("extraWatchlist");
-  if (extraWatchlist) {
-    if (!extraWatchlist.includes(",") && !localStorage.getItem("extraWatchlistBackUp")) {
-      localStorage.setItem("extraWatchlistBackUp", extraWatchlist);
-    }
+  if (extraWatchlist && extraWatchlist.includes("@") && !extraWatchlist.includes(",")) {
+    localStorage.setItem("extraWatchlistBackUp", extraWatchlist);
     localStorage.setItem("extraWatchlist", extraWatchlist.replace(/@/g, ","));
   }
+  const version = localStorage.getItem("extraWatchlistVersion");
+  if (!version) {
+    localStorage.setItem("extraWatchlistVersion", Date.now());
+  }
 };
+
+// ====================================================================
+// DATA STORAGE AND RETRIEVAL
+// ====================================================================
+
+// Returns [id-list, version, ewData]
+function getFullWatchlist() {
+  const ids = getWatchlistIds();
+  const version = localStorage.getItem("extraWatchlistVersion");
+  const ewd = localStorage.getItem("extraWatchlistData");
+  ewData = ewd ? JSON.parse(ewd) : [];
+  return [ids, version];
+}
+
+function getWatchlistIds() {
+  const ids = localStorage.getItem("extraWatchlist");
+  return ids
+    ? ids
+        .split(",")
+        .map((id) => id.trim())
+        .filter((id) => id !== "")
+    : [];
+}
+
+function saveWatchList(ids) {
+  let idArray = ids;
+  if (typeof ids === "string") {
+    idArray = ids
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => id !== "");
+  }
+  const idString = idArray.sort().join(",");
+
+  const dataIds = ewData.map((d) => d.wtId).sort();
+  const dataIdsString = dataIds.join(",");
+  console.log(`saveWatchList nrIds=${idArray.length}, nrDataIds=${dataIds.length}`);
+
+  if (idString != dataIdsString) {
+    console.log(
+      `ewData out of sync: ids=${idArray.length} vs ewData=${ewData.length}, sizes: ${idString.length} va ${dataIdsString.length}, resetting`
+    );
+    // const [a, b] = arrayDifferences(idArray, dataIds);
+    // console.log("In ids and not in ewData", a);
+    // console.log("In ewData and not in ids", b);
+    ewData = [];
+  }
+  const jsonData = JSON.stringify(ewData);
+  console.log(`ewData store size=${jsonData.length}`);
+  const version = Date.now();
+  localStorage.setItem("extraWatchlist", idString);
+  localStorage.setItem("extraWatchlistData", jsonData);
+  localStorage.setItem("extraWatchlistVersion", version);
+  // browserAPI.storage.local.set({ extraWatchlistVersion: version });
+}
+
+function watchlistInSync(ids) {
+  let inSync = false;
+  const dataIds = ewData.map((d) => d.wtId).sort();
+  if (ids.length == dataIds.length) {
+    const idsString = ids.sort().join(",");
+    const dataIdsString = dataIds.join(",");
+    if (idsString == dataIdsString) {
+      inSync = true;
+    }
+  }
+  // if (!inSync) {
+  //   const [a, b] = arrayDifferences(ids, dataIds);
+  //   console.log(`saveWatchList nrIds=${ids.length}, nrDataIds=${dataIds.length}`);
+  //   console.log("In ids but not in ewData", a);
+  //   console.log("In ewData but not in ids", b);
+  // }
+  return inSync;
+}
+
+function arrayDifferences(a, b) {
+  // Elements in 'a' not in 'b'
+  const aNotInB = a.filter((element) => !b.includes(element));
+
+  // Elements in 'b' not in 'a'
+  const bNotInA = b.filter((element) => !a.includes(element));
+
+  return [aNotInB, bNotInA];
+}
 
 // ====================================================================
 // UTILITY FUNCTIONS
@@ -49,163 +141,13 @@ const strDate = () => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
 };
 
-// Creates a text file blob URL (used for export).
-window.textFile = null;
-const makeTextFile = (text) => {
-  const data = new Blob([text], { type: "text/plain" });
-  if (window.textFile !== null) {
-    window.URL.revokeObjectURL(window.textFile);
-  }
-  window.textFile = window.URL.createObjectURL(data);
-  return window.textFile;
-};
-
-// ====================================================================
-// SORTING FUNCTIONS
-// ====================================================================
-
-// Sorts the rows within a given table body selector based on the given order.
-// tableSelector should be like "#touchedListPersons tbody" or "#touchedListSpaces tbody".
-const sortTouched = (order = "touched", tableSelector) => {
-  const $tbody = $(tableSelector);
-  const rows = $tbody.find("tr");
-  let sortedRows;
-
-  if (order === "touched") {
-    sortedRows = rows.sort((a, b) => +$(b).data("touched") - +$(a).data("touched"));
-  } else if (order === "id") {
-    sortedRows = rows.sort((a, b) =>
-      $(a).data("id").localeCompare($(b).data("id"), undefined, {
-        numeric: true,
-        sensitivity: "base",
-      })
-    );
-  } else if (order === "name") {
-    sortedRows = rows.sort((a, b) => $(a).data("lnab").localeCompare($(b).data("lnab")));
-  }
-  $tbody.append(sortedRows);
-  // Optionally, you could call secondarySort here.
-};
-
-// ====================================================================
-// UI RENDERING FUNCTIONS
-// ====================================================================
-
-// Renders a watchlist row and appends it to the correct table (<tbody>).
-// If person.Type === "Space", the row goes to the Spaces table; otherwise to Profiles.
-const renderWatchlistRow = (person) => {
-  $("#ewlEmpty").hide();
-  let pt = isOK(person.Touched) ? person.Touched : person.Touched !== "" ? person.Touched : false;
-  let ptOut = "";
-  if (pt) {
-    const ptY = pt.substr(0, 4);
-    const ptm = pt.substr(4, 2);
-    const ptd = pt.substr(6, 2);
-    const ptH = pt.substr(8, 2);
-    const pti = pt.substr(10, 2);
-    const pts = pt.substr(12, 2);
-    const tDate = new Date(`${ptY}-${ptm}-${ptd} ${ptH}:${pti}:${pts}`);
-    ptOut = " " + tDate.format("Y-m-d");
-  }
-
-  const userID = getUserNumId();
-  const dClass = person.Manager !== userID ? 'class="notManager"' : 'class="isManager"';
-
-  let bYear = person?.BirthDate?.substr(0, 4) || "";
-  if (bYear === "0000") bYear = " ";
-  let dYear = person?.DeathDate?.substr(0, 4) || "";
-  if (dYear === "0000") dYear = " ";
-
-  const myDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-  window.dLastWeek = myDate.format("YmdHis");
-
-  let bdDates = "";
-  let changesLink = "";
-
-  if (person.Type === "Space") {
-    // For space pages, use Title properties.
-    person.Name = person.Title.PrefixedURL;
-    person.LastNameAtBirth = person.Title.PrefixedURL;
-    person.FirstName = person.Title.Text;
-    person.Id = person.PageId;
-    person.LongName = person.Title.Text;
-    changesLink = `https://${mainDomain}/index.php?title=Special:NetworkFeed&space=${htmlEntities(person.PageId)}`;
-  } else {
-    // For person profiles.
-    if (!person.Name) person.Name = "";
-    person.Name = person.Name.replace(" ", "_");
-    bdDates = `(${bYear} - ${dYear})`;
-    changesLink = `https://${mainDomain}/index.php?title=Special:NetworkFeed&who=${htmlEntities(person.Id)}`;
-  }
-  if (!isOK(bYear)) {
-    bYear = person?.BirthDateDecade;
-    if (bYear === "unknown") bYear = "";
-    if (person.IsLiving === 1) dYear = "living";
-    bdDates = `(${bYear} - ${dYear})`;
-  }
-  if (!isOK(dYear)) dYear = person?.DeathDateDecade;
-  if (!isOK(person.FirstName)) person.FirstName = person?.RealName;
-  if (!isOK(person.LongName)) person.LongName = isOK(person.ShortName) ? person.ShortName : "Private";
-  if (bYear === undefined && dYear === undefined) bdDates = "";
-
-  // Determine link target based on type.
-  const linkTarget = person.Type === "Space" ? htmlEntities(person.Name) : htmlEntities(person.Id);
-
-  const rowHTML = `
-    <tr ${dClass} data-lnab='${htmlEntities(person.LastNameAtBirth)}'
-        data-birthdate='${bYear}' data-firstname='${person.FirstName}'
-        data-id="${htmlEntities(person.Name)}" data-idnum="${person.Id}"
-        data-touched="${pt}">
-      <td class='wtIDcol'>${person.Name}</td>
-      <td class='personCol'>
-        <a href="https://${mainDomain}/wiki/${linkTarget}">
-          ${person.LongName} ${bdDates}
-        </a>
-      </td>
-      <td class='touchedCol' title='Most recent change'><span>${ptOut}</span></td>
-      <td class='changesCol'>
-        <a href='${changesLink}' title='See recent changes'>Changes</a>
-      </td>
-      <td class='xCol' title='Remove from your Extra Watchlist'>
-        <span class='removeFromExtraWatchlist' data-id='${htmlEntities(person.Name)}'>&times;</span>
-      </td>
-    </tr>
-  `;
-  const $row = $(rowHTML);
-
-  // Append to appropriate table body.
-  if (person.Type === "Space") {
-    const $tbody = $("#touchedListSpaces tbody");
-    if ($tbody.find(`tr[data-id="${htmlEntities(person.Name)}"]`).length < 1) {
-      $tbody.append($row);
-    } else {
-      $tbody.find(`tr[data-id="${htmlEntities(person.Name)}"]`).show();
-    }
-  } else {
-    const $tbody = $("#touchedListPersons tbody");
-    if ($tbody.find(`tr[data-id="${htmlEntities(person.Name)}"]`).length < 1) {
-      $tbody.append($row);
-    } else {
-      $tbody.find(`tr[data-id="${htmlEntities(person.Name)}"]`).show();
-    }
-  }
-
-  // Attach remove handler.
-  $row.find("span.removeFromExtraWatchlist").on("click", function () {
-    $row.hide();
-    const updatedList = localStorage
-      .getItem("extraWatchlist")
-      .split(",")
-      .filter((id) => id !== $(this).attr("data-id"))
-      .join(",");
-    localStorage.setItem("extraWatchlist", updatedList);
-    setPlusButton();
-  });
-};
-
 // ====================================================================
 // API CALL FUNCTIONS
 // ====================================================================
+
+const FIELDS =
+  "BirthDate,BirthDateDecade,DeathDate,DeathDateDecade,Derived.LongName,Derived.LongNamePrivate,Derived.ShortName," +
+  "FirstName,Id,IsLiving,isSpace,LastNameAtBirth,Name,PageId,RealName,Title,Touched";
 
 const get_Profile = async (id) => {
   try {
@@ -218,7 +160,7 @@ const get_Profile = async (id) => {
       data: {
         action: "getProfile",
         key: id,
-        fields: "*",
+        fields: FIELDS,
         appId: "WBE_extra_watchlist",
       },
     });
@@ -265,75 +207,108 @@ const getPeople = async (
   }
 };
 
+function extractPerson(data) {
+  let bYear = data?.BirthDate?.substr(0, 4) || "";
+  if (!isOK(bYear)) {
+    bYear = data?.BirthDateDecade;
+    if (bYear === "unknown") bYear = "";
+  }
+
+  let dYear = data?.DeathDate?.substr(0, 4) || "";
+  if (!isOK(dYear)) dYear = person?.DeathDateDecade || "";
+  if ((dYear === "unknown" || dYear == "") && data.IsLiving === 1) dYear = "living";
+
+  return {
+    type: "p",
+    bYear: bYear,
+    dYear: dYear,
+    lName: isOK(data.LongNamePrivate) ? data.LongNamePrivate : isOK(data.ShortName) ? data.ShortName : "Private",
+    wtId: data.Name ? data.Name.replaceAll(" ", "_") : "",
+    numId: data.Id,
+    touched: data.Touched,
+  };
+}
+
+function extractFSP(data) {
+  return {
+    type: "s",
+    lName: data.Title.Text,
+    wtId: data.Title.PrefixedURL,
+    numId: data.PageId,
+    touched: data.Touched,
+  };
+}
+
 // ====================================================================
 // WATCHLIST MANAGEMENT
 // ====================================================================
 
-const sortExtraWatchlist = async () => {
-  const options = await getFeatureOptions("extraWatchlist");
-  // Call sortTouched on each table's tbody.
-  if (options.sortBy === "Changed") {
-    sortTouched("touched", "#touchedListPersons tbody");
-    sortTouched("touched", "#touchedListSpaces tbody");
-  } else if (options.sortBy === "ID") {
-    sortTouched("id", "#touchedListPersons tbody");
-    sortTouched("id", "#touchedListSpaces tbody");
-  } else if (options.sortBy === "Name") {
-    sortTouched("name", "#touchedListPersons tbody");
-    sortTouched("name", "#touchedListSpaces tbody");
-  }
-};
-
-const addToExtraWatchlist = (person) => {
-  if (person.page_name && person.page_name.match(/^Space:/)) {
-    person = person.profile;
-    person.Type = "Space";
-    person.Id = person.PageId;
-  } else {
-    person.Type = "Person";
-  }
-  window.extraWatchlistTouched.push(person.Id);
-  renderWatchlistRow(person);
-  setPlusButton();
-};
-
-window.extraWatchlistTouched = [];
-window.addedToExtraWatchlist = [];
 const doExtraWatchlist = () => {
   const userWtId = getUserWtId();
   if (userWtId) {
     window.userName = userWtId;
     window.userID = getUserNumId();
-    const extraList = localStorage.getItem("extraWatchlist");
-    if (extraList) {
-      let bits = extraList
-        .split(/[@,]/)
-        .map((id) => id.trim())
-        .filter((id) => id !== "");
+    const [ids, version] = getFullWatchlist();
+    setEmptyMessages();
+    if (ids.length > 0) {
+      if (ewData.length && Date.now() - version < ONE_HOUR && watchlistInSync(ids)) {
+        redrawPeopleTable();
+        redrawSpaceTable();
+      } else {
+        const spacePages = ids.filter((x) => x.match("Space:"));
+        const personPages = ids.filter((x) => !x.match("Space:"));
+        ewData = [];
+        const errors = [];
 
-      const spacePages = bits.filter((x) => x.match("Space:"));
-      const personPages = bits.filter((x) => !x.match("Space:"));
-      if (personPages.length > 0) {
-        while (personPages.length) {
-          const splicedArray = personPages.splice(0, 1000);
-          const keys = splicedArray.join(",");
-          window.addedToExtraWatchlist = window.addedToExtraWatchlist.concat(splicedArray);
-          getPeople(keys, 0, 0, 0, 0, 0, 0, "*").then((data) => {
-            const people = data[0].people;
-            Object.keys(people).forEach((aKey) => {
-              addToExtraWatchlist(people[aKey]);
+        // Function to handle person pages in chunks of 1000
+        const handlePersonPages = () => {
+          const personPromises = [];
+          while (personPages.length) {
+            const splicedArray = personPages.splice(0, 1000);
+            const keys = splicedArray.join(",");
+            personPromises.push(
+              getPeople(keys, 0, 0, 0, 0, 0, 0, FIELDS).then((data) => {
+                const status = data[0]?.status;
+                if (status !== "") errors.push(status);
+                const people = data[0].people;
+                const extractedData = Object.keys(people).map((aKey) => extractPerson(people[aKey]));
+                ewData.push(...extractedData);
+                redrawPeopleTable();
+              })
+            );
+          }
+          return Promise.all(personPromises);
+        };
+
+        // Function to handle space pages
+        const handleSpacePages = () => {
+          const spacePromises = spacePages.map((aKey) => {
+            return get_Profile(decodeURIComponent(aKey)).then((fsp) => {
+              const status = fsp[0]?.status;
+              if (status != 0) errors.push(status);
+              const fspData = extractFSP(fsp[0].profile);
+              ewData.push(fspData);
             });
-            sortExtraWatchlist();
           });
-        }
+          return Promise.all(spacePromises);
+        };
+
+        // Execute both sets of promises and then call updateWatchList
+        Promise.all([handlePersonPages(), handleSpacePages()])
+          .then(() => {
+            redrawSpaceTable();
+            let newIds = ids;
+            if (errors.length > 0) {
+              console.error("Errors while fetching extra watchlist profiles", errors);
+            } else {
+              newIds = ewData.map((d) => d.wtId);
+            }
+            saveWatchList(newIds);
+          })
+          .catch((err) => {
+            console.error("Error retrieving extra watchlist items:", err);
+          });
       }
-      spacePages.forEach((aKey) => {
-        if (aKey.match("Space:")) {
-          get_Profile(decodeURIComponent(aKey)).then((person) => {
-            addToExtraWatchlist(person[0]);
-          });
-        }
-      });
     }
   }
   if (Cookies.get("wikidb_wtb__session")) {
@@ -341,65 +316,84 @@ const doExtraWatchlist = () => {
   }
 };
 
+function setEmptyMessages() {
+  peopleTable.settings()[0].oLanguage.sEmptyTable = "You have no people profiles in your Extra Watchlist.";
+  spaceTable.settings()[0].oLanguage.sEmptyTable = "You have no space pages in your Extra Watchlist.";
+}
+
+function formDate(input) {
+  const pt = isOK(input) ? input : input !== "" ? input : false;
+  let ptOut = "";
+  if (pt) {
+    const ptY = pt.substr(0, 4);
+    const ptm = pt.substr(4, 2);
+    const ptd = pt.substr(6, 2);
+    const ptH = pt.substr(8, 2);
+    const pti = pt.substr(10, 2);
+    const pts = pt.substr(12, 2);
+    const tDate = new Date(`${ptY}-${ptm}-${ptd} ${ptH}:${pti}:${pts}`);
+    ptOut = "" + tDate.format("Y-m-d");
+  }
+  return ptOut;
+}
+
 // ====================================================================
 // POPUP & INTERACTION
 // ====================================================================
 
 const extraWatchlist = async () => {
-  const thisID = getThisID();
-  const extraList = localStorage.getItem("extraWatchlist");
-  const ids = extraList ? extraList.split(",") : [];
-  const onExtraWatchlist = ids.includes(thisID);
+  setPlusButton();
   const $plusButton = $("#addToExtraWatchlistButton");
-  if (onExtraWatchlist) {
-    $plusButton.attr("title", "Remove from your Extra Watchlist").addClass("onList");
-  }
 
   $("#extraWatchlistButton").on("click", (e) => {
     e.preventDefault();
-    if ($("#extraWatchlistWindow").length === 0) {
+    const $popup = $("#extraWatchlistWindow");
+    if ($popup.length === 0) {
       createWatchlistPopup(e.pageY);
     } else {
-      $("#extraWatchlistWindow").slideToggle();
-    }
-    if (!extraList || extraList === "") {
-      $("#ewlEmpty").show();
+      closeWatchlistPopup($popup);
     }
   });
 
-  if (!localStorage.getItem("extraWatchlist")) {
-    localStorage.setItem("extraWatchlist", "");
-  }
-
-  if (ids.includes(thisID)) {
-    $plusButton.addClass("onList").attr("title", "On your Extra Watchlist (click to remove)");
-  }
-
-  // Toggle the current profile in the watchlist.
   // Toggle the current profile in the watchlist.
   $plusButton.on("click", (e) => {
     e.preventDefault();
     const currentID = getThisID();
-    let list = localStorage.getItem("extraWatchlist") ? localStorage.getItem("extraWatchlist").split(",") : [];
+    let list = getWatchlistIds();
     if (list.includes(currentID)) {
-      // If the profile is already on the watchlist, remove it.
+      // The profile is already on the watchlist, remove it.
       list = list.filter((id) => id !== currentID);
+      ewData = ewData.filter((d) => d.wtId != currentID);
+      if ($("#extraWatchlistWindow").is(":visible")) {
+        let row = peopleTable.row($("#touchedListSpaces tbody tr[data-id='" + currentID + "']"));
+        if (row.length == 0) {
+          row = spaceTable.row($("#touchedListSpaces tbody tr[data-id='" + currentID + "']"));
+        }
+        row.remove().draw();
+      }
+      saveWatchList(list);
+      setPlusButton();
     } else {
-      // Otherwise, add it.
+      // The profile is not on the watchlist, add it.
       list.push(currentID);
-    }
-    localStorage.setItem("extraWatchlist", list.join(","));
-    setPlusButton();
-    if ($("#extraWatchlistWindow").is(":visible")) {
-      if (!list.includes(currentID)) {
-        // Removed: Remove the table rows completely.
-        $("#touchedListSpaces tbody tr[data-id='" + currentID + "']").remove();
-        $("#touchedListPersons tbody tr[data-id='" + currentID + "']").remove();
-      } else {
+      if ($("#extraWatchlistWindow").is(":visible")) {
         // Added: Fetch and add the profile.
         get_Profile(currentID).then((response) => {
-          addToExtraWatchlist(response[0].profile);
+          if (response[0].profile?.isSpace) {
+            const record = extractFSP(response[0].profile);
+            ewData.push(record);
+            spaceTable.row.add(record).draw(false);
+          } else {
+            const record = extractPerson(response[0].profile);
+            ewData.push(record);
+            peopleTable.row.add(record).draw(false);
+          }
+          saveWatchList(list);
+          setPlusButton();
         });
+      } else {
+        saveWatchList(list);
+        setPlusButton();
       }
     }
   });
@@ -433,7 +427,6 @@ const createWatchlistPopup = (mouseY) => {
   );
   $popup.prepend($header);
 
-  // Create jQuery UI tabs. Note: Profiles tab comes first.
   const $tabs = $(`
     <div id="extraWatchlistTabs">
       <ul>
@@ -442,51 +435,223 @@ const createWatchlistPopup = (mouseY) => {
       </ul>
       <div id="tabs-persons">
         <table id="touchedListPersons" class="all">
-          <thead>
-            <tr>
-              <th class="wtIDcol" data-sort="id">ID</th>
-              <th data-sort="name">Name</th>
-              <th data-sort="touched">Changed</th>
-              <th></th>
-              <th></th>
-            </tr>
-          </thead>
+          <thead></thead>
           <tbody></tbody>
+          <tfoot>
+          </tfoot>
         </table>
       </div>
       <div id="tabs-spaces">
         <table id="touchedListSpaces" class="all">
-          <thead>
-            <tr>
-              <th class="wtIDcol" data-sort="id">ID</th>
-              <th data-sort="name">Name</th>
-              <th data-sort="touched">Changed</th>
-              <th></th>
-              <th></th>
-            </tr>
-          </thead>
+          <thead></thead>
           <tbody></tbody>
+          <tfoot>
+          </tfoot>
         </table>
       </div>
     </div>
   `);
+
   $popup.append($tabs);
-  // Initialize the tabs widget.
-  $tabs.tabs({ active: 0 }); // Set Profiles as the default (first tab)
 
-  // Bind click events on header cells for sorting.
-  $("#touchedListPersons thead th[data-sort]").on("click", function () {
-    const order = $(this).data("sort");
-    sortTouched(order, "#touchedListPersons tbody");
-  });
-  $("#touchedListSpaces thead th[data-sort]").on("click", function () {
-    const order = $(this).data("sort");
-    sortTouched(order, "#touchedListSpaces tbody");
+  // Initialize the tabs widget (by default the first tab is the active one).
+  $tabs.tabs({
+    activate: (event, ui) => {
+      const dTable = ui.newPanel.find("#touchedListSpaces").length ? spaceTable : peopleTable;
+      dTable.columns.adjust().draw();
+    },
   });
 
-  $popup.append('<p id="ewlEmpty">Empty?</p>');
+  peopleTable = $("#touchedListPersons").DataTable({
+    data: ewData.filter((d) => d.type == "p"),
+    columns: [
+      { title: "ID", data: "wtId", width: "20%" },
+      {
+        title: "Name",
+        data: "lName",
+        render: (data, type, row) => {
+          if (type === "display") {
+            return `<a href="https://${mainDomain}/wiki/${htmlEntities(row.numId)}">${data}</a>`;
+          }
+          return data;
+        },
+        width: "50%",
+      },
+      { title: "Birth", data: "bYear", width: "5%" },
+      { title: "Death", data: "dYear", width: "5%" },
+      {
+        title: "Changed",
+        data: "touched",
+        render: (data, type, row) => {
+          if (type === "display" || type === "filter") {
+            return formDate(data);
+          }
+          return data;
+        },
+        width: "9%",
+      },
+      {
+        title: "",
+        data: "numId",
+        searchable: false,
+        orderable: false,
+        render: (data, type, row) => {
+          if (type === "display") {
+            return `<a href="https://${mainDomain}/index.php?title=Special:NetworkFeed&who=${data}" title='See recent changes'>Changes</a>`;
+          }
+          return data;
+        },
+        width: "8%",
+      },
+      {
+        title: "",
+        data: "wtId",
+        searchable: false,
+        orderable: false,
+        render: (data, type, row) => {
+          if (type === "display") {
+            return `<span class='removeFromExtraWatchlist' data-id='${data}'>&times;</span>`;
+          }
+          return data;
+        },
+        createdCell: function (td, cellData, rowData, row, col) {
+          $(td).attr("title", "Remove from your Extra Watchlist");
+        },
+        width: "3%",
+        className: "dt-center",
+      },
+    ],
+    createdRow: function (row, data, dataIndex) {
+      const $row = $(row);
+      $row.attr("data-id", htmlEntities(data.wtId));
+      $row
+        .find("span.removeFromExtraWatchlist")
+        .off("click")
+        .on("click", function () {
+          const rowId = htmlEntities(data.wtId);
 
-  $("#closeWatchlistWindow").on("click", () => $popup.slideUp("swing"));
+          // Remove from ewData
+          ewData = ewData.filter((d) => htmlEntities(d.wtId) !== rowId);
+          const ids = ewData.map((d) => d.wtId);
+
+          // Remove the row from the DataTable
+          peopleTable
+            .row($row) // Reference the row
+            .remove() // Remove it
+            .draw(); // Redraw the table
+
+          saveWatchList(ids);
+          setPlusButton();
+        });
+    },
+    language: {
+      emptyTable: "No records found. Please wait while we fetch the data...",
+    },
+    scrollY: 500,
+    scrollCollapse: true, // Allow the table to reduce in height if the data is smaller
+    deferRender: true,
+    scroller: true,
+    paging: false,
+    searching: true, // Enable the search box
+    searchDelay: 400, // Debounce user input - only start search/filter after 400ms of no typing
+    autoWidth: false,
+  });
+
+  spaceTable = $("#touchedListSpaces").DataTable({
+    data: ewData.filter((d) => d.type == "s"),
+    columns: [
+      {
+        title: "Name",
+        data: "lName",
+        render: (data, type, row) => {
+          if (type === "display") {
+            return `<a href="https://${mainDomain}/wiki/${htmlEntities(row.wtId)}">${data}</a>`;
+          }
+          return data;
+        },
+        width: "80%",
+      },
+      {
+        title: "Changed",
+        data: "touched",
+        render: (data, type, row) => {
+          if (type === "display" || type === "filter") {
+            return formDate(data);
+          }
+          return data;
+        },
+        width: "9%",
+      },
+      {
+        title: "",
+        data: "numId",
+        searchable: false,
+        orderable: false,
+        render: (data, type, row) => {
+          if (type === "display") {
+            return `<a href="https://${mainDomain}/index.php?title=Special:NetworkFeed&space=${data}" title='See recent changes'>Changes</a>`;
+          }
+          return data;
+        },
+        width: "8%",
+      },
+      {
+        title: "",
+        data: "wtId",
+        searchable: false,
+        orderable: false,
+        render: (data, type, row) => {
+          if (type === "display") {
+            return `<span class='removeFromExtraWatchlist' data-id='${data}'>&times;</span>`;
+          }
+          return data;
+        },
+        createdCell: function (td, cellData, rowData, row, col) {
+          $(td).attr("title", "Remove from your Extra Watchlist");
+        },
+        width: "3%",
+        className: "dt-center",
+      },
+    ],
+    createdRow: function (row, data, dataIndex) {
+      const $row = $(row);
+      $row.attr("data-id", htmlEntities(data.wtId));
+      $row
+        .find("span.removeFromExtraWatchlist")
+        .off("click")
+        .on("click", function () {
+          const rowId = htmlEntities(data.wtId);
+
+          // Remove from ewData
+          ewData = ewData.filter((d) => htmlEntities(d.wtId) !== rowId);
+          const ids = ewData.map((d) => d.wtId);
+
+          // Remove the row from the DataTable
+          spaceTable
+            .row($row) // Reference the row
+            .remove() // Remove it
+            .draw(); // Redraw the table
+
+          saveWatchList(ids);
+          setPlusButton();
+        });
+    },
+    scrollY: 500,
+    scrollCollapse: true, // Allow the table to reduce in height if the data is smaller
+    deferRender: true,
+    scroller: true,
+    paging: false,
+    searching: true, // Enable the search box
+    searchDelay: 400, // Debounce user input - only start search/filter after 400ms of no typing
+    autoWidth: false,
+    createdRow: function (row, data, dataIndex) {
+      $(row).attr("data-id", data.wtId);
+    },
+  });
+
+  // $popup.append('<p id="ewlEmpty">Empty?</p>');
+
+  $("#closeWatchlistWindow").on("click", () => closeWatchlistPopup($popup));
 
   // Setup export functionality.
   $("#exportExtraWatchlist")
@@ -540,9 +705,9 @@ const createWatchlistPopup = (mouseY) => {
         reader.onload = (ev) => {
           let textData = ev.target.result.replace(/@/g, ",");
           textData = textData.replace(/,+\s*$/, "");
-          localStorage.setItem("extraWatchlist", textData);
+          saveWatchList(textData);
           $popup.remove();
-          $("#viewExtraWatchlist").trigger("click");
+          $("#extraWatchlistButton").trigger("click");
         };
         reader.onerror = (err) => console.error("Error reading file:", err);
         reader.readAsText(file);
@@ -559,10 +724,33 @@ const createWatchlistPopup = (mouseY) => {
     cursor: "move",
   });
 
-  $popup.on("dblclick", () => $popup.slideUp("swing"));
+  $popup.on("dblclick", () => closeWatchlistPopup($popup));
 
   doExtraWatchlist();
 };
+
+function redrawPeopleTable() {
+  peopleTable.clear(); // Clear existing data
+  peopleTable.rows.add(ewData.filter((d) => d.type == "p")); // Add new/updated data
+  peopleTable.draw();
+  setTimeout(() => {
+    peopleTable.columns.adjust().draw();
+  }, 1000);
+}
+
+function redrawSpaceTable() {
+  spaceTable.clear(); // Clear existing data
+  spaceTable.rows.add(ewData.filter((d) => d.type == "s")); // Add new/updated data
+  spaceTable.draw();
+  setTimeout(() => {
+    spaceTable.columns.adjust().draw();
+  }, 1000);
+}
+
+function closeWatchlistPopup($popup) {
+  $popup.slideUp("swing");
+  $popup.remove();
+}
 
 // ====================================================================
 // BUTTON STATE UPDATE
@@ -571,16 +759,19 @@ const setPlusButton = () => {
   const id = getThisID();
   if (!id) return;
   const thisID = id.toString();
-  const extraList = localStorage.getItem("extraWatchlist");
-  if (extraList) {
-    const ids = extraList.split(",");
-    if (ids.includes(thisID)) {
-      $("#addToExtraWatchlistButton").addClass("onList").attr("title", "On your Extra Watchlist (click to remove)");
-    } else {
-      $("#addToExtraWatchlistButton").removeClass("onList").attr("title", "Add to your Extra Watchlist");
-    }
+  const ids = getWatchlistIds();
+  if (ids.includes(thisID)) {
+    const title = "On your Extra Watchlist (click to remove)";
+    $("#addToExtraWatchlistButton")
+      .addClass("onList") //.attr("title", "On your Extra Watchlist (click to remove)");
+      .attr("data-bs-title", title)
+      .attr(`data-tooltip`, title);
   } else {
-    $("#addToExtraWatchlistButton").removeClass("onList").attr("title", "Add to your Extra Watchlist");
+    const title = "Add to your Extra Watchlist";
+    $("#addToExtraWatchlistButton")
+      .removeClass("onList") //.attr("title", "Add to your Extra Watchlist");
+      .attr("data-bs-title", title)
+      .attr(`data-tooltip`, title);
   }
 };
 
