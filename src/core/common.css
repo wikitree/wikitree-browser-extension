@@ -78,6 +78,7 @@ form[name="a_form"] {
 
 /* Emulate/replicate the new tooltip style */
 /* Style for elements with a tooltip */
+/* Stert tooltip stuff */
 [data-tooltip] {
   position: relative;
   cursor: pointer;
@@ -160,6 +161,7 @@ form[name="a_form"] {
 .WBEHelpIcon::after {
   top: -3em !important;
 }
+/* End tooltip stuff */
 
 .float-end {
   z-index: 10;
