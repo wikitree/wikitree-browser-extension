@@ -14,7 +14,7 @@ import { mainDomain } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
 const ONE_HOUR = 60 * 60 * 1000; // ms
-const browserAPI = typeof browser !== "undefined" ? browser : chrome;
+// const browserAPI = typeof browser !== "undefined" ? browser : chrome;
 let ewData = [];
 let peopleTable;
 let spaceTable;
@@ -78,7 +78,7 @@ function saveWatchList(ids) {
 
   const dataIds = ewData.map((d) => d.wtId).sort();
   const dataIdsString = dataIds.join(",");
-  console.log(`saveWatchList nrIds=${idArray.length}, nrDataIds=${dataIds.length}`);
+  // console.log(`saveWatchList nrIds=${idArray.length}, nrDataIds=${dataIds.length}`);
 
   if (idString != dataIdsString) {
     console.log(
@@ -90,7 +90,7 @@ function saveWatchList(ids) {
     ewData = [];
   }
   const jsonData = JSON.stringify(ewData);
-  console.log(`ewData store size=${jsonData.length}`);
+  // console.log(`ewData store size=${jsonData.length}`);
   const version = Date.now();
   localStorage.setItem("extraWatchlist", idString);
   localStorage.setItem("extraWatchlistData", jsonData);
@@ -775,31 +775,6 @@ const setPlusButton = () => {
   }
 };
 
-// ====================================================================
-// SECONDARY SORT (if needed)
-// ====================================================================
-export function secondarySort(rows, dataThing1, dataThing2, isText = 0) {
-  let lastOne = "Me";
-  let tempArr = [lastOne];
-  rows.each(function (index) {
-    if ($(this).data(dataThing1) == lastOne) {
-      tempArr.push($(this));
-    } else {
-      tempArr.sort((a, b) =>
-        isText == 1
-          ? $(a)
-              .data(dataThing2)
-              .localeCompare($(b).data(dataThing2), undefined, { numeric: true, sensitivity: "base" })
-          : $(a).data(dataThing2) - $(b).data(dataThing2)
-      );
-      tempArr.forEach((item) => {
-        if (lastOne != "Me") item.insertBefore(rows.eq(index));
-      });
-      tempArr = [$(this)];
-    }
-    lastOne = $(this).data(dataThing1);
-  });
-}
 // Make every link in the popup open in a new tab
 
 $(document).on("click", "#extraWatchlistWindow a[href*='wiki']", function (e) {
