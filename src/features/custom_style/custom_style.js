@@ -144,6 +144,7 @@ class CustomStyle {
   getSelectors(bits) {
     let idToSelectorMapping = {
       global: "body:not(.darkMode),.tab-pane.active",
+      input: "input[type='text'],input[type='submit'],textarea",
       header: ".sticky-header body:not(.darkMode) .wrapper #header::before,#header",
       headings:
         "h1,h2:not(#view-container h2),h3:not(#view-container h3),h4:not(#view-container h4),h5:not(#view-container h5),h6:not(#view-container h6,.tree--placement h6),#themeTable caption",
