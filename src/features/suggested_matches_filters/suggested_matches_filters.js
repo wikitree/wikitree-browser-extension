@@ -589,7 +589,7 @@ async function initSuggestedMatchesFilters() {
   if ($("#filterButtons").length === 0) {
     filterButtons.appendTo($("#matchesStatusBox p:first-child"));
     const helpIcon = WBEHelpIcon({
-      url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#Suggested_Matches_Filters",
+      url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#suggestedMatchesFilters",
       feature: "Suggested Matches Filters",
     });
     filterButtons.prepend(helpIcon);

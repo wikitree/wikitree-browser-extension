@@ -78,7 +78,7 @@ form[name="a_form"] {
 
 /* Emulate/replicate the new tooltip style */
 /* Style for elements with a tooltip */
-/* Stert tooltip stuff */
+/* Start tooltip stuff */
 [data-tooltip] {
   position: relative;
   cursor: pointer;
