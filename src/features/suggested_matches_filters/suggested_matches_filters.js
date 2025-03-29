@@ -6,7 +6,7 @@ import $ from "jquery";
 import "./suggested_matches_filters.css";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
-import { isOK } from "../../core/common";
+import { isOK, WBEHelpIcon } from "../../core/common";
 import { getPeople } from "../dna_table/dna_table";
 import { countries } from "../auto_bio/countries";
 
@@ -580,13 +580,19 @@ async function initSuggestedMatchesFilters() {
   });
 
   const filterButtons = $(
-    "<div id='filterButtons'><label>Filters: </label>" +
-      "<button class='btn btn-secondary' id='locationFilterButton'>location</button>" +
-      "<button class='btn btn-secondary' id='nameFilterButton'>name</button>" +
-      "<button class='btn btn-secondary' id='dateFilterButton'>date</button></div>"
+    `<div id='filterButtons'><label>Filters: </label>
+      <button class='btn btn-secondary' id='locationFilterButton'>location</button>
+      <button class='btn btn-secondary' id='nameFilterButton'>name</button>
+      <button class='btn btn-secondary' id='dateFilterButton'>date</button>
+    </div>`
   );
   if ($("#filterButtons").length === 0) {
     filterButtons.appendTo($("#matchesStatusBox p:first-child"));
+    const helpIcon = WBEHelpIcon({
+      url: "https://www.wikitree.com/wiki/Space:WikiTree_Browser_Extension#Suggested_Matches_Filters",
+      feature: "Suggested Matches Filters",
+    });
+    filterButtons.prepend(helpIcon);
   }
 
   // Highlight matches if the option is set
