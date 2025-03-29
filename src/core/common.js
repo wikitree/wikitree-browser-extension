@@ -348,11 +348,11 @@ async function checkButtonFeatures() {
       const { id, title, aClass, img } = options;
       const button = $("<a>")
         .attr("id", id)
-        .attr("title", title)
+        // .attr("title", title)
         .addClass(`${aClass} wbe-button`)
         .attr("data-bs-title", title)
         .attr("data-bs-toggle", "tooltip")
-        .attr(`data-tooltip`, title);
+        .attr("data-tooltip", title);
 
       // Append icon span with only background-image (CSS handles the rest)
       button.append(
