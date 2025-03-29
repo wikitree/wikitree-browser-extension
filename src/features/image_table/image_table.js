@@ -21,7 +21,7 @@ async function getPhotos() {
 
   do {
     // Construct the API URL using the current profile's name
-    const url = `https://api.wikitree.com/api.php?action=getPhotos&key=${profilePerson.Name}&start=${start}&limit=${limit}`;
+    const url = `https://api.wikitree.com/api.php?action=getPhotos&appID=WBE-image_table&key=${profilePerson.Name}&start=${start}&limit=${limit}`;
 
     try {
       // Fetch the data with credentials to include cookies/session info

@@ -261,6 +261,7 @@ async function fetchRandomSpacePage() {
     const profileData = await postToAPI({
       action: "getProfile",
       key: "Space:" + data,
+      appID: "WBE-randomProfile"
     });
 
     console.log(profileData);
@@ -375,7 +376,7 @@ export async function goToRandomWatchlistProfile(skipLogin = false) {
     limit = 50;
     fields += "BirthLocation,DeathLocation";
   }
-  const postData = { action: "getWatchlist", fields: fields, limit: limit, getSpace: "0", offset: randomOffset };
+  const postData = { action: "getWatchlist", fields: fields, limit: limit, getSpace: "0", offset: randomOffset, appID: "WBE-randomProfile" };
   const randomWatchlistResult = await postToAPI(postData);
   localStorage.setItem("watchlistCount", randomWatchlistResult?.[0]?.watchlistCount);
   if (randomWatchlistResult?.[0]?.watchlist?.[0]?.Id) {

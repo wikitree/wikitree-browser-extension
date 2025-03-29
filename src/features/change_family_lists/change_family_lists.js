@@ -1824,7 +1824,7 @@ async function getAncestorsOnPage() {
  * @returns {Promise<string|undefined>} A promise that resolves with the connection WikiTree ID.
  */
 async function getAncestorConnection(ancestor, user) {
-  const url = `https://plus.wikitree.com/function/WTPath/Path.htm?WikiTreeID1=${ancestor}&WikiTreeID2=${user}&relatives=1`;
+  const url = `https://plus.wikitree.com/function/WTPath/Path.htm?WikiTreeID1=${ancestor}&WikiTreeID2=${user}&relatives=1&appID=WBE-ancestorConnection`;
   return fetch(url)
     .then((response) => response.text())
     .then((html) => {

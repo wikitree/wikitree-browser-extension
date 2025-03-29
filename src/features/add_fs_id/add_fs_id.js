@@ -233,6 +233,7 @@ async function getBioPerson() {
             key: theID,
             fields:
               "Id,Name,FirstName,MiddleName,LastNameAtBirth,LastNameCurrent,BirthDate,BirthLocation,DeathDate,DeathLocation,Gender,Parents,Spouses,Father,Mother",
+            appID: "WBE-add_fs_id",
           },
           dataType: "json",
         });
