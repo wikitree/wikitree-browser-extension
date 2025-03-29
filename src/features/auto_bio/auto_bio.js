@@ -1310,7 +1310,10 @@ function buildBirthLocation(person) {
 }
 
 export function assignCemeteryFromSources() {
-  // Check if the references array is present and log its length
+  // Clear any existing cemetery data so that only current references assign a value.
+  window.profilePerson.Cemetery = "";
+  window.profilePerson.CemeteryFull = "";
+
   if (!(window.references && Array.isArray(window.references))) {
     return; // Exit if no references to process
   }
@@ -1323,21 +1326,19 @@ export function assignCemeteryFromSources() {
       let cemeteryMatch2 = source.Text.match(
         /,\s([^,]*?Cemetery|Memorial|Cimetière|kyrkogård|temető|Graveyard|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard).*?;/
       );
-      if (cemeteryMatch && source.Text.match(/Acadian|Wall of Names|sameas=no/) == null) {
+
+      // Only assign if the text does NOT include the excluded terms (case-insensitive)
+      if (cemeteryMatch && !source.Text.match(/Acadian|Wall of Names|sameas=no/i)) {
         let cemetery = cemeteryMatch[0].replace("citing ", "").replace("Burial, ", "").trim();
         window.profilePerson.Cemetery = cemetery;
-        window.profilePerson.CemeteryFull = cemeteryMatch[0]
-          .trim()
-          .replace("citing ", "")
-          .replace("Burial, ", "")
-          .trim();
-      } else if (cemeteryMatch2 && source.Text.match(/Acadian|Wall of Names|sameas=no/) == null) {
+        window.profilePerson.CemeteryFull = cemetery;
+      } else if (cemeteryMatch2 && !source.Text.match(/Acadian|Wall of Names|sameas=no/i)) {
         let cemetery = cemeteryMatch2[1].trim();
         window.profilePerson.Cemetery = cemetery;
       }
 
       if (window.profilePerson?.Cemetery) {
-        if (window.profilePerson?.Cemetery.match(/record|Find a Grave/)) {
+        if (window.profilePerson?.Cemetery.match(/record|Find a Grave/i)) {
           window.profilePerson.Cemetery = "";
         }
       }
@@ -1426,19 +1427,20 @@ export function buildDeath(person) {
       /Category:\s?((.*Cemetery|Memorial|Cimetière|kyrkogård|temető|Grave|Churchyard|Burial|Crematorium|Erebegraafplaats|Cementerio|Cimitero|Friedhof|Burying|begravningsplats|Begraafplaats|Mausoleum|Chapelyard).*?)\]\]/
     );
     if (cemeteryCategoryMatch) {
-      window.profilePerson.Cemetery = cemeteryCategoryMatch[1].trim();
-      if (cemeteryCategoryMatch[1].match("Memorial") && burialAdded == false) {
-        text +=
-          " " +
-          capitalizeFirstLetter(person.Pronouns.subject) +
-          " is commemorated at " +
-          cemeteryCategoryMatch[1].trim() +
-          ".";
-      } else {
-        window.profilePerson["Burial Place"] = cemeteryCategoryMatch[1].trim();
+      const cemeteryCategory = cemeteryCategoryMatch[1].trim();
+      // Only assign if the category does NOT contain the excluded terms
+      if (!cemeteryCategory.match(/Acadian|Wall of Names|sameas=no/i)) {
+        window.profilePerson.Cemetery = cemeteryCategory;
+        if (cemeteryCategory.match(/Memorial/i) && burialAdded === false) {
+          text +=
+            " " + capitalizeFirstLetter(person.Pronouns.subject) + " is commemorated at " + cemeteryCategory + ".";
+        } else {
+          window.profilePerson["Burial Place"] = cemeteryCategory;
+        }
       }
     }
   });
+
   text += addReferences("Death");
 
   if (window.profilePerson["Burial Place"] && !burialAdded) {
