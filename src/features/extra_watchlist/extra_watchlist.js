@@ -400,7 +400,7 @@ const extraWatchlist = async () => {
 };
 
 // Creates the popup with two tabs: Profiles (default) and Spaces.
-const createWatchlistPopup = (mouseY) => {
+const createWatchlistPopup = async (mouseY) => {
   const $popup = $("<div id='extraWatchlistWindow' class='ui-widget-content'></div>");
   $popup.insertAfter($(".tabs--wrapper")).css({
     position: "absolute",
@@ -461,6 +461,29 @@ const createWatchlistPopup = (mouseY) => {
       dTable.columns.adjust().draw();
     },
   });
+
+  const options = await getFeatureOptions("extraWatchlist");
+  let personSortOrder = [];
+  let spaceSortOrder = [];
+  switch (options.sortBy) {
+    case "ID":
+      personSortOrder = [0, "asc"];
+      spaceSortOrder = [0, "asc"];
+      break;
+
+    case "Name":
+      personSortOrder = [1, "asc"];
+      spaceSortOrder = [0, "asc"];
+      break;
+
+    case "Changed":
+      personSortOrder = [4, "desc"];
+      spaceSortOrder = [1, "desc"];
+      break;
+
+    default:
+      break;
+  }
 
   peopleTable = $("#touchedListPersons").DataTable({
     data: ewData.filter((d) => d.type == "p"),
@@ -547,6 +570,7 @@ const createWatchlistPopup = (mouseY) => {
     language: {
       emptyTable: "No records found. Please wait while we fetch the data...",
     },
+    order: personSortOrder,
     scrollY: 500,
     scrollCollapse: true, // Allow the table to reduce in height if the data is smaller
     deferRender: true,
@@ -636,6 +660,7 @@ const createWatchlistPopup = (mouseY) => {
           setPlusButton();
         });
     },
+    order: spaceSortOrder,
     scrollY: 500,
     scrollCollapse: true, // Allow the table to reduce in height if the data is smaller
     deferRender: true,
