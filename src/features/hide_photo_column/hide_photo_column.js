@@ -120,7 +120,7 @@ function toggleTipsColumn() {
   }
   setTimeout(() => {
     // Toggle visibility of all children except the photo elements.
-    photoParent.children("*").not("#Photo,#photo").toggle();
+    photoParent.children("*").not("#Photo,#photo,.referenceBox,#relativeBiography").toggle();
     $("body").toggleClass("hiddenSidebar");
     if (enhancedEditorChosen) {
       $("body").addClass("enhancedEditorChosen");
