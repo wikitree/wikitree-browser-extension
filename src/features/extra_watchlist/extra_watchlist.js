@@ -71,7 +71,7 @@ function saveWatchList(ids) {
   if (typeof ids === "string") {
     idArray = ids
       .split(",")
-      .map((id) => id.trim())
+      .map((id) => encodeURIComponent(decodeURIComponent(id.trim())))
       .filter((id) => id !== "");
   }
   const idString = idArray.sort().join(",");
@@ -132,7 +132,10 @@ function arrayDifferences(a, b) {
 // ====================================================================
 
 // Returns the current ID from the URL (if a space) or from the profile.
-const getThisID = () => window.location.href.match(/Space:.*$/)?.[0] || profilePerson?.Name;
+const getThisID = () =>
+  encodeURIComponent(
+    decodeURIComponent(window.location.href.split(/[?#]/)[0].match(/Space(:|%3A).*$/)?.[0] || profilePerson?.Name)
+  );
 
 // Returns a formatted date string "YYYY-MM-DD_HHMM".
 const strDate = () => {
@@ -147,7 +150,7 @@ const strDate = () => {
 
 const FIELDS =
   "BirthDate,BirthDateDecade,DeathDate,DeathDateDecade,Derived.LongName,Derived.LongNamePrivate,Derived.ShortName," +
-  "FirstName,Id,IsLiving,isSpace,LastNameAtBirth,Name,PageId,RealName,Title,Touched";
+  "FirstName,Id,IsLiving,IsSpace,LastNameAtBirth,Name,PageId,RealName,Title,Touched";
 
 const get_Profile = async (id) => {
   try {
@@ -223,7 +226,7 @@ function extractPerson(data) {
     bYear: bYear,
     dYear: dYear,
     lName: isOK(data.LongNamePrivate) ? data.LongNamePrivate : isOK(data.ShortName) ? data.ShortName : "Private",
-    wtId: data.Name ? data.Name.replaceAll(" ", "_") : "",
+    wtId: data.Name ? encodeURIComponent(decodeURIComponent(data.Name.replaceAll(" ", "_"))) : "",
     numId: data.Id,
     touched: data.Touched,
   };
@@ -233,7 +236,7 @@ function extractFSP(data) {
   return {
     type: "s",
     lName: data.Title.Text,
-    wtId: data.Title.PrefixedURL,
+    wtId: encodeURIComponent(decodeURIComponent(data.Title.PrefixedURL)),
     numId: data.PageId,
     touched: data.Touched,
   };
@@ -255,8 +258,8 @@ const doExtraWatchlist = () => {
         redrawPeopleTable();
         redrawSpaceTable();
       } else {
-        const spacePages = ids.filter((x) => x.match("Space:"));
-        const personPages = ids.filter((x) => !x.match("Space:"));
+        const spacePages = ids.filter((x) => x.match("^Space%3A"));
+        const personPages = ids.filter((x) => !x.match("^Space%3A")).map((id) => decodeURIComponent(id));
         ewData = [];
         const errors = [];
 
@@ -365,9 +368,9 @@ const extraWatchlist = async () => {
       list = list.filter((id) => id !== currentID);
       ewData = ewData.filter((d) => d.wtId != currentID);
       if ($("#extraWatchlistWindow").is(":visible")) {
-        let row = peopleTable.row($("#touchedListPersons tbody tr[data-id='" + currentID + "']"));
+        let row = peopleTable.row($(`#touchedListPersons tbody tr[data-id="${htmlEntities(currentID)}"]`));
         if (row.length == 0) {
-          row = spaceTable.row($("#touchedListSpaces tbody tr[data-id='" + currentID + "']"));
+          row = spaceTable.row($(`#touchedListSpaces tbody tr[data-id="${htmlEntities(currentID)}"]`));
         }
         row.remove().draw();
       }
@@ -378,8 +381,8 @@ const extraWatchlist = async () => {
       list.push(currentID);
       if ($("#extraWatchlistWindow").is(":visible")) {
         // Added: Fetch and add the profile.
-        get_Profile(currentID).then((response) => {
-          if (response[0].profile?.isSpace) {
+        get_Profile(decodeURIComponent(currentID)).then((response) => {
+          if (response[0].profile?.IsSpace) {
             const record = extractFSP(response[0].profile);
             ewData.push(record);
             spaceTable.row.add(record).draw(false);
@@ -488,7 +491,7 @@ const createWatchlistPopup = async (mouseY) => {
   peopleTable = $("#touchedListPersons").DataTable({
     data: ewData.filter((d) => d.type == "p"),
     columns: [
-      { title: "ID", data: "wtId", width: "20%" },
+      { title: "ID", data: "wtId", render: (data, type, row) => decodeURIComponent(data), width: "20%" },
       {
         title: "Name",
         data: "lName",
@@ -533,7 +536,7 @@ const createWatchlistPopup = async (mouseY) => {
         orderable: false,
         render: (data, type, row) => {
           if (type === "display") {
-            return `<span class='removeFromExtraWatchlist' data-id='${data}'>&times;</span>`;
+            return `<span class='removeFromExtraWatchlist' data-id="${htmlEntities(data)}">&times;</span>`;
           }
           return data;
         },
@@ -626,7 +629,7 @@ const createWatchlistPopup = async (mouseY) => {
         orderable: false,
         render: (data, type, row) => {
           if (type === "display") {
-            return `<span class='removeFromExtraWatchlist' data-id='${data}'>&times;</span>`;
+            return `<span class='removeFromExtraWatchlist' data-id="${htmlEntities(data)}">&times;</span>`;
           }
           return data;
         },
@@ -669,9 +672,6 @@ const createWatchlistPopup = async (mouseY) => {
     searching: true, // Enable the search box
     searchDelay: 400, // Debounce user input - only start search/filter after 400ms of no typing
     autoWidth: false,
-    createdRow: function (row, data, dataIndex) {
-      $(row).attr("data-id", data.wtId);
-    },
   });
 
   // $popup.append('<p id="ewlEmpty">Empty?</p>');

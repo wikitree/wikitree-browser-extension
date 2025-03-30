@@ -144,7 +144,7 @@ export function getProfilePersonInfo() {
   }
   if (window.location.href.includes("/Space:")) {
     // For space pages, the profile person is the space page itself
-    person.Name = window.location.href.split("/wiki/")[1].split("#")[0];
+    person.Name = window.location.href.split("/wiki/")[1].split("?#")[0];
     return person;
   }
   person.Name = pageData.mnamedb;
