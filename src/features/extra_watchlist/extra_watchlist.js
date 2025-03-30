@@ -365,7 +365,7 @@ const extraWatchlist = async () => {
       list = list.filter((id) => id !== currentID);
       ewData = ewData.filter((d) => d.wtId != currentID);
       if ($("#extraWatchlistWindow").is(":visible")) {
-        let row = peopleTable.row($("#touchedListSpaces tbody tr[data-id='" + currentID + "']"));
+        let row = peopleTable.row($("#touchedListPersons tbody tr[data-id='" + currentID + "']"));
         if (row.length == 0) {
           row = spaceTable.row($("#touchedListSpaces tbody tr[data-id='" + currentID + "']"));
         }
