@@ -1,10 +1,45 @@
-#familyDropdown option.Male {
+#familyDropdown li[data-gender="Male"] {
   background-color: #eef;
 }
-#familyDropdown option.Female {
+#familyDropdown li[data-gender="Female"] {
   background-color: #fee;
 }
 #familyDropdown {
-  border: 1px solid black;
+  display: inline-block;
+  position: relative;
   font-weight: bold;
+}
+#familyDropdown button {
+  background: #f0f0eb;
+  border: 1px solid lightgray;
+  margin: 0.5em 0;
+  cursor: pointer;
+  font-size: inherit;
+  font-weight: bold;
+}
+#familyDropdown button:hover {
+  background: #e0e0eb;
+}
+
+#familyDropdown ul {
+  background: #f0f0eb;
+  position: absolute;
+  z-index: 100000;
+  list-style: none;
+  width: max-content;
+  border: 1px solid lightgray;
+  padding: 0.5em;
+  margin: 0;
+}
+#familyDropdown ul li {
+  padding: 0.3em;
+  margin: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#familyDropdown ul li:hover {
+  background: #e0e0eb;
+}
+#familyDropdown ul li:active {
+  background: #d0d0eb;
 }

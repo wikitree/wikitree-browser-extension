@@ -62,12 +62,6 @@ const myCustomStyle = {
           defaultValue: "'Roboto', sans-serif",
         },
         {
-          id: "roundedCorners",
-          type: OptionType.CHECKBOX,
-          label: "Rounded corners",
-          defaultValue: false,
-        },
-        {
           id: "editor_font-size",
           type: OptionType.SELECT,
           label: "Editor font size",
@@ -90,6 +84,12 @@ const myCustomStyle = {
             { value: "250", text: "250%" },
           ],
           defaultValue: "100",
+        },
+        {
+          id: "roundedCorners",
+          type: OptionType.CHECKBOX,
+          label: "Rounded corners",
+          defaultValue: false,
         },
       ],
     },

@@ -163,7 +163,7 @@ function injectFeatureSettings(feature, $headingElement) {
       loadFeatureSettings(feature, $optionsContainer);
 
       // Hide the image that shows the settings from the options page
-      const $imageTable = $headingElement.nextAll("table").first();
+      const $imageTable = $headingElement.nextAll(".table-wrapper").first();
       if ($imageTable.length) {
         $imageTable.addClass("wbe-hidden-image");
         const $caption = $imageTable.find("td").last();
