@@ -1,7 +1,7 @@
 import $ from "jquery";
 import "./unconnected_branch_table.css";
 import { checkIfFeatureEnabled } from "../../core/options/options_storage";
-import { mainDomain, isUnconnectedNotables } from "../../core/pageType";
+import { mainDomain, isUnconnectedNotables, isProfilePage } from "../../core/pageType";
 import { getPeople } from "../dna_table/dna_table";
 import { WikiTreeAPI } from "../../core/API/WikiTreeAPI";
 import { showFamilySheet } from "../familyGroup/familyGroup";
@@ -13,10 +13,14 @@ import { isOK } from "../../core/common";
 import "jquery-ui/ui/widgets/draggable";
 
 async function initUnconnectedBranch() {
+  if (isUnconnectedNotables) {
+    doNotablesSpace();
+    return;
+  }
   const profileID = profilePerson.Id;
   const profile = await getProfile(profileID, "Id,Created,Name", "WBE_UnconnectedBranch");
-  if (profile.Created) {
-    if (!isLessThan24HoursAgo(profile.Created)) {
+  if ((profile && profile.Created) || isUnconnectedNotables) {
+    if (profile && !isLessThan24HoursAgo(profile.Created)) {
       const options = {
         title: "Display table of unconnected branch",
         id: "unconnectedBranchButton",
@@ -40,8 +44,6 @@ async function initUnconnectedBranch() {
             $("#unconnectedBranchTable").slideToggle();
           }
         });
-      } else {
-        doNotablesSpace();
       }
     }
   }
@@ -78,7 +80,7 @@ async function doNotablesSpace() {
 
   // Get all ids for getPerson
   const ids = [];
-  $table.find("tr").each(function () {
+  $table.find("tr:has(a[href*='wiki'])").each(function () {
     const link = $(this).find("a:first");
     if (link.length && link.attr("href").includes("wiki/")) {
       const id = link.attr("href").split("/").pop();
@@ -104,6 +106,9 @@ async function doNotablesSpace() {
   }
 
   setTimeout(function () {
+    const content = $("div.container .page--content");
+    $("section#Manager").closest("aside").prependTo(content);
+    content.css("width", "auto");
     $(".x-sidebar").remove();
     $(".x-content").css("width", "auto");
   }, 1000);
@@ -362,8 +367,15 @@ function makeTableSortable(table) {
 
 const homeIcon = chrome.runtime.getURL("images/Home_icon.png");
 
-async function unconnectedBranch() {
-  const profileID = profilePerson.Id;
+async function unconnectedBranch(event) {
+  let profileID = profilePerson.Id;
+  let littleTree = $(event.target);
+  let row;
+  if (event) {
+    littleTree = $(event.target);
+    row = littleTree.closest("tr");
+    profileID = row.find("a").first().attr("href").split("/").pop();
+  }
 
   // Initialize the cache object if it doesn't exist
   if (!window.unconnectedBranch) {
@@ -389,6 +401,7 @@ async function unconnectedBranch() {
 
     const result = await WikiTreeAPI.getPeople("WBE_unconnected_branch", profileID, fieldsArray, { nuclear: 10 });
     people = result[2];
+    console.log("People:", people);
     // WikiTree.getPeople(appId, nextIDsToLoad, ["Id", "Name", "LastNameAtBirth"]
     // Store the data in the cache with timestamp
     console.log("People:", people);
@@ -539,6 +552,10 @@ async function unconnectedBranch() {
   let buttonHeight;
   buttonPosition = $("#unconnectedBranchButton").offset();
   buttonHeight = $("#unconnectedBranchButton").height();
+  if (littleTree) {
+    buttonPosition = littleTree.offset();
+    buttonHeight = littleTree.height();
+  }
 
   const tablePosition = {
     top: buttonPosition.top + buttonHeight + 10,

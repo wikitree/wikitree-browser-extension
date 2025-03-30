@@ -112,6 +112,7 @@
 }
 
 img.unconnectedBranch {
+  width: 2em;
   cursor: pointer;
 }
 
