@@ -206,7 +206,11 @@ function modifyLinkButtons(options) {
     const buttonQuery = isSpacePage ? "button[aria-label='Copy Wiki Link']" : "button[aria-label='Link']";
     const button = $(buttonQuery);
     const aTitle = document.title.replace("Editing ", "").trim();
-    const pageUrlPartEncoded = window.location.href.split("Space:")[1].split("#")[0].split("?")[0].split("&")[0];
+    const pageUrlPartEncoded = window.location.href
+      .split(/Space(:|%3A)/)[1]
+      .split("#")[0]
+      .split("?")[0]
+      .split("&")[0];
     const urlPartDecoded = decodeURIComponent(pageUrlPartEncoded).split("_").join(" ");
 
     if (options.spaceLinkFormat == "withParameter") {

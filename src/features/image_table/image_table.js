@@ -1,5 +1,5 @@
 import $ from "jquery";
-import { treeImageURL, profilePerson, addTab } from "../../core/common.js";
+import { treeImageURL, getProfilePersonInfo, addTab } from "../../core/common.js";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "datatables.net";
 import { isProfilePage } from "../../core/pageType";
@@ -7,6 +7,7 @@ import { shouldInitializeFeature } from "../../core/options/options_storage";
 
 let theSection;
 let theTab;
+const profilePerson = getProfilePersonInfo();
 
 /**
  * Fetches photos from the Wikitree API for the current profile.
@@ -19,6 +20,7 @@ async function getPhotos() {
   const limit = 100;
   let morePhotos = true;
 
+  console.log(profilePerson);
   do {
     // Construct the API URL using the current profile's name
     const url = `https://api.wikitree.com/api.php?action=getPhotos&appID=WBE-image_table&key=${profilePerson.Name}&start=${start}&limit=${limit}`;
