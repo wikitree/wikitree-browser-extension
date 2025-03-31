@@ -7,7 +7,7 @@ import $ from "jquery";
 import "jquery-ui/ui/widgets/sortable";
 import "jquery-ui/ui/widgets/autocomplete";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
-import { getUserWtId, getUserNumId, isLoggedIntoAPI } from "../../core/common";
+import { getUserWtId, getUserNumId, isLoggedIntoAPI, setHighestZIndex } from "../../core/common";
 import { goAndLogIn } from "../randomProfile/randomProfile";
 import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
 
@@ -17,7 +17,7 @@ const APP_ID = "WBE-SpaceSorter";
 const browserAPI = typeof browser !== "undefined" ? browser : chrome;
 
 const spaceWatchlistSorterHTML = `
-<div id="spaceWatchlistSorter-popup" class="spaceWatchlistSorter-popup" style="display: none;">
+<div id="spaceWatchlistSorter-popup" class="spaceWatchlistSorter-popup popup" style="display: none;">
   <div class="spaceWatchlistSorter-header">
     <h2>Space Watchlist</h2>
     <label for="searchFSP" class="search-wrapper">
@@ -25,7 +25,7 @@ const spaceWatchlistSorterHTML = `
       <input type="text" id="searchFSP" placeholder="Search">
       <span class="clear-input" id="clearSearchFSP">&times;</span>
     </label>
-    <button class="small" id="spaceWatchlistSorterClosePopup">&times;</button>
+    <button class="small" id="spaceWatchlistSorterClosePopup" class="close-popup">&times;</button>
   </div>
   <div class="spaceWatchlistSorter-content">
     <div id="spaceWatchlistSorterTabs" class="spaceWatchlistSorter-tabs"></div>
@@ -529,6 +529,7 @@ function addListeners() {
         backgroundColor: "rgba(255, 255, 255, 0.8)",
         borderRadius: "50%",
       });
+      setHighestZIndex("#spaceWatchlistSorter-loading");
 
       // Fetch data and populate interface
       const result = await populateInterface();
@@ -558,6 +559,7 @@ function resetWatchlistPopUp() {
   }
   const gotoImg = chrome.runtime.getURL("images/top-right-svgrepo-com.svg");
   $("body").append(spaceWatchlistSorterHTML);
+  setHighestZIndex("#spaceWatchlistSorter-popup");
   $("#spaceWatchlistSorter-popup").draggable({ handle: ".spaceWatchlistSorter-header" });
   $("#searchFSP")
     .off("input")
@@ -658,6 +660,7 @@ async function updateUI() {
     const dbWatchlist = await loadWatchlistFromDB();
     const updatedFolderMap = mergeFolders(dbWatchlist);
     populateUI(updatedFolderMap);
+    setHighestZIndex("#spaceWatchlistSorter-popup");
     $("#spaceWatchlistSorter-popup").show();
   }
 }

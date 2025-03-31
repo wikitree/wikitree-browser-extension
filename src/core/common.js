@@ -1716,6 +1716,51 @@ export function WBEHelpIcon(settings) {
   return helpIcon;
 }
 
+// Close .popup with the highest z-index on Esc key press
+$(document).on("keydown", function (e) {
+  if (e.key === "Escape") {
+    const $popups = $(".popup")
+      .filter(":visible") // only visible
+      .filter((_, el) => el.id !== "photoPopup"); // exclude #photoPopup
+
+    const $popup = $popups
+      .sort((a, b) => {
+        return parseInt($(b).css("z-index") || 0) - parseInt($(a).css("z-index") || 0);
+      })
+      .eq(0);
+
+    if ($popup.length) {
+      if ($popup.find(".close-popup").length) {
+        $popup.find(".close-popup").trigger("click");
+      } else {
+        $popup.fadeOut(300, function () {
+          $(this).remove();
+        });
+      }
+    }
+  }
+});
+
+/// document .popup click -> set highest z-index
+$(document).on("click", ".popup", function (e) {
+  setHighestZIndex(this);
+  e.stopPropagation(); // Prevent event bubbling to parent elements
+});
+
+export function setHighestZIndex(el) {
+  // Only consider visible elements with a z-index
+  const zIndex = Math.max(
+    ...Array.from(document.querySelectorAll("*"))
+      .filter((el) => {
+        const style = getComputedStyle(el);
+        return style.display !== "none" && style.visibility !== "hidden";
+      })
+      .map((el) => parseFloat(getComputedStyle(el).zIndex) || 0)
+  );
+
+  $(el).css("z-index", zIndex + 1);
+}
+
 //////////////////// For Notables Project
 
 function showPopupMessage(message) {

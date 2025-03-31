@@ -303,7 +303,7 @@ function attachHover(target) {
           // do not apply to certain links
           if (
             $(this).closest(
-              ".no-link-preview, .reference, header, footer, .tabs--wrapper, .dropdown-item, #customMenuOptions, .btn, .button"
+              ".no-link-preview, .reference, header, footer, .tabs--wrapper, .dropdown-item, #customMenuOptions, .btn, .button, #extraWatchlistWindow"
             ).length > 0
           ) {
             return false;

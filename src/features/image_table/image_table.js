@@ -1,9 +1,10 @@
 import $ from "jquery";
-import { treeImageURL, profilePerson, addTab } from "../../core/common.js";
+import { treeImageURL, profilePerson, addTab, setHighestZIndex } from "../../core/common.js";
 import "datatables.net-dt/css/jquery.dataTables.css";
 import "datatables.net";
 import { isProfilePage } from "../../core/pageType";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { set } from "date-fns";
 
 let theSection;
 let theTab;
@@ -58,7 +59,7 @@ function initPhotoPopup() {
     let closeButton = "";
     // For non-profile pages, add a close button to the popup
     if (!isProfilePage) {
-      closeButton = `<div id="closeWrapper"><span class="close">&times;</span></div>`;
+      closeButton = `<div id="closeWrapper"><span class="close close-popup">&times;</span></div>`;
     }
     // Create the popup element with necessary structure and content
     const popup = $(`<div id="photoPopup" class="popup">
@@ -72,6 +73,7 @@ function initPhotoPopup() {
     // Append the popup to the appropriate container
     if (!isProfilePage) {
       $("body").append(popup);
+      setHighestZIndex(popup);
     } else {
       theSection.append(popup);
     }

@@ -139,6 +139,25 @@
   cursor: pointer;
 }
 
-#extraWatchlistTabs table.dataTable tbody td {
-  padding: 0;
+#extraWatchlistTabs table.dataTable tbody td,
+#extraWatchlistTabs table.dataTable tbody th {
+  padding: 0.2em;
+}
+
+#extraWatchlistHeader {
+  cursor: move; /* default */
+}
+
+#extraWatchlistHeader:active {
+  cursor: grabbing;
+}
+
+#extraWatchlistWindow tr.odd {
+  background: #f0f0eb;
+}
+#extraWatchlistWindow tr.even {
+  background: #ffffff;
+}
+#pagePreview {
+  z-index: 100000000000 !important;
 }

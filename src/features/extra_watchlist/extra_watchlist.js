@@ -9,7 +9,7 @@ import "jquery-ui/ui/widgets/draggable";
 import "jquery-ui/ui/widgets/tabs"; // Ensure tabs widget is loaded
 import "../../thirdparty/date.format.js";
 import "./extra_watchlist.css";
-import { isOK, htmlEntities, getUserWtId, getUserNumId, profilePerson } from "../../core/common";
+import { isOK, htmlEntities, getUserWtId, getUserNumId, profilePerson, setHighestZIndex } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
@@ -404,7 +404,7 @@ const extraWatchlist = async () => {
 
 // Creates the popup with two tabs: Profiles (default) and Spaces.
 const createWatchlistPopup = async (mouseY) => {
-  const $popup = $("<div id='extraWatchlistWindow' class='ui-widget-content'></div>");
+  const $popup = $("<div id='extraWatchlistWindow' class='ui-widget-content popup'></div>");
   $popup.insertAfter($(".tabs--wrapper")).css({
     position: "absolute",
     top: mouseY,
@@ -421,7 +421,7 @@ const createWatchlistPopup = async (mouseY) => {
     padding: "10px",
     borderBottom: "1px solid #ccc",
   });
-  $header.append("<button id='closeWatchlistWindow' class='small'>&times;</button>");
+  $header.append("<button id='closeWatchlistWindow' class='small close-popup'>&times;</button>");
   $header.append(
     `<div id="importExportButtons">
        <a id='importExtraWatchlist' class='importExport btn-pill-sm small button'>import</a>
@@ -497,7 +497,7 @@ const createWatchlistPopup = async (mouseY) => {
         data: "lName",
         render: (data, type, row) => {
           if (type === "display") {
-            return `<a href="https://${mainDomain}/wiki/${htmlEntities(row.numId)}">${data}</a>`;
+            return `<a href="https://${mainDomain}/wiki/${htmlEntities(row.wtId)}">${data}</a>`;
           }
           return data;
         },
@@ -741,16 +741,17 @@ const createWatchlistPopup = async (mouseY) => {
     });
 
   setTimeout(() => {
+    setHighestZIndex($popup);
     $popup.slideDown();
   }, 1000);
 
   $popup.draggable({
     containment: "document",
+    handle: "#extraWatchlistHeader",
     cursor: "move",
   });
 
   $popup.on("dblclick", () => closeWatchlistPopup($popup));
-
   doExtraWatchlist();
 };
 
