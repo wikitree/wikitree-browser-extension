@@ -381,7 +381,7 @@ function reportSources(isValid, biography, isPre1700) {
         saveButton.parentElement.appendChild(bioCheckSourcesContainer);
       }
 
-      // with WBE add person redesign add the biocheck container after enterBasicDataButton for add unrelated 
+      // with WBE add person redesign add the biocheck container after enterBasicDataButton for add unrelated
       // and/or the dismissMatchesButton
       // but the BioCheck will show before you can click the create profile button so maybe a future enhancemnet
     }
@@ -413,43 +413,38 @@ function setHelp(parentContainer) {
  */
 function checkWatchlist() {
   // Test for Person Profiles and not Free Space Profiles
-  let personTab = document.getElementById('person-tab');
-  if (personTab.classList.contains('active')) {
+  let personTab = document.getElementById("person-tab");
+  if (personTab.classList.contains("active")) {
+    // find the paragraph with the links
+    let navParagraph = null;
+    let allParagraphs = document.querySelectorAll("p");
+    allParagraphs.forEach((paragraph) => {
+      if (paragraph.textContent.includes("See also:")) {
+        navParagraph = paragraph;
+      }
+    });
 
-  // find the paragraph with the links
-  let navParagraph = null;
-  let allParagraphs = document.querySelectorAll('p');
-  allParagraphs.forEach(paragraph => {
-    if (paragraph.textContent.includes('See also:')) {
-      navParagraph = paragraph;
+    // Now, remove the final period from the last text node, if present
+    if (navParagraph) {
+      var lastNode = navParagraph.lastChild;
+      if (lastNode && lastNode.nodeType === Node.TEXT_NODE) {
+        lastNode.textContent = lastNode.textContent.trim().replace(/\.$/, "");
+      }
+
+      // Append the separator and the new link
+      navParagraph.insertAdjacentText("beforeend", " | ");
+
+      let bioCheckAnchor = document.createElement("a");
+      bioCheckAnchor.setAttribute(
+        "href",
+        "https://apps.wikitree.com/apps/sands1865/biocheck/?action=checkWatchlist&checkStart=auto"
+      );
+      bioCheckAnchor.setAttribute("title", "Bio Check profiles on your watchlist");
+      bioCheckAnchor.textContent = "Bio Check";
+      navParagraph.appendChild(bioCheckAnchor);
+
+      // Add a dot.
+      navParagraph.insertAdjacentText("beforeend", ".");
     }
-  });
-
-  /* not sure how to convert the ending ". " to " | " */
-  let childElements = navParagraph.children;
-  let lastChild = null;
-  for (let i = 0; i < childElements.length; i++) {
-    lastChild = childElements[i];
-  }
-
-//    lastChild.append(' | ');
-//lastChild.innerHTML += 'xx | xx';
-//lastChild.innerText += 'xx | xx';
-//lastChild.outerHTML += ' | ';
-// take a chance there is only one . in the paragraph
-//let txt = navParagraph.innerHTML;
-//console.log('txt ' + txt);
-//txt = txt.replace('.', ' | ');
-//navParagraph.innerHTML = txt;
-
-    let bioCheckAnchor = document.createElement("a");
-    bioCheckAnchor.setAttribute(
-      "href",
-      "https://apps.wikitree.com/apps/sands1865/biocheck/?action=checkWatchlist&checkStart=auto"
-    );
-    bioCheckAnchor.setAttribute("title", "Bio Check profiles on your watchlist");
-    bioCheckAnchor.textContent = "Bio Check";
-    navParagraph.appendChild(bioCheckAnchor);
-
   }
 }
