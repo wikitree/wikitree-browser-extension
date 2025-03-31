@@ -11,7 +11,7 @@ registerFeature({
   description: "Gives you an extra watchlist. Add to it by clicking the + button. View it with the star button.",
   category: "Global",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
+  contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: true,
   pages: [isWikiPage],
   options: [

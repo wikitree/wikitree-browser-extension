@@ -13,7 +13,7 @@ registerFeature({
     "Selecting any option here will automatically load the toggle buttons on every profile or space page.",
   category: "Profile",
   creators: [{ name: "Ian Beacall", wikitreeid: "Beacall-6" }],
-  contributors: [],
+  contributors: [{ name: "Riël Smit", wikitreeid: "Smit-641" }],
   defaultValue: true,
   pages: [isSpacePage, isProfilePage],
   options: [
