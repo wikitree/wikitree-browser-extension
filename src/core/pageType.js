@@ -233,8 +233,8 @@ if (domain.match("apps.wikitree.com")) {
     isProfileHistoryDetail = true;
   } else if (
     // Profile Page
-    path.match(/(\/wiki\/)\p{L}[^:]*-[0-9]+/gu) ||
-    (uri.match(/\/index.php\?title=\p{L}[^:]*-[0-9]+/gu) &&
+    path.match(/(\/wiki\/)\p{L}(?:(?!:|%3A|%3a).)*-[0-9]+/gu) ||
+    (uri.match(/\/index.php\?title=\p{L}(?:(?!:|%3A|%3a).)*-[0-9]+/gu) &&
       !uri.match(/\/index.php\?title=(Special|Space|Category|Template|Help|Project)/g))
   ) {
     isProfilePage = true;
