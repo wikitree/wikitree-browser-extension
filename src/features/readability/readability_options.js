@@ -505,26 +505,6 @@ const readabilityFeature = {
               defaultValue: 3,
             },
             {
-              id: "hideSidebarStatus",
-              type: OptionType.SELECT,
-              label: "Hide status blocks (like project protected)",
-              values: [
-                {
-                  value: 0,
-                  text: "never",
-                },
-                {
-                  value: 1,
-                  text: "in reading mode",
-                },
-                {
-                  value: 255,
-                  text: "always",
-                },
-              ],
-              defaultValue: 1,
-            },
-            {
               id: "hideForumPosts",
               type: OptionType.SELECT,
               label: "Hide G2G forum posts",
@@ -775,7 +755,7 @@ const readabilityFeature = {
             {
               id: "hideStatus",
               type: OptionType.SELECT,
-              label: "Hide project or research boxes",
+              label: "Hide status (like notable or PPP) and research boxes",
               values: [
                 {
                   value: 0,

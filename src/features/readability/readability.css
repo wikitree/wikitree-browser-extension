@@ -173,10 +173,6 @@ sup.reference {
     display: none !important;
   }
 
-  .hide-sidebar-status .x-sidebar-status {
-    display: none !important;
-  }
-
   .hide-sidebar-posts .x-sidebar-posts {
     display: none !important;
   }
@@ -220,7 +216,9 @@ sup.reference {
     display: none !important;
   }
 
-  .hide-status .x-content .status {
+  .hide-status .x-status,
+  .hide-status .x-callout-notable,
+  .hide-status .x-callout-verified {
     display: none !important;
   }
 

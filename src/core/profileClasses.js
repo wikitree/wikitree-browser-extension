@@ -67,15 +67,11 @@ export function ensureProfileClasses() {
     $(".x-content .status").addClass("x-status");
 
     // PPP was in the sidebar on v1, so we'll maintain that cass just in case it was used anywhere, but also with additional classes
-    $(".protected--profile").closest(".row").addClass("x-sidebar-status x-status-ppp");
+    $(".protected--profile").closest(".row").addClass("x-status x-status-ppp");
 
     // mark alert boxes (like research notes, orphaned profile, etc.)
     $(
       ".x-content > .status, .x-status-ppp, .x-content > .projectbox, .x-content > a[name]:last-of-type ~ .box.orange, .x-content:not(* > a[name]) > .box.orange"
-    ).addClass("x-alert");
-
-    $(
-      ".x-content > .status, .x-content > .projectbox, .x-content > a[name]:last-of-type ~ .box.orange, .x-content:not(* > a[name]) > .box.orange"
     ).addClass("x-alert");
 
     // mark the sidebar to the right (with DNA connections, images, research, etc.)
@@ -181,12 +177,10 @@ export function ensureProfileClasses() {
     $(".x-sticker .x-inline-table, .x-alert .x-inline-table").removeClass("x-inline-table");
 
     // mark root sections in content (h2 only)
-    $(".x-content a[name] + h1, .x-content a[name] + h2").prev().addClass("x-root-section x-section");
+    $(".x-content > h1[id], .x-content > h2[id]").addClass("x-root-section x-section");
 
     // mark subdivided sections (h3, etc.)
-    $(".x-content a[name] + h3, .x-content a[name] + h4, .x-content a[name] + h5, .x-content a[name] + h6")
-      .prev()
-      .addClass("x-section");
+    $(".x-content > h3[id], .x-content > h4[id], .x-content > h5[id], .x-content > h6[id]").addClass("x-section");
 
     // mark memories section (only at the bottom of certain profiles)
     $("section#Memories").addClass("x-memories");
@@ -201,27 +195,30 @@ export function ensureProfileClasses() {
       .removeClass("x-alert");
 
     // mark elements related to certain sections (including header, lists, and any other root elements) up until the next section *** dependent on x-memories being set
-    $(".x-content a[name].x-root-section, .x-content a[name].x-section").each(function () {
-      let className = "section-" + this.name.replace(/[\W_]+/g, "").toLowerCase();
-      if (className == "section-sources") {
-        className += " x-sources";
+    $(".x-content .x-root-section, .x-content .x-section").each(function () {
+      const name = (this.id && this.id.replace(/[\W_]+/g, "")) || "";
+      if (name) {
+        let className = "section-" + name.replace(/[\W_]+/g, "").toLowerCase();
+        if (className == "section-sources") {
+          className += " x-sources";
+        }
+        $(this)
+          .first()
+          .nextUntil(".x-root-section, .x-edit, .x-memories, br[clear] + div.SMALL")
+          .addBack()
+          .addClass(className)
+          .each(function () {
+            /*
+             * Sometimes unwrapped text can be rendered in the body, such as "See also:"
+             * (this seems to happen with leading whitespace or when templates/stickers are
+             * placed within text). Since there are no containers to wrap a section's content,
+             * we have to wrap the text nodes in a <span> tag so that the classes can be applied.
+             */
+            if (this.previousSibling.nodeType == 3 && /\S/.test(this.previousSibling.nodeValue)) {
+              $(this.previousSibling).wrap('<span class="' + className + '"></span>');
+            }
+          });
       }
-      $(this)
-        .first()
-        .nextUntil(".x-root-section, .x-edit, .x-memories, br[clear] + div.SMALL")
-        .addBack()
-        .addClass(className)
-        .each(function () {
-          /*
-           * Sometimes unwrapped text can be rendered in the body, such as "See also:"
-           * (this seems to happen with leading whitespace or when templates/stickers are
-           * placed within text). Since there are no containers to wrap a section's content,
-           * we have to wrap the text nodes in a <span> tag so that the classes can be applied.
-           */
-          if (this.previousSibling.nodeType == 3 && /\S/.test(this.previousSibling.nodeValue)) {
-            $(this.previousSibling).wrap('<span class="' + className + '"></span>');
-          }
-        });
     });
     $(".x-content ol.references").addClass("section-sources x-sources");
 
