@@ -65,29 +65,6 @@
   margin-bottom: 0.2em;
 }
 
-#extraWatchlistWindow .touchedCol {
-  width: 10em;
-  color: black !important;
-}
-
-#extraWatchlistWindow .changesCol {
-  width: 7em;
-}
-
-#extraWatchlistWindow .changesCol a {
-  display: inline-block;
-  white-space: nowrap;
-}
-
-body.profile #extraWatchlistWindow td.xCol {
-  width: 1em;
-}
-
-#ewlEmpty {
-  display: none;
-  color: black;
-}
-
 .removeFromExtraWatchlist {
   width: 2em;
   cursor: pointer;
@@ -106,29 +83,6 @@ body.profile #extraWatchlistWindow td.xCol {
 #touchedList thead,
 #extraWatchlistWindow thead {
   text-align: left;
-}
-
-div.eight.columns.alpha .nameCol,
-#extraWatchlistWindow .nameCol {
-  width: 60%;
-}
-
-div.eight.columns.alpha .touchedCol,
-#extraWatchlistWindow .touchedCol {
-  width: 15%;
-}
-
-div.eight.columns.alpha .changesCol,
-#extraWatchlistWindow .changesCol {
-  width: 15%;
-  min-width: 4em;
-}
-
-div.eight.columns.alpha .xCol,
-#extraWatchlistWindow .xCol {
-  width: 1em;
-  color: black !important;
-  font-weight: bold;
 }
 
 #views-wrap {
@@ -183,4 +137,27 @@ div.eight.columns.alpha .xCol,
 
 #extraWatchlistTabs th {
   cursor: pointer;
+}
+
+#extraWatchlistTabs table.dataTable tbody td,
+#extraWatchlistTabs table.dataTable tbody th {
+  padding: 0.2em;
+}
+
+#extraWatchlistHeader {
+  cursor: move; /* default */
+}
+
+#extraWatchlistHeader:active {
+  cursor: grabbing;
+}
+
+#extraWatchlistWindow tr.odd {
+  background: #f0f0eb;
+}
+#extraWatchlistWindow tr.even {
+  background: #ffffff;
+}
+#pagePreview {
+  z-index: 100000000000 !important;
 }

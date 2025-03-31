@@ -1,6 +1,5 @@
 import $ from "jquery";
 import "jquery-ui/ui/widgets/draggable";
-import { secondarySort } from "../extra_watchlist/extra_watchlist";
 import "./surname_table.css";
 import { isSearchPage, isSpecialWatchedList } from "../../core/pageType";
 import { initTableFilters } from "../table_filters/table_filters";

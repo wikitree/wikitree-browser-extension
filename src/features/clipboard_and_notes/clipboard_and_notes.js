@@ -7,7 +7,7 @@ import $ from "jquery";
 import "jquery-ui/ui/widgets/sortable";
 import "jquery-ui/ui/widgets/draggable";
 import "./clipboard_and_notes.css";
-import { htmlEntities, extensionContextInvalidatedCheck } from "../../core/common";
+import { htmlEntities, extensionContextInvalidatedCheck, setHighestZIndex } from "../../core/common";
 import { shouldInitializeFeature, checkIfFeatureEnabled } from "../../core/options/options_storage";
 import {
   isAddUnrelatedPerson,
@@ -17,6 +17,7 @@ import {
   isWikiEdit,
 } from "../../core/pageType";
 import { IndexedDBHelper } from "../../core/lib/indexedDBHelper.js";
+import { set } from "date-fns";
 
 const CB_DB_NAME = "Clipboard";
 const CB_DB_VERSION = 1;
@@ -153,6 +154,7 @@ shouldInitializeFeature("clipboardAndNotes").then((result) => {
       }
     }
     if (request.action == "showClipboard" || request.action == "showNotes") {
+      setHighestZIndex($("#clipboard"));
       $("body").addClass("modal-open");
     }
   });
@@ -418,8 +420,8 @@ async function clipboard(type, e, action = false) {
     }
 
     const aClipboard = $(
-      `<div id='clipboard' data-type='${type}'>
-        <h1>${h1}<x>x</x></h1>
+      `<div id='clipboard' class="popup" data-type='${type}'>
+        <h1>${h1}<x class="close-popup">x</x></h1>
         <div id='tab-container'>
           <div id='groupTabs'>
             <button id='reorderTabs' class='btn btn-secondary btn-sm' title='Reset the tab sort order to the default lexicographic order'>⇅</button>
@@ -440,6 +442,7 @@ async function clipboard(type, e, action = false) {
     );
 
     $("body").append(aClipboard);
+    setHighestZIndex(aClipboard);
 
     if (isWikiEdit && thisWord == "clipping") {
       if ($("#clipboardInfo").length == 0) {
@@ -488,6 +491,7 @@ async function clipboard(type, e, action = false) {
     }
   } else {
     $("#clipboard").show();
+    setHighestZIndex($("#clipboard"));
     $("body").addClass("modal-open");
   }
 
@@ -723,10 +727,6 @@ function mouseListener() {
 }
 
 function keyDownListener(e) {
-  if (e.code === "Escape") {
-    closeClipboard();
-    return;
-  }
   if (!e.shiftKey) return; // we only react to shift-<some key>
   if (!$("#clipboard").is(":visible")) return; // and only if the clipboard is visible
   if ($("input, textarea").is(":focus")) return; // and no text input area has the focus

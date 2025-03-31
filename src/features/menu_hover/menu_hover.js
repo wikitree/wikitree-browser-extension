@@ -4,6 +4,7 @@ Created By: Ian Beacall (Beacall-6)
 
 import $ from "jquery";
 import { shouldInitializeFeature } from "../../core/options/options_storage";
+import { setHighestZIndex } from "../../core/common";
 
 function menuHover() {
   let clickToggledMenus = new Set(); // Store menus that should stay open after click
@@ -23,6 +24,7 @@ function menuHover() {
   $(document).on("mouseenter", "header .btn-group[data-menu]", function () {
     const dropdownMenu = $(this).find(".dropdown-menu");
     dropdownMenu.addClass("show hovered");
+    setHighestZIndex(dropdownMenu[0]); // Set z-index to highest when hovered
   });
 
   // Handle click: toggle menu staying open
