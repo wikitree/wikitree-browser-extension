@@ -13,9 +13,13 @@ import { isOK, htmlEntities, getUserWtId, getUserNumId, profilePerson, setHighes
 import { mainDomain } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
+const CryptoJS = require("crypto-js");
+
 const ONE_HOUR = 60 * 60 * 1000; // ms
-// const browserAPI = typeof browser !== "undefined" ? browser : chrome;
+const browserAPI = typeof browser !== "undefined" ? browser : chrome;
 let ewData = [];
+let loadedEwDataVersion = 0;
+let md5AtLoad = "";
 let peopleTable;
 let spaceTable;
 
@@ -27,6 +31,8 @@ shouldInitializeFeature("extraWatchlist").then((result) => {
     normalizeLocalStorage();
     extraWatchlist();
     setPlusButton();
+    browserAPI.storage.onChanged.removeListener(storageChangeListener);
+    browserAPI.storage.onChanged.addListener(storageChangeListener);
   }
 });
 
@@ -39,7 +45,9 @@ const normalizeLocalStorage = () => {
   }
   const version = localStorage.getItem("extraWatchlistVersion");
   if (!version) {
-    localStorage.setItem("extraWatchlistVersion", Date.now());
+    const newVersion = Date.now();
+    localStorage.setItem("extraWatchlistVersion", newVersion);
+    browserAPI.storage.local.set({ extraWatchlistVersion: newVersion });
   }
 };
 
@@ -50,10 +58,17 @@ const normalizeLocalStorage = () => {
 // Returns [id-list, version, ewData]
 function getFullWatchlist() {
   const ids = getWatchlistIds();
-  const version = localStorage.getItem("extraWatchlistVersion");
-  const ewd = localStorage.getItem("extraWatchlistData");
-  ewData = ewd ? JSON.parse(ewd) : [];
-  return [ids, version];
+  const newVersion = localStorage.getItem("extraWatchlistVersion");
+  if (newVersion === loadedEwDataVersion) {
+    console.log(`No need to load,  ids=${ids.length}`);
+    return ids;
+  }
+  const ewd = localStorage.getItem("extraWatchlistData") || JSON.stringify([]);
+  md5AtLoad = CryptoJS.MD5(ewd).toString();
+  ewData = JSON.parse(ewd);
+  loadedEwDataVersion = newVersion;
+  console.log(`Loaded ewData: v:${loadedEwDataVersion}, count=${ids.length}, size=${ewd.length}`);
+  return ids;
 }
 
 function getWatchlistIds() {
@@ -75,14 +90,13 @@ function saveWatchList(ids) {
       .filter((id) => id !== "");
   }
   const idString = idArray.sort().join(",");
-
   const dataIds = ewData.map((d) => d.wtId).sort();
   const dataIdsString = dataIds.join(",");
-  // console.log(`saveWatchList nrIds=${idArray.length}, nrDataIds=${dataIds.length}`);
+  console.log(`saveWatchList: v:${loadedEwDataVersion}, count=${idArray.length}, ${idString}`, dataIds);
 
   if (idString != dataIdsString) {
     console.log(
-      `ewData out of sync: ids=${idArray.length} vs ewData=${ewData.length}, sizes: ${idString.length} va ${dataIdsString.length}, resetting`
+      `ewData out of sync: ids=${idArray.length} vs ewData=${ewData.length}, sizes: ${idString.length} va ${dataIdsString.length}, clearing ewData`
     );
     // const [a, b] = arrayDifferences(idArray, dataIds);
     // console.log("In ids and not in ewData", a);
@@ -90,14 +104,23 @@ function saveWatchList(ids) {
     ewData = [];
   }
   const jsonData = JSON.stringify(ewData);
-  // console.log(`ewData store size=${jsonData.length}`);
-  const version = Date.now();
+  const newMd5 = CryptoJS.MD5(jsonData).toString();
+  if (newMd5 === md5AtLoad && idString == dataIdsString) {
+    // No changes, so no need to change anything
+    console.log("No need to save");
+    return;
+  }
+
+  md5AtLoad = newMd5;
+  loadedEwDataVersion = Date.now();
+  console.log(`Saving new ewData: v:${loadedEwDataVersion}, count=${idArray.length} size=${jsonData.length}`);
   localStorage.setItem("extraWatchlist", idString);
   localStorage.setItem("extraWatchlistData", jsonData);
-  localStorage.setItem("extraWatchlistVersion", version);
-  // browserAPI.storage.local.set({ extraWatchlistVersion: version });
+  localStorage.setItem("extraWatchlistVersion", loadedEwDataVersion);
+  browserAPI.storage.local.set({ extraWatchlistVersion: loadedEwDataVersion });
 }
 
+// Check if ewData contains all and only the ids in ids
 function watchlistInSync(ids) {
   let inSync = false;
   const dataIds = ewData.map((d) => d.wtId).sort();
@@ -115,6 +138,26 @@ function watchlistInSync(ids) {
   //   console.log("In ewData but not in ids", b);
   // }
   return inSync;
+}
+
+function storageChangeListener(changes, namespace) {
+  const dataVersion = "extraWatchlistVersion";
+  if (namespace === "local" && changes[dataVersion]) {
+    const newVersion = changes[dataVersion].newValue;
+    console.log(`Storage change. Current version: ${loadedEwDataVersion} New version: ${newVersion}`);
+    if (+newVersion !== +loadedEwDataVersion) {
+      // console.log("Updating UI after storage change...");
+      if ($("#extraWatchlistWindow").length) {
+        console.log(`updateLocalData v${loadedEwDataVersion} (with popup) to ${newVersion}, current data`, ewData);
+        doExtraWatchlist();
+      } else {
+        console.log(`updateLocalData v${loadedEwDataVersion} (no popup) to ${newVersion}, current data`, ewData);
+        getFullWatchlist();
+      }
+      console.log(`updateLocalData, done`, ewData);
+      setPlusButton();
+    }
+  }
 }
 
 function arrayDifferences(a, b) {
@@ -143,6 +186,22 @@ const strDate = () => {
   const pad = (n) => n.toString().padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
 };
+
+function formDate(input) {
+  const pt = isOK(input) ? input : input !== "" ? input : false;
+  let ptOut = "";
+  if (pt) {
+    const ptY = pt.substr(0, 4);
+    const ptm = pt.substr(4, 2);
+    const ptd = pt.substr(6, 2);
+    const ptH = pt.substr(8, 2);
+    const pti = pt.substr(10, 2);
+    const pts = pt.substr(12, 2);
+    const tDate = new Date(`${ptY}-${ptm}-${ptd} ${ptH}:${pti}:${pts}`);
+    ptOut = "" + tDate.format("Y-m-d");
+  }
+  return ptOut;
+}
 
 // ====================================================================
 // API CALL FUNCTIONS
@@ -246,18 +305,25 @@ function extractFSP(data) {
 // WATCHLIST MANAGEMENT
 // ====================================================================
 
+function ewDataIds() {
+  return ewData.map((d) => d.wtId).sort();
+}
+
 const doExtraWatchlist = () => {
   const userWtId = getUserWtId();
   if (userWtId) {
     window.userName = userWtId;
     window.userID = getUserNumId();
-    const [ids, version] = getFullWatchlist();
+    const ids = getFullWatchlist();
     setEmptyMessages();
     if (ids.length > 0) {
-      if (ewData.length && Date.now() - version < ONE_HOUR && watchlistInSync(ids)) {
+      if (ewData.length && Date.now() - loadedEwDataVersion < ONE_HOUR && watchlistInSync(ids)) {
+        console.log(`Redrawing ids=${ids.length}: ${ids.join(",")}`, ewDataIds());
         redrawPeopleTable();
         redrawSpaceTable();
+        console.log(`Done redrawing ids=${ids.length}: ${ids.join(",")}`, ewDataIds());
       } else {
+        console.log(`Fetch and draw  ids=${ids.length}: ${ids.join(",")}`, ewDataIds());
         const spacePages = ids.filter((x) => x.match("^Space%3A"));
         const personPages = ids.filter((x) => !x.match("^Space%3A")).map((id) => decodeURIComponent(id));
         ewData = [];
@@ -285,13 +351,12 @@ const doExtraWatchlist = () => {
 
         // Function to handle space pages
         const handleSpacePages = () => {
-          const spacePromises = spacePages.map((aKey) => {
-            return get_Profile(decodeURIComponent(aKey)).then((fsp) => {
-              const status = fsp[0]?.status;
-              if (status != 0) errors.push(status);
-              const fspData = extractFSP(fsp[0].profile);
-              ewData.push(fspData);
-            });
+          const spacePromises = spacePages.map(async (aKey) => {
+            const fsp = await get_Profile(decodeURIComponent(aKey));
+            const status = fsp[0]?.status;
+            if (status != 0) errors.push(status);
+            const fspData = extractFSP(fsp[0].profile);
+            ewData.push(fspData);
           });
           return Promise.all(spacePromises);
         };
@@ -306,6 +371,7 @@ const doExtraWatchlist = () => {
             } else {
               newIds = ewData.map((d) => d.wtId);
             }
+            console.log(`Done Fetch and draw  ids=${ids.length}: ${ids.join(",")}`, ewDataIds());
             saveWatchList(newIds);
           })
           .catch((err) => {
@@ -322,22 +388,6 @@ const doExtraWatchlist = () => {
 function setEmptyMessages() {
   peopleTable.settings()[0].oLanguage.sEmptyTable = "You have no people profiles in your Extra Watchlist.";
   spaceTable.settings()[0].oLanguage.sEmptyTable = "You have no space pages in your Extra Watchlist.";
-}
-
-function formDate(input) {
-  const pt = isOK(input) ? input : input !== "" ? input : false;
-  let ptOut = "";
-  if (pt) {
-    const ptY = pt.substr(0, 4);
-    const ptm = pt.substr(4, 2);
-    const ptd = pt.substr(6, 2);
-    const ptH = pt.substr(8, 2);
-    const pti = pt.substr(10, 2);
-    const pts = pt.substr(12, 2);
-    const tDate = new Date(`${ptY}-${ptm}-${ptd} ${ptH}:${pti}:${pts}`);
-    ptOut = "" + tDate.format("Y-m-d");
-  }
-  return ptOut;
 }
 
 // ====================================================================
@@ -379,25 +429,20 @@ const extraWatchlist = async () => {
     } else {
       // The profile is not on the watchlist, add it.
       list.push(currentID);
-      if ($("#extraWatchlistWindow").is(":visible")) {
-        // Added: Fetch and add the profile.
-        get_Profile(decodeURIComponent(currentID)).then((response) => {
-          if (response[0].profile?.IsSpace) {
-            const record = extractFSP(response[0].profile);
-            ewData.push(record);
-            spaceTable.row.add(record).draw(false);
-          } else {
-            const record = extractPerson(response[0].profile);
-            ewData.push(record);
-            peopleTable.row.add(record).draw(false);
-          }
-          saveWatchList(list);
-          setPlusButton();
-        });
-      } else {
+      get_Profile(decodeURIComponent(currentID)).then((response) => {
+        const visible = $("#extraWatchlistWindow").is(":visible");
+        if (response[0].profile?.IsSpace) {
+          const record = extractFSP(response[0].profile);
+          ewData.push(record);
+          if (visible) spaceTable.row.add(record).draw(false);
+        } else {
+          const record = extractPerson(response[0].profile);
+          ewData.push(record);
+          if (visible) peopleTable.row.add(record).draw(false);
+        }
         saveWatchList(list);
         setPlusButton();
-      }
+      });
     }
   });
 };
@@ -407,7 +452,7 @@ const createWatchlistPopup = async (mouseY) => {
   const $popup = $("<div id='extraWatchlistWindow' class='ui-widget-content popup'></div>");
   $popup.insertAfter($(".tabs--wrapper")).css({
     position: "absolute",
-    top: mouseY,
+    top: mouseY + 10,
   });
   if ($("body.profile").length === 0) {
     $popup.insertAfter($("#header,.qa-header"));
