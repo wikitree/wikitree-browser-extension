@@ -286,13 +286,14 @@ shouldInitializeFeature("imageTable").then((result) => {
         }
         return;
       }
+      setHighestZIndex($("#photoPopup"));
+      $("#photoPopup").show();
+
       // If photos have already been loaded, just show the popup
       if ($("#photoTable").children().length > 0) {
-        $("#photoPopup").show();
         return;
       } else {
         // Otherwise, show the popup, load the photos, and create the table
-        $("#photoPopup").show();
         const photos = await getPhotos();
         $("#loadingGif").hide();
         createPhotoTable(photos);
