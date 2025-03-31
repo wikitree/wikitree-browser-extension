@@ -127,10 +127,9 @@ async function bioCheckSetup() {
         }
       }
     } else {
-      // DEPRECATE watchlist. New design eliminates the buttons
-      //if (document.body.classList.contains("page-Special_WatchedList")) {
-      //  checkWatchlist();
-      //}
+      if (document.body.classList.contains("watchlist")) {
+        checkWatchlist();
+      }
     }
   }
 }
@@ -375,11 +374,16 @@ function reportSources(isValid, biography, isPre1700) {
       previousSources.replaceWith(bioSourcesList);
     } else {
       bioCheckSourcesContainer.appendChild(bioSourcesList);
-      // Add after the Sources table
+      // it would be better to find the element by id but this works
+      let sourcesSection = document.getElementById("sourcesSection");
       let saveButton = document.getElementById("addNewPersonButton");
-      if (saveButton) {
-        document.querySelector("table.sourcesContent").after(bioCheckSourcesContainer);
+      if (sourcesSection) {
+        saveButton.parentElement.appendChild(bioCheckSourcesContainer);
       }
+
+      // with WBE add person redesign add the biocheck container after enterBasicDataButton for add unrelated 
+      // and/or the dismissMatchesButton
+      // but the BioCheck will show before you can click the create profile button so maybe a future enhancemnet
     }
   } else {
     if (previousSources != null) {
@@ -403,31 +407,49 @@ function setHelp(parentContainer) {
 /**
  * Add a button for BioCheck to the Watchlist page
  *
- * DEPRECATED. The new design eliminates nav buttons here
+ * Adding a button is DEPRECATED. The new design eliminates nav buttons here
+ * instead adding links. These links are in a <p> which does not have an id
+ * but does include the text See Also:
  */
 function checkWatchlist() {
   // Test for Person Profiles and not Free Space Profiles
-  let container = document.getElementById("views-outer");
-  if (container !== null) {
-    let buttonList = document.getElementById("views-inner").firstElementChild;
-    let bioCheckItem = document.createElement("li");
-    bioCheckItem.setAttribute("class", "viewsi");
-    let anchor = document.createElement("a");
-    anchor.setAttribute("class", "viewsi");
-    anchor.setAttribute(
+  let personTab = document.getElementById('person-tab');
+  if (personTab.classList.contains('active')) {
+
+  // find the paragraph with the links
+  let navParagraph = null;
+  let allParagraphs = document.querySelectorAll('p');
+  allParagraphs.forEach(paragraph => {
+    if (paragraph.textContent.includes('See also:')) {
+      navParagraph = paragraph;
+    }
+  });
+
+  /* not sure how to convert the ending ". " to " | " */
+  let childElements = navParagraph.children;
+  let lastChild = null;
+  for (let i = 0; i < childElements.length; i++) {
+    lastChild = childElements[i];
+  }
+
+//    lastChild.append(' | ');
+//lastChild.innerHTML += 'xx | xx';
+//lastChild.innerText += 'xx | xx';
+//lastChild.outerHTML += ' | ';
+// take a chance there is only one . in the paragraph
+//let txt = navParagraph.innerHTML;
+//console.log('txt ' + txt);
+//txt = txt.replace('.', ' | ');
+//navParagraph.innerHTML = txt;
+
+    let bioCheckAnchor = document.createElement("a");
+    bioCheckAnchor.setAttribute(
       "href",
       "https://apps.wikitree.com/apps/sands1865/biocheck/?action=checkWatchlist&checkStart=auto"
     );
-    anchor.setAttribute("title", "Bio Check profiles on your watchlist");
-    bioCheckItem.appendChild(anchor);
-    anchor.textContent = "Bio Check";
+    bioCheckAnchor.setAttribute("title", "Bio Check profiles on your watchlist");
+    bioCheckAnchor.textContent = "Bio Check";
+    navParagraph.appendChild(bioCheckAnchor);
 
-    let myPosition = 0;
-    while (myPosition < buttonList.childElementCount && buttonList.children[myPosition].textContent < "Bio Check") {
-      myPosition++;
-    }
-
-    // Insert in alpha order, use appendChild to add at end
-    buttonList.insertBefore(bioCheckItem, buttonList.children[myPosition]);
   }
 }
