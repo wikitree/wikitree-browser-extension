@@ -2020,6 +2020,7 @@ shouldInitializeFeature("changeFamilyLists").then(async (result) => {
   }
   if (options.verticalLists) {
     $("#nVitals").addClass("vertical");
+    $("body").addClass("verticalLists");
     makeVerticalFamLists();
   } else {
     $("#nVitals,div.tree--person").addClass("vanilla");

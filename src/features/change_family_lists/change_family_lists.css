@@ -950,3 +950,10 @@ li.fl-half-tooltip:hover::after {
 #nVitals span.wbe-icon {
   margin-left: 0.5em;
 }
+
+body.verticalLists hr {
+  margin-bottom: 0.5em;
+}
+body.verticalLists div.mb-5:has(div.tree--person) {
+  margin-bottom: 0.5em !important;
+}

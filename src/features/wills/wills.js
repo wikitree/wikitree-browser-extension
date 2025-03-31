@@ -1,7 +1,29 @@
 import $ from "jquery";
 import { htmlEntities } from "../../core/common.js";
-import { secondarySort } from "../extra_watchlist/extra_watchlist.js";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
+
+export function secondarySort(rows, dataThing1, dataThing2, isText = 0) {
+  let lastOne = "Me";
+  let tempArr = [lastOne];
+  rows.each(function (index) {
+    if ($(this).data(dataThing1) == lastOne) {
+      tempArr.push($(this));
+    } else {
+      tempArr.sort((a, b) =>
+        isText == 1
+          ? $(a)
+              .data(dataThing2)
+              .localeCompare($(b).data(dataThing2), undefined, { numeric: true, sensitivity: "base" })
+          : $(a).data(dataThing2) - $(b).data(dataThing2)
+      );
+      tempArr.forEach((item) => {
+        if (lastOne != "Me") item.insertBefore(rows.eq(index));
+      });
+      tempArr = [$(this)];
+    }
+    lastOne = $(this).data(dataThing1);
+  });
+}
 
 function wills() {
   if (window.location.href.match(/wikitree\.com\/wiki\/Category:.*?_Wills_and_Estates/) != null) {

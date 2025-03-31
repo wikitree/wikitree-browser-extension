@@ -16,3 +16,6 @@
 #searchBar.showSearch {
   background-color: #f0f0eb;
 }
+#searchBar.showSearch .mt-5 {
+  margin-top: 0.5em !important;
+}

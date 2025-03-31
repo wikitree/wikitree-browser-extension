@@ -9,10 +9,26 @@ import "jquery-ui/ui/widgets/draggable";
 import "jquery-ui/ui/widgets/tabs"; // Ensure tabs widget is loaded
 import "../../thirdparty/date.format.js";
 import "./extra_watchlist.css";
-import { isOK, htmlEntities, getUserWtId, getUserNumId, profilePerson } from "../../core/common";
+import { isOK, htmlEntities, getUserWtId, getUserNumId, profilePerson, setHighestZIndex } from "../../core/common";
 import { mainDomain } from "../../core/pageType";
 import { shouldInitializeFeature, getFeatureOptions } from "../../core/options/options_storage";
 
+const CryptoJS = require("crypto-js");
+
+const ONE_HOUR = 60 * 60 * 1000; // ms
+const browserAPI = typeof browser !== "undefined" ? browser : chrome;
+const DATA_VERSION = "extraWatchlistVersion";
+const WATCHLIST_IDS = "extraWatchlist";
+const WATCHLIST_DATA = "extraWatchlistData";
+
+let ewData = [];
+let loadedEwDataVersion = 0;
+let md5AtLoad = "";
+let peopleTable;
+let spaceTable;
+let isLoading = false;
+
+const DEBUG_LOGGING = false;
 // ====================================================================
 // INITIALIZATION
 // ====================================================================
@@ -21,26 +37,137 @@ shouldInitializeFeature("extraWatchlist").then((result) => {
     normalizeLocalStorage();
     extraWatchlist();
     setPlusButton();
+    browserAPI.storage.onChanged.removeListener(storageChangeListener);
+    browserAPI.storage.onChanged.addListener(storageChangeListener);
   }
 });
 
 // Normalize localStorage: replace "@" with commas and back up if needed.
 const normalizeLocalStorage = () => {
-  const extraWatchlist = localStorage.getItem("extraWatchlist");
-  if (extraWatchlist) {
-    if (!extraWatchlist.includes(",") && !localStorage.getItem("extraWatchlistBackUp")) {
-      localStorage.setItem("extraWatchlistBackUp", extraWatchlist);
-    }
-    localStorage.setItem("extraWatchlist", extraWatchlist.replace(/@/g, ","));
+  const extraWatchlist = localStorage.getItem(WATCHLIST_IDS);
+  if (extraWatchlist && extraWatchlist.includes("@") && !extraWatchlist.includes(",")) {
+    localStorage.setItem("extraWatchlistBackUp", extraWatchlist);
+    localStorage.setItem(WATCHLIST_IDS, extraWatchlist.replace(/@/g, ","));
+  }
+  const version = localStorage.getItem(DATA_VERSION);
+  if (!version) {
+    const newVersion = Date.now();
+    localStorage.setItem(DATA_VERSION, newVersion);
+    browserAPI.storage.local.set({ [DATA_VERSION]: newVersion });
   }
 };
+
+// ====================================================================
+// DATA STORAGE AND RETRIEVAL
+// ====================================================================
+
+// Returns id-list and set global md5AtLoad loadedEwDataVersion and ewData
+function getFullWatchlist() {
+  const ids = getWatchlistIds();
+  const newVersion = Number(localStorage.getItem(DATA_VERSION));
+  if (newVersion === loadedEwDataVersion) {
+    if (DEBUG_LOGGING) console.log(`No need to load,  ids=${ids.length}`);
+    return ids;
+  }
+  const ewd = localStorage.getItem(WATCHLIST_DATA) || JSON.stringify([]);
+  md5AtLoad = CryptoJS.MD5(ewd).toString();
+  ewData = JSON.parse(ewd);
+  loadedEwDataVersion = newVersion;
+  if (DEBUG_LOGGING) console.log(`Loaded ewData: v:${loadedEwDataVersion}, count=${ids.length}, size=${ewd.length}`);
+  return ids;
+}
+
+function getWatchlistIds() {
+  const ids = localStorage.getItem(WATCHLIST_IDS);
+  return ids
+    ? ids
+        .split(",")
+        .map((id) => id.trim())
+        .filter((id) => id !== "")
+    : [];
+}
+
+function saveWatchList(ids) {
+  let idArray = ids;
+  if (typeof ids === "string") {
+    idArray = ids
+      .split(",")
+      .map((id) => encodeURIComponent(decodeURIComponent(id.trim())))
+      .filter((id) => id !== "");
+  }
+  const idString = idArray.sort().join(",");
+  const dataIds = ewData.map((d) => d.wtId).sort();
+  const dataIdsString = dataIds.join(",");
+  if (DEBUG_LOGGING)
+    console.log(`saveWatchList: v:${loadedEwDataVersion}, count=${idArray.length}, ${idString}`, dataIds);
+
+  if (idString != dataIdsString) {
+    if (DEBUG_LOGGING)
+      console.log(
+        `ewData out of sync: ids=${idArray.length} vs ewData=${ewData.length}, sizes: ${idString.length} va ${dataIdsString.length}, clearing ewData`
+      );
+    // const [a, b] = arrayDifferences(idArray, dataIds);
+    // console.log("In ids and not in ewData", a);
+    // console.log("In ewData and not in ids", b);
+    ewData = [];
+  }
+  const jsonData = JSON.stringify(ewData);
+  const newMd5 = CryptoJS.MD5(jsonData).toString();
+  if (newMd5 === md5AtLoad && idString == dataIdsString) {
+    // No changes, so no need to change anything
+    if (DEBUG_LOGGING) console.log("No need to save");
+    return;
+  }
+
+  md5AtLoad = newMd5;
+  loadedEwDataVersion = Date.now();
+  if (DEBUG_LOGGING)
+    console.log(`Saving new ewData: v:${loadedEwDataVersion}, count=${idArray.length} size=${jsonData.length}`);
+  localStorage.setItem(WATCHLIST_IDS, idString);
+  localStorage.setItem(WATCHLIST_DATA, jsonData);
+  localStorage.setItem(DATA_VERSION, loadedEwDataVersion);
+  browserAPI.storage.local.set({ [DATA_VERSION]: loadedEwDataVersion });
+}
+
+// Check if ewData contains all and only the ids in ids
+function watchlistInSync(ids) {
+  let inSync = false;
+  const dataIds = ewData.map((d) => d.wtId).sort();
+  if (ids.length == dataIds.length) {
+    const idsString = ids.sort().join(",");
+    const dataIdsString = dataIds.join(",");
+    if (idsString == dataIdsString) {
+      inSync = true;
+    }
+  }
+  // if (!inSync) {
+  //   const [a, b] = arrayDifferences(ids, dataIds);
+  //   console.log(`saveWatchList nrIds=${ids.length}, nrDataIds=${dataIds.length}`);
+  //   console.log("In ids but not in ewData", a);
+  //   console.log("In ewData but not in ids", b);
+  // }
+  return inSync;
+}
+
+function arrayDifferences(a, b) {
+  // Elements in 'a' not in 'b'
+  const aNotInB = a.filter((element) => !b.includes(element));
+
+  // Elements in 'b' not in 'a'
+  const bNotInA = b.filter((element) => !a.includes(element));
+
+  return [aNotInB, bNotInA];
+}
 
 // ====================================================================
 // UTILITY FUNCTIONS
 // ====================================================================
 
 // Returns the current ID from the URL (if a space) or from the profile.
-const getThisID = () => window.location.href.match(/Space:.*$/)?.[0] || profilePerson?.Name;
+const getThisID = () =>
+  encodeURIComponent(
+    decodeURIComponent(window.location.href.split(/[?#]/)[0].match(/Space(:|%3A).*$/)?.[0] || profilePerson?.Name)
+  );
 
 // Returns a formatted date string "YYYY-MM-DD_HHMM".
 const strDate = () => {
@@ -49,53 +176,8 @@ const strDate = () => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
 };
 
-// Creates a text file blob URL (used for export).
-window.textFile = null;
-const makeTextFile = (text) => {
-  const data = new Blob([text], { type: "text/plain" });
-  if (window.textFile !== null) {
-    window.URL.revokeObjectURL(window.textFile);
-  }
-  window.textFile = window.URL.createObjectURL(data);
-  return window.textFile;
-};
-
-// ====================================================================
-// SORTING FUNCTIONS
-// ====================================================================
-
-// Sorts the rows within a given table body selector based on the given order.
-// tableSelector should be like "#touchedListPersons tbody" or "#touchedListSpaces tbody".
-const sortTouched = (order = "touched", tableSelector) => {
-  const $tbody = $(tableSelector);
-  const rows = $tbody.find("tr");
-  let sortedRows;
-
-  if (order === "touched") {
-    sortedRows = rows.sort((a, b) => +$(b).data("touched") - +$(a).data("touched"));
-  } else if (order === "id") {
-    sortedRows = rows.sort((a, b) =>
-      $(a).data("id").localeCompare($(b).data("id"), undefined, {
-        numeric: true,
-        sensitivity: "base",
-      })
-    );
-  } else if (order === "name") {
-    sortedRows = rows.sort((a, b) => $(a).data("lnab").localeCompare($(b).data("lnab")));
-  }
-  $tbody.append(sortedRows);
-  // Optionally, you could call secondarySort here.
-};
-
-// ====================================================================
-// UI RENDERING FUNCTIONS
-// ====================================================================
-
-// Renders a watchlist row and appends it to the correct table (<tbody>).
-// If person.Type === "Space", the row goes to the Spaces table; otherwise to Profiles.
-const renderWatchlistRow = (person) => {
-  $("#ewlEmpty").hide();
-  let pt = isOK(person.Touched) ? person.Touched : person.Touched !== "" ? person.Touched : false;
+function formDate(input) {
+  const pt = isOK(input) ? input : input !== "" ? input : false;
   let ptOut = "";
   if (pt) {
     const ptY = pt.substr(0, 4);
@@ -105,107 +187,18 @@ const renderWatchlistRow = (person) => {
     const pti = pt.substr(10, 2);
     const pts = pt.substr(12, 2);
     const tDate = new Date(`${ptY}-${ptm}-${ptd} ${ptH}:${pti}:${pts}`);
-    ptOut = " " + tDate.format("Y-m-d");
+    ptOut = "" + tDate.format("Y-m-d");
   }
-
-  const userID = getUserNumId();
-  const dClass = person.Manager !== userID ? 'class="notManager"' : 'class="isManager"';
-
-  let bYear = person?.BirthDate?.substr(0, 4) || "";
-  if (bYear === "0000") bYear = " ";
-  let dYear = person?.DeathDate?.substr(0, 4) || "";
-  if (dYear === "0000") dYear = " ";
-
-  const myDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-  window.dLastWeek = myDate.format("YmdHis");
-
-  let bdDates = "";
-  let changesLink = "";
-
-  if (person.Type === "Space") {
-    // For space pages, use Title properties.
-    person.Name = person.Title.PrefixedURL;
-    person.LastNameAtBirth = person.Title.PrefixedURL;
-    person.FirstName = person.Title.Text;
-    person.Id = person.PageId;
-    person.LongName = person.Title.Text;
-    changesLink = `https://${mainDomain}/index.php?title=Special:NetworkFeed&space=${htmlEntities(person.PageId)}`;
-  } else {
-    // For person profiles.
-    if (!person.Name) person.Name = "";
-    person.Name = person.Name.replace(" ", "_");
-    bdDates = `(${bYear} - ${dYear})`;
-    changesLink = `https://${mainDomain}/index.php?title=Special:NetworkFeed&who=${htmlEntities(person.Id)}`;
-  }
-  if (!isOK(bYear)) {
-    bYear = person?.BirthDateDecade;
-    if (bYear === "unknown") bYear = "";
-    if (person.IsLiving === 1) dYear = "living";
-    bdDates = `(${bYear} - ${dYear})`;
-  }
-  if (!isOK(dYear)) dYear = person?.DeathDateDecade;
-  if (!isOK(person.FirstName)) person.FirstName = person?.RealName;
-  if (!isOK(person.LongName)) person.LongName = isOK(person.ShortName) ? person.ShortName : "Private";
-  if (bYear === undefined && dYear === undefined) bdDates = "";
-
-  // Determine link target based on type.
-  const linkTarget = person.Type === "Space" ? htmlEntities(person.Name) : htmlEntities(person.Id);
-
-  const rowHTML = `
-    <tr ${dClass} data-lnab='${htmlEntities(person.LastNameAtBirth)}'
-        data-birthdate='${bYear}' data-firstname='${person.FirstName}'
-        data-id="${htmlEntities(person.Name)}" data-idnum="${person.Id}"
-        data-touched="${pt}">
-      <td class='wtIDcol'>${person.Name}</td>
-      <td class='personCol'>
-        <a href="https://${mainDomain}/wiki/${linkTarget}">
-          ${person.LongName} ${bdDates}
-        </a>
-      </td>
-      <td class='touchedCol' title='Most recent change'><span>${ptOut}</span></td>
-      <td class='changesCol'>
-        <a href='${changesLink}' title='See recent changes'>Changes</a>
-      </td>
-      <td class='xCol' title='Remove from your Extra Watchlist'>
-        <span class='removeFromExtraWatchlist' data-id='${htmlEntities(person.Name)}'>&times;</span>
-      </td>
-    </tr>
-  `;
-  const $row = $(rowHTML);
-
-  // Append to appropriate table body.
-  if (person.Type === "Space") {
-    const $tbody = $("#touchedListSpaces tbody");
-    if ($tbody.find(`tr[data-id="${htmlEntities(person.Name)}"]`).length < 1) {
-      $tbody.append($row);
-    } else {
-      $tbody.find(`tr[data-id="${htmlEntities(person.Name)}"]`).show();
-    }
-  } else {
-    const $tbody = $("#touchedListPersons tbody");
-    if ($tbody.find(`tr[data-id="${htmlEntities(person.Name)}"]`).length < 1) {
-      $tbody.append($row);
-    } else {
-      $tbody.find(`tr[data-id="${htmlEntities(person.Name)}"]`).show();
-    }
-  }
-
-  // Attach remove handler.
-  $row.find("span.removeFromExtraWatchlist").on("click", function () {
-    $row.hide();
-    const updatedList = localStorage
-      .getItem("extraWatchlist")
-      .split(",")
-      .filter((id) => id !== $(this).attr("data-id"))
-      .join(",");
-    localStorage.setItem("extraWatchlist", updatedList);
-    setPlusButton();
-  });
-};
+  return ptOut;
+}
 
 // ====================================================================
 // API CALL FUNCTIONS
 // ====================================================================
+
+const FIELDS =
+  "BirthDate,BirthDateDecade,DeathDate,DeathDateDecade,Derived.LongName,Derived.LongNamePrivate,Derived.ShortName," +
+  "FirstName,Id,IsLiving,IsSpace,LastNameAtBirth,Name,PageId,RealName,Title,Touched";
 
 const get_Profile = async (id) => {
   try {
@@ -218,7 +211,7 @@ const get_Profile = async (id) => {
       data: {
         action: "getProfile",
         key: id,
-        fields: "*",
+        fields: FIELDS,
         appId: "WBE_extra_watchlist",
       },
     });
@@ -265,75 +258,119 @@ const getPeople = async (
   }
 };
 
+function extractPerson(data) {
+  let bYear = data?.BirthDate?.substr(0, 4) || "";
+  if (!isOK(bYear)) {
+    bYear = data?.BirthDateDecade;
+    if (bYear === "unknown") bYear = "";
+  }
+
+  let dYear = data?.DeathDate?.substr(0, 4) || "";
+  if (!isOK(dYear)) dYear = person?.DeathDateDecade || "";
+  if ((dYear === "unknown" || dYear == "") && data.IsLiving === 1) dYear = "living";
+
+  return {
+    type: "p",
+    bYear: bYear,
+    dYear: dYear,
+    lName: isOK(data.LongNamePrivate) ? data.LongNamePrivate : isOK(data.ShortName) ? data.ShortName : "Private",
+    wtId: data.Name ? encodeURIComponent(decodeURIComponent(data.Name.replaceAll(" ", "_"))) : "",
+    numId: data.Id,
+    touched: data.Touched,
+  };
+}
+
+function extractFSP(data) {
+  return {
+    type: "s",
+    lName: data.Title.Text,
+    wtId: encodeURIComponent(decodeURIComponent(data.Title.PrefixedURL)),
+    numId: data.PageId,
+    touched: data.Touched,
+  };
+}
+
 // ====================================================================
 // WATCHLIST MANAGEMENT
 // ====================================================================
 
-const sortExtraWatchlist = async () => {
-  const options = await getFeatureOptions("extraWatchlist");
-  // Call sortTouched on each table's tbody.
-  if (options.sortBy === "Changed") {
-    sortTouched("touched", "#touchedListPersons tbody");
-    sortTouched("touched", "#touchedListSpaces tbody");
-  } else if (options.sortBy === "ID") {
-    sortTouched("id", "#touchedListPersons tbody");
-    sortTouched("id", "#touchedListSpaces tbody");
-  } else if (options.sortBy === "Name") {
-    sortTouched("name", "#touchedListPersons tbody");
-    sortTouched("name", "#touchedListSpaces tbody");
-  }
-};
-
-const addToExtraWatchlist = (person) => {
-  if (person.page_name && person.page_name.match(/^Space:/)) {
-    person = person.profile;
-    person.Type = "Space";
-    person.Id = person.PageId;
-  } else {
-    person.Type = "Person";
-  }
-  window.extraWatchlistTouched.push(person.Id);
-  renderWatchlistRow(person);
-  setPlusButton();
-};
-
-window.extraWatchlistTouched = [];
-window.addedToExtraWatchlist = [];
 const doExtraWatchlist = () => {
+  // Prevent overlapping calls
+  if (isLoading) {
+    if (DEBUG_LOGGING) console.log("Data fetch already in progress, skipping new fetch");
+    return;
+  }
+  isLoading = true;
+
   const userWtId = getUserWtId();
   if (userWtId) {
     window.userName = userWtId;
     window.userID = getUserNumId();
-    const extraList = localStorage.getItem("extraWatchlist");
-    if (extraList) {
-      let bits = extraList
-        .split(/[@,]/)
-        .map((id) => id.trim())
-        .filter((id) => id !== "");
+    const ids = getFullWatchlist();
+    setEmptyMessages();
+    if (ids.length > 0) {
+      if (ewData.length && Date.now() - loadedEwDataVersion < ONE_HOUR && watchlistInSync(ids)) {
+        redrawPeopleTable();
+        redrawSpaceTable();
+        isLoading = false;
+      } else {
+        const spacePages = ids.filter((x) => x.match("^Space%3A"));
+        const personPages = ids.filter((x) => !x.match("^Space%3A")).map((id) => decodeURIComponent(id));
+        ewData = [];
+        const errors = [];
 
-      const spacePages = bits.filter((x) => x.match("Space:"));
-      const personPages = bits.filter((x) => !x.match("Space:"));
-      if (personPages.length > 0) {
-        while (personPages.length) {
-          const splicedArray = personPages.splice(0, 1000);
-          const keys = splicedArray.join(",");
-          window.addedToExtraWatchlist = window.addedToExtraWatchlist.concat(splicedArray);
-          getPeople(keys, 0, 0, 0, 0, 0, 0, "*").then((data) => {
-            const people = data[0].people;
-            Object.keys(people).forEach((aKey) => {
-              addToExtraWatchlist(people[aKey]);
-            });
-            sortExtraWatchlist();
+        // Function to process person pages in chunks of 1000
+        const handlePersonPages = () => {
+          const personPromises = [];
+          while (personPages.length) {
+            const splicedArray = personPages.splice(0, 1000);
+            const keys = splicedArray.join(",");
+            personPromises.push(
+              getPeople(keys, 0, 0, 0, 0, 0, 0, FIELDS).then((data) => {
+                const status = data[0]?.status;
+                if (status !== "") errors.push(status);
+                const people = data[0].people;
+                const extractedData = Object.keys(people).map((aKey) => extractPerson(people[aKey]));
+                ewData.push(...extractedData);
+                redrawPeopleTable();
+              })
+            );
+          }
+          return Promise.all(personPromises);
+        };
+
+        // Function to process space pages
+        const handleSpacePages = () => {
+          const spacePromises = spacePages.map(async (aKey) => {
+            const fsp = await get_Profile(decodeURIComponent(aKey));
+            const status = fsp[0]?.status;
+            if (status != 0) errors.push(status);
+            const fspData = extractFSP(fsp[0].profile);
+            ewData.push(fspData);
           });
-        }
+          return Promise.all(spacePromises);
+        };
+
+        // Execute both sets of promises and then update the watchlist display
+        Promise.all([handlePersonPages(), handleSpacePages()])
+          .then(() => {
+            redrawSpaceTable();
+            let newIds = ids;
+            if (errors.length > 0) {
+              console.error("Errors while fetching extra watchlist profiles", errors);
+            } else {
+              newIds = ewData.map((d) => d.wtId);
+            }
+            saveWatchList(newIds);
+            isLoading = false;
+          })
+          .catch((err) => {
+            console.error("Error retrieving extra watchlist items:", err);
+            isLoading = false;
+          });
       }
-      spacePages.forEach((aKey) => {
-        if (aKey.match("Space:")) {
-          get_Profile(decodeURIComponent(aKey)).then((person) => {
-            addToExtraWatchlist(person[0]);
-          });
-        }
-      });
+    } else {
+      isLoading = false;
     }
   }
   if (Cookies.get("wikidb_wtb__session")) {
@@ -341,76 +378,99 @@ const doExtraWatchlist = () => {
   }
 };
 
+// Debounced storage change listener to avoid rapid-fire triggers.
+// We only debounce events we are interested in, others we ignore
+let debounceTimer = null;
+function storageChangeListener(changes, namespace) {
+  if (namespace === "local" && changes[DATA_VERSION]) {
+    if (DEBUG_LOGGING) console.log("Extra Watchlist Change Notification");
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      const newVersion = Number(changes[DATA_VERSION].newValue);
+      if (DEBUG_LOGGING)
+        console.log(`Storage change. Current version: ${loadedEwDataVersion} New version: ${newVersion}`);
+      if (newVersion !== loadedEwDataVersion) {
+        if ($("#extraWatchlistWindow").length) {
+          doExtraWatchlist();
+        } else {
+          getFullWatchlist();
+        }
+        setPlusButton();
+      }
+      debounceTimer = null;
+    }, 300);
+  }
+}
+
+function setEmptyMessages() {
+  peopleTable.settings()[0].oLanguage.sEmptyTable = "You have no person profiles in your Extra Watchlist.";
+  spaceTable.settings()[0].oLanguage.sEmptyTable = "You have no space pages in your Extra Watchlist.";
+}
+
 // ====================================================================
 // POPUP & INTERACTION
 // ====================================================================
 
 const extraWatchlist = async () => {
-  const thisID = getThisID();
-  const extraList = localStorage.getItem("extraWatchlist");
-  const ids = extraList ? extraList.split(",") : [];
-  const onExtraWatchlist = ids.includes(thisID);
+  setPlusButton();
   const $plusButton = $("#addToExtraWatchlistButton");
-  if (onExtraWatchlist) {
-    $plusButton.attr("title", "Remove from your Extra Watchlist").addClass("onList");
-  }
 
   $("#extraWatchlistButton").on("click", (e) => {
     e.preventDefault();
-    if ($("#extraWatchlistWindow").length === 0) {
+    const $popup = $("#extraWatchlistWindow");
+    if ($popup.length === 0) {
       createWatchlistPopup(e.pageY);
     } else {
-      $("#extraWatchlistWindow").slideToggle();
-    }
-    if (!extraList || extraList === "") {
-      $("#ewlEmpty").show();
+      closeWatchlistPopup($popup);
     }
   });
 
-  if (!localStorage.getItem("extraWatchlist")) {
-    localStorage.setItem("extraWatchlist", "");
-  }
-
-  if (ids.includes(thisID)) {
-    $plusButton.addClass("onList").attr("title", "On your Extra Watchlist (click to remove)");
-  }
-
-  // Toggle the current profile in the watchlist.
   // Toggle the current profile in the watchlist.
   $plusButton.on("click", (e) => {
     e.preventDefault();
     const currentID = getThisID();
-    let list = localStorage.getItem("extraWatchlist") ? localStorage.getItem("extraWatchlist").split(",") : [];
+    let list = getWatchlistIds();
     if (list.includes(currentID)) {
-      // If the profile is already on the watchlist, remove it.
+      // The profile is already on the watchlist, remove it.
       list = list.filter((id) => id !== currentID);
-    } else {
-      // Otherwise, add it.
-      list.push(currentID);
-    }
-    localStorage.setItem("extraWatchlist", list.join(","));
-    setPlusButton();
-    if ($("#extraWatchlistWindow").is(":visible")) {
-      if (!list.includes(currentID)) {
-        // Removed: Remove the table rows completely.
-        $("#touchedListSpaces tbody tr[data-id='" + currentID + "']").remove();
-        $("#touchedListPersons tbody tr[data-id='" + currentID + "']").remove();
-      } else {
-        // Added: Fetch and add the profile.
-        get_Profile(currentID).then((response) => {
-          addToExtraWatchlist(response[0].profile);
-        });
+      ewData = ewData.filter((d) => d.wtId != currentID);
+      if ($("#extraWatchlistWindow").is(":visible")) {
+        const htmlIds = htmlEntities(currentID);
+        let row = peopleTable.row($(`#touchedListPersons tbody tr[data-id="${htmlIds}"]`));
+        if (row.length == 0) {
+          row = spaceTable.row($(`#touchedListSpaces tbody tr[data-id="${htmlIds}"]`));
+        }
+        row.remove().draw();
       }
+      saveWatchList(list);
+      setPlusButton();
+    } else {
+      // The profile is not on the watchlist, add it.
+      list.push(currentID);
+      get_Profile(decodeURIComponent(currentID)).then((response) => {
+        const visible = $("#extraWatchlistWindow").is(":visible");
+        if (response[0].profile?.IsSpace) {
+          const record = extractFSP(response[0].profile);
+          ewData.push(record);
+          if (visible) spaceTable.row.add(record).draw(false);
+        } else {
+          const record = extractPerson(response[0].profile);
+          ewData.push(record);
+          if (visible) peopleTable.row.add(record).draw(false);
+        }
+        saveWatchList(list);
+        setPlusButton();
+      });
     }
   });
 };
 
 // Creates the popup with two tabs: Profiles (default) and Spaces.
-const createWatchlistPopup = (mouseY) => {
-  const $popup = $("<div id='extraWatchlistWindow' class='ui-widget-content'></div>");
+const createWatchlistPopup = async (mouseY) => {
+  const $popup = $("<div id='extraWatchlistWindow' class='ui-widget-content popup'></div>");
   $popup.insertAfter($(".tabs--wrapper")).css({
     position: "absolute",
-    top: mouseY,
+    top: mouseY + 10,
   });
   if ($("body.profile").length === 0) {
     $popup.insertAfter($("#header,.qa-header"));
@@ -424,7 +484,7 @@ const createWatchlistPopup = (mouseY) => {
     padding: "10px",
     borderBottom: "1px solid #ccc",
   });
-  $header.append("<button id='closeWatchlistWindow' class='small'>&times;</button>");
+  $header.append("<button id='closeWatchlistWindow' class='small close-popup'>&times;</button>");
   $header.append(
     `<div id="importExportButtons">
        <a id='importExtraWatchlist' class='importExport btn-pill-sm small button'>import</a>
@@ -433,7 +493,6 @@ const createWatchlistPopup = (mouseY) => {
   );
   $popup.prepend($header);
 
-  // Create jQuery UI tabs. Note: Profiles tab comes first.
   const $tabs = $(`
     <div id="extraWatchlistTabs">
       <ul>
@@ -442,51 +501,245 @@ const createWatchlistPopup = (mouseY) => {
       </ul>
       <div id="tabs-persons">
         <table id="touchedListPersons" class="all">
-          <thead>
-            <tr>
-              <th class="wtIDcol" data-sort="id">ID</th>
-              <th data-sort="name">Name</th>
-              <th data-sort="touched">Changed</th>
-              <th></th>
-              <th></th>
-            </tr>
-          </thead>
+          <thead></thead>
           <tbody></tbody>
+          <tfoot>
+          </tfoot>
         </table>
       </div>
       <div id="tabs-spaces">
         <table id="touchedListSpaces" class="all">
-          <thead>
-            <tr>
-              <th class="wtIDcol" data-sort="id">ID</th>
-              <th data-sort="name">Name</th>
-              <th data-sort="touched">Changed</th>
-              <th></th>
-              <th></th>
-            </tr>
-          </thead>
+          <thead></thead>
           <tbody></tbody>
+          <tfoot>
+          </tfoot>
         </table>
       </div>
     </div>
   `);
+
   $popup.append($tabs);
-  // Initialize the tabs widget.
-  $tabs.tabs({ active: 0 }); // Set Profiles as the default (first tab)
 
-  // Bind click events on header cells for sorting.
-  $("#touchedListPersons thead th[data-sort]").on("click", function () {
-    const order = $(this).data("sort");
-    sortTouched(order, "#touchedListPersons tbody");
-  });
-  $("#touchedListSpaces thead th[data-sort]").on("click", function () {
-    const order = $(this).data("sort");
-    sortTouched(order, "#touchedListSpaces tbody");
+  // Initialize the tabs widget (by default the first tab is the active one).
+  $tabs.tabs({
+    activate: (event, ui) => {
+      const dTable = ui.newPanel.find("#touchedListSpaces").length ? spaceTable : peopleTable;
+      dTable.columns.adjust().draw();
+    },
   });
 
-  $popup.append('<p id="ewlEmpty">Empty?</p>');
+  const options = await getFeatureOptions("extraWatchlist");
+  let personSortOrder = [];
+  let spaceSortOrder = [];
+  switch (options.sortBy) {
+    case "ID":
+      personSortOrder = [0, "asc"];
+      spaceSortOrder = [0, "asc"];
+      break;
 
-  $("#closeWatchlistWindow").on("click", () => $popup.slideUp("swing"));
+    case "Name":
+      personSortOrder = [1, "asc"];
+      spaceSortOrder = [0, "asc"];
+      break;
+
+    case "Changed":
+      personSortOrder = [4, "desc"];
+      spaceSortOrder = [1, "desc"];
+      break;
+
+    default:
+      break;
+  }
+
+  peopleTable = $("#touchedListPersons").DataTable({
+    data: ewData.filter((d) => d.type == "p"),
+    columns: [
+      { title: "ID", data: "wtId", render: (data, type, row) => decodeURIComponent(data), width: "20%" },
+      {
+        title: "Name",
+        data: "lName",
+        render: (data, type, row) => {
+          if (type === "display") {
+            return `<a href="https://${mainDomain}/wiki/${htmlEntities(row.wtId)}">${data}</a>`;
+          }
+          return data;
+        },
+        width: "50%",
+      },
+      { title: "Birth", data: "bYear", width: "5%" },
+      { title: "Death", data: "dYear", width: "5%" },
+      {
+        title: "Changed",
+        data: "touched",
+        render: (data, type, row) => {
+          if (type === "display" || type === "filter") {
+            return formDate(data);
+          }
+          return data;
+        },
+        width: "9%",
+      },
+      {
+        title: "",
+        data: "numId",
+        searchable: false,
+        orderable: false,
+        render: (data, type, row) => {
+          if (type === "display") {
+            return `<a href="https://${mainDomain}/index.php?title=Special:NetworkFeed&who=${data}" title='See recent changes'>Changes</a>`;
+          }
+          return data;
+        },
+        width: "8%",
+      },
+      {
+        title: "",
+        data: "wtId",
+        searchable: false,
+        orderable: false,
+        render: (data, type, row) => {
+          if (type === "display") {
+            return `<span class='removeFromExtraWatchlist' data-id="${htmlEntities(data)}">&times;</span>`;
+          }
+          return data;
+        },
+        createdCell: function (td, cellData, rowData, row, col) {
+          $(td).attr("title", "Remove from your Extra Watchlist");
+        },
+        width: "3%",
+        className: "dt-center",
+      },
+    ],
+    createdRow: function (row, data, dataIndex) {
+      const $row = $(row);
+      $row.attr("data-id", htmlEntities(data.wtId));
+      $row
+        .find("span.removeFromExtraWatchlist")
+        .off("click")
+        .on("click", function () {
+          const rowId = htmlEntities(data.wtId);
+
+          // Remove from ewData
+          ewData = ewData.filter((d) => htmlEntities(d.wtId) !== rowId);
+          const ids = ewData.map((d) => d.wtId);
+
+          // Remove the row from the DataTable
+          peopleTable
+            .row($row) // Reference the row
+            .remove() // Remove it
+            .draw(); // Redraw the table
+
+          saveWatchList(ids);
+          setPlusButton();
+        });
+    },
+    language: {
+      emptyTable: "No records found. Please wait while we fetch the data...",
+    },
+    order: personSortOrder,
+    scrollY: 500,
+    scrollCollapse: true, // Allow the table to reduce in height if the data is smaller
+    deferRender: true,
+    scroller: true,
+    paging: false,
+    searching: true, // Enable the search box
+    searchDelay: 400, // Debounce user input - only start search/filter after 400ms of no typing
+    autoWidth: false,
+  });
+
+  spaceTable = $("#touchedListSpaces").DataTable({
+    data: ewData.filter((d) => d.type == "s"),
+    columns: [
+      {
+        title: "Name",
+        data: "lName",
+        render: (data, type, row) => {
+          if (type === "display") {
+            return `<a href="https://${mainDomain}/wiki/${htmlEntities(row.wtId)}">${data}</a>`;
+          }
+          return data;
+        },
+        width: "80%",
+      },
+      {
+        title: "Changed",
+        data: "touched",
+        render: (data, type, row) => {
+          if (type === "display" || type === "filter") {
+            return formDate(data);
+          }
+          return data;
+        },
+        width: "9%",
+      },
+      {
+        title: "",
+        data: "numId",
+        searchable: false,
+        orderable: false,
+        render: (data, type, row) => {
+          if (type === "display") {
+            return `<a href="https://${mainDomain}/index.php?title=Special:NetworkFeed&space=${data}" title='See recent changes'>Changes</a>`;
+          }
+          return data;
+        },
+        width: "8%",
+      },
+      {
+        title: "",
+        data: "wtId",
+        searchable: false,
+        orderable: false,
+        render: (data, type, row) => {
+          if (type === "display") {
+            return `<span class='removeFromExtraWatchlist' data-id="${htmlEntities(data)}">&times;</span>`;
+          }
+          return data;
+        },
+        createdCell: function (td, cellData, rowData, row, col) {
+          $(td).attr("title", "Remove from your Extra Watchlist");
+        },
+        width: "3%",
+        className: "dt-center",
+      },
+    ],
+    createdRow: function (row, data, dataIndex) {
+      const $row = $(row);
+      $row.attr("data-id", htmlEntities(data.wtId));
+      $row
+        .find("span.removeFromExtraWatchlist")
+        .off("click")
+        .on("click", function () {
+          const rowId = htmlEntities(data.wtId);
+
+          // Remove from ewData
+          ewData = ewData.filter((d) => htmlEntities(d.wtId) !== rowId);
+          const ids = ewData.map((d) => d.wtId);
+
+          // Remove the row from the DataTable
+          spaceTable
+            .row($row) // Reference the row
+            .remove() // Remove it
+            .draw(); // Redraw the table
+
+          saveWatchList(ids);
+          setPlusButton();
+        });
+    },
+    order: spaceSortOrder,
+    scrollY: 500,
+    scrollCollapse: true, // Allow the table to reduce in height if the data is smaller
+    deferRender: true,
+    scroller: true,
+    paging: false,
+    searching: true, // Enable the search box
+    searchDelay: 400, // Debounce user input - only start search/filter after 400ms of no typing
+    autoWidth: false,
+  });
+
+  // $popup.append('<p id="ewlEmpty">Empty?</p>');
+
+  $("#closeWatchlistWindow").on("click", () => closeWatchlistPopup($popup));
 
   // Setup export functionality.
   $("#exportExtraWatchlist")
@@ -494,7 +747,7 @@ const createWatchlistPopup = (mouseY) => {
     .on("click", function (e) {
       e.preventDefault();
 
-      const ewText = localStorage.getItem("extraWatchlist")?.replace(/@/g, ",") || "";
+      const ewText = localStorage.getItem(WATCHLIST_IDS)?.replace(/@/g, ",") || "";
       const dStr = strDate();
       const blob = new Blob([ewText], { type: "text/plain" });
 
@@ -540,9 +793,9 @@ const createWatchlistPopup = (mouseY) => {
         reader.onload = (ev) => {
           let textData = ev.target.result.replace(/@/g, ",");
           textData = textData.replace(/,+\s*$/, "");
-          localStorage.setItem("extraWatchlist", textData);
+          saveWatchList(textData);
           $popup.remove();
-          $("#viewExtraWatchlist").trigger("click");
+          $("#extraWatchlistButton").trigger("click");
         };
         reader.onerror = (err) => console.error("Error reading file:", err);
         reader.readAsText(file);
@@ -551,18 +804,42 @@ const createWatchlistPopup = (mouseY) => {
     });
 
   setTimeout(() => {
+    setHighestZIndex($popup);
     $popup.slideDown();
   }, 1000);
 
   $popup.draggable({
     containment: "document",
+    handle: "#extraWatchlistHeader",
     cursor: "move",
   });
 
-  $popup.on("dblclick", () => $popup.slideUp("swing"));
-
+  $popup.on("dblclick", () => closeWatchlistPopup($popup));
   doExtraWatchlist();
 };
+
+function redrawPeopleTable() {
+  peopleTable.clear(); // Clear existing data
+  peopleTable.rows.add(ewData.filter((d) => d.type == "p")); // Add new/updated data
+  peopleTable.draw();
+  setTimeout(() => {
+    peopleTable.columns.adjust().draw();
+  }, 1000);
+}
+
+function redrawSpaceTable() {
+  spaceTable.clear(); // Clear existing data
+  spaceTable.rows.add(ewData.filter((d) => d.type == "s")); // Add new/updated data
+  spaceTable.draw();
+  setTimeout(() => {
+    spaceTable.columns.adjust().draw();
+  }, 1000);
+}
+
+function closeWatchlistPopup($popup) {
+  $popup.slideUp("swing");
+  $popup.remove();
+}
 
 // ====================================================================
 // BUTTON STATE UPDATE
@@ -571,44 +848,22 @@ const setPlusButton = () => {
   const id = getThisID();
   if (!id) return;
   const thisID = id.toString();
-  const extraList = localStorage.getItem("extraWatchlist");
-  if (extraList) {
-    const ids = extraList.split(",");
-    if (ids.includes(thisID)) {
-      $("#addToExtraWatchlistButton").addClass("onList").attr("title", "On your Extra Watchlist (click to remove)");
-    } else {
-      $("#addToExtraWatchlistButton").removeClass("onList").attr("title", "Add to your Extra Watchlist");
-    }
+  const ids = getWatchlistIds();
+  if (ids.includes(thisID)) {
+    const title = "On your Extra Watchlist (click to remove)";
+    $("#addToExtraWatchlistButton")
+      .addClass("onList") //.attr("title", "On your Extra Watchlist (click to remove)");
+      .attr("data-bs-title", title)
+      .attr(`data-tooltip`, title);
   } else {
-    $("#addToExtraWatchlistButton").removeClass("onList").attr("title", "Add to your Extra Watchlist");
+    const title = "Add to your Extra Watchlist";
+    $("#addToExtraWatchlistButton")
+      .removeClass("onList") //.attr("title", "Add to your Extra Watchlist");
+      .attr("data-bs-title", title)
+      .attr(`data-tooltip`, title);
   }
 };
 
-// ====================================================================
-// SECONDARY SORT (if needed)
-// ====================================================================
-export function secondarySort(rows, dataThing1, dataThing2, isText = 0) {
-  let lastOne = "Me";
-  let tempArr = [lastOne];
-  rows.each(function (index) {
-    if ($(this).data(dataThing1) == lastOne) {
-      tempArr.push($(this));
-    } else {
-      tempArr.sort((a, b) =>
-        isText == 1
-          ? $(a)
-              .data(dataThing2)
-              .localeCompare($(b).data(dataThing2), undefined, { numeric: true, sensitivity: "base" })
-          : $(a).data(dataThing2) - $(b).data(dataThing2)
-      );
-      tempArr.forEach((item) => {
-        if (lastOne != "Me") item.insertBefore(rows.eq(index));
-      });
-      tempArr = [$(this)];
-    }
-    lastOne = $(this).data(dataThing1);
-  });
-}
 // Make every link in the popup open in a new tab
 
 $(document).on("click", "#extraWatchlistWindow a[href*='wiki']", function (e) {
