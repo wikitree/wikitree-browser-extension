@@ -53,79 +53,159 @@ function init(options) {
     if (autoCollapse) {
       collapseAllSections();
       $(".collapse-all-toggle").text("+");
+    } else {
+      collapseSpecificSections(options);
     }
-
-    collapseSpecificSections(options);
   });
 }
 
-function createCollapsibleSections() {
-  headingLevels.forEach((level) => {
-    document.querySelectorAll(`h${level}`).forEach((heading) => {
-      if (shouldExcludeHeading(heading)) return;
+function wrapContent() {
+  const bodyText = $(".body-text");
+  if (bodyText.length === 0) return;
 
-      let anchor = heading.querySelector("a[name]") || heading.previousElementSibling;
-      if (anchor && anchor.tagName?.toLowerCase() === "a" && anchor.hasAttribute("name")) {
-        heading.id = anchor.getAttribute("name");
-      } else if (!heading.id) {
-        heading.id = heading.textContent.trim().replace(/\s+/g, "_");
-      }
+  const headings = bodyText.find("h1, h2, h3, h4, h5, h6");
+  const stack = [];
+  const headingCounters = {};
+  let transformedContent = $("<div></div>");
+  let beforeFirstHeading = $('<div class="before-headings"></div>');
 
-      const content = [];
-      let sibling = heading.nextSibling;
-
-      while (
-        sibling &&
-        (sibling.nodeType !== 1 || // Only process element nodes
-          !sibling.matches || // Ensure matches() is callable
-          (!sibling.matches(headingLevels.map((l) => `h${l}`).join(", ")) &&
-            !sibling.classList.contains("box") &&
-            !sibling.classList.contains("orange") &&
-            !sibling.classList.contains("rounded") &&
-            !sibling.closest("#Collaboration")))
-      ) {
-        if (!sibling.closest || !sibling.closest("#Matches")) {
-          content.push(sibling);
-        }
-        sibling = sibling.nextSibling;
-      }
-
-      // Preserve inline text content next to the heading
-      const inlineText =
-        heading.nextSibling && heading.nextSibling.nodeType === 3 ? heading.nextSibling.textContent.trim() : "";
-
-      if (inlineText) {
-        const textNode = document.createTextNode(inlineText);
-        content.unshift(textNode);
-      }
-
-      if (content.length > 0) {
-        const wrapper = document.createElement("div");
-        wrapper.className = "collapsible-section";
-        wrapper.id = heading.id + "-content";
-        wrapper.style.display = "block"; // Start expanded
-
-        // Ensure content[0] is a valid child of heading.parentNode
-        if (content[0].parentNode === heading.parentNode) {
-          heading.parentNode.insertBefore(wrapper, content[0]);
-          content.forEach((node) => wrapper.appendChild(node));
-        } else {
-          // Fallback: Append the wrapper after the heading if structure is inconsistent
-          heading.after(wrapper);
-          content.forEach((node) => wrapper.appendChild(node));
-        }
-      }
-    });
+  let firstHeadingFound = false;
+  bodyText.contents().each(function () {
+    if (!firstHeadingFound && !$(this).is("h1, h2, h3, h4, h5, h6")) {
+      beforeFirstHeading.append($(this));
+    } else {
+      firstHeadingFound = true;
+    }
   });
+
+  if (beforeFirstHeading.children().length > 0) {
+    transformedContent.append(beforeFirstHeading);
+  }
+
+  let currentContainer = transformedContent;
+
+  bodyText.contents().each(function () {
+    if ($(this).is("h1, h2, h3, h4, h5, h6")) {
+      const heading = $(this);
+      const level = parseInt(this.tagName.substring(1));
+
+      headingCounters[level] = (headingCounters[level] || 0) + 1;
+
+      const contentId = `hcl${level}${headingCounters[level]}`;
+      heading.attr("data-content-id", contentId);
+
+      const newDiv = $(`<div id="${contentId}" class="collapsible-section"></div>`);
+
+      while (stack.length > 0 && stack[stack.length - 1].level >= level) {
+        stack.pop();
+      }
+
+      if (stack.length > 0) {
+        stack[stack.length - 1].container.append(heading).append(newDiv);
+      } else {
+        transformedContent.append(heading).append(newDiv);
+      }
+
+      stack.push({ level, container: newDiv });
+      currentContainer = newDiv;
+    } else {
+      currentContainer.append($(this));
+    }
+  });
+
+  bodyText.empty().append(transformedContent.children());
+
+  // Handle any headings buried within other structures
+  // $(".body-text")
+  //   .find("h1, h2, h3, h4, h5, h6")
+  //   .filter(function () {
+  //     return !$(this).attr("data-content-id");
+  //   })
+  //   .each(function (index) {
+  //     const $heading = $(this);
+  //     const level = parseInt(this.tagName.substring(1), 10); // Extract heading level (h1 -> 1, h2 -> 2, etc.)
+  //     const contentId = `xhcl${level}${index}`;
+  //     const $wrapper = $(`<div id="${contentId}" class="collapsible-section"></div>`);
+  //     $heading.attr("data-content-id", contentId);
+
+  //     let $next = $heading.next();
+  //     while (
+  //       $next.length &&
+  //       (!$next.is("h1, h2, h3, h4, h5, h6") || parseInt($next.prop("tagName").substring(1), 10) > level)
+  //     ) {
+  //       let $temp = $next;
+  //       $next = $next.next();
+  //       $wrapper.append($temp);
+  //     }
+
+  //     $heading.after($wrapper);
+  //   });
+}
+
+function createCollapsibleSections() {
+  const bodyText = $(".body-text");
+  if (bodyText.length === 0) return;
+
+  const headings = bodyText.find("h1, h2, h3, h4, h5, h6");
+  const stack = [];
+  const headingCounters = {};
+  let transformedContent = $("<div></div>");
+  let beforeFirstHeading = $('<div class="before-headings"></div>');
+
+  let firstHeadingFound = false;
+  bodyText.contents().each(function () {
+    if (!firstHeadingFound && !$(this).is("h1, h2, h3, h4, h5, h6")) {
+      beforeFirstHeading.append($(this));
+    } else {
+      firstHeadingFound = true;
+    }
+  });
+
+  if (beforeFirstHeading.children().length > 0) {
+    transformedContent.append(beforeFirstHeading);
+  }
+
+  let currentContainer = transformedContent;
+
+  bodyText.contents().each(function () {
+    if ($(this).is("h1, h2, h3, h4, h5, h6")) {
+      const heading = $(this);
+      const level = parseInt(this.tagName.substring(1));
+
+      headingCounters[level] = (headingCounters[level] || 0) + 1;
+
+      const contentId = `hcl${level}${headingCounters[level]}`;
+      heading.attr("data-content-id", contentId);
+
+      const newDiv = $(`<div id="${contentId}" class="collapsible-section"></div>`);
+
+      while (stack.length > 0 && stack[stack.length - 1].level >= level) {
+        stack.pop();
+      }
+
+      if (stack.length > 0) {
+        stack[stack.length - 1].container.append(heading).append(newDiv);
+      } else {
+        transformedContent.append(heading).append(newDiv);
+      }
+
+      stack.push({ level, container: newDiv });
+      currentContainer = newDiv;
+    } else {
+      currentContainer.append($(this));
+    }
+  });
+
+  bodyText.empty().append(transformedContent.children());
 }
 
 function addCollapsibleButtons() {
   headingLevels.forEach((level) => {
-    $(`h${level}`).each(function () {
+    $(`.body-text h${level}`).each(function () {
       if (shouldExcludeHeading(this)) return;
 
-      const sectionId = this.id + "-content";
-      const $section = $("#" + escapeId(sectionId));
+      const sectionId = $(this).attr("data-content-id");
+      const $section = $(`#${sectionId}`);
       if ($section.length) {
         const isExpanded = $section.is(":visible");
         const $button = $(`
@@ -170,21 +250,39 @@ function collapseAllSections() {
 function collapseSpecificSections(options) {
   if (isProfilePage) {
     if (options.collapseProfilesBiography) collapseSectionByHeadingId("Biography");
-    if (options.collapseProfilesResearchNotes) collapseSectionByHeadingId("Research_Notes");
+    if (options.collapseProfilesResearchNotes) collapseSectionByHeadingId("Research Notes");
     if (options.collapseProfilesSources) collapseSectionByHeadingId("Sources");
     if (options.collapseProfilesAcknowledgments) collapseSectionByHeadingId("Acknowledgments");
   } else if (isSpacePage) {
-    if (options.collapseSpacesResearchNotes) collapseSectionByHeadingId("Research_Notes");
+    if (options.collapseSpacesResearchNotes) collapseSectionByHeadingId("Research Notes");
     if (options.collapseSpacesSources) collapseSectionByHeadingId("Sources");
     if (options.collapseSpacesAcknowledgments) collapseSectionByHeadingId("Acknowledgments");
   }
 }
 
-function collapseSectionByHeadingId(headingId) {
-  const $section = $("#" + escapeId(headingId) + "-content");
-  if ($section.length && !$section.closest("#Matches").length) {
-    $section.hide();
-  }
+function collapseSectionByHeadingId(heading) {
+  const contentIds = getContentIdsByHeadlineText(heading);
+  contentIds.forEach((id) => {
+    $(`#${id}`).hide();
+    $(`.collapse-toggle[data-target-id="${id}"]`).text("+");
+  });
+}
+
+function getContentIdsByHeadlineText(targetText) {
+  let contentIds = [];
+
+  $("span.mw-headline")
+    .filter(function () {
+      return $(this).text().trim().toLowerCase() === targetText.toLowerCase();
+    })
+    .each(function () {
+      let contentId = $(this).closest("h1, h2, h3, h4, h5, h6").attr("data-content-id");
+      if (contentId) {
+        contentIds.push(contentId);
+      }
+    });
+
+  return contentIds;
 }
 
 function attachCollapseToggleHandler() {
