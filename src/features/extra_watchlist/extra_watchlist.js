@@ -22,6 +22,7 @@ let loadedEwDataVersion = 0;
 let md5AtLoad = "";
 let peopleTable;
 let spaceTable;
+let isLoading = false;
 
 // ====================================================================
 // INITIALIZATION
@@ -56,9 +57,10 @@ const normalizeLocalStorage = () => {
 // ====================================================================
 
 // Returns [id-list, version, ewData]
+// Convert the stored version to a number for proper comparison.
 function getFullWatchlist() {
   const ids = getWatchlistIds();
-  const newVersion = localStorage.getItem("extraWatchlistVersion");
+  const newVersion = Number(localStorage.getItem("extraWatchlistVersion"));
   if (newVersion === loadedEwDataVersion) {
     console.log(`No need to load,  ids=${ids.length}`);
     return ids;
@@ -138,26 +140,6 @@ function watchlistInSync(ids) {
   //   console.log("In ewData but not in ids", b);
   // }
   return inSync;
-}
-
-function storageChangeListener(changes, namespace) {
-  const dataVersion = "extraWatchlistVersion";
-  if (namespace === "local" && changes[dataVersion]) {
-    const newVersion = changes[dataVersion].newValue;
-    console.log(`Storage change. Current version: ${loadedEwDataVersion} New version: ${newVersion}`);
-    if (+newVersion !== +loadedEwDataVersion) {
-      // console.log("Updating UI after storage change...");
-      if ($("#extraWatchlistWindow").length) {
-        console.log(`updateLocalData v${loadedEwDataVersion} (with popup) to ${newVersion}, current data`, ewData);
-        doExtraWatchlist();
-      } else {
-        console.log(`updateLocalData v${loadedEwDataVersion} (no popup) to ${newVersion}, current data`, ewData);
-        getFullWatchlist();
-      }
-      console.log(`updateLocalData, done`, ewData);
-      setPlusButton();
-    }
-  }
 }
 
 function arrayDifferences(a, b) {
@@ -310,6 +292,13 @@ function ewDataIds() {
 }
 
 const doExtraWatchlist = () => {
+  // Prevent overlapping calls
+  if (isLoading) {
+    console.log("Data fetch already in progress, skipping new fetch");
+    return;
+  }
+  isLoading = true;
+
   const userWtId = getUserWtId();
   if (userWtId) {
     window.userName = userWtId;
@@ -322,6 +311,7 @@ const doExtraWatchlist = () => {
         redrawPeopleTable();
         redrawSpaceTable();
         console.log(`Done redrawing ids=${ids.length}: ${ids.join(",")}`, ewDataIds());
+        isLoading = false;
       } else {
         console.log(`Fetch and draw  ids=${ids.length}: ${ids.join(",")}`, ewDataIds());
         const spacePages = ids.filter((x) => x.match("^Space%3A"));
@@ -329,7 +319,7 @@ const doExtraWatchlist = () => {
         ewData = [];
         const errors = [];
 
-        // Function to handle person pages in chunks of 1000
+        // Process person pages in chunks of 1000
         const handlePersonPages = () => {
           const personPromises = [];
           while (personPages.length) {
@@ -349,7 +339,7 @@ const doExtraWatchlist = () => {
           return Promise.all(personPromises);
         };
 
-        // Function to handle space pages
+        // Process space pages
         const handleSpacePages = () => {
           const spacePromises = spacePages.map(async (aKey) => {
             const fsp = await get_Profile(decodeURIComponent(aKey));
@@ -361,7 +351,7 @@ const doExtraWatchlist = () => {
           return Promise.all(spacePromises);
         };
 
-        // Execute both sets of promises and then call updateWatchList
+        // Execute both sets of promises and update the watchlist
         Promise.all([handlePersonPages(), handleSpacePages()])
           .then(() => {
             redrawSpaceTable();
@@ -373,11 +363,15 @@ const doExtraWatchlist = () => {
             }
             console.log(`Done Fetch and draw  ids=${ids.length}: ${ids.join(",")}`, ewDataIds());
             saveWatchList(newIds);
+            isLoading = false;
           })
           .catch((err) => {
             console.error("Error retrieving extra watchlist items:", err);
+            isLoading = false;
           });
       }
+    } else {
+      isLoading = false;
     }
   }
   if (Cookies.get("wikidb_wtb__session")) {
@@ -385,8 +379,33 @@ const doExtraWatchlist = () => {
   }
 };
 
+// Debounced storage change listener to avoid rapid-fire triggers.
+let debounceTimer = null;
+function storageChangeListener(changes, namespace) {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    const dataVersion = "extraWatchlistVersion";
+    if (namespace === "local" && changes[dataVersion]) {
+      const newVersion = Number(changes[dataVersion].newValue);
+      console.log(`Storage change. Current version: ${loadedEwDataVersion} New version: ${newVersion}`);
+      if (newVersion !== loadedEwDataVersion) {
+        if ($("#extraWatchlistWindow").length) {
+          console.log(`updateLocalData v${loadedEwDataVersion} (with popup) to ${newVersion}, current data`, ewData);
+          doExtraWatchlist();
+        } else {
+          console.log(`updateLocalData v${loadedEwDataVersion} (no popup) to ${newVersion}, current data`, ewData);
+          getFullWatchlist();
+        }
+        console.log(`updateLocalData, done`, ewData);
+        setPlusButton();
+      }
+    }
+    debounceTimer = null;
+  }, 300);
+}
+
 function setEmptyMessages() {
-  peopleTable.settings()[0].oLanguage.sEmptyTable = "You have no people profiles in your Extra Watchlist.";
+  peopleTable.settings()[0].oLanguage.sEmptyTable = "You have no person profiles in your Extra Watchlist.";
   spaceTable.settings()[0].oLanguage.sEmptyTable = "You have no space pages in your Extra Watchlist.";
 }
 
